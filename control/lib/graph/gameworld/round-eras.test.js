@@ -44,6 +44,7 @@ describe('a round\'s eras', () => {
     expect(() => readGameworld(W)).not.toThrow();
     const F = composeGameworld({ prompt: 'a medieval fantasy jrpg with a dungeon and a boss', seed: 3 });
     expect(F.brief.round.era).toBeUndefined();
-    expect(F.battles.foes).toBeUndefined();
+    // (only its boss written out, to edit, as the preset is: round-bosses.js)
+    expect(F.battles.foes).toEqual({ drake: FOE_PRESETS.drake });
   });
 });

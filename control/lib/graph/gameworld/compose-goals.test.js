@@ -268,8 +268,12 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     const V = run(C, [...(C.initial ?? []).map((e) => e.type), `rpg-won:${boss}`]);
     expect(V['flag-entered-core']).toBe(1);
     expect(V['flag-core-stormed']).toBe(1);
-    // (a round with no boss keeps the first two)
-    expect(composeGameworld({ prompt: 'a jrpg voyage across the sea to find my sister', seed: 3 }).quests[0].steps.map((s) => s.done)).toEqual(['found-castle-key', 'entered-core']);
+    // (a story the words named keeps its climax's boss, round-bosses.js: the sea's leviathan, its step the third)
+    const sea = composeGameworld({ prompt: 'a jrpg voyage across the sea to find my sister', seed: 3 });
+    expect(sea.quests[0].steps.map((s) => s.done)).toEqual(['found-castle-key', 'entered-core', 'core-stormed']);
+    expect(sea.battles.boss).toEqual(['leviathan']);
+    // (a round no story's words named, with no boss and no citadel, keeps the first two)
+    expect(composeGameworld({ prompt: 'a jrpg where a party battles monsters', seed: 3 }).quests?.[0]?.steps.map((s) => s.done) ?? []).not.toContain('core-stormed');
   });
 
   it('storms its citadel: the core a walled core, a guardhouse, its vault and the sanctum, fought through to the boss at its heart', () => {
@@ -300,7 +304,7 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     // real-time goal's boss)
     expect(last.goal?.boss).toBeUndefined();
     expect(W.battles).toMatchObject({ boss: ['drake'], bossPages: [{ when: { start: true } }, { when: { foe: 'drake', hpBelow: 0.5 } }] });
-    expect(W.brief.round.boss).toEqual({ pack: ['drake'], at: ids[ids.length - 1] });
+    expect(W.brief.round.boss).toEqual({ pack: ['drake'], at: ids[ids.length - 1], for: 'storm-the-citadel' });
     expect(W.levels[W.brief.round.castle].places.castle).toBeTruthy();
     expect(W.brief.round).toMatchObject({ dungeon: ids[ids.length - 1], trades: ['inn', 'temple'] });
     // (its UI the console RPG's plain blue windows, its fights one member's turn at a time)

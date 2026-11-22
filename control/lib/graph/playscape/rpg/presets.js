@@ -116,6 +116,11 @@ export const SKILL_PRESETS = Object.freeze({
   'dark-bolt': { name: 'Dark Bolt', mp: 3, target: 'foe', power: 7, stat: 'mag', scale: 0.8, element: 'dark' },
   'fire-breath': { name: 'Fire Breath', mp: 6, target: 'foes', power: 8, stat: 'mag', scale: 0.7, element: 'fire' },
   mend: { name: 'Mend', mp: 4, target: 'ally', power: 12, stat: 'mag', scale: 0.8, heal: true },
+  // what the story's bosses use (gameworld/round-bosses.js)
+  'tidal-wave': { name: 'Tidal Wave', mp: 6, target: 'foes', power: 8, stat: 'mag', scale: 0.7, element: 'ice' },
+  gale: { name: 'Gale', mp: 6, target: 'foes', power: 8, stat: 'mag', scale: 0.7, element: 'thunder' },
+  quake: { name: 'Quake', mp: 0, target: 'foes', power: 8, stat: 'atk', scale: 0.9 },
+  'war-cry': { name: 'War Cry', mp: 0, target: 'self', buff: { stat: 'atk', pct: 0.4, rounds: 3 } },
 });
 
 const drop = (item, chance) => Object.freeze({ item, chance });
@@ -147,6 +152,39 @@ export const FOE_PRESETS = Object.freeze({
       below: 0.5, say: '{name}\'s scales blaze white-hot!', weak: ['thunder'], absorb: ['fire', 'ice'], atk: 30, mag: 28,
       pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'fire-breath', when: { every: 2 }, charge: '{name} gathers its fire…', weight: 9 }],
     }],
+  },
+  // THE STORY'S BOSSES (gameworld/round-bosses.js: the climax each kind of story calls for), each held to the boss law
+  // like the drake (gameworld/boss-law.deep.test.js): a charged blow telegraphed, and a second form under half its HP
+  // that turns its weaknesses round. A world writes each out whole in its battles (`battles.foes.<id>`) to edit.
+  leviathan: {
+    name: 'Leviathan', hp: 720, mp: 90, atk: 24, def: 12, mag: 21, spd: 9, xp: 80, gold: 120, cp: 5, weak: ['thunder'], absorb: ['ice'], immune: ['sleep', 'poison'], skills: ['tidal-wave', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
+    pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'tidal-wave', when: { every: 3 }, charge: 'The sea rises behind {name}…', weight: 9 }],
+    phases: [{ below: 0.5, say: '{name} sheds its frozen scales!', weak: ['fire'], absorb: ['ice', 'thunder'], mag: 26,
+      pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'tidal-wave', when: { every: 2 }, charge: 'The sea rises behind {name}…', weight: 9 }] }],
+  },
+  champion: {
+    name: 'The Champion', hp: 540, mp: 40, atk: 21, def: 14, mag: 8, spd: 10, xp: 80, gold: 160, cp: 5, immune: ['sleep'], skills: ['power-strike', 'shield-bash'], boss: true, drops: [drop('hi-potion', 1)],
+    pattern: [{ use: 'attack', weight: 4 }, { use: 'power-strike', weight: 3 }, { use: 'shield-bash', weight: 2 }, { use: 'power-strike', when: { every: 3 }, charge: '{name} raises the blade high…', weight: 9 }],
+    phases: [{ below: 0.5, say: '{name} casts the shield aside!', def: 8, atk: 25, spd: 14,
+      pattern: [{ use: 'attack', weight: 3 }, { use: 'power-strike', weight: 4 }, { use: 'cleave', when: { every: 3 }, charge: '{name} sets both hands to the blade…', weight: 9 }] }],
+  },
+  warlord: {
+    name: 'The Warlord', hp: 950, mp: 40, atk: 30, def: 12, mag: 6, spd: 7, xp: 80, gold: 140, cp: 5, weak: ['fire'], immune: ['sleep'], skills: ['cleave', 'war-cry'], boss: true, drops: [drop('hi-potion', 1)],
+    pattern: [{ use: 'attack', weight: 4 }, { use: 'war-cry', when: { turn: 1 } }, { use: 'cleave', when: { every: 3 }, charge: '{name} hefts the great axe…', weight: 9 }],
+    phases: [{ below: 0.5, say: '{name} roars, and the fire no longer bites!', weak: ['thunder'], resist: ['fire'], atk: 34,
+      pattern: [{ use: 'attack', weight: 4 }, { use: 'war-cry', when: { every: 4 }, weight: 9 }, { use: 'cleave', when: { every: 2 }, charge: '{name} hefts the great axe…', weight: 9 }] }],
+  },
+  roc: {
+    name: 'Thunderbird', hp: 700, mp: 90, atk: 22, def: 10, mag: 22, spd: 10, xp: 80, gold: 120, cp: 5, weak: ['ice'], absorb: ['thunder'], immune: ['sleep', 'poison'], skills: ['gale', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
+    pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'gale', when: { every: 3 }, charge: '{name} spreads its wings as the sky darkens…', weight: 9 }],
+    phases: [{ below: 0.5, say: 'Lightning crackles through {name}\'s feathers!', weak: ['fire'], absorb: ['thunder', 'ice'], spd: 12, mag: 25,
+      pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'gale', when: { every: 2 }, charge: '{name} spreads its wings as the sky darkens…', weight: 9 }] }],
+  },
+  colossus: {
+    name: 'The Colossus', hp: 900, mp: 0, atk: 30, def: 20, mag: 4, spd: 6, xp: 80, gold: 120, cp: 5, weak: ['thunder'], resist: ['fire', 'ice'], immune: ['sleep', 'poison'], skills: ['quake'], boss: true, drops: [drop('hi-potion', 1)],
+    pattern: [{ use: 'attack', weight: 5 }, { use: 'quake', when: { every: 3 }, charge: 'The ground trembles as {name} rises…', weight: 9 }],
+    phases: [{ below: 0.5, say: '{name}\'s crystal core lies bare!', def: 8, spd: 8, weak: ['fire', 'ice'], resist: ['thunder'],
+      pattern: [{ use: 'attack', weight: 5 }, { use: 'quake', when: { every: 2 }, charge: 'The ground trembles as {name} rises…', weight: 9 }] }],
   },
 });
 

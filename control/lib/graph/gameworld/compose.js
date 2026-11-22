@@ -44,6 +44,7 @@ import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
 import { gmnOfWords, resolveGmn, stampGameBrief, MOTIVATIONS } from './gmn.js';
 import { roundEraOf, eraBattles } from './round-eras.js';
+import { bossOfLabour, roundBossBattles } from './round-bosses.js';
 import { settingOfGame, ERA_OF_KIT } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
@@ -158,12 +159,6 @@ const ROUND_MANDALA = Object.freeze({ key: (core) => `${core}-key` });
 // gate: the priest (every turn-based town keeps a temple) says where the core's key is kept until it is held, then that
 // the way is open. Their words, the composer's starter: the operator's `say` takes their place
 const ROUND_TALK = Object.freeze({ who: 'priest' });
-// the round's boss (playscape/rpg/presets.js: the drake, the one preset boss, tuned to want level 5 and its weakness), its
-// fight's own pages (play.rpg encounters' `pages`): what it says as the fight begins, and at half its HP
-const ROUND_BOSS = Object.freeze({ pack: Object.freeze(['drake']), pages: (place, who = 'Ember Drake') => [
-  { when: { start: true }, who, say: `None who come into ${place} leave it.` },
-  { when: { foe: 'drake', hpBelow: 0.5 }, who, say: ['You burn brighter than the others did.', 'Then burn out!'] },
-] });
 // a party RPG's brief where its words name none (gmn.js): save the world, by storming the citadel (a mandala, a walled
 // core at its middle)
 // THE ROUND'S QUEST (the journal's): its name the motivation's, its steps the key, the way in and the boss; each raised
@@ -617,15 +612,18 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     Object.assign(world, stampMegaworld(world), { hub: hubId });
     world.brief.round = { ...world.brief.round, [roundShape === 'mandala' ? 'mandala' : 'way']: { core, ...gate }, talk: { who: ROUND_TALK.who, pages: 2, on: gate.key } };
     // THE ROUND'S BOSS: a turn-based world's boss is a party battle (battles.js `boss`, the last pack, no escape from it),
-    // never the real-time goal's: the boss the words name at the core is ROUND_BOSS's pack, its fight's own pages a line
-    // as it begins and one at half its HP; the core's goal keeps what else it holds
+    // never the real-time goal's: the one its story calls for (round-bosses.js: the citadel's drake, the far shore's
+    // leviathan, the final hall's champion…), in its era, written out whole (its numbers, its telegraphed blow, its
+    // second form, its look, its height, its fight's lines) for the person to change; the core's goal keeps what else
+    // it holds
     const C = world.levels[core];
-    // (a citadel's core keeps its boss whether or not the words named one)
-    if (C.goal?.boss || (citadelClimax && dungeoned)) {
+    // (a citadel's core keeps its boss whether or not the words named one; a story the words named, its climax's)
+    if (C.goal?.boss || (citadelClimax && dungeoned) || namedLabour) {
       const { boss: _b, ...rest } = C.goal ?? {};
       if (Object.keys(rest).length) C.goal = rest; else if (C.goal) delete C.goal;
-      world.battles = { ...(world.battles ?? {}), boss: [...ROUND_BOSS.pack], bossPages: ROUND_BOSS.pages(low(C.name ?? core), eraRow?.boss.name) };
-      world.brief.round = { ...world.brief.round, boss: { pack: [...ROUND_BOSS.pack], at: core } };
+      const id = bossOfLabour(roundResolved?.labour), RB = roundBossBattles(id, { era: eraRow, place: low(C.name ?? core) }), B0 = world.battles ?? {};
+      world.battles = { ...B0, boss: RB.boss, bossPages: RB.bossPages, foes: { ...(B0.foes ?? {}), ...RB.foes }, looks: { ...(B0.looks ?? {}), ...RB.looks }, heights: { ...(B0.heights ?? {}), ...RB.heights } };
+      world.brief.round = { ...world.brief.round, boss: { pack: [...RB.boss], at: core, for: roundResolved?.labour ?? null } };
     }
     // THE CITADEL (a labour whose climax is one: storm the citadel): the core a WALLED CORE (wcd/wcd.js) over its level,
     // layer on layer on its critical path: its guardhouse (an outer, crossed), its vault (the dungeon the words named,

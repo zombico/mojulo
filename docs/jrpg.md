@@ -195,6 +195,36 @@ form are each worth winning, and the fight lasts 8 to 20 rounds. The drake breat
 under half its HP its scales blaze (its second form): it drinks the cold that hurt it and fears thunder, bites and
 breathes harder, and charges its breath every second turn. A boss retuned, or a new one, answers to the law.
 
+**The story's bosses.** A party RPG's boss is the one its story calls for (`gameworld/round-bosses.js`, by the brief's
+labour, `gmn.js`): the Ember Drake guards a citadel and the innermost cave, a Leviathan waits at the far shore of a sea
+voyage, the Champion in the final hall of a tournament, the Warlord in the last stronghold of a conquest, the
+Thunderbird at the end of the map when the party is catching them all, and the Colossus beneath what opens once every
+task is done. Each is a preset foe (`playscape/rpg/presets.js`) with a telegraphed blow and a second form that turns its
+weaknesses round, a look and its kind's arms (`battles.js` `FOE_LOOKS`, `FOE_ARMS`), a height, and lines as its fight
+begins and at half its HP; each has its era's version (`round-eras.js`, its name and look among the era's foes), and each
+is held to the boss law (`gameworld/boss-law.deep.test.js`). A story the words named always lays its boss at the core.
+
+**Editing a boss.** A composed world writes its boss out whole in its battles, so every part of it is the person's to
+change with `update_sketch`:
+
+```json
+{ "battles": {
+  "boss": ["leviathan"],
+  "foes": { "leviathan": { "name": "Old Tidecaller", "hp": 720, "atk": 24, "def": 12, "mag": 21, "spd": 9, "boss": true,
+    "weak": ["thunder"], "absorb": ["ice"], "skills": ["tidal-wave", "bite"],
+    "pattern": [{ "use": "bite" }, { "use": "tidal-wave", "when": { "every": 3 }, "charge": "The sea rises behind {name}…" }],
+    "phases": [{ "below": 0.5, "say": "{name} sheds its frozen scales!", "weak": ["fire"], "absorb": ["ice", "thunder"] }] } },
+  "looks": { "leviathan": { "species": "seaSerpent", "ooze": "frost" } },
+  "heights": { "leviathan": 3 },
+  "bossPages": [{ "when": { "start": true }, "say": "The water begins to churn." }]
+} }
+```
+
+Its numbers, its pattern and phases, its look (any beast in a character door's words, a people with `gear` of its
+own), its height (`heights`, 0.3 to 12 m, a beast's) and its lines are each a field. `boss` may name another preset, or
+a foe of the world's own defined in `foes` beside it, with its own look and height: a person's own boss is laid as
+readily as a starter. A boss retuned answers to the boss law where it is a preset.
+
 **Traits** (RPG Maker's traits, the three a fight reads), on a class or a piece of gear: `resist` (elements taken at
 half), `immune` (elements taken not at all) and `ward` (states warded off). A member carries its class's and what it
 wears, gathered as it stands, so a ring against fire is put on before the drake.

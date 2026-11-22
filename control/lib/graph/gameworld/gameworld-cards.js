@@ -13,6 +13,7 @@
  *
  * Pure.
  */
+import { ROUND_BOSS_IDS } from './round-bosses.js';
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
 import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet, variantOf } from './rails.js';
 import { COATS } from '../mount/coats.js';
@@ -928,7 +929,7 @@ const quickShared = () => [
 function battlesCard() {
   return lines(
     'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, bossPages?, foe?, looks?,',
-    '  shops?, rest?, random?, classes?, skills?, foes?, items?, states?, rules?, manual?, tree?, wins?, chests? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
+    '  heights?, shops?, rest?, random?, classes?, skills?, foes?, items?, states?, rules?, manual?, tree?, wins?, chests? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
@@ -940,10 +941,10 @@ function battlesCard() {
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
     '        last (a building\'s: its goal room), with no escape; sets: the story flag its fall sets (a quest\'s last step).',
-    '        foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
-    '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
+    '        foe: one look for every foe (hero-door words, or a beast { species, ooze?, stylism? }); walk up to fight.',
     'looks   each foe its own: { <foe id>: { species, ooze?, stylism? } a beast | { people, facets?, dress? } a people (a',
-    '        lineage, the beast-kin: lupine, feline …, the undead: skeleton, zombie) | hero-door words }; the presets\' own.',
+    '        lineage, the beast-kin, the undead) | hero-door words }; heights: { <foe id>: metres } a beast\'s.',
+    `boss    composed: its story's (${ROUND_BOSS_IDS.join(', ')}), written to edit.`,
     `wins    { <class>: <pose> } a class's victory pose (starters: ${Object.values(WIN_OF_CLASS).join(', ')}).`,
     'chests  n (0-4) chests per fighting stage, off its path: E opens one.',
     'shops   a merchant (wares by how far on, bought back at half) and an inn (a night: HP, MP, cured) beside each fighting',
@@ -954,8 +955,8 @@ function battlesCard() {
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
     '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
-    'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss?, pattern? } }: a row',
-    '        REPLACES its preset whole, its skills and drops too. pattern, bossPages, states: play.rpg (PARTY BATTLES).',
+    'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss?, pattern?, phases? } }: a row',
+    '        REPLACES its preset whole. pattern, phases, bossPages, states: play.rpg (PARTY BATTLES).',
     'manual  a setting\'s creatures, fielded: { polarity, creatures: [{ id, element, role }], affinity?, levels? } (a',
     '        lorecube manual at any depth): its foes, their skills and looks, a ladder of packs by role and level, its boss;',
     '        the page\'s own foes, looks, packs and boss win. What it lacks is derived and said (`lore`): write it to own it.',

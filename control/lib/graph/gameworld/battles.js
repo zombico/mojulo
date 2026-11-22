@@ -21,6 +21,8 @@
  *     looks?: { <foe id>: beast | people | person },   each foe's own look in a character door's words (FOE_LOOKS):
  *                          { species, ooze?, stylism? } a beast; { people, facets?, dress? } a people (a lineage, the
  *                          beast-kin, the undead: skeleton, zombie, ragged, rotting…); a person through the hero door
+ *     heights?: { <foe id>: metres },   how tall a beast foe stands in a fight (FOE_HEIGHT by default; a foe with none
+ *                          stands at its species' own size)
  *     rest?: false,        no rest at each stage's start (default: E there restores HP and MP; where an inn stands, it is
  *                          the rest)
  *     shops?: false | { wares?, inn? },   a merchant and an innkeeper beside each fighting stage's start (default on):
@@ -104,6 +106,12 @@ export const FOE_LOOKS = Object.freeze({
   wisp: { species: 'greatHornedOwl', ooze: 'shadow' },
   golem: { species: 'brownBear', ooze: 'crystal' },
   drake: { species: 'velociraptor', ooze: 'fire' },
+  // (the story's bosses, round-bosses.js)
+  leviathan: { species: 'seaSerpent', ooze: 'frost' },
+  roc: { species: 'baldEagle', ooze: 'storm' },
+  colossus: { species: 'mammoth', ooze: 'crystal' },
+  champion: { people: 'human' },
+  warlord: { people: 'orcish' },
   goblin: { people: 'orcish' },
   shaman: { people: 'orcish' },
   bandit: BATTLE_FOE,
@@ -121,13 +129,17 @@ export const FOE_ARMS = Object.freeze({
   goblin: Object.freeze({ right: 'cudgel' }),
   shaman: Object.freeze({ right: 'bone-club' }),
   skeleton: Object.freeze({ right: 'rusted-sword', left: 'cracked-round' }),
+  // (the story's bosses: the champion's longsword and kite shield, the warlord's great axe)
+  champion: Object.freeze({ right: 'old-longsword', left: 'old-kite' }),
+  warlord: Object.freeze({ right: 'grave-axe' }),
 });
 /** A battle foe's gear as the hero door takes it (laws-2 builds), or null: its look's own, else its kind's row (`key` the
  * foe kind, or 'foe' for the one look every foe stands in). */
 export function foeGearOf(look, key) {
   if (isObj(look) && isObj(look.gear)) return structuredClone(look.gear);
-  // (a kind's arms go with its own look: one the world dresses its own way, an era's, holds only what that look says)
-  const row = key !== 'foe' && isPeopleLook(look) && look === FOE_LOOKS[key] ? FOE_ARMS[key] : null;
+  // (a kind's arms go with its own look, written out or not: one the world dresses its own way, an era's, holds only
+  // what that look says)
+  const row = key !== 'foe' && isPeopleLook(look) && FOE_LOOKS[key] && JSON.stringify(look) === JSON.stringify(FOE_LOOKS[key]) ? FOE_ARMS[key] : null;
   return row ? Object.fromEntries(Object.entries(row).map(([slot, name]) => [slot, { type: 'equipment', ...structuredClone(ARMORY_ARMS[name]), laws: 2, armory: name }])) : null;
 }
 // a battle people's sheet: its skin rolled in the game's setting as a caster where its foe fights by magic, else as a
@@ -138,14 +150,16 @@ export function battlePeopleRoll(G, kind, look) {
 }
 // the height a beast foe stands at in a fight (metres), whatever its species' own: a monster's presence, not the animal's
 // (a slime grown from a frog stands knee-high, a golem from a bear over a person); a foe not here stands at its own size
-export const FOE_HEIGHT = Object.freeze({ slime: 0.7, bat: 0.9, spider: 0.8, shroom: 0.9, wisp: 1.2, golem: 2.3, drake: 2.6 });
+export const FOE_HEIGHT = Object.freeze({ slime: 0.7, bat: 0.9, spider: 0.8, shroom: 0.9, wisp: 1.2, golem: 2.3, drake: 2.6, leviathan: 3, roc: 2.4, colossus: 3.4 });
+// (the book's own, battles.heights, over these)
+const heightOf = (G, kind) => G.battles?.heights?.[kind] ?? FOE_HEIGHT[kind];
 // how far a foe kind reaches round its middle as it stands (metres): a beast at its fight height by its species' build
 const reachOf = (G, kind) => {
   const look = foeLookOf(G, kind);
   if (isPeopleLook(look)) return 0.35;
-  if (!beastLook(look) || !FOE_HEIGHT[kind] || G.battles?.foe) return 0.3;
+  if (!beastLook(look) || !heightOf(G, kind) || G.battles?.foe) return 0.3;
   const m = bodyOf(look.species, { ooze: look.ooze });
-  return Math.min(2.5, Math.max(0.15, m.extent * (FOE_HEIGHT[kind] / Math.max(0.05, m.height)) * 0.5));
+  return Math.min(2.5, Math.max(0.15, m.extent * (heightOf(G, kind) / Math.max(0.05, m.height)) * 0.5));
 };
 /** The look a foe stands in: the world's one foe look where it writes it, else the foe's own, else the plain one. */
 export const foeLookOf = (G, id) => G.battles?.foe ?? G.battles?.looks?.[id] ?? FOE_LOOKS[id] ?? BATTLE_FOE;
@@ -161,7 +175,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -230,6 +244,8 @@ export function readBattles(v, characters = null, ids = null) {
   if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
+  // (how tall each beast foe stands in a fight)
+  if (v.heights !== undefined && !(isObj(v.heights) && Object.values(v.heights).every((h) => typeof h === 'number' && h >= 0.3 && h <= 12))) throw err('.heights is { <foe id>: metres, 0.3 to 12 }: how tall a beast foe stands in a fight');
   // (each foe's own look, in a character door's words: a beast, a people, or a person's spec)
   if (v.looks !== undefined) {
     if (!isObj(v.looks)) throw err('.looks is { <foe id>: a beast { species, ooze?, stylism? } | a people { people, facets?, dress? } | a person (the hero door\'s spec) }');
@@ -424,10 +440,10 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
       // (a beast with its other ways at a foe as its acts: a snap, a maul, its roar; egocube/moves.js beastMovesOf)
       stand({ figures, entities }, fid, foeFigure(fref, look, { battle: true }), at, h);
       // (a beast drawn at its foe's height: its body scaled, what it collides with and where it is hit with it)
-      if (beastLook(look) && FOE_HEIGHT[kind] && !G.battles?.foe) {
-        const m = bodyOf(look.species, { ooze: look.ooze }), k = FOE_HEIGHT[kind] / Math.max(0.05, m.height), x = m.extent * k, e = entities.at(-1);
-        e.body = { ...e.body, scale: r3(k), egg: { a: r3(Math.max(0.2, x * 0.3)), c: r3(FOE_HEIGHT[kind] / 2), cz: r3(FOE_HEIGHT[kind] / 2) } };
-        e.rule = { ...e.rule, collideHeight: FOE_HEIGHT[kind], collideRadius: r3(Math.min(2.5, Math.max(0.15, x * 0.25))) };
+      if (beastLook(look) && heightOf(G, kind) && !G.battles?.foe) {
+        const H = heightOf(G, kind), m = bodyOf(look.species, { ooze: look.ooze }), k = H / Math.max(0.05, m.height), x = m.extent * k, e = entities.at(-1);
+        e.body = { ...e.body, scale: r3(k), egg: { a: r3(Math.max(0.2, x * 0.3)), c: r3(H / 2), cz: r3(H / 2) } };
+        e.rule = { ...e.rule, collideHeight: H, collideRadius: r3(Math.min(2.5, Math.max(0.15, x * 0.25))) };
       }
       return fid;
     });

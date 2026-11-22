@@ -244,3 +244,14 @@
   ways, held to a boss's shape (a careful party wins nearly always, a careless one mostly falls, one that skipped the
   ladder's last fights wins less, bracing and reading the second form are each worth winning, 8 to 20 rounds).
   Before, a careless party at level 3 beat it seven times in eight.
+- **The story's bosses, starters to edit.** A party RPG's boss is the one its story calls for
+  (`gameworld/round-bosses.js`, by the brief's labour): the Ember Drake (a citadel, the innermost cave), a Leviathan (a
+  sea voyage's far shore), the Champion (a tournament's final hall), the Warlord (a conquest's last stronghold), the
+  Thunderbird (catching them all) and the Colossus (once every task is done). Each is a new preset foe with a
+  telegraphed blow and a second form that turns its weaknesses round, a look, its kind's arms (the champion's
+  longsword and kite shield, the warlord's great axe), a height, lines for its fight and its era's versions; four new
+  skills carry them (Tidal Wave, Gale, Quake, War Cry). A composed world writes its boss out whole in its battles
+  (`foes`, `looks`, a new `heights` key, `bossPages`), so every part is the person's to change, or to replace with a
+  boss of their own; a people foe's arms now follow its look written out as well as its preset. A story the words named
+  now always lays its boss (a sea voyage had none before). Each starter is held to the boss law by a new deep sweep,
+  `gameworld/boss-law.deep.test.js`, on the law's harness, `gameworld/boss-law.fixture.js`.
