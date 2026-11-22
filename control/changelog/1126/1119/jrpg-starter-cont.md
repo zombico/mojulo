@@ -255,3 +255,12 @@
   boss of their own; a people foe's arms now follow its look written out as well as its preset. A story the words named
   now always lays its boss (a sea voyage had none before). Each starter is held to the boss law by a new deep sweep,
   `gameworld/boss-law.deep.test.js`, on the law's harness, `gameworld/boss-law.fixture.js`.
+- **Not everyone wears a necklace; bosses are named whole.** The character designer's focal piece by archetype
+  (`egocube/outfit.js` `FOCAL`) gave eight of twelve archetypes a medallion, so a crowd was all pendants. A necklace is
+  now the emblem only of those who keep one (the ruler's chain of office, the sage's and the magician's amulet); the
+  others are told by a piece of their own: the innocent's and the caregiver's sash, the lover's arm rings, the
+  explorer's satchel, the everyman's belt (its buckle in the accent), the jester's collar, the creator's pouches, and an
+  unarmoured hero its belt (bracers where the cut already draws its own belt, so no figure wears two). A belt's buckle in the trim now counts toward the outfit's repetition law, as a sash's knot
+  does. The beast-kin body's designed pins moved with its default dress (the body itself unchanged). The people bosses'
+  looks name their facets, so neither rolls a child or an elder: the Champion an adult hero of heroic build, the
+  Warlord a seasoned outlaw of brute build (its baldric and cloak); their era versions alike.

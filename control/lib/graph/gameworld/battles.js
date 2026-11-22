@@ -110,8 +110,10 @@ export const FOE_LOOKS = Object.freeze({
   leviathan: { species: 'seaSerpent', ooze: 'frost' },
   roc: { species: 'baldEagle', ooze: 'storm' },
   colossus: { species: 'mammoth', ooze: 'crystal' },
-  champion: { people: 'human' },
-  warlord: { people: 'orcish' },
+  // (a boss's people are named whole, never rolled to a child or an elder: the champion a hero in its prime, the warlord
+  // a seasoned outlaw of brute build, who took what it rules)
+  champion: { people: 'human', facets: { age: 'adult', build: 'heroic', archetype: 'hero' } },
+  warlord: { people: 'orcish', facets: { age: 'seasoned', build: 'brute', archetype: 'outlaw' } },
   goblin: { people: 'orcish' },
   shaman: { people: 'orcish' },
   bandit: BATTLE_FOE,
