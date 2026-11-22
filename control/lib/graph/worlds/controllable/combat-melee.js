@@ -177,12 +177,10 @@ export function buildCombatMelee(E) {
         continue;
       }
       if (kind === 'clang') {
-        // (met blades ring: a spark at the cross, the struck one's guard sound, no damage, nothing stopped)
-        e.struckThisSwing[tg.id] = true;
+        // (met blades ring: a spark at the cross, nothing stopped, and the blow LANDS as a hit, below: a foe mid-swing is
+        // not defending. One that is, its guard up, blocks with the clang: guardMeets, never a parry)
         const ux = -v[0] / flat, uy = -v[1] / flat, lr = latR(tg);
-        tg.guardSeq = (tg.guardSeq || 0) + 1; tg.lastGuard = { seq: tg.guardSeq, kind: 'block', by: e.id, t: state.time, at: 0 };
         state.clashes.push({ seq: state.clashSeq++, pos: [tg.transform.pos[0] + ux * lr, tg.transform.pos[1] + uy * lr, hullZ(tg)], dir: [ux, uy], t: state.time, fxColor: 0xcfe8ff, fxScale: 2.5, n: 16 });
-        continue;
       }
       if (kind === 'clash') {
         e.struckThisSwing[tg.id] = true;
@@ -517,7 +515,8 @@ export function buildCombatMelee(E) {
     const can = e.swingT == null && !ctx.dodging && e.staggerT == null && e.grounded !== false && !(e.weapon && e.weapon.charging) && !(St && e.guardSt <= 0 && !e.guarding);
     const want = !!input.guard;
     if (want && !e.guarding && can) { e.guarding = true; e.guardAt = now; }
-    else if (e.guarding && e.blockT <= 0 && (!want || !can)) e.guarding = false;
+    // (`blockT` is unset until the guard first blocks: a guard never struck still comes down when let go)
+    else if (e.guarding && !(e.blockT > 0) && (!want || !can)) e.guarding = false;
   }
   // a blow (attacker A's swing, `v` from A to the guard's body) meets the guard `tg`: 'parry', 'block', or null (it lands)
   function guardMeets(tg, A, v, flat, state) {

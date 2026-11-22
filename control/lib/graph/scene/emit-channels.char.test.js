@@ -991,6 +991,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // Re-pinned 2026-11-21 (1116-rc merged into 1115-stylish-action-rails): the fixtures both lines moved, together; the
 // runtime the page embeds carries this line's clang, combat run and held weapon beside the candidate's, and the game UI
 // runtime's HUD host this line's style meter and vitals beside the candidate's talk box and pilot strip.
+// Re-pinned 2026-11-22 (the clang lands; a guard never struck comes down): the runtime the page embeds (combat-melee.js)
+// lands a clanging hero's blow on a foe mid-swing (the spark kept, no lock, no block: the foe is not defending), and a
+// guard raised before its first block comes down when let go (`blockT` unset read as none). A hero without `clang` and a
+// guard that has blocked run as before; every fixture that embeds the controllable runtime re-pinned with it.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);
