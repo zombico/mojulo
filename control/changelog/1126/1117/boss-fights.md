@@ -26,3 +26,25 @@ of, each held to laws a body facing it needs.
   - the gunship: attack runs met behind cover, launcher rounds into its rotor hub while it hovers to turn;
   - the walker: launcher rounds strip its leg plating and its bared knees break, and kneeling, its cockpit is in reach.
   Its laws hold it winnable with the arms in hand: no tank without mines, no walker without a launcher.
+- **Played** (`worlds/controllable/boss.js`):
+  - A human boss fights with its mind between moves. It takes a move at its phase's tempo and is planted through the
+    move's tell and hazards; a charge carries it down its lane.
+  - Its hazards land on a body standing in them, never through a dive, under a crouch, or behind cover from their
+    origin.
+  - Its opening takes half again.
+  - A phase crossed runs its event: the rim burns, it changes perch, cover is torn out, the floor goes live, the crew
+    is woken.
+  - A vehicle is driven by its state: along its route, on its runs and hovers, stranded. Each hit on it is judged by
+    part after the step.
+  - `E.bossHit` judges a hit another module lands.
+  - Emitted only where a world has a boss.
+- **Land mines** (`worlds/controllable/mines.js`, the kit's `mine`): laid at the feet on the trigger, armed after a
+  moment, tripped by a person of another team near it or a vehicle over it. A vehicle it goes off under is told, and
+  its track breaks.
+- **Seen** (`scene/channels/controllable/boss-view.js`):
+  - each hazard's mark on the floor, filling as its landing nears, then the landing itself;
+  - the mines arming and armed;
+  - a vehicle's dress and parts, with its weak spot beating red while it can be hit and a broken track wrecked.
+  - The HUD draws the boss across the top: its name, its title, and its health with a tick between its phases.
+- The spike `scripts/spikes/mission/boss.mjs` stands each boss in an arena laid for what it wants, the operative
+  carrying the kit that beats it. Craft in `docs/boss-fights.md`.

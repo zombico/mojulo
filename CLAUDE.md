@@ -400,6 +400,10 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
+  measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
+  and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
+  mines, `mines.js`), seen by `scene/channels/controllable/boss-view.js`: [docs/boss-fights.md](docs/boss-fights.md).
 - Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
   ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
   room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world

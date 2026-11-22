@@ -906,7 +906,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // the level's in-play HUD on mana-ui (channels/mana-hud.js): a level that carries one; absent, not a byte
   // (a building's stairs, their footprints and floors, storeys.js anchors: the follow camera's stair rule)
   const stairZones = Array.isArray(anchors) ? (((Z) => (Z.length ? Z : null))(anchors.filter((a) => a && a.kind === 'stair' && Array.isArray(a.rect) && Array.isArray(a.at) && Array.isArray(a.to)).map((a) => ({ rect: a.rect, z0: Math.min(a.at[2], a.to[2]), z1: Math.max(a.at[2], a.to[2]) })))) : null;
-  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner, ...(radarMap ? { radarMap } : {}), talk: hasEvents && Array.isArray(events.scenes) && events.scenes.length > 0 && (talkFaces ? { faces: true, speakers: events.speakers || {} } : true) }) : '';
+  const manaHudBlock = manaHud && !capture ? manaHudScript(manaHud, { game: !!game, rows: events?.hud ?? null, register: events?.register ?? null, touch: !!screen && !courseTouch && !runner, ...(radarMap ? { radarMap } : {}), ...(Array.isArray(entities) && entities.some((e) => e && e.rule && e.rule.boss) ? { boss: true } : {}), talk: hasEvents && Array.isArray(events.scenes) && events.scenes.length > 0 && (talkFaces ? { faces: true, speakers: events.speakers || {} } : true) }) : '';
   const versusBlock = versus && !capture ? versusChannelScript(versus) : '';
   // a brawl on the world (lib/graph/brawl: the practice yard): it owns the camera; never on a capture run
   const brawlBlock = brawl && !capture ? brawlChannelScript(brawl) : '';

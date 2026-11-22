@@ -59,6 +59,9 @@ export const ARMS_KIT = Object.freeze({
   stun: { thrown: 'stun', as: 'thrown', name: 'stun grenade' },
   chaff: { thrown: 'chaff', as: 'thrown', name: 'chaff grenade' },
   bow: { bow: true, as: 'bow' },
+  // (a LAND MINE, laid at the feet and left (worlds/controllable/mines.js): armed after a moment, it goes off under the next
+  // body of another team over it, or under a vehicle's track (a vehicle boss: lib/graph/boss/vehicles.js))
+  mine: { placed: 'mine', as: 'placed', name: 'land mine' },
 });
 export const ARMS_KIT_WORDS = Object.freeze(Object.keys(ARMS_KIT));
 /** the carried slots' limit (the page's keys 1–5) */
@@ -105,6 +108,9 @@ export const GRENADES = Object.freeze({
   stun: Object.freeze({ splash: 6, dmg: 0 }),
   chaff: Object.freeze({ splash: 0, dmg: 0, jam: Object.freeze({ r: 15, for: 15 }) }),
 });
+/** THE LAND MINE: armed `arm` seconds after it is laid, tripped by a body within `trip` metres (a vehicle by its
+ *  footprint), its burst `splash` metres, `dmg` times the base round; one laid at a time, `reserve` more */
+export const MINE = Object.freeze({ arm: 1.5, trip: 1.4, splash: 3.5, dmg: 8, reserve: 3, reload: 0.8, cooldown: 0.5 });
 export const THROWN = Object.freeze({ speed: 16, gravity: 9.8, magazine: 1, reserve: 2, reload: 0.6, cooldown: 0.2, dur: 1.0, release: 0.5, aimTime: 0.2, swapOut: 0.2, swapIn: 0.35 });
 /** the bow: the draw (s to full), the arrow's speed and damage from a twitch to full (m/s; multiples of the base round),
  * one arrow on the string and the nock's time for the next, the arrow's fall (m/s²), its quiver */
@@ -152,6 +158,14 @@ export function kitSlot(word, base, { eye = 0, hand = null, converge = false } =
       armTime: 0.1, fuse: 6, smokeTrail: false, fxScale: 0.2, round: roundOf(K.thrown), effect: K.thrown, ...(G.jam ? { jam: { ...G.jam } } : {}), quiet: true, throw: { dur: THROWN.dur, release: THROWN.release }, ...where };
     return { name, weapon, switchReady: r2(THROWN.swapOut + THROWN.swapIn), gunplay: {
       kind: 'throw', ads: { zoom: 1.1, time: THROWN.aimTime, spread: 1, move: 0.8, moveSpread: 1 }, sway: 0, swap: { out: THROWN.swapOut, in: THROWN.swapIn }, view: { kind: 'throw' } } };
+  }
+  if (K.placed) {
+    // a land mine (MINE): laid, never fired (mines.js takes the trigger); its slot a magazine of one, a few in reserve
+    const weapon = { fireClass: 'lob', auto: false, cooldown: MINE.cooldown, magazine: 1, reserve: MINE.reserve, reload: MINE.reload, damage: 0, impact: 0,
+      range: 2, coreAngle: base.coreAngle ?? 1.5, spread: { base: 1, move: 2, bloom: 0, recover: 4, max: 3 }, projectileSpeed: 0, projectileGravity: 9.8, lobAngle: 0, splashRadius: 0, projRadius: 0.05,
+      armTime: 0.1, fuse: 6, smokeTrail: false, fxScale: 0.2, quiet: true, place: { arm: MINE.arm, trip: MINE.trip, splash: MINE.splash, dmg: r3(MINE.dmg * dmg0) }, ...where };
+    return { name, weapon, switchReady: r2(THROWN.swapOut + THROWN.swapIn), gunplay: {
+      kind: 'throw', ads: { zoom: 1, time: 0.1, spread: 1, move: 1, moveSpread: 1 }, sway: 0, swap: { out: THROWN.swapOut, in: THROWN.swapIn }, view: { kind: 'throw' } } };
   }
   if (K.bow) {
     const weapon = { fireClass: 'lob', auto: false, chargeTime: BOW.draw, magazine: 1, reserve: BOW.quiver, reload: BOW.nock, cooldown: 0.05, damage: r3(BOW.dmg[0] * dmg0), chargedDamage: r3(BOW.dmg[1] * dmg0), impact: 1,

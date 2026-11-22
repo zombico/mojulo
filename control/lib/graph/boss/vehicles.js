@@ -6,7 +6,8 @@
  * belly), each saying what hits it takes (`takes`: a `round`, an `explosive` (a launcher's round, a grenade), a `mine`),
  * how many break it (`hits`), what it hides until then (a part `behind` another is not there to hit until that one is
  * broken), and whether it is a WEAK spot (`weak`: its hits come off the vehicle's health, `mult` times). A part `shown`
- * only in a state (a gunship's rotor hub while it hovers) is hit then alone. A state moves on (`to`) when its parts are
+ * only in a state (a gunship's rotor hub while it hovers) is hit then alone. Its `dress` is how it looks, boxes in the
+ * same frame (`{ box, fill, alpha? }`), apart from the parts a hit is judged on. A state moves on (`to`) when its parts are
  * broken (`broken: [parts]`, all of them or `any`), when its run is flown (`flown`), or after seconds (`after`).
  *
  *   VEHICLES                   the shelf (a new vehicle boss is a row)
@@ -27,8 +28,9 @@ const HIT_KINDS = ['round', 'explosive', 'mine'];
 export const VEHICLES = Object.freeze({
   // A TANK: it drives its route and its gun follows you. Its tracks break on mines laid in its path; stranded, its
   // engine grille faces where it cannot turn to cover, and launcher rounds through it end it
-  tank: { name: 'The tank', reads: 'a main battle tank driving a loop of the yard, its gun turning after you',
+  tank: { name: 'The tank', title: 'mines under its tracks, then its grille', reads: 'a main battle tank driving a loop of the yard, its gun turning after you',
     size: [7.2, 3.6, 2.4], speed: 3, look: { tell: '#ffcf4a', hazard: '#ff8a3a' },
+    dress: [{ box: [[-3.6, -1.25, 0.45], [3.6, 1.25, 1.55]], fill: '#4d5841' }, { box: [[-1.7, -1.3, 1.55], [1.3, 1.3, 2.35]], fill: '#56624a' }, { box: [[1.3, -0.14, 1.82], [5.4, 0.14, 2.1]], fill: '#3a4235' }, { box: [[-0.6, 0.3, 2.35], [0.2, 0.9, 2.6]], fill: '#454e3e' }],
     parts: {
       hull: { box: [[-3.6, -1.8, 0.4], [3.6, 1.8, 2.4]], takes: ['explosive'], hits: 0, weak: true, mult: 0.08, reads: 'armour: a launcher round scratches it' },
       'track-left': { box: [[-3.6, 1.2, 0], [3.6, 1.8, 1.1]], takes: ['mine'], hits: 1, reads: 'the left track: a mine under it breaks it' },
@@ -46,8 +48,10 @@ export const VEHICLES = Object.freeze({
     wins: [{ by: 'mines', says: 'lay mines on its route: a mine under a track breaks it, and with both broken it is stranded' }, { by: 'weak', part: 'grille', says: 'stranded, its engine grille faces away from the gun: launcher rounds through it' }] },
   // A GUNSHIP: it flies attack runs down the arena and hovers at each end to turn; it is armoured on a run, and its
   // rotor hub is open while it hovers
-  gunship: { name: 'The gunship', reads: 'an attack helicopter flying runs over the arena, hovering to turn at each end',
+  gunship: { name: 'The gunship', title: 'cover from its runs, its hub as it hovers', reads: 'an attack helicopter flying runs over the arena, hovering to turn at each end',
     size: [13, 2.6, 3.8], speed: 28, look: { tell: '#ffe066', hazard: '#ff6b3a' },
+    dress: [{ box: [[-3.8, -1.1, 0.6], [3.2, 1.1, 2.9]], fill: '#4b5649' }, { box: [[3.2, -0.7, 0.9], [5.2, 0.7, 2.2]], fill: '#3d4a52' }, { box: [[-6.5, -0.28, 1.8], [-3.8, 0.28, 2.4]], fill: '#475245' }, { box: [[-6.6, -0.05, 2.2], [-5.8, 0.05, 3.6]], fill: '#3c463a' },
+      { box: [[-6.5, -6.5, 4.15], [6.5, 6.5, 4.22]], fill: '#1f2326', alpha: 0.35 }, { box: [[-2.6, -1.3, 0], [2.6, -1.15, 0.25]], fill: '#2d3230' }, { box: [[-2.6, 1.15, 0], [2.6, 1.3, 0.25]], fill: '#2d3230' }, { box: [[-0.8, -2.2, 1.3], [0.8, -1.1, 1.7]], fill: '#3c463a' }, { box: [[-0.8, 1.1, 1.3], [0.8, 2.2, 1.7]], fill: '#3c463a' }],
     parts: {
       hull: { box: [[-6.5, -1.3, 0], [6.5, 1.3, 3.8]], takes: ['explosive'], hits: 0, weak: true, mult: 0.1, reads: 'armoured against rounds; a launcher round on a run barely tells' },
       'rotor-hub': { box: [[-0.9, -0.9, 3.2], [0.9, 0.9, 4.2]], takes: ['explosive'], hits: 0, weak: true, mult: 1, shown: 'hover', reads: 'the rotor hub, open while it hovers low to turn' },
@@ -63,7 +67,10 @@ export const VEHICLES = Object.freeze({
     wins: [{ by: 'cover', says: 'its runs walk rockets down a line: hard cover on the line, or off it' }, { by: 'weak', part: 'rotor-hub', says: 'launcher rounds into its rotor hub while it hovers' }] },
   // A WALKER: armour plates on its legs; launcher rounds strip a plate and bare the knee behind it; both knees broken,
   // it comes down on them and its cockpit is open
-  walker: { name: 'The walker', reads: 'a two-legged walker, plated legs, a cannon on its back', size: [4.2, 4.6, 7.5], speed: 1.6, look: { tell: '#9fe3a0', hazard: '#ffb347' },
+  walker: { name: 'The walker', title: 'strip its legs, break its knees', reads: 'a two-legged walker, plated legs, a cannon on its back', size: [4.2, 4.6, 7.5], speed: 1.6, look: { tell: '#9fe3a0', hazard: '#ffb347' },
+    dress: [{ box: [[-1.4, -1.5, 4.0], [1.8, 1.5, 6.6]], fill: '#5a6152' }, { box: [[-2.6, -0.4, 6.4], [0.8, 0.4, 7.3]], fill: '#454b40' }, { box: [[1.8, -0.5, 4.6], [2.5, 0.5, 5.4]], fill: '#3a3f36' },
+      { box: [[-0.35, 1.55, 3.5], [0.35, 2.15, 5.0]], fill: '#4c5246' }, { box: [[-0.35, -2.15, 3.5], [0.35, -1.55, 5.0]], fill: '#4c5246' }, { box: [[-0.45, 1.45, 0], [0.45, 2.25, 1.6]], fill: '#4c5246' }, { box: [[-0.45, -2.25, 0], [0.45, -1.45, 1.6]], fill: '#4c5246' },
+      { box: [[-1, 1.3, 0], [1.4, 2.4, 0.3]], fill: '#3f443a' }, { box: [[-1, -2.4, 0], [1.4, -1.3, 0.3]], fill: '#3f443a' }],
     parts: {
       'plate-left': { box: [[-0.7, 1.4, 1.2], [0.7, 2.3, 3.6]], takes: ['explosive'], hits: 3, reads: 'the left leg\'s plating: three launcher rounds strip it' },
       'plate-right': { box: [[-0.7, -2.3, 1.2], [0.7, -1.4, 3.6]], takes: ['explosive'], hits: 3, reads: 'the right leg\'s plating' },

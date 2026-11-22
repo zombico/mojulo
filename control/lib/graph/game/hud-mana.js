@@ -55,7 +55,7 @@ export function readRadarLook(r) {
   return { ...r };
 }
 
-export function hudToMana(rows, { register = null, hero = true, touch = false, radar = null } = {}) {
+export function hudToMana(rows, { register = null, hero = true, touch = false, radar = null, boss = false } = {}) {
   const { widgets } = normalizeHud(Array.isArray(rows) ? rows : [], register ? { register } : {});
   const vars = {}, keyOf = new Map(), gates = [], banners = [], toasts = [], lines = {};
   const varKey = (name) => { if (!keyOf.has(name)) { const k = `v${keyOf.size}`; keyOf.set(name, k); vars[k] = name; } return keyOf.get(name); };
@@ -113,6 +113,11 @@ export function hudToMana(rows, { register = null, hero = true, touch = false, r
     regions.push({ use: 'region', props: { at: 'bottom-right', variant: 'scrim', rest: B('gun.rest') }, when: B('gun.on'), children: [{ use: 'magazine', props: { name: B('gun.name'), mode: B('gun.mode'), rounds: B('gun.rounds'), size: B('gun.size'), reserve: B('gun.reserve'), reloading: B('gun.reloading') } }] });
     // THE RADAR, a scope at the top right (where the page's stood), and the wheel while it is held open
     regions.push({ use: 'region', props: { at: 'top-right', variant: 'bare' }, when: B('radar.on'), children: [{ use: 'minimap', props: { shape: radar?.shape ?? 'round', scope: true, markers: B('radar.marks'), north: B('radar.north'), plan: B('radar.plan') } }] });
+    // THE BOSS across the top (a level with a boss: worlds/controllable/boss.js): its name and title, its health with a tick
+    // between its phases
+    if (boss) regions.push({ use: 'region', props: { at: 'top', variant: 'bare' }, when: B('boss.on'), children: [{ use: 'stack', props: { gap: 'tight' }, children: [
+      { use: 'stack', props: { dir: 'row', gap: 'tight', align: 'apart' }, children: [{ use: 'text', props: { value: B('boss.name'), role: 'heading' } }, { use: 'text', props: { value: B('boss.title'), role: 'caption' } }] },
+      { use: 'bar', props: { value: B('boss.hp'), max: B('boss.hpMax'), variant: 'boss', segments: B('boss.phases') } }] }] });
     regions.push({ use: 'region', props: { at: 'center', variant: 'bare' }, when: B('wheel.open'), children: [{ use: 'wheel', props: { rows: B('wheel.slots'), title: B('wheel.title') } }] });
     // the screen's edge, closing in as the health runs out; where a hit came from, as arcs round the aim
     layers.push({ use: 'peril', props: { level: B('hero.peril') } }, { use: 'threat', props: { markers: B('ring.hits') }, when: B('ring.on') });

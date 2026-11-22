@@ -62,9 +62,9 @@ const TALK_CSS = '#moj-mana-talk{position:fixed;inset:0;pointer-events:none;z-in
   + '#moj-mana-talk .mana-each>*{pointer-events:auto;cursor:pointer}'
   + '.moj-scene-box,.moj-scene-hint{display:none!important}.moj-scene-on #moj-mana-hud{visibility:hidden}';
 
-export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null, talk = false } = {}) {
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null, talk = false, boss = false } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
-  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, ...(hud.radar ? { radar: hud.radar } : {}) }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, ...(hud.radar ? { radar: hud.radar } : {}), ...(boss ? { boss: true } : {}) }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   // (a level's radar look, game/hud-mana.js RADAR_LOOK: its size and a square scope's face are this HUD's own CSS, and its
   // floor the plan and the guards of the pilot's floor alone; absent, not one byte)
   const RL = hud && hud.radar ? hud.radar : null, floorRadar = !!(RL && RL.floor);
@@ -271,7 +271,9 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
         else J.style.display = 'none';
       }
     }
-    const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
+${boss ? `    // THE BOSS (worlds/controllable/boss.js): the first standing, its name, title, health and its phases' ticks
+    { const Bs = W.bosses || {}, k = Object.keys(Bs).find((id) => !Bs[id].down), b = k ? Bs[k] : null; st.boss = b ? { on: true, name: b.name, title: b.title || '', hp: Math.max(0, b.hp), hpMax: b.hpMax || 1, phases: Math.max(1, b.phases || 1) } : { on: false }; }
+` : ''}    const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
     const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;
     st.wheel.open = !!(C && C.open);
     if (st.wheel.open) { st.wheel.title = C.title || ''; st.wheel.slots = C.rows; }
