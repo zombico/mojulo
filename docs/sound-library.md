@@ -72,6 +72,13 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   sedan), where the library records them: its start as the level begins, its revs through its gears and a gear changed
   up, its brakes, its horn on H, a backfire off the pedal, a reverse beeper, and its tyres' roar and screech beside the
   engine. A ride with none recorded is as it was.
+- **A game's own sounds, its FLAVOR** (a card's `flavor`, the game's feel's pole: Galaxy Boy's `galaxy-boy`): a game
+  whose flavor the library holds names it on its sound sheet (`flavor`, `soundSheet`), and every word it plays is
+  asked for that flavor first (`sfxSound(word, { flavor })`): a flavored card voices its row for that game in any style,
+  ahead of the row's realistic recording, and a game without the flavor never hears it; a held tuning may belong to a
+  flavor (the buster's charge). Galaxy Boy's own: its buster's three shots and its charge, its robot hero's dash, wall
+  kick, wall slide, hurt, jump and landing, its robot foes' shots, hits, armour and wrecks, its bosses blowing apart, a
+  robot waking, the stomp, the boulder lifted and thrown, the boss room's blast door.
 - Not yet: the beds (the library's ambience loops), the traffic heard by its own engines, the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a

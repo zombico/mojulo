@@ -63,8 +63,9 @@ function voiceOf(id, style, seen, dials) {
  * voice gives its sustain spec), with `channel` too for a sound the audio channel's own code plays, or null when the
  * word names no row or no step voices it in that style. `style` on the result is the style that answered (a fallback's when it did).
  * `cab` hears a recorded engine as the open city's car at the wheel does (recorded-held.js CAB); it moves nothing else.
+ * `flavor` (a game's own: its rail's) hears that flavor's recordings first, in any style; without it they are never heard.
  */
-export function sfxSound(word, { style = 'realistic', dials = {}, cab = false } = {}) {
+export function sfxSound(word, { style = 'realistic', dials = {}, cab = false, flavor = null } = {}) {
   if (!STYLES[style]) throw new Error(`sfx style '${style}': one of ${Object.keys(STYLES).join(', ')}`);
   const id = resolveSoundId(word);
   if (!id) return null;
@@ -76,12 +77,14 @@ export function sfxSound(word, { style = 'realistic', dials = {}, cab = false } 
   const asked = style === 'realistic' || (STYLES[style].overlay && STYLES[style].fallback === 'realistic' && !(row.voices && row.voices[style]));
   // (a row voiced only by its recording answers realistic with its stand-in's style, foley's: its recording still wins)
   const open = voice ? voice.gestures && (voice.style === 'realistic' || (asked && row.recorded)) : asked;
-  const rec = open && !Object.keys(dials || {}).length ? recordedFor(id) : null;
+  // (a game's own recording, its `flavor`'s, voices the row for that game whatever its style: it is the game's design)
+  const own = flavor && !Object.keys(dials || {}).length && (!voice || voice.gestures) ? recordedFor(id, { flavor }) : null;
+  const rec = own ?? (open && !Object.keys(dials || {}).length ? recordedFor(id) : null);
   if (rec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: rec.card, gestures: [{ type: 'sample', library: rec.card, dur: rec.dur, ...(voice ? { fallback: voice.gestures } : {}) }] };
   // a held voice (an engine, the tyres, the road) the library's loops voice, at the row's own tuning (recorded-held.js)
   // (a row voiced only by its recording, `recorded`, is held with nothing to fall back to)
-  const heldOpen = voice ? voice.sustain && voice.style === 'realistic' : asked && row.recorded && row.slot === 'hold';
-  const heldRec = heldOpen && !Object.keys(dials || {}).length ? recordedHeld(id, voice ? voice.sustain : null, { cab }) : null;
+  const heldOpen = voice ? voice.sustain && (voice.style === 'realistic' || !!flavor) : asked && row.recorded && row.slot === 'hold';
+  const heldRec = heldOpen && !Object.keys(dials || {}).length ? (flavor ? recordedHeld(id, voice ? voice.sustain : null, { cab, flavor }) : null) ?? (voice && voice.style !== 'realistic' ? null : recordedHeld(id, voice ? voice.sustain : null, { cab })) : null;
   if (heldRec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: heldRec.layers.map((L) => L.library).join(' '), sustain: heldRec };
   if (row.channel) return { id, channel: row.channel, ...(voice || {}) };
   return voice ? { id, ...voice } : null;

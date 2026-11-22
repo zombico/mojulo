@@ -30,3 +30,8 @@
   synthesized piece it stands in for where the library is not installed; recipes without recorded pieces are
   unchanged to the byte. The first recorded drum kit lost to the synthesized 90s rock kit by ear, so no recorded
   instrument is offered yet.
+- Galaxy Boy sounds like itself where the library is installed: its arm cannon's tap, charged and full shots and the
+  charge building, its small robot hero's dash, wall kick, wall slide, jump, landing and the hits it takes, its robot
+  foes firing, sparking, glancing rounds off their armour and blowing apart, its bosses going up in a chain of blasts,
+  the stomp, the boulder thrown, the boss room's blast door. A game's own sounds are its flavor: they never reach
+  another game, which keeps the shelf's.

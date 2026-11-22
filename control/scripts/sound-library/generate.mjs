@@ -62,6 +62,9 @@ async function main() {
   const a = args(process.argv.slice(2));
   const CARDS = await loadCards(a.cards);
   const cards = CARDS.filter((c) => !a.only || a.only.has(c.id));
+  // (the API takes 0.5 to 30 seconds: a card outside them is refused here, before a credit is spent)
+  const bad = cards.filter((c) => !(c.seconds >= 0.5 && c.seconds <= 30));
+  if (bad.length) throw new Error(`generate: seconds must be 0.5..30: ${bad.map((c) => `${c.id} (${c.seconds})`).join(', ')}`);
   const ledgerFile = path.join(a.out, 'ledger.jsonl');
   mkdirSync(a.out, { recursive: true });
   let ledger = readLedger(ledgerFile);

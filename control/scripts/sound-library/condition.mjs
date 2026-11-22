@@ -129,7 +129,7 @@ async function main() {
       });
       n++;
     }
-    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), ...(c.engine ? { engine: c.engine, rpm: c.rpm } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
+    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), ...(c.engine ? { engine: c.engine, rpm: c.rpm } : {}), ...(c.flavor ? { flavor: c.flavor } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
   }
   const index = { version: 1, set: a.cards, rate: RATE, levels: { oneShotPeakDb: PEAK_DB, bedLufs: BED_LUFS, loopLufs: LOOP_LUFS }, cards };
   writeFileSync(path.join(a.out, 'library.json'), `${JSON.stringify(index, null, 1)}\n`);

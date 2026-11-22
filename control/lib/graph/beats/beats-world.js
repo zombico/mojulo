@@ -228,7 +228,8 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   let sheetFoes = null;
   if (sheet) {
     const style = sheet.style ?? 'mouth';
-    const cueOf = (word) => { const v = sfxSound(word, { style }); if (!v) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v.gestures ?? null; };
+    const flavor = typeof sheet.flavor === 'string' ? sheet.flavor : null;
+    const cueOf = (word) => { const v = sfxSound(word, { style, flavor }); if (!v) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v.gestures ?? null; };
     // (`sheet.cues`: more cues, each a gesture list, for the level's book: its guns' own, played from the weapon)
     const cues = { ...(sheet.cues && typeof sheet.cues === 'object' ? sheet.cues : {}) }, on = {};
     for (const kind of Array.isArray(ctx.mechanics) ? ctx.mechanics : []) {
@@ -260,7 +261,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       for (const id of Object.keys(cues)) if (!cues[id]) delete cues[id];
     }
     // a run and gun's voices (`sheet.run`, sound-sheet.js RUN_SOUNDS): each word its gestures, a held one its sustain
-    const run = sheet.run && audioSpec.run === undefined ? kept(Object.fromEntries(Object.entries(sheet.run).map(([ev, word]) => [ev, ev === 'foes' ? Object.fromEntries(Object.entries(word).map(([id, M]) => [id, kept(Object.fromEntries(Object.entries(M).map(([k, w]) => [k, cueOf(w)])))])) : RUN_HELD.includes(ev) ? sfxSound(word, { style })?.sustain ?? null : cueOf(word)]))) : null;
+    const run = sheet.run && audioSpec.run === undefined ? kept(Object.fromEntries(Object.entries(sheet.run).map(([ev, word]) => [ev, ev === 'foes' ? Object.fromEntries(Object.entries(word).map(([id, M]) => [id, kept(Object.fromEntries(Object.entries(M).map(([k, w]) => [k, cueOf(w)])))])) : RUN_HELD.includes(ev) ? sfxSound(word, { style, flavor })?.sustain ?? null : cueOf(word)]))) : null;
     audioSpec = {
       ...audioSpec,
       sfx: { cues, ...(Object.keys(on).length ? { on } : {}), vary: sheet.vary !== false, ...(sheet.mix !== undefined ? { mix: sheet.mix } : {}) },

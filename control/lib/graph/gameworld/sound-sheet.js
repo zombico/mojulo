@@ -69,6 +69,7 @@ import { gunCues } from './combat/range-sound.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
 import { vehicleSounds, modelEngines, modelVehicles } from '../sfx-shelf/vehicle-sounds.js';
 import { VEHICLES } from '../vehicle-registry/roster.js';
+import { hasFlavor } from '../sound-library/library.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { BOSSES } from './bosses.js';
@@ -354,7 +355,10 @@ export function soundSheet(G, { manifest = null } = {}) {
   const mute = Object.keys(isObj(G?.foes) ? G.foes : {}).filter((id) => !fs.foeSounds[id]);
   if (mute.length && !rn) owed.push(`${mute.join(', ')}: no voice of its own (neither a beast the shelf voices nor drawn as a person): it sounds only by the blows it gives and takes`);
   if (rn && style === 'mouth') { const old = Object.entries(rn.run).filter(([ev, w]) => ev !== 'foes' && !fresh(w)).map(([ev]) => ev); if (old.length) owed.push(`the run's ${old.join(', ')}: no new voice yet (they play realistic)`); }
-  return { style, slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
+  // (its FLAVOR: a game's own recorded sounds, its feel's pole's (Galaxy Boy's), where the library holds them)
+  const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null, flavor = pole && hasFlavor(pole) ? pole : null;
+  if (flavor) why.flavor = `its own recorded sounds (${flavor}'s), ahead of the shelf's`;
+  return { style, ...(flavor ? { flavor } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
 // a place's environment by its words (its own kit, its weather, its hour and its look's title): the bed it lays under the score
@@ -421,7 +425,7 @@ export function sheetAudio(G, opts = {}) {
   const space = levelSpace(G, opts);
   // (the effects' level under the score: the game's own, else a run and gun's)
   const level = Number.isFinite(G?.sound?.level) ? G.sound.level : S.run ? RUN_LEVEL : null;
-  return { sheet: { style: S.style, slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(level != null ? { level } : {}) } };
+  return { sheet: { style: S.style, ...(S.flavor ? { flavor: S.flavor } : {}), slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(level != null ? { level } : {}) } };
 }
 
 /**

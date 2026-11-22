@@ -14,7 +14,9 @@
  *   `recordedEngine(engine)`    an engine's steady loops (cards whose `engine` is it, each with the `rpm` it was asked
  *                               at), sorted by rpm: [{ card, rpm }], only cards whose masters are here; [] for none
  *   `recordedLoop(card)`        a loop card held here (its masters present), or null
- *   `recordedFor(shelfId)`      the card that records a shelf row (its `shelf`), as { card, dur: the longest variant's
+ *   `hasFlavor(flavor)`         whether the library holds a card of that FLAVOR (a game's own sounds: a rail's, `flavor`
+ *                               on the card), whose recordings voice its rows for a game of that flavor only
+ *   `recordedFor(shelfId, { flavor })`      the card that records a shelf row (its `shelf`), as { card, dur: the longest variant's
  *                               seconds, variants }, or null: no library, no card for the row, or none of its masters here
  *
  * Reads files; timeless (no clock: a variant is named by its content).
@@ -47,18 +49,24 @@ export function readLibrary() {
 /** for tests: forget what was read */
 export function forgetLibrary() { read.clear(); recorded.clear(); }
 
+export function hasFlavor(flavor) {
+  const lib = flavor ? readLibrary() : null;
+  return !!lib && Object.values(lib.cards).some((c) => c && c.flavor === flavor);
+}
+
+// (a flavored ask, `only`: that flavor's card or none; an ask with no flavor never hears a flavored card)
 const recorded = new Map();
-export function recordedFor(shelfId) {
-  const dir = libraryDir(), key = `${dir}\n${shelfId}`;
-  if (!recorded.has(key)) recorded.set(key, findRecorded(dir, shelfId));
+export function recordedFor(shelfId, { flavor = null } = {}) {
+  const dir = libraryDir(), key = `${dir}\n${shelfId}\n${flavor || ''}`;
+  if (!recorded.has(key)) recorded.set(key, findRecorded(dir, shelfId, flavor));
   return recorded.get(key);
 }
-function findRecorded(dir, shelfId) {
+function findRecorded(dir, shelfId, flavor) {
   const lib = readLibrary();
   if (!lib) return null;
   for (const name of Object.keys(lib.cards).sort()) {
     const c = lib.cards[name];
-    if (!c || c.shelf !== shelfId || c.role === 'bed' || c.role === 'loop') continue;
+    if (!c || c.shelf !== shelfId || c.role === 'bed' || c.role === 'loop' || (c.flavor || null) !== (flavor || null)) continue;
     const held = (c.variants || []).filter((v) => ID.test(v.id) && existsSync(path.join(dir, 'masters', `${v.id}.wav`)));
     if (!held.length) continue;
     return { card: name, dur: Math.max(...held.map((v) => Number(v.seconds) || 0)), variants: held.length };

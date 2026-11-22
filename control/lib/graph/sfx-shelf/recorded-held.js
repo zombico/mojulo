@@ -52,6 +52,8 @@ export const HELD_TUNINGS = Object.freeze({
   hooves: Object.freeze({ loop: 'hooves', rate: [0.7, 1.5] }),
   'walker-hydraulics': Object.freeze({ loop: 'hydraulic-whine', rate: [0.8, 1.3] }),
   'sail-wind': Object.freeze({ loop: 'sails', rate: [0.9, 1.1] }),
+  // a game's own (a `flavor`: its rail's): heard only by a game of that flavor
+  'charge-hum': Object.freeze({ loop: 'gb-charge', flavor: 'galaxy-boy', rate: [0.85, 1.3] }),
 });
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
@@ -59,9 +61,9 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 // the open city's car at the wheel, whichever car it is (road-car-engine's own tuning is this, on the hatchback)
 export const CAB = Object.freeze({ redline: 0.75, band: Object.freeze({ lo: 60, hi: 5200 }) });
 
-export function recordedHeld(id, synthesized, { cab = false } = {}) {
+export function recordedHeld(id, synthesized, { cab = false, flavor = null } = {}) {
   const T = HELD_TUNINGS[id];
-  if (!T) return null;
+  if (!T || (T.flavor && T.flavor !== flavor)) return null;
   const S = synthesized || {}, fall = synthesized ? { fallback: synthesized } : {};
   const base = { attack: S.attack, release: S.release, level: S.level, send: S.send };
   for (const k of Object.keys(base)) if (base[k] === undefined) delete base[k];
