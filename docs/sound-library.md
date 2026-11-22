@@ -67,8 +67,12 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   set has none of): a V8's start, a truck's air horn, air brakes and reverse beeper, a bus's doors, a backfire off the
   pedal, the lock's chirp as its driver walks away, a police car's siren on N; an electric car has no starter. A car
   whose events are all the city car's has no set.
-- Not yet: the beds (the library's ambience loops), a vehicle's events wired into the pages that drive it (the city
-  car's are; a ride's are not), the engine handoffs.
+- **A racing car's own events** (`rideEvents` in `gameworld/sound-sheet.js`, the runner's beside `rideSound`): a ride on
+  the ground, by its words through the registry (a ride it does not know is the vehicle its engine is: a 'car' is a
+  sedan), where the library records them: its start as the level begins, its revs through its gears and a gear changed
+  up, its brakes, its horn on H, a backfire off the pedal, a reverse beeper, and its tyres' roar and screech beside the
+  engine. A ride with none recorded is as it was.
+- Not yet: the beds (the library's ambience loops), the traffic heard by its own engines, the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
 render on a machine without the library is byte for byte what it was. Under test the library is never the

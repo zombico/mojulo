@@ -68,6 +68,7 @@ import { resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { gunCues } from './combat/range-sound.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
 import { vehicleSounds, modelEngines, modelVehicles } from '../sfx-shelf/vehicle-sounds.js';
+import { VEHICLES } from '../vehicle-registry/roster.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { BOSSES } from './bosses.js';
@@ -479,9 +480,42 @@ export function rideSound(G, { words = '', top = null, quick = G?.quick } = {}) 
   const hit = own ? null : ENGINES.find((e) => e.test.test(String(words).toLowerCase()));
   // a ride the words above leave to the car's engine is asked of the vehicle registry (sfx-shelf/vehicle-sounds.js): a
   // helicopter's rotor, a supercar's V12, a bicycle's freewheel; one it does not know stays the car's
-  const veh = !own && hit === ENGINES[ENGINES.length - 1] ? vehicleSounds(String(words).trim()) : null;
+  const veh = !own && hit === ENGINES[ENGINES.length - 1] ? rideVehicle(words) : null;
   const voice = own ? resolveSoundId(own) : (veh && (veh.engine || veh.runs)) || hit.voice;
   return { engine: { voice, top: Math.round(top * 100) / 100 }, why: own ? 'the game says so' : `${SOUNDS[voice].label}${words ? ` (${String(words).trim()})` : ''}` };
+}
+
+// a RIDE's events (a racing car, a quick game's vehicle: sfx-shelf/vehicle-sounds.js), the cues the audio channel plays
+// them by while it is driven
+// a ride's words → the registry vehicle they name: the words whole ("muscle car" is `muscle-car`), then word by word
+function rideVehicle(words) {
+  const said = String(words).trim().toLowerCase();
+  for (const w of [said, said.replace(/\s+/g, '-'), ...said.split(/\s+/).filter((t) => t.length >= 3)]) { const V = w ? vehicleSounds(w) : null; if (V) return V; }
+  return null;
+}
+// a ride the registry does not know is heard as the vehicle its engine is (a 'car' is a sedan)
+const ENGINE_VEHICLE = Object.freeze({ 'car-engine': 'sedan', 'kart-engine': 'kart', 'motorbike-engine': 'motorcycle', 'diesel-engine': 'box-truck', 'tank-engine': 'tank' });
+const RIDE_EVENT = Object.freeze([['start', 'ride:start'], ['horn', 'ride:horn'], ['brake', 'ride:brake'], ['shift', 'ride:shift'], ['backfire', 'ride:backfire'], ['reverse', 'ride:reverse']]);
+// and what it runs on under the engine, by its speed and its slip (the city car's own: CITY_CAR.drive)
+const RIDE_DRIVE = Object.freeze({ road: Object.freeze({ voice: 'road-roar', level: 0.35 }), skid: Object.freeze({ voice: 'tire-squeal', level: 0.4 }) });
+
+/** A ride's EVENTS by what is ridden (`words`: the vehicle registry's), where the recorded library voices them: its start
+ * as the level begins, its horn on H, its brakes, its gears changed up (and its revs through them), a backfire off the
+ * pedal, a reverse beeper; its tyres' roar and screech. → { engine: { ride: true, gears?, drive? }, cues: { 'ride:<event>':
+ * gestures }, why } for the level's audio beside rideSound's engine (`voice` its engine row: a ride the registry does not
+ * know by its words is heard as the vehicle that engine is), or null: a game on no sheet, `sound.ride: false`, a
+ * ride that is no road or off-road vehicle, or none of its events recorded (a page without the library is as it was). */
+export function rideEvents(G, { words = '', voice = null, quick = G?.quick } = {}) {
+  if (!onSheet(G, quick) || readSound(G?.sound).ride === false) return null;
+  const V = rideVehicle(words) ?? (ENGINE_VEHICLE[voice] ? vehicleSounds(ENGINE_VEHICLE[voice]) : null);
+  const realm = V && VEHICLES[V.id]?.realm;
+  if (!V || (realm !== 'road' && realm !== 'offroad')) return null;
+  const style = soundSheet(G).style, cues = {};
+  for (const [e, k] of RIDE_EVENT) { const w = V.events[e], s = w ? sfxSound(w, { style }) : null; if (s?.recorded && s.gestures) cues[k] = s.gestures; }
+  const drive = Object.fromEntries(Object.entries(RIDE_DRIVE).filter(([, d]) => sfxSound(d.voice)?.recorded).map(([k, d]) => [k, { ...d }]));
+  if (!Object.keys(cues).length && !Object.keys(drive).length) return null;
+  return { engine: { ride: true, ...(cues['ride:shift'] ? { gears: true } : {}), ...(Object.keys(drive).length ? { drive } : {}) }, cues,
+    why: [Object.keys(cues).length ? `${V.id}'s own ${Object.keys(cues).map((k) => k.slice(5)).join(', ')}` : '', Object.keys(drive).length ? `its tyres' ${Object.keys(drive).join(' and ')}` : ''].filter(Boolean).join('; ') };
 }
 
 // a level that is a played town or district (a geocube's geotown or geocity, played: its entities or its game)

@@ -22,6 +22,10 @@
   air horn, air brakes and reverse beeper, a bus's folding doors, a backfire as a muscle car or a hot hatch comes off
   the pedal, the lock's chirp as you walk away; an electric car starts without a crank.
 - The horn (H) sounds at the wheel of a car in the open city again: it only answered while getting in.
+- Racing games hear their car the same way where the library is installed: its start as the race begins, its revs
+  climbing through the gears with each change heard, its brakes, its horn on H, a backfire as a muscle car comes off the
+  pedal, and its tyres roaring on the road and screeching in a slide. A ride named in plain words ("a car", "muscle
+  car", "rally car") is heard as the vehicle it names.
 - Music can play recorded instruments. A recorded piece plays one of its takes per hit and falls back to the
   synthesized piece it stands in for where the library is not installed; recipes without recorded pieces are
   unchanged to the byte. The first recorded drum kit lost to the synthesized 90s rock kit by ear, so no recorded

@@ -432,7 +432,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     // [<cue>…] } the city's cues a set has none of)
     const cueOf = en.cueOf && typeof en.cueOf === 'object' ? Object.fromEntries(Object.entries(en.cueOf).filter(([, v]) => typeof v === 'string')) : null;
     const mute = cueOf && en.mute && typeof en.mute === 'object' ? Object.fromEntries(Object.entries(en.mute).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.filter((c) => typeof c === 'string')])) : null;
-    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}), ...(voices ? { models, voices } : {}), ...(cueOf && Object.keys(cueOf).length ? { cueOf, ...(mute && Object.keys(mute).length ? { mute } : {}) } : {}) };
+    out.engine = { voice: heldVoice(spec, 'audio.engine.voice'), top: en.top, level: Number.isFinite(en.level) ? en.level : 0.3, idle: Number.isFinite(en.idle) ? Math.max(0, Math.min(1, en.idle)) : 0.12, ...(en.cab === true ? { cab: true } : {}), ...(drive && Object.keys(drive).length ? { drive } : {}), ...(voices ? { models, voices } : {}), ...(en.ride === true ? { ride: true } : {}), ...(en.gears === true ? { gears: true } : {}), ...(cueOf && Object.keys(cueOf).length ? { cueOf, ...(mute && Object.keys(mute).length ? { mute } : {}) } : {}) };
   }
   // a place's own held sound (`ambience`: { voice, level? }): a city's traffic far off, held under the bed while the
   // level plays (the audio channel's), quieter inside a car
