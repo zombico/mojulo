@@ -126,7 +126,7 @@ export const RELATIONS = Object.freeze({
   earTilt: 6,           // degrees the ear leans back from vertical (its frame; the long axis, helix top to lobule
                         // bottom, reads ~4° more, ~10°): upright, at the clinic's 10–30 floor (a share of the nose's dorsum
                         // read ~18°, too angled)
-  earProtrusion: 35,    // degrees the outer ear folds off the concha at the antihelix (the concha itself stands 15° off the head)
+  earProtrusion: 22,    // degrees the outer ear folds off the concha at the antihelix (the concha itself stands 15° off the head)
   earlobe: 0,           // 0 a free lobule (tilted off the head, a gap behind it) … 1 attached (tilted into the cheek, fused)
   // ── masses (radii as shares of v-me)
   brow: 1,              // brow-ridge radius multiplier (the strongest sex cue)
@@ -168,7 +168,7 @@ export const RELATION_POLES = Object.freeze({
   // base; fuller lips; the eyes a little more open
   male: Object.freeze({
     cheeks: 0.6, lowerCheek: 0.35, chinWidth: 0.04, chinRound: 0.1, masseter: 0.15, chin: 0.006, jaw: 0.75,
-    noseProjection: 0.34, dorsum: -0.1, nasalIndex: 0.7, lipFullness: 1.32, fissure: 0.039,
+    noseProjection: 0.34, dorsum: -0.1, nasalIndex: 0.7, lipFullness: 1.15, mouthWidth: 1.38, lipProjection: 0.024, fissure: 0.039,
   }),
   // the female pole (2026-10-21, the face-harmony study, approved by the operator's eyes): beyond the canon's sex cues, a
   // shorter, less projected nose with a finer bridge and a narrower base; larger eyes; fuller, taller, more forward lips
@@ -178,8 +178,8 @@ export const RELATION_POLES = Object.freeze({
     third: 0.28, eyeLine: 0.49, nasionDrop: 0.06, headLength: 0.84, cephalic: 0.79, faceWidth: 0.87, jaw: 0.64,
     fifths: 0.232, fissure: 0.045, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.29, noseFat: 0.026, dorsum: -0.35,
     nasionDepth: 0.006, browProjection: 0.019, brow: 0.22, malarDepth: 0.037, forehead: 0.01,
-    lipFullness: 1.55, upperVermilion: 0.044, lowerVermilion: 0.054, lipProjection: 0.029, philtrumVolume: 0.02, jowl: 0.008,
-    chinWidth: -0.11, chinRound: -0.2, gonionDrop: -0.006, cheeks: 0.5, lowerCheek: 0.5,
+    lipFullness: 1.3, upperVermilion: 0.04, lowerVermilion: 0.05, lipProjection: 0.023, mouthWidth: 1.7, philtrumVolume: 0.02, jowl: 0.008,
+    chinWidth: -0.05, chinRound: -0.1, gonionDrop: -0.006, cheeks: 0.5, lowerCheek: 0.5,
     archWidth: 0.96, incisorShow: 0.028, jawOpen: 0.16,
   }),
 });
@@ -586,10 +586,18 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE LOWER LIP'S BODY — orbicularis oris below the mouth, behind and below the lower vermilion: corner → under the
   // lip's fullest → the centre above the mentolabial fold, each side; it rides the jaw as the lower lip does, so the
   // lower lip is a box standing forward from the corners down to the fold
-  const lowC = { x: 0, y: P.li.y - 0.034, z: P.li.z - 0.008 };
+  const lowC = { x: 0, y: P.li.y - 0.03, z: P.li.z - 0.022 };
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`ch${s}`].x), lm = P[`loMid${s}`];
-    v(`lowerLipBody${s}`, at(P[`ch${s}`], { x: -sg * 0.012, y: -0.028, z: -0.01 }), { x: lm.x, y: lm.y - 0.026, z: lm.z - 0.012 }, lowC, [0.01, 0.015, 0.018], 'lipBody', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
+    v(`lowerLipBody${s}`, at(P[`ch${s}`], { x: -sg * 0.012, y: -0.028, z: -0.01 }), { x: lm.x, y: lm.y - 0.024, z: lm.z - 0.02 }, lowC, [0.01, 0.016, 0.02], 'lipBody', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
+  }
+  // THE MENTALIS PAD — the soft tissue between the lower lip and the chin, riding the jaw: one mass across the midline
+  // whose front lies a little behind the pogonion's, so the lip rolls down into a shallow fold and the chin rises out
+  // of it (with nothing there the skin fell back to the bone between the lip's body and the chin's mass: a hollow
+  // ~9 mm behind the lip where a face has 4–6, the lip a shelf over it)
+  {
+    const mz = (P.li.z + P.pg.z) / 2 - 0.004, my = P.pg.y - 0.03, side = (sg) => ({ x: sg * 0.06, y: my - 0.014, z: mz + 0.004 });
+    v('mentalis', side(-1), { x: 0, y: my, z: mz }, side(1), [0.02, 0.03, 0.02], 'lipBody', [J, J, J]);
   }
   // THE NOSE — nasion → rhinion → tip
   // (`dorsum`: the bridge's radii, at the root and the rhinion, their centres forward by what they lose: the ridge's
@@ -676,11 +684,11 @@ export function coreVajras(P, rel = RELATIONS) {
   // out from the centre, the centre lowest: a shallow U). A broad tube set forward, so only a shallow sliver of it cuts,
   // its edge blended over ~3 mm, its ends thinning away into the face (a thin tube cut as sharp as the lip line read as
   // a chevron scored into the skin)
-  const mlC = { x: 0, y: P.pg.y + 0.008, z: (P.li.z + P.pg.z) / 2 + 0.006 };
+  const mlC = { x: 0, y: P.pg.y + 0.03, z: (P.li.z + P.pg.z) / 2 - 0.006 };
   for (const s of ['L', 'R']) {
-    const sg = Math.sign(P[`loMid${s}`].x), end = at(P[`loMid${s}`], { x: sg * 0.026, y: -0.036, z: -0.032 });
+    const sg = Math.sign(P[`loMid${s}`].x), end = at(P[`loMid${s}`], { x: sg * 0.026, y: -0.026, z: -0.036 });
     const FO = ['foldOpen'];
-    cut(`mentolabial${s}`, end, { x: sg * 0.03, y: (end.y + mlC.y) / 2 + 0.004, z: mlC.z + 0.25 * (end.z - mlC.z) }, mlC, [0.005, 0.014, 0.019], [FO, FO, FO], 0.014);
+    cut(`mentolabial${s}`, end, { x: sg * 0.03, y: (end.y + mlC.y) / 2 + 0.01, z: mlC.z + 0.25 * (end.z - mlC.z) }, mlC, [0.005, 0.011, 0.015], [FO, FO, FO], 0.022);
   }
   // THE TEETH — the upper dental arch, anchored at the incisal point: each side seven crowns on a curved arch (the
   // central and lateral incisors, the canine, two premolars, two molars: `DENTITION`, placed out from the midline and
