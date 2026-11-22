@@ -264,3 +264,7 @@
   does. The beast-kin body's designed pins moved with its default dress (the body itself unchanged). The people bosses'
   looks name their facets, so neither rolls a child or an elder: the Champion an adult hero of heroic build, the
   Warlord a seasoned outlaw of brute build (its baldric and cloak); their era versions alike.
+- **The people bosses in every tradition and era.** A people boss is drawn in each tradition (the anime head in an
+  anime world, the landmark head in a western one) at the age its look names, and an era's version holds none of the
+  fantasy armory: the modern and future champions' looks say `gear: {}` (bare-fisted; write `gear` to arm one), since a
+  look written out like the preset's now carries the preset kind's arms. Held by a new case in `round-bosses.test.js`.

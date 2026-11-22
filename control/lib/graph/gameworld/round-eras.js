@@ -38,7 +38,8 @@ export const ROUND_ERAS = Object.freeze({
       bandit: { name: 'Raider' },
       // (the story's bosses, round-bosses.js)
       leviathan: { name: 'Abyssal Leviathan', look: { species: 'seaSerpent', ooze: 'techno' } },
-      champion: { name: 'Arena Champion', look: { people: 'human', facets: { age: 'adult', build: 'heroic', archetype: 'hero' } } },
+      // (an era's champion holds what its era says: nothing of the fantasy armory; `gear` arms it)
+      champion: { name: 'Arena Champion', look: { people: 'human', facets: { age: 'adult', build: 'heroic', archetype: 'hero' }, gear: {} } },
       warlord: { name: 'Hive Warlord', look: { people: 'insectoid', facets: { age: 'seasoned', build: 'brute', archetype: 'outlaw' } } },
       roc: { name: 'Storm Drone', look: { species: 'baldEagle', ooze: 'techno' } },
       colossus: { name: 'Titan Mech', look: { species: 'mammoth', ooze: 'transmetal' } },
@@ -66,7 +67,7 @@ export const ROUND_ERAS = Object.freeze({
       zombie: { name: 'Infected', look: { people: 'zombie' } },
       bandit: { name: 'Mugger' },
       leviathan: { name: 'Lake Monster', look: { species: 'seaSerpent', ooze: 'venom' } },
-      champion: { name: 'The Champ', look: { people: 'human', facets: { age: 'adult', build: 'heroic', archetype: 'hero' } } },
+      champion: { name: 'The Champ', look: { people: 'human', facets: { age: 'adult', build: 'heroic', archetype: 'hero' }, gear: {} } },
       warlord: { name: 'The Kingpin', look: { people: 'human', facets: { age: 'seasoned', build: 'brute', archetype: 'outlaw' } } },
       roc: { name: 'Giant Condor', look: { species: 'vulture', ooze: 'storm' } },
       colossus: { name: 'Wrecking Bot', look: { species: 'mammoth', ooze: 'techno' } },

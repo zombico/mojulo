@@ -9,6 +9,10 @@ import { FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { FOE_LOOKS, FOE_HEIGHT, battleBase, foeGearOf, readBattles } from './battles.js';
 import { composeGameworld, readGameworld } from './index.js';
+import { ROUND_ERAS, ROUND_ERA_IDS } from './round-eras.js';
+import { TRADITIONS } from './characters.js';
+import { battlePeopleRoll } from './battles.js';
+import { egocubeCreate, rollStored } from '../egocube/kind.js';
 
 describe('the round\'s bosses', () => {
   it('every story has one, a preset with its look and height; its rows are the battles\' own', () => {
@@ -59,5 +63,22 @@ describe('the round\'s bosses', () => {
     expect(() => readGameworld(W)).not.toThrow();
     expect(readRpg({ rpg: battleBase(W) }).foes.kraken.pattern[1].charge).toBe('{name} coils its arms…');
     expect(() => readBattles({ ...W.battles, heights: { kraken: 40 } })).toThrow(/0.3 to 12/);
+  });
+
+  it('a people boss is drawn in every tradition at the age it names, and an era\'s holds none of the fantasy armory', () => {
+    // (the people bosses, found in code: a look that names a people)
+    const people = ROUND_BOSS_IDS.filter((id) => FOE_LOOKS[id].people);
+    expect(people.length).toBeGreaterThan(0);
+    for (const tradition of Object.keys(TRADITIONS)) for (const id of people) {
+      const look = FOE_LOOKS[id], G = { seed: 3, battles: {}, characters: { direction: { tradition } } };
+      const C = egocubeCreate(rollStored({ kind: 'egocube', roll: battlePeopleRoll(G, id, look), moves: 'battle' }), { armed: true });
+      expect(C.node.band, `${tradition} ${id}`).toBe(look.facets.age);
+      expect(C.create.spec.head === 'anime', `${tradition} ${id}`).toBe(TRADITIONS[tradition].head === 'anime');
+      expect((C.create.spec.outfit?.pieces ?? []).some((p) => p.kind === 'medallion'), `${tradition} ${id}`).toBe(false);
+    }
+    for (const era of ROUND_ERA_IDS) for (const id of people) {
+      const L = ROUND_ERAS[era].foes[id]?.look;
+      if (L) expect(foeGearOf(L, id)?.right?.armory ?? null, `${era} ${id}`).toBeNull();
+    }
   });
 });
