@@ -58,7 +58,9 @@ audio: { soundtrack: { score: { mood: 'expedition', game: 4410,
 - **Synth basses**: `acid-bass` (squelch) `reese-bass` (growl) `wobble-bass` `fm-bass` (round).
 - **Timpani**: `timpani` (ceremony and threat).
 - **Kits**: `drum-kit` `drum-kit-90s-rock` `acoustic-kit` `stadium-kit` `stadium-kit-gated` `brush-kit` `blues-kit`
-  `orchestral-perc` `latin-perc` `palmas`; machines `drum-machine-88` `drum-machine-909` `drum-machine-bright`.
+  `orchestral-perc` `latin-perc` `palmas`; machines `drum-machine-88` `drum-machine-909` `drum-machine-bright`;
+  recorded `drum-kit-recorded-rock` (the 90s rock kit on recorded pieces where the sound library is installed, the 90s
+  kit itself where it is not).
 
 ## Casting for a feeling
 
