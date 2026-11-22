@@ -33,6 +33,7 @@ export function awaitShell({ started, fallback, wait = 1500, tick = 100, slack =
   })(now() + tick);
 }
 
+import { rankOf, levelRank } from '../../game/rank.js';
 export function gameChannelScript(game, { shownOnStart = false } = {}) {
   // a level left by one of several named exits (reach-exit `exit`, on `{ end, exit }`): only then does the envelope carry
   // `exit`, so a level without one keeps its bytes
@@ -41,9 +42,14 @@ export function gameChannelScript(game, { shownOnStart = false } = {}) {
   const keeps = !!(game && Array.isArray(game.keep) && game.keep.length);
   // an emit that names its event ({event}: a broken block's broke:<id> kept as a flag of that name): only then
   const named = !!(game && game.on && Object.values(game.on).some((a) => a && a.emit && Object.values(a.emit).some((v) => v === '{event}')));
+  // a level that is ranked (game.rank: { par? }, game/rank.js): as it is won, the rank and its figures join its stats;
+  // only then
+  const ranks = !!(game && game.rank && typeof game.rank === 'object');
   return `
 // ---- game channel (level contract bridge, opt-in) ----
-const __GAME = ${safeJson(game)};
+${ranks ? `${rankOf.toString()}
+const __levelRank = ${levelRank.toString()};
+` : ''}const __GAME = ${safeJson(game)};
 (function () {
   const __CV = ${GAME_CONTRACT_VERSION};
   // the style tokens (hud-widgets.js) a hosting shell sends beside game-init: set as --moj-* vars
@@ -88,7 +94,12 @@ const __GAME = ${safeJson(game)};
     if (typeof exit === 'string' && exit) st.envelope.exit = exit;` : ''}
     // optional SCORE payload (additive — validateEnvelope ignores it; shells without a score
     // screen simply never read it): { pilot, rows: [{ id, name, kills, deaths, dmg, shots, hits }] }.
-    if (stats && typeof stats === 'object') { try { st.envelope.stats = JSON.parse(JSON.stringify(stats)); } catch (e) { /* non-serializable stats are dropped, never fatal */ } }
+${ranks ? `    // THE RANK (game/rank.js), on a level won: read off the style meter, the world's clock and the par
+    if (st.envelope.result === 'success' && window.__mojStyle) {
+      const W = window.__mojCtrl && window.__mojCtrl.world, R = __levelRank(window.__mojStyle.now(), W ? W.time : 0, __GAME.rank.par);
+      if (R) stats = Object.assign({}, stats, { rank: R.rank, kept: ((stats && stats.kept) || []).concat(R.kept) });
+    }
+` : ''}    if (stats && typeof stats === 'object') { try { st.envelope.stats = JSON.parse(JSON.stringify(stats)); } catch (e) { /* non-serializable stats are dropped, never fatal */ } }
     if (hosted && !capture) { try { window.parent.postMessage({ moj: '${GAME_MSG_OUTCOME}', envelope: st.envelope }, '*'); } catch (e) { console.error('game outcome post', e); } }
     // the RESULT CARD (game.complete: false hides it; { text } retitles it) — themed by the
     // --moj-* tokens, the literals are the fallbacks so an un-themed level looks as before.

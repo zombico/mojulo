@@ -101,7 +101,7 @@ export const CEL_CHARGE = Object.freeze({ body: 0.45, rim: 1.1, faceRim: 0.5, po
 /** THE SIGNAL on a cel body (a boss's eyes and glow, gameworld/bosses.js; its tell worlds/controllable/tell.js): its corners
  * keep their colour whatever the light (`base`), brightened by the tell (`gain`) and whitened at its peak (`white`). */
 export const CEL_SIGNAL = Object.freeze({ base: 0.9, gain: 1.1, white: 0.3 });
-const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'colS', 'faceM', 'sigM'];
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'hcolS', 'faceM', 'sigM'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
 // its normal and its face's row all the same), the places on a uint16 grid over the part's own box as a unit rig's are
@@ -109,11 +109,16 @@ const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'sp
 // bytes (`nq`), and the face's rows (figures/morph-sparse.js) named by the welded corners. Read by __makeRigGroup's q
 // branch. What cannot be welded so (a face's rows not sparse, a count that does not agree) is returned as it came.
 const FULL_KEYS = ['uv', 'nrm', 'morph'], FULL_ONLY = ['corrective', 'tan', 'metal', 'q', 'spec', 'spec8'];
-function pageFullPart(rest) {
+function pageFullPart(rest, skin = null) {
   const raw = (str) => { const b = Buffer.from(str, 'base64'); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); };
   const pos = new Float32Array(raw(rest.pos)), col = new Uint8Array(raw(rest.col)), nV = (pos.length / 3) | 0;
   const uv = rest.uv ? new Float32Array(raw(rest.uv)) : null, nrm = rest.nrm ? new Float32Array(raw(rest.nrm)) : null, M = rest.morph || null;
-  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z)) return rest;
+  // (a part of a figure drawn as one skin, `skin`: each corner's four bones and weights, welded with it: the corners one only
+  // where they also ride alike)
+  const J = skin ? new Uint8Array(raw(skin.jnt)) : null, W = skin ? new Float32Array(raw(skin.wgt)) : null;
+  // (and its corners' marks, `hc`: a corner one only with its mark the same)
+  const HC = rest.hc ? new Uint8Array(raw(rest.hc)) : null;
+  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z) || (J && (J.length !== nV * 4 || W.length !== nV * 4)) || (HC && HC.length !== nV)) return skin ? { ...rest, ...skin } : rest;
   // each corner's face row (its unique row's number), or -1: two corners with different rows are never one
   const rowOf = new Int32Array(nV).fill(-1);
   let mI = null, mU = null;
@@ -128,12 +133,15 @@ function pageFullPart(rest) {
   const ub = uv ? [0, 1].map((k) => box(uv, 2, k)) : null, uo = ub ? ub.map((b) => r6(b[0])) : null, us = ub ? ub.map((b) => grid(b[0], b[1])) : null;
   const qz = (v, lo, st) => { if (!st) return 0; const q = Math.round((v - lo) / st); return q <= 0 ? 0 : q >= 65535 ? 65535 : q; };
   const n8 = (v) => { const q = Math.round(v * 127); return q < -127 ? -127 : q > 127 ? 127 : q; };
-  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [];
+  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [], JQ = [], WQ = [], HQ = [];
+  const w8 = (v) => { const q = Math.round(v * 255); return q < 0 ? 0 : q > 255 ? 255 : q; };
   for (let i = 0; i < nV; i++) {
     const a = [qz(pos[3 * i], o[0], sp[0]), qz(pos[3 * i + 1], o[1], sp[1]), qz(pos[3 * i + 2], o[2], sp[2]), col[3 * i], col[3 * i + 1], col[3 * i + 2]];
     if (uv) a.push(qz(uv[2 * i], uo[0], us[0]), qz(uv[2 * i + 1], uo[1], us[1]));
     if (nrm) a.push(n8(nrm[3 * i]), n8(nrm[3 * i + 1]), n8(nrm[3 * i + 2]));
     a.push(rowOf[i]);
+    if (HC) a.push(HC[i]);
+    if (J) a.push(J[4 * i], J[4 * i + 1], J[4 * i + 2], J[4 * i + 3], w8(W[4 * i]), w8(W[4 * i + 1]), w8(W[4 * i + 2]), w8(W[4 * i + 3]));
     const key = a.join(',');
     let u = seen.get(key);
     if (u === undefined) {
@@ -141,6 +149,8 @@ function pageFullPart(rest) {
       Q.push(a[0], a[1], a[2]); C.push(a[3], a[4], a[5]);
       let k = 6; if (uv) { UQ.push(a[k], a[k + 1]); k += 2; } if (nrm) NQ.push(a[k], a[k + 1], a[k + 2]);
       rows.push(rowOf[i]);
+      if (J) { const e = a.length - 8; JQ.push(a[e], a[e + 1], a[e + 2], a[e + 3]); WQ.push(a[e + 4], a[e + 5], a[e + 6], a[e + 7]); }
+      if (HC) HQ.push(HC[i]);
     }
     idx[i] = u;
   }
@@ -151,6 +161,8 @@ function pageFullPart(rest) {
   const out = { ...keep, full: 1, q: b64(Uint16Array.from(Q)), o, s: sp, n, idx: b64(n > 65535 ? Uint32Array.from(idx) : (idx instanceof Uint16Array ? idx : Uint16Array.from(idx))), col: b64(Uint8Array.from(C)) };
   if (uv) Object.assign(out, { uq: b64(Uint16Array.from(UQ)), uo, us });
   if (nrm) out.nq = b64(Int8Array.from(NQ));
+  if (J) Object.assign(out, { jq: b64(Uint8Array.from(JQ)), wq: b64(Uint8Array.from(WQ)) });
+  if (HC) out.hc = b64(Uint8Array.from(HQ));
   if (M) {
     const at = [], ur = [];
     for (let u = 0; u < n; u++) if (rows[u] >= 0) { at.push(u); ur.push(rows[u]); }
@@ -158,9 +170,19 @@ function pageFullPart(rest) {
   }
   return out;
 }
-function pagePart(p) {
+function pagePart(p, skin = false) {
   if (!p || (p.jnt === undefined && p.wgt === undefined)) return p;
   const { jnt: _j, wgt: _w, ...rest } = p;
+  // (a part of a figure drawn as ONE SKIN, `skinParts`: its bones and weights kept, welded with its corners where the part is
+  // welded, else as they came)
+  if (skin) {
+    if (typeof rest.pos === 'string' && typeof rest.col === 'string' && FULL_ONLY.every((k) => rest[k] === undefined) && FULL_KEYS.some((k) => rest[k] !== undefined)) return pageFullPart(rest, { jnt: p.jnt, wgt: p.wgt });
+    // (a part not welded keeps its corners, its weights a byte each as a welded one's are)
+    if (typeof p.wgt !== 'string') return p;
+    const wb = Buffer.from(p.wgt, 'base64'), W = new Float32Array(wb.buffer.slice(wb.byteOffset, wb.byteOffset + wb.length)), Q = new Uint8Array(W.length);
+    for (let i = 0; i < W.length; i++) { const q = Math.round(W[i] * 255); Q[i] = q < 0 ? 0 : q > 255 ? 255 : q; }
+    return { ...rest, jnt: p.jnt, wq: Buffer.from(Q.buffer).toString('base64') };
+  }
   // (a part that carries its paint's place, its normals or a face's rows and nothing else laid per corner: welded and
   // on a grid as well, pageFullPart below; one with a corrective, a tangent, a metal or a specular stays as it came)
   if (typeof rest.pos === 'string' && typeof rest.col === 'string' && FULL_ONLY.every((k) => rest[k] === undefined) && FULL_KEYS.some((k) => rest[k] !== undefined)) return pageFullPart(rest);
@@ -196,7 +218,7 @@ export function pageFigures(figures) {
   const out = {}, same = {}, seen = new Map();
   let changed = false;
   for (const [name, f] of Object.entries(figures)) {
-    const g = drop(f) ? { ...f, parts: f.parts.map(pagePart), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
+    const g = drop(f) ? { ...f, parts: f.parts.map((q) => pagePart(q, f.skinParts === true)), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
     if (g !== f) changed = true;
     const key = g && typeof g === 'object' ? JSON.stringify(g) : null;
     if (key && key.length >= 4096 && seen.has(key)) { same[name] = seen.get(key); changed = true; continue; }
@@ -785,7 +807,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, roomLit = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -928,6 +950,9 @@ function __updateGearLines() {
   // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
   // off where a part's own mesh is read (the toon ink's hulls, a headset's hands). None mergeable ⇒ byte-identical
   const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
+  // ONE SKIN A HERO (world-scene.js heroFigure `skinParts`, realistic laws 17): its parts skinned on one skeleton, each corner
+  // carried by its own bones; not where a part's own mesh is read (the toon ink's hull, a headset's hands)
+  const figSkinParts = !xr && !toonInk && Object.values(figures || {}).some((f) => f && f.skinParts === true);
   // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
   const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
@@ -942,6 +967,8 @@ function __updateGearLines() {
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
+  // the transform press is heard too where the hero carries a Halo Meter (style.js): it buys the transformation
+  const haloOn = !!(styleMeter && typeof styleMeter === 'object' && styleMeter.halo), transforms = hasForms || haloOn;
   // a moveset's beats (gameworld/combos.js): the heavy and special presses read, only where a body carries one
   const moveset = (entities || []).some((e) => e && e.rule && e.rule.moveset);
   // a guard (combat-melee.js stepGuard, a feel card's lowered): the guard held, read only where a body carries one
@@ -1430,7 +1457,7 @@ function __rigFace(rig, clipName, phase) {
   const over = F.ambient && (!tr || (F.ambientOver || []).includes(clipName));
   const w = over ? __rigTrack(F.ambient, now % F.ambient.seconds) : __rigTrack(tr, phase * tr.t[tr.t.length - 1]);
   const ws = w || F.weights; if (!ws) return;
-  for (const mesh of rig.boneMeshes) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
+  for (const mesh of ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
 }
 ` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
 function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
@@ -1582,7 +1609,7 @@ function __castMR(fig, c, n) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
-  const boneMeshes = fig.bones.map((bn, bi) => {
+${figSkinParts ? '  let __skinned = null;\n' : ''}  const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
     if (part.form && fig.form) {
@@ -1611,19 +1638,37 @@ function __castMR(fig, c, n) {
     // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
     if (fig.cast) { if (part.nq) geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(decodeU8(part.nq).buffer), 3, true)); else if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
     if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
-    geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
+${roomLit ? `    // (a body a room lights, the room's light below: its normals, the lit read's where it wrote them, else its mesh's own)
+    if (!geo.getAttribute('normal')) geo.computeVertexNormals();
+` : ''}${haloOn ? `    // (a part marked by what it is, the halo's hair and skin: style.js; its corners' class, the recolour's)
+    if (part.hc) geo.setAttribute('aHc', new THREE.BufferAttribute(decodeU8(part.hc), 1));
+` : ''}${figSkinParts ? `    // (one skin: its bones and weights, welded with the part or as they came; a part with none rides its bone rigidly)
+    const SK = fig.skinParts && !fig.wreck && (part.jq || part.jnt) && !/^(weapon_|shield$)/.test(fig.bones[bi].id);
+    if (SK) { if (part.jq) { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jq), 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(decodeU8(part.wq), 4, true)); } else { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jnt), 4)); geo.setAttribute('skinWeight', part.wq ? new THREE.BufferAttribute(decodeU8(part.wq), 4, true) : new THREE.BufferAttribute(decodeF32(part.wgt), 4)); } }
+` : ''}    geo.computeBoundingSphere();
+    const mesh = new ${figSkinParts ? '(SK ? THREE.SkinnedMesh : THREE.Mesh)' : 'THREE.Mesh'}(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
     if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `
     if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${toonHook}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
-    mesh.matrixAutoUpdate = false;
+${haloOn ? `    if (part.hc) __haloMat(mesh.material, fig);
+` : ''}    mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
-    return mesh;
+${figSkinParts ? `    // (a skinned part leaves a bone in its place for the sync to pose; it never raycasts, as the bone meshes are kept from it:
+    // no footing, no camera's occluder)
+    if (SK) { mesh.raycast = function () {}; (__skinned || (__skinned = [])).push(mesh); const bn = new THREE.Bone(); bn.matrixAutoUpdate = false; group.add(bn); return bn; }
+` : ''}    return mesh;
   });
-  scene.add(group);${bodyScaled ? `
+${figSkinParts ? `  // (one skin: every bone posed, a part's or none, and the skinned parts bound to them at the identity, as __makeSkinGroup's)
+  if (__skinned) {
+    for (let i = 0; i < boneMeshes.length; i++) if (!boneMeshes[i]) { const bn = new THREE.Bone(); bn.matrixAutoUpdate = false; group.add(bn); boneMeshes[i] = bn; }
+    group.updateMatrixWorld(true);
+    const sk = new THREE.Skeleton(boneMeshes, boneMeshes.map(() => new THREE.Matrix4()));
+    for (const m of __skinned) m.bind(sk);
+  }
+` : ''}  scene.add(group);${bodyScaled ? `
   if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
   group.userData.rigFig = { fig, boneMeshes, mix: {}, blendTime: b.blendTime, lookA: 0,
-    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null };
+    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null${figSkinParts ? `, ...(__skinned ? { meshes: [...__skinned, ...boneMeshes.filter((m) => m && m.isMesh)] } : {})` : ''} };
   // muzzle locator: an empty child of the weapon bone mesh at the muzzle's bone-local rest point,
   // so its world position IS the live weapon tip (rides every clip). Shot fx originate here.
   if (fig.muzzle) {
@@ -1710,7 +1755,7 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
   const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
     || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''}${hasSheath ? `
-    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }] : null)` : ''};
+    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }, ...Object.values(e.rule.combat.held || {}).map((f) => ({ figure: f }))] : null)` : ''};
   // (a loadout whose slots name no figure, a carried kit's guns: arms-kit.js, has no variant bodies to build; the body is
   // its own figure, below. Without this a hero carrying a kit was never drawn)
   if (lo && lo.some((c) => c && c.figure) && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
@@ -2735,17 +2780,17 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     else __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);
   }` : `__rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);`}` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
-  if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
+  if (fig.face) { const fm = tk ? ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
   // classic i-frame read. Both the acrobatic dodge and the getup rise set
   // e.invincible, so both shimmer; the topple FALL (not invincible) does not.
   // Restore full opacity when it ends.
   if (e.invincible) {
     const o = 0.45 + 0.35 * Math.sin(__world.time * 40);
-    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
+    for (const bm of rig.skin ? [rig.skin] : ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
     rig.__shimmered = true;
   } else if (rig.__shimmered) {
-    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
+    for (const bm of rig.skin ? [rig.skin] : ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
     rig.__shimmered = false;
   }
 }
@@ -3199,7 +3244,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     jump: pb('jump', rb),                      // A / PS cross — ascend in space
     cycle, slot,                               // RB tap / RB chord (the selector)
     swap: pb('swapSuit'), ai: pb('aiToggle'),  // D-pad up = switch suit · select = AI toggle
-    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${hasForms ? `
+    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${transforms ? `
     transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
     interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)${vayoOn ? `
     vayo: !!(g.buttons && g.buttons[13] && g.buttons[13].pressed),   // D-pad down — a vayo move (vayo-move.js)` : ''}
@@ -3221,7 +3266,7 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
     interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)
-    items: !!window.__mojItems,     // a race whose boxes hand out items (kart-items-view.js)${hasForms ? `
+    items: !!window.__mojItems,     // a race whose boxes hand out items (kart-items-view.js)${transforms ? `
     forms: true,                    // a body that transforms (forms.js)` : ''}
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });
@@ -3232,7 +3277,7 @@ let __prevCycle = false, __prevSlot = 0;   // weapon-cycling press edges (R / 1-
 let __prevSwap = false;                    // suit-switcher press edge (T)
 let __prevTackle = false;                  // tackle press edge (Shift) — platform rule, opt-in r.tackle
 let __prevAi = false;                      // AI-attack toggle press edge (G / HUD button)
-let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js${hasForms ? `
+let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js${transforms ? `
 let __prevTransform = false;               // transform press edge (B / L3) — forms.js` : ''}
 let __aiBtnPress = false;                  // HUD button click injects one toggle edge
 // shell AI switch (practice mode): the pause menu posts a DESIRED state over the game-ai sidecar;
@@ -3284,7 +3329,7 @@ function __readInput() {
   // TARGET LOCK press edge (lock.js): C / middle mouse / pad R3 — acquire, cycle, release
   const lk = ${lock ? "__k('lock') || __midDown || !!(__pad && __pad.lock)" : 'false'};
   const lock = lk && !__prevLock ? 1 : 0;
-  __prevLock = lk;${hasForms ? `
+  __prevLock = lk;${transforms ? `
   // TRANSFORM press edge (forms.js): B / pad L3 turns the pilot into its next form
   const tf = __k('transform') || !!(__pad && __pad.transform);
   const transform = tf && !__prevTransform ? 1 : 0;
@@ -3336,7 +3381,7 @@ function __readInput() {
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
     aiToggle,                        // AI attack switch (G): ai-ambient suits stand down / wake up
-    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${hasForms ? `
+    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${transforms ? `
     transform,                       // transform (B): a body with forms turns into its next one (forms.js)` : ''}
     missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
@@ -3959,7 +4004,7 @@ function __foeRim(id) {
     for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
     __rim.kids = []; __rim.id = id; __rim.g = g;
     const rf = g && g.userData.rigFig;
-    if (rf) for (const m of rf.skin ? [rf.skin] : rf.boneMeshes) {
+    if (rf) for (const m of rf.skin ? [rf.skin] : ${figSkinParts ? '(rf.meshes || rf.boneMeshes)' : 'rf.boneMeshes'}) {
       if (!m || !m.geometry || !m.geometry.attributes.position) continue;
       __rimNormals(m.geometry);
       const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __tgtRimMat) : new THREE.Mesh(m.geometry, __tgtRimMat);
@@ -5396,6 +5441,80 @@ ${hangarHook}  __msHookParams();
 };
 ${styleMeter ? `// the style meter (worlds/controllable/style.js): where it stands, for a HUD and a level's results
 window.__mojStyle = { now: () => __CW.styleOf(__world) };
+` : ''}${haloOn ? `// THE HALO (style.js): the transformation seen. A ring of light over the hero's head and its light on the hero while
+// it lasts, a burst of light as it begins; nothing while it does not
+// (the hair turned white and the skin dark grey as it fades in: a marked corner's colour drawn toward its class's, by one
+// shared amount; every material that draws a marked part)
+function __haloMat(m, fig) {
+  const U = __haloMat.U || (__haloMat.U = { value: 0 });   // (on the function: a body may be built before this line runs)
+  for (const M of [].concat(m)) {
+    const prev = M.onBeforeCompile, prevKey = M.customProgramCacheKey;
+    M.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      sh.uniforms.uHalo = U; sh.uniforms.uHair = { value: new THREE.Color(fig && fig.haloHair ? fig.haloHair : '#000000') }; sh.uniforms.uHairOn = { value: fig && fig.haloHair ? 1 : 0 };
+      sh.vertexShader = 'attribute float aHc;\\nvarying float vHc;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vHc = aHc;');
+      sh.fragmentShader = 'uniform float uHalo;\\nuniform vec3 uHair;\\nuniform float uHairOn;\\nvarying float vHc;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  if (vHc > 0.5) { float hl = vHc < 1.5 ? 1.0 : uHairOn * (1.0 - smoothstep(0.06, 0.16, distance(diffuseColor.rgb, uHair))); vec3 hT = mix(vec3(0.03, 0.03, 0.034) * (0.55 + 1.6 * dot(diffuseColor.rgb, vec3(0.333))), vec3(0.82, 0.82, 0.86), hl); diffuseColor.rgb = mix(diffuseColor.rgb, hT, uHalo); }');
+    };
+    M.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|halo'; };
+    M.needsUpdate = true;
+  }
+}
+// THE WINGS: a pair of black angel's wings on the hero's back, behind the coat, each its feathers in rows along its arm
+// (the long ones at the tip), unfolded with the transformation and beating slowly while it lasts; on the torso's bone,
+// in the rest frame its bone moves (the hero's back is −y)
+function __haloWing(side) {
+  const P = [], tri = (a, b, c) => P.push(...a, ...b, ...c);
+  const nrm = [0, -1, 0], cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], un = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const feather = (at, dir, len, w) => {
+    const d = un(dir), sd = un(cr(d, nrm)), q = (f, ww) => [at[0] + d[0] * len * f + sd[0] * ww, at[1] + d[1] * len * f + sd[1] * ww, at[2] + d[2] * len * f + sd[2] * ww];
+    const a = q(0, -w / 2), b = q(0, w / 2), c = q(0.72, w * 0.42), e = q(0.72, -w * 0.42), t = q(1, 0);
+    tri(a, b, c); tri(a, c, e); tri(e, c, t);
+  };
+  // the arm: up and out from the root to the wrist, a little back
+  const wrist = [side * 0.5, -0.16, 0.42];
+  for (let i = 0; i < 9; i++) { const u = i / 8, at = [wrist[0] * u, wrist[1] * u, wrist[2] * u];
+    feather(at, [side * (0.25 + 0.75 * u), -0.12, -(1 - 0.55 * u)], 0.34 + 0.62 * u, 0.1);          // the flight feathers, longest at the tip
+    feather([at[0], at[1] - 0.012, at[2] + 0.02], [side * (0.2 + 0.5 * u), -0.1, -0.9], 0.2 + 0.18 * u, 0.09);   // the coverts over them
+  }
+  for (let i = 0; i < 4; i++) feather([wrist[0], wrist[1], wrist[2]], [side * (1 - 0.18 * i), -0.08, 0.3 - 0.35 * i], 0.42 - 0.04 * i, 0.08);   // the tip's fan
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3)); geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x0b0b0f, roughness: 0.42, metalness: 0.12, side: THREE.DoubleSide }));
+  m.raycast = function () {}; m.castShadow = true; m.frustumCulled = false;
+  const pivot = new THREE.Group(); pivot.add(m); return pivot;
+}
+const __wings = new THREE.Group(), __wingR = __haloWing(1), __wingL = __haloWing(-1);
+__wings.add(__wingR, __wingL); __wings.visible = false;
+(function __halo() {
+  const g = new THREE.Group(), ring = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.022, 10, 48), new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.06, 10, 48), new THREE.MeshBasicMaterial({ color: 0xf2b630, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const burst = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 64), new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const lamp = new THREE.PointLight(0xffd27a, 0, 7, 1.6);
+  g.add(ring, glow); g.visible = false; scene.add(g); scene.add(burst); scene.add(lamp);
+  let was = false, k = 0, bt = 9, last = performance.now();
+  (function tick() {
+    requestAnimationFrame(tick);
+    const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const H = __world.style && __world.style.halo, p = __world.pilotId && __world.byId[__world.pilotId];
+    const on = !!(H && H.on && p && p.transform);
+    if (on && !was) bt = 0;
+    was = on; k += ((on ? 1 : 0) - k) * Math.min(1, dt * 8);
+    g.visible = k > 0.02; lamp.intensity = 2.4 * k;
+    if (p && p.transform) {
+      // (just over the head's top, the figure's own height where it has one; tilted back off the brow, as a halo is drawn,
+      // so it reads as a ring from a camera at the head's height)
+      const G0 = __bodies[p.id], fh = G0 && G0.userData.rigFig && G0.userData.rigFig.fig.figH, P = p.transform.pos, top = (fh > 1 ? fh : Math.max(1.6, p.body && p.body.egg && p.body.egg.cz ? p.body.egg.cz * 2 : 1.85)) + 0.1;
+      g.position.set(P[0], P[1], P[2] + top + 0.02 * Math.sin(now / 260)); g.rotation.set(0, 0, p.transform.heading || 0); g.rotateY(-0.45); g.rotateZ(now / 1800); g.scale.setScalar(0.4 + 0.6 * k);
+      lamp.position.set(P[0], P[1], P[2] + 1.4); burst.position.set(P[0], P[1], P[2] + 0.05);
+    }
+    bt += dt; burst.visible = bt < 0.6; if (burst.visible) { burst.scale.setScalar(0.5 + bt * 9); burst.material.opacity = 0.9 * (1 - bt / 0.6); }
+    if (__haloMat.U) __haloMat.U.value = k;
+    // (the wings on the torso's bone of whichever figure the hero plays now, their root on its upper back)
+    const G = p && __bodies[p.id], rf = G && G.userData.rigFig, ti = rf ? rf.fig.bones.findIndex((b) => b.id === 'torso') : -1, bone = ti >= 0 ? rf.boneMeshes[ti] : null;
+    if (bone && __wings.parent !== bone) { const T = rf.fig.bones[ti].tail; bone.add(__wings); __wings.position.set(T[0], T[1] - 0.13, T[2] - 0.13); }
+    __wings.visible = k > 0.02 && !!bone;
+    if (__wings.visible) { const f = 0.12 * Math.sin(now / 420) * k; __wings.scale.setScalar(0.05 + 0.95 * k); __wingR.rotation.y = -f; __wingL.rotation.y = f; }
+  })();
+})();
 ` : ''}${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
 window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
@@ -5413,6 +5532,117 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
+` : ''}${roomLit ? `// THE ROOM'S LIGHT ON ITS BODIES (a room that asks for its shade, era/stage.js \`shade\`; its lamps over the light its
+// paint was made under, channels/form.js \`__mojForm.lit\`). A body's paint is what it shows by a lamp at arm's length;
+// here each surface is lit as the room is: the ambient, the lamps nearest the pilot each by its falloff and how the
+// surface turns to it (wrapped, as cloth and skin take light), and a cold rim where it turns from the eye, so a body
+// has a lit side, a shade side and an edge against the dark. And each throws its SHADOW on the floor it stands on, ONE,
+// as the room's own are: from the lamp that lights it most, its own silhouette laid flat away from the flame and fading
+// with its length, as dark as the share of the light there that lamp gives (a lone torch's deep, a lit room's faint:
+// the light it takes away, never a black of its own), its edge a penumbra (laid from points of the flame a little apart,
+// each darkening a part, each a few millimetres over the last); and a dark at its feet by the same share. Drawn on one
+// plane each copy darkens once, by the stencil (the floor
+// never moves: a projection is the shadow, as the seventh generation drew an actor's on a baked room)
+(function __roomLight() {
+  const K = 6, FILL = 0.3, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
+    uRlR: { value: new Array(K).fill(1) }, uRlAmb: { value: new THREE.Vector3() }, uRlFall: { value: 2 }, uRlRim: { value: new THREE.Vector3(0.22, 0.27, 0.42) } };
+  const lit = new WeakSet(), twinned = new WeakSet();
+  // the bodies' shading: on their own material, after everything the material already does
+  const shade = (m) => {
+    if (!m || lit.has(m) || !m.isMeshBasicMaterial || m.userData.rlTwin) return; lit.add(m);
+    const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
+    m.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      Object.assign(sh.uniforms, U);
+      sh.vertexShader = 'varying vec3 vRlW;\\nvarying vec3 vRlN;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vRlW = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n#if defined( USE_ENVMAP ) || defined( USE_SKINNING )\\n  vRlN = mat3(modelMatrix) * objectNormal;\\n#else\\n  vRlN = mat3(modelMatrix) * normal;\\n#endif');
+      sh.fragmentShader = 'uniform vec3 uRlP[' + K + '];\\nuniform vec3 uRlK[' + K + '];\\nuniform float uRlR[' + K + '];\\nuniform vec3 uRlAmb;\\nuniform float uRlFall;\\nuniform vec3 uRlRim;\\nvarying vec3 vRlW;\\nvarying vec3 vRlN;\\n'
+        + sh.fragmentShader.replace('#include <aomap_fragment>', '{ vec3 N = vRlN; if ( dot( N, N ) < 1e-4 ) N = cross( dFdx( vRlW ), dFdy( vRlW ) ); N = normalize( N ); if ( !gl_FrontFacing ) N = - N;\\n'
+        + '  vec3 V = normalize( cameraPosition - vRlW ), L = uRlAmb;\\n'
+        + '  for ( int i = 0; i < ' + K + '; i++ ) { vec3 d = uRlP[ i ] - vRlW; float r = length( d ); float t = clamp( 1.0 - max( r, 1.1 ) / uRlR[ i ], 0.0, 1.0 );\\n'
+        + '    L += uRlK[ i ] * pow( t * t, uRlFall ) * clamp( ( dot( N, d / max( r, 1e-3 ) ) + 0.35 ) / 1.35, 0.0, 1.0 ); }\\n'
+        + '  L += uRlRim * pow( 1.0 - clamp( dot( N, V ), 0.0, 1.0 ), 4.0 );\\n'
+        + '  reflectedLight.indirectDiffuse *= clamp( L, vec3( 0.05 ), vec3( 1.6 ) ); }\\n#include <aomap_fragment>');
+    };
+    m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|roomlit'; };
+    m.needsUpdate = true;
+  };
+  // the shadow: a body's twins on one plane, from points of its key lamp a penumbra apart (PEN m across the flame)
+  const SLOTS = 3, MAX = 4.2, PEN = 0.5, DEEP = 0.6;
+  // (each copy darkens a pixel once: it marks the stencil where it draws, its own value, and draws nowhere already marked;
+  // a depth test between a silhouette's own triangles let some through in stripes, plain to see in a shadow this light.
+  // The characters' rim marks 1 (effect-rim.js): the copies mark past it, and are drawn before the bodies that mark it)
+  const slotMat = (i) => {
+    const S = { uShL: { value: new THREE.Vector3(0, 0, 10) }, uShZ: { value: 0 }, uShO: { value: new THREE.Vector2() } };
+    const m = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      stencilWrite: true, stencilRef: 2 + i, stencilFunc: THREE.NotEqualStencilFunc, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.ReplaceStencilOp });
+    m.userData.rlTwin = true; m.userData.S = S;
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, S);
+      sh.vertexShader = 'uniform vec3 uShL;\\nuniform float uShZ;\\nuniform vec2 uShO;\\nvarying float vShD;\\n' + sh.vertexShader.replace('#include <project_vertex>',
+        'vec4 rw = modelMatrix * vec4( transformed, 1.0 ); float den = max( uShL.z - rw.z, 0.05 ); vec3 pp = uShL + ( rw.xyz - uShL ) * ( ( uShL.z - uShZ ) / den );\\n'
+        + '  vec2 off = pp.xy - uShO; vShD = length( off ); if ( vShD > ' + MAX.toFixed(1) + ' ) pp.xy = uShO + off / vShD * ' + MAX.toFixed(1) + '; pp.z = uShZ + 0.01;\\n'
+        + '  vec4 mvPosition = viewMatrix * vec4( pp, 1.0 ); gl_Position = projectionMatrix * mvPosition;');
+      sh.fragmentShader = 'varying float vShD;\\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * ( 1.0 - smoothstep( ' + (MAX * 0.3).toFixed(2) + ', ' + MAX.toFixed(1) + ', vShD ) ) );');
+    };
+    m.customProgramCacheKey = () => 'roomshadow';
+    return m;
+  };
+  const feetMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.7, depthWrite: true, depthFunc: THREE.LessDepth, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    alphaMap: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })() });
+  feetMat.userData.rlTwin = true;
+  const bodies = {};
+  const twin = (o, mat, list) => {
+    let t;
+    if (o.isSkinnedMesh) { t = new THREE.SkinnedMesh(o.geometry, mat); t.bind(o.skeleton, o.bindMatrix); t.bindMode = o.bindMode; }
+    else t = new THREE.Mesh(o.geometry, mat);
+    t.userData.rlTwin = true; t.frustumCulled = false; t.castShadow = false; t.raycast = function () {}; t.renderOrder = -1;
+    t.matrixAutoUpdate = false; t.matrix = o.matrix; o.parent.add(t); list.push({ o, t });
+  };
+  const own = (id, g) => {
+    const B = bodies[id] || (bodies[id] = { slots: Array.from({ length: SLOTS }, (_, i) => ({ mat: slotMat(i), twins: [] })), feet: null, z: null });
+    g.traverse((o) => {
+      if (!o.isMesh || o.userData.rlTwin || twinned.has(o) || !o.parent) return;
+      for (const m of [].concat(o.material)) shade(m);
+      if (o.material && o.material.transparent && o.material.opacity < 0.5) return;
+      twinned.add(o);
+      for (const S of B.slots) twin(o, S.mat, S.twins);
+    });
+    if (!B.feet) { const fm = feetMat.clone(); fm.userData.rlTwin = true; B.feet = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), fm); B.feet.userData.rlTwin = true; B.feet.raycast = function () {}; B.feet.renderOrder = -1; scene.add(B.feet); }
+    return B;
+  };
+  let n = 0;
+  (function tick() {
+    requestAnimationFrame(tick);
+    const F = window.__mojForm, R = F && F.lit; if (!R) return;
+    const scan = n++ % 30 === 0, p = __world.pilotId && __world.byId[__world.pilotId], at = p && p.transform ? p.transform.pos : null;
+    if (at) {
+      const near = R.lamps.map((l) => [l, Math.hypot(l.at[0] - at[0], l.at[1] - at[1], l.at[2] - at[2])]).sort((a, b) => a[1] - b[1]);
+      for (let i = 0; i < K; i++) { const l = near[i] && near[i][0]; U.uRlP.value[i].set(...(l ? l.at : [0, 0, -100])); U.uRlK.value[i].set(...(l ? l.key : [0, 0, 0])); U.uRlR.value[i] = l ? l.r : 1; }
+      // (a body keeps a deeper shade than the stone round it: its fill a share of the room's, so the lamps model it in a room
+      // lit to be read, as the seventh generation lit its cast harder than its set)
+      U.uRlAmb.value.set(R.amb[0] * FILL, R.amb[1] * FILL, R.amb[2] * FILL); U.uRlFall.value = R.fall;
+    }
+    for (const id in __bodies) {
+      const g = __bodies[id], e = __world.byId[id]; if (!g || !e || !e.transform) continue;
+      const B = scan || !bodies[id] ? own(id, g) : bodies[id], P = e.transform.pos, live = g.visible !== false && !e.gone;
+      // (the floor under it: where it last stood, held through a jump)
+      if (B.z === null || e.grounded !== false) B.z = P[2] || 0;
+      // the lamps that light it most, by what each gives at its chest
+      const W = R.lamps.map((l) => { const d = Math.hypot(l.at[0] - P[0], l.at[1] - P[1], l.at[2] - (P[2] || 0) - 1.2), t = Math.max(0, 1 - Math.max(d, 1.1) / l.r); return [l, (0.2126 * l.key[0] + 0.7152 * l.key[1] + 0.0722 * l.key[2]) * Math.pow(t * t, R.fall)]; })
+        .filter((x) => x[1] > 1e-4).sort((a, b) => b[1] - a[1]);
+      const all = W.reduce((s, x) => s + x[1], 0) + (0.2126 * R.amb[0] + 0.7152 * R.amb[1] + 0.0722 * R.amb[2]);
+      // (its key lamp's share of the light at it: what the shadow takes away; the copies together darken by it)
+      const w = W[0], a = live && w ? Math.min(DEEP, w[1] / Math.max(all, 1e-4)) : 0, each = 1 - Math.pow(1 - a, 1 / SLOTS);
+      const sx = w ? -(w[0].at[1] - P[1]) : 0, sy = w ? w[0].at[0] - P[0] : 0, sl = Math.hypot(sx, sy) || 1;
+      B.slots.forEach((S, i) => {
+        S.mat.opacity = each; S.mat.visible = a > 0.02;
+        const o = ((i / Math.max(1, SLOTS - 1)) - 0.5) * PEN;
+        if (w) { S.mat.userData.S.uShL.value.set(w[0].at[0] + (sx / sl) * o, w[0].at[1] + (sy / sl) * o, Math.max(w[0].at[2], B.z + 2.2)); S.mat.userData.S.uShZ.value = B.z + i * 0.004; S.mat.userData.S.uShO.value.set(P[0], P[1]); }
+      });
+      B.feet.visible = live; B.feet.position.set(P[0], P[1], B.z + 0.012); const up = Math.max(0, (P[2] || 0) - B.z); B.feet.scale.setScalar(1 / (1 + up)); B.feet.material.opacity = Math.min(0.7, 0.25 + a);
+    }
+  })();
+})();
 ` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay ? gunplayScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${entities.some((e) => e && e.body && e.body.steam && Array.isArray(e.body.steam.vents) && e.body.steam.vents.length) ? steamScript() : ''}${rockOn ? rockScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders

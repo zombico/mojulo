@@ -57,6 +57,9 @@ import { feelSuggestion } from '@/lib/graph/gameworld/feel/suggest.js';
 import { platformerSuggestion, platformerStart } from '@/lib/graph/gameworld/platformer-game.js';
 import { juiceOfGame, juiceSuggestion } from '@/lib/graph/gameworld/juice.js';
 import { arsenalOfGame, arsenalSuggestion, heroStrikes } from '@/lib/graph/gameworld/arsenal.js';
+import { styleMeterSuggestion, STYLISH } from '@/lib/graph/gameworld/style-meter.js';
+import { LIGHT_MOODS, MOOD_IDS, moodOf } from '@/lib/graph/gameworld/action-first-level.js';
+import { ACTION_LEVELS, ACTION_LEVEL_IDS, levelPlan } from '@/lib/graph/gameworld/action-levels.js';
 import { roomEligible } from '@/lib/graph/gameworld/practice-room.js';
 import { practiceFor, mountSuggestion, rangeMeasured, rollMeasured } from '@/lib/graph/gameworld/practice.js';
 import { fightsReadout } from '@/lib/graph/gameworld/fights-readout.js';
@@ -148,7 +151,7 @@ function withPin(world, pin) {
  * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
 // (a battle foe kind's figure, `foe-<kind>` (gameworld/battles.js FOE_LOOKS: a person), is made as a hero is)
 // (a town's folk, gameworld/folk-cast.js: each body a step minted through the hero door as a guard is)
-const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
+const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped', 'hero-sheathed': 'the hero, its blade sheathed' };
 
 /** Make or remake one step; → the record to keep. */
@@ -361,7 +364,10 @@ async function runWorld(ref, world, { force = false, check = false, budgetMs = r
       return;
     }
     // a level's intent laws that do not hold (lay-concerns.js): advice, never a refusal
-    const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
+    // (and a step whose ref holds a row the run has no record of making, 'taken': said, with the way to remake it; a pass
+    // cut off between a mint's row and its record leaves one, and its part then lags the rest unseen)
+    const advises = [...(action === 'taken' ? [`${step.key}: a row the run has no record of making stands at ${step.ref}, kept as it is; force: true remakes it (a pass cut off mid-mint leaves one)`] : []),
+      ...(step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`)];
     // a sport's machine gate when it holds (who plays, the arena, the one style): the agent's to tell the player
     const checked = (step.laws ?? []).filter((l) => l.holds && SPORT_CHECKS.includes(l.law)).map((l) => `${l.concern}: ${l.says}`);
     // (a chapter's run makes a step ahead of the approvals it waits on: chapters.js chapterSteps; said with what it skipped)
@@ -617,6 +623,23 @@ function readout(ref, world, context = {}) {
   // template would lay (written, never laid: a kit changes every level); one written for a hero that strikes with nothing, said
   const armed = arsenalOfGame(world), arsenalSuggest = armed ? null : arsenalSuggestion(world);
   if (arsenalSuggest) next.push({ step: 'arsenal', suggest: arsenalSuggest.suggest, template: arsenalSuggest.template, why: arsenalSuggest.why, patch: [{ op: 'set', path: '/arsenal', value: 'auto' }], card: 'gameworld-feel' });
+  // its style meter (gameworld/style-meter.js): a stylish feel's game that writes none is offered one (written, never laid)
+  const meterSuggest = styleMeterSuggestion(world);
+  // its LIGHT MOODS (gameworld/action-first-level.js): a stylish game's first building level offered each mood as a patch
+  // (its rooms' plot, its cube's shade, the world's grade), the creator's pick, then theirs word by word
+  const stylePole = typeof world.feel === 'string' ? world.feel : world.feel?.pole, moodLevel = STYLISH.includes(stylePole) ? Object.entries(world.levels ?? {}).find(([, L]) => L?.building && typeof L.building.geocube === 'object' && L.building.geocube) : null;
+  if (moodLevel) {
+    const [lid, L] = moodLevel, rooms = [...new Set([...Object.keys(L.building.rooms ?? {}), ...(L.goal?.tasks ?? []).map((t) => t.at).filter(Boolean)])];
+    // (and its PLACE (gameworld/action-levels.js): each other plan as a patch, the level's building and tasks and the fights
+    // its rooms hold, so a game's levels need not all be the citadel)
+    const placeOf = (B) => `${B.use}|${B.geocube?.from ?? ''}|${B.geocube?.inside?.bones ?? ''}`, here = placeOf(L.building);
+    const others = ACTION_LEVEL_IDS.filter((id) => placeOf({ use: ACTION_LEVELS[id].use, geocube: ACTION_LEVELS[id].cube }) !== here);
+    next.push({ step: 'place', level: lid, plans: others.map((id) => { const P = levelPlan(id);
+      return { plan: id, says: ACTION_LEVELS[id].says, patch: [{ op: 'set', path: `/levels/${lid}/building`, value: P.level.building }, { op: 'set', path: `/levels/${lid}/goal`, value: P.level.goal }, ...Object.entries(P.fights).map(([f, F]) => ({ op: 'set', path: `/fights/${f}`, value: F }))] }; }), card: 'gameworld-stylish' });
+    if (rooms.length) next.push({ step: 'mood', level: lid, moods: MOOD_IDS.map((m) => { const M = moodOf(m, rooms);
+      return { mood: m, says: LIGHT_MOODS[m].says, patch: [{ op: 'set', path: `/levels/${lid}/building/plot`, value: M.plot }, { op: 'set', path: `/levels/${lid}/building/geocube/light`, value: { ...(L.building.geocube.light ?? {}), shade: M.shade } }, { op: 'set', path: '/grade', value: M.grade }] }; }), card: 'gameworld-stylish' });
+  }
+  if (meterSuggest) next.push({ step: 'styleMeter', suggest: meterSuggest.suggest, why: meterSuggest.why, patch: [{ op: 'set', path: '/styleMeter', value: meterSuggest.suggest }], card: 'gameworld-stylish' });
   if (armed && !heroStrikes(world)) next.push({ step: 'arsenal', unarmed: true, why: 'the arsenal is laid on a hero that strikes: give the hero a right-hand item that serves strike (a blade)', card: 'gameworld-feel' });
   const arsenal = armed ? { ...(armed.template ? { template: armed.template } : {}), from: armed.from, weapons: armed.arsenal.weapons.map((W) => W.id), combos: armed.arsenal.weapons.reduce((n, W) => n + W.combos.length, 0), ...(armed.arsenal.ranged?.length ? { sidearm: armed.arsenal.ranged[0].id } : {}) } : null;
   // the body the game puts in its hero (gameworld/game-bodies.js): a book whose direction names none, the rail its kind

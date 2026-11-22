@@ -53,7 +53,8 @@ import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots,
 import { gauntletCast } from './gauntlet-cast.js';
 import { carriedBlade, genreHero, rowGaits } from './hero-rows.js';
 import { layTasks, tasksCast } from './tasks.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
+import { styleMeterOfGame } from './style-meter.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec, heldSpecs } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
 import { withSetup } from './setup.js';
@@ -206,6 +207,9 @@ function shellUi(G) {
   // look: the dress's `ui`, course-dress.js. A running game's title, pause and result are part of how it reads)
   // (and a game whose every level is a STREET, a beat-em-up's or a run & gun's: the street's own look, brawl-street,
   // on its menus as on its screen)
+  // (a game that carries the style meter, a stylish action game: its screens on the game UI runtime whether or not it
+  // writes a `ui`, and drawn with no box, game/immersive-ui.js)
+  if (styleMeterOfGame(G)) return { ui: { theme: interfaceLook(G).theme, ...(G.ui?.languages ? { languages: G.ui.languages } : {}), ...(G.ui?.language ? { language: G.ui.language } : {}), immersive: true } };
   if (G.ui === undefined) {
     const look = courseLook(G), ids = G.ids ?? [];
     if (look) return { ui: { theme: look } };
@@ -345,6 +349,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // the SHEATHED hero (an action hero's: levels.js sheathedSpec): the same, its blade on its back, played out of combat
     const sheathed = sheathedSpec(G, spec);
     if (sheathed) steps.push({ key: 'hero-sheathed', ref: childRef(ref, 'hero-sheathed'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...mint, ...(toon ? { toon } : {}), title: `${hero.mint.title} · sheathed`, spec: sheathed }, spec: sheathed }, print: fingerprint({ spec: sheathed, ...lit(toon) }) });
+    // and a hero for each weapon HELD as its own item (levels.js heldSpecs: the sheathed hero, the item in its right hand),
+    // shown in combat while that weapon is up
+    for (const H of heldSpecs(G, spec)) steps.push({ key: `hero-held-${H.id}`, ref: childRef(ref, `hero-held-${H.id}`), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...mint, ...(toon ? { toon } : {}), title: `${hero.mint.title} · ${H.id}`, spec: H.spec }, spec: H.spec }, print: fingerprint({ spec: H.spec, ...lit(toon) }) });
   }
   // the cast: each made after the hero, as the hero is (a hero-door base, then its motion); it waits on nothing
   for (const id of Object.keys(G.characters?.cast ?? {})) {
@@ -544,7 +551,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(costar ? { costar } : {}), ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(costar ? { costar } : {}), ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(steps.some((x) => x.key.startsWith('hero-held-')) ? { heldRefs: Object.fromEntries(steps.filter((x) => x.key.startsWith('hero-held-')).map((x) => [x.key.slice(10), x.ref])) } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map

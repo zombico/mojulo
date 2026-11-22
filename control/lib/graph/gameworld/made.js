@@ -18,7 +18,7 @@
  *
  * Pure: the shape only. The runner (runner.js) writes it; nothing here reads the database.
  */
-export const MADE_KEY = /^(hero|hero-equipped|hero-sheathed|(guard|foe|tower|farmhand|keeper|athlete)(-\d+)?|ride|cast-[a-z][a-z0-9-]*|casting|systems|gear-[a-z]+|stock-[a-z0-9-]+|level-[a-z0-9-]+|audit-level-[a-z0-9-]+|map-\d+|game|fighter-[a-z0-9-]+|foes-[a-z][a-z0-9-]*|foe-[a-z][a-z0-9-]*|folk-[a-z0-9-]+|cue-[a-z][a-z0-9-]*)$/;
+export const MADE_KEY = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|(guard|foe|tower|farmhand|keeper|athlete)(-\d+)?|ride|cast-[a-z][a-z0-9-]*|casting|systems|gear-[a-z]+|stock-[a-z0-9-]+|level-[a-z0-9-]+|audit-level-[a-z0-9-]+|map-\d+|game|fighter-[a-z0-9-]+|foes-[a-z][a-z0-9-]*|foe-[a-z][a-z0-9-]*|folk-[a-z0-9-]+|cue-[a-z][a-z0-9-]*)$/;
 const PRINT = /^[0-9a-f]{8}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 

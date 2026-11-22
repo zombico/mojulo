@@ -186,7 +186,9 @@ export function readSeats(seats, entities, pilot = null) {
 function movesOf(rule, name) {
   const Ws = Array.isArray(rule.weapons) && rule.weapons.length ? rule.weapons : [{ figure: 'drawn', moveset: rule.moveset }];
   const C = rule.combat || {}, sheathed = !!C.sheathed && name === C.sheathed && name !== C.drawn;
-  const mine = Ws.filter((W) => (W.figure === 'sheathed') === sheathed);
+  // (a weapon HELD as its own item shows its own hero, `combat.held`: that hero bakes its moves, and the others never do)
+  const H = C.held || {}, heldBy = (W) => (W.held && H[W.id]) || null, own = Object.values(H).includes(name);
+  const mine = own ? Ws.filter((W) => heldBy(W) === name) : Ws.filter((W) => !heldBy(W) && (W.figure === 'sheathed') === sheathed);
   const moves = mine.flatMap((W) => Object.values(W.moveset.moves).filter((m) => m.clip).map((m) => ({ clip: m.clip, ...(m.swing ? { swing: m.swing } : { strike: m.strike }), ...(m.travel ? { travel: m.travel } : {}), ...(m.contact ? { contact: m.contact } : {}), ...(m.air ? { air: true } : {}), ...(m.plant ? { plant: m.plant } : {}) })));
   const readies = mine.map((W) => { const first = Object.values(W.moveset.moves)[0]; return { clip: W.moveset.ready ?? 'mv_ready', ...(first && first.strike ? { strike: first.strike } : {}) }; });
   // (the sidearms' aims, on every figure the hero shows: a sidearm is held on the sheathed hero, the blade on its back)
@@ -250,7 +252,7 @@ async function celBody(manifest, ctx, jumps = null) {
   return { ...L, figures: { ...L.figures, body: { ...A, toon: true, parts } } };
 }
 
-export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, talks = null, lit = false, pilot = false, cel = false } = {}) {
+export async function heroFigure(name, spec, { swing = null, swings = null, hands = false, ride = null, grade = null, takes = null, talks = null, lit = false, pilot = false, cel = false, marks = null } = {}) {
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
@@ -305,7 +307,7 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
     // the lit export reads it and a fight plays it, versus-character.js characterBody; its rig, its clips and what it
     // holds are the same read's. Absent: the body as it always was, its light baked)
     // (`pilot`: a body a player pilots plays it: its run the engagement run's body, world-kinds.js ctx.pilot)
-    const ctx = { title: name, ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) };
+    const ctx = { title: name, ...(marks ? { marks } : {}), ...(swing ? { swing } : {}), ...(swings ? { swings } : {}), ...(hands ? { xrHands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(lit ? { light: FLAT_LIGHT, unshaded: true, face: true } : {}), ...(pilot ? { pilot: true } : {}) };
     // (`cel`: THE CEL BODY, a body's light and not its face's: the character light (station-loft-shade.js, its shade swatches
     // and its metal by materials/toon-materials.js) baked twice, every group stepped lit and every group in shade, as a
     // fight plays a toon body (versus-character.js toonBody), so each corner carries both tones (`colS` the shade's) and
@@ -343,8 +345,19 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   // (read lit, a body whose colour is its palette's own (no painted texture) says how each of its materials answers the
   // light: color-theorist/cast-response.js; the page reads a corner's class off its colour)
   const response = lit && !pack.paintTex && manifest && manifest.recipe && manifest.recipe.palette ? (await import('@/lib/graph/color-theorist/cast-response.js')).castResponse(manifest.recipe.palette) : null;
-  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}) };
+  // ONE SKIN (realistic laws 17): a realistic hero minted under them is drawn on the page as one skin, each part a skinned
+  // mesh on one skeleton, every corner carried by the bones it is weighed to (controllable/index.js `skinParts`); drawn as
+  // rigid parts, one bone a part, its layers stepped past each other at every joint, the cloth's sawtooth. Before: as it was
+  const H = manifest?.hero, skinParts = !!(H && H.form === 'realistic' && ((H.physique && typeof H.physique === 'object' ? H.physique.laws : undefined) ?? 1) >= SKIN_PARTS_LAWS && pack.parts?.some((q) => q && q.jnt !== undefined && q.wgt !== undefined));
+  // (marked for the halo: its hair's own colour, so the page tells a head's painted hair from its skin by it)
+  const haloHair = marks && typeof manifest?.recipe?.palette?.Hair === 'string' ? manifest.recipe.palette.Hair : null;
+  return { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}), ...(skinParts ? { skinParts: true } : {}), ...(haloHair ? { haloHair } : {}) };
 }
+/** THE HALO'S MARKS (a game whose meter carries a halo, worlds/controllable/style.js): the piloted hero's corners marked
+ * by what they are, so the page recolours them as the hero transforms: 1 its hair (white), 2 its skin (dark grey) */
+const HALO_MARKS = Object.freeze({ Hair: 1, HairHighlight: 1, HairAlt: 1, Brow: 1, Lash: 1, Skin: 2, Lip: 2, Lid: 2, EarInner: 2, Nostrils: 2 });
+/** the realistic laws from which a hero is drawn as one skin on the page */
+const SKIN_PARTS_LAWS = 17;
 
 /**
  * A level's sketch as it is played: a city segment's level reads its city by ref (city/plan/ref.js), merged before it is
@@ -361,7 +374,10 @@ export async function levelSketch(sketch) {
   }
   if (sketch.manifest?.level && typeof sketch.manifest.level === 'object' && !sketch.manifest.game) {
     const { withBuildingLevel } = await import('@/lib/graph/structure/level.js');
+    // (a level ranked on its results, game/rank.js: its `level.rank` is its game's)
+    const rank = sketch.manifest.level.rank && typeof sketch.manifest.level.rank === 'object' ? sketch.manifest.level.rank : null;
     sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, sketch.ref) };
+    if (rank && sketch.manifest.game) sketch = { ...sketch, manifest: { ...sketch.manifest, game: { ...sketch.manifest.game, rank } } };
   }
   return sketch;
 }
@@ -1241,6 +1257,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && Array.isArray(sketch.manifest.entities) && sketch.manifest.entities.length) {
     payload.entities = sketch.manifest.entities;
     if (sketch.manifest.camera && sketch.manifest.camera.rule) payload.camera = sketch.manifest.camera;
+    // (a chase that asks a tall room's pull-back, `tall: true | { from?, … }`, controllable/rules-basic.js: the stage's
+    // rooms that stand over its `from`, as boxes; a world with none so tall drops the word and its page is as it was)
+    if (payload.camera && payload.camera.tall !== undefined) {
+      const { tall, ...cam } = payload.camera, T = tall && typeof tall === 'object' ? tall : {}, from = T.from ?? 7;
+      const rooms = tall ? (payload.rooms || []).filter((q) => q && q.box && q.h > from).map((q) => [q.box.min[0], q.box.min[1], q.box.max[0], q.box.max[1], q.h]) : [];
+      payload.camera = rooms.length ? { ...cam, tall: { ...T, rooms } } : cam;
+    }
     // suit switcher: `pilot` names the initially-piloted `pilotable` entity (default: the first one)
     if (typeof sketch.manifest.pilot === 'string') payload.pilot = sketch.manifest.pilot;
     // spectate: NO pilot — the whole cast runs its ai brain and the
@@ -1490,7 +1513,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
           const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
-          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
+          const { held, ...figure } = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(piloted && sketch.manifest.styleMeter && typeof sketch.manifest.styleMeter === 'object' && sketch.manifest.styleMeter.halo ? { marks: HALO_MARKS } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
             const reg = sketch.manifest.fxStyle && CAST_REGISTERS.includes(sketch.manifest.fxStyle.register) ? sketch.manifest.fxStyle.register : 'western';

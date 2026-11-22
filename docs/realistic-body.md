@@ -74,6 +74,25 @@ kit and the cloth are made by the rules in [garment-principles.md](garment-princ
   target (a blend shape) driven by the raise.
 - Today, per side: `pauldronBag`, `pauldronCap`, `pauldronDeltoid` (torso and upper arm), `shoulderLevel`,
   `shoulderOverhead` (torso).
+- **The clothes carry them** (`layered.js`). A garment copied ring for ring from a body segment takes that segment's
+  offsets, slot for slot (`garmentCorrectives`). Under realistic laws 17 the tailor's own cloth does too (its merged
+  tubes, a coat's `_body` and `_arm<S>`, a second skin): each of its points moves as the skin nearest it moves, its few
+  nearest skin points' offsets weighted by nearness, those a corrective leaves still counting as still
+  (`carriedCorrectives`). Before, a raised arm pushed the shoulder's skin out through a coat. Its test
+  (`body-relational-carry.test.js`) counts what a pose brings into view of what the coat covers at rest: an arm raised
+  overhead shows under half of it.
+
+## One skin on the page (realistic laws 17)
+
+A World page draws a hero as rigid parts by default: one mesh a bone, each vertex carried by its one strongest bone
+(`controllable/index.js` `__makeRigGroup`). At every joint neighbouring triangles go to different bones and step
+apart, and layers of cloth a few millimetres off each other cross there in rows of teeth (the sawtooth along a
+coat's hem, its armholes, a rolled cuff). A realistic hero minted under laws 17 is drawn as ONE SKIN
+(`world-scene.js` `heroFigure` says `skinParts`): each part a skinned mesh on one skeleton, every corner carried by
+the bones it is weighed to, as an engine's export is. The page's bank keeps its parts' bones and weights, welded with
+their corners where a part is welded (`pageFigures`), and each part keeps what it drew as a rigid mesh (its paint, its
+normals, its face, the cast rig's light). A weapon or a shield rides its bone as before, as does a body a fight breaks
+apart, a page with the toon ink's hull or a headset's hands. A hero minted before, as it was, byte for byte.
 
 ## The relief (realistic laws 5)
 

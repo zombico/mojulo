@@ -249,4 +249,53 @@ read off the world after each step:
 | the hero is hit | a whole tier lost, the combo gone |
 
 `window.__mojStyle.now()` on a level's page says the tier, how far through it, the combo, the peak and what was
-earned. The meter on the HUD and the rank on a level's results are not built yet.
+earned. The level's HUD draws it at the right (`game/hud-mana.js`, on the game UI runtime, in the game's look): the
+tier's name and the combo's count, standing only while there is style to show. The letter fills from its foot as
+the tier is climbed, slams in on a tier gained and shakes on a tier lost; the count is struck by each blow and grows
+heavier as the combo runs.
+
+Beside it the stylish template carries a **Halo Meter** (the meter's `halo`): blows landed fill it in stocks, more in
+the air, and a hit taken a little. With the stocks it takes full, the transform press (B, a pad's left stick)
+**transforms** the hero until the meter runs dry or the press comes again:
+
+| `halo` | what it says |
+|---|---|
+| `stocks`, `per` | the stocks it holds now, and the points a stock is |
+| `hit`, `hurt` | what a blow landed and a hit taken put in |
+| `at` | the stocks it takes to transform |
+| `drain` | stocks a second while transformed |
+| `might`, `swift`, `heal` | the blows' damage and the run raised while it lasts, and the hero's own health healed a second |
+
+Transformed, the hero grows black angel's wings behind his back, a golden halo stands over his head, his hair turns
+white and his skin dark grey, and the meter fills no further. Its `heal` mends the level's own health too, where the
+level keeps one on the bus (a fight's `hp` row): the bus hears `halo:heal` with the points mended, and the level adds
+them up to the health it starts at. The bus also hears `halo:ready` the moment the gauge can transform, and `halo:on`
+and `halo:off`; the HUD marks the ready moment once, a ring thrown off the vitals' crest and the gauge struck white,
+then breathes until the press.
+The HUD draws the health and the gauge as one figure, the **vitals** (the meter's `vitals: { look, hp, halo }`):
+no box, a crest at their root, each bar at its share of the length it reaches by the game's end (`hp` and `halo`,
+the health twice its start and ten stocks unless said), so the figure reads from the first level to the last. Its
+`look` says how the two forms answer: `overlap`, `contrast` or `echo`.
+
+A level of such a game is **ranked** as it is won (`game/rank.js`, the level's `game.rank`): one letter of the
+meter's own tiers, the mean of three marks.
+
+| mark | what it reads |
+|---|---|
+| time | at or under the par, full; nothing at twice the par |
+| style | the highest tier the meter reached, of its top |
+| clean | the hits taken, of the hits a life holds |
+
+The par is counted from the level's tasks (`gameworld/style-meter.js` `PAR`: a fight's walk in, and each of its
+foes); a level with no tasks has no time mark. The rank, the time, the style earned and the longest combo go on the
+level's results, and the play shell keeps the best of each figure.
+
+A stylish action game's HUD holds to one principle: **no box is drawn**. Letters and figures stand over the play on
+no plate; a change is said by effects and motion on them, never by a frame; and nothing is explained in words the
+play shows, so a legend row is not drawn and a mark or an arrow says where to go. A level that carries the meter
+gets this HUD (`hudToMana`'s `immersive`, said with `style` unless said not). The game's screens hold to it too
+(`game/immersive-ui.js`, the game's `ui.immersive`, laid by the run on a game that carries the meter): no plate, no
+frame and no veil over the play; the choice marked by its arrow alone; a rank its letter, stamped large. The
+letters carry the look instead, in a light rim and a light shadow of the theme's own accents. Between a level's
+fights an arrow (`manaHud.ways`), and no words, points to the next fight's ring: over it while it is in view, at
+the screen's edge while it is not.

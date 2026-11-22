@@ -149,7 +149,7 @@ import { readCourse, courseAt, coursePlan, courseLaws, joinLaw, lowerCourse, sla
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
-import { styleMeterOfGame } from './style-meter.js';
+import { styleMeterOfGame, levelRankOf, vitalsOf, STYLISH } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
 import { industrialPlan, industrialManifest } from './mission-industrial.js';
@@ -163,7 +163,11 @@ const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxSty
 // the world's clock (tempo.js): the moments that slow or hold its live levels, on every level; none written, nothing laid
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
 // the style meter (style-meter.js): how well the hero fights, on every level it strikes on; none written, nothing laid
-const meterOf = (G) => { const M = styleMeterOfGame(G); return M ? { styleMeter: M.styleMeter } : {}; };
+// the way on (game/hud-mana.js `ways`): a gauntlet whose arenas are walked into (a level's tasks, tasks.js) names the
+// one waiting in its arm var (game/wave-gauntlet.js); the arrow points to its ring
+const waysOf = (mechanics) => { const g = (mechanics ?? []).find((m) => m && m.kind === 'wave-gauntlet' && Array.isArray(m.arenas) && m.arenas.some((a) => a.enter)); return g ? { var: `__wg_${g.id ?? 'gauntlet'}_arm`, at: g.arenas.map((a) => (a.enter ? a.enter.at.slice() : null)) } : null; };
+// (the vitals are the HUD's, not the runtime's: kept off the page's meter)
+const meterOf = (G) => { const M = styleMeterOfGame(G); if (!M) return {}; const { vitals: _v, ...styleMeter } = M.styleMeter; return { styleMeter }; };
 // the world's grade (grade.js): the look over every frame of its levels; none written, nothing laid
 const gradeOf = (G) => { const R = gradeOfGame(G); return R ? { grade: R.grade } : {}; };
 // the grade its people are played at (figure-grades.js): a game's levels play the PLAY grade, the cinematics pose theirs
@@ -893,7 +897,7 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, foeRefs = null, gunnerRef = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, heldRefs = null, foeRefs = null, gunnerRef = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
@@ -910,7 +914,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       ends: { spawn: M.anchors.spawn.slice(), heading: M.heading, exit: M.anchors.exit.slice(), exitFrom: M.anchors.exit.slice(), beats: M.sections.map((S) => ({ beat: S.id, at: S.entry.slice() })), planar: true }, ...(laws.length ? { laws } : {}) };
   }
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -1062,7 +1066,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     const cam0 = cam && cam !== 'third-person' ? camera : A.camera ?? camera, camOf = ends.vista && cam0?.rule === 'follow' ? { ...cam0, vista: { at: ends.vista } } : cam0;
     // (AN ACTION HERO, the orbit and a blow: combat's guard and the run's stride, and its weapon sheathed out of combat
     // where the run made the sheathed hero, opts.sheathRef)
-    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null;
+    const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null;
     pilotPart = { figures: fighter ? fighter.figures : P.figures, entities: [fighter ? fighter.entity : A.entity], camera: camOf, events, ...(actionOrbit ? { lock: true } : {}) };
     seatable = !look;
   } else {
@@ -1252,6 +1256,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // a mission's is its own channel's (mission-mana.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
+  // (a level that carries the style meter is ranked on its results, game/rank.js)
+  if (manifest.styleMeter && manifest.game) manifest = { ...manifest, game: { ...manifest.game, rank: levelRankOf(G, stage.level) ?? {} } };
   // A RACE (race-hud.js): a roadway raced by laps wears its own HUD, the race read at a glance (place, laps, times, the
   // map, the speed, the lights), in its track's look unless the world names a theme of its own
   if (stage.section === 'roadway' && !manifest.manaHud) {
@@ -1264,7 +1270,11 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
         speedMax: Number.isFinite(top) && top > 0 ? Math.ceil((top * 3.6 * 1.15) / 10) * 10 : RACE_DIAL[c && typeof c === 'object' ? c.class : typeof c === 'string' && /^kart/.test(c) ? 'kart' : 'circuit'] ?? 120 }, { theme: named, screen: G.screen ?? null }) };
     }
   }
-  if (G.ui !== undefined && !manifest.manaHud && !MX && !manifest.events?.grammar) manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }), ...(G.ui.map !== undefined ? { map: G.ui.map } : {}), ...(G.ui.inventory !== undefined ? { inventory: G.ui.inventory } : {}), ...(G.ui.phone !== undefined ? { phone: G.ui.phone } : {}) } };
+  // (a level that carries the style meter, style-meter.js, shows it there, whether or not the world writes a `ui`)
+  if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !MX && !manifest.events?.grammar) {
+    const U = G.ui && typeof G.ui === 'object' ? G.ui : {};
+    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}) } };
+  }
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : stage.section === 'runner' ? [] : stage.section === 'mission' ? stage.mission.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says })) : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
@@ -1666,6 +1676,14 @@ export function sheathedSpec(G, spec) {
   if (spec.gear[slot]) return null;
   return { ...bare, gear: { ...rest, [slot]: R } };
 }
+/** The heroes a world's HELD weapons are shown by (combos.js weapon `held`, gameworld/runner.js `hero-held-<weapon>`): each
+ * the sheathed hero, its blade on its back, with the weapon's item in its right hand. → [{ id, spec }]; none where there is
+ * no sheathed hero or no weapon is held. */
+export function heldSpecs(G, spec) {
+  const S = sheathedSpec(G, spec), A = arsenalOfGame(G)?.arsenal;
+  if (!S || !A) return [];
+  return A.weapons.filter((W) => W.held).map((W) => ({ id: W.id, spec: { ...S, gear: { ...S.gear, right: W.held } } }));
+}
 // AN ACTION HERO'S WALL (a hero that starts with `wall` or is granted it): walking into a wall, a house's or a rock's,
 // never climbs it; a jump at it takes hold (worlds/controllable/wall.js `ground: false`), as an open world's climb is a
 // choice and never a stumble. A city stalker's wall, taken from the ground, is its own
@@ -1673,14 +1691,18 @@ export function sheathedSpec(G, spec) {
 // null for a world with none, whose hero has the one blow)
 const kitLegend = (G) => { const A = arsenalOfGame(G)?.arsenal; return A ? movesetLegend({ sidearm: A.ranged?.[0]?.name?.toLowerCase() ?? null }) : null; };
 export const actionWall = (rule) => (rule && rule.wall ? { wall: { ...(rule.wall === true ? {} : rule.wall), ground: false } } : {});
-function actionHero(entity, figures, sheathRef) {
+/** a stylish game's hero runs in combat with nothing held (combat.run): the trigger is its sprint, never its run */
+const runsInCombat = (G) => { const f = G?.feel, pole = typeof f === 'string' ? f : f?.pole; return STYLISH.includes(pole); };
+function actionHero(entity, figures, sheathRef, heldRefs = null, { run = false } = {}) {
   const fig = entity.body.figure, sheathed = sheathRef ? `${fig}-sheathed` : null;
+  // (each weapon HELD as its own item, its own hero: runner.js `hero-held-<weapon>`, shown in combat while it is up)
+  const held = sheathed && heldRefs ? Object.fromEntries(Object.keys(heldRefs).map((w) => [w, `${fig}-${w}`])) : null;
   const own = figures[fig];
   // (the guard walks on the hero's own walk, its clip `walk`, where the figure keeps one)
   const clipped = own && own.clips ? { ...own, clips: { ...own.clips, guard: 'walk' } } : own;
   return {
-    figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}) },
-    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(sheathed ? { drawn: fig, sheathed } : {}) } } },
+    figures: { ...figures, [fig]: clipped, ...(sheathed ? { [sheathed]: { ...clipped, heroRef: sheathRef } } : {}), ...(held ? Object.fromEntries(Object.entries(held).map(([w, n]) => [n, { ...clipped, heroRef: heldRefs[w] }])) : {}) },
+    entity: { ...entity, body: { ...entity.body, ...(sheathed ? { figure: sheathed } : {}), layers: POSE_LAYERS }, rule: { ...entity.rule, ...actionWall(entity.rule), combat: { ...COMBAT, ...(run ? { run: true } : {}), ...(sheathed ? { drawn: fig, sheathed } : {}), ...(held && Object.keys(held).length ? { held } : {}) } } },
   };
 }
 
@@ -2174,6 +2196,8 @@ export function buildingStage(B) {
     program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
     ...composed, ...(tone !== undefined ? { tone } : {}),
+    // (its rooms' light designed, `plot`: era/stage.js)
+    ...(B.plot !== undefined ? { plot: B.plot } : {}),
   };
 }
 
@@ -2219,7 +2243,7 @@ export function buildingEnds(stage, lowered = withBuildingLevel({ ...stage.manif
   return ends;
 }
 
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, sheathRef = null, heldRefs = null, goal = null, goalCast = null, extra = null, legend = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0];
@@ -2266,17 +2290,25 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStat
   const controls = `${top ? `W A S D  move${!pilot && !moves?.gear ? ' · Z  walk' : ''}` : `${walkRun(pilot, moves?.gear ? 'F ' : '')} · A / D  turn`} · Space  jump${carriesStrike(G) ? ` · ${STRIKE_LEGEND}` : ''}${shotItem(G) ? ` · ${FIRE_LEGEND}` : ''}${movesLegend(moves)}${X?.legend ? ` · ${X.legend}` : ''}${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   // (AN ACTION HERO indoors, the orbit and a blow, as on a trail: it moves in the camera's frame under the orbit that
   // locks on, and where the run made its sheathed twin its blade goes to its back and the fist is in its hands)
+  // (and in a tall room it stands back and looks up, so the height is seen: `tall`, controllable/rules-basic.js; a building
+  // with no room over seven metres, as it was)
   const actionOrbit = cam === 'orbit' && carriesStrike(G);
   const brule = { ...(top ? { move: 'world', moveYaw: OVERHEAD.yaw } : actionOrbit ? { move: 'camera' } : {}), ...(strikeWindow(G, null) ?? {}), ...(heroStature && !pilot ? { collideHeight: heroStature } : {}) };
   const P = withMoves(playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls, ...(Object.keys(brule).length ? { rule: brule } : {}) }), moves, startingGrants(G));
   const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const A = armedPilot(G, { ...P.entities[0], transform: { pos: cx ? spawn : steppedIn(plan, spawn, heading), heading } }, cam);
-  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT } : A.camera ?? partyChase(G, P.camera);
-  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef) : null, figs0 = fighter ? fighter.figures : P.figures;
+  const camera = top ? { rule: 'overhead', target: 'hero', ...OVERHEAD } : cam === 'fixed' ? { rule: 'fixed', target: 'hero', stations: fixedStations(ends) } : actionOrbit ? { ...P.camera, steer: 'orbit', ...ACTION_ORBIT, tall: true } : A.camera ?? partyChase(G, P.camera);
+  const fighter = actionOrbit && A.entity.body?.type === 'figure-rig' ? actionHero(A.entity, P.figures, sheathRef, heldRefs, { run: runsInCombat(G) }) : null, figs0 = fighter ? fighter.figures : P.figures;
   const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  let manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  // (and is ranked on its results, game/rank.js: its par counted from its tasks; a building's game is made from its
+  // `level` as the page is resolved, so the rank is said there)
+  if (manifest.styleMeter && manifest.level) manifest = { ...manifest, level: { ...manifest.level, rank: levelRankOf(G, stage.level) ?? {} } };
+  // (a level that carries the style meter, style-meter.js, shows it: its HUD on the game UI runtime, in the game's look,
+  // the level's own rows drawn there with it)
+  if (manifest.styleMeter && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, style: true, vitals: vitalsOf(G), ways: waysOf(manifest.level?.mechanics) }) };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

@@ -170,7 +170,7 @@ export function bakeClothClips(H, clips, R, { seconds = null, speeds = null, key
     const sim = still ? simulateClip(H, [poses[0]], s, { ...SOLVE, loop: false, air: () => air }) : simulateClip(H, poses, s, { ...SOLVE, loop: !once, air: () => air });
     const flowAt = (k) => (still ? sim[0].flow : sim[(k - (k % reg.hold)) * sub].flow);
     const flows = Array.from({ length: K }, (_, k) => flowAt(k));
-    const baked = (phase) => { const k = once ? Math.round(Math.max(0, Math.min(1, phase)) * (K - 1)) : ((Math.round(phase * K) % K) + K) % K; return { ...fn(phase), flow: flows[k] }; };
+    const baked = (phase) => { const k = once ? Math.round(Math.max(0, Math.min(1, phase)) * (K - 1)) : ((Math.round(phase * K) % K) + K) % K, p = fn(phase); return { ...p, flow: p.flow ? { ...p.flow, ...flows[k] } : flows[k] }; };
     out[name] = Object.assign(baked, fn, { keys: K });
   }
   return out;

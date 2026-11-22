@@ -542,6 +542,9 @@ export const SCALP_MOVES = Object.freeze({
   flipped: { note: 'the ends kicked out and up', flip: 1 },
   'temple-braids': { note: 'a thin braid from each temple falling before the ear (the Nordic braids)', ties: [
     { at: 'left-temple-0', gather: 0.022, tail: { kind: 'braid', length: 0.2, radius: 0.0045 } }, { at: 'right-temple-0', gather: 0.022, tail: { kind: 'braid', length: 0.2, radius: 0.0045 } }] },
+  // (a couple of loose strands let down at the temples before the rest is gathered: a ponytail's face-framing bangs)
+  'face-strands': { note: 'a loose strand let down at each temple, falling before the ear to the cheek, framing the face (bangs left out of a tie)', ties: [
+    { at: 'left-temple-0', gather: 0.018, tail: { kind: 'tail', length: 0.15, radius: 0.004 } }, { at: 'right-temple-0', gather: 0.018, tail: { kind: 'tail', length: 0.15, radius: 0.004 } }] },
   chunky: { note: 'gathered into pieces, as a game\'s hair cards read', chunk: 1, spacing: 0.016 },
   ahoge: { note: 'one stiff lock standing up at the crown', locks: { 'crown-1-0': { stand: 1, length: 0.7 } } },
 });

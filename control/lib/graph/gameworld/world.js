@@ -328,7 +328,7 @@ const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood', '
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to', 'stalker'];
 // (a building use's plan, era/programs.js: storeys, wings, loading and bays for an office, a lab building, a warehouse)
-const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'parked', 'complex', 'fight'];
+const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref', 'storeys', 'wings', 'loading', 'bays', 'parked', 'complex', 'plot', 'fight'];
 // a building level that is several buildings (network/complex.js): its own, or its dungeon's spaces on it
 const COMPLEX_LEVEL_KEYS = ['buildings', 'campus', 'network', 'yard', 'from', 'to'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

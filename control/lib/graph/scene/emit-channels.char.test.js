@@ -978,6 +978,23 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // bare fists), those whose pages inline the game UI runtime and the HUD host (this line's side map's HUD over the
 // candidate's race, radar and talk box), and those that carry `audio` (this line's unlock and run voices over the
 // candidate's ambience and cab). Nothing else moved.
+// Re-pinned 2026-11-18 (the chase in a tall room): the runtime the page embeds gained the follow rule's `tall` branch
+// (rules-basic.js: in a room over seven metres the chase stands back and up, as far as the room allows, and its look
+// lifts). A block added before the chase's distance, that line and the height's taking its terms, and one line after
+// the first look keeping the camera under the ceiling; a rule with no `tall` runs as before. Every fixture that embeds
+// the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-19 (a weapon held as its own item, and a move's knockback): the runtime the page embeds gained the
+// platform rule's `combat.held` (rules-platform.js: a weapon held as its own item shows its own hero in combat while it is
+// up, the line choosing the figure guarded by it) and a moveset move's `knock` carried onto its blow (combat-melee.js
+// stepMoveset: one field spread in). A hero with no held weapon and a move with no knock run as before. Every fixture that
+// embeds the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-21 (1116-rc merged into 1115-stylish-action-rails): the fixtures both lines moved, together; the
+// runtime the page embeds carries this line's clang, combat run and held weapon beside the candidate's, and the game UI
+// runtime's HUD host this line's style meter and vitals beside the candidate's talk box and pilot strip.
+// Re-pinned 2026-11-22 (the clang lands; a guard never struck comes down): the runtime the page embeds (combat-melee.js)
+// lands a clanging hero's blow on a foe mid-swing (the spark kept, no lock, no block: the foe is not defending), and a
+// guard raised before its first block comes down when let go (`blockT` unset read as none). A hero without `clang` and a
+// guard that has blocked run as before; every fixture that embeds the controllable runtime re-pinned with it.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

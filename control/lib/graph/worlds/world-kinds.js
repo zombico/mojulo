@@ -15,6 +15,7 @@
  * as sketch.title || manifest.title || descriptor.title.
  */
 
+import { posedCoatClips } from '../polygonizer/coat-poses.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity, CITY_METERS_PER_UNIT } from '@/lib/graph/city/fractal-city';
 import { assembleRoadwayScene } from '@/lib/graph/roads/roadway';
@@ -1184,8 +1185,11 @@ export const WORLD_KINDS = {
         // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
+        // (a POSED coat's hinges set by each clip's family, coat-poses.js: wrapped standing, behind the hips walking, flared
+        // open in action; a recipe without one, its clips as they were)
+        if (m.recipe.coatPoses) clipsIn = posedCoatClips(clipsIn, m.recipe.coatPoses, R);
         const clothClips = cloth ? bakeClothClips(cloth, clipsIn, R, { seconds, speeds }) : clipsIn, clothActs = cloth && acts ? bakeClothClips(cloth, acts, R) : acts;
-        const pack = packLayeredRig(mesh, packSkin, packR, { clips: clothClips, ...(clothActs ? { acts: clothActs } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        const pack = packLayeredRig(mesh, packSkin, packR, { ...(ctx.marks ? { marks: ctx.marks } : {}), clips: clothClips, ...(clothActs ? { acts: clothActs } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         // (and said once and only where they move: a corner's row shared with its vertex's others, a target's column its own
         // rows alone, figures/morph-sparse.js; exact, the same steps)
