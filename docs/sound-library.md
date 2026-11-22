@@ -18,15 +18,20 @@ An index and its masters, in one directory:
 - `masters/<id>.wav`: each variant level-matched (one-shots peaked at -1 dBFS, beds at -24 LUFS, 16-bit 44.1 kHz),
   read by an offline render; `masters/<id>.mp3` beside it, a tenth of the size, inlined by a page.
 
-The library is looked for at `$MOJULO_SOUNDS_DIR`, else `<$MOJULO_HOME or ~/.mojulo>/sounds`. To install a release's
-tarball by hand (until `mojulo install sounds` lands):
+The library is looked for at `$MOJULO_SOUNDS_DIR`, else `<$MOJULO_HOME or ~/.mojulo>/sounds`. A release carries its
+source (the original takes, `library.json` and the ledger); its masters are rebuilt from it, byte for byte, by the
+conditioner, which needs ffmpeg. To install one by hand (until `mojulo install sounds` lands), from `control/`:
 
 ```bash
 mkdir -p ~/.mojulo/sounds
 ```
 
 ```bash
-tar -xf sounds-spike-v2.tar -C ~/.mojulo/sounds
+tar -xf sounds-v3-source.tar -C ~/.mojulo/sounds
+```
+
+```bash
+node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry --out ~/.mojulo/sounds
 ```
 
 ## Where it plays
