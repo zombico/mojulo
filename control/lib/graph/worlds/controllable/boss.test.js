@@ -143,3 +143,99 @@ describe('the boss: absent, nothing', () => {
     expect(x.bossFx).toBeUndefined();
   });
 });
+
+// THE CARRIER (boss.js CARRIER): its gunners lay bursts on a pilot in their arc and stay down once put down; its drones
+// are endless; a courier held in the RF gun is hacked, fetches a package and goes off in a hangar door; from the second
+// delivery its hunters chase the hacked courier; three deliveries destroy it.
+describe('the boss: a carrier, its gunners and its own drones turned on it', () => {
+  const DOORS = { r: [0, 1.5, 7], l: [0, -1.5, 7] };
+  const CREW = [
+    { id: 'gunnerR', name: 'the right gunner', part: 'crew', at: { walker: [0, 1.2, 6] }, face: 90, arc: 75, door: 'r' },
+    { id: 'gunnerL', name: 'the left gunner', part: 'crew', at: { walker: [0, -1.2, 6] }, face: -90, arc: 75, door: 'l' },
+  ];
+  const CARRIER = {
+    kind: 'carrier', crew: { lay: 0.5, every: 1, burst: 2, hurt: 10, range: 45 },
+    drones: { reprint: 3, alt: 7, speed: 10, orbit: 15, hunter: { most: 2, see: 0, drop: { every: 99 } }, courier: { every: 0.5, stay: 60, speed: 6, orbit: 12 }, chase: { after: 1, most: 2, every: 1, hurt: 15, range: 30 } },
+    hack: { secs: 1, decay: 0.3, slip: 0.3 }, packages: [{ id: 'pkg', at: [10, -12, 0] }], restock: 2, delivery: { core: 110, r: 4 }, doors: DOORS,
+  };
+  const RF = { name: 'RF gun', weapon: { fireClass: 'sight', auto: true, rof: 10, damage: 0, magazine: 999, range: 60, jam: true, coreAngle: 3 } };
+  const drone = (i, role) => ({ id: `c:d${i}`, team: 'brood', rule: { type: 'static', bossDrone: { boss: 'c', role, bay: [i % 2 ? 2 : -2, i % 3 - 1, 3] } }, body: { type: 'none', hittable: false, hp: role === 'courier' ? 120 : 30, radius: 0.6, egg: { a: 0.6, c: 0.35, cz: 0 } }, transform: { pos: [0, 0, 0], heading: 0 } });
+  // (the RF gun's round on a body, as the rounds leave it: the shot's target, inside the step)
+  function buildAim(X) { const step = X.stepWorld; X.stepWorld = function stepWithAim(state, input, dt, h) { const out = step(state, input, dt, h); if (state.aimAt) state.byId.p.lastShot = { mode: 'core', targetId: state.aimAt, t: state.time }; return out; }; }
+  const EA = composeControllable([...EMISSION, buildCarry, buildAim, buildBoss]);
+  const runA = (w, secs) => { for (let i = 0; i < Math.round(secs / DT); i++) EA.stepWorld(w, {}, DT, hooks); };
+  const carrierWorld = ({ at = [0, -25, 0] } = {}) => EA.createWorld({
+    camera: { rule: 'follow', target: 'p' },
+    entities: [
+      { id: 'p', pilotable: true, team: 'pilot', rule: { type: 'platform', speed: 4, eye: 0, collideHeight: 1.7, loadout: [RF] }, weapon: RF.weapon, body: { type: 'mesh', hittable: true, hp: 100 }, transform: { pos: at, heading: Math.PI / 2 } },
+      { id: 'c', rule: { type: 'static', boss: { name: 'Brood walker', hp: 330, phases: { brood: CARRIER }, spots: CREW, weapons: {} } }, body: { type: 'none' }, transform: { pos: [0, 0, 0], heading: 0 } },
+      ...CREW.map((sp) => ({ id: `c:${sp.id}`, team: 'brood', rule: { type: 'static', bossSpot: { boss: 'c', spot: sp.id } }, body: { type: 'mesh', hittable: true, hp: 100, egg: { a: 0.35, c: 0.9, cz: 0.9 } }, transform: { pos: [0, 0, 0], heading: 0 } })),
+      drone(1, 'courier'), drone(2, 'hunter'), drone(3, 'hunter'),
+    ],
+  });
+  const B = (w) => EA.bossFacts(w, 'c');
+  // the RF gun held on a courier: what its round leaves (the beam is the rounds' own: the shot's target)
+  // (laid inside the step, as the RF gun's rounds would: buildAim below)
+  const holdOn = (w, id, secs) => { w.aimAt = id; for (let i = 0; i < Math.round(secs / DT); i++) EA.stepWorld(w, { fire: 1 }, DT, hooks); w.aimAt = null; };
+  const courierOut = (w) => { for (let i = 0; i < 300 && !(w.byId['c:d1'].drone && w.byId['c:d1'].drone.st === 'lap'); i++) runA(w, DT); };
+
+  it('a gunner whose arc the pilot stands in fires on it; put down, it stays down and the burst stops', () => {
+    // (the pilot off the right side: the right gunner's arc, the left's never)
+    const w = carrierWorld({ at: [0, -25, 0] });
+    runA(w, 3);
+    expect(w.byId.p.body.hp).toBeLessThan(100);
+    const hp = w.byId.p.body.hp;
+    w.byId['c:gunnerR'].ko = { t0: w.time }; w.byId['c:gunnerR'].downed = true;
+    runA(w, DT);
+    expect(B(w).crew.gunnerR).toBe(false);
+    runA(w, 3);
+    expect(w.byId.p.body.hp).toBe(hp);
+  });
+
+  it('only a courier is hacked; hacked, it fetches the package, goes home by the open door and goes off in it', () => {
+    const w = carrierWorld({ at: [0, 30, 0] });
+    w.byId['c:gunnerR'].downed = true; w.byId['c:gunnerL'].downed = true;
+    courierOut(w);
+    expect(B(w).drones['c:d1'].st).toBe('lap');
+    // (a hunter in the beam is not hacked)
+    runA(w, 1); holdOn(w, 'c:d2', 1.2);
+    expect(B(w).drones['c:d2'].hacked).toBe(false);
+    holdOn(w, 'c:d1', 1.2);
+    expect(B(w).drones['c:d1'].hacked).toBe(true);
+    for (let i = 0; i < 1200 && B(w).deliveries === 0; i++) runA(w, DT);
+    expect(B(w).deliveries).toBe(1);
+    expect(B(w).hp).toBe(220);
+    expect(B(w).drones['c:d1'].st).toBe('dock');
+  });
+
+  it('the beam let go drains the hack; from the second delivery its hunters chase the hacked courier and shoot it down', () => {
+    const w = carrierWorld({ at: [0, 30, 0] });
+    w.byId['c:gunnerR'].downed = true; w.byId['c:gunnerL'].downed = true;
+    courierOut(w);
+    holdOn(w, 'c:d1', 0.5);
+    const u = B(w).jam.u;
+    expect(u).toBeGreaterThan(0.3);
+    runA(w, 0.5);
+    expect(B(w).jam.u).toBeLessThan(u);
+    // (one delivered, then the next hacked: chased, and left alone it is shot down, its package lost)
+    w.byId.c.boss.deliveries = 1;
+    holdOn(w, 'c:d1', 1.2);
+    runA(w, 0.2);
+    expect(Object.values(B(w).drones).filter((d) => d.chase).length).toBeGreaterThan(0);
+    for (let i = 0; i < 900 && B(w).drones['c:d1'].hacked; i++) runA(w, DT);
+    expect(B(w).drones['c:d1'].hacked).toBe(false);
+    expect(B(w).deliveries).toBe(1);
+  });
+
+  it('three deliveries destroy it, and its drones fall', () => {
+    const w = carrierWorld({ at: [0, 30, 0] });
+    w.byId['c:gunnerR'].downed = true; w.byId['c:gunnerL'].downed = true;
+    runA(w, DT); w.ms = { held: {} }; w.byId.c.boss.cfg.down = { item: 'brood-down' };
+    w.byId.c.boss.hp = 110;
+    courierOut(w); holdOn(w, 'c:d1', 1.2);
+    // (its chasers kept off: shot down as they come)
+    for (let i = 0; i < 1500 && B(w).phase !== 'down'; i++) { for (const id of ['c:d2', 'c:d3']) if (w.byId[id].drone.chase) w.byId[id].body.hp = 0; runA(w, DT); }
+    expect(B(w).phase).toBe('down');
+    expect(w.ms.held['brood-down']).toBe(true);
+  });
+});

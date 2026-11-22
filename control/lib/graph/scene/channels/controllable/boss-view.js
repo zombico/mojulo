@@ -6,6 +6,10 @@
 //                 closing as it comes (the read that says where cover is wanted); its tank's sight line, red from its
 //                 muzzle to what it meets, brighter and blinking once locked; each burst a flash, a ball of fire and smoke
 //   the mines     each one laid, a disc and its light blinking, faster once armed
+//   a carrier's   its drones flown (their rotors spun, shown only while out of their bays), each one's mark (a courier's
+//                 green, the hacked one's blue with its health, a chaser's red), its packages on their pallets and under
+//                 the drone that carries one, the RF gun's beam on the drone it is held on and the hack's ring filling,
+//                 each gunner's gun turned on what it fires at, the tracers of a burst
 //   its spots     a mark on each weak spot of the phase it is in: lit where the pilot stands to hit it, dim where it does
 //                 not (go round it); smoke from what is shot out
 //   the HUD       its name, what it is doing and for how long (reloading: the window), its core's bar in a phase that wears
@@ -22,8 +26,10 @@ const __bvQ = new THREE.Quaternion(), __bvQ2 = new THREE.Quaternion(), __bvO = n
 // THE BONE HOOK: the guns turned by the aim (a ring about its own head, the cradle and its weapon elevated about the trunnion
 // and carried round the ring), a part shot off hidden, the rock of a failing stand about the hips
 function __bossRigBone(e, fig, bi, Q, P, mesh) {
-  const S = e.boss; if (!S) return;
   const id = fig.bones[bi].id;
+  // (a drone's rotors spun about their masts, a pair each way)
+  if (e.drone) { if (/Rotor/.test(id)) { __bvQ.setFromAxisAngle(__BV_Z, (((__world.time || 0) * 60) % (2 * Math.PI)) * (/F.*-r$|R.*-l$/.test(id) ? 1 : -1)); Q.multiply(__bvQ); } return; }
+  const S = e.boss; if (!S) return;
   const lost = fig.__bvLost || (fig.__bvLost = (function () { const m = {}; for (const sp of S.cfg.spots) for (const b of sp.bones || []) m[b] = sp.id; return m; })());
   if (lost[id]) { const R = S.spots[lost[id]]; mesh.visible = !(R && R.gone); }
   if (e.bossTilt) { __bvQ2.setFromAxisAngle(__BV_X, e.bossTilt); __bvO.set(P[0], P[1], P[2] - 4.5).applyQuaternion(__bvQ2); P[0] = __bvO.x; P[1] = __bvO.y; P[2] = __bvO.z + 4.5; Q.premultiply(__bvQ2); }
@@ -72,6 +78,61 @@ function __bvCue(k, at) {
   if (at) { const c = camera.position, d = Math.hypot(at[0] - c.x, at[1] - c.y, at[2] - c.z); g = Math.max(0.15, Math.min(1, 30 / Math.max(10, d))); }
   try { __beatsCue(A[k], g); } catch (e) {}
 }
+// A CARRIER, DRAWN (boss.js CARRIER)
+const __BVC = { marks: {}, pk: {}, guns: {}, beam: null, ring: null };
+function __bvCarrier(W, S, p, now) {
+  // its drones: shown out of their bays, a mark over each
+  for (const d of S.drones) {
+    const m = __bodies[d.id]; if (m) m.visible = !d.gone;
+    let mk = __BVC.marks[d.id];
+    if (!mk) { mk = __BVC.marks[d.id] = document.createElement('div'); mk.style.cssText = 'position:fixed;z-index:11;pointer-events:none;transform:translate(-50%,-100%);font:700 11px/1 ui-monospace,monospace;white-space:nowrap;text-align:center;text-shadow:0 0 4px #000'; document.body.appendChild(mk); }
+    const D = d.drone, show = !d.gone && D.st !== 'fall';
+    if (!show) { mk.style.display = 'none'; continue; }
+    const q = d.transform.pos; __BV.v.set(q[0], q[1], q[2] + 0.7).project(camera);
+    const vis = __BV.v.z < 1 && Math.abs(__BV.v.x) < 1.05 && Math.abs(__BV.v.y) < 1.05;
+    mk.style.display = vis ? 'block' : 'none'; if (!vis) continue;
+    mk.style.left = ((__BV.v.x + 1) / 2 * innerWidth).toFixed(1) + 'px'; mk.style.top = ((1 - __BV.v.y) / 2 * innerHeight).toFixed(1) + 'px';
+    const hp = d.hpMax ? Math.max(0, d.body.hp / d.hpMax) : 1;
+    if (D.hacked) mk.innerHTML = '<div style="color:#7fd0ff">\u25b2 HACKED' + (D.st === 'carry' ? ' \u00b7 package' : '') + '</div><div style="margin:2px auto 0;width:40px;height:4px;background:rgba(255,255,255,.2)"><div style="height:100%;width:' + (hp * 100).toFixed(0) + '%;background:#7fd0ff"></div></div>';
+    else if (D.role === 'courier') mk.innerHTML = '<div style="color:' + (Math.sin(now * 6) > 0 ? '#6dff8a' : '#2f9a46') + '">\u25ce courier</div>';
+    else mk.innerHTML = '<div style="color:' + (D.chase ? '#ff4a3a' : 'rgba(255,170,140,.75)') + '">' + (D.chase ? '\u25bc chaser' : '\u25bf') + '</div>';
+  }
+  // its packages: on their pallets, or under the drone that carries one
+  for (const k in S.pkgs) {
+    const K = S.pkgs[k];
+    let X = __BVC.pk[k];
+    if (!X) { X = __BVC.pk[k] = { pallet: __bvNoPick(new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 0.14), new THREE.MeshLambertMaterial({ color: 0x8a6a42 }))), crate: __bvNoPick(new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.45, 0.4), new THREE.MeshLambertMaterial({ color: 0x7a2c22 }))), lamp: __bvNoPick(new THREE.Mesh(__bvGeo.lamp, __bvMat(0xff6a2a, 1))) };
+      X.pallet.position.set(K.at[0], K.at[1], K.at[2] + 0.07); scene.add(X.pallet); scene.add(X.crate); scene.add(X.lamp); }
+    const here = !K.carried && now >= K.back;
+    X.crate.visible = here || !!K.carried; X.lamp.visible = X.crate.visible && Math.sin(now * 5) > 0;
+    const c = K.pos || K.at; X.crate.position.set(c[0], c[1], c[2] + (K.carried ? 0 : 0.36)); X.lamp.position.set(c[0], c[1], c[2] + (K.carried ? 0.25 : 0.62));
+  }
+  // the RF gun's beam on what it is held on, and the hack's ring round it
+  const J = S.jam, tg = J && J.on && J.id ? W.byId[J.id] : null;
+  if (!__BVC.beam) { const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]); __BVC.beam = __bvNoPick(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.7 }))); scene.add(__BVC.beam);
+    __BVC.ring = document.createElement('div'); __BVC.ring.style.cssText = 'position:fixed;z-index:12;pointer-events:none;width:54px;height:54px;transform:translate(-50%,-50%);border-radius:50%;display:none'; document.body.appendChild(__BVC.ring); }
+  if (tg && p) {
+    const a = p.transform.pos, b = tg.transform.pos, P = __BVC.beam.geometry.attributes.position;
+    P.setXYZ(0, a[0], a[1], a[2] + 1.35); P.setXYZ(1, b[0], b[1], b[2]); P.needsUpdate = true; __BVC.beam.visible = Math.sin(now * 40) > -0.6;
+    __BV.v.set(b[0], b[1], b[2]).project(camera);
+    __BVC.ring.style.display = __BV.v.z < 1 ? 'block' : 'none';
+    __BVC.ring.style.left = ((__BV.v.x + 1) / 2 * innerWidth).toFixed(1) + 'px'; __BVC.ring.style.top = ((1 - __BV.v.y) / 2 * innerHeight).toFixed(1) + 'px';
+    const u = Math.round(J.u * 100);
+    __BVC.ring.style.background = 'conic-gradient(#7fd0ff ' + u + '%, rgba(127,208,255,.15) 0)'; __BVC.ring.style.webkitMask = __BVC.ring.style.mask = 'radial-gradient(circle, transparent 58%, #000 60%)';
+    if (!__BVC.hum || now - __BVC.hum > 0.5) { __BVC.hum = now; __bvCue('jam'); }
+  } else { __BVC.beam.visible = false; __BVC.ring.style.display = J && J.u > 0.02 && J.id && W.byId[J.id] ? 'block' : 'none';
+    if (J && J.u > 0.02 && J.id && W.byId[J.id]) { const b = W.byId[J.id].transform.pos; __BV.v.set(b[0], b[1], b[2]).project(camera); __BVC.ring.style.left = ((__BV.v.x + 1) / 2 * innerWidth).toFixed(1) + 'px'; __BVC.ring.style.top = ((1 - __BV.v.y) / 2 * innerHeight).toFixed(1) + 'px'; __BVC.ring.style.background = 'conic-gradient(rgba(127,208,255,.6) ' + Math.round(J.u * 100) + '%, rgba(127,208,255,.1) 0)'; } }
+  // each gunner's gun: on its mount at the gunner's hands, turned on what it fires at, drooped once its gunner is down
+  for (const sp of S.cfg.spots) {
+    if (sp.part !== 'crew') continue;
+    const B = S.ents[sp.id]; if (!B) continue;
+    let G = __BVC.guns[sp.id];
+    if (!G) { G = __BVC.guns[sp.id] = new THREE.Group(); const post = __bvNoPick(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.1, 8), new THREE.MeshLambertMaterial({ color: 0x3b3f36 }))); post.rotation.x = Math.PI / 2; post.position.set(0, 0, -0.55); G.add(post);
+      const gun = __bvNoPick(new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.14, 0.16), new THREE.MeshLambertMaterial({ color: 0x2a2d2f }))); gun.position.set(0.55, 0, 0); G.add(gun); const box = __bvNoPick(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.26), new THREE.MeshLambertMaterial({ color: 0x4a5040 }))); G.add(box); G.userData.gun = gun; scene.add(G); }
+    const q = B.transform.pos, h = B.transform.heading;
+    G.position.set(q[0] + Math.cos(h) * 0.55, q[1] + Math.sin(h) * 0.55, q[2] + 1.15); G.rotation.set(0, S.spots[sp.id].gone ? 0.5 : 0, h);
+  }
+}
 (function __bvFrame() {
   requestAnimationFrame(__bvFrame);
   const W = __world, F = W.bossFx || { shells: [], bursts: [], mines: [] }, now = W.time || 0, B = W.entities.find((x) => x.boss), p = W.pilotId ? W.byId[W.pilotId] : null;
@@ -84,11 +145,13 @@ function __bvCue(k, at) {
     seen[s.id] = true;
     let m = __BV.shells[s.id];
     if (!m) {
-      m = __BV.shells[s.id] = { body: __bvNoPick(new THREE.Mesh(s.kind === 'missile' ? __bvGeo.dart : __bvGeo.ball, __bvMat(s.kind === 'round' ? 0xffe9a8 : s.kind === 'missile' ? 0xd8dde2 : 0x3a3d40, 1))) };
+      const line = s.kind === 'round' || s.kind === 'tracer';
+      m = __BV.shells[s.id] = { body: __bvNoPick(new THREE.Mesh(s.kind === 'missile' ? __bvGeo.dart : __bvGeo.ball, __bvMat(line ? 0xffe9a8 : s.kind === 'missile' ? 0xd8dde2 : 0x3a3d40, 1))) };
       if (s.kind === 'shell') m.body.scale.setScalar(0.32);
-      if (s.kind === 'round') m.body.scale.setScalar(0.25);
+      if (s.kind === 'grenade') m.body.scale.setScalar(0.12);
+      if (line) m.body.scale.setScalar(s.kind === 'tracer' ? 0.06 : 0.25);
       scene.add(m.body);
-      if (s.kind !== 'round') {
+      if (!line) {
         m.ring = __bvNoPick(new THREE.Mesh(__bvGeo.ring, __bvMat(s.kind === 'missile' ? 0xffa23a : 0xff3b2e, 0.9)));
         m.fill = __bvNoPick(new THREE.Mesh(__bvGeo.disc, __bvMat(s.kind === 'missile' ? 0xffa23a : 0xff3b2e, 0.18)));
         const r = s.r || 4; m.ring.scale.setScalar(r); m.ring.position.set(s.to[0], s.to[1], s.to[2] + 0.06); m.fill.position.set(s.to[0], s.to[1], s.to[2] + 0.05);
@@ -97,7 +160,7 @@ function __bvCue(k, at) {
         const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(s.from[0], s.from[1], s.from[2]), new THREE.Vector3(s.to[0], s.to[1], s.to[2])]);
         m.trace = __bvNoPick(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.9 }))); scene.add(m.trace);
       }
-      __bvCue(s.kind === 'missile' ? 'missile' : s.kind === 'round' ? 'round' : 'launch', s.from);
+      __bvCue(s.kind === 'missile' ? 'missile' : s.kind === 'round' ? 'round' : s.kind === 'tracer' ? 'burst-fire' : s.kind === 'grenade' ? 'drop' : 'launch', s.from);
     }
     __bvArc(s, Math.min(1, u), pt);
     m.body.position.set(pt[0], pt[1], pt[2]);
@@ -113,7 +176,7 @@ function __bvCue(k, at) {
     const light = new THREE.PointLight(0xffa64d, 6, b.r * 5); light.position.copy(ball.position);
     scene.add(ball); scene.add(smoke); scene.add(light);
     __BV.bursts[b.id] = { ball, smoke, light, t: b.t, r: b.r };
-    __bvCue(b.kind === 'mine' ? 'mine' : 'burst', b.at);
+    __bvCue(b.kind === 'mine' ? 'mine' : b.kind === 'drone' ? 'drone-down' : 'burst', b.at);
   }
   for (const id in __BV.bursts) {
     const X = __BV.bursts[id], a = now - X.t;
@@ -143,6 +206,8 @@ function __bvCue(k, at) {
     X.body.visible = X.lamp.visible = !taken[c.id];
     if (!taken[c.id]) X.lamp.visible = Math.sin(now * 3) > -0.4;
   }
+  // A CARRIER'S: its drones, their marks, its packages, the beam, its gunners' guns
+  if (S.carrier) __bvCarrier(W, S, p, now);
   // its footfalls, a walker's (each leg's planting in its gait), never folded
   if (__AUDIO_BOSS_STEP() && S.form === 'walker' && B.moving && B.locomotion === 'forward') {
     const ph = B.gaitPhase || 0;
@@ -183,14 +248,16 @@ function __bvCue(k, at) {
   }
   // THE HUD
   const name = (S.cfg.name || 'boss').toUpperCase(), doing = S.phase === 'down' ? 'destroyed' : S.phase === 'fall' ? 'staggering' : S.phase === 'transform' ? 'folding onto its wheels'
+    : S.step === 'brood' ? (S.drones.some((d) => d.drone.hacked) ? 'a hacked drone is out' : S.drones.some((d) => d.drone.role === 'courier' && d.drone.out && d.drone.st !== 'fall') ? 'a courier is out' : 'its drones are out')
     : S.step === 'aim' ? 'laying a barrage' : S.step === 'fire' ? 'firing' : S.step === 'reload' ? 'reloading ' + Math.max(0, (S.reloadFor || 0) - S.t).toFixed(1) + ' s' : S.step === 'advance' ? 'advancing' : S.step === 'drive' ? (S.stunT > 0 ? 'drive broken ' + S.stunT.toFixed(1) + ' s' : 'driving') : S.step === 'lay' ? 'laying its gun' : S.step;
   const parts = S.cfg.spots.filter((sp) => Number.isFinite(S.spots[sp.id].max) && (!sp.phases || sp.phases.includes(phase))).map((sp) => {
     const R = S.spots[sp.id];
     return '<span style="display:inline-block;margin:2px 6px;color:' + (R.gone ? '#7d7a75' : '#e8e6e1') + '">' + (sp.name || sp.id).replace(/^(its|the) /, '') + (R.gone ? ' \\u2715' : __bvBar(R.hp / R.max, sp.part === 'leg' ? '#e0b040' : '#ff9a2e', 46)) + '</span>';
   }).join('');
-  const core = S.cfg.phases[phase] && S.cfg.phases[phase].kind === 'tank' || S.phase === 'down' ? '<div>' + __bvBar(S.hp / S.hpMax, '#ff4a3a', 260) + '</div>' : '';
+  const core = S.cfg.phases[phase] && (S.cfg.phases[phase].kind === 'tank' || S.cfg.phases[phase].kind === 'carrier') || S.phase === 'down' ? '<div>' + __bvBar(S.hp / S.hpMax, '#ff4a3a', 260) + '</div>' : '';
+  const crewOf = S.cfg.spots.filter((sp) => sp.part === 'crew'), crewL = crewOf.length ? '<div style="margin-top:2px">gunners ' + crewOf.map((sp) => '<span style="margin:0 4px;color:' + (S.spots[sp.id].gone ? '#7d7a75' : '#ff9a2e') + '">' + (sp.name || sp.id).replace(/^the /, '').replace(/ gunner$/, '') + (S.spots[sp.id].gone ? ' \u2715' : ' \u25cf') + '</span>').join('') + (S.carrier ? ' \u00b7 delivered ' + S.deliveries : '') + '</div>' : '';
   const reload = S.step === 'reload' && S.reloadFor ? '<div style="margin-top:2px">' + __bvBar(S.t / S.reloadFor, '#7fc8ff', 160) + '</div>' : '';
-  __bvHud.innerHTML = '<div style="letter-spacing:.2em;font-size:13px">' + name + '</div><div style="color:#b9b5ae">' + doing + (S.tailsLost ? ' \\u00b7 reloaders lost ' + S.tailsLost : '') + '</div>' + core + reload + '<div style="margin-top:3px">' + parts + '</div>';
+  __bvHud.innerHTML = '<div style="letter-spacing:.2em;font-size:13px">' + name + '</div><div style="color:#b9b5ae">' + doing + (S.tailsLost ? ' \\u00b7 reloaders lost ' + S.tailsLost : '') + '</div>' + core + reload + crewL + '<div style="margin-top:3px">' + parts + '</div>';
   // what it said: shown for a while as it is said
   if (S.said && S.said !== __BV.said) { __BV.said = S.said; __bvSay.textContent = S.said.text; __bvSay.style.opacity = '1'; __BV.sayT = now; if (S.said.on === 'boss:barrage') __bvCue('alarm'); if (S.said.on === 'boss:down') __bvCue('burst'); }
   if (__BV.sayT != null && now - __BV.sayT > 3.2) __bvSay.style.opacity = '0';

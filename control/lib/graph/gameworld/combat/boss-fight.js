@@ -25,10 +25,26 @@
  *     tails' reload), its spots placed on its own bodies in each form (`places`), its guns its own mounts'.
  *     `tune`: { stand?, tank?, hp?, spots? } laid over the phases, the core and the spots by id.
  *
+ *   broodWalkerBoss({ id?, at, heading?, packages, crew, bounds?, down?, drone?, tune? })
+ *                       → { entities, figures, boss, readout }
+ *     THE BROOD WALKER (mecha-shelf: four legs, its feet the eggs that are its drones' bays, its hull a hangar that
+ *     repairs its drones and prints their parts) as the runtime's CARRIER: it stands, MANNED TURRETS on its roof and in
+ *     each hangar door (`crew`: the figure a gunner is drawn with and its body: a person, darted or shot down for good),
+ *     its drones endless (hunters that patrol and drop grenades; couriers with a weak link, two of its eight). The way to
+ *     beat it is its own drones: a courier hacked with the RF gun fetches a package (`packages`: [{ id, at }]) and takes
+ *     it home "for repair", into a hangar door, where it goes off. Its gunners first, to have room to work: a door whose
+ *     gunner is down is the way in, and one whose gunner stands shoots the courier down. From the second delivery its
+ *     hunters chase the hacked courier: kept alive, it delivers. Three deliveries destroy it. Made to be an on-ramp, not
+ *     a wall: slow bursts, slow drops, chasers two at most and quick to shoot down. `drone` a craft shelf drone
+ *     (default the frame's own, the inspection quad); `tune`: { carrier?, hp?, crew? } over its phase, its core, its
+ *     gunners' numbers.
+ *
  * Vehicle space as the shelves' (+y forward, +x right); a spot's place is [forward, right, up]. Pure; the frame's
  * assembly is the slow part (a few seconds).
  */
 import { frameBase } from './frames.js';
+import { MECHA_ODM } from '../../mecha-shelf/mecha-odm.js';
+import { craftFigure } from '../../craft-shelf/craft-rig.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 // [x, y, z] of vehicle space as a spot's [forward, right, up], pushed out along its own axes
@@ -102,5 +118,50 @@ export function siegeWalkerBoss({ id = 'siege', at = [0, 0, 0], heading = 0, bou
   return {
     entities: [entity, ...spotEntities], figures: { [id]: F.figure }, boss,
     readout: { frame: F.id, height: F.height, mass: F.mass, gait: { speed: g.speed, stride: g.stride }, drive: { speed: F.drive.speed }, transformDur, spots: spots.map((s) => s.id), clips: Object.keys(F.figure.clips) },
+  };
+}
+
+// the brood walker's hull (its hangar door each side, above its bays' line; its rounded roof), from its inventory row
+const BW_HULL = MECHA_ODM['pelvis-bw'].dims;
+const BROOD_PLACES = ['pelvis', 'bayFR', 'bayFL', 'bayRR', 'bayRL'];
+
+/** THE BROOD WALKER AS A BOSS (the header). */
+export function broodWalkerBoss({ id = 'brood', at = [0, 0, 0], heading = 0, packages = [], crew = null, bounds = null, down = null, drone = null, palette = null, tune = {} } = {}) {
+  if (!crew?.figure) throw new Error('broodWalkerBoss: its gunners need a figure (crew.figure: a figure id of the page\'s)');
+  const F = frameBase({ frame: 'brood walker', ...(palette ? { palette } : {}) }, { places: BROOD_PLACES });
+  const W = F.places.walker, pel = W.pelvis, H = BW_HULL.hull, Dr = BW_HULL.door;
+  // (its hangar doors: in each side of the hull, their middle; a gunner stands in each on the sill, one on the roof)
+  const doorF = r2((Dr.y0 + Dr.y1) / 2), doorU = r2(pel[2] + (Dr.z0 + Dr.z1) / 2), sill = r2(pel[2] + Dr.z0), side = r2(H.w / 2);
+  const doors = { r: [doorF, side, doorU], l: [doorF, -side, doorU] };
+  const gunner = (gid, name, where, face, arc, door) => ({ id: gid, name, part: 'crew', at: { walker: where }, face, arc, ...(door ? { door } : {}), ...(tune.crew?.[gid] ?? {}) });
+  const spots = [
+    gunner('gunnerRoof', 'the roof gunner', [r2((H.y0 + H.y1) / 2 + 0.6), 0, r2(pel[2] + H.z1)], 0, 85),
+    gunner('gunnerR', 'the right door gunner', [doorF, r2(side - 0.5), sill], 90, 75, 'r'),
+    gunner('gunnerL', 'the left door gunner', [doorF, r2(-side + 0.5), sill], -90, 75, 'l'),
+  ];
+  const carrier = {
+    kind: 'carrier', crew: { lay: 1.2, every: 3, burst: 4, hurt: 10, range: 45 },
+    drones: { reprint: 20, alt: 7, speed: 8, orbit: 20, hunter: { most: 2, see: 24, drop: { every: 9, flight: 1.3, r: 3, hurt: 14 } }, courier: { every: 12, stay: 40, speed: 6, orbit: 15 }, chase: { after: 1, most: 2, every: 1.8, hurt: 12, range: 16 } },
+    hack: { secs: 2, decay: 0.3, slip: 0.3 }, packages: packages.map((k) => ({ id: k.id, at: k.at.slice() })), restock: 8,
+    delivery: { core: 110, r: 4 }, doors,
+    ...(tune.carrier ?? {}),
+  };
+  const boss = { name: 'Brood walker', hp: tune.hp ?? 330, start: 'brood', phases: { brood: carrier }, spots, weapons: {}, ...(down ? { down } : {}), ...(bounds ? { bounds } : {}) };
+  // its gunners' bodies: people, the page's own figure, on its side
+  const crewBody = { type: 'figure-rig', figure: crew.figure, hittable: true, hp: 100, radius: 0.3, egg: { a: 0.35, c: 0.9, cz: 0.9 }, ...(crew.body ?? {}) };
+  const gunners = spots.map((sp) => ({ id: `${id}:${sp.id}`, team: 'brood', rule: { type: 'static', bossSpot: { boss: id, spot: sp.id } }, body: { ...crewBody }, transform: { pos: at.slice(), heading } }));
+  // its drones: two in each egg's bay, its blunt end under it; two couriers (the front right and the rear left eggs')
+  const bays = ['FR', 'FL', 'RR', 'RL'].map((K) => fru(W[`bay${K}`], [0, 0, -1.4]));
+  const droneKind = drone ?? 'inspectionQuad', droneFig = `${id}-drone`;
+  const drones = Array.from({ length: 8 }, (_, i) => {
+    const role = i === 0 || i === 7 ? 'courier' : 'hunter', hp = role === 'courier' ? 120 : 30;
+    return { id: `${id}:drone${i + 1}`, team: 'brood', rule: { type: 'static', bossDrone: { boss: id, role, bay: bays[i % 4] } }, body: { type: 'figure-rig', figure: droneFig, hittable: false, hp, radius: 0.6, egg: { a: 0.6, c: 0.35, cz: 0 } }, transform: { pos: at.slice(), heading } };
+  });
+  const entity = { id, rule: { type: 'static', boss }, body: { type: 'figure-rig', figure: id }, transform: { pos: at.slice(), heading } };
+  return {
+    entities: [entity, ...gunners, ...drones],
+    figures: { [id]: F.figure, [droneFig]: craftFigure(droneKind, { light: 'form' }) },
+    boss,
+    readout: { frame: F.id, height: F.height, mass: F.mass, doors, gunners: spots.map((s) => s.id), drones: drones.map((d) => `${d.id} (${d.rule.bossDrone.role})`), clips: Object.keys(F.figure.clips) },
   };
 }

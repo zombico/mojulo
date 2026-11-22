@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { siegeWalkerBoss, tankPhase, tankSpots } from './boss-fight.js';
+import { siegeWalkerBoss, broodWalkerBoss, tankPhase, tankSpots } from './boss-fight.js';
 
 // THE BOSS FIGHT (boss-fight.js): the siege walker laid as the runtime's boss on its own frame, and the tank's way of
 // being beaten as words any tank takes.
@@ -49,5 +49,30 @@ describe('the siege walker as the boss', () => {
     expect(Object.keys(W.figures.siege.clips)).toEqual(expect.arrayContaining(['forward', 'tails:reload', 'transform:tank', 'tank:forward']));
     expect(W.boss.weapons.r.at).toHaveLength(3);
     expect(W.boss.weapons.r.atTank[2]).toBeLessThan(W.boss.weapons.r.at[2]);
+  });
+});
+
+describe('the brood walker as the boss', () => {
+  const W = broodWalkerBoss({ id: 'brood', at: [0, 0, 0], packages: [{ id: 'p1', at: [10, 10, 0] }], crew: { figure: 'guard-1' }, down: { item: 'brood-down' } });
+  it('is a carrier: gunners on its roof and in its doors, a door each side, its packages', () => {
+    const P = W.boss.phases.brood;
+    expect(P.kind).toBe('carrier');
+    expect(Object.keys(P.doors)).toEqual(['r', 'l']);
+    expect(P.doors.r[1]).toBeGreaterThan(0);
+    expect(P.doors.l[1]).toBeLessThan(0);
+    expect(P.packages).toEqual([{ id: 'p1', at: [10, 10, 0] }]);
+    const crew = W.boss.spots.filter((s) => s.part === 'crew');
+    expect(crew.map((s) => s.door ?? null)).toEqual([null, 'r', 'l']);
+    // (each door's gunner faces out of its own side)
+    expect(crew.find((s) => s.door === 'r').face).toBe(90);
+  });
+  it('lays its gunners as people of its side and its eight drones in its bays, two of them couriers', () => {
+    const gunners = W.entities.filter((e) => e.rule.bossSpot), drones = W.entities.filter((e) => e.rule.bossDrone);
+    expect(gunners).toHaveLength(3);
+    expect(gunners.every((g) => g.team === 'brood' && g.body.hittable && g.body.figure === 'guard-1')).toBe(true);
+    expect(drones).toHaveLength(8);
+    expect(drones.filter((d) => d.rule.bossDrone.role === 'courier')).toHaveLength(2);
+    expect(Object.keys(W.figures)).toEqual(['brood', 'brood-drone']);
+    expect(() => broodWalkerBoss({})).toThrow(/figure/);
   });
 });

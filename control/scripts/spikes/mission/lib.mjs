@@ -8,6 +8,8 @@
  *   starterRoom(o, G?)            → the infiltration room laid for the options' hero, guard and clips: its figures, its
  *                                   hero and guard entities, its camera and events
  *   groundOf(payload)             → (x, y) → the land's height there (its top face under the point), or null off it
+ *   apron(A, { backdrop? }) → { faces, colliders }: a concrete apron in tiles a shade apart, a fence round it, and its
+ *                                   `shelters` (posts and a roof: cover from what falls) (the boss pages, boss.mjs, brood.mjs)
  *   writePage(payload, room, file, { capture?, theme?, events? }) → { file, mb }: the page (filling its window: the
  *       game's screen, a monitor's, where the payload names none), the hero's camera and the
  *                                   game's HUD laid on the resolved payload (a stage or geocube recipe takes no pilot)
@@ -64,6 +66,28 @@ export function boxFaces(mn, mx, fill, group) {
     f([[x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1]], [-1, 0, 0]),
     f([[x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]], [1, 0, 0]),
   ];
+}
+
+export function apron(A, { backdrop = true } = {}) {
+  const faces = [], colliders = [], T = A.tile;
+  const quad = (a, b, c, d, fill, group) => ({ corners: [a, b, c, d], fill, group, doubleSided: true });
+  for (let x = A.x[0]; x < A.x[1]; x += T) for (let y = A.y[0]; y < A.y[1]; y += T) {
+    const k = ((x - A.x[0]) / T + (y - A.y[0]) / T) % 2;
+    faces.push(quad([x, y, 0], [x + T, y, 0], [x + T, y + T, 0], [x, y + T, 0], k ? '#76797b' : '#6e7173', 'apron:floor'));
+  }
+  const wallBox = (mn, mx, fill, group) => { faces.push(...boxFaces(mn, mx, fill, group)); colliders.push({ min: mn, max: mx, hold: false }); };
+  const F = A.fence, X0 = A.x[0], X1 = A.x[1], Y0 = A.y[0], Y1 = A.y[1];
+  wallBox([X0 - 0.4, Y0 - 0.4, 0], [X1 + 0.4, Y0, F], '#5d6266', 'apron:fence'); wallBox([X0 - 0.4, Y1, 0], [X1 + 0.4, Y1 + 0.4, F], '#5d6266', 'apron:fence');
+  wallBox([X0 - 0.4, Y0, 0], [X0, Y1, F], '#5d6266', 'apron:fence'); wallBox([X1, Y0, 0], [X1 + 0.4, Y1, F], '#5d6266', 'apron:fence');
+  // (the hangar's back, over the fence to the north: its doors rolled open)
+  if (backdrop) { faces.push(...boxFaces([-20, Y1 + 0.4, 0], [30, Y1 + 18, 16], '#4c5359', 'apron:hangar')); faces.push(...boxFaces([18, Y1 + 0.38, 0], [30, Y1 + 0.42, 11], '#22262a', 'apron:hangar-door')); }
+  // (a shelter: four posts and a roof over them, its roof a collider a line from above stops on)
+  for (const S of A.shelters ?? []) {
+    const [cx, cy] = S.at, [w, d] = S.size, h = S.height ?? 2.6, x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - d / 2, y1 = cy + d / 2;
+    for (const [px, py] of [[x0, y0], [x1 - 0.2, y0], [x0, y1 - 0.2], [x1 - 0.2, y1 - 0.2]]) wallBox([px, py, 0], [px + 0.2, py + 0.2, h], '#4f5256', 'apron:shelter');
+    wallBox([x0 - 0.3, y0 - 0.3, h], [x1 + 0.3, y1 + 0.3, h + 0.18], '#5a6a52', 'apron:shelter-roof');
+  }
+  return { faces, colliders };
 }
 
 // (a frame-time readout in a corner, the spike's own: what the person reports when a page is slow)

@@ -41,6 +41,26 @@
  *     traverses at `traverse` °/s, so a pilot that moves round it outruns it), locks and fires along the line: the round
  *     bursts on the first thing it meets. A mine under its wheels breaks its drive: it stops for `stun` s, its core
  *     takes `core`. Driven onto, the pilot is run down (`ram`).
+ *   CARRIER { kind: 'carrier', crew?: { lay?: 1, every?: 3, burst?: 4, hurt?: 12, range?: 45 },
+ *             drones: { reprint?: 20, alt?: 7, speed?: 9, orbit?: 20,
+ *                       hunter: { hp?, see?: 26, drop: { every?: 8, flight?: 1.2, r?: 3, hurt?: 16 } },
+ *                       courier: { hp?, every?: 15, stay?: 35, speed?: 7, orbit?: 16 },
+ *                       chase: { after?: 1, most?: 2, every?: 1.6, hurt?: 15, range?: 16 } },
+ *             hack: { secs?: 2, decay?: 0.35, slip?: 0.25 }, packages: [{ id, at }], restock?: 10,
+ *             delivery: { core?: 110, r?: 4 }, doors: { r: [f, r, u], l: [f, r, u] } }
+ *     A carrier that fights through what it carries and is beaten through it too. Its CREW (spots `part: 'crew'`: a
+ *     gunner on a mount, a body of its own, `face` ° off the body's heading, `arc` ° either side, at a hangar door, `door`)
+ *     lay a burst on the pilot in their arc and in sight (cover from them as from a burst), or on a hacked drone near
+ *     them; a gunner is a person, put down by the pilot's rounds or knocked out by its dart (knockout.js), and stays down.
+ *     Its DRONES (bodies of their own, `rule.bossDrone: { boss, role: 'hunter' | 'courier', bay: [f, r, u] }`) are
+ *     endless: launched from their bays, shot down and reprinted `reprint` s later. A HUNTER patrols round it, and one that
+ *     sees the pilot flies over it and drops a grenade (its ring on the ground first). A COURIER (its link weak: the page
+ *     shows its light) laps round it and goes home. The pilot's RF gun (a loadout slot whose weapon says `jam: true`) held
+ *     on a courier for `secs` HACKS it (off it, the hack drains at `decay` a second); hacked, it flies to the nearest
+ *     package (`packages`), picks it up and carries it home to the door whose gunner is down (else the nearer), "for
+ *     repair": in the door it goes off, and the core takes `delivery.core`. From the delivery after `chase.after`, the
+ *     carrier's hunters chase a hacked courier and shoot at it: kept alive (its chasers shot down), it delivers; shot
+ *     down, its package is lost and comes back to its pallet `restock` s later. The core worn to nothing destroys it.
  *   (A transforming body passes from a walker phase to a tank phase through its fold: `transform:tank`, `transformDur` s,
  *   after a beat of staggering, `fall` s.)
  *
@@ -156,7 +176,7 @@ export function buildBoss(E) {
     for (const s of F.shells) {
       if (s.done || now < s.t0 + s.T) continue;
       s.done = true;
-      const e = state.byId[s.by], S = e && e.boss; if (!S || S.phase === 'down') continue;
+      const e = state.byId[s.by], S = e && e.boss; if (!S || S.phase === 'down' || s.kind === 'tracer') continue;
       burst(state, e, S, s.to, s.r, s.hurt, s.kind);
     }
     F.shells = F.shells.filter((s) => !s.done);
@@ -292,6 +312,7 @@ export function buildBoss(E) {
     const down = S.cfg.down || {};
     if (down.item && state.ms) { state.ms.held = state.ms.held || {}; state.ms.held[down.item] = true; }
     e.bossDown = true;
+    for (const d of S.drones || []) if (d.drone.out && d.drone.st !== 'fall') shotDown(state, e, S, d);
     say(S, state, `${(S.cfg.name || 'the boss').toUpperCase()} DESTROYED`, 'boss:down');
   }
 
@@ -301,6 +322,7 @@ export function buildBoss(E) {
     if (phase === 'transform') { S.phase = 'transform'; S.step = 'transform'; S.t = 0; S.fold = num(S.cfg.fold, num(e.transformDur, 2)); return; }
     S.phase = phase; S.from = null; S.t = 0; S.cycle = 0; S.n = 0;
     S.form = P && P.kind === 'tank' ? 'tank' : 'walker';
+    if (P && P.kind === 'carrier') { S.phase = phase; S.step = 'brood'; e.form = 'walker'; return; }
     e.form = S.form;
     S.step = S.form === 'tank' ? 'drive' : 'aim';
     if (S.form === 'tank') say(S, state, `${S.cfg.name || 'it'} goes down on its wheels: hit it where it is open`, 'boss:phase');
@@ -458,6 +480,11 @@ export function buildBoss(E) {
       const B = S.ents[sp.id]; if (!B) continue;
       const R = S.spots[sp.id], live = S.phase !== 'down' && !R.gone && inPhase(sp, S) && (sp.by || 'round') === 'round';
       const at = spotAt(e, S, sp), rr = num(sp.r, 0.8);
+      if (sp.part === 'crew') {
+        B.transform.pos[0] = at[0]; B.transform.pos[1] = at[1]; B.transform.pos[2] = at[2];
+        if (!B.ko) B.transform.heading = wrap(e.transform.heading - num(sp.face, 0) * D2R + ((S.crewAim && S.crewAim[sp.id]) || 0));
+        B.vel = [0, 0, 0]; B.bossLive = !S.spots[sp.id].gone; continue;
+      }
       B.transform.pos[0] = at[0]; B.transform.pos[1] = at[1]; B.transform.pos[2] = at[2] - rr;
       B.body.hittable = !!(live && p && reachable(e, sp, p));
       B.bossLive = live;
@@ -467,6 +494,8 @@ export function buildBoss(E) {
     const lo = p && Array.isArray(p.rule.loadout) ? p.rule.loadout[p.loadoutIdx || 0] : null, dart = !!(lo && lo.weapon && lo.weapon.stun);
     for (const sp of S.cfg.spots) {
       const B = S.ents[sp.id]; if (!B) continue;
+      // (a gunner is a person: what a round or a dart does to it is the combat's and the knockout's; down, it stays down)
+      if (sp.part === 'crew') { const R = S.spots[sp.id]; if (!R.gone && (B.ko || B.downed || (B.body && Number.isFinite(B.body.hp) && B.body.hp <= 0))) { R.gone = true; R.t = state.time || 0; say(S, state, `${sp.name || 'a gunner'} is down: that side is open`, 'boss:crew'); } continue; }
       const n = B.hits || 0, was = S.hitN[sp.id] || 0;
       if (n > was) {
         S.hitN[sp.id] = n;
@@ -478,6 +507,231 @@ export function buildBoss(E) {
     }
   }
 
+  // ── THE CARRIER ────────────────────────────────────────────────────────────────────────────────────────────────
+  const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  // a flier moved toward a point at its pace, turned to where it goes
+  function fly(d, to, speed, dt) {
+    const q = d.transform.pos, v = [to[0] - q[0], to[1] - q[1], to[2] - q[2]], L = Math.hypot(v[0], v[1], v[2]), step = Math.min(L, speed * dt);
+    if (L > 1e-6) { for (let k = 0; k < 3; k++) q[k] += (v[k] / L) * step; if (Math.hypot(v[0], v[1]) > 0.05) d.transform.heading = Math.atan2(v[1], v[0]); }
+    return L - step;
+  }
+  // the crew: each live gunner lays a burst on the pilot in its arc and in sight, or on a hacked drone near it
+  function stepCrew(state, e, S, P, p, dt) {
+    const G = P.crew || {}, now = state.time || 0, A = S.crewAim || (S.crewAim = {}), T = S.crewT || (S.crewT = {});
+    const hacked = S.drones.find((d) => d.drone.hacked && !d.gone);
+    for (const sp of S.cfg.spots) {
+      if (sp.part !== 'crew' || S.spots[sp.id].gone) continue;
+      const B = S.ents[sp.id]; if (!B) continue;
+      const gun = [B.transform.pos[0], B.transform.pos[1], B.transform.pos[2] + 1.4], face = e.transform.heading - num(sp.face, 0) * D2R, arc = num(sp.arc, 70) * D2R, range = num(G.range, 45);
+      const sees = (q) => { const a = Math.atan2(q[1] - gun[1], q[0] - gun[0]); return Math.abs(wrap(a - face)) <= arc && dist3(gun, q) <= range && !sightBlocked(gun, q, state.colliders); };
+      // (what it fires on: a hacked drone near it first, the pilot else)
+      const tgtD = hacked && dist3(gun, hacked.transform.pos) < range * 0.6 && sees(hacked.transform.pos) ? hacked : null;
+      const chest = p ? [p.transform.pos[0], p.transform.pos[1], p.transform.pos[2] + heightOf(p) * 0.6] : null;
+      const tgt = tgtD ? tgtD.transform.pos : chest && sees(chest) ? chest : null;
+      const R = T[sp.id] || (T[sp.id] = { lay: 0, cool: 0 });
+      R.cool = Math.max(0, R.cool - dt);
+      if (!tgt) { R.lay = Math.max(0, R.lay - dt); continue; }
+      A[sp.id] = wrap(Math.atan2(tgt[1] - gun[1], tgt[0] - gun[0]) - face);
+      R.lay += dt; B.aiFire = 1;
+      if (R.lay < num(G.lay, 1) || R.cool > 0) continue;
+      R.cool = num(G.every, 3); R.lay = 0;
+      const n = num(G.burst, 4), F = fx(state);
+      for (let k = 0; k < n; k++) {
+        const j = (hash01(sp.id, S.cycle * 97 + k + Math.floor(now * 10)) - 0.5) * 1.6;
+        F.shells.push({ id: ++F.seq, kind: 'tracer', from: gun, to: [tgt[0] + j, tgt[1] - j, tgt[2] + j * 0.4], t0: now + k * 0.09, T: 0.12, apex: 0, by: e.id });
+      }
+      B.lastShot = { mode: 'core', t: now, from: gun, to: tgt.slice() };
+      if (tgtD) { tgtD.body.hp = Math.max(0, tgtD.body.hp - num(G.hurt, 12) * 1.5); tgtD.hitFlash = now; }
+      else if (p && !p.downed) {
+        const k = cover(state, gun, p) , dmg = num(G.hurt, 12) * k;
+        if (dmg > 0.5) { p.body.hp = Math.max(0, p.body.hp - dmg); p.hitFlash = now; p.hits = (p.hits || 0) + 1; p.lastHitBy = e.id; p.lastHitFrom = gun.slice(); S.pilotHurtT = now; if (p.body.hp <= 0) p.downed = true; }
+      }
+    }
+  }
+  // the drones: launched, flown at their jobs, shot down, reprinted
+  function dock(state, e, S, d, why) {
+    const D = d.drone;
+    D.st = 'dock'; D.t = 0; D.hacked = false; D.pkg = null; D.chase = false; D.out = false;
+    d.gone = true; d.body.hittable = false; d.team = D.team0; d.downed = false; d.ko = null; d.held = false;
+    if (why === 'down') D.reprint = num(S.carrier.drones.reprint, 20);
+    d.transform.pos = onBody(e, D.bay);
+  }
+  function launchDrone(state, e, S, d) {
+    const D = d.drone;
+    D.st = 'launch'; D.t = 0; D.out = true; D.reprint = 0;
+    d.gone = false; d.downed = false; d.body.hp = d.hpMax || d.body.hp; d.body.hittable = true;
+    d.transform.pos = onBody(e, D.bay);
+  }
+  function shotDown(state, e, S, d, why) {
+    const D = d.drone, F = fx(state);
+    if (D.pkg) { const K = S.pkgs[D.pkg]; if (K) { K.carried = null; K.back = (state.time || 0) + num(S.carrier.restock, 10); } }
+    if (D.hacked) say(S, state, 'the hacked drone is down: its package is lost. Wait for another courier', 'boss:hack-lost');
+    D.st = 'fall'; D.t = 0; D.vz = 0; d.body.hittable = false; D.hacked = false; D.chase = false; D.pkg = null;
+    F.bursts.push({ id: ++F.seq, at: d.transform.pos.slice(), r: 1.2, t: state.time || 0, kind: 'drone' });
+  }
+  function stepDrones(state, e, S, P, p, dt, hooks) {
+    const C = S.carrier.drones || {}, H = C.hunter || {}, Q = C.courier || {}, K = C.chase || {}, now = state.time || 0, home = e.transform.pos;
+    const alt = home[2] + num(C.alt, 7), live = (d) => d.drone.out && d.drone.st !== 'fall';
+    // (a dart in a drone does nothing; its hp is the combat's, and none left it falls)
+    for (const d of S.drones) {
+      if (d.ko || d.koDrowse) { d.ko = null; d.koDrowse = null; d.koStun = 0; d.held = false; if (d.downed && d.body.hp > 0) d.downed = false; }
+      if (live(d) && (d.downed || d.body.hp <= 0)) shotDown(state, e, S, d);
+    }
+    // (launches: a courier when none is out, every so often; hunters kept out, the two its chase may take besides)
+    const couriers = S.drones.filter((d) => d.drone.role === 'courier'), hunters = S.drones.filter((d) => d.drone.role === 'hunter');
+    S.courierT = (S.courierT || 0) + dt;
+    if (!couriers.some(live) && S.courierT >= num(Q.every, 15)) { const d = couriers.find((x) => x.drone.st === 'dock' && x.drone.reprint <= 0); if (d) { launchDrone(state, e, S, d); S.courierT = 0; say(S, state, 'a courier is out: its link is weak. Hold the RF gun on it', 'boss:courier'); } }
+    for (const d of hunters) if (d.drone.st === 'dock' && d.drone.reprint <= 0 && hunters.filter(live).length < num(H.most, 2)) launchDrone(state, e, S, d);
+    const hacked = couriers.find((d) => d.drone.hacked && live(d));
+    // (the chase: from the delivery after `after`, its hunters go after a hacked courier)
+    if (hacked && S.deliveries >= num(K.after, 1)) {
+      let n = hunters.filter((d) => live(d) && d.drone.chase).length;
+      for (const d of hunters) if (n < num(K.most, 2) && live(d) && !d.drone.chase) { d.drone.chase = true; n++; if (!S.chaseSaid) { S.chaseSaid = true; say(S, state, 'its drones are after the hacked one: shoot them off it', 'boss:chase'); } }
+      // (more launched to chase, its bays permitting)
+      if (n < num(K.most, 2)) { const d = hunters.find((x) => x.drone.st === 'dock' && x.drone.reprint <= 0); if (d) { launchDrone(state, e, S, d); d.drone.chase = true; } }
+    }
+    for (const d of S.drones) {
+      const D = d.drone; D.t += dt;
+      if (D.st === 'dock') { D.reprint = Math.max(0, (D.reprint || 0) - dt); d.transform.pos = onBody(e, D.bay); continue; }
+      if (D.st === 'fall') {
+        D.vz = (D.vz || 0) - 9.81 * dt; d.transform.pos[2] += D.vz * dt;
+        const g = groundAt(hooks, d.transform.pos[0], d.transform.pos[1], 0);
+        if (d.transform.pos[2] <= g + 0.1) { d.transform.pos[2] = g + 0.1; if (D.t > 1.5) dock(state, e, S, d, 'down'); }
+        continue;
+      }
+      if (D.st === 'launch') {
+        // (out of its bay's open end, down and away, then up to its height)
+        const b = onBody(e, D.bay), out = [b[0] + (b[0] - home[0]) * 0.6, b[1] + (b[1] - home[1]) * 0.6, alt];
+        if (fly(d, out, num(C.speed, 9) * 0.7, dt) < 0.5) { D.st = D.role === 'courier' ? 'lap' : 'patrol'; D.t = 0; }
+        continue;
+      }
+      const speed = num(C.speed, 9);
+      if (D.role === 'courier' && !D.hacked) {
+        if (D.st === 'lap') {
+          // (a lap round it, out a while, then home)
+          const r = num(Q.orbit, 16), a = num(D.phase, 0) + now * num(Q.speed, 7) / r;
+          fly(d, [home[0] + Math.cos(a) * r, home[1] + Math.sin(a) * r, alt - 1], num(Q.speed, 7) * 1.4, dt);
+          if (D.t >= num(Q.stay, 35)) { D.st = 'home'; D.t = 0; }
+        } else if (D.st === 'home') { if (fly(d, onBody(e, D.bay), num(Q.speed, 7), dt) < 0.4) dock(state, e, S, d, 'home'); }
+        continue;
+      }
+      if (D.role === 'courier' && D.hacked) { stepHacked(state, e, S, P, d, dt); continue; }
+      // A HUNTER: its chase, its attack, its patrol
+      if (D.chase && hacked) {
+        const q = hacked.transform.pos, h = hacked.transform.heading, back = [q[0] - Math.cos(h + num(D.phase, 0) * 0.3) * 6, q[1] - Math.sin(h + num(D.phase, 0) * 0.3) * 6, q[2] + 1];
+        fly(d, back, speed * 1.1, dt);
+        D.cool = Math.max(0, (D.cool || 0) - dt);
+        if (D.cool <= 0 && dist3(d.transform.pos, q) < num(K.range, 16) && !sightBlocked(d.transform.pos, q, state.colliders)) {
+          D.cool = num(K.every, 1.6); hacked.body.hp = Math.max(0, hacked.body.hp - num(K.hurt, 15)); hacked.hitFlash = now;
+          const F = fx(state); F.shells.push({ id: ++F.seq, kind: 'tracer', from: d.transform.pos.slice(), to: q.slice(), t0: now, T: 0.1, apex: 0, by: e.id });
+        }
+        continue;
+      }
+      if (D.chase && !hacked) D.chase = false;
+      const q = p ? p.transform.pos : null, see = num(H.see, 26);
+      const chest = q ? [q[0], q[1], q[2] + heightOf(p) * 0.7] : null;
+      const sees = chest && Math.hypot(chest[0] - d.transform.pos[0], chest[1] - d.transform.pos[1]) < see && !sightBlocked(d.transform.pos, chest, state.colliders);
+      const Dr = H.drop || {};
+      D.dropCool = Math.max(0, (D.dropCool == null ? num(Dr.every, 8) * 0.5 : D.dropCool) - dt);
+      if (sees && D.dropCool <= 0) {
+        // (over the pilot, and a grenade let go: its ring where it will land)
+        const over = [q[0], q[1], q[2] + num(C.alt, 7)];
+        if (fly(d, over, speed, dt) < 1.5) {
+          D.dropCool = num(Dr.every, 8);
+          launch(state, e, d.transform.pos, [q[0], q[1], q[2]], num(Dr.flight, 1.2), 'grenade', 0, num(Dr.r, 3), num(Dr.hurt, 16));
+          if (!S.dropSaid) { S.dropSaid = true; say(S, state, 'a drone over you: it drops grenades. Get under something or move', 'boss:drop'); }
+        }
+        continue;
+      }
+      const r = num(C.orbit, 20), a = num(D.phase, 0) - now * speed / r * 0.5;
+      fly(d, [home[0] + Math.cos(a) * r, home[1] + Math.sin(a) * r, alt + (D.phase || 0) % 2], speed * 0.6, dt);
+    }
+  }
+  // a hacked courier: to the nearest package, down onto it, up with it, home to a door, and in
+  function stepHacked(state, e, S, P, d, dt) {
+    const D = d.drone, speed = num((S.carrier.drones.courier || {}).speed, 7) * 1.2, now = state.time || 0, alt = e.transform.pos[2] + num(S.carrier.drones.alt, 7);
+    if (D.st === 'fetch') {
+      let K = D.pkg ? S.pkgs[D.pkg] : null;
+      if (!K) { let best = Infinity; for (const k in S.pkgs) { const x = S.pkgs[k]; if (x.carried || now < x.back) continue; const dd = dist3(x.at, d.transform.pos); if (dd < best) { best = dd; K = x; } } if (K) D.pkg = K.id; }
+      if (!K) { fly(d, [d.transform.pos[0], d.transform.pos[1], alt], speed, dt); return; }
+      const over = [K.at[0], K.at[1], K.at[2] + 1.3], above = [K.at[0], K.at[1], alt];
+      const far = Math.hypot(K.at[0] - d.transform.pos[0], K.at[1] - d.transform.pos[1]);
+      if (far > 1) fly(d, above, speed, dt);
+      else if (fly(d, over, speed * 0.4, dt) < 0.2) { D.st = 'pick'; D.t = 0; }
+      return;
+    }
+    if (D.st === 'pick') {
+      if (D.t >= 1.4) { const K = S.pkgs[D.pkg]; K.carried = d.id; D.st = 'carry'; D.t = 0; say(S, state, 'it has the package: it goes home for repair', 'boss:carry');
+        // (the door it goes in by: one whose gunner is down, else the nearer)
+        const open = Object.keys(S.carrier.doors || {}).filter((sd) => !S.cfg.spots.some((sp) => sp.part === 'crew' && sp.door === sd && !S.spots[sp.id].gone));
+        const doors = open.length ? open : Object.keys(S.carrier.doors || { r: [0, 1.5, 7] });
+        D.door = doors.reduce((a, b) => (dist3(onBody(e, S.carrier.doors[a]), d.transform.pos) <= dist3(onBody(e, S.carrier.doors[b]), d.transform.pos) ? a : b));
+      }
+      return;
+    }
+    if (D.st === 'carry') {
+      const dr = S.carrier.doors[D.door], at = onBody(e, dr), out = onBody(e, [dr[0], dr[1] + Math.sign(dr[1] || 1) * 7, dr[2]]);
+      if (!D.inbound) { const left = fly(d, [out[0], out[1], Math.max(at[2], alt - 1)], speed, dt); if (left < 0.8) D.inbound = true; }
+      else if (fly(d, at, speed * 0.7, dt) < 0.4) {
+        // IN THE DOOR: it goes off
+        const Dl = S.carrier.delivery || {}, K = S.pkgs[D.pkg];
+        if (K) { K.carried = null; K.back = now + num(S.carrier.restock, 10); }
+        D.pkg = null; D.hacked = false; D.inbound = false;
+        S.deliveries++;
+        const F = fx(state); F.bursts.push({ id: ++F.seq, at: at.slice(), r: num(Dl.r, 4) * 1.4, t: now, kind: 'wreck' });
+        burst(state, e, S, at, num(Dl.r, 4), 0, 'delivery');
+        say(S, state, `delivered: it went off in its hangar (${S.deliveries})`, 'boss:delivery');
+        hurtCore(state, e, S, num(Dl.core, 110));
+        if (S.phase !== 'down') dock(state, e, S, d, 'down');
+        for (const x of S.drones) x.drone.chase = false;
+      }
+    }
+  }
+  // THE RF GUN: held on a courier, it hacks it; off it, the hack drains
+  function stepHack(state, e, S, P, p, input, dt) {
+    const Hk = S.carrier.hack || {}, now = state.time || 0;
+    const lo = p && Array.isArray(p.rule.loadout) ? p.rule.loadout[p.loadoutIdx || 0] : null, rf = !!(lo && lo.weapon && lo.weapon.jam) && !!(p.weapon);
+    const L = p && p.lastShot, onIt = rf && input && input.fire && L && now - L.t < num(Hk.slip, 0.25) ? state.byId[L.targetId] : null;
+    const tgt = onIt && onIt.drone && onIt.drone.out && !onIt.drone.hacked && onIt.drone.st !== 'fall' ? onIt : null;
+    S.jam = S.jam || { id: null, u: 0 };
+    if (tgt && tgt.drone.role === 'courier') {
+      if (S.jam.id !== tgt.id) S.jam = { id: tgt.id, u: 0 };
+      // (a gunner's burst on the pilot shakes the beam off)
+      const shaken = S.pilotHurtT != null && now - S.pilotHurtT < 0.5;
+      S.jam.u = Math.min(1, S.jam.u + (shaken ? -dt * 0.5 : dt / num(Hk.secs, 2)));
+      S.jam.on = true;
+      if (S.jam.u >= 1) {
+        const D = tgt.drone; D.hacked = true; D.st = 'fetch'; D.t = 0; D.pkg = null; D.inbound = false; tgt.team = p.team || 'pilot';
+        tgt.body.hittable = false;
+        S.jam = { id: null, u: 0 }; S.chaseSaid = false;
+        say(S, state, S.deliveries >= num((S.carrier.drones.chase || {}).after, 1) ? 'hacked: it goes for a package. Keep its chasers off it' : 'hacked: it goes for a package, then home "for repair"', 'boss:hack');
+      }
+      return;
+    }
+    S.jam.on = false;
+    S.jam.u = Math.max(0, S.jam.u - dt * num(Hk.decay, 0.35));
+    if (tgt && tgt.drone.role !== 'courier' && (!S.said || S.said.on !== 'boss:hardened' || now - S.said.t > 4)) say(S, state, 'its link is hardened: only a courier (green light) can be jammed', 'boss:hardened');
+    if (!rf && onIt && onIt.drone && onIt.drone.role === 'courier' && !onIt.drone.hacked && (!S.said || now - S.said.t > 5)) say(S, state, 'shot down, a courier is wasted: take the RF gun (hold G) and hold it on one', 'boss:waste');
+  }
+  function stepCarrier(state, e, S, P, p, input, dt, hooks) {
+    stand(e);
+    if (P.turn && p) turnTo(e, Math.atan2(p.transform.pos[1] - e.transform.pos[1], p.transform.pos[0] - e.transform.pos[0]), P.turn, dt);
+    if (S.t === 0) say(S, state, 'the brood walker: its gunners first, then turn its own drones on it', 'boss:phase');
+    stepCrew(state, e, S, P, p, dt);
+    stepHack(state, e, S, P, p, input, dt);
+    stepDrones(state, e, S, P, p, dt, hooks);
+    for (const k in S.pkgs) { const K = S.pkgs[k]; if (K.carried) { const d = state.byId[K.carried]; if (d) K.pos = [d.transform.pos[0], d.transform.pos[1], d.transform.pos[2] - 0.6]; } else K.pos = K.at.slice(); }
+  }
+  // its carrier's things: its drones' bodies, its packages
+  function initCarrier(state, e, S) {
+    const P = Object.values(S.cfg.phases).find((x) => x.kind === 'carrier');
+    if (!P) return;
+    S.carrier = P; S.deliveries = 0;
+    S.drones = state.entities.filter((x) => x.rule && x.rule.bossDrone && x.rule.bossDrone.boss === e.id);
+    S.drones.forEach((d, i) => { const B = d.rule.bossDrone; d.drone = { role: B.role, bay: B.bay, phase: i * 1.7, st: 'dock', t: 0, reprint: i * 0.6, team0: d.team }; d.gone = true; d.body.hittable = false; d.alarmFound = true; });
+    S.pkgs = Object.fromEntries((P.packages || []).map((k) => [k.id, { id: k.id, at: k.at.slice(), pos: k.at.slice(), carried: null, back: 0 }]));
+  }
+
   function init(state, e) {
     const C = e.rule.boss, spots = Array.isArray(C.spots) ? C.spots : [];
     const S = {
@@ -487,6 +741,7 @@ export function buildBoss(E) {
     };
     for (const x of state.entities) if (x.rule && x.rule.bossSpot && x.rule.bossSpot.boss === e.id) { S.ents[x.rule.bossSpot.spot] = x; x.alarmFound = true; S.hitN[x.rule.bossSpot.spot] = x.hits || 0; }
     e.boss = S;
+    initCarrier(state, e, S);
     begin(state, e, S, C.start && C.phases[C.start] ? C.start : Object.keys(C.phases)[0]);
     return S;
   }
@@ -520,7 +775,8 @@ export function buildBoss(E) {
         continue;
       }
       if (!P) continue;
-      if (P.kind === 'tank') stepTank(state, e, S, P, live, dt, hooks);
+      if (P.kind === 'carrier') stepCarrier(state, e, S, P, live, input, dt, hooks);
+      else if (P.kind === 'tank') stepTank(state, e, S, P, live, dt, hooks);
       else stepStand(state, e, S, P, live, dt, hooks);
       S.t += dt;
     }
@@ -534,6 +790,7 @@ export function buildBoss(E) {
     const e = id ? state.byId[id] : state.entities.find((x) => x.boss);
     const S = e && e.boss; if (!S) return null;
     return { id: e.id, phase: S.phase, step: S.step, t: S.t, cycle: S.cycle, form: S.form, hp: S.hp, hpMax: S.hpMax, tailsLost: S.tailsLost, stun: S.stunT, reloadFor: S.reloadFor || null,
-      spots: Object.fromEntries(Object.entries(S.spots).map(([k, v]) => [k, { hp: Number.isFinite(v.hp) ? Math.round(v.hp) : null, max: Number.isFinite(v.max) ? v.max : null, gone: v.gone }])), said: S.said };
+      spots: Object.fromEntries(Object.entries(S.spots).map(([k, v]) => [k, { hp: Number.isFinite(v.hp) ? Math.round(v.hp) : null, max: Number.isFinite(v.max) ? v.max : null, gone: v.gone }])), said: S.said,
+      ...(S.carrier ? { deliveries: S.deliveries, jam: S.jam ? { id: S.jam.id, u: Math.round(S.jam.u * 100) / 100 } : null, drones: Object.fromEntries(S.drones.map((d) => [d.id, { role: d.drone.role, st: d.drone.st, hacked: !!d.drone.hacked, chase: !!d.drone.chase, hp: d.body.hp }])), crew: Object.fromEntries(S.cfg.spots.filter((sp) => sp.part === 'crew').map((sp) => [sp.id, !S.spots[sp.id].gone])) } : {}) };
   };
 }

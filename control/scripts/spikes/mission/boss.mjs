@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { register } from 'node:module';
 register('../../mcp-stdio-loader.mjs', import.meta.url);
-import { options, database, starterRoom, writePage, boxFaces } from './lib.mjs';
+import { options, database, starterRoom, writePage, apron } from './lib.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url)), o = options(process.argv.slice(2));
 database(o.opt('--hero'), o.opt('--guard'));
 const out = path.resolve(o.opt('--out', 'siege'));
@@ -34,19 +34,7 @@ const t0 = Date.now();
 const { room, hero } = await starterRoom(o);
 
 // THE APRON: concrete in tiles a shade apart (so a run reads on it), a fence round it, the hangar's back wall behind it
-const A = L.apron, faces = [], colliders = [], T = A.tile;
-const quad = (a, b, c, d, fill, group) => ({ corners: [a, b, c, d], fill, group, doubleSided: true });
-for (let x = A.x[0]; x < A.x[1]; x += T) for (let y = A.y[0]; y < A.y[1]; y += T) {
-  const k = ((x - A.x[0]) / T + (y - A.y[0]) / T) % 2;
-  faces.push(quad([x, y, 0], [x + T, y, 0], [x + T, y + T, 0], [x, y + T, 0], k ? '#76797b' : '#6e7173', 'apron:floor'));
-}
-const wallBox = (mn, mx, fill, group) => { faces.push(...boxFaces(mn, mx, fill, group)); colliders.push({ min: mn, max: mx, hold: false }); };
-const F = A.fence, X0 = A.x[0], X1 = A.x[1], Y0 = A.y[0], Y1 = A.y[1];
-wallBox([X0 - 0.4, Y0 - 0.4, 0], [X1 + 0.4, Y0, F], '#5d6266', 'apron:fence'); wallBox([X0 - 0.4, Y1, 0], [X1 + 0.4, Y1 + 0.4, F], '#5d6266', 'apron:fence');
-wallBox([X0 - 0.4, Y0, 0], [X0, Y1, F], '#5d6266', 'apron:fence'); wallBox([X1, Y0, 0], [X1 + 0.4, Y1, F], '#5d6266', 'apron:fence');
-// (the hangar's back, over the fence to the north: its doors rolled open, where the walker came out)
-faces.push(...boxFaces([-20, Y1 + 0.4, 0], [30, Y1 + 18, 16], '#4c5359', 'apron:hangar'));
-faces.push(...boxFaces([18, Y1 + 0.38, 0], [30, Y1 + 0.42, 11], '#22262a', 'apron:hangar-door'));
+const A = L.apron, { faces, colliders } = apron(A), X0 = A.x[0];
 
 // THE BOSS: the siege walker from under the hangar, on the apron
 const W = siegeWalkerBoss({ id: 'siege', at: [L.walker.at[0], L.walker.at[1], 0], heading: L.walker.heading, bounds: L.walker.bounds, down: { item: 'siege-down' } });
