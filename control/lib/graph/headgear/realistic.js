@@ -25,7 +25,8 @@
  *   SHIELD          a face shield (the welding mask): the circlet's band as its strap, and a plate stood `ease` off the
  *                   face over bearings ±`arc`, from over the band's front to under the chin, held convex across and down;
  *                   a `slot` of glass proud of it across the eyes, or a `crack` splitting it open there (heights from the
- *                   nasion)
+ *                   nasion); its `span` (from the nasion) a lens band in place of the face's height (shooting
+ *                   glasses), and a `wrap` of cloth round the lower face under it (a scarf)
  *
  * Each a closed shell (its winding outward), a part a colour, each pinned to the head's skin where the head bone alone carries
  * it (hero-head-layers.js visagePin, as the piercings and the hair are), so it rides the head bone. Metres in the hero's
@@ -56,6 +57,11 @@ export const HEADWEAR = Object.freeze({
   weldingMaskCracked: Object.freeze({ kind: 'shield', front: 0.55, back: 0.1, ease: 0.026, arc: 1.32, rise: 0.012, drop: 0.022, thick: 0.004,
     strap: Object.freeze({ h: 0.026, thick: 0.003, gap: 0.0012 }), crack: Object.freeze({ lo: -0.052, hi: 0.022, arc: 0.95, jag: 0.012 }),
     group: 'Helmet', trimGroup: 'HelmetTrim' }),
+  // the shooter's wrap: mirrored shooting glasses (a lens band wrapped from temple to temple, the plate a glass, its arms a
+  // thin strap at the eyes) over a scarf wound high round the lower face to the bridge of the nose
+  shooterWrap: Object.freeze({ kind: 'shield', front: -0.3, back: -0.05, ease: 0.011, arc: 1.5, span: Object.freeze({ lo: -0.024, hi: 0.02 }), thick: 0.0025,
+    strap: Object.freeze({ h: 0.006, thick: 0.002, gap: 0.0008 }), wrap: Object.freeze({ lo: -0.14, hi: -0.03, arc: 3.05, ease: 0.006, thick: 0.004, group: 'Helmet' }),
+    group: 'HelmetVisor', trimGroup: 'HelmetTrim' }),
   // the bandana: the circlet's band in cloth, wide over the brow, no gem; a knot at the back and two tails hanging from it
   bandana: Object.freeze({ kind: 'circlet', front: 0.5, back: 0.12, gap: 0.0004, h: 0.034, peak: 1, thick: 0.0016, gem: 0,
     tails: Object.freeze({ len: 0.2, w: 0.028, thick: 0.0016, spread: 0.22, back: 0.3, knot: 0.012 }), group: 'Helmet' }),
@@ -255,6 +261,29 @@ function hat(M, cloud, c, zOf, W, k) {
   return { band: { front: zOf(0), back: zOf(Math.PI), ease }, top: zTop, crown: W.cone ? R.slice(0, ROWS - 1) : R, rows: s.map((_, j) => zRow(j)).slice(0, W.cone ? ROWS - 1 : ROWS), cone: !!W.cone, apex };
 }
 
+/** A PLATE'S GRID: from `zBot` to `zTop` over bearings ±`arc`, the head's support at each row carried out by `ease`, then
+ * held convex ACROSS (each bearing's radius raised to the chord between any two others round it, so the plate runs flat
+ * over the nose and the brow) and DOWN (each bearing's profile raised to its upper hull); → its radius at any height and
+ * bearing in it */
+function plateGrid(pts, c, zBot, zTop, arc, ease, k) {
+  const ROWS = 14, COLS = 19, w = 2 * Math.PI / N_BEAR;
+  const zs = Array.from({ length: ROWS }, (_, j) => zBot + (zTop - zBot) * j / (ROWS - 1)), bs = Array.from({ length: COLS }, (_, i) => -arc + 2 * arc * i / (COLS - 1));
+  const dz = Math.max(0.004 * k, 0.6 * (zTop - zBot) / (ROWS - 1));
+  const ringR = (r, b) => { const x = ((b % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / w, q = Math.floor(x) % N_BEAR, f = x - Math.floor(x); return r[q] + (r[(q + 1) % N_BEAR] - r[q]) * f; };
+  const R = zs.map((z) => { const r = supportRing(pts, c, () => z, dz); return bs.map((b) => (r ? ringR(r, b) : 0.06 * k) + ease); });
+  const X = (r, b) => [r * Math.sin(b), r * Math.cos(b)], cross = (a, d) => a[0] * d[1] - a[1] * d[0];
+  // (only a chord under a half turn, and only where the ray meets it between its ends: a wrap round the head has chords
+  // through its middle, whose lines the ray meets far off)
+  for (const row of R) for (let pass = 0; pass < 2; pass++) for (let i = 1; i < COLS - 1; i++) for (let a = 0; a < i; a++) for (let b = i + 1; b < COLS; b++) {
+    if (bs[b] - bs[a] >= Math.PI * 0.95) continue;
+    const A = X(row[a], bs[a]), B = X(row[b], bs[b]), d = [B[0] - A[0], B[1] - A[1]], dir = [Math.sin(bs[i]), Math.cos(bs[i])], den = cross(dir, d);
+    if (Math.abs(den) < 1e-9) continue; const r = cross(A, d) / den, u = cross(A, dir) / den;
+    if (r > row[i] && u >= 0 && u <= 1) row[i] = r; }
+  for (let i = 0; i < COLS; i++) upperHull(zs, R.map((r) => r[i])).forEach((v, j) => { R[j][i] = v; });
+  return (z, b) => { const y = Math.max(0, Math.min(ROWS - 1 - 1e-9, (z - zBot) / (zTop - zBot) * (ROWS - 1))), x = Math.max(0, Math.min(COLS - 1 - 1e-9, (b + arc) / (2 * arc) * (COLS - 1)));
+    const j = Math.floor(y), i = Math.floor(x), fy = y - j, fx = x - i; return (R[j][i] * (1 - fx) + R[j][i + 1] * fx) * (1 - fy) + (R[j + 1][i] * (1 - fx) + R[j + 1][i + 1] * fx) * fy; };
+}
+
 /** THE SHIELD (the welding mask): a strap round the head on the band line (the circlet's band, in the trim), and a PLATE
  * stood `ease` off the face over bearings ±`arc` from `rise` over the band's front to `drop` under the chin: each row the
  * head's support there carried out by the ease, then held convex across (a chord over the nose, not round it) and down (a
@@ -265,33 +294,22 @@ function shield(M, cloud, c, zOf, W, k, face) {
   const pts = [...cloud.skull, ...cloud.hair, ...cloud.hood], ease = W.ease * k, arc = W.arc;
   const strap = circlet(M, cloud, c, zOf, { kind: 'circlet', h: W.strap.h, peak: 1, gap: W.strap.gap, thick: W.strap.thick, gem: 0, group: W.trimGroup }, k);
   if (!strap) return null;
-  const zTop = zOf(0) + W.rise * k, zBot = face.chin - W.drop * k, ROWS = 14, COLS = 19, w = 2 * Math.PI / N_BEAR;
-  const zs = Array.from({ length: ROWS }, (_, j) => zBot + (zTop - zBot) * j / (ROWS - 1)), bs = Array.from({ length: COLS }, (_, i) => -arc + 2 * arc * i / (COLS - 1));
-  const dz = 0.6 * (zTop - zBot) / (ROWS - 1);
-  const ringR = (r, b) => { const x = ((b % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / w, q = Math.floor(x) % N_BEAR, f = x - Math.floor(x); return r[q] + (r[(q + 1) % N_BEAR] - r[q]) * f; };
-  const R = zs.map((z) => { const r = supportRing(pts, c, () => z, dz); return bs.map((b) => (r ? ringR(r, b) : 0.06 * k) + ease); });
-  // (held convex ACROSS: each bearing's radius raised to the chord between any two others round it, so the plate runs flat
-  // over the nose and the brow)
-  const X = (r, b) => [r * Math.sin(b), r * Math.cos(b)], cross = (a, d) => a[0] * d[1] - a[1] * d[0];
-  for (const row of R) for (let pass = 0; pass < 2; pass++) for (let i = 1; i < COLS - 1; i++) for (let a = 0; a < i; a++) for (let b = i + 1; b < COLS; b++) {
-    const A = X(row[a], bs[a]), B = X(row[b], bs[b]), d = [B[0] - A[0], B[1] - A[1]], dir = [Math.sin(bs[i]), Math.cos(bs[i])], den = cross(dir, d);
-    if (Math.abs(den) < 1e-9) continue; const r = cross(A, d) / den; if (r > row[i]) row[i] = r; }
-  // (and DOWN: each bearing's profile from the chin to the top raised to its upper hull)
-  for (let i = 0; i < COLS; i++) upperHull(zs, R.map((r) => r[i])).forEach((v, j) => { R[j][i] = v; });
-  // the plate's radius at any height and bearing in it (between the grid's rows and columns)
-  const at = (z, b) => { const y = Math.max(0, Math.min(ROWS - 1 - 1e-9, (z - zBot) / (zTop - zBot) * (ROWS - 1))), x = Math.max(0, Math.min(COLS - 1 - 1e-9, (b + arc) / (2 * arc) * (COLS - 1)));
-    const j = Math.floor(y), i = Math.floor(x), fy = y - j, fx = x - i; return (R[j][i] * (1 - fx) + R[j][i + 1] * fx) * (1 - fy) + (R[j + 1][i] * (1 - fx) + R[j + 1][i + 1] * fx) * fy; };
-  const P = (z, b, out) => { const r = at(z, b) + out; return [c[0] + r * Math.sin(b), c[1] + r * Math.cos(b), z]; };
+  // (the plate's heights: `span` from the nasion (a lens band), else from over the band's front to under the chin)
+  const zTop = W.span ? face.nasion + W.span.hi * k : zOf(0) + W.rise * k, zBot = W.span ? face.nasion + W.span.lo * k : face.chin - W.drop * k;
+  const at = plateGrid(pts, c, zBot, zTop, arc, ease, k);
+  const P = (z, b, out, A = at) => { const r = A(z, b) + out; return [c[0] + r * Math.sin(b), c[1] + r * Math.cos(b), z]; };
   // A PIECE of the plate (or of the glass on it): bearings b0..b1, from its foot lo(b) to its top hi(b), `out` off the plate
   // and `t` deep; a closed shell: its rows each a ribbon (out across, back in under), capped top and bottom on its middle
-  const piece = (b0, b1, lo, hi, out, t, group) => {
+  const piece = (b0, b1, lo, hi, out, t, group, A = at) => {
     const n = 13, cols = Array.from({ length: n }, (_, i) => b0 + (b1 - b0) * i / (n - 1)), rows = 10, loops = [];
     for (let j = 0; j < rows; j++) { const f = j / (rows - 1), zOfC = cols.map((b) => lo(b) + (hi(b) - lo(b)) * f);
-      loops.push([...cols.map((b, i) => M.add(P(zOfC[i], b, out + t))), ...cols.map((b, i) => M.add(P(zOfC[i], b, out))).reverse()]); }
-    const cap = (j) => { const mid = cols.map((b) => { const f = j ? 1 : 0, z = lo(b) + (hi(b) - lo(b)) * f; return M.add(P(z, b, out + t / 2)); }); return [...mid, ...[...mid].reverse()]; };
+      loops.push([...cols.map((b, i) => M.add(P(zOfC[i], b, out + t, A))), ...cols.map((b, i) => M.add(P(zOfC[i], b, out, A))).reverse()]); }
+    const cap = (j) => { const mid = cols.map((b) => { const f = j ? 1 : 0, z = lo(b) + (hi(b) - lo(b)) * f; return M.add(P(z, b, out + t / 2, A)); }); return [...mid, ...[...mid].reverse()]; };
     M.loft([cap(0), ...loops, cap(1)], group);
   };
   const T = W.thick * k, flat = (z) => () => z;
+  // (a WRAP of cloth wound round the lower face under the plate, the scarf: its own grid, `lo` to `hi` from the nasion)
+  if (W.wrap) { const X = W.wrap, lo = face.nasion + X.lo * k, hi = face.nasion + X.hi * k, A = plateGrid(pts, c, lo, hi, X.arc, X.ease * k, k); piece(-X.arc, X.arc, flat(lo), flat(hi), 0, X.thick * k, X.group, A); }
   if (W.crack) {
     // (the break: its lower edge under the nose and its upper over the brow, each a jag of fixed teeth, no dice)
     const C = W.crack, jag = C.jag * k, TEETH = [0, 0.8, -0.5, 1, -0.2, 0.6, -0.9, 0.3, 1, -0.6, 0.4, -1, 0.7];
@@ -340,7 +358,7 @@ export function headwearOf(parts, headFit, W) {
   const pin = visagePin(skin, compiled, 'head', at(Lm.n), 'headSkin'); if (!pin) return null;
   // (a part a colour: the felt or the metal `headwear`, the ribbon `headwearTrim`, the gem `headwearGem`, each painted whole)
   const frame = pinFrame(compiled, pin), out = {};
-  for (const [name, group] of [['headwear', W.group], ['headwearTrim', W.trimGroup], ['headwearGem', W.gemGroup], ['headwearVisor', W.visorGroup]]) {
+  for (const [name, group] of [['headwear', W.group], ['headwearTrim', W.trimGroup], ['headwearGem', W.gemGroup], ['headwearVisor', W.visorGroup], ['headwearWrap', W.wrap && W.wrap.group !== W.group ? W.wrap.group : null]]) {
     if (!group) continue;
     const vid = new Map(), offsets = {}, faces = {};
     const v = (i) => { if (!vid.has(i)) { const id = `v${vid.size}`; vid.set(i, id); offsets[id] = surfaceLocalOffset(frame, M.vertices[i]).map(r6); } return vid.get(i); };

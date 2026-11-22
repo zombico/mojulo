@@ -31,7 +31,9 @@ if (!human && !vehicle) { console.error(`boss: '${id}' is one of ${[...Object.ke
 const R = (n) => Math.round(n * 1000) / 1000;
 const ARENAS = {
   cinder: { size: [40, 40], floor: '#5a5650', cover: [...[-12, -4, 4, 12].flatMap((x) => [[x, -6, 3, 0.6, 1.1], [x, 6, 3, 0.6, 1.1]]), [-14, 12, 1.2, 1.2, 1], [14, -12, 1.2, 1.2, 1]], fill: '#7d7468' },
-  glint: { size: [56, 36], floor: '#55595a', cover: [[-16, -8, 2.4, 2.4, 2.6], [-6, 6, 2.4, 2.4, 2.6], [4, -6, 4, 1, 2.2], [14, 8, 2.4, 2.4, 2.6], [-2, -12, 6, 1, 2.2], [20, -10, 2, 2, 2.6]], fill: '#6f7477', perches: [[24, 14], [24, -14], [10, 15]] },
+  // (Glint's: a loading yard, tall cover between three gantry decks he locks from, each 1.8 m up on four legs; low enough
+  // that a stun landing out in front of one sees his eyes, high enough to want climbing)
+  glint: { size: [56, 36], floor: '#55595a', cover: [[-16, -8, 2.4, 2.4, 2.6], [-6, 6, 2.4, 2.4, 2.6], [4, -6, 4, 1, 2.2], [14, 8, 2.4, 2.4, 2.6], [-2, -12, 6, 1, 2.2], [16, -4, 2, 2, 2.6]], fill: '#6f7477', perches: [[23, 12, 1.8], [23, -12, 1.8], [8, 14, 1.8]], deck: '#8a6f3c' },
   breaker: { size: [44, 44], floor: '#5b5752', cover: [[-10, -10], [10, -10], [-10, 10], [10, 10], [0, -16], [0, 16], [-16, 0], [16, 0]].map(([x, y]) => [x, y, 1.6, 1.6, 4]), fill: '#8a8278' },
   lineman: { size: [42, 42], floor: '#4a5056', tiles: 3, cover: [[-9, -9, 1.6, 1.6, 1.4], [9, 9, 1.6, 1.6, 1.4], [-9, 9, 1.6, 1.6, 1.4], [9, -9, 1.6, 1.6, 1.4]], fill: '#3f4e3f' },
   tank: { size: [90, 64], floor: '#5d5a4f', cover: [[0, 0, 22, 14, 6], [-30, -22, 3, 1, 1.2], [30, 22, 3, 1, 1.2], [-30, 22, 2.4, 2.4, 2.6], [30, -22, 2.4, 2.4, 2.6]], fill: '#7a7466', route: [[-26, -16], [26, -16], [26, 16], [-26, 16]] },
@@ -49,6 +51,12 @@ if (A.tiles) for (let x = -AW / 2; x < AW / 2; x += A.tiles) for (let y = -AD / 
 else put(boxFaces([-AW / 2, -AD / 2, -0.4], [AW / 2, AD / 2, 0], A.floor, 'arena:floor'));
 // (its walls round it, a body's height and more)
 for (const [mn, mx] of [[[-AW / 2 - 1, -AD / 2 - 1, 0], [AW / 2 + 1, -AD / 2, 4]], [[-AW / 2 - 1, AD / 2, 0], [AW / 2 + 1, AD / 2 + 1, 4]], [[-AW / 2 - 1, -AD / 2, 0], [-AW / 2, AD / 2, 4]], [[AW / 2, -AD / 2, 0], [AW / 2 + 1, AD / 2, 4]]]) { put(boxFaces(mn, mx, '#6b6a66', 'arena:wall')); colliders.push({ min: mn, max: mx }); }
+// (the perches: a deck on four legs at each, its top where the boss stands)
+for (const [x, y, z] of A.perches && A.deck ? A.perches : []) {
+  const deck = [[x - 1.6, y - 1.6, z - 0.25], [x + 1.6, y + 1.6, z]];
+  put(boxFaces(deck[0], deck[1], A.deck, 'arena:deck')); colliders.push({ min: deck[0], max: deck[1] });
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const mn = [x + sx * 1.45 - 0.1, y + sy * 1.45 - 0.1, 0], mx = [x + sx * 1.45 + 0.1, y + sy * 1.45 + 0.1, z - 0.25]; put(boxFaces(mn, mx, '#4b4f52', 'arena:deck')); colliders.push({ min: mn, max: mx }); }
+}
 A.cover.forEach(([x, y, w, d, h], k) => { const mn = [R(x - w / 2), R(y - d / 2), 0], mx = [R(x + w / 2), R(y + d / 2), h]; put(boxFaces(mn, mx, A.fill, 'arena:cover')); colliders.push({ min: mn, max: mx }); cover.push({ id: `cover-${k + 1}`, min: mn, max: mx }); });
 
 if (o.has('--plan')) {
@@ -59,11 +67,12 @@ if (o.has('--plan')) {
 }
 
 // THE OPERATIVE AND THE BOSS
-const kitWords = human ? ['carbine', 'frag'] : id === 'tank' ? ['carbine', 'mine', 'bazooka'] : ['carbine', 'bazooka', 'frag'];
+// (the kit it is beaten with: a flash counter's stun grenades)
+const kitWords = human ? ['carbine', ...((BOSSES[id].counters || []).some((c) => c.takes.includes('stun')) ? ['stun'] : []), 'frag'] : id === 'tank' ? ['carbine', 'mine', 'bazooka'] : ['carbine', 'bazooka', 'frag'];
 const G = { id: 'steel-serpents', name: 'Steel Serpents', feel: 'steel-serpents', quick: { arms: kitWords } };
 const { room, hero: h0, guard: g0 } = await starterRoom(o, G);
 const start = [0, -AD / 2 + 5, 0.05];
-const mission = { result: { at: [0, AD / 2 + 50, 0], radius: 1, when: [] }, hints: [{ at: start, radius: 4, says: human ? `${BOSSES[id].name}, ${BOSSES[id].title}. Read the floor: every move is marked before it lands. Dive through, step out, or get behind cover; hit it in the opening after.` : `${VEHICLES[id].name}. ${VEHICLES[id].wins.map((w) => w.says).join('. ')}.` }] };
+const mission = { result: { at: [0, AD / 2 + 50, 0], radius: 1, when: [] }, hints: [{ at: start, radius: 4, says: human ? `${BOSSES[id].name}, ${BOSSES[id].title}. Read the floor: every move is marked before it lands. Dive through, step out, or get behind cover.${(BOSSES[id].counters || []).map((c) => c.tip ? ` ${c.tip[0].toUpperCase()}${c.tip.slice(1)}.` : '').join('')}` : `${VEHICLES[id].name}. ${VEHICLES[id].wins.map((w) => w.says).join('. ')}.` }] };
 const hero = { ...h0, rule: { ...h0.rule, step: 0.35, mission, radarRange: 36 }, body: { ...h0.body, hp: 100 }, transform: { pos: start, heading: Math.PI / 2 } };
 let boss;
 // (the figure each of its looks wears: the guard's figure with another character's ref)
@@ -72,7 +81,9 @@ for (let i = 2; i < process.argv.length; i++) if (process.argv[i] === '--look') 
 if (human) {
   const arena = { center: [0, 0], r: Math.min(AW, AD) / 2, z: 0, ...(A.perches ? { perches: A.perches } : {}), cover };
   boss = { ...g0, id: 'boss', team: 'guards', rule: { ...g0.rule, foe: undefined, alarm: undefined, guardRadius: 60, standoff: 8, mind: { ...(g0.rule.mind || {}), ...bossMind(id) }, boss: bossRule(id, { arena, seed: 7, ...(Object.keys(looks).length ? { figures: looks } : {}) }) },
-    body: { ...g0.body, hp: 1600 }, transform: { pos: A.perches ? [A.perches[0][0], A.perches[0][1], 0.05] : [0, AD / 2 - 8, 0.05], heading: -Math.PI / 2 } };
+    body: { ...g0.body, hp: 1600 }, transform: { pos: A.perches ? [A.perches[0][0], A.perches[0][1], (A.perches[0][2] ?? 0) + 0.05] : [0, AD / 2 - 8, 0.05], heading: A.perches ? Math.PI : -Math.PI / 2 } };
+  // (a sentry's reach the arena's length, its post its perch)
+  if (A.perches) boss.rule = { ...boss.rule, range: Math.hypot(AW, AD), guardAt: [A.perches[0][0], A.perches[0][1]] };
 } else {
   boss = vehicleEntity(id, { at: id === 'gunship' ? [A.runs[0][0], A.runs[0][1], 16] : [A.route[0][0], A.route[0][1], 0], hp: 1200, ...(A.route ? { route: A.route } : {}), ...(A.runs ? { runs: A.runs } : {}), seed: 7 });
 }

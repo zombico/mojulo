@@ -21,6 +21,8 @@ import { patternLaws, BODY } from './laws.js';
 const no = (msg) => { throw new Error(`boss: ${msg}`); };
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const TEMPERS = ['bold', 'opportunist', 'relentless'];
+// (how its mind fights between its moves, mind.js `motivation`: a sentry holds where it stands and fires)
+const MOTIVATIONS = ['sentry', 'guard'];
 const EVENTS = Object.freeze({
   burn: 'the floor by the walls catches and burns: the ground the boss gives up',
   relocate: 'it leaves its perch for another: the cover that faced it no longer does',
@@ -34,8 +36,13 @@ export const BOSS_EVENTS = EVENTS;
 // behind it) and only `when` it is bare (`vent`: in the opening of a move that turns its back to vent), and what its
 // breaking does (`breaks`: a `stagger` of seconds, a `harm` of its health, a move's hazards shortened to a share of their
 // reach). A new kind of counter is a row here and its judge in the director (worlds/controllable/boss.js).
-const COUNTERS = Object.freeze({ part: 'a piece of its own that breaks under what hits it there, while it is bare' });
-const COUNTER_FROM = ['behind', 'any'], COUNTER_WHEN = ['vent', 'open', 'always'], COUNTER_TAKES = ['round', 'explosive'];
+// `flash`: a stun that bursts `within` metres of its eyes, `from` in front of it, while it holds a SCOPE (a move that puts
+// its eye to a sight: `when: 'scope'`); it is blinded `blind` seconds where it stands, every move called off, and takes
+// `mult` times what lands on it till it sees again. A flash is never used up: each lock is another chance.
+const COUNTERS = Object.freeze({ part: 'a piece of its own that breaks under what hits it there, while it is bare', flash: 'a stun burst in its sight while its eye is at a scope: blinded' });
+const COUNTER_FROM = ['behind', 'front', 'any'], COUNTER_WHEN = ['vent', 'scope', 'open', 'always'], COUNTER_TAKES = ['round', 'explosive', 'stun'];
+// (a hand grenade's flight from the throw to its burst, about: what a body needs on top of its reaction to flash a scope)
+const THROW = 1;
 export const BOSS_COUNTERS = COUNTERS;
 
 export const BOSSES = Object.freeze({
@@ -54,16 +61,16 @@ export const BOSSES = Object.freeze({
       { below: 0.33, moves: { 'arc-of-flame': 2, 'flashover': 2, 'fuel-drums': 2, 'firewalk': 1 }, tempo: 1.4, temper: 'relentless', look: 'cracked' },
     ],
     // (the canister on his back: bare only while he vents, and only from behind him; four rounds and it ruptures)
-    counters: [{ kind: 'part', id: 'canister', reads: 'the fuel canister on his back', takes: ['round'], hits: 4, from: 'behind', when: 'vent',
+    counters: [{ kind: 'part', id: 'canister', reads: 'the fuel canister on his back', tip: 'rounds into the tank on his back while he vents rupture it', takes: ['round'], hits: 4, from: 'behind', when: 'vent',
       prop: { shape: 'canister', r: 0.15, h: 0.62, colour: '#b8662a', band: '#c9a14a', hose: '#1d1a17' },
       breaks: { says: 'the canister ruptures: he goes up in his own fire', stagger: 3, harm: 0.2, shorten: { 'arc-of-flame': 0.6 } } }],
     // (the looks its phases wear: the mask cracked to show the face in the last)
     looks: { cracked: 'the welding mask cracked open, the face showing through the break' } },
   // A MARKSMAN: its name the glint of its scope; it fights from perches, a lock that follows before it fires
-  glint: { name: 'Glint', title: 'the marksman', reads: 'a marksman in a long coat, a scope that catches the light',
+  glint: { name: 'Glint', title: 'the marksman', reads: 'a range officer who learned to love the long shot: a duster coat, a scarf wound high, mirrored shooting glasses, a rifle longer than his arm',
     look: { tell: '#e8f4ff', hazard: '#ff4d4d' }, arena: { cover: 'hard cover tall enough to stand behind', size: 'long, with perches' },
     moves: {
-      'the-lock': { pattern: 'lock', says: 'the scope catches the light; the line follows, holds, and fires' },
+      'the-lock': { pattern: 'lock', says: 'the scope catches the light; the line follows, holds, and fires', scope: 'his eye at the scope through the whole lock' },
       'buckshot': { pattern: 'fan', says: 'swaps to the scattergun as you close; the fan is drawn' },
       'flares': { pattern: 'rain', says: 'fires flares over you; each lands burning where it is marked', tune: { harm: 0.12 } },
     },
@@ -71,7 +78,12 @@ export const BOSSES = Object.freeze({
       { moves: { 'the-lock': 3, 'buckshot': 1 }, tempo: 2.6 },
       { below: 0.66, moves: { 'the-lock': 2, 'flares': 2, 'buckshot': 1 }, tempo: 2.1, event: 'relocate' },
       { below: 0.33, moves: { 'the-lock': 3, 'flares': 1, 'buckshot': 2 }, tempo: 1.6, temper: 'relentless', event: 'relocate' },
-    ] },
+    ],
+    // (the glint: his eye at the scope for the whole lock; a stun bursting in front of him then blinds him)
+    // (a marksman holds his perch: his mind a sentry's, turned on what it sees and firing, never walking down to it)
+    mind: { motivation: 'sentry' },
+    counters: [{ kind: 'flash', id: 'glint', reads: 'his eye at the scope', tip: 'a stun grenade in front of him while his scope is up blinds him', takes: ['stun'], hits: 1, from: 'front', when: 'scope', within: 8,
+      breaks: { says: 'the flash goes down his scope: blind, off the rifle, standing in the open', blind: 4, mult: 2 } }] },
   // A BREAKER: its name what it does to cover; a giant with a pile driver who brings the floor to it
   breaker: { name: 'Breaker', title: 'the demolisher', reads: 'a giant in demolition armour, a pile driver for a fist',
     look: { tell: '#ffd23f', hazard: '#c8a26a' }, arena: { cover: 'pillars it can tear out', size: 'a yard' },
@@ -108,7 +120,7 @@ export function moveOf(boss, id) {
   const m = boss.moves[id];
   if (!m) no(`${boss.name}: no move '${id}' (${Object.keys(boss.moves).join(', ')})`);
   const P = readPattern(m.pattern), T = m.tune || {};
-  return { ...P, id, says: m.says, ...(m.vent ? { vent: m.vent } : {}), ...(T.reach ? { reach: T.reach } : {}), tell: { ...P.tell, says: m.says },
+  return { ...P, id, says: m.says, ...(m.vent ? { vent: m.vent } : {}), ...(m.scope ? { scope: m.scope } : {}), ...(T.reach ? { reach: T.reach } : {}), tell: { ...P.tell, says: m.says },
     hazards: P.hazards.map((h) => ({ ...h, ...(T.harm ? { harm: T.harm } : {}), ...(T.at ? { at: h.at + T.at } : {}) })),
     open: { ...P.open, ...(T.at ? { at: P.open.at + T.at } : {}) } };
 }
@@ -122,6 +134,7 @@ export function readBoss(b, where = 'boss') {
     if (!PATTERNS[m.pattern]) no(`${where}.moves.${id}: pattern is one of ${Object.keys(PATTERNS).join(', ')}`);
     for (const k of Object.keys(m.tune || {})) if (!TUNES.includes(k)) no(`${where}.moves.${id}.tune: ${k} is not one of ${TUNES.join(', ')}`);
     if (m.vent !== undefined && typeof m.vent !== 'string') no(`${where}.moves.${id}.vent: what it does as it turns away to vent, in words`);
+    if (m.scope !== undefined && typeof m.scope !== 'string') no(`${where}.moves.${id}.scope: its eye at a sight through the move, in words`);
   }
   (b.counters || []).forEach((c, k) => {
     const at = `${where}.counters[${k}]`;
@@ -132,11 +145,16 @@ export function readBoss(b, where = 'boss') {
     if (!COUNTER_FROM.includes(c.from)) no(`${at}.from is one of ${COUNTER_FROM.join(', ')}`);
     if (!COUNTER_WHEN.includes(c.when)) no(`${at}.when is one of ${COUNTER_WHEN.join(', ')}`);
     if (c.when === 'vent' && !Object.values(b.moves).some((m) => m.vent)) no(`${at}.when 'vent': a move of its must vent`);
+    if (c.when === 'scope' && !Object.values(b.moves).some((m) => m.scope)) no(`${at}.when 'scope': a move of its must put its eye to a scope`);
+    if (c.kind === 'flash' && !c.takes.includes('stun')) no(`${at}: a flash is taken by a stun`);
+    if (c.tip !== undefined && typeof c.tip !== 'string') no(`${at}.tip: what a body does to it, in a line`);
     const B = c.breaks || {};
     for (const m of Object.keys(B.shorten || {})) { if (!b.moves[m]) no(`${at}.breaks.shorten: '${m}' is not one of its moves`); if (!isNum(B.shorten[m]) || B.shorten[m] <= 0 || B.shorten[m] > 1) no(`${at}.breaks.shorten.${m} is a share of its reach, over 0 and 1 or under`); }
     if (B.harm !== undefined && (!isNum(B.harm) || B.harm < 0 || B.harm >= 1)) no(`${at}.breaks.harm is a share of its health`);
+    if (c.kind === 'flash' && (!isNum(B.blind) || B.blind <= 0)) no(`${at}.breaks.blind: the seconds it is blinded`);
   });
   if (!Array.isArray(b.phases) || !b.phases.length) no(`${where}: its phases, the first from full health`);
+  if (b.mind !== undefined && !(b.mind && MOTIVATIONS.includes(b.mind.motivation))) no(`${where}.mind.motivation is one of ${MOTIVATIONS.join(', ')}`);
   b.phases.forEach((ph, k) => {
     if (k === 0 && ph.below !== undefined) no(`${where}.phases[0] is from full health: no below`);
     if (k > 0 && (!isNum(ph.below) || ph.below <= 0 || ph.below >= 1)) no(`${where}.phases[${k}].below is a share of its health, between 0 and 1`);
@@ -150,6 +168,8 @@ export function readBoss(b, where = 'boss') {
 }
 
 /** the rows a boss's mind crosses (mind.js `phases`): each phase after the first, its threshold and temper, a shift beat */
+/** its mind's own words over a boss's (mind.js): its motivation, where its row asks for one */
+export const mindOf = (boss) => ({ ...(readBoss(boss).mind || {}) });
 export function mindPhases(boss) {
   return readBoss(boss).phases.slice(1).map((ph) => ({ below: ph.below, ...(ph.temper ? { aggressiveness: ph.temper } : {}), shift: 1.2 }));
 }
@@ -166,15 +186,16 @@ export function bossLaws(boss, body = BODY) {
   out.push({ law: 'falling', holds: falls, says: falls ? `phases at ${th.map((v) => Math.round(v * 100) + '%').join(', ')} of its health` : 'its thresholds do not fall' });
   const harder = b.phases.every((p, k) => k === 0 || p.tempo <= b.phases[k - 1].tempo);
   out.push({ law: 'rising', holds: harder, says: harder ? 'each phase as quick or quicker than the one before' : 'a later phase waits longer between moves than an earlier one' });
-  // (a counter REACHABLE: the move that bares it in every phase, and its opening long enough to react and land its hits,
-  // a round each quarter second)
+  // (a counter REACHABLE: the move that bares it in every phase, and its window long enough: a vent's opening to react
+  // and land its hits, a round each quarter second; a scope's lock, from its start to its shot, to react and throw)
   for (const c of b.counters || []) {
-    const bares = Object.keys(b.moves).filter((id) => (c.when === 'vent' ? b.moves[id].vent : true));
+    const bares = Object.keys(b.moves).filter((id) => (c.when === 'vent' ? b.moves[id].vent : c.when === 'scope' ? b.moves[id].scope : true));
     const missing = b.phases.map((ph, k) => [k, bares.some((id) => (ph.moves || {})[id] > 0)]).filter(([, ok]) => !ok).map(([k]) => k);
-    const need = body.reaction + c.hits * 0.25, short = bares.filter((id) => moveOf(b, id).open.for < need);
+    const windowOf = (id) => { const M = moveOf(b, id); return c.when === 'scope' ? Math.min(...M.hazards.map((h) => h.at)) : M.open.for; };
+    const need = Math.round((body.reaction + (c.when === 'scope' ? THROW : c.hits * 0.25)) * 100) / 100, short = bares.filter((id) => windowOf(id) < need);
     const holds = !missing.length && !short.length;
-    out.push({ law: `counter-${c.id}`, holds, says: holds ? `${c.reads}: bared by ${bares.join(', ')} in every phase, ${c.hits} hits in an opening of ${Math.min(...bares.map((id) => moveOf(b, id).open.for))} s or more`
-      : missing.length ? `${c.reads}: no move bares it in phases ${missing.join(', ')}` : `${c.reads}: the opening of ${short.join(', ')} is under the ${need} s its ${c.hits} hits need` });
+    out.push({ law: `counter-${c.id}`, holds, says: holds ? `${c.reads}: bared by ${bares.join(', ')} in every phase, a window of ${Math.min(...bares.map(windowOf))} s or more for the ${need} s it needs`
+      : missing.length ? `${c.reads}: no move bares it in phases ${missing.join(', ')}` : `${c.reads}: the window of ${short.join(', ')} is under the ${need} s it needs` });
   }
   return out;
 }

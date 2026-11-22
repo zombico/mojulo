@@ -73,7 +73,8 @@ export function buildKnockout(E) {
   }
 
   E.knockOut = function knockOut(state, tg, by, how) {
-    if (!tg || tg.ko || tg.gone) return;
+    // (a boss is never put to sleep: what a stun does to it is its counter's, worlds/controllable/boss.js)
+    if (!tg || tg.ko || tg.gone || (tg.rule && tg.rule.boss)) return;
     tg.ko = { t0: state.time || 0, by: by ? by.id : null, how: how || 'stun' };
     tg.koDrowse = null; tg.downed = true; tg.deadAt = null; tg.moving = false; tg.route = null; tg.aiFire = 0;
     tg.staggerT = null; tg.reactClip = null; tg.downPauseT = null; tg.juggle = null; tg.locomotion = 'idle';

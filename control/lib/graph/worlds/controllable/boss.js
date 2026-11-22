@@ -12,7 +12,8 @@
  *                 (its dormant crew woken); a phase's `figure` (a look's) swapped onto its body. A move that VENTS holds it
  *                 on through its opening turned away from the aim. Its COUNTERS (`counters`, a `part`): rounds or bursts
  *                 landing on it from where the part shows while it is bare, counted to the part's hits; at its hits it
- *                 breaks (a reel, a share of its health, its own fire, its moves shortened)
+ *                 breaks (a reel, a share of its health, its own fire, its moves shortened); a `flash`, a stun bursting
+ *                 in front of its eyes while a move holds its eye to a scope, blinds it where it stands, taking `mult` times
  *   a vehicle     (rule.boss.kind 'vehicle'; its rule's type its own, so nothing else drives it) is driven by its STATE:
  *                 along its `route` (a loop of points), on its `runs` (flown end to end at its state's altitude, then a
  *                 hover at the end), stranded where it stands; its moves by its state's weights and tempo, a run's strafe
@@ -54,7 +55,7 @@ export function buildBoss(E) {
     const z = (target[2] != null ? target[2] : p[2]) - ((state.pilotId && state.byId[state.pilotId] && state.byId[state.pilotId].rule && state.byId[state.pilotId].rule.eye) || 0);
     H.forEach((h, k) => state.bossHazards.push({ ...h, z, id: `${e.id}:${S.count}:${k}`, by: e.id, move: id, k, ...(look.hazard ? { colour: look.hazard } : {}), ...(look.tell ? { tellColour: look.tell } : {}) }));
     const end = Math.max(...H.map((h) => h.t1)) - t;
-    S.cur = { id, t0: t, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' ? H[0] : null, vent: !!P.vent };
+    S.cur = { id, t0: t, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' ? H[0] : null, vent: !!P.vent, scope: !!P.scope };
   }
 
   // a phase's arena event, as the crossing runs it
@@ -63,7 +64,10 @@ export function buildBoss(E) {
     if (kind === 'burn' && A.center && A.r) {
       for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; state.bossHazards.push({ shape: 'disc', c: [A.center[0] + Math.cos(a) * A.r * 0.82, A.center[1] + Math.sin(a) * A.r * 0.82], r: 2.4, z: A.z || 0, t0: t + 1.2, t1: t + 40, tm: t, harm: 0.08, id: `${e.id}:burn:${k}`, by: e.id, move: 'burn', colour: (e.rule.boss.look || {}).hazard, lasting: true }); }
     } else if (kind === 'relocate' && Array.isArray(A.perches) && A.perches.length) {
-      const S = e.bossS, q = A.perches[(S.perch = ((S.perch ?? -1) + 1) % A.perches.length)];
+      // (on from the perch it stands at: the nearest, the first time)
+      const S = e.bossS, p0 = e.transform.pos;
+      if (S.perch == null) S.perch = A.perches.map((q, k) => [k, Math.hypot(q[0] - p0[0], q[1] - p0[1])]).sort((x, y) => x[1] - y[1])[0][0];
+      const q = A.perches[(S.perch = (S.perch + 1) % A.perches.length)];
       e.transform.pos[0] = q[0]; e.transform.pos[1] = q[1]; if (q[2] != null) e.transform.pos[2] = q[2];
       if (e.rule.guardAt) e.rule.guardAt = [q[0], q[1]];
     } else if (kind === 'tear' && Array.isArray(A.cover) && state.colliders && pilot) {
@@ -92,6 +96,7 @@ export function buildBoss(E) {
     const B = e.rule.boss, p = e.transform.pos, h = e.transform.heading || 0, C = S.cur;
     S.parts = S.parts || {};
     for (const c of B.counters) {
+      if (c.kind === 'flash') { flash(state, e, S, c, t0, t); continue; }
       if (c.kind !== 'part' || S.broken[c.id]) continue;
       const bare = c.when === 'always' || (C && t0 >= C.openAt && t0 < C.openEnd && (c.when === 'open' || C.vent));
       S.bare = S.bare || {}; S.bare[c.id] = !!bare;
@@ -114,6 +119,30 @@ export function buildBoss(E) {
       state.bossHazards.push({ shape: 'disc', c: [p[0], p[1]], r: 2.2, z: p[2], t0: t + 0.15, t1: t + Math.max(1, K.stagger || 1), tm: t, harm: 0.1, id: `${e.id}:${c.id}:rupture`, by: e.id, move: c.id, colour: (B.look || {}).hazard });
       for (const [m, f] of Object.entries(K.shorten || {})) { const M = B.moves[m]; if (M) M.hazards = M.hazards.map((x) => ({ ...x, ...(x.reach ? { reach: x.reach * f } : {}), ...(x.shape === 'ring' ? { to: x.to * f } : {}) })); }
       S.said = { text: K.says || '', t };
+    }
+  }
+
+  // A FLASH (Glint's glint): a stun bursting within its `within` of the boss's eyes, in front of it, with a clear line to
+  // them, while its eye is at a scope (a move that holds one, through its tell and its shot): blinded `blind` seconds where
+  // it stands, its landings called off, taking `mult` times what lands on it till it sees again
+  function flash(state, e, S, c, t0, t) {
+    const p = e.transform.pos, h = e.transform.heading || 0, C = S.cur, K = c.breaks || {};
+    const locked = !!(C && C.scope && t0 < C.openAt);
+    S.bare = S.bare || {}; S.bare[c.id] = locked;
+    if (!locked) return;
+    const eye = [p[0], p[1], p[2] + 1.6];
+    for (const b of state.bursts || []) {
+      if (b.t !== t0 || b.effect !== 'stun') continue;
+      const q = [b.pos[0], b.pos[1], b.pos[2] + 0.3];
+      if (c.from === 'front' && (q[0] - p[0]) * Math.cos(h) + (q[1] - p[1]) * Math.sin(h) <= 0) continue;
+      if (Math.hypot(q[0] - eye[0], q[1] - eye[1], q[2] - eye[2]) > (c.within || b.radius || 4)) continue;
+      if (state.colliders && E.sightBlocked && E.sightBlocked(q, eye, state.colliders)) continue;
+      S.parts = S.parts || {}; S.parts[c.id] = (S.parts[c.id] || 0) + 1;
+      S.blind = t + (K.blind || 3); S.blindMult = K.mult || 1; S.reel = S.blind;
+      e.reactClip = 'stagger'; e.staggerT = 0; e.reactDur = K.blind || 3;
+      state.bossHazards = state.bossHazards.filter((x) => !(x.by === e.id && x.t0 > t));
+      S.cur = null; S.next = S.blind + 0.6; S.said = { text: K.says || '', t };
+      return;
     }
   }
 
@@ -209,6 +238,8 @@ export function buildBoss(E) {
         const ph = Math.min((B.phases || []).length - 1, e.mindPhase == null ? 0 : e.mindPhase + 1);
         if (ph !== S.phase) { S.phase = ph; const P2 = B.phases[ph] || {}; if (P2.event) event(state, e, P2.event); if (P2.figure) e.body.figure = P2.figure; }
         if (B.counters) counters(state, e, S, t0, t);
+        // (blinded, it takes `mult` times what lands on it)
+        if (S.blind != null && t0 < S.blind && e.body.hp < H0 && S.blindMult > 1) e.body.hp = Math.max(0, e.body.hp - (H0 - e.body.hp) * (S.blindMult - 1));
         // (in its opening it stands winded and takes half again)
         if (S.cur && t0 >= S.cur.openAt && t0 < S.cur.openEnd && e.body.hp < H0) e.body.hp = Math.max(0, e.body.hp - (H0 - e.body.hp) * 0.5);
         if (S.cur && S.cur.charge) {
@@ -250,7 +281,7 @@ export function buildBoss(E) {
         const P = B.moves[h.move], R = E.layPattern(P, ...S.cur.frame(pilot.transform.pos), S.cur.t0)[h.k];
         Object.assign(h, { a: R.a, b: R.b, ...(R.o ? { o: R.o } : {}) });
       }
-      state.bosses[e.id] = { name: B.name, title: B.title || '', ...(B.counters ? { counters: Object.fromEntries(B.counters.map((c) => [c.id, { hits: (S.parts || {})[c.id] || 0, of: c.hits, bare: !!(S.bare || {})[c.id], broken: !!S.broken[c.id] }])), ...(S.said ? { said: S.said } : {}) } : {}), phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax };
+      state.bosses[e.id] = { name: B.name, title: B.title || '', ...(B.counters ? { counters: Object.fromEntries(B.counters.map((c) => [c.id, { hits: (S.parts || {})[c.id] || 0, of: c.hits, bare: !!(S.bare || {})[c.id], broken: !!S.broken[c.id], ...(c.kind === 'flash' ? { blind: S.blind != null && t < S.blind } : {}) }])), ...(S.said ? { said: S.said } : {}) } : {}), phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax };
     }
     // THE HAZARDS LAND: on each body of another team inside one, once a hazard, unless it is through, under or behind cover
     for (const h of state.bossHazards) {

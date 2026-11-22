@@ -50,6 +50,16 @@ describe('a human boss', () => {
     expect(walled.byId.p.body.hp).toBe(100);
   });
 
+  it('a relocate goes on from the perch it stands at', () => {
+    const perches = [[10, 0], [0, 10], [-10, 0]];
+    const R = { ...bossRule('glint', { first: 99, arena: { perches } }) }, b = human(R, [0.3, 9.8]);
+    const s = world([pilot([0, -10]), b]);
+    run(s, 0.1);
+    s.byId.b.mindPhase = 0;
+    run(s, 0.1);
+    expect(s.byId.b.transform.pos.slice(0, 2)).toEqual([-10, 0]);
+  });
+
   it('a phase crossed runs its event: a tear takes the piece of its cover nearest the body', () => {
     const A = { id: 'crate-a', min: [8, -1, 0], max: [9, 1, 2] }, Bx = { id: 'crate-b', min: [-9, -1, 0], max: [-8, 1, 2] };
     const R = { ...bossRule('breaker', { first: 99, arena: { cover: [A, Bx] } }) };
@@ -112,6 +122,40 @@ describe('a human boss\'s counter', () => {
     s.byId.b.mindPhase = k - 1;
     run(s, 0.1);
     expect(s.byId.b.body.figure).toBe('boss-' + look);
+  });
+});
+
+describe('a flash counter', () => {
+  // (a boss with a flash counter, and the move that holds its eye to a scope, from the shelf)
+  const id = Object.keys(BOSSES).find((k) => (BOSSES[k].counters || []).some((c) => c.kind === 'flash'));
+  const C = BOSSES[id].counters.find((c) => c.kind === 'flash'), scope = Object.keys(BOSSES[id].moves).find((m) => BOSSES[id].moves[m].scope);
+  const fight = () => { const s = world([pilot([12, 0]), human(oneMove(id, scope))]); s.byId.p.invincible = true; return s; };
+  const toScope = (s) => { for (let k = 0; k < 200; k++) { const c = s.byId.b.bossS && s.byId.b.bossS.cur; if (c && c.scope && s.time > c.t0 + 0.3) return true; E.stepWorld(s, {}, 0.05, hooks); } return false; };
+  // (a stun bursting at a place in the step about to run, as a thrown one leaves its record)
+  const stun = (s, at) => { s.bursts.push({ seq: s.burstSeq++, pos: [...at, 0], t: s.time, radius: 6, effect: 'stun' }); E.stepWorld(s, {}, 0.05, hooks); };
+
+  it('a stun bursting in front of it while its eye is at the scope blinds it: its shot called off, planted, never asleep', () => {
+    const s = fight();
+    expect(toScope(s)).toBe(true);
+    stun(s, [3, 0]);
+    const S = s.byId.b.bossS;
+    expect(S.blind).toBeGreaterThan(s.time + C.breaks.blind - 0.2);
+    expect(s.bossHazards.filter((h) => h.by === 'b' && h.t0 > s.time)).toEqual([]);
+    expect(s.bosses.b.counters[C.id].blind).toBe(true);
+    expect(s.byId.b.ko || null).toBeNull();
+    const at = s.byId.b.transform.pos.slice(); E.stepWorld(s, {}, 0.05, hooks);
+    expect(s.byId.b.transform.pos).toEqual(at);
+  });
+
+  it('one behind it, or one while no scope is up, does nothing', () => {
+    const s = fight();
+    expect(toScope(s)).toBe(true);
+    stun(s, [-3, 0]);
+    expect(s.byId.b.bossS.blind == null).toBe(true);
+    const t = world([pilot([12, 0]), human(oneMove(id, scope))]);
+    t.byId.p.invincible = true;
+    stun(t, [3, 0]);
+    expect(t.byId.b.bossS.blind == null).toBe(true);
   });
 });
 

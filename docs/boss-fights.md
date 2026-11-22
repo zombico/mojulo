@@ -92,6 +92,16 @@ to react and land its hits (a round a quarter second).
 Cinder's is his tank. Every arc of flame ends with him turned away to vent the lance, his back and the tank toward the
 body he attacked. Four rounds into it then and it ruptures.
 
+A `flash` counter is a stun bursting within `within` metres of the boss's eyes, `from` in front of it, with a clear
+line to them, while a move holds its eye to a scope (`when: 'scope'`, a move's `scope`). The boss is blinded `blind`
+seconds where it stands, its shot called off, taking `mult` times what lands on it. A flash is never used up. Its law
+holds the lock long enough, from its start to its shot, to react and throw (a second's flight).
+
+Glint's is his glint. A boss is never knocked out by a stun (`knockout.js`): what one does to it is its counter's alone.
+
+A boss's row may give its mind a `motivation` (`mind`): Glint's is a sentry's, so he holds where he stands and fires
+from it rather than walking down to the body. His `relocate` takes him on from the perch he stands at to the next.
+
 The mind crosses the phases itself (`mindPhases`). The laws (`bossLaws`) hold:
 
 - every move holds the pattern laws;
@@ -153,6 +163,8 @@ shelf: `bossRule`, `bossMind`, `vehicleEntity`.
 - each hazard's mark in the boss's tell colour, filling as its landing nears, then the landing itself in its hazard
   colour (a sweep's beam, a ring's front, a strafe's landings one by one);
 - the mines, amber while arming and red once armed;
+- a scope's glint at the boss's eye while a move holds it there, flaring as the shot nears, and sparks circling its
+  head while a flash has it blind;
 - a human boss's counter prop on its torso bone (Cinder's tank and its hose to his right hand): glowing while it is bare,
   white for a moment as each hit lands, a burst of fire when it breaks;
 - a vehicle's dress and parts: a weak spot red and beating while it can be hit, a broken track wrecked.
@@ -177,9 +189,11 @@ is near 19 MB: `node scripts/pack-page.mjs <page> --parts --text` splits it unde
 
 ## What is not yet
 
-- Only Cinder has a look of his own (`--guard` and `--look` on the spike, a character minted from
-  `scripts/spikes/mission/cinder.json`); the other three wear the guard's figure. Only the `part` counter is built:
-  Breaker's charge into a wall and Glint's flash while he holds a lock are still to come.
+- Cinder and Glint have looks of their own (`--guard` and `--look` on the spike, characters minted from
+  `scripts/spikes/mission/cinder.json` and `glint.json`); Breaker and Lineman wear the guard's figure. The `part` and
+  `flash` counters are built; Breaker's charge into a wall is still to come.
+- A realistic hero remade in place (`update_character`) came back without its head's skin in the database it was read
+  from, so its headwear had nothing to pin to; mint the look anew (`create_character`) until that is understood.
 - A vehicle is boxes. Its turret does not turn apart from its hull, and the walker does not stride.
 - A boss is not yet named by a level: a `design_game` world's `goal.boss` still stands a foe of the boss rank. The
   casting call does not propose a gimmick, and the game book has no boss sheet.

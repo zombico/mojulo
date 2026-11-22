@@ -12,7 +12,7 @@
  *
  * Pure.
  */
-import { readBoss, moveOf, mindPhases } from './bosses.js';
+import { readBoss, moveOf, mindPhases, mindOf } from './bosses.js';
 import { readVehicle } from './vehicles.js';
 import { readPattern } from './patterns.js';
 
@@ -29,7 +29,7 @@ export function bossRule(id, { arena = null, seed = 1, first = 2.5, figures = nu
     ...(arena ? { arena } : {}) };
 }
 
-export const bossMind = (id) => ({ rank: 'boss', phases: mindPhases(id) });
+export const bossMind = (id) => ({ ...mindOf(id), rank: 'boss', phases: mindPhases(id) });
 
 export function vehicleRule(id, { route = null, runs = null, seed = 1, first = 3 } = {}) {
   const V = readVehicle(id);

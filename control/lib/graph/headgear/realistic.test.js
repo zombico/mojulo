@@ -49,6 +49,21 @@ describe('headwear on the realistic head', () => {
     expect(Math.min(...glass.map((p) => p[1]))).toBeGreaterThan(Math.max(...skull.map((p) => p[1])));
     expect(JSON.stringify(buildHeadwear(H.cloud, { ...H, face }, W).M.vertices)).toBe(JSON.stringify(B.M.vertices));
   });
+  it('the shooter\'s wrap: the glasses a band at the eyes, the scarf wound round the lower face; both clear the head', () => {
+    const W = HEADWEAR.shooterWrap, B = buildHeadwear(H.cloud, { ...H, face }, W), skull = H.cloud.skull;
+    expect(volumes(B.M).every((v) => v > 0)).toBe(true);
+    const lens = inGroup(B.M, W.group), scarf = inGroup(B.M, W.wrap.group).filter((p) => !lens.includes(p));
+    expect(Math.min(...lens.map((p) => p[2]))).toBeGreaterThan(face.nasion + W.span.lo - 0.001);
+    expect(Math.max(...lens.map((p) => p[2]))).toBeLessThan(face.nasion + W.span.hi + 0.001);
+    // (the scarf under the glasses, and round to the back of the head)
+    expect(Math.max(...scarf.map((p) => p[2]))).toBeLessThan(face.nasion + W.span.lo);
+    expect(Math.min(...scarf.map((p) => p[1]))).toBeLessThan(0);
+    const gap = Math.min(...[...lens, ...scarf].map((p) => Math.min(...skull.map((q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])))));
+    expect(gap).toBeGreaterThan(0.002);
+    // (and close round it everywhere: a wrap's chords through the head's middle never throw a point far off)
+    const reach = (pts) => Math.max(...pts.map((p) => Math.hypot(p[0], p[1])));
+    expect(reach(B.M.vertices)).toBeLessThan(reach(skull) + 0.04);
+  });
   it('the cracked welding mask: no glass, and the plate open across the eyes in front', () => {
     const W = HEADWEAR.weldingMaskCracked, { M } = buildHeadwear(H.cloud, { ...H, face }, W);
     expect(W.visorGroup).toBeUndefined();

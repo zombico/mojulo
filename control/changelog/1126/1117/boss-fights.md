@@ -62,3 +62,13 @@ of, each held to laws a body facing it needs.
   with a slot of dark glass at the eyes. Its cracked twin is split open across the eyes. The tank and its hose are
   drawn by the page on his torso bone (`boss-view.js`), so the tank can glow while it is bare, flash as each hit lands
   and burst when it breaks.
+- **Glint** (the `flash` counter): his eye is at the scope through every lock, and a glint flares there so you always
+  know where he is. A stun grenade bursting in front of him then, with a clear line to his eyes, blinds him for four
+  seconds where he stands: his shot is called off and he takes double. A flash is never used up. His mind is a
+  sentry's, so he holds his perch and fires from it. His phases move him on from the perch he stands at to the next:
+  in his arena, three gantry decks 1.8 m up, low enough that a stun out in front sees his eyes, high enough to want
+  climbing. A boss is never knocked out by a stun (`knockout.js`); what one does to it is its counter's.
+- **Glint's look**: tall and lean, minted from `scripts/spikes/mission/glint.json`: an oilcloth duster to mid-calf
+  over a sand shirt and a shooting vest. On his face a new realistic headwear card, the SHOOTER'S WRAP: mirrored glasses
+  wrapped temple to temple, built as a lens band (the shield's `span`), over a scarf wound high round the lower face
+  (its `wrap`).

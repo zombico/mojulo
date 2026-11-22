@@ -10,6 +10,8 @@
 //   COUNTER           placed from the bone's rest and its back's depth, so it rides every clip; a hose from it to the right
 //                     hand; glowing while it is bare, white for a moment as each hit lands; on breaking, a burst of fire
 //                     and gone
+//   a SCOPE           while a move holds the boss's eye to a scope, a GLINT at the eye, flaring as its shot nears (where
+//                     it is, always); BLINDED (a flash counter), sparks circling its head till it sees again
 // Emitted only into a page whose world has a boss or a placed weapon, so every other page keeps every byte. Needs THREE,
 // scene and __world in scope.
 export function bossViewScript() {
@@ -19,6 +21,15 @@ const __BV = { marks: new Map(), mines: new Map(), parts: new Map(), props: new 
 // (a rig's bone by its id, the first of the names it might go by; its index into the rig's bones)
 const __bvBone = (fig, names) => { for (const n of names) { const i = fig.bones.findIndex((b) => (b.id || b) === n); if (i >= 0) return i; } return -1; };
 const __bvV = new THREE.Vector3(), __bvW = new THREE.Vector3();
+// (a soft round light, the glint's and the sparks')
+const __bvGlowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.25, 'rgba(255,255,255,0.8)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const __bvSprite = (hex, s) => { const x = new THREE.Sprite(new THREE.SpriteMaterial({ map: __bvGlowTex, color: new THREE.Color(hex), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false })); x.scale.setScalar(s); x.visible = false; scene.add(x); return x; };
+// (a body's head in the world: its rig's head bone where it has one, else its height)
+function __bvHead(e, out) {
+  const g = __bodies[e.id], rf = g && g.userData && g.userData.rigFig;
+  if (rf) { const i = __bvBone(rf.fig, ['head']); if (i >= 0 && rf.boneMeshes[i]) { const b = rf.fig.bones[i], m = rf.boneMeshes[i]; m.updateWorldMatrix(true, false); return out.set(b.head[0], b.head[1], b.head[2] + 0.08).applyMatrix4(m.matrixWorld); } }
+  const p = e.transform.pos; return out.set(p[0], p[1], p[2] + 1.65);
+}
 // (a prop's shading baked into its corners from its normals, as the page's bodies are: no light in the scene to do it)
 function __bvShaded(geo, hex) {
   const n = geo.getAttribute('normal'), c = new THREE.Color(hex), col = new Float32Array(n.count * 3);
@@ -147,6 +158,24 @@ function __bvFrame() {
         x.hose.mesh.geometry.dispose(); x.hose.mesh.geometry = new THREE.TubeGeometry(curve, 14, 0.022, 6, false);
       }
     }
+  }
+  // A SCOPE's GLINT and a blinded boss's sparks
+  for (const e of W.entities) {
+    const B = e.rule && e.rule.boss;
+    if (!B || B.kind !== 'human' || !e.bossS) continue;
+    let G = __BV.props.get(e.id + ':glint');
+    if (!G) { G = { flare: __bvSprite((B.look && B.look.tell) || '#e8f4ff', 0.6), sparks: [0, 1, 2].map(() => __bvSprite('#ffffff', 0.18)) }; __BV.props.set(e.id + ':glint', G); }
+    const S = e.bossS, C = S.cur, scoped = !!(C && C.scope && t < C.openAt && !e.gone), blind = S.blind != null && t < S.blind && !e.gone;
+    G.flare.visible = scoped; G.sparks.forEach((x) => { x.visible = blind; });
+    if (!scoped && !blind) continue;
+    __bvHead(e, __bvV);
+    if (scoped) {
+      // (at the eye, a hand ahead along the aim; growing and quickening as the shot nears)
+      const h = e.transform.heading || 0, u = Math.min(1, Math.max(0, (t - C.t0) / Math.max(0.1, C.openAt - C.t0)));
+      G.flare.position.set(__bvV.x + Math.cos(h) * 0.22 - Math.sin(h) * 0.04, __bvV.y + Math.sin(h) * 0.22 + Math.cos(h) * 0.04, __bvV.z - 0.02);
+      G.flare.scale.setScalar((0.35 + 0.9 * u) * (0.75 + 0.25 * Math.sin(t * (10 + 20 * u))));
+    }
+    if (blind) G.sparks.forEach((x, k) => { const a = t * 4 + (k * 2 * Math.PI) / 3; x.position.set(__bvV.x + Math.cos(a) * 0.32, __bvV.y + Math.sin(a) * 0.32, __bvV.z + 0.3 + 0.04 * Math.sin(t * 9 + k)); });
   }
   // (the fire a counter goes up in: thrown out and fading)
   __BV.fires = __BV.fires.filter((f) => { const u = t - f.userData.t0, v = f.userData.v; if (u > 1.4) { scene.remove(f); f.geometry.dispose(); return false; } f.position.x += v[0] * 0.016; f.position.y += v[1] * 0.016; f.position.z += v[2] * 0.016; f.scale.setScalar(1 + u * 3); f.material.opacity = 0.9 * (1 - u / 1.4); return true; });
