@@ -49,6 +49,9 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
  * stacked under the brow, and a blink stretched the lid across them) */
 /** how far from straight ahead (degrees) the opening may bare the globe: past it the skin covers the globe again */
 export const COVER_DEEP = 55;
+/** a seated lid's edge (V): its rim's radius at the canthi, what it gains toward the middle, its centre's lift off the
+ * margin there (+ up) and how far forward of the globe it rides, [base, taper, lift, forward] for the upper and the lower */
+export const RIM = Object.freeze({ upper: Object.freeze([0.0032, 0.0035, 0.003, 0.0035]), lower: Object.freeze([0.0035, 0.0028, -0.0015, 0.005]) });
 /** the cover's fullness under the eye's outer corner (V): its lift and its blend into the face at the middle of the sector
  * `toward` [out, forward, up] from the globe's centre, eased to none `spread` degrees off it */
 export const COVER_RIM = Object.freeze({ lift: 0.003, blend: 0.014, toward: [0.6, 0.35, -0.7], spread: 50 });
@@ -246,8 +249,11 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   };
   // (seated, the lower margin stands at the lid's front: the opening's cut edge there, no longer in a tunnel, would net
   // ragged; the rim rounds it, as the upper's does)
-  const rimAt = (upper, t) => (upper ? { c: pt(t, upZ(t), 0.004 * taper(t), 0.004), r: 0.0035 + 0.006 * taper(t) }
-    : seat ? { c: pt(t, loZ(t), -0.002 * taper(t), 0.006), r: 0.004 + 0.005 * taper(t) } : { c: pt(t, loZ(t), -0.003 * taper(t), 0.003), r: 0.003 + 0.004 * taper(t) });
+  // (seated, each rim is a lid's edge at its own thickness, `RIM`: at the unseated sizes, ~2 mm in radius at the middle,
+  // the rims ate into the opening, the visible eye 6 mm tall where a relaxed adult's is 9-11, the iris's top covered 3.4 mm)
+  const RU = seat ? RIM.upper : [0.0035, 0.006, 0.004, 0.004], RL = seat ? RIM.lower : [0.003, 0.004, -0.003, 0.003];
+  const rimAt = (upper, t) => (upper ? { c: pt(t, upZ(t), RU[2] * taper(t), RU[3]), r: RU[0] + RU[1] * taper(t) }
+    : { c: pt(t, loZ(t), RL[2] * taper(t), RL[3]), r: RL[0] + RL[1] * taper(t) });
   const upperRim = ts.map((t) => rimAt(true, t)), lowerRim = ts.map((t) => rimAt(false, t));
   // the crease's height over the margin, more as the lid closes (the lid's skin unfolds)
   const gap = 0.034 * (1 + 0.6 * (1 - Math.min(1, c.open)));

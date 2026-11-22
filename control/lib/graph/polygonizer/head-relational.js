@@ -168,7 +168,7 @@ export const RELATION_POLES = Object.freeze({
   // base; fuller lips; the eyes a little more open
   male: Object.freeze({
     cheeks: 0.6, lowerCheek: 0.35, chinWidth: 0.04, chinRound: 0.1, masseter: 0.15, chin: 0.006, jaw: 0.75,
-    noseProjection: 0.34, dorsum: -0.1, nasalIndex: 0.7, lipFullness: 1.15, mouthWidth: 1.38, lipProjection: 0.024, fissure: 0.039,
+    noseProjection: 0.34, dorsum: -0.1, nasalIndex: 0.7, lipFullness: 1.15, mouthWidth: 1.38, lipProjection: 0.024, fissure: 0.049, lidSplit: 0.36,
   }),
   // the female pole (2026-10-21, the face-harmony study, approved by the operator's eyes): beyond the canon's sex cues, a
   // shorter, less projected nose with a finer bridge and a narrower base; larger eyes; fuller, taller, more forward lips
@@ -176,7 +176,7 @@ export const RELATION_POLES = Object.freeze({
   // the cheeks fuller and the lower cheek bowed out over the jaw (a soft outline, never a hollowed one)
   female: Object.freeze({
     third: 0.28, eyeLine: 0.49, nasionDrop: 0.06, headLength: 0.84, cephalic: 0.79, faceWidth: 0.87, jaw: 0.64,
-    fifths: 0.232, fissure: 0.045, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.29, noseFat: 0.026, dorsum: -0.35,
+    fifths: 0.232, fissure: 0.051, lidSplit: 0.36, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.29, noseFat: 0.026, dorsum: -0.35,
     nasionDepth: 0.006, browProjection: 0.019, brow: 0.22, malarDepth: 0.037, forehead: 0.01,
     lipFullness: 1.3, upperVermilion: 0.04, lowerVermilion: 0.05, lipProjection: 0.023, mouthWidth: 1.7, philtrumVolume: 0.02, jowl: 0.008,
     chinWidth: -0.05, chinRound: -0.1, gonionDrop: -0.006, cheeks: 0.5, lowerCheek: 0.5,

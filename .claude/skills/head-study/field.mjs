@@ -87,7 +87,9 @@ for (let i = 0; i < args.length; i++) {
 if (!sexes.length) sexes.push('male', 'female');
 const unknown = Object.keys(proto).filter((k) => !HEAD_KNOB_NAMES.includes(k));
 if (unknown.length) { console.error(`head-study --field: not a head knob: ${unknown.join(', ')} (have ${HEAD_KNOB_NAMES.join(', ')})`); process.exit(1); }
-const badRel = Object.keys(rel).filter((k) => !RELATION_NAMES.includes(k));
+// (besides the canon's relations, the optional ones a hero mints with: `squeeze`, realistic laws 15, and `periorbital`,
+// laws 16 — so `--rel` can draw the hero's own face)
+const badRel = Object.keys(rel).filter((k) => !RELATION_NAMES.includes(k) && k !== 'squeeze' && k !== 'periorbital');
 if (badRel.length) { console.error(`head-study --field: not a relation: ${badRel.join(', ')} (have ${RELATION_NAMES.join(', ')})`); process.exit(1); }
 if (!['protoform', 'relational'].includes(source)) { console.error(`head-study --field: --source protoform | relational`); process.exit(1); }
 const badAct = [act, ...(acts || [])].filter(Boolean).flatMap((o) => Object.keys(o)).filter((k) => k !== 'eyes' && k !== 'epidermis' && k !== 'crop' && k !== 'seat' && !ACTION_NAMES.includes(k));

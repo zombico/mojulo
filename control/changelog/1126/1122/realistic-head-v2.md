@@ -15,5 +15,7 @@ face toward the proportions and the clean structure of a current game character,
   instead of melting into a fullness under the chin.
 - A cheekbone: the cheek's front plane carries out to the cheekbone and turns there to the side, a high plane under the
   eye with a soft shadow beneath it, the full cheek kept below.
+- The eyes open as a relaxed adult's do: the lids' edges at a lid's own thickness, the upper lid grazing the iris's top
+  instead of covering a third of it, the opening ~9.5 mm tall where it was 6 to 7.
 
-Still to come: the eyelids, the nose. Hair, brows and lashes are not part of it.
+Still to come: the upper lid's fold and the eye's corners, the nose. Hair, brows and lashes are not part of it.
