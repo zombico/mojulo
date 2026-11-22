@@ -235,8 +235,12 @@
 - **The boss, measured, and its telegraphed blow.** A foe's action pattern row may `charge` (`true`, or the line said,
   `{name}` the foe's): it spends that turn gathering, said in the message line and played as its channel (the juice's
   new `charge`), then lets the blow or the skill go on its next turn at twice its power (`unleash`); a guard takes half,
-  so the turn between is the party's to brace. The Ember Drake breathes so every third turn, every second under half
-  its HP, and is retuned (540 HP, atk 26, mag 24, from 160, 17, 13) to the level the ladder brings the party to (6): a
-  new law, `gameworld/boss-law.test.js`, fights it on sixteen seeds three ways and holds it to a boss's shape (a careful
-  party wins nearly always, a careless one mostly falls, a level short wins less, bracing is worth winning, 8 to 20
-  rounds). Before, a careless party at level 3 beat it seven times in eight.
+  so the turn between is the party's to brace. A foe may take **phases** (`phases: [{ below, say?, pattern?, traits,
+  numbers }]`): under each share of its HP, once and in order, it takes that form on that fight's foe alone, said and
+  roared (the juice's new `phase`). The Ember Drake breathes a charged blast every third turn, and under half its HP
+  its scales blaze: it absorbs ice and is weak to thunder, hits harder and charges every second turn. It is retuned
+  (800 HP, atk 26, mag 24, from 160, 17, 13) against a new law, `gameworld/boss-law.test.js`: a party walks the
+  round's ladder for real on sixteen seeds (its levels, class points and spells earned), then meets the drake four
+  ways, held to a boss's shape (a careful party wins nearly always, a careless one mostly falls, one that skipped the
+  ladder's last fights wins less, bracing and reading the second form are each worth winning, 8 to 20 rounds).
+  Before, a careless party at level 3 beat it seven times in eight.

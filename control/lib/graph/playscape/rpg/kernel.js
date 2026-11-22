@@ -362,6 +362,22 @@ export function buildRpg() {
   function act(cfg, R, who, pick, vars, out) {
     actOne(cfg, R, who, pick, vars, out);
     if (cfg.encounters[R.b.enc] && cfg.encounters[R.b.enc].pages) pages(cfg, R, out, false);
+    phases(R, out);
+  }
+  // A FOE'S PHASES (its `phases`, rpg.js): the first time a standing foe's HP falls under a phase's share, it takes that
+  // form, what the phase names replacing its own (its own copy: the world's foe is left as it was), said and roared (a
+  // beat of kind 'phase'); a phase it is already past comes in turn, never skipped
+  function phases(R, out) {
+    for (const f of R.b.foes) {
+      const P = f.F.phases;
+      if (!P || f.hp <= 0) continue;
+      for (let n = f.phase || 0; n < P.length && f.hp / f.max < P[n].below; n = f.phase) {
+        const p = P[n], F = { ...f.F, base: { ...f.F.base } };
+        for (const k in p) if (k === 'atk' || k === 'def' || k === 'mag' || k === 'spd') F.base[k] = p[k]; else if (k !== 'below' && k !== 'say') F[k] = p[k];
+        f.F = F; f.phase = n + 1;
+        out.push({ text: p.say ? p.say.split('{name}').join(f.name) : f.name + ' changes!', kind: 'phase', who: f.uid, phase: n + 1 });
+      }
+    }
   }
   // A FIGHT'S OWN PAGES (an encounter's `pages`, rpg.js): each said once, the first time its moment holds (the fight
   // begun; a foe of its kind brought under a share of its HP; its nth round reached): its words a beat each, kind

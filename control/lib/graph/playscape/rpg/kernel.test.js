@@ -358,6 +358,41 @@ describe('a charged blow', () => {
   });
 });
 
+// A FOE'S PHASES (foes.<id>.phases): the first time its HP falls under each phase's share, in order, it takes that form,
+// what the phase names replacing its own on its own copy, said as it comes (a beat of kind 'phase')
+describe('a foe\'s phases', () => {
+  const hydra = { name: 'Hydra', hp: 100, mp: 0, atk: 5, def: 1, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['ice'],
+    phases: [{ below: 0.6, say: '{name} grows a second head!', weak: ['thunder'], absorb: ['ice'], atk: 9 }, { below: 0.3, pattern: [{ use: 'guard' }] }] };
+  const cfg = readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 9 }], foes: { hydra }, encounters: [{ id: 'lake', foes: ['hydra'] }] } });
+
+  it('takes each form once, in order, on its own copy; a hit past two shares brings both', () => {
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'lake', v);
+    const f = R.b.foes[0];
+    f.hp = 59;
+    const one = rpgRound(cfg, R, { ayla: { act: 'guard' } }, v).filter((x) => x.kind === 'phase');
+    expect(one).toEqual([{ text: 'Hydra grows a second head!', kind: 'phase', who: 'f0', phase: 1 }]);
+    expect(f.F).toMatchObject({ weak: ['thunder'], absorb: ['ice'] });
+    expect(f.F.base.atk).toBe(9);
+    expect(cfg.foes.hydra.weak).toEqual(['ice']);
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' } }, v).some((x) => x.kind === 'phase')).toBe(false);
+    f.hp = 10;
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' } }, v).filter((x) => x.kind === 'phase')).toEqual([{ text: 'Hydra changes!', kind: 'phase', who: 'f0', phase: 2 }]);
+    // (a fresh fight starts it in its first form; a hit through both shares at once brings both, in order)
+    const R2 = rpgInit(cfg);
+    rpgStart(cfg, R2, 'lake', v);
+    R2.b.foes[0].hp = 5;
+    expect(rpgRound(cfg, R2, { ayla: { act: 'guard' } }, v).filter((x) => x.kind === 'phase').map((x) => x.phase)).toEqual([1, 2]);
+  });
+
+  it('is read and taught: each under the one before, and changing something', () => {
+    expect(cfg.foes.hydra.phases[1]).toEqual({ below: 0.3, pattern: [{ use: 'guard', weight: 5 }] });
+    const bad = (phases) => () => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }], foes: { hydra: { ...hydra, phases } } } });
+    expect(bad([{ below: 0.3, atk: 1 }, { below: 0.6, atk: 2 }])).toThrow(/under the one before/);
+    expect(bad([{ below: 0.5 }])).toThrow(/changes nothing/);
+  });
+});
+
 // A FIGHT'S OWN PAGES (encounters[].pages): each said once, the first time its moment holds (begun, a foe under a share
 // of its HP, its nth round), a beat of kind 'page' carrying its flag
 describe('a fight\'s own pages', () => {

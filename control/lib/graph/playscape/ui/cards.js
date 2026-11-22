@@ -179,6 +179,7 @@ function cuesCard() {
     '  each beat says rpg-on:<happening> (hit, crit, element:fire, ko:slime …) on the bus for cues to answer.',
   '  foes.<id>.pattern: [{ use: attack | guard | <skill>, when?: { hpBelow, hpAbove, turn, every, after }, weight?: 1-9,',
   '  charge?: true | \'<line>\' }]; a charge spends a turn gathering (said, {name} the foe\'s), then lets go at twice its power.',
+  '  foes.<id>.phases: [{ below, say?, pattern?, weak?, resist?, absorb?, immune?, atk?, def?, mag?, spd? }]: its next form.',
   '  encounters[].pages: [{ when: { start: true } | { foe?, hpBelow } | { round }, say, who?, sets?, summon?, heal? }],',
   '  each said once; summon: [foe] calls foes in (a dormant figure each past the foes\' in who), heal: share.',
   '  states: { <id>: { said, skip?, noCast?, miss?, wild?, tick?, wake?: hit, rounds? } | true (paralysis, blind, confusion,',

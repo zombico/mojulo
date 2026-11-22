@@ -162,6 +162,12 @@ foe spends that turn gathering, said in the message line and played as its chann
 next turn lets the blow or the skill go at twice its power (the juice's `unleash`). A guard takes half of it, as of any
 blow, so the turn between is the party's to brace or mend.
 
+A foe may take **phases** (`phases: [{ below, say?, pattern?, weak?, resist?, absorb?, immune?, atk?, def?, mag?, spd? }]`,
+each `below` under the one before): the first time its HP falls under a phase's share it takes that form, what the
+phase names replacing its own (its pattern, its traits, its numbers) on that fight's foe alone, said in the message line
+(`say`, `{name}` the foe's; else "<name> changes!") and roared (the juice's `phase`). A hit through two shares brings
+both, in order. A page at the same share still speaks first, so a boss's line leads into its change.
+
 ```json
 { "foes": { "warden": { "hp": 400, "atk": 14, "def": 12, "mag": 10, "spd": 6, "boss": true, "pattern": [
   { "use": "guard", "when": { "turn": 1 } },
@@ -178,12 +184,16 @@ calls foes into the fight, six fighting at most. A summoned foe's figure is the 
 foes', minted `dormant` (hidden), and woken in smoke where it stands (a pack's one figure stands for all its foes). A composed party RPG's boss is a
 party battle (`battles.boss`, the Ember Drake by default) that speaks as it begins and at half its HP.
 
-**The boss, measured.** The Ember Drake is tuned to the party the ladder brings to it (`battles.js` `PACKS` walked in
-order, every member taking each fight's XP: level 6). Its breath is telegraphed every third turn, and every second
-once it is under half its HP. Since a fight is deterministic, `gameworld/boss-law.test.js` fights it on many seeds three
-ways (careful: bracing for the charge, mending, striking its weakness; the same unbraced; careless: only attacking) and
-holds it to a boss's shape: the careful party wins nearly always and the careless one mostly falls, a level short wins
-less often, bracing is worth winning, and the fight lasts 8 to 20 rounds. A boss retuned, or a new one, answers to it.
+**The boss, measured.** The Ember Drake is tuned to the party the round's ladder makes. `gameworld/boss-law.test.js`
+walks it for real on sixteen seeds (`battles.js` `PACKS` in order, resting between fights as at an inn), so the party
+meets the drake with the levels, class points and spells it earned (level 6 or 7, Blizzard and Thunder learned), then
+plays the boss four ways: careful (bracing for the charge, mending, striking its weakness as it stands, an ether when
+the mage runs dry), the same unbraced, the same striking the weakness it first showed after it has changed, and
+careless (only attacking). It holds the drake to a boss's shape: the careful party wins nearly always and the careless
+one mostly falls, a party that skipped the ladder's last two fights wins less often, bracing and reading its second
+form are each worth winning, and the fight lasts 8 to 20 rounds. The drake breathes a charged blast every third turn;
+under half its HP its scales blaze (its second form): it drinks the cold that hurt it and fears thunder, bites and
+breathes harder, and charges its breath every second turn. A boss retuned, or a new one, answers to the law.
 
 **Traits** (RPG Maker's traits, the three a fight reads), on a class or a piece of gear: `resist` (elements taken at
 half), `immune` (elements taken not at all) and `ward` (states warded off). A member carries its class's and what it

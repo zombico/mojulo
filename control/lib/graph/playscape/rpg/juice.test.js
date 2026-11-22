@@ -68,6 +68,7 @@ describe('battle juice: steps, composed, bound to the fight\'s happenings', () =
     expect(juiceKeys({ kind: 'charge', who: 'f0' })).toEqual(['charge']);
     expect(juiceKeys({ kind: 'cast', skill: 'fire-breath', charged: true })).toEqual(['unleash', 'cast:fire-breath', 'cast']);
     expect(juiceKeys({ who: 'f0', charged: true })).toEqual(['unleash']);
+    expect(juiceKeys({ kind: 'phase', who: 'f0', phase: 1 })).toEqual(['phase']);
     expect(juiceKeys({ kind: 'end', lost: true })).toEqual(['defeat']);
     expect(juiceKeys({ kind: 'spoils', xp: 4 })).toEqual(['victory']);
   });

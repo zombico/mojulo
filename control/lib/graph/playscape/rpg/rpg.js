@@ -21,13 +21,16 @@
  *                 status: { is: poison | sleep | silence, chance?, rounds? }; buff: { stat, pct, rounds? };
  *                 carry: usable from any class once learned
  *     foes?:      { <id>: { name?, hp, mp?, atk, def, mag, spd, xp?, gold?, cp?, weak?, resist?, absorb?, immune?,
- *                 skills?, drops?: [{ item, chance }], boss?, pattern? } }
+ *                 skills?, drops?: [{ item, chance }], boss?, pattern?, phases? } }
  *                 pattern: [{ use: 'attack' | 'guard' | '<skill>', when?: { hpBelow?, hpAbove?, turn?, every?, after? },
  *                 weight?: 1-9, charge?: true | '<line>' }]   its ACTION PATTERN: on its turn, a row whose `when` holds
  *                 (its HP below or above a share, its nth turn, every nth, from its nth on) and that it can pay for, by
  *                 weight (5 unsaid); none, the rule every foe keeps (a skill by chance, else an attack). A row that
  *                 CHARGES is telegraphed: its turn spent gathering (the line said, `{name}` the foe's), and its next
  *                 turn the blow or the skill let go at twice its power (kernel.js CHARGED): a turn to guard or mend
+ *                 phases: [{ below, say?, pattern?, weak?, resist?, absorb?, immune?, atk?, def?, mag?, spd? }]   its
+ *                 PHASES: a form it takes the first time its HP falls under `below` (each under the one before), what
+ *                 the phase names replacing its own, said (`say`, {name} the foe's) and roared as it comes
  *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes?,
@@ -255,8 +258,32 @@ function readFightPages(v, kinds, where, foeIds = kinds) {
   });
 }
 
+// a foe's PHASES (kernel.js phases): each a form it takes the first time its HP falls under a share, in order, the
+// rows it names replacing its own (its pattern, its traits, its numbers), said and roared as it comes
+const PHASE_TRAITS = ['weak', 'resist', 'absorb', 'immune'], PHASE_STATS = ['atk', 'def', 'mag', 'spd'];
+function readPhases(v, where) {
+  const shape = '{ below, say?, pattern?, weak?, resist?, absorb?, immune?, atk?, def?, mag?, spd? }';
+  let last = 1;
+  return listOf(v, where, shape).map((p, i) => {
+    const at = `${where}[${i}]`;
+    if (!isObj(p)) throw err(`${at} is ${shape}: a form it takes when its HP falls under a share`);
+    keysOnly(p, ['below', 'say', 'pattern', ...PHASE_TRAITS, ...PHASE_STATS], at);
+    if (!(num(p.below) && p.below > 0 && p.below < last)) throw err(`${at}.below is a share of its HP, above 0 and below 1, each phase under the one before`);
+    last = p.below;
+    if (p.say !== undefined && !(typeof p.say === 'string' && p.say.trim() && p.say.length <= 80)) throw err(`${at}.say is the line said as it changes ({name} the foe's), 80 characters at most`);
+    for (const s of PHASE_STATS) if (p[s] !== undefined && !(num(p[s]) && p[s] >= 0)) throw err(`${at}.${s} is its new ${s}, a number`);
+    if (!PHASE_TRAITS.some((t) => p[t] !== undefined) && !PHASE_STATS.some((t) => p[t] !== undefined) && p.pattern === undefined) throw err(`${at} changes nothing: give it a pattern, traits (${PHASE_TRAITS.join(', ')}) or numbers (${PHASE_STATS.join(', ')})`);
+    const out = { below: p.below };
+    if (p.say !== undefined) out.say = p.say;
+    if (p.pattern !== undefined) out.pattern = readPattern(p.pattern, `${at}.pattern`);
+    for (const t of PHASE_TRAITS) if (p[t] !== undefined) out[t] = t === 'immune' ? listOf(p[t], `${at}.immune`, 'elements and statuses').map((e, j) => id(e, `${at}.immune[${j}]`)) : elements(p[t], `${at}.${t}`);
+    for (const s of PHASE_STATS) if (p[s] !== undefined) out[s] = p[s];
+    return out;
+  });
+}
+
 function readFoe(k, d, where) {
-  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss', 'pattern'], where);
+  keysOnly(d, ['name', ...RPG_STATS, 'xp', 'gold', 'cp', 'weak', 'resist', 'absorb', 'immune', 'skills', 'drops', 'boss', 'pattern', 'phases'], where);
   for (const s of ['hp', 'atk', 'def', 'mag', 'spd']) if (!num(d[s]) || d[s] < 0) throw err(`${where}.${s} is a number (hp, atk, def, mag, spd are each needed)`);
   if (d.hp < 1) throw err(`${where}.hp is 1 or more`);
   for (const s of ['mp', 'xp', 'gold', 'cp']) optNum(d[s], `${where}.${s}`);
@@ -272,6 +299,7 @@ function readFoe(k, d, where) {
     skills: listOf(d.skills, `${where}.skills`, 'skill ids').map((s, i) => id(s, `${where}.skills[${i}]`)), drops, boss: !!d.boss,
     // (only a foe that has one carries it: every other's numbers as they were)
     ...(d.pattern !== undefined ? { pattern: readPattern(d.pattern, `${where}.pattern`) } : {}),
+    ...(d.phases !== undefined ? { phases: readPhases(d.phases, `${where}.phases`) } : {}),
   };
 }
 
@@ -391,7 +419,7 @@ export function readRpg(play) {
     if (!d) throw err(`.foes: '${k}' is no preset foe (${Object.keys(FOE_PRESETS).join(', ')}): define it ({ hp, atk, def, mag, spd, xp, gold })`);
     foes[id(k, '.foes key')] = readFoe(k, d, `.foes.${k}`);
     for (const s of foes[k].skills) skillWant.add(s);
-    for (const r of foes[k].pattern ?? []) if (r.use !== 'attack' && r.use !== 'guard') skillWant.add(r.use);
+    for (const r of [...(foes[k].pattern ?? []), ...(foes[k].phases ?? []).flatMap((p) => p.pattern ?? [])]) if (r.use !== 'attack' && r.use !== 'guard') skillWant.add(r.use);
   }
 
   // the skills: the world's, then every one a class or a foe names

@@ -133,16 +133,20 @@ export const FOE_PRESETS = Object.freeze({
   wisp: { name: 'Wisp', hp: 20, mp: 30, atk: 5, def: 9, mag: 12, spd: 9, xp: 12, gold: 10, weak: ['light'], resist: ['fire', 'ice', 'thunder'], absorb: ['dark'], skills: ['dark-bolt'] },
   golem: { name: 'Stone Golem', hp: 55, atk: 15, def: 14, mag: 2, spd: 2, xp: 18, gold: 15, cp: 2, weak: ['thunder'], resist: ['fire', 'ice'], immune: ['poison', 'sleep'] },
   shaman: { name: 'Goblin Shaman', hp: 26, mp: 30, atk: 7, def: 5, mag: 10, spd: 7, xp: 12, gold: 14, skills: ['mend', 'dark-bolt'], drops: [drop('ether', 0.3)] },
-  // (the boss, tuned to the party the ladder (gameworld/battles.js PACKS) brings to it, level 6: a careful party wins it, a
-  // careless one mostly falls, held so by gameworld/boss-law.test.js. Its breath is telegraphed: every third turn, and
-  // every second once it is under half its HP, it gathers its fire a turn first, then lets it go at twice its power)
+  // (the boss, tuned to the party the ladder (gameworld/battles.js PACKS) brings to it, walked for real: a careful party wins it, a
+  // careless one mostly falls, held so by gameworld/boss-law.test.js. Its breath is telegraphed: every third turn it
+  // gathers its fire a turn first, then lets it go at twice its power. Under half its HP it takes its second form: its
+  // scales blaze, it drinks the cold that hurt it and fears the storm, it bites harder and breathes every second turn)
   drake: {
-    name: 'Ember Drake', hp: 540, mp: 80, atk: 26, def: 10, mag: 24, spd: 8, xp: 80, gold: 120, cp: 5, weak: ['ice'], absorb: ['fire'], immune: ['sleep', 'poison'], skills: ['fire-breath', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
+    name: 'Ember Drake', hp: 800, mp: 80, atk: 26, def: 10, mag: 24, spd: 8, xp: 80, gold: 120, cp: 5, weak: ['ice'], absorb: ['fire'], immune: ['sleep', 'poison'], skills: ['fire-breath', 'bite'], boss: true, drops: [drop('hi-potion', 1)],
     pattern: [
       { use: 'bite', weight: 4 }, { use: 'attack', weight: 3 },
       { use: 'fire-breath', when: { every: 3 }, charge: '{name} gathers its fire…', weight: 9 },
-      { use: 'fire-breath', when: { hpBelow: 0.5, every: 2 }, charge: '{name} gathers its fire…', weight: 9 },
     ],
+    phases: [{
+      below: 0.5, say: '{name}\'s scales blaze white-hot!', weak: ['thunder'], absorb: ['fire', 'ice'], atk: 30, mag: 28,
+      pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'fire-breath', when: { every: 2 }, charge: '{name} gathers its fire…', weight: 9 }],
+    }],
   },
 });
 
