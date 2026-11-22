@@ -170,6 +170,11 @@ node scripts/spikes/mission/boss.mjs --boss cinder --guard cinder --look cracked
 
 (`cinder-cracked` is the same spec with `"headgear": "weldingMaskCracked"`.)
 
+The operative is the player's own the same way: mint `scripts/spikes/mission/operative.json` as `operative` and add
+`--hero operative --vault speedVault --roll rollForward --climb climbUp --crouch crouchIdle,crouchWalk --prone
+proneIdle,proneCrawl`, his clips by the names his recipe gives them. With both made figures and the cast light the page
+is near 19 MB: `node scripts/pack-page.mjs <page> --parts --text` splits it under a host's limit.
+
 ## What is not yet
 
 - Only Cinder has a look of his own (`--guard` and `--look` on the spike, a character minted from
