@@ -12,7 +12,7 @@ const byArchetype = Object.values(Object.groupBy(ARMS_KIT_WORDS, (w) => ARMS_KIT
 
 describe('arms kit', () => {
   it('each archetype: a weapon row with its sights, its sway and its switch\'s two halves; a scope zooms and nearly closes the cone', () => {
-    for (const w of byArchetype.filter((x) => ARMS_KIT[x].as !== 'thrown')) {
+    for (const w of byArchetype.filter((x) => ARMS_KIT[x].as !== 'thrown' && ARMS_KIT[x].as !== 'placed')) {
       const s = kitSlot(w, SHOOT.rifle, { eye: 1.5 });
       expect(s.weapon.eye, w).toBe(1.5);
       expect(s.switchReady, w).toBeCloseTo(s.gunplay.swap.out + s.gunplay.swap.in, 6);
@@ -38,6 +38,15 @@ describe('arms kit', () => {
     expect(kitSlot('stun', SHOOT.rifle).weapon.damage).toBe(0);
     expect(kitSlot('chaff', SHOOT.rifle).weapon.jam.r).toBeGreaterThan(kitSlot('stun', SHOOT.rifle).weapon.splashRadius);
   });
+  it('a land mine is laid, never fired: its slot a magazine of one with a few in reserve, its burst scaled to the base round, nothing drawn in the hand', () => {
+    const s = kitSlot('mine', SHOOT.rifle, { eye: 1.5 });
+    expect(s.weapon).toMatchObject({ magazine: 1, quiet: true, damage: 0 });
+    expect(s.weapon.place.arm).toBeGreaterThan(0);
+    expect(s.weapon.place.trip).toBeGreaterThan(0);
+    expect(kitSlot('mine', { ...SHOOT.rifle, damage: 2 }).weapon.place.dmg).toBeCloseTo(kitSlot('mine', SHOOT.rifle).weapon.place.dmg * 2, 6);
+    expect(s.gunplay.view).toEqual({ kind: 'throw' });
+    expect(s.weapon.round).toBeUndefined();
+  });
   it('the numbers scale to the goal\'s base round, and an arm named by its build words takes its sight\'s archetype', () => {
     const half = kitSlot('rifle', { ...SHOOT.rifle, damage: 0.5 }), one = kitSlot('rifle', SHOOT.rifle);
     expect(half.weapon.damage * 2).toBeCloseTo(one.weapon.damage, 6);
@@ -61,7 +70,7 @@ describe('arms kit', () => {
     expect(() => readQuick({ goal: 'shoot', arms: ['rifle', 'plasma'] })).toThrow(/plasma/);
   });
   it('a gun\'s round: each archetype\'s cartridge class (a longer flash for a longer cartridge), the bow none; the runtime keeps it, and adds nothing without', () => {
-    const rounds = byArchetype.filter((w) => w !== 'bow').map((w) => [w, kitSlot(w, SHOOT.rifle).weapon.round]);
+    const rounds = byArchetype.filter((w) => w !== 'bow' && ARMS_KIT[w].as !== 'placed').map((w) => [w, kitSlot(w, SHOOT.rifle).weapon.round]);
     for (const [w, r] of rounds) expect(Object.values(ROUNDS), w).toContainEqual(r);
     expect(kitSlot('bow', SHOOT.rifle).weapon.round).toBeUndefined();
     expect(kitSlot('handgun', SHOOT.rifle).weapon.round.flash).toBeLessThan(kitSlot('shotgun', SHOOT.rifle).weapon.round.flash);
