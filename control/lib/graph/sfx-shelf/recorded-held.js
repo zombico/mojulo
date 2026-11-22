@@ -10,7 +10,8 @@
  * which every recorded voice carries as its `fallback`.
  *
  *   `HELD_TUNINGS`                  row id → { engine, rpm: [idle, redline], level?, band? } | { loop, rate?, level? }
- *   `recordedHeld(id, synthesized)` → the recorded held voice for a row (its synthesized spec the fallback), or null
+ *   `recordedHeld(id, synthesized)` → the recorded held voice for a row (its synthesized spec the fallback; a row
+ *                                     voiced only by its recording, `synthesized` null, has none), or null
  *
  * Reads the library's index (sound-library/library.js); timeless.
  */
@@ -24,22 +25,44 @@ export const HELD_TUNINGS = Object.freeze({
   'kart-engine': Object.freeze({ engine: 'kart', rpm: [2000, 14000] }),
   'motorbike-engine': Object.freeze({ engine: 'sportbike', rpm: [1200, 13000] }),
   'diesel-engine': Object.freeze({ engine: 'diesel', rpm: [700, 2600] }),
+  'tank-engine': Object.freeze({ engine: 'diesel', rpm: [700, 2400] }),
+  // the vehicle registry's engines (sfx-shelf/vehicle-sounds.js)
+  'v8-engine': Object.freeze({ engine: 'v8', rpm: [800, 6500] }),
+  'race-engine': Object.freeze({ engine: 'racecar', rpm: [3000, 15000] }),
+  'supercar-engine': Object.freeze({ engine: 'v12', rpm: [1000, 9000] }),
+  'electric-motor': Object.freeze({ engine: 'electric', rpm: [1000, 16000] }),
+  'scooter-engine': Object.freeze({ engine: 'scooter', rpm: [1800, 10500] }),
+  'vtwin-engine': Object.freeze({ engine: 'vtwin', rpm: [900, 5200] }),
+  'locomotive-engine': Object.freeze({ engine: 'locomotive', rpm: [300, 900] }),
+  'boat-engine': Object.freeze({ engine: 'outboard', rpm: [800, 6000] }),
+  'prop-engine': Object.freeze({ engine: 'prop', rpm: [700, 2700] }),
+  'jet-engine': Object.freeze({ engine: 'jet', rpm: [20, 100] }),
   // the tyres past their grip, and the road under them
   'tire-squeal': Object.freeze({ loop: 'tire-screech', rate: [0.94, 1.06] }),
   'road-roar': Object.freeze({ loop: 'road-roar-loop', rate: [0.7, 1.25] }),
+  // what a vehicle runs on, by its speed (or its rotor, its pump, its pace)
+  'tank-tracks': Object.freeze({ loop: 'tank-tracks', rate: [0.6, 1.3] }),
+  'rail-wheels': Object.freeze({ loop: 'rail-clack', rate: [0.5, 1.6] }),
+  helicopter: Object.freeze({ loop: 'rotor-wash', rate: [0.85, 1.15] }),
+  'drone-motors': Object.freeze({ loop: 'quadcopter', rate: [0.8, 1.3] }),
+  'bicycle-freewheel': Object.freeze({ loop: 'freewheel', rate: [0.6, 1.4] }),
+  hooves: Object.freeze({ loop: 'hooves', rate: [0.7, 1.5] }),
+  'walker-hydraulics': Object.freeze({ loop: 'hydraulic-whine', rate: [0.8, 1.3] }),
+  'sail-wind': Object.freeze({ loop: 'sails', rate: [0.9, 1.1] }),
 });
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 export function recordedHeld(id, synthesized) {
   const T = HELD_TUNINGS[id];
-  if (!T || !synthesized) return null;
-  const base = { attack: synthesized.attack, release: synthesized.release, level: synthesized.level, send: synthesized.send };
+  if (!T) return null;
+  const S = synthesized || {}, fall = synthesized ? { fallback: synthesized } : {};
+  const base = { attack: S.attack, release: S.release, level: S.level, send: S.send };
   for (const k of Object.keys(base)) if (base[k] === undefined) delete base[k];
   if (T.loop) {
     const card = recordedLoop(T.loop);
     if (!card) return null;
-    return { ...base, layers: [{ kind: 'sample', library: card, gain: [0, T.level ?? 1], rate: T.rate || [1, 1] }], fallback: synthesized };
+    return { ...base, layers: [{ kind: 'sample', library: card, gain: [0, T.level ?? 1], rate: T.rate || [1, 1] }], ...fall };
   }
   const [idle, red] = T.rpm;
   // the loops inside the tuning's revs (a little either side): one recorded far past its redline is never heard
@@ -56,5 +79,5 @@ export function recordedHeld(id, synthesized) {
     rate: [r4(idle / l.rpm), r4(red / l.rpm)],
     ...(T.band ? { band: { ...T.band } } : {}),
   }));
-  return { ...base, layers, fallback: synthesized };
+  return { ...base, layers, ...fall };
 }

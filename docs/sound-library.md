@@ -44,7 +44,15 @@ tar -xf sounds-spike-v2.tar -C ~/.mojulo/sounds
   car at the wheel (`road-car-engine`: short of its redline, through a small speaker) and a racing car (`car-engine`:
   the whole range, open) drive the same loops their own ways. Tyres and the road are one loop each. ElevenLabs takes a
   prompt's revs as a mood, not a number, so a loop's `rpm` is what it was asked for until it is calibrated by ear.
-- Not yet: the beds (the library's ambience loops), the engine handoffs.
+- **Vehicles** (`sfx-shelf/vehicle-sounds.js`): each vehicle in the registry
+  ([vehicles.md](vehicles.md)) sounds as its kind (realm and role: a road hauler is a diesel with air brakes and a
+  reverse beeper) unless it is named for its own (a muscle car's V8, a tram's bell, a bicycle's freewheel): its
+  engine, what it runs on and the events it is known by, all shelf rows. A ride the sound sheet's words leave to the
+  car's engine asks the registry (`rideSound`), so a helicopter is heard by its rotor. Rows with no synthesized voice
+  of their own (a siren, a bus door, a lock's chirp) are `recorded` rows: their palette stand-in, or silence, without
+  the library.
+- Not yet: the beds (the library's ambience loops), a vehicle's events wired into the pages that drive it (the city
+  car's cues are; a ride's are not), the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
 render on a machine without the library is byte for byte what it was. Under test the library is never the

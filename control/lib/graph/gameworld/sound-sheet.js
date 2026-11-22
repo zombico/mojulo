@@ -67,6 +67,7 @@ import { stageKit } from '../era/stage.js';
 import { resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { gunCues } from './combat/range-sound.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
+import { vehicleSounds } from '../sfx-shelf/vehicle-sounds.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { BOSSES } from './bosses.js';
@@ -476,7 +477,10 @@ export function rideSound(G, { words = '', top = null, quick = G?.quick } = {}) 
   const own = readSound(G?.sound).ride;
   if (own === false) return null;
   const hit = own ? null : ENGINES.find((e) => e.test.test(String(words).toLowerCase()));
-  const voice = own ? resolveSoundId(own) : hit.voice;
+  // a ride the words above leave to the car's engine is asked of the vehicle registry (sfx-shelf/vehicle-sounds.js): a
+  // helicopter's rotor, a supercar's V12, a bicycle's freewheel; one it does not know stays the car's
+  const veh = !own && hit === ENGINES[ENGINES.length - 1] ? vehicleSounds(String(words).trim()) : null;
+  const voice = own ? resolveSoundId(own) : (veh && (veh.engine || veh.runs)) || hit.voice;
   return { engine: { voice, top: Math.round(top * 100) / 100 }, why: own ? 'the game says so' : `${SOUNDS[voice].label}${words ? ` (${String(words).trim()})` : ''}` };
 }
 

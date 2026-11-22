@@ -21,6 +21,8 @@
  *   channel   the audio channel slot whose own code synthesizes it (SLOTS) unless the level gives that slot this row's
  *             voice (the thruster's `voice`, the jump charge's)
  *   slot      the audio channel slot it fills (SLOTS): where a level plays it
+ *   recorded  true: the row is voiced by its recording (the sound library's, sfx-shelf/resolve.js), with no synthesized
+ *             voice of its own (`voices` empty): its family stands in where it has one; with neither, it is silent
  *   say       the sound's own words (optional): its onomatopoeia, the Japanese in kana with its romaji (`カチャ`,
  *             `kacha`), English where it has one (`clink`). Mouth foley's scores are these words, so the word that
  *             makes a sound also finds it (find.js). One word may score several sounds (ヒュン is the katana's swing
@@ -74,6 +76,9 @@ const mouthOnly = (category, family, slot, label, aliases, more = {}) => ({ labe
 
 // built by a family (families.js) at a dial preset, voiced realistic
 const made = (category, family, slot, label, aliases, fam, dials = {}) => ({ label, aliases, category, family, voices: { realistic: 'families' }, make: { family: fam, dials }, slot });
+// a row voiced by its RECORDING (the sound library's): no synthesized voice of its own, its palette stand-in (`family`)
+// where it has one, silent where it has none and the library is not installed
+const recorded = (category, family, slot, label, aliases, more = {}) => ({ label, aliases, category, family, voices: {}, recorded: true, slot, ...more });
 
 const ROWS = {
   // ── the palettes' cue ids (beats/sfx-palettes.js): voiced by arcade, foley, orchestral and synth ──
@@ -427,6 +432,42 @@ const ROWS = {
   // the door creak's trace heard as a lion (operator, 2026-11-11): a short roar, smooth and rough
   'roar-lion-short': mouthOnly('creature', null, 'on', 'a lion\'s short roar', ['short roar', 'lion grunt', 'big cat snarl'], { matter: ['creature', 'voice'], weight: 'heavy' }),
   'roar-lion-rough': mouthOnly('creature', null, 'on', 'a lion\'s short roar, rough in the throat', ['rough roar', 'lion snarl', 'big cat growl'], { matter: ['creature', 'voice'], weight: 'heavy' }),
+  // ── the vehicle registry's sounds (vehicle-registry/roster.js through sfx-shelf/vehicle-sounds.js): engines on the
+  //    engine family at their nearest kind until the library's loops voice them (recorded-held.js), what a vehicle runs
+  //    on, and the events a vehicle is known by, recorded where no synthesized voice stands in ──
+  'electric-motor': made('machinery', null, 'hold', 'an electric motor by its throttle: its inverter\'s whine', ['electric motor', 'ev motor', 'electric car', 'inverter whine'], 'engine', { kind: 'car' }),
+  'scooter-engine': made('machinery', null, 'hold', 'a scooter\'s small two-stroke by its throttle', ['scooter', 'moped', 'two stroke'], 'engine', { kind: 'motorbike' }),
+  'vtwin-engine': made('machinery', null, 'hold', 'a cruiser motorcycle\'s V-twin by its throttle', ['v twin', 'cruiser bike', 'chopper bike'], 'engine', { kind: 'motorbike' }),
+  'v8-engine': made('machinery', null, 'hold', 'a muscle car\'s V8 by its throttle', ['v8 engine', 'muscle car', 'big block'], 'engine', { kind: 'car' }),
+  'supercar-engine': made('machinery', null, 'hold', 'a supercar\'s V12 by its throttle', ['v12', 'supercar', 'exotic car'], 'engine', { kind: 'road' }),
+  'race-engine': made('machinery', null, 'hold', 'an open-wheel race car\'s engine by its throttle', ['race car', 'race engine', 'open wheel', 'formula car'], 'engine', { kind: 'road' }),
+  'locomotive-engine': made('machinery', null, 'hold', 'a locomotive\'s diesel by its notch', ['locomotive', 'train engine', 'diesel locomotive'], 'engine', { kind: 'diesel' }),
+  'tank-tracks': made('machinery', null, 'hold', 'a tracked vehicle\'s tracks by its speed: clanking and squealing', ['tank tracks', 'tracks', 'track squeal'], 'engine', { kind: 'tracked' }),
+  'rail-wheels': made('machinery', null, 'hold', 'a train\'s wheels on the rails by its speed: the clack of the joints', ['train wheels', 'rail wheels', 'clickety clack'], 'tires', { surface: 'road' }),
+  'bicycle-freewheel': made('machinery', null, 'hold', 'a bicycle coasting by its speed: its freewheel ticking', ['freewheel', 'bicycle', 'bike coasting'], 'tires', { surface: 'road' }),
+  hooves: recorded('creature', null, 'hold', 'a horse\'s hooves on the road by its pace', ['hooves', 'trotting', 'hoofbeats'], { matter: ['creature'] }),
+  'sail-wind': recorded('elemental', null, 'hold', 'a sailing boat under way: wind in its sails, its ropes, the water', ['sails', 'sailing', 'under sail'], { matter: ['air', 'water'] }),
+  'police-siren': recorded('machinery', 'alarm', 'on', 'a police car\'s siren wailing', ['police siren', 'siren wail', 'cop siren'], { matter: ['electric'] }),
+  'police-yelp': recorded('machinery', 'alarm', 'on', 'a police siren\'s fast yelp', ['yelp', 'siren yelp'], { matter: ['electric'] }),
+  'hilo-siren': recorded('machinery', 'alarm', 'on', 'an ambulance\'s two-tone siren', ['hi lo siren', 'two tone siren', 'ambulance two tone'], { matter: ['electric'] }),
+  'fire-horn': made('machinery', 'alarm', 'on', 'a fire engine\'s air horn', ['fire horn', 'fire truck horn'], 'motoring', { act: 'truck-horn' }),
+  'train-horn': made('machinery', 'alarm', 'on', 'a train\'s horn', ['train horn', 'locomotive horn'], 'motoring', { act: 'truck-horn' }),
+  'ship-horn': made('machinery', 'alarm', 'on', 'a ship\'s foghorn', ['ship horn', 'foghorn'], 'motoring', { act: 'truck-horn' }),
+  'train-brakes': made('machinery', null, 'on', 'a train braking: its wheels squealing on the rails', ['train brakes', 'rail squeal'], 'motoring', { act: 'brake-squeal' }),
+  'reverse-beeper': recorded('machinery', 'alarm', 'on', 'a truck\'s reverse warning beeper', ['reverse beeper', 'backup beeper', 'reversing alarm'], { matter: ['electric'] }),
+  'air-brakes': recorded('machinery', null, 'on', 'a bus\'s or a truck\'s air brakes releasing', ['air brakes', 'air brake', 'brake hiss'], { matter: ['air', 'machine'] }),
+  'bus-door': recorded('machinery', 'door', 'on', 'a bus door folding open', ['bus door', 'folding door'], { matter: ['metal', 'air'] }),
+  'bicycle-bell': recorded('machinery', 'chime', 'on', 'a bicycle\'s bell', ['bicycle bell', 'bike bell'], { matter: ['metal'] }),
+  'tram-bell': recorded('machinery', 'chime', 'on', 'a tram\'s bell', ['tram bell', 'trolley bell'], { matter: ['metal'] }),
+  'car-alarm': recorded('machinery', 'alarm', 'on', 'a car\'s alarm going off', ['car alarm', 'vehicle alarm'], { matter: ['electric'] }),
+  'lock-chirp': recorded('machinery', 'pickup', 'on', 'a car locked by its key fob: a chirp and the locks', ['lock chirp', 'car lock', 'key fob'], { matter: ['electric', 'machine'] }),
+  'jet-flyby': recorded('machinery', null, 'on', 'a jet flying low overhead', ['jet flyby', 'flyby', 'fly past'], { matter: ['machine', 'air'] }),
+  'prop-flyby': recorded('machinery', null, 'on', 'a propeller plane flying low overhead', ['prop flyby', 'plane flyby'], { matter: ['machine', 'air'] }),
+  'heli-flyby': recorded('machinery', null, 'on', 'a helicopter flying low overhead', ['heli flyby', 'helicopter flyby'], { matter: ['machine', 'air'] }),
+  'turret-traverse': recorded('machinery', null, 'on', 'a tank\'s turret turning', ['turret', 'turret traverse', 'turret turn'], { matter: ['machine', 'metal'] }),
+  'jet-spool': recorded('machinery', null, 'on', 'a jet engine starting, spooling up to idle', ['jet start', 'spool up', 'jet spool'], { matter: ['machine', 'air'] }),
+  'prop-start': recorded('machinery', null, 'on', 'a propeller plane\'s engine cranking and catching', ['prop start', 'plane start'], { matter: ['machine'] }),
+  'rocket-liftoff': recorded('machinery', null, 'on', 'a large rocket launching: ignition and a long roar', ['liftoff', 'rocket liftoff', 'launch roar'], { matter: ['fire', 'machine'] }),
   // ── the audio channel's own synth slots (scene/channels/audio.js): its code plays them, unless the level gives the
   //    slot the row's voice (a port of that code, range for range) ──
   'thruster-roar': { ...made('machinery', null, 'thruster', 'a thruster held: a jet whine that swells with the thrust', ['thruster', 'boost', 'booster'], 'booster', { kind: 'jet' }), channel: 'thruster' },

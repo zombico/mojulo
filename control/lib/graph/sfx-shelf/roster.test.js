@@ -17,7 +17,7 @@ const CONTRACT = {
   category: (r) => r.category in CATEGORIES || `category: one of ${Object.keys(CATEGORIES).join(', ')}`,
   slot: (r) => SLOTS.includes(r.slot) || `slot: one of ${SLOTS.join(', ')}`,
   family: (r) => r.family === null || (r.family in SOUNDS && SOUNDS[r.family].palette === r.family) || 'family: null or a palette row',
-  voiced: (r) => !!(r.palette || r.channel || (r.voices && Object.keys(r.voices).length)) || 'a palette cue, a set voice or a channel slot',
+  voiced: (r) => !!(r.palette || r.channel || (r.voices && Object.keys(r.voices).length) || r.recorded === true) || 'a palette cue, a set voice, a channel slot or its recording',
   voices: (r) => Object.entries(r.voices ?? {}).every(([style, set]) => style in STYLES && !STYLES[style].palette && (set in SETS || (set === 'families' && r.make))) || "voices: { <non-palette style>: <set> | 'families' (with make) }",
   make: (r) => r.make === undefined || (r.make.family in FAMILIES && (() => { try { familyDials(r.make.family, r.make.dials); return true; } catch { return false; } })()) || 'make: { family, dials } a family builds at those dials',
   channel: (r) => r.channel === undefined || (SLOTS.includes(r.channel) && r.channel === r.slot) || 'channel: the slot its code plays in',

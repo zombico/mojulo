@@ -10,7 +10,12 @@
 - Cars sound recorded: an engine is a set of loops recorded at steady revs, crossfaded and bent in pitch as it revs, so
   it climbs smoothly; tyres screech and the road roars from recordings too. The open city's car and a racing car share
   the recordings and drive them their own ways (the city's through a small speaker, short of its redline; the racer's
-  over the whole range). The first engine is a small hatchback.
+  over the whole range). Recorded engines: a hatchback, a V8, a V12, a race car, a sportbike, a V-twin, a scooter, a
+  kart, a diesel truck, a locomotive, an electric motor, an outboard, a propeller plane and a jet.
+- Every vehicle in the registry has its sounds: its engine, what it runs on (tracks, rails, a rotor, a freewheel,
+  hooves, sails) and the events it is known by (sirens, horns, bells, air brakes, a reverse beeper, a car's alarm and
+  its lock, a flyby, a liftoff), by its kind or its own. A ride a game names is heard by its vehicle: a helicopter by
+  its rotor, a supercar by its V12.
 - Music can play recorded instruments. A recorded piece plays one of its takes per hit and falls back to the
   synthesized piece it stands in for where the library is not installed; recipes without recorded pieces are
   unchanged to the byte. The first recorded drum kit lost to the synthesized 90s rock kit by ear, so no recorded

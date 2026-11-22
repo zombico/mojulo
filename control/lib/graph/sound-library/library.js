@@ -58,7 +58,7 @@ function findRecorded(dir, shelfId) {
   if (!lib) return null;
   for (const name of Object.keys(lib.cards).sort()) {
     const c = lib.cards[name];
-    if (!c || c.shelf !== shelfId || c.role === 'bed') continue;
+    if (!c || c.shelf !== shelfId || c.role === 'bed' || c.role === 'loop') continue;
     const held = (c.variants || []).filter((v) => ID.test(v.id) && existsSync(path.join(dir, 'masters', `${v.id}.wav`)));
     if (!held.length) continue;
     return { card: name, dur: Math.max(...held.map((v) => Number(v.seconds) || 0)), variants: held.length };

@@ -73,12 +73,15 @@ export function sfxSound(word, { style = 'realistic', dials = {} } = {}) {
   // the recorded voice: a realistic one-shot at its own dials, where the library records this row; a row realistic does
   // not voice at all (a creature only the mouth style voices) is given one by its recording, with nothing to fall back to
   const asked = style === 'realistic' || (STYLES[style].overlay && STYLES[style].fallback === 'realistic' && !(row.voices && row.voices[style]));
-  const open = voice ? voice.gestures && voice.style === 'realistic' : asked;
+  // (a row voiced only by its recording answers realistic with its stand-in's style, foley's: its recording still wins)
+  const open = voice ? voice.gestures && (voice.style === 'realistic' || (asked && row.recorded)) : asked;
   const rec = open && !Object.keys(dials || {}).length ? recordedFor(id) : null;
   if (rec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: rec.card, gestures: [{ type: 'sample', library: rec.card, dur: rec.dur, ...(voice ? { fallback: voice.gestures } : {}) }] };
   // a held voice (an engine, the tyres, the road) the library's loops voice, at the row's own tuning (recorded-held.js)
-  const heldRec = voice && voice.sustain && voice.style === 'realistic' && !Object.keys(dials || {}).length ? recordedHeld(id, voice.sustain) : null;
-  if (heldRec) voice = { ...voice, recorded: heldRec.layers.map((L) => L.library).join(' '), sustain: heldRec };
+  // (a row voiced only by its recording, `recorded`, is held with nothing to fall back to)
+  const heldOpen = voice ? voice.sustain && voice.style === 'realistic' : asked && row.recorded && row.slot === 'hold';
+  const heldRec = heldOpen && !Object.keys(dials || {}).length ? recordedHeld(id, voice ? voice.sustain : null) : null;
+  if (heldRec) voice = { ...(voice || { style: 'realistic', from: 'library' }), recorded: heldRec.layers.map((L) => L.library).join(' '), sustain: heldRec };
   if (row.channel) return { id, channel: row.channel, ...(voice || {}) };
   return voice ? { id, ...voice } : null;
 }
