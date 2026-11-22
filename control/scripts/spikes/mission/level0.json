@@ -1,0 +1,766 @@
+{
+  "id": "level-0",
+  "name": "The approach",
+  "brief": "The jungle below the base. No buildings: land, a trail, what grows on it, and what a patrol has built across it. The first forty metres are quiet, to learn the controls in; then a checkpoint and an outpost ask for a sneak.",
+  "template": "This file is a starter, not the game. Everything in it is a word to change: where cover stands, how each watcher walks and looks, what each hint says, where the two points begin and end. `plan.mjs`-style laws (level0.mjs --plan) say what a change did: whether the first try is still seen, whether a way unseen is left, what it costs. Places are said along the trail (`trail`: metres up it from its head; `off`: metres to its side, east positive), so a longer or shorter trail, or a different land, carries the layout with it.",
+  "section": "insertion",
+  "cube": {
+    "from": "jungle-haze",
+    "biocube": {
+      "from": "upland",
+      "flora": {
+        "trees": {
+          "clusters": 12,
+          "perCluster": [
+            2,
+            4
+          ],
+          "spread": 4,
+          "heights": [
+            7,
+            12
+          ],
+          "clearTrail": 6
+        }
+      }
+    },
+    "outside": {
+      "cliff": false
+    },
+    "light": {
+      "night": "realistic",
+      "sky": {
+        "zenith": "#1a1d21",
+        "horizon": "#3e434a",
+        "fog": "#2b2f34"
+      }
+    }
+  },
+  "hour": "night",
+  "hourReads": "night (23:00): the cube's moon the key, the floods by the towers the light a body is seen in",
+  "cover": [
+    {
+      "id": "truck",
+      "vehicle": "cargo-truck",
+      "at": {
+        "trail": 68,
+        "off": -9.6
+      },
+      "heading": 0,
+      "crawl": true,
+      "crawlReads": "a crawl space: a body lying flat goes under its chassis between its wheels, hidden there from a guard standing over it"
+    },
+    {
+      "id": "camp-crates",
+      "box": [
+        1.2,
+        2.4,
+        1.0
+      ],
+      "at": {
+        "trail": 93,
+        "off": -5.5
+      }
+    },
+    {
+      "id": "log-south",
+      "box": [
+        0.6,
+        8,
+        0.55
+      ],
+      "at": {
+        "trail": 90,
+        "off": 8.5
+      }
+    },
+    {
+      "id": "log-north",
+      "box": [
+        0.6,
+        8,
+        0.55
+      ],
+      "at": {
+        "trail": 99,
+        "off": 8.5
+      }
+    }
+  ],
+  "watchers": [
+    {
+      "id": "gate-patrol",
+      "kind": "patrol",
+      "at": {
+        "trail": 64,
+        "off": 0
+      },
+      "to": {
+        "trail": 77,
+        "off": 0
+      },
+      "reads": "walks through the checkpoint's gate and back"
+    },
+    {
+      "id": "line-patrol",
+      "kind": "patrol",
+      "at": {
+        "trail": 66,
+        "off": 6
+      },
+      "to": {
+        "trail": 66,
+        "off": -8
+      },
+      "reads": "walks the front of the checkpoint, the gate and the slot by the truck (the west wire is the sentry's)"
+    },
+    {
+      "id": "west-sentry",
+      "kind": "patrol",
+      "at": {
+        "trail": 68.3,
+        "off": -18.5
+      },
+      "to": {
+        "trail": 79,
+        "off": -13
+      },
+      "speed": 1.1,
+      "reads": "paces from the cut in the west wire out north across open ground and back, slowly, looking wide (a sentry's cone, 63° either side, 16 m across the open, and within three metres anywhere but square behind him: `near`, so he is not circled), and at each end of his beat stands and turns all the way round before he walks back (`look`, six seconds): one end in the cut itself, where no body gets past him, and one in the open, where a body that followed him out is found wherever it lies. So the west way is his takedown: wait in the grass by the cut while he looks round in it, follow him out as he walks north, E behind him before he reaches the far end",
+      "cone": 1.1,
+      "range": 16,
+      "look": {
+        "secs": 6
+      },
+      "near": {
+        "r": 3,
+        "back": 100
+      }
+    },
+    {
+      "id": "gate-lookout",
+      "kind": "post",
+      "on": "gate-tower",
+      "facing": {
+        "trail": 58,
+        "off": -2
+      },
+      "cone": 0.55,
+      "range": 18,
+      "reads": "watches the approach from the checkpoint's tower"
+    },
+    {
+      "id": "lookout",
+      "kind": "post",
+      "on": "camp-tower",
+      "facing": {
+        "trail": 84,
+        "off": -1
+      },
+      "cone": 0.7,
+      "range": 15,
+      "reads": "watches the trail come up to the camp from its tower"
+    },
+    {
+      "id": "camp-guard",
+      "kind": "post",
+      "at": {
+        "trail": 93,
+        "off": -9
+      },
+      "facing": {
+        "trail": 102,
+        "off": -18
+      },
+      "reads": "watches the camp's back, up the slope"
+    },
+    {
+      "id": "trail-patrol",
+      "kind": "patrol",
+      "at": {
+        "trail": 87,
+        "off": 1
+      },
+      "to": {
+        "trail": 104,
+        "off": 0
+      },
+      "reads": "walks the trail past the camp"
+    }
+  ],
+  "points": [
+    {
+      "id": "checkpoint",
+      "reads": "a line across the field (wire to its edges, sandbags and a gate on the trail, a tower over it, the truck on the line): through the gate under the tower, the slot by the truck, or the cut in the west wire behind its grass when the line's patrol has turned",
+      "from": {
+        "trail": 56,
+        "off": 0
+      },
+      "to": {
+        "trail": 80,
+        "off": 0
+      },
+      "window": [
+        50,
+        84
+      ]
+    },
+    {
+      "id": "checkpoint-west",
+      "reads": "the left of the field alone, west of the truck (the slot's grass by the truck is the middle way's): a sentry paces from the cut in the west wire out north and back, so the west way is passed only once he is down, come up on from behind as he walks out",
+      "from": {
+        "trail": 54,
+        "off": -16
+      },
+      "to": {
+        "trail": 84,
+        "off": -16
+      },
+      "window": [
+        50,
+        88
+      ],
+      "off": [
+        -30,
+        -12.5
+      ],
+      "needs": "takedown",
+      "takedown": [
+        "west-sentry"
+      ]
+    },
+    {
+      "id": "outpost",
+      "reads": "a camp beside the trail behind sandbags: a lookout on its tower, a guard on its back, a patrol on the trail",
+      "from": {
+        "trail": 81,
+        "off": 0
+      },
+      "to": {
+        "trail": 108,
+        "off": 0
+      },
+      "window": [
+        78,
+        112
+      ]
+    }
+  ],
+  "hints": [
+    {
+      "at": {
+        "trail": 6,
+        "off": 0
+      },
+      "says": "W A S D to run. The mouse looks. The trail climbs to the base: no one is watching this stretch."
+    },
+    {
+      "at": {
+        "trail": 13,
+        "off": 0
+      },
+      "says": "Hold the right mouse to aim, click to fire. G (hold) chooses what is in your hands, H (hold) an item. A shot is heard a long way off."
+    },
+    {
+      "at": {
+        "trail": 20,
+        "off": 0
+      },
+      "says": "C crouches: slower and quieter. Hold C to lie down and crawl; hold it again to stand. Low, you are harder to see and you make no sound."
+    },
+    {
+      "at": {
+        "trail": 23.5,
+        "off": 0
+      },
+      "says": "Tall grass to your right. Crouch or lie down in it and a guard cannot see you, unless he is close enough to step on you. Stand up and your head is over it."
+    },
+    {
+      "at": {
+        "trail": 27,
+        "off": 0
+      },
+      "says": "Space dives forward. Run at a low obstacle to vault it; hold W into a taller one to climb it."
+    },
+    {
+      "at": {
+        "trail": 34,
+        "off": 0
+      },
+      "says": "The radar (top right) shows each guard and the wedge he sees. Cover lower than you hides you only when you are lower than it."
+    },
+    {
+      "at": {
+        "trail": 44,
+        "off": 0
+      },
+      "says": "A run is heard from close by. If a guard is sure of you he radios it in: orange is a threat detected, red a threat found and backup on its way. Break his line of sight and hide until it dies down, or put him down before the call goes through."
+    },
+    {
+      "at": {
+        "trail": 50,
+        "off": 0
+      },
+      "says": "A checkpoint ahead: sandbags with a gate on the trail, wire either side, a tower over it. Wait for a patrol's back, or find the long way round."
+    },
+    {
+      "at": {
+        "trail": 58,
+        "off": -17
+      },
+      "says": "A sentry paces from the cut in the west wire out into the open and back, and looks round at each end. Hide in the grass by the cut while he looks, follow him out as he walks away, and E behind him takes him down before he turns."
+    },
+    {
+      "at": {
+        "trail": 81,
+        "off": 0
+      },
+      "says": "E behind a guard who has not seen you takes him down."
+    },
+    {
+      "at": {
+        "trail": 85.5,
+        "off": 0
+      },
+      "says": "An outpost. The trail is watched. There is more than one way past, and the slow ones are the safe ones."
+    }
+  ],
+  "start": {
+    "trail": 4,
+    "off": 0
+  },
+  "exit": {
+    "trail": 115,
+    "off": 0
+  },
+  "backup": {
+    "from": {
+      "trail": 117,
+      "off": 0
+    },
+    "count": 2,
+    "reads": "two more guards come down the trail from the base when a call goes through, and go back when it is clear"
+  },
+  "alarm": {
+    "found": 30,
+    "detected": 40
+  },
+  "run": 20,
+  "width": 4.5,
+  "widthReads": "the trail's width in metres (the stage trail's `width`; the kit's footpath is about two): a track a vehicle takes, a jeep's width and more at its narrowest (it wanders a quarter either way)",
+  "structures": [
+    {
+      "id": "bags-west",
+      "kind": "sandbags",
+      "from": {
+        "trail": 68,
+        "off": -4
+      },
+      "to": {
+        "trail": 68,
+        "off": -2.2
+      }
+    },
+    {
+      "id": "bags-east",
+      "kind": "sandbags",
+      "from": {
+        "trail": 68,
+        "off": 2.2
+      },
+      "to": {
+        "trail": 68,
+        "off": 7
+      }
+    },
+    {
+      "id": "wire-east",
+      "kind": "wire",
+      "from": {
+        "trail": 68,
+        "off": 7.4
+      },
+      "to": {
+        "trail": 68,
+        "off": 12.5
+      }
+    },
+    {
+      "id": "wire-west",
+      "kind": "wire",
+      "from": {
+        "trail": 68,
+        "off": -12.6
+      },
+      "to": {
+        "trail": 68,
+        "off": -17.4
+      }
+    },
+    {
+      "id": "wire-far-west",
+      "kind": "wire",
+      "from": {
+        "trail": 68,
+        "off": -19.6
+      },
+      "to": {
+        "trail": 68,
+        "off": -28
+      }
+    },
+    {
+      "id": "gate-tower",
+      "kind": "tower",
+      "at": {
+        "trail": 73,
+        "off": 5.5
+      },
+      "height": 4,
+      "stair": "+y",
+      "reads": "the checkpoint's watchtower: posts and bracing, a plank deck under a roof, its stair up the north side (the east runs into the gorge's wall)"
+    },
+    {
+      "id": "camp-bags-south",
+      "kind": "sandbags",
+      "from": {
+        "trail": 89,
+        "off": -12
+      },
+      "to": {
+        "trail": 89,
+        "off": -4
+      }
+    },
+    {
+      "id": "camp-bags-east",
+      "kind": "sandbags",
+      "from": {
+        "trail": 89,
+        "off": -4
+      },
+      "to": {
+        "trail": 95,
+        "off": -3.5
+      }
+    },
+    {
+      "id": "camp-tower",
+      "kind": "tower",
+      "at": {
+        "trail": 97,
+        "off": 3
+      },
+      "height": 4,
+      "stair": "-y",
+      "reads": "the camp's watchtower, its stair down the trail's side toward the camp (east, it ran into the north log), its flight to the land at its foot"
+    }
+  ],
+  "performance": {
+    "light": "half",
+    "occlusion": false,
+    "bodies": "pilot",
+    "reads": "what the page may cost, the middle found after the frame was cut hard and the hangar measured beside it: its shadows at half (light.tier); no contact occlusion; real grass out to 70 m (`cone`; the screen's own reach, about 25 m, ended the meadow's blades partway up the trail, the edge a band of flat colour a player read the land past: at 70 m the blades run on to the far field and the approach reads true; the draw about a quarter more on the software renderer); bodies 'pilot': the operative casts its live shadow, every guard a soft pool at its feet (every body casting costs no more, but under this low hazy sun a body's shadow is a thin streak seen edge-on, and a guard without his pool reads as floating); parallax 'cliffs': the ground lean (none of its height marched) and the gorge's cliffs keep their relief at a coarser cut (they fill much of the frame, and flat they read as plaster); density 1: the window's own pixels; far 24 m / 4000: each guard past 24 m drawn as its far twin; the haze out to 250 m, the base at the trail's end seen through it",
+    "parallax": "cliffs",
+    "density": 1,
+    "cone": 70,
+    "far": {
+      "at": 24,
+      "budget": 4000
+    }
+  },
+  "grass": [
+    {
+      "id": "practice",
+      "at": {
+        "trail": 23,
+        "off": 5.5
+      },
+      "r": 3.2
+    },
+    {
+      "id": "truck-south-1",
+      "at": {
+        "trail": 58,
+        "off": -6.5
+      },
+      "r": 2.6
+    },
+    {
+      "id": "truck-south-2",
+      "at": {
+        "trail": 62.5,
+        "off": -8
+      },
+      "r": 2.6
+    },
+    {
+      "id": "truck-south-3",
+      "at": {
+        "trail": 66,
+        "off": -9.5
+      },
+      "r": 2.2
+    },
+    {
+      "id": "truck-north-1",
+      "at": {
+        "trail": 71,
+        "off": -9.5
+      },
+      "r": 2.4
+    },
+    {
+      "id": "truck-north-2",
+      "at": {
+        "trail": 75,
+        "off": -8.5
+      },
+      "r": 2.6
+    },
+    {
+      "id": "truck-north-3",
+      "at": {
+        "trail": 79.5,
+        "off": -7
+      },
+      "r": 2.6
+    },
+    {
+      "id": "slot-south",
+      "at": {
+        "trail": 65.4,
+        "off": -5.3
+      },
+      "r": 1.7
+    },
+    {
+      "id": "slot",
+      "at": {
+        "trail": 68,
+        "off": -5.4
+      },
+      "r": 1.4
+    },
+    {
+      "id": "slot-north",
+      "at": {
+        "trail": 70.6,
+        "off": -5.3
+      },
+      "r": 1.7
+    },
+    {
+      "id": "cut-approach",
+      "at": {
+        "trail": 55.5,
+        "off": -17
+      },
+      "r": 2.4
+    },
+    {
+      "id": "cut-wait",
+      "at": {
+        "trail": 64.5,
+        "off": -22
+      },
+      "r": 2.4
+    },
+    {
+      "id": "camp-south",
+      "at": {
+        "trail": 84,
+        "off": -9
+      },
+      "r": 2.4
+    },
+    {
+      "id": "camp-west-1",
+      "at": {
+        "trail": 87,
+        "off": -12.3
+      },
+      "r": 2.2
+    },
+    {
+      "id": "camp-west-2",
+      "at": {
+        "trail": 91,
+        "off": -12.3
+      },
+      "r": 2.2
+    },
+    {
+      "id": "camp-west-3",
+      "at": {
+        "trail": 95,
+        "off": -10.8
+      },
+      "r": 2.0
+    },
+    {
+      "id": "camp-west-4",
+      "at": {
+        "trail": 98.8,
+        "off": -9.8
+      },
+      "r": 2.0
+    },
+    {
+      "id": "camp-north",
+      "at": {
+        "trail": 102.8,
+        "off": -15.8
+      },
+      "r": 2.2
+    }
+  ],
+  "grassReads": "tall grass in tight clumps, the field's own grass a meadow as level 1's yard has it (real blades, short and medium), never tall: the tall grass is cover, laid where it hides; a body crouched or lying a stride into it is unseen (a lookout up a tower sees a crouch, not a body lying flat; a guard within 2 m sees whatever); standing, the eye is over it",
+  "path": {
+    "rubble": "parallax",
+    "reads": "the trail's rubble drawn in the ground's shader (parallax pebbles in clusters), none stood up as stones: fewer and cheaper; `match` 0.85: the track's worn core (its clay, turned toward red by the colour theorist) brought to its edges' dirt, a shade darker, so the two read as one ground",
+    "match": 0.85
+  },
+  "screen": "screen",
+  "air": {
+    "kind": "haze",
+    "visibility": 250,
+    "clear": 30,
+    "blur": false,
+    "colour": "#1d2125"
+  },
+  "cubeReads": "the jungle haze's look on open ground: no cliff walling the trail (a field both sides); the upland's lone trees grown into a dozen stands of two to four, seven to twelve metres tall, kept six metres off the trail's line (clear of the wider track), so the gorge reads wooded without a jungle's cost",
+  "grassElsewhere": "meadow",
+  "checkpointReads": "a line across the whole field: wire to its edges, sandbags either side of a gate on the trail, a tower over the gate, the truck parked on the line with a slot beside it (the line's patrol walks the gate and the slot); and a cut in the west wire that a sentry walks through and back, its way passed only by taking him down from behind (grass on the approach, and a clump beside his round to wait in)",
+  "gorge": {
+    "west": -7.5,
+    "east": 29.5,
+    "from": -12,
+    "to": 134,
+    "height": 14,
+    "face": 72,
+    "reach": 30,
+    "reads": "a cliff face down each side of the field, its high side out: the level boxed in a gorge (the trail's ground edits); the field between them as it was"
+  },
+  "audio": {
+    "soundtrack": "field:tension",
+    "combat": "field:battle",
+    "tension": {
+      "on": {
+        "alarm:found": 1,
+        "alarm:sweep": 0.5,
+        "alarm:call": 0.45,
+        "alarm:detected": 0.3,
+        "seen": 0.2
+      },
+      "enter": 0.6,
+      "exit": 0.25,
+      "hold": 4,
+      "decay": 10
+    },
+    "wind": {
+      "level": -40
+    },
+    "bed": {
+      "bed": "forest",
+      "level": 0.12
+    },
+    "sfx": {
+      "sheet": {
+        "style": "realistic",
+        "slots": {
+          "step": "step-grass",
+          "shot": "pistol-shot"
+        },
+        "events": {
+          "alarm:spotted": "alarm",
+          "alarm:detected": "dread-drone",
+          "alarm:call": "latch",
+          "alarm:found": "siren",
+          "down": "thud",
+          "mission:item": "pickup",
+          "mission:exit": "door"
+        }
+      }
+    },
+    "reads": "the score: the field's tension while sneaking, its battle when the garrison has found you (the alarm's turns and sweeps raise the tension, a guard's glimpse a little; it settles back once you have hidden). The gorge's wind low (-40 dB, the default's -30) and the forest's birds faint under it (0.12): the score and the game's own sounds lead. Each thing the game does a shelf word: the first sighting the alert's sting (once an alarm, alarm:spotted), a threat detected the dread, the radio's call a click, a threat found the siren, a guard put down a thud, a thing taken the pickup"
+  },
+  "radar": {
+    "range": 25,
+    "map": "topo",
+    "reads": "the radar's reach (m): the scope 50 m across; the level's map under it at that scale, ahead at the top, topographical (map 'topo': the land's contours a metre apart, the trail, the tall grass, what stands)"
+  },
+  "supplies": [
+    {
+      "id": "ration-truck",
+      "look": "ration",
+      "gives": {
+        "hp": 40
+      },
+      "name": "A ration",
+      "at": {
+        "trail": 65,
+        "off": -12.2
+      }
+    },
+    {
+      "id": "ammo-camp",
+      "look": "ammo",
+      "gives": {
+        "rounds": 15
+      },
+      "name": "Rounds for the handgun",
+      "at": {
+        "trail": 93,
+        "off": -3.6
+      }
+    },
+    {
+      "id": "ration-camp",
+      "look": "ration",
+      "gives": {
+        "hp": 40
+      },
+      "name": "A ration",
+      "at": {
+        "trail": 90,
+        "off": 10.4
+      }
+    }
+  ],
+  "suppliesReads": "supplies where a body that came the quiet way would look: a ration behind the truck in its grass, rounds by the camp's crates, a ration behind the south log",
+  "farGrass": {
+    "as": "lift",
+    "blades": 0.7,
+    "raise": 2.5
+  },
+  "farGrassReads": "one far grass: the blades whole to seven tenths of the view's reach (less of them seen thinning in), past it the ground raised as a platform, two and a half times the grass's own height, calm",
+  "floods": [
+    {
+      "on": "gate-tower",
+      "aim": {
+        "trail": 61,
+        "off": -3
+      },
+      "power": 0.8,
+      "cone": 56,
+      "reach": 38,
+      "reads": "over the checkpoint's tower, aimed down the approach: the gate and the open ground before it lit"
+    },
+    {
+      "on": "camp-tower",
+      "aim": {
+        "trail": 87,
+        "off": -5
+      },
+      "power": 0.7,
+      "cone": 60,
+      "reach": 34,
+      "reads": "over the camp's tower, aimed at the trail coming up to the camp and the camp's front"
+    }
+  ],
+  "floodsReads": "two floodlights, each hung over a tower's deck and aimed at the ground a body crosses: a real light that lights the land, its grass and the bodies, falling off with distance, each casting what stands in its beam; the rest is the moon's",
+  "grade": "night",
+  "gradeReads": "the frame graded as a film's night (scene/channels/grade.js `night`): the colour drained further, a little harder, the corners dark, a little grain; no hue of its own, so the floods' warm light stays",
+  "airReads": "the haze 250 m deep, a near-neutral night grey; the cube's night realistic (`cube.light.night`): the colour drained by the dark, a pale moon barely cool, the shade and the sky grey, so the dark reads as a real night's and the floods' warm light is the only colour in it"
+}

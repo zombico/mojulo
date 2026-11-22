@@ -32,7 +32,10 @@
  *                                   { vehicles?, livery?, wear? }, as { vehicles, livery?, wear? }
  *   paintOfDress(dress)           → the livery a faction's colourway paints its vehicles (a camo it names, else its own
  *                                   colour flat), or null
- *   withParked(manifest)          → { manifest, colliders }: the figures and static entities added, the boxes apart
+ *   withParked(manifest)          → { manifest, colliders, unders? }: the figures and static entities added, the boxes apart;
+ *                                   a road vehicle that says `crawl: true` (its chassis CRAWL_LEAST or more up: a truck) stands
+ *                                   on a box at each wheel and its body from its chassis up, and `unders` is the space under it
+ *                                   (worlds/controllable/veil.js: a body lying there is hidden)
  *
  * Vehicle space (+y forward) turned to the world's heading (0: nose along +x). Pure and deterministic.
  */
@@ -61,7 +64,11 @@ import { CAR_CARDS, readCarSpec } from '../car-shelf/car-library.js';
 
 export const PARKED_MAX = 6;
 export const BASE_PARKED = Object.freeze(['cargo-truck', 'apc']);
-const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach', 'pose', 'tool', 'height', 'palette', 'car', 'role'];
+const KEYS = ['vehicle', 'at', 'heading', 'livery', 'wear', 'look', 'seed', 'fold', 'pad', 'crew', 'reach', 'pose', 'tool', 'height', 'palette', 'car', 'role', 'crawl'];
+// A CRAWL SPACE (a parked road vehicle's `crawl: true`): a body lying flat (its height 0.45, worlds/controllable/stance.js)
+// goes under a vehicle whose chassis stands this high or higher (its wheels' radius, about where its frame rides: a
+// truck's, a bus's, never a car's)
+export const CRAWL_LEAST = 0.5;
 // (a craft's own words: a road car, a field vehicle and a cycle take none of them)
 const CRAFT_KEYS = ['fold', 'pad', 'crew'];
 // (the most a level stands with every craft's crew about it)
@@ -123,6 +130,7 @@ export function readParked(list, at = 'parked') {
     if (!Array.isArray(p.at) || p.at.length !== 3 || !p.at.every(Number.isFinite)) throw new Error(`${w}.at is [x, y, z], metres`);
     if (p.heading !== undefined && !Number.isFinite(p.heading)) throw new Error(`${w}.heading is radians (0: its nose along +x)`);
     if (p.seed !== undefined && !Number.isInteger(p.seed)) throw new Error(`${w}.seed is an integer`);
+    if (p.crawl !== undefined && (typeof p.crawl !== 'boolean' || mecha || craft || cycle || construction)) throw new Error(`${w}.crawl is true or false: whether a body lying flat goes under it (a road vehicle's, its chassis ${CRAWL_LEAST} m or more over the ground: a truck, a bus)`);
     if (mecha) {
       // (a walker: its role, its livery and wear read as its shelf reads them; nothing of a craft's, a car's or a site's)
       for (const key of [...CRAFT_KEYS, ...SITE.filter((q) => q !== 'palette'), 'look', 'reach', 'car']) if (p[key] !== undefined) throw new Error(`${w}.${key}: the ${vehicle} is a walker; it takes a role, a palette, a livery and a wear`);
@@ -169,7 +177,7 @@ export function readParked(list, at = 'parked') {
     for (const key of SITE) if (p[key] !== undefined && !construction) throw new Error(`${w}.${key}: the ${vehicle} is posed by its own build; a ${key} is a site machine's`);
     const site = construction ? Object.fromEntries(SITE.filter((k) => p[k] !== undefined).map((k) => [k, p[k]])) : null;
     if (construction) readConSpec({ archetype: construction, ...site }, w);
-    return [{ vehicle, class: cls, ...(car !== undefined ? { car } : {}), ...(cycle ? { cycle } : {}), ...(construction ? { construction, ...site } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), seed: p.seed ?? k + 1 }];
+    return [{ vehicle, class: cls, ...(car !== undefined ? { car } : {}), ...(cycle ? { cycle } : {}), ...(construction ? { construction, ...site } : {}), at: p.at.map(r3), heading: r3(p.heading ?? 0), ...(p.livery !== undefined ? { livery: p.livery } : {}), ...(p.wear !== undefined ? { wear: p.wear } : {}), ...(p.look !== undefined ? { look: p.look } : {}), ...(p.reach !== undefined ? { reach: p.reach } : {}), ...(p.crawl ? { crawl: true } : {}), seed: p.seed ?? k + 1 }];
   });
   if (read.length > PARKED_CREWED_MAX) throw new Error(`${at}: ${read.length} vehicles with their crews, more than a level stands (${PARKED_CREWED_MAX})`);
   return read;
@@ -224,7 +232,7 @@ export function parkIn(room, words, { seed = 1, livery, wear } = {}) {
 /** A manifest's parked vehicles lowered: each a loft or cycle figure and a static entity, and a box over its footprint. */
 export function withParked(manifest) {
   const P = readParked(manifest.parked);
-  const figures = { ...(manifest.figures ?? {}) }, entities = [...(manifest.entities ?? [])], colliders = [];
+  const figures = { ...(manifest.figures ?? {}) }, entities = [...(manifest.entities ?? [])], colliders = [], unders = [];
   P.forEach((p, k) => {
     if (p.mecha) {
       // (a walker: its frame's figure at its stance, still; a box its frame's envelope, turned to the heading)
@@ -257,6 +265,16 @@ export function withParked(manifest) {
     entities.push({ id, rule: { type: 'static' }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.heading } });
     // (its footprint turned: nose along the heading, its length that way, its width across)
     const hx = (Math.abs(c) * v.L + Math.abs(s) * v.W) / 2, hy = (Math.abs(s) * v.L + Math.abs(c) * v.W) / 2;
+    // A CRAWL SPACE: its body from its chassis up and a box at each wheel, so a body lying flat goes under it between its
+    // wheels; and the space under it, where it is hidden (worlds/controllable/veil.js `under`)
+    const gap = p.crawl && !spec && !p.cycle && v.wheelRadius >= CRAWL_LEAST ? r3(v.wheelRadius) : 0;
+    if (gap) {
+      const box = (u, w, hu, hw, z0, z1) => { const x = p.at[0] + c * u - s * w, y = p.at[1] + s * u + c * w, ex = Math.abs(c) * hu + Math.abs(s) * hw, ey = Math.abs(s) * hu + Math.abs(c) * hw; return { min: [r3(x - ex), r3(y - ey), r3(z0)], max: [r3(x + ex), r3(y + ey), r3(z1)] }; };
+      colliders.push(box(0, 0, v.L / 2, v.W / 2, p.at[2] + gap, p.at[2] + v.H));
+      for (const u of [v.wheelbase / 2, -v.wheelbase / 2]) for (const w of [v.track / 2, -v.track / 2]) colliders.push(box(u, w, v.wheelRadius, 0.22, p.at[2], p.at[2] + gap));
+      unders.push({ under: true, ...box(0, 0, v.L / 2, v.W / 2, p.at[2], p.at[2] + gap) });
+      return;
+    }
     colliders.push({ min: [r3(p.at[0] - hx), r3(p.at[1] - hy), p.at[2]], max: [r3(p.at[0] + hx), r3(p.at[1] + hy), r3(p.at[2] + v.H)] });
   });
   // (SAID ONCE: two parked vehicles that are the same vehicle, in the same dress, are one figure stood twice; the page
@@ -269,5 +287,5 @@ export function withParked(manifest) {
     if (kept === undefined) first.set(key, id); else if (kept !== id) { e.body = { ...e.body, figure: kept }; delete figures[id]; }
   }
   const { parked: _p, ...rest } = manifest;
-  return { manifest: { ...rest, figures, entities }, colliders };
+  return { manifest: { ...rest, figures, entities }, colliders, ...(unders.length ? { unders } : {}) };
 }

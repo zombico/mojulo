@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { RADAR, radarMarks, planBox, planPoint, planSvg, sceneThings } from './radar.js';
+import { RADAR, radarMarks, planBox, planPoint, planSvg, radarPlan, sceneThings, planFloors, floorPlanSvg } from './radar.js';
 
 const at = (m) => [m.x, m.y];
 describe('the radar', () => {
@@ -53,6 +53,32 @@ describe('the map', () => {
   });
 });
 
+describe('the map under the radar', () => {
+  it('lays the plan with the pilot at the middle and ahead at the top, at the radar\'s scale', () => {
+    const box = [0, 0, 80];
+    expect(radarPlan(box, [20, 60], Math.PI / 2, 40)).toEqual({ x: 0.25, y: 0.25, size: 1, turn: 0 });   // (facing north: as drawn)
+    expect(radarPlan(box, [20, 60], 0, 40).turn).toBe(-90);                                            // (facing east: east up)
+    expect(radarPlan(box, [20, 60], Math.PI / 2, 20).size).toBe(2);                                     // (a closer radar, a bigger map)
+  });
+  it('draws a land\'s things by their own heights, and its tall grass, where asked; as it was where not', () => {
+    const raised = [{ min: [0, 0, 5], max: [2, 2, 7] }], box = [0, 0, 10];
+    expect(planSvg(raised, null, box)).not.toContain('<rect x="0"');                 // (a thing on a rise: over a head, as it was)
+    expect(planSvg(raised, null, box, { rel: true })).toContain('fill="#d9d2bd"');     // (by its own height: a mass)
+    expect(planSvg([], null, box, { veils: [{ at: [5, 5, 0], r: 2 }] })).toContain('<circle cx="256" cy="256" r="102.4"');
+  });
+  it('draws the land\'s contours a step apart, a major one brighter, and its trail in runs', () => {
+    // (a ramp rising a metre a cell eastward over 0..6 m: lines at each whole metre run north to south)
+    const relief = { x0: 0, y0: 0, cell: 1, nx: 7, ny: 3, z: Array.from({ length: 21 }, (_, q) => q % 7) };
+    const svg = planSvg([], null, [0, 0, 10], { relief: { ...relief, z: relief.z.map((v) => v + 0.5) } });
+    const minor = svg.match(/stroke="#4b5244"[^>]*/)[0], d = /d="([^"]*)"/.exec(svg)[1];
+    expect(d.split('M').length - 1).toBeGreaterThan(8);
+    expect(svg).toContain('stroke="#78806c"');                                       // (5 m: a major line)
+    expect(minor).toBeTruthy();
+    const trail = planSvg([], null, [0, 0, 10], { trail: { x0: 0, y0: 0, cell: 1, nx: 4, ny: 2, on: [0, 1, 1, 0, 0, 0, 1, 0] } });
+    expect((trail.match(/fill="#8a7350"/g) || []).length).toBe(2);                  // (one run a row)
+  });
+});
+
 describe('what a scene shows', () => {
   const body = { hittable: true }, me = { id: 'p', pilotable: true, transform: { pos: [0, 0, 0] } };
   const foe = (id, more = {}) => ({ id, team: 'foes', transform: { pos: [3, 0, 0] }, body: { ...body }, ...more });
@@ -68,5 +94,49 @@ describe('the module', () => {
     const src = readFileSync(fileURLToPath(new URL('./radar.js', import.meta.url)), 'utf8');
     expect([...src.matchAll(/^import /gm)]).toEqual([]);
     for (const f of [radarMarks, planBox, planPoint, planSvg, sceneThings]) expect(() => new Function(`return (${f.toString()})`)()).not.toThrow();
+  });
+});
+
+describe('what a watcher sees, on the radar', () => {
+  const cfg = { ...RADAR, range: 30 };
+  const watcher = (boxes = [], extra = {}) => ({ at: [0, 10], kind: 'foe', sight: { heading: -Math.PI / 2, cone: 0.6, range: 14, eye: 1.35, pe: 1.275, feet: 0, state: 'calm', boxes, ...extra } });
+  it('a watcher that shows its sight carries its fan: itself first, then its cone toward where it faces', () => {
+    const [m] = radarMarks([0, 0], Math.PI / 2, [watcher()], cfg);
+    expect(m.fan[0]).toEqual([m.x, m.y]);
+    expect(m.state).toBe('calm');
+    // (it stands ahead of the pilot and looks back at it: the fan comes down the scope toward the middle)
+    for (const p of m.fan.slice(1)) expect(p[1]).toBeGreaterThan(m.y);
+    expect(Math.max(...m.fan.map((p) => p[1]))).toBeCloseTo(m.y + 14 * (0.5 / 30), 2);
+  });
+  it('a ray ends at what would hide the pilot as it stands: a metre of cover ends it for a crouch, not for a body standing', () => {
+    const wall = [{ min: [-6, 5, 0], max: [6, 5.4, 1] }];
+    const reach = (pe) => { const [m] = radarMarks([0, 0], Math.PI / 2, [watcher(wall, { pe })], cfg); return Math.max(...m.fan.map((p) => p[1])) - m.y; };
+    expect(reach(1.275)).toBeCloseTo(14 * (0.5 / 30), 2);
+    expect(reach(0.825)).toBeLessThan(6 * (0.5 / 30));
+  });
+  it('a foe that shows no sight is a mark and nothing more', () => {
+    const [m] = radarMarks([0, 0], 0, [{ at: [5, 0], kind: 'foe' }], cfg);
+    expect(m.fan).toBeUndefined();
+  });
+});
+
+describe('one floor\'s plan', () => {
+  // (two decks: a slab at 4 and one at 12 over half of it; a column on each; a container on the upper)
+  const C = [
+    { min: [0, 0, 3.7], max: [20, 20, 4] }, { min: [0, 0, 11.7], max: [10, 20, 12] },
+    { min: [5, 5, 4], max: [6, 6, 11.7] }, { min: [15, 15, 4], max: [16, 16, 6] },
+    { min: [2, 2, 12], max: [8, 4, 14.6] },
+  ];
+  it('a level\'s floors are its slabs\' tops, lowest first; a column or a container is no floor', () => {
+    expect(planFloors(C)).toEqual([4, 12]);
+  });
+  it('each floor draws its own slabs as ground and what stands at it alone; the other floor\'s things are not on it', () => {
+    const box = planBox(C, null), low = floorPlanSvg(planSvg, C, box, 4), high = floorPlanSvg(planSvg, C, box, 12);
+    const rects = (svg) => (svg.match(/<rect /g) || []).length;
+    // (each the plan's ground, then low: its slab and the two columns standing on it; high: its slab and its container)
+    expect(rects(low)).toBe(1 + 1 + 2);
+    expect(rects(high)).toBe(1 + 1 + 1);
+    expect(low).not.toBe(high);
+    expect(low).toContain('fill="#0e1214"');
   });
 });

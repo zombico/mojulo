@@ -16,6 +16,8 @@ const SHOTGUN_TAKES = { barrel: BARREL, stock: ['fixed', 'collapsible', 'folding
   rail: ['none', 'top'], underbarrel: ['none', 'light'], grip: ['straight', 'pistol'] };
 const KNIFE_TAKES = { blade: ['clip', 'drop', 'tanto', 'spear', 'hawkbill'], length: ['short', 'standard', 'long'], guard: ['cross', 'choil', 'none'], handle: ['ridged', 'cord', 'slab'], serrations: [false, true] };
 const FUT_GUN = { muzzle: 'emitter', magazine: 'cell' };
+const ROCKET_TAKES = { barrel: ['short', 'standard', 'long'], optic: ['reddot', 'irons', 'none'], underbarrel: ['none', 'grip'] };
+const GRENADE_TAKES = { barrel: BARREL, stock: ['fixed', 'collapsible', 'folding', 'skeleton', 'none'], optic: ['irons', 'reddot', 'holo', 'smart', 'none'], rail: ['none', 'top'], underbarrel: ['none', 'grip'] };
 const NEAR_GUN = { optic: 'smart' };
 const PDW_TAKES = { barrel: BARREL, optic: ['smart', 'reddot', 'holo', 'irons', 'none'], muzzle: ['plain', 'flash', 'brake', 'suppressor', 'emitter'], underbarrel: ['none', 'light'] };
 const CASELESS_TAKES = { barrel: BARREL, optic: ['smart', 'reddot', 'holo', 'scope', 'none'], muzzle: ['plain', 'brake', 'suppressor', 'emitter'], underbarrel: ['none', 'grip'] };
@@ -67,6 +69,14 @@ export const ARM_MODELS = Object.freeze({
     tactical: { build: 'shotgun', barrel: { short: 35.5, standard: 47, long: 61 }, takes: SHOTGUN_TAKES,
       parts: { barrel: 'standard', stock: 'collapsible', magazine: 'tube', optic: 'reddot', muzzle: 'brake', rail: 'top', underbarrel: 'light', grip: 'pistol' }, future: { muzzle: 'emitter', magazine: 'cell' }, near: NEAR_GUN },
   } },
+  // the shoulder-fired launchers (arms/launchers.js): a 40 mm revolving grenade launcher, a rocket launcher (a bazooka)
+  launcher: { default: 'grenade', models: {
+    grenade: { build: 'launcher', layout: 'grenade', barrel: { short: 22, standard: 30, long: 36 }, takes: GRENADE_TAKES,
+      parts: { barrel: 'standard', stock: 'collapsible', optic: 'reddot', rail: 'top', underbarrel: 'grip' }, near: NEAR_GUN },
+    // (a bazooka: its `barrel` the whole tube's length, cm)
+    rocket: { build: 'launcher', layout: 'rocket', barrel: { short: 84, standard: 100, long: 112 }, takes: ROCKET_TAKES,
+      parts: { barrel: 'standard', optic: 'reddot', underbarrel: 'grip' } },
+  } },
   knife: { default: 'combat', models: {
     combat: { build: 'knife', length: { short: 14, standard: 17.8, long: 22 }, takes: KNIFE_TAKES, parts: { blade: 'clip', length: 'standard', guard: 'cross', handle: 'ridged', serrations: false } },
     tanto: { build: 'knife', length: { short: 12, standard: 15.5, long: 19 }, takes: KNIFE_TAKES, parts: { blade: 'tanto', length: 'standard', guard: 'choil', handle: 'cord', serrations: false } },
@@ -76,7 +86,7 @@ export const ARM_MODELS = Object.freeze({
 });
 
 /** the items the arms kernel alone draws (the firearm samples' items open it by naming a model, a line or a part) */
-export const ARMS_ONLY_ITEMS = Object.freeze(['rifle', 'smg', 'knife']);
+export const ARMS_ONLY_ITEMS = Object.freeze(['rifle', 'smg', 'launcher', 'knife']);
 export const ARM_ITEMS = Object.freeze(Object.keys(ARM_MODELS));
 /** an item's class for holding it (polygonizer/hero-gear.js): a knife is a blade, every other arm a firearm */
 export const armClass = (item) => (item === 'knife' ? 'blade' : 'firearm');

@@ -6,7 +6,7 @@
  * From control/:
  *   node scripts/render-arms.mjs <output-directory> [preset,preset,…|all] [--builds '<json array of builds>'] [--views side,quarter,top]
  * Presets are named rows below (pistol, blaster, revolver, carbine, rifle, marksman, bullpup, smg, pump, tactical,
- * knife, tanto, karambit, dagger, and their future-line twins). Writes <preset>-<view>.png, the pages and index.html.
+ * knife, tanto, karambit, dagger, launcher, and their future-line twins). Writes <preset>-<view>.png, the pages and index.html.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -55,6 +55,8 @@ export const PRESETS = {
   breacher: { item: 'shotgun', model: 'breacher' },
   'near-carbine': { item: 'carbine', line: 'near', style: 'ranger' },
   'near-knife': { item: 'knife', model: 'tanto', style: 'arctic' },
+  launcher: { item: 'launcher', model: 'grenade' },
+  'launcher-od': { item: 'launcher', model: 'grenade', style: 'od', parts: { stock: 'fixed', optic: 'holo' } },
 };
 
 const args = process.argv.slice(2);

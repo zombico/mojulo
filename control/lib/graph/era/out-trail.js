@@ -12,6 +12,8 @@
  *   heartbeat  the trail's height along its length, each beat its own shape (a climb into a reveal, a drop into a
  *              pinch, a dip to a ford, flat at a rest); `heartbeat` 0…1 is how hard it rises and falls
  *   bumpiness  mounds and hollows over the ground, low on the walk and full toward the edges; `bumpiness` 0…1
+ *   width      the walked way's width in metres (1.2 to 8), wandering along it as the kit's does; absent, the kit's
+ *              own (a footpath's two metres): a track a vehicle takes is four or more
  *   ground     the card's numbers tuned for this trail (amplitude, depth, grade, the beats' shapes…) and the ground
  *              shaped by hand (raise, lower, flatten, cliff, gorge, ridge): out-ground.js
  *   dunes      the land laid in wind-blown sand dunes, the walk an inter-dune street through them: out-dunes.js
@@ -81,9 +83,9 @@ const C = OUT_TRAIL;
 /** Read a recipe's `trail` and say what is wrong. → { run, heartbeat, bumpiness, beats: [kind] | null, id }. */
 export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
-  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after?, surface?, rubble?, patches?, rocks? } (or true)');
+  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, width?, beats?, ground?, after?, surface?, rubble?, patches?, match?, rocks? } (or true)');
   // (its dress, `surface`, `rubble`, `patches`, is the stage's to draw: era/trail-dress.js reads it)
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds', 'surface', 'rubble', 'patches', 'rocks'];
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'width', 'beats', 'ground', 'after', 'bounds', 'surface', 'rubble', 'patches', 'match', 'rocks'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -93,6 +95,7 @@ export function readOutTrail(t, depth = 0) {
   const run = num('run', C.run[0], C.run[1], C.run[2], `the seconds a runner takes to pass through, ${C.run[0]} to ${C.run[1]}`);
   const heartbeat = num('heartbeat', 0, 1, 0.5, 'a number from 0 (level) to 1 (hard climbs and drops)');
   const bumpiness = num('bumpiness', 0, 1, 0.4, 'a number from 0 (smooth) to 1 (rough mounds and hollows)');
+  const width = num('width', 1.2, 8, null, 'the walked way\'s width in metres, 1.2 to 8 (absent: the kit\'s own; a track a vehicle takes is four or more)');
   let beats = null;
   if (t.beats !== undefined) {
     if (!Array.isArray(t.beats) || t.beats.length < 3 || t.beats.length > 8) throw new Error('stage: trail.beats is a list of 3 to 8 beats, in walking order');
@@ -115,7 +118,7 @@ export function readOutTrail(t, depth = 0) {
   }
   readTrailDress(t);
   const ground = readGround(t.ground), rocks = readRocks(t.rocks);
-  return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds), ...(rocks ? { rocks } : {}) };
+  return { id, run, heartbeat, bumpiness, beats, ...(width !== null ? { width } : {}), ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds), ...(rocks ? { rocks } : {}) };
 }
 
 /**
@@ -299,7 +302,8 @@ function landmarkSizes(st, T) {
 
 function siteOf(st, plan, grade = null) {
   const { T, G, S, W, D, trailX, trailSlope, sOf, beats } = plan;
-  const Lf = st.landform, halfW = st.trail.width / 2;
+  // (the walked way's width: the recipe's `width`, else the kit's)
+  const Lf = st.landform, halfW = (T.width ?? st.trail.width) / 2;
   const at = (kind) => beats.filter((b) => b.kind === kind);
   const near = (b, y, w) => gauss(sOf(y) - b.s, w);
   const halfWAt = (y) => {

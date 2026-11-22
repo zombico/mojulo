@@ -6,7 +6,8 @@
  *   manifest.audio = {
  *     soundtrack?: <inline beats-ambient|beats-composition recipe> | { beatsRef }
  *                  | 'field:<mood>' | { score: { mood, seed?, game?, role? } }   (a generated field cue, field-cue.js)
- *     sfx?:        { cues?: {...} | undefined, beatsRef?, on?: { '<event type glob>': '<cueId>' } },
+ *     sfx?:        { cues?: {...} | undefined, beatsRef?, on?: { '<event type glob>': '<cueId>' } }
+ *                  | { sheet: { style?, slots?, on?, events?: { '<event type glob>': '<shelf word>' }, foes?, moves? } },
 *     sfxLevel?:   0..1, the effects' level under the score (the cue engine's own master, where the scores have engines of
  *                  their own: a level with `combat`)
  *     boss?:       a third score (as `combat`), the piece a boss's room changes to once it has shut (a side map's)
@@ -61,6 +62,7 @@ import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx, MECHANIC_SFX } from './sfx-palettes.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
+import { resolveSoundId } from '../sfx-shelf/roster.js';
 // a run and gun's events (gameworld/sound-sheet.js RUN_SOUNDS, its words; kept here so the page's payload is checked
 // without the game's tables) and the two held among them
 export const RUN_EVENTS = Object.freeze(['tap', 'shot', 'full', 'charge', 'dash', 'kick', 'cling', 'hurt', 'foeShot', 'foeHit', 'armour', 'wreck', 'boss', 'lift', 'throw', 'rock', 'break', 'shut', 'treads', 'steam', 'stomp']);
@@ -237,6 +239,12 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
         const g = cues[cue] ?? cueOf(sheet.on?.[cue] ?? cue);
         if (g) { cues[cue] = g; on[glob] = cue; }
       }
+    }
+    // (`sheet.events`: any of the bus's events by its glob, voiced by a shelf word, `ev-<word>` a cue of the level's: a
+    // guard's sighting the alert's sting, a garrison's alarm found the siren, a thing taken the pickup. Over the mechanics')
+    if (sheet.events !== undefined) {
+      if (!sheet.events || typeof sheet.events !== 'object' || Array.isArray(sheet.events)) throw new Error('audio.sfx.sheet.events is { <event glob>: <shelf word> }');
+      for (const [glob, word] of Object.entries(sheet.events)) { const id = `ev-${resolveSoundId(word) ?? word}`; if (!(id in cues)) cues[id] = cueOf(word); on[glob] = id; }
     }
     const slot = (k, row) => cueOf(sheet.slots?.[k] ?? row) ?? undefined;
     const kept = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v));

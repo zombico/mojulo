@@ -406,7 +406,11 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-hit{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:${u(51)};font-weight:200}`,
     `${s} .mana-minimap{position:relative;width:${u(195)};height:${u(195)};border:${v('rule-w')} solid ${v('line')};background:${X_BOX} ${v('paper')}}`,
     `${s} .mana-minimap[data-shape=round]{border-radius:50%}`,
-    // THE MAP: its ground in the theme's own colours (never a colour of its own: a theme changes the map with the rest),
+    `${s} .mana-minimap .mana-planclip{position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.8}`,
+    // (a scope's map lighter still: the world reads through it)
+    `${s} .mana-minimap[data-scope=yes] .mana-planclip{opacity:.55}`,
+    `${s} .mana-minimap[data-shape=round] .mana-planclip{border-radius:50%}`,
+    `${s} .mana-minimap .mana-plan{position:absolute;max-width:none;display:block}`,    // THE MAP: its ground in the theme's own colours (never a colour of its own: a theme changes the map with the rest),
     // its plane turned and scaled by the runtime, its markers the theme's icons; the miniature a model on a table
     `${s} .mana-map{position:relative;overflow:hidden;border:${v('rule-w')} solid ${v('line')};background:${v('wash')};color:${v('ink')};container-type:size;display:flex;align-items:center;justify-content:center}`,
     `${s} .mana-map-frame{position:relative;flex:none;width:min(100cqw,100cqh);height:min(100cqw,100cqh)}`,
@@ -441,8 +445,9 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-map-mark[data-you=yes] .mana-icon,${s} .mana-map-mark[data-you=yes] .mana-map-glyph{font-size:${u(24)}}`,
     `${s} .mana-map>.mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
     // A SCOPE: an instrument over the world, not a picture in a box. Its face fades out at its edge, a bezel of ticks
-    // rings it, the wedge ahead shows what you see, and north rides the bezel as it turns
-    `${s} .mana-minimap[data-scope=yes]{border:0;background:radial-gradient(closest-side,color-mix(in srgb,${v('panel')} 70%,transparent) 0 80%,color-mix(in srgb,${v('panel')} 38%,transparent) 92%,transparent);overflow:visible}`,
+    // rings it, the wedge ahead shows what you see, and north rides the bezel as it turns; its face TRANSLUCENT, the world
+    // seen through it (a third of the panel's colour), so it never stands over the play as a solid disc
+    `${s} .mana-minimap[data-scope=yes]{border:0;background:radial-gradient(closest-side,color-mix(in srgb,${v('panel')} 35%,transparent) 0 80%,color-mix(in srgb,${v('panel')} 18%,transparent) 92%,transparent);overflow:visible}`,
     `${s} .mana-bezel{position:absolute;inset:0;pointer-events:none}`,
     `${s} .mana-bezel::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(${v('ink')} 0 1deg,transparent 1deg 15deg);-webkit-mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 87% 91%,transparent 92%);mask:radial-gradient(closest-side,transparent 86%,${v('ink')} 87% 91%,transparent 92%);opacity:.55}`,
     `${s} .mana-minimap[data-scope=yes]::before{content:"";position:absolute;inset:25%;border-radius:50%;border:1px solid color-mix(in srgb,${v('ink')} 22%,transparent);pointer-events:none}`,
@@ -511,6 +516,11 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-minimap[data-route] .mana-marker[data-kind=self]{color:${v('accent')};font-size:${u(22)}}`,
     `${s} .mana-trace{position:absolute;width:${u(7)};height:${u(7)};border-radius:50%;background:${v('ink')};opacity:.5;transform:translate(-50%,-50%)}`,
     `${s} .mana-marker{position:absolute;transform:translate(-50%,-50%);font-size:${u(16)};line-height:1}`,
+    // (a marker's sight: a wedge over the whole map, cut to its fan; calm it is the ink's, searching the accent's, seeing the harm's)
+    `${s} .mana-seen{position:absolute;inset:0;pointer-events:none}`,
+    `${s} .mana-sight{position:absolute;inset:0;background:color-mix(in srgb,${v('ink')} 34%,transparent)}`,
+    `${s} .mana-sight[data-state=search]{background:color-mix(in srgb,${v('accent')} 55%,transparent)}`,
+    `${s} .mana-sight[data-state=seen]{background:color-mix(in srgb,${v('harm')} 62%,transparent)}`,
     `${s} .mana-minimap .mana-caption{position:absolute;left:${u(6)};bottom:${u(3)}}`,
     `${s} .mana-compass{position:relative;width:${u(450)};height:${u(33)};border:${v('rule-w')} solid ${v('line')};background:${v('paper')};overflow:hidden}`,
     `${s} .mana-compass .mana-cardinal,${s} .mana-compass .mana-marker{position:absolute;top:50%;transform:translate(-50%,-50%);font:700 ${u(16)} ${v('mono')}}`,

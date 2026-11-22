@@ -213,7 +213,7 @@ function shellUi(G) {
   if (G.ui === undefined) {
     const look = courseLook(G), ids = G.ids ?? [];
     if (look) return { ui: { theme: look } };
-    return ids.length && ids.every((k) => G.levels[k]?.brawlStreet || G.levels[k]?.street) ? { ui: { theme: cardTheme('brawl-street') } } : ids.some((id) => G.levels[id].mission !== undefined) ? { ui: { theme: cardTheme(MISSION_LOOK) } } : {};
+    return ids.length && ids.every((k) => G.levels[k]?.brawlStreet || G.levels[k]?.street) ? { ui: { theme: cardTheme('brawl-street') } } : ids.some((id) => G.levels[id]?.mission !== undefined) ? { ui: { theme: cardTheme(MISSION_LOOK) } } : {};
   }
   return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
 }

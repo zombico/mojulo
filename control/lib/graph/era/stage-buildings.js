@@ -2,7 +2,7 @@
  * STAGE BUILDINGS — game buildings standing in open ground, walked into as terrain (`enter: 'walk'`). An outdoor
  * stage recipe's `buildings` seats each one on the land the stage already laid:
  *
- *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization?, look?, tone?, storeys?, wings?, loading?, bays?, embed?, apron?, yard? }]
+ *   buildings: [{ id?, use, seed?, at?, rooms?, add?, kit?, civilization?, look?, tone?, storeys?, wings?, loading?, bays?, scale?, layouts?, vents?, embed?, apron?, yard? }]
  *     use            a program (era/programs.js): its rooms and doorways, its goal room
  *     at             a pocket beat's id ('pocket-1': the building stands in the clearing, its door to the trail), or
  *                    { x, y, facing: '+x' | '-x' | '+y' | '-y' } (its door's middle, and the way the door faces out);
@@ -219,7 +219,7 @@ function composedOf(b) {
   if (!PROGRAMS[b.use]?.base && b.look === undefined) return null;
   if (b.look !== undefined && (!b.look || typeof b.look !== 'object' || Array.isArray(b.look) || Object.keys(b.look).some((k) => !['construction', 'palette', 'dressing'].includes(k)))) throw new Error(`stage: building '${b.use}' look is { construction?, palette?, dressing? }`);
   // (its plan's settings as a building level takes them: era/programs.js)
-  const look = b.look ?? {}, plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
+  const look = b.look ?? {}, plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'layouts', 'scale', 'vents', 'windows'].filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
   return {
     kind: 'stage', kit: b.kit ?? PROGRAMS[b.use]?.kit ?? `bay-${look.construction ?? 'utility'}`,
     program: { use: b.use, seed: b.seed ?? 1, ...(b.rooms ? { rooms: b.rooms } : {}), ...(b.add ? { add: b.add } : {}), ...plan },

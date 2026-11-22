@@ -6,7 +6,7 @@
  *   AIM DOWN THE SIGHTS (`input.aim` held): `e.gp.aim` rises to 1 over the slot's `ads.time` (falls back twice as fast);
  *     none while a switch readies, a magazine reloads or the body boosts. Aimed, the weapon's cone is the hip's times
  *     `ads.spread` (its move's times `ads.moveSpread`) and the feet are slowed to `ads.move` of their pace: a body moves
- *     and strafes aimed, firing, wider on the move.
+ *     and strafes aimed, firing, wider on the move; a held trigger's bloom (a round's, and its most) by `ads.bloom`.
  *   SWAY: the aim wanders by the slot's `sway` (milliradians: a Lissajous of the clock), twice that from the hip, more on
  *     the move. It is the aim itself (the heading and the pitch carry it, so the view and the round agree), applied as a
  *     difference each frame so the player's own look is never lost. With a scope, the breath held (`input.breath`)
@@ -20,7 +20,7 @@
  *     here, on the same keys.
  * Wraps stepWorld (as vanish.js does), so the pinned pipeline order is untouched. Import-free (the page runs this source
  * via toString(), compose.js); emitted only into a page whose world has a gunplay rule, so every other page keeps every
- * byte. Field ownership: e.gp ({ aim, breath, tired, steady, sx, sy, hip }), e.knifeT / knifeCdT / knifeCount, and the pilot's weapon's spread, recoil,
+ * byte. Field ownership: e.gp ({ aim, breath, tired, steady, sx, sy, hip }), e.knifeT / knifeCdT / knifeCount, and the pilot's weapon's spread (its bloomNow held under the aimed most), recoil,
  * projectileSpeed and damage while gunplay holds it.
  */
 
@@ -54,7 +54,7 @@ export function buildGunplay(E) {
     if (!g || !w) { G.aim = 0; return input; }
     const idx = e.loadoutIdx || 0;
     // the hip's cone and climb, kept as the slot gave them (the aim scales from them)
-    if (!G.hip[idx]) G.hip[idx] = { spread: w.spread ? { base: w.spread.base, move: w.spread.move } : null, kick: w.recoil ? w.recoil.kick : 0 };
+    if (!G.hip[idx]) G.hip[idx] = { spread: w.spread ? { base: w.spread.base, move: w.spread.move, bloom: w.spread.bloom, max: w.spread.max } : null, kick: w.recoil ? w.recoil.kick : 0 };
     const hip = G.hip[idx];
     // a reload asked for: a magazine partly spent, not already reloading, rounds to draw from
     if (input.reload && !w.reloading && w.ammo < w.magazine && w.reserve !== 0) { w.reloading = true; w.reloadT = w.reload; w.burstLeft = 0; if (E.cancelWeaponCharge) E.cancelWeaponCharge(w); }
@@ -63,7 +63,12 @@ export function buildGunplay(E) {
     const rate = 1 / Math.max(0.05, g.ads.time);
     G.aim = clamp(G.aim + (can ? rate : -2 * rate) * dt, 0, 1);
     const a = G.aim, sc = !!g.ads.scope;
-    if (w.spread && hip.spread) { w.spread.base = hip.spread.base * lerp(1, g.ads.spread, a); w.spread.move = hip.spread.move * lerp(1, g.ads.moveSpread, a); }
+    if (w.spread && hip.spread) {
+      w.spread.base = hip.spread.base * lerp(1, g.ads.spread, a); w.spread.move = hip.spread.move * lerp(1, g.ads.moveSpread, a);
+      // (and a held trigger's bloom, a round's and its most, by the sights' own share: an aimed spray opens less than one
+      // from the hip)
+      if (g.ads.bloom != null) { const k = lerp(1, g.ads.bloom, a); w.spread.bloom = hip.spread.bloom * k; w.spread.max = hip.spread.max * k; w.bloomNow = Math.min(w.bloomNow || 0, w.spread.max); }
+    }
     if (w.recoil) w.recoil.kick = hip.kick * lerp(1, 0.7, a);
     // the breath: held with a scope up, a few seconds, then the body wants air
     if (G.tired > 0) G.tired = Math.max(0, G.tired - dt);

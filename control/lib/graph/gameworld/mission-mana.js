@@ -315,7 +315,9 @@ export function missionManaRuntime(cfg) {
     P.ring.on = P.ring.hits.length > 0;
     if (me && me.transform) {
       const pos = me.transform.pos, things = __msThings(W, me, T && T.at ? T.at : null), box = planOf(W);
-      P.radar.marks = __msRadar(pos, me.transform.heading, things, cfg.radar);
+      // (inside a chaff cloud, combat-ranged.js state.jams, the radar reads nothing)
+      const jam = (W.jams || []).some(function (j) { return j.until > (W.time || 0) && Math.hypot(pos[0] - j.at[0], pos[1] - j.at[1]) <= j.r; });
+      P.radar.marks = jam ? [] : __msRadar(pos, me.transform.heading, things, cfg.radar);
       // THE MINIMAP: the plan under the scope, the pilot's place on it at the scope's middle, turned so ahead is up
       // (a side of the plan is `box[2]` m; the scope's width is twice the radar's range)
       {

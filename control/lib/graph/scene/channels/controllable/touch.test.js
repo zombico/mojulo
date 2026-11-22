@@ -116,3 +116,19 @@ describe('touch: a virtual pad laid out for the pilot and its camera, never for 
   });
 });
 
+
+describe('touch: an operative\'s pads', () => {
+  const op = [{ pilotable: true, rule: { type: 'platform', aimView: {}, dive: { jump: false } } }];
+  it('its south pad crouches and its north dives, as its scheme binds them; any other pilot keeps its jump', () => {
+    const L = touchLayout(op, { mouseLook: true });
+    expect(L.stance).toBe(true);
+    expect(touchLayout([{ pilotable: true, rule: { type: 'platform' } }], null)).not.toHaveProperty('stance');
+    const page = touchScript(L), mana = touchScript(L, { view: 'mana' });
+    expect(page).toContain("__tButton('crouch', 0,");
+    expect(page).toContain("__tButton('dive', 3,");
+    expect(mana).toContain("{ label: 'crouch', control: 'south' }, { label: 'dive', control: 'north' }");
+    const B = (id) => SCHEMES.operative.actions.find((a) => a.id === id).bind.gamepad;
+    expect(B('crouch')).toContain('south');
+    expect(B('jump')).toEqual(['north']);
+  });
+});

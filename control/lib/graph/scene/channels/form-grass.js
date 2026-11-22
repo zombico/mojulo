@@ -89,8 +89,10 @@ const STILL_HEAD = 'vec3 fgBend( vec2 root, float hgt, float s, float ph ) { ret
 /** The grass's page source. `ramp`: the blades unlit, in a host's colour ramp (a gen-6 stage's, channels/stage-grass.js
  *  `formStageField`: STAGE_RAMP in the host's scope, { uRamp: the stops, uWin: the lit and the shade windows, tLit:
  *  where the sun reaches }): a blade takes the stop its height up the blade picks from its window, nothing between
- *  the stops. Absent, the form render's lit blades, the page as it was. */
-export function formGrassScript({ ramp = false } = {}) {
+ *  the stops. Absent, the form render's lit blades, the page as it was. `stand`: a land with tall grass (form/tall-grass.js,
+ *  the map's `stand`): its tall clump raised to the patches' height, more blades a clump set closer, drawn at every
+ *  distance (it is little, and it is cover), and no far strands. Absent, not a byte of it. */
+export function formGrassScript({ ramp = false, stand = false, paint = false, reach = false, thin = null } = {}) {
   return `
   // --- the form render's grass (channels/form-grass.js) ---
   if (D.grass) {
@@ -144,7 +146,7 @@ export function formGrassScript({ ramp = false } = {}) {
     // (the FIELD: every tuft and every drift plant placed once, over the whole map: the sward's lengths and seams, the
     // cover, the claims, the trail; nothing that follows the eye)
     (function () {
-      const SF = ${JSON.stringify(STILL_FIELD)}, PG = ${JSON.stringify(POV_GRASS)}, GH = ${JSON.stringify(GRASS_HEIGHT)}, [nx, ny] = Gm.size, cAt = (i, j) => (Math.min(ny - 1, Math.max(0, j)) * nx + Math.min(nx - 1, Math.max(0, i))) * 4;
+      const SF = ${JSON.stringify(STILL_FIELD)}, PG = ${JSON.stringify(Number.isFinite(thin) ? { ...POV_GRASS, thin } : POV_GRASS)}, GH = ${JSON.stringify(GRASS_HEIGHT)}, [nx, ny] = Gm.size, cAt = (i, j) => (Math.min(ny - 1, Math.max(0, j)) * nx + Math.min(nx - 1, Math.max(0, i))) * 4;
       const zT = (q) => Gm.z[0] + ((gpx[q] * 256 + gpx[q + 1]) / 65535) * Gm.z[1], dpx = Dr ? bytes(Dr.px) : null;
       const zAt = (x, y) => { const u = (x - Gm.origin[0]) / Gm.cell, v = (y - Gm.origin[1]) / Gm.cell, i = Math.floor(u), j = Math.floor(v), f = u - i, g = v - j;
         return (zT(cAt(i, j)) * (1 - f) + zT(cAt(i + 1, j)) * f) * (1 - g) + (zT(cAt(i, j + 1)) * (1 - f) + zT(cAt(i + 1, j + 1)) * f) * g; };
@@ -158,7 +160,7 @@ export function formGrassScript({ ramp = false } = {}) {
       const tipAt = (sw) => { const q = GTIERS.find((t) => t.sward === (sw < 0.25 ? 'tall' : sw < 0.75 ? 'medium' : 'short')); return q.scale * q.clump.height[1] * (BR[q.sward][0] + BR[q.sward][1] * 0.5); };
       // (the camera's mode: POV draws real grass out to the view cone's reach and strands past it, AERIAL all the grass;
       // a tile wholly past what its mode draws, or out of the cone's frustum, is not drawn at all)
-      const CONE = window.__mojCone, PV = { uPovR: { value: CONE.reach } }, TILES = [];
+      const CONE = window.__mojCone, PV = { uPovR: { value: CONE.reach } }, TILES = [];${stand ? "\n      // (a land's tall grass, drawn at every distance: its reach never reached)\n      const PVS = { uPovR: { value: 1e6 } };" : ''}
       let view = 'pov';
       window.__formGrassView = (v) => { view = v === 'aerial' ? 'aerial' : 'pov'; return view; };
       window.addEventListener('keydown', (e) => { if (e.key === 'v' || e.key === 'V') console.log('grass view', window.__formGrassView(view === 'pov' ? 'aerial' : 'pov')); });
@@ -209,7 +211,11 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
             .replace('#include <color_fragment>', '#include <color_fragment>\\n  { float dk = step( 1.5, vBt ), t = clamp( ( vBt - 2.0 * dk ) * vTone, 0.0, 0.999 ); vec2 w = vLit > 0.5 ? uWin.xy : uWin.zw; diffuseColor.rgb = uRamp[ int( clamp( floor( w.x + t * ( w.y - w.x + 1.0 ) ) - dk, 0.0, 7.0 ) ) ]; }');
         };
         rm.customProgramCacheKey = () => 'form-grass-ramp-' + T.id + (windU() ? '-wind' : ''); return rm; };
-` : ''}      GTIERS.forEach((T, ti) => {
+` : ''}      GTIERS.forEach((${stand ? 'T0' : 'T'}, ti) => {${stand ? `
+        // (a land's tall grass: the tall clump its patches', form/tall-grass.js standOf; the short sward round them thinned, fieldOf)
+        const ST = Gm.stand && T0.sward === 'tall' ? Gm.stand : null, FD = Gm.field && T0.sward === 'short' ? Gm.field : null, T = ST ? { ...T0, id: 'stand', scale: T0.scale * ST.scale, spacing: ST.spacing, clump: { ...T0.clump, ...ST.clump } } : FD ? { ...T0, id: 'field', clump: { ...T0.clump, ...FD.clump } } : T0;${paint ? `
+        // (a painted field, tall-grass.js \`paint\`: no short sward built; the far field paints it on the ground from the eye)
+        if (FD && FD.paint) return;` : ''}` : ''}
         const tg = clumpGeometry(T.clump, ti * 31, T.spacing), R = [];
         each(T.spacing * SF.spread[T.sward], ti, (x, y, m, h) => {
           const dL = Math.abs(m.sw - SL[T.sward]) / SL.band; if (dL >= 1) return;
@@ -220,7 +226,7 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
         });
         const bm = new THREE.MeshStandardMaterial({ color: grassCol, roughness: 0.75, metalness: 0, side: THREE.DoubleSide });
         bm.onBeforeCompile = (sh) => {
-          Object.assign(sh.uniforms, GU, PV, { uShort: { value: T.sward === 'short' ? 1 : 0 } });
+          Object.assign(sh.uniforms, GU, ${stand && !reach ? "ST ? PVS : PV" : 'PV'}, { uShort: { value: T.sward === 'short' ? 1 : 0 } });${stand && reach ? '   // (the stand too ends at the reach: the far lift carries it past, far-lift.js)' : ''}
           sh.vertexShader = GHEAD + windHead(sh) + ROOT + 'attribute float bt;\\nvarying float vBt;\\nvarying float vTone;\\n' + sh.vertexShader
             .replace('#include <beginnormal_vertex>', [
               POVH,
@@ -238,7 +244,7 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
             .replace('#include <color_fragment>', '#include <color_fragment>\\n  float dk = step( 1.5, vBt );\\n  diffuseColor.rgb *= mix( 0.45, 1.1, vBt - 2.0 * dk ) * vTone * mix( 1.0, ' + TWIN.shade.toFixed(3) + ', dk );');
         };
         bm.customProgramCacheKey = () => 'form-grass-' + T.id + (windU() ? '-wind' : '');
-        window.__formGrass = (window.__formGrass || 0) + stand(tg, R, ${ramp ? 'rampBlade(T)' : 'bm'}) * tg.index.count / 3;
+        window.__formGrass = (window.__formGrass || 0) + stand(tg, R, ${ramp ? 'rampBlade(T)' : 'bm'}${stand ? ", ST ? 'stand' : 'grass'" : ''}) * tg.index.count / 3;
       });
       // (a plant's material: a drift's or a weed's, its own colours, lit as one, bending in the wind)
       const plantMat = () => {
@@ -307,7 +313,7 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
         for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
           const q = cAt(i, j), m = { cov: gpx[q + 2] / 255, sw: gpx[q + 3] / 255, dr: dpx ? [dpx[q], dpx[q + 1], dpx[q + 2], dpx[q + 3]].map((v) => v / 255) : [0, 0, 0, 0] };
           const h = (a, b) => hb(i * a + 77, j * b), k = j * nx + i, x = x0 + i * Gm.cell, y = y0 + j * Gm.cell;
-          if (h(5.3, 1.9) >= m.cov * 1.2) continue;
+          if (${stand ? 'Gm.stand || ' : ''}h(5.3, 1.9) >= m.cov * 1.2) continue;
           const tq = GTIERS.find((t) => t.sward === (m.sw < 0.25 ? 'tall' : m.sw < 0.75 ? 'medium' : 'short'));
           let ht = tip(tq), si = 0;
           if (Dr) Dr.kinds.some((K, kk) => {
@@ -340,7 +346,8 @@ ${ramp ? `      // (a blade in the host's ramp: unlit, the stop its height picks
         const pov = view === 'pov', RP = CONE.reach * (Gm.reach || 1), cx = CONE.eye.x, cy = CONE.eye.y;
         PV.uPovR.value = pov ? RP : 1e6;
         // (a tile draws all its rows inside the thinning, those kept out to the reach, none past it)
-        for (const T of TILES) { const near = Math.hypot(T.s.center.x - cx, T.s.center.y - cy) - T.s.radius;
+        for (const T of TILES) {${stand ? "\n          if (T.kind === 'stand') { T.g.instanceCount = T.n; T.m.visible = T.n > 0 && CONE.sees(T.s); continue; }" : ''}
+          const near = Math.hypot(T.s.center.x - cx, T.s.center.y - cy) - T.s.radius;
           const c = !pov || near < RP * PG.thin ? T.n : near < RP ? T.half : 0;
           T.g.instanceCount = c; T.m.visible = c > 0 && CONE.sees(T.s); }
       };

@@ -13,7 +13,8 @@
 
 import { swipeOf } from '../../../controls/swipe.js';
 
-/** The touch layout for a level's pilot and camera: { look, lane, jump, fire, lift } (and `swipe` for a runner: the
+/** The touch layout for a level's pilot and camera: { look, lane, jump, fire, lift, stance? } (`stance`: an operative's
+ * south pad crouches and its north dives; and `swipe` for a runner: the
  * whole screen a swipe, no stick: left and right a lane, up a jump, down a slide; and `course` for an obstacle course:
  * swipes that steer a free-running hero a whole track over, the hero running by itself). Pure. */
 export function touchLayout(entities, camera, { runner = false, course = null } = {}) {
@@ -30,6 +31,9 @@ export function touchLayout(entities, camera, { runner = false, course = null } 
     jump: !fly && (r.type === 'platform' || Number.isFinite(r.jumpSpeed)),
     fire: (entities || []).some((e) => e && (e.weapon || (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length))),
     lift: fly || r.space === true,
+    // (an operative, its aim held and its jump a dive (aim-view.js, dive.js): the south pad its stance, the north its dive,
+    // as its scheme binds them, controls/schemes.js OPERATIVE)
+    ...(r.aimView && r.dive ? { stance: true } : {}),
   };
 }
 
@@ -162,7 +166,7 @@ const __tButton = (label, idx, size, right, bottom) => {
   __tEl.appendChild(b);
   return b;
 };
-if (__TL.jump) __tButton('jump', 0, 76, 24, 28);
+${L.stance ? "__tButton('crouch', 0, 76, 24, 28); __tButton('dive', 3, 60, 24, 186);" : "if (__TL.jump) __tButton('jump', 0, 76, 24, 28);"}
 if (__TL.lift) { __tButton('up', 0, 64, 24, 104); __tButton('down', 1, 64, 24, 28); }
 if (__TL.fire) __tButton('fire', 7, 68, __TL.jump || __TL.lift ? 112 : 24, __TL.jump || __TL.lift ? 52 : 28);
 const __tUse = __tButton('use', 2, 60, 24, __TL.jump || __TL.lift ? (__TL.lift ? 180 : 116) : 104);
@@ -171,7 +175,7 @@ __tUse.style.display = 'none';
 const __touchOn = () => __tOn;
 // what the pad says in words: the legend's line while it shows (in place of the keys), and the pause sheet's rows
 const __tRowsOf = () => __TL.course ? [['swipe ← →', 'change track'], ['tap, or swipe ↑', 'jump'], ['it runs', 'by itself']] : __TL.swipe ? [['swipe ← →', 'change lane'], ['swipe ↑', 'jump'], ['swipe ↓', 'slide']] : [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
-  ...(__TL.jump ? [['jump', 'jump']] : []), ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
+  ${L.stance ? "['crouch', 'crouch (hold: lie down)'], ['dive', 'dive']," : "...(__TL.jump ? [['jump', 'jump']] : []),"} ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
 const __touchRows = () => __tRowsOf();
 const __tHint = __tRowsOf().filter((r) => r[0] !== 'use').map((r) => r[0] + ': ' + r[1]).join(' · ');
 let __tShown = null;
@@ -275,11 +279,11 @@ window.addEventListener('pointerup', __tLift, true); window.addEventListener('po
 (typeof wrap !== 'undefined' ? wrap : document.body).appendChild(__tEl);
 const __touchOn = () => __tOn;
 // the pads the pilot answers to, as the view draws them; use shows only while the figure stands where it is used
-const __tPads = [...(__TL.jump ? [{ label: 'jump', control: 'south' }] : []), ...(__TL.lift ? [{ label: 'up', control: 'south' }, { label: 'down', control: 'east' }] : []), ...(__TL.fire ? [{ label: 'fire', control: 'rt' }] : [])];
+const __tPads = [${L.stance ? "{ label: 'crouch', control: 'south' }, { label: 'dive', control: 'north' }," : "...(__TL.jump ? [{ label: 'jump', control: 'south' }] : []),"} ...(__TL.lift ? [{ label: 'up', control: 'south' }, { label: 'down', control: 'east' }] : []), ...(__TL.fire ? [{ label: 'fire', control: 'rt' }] : [])];
 const __tPadsUse = __tPads.concat([{ label: 'use', control: 'west' }]);
 // what the pad says in words: the legend's line while it shows (in place of the keys), and the pause sheet's rows
 const __tRowsOf = () => [[__TL.lane ? 'left thumb ↔' : 'left thumb', __TL.lane ? 'run' : 'move'], ...(__TL.look ? [['right thumb', 'look']] : []),
-  ...(__TL.jump ? [['jump', 'jump']] : []), ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
+  ${L.stance ? "['crouch', 'crouch (hold: lie down)'], ['dive', 'dive']," : "...(__TL.jump ? [['jump', 'jump']] : []),"} ...(__TL.lift ? [['up / down', 'climb / dive']] : []), ...(__TL.fire ? [['fire', 'fire (hold)']] : []), ['use', 'use / talk, where it shows']];
 const __touchRows = () => __tRowsOf();
 const __tHint = __tRowsOf().filter((r) => r[0] !== 'use').map((r) => r[0] + ': ' + r[1]).join(' · ');
 // what the view draws, said again only when it has changed (the HUD's host copies it into its state)

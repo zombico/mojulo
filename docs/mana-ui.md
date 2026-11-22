@@ -657,7 +657,11 @@ not whether a principle holds.
    belongs to the pause, the map and the briefing (`objective-order`).
 10. **The map is an instrument.** A radar is round and centred on the player, with ahead at the top, so it turns as
     the player turns. It has a bezel of ticks, the wedge the player sees, north riding the bezel, and a face that fades
-    into the world. It is never a picture in a square frame (`minimap` `scope`, `north`; `radar-scope`).
+    into the world. It is never a picture in a square frame (`minimap` `scope`, `north`; `radar-scope`). A game may
+    ask for its scope square and larger, a tactical espionage radar's, still centred, turning and translucent; and
+    for one floor's alone: the plan and the guards of the floor or deck the player stands on, a level of storeys
+    read one at a time. The world's `ui.radar: { shape: 'square', size: 'large', floor: true }` (game/hud-mana.js
+    `RADAR_LOOK`; the plan of a floor, gameworld/radar.js `floorPlanSvg`).
 11. **Harm says where it came from.** A hit marks an arc of a ring round the aim at the attacker's bearing. The arc
     tapers at its ends, fades as it ages, and follows the attacker while it stands (`threat`, a mark's `fade`).
 12. **Geometry carries the genre.** Cut corners, a lean shared by bars and belts, tick marks, a mark before an order,
