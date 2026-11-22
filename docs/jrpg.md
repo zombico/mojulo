@@ -246,6 +246,18 @@ is not used, so a world that uses none fights as it did. The starters, bought on
 unasked): the rogue's Steal and Mug, the fighter's Armor Pierce and Twin Cut, the mage's Drain, Osmose and Gravity; and
 the Power Tonic, the Sleep Powder and the Smoke Bomb in the shops.
 
+**What a state does** (`play.rpg.states`, a world's own or a preset's by name): beside holding a turn (`skip`), barring
+casting (`noCast`), sending blows wide (`miss`), striking anyone (`wild`) and HP each turn (`tick`), a state may scale
+its bearer's numbers (`stats`: a haste's speed ×1.5, a slow's ×0.6), scale the damage it takes (`takes: { blow?, spell? }`:
+a barrier's blows, a shell's spells), put it in a frenzy past commanding (`berserk`), turn a spell aimed at it alone
+back on its caster (`reflect`), draw the foes' aimed blows and spells to itself (`taunt`), fell it as it runs out
+(`doom`), and carry rates. `stack` says what a second cast on a bearer already in it does: `refresh` (its rounds anew,
+the default), `keep` (nothing: a second Doom is no reset) or `add` (its rounds added, nine at most). The presets: haste,
+slow, barrier, shell, berserk, reflect, taunt, doom, and the skills that cast them (Haste, Slow, Barrier, Shell,
+Reflect, Provoke, Frenzy, Doom), a world's to put on a class's tree or grant: they sit on no preset tree, so a world that
+names none carries no states table. The bosses are immune to Doom. Petrify (a fighter out of the fight but not fallen)
+is not yet a behaviour.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

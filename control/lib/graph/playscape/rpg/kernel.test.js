@@ -435,6 +435,65 @@ describe('effects', () => {
   });
 });
 
+// WHAT A STATE DOES (rpg.js readState): its bearer's numbers scaled (haste), the damage it takes scaled (a ward), a
+// frenzy past commanding, a spell at it turned back, the foes' blows drawn to it, a countdown that fells it, and what a
+// second cast does (keep). The state casts opted into on a class's tree; a world naming none carries no states table
+describe('what a state does', () => {
+  const mage = { name: 'Mage', hp: 999, mp: 99, atk: 30, def: 0, mag: 40, spd: 10, xp: 1, gold: 1, skills: ['fire'], pattern: [{ use: 'fire' }] };
+  const brute = { name: 'Brute', hp: 999, mp: 0, atk: 30, def: 0, mag: 1, spd: 10, xp: 1, gold: 1 };
+  const casts = ['haste', 'slow', 'frenzy', 'reflect', 'provoke', 'doom', 'ward'].map((skill) => ({ skill }));
+  const cfgOf = (foe, states = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 30 }, { id: 'bram', class: 'knight', level: 30 }],
+    classes: { knight: { skills: casts } }, skills: { ward: { mp: 0, target: 'ally', status: { is: 'aegis' } } }, states: { aegis: { said: 'warded', takes: { blow: 0, spell: 0 }, rounds: 9 }, ...states },
+    foes: { foe: foe }, encounters: [{ id: 'yard', foes: ['foe'] }] } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); R.m.ayla.mp = R.m.bram.mp = 999; return [R, v]; };
+  const cast = (cfg, R, v, skill, target, other = { act: 'guard' }) => rpgRound(cfg, R, { ayla: { act: 'skill', skill, target }, bram: other }, v);
+
+  it('scales its bearer\'s numbers: a haste quickens, a slow slows', () => {
+    const cfg = cfgOf(brute), [R, v] = begin(cfg), spd = rpgStatsOf(cfg, R, 'bram').spd;
+    cast(cfg, R, v, 'haste', 'bram');
+    expect(rpgStatsOf(cfg, R, 'bram').spd).toBe(Math.round(spd * 1.5));
+    expect(R.b.side.bram.st.haste).toBeGreaterThan(0);
+  });
+
+  it('scales the damage it takes, and a blow drawn to a taunter falls on it alone', () => {
+    const cfg = cfgOf(brute), [R, v] = begin(cfg);
+    cast(cfg, R, v, 'ward', 'ayla');
+    cast(cfg, R, v, 'provoke', 'ayla');
+    for (let k = 0; k < 4; k++) {
+      const hits = cast(cfg, R, v, 'provoke', 'ayla').filter((x) => x.kind === 'hurt' && x.by === 'f0');
+      for (const h of hits) { expect(h.target).toBe('ayla'); expect(h.amount).toBe(1); }
+    }
+  });
+
+  it('a spell at one who reflects turns back on its caster', () => {
+    const cfg = cfgOf(mage), [R, v] = begin(cfg);
+    cast(cfg, R, v, 'reflect', 'ayla', { act: 'skill', skill: 'reflect', target: 'bram' });
+    let back = [];
+    for (let k = 0; k < 3 && !back.length; k++) back = cast(cfg, R, v, 'provoke', 'ayla').filter((x) => x.kind === 'hurt' && x.by === 'f0' && x.target === 'f0');
+    expect(back.length).toBeGreaterThan(0);
+  });
+
+  it('a frenzy strikes past what was picked; a doom fells as it runs out, and a second keeps the first', () => {
+    const cfg = cfgOf(brute), [R, v] = begin(cfg);
+    cast(cfg, R, v, 'frenzy', 'bram');
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' }, bram: { act: 'guard' } }, v).some((x) => /frenzy/.test(x.text ?? ''))).toBe(true);
+    const D = cfgOf(brute), [RD, vD] = begin(D);
+    let doomed = false;
+    for (let k = 0; k < 6 && !doomed; k++) { cast(D, RD, vD, 'doom', 'f0'); doomed = RD.b.foes[0].st.doom > 0; }
+    expect(doomed).toBe(true);
+    expect(cast(D, RD, vD, 'doom', 'f0').some((x) => /already doomed/.test(x.text ?? ''))).toBe(true);
+    let fell = false;
+    for (let k = 0; k < 8 && !fell; k++) { if (RD.b.phase !== 'command') break; fell = rpgRound(D, RD, { ayla: { act: 'guard' }, bram: { act: 'guard' } }, vD).some((x) => x.doom); }
+    expect(fell).toBe(true);
+  });
+
+  it('is read and taught; a world that names none of them carries no states', () => {
+    expect(() => cfgOf(brute, { bad: { said: 'x', stats: { spd: 1 } } })).toThrow(/a multiple, 0.25 to 4/);
+    expect(() => cfgOf(brute, { bad: { said: 'x', taunt: true, stack: 'pile' } })).toThrow(/stack is refresh/);
+    expect('states' in trio({})).toBe(false);
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {

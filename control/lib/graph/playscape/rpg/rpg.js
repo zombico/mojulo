@@ -35,6 +35,12 @@
  *                 phases: [{ below, say?, pattern?, weak?, resist?, absorb?, immune?, atk?, def?, mag?, spd? }]   its
  *                 PHASES: a form it takes the first time its HP falls under `below` (each under the one before), what
  *                 the phase names replacing its own, said (`say`, {name} the foe's) and roared as it comes
+ *     states?:    { <id>: { name?, said?, rounds?, skip?, noCast?, miss?, wild?, tick?, wake?, stats?, takes?, berserk?,
+ *                 reflect?, taunt?, doom?, stack?, hit?, eva?, crit? } | true }   the world's own states, or a preset's
+ *                 (presets.js STATE_PRESETS) by name: what each does is readState's (stats its bearer's numbers scaled, takes
+ *                 the damage it takes scaled, berserk a frenzy past commanding, reflect a spell at it alone turned back,
+ *                 taunt the foes' aimed blows drawn to it, doom it falls as the state runs out; stack what a second cast
+ *                 does). A fight that meets none carries no table
  *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target?, status?, buff? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
  *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes?,
@@ -188,19 +194,36 @@ function readAttack(d, where) {
 }
 
 // a state of the world's own (beside RPG_STATUSES, the kernel's three), by what it does (presets.js STATE_PRESETS)
-const STATE_KEYS = ['name', 'said', 'rounds', 'skip', 'noCast', 'miss', 'wild', 'tick', 'wake', ...RATE_KEYS];
+// what a state does beside a held turn, a bar on casting, blows gone wide, blows at anyone, HP each turn and its rates:
+// `stats` its bearer's numbers scaled while it lasts ({ atk?, def?, mag?, spd? }: a haste's speed, a slow's), `takes` the
+// damage it takes scaled ({ blow?, spell? }: a barrier's blows, a shell's spells), `berserk` it attacks a foe of its own
+// accord, `reflect` a spell aimed at it alone turns back on its caster, `taunt` the foes' blows and spells aimed at one
+// come to it, `doom` it falls as the state runs out; and `stack`, what one cast on a bearer already in it does: refresh
+// (its rounds anew, the default), keep (nothing), add (its rounds added, nine at most)
+export const STATE_DOES = Object.freeze(['skip', 'noCast', 'miss', 'wild', 'tick', 'stats', 'takes', 'berserk', 'reflect', 'taunt', 'doom']);
+const STATE_KEYS = ['name', 'said', 'rounds', 'skip', 'noCast', 'miss', 'wild', 'tick', 'wake', ...RATE_KEYS, 'stats', 'takes', 'berserk', 'reflect', 'taunt', 'doom', 'stack'];
 function readState(k, d, where) {
   if (RPG_STATUSES[k]) throw err(`${where}: '${k}' is the kernel's own status; a state of the world's own takes another name`);
   if (!isObj(d)) throw err(`${where} is { ${STATE_KEYS.join(', ')} }: a state, by what it does`);
   keysOnly(d, STATE_KEYS, where);
-  for (const f of ['skip', 'noCast', 'wild']) if (d[f] !== undefined && d[f] !== true) throw err(`${where}.${f} is true, or left out`);
+  for (const f of ['skip', 'noCast', 'wild', 'berserk', 'reflect', 'taunt', 'doom']) if (d[f] !== undefined && d[f] !== true) throw err(`${where}.${f} is true, or left out`);
   if (d.miss !== undefined && !(num(d.miss) && d.miss > 0 && d.miss < 1)) throw err(`${where}.miss is the share of its blows that go wide, above 0 and below 1`);
   if (d.tick !== undefined && !(num(d.tick) && d.tick !== 0 && Math.abs(d.tick) < 1)) throw err(`${where}.tick is a share of its HP each turn, below 0 to hurt, above to mend (not 0, under 1 either way)`);
   if (d.wake !== undefined && d.wake !== 'hit') throw err(`${where}.wake is 'hit': a blow ends it`);
   if (d.rounds !== undefined && !(Number.isInteger(d.rounds) && d.rounds >= 1)) throw err(`${where}.rounds is how many turns it lasts, 1 or more`);
+  const scaled = (v, keys, at, lo, hi) => {
+    if (v === undefined) return undefined;
+    if (!isObj(v) || !Object.keys(v).length) throw err(`${at} is { ${keys.join('?, ')}? }: each a multiple, ${lo} to ${hi}`);
+    keysOnly(v, keys, at);
+    for (const [x, n] of Object.entries(v)) if (!(num(n) && n >= lo && n <= hi && n !== 1)) throw err(`${at}.${x} is a multiple, ${lo} to ${hi} (not 1)`);
+    return { ...v };
+  };
+  const stats = scaled(d.stats, BUFF_STATS, `${where}.stats`, 0.25, 4), takes = scaled(d.takes, ['blow', 'spell'], `${where}.takes`, 0, 2);
+  if (d.stack !== undefined && !['refresh', 'keep', 'add'].includes(d.stack)) throw err(`${where}.stack is refresh (its rounds anew), keep (nothing) or add (its rounds added)`);
   readRates(d, where);
-  if (!d.skip && !d.noCast && !d.miss && !d.wild && !d.tick && !RATE_KEYS.some((k) => d[k])) throw err(`${where} does nothing: skip, noCast, miss, wild, tick, or a rate (${RATE_KEYS.join(', ')})`);
-  return { name: d.name ?? words(k), said: d.said ?? words(k).toLowerCase(), rounds: d.rounds ?? 3, ...Object.fromEntries(['skip', 'noCast', 'miss', 'wild', 'tick', 'wake'].filter((f) => d[f] !== undefined).map((f) => [f, d[f]])), ...readRates(d, where) };
+  if (!STATE_DOES.some((f) => d[f]) && !RATE_KEYS.some((r) => d[r])) throw err(`${where} does nothing: ${STATE_DOES.join(', ')}, or a rate (${RATE_KEYS.join(', ')})`);
+  return { name: d.name ?? words(k), said: d.said ?? words(k).toLowerCase(), rounds: d.rounds ?? 3, ...Object.fromEntries(['skip', 'noCast', 'miss', 'wild', 'tick', 'wake', 'berserk', 'reflect', 'taunt', 'doom', 'stack'].filter((f) => d[f] !== undefined).map((f) => [f, d[f]])),
+    ...(stats ? { stats } : {}), ...(takes ? { takes } : {}), ...readRates(d, where) };
 }
 // (the statuses a skill or an item may name: the kernel's three, the world's own states, the starter book's)
 let knownStates = null;

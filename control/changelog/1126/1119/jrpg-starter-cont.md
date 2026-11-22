@@ -283,3 +283,10 @@
   pins are unmoved. Starters on the class trees, bought, never learned unasked (Steal, Mug, Armor Pierce, Twin Cut,
   Drain, Osmose, Gravity: the bosses immune to it), and three items in the shops (Power Tonic, Sleep Powder, Smoke
   Bomb), named in each era; a theft has its juice (`steal`).
+- **RPG primitives, step 3: what a state does.** A state (the world's own, or a preset's by name) may now scale its
+  bearer's numbers (`stats`), the damage it takes (`takes: { blow?, spell? }`), fight in a frenzy past commanding
+  (`berserk`), turn a spell aimed at it alone back on its caster (`reflect`), draw the foes' aimed blows to itself
+  (`taunt`), fell it as it runs out (`doom`), and say what a second cast does (`stack`: refresh, keep, add). Eight preset
+  states (haste, slow, barrier, shell, berserk, reflect, taunt, doom) and the skills that cast them, a world's to put on
+  a tree or grant: none sits on a preset tree, so a world naming none carries no states table and fights as it did. The
+  bosses are immune to Doom. Petrify is not yet a behaviour.

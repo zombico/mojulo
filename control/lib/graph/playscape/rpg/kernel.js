@@ -48,8 +48,10 @@ export function buildRpg() {
   // same dice as before
   const statesOn = (cfg, T) => { if (!cfg.states || !T) return []; const out = []; for (const k in cfg.states) if (T.st[k] > 0) out.push(cfg.states[k]); return out; };
   const stateWith = (cfg, T, w) => { const L = statesOn(cfg, T); for (const x of L) if (x[w]) return x; return null; };
+  // the members a foe's blow or spell aimed at one may fall on: those taunting it where any stand, else every one standing
+  const aimable = (cfg, R) => { const L = living(R); if (!cfg.states) return L; const T = L.filter((m) => stateWith(cfg, R.b.side[m], 'taunt')); return T.length ? T : L; };
   /** A fighter held by a state that takes its turns (the page asks it nothing). */
-  function stuck(cfg, R, who) { const T = R.b && (R.b.side[who] ? { st: R.b.side[who].st } : R.b.foes.find((f) => f.uid === who)); return !!(T && stateWith(cfg, T, 'skip')); }
+  function stuck(cfg, R, who) { const T = R.b && (R.b.side[who] ? { st: R.b.side[who].st } : R.b.foes.find((f) => f.uid === who)); return !!(T && (stateWith(cfg, T, 'skip') || stateWith(cfg, T, 'berserk'))); }
   const LETTERS = 'ABCDEFGH';
   const CRIT = 1 / 16, MISS = 1 / 24, WAKE = 0.5, STEAL = 0.5;
 
@@ -119,14 +121,20 @@ export function buildRpg() {
     for (const k of STATS) out[k] = Math.max(k === 'hp' ? 1 : 0, Math.round(C.base[k] + C.growth[k] * (M.level - 1) + (p.bonus[k] || 0) + (worn[k] || 0)));
     const s = R.b && R.b.side[id];
     if (s) for (const k in BUFFABLE) out[k] = Math.max(0, Math.round(out[k] * buffMul(s.buffs, k)));
+    if (s) stateStats(cfg, s, out);
     return out;
   }
-  function foeStats(f) {
+  function foeStats(f, cfg) {
     const out = {};
     for (const k of STATS) out[k] = f.F.base[k];
     for (const k in BUFFABLE) out[k] = Math.max(0, Math.round(out[k] * buffMul(f.buffs, k)));
+    if (cfg) stateStats(cfg, f, out);
     return out;
   }
+  // (the states a fighter is in scaling its numbers while they last: a haste's speed, a slow's)
+  function stateStats(cfg, T, out) { if (cfg.states) for (const x of statesOn(cfg, T)) if (x.stats) for (const k in x.stats) out[k] = Math.max(0, Math.round(out[k] * x.stats[k])); }
+  // (the damage a fighter takes scaled by the states it is in: a barrier's blows, a shell's spells)
+  function takesOf(cfg, T, kind) { let m = 1; if (cfg.states) for (const x of statesOn(cfg, T)) if (x.takes && x.takes[kind] !== undefined) m *= x.takes[kind]; return m; }
   function buffMul(buffs, k) { let p = 0; for (const b of buffs) if (b.stat === k) p += b.pct; return Math.max(0.25, 1 + p); }
 
   /** The members who are in: joined (their flag set, or `rpg-join`), the first `rules.size` of them; a familiar (auto)
@@ -225,7 +233,7 @@ export function buildRpg() {
       const M = R.m[who];
       return { who, party: true, name: nameOf(cfg, R, who), get hp() { return M.hp; }, set hp(v) { M.hp = v; }, get mp() { return M.mp; }, set mp(v) { M.mp = v; }, S: statsOf(cfg, R, who), st: b.side[who].st, buffs: b.side[who].buffs, side: b.side[who], M, F: null };
     }
-    for (const f of b.foes) if (f.uid === who) return { who, party: false, name: f.name, get hp() { return f.hp; }, set hp(v) { f.hp = v; }, get mp() { return f.mp; }, set mp(v) { f.mp = v; }, S: Object.assign(foeStats(f), { hp: f.max }), st: f.st, buffs: f.buffs, side: f, M: null, F: f.F };
+    for (const f of b.foes) if (f.uid === who) return { who, party: false, name: f.name, get hp() { return f.hp; }, set hp(v) { f.hp = v; }, get mp() { return f.mp; }, set mp(v) { f.mp = v; }, S: Object.assign(foeStats(f, cfg), { hp: f.max }), st: f.st, buffs: f.buffs, side: f, M: null, F: f.F };
     return null;
   }
 
@@ -288,6 +296,7 @@ export function buildRpg() {
       raw *= 0.875 + 0.25 * rnd(b);
       if (phys && rnd(b) < CRIT + rateOf(cfg, A, 'crit')) { crit = true; raw *= 1.5; }
       if (T.side.guard) raw *= 0.5;
+      if (cfg.states) raw *= takesOf(cfg, T, phys ? 'blow' : 'spell');
       em = elementMul(T, fx.element, cfg);
       n = Math.max(em === 0 ? 0 : 1, Math.round(Math.max(0, raw) * Math.abs(em)));
     }
@@ -358,9 +367,12 @@ export function buildRpg() {
     const s = fx.status;
     if (!s || T.hp <= 0) return;
     if ((T.F && has(T.F.immune, s.is)) || (T.party && has(traitsOf(cfg, T.M).ward, s.is))) { out.push({ text: T.name + ' is unaffected.', kind: 'miss', target: T.who }); return; }
+    // (a state already held: its stack says, its rounds anew by default, kept, or added up to nine; kept, no die is cast)
+    const X = cfg.states && cfg.states[s.is], held = T.st[s.is] > 0;
+    if (held && X && X.stack === 'keep') { out.push({ text: T.name + ' is already ' + X.said + '.', kind: 'miss', target: T.who }); return; }
     if (rnd(R.b) >= s.chance) { out.push({ text: T.name + ' resists.', kind: 'miss', target: T.who }); return; }
     if (s.is === 'poison') { if (T.party) T.M.poison = 1; else T.st.poison = 1; }
-    else T.st[s.is] = s.rounds;
+    else T.st[s.is] = held && X && X.stack === 'add' ? Math.min(9, T.st[s.is] + s.rounds) : s.rounds;
     out.push({ text: T.name + ' is ' + (({ poison: 'poisoned', sleep: 'asleep', silence: 'silenced' })[s.is] || (cfg.states && cfg.states[s.is] && cfg.states[s.is].said) || s.is) + '!', kind: 'status', target: T.who, status: s.is });
   }
   function cure(cfg, R, T, fx, out) {
@@ -404,8 +416,13 @@ export function buildRpg() {
     else if (enemies) hits = [pool[Math.floor(rnd(b) * pool.length)]];
     else hits = [fx.revive ? pool[0] : mostHurt(cfg, R, pool)];
     for (const w of hits) {
-      const T = unit(cfg, R, w);
+      let T = unit(cfg, R, w);
       if (!T) continue;
+      // (a spell aimed at one who reflects turns back on its caster, once: a caster reflecting too takes it all the same)
+      if (cfg.states && fx.id && fx.stat === 'mag' && (aim === 'foe' || aim === 'ally') && T.who !== A.who && stateWith(cfg, T, 'reflect')) {
+        out.push({ text: 'The spell bounces off ' + T.name + '!', kind: 'status', target: T.who, reflect: true });
+        T = A;
+      }
       // (a blow that strikes more than once: each its own swing, while the target stands)
       let landed = fx.harm ? hurt(cfg, R, A, T, fx, out) : true;
       for (let h = 1; fx.harm && h < (fx.hits || 1) && T.hp > 0; h++) landed = hurt(cfg, R, A, T, fx, out) || landed;
@@ -494,6 +511,11 @@ export function buildRpg() {
         const all = [...living(R), ...livingFoes(R).map((f) => f.uid)].filter((x) => x !== who);
         if (all.length) { const t = all[Math.floor(rnd(R.b) * all.length)]; out.push({ text: A.name + ' lashes out wildly!', kind: 'status', who }); apply(cfg, R, A, attackOf(cfg, A), 'foe', t, out); return; }
       }
+      // (a berserker asks nothing: it strikes a foe of its own accord, whatever was picked for it)
+      if (stateWith(cfg, A, 'berserk') && pick.act !== 'sleep') {
+        const foes = A.party ? livingFoes(R).map((f) => f.uid) : aimable(cfg, R);
+        if (foes.length) { const t = foes[Math.floor(rnd(R.b) * foes.length)]; out.push({ text: A.name + ' attacks in a frenzy!', who }); apply(cfg, R, A, attackOf(cfg, A), 'foe', t, out); return; }
+      }
     }
     if (pick.act === 'guard') { A.side.guard = 1; out.push({ text: A.name + ' guards.', kind: 'status', who }); return; }
     // (a foe gathering for its next turn: said, so the party can brace)
@@ -539,7 +561,7 @@ export function buildRpg() {
       for (const o of livingFoes(R)) if (o.hp / o.max < best.hp / best.max) best = o;
       return { act: 'skill', skill: k, target: S.target === 'self' ? f.uid : best.uid };
     }
-    const L = living(R);
+    const L = aimable(cfg, R);
     return { act: 'skill', skill: k, target: L[Math.floor(rnd(b) * L.length)] };
   }
   // a foe's ACTION PATTERN (its `pattern`, rpg.js): the rows whose `when` holds this turn and that it can pay for, one by
@@ -559,7 +581,7 @@ export function buildRpg() {
     return letGo(cfg, R, f, r.use);
   }
   function letGo(cfg, R, f, use) {
-    if (use === 'attack') { const L = living(R); return { act: 'attack', target: L[Math.floor(rnd(R.b) * L.length)] }; }
+    if (use === 'attack') { const L = aimable(cfg, R); return { act: 'attack', target: L[Math.floor(rnd(R.b) * L.length)] }; }
     return foeSkill(cfg, R, f, use);
   }
   // a charged foe's next turn: what it gathered, let go at CHARGED times its power (a turn of its own, counted)
@@ -577,7 +599,7 @@ export function buildRpg() {
     if (own) return own;
     const can = F.skills.filter((k) => cfg.skills[k] && f.mp >= cfg.skills[k].mp);
     if (can.length && rnd(b) < 0.35) return foeSkill(cfg, R, f, can[Math.floor(rnd(b) * can.length)]);
-    const L = living(R);
+    const L = aimable(cfg, R);
     return { act: 'attack', target: L[Math.floor(rnd(b) * L.length)] };
   }
 
@@ -602,7 +624,7 @@ export function buildRpg() {
     }
     let aim = null;
     for (const f of foes) if (f.hp / f.max < 0.3 && (!aim || f.hp < aim.hp)) aim = f;
-    if (!aim) for (const f of foes) if (!aim || foeStats(f).atk > foeStats(aim).atk) aim = f;
+    if (!aim) for (const f of foes) if (!aim || foeStats(f, cfg).atk > foeStats(aim, cfg).atk) aim = f;
     return { act: 'attack', target: aim ? aim.uid : null };
   }
   // a member's pick when it acts: a familiar's own, else the player's (a guard when none was given)
@@ -613,7 +635,7 @@ export function buildRpg() {
     const b = R.b;
     if (!b.flee) { out.push({ text: 'There is no escape!', kind: 'miss' }); return false; }
     const ps = living(R).reduce((s, m) => s + statsOf(cfg, R, m).spd, 0) / Math.max(1, living(R).length);
-    const fs = livingFoes(R).reduce((s, f) => s + foeStats(f).spd, 0) / Math.max(1, livingFoes(R).length);
+    const fs = livingFoes(R).reduce((s, f) => s + foeStats(f, cfg).spd, 0) / Math.max(1, livingFoes(R).length);
     const chance = clamp(0.5 + 0.05 * (ps - fs) + 0.15 * b.fails, 0.1, 0.95);
     if (rnd(b) < chance) { b.phase = 'fled'; out.push({ text: 'The party got away!', kind: 'end' }); mirror(cfg, R, vars); return true; }
     b.fails++;
@@ -697,7 +719,7 @@ export function buildRpg() {
       if (flee(cfg, R, vars, out)) return out;
     } else for (const m of living(R)) order.push({ who: m, key: statsOf(cfg, R, m).spd * (0.75 + 0.5 * rnd(b)), i: order.length, pick: picks[m] || { act: 'guard' } });
     const nm = order.length;
-    for (const f of livingFoes(R)) order.push({ who: f.uid, key: foeStats(f).spd * (0.75 + 0.5 * rnd(b)), i: nm + order.length, foe: f });
+    for (const f of livingFoes(R)) order.push({ who: f.uid, key: foeStats(f, cfg).spd * (0.75 + 0.5 * rnd(b)), i: nm + order.length, foe: f });
     order.sort((x, y) => y.key - x.key || x.i - y.i);
     for (const o of order) {
       if (!livingFoes(R).length || !living(R).length) break;
@@ -740,7 +762,12 @@ export function buildRpg() {
           if (T.hp > was) out.push({ text: T.name + ' recovers ' + (T.hp - was) + ' HP.', kind: 'heal', target: T.who, amount: T.hp - was, hp: T.hp });
         }
       }
-      if (--T.st[k] <= 0) { T.st[k] = 0; out.push({ text: T.name + ' is no longer ' + X.said + '.', kind: 'status', target: T.who }); }
+      if (--T.st[k] <= 0) {
+        T.st[k] = 0;
+        // (a doom runs out: its bearer falls where it stands)
+        if (X.doom) { const n = T.hp; T.hp = 0; out.push({ text: 'Doom falls on ' + T.name + '!', kind: 'hurt', target: T.who, amount: n, hp: 0, doom: true }); fall(cfg, R, T, out); return; }
+        out.push({ text: T.name + ' is no longer ' + X.said + '.', kind: 'status', target: T.who });
+      }
     }
     for (let i = T.buffs.length - 1; i >= 0; i--) if (--T.buffs[i].rounds <= 0) T.buffs.splice(i, 1);
   }
