@@ -51,7 +51,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   // THE LENS (mana-ui's screen layer): its own host over the world's canvas, never raised (a z-index, a contain would
   // make it its own and its regions would filter nothing of the world beneath); a juice's lens steps draw in it
   const lensHost = document.createElement('div'); lensHost.className = 'moj-rpg-lens'; (document.getElementById('wrap') || document.body).appendChild(lensHost);
-  const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
+  const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', row: 'Row', flee: 'Flee' };
   const WHY = { useless: 'It would do nothing now.', battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
   const BEAT = 650, POP_FOR = 1200, STRIKE_FOR = 700;
   // how long each act plays (seconds), within a beat
@@ -642,7 +642,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     return { title: 'Victory!', xp, gold, found: found.length ? 'Found ' + found.join(', ') : '', members };
   }
   function command(id) {
-    if (id === 'guard' || id === 'flee') return pickNow({ act: id });
+    if (id === 'guard' || id === 'flee' || id === 'row') return pickNow({ act: id });
     if (id === 'attack') return toTarget({ act: 'attack' });
     if (id === 'skill' || id === 'item') { rt.open('rpg-' + id); rt.focusAt(0); }
   }
@@ -656,7 +656,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
 
   // ── what the screens read (the host's state, never copied into the UI: a binding reads it here each frame) ──
   // (the banner across the top tells an action's name or a status, never a number: a blow's lands over whoever takes it)
-  const TOLD = ['start', 'cast', 'charge', 'phase', 'steal', 'counter', 'cover', 'rise', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page', 'summon'];
+  const TOLD = ['start', 'cast', 'charge', 'phase', 'steal', 'counter', 'cover', 'rise', 'scan', 'status', 'ko', 'level', 'learn', 'spoils', 'end', 'page', 'summon'];
   const LIST = { 'rpg-cmd': 'commands', 'rpg-skill': 'skills', 'rpg-item': 'items', 'rpg-target': 'targets' };
   const LEVEL = { 'rpg-cmd': 'cmd', 'rpg-skill': 'skill', 'rpg-item': 'item', 'rpg-target': 'target' };
   // (the screen up: none while the runtime draws its first frame)

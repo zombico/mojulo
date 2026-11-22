@@ -64,7 +64,7 @@ export const CLASS_PRESETS = Object.freeze({
   mage: {
     name: 'Mage', about: 'the caster: elemental magic, a sleep spell, frail',
     base: st(22, 14, 5, 4, 12, 6), growth: st(4.5, 3.2, 0.8, 0.9, 2.8, 0.9),
-    skills: [{ skill: 'fire', at: 1 }, { skill: 'blizzard', at: 2 }, { skill: 'thunder', at: 3 }, { skill: 'sleep', cost: 1 }, { skill: 'firestorm', cost: 2, requires: ['fire'] }, { skill: 'focus', cost: 1 }, { skill: 'drain', cost: 1 }, { skill: 'osmose', cost: 1 }, { skill: 'gravity', cost: 2, requires: ['drain'] }, { skill: 'meteor', cost: 3, requires: ['firestorm'] }],
+    skills: [{ skill: 'fire', at: 1 }, { skill: 'blizzard', at: 2 }, { skill: 'thunder', at: 3 }, { skill: 'sleep', cost: 1 }, { skill: 'firestorm', cost: 2, requires: ['fire'] }, { skill: 'focus', cost: 1 }, { skill: 'drain', cost: 1 }, { skill: 'osmose', cost: 1 }, { skill: 'gravity', cost: 2, requires: ['drain'] }, { skill: 'meteor', cost: 3, requires: ['firestorm'] }, { skill: 'scan', cost: 1 }],
     start: { weapon: 'oak-staff', armor: 'robe' },
   },
   cleric: {
@@ -136,6 +136,8 @@ export const SKILL_PRESETS = Object.freeze({
   meteor: { name: 'Meteor', about: 'stones from the sky on every foe; it rests three turns after', mp: 12, cooldown: 3, target: 'foes', power: 14, stat: 'mag', scale: 1.1 },
   braver: { name: 'Braver', about: 'a limit break: a leaping cut', mp: 0, limit: true, target: 'foe', power: 12, stat: 'atk', scale: 2.6 },
   'healing-wind': { name: 'Healing Wind', about: 'a limit break: every ally mended', mp: 0, limit: true, target: 'allies', power: 30, stat: 'mag', scale: 1.2, heal: true },
+  // (a look into a foe: its HP and its weaknesses and guards, said)
+  scan: { name: 'Scan', about: 'reads a foe: its HP, its weaknesses and guards', mp: 1, target: 'foe', scan: true },
   reraise: { name: 'Reraise', about: 'an ally rises again once if it falls', mp: 12, target: 'ally', status: { is: 'reraise' } },
   osmose: { name: 'Osmose', about: 'draws MP from a foe', mp: 0, target: 'foe', power: 4, stat: 'mag', scale: 0.4, damage: 'mp', drain: 1 },
   smoke: { name: 'Smoke', about: 'every foe may be silenced', mp: 2, target: 'foes', status: { is: 'silence', chance: 0.6, rounds: 3 } },
@@ -234,6 +236,7 @@ export const ITEM_PRESETS = Object.freeze({
   // (an item that leaves a status on the foes, or gives an ally a buff)
   'sleep-powder': { name: 'Sleep Powder', price: 30, status: { is: 'sleep', chance: 0.6, rounds: 2 }, target: 'foes' },
   'smoke-bomb': { name: 'Smoke Bomb', price: 25, status: { is: 'silence', chance: 0.7, rounds: 3 }, target: 'foes' },
+  'scan-lens': { name: 'Scan Lens', price: 12, scan: true, target: 'foe' },
   'power-tonic': { name: 'Power Tonic', price: 35, buff: { stat: 'atk', pct: 0.3, rounds: 3 }, target: 'ally' },
 });
 
@@ -258,6 +261,8 @@ export const GEAR_PRESETS = Object.freeze({
   'hunter-charm': { name: 'Hunter\'s Charm', price: 90, slot: 'accessory', hit: 0.05, crit: 0.08 },
   'shadow-cloak': { name: 'Shadow Cloak', price: 85, slot: 'armor', def: 3, eva: 0.08 },
   'ember-ring': { name: 'Ember Ring', price: 120, slot: 'accessory', mag: 2, grants: ['fire'] },
+  // (a weapon that reaches from the back row, rpg.js readTraits `ranged`)
+  'hunting-bow': { name: 'Hunting Bow', price: 60, slot: 'weapon', atk: 6, classes: ['rogue', 'fighter'], ranged: true },
   // (gear with a REACTION, rpg.js readReacts: a strike back, a step before an ally, a second life)
   'riposte-ring': { name: 'Riposte Ring', price: 140, slot: 'accessory', counter: 0.3 },
   'guardian-crest': { name: 'Guardian Crest', price: 110, slot: 'accessory', def: 2, cover: true },

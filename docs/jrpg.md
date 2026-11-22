@@ -272,6 +272,13 @@ of its user's turns it rests after use, shown as wait n). A foe pays as a member
 The starters: the fighter's Blood Blade (12 HP) and the mage's Meteor (rests three turns), bought on their trees; two
 limit breaks, Braver and Healing Wind, a world's to put on a tree or grant.
 
+**Rows and scan.** A world that asks for rows (`rules.rows: true`) stands its party in a front and a back row
+(`party[].row`, the front unsaid): a member in the back deals and takes half from blows, never from spells or from a
+ranged blow (a skill's `ranged`, or a weapon's: the Hunting Bow), and the Row command moves it, its turn spent; a save
+keeps where each stands. A world without rows has no Row and halves nothing. `scan` on a skill or an item reads a foe
+into the message line: its HP and what it is weak to, resists, absorbs and is immune to (the mage's Scan, bought on its
+tree; the Scan Lens in the first shop).
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

@@ -607,6 +607,56 @@ describe('costs', () => {
   });
 });
 
+// ROWS (rules.rows) and SCAN: a member in the back row deals and takes half from blows (never from a spell or a ranged
+// blow), the Row command moving it, kept in a save; a world without rows has no Row and no halving. A scan says a foe's
+// HP and what it is weak to and guards against
+describe('rows and scan', () => {
+  const dummy = { name: 'Dummy', hp: 9999, mp: 0, atk: 40, def: 0, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['fire'], immune: ['sleep'] };
+  const cfgOf = (rules = { rows: true }, party = [{ id: 'ayla', class: 'fighter', level: 20, gear: { weapon: 'blade' } }]) => readRpg({ rpg: { party, rules,
+    gear: { blade: { slot: 'weapon', atk: 10, hit: 1 }, bow: { slot: 'weapon', atk: 10, hit: 1, ranged: true } }, foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }] } });
+  // (the mean of a blow over many seeds: its dice the same in either row)
+  const meanHit = (cfg, row, who = 'ayla') => {
+    let sum = 0, n = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const C = { ...cfg, seed }, R = rpgInit(C), v = {};
+      if (row) R.m[who].row = row;
+      rpgStart(C, R, 'yard', v);
+      const h = rpgRound(C, R, { ayla: { act: 'attack', target: 'f0' } }, v).find((x) => x.kind === 'hurt' && x.target === 'f0');
+      if (h && !h.crit) { sum += h.amount; n++; }
+    }
+    return sum / n;
+  };
+
+  it('a blow from the back row lands at half; a ranged one does not; a world without rows halves nothing', () => {
+    const cfg = cfgOf(), front = meanHit(cfg, 'front'), back = meanHit(cfg, 'back');
+    expect(back / front).toBeCloseTo(0.5, 1);
+    const bow = cfgOf({ rows: true }, [{ id: 'ayla', class: 'fighter', level: 20, gear: { weapon: 'bow' } }]);
+    expect(meanHit(bow, 'back') / meanHit(bow, 'front')).toBeCloseTo(1, 5);
+    const plain = cfgOf({});
+    expect(meanHit(plain, 'back')).toBeCloseTo(meanHit(plain, 'front'), 5);
+    expect(rpgOptions(plain, rpgInit(plain), 'ayla', {}).commands.map((c) => c.id)).not.toContain('row');
+  });
+
+  it('the Row command moves a member, its turn spent, and a save keeps it', () => {
+    const cfg = cfgOf(), R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'yard', v);
+    expect(rpgOptions(cfg, R, 'ayla', v).commands.map((c) => c.id)).toContain('row');
+    expect(rpgRound(cfg, R, { ayla: { act: 'row' } }, v).find((x) => x.who === 'ayla' && x.row)).toMatchObject({ row: 'back' });
+    const R2 = rpgInit(cfg);
+    rpgLoad(cfg, R2, Object.fromEntries(Object.entries(rpgSave(cfg, R)).map(([k, s]) => [k, { stats: s }])));
+    expect(R2.m.ayla.row).toBe('back');
+    expect(() => cfgOf({ rows: 'yes' })).toThrow(/rules.rows is true/);
+  });
+
+  it('a scan says a foe\'s HP, what it is weak to and what it shrugs off', () => {
+    const cfg = readRpg({ rpg: { party: [{ id: 'ayla', class: 'mage' }], foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }] } }), R = rpgInit(cfg), v = { 'held:bag:scan-lens': 1 };
+    rpgStart(cfg, R, 'yard', v);
+    const s = rpgRound(cfg, R, { ayla: { act: 'item', item: 'scan-lens', target: 'f0' } }, v).find((x) => x.kind === 'scan');
+    expect(s).toMatchObject({ target: 'f0', weak: ['fire'], immune: ['sleep'], max: 9999 });
+    expect(s.text).toMatch(/^Dummy: HP \d+\/9999\. Weak: fire\. Immune: sleep\.$/);
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {

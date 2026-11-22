@@ -301,3 +301,9 @@
   `rpg.<member>.limit` is on the bus where it does) or rest after use (`cooldown`, 1 to 9 of its user's turns). The skill
   list shows each cost (MP, HP, LIMIT n%, wait n); a foe pays as a member does and never uses a limit break. Starters:
   Blood Blade and Meteor bought on the fighter's and the mage's trees; Braver and Healing Wind, limit breaks, opt-in.
+- **RPG primitives, step 6: rows and scan.** A world that asks for rows (`rules.rows`) stands its party in a front and a
+  back row (`party[].row`): the back deals and takes half from blows, never from spells or ranged blows (a skill's or a
+  weapon's `ranged`), the Row command moves a member, and a save keeps it; a world without rows has neither. `scan` on a
+  skill or an item reads a foe's HP, weaknesses and guards into the message line. The mage's Scan on its tree, the Scan
+  Lens and the Hunting Bow in the shops, named in each era. The six steps' primitives (traits, effects, state behaviours,
+  reactions, costs, rows and scan) leave a world that names none fighting byte for byte as it did.

@@ -6,7 +6,7 @@
  *
  *   play.rpg: {
  *     party:      [{ id, name?, class, level?, joins?: '<flag>', bonus?: { <stat>: n }, classes?: [class ids], gear?,
- *                 auto?: true | { keeper } }]
+ *                 auto?: true | { keeper }, row?: front | back }]
  *                 the battle order; a member with `joins` is in once that flag is set (or `rpg-join:<id>` is emitted);
  *                 `classes` limits what they may switch to (default: every class of the world); `gear`: { <slot>: item }
  *                 what they wear as the party starts (default: their class's `start`); `auto`: a FAMILIAR (second party: a
@@ -24,6 +24,8 @@
  *                 first drop into the bag, once a foe; COSTS beside its mp: hpCost the HP it costs (its user must have
  *                 more), limit a limit break (used when its user's gauge is full, the blows it takes filling it, emptying
  *                 it; a world with none keeps no gauge), cooldown the turns of its user's it rests after use (1-9);
+ *                 ranged a blow that reaches from the back row as from the front (rules.rows); scan a look into a foe,
+ *                 its HP and what it is weak to and guards against, said (an item's too);
  *                 status: { is: poison | sleep | silence, chance?, rounds? }; buff: { stat, pct, rounds? };
  *                 carry: usable from any class once learned
  *     foes?:      { <id>: { name?, hp, mp?, atk, def, mag, spd, xp?, gold?, cp?, weak?, resist?, absorb?, immune?,
@@ -87,6 +89,8 @@
  *                 cinema?: { on?: 'skills' | 'all', ui?: 'none' | 'numbers' | 'all', skip?: seconds }   a skill (or every
  *                 action) played as a short film: the actor close, behind it at its target, the target as it lands, back
  *                 to the view; what UI stays meanwhile; past `skip` seconds (3) it may be skipped,
+ *                 rows?: true (the party in a front and a back row: a member in the back deals and takes half from
+ *                 blows, never spells or ranged ones; the Row command moves it; kept in a save),
  *                 cp?: [n], sp?: n, seed?: n }   turns: every member picks then all act in speed order (rounds), or
  *                 each acts when its gauge fills at its speed, the quick more often (timeline)
  *   }
@@ -171,11 +175,12 @@ function readWorn(v, where) {
 // surer its blows land, `eva` how often a blow at it goes wide, `crit` how much more often its blows are critical; its
 // ATTACK, what a plain blow carries: `element` (a flame sword's fire) and `inflict` (a poison dagger's { is, chance?,
 // rounds? }); and the skills it `grants` while it is worn or the class held. Null where it names none
-const TRAIT_KEYS = ['resist', 'immune', 'ward', ...RATE_KEYS, 'element', 'inflict', 'grants', ...REACT_KEYS];
+const TRAIT_KEYS = ['resist', 'immune', 'ward', ...RATE_KEYS, 'element', 'inflict', 'grants', ...REACT_KEYS, 'ranged'];
 function readTraits(d, where) {
   const out = {};
   for (const k of ['resist', 'immune', 'ward']) if (d[k] !== undefined) out[k] = listOf(d[k], `${where}.${k}`, k === 'ward' ? 'states' : 'elements').map((e, i) => id(e, `${where}.${k}[${i}]`));
   Object.assign(out, readRates(d, where), readAttack(d, where), readReacts(d, where));
+  if (d.ranged !== undefined) { if (d.ranged !== true) throw err(`${where}.ranged is true: its plain blow reaches from the back row as from the front`); out.ranged = true; }
   if (d.grants !== undefined) out.grants = listOf(d.grants, `${where}.grants`, 'skill ids').map((e, i) => id(e, `${where}.grants[${i}]`));
   return Object.keys(out).length ? out : null;
 }
@@ -265,7 +270,7 @@ function readBuffOf(v, where) {
 // power exactly, pierce the usual with no guard against it, mp the usual taken from the target's MP
 export const DAMAGE_FORMS = Object.freeze(['gravity', 'fixed', 'pierce', 'mp']);
 function readSkill(k, d, where) {
-  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice', 'hits', 'damage', 'drain', 'steal', 'hpCost', 'limit', 'cooldown'], where);
+  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice', 'hits', 'damage', 'drain', 'steal', 'hpCost', 'limit', 'cooldown', 'ranged', 'scan'], where);
   optNum(d.mp, `${where}.mp`); optNum(d.power, `${where}.power`); optNum(d.scale, `${where}.scale`);
   const heal = !!d.heal, revive = !!d.revive;
   const target = d.target ?? (heal || revive || d.cure ? 'ally' : 'foe');
@@ -290,7 +295,9 @@ function readSkill(k, d, where) {
   if (d.hpCost !== undefined && !(Number.isInteger(d.hpCost) && d.hpCost >= 1)) throw err(`${where}.hpCost is the HP it costs, a whole number, 1 or more (its user must have more)`);
   if (d.limit !== undefined && d.limit !== true) throw err(`${where}.limit is true: a limit break, used only when its user's gauge is full (taking blows fills it), emptying it`);
   if (d.cooldown !== undefined && !(Number.isInteger(d.cooldown) && d.cooldown >= 1 && d.cooldown <= 9)) throw err(`${where}.cooldown is how many of its user's turns it rests after use, 1 to 9`);
-  if (!harm && !heal && !revive && !cure.length && !status && !buff && !d.steal) throw err(`${where} does nothing: give it power (a blow or a spell), heal, revive, cure, status, buff or steal`);
+  // (a blow that reaches from the back row as from the front; a look into a foe: its HP, its weaknesses and guards)
+  for (const f of ['ranged', 'scan']) if (d[f] !== undefined && d[f] !== true) throw err(`${where}.${f} is true, or left out`);
+  if (!harm && !heal && !revive && !cure.length && !status && !buff && !d.steal && !d.scan) throw err(`${where} does nothing: give it power (a blow or a spell), heal, revive, cure, status, buff, steal or scan`);
   return {
     id: k, name: d.name ?? words(k), about: d.about ?? '', mp: d.mp ?? 0, target, power, stat, scale, harm,
     element: d.element !== undefined ? id(d.element, `${where}.element`) : null, heal, revive, cure, status, buff, carry: !!d.carry,
@@ -298,6 +305,7 @@ function readSkill(k, d, where) {
     ...(d.hits !== undefined ? { hits: d.hits } : {}), ...(d.damage !== undefined ? { damage: d.damage } : {}),
     ...(d.drain !== undefined ? { drain: d.drain } : {}), ...(d.steal ? { steal: true } : {}),
     ...(d.hpCost !== undefined ? { hpCost: d.hpCost } : {}), ...(d.limit ? { limit: true } : {}), ...(d.cooldown !== undefined ? { cooldown: d.cooldown } : {}),
+    ...(d.ranged ? { ranged: true } : {}), ...(d.scan ? { scan: true } : {}),
   };
 }
 
@@ -403,16 +411,17 @@ function readFoe(k, d, where) {
 }
 
 function readItem(k, d, where) {
-  keysOnly(d, ['name', 'price', 'heal', 'mp', 'revive', 'cure', 'hurt', 'element', 'target', 'status', 'buff'], where);
+  keysOnly(d, ['name', 'price', 'heal', 'mp', 'revive', 'cure', 'hurt', 'element', 'target', 'status', 'buff', 'scan'], where);
+  if (d.scan !== undefined && d.scan !== true) throw err(`${where}.scan is true: a look into a foe`);
   for (const s of ['heal', 'mp', 'hurt', 'price']) optNum(d[s], `${where}.${s}`);
   const cure = listOf(d.cure, `${where}.cure`, 'statuses');
   for (const s of cure) if (!isStatus(s)) throw err(`${where}.cure: '${s}' is not a status (${statusWords().join(', ')})`);
   // (an item may leave a status, a sleep powder's on the foes, or give a buff, a tonic's on an ally)
   const status = d.status !== undefined ? readStatusOf(d.status, `${where}.status`) : null, buff = d.buff !== undefined ? readBuffOf(d.buff, `${where}.buff`) : null;
-  if (!d.heal && !d.mp && !d.revive && !cure.length && !d.hurt && !status && !buff) throw err(`${where} does nothing in a fight: heal, mp, revive, cure, hurt, status or buff`);
-  const target = d.target ?? (d.hurt || status ? 'foe' : 'ally');
+  if (!d.heal && !d.mp && !d.revive && !cure.length && !d.hurt && !status && !buff && !d.scan) throw err(`${where} does nothing in a fight: heal, mp, revive, cure, hurt, status, buff or scan`);
+  const target = d.target ?? (d.hurt || status || d.scan ? 'foe' : 'ally');
   if (!RPG_TARGETS.includes(target) || target === 'self') throw err(`${where}.target is foe, foes, ally or allies`);
-  return { name: d.name ?? words(k), heal: d.heal ?? 0, mp: d.mp ?? 0, revive: !!d.revive, cure, hurt: d.hurt ?? 0, element: d.element !== undefined ? id(d.element, `${where}.element`) : null, target, ...(status ? { status } : {}), ...(buff ? { buff } : {}) };
+  return { name: d.name ?? words(k), heal: d.heal ?? 0, mp: d.mp ?? 0, revive: !!d.revive, cure, hurt: d.hurt ?? 0, element: d.element !== undefined ? id(d.element, `${where}.element`) : null, target, ...(status ? { status } : {}), ...(buff ? { buff } : {}), ...(d.scan ? { scan: true } : {}) };
 }
 
 /** play.rpg → the kernel's cfg, or null. Every name is checked; errors say what a field is. */
@@ -432,7 +441,10 @@ export function readRpg(play) {
   // (stage: where a fight is fought: on the map as it stands, 'live', the default; 'arena', a place solved near where it
   // was met on the map's own ground, cleared of what stands in it, the party on the left; or 'backdrop', the fighters on
   // an arena of their own before a background drawn once from the map: scene/channels)
-  keysOnly(Ru, [...Object.keys(RPG_RULES), 'view', 'cinema', 'stage'], '.rules');
+  keysOnly(Ru, [...Object.keys(RPG_RULES), 'view', 'cinema', 'stage', 'rows'], '.rules');
+  // (ROWS: the party stands in a front and a back row; a member in the back deals and takes half from blows, never
+  // from spells or ranged blows, and the Row command moves it; absent, no rows)
+  if (Ru.rows !== undefined && Ru.rows !== true) throw err('.rules.rows is true: the party in a front and a back row (each member\'s row, the Row command)');
   // (cinema: a skill (or every action) played as a short film: a close-up on the actor, behind it at its target, the
   // target as it lands, back to the view; ui what stays on the screen meanwhile; skip the seconds past which it may be
   // cut short)
@@ -460,7 +472,8 @@ export function readRpg(play) {
   const party0 = P.party.map((p, i) => {
     const at = `.party[${i}]`;
     if (!isObj(p)) throw err(`${at} is { id, name?, class, level?, joins?, bonus?, classes? }`);
-    keysOnly(p, ['id', 'name', 'class', 'level', 'joins', 'bonus', 'classes', 'gear', 'auto'], at);
+    keysOnly(p, ['id', 'name', 'class', 'level', 'joins', 'bonus', 'classes', 'gear', 'auto', 'row'], at);
+    if (p.row !== undefined && p.row !== 'front' && p.row !== 'back') throw err(`${at}.row is front or back: where they stand as the fight begins (rules.rows)`);
     id(p.id, `${at}.id`);
     if (seen.has(p.id)) throw err(`${at}.id '${p.id}' is in the party twice`);
     seen.add(p.id);
@@ -473,7 +486,7 @@ export function readRpg(play) {
     const gear = p.gear === undefined ? null : readWorn(p.gear, `${at}.gear`);
     if (p.auto !== undefined && p.auto !== true && !(isObj(p.auto) && Object.keys(p.auto).every((k) => k === 'keeper') && typeof p.auto.keeper === 'string')) throw err(`${at}.auto is true, or { keeper: '<member id>' }: a familiar that picks for itself`);
     const auto = p.auto === undefined ? null : { keeper: p.auto === true ? null : p.auto.keeper };
-    return { id: p.id, name: typeof p.name === 'string' && p.name ? p.name : words(p.id), cls: p.class, level: p.level ?? 1, joins: p.joins ?? null, bonus: { ...(p.bonus ?? {}) }, classes, gear, ...(auto ? { auto } : {}) };
+    return { id: p.id, name: typeof p.name === 'string' && p.name ? p.name : words(p.id), cls: p.class, level: p.level ?? 1, joins: p.joins ?? null, bonus: { ...(p.bonus ?? {}) }, classes, gear, ...(auto ? { auto } : {}), ...(p.row === 'back' ? { row: 'back' } : {}) };
   });
   if (party0.every((p) => p.joins)) throw err('.party: someone is in from the start (a member without joins)');
   if (party0.every((p) => p.auto)) throw err('.party: someone takes the player\'s commands (a member without auto)');

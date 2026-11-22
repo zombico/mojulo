@@ -185,6 +185,8 @@ function cuesCard() {
   '  EFFECTS on a skill: hits?: 2-8, damage?: gravity | fixed | pierce | mp, drain?: share, steal?: true; an item\'s status?, buff?.',
   '  REACTIONS (a trait, a foe\'s own, a state\'s): counter?: chance, cover?: true (before a badly hurt ally), revive?: share.',
   '  COSTS on a skill beside mp: hpCost?: n, limit?: true (a full gauge, filled by blows taken), cooldown?: turns (1-9).',
+  '  ROWS: rules.rows: true, party[].row: front | back (blows from or at the back at half; a skill\'s or weapon\'s ranged?: true',
+  '  reaches), the Row command. SCAN: scan?: true on a skill or an item says a foe\'s HP, weaknesses and guards.',
   '  encounters[].pages: [{ when: { start: true } | { foe?, hpBelow } | { round }, say, who?, sets?, summon?, heal? }],',
   '  each said once; summon: [foe] calls foes in (a dormant figure each past the foes\' in who), heal: share.',
   '  states: { <id>: { said, skip?, noCast?, miss?, wild?, tick?, stats?, takes?, berserk?, reflect?, taunt?, doom?, rates?,',

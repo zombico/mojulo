@@ -94,6 +94,7 @@ export function buildRpg() {
     const R = { m: {}, joined: {}, opened: {}, n: 0, won: 0, b: null };
     for (const p of cfg.party) {
       const M = { cls: p.cls, level: p.level, xp: xpFor(cfg, p.level), hp: 0, mp: 0, poison: 0, learned: {}, cl: {}, gear: {} };
+      if (cfg.rules.rows && p.row === 'back') M.row = 'back';
       const start = p.gear || cfg.classes[p.cls].start || {};
       for (const slot in start) if (canWear(cfg, p.id, p.cls, start[slot])) M.gear[slot] = start[slot];
       openClass(M, p.cls);
@@ -208,7 +209,7 @@ export function buildRpg() {
     for (const k in cfg.items) { const n = (vars && vars['held:bag:' + k]) || 0; if (n > 0) items.push({ id: k, name: cfg.items[k].name, count: n, target: cfg.items[k].target }); }
     const commands = [
       { id: 'attack', ok: true }, { id: 'skill', ok: skills.some((x) => x.ok) }, { id: 'item', ok: items.length > 0 },
-      { id: 'guard', ok: true }, { id: 'flee', ok: !R.b || R.b.flee },
+      { id: 'guard', ok: true }, ...(cfg.rules.rows ? [{ id: 'row', ok: true }] : []), { id: 'flee', ok: !R.b || R.b.flee },
     ];
     return { commands, skills, items };
   }
@@ -244,7 +245,7 @@ export function buildRpg() {
   // none of and the states it wards off, its rates summed, the skills granted, and what its plain blow carries (the
   // weapon's over the class's)
   function traitsOf(cfg, M) {
-    const out = { resist: [], immune: [], ward: [], grants: [], hit: 0, eva: 0, crit: 0, element: null, inflict: null, counter: 0, cover: false, revive: 0 };
+    const out = { resist: [], immune: [], ward: [], grants: [], hit: 0, eva: 0, crit: 0, element: null, inflict: null, counter: 0, cover: false, revive: 0, ranged: false };
     const add = (t) => {
       if (!t) return;
       for (const k of ['resist', 'immune', 'ward', 'grants']) if (t[k]) out[k].push(...t[k]);
@@ -254,6 +255,7 @@ export function buildRpg() {
       if (t.counter) out.counter = Math.min(1, out.counter + t.counter);
       if (t.cover) out.cover = true;
       if (t.revive) out.revive = Math.max(out.revive, t.revive);
+      if (t.ranged) out.ranged = true;
     };
     add(cfg.classes[M.cls] && cfg.classes[M.cls].traits);
     for (const slot of ['accessory', 'armor', 'weapon']) if (M.gear[slot]) add(cfg.gear[M.gear[slot]] && cfg.gear[M.gear[slot]].traits);
@@ -274,7 +276,7 @@ export function buildRpg() {
   // a plain blow: the weapon's (or the foe's) element and the status it may leave, else the bare attack
   function attackOf(cfg, U) {
     const T = U.party ? traitsOf(cfg, U.M) : U.F || {};
-    return T.element || T.inflict ? { ...ATTACK, element: T.element || null, status: T.inflict || null, onHit: true } : ATTACK;
+    return T.element || T.inflict || T.ranged ? { ...ATTACK, element: T.element || null, status: T.inflict || null, onHit: true, ...(T.ranged ? { ranged: true } : {}) } : ATTACK;
   }
   function elementMul(U, el, cfg) {
     // (a member: its traits, immune none of it, resist half; a foe: its own)
@@ -307,6 +309,8 @@ export function buildRpg() {
       if (phys && rnd(b) < CRIT + rateOf(cfg, A, 'crit')) { crit = true; raw *= 1.5; }
       if (T.side.guard) raw *= 0.5;
       if (cfg.states) raw *= takesOf(cfg, T, phys ? 'blow' : 'spell');
+      // (rows: a blow from the back row, or at it, lands at half, unless it reaches: a ranged blow, a spell)
+      if (cfg.rules.rows && phys && !fx.ranged) { if (A.party && rowOf(R, A.who) === 'back') raw *= 0.5; if (T.party && rowOf(R, T.who) === 'back') raw *= 0.5; }
       em = elementMul(T, fx.element, cfg);
       n = Math.max(em === 0 ? 0 : 1, Math.round(Math.max(0, raw) * Math.abs(em)));
     }
@@ -342,6 +346,15 @@ export function buildRpg() {
     const top = A.S[pool], was = A[pool];
     A[pool] = Math.min(top, A[pool] + n);
     if (A[pool] > was) out.push({ text: A.name + ' drains ' + (A[pool] - was) + (pool === 'mp' ? ' MP.' : ' HP.'), kind: 'heal', target: A.who, amount: A[pool] - was, ...(pool === 'mp' ? { mp: A.mp, pool: 'mp' } : { hp: A.hp }), by: A.who, skill: fx.id || undefined, drain: true });
+  }
+  // the ROW a member stands in (rules.rows): its own, else the front
+  const rowOf = (R, who) => (R.m[who] && R.m[who].row) || 'front';
+  // a SCAN (a skill's or an item's `scan`): a foe's HP and what it is weak to, resists, drinks and shrugs off, said
+  function scan(cfg, R, T, out) {
+    if (T.party || T.hp <= 0) return;
+    const F = T.F, list = (k, w) => (F[k] && F[k].length ? ' ' + w + ': ' + F[k].join(', ') + '.' : '');
+    T.side.scanned = 1;
+    out.push({ text: T.name + ': HP ' + T.hp + '/' + T.S.hp + '.' + list('weak', 'Weak') + list('resist', 'Resists') + list('absorb', 'Absorbs') + list('immune', 'Immune'), kind: 'scan', target: T.who, hp: T.hp, max: T.S.hp, weak: F.weak.slice(), resist: F.resist.slice(), absorb: F.absorb.slice(), immune: F.immune.slice() });
   }
   // a THEFT (a skill's `steal`): a foe's first drop taken into the bag, once a foe, on a die (the striker's hit helps)
   function steal(cfg, R, A, T, vars, out) {
@@ -454,6 +467,7 @@ export function buildRpg() {
       let landed = fx.harm ? hurt(cfg, R, A, T, fx, out) : true;
       for (let h = 1; fx.harm && h < (fx.hits || 1) && T.hp > 0; h++) landed = hurt(cfg, R, A, T, fx, out) || landed;
       if (fx.steal) steal(cfg, R, A, T, vars, out);
+      if (fx.scan) scan(cfg, R, T, out);
       if (fx.heal || fx.revive) heal(cfg, R, A, T, fx, out);
       cure(cfg, R, T, fx, out);
       // (a status a plain blow carries is left only where the blow lands; a skill's rolls as it always did)
@@ -550,6 +564,8 @@ export function buildRpg() {
       }
     }
     if (pick.act === 'guard') { A.side.guard = 1; out.push({ text: A.name + ' guards.', kind: 'status', who }); return; }
+    // (the Row command: a member steps to the other row, its turn spent)
+    if (pick.act === 'row' && A.party && cfg.rules.rows) { const to = rowOf(R, who) === 'back' ? 'front' : 'back'; R.m[who].row = to; out.push({ text: A.name + ' moves to the ' + to + ' row.', kind: 'status', who, row: to }); return; }
     // (a foe gathering for its next turn: said, so the party can brace)
     if (pick.act === 'charge') { out.push({ text: pick.line ? pick.line.split('{name}').join(A.name) : A.name + ' is gathering its power!', kind: 'charge', who }); return; }
     if (pick.act === 'attack') {
@@ -582,8 +598,8 @@ export function buildRpg() {
       vars[key] -= 1;
       out.push({ text: A.name + ' uses ' + I.name + '!', kind: 'cast', who, item: pick.item, target: pick.target });
       // an item's number is its own: no stat behind it (a bomb's blast still meets the target's guard and element)
-      const fx = { id: null, stat: 'mag', scale: 0, power: I.hurt || I.heal || 0, harm: !!I.hurt, heal: !!I.heal && !I.hurt, revive: !!I.revive, cure: I.cure || [], element: I.element || null, status: I.status || null, buff: I.buff || null };
-      if (fx.harm || fx.heal || fx.revive || fx.cure.length || fx.status || fx.buff) apply(cfg, R, A, fx, I.target, pick.target, out, vars);
+      const fx = { id: null, stat: 'mag', scale: 0, power: I.hurt || I.heal || 0, harm: !!I.hurt, heal: !!I.heal && !I.hurt, revive: !!I.revive, cure: I.cure || [], element: I.element || null, status: I.status || null, buff: I.buff || null, scan: !!I.scan };
+      if (fx.harm || fx.heal || fx.revive || fx.cure.length || fx.status || fx.buff || fx.scan) apply(cfg, R, A, fx, I.target, pick.target, out, vars);
       if (I.mp) for (const m of I.target === 'allies' ? living(R) : [pick.target]) {
         const T = unit(cfg, R, m);
         if (!T || T.hp <= 0 || !T.party) continue;
@@ -1066,6 +1082,8 @@ export function buildRpg() {
       for (const slot in M.gear) s['gear.' + slot + '.' + M.gear[slot]] = 1;
       // (its place in the formation, once the player has set one)
       if (R.order) s.ord = R.order.indexOf(p.id);
+      // (its row, where the world has rows)
+      if (cfg.rules.rows) s.back = M.row === 'back' ? 1 : 0;
       out[p.id] = s;
     }
     return out;
@@ -1095,6 +1113,7 @@ export function buildRpg() {
       M.hp = Math.max(0, Math.min(S.hp, typeof s.hp === 'number' ? s.hp : S.hp));
       M.mp = Math.max(0, Math.min(S.mp, typeof s.mp === 'number' ? s.mp : S.mp));
       M.poison = s.psn === 1 ? 1 : 0;
+      if (cfg.rules.rows && s.back !== undefined) { if (s.back === 1) M.row = 'back'; else delete M.row; }
       if (s.in === 1) R.joined[p.id] = 1;
       for (const k in s) if (k.indexOf('open.') === 0 && s[k] === 1 && cfg.classes[k.slice(5)]) R.opened[k.slice(5)] = 1;
     }
