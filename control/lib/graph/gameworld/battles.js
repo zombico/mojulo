@@ -63,7 +63,7 @@ import { mapItems } from '../level/map-items.js';
 import { manualBattles } from './battles-manual.js';
 import { treesBattles } from './battles-tree.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
-import { chestCast, chestsPer, readChests, CHEST_SLICE } from './chests.js';
+import { chestCast, chestsPer, chestKinds, readChests, CHEST_SLICE } from './chests.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { WIN_OF_CLASS } from '../egocube/moves.js';
 
@@ -466,8 +466,10 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   });
   // (what each is called where the world names it: an era's med-kits, chests.js names the find by them)
   const named = (id) => (isObj(B.items) && B.items[id]?.name) || (isObj(B.gear) && B.gear[id]?.name) || null;
-  const chests = chestSpots.length ? chestCast(chestSpots, { tier: tierOf(from), from: 0, seed: seed + from, named }) : null;
+  // (locked chests' keys won from the stage's packs, never its boss; a mimic's fight beside the packs')
+  const chests = chestSpots.length ? chestCast(chestSpots, { tier: tierOf(from), from: 0, seed: seed + from, named, packs: encounters.filter((e) => e.flee !== false).map((e) => e.id), ...chestKinds(G) }) : null;
   if (chests) entities.push(...chests.entities);
+  if (chests?.encounters) encounters.push(...chests.encounters);
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
   // (in a hub world they stand in the hub instead, hubCast)

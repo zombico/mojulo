@@ -190,6 +190,8 @@ export const FOE_PRESETS = Object.freeze({
       pattern: [{ use: 'bite', weight: 4 }, { use: 'attack', weight: 3 }, { use: 'fire-breath', when: { every: 2 }, charge: '{name} gathers its fire…', weight: 9 }],
     }],
   },
+  // (a chest that is a fight, gameworld/chests.js: it springs as the party walks up)
+  mimic: { name: 'Mimic', hp: 80, atk: 16, def: 9, mag: 6, spd: 6, xp: 22, gold: 45, cp: 2, skills: ['bite'], drops: [drop('hi-potion', 0.3)] },
   // THE STORY'S BOSSES (gameworld/round-bosses.js: the climax each kind of story calls for), each held to the boss law
   // like the drake (gameworld/boss-law.deep.test.js): a charged blow telegraphed, and a second form under half its HP
   // that turns its weaknesses round. A world writes each out whole in its battles (`battles.foes.<id>`) to edit.

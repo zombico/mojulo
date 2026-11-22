@@ -285,6 +285,15 @@ party's gauges start full) or ambushed (the reverse, and where the party stands 
 fight). Never at a fight with no escape: a boss's opens as written. An encounter may say its own (`opening: normal |
 first | ambush`), a scripted surprise. A composed party RPG asks for them.
 
+**Key items, locked chests and mimics.** The party menu's Key tab lists what the bag holds that is no battle item, gear
+or gold: the world map's keys (the crypt key that opens the way to the core), a locked chest's key, a quest's piece; a
+world names them as `play.items` of kind `key`, else each is called by its id. A book's chests may be a share locked
+and a share mimics (`battles.chests: { n, locked?, mimics? }`): a LOCKED chest says so until its Iron Key is won from
+one of its stage's packs (never the boss), the bag holding it then opening the chest (and keeping it); a MIMIC is a
+fight the chest stands for, sprung as the party walks up, its treasure had when it is won. A composed party RPG keeps
+two a stage, one in four locked and about one in seven a mimic. The citadel's own inner gates are not yet doors met in
+play: its walled core is the design's.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

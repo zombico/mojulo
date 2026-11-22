@@ -3,7 +3,8 @@
 // the level starts too, the store having left it empty); what each holds is kept in the store's chests slice. Each
 // fighting stage of a book that asks keeps them on the beats its packs leave free, its loot by how far on.
 import { describe, it, expect } from 'vitest';
-import { chestCast, chestLoot, CHEST_LOOT, CHEST_SLICE, CHEST } from './chests.js';
+import { chestCast, chestLoot, CHEST_LOOT, CHEST_SLICE, CHEST, CHEST_KEY, MIMIC } from './chests.js';
+import { readRpg } from '../playscape/rpg/rpg.js';
 import { foundSay } from '../playscape/ui/menus.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { createBusState, processEvents, watchEvents } from '../worlds/event-bus.js';
@@ -66,3 +67,48 @@ describe('a book\'s chests (battles.chests)', () => {
     expect(readGameworld(W).battles.chests).toBe(2);
   });
 });
+
+// LOCKED CHESTS AND MIMICS (battles.chests { n, locked, mimics }): a locked chest's key won from a pack on its stage, the
+// bag holding it opening the chest (and keeping it); a mimic a fight sprung as the party walks up, its treasure had when
+// it is won; a world asking none keeps its chests as they were
+describe('locked chests and mimics', () => {
+  const run = (play) => {
+    const ev = lowerPlay({ play }, { player: 'hero' }), bus = createBusState(ev, []);
+    const fire = (type) => { processEvents(bus, [{ type }]); for (let k = 0; k < 6; k++) { const w = watchEvents(bus); if (!w.length) break; processEvents(bus, w); } };
+    return { ev, bus, fire };
+  };
+
+  it('a locked chest says so until its key is won from the stage\'s pack; then it opens, the key kept', () => {
+    const C = chestCast(spots.slice(0, 1), { seed: 3, packs: ['pack-1'], locked: 1 }), H = C.play.menus[0].holds;
+    const key = Object.keys(C.play.items).find((k) => C.play.items[k].kind === 'key');
+    expect(C.play.items[key]).toMatchObject({ name: CHEST_KEY.name, kind: 'key' });
+    const { ev, bus, fire } = run(C.play);
+    fire('use-cue-chest-1-locked'); fire('use-cue-chest-1-unlocked');
+    expect(bus.vars[`held:bag:${H[0].item}`] ?? 0).toBe(0);
+    expect(ev.hud.some((r) => /locked/.test(r.text ?? ''))).toBe(true);
+    fire('rpg-won:pack-1');
+    expect(bus.vars[`held:bag:${key}`]).toBe(1);
+    fire('use-cue-chest-1-unlocked');
+    expect(bus.vars[`held:bag:${H[0].item}`]).toBe(H[0].count);
+    expect(bus.vars[`held:bag:${key}`]).toBe(1);
+  });
+
+  it('a mimic is a fight the chest stands for, sprung as the party walks up; won, its treasure is had', () => {
+    const C = chestCast(spots.slice(0, 1), { seed: 3, mimics: 1 }), H = C.play.menus[0].holds;
+    expect(C.encounters).toEqual([{ id: 'chest-1-mimic', foes: [MIMIC], at: C.entities[0].transform.pos.slice(0, 2), who: 'chest-1', near: CHEST.reach }]);
+    expect(C.play.cues.some((c) => c.id === 'chest-1-opened')).toBe(false);
+    const { bus, fire } = run(C.play);
+    fire('rpg-won:chest-1-mimic');
+    expect(bus.vars[`held:bag:${H[0].item}`]).toBe(H[0].count);
+  });
+
+  it('a book asks for them by shares; asking none keeps the chests as they were; each read and taught', () => {
+    expect(chestCast(spots, { seed: 3 })).toEqual(chestCast(spots, { seed: 3, packs: ['pack-1'] }));
+    const W = { ...MEADOWMARK_HERO, battles: { chests: { n: 2, locked: 0.5, mimics: 0.5 } } };
+    expect(() => readGameworld(W)).not.toThrow();
+    expect(() => readBattles({ chests: { n: 2, locked: 0.8, mimics: 0.5 } })).toThrow(/together at most 1/);
+    expect(() => readBattles({ chests: { lots: 1 } })).toThrow(/not lots/);
+    expect(readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }] }, items: { 'iron-key-chest-1': { name: 'Iron Key', kind: 'key' } } }).keys).toEqual({ 'iron-key-chest-1': 'Iron Key' });
+  });
+});
+

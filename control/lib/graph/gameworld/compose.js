@@ -182,7 +182,8 @@ const ROUND_NOT_YET = (shape) => `a party RPG lays its round as a mandala, a cha
 // the shapes a party RPG's round is laid in (megaworld.js)
 const ROUND_SHAPES = Object.freeze(['mandala', 'chain', 'hub', 'open']);
 // the treasure chests each fighting stage of a party RPG keeps (gameworld/chests.js)
-const ROUND_CHESTS = 2;
+// (two a stage; one in four of them locked, its key won from a pack on the stage, one in seven a mimic)
+const ROUND_CHESTS = Object.freeze({ n: 2, locked: 0.25, mimics: 0.15 });
 const low = (t) => (typeof t === 'string' && /^The /.test(t) ? `the ${t.slice(4)}` : t);
 function roundTalk(world) {
   const M = world.megaworld, core = M?.rings?.at(-1)?.[0], gate = core && M.gates?.[core];
@@ -582,7 +583,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     world.battles = { ...B0, looks: { ...E.looks, ...(B0.looks ?? {}) }, foes: { ...E.foes, ...(B0.foes ?? {}) }, items: B0.items ?? E.items, gear: B0.gear ?? E.gear };
   }
   // (and keeps treasure off the path: two chests a fighting stage, opened once, gameworld/chests.js)
-  if (turnBased && world.battles && world.battles.chests === undefined) world.battles = { ...world.battles, chests: ROUND_CHESTS };
+  if (turnBased && world.battles && world.battles.chests === undefined) world.battles = { ...world.battles, chests: { ...ROUND_CHESTS } };
   if (hubbed) world.brief.hub = hubId;
   // (round a hub: its castle's level, its dungeon, the trades on its town's street, said as the world was laid)
   if (hubbed && (castled || dungeoned || turnBased)) world.brief.round = { ...(castled ? { castle: `${wid}-${castleAt + 1}`.slice(0, 48) } : {}), ...(dungeoned ? { dungeon: `${wid}-${N}`.slice(0, 48) } : {}), ...(turnBased ? { trades: ['inn', 'temple'] } : {}) };

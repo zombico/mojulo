@@ -10,7 +10,10 @@
  * `chest-open` (game/glyph-forms.js), the open one asleep until the chest is empty, when a cue on its count swaps them
  * (`vanish` and `spawn`, playscape/ui/cast.js); the sound the shelf's `chest-open`.
  *
- *   battles.chests: n (0 to 4) | false    how many chests each fighting stage keeps (a book's battles; none unsaid)
+ *   battles.chests: n (0 to 4) | { n?, locked?, mimics? } | false    how many chests each fighting stage keeps (a book's
+ *                      battles; none unsaid), and the share of them LOCKED (its key, an Iron Key, won from one of the
+ *                      stage's packs: the bag must hold it to open the chest, and keeps it) or MIMICS (a chest that is a
+ *                      fight, sprung as the party walks up; won, its treasure is had)
  *   CHEST_LOOT         by how far on (tierOf, the shops' tiers), what a chest may hold: rows of [{ item, count }]
  *   chestLoot(G, tier, n, seed)   → the n chests' holds, picked from the tier's rows on a seed, no two alike in a stage
  *   chestCast(G, spots, { tier, from, n }) → { entities, play: { menus, cues } } (a stage's extra, battles.js battleCast)
@@ -33,12 +36,25 @@ export const CHEST_LOOT = Object.freeze([
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** How many chests a fighting stage keeps: the book's `battles.chests`, none unsaid. */
-export const chestsPer = (G) => (G.battles && Number.isInteger(G.battles.chests) ? G.battles.chests : 0);
+export const chestsPer = (G) => { const v = G.battles?.chests; return Number.isInteger(v) ? v : v && typeof v === 'object' ? v.n ?? 2 : 0; };
+/** The shares of a stage's chests locked and mimics (none unsaid). */
+export const chestKinds = (G) => { const v = G.battles?.chests; return v && typeof v === 'object' ? { locked: v.locked ?? 0, mimics: v.mimics ?? 0 } : { locked: 0, mimics: 0 }; };
+// a locked chest's key (a key item: kept, shown in the party's key items) and a mimic's fight
+export const CHEST_KEY = Object.freeze({ name: 'Iron Key', kind: 'key' });
+export const MIMIC = 'mimic';
 
 /** The book's `battles.chests` read: a count, 0 to CHEST.most, or false. */
 export function readChests(v, err) {
   if (v === undefined || v === false) return;
-  if (!(Number.isInteger(v) && v >= 0 && v <= CHEST.most)) throw err(`.chests is how many treasure chests each fighting stage keeps off its path, 0 to ${CHEST.most} (or false)`);
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const stray = Object.keys(v).filter((k) => !['n', 'locked', 'mimics'].includes(k));
+    if (stray.length) throw err(`.chests is { n?, locked?, mimics? } (not ${stray.join(', ')})`);
+    if (v.n !== undefined && !(Number.isInteger(v.n) && v.n >= 0 && v.n <= CHEST.most)) throw err(`.chests.n is how many treasure chests each fighting stage keeps, 0 to ${CHEST.most}`);
+    for (const k of ['locked', 'mimics']) if (v[k] !== undefined && !(typeof v[k] === 'number' && v[k] >= 0 && v[k] <= 1)) throw err(`.chests.${k} is the share of them ${k === 'locked' ? 'locked (their key won from a pack on the stage)' : 'that are mimics (a fight)'}, 0 to 1`);
+    if ((v.locked ?? 0) + (v.mimics ?? 0) > 1) throw err('.chests: locked and mimics are shares of the same chests, together at most 1');
+    return;
+  }
+  if (!(Number.isInteger(v) && v >= 0 && v <= CHEST.most)) throw err(`.chests is how many treasure chests each fighting stage keeps off its path, 0 to ${CHEST.most} (or false), or { n?, locked?, mimics? }`);
 }
 
 /** The n chests' holds at a tier, picked on a seed, no row twice in a stage while the tier has rows to spare. */
@@ -56,8 +72,10 @@ export function chestLoot(tier, n, seed) {
  * A stage's chests: each at a spot (`{ at, toward }`: a free beat and the way it stands beside), its id numbered across
  * the game (`from`), its holds the tier's. → { entities, play: { menus, cues } }
  */
-export function chestCast(spots, { tier = 0, from = 0, seed = 1, named = () => null } = {}) {
-  const holds = chestLoot(tier, spots.length, seed + from * 7919), entities = [], menus = [], cues = [], items = {};
+export function chestCast(spots, { tier = 0, from = 0, seed = 1, named = () => null, packs = [], locked = 0, mimics = 0 } = {}) {
+  const holds = chestLoot(tier, spots.length, seed + from * 7919), entities = [], menus = [], cues = [], items = {}, encounters = [];
+  // (which are locked and which mimics, on a die of their own: a stage's plain chests as they were when it asks none)
+  const kindRand = locked || mimics ? mulberry32(((seed + from * 7919) ^ 0x5bd1e995) >>> 0) : null;
   spots.forEach((s, k) => {
     const id = `chest-${from + k + 1}`, open = `${id}-open`, H = holds[k];
     // (a step aside from the way, facing it: the way runs from the beat toward `toward`)
@@ -69,9 +87,25 @@ export function chestCast(spots, { tier = 0, from = 0, seed = 1, named = () => n
     menus.push({ id, kind: 'chest', title: 'Treasure chest', holds: H, loot: 'all' });
     // (each thing found by the name the world gives it, where it gives one: the find is said in it)
     for (const h of H) { const n = named(h.item); if (n) items[h.item] = { name: n }; }
-    // (opened where it stands; empty, its body swapped for the open one, as the level starts too where the store left it so)
-    cues.push({ id: `${id}-opened`, when: { use: { at: [at[0], at[1]], r: CHEST.reach }, prompt: 'open' }, then: [{ open: id }, { sound: CHEST.sound }] });
+    const d = kindRand ? kindRand() : 1, full = { var: heldVar(id, H[0].item), gt: 0 };
+    const kind = d < mimics ? 'mimic' : d < mimics + locked && packs.length ? 'locked' : 'plain';
+    if (kind === 'mimic') {
+      // (a MIMIC: the chest itself the fight's figure, sprung as the party walks up; won, what it guarded is had)
+      const enc = `${id}-mimic`;
+      encounters.push({ id: enc, foes: [MIMIC], at: [at[0], at[1]], who: id, near: CHEST.reach });
+      cues.push({ id: `${id}-won`, when: { on: `rpg-won:${enc}` }, if: full, then: [{ open: id }, { sound: CHEST.sound }] });
+    } else if (kind === 'locked') {
+      // (LOCKED: its key won from one of the stage's packs, into the bag; the bag holding it opens the chest, keeping it)
+      const key = `iron-key-${id}`, pack = packs[k % packs.length];
+      items[key] = { ...CHEST_KEY };
+      cues.push({ id: `${id}-key`, when: { on: `rpg-won:${pack}` }, once: true, then: [{ give: key }, { say: `Found the ${CHEST_KEY.name}!`, as: 'toast' }] });
+      cues.push({ id: `${id}-unlocked`, when: { use: { at: [at[0], at[1]], r: CHEST.reach }, prompt: 'unlock' }, if: [full, { var: `held:bag:${key}`, gte: 1 }], then: [{ open: id }, { sound: CHEST.sound }] });
+      cues.push({ id: `${id}-locked`, when: { use: { at: [at[0], at[1]], r: CHEST.reach }, prompt: 'unlock' }, if: [full, { var: `held:bag:${key}`, lt: 1 }], then: [{ say: 'It\'s locked. A foe nearby carries its key.', as: 'toast' }] });
+    } else {
+      // (opened where it stands; empty, its body swapped for the open one, as the level starts too where the store left it so)
+      cues.push({ id: `${id}-opened`, when: { use: { at: [at[0], at[1]], r: CHEST.reach }, prompt: 'open' }, then: [{ open: id }, { sound: CHEST.sound }] });
+    }
     cues.push({ id: `${id}-empty`, when: { var: heldVar(id, H[0].item), eq: 0 }, then: [{ vanish: id }, { spawn: open }] });
   });
-  return { entities, play: { menus, cues, ...(Object.keys(items).length ? { items } : {}) } };
+  return { entities, play: { menus, cues, ...(Object.keys(items).length ? { items } : {}) }, ...(encounters.length ? { encounters } : {}) };
 }

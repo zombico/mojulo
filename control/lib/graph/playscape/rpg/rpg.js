@@ -674,9 +674,11 @@ export function readRpg(play) {
   for (const T of [...Object.values(classes).map((c) => c.traits), ...Object.values(gear).map((g) => g.traits), ...Object.values(foes)]) if (T?.inflict && !RPG_STATUSES[T.inflict.is]) used.add(T.inflict.is);
   const states = used.size ? Object.fromEntries([...used].sort().map((k) => [k, readState(k, knownStates[k] ?? STATE_PRESETS[k], `.states.${k}`)])) : null;
   knownStates = null;
+  // (the KEY ITEMS the world names, play.items of kind key: what the party menu's Key tab calls each; none, no table)
+  const keys = isObj(play.items) ? Object.fromEntries(Object.entries(play.items).filter(([, d]) => isObj(d) && d.kind === 'key').map(([k, d]) => [itemKey(k), typeof d.name === 'string' && d.name ? d.name : words(k)])) : {};
   // (a world with a limit break keeps each member's gauge; one with none carries no gauge at all)
   const limits = Object.values(skills).some((S) => S.limit);
-  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(limits ? { limits: true } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
+  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(limits ? { limits: true } : {}), ...(Object.keys(keys).length ? { keys } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;

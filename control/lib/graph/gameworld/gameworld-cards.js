@@ -946,7 +946,7 @@ function battlesCard() {
     '        lineage, the beast-kin, the undead) | hero-door words }; heights: { <foe id>: metres } a beast\'s.',
     `boss    composed: its story's (${ROUND_BOSS_IDS.join(', ')}), written to edit.`,
     `wins    { <class>: <pose> } a class's victory pose (starters: ${Object.values(WIN_OF_CLASS).join(', ')}).`,
-    'chests  n (0-4) chests per fighting stage, off its path: E opens one.',
+    'chests  n (0-4) a fighting stage (E opens one), or { n, locked?, mimics? }.',
     'shops   a merchant (wares by how far on, bought back at half) and an inn (a night: HP, MP, cured) beside each fighting',
     '        stage\'s start: shops: false | { wares?: [ids], inn?: gold | false }. Where an inn stands it is the rest.',
     'hub     the world\'s hub: \'<level>\' (topology interconnected): the town every way leads back to, no fights in it,',

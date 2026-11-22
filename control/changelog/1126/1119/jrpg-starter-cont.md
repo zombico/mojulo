@@ -312,3 +312,10 @@
   ambushed (the reverse, the rows turned about where there are rows), never at a fight with no escape; an encounter may
   script its own (`opening`). Each opens with its line and juice (`start:first`, `start:ambush`). A composed party RPG
   asks for them; a world that asks none opens every fight as it did.
+- **Key items, locked chests and mimics.** The party menu gains a Key tab: what the bag holds that is no battle item,
+  gear or gold (the map's keys, a chest's, a quest's piece), named by `play.items` of kind `key` where the world names
+  them. `battles.chests` may be `{ n, locked?, mimics? }`: a locked chest's Iron Key is won from one of its stage's packs
+  (never the boss), the bag holding it opening the chest; a mimic is a fight the chest stands for (`mimic`, a new preset
+  foe; a Trap Drone, a Booby Trap in the eras), sprung as the party walks up, its treasure had when it is won. A
+  composed party RPG asks for both (one in four, about one in seven); a book asking none keeps its chests as they were.
+  The citadel's inner gates are not yet doors met in play.

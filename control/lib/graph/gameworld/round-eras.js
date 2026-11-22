@@ -36,6 +36,7 @@ export const ROUND_ERAS = Object.freeze({
       skeleton: { name: 'Trooper', look: { people: 'human' } },
       zombie: { name: 'Infected', look: { people: 'zombie' } },
       bandit: { name: 'Raider' },
+      mimic: { name: 'Trap Drone' },
       // (the story's bosses, round-bosses.js)
       leviathan: { name: 'Abyssal Leviathan', look: { species: 'seaSerpent', ooze: 'techno' } },
       // (an era's champion holds what its era says: nothing of the fantasy armory; `gear` arms it)
@@ -66,6 +67,7 @@ export const ROUND_ERAS = Object.freeze({
       skeleton: { name: 'Enforcer', look: { people: 'human' } },
       zombie: { name: 'Infected', look: { people: 'zombie' } },
       bandit: { name: 'Mugger' },
+      mimic: { name: 'Booby Trap' },
       leviathan: { name: 'Lake Monster', look: { species: 'seaSerpent', ooze: 'venom' } },
       champion: { name: 'The Champ', look: { people: 'human', facets: { age: 'adult', build: 'heroic', archetype: 'hero' }, gear: {} } },
       warlord: { name: 'The Kingpin', look: { people: 'human', facets: { age: 'seasoned', build: 'brute', archetype: 'outlaw' } } },

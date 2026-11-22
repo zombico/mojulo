@@ -129,6 +129,8 @@ const SCREENS = {
         { use: 'tab', props: { label: 'Item' }, children: [{ use: 'list', props: { rows: K('members.items'), empty: 'Nothing to use', row: line }, on: { accept: { emit: 'use', member: K('members.id'), item: I('id') } } }] },
         // (the member in focus traded for the one picked: the order fought in, the first of it fighting)
         { use: 'tab', props: { label: 'Formation' }, children: [{ use: 'list', props: { rows: K('members.formation'), row: line }, on: { accept: { emit: 'swap', member: K('members.id'), with: I('id') } } }] },
+        // (the key items the party carries: shown, never used here)
+        { use: 'tab', props: { label: 'Key' }, children: [{ use: 'list', props: { rows: K('members.keys'), empty: 'No key items', row: line } }] },
       ] }] },
     ] },
     { use: 'text', props: { value: B('party.said'), role: 'caption' }, when: B('party.said') },

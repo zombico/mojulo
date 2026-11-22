@@ -837,7 +837,10 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     // (the formation: every member who has joined, in its order, the first rules.size of them fighting)
     const front = members(), order = (R.order || cfg.party.map((p) => p.id)).map((id) => cfg.party.find((p) => p.id === id)).filter((p) => p && !p.auto && (!p.joins || R.joined[p.id] || vv['flag-' + p.joins] === 1));
     const formation = order.map((p) => ({ id: p.id, label: memberName(p.id), right: front.indexOf(p.id) >= 0 ? 'front' : 'reserve' }));
-    for (const r of rows) { r.items = items; r.formation = formation; }
+    // (the KEY ITEMS: what the bag holds that is no battle item, gear or gold: the map's keys, a chest's, a quest's piece)
+    const keyName = (k) => (cfg.keys && cfg.keys[k]) || (k.charAt(0).toUpperCase() + k.slice(1)).replace(/-/g, ' ');
+    const keys = Object.keys(vv).filter((x) => x.indexOf('held:bag:') === 0 && vv[x] > 0).map((x) => x.slice(9)).filter((k) => k !== 'gold' && !cfg.items[k] && !cfg.gear[k]).sort().map((k) => ({ id: k, label: keyName(k), right: vv['held:bag:' + k] > 1 ? '×' + vv['held:bag:' + k] : '' }));
+    for (const r of rows) { r.items = items; r.formation = formation; r.keys = keys; }
     // (a slot being chosen for: take it off, or what the bag holds for it)
     const g = fslot && fwho ? K.gearOf(cfg, R, fwho, V()).find((x) => x.slot === fslot) : null;
     return { members: rows, gold, said: fmsg, slot: g ? memberName(fwho) + ' · ' + SLOT[fslot] : '', choices: g ? [{ id: '-', label: '—', right: '', disabled: !g.item }, ...g.can.map((c) => ({ id: c.item, label: c.name, right: '×' + c.count }))] : [] };
