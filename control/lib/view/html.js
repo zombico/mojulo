@@ -16,12 +16,12 @@ const file = (ref) => encodeURIComponent(ref);
 export const SERVED = Object.freeze({
   games: '/', levels: '/levels', characters: '/characters', objects: '/objects',
   game: (r) => `/games/${file(r)}`, level: (r) => `/levels/${file(r)}`, play: (r) => `/play/${file(r)}`,
-  character: (r) => `/characters#${file(r)}`, eyes: (r) => `/levels/${file(r)}/eyes`,
+  character: (r) => `/characters#${file(r)}`,
 });
 export const STATIC = Object.freeze({
   games: 'index.html', levels: 'levels.html', characters: 'characters.html', objects: 'objects.html',
   game: (r) => `game-${file(r)}.html`, level: (r) => `level-${file(r)}.html`, play: (r) => `play/${file(r)}.html`,
-  character: (r) => `characters.html#${file(r)}`, eyes: null,
+  character: (r) => `characters.html#${file(r)}`,
 });
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -52,8 +52,6 @@ a { color: inherit; }
 .b-pass { color: var(--pass); } .b-fail { color: var(--fail); } .b-open { color: var(--open); } .b-skip { color: var(--skip); }
 .why { color: var(--dim); font-size: 13px; }
 iframe { width: 100%; height: 62vh; border: 1px solid var(--line); border-radius: 8px; background: #000; }
-form.eyes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
-form.eyes input[type=text] { flex: 1; min-width: 200px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); }
 button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--ink); cursor: pointer; }
 .empty { color: var(--dim); }
 @media (max-width: 600px) { main { padding: 14px 16px; } th:nth-child(n+4), td:nth-child(n+4) { display: none; } }

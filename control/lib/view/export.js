@@ -9,7 +9,7 @@
  *     games  only these games and their levels (default: every game)
  *     log    (line) → void, a line a step
  *
- * The eyes stamp is not on a static page: it has nowhere to write until the person's decisions have a record of their own.
+ * The view is read only, served or static: a level's eyes gate says to tell the agent.
  */
 import fs from 'node:fs';
 import path from 'node:path';

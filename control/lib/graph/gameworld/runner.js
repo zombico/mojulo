@@ -721,7 +721,10 @@ const foeSteps = (G, ref, ready, ids = null) => {
     // tune. A kin the cube would adorn stands BARE where its skin names neither, the wild: its order says so, its print
     // as it was; one `adorned` is dressed as the cube dresses any kin, by its own sheet)
     const kinSheet = isKin(entry.skin && entry.skin.people) ? rollEgocube(roll) : null;
-    const body = hench ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear, kin = kinWords(entry.skin, { rank: entry.rank, sheet: kinSheet });
+    // (a kin drawn on the beast's tiered body, egocube/plan.js beastOnTiered, has a body and a head of its own: the
+    // henchman's, a person's, is never laid over it, or the tradition's head would meet the kin's skull and the door refuse)
+    const onTiered = !!kinSheet && beastOnTiered(kinSheet);
+    const body = hench && !onTiered ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear, kin = kinWords(entry.skin, { rank: entry.rank, sheet: kinSheet });
     const words = body || gear || kin ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}) } : null;
     const bare = kinBare(entry.skin, kinSheet) ? { dress: 'kit' } : {}, adorned = entry.skin && entry.skin.adorned ? { adorned: true } : {};
     return [

@@ -1,6 +1,6 @@
 /**
  * THE VIEW'S DATA — what the view reads from the store, shaped the way the work is: games first, then levels, then
- * characters, then everything else. Read only: the view never writes a recipe (the eyes stamp is verify.js's own).
+ * characters, then everything else. Read only: the view writes nothing to the store.
  *
  *   KINDS                  the kinds a section owns (games, characters); a level is any row whose recipe carries a
  *                          game contract (`game`), whatever its kind
@@ -11,7 +11,7 @@
  *   characters()           → rows of the character kinds, with the games that cast them
  *   objects({ limit })     → every other row, newest first
  *   row(ref)               → the stored row, or null
- *   printOf(row)           → a short print of its recipe as stored (a stamp is kept against it)
+ *   printOf(row)           → a short print of its recipe as stored (a check's record is kept against it)
  */
 import { createHash } from 'node:crypto';
 import { getDb } from '@/lib/db/index';

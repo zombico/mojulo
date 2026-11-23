@@ -1,6 +1,6 @@
 /**
  * THE VIEW'S PAGES — pure: data in, a whole HTML document out (html.js's page). The order is the work's: games first,
- * then a game's levels and its cast, a level (play it, its gates, the person's stamp), then every level, every
+ * then a game's levels and its cast, a level (play it, its gates), then every level, every
  * character, and every other thing. Machine gates and the eyes gate are always shown apart (docs/bicycles.md).
  * Every page takes `to`, the links it writes (html.js SERVED, the default, or STATIC for an export).
  *
@@ -44,15 +44,7 @@ export function levelPage({ r, of = null, gates = [], ends = [], mechanics = [],
   const title = r.title || r.ref;
   const machine = gates.filter((g) => g.kind === 'machine'), E = gates.find((g) => g.kind === 'eyes');
   const table = `<table><tr><th>Gate</th><th>State</th><th>What it says</th></tr>${machine.map((g) => `<tr><td>${esc(g.id)}</td><td>${badge(g.status, g.status)}</td><td class="why">${esc(g.says)}</td></tr>`).join('')}</table>`;
-  // (the stamp needs somewhere to write: a served view posts it; a static page says how to give it until the page can
-  // record a person's decision itself)
-  const stamp = to.eyes
-    ? `<form class="eyes" method="post" action="${esc(to.eyes(r.ref))}">
-      <input type="text" name="note" placeholder="What you saw (optional)">
-      <button name="verdict" value="it is the game">I played it: it is the game</button>
-      <button name="verdict" value="not yet">Not yet</button></form>`
-    : '<p class="why">Played it? Tell your agent whether it is the game, and what you saw.</p>';
-  const eyes = `<p>${E ? badge(E.status, E.status) : ''} <span class="why">${esc(E?.says ?? '')}</span></p>${stamp}`;
+  const eyes = `<p>${E ? badge(E.status, E.status) : ''} <span class="why">${esc(E?.says ?? '')}</span></p>`;
   const contract = ends.length ? ends.map((e) => badge(e.end === 'success' ? 'pass' : 'fail', `${e.event} → ${e.end}`)).join('') : '<span class="why">no contract</span>';
   return page({ to, title, active: 'levels', body: `<h1>${esc(title)}</h1>
     <p class="sub">${esc(r.manifest?.kind ?? '')}${of ? ' · ' : ''}${of ? link(to.game(of), `in ${of}`) : ''}</p>

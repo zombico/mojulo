@@ -14,5 +14,15 @@ characters, then objects, and on every level what proved it, by which gate, and 
   (`--no-play` leaves the playable pages out, `--game <ref>` picks games). A static page has no stamp: it says to tell
   the agent, until a person's decisions have a record of their own. A relative `--out` lands where the command was run
   (the CLI passes the folder on as `MOJULO_INVOKE_CWD`).
-- **The eyes stamp** (spike): the person's verdict on a level they played, kept against the level as it stands, so a
-  changed level is unstamped.
+- **Read only, for now.** The view, served or static, writes nothing: a level's eyes gate says to tell the agent, until
+  a person's decisions have a record of their own. (A spike's stamp, kept in a file beside the database, was taken out
+  rather than shipped as a second store to migrate later.)
+- **What the still check found, fixed:**
+  - *A sneak's foes stood in sight of the spawn and on the guards' posts* (gameworld/foes.js `foePlacements`): on a stage
+    with guards, a foe now stands on no guard's post and on no beat its class's sight (mind/vocab.js SIGHTS, and two
+    metres more) reaches the spawn from; a beat that close is left empty. Lantern Keep, rebuilt: 8 of 8 levels stand
+    still for 3 s without being seen (4 were lost at 0.07 s). Its first five levels keep their guards and no longer
+    stand the wide-sighted foes, whose sight reaches every free beat there.
+  - *An anime book's henchman body was laid over a beast kin* (gameworld/runner.js): a people foe drawn on the beast's
+    tiered body has a body and a skull of its own, and the henchman's (an anime body brings the anime head) made the
+    hero door refuse the run. It is laid over a person only now.

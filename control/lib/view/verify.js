@@ -15,9 +15,8 @@
  *        record belongs in a game's run record, where the level is resolved anyway (the plan's next phase)
  *   gates(level, r, { still? }) → [{ id, kind: machine | eyes, status, says }] the walk, the first frame, the still
  *        check, the eyes: each one's status and what it says
- *   eyes(r) / stampEyes(r, { verdict, note }) the person's verdict on a level they played: `it is the game` or
- *        `not yet`, with a note, kept against the level's print (a changed level is unstamped). Spike's store: a JSON
- *        file beside the database (`view-eyes.json`), the one thing the view writes
+ *   The eyes gate is always open here: the person's verdict on a level they played has no record yet (the view is read
+ *   only until a person's decisions have one of their own), so the page says to tell the agent.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -78,34 +77,14 @@ export async function still(r, { seconds = STILL_SECONDS } = {}) {
   return out;
 }
 
-const eyesFile = () => path.join(dataDir(), 'view-eyes.json');
-const readEyes = () => { try { return JSON.parse(fs.readFileSync(eyesFile(), 'utf8')); } catch { return {}; } };
-export const EYES_VERDICTS = Object.freeze(['it is the game', 'not yet']);
-
-export function eyes(r) {
-  const s = r ? readEyes()[r.ref] : null;
-  if (!s) return null;
-  return s.print === printOf(r) ? s : { ...s, stale: true };
-}
-export function stampEyes(r, { verdict, note = '' } = {}) {
-  if (!r) throw new Error('eyes: no such level');
-  if (!EYES_VERDICTS.includes(verdict)) throw new Error(`eyes: the verdict is one of ${EYES_VERDICTS.join(' | ')}`);
-  const all = readEyes();
-  all[r.ref] = { verdict, note: String(note).slice(0, 2000), print: printOf(r), at: new Date().toISOString() };
-  fs.mkdirSync(path.dirname(eyesFile()), { recursive: true });
-  fs.writeFileSync(eyesFile(), JSON.stringify(all, null, 2));
-  return all[r.ref];
-}
-
 export function gates(level, r, { still: S = null } = {}) {
-  const W = level?.walk?.verdict ?? null, F = level?.frame ?? null, E = eyes(r);
+  const W = level?.walk?.verdict ?? null, F = level?.frame ?? null;
   return [
     { id: 'walk', kind: 'machine', status: W ? (W.completable === true ? 'pass' : 'fail') : 'skip',
       says: W ? (W.completable === true ? 'walked to its end by the scripted player' : W.note || 'not completable') : 'not walked: the walk proves reach, survive and escape levels; this one is the person\'s to play' },
     { id: 'first frame', kind: 'machine', status: F ? (F.status === 'pass' ? 'pass' : F.status === 'skipped' ? 'skip' : 'fail') : 'skip',
       says: F ? `the opening view judged: ${F.status} (the framing, not the play)` : 'not judged' },
     { id: 'still', kind: 'machine', status: S ? S.status : 'skip', says: S ? S.why : 'running in the background: reload in a moment' },
-    { id: 'eyes', kind: 'eyes', status: !E ? 'open' : E.stale ? 'open' : E.verdict === 'it is the game' ? 'pass' : 'fail',
-      says: !E ? 'not played yet: the person\'s to say' : E.stale ? `stamped "${E.verdict}" on an earlier version; the level has changed since` : `"${E.verdict}"${E.note ? `: ${E.note}` : ''}` },
+    { id: 'eyes', kind: 'eyes', status: 'open', says: 'the person\'s to say, by playing it: tell your agent whether it is the game' },
   ];
 }

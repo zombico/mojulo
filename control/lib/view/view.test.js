@@ -9,8 +9,8 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { page, esc, NAV } from './html.js';
-import { games, gameOf, levels, characters, objects, printOf } from './data.js';
-import { still, gates, eyes, stampEyes, stillNow, recordStill } from './verify.js';
+import { games, gameOf, levels, characters, objects } from './data.js';
+import { still, gates, stillNow, recordStill } from './verify.js';
 import { gamesPage, gamePage, levelPage, levelsPage, charactersPage, objectsPage } from './pages.js';
 import { exportView } from './export.js';
 import { STATIC } from './html.js';
@@ -87,16 +87,11 @@ describe('the still check', () => {
 });
 
 describe('the gates, apart', () => {
-  it('machine gates and the eyes are never one: the eyes are open until the person stamps, stale once the level changes', () => {
+  it('machine gates and the eyes are never one: whatever the machines found, the eyes stay open, the person\'s to say', () => {
     const r = { ref: 'lv-a', manifest: DOWN_THE_WAY };
-    const G = gates({ ref: 'lv-a', frame: { status: 'pass' } }, r, { still: { status: 'fail', why: 'spotted at 0.07 s' } });
-    expect(G.map((g) => [g.id, g.kind, g.status])).toEqual([['walk', 'machine', 'skip'], ['first frame', 'machine', 'pass'], ['still', 'machine', 'fail'], ['eyes', 'eyes', 'open']]);
-    stampEyes(r, { verdict: 'it is the game', note: 'tense' });
-    expect(eyes(r)).toMatchObject({ verdict: 'it is the game', note: 'tense', print: printOf(r) });
-    expect(gates({}, r).at(-1)).toMatchObject({ status: 'pass' });
-    const changed = { ...r, manifest: { ...DOWN_THE_WAY, seed: 9 } };
-    expect(gates({}, changed).at(-1)).toMatchObject({ status: 'open' });
-    expect(() => stampEyes(r, { verdict: 'great' })).toThrow(/verdict is one of/);
+    const G = gates({ ref: 'lv-a', frame: { status: 'pass' } }, r, { still: { status: 'pass', why: 'stood still' } });
+    expect(G.map((g) => [g.id, g.kind, g.status])).toEqual([['walk', 'machine', 'skip'], ['first frame', 'machine', 'pass'], ['still', 'machine', 'pass'], ['eyes', 'eyes', 'open']]);
+    expect(G.at(-1).says).toMatch(/tell your agent/);
   });
 });
 
@@ -112,7 +107,8 @@ describe('the pages', () => {
     expect(html).toContain('Wren');
     const lp = levelPage({ r: { ref: 'lv-a', title: 'The yard', manifest: DOWN_THE_WAY }, of: 'g', gates: rows['lv-a'].gates, ends: [{ event: 'goal:reached', end: 'success' }] });
     expect(lp).toContain('/play/lv-a');
-    expect(lp).toContain('action="/levels/lv-a/eyes"');
+    expect(lp).not.toContain('<form');   // read only: the eyes are the person's, said to their agent
+    expect(lp).toContain('tell your agent');
     expect(levelsPage(levels())).toContain('/levels/lv-b');
     expect(charactersPage(characters())).toContain('Wren');
     expect(objectsPage(objects())).toContain('A crate');
@@ -121,7 +117,7 @@ describe('the pages', () => {
 });
 
 describe('the view as a folder', () => {
-  it('every page a file, linked relatively, each level playable from disk; no stamp where nothing can record it', async () => {
+  it('every page a file, linked relatively, each level playable from disk; read only', async () => {
     store();
     const out = path.join(DIR, 'site');
     const R = await exportView(out, { play: true });
@@ -133,7 +129,7 @@ describe('the view as a folder', () => {
     expect(game).not.toMatch(/href="\//);   // no link a disk cannot follow
     const lv = fs.readFileSync(path.join(out, STATIC.level('lv-b')), 'utf8');
     expect(lv).not.toContain('<form');
-    expect(lv).toContain('Tell your agent');
+    expect(lv).toContain('tell your agent');
     expect(fs.readFileSync(path.join(out, STATIC.play('lv-a')), 'utf8')).not.toContain('/vendor/three');   // three.js inlined
   }, 300_000);
 });
