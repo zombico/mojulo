@@ -102,6 +102,11 @@ describe('a sortie\'s capital ships and stations (fleet/)', () => {
     const guns = C.filter((e) => e.id.startsWith('frigate-gun'));
     expect(guns).toHaveLength(F.hardpoints.length);
     expect(guns.every((g, k) => g.onBlock === F.hardpoints[k].block && g.rule.type === 'ai' && g.rule.speed === 0)).toBe(true);
+    // (a foe's guns hunt the pilot, out to their flak's reach, past a fighter's own guns'; a friend's the nearest foe)
+    expect(guns.every((g) => g.rule.target === undefined && g.weapon.range >= 1500 && g.rule.sightRange >= g.weapon.range)).toBe(true);
+    const friendGuns = sortieCast(readSortie({ groups: [{ id: 'red', side: 'friend', count: 1 }, { id: 'ally', side: 'friend', capital: 'frigate' }, { id: 'f', side: 'foe', count: 1 }], goals: [{ destroy: 'f' }] }), ends).entities.filter((e) => e.id.startsWith('ally-gun'));
+    expect(friendGuns.length).toBeGreaterThan(0);
+    expect(friendGuns.every((g) => g.rule.target === 'enemy')).toBe(true);
     // the sortie counts the hulls
     expect(sortieMechanics(readSortie(S1))[1].goals).toEqual([{ destroy: ['frigate-1', 'yard-1'] }]);
   });

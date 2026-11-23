@@ -428,3 +428,9 @@ They share one foundation, built first, and these themes record it as it lands.
   target, so it skims past and carries on with its pass. A step that would still end inside a hull puts it back
   outside. A rule's `avoid` { look, rate } tunes it. In the destroyer's level the minds spent no step inside a hull in
   40 s of fighting, and a fifth of their steps within 60 m of one.
+- **A foe ship's turrets fire at the pilot.** Before, each gun on a capital ship or a station hunted the nearest enemy,
+  often a wingman, and held fire when its own hull blocked the line to that one, even with the pilot in clear view.
+  Now a foe structure's guns hunt the pilot, the one the mission is flown by, out to their flak's reach (95% of a
+  bolt's flight, past a fighter's own guns' range). A gun whose hull is between it and the pilot still holds its fire,
+  so the far side stays quiet. A friendly structure's guns still take the nearest foe. With the pilot 1.5 km off a
+  destroyer and its wingmen nearer, the guns that could see the pilot fired at the pilot and none at the wingmen.

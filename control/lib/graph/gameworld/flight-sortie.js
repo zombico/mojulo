@@ -46,7 +46,7 @@ export const SORTIE = Object.freeze({
   at: Object.freeze({ foe: Object.freeze({ ahead: 1600, side: 0, up: 0 }), friend: Object.freeze({ ahead: -40, side: 60, up: 0 }), arrive: Object.freeze({ ahead: 2400, side: 0, up: 120 }), structure: Object.freeze({ ahead: 1400, side: 0, up: -60 }) }),
   spacing: 70,
   // a mind's numbers by side: its cannons' rate, its bursts (a wingman helps, the player carries the mission)
-  guns: Object.freeze({ foe: Object.freeze({ rof: 3, burst: 0.4, pause: 1.4 }), friend: Object.freeze({ rof: 1.5, burst: 0.3, pause: 3 }), turret: Object.freeze({ rof: 2.5, burst: 0.5, pause: 1.8, hp: 3 }) }),
+  guns: Object.freeze({ foe: Object.freeze({ rof: 3, burst: 0.4, pause: 1.4 }), friend: Object.freeze({ rof: 1.5, burst: 0.3, pause: 3 }), turret: Object.freeze({ rof: 2.5, burst: 0.5, pause: 1.8, hp: 3, reach: 0.95 }) }),
   // (a capital ship's or a station's systems: what a mission destroys, a few cannon passes or a warhead each)
   systems: Object.freeze({ hp: 12 }),
 });
@@ -162,8 +162,10 @@ export function sortieCast(S, ends) {
         transform: { pos: y.at, heading: 0, pitch: 0 } });
       // (its guns: a mind each on its hardpoint, firing the other side's bolts, down when the block it stands on is)
       P.hardpoints.forEach((H, k) => entities.push({ id: `${g.id}-gun${k + 1}`, team, onBlock: H.block,
-        rule: { type: 'ai', space: true, speed: 0, turn: 2.2, standoff: 0, target: 'enemy', fireArc: 14, burst: SORTIE.guns.turret.burst, pause: SORTIE.guns.turret.pause, sightRange: r2(12 * c.cruise), eye: 0 },
-        weapon: { fireClass: 'lob', auto: true, rof: SORTIE.guns.turret.rof, damage: L.damage, impact: 0, range: L.speed * L.fuse * 0.7, coreAngle: 2, assistAngle: 2, eye: 0, lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true, smokeTrail: false, fxColor: g.side === 'foe' ? 0x5cff6a : 0xff3b2e, fxScale: STARFIGHTER.bolt.size, fxMin: STARFIGHTER.bolt.min, foeRound: true },
+        // (a foe's guns hunt the pilot, the one the mission is flown by, out to their flak's reach; a friend's the
+        // nearest foe)
+        rule: { type: 'ai', space: true, speed: 0, turn: 2.2, standoff: 0, ...(g.side === 'foe' ? {} : { target: 'enemy' }), fireArc: 14, burst: SORTIE.guns.turret.burst, pause: SORTIE.guns.turret.pause, sightRange: r2(SORTIE.guns.turret.reach * L.speed * L.fuse), eye: 0 },
+        weapon: { fireClass: 'lob', auto: true, rof: SORTIE.guns.turret.rof, damage: L.damage, impact: 0, range: r2(SORTIE.guns.turret.reach * L.speed * L.fuse), coreAngle: 2, assistAngle: 2, eye: 0, lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true, smokeTrail: false, fxColor: g.side === 'foe' ? 0x5cff6a : 0xff3b2e, fxScale: STARFIGHTER.bolt.size, fxMin: STARFIGHTER.bolt.min, foeRound: true },
         body: { type: 'mesh', shape: 'box', size: [2.4, 2.4, 1.6], color: '#2a2d31', hittable: true, hp: SORTIE.guns.turret.hp, radius: 2.5, name: `${g.name} gun ${k + 1}` }, transform: { pos: H.at, heading: 0, pitch: 0 } }));
       continue;
     }
