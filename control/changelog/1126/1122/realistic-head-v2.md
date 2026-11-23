@@ -71,6 +71,10 @@ face toward the proportions and the clean structure of a current game character,
   `MEDIAL_TENT`), so the fold is that skin and never a roll hooking down to the nose; and the outer corner's lids
   meeting at a point just past the globe (`outerClose`), as the inner's do, where a pale wall stood at the opening's
   end. Each a head relation absent from every other face.
+- The East Asian eye set against the nose and brow as a low root measures: the nasion ~6 mm ahead of the cornea where
+  the pole's is ~11, the brow ~1.5 mm back, so no pocket stands between the bridge and the inner corner from the side;
+  the tent's volume held from the eye's lid space (its cut had taken the tent's corner away again), and the lids, their
+  rims and their lashes ending where the tent takes the inner corner over (`innerClose`), never flapping out over it.
 
 Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; a crop's shell a ledge at the
 nape.

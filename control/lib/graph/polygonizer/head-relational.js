@@ -90,6 +90,8 @@ export const RELATIONS = Object.freeze({
   tent: 0,              // the flesh tented from the nose's root over the inner corner (`MEDIAL_TENT`; 0 none, 1 full)
   outerClose: 0,        // the outer corner's lids meeting this far past the globe's limb / v-me (0: at the canthus): the
                         // margins taper to their point there, as at the inner corner, the canthus beyond them a seam
+  innerClose: 0,        // the same at the inner corner (0: at the canthus): under a tent (`tent`), the lids, their rims
+                        // and their lashes end where its skin takes the corner over, never running on beneath it
   upperVermilion: 0.035, // the upper lip's red height / v-me
   lowerVermilion: 0.043, // the lower lip's / v-me (the lower lip the fuller)
   chin: 0,              // pg ahead of the nasion vertical / v-me (− a receding chin)
@@ -317,15 +319,19 @@ const BROW_SHAPE = Object.freeze({ peakOut: 0, tail: 0.025 });
 /** the medial tent's beads (`tent`), each a point on the surface it names (x out from the plumb line or from the inner
  * canthus, y forward, z up; v-me) and its radius: on the bridge's side below the nasion, just medial of the inner
  * canthus (forward of it by `tent`'s share of its y: the skin there brought to the corner's depth and over it), and over
- * the upper lid's inner third */
-export const MEDIAL_TENT = Object.freeze({ bridge: [0.022, -0.008, -0.012], corner: [0.012, 0.004, 0.003], lid: [0.008, 0.002, 0.026], r: [0.02, 0.022, 0.02] });
-/** the points with a side's outer canthus brought in along the canthi's chord to `past` beyond the globe's limb (the
- * eye's own centre its globe's; the canthus kept where it already lies inside that) */
-function closedOuter(P, s, past) {
-  const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`], sg = Math.sign(ex.x - en.x) || 1, xc = e.x + sg * (GLOBE.r + past);
-  if (sg * (ex.x - xc) <= 0) return P;
-  const f = (xc - en.x) / (ex.x - en.x);
-  return { ...P, [`ex${s}`]: { x: xc, y: en.y + f * (ex.y - en.y), z: en.z + f * (ex.z - en.z) } };
+ * the upper lid's inner third; how far past its beads the lid space's cut is held off (`hold`), and the softness of
+ * that hold's edge (`join`) */
+export const MEDIAL_TENT = Object.freeze({ bridge: [0.022, -0.008, -0.012], corner: [0.012, 0.004, 0.003], lid: [0.008, 0.002, 0.026], r: [0.02, 0.022, 0.02], join: 0.004, hold: 0.004 });
+/** the points with a side's canthi brought in along their chord to `inner` and `outer` beyond the globe's limb (the
+ * eye's own centre its globe's; 0 leaves that canthus, as does one already lying inside its mark) */
+function closedEnds(P, s, inner, outer) {
+  const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`], sg = Math.sign(ex.x - en.x) || 1;
+  const along = (x) => { const f = (x - en.x) / (ex.x - en.x); return { x, y: en.y + f * (ex.y - en.y), z: en.z + f * (ex.z - en.z) }; };
+  const xo = e.x + sg * (GLOBE.r + outer), xi = e.x - sg * (GLOBE.r + inner);
+  const out = { ...P };
+  if (outer && sg * (ex.x - xo) > 0) out[`ex${s}`] = along(xo);
+  if (inner && sg * (xi - en.x) > 0) out[`en${s}`] = along(xi);
+  return out;
 }
 export const MENTOLABIAL = Object.freeze({ pad: 0.012, up: 0.012, carve: 0.6 });
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
@@ -675,7 +681,10 @@ export function coreVajras(P, rel = RELATIONS) {
     // corner into the upper lid's inner third, as a low, flat root carries it (the East Asian face): the skin between the
     // bridge and the eye runs flat and covers the inner corner, the fold being that skin and not a roll laid on the lid
     // (with the socket hollow beside the bridge, the fold stood as a tube hooking down to the nose). Its beads at skin
-    // size, each set behind the surface it names by its radius (`MEDIAL_TENT`); the opening is still cut through it
+    // size, each set behind the surface it names by its radius (`MEDIAL_TENT`), summed into the wave; and its volume HELD
+    // from the eye's lid space (relationalHead): the cut took its corner away again, a carved pocket between the bridge
+    // and the inner corner from the 3/4 (joined after the cut as a body of its own, it stood as a raised V instead). The
+    // opening is still cut through it
     if (R.tent) {
       const en = P[`en${s}`], sx = Math.sign(en.x), k = R.tent, T = MEDIAL_TENT, [ra, rc, rb] = T.r.map((r) => r * (0.5 + 0.5 * k));
       const bridge = { x: sx * T.bridge[0], y: P.n.y + T.bridge[1] - ra, z: P.n.z + T.bridge[2] };
@@ -1430,7 +1439,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // (`outerClose`: the rig's outer canthus brought in along the chord to just past the globe's limb, so the lids meet
     // at a point there as they do at the inner corner; past the limb the corner had been filled sideways to the
     // canthus's depth, a pale wall standing at the end of the opening)
-    const Pr = rel.outerClose ? closedOuter(Pe, s, rel.outerClose) : Pe;
+    const Pr = rel.outerClose || rel.innerClose ? closedEnds(Pe, s, rel.innerClose, rel.outerClose) : Pe;
     const r = eyeRig(Pr, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
@@ -1481,6 +1490,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const lim = { x: ch + 4 * mm, z: [Math.min(...tube.map((q) => q.z)) - 6 * mm, Math.max(...tube.map((q) => q.z)) + 6 * mm] };
     return { blend: SEAM.blend * mm, f: (p) => { if (Math.abs(p.x) > lim.x || p.z < lim.z[0] || p.z > lim.z[1]) return Infinity; let d = Infinity; for (let i = 0; i + 1 < tube.length; i++) d = Math.min(d, seg(p, tube[i], tube[i + 1])); return d - R; } };
   })() : null;
+  const tents = Object.fromEntries(bonds.filter((b) => /^tent[LR]$/.test(b.name)).map((b) => [b.name.slice(4), b.f]));
   const field = ears.length || eyeRigs.length ? (p) => {
     let d = skinField(p);
     if (seam) { const c = seam.f(p); if (c < seam.blend * 4) d = smax(d, -c, seam.blend); }
@@ -1491,8 +1501,11 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
       if (!e.near(p)) continue;
       // the lid space cut back out of the skin, the lids' mass on it, the opening carved through it to the globe, the
       // margins and the roll laid on, the crease cut, the globe set in
+      // (the medial tent's volume, `tent`, held from the cut: inside it, grown by `MEDIAL_TENT.hold`, the skin as summed)
+      const d0 = d;
       d = smax(d, -e.lidSpace(p), 0.005 * sc);
       if (e.seat) d = smax(d, -e.seat(p), SEAT.blend * sc);
+      if (tents[e.side]) d = smin(d, smax(d0, tents[e.side](p) - MEDIAL_TENT.hold * sc, MEDIAL_TENT.join * sc), MEDIAL_TENT.join * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
       // (the globe covered by the skin all round, but through the opening: realistic laws 14, head-relational-eye.js)
       if (e.cover) d = smin(d, e.cover(p), (0.002 + e.coverBlend(p)) * sc);

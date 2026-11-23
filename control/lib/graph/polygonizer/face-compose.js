@@ -342,11 +342,15 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  * the references show: the white runs long to the temple, the opening reaching OUT, not leaning in to the nose; the
  * inner canthi wider apart by as much (`set`, the intercanthal's offset), so the pupils stay where they were (their
  * spacing to the fissure's length ~1.4, after the anthropometry: ~36 mm to ~26). The flesh TENTED from the low root
- * over the inner corner (`tent`: the fold is that skin, never a roll on the lid), and the outer corner's lids meeting at
- * a point just past the globe (`outerClose`), as the inner's do, where a pale wall had stood at the opening's end. The
- * `large` shape (a taller, rounder eye) rolled rarely */
-export const EAST_ASIAN_EYE = Object.freeze({ fifths: 0.012, fissure: -0.006, lidSplit: 0.06, tiltPivot: 0.5, globeShift: 0.035, set: 0.07, tent: 1, outerClose: 0.011, large: 0.25 });
-const EAST_ASIAN_EYE_BASE = Object.freeze({ fifths: EAST_ASIAN_EYE.fifths, fissure: EAST_ASIAN_EYE.fissure, lidSplit: EAST_ASIAN_EYE.lidSplit, tiltPivot: EAST_ASIAN_EYE.tiltPivot, globeShift: EAST_ASIAN_EYE.globeShift, tent: EAST_ASIAN_EYE.tent, outerClose: EAST_ASIAN_EYE.outerClose });
+ * over the inner corner (`tent`: the fold is that skin, never a roll on the lid; the lids and their lashes ending where
+ * it takes the corner over, `innerClose`), and the outer corner's lids meeting at a point just past the globe
+ * (`outerClose`), as the inner's do, where a pale wall had stood at the opening's end. The
+ * eye's setting brought forward against the nose's root and the brow (`root`, the radix's offset: the nasion ~7 mm
+ * ahead of the cornea where the pole's is ~11, as a low root measures; `brow`, the brow's projection's, ~1.5 mm back),
+ * so no pocket stands between the bridge and the inner corner from the side. The `large` shape (a taller, rounder eye)
+ * rolled rarely */
+export const EAST_ASIAN_EYE = Object.freeze({ fifths: 0.012, fissure: -0.006, lidSplit: 0.06, tiltPivot: 0.5, globeShift: 0.035, set: 0.07, tent: 1, innerClose: 0.006, outerClose: 0.011, root: -0.018, brow: -0.006, large: 0.25 });
+const EAST_ASIAN_EYE_BASE = Object.freeze({ fifths: EAST_ASIAN_EYE.fifths, fissure: EAST_ASIAN_EYE.fissure, lidSplit: EAST_ASIAN_EYE.lidSplit, tiltPivot: EAST_ASIAN_EYE.tiltPivot, globeShift: EAST_ASIAN_EYE.globeShift, tent: EAST_ASIAN_EYE.tent, innerClose: EAST_ASIAN_EYE.innerClose, outerClose: EAST_ASIAN_EYE.outerClose });
 export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 }, bald: 1 },
   'north-asian': {
@@ -358,9 +362,9 @@ export const FACE_BUCKETS = Object.freeze({
     // wide apart under a low, flat root (a broad bridge, the nose leaning short and flat); a light brow ridge over a flat
     // brow; thinner lips. The lid most often a monolid or an in-fold, the epicanthic fold common
     base: {
-      cephalic: 0.03, headLength: -0.015, faceWidth: 0.02, jaw: 0.02, malarDepth: -0.006, intercanthal: 0.1 + EAST_ASIAN_EYE.set, nasalIndex: 0.08, radix: -0.012,
+      cephalic: 0.03, headLength: -0.015, faceWidth: 0.02, jaw: 0.02, malarDepth: -0.006, intercanthal: 0.1 + EAST_ASIAN_EYE.set, nasalIndex: 0.08, radix: EAST_ASIAN_EYE.root,
       ...EAST_ASIAN_EYE_BASE,
-      nasionDepth: -0.004, dorsum: 0.15, browProjection: -0.005, brow: -0.08, forehead: 0.004, lipFullness: -0.05, upperVermilion: -0.002,
+      nasionDepth: -0.004, dorsum: 0.15, browProjection: -0.005 + EAST_ASIAN_EYE.brow, brow: -0.08, forehead: 0.004, lipFullness: -0.05, upperVermilion: -0.002,
     },
     nose: { mean: -0.35, spread: 0.55 },
     lids: { monolid: 2, 'inner-fold': 2, hooded: 1, parallel: 0.5 },
@@ -379,7 +383,7 @@ export const FACE_BUCKETS = Object.freeze({
     // (the nose's length and projection are its axis's: `nose`, the people leaning short and flat)
     base: {
       cephalic: 0.02, headLength: -0.01, intercanthal: 0.08 + EAST_ASIAN_EYE.set, nasalIndex: 0.1, ...EAST_ASIAN_EYE_BASE,
-      nasionDepth: -0.002, dorsum: 0.15, browProjection: -0.004, brow: -0.05, forehead: 0.005, malarDepth: -0.004, lipProjection: 0.003,
+      nasionDepth: -0.002, dorsum: 0.15, browProjection: -0.004 + EAST_ASIAN_EYE.brow, brow: -0.05, radix: EAST_ASIAN_EYE.root, forehead: 0.005, malarDepth: -0.004, lipProjection: 0.003,
     },
     nose: { mean: -0.4, spread: 0.6 },
     // (the egocube's East Asian lid derive's own weights: the in-fold the likeliest)
@@ -545,7 +549,7 @@ export const FACE_LIMITS = Object.freeze({ noseProjection: [0.2, Infinity], ceph
  */
 export const HYBRID_TRAITS = Object.freeze({
   skull: ['cephalic', 'headLength', 'faceWidth', 'jaw', 'forehead'],
-  eyes: ['intercanthal', 'fifths', 'fissure', 'lidSplit', 'tiltPivot', 'globeShift', 'tent', 'outerClose', 'browProjection', 'brow'],
+  eyes: ['intercanthal', 'fifths', 'fissure', 'lidSplit', 'tiltPivot', 'globeShift', 'tent', 'innerClose', 'outerClose', 'browProjection', 'brow'],
   nose: ['nasalIndex', 'dorsum', 'radix', 'nasionDepth', 'noseProjection'],
   cheeks: ['malarDepth'],
   lips: ['lipFullness', 'upperVermilion', 'lowerVermilion', 'lipProjection', 'mouthWidth'],
