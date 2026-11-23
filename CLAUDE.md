@@ -361,6 +361,10 @@ Pointers only; each target carries its own design notes.
 - The exhibit producer: [exhibit/producer.js](control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
   [exhibit/scales.js](control/lib/graph/exhibit/scales.js), [exhibit/fit.js](control/lib/graph/exhibit/fit.js),
   [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
+- The metroidvania map (the spiralling box: one box of screens entered from the left, its walk spiralling ring by ring
+  to a core, every ring a region against the last so a power found inside opens shortcuts out and pockets behind; its
+  gates rows of `gates.js`; Vampire Sonata its template, no stomp and no wall kick; greybox today):
+  [gameworld/metroidvania/](control/lib/graph/gameworld/metroidvania/), [docs/metroidvania-map.md](docs/metroidvania-map.md).
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
   turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side, the

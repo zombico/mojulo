@@ -335,4 +335,4 @@ fight piece the tension crosses into, the boss's own piece once his room shuts, 
 
 Things that move beside the way (the benchmark says them missing), the boss's second form, the weapon its fall gives the hero, the boss's fight in
 its room, the hero's climb clip seen from behind. After them: a metroidvania (the zones as rooms on a grid, doors gated by powers, the map
-shown in the game), and the 3D platformer's courses told the same way.
+shown in the game; its box laid in greybox: [metroidvania-map.md](metroidvania-map.md)), and the 3D platformer's courses told the same way.
