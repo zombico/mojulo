@@ -51,7 +51,7 @@ const line = row([row([txt(I('label')), { use: 'text', props: { value: I('small'
 const legend = (rows) => ({ use: 'legend', props: { rows } });
 
 // ── the battle's HUD ──
-const HEAD = col([
+const HEAD_BODY = [
   aimed,
   { use: 'badge', props: { value: '▼', turn: true }, when: I('turn') },
   { use: 'statuses', props: { rows: I('statuses') }, when: I('statuses') },
@@ -59,6 +59,11 @@ const HEAD = col([
   // (a foe's HP the same bar, its numbers kept back, where the book shows foes' HP: rules.foeHp 'bar')
   { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp', numbers: false }, when: I('foeBar') },
   { use: 'bar', props: { value: I('mp'), max: I('mpMax'), variant: 'mp' }, when: I('mpMax') },
+];
+// (a head up only while a target is chosen, `onAim`, shows only while it is the one in focus: the rest of the cast seen)
+const HEAD = col([
+  { use: 'stack', props: { gap: 'tight' }, unless: I('onAim'), children: HEAD_BODY },
+  { use: 'stack', props: { gap: 'tight' }, when: I('onAim'), children: [{ use: 'stack', props: { gap: 'tight' }, when: K({ format: 'targets.aim.{id}' }), children: HEAD_BODY }] },
 ]);
 // (no foes' box and no turn order: each fighter's bar over their own head says it, a foe's as a member's)
 const HUD = { use: 'hud', when: B('battle.on'), children: [

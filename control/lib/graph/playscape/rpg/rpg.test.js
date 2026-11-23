@@ -506,7 +506,7 @@ describe('the bars over the fighters\' heads', () => {
   };
   // (the scene's projection: a plain one, the field seen from the side)
   const project = (x, y, z) => [400 + 30 * x, 500 - 30 * z, 0.5];
-  it('each fighter a bar over its head, a foe\'s too, no name; the one picking marked; the target in focus marked; a status said; the window and the bars without news step aside as a round plays', () => {
+  it('the one picking a bar over its head, no name, marked; aiming, only the target in focus its bar, marked; a status said; the window and the bars without news step aside as a round plays', () => {
     const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0, project } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames(); P.api.advance(); P.frames();
@@ -514,14 +514,19 @@ describe('the bars over the fighters\' heads', () => {
     expect(head('ayla').querySelector('.mana-badge[data-turn]')).not.toBeNull();
     expect(head('ayla').querySelector('.mana-bar[data-variant=hp]')).not.toBeNull();
     expect(head('ayla').textContent).not.toContain('Ayla');
-    // (each foe its own bar on the player's turn; aiming an attack, the one in focus is marked over its head)
-    const foes = P.api.R.b.foes.map((x) => x.uid);
-    for (const f of foes) expect(head(f)).not.toBeNull();
+    // (on the player's turn only the one picking: no foe's bar, no other member's, so the rest of the cast is seen)
+    const foes = P.api.R.b.foes.map((x) => x.uid), shows = (id) => !!(head(id) && head(id).querySelector('.mana-bar'));
+    for (const f of foes) expect(shows(f)).toBe(false);
+    for (const m of P.api.R.b.ids.filter((x) => x !== 'ayla')) expect(shows(m)).toBe(false);
+    // (aiming an attack: the target in focus its bar, marked over its head; the others none; moved on, the next one's)
     P.press('Enter');
     expect(P.api.state().level).toBe('target');
-    expect(foes.some((f) => head(f).querySelector('.mana-badge[data-variant=strong]'))).toBe(true);
+    expect(foes.filter(shows).length).toBe(1);
+    const first = foes.find(shows);
+    expect(head(first).querySelector('.mana-badge[data-variant=strong]')).not.toBeNull();
+    if (foes.length > 1) { P.press('ArrowDown'); P.frames(); expect(foes.filter(shows).length).toBe(1); expect(foes.find(shows)).not.toBe(first); }
     P.press('Escape');
-    expect(foes.every((f) => !head(f).querySelector('.mana-badge[data-variant=strong]'))).toBe(true);
+    for (const f of foes) expect(shows(f)).toBe(false);
     // (a member poisoned: its head says so)
     P.api.R.m.ayla.poison = true; P.frames();
     expect(head('ayla').querySelector('.mana-status[title=poison]')).not.toBeNull();

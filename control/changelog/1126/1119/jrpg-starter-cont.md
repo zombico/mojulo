@@ -385,3 +385,6 @@
   covers the acting member least, then the rest of the party, then the foes (`rpg-channel.js` besideAt). It was laid to
   the bar's right at the bar's top whatever stood there, and covered about half the hero beside the one acting in every
   fight of the starter's first three fighting levels; now none, and 14 % on a town level's tightest frame.
+- **Only the one acting has its bar up.** On a member's turn only its HP and MP are over its head; choosing a target,
+  only the target in focus shows its bar, moving with the cursor (`rpg-channel.js` battleModel `onAim`, `rpg-ui.js`
+  HEAD); a round playing keeps its news. Every fighter's bar was up on the player's turn and hid the cast.

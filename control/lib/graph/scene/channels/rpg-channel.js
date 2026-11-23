@@ -757,15 +757,19 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     const hp = (id, now) => (shown[id] != null ? shown[id] : now);
     const named = !pend ? '' : pend.act === 'attack' ? CMD.attack : pend.act === 'skill' ? (cfg.skills[pend.skill] || {}).name : pend.act === 'item' ? (cfg.items[pend.item] || {}).name : '';
     // the heads: one over each fighter's figure, a member's and a foe's (those who share one, the pilot's or a pack's,
-    // stacked; two that meet, the later lifted clear). Up on the player's turn; while the round plays, only one whose
-    // numbers just moved (a blow, a heal, a spell's cost), for as long as it takes to read
-    const heads = [], stack = {}, now = nowMs(), fresh = (id) => touched[id] != null && (now - touched[id] < TOLD_FOR || frameN - touchedF[id] < TOLD_FRAMES), news = (id) => cmd || fresh(id);
+    // stacked; two that meet, the later lifted clear). On the player's turn only the acting member's, so the rest of the
+    // cast is seen; while a target is chosen, each one it could be too, shown only while it is the one in focus
+    // (`onAim`: rpg-ui.js HEAD); while the round plays, only one whose numbers just moved (a blow, a heal, a spell's
+    // cost), for as long as it takes to read
+    const aimAt = new Set(aiming ? K.targets(cfg, R, pend).map((t) => t.id) : []);
+    const heads = [], stack = {}, now = nowMs(), fresh = (id) => touched[id] != null && (now - touched[id] < TOLD_FOR || frameN - touchedF[id] < TOLD_FRAMES), news = (id) => (cmd ? id === active || aimAt.has(id) : fresh(id));
+    const onAim = (id) => cmd && id !== active && aimAt.has(id);
     for (const m of b.ids) {
       const fig = figureOf(m), at = news(m) ? headAt(fig) : null;
       if (!at) continue;
       const Mm = R.m[m], S = K.statsOf(cfg, R, m), s1 = b.side[m].st, k = stack[fig] = (stack[fig] || 0) + 1;
       const tags = [Mm.poison ? 'poison' : '', s1.sleep ? 'asleep' : '', s1.silence ? 'silenced' : '', ...ownStates(s1)].filter(Boolean);
-      heads.push({ id: m, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: hp(m, Mm.hp), hpMax: S.hp, mp: shown[m + ':mp'] != null ? shown[m + ':mp'] : Mm.mp, mpMax: S.mp > 0 ? S.mp : 0, statuses: tags.length ? tags : null, turn: m === active, foe: false });
+      heads.push({ id: m, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: hp(m, Mm.hp), hpMax: S.hp, mp: shown[m + ':mp'] != null ? shown[m + ':mp'] : Mm.mp, mpMax: S.mp > 0 ? S.mp : 0, statuses: tags.length ? tags : null, turn: m === active, foe: false, onAim: onAim(m) });
     }
     // (a foe's: its HP as a bar where the book shows foes' HP, rules.foeHp 'bar', never its numbers; a fallen foe's only
     // while its fall is news)
@@ -776,10 +780,11 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       if (!at) continue;
       const k = stack[fig] = (stack[fig] || 0) + 1, st = x.st || {};
       const tags = [x.poison ? 'poison' : '', st.sleep ? 'asleep' : '', st.silence ? 'silenced' : '', ...ownStates(st)].filter(Boolean);
-      heads.push({ id: x.uid, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: Math.max(0, h0), hpMax: x.max, foe: true, foeBar: cfg.rules.foeHp === 'bar', statuses: tags.length ? tags : null });
+      heads.push({ id: x.uid, px: [at[0], at[1] - 44 * (k - 1)], world: [at[2][0], at[2][1], at[2][2] + 0.3 * (k - 1)], hp: Math.max(0, h0), hpMax: x.max, foe: true, foeBar: cfg.rules.foeHp === 'bar', statuses: tags.length ? tags : null, onAim: onAim(x.uid) });
     }
     const placed = heads.slice().sort((x, y) => y.px[1] - x.px[1]);
-    for (let i = 0; i < placed.length; i++) for (let j = 0; j < i; j++) { const a = placed[i], c = placed[j]; if (Math.abs(a.px[0] - c.px[0]) < 86 && Math.abs(a.px[1] - c.px[1]) < 36) a.px[1] = c.px[1] - 37; }
+    // (a head shown only while aimed at never lifts one that is always up: the acting member's stays over its head)
+    for (let i = 0; i < placed.length; i++) for (let j = 0; j < i; j++) { const a = placed[i], c = placed[j]; if (c.onAim && !a.onAim) continue; if (Math.abs(a.px[0] - c.px[0]) < 86 && Math.abs(a.px[1] - c.px[1]) < 36) a.px[1] = c.px[1] - 37; }
     for (const h of heads) { const [x, y] = frac(h.px); delete h.px; h.x = x; h.y = y; }
     // the numbers where blows land, over whoever took them (a foe over its own figure, or its pack's)
     const numbers = [];

@@ -427,7 +427,9 @@ fight, nothing but the land covers more than 5 % of the frame before the fight; 
 
 ## The command window beside the one acting
 
-Each fighter's HP and MP stand parked over its head. On a member's turn the command window opens beside its bar, to
+On a member's turn only its own HP and MP are up, parked over its head, so the rest of the cast is seen; choosing a
+target, only the one in focus has its bar up as well, moving with the cursor (`rpg-ui.js` HEAD's `onAim`); while the
+round plays, a bar is up only while its numbers have news. The command window opens beside the acting member's bar, to
 the right first, never over the member: of the places beside the bar (its top at the bar's, rising from its foot, over
 it, under the member's feet; then the same to its left), held inside the screen, the one that covers the acting
 member's figure least, then the rest of the party's, then the foes' (`rpg-channel.js` besideAt). The guard is
