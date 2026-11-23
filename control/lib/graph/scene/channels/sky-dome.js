@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { spaceBackdropScript, onPlanetSource } from './space-backdrop.js';
 
 // In-page script: a world-fixed sky, in two shapes. ATMOSPHERE (default): a huge inverted
 // sphere (BackSide) centred on the scene carries a z-up zenith→horizon gradient in its vertex
@@ -61,6 +62,7 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     band.renderOrder = -1.5; band.frustumCulled = false; band.raycast = () => {};
     scene.add(band);
   }
+` : ''}${d.backdrop && d.backdrop.planets && d.backdrop.planets.length ? `  const __onPlanet = ${onPlanetSource};
 ` : ''}  if (SKY.stars > 0 && (SKY.space || SKY.day < 0.5)) {
     const nightF = SKY.space ? 1 : Math.min(1, (0.5 - SKY.day) / 0.5);  // space stars are always on
     const N = Math.round((SKY.space ? 2000 : 900) * SKY.stars * nightF);
@@ -69,9 +71,11 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     for (let i = 0; i < N; i++) {
       // SPACE: uniform over the full sphere (el ∈ [-π/2, π/2] via asin). ATMOSPHERE: upper dome, zenith-biased.
       const az = rnd() * Math.PI * 2, el = SKY.space ? Math.asin(2 * rnd() - 1) : Math.pow(rnd(), 0.6) * (Math.PI / 2);
-      const rr = R * 0.985, cr = Math.cos(el);
+      const rr = R * 0.985, cr = Math.cos(el);${d.backdrop && d.backdrop.planets && d.backdrop.planets.length ? `
+      const __hid = __onPlanet([cr * Math.cos(az), cr * Math.sin(az), Math.sin(el)]);   // (behind a planet: dark)` : ''}
       sp[i*3] = SKY.center[0] + rr*cr*Math.cos(az); sp[i*3+1] = SKY.center[1] + rr*cr*Math.sin(az); sp[i*3+2] = SKY.center[2] + rr*Math.sin(el);
-      const b = 0.6 + 0.4 * rnd(); sc[i*3] = b; sc[i*3+1] = b; sc[i*3+2] = b * (0.9 + 0.1 * rnd());
+      const b = 0.6 + 0.4 * rnd(); sc[i*3] = b; sc[i*3+1] = b; sc[i*3+2] = b * (0.9 + 0.1 * rnd());${d.backdrop && d.backdrop.planets && d.backdrop.planets.length ? `
+      if (__hid) sc[i*3] = sc[i*3+1] = sc[i*3+2] = 0;` : ''}
     }
     const sg = new THREE.BufferGeometry();
     sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
@@ -143,5 +147,5 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     __skyFollow(ssp, ssp.position.toArray());` : ''}${d.hot ? `
     ssp.material.color.setScalar(${SUN_HOT});   // (under the bloom the sun's disc is drawn past white: a world's finish)` : ''}
   }
-}`;
+}${d.space && d.backdrop ? spaceBackdropScript(d.backdrop) : ''}`;
 }

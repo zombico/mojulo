@@ -279,3 +279,21 @@ They share one foundation, built first, and these themes record it as it lands.
   overhead lights the bars' upper edges, and one behind the pilot puts a sheen on their faces. As the craft rolls, the
   light slides from edge to edge round the frame. An edge only writes when its light changes by more than a
   twentieth, so a still view costs nothing.
+- **Space backdrops: a nebula, planets and a far sun** (`skyscape/backdrop.js` `planBackdrop`;
+  `scene/channels/space-backdrop.js`). A space map's sky now holds more than stars, composed from the map's seed and
+  drawn once at load into a cube at infinity that is the scene's background. It turns with the view, never moves
+  with the craft, and costs nothing a frame.
+  - **The nebula** is a band on a great circle, as a galaxy's plane is: domain-warped clouds in two hues with
+    filaments drawn through them, dust lanes and warm emission knots. Its hues are cool, the warm star's complements
+    (blue to violet), and never the cockpit's target magenta. It is dim under the stars and the bolts.
+  - **The planets** are a large primary set where the star lights it from the side, so it reads as a crescent or a
+    gibbous, and up to two small ones. Each is of a kind, with its own surface: a gas giant's bands and storms
+    (sometimes ringed, with the planet's shadow across the rings), a rocky world's plains and highlands, ice, an
+    ocean's land and cloud, or lava's cracks glowing on its night side. Each has a soft terminator and an atmosphere
+    rim brightest on the lit limb, with a halo past it. Every planet keeps clear of the star and of each other, and
+    a star whose direction falls on a planet's disc goes dark.
+  - **A far sun**, red or blue-white, sits away from the near one, and the near one gets a wide faint corona.
+  - `space.backdrop` is `false` for stars alone, or `{ planets?, nebula?, suns?, seed? }`.
+  - The bake is stored in half-float, because in eight bits the nebula's faint gradients banded into green.
+- **No CRT over space.** The terminal theme laid scanlines and a green glow over the whole stage, tinting the space
+  seen through the canopy. The cockpit's theme drops it (`overlay: 'none'`); the screens keep their own glass.

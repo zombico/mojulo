@@ -37,6 +37,7 @@ import { seatCraft, craftPilot, airframeOf } from './craft.js';
 import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace, SPACE_STAR } from './space.js';
+import { planBackdrop } from './backdrop.js';
 import { trenchField } from './trench.js';
 import { railPath, railKeep, planRailStage } from './rail-stage.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
@@ -184,6 +185,15 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   };
 }
 
+/** A space map's backdrop (backdrop.js): its nebula, planets and far sun, seeded by the map (its own `backdrop.seed`,
+ *  else the map's); `space.backdrop: false` a sky of stars alone. */
+function backdropOf(manifest) {
+  const B = manifest.space && manifest.space.backdrop;
+  if (B === false) return {};
+  const o = B && typeof B === 'object' ? B : {};
+  return { backdrop: planBackdrop({ star: SPACE_STAR.dir, seed: o.seed ?? manifest.seed ?? 1, ...(o.planets !== undefined ? { planets: o.planets } : {}), ...(o.nebula !== undefined ? { nebula: o.nebula } : {}), ...(o.suns !== undefined ? { suns: o.suns } : {}) }) };
+}
+
 /** The space map on the World page (space.js): stars all round, the rocks instanced, the course's gates, no ground. */
 function assembleSpace(manifest, { title }) {
   const { map, field } = airspaceOf(manifest);
@@ -200,7 +210,7 @@ function assembleSpace(manifest, { title }) {
     faces: [...(field.faces || []), ...(course ? course.faces : [])], repeats: [...field.repeats, ...railHazardRepeats(manifest, map, field, { light: makeLight({ direction: [-0.45, 0.35, -0.82], ambient: 0.32, diffuse: 0.78 }), tone: '#7d756c' })], cameras, title,
     // (the star the craft are lit by, where the rocks' light comes from: space.js SPACE_STAR; the sky at infinity, flown
     // through and never past)
-    sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: [...SPACE_STAR.dir], size: SPACE_STAR.size, glow: SPACE_STAR.glow } }, bg: '#03040a',
+    sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: [...SPACE_STAR.dir], size: SPACE_STAR.size, glow: SPACE_STAR.glow }, ...backdropOf(manifest) }, bg: '#03040a',
     ...(pilot ? {} : { walk: { speed: 20, spawn: p, radius: 0.4, minEye: 1.7, gravity: 0, jump: 0 } }),
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
     ...(pilot || {}),

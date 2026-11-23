@@ -377,7 +377,7 @@ export function cockpitFramePage(F, card) {
     if (kg) kg.setAttribute('opacity', (Math.round(look.key * 100) / 100).toString());
     // (the bars' glints: an edge to its light's strength, eased past a twentieth so a still view writes nothing)
     for (const G of glints) {
-      const L = __ckBarGlint(G.N, look.sunEye), want = [Math.pow(L.a, 0.7) * 0.85, Math.pow(L.b, 0.7) * 0.85, L.face * 0.2];
+      const L = __ckBarGlint(G.N, look.sunEye), want = [Math.pow(L.a, 1.4) * 0.6, Math.pow(L.b, 1.4) * 0.6, L.face * 0.2];
       ['a', 'b', 'face'].forEach((k, i) => { if (Math.abs(want[i] - G.o[i]) > 0.02) { G.o[i] = want[i]; G[k].setAttribute('opacity', want[i].toFixed(2)); } });
     }
     for (const n in lamps) {

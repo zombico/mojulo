@@ -37,6 +37,7 @@ describe('the cockpit\'s look', () => {
     expect(T.tokens.harm).toBe(COCKPIT_COLOURS.warning);
     expect(T.tokens.shield).toBe(COCKPIT_COLOURS.shields);
     expect(T.fills).toBe('solid');
+    expect(T.overlay).toBe('none');                              // (space through the canopy untinted)
   });
 
   it('the alerts: nothing when all is well; a pool low a caution; a shield down or the hull at a quarter a warning', () => {

@@ -51,8 +51,9 @@ export const COCKPIT_COLOURS = Object.freeze({
 const C = COCKPIT_COLOURS;
 /** The instruments' theme: the terminal's phosphor, every token a colour of the code. */
 export const COCKPIT_THEME = Object.freeze({
-  // (its bars filled solid, so a gauge's colour is its state: the terminal's hatching would fight the code)
-  from: 'terminal', fills: 'solid',
+  // (its bars filled solid, so a gauge's colour is its state: the terminal's hatching would fight the code; no CRT
+  // over the stage: the screens are glass, the canopy is not, and space seen through it is not tinted or lined)
+  from: 'terminal', fills: 'solid', overlay: 'none',
   tokens: Object.freeze({ ink: C.figure, panel: C.glass, line: C.label, accent: C.normal, accent2: C.target, mid: C.label, harm: C.warning, hp: C.normal, mp: C.normal, shield: C.shields }),
 });
 

@@ -20,6 +20,7 @@
  * Pure, deterministic.
  */
 import { pilotEye } from './eye.js';
+import { validateBackdrop } from './backdrop.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { gnoise, hashSeed } from '../polygonizer/landform.js';
@@ -52,6 +53,7 @@ export function validateSpace(m = {}, s = {}) {
   if (s.asteroids !== undefined && !ASTEROIDS.densities[s.asteroids] && ASTEROIDS.densities[s.asteroids] !== 0) e.push(`space.asteroids must be one of ${Object.keys(ASTEROIDS.densities).join(', ')}`);
   if (s.trench !== undefined && typeof s.trench !== 'boolean') e.push('space.trench must be true (a battle station\'s trench to run, trench.js) or false');
   if (s.trench && s.asteroids !== undefined && s.asteroids !== 'none') e.push('space.trench: a station\'s surface has no asteroids over it');
+  e.push(...validateBackdrop(s.backdrop));
   return e;
 }
 
