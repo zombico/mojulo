@@ -6,8 +6,9 @@
  *   briefingData(M) → {
  *     id, name, status, place: { line, parts }, orrery,
  *     theatre: { field, moon, rocks: [[x, y, z, r]…], nav: [{ id, name, at }] },
- *     things:  [{ id, name, side, kind: 'group' | 'capital' | 'station', label, at, heading, count?, pilot?, arrives?,
- *                 mini }]   at the sortie's metres (x across, y ahead, z up), heading ° clockwise from ahead
+ *     things:  [{ id, name, side, kind: 'group' | 'capital' | 'station' | 'beacon', label, at, heading, count?, pilot?,
+ *                 arrives?, mini?, radius?, dark? }]   at the sortie's metres (x across, y ahead, z up), heading °
+ *              clockwise from ahead; a beacon its reach and what lights it (`label`), `dark` until something does
  *     steps:   [{ id, stage: 'orrery' | 'theatre', focus?, part, title, say, show, routes }]   part: the place's part
  *              the step is on (the opening zooms the system 0, the cluster 1, the moon 3; the fight round the station 2)
  *     roster:  [{ id, name, craft, count, side }]
@@ -47,6 +48,7 @@ function goalText(M, g) {
   const names = (ids) => [ids].flat().map((id) => { const c = M.cast.find((x) => x.id === id); return c ? `${c.name}${c.count > 1 ? ` ×${c.count}` : ''}` : id; }).join(', ');
   if (g.destroy) return `Destroy: ${names(g.destroy)}`;
   if (g.protect) return `Protect: ${names(g.protect)}`;
+  if (g.reach) return `Reach: ${(M.beacons ?? []).find((b) => b.id === g.reach)?.name ?? g.reach}`;
   return `Hold for ${g.survive} seconds`;
 }
 
@@ -62,7 +64,7 @@ export function briefingData(M) {
     rocks.push([r1(p[0]), r1(p[1]), r1(p[2]), r1(18 + rnd() * rnd() * 140)]);
     k += 1;
   }
-  const things = M.cast.map((c) => {
+  let things = M.cast.map((c) => {
     if (c.station) return { id: c.id, name: c.name, side: c.side, kind: 'station', label: stationMini(c.station).label, at: c.at, heading: c.heading ?? 0, mini: stationMini(c.station) };
     if (c.capital) return { id: c.id, name: c.name, side: c.side, kind: 'capital', label: capitalMini(c.capital).label, at: posOf(M, c), heading: c.heading ?? 0, mini: capitalMini(c.capital) };
     const at = groupAt(M, c);
@@ -70,6 +72,10 @@ export function briefingData(M) {
     const heading = c.side === 'foe' ? r1(bearingTo(at, [0, 0, 0])) : 0;
     return { id: c.id, name: c.name, side: c.side, kind: 'group', label: craftWords(c.craft), at, heading, count: c.count, ...(c.pilot ? { pilot: true } : {}), ...(c.arrive && c.arrive !== 'start' ? { arrives: true } : {}), mini: craftMini(c.craft) };
   });
+  // the beacons: each a ring of light where the pilot is sent, said with what lights it
+  const nameOf = (id) => M.cast.find((c) => c.id === id)?.name ?? (M.beacons ?? []).find((b) => b.id === id)?.name ?? id;
+  const litWords = (L) => (!L ? 'lit' : L.reach ? `lit at ${nameOf(L.reach)}` : L.down ? `lit when ${nameOf(L.down)} is down` : `lit at ${L.after} s`);
+  for (const b of M.beacons ?? []) things.push({ id: b.id, name: b.name, side: 'beacon', kind: 'beacon', label: litWords(b.lit), at: posOf(M, b), heading: 0, radius: b.radius ?? SORTIE.beacon, ...(b.lit ? { dark: true } : {}) });
   const H = O.planets[O.home], star = STAR_KINDS[O.star.kind].label;
   const opening = [
     { id: 'system', stage: 'orrery', focus: 'system', part: 0, title: parts[0].name, say: `${star.replace(/^\w/, (c) => c.toUpperCase())} and ${O.planets.length} worlds. The fight is among the moons of the ${ORD[O.home]} world.`, show: [], routes: [] },

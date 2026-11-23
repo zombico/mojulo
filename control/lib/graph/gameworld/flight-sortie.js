@@ -5,21 +5,29 @@
  * mechanic (game/sortie.js: goals together, arrivals) and the pilot's hull (`fail-on-death` of its body).
  *
  *   goal.flight = { sortie: {
- *     groups: [{ id, name?, craft?, count?, side: 'friend' | 'foe', arrive?, at?, shields?, hull? }],
- *     goals:  [{ destroy: id | [ids] } | { protect: id | [ids] } | { survive: s }, each with an optional say],
+ *     groups:  [{ id, name?, craft?, count?, side: 'friend' | 'foe', arrive?, at?, shields?, hull? }],
+ *     goals:   [{ destroy: id | [ids] } | { protect: id | [ids] } | { survive: s } | { reach: <beacon> }, each with an
+ *              optional say],
+ *     beacons: [{ id, name?, at, radius?, lit?, say? }],
  *   } }
+ *     beacon   a place in space the pilot is sent to: a marker it flies into, at { ahead?, side?, up? } from the start, its
+ *              radius (SORTIE.beacon m); dark until `lit`: { after: s } | { down: <group>, after? } | { reach: <beacon>,
+ *              after? } (at once without); `say` what the comms say as it is reached. The marker is the targeting
+ *              computer's (U, the mission's), brought in as it lights and gone as it is reached
  *     craft    a shelf archetype (craft-shelf/craft-archetypes.js); a foe's the interceptor, a friend's the strike foil
  *     count    1 to SORTIE.most; each named "<name> <n>" (the targeting computer's), its id "<id>-<n>"
  *     arrive   'start' (there when the mission begins), { after: s }, { down: <group id>, after?: s } (once that group
- *              is down), each with an optional say; arriving groups are minted asleep and brought in by the mission
+ *              is down), { reach: <beacon>, after?: s } (once the pilot reaches it), each with an optional say; arriving
+ *              groups are minted asleep and brought in by the mission
  *     at       where it comes in: { ahead?, side?, up? } metres from the pilot's start along its heading (a foe's ahead,
  *              a friend's beside), laid across in a line
  *     shields  fore and aft shields (a friend's on, a foe's off: interceptors fly without them); hull its hit points
  *     hold     true: the craft hold their places, unarmed (transports at a rendezvous, waiting to be protected)
  *
  *   readSortie(v, at?)            → the sortie read (throws naming the field)
- *   sortieMechanics(S, ends)      → the level's mechanics
- *   sortieCast(S, ends)           → { entities, figures } the groups as craft, minds on their sides
+ *   sortieMechanics(S, ends)      → the level's mechanics (ends: the level's anchors, where its beacons stand)
+ *   sortieCast(S, ends)           → { entities, figures } the groups as craft, minds on their sides; the beacons'
+ *                                   markers (`beacon-<id>`)
  *
  * Pure: the same sortie, the same craft in the same places.
  */
@@ -37,6 +45,10 @@ export const SORTIE = Object.freeze({
   // where a group comes in by default (m from the pilot's start: along its heading, across it, up); its craft this far apart
   at: Object.freeze({ foe: Object.freeze({ ahead: 1600, side: 0, up: 0 }), friend: Object.freeze({ ahead: -40, side: 60, up: 0 }), arrive: Object.freeze({ ahead: 2400, side: 0, up: 120 }) }),
   spacing: 70,
+  // a beacon's reach (m) when it says none, and the most a sortie lays
+  beacon: 150, beacons: 8,
+  // a beacon's marker: its size (m) and its light (amber: not a craft's side, and never the target's magenta)
+  marker: 12, beaconColor: '#ffc23a',
   // a mind's numbers by side: its cannons' rate, its bursts (a wingman helps, the player carries the mission)
   guns: Object.freeze({ foe: Object.freeze({ rof: 3, burst: 0.4, pause: 1.4 }), friend: Object.freeze({ rof: 1.5, burst: 0.3, pause: 3 }) }),
 });
@@ -46,7 +58,7 @@ const GROUP_KEYS = ['id', 'name', 'craft', 'count', 'side', 'arrive', 'at', 'shi
 export function readSortie(v, at = 'goal.flight.sortie') {
   const fail = (m) => { throw new Error(`gameworld: ${at}${m}`); };
   if (!isObj(v)) fail(' is { groups: [...], goals: [...] }');
-  for (const k of Object.keys(v)) if (!['groups', 'goals'].includes(k)) fail(`.${k} is not a sortie's (groups, goals)`);
+  for (const k of Object.keys(v)) if (!['groups', 'goals', 'beacons'].includes(k)) fail(`.${k} is not a sortie's (groups, goals, beacons)`);
   if (!Array.isArray(v.groups) || !v.groups.length) fail('.groups is a list of flight groups, at least one');
   const seen = new Set();
   const groups = v.groups.map((g, k) => {
@@ -64,10 +76,10 @@ export function readSortie(v, at = 'goal.flight.sortie') {
     let arrive = { start: true };
     if (g.arrive !== undefined && g.arrive !== 'start') {
       const A = g.arrive;
-      if (!isObj(A) || Object.keys(A).some((f) => !['after', 'down', 'say'].includes(f)) || (A.after === undefined && A.down === undefined)) fail(`${w}.arrive is 'start', { after: s }, or { down: <group id>, after?: s }, each with say?`);
+      if (!isObj(A) || Object.keys(A).some((f) => !['after', 'down', 'reach', 'say'].includes(f)) || (A.after === undefined && A.down === undefined && A.reach === undefined) || (A.down !== undefined && A.reach !== undefined)) fail(`${w}.arrive is 'start', { after: s }, { down: <group id>, after?: s } or { reach: <beacon>, after?: s }, each with say?`);
       if (A.after !== undefined && !(Number.isFinite(A.after) && A.after >= 0)) fail(`${w}.arrive.after is seconds`);
       if (A.say !== undefined && typeof A.say !== 'string') fail(`${w}.arrive.say is a line`);
-      arrive = { ...(A.after !== undefined ? { after: A.after } : {}), ...(A.down !== undefined ? { down: A.down } : {}), ...(A.say ? { say: A.say } : {}) };
+      arrive = { ...(A.after !== undefined ? { after: A.after } : {}), ...(A.down !== undefined ? { down: A.down } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.say ? { say: A.say } : {}) };
     }
     if (g.at !== undefined && !(isObj(g.at) && Object.entries(g.at).every(([f, x]) => ['ahead', 'side', 'up'].includes(f) && Number.isFinite(x) && Math.abs(x) <= 20000))) fail(`${w}.at is { ahead?, side?, up? } in metres from the start`);
     if (g.shields !== undefined && typeof g.shields !== 'boolean') fail(`${w}.shields is true or false`);
@@ -78,13 +90,41 @@ export function readSortie(v, at = 'goal.flight.sortie') {
   });
   const byId = Object.fromEntries(groups.map((g) => [g.id, g]));
   for (const g of groups) if (g.arrive.down !== undefined && (!byId[g.arrive.down] || g.arrive.down === g.id)) fail(`.groups '${g.id}' arrives when '${g.arrive.down}' is down: no other group of that id`);
-  if (!Array.isArray(v.goals) || !v.goals.length) fail('.goals is a list, at least one: { destroy: id | [ids] } | { protect: id | [ids] } | { survive: s }');
+  // the beacons: places the pilot is sent to (their ids apart from the groups')
+  const beacons = (v.beacons ?? []).map((b, k) => {
+    const w = `.beacons[${k}]`;
+    if (k === 0 && !Array.isArray(v.beacons)) fail('.beacons is a list: [{ id, name?, at, radius?, lit?, say? }]');
+    if (!isObj(b)) fail(`${w} is { id, name?, at, radius?, lit?, say? }`);
+    for (const f of Object.keys(b)) if (!['id', 'name', 'at', 'radius', 'lit', 'say'].includes(f)) fail(`${w}.${f} is not a beacon's (id, name, at, radius, lit, say)`);
+    if (typeof b.id !== 'string' || !/^[a-z][a-z0-9]*$/.test(b.id) || byId[b.id] || (v.beacons ?? []).slice(0, k).some((x) => x && x.id === b.id)) fail(`${w}.id is a short name, once (a group's ids are its own)`);
+    if (!(isObj(b.at) && Object.entries(b.at).every(([f, x]) => ['ahead', 'side', 'up'].includes(f) && Number.isFinite(x) && Math.abs(x) <= 20000))) fail(`${w}.at is { ahead?, side?, up? } in metres from the start`);
+    if (b.radius !== undefined && !(Number.isFinite(b.radius) && b.radius >= 20 && b.radius <= 2000)) fail(`${w}.radius is metres, 20 to 2000`);
+    if (b.say !== undefined && typeof b.say !== 'string') fail(`${w}.say is a line`);
+    if (b.name !== undefined && !(typeof b.name === 'string' && b.name)) fail(`${w}.name is what the targeting computer calls it`);
+    let lit = null;
+    if (b.lit !== undefined) {
+      const L = b.lit;
+      if (!isObj(L) || Object.keys(L).some((f) => !['after', 'down', 'reach'].includes(f)) || (L.after === undefined && L.down === undefined && L.reach === undefined) || (L.down !== undefined && L.reach !== undefined)) fail(`${w}.lit is { after: s }, { down: <group>, after? } or { reach: <beacon>, after? }`);
+      if (L.after !== undefined && !(Number.isFinite(L.after) && L.after >= 0)) fail(`${w}.lit.after is seconds`);
+      if (L.down !== undefined && !byId[L.down]) fail(`${w}.lit.down '${L.down}' is no flight group of the sortie`);
+      lit = { ...L };
+    }
+    return { id: b.id, name: b.name ?? b.id[0].toUpperCase() + b.id.slice(1), at: { ...b.at }, radius: b.radius ?? SORTIE.beacon, ...(lit ? { lit } : {}), ...(b.say ? { say: b.say } : {}) };
+  });
+  if (beacons.length > SORTIE.beacons) fail(`.beacons: at most ${SORTIE.beacons}`);
+  const bById = Object.fromEntries(beacons.map((b) => [b.id, b]));
+  for (const b of beacons) if (b.lit?.reach !== undefined && (!bById[b.lit.reach] || b.lit.reach === b.id)) fail(`.beacons '${b.id}' is lit when '${b.lit.reach}' is reached: no other beacon of that id`);
+  // (a chain of beacons each lit by the next is never lit)
+  for (const b of beacons) { let c = b, n = 0; while (c?.lit?.reach && n <= beacons.length) { c = bById[c.lit.reach]; n++; } if (n > beacons.length) fail(`.beacons '${b.id}': its lit chain comes back on itself, so it is never lit`); }
+  for (const g of groups) if (g.arrive.reach !== undefined && !bById[g.arrive.reach]) fail(`.groups '${g.id}' arrives when '${g.arrive.reach}' is reached: no beacon of that id`);
+  if (!Array.isArray(v.goals) || !v.goals.length) fail('.goals is a list, at least one: { destroy: id | [ids] } | { protect: id | [ids] } | { survive: s } | { reach: <beacon> }');
   const goals = v.goals.map((g, k) => {
-    const w = `.goals[${k}]`, kind = ['destroy', 'protect', 'survive'].filter((f) => isObj(g) && g[f] !== undefined);
-    if (kind.length !== 1) fail(`${w} is one of destroy, protect, survive`);
+    const w = `.goals[${k}]`, kind = ['destroy', 'protect', 'survive', 'reach'].filter((f) => isObj(g) && g[f] !== undefined);
+    if (kind.length !== 1) fail(`${w} is one of destroy, protect, survive, reach`);
     for (const f of Object.keys(g)) if (f !== kind[0] && f !== 'say') fail(`${w}.${f} is not a goal's (${kind[0]}, say)`);
     if (g.say !== undefined && typeof g.say !== 'string') fail(`${w}.say is a line`);
     if (kind[0] === 'survive') { if (!(Number.isFinite(g.survive) && g.survive > 0)) fail(`${w}.survive is seconds, above 0`); return { survive: g.survive, ...(g.say ? { say: g.say } : {}) }; }
+    if (kind[0] === 'reach') { if (!bById[g.reach]) fail(`${w}.reach '${g.reach}' is no beacon of the sortie (${beacons.map((b) => b.id).join(', ') || 'none'})`); return { reach: g.reach, ...(g.say ? { say: g.say } : {}) }; }
     const list = Array.isArray(g[kind[0]]) ? g[kind[0]] : [g[kind[0]]];
     for (const id of list) {
       if (!byId[id]) fail(`${w}.${kind[0]} '${id}' is no flight group of the sortie (${groups.map((x) => x.id).join(', ')})`);
@@ -93,18 +133,30 @@ export function readSortie(v, at = 'goal.flight.sortie') {
     }
     return { [kind[0]]: list, ...(g.say ? { say: g.say } : {}) };
   });
-  if (!goals.some((g) => g.destroy || g.survive)) fail('.goals: a mission is won by a goal met, at least one destroy or survive');
-  return { groups, goals };
+  if (!goals.some((g) => g.destroy || g.survive || g.reach)) fail('.goals: a mission is won by a goal met, at least one destroy or survive, or a beacon to reach');
+  return { groups, goals, ...(beacons.length ? { beacons } : {}) };
 }
 
 const craftIds = (g) => Array.from({ length: g.count }, (_, k) => `${g.id}-${k + 1}`);
 
-/** The level's mechanics: the sortie's goals and arrivals over its craft, and the pilot's hull. */
-export function sortieMechanics(S) {
+// where a sortie's `at` stands in the world: the pilot's start along its heading, across it, up
+const fromStart = (ends, A) => {
+  const seat = ends.seat.transform, p = seat.pos, h = seat.heading, fx = Math.cos(h), fy = Math.sin(h), rx = Math.sin(h), ry = -Math.cos(h);
+  const ah = A.ahead ?? 0, sd = A.side ?? 0;
+  return [r2(p[0] + fx * ah + rx * sd), r2(p[1] + fy * ah + ry * sd), r2(p[2] + (A.up ?? 0))];
+};
+const beaconId = (b) => `beacon-${b.id}`;
+
+/** The level's mechanics: the sortie's goals, arrivals and beacons over its craft, and the pilot's hull. */
+export function sortieMechanics(S, ends = null) {
   const byId = Object.fromEntries(S.groups.map((g) => [g.id, g]));
-  const goals = S.goals.map((g) => (g.survive ? g : { [g.destroy ? 'destroy' : 'protect']: (g.destroy ?? g.protect).flatMap((id) => craftIds(byId[id])), ...(g.say ? { say: g.say } : {}) }));
-  const arrivals = S.groups.filter((g) => !g.arrive.start).map((g) => ({ craft: craftIds(g), ...(g.arrive.after !== undefined ? { after: g.arrive.after } : {}), ...(g.arrive.down ? { down: craftIds(byId[g.arrive.down]) } : {}), ...(g.arrive.say ? { say: g.arrive.say } : {}) }));
-  return [{ kind: 'fail-on-death', of: 'body' }, { kind: 'sortie', goals, ...(arrivals.length ? { arrivals } : {}) }];
+  const goals = S.goals.map((g) => (g.survive || g.reach ? g : { [g.destroy ? 'destroy' : 'protect']: (g.destroy ?? g.protect).flatMap((id) => craftIds(byId[id])), ...(g.say ? { say: g.say } : {}) }));
+  // (the beacons where the start puts them; a sortie read without its map lays none: its reach goals cannot be met)
+  const beacons = S.beacons && ends ? S.beacons.map((b) => ({ id: b.id, at: fromStart(ends, b.at), radius: b.radius, entity: beaconId(b),
+    ...(b.lit ? { lit: { ...(b.lit.after !== undefined ? { after: b.lit.after } : {}), ...(b.lit.down ? { down: craftIds(byId[b.lit.down]) } : {}), ...(b.lit.reach ? { reach: b.lit.reach } : {}) } } : {}),
+    ...(b.say ? { say: b.say } : {}) })) : null;
+  const arrivals = S.groups.filter((g) => !g.arrive.start).map((g) => ({ craft: craftIds(g), ...(g.arrive.after !== undefined ? { after: g.arrive.after } : {}), ...(g.arrive.down ? { down: craftIds(byId[g.arrive.down]) } : {}), ...(g.arrive.reach ? { reach: g.arrive.reach } : {}), ...(g.arrive.say ? { say: g.arrive.say } : {}) }));
+  return [{ kind: 'fail-on-death', of: 'body' }, { kind: 'sortie', goals, ...(arrivals.length ? { arrivals } : {}), ...(beacons ? { beacons } : {}) }];
 }
 
 /** The groups as craft: each a mind on its side (friends hunt the foes, foes hunt the pilot's side), drawn as its
@@ -138,6 +190,13 @@ export function sortieCast(S, ends) {
         transform: { pos, heading: r2(heading), pitch: 0 },
       });
     });
+  }
+  // the beacons: a marker each where the start puts it, held still, never hit, the mission's (the targeting computer's U);
+  // dark ones asleep until they light
+  for (const b of S.beacons ?? []) {
+    entities.push({ id: beaconId(b), ...(b.lit ? { dormant: true } : {}), rule: { type: 'static' },
+      body: { type: 'mesh', beacon: true, radius: SORTIE.marker, color: SORTIE.beaconColor, marker: false, name: b.name, goal: true },
+      transform: { pos: fromStart(ends, b.at), heading: 0, pitch: 0 } });
   }
   return { entities, figures };
 }

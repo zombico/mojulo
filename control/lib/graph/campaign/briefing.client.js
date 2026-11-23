@@ -4,7 +4,7 @@
 // (mana-ui) and for probes; stop() ends its frames and gives its GL context back (a level's briefing, once launched). It
 // draws only what the data says; the words over it are mana-ui's.
 
-const COL = { friend: new THREE.Color('#38d8ff'), foe: new THREE.Color('#ff4a5c'), neutral: new THREE.Color('#ffc93a'), nav: new THREE.Color('#a8f4ff'), dim: new THREE.Color('#5fb7d8') };
+const COL = { friend: new THREE.Color('#38d8ff'), foe: new THREE.Color('#ff4a5c'), neutral: new THREE.Color('#ffc93a'), beacon: new THREE.Color('#ffc23a'), nav: new THREE.Color('#a8f4ff'), dim: new THREE.Color('#5fb7d8') };
 const R = 6, LIFT = 1.5;                       // the table's radius and the height of the theatre's plane over it (units)
 const HALF = BRIEF.theatre.field / 2, S = (R * 0.9) / HALF;   // metres to units
 const MINI = { fighter: 0.22, bomber: 0.26, transport: 0.5, probe: 0.14 };   // a craft's miniature length (units)
@@ -97,7 +97,10 @@ function makeHolo(parts, color, k, { edges = true, edgeAlpha = 0.85, stage = 'th
 
 // a label that keeps its size on the screen, over a thing
 function label(text, color, { size = 1, sub = '' } = {}) {
-  const c = document.createElement('canvas'), W = 512, Hh = sub ? 150 : 96; c.width = W; c.height = Hh;
+  // (as wide as its words: a long name is never clipped)
+  const c = document.createElement('canvas'), m = c.getContext('2d');
+  m.font = `700 54px ${FONT}`; const w1 = m.measureText(text.toUpperCase()).width; m.font = `500 38px ${FONT}`; const w2 = sub ? m.measureText(sub).width : 0;
+  const W = Math.max(256, Math.ceil(Math.max(w1, w2) + 48)), Hh = sub ? 150 : 96; c.width = W; c.height = Hh;
   const g = c.getContext('2d'); g.font = `700 54px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
   g.shadowColor = '#000'; g.shadowBlur = 10; g.fillStyle = '#' + color.getHexString(); g.fillText(text.toUpperCase(), W / 2, 48);
   if (sub) { g.font = `500 38px ${FONT}`; g.fillStyle = '#cfefff'; g.fillText(sub, W / 2, 112); }
@@ -189,7 +192,14 @@ const drops = [];
 for (const T of BRIEF.things) {
   const col = COL[T.side] || COL.neutral, at = toTable(T.at), g = new THREE.Group();
   let H, r;
-  if (T.kind === 'group') {
+  if (T.kind === 'beacon') {
+    // a beacon: a ring at its reach round a core, in amber (dashed while something has yet to light it)
+    const rr = Math.max(0.12, T.radius * S * 2.2);
+    H = makeHolo([{ ball: [0, 0, 0, rr * 0.3] }], col, 1, { edges: false });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, rr * 0.06, 8, 48), H.mats[0]); ring.rotation.x = Math.PI / 2; g.add(H.group, ring);
+    if (T.dark) { const pts = []; for (let k = 0; k < 24; k++) { const a = (k / 24) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * rr * 1.35, Math.sin(a) * rr * 1.35, 0)); } const dash = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), lineMat(col, 0.8)); g.add(dash); H.edges.push(dash.material); }
+    r = rr;
+  } else if (T.kind === 'group') {
     const ext = extentOf(T.mini.parts.map(partGeo)), len = Math.max(ext.max.x - ext.min.x, ext.max.y - ext.min.y), k = MINI[T.mini.size] / len;
     H = makeHolo([], col, 1);
     // a wedge: the lead at the point, the rest staggered back to either side

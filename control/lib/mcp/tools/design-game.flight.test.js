@@ -166,6 +166,21 @@ describe('design_game: designed flight levels', () => {
     expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.result, l.still]), JSON.stringify(run.flight_proof.levels)).toEqual([['mission-1', true, 'success', 'lost'], ['mission-2', true, 'success', 'lost'], ['mission-3', true, 'success', 'lost']]);
   }, 400000);
 
+  it('beacons: the pilot sent to places, a group brought in by one, the next lit by a group down; proved', async () => {
+    const level = { name: 'Beacons', airspace: { map: { craft: 'fighter', field: 6000 }, space: { asteroids: 'sparse' }, airframe: 'strikeFoil', cockpit: true },
+      goal: { flight: { sortie: {
+        beacons: [{ id: 'nav1', name: 'Nav 1', at: { ahead: 1500 } }, { id: 'jump', name: 'Jump point', at: { ahead: 1800, side: 600, up: 100 }, lit: { down: 'raider' } }],
+        groups: [{ id: 'red', side: 'friend', count: 1 }, { id: 'raider', side: 'foe', count: 2, arrive: { reach: 'nav1', after: 2 }, at: { ahead: 2600 } }],
+        goals: [{ destroy: 'raider' }, { reach: 'jump' }] } } } };
+    const out = await designGameHandler({ ref: 'beacons', title: 'Beacons', world: world({ m: level }) });
+    const run = await designGameHandler({ ref: out.ref, run: true });
+    const M = SketchRepository.getByRef(`${out.ref}-level-m-0`).manifest;
+    // a marker each, the mission's (U), the one not yet lit asleep
+    expect(M.entities.filter((e) => e.body?.beacon).map((e) => [e.id, !!e.dormant, e.body.goal])).toEqual([['beacon-nav1', false, true], ['beacon-jump', true, true]]);
+    // flown to Nav 1, the raiders in and down, the jump point lit and reached by a steady pilot; never by a still one
+    expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.result, l.still]), JSON.stringify(run.flight_proof.levels)).toEqual([['m', true, 'success', 'lost']]);
+  }, 400000);
+
   it('refuses a flight goal it cannot lay, teaching', async () => {
     const bad = async (lv, msg) => { await expect(designGameHandler({ ref: 'bad', title: 'Bad', world: world({ x: lv }) })).rejects.toThrow(msg); };
     await bad({ airspace: { map: { craft: 'jet' } }, goal: { flight: 'course' } }, /a course is flown on a course/);

@@ -48,3 +48,19 @@ level compiled and built. Rebel Storm's first mission is the first one designed,
   page without a briefing carries none of it.
 - **Rebel Storm's look without the grid.** Its `orbit` look drew its grid across the whole picture while the HUD was up,
   over the view out of the canopy; Rebel Storm now wears `orbit` with no overlay.
+- **Beacons: places the pilot is sent to, and what happens there** (a sortie's `beacons`, `game/sortie.js`). A beacon
+  is a place in space, a zone on the bus that the pilot flies into, and a marker the targeting computer locks as the
+  mission's next (U). It stays dark until it is lit: at once, some seconds in, once a group is down, or once another
+  beacon is reached. It is reached once, while lit. Reaching one can meet a goal (`{ reach }`), bring a group in (a
+  group's `arrive: { reach, after? }`) or light the next beacon, so a mission can be strung on places and events. The
+  marker is a lit core in turning rings of amber light, brought in as it lights and gone once reached. A sortie reads a
+  beacon chain that never lights as a fault. The steady pilot of the flight proof flies to a lit beacon when no hostile
+  is up, so a mission on beacons is proved as any other.
+- **Beacons in the mission designer.** A design names its `beacons` (at a nav point or metres, with what lights them),
+  goals to reach them, and groups that arrive when one is reached. The briefing draws each as an amber ring, a dashed
+  ring for one that has yet to be lit, said with what lights it. A law checks that every beacon is shown. Labels on the
+  table now size to their words.
+- **Rebel Storm's mission 2, Convoy, redesigned on beacons (a draft).** The convoy comes out of hyperspace only when Red
+  Flight reaches the rendezvous; raiders follow, then bombers once the raiders are down; the approach beacon lights once
+  the bombers are down, and reaching it brings the convoy home. Its flight proof holds on its compiled level. It waits
+  for approval, so its level is still the old sortie.

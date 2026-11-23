@@ -35,7 +35,8 @@ export const REBEL_STORM_LOOK = Object.freeze({ from: 'orbit', overlay: 'none' }
  * The missions designed whole. Mission 1, Patrol, at Vigil Station over Kessa's fourth moon: the patrol the old sortie
  * flew, now with the station it screens, a corvette laid up at it, and the frigate whose interceptors come after the
  * patrol, told on the holo table step by step. Approved by the person on its briefing (eyes gate, theirs): its level is
- * compiled from it.
+ * compiled from it. Mission 2, Convoy, is designed on beacons (places the pilot is sent to, and what happens there),
+ * waiting for approval.
  */
 export const MISSION_DESIGNS = Object.freeze({
   'mission-1': Object.freeze({
@@ -65,6 +66,39 @@ export const MISSION_DESIGNS = Object.freeze({
       { title: 'The Dominion', say: 'A frigate, the Dominion, holds at the jump point. Her guns outreach yours: do not close with her.', show: ['dominion', 'jump'] },
       { title: 'Interceptors', say: 'Once her patrol is down, the Dominion will launch interceptors. Meet them before they reach Vigil.', show: ['interceptor', 'dominion', 'station'], routes: [['jump', 'station']] },
       { title: 'Your orders', say: 'Destroy the patrol, then the interceptors. Keep clear of the Dominion. Red Flight, launch when ready.', show: ['red', 'fighter', 'interceptor'] },
+    ],
+  }),
+  // Mission 2, Convoy, redesigned on beacons: the convoy comes out of hyperspace only when Red Flight reaches the
+  // rendezvous, raiders follow, then bombers; the approach beacon lights once the bombers are down. A draft.
+  'mission-2': Object.freeze({
+    id: 'mission-2', name: 'Convoy', status: 'draft',
+    place: { system: 'Kessa', cluster: 'Varn', station: 'Harrow', moon: 2, star: 'orange' },
+    theatre: {
+      field: 6000,
+      moon: { kind: 'barren', bearing: -55, elevation: 10, size: 'near' },
+      station: { kind: 'outpost', at: [-250, -1300, -80], side: 'friend' },
+      rocks: 'sparse',
+      nav: { rv: { name: 'Rendezvous', at: [0, 1600, 40] } },
+    },
+    cast: [
+      { id: 'red', name: 'Red', side: 'friend', craft: 'strikeFoil', count: 2, at: 'start', pilot: true },
+      { id: 'convoy', name: 'Transport', side: 'friend', craft: 'starliner', count: 2, hull: 24, hold: true, at: 'rv', arrive: { reach: 'rendezvous', say: 'Convoy dropping out of hyperspace' } },
+      { id: 'raider', name: 'Raider', side: 'foe', craft: 'twinPanel', count: 3, at: [800, 2600, 100], arrive: { reach: 'rendezvous', after: 12, say: 'Raiders inbound on the convoy' } },
+      { id: 'bomber', name: 'Bomber', side: 'foe', craft: 'twinPodBomber', count: 3, hull: 5, at: [-900, 2900, 150], arrive: { down: 'raider', after: 4, say: 'Bombers jumping in' } },
+    ],
+    beacons: [
+      { id: 'rendezvous', name: 'Rendezvous', at: 'rv', say: 'Red Flight at the rendezvous' },
+      { id: 'home', name: 'Harrow approach', at: [-200, -500, 0], lit: { down: 'bomber' }, say: 'Convoy is clear. Bringing it home.' },
+    ],
+    goals: [{ protect: 'convoy', say: 'The convoy is lost' }, { destroy: ['raider', 'bomber'], say: 'The lane is clear' }, { reach: 'home', say: 'Convoy is home' }],
+    steps: [
+      { title: 'Harrow Station', say: 'Harrow Station is short of everything. Two transports are coming in through the cluster to resupply her.', show: ['station'] },
+      { title: 'The rendezvous', say: 'Red Flight flies out to the rendezvous beacon. The convoy drops out of hyperspace when you get there, not before.', show: ['red', 'rendezvous'], routes: [['start', 'rendezvous']] },
+      { title: 'The convoy', say: 'Two transports, holding at the rendezvous until the lane is clear. They are unarmed: you are all they have.', show: ['convoy', 'rendezvous'] },
+      { title: 'Raiders', say: 'Raiders will be waiting for them, about ten seconds after the convoy arrives.', show: ['raider', 'convoy'], routes: [['raider', 'convoy']] },
+      { title: 'Bombers', say: 'When the raiders go down, their bombers come next. Bombers kill transports: take them first.', show: ['bomber', 'convoy'], routes: [['bomber', 'convoy']] },
+      { title: 'Harrow approach', say: 'With the bombers down, the approach beacon lights. Fly to it and the convoy follows you in.', show: ['home', 'station'], routes: [['rendezvous', 'home']] },
+      { title: 'Your orders', say: 'Keep both transports alive. Destroy the raiders and the bombers. Then the approach beacon.', show: ['red', 'convoy', 'raider', 'bomber', 'home'] },
     ],
   }),
 });

@@ -182,7 +182,7 @@ export function flightGoalMechanics(goal, ends) {
   // a sortie (flight-sortie.js): a cockpit's mission, its flight groups and its goals together
   if (goal.kind === 'sortie') {
     if (!ends.cockpit) fail('a sortie is flown from a cockpit: the airspace is { cockpit: true } in space');
-    return sortieMechanics(goal.sortie);
+    return sortieMechanics(goal.sortie, ends);
   }
   if (goal.kind === 'dogfight' || goal.kind === 'trench') {
     if (goal.kind === 'trench' && !field.port) fail('a trench run needs a trench: the airspace\'s space is { trench: true }');

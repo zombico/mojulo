@@ -12,7 +12,8 @@
  *     'full', or 'match': the target's speed). The speed eases to it at `accel` (m/s²). Top speed `speed` (m/s), set
  *     up or down by the engines' power when the craft has systems.
  *   • TARGETING: `tgt` picks the target: 'next' / 'prev' (every craft round, the nearest first), 'near' (the nearest
- *     hostile), 'atk' (the last one to hit the craft), 'goal' (the next one the mission names: `body.goal`). The
+ *     hostile), 'atk' (the last one to hit the craft), 'goal' (the next one the mission names: `body.goal`; a mission's
+ *     beacon, `body.beacon`, is one: a place to fly to, held by no side, so never a hostile). The
  *     target's facts are kept on the craft (`target`, `tgtInfo` { id, d, closure, hull, shields, stance, name }).
  *
  * THE SHIP'S SYSTEMS (`body.ship`, on any craft: a pilot's or a foe's, whatever flies it):
@@ -220,7 +221,8 @@ export function buildStarfighter(E) {
   }
 
   // ── the targeting computer ──
-  const live = (x) => x && !x.isCamera && !x.gone && !x.downed && !x.dormant && x.body && x.body.hittable && x.deadAt == null;
+  // (a craft that can be hit, or a mission's beacon: a place to fly to, never hit, held by no side)
+  const live = (x) => x && !x.isCamera && !x.gone && !x.downed && !x.dormant && x.body && (x.body.hittable || x.body.beacon) && x.deadAt == null;
   function retarget(e, how, world) {
     const all = Object.values(world.byId).filter((x) => x !== e && live(x));
     const q = e.transform.pos, d = (x) => Math.hypot(x.transform.pos[0] - q[0], x.transform.pos[1] - q[1], x.transform.pos[2] - q[2]);

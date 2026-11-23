@@ -1159,3 +1159,8 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // mission's briefing over its level: campaign/briefing-page.js's block in a scope of its own, the table's client, mana-ui
 // and the controls host, the mission held on the pause sidecar until Launch). Every other page is byte-identical, and a
 // page without a `briefing` key emits no block.
+// Re-pinned 2026-11-23 (1122-sim-fixing-mana-ui: beacons): the fixtures that embed the controllable runtime, and
+// `briefing`. A mission's beacon (gameworld/flight-sortie.js) is a mesh body the page draws as a lit core in turning
+// rings (its own branch of the body builder and of the entity sync), and the starfighter's targeting computer holds one
+// as a goal, never a hostile. No fixture carries a beacon, so what each shows is as it was. The briefing's labels size to
+// their words.

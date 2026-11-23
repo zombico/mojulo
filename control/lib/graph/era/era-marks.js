@@ -44,7 +44,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'flow', 'beacons', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
   'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'roll', 'manaHud', 'courseTouch', 'tempo', 'styleMeter', 'grade',
-  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'mission', 'damageRing', 'cone', 'formSky', 'air', 'sea', 'marine', 'soften',
+  'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'mission', 'damageRing', 'briefing', 'cone', 'formSky', 'air', 'sea', 'marine', 'soften',
   'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs',
   // (tall grass's sight, the pixel budget's cap, the radar's map, a building's stairs for the follow camera; glass and
   // mesh a body is held out of and a gaze goes through, worlds/controllable/barrier.js)

@@ -4,7 +4,8 @@
  * stage (stage-pilot.js), this proves a mission can be won with the craft it gives, beside the flight groups it gives.
  *
  * The player flies as a steady one does, reading only what the cockpit shows:
- *   its target     the nearest hostile (R) whenever it has none, or its target is down
+ *   its target     the nearest hostile (R) whenever it has none, or its target is down; with no hostile up, the
+ *                  mission's next (U): a beacon lit, flown to (the nose on it, the trigger held)
  *   the lead pip   the nose brought onto where its bolts meet the target (the cockpit HUD's own pip, cockpit-hud.js
  *                  leadPoint), turned at the rates the craft has; the trigger pulled while the pip is on the nose and in
  *                  range
@@ -52,20 +53,23 @@ export function flySortie(manifest, { player = 'pilot', seconds = 300 } = {}) {
     if (player === 'pilot' && !p.downed) {
       const T = p.target ? W.byId[p.target] : null;
       if (k === 0) { inp.thr = 'twothirds'; thr = 'twothirds'; }
-      if (!T || T.downed || T.gone || T.dormant) { if (k % 10 === 0) inp.tgt = 'near'; }
+      // (a hostile up comes first; with none, a beacon lit is the mission's next)
+      const up = foes.some((e) => !e.downed && !e.gone && !e.dormant && !(e.body && e.body.hp <= 0));
+      const beacon = T && T.body && T.body.beacon;
+      if (!T || T.downed || T.gone || T.dormant || (beacon && up && k % 10 === 0)) { if (k % 10 === 0) inp.tgt = up ? 'near' : 'goal'; }
       else if (p.sfF) {
         const w = p.weapon, q = p.transform.pos, at = w && w.projectileSpeed ? leadPoint(q, T.transform.pos, T.vel || [0, 0, 0], w.projectileSpeed) ?? T.transform.pos : T.transform.pos;
         const d = [at[0] - q[0], at[1] - q[1], at[2] - q[2]], f = p.sfF, u = p.sfU, y = [u[1] * f[2] - u[2] * f[1], u[2] * f[0] - u[0] * f[2], u[0] * f[1] - u[1] * f[0]];
         const ax = d[0] * f[0] + d[1] * f[1] + d[2] * f[2], ay = -(d[0] * y[0] + d[1] * y[1] + d[2] * y[2]), az = d[0] * u[0] + d[1] * u[1] + d[2] * u[2];
         const e1 = Math.atan2(ay, ax), e2 = Math.atan2(az, ax), L = Math.hypot(d[0], d[1], d[2]);
         // (too close to bring the nose round: extend straight out at full throttle, and turn back for a pass)
-        if (!extend && L < EXTEND[0] && (Math.abs(e1) > 0.3 || Math.abs(e2) > 0.3)) extend = true;
+        if (!beacon && !extend && L < EXTEND[0] && (Math.abs(e1) > 0.3 || Math.abs(e2) > 0.3)) extend = true;
         else if (extend && L > EXTEND[1]) extend = false;
         if (!extend) { inp.yaw = clamp(e1 * GAIN, -1, 1); inp.pitch = clamp(e2 * GAIN, -1, 1); }
         // (the trigger while the pip covers the target, as wide as the target looks; close in and off the nose, the
         // throttle back to a third, where the craft turns tightest, and up to two thirds again once it is lined up)
         const on = Math.max(ON, Math.atan2(((T.body && T.body.radius) || 5) * 1.2, L));
-        if (Math.abs(e1) < on && Math.abs(e2) < on && L <= (w ? w.range : 1500)) inp.fire = 1;
+        if (!beacon && Math.abs(e1) < on && Math.abs(e2) < on && L <= (w ? w.range : 1500)) inp.fire = 1;
         const want = extend ? 'full' : L < CLOSE && (Math.abs(e1) > 0.25 || Math.abs(e2) > 0.25) ? 'third' : 'twothirds';
         if (want !== thr) { inp.thr = want; thr = want; }
       }

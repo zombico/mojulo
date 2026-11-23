@@ -119,3 +119,28 @@ describe('Rebel Storm: mission 1 designed', () => {
     expect(rebelStormStart({ ui: { theme: 'static' } }).world.ui).toEqual({ theme: 'static' });
   });
 });
+
+describe('Rebel Storm: mission 2 designed on beacons', () => {
+  it('reads its beacons, meets its laws, compiles them into its sortie, and draws them on the briefing', () => {
+    const M = readMission(MISSION_DESIGNS['mission-2']);
+    expect(M.status).toBe('draft');
+    expect(missionLaws(M).filter((L) => !L.ok)).toEqual([]);
+    const S = compileMission(M).level.goal.flight.sortie;
+    expect(S.beacons.map((b) => [b.id, !!b.lit])).toEqual([['rendezvous', false], ['home', true]]);
+    expect(S.groups.find((g) => g.id === 'convoy').arrive).toMatchObject({ reach: 'rendezvous' });
+    expect(() => readSortie(S)).not.toThrow();
+    const D = briefingData(M);
+    expect(D.things.filter((t) => t.kind === 'beacon').map((t) => [t.id, !!t.dark])).toEqual([['rendezvous', false], ['home', true]]);
+    expect(D.goals.map((g) => g.text)).toContain('Reach: Harrow approach');
+    // a draft leaves the mission's level as it was
+    expect(missionLevel(MISSIONS[1]).goal.flight.sortie).toEqual(JSON.parse(JSON.stringify(MISSIONS[1].sortie)));
+  });
+  it('teaches a beacon no step shows, and one a goal names that is not there', () => {
+    const D = JSON.parse(JSON.stringify(MISSION_DESIGNS['mission-2']));
+    D.steps = D.steps.map((st) => ({ ...st, show: st.show.filter((id) => id !== 'home') })).filter((st) => st.show.length);
+    expect(missionLaws(readMission(D)).find((L) => L.law === 'beacons-told').ok).toBe(false);
+    const E = JSON.parse(JSON.stringify(MISSION_DESIGNS['mission-2']));
+    E.goals.push({ reach: 'nowhere' });
+    expect(() => compileMission(readMission(E))).toThrow(/no beacon of the sortie/);
+  });
+});
