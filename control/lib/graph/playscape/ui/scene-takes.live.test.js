@@ -72,6 +72,13 @@ describe('a script\'s takes on the page', () => {
       return { take: W.take, hero: W.byId.hero.taking, mayor: W.byId.mayor.taking, line: v.line, on: v.on, face: W.byId.hero.takeFace ?? null, clip };
     }, CLIP);
     const frames = (n) => page.evaluate((k) => new Promise((r) => { let i = k; const f = () => (--i ? requestAnimationFrame(f) : r()); requestAnimationFrame(f); }), n);
+    // (a wait counted in the page's frames, not in seconds: the line's clock moves at most 0.1 s a frame, so a runner
+    // drawing in software under load takes longer in wall time and still owes the same frames)
+    const withinFrames = (fn, n) => page.evaluate((src, k) => new Promise((ok, no) => {
+      const f = new Function(`return (${src})`)(); let i = 0;
+      const tick = () => { let v = false; try { v = f(); } catch { /* not yet */ } if (v) ok(true); else if (++i > k) no(new Error(`not within ${k} frames`)); else requestAnimationFrame(tick); };
+      tick();
+    }), fn.toString(), n);
     // the hero walks to its mark, then the first line
     await page.waitForFunction(() => !!window.__mojScenes.view().line, { timeout: 60000 });
     await frames(3);
@@ -84,7 +91,9 @@ describe('a script\'s takes on the page', () => {
     expect(a.face?.length).toBe(payload.figures.hero.face.targets.length);   // the realistic face's morphs, read off the page
     expect(b.face).not.toEqual(a.face);                                       // and the face moves with the take
     // played out: held for the press, each back on its own clips
-    await page.waitForFunction(() => window.__mojScenes.view().line.take.held, { timeout: 30000 });
+    // (the take's length at the page's 0.1 s frame cap, and as many again to spare)
+    const first = payload.events.scenes[0].beats.find((x) => x.kind === 'line').take;
+    await withinFrames(() => window.__mojScenes.view().line.take.held, 2 * Math.ceil((first.end - first.at) / 0.1) + 30);
     await frames(3);
     const c = await state();
     expect([c.take, c.hero, c.mayor]).toEqual([null, null, null]);
@@ -102,7 +111,7 @@ describe('a script\'s takes on the page', () => {
     expect([e.on, e.take, e.hero, e.mayor]).toEqual([false, null, null, null]);
     expect(errors).toEqual([]);
     await page.close();
-  }, 180000);
+  }, 420000);
 
   it('the script\'s slow motion slows the page\'s world clock, real time brings it back, and a skip never leaves it slowed', async () => {
     const { P, html: page0 } = await timedPage();

@@ -34,3 +34,8 @@ Every game mojulo makes plays on its own runtime, and the docs now say so, witho
   (scene-action-world.js); the `action` card says how. A level without one resolves as it did.
 - The same correction in CLAUDE.md, `docs/tech-requirements.md` and `README-OUTLINE.md`. The README is unchanged: it
   says what the person gets, never how.
+- **Two browser tests wait in frames, not seconds** (`scene-takes.live.test.js`, `jrpg-town.live.test.js`). A take
+  plays on the line's clock and the town steps its reach once a frame, at most 0.1 s a frame, so a CI runner drawing in
+  software under a shard's load missed their wall-clock waits (each failed once in CI and passed in the other attempt
+  and locally). Each wait now gives the page a number of frames (a take's length at 0.1 s a frame, twice over; 60 for
+  a reach or a cue), and the tests' own time limits were raised to match.
