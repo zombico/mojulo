@@ -26,7 +26,9 @@ import { bambooForm } from './bamboo-form.js';
 import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
 import { leafSpray, leafClump, needleHabit } from '../vegetation/sprays.js';
-import { leafCross, leafShape as leafOutlineOf } from '../vegetation/twigs.js';
+import { leafCross, leafShape as leafOutlineOf, LEAF_SHAPES } from '../vegetation/twigs.js';
+import { ARCHITECTURES } from '../vegetation/grow.js';
+import { FLOCK_TABLE } from '../scene/channels/form-flock.js';
 import { TONES, blobTris } from '../vegetation/tree-mesh.js';
 import { SPECIES } from '../vegetation/species.js';
 import { readKind } from '../era/leaf-forms.js';
@@ -162,6 +164,31 @@ export const REALISTIC_HABITS = Object.freeze({
   acacia: Object.freeze({ trunk: { form: 'Y', fork: 0.35, spread: 34 }, limbs: { climb: 40 }, twigs: { fan: 120, climb: 3 }, crown: { wide: 1.35, flat: 0.75 }, puff: { wide: 1.45, long: 1.3, top: 0.4, bottom: 0.25 }, cloud: { size: 0.6 } }),
 });
 export const habitOf = (species) => REALISTIC_HABITS[species] ?? REALISTIC_HABITS.default;
+/**
+ * A REALISTIC CROWN AS FLOCK (the realistic crown's setting, on unless a stage says `flock: false`): its puffs drawn as
+ * porous sponge the light passes through, its skin carrying its species' own leaves at their true size
+ * (channels/form-flock.js draws it). `leaves` whether its skin carries them; `shadow` its crown's shadow: 'sponge' (the
+ * sponge's holes in it), 'solid' (the puffs whole), 'none'.
+ */
+export const FLOCK = Object.freeze({ leaves: true, shadow: 'sponge', shadows: Object.freeze(['sponge', 'solid', 'none']) });
+/** A stage's `flock` word (`true` | `false` | { leaves?, shadow? }) → its settings, or null for none. */
+export function readFlock(v = true) {
+  if (v === false) return null;
+  if (v === true || v === undefined) return { leaves: FLOCK.leaves, shadow: FLOCK.shadow };
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('flock is true, false or { leaves?, shadow? } (a realistic crown drawn as porous sponge with its own leaves)');
+  for (const k of Object.keys(v)) if (!['leaves', 'shadow'].includes(k)) throw new Error(`flock: '${k}' is not a setting (leaves, shadow)`);
+  if (v.leaves !== undefined && typeof v.leaves !== 'boolean') throw new Error('flock.leaves is true or false');
+  if (v.shadow !== undefined && !FLOCK.shadows.includes(v.shadow)) throw new Error(`flock.shadow is ${FLOCK.shadows.join(', ')}`);
+  return { leaves: v.leaves ?? FLOCK.leaves, shadow: v.shadow ?? FLOCK.shadow };
+}
+/** A species' leaf as the flock's skin carries it: the grower's own leaf length (m: its architecture's, never the
+ *  species' stylized `leafScale`) and its outline's half-width along the midrib (× the length, FLOCK_TABLE entries from
+ *  the petiole to the tip; vegetation/twigs.js LEAF_SHAPES). null for a needled tree or one without a leaf. */
+export function flockLeaf(species) {
+  const S = SPECIES[species], A = S && ARCHITECTURES[S.arch], sh = S && LEAF_SHAPES[leafOutlineOf(species)];
+  if (!A || A.needles || A.frond || !sh || !(A.leafSize > 0)) return null;
+  return { length: r4(A.leafSize), w: Array.from({ length: FLOCK_TABLE }, (_, i) => r4(Math.max(0, sh.w(i / (FLOCK_TABLE - 1))))) };
+}
 /** The kinds grown for the realistic look alone, which no leaf form names: a scene reaches one by a kind's `species`
  *  word (`{ form, species }`, speciesFor). */
 export const REALISTIC_KINDS = Object.freeze(['birch', 'poplar', 'acacia']);
@@ -512,7 +539,11 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
     const adorn = s.state === 'bloom' || s.state === 'fruit' ? s.state : null;
     push(bushTemplate(SHRUB_HABIT, 1.2, adorn, `shrub:${SHRUB_HABIT}`), s, s.h, null, !!s.soft);
   }
-  return { templates, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4), ...(autumn > 0 ? { autumn } : {}) };
+  // (a realistic crown as FLOCK, its stage's setting: each realistic template its leaf, the page the setting; none
+  // carried for a stage without realistic crowns or with `flock: false`)
+  const flock = plants.crowns === 'realistic' && plants.flock ? plants.flock : null;
+  const T = flock ? templates.map((t) => (t.far && t.nBlobs > 0 ? { ...t, flock: { leaf: flock.leaves ? flockLeaf(t.name) : null } } : t)) : templates;
+  return { templates: T, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4), ...(autumn > 0 ? { autumn } : {}), ...(flock && T.some((t) => t.flock) ? { flock } : {}) };
 }
 
 /**

@@ -334,10 +334,46 @@ per thing a person sees:
     lean and way; a lean is a variant, never a yaw.
 - **Tree crowns are the weak part.** Broadleaf and fir crowns are young and airy, and at L2/L1 their foliage is
   clusters that read as popcorn close up.
+  - In the form render (gen-7) a realistic crown is drawn as flock (below), which answers this for its near levels.
   - Spray cards (the bamboo finding, carried over) read as leaves close up but airier than the clusters at 50–60 m, and
     a fir's flat sprays go edge-on. They were tried and not adopted.
   - Fuller, older crowns are the open problem. Palms and bamboo do not have it: their foliage keeps its true shape at
     every level.
+
+## A realistic crown as flock (`channels/form-flock.js`)
+
+A miniature terrain maker cuts sponge into a tree's masses and glues it onto an armature. It reads as a tree because the
+sponge is porous: light passes through its net as through a loose canopy. The realistic crown (`crowns: 'realistic'`,
+form/flora-read.js `REALISTIC`) already has the armature: puffs on its limbs' leaf-holding sections. Drawn as opaque
+lumps, they read as topiary. Drawn as flock, they read as a canopy. Flock is the realistic crown's setting, on unless a
+stage says `crowns: { form: 'realistic', flock: false }`.
+
+- **The sponge.** A pixel of a puff marches into it along the eye's ray (`FLOCK_LOOK.sponge`), through a field of two
+  octaves of value noise at leaf-cluster grain, in the template's own metres. The threshold is porous at the skin and
+  dense toward the core, as a trimmed sponge is. The first solid sample is the pixel, its depth its shade. A ray that
+  meets none went out through the holes and is not drawn, so the sky shows through. No geometry is added: the puff is
+  the bound the march stays inside.
+- **The light through.** Seen against the sun, the thin parts (a shallow hit, every leaf) take the sun's light through
+  them (`FLOCK_LOOK.glow`). This is the largest change in how a crown reads.
+- **The leaves at the ends** (`flock.leaves`, on by default). The sponge's skin carries the species' own leaves: its
+  outline (vegetation/twigs.js `LEAF_SHAPES`, a table of half-widths, `FLOCK_TABLE`) at the grower's leaf length
+  (an oak's 0.11 m, a beech's 0.09 m; never the species' stylized `leafScale`). A leaf stands in a cell where the
+  sponge under it holds, its midrib out of the puff and a little down. A pixel walks the cells its ray crosses in the
+  skin and draws the nearest leaf it meets in front of the sponge. Under a few pixels, leaves thin out
+  (`FLOCK_LOOK.leaf.px`), so a far crown is its sponge alone.
+- **The shadow** (`flock.shadow`): `'sponge'` (the default) puts the same field in the crown's depth pass; `'solid'`
+  casts the puffs whole; `'none'` casts no crown shadow. The sponge's shadow stays mostly solid: a sun ray crosses a
+  whole puff's dense core, and the shadow map's filter blurs pores this small.
+- **Absent, nothing.** A page without flock crowns carries none of its code (`form-flock.test.js`).
+- **Known limits:**
+  - the far card (`FLORA_FAR`) is baked from the puffs' triangles, so past the view cone's reach the crown is as full
+    as before;
+  - the occlusion prepass and the exports (GLB, USD, engines) see the puffs whole;
+  - a leaf whose tip would pass the puff's mesh is clipped by it, and a few leaves stand clear of the mass;
+  - gen-6's painted realistic trees (era/isekai.js `realisticBands`) do not draw it;
+  - the march's cost is not measured on a GPU yet.
+- The spike that found it, the crown as it was beside the sponge and the sponge with leaves, from the same cameras:
+  `control/scripts/spikes/flock/`.
 
 ## References
 

@@ -16,6 +16,7 @@
  */
 import { safeJson } from '../emit-util.js';
 import { WIND_AT_GLSL } from './terrain-wind.js';
+import { flockGlsl, flockFragment, flockLight, FLOCK_VARYINGS, FLOCK_VERTEX, FLOCK_TABLE } from './form-flock.js';
 
 /**
  * The plants in the wind: a tree's trunk stands, its limbs bend from where they leave it (each vertex's weight its
@@ -163,6 +164,8 @@ const STILL_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, flo
 const WIND_HEAD = 'uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWindB; uniform sampler2D uWindNoise;\n' + WIND_AT_GLSL + SWAY_GLSL;
 
 export function formFloraScript(flora, { snow = false, capture = false } = {}) {
+  // (a page whose realistic crowns are flock, form/flora-read.js FLOCK: its parts emitted, none on any other)
+  const FK = !!(flora && flora.flock);
   return `
   // the plants (gen-7: form/flora-read.js, channels/form-flora.js)
   {
@@ -227,13 +230,19 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       ' vec3 wn = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ); float hs = fract( sin( dot( floor( vSnowW * 3.0 ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );' +
       ' float sk = smoothstep( uSnowCap.x - 0.04, uSnowCap.x + 0.12, wn.z ) * step( hs, uSnowCap.y ) * smoothstep( 0.15, 0.45, sc ); diffuseColor.rgb = mix( diffuseColor.rgb, uSnowLB, sk ); }';
 ` : ''}    // (a realistic tree's mass in leaf-sized cells, MASS_LEAF: toned each its own, broken at its outline)
-    const ML = ${safeJson(MASS_LEAF)}, MASS_CELLS = '\\n  if ( vMass > 0.5 ) { float mh = fract( sin( dot( floor( vCell / ' + ML.cell.toFixed(3) + ' ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );' +
+${flora && flora.flock ? `    // (a realistic crown as FLOCK, channels/form-flock.js: its puffs porous sponge, its skin its species' own leaves)
+    const FLOCK = ${safeJson({ glsl: flockGlsl({ leaves: !!flora.flock.leaves }), depthGlsl: flockGlsl(), vary: FLOCK_VARYINGS, vertex: FLOCK_VERTEX, frag: flockFragment({ leaves: !!flora.flock.leaves }), light: flockLight(), shadow: flora.flock.shadow, table: FLOCK_TABLE })};
+` : ''}    const ML = ${safeJson(MASS_LEAF)}, MASS_CELLS = '\\n  if ( vMass > 0.5 ) { float mh = fract( sin( dot( floor( vCell / ' + ML.cell.toFixed(3) + ' ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );' +
       ' float mr = 1.0 - abs( dot( normal, normalize( vViewPosition ) ) ); if ( mh < smoothstep( ' + ML.rim.toFixed(3) + ', 1.0, mr ) * ' + ML.cut.toFixed(3) + ' ) discard;' +
       ' diffuseColor.rgb *= mix( ' + ML.tones[0].toFixed(3) + ', ' + ML.tones[1].toFixed(3) + ', fract( mh * 7.13 ) ); }';
-    function leafMat(spray, detail, phi) {
+${FK ? `    // (\`flock\`: a realistic template's flock, its leaf or none: its puffs the sponge, the sun's way and light as uniforms)
+` : ''}    function leafMat(spray, detail, phi${FK ? ', flock = null' : ''}) {
       const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
       const U = { uEye: eye, uDetail: { value: new THREE.Vector2(detail[0], detail[1]) }${snow ? ', ...LEAF_SNOW' : ''} };
-      const HEAD = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\nvarying float vMass;\\nvarying vec3 vCell;\\n';
+${FK ? `      if (flock) Object.assign(U, { uSunW: { value: sunLight.position.clone().sub(sunLight.target.position).normalize() }, uSunC: { value: sunLight.color.clone().multiplyScalar(sunLight.intensity) },
+        uLeafL: { value: flock.leaf ? flock.leaf.length : 0 }, uLeafW: { value: flock.leaf ? flock.leaf.w : new Array(FLOCK.table).fill(0) } });
+      m.userData.flockU = flock ? U : null;
+` : ''}      const HEAD = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\nvarying float vMass;\\nvarying vec3 vCell;\\n'${FK ? " + (flock ? 'uniform vec3 uSunW;\\n' + FLOCK.vary : '')" : ''};
       const grows = (vs) => vs.replace('#include <begin_vertex>', spray ? [
         'vec3 ipos = ( modelMatrix * instanceMatrix * vec4( aSite, 1.0 ) ).xyz;',
         'float nearF = 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) );',
@@ -244,13 +253,13 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       m.onBeforeCompile = (sh) => {
         Object.assign(sh.uniforms, U);
         sh.vertexShader = ${snow ? "'varying vec3 vSnowW;\\n' + " : ''}swayHead(sh, phi, 1) + HEAD + grows(sh.vertexShader)
-          .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\\n  float aoL = length( aOut ); vMass = step( 1.5, aoL ); vCell = position + instanceMatrix[3].xyz * 0.37;\\n  transformedNormal = normalize( mix( transformedNormal, normalMatrix * mat3( instanceMatrix ) * ( aOut / max( 1.0, aoL ) ), 0.65 ) );')
+          .replace('#include <defaultnormal_vertex>', '#include <defaultnormal_vertex>\\n  float aoL = length( aOut ); vMass = step( 1.5, aoL ); vCell = position + instanceMatrix[3].xyz * 0.37;\\n  transformedNormal = normalize( mix( transformedNormal, normalMatrix * mat3( instanceMatrix ) * ( aOut / max( 1.0, aoL ) ), 0.65 ) );'${FK ? " + (flock ? '\\n' + FLOCK.vertex : '')" : ''})
           .replace('#include <project_vertex>', ${snow ? "SWAY_PROJECT + '\\n  vSnowW = ( modelMatrix * instanceMatrix * vec4( transformed, 1.0 ) ).xyz;'" : 'SWAY_PROJECT'});
-        sh.fragmentShader = 'varying float vMass;\\nvarying vec3 vCell;\\n' + ${snow ? 'LEAF_SNOW_HEAD + ' : ''}sh.fragmentShader
-          .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  normal *= faceDirection;' + MASS_CELLS${snow ? ' + LEAF_SNOW_CAP' : ''})
-          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;');
+        sh.fragmentShader = 'varying float vMass;\\nvarying vec3 vCell;\\n' + ${snow ? 'LEAF_SNOW_HEAD + ' : ''}${FK ? "(flock ? FLOCK.vary + 'uniform vec3 uSunW;\\nuniform vec3 uSunC;\\n' + FLOCK.glsl : '') + (flock ? sh.fragmentShader.replace('void main() {', 'void main() {\\n  float spThin = 0.0, spMpp = length( fwidth( vPosT ) );') : sh.fragmentShader)" : 'sh.fragmentShader'}
+          .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  normal *= faceDirection;' + ${FK ? '(flock ? FLOCK.frag : MASS_CELLS)' : 'MASS_CELLS'}${snow ? ' + LEAF_SNOW_CAP' : ''})
+          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;'${FK ? " + (flock ? FLOCK.light : '')" : ''});
       };
-      m.customProgramCacheKey = () => 'form-leaf' + (spray ? '-spray' : '') + phi${snow ? -snow : ''};
+      m.customProgramCacheKey = () => 'form-leaf' + (spray ? '-spray' : '') + ${FK ? "(flock ? '-flock' : '') + " : ''}phi${snow ? -snow : ''};
       return m;
     }
     // a template's pieces merged in its own space: each clump or spray a variant's triangles turned to its facing (a pad
@@ -350,7 +359,18 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       m.customProgramCacheKey = () => 'form-needles' + phi;
       return m;
     }
-    function woodGeo(W) {
+${FK ? `    // (a flock crown's shadow, FLOCK.shadow 'sponge': its depth pass the same sponge, the sun's way its material's)
+    function flockDepth(U) {
+      const dm = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+      dm.onBeforeCompile = (sh) => {
+        sh.uniforms.uSunW = U.uSunW;
+        sh.vertexShader = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uSunW;\\nvarying float vMass;\\n' + FLOCK.vary + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vMass = step( 1.5, length( aOut ) );\\n' + FLOCK.vertex);
+        sh.fragmentShader = 'varying float vMass;\\n' + FLOCK.vary + FLOCK.depthGlsl + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if ( vMass > 0.5 && spongeMarch( vPosT, normalize( vPosT - vCamT ), vCenT, vRadT ) < 0.0 ) discard;');
+      };
+      dm.customProgramCacheKey = () => 'form-flock-depth';
+      return dm;
+    }
+` : ''}    function woodGeo(W) {
       const g = new THREE.BufferGeometry(), I = W.big ? new Uint32Array(bytes(W.idx).buffer) : new Uint16Array(bytes(W.idx).buffer);
       g.setAttribute('position', new THREE.BufferAttribute(f32(W.pos), 3)); g.setAttribute('normal', new THREE.BufferAttribute(i8(W.nrm), 3, true));
       g.setAttribute('uv', new THREE.BufferAttribute(f32(W.uv), 2)); g.setIndex(new THREE.BufferAttribute(I, 1)); g.computeBoundingSphere();
@@ -388,7 +408,7 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         const im = new THREE.InstancedMesh(geo.g, mat, Math.max(1, n)); im.count = 0; im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; scene.add(im);
         return { im, tris: geo.tris, slot: new Int32Array(Math.max(1, n)).fill(-1) };
       };
-      const phi = t.culm ? FW.culmPhi : t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi), wood = t.culm ? culmMat(phi) : barkFor(t.bark, phi);
+      const phi = t.culm ? FW.culmPhi : t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi${FK ? ', t.flock || null' : ''}), wood = t.culm ? culmMat(phi) : barkFor(t.bark, phi);
       // (a needled crown: its sleeves near and far, the needles drawn in them; no crown of clumps, no sprays)
       if (t.sleeve) {
         const sl = sleeveGeo(t.sleeve), nm = needleMat(phi);
@@ -403,7 +423,9 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         crown: mk(t.blobs && t.leaves === false ? merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true) : t.blobs ? joined(merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), merged(t.blobs, t.nBlobs, variants(t.blobGeo), 'blob', false, () => true, 1, !!t.far)) : merged(t.clumps, t.nClumps, cg, 'clump', t.cross ? 'cross' : t.pad, () => true), leaf, true, true),
         sprays: mk(merged(t.sites, t.nSites, sg, 'spray', false, () => true), leafMat(true, detail, phi), false, true),
       };
-      // (a shrub's season: its blossoms facing out, its berries hanging, with its near crown)
+${FK ? `      // (a flock crown's shadow: the sponge's holes in it, its puffs whole, or none)
+      if (t.flock && parts.crown) { if (FLOCK.shadow === 'none') parts.crown.im.castShadow = false; else if (FLOCK.shadow === 'sponge') parts.crown.im.customDepthMaterial = flockDepth(leaf.userData.flockU); }
+` : ''}      // (a shrub's season: its blossoms facing out, its berries hanging, with its near crown)
       if (t.adorn) {
         const A = t.adorn, L = f32(A.list), geos = variants(A.geo), per = A.kind === 'bloom' ? 7 : 5, cnt = L.length / per, tri = [], cl = [];
         const qq = new THREE.Quaternion(), mm = new THREE.Matrix4(), vv = new THREE.Vector3();

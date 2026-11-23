@@ -1,11 +1,10 @@
 # The flock spike
 
-A realistic crown's puffs drawn as porous sponge (a miniature maker's clump foliage), the light through and the shadow
-optional, with its species' own leaves at their true size along the skin. `flock.mjs` emits a gen-7 path page with
-`crowns: 'realistic'`, writes a twin for each look (`sponge`, `leaves`: `sponge-glsl.mjs`), and shoots them with the
-page as it is from the same cameras into `<out>/index.html`.
+Where the realistic crown's flock was found (it now lives in `lib/graph/scene/channels/form-flock.js`; see
+`docs/vegetation.md`). `flock.mjs` emits a gen-7 path page with `crowns: 'realistic'` and shoots it from fixed cameras
+into `<out>/index.html`; `--look ''` shoots the page as lib draws it.
 
-    node scripts/spikes/flock/flock.mjs --out <dir> [--look sponge,leaves] [--reuse] [--solid-shadow] [--shots shots.json]
+    node scripts/spikes/flock/flock.mjs --out <dir> --look '' [--reuse] [--shots shots.json]
 
-The twins are text patches of the emitted page: they throw when form-flora.js's leaf material changes shape. The look is
-the operator's.
+Its `sponge` and `leaves` twins patched the page as it was before the flock landed. They now refuse, by design, since
+the leaf material they patch has changed shape. The look is the operator's.

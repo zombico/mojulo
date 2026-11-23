@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC, PUFF, REALISTIC_HABITS, habitOf } from './flora-read.js';
+import { readFlock, flockLeaf, FLOCK } from './flora-read.js';
+import { FLOCK_TABLE } from '../scene/channels/form-flock.js';
+import { ARCHITECTURES } from '../vegetation/grow.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 import { SPECIES } from '../vegetation/species.js';
 import { needleHabit } from '../vegetation/sprays.js';
@@ -201,4 +204,42 @@ describe('trees apart (`crowns`)', () => {
     // (a plain crown's trees stand as placed)
     expect(floraRead(grove, { kinds: grove.kinds, colours, bases }).n).toBe(4);
   }, 180000);
+});
+
+describe('a realistic crown as flock (`crowns: realistic`, its `flock`)', () => {
+  it('reads its setting: on by default, off by false, its leaves and its shadow', () => {
+    expect(readFlock()).toEqual({ leaves: FLOCK.leaves, shadow: FLOCK.shadow });
+    expect(readFlock(true)).toEqual(readFlock());
+    expect(readFlock(false)).toBeNull();
+    expect(readFlock({ shadow: 'none' })).toEqual({ leaves: FLOCK.leaves, shadow: 'none' });
+    expect(readFlock({ leaves: false })).toMatchObject({ leaves: false });
+    expect(() => readFlock({ shadow: 'dappled' })).toThrow(/flock.shadow/);
+    expect(() => readFlock({ holes: 3 })).toThrow(/not a setting/);
+    expect(() => readFlock('yes')).toThrow(/flock is/);
+  });
+
+  it('carries its species\' own leaf at the grower\'s length, never its stylized scale, its outline a table; a needled tree none', () => {
+    const broad = speciesFor({ cluster: 0 }, { form: 'spray' });
+    const L = flockLeaf(broad), A = ARCHITECTURES[SPECIES[broad].arch];
+    expect(L.length).toBe(A.leafSize);
+    expect(L.w.length).toBe(FLOCK_TABLE);
+    expect(Math.max(...L.w)).toBeGreaterThan(0.1);
+    expect(L.w[0]).toBeLessThan(Math.max(...L.w));
+    expect(flockLeaf(broad)).toEqual(L);
+    expect(flockLeaf('pine')).toBeNull();
+  });
+
+  it('gives each realistic template its leaf and the page its setting; none without it, or on any other crown', () => {
+    const beech = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 9, 0)], bushes: [], shrubs: [] };
+    const read = (p) => floraRead(p, { kinds: beech.kinds, colours, bases });
+    const on = read({ ...beech, crowns: 'realistic', flock: readFlock() }), real = on.templates.find((t) => t.far);
+    expect(on.flock).toEqual(readFlock());
+    expect(real.flock.leaf).toEqual(flockLeaf(real.name));
+    expect(read({ ...beech, crowns: 'realistic', flock: readFlock({ leaves: false }) }).templates.find((t) => t.far).flock.leaf).toBeNull();
+    // (absent, nothing of it: the realistic page as it was, and a hybrid crown ignores it)
+    const off = read({ ...beech, crowns: 'realistic' });
+    expect(off.flock).toBeUndefined();
+    expect(off.templates.some((t) => t.flock)).toBe(false);
+    expect(JSON.stringify(read({ ...beech, crowns: 'hybrid', flock: readFlock() }))).toBe(JSON.stringify(read({ ...beech, crowns: 'hybrid' })));
+  }, 300000);
 });
