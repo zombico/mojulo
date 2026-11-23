@@ -558,10 +558,42 @@ Object.assign(PATCHES, {
   celloRec: recHeld('cello', 'cello', -6.5),
   fluteRec: recHeld('flute', 'flute', -7.6),
   trumpetRec: recHeld('trumpet', 'trumpet', -9.0),
+  // the rest of the orchestra (scripts/sound-library/cards/orchestra.js): the horns, the low brass, the viola and the
+  // bowed contrabass, the woodwinds held; the timpani and the tubular bells struck
+  frenchHornRec: recHeld('french-horn', 'frenchHorn', -7.4),
+  tromboneRec: recHeld('trombone', 'trombone', -8.0),
+  tubaRec: recHeld('tuba', 'tuba', -4.8),
+  violaRec: recHeld('viola', 'viola', -1.0),
+  contrabassRec: recHeld('contrabass', 'contrabass', -5.3),
+  clarinetRec: recHeld('clarinet', 'clarinet', -9.7),
+  oboeRec: recHeld('oboe', 'oboe', -13.8),
+  bassoonRec: recHeld('bassoon', 'bassoon', -13.0),
+  timpaniRec: recStruck('timpani', 'timpani', 1.2, -2.3),
+  tubularBellsRec: recStruck('tubular-bells', 'tubularBells', 2, -4.2),
 });
+// the orchestra's second and third tiers (violin2, frenchHorn3…: the same instrument, voiced again): each heard on its
+// first tier's recording, at its first tier's twin's level moved as far as the tier's own patch moves from its first's
+const TIER_BASES = ['violin', 'viola', 'cello', 'contrabass', 'trumpet', 'frenchHorn', 'trombone', 'tuba', 'flute', 'clarinet', 'oboe', 'bassoon'];
+// (each tier matched to its own synthesized patch's loudness, measured: a tier's filters and voicing move it as well as
+// its volume does)
+const TIER_TRIM = Object.freeze({
+  violin2: -3.7, violin3: -5.1, viola2: -3.9, viola3: -3.9, cello2: -3.4, cello3: -3.2, contrabass2: -3.4,
+  contrabass3: -3.6, trumpet2: -0.4, trumpet3: -2.7, frenchHorn2: -0.5, frenchHorn3: -1.6, trombone2: -0.3,
+  trombone3: -2.5, tuba2: -0.6, tuba3: -2.4, flute2: -3.0, flute3: 0.5, clarinet2: -3.5, clarinet3: 4.4, oboe2: -2.8,
+  oboe3: 8.9, bassoon2: -2.9, bassoon3: 6.2,
+});
+const TIER_TWINS = {};
+for (const base of TIER_BASES) for (const n of [2, 3]) {
+  const synth = `${base}${n}`, twin = `${base}Rec`;
+  if (!PATCHES[synth] || !PATCHES[twin]) continue;
+  PATCHES[`${synth}Rec`] = recHeld(PATCHES[twin].library, synth, Math.round((PATCHES[twin].volume + ((PATCHES[synth].volume ?? 0) - (PATCHES[base].volume ?? 0)) + (TIER_TRIM[synth] ?? 0)) * 10) / 10);
+  TIER_TWINS[synth] = `${synth}Rec`;
+}
 // each synthesized patch's recorded twin (the sound library's instruments), so a band can be heard recorded where the
 // library is installed: a part names the twin as its patch, keeping its instrument's chain
 export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'pianoRec', celesta: 'celestaRec', vibraphone: 'vibraphoneRec', steelpan: 'steelpanRec', bassPick: 'bassPickRec',
   guitarAmp: 'guitarRec', guitarLead: 'guitarLeadRec', fmBrass: 'brassRec', stringMachine: 'stringsRec', bassSlap: 'bassSlapRec',
   guitarElectric: 'guitarElectricRec', guitarClean: 'guitarCleanRec', guitarNylon: 'guitarNylonRec', guitarClassical: 'guitarClassicalRec', rhodes: 'rhodesRec', harp: 'harpRec',
-  marimba: 'marimbaRec', xylophone: 'xylophoneRec', glockenspiel: 'glockenspielRec', bassUpright: 'bassUprightRec', violin: 'violinRec', cello: 'celloRec', flute: 'fluteRec', trumpet: 'trumpetRec' });
+  marimba: 'marimbaRec', xylophone: 'xylophoneRec', glockenspiel: 'glockenspielRec', bassUpright: 'bassUprightRec', violin: 'violinRec', cello: 'celloRec', flute: 'fluteRec', trumpet: 'trumpetRec',
+  frenchHorn: 'frenchHornRec', trombone: 'tromboneRec', tuba: 'tubaRec', viola: 'violaRec', contrabass: 'contrabassRec', clarinet: 'clarinetRec', oboe: 'oboeRec', bassoon: 'bassoonRec',
+  timpani: 'timpaniRec', tubularBells: 'tubularBellsRec', ...TIER_TWINS });

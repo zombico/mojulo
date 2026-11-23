@@ -187,3 +187,11 @@ describe('a held twin of a bowed or blown patch', () => {
     for (const p of held) expect(p.lfo).toContainEqual(expect.objectContaining({ target: 'pitch', rate: p.fallback.vibrato.rate, depth: p.fallback.vibrato.depth }));
   });
 });
+
+describe('a tier of an orchestral patch', () => {
+  it('is heard on its first tier\'s recording, each tier its own twin', () => {
+    const tiers = Object.keys(RECORDED_TWINS).filter((k) => /[23]$/.test(k) && RECORDED_TWINS[k.slice(0, -1)]);
+    expect(tiers.length).toBeGreaterThan(0);
+    for (const t of tiers) expect(PATCHES[RECORDED_TWINS[t]].library).toBe(PATCHES[RECORDED_TWINS[t.slice(0, -1)]].library);
+  });
+});

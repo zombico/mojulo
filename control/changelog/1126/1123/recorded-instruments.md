@@ -31,3 +31,7 @@
   loops, the violin, the cello, the flute and the trumpet: recorded with no vibrato, the synthesized vibrato laid over
   each as a pitch lfo. A fretted instrument's low notes are asked by string and fret, the way a player names a pitch:
   the guitar now reaches its open low E (E2), where its low asks in words never came below C#3.
+- The orchestra recorded: the French horn, the trombone and the tuba, the viola and the bowed contrabass, the clarinet,
+  the oboe and the bassoon held on their loops (their synthesized vibrato laid over them), the timpani and the tubular
+  bells struck. Every orchestral patch's second and third tiers are heard on their first tier's recording, each matched
+  to its own patch's loudness, so a score written on any tier of the orchestra is heard recorded with `recorded: true`.

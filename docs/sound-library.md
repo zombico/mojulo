@@ -180,6 +180,13 @@ conditioned: the guitar 27 notes (E2 to A#4), acoustic 19, nylon 17, Rhodes 18, 
 glockenspiel 6 (its highest asks landed low), upright bass 16 (F1 to E3), violin 13, cello 21 (E2 to G4), flute 21,
 trumpet 14.
 
+The orchestra (`cards/orchestra.js`): `frenchHornRec`, `tromboneRec`, `tubaRec`, `violaRec`, `contrabassRec` (bowed,
+asked by string and position), `clarinetRec`, `oboeRec`, `bassoonRec` held on their loops, `timpaniRec` and
+`tubularBellsRec` struck. The orchestral patches' second and third tiers (`violin2`, `frenchHorn3`…) are twinned on
+their first tier's recording, each matched to its own patch's loudness (`TIER_TRIM`: a tier's filters and voicing move
+its level as well as its volume). Coverage as conditioned: the horn 16 notes (F3 to A#4), trombone 13, tuba 14 (C2 to
+E3), viola 13, contrabass 17, clarinet 21, oboe 17, bassoon 15 (E2 to C#4), timpani 8 (A#1 to D3), tubular bells 16.
+
 ## Making it
 
 Maintainer tooling in [control/scripts/sound-library/](../control/scripts/sound-library/), never shipped and never
