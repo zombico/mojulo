@@ -100,3 +100,28 @@ export function flockLight() {
   const G = FLOCK_LOOK.glow;
   return ` if ( vMass > 0.5 ) { vec3 spLs = normalize( ( viewMatrix * vec4( uSunW, 0.0 ) ).xyz ); float spBack = pow( max( 0.0, dot( normalize( -vViewPosition ), spLs ) ), ${G.power.toFixed(1)} ); reflectedLight.indirectDiffuse += diffuseColor.rgb * uSunC * spBack * spThin * ${f(G.k)}; }`;
 }
+/**
+ * THE SPONGE IN JS: the far card (channels/form-flora.js FLORA_FAR) bakes a flock crown from the very march the page's
+ * GLSL runs, its field and its thresholds the same (the page inlines this function by its source, so the tests run what
+ * the page runs). From a point P on a puff (centre C, radius R) along D → [depth 0 at the skin … 1 at the core, the
+ * distance in, the entry's leaf-cluster cell's hash] or null where the ray goes out through the holes. `S` the sponge's
+ * numbers (FLOCK_LOOK.sponge), `cell` the shade's cell (FLOCK_LOOK.shade.cell). Self-contained.
+ */
+export function flockMarch(P, D, C, R, S, cell) {
+  const fract = (x) => x - Math.floor(x), sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const h = (x, y, z) => fract(Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453);
+  const n = (x, y, z) => {
+    const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = sm(0, 1, x - ix), fy = sm(0, 1, y - iy), fz = sm(0, 1, z - iz), l = (a, b, t) => a + (b - a) * t;
+    return l(l(l(h(ix, iy, iz), h(ix + 1, iy, iz), fx), l(h(ix, iy + 1, iz), h(ix + 1, iy + 1, iz), fx), fy),
+      l(l(h(ix, iy, iz + 1), h(ix + 1, iy, iz + 1), fx), l(h(ix, iy + 1, iz + 1), h(ix + 1, iy + 1, iz + 1), fx), fy), fz);
+  };
+  const field = (x, y, z) => 0.65 * n(x / S.grain, y / S.grain, z / S.grain) + 0.35 * n(x / S.fine + 11, y / S.fine + 11, z / S.fine + 11);
+  const span = S.span * R;
+  for (let i = 0; i < S.steps; i++) {
+    const t = ((i + 0.25) / S.steps) * span, x = P[0] + D[0] * t, y = P[1] + D[1] * t, z = P[2] + D[2] * t, r = Math.hypot(x - C[0], y - C[1], z - C[2]);
+    if (r > R * 1.03 && i > 0) break;
+    const dn = Math.min(1, Math.max(0, 1 - r / R)), th = S.skin + (S.core - S.skin) * sm(0, S.close, dn);
+    if (field(x, y, z) > th) return [dn, t, h(Math.floor(P[0] / cell), Math.floor(P[1] / cell), Math.floor(P[2] / cell))];
+  }
+  return null;
+}

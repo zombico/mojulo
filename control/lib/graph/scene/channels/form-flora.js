@@ -16,7 +16,7 @@
  */
 import { safeJson } from '../emit-util.js';
 import { WIND_AT_GLSL } from './terrain-wind.js';
-import { flockGlsl, flockFragment, flockLight, FLOCK_VARYINGS, FLOCK_VERTEX, FLOCK_TABLE } from './form-flock.js';
+import { flockGlsl, flockFragment, flockLight, flockMarch, FLOCK_VARYINGS, FLOCK_VERTEX, FLOCK_TABLE, FLOCK_LOOK } from './form-flock.js';
 
 /**
  * The plants in the wind: a tree's trunk stands, its limbs bend from where they leave it (each vertex's weight its
@@ -231,7 +231,9 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
       ' float sk = smoothstep( uSnowCap.x - 0.04, uSnowCap.x + 0.12, wn.z ) * step( hs, uSnowCap.y ) * smoothstep( 0.15, 0.45, sc ); diffuseColor.rgb = mix( diffuseColor.rgb, uSnowLB, sk ); }';
 ` : ''}    // (a realistic tree's mass in leaf-sized cells, MASS_LEAF: toned each its own, broken at its outline)
 ${flora && flora.flock ? `    // (a realistic crown as FLOCK, channels/form-flock.js: its puffs porous sponge, its skin its species' own leaves)
-    const FLOCK = ${safeJson({ glsl: flockGlsl({ leaves: !!flora.flock.leaves }), depthGlsl: flockGlsl(), vary: FLOCK_VARYINGS, vertex: FLOCK_VERTEX, frag: flockFragment({ leaves: !!flora.flock.leaves }), light: flockLight(), shadow: flora.flock.shadow, table: FLOCK_TABLE })};
+    const FLOCK = ${safeJson({ glsl: flockGlsl({ leaves: !!flora.flock.leaves }), depthGlsl: flockGlsl(), vary: FLOCK_VARYINGS, vertex: FLOCK_VERTEX, frag: flockFragment({ leaves: !!flora.flock.leaves }), light: flockLight(), shadow: flora.flock.shadow, table: FLOCK_TABLE, look: FLOCK_LOOK })};
+    // (its march in JS, the GLSL's twin: the far card bakes the sponge from it)
+    const flockMarch = ${flockMarch.toString()};
 ` : ''}    const ML = ${safeJson(MASS_LEAF)}, MASS_CELLS = '\\n  if ( vMass > 0.5 ) { float mh = fract( sin( dot( floor( vCell / ' + ML.cell.toFixed(3) + ' ), vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 );' +
       ' float mr = 1.0 - abs( dot( normal, normalize( vViewPosition ) ) ); if ( mh < smoothstep( ' + ML.rim.toFixed(3) + ', 1.0, mr ) * ' + ML.cut.toFixed(3) + ' ) discard;' +
       ' diffuseColor.rgb *= mix( ' + ML.tones[0].toFixed(3) + ', ' + ML.tones[1].toFixed(3) + ', fract( mh * 7.13 ) ); }';
@@ -499,11 +501,32 @@ ${FK ? `      // (a flock crown's shadow: the sponge's holes in it, its puffs wh
               put(iu, iv, cf + 0.8 * s0 * ez, ex, ey, LT * 0.5 * FR.shade, 255);
             }
         }
-        // (the leaves, point-sampled: a texel is leaf where its centre falls on one, so the card is no thicker than the
+${FK ? `        // (a flock crown's puff, channels/form-flock.js: a texel its puff covers marched into it along the card's view, as
+        // the near crown's pixel is; a miss left empty (the sky through), a hit at its depth, shaded by it, its facing the
+        // sponge's own round there; a thin one marked (216) for the light through it)
+        const spongeTri = (a0, a1, a2, C, tone) => {
+          const V = [a0, a1, a2].map((a) => [(a[0] * rx + a[1] * ry + R) / du0, a[2] / dv0, a[0] * tx + a[1] * ty]);
+          const area = (V[1][0] - V[0][0]) * (V[2][1] - V[0][1]) - (V[2][0] - V[0][0]) * (V[1][1] - V[0][1]); if (Math.abs(area) < 1e-9) return;
+          const D = [-tx, -ty, 0], LK = FLOCK.look, sm = (x) => { const q = Math.min(1, Math.max(0, x / LK.shade.deep)); return q * q * (3 - 2 * q); };
+          for (let iv = Math.max(0, Math.floor(Math.min(V[0][1], V[1][1], V[2][1]))); iv <= Math.min(IH - 1, Math.floor(Math.max(V[0][1], V[1][1], V[2][1]))); iv++)
+            for (let iu = Math.max(0, Math.floor(Math.min(V[0][0], V[1][0], V[2][0]))); iu <= Math.min(IW - 1, Math.floor(Math.max(V[0][0], V[1][0], V[2][0]))); iu++) {
+              const px = iu + 0.5, py = iv + 0.5;
+              const w0 = ((V[1][0] - px) * (V[2][1] - py) - (V[2][0] - px) * (V[1][1] - py)) / area, w1 = ((V[2][0] - px) * (V[0][1] - py) - (V[0][0] - px) * (V[2][1] - py)) / area, w2 = 1 - w0 - w1;
+              if (w0 < 0 || w1 < 0 || w2 < 0) continue;
+              const f = w0 * V[0][2] + w1 * V[1][2] + w2 * V[2][2]; if (f <= depth[iv * IW + iu]) continue;
+              const P = [0, 1, 2].map((c) => w0 * a0[c] + w1 * a1[c] + w2 * a2[c]), Rp = Math.hypot(P[0] - C[0], P[1] - C[1], P[2] - C[2]);
+              const hit = flockMarch(P, D, C, Rp, LK.sponge, LK.shade.cell); if (!hit) continue;
+              const Q = P.map((v, c) => v + D[c] * hit[1]), nq = Q.map((v, c) => v - C[c]), nl = Math.hypot(...nq) || 1;
+              const sh = (LK.shade.skin + (LK.shade.core - LK.shade.skin) * sm(hit[0])) * (LK.shade.vary[0] + (LK.shade.vary[1] - LK.shade.vary[0]) * hit[2]);
+              put(iu, iv, f - hit[1], (nq[0] * rx + nq[1] * ry) / nl, nq[2] / nl, tone * sh, hit[0] < LK.glow.thin ? 216 : 255);
+            }
+        };
+        const LSI = t.flock ? CG.getAttribute('aSite').array : null;
+` : ''}        // (the leaves, point-sampled: a texel is leaf where its centre falls on one, so the card is no thicker than the
         // crown; lit as their clump faces)
         for (let v = 0; v < LP.length / 3; v += 3) {
           const o = at(LO, v), tone = ((LC[v * 3] + LC[v * 3 + 1] + LC[v * 3 + 2]) / 3) * 0.5;
-          tri(at(LP, v), at(LP, v + 1), at(LP, v + 2), FR ? FR.leaf : FF0.leaf, o[0] * rx + o[1] * ry, o[2], tone, 255);
+${FK ? "          if (LSI && Math.hypot(o[0], o[1], o[2]) > 1.5) { spongeTri(at(LP, v), at(LP, v + 1), at(LP, v + 2), at(LSI, v), tone); continue; }\n" : ''}          tri(at(LP, v), at(LP, v + 1), at(LP, v + 2), FR ? FR.leaf : FF0.leaf, o[0] * rx + o[1] * ry, o[2], tone, 255);
         }
         // (the wood, point-sampled as the leaves are (FF0.wood))
         for (let f = 0; f < WI.length; f += 3) {
@@ -527,14 +550,17 @@ ${FK ? `      // (a flock crown's shadow: the sponge's holes in it, its puffs wh
       'vec3 transformed = vec3( aPos.xy + rt * position.x * Tp.x * aPos.w, aPos.z + position.z * Tp.y * aPos.w );',
       'vAt = vec2( ( bk + position.x * 0.5 + 0.5 ) / ' + IB.toFixed(1) + ', ( Tp.z + position.z ) / uImpRows ); vLeaf = aLeaf; vBark = aBark; vRt = vec3( rt, 0.0 ); vTw = vec3( tw, 0.0 );'].join('\\n');
     const im = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, side: THREE.DoubleSide });
-    im.onBeforeCompile = (sh) => {
+${FK ? `    // (a flock crown's thin texel, 216: the sun through it, seen against the sun, channels/form-flock.js glow)
+    const FLOCK_CARD = '\\n  if ( impA.a > 0.75 && impA.a < 0.9 ) { vec3 spLs = normalize( ( viewMatrix * vec4( uSunW, 0.0 ) ).xyz ); reflectedLight.indirectDiffuse += diffuseColor.rgb * uSunC * pow( max( 0.0, dot( normalize( -vViewPosition ), spLs ) ), ' + FLOCK.look.glow.power.toFixed(1) + ' ) * ' + FLOCK.look.glow.k.toFixed(3) + '; }';
+    Object.assign(IU, { uSunW: { value: sunLight.position.clone().sub(sunLight.target.position).normalize() }, uSunC: { value: sunLight.color.clone().multiplyScalar(sunLight.intensity) } });
+` : ''}    im.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, IU);
       sh.vertexShader = IMP_VERT + sh.vertexShader.replace('#include <begin_vertex>', IMP_PLACE);
-      sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\nvarying vec3 vLeaf, vBark, vRt, vTw;\\n' + sh.fragmentShader
+      sh.fragmentShader = 'uniform sampler2D tImp;\\nvarying vec2 vAt;\\nvarying vec3 vLeaf, vBark, vRt, vTw;\\n'${FK ? " + 'uniform vec3 uSunW;\\nuniform vec3 uSunC;\\n'" : ''} + sh.fragmentShader
         .replace('#include <color_fragment>', '#include <color_fragment>\\n  vec4 impA = texture2D( tImp, vAt ); if ( impA.a < 0.25 ) discard;\\n  diffuseColor.rgb *= ( impA.a > 0.75 ? vLeaf : vBark ) * impA.b * 2.0;')
         .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\\n  { vec2 nn = impA.rg * 2.0 - 1.0; normal = normalize( ( viewMatrix * vec4( normalize( vRt * nn.x + vec3( 0.0, 0.0, 1.0 ) * nn.y + vTw * sqrt( max( 0.0, 1.0 - dot( nn, nn ) ) ) ), 0.0 ) ).xyz ); }')
         // (a leaf the light through it as the near crown's leaves have it, leafMat)
-        .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  if ( impA.a > 0.75 ) reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;');
+        .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\\n  if ( impA.a > 0.75 ) reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.22;'${FK ? " + FLOCK_CARD" : ''});
     };
     im.customProgramCacheKey = () => 'form-flora-far';
     // (its shadow: the card turned to the sun, its silhouette from that side)

@@ -364,10 +364,14 @@ stage says `crowns: { form: 'realistic', flock: false }`.
 - **The shadow** (`flock.shadow`): `'sponge'` (the default) puts the same field in the crown's depth pass; `'solid'`
   casts the puffs whole; `'none'` casts no crown shadow. The sponge's shadow stays mostly solid: a sun ray crosses a
   whole puff's dense core, and the shadow map's filter blurs pores this small.
+- **Far off, the same sponge.** The far card (`FLORA_FAR`) bakes a flock crown from the very march the page's GLSL runs:
+  `flockMarch` is its twin in JS, and the page inlines it by its source, so the tests run what the page runs. Each
+  texel a puff covers is marched along the card's view: a miss is left empty, a hit is shaded by its depth and faces
+  its puff's own round there, and a thin hit is marked so the card also takes the sun through it. Seen side-on, a puff
+  covers about 85% of its outline. The bake adds about half a second to a stand's load (measured with everything flock
+  adds, in software GL).
 - **Absent, nothing.** A page without flock crowns carries none of its code (`form-flock.test.js`).
 - **Known limits:**
-  - the far card (`FLORA_FAR`) is baked from the puffs' triangles, so past the view cone's reach the crown is as full
-    as before;
   - the occlusion prepass and the exports (GLB, USD, engines) see the puffs whole;
   - a leaf whose tip would pass the puff's mesh is clipped by it, and a few leaves stand clear of the mass;
   - gen-6's painted realistic trees (era/isekai.js `realisticBands`) do not draw it;
