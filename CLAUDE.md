@@ -244,7 +244,8 @@ Pointers only; each target carries its own design notes.
 - The play runtime (mojulo's own engine, every game's: the world step and collision, the character controllers and the
   one jump every feel template tunes, the event bus the mechanics lower onto, navigation, mana-ui, three.js drawing; one
   source for Node and the page, `worlds/controllable/compose.js`), what sits on top, where an agent extends it and its
-  gaps today: [docs/runtime.md](docs/runtime.md). Not a fidelity rival and not general-purpose; say it so.
+  gaps today: [docs/runtime.md](docs/runtime.md). "Mojulo ships a lightweight game engine": unnamed on purpose (a part
+  is named by what it is; the whole is mojulo), not a fidelity rival and not general-purpose.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.

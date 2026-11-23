@@ -1,7 +1,7 @@
 # The play runtime
 
-Every game mojulo makes plays on its own runtime. It is a game engine in the ordinary sense: a deterministic world
-step, collision and character controllers, an event bus the game's logic runs on, a UI runtime, sound and input, drawn
+Mojulo ships a lightweight game engine, and every game it makes plays on it. Lightweight as in nothing to install and
+nothing to run but a page; it is a game engine in the ordinary sense: a deterministic world step, collision and character controllers, an event bus the game's logic runs on, a UI runtime, sound and input, drawn
 by three.js on WebGL and written into each exported page. `export_game` ships it as a folder or a desktop app, and
 nothing else is needed to play.
 
@@ -9,6 +9,10 @@ It is made for the games its rails make, not as a general-purpose engine, and it
 Unity on fidelity. No outside engine runs a game's rules: a team's engine gets a handoff of the levels, assets,
 markers and contract (`export_model { engine }`, [tech-requirements.md](tech-requirements.md#engine-handoff-godot-unity-unreal-blender)),
 and the play is rebuilt there if the team wants it there.
+
+It has no name of its own, on purpose. An engine is usually kept apart from the design made on it; here the design
+layer, the recipes and the runtime are made to fit each other, so the line between them is allowed to blur. Asked about
+a part, name the part (the table below says where each lives). Asked what the whole is called: mojulo.
 
 ## One source, two places
 
@@ -93,7 +97,9 @@ Said so a promise is never made past them:
 
 ## Saying it
 
-- Say: the games run on mojulo's own engine, made for the games its rails make, in the browser or as a desktop app.
+- Say: mojulo ships a lightweight game engine; its games run on it, in the browser or as a desktop app.
+- Asked about a part, name the part and where it lives. Asked what it is all called: mojulo. Never invent a name for
+  the engine.
 - Say: it does not compete with Unreal or Unity on fidelity; a team's engine gets the levels, assets and design.
 - Never: "the same game in every engine", "a general-purpose engine", or "just an exporter".
 - To the person, the README's register holds: what they get (a game they can play and share), not how it is built.
