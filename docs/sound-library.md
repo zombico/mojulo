@@ -148,7 +148,11 @@ a quarter tone either side), bent from that root, and with `loop` holds it on th
 The synth's modulators are carried to the take: `unison` copies spread over `detune` cents, `pitchLane` and `vib`, an
 `lfo` aimed at pitch; filters, envelopes, tremolo and the chain sit after it as on any voice. Not carried yet: glide and
 bends on the osc's frequency (`glideFrom`, `bend`, `path`), velocity layers, release samples. The first instrument is
-the organ (`cards/organ.js`, the patch `organRec`, its fallback the synthesized `organ`).
+the organ (`cards/organ.js`, the patch `organRec`, its fallback the synthesized `organ`); the second the piano
+(`cards/piano.js`, `pianoRec`, its fallback `pianoGrand3`; struck, not looped: a note rings as its take does and is damped
+when the key is let go). Asking a note's register in words lands most takes in their octave: the piano's 72 takes,
+asked in three registers, kept 68 and covered 30 notes from F#2 to F#5; the organ's, asked by letter alone, clustered
+round C4.
 
 ## Making it
 

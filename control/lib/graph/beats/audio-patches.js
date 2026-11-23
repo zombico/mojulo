@@ -507,3 +507,8 @@ PATCHES.recRockKit = { kit: { ...PATCHES.rockKit90s.kit, 35: 'recKick', 36: 'rec
 // library (or before its takes are decoded) the synthesized organ it stands in for. A part plays it as
 // `{ instrument: 'organ', patch: 'organRec' }` (the organ's chain kept). Not on the instrument shelf until heard.
 PATCHES.organRec = { voice: 'sample', library: 'organ', zones: true, loop: true, oneShot: false, attack: 0.012, decay: 0.04, sustain: 1, release: 0.12, volume: -9, unison: 2, detune: 4, fallback: PATCHES.organ };
+// The recorded PIANO (the sound library's instrument `piano`: a grand's notes struck once and left to ring, each zoned
+// by its measured root, scripts/sound-library/cards/piano.js): each note on its nearest take, bent the rest of the way,
+// ringing as its take does and damped when the key is let go (no loop: a struck string dies away); on a machine without
+// the library the tuned grand it stands in for. Played as `{ instrument: 'grand-piano-3', patch: 'pianoRec' }`.
+PATCHES.pianoRec = { voice: 'sample', library: 'piano', zones: true, oneShot: false, attack: 0.002, decay: 0, sustain: 1, release: 0.3, volume: -18, fallback: PATCHES.pianoGrand3 };

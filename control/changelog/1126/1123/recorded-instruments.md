@@ -8,3 +8,7 @@
 - The first is a recorded electric drawbar organ (`organRec`, played as the organ with its own chain), heard beside the
   synthesized organ; on a machine without the library it is the synthesized organ, byte for byte. It is not on the
   instrument shelf until it is chosen by ear.
+- A recorded grand piano (`pianoRec`, played as `grand-piano-3` with its soundboard and room): notes struck once and
+  left to ring, each played on its nearest take across F#2 to F#5 and damped when the key is let go; asking each note's
+  register in words (a left hand's low notes, a bright treble) lands most takes in their octave. Without the library it
+  is the tuned grand, byte for byte; not on the instrument shelf until chosen by ear.
