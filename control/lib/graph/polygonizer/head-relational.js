@@ -179,10 +179,10 @@ export const RELATION_POLES = Object.freeze({
   // over a finer philtrum; a lighter, flatter brow; a narrower jaw and a narrower, pointed chin that no longer recedes;
   // the cheeks fuller and the lower cheek bowed out over the jaw (a soft outline, never a hollowed one). (2026-11-23: from
   // the 3/4 she read as his sister: her bones read softly, `boneEdge`, her lower face shorter, her nose smaller and her
-  // chin narrower and finer again)
+  // chin narrower and finer again; her nasion lower, so her nose is shorter, ~45 mm from the nasion, its tip kept)
   female: Object.freeze({
-    third: 0.27, eyeLine: 0.49, nasionDrop: 0.06, headLength: 0.84, cephalic: 0.79, faceWidth: 0.87, jaw: 0.64,
-    fifths: 0.232, fissure: 0.045, lidSplit: 0.36, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.28, noseSize: -0.12, noseFat: 0.026, dorsum: -0.35,
+    third: 0.27, eyeLine: 0.49, nasionDrop: 0.072, headLength: 0.84, cephalic: 0.79, faceWidth: 0.87, jaw: 0.64,
+    fifths: 0.232, fissure: 0.045, lidSplit: 0.36, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.31, noseSize: -0.12, noseFat: 0.026, dorsum: -0.35,
     nasionDepth: 0.006, browProjection: 0.019, brow: 0.22, malarDepth: 0.037, forehead: 0.02, boneEdge: 0.4,
     lipFullness: 1.3, upperVermilion: 0.04, lowerVermilion: 0.05, lipProjection: 0.023, mouthWidth: 1.7, philtrumVolume: 0.02, jowl: 0.008,
     chinWidth: -0.11, chinRound: -0.2, gonionDrop: -0.006, cheeks: 0.5, lowerCheek: 0.5,
@@ -280,7 +280,7 @@ const MM_V = 1 / 230;   // a millimetre in head heights
  * radius, in V */
 /** the nasolabial pad (each side): its beads out from the alare, the midpoint and the cheilion, and back from them, and
  * its radii, in V */
-const NASOLABIAL = Object.freeze({ out: [0.035, 0.04, 0.035], back: [0.07, 0.057, 0.037], r: [0.02, 0.024, 0.018] });
+const NASOLABIAL = Object.freeze({ out: [0, 0.035, 0.035], back: [0.07, 0.057, 0.037], r: [0.02, 0.024, 0.018] });
 /** the jaw's border: its beads' radii (chin's corner, the body, ahead of the gonion), how far the body's middle flares
  * out past the line between them, and how far the floor of the mouth's middle is raised, in V */
 const JAW_BORDER = Object.freeze({ r: [0.02, 0.022, 0.02], flare: 0.01, floorLift: 0.025, from: 0.3 });
@@ -294,6 +294,9 @@ const DEPRESSOR_BELLY = Object.freeze({ back: 0.008, r: 0.026 });
  * behind the subnasale, and the arch's off the zygion (forward, up, in), how broadly it is joined to the skin, and how far
  * the eminence sets back where the bones read softly (`boneEdge` 0), in V */
 const CHEEKBONE = Object.freeze({ soft: 0.008, join: 0.038, r: [0.026, 0.033, 0.026], medial: [0.04, 0.01, 0.015], out: 0.012, depth: 0.057, up: -0.01, back: [0.03, -0.02, 0.012] });
+/** the alar crease's radii, a share of the canon's (at the canon's it cut a trench 2-2.5 mm deep and ~4 mm wide beside a
+ * smaller nose's wing, a dark crescent between the wing and the cheek; the alar-facial groove is a fine line) */
+const ALAR_CREASE = 0.3;
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
  * radius (its width), its edge's blend */
@@ -755,7 +758,9 @@ export function coreVajras(P, rel = RELATIONS) {
   // groove's width it broke through as a pit beside the columella's foot, a white fleck under the light)
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`al${s}`].x), lb = lobule[s];
-    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.026, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.036, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.048, z: -0.018 }), [0.003, 0.0045, 0.0022], null, 0.02);
+    // (its places and radii about the lobule scaled with the nose's own parts, `noseSize`: held at the canon's while a
+    // smaller nose's wing shrank, it lay outside the wing and cut a slot into the cheek beside it, a dark crescent)
+    cut(`alarCrease${s}`, at(lb, { x: sg * 0.022 * k, y: -0.026 * k, z: 0.012 * k }), at(lb, { x: sg * 0.016 * k, y: -0.036 * k, z: -0.004 * k }), at(lb, { x: sg * 0.004 * k, y: -0.048 * k, z: -0.018 * k }), [0.003 * k * ALAR_CREASE, 0.0045 * k * ALAR_CREASE, 0.0022 * k * ALAR_CREASE], null, 0.02 * k * ALAR_CREASE);
   }
   // (the line parts the lips as far forward as their fullness carries them, and as deep)
   cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['lipLineC'], ['cornerR']]);

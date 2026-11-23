@@ -5,7 +5,10 @@ face toward the proportions and the clean structure of a current game character,
 
 - The sex poles: a woman's mouth wider and her lips less full; ears that lie flatter to the head; a man's lips and
   mouth less full. Her face reads apart from his from the 3/4: her bones show through softer tissue (the jaw's border
-  and the cheekbone gentler), her lower face shorter, her chin finer, her nose smaller and her cheeks fuller high up.
+  and the cheekbone gentler), her lower face shorter, her chin finer, her nose smaller and shorter (its root lower, between the eyes) and her
+  cheeks fuller high up.
+- The nose's wings join the cheek without the dark pit at their outer corners: the alar crease a fine line scaled with
+  the nose, the cheek's pad running under the wing's base.
 - The mouth: the lips lie on the curve of the teeth instead of standing on a mound, their corners tuck into the cheek,
   and the profile's lips sit behind the line from the nose's tip to the chin. The lower lip rolls into a shallow fold
   over the chin instead of standing as a shelf over a hollow.
