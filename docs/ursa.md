@@ -78,7 +78,8 @@ level, the recipe the middle, the emitters the backends ([scene/](../control/lib
 *blocked* (some absent, named). Lowering is lossy and says so: the gaps are part of the output, not an apology after
 it.
 
-No engine runs a game's rules: the web build is the game. A team's engine takes a handoff of each level
+No outside engine runs a game's rules: the web build, on mojulo's own runtime ([runtime.md](runtime.md)), is the
+game. A team's engine takes a handoff of each level
 ([scene/handoff.js](../control/lib/graph/scene/handoff.js)): its assets, light, markers and contract as engine-neutral
 data each engine's adapter reads, with a ledger of what stayed the web's. The visual gate
 ([scripts/visual-gate.mjs](../control/scripts/visual-gate.mjs)) measures how close each engine's shots come to the
@@ -123,8 +124,9 @@ conflated, the eyes gate is never claimed by the system, and every gate advises 
 
 ## Non-claims
 
-- **Not an engine.** "3D" is a pipeline position. Mojulo feeds Godot, Unity, Unreal, Blender and the printer; it does
-  not compete with them on fidelity.
+- **Not a fidelity rival.** Mojulo's games run on its own engine ([runtime.md](runtime.md)), made for the games its
+  rails make, not a general-purpose one. It feeds Godot, Unity, Unreal, Blender and the printer and does not compete
+  with them on fidelity: "3D" is a pipeline position.
 - **Not universal in the computational sense.** The space is finite and its gaps are named; a law a scale lacks is a
   gap, never approximated. The sweep exists to measure what is not makeable.
 - **Not a cloud.** Single operator, loopback only; no tenancy, no hosted counterpart, no registry mojulo runs.

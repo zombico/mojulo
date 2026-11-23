@@ -239,8 +239,12 @@ Pointers only; each target carries its own design notes.
   `scene/engines/`. The visual gate (`scene/visual-gate.js`, `scripts/visual-gate.mjs`) renders a level's cameras on the
   page and in each engine installed and scores each shot. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` /
   `MOJULO_UNREAL` / `MOJULO_UNITY`; CI's `godot` job runs Godot's legs (the handoff, a humanoid's import, the visual
-  gate's) on a pinned Godot; the others run locally. No engine runs a game: the game runtimes (Godot's, Roblox's,
-  Unity's) are retired, and the web build is the game.
+  gate's) on a pinned Godot; the others run locally. No outside engine runs a game: the game runtimes (Godot's,
+  Roblox's, Unity's) are retired, and the web build, on mojulo's own runtime, is the game.
+- The play runtime (mojulo's own engine, every game's: the world step and collision, the character controllers and the
+  one jump every feel template tunes, the event bus the mechanics lower onto, navigation, mana-ui, three.js drawing; one
+  source for Node and the page, `worlds/controllable/compose.js`), what sits on top, where an agent extends it and its
+  gaps today: [docs/runtime.md](docs/runtime.md). Not a fidelity rival and not general-purpose; say it so.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
