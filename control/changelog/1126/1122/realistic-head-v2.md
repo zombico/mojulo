@@ -1,7 +1,8 @@
 ### The realistic head: a mainstream face
 
-In progress. The realistic hero's head has a sound skull and a face that reads as a mannequin. This work reshapes the
-face toward the proportions and the clean structure of a current game character, on the head's existing masses.
+The realistic hero's head had a sound skull and a face that read as a mannequin. This work reshapes the face toward
+the proportions and the clean structure of a current game character, on the head's existing masses, and draws its hair
+as a game draws it, held to a game's budget.
 
 - The sex poles: a woman's mouth wider and her lips less full; ears that lie flatter to the head; a man's lips and
   mouth less full. Her face reads apart from his from the 3/4: her bones show through softer tissue (the jaw's border
