@@ -42,7 +42,7 @@ import { manaUiSource, manaUi } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
 import { cockpitOf, canopyFrame, COCKPITS, CRAFT_PLANS, planOf } from '../../skyscape/cockpits.js';
-import { COCKPIT_COLOURS, COCKPIT_THEME, COCKPIT_ALERTS, PLACARDS, cockpitAlerts, keyOnPanel, panelPaint } from './cockpit-look.js';
+import { COCKPIT_COLOURS, COCKPIT_THEME, COCKPIT_ALERTS, PLACARDS, cockpitAlerts, keyOnPanel, panelPaint, barNormals, barGlint } from './cockpit-look.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
@@ -239,7 +239,7 @@ export function cockpitFramePage(F, card) {
   svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;display:none';
   (document.getElementById('wrap') || document.body).appendChild(svg);
   const METAL = '#14171b', EDGE = '#3b424b', WALL = '#0d0f12';
-  let key = '', lamps = {};
+  let key = '', lamps = {}, glints = [];
   const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
   function draw(W, H, vfov) {
     while (svg.firstChild) svg.removeChild(svg.firstChild);
@@ -283,6 +283,25 @@ export function cockpitFramePage(F, card) {
         g.appendChild(el('path', { d, stroke: EDGE, 'stroke-width': Math.max(1, w * 0.22).toFixed(1), 'stroke-linecap': 'round', fill: 'none', transform: 'translate(0 ' + (-w * 0.25).toFixed(1) + ')' }));
       }
     }
+    // THE STAR ON THE BARS (cockpit-look.js barNormals, barGlint): each segment's two edges and its face toward the
+    // pilot, a warm white glint each, set each frame by how squarely it faces the star; the edge's glint along that
+    // edge as the eye sees it
+    glints = [];
+    const glintG = el('g', {});
+    for (const B of F.bars) {
+      if (!(B.r > 0)) continue;
+      for (let i = 1; i < B.pts.length; i++) {
+        const p0 = B.pts[i - 1], p1 = B.pts[i];
+        if (p0[2] <= 0.04 || p1[2] <= 0.04) continue;
+        const a = at(p0), b = at(p1), z = (p0[2] + p1[2]) / 2, w = Math.min(H * 0.12, Math.max(2, (2 * B.r * f) / z)), N = __ckBarNormals(p0, p1);
+        const m = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, z], ms = at(m), es = at([m[0] + N.side[0] * B.r, m[1] + N.side[1] * B.r, m[2] + N.side[2] * B.r]);
+        const ox = es ? es[0] - ms[0] : 0, oy = es ? es[1] - ms[1] : 0, oL = Math.hypot(ox, oy) || 1, k = w * 0.3;
+        const d = 'M' + a[0].toFixed(1) + ' ' + a[1].toFixed(1) + 'L' + b[0].toFixed(1) + ' ' + b[1].toFixed(1);
+        const mk = (dx, dy, width) => { const n = el('path', { d, stroke: '#fff3e2', 'stroke-width': width.toFixed(1), 'stroke-linecap': 'round', fill: 'none', opacity: 0, transform: 'translate(' + dx.toFixed(1) + ' ' + dy.toFixed(1) + ')' }); glintG.appendChild(n); return n; };
+        glints.push({ N, a: mk((ox / oL) * k, (oy / oL) * k, Math.max(1, w * 0.18)), b: mk((-ox / oL) * k, (-oy / oL) * k, Math.max(1, w * 0.18)), face: mk(0, 0, w * 0.5), o: [0, 0, 0] });
+      }
+    }
+    g.appendChild(glintG);
     // THE PANEL (cockpit-look.js): painted metal by the card, darker toward the pilot's knees; the screens' phosphor
     // spilling onto it; a glare shield's lip along its top, its shadow under it; the star's light on that lip as the
     // craft rolls under it (`ckKey`, set each frame); each screen in a bevelled bezel held by four screws (the sensors
@@ -356,6 +375,11 @@ export function cockpitFramePage(F, card) {
     if (!look) return;
     const kg = svg.querySelector('#ckKey');
     if (kg) kg.setAttribute('opacity', (Math.round(look.key * 100) / 100).toString());
+    // (the bars' glints: an edge to its light's strength, eased past a twentieth so a still view writes nothing)
+    for (const G of glints) {
+      const L = __ckBarGlint(G.N, look.sunEye), want = [Math.pow(L.a, 0.7) * 0.85, Math.pow(L.b, 0.7) * 0.85, L.face * 0.2];
+      ['a', 'b', 'face'].forEach((k, i) => { if (Math.abs(want[i] - G.o[i]) > 0.02) { G.o[i] = want[i]; G[k].setAttribute('opacity', want[i].toFixed(2)); } });
+    }
     for (const n in lamps) {
       const on = !!look[n] && (n !== 'warning' || look.beat), L = lamps[n];
       L.face.setAttribute('fill-opacity', on ? '0.95' : '0.14'); L.t.setAttribute('fill', on ? '#1a0d00' : card.lamps[n]); L.t.setAttribute('fill-opacity', on ? '0.9' : '0.35');
@@ -401,7 +425,10 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
       for (const pool of ['hull', 'shields', 'lasers']) { const v = A.warning.includes(pool) ? 'warning' : A.caution.includes(pool) ? 'caution' : ''; if ((root.dataset[pool] || '') !== v) { if (v) root.dataset[pool] = v; else delete root.dataset[pool]; } }
       for (const [k, on] of [['mcaution', A.caution.length > 0], ['mwarning', A.warning.length > 0]]) if (!!lampsEl.dataset[k] !== on) { if (on) lampsEl.dataset[k] = 'on'; else delete lampsEl.dataset[k]; }
       const sun = typeof SKY !== 'undefined' && SKY && SKY.sun && Array.isArray(SKY.sun.dir) ? SKY.sun.dir : null;
-      if (frame) frame(inCockpit, { key: __ckKey(sun, me.sfF, me.sfU), caution: A.caution.length > 0, warning: A.warning.length > 0, beat: Math.floor(performance.now() / 350) % 2 === 0 });
+      // (the star in the eye's own frame: right, up, ahead, for the canopy's bars)
+      const fw = me.sfF, up = me.sfU, rt = [fw[1] * up[2] - fw[2] * up[1], fw[2] * up[0] - fw[0] * up[2], fw[0] * up[1] - fw[1] * up[0]];
+      const sunEye = sun ? [sun[0] * rt[0] + sun[1] * rt[1] + sun[2] * rt[2], sun[0] * up[0] + sun[1] * up[1] + sun[2] * up[2], sun[0] * fw[0] + sun[1] * fw[1] + sun[2] * fw[2]] : null;
+      if (frame) frame(inCockpit, { sunEye, key: __ckKey(sun, me.sfF, me.sfU), caution: A.caution.length > 0, warning: A.warning.length > 0, beat: Math.floor(performance.now() / 350) % 2 === 0 });
       set('shOn', !!(sh && sh.shMax > 0)); set('sMaxOn', sh && sh.shMax > 0 ? sh.shMax : 0);
       if (sh) { set('sFore', Math.round(sh.sh[0] * 10) / 10); set('sAft', Math.round(sh.sh[1] * 10) / 10); set('sMax', sh.shMax || 1); set('pL', sh.pow.lasers); set('pS', sh.pow.shields); set('pE', sh.pow.engines); set('linkSay', (LINK[sh.link] || '') + (sh.mode !== 'even' ? ' · shields ' + sh.mode : '')); }
       set('hull', Math.max(0, me.body && Number.isFinite(me.body.hp) ? me.body.hp : 0)); set('hullMax', me.hpMax || (me.body && me.body.hp) || 1);
@@ -469,7 +496,7 @@ export function cockpitHudScript(cfg = {}) {
   manaUi.readSpec(spec);
   return `
 // THE COCKPIT HUD (scene/channels/cockpit-hud.js): the starfighter's instruments on mana-ui, in its cockpit (${id})
-const __ckScope = ${scopeMarks.toString()}, __ckLead = ${leadPoint.toString()}, __ckAlerts = ${cockpitAlerts.toString()}, __ckKey = ${keyOnPanel.toString()};
+const __ckScope = ${scopeMarks.toString()}, __ckLead = ${leadPoint.toString()}, __ckAlerts = ${cockpitAlerts.toString()}, __ckKey = ${keyOnPanel.toString()}, __ckBarNormals = ${barNormals.toString()}, __ckBarGlint = ${barGlint.toString()};
 const __ckFrame = (${cockpitFramePage.toString()})(${json(canopyFrame(id))}, ${json({ panel: card.panel, paint: panelPaint(card), placards: PLACARDS, glow: COCKPIT_COLOURS.normal, lamps: { caution: COCKPIT_COLOURS.caution, warning: COCKPIT_COLOURS.warning } })});
 window.__mojCockpitHud = (${cockpitHudPage.toString()})(${json({ cockpit: id, plan: planOf(id), plans: CRAFT_PLANS, dart: planOf(null), alerts: COCKPIT_ALERTS })}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(theme)}\n${HOST_CSS}\n${cockpitPanelCss(card)}`)}, __ckFrame);
 `;

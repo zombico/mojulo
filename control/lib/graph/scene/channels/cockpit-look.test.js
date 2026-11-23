@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { COCKPIT_COLOURS, COCKPIT_THEME, COCKPIT_ALERTS, PLACARDS, cockpitAlerts, keyOnPanel, panelPaint } from './cockpit-look.js';
+import { COCKPIT_COLOURS, COCKPIT_THEME, COCKPIT_ALERTS, PLACARDS, cockpitAlerts, keyOnPanel, panelPaint, barNormals, barGlint } from './cockpit-look.js';
 import { cockpitHudScript, cockpitPanelCss, CHASE_SLOTS } from './cockpit-hud.js';
 import { COCKPITS } from '../../skyscape/cockpits.js';
 import { readTheme } from '../../../mana-ui/theme.js';
@@ -56,6 +56,23 @@ describe('the cockpit\'s look', () => {
     expect(keyOnPanel(null, f, u)).toBe(0);
   });
 
+  it('a canopy bar catches the star on the edge that faces it, and on its face when it shines in from behind', () => {
+    // (a post ahead and to the right, upright: its edges face left and right as the eye sees it)
+    const N = barNormals([0.4, -0.2, 1], [0.4, 0.6, 1]);
+    const right = barGlint(N, [1, 0, 0]), left = barGlint(N, [-1, 0, 0]);
+    expect(Math.max(right.a, right.b)).toBeGreaterThan(0.8);
+    expect(Math.min(right.a, right.b)).toBe(0);
+    // a roll that brings the star round to the other side lights the other edge
+    expect(right.a > right.b).toBe(left.b > left.a);
+    // the star behind the pilot lights its face; ahead of it, beyond the glass, its face is dark
+    expect(barGlint(N, [0, 0, -1]).face).toBeGreaterThan(0.8);
+    expect(barGlint(N, [0, 0, 1]).face).toBe(0);
+    // along the bar, no edge faces it
+    const along = barGlint(N, [0, 1, 0]);
+    expect(Math.max(along.a, along.b)).toBeLessThan(0.15);
+    expect(barGlint(N, null)).toEqual({ a: 0, b: 0, face: 0 });
+  });
+
   it('each cockpit\'s panel its own paint, its metal read off it; each screen its placard', () => {
     const paints = new Set(Object.values(COCKPITS).map((c) => c.panel.paint));
     expect(paints.size).toBe(Object.keys(COCKPITS).length);
@@ -74,6 +91,6 @@ describe('the cockpit\'s look', () => {
     expect(css).toMatch(/\.moj-ck-lamps\[data-view=chase\]\{display:flex/);
     expect(css).toMatch(/\.moj-ck-lamps\[data-mwarning\] \.moj-ck-lamp\[data-lamp=warning\]\{[^}]*animation:ck-beat/);
     for (const w of ['moj-ck-lamps', 'mcaution', 'mwarning']) expect(s, w).toContain(w);
-    for (const w of ['MASTER CAUTION', 'MASTER WARNING', '--ck-target:' + COCKPIT_COLOURS.target, '__ckAlerts', '__ckKey', 'ckKey', PLACARDS.computer, COCKPITS.heavyFighter.panel.paint]) expect(s, w).toContain(w);
+    for (const w of ['MASTER CAUTION', 'MASTER WARNING', '--ck-target:' + COCKPIT_COLOURS.target, '__ckAlerts', '__ckKey', 'ckKey', '__ckBarGlint', 'sunEye', PLACARDS.computer, COCKPITS.heavyFighter.panel.paint]) expect(s, w).toContain(w);
   });
 });

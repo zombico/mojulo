@@ -26,7 +26,8 @@
  *   gunsight, the target) brightest; the glass under them near black, so every step holds its contrast.
  *
  *   A PANEL THAT IS A THING: painted metal by the craft's card (`panel.paint`), lit from above by the star when the
- *   star is above the craft (the key light sweeping over the glare shield as the craft rolls), each screen in a bevelled
+ *   star is above the craft (the key light sweeping over the glare shield as the craft rolls), the canopy's bars catching
+ *   it on the edge that faces it (and on their face, when it shines in from behind), each screen in a bevelled
  *   bezel held by four screws, a placard naming each, and the screens' own phosphor spilling onto the metal round them.
  *
  *   COCKPIT_COLOURS            the code (hex)
@@ -36,6 +37,9 @@
  *   cockpitAlerts(facts, L)    → { caution: [..], warning: [..] } the pools past COCKPIT_ALERTS (pure: the page runs it)
  *   keyOnPanel(sun, f, u)      → 0..1 how much the star lights the panel's top (pure: the page runs it)
  *   panelPaint(card)           → the panel's metal: its paint, its lit edge, its shade, its bezels (hex)
+ *   barNormals(p0, p1)         → a canopy bar's segment as the light sees it: its edges' normal, the way to it
+ *   barGlint(N, s)             → 0..1 the star's light on each of its edges and on its face toward the pilot (pure:
+ *                                the page runs both, the frame catching the star as the craft rolls)
  */
 
 export const COCKPIT_COLOURS = Object.freeze({
@@ -89,4 +93,21 @@ const mix = (a, b, t) => hexOf(rgbOf(a).map((v, k) => v + (rgbOf(b)[k] - v) * t)
 export function panelPaint(card) {
   const p = (card && card.panel && card.panel.paint) || '#22272d';
   return { paint: p, lit: mix(p, '#ffffff', 0.32), shade: mix(p, '#000000', 0.55), lip: mix(p, '#000000', 0.35), bezel: mix(p, '#000000', 0.25), bevel: mix(p, '#ffffff', 0.18), screw: mix(p, '#ffffff', 0.4), placard: mix(p, '#000000', 0.6), ink: '#c9d1d9', well: '#020504' };
+}
+
+/** A canopy bar's segment from p0 to p1 (eye space: x right, y up, z ahead, the eye at the origin) as the light sees it:
+ *  `side` the normal of its edge on one side as the eye sees it (the other edge its opposite), `view` the way to it
+ *  from the eye (its face toward the pilot the opposite). */
+export function barNormals(p0, p1) {
+  const n = (v) => { const L = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / L, v[1] / L, v[2] / L]; };
+  const a = n([p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]]), v = n([(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2]);
+  return { side: n([a[1] * v[2] - a[2] * v[1], a[2] * v[0] - a[0] * v[2], a[0] * v[1] - a[1] * v[0]]), view: v };
+}
+
+/** How the star lights that segment (`s` toward the star, in eye space): each edge by how squarely it faces the star,
+ *  and the face toward the pilot (lit when the star is behind the pilot, shining in through the glass). 0..1 each. */
+export function barGlint(N, s) {
+  if (!s) return { a: 0, b: 0, face: 0 };
+  const d = N.side[0] * s[0] + N.side[1] * s[1] + N.side[2] * s[2], f = -(N.view[0] * s[0] + N.view[1] * s[1] + N.view[2] * s[2]);
+  return { a: Math.max(0, d), b: Math.max(0, -d), face: Math.max(0, f) };
 }

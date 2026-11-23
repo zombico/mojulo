@@ -272,3 +272,10 @@ They share one foundation, built first, and these themes record it as it lands.
   sits over the targeting computer on the strip, lit by the same alerts as the cockpit's glare-shield pair (the
   warning beating). They sit beside the HUD's root, which the runtime redraws, and carry the view and the alerts
   themselves.
+- **The canopy catches the starlight** (`cockpit-look.js` `barNormals`, `barGlint`). Each canopy bar's segment has a
+  warm white glint along each of its two edges and a sheen on its face toward the pilot, each lit each frame by how
+  squarely that surface faces the star (the star taken into the eye's own frame). A star off to one side shines
+  across the cockpit onto the inner edges of the far side's bars while the near side's stand dark against it. A star
+  overhead lights the bars' upper edges, and one behind the pilot puts a sheen on their faces. As the craft rolls, the
+  light slides from edge to edge round the frame. An edge only writes when its light changes by more than a
+  twentieth, so a still view costs nothing.
