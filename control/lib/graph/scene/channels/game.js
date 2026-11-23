@@ -82,6 +82,16 @@ const __GAME = ${safeJson(game)};
   function emit(ev) { if (!st.ended && ev && typeof ev === 'object' && ev.type) st.events.push(ev); }
   function end(result, stats${exits ? ', exit' : ''}) {
     if (st.ended) return st.envelope;
+    // (a scene up as the level is won or lost, a moment at its exit: the level ends as the scene closes, never under it.
+    // A moment's zone and the exit's may fire on one frame, the scene up the next: a quarter second's grace first, on a
+    // page with scenes. A capture run, the audit's, ends at once)
+    if (!capture && window.__mojScenes) {
+      if (!st.graced) { st.graced = true; setTimeout(function () { end(result, stats${exits ? ', exit' : ''}); }, 250); return null; }
+      if (window.__mojScenes.on()) {
+        if (!st.held) st.held = setInterval(function () { if (!window.__mojScenes.on()) { clearInterval(st.held); st.held = null; end(result, stats${exits ? ', exit' : ''}); } }, 150);
+        return null;
+      }
+    }
     st.ended = true;
     st.envelope = { contractVersion: __CV, levelRef: __GAME.levelRef, seed: st.seed, result: result || 'success', events: st.events.slice() };${exits ? `
     // the way the level was left, when it has several (a map game travels by it)

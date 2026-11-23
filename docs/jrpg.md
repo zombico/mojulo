@@ -303,6 +303,14 @@ them. A familiar never starts one. The presets: Fire Strike and Frost Strike (a 
 Fire or Blizzard), Holy Cross (Power Strike and a cleric's Heal), Venom Flame (a rogue's Poison Blade and Fire, on every
 foe) and Trinity (all three, on every foe). A composed party RPG asks for them.
 
+**The round's story.** A composed party RPG is written a starter story from what it is about (`gameworld/round-story.js`,
+the brief's motivation: saving the princess, the world, a family, solving a mystery, finding a treasure, stopping a
+virus): its OPENING in the town (the game's opening slot: the flow's opening cutscene, staged on the town's page), a line
+as the CORE begins, and its ENDING in the core (the game's ending slot: staged on the core's page, a citadel's too, after
+the round's first full clear). Each is a story moment in the world's `story`, to change. A moment binds to a building's
+stage (its start, its goal room, its boss's spot, its rooms by order and by name), and a level won or lost while a scene
+is up ends as the scene closes, never under it.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

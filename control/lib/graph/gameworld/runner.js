@@ -53,7 +53,7 @@ import { boardLevelOrder, mapLevelOrder, tdLevelOrder, rtsLevelOrder, epochDots,
 import { gauntletCast } from './gauntlet-cast.js';
 import { carriedBlade, genreHero, rowGaits } from './hero-rows.js';
 import { layTasks, tasksCast } from './tasks.js';
-import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
+import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, buildingEnds, buildingSpots, stageSpots, stageLane, stageTitle, sheathedSpec } from './levels.js';
 import { bindStory } from './story.js';
 import { storyCinematics, flowToRefs } from './game-flow.js';
 import { withSetup } from './setup.js';
@@ -455,7 +455,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   const map = !onBoard && G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   // the story bound to the stages as laid: each stage its moments and people (none: nothing passed, nothing changes)
   const castRefs = Object.fromEntries(Object.keys(GL.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
-  const told = G.story ? bindStory(GL, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane }, epochs: onBoard ? epochs : null }) : null;
+  const told = G.story ? bindStory(GL, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane, buildingEnds, buildingSpots }, epochs: onBoard ? epochs : null }) : null;
   // where a scene's has and done read: the store's inventories, its campaign, each level by its last stage's ref
   const store = gameStore(world, B), last = {};
   stages.forEach((s, i) => { last[s.level] = levelRefs[i]; });
@@ -656,7 +656,7 @@ export function storyReport(world, { ref = 'gw' } = {}) {
   if (!G.story && !G.quests) return null;
   const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
   const stages = gameStages(world), epochs = G.battles?.on === 'board' ? bookEpochs(G, stages) : [];
-  const { bound, unplaced, unset, notes } = bindStory(G, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane }, epochs: epochs.length && epochs.every((e) => e.at.length <= MAP_DOTS) ? epochs : null });
+  const { bound, unplaced, unset, notes } = bindStory(G, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane, buildingEnds, buildingSpots }, epochs: epochs.length && epochs.every((e) => e.at.length <= MAP_DOTS) ? epochs : null });
   return { bound, unplaced, ...(unset ? { unset } : {}), ...(notes ? { notes } : {}) };
 }
 

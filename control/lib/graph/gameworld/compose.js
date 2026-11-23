@@ -45,6 +45,7 @@ import { stampMegaworld } from './megaworld.js';
 import { gmnOfWords, resolveGmn, stampGameBrief, MOTIVATIONS } from './gmn.js';
 import { roundEraOf, eraBattles } from './round-eras.js';
 import { bossOfLabour, roundBossBattles } from './round-bosses.js';
+import { roundStory } from './round-story.js';
 import { settingOfGame, ERA_OF_KIT } from './cast-setting.js';
 import { heroDesign } from './hero-design.js';
 import { genrePaletteWords } from './world-palette.js';
@@ -649,6 +650,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       world.quests = [...(world.quests ?? []), Q.quest];
       if (Q.sets) world.battles = { ...world.battles, sets: Q.sets };
       world.brief.round = { ...world.brief.round, quest: { id: Q.quest.id, steps: Q.quest.steps.map((s) => s.done) } };
+    }
+    // THE ROUND'S STORY (round-story.js): its opening in the town, a line as the core begins, its ending in the core,
+    // from what the round is about; written out in the world's story to change
+    if (roundResolved?.motivation && !world.story) {
+      world.story = roundStory({ motivation: roundResolved.motivation, hub: hubId, core, coreName: low(world.levels[core]?.name ?? core) });
+      world.brief.round = { ...world.brief.round, story: world.story.map((m) => m.id) };
     }
   }
   // (the round's brief stamped: its reading and its orders, gmn.js; the words that named it read)

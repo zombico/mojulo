@@ -14,7 +14,7 @@ a townsperson's talk fired on its event. It writes `report.json` and a shot of e
 | The priest's pages, the inn, the save point | yes | already held by `gameworld/jrpg-town.live.test.js` |
 | The opening (a story moment in the game's `opening` slot) | yes | the flow's opening cutscene names it and the town's page as its stage; staged, it plays letterboxed, the hero's name and face over the box |
 | A moment reached (`when: { reach }`) | yes, but see the exit | it starts as the walker comes within its reach |
-| The ending (a moment in the `ending` slot at the citadel) | **no** | unplaced: the citadel's core is a building stage, and a moment binds to a walk's stages only |
+| The ending (a moment in the `ending` slot at the citadel) | yes, since the follow-up | first run: unplaced (a building stage); a moment now binds to a building's places, and the flow stages the ending on the citadel's page |
 | A boss's lines (`bossPages`) | not on a page here | the kernel's and the channel's tests hold them; no browser run in this spike |
 
 ## Findings
@@ -37,7 +37,16 @@ a townsperson's talk fired on its event. It writes `report.json` and a shot of e
 5. **Not run here:** the play shell itself (the flow's opening handed to the level by the shell, then on to play), a
    boss's lines on a battle page, the quest journal (J) on a page.
 
-## Next, in order
+## Resolved since (the follow-up)
+
+- Finding 2: a moment binds to a building stage (`levels.js` buildingSpots: its start, its goal room, its boss's spot, its
+  rooms by order and by name), held by `gameworld/story-building.test.js`.
+- Finding 1: the composer writes a starter story from the brief (`gameworld/round-story.js`): the opening in the town,
+  a line as the core begins, the ending in the core; held by `gameworld/round-story.test.js`.
+- Finding 3: a level's end waits for a scene that is up (`scene/channels/game.js` end: a quarter second's grace, then
+  held until the scene closes); the rerun's reached moment shows `endedWhileUp: false, endedAfter: true`.
+
+## Next, in order (as first written)
 
 1. Bind moments to building stages (finding 2), from `buildingEnds`: its rooms as places, the goal room, the boss's spot.
 2. A starter story written by the composer from the brief (finding 1), so a round opens and ends as a JRPG does.

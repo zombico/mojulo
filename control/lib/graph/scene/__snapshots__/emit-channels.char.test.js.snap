@@ -78,7 +78,7 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > fx emits byte-identically 1`] = `"0c32eca34b0488b5d178aa7a300b5e17c97490a235baa03a1adeee8b556c41d9"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > game emits byte-identically 1`] = `"1d9d7ede2bbbd55c22e2db0ab6958fb371578a4ddb9739931bf7df497a5a5904"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > game emits byte-identically 1`] = `"4311ff183bee44f4f4efe62b1b3bf8868c80a80c60cf20ca63e442f8b5654e11"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > groups-cutaway emits byte-identically 1`] = `"4e194b07f46eff70c0f9a02e8e8f5508343d81132f6b5187d906de6de6d7ec9b"`;
 
@@ -88,9 +88,9 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > innings emits byte-identically 1`] = `"824ed3695b3b5bc6f9db47bfb4cdc6df1f90c15c44335f8e61c479dc1632a5ee"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink emits byte-identically 1`] = `"ec4b9f6a9a4a696001ced24c2821910b3fa0eb62e14636f1c97273c5ce58a96b"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink emits byte-identically 1`] = `"499f05be87f96f8d84d03a3a8d7efbf9948e226fe5cdc09fa09bcaa3a254028c"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink-capture emits byte-identically 1`] = `"ddb74477d8ad41a89ebec12f25a5eb9b9c01c977223cebf274c3d028ed624a83"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink-capture emits byte-identically 1`] = `"e86385f9eb19cd47722e2d452a717f6766cba3b865d7805b206df2cd944971bc"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > liquid-sheet emits byte-identically 1`] = `"b92061ba74b989e42a95b63a10274e272fab0e0f326cf4d68757a0f242c6eab8"`;
 

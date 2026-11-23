@@ -43,7 +43,8 @@
  *                                  unset: [{ quest, step, flag }] (a step's flag that no moment or answer sets: a cue may),
  *                                  notes?: [{ id, script, notes: [{ id, says, why, try }] }] (each script's director's
  *                                  notes as it is blocked on its stage, actor/notes.js: advice, never a refusal) }
- *                                `layout`: levels.js' { stageEnds, stageSpots, stageLane } (handed in: levels.js reads
+ *                                `layout`: levels.js' { stageEnds, stageSpots, stageLane, buildingEnds?, buildingSpots? }
+ *                                (a building's places: its start, its goal room, its boss's spot, its rooms) (handed in: levels.js reads
  *                                the world, which reads this)
  */
 import { readScenes } from '../playscape/ui/scenes.js';
@@ -200,15 +201,19 @@ export function bindStory(G, stages, { castRefs = {}, layout, epochs = null } = 
     if (!lv.length) { unplaced.push({ id: m.id, why: `no level '${m.where.level}' (levels: ${[...new Set(stages.map((s) => s.level))].join(', ')})` }); continue; }
     const stage = m.where.stage ? lv.find((s) => s.node === m.where.stage) : lv[0];
     if (!stage) { unplaced.push({ id: m.id, why: `the level '${m.where.level}' has no stage '${m.where.stage}' (stages: ${lv.map((s) => s.node).join(', ')})` }); continue; }
-    // a building level (or a building's inside) lays its rooms from a program at read: no places to bind to yet
-    if (stage.section === 'building' || stage.section === 'interior') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a building: a moment binds to a walk's stages for now` }); continue; }
+    // a building level (or a building's inside) lays its rooms from a program at read: its places are its way in, its
+    // goal room, its boss's spot and its rooms on the way (levels.js buildingEnds, buildingSpots), handed in by the layout
+    const building = stage.section === 'building' || stage.section === 'interior';
+    if (building && !layout.buildingEnds) { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a building, and no building layout was handed in` }); continue; }
     if (stage.section === 'city') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a city's segment: a moment binds to a walk's stages for now` }); continue; }
     if (stage.section === 'roadway') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a roadway: a moment binds to a walk's stages for now` }); continue; }
     if (stage.section === 'airspace') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is an airspace: a moment binds to a walk's stages for now` }); continue; }
     const missing = (m.who ?? []).filter((w) => !cast[w]);
     if (missing.length) { unplaced.push({ id: m.id, why: `${missing.map((w) => `'${w}'`).join(', ')} not in the cast (cast: ${Object.keys(cast).join(', ') || 'none'})` }); continue; }
-    const cam = G.camera === 'side' && stage.manifest.trail !== undefined ? stageLane(stage) : null;
-    const ends = stageEnds(stage.manifest), spots = stageSpots(ends, cam);
+    const cam = !building && G.camera === 'side' && stage.manifest.trail !== undefined ? stageLane(stage) : null;
+    let ends, spots;
+    try { ends = building ? layout.buildingEnds(stage) : stageEnds(stage.manifest); spots = building ? layout.buildingSpots(ends) : stageSpots(ends, cam); }
+    catch (e) { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} could not be laid to bind to: ${String(e.message).split('\n')[0]}` }); continue; }
     const names = spots.map((s) => s.id).join(', ');
     const place = m.where.place ? placeIn(spots, m.where.place) : null;
     if (m.where.place && !place) { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} has no place '${m.where.place}' (places: ${names})` }); continue; }

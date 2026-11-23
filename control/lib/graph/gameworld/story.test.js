@@ -322,9 +322,12 @@ describe('the story in a building level (structure rails merged in)', () => {
     expect(inn.entities.find((e) => e.id === 'guard')).toMatchObject({ dormant: true, team: 'party', rule: { mind: { motivation: 'escort' } } });
   }, 240_000);
 
-  it('a moment aimed at a building level is unplaced, said, not thrown', () => {
+  it('a moment aimed at a building level binds to its places (its start, its goal room, its rooms); one it lacks is said', () => {
     const r = storyReport(WB({ story: [{ ...WELCOME, where: { level: 'inn' } }] }));
-    expect(r.unplaced).toEqual([{ id: 'welcome', why: expect.stringMatching(/is a building: a moment binds to a walk's stages for now/) }]);
+    expect(r.unplaced).toEqual([]);
+    expect(r.bound).toEqual([expect.objectContaining({ id: 'welcome', level: 'inn' })]);
+    const lost = storyReport(WB({ story: [{ ...WELCOME, where: { level: 'inn', place: 'no-such-room' } }] }));
+    expect(lost.unplaced).toEqual([{ id: 'welcome', why: expect.stringMatching(/has no place 'no-such-room' \(places: start, exit, goal, boss/) }]);
   }, 240_000);
 });
 

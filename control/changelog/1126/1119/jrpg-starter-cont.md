@@ -331,3 +331,10 @@
   gauges emptied), made with their stat summed; never started by a familiar. Five presets (Fire Strike, Frost Strike,
   Holy Cross, Venom Flame, Trinity, a triple), their juice (`joint`, `joined`); a composed party RPG asks for them, a
   world asking none lists none.
+- **Dialogue and cutscenes that play.** A spike (`control/scripts/spikes/story-play/`) played a composed round's talk and
+  story on the page in headless Chromium and found three gaps, now closed: a story moment binds to a building's stage
+  (`levels.js` buildingSpots: its start, goal room, boss's spot and rooms), so a citadel keeps its ending; a composed
+  party RPG is written a starter story from its brief's motivation (`gameworld/round-story.js`: its opening in the town,
+  a line as the core begins, its ending in the core, staged by the flow on their pages); and a level won or lost while a
+  scene is up ends as the scene closes (`scene/channels/game.js`: a quarter second's grace on a page with scenes, then
+  held), so a moment at an exit is no longer cut short.

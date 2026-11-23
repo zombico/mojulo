@@ -64,7 +64,12 @@ if (browser) {
     const spot = at ?? (M.play.cues ?? []).find((c) => c.when?.enter)?.when.enter.at;
     await page.evaluate((a) => { const C = window.__mojCtrl.world, me = C.byId[C.pilotId]; if (a) { me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; } }, spot);
     await page.waitForFunction(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, { timeout: 30000 });
-    const t = await talk(); await skip(); return t;
+    // (the level held while its line is up: its end waits for the scene to close, then comes)
+    await nap(2500);
+    const during = await page.evaluate(() => !!(window.__mojGame && window.__mojGame.envelope));
+    const t = await talk(); await skip(); await nap(1500);
+    const after = await page.evaluate(() => !!(window.__mojGame && window.__mojGame.envelope));
+    return { ...t, endedWhileUp: during, endedAfter: after };
   });
   // 3 · a townsperson TALKED TO: their scene fired on its event, as their use cue fires it
   await step('talk', async () => {

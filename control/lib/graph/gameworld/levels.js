@@ -1404,6 +1404,20 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
 
 /** A stage's places by name: its start (the spawn), its exit, its pockets and landmarks in trail order (pocket,
  * pocket-2…), each on the lane when the stage is run side on. */
+/**
+ * A BUILDING's places, as a story binds to them (story.js bindStory): its way in (start), its goal room (exit and goal,
+ * at its floor), where its boss stands (boss), and each room on the way: by its order (room, room-2 …) and by its own
+ * name (the program's: hall, cell-1 …). Each at its floor. → [{ id, at }]
+ */
+export function buildingSpots(ends) {
+  const floor = ends.bossAt ?? [ends.exit[0], ends.exit[1], ends.spawn[2] ?? 0], seen = new Set(['start', 'exit', 'goal', 'boss']);
+  const rooms = ends.beats.flatMap((b, i) => {
+    const out = [{ id: i ? `room-${i + 1}` : 'room', at: b.at }], own = String(b.beat).replace(/^.*\//, '');
+    if (/^[a-z][a-z0-9-]*$/.test(own) && !seen.has(own)) { seen.add(own); out.push({ id: own, at: b.at }); }
+    return out;
+  });
+  return [{ id: 'start', at: ends.spawn }, { id: 'exit', at: floor }, { id: 'goal', at: floor }, { id: 'boss', at: floor }, ...rooms];
+}
 export function stageSpots(ends, lane = null) {
   const at = (p) => (lane ? onLane({ at: p }, lane).at : p);
   const named = (kind) => ends.beats.filter((b) => b.beat === kind).map((b, i) => ({ id: i ? `${kind}-${i + 1}` : kind, at: at(b.at) }));
