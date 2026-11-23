@@ -27,7 +27,8 @@
  *   frame    which of the canopy's members are bars: { edges: ['shoulder' | 'crown' …] (the facet edges along it that are
  *            framed: the shoulders' posts, the crown's rails; the rest are seams in the glass), bows: [its hoops, of the
  *            shelf's], bar, bow (their radii, m) }
- *   panel    the instrument panel over the screen's foot: { height: its share of the screen (0.28), top: the panel's top
+ *   panel    the instrument panel over the screen's foot: { height: its share of the screen (0.28), paint: its metal's
+ *            colour (scene/channels/cockpit-look.js panelPaint: a light grey the general's, near black the other side's), top: the panel's top
  *            edge, [[x, y]…] as shares of the screen (x 0 to 1, y down from the top), slots: { fore, aft, computer,
  *            systems, flight }: each [x0, y0, x1, y1] shares of the screen, round: the slots drawn as round scopes }
  *
@@ -58,7 +59,7 @@ export const COCKPITS = Object.freeze({
     numbers: Object.freeze({ speedOfMax: 0.75, rates: Object.freeze({ pitch: 1.5, yaw: 1.1, roll: 2.4 }), hull: 12, shields: Object.freeze({ max: 8, regen: 0.25 }), lasers: Object.freeze({ energy: 24, regen: 4, rof: 6, damage: 1, links: Object.freeze([1, 2, 4]) }), warheads: 6, generator: 12 }),
     eye: Object.freeze({ t: 0.74, up: 0.58 }), frame: Object.freeze({ edges: Object.freeze(['shoulder']), bows: Object.freeze([0.3]), bar: 0.02, bow: 0.02 }),
     panel: Object.freeze({
-      height: PANEL_HEIGHT,
+      height: PANEL_HEIGHT, paint: '#3a4048',
       // a broad dashboard, the glare shield raised over the middle
       top: P([[0, 0.74], [0.3, 0.73], [0.38, 0.705], [0.62, 0.705], [0.7, 0.73], [1, 0.74]]),
       slots: Object.freeze({ fore: [0.12, 0.765, 0.25, 0.975], systems: [0.26, 0.76, 0.4, 0.975], computer: [0.405, 0.725, 0.595, 0.975], flight: [0.6, 0.76, 0.74, 0.975], aft: [0.75, 0.765, 0.88, 0.975] }),
@@ -69,7 +70,7 @@ export const COCKPITS = Object.freeze({
     numbers: Object.freeze({ speedOfMax: 0.95, rates: Object.freeze({ pitch: 1.9, yaw: 1.4, roll: 3.2 }), hull: 8, shields: Object.freeze({ max: 5, regen: 0.3 }), lasers: Object.freeze({ energy: 20, regen: 4, rof: 7, damage: 1, links: Object.freeze([1, 2]) }), warheads: 4, generator: 10 }),
     eye: Object.freeze({ t: 0.78, up: 0.66 }), frame: Object.freeze({ edges: Object.freeze(['shoulder']), bows: Object.freeze([0.4]), bar: 0.018, bow: 0.018 }),
     panel: Object.freeze({
-      height: PANEL_HEIGHT,
+      height: PANEL_HEIGHT, paint: '#2c3138',
       // a narrow centre console between the knees, the sides falling away under the low canopy's sills
       top: P([[0, 0.78], [0.28, 0.77], [0.34, 0.72], [0.66, 0.72], [0.72, 0.77], [1, 0.78]]),
       slots: Object.freeze({ fore: [0.2, 0.8, 0.32, 0.98], systems: [0.345, 0.745, 0.445, 0.975], computer: [0.45, 0.74, 0.58, 0.975], flight: [0.585, 0.735, 0.665, 0.975], aft: [0.68, 0.8, 0.8, 0.98] }),
@@ -80,7 +81,7 @@ export const COCKPITS = Object.freeze({
     numbers: Object.freeze({ speedOfMax: 0.6, rates: Object.freeze({ pitch: 1.1, yaw: 0.8, roll: 1.6 }), hull: 20, shields: Object.freeze({ max: 12, regen: 0.25 }), lasers: Object.freeze({ energy: 30, regen: 4, rof: 5, damage: 1.5, links: Object.freeze([1, 2, 4]) }), warheads: 12, generator: 15 }),
     eye: Object.freeze({ t: 0.76, up: 0.56 }), frame: Object.freeze({ edges: Object.freeze(['shoulder']), bows: Object.freeze([0.3, 0.65]), bar: 0.028, bow: 0.024 }),
     panel: Object.freeze({
-      height: PANEL_HEIGHT,
+      height: PANEL_HEIGHT, paint: '#3a3730',
       // wide and deep, flat across, its side consoles stepped up
       top: P([[0, 0.7], [0.14, 0.7], [0.17, 0.725], [0.83, 0.725], [0.86, 0.7], [1, 0.7]]),
       slots: Object.freeze({ fore: [0.03, 0.73, 0.16, 0.95], systems: [0.18, 0.75, 0.38, 0.975], computer: [0.39, 0.745, 0.61, 0.975], flight: [0.62, 0.75, 0.82, 0.975], aft: [0.84, 0.73, 0.97, 0.95] }),
@@ -91,7 +92,7 @@ export const COCKPITS = Object.freeze({
     numbers: Object.freeze({ speedOfMax: 0.85, rates: Object.freeze({ pitch: 1.7, yaw: 1.3, roll: 2.6 }), hull: 8, shields: null, lasers: Object.freeze({ energy: 20, regen: 5, rof: 7, damage: 1, links: Object.freeze([1, 2]) }), warheads: 0, generator: 8 }),
     eye: Object.freeze({ back: 0.72 }), frame: Object.freeze({ bar: 0.012, bow: 0.012 }),
     panel: Object.freeze({
-      height: PANEL_HEIGHT,
+      height: PANEL_HEIGHT, paint: '#15171a',
       // the curve of the ball under its window
       top: P([[0, 0.7], [0.15, 0.73], [0.3, 0.75], [0.5, 0.755], [0.7, 0.75], [0.85, 0.73], [1, 0.7]]),
       slots: Object.freeze({ fore: [0.16, 0.775, 0.29, 0.985], systems: [0.3, 0.78, 0.41, 0.975], computer: [0.42, 0.775, 0.58, 0.975], flight: [0.59, 0.78, 0.7, 0.975], aft: [0.71, 0.775, 0.84, 0.985] }),

@@ -253,3 +253,18 @@ They share one foundation, built first, and these themes record it as it lands.
   run in, where its numbers were tuned. So it attacks exactly as it did before, runs faster as it breaks off, and fires
   shorter bursts at its old speed while its shields are up. The targeting computer names the target's stance under
   its name: shields up, weapons hot, running.
+- **Cockpit instruments with a colour code and a panel that is a thing** (`scene/channels/cockpit-look.js`;
+  [docs/cockpit-instruments.md](../../../../docs/cockpit-instruments.md)). The instruments follow a dark-cockpit
+  code: what is normal is the one phosphor, labels dimmer than their figures, so a colour pops out when it appears.
+  Friends on the sensors and the comms are cyan-blue; hostiles are red. The target is magenta, a hue nothing else in
+  space has: its brackets, lead pip, range, edge arrow, its mark on the sensors and its name. The shields are blue, the
+  one system with a hue of its own. Its stance reads red when its weapons are hot and blue when its shields are up.
+  A pool running low is amber (the cannons under a quarter, a shield side under a third, the hull under a half); a
+  shield side down or the hull at a quarter is red and beating. The master caution and master warning lamps on the
+  glare shield light for either. The cockpit's theme is the terminal's with the code's tokens and solid bars.
+  The panel is painted metal by its card (`panel.paint`). It has a glare shield's lip with its shadow, and the star's
+  light catches that lip as strongly as the star is above the craft, sweeping across as it rolls. Each screen sits in a
+  bevelled bezel held by four screws (the sensors in knurled rings) under a glass sheen, with its phosphor spilling
+  onto the metal and a stencilled placard naming it. The generator's feeds are named LAS, SHD and ENG, and narrow
+  screens wrap their readings rather than run them together. In the chase strip, the computer's readings keep clear
+  of the target's plan.

@@ -42,6 +42,7 @@ import { manaUiSource, manaUi } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
 import { cockpitOf, canopyFrame, COCKPITS, CRAFT_PLANS, planOf } from '../../skyscape/cockpits.js';
+import { COCKPIT_COLOURS, COCKPIT_THEME, COCKPIT_ALERTS, PLACARDS, cockpitAlerts, keyOnPanel, panelPaint } from './cockpit-look.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
@@ -116,16 +117,42 @@ export function cockpitHudSpec() {
 }
 
 // (the layer over the canvas, taking no pointer; the page's own flight readouts and radar put away under it)
-const HOST_CSS = '.moj-ck{position:absolute;inset:0;pointer-events:none;z-index:7}.moj-ck .mana-root{background:none}'
+// (the colours of the code as the layer's own variables, cockpit-look.js; a gauge past its threshold coloured by the word
+// the root carries for its pool, a warning beating)
+const K = COCKPIT_COLOURS;
+const HOST_CSS = `.moj-ck{position:absolute;inset:0;pointer-events:none;z-index:7;--ck-label:${K.label};--ck-figure:${K.figure};--ck-normal:${K.normal};--ck-friend:${K.friend};--ck-hostile:${K.hostile};--ck-target:${K.target};--ck-caution:${K.caution};--ck-warning:${K.warning};--ck-shields:${K.shields}}.moj-ck .mana-root{background:none}`
   + '.moj-c-radar,.moj-c-gauge,.moj-c-lock,.moj-c-hp,.moj-c-ehp,.moj-hud-top-left,.moj-w-legend{display:none!important}'
   // (a ship's sensor has no north: its top is the craft's up)
   + '.moj-ck .mana-minimap .mana-north,.moj-ck .mana-minimap [data-north]{display:none!important}'
   + '.moj-ck .mana-anchor>*{background:none!important;padding:0!important}'
-  + '.moj-ck .mana-anchor .mana-reticle{font-size:40px;color:var(--mana-accent)}'
+  // (the target, selected: magenta, its brackets, its lead pip, its range, its arrow at the edge; the gunsight the
+  // phosphor at its brightest)
+  + '.moj-ck .mana-anchor .mana-reticle{font-size:40px;color:var(--ck-target);filter:drop-shadow(0 0 3px var(--ck-target))}'
+  + '.moj-ck .mana-anchor .mana-text[data-role]{color:var(--ck-target)!important;font-weight:700;letter-spacing:.06em}'
+  + '.moj-ck .mana-edge{color:var(--ck-target)!important;border-color:var(--ck-target)!important;background:none!important}'
+  + '.moj-ck .mana-place[data-at=center] .mana-reticle{color:var(--ck-figure);opacity:.85}'
   + '.moj-ck .mana-minimap[data-scope=yes]{width:min(20vh,170px);height:min(20vh,170px)}'
-  + '.moj-ck .mana-minimap .mana-marker[data-kind=foe]{color:var(--mana-harm)}.moj-ck .mana-minimap .mana-marker[data-kind=ally]{color:var(--mana-accent)}'
-  + '.moj-ck .mana-minimap .mana-marker[data-kind=target]{color:var(--mana-accent2);font-size:1.4em}'
+  // (the sensors by the sides' code: a hostile red, a friend cyan-blue, the target magenta and larger)
+  + '.moj-ck .mana-minimap .mana-marker[data-kind=foe]{color:var(--ck-hostile)}.moj-ck .mana-minimap .mana-marker[data-kind=ally]{color:var(--ck-friend)}'
+  + '.moj-ck .mana-minimap .mana-marker[data-kind=target]{color:var(--ck-target);font-size:1.5em;filter:drop-shadow(0 0 2px var(--ck-target))}'
   + '.moj-ck .mana-place[data-at=left],.moj-ck .mana-place[data-at=right]{width:min(18vw,220px)}'
+  // (luminance in three steps: a label dim, its figure bright; the comms an advisory, cyan-blue)
+  + '.moj-ck .mana-label,.moj-ck .mana-text[data-role=caption]{color:var(--ck-label)!important;letter-spacing:.08em}'
+  + '.moj-ck .mana-num,.moj-ck .mana-text[data-role=heading]{color:var(--ck-figure)!important;font-variant-numeric:tabular-nums}'
+  + '.moj-ck .mana-place[data-at=top] .mana-toast{color:var(--ck-friend)!important;border-color:var(--ck-friend)!important}'
+  + '.moj-ck [data-at=bottom] .mana-text[data-role=heading]{color:var(--ck-target)!important}'
+  // (the target's stance by what it means to the pilot: weapons hot a threat, red; shields up the shields' blue)
+  + '.moj-ck[data-tstance=lasers] [data-at=bottom] .mana-text[data-role=caption]{color:var(--ck-hostile)!important}'
+  + '.moj-ck[data-tstance=shields] [data-at=bottom] .mana-text[data-role=caption]{color:var(--ck-shields)!important}'
+  // (the alerts: the cannons low amber; a shield low amber, one down red; the hull past a half amber, a quarter red)
+  + '.moj-ck[data-lasers=caution] [data-at=left] .mana-bar .mana-track i,.moj-ck[data-lasers=caution] .mana-pw-feed[data-id=lasers] .mana-pw-pool>i{background:var(--ck-caution)!important}'
+  + '.moj-ck[data-lasers=caution] [data-at=left] .mana-bar .mana-label{color:var(--ck-caution)!important}'
+  + '.moj-ck[data-hull=caution] [data-at=left] .mana-sh-plan{background:var(--ck-caution)!important}'
+  + '.moj-ck[data-hull=warning] [data-at=left] .mana-sh-plan{background:var(--ck-warning)!important;animation:ck-beat .7s steps(2) infinite}'
+  + '.moj-ck[data-shields=caution] [data-at=left] .mana-sh-arc{filter:drop-shadow(0 0 3px var(--ck-caution))}'
+  + '.moj-ck[data-shields=warning] [data-at=left] .mana-sh-arc{animation:ck-beat .7s steps(2) infinite}'
+  + '.moj-ck[data-shields=warning] .mana-pw-feed[data-id=shields] .mana-pw-pool>i,.moj-ck[data-shields=caution] .mana-pw-feed[data-id=shields] .mana-pw-pool>i{background:var(--ck-caution)!important}'
+  + '@keyframes ck-beat{50%{opacity:.25}}'
   + '.hud,.hint{display:none!important}';
 
 // which place an instrument is (the spec's regions): the sensors, the computer, the systems, the flight
@@ -149,21 +176,34 @@ function placesCss(V, S, { glass = 0.95, inline = false } = {}) {
     `${V} ${I} .mana-stack{gap:3px!important}`,
     `${V} ${I} .mana-bar .mana-track{min-width:0}`,
     `${V} ${I} .mana-pips{gap:2px}`,
-    // (a stat's figure on no highlight of its own: the screen's phosphor)
-    `${V} ${I} .mana-stat *{background:none!important;color:var(--mana-accent)!important;padding:0!important}`,
+    // (a narrow screen: its readings wrap rather than run into each other, the generator's names giving way to its pips)
+    `${V} ${I} .mana-stack[data-dir=row]{flex-wrap:wrap;column-gap:6px;row-gap:1px}`,
+    `${V} ${I} .mana-power .mana-pw-feed{grid-template-columns:8px minmax(0,1fr) auto}`,
+    `${V} ${I} .mana-power .mana-label{min-width:0;overflow:hidden;text-overflow:clip;white-space:nowrap}`,
+    `${V} ${I} .mana-power .mana-pw-pips{font-size:min(1.3cqh,10px)!important;letter-spacing:0}`,
+    `${V} ${I} .mana-power{gap:5px}`,
+    // (a stat on no highlight of its own: its label dim, its figure bright, as every reading's: HOST_CSS)
+    `${V} ${I} .mana-stat *{background:none!important;padding:0!important}`,
     `${V} [data-at=bottom] .mana-text[data-role=heading]{font-size:min(2cqh,15px)!important;letter-spacing:.08em}`,
   ];
+  // (the glass over each screen: a faint sheen across its upper corner, as a lit cockpit's glass catches it)
+  if (glass > 0.9) out.push(`${V} ${I}>*::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(155deg,rgba(255,255,255,.075),rgba(255,255,255,0) 34%)}`);
   for (const [k, [x0, y0, x1, y1]] of Object.entries(S)) {
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}]{left:${pc(x0)};top:${pc(y0)};width:${pc(x1 - x0)};height:${pc(y1 - y0)};right:auto;bottom:auto;transform:none;max-width:none;padding:0;align-items:stretch}`);
   }
   // the sensors round, a CRT each, filling their bezels
   out.push(`${V} .mana-place:is([data-at=bottom-left],[data-at=bottom-right])>*{border-radius:50%!important;padding:0!important;display:flex;align-items:center;justify-content:center}`);
-  for (const [k, less] of [['systems', 34], ['computer', inline ? 8 : 50]]) {
+  for (const [k, less] of [['systems', 46], ['computer', inline ? 8 : 50]]) {
     const [, y0, , y1] = S[k], hgt = `calc(${((y1 - y0) * 100).toFixed(2)}cqh - ${less}px)`;
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}] .mana-shields{height:${hgt};width:auto;max-width:100%;aspect-ratio:1/1.1;flex:none}`);
   }
   // (the computer's plan beside its readings, at its right, where its screen is short)
-  if (inline) out.push(`${V} .mana-place[data-at=bottom] .mana-shields{position:absolute;right:8px;top:4px;margin:0}`);
+  if (inline) {
+    const [, y0, , y1] = S.computer;
+    out.push(`${V} .mana-place[data-at=bottom] .mana-shields{position:absolute;right:8px;top:4px;margin:0}`);
+    // (its readings kept clear of the plan: as wide a margin as the plan is)
+    out.push(`${V} .mana-place[data-at=bottom]>*>.mana-stack{padding-right:calc((${((y1 - y0) * 100).toFixed(2)}cqh - 8px) / 1.1 + 12px)}`);
+  }
   for (const k of ['fore', 'aft']) {
     const [x0, y0, x1, y1] = S[k], d = `calc(min(${((x1 - x0) * 100).toFixed(2)}cqw, ${((y1 - y0) * 100).toFixed(2)}cqh) * 0.94)`;
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}] .mana-minimap[data-scope=yes]{width:${d}!important;height:${d}!important}`);
@@ -183,8 +223,8 @@ export function cockpitFramePage(F, card) {
   svg.setAttribute('class', 'moj-ck-frame');
   svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6;display:none';
   (document.getElementById('wrap') || document.body).appendChild(svg);
-  const METAL = '#14171b', EDGE = '#3b424b', PANEL = '#1b1f24', WALL = '#0d0f12';
-  let key = '';
+  const METAL = '#14171b', EDGE = '#3b424b', WALL = '#0d0f12';
+  let key = '', lamps = {};
   const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
   function draw(W, H, vfov) {
     while (svg.firstChild) svg.removeChild(svg.firstChild);
@@ -228,22 +268,83 @@ export function cockpitFramePage(F, card) {
         g.appendChild(el('path', { d, stroke: EDGE, 'stroke-width': Math.max(1, w * 0.22).toFixed(1), 'stroke-linecap': 'round', fill: 'none', transform: 'translate(0 ' + (-w * 0.25).toFixed(1) + ')' }));
       }
     }
-    // the panel: its silhouette over the screen's foot, a glare shield's lip along its top, and a bezel at each slot
-    const top = card.panel.top.map(([x, y]) => [x * W, y * H]);
-    g.appendChild(el('path', { d: 'M0 ' + H + 'L' + top.map((q) => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('L') + 'L' + W + ' ' + H + 'Z', fill: PANEL }));
-    g.appendChild(el('path', { d: 'M' + top.map((q) => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('L'), stroke: '#2c3238', 'stroke-width': Math.max(2, H * 0.006).toFixed(1), fill: 'none' }));
+    // THE PANEL (cockpit-look.js): painted metal by the card, darker toward the pilot's knees; the screens' phosphor
+    // spilling onto it; a glare shield's lip along its top, its shadow under it; the star's light on that lip as the
+    // craft rolls under it (`ckKey`, set each frame); each screen in a bevelled bezel held by four screws (the sensors
+    // in a knurled ring), its placard under it; the master caution and warning lamps standing on the lip
+    const P = card.paint, PL = card.placards || {}, top = card.panel.top.map(([x, y]) => [x * W, y * H]), topD = top.map((q) => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join('L');
+    const yTop = Math.min(...top.map((q) => q[1])), u = H / 720;
+    const defs = el('defs', {});
+    const grad = (id, stops, attrs) => { const n = el(attrs && attrs.r ? 'radialGradient' : 'linearGradient', Object.assign({ id }, attrs || { x1: 0, y1: 0, x2: 0, y2: 1 })); for (const [o, c, a] of stops) n.appendChild(el('stop', { offset: o, 'stop-color': c, 'stop-opacity': a == null ? 1 : a })); defs.appendChild(n); };
+    grad('ckPanel', [[0, P.paint], [0.45, P.paint], [1, P.shade]], { x1: 0, y1: yTop / H, x2: 0, y2: 1, gradientUnits: 'objectBoundingBox' });
+    grad('ckGlow', [[0, card.glow, 0.22], [0.6, card.glow, 0.06], [1, card.glow, 0]], { r: 0.5, cx: 0.5, cy: 0.5 });
+    grad('ckKeyBand', [[0, '#ffffff', 0.55], [1, '#ffffff', 0]], { x1: 0, y1: 0, x2: 0, y2: 1 });
+    g.appendChild(defs);
+    g.appendChild(el('path', { d: 'M0 ' + H + 'L' + topD + 'L' + W + ' ' + H + 'Z', fill: 'url(#ckPanel)' }));
+    // (the screens' light on the metal round them)
+    for (const k in card.panel.slots) { const [x0, y0, x1, y1] = card.panel.slots[k]; g.appendChild(el('ellipse', { cx: (((x0 + x1) / 2) * W).toFixed(1), cy: (((y0 + y1) / 2) * H).toFixed(1), rx: ((x1 - x0) * W * 0.85).toFixed(1), ry: ((y1 - y0) * H * 0.8).toFixed(1), fill: 'url(#ckGlow)' })); }
+    // (the lip: its shadow on the panel under it, its body, its edge)
+    g.appendChild(el('path', { d: 'M' + topD, stroke: '#000000', 'stroke-opacity': 0.45, 'stroke-width': (14 * u).toFixed(1), fill: 'none', transform: 'translate(0 ' + (9 * u).toFixed(1) + ')' }));
+    g.appendChild(el('path', { d: 'M' + topD, stroke: P.lip, 'stroke-width': (9 * u).toFixed(1), 'stroke-linejoin': 'round', fill: 'none' }));
+    g.appendChild(el('path', { d: 'M' + topD, stroke: P.bevel, 'stroke-width': (1.4 * u).toFixed(1), fill: 'none', transform: 'translate(0 ' + (-4 * u).toFixed(1) + ')' }));
+    // (the star's light: the lip's edge catching it, and a sheen down the panel's top; its strength each frame)
+    const keyG = el('g', { id: 'ckKey', opacity: 0 });
+    keyG.appendChild(el('path', { d: 'M' + topD, stroke: P.lit, 'stroke-width': (3 * u).toFixed(1), fill: 'none', transform: 'translate(0 ' + (-4 * u).toFixed(1) + ')' }));
+    keyG.appendChild(el('path', { d: 'M0 ' + (yTop + 30 * u).toFixed(1) + 'L' + topD + 'L' + W + ' ' + (yTop + 30 * u).toFixed(1) + 'Z', fill: 'url(#ckKeyBand)', opacity: 0.35, transform: 'translate(0 ' + (5 * u).toFixed(1) + ')' }));
+    g.appendChild(keyG);
+    const screw = (x, y) => { const r = 2.6 * u; g.appendChild(el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: r.toFixed(1), fill: P.screw, stroke: P.shade, 'stroke-width': (0.8 * u).toFixed(1) })); g.appendChild(el('path', { d: 'M' + (x - r * 0.7).toFixed(1) + ' ' + (y + r * 0.3).toFixed(1) + 'L' + (x + r * 0.7).toFixed(1) + ' ' + (y - r * 0.3).toFixed(1), stroke: P.shade, 'stroke-width': (0.9 * u).toFixed(1) })); };
     for (const k in card.panel.slots) {
-      const [x0, y0, x1, y1] = card.panel.slots[k], pad = H * 0.006, round = k === 'fore' || k === 'aft';
-      if (round) { const cx = ((x0 + x1) / 2) * W, cy = ((y0 + y1) / 2) * H, rr = (Math.min((x1 - x0) * W, (y1 - y0) * H) / 2) + pad; g.appendChild(el('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: rr.toFixed(1), fill: '#07090b', stroke: '#30363d', 'stroke-width': (pad * 1.4).toFixed(1) })); }
-      else g.appendChild(el('rect', { x: (x0 * W - pad).toFixed(1), y: (y0 * H - pad).toFixed(1), width: ((x1 - x0) * W + 2 * pad).toFixed(1), height: ((y1 - y0) * H + 2 * pad).toFixed(1), rx: (pad * 1.5).toFixed(1), fill: '#07090b', stroke: '#30363d', 'stroke-width': (pad * 1.4).toFixed(1) }));
+      const [x0, y0, x1, y1] = card.panel.slots[k], pad = 7 * u, round = k === 'fore' || k === 'aft';
+      if (round) {
+        const cx = ((x0 + x1) / 2) * W, cy = ((y0 + y1) / 2) * H, rr = (Math.min((x1 - x0) * W, (y1 - y0) * H) / 2) + pad;
+        g.appendChild(el('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: (rr + 2 * u).toFixed(1), fill: P.bezel, stroke: '#000000', 'stroke-opacity': 0.6, 'stroke-width': (2 * u).toFixed(1) }));
+        // (the knurled ring, its bevel lit above, the well inside)
+        g.appendChild(el('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: (rr - 1.5 * u).toFixed(1), fill: 'none', stroke: P.screw, 'stroke-opacity': 0.55, 'stroke-width': (2.4 * u).toFixed(1), 'stroke-dasharray': (1.2 * u).toFixed(1) + ' ' + (2.2 * u).toFixed(1) }));
+        g.appendChild(el('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: (rr - pad * 0.55).toFixed(1), fill: P.well }));
+      } else {
+        const X0 = x0 * W - pad, Y0 = y0 * H - pad, X1 = x1 * W + pad, Y1 = y1 * H + pad;
+        g.appendChild(el('rect', { x: X0.toFixed(1), y: Y0.toFixed(1), width: (X1 - X0).toFixed(1), height: (Y1 - Y0).toFixed(1), rx: (3 * u).toFixed(1), fill: P.bezel, stroke: '#000000', 'stroke-opacity': 0.6, 'stroke-width': (1.6 * u).toFixed(1) }));
+        // (its bevel: lit along the top and the left, dark along the bottom and the right)
+        g.appendChild(el('path', { d: 'M' + (X0 + 1.5 * u).toFixed(1) + ' ' + (Y1 - 2 * u).toFixed(1) + 'V' + (Y0 + 1.5 * u).toFixed(1) + 'H' + (X1 - 2 * u).toFixed(1), stroke: P.bevel, 'stroke-width': (1.2 * u).toFixed(1), fill: 'none' }));
+        g.appendChild(el('path', { d: 'M' + (X1 - 1.5 * u).toFixed(1) + ' ' + (Y0 + 2 * u).toFixed(1) + 'V' + (Y1 - 1.5 * u).toFixed(1) + 'H' + (X0 + 2 * u).toFixed(1), stroke: '#000000', 'stroke-opacity': 0.55, 'stroke-width': (1.2 * u).toFixed(1), fill: 'none' }));
+        g.appendChild(el('rect', { x: (x0 * W - 2 * u).toFixed(1), y: (y0 * H - 2 * u).toFixed(1), width: ((x1 - x0) * W + 4 * u).toFixed(1), height: ((y1 - y0) * H + 4 * u).toFixed(1), rx: (2 * u).toFixed(1), fill: P.well }));
+        const sI = 3.6 * u; screw(X0 + sI, Y0 + sI); screw(X1 - sI, Y0 + sI); screw(X0 + sI, Y1 - sI); screw(X1 - sI, Y1 - sI);
+      }
+      // (its placard: the screen's name, stencilled, on a dark plate where the panel has room under it)
+      const name = PL[k];
+      if (name && (1 - y1) * H > 9 * u) {
+        const cx = ((x0 + x1) / 2) * W, py = Math.min(H - 5 * u, y1 * H + pad + 6.5 * u), fs = 7.5 * u, pw = name.length * fs * 0.68 + 8 * u;
+        g.appendChild(el('rect', { x: (cx - pw / 2).toFixed(1), y: (py - fs * 0.8).toFixed(1), width: pw.toFixed(1), height: (fs * 1.15).toFixed(1), rx: (1 * u).toFixed(1), fill: P.placard }));
+        const t = el('text', { x: cx.toFixed(1), y: (py + fs * 0.12).toFixed(1), 'text-anchor': 'middle', fill: P.ink, 'fill-opacity': 0.75, 'font-family': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', 'font-size': fs.toFixed(1), 'letter-spacing': (0.6 * u).toFixed(1), 'font-weight': 600 });
+        t.textContent = name; g.appendChild(t);
+      }
+    }
+    // the master lamps on the lip, either side of its middle: housings dark, their faces lit from the HUD each frame
+    lamps = {};
+    for (const [k, side, label] of [['caution', -1, 'MASTER CAUTION'], ['warning', 1, 'MASTER WARNING']]) {
+      const w = 64 * u, h = 15 * u, cx = W / 2 + side * (w / 2 + 5 * u), y = yTop - h - 3 * u;
+      g.appendChild(el('rect', { x: (cx - w / 2 - 2 * u).toFixed(1), y: (y - 2 * u).toFixed(1), width: (w + 4 * u).toFixed(1), height: (h + 4 * u).toFixed(1), rx: (2 * u).toFixed(1), fill: P.lip, stroke: '#000000', 'stroke-opacity': 0.6, 'stroke-width': (1 * u).toFixed(1) }));
+      const face = el('rect', { x: (cx - w / 2).toFixed(1), y: y.toFixed(1), width: w.toFixed(1), height: h.toFixed(1), rx: (1.5 * u).toFixed(1), fill: card.lamps[k], 'fill-opacity': 0.14 });
+      g.appendChild(face);
+      const t = el('text', { x: cx.toFixed(1), y: (y + h * 0.68).toFixed(1), 'text-anchor': 'middle', fill: card.lamps[k], 'fill-opacity': 0.35, 'font-family': 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', 'font-size': (7 * u).toFixed(1), 'font-weight': 700, 'letter-spacing': (0.4 * u).toFixed(1) });
+      t.textContent = label; g.appendChild(t);
+      lamps[k] = { face, t };
     }
     svg.appendChild(g);
   }
-  return function step(inCockpit) {
+  // each frame: the star's light on the panel (`look.key` 0..1), the master lamps lit by the alerts (a warning beating)
+  return function step(inCockpit, look) {
     svg.style.display = inCockpit ? 'block' : 'none';
     if (!inCockpit || typeof camera === 'undefined') return;
     const W = svg.clientWidth || window.innerWidth, H = svg.clientHeight || window.innerHeight, k = W + 'x' + H + ':' + camera.fov;
     if (k !== key) { key = k; draw(W, H, camera.fov || 60); }
+    if (!look) return;
+    const kg = svg.querySelector('#ckKey');
+    if (kg) kg.setAttribute('opacity', (Math.round(look.key * 100) / 100).toString());
+    for (const n in lamps) {
+      const on = !!look[n] && (n !== 'warning' || look.beat), L = lamps[n];
+      L.face.setAttribute('fill-opacity', on ? '0.95' : '0.14'); L.t.setAttribute('fill', on ? '#1a0d00' : card.lamps[n]); L.t.setAttribute('fill-opacity', on ? '0.9' : '0.35');
+    }
   };
 }
 
@@ -270,16 +371,23 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
     // the cockpit view, or the chase: the cockpit drawn and its instruments set in the panel, or floating
     const inCockpit = !!(W && W.camera && W.camera.rule && W.camera.rule.type === 'cockpit');
     if (root.dataset.view !== (inCockpit ? 'cockpit' : 'chase')) root.dataset.view = inCockpit ? 'cockpit' : 'chase';
-    if (frame) frame(inCockpit);
     if (me && me.sfF) {
       set('on', true);
       const sh = me.ship, w = me.weapon;
+      // THE ALERTS (cockpit-look.js): each pool against its thresholds, amber a caution, red a warning; the root carries
+      // each as a word its gauges are coloured by, and the master lamps light for either (a warning beating)
+      const hullMax = me.hpMax || (me.body && me.body.hp) || 1;
+      const A = __ckAlerts({ hull: me.body && Number.isFinite(me.body.hp) ? me.body.hp / hullMax : null, shields: sh && sh.shMax > 0 ? [sh.sh[0] / sh.shMax, sh.sh[1] / sh.shMax] : null, lasers: w && w.energyMax > 0 ? w.energy / w.energyMax : null }, cfg.alerts);
+      for (const pool of ['hull', 'shields', 'lasers']) { const v = A.warning.includes(pool) ? 'warning' : A.caution.includes(pool) ? 'caution' : ''; if ((root.dataset[pool] || '') !== v) { if (v) root.dataset[pool] = v; else delete root.dataset[pool]; } }
+      const sun = typeof SKY !== 'undefined' && SKY && SKY.sun && Array.isArray(SKY.sun.dir) ? SKY.sun.dir : null;
+      if (frame) frame(inCockpit, { key: __ckKey(sun, me.sfF, me.sfU), caution: A.caution.length > 0, warning: A.warning.length > 0, beat: Math.floor(performance.now() / 350) % 2 === 0 });
       set('shOn', !!(sh && sh.shMax > 0)); set('sMaxOn', sh && sh.shMax > 0 ? sh.shMax : 0);
       if (sh) { set('sFore', Math.round(sh.sh[0] * 10) / 10); set('sAft', Math.round(sh.sh[1] * 10) / 10); set('sMax', sh.shMax || 1); set('pL', sh.pow.lasers); set('pS', sh.pow.shields); set('pE', sh.pow.engines); set('linkSay', (LINK[sh.link] || '') + (sh.mode !== 'even' ? ' · shields ' + sh.mode : '')); }
       set('hull', Math.max(0, me.body && Number.isFinite(me.body.hp) ? me.body.hp : 0)); set('hullMax', me.hpMax || (me.body && me.body.hp) || 1);
       if (w && w.energyMax > 0) { set('laser', Math.round(w.energy)); set('laserMax', w.energyMax); }
       // the generator: its tick's fill, its beat, and each feed (its share of the routing, its gauge, what the last tick
-      // gave it, and whether that was the other's redirected, or a transfer just made into it)
+      // gave it, and whether that was the other's redirected, or a transfer just made into it), each named by its
+      // three-letter mnemonic, as a cockpit's switches are, so the narrowest screen holds it
       const G = sh && sh.gen;
       set('genOn', !!G); set('genOff', !G);
       if (G) {
@@ -288,9 +396,9 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
         const xTo = genX.to && nowT - genX.t < 0.8 ? genX.to : null;
         set('gPhase', r2(G.phase)); set('gTick', G.n);
         set('gFeeds', [
-          { id: 'lasers', share: sh.pow.lasers / 4, pips: sh.pow.lasers, max: 4, fill: w && w.energyMax > 0 ? r2(w.energy / w.energyMax) : 0, got: of(Lt.lasers), spill: (Lt.toLasers || 0) > 0.01 || xTo === 'lasers' },
-          ...(sh.shMax > 0 ? [{ id: 'shields', share: sh.pow.shields / 4, pips: sh.pow.shields, max: 4, fill: r2((sh.sh[0] + sh.sh[1]) / (2 * sh.shMax)), got: of(Lt.shields), spill: (Lt.toShields || 0) > 0.01 || xTo === 'shields' }] : []),
-          { id: 'engines', share: sh.pow.engines / 4, pips: sh.pow.engines, max: 4, fill: r2(Math.min(1, (me.airspeed || 0) / Math.max(1, me.topSpeed || 1))), got: of(Lt.engines), spill: false },
+          { id: 'lasers', label: 'las', share: sh.pow.lasers / 4, pips: sh.pow.lasers, max: 4, fill: w && w.energyMax > 0 ? r2(w.energy / w.energyMax) : 0, got: of(Lt.lasers), spill: (Lt.toLasers || 0) > 0.01 || xTo === 'lasers' },
+          ...(sh.shMax > 0 ? [{ id: 'shields', label: 'shd', share: sh.pow.shields / 4, pips: sh.pow.shields, max: 4, fill: r2((sh.sh[0] + sh.sh[1]) / (2 * sh.shMax)), got: of(Lt.shields), spill: (Lt.toShields || 0) > 0.01 || xTo === 'shields' }] : []),
+          { id: 'engines', label: 'eng', share: sh.pow.engines / 4, pips: sh.pow.engines, max: 4, fill: r2(Math.min(1, (me.airspeed || 0) / Math.max(1, me.topSpeed || 1))), got: of(Lt.engines), spill: false },
         ]);
       }
       set('speed', Math.round(me.airspeed || 0) + ' m/s'); set('throttle', Math.round((me.throttle || 0) * 100));
@@ -314,13 +422,13 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
         set('brackets', inside ? [{ id: T.id, x: r3(at.x), y: r3(at.y), range: rangeSay(I.d) }] : []);
         set('pip', ps && !ps.back && ps.x >= 0 && ps.x <= 1 && ps.y >= 0 && ps.y <= 1 ? [{ id: 'pip', x: r3(ps.x), y: r3(ps.y) }] : []);
         set('edge', !inside && at ? [{ x: r3(at.back ? 1 - at.x : at.x), y: r3(at.back ? 2 : at.y), kind: 'target' }] : []);
-        set('tOn', true); set('tName', I.name); set('tStance', STANCE_SAY[I.stance] || ''); set('tRange', rangeSay(I.d)); set('tClosure', I.closure + ' m/s');
+        set('tOn', true); set('tName', I.name); set('tStance', STANCE_SAY[I.stance] || ''); if ((root.dataset.tstance || '') !== (I.stance || '')) { if (I.stance) root.dataset.tstance = I.stance; else delete root.dataset.tstance; } set('tRange', rangeSay(I.d)); set('tClosure', I.closure + ' m/s');
         set('tShOn', !!I.shields); set('tShMax', I.shields ? 100 : 0); set('tHull', I.hull == null ? 0 : I.hull);
         // (its plan by its craft: a shelf craft's figure is craft-<archetype>)
         const fg = T.body && typeof T.body.figure === 'string' ? T.body.figure : '', arch = fg.indexOf('craft-') === 0 ? fg.slice(6) : '';
         set('tPlan', (cfg.plans && cfg.plans[arch]) || cfg.dart || ''); set('tFore', I.shields ? I.shields[0] : 0); set('tAft', I.shields ? I.shields[1] : 0);
       } else { set('tOn', false); set('brackets', []); set('pip', []); set('edge', []); }
-    } else set('on', false);
+    } else { set('on', false); if (frame) frame(inCockpit, null); }
     // the comms: the level's guide's line, each said once
     const GV = window.__mojGuide && window.__mojGuide.view ? window.__mojGuide.view() : null;
     const card = GV && GV.text ? GV.mode + ':' + GV.text : '';
@@ -334,14 +442,14 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
 
 /** The page's script: the helpers, the runtime, the spec and its look. */
 export function cockpitHudScript(cfg = {}) {
-  const theme = cfg.theme ?? 'terminal', id = COCKPITS[cfg.cockpit] ? cfg.cockpit : 'strikeFoil', card = cockpitOf(id);
+  const theme = cfg.theme ?? COCKPIT_THEME, id = COCKPITS[cfg.cockpit] ? cfg.cockpit : 'strikeFoil', card = cockpitOf(id);
   readTheme(theme);
   const spec = cockpitHudSpec();
   manaUi.readSpec(spec);
   return `
 // THE COCKPIT HUD (scene/channels/cockpit-hud.js): the starfighter's instruments on mana-ui, in its cockpit (${id})
-const __ckScope = ${scopeMarks.toString()}, __ckLead = ${leadPoint.toString()};
-const __ckFrame = (${cockpitFramePage.toString()})(${json(canopyFrame(id))}, ${json({ panel: card.panel })});
-window.__mojCockpitHud = (${cockpitHudPage.toString()})(${json({ cockpit: id, plan: planOf(id), plans: CRAFT_PLANS, dart: planOf(null) })}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(theme)}\n${HOST_CSS}\n${cockpitPanelCss(card)}`)}, __ckFrame);
+const __ckScope = ${scopeMarks.toString()}, __ckLead = ${leadPoint.toString()}, __ckAlerts = ${cockpitAlerts.toString()}, __ckKey = ${keyOnPanel.toString()};
+const __ckFrame = (${cockpitFramePage.toString()})(${json(canopyFrame(id))}, ${json({ panel: card.panel, paint: panelPaint(card), placards: PLACARDS, glow: COCKPIT_COLOURS.normal, lamps: { caution: COCKPIT_COLOURS.caution, warning: COCKPIT_COLOURS.warning } })});
+window.__mojCockpitHud = (${cockpitHudPage.toString()})(${json({ cockpit: id, plan: planOf(id), plans: CRAFT_PLANS, dart: planOf(null), alerts: COCKPIT_ALERTS })}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(theme)}\n${HOST_CSS}\n${cockpitPanelCss(card)}`)}, __ckFrame);
 `;
 }
