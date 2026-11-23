@@ -8,17 +8,19 @@
  *   lesson-1  First flight              the throttle, the take-off, the first rings, leveling off over the field
  *   lesson-2  Straight and level, turns  the runway heading held, then turns to new headings, each held
  *   lesson-3  Climbs and descents       climbed to a height and held, descended under a speed and held, leveled
+ *   lesson-4  Night circuit             after dark: a left-hand circuit at 280 m (upwind, crosswind, downwind, base,
+ *                                       final) and a landing on the runway lights, its touchdown graded by its sink
  *
  * A lesson's numbers are said against the airfield (flight-goal.js: `height` over the runway, `turn` from its heading),
  * so they hold on any seed's island. A crash ends the attempt; the instructor's words are each task's text, said as it
- * begins. The rest of the syllabus (the circuit and the landing, the stall, the cross-country, the crosswind, the check
- * ride and the licence) is laid by later lessons on the same words.
+ * begins. The rest of the syllabus (the stall, the cross-country, the crosswind, the check ride and the licence) is laid by
+ * later lessons on the same words.
  *
  *   PILOT_SCHOOL                    the school's craft, assist and airfield
  *   LESSONS                         the lessons, in order: { id, name, brief, sky, tasks, grade } (sky: the lesson's
  *                                   weather, skyscape/sky.js)
  *   lessonLevel(lesson)             → a gameworld level: its airspace and its flight goal
- *   pilotSchoolStart(world)         → { world }: the rail's starter, the first lessons under what the creator wrote
+ *   pilotSchoolStart(world)         → { world }: the rail's starter, its lessons under what the creator wrote
  *
  * Pure: the same school lays the same lessons.
  */
@@ -68,20 +70,36 @@ export const LESSONS = Object.freeze([
     ]),
     grade: Object.freeze({ time: [140, 210, 320], slip: [5, 12, 30] }),
   }),
+  Object.freeze({
+    id: 'lesson-4', name: 'Night circuit', brief: 'Fly a circuit of the field after dark and land on the runway lights.',
+    // (a clear night, a bright moon, the town's lights to the north and the runway's own: no wind to speak of)
+    sky: Object.freeze({ kind: 'clear', hour: 21.5, moon: 0.85, wind: Object.freeze({ speed: 2 }) }),
+    // a left-hand circuit at 280 m over the runway: upwind, crosswind, downwind, base, final, the landing
+    tasks: Object.freeze([
+      { ...LIFT_OFF, text: 'Take off between the white edge lights; the green bar falls behind you' },
+      { band: { height: [120, 400], turn: [-10, 10] }, seconds: 4, text: 'Climb straight out on the runway heading, past 120 m' },
+      { band: { height: [230, 330], turn: [-100, -80] }, seconds: 15, text: 'Turn left onto crosswind and climb to circuit height, 280 m' },
+      { band: { height: [250, 310], turn: [170, 190] }, seconds: 40, text: 'Turn left onto downwind and hold 280 m: the runway lights run past on your left' },
+      { band: { height: [170, 290], turn: [80, 100] }, seconds: 3, text: 'Turn left onto base, throttle back and start down' },
+      { band: { height: [90, 260], turn: [-12, 12] }, seconds: 4, text: 'Turn final: line up the approach lights, the green threshold ahead' },
+      { land: true, text: 'Follow the lights down, flare over the green bar, and touch down soft' },
+    ]),
+    grade: Object.freeze({ time: [260, 330, 450], slip: [6, 14, 30], sink: [1.2, 2, 2.8] }),
+  }),
 ]);
 
-/** A lesson as a gameworld level: the school's airfield, its craft on the sim assist, the course its rings are, and its
- *  tasks graded. */
+/** A lesson as a gameworld level: the school's airfield, its craft on the sim assist, its sky, the course its rings are
+ *  (only a lesson that flies rings lays them), and its tasks graded. */
 export function lessonLevel(lesson) {
   return {
     name: lesson.name,
-    airspace: { map: { craft: PILOT_SCHOOL.craft }, ...(lesson.sky ? { sky: JSON.parse(JSON.stringify(lesson.sky)) } : {}), ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })), country: { ...PILOT_SCHOOL.airfield.country } }, course: true, assist: PILOT_SCHOOL.assist },
+    airspace: { map: { craft: PILOT_SCHOOL.craft }, ...(lesson.sky ? { sky: JSON.parse(JSON.stringify(lesson.sky)) } : {}), ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })), country: { ...PILOT_SCHOOL.airfield.country } }, course: lesson.tasks.some((t) => t.gates !== undefined), assist: PILOT_SCHOOL.assist },
     goal: { flight: { tasks: lesson.tasks.map((t) => JSON.parse(JSON.stringify(t))), crash: 'fail', grade: JSON.parse(JSON.stringify(lesson.grade)) } },
   };
 }
 
 /** The rail's starter: the first lessons, under what the creator wrote (every key they wrote wins). */
-export function pilotSchoolStart(world, { lessons = 3 } = {}) {
+export function pilotSchoolStart(world, { lessons = LESSONS.length } = {}) {
   const levels = Object.fromEntries(LESSONS.slice(0, lessons).map((L) => [L.id, lessonLevel(L)]));
   return {
     world: {

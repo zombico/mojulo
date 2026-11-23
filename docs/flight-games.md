@@ -361,7 +361,11 @@ and the sea's height.
   turquoise over the shallows, and surf runs in bands to the beach.
 
 **Pilot School** flies its lessons under their own skies: a still, nearly clear morning for the first flight, fair
-weather for turns, and an afternoon under altocumulus for climbs.
+weather for turns, and an afternoon under altocumulus for climbs. The fourth lesson, the **night circuit**, is flown
+after dark under a bright moon: a left-hand circuit at 280 m over the runway (upwind, crosswind, downwind, base, final)
+and a landing on the runway lights, its touchdown graded by its sink. The flight proof's student lands it: onto the
+centreline first, down a 3° glide path at 1.35 times the stall, a flare that eases the sink with height while the
+power holds it over the stall, and the brakes once down (`control/lib/graph/skyscape/lesson-pilot.js`).
 
 Exports carry neither the clouds nor the ocean nor the night's lights. They are the live page's.
 

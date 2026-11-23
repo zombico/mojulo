@@ -1108,8 +1108,8 @@ export function resolveLevel(world, id) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
     // (a rail stage has its path and no course; its airframe, and its rail, ride as written)
     // (a cockpit's sortie has its flight groups and no gates, as a rail stage has its path)
-    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe } = L.airspace, inSpace = isSpace(L.airspace);
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}) } };
+    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe, sky } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}), ...(sky !== undefined && !inSpace ? { sky } : {}) } };
   }
   // a glyph-map level: the map's level as the map kind takes it (level/grid-scene.js), its seed the level's
   if (L.glyphs) {
