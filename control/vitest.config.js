@@ -72,7 +72,7 @@ export const E2E = [
   'lib/graph/gameworld/worldmap-bed.live.test.js',
   // the JRPG starter's town played: a townsperson's talk in the talk box, the innkeeper's inn
   'lib/graph/gameworld/jrpg-town.live.test.js',
-  'lib/graph/gameworld/jrpg-story.live.test.js', 'lib/graph/gameworld/wardrobe.live.test.js',
+  'lib/graph/gameworld/jrpg-story.live.test.js', 'lib/graph/gameworld/wardrobe.live.test.js', 'lib/graph/gameworld/fight-clear.live.test.js',
   'lib/graph/gameworld/jrpg-wilds.live.test.js',
   // the hover bot over a little world in headless Chromium: its ground cast, its teleport, its flight's step and hole
   'lib/graph/scene/hover-bot.live.test.js',

@@ -370,3 +370,13 @@
   looks as a run does and plays a wilds block in Chrome: loaded in the starting gear's looks, taken off and put on, and
   fought in them by all four. It found mail refused on the anime head (its coif's head pieces are not fitted there): mail
   on that head is now worn without them, its drape kept (`hero-dress.js`).
+- **A fight's shot kept clear.** A party battle on the map now clears what stands in its shot while it lasts: its
+  footprint and the corridor from its camera to it, as wide as the frame (`rpg-channel.js` stage). Props there are cut
+  away, the land kept (`scene-three.js` `__mojClip`, now on every page with party battles, not only an arena's; its cut
+  now places an instanced group's copies where they stand), trees whose crowns reach it are left out (`form-flora.js`,
+  only on such pages), and whoever is not in the fight is hidden. Found on the starter's wilds, where a crown filled half
+  the frame, and on a town level, a wall's roof before the camera. `gameworld/fight-clear.live.test.js` holds the frame
+  to at most 5 % covered; `control/scripts/spikes/fight-clear/` measures it.
+  The clearing is patched into the materials as the page settles, not at the first fight. And a bar's news is drawn
+  for at least three frames as well as 1.8 s: on a slow renderer, a frame longer than that, the struck foe's bar was
+  never drawn (`rpg-channel.js` TOLD_FRAMES).

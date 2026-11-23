@@ -412,6 +412,19 @@ A cue's walk may find its way (`walk: { who, to, find: true }`, RPG Maker's move
 stands in the way (the page's pathfinder, A* over the world's colliders), arriving only at the places it named. Without
 `find` a walk goes in straight lines and stops at a wall, `stuck`.
 
+## The fight's shot kept clear
+
+A fight on the map is seen from a camera the fight places round its fighters (`rpg-channel.js` stage: `rules.view`,
+fitted to every fighter across the frame and down it, its sightlines kept above the ground). Whatever else stands in
+that shot is cleared while the fight is on and put back as it ends (`scene-three.js` `__mojClip`, on every page with
+party battles): the fight's footprint (its fighters' extent and 2.5 m round it) and the corridor from the camera to it
+(as wide as the frame is at the fight, up to 12 m each side). A prop in either (a rock, a wall, a roof) is cut away, the
+land kept; a tree whose crown reaches either is left out (`form-flora.js`); whoever is not in the fight and stands there
+is hidden. `rules.stage: 'arena'` clears its own arena the same way. The guard is
+`gameworld/fight-clear.live.test.js` (the e2e tier): on the starter's first three fighting levels, the whole party in the
+fight, nothing but the land covers more than 5 % of the frame before the fight; the measure is
+`control/scripts/spikes/fight-clear/` (a grid of rays through the screen).
+
 ## The fights acted out
 
 The fighters move on their own line, as a console RPG's do:

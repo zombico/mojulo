@@ -313,7 +313,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     bagFrom();
     const out = K.start(cfg, R, enc, V());
     if (!out.length) return false;
-    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; touched = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' }; spoils = null;
+    mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; touched = {}; touchedF = {}; picks = {}; mi = 0; pend = null; boxes = { cmd: 'bottom-left', foes: 'bottom-right' }; spoils = null;
     msg = out[0].text; show(out[0]);
     stage(); placeDue = 3;
     // (every fighter takes its ready stance, where its figure has one: the controllable channel's __actMode)
@@ -349,6 +349,9 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   // fighters moved by ARENA to an arena of their own, seen from the side with the party on the left, before the map drawn
   // once from that view where they met (__mojCtrl.backdrop, after the move has reached the figures: the second frame)
   const ARENA = [6000, 0, 0];
+  // (the shot kept clear on the map: the margin round the fighters, m; the corridor's half width at most, m; how high over
+  // the fight what stands in it is cleared, m)
+  const SHOT_CLEAR = { margin: 2.5, wide: 12, up: 9 };
   const onArena = () => !!(cfg.rules && cfg.rules.stage === 'backdrop' && window.__mojCtrl && window.__mojCtrl.backdrop);
   function stage() {
     const w = W();
@@ -422,6 +425,21 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       for (const lift of [0, 2, 4]) { for (const az of V.mirror ? [V.az, -V.az] : [V.az]) { const v = shot(az, lift); if (!best || v.hit < best.hit) best = v; } if (best.hit === 0) break; }
       C.transform.pos = best.pos; C.lookAt = best.look; C.rule = null;
       staged.view = { pos: best.pos.slice(), look: best.look.slice() };
+      // THE SHOT KEPT CLEAR (scene-three.js __mojClip, the page's: the land kept): the fight's footprint, its fighters' extent
+      // and a margin round it, and the corridor from the camera to it as wide as the frame is there; what stands in either
+      // (a tree whose crown reaches it, a rock, a wall, whoever is not in the fight) is left out of the shot till it ends
+      if (window.__mojClip && !onArena()) {
+        const zl = Math.min(...zs), zh = Math.max(...zs), m = SHOT_CLEAR.margin;
+        const a0 = Math.min(...along), a1 = Math.max(...along), b0 = Math.min(...across), b1 = Math.max(...across);
+        const q = best.pos, dx = q[0] - mx, dy = q[1] - my, L = Math.hypot(dx, dy) || 1, d = [dx / L, dy / L];
+        const wide = Math.min(SHOT_CLEAR.wide, Math.hypot(q[0] - mx, q[1] - my, q[2] - zm) * Math.tan(hf) + m);
+        const boxes = [
+          { c: [mx, my], u: [ux, uy], half: [(a1 - a0) / 2 + m, (b1 - b0) / 2 + m], z: [zl - 0.15, zh + SHOT_CLEAR.up] },
+          { c: [mx + d[0] * L / 2, my + d[1] * L / 2], u: d, half: [L / 2 + 1, wide], z: [zl - 0.15, Math.max(q[2] + 4, zh + SHOT_CLEAR.up)] },
+        ];
+        window.__mojClip.set(boxes); staged.cleared = true; staged.clear = boxes;
+        hideIn(w, boxes, new Set([...ids, ...crew, ...(fid ? [fid] : [])]));
+      }
       // (on its arena: every fighter and the view moved by ARENA, the map's view kept for the backdrop, drawn two frames on)
       if (onArena()) {
         const sh = (q) => [q[0] + ARENA[0], q[1] + ARENA[1], q[2] + ARENA[2]];
@@ -528,15 +546,14 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       ]);
       staged.cleared = true;
     }
-    // (whoever is not in the fight and stands in what is cleared, a pack still to meet, a marker, is out of the shot
-    // till it ends)
-    if (boxes) {
-      const inBox = (q) => boxes.some((B) => { const dx = q[0] - B.c[0], dy = q[1] - B.c[1], a = dx * B.u[0] + dy * B.u[1], b = -dx * B.u[1] + dy * B.u[0]; return Math.abs(a) < B.half[0] && Math.abs(b) < B.half[1] && q[2] > B.z[0] - 2 && q[2] < B.z[1]; });
-      const fighting = new Set([...ids, ...foes]);
-      staged.hid = {};
-      // (staged, so the held world still draws it: gone)
-      for (const e of w.entities || []) if (e && e.id && e !== w.camera && e.id !== '__camera' && !fighting.has(e.id) && e.transform && e.transform.pos && inBox(e.transform.pos)) { staged.hid[e.id] = [!!e.gone, !!e.staged]; e.gone = true; e.staged = true; }
-    }
+    if (boxes) hideIn(w, boxes, new Set([...ids, ...foes]));
+  }
+  // (whoever is not in the fight and stands in what is cleared, a pack still to meet, a marker, is out of the shot till it
+  // ends; staged, so the held world still draws it: gone)
+  function hideIn(w, boxes, fighting) {
+    const inBox = (q) => boxes.some((B) => { const dx = q[0] - B.c[0], dy = q[1] - B.c[1], a = dx * B.u[0] + dy * B.u[1], b = -dx * B.u[1] + dy * B.u[0]; return Math.abs(a) < B.half[0] && Math.abs(b) < B.half[1] && q[2] > B.z[0] - 2 && q[2] < B.z[1]; });
+    staged.hid = {};
+    for (const e of w.entities || []) if (e && e.id && e !== w.camera && e.id !== '__camera' && !fighting.has(e.id) && e.transform && e.transform.pos && inBox(e.transform.pos)) { staged.hid[e.id] = [!!e.gone, !!e.staged]; e.gone = true; e.staged = true; }
   }
   // (the backdrop drawn once the fighters have left the place they met, so none stands in it)
   function backdrop1() {
@@ -576,11 +593,12 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     screen('rpg-watch');
   }
   // (when each fighter's numbers last moved: off the player's turn, a bar shows only while it has news, TOLD_FOR ms)
-  let touched = {};
-  const TOLD_FOR = 1800, nowMs = () => (window.performance ? performance.now() : Date.now());
+  // (and for as many frames as TOLD_FRAMES too: on a slow renderer, a frame longer than TOLD_FOR, news is still drawn)
+  let touched = {}, touchedF = {}, frameN = 0;
+  const TOLD_FOR = 1800, TOLD_FRAMES = 3, nowMs = () => (window.performance ? performance.now() : Date.now());
   function note(b) {
-    if (b && b.target != null && b.hp != null) { if (shown[b.target] !== b.hp) touched[b.target] = nowMs(); shown[b.target] = b.hp; }
-    if (b && b.who != null && b.mp != null) { if (shown[b.who + ':mp'] !== b.mp) touched[b.who] = nowMs(); shown[b.who + ':mp'] = b.mp; }
+    if (b && b.target != null && b.hp != null) { if (shown[b.target] !== b.hp) { touched[b.target] = nowMs(); touchedF[b.target] = frameN; } shown[b.target] = b.hp; }
+    if (b && b.who != null && b.mp != null) { if (shown[b.who + ':mp'] !== b.mp) { touched[b.who] = nowMs(); touchedF[b.who] = frameN; } shown[b.who + ':mp'] = b.mp; }
   }
   // a number where a blow lands: what it did told by its word (values first), how big by the juice's pop
   const POP_ROLE = { normal: 'numeral', small: 'caption', big: 'title', crit: 'display' };
@@ -720,7 +738,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     // the heads: one over each fighter's figure, a member's and a foe's (those who share one, the pilot's or a pack's,
     // stacked; two that meet, the later lifted clear). Up on the player's turn; while the round plays, only one whose
     // numbers just moved (a blow, a heal, a spell's cost), for as long as it takes to read
-    const heads = [], stack = {}, now = nowMs(), news = (id) => cmd || now - (touched[id] == null ? -1e9 : touched[id]) < TOLD_FOR;
+    const heads = [], stack = {}, now = nowMs(), fresh = (id) => touched[id] != null && (now - touched[id] < TOLD_FOR || frameN - touchedF[id] < TOLD_FRAMES), news = (id) => cmd || fresh(id);
     for (const m of b.ids) {
       const fig = figureOf(m), at = news(m) ? headAt(fig) : null;
       if (!at) continue;
@@ -732,7 +750,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     // while its fall is news)
     for (const x of b.foes) {
       const h0 = hp(x.uid, x.hp);
-      if (h0 <= 0 && !(touched[x.uid] != null && now - touched[x.uid] < TOLD_FOR)) continue;
+      if (h0 <= 0 && !fresh(x.uid)) continue;
       const fig = figureOf(x.uid), at = news(x.uid) ? headAt(fig) : null;
       if (!at) continue;
       const k = stack[fig] = (stack[fig] || 0) + 1, st = x.st || {};
@@ -989,7 +1007,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
 
   function step(t) {
     const now = typeof t === 'number' ? t : 0, dt = lastT ? Math.max(0, Math.min(now - lastT, 1000)) : 0;   // real time: a slow frame still moves the playback on
-    lastT = now;
+    lastT = now; frameN++;
     changed();
     dress();
     hookCarry();

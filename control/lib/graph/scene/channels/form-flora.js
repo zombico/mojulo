@@ -9,7 +9,7 @@
  * sprays coming in over the crown (the crown never draws in: the outline holds, form/bush-form.js BUSH_FORM.draw); far,
  * the thick axes and the far crown. The crowns and the wood cast into the land's shadow map; the sprays do not.
  *
- *   formFloraScript(flora, { snow?, capture? }) → the block's page source (absent `flora`, the land's block carries none);
+ *   formFloraScript(flora, { snow?, capture?, fights? }) → the block's page source (absent `flora`, the land's block carries none);
  *     `snow`, the land's snow (channels/form-land.js, its map `SM`) caps the leaves that turn up where it lies; `capture`,
  *     a capture page's: the shaking's clock the capture's (window.__mojClock) when its frame() pins one
  *   `window.__formFlora()` → { templates, plants, near, far, impressions, sprays, triangles } what is drawn now
@@ -162,7 +162,7 @@ const STILL_GLSL = `vec3 floraSway( vec3 wp, vec3 base, float w, float leaf, flo
 `;
 const WIND_HEAD = 'uniform float uWindT; uniform vec4 uWindA; uniform vec4 uWindB; uniform sampler2D uWindNoise;\n' + WIND_AT_GLSL + SWAY_GLSL;
 
-export function formFloraScript(flora, { snow = false, capture = false } = {}) {
+export function formFloraScript(flora, { snow = false, capture = false, fights = false } = {}) {
   return `
   // the plants (gen-7: form/flora-read.js, channels/form-flora.js)
   {
@@ -530,7 +530,8 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
     function sortPlants() {
       eye.value.copy(camera.position); let near = 0, far = 0, sprays = 0, tris = 0, imps = 0, taken = 0;
       // (the page's air, channels/atmosphere.js: a plant whose top it has taken is not drawn, whole or as its card)
-      const AIR = window.__mojAir && window.__mojAir.taken ? window.__mojAir : null;
+      const AIR = window.__mojAir && window.__mojAir.taken ? window.__mojAir : null;${fights ? `
+      const CLR = window.__mojClip && window.__mojClip.boxes.length ? window.__mojClip : null;` : ''}
       // (gameplay's camera: a plant is whole inside the view cone's reach and until its card's texel is under the cone's
       // grain, then its card; an aerial camera's reach FLORA_LOD.mid)
       const CO = window.__mojCone, FFd = window.__formFar, pov = !!CO && CO.reach < 1e5 && (!FFd || FFd.pov()) && (!window.__formFarField || window.__formFarField.on);
@@ -543,7 +544,10 @@ ${snow ? `    // (under snow, era/snow.js capOf: a leaf turned up past its cap c
         const c = { wood: 0, woodFar: 0, crown: 0, crownFar: 0, sprays: 0, adorn: 0 }, cardAt = impOf[ti] && CO ? (tpl[ti].w) / ((CO.grain || FF0.px) * CO.px) : Infinity;
         for (const i of list) {
           const b = i * STRIDE, sc = P[b + 3], d = Math.hypot(P[b] - camera.position.x, P[b + 1] - camera.position.y, P[b + 2] + t.height * sc * 0.5 - camera.position.z);
-          if (AIR) { const hx = P[b] - camera.position.x, hy = P[b + 1] - camera.position.y, hl = Math.hypot(hx, hy), k = hl > 1e-6 ? Math.max(0, hl - t.radius * sc) / hl : 0;
+${fights ? `          // (a fight's clearing, scene-three.js __mojClip: a plant whose crown reaches the fight or its shot is left out till it
+          // ends, from the next sort, a quarter second on)
+          if (CLR && CLR.hits(P[b], P[b + 1], t.radius * sc)) { taken++; continue; }
+` : ''}          if (AIR) { const hx = P[b] - camera.position.x, hy = P[b + 1] - camera.position.y, hl = Math.hypot(hx, hy), k = hl > 1e-6 ? Math.max(0, hl - t.radius * sc) / hl : 0;
             if (AIR.taken(camera.position.z, hx * k, hy * k, P[b + 2] + t.height * sc - camera.position.z)) { taken++; continue; } }
           q.setFromAxisAngle(AXZ, P[b + 4]); m4.compose(pv.set(P[b], P[b + 1], P[b + 2]), q, sv.set(sc, sc, sc));
           const card = d >= Math.max(mid, cardAt * sc), isNear = !card && (impOf[ti] || d < mid), put = (k, col) => { const X = parts[k]; if (!X) return; X.im.setMatrixAt(c[k], m4); if (col) X.im.setColorAt(c[k], col); X.slot[c[k]] = i; c[k]++; };
