@@ -65,6 +65,10 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   its fights' happenings by it where the library is installed: each elemental skill at its tier, the statuses, the heals,
   a crit or a weakness over the blow, a foe dissolving, a level gained. Tags: `magic`, the element, `status`, `spell`,
   `battle`, `world`, `terrain`, the tier.
+- **The animals** (`sfx-shelf/animal-voices.js` and `animal-sounds.js`, recorded from `cards/animals.js`): each voice
+  class's call, alert, hurt and death, and what moves without a voice. Every animal mojulo makes lands on a class by
+  its family, its order or its own way of being heard; foes are heard by them where the library is installed (an action
+  level's foe attacking, hurt and falling; a party battle's foe falling). Tags: `animal`, the class, the call.
 - **Vehicles** (`sfx-shelf/vehicle-sounds.js`): each vehicle in the registry
   ([vehicles.md](vehicles.md)) sounds as its kind (realm and role: a road hauler is a diesel with air brakes and a
   reverse beeper) unless it is named for its own (a muscle car's V8, a tram's bell, a bicycle's freewheel): its

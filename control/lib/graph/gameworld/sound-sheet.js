@@ -72,7 +72,9 @@ import { VEHICLES } from '../vehicle-registry/roster.js';
 import { hasFlavor } from '../sound-library/library.js';
 import { suitSounds, suitRecorded } from '../sfx-shelf/suit-sounds.js';
 import { battleSounds, magicRecorded } from '../sfx-shelf/magic-sounds.js';
-import { SKILL_PRESETS, ITEM_PRESETS } from '../playscape/rpg/presets.js';
+import { animalSounds, animalVoice, animalRecorded } from '../sfx-shelf/animal-sounds.js';
+import { ANIMAL_CLASSES } from '../sfx-shelf/animal-voices.js';
+import { SKILL_PRESETS, ITEM_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { laidBattles } from './battles.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
@@ -236,11 +238,16 @@ function foeSoundsOf(G, voices, own) {
   const out = {}, why = {};
   for (const [id, e] of Object.entries(isObj(G?.foes) ? G.foes : {})) {
     const o = own.foes?.[id] ?? {};
-    const base = voices[id] ? { attack: voices[id], ...(BEAST_HURT[voices[id]] ? { hurt: BEAST_HURT[voices[id]] } : {}) } : e?.skin?.people ? { ...PERSON_SOUNDS } : {};
+    // (an animal heard by its voice class, sfx-shelf/animal-sounds.js: its species, else its class's stand-in; its
+    // threat as it attacks, its hurt, its death; only where the library records the class, else as before)
+    const A = e?.skin?.people ? null : animalSounds(String(e?.skin?.species ?? e?.class ?? id));
+    const animal = A?.voice && animalRecorded(A.voice) ? A : null;
+    const base = animal ? { attack: animal.alert, hurt: animal.hurt, down: animal.death }
+      : voices[id] ? { attack: voices[id], ...(BEAST_HURT[voices[id]] ? { hurt: BEAST_HURT[voices[id]] } : {}) } : e?.skin?.people ? { ...PERSON_SOUNDS } : {};
     const S = { ...base, ...o };
     if (!Object.keys(S).length) continue;
     out[id] = S;
-    why[`foe:${id}:sounds`] = Object.keys(o).length ? 'the game says so' : voices[id] ? `its attack in its own voice (${SOUNDS[voices[id]].label})` : 'drawn as a person: a shout, a grunt, a cry';
+    why[`foe:${id}:sounds`] = Object.keys(o).length ? 'the game says so' : animal ? `heard as ${ANIMAL_CLASSES[animal.voice].label}: its threat, its hurt, its death` : voices[id] ? `its attack in its own voice (${SOUNDS[voices[id]].label})` : 'drawn as a person: a shout, a grunt, a cry';
   }
   return { foeSounds: out, why };
 }
@@ -370,15 +377,23 @@ function suitSlots(G, own) {
 
 // A PARTY BATTLE'S SOUNDS (a game that lays battles, gameworld/battles.js: Isekai Party's, a world that fights turn by
 // turn): each happening of its fights by the magic kit (sfx-shelf/magic-sounds.js battleSounds), its skills the presets'
-// and its own, each elemental one at its tier; only where the library records the kit, so a page without it is as it was
+// and its own, each elemental one at its tier, and each foe's fall in its own voice (the animal shelf's, by its id or its
+// name); only where the library records them, so a page without it is as it was
 function battleOf(G) {
-  if (!G || G.sound?.battle === false || !magicRecorded()) return null;
+  if (!G || G.sound?.battle === false) return null;
+  const magic = magicRecorded();
+  // (each foe's fall in its own voice, the animal shelf's, where the library records its class)
+  if (!magic && !Object.keys(ANIMAL_CLASSES).some((v) => animalRecorded(v))) return null;
   // (a world the battles cannot be read from fights none: its sounds never break a game)
   let L = null;
   try { L = laidBattles(G); } catch { return null; }
   if (L.battles === undefined || L.battles?.on === 'board') return null;
   const own = (k) => (isObj(L.battles[k]) ? L.battles[k] : {});
-  return battleSounds({ ...SKILL_PRESETS, ...own('skills') }, { items: { ...ITEM_PRESETS, ...own('items') } });
+  const foes = { ...FOE_PRESETS, ...own('foes') };
+  const falls = Object.keys(foes).sort().map((id) => [id, animalVoice(id) ?? animalVoice(String(foes[id]?.name ?? ''))]).filter(([, v]) => v && animalRecorded(v)).map(([id, v]) => [`ko:${id}`, `${v}-death`]);
+  const B = magic ? battleSounds({ ...SKILL_PRESETS, ...own('skills') }, { items: { ...ITEM_PRESETS, ...own('items') } }) : null;
+  if (!B && !falls.length) return null;
+  return { order: B?.order ?? [], ends: [...falls, ...(B?.ends ?? [])], also: B?.also ?? {} };
 }
 
 /** The game's sheet (see the header). */

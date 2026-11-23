@@ -66,3 +66,10 @@
   heard by them where the library is installed: each spell at its size, the statuses, the heals, a critical hit or a
   weakness ringing over the blow, a foe dissolving, a level gained, a skill learned, the fight's start and a boss's
   entrance. `sound: { battle: false }` keeps a game's battles silent. Without the library battles are silent as before.
+- Animals have voices: every animal mojulo makes (the 144 of the fauna roster, the insects, the sea's creatures, the
+  bestiary's and the RPG's monsters) is heard as one of its kind, a big cat, a canine, a bear, a horse, a bird of prey,
+  a songbird, a buzzing or chirping insect, a crawler, a whale, a dinosaur, a dragon, a slime, a golem, the undead and
+  others, each with a call at rest, a threat, a cry of pain and a dying cry, and wings, slithers, splashes and a swarm
+  for what moves without a voice. Where the library is installed, a game's foes are heard by them: a wolf snarls as it
+  attacks, yelps when struck and whimpers as it falls, an unskinned brute is a bear, a party battle's foe falls in its own
+  voice. Without the library foes sound as before.

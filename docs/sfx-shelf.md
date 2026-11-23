@@ -356,6 +356,24 @@ the happenings a frame carries, the page plays the first of each lane and the ac
 audio channel's). A game that lays battles (`gameworld/battles.js`, Isekai Party's) is heard this way where the library
 records the kit; `sound: { battle: false }` turns it off.
 
+## The animals
+
+`sfx-shelf/animal-voices.js` hears the animals by VOICE CLASS: a class is a way an animal is heard (a big cat, a
+canine, a bird of prey, a buzzing insect, a crawler, a whale, a dragon, a slime, a golem, the undead), and every class
+has the same four calls (`ANIMAL_CALLS`): its `call` at rest, its `alert` (a threat, an attack), its `hurt` and its
+`death`; with what moves without a voice (`MOVES`: small wings, great wings, a slither, a fish's splash, a whale's
+breach, a swarm held). Each is a recorded row, silent until the library records it. `sfx-shelf/animal-sounds.js` says
+which animal is which class from the catalogs the animals are made from: the fauna roster by its family
+(`FAMILY_VOICE`), the insects by their order (`ORDER_VOICE`), a species heard its own way (`SPECIES_VOICE`: a fox
+screams, a hyena laughs, a donkey brays), a foe class by the species it stands on, the RPG's bestiary and a game's
+words by `MONSTER_VOICE`. A fish, a shark or a cephalopod has no voice: its moves only. A new family, order or monster is
+a row of its table; a test holds the tables to every family and order the catalogs have.
+
+Its clients: a game's foes in an action level (`sound-sheet.js` foeSoundsOf: a beast's attack, hurt and fall in its
+class's voice, by its species or its class's stand-in, so an unskinned brute is a bear) and a party battle's foes (each
+foe's fall, `ko:<foe>`, in its own voice ahead of the magic kit's dissolve), both only where the library records the
+class.
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
@@ -365,5 +383,7 @@ surfaces and vehicles to their sounds by word, a level's held voices on its `hol
 throttle), a suit's boost, quick boost, overheat and transform on a level; magic on the action games (Fable of Artesia's
 spells, the cast op's statuses: `worlds/controllable/cast.js` emits no event when a status is taken), the RPG's
 statuses wearing off and poison's tick (its kernel names neither), the world's effects and terrain on the events that
-could carry them (a rupa break by how it broke, a hazard by its kind) (the level runtime does not carry the mech's
+could carry them (a rupa break by how it broke, a hazard by its kind); the animals beyond the foes: a herd's calls
+(the biocube's herds carry no audio; `petted` is the one event), a mount's neigh and hooves (the mount lane's horse is
+heard by human steps), the field fauna and the sea's walkers (no events: emitters would carry them) (the level runtime does not carry the mech's
 boost yet: `feel/lower.js` LOST), recorded beds (the library's ambience loops), and WAVs in the engine handoff.

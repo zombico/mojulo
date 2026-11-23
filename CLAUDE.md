@@ -445,8 +445,9 @@ Pointers only; each target carries its own design notes.
   package) voices the realistic one-shots it records, each falling back to its synthesized voice:
   [docs/sound-library.md](docs/sound-library.md). Kits pick a thing's sounds by its axes (a new value is a row): a mobile
   suit's (`sfx-shelf/suit-sounds.js`: weight, drive, loadout) and magic's (`sfx-shelf/magic-sounds.js`: each element by
-  phase and tier, statuses, spells, a battle's moments, the world's effects), their variants recorded rows heard as a
-  `standIn` without the library.
+  phase and tier, statuses, spells, a battle's moments, the world's effects) and the animals' (`sfx-shelf/animal-sounds.js`:
+  each species to a voice class by its family, order or name, each class's call, alert, hurt and death), their variants
+  recorded rows heard as a `standIn` (or silent) without the library.
 - Underwater: [scene/channels/sea.js](control/lib/graph/scene/channels/sea.js) (a geocube's `sea`: its land put under
   water by light alone on a gen-7 page, the air's sibling on three's fog chunk; waters and depth zones are rows, a zone
   says what the read stands on; lamps where the sun does not reach) and what grows on the bed,

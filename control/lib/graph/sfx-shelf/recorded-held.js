@@ -64,6 +64,8 @@ export const HELD_TUNINGS = Object.freeze({
   'portal-hum': Object.freeze({ loop: 'mg-portal-hum', rate: [0.85, 1.2] }),
   'arcane-aura': Object.freeze({ loop: 'mg-arcane-aura', rate: [0.9, 1.15] }),
   'poison-bog': Object.freeze({ loop: 'mg-poison-bog', rate: [0.9, 1.1] }),
+  // a swarm by how near (sfx-shelf/animal-voices.js MOVES)
+  'insect-swarm': Object.freeze({ loop: 'an-insect-swarm', rate: [0.9, 1.15] }),
   // a game's own (a `flavor`: its rail's): heard only by a game of that flavor
   'charge-hum': Object.freeze({ loop: 'gb-charge', flavor: 'galaxy-boy', rate: [0.85, 1.3] }),
 });
