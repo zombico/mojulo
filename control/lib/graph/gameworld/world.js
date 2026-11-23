@@ -135,6 +135,7 @@
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
 import { readMission as readSpaceMission } from '../campaign/mission.js';
+import { withMissions } from '../campaign/designer.js';
 import { readFlightGoal } from './flight-goal.js';
 import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
 import { readLayouts } from '../era/room-layouts.js';
@@ -302,7 +303,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -581,6 +582,8 @@ export function readCivilizations(civs, { kit = 'isekai-meadow', seed = 1 } = {}
 export function readGameworld(W) {
   if (W && W[READ]) return W;
   if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, civilizations?, levels, links?, start? }');
+  // a space game's missions designed whole (campaign/designer.js): each read, the approved ones laid as their levels
+  if (W.missions !== undefined && W.missions !== null) W = withMissions(W);
   for (const k of Object.keys(W)) if (!KEYS.includes(k)) throw new Error(`gameworld: '${k}' is not a world setting (settings: ${KEYS.join(', ')})`);
   for (const k of RESERVED) if (W[k] !== undefined && W[k] !== null) throw new Error(`gameworld: ${k} are not on the ground: the world leaves them open for now (null, or leave it out)`);
   if (typeof W.id !== 'string' || !ID.test(W.id)) throw new Error('gameworld: id is a short lower-case name (letters, digits, hyphens)');

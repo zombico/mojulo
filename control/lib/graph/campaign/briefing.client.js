@@ -185,7 +185,8 @@ for (const N of BRIEF.theatre.nav) {
   H.group.position.copy(at); th.add(H.group);
   const sp = label(N.name, COL.nav, { size: 0.7 }); sp.position.set(at.x, at.y, at.z + 0.12); th.add(sp); thLabels.push(sp);
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.19, 40), additive(COL.nav, 0.45)); ring.position.copy(at); th.add(ring);
-  places[N.id] = { at, r: 0.3, holo: H, label: sp, ring };
+  H.group.userData.id = N.id; sp.userData.id = N.id;
+  places[N.id] = { at, r: 0.3, holo: H, label: sp, ring, model: H.group, labelDz: 0.12, nav: true };
 }
 // what fights: each a miniature on its post, a line to the plane, its name over it
 const drops = [];
@@ -217,11 +218,13 @@ for (const T of BRIEF.things) {
   g.position.copy(at); g.rotation.z = -T.heading * DEG; th.add(g);
   // the post: a line down to the table's plane and a ring where it meets it
   const foot = new THREE.Vector3(at.x, at.y, LIFT);
-  if (Math.abs(at.z - LIFT) > 0.02) { const dl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([at, foot]), lineMat(col, 0.35)); th.add(dl); drops.push({ id: T.id, line: dl }); H.edges.push(dl.material); }
+  let dl = null;
+  if (Math.abs(at.z - LIFT) > 0.02) { dl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([at, foot]), lineMat(col, 0.35)); th.add(dl); drops.push({ id: T.id, line: dl }); H.edges.push(dl.material); }
   const ring = new THREE.Mesh(new THREE.RingGeometry(Math.max(0.12, r * 0.6), Math.max(0.14, r * 0.6 + 0.03), 40), additive(col, 0.4)); ring.position.copy(foot); th.add(ring); H.edges.push(ring.material);
   const name = T.kind === 'group' ? `${T.name}${T.count > 1 ? ` ×${T.count}` : ''}` : T.name, sub = T.pilot ? 'you' : T.label;
   const sp = label(name, col, { size: 0.75, sub }); sp.position.set(at.x, at.y, at.z + Math.max(0.12, r * 0.5)); th.add(sp); thLabels.push(sp);
-  places[T.id] = { at, r, holo: H, label: sp, thing: T, shown: !T.arrives };
+  g.userData.id = T.id; sp.userData.id = T.id;
+  places[T.id] = { at, r, holo: H, label: sp, thing: T, shown: !T.arrives, model: g, labelDz: Math.max(0.12, r * 0.5), foot: ring, drop: dl, col };
   if (T.arrives) { H.alpha = 0; H.target = 0; sp.material.opacity = 0; }
 }
 
@@ -242,6 +245,7 @@ function drawRoutes(list) {
 }
 
 // ── the camera and the steps ───────────────────────────────────────────────────────────────────────────────
+let drift = 0.06;   // (the camera's slow turn round the table, rad/s; the editor holds it still)
 const view = { target: new THREE.Vector3(0, 0, LIFT), dist: 16, az: -0.5, el: 0.62 }, want = { target: new THREE.Vector3(0, 0, LIFT), dist: 16, el: 0.62 };
 let stage = 'orrery', mix = 0, mixTo = 0, now = 0, k0 = -1, stepAt = 0;
 const shown = new Set();
@@ -336,7 +340,7 @@ function tick(t) {
   sweep.rotation.z = now * 0.6; beam.material.opacity = 0.03 + 0.01 * Math.sin(now * 2);
   // the camera: eased to the step's frame, turning slowly round it
   view.target.x = damp(view.target.x, want.target.x, 2.4, dt); view.target.y = damp(view.target.y, want.target.y, 2.4, dt); view.target.z = damp(view.target.z, want.target.z, 2.4, dt);
-  view.dist = damp(view.dist, want.dist, 2.2, dt); view.el = damp(view.el, want.el, 2, dt); view.az += dt * 0.06;
+  view.dist = damp(view.dist, want.dist, 2.2, dt); view.el = damp(view.el, want.el, 2, dt); view.az += dt * drift;
   camera.position.set(view.target.x + Math.cos(view.az) * Math.cos(view.el) * view.dist, view.target.y + Math.sin(view.az) * Math.cos(view.el) * view.dist, view.target.z + Math.sin(view.el) * view.dist);
   camera.lookAt(view.target);
   renderer.render(scene, camera);
@@ -346,7 +350,23 @@ function stop() {
   stopped = true; removeEventListener('resize', resize);
   try { renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* a context already lost */ }
 }
-window.__brief = { go, stop, step: 0, steps: BRIEF.steps.length, ready: true };
+// a place moved (the editor's): its model, its name, its post down to the table's plane and the ring at its foot
+function moveTo(id, at) {
+  const P = places[id]; if (!P) return;
+  P.at.copy(at); P.model.position.copy(at); P.label.position.set(at.x, at.y, at.z + P.labelDz);
+  if (P.nav) { P.ring.position.copy(at); return; }
+  const foot = new THREE.Vector3(at.x, at.y, LIFT); P.foot.position.copy(foot);
+  if (!P.drop) { P.drop = new THREE.Line(new THREE.BufferGeometry(), lineMat(P.col, 0.35)); th.add(P.drop); P.holo.edges.push(P.drop.material); }
+  P.drop.geometry.setFromPoints([at, foot]);
+}
+// everything on the table lit and in view, the stage the theatre, the camera held (the editor's)
+function showAll() {
+  stage = 'theatre'; mixTo = 1; shown.clear(); clearRoutes();
+  for (const id in places) { const P = places[id]; if (P.thing && P.thing.arrives) { P.shown = true; P.label.material.opacity = 1; } }
+  frame(Object.keys(places).filter((id) => places[id].model)); want.el = 0.9;
+}
+window.__brief = { go, stop, step: 0, steps: BRIEF.steps.length, ready: true,
+  api: { places, th, camera, renderer, scene, S, LIFT, want, view, moveTo, showAll, setDrift: (v) => { drift = v; } } };
 go(0);
 view.target.copy(want.target); view.dist = want.dist * 1.6; view.el = want.el;
 requestAnimationFrame(tick);

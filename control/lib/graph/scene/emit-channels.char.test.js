@@ -1164,3 +1164,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // rings (its own branch of the body builder and of the entity sync), and the starfighter's targeting computer holds one
 // as a goal, never a hostile. No fixture carries a beacon, so what each shows is as it was. The briefing's labels size to
 // their words.
+// Re-pinned 2026-11-23 (1122-sim-fixing-mana-ui: the mission designer): `briefing` only. The table's client gives the
+// editor its handle (a place moved with its name, post and ring; everything shown; the camera's turn held); the page over
+// a level carries no editor, so what it shows is as it was.

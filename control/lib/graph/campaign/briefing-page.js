@@ -6,7 +6,9 @@
  *
  *   briefingSpec()                       → the mana-ui spec (its defs only the idioms it uses)
  *   briefingState(B)                     → the words' state at the first step
- *   briefingPage(M, { theme?, cdn? })    → the page (html), for a mission read by readMission (mission.js)
+ *   briefingPage(M, { theme?, cdn?, editor? }) → the page (html), for a mission read by readMission (mission.js); with
+ *                                        `editor`, the mission designer's (designer.js): its state, Approve, the table
+ *                                        it is edited on
  *   briefingScript(D, { theme?, level? }) → the code both run (after `import * as THREE`)
  *   briefingChannelSource({ data, theme? }) → the block a level page splices (scene/channels/briefing.js): the briefing
  *                                        over the level as it loads, the mission held behind it; Launch lets it go
@@ -28,6 +30,7 @@ import { MSG_PAUSE } from '../game/level-contract.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/campaign');
 const clientSource = () => readFileSync(join(SRC, 'briefing.client.js'), 'utf8');
+const editorSource = () => readFileSync(join(SRC, 'briefing-editor.client.js'), 'utf8');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const B = (p) => ({ bind: `bf.${p}` });
@@ -141,8 +144,10 @@ mview.paint();
 window.${level ? '__mojBriefing' : '__manaUi'} = ${level ? '{ rt, get up() { return !launched; }, launch: () => act({ emit: \'brief:launch\' }) }' : 'rt'};`;
 }
 
-/** The page for a mission read by readMission. */
-export function briefingPage(M, { theme = null, cdn = false } = {}) {
+/** The page for a mission read by readMission. `editor` ({ ref, mission, design, edit, post, at }): served as a game's
+ *  book, the bar over it (its state, the table, Approve) and, with `edit`, the table to edit it on
+ *  (briefing-editor.client.js). */
+export function briefingPage(M, { theme = null, cdn = false, editor = null } = {}) {
   const D = briefingData(M), T = themeOf(theme);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(D.name)} · briefing</title>
@@ -157,7 +162,9 @@ ${themeCss(T)}
 </style></head><body><canvas id="holo"></canvas><div id="mana"></div>
 <script type="module">
 import * as THREE from 'three';
-${briefingScript(D, { theme })}
+${briefingScript(D, { theme })}${editor ? `
+const EDITOR = ${json(editor)};
+${editorSource()}` : ''}
 </script></body></html>`;
 }
 

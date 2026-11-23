@@ -13,6 +13,7 @@
  * In one call, in order: the recipe (`world` creates or replaces it, `patch` edits it by part), then the verdicts
  * (`approve`, `revise`), then the run (`run: true`). Each is optional; a call with only `ref` reads.
  */
+import { missionsReadout } from '@/lib/graph/campaign/designer';
 import { openingMission } from '@/lib/graph/mission/campaign';
 import { NEW_GAME_SCREEN } from '@/lib/graph/game/screen';
 import { registerTool, clientTakesJobAgents } from '@/lib/mcp/server';
@@ -594,6 +595,9 @@ function readout(ref, world, context = {}) {
       // leg is a checkpoint: mission/campaign.js)
       return { why: `or a campaign's opening mission, ${C.legs.length} legs played in order, each a level of its own (a leg is a checkpoint): ${C.legs.map((L) => `${L.name.split(' · ').pop()} (${L.beats.join(', ')})`).join('; ')}`, legs: C.legs.map((L) => ({ level: L.level, beats: L.beats, place: L.place })), patch: C.patch }; })(), industrial: { why: 'or out of doors: an industrial yard before a base building, its containers, barriers and floodlights stood under the arena\'s laws and built by the geocube (at sunset on wet ground, a tower to climb in it)', patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', industrial: true } }] } });
   }
+  // A SPACE GAME'S MISSIONS DESIGNED WHOLE (campaign/designer.js): each draft shown to the person on the holo table, where
+  // they move its things, change what it says and does, and approve it (the eyes gate, theirs); an approved one is a level
+  for (const M of missionsReadout(world, { ref })) if (M.status !== 'approved') next.push({ step: 'mission-design', mission: M.mission, name: M.name, place: M.place, why: 'a mission designed whole and not yet approved: show the person its briefing; they edit it on the table and approve it there, and the next run lays its level', briefing: M.briefing, editor: M.editor, ...(M.laws.length ? { laws: M.laws } : {}), gate: 'eyes', card: 'gameworld-cockpit' });
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
   // each block's sketch is its author's, then level design's play layer, block by block. LOOKED AT FIRST: `look`, the map
   // designer's miniature (gameworld/map-designer.js), before a block is written or a page built

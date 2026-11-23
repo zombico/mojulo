@@ -60,7 +60,19 @@ level compiled and built. Rebel Storm's first mission is the first one designed,
   goals to reach them, and groups that arrive when one is reached. The briefing draws each as an amber ring, a dashed
   ring for one that has yet to be lit, said with what lights it. A law checks that every beacon is shown. Labels on the
   table now size to their words.
-- **Rebel Storm's mission 2, Convoy, redesigned on beacons (a draft).** The convoy comes out of hyperspace only when Red
-  Flight reaches the rendezvous; raiders follow, then bombers once the raiders are down; the approach beacon lights once
-  the bombers are down, and reaching it brings the convoy home. Its flight proof holds on its compiled level. It waits
-  for approval, so its level is still the old sortie.
+- **Rebel Storm's mission 2, Convoy, redesigned on beacons, and approved.** The convoy comes out of hyperspace only when
+  Red Flight reaches the rendezvous; raiders follow, then bombers once the raiders are down; the approach beacon lights
+  once the bombers are down, and reaching it brings the convoy home. Its flight proof holds on its compiled level.
+- **The mission designer: drafted by the agent, edited and approved by the person on the holo table**
+  (`campaign/designer.js`). A game's missions designed whole live on its world, `missions: { <level id>: design }`. The
+  world reads each and teaches its faults, and an approved one is laid as its level, over any level of that id or as a
+  new one; a draft leaves its level alone. `design_game`'s next says each draft, the laws it fails and two links in the
+  game's books: its briefing (`?book=briefing&mission=<id>`) and its editor (`&edit=1`). On the editor's table the
+  person picks a thing by its model or its name, drags it across the plane it stands on or up and down, and changes in a
+  panel what it is called, how many there are, when a group comes in or a beacon lights, what the comms say and which
+  way a ship heads; adds or removes beacons; and edits the briefing's words. Save writes a draft and Approve an approved
+  mission through the game's missions route (`POST /api/sketches/<ref>/missions`), read and compiled first so a fault
+  is said there. An edit to an approved mission makes it a draft until it is approved again. The briefing has the bar
+  too: its state, Edit on the table, Approve as it is. Rebel Storm's rail writes its designs as the world's missions.
+- **The briefing page's client files declared** in `scripts/test-changed.mjs` (its guard had been failing since the
+  briefing was first committed).

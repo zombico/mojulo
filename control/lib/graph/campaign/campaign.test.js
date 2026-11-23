@@ -6,6 +6,11 @@ import { briefingPage, briefingSpec } from './briefing-page.js';
 import { craftMini, capitalMini, stationMini, miniFamily } from './holo-minis.js';
 import { readSortie } from '../gameworld/flight-sortie.js';
 import { MISSION_DESIGNS, missionLevel, MISSIONS, rebelStormStart } from '../gameworld/rebel-storm.js';
+import { readMissions, withMissions, missionsReadout, applyMissionEdit } from './designer.js';
+import { readGameworld } from '../gameworld/world.js';
+
+// Rebel Storm's world as its rail lays it, its approved missions laid as their levels
+const storm = () => withMissions({ id: 'storm', ...rebelStormStart({}).world });
 
 // the smallest design that runs every path: a pilot's flight, a foe group at a nav point, one arriving, a capital ship
 const design = (over = {}) => ({
@@ -108,11 +113,13 @@ describe('Rebel Storm: mission 1 designed', () => {
     expect(placeLine(M.place)).toBe('Kessa System | Varn Cluster | Vigil Station | Moon IV');
     expect(missionLaws(M).filter((L) => !L.ok)).toEqual([]);
     expect(M.status).toBe('approved');
-    expect(missionLevel(MISSIONS[0])).toEqual(compileMission(M, { airframe: 'strikeFoil', design: MISSION_DESIGNS['mission-1'] }).level);
+    const L = storm().levels['mission-1'], C = compileMission(M, { design: MISSION_DESIGNS['mission-1'] }).level;
+    expect([L.airspace, L.goal]).toEqual([C.airspace, C.goal]);
     // (briefed on the holo table as its level loads: the design itself rides the level, read again by the page)
-    expect(readMission(missionLevel(MISSIONS[0]).airspace.briefing)).toEqual(M);
-    expect(missionLevel(MISSIONS[0]).airspace.space.fleet.map((f) => f.id)).toEqual(['station', 'kestrel', 'dominion']);
-    expect(missionLevel(MISSIONS[1]).goal.flight.sortie).toEqual(JSON.parse(JSON.stringify(MISSIONS[1].sortie)));
+    expect(readMission(L.airspace.briefing)).toEqual(M);
+    expect(L.airspace.space.fleet.map((f) => f.id)).toEqual(['station', 'kestrel', 'dominion']);
+    // (a mission with no design keeps its sortie)
+    expect(storm().levels['mission-3']).toEqual(missionLevel(MISSIONS[2]));
   });
   it('its game is drawn by mana-ui in the campaign\'s look, the creator\'s own ui winning', () => {
     expect(rebelStormStart({}).world.ui).toEqual({ theme: { from: 'orbit', overlay: 'none' } });
@@ -123,7 +130,7 @@ describe('Rebel Storm: mission 1 designed', () => {
 describe('Rebel Storm: mission 2 designed on beacons', () => {
   it('reads its beacons, meets its laws, compiles them into its sortie, and draws them on the briefing', () => {
     const M = readMission(MISSION_DESIGNS['mission-2']);
-    expect(M.status).toBe('draft');
+    expect(M.status).toBe('approved');
     expect(missionLaws(M).filter((L) => !L.ok)).toEqual([]);
     const S = compileMission(M).level.goal.flight.sortie;
     expect(S.beacons.map((b) => [b.id, !!b.lit])).toEqual([['rendezvous', false], ['home', true]]);
@@ -132,8 +139,8 @@ describe('Rebel Storm: mission 2 designed on beacons', () => {
     const D = briefingData(M);
     expect(D.things.filter((t) => t.kind === 'beacon').map((t) => [t.id, !!t.dark])).toEqual([['rendezvous', false], ['home', true]]);
     expect(D.goals.map((g) => g.text)).toContain('Reach: Harrow approach');
-    // a draft leaves the mission's level as it was
-    expect(missionLevel(MISSIONS[1]).goal.flight.sortie).toEqual(JSON.parse(JSON.stringify(MISSIONS[1].sortie)));
+    // approved, its level is laid from it
+    expect(storm().levels['mission-2'].goal.flight.sortie.beacons.map((b) => b.id)).toEqual(['rendezvous', 'home']);
   });
   it('teaches a beacon no step shows, and one a goal names that is not there', () => {
     const D = JSON.parse(JSON.stringify(MISSION_DESIGNS['mission-2']));
@@ -142,5 +149,34 @@ describe('Rebel Storm: mission 2 designed on beacons', () => {
     const E = JSON.parse(JSON.stringify(MISSION_DESIGNS['mission-2']));
     E.goals.push({ reach: 'nowhere' });
     expect(() => compileMission(readMission(E))).toThrow(/no beacon of the sortie/);
+  });
+});
+
+describe('the mission designer: a game\'s missions drafted, edited on the table and approved', () => {
+  const draft = () => ({ ...JSON.parse(JSON.stringify(MISSION_DESIGNS['mission-2'])), status: 'draft' });
+  it('reads a world\'s missions, teaching; lays an approved one as its level and leaves a draft\'s level alone', () => {
+    expect(() => readMissions({ 'mission-2': { ...draft(), id: 'other' } })).toThrow(/a mission's id is its key/);
+    expect(() => readMissions({ m: { ...draft(), steps: [] } })).toThrow(/missions\.m/);
+    const W = { id: 'w', ...rebelStormStart({}).world, missions: { 'mission-2': draft() } };
+    expect(withMissions(W).levels['mission-2']).toEqual(W.levels['mission-2']);
+    expect(withMissions({ ...W, missions: { 'mission-2': { ...draft(), status: 'approved' } } }).levels['mission-2'].goal.flight.sortie.beacons).toBeTruthy();
+    // (the world reader does the same: an approved mission's level, a new level if none had its id)
+    const G = readGameworld({ ...W, missions: { 'mission-9': { ...draft(), id: 'mission-9', status: 'approved' } } });
+    expect(G.ids).toContain('mission-9');
+    expect(G.levels['mission-9'].airspace).toBeTruthy();
+  });
+  it('says each mission: its state, the laws it fails, where the person sees it and edits it', () => {
+    const R = missionsReadout({ missions: { 'mission-2': draft() } }, { ref: 'storm' });
+    expect(R[0]).toMatchObject({ mission: 'mission-2', status: 'draft', laws: [], briefing: '/api/sketches/storm/bible?book=briefing&mission=mission-2', editor: '/api/sketches/storm/bible?book=briefing&mission=mission-2&edit=1' });
+  });
+  it('saves the person\'s edit from the table: read and compiled, approved or a draft again', () => {
+    const m0 = { kind: 'gameworld', id: 'w', missions: { 'mission-2': { ...draft(), status: 'approved' } } };
+    const moved = draft(); moved.beacons[0].at = [300, 1500, 40];
+    const A = applyMissionEdit(m0, { mission: 'mission-2', design: moved });
+    expect(A.status).toBe('draft');
+    expect(A.manifest.missions['mission-2'].beacons[0].at).toEqual([300, 1500, 40]);
+    expect(applyMissionEdit(m0, { mission: 'mission-2', design: moved, approve: true }).status).toBe('approved');
+    const bad = draft(); bad.goals.push({ reach: 'nowhere' });
+    expect(() => applyMissionEdit(m0, { mission: 'mission-2', design: bad })).toThrow(/no beacon/);
   });
 });

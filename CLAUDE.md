@@ -411,9 +411,11 @@ Pointers only; each target carries its own design notes.
 - Space campaigns (a mission designed whole before its level is built): [campaign/](control/lib/graph/campaign/) (the
   place, "Kessa System | Varn Cluster | Vigil Station | Moon IV", and its orrery, `theatre.js`; a mission's design, its
   laws and its compile onto a sortie, `mission.js`; the holo briefing the person approves it on, `briefing-page.js`, on
-  mana-ui's campaign idioms; `node scripts/briefing.mjs rebel-storm mission-1`). Rebel Storm's missions are its first
-  designs (`gameworld/rebel-storm.js` `MISSION_DESIGNS`): a design's level is compiled from it once it is `approved`,
-  and briefed on the holo table as it loads (`airspace.briefing`, the page's briefing channel, `scene/channels/briefing.js`).
+  mana-ui's campaign idioms; `node scripts/briefing.mjs rebel-storm mission-1`). The designer, `designer.js`: a world's
+  `missions` drafted by the agent, edited and approved by the person on the holo table (the game's books,
+  `?book=briefing&mission=<id>&edit=1`, saved through `POST /api/sketches/<ref>/missions`), an approved one laid as its
+  level, briefed as it loads (`airspace.briefing`, `scene/channels/briefing.js`). Beacons (a sortie's `beacons`,
+  `game/sortie.js`) are its places and triggers. Rebel Storm's rail writes its designs (`MISSION_DESIGNS`) as missions.
 - Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
   measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
   and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
