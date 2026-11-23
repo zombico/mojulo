@@ -12,6 +12,14 @@
 //                     and gone
 //   a SCOPE           while a move holds the boss's eye to a scope, a GLINT at the eye, flaring as its shot nears (where
 //                     it is, always); BLINDED (a flash counter), sparks circling its head till it sees again
+//   a MECHA         (a vehicle of the mecha shelf, drawn as its own figure) its parts are not boxes but marks on it: a weak
+//                   spot a beating red glass while it can be hit and a counting part an amber one while it can, each only
+//                   where the pilot stands to reach it (`from`); a part shot off hides its bones; a drone's rotors spun
+//   a CARRIER'S     its gunners' guns on their mounts, turned on what they fire at, drooped once the gunner is down, and
+//                   the bursts' tracers; its drones shown only out of their bays, a mark over each (a courier's green, a
+//                   hacked one's blue with its health, a chaser's red); its packages on their pallets and under the drone
+//                   that carries one; the RF gun's beam on what it is held on and the hack's ring filling; under the boss
+//                   bar its gunners and its deliveries, and what it last said
 // Emitted only into a page whose world has a boss or a placed weapon, so every other page keeps every byte. Needs THREE,
 // scene and __world in scope.
 export function bossViewScript() {
@@ -93,6 +101,84 @@ function __bvMark(h) {
   else { m.hot = new THREE.Group(); for (const g of list) m.hot.add(new THREE.Mesh(g, __bvMat(hot, 0.8))); m.hot.position.z = 0.01; grp.add(m.hot); }
   scene.add(grp);
   return m;
+}
+// A MECHA'S PARTS: marks on its figure (its weak spots red, its counting parts amber), each only while it can be hit and
+// from where the pilot stands
+function __bvMechaParts(W, e, B, S, P, t) {
+  const pl = W.pilotId ? W.byId[W.pilotId] : null;
+  const from = (p) => { if (!p.from || !pl) return true; const h = e.transform.heading || 0, dx = pl.transform.pos[0] - e.transform.pos[0], dy = pl.transform.pos[1] - e.transform.pos[1], lx = dx * Math.cos(h) + dy * Math.sin(h), ly = -dx * Math.sin(h) + dy * Math.cos(h), arc = (p.arc || 70) * Math.PI / 180;
+    return p.from === 'behind' ? Math.abs(Math.atan2(ly, -lx)) <= arc : Math.abs(Math.atan2(lx, (p.side === 'right' ? -1 : 1) * ly)) <= arc; };
+  for (const [id, x] of Object.entries(P.boxes)) {
+    const p = x.p, broken = !!S.broken[id], open = !broken && (!p.behind || S.broken[p.behind]) && (!p.shown || [].concat(p.shown).includes(S.state));
+    const shows = open && !(p.weak && (p.mult ?? 1) < 0.5) && !p.takes.every((k) => k === 'mine'), reach = from(p);
+    x.box.visible = shows;
+    if (shows) x.box.material.opacity = reach ? (p.weak ? 0.35 + 0.25 * Math.sin(t * 7) : 0.28) : 0.08;
+  }
+}
+// (the bone hook, controllable channel: a part shot off a mecha hides its bones; a drone's rotors spun)
+const __bvQ = new THREE.Quaternion(), __BV_Z = new THREE.Vector3(0, 0, 1);
+window.__bossRigBone = function (e, fig, bi, Q, P, mesh) {
+  const id = fig.bones[bi].id;
+  if (e.drone) { if (/Rotor/.test(id)) { __bvQ.setFromAxisAngle(__BV_Z, (((__world.time || 0) * 60) % (2 * Math.PI)) * (/F.*-r$|R.*-l$/.test(id) ? 1 : -1)); Q.multiply(__bvQ); } return; }
+  const B = e.rule && e.rule.boss, S = e.bossS; if (!B || !S || !B.frame) return;
+  const lost = fig.__bvLost || (fig.__bvLost = (() => { const m = {}; for (const [pid, p] of Object.entries(B.parts)) for (const b of p.bones || []) m[b] = pid; return m; })());
+  if (lost[id]) mesh.visible = !S.broken[lost[id]];
+};
+// A CARRIER, DRAWN
+const __BVC = { marks: {}, pk: {}, guns: {}, beam: null, ring: null, tr: [], v: new THREE.Vector3(), hud: null, said: null, sayT: -9 };
+function __bvScreen(q, dz) { __BVC.v.set(q[0], q[1], q[2] + (dz || 0)).project(camera); return { x: (__BVC.v.x + 1) / 2 * innerWidth, y: (1 - __BVC.v.y) / 2 * innerHeight, on: __BVC.v.z < 1 && Math.abs(__BVC.v.x) < 1.05 && Math.abs(__BVC.v.y) < 1.05 }; }
+function __bvCarrier(W, e, B, S, t) {
+  const C = S.carrier, F = W.bosses && W.bosses[e.id] && W.bosses[e.id].carrier; if (!C || !F) return;
+  const pl = W.pilotId ? W.byId[W.pilotId] : null;
+  // its drones, and a mark over each
+  for (const d of C.drones) {
+    const m = __bodies[d.id]; if (m) m.visible = !d.gone;
+    let mk = __BVC.marks[d.id];
+    if (!mk) { mk = __BVC.marks[d.id] = document.createElement('div'); mk.style.cssText = 'position:fixed;z-index:11;pointer-events:none;transform:translate(-50%,-100%);font:700 11px/1 ui-monospace,monospace;white-space:nowrap;text-align:center;text-shadow:0 0 4px #000'; document.body.appendChild(mk); }
+    const D = d.drone, show = !d.gone && D.st !== 'fall' && !S.down, s2 = show ? __bvScreen(d.transform.pos, 0.7) : null;
+    mk.style.display = s2 && s2.on ? 'block' : 'none'; if (!s2 || !s2.on) continue;
+    mk.style.left = s2.x.toFixed(1) + 'px'; mk.style.top = s2.y.toFixed(1) + 'px';
+    const hp = d.hpMax ? Math.max(0, d.body.hp / d.hpMax) : 1;
+    mk.innerHTML = D.hacked ? '<div style="color:#7fd0ff">▲ HACKED' + (D.st === 'carry' ? ' · package' : '') + '</div><div style="margin:2px auto 0;width:40px;height:4px;background:rgba(255,255,255,.2)"><div style="height:100%;width:' + (hp * 100).toFixed(0) + '%;background:#7fd0ff"></div></div>'
+      : D.role === 'courier' ? '<div style="color:' + (Math.sin(t * 6) > 0 ? '#6dff8a' : '#2f9a46') + '">◎ courier</div>' : '<div style="color:' + (D.chase ? '#ff4a3a' : 'rgba(255,170,140,.75)') + '">' + (D.chase ? '▼ chaser' : '▿') + '</div>';
+  }
+  // its packages
+  for (const k in C.pkgs) {
+    const K = C.pkgs[k];
+    let X = __BVC.pk[k];
+    if (!X) { X = __BVC.pk[k] = { pallet: new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 0.14), new THREE.MeshLambertMaterial({ color: 0x8a6a42 })), crate: new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.45, 0.4), new THREE.MeshLambertMaterial({ color: 0x7a2c22 })), lamp: new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff6a2a })) };
+      for (const m of [X.pallet, X.crate, X.lamp]) { m.raycast = function () {}; scene.add(m); } X.pallet.position.set(K.at[0], K.at[1], K.at[2] + 0.07); }
+    const here = !K.carried && t >= K.back, c = K.pos || K.at;
+    X.crate.visible = here || !!K.carried; X.lamp.visible = X.crate.visible && Math.sin(t * 5) > 0;
+    X.crate.position.set(c[0], c[1], c[2] + (K.carried ? 0 : 0.36)); X.lamp.position.set(c[0], c[1], c[2] + (K.carried ? 0.25 : 0.62));
+  }
+  // the RF gun's beam and the hack's ring
+  if (!__BVC.beam) { __BVC.beam = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: 0x7fd0ff, transparent: true, opacity: 0.7 })); __BVC.beam.raycast = function () {}; scene.add(__BVC.beam);
+    __BVC.ring = document.createElement('div'); __BVC.ring.style.cssText = 'position:fixed;z-index:12;pointer-events:none;width:54px;height:54px;transform:translate(-50%,-50%);border-radius:50%;display:none;-webkit-mask:radial-gradient(circle,transparent 58%,#000 60%);mask:radial-gradient(circle,transparent 58%,#000 60%)'; document.body.appendChild(__BVC.ring); }
+  const J = C.jam, tg = J && J.id ? W.byId[J.id] : null;
+  __BVC.beam.visible = !!(J && J.on && tg && pl);
+  if (__BVC.beam.visible) { const a = pl.transform.pos, b = tg.transform.pos, P = __BVC.beam.geometry.attributes.position; P.setXYZ(0, a[0], a[1], a[2] + 1.35); P.setXYZ(1, b[0], b[1], b[2]); P.needsUpdate = true; }
+  const rs = tg && J.u > 0.02 ? __bvScreen(tg.transform.pos, 0) : null;
+  __BVC.ring.style.display = rs && rs.on ? 'block' : 'none';
+  if (rs && rs.on) { __BVC.ring.style.left = rs.x.toFixed(1) + 'px'; __BVC.ring.style.top = rs.y.toFixed(1) + 'px'; __BVC.ring.style.background = 'conic-gradient(' + (J.on ? '#7fd0ff' : 'rgba(127,208,255,.6)') + ' ' + Math.round(J.u * 100) + '%, rgba(127,208,255,.12) 0)'; }
+  // its gunners' guns
+  for (const c of C.crew) {
+    let G = __BVC.guns[c.cfg.id];
+    if (!G) { G = __BVC.guns[c.cfg.id] = new THREE.Group(); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.1, 8), new THREE.MeshLambertMaterial({ color: 0x3b3f36 })); post.rotation.x = Math.PI / 2; post.position.set(0, 0, -0.55); G.add(post);
+      const gun = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.14, 0.16), new THREE.MeshLambertMaterial({ color: 0x2a2d2f })); gun.position.set(0.55, 0, 0); G.add(gun); G.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.26), new THREE.MeshLambertMaterial({ color: 0x4a5040 }))); G.traverse((m) => { m.raycast = function () {}; }); scene.add(G); }
+    const q = c.ent.transform.pos, h = (e.transform.heading || 0) + (c.cfg.face || 0) * Math.PI / 180 + (C.aim[c.cfg.id] || 0);
+    G.position.set(q[0] + Math.cos(h) * 0.55, q[1] + Math.sin(h) * 0.55, q[2] + 1.15); G.rotation.set(0, c.down ? 0.5 : 0, h);
+  }
+  // the bursts' tracers
+  const T = (W.bossFx && W.bossFx.tracers) || [];
+  for (const r of T) if (!r.drawn && t - r.t < 0.25) { r.drawn = true; const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...r.from), new THREE.Vector3(...r.to)]), new THREE.LineBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.9 })); l.raycast = function () {}; scene.add(l); __BVC.tr.push({ l, t: r.t }); }
+  __BVC.tr = __BVC.tr.filter((x) => { if (t - x.t > 0.15) { scene.remove(x.l); x.l.geometry.dispose(); return false; } return true; });
+  // under the boss bar: its gunners, its deliveries, what it said
+  if (!__BVC.hud) { __BVC.hud = document.createElement('div'); __BVC.hud.style.cssText = 'position:fixed;left:50%;top:98px;transform:translateX(-50%);z-index:13;pointer-events:none;font:600 12px/1.4 ui-monospace,monospace;color:#e8e6e1;text-align:center;text-shadow:0 1px 2px #000'; document.body.appendChild(__BVC.hud);
+    __BVC.say = document.createElement('div'); __BVC.say.style.cssText = 'position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);z-index:13;pointer-events:none;font:700 17px/1.2 ui-monospace,monospace;letter-spacing:.06em;color:#ffd27a;text-shadow:0 0 10px rgba(0,0,0,.9);text-align:center;opacity:0;transition:opacity .25s'; document.body.appendChild(__BVC.say); }
+  __BVC.hud.innerHTML = S.down ? '' : 'gunners ' + Object.values(F.crew).map((c) => '<span style="margin:0 4px;color:' + (c.up ? '#ff9a2e' : '#7d7a75') + '">' + c.name.replace(/^the /, '').replace(/ gunner$/, '') + (c.up ? ' ●' : ' ✕') + '</span>').join('') + ' · delivered ' + F.deliveries;
+  if (F.said && F.said !== __BVC.said) { __BVC.said = F.said; __BVC.say.textContent = F.said.text; __BVC.say.style.opacity = '1'; __BVC.sayT = t; }
+  if (t - __BVC.sayT > 3.2) __BVC.say.style.opacity = '0';
 }
 function __bvFrame() {
   const W = __world, t = W.time || 0;
@@ -187,11 +273,11 @@ function __bvFrame() {
     if (!P) {
       P = { grp: new THREE.Group(), boxes: {} };
       // (how it looks: its dress, apart from the parts a hit is judged on)
-      for (const d of B.dress || []) { const [a, b] = d.box, g = new THREE.BoxGeometry(Math.max(0.03, b[0] - a[0]), Math.max(0.03, b[1] - a[1]), Math.max(0.03, b[2] - a[2])), mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(d.fill), ...(d.alpha != null ? { transparent: true, opacity: d.alpha, depthWrite: false } : {}) }), x = new THREE.Mesh(g, mat); x.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); P.grp.add(x); }
+      for (const d of B.frame ? [] : B.dress || []) { const [a, b] = d.box, g = new THREE.BoxGeometry(Math.max(0.03, b[0] - a[0]), Math.max(0.03, b[1] - a[1]), Math.max(0.03, b[2] - a[2])), mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(d.fill), ...(d.alpha != null ? { transparent: true, opacity: d.alpha, depthWrite: false } : {}) }), x = new THREE.Mesh(g, mat); x.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); P.grp.add(x); }
       for (const [id, p] of Object.entries(B.parts)) {
         const [a, b] = p.box, g = new THREE.BoxGeometry(Math.max(0.05, b[0] - a[0]), Math.max(0.05, b[1] - a[1]), Math.max(0.05, b[2] - a[2]));
         const tone = p.weak && (p.mult ?? 1) >= 0.5 ? 0xd8322a : p.takes.includes('mine') ? 0x2a2c2e : p.hits > 0 ? 0x8d9296 : 0x5f6a5a;
-        const box = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: tone }));
+        const box = new THREE.Mesh(g, B.frame ? new THREE.MeshBasicMaterial({ color: p.weak ? 0xff3322 : 0xffb030, transparent: true, opacity: 0.3, depthWrite: false }) : new THREE.MeshBasicMaterial({ color: tone }));
         box.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
         P.grp.add(box); P.boxes[id] = { box, p, tone };
       }
@@ -201,8 +287,9 @@ function __bvFrame() {
     P.grp.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
     P.grp.rotation.z = e.transform.heading || 0;
     const S = e.bossS;
+    if (B.frame) { __bvMechaParts(W, e, B, S, P, t); if (B.carrier) __bvCarrier(W, e, B, S, t); continue; }
     for (const [id, x] of Object.entries(P.boxes)) {
-      const p = x.p, broken = !!S.broken[id], open = !broken && (!p.behind || S.broken[p.behind]) && (!p.shown || p.shown === S.state);
+      const p = x.p, broken = !!S.broken[id], open = !broken && (!p.behind || S.broken[p.behind]) && (!p.shown || [].concat(p.shown).includes(S.state));
       // (a broken track lies wrecked, sagging and dark; a broken plate or joint is gone; the hull is its dress)
       x.box.visible = id !== 'hull' && (!broken || p.takes.includes('mine'));
       if (broken && p.takes.includes('mine') && !x.wrecked) { x.wrecked = true; x.box.material.color.set(0x161616); x.box.scale.set(0.8, 1, 0.55); x.box.position.z -= 0.2; x.box.rotation.y = 0.06; }

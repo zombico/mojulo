@@ -9,7 +9,7 @@
  *
  *   cd control
  *   node scripts/spikes/mission/hangar.mjs --out /abs/dir [--dry] [--hero <ref>] [--guard <ref>] [--vault …] [--roll …]
- *     [--climb …] [--crouch a,b] [--prone a,b] [--capture] [--siege-page level-1-siege.html]
+ *     [--climb …] [--crouch a,b] [--prone a,b] [--capture] [--siege-page boss-siege-walker.html]
  */
 import { register } from 'node:module';
 import fs from 'node:fs/promises';
@@ -113,8 +113,8 @@ const mission = {
   // (the lobby's door: out to the yard, where the mission ends; a body that came in by it stands in the lobby)
   exits: [{ id: 'lobby-door', name: 'Out to the yard', at: r2(mid(R.lobby, 0, -2.6)), radius: 1.6, to: opt('--yard-page', 'level-1-perimeter.html'), door: 'hangar-bay-1' },
     // (the hall's doors, out the back onto the test apron, once the proof of the siege walker is held: it is awake, and
-    // the fight with it is there, boss.mjs)
-    { id: 'apron-door', name: 'Out the back, onto the apron: the walker is awake', at: r2([H.max[0] - 1.6, (H.min[1] + H.max[1]) / 2, H.min[2]]), radius: 2.2, needs: { items: ['intel-siege'] }, to: opt('--siege-page', 'level-1-siege.html'), door: 'hangar-back' }],
+    // the fight with it is there: boss.mjs --boss siege-walker)
+    { id: 'apron-door', name: 'Out the back, onto the apron: the walker is awake', at: r2([H.max[0] - 1.6, (H.min[1] + H.max[1]) / 2, H.min[2]]), radius: 2.2, needs: { items: ['intel-siege'] }, to: opt('--siege-page', 'boss-siege-walker.html'), door: 'hangar-back' }],
   arrivals: { 'lobby-door': { at: start0, heading: Math.PI / 2 } },
   leave: M.result.when,
   unsure: 'something in this hangar does not add up: look around',

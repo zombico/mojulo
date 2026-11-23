@@ -23,6 +23,23 @@
  *                 a weak spot takes the hit `mult` times, a part `shown` only in its state. Its state moves on when its
  *                 parts are broken (`broken`, all or `any`), its run is flown (`flown`), or after its seconds (`after`)
  *
+ *   a mecha     a vehicle of the mecha shelf (`frame`: boss/vehicles.js) has its figure played by its state: its form
+ *               (`form`: 'tank' its wheels), a state's own `clip` through the state (its reload `loops` times, its fold
+ *               once), its walk and its drive by the ground they cover (`stride`). A part reached only `from` where it
+ *               faces (`behind`, or its own `side`) counts what lands from there; a round on it is judged along the shot's
+ *               line through its boxes. A state's seconds `slower` for each of its `slower.parts` broken (its reload)
+ *   a carrier   (rule.boss.carrier, boss/vehicles.js) fights through what it carries: its GUNNERS (bodies of their own,
+ *               `rule.bossCrew`, carried at their places) each lay a burst on the pilot in its arc and in sight (cover
+ *               as a burst's: the line from the gun to the chest and the head), or on a hacked drone near it; a gunner is
+ *               a person, down for good once killed or knocked out. Its DRONES (`rule.bossDrone`) are endless, launched
+ *               from its bays, shot down and reprinted: a hunter patrols round it and drops a grenade on a pilot it sees
+ *               (a disc marked from above: a roof is cover); a courier laps round it and goes home. The RF gun (a slot
+ *               whose weapon says `jam`) held on a courier hacks it: it fetches the nearest of the carrier's `packages`,
+ *               carries it home to a door whose gunner is down (else the nearer) and goes off inside: an explosive hit on
+ *               the part there (its hangar). From the delivery after `chase.after`, its hunters chase a hacked courier
+ *               and shoot it; shot down, its package is lost and comes back after `restock` s. state.bossFx { tracers }
+ *               and state.bosses[id].carrier (its gunners, its drones, its deliveries, the hack) are the page's
+ *
  * HAZARDS: each move laid (boss/patterns.js, through E.layPattern) into state.bossHazards; every step each live hazard
  * lands on the bodies of another team inside it, once each, unless the body is invincible (a dive through it), crouched
  * or lying under a `low` one, or behind cover from its origin (a `cover` one: sightBlocked). A hazard that `track`s is
@@ -149,28 +166,61 @@ export function buildBoss(E) {
   // VEHICLES: where a hit landed, in the vehicle's own frame, and the part it lands on (the box it is in, else the nearest)
   const local = (e, q) => { const p = e.transform.pos, h = e.transform.heading || 0, dx = q[0] - p[0], dy = q[1] - p[1]; return [dx * Math.cos(h) + dy * Math.sin(h), -dx * Math.sin(h) + dy * Math.cos(h), q[2] - p[2]]; };
   const boxGap = (b, q) => Math.hypot(Math.max(b[0][0] - q[0], 0, q[0] - b[1][0]), Math.max(b[0][1] - q[1], 0, q[1] - b[1][1]), Math.max(b[0][2] - q[2], 0, q[2] - b[1][2]));
+  // (a part `from` where it faces: behind the vehicle, or off its own side, within its arc)
+  function faces(e, p, src) {
+    if (!p.from || !src) return true;
+    const L = local(e, src), arc = ((p.arc ?? 70) * Math.PI) / 180;
+    if (p.from === 'behind') return Math.abs(Math.atan2(L[1], -L[0])) <= arc;
+    const sg = p.side === 'right' ? -1 : 1;
+    return Math.abs(Math.atan2(L[0], sg * L[1])) <= arc;
+  }
   function partHitV(B, S, part, kind) {
     const p = B.parts[part];
     if (!p || S.broken[part] || !p.takes.includes(kind)) return null;
     if (p.behind && !S.broken[p.behind]) return null;
-    if (p.shown && p.shown !== S.state) return null;
+    if (p.shown && ![].concat(p.shown).includes(S.state)) return null;
     return p;
   }
-  function judge(state, e, S, kind, q, dmg) {
+  // (where a shot's line enters a part's box, as a share of its length, in the vehicle's frame; null where it misses)
+  function rayBox(a, b, box) {
+    let t0 = 0, t1 = 1;
+    for (let k = 0; k < 3; k++) {
+      const d = b[k] - a[k];
+      if (Math.abs(d) < 1e-9) { if (a[k] < box[0][k] || a[k] > box[1][k]) return null; continue; }
+      let u = (box[0][k] - a[k]) / d, v = (box[1][k] - a[k]) / d;
+      if (u > v) { const w = u; u = v; v = w; }
+      t0 = Math.max(t0, u); t1 = Math.min(t1, v);
+      if (t0 > t1) return null;
+    }
+    return t0;
+  }
+  function judge(state, e, S, kind, q, dmg, src) {
     const B = e.rule.boss, L = local(e, q);
+    // (a mecha's round: judged along the shot's line through its parts' boxes, the first it enters that takes it from
+    // where it was fired: a tall machine's parts lie inside the shape a round first meets)
+    if (kind === 'round' && B.frame && src) {
+      const a = local(e, src), far = [q[0] + (q[0] - src[0]) * 2, q[1] + (q[1] - src[1]) * 2, q[2] + (q[2] - src[2]) * 2], b = local(e, far);
+      const hit = Object.keys(B.parts).map((id) => ({ id, p: partHitV(B, S, id, kind), t: rayBox(a, b, B.parts[id].box) })).filter((x) => x.p && x.t != null && faces(e, x.p, src)).sort((x, y) => x.t - y.t)[0];
+      if (hit) { count(state, e, S, hit.id, hit.p, q, dmg); return; }
+    }
     // (the part it lands on that takes it: of the parts it could take it, the nearest to where it landed, within reach)
     // (on a tie, the smaller part: a grille in the hull's face takes the hit, not the hull)
     const vol = (b) => (b[1][0] - b[0][0]) * (b[1][1] - b[0][1]) * (b[1][2] - b[0][2]);
-    const cand = Object.keys(B.parts).map((id) => ({ id, p: partHitV(B, S, id, kind), d: boxGap(B.parts[id].box, L), v: vol(B.parts[id].box) })).filter((x) => x.p && x.d <= (kind === 'round' ? 0.6 : 2.2)).sort((a, b) => a.d - b.d || a.v - b.v);
+    const cand = Object.keys(B.parts).map((id) => ({ id, p: partHitV(B, S, id, kind), d: boxGap(B.parts[id].box, L), v: vol(B.parts[id].box) })).filter((x) => x.p && x.d <= (kind === 'round' ? 0.6 : 2.2) && faces(e, x.p, src || q)).sort((a, b) => a.d - b.d || a.v - b.v);
     const c = cand[0];
     if (!c) return;
-    if (c.p.hits > 0) { S.hits[c.id] = (S.hits[c.id] || 0) + 1; if (S.hits[c.id] >= c.p.hits) { S.broken[c.id] = true; if (state.bursts) state.bursts.push({ seq: state.burstSeq++, pos: q.slice(), t: state.time, radius: 2.2 }); } }
-    if (c.p.weak) e.body.hp = Math.max(0, e.body.hp - dmg * (c.p.mult ?? 1));
+    count(state, e, S, c.id, c.p, q, dmg);
+  }
+  function count(state, e, S, id, p, q, dmg) {
+    if (p.hits > 0) { S.hits[id] = (S.hits[id] || 0) + 1; if (S.hits[id] >= p.hits) { S.broken[id] = true; if (state.bursts) state.bursts.push({ seq: state.burstSeq++, pos: q.slice(), t: state.time, radius: 2.2 }); } }
+    if (p.weak) e.body.hp = Math.max(0, e.body.hp - dmg * (p.mult ?? 1));
+    S.lastPart = { id, t: state.time };
   }
 
   // a hit of `kind` (round | explosive | mine) landing at a point on a vehicle boss, judged by part (as the step judges
   // what hit it): for a module that lands one of its own, and for a test
-  E.bossHit = (state, e, kind, at, dmg) => { if (e && e.bossS && e.rule && e.rule.boss && e.rule.boss.kind === 'vehicle') judge(state, e, e.bossS, kind, at, dmg || 0); };
+  // (`from`: where it was fired from, for a part reached only from where it faces)
+  E.bossHit = (state, e, kind, at, dmg, from) => { if (e && e.bossS && e.rule && e.rule.boss && e.rule.boss.kind === 'vehicle') judge(state, e, e.bossS, kind, at, dmg || 0, from); };
 
   function driveVehicle(state, e, S, dt) {
     const B = e.rule.boss, st = B.states[S.state] || {}, p = e.transform.pos, t = state.time;
@@ -196,9 +246,248 @@ export function buildBoss(E) {
       e.transform.heading = h0 + Math.sign(dh) * Math.min(Math.abs(dh), (B.turn || 0.8) * dt);
       if (Math.abs(dh) < 0.35) { const d = Math.hypot(dx, dy), s = Math.min(d, speed * dt); p[0] += Math.cos(e.transform.heading) * s; p[1] += Math.sin(e.transform.heading) * s; if (d < 1.2) S.leg = (S.leg + 1) % B.route.length; }
     } else {
+      // (one that holds its ground and its heading, `turn: false`: a carrier whose sides are what a fight goes round)
       const pl = state.pilotId ? state.byId[state.pilotId] : null;
-      if (pl) { const want = Math.atan2(pl.transform.pos[1] - p[1], pl.transform.pos[0] - p[0]), h0 = e.transform.heading || 0, dh = Math.atan2(Math.sin(want - h0), Math.cos(want - h0)); e.transform.heading = h0 + Math.sign(dh) * Math.min(Math.abs(dh), 0.6 * dt); }
+      if (pl && st.turn !== false) { const want = Math.atan2(pl.transform.pos[1] - p[1], pl.transform.pos[0] - p[0]), h0 = e.transform.heading || 0, dh = Math.atan2(Math.sin(want - h0), Math.cos(want - h0)); e.transform.heading = h0 + Math.sign(dh) * Math.min(Math.abs(dh), 0.6 * dt); }
     }
+  }
+
+  // a state's seconds: its own, slower for each of its `slower.parts` broken
+  function afterOf(S, c) { const W = c.slower; if (!W) return c.after; let n = 0; for (const q of W.parts || []) if (S.broken[q]) n++; return c.after * (1 + n * (W.by ?? 1)); }
+
+  // A MECHA'S BODY: its form, its walk or its drive by the ground covered, a state's own clip through it
+  function playFrame(e, S, B, moved) {
+    const st = B.states[S.state] || {}, St = B.stride || {};
+    const nxt = Object.values(st.to || {}).find((c) => c.after); S.stateFor = nxt ? afterOf(S, nxt) : null;
+    e.form = st.form || 'walker';
+    if (st.clip) {
+      const u = S.stateFor ? S.stateT / S.stateFor : 0;
+      e.moving = true; e.locomotion = st.clip; e.gaitPhase = Math.min(0.999, st.loops ? (u * st.loops) % 1 : u);
+      if (st.clip.indexOf('transform:') === 0) e.transformT = e.gaitPhase;
+      return;
+    }
+    e.transformT = null;
+    e.moving = moved > 1e-4; e.locomotion = 'forward';
+    if (e.moving) e.gaitPhase = (e.gaitPhase || 0) + moved / Math.max(0.5, (e.form === 'tank' ? St.tank : St.walker) || 4);
+  }
+
+  // ── A CARRIER ─────────────────────────────────────────────────────────────────────────────────────────────────
+  const onBody = (e, a) => { const p = e.transform.pos, h = e.transform.heading || 0, c = Math.cos(h), s = Math.sin(h); return [p[0] + c * a[0] - s * a[1], p[1] + s * a[0] + c * a[1], p[2] + a[2]]; };
+  const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  const heightOf = (p) => (p.rule && Number.isFinite(p.rule.collideHeight) ? p.rule.collideHeight : 1.7);
+  const hashU = (id, n) => { const str = String(id) + ':' + n; let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
+  const groundAt = (hooks, x, y, z) => { const g = hooks && hooks.ground ? hooks.ground([x, y, z + 3]) : null; return Number.isFinite(g) ? g : z; };
+  // (the share of a body a gun sees: its chest and its head, each a clear line)
+  function openTo(state, from, p) { const q = p.transform.pos, h = heightOf(p); let n = 0; for (const z of [0.55, 0.9]) if (!E.sightBlocked(from, [q[0], q[1], q[2] + h * z], state.colliders)) n++; return n / 2; }
+  function fly(d, to, speed, dt) {
+    const q = d.transform.pos, v = [to[0] - q[0], to[1] - q[1], to[2] - q[2]], L = Math.hypot(v[0], v[1], v[2]), st = Math.min(L, speed * dt);
+    if (L > 1e-6) { for (let k = 0; k < 3; k++) q[k] += (v[k] / L) * st; if (Math.hypot(v[0], v[1]) > 0.05) d.transform.heading = Math.atan2(v[1], v[0]); }
+    return L - st;
+  }
+  const tracer = (state, from, to) => { const F = state.bossFx || (state.bossFx = { tracers: [] }); F.tracers.push({ from: from.slice(), to: to.slice(), t: state.time }); if (F.tracers.length > 40) F.tracers.splice(0, F.tracers.length - 40); };
+  const sayC = (C, state, text, on) => { C.said = { text, t: state.time, on }; };
+  function carrierInit(state, e, S, B) {
+    const K = B.carrier, C = S.carrier = { deliveries: 0, courierT: 0, jam: { id: null, u: 0 }, aim: {}, fire: {}, said: null };
+    C.crew = state.entities.filter((x) => x.rule && x.rule.bossCrew && x.rule.bossCrew.boss === e.id).map((x) => ({ ent: x, cfg: K.crew.find((c) => c.id === x.rule.bossCrew.crew), down: false }));
+    C.drones = state.entities.filter((x) => x.rule && x.rule.bossDrone && x.rule.bossDrone.boss === e.id);
+    C.drones.forEach((d, i) => { d.drone = { role: d.rule.bossDrone.role, bay: K.bays[d.rule.bossDrone.bay % K.bays.length], phase: i * 1.7, st: 'dock', t: 0, reprint: i * 0.6, team0: d.team }; d.gone = true; d.body.hittable = false; d.alarmFound = true; d.hpMax = d.hpMax || d.body.hp; });
+    C.pkgs = Object.fromEntries((K.packages || []).map((k) => [k.id, { id: k.id, at: k.at.slice(), pos: k.at.slice(), carried: null, back: 0 }]));
+  }
+  function carrierFacts(S) {
+    const C = S.carrier;
+    return { deliveries: C.deliveries, jam: { id: C.jam.id, u: Math.round(C.jam.u * 100) / 100, on: !!C.jam.on }, said: C.said,
+      crew: Object.fromEntries(C.crew.map((c) => [c.cfg.id, { up: !c.down, name: c.cfg.name, ent: c.ent.id, aim: C.aim[c.cfg.id] || 0 }])),
+      drones: Object.fromEntries(C.drones.map((d) => [d.id, { role: d.drone.role, st: d.drone.st, hacked: !!d.drone.hacked, chase: !!d.drone.chase, pkg: d.drone.pkg }])),
+      packages: Object.fromEntries(Object.values(C.pkgs).map((k) => [k.id, { at: k.pos, carried: k.carried, ready: !k.carried && state0T(k) }])) };
+  }
+  let nowT = 0;
+  const state0T = (k) => nowT >= k.back;
+  // its gunners carried and firing
+  function placeCrew(e, C) {
+    for (const c of C.crew) {
+      const B = c.ent, at = onBody(e, c.cfg.at);
+      B.transform.pos[0] = at[0]; B.transform.pos[1] = at[1]; B.transform.pos[2] = at[2]; B.vel = [0, 0, 0];
+      if (!B.ko && !c.down) B.transform.heading = wrapA((e.transform.heading || 0) + ((c.cfg.face || 0) * Math.PI) / 180 + (C.aim[c.cfg.id] || 0));
+    }
+  }
+  function stepCrew(state, e, S, K, C, p, dt) {
+    const F = K.fire || {}, t = state.time, hacked = C.drones.find((d) => d.drone.hacked && !d.gone);
+    for (const c of C.crew) {
+      const B = c.ent;
+      if (!c.down && (B.ko || B.downed || (Number.isFinite(B.body.hp) && B.body.hp <= 0))) { c.down = true; sayC(C, state, `${c.cfg.name} is down: that side is open`, 'boss:crew'); }
+      if (c.down) { B.aiFire = 0; continue; }
+      const gun = [B.transform.pos[0], B.transform.pos[1], B.transform.pos[2] + 1.4], face = (e.transform.heading || 0) + ((c.cfg.face || 0) * Math.PI) / 180, arc = ((c.cfg.arc ?? 70) * Math.PI) / 180, range = F.range ?? 45;
+      const sees = (q) => Math.abs(wrapA(Math.atan2(q[1] - gun[1], q[0] - gun[0]) - face)) <= arc && dist3(gun, q) <= range && !E.sightBlocked(gun, q, state.colliders);
+      const tgtD = hacked && dist3(gun, hacked.transform.pos) < range * 0.6 && sees(hacked.transform.pos) ? hacked : null;
+      const chest = p ? [p.transform.pos[0], p.transform.pos[1], p.transform.pos[2] + heightOf(p) * 0.6] : null;
+      const tgt = tgtD ? tgtD.transform.pos : chest && sees(chest) ? chest : null;
+      const R = C.fire[c.cfg.id] || (C.fire[c.cfg.id] = { lay: 0, cool: 0 });
+      R.cool = Math.max(0, R.cool - dt);
+      if (!tgt) { R.lay = Math.max(0, R.lay - dt); B.aiFire = 0; continue; }
+      C.aim[c.cfg.id] = wrapA(Math.atan2(tgt[1] - gun[1], tgt[0] - gun[0]) - face);
+      R.lay += dt; B.aiFire = 1;
+      if (R.lay < (F.lay ?? 1.2) || R.cool > 0) continue;
+      R.cool = F.every ?? 3; R.lay = 0;
+      for (let k = 0; k < (F.burst ?? 4); k++) { const j = (hashU(c.cfg.id, Math.floor(t * 10) + k) - 0.5) * 1.6; tracer(state, gun, [tgt[0] + j, tgt[1] - j, tgt[2] + j * 0.4]); }
+      B.lastShot = { mode: 'core', t, from: gun, to: tgt.slice() };
+      if (tgtD) { tgtD.body.hp = Math.max(0, tgtD.body.hp - (F.harm ?? 0.1) * 150); tgtD.hitFlash = t; }
+      else if (p && alive(p)) {
+        const dmg = (F.harm ?? 0.1) * (p.hpMax || 100) * openTo(state, gun, p);
+        if (dmg > 0.5) { p.body.hp = Math.max(0, p.body.hp - dmg); p.hitFlash = t; p.lastHitBy = B.id; p.lastHitDmg = dmg; C.pilotHurtT = t; }
+      }
+    }
+  }
+  // its drones
+  function dock(e, C, d, down) {
+    const D = d.drone;
+    D.st = 'dock'; D.t = 0; D.hacked = false; D.pkg = null; D.chase = false; D.out = false; D.inbound = false;
+    d.gone = true; d.body.hittable = false; d.team = D.team0; d.downed = false; d.ko = null; d.held = false;
+    if (down) D.reprint = C.K.drones.reprint ?? 20;
+    d.transform.pos = onBody(e, D.bay);
+  }
+  function launchDrone(e, d) {
+    const D = d.drone;
+    D.st = 'launch'; D.t = 0; D.out = true; D.reprint = 0;
+    d.gone = false; d.downed = false; d.body.hp = d.hpMax; d.body.hittable = true;
+    d.transform.pos = onBody(e, D.bay);
+  }
+  function shotDown(state, e, S, d) {
+    const C = S.carrier, D = d.drone;
+    if (D.pkg) { const K = C.pkgs[D.pkg]; if (K) { K.carried = null; K.back = state.time + (C.K.restock ?? 8); } }
+    if (D.hacked) sayC(C, state, 'the hacked drone is down: its package is lost. Wait for another courier', 'boss:hack-lost');
+    D.st = 'fall'; D.t = 0; D.vz = 0; d.body.hittable = false; D.hacked = false; D.chase = false; D.pkg = null;
+    if (state.bursts) state.bursts.push({ seq: state.burstSeq++, pos: d.transform.pos.slice(), t: state.time, radius: 1.2 });
+  }
+  function stepHack(state, e, S, K, C, p, input, dt) {
+    const H = K.hack || {}, t = state.time;
+    const lo = p && Array.isArray(p.rule.loadout) ? p.rule.loadout[p.loadoutIdx || 0] : null, rf = !!(lo && lo.weapon && lo.weapon.jam) && !!p.weapon;
+    const L = p && p.lastShot, onIt = rf && input && input.fire && L && t - L.t < (H.slip ?? 0.3) ? state.byId[L.targetId] : null;
+    const tg = onIt && onIt.drone && onIt.drone.out && !onIt.drone.hacked && onIt.drone.st !== 'fall' ? onIt : null;
+    if (tg && tg.drone.role === 'courier') {
+      if (C.jam.id !== tg.id) C.jam = { id: tg.id, u: 0 };
+      const shaken = C.pilotHurtT != null && t - C.pilotHurtT < 0.5;
+      C.jam.u = Math.min(1, C.jam.u + (shaken ? -dt * 0.5 : dt / (H.secs ?? 2))); C.jam.on = true;
+      if (C.jam.u >= 1) {
+        const D = tg.drone; D.hacked = true; D.st = 'fetch'; D.t = 0; D.pkg = null; D.inbound = false; tg.team = p.team || 'hero'; tg.body.hittable = false;
+        C.jam = { id: null, u: 0 }; C.chaseSaid = false;
+        sayC(C, state, C.deliveries >= ((K.drones.chase || {}).after ?? 1) ? 'hacked: it goes for a package. Keep its chasers off it' : 'hacked: it goes for a package, then home "for repair"', 'boss:hack');
+      }
+      return;
+    }
+    C.jam.on = false; C.jam.u = Math.max(0, C.jam.u - dt * (H.decay ?? 0.3));
+    if (tg && (!C.said || C.said.on !== 'boss:hardened' || t - C.said.t > 4)) sayC(C, state, 'its link is hardened: only a courier (green light) can be jammed', 'boss:hardened');
+  }
+  function stepHacked(state, e, S, K, C, d, dt) {
+    const D = d.drone, t = state.time, speed = (K.drones.courier.speed ?? 6) * 1.2, alt = e.transform.pos[2] + (K.drones.alt ?? 7);
+    if (D.st === 'fetch') {
+      let P = D.pkg ? C.pkgs[D.pkg] : null;
+      if (!P) { let best = Infinity; for (const k in C.pkgs) { const x = C.pkgs[k]; if (x.carried || t < x.back) continue; const dd = dist3(x.at, d.transform.pos); if (dd < best) { best = dd; P = x; } } if (P) D.pkg = P.id; }
+      if (!P) { fly(d, [d.transform.pos[0], d.transform.pos[1], alt], speed, dt); return; }
+      if (Math.hypot(P.at[0] - d.transform.pos[0], P.at[1] - d.transform.pos[1]) > 1) fly(d, [P.at[0], P.at[1], alt], speed, dt);
+      else if (fly(d, [P.at[0], P.at[1], P.at[2] + 1.3], speed * 0.4, dt) < 0.2) { D.st = 'pick'; D.t = 0; }
+      return;
+    }
+    if (D.st === 'pick') {
+      if (D.t >= 1.4) {
+        C.pkgs[D.pkg].carried = d.id; D.st = 'carry'; D.t = 0; sayC(C, state, 'it has the package: it goes home for repair', 'boss:carry');
+        const open = Object.keys(K.doors).filter((sd) => !C.crew.some((c) => c.cfg.door === sd && !c.down)), doors = open.length ? open : Object.keys(K.doors);
+        D.door = doors.reduce((a, b) => (dist3(onBody(e, K.doors[a]), d.transform.pos) <= dist3(onBody(e, K.doors[b]), d.transform.pos) ? a : b));
+      }
+      return;
+    }
+    if (D.st === 'carry') {
+      const dr = K.doors[D.door], at = onBody(e, dr), out = onBody(e, [dr[0], dr[1] + Math.sign(dr[1] || 1) * 7, dr[2]]);
+      if (!D.inbound) { if (fly(d, [out[0], out[1], Math.max(at[2], alt - 1)], speed, dt) < 0.8) D.inbound = true; }
+      else if (fly(d, at, speed * 0.7, dt) < 0.4) {
+        // IN THE DOOR: it goes off, an explosive hit on what is there
+        const P = C.pkgs[D.pkg]; if (P) { P.carried = null; P.back = t + (K.restock ?? 8); }
+        C.deliveries++;
+        if (state.bursts) state.bursts.push({ seq: state.burstSeq++, pos: at.slice(), t, radius: (K.delivery || {}).r ?? 4 });
+        judge(state, e, S, 'explosive', at, (K.delivery || {}).harm ?? 110, at);
+        sayC(C, state, `delivered: it went off in its hangar (${C.deliveries})`, 'boss:delivery');
+        dock(e, C, d, true);
+        for (const x of C.drones) x.drone.chase = false;
+      }
+    }
+  }
+  function carrier(state, e, S, B, dt, input, hooks) {
+    const K = B.carrier;
+    if (!S.carrier) carrierInit(state, e, S, B);
+    const C = S.carrier; C.K = K; nowT = state.time;
+    const t = state.time, pilot = state.pilotId ? state.byId[state.pilotId] : null, p = pilot && alive(pilot) ? pilot : null, home = e.transform.pos;
+    placeCrew(e, C);
+    if (!S.down) { stepCrew(state, e, S, K, C, p, dt); stepHack(state, e, S, K, C, p, input, dt); }
+    const D0 = K.drones, Hn = D0.hunter || {}, Q = D0.courier || {}, Ch = D0.chase || {}, alt = home[2] + (D0.alt ?? 7), live = (d) => d.drone.out && d.drone.st !== 'fall';
+    for (const d of C.drones) {
+      // (a dart in a drone does nothing; out of health it falls)
+      if (d.ko || d.koDrowse) { d.ko = null; d.koDrowse = null; d.koStun = 0; d.held = false; if (d.downed && d.body.hp > 0) d.downed = false; }
+      if (live(d) && (d.downed || d.body.hp <= 0)) shotDown(state, e, S, d);
+    }
+    const couriers = C.drones.filter((d) => d.drone.role === 'courier'), hunters = C.drones.filter((d) => d.drone.role === 'hunter');
+    if (!S.down) {
+      C.courierT += dt;
+      if (!couriers.some(live) && C.courierT >= (Q.every ?? 12)) { const d = couriers.find((x) => x.drone.st === 'dock' && x.drone.reprint <= 0); if (d) { launchDrone(e, d); C.courierT = 0; sayC(C, state, 'a courier is out: its link is weak. Hold the RF gun on it', 'boss:courier'); } }
+      for (const d of hunters) if (d.drone.st === 'dock' && d.drone.reprint <= 0 && hunters.filter(live).length < (Hn.most ?? 2)) launchDrone(e, d);
+    }
+    const hacked = couriers.find((d) => d.drone.hacked && live(d));
+    if (hacked && C.deliveries >= (Ch.after ?? 1)) {
+      let n = hunters.filter((d) => live(d) && d.drone.chase).length;
+      for (const d of hunters) if (n < (Ch.most ?? 2) && live(d) && !d.drone.chase) { d.drone.chase = true; n++; if (!C.chaseSaid) { C.chaseSaid = true; sayC(C, state, 'its drones are after the hacked one: shoot them off it', 'boss:chase'); } }
+      if (n < (Ch.most ?? 2)) { const d = hunters.find((x) => x.drone.st === 'dock' && x.drone.reprint <= 0); if (d) { launchDrone(e, d); d.drone.chase = true; } }
+    }
+    const speed = D0.speed ?? 8;
+    for (const d of C.drones) {
+      const D = d.drone; D.t += dt;
+      if (D.st === 'dock') { D.reprint = Math.max(0, (D.reprint || 0) - dt); d.transform.pos = onBody(e, D.bay); continue; }
+      if (D.st === 'fall') {
+        D.vz = (D.vz || 0) - 9.81 * dt; d.transform.pos[2] += D.vz * dt;
+        const g = groundAt(hooks, d.transform.pos[0], d.transform.pos[1], 0);
+        if (d.transform.pos[2] <= g + 0.1) { d.transform.pos[2] = g + 0.1; if (D.t > 1.5) dock(e, C, d, true); }
+        continue;
+      }
+      if (S.down) continue;
+      if (D.st === 'launch') {
+        const b = onBody(e, D.bay), out = [b[0] + (b[0] - home[0]) * 0.6, b[1] + (b[1] - home[1]) * 0.6, alt];
+        if (fly(d, out, speed * 0.7, dt) < 0.5) { D.st = D.role === 'courier' ? 'lap' : 'patrol'; D.t = 0; }
+        continue;
+      }
+      if (D.role === 'courier' && D.hacked) { stepHacked(state, e, S, K, C, d, dt); continue; }
+      if (D.role === 'courier') {
+        if (D.st === 'lap') {
+          const r = Q.orbit ?? 15, a = D.phase + t * (Q.speed ?? 6) / r;
+          fly(d, [home[0] + Math.cos(a) * r, home[1] + Math.sin(a) * r, alt - 1], (Q.speed ?? 6) * 1.4, dt);
+          if (D.t >= (Q.stay ?? 40)) { D.st = 'home'; D.t = 0; }
+        } else if (D.st === 'home' && fly(d, onBody(e, D.bay), Q.speed ?? 6, dt) < 0.4) dock(e, C, d, false);
+        continue;
+      }
+      // A HUNTER: its chase, its drop, its patrol
+      if (D.chase && hacked) {
+        const q = hacked.transform.pos, h = hacked.transform.heading;
+        fly(d, [q[0] - Math.cos(h + D.phase * 0.3) * 6, q[1] - Math.sin(h + D.phase * 0.3) * 6, q[2] + 1], speed * 1.1, dt);
+        D.cool = Math.max(0, (D.cool || 0) - dt);
+        if (D.cool <= 0 && dist3(d.transform.pos, q) < (Ch.range ?? 16) && !E.sightBlocked(d.transform.pos, q, state.colliders)) { D.cool = Ch.every ?? 1.8; hacked.body.hp = Math.max(0, hacked.body.hp - (Ch.hurt ?? 12)); hacked.hitFlash = t; tracer(state, d.transform.pos, q); }
+        continue;
+      }
+      if (D.chase) D.chase = false;
+      const Dr = Hn.drop || {};
+      D.dropCool = Math.max(0, (D.dropCool == null ? (Dr.every ?? 9) * 0.5 : D.dropCool) - dt);
+      const q = p ? p.transform.pos : null, chest = q ? [q[0], q[1], q[2] + heightOf(p) * 0.7] : null;
+      const sees = chest && Math.hypot(chest[0] - d.transform.pos[0], chest[1] - d.transform.pos[1]) < (Hn.see ?? 24) && !E.sightBlocked(d.transform.pos, chest, state.colliders);
+      if (sees && D.dropCool <= 0) {
+        if (fly(d, [q[0], q[1], q[2] + (D0.alt ?? 7)], speed, dt) < 1.5) {
+          // (a grenade let go over the pilot: its disc marked from the drone's drop, a roof between them cover)
+          D.dropCool = Dr.every ?? 9;
+          const mark = Dr.mark ?? 1.3;
+          state.bossHazards.push({ shape: 'disc', c: [q[0], q[1]], r: Dr.r ?? 3, z: q[2], t0: t + mark, t1: t + mark + 0.35, tm: t, harm: Dr.harm ?? 0.14, cover: true, o: [d.transform.pos[0], d.transform.pos[1]], id: `${d.id}:drop:${Math.round(t * 100)}`, by: d.id, move: 'drop', colour: (B.look || {}).hazard, tellColour: (B.look || {}).tell });
+          if (!C.dropSaid) { C.dropSaid = true; sayC(C, state, 'a drone over you drops a grenade: out of its mark, or under a roof', 'boss:drop'); }
+        }
+        continue;
+      }
+      const r = D0.orbit ?? 20, a = D.phase - t * speed / r * 0.5;
+      fly(d, [home[0] + Math.cos(a) * r, home[1] + Math.sin(a) * r, alt + (D.phase % 2)], speed * 0.6, dt);
+    }
+    for (const k in C.pkgs) { const P = C.pkgs[k]; if (P.carried) { const d = state.byId[P.carried]; if (d) P.pos = [d.transform.pos[0], d.transform.pos[1], d.transform.pos[2] - 0.6]; } else P.pos = P.at.slice(); }
   }
 
   E.createWorld = (function (make) {
@@ -225,13 +514,18 @@ export function buildBoss(E) {
         if (C && !(e.bossS.reel != null && t0 < e.bossS.reel)) e.transform.heading = vents ? C.aim + Math.PI : C.aim;
       }
     }
+    for (const e of state.entities) if (e.bossS && e.bossS.carrier) placeCrew(e, e.bossS.carrier);
     let out;
     try { out = step(state, input, dt, hooks); } finally { for (const [e, ty] of held) e.rule.type = ty; }
     const t = state.time, pilot = state.pilotId ? state.byId[state.pilotId] : null, quiet = E.ghostOn ? E.ghostOn(pilot) : false;
     for (const e of state.entities) {
       const B = e.rule && e.rule.boss, S = e.bossS;
       if (!B || !S) continue;
-      if (!alive(e)) { if (!S.down) { S.down = true; e.downed = true; if (state.bursts && B.kind === 'vehicle') state.bursts.push({ seq: state.burstSeq++, pos: e.transform.pos.slice(), t, radius: 6 }); } state.bosses[e.id] = { name: B.name, down: true }; continue; }
+      if (!alive(e)) {
+        if (!S.down) { S.down = true; e.downed = true; if (state.bursts && B.kind === 'vehicle') state.bursts.push({ seq: state.burstSeq++, pos: e.transform.pos.slice(), t, radius: 6 }); if (S.carrier) for (const d of S.carrier.drones) if (d.drone.out && d.drone.st !== 'fall') shotDown(state, e, S, d); }
+        if (S.carrier) carrier(state, e, S, B, dt, input, hooks);
+        state.bosses[e.id] = { name: B.name, down: true, ...(S.carrier ? { carrier: carrierFacts(S) } : {}) }; continue;
+      }
       const H0 = hp0.get(e);
       if (B.kind === 'human') {
         // the phase its mind is in (mind.js crosses them); a crossing runs the phase's event
@@ -252,19 +546,22 @@ export function buildBoss(E) {
         if (e.body.hp < H0) {
           const lost = H0 - e.body.hp; e.body.hp = H0;
           const causes = [];
-          for (const s of state.entities) if (s.lastShot && s.lastShot.targetId === e.id && s.lastShot.t === t0 && s.lastShot.to) causes.push(['round', s.lastShot.to]);
-          for (const b of state.bursts || []) if (b.t === t0 && !b.effect && Math.hypot(b.pos[0] - e.transform.pos[0], b.pos[1] - e.transform.pos[1]) < Math.max(...B.size) + (b.radius || 0)) causes.push(['explosive', b.pos]);
-          for (const [kind, q] of causes) judge(state, e, S, kind, q, lost / causes.length);
+          for (const s of state.entities) if (s.lastShot && s.lastShot.targetId === e.id && s.lastShot.t === t0 && s.lastShot.to) causes.push(['round', s.lastShot.to, s.lastShot.from || s.transform.pos]);
+          for (const b of state.bursts || []) if (b.t === t0 && !b.effect && Math.hypot(b.pos[0] - e.transform.pos[0], b.pos[1] - e.transform.pos[1]) < Math.max(...B.size) + (b.radius || 0)) causes.push(['explosive', b.pos, b.pos]);
+          for (const [kind, q, src] of causes) judge(state, e, S, kind, q, lost / causes.length, src);
         }
         for (const m of state.mineBlasts || []) if (m.by === e.id && m.t === t0) judge(state, e, S, 'mine', m.at, 0);
         // its state moves on: parts broken, a run flown, seconds out
         const st = B.states[S.state] || {};
         S.stateT += dt;
         for (const [to, c] of Object.entries(st.to || {})) {
-          const go = c.broken ? (c.any ? c.broken.some((q) => S.broken[q]) : c.broken.every((q) => S.broken[q])) : c.flown ? !!S.flown : c.after ? S.stateT >= c.after : false;
+          const go = c.broken ? (c.any ? c.broken.some((q) => S.broken[q]) : c.broken.every((q) => S.broken[q])) : c.flown ? !!S.flown : c.after ? S.stateT >= afterOf(S, c) : false;
           if (go) { S.state = to; S.stateT = 0; S.flown = false; S.cur = null; S.next = t + 1; break; }
         }
+        const p0 = [e.transform.pos[0], e.transform.pos[1]];
         driveVehicle(state, e, S, dt);
+        if (B.frame) playFrame(e, S, B, Math.hypot(e.transform.pos[0] - p0[0], e.transform.pos[1] - p0[1]));
+        if (B.carrier) carrier(state, e, S, B, dt, input, hooks);
       }
       // ITS MOVES: the phase's (or the state's) by weight, at its tempo; none while unseen, none mid-shift
       const table = B.kind === 'human' ? (B.phases[S.phase] || B.phases[0]) : (B.states[S.state] || {});
@@ -281,7 +578,7 @@ export function buildBoss(E) {
         const P = B.moves[h.move], R = E.layPattern(P, ...S.cur.frame(pilot.transform.pos), S.cur.t0)[h.k];
         Object.assign(h, { a: R.a, b: R.b, ...(R.o ? { o: R.o } : {}) });
       }
-      state.bosses[e.id] = { name: B.name, title: B.title || '', ...(B.counters ? { counters: Object.fromEntries(B.counters.map((c) => [c.id, { hits: (S.parts || {})[c.id] || 0, of: c.hits, bare: !!(S.bare || {})[c.id], broken: !!S.broken[c.id], ...(c.kind === 'flash' ? { blind: S.blind != null && t < S.blind } : {}) }])), ...(S.said ? { said: S.said } : {}) } : {}), phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax };
+      state.bosses[e.id] = { name: B.name, title: B.title || '', ...(B.counters ? { counters: Object.fromEntries(B.counters.map((c) => [c.id, { hits: (S.parts || {})[c.id] || 0, of: c.hits, bare: !!(S.bare || {})[c.id], broken: !!S.broken[c.id], ...(c.kind === 'flash' ? { blind: S.blind != null && t < S.blind } : {}) }])), ...(S.said ? { said: S.said } : {}) } : {}), phase: S.phase, phases: (B.phases || []).length, state: S.state, broken: Object.keys(S.broken), open: !!(S.cur && t >= S.cur.openAt && t < S.cur.openEnd), hp: e.body.hp, hpMax: e.hpMax, ...(S.carrier ? { carrier: carrierFacts(S) } : {}), ...(B.states && B.states[S.state] && B.states[S.state].reads ? { reads: B.states[S.state].reads } : {}), ...(S.stateFor ? { left: Math.max(0, S.stateFor - S.stateT) } : {}) };
     }
     // THE HAZARDS LAND: on each body of another team inside one, once a hazard, unless it is through, under or behind cover
     for (const h of state.bossHazards) {
