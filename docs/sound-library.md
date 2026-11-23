@@ -1,8 +1,7 @@
 # The recorded sound library
 
 Mojulo's sounds are synthesized: every one is a recipe of numbers played the same way on every machine. The recorded
-sound library is the one opt-in exception: realistic sound effects recorded with ElevenLabs (made on a paid account,
-distributed with ElevenLabs' written permission, for use inside mojulo's experiences only), installed on a machine
+sound library is the one opt-in exception: realistic sound effects recorded with ElevenLabs, installed on a machine
 that wants them and never part of the npm package. Where it is installed, the SFX shelf's realistic one-shots it
 records play their recordings; where it is not, everything sounds exactly as it did. The code is
 [control/lib/graph/sound-library/](../control/lib/graph/sound-library/).
