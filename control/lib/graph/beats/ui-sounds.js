@@ -23,20 +23,21 @@
  *   vanish    the tick falling, softer;   shuffle  a breath and a run of quick clicks (rows moved past each other)
  *
  *   UI_SOUND_SETS        name → the voice of a set: glass, console, chip, terminal, paper, party, and the heavy ones,
- *                        hydraulic (servos, pneumatics, clamps), clack (hardwood blocks), crypt (stone, iron, a toll; a
+ *                        robot (a cheerful little machine's chirps), hydraulic (servos, pneumatics, clamps), clack (hardwood blocks), crypt (stone, iron, a toll; a
  *                        dungeon door), jackpot (coins, bells, a riser into a boom). A heavy set says some cues in its
  *                        own gestures (`over`), held to the same plan: confirm rises, cancel falls, the cursor quiet
  *   UI_SOUND_CUES        the cue ids a set holds (with the directional ones: move-up, move-down, change-up, change-down)
  *   uiSounds(set, { tonic? })   → { <cue>: [gesture…] }, in a game's key (tonic: semitones from C, −5…+6)
  *   uiSoundOf(effect)    → the cue id an effect plays ({ sound: 'change', step: -1 } → 'change-down')
  *   uiSoundManifest(set) → a beats-sfx manifest of the set (what create_beats mints, what the player fires)
- *   uiSoundAudio(sets?, { tonic? }) → { source, sets, of }: what a mana-ui page or the board plays its sounds with (the
+ *   uiSoundAudio(sets?, { tonic? }) → { source, sets, of, samples? }: what a mana-ui page or the board plays its sounds with (the
  *                        beats kernel's source with only the features the sets need, the sets' cues, and uiSoundOf's
  *                        source); a page that is handed none carries no byte of it
  */
 import { midiOf, nameOf } from './beats-authoring.js';
 import { emitBeatsKernel } from './beats-kernel.js';
 import { beatsFeatures } from './beats-features.js';
+import { recordedUi, sampleSliceBase64 } from '../sound-library/library.js';
 
 // a set's voice: how it says one note (blip), a click with no pitch, a held chime, a breath of noise
 const tone = (note, dur, at, vol, wave, extra = {}) => ({ type: 'tone', note, dur, at, vol, wave, attack: 0.002, release: Math.min(0.08, dur * 0.6), ...extra });
@@ -55,6 +56,8 @@ export const UI_SOUND_SETS = Object.freeze({
   glass: { gain: 0.63, root: 'C5', blip: (n, d, at, v) => [tone(n, d, at, v * 0.6, 'sine'), ring(n, 'glass', d * 2.2, at, v * 0.35)], click: (at, v) => [burst(0.012, at, v * 0.25, { highpass: 5000 })], chime: (n, at, v) => [ring(n, 'glass', 0.9, at, v * 0.5)], breath: (at, v) => [burst(0.12, at, v * 0.2, { filterEnv: { from: 2000, to: 7000, decay: 0.12 } })] },
   // the console RPG's: triangle pips, the cursor a short square tick (the classic window-box menu)
   console: { gain: 0.9, root: 'A4', blip: (n, d, at, v) => [tone(n, d, at, v * 0.5, 'triangle'), tone(n, Math.max(0.01, d * 0.5), at, v * 0.15, 'square')], click: (at, v) => [tone('A6', 0.018, at, v * 0.25, 'square')], chime: (n, at, v) => [ring(n, 'bell', 0.7, at, v * 0.4)], breath: (at, v) => [burst(0.08, at, v * 0.18, { lowpass: 4000 })] },
+  // robot: a cheerful little machine's: square chirps that bend up as they speak, a relay's tick, a two-step beep
+  robot: { gain: 1.2, root: 'D5', blip: (n, d, at, v) => [tone(n, d, at, v * 0.38, 'square', { lowpass: 5200 }), sweep('triangle', n, n, Math.max(0.01, d * 0.6), at, v * 0.18)], click: (at, v) => [tone('D7', 0.014, at, v * 0.22, 'square'), burst(0.006, at, v * 0.2, { highpass: 5000 })], chime: (n, at, v) => [tone(n, 0.12, at, v * 0.32, 'square', { lowpass: 6000 }), tone(n, 0.08, at + 0.07, v * 0.22, 'triangle')], breath: (at, v) => [burst(0.05, at, v * 0.22, { highpass: 3000 })] },
   // chip: square notes, a pitched sweep for the cursor (8-bit)
   chip: { gain: 1.6, root: 'C5', blip: (n, d, at, v) => [sweep('square', n, n, d, at, v * 0.4)], click: (at, v) => [sweep('square', 'C7', 'G6', 0.02, at, v * 0.25)], chime: (n, at, v) => [sweep('square', n, n, 0.12, at, v * 0.35), sweep('square', n, n, 0.05, at + 0.14, v * 0.2)], breath: (at, v) => [burst(0.06, at, v * 0.25, { highpass: 2500 })] },
   // the terminal's: relay clicks and sine beeps, dry
@@ -216,9 +219,24 @@ export function uiSoundManifest(set, opts) {
   return { kind: 'beats-sfx', title: `UI sounds · ${set}`, cues: uiSounds(set, opts) };
 }
 
-/** What a page plays the UI's sounds with: the kernel (only the features the sets need), the sets, and the cue picker. */
+/** A set's cues with the recorded library's over them (sound-library/library.js recordedUi: a card's `ui` cues on its
+ *  `uiSets`), each recording a `sample` gesture over the set's own gestures, its fallback; and the cards it plays. Without
+ *  the library (or a recording for the set), the set's own cues and no card. */
+export function recordedUiSounds(set, { tonic = 0 } = {}) {
+  const base = uiSounds(set, { tonic }), cards = new Set(), cues = {};
+  for (const [id, g] of Object.entries(base)) {
+    const rec = recordedUi(id, { set });
+    if (rec) { cards.add(rec.card); cues[id] = [{ type: 'sample', library: rec.card, dur: rec.dur, fallback: g }]; } else cues[id] = g;
+  }
+  return { cues: cards.size ? cues : base, cards: [...cards].sort() };
+}
+
+/** What a page plays the UI's sounds with: the kernel (only the features the sets need), the sets, and the cue picker;
+ *  and, where the recorded library voices a set's cues, those recordings (`samples`, inlined for the page to decode). */
 export function uiSoundAudio(sets = UI_SOUND_SET_IDS, { tonic = 0 } = {}) {
   for (const s of sets) if (!UI_SOUND_SETS[s]) throw new Error(`ui sound set '${s}' — the sets: ${UI_SOUND_SET_IDS.join(', ')}`);
-  const features = [...new Set(sets.flatMap((s) => beatsFeatures(uiSoundManifest(s, { tonic }))))];
-  return { source: emitBeatsKernel(features), sets: Object.fromEntries(sets.map((s) => [s, uiSounds(s, { tonic })])), of: uiSoundOf.toString() };
+  const heard = Object.fromEntries(sets.map((s) => [s, recordedUiSounds(s, { tonic })])), cards = [...new Set(Object.values(heard).flatMap((h) => h.cards))];
+  const features = [...new Set(sets.flatMap((s) => beatsFeatures({ kind: 'beats-sfx', title: `UI sounds · ${s}`, cues: heard[s].cues })))];
+  const samples = cards.length ? sampleSliceBase64(cards) : null;
+  return { source: emitBeatsKernel(features), sets: Object.fromEntries(sets.map((s) => [s, heard[s].cues])), of: uiSoundOf.toString(), ...(samples ? { samples } : {}) };
 }

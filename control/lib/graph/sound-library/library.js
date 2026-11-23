@@ -16,6 +16,15 @@
  *   `recordedLoop(card)`        a loop card held here (its masters present), or null
  *   `hasFlavor(flavor)`         whether the library holds a card of that FLAVOR (a game's own sounds: a rail's, `flavor`
  *                               on the card), whose recordings voice its rows for a game of that flavor only
+ *   `recordedUi(cue, { set })`  the card that records a menu cue (its `ui`) in one of mana-ui's sound sets (its
+ *                               `uiSets`: the set a page's theme plays, beats/ui-sounds.js), as recordedFor answers;
+ *                               null for none
+ *   `hasUi(set)`                whether the library records any menu cue of that set
+ *   `recordingsTagged(tag)`     the cards whose `tags` name it ('success', 'chime', 'menu'…), sorted: what to reuse
+ *
+ * A card's REUSE (its metadata): `shelf` the row it was made for, `also` more rows it voices (the same takes, the same
+ * flavor), `ui` the menu cues it voices and `uiSets` the mana-ui sound sets it voices them in, `tags` what it is, for
+ * finding it again.
  *   `recordedFor(shelfId, { flavor })`      the card that records a shelf row (its `shelf`), as { card, dur: the longest variant's
  *                               seconds, variants }, or null: no library, no card for the row, or none of its masters here
  *
@@ -66,12 +75,33 @@ function findRecorded(dir, shelfId, flavor) {
   if (!lib) return null;
   for (const name of Object.keys(lib.cards).sort()) {
     const c = lib.cards[name];
-    if (!c || c.shelf !== shelfId || c.role === 'bed' || c.role === 'loop' || (c.flavor || null) !== (flavor || null)) continue;
+    if (!c || (c.shelf !== shelfId && !(c.also || []).includes(shelfId)) || c.role === 'bed' || c.role === 'loop' || (c.flavor || null) !== (flavor || null)) continue;
     const held = (c.variants || []).filter((v) => ID.test(v.id) && existsSync(path.join(dir, 'masters', `${v.id}.wav`)));
     if (!held.length) continue;
     return { card: name, dur: Math.max(...held.map((v) => Number(v.seconds) || 0)), variants: held.length };
   }
   return null;
+}
+
+export function recordedUi(cue, { set = null } = {}) {
+  const lib = set ? readLibrary() : null;
+  if (!lib) return null;
+  const dir = libraryDir();
+  for (const name of Object.keys(lib.cards).sort()) {
+    const c = lib.cards[name];
+    if (!c || !(c.ui || []).includes(cue) || !(c.uiSets || []).includes(set)) continue;
+    const vs = (c.variants || []).filter((v) => ID.test(v.id) && existsSync(path.join(dir, 'masters', `${v.id}.wav`)));
+    if (vs.length) return { card: name, dur: Math.max(...vs.map((v) => Number(v.seconds) || 0)), variants: vs.length };
+  }
+  return null;
+}
+export function hasUi(set) {
+  const lib = set ? readLibrary() : null;
+  return !!lib && Object.values(lib.cards).some((c) => c && (c.ui || []).length && (c.uiSets || []).includes(set));
+}
+export function recordingsTagged(tag) {
+  const lib = readLibrary();
+  return lib ? Object.keys(lib.cards).filter((k) => (lib.cards[k].tags || []).includes(tag)).sort() : [];
 }
 
 const held = (dir, c) => (c.variants || []).filter((v) => ID.test(v.id) && existsSync(path.join(dir, 'masters', `${v.id}.wav`)));

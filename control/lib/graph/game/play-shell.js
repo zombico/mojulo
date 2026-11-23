@@ -125,6 +125,10 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   }
   const ui = manifest.ui || (hasPicks ? {} : null);
   const stageCard = manifest.front && manifest.front.stage && frontStage ? FRONT_CARDS[manifest.front.stage.composition] || null : null;
+  // (the screens in mana-ui, and their sounds where the game's ui names a set the recorded library voices: the sounds are
+  // the page script's, play-shell-mana.js shellManaScript, never the cfg's)
+  const manaAll = ui ? shellManaConfig(ui, { ...(hasPicks ? { picks: true } : {}), ...(stageCard ? { staged: true } : {}) }) : null;
+  const { sounds: manaSounds = null, soundsK = null, soundsOf = null, ...manaRest } = manaAll || {};
   const cfg = {
     manifest,
     levels: levelTable,
@@ -150,7 +154,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     // (a bare HUD look draws no pause button under a mouse: the media a mana-ui shell asks, said only by such a game)
     ...(bareHud && ui ? { bareHud: '(hover:hover) and (pointer:fine)' } : {}),
     // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
-    ...(ui ? { mana: shellManaConfig(ui, { ...(hasPicks ? { picks: true } : {}), ...(stageCard ? { staged: true } : {}) }) } : {}),
+    ...(manaAll ? { mana: manaRest } : {}),
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
@@ -236,7 +240,7 @@ ${bareHud ? '  @media (hover:hover) and (pointer:fine){#pauseBtn{display:none!im
 <script>${front ? `
 const __mojFront = (${playFrontRuntime.toString()});` : ''}${stageCard ? `
 const __mojStage = (${playStageRuntime.toString()});` : ''}${mana ? `
-${shellManaScript()}` : ''}${cine ? `
+${shellManaScript(manaSounds ? { sounds: manaSounds, soundsK, soundsOf } : null)}` : ''}${cine ? `
 const __mojCine = (${playCineRuntime.toString()});` : ''}
 const K = (${buildGameStoreKernel.toString()})();
 const __mojFlowK = (${buildFlowKernel.toString()})();${hasTurns ? `

@@ -31,6 +31,8 @@
  */
 import { DRESS_THEMES, readDress } from './course-dress.js';
 import { THEMES } from '../../mana-ui/theme.js';
+import { menuSoundSet } from '../playscape/ui/interface-look.js';
+import { hasUi } from '../sound-library/library.js';
 import { fighterSpec } from '../versus/versus-sheet.js';
 import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { atlasOf, coreOf } from './megaworld.js';
@@ -203,6 +205,13 @@ const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? aud
 // (a world with a mission level and no `ui` of its own: the mission's look, so the game is on mana-ui end to end, its
 // front and its result as its briefing and its HUD are: mission-mana.js MISSION_LOOK)
 function shellUi(G) {
+  const S = shellUiLook(G);
+  // (and its menus' sound where the recorded library voices that set: the set its rail, its genre or its look asks for,
+  // interface-look.js menuSoundSet; without the library its menus are as they were, silent)
+  const set = S.ui ? menuSoundSet(G, S.ui.theme) : null;
+  return set && hasUi(set) ? { ...S, ui: { ...S.ui, sounds: { set } } } : S;
+}
+function shellUiLook(G) {
   // (a game of obstacle courses says no `ui` and still gets its screens from the game UI runtime, in its course's own
   // look: the dress's `ui`, course-dress.js. A running game's title, pause and result are part of how it reads)
   // (and a game whose every level is a STREET, a beat-em-up's or a run & gun's: the street's own look, brawl-street,

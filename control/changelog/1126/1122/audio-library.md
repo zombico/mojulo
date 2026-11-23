@@ -41,3 +41,10 @@
 - Steel Serpents sounds like itself where the library is installed: an operative's quiet steps on concrete and steel
   catwalks, a vault, a drop and a roll, a knife and a takedown, keycard doors and security doors, and the guards'
   shouts, grunts and falls; being spotted sounds an alarm stinger and the extraction a success stinger.
+- Game menus have themed sounds where the library is installed: the title, set-up, pause and results screens click,
+  confirm and open in the game's own voice. Fallen Angel's are gothic (bells, iron and heavy doors in a high stone
+  echo), Galaxy Boy's a cheerful little robot's, Steel Serpents' subtle, app-like chimes, every other game's light and
+  bouncy. The recordings belong to the game UI's sound sets, so any page drawn in a set (a menu, a preview, the
+  wireframe board) hears them. A new sound set, robot, joins the others.
+- A recording can be reused: one take can voice several sounds and menu cues (Steel Serpents' extraction chime is also
+  its checkpoint and its menus' notification).

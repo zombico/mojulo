@@ -53,6 +53,20 @@ export const INTENT_LOOKS = Object.freeze({
   farming: 'storybook', 'top-down-adventure': 'storybook', 'action-rpg': 'storybook', metroidvania: 'console',
   racing: 'modern', 'athletics-meet': 'modern', 'net-game': 'modern', 'turn-sport': 'modern', 'team-goal-game': 'modern',
 });
+// the MENUS' SOUND (the game UI runtime's sound set, beats/ui-sounds.js) a rail or a genre asks for over its look's: a
+// gothic game's crypt (stone, iron, heavy doors), a robot hero's robot, a stealth game's glass (subtle, app-like); the
+// recorded library pins its menu recordings to these sets (sound-library: a card's `uiSets`)
+export const MENU_SOUNDS = Object.freeze({
+  pole: Object.freeze({ 'fallen-angel': 'crypt', 'galaxy-boy': 'robot', 'steel-serpents': 'glass' }),
+  intent: Object.freeze({ 'stylish-action': 'crypt', metroidvania: 'robot', stealth: 'glass', 'tactical-espionage': 'glass' }),
+});
+/** The sound set a game's menus play: its rail's (its feel's pole), else its genre's, else its look's (`theme`'s sounds). */
+export function menuSoundSet(G, theme) {
+  const F = G && G.feel, pole = typeof F === 'string' ? F : F && typeof F === 'object' ? F.pole : null;
+  const own = (pole && MENU_SOUNDS.pole[pole]) || MENU_SOUNDS.intent[G && G.intent && G.intent.from];
+  if (own) return own;
+  try { return readTheme(theme === undefined ? 'greybox' : theme).sounds; } catch { return null; }
+}
 // looks that keep still on purpose: an anime register does not make them snap
 const CALM = new Set(['grim', 'tactician', 'storybook', 'terminal']);
 

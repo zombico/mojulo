@@ -9,7 +9,7 @@
  */
 
 const FLAVOR = 'steel-serpents';
-const cue = (id, shelf, prompt, seconds) => ({ id, shelf, flavor: FLAVOR, role: 'cue', prompt, seconds, loop: false, takes: 3 });
+const cue = (id, shelf, prompt, seconds, extra = {}) => ({ id, shelf, flavor: FLAVOR, role: 'cue', prompt, seconds, loop: false, takes: 3, ...extra });
 const shot = (id, shelf, prompt, seconds = 0.6, extra = {}) => ({ id, shelf, flavor: FLAVOR, role: 'one-shot', prompt: `${prompt}, a stealth action game sound effect, realistic, clean, no music`, seconds, influence: 0.55, loop: false, takes: 3, ...extra });
 
 export const CARDS = [
@@ -27,7 +27,8 @@ export const CARDS = [
   shot('ss-pickup', 'pickup', 'picking up a keycard, a soft plastic click and a short confirming beep, no voice', 0.6),
   // its cues (stingers): named as sounds only, closely followed
   cue('ss-alert', 'alarm', 'an electronic alarm stinger: three fast rising high-pitched warning beeps over a short tense synth swell, a sharp video game alert sound effect', 1.2),
-  cue('ss-extracted', 'goal', 'an electronic success stinger: two clean ascending synth chimes and a soft resolving synth pad, a video game objective sound effect', 1.5),
+  // (the extraction chime, reused: a checkpoint, a chime of the game's own, and its menus' toast and rare)
+  cue('ss-extracted', 'goal', 'an electronic success stinger: two clean ascending synth chimes and a soft resolving synth pad, a video game objective sound effect', 1.5, { also: ['checkpoint', 'chime'], ui: ['toast', 'rare'], uiSets: ['glass', 'terminal'], tags: ['success', 'chime', 'objective'] }),
   // its guards, where they are drawn as people
   shot('ss-guard-shout', 'attack-shout', 'a soldier\'s sharp short shout as he lunges, a wordless yell', 0.6, { voice: true }),
   shot('ss-guard-hurt', 'hurt-grunt', 'a soldier grunting as he is struck, a short wordless grunt', 0.5, { voice: true }),

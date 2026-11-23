@@ -90,6 +90,18 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   where its foes are drawn as people. Nothing of the rail's code: its flavor answers every word its sheet plays. Being
   spotted and the extraction are its own cues (an alarm stinger, a success stinger), named as sounds only: the first
   takes, asked for over a radio, came back saying words. The sneak goal's patrolling guards have no voice of their own yet.
+- **The menus** (the game UI runtime's cues, `beats/ui-sounds.js`): a recording is PINNED to mana-ui's sound sets (a
+  card's `ui` cues on its `uiSets`), so every page whose theme plays that set hears it over the set's synthesized cue
+  (`uiSoundAudio` carries the recordings as `samples`; the wireframe board and a preview decode them, `samplesScript`).
+  A game's menus (the play shell's title, set-up, pause and result) play the set its rail, its genre or its look names
+  (`menuSoundSet`, `MENU_SOUNDS` in `playscape/ui/interface-look.js`), where the library records that set (the game's
+  `ui.sounds`; without it its menus are silent, as before). The themes: `crypt` gothic (stone, bells, heavy doors, a
+  high echo: Fallen Angel's), `robot` a cheerful machine's (Galaxy Boy's; a new synthesized set beside the others),
+  `glass` and `terminal` subtle app-like chimes (Steel Serpents', its toast the extraction chime), and `console`,
+  `chip`, `paper` and `party` light and bouncy (every other game's).
+- **A recording reused** (its metadata): `also` (more rows the same takes voice: Steel Serpents' extraction chime is
+  its checkpoint and its chime too), `ui` and `uiSets` (the menu cues and sets it voices), `tags` (what it is, for
+  finding it again: `recordingsTagged('success')`).
 - Not yet: the beds (the library's ambience loops), the traffic heard by its own engines, the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
