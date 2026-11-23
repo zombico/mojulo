@@ -1,6 +1,13 @@
 {
  "id": "steel-serpents",
  "name": "Steel Serpents",
+ "ui": {
+  "radar": {
+   "shape": "square",
+   "size": "large",
+   "floor": true
+  }
+ },
  "levels": {
   "hangar": {
    "name": "Hangar bay",

@@ -93,6 +93,41 @@ one yard keep their floors.
 A new facility is a row: pick a use whose rooms carry the place (an annex hall is the most to work with), the dials that
 give it loops, a layout for each role that should be ground rather than box, and a construction not yet used next to it.
 
+## Crawl spaces: vents
+
+A building's `vents` (`control/lib/graph/era/vents.js`; `true` or `{ depth?, clear?, rooms? }`) lays a duct along the back
+wall of each row of rooms off a corridor (two rooms side by side or more): through a hole in each wall they share, under
+a lid 0.75 m up that a body lying (0.45 m) passes beneath and one standing does not, with a hatch 1.4 m wide into each
+room. The way in and out of a room is never the corridor, so the guards walking it never see a body in the duct, and
+none of them can follow it in. The stage cuts the holes, builds the ducts' walls and lids as colliders, keeps every piece
+off their floors and hatches, and hands the page their insides as crawl spaces (the same `under` a truck's chassis is).
+A body lying cannot stand up under a lid (headroom, `worlds/controllable/stance.js`), and the route search passes a crawl
+space lying only, so a level's laws count a vent as a way (the holding block's `a-vent-to-the-kit`). A building with
+vents rings its rooms (`fight.rings`) by doorways at the corridor's end and the middle of their shared walls, by turns,
+so the back walls stay the ducts'. Every facility has vents; the maps draw each duct's floor dashed and its hatches as
+bars.
+
+A duct is dark. The room's light reaches every surface of a room alike (its shade level and its lamps' bounce are not
+tested against what stands between), so a duct is lined with its own floor and back plates and what lies inside it
+keeps 0.3 of its baked light, more within 1.4 m of a hatch (`shadeDucts`, `DUCT_DARK`); no lamp is seated on the wall
+over a duct under 2.5 m.
+
+## Seen through: glass and mesh
+
+A wall stops a body and a gaze; glass and mesh stop only the body. They are BARRIERS
+(`control/lib/graph/worlds/controllable/barrier.js`): kept apart from the colliders, so every sight test runs through
+them, and every body standing in one after a step is put back out of it. A round goes through.
+
+- **Inner windows** (`era/inner-windows.js`, a building's `windows`: `true` or `{ sill?, top?, width?, roles? }`): glass
+  between a room and its corridor, beside the doorway, sill to head, cut in both walls and glazed by the kit's own
+  glazing. A guard walking the corridor sees into the office; a body in the office reads the guard's round through it.
+- **Mesh** (the `mesh-panel` piece, `see: true`) and the **cage** layout: a ring of mesh inset from a room's walls, a
+  gate in its long side, its stock in rows inside; each side drawn in until it stands clear of the doorways and the
+  vents' hatches. A guard sees through the cage to the body walking round it to the gate.
+
+A room's laws (`layoutLaws`) and the route search count both as in the way and stopping no gaze. The armoury facility
+is built on them; the research wing's labs and the field HQ's offices are windowed.
+
 ## In the game book: the facility maps
 
 The book of maps a stealth or action game's interiors are read in, `/api/sketches/<ref>/bible?book=facilities`
@@ -100,7 +135,8 @@ The book of maps a stealth or action game's interiors are read in, `/api/sketche
 facilities, each storey from above as a level designer reads it: rooms, doorways (gold), ways out (green), stairs
 (dashed), and every piece coloured by what it hides (red stops a standing gaze, amber hides a crouch, blue hides a body
 lying down). Beside each map are its laid rooms' laws, and for each facility its materials, what a body does there and
-the recipe line that names it. The readout offers it (`design_game`'s exits, `facilities`) to a world with a building
+the recipe line that names it. After the shelf come the rigs, open decks over the sea
+([offshore-rigs.md](offshore-rigs.md)), each deck drawn with its rounds and the rig's laws. The readout offers it (`design_game`'s exits, `facilities`) to a world with a building
 level, a walled-core dungeon, or a rail whose level kinds are interiors. The world's own book draws a level that names a
 facility or layouts the same way. `facilityMapSvg` draws any laid plan; the spike below draws its plans with it.
 
@@ -117,7 +153,6 @@ no guard sees the operative; I toggles it, `--seen` starts seen), so the layout 
 
 ## What is not yet
 
-- No piece is see-through: glass and mesh stop a gaze as a wall does (`sightBlocked` treats every collider as opaque).
-- No crawl space in a building: a duct or a raised floor a body lies flat in is the vehicles' `under` today, not a room's.
+- A crawl space is a duct behind a row of rooms; a raised floor under a room, or a duct over a corridor, is not laid.
 - In-room level changes are the hall's gallery alone; a mezzanine over a room, a pit or a ramp is not a layout.
 - A five-metre room stays a room. Fewer, larger rooms would need a program shape that is not a corridor of bays.

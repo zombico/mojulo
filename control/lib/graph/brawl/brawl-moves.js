@@ -233,6 +233,8 @@ function strongOf(body, F, x) {
   return 'strong';
 }
 function specialOf(body, F, x, z) {
+  // (an earth power's slab standing: S shoves it, brawl-powers.js `wall`)
+  if (body.wl !== undefined && F.moves['wall.push']) return 'wall.push';
   const dir = x && x === body.face ? 'forward' : x ? 'back' : z ? 'down' : 'neutral';
   for (const d of [dir, 'neutral', 'forward', 'back', 'down']) if (F.moves[`special.${d}.M`]) return `special.${d}.M`;
   return null;

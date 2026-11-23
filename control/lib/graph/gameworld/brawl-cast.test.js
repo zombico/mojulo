@@ -226,3 +226,44 @@ describe('a street level on a ground', () => {
     expect(streetLevel({}, { ...words, guns: true }, lay).manifest.brawl.practice.things[0].kind).toBe('cover');
   });
 });
+
+// THE FOE SHELF'S IDIOMS ON A DESIGNED STREET (docs/foes.md, relations and modes): the bestiary's summoner calls its own
+// `summons` entry, a boss's `pair` stands beside it, and each entry it `becomes` is a form it is defeated into; each of
+// them a foe of the bestiary with a body of its own, read by the street's mind
+describe('a designed street plays the bestiary\'s idioms', () => {
+  const I = { foes: {
+    imp: { class: 'walker', skin: { people: 'goblin' } },
+    witch: { class: 'summoner', skin: { people: 'goblin' }, summons: { foe: 'imp', count: 2 } },
+    king: { class: 'brute', rank: 'boss', skin: { people: 'orc' }, becomes: 'kingBare', pair: { foe: 'queen' } },
+    kingBare: { class: 'charger', rank: 'boss', skin: { people: 'orc' } },
+    queen: { class: 'guard', rank: 'boss', skin: { people: 'orc' } },
+  } };
+  const S = brawlStreet(I, { stops: [{ wave: { imp: 2 } }, { wave: { witch: 1, imp: 1 } }], boss: 'king' });
+  it('a summoner plays as the street\'s summoner, calling its own summons entry, bound unless the entry says', () => {
+    expect(BRAWL_PLAYS.summoner).toBe('caster');
+    const caller = S.waves[1].crowd.find((c) => c.foe === 'witch');
+    expect(caller).toMatchObject({ type: 'caster', summons: { foe: 'imp', type: brawlPlay(I.foes.imp), n: 2, bound: true } });
+  });
+  it('a boss\'s pair stands beside it and each entry it becomes is an act\'s form; each is a foe the street draws', () => {
+    const B = S.waves.at(-1).boss;
+    expect(B.pair).toEqual({ foe: 'queen', down: 'enrage' });
+    expect(B.stages.map((st) => st.form?.foe ?? null)).toEqual([null, 'kingBare']);
+    expect(B.stages[1].name).toBeUndefined();
+    for (const id of ['imp', 'witch', 'king', 'kingBare', 'queen']) expect(S.foes).toContain(id);
+  });
+  it('laid as a level, the yard reads every idiom by its bodies, drawn in the order the street makes them', () => {
+    const L = streetLevel(I, { stops: [{ wave: { imp: 2 } }, { wave: { witch: 1, imp: 1 } }], boss: 'king' }, {});
+    const Y = brawlYardData(L.manifest.brawl);
+    const W = Y.street.waves.at(-1);
+    expect(W.boss.pair.recipe).toBeTruthy();
+    expect(W.boss.stages[1].form.archetype).toBeTruthy();
+    // (who each body is drawn as, in the order the street makes them: the summoner, then its pool, three times its
+    // number, each its summons' body; here both drawn as the stand-ins' one roster entry, the wave's plain imp after
+    // them drawn as none)
+    const B = structuredClone(L.manifest.brawl), w1 = B.practice.street.waves[1];
+    w1.crowd = w1.crowd.map((c) => (c.summons ? { ...c, roster: 0, summons: { ...c.summons, roster: 0 } } : c));
+    const cast = brawlYardData(B).street.castAt, at = cast.indexOf(0);
+    expect(cast.slice(at, at + 7)).toEqual(Array(7).fill(0));
+    expect(cast[at + 7]).toBe(null);
+  });
+});

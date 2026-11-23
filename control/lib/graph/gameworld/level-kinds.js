@@ -44,7 +44,7 @@ export const LEVEL_KINDS = Object.freeze({
     row({ id: 'holding', name: 'the holding block', shape: 'cells along a corridor, a desk, the property room, the way out a sally port: captured, the kit taken',
       teaches: ['bare hands: knock out and drag', 'read a routine', 'get the kit back', 'a vent a body lies flat in'],
       pressure: 'a guard on a round past the cells; the desk between the cells and the way out',
-      laws: ['the kit is taken: bare hands until it is found', 'the straight way out is seen', 'a way out unseen exists by the round alone', 'the kit is on a way out, never off every way', 'no way out needs a kill'],
+      laws: ['the kit is taken: bare hands until it is found', 'the straight way out is seen', 'a way out unseen exists by the round alone', 'the kit is on a way out, never off every way', 'a vent runs to the kit out of the corridor', 'no way out needs a kill'],
       status: 'spike', example: 'control/scripts/spikes/mission/holding.json (holding.mjs)' }),
     row({ id: 'gauntlet', name: 'the gauntlet on alert', shape: 'a way out run with the base already hunting: the alarm up at the start',
       teaches: ['the alarm\'s phases', 'break the line and hide until it dies down'],

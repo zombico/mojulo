@@ -17,7 +17,7 @@ describe('design_game: a game scored from its cue sheet', () => {
     let r = await designGameHandler({ world, ref: 'sc', run: true });
     for (let i = 0; i < 6 && r.pending?.length; i++) r = await designGameHandler({ ref: 'sc', run: true });
     const game = SketchRepository.getByRef('sc-game');
-    expect(game.manifest.music).toEqual({ victory: 'sc-cue-victory', defeat: 'sc-cue-defeat' });
+    expect(game.manifest.music).toEqual({ victory: 'sc-cue-victory', defeat: 'sc-cue-defeat', menu: 'sc-cue-menu' });
     const cue = SketchRepository.getByRef('sc-cue-victory');
     expect(cue.manifest).toMatchObject({ kind: 'beats-composition', score: { mood: 'victory' } });
     // one identity: the stinger's and the level's
@@ -25,7 +25,7 @@ describe('design_game: a game scored from its cue sheet', () => {
     expect(level.manifest.audio.soundtrack.score.game).toBe(cue.manifest.score.game);
     const again = await designGameHandler({ ref: 'sc', patch: [{ op: 'set', path: '/music/cues', value: { victory: 'triumph' } }], run: true });
     const did = Object.fromEntries(again.ran.map((x) => [x.key, x.action]));
-    expect(did).toMatchObject({ 'cue-victory': 'remake', 'cue-defeat': 'keep', game: 'keep' });
+    expect(did).toMatchObject({ 'cue-victory': 'remake', 'cue-defeat': 'keep', 'cue-menu': 'keep', game: 'keep' });
     expect(SketchRepository.getByRef('sc-cue-victory').manifest.score.mood).toBe('triumph');
   }, 600000);
 });

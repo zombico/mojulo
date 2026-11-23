@@ -47,6 +47,8 @@ export const isOutfitBuild = (o) => !!(o && typeof o === 'object' && !Array.isAr
 const cardOf = (style) => (typeof style === 'string' ? SEEDED_OUTFITS[style] : style);
 const DIALS = ['stylize', 'fit', 'coverage', 'ornament'];
 
+/** the stocking's yoke: from this `u` of the torso up (a shirt's yoke is 3.2 … 4; a hand lower, so it reaches under the armhole) */
+const STOCKING_YOKE = 2.9;
 /** Validate a build → error strings naming the choices */
 export function validateOutfitBuild(build) {
   if (!isOutfitBuild(build)) return ["outfit: { type: 'outfit', style, dials?, language?, pieces?, intent? }"];
@@ -196,6 +198,15 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
     const fore = sleeve === 'threeQuarter' || sleeve === 'long' ? [0, sleeve === 'long' ? 0.9 : 0.5] : null;
     if (arm) outs.push({ id: 'outerSleeve', part: 'upperArm', run: arm, ease: e, ...(arm[1] < 1 ? { flare: [0, h] } : {}), ...(fore ? {} : { rings: { run: [arm[1] - EDGE.cuff] } }), group: 'Outer' });
     if (fore) outs.push({ id: 'outerCuff', part: 'foreArm', run: fore, ease: e, ...(sleeve === 'long' ? {} : { flare: [0, h * 0.6] }), rings: { run: [fore[1] - EDGE.cuff] }, group: 'Outer' });
+    // a sleeve ROLLED (`cuff: 'rolled'`): its end turned back on itself, a band of the same cloth over the sleeve's last
+    // hand's breadth, a layer out over it (its own piece: the wear lays it over the sleeve) and toned a shade down (Roll)
+    if (outer.cuff === 'rolled' && arm) { const endOn = fore ? 'foreArm' : 'upperArm', end = fore ? fore[1] : arm[1], span = fore ? 0.2 : 0.24;
+      outs.push({ id: 'rollCuff', part: endOn, run: [r6(end - span), end], ease: r6(e * 1.6), rings: { run: [r6(end - span / 2)] }, group: 'Roll' }); }
+    // a STORM FLAP (`stormFlap: true`): a layer of the coat's cloth over its upper back, hung from the yoke across the back
+    // (a cape over an arc of it, the trunk's alone: an arm swings clear) to below the shoulder blades, its hem free and
+    // standing proud, the rest of the coat behind it; toned a shade down (Flap) so its edge reads on the back
+    if (outer.stormFlap) outs.push({ id: 'stormFlap', fit: 'cape', part: ['torso'], from: { part: 'torso', run: 1 }, to: { part: 'torso', u: 2.55 }, around: [100, 260], arms: false,
+      ease: r6(e * 2.2), flare: [0, 0.08], thick: r6(0.005 * k), lie: 0, group: 'Flap' });
     if (outer.collar) outs.push({ id: 'outerCollar', part: 'neck', run: [0, 0.4], ease: e * 1.5, flare: [0, e], rings: { run: [0.3] }, group: 'Outer' });
   }
   // DRAPE PANELS (law 2's other half: the flow is in pieces cut to hang, not in loose tubes): open cloth hung from the
@@ -223,6 +234,10 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
       return f === 'fitted' ? { ...rest, ease: r6(E.ease * 0.45) } : { ...rest, ease: r6(E.ease * 1.5), ...(drape ? { drape: r6(drape * 0.3) } : {}), ...(flare ? { flare: flare.map((x) => r6(x * 1.5)) } : {}) }; }); };
   const tops2 = fitSlot(tops, top?.fit), bottoms2 = skirt ? bottoms : fitSlot(bottoms, bottom?.fit), outs2 = fitSlot(outs, outer?.fit === 'skin' ? 'fitted' : outer?.fit);
   tops.splice(0, tops.length, ...tops2); bottoms.splice(0, bottoms.length, ...bottoms2); outs.splice(0, outs.length, ...outs2);
+  // THE STOCKING (`outer.stocking`): a second skin of the outer layer's own colour under it at the shoulders, the whole
+  // upper arm and the yoke round them, worn over whatever second skin is under it there; so what a bent arm opens under a
+  // coat's shoulder and sleeve shows its own colour, not the top's or the skin
+  if (outer?.stocking) skinPaint.push({ part: ['upperArm'], run: [0, 1], group: 'Outer' }, { part: ['torso'], u: [STOCKING_YOKE, 4.2], group: 'Outer' });
   // GIRTH TARGETS: a slot's `girth` (cm of girth over the body at its landmarks, at scale 1) on each copy piece of it; the
   // kernel finds each landmark on the body's own rings and ignores those a piece's part has not (body-garment.js)
   const withGirth = (list, S) => (S?.girth ? list.map((E) => (E.fit ? E : { ...E, girth: Object.fromEntries(Object.entries(S.girth).map(([w, c]) => [w, r6(c / 100 * k)])) })) : list);
@@ -358,6 +373,8 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   if (top && bottom && T.Top && T.Bottom && Math.abs(lightness(T.Top) - lightness(T.Bottom)) < 12) warnings.push(`value step: Top and Bottom differ by under 12 L* (law 4) — the layers may read as one`);
   if (outer && top && T.Outer && T.Top && Math.abs(lightness(T.Outer) - lightness(T.Top)) < 12) warnings.push(`value step: Outer and Top differ by under 12 L* (law 4) — the layers may read as one`);
   if (outer) tones.Outer = T.Outer ?? shade(T.Top ?? '#888888', 0.62);
+  if (outer?.cuff === 'rolled') tones.Roll = T.Roll ?? shade(tones.Outer, 0.86);
+  if (outer?.stormFlap) tones.Flap = T.Flap ?? shade(tones.Outer, 0.9);
   if (panels.length) tones.Panel = T.Panel ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.7);
   // (a waistcoat the suit's cloth, a three-piece, unless the card names its own)
   if (vests.length) tones.Waistcoat = T.Waistcoat ?? tones.Outer ?? shade(T.Bottom ?? T.Top ?? '#888888', 0.9);
@@ -369,7 +386,7 @@ export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palett
   // (a zip front is no tailored front: no V, no lapels, no buttons; it is the jacket's CONSTRUCTION, below)
   const tailored = outer && worn.has('outer') && ((outer.front !== undefined && outer.front !== 'zip') || outer.lapel !== undefined || outer.buttons !== undefined);
   // the jacket's CONSTRUCTION words, for the realistic body's tailor (body-relational-jacket.js): absent, nothing
-  const built = outer && worn.has('outer') ? { ...(outer.front === 'zip' ? { zip: true } : {}), ...(outer.collar === 'shirt' ? { collar: 'shirt' } : {}), ...(outer.rib ? { rib: outer.rib } : {}), ...(outer.pockets && outer.pockets !== 'none' ? { pockets: outer.pockets } : {}), ...(outer.epaulettes ? { epaulettes: true } : {}), ...(outer.cloth ? { cloth: outer.cloth } : {}) } : {};
+  const built = outer && worn.has('outer') ? { ...(outer.front === 'zip' ? { zip: true } : {}), ...(outer.collar === 'shirt' ? { collar: 'shirt' } : {}), ...(outer.rib ? { rib: outer.rib } : {}), ...(outer.pockets && outer.pockets !== 'none' ? { pockets: outer.pockets } : {}), ...(outer.epaulettes ? { epaulettes: true } : {}), ...(outer.posed && outer.open ? { posed: true } : {}), ...(outer.cloth ? { cloth: outer.cloth } : {}) } : {};
   const jacket = Object.keys(built).length ? { ...built, ...(outer.open ? { open: true } : {}) } : null;
   // (its lapels the jacket's facing: the card's `Lapel` tone, else a shade off the jacket's own)
   // (and a tie on the shirt, the card's `Tie` tone, else a deep red)

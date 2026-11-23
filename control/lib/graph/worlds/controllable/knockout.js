@@ -18,6 +18,8 @@
  *
  * What stuns: a blow of the pilot's (melee: a fist, a knife, a kick) and a round from a loadout slot whose weapon says
  * `stun: true` (the sleep dart, gameworld/arms-kit.js `dart`): what it hurt is given back, and stun taken in its place.
+ * A stun grenade knocks out whoever sees it go off (combat-ranged.js burstProjectile, through E.knockOut); what any other
+ * burst hurts (a frag grenade's, a launcher's) stays a hurt.
  * The pilot's takedown (takedown.js) knocks out at once. Every other round hurts as it always did.
  *
  * A SLEEPER (e.ko { t0, by, how }) is downed (no mind steps it, no gun aims at it), held (its rule never runs), laid on its
@@ -71,7 +73,8 @@ export function buildKnockout(E) {
   }
 
   E.knockOut = function knockOut(state, tg, by, how) {
-    if (!tg || tg.ko || tg.gone) return;
+    // (a boss is never put to sleep: what a stun does to it is its counter's, worlds/controllable/boss.js)
+    if (!tg || tg.ko || tg.gone || (tg.rule && tg.rule.boss)) return;
     tg.ko = { t0: state.time || 0, by: by ? by.id : null, how: how || 'stun' };
     tg.koDrowse = null; tg.downed = true; tg.deadAt = null; tg.moving = false; tg.route = null; tg.aiFire = 0;
     tg.staggerT = null; tg.reactClip = null; tg.downPauseT = null; tg.juggle = null; tg.locomotion = 'idle';
@@ -172,6 +175,9 @@ export function buildKnockout(E) {
       const tg = state.byId[id]; if (!tg || tg.ko || !tg.body) continue;
       const lost = was.hp - tg.body.hp;
       if (!(lost > 1e-9) || tg.lastHitBy !== p.id) continue;
+      // (a burst's hurt, a grenade's or a launcher's, is a hurt: what goes off kills, combat-ranged.js burstHitAt; a stun
+      // grenade knocks out itself)
+      if (tg.burstHitAt != null && tg.burstHitAt >= t0) continue;
       const shot = p.lastShot && p.lastShot.t === t0 && p.lastShot.targetId === id;
       let stun = 0, drowse = 0;
       if (shot) { if (!(SW && SW.stun)) continue; stun = Number.isFinite(tg.lastHitDmg) ? tg.lastHitDmg : lost; drowse = tg.lastHitHead ? K.head : (SW.drowse ?? K.drowse); }

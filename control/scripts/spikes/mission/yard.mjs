@@ -32,6 +32,7 @@ const { readGameworld } = await import('../../../lib/graph/gameworld/index.js');
 const { gameStages } = await import('../../../lib/graph/gameworld/levels.js');
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
 const { emitThreeWorld } = await import('../../../lib/graph/scene/scene-three.js');
+const { RADAR_LOOK } = await import('./lib.mjs');
 const { levelHud } = await import('../../../lib/graph/game/hud-mana.js');
 const M = JSON.parse(fss.readFileSync(path.join(here, 'level1.json'), 'utf8')), W0 = JSON.parse(fss.readFileSync(path.join(here, 'world.json'), 'utf8'));
 const pair = (k) => (opt(k) ? opt(k).split(',') : null);
@@ -145,7 +146,7 @@ if (bounds.length) {
   console.log(`yard: bounds x ${X0.toFixed(1)}..${X1.toFixed(1)}, y ${Y0.toFixed(1)}..${Y1.toFixed(1)}`);
 }
 const { walkers: _w, ...P } = payload;
-const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(opt('--theme', 'field-brief')), inline: true, ...(argv.includes('--capture') ? { capture: true } : {}) });
+const html = emitThreeWorld({ ...P, camera: room.manifest.camera, events: room.manifest.events, walk: false, spin: false, hud: false, manaHud: levelHud(opt('--theme', 'field-brief'), { radar: RADAR_LOOK }), inline: true, ...(argv.includes('--capture') ? { capture: true } : {}) });
 await fs.mkdir(out, { recursive: true });
 const file = path.join(out, 'level-1-perimeter.html');
 await fs.writeFile(file, html);

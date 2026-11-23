@@ -1,76 +1,99 @@
 #!/usr/bin/env node
 /**
- * THE SIEGE WALKER, FOUGHT — level 1's boss (siege.json) as one page: the test apron behind the hangar, its cover (jersey
- * barriers a crouch hides behind, containers a body stands behind, crates), the operative and its kit, and the siege walker
- * from under the hangar as the boss (gameworld/combat/boss-fight.js siegeWalkerBoss on the runtime's boss,
- * worlds/controllable/boss.js). Standing, it lays barrages (rings where they land: get a wall between you and them),
- * reloads with its tails and walks on to where its shells fell: mines laid there (H: they are the item menu's first)
- * break its legs, and its reloaders shot from behind slow its reload. Its legs gone it folds into its tank form, fought
- * as a tank is: its gun traverses slowly (keep moving round it), a mine under its wheels stops it, its engine is open from
- * behind, its folded hips from its sides, its sights from anywhere. A spike: the stage takes no pilot, so the hero's
- * camera, the mission and the boss are laid on the payload here.
+ * A BOSS FIGHT, PLAYED — a boss off the shelf (lib/graph/boss/: a human boss's gimmick, moves and phases; a vehicle's
+ * parts, states and the mechanics that win it) stood in an arena laid for what it wants, the operative carrying the kit
+ * it is beaten with, on the controllable world (worlds/controllable/boss.js directs it, mines.js lays the mines; the page
+ * draws each move's marks on the floor before it lands and the boss's bar, boss-view.js, mana-hud.js).
  *
  *   cd control
- *   node scripts/spikes/mission/boss.mjs --out /abs/dir [--dry] [--hero <ref>] [--guard <ref>] [--vault …] [--roll …]
- *     [--climb …] [--crouch a,b] [--prone a,b] [--tank] [--capture] [--cdn]
+ *   node scripts/spikes/mission/boss.mjs --boss <cinder|glint|breaker|lineman|tank|gunship|walker> --out /abs/dir [--cdn]
+ *   node scripts/spikes/mission/boss.mjs --boss <id> --plan     the boss's laws, and its arena's
+ *   --guard <ref>                the boss's figure, a character minted in the database (MOJULO_DATA_DIR)
+ *   --look <look>=<ref>          the figure one of its looks wears (a phase's `look`: Cinder's `cracked`), repeatable
  *
- *   --tank   start the walker in its tank form (the second phase, to try it alone)
+ * The arenas: a hall of low walls (Cinder: the arc broken by them), of tall cover and perches (Glint), of pillars it
+ * tears out (Breaker), of tiles (Lineman); a yard with a block the tank drives round (mines in the kit), a field lined
+ * with hard cover under the gunship's runs (a launcher in the kit), a pillared yard for the walker (a launcher).
  */
-import fss from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { register } from 'node:module';
+import path from 'node:path';
 register('../../mcp-stdio-loader.mjs', import.meta.url);
-import { options, database, starterRoom, writePage, apron } from './lib.mjs';
-const here = path.dirname(fileURLToPath(import.meta.url)), o = options(process.argv.slice(2));
+const { options, database, starterRoom, writePage, boxFaces } = await import('./lib.mjs');
+const o = options(process.argv.slice(2));
 database(o.opt('--hero'), o.opt('--guard'));
-const out = path.resolve(o.opt('--out', 'siege'));
+const { BOSSES, bossLaws } = await import('../../../lib/graph/boss/bosses.js');
+const { VEHICLES, vehicleLaws } = await import('../../../lib/graph/boss/vehicles.js');
+const { bossRule, bossMind, vehicleEntity } = await import('../../../lib/graph/boss/stand.js');
+const id = o.opt('--boss', 'cinder'), human = !!BOSSES[id], vehicle = !!VEHICLES[id];
+if (!human && !vehicle) { console.error(`boss: '${id}' is one of ${[...Object.keys(BOSSES), ...Object.keys(VEHICLES)].join(', ')}`); process.exit(1); }
 
-const { siegeWalkerBoss } = await import('../../../lib/graph/gameworld/combat/boss-fight.js');
+// THE ARENA: a floor, its walls, its cover (each a box: drawn, a collider, and named so a tear can take it)
+const R = (n) => Math.round(n * 1000) / 1000;
+const ARENAS = {
+  cinder: { size: [40, 40], floor: '#5a5650', cover: [...[-12, -4, 4, 12].flatMap((x) => [[x, -6, 3, 0.6, 1.1], [x, 6, 3, 0.6, 1.1]]), [-14, 12, 1.2, 1.2, 1], [14, -12, 1.2, 1.2, 1]], fill: '#7d7468' },
+  // (Glint's: a loading yard, tall cover between three gantry decks he locks from, each 1.8 m up on four legs; low enough
+  // that a stun landing out in front of one sees his eyes, high enough to want climbing)
+  glint: { size: [56, 36], floor: '#55595a', cover: [[-16, -8, 2.4, 2.4, 2.6], [-6, 6, 2.4, 2.4, 2.6], [4, -6, 4, 1, 2.2], [14, 8, 2.4, 2.4, 2.6], [-2, -12, 6, 1, 2.2], [16, -4, 2, 2, 2.6]], fill: '#6f7477', perches: [[23, 12, 1.8], [23, -12, 1.8], [8, 14, 1.8]], deck: '#8a6f3c' },
+  breaker: { size: [44, 44], floor: '#5b5752', cover: [[-10, -10], [10, -10], [-10, 10], [10, 10], [0, -16], [0, 16], [-16, 0], [16, 0]].map(([x, y]) => [x, y, 1.6, 1.6, 4]), fill: '#8a8278' },
+  lineman: { size: [42, 42], floor: '#4a5056', tiles: 3, cover: [[-9, -9, 1.6, 1.6, 1.4], [9, 9, 1.6, 1.6, 1.4], [-9, 9, 1.6, 1.6, 1.4], [9, -9, 1.6, 1.6, 1.4]], fill: '#3f4e3f' },
+  tank: { size: [90, 64], floor: '#5d5a4f', cover: [[0, 0, 22, 14, 6], [-30, -22, 3, 1, 1.2], [30, 22, 3, 1, 1.2], [-30, 22, 2.4, 2.4, 2.6], [30, -22, 2.4, 2.4, 2.6]], fill: '#7a7466', route: [[-26, -16], [26, -16], [26, 16], [-26, 16]] },
+  gunship: { size: [120, 60], floor: '#56604d', cover: [-40, -24, -8, 8, 24, 40].flatMap((x, k) => [[x, k % 2 ? 4 : -4, 4, 1, 2.2]]).concat([[-20, 14, 6, 2.4, 2.6], [20, -14, 6, 2.4, 2.6]]), fill: '#8b8b82', runs: [[-70, 0], [70, 0]] },
+  walker: { size: [64, 64], floor: '#585650', cover: [[-14, -14], [14, -14], [-14, 14], [14, 14], [0, 0]].map(([x, y]) => [x, y, 2.4, 2.4, 3.4]), fill: '#7e786e', route: [[-20, -20], [20, -20], [20, 20], [-20, 20]] },
+};
+const A = ARENAS[id], [AW, AD] = A.size;
+const LIGHT = { sun: [-0.42, -0.55, 0.72], sky: [0.5, 0.53, 0.58], key: [0.62, 0.58, 0.52] };
+const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4), enc = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+const shade = (hex, n) => { const L = Math.hypot(...LIGHT.sun), c = Math.max(0, (n[0] * LIGHT.sun[0] + n[1] * LIGHT.sun[1] + n[2] * LIGHT.sun[2]) / L); return '#' + [1, 3, 5].map((i, k) => Math.round(Math.max(0, Math.min(1, enc(lin(parseInt(hex.slice(i, i + 2), 16) / 255) * (LIGHT.sky[k] * (0.75 + 0.25 * n[2]) + LIGHT.key[k] * c) * 1.25))) * 255).toString(16).padStart(2, '0')).join(''); };
+const faces = [], colliders = [], cover = [];
+const put = (fs) => { for (const f of fs) { const fill = shade(f.fill, f.normal); faces.push({ ...f, fill, cornerFills: f.corners.map(() => fill) }); } };
+// (the floor, in tiles where the boss works the floor's tiles)
+if (A.tiles) for (let x = -AW / 2; x < AW / 2; x += A.tiles) for (let y = -AD / 2; y < AD / 2; y += A.tiles) { const k = (Math.round(x / A.tiles) + Math.round(y / A.tiles)) % 2 ? 1 : 0.86, c = '#' + [1, 3, 5].map((i) => Math.round(parseInt(A.floor.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join(''); put([{ corners: [[x, y, 0], [x + A.tiles, y, 0], [x + A.tiles, y + A.tiles, 0], [x, y + A.tiles, 0]], fill: c, normal: [0, 0, 1], outNormal: [0, 0, 1], group: 'arena:floor' }]); }
+else put(boxFaces([-AW / 2, -AD / 2, -0.4], [AW / 2, AD / 2, 0], A.floor, 'arena:floor'));
+// (its walls round it, a body's height and more)
+for (const [mn, mx] of [[[-AW / 2 - 1, -AD / 2 - 1, 0], [AW / 2 + 1, -AD / 2, 4]], [[-AW / 2 - 1, AD / 2, 0], [AW / 2 + 1, AD / 2 + 1, 4]], [[-AW / 2 - 1, -AD / 2, 0], [-AW / 2, AD / 2, 4]], [[AW / 2, -AD / 2, 0], [AW / 2 + 1, AD / 2, 4]]]) { put(boxFaces(mn, mx, '#6b6a66', 'arena:wall')); colliders.push({ min: mn, max: mx }); }
+// (the perches: a deck on four legs at each, its top where the boss stands)
+for (const [x, y, z] of A.perches && A.deck ? A.perches : []) {
+  const deck = [[x - 1.6, y - 1.6, z - 0.25], [x + 1.6, y + 1.6, z]];
+  put(boxFaces(deck[0], deck[1], A.deck, 'arena:deck')); colliders.push({ min: deck[0], max: deck[1] });
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const mn = [x + sx * 1.45 - 0.1, y + sy * 1.45 - 0.1, 0], mx = [x + sx * 1.45 + 0.1, y + sy * 1.45 + 0.1, z - 0.25]; put(boxFaces(mn, mx, '#4b4f52', 'arena:deck')); colliders.push({ min: mn, max: mx }); }
+}
+A.cover.forEach(([x, y, w, d, h], k) => { const mn = [R(x - w / 2), R(y - d / 2), 0], mx = [R(x + w / 2), R(y + d / 2), h]; put(boxFaces(mn, mx, A.fill, 'arena:cover')); colliders.push({ min: mn, max: mx }); cover.push({ id: `cover-${k + 1}`, min: mn, max: mx }); });
+
+if (o.has('--plan')) {
+  const L = human ? bossLaws(id) : vehicleLaws(id);
+  console.log(`${id}: ${human ? `${BOSSES[id].name}, ${BOSSES[id].title}` : VEHICLES[id].name} · arena ${AW} × ${AD} m, ${cover.length} pieces of cover`);
+  for (const l of L) console.log(`  ${l.holds ? 'holds  ' : 'ADVISED'} · ${l.law}: ${l.says}`);
+  process.exit(0);
+}
+
+// THE OPERATIVE AND THE BOSS
+// (the kit it is beaten with: a flash counter's stun grenades)
+const kitWords = human ? ['carbine', ...((BOSSES[id].counters || []).some((c) => c.takes.includes('stun')) ? ['stun'] : []), 'frag'] : id === 'tank' ? ['carbine', 'mine', 'bazooka'] : ['carbine', 'bazooka', 'frag'];
+const G = { id: 'steel-serpents', name: 'Steel Serpents', feel: 'steel-serpents', quick: { arms: kitWords } };
+const { room, hero: h0, guard: g0 } = await starterRoom(o, G);
+const start = [0, -AD / 2 + 5, 0.05];
+const mission = { result: { at: [0, AD / 2 + 50, 0], radius: 1, when: [] }, hints: [{ at: start, radius: 4, says: human ? `${BOSSES[id].name}, ${BOSSES[id].title}. Read the floor: every move is marked before it lands. Dive through, step out, or get behind cover.${(BOSSES[id].counters || []).map((c) => c.tip ? ` ${c.tip[0].toUpperCase()}${c.tip.slice(1)}.` : '').join('')}` : `${VEHICLES[id].name}. ${VEHICLES[id].wins.map((w) => w.says).join('. ')}.` }] };
+const hero = { ...h0, rule: { ...h0.rule, step: 0.35, mission, radarRange: 36 }, body: { ...h0.body, hp: 100 }, transform: { pos: start, heading: Math.PI / 2 } };
+let boss;
+// (the figure each of its looks wears: the guard's figure with another character's ref)
+const looks = {}, figures = { ...room.manifest.figures };
+for (let i = 2; i < process.argv.length; i++) if (process.argv[i] === '--look') { const [look, ref] = String(process.argv[i + 1]).split('='); figures[`boss-${look}`] = { ...figures[g0.body.figure], heroRef: ref }; looks[look] = `boss-${look}`; }
+if (human) {
+  const arena = { center: [0, 0], r: Math.min(AW, AD) / 2, z: 0, ...(A.perches ? { perches: A.perches } : {}), cover };
+  boss = { ...g0, id: 'boss', team: 'guards', rule: { ...g0.rule, foe: undefined, alarm: undefined, guardRadius: 60, standoff: 8, mind: { ...(g0.rule.mind || {}), ...bossMind(id) }, boss: bossRule(id, { arena, seed: 7, ...(Object.keys(looks).length ? { figures: looks } : {}) }) },
+    body: { ...g0.body, hp: 1600 }, transform: { pos: A.perches ? [A.perches[0][0], A.perches[0][1], (A.perches[0][2] ?? 0) + 0.05] : [0, AD / 2 - 8, 0.05], heading: A.perches ? Math.PI : -Math.PI / 2 } };
+  // (a marksman's only shot is his lock, told by its glint: as a sentry he holds his perch and his fire between them, his
+  // reach nil; the director aims every lock)
+  if (A.perches) boss.rule = { ...boss.rule, range: 0.1, guardAt: [A.perches[0][0], A.perches[0][1]] };
+} else {
+  boss = vehicleEntity(id, { at: id === 'gunship' ? [A.runs[0][0], A.runs[0][1], 16] : [A.route[0][0], A.route[0][1], 0], hp: 1200, ...(A.route ? { route: A.route } : {}), ...(A.runs ? { runs: A.runs } : {}), seed: 7 });
+}
+// (the room's cast light: its bodies drawn under one light, as a level's are; without it a made figure bakes under none)
+const manifest = { kind: 'controllable', faces, colliders, entities: [hero, boss], figures, fxStyle: room.manifest.fxStyle, figureGrade: room.manifest.figureGrade, ...(room.manifest.castLight ? { castLight: room.manifest.castLight } : {}),
+  bg: '#b9c4cb', sky: { zenith: [86, 112, 138], horizon: [196, 204, 210], day: 1, stars: 0, seed: 5 } };
 const { resolveWorldScene } = await import('../../../lib/graph/worlds/world-scene.js');
-const { sfxSound } = await import('../../../lib/graph/sfx-shelf/resolve.js');
-const L = JSON.parse(fss.readFileSync(path.join(here, 'siege.json'), 'utf8'));
-const t0 = Date.now();
-const { room, hero } = await starterRoom(o);
-
-// THE APRON: concrete in tiles a shade apart (so a run reads on it), a fence round it, the hangar's back wall behind it
-const A = L.apron, { faces, colliders } = apron(A), X0 = A.x[0];
-
-// THE BOSS: the siege walker from under the hangar, on the apron
-const W = siegeWalkerBoss({ id: 'siege', at: [L.walker.at[0], L.walker.at[1], 0], heading: L.walker.heading, bounds: L.walker.bounds, down: { item: 'siege-down' } });
-if (o.has('--tank')) W.boss.start = 'tank';
-W.boss.mine.crates = L.crates.map((c) => ({ ...c, at: [c.at[0], c.at[1], 0] }));
-
-// THE OPERATIVE: its kit, and mines first in its item menu (a tap of H lays one); the mission's objective and supplies
-const supply = (s, i) => (s.kind === 'ration' ? { id: `ration-${i}`, name: 'A ration', look: 'ration', gives: { hp: 40 }, at: [s.at[0], s.at[1], 0] } : { id: `ammo-${i}`, name: 'Rounds for the handgun', look: 'ammo', gives: { rounds: 15 }, at: [s.at[0], s.at[1], 0] });
-const mission = {
-  items: L.supplies.map(supply),
-  objectives: [{ id: 'walker', says: 'bring down the siege walker', done: 'siege-down' }],
-  hints: L.hints.map((h) => ({ ...h, at: [h.at[0], h.at[1]] })),
-  result: { at: [X0 + 2, 0, 0], radius: 4, when: ['siege-down'] },
-  // (in from the hangar's hall, its back doors: hangar.mjs `apron-door`)
-  arrivals: { 'hangar-back': { at: [L.hero.at[0], L.hero.at[1], 0.05], heading: L.hero.heading } },
-  leave: ['siege-down'],
-  unsure: 'the walker blocks the way out: bring it down',
-};
-const heroE = { ...hero, rule: { ...hero.rule, step: 0.35, mission, carry: { items: [{ id: 'mine', name: 'mine', count: L.kit.mines }, { id: 'ration', name: 'ration', count: L.kit.rations, heal: 40 }] } },
-  transform: { pos: [L.hero.at[0], L.hero.at[1], 0.05], heading: L.hero.heading } };
-
-// ITS SOUNDS: the shelf's, by the words people say
-const cue = (w) => { const s = sfxSound(w); if (!s?.gestures) throw new Error(`boss: '${w}' is not a one-shot on the SFX shelf`); return s.gestures; };
-const audio = { mix: { space: 'open', voices: 14, distance: true, reach: 600 }, cues: {}, boss: { launch: cue('cannon'), round: cue('cannon'), missile: cue('missile launch'), burst: cue('big explosion'), mine: cue('grenade'), alarm: cue('alarm'), lock: cue('whistle'), step: cue('giant step') } };
-
-const manifest = {
-  ...room.manifest, title: `${L.name} · Steel Serpents`, bg: '#9aa3ab', faces, colliders, blocks: L.cover.map((b) => ({ thick: 0.6, ...b, at: [b.at[0], b.at[1], 0] })),
-  figures: room.manifest.figures, entities: [heroE, ...W.entities], audio,
-  // (the camera further out than the yard's: the walker is eight metres tall)
-  camera: { ...room.manifest.camera, dist: Math.max(room.manifest.camera.dist ?? 4, 5.5), height: Math.max(room.manifest.camera.height ?? 2, 2.4) },
-};
-console.log(`boss: ${W.readout.frame} ${W.readout.height} m, ${W.readout.mass} kg · walks ${W.readout.gait.speed.toFixed(2)} m/s · folds in ${W.readout.transformDur} s · spots ${W.readout.spots.join(', ')} · clips ${W.readout.clips.join(', ')} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
-console.log(`boss: cover ${L.cover.length}, mine crates ${L.crates.length}, supplies ${L.supplies.length} · starts ${W.boss.start}`);
-if (o.has('--dry')) process.exit(0);
-const { payload } = await resolveWorldScene({ ref: 'steel-serpents-level-1-siege', title: manifest.title, manifest }, {});
-// (the walker's figure as the frame packs it, its rig and its clips: the controllable kind would read it as a person's)
-const { file, mb } = await writePage({ ...payload, figures: { ...payload.figures, ...W.figures }, audio }, room, path.join(out, 'level-1-siege.html'), { capture: o.has('--capture'), cdn: o.has('--cdn') });
-console.log(`boss: ${file} (${mb} MB) · entities ${payload.entities.length} · colliders ${payload.colliders.length} · ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+const { payload } = await resolveWorldScene({ ref: `steel-serpents-boss-${id}`, title: `${human ? BOSSES[id].name : VEHICLES[id].name} · Steel Serpents`, manifest }, { era: 'gen-7', live: true });
+const out = path.resolve(o.opt('--out', 'boss'));
+const page = await writePage(payload, room, path.join(out, `boss-${id}.html`), { capture: o.has('--capture'), cdn: o.has('--cdn') });
+console.log(`boss: ${page.file} (${page.mb} MB) · ${human ? `${BOSSES[id].name}: ${Object.keys(BOSSES[id].moves).join(', ')}` : `${VEHICLES[id].name}: ${Object.keys(VEHICLES[id].parts).join(', ')}`} · kit ${kitWords.join(', ')}`);
 process.exit(0);

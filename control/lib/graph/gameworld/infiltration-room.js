@@ -31,7 +31,7 @@
  *   the targets   a person's box at 5, 15 and 30 m of the start, one behind the corner; each stands again a moment
  *                 after it falls
  *
- *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?: '<the hero's own clip for each>', crouch?: { idle, walk }, prone?: { idle, crawl } }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
+ *   infiltrationRoom(G, { refs?, cast?, vault?, roll?, climb?, toss?: '<the hero's own clip for each (toss: its throw)>', ride?: '<a transforming walker to ride>', crouch?: { idle, walk }, prone?: { idle, crawl } }) → { manifest, kit: [names], knife, hero: 'own' | 'stand-in', targets }
  *   INFILTRATION_LEGEND
  *
  * Pure, no dice. Its page: scripts/spikes/mission/room.mjs (a spike: the room joins the practice door once it is kept).
@@ -41,7 +41,8 @@ import { feelRule, readFeel } from './feel/lower.js';
 import { floorOf, dummyFigure } from './practice-room.js';
 import { standFoe } from './foes.js';
 import { loadoutOf } from './loadout.js';
-import { armsLoadout, knifeOf } from './arms-kit.js';
+import { armsLoadout, armDetailed, knifeOf } from './arms-kit.js';
+import { rideVehicle } from './ride-machine.js';
 import { SHOOT, SHOULDER, PERSON } from './quick.js';
 import { lowerBody } from './game-bodies.js';
 import { PLAY_GRADE } from '../figures/figure-grades.js';
@@ -51,6 +52,8 @@ import { BASIC_ARSENAL } from './combos.js';
 const HALF = 16;
 export const INFILTRATION_LEGEND = 'W A S D  run · mouse  look · Space  dive · run at a low wall to go over it · hold W into a taller one to climb it · C  crouch · C (hold)  lie down, and stand · unarmed: click  punch · E behind a guard that has not seen you  takedown · G (hold)  weapon menu · H (hold)  item menu · right mouse (hold)  aim · click  fire, aimed · Tab  first person, aimed · Q  the other shoulder, aimed · R  reload · V  knife';
 const START = Object.freeze([0, -13, 0]);
+// (where a machine to ride is parked: to the start's left, facing up the yard)
+const RIDE_AT = Object.freeze([-6, -11]);
 const wall = (id, x, y, length, height, N = [0, -1]) => ({ id, form: 'wall', at: [x, y, 0], N, length, height, thick: 0.5 });
 const BLOCKS = Object.freeze([
   wall('corner', -6, -3, 9, 2.6), wall('corner-return', -10.5, 1.2, 8, 2.6, [1, 0]),
@@ -92,7 +95,7 @@ const GUARD_TUNE = Object.freeze({ team: 'guards', rule: Object.freeze({ speed: 
 const VAULT_CLIP_H = 0.5;
 // THE DIVE (worlds/controllable/dive.js over the rule's dodge): a second at 7.6 m/s at its middle, about 4.8 m of
 // ground, a second before another; with a roll of the hero's own (`roll`) it plays that, the page's tumble off
-const DIVE = Object.freeze({ dodge: true, dodgeDur: 1, dodgeSpeed: 7.6, dodgeCooldown: 1, dodgeBoostCost: 0, dodgeOverheat: false, dodgeTurns: 0, dive: Object.freeze({ jump: false }) });
+const DIVE = Object.freeze({ dodge: true, dodgeDur: 1, dodgeSpeed: 7.6, dodgeCooldown: 1, dodgeBoostCost: 0, dodgeOverheat: false, dodgeTurns: 0, dive: Object.freeze({ jump: false, blink: false }) });
 // (a bare hand's blow, where a held blade would say its own, worlds/held-strike.js: its reach, its seconds, and a damage
 // that makes the jab 8 of a target's 100, the cross about 10, the hook 16)
 const FIST_BLOW = Object.freeze({ strikeReach: 0.95, strikeDur: 0.4, strikeDamage: 16 });
@@ -108,12 +111,15 @@ const FISTS = (() => {
 })();
 
 /** The infiltration yard (see the header). */
-export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null, crouch = null, prone = null } = {}) {
+export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, roll = null, climb = null, crouch = null, prone = null, toss = null, ride = null } = {}) {
   const own = typeof refs.hero === 'string';
   if (G?.feel != null) readFeel(G.feel);
   const L = loadoutOf(G), words = (L?.weapons ?? []).filter((w) => typeof w === 'string'), hasKnife = (L?.weapons ?? []).some((w) => w && typeof w === 'object' && w.fire === 'melee');
-  // (the kit's rounds against this yard's targets: the kit's numbers are against the quick shooter's foe)
-  const kit = words.length ? armsLoadout(words, { ...SHOOT.rifle, damage: TARGET_HP / SHOOT.foeHp }, { eye: 1.5, hand: 'right', converge: true }) : null;
+  // (the kit's rounds against this yard's targets: the kit's numbers are against the quick shooter's foe; each gun drawn
+  // in the hero's hands as the arms library builds it, not as its parts' boxes: arms-kit.js armDetailed)
+  const kit0 = words.length ? armsLoadout(words, { ...SHOOT.rifle, damage: TARGET_HP / SHOOT.foeHp }, { eye: 1.5, hand: 'right', converge: true }).map(armDetailed) : null;
+  // (a hand grenade thrown with the hero's own throw where it has one, `toss` its clip: throw.js plays the body's `throw`)
+  const kit = kit0 && toss ? kit0.map((s) => (s.weapon.throw ? { ...s, weapon: { ...s.weapon, throw: { ...s.weapon.throw, clip: true } } } : s)) : kit0;
   // ONE PACE: the stick's push is the feel's fast gait (its sprint's speed) and there is no run to hold: the feel's
   // sprint, its stamina and the dodge on the sprint's key are left out
   const { boostSpeed, boostMax: _bm, boostRegen: _br, overheatRegen: _or, boostUnlockFrac: _bu, stamina: _st, sprintSpeed, sprint: _sp,
@@ -145,7 +151,7 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
   // (what plays a vault and a climb: the hero's own vault clip where it has one, `vault` its name (the free-run
   // library's: hero motion `stepVault`, `speedVault`, `hurdle`, `kongVault`), else a state every player plays)
   // (and its own roll under the dive, `roll` (hero motion `rollForward`), its own climb, `climb` (a clip of the hero's))
-  const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}), ...(roll ? { dodge_roll: roll } : {}), ...(climb ? { mantle: climb } : {}), ...(crouch ? { crouch_idle: crouch.idle, crouch_walk: crouch.walk } : {}), ...(prone ? { prone_idle: prone.idle, prone_crawl: prone.crawl } : {}) });
+  const clips = traversalStates({ ...lib.clips, ...(vault ? { vault } : {}), ...(roll ? { dodge_roll: roll } : {}), ...(climb ? { mantle: climb } : {}), ...(crouch ? { crouch_idle: crouch.idle, crouch_walk: crouch.walk } : {}), ...(prone ? { prone_idle: prone.idle, prone_crawl: prone.crawl } : {}), ...(toss ? { throw: toss } : {}) });
   const figures = { hero: own ? { ...lib, clips, heroRef: refs.hero } : { ...lib, clips, hero: lowerBody({ cast }, null) } };
   const heroE = { ...P.entities[0], ...(kit ? { weapon: kit[0].weapon } : {}), body: { ...P.entities[0].body, hittable: true, hp: 100, radius: 0.5, egg: { ...PERSON, cz: PERSON.c } }, transform: { pos: START.slice(), heading: Math.PI / 2 } };
   const targets = TARGETS.map((t) => ({ id: t.id, rule: { type: 'walk', speed: 0, eye: 0 }, team: 'targets', transform: { pos: [t.at[0], t.at[1], 0.9], heading: -Math.PI / 2 },
@@ -171,6 +177,14 @@ export function infiltrationRoom(G, { refs = {}, cast = 'male', vault = null, ro
   const part = { figures: manifest.figures, entities: manifest.entities };
   standFoe(null, part, { id: GUARD.id, entry: GUARD.entry, at: GUARD.at.slice(), heading: GUARD.heading }, { figure: guardFigure(refs.guard, cast), tune: GUARD_TUNE });
   manifest.figures = part.figures; manifest.entities = part.entities;
+  // (a machine to ride, `ride` a transforming walker's word: parked beside the start in its tank form, got into with the
+  // action and left with it again, worlds/controllable/board.js; gameworld/ride-machine.js)
+  if (ride) {
+    const R = rideVehicle(ride, { id: 'ride', at: [RIDE_AT[0], RIDE_AT[1], 0], heading: Math.PI / 2, base: { damage: TARGET_HP / SHOOT.foeHp * (SHOOT.rifle.damage ?? 1) } });
+    manifest.figures = { ...manifest.figures, ride: R.figure };
+    manifest.entities = [...manifest.entities, R.entity];
+    manifest.events = { ...manifest.events, hud: [...(manifest.events.hud ?? []), { text: R.keys }] };
+  }
   // (the fists, laid as a level's arsenal is, their clips the figure's own)
   const armed = armLevel({ ...(G ?? {}), arsenal: FISTS }, manifest);
   if (armed !== manifest) { manifest.figures = armed.figures; manifest.entities = armed.entities.map((e) => (e.id === 'hero' ? { ...e, rule: { ...e.rule, moveClips: true, ...FIST_BLOW } } : e)); }

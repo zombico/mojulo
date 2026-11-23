@@ -18,7 +18,12 @@
  *
  * The four: `jump` (standing, straight up), `jumpForward` (leaning into it, legs trailing then reaching ahead),
  * `jumpBack` (leaning back off the toes, legs forward of the body, the absorb pitching forward to recover) and
- * `doubleJump` (a first jump, a kick down off the air with the arms sweeping, a second deeper tuck, the landing) and
+ * `doubleJump` (a first jump, a kick down off the air with the arms sweeping, a second deeper tuck, the landing),
+ * `jumpPoised` (a run-and-gun hero's: one pose held the whole flight, the knee away from the gun arm drawn up, the legs
+ * reaching down only late in the fall), `dashPoised` (its ground dash, never off the floor: leaning in, streamlined,
+ * the off knee forward with its foot swept back, the gun side's foot back on its toes, the arms on a clock face: the
+ * gun's forearm at 4 o'clock, the off arm's at 7) and
+ * `flinch` (a run-and-gun hero's blow taken: snapped back, arched, the arms flung up, the knees giving) and
  * `runningJump` (a hurdler's leap out of the sprint and back into it: the lead leg out straight, the trail leg round at
  * the side, the trunk diving over the lead, the opposite arm reaching; its planted feet slide back at the run's `speed`,
  * so it plays between sprint cycles, the engine carrying the body on at that speed), and the ROLLS: `rollForward` (a
@@ -125,6 +130,56 @@ const BASE = {
       { t: 0.86, pose: { hinge: 12, ...arms(45, 25) }, sink: 0.04, heel: 0, ground: 1 },
       { t: 0.92, pose: { hinge: 28, ...arms(40, 30), head: { pitch: 12 } }, sink: 0.17, heel: 0, ground: 1 },
       { t: 0.96, pose: { hinge: 12, ...arms(12, 22), head: { pitch: 5 } }, sink: 0.06, heel: 0, ground: 1 },
+      end(),
+    ],
+  },
+  // THE POISED JUMP, a run-and-gun hero's (a feel card's `jumps`, gameworld/feel/cards.js galaxy-boy): no wind-up to
+  // speak of, a push off the toes, then ONE pose held the whole flight, balanced to fire from: the knee of the leg away
+  // from the gun arm (the left: the buster is on the right) drawn up, the gun side's leg hanging nearly straight, the
+  // trunk upright and the arms bent at the chest, clear of the knee (the gun arm free to aim); the legs move again only late in the fall, both
+  // reaching down for the floor, then the landing's absorb. Never a tuck, never the arms flung overhead.
+  jumpPoised: {
+    seconds: 1.1,
+    keys: [
+      STAND,
+      { t: 0.12, pose: { hinge: 10, ...arms(-10, 30), head: { pitch: 6 } }, sink: 0.08, heel: 0, ground: 1 },
+      { t: 0.18, pose: { hinge: 6, ...arms(10, 30), ...legs(0, 0), head: { pitch: 4 } }, sink: 0, heel: 30, ground: 1 },
+      { t: 0.3, pose: { hinge: 4, shL: { pitch: 30 }, shR: { pitch: 35 }, elbowL: 75, elbowR: 80, ...legs2(70, 105, 8, 20), head: { pitch: 2 } }, sink: 0, heel: 0, ground: 0 },
+      { t: 0.62, pose: { hinge: 4, shL: { pitch: 30 }, shR: { pitch: 35 }, elbowL: 75, elbowR: 80, ...legs2(70, 105, 8, 20), head: { pitch: 2 } }, sink: 0, heel: 0, ground: 0 },
+      { t: 0.735, pose: { hinge: 6, shL: { pitch: 15 }, shR: { pitch: 20 }, elbowL: 35, elbowR: 40, ...legs2(14, 14, 8, 10), head: { pitch: 4 } }, sink: 0, heel: 0, ground: 0 },
+      { t: 0.76, pose: { hinge: 8, ...arms(15, 35) }, sink: 0.03, heel: 0, ground: 1 },
+      { t: 0.86, pose: { hinge: 18, ...arms(10, 35), head: { pitch: 8 } }, sink: 0.14, heel: 0, ground: 1 },
+      { t: 0.94, pose: { hinge: 8, ...arms(5, 28), head: { pitch: 3 } }, sink: 0.04, heel: 0, ground: 1 },
+      end(),
+    ],
+  },
+  // THE POISED DASH, a run-and-gun hero's ground dash (a feel card's `jumps.dash`, played over the dash's burst by its
+  // share, rules-platform.js): never off the floor (`floor`: the gun side's foot stays on it), the body pitched forward
+  // into the burst and streamlined as it is driven along: the knee away from the gun arm driven forward with its shin
+  // swept back and its toes pointed back, off the floor, the gun side's foot pushed back on its toes; the ARMS a pair on
+  // a clock face (the hero facing 3 o'clock): the gun arm's elbow down at the side, its forearm aimed at 4 o'clock, the
+  // gun tipped up; the off arm its mirror behind, the upper arm straight back and its forearm aimed at 7 o'clock (its
+  // elbow opened to 70: bent as sharply as the gun arm, its fist could not swing back past straight down without the
+  // upper arm raised high behind). Into it fast, held, risen out of it at the end.
+  dashPoised: {
+    seconds: 1.0, floor: true,
+    keys: [
+      STAND,
+      { t: 0.18, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -35, roll: -90, yaw: -40 }, elbowL: 70, shR: { pitch: 5 }, elbowR: 110, ...legs2(55, 115, 0, 0), pointL: 80, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 0, groundR: 1, footL: 0, footR: -0.5 },
+      { t: 0.78, pose: { hinge: 42, spine: { sagittal: 0.15 }, shL: { pitch: -35, roll: -90, yaw: -40 }, elbowL: 70, shR: { pitch: 5 }, elbowR: 110, ...legs2(55, 115, 0, 0), pointL: 80, head: { pitch: 30 } }, sink: 0.16, heelL: 0, heelR: 45, groundL: 0, groundR: 1, footL: 0, footR: -0.5 },
+      { t: 1, pose: {}, sink: 0, heelL: 0, heelR: 0, groundL: 1, groundR: 1, footL: 0, footR: 0 },
+    ],
+  },
+  // THE FLINCH, a run-and-gun hero's blow taken (a feel card's `jumps.hurt`, played over the flinch by its share,
+  // rules-platform.js): snapped back from the hit at once, the trunk thrown back and arched, the chest out, the head
+  // back, both arms swept back and bent, the knees giving under it; held, then gathered back to the stand at the end.
+  // Never off the floor (the engine's knock carries the body).
+  flinch: {
+    seconds: 0.5, floor: true,
+    keys: [
+      STAND,
+      { t: 0.1, pose: { hinge: -20, spine: { sagittal: -0.35 }, shL: { pitch: -45, roll: -25 }, shR: { pitch: -30, roll: 25 }, elbowL: 45, elbowR: 50, ...legs(20, 35), head: { pitch: -25 } }, sink: 0.12, heel: 10, ground: 1 },
+      { t: 0.7, pose: { hinge: -16, spine: { sagittal: -0.3 }, shL: { pitch: -40, roll: -22 }, shR: { pitch: -26, roll: 22 }, elbowL: 48, elbowR: 54, ...legs(22, 38), head: { pitch: -20 } }, sink: 0.13, heel: 5, ground: 1 },
       end(),
     ],
   },

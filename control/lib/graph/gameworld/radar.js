@@ -23,6 +23,9 @@
  *                                low things, water; `rel` each thing by its own height (a land that rises and falls),
  *                                `veils` tall grass, `relief` the land's contours (a height grid), `trail` the way walked
  *                                (a mask grid)
+ *   planFloors(colliders)      → the heights of a level's floors (its slabs' tops), lowest first
+ *   floorPlanSvg(planSvg, colliders, box, z) → one floor's plan: its slabs the ground, what stands at it on them, the
+ *                                rest dark (the radar's `floor`, a level of storeys or decks)
  *   radarPlan(box, pos, heading, range) → { x, y, size, turn }   the plan laid under the radar's scope: the pilot's place on
  *                                it, its side in scope diameters, its turn (degrees clockwise) so ahead is at the top
  *   sceneThings(W, me, goal)   → the things of a scene the two read: the pilot's foes awake, the task's place
@@ -136,6 +139,30 @@ export function planSvg(colliders, water, box, opts) {
     way = runs.join('');
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="#1c1f1c"/>${topo}${wet.join('')}${way}${grass.join('')}${low.join('')}${tall.join('')}</svg>`;
+}
+
+/** The floors a level stands on: the tops of its slabs (a box thinner than a storey, wide as a room), lowest first. */
+export function planFloors(colliders) {
+  const out = [];
+  for (const c of colliders || []) {
+    if (!c || !c.min || !c.max || c.max[2] - c.min[2] >= 1.2 || (c.max[0] - c.min[0]) * (c.max[1] - c.min[1]) < 9) continue;
+    const z = Math.round(c.max[2] * 100) / 100;
+    if (!out.some((q) => Math.abs(q - z) < 0.3)) out.push(z);
+  }
+  return out.sort((a, b) => a - b);
+}
+
+/** ONE FLOOR's plan (a level of storeys or decks, the radar's `floor`): the floor at `z` drawn as the ground a body walks
+ *  (its slabs, every other place dark: a drop, a hole, the sea) and on it only what stands at that floor (planSvg's own
+ *  masses and low things at `z`); a floor above or below is not on it. `planSvg` handed in: the page inlines both. */
+export function floorPlanSvg(planSvg, colliders, box, z) {
+  const S = 512, k = S / box[2], f = (v) => Math.round(v * 10) / 10, floor = [], on = [];
+  for (const c of colliders || []) {
+    if (!c || !c.min || !c.max) continue;
+    if (Math.abs(c.max[2] - z) < 0.15 && c.max[2] - c.min[2] < 1.2) floor.push(`<rect x="${f((c.min[0] - box[0]) * k)}" y="${f(S - (c.max[1] - box[1]) * k)}" width="${f(Math.max(1, (c.max[0] - c.min[0]) * k))}" height="${f(Math.max(1, (c.max[1] - c.min[1]) * k))}" fill="#3d454b"/>`);
+    else if (c.max[2] - z >= 0.75 && c.min[2] - z <= 1.2) on.push(c);
+  }
+  return planSvg(on, null, box, { z }).replace('fill="#1c1f1c"/>', `fill="#0e1214"/>${floor.join('')}`);
 }
 
 /** The plan under the radar (the scope's map): where the pilot is on it (0 to 1), how many scope diameters its side spans

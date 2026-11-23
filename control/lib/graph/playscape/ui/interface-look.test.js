@@ -37,6 +37,11 @@ describe('the interface\'s look', () => {
     expect(interfaceLook({ ...G, ui: { colour: 'theme' } }).theme.tokens).toBeUndefined();   // the look keeps its own
     expect(interfaceLook({ name: 'y' }).theme.from).toBe('console');                         // no intent, no palette
   });
+  it('a look may start from a card: a city game at night, downtown', () => {
+    const L = interfaceLook({ name: 'c', intent: { from: 'city-stalker' } });
+    expect(L.theme.from).toMatchObject({ name: 'Downtown' });
+    expect(readTheme(L.theme)).toMatchObject({ icons: 'line', hud: 'bare', stage: 'none', overlay: 'none' });
+  });
   it('an anime game\'s lively look snaps; a calm look keeps still', () => {
     const anime = { juice: { register: 'anime' } };
     const live = worldLook({ intent: { from: lively }, ...anime }), still = worldLook({ intent: { from: calm }, ...anime });

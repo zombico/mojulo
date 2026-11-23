@@ -60,6 +60,8 @@ export const SNEAK_STANCES = Object.freeze({
   prone: Object.freeze({ eye: 0.34, ticks: 4, loud: false }),    // (1 m/s)
 });
 const STANCE_IDS = Object.keys(SNEAK_STANCES), TICK = 0.25, CHANGE = 2;   // (a change of stance: half a second)
+// (a box's underside this high or higher is over a body lying down: a crawl space, passed lying only)
+const LOW = 0.55;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 // (the runtime's veils, built on a plain object: the same lines the minds read)
 const VEIL = {}; buildVeil(VEIL);
@@ -120,9 +122,17 @@ export function sneakRoutes(place) {
   const boxes = place.boxes ?? [], veils = flatVeils(place.veils), watchers = place.watchers ?? [], N = W * H, TT = Math.round((place.seconds ?? 300) / TICK);
   const cx = (i) => X0 + ((i % W) + 0.5) * C, cy = (i) => Y0 + (Math.floor(i / W) + 0.5) * C;
   const cellOf = (p) => Math.min(H - 1, Math.max(0, Math.floor((p[1] - Y0) / C))) * W + Math.min(W - 1, Math.max(0, Math.floor((p[0] - X0) / C)));
-  // a cell a body cannot stand in: inside a box taller than a step (inflated by the body)
-  const R = 0.35, solid = new Uint8Array(N);
-  for (let i = 0; i < N; i++) { const x = cx(i), y = cy(i); if (boxes.some((b) => b.walk !== false && b.max[2] > 0.4 && b.min[2] < 1.2 && x > b.min[0] - R && x < b.max[0] + R && y > b.min[1] - R && y < b.max[1] + R)) solid[i] = 1; }
+  // a cell a body cannot stand in: inside a box taller than a step (inflated by the body); a LOW cell, one a box stands
+  // over higher than a body lying down (a vent's lid, a truck's chassis, a hole through a wall), is passed lying only
+  const R = 0.35, solid = new Uint8Array(N), low = new Uint8Array(N);
+  for (let i = 0; i < N; i++) {
+    const x = cx(i), y = cy(i);
+    for (const b of boxes) {
+      if (b.walk === false || b.max[2] <= 0.4 || b.min[2] >= 1.2 || !(x > b.min[0] - R && x < b.max[0] + R && y > b.min[1] - R && y < b.max[1] + R)) continue;
+      if (b.min[2] >= LOW) low[i] = 1; else { solid[i] = 1; break; }
+    }
+  }
+  const PRONE = STANCE_IDS.indexOf('prone'), shut = (v, s) => solid[v] || (low[v] && s !== PRONE);
   const start = cellOf(place.start), goalR = place.goalRadius ?? 2, atGoal = (i) => Math.hypot(cx(i) - place.goal[0], cy(i) - place.goal[1]) <= goalR;
   const NB = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.4], [1, -1, 1.4], [-1, 1, 1.4], [-1, -1, 1.4]];
 
@@ -137,7 +147,7 @@ export function sneakRoutes(place) {
       if (atGoal(u)) { const path = []; for (let i = u; i >= 0; i = prev[i]) path.unshift(i); return path; }
       done[u] = 1;
       const ux = u % W, uy = Math.floor(u / W);
-      for (const [dx, dy, c] of NB) { const x = ux + dx, y = uy + dy; if (x < 0 || y < 0 || x >= W || y >= H) continue; const v = y * W + x; if (solid[v] || (dx && dy && (solid[uy * W + x] || solid[y * W + ux]))) continue; if (dist[u] + c < dist[v]) { dist[v] = dist[u] + c; prev[v] = u; } }
+      for (const [dx, dy, c] of NB) { const x = ux + dx, y = uy + dy; if (x < 0 || y < 0 || x >= W || y >= H) continue; const v = y * W + x; if (solid[v] || low[v] || (dx && dy && (solid[uy * W + x] || solid[y * W + ux] || low[uy * W + x] || low[y * W + ux]))) continue; if (dist[u] + c < dist[v]) { dist[v] = dist[u] + c; prev[v] = u; } }
     }
   };
   // (`down`: a watcher put down, which sees and hears nothing more; -1 none)
@@ -192,13 +202,14 @@ export function sneakRoutes(place) {
         }
         // wait a tick; change stance; step
         if (!seenAt(i, s, t + 1, dn) && !crowded(i, t + 1, dn)) push(i, s, t + 1, d, i, s, t, d);
-        for (let z = 0; z < 3; z++) if (z !== s && clearThrough(i, i, Math.min(s, z), t, t + CHANGE, dn) && !crowded(i, t + CHANGE, dn)) push(i, z, t + CHANGE, d, i, s, t, d);
+        // (a body lying under something low stays lying)
+        for (let z = 0; z < 3; z++) if (z !== s && !shut(i, z) && clearThrough(i, i, Math.min(s, z), t, t + CHANGE, dn) && !crowded(i, t + CHANGE, dn)) push(i, z, t + CHANGE, d, i, s, t, d);
         // (the takedown: from behind, unseen, the move's seconds; seen by no other watcher through it)
         if (take && d === 0) { const k = takeable(i, s, t); if (k >= 0 && !seenAt(i, s, t + TD.ticks, k)) { const nk = key(i, s, t + TD.ticks, k + 1); if (t + TD.ticks <= TT && !seenState[nk]) downAt.set(nk, watchers[k].id); push(i, s, t + TD.ticks, k + 1, i, s, t, d); } }
         const ux = i % W, uy = Math.floor(i / W);
         for (const [dx, dy, c] of NB) {
           const x = ux + dx, y = uy + dy; if (x < 0 || y < 0 || x >= W || y >= H) continue;
-          const v = y * W + x; if (solid[v] || (avoid && avoid[v]) || (dx && dy && (solid[uy * W + x] || solid[y * W + ux]))) continue;
+          const v = y * W + x; if (shut(v, s) || (avoid && avoid[v]) || (dx && dy && (shut(uy * W + x, s) || shut(y * W + ux, s)))) continue;
           const nt = t + Math.max(1, Math.round(S.ticks * c));
           if (nt > TT || !clearThrough(i, v, s, t, nt, dn) || (S.loud && heardAt(v, nt, dn)) || crowded(v, nt, dn)) continue;
           push(v, s, nt, d, i, s, t, d);

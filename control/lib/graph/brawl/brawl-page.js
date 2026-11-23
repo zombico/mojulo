@@ -38,13 +38,15 @@ import { MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_SCENE_END, MSG_SHOWN, CONTRACT_VE
 // the level wire a street hosted in a game's shell speaks (the shell's own handshake: ready → init → outcome)
 export const STREET_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, sceneEnd: MSG_SCENE_END, shown: MSG_SHOWN, version: CONTRACT_VERSION });
 import { readWaves } from './brawl-crowd.js';
+import { powerLook } from './brawl-power-look.js';
+import { tuningOf, roomTune } from './brawl-tunings.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/brawl');
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
 // (the order matters: each module only uses names from the ones before it)
 export const BRAWL_VERSUS_MODULES = Object.freeze(['versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-fx.js', 'versus-compile.js', 'versus-input.js', 'versus-cpu.js', 'versus-solver.js', 'versus-figure.js']);
-export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-scenes.js', 'brawl-pose.js', 'brawl-yard-read.js']);
+export const BRAWL_PAGE_MODULES = Object.freeze(['brawl-belt.js', 'brawl-things.js', 'brawl-guns.js', 'brawl-kinetics.js', 'brawl-core.js', 'brawl-moves.js', 'brawl-gunner.js', 'brawl-powers.js', 'brawl-crowd.js', 'brawl-waves.js', 'brawl-practice.js', 'brawl-street-read.js', 'brawl-scenes.js', 'brawl-pose.js', 'brawl-yard-read.js', 'brawl-sway.js']);
 
 /** The names a module exports (one per `export function|const|let|class` line). */
 export function exportsOf(src) {
@@ -105,13 +107,23 @@ function streetWaves(waves, roster, belt) {
   const out = waves.map((w, i) => {
     if (!w || typeof w !== 'object' || !w.boss) return w;
     const { fighter, ...boss } = w.boss;
-    if (fighter === undefined) return { ...w, boss: { ...boss, recipe: boss.recipe ?? rosterEntry(boss, i).recipe } };
+    // (the boss, its PAIR and the FORMS it becomes: each a roster entry or a fighter's intent)
+    const resolve = (b, at) => { const { fighter: k, ...x } = b; if (k === undefined) return { ...x, recipe: x.recipe ?? rosterEntry(x, i).recipe }; if (!(Number.isInteger(k) && k >= 0 && k < roster.length)) throw new Error(`brawl: practice.street.waves[${i}].${at}.fighter is a roster index, 0 to ${roster.length - 1}`); return { ...x, recipe: { ...roster[k].recipe, name: x.name ?? roster[k].name }, roster: k }; };
+    const { pair: P, stages: St, ...own } = boss;
+    // (a pair keeps its own words: its intent read into its recipe)
+    const pair = P ? (({ archetype: _a, id: _i, style: _s, ...x }) => x)(resolve(P, 'boss.pair')) : null;
+    const stages = St ? St.map((st, k) => (st.form ? { ...st, form: resolve(st.form, `boss.stages[${k}].form`).recipe } : st)) : null;
+    const rel = { ...(pair ? { pair } : {}), ...(stages ? { stages } : {}) };
+    if (fighter === undefined) return { ...w, boss: { ...own, recipe: own.recipe ?? rosterEntry(own, i).recipe, ...rel } };
     if (!(Number.isInteger(fighter) && fighter >= 0 && fighter < roster.length)) throw new Error(`brawl: practice.street.waves[${i}].boss.fighter is a roster index, 0 to ${roster.length - 1}`);
-    return { ...w, boss: { ...boss, recipe: { ...roster[fighter].recipe, name: boss.name ?? roster[fighter].name }, roster: fighter } };
+    return { ...w, boss: { ...own, recipe: { ...roster[fighter].recipe, name: own.name ?? roster[fighter].name }, roster: fighter, ...rel } };
   });
   readWaves(out, belt);
   return castIn(out.map((w) => ({ ...w, crowd: w.crowd ?? [] })), roster.length);
 }
+// (a quick street's TUNING, brawl-tunings.js: the falls its players may take and the room's numbers, as a level's street
+// carries them)
+const streetTuned = (id) => { const C = tuningOf(id), tune = roomTune(C); return { ...(C.lives ? { lives: C.lives } : {}), ...(tune ? { tune } : {}) }; };
 const readStakes = (v) => { if (!(Number.isInteger(v) && v >= 1 && v <= 9)) throw new Error('brawl: practice.stakes is the falls the players may take, 1 to 9'); return v; };
 export function brawlYardData(block, bodies = null) {
   // (A STREET fought down, `block.street` (brawl-street.js): the same page, its room a street: who plays, its waves a held
@@ -122,10 +134,13 @@ export function brawlYardData(block, bodies = null) {
   // way; a run & gun's by its `range`)
   const PS = !ST && block.practice?.street ? block.practice : null;
   const P = ST ? { roster: ST.roster, players: ST.players, things: ST.things, dummies: [] } : PS ? { ...PS, dummies: [] } : block.practice ?? {};
-  const Y = ST ? streetScreenOf(ST.play) : PS ? streetScreenOf(PS.range ? 'gun' : 'brawl') : yardOf();
+  // (a roster entry's POWER, a hero's (brawl-powers.js): read with its look's colour, brawl-power-look.js; its seat
+  // plays it, and the street's screen shows each seat's stock)
   const roster = Array.isArray(P.roster) && P.roster.length
-    ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style, ...(e.weapon ? { recipe: { ...r.recipe, weapon: e.weapon } } : {}) }; })
+    ? P.roster.map((e, k) => { const r = rosterEntry(e, k); const style = BRAWL_STYLES[r.archetype] ? r.archetype : 'all-rounder'; return { ...r, style, ...(e.weapon ? { recipe: { ...r.recipe, weapon: e.weapon } } : {}), ...(e.power !== undefined ? { power: powerLook(e.power, `roster[${k}].power`) } : {}) }; })
     : block.armed ? BRAWL_ARMED_ROSTER : BRAWL_ROSTER;
+  const powered = roster.some((r) => r.power) ? { powers: true } : {};
+  const Y = ST ? streetScreenOf(ST.play, powered) : PS ? streetScreenOf(PS.range ? 'gun' : 'brawl', powered) : yardOf();
   if (block.armed) {
     roster.forEach((r, k) => { if (!r.recipe.weapon) throw new Error(`brawl: an armed brawl's roster[${k}] (${r.name}) carries no weapon: every hero its own`); });
     (P.things ?? []).forEach((t, k) => { if (t.kind === 'weapon') throw new Error(`brawl: an armed brawl's things[${k}] is a weapon: every hero keeps its own`); });
@@ -162,14 +177,19 @@ export function brawlYardData(block, bodies = null) {
       const W = streetWaves(PS.street.waves, roster, block.belt), guns = PS.range ? PS.range.guns ?? RANGE_GUNS : null;
       // (who each crowd body is drawn as, in the street's order: a wave at a time by screen, its boss first, then those
       // its boss calls, its crowd)
-      const castAt = [...W].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => c.roster ?? null))]);
+      // (and in the order the street makes its bodies: a summoner's pool after it, three times its number, its summons'
+      // body; a pair's second after the boss's pool: brawl-crowd.js streetOf)
+      const pool = (S) => (S ? Array.from({ length: (S.n ?? 2) * 3 }, () => S.roster ?? null) : []);
+      const castAt = [...W].sort((a, b) => a.screen - b.screen).flatMap((w) => [...(w.boss ? [w.boss.roster ?? null, ...pool(w.boss.summons), ...(w.boss.pair ? [w.boss.pair.roster ?? null] : [])] : []), ...(w.crowd ?? []).flatMap((c) => Array.from({ length: c.n }, () => [c.roster ?? null, ...pool(c.summons)]).flat())]);
       return { street: { sides: Y.sides, waves: W, ...(PS.street.scenes ? { scenes: readScenes(PS.street.scenes, block.belt, 'practice.street.scenes') } : {}), lives: readStakes(PS.stakes ?? 3), ...(castAt.some((k) => k !== null) ? { castAt } : {}), ...(PS.tune ? { tune: PS.tune } : {}),
         ...(guns ? { play: 'gun', guns, grenades: PS.range.grenades ?? 3, names: guns.map((g) => gunName(readGun(g))), ids: guns.map((g) => readGun(g).id) } : {}) }, wire: STREET_WIRE };
     })() : {}),
-    // (its tuning, brawl-tunings.js roomTune: the room reads it, and says what is wrong with it)
+    // (its tuning, brawl-tunings.js roomTune: the room reads it, and says what is wrong with it; a quick street's card
+    // gives its falls and its numbers as a level's street does, so a playthrough plays the room the page builds)
     ...(P.tune ? { tune: P.tune } : {}),
+    ...(ST?.tuning ? (({ lives, tune }) => ({ ...(lives ? { stakes: lives } : {}), ...(tune ? { tune } : {}) }))(streetTuned(ST.tuning)) : {}),
     ...(bodies ? { bodies } : {}),
-    ...(ST ? { street: { sides: Y.sides, waves: ST.waves, ...(ST.play ? { play: ST.play, guns: ST.guns, grenades: ST.grenades, names: ST.guns.map((g) => gunName(readGun(g))), ids: ST.guns.map((g) => readGun(g).id) } : {}), ...(ST.scenes ? { scenes: ST.scenes } : {}), ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
+    ...(ST ? { street: { sides: Y.sides, waves: ST.waves, ...(ST.tuning ? streetTuned(ST.tuning) : {}), ...(ST.play ? { play: ST.play, guns: ST.guns, grenades: ST.grenades, names: ST.guns.map((g) => gunName(readGun(g))), ids: ST.guns.map((g) => readGun(g).id) } : {}), ...(ST.scenes ? { scenes: ST.scenes } : {}), ...(ST.cast ? { cast: Object.fromEntries(Object.entries(ST.cast).map(([t, k]) => [t, (Array.isArray(k) ? k : [k]).map((x) => pick(x, `street.cast.${t}`))])) } : {}) }, wire: STREET_WIRE } : {}),
     yard: { spec: Y.spec, css: Y.css, settings: ST || PS ? [] : YARD_SETTINGS },
   };
 }

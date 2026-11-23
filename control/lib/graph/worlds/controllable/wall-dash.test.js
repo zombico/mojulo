@@ -42,6 +42,20 @@ describe('the wall', () => {
     expect(Math.max(...held.map((x) => x.x))).toBeLessThanOrEqual(3 - 0.3 + 1e-6);   // the body's side on the wall
   });
 
+  it('on a lane (the stick in the world\'s frame): the jump to the wall faces it; caught on it and sliding, the body faces out', () => {
+    const w = mk({ ...RW, move: 'lane', lane: [[-20, 0], [20, 0]] }), p = w.byId.p;
+    run(w, () => ({}), 6);
+    const fr = [];
+    for (let f = 0; f < 80; f++) { stepWorld(w, { strafe: 1, jump: f === 10 ? 1 : 0, jumpHeld: f >= 10 && f < 40 ? 1 : 0 }, DT, WALL); fr.push({ cling: !!p.cling, vz: p.vel[2], grounded: p.grounded, hx: Math.cos(p.transform.heading) }); }
+    // (on the way up to it, before it is caught: facing it, +x)
+    const rising = fr.filter((x) => !x.grounded && x.vz > 0);
+    expect(rising.length).toBeGreaterThan(3);
+    for (const x of rising) expect(x.hx).toBeGreaterThan(0.9);
+    // (held to it and sliding: facing out, −x, the stick still pressing into it)
+    const held = fr.filter((x) => x.cling);
+    expect(held.length).toBeGreaterThan(5);
+    for (const x of held) expect(x.hx).toBeLessThan(-0.99);
+  });
   it('a jump on it kicks up and away, the stick locked out; held back toward it, kick after kick climbs it', () => {
     const { w, fr } = onWall();
     const at = fr.findIndex((x) => x.cling), z0 = fr[at + 2].z;
@@ -91,11 +105,14 @@ describe('the dash: a burst, not a run', () => {
     expect(tap.slice(N + 30).every((x) => x.drive < 1e-6)).toBe(true);      // no stick: then it stops
   });
 
-  it('takes no strides: a ground dash holds the running jump\'s gather, a lunge', () => {
-    const w = mk(R, []); run(w, () => ({}), 6, OPEN);
-    const fr = run(w, (f) => ({ boost: f === 0 }), N + 4, OPEN);
-    expect(fr.slice(0, N - 1).every((x) => x.loco === 'jump_fwd')).toBe(true);
-    expect(fr[N + 2].loco).not.toBe('jump_fwd');
+  it('takes no strides: a ground dash plays the card\'s own dash where it names one, else holds the running jump\'s gather', () => {
+    // (the dash's own, `takes.dash`: its clip over the burst by its share; without it, the running jump's gather, a lunge)
+    for (const rule of [R, { ...R, takes: (({ dash, ...T }) => T)(R.takes) }]) {
+      const own = !!rule.takes.dash, w = mk(rule, []); run(w, () => ({}), 6, OPEN);
+      const fr = run(w, (f) => ({ boost: f === 0 }), N + 4, OPEN);
+      expect(fr.slice(0, N - 1).every((x) => x.loco === (own ? 'dash' : 'jump_fwd'))).toBe(true);
+      expect(fr[N + 2].loco).not.toBe(own ? 'dash' : 'jump_fwd');
+    }
   });
 
   it('in the air: the fall stopped while it is at speed and given back as it eases; once an airtime, given back by the ground', () => {

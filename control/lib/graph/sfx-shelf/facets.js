@@ -56,7 +56,7 @@ const G = {
   fight: ['versus-fighter', 'arena-brawler', 'co-op-brawler', 'stylish-action', 'cinematic-action'],
   mecha: ['shooter', 'arena-shooter', 'run-and-gun'],
   rhythm: ['rhythm'],
-  city: ['city-stalker', 'open-adventure', 'demolition'],
+  city: ['city-stalker', 'open-city-crime', 'open-adventure', 'demolition'],
 };
 export const GENRE_GROUPS = Object.freeze(Object.fromEntries(Object.entries(G).map(([k, v]) => [k, Object.freeze(v)])));
 const g = (...groups) => [...new Set(groups.flatMap((x) => G[x]))];
@@ -76,6 +76,8 @@ export const FAMILY_FACETS = Object.freeze({
   shield: { matter: ['energy'], genres: g('shooting', 'melee', 'mecha') },
   booster: { matter: ['machine', 'fire'], genres: g('flight', 'mecha') },
   engine: { matter: ['machine'], genres: g('racing', 'flight', 'city') },
+  ambience: { matter: ['machine', 'air'], genres: g('city') },
+  exhaust: { matter: ['machine'], genres: g('racing', 'city') },
   beam: { matter: ['energy'], genres: g('shooting', 'mecha') },
   charge: { matter: ['energy'], genres: g('shooting', 'mecha') },
   fire: { matter: ['fire', 'wood'], genres: g('adventure', 'life', 'horror') },
@@ -131,7 +133,7 @@ const ROW_MATTER = {
   checkpoint: ['synthetic'], chime: ['synthetic', 'metal'], wave: ['synthetic'], 'beat-hit': ['synthetic'], 'beat-miss': ['synthetic'],
   'swell-in': ['air'],
 };
-const SET_FACETS = { 'mecha-layered': { matter: ['machine', 'metal', 'energy'], genres: g('mecha') } };
+const SET_FACETS = { 'mecha-layered': { matter: ['machine', 'metal', 'energy'], genres: g('mecha') }, buster: { matter: ['energy'], genres: g('platform', 'shooting') } };
 
 const uniq = (a) => [...new Set(a)];
 let cache = null;

@@ -6,11 +6,12 @@
   "building": {
     "use": "cell-block",
     "seed": 1,
-    "scale": 1.5
+    "scale": 1.5,
+    "vents": true
   },
   "start": {
-    "room": "cell-108",
-    "reads": "the last cell of the east wing, its door left on the latch: the operative wakes on its floor, bare-handed"
+    "room": "cell-105",
+    "reads": "a cell on the processing row, its door left on the latch: the operative wakes on its floor, bare-handed; behind its cot a grille into the duct that runs behind the row"
   },
   "kit": {
     "room": "processing-101",
@@ -58,6 +59,6 @@
     }
   ],
   "laws": {
-    "reads": "the holding block's (gameworld/level-kinds.js `holding`): the straight way out is seen; a way out unseen by the round alone (the route search, bare hands: no takedown); the kit is on a way out (a way to it unseen, and from it to the door); so no way out needs a kill"
+    "reads": "the holding block's (gameworld/level-kinds.js `holding`): the straight way out is seen; a way out unseen by the round alone (the route search, bare hands: no takedown); the kit is on a way out (a way to it unseen, and from it to the door); so no way out needs a kill; a vent a body lies flat in runs from the cell to the kit's room behind the row, out of the corridor (era/vents.js)"
   }
 }

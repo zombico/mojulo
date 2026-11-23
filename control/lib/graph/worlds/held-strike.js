@@ -6,6 +6,7 @@
  * Pure.
  *
  *   wieldsFigure(e, name) → true when e strikes with the hero `name` holds
+ *   FIST                  the bare hands as a held strike: the fist's reach (gameworld/combos.js), a light blow's seconds
  *   armHeld(e, held, moveClips?) → e, its rule armed with the held item's reach and its class's seconds and damage (any
  *                           the rule names stand); `moveClips` where its figure carries its moveset's own clips
  */
@@ -13,6 +14,7 @@ export function wieldsFigure(e, name) {
   if (!e || !e.body || !e.rule || e.rule.type !== 'platform' || !Array.isArray(e.rule.strikeContact) || e.rule.strike != null) return false;
   return e.body.figure === name || (!!e.rule.combat && e.rule.combat.drawn === name);
 }
+export const FIST = Object.freeze({ item: 'fist', class: 'light', reach: 0.95, seconds: 0.35, damage: 1 });
 export function armHeld(e, held, moveClips = false) {
   return { ...e, rule: { ...e.rule, strike: 'melee', strikeReach: e.rule.strikeReach ?? held.reach, strikeDur: e.rule.strikeDur ?? held.seconds, strikeDamage: e.rule.strikeDamage ?? held.damage, ...(moveClips ? { moveClips: true } : {}) } };
 }

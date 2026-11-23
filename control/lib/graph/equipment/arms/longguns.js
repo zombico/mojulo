@@ -56,7 +56,7 @@ export function magazine(c, kind, { z0, z1, yTop, len, hw = 1.1, rake = 0.1, gro
 
 /** A stock behind the receiver's rear at (z0, y band yHi..yLo): fixed, collapsible (a tube and its body), folding (a
  * wire frame), skeleton (a polymer frame) or none (the tube's cap). → its butt's point and its rear z. */
-function stock(c, kind, { z0, yHi, yLo, length = 25 }) {
+export function stock(c, kind, { z0, yHi, yLo, length = 25 }) {
   const g = c.P.girth, L = length * c.P.length, zb = z0 - L, R = c.R.furniture;
   const butt = (zz, yt, yb, hw) => push(c, { ring: [[zz, yt], [zz - 1.0, yt - 0.1], [zz - 1.0, yb + 0.1], [zz, yb]], plane: 'side', hw: hw * 1.04, chamfer: 0.2, role: c.R.grip, group: 'buttpad' });
   if (kind === 'none') { c.add('lathes', tube({ z0: z0 - 2.4, z1: z0 + 0.1, y: yHi - 1.6, profile: [[0, 1.2], [0.2, 1.45], [1, 1.45]], samples: 16, role: c.R.frame, group: 'stock' })); return { butt: [0, yHi - 1.6, z0 - 2.4], back: z0 - 2.4 }; }

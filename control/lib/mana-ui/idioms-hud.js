@@ -43,6 +43,13 @@ export const HUD_IDIOMS = {
     node: region('top', [{ use: 'compass', props: { heading: P('heading'), markers: P('markers') } }]),
     example: { heading: { bind: 'player.heading' }, markers: { bind: 'bearings' } },
   },
+  'radar-corner': {
+    kind: 'hud', about: 'the map in a corner as a radar: the ground round you from above, the way you face up, what is near by its icon (bottom left)',
+    reads: 'shapes: [{ kind, x, y, w, h }], markers: [{ x, y, kind?, icon?, you?, heading? }], focus: { x, y }, heading, zoom', emits: '—',
+    params: ['shapes', 'markers', 'focus', 'heading', 'zoom'],
+    node: region('bottom-left', [{ use: 'map', props: { shapes: P('shapes'), markers: P('markers'), view: 'follow', focus: P('focus'), heading: P('heading'), zoom: P('zoom'), size: 'corner' } }]),
+    example: { shapes: { bind: 'map.shapes' }, markers: { bind: 'map.markers' }, focus: { bind: 'map.focus' }, heading: { bind: 'map.heading' }, zoom: 4 },
+  },
   'minimap-corner': {
     kind: 'hud', about: 'the map in a corner: you, foes, the goal, items, each a shape (top right)',
     reads: 'markers: [{ x, y, kind: self | ally | foe | goal | item | poi, label? }]', emits: '—',

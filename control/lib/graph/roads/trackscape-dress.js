@@ -31,6 +31,9 @@ import { planTrack } from './track.js';
 import { planTrackscape, trackscapeLaws } from './trackscape.js';
 import { driverEye } from './eye.js';
 import { pieceFor, buildPiece, paintPiece, SET_OF_CLASS, SETS, TRACK_BLOCKS } from './set-pieces.js';
+import { planFrontage, buildFrontage } from './street-frontage.js';
+import { planMine, buildMine, inMine } from './mine.js';
+import { chunkyFlat, chunkyLightOf } from './chunky-look.js';
 import { buildBlock } from '../era/blocks.js';
 import { planArena, zoneOf, ARENA } from './arena-plan.js';
 import { buildLocalAreas } from './local-area.js';
@@ -51,7 +54,7 @@ export function planScapedTrack(m = {}) {
   if (!m.scape) return plan;
   const opts = m.scape === true ? {} : m.scape;
   const set = opts.set ?? SET_OF_CLASS[plan.course.class] ?? 'gt', seed = Number.isInteger(opts.seed) ? opts.seed : Number.isInteger(m.seed) ? m.seed : 1;
-  const K = trackKit(m.kit ?? 'isekai-meadow'), X = plan.X, a = plan.alignment, L = a.length;
+  const K = trackKit(m.kit ?? 'isekai-meadow'), X = plan.X, a = plan.alignment, L = a.length, lang = plan.language?.card ?? null;
   // a stadium round the track (`venue`, stadium/stadium.js trackVenue): the bowl is the dressing, so no arena, no
   // surrounds and no set pieces unless the words ask for them
   if (opts.venue) return venueTrack(plan, opts, K);
@@ -63,20 +66,40 @@ export function planScapedTrack(m = {}) {
   const nearest = (x, y) => { let b = C[0], d = Infinity; for (const c of C) { const e = (c.x - x) ** 2 + (c.y - y) ** 2; if (e < d) { d = e; b = c; } } return b; };
   const offOf = (x, y) => { const c = nearest(x, y); return { c, off: -(x - c.x) * Math.sin(c.heading) + (y - c.y) * Math.cos(c.heading) }; };
   // the arena plan (arena-plan.js): the venue's zones; a slot inside one is the zone's to fill (its local area)
-  const arena = opts.arena === false ? null : planArena(plan, { scape, seed });
+  // a street circuit's town (street-frontage.js, its language's `city`): planned first, so the venue and the land keep
+  // clear of it; a town has no venue of its own beside the track
+  const town = lang?.parts?.city ? planFrontage(plan, lang, { seed }) : null;
+  // a mine's galleries (mine.js, its language's `mine`): planned first too, the hill and the yard kept clear; a mine has
+  // no venue beside it either
+  const mine = lang?.parts?.mine ? planMine(plan, lang, { seed }) : null;
+  const arena = opts.arena === false || town || mine ? null : planArena(plan, { scape, seed });
   // the surrounds (surrounds.js): the land beyond the venue shaped and stood on, before anything here stands on it
-  const SO = opts.surrounds === false ? null : opts.surrounds === true || opts.surrounds === undefined ? {} : opts.surrounds;
-  const sur = SO ? planSurrounds(plan, { arena, scape, K, seed: Number.isInteger(SO.seed) ? SO.seed : seed, land: SO.land ?? landOf(m), settlement: SO.settlement ?? 'village' }) : null;
+  // (a mine's cavern is the land: no meadow round a track underground)
+  const SO = opts.surrounds === false || mine?.cavern ? null : opts.surrounds === true || opts.surrounds === undefined ? {} : opts.surrounds;
+  const sur = SO ? planSurrounds(plan, { arena, scape, K, seed: Number.isInteger(SO.seed) ? SO.seed : seed, land: SO.land ?? landOf(m), settlement: SO.settlement ?? (town ? 'town' : 'village'), ...(town || mine ? { keepOut: [...(town?.keepOut ?? []), ...(mine?.keepOut ?? [])] } : {}) }) : null;
   if (sur) plan = sur.plan;
+  // (in a cavern the track's own ground is the cave's floor, in the language's dust)
+  if (mine?.cavern && Array.isArray(plan.ground)) {
+    const [g0, g1] = plan.ground, hex = lang.materials[lang.parts.mine.cavern.floor].hex, light = chunkyLightOf(K);
+    plan = { ...plan, faces: plan.faces.map((f, i) => (i >= g0 && i < g1 && Array.isArray(f.corners) ? floorFace(f.corners, hex, light) : f)) };
+  }
   const absorbed = [];
   const nth = {}, pieces = [], faces = [...(sur ? sur.faces : [])], colliders = [];
   for (const slot of scape.slots) {
     const z = arena && slot.beat !== 'span' && slot.beat !== 'gantry' && !slot.landmark ? zoneOf(arena, slot.at) : null;
     if (z) { absorbed.push({ beat: slot.beat, zone: z.id }); continue; }
+    // (in a town its fronts stand where the side pieces would: the boards, the spans and the landmark stay)
+    if (town && (slot.beat === 'pocket' || slot.beat === 'reveal' || slot.beat === 'rhythm')) { absorbed.push({ beat: slot.beat, zone: 'town' }); continue; }
+    // (under a mine's hill a piece would stand in the rock: the gallery is the moment there)
+    if (mine && inMine(mine, plan, slot.at, 4)) { absorbed.push({ beat: slot.beat, zone: 'mine' }); continue; }
     const { c } = offOf(slot.at[0], slot.at[1]), across = slot.beat === 'span' || slot.beat === 'gantry';
     const k = (nth[slot.beat] = (nth[slot.beat] ?? -1) + 1);
-    let p = pieceFor(slot.landmark && opts.landmark ? { ...slot, beat: 'landmark' } : slot, set, { nth: k, toward: [c.x, c.y], heading: across ? slot.heading ?? c.heading : c.heading, ...(slot.landmark && opts.landmark ? { block: opts.landmark } : {}) });
+    const pick = { nth: k, toward: [c.x, c.y], heading: across ? slot.heading ?? c.heading : c.heading };
+    let p = pieceFor(slot.landmark && opts.landmark ? { ...slot, beat: 'landmark' } : slot, set, { ...pick, ...(slot.landmark && opts.landmark ? { block: opts.landmark } : {}) });
     if (!p) continue;
+    // the language's stand-in for this piece (track-language.js `pieces.blocks`), sized in the slot the same way
+    const swap = lang?.parts?.pieces?.blocks?.[p.block];
+    if (swap) p = pieceFor(slot.landmark && opts.landmark ? { ...slot, beat: 'landmark' } : slot, set, { ...pick, block: swap });
     let built = buildPiece(p, { seed: seed + k });
     // off the road: the footprint's nearest corner to the line past the barrier (a span's ends, past it both sides)
     if (!across) {
@@ -94,7 +117,7 @@ export function planScapedTrack(m = {}) {
     const { lo, hi } = built.box, under = Math.min(...[[lo[0], lo[1]], [hi[0], lo[1]], [hi[0], hi[1]], [lo[0], hi[1]], [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2]].map(([x, y]) => plan.groundAt(x, y)));
     const dz = under - 0.15 - p.at[2];
     const placed = built.faces.map((f) => ({ ...f, corners: f.corners.map((q) => [q[0], q[1], r3(q[2] + dz)]) }));
-    faces.push(...paintPiece(placed, K));
+    faces.push(...paintPiece(placed, K, { language: lang }));
     const box = { lo: [lo[0], lo[1], lo[2] + dz], hi: [hi[0], hi[1], hi[2] + dz] };
     pieces.push({ ...p, beat: slot.beat, box: { lo: box.lo.map(r3), hi: box.hi.map(r3) }, interest: INTEREST[slot.beat] ?? 'prop', ...(slot.landmark ? { landmark: true } : {}), ...(slot.corner !== undefined ? { corner: slot.corner } : {}) });
     // colliders: a span's legs (its two ends), else the whole footprint where a car can reach it
@@ -106,19 +129,26 @@ export function planScapedTrack(m = {}) {
       if (reach < X.outer + REACH) colliders.push({ min: box.lo.map(r3), max: box.hi.map(r3), of: `trackscape:${slot.beat}` });
     }
   }
+  // the town, stood on the land as it was shaped and painted in the language's family
+  const street = town ? buildFrontage(town, plan, lang, K) : null;
+  if (street) { faces.push(...street.faces); colliders.push(...street.colliders); }
+  // the mine, bored and timbered on the land as it was shaped
+  const dig = mine ? buildMine(mine, plan, lang, K) : null;
+  if (dig) { faces.push(...dig.faces); colliders.push(...dig.colliders); }
   // the local areas (local-area.js): each zone built on its own, in passes (ground, massing, elements, dressing)
   const stands = readStands(opts.stands, plan.course.class);
   const local = arena && opts.local !== false ? buildLocalAreas(plan, arena, { K, seed, local: opts.local ?? {}, upTo: opts.upTo ?? 'dressing', ...(stands ? { stands } : {}) }) : null;
   if (local) { faces.push(...local.faces); colliders.push(...local.colliders); }
   // the eye again, on what was built (a zone not yet built to its elements counts as what will stand there)
-  const built = local ? local.things : [];
+  const built = [...(local ? local.things : []), ...(street ? street.things : []), ...(dig ? dig.things : [])];
   const census = driverEye(plan, [...scapeThings(pieces), ...built, ...(arena && !built.length ? zoneThings(arena, plan) : []), ...(sur ? sur.things : [])], { cls: scape.cls, ground: plan.groundAt });
   const laws = trackscapeLaws(plan, { ...scape, slots: scape.slots }, census);
   return {
     ...plan,
     faces: [...plan.faces, ...faces],
     colliders: [...plan.colliders, ...colliders],
-    scape: { set, kit: K.id, slots: scape.slots, keepClear: scape.keepClear, corners: scape.corners, pieces, ...(arena ? { arena, absorbed } : {}), ...(local ? { local: local.areas } : {}), ...(sur ? { surrounds: sur.report } : {}), census: { blank: census.blank, seconds: census.seconds.length, corners: census.corners, landmarkSeen: census.landmarkSeen, rhythm: census.rhythm }, laws },
+    ...(dig ? { mine: dig.light } : {}),
+    scape: { set, kit: K.id, slots: scape.slots, keepClear: scape.keepClear, corners: scape.corners, pieces, ...(arena ? { arena, absorbed } : {}), ...(local ? { local: local.areas } : {}), ...(sur ? { surrounds: sur.report } : {}), ...(street ? { street: street.report, absorbed } : {}), ...(dig ? { mine: dig.report, absorbed } : {}), census: { blank: census.blank, seconds: census.seconds.length, corners: census.corners, landmarkSeen: census.landmarkSeen, rhythm: census.rhythm }, laws },
   };
 }
 
@@ -160,4 +190,14 @@ export function zoneThings(arena, plan) {
     out.push({ kind: z.use, interest: z.use === 'grandstand' ? 'focus' : 'prop', at: [c[0], c[1], g + h / 2], span: Math.min(h, Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))), top: g + h });
   }
   return out;
+}
+
+// a face of the ground repainted in one colour of the chunky look, lit as it lies
+function floorFace(corners, hex, light) {
+  let n = [0, 0, 0];
+  for (let i = 0; i < corners.length; i++) { const a = corners[i], b = corners[(i + 1) % corners.length]; n = [n[0] + (a[1] - b[1]) * (a[2] + b[2]), n[1] + (a[2] - b[2]) * (a[0] + b[0]), n[2] + (a[0] - b[0]) * (a[1] + b[1])]; }
+  const l = Math.hypot(...n) || 1;
+  n = n.map((v) => v / l);
+  if (n[2] < 0) { n = n.map((v) => -v); corners = corners.slice().reverse(); }
+  return { corners, fill: chunkyFlat(hex, n, light) };
 }

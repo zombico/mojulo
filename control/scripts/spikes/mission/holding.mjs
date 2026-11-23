@@ -10,7 +10,8 @@
  *
  * THE LAWS (`--plan`, no page): the route search (gameworld/stealth-routes.js) over the building's own walls, the
  * guards on their rounds: from the cell to the door, the straight way is seen and a way unseen exists by the round alone
- * (bare hands, no takedown); and the kit is on a way out (a way unseen from the cell to it, and from it to the door).
+ * (bare hands, no takedown); the kit is on a way out (a way unseen from the cell to it, and from it to the door); and a
+ * vent (era/vents.js) runs from the cell to the kit's room, the corridors shut: a crawl the guards never see.
  *
  *   cd control
  *   node scripts/spikes/mission/holding.mjs --plan
@@ -36,7 +37,7 @@ const r2 = (p) => p.map((v) => +v.toFixed(2));
 const mid = (b, dx = 0, dy = 0) => [(b.min[0] + b.max[0]) / 2 + dx, (b.min[1] + b.max[1]) / 2 + dy, b.min[2]];
 
 // THE BUILDING, and its rooms by name
-const stage = buildingStage({ use: L.building.use, seed: L.building.seed, ...(L.building.scale ? { scale: L.building.scale } : {}) });
+const stage = buildingStage({ use: L.building.use, seed: L.building.seed, ...(L.building.scale ? { scale: L.building.scale } : {}), ...(L.building.vents ? { vents: L.building.vents } : {}) });
 const dry = assembleStageScene(stage), R = Object.fromEntries(dry.rooms.map((r) => [r.id.replace(/@\d+$/, ''), r.box]));
 const need = [L.start.room, L.kit.room, L.exit.room, ...L.watchers.map((w) => w.room)].filter((id) => !R[id]);
 if (need.length) { console.error(`holding: the building lays no ${need.join(', ')} (rooms: ${Object.keys(R).join(', ')})`); process.exit(1); }
@@ -57,18 +58,23 @@ const roundOf = (w) => {
 const rounds = L.watchers.map(roundOf);
 
 // THE LAWS: the route search over the building's walls, the guards on their rounds
-const boxes = (dry.colliders ?? []).map((c) => ({ min: c.min, max: c.max }));
+// (and the glass and the mesh, worlds/controllable/barrier.js: in the way, stopping no gaze)
+const boxes = [...(dry.colliders ?? []).map((c) => ({ min: c.min, max: c.max })), ...(dry.barriers ?? []).map((b) => ({ min: b.min, max: b.max, sight: false }))];
 const xs = dry.rooms.flatMap((r) => [r.box.min[0], r.box.max[0]]), ys = dry.rooms.flatMap((r) => [r.box.min[1], r.box.max[1]]);
 const bounds = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 const watchers = rounds.map((w) => ({ id: w.id, at: [w.at[0], w.at[1]], to: [w.to[0], w.to[1]], speed: w.speed, cone: w.cone, range: w.range, eye: 1.35, hear: 7, ...(w.look ? { look: w.look } : {}), ...(w.near ? { near: w.near } : {}) }));
 const search = (a, b) => sneakRoutes({ bounds, boxes, watchers, start: [a[0], a[1]], goal: [b[0], b[1]], goalRadius: 1.2, seconds: 300, cell: 0.5 });
 const say = (r) => (r ? `${r.seconds} s (waits ${r.waits}, crouches ${r.crouch} m, crawls ${r.crawl} m, ${r.detour}× the straight way, never nearer a watcher than ${r.nearest} m)` : 'none');
 const out1 = search(start, door), toKit = search(start, kit), fromKit = search(kit, door);
+// (the vent: the corridors shut to the search, so the only way from the cell to the kit is the duct behind the row)
+const shutCorridors = dry.rooms.filter((r) => /^corridor/.test(r.id)).map((r) => ({ min: [r.box.min[0], r.box.min[1], 0], max: [r.box.max[0], r.box.max[1], 3] }));
+const vented = (dry.vents ?? []).length ? sneakRoutes({ bounds, boxes: [...boxes, ...shutCorridors], watchers, start: [start[0], start[1]], goal: [kit[0], kit[1]], goalRadius: 1.2, seconds: 300, cell: 0.5 }) : null;
 const laws = [
   { law: 'the-kit-is-taken', holds: true, says: 'bare hands until the kit is held (carry.js `locked`)' },
   { law: 'the-straight-way-out-is-seen', holds: !!out1.direct.seen, says: out1.direct.seen ? `seen by ${out1.direct.seen.by} after ${out1.direct.seen.t} s` : 'the straight way is not seen' },
   { law: 'a-way-out-unseen-by-the-round-alone', holds: !!out1.sneak, says: say(out1.sneak) },
   { law: 'the-kit-is-on-a-way-out', holds: !!(toKit.sneak && fromKit.sneak), says: `to it ${say(toKit.sneak)}; from it to the door ${say(fromKit.sneak)}` },
+  { law: 'a-vent-to-the-kit', holds: !!vented?.sneak && vented.sneak.crawl > 3, says: vented?.sneak ? `the corridor shut, through the duct behind the row: ${say(vented.sneak)}` : (dry.vents ?? []).length ? 'no way from the cell to the kit but the corridor' : 'the building has no vents' },
   { law: 'no-way-out-needs-a-kill', holds: !!out1.sneak, says: out1.sneak ? 'a way unseen with bare hands and no takedown' : 'none without one' },
 ];
 console.log(`holding: start ${start} (${L.start.room}) · kit ${kit} (${L.kit.room}) · door ${door} · rounds ${rounds.map((w) => `${w.id} ${w.at} ↔ ${w.to}`).join(' | ')}`);

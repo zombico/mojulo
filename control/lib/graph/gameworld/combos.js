@@ -19,9 +19,15 @@
  *            rear; at most 0.4 m), lunge (the lead foot driven out to land with the blow, the rear leg extending behind,
  *            then the rear foot recovering forward after it; at most 0.7 m, one stride), dash (the body carried in a glide
  *            to the blow, the feet held in the stance, closing on what is ahead: a special's, at most 4 m); `m` metres
+ *   plant    the metres the feet split IN PLACE through the cut (a move with no travel's: 0.1 to 0.6): the lead foot steps
+ *            forward and the rear back over the wind-up as the body swings into the blow, held through it, drawn back
+ *            to the stance after; the body never moves (hero-swing-body.js plantAt). A plant move chained into from
+ *            another, taken before its feet were drawn back, starts in the split (its `_on` clip)
  *   mp       the MP it costs (a special's: the arsenal's `mp` pool; refused, said, when the pool is short)
  *   reach    the metres its blow reaches, in place of the weapon's (a burst's, a shockwave's)
  *   damage   × the held weapon's; impact (the blow's shove: its hitstop grows with it), topple (knocks down), launch
+ *   knock    its knockback (worlds/controllable/knock.js): tap, light, heavy, massive, or joules: what it strikes thrown
+ *            away from the hero, apart from its damage (a level that carries knockback)
  *   cooldown frames after it ends before it opens a string again (a heavy's: no spamming it); a press inside it is
  *            held when the wait is inside the buffer, else dropped and said
  *
@@ -54,6 +60,8 @@ export const TRAVEL = Object.freeze(['none', 'step', 'lunge', 'dash']);
 // performed for the camera), freestyle (the anime sword: anything goes)
 export const ARTS = Object.freeze(['realistic', 'inspired', 'freestyle', 'wild']);
 export const SWINGS = Object.freeze(['neutral', 'forward', 'back', 'left', 'right', 'up', 'around']);
+/** a move's knockback in words (worlds/controllable/knock.js WORDS: their joules) */
+export const KNOCK_WORDS = Object.freeze(['tap', 'light', 'heavy', 'massive']);
 /** the body strikes a move may play (hero-strike.js STRIKES, hero-box.js BOX_STRIKES): the fist's */
 export const STRIKES = Object.freeze(['jab', 'cross', 'hook', 'uppercut']);
 // (bH: back + heavy, the heavy pressed with the stick pulled away from where the hero faces: the launcher's beat; mL, mH,
@@ -107,10 +115,13 @@ export function readCombos(C) {
   for (const [id, m] of Object.entries(C.moves)) {
     const at = `moves.${id}`;
     if (!isObj(m)) no(`${at} is { swing | strike, role, frames, cancel?, contact?, travel?, damage?, impact?, topple?, launch?, cooldown? }`);
-    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise', 'arc', 'spin', 'mp', 'reach'].includes(k)) no(`${at}.${k} is not part of a move`);
+    for (const k of Object.keys(m)) if (!['swing', 'strike', 'role', 'frames', 'cancel', 'contact', 'travel', 'damage', 'impact', 'topple', 'launch', 'cooldown', 'air', 'slam', 'rise', 'arc', 'spin', 'mp', 'reach', 'knock', 'plant'].includes(k)) no(`${at}.${k} is not part of a move`);
     if (m.mp !== undefined && !num(m.mp, 0, 200)) no(`${at}.mp is the MP it costs, 0 to 200 (a move with none costs nothing)`);
     if (m.reach !== undefined && !num(m.reach, 0.5, 8)) no(`${at}.reach is the metres its blow reaches, over the weapon's, 0.5 to 8`);
     if (m.arc !== undefined && !num(m.arc, 30, 360)) no(`${at}.arc is the degrees round the hero its blow reaches, 30 to 360 (360: all round, a spin attack's)`);
+    // (its KNOCKBACK, knock.js: the blow's kinetic energy throwing what it strikes away from the hero, apart from its
+    // damage; a word (tap, light, heavy, massive) or joules)
+    if (m.knock !== undefined && !(KNOCK_WORDS.includes(m.knock) || num(m.knock, 1, 100000))) no(`${at}.knock is its knockback: ${KNOCK_WORDS.join(', ')}, or joules (1 to 100000)`);
     if (m.spin !== undefined && !num(m.spin, 0, 3)) no(`${at}.spin is the turns the body makes through the blow, 0 to 3`);
     if (m.air !== undefined && typeof m.air !== 'boolean') no(`${at}.air is true (a move made in the air) or false`);
     if (m.slam !== undefined && !(num(m.slam, 0, 40) && m.air)) no(`${at}.slam is the foe's speed down (m/s) an air move drives it into the ground at`);
@@ -132,6 +143,9 @@ export function readCombos(C) {
       // (a dash: the body carried in a glide, its feet held in the stance, a special's: a stinger's)
       if (m.travel.kind === 'dash' && m.travel.m > 4) no(`${at}: a dash covers at most 4 m`);
     }
+    // (a plant splits the feet where the hero stands: no travel with it, no air under it)
+    if (m.plant !== undefined && !num(m.plant, 0.1, 0.6)) no(`${at}.plant is the metres the feet split in place, 0.1 to 0.6`);
+    if (m.plant !== undefined && ((m.travel && m.travel.kind !== 'none') || m.air)) no(`${at}: a plant splits the feet in place (no travel, no air)`);
     for (const k of ['damage', 'impact']) if (m[k] !== undefined && !num(m[k], 0, 20)) no(`${at}.${k} is a number 0 to 20`);
     if (m.launch !== undefined && !num(m.launch, 0, 20)) no(`${at}.launch is the foe's speed up (m/s)`);
     if (m.topple !== undefined && typeof m.topple !== 'boolean') no(`${at}.topple is true or false`);
@@ -182,7 +196,8 @@ export function lowerCombos(C0, { prefix = '' } = {}) {
     damage: m.damage ?? 1, ...(m.impact != null ? { impact: m.impact } : {}), ...(m.topple ? { topple: true } : {}), ...(m.launch ? { launch: m.launch } : {}),
     ...(m.cooldown > 0 ? { cooldown: r4(m.cooldown / FPS) } : {}),
     ...(m.air ? { air: true } : {}), ...(m.slam > 0 ? { slam: m.slam } : {}), ...(m.rise ? { rise: true } : {}),
-    ...(m.arc ? { arc: m.arc } : {}), ...(m.spin ? { spin: m.spin } : {}), ...(m.mp > 0 ? { mp: m.mp } : {}), ...(m.reach ? { reach: m.reach } : {}),
+    ...(m.arc ? { arc: m.arc } : {}), ...(m.spin ? { spin: m.spin } : {}), ...(m.mp > 0 ? { mp: m.mp } : {}), ...(m.reach ? { reach: m.reach } : {}), ...(m.knock !== undefined ? { knock: { kinetic: m.knock } } : {}),
+    ...(m.plant ? { plant: m.plant } : {}),
   }]));
   // (the ground's tree and the air's: a string made in the air opens from a jump or a launch, the ground's from the feet)
   const tree = {}, airTree = {};
@@ -311,8 +326,9 @@ const FA_SPECIALS = {
   ],
 };
 // (its sidearm the stylish game's pistols: two guns, held they fire at their rate and never run dry, weak; every weapon's)
-export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 }, switch: 'cancel',
-  weapons: BASIC_ARSENAL.weapons.map((W) => (W.id === 'sword' ? { ...W, moves: { ...W.moves, ...FA_SPECIALS.moves }, combos: [...W.combos, ...FA_SPECIALS.combos] } : W)),
+export const FALLEN_ANGEL_ARSENAL = Object.freeze({ ...BASIC_ARSENAL, art: 'freestyle', mp: { max: 100, onHit: 4 }, switch: 'cancel', clang: true,
+  // (its sword parries, the shield's pose with no shield: a stylish hero carries none)
+  weapons: BASIC_ARSENAL.weapons.map((W) => (W.id === 'sword' ? { ...W, guard: 'parry', moves: { ...W.moves, ...FA_SPECIALS.moves }, combos: [...W.combos, ...FA_SPECIALS.combos] } : W)),
   ranged: [{ id: 'pistols', name: 'Pistols', mode: 'auto', rof: 9, damage: 0.4, impact: 3, range: 30, infinite: true, hand: 'right', dual: true }] });
 export const TEMPLATE_ARSENALS = Object.freeze({ 'fallen-angel': FALLEN_ANGEL_ARSENAL, 'fable-of-artesia': ARTESIA_ARSENAL });
 export function arsenalFor(feel) {
@@ -327,20 +343,22 @@ export function arsenalFor(feel) {
  * runtime's ranged weapon (worlds/controllable/combat-ranged.js initWeapon):
  *   auto   held, it fires at `rof` rounds a second (hitscan) until the magazine is dry and reloads (`magazine`, `reload`),
  *          or never runs dry (`infinite`: a stylish game's pistols, weak to match); `damage`, `impact`, `range` (m),
- *          `dual` (two guns taking turns)
+ *          `dual` (two guns taking turns); `reserve` the spare rounds carried (absent: endless reloads), `loaded` the rounds in
+ *          the magazine at the start (absent: full): a gun carried empty, its rounds bought (gameworld/shops.js)
  *   draw   held, it draws for `draw` seconds and is ready; let go once ready, it looses its round (an arrow: `speed` m/s,
  *          `drop` m/s² of gravity, `damage`, `impact`); let go before, `early`: none (a bow: nothing) or tap (a charge
  *          shot's pellet: `tap { damage, impact }`); `quiver` arrows (absent: endless), `nock` seconds to the next
  *   hand   the hand it is held in (right | left): where its round leaves from
  */
 export const SIDEARM_MODES = Object.freeze(['auto', 'draw']);
-const SIDEARM_KEYS = Object.freeze({ auto: ['rof', 'damage', 'impact', 'range', 'infinite', 'magazine', 'reload', 'hand', 'dual'], draw: ['draw', 'early', 'tap', 'speed', 'drop', 'damage', 'impact', 'quiver', 'nock', 'hand'] });
+const SIDEARM_KEYS = Object.freeze({ auto: ['rof', 'damage', 'impact', 'range', 'infinite', 'magazine', 'reload', 'hand', 'dual', 'reserve', 'loaded'], draw: ['draw', 'early', 'tap', 'speed', 'drop', 'damage', 'impact', 'quiver', 'nock', 'hand'] });
 function readSidearm(G, at) {
   if (!isObj(G) || typeof G.id !== 'string' || !G.id) no(`${at} is { id, name?, mode: auto | draw, … }`);
   if (!SIDEARM_MODES.includes(G.mode)) no(`${at}.mode is auto (held, it fires at its rate) or draw (held, it draws; let go once drawn, it looses)`);
   for (const k of Object.keys(G)) if (!['id', 'name', 'mode', ...SIDEARM_KEYS[G.mode]].includes(k)) no(`${at}.${k} is not part of a ${G.mode} sidearm (${SIDEARM_KEYS[G.mode].join(', ')})`);
   const pos = (k, lo, hi) => { if (G[k] !== undefined && !num(G[k], lo, hi)) no(`${at}.${k} is a number, ${lo} to ${hi}`); };
   pos('damage', 0, 50); pos('impact', 0, 500); pos('range', 1, 400); pos('rof', 0.5, 30); pos('magazine', 1, 999); pos('reload', 0, 10);
+  pos('reserve', 0, 9999); pos('loaded', 0, 999);
   pos('draw', 0.05, 3); pos('speed', 5, 200); pos('drop', 0, 50); pos('quiver', 0, 999); pos('nock', 0, 5);
   if (G.hand !== undefined && !['right', 'left'].includes(G.hand)) no(`${at}.hand is right or left`);
   if (G.early !== undefined && !['none', 'tap'].includes(G.early)) no(`${at}.early is none (a bow: nothing loosed) or tap (a charge shot: its pellet)`);
@@ -349,7 +367,7 @@ function readSidearm(G, at) {
 /** a sidearm's runtime weapon (initWeapon's config) */
 export function lowerSidearm(G) {
   const eye = 1.25, hand = G.hand ?? 'right';   // (the round leaves at the chest: a level shot meets a body's middle)
-  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, fxScale: 0.15, fxColor: 0xffd27a, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) };
+  if (G.mode === 'auto') return { fireClass: 'sight', auto: true, rof: G.rof ?? 8, magazine: G.magazine ?? 60, reload: G.reload ?? 1.2, damage: G.damage ?? 0.5, impact: G.impact ?? 4, range: G.range ?? 30, coreAngle: 3, eye, hand, fxScale: 0.15, fxColor: 0xffd27a, ...(G.infinite ? { infinite: true } : {}), ...(G.dual ? { muzzleAlt: true } : {}) , ...(Number.isFinite(G.reserve) ? { reserve: G.reserve } : {}), ...(Number.isFinite(G.loaded) ? { loaded: G.loaded } : {}) };
   return { fireClass: 'lob', auto: false, chargeTime: G.draw ?? 0.45, ...(G.early === 'tap' ? {} : { early: 'none' }), magazine: 1, reload: G.nock ?? 0.3, ...(Number.isFinite(G.quiver) ? { reserve: G.quiver } : {}),
     projectileSpeed: G.speed ?? 45, projectileGravity: G.drop ?? 9, lobAngle: 1, projRadius: 0.12, splashRadius: 0, armTime: 0.04, fuse: 3, smokeTrail: false, cooldown: 0.1, eye, hand,
     damage: G.tap?.damage ?? 0, impact: G.tap?.impact ?? 0, chargedDamage: G.damage ?? 3, chargedImpact: G.impact ?? 30, chargedRangeMul: 1 };
@@ -389,7 +407,10 @@ export function lowerJuggle(J0) {
 export const SWITCHES = Object.freeze(['between', 'cancel']);
 export function readArsenal(A) {
   if (!isObj(A)) no('an arsenal is { timing?, weapons: [{ id, name?, figure?, sidearm?, reach?, damage?, moves, combos }], ranged?: [one sidearm] }');
-  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch)`);
+  for (const k of Object.keys(A)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch', 'clang'].includes(k)) no(`'${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch, clang)`);
+  // (`clang: true`: a blow that meets a foe's blade or its guard only rings, the hero's string never broken: no lock, no
+  // parry; worlds/controllable/combat-melee.js `rule.clang`)
+  if (A.clang !== undefined && typeof A.clang !== 'boolean') no('clang is true (a met blade or a guard only rings: the string goes on) or false');
   // (how the weapon is switched: `between` moves only, as it always was, or `cancel`: taken mid-string at the move's
   // switch point, the next weapon's string chained on, combat-melee.js)
   if (A.switch !== undefined && !SWITCHES.includes(A.switch)) no(`switch is how the weapon is changed: ${SWITCHES.join(' | ')}`);
@@ -406,10 +427,15 @@ export function readArsenal(A) {
   const ids = new Set();
   for (const [i, W] of A.weapons.entries()) {
     const at = `weapons[${i}]`;
-    if (!isObj(W) || typeof W.id !== 'string' || !W.id) no(`${at} is { id, name?, figure?, reach?, damage?, moves, combos }`);
+    if (!isObj(W) || typeof W.id !== 'string' || !W.id) no(`${at} is { id, name?, figure?, held?, reach?, damage?, moves, combos }`);
     if (ids.has(W.id)) no(`${at}: '${W.id}' twice`);
     ids.add(W.id);
-    for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'sidearm', 'guard', 'reach', 'damage', 'moves', 'combos'].includes(k)) no(`${at}.${k} is not part of a weapon`);
+    for (const k of Object.keys(W)) if (!['id', 'name', 'figure', 'sidearm', 'guard', 'reach', 'damage', 'moves', 'combos', 'held'].includes(k)) no(`${at}.${k} is not part of a weapon`);
+    // (a weapon HELD as its own item, `held`: an item's build words (equipment, its `item` a staff, a spear…), worn in the
+    // right hand of a hero of its own, the blade on the back; it shows in combat while the weapon is up and is gone out of
+    // it: manifested, never holstered. gameworld/runner.js mints that hero, levels.js names it `combat.held`)
+    if (W.held !== undefined && !(isObj(W.held) && typeof W.held.item === 'string' && W.held.item)) no(`${at}.held is an item's build words { item, style?, parts?, dials? }: what the hero holds while this weapon is up`);
+    if (W.held !== undefined && W.figure !== undefined && W.figure !== 'sheathed') no(`${at}: a held weapon shows its own hero, the blade on the back: give no figure, or 'sheathed'`);
     if (W.guard !== undefined && W.guard !== false && !GUARDS.includes(W.guard)) no(`${at}.guard is how the weapon guards (${GUARDS.join(', ')}), or false: none`);
     if (W.sidearm !== undefined && W.sidearm !== false && !sidearms.has(W.sidearm)) no(`${at}.sidearm '${W.sidearm}' is not the arsenal's ranged (${[...sidearms].join(', ') || 'none'}); false: none in this hand`);
     if (W.figure !== undefined && !['drawn', 'sheathed'].includes(W.figure)) no(`${at}.figure is drawn (in hand) or sheathed (on the back)`);
@@ -420,8 +446,9 @@ export function readArsenal(A) {
   return A;
 }
 /** how a weapon guards (hero-swing-body.js AIM_POSES' guards): `shield` the blade's (a shield on the off arm), `cover` the
- * fist's (both fists up); a weapon's own `guard`, else by the figure it shows (drawn: the shield; sheathed: the cover) */
-export const GUARDS = Object.freeze(['shield', 'cover']);
+ * fist's (both fists up), `parry` the shield's pose with no shield (the off forearm braced: a stylish hero carries none);
+ * a weapon's own `guard`, else by the figure it shows (drawn: the shield; sheathed: the cover) */
+export const GUARDS = Object.freeze(['shield', 'cover', 'parry']);
 const guardOf = (W) => (W.guard === false ? null : W.guard ?? ((W.figure ?? 'drawn') === 'sheathed' ? 'cover' : 'shield'));
 /** the aim each kind of sidearm is held in (hero-swing-body.js AIM_POSES) */
 export const AIM_OF = Object.freeze({ draw: 'archer', auto: 'gunslinger' });
@@ -431,11 +458,11 @@ export function lowerArsenal(A0) {
   // (every weapon carries the loadout's sidearm, the same one: the cycle never changes it; `sidearm: false`, none)
   const sidOf = (W) => (W.sidearm === false ? null : W.sidearm ?? A.ranged?.[0]?.id ?? null);
   const sideOf = (id) => ({ id, name: G[id].name ?? id, mode: G[id].mode, weapon: lowerSidearm(G[id]), aim: `mv_aim_${id}`, pose: AIM_OF[G[id].mode], hand: G[id].hand ?? (G[id].mode === 'draw' ? 'left' : 'right'), ...(G[id].dual ? { dual: true } : {}) });
-  return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.figure ?? 'drawn', ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
+  return A.weapons.map((W) => ({ id: W.id, name: W.name ?? W.id, figure: W.held ? 'sheathed' : W.figure ?? 'drawn', ...(W.held ? { held: true } : {}), ...(W.reach != null ? { reach: W.reach } : {}), ...(W.damage != null ? { damage: W.damage } : {}),
     // (its sidearm on S, lowered to the runtime's ranged weapon, and the aim the hero holds it in: its clip `mv_aim_<id>`,
     // a draw's the archer's, an auto's the gunslinger's, hero-swing-body.js aimClip)
     // (its GUARD's pose while the guard is up, `mv_guard_<weapon>`: a blade's the shield, the fist's the cover; false none)
-    ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
+    ...(guardOf(W) ? { guard: { clip: `mv_guard_${W.id}`, pose: guardOf(W) === 'parry' ? 'shield' : guardOf(W), ...(guardOf(W) === 'shield' ? { prop: 'shield' } : {}) } } : {}),
     ...(sidOf(W) ? { sidearm: sideOf(sidOf(W)) } : {}),
     // (each weapon's clips its own: mv_<weapon>_<move>, its stance mv_<weapon>_ready)
     moveset: { ...lowerCombos({ ...(A.timing ? { timing: A.timing } : {}), moves: W.moves, combos: W.combos }, { prefix: `${W.id}_` }), ...(A.juggle ? { air: lowerJuggle(A.juggle).air } : {}), ...(A.art && A.art !== 'realistic' ? { art: A.art } : {}), ...(A.mp ? { mp: { max: A.mp.max, regen: A.mp.regen ?? 0, onHit: A.mp.onHit ?? 0 } } : {}), ...(A.switch === 'cancel' ? { swap: true } : {}) } }));

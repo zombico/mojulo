@@ -50,6 +50,14 @@ describe('the guard held', () => {
     expect(A.p.transform.pos[0]).toBeLessThan(x0 - 0.05);   // (pushed back, away from the foe)
     expect(A.p.blockT).toBe(0);
   });
+  it('a guard never struck comes down when let go (its blockstun unset until its first block)', () => {
+    const A = world();
+    A.step({ guard: 1 }, 30);
+    expect(A.p.guarding).toBe(true);
+    expect(A.p.blockT).toBeUndefined();
+    A.step({}, 2);
+    expect(A.p.guarding).toBe(false);
+  });
   it('a blow met within the parry window of raising the guard: parried, the foe open for the riposte, the guard free', () => {
     const A = world();
     A.step({ guard: 1 }, 3);   // (raised three frames ago: inside the card's eight)

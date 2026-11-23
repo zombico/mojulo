@@ -11,6 +11,7 @@
  * the run-off's off the corners; a circuit's run-off is gravel outside them). off: [mu, roll] past the footprint.
  */
 import { SURFACES } from './surfaces.js';
+import { itemTable } from './kart-items.js';
 
 const STEP = 2;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -20,13 +21,32 @@ export function driveSurfaceTable(plan) {
   const a = plan.alignment, X = plan.X, T = X.T, L = a.length, n = Math.max(8, Math.round(L / STEP)), count = a.closed ? n : n + 1;
   const pts = [];
   for (let i = 0; i < count; i++) { const p = a.at((i * L) / n); pts.push(r3(p.x), r3(p.y), r3(p.heading), Math.abs(p.k) > KERB_K ? Math.sign(p.k) : 0); }
+  // (a split's branch, street-features.js: its points join the line's, so a kart on it is on the road)
+  const B = plan.street?.split?.branch;
+  if (B) { const Lb = B.alignment.length, nb = Math.max(4, Math.round(Lb / STEP)); for (let i = 0; i <= nb; i++) { const p = B.alignment.at((i * Lb) / nb); pts.push(r3(p.x), r3(p.y), r3(p.heading), 2); } }
   const S = (k) => [SURFACES[k].mu, SURFACES[k].roll], run = S(T.runoffSurface), out = S(T.outside), road = S(T.road);
   const bands = [
     [r3(X.road), ...road, ...road, ...road],
     ...(T.kerb ? [[r3(X.kerb), SURFACES.kerb.mu, SURFACES.kerb.roll, ...run, SURFACES.kerb.mu, SURFACES.kerb.roll]] : []),
     [r3(X.outer), ...run, ...run, ...out],
   ];
-  return { pts, bands, off: S('grass') };
+  // (a track's boost pads, a split's branch's among them: street-features.js; none, no key)
+  const pads = (plan.street?.split?.pads ?? []).map((q) => [r3(q.at[0]), r3(q.at[1]), r3(q.heading), r3(q.len / 2), r3(q.w / 2), r3(q.boost)]);
+  // (the alley's points carry 2: what is under a tyre there, within the way's width, is its own rough surface)
+  const rough = plan.street?.split?.rough ? S(plan.street.split.rough) : null;
+  // (a race's item boxes, kart-items.js: a track that asks for them; none, no key)
+  const items = plan.items ? itemTable(plan, plan.items) : null;
+  return { pts, bands, off: S('grass'), ...(pads.length ? { pads } : {}), ...(rough ? { rough } : {}), ...(items ? { items } : {}) };
+}
+
+/** The boost a point is on (pos: [x, y, …]): a pad's seconds, or 0. A pad is [x, y, heading, half its length, half its
+ *  width, seconds]. */
+export function padAt(T, pos) {
+  for (const q of T.pads || []) {
+    const dx = pos[0] - q[0], dy = pos[1] - q[1], u = dx * Math.cos(q[2]) + dy * Math.sin(q[2]), w = -dx * Math.sin(q[2]) + dy * Math.cos(q[2]);
+    if (Math.abs(u) <= q[3] && Math.abs(w) <= q[4]) return q[5];
+  }
+  return 0;
 }
 
 /** The surface under a point (pos: [x, y, …]). The nearest point of the line, its offset across, the band there. */
@@ -45,6 +65,7 @@ export function surfaceAt(T, pos) {
   }
   if (best < 0) return { mu: T.off[0], roll: T.off[1] };
   const h = T.pts[best + 2], c = T.pts[best + 3], o = -(x - T.pts[best]) * Math.sin(h) + (y - T.pts[best + 1]) * Math.cos(h), a = Math.abs(o);
+  if (c === 2) return T.rough && a <= T.bands[0][0] ? { mu: T.rough[0], roll: T.rough[1] } : a <= T.bands[0][0] ? { mu: T.bands[0][1], roll: T.bands[0][2] } : { mu: T.off[0], roll: T.off[1] };
   for (const b of T.bands) {
     if (a > b[0]) continue;
     if (!c) return { mu: b[3], roll: b[4] };

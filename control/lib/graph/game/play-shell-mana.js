@@ -1,6 +1,6 @@
 /**
  * play-shell-mana — the play shell's screens drawn by mana-ui (control/lib/mana-ui/), the game UI runtime: opt in by a
- * game's `ui` ({ theme, languages?, language? }: the look resolved, a preset or a theme object; design_game writes it
+ * game's `ui` ({ theme, languages?, language?, immersive? }: immersive, the screens draw no box, immersive-ui.js; the look resolved, a preset or a theme object; design_game writes it
  * from a gameworld's `ui` through playscape/ui/interface-look.js). The flow runner (play-shell.js) still says what plays
  * when; this draws its screen steps, and the loading screen over a level's frame. A game without `ui` carries none of
  * this: no kernel, no sheet, no theme, no host.
@@ -18,7 +18,8 @@
  *                                  saveSettings, pushPrefs, reset, continueTo, runTitle(), pause: { resume, restart, where (the level, which of how many, the seconds played),
  *                                  quit, sound, rows(), owner(), homeWord(), open }, playing() }
  */
-import { manaUi, manaUiSource, withIdioms, manaCss, themeCss, readTheme } from '../../mana-ui/index.js';
+import { manaUi, manaUiSource, withIdioms, manaCss, lettersCss, themeCss, readTheme, titleLetters } from '../../mana-ui/index.js';
+import { immersiveCss } from './immersive-ui.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -30,7 +31,8 @@ const B = (p) => ({ bind: `ui.${p}` });
 export function readShellUi(ui, where = 'ui') {
   if (!isObj(ui)) return [`${where} is { theme, languages?, language? }: the look the game's screens are drawn in by mana-ui`];
   const errors = [];
-  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language)`);
+  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language', 'immersive'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language, immersive)`);
+  if (ui.immersive !== undefined && typeof ui.immersive !== 'boolean') errors.push(`${where}.immersive: true where the screens draw no box (a stylish action game's, immersive-ui.js)`);
   try { readTheme(ui.theme === undefined ? 'greybox' : ui.theme); } catch (e) { errors.push(`${where}.theme: ${e.message}`); }
   if (ui.languages !== undefined || ui.language !== undefined) {
     try { manaUi.readSpec({ screens: {}, languages: ui.languages, language: ui.language }); } catch (e) { errors.push(`${where}: ${e.message}`); }
@@ -39,11 +41,14 @@ export function readShellUi(ui, where = 'ui') {
 }
 
 /** The shell's screens as mana-ui draws them. */
-export function shellManaSpec(ui = {}, { picks = false } = {}) {
+export function shellManaSpec(ui = {}, { picks = false, staged = false } = {}) {
   const button = (word, emit) => ({ use: 'button', props: { label: { word } }, on: { accept: { emit } } });
+  // the name enters letter by letter in its look's way (theme.js titleLetters; a look that says still: at once); on a
+  // staged start screen the stage draws the name, and the menu is words with no window behind (front-stage-page.js)
+  const L = staged ? 'none' : titleLetters(ui.theme === undefined ? 'greybox' : ui.theme), letters = L === 'none' ? {} : { letters: L };
   const screens = {
-    attract: { use: 'attract-screen', props: { title: B('title'), prompt: B('press'), then: { emit: 'press' } } },
-    title: { use: 'title-screen', props: { title: B('title'), subtitle: B('tagline'), items: B('menu'), version: B('version') } },
+    attract: { use: 'attract-screen', props: { title: B('title'), prompt: B('press'), then: { emit: 'press' }, ...letters } },
+    title: { use: 'title-screen', props: { title: B('title'), subtitle: B('tagline'), items: B('menu'), version: B('version'), ...letters, ...(staged ? { bare: true } : {}) } },
     levels: { use: 'mode-select', props: { title: B('levelsTitle'), modes: B('levels') } },
     options: { use: 'options-screen', props: { title: B('optionsTitle'), sections: [{ label: 'Audio', fields: [{ kind: 'toggle', label: 'Sound', var: 'ui.settings.sound' }] }] } },
     // the roll: each role and its names, the thanks, the line that says what made it; done goes on
@@ -91,7 +96,7 @@ export function shellManaSpec(ui = {}, { picks = false } = {}) {
 // wireframe would; a backdrop keeps its ground, the theme's own)
 // (and the shell's own pause button gives way to mana-ui's: it stays in the page as the shell's word for whether a level
 // is the player's, never seen or pressed)
-export const shellManaCss = (ui = {}) => `${manaCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}`;
+export const shellManaCss = (ui = {}) => `${manaCss()}\n${lettersCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}${ui.immersive === true ? immersiveCss('#mana') : ''}`;
 export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
   return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };

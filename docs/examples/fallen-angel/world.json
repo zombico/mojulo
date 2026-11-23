@@ -7,7 +7,140 @@
   "feel": "fallen-angel",
   "arsenal": {
     "from": "fallen-angel",
-    "art": "wild"
+    "art": "wild",
+    "weapons": [
+      {
+        "id": "fist",
+        "drop": true
+      },
+      {
+        "id": "staff",
+        "name": "Bo",
+        "figure": "sheathed",
+        "reach": 2.3,
+        "damage": 0.8,
+        "moves": {
+          "staff-1": {
+            "swing": "left",
+            "role": "opener",
+            "frames": 24,
+            "cancel": 15,
+            "arc": 150,
+            "travel": {
+              "kind": "step",
+              "m": 0.25
+            },
+            "damage": 0.8,
+            "impact": 1.5
+          },
+          "staff-2": {
+            "swing": "right",
+            "role": "filler",
+            "frames": 24,
+            "cancel": 15,
+            "arc": 150,
+            "travel": {
+              "kind": "step",
+              "m": 0.25
+            },
+            "damage": 0.8,
+            "impact": 1.5
+          },
+          "staff-3": {
+            "swing": "around",
+            "role": "filler",
+            "frames": 34,
+            "cancel": 24,
+            "contact": [
+              0.3,
+              0.72
+            ],
+            "arc": 360,
+            "spin": 1,
+            "damage": 1,
+            "impact": 2.5
+          },
+          "ground-slam": {
+            "swing": "back",
+            "role": "finisher",
+            "frames": 46,
+            "contact": [
+              0.5,
+              0.66
+            ],
+            "arc": 360,
+            "reach": 3.6,
+            "travel": {
+              "kind": "lunge",
+              "m": 0.4
+            },
+            "damage": 2,
+            "impact": 6,
+            "topple": true,
+            "cooldown": 30
+          },
+          "staff-poke": {
+            "swing": "forward",
+            "role": "opener",
+            "frames": 30,
+            "reach": 2.8,
+            "travel": {
+              "kind": "lunge",
+              "m": 0.5
+            },
+            "damage": 1.2,
+            "impact": 3,
+            "cooldown": 30
+          }
+        },
+        "combos": [
+          {
+            "id": "sweep",
+            "name": "Sweep",
+            "beats": [
+              "L",
+              "L",
+              "L"
+            ],
+            "moves": [
+              "staff-1",
+              "staff-2",
+              "staff-3"
+            ]
+          },
+          {
+            "id": "ground-slam",
+            "name": "Ground slam",
+            "beats": [
+              "L",
+              "L",
+              "L",
+              "H"
+            ],
+            "moves": [
+              "staff-1",
+              "staff-2",
+              "staff-3",
+              "ground-slam"
+            ]
+          },
+          {
+            "id": "poke",
+            "name": "Poke",
+            "beats": [
+              "H"
+            ],
+            "moves": [
+              "staff-poke"
+            ]
+          }
+        ],
+        "held": {
+          "item": "staff",
+          "style": "historical"
+        }
+      }
+    ]
   },
   "loadout": {},
   "foes": {
@@ -96,11 +229,69 @@
       "name": "The citadel",
       "building": {
         "use": "citadel",
+        "rooms": {
+          "gate": {
+            "h": 10
+          },
+          "hall": {
+            "h": 16
+          },
+          "gallery": {
+            "h": 14
+          },
+          "sanctum": {
+            "h": 18
+          }
+        },
+        "plot": {
+          "gate": {
+            "torches": 2,
+            "vary": 0.8,
+            "lead": 1.4,
+            "cold": 1.2
+          },
+          "hall": {
+            "torches": 4,
+            "key": 3,
+            "lead": 1.5,
+            "vary": 0.7,
+            "cold": 0.9
+          },
+          "gallery": {
+            "torches": 6,
+            "vary": 1,
+            "lead": 1.4
+          },
+          "sanctum": {
+            "torches": 3,
+            "key": 3.5,
+            "vary": 0.5,
+            "cold": 1.6
+          }
+        },
         "geocube": {
           "from": "gothic-night",
           "era": "gen-7",
           "inside": {
             "bones": "gothic-ashlar"
+          },
+          "light": {
+            "shade": 0.38
+          },
+          "palette": {
+            "intent": "a stone night lit by fire, its shade black",
+            "key": "low",
+            "heat": 0.15,
+            "weight": 0.6,
+            "activity": -0.4,
+            "scheme": "mono-accent",
+            "hues": {
+              "rock": 32
+            },
+            "lock": {
+              "accent": "#8a1c1c"
+            },
+            "seed": 975289134
           }
         }
       },
@@ -142,15 +333,21 @@
           "form": "realistic",
           "physique": "athletic"
         },
-        "hair": "long",
+        "hair": {
+          "hair": "ponytail"
+        },
         "colour": {
           "palette": {
-            "Hair": "#17120f",
+            "Hair": "#8b6a48",
             "Top": "#2a2a30",
             "Bottom": "#202026",
             "Trim": "#8c2a30",
-            "Shoes": "#141416",
-            "Outer": "#d9d0bf"
+            "Shoes": "#6a4428",
+            "Outer": "#d9d0bf",
+            "Panel": "#d9d0bf",
+            "Gloves": "#2b1d16",
+            "Cuff": "#3a2a20",
+            "Gilt": "#9aa0a6"
           }
         },
         "underlayer": {
@@ -162,20 +359,58 @@
           "language": {
             "top": {
               "family": "knit",
-              "sleeve": "long"
+              "sleeve": "short",
+              "fit": "skin"
             },
             "bottom": {
               "family": "woven",
               "leg": "long",
-              "cut": "tapered"
+              "cut": "tapered",
+              "into": "boots"
             },
             "outer": {
               "family": "woven",
-              "sleeve": "long",
-              "hem": "knee",
-              "open": true
+              "sleeve": "elbow",
+              "hem": "midi",
+              "open": true,
+              "cuff": "rolled",
+              "epaulettes": true,
+              "stocking": true,
+              "cut": "aline",
+              "stormFlap": true,
+              "posed": true
             },
-            "feet": "boots"
+            "feet": "cavalierBoots",
+            "hands": "cavalierGloves"
+          },
+          "pieces": [
+            {
+              "kind": "pauldron",
+              "plain": true,
+              "pair": true,
+              "size": 0.7,
+              "colour": "leather"
+            }
+          ],
+          "intent": {
+            "palette": {
+              "base": "#d9d0bf",
+              "secondary": "#2a2a30",
+              "trim": "#9aa0a6",
+              "accent": "#8c2a30",
+              "leather": "#2b1d16"
+            },
+            "symmetry": "symmetric"
+          }
+        },
+        "head": {
+          "face": {
+            "seed": 1,
+            "ethnicity": "western"
+          },
+          "skin": {
+            "beard": 0,
+            "hairColour": "#8b6a48"
           }
         }
       },
@@ -208,5 +443,10 @@
   },
   "camera": "orbit",
   "screen": "screen",
-  "styleMeter": "auto"
+  "styleMeter": "auto",
+  "grade": {
+    "from": "tenebrae",
+    "vignette": 0.35,
+    "exposure": 0.25
+  }
 }

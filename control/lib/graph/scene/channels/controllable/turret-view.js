@@ -297,6 +297,9 @@ function __tvSound(g, dt) {
 }
 function __tvFrame(dt) {
   const g = __tvGun();
+  // (no gunner, a rider got out of its vehicle (board.js): no readout, no sight's glass; the gunner back, both again)
+  const gun = !!(g && g.turret.dir);
+  if (__TV.shown !== gun) { __TV.shown = gun; __tvPanel.style.display = gun ? '' : 'none'; __tvGlass.style.display = gun ? '' : 'none'; if (!gun && typeof __wep !== 'undefined' && __wep) { __wep.ret.style.display = ''; if (__wep.iconEl) __wep.iconEl.parentNode.style.display = ''; } }
   for (const e of __world.entities) if (e.__tvMeshes) { for (const m of e.__tvMeshes) if (m.material) { m.material.opacity = 1; m.material.transparent = false; } if (e.transformT == null) e.__tvMeshes = null; }
   for (const e of __world.entities) if (e.turret && e.turret.dir) __tvPose(e);
   if (!g || !g.turret.dir) return;

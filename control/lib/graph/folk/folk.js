@@ -38,6 +38,7 @@
  * household's place). Children share their dweller's ancestry (the born channel); every other facet is the person's
  * own. Pure and deterministic.
  */
+import { usedAs } from '../era/town-trades.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { ROLES, ROOTS, RELATIONS, FOLK_PULL } from './roles.js';
@@ -132,8 +133,8 @@ function personOf({ path, lot, key, roleId, as = null, parent = null, lean = nul
   const roll = recurring ? { seed: gameSeed, path: `folk/recurring/${recurring.id}` } : { seed, path: `folk/${path}` };
   const sheet = rollEgocube({ facets, ...roll, ...(setting ? { setting } : {}), lean: leanOf(role.lean, rel?.lean, lean), pull: { ...FOLK_PULL, ...role.pull } });
   return {
-    path, lot: key, use: lot.use, role: roleId, title: role.title, as, parent: parent?.path ?? null,
-    service: role.service ?? null, uniform: service?.uniform ? role.service : null, room: service?.room ?? (isObj(role.room) ? role.room[lot.use] : role.room) ?? null,
+    path, lot: key, use: lot.use, ...(lot.trade ? { trade: lot.trade } : {}), role: roleId, title: role.title, as, parent: parent?.path ?? null,
+    service: role.service ?? null, uniform: service?.uniform ? role.service : null, room: service?.room ?? (isObj(role.room) ? role.room[usedAs(lot)] : role.room) ?? null,
     slots: [...role.slots, ...(service?.slots ?? [])], sheet, ...(recurring ? { recurring: recurring.id, ...(recurring.name ? { name: recurring.name } : {}) } : {}),
   };
 }
@@ -148,7 +149,7 @@ export function folkOfTown(town, { seed, gameSeed, setting, folk } = {}) {
   for (const [id, r] of Object.entries(F.recurring ?? {})) (recur[r.role] ??= []).push({ id, ...r });
   const unrooted = [], lots = [];
   for (const lot of town.lots) {
-    const key = lotKey(lot), roleId = ROOTS[lot.use];
+    const key = lotKey(lot), roleId = (lot.trade && ROOTS[lot.trade]) || ROOTS[lot.use];
     if (!roleId) { unrooted.push({ lot: key, use: lot.use }); continue; }
     const role = ROLES[roleId];
     // the lot's own die for how many it grows, apart from every roll

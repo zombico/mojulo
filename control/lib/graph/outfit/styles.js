@@ -28,6 +28,16 @@
 //             CONSTRUCTION (a jacket's, on either body: body-relational-jacket.js, authored-jacket.js): front: 'zip' (closed on a zip
 //             down the centre, no V), collar: 'shirt' (a falling collar, its points snapped to the chest; true the stand
 //             collar), rib?: cuffs | waist | both (knit rib bands, the body and the sleeves bloused over them),
+//             hands?: a glove card of the handwear library (cavalierGloves, tacticalGloves …): worn on the hands as a
+//             word list's glove word is,
+//             stocking?: true (a second skin of the layer's own colour under it at the shoulders: the upper arms and the
+//             yoke, so a bent arm opening the shoulder shows the coat's colour),
+//             cuff?: rolled (the sleeve's end turned back on itself: a band of its cloth over the last hand's breadth, a
+//             layer out and a shade down, the sleeve pushed up),
+//             stormFlap?: true (a layer of the coat's cloth over its upper back from the yoke to below the shoulder
+//             blades, its hem free, the rest of the coat behind it: a trench's back flap),
+//             posed?: true (an open coat's skirt split at the back from the hip and set by the pose, on the realistic
+//             body: wrapped round the hips standing, behind them walking, flared open at the back in action),
 //             pockets?: flap (patch pockets low on the front, each under a flap with a snap), epaulettes?: true (a strap
 //             over each shoulder buttoned at the collar), cloth?: leather or a cloth word (how it folds and shines)
 //             panels: [{ at: back | front | sides | sideR | sideL, length: micro … maxi, width?: 0–1 (a share of the half
@@ -54,8 +64,12 @@
 import { rigidityErrors } from '../polygonizer/rigidity.js';
 import { GIRTH_LANDMARKS } from '../polygonizer/body-garment.js';
 import { FOOTWEAR } from '../footwear/styles.js';
+import { HANDWEAR } from '../handwear/styles.js';
 import { CAMOS } from './camouflage.js';
 import { validateHead } from '../headgear/helmets.js';
+
+/** how an outer layer's sleeve ends, beside its length: `rolled`, its end turned back on itself (expand.js `rollCuff`) */
+export const OUTER_CUFFS = Object.freeze(['rolled']);
 
 export const SEEDED_OUTFITS = Object.freeze({
   casual: {
@@ -380,12 +394,23 @@ export const SEEDED_OUTFITS = Object.freeze({
       "outer": { "family": "woven", "sleeve": "none", "hem": "hip", "open": false, "fit": "fitted", "cloth": "leather" }, "feet": "boots", "tuck": true, "focal": "collar" },
     "pieces": [{ "kind": "belt", "id": "girdle", "at": "waist" }, { "kind": "cloak", "hem": "hip", "wrap": 0.55, "material": "wool", "hood": { "worn": "up", "point": "long", "depth": "deep" } }, { "kind": "thighPouch" }],
     "tones": { "Top": "#45404a", "Bottom": "#24211f", "Shoes": "#151313", "Outer": "#86623e", "OutfitSecond": "#2b2a2e", "OutfitTrim": "#8a8a8a", "OutfitAccent": "#9a2a2a", "Leather": "#3a2a20", "Buckle": "#9a9a9a" }
+  },
+  // THE DUELIST (a character action game's hero: gameworld-stylish): the long open coat that fights over close dark clothes
+  // and boots: cut away in front below the hip, its two tails set by the pose (`posed`), a flap over its back
+  duelist: {
+    "id": "duelist",
+    "dials": { "stylize": 0.35, "fit": 0.32, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "fit": "skin" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "into": "boots" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "midi", "open": true, "cut": "aline", "posed": true, "stormFlap": true }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "tones": { "Top": "#1e1e22", "Bottom": "#26262c", "Outer": "#5a1e22", "Shoes": "#2a1c14", "Trim": "#9aa0a6" }
   }
 });
 
 /** the FANTASY WARDROBE's cards (above), each an archetype in its own layers: the outfit card's `style` word on the hero
  * door (create_character as 'hero', `outfit: { type: 'outfit', style: 'ranger' }`) */
 export const FANTASY_OUTFITS = Object.freeze(['ranger', 'mage', 'peasant', 'noble', 'cleric', 'rogue']);
+/** the CHARACTER ACTION WARDROBE's cards: a stylish game's hero (gameworld-stylish), the `style` word as the fantasy's */
+export const ACTION_OUTFITS = Object.freeze(['duelist']);
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];
@@ -458,10 +483,14 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.outer !== undefined && L.outer !== false) { if (typeof L.outer !== 'object') errs.push(`${at}.language.outer: { family, sleeve, hem, open?, cut? } or false`);
     else { errs.push(...one(L.outer.family, FAMILY, `${at}.language.outer.family`), ...one(L.outer.sleeve, SLEEVE, `${at}.language.outer.sleeve`), ...one(L.outer.hem, COAT, `${at}.language.outer.hem`), ...one(L.outer.cut, CUT, `${at}.language.outer.cut`));
       if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`);
+      if (L.outer.stocking !== undefined && typeof L.outer.stocking !== 'boolean') errs.push(`${at}.language.outer.stocking: true or false (a second skin of its colour under it at the shoulders)`);
       errs.push(...one(L.outer.front, OUTER_FRONTS, `${at}.language.outer.front`), ...one(L.outer.lapel, OUTER_LAPELS, `${at}.language.outer.lapel`), ...one(L.outer.shoulder, OUTER_SHOULDERS, `${at}.language.outer.shoulder`), ...one(L.outer.waist, OUTER_WAISTS, `${at}.language.outer.waist`));
+      errs.push(...one(L.outer.cuff, OUTER_CUFFS, `${at}.language.outer.cuff`));
       errs.push(...one(L.outer.rib, OUTER_RIBS, `${at}.language.outer.rib`), ...one(L.outer.pockets, OUTER_POCKETS, `${at}.language.outer.pockets`), ...one(L.outer.cloth, CLOTH_WORDS, `${at}.language.outer.cloth`));
       if (L.outer.collar !== undefined && ![true, false, 'shirt'].includes(L.outer.collar)) errs.push(`${at}.language.outer.collar: true (a stand collar), 'shirt' (a falling collar, its points snapped) or false`);
       if (L.outer.epaulettes !== undefined && typeof L.outer.epaulettes !== 'boolean') errs.push(`${at}.language.outer.epaulettes: true or false`);
+    if (L.outer.posed !== undefined && (typeof L.outer.posed !== 'boolean' || (L.outer.posed && !L.outer.open))) errs.push(`${at}.language.outer.posed: true (an open coat's skirt split at the back and set by the pose: wrapped standing, behind the hips walking, flared open in action) on an open coat, or false`);
+    if (L.outer.stormFlap !== undefined && typeof L.outer.stormFlap !== 'boolean') errs.push(`${at}.language.outer.stormFlap: true (a flap over the coat's upper back) or false`);
       if (L.outer.front === 'zip' && (L.outer.lapel !== undefined || L.outer.buttons !== undefined)) errs.push(`${at}.language.outer.front: 'zip' closes without lapels or buttons (leave lapel and buttons out)`);
       if (L.outer.buttons !== undefined && !(Number.isInteger(L.outer.buttons) && L.outer.buttons >= 1 && L.outer.buttons <= 3)) errs.push(`${at}.language.outer.buttons: 1, 2 or 3 (a row's, down the front)`); } }
   if (L.panels !== undefined) { if (!Array.isArray(L.panels)) errs.push(`${at}.language.panels: a list of { at, length, width?, split?, cut?, family?, rigidity? }`);
@@ -479,6 +508,7 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.dress !== undefined && typeof L.dress !== 'boolean') errs.push(`${at}.language.dress: true or false`);
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);
   // (feet: the plain words, or a footwear library card by its name: footwear/styles.js FOOTWEAR, combatBoots, jungleBoots …)
+  if (L.hands !== undefined && !(typeof L.hands === 'string' && HANDWEAR[L.hands])) errs.push(`${at}.language.hands: '${L.hands}' — a glove card (${Object.keys(HANDWEAR).slice(0, 8).join(', ')} …)`);
   errs.push(...(L.feet === undefined || FEET.includes(L.feet) || FOOTWEAR[L.feet] ? [] : [`${at}.language.feet: '${L.feet}' — one of ${FEET.join(', ')}, or a footwear card (${Object.keys(FOOTWEAR).filter((w) => !FEET.includes(w)).slice(0, 8).join(', ')} …)`]), ...one(L.focal, FOCAL, `${at}.language.focal`));
   errs.push(...validateHead(L.head, `${at}.language.head`, Object.keys(CAMOS)));
   if (L.tuck !== undefined && typeof L.tuck !== 'boolean') errs.push(`${at}.language.tuck: true or false`);

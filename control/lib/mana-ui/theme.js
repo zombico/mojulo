@@ -67,6 +67,9 @@
  *     iconTone  ink | meaning                                        their colour: the words' ink, or each in the theme's
  *                                                                    colour for what it means (a heart the health's)
  *     iconSwap  { <icon>: <icon> }                                   a look's own picture for a word (its coins as tickets)
+ *     title     still | rise | slam | wipe | track                   how its title's words enter, letter by letter, where a
+ *                                                                    screen draws them so (the play shell's title); said or
+ *                                                                    left out (titleLetters: a rise)
  *     sounds    glass | console | chip | terminal | paper | party      which of the UI sound library's sets the page plays
  *               | hydraulic | clack | crypt | jackpot                  (beats/ui-sounds.js: one interval plan, each set a
  *                                                                    voice; the last four the heavy ones);
@@ -132,10 +135,13 @@ export const THEME_WORDS = Object.freeze({
   // their colour: the ink of the words beside them, or each in the theme's colour for what it means (a heart the
   // health's, a bolt the stamina's, what is won the accent)
   iconTone: ['ink', 'meaning'],
+  // how its title's words enter, letter by letter, on a screen that draws them so (css.js lettersCss; the play shell's
+  // title): still (at once), rise, slam, wipe, track. A look that says none is read without it, and such a title rises
+  title: ['still', 'rise', 'slam', 'wipe', 'track'],
 });
 const NEEDED = ['ink', 'panel', 'line', 'accent'];
 const TOKENS = [...NEEDED, 'mid', 'soft', 'paper', 'wash', 'accent2', 'harm', 'hp', 'mp', 'xp', 'stamina', 'shield', 'boss'];
-const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides', 'icons', 'iconTone', 'iconSwap'];
+const KEYS = ['from', 'name', 'tokens', 'type', 'faces', 'frame', 'corner', 'plate', 'focus', 'motion', 'fills', 'scale', 'case', 'distance', 'halo', 'cues', 'slant', 'transition', 'backdrop', 'material', 'backing', 'crest', 'breakout', 'overlay', 'stage', 'sounds', 'ornaments', 'hud', 'sides', 'icons', 'iconTone', 'iconSwap', 'title'];
 export const LAYER_WORDS = Object.freeze(['material', 'backing', 'crest', 'breakout', 'overlay', 'stage']);
 // how far the player sits: the unit (1px at a 1080p reference, or a phone's CSS px), the distance's factor over the desk,
 // and the floor no text goes under in CSS px. XAG 101's body minimum at 1080p is 26 px on a console and 18 px on a PC
@@ -220,6 +226,9 @@ const FAMILY = /^[A-Za-z0-9][A-Za-z0-9 \-]{0,48}$/;
 const FONT_SRC = /^data:(font\/(ttf|otf|woff2?)|application\/(x-font-ttf|font-woff2?|x-font-otf));base64,[A-Za-z0-9+/=]+$/;
 const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
 
+/** How a theme's title enters letter by letter (its `title`, else a rise; `still`: at once, the text's `letters: 'none'`). */
+export const titleLetters = (theme) => { const t = readTheme(theme).title; return t === undefined ? 'rise' : t === 'still' ? 'none' : t; };
+
 /** A theme read: a preset name, or words over a preset (`from`, the greybox when left out). Throws, teaching. */
 export function readTheme(t) {
   if (t === undefined || t === null) t = 'greybox';
@@ -238,6 +247,8 @@ export function readTheme(t) {
   for (const k of Object.keys(THEME_WORDS)) {
     // (a word a preset does not say is its quietest: no pictograms)
     const x = t[k] === undefined ? (base[k] === undefined && k === 'icons' ? 'none' : base[k] === undefined && k === 'iconTone' ? 'ink' : base[k]) : t[k];
+    // (a title's entrance is said, or left out of the theme: every look read as it was)
+    if (k === 'title' && x === undefined) continue;
     if (k === 'ornaments') {
       if (!Array.isArray(x) || x.some((o) => !THEME_WORDS.ornaments.includes(o))) throw new Error(`theme.ornaments is a list of: ${THEME_WORDS.ornaments.join(', ')}`);
       out.ornaments = [...new Set(x)];

@@ -1,7 +1,8 @@
 // a level's HUD rows on mana-ui (hud-mana.js): each row lowered to the part that means it, read by the runtime's own
 // reader; the page's host (scene/channels/mana-hud.js) carries them and parses
 import { describe, it, expect } from 'vitest';
-import { hudToMana, levelHud } from './hud-mana.js';
+import { hudToMana, levelHud, readRadarLook } from './hud-mana.js';
+import { normalizeHud } from './hud-widgets.js';
 import { manaUi } from '../../mana-ui/index.js';
 import { manaHudScript } from '../scene/channels/mana-hud.js';
 
@@ -27,6 +28,13 @@ describe('a level\'s rows on mana-ui', () => {
     expect(find(L.spec.hud, 'counter').props.icon).toBe('coin');
     const region = L.spec.hud.children.find((r) => r.props.at === 'bottom-left');
     expect(find(region, 'bar').props.variant).toBe('hp');
+  });
+  it('a count as stars (the wanted level\'s) is pips in the star shape, drawn as stars', () => {
+    const S = hudToMana([{ var: 'wanted', label: 'wanted', as: 'stars', max: 5, slot: 'top-right' }]);
+    expect(() => manaUi.readSpec(S.spec)).not.toThrow();
+    expect(find(S.spec.hud, 'pips').props).toMatchObject({ max: 5, shape: 'star', label: 'wanted' });
+    expect(manaUi.PIP_SHAPES.star).toEqual(['★', '☆']);
+    expect(normalizeHud([{ var: 'wanted', as: 'stars' }]).errors.join(' ')).toMatch(/as:'stars' needs max/);
   });
   it('binds vars by key, a bar\'s max a var too', () => {
     expect(Object.values(L.feed.rows.vars).sort()).toEqual(['coins', 'hp', 'hpMax', 'score', 'time']);
@@ -67,6 +75,19 @@ describe('a level\'s rows on mana-ui', () => {
   });
 });
 
+describe('a level\'s HUD as a game draws it', () => {
+  it('money is a coin and a figure, never the word; no box over the world: a corner on a scrim, the rest bare', () => {
+    const E = hudToMana([{ var: 'coins', label: 'coin', as: 'counter', slot: 'top-right' }, { var: 'keys', label: 'keys', as: 'counter', slot: 'top-left' }]), J = JSON.stringify(E.spec);
+    expect(J).toContain('{"use":"counter","props":{"label":"","value":{"bind":"v.v0"},"icon":"coin"}}');
+    expect(J).toContain('"label":"keys"');
+    // (the level's own places: a corner on a scrim, else bare; the radar's scope stands bare, an instrument)
+    const own = E.spec.hud.children.filter((c) => c.use === 'region' && !c.when);
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((c) => c.props.variant === (c.props.at.includes('-') ? 'scrim' : 'bare'))).toBe(true);
+    expect(E.spec.hud.children.find((c) => c.use === 'region' && c.when?.bind === 'radar.on').props.variant).toBe('bare');
+  });
+});
+
 describe('the host carries a level\'s rows', () => {
   it('lowers `rows: events` at emit and parses', () => {
     const js = manaHudScript(levelHud('console'), { game: true, rows: ROWS });
@@ -102,5 +123,95 @@ describe('the host carries a level\'s rows', () => {
     const at = (slot) => JSON.stringify(spec.hud.children.find((r) => r.props.at === slot));
     expect(at('bottom-right')).toContain('{"use":"button","props":{"label":"whistle"},"on":{"accept":{"emit":"whistle"}}}');
     expect(at('top-right')).toMatch(/"on":\{"accept":\{"emit":"map"\}\},"when":\{"bind":"on\.r1"\}/);
+  });
+  it('a level that carries a style meter: its tier and its combo at the right, fed off the page; none ⇒ not a byte', () => {
+    const rows = [{ var: 'score', label: 'Score' }];
+    const plain = hudToMana(rows), styled = hudToMana(rows, { style: true });
+    expect(JSON.stringify(plain)).not.toContain('style');
+    const at = JSON.stringify(styled.spec.hud.children.find((r) => r.props.at === 'right'));
+    for (const b of ['style.on', 'style.name', 'style.combo']) expect(at).toContain(`"bind":"${b}"`);
+    expect(styled.feed.style).toBe(true);
+    expect(levelHud('console').style).toBeUndefined();
+    const js = manaHudScript(levelHud('console', { style: true }), { rows }), bare = manaHudScript(levelHud('console'), { rows });
+    expect(js).toContain('window.__mojStyle');
+    expect(bare).not.toContain('__mojStyle');
+    // (its motion is the host's, on the letters: there only with the meter)
+    expect(js).toContain('moj-style-up');
+    expect(js).toContain('--moj-style-fill');
+    expect(bare).not.toContain('moj-style');
+    expect(bare).not.toContain('style: {');
+    expect(() => new Function(js)).not.toThrow();
+  });
+  it('the immersive HUD (a stylish action game\'s): no box is drawn, and nothing is explained in words', () => {
+    const rows = [{ var: 'score', label: 'Score' }, { kind: 'legend', slot: 'bottom', text: 'W A S D move' }, { var: 'hp', as: 'bar', max: 100, slot: 'top' }];
+    const { spec } = hudToMana(rows, { style: true });
+    expect(spec.hud.children.length).toBeGreaterThan(2);
+    // (every region bare; the screen's edge layers, the peril and the damage ring, are no box)
+    expect(spec.hud.children.filter((r) => r.use === 'region').every((r) => r.props.variant === 'bare')).toBe(true);
+    expect(JSON.stringify(spec)).not.toContain('W A S D');
+    // (nor passing words: a banner and a toast are not drawn)
+    const passing = hudToMana([{ on: 'wave', text: 'Wave {event.n}' }, { on: 'gauntlet:arena', text: 'cleared', as: 'toast', ttl: 2 }], { style: true });
+    expect(JSON.stringify(passing.spec)).not.toMatch(/moments|feed/);
+    expect(passing.feed.rows.banners.concat(passing.feed.rows.toasts)).toEqual([]);
+    // (the meter is letters and figures alone: no bar, no caption)
+    const meter = JSON.stringify(spec.hud.children.find((r) => r.props.at === 'right'));
+    expect(meter).not.toMatch(/"use":"(bar|window|badge)"/);
+    expect(meter).not.toContain('"word"');
+    // (said not: a meter on a HUD that keeps its plates and its words)
+    const kept = hudToMana(rows, { style: true, immersive: false }).spec;
+    expect(kept.hud.children.some((r) => r.props.variant !== 'bare')).toBe(true);
+    expect(JSON.stringify(kept)).toContain('W A S D');
+  });
+  it('the way on: an arrow and no words, toward the place a bus var names; none ⇒ not a byte', () => {
+    const rows = [{ var: 'score', label: 'Score' }], ways = { var: '__wg_tasks_arm', at: [[4, 9, 0], null, [20, 30, 2]] };
+    const js = manaHudScript(levelHud('console', { ways }), { rows }), bare = manaHudScript(levelHud('console'), { rows });
+    expect(js).toContain('"ways":{"var":"__wg_tasks_arm"');
+    expect(js).toContain('moj-way');
+    expect(js).toContain('.project(camera)');
+    expect(bare).not.toContain('moj-way');
+    expect(bare).not.toContain('"ways"');
+    expect(() => new Function('THREE', 'camera', js)).not.toThrow();
+  });
+  it('the vitals: the health and the Halo Meter as one figure, the sprint over them, in its look; none ⇒ the gauges as they were', () => {
+    const rows = [{ var: 'score', label: 'Score' }], vitals = { look: 'echo', full: { hp: 200, halo: 10 } };
+    const L = hudToMana(rows, { style: true, vitals }), plain = hudToMana(rows, { style: true });
+    const tl = (x) => x.spec.hud.children.find((r) => r.props.at === 'top-left');
+    const fig = JSON.stringify(tl(L));
+    for (const b of ['vit.hp', 'vit.ghost', 'halo.fill', 'halo.stocks', 'hero.stamina']) expect(fig).toContain(`"bind":"${b}"`);
+    expect(L.feed.vitals).toEqual({ ...vitals, hp: { value: 'hero.hp', max: 'hero.hpMax', has: 'hero.hasHp' } });
+    // (a level whose health is its own row: the row is drawn in the figure, not in its slot)
+    const own = hudToMana([{ var: 'hp', as: 'bar', max: 100, slot: 'top' }], { style: true, vitals });
+    expect(own.feed.vitals.hp).toEqual({ value: 'v.v0', max: 100 });
+    expect(own.spec.hud.children.find((r) => r.props.at === 'top')).toBeUndefined();
+    expect(JSON.stringify(plain)).not.toMatch(/halo|vit\.|vitals/);
+    const js = manaHudScript(levelHud('console', { style: true, vitals }), { rows }), bare = manaHudScript(levelHud('console', { style: true }), { rows });
+    expect(js).toContain('--moj-hp-span');
+    expect(js).toContain('data-variant=mp');
+    // (the ready moment, once: a ring off the crest the instant the gauge comes full)
+    expect(js).toContain('data-halo-cue');
+    expect(bare).not.toMatch(/moj-hp-span|vitals/);
+    expect(() => new Function(js)).not.toThrow();
+    // (each look draws: an unknown one draws nothing of its own)
+    for (const look of ['overlap', 'contrast', 'echo']) expect(manaHudScript(levelHud('console', { style: true, vitals: { look, full: { halo: 10 } } }), { rows })).toContain('moj-vit-low');
+  });
+});
+
+describe('a level\'s radar look', () => {
+  const mini = (spec) => JSON.stringify(spec).match(/"use":"minimap","props":\{"shape":"(\w+)"/)[1];
+  it('square, large and of the pilot\'s floor when the level asks; the round scope as it was when it does not', () => {
+    expect(mini(hudToMana([], {}).spec)).toBe('round');
+    expect(mini(hudToMana([], { radar: { shape: 'square' } }).spec)).toBe('square');
+    expect(levelHud('console', { radar: { shape: 'square', size: 'large', floor: true } }).radar).toEqual({ shape: 'square', size: 'large', floor: true });
+    expect(levelHud('console')).not.toHaveProperty('radar');
+    expect(() => readRadarLook({ shape: 'hex' })).toThrow(/shape is one of/);
+    expect(() => readRadarLook({ zoom: 2 })).toThrow(/not one of/);
+  });
+  it('the page draws one floor and sizes the scope only when asked; a level that asks nothing keeps every byte', () => {
+    const plain = manaHudScript(levelHud('console'), { rows: [] }), asked = manaHudScript(levelHud('console', { radar: { shape: 'square', size: 'large', floor: true } }), { rows: [] });
+    expect(plain).not.toContain('__hFloorSvg');
+    expect(plain).not.toContain('260 * var(--mana-du)');
+    expect(asked).toContain('__hFloorSvg');
+    expect(asked).toContain('260 * var(--mana-du)');
+    expect(asked).toContain('[data-shape=square][data-scope=yes]');
   });
 });

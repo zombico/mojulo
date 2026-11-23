@@ -60,7 +60,8 @@
   "stepVault": true,
   "speedVault": true,
   "hurdle": true,
-  "rollForward": true
+  "rollForward": true,
+  "throwOverhand": true
  },
  "clips": {
   "climbUp": [

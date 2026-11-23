@@ -41,7 +41,7 @@ describe('a street played', () => {
   }, 120_000);
 
   it('plays a street only, by a player it knows', () => {
-    expect(PLAYERS).toEqual(['basic', 'still']);
+    expect(PLAYERS).toEqual(['basic', 'hero', 'still']);
     expect(() => playStreet({})).toThrow(/plays a street/);
     expect(() => playStreet(yardOf('brawl', BRAWL_STREET), { player: 'expert' })).toThrow(/player is one of/);
   });

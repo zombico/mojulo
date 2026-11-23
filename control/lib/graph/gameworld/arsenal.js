@@ -11,13 +11,17 @@
  *                  `{ id, drop: true }` dropped; any other field replaced; `{ id, drop: true }` drops the weapon; a new
  *                  id added)
  *     an arsenal   { timing?, weapons, ranged?, juggle?, art?, mp? } as combos.js readArsenal reads it
+ *     (either way a weapon written `{ shelf: '<row>', …edits }` is the weapon shelf's row with the edits over it,
+ *     weapon-shelf.js: a second weapon held in the hand, the bo, the spear, the scythe, the hammer, the greatsword)
  *
  *   readGameArsenal(raw)   → raw, or throws naming what it takes (the world's read)
- *   arsenalOfGame(G)       → { arsenal, from: 'operator' | 'template' | 'feel', template?, why } or null (none written,
+ *   arsenalOfGame(G)       → { arsenal, from: 'operator' | 'template' | 'feel' | 'bare', template?, holster?, why } or null
+ *                            (`holster`: the bare hands' pistol carried in one, drawn or put away: combat-melee.js) (none written,
  *                            false, or 'auto' on a feel whose template has no kit)
  *   arsenalSuggestion(G)   → { suggest: 'auto', template, why } for a world that writes none, whose hero strikes and whose
  *                            feel's template has a kit; else null. Never laid unasked: a kit changes every level's bytes
- *   heroStrikes(G)         → the world's hero carries a right-hand item it strikes with (adornment.js BASIC_VERBS)
+ *   heroStrikes(G)         → the world's hero carries a right-hand item it strikes with (adornment.js BASIC_VERBS), or
+ *                            fights bare-handed (bareHanded: its factions post a fight and it carries nothing; FISTS)
  *   armLevel(G, manifest)  → the level with the arsenal, as CARRIED (carried.js: the world's `loadout`), laid on each pilot that strikes (`rule.strikeContact`): the
  *                            weapons, the moveset, the sidearm; and on its foes the juggle's combo rules and their HEALTH
  *                            IN THE KIT'S STRINGS (below). Without an arsenal, or with no hero that strikes, the manifest
@@ -32,11 +36,13 @@
  *
  * Pure.
  */
-import { TEMPLATE_ARSENALS, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
+import { TEMPLATE_ARSENALS, BASIC_ARSENAL, arsenalFor, readArsenal, lowerArsenal, lowerJuggle } from './combos.js';
+import { factionFoeIds } from './factions.js';
 import { HELD_STRIKE } from '../polygonizer/hero-swing.js';
 import { genreHero } from './hero-rows.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { carriedOf } from './carried.js';
+import { shelfWeapon } from './weapon-shelf.js';
 
 /** The strings a foe of each rank takes to fall (mind/vocab.js RANKS), the action game's pace: a grunt to one, an elite to
  * three or four, a boss to ten or twelve. */
@@ -103,8 +109,8 @@ function editedKit(raw) {
   const { from, ...E } = raw;
   if (!TEMPLATE_ARSENALS[from]) no(`.from is a template with a kit (${TEMPLATES.join(', ')}), not '${from}'`);
   const K = structuredClone(TEMPLATE_ARSENALS[from]);
-  for (const k of Object.keys(E)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch'].includes(k)) no(`edit '${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch)`);
-  const out = { ...K, ...(E.art !== undefined ? { art: E.art } : {}), ...(E.ranged !== undefined ? { ranged: E.ranged } : {}), ...(E.switch !== undefined ? { switch: E.switch } : {}) };
+  for (const k of Object.keys(E)) if (!['timing', 'weapons', 'ranged', 'juggle', 'art', 'mp', 'switch', 'clang'].includes(k)) no(`edit '${k}' is not part of an arsenal (timing, weapons, ranged, juggle, art, mp, switch, clang)`);
+  const out = { ...K, ...(E.art !== undefined ? { art: E.art } : {}), ...(E.ranged !== undefined ? { ranged: E.ranged } : {}), ...(E.switch !== undefined ? { switch: E.switch } : {}), ...(E.clang !== undefined ? { clang: E.clang } : {}) };
   // (timing, mp and the juggle merged over the kit's; null drops the kit's)
   for (const k of ['timing', 'mp', 'juggle']) {
     if (E[k] === undefined) continue;
@@ -114,7 +120,7 @@ function editedKit(raw) {
   }
   // (ranged replaced; null or [] none)
   if (E.ranged === null || (Array.isArray(E.ranged) && !E.ranged.length)) delete out.ranged;
-  if (E.weapons !== undefined) out.weapons = byId(K.weapons, E.weapons, mergeWeapon, 'weapons');
+  if (E.weapons !== undefined) out.weapons = byId(K.weapons, Array.isArray(E.weapons) ? E.weapons.map(shelfWeapon) : E.weapons, mergeWeapon, 'weapons');
   return out;
 }
 /** the arsenal a written value names (undefined for 'auto') */
@@ -124,7 +130,7 @@ function arsenalOf(raw) {
     return structuredClone(TEMPLATE_ARSENALS[raw]);
   }
   if (!isObj(raw)) no(`is ${TAKES}`);
-  return raw.from !== undefined ? editedKit(raw) : raw;
+  return raw.from !== undefined ? editedKit(raw) : Array.isArray(raw.weapons) && raw.weapons.some((W) => isObj(W) && W.shelf !== undefined) ? { ...raw, weapons: raw.weapons.map(shelfWeapon) } : raw;
 }
 const say = (e) => e.message.replace(/^combos: /, '');
 
@@ -139,6 +145,9 @@ export function readGameArsenal(raw) {
 /** The arsenal every level of a world lays on its hero, or null. */
 export function arsenalOfGame(G) {
   const own = G?.arsenal;
+  // (bare hands, the default of a hero that must fight and carries nothing: its fists)
+  // (and where its city sells rounds, shops.js `guns`, the pistol the bare hands carry empty: CITY_PISTOL)
+  if ((own === undefined || own === null) && bareHanded(G)) return { arsenal: { ...structuredClone(FISTS), ...(G?.shops?.guns ? { ranged: [cityPistol()] } : {}) }, ...(G?.shops?.guns ? { holster: true } : {}), from: 'bare', why: `its hero must fight and carries nothing: its fists${G?.shops?.guns ? ', and a pistol carried empty, its rounds bought at the gun shop' : ''}` };
   if (own === undefined || own === null || own === false) return null;
   if (own === 'auto') {
     const K = arsenalFor(G.feel);
@@ -150,7 +159,18 @@ export function arsenalOfGame(G) {
 }
 
 /** THE BODY'S OWN BLOW (adornment.js BASIC_VERBS 'strike'): the hero carries a right-hand item it strikes with */
-export const heroStrikes = (G) => (G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'));
+const carriesBlow = (G) => (G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('strike'));
+/** BARE HANDS: a world whose hero must fight (its factions post a fight, factions.js) and carries nothing to strike or
+ * shoot with fights with its FISTS, the default weapon: the body's own strikes (the jab, the cross, the hook, the
+ * uppercut), the kit's fist drawn on the hero as it stands. Carrying a blade or a gun, or writing an arsenal, is the
+ * world's own word and stands over it. */
+// (a hero must fight where its factions post a fight, where the law can come for it, or where it can buy a gun)
+export const bareHanded = (G) => !carriesBlow(G) && (factionFoeIds(G?.factions).length > 0 || !!G?.law || !!G?.shops?.guns) && !(G?.characters?.hero?.adornment?.items ?? []).some((it) => it.slot === 'right' && (it.serves ?? []).includes('shoot'));
+/** THE CITY'S PISTOL (shops.js `guns`): the bare hands' sidearm, carried empty, its rounds bought at the gun shop; three
+ * rounds put a minion down, a dozen to the magazine. */
+export const cityPistol = () => ({ id: 'pistol', name: 'Pistol', mode: 'auto', rof: 3, damage: Math.round((foeHealth('minion', FISTS) / 3) * 100) / 100, impact: 6, range: 35, magazine: 12, reload: 1.4, hand: 'right', reserve: 0, loaded: 0 });
+export const FISTS = Object.freeze({ timing: BASIC_ARSENAL.timing, weapons: [{ ...BASIC_ARSENAL.weapons.find((W) => W.id === 'fist'), figure: 'drawn' }] });
+export const heroStrikes = (G) => carriesBlow(G) || bareHanded(G);
 
 /** What `arsenal: 'auto'` would lay on a world that writes none (see the header). */
 export function arsenalSuggestion(G) {
@@ -179,7 +199,9 @@ export function armLevel(G, manifest) {
     if (!A.weapons.length) return e;
     if (!lowered.has(A)) lowered.set(A, lowerArsenal(A));
     const weapons = lowered.get(A), side = weapons[0].sidearm;
-    return { ...e, rule: { ...e.rule, weapons, moveset: weapons[0].moveset, ...(side ? { weapon: side.weapon } : {}) } };
+    // (a pistol carried in a holster, the open city's: drawn or put away, combat-melee.js `holster`; a stylish kit's
+    // blows that only clang, `clang`)
+    return { ...e, rule: { ...e.rule, weapons, moveset: weapons[0].moveset, ...(side ? { weapon: side.weapon } : {}), ...(side && R.holster ? { holster: true } : {}), ...(R.arsenal.clang ? { clang: true } : {}) } };
   };
   // (the JUGGLE's rules on each foe's body: its hitstun, its air time, its recovery; a foe that writes its own keeps it)
   const combo = R.arsenal.juggle ? lowerJuggle(R.arsenal.juggle).combo : null;

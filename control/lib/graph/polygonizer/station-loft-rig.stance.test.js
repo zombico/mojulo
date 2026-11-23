@@ -32,6 +32,16 @@ describe('the rig stance', () => {
     expect(free(RS)).toBeLessThan(free(R0) - 0.02);
   });
 
+  it('a free foot POINTED (point<S>): its toes turned down about the ankle; absent, the toes ride the shin; a planted foot keeps its own', () => {
+    const toe = (pose, k = L.toeTip) => { const N = rigNodesAt(R0, pose).nodes; return [N[k][1] - N[L.hock][1], N[k][2] - N[L.hock][2]]; };
+    const [f0, z0] = toe({ lift: 0.2 }), [f1, z1] = toe({ lift: 0.2, pointR: 80 });
+    // (the toe below and short of where it stood ahead of the ankle: turned down)
+    expect(z1).toBeLessThan(z0 - 0.04);
+    expect(f1).toBeLessThan(f0 - 0.04);
+    expect(rigNodesAt(R0, { lift: 0.2, pointR: 0 }).nodes[L.toeTip]).toEqual(rigNodesAt(R0, { lift: 0.2 }).nodes[L.toeTip]);
+    expect(rigNodesAt(R0, { pointR: 80 }).nodes[L.toeTip]).toEqual(rigNodesAt(R0, {}).nodes[L.toeTip]);
+  });
+
   it('refuses a stance out of its ranges by name', () => {
     expect(() => validateRig({ ...recipe.rig, stance: { rise: RISE, toe: 0.01, pitch: 90 } })).toThrow(/stance is \{ rise/);
   });

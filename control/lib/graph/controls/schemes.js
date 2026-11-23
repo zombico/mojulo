@@ -95,6 +95,9 @@ const PILOT = {
     { id: 'spectateNext', label: 'watch next fighter', group: 'camera', in: ['spectate'], bind: { keyboard: ['Tab'], gamepad: ['rb', 'right'] } },
     { id: 'spectateLock', label: 'lock / free camera', group: 'camera', in: ['spectate'], bind: { keyboard: ['KeyF'], gamepad: ['south'] } },
     { id: 'pause', label: 'pause', group: 'system', in: [...MOVE, 'spectate'], bind: { keyboard: ['Escape'], gamepad: ['start'] } },
+    // a race's item (roads/kart-items.js: what a box handed the kart), used in a vehicle: F (the thrusters' key on foot, free
+    // in a vehicle, whose Q and E strafe), right Shift, the pad's left face
+    { id: 'useItem', label: 'use item', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyF', 'ShiftRight'], gamepad: ['west'] } },
     // use / talk / open, live only in reach: E strafes anywhere else, and the runtime keeps it from strafing in reach
     { id: 'interact', label: 'use / talk', group: 'world', in: ['reach'], bind: { keyboard: ['KeyE'], gamepad: ['west'], xr: ['left.squeeze'] } },
   ],
@@ -110,7 +113,8 @@ const PILOT = {
       { ids: ['strafeRight', 'strafeLeft'], label: 'strafe', unless: 'moveset' },
       { ids: ['jump', 'kneel'], label: 'ascend / descend', when: 'space' },
       { ids: ['jump'], label: 'jump', unless: 'space' },
-      { ids: ['boost'], label: 'boost thrusters', unless: ['walker', 'dash', 'sprint'] },
+      // (the thrusters are a body's on foot or in space, never a vehicle's: in a kart its F is the item's)
+      { ids: ['boost'], label: 'boost thrusters', unless: ['walker', 'dash', 'sprint', 'vehicle'] },
       { ids: ['boost'], label: 'dash', when: 'dash' },
       { ids: ['boost'], label: 'run (hold)', when: 'sprint' },
       { ids: ['walk'], label: 'walk (hold)', when: 'walker', unless: 'space' },
@@ -131,6 +135,7 @@ const PILOT = {
       { ids: ['aiToggle'], label: 'AI attack on / off', when: 'ai' },
       { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
+      { ids: ['useItem'], label: 'use item', when: 'items' },
     ],
     gamepad: [
       { quad: MOVE4, prefix: '🎮 ', label: { _: 'move', space: 'thrust & strafe', vehicle: 'steer', walker: 'move: tilt to walk, push to run' } },
@@ -149,6 +154,7 @@ const PILOT = {
       { ids: ['lock'], label: 'target lock', when: 'lock' },
       { ids: ['transform'], label: 'transform', when: 'forms' },
       { ids: ['interact'], label: 'use / talk', when: 'interact' },
+      { ids: ['useItem'], label: 'use item', when: 'items' },
       { ids: ['reverseView'], label: 'reverse view', when: 'follow' },
       { ids: ['pause'], label: 'pause' },
     ],
@@ -445,13 +451,16 @@ const ACTION = {
 // THE OPERATIVE: the pilot's actions laid out as a stealth action game lays them (the principles of the tactical
 // espionage pad): the aim is HELD on the left trigger and the right trigger fires only then; from the aim, the right
 // shoulder goes to the eye and the right stick's click to the other shoulder; the stick's push is the run (there is no
-// sprint) and its click the crouch; the west face is the action (use, open, pick up), the east reloads, the north dives; the D-pad's up HELD is
+// sprint); the south face is the stance (a press down to a crouch and up again, held down to lying), as is the stick's
+// click; the west face is the action (use, open, pick up), the east reloads, the north dives; the D-pad's up HELD is
 // the weapon menu and its left HELD the item menu (worlds/controllable/carry.js: the look steps, letting go chooses). A page whose pilot aims this way (worlds/controllable/aim-view.js) reads this
-// scheme in the pilot's place. The stance, the binoculars, the radio and the item slots have no action yet: their
-// buttons are left free for them (south keeps the jump until the stance is built).
+// scheme in the pilot's place. The binoculars, the radio and the item slots have no action yet: their buttons are left
+// free for them.
 const OPERATIVE_BIND = {
   boost: { keyboard: ['KeyF'] }, kneel: { keyboard: ['KeyX'] }, guard: { keyboard: ['Shift'] },
-  strafeLeft: { xr: ['left.thumbstickX-'] }, tackle: { gamepad: ['north'] },
+  strafeLeft: { xr: ['left.thumbstickX-'] }, tackle: {},
+  // (the jump's action is the dive's on this pilot, aim-view-view.js: Space, and the north face; south is the stance's)
+  jump: { keyboard: ['Space'], gamepad: ['north'], xr: ['right.primary'] },
   cycleWeapon: {}, lock: {}, swapSuit: { keyboard: ['KeyT'] }, transform: { keyboard: ['KeyB'] },
   aiToggle: {}, reverseView: {}, pause: { keyboard: ['Escape'], gamepad: ['start', 'select'] },
 };
@@ -463,14 +472,14 @@ const OPERATIVE = {
     { id: 'view', label: 'first-person view (while aiming)', group: 'camera', in: ['ground'], bind: { keyboard: ['Tab'], gamepad: ['rb'] } },
     { id: 'shoulder', label: 'the other shoulder (while aiming)', group: 'camera', in: ['ground'], bind: { keyboard: ['KeyQ'], gamepad: ['rs'] } },
     { id: 'reload', label: 'reload', group: 'combat', in: ['ground'], bind: { keyboard: ['KeyR'], gamepad: ['east'] } },
-    { id: 'crouch', label: 'crouch / stand', group: 'move', in: ['ground'], bind: { keyboard: ['KeyC'], gamepad: ['ls'] } },
+    { id: 'crouch', label: 'crouch / stand (hold: lie down)', group: 'move', in: ['ground'], bind: { keyboard: ['KeyC'], gamepad: ['south', 'ls'] } },
     { id: 'equip', label: 'weapon menu (hold, look to step)', group: 'combat', hold: true, in: ['ground'], bind: { keyboard: ['KeyG'], gamepad: ['up'] } },
     { id: 'item', label: 'item menu (hold, look to step)', group: 'world', hold: true, in: ['ground'], bind: { keyboard: ['KeyH'], gamepad: ['left'] } },
   ],
   legend: {
     ...PILOT.legend,
-    keyboard: [...PILOT.legend.keyboard, { ids: ['aim'], dev: 'mouse', label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
-    gamepad: [...PILOT.legend.gamepad, { ids: ['aim'], label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
+    keyboard: [...PILOT.legend.keyboard, { ids: ['crouch'], label: 'crouch (hold: lie down)' }, { ids: ['aim'], dev: 'mouse', label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
+    gamepad: [...PILOT.legend.gamepad, { ids: ['crouch'], label: 'crouch (hold: lie down)' }, { ids: ['aim'], label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
   },
 };
 

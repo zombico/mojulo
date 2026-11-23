@@ -13,7 +13,9 @@
  *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
  *             the reference's horizon at the cast light's own strength), and the night's register (`night`:
              stylized, the night reference's deep blue, unless said; realistic, the colour drained by the dark, a pale
-             moon, near-neutral greys: era/geocube-hours.js REALISTIC_NIGHT)
+             moon, near-neutral greys: era/geocube-hours.js REALISTIC_NIGHT), and the inside's `shade` (0.02–0.6: the share of
+ *             the light its shade keeps from its lamps, era/stage.js; low, black shade and lamp-lit pools, its figures lit
+ *             by its lamps where they stand)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   palette   the color theorist's spec (color-theorist/solve.js) the colours are SOLVED from: with a seed, the colours,
@@ -533,8 +535,9 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade'], 'light');
   if (c.light.night !== undefined && !NIGHT_REGISTERS.includes(c.light.night)) no(`light.night is the night's register: ${NIGHT_REGISTERS.join(' or ')} (stylized, the reference's own deep blue, unless said; realistic, the colour drained by the dark, a pale moon, near-neutral greys)`);
+  if (c.light.shade !== undefined && !(typeof c.light.shade === 'number' && c.light.shade >= 0.02 && c.light.shade <= 0.6)) no('light.shade is the share of the light the inside\'s shade keeps from its lamps, 0.02 (black shade, lamp-lit pools) to 0.6 (era/stage.js shade)');
   if (c.light.skyShare !== undefined && !(typeof c.light.skyShare === 'number' && c.light.skyShare > 0 && c.light.skyShare < 1)) no('light.skyShare is the share of its light the sky gives, between 0 and 1 (0.1 a hard sun over deep shade, 0.4 a clear noon, 0.85 an overcast sky; the form render\'s, era/cube-light.js: left out, the look\'s own, raised to meet the sky it paints)');
   if (c.light.sun !== undefined && !(isObj(c.light.sun) && Object.keys(c.light.sun).every((k) => k === 'color') && HEX.test(c.light.sun.color ?? ''))) no('light.sun is { color: \'#rrggbb\' }: the sun\'s colour (its arc and strength are the reference\'s)');
   c.light.shadows ??= SHADOWS;
@@ -757,7 +760,7 @@ function lowerInside(cube) {
     groups: { 'stage:floor': 'floor', 'stage:gutter': 'floor', 'stage:rubble': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:kick': 'trim', 'stage:skirt': 'trim', 'stage:column': 'trim', 'stage:accent': 'accent' },
     keep: ['stage:fixture', 'stage:lamp'],
   };
-  return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows,
+  return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows, ...(cube.light.shade !== undefined ? { shade: cube.light.shade } : {}),
     tiles: gritty ? dressedSurfaces(cube) : { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}), ...(cube.surfaces.plinth !== undefined ? { plinth: cube.surfaces.plinth } : {}) }, tone,
     rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
 }
@@ -1456,7 +1459,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', 'grade', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid; the frame's grade); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', 'grade', 'crowns', 'grass', 'hats', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid; the frame's grade); build a level on a cube with a stage recipe's geocube`);
   // (a stealth land's tall grass, form/tall-grass.js: patches, each a middle and a radius)
   // (its floodlights, a gen-7 land's: scene/channels/form-floods.js)
   if (manifest.floods !== undefined) { try { readFloods(manifest.floods); } catch (e) { no(e.message.replace(/^floods: /, 'floods: ')); } }
@@ -1540,6 +1543,12 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   // trail is laid over, so the form render draws their land, their outsides and their rooms under the cube's one sun)
   if (manifest.buildings !== undefined && !(low.kind === 'stage' && low.trail !== undefined)) no('buildings stand on a land a trail is laid over: show \'path\' or \'town\'');
   if (manifest.buildings !== undefined) low.buildings = manifest.buildings;
+  // (`grass` and `crowns`: how the path's stage draws its grass and its broadleaves' crowns, era/isekai.js: the form
+  // field and its raised ground; the hybrid crown, each leaf bundle round a blob, form/flora-read.js)
+  if ((manifest.grass !== undefined || manifest.crowns !== undefined || manifest.hats !== undefined) && !(low.kind === 'stage' && low.trail !== undefined)) no('grass, crowns and hats are a path\'s stage\'s: show \'path\' or \'town\'');
+  if (manifest.grass !== undefined) low.grass = manifest.grass;
+  if (manifest.hats !== undefined) low.hats = manifest.hats;
+  if (manifest.crowns !== undefined) low.crowns = manifest.crowns;
   // (`wet`: it has just rained, a stage's word: the hard standing films the sky)
   if (manifest.wet !== undefined) low.wet = manifest.wet;
   // (and where it names a weather and no wetness, the weather's own: rain is raining, era/wetness.js)

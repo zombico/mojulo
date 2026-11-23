@@ -47,6 +47,11 @@ export const MSG_OUTCOME = 'game-outcome';
 // links to, entered at the door it pairs with (game-init params.__entry: { door }).
 //   level → shell  { moj: MSG_DOOR, levelRef, door, envelope }
 export const MSG_DOOR = 'game-door';
+// THE SAVE (presentation-side, safe to ignore): a level that keeps its own progress (its manifest's `game.save`: the
+// open city, one long level) sends what it keeps as a moment worth keeping passes; the shell holds the newest, and on a
+// continue hands it back in game-init's params.__resume, the level setting it again before its play goes on.
+//   level → shell  { moj: MSG_SAVE, levelRef, vars: { <bus var>: number } }
+export const MSG_SAVE = 'game-save';
 // presentation-only sidecars (unversioned, safe to ignore):
 //   shell → level  { moj: MSG_AUDIO, on, volume }        — settings panel audio prefs → beats channel
 //   shell → level  { moj: MSG_PAUSE, on }                — pause menu freezes / resumes the sim
@@ -199,6 +204,8 @@ export function validateLevelContract(game, schema) {
 
   // KEEP: the numbers a level reports at its end (a score, a time), each kept best by the shell: { var, label, best:
   // 'high' | 'low', scale?, unit? } (the laps and score mechanics write them)
+  // RANK: a level ranked on its results (game/rank.js): { par?: the seconds it is judged against }
+  if (game.rank !== undefined && (!game.rank || typeof game.rank !== 'object' || Array.isArray(game.rank) || (game.rank.par !== undefined && !(Number.isFinite(game.rank.par) && game.rank.par > 0)))) errors.push('game.rank is { par?: seconds, more than 0 }');
   if (game.keep !== undefined) {
     if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit? }]');
     else game.keep.forEach((k, i) => { if (!k || typeof k.var !== 'string' || typeof k.label !== 'string' || (k.best !== 'high' && k.best !== 'low') || (k.scale !== undefined && !Number.isFinite(k.scale)) || (k.unit !== undefined && typeof k.unit !== 'string')) errors.push(`game.keep[${i}] is { var, label, best: 'high' | 'low', scale?, unit? }`); });

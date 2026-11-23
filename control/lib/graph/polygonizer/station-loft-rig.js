@@ -20,7 +20,8 @@
  *
  * Pose: `resolvePose` words / raw dof for the vajra core (LIMITS apply), plus this module's channels:
  *   crouch ∈ [0,1] (pelvis drop, toes planted), lift (metres, airborne), support: 'both'|'L'|'R'|'none',
- *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), toeTurnL/toeTurnR (degrees the toes turn
+ *   heelL/heelR (degrees the metatarsus rotates about the toe base, about +x), pointL/pointR (degrees a FREE foot's toes
+ *   turn down about the ankle, 0 … 90: pointed; absent the toes ride the shin), toeTurnL/toeTurnR (degrees the toes turn
  *   about the toe base with a targeted foot, about +x; absent level), seat (degrees, 0 … 60: the free legs
  *   turned further forward about the hips, a seated statue's thighs level; seatL/seatR one leg's alone, added), and every
  *   rig chain channel.
@@ -61,7 +62,7 @@ import * as bv from './body-relational-vec.js';
 const REACH_SLACK = 1e-3;
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
-export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift', 'toeTurnL', 'toeTurnR'];
+export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift', 'toeTurnL', 'toeTurnR', 'pointL', 'pointR'];
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]; const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -538,6 +539,10 @@ export function rigNodesAt(R, pose = {}) {
       nodes[L.toeBase] = ride(shin, rest[L.toeBase]); nodes[L.toeTip] = ride(shin, rest[L.toeTip]);
       // (the STANCE: a foot in heels stays tipped off the ground too, its toes turned down about the ankle by the pitch)
       if (ST) for (const j of [L.toeBase, L.toeTip]) nodes[j] = rotAxis(nodes[j], nodes[L.hock], 0, -ST.pitch);
+      // (`point<S>`: a free foot POINTED, its toes turned down about the ankle so many degrees, a dancer's or a diver's,
+      // a dash's streamlined front foot: hero-jump.js dashPoised. Absent ⇒ the toes ride the shin as before)
+      const point = Number.isFinite(pose[`point${S}`]) ? Math.max(0, Math.min(90, pose[`point${S}`])) : 0;
+      if (point) for (const j of [L.toeBase, L.toeTip]) nodes[j] = rotAxis(nodes[j], nodes[L.hock], 0, -point);
       report.legs[S] = { planted: false, reach: 'free', metaError: 0 };
     }
   }
@@ -901,6 +906,10 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * anime hero's), carried as `s` on its packed clip — the World page's clip preview and the GLB play the cycle over it
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
+ * `marks` (default null → byte-identical output): { <group>: a class 1 … 255 }, each corner of a part marked with its
+ * triangle's class: its own group's, else its part's (a welded head's painted hair is its skin's triangles: the page
+ * tells it by its colour) (`hc`, a byte a corner; 0 none), for a page that recolours by class (a transformation's
+ * hair and skin: controllable/index.js).
  * `correctives` (default null → byte-identical output): a sliced recipe's correctives (body-relational-correctives.js;
  * the mesh's `pointIds` address them), carried per corner as the face's rows are — a part holding a corner they move gets
  * `corrective: { i, d }` (`d` 3 × targets float32 per vertex: each corrective's rest offset at full weight), the pack
@@ -921,7 +930,7 @@ const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
  * patch) and its TANGENT (`cover.tangentAt(fi, k)`), the pack the maps (`coverTex`: { base, normal, orm, height, size,
  * depth }, each a PNG data URL).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null, cover = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { marks = null, clips = {}, acts = null, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null, correctives = null, engineLit = false, relief = null, cover = null } = {}) {
   // `surfaces` (recipe.surfaces: a hero wearing its cube's materials, the plain path): each part whose triangles include
   // a metal group's packs the metal channel's per-vertex data (`metal`, face-mesh.js), so the page's metal shades the
   // moving parts as it shades the static solid. No metal surface ⇒ nothing tracked, byte-identical
@@ -933,7 +942,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 
   // `tint` (face-tint.js): per face, its corners' colour multipliers in sRGB, taken to linear here. Absent ⇒ byte-identical.
   const tk = (fi, k, c) => (tint?.[fi] ? tint[fi][k][c] ** 2.2 : 1);
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
-  const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0, ...(metalOf.size ? { tg: [] } : {}) }));
+  const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0, ...(metalOf.size ? { tg: [] } : {}), ...(marks ? { tm: [] } : {}) }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
   const rowAt = !character ? faceRowOf(face) : null, pp = !character ? paint : null;
   if (rowAt || pp) for (const P of parts) P.mph = [];
@@ -987,7 +996,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 
         const hx = faceHex(pal, cell.group, part); let cb = colOf.get(hx); if (!cb) colOf.set(hx, cb = faceColorLinear({ fill: hx }));
         const own = cellTint ? cellTint(fi, cell.group) : undefined, corner = tri.map((vi, k) => colourAt(vi, k, cb, own)), glowing = glow.has(cell.group);
         for (const T of cellTriangles(cell.ring)) {
-          P.faces++; if (P.tg) P.tg.push(cell.group);
+          P.faces++; if (P.tg) P.tg.push(cell.group); if (P.tm) P.tm.push(marks[cell.group] || marks[part?.group] || 0);
           for (const { w } of T) {
             P.pos.push(...[0, 1, 2].map((q) => w[0] * p[0][q] + w[1] * p[1][q] + w[2] * p[2][q]));
             P.col.push(...(glowing ? cb : [0, 1, 2].map((q) => w[0] * corner[0][q] + w[1] * corner[1][q] + w[2] * corner[2][q])));
@@ -1002,7 +1011,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 
     if (ri !== undefined) {
       const H = [pp.hidden[0], pp.hidden[1], pp.hidden[2] + dz];
       for (const st of pp.regions[ri].states) {
-        P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
+        P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]); if (P.tm) P.tm.push(marks[mesh.groups[fi]] || marks[part?.group] || 0);
         tri.forEach((vi, k) => {
           const at = st.rest ? p[k] : H, d = new Float64Array((1 + pp.targets) * 3);
           for (const [t, f] of st.deltas) for (let q = 0; q < 3; q++) d[3 + t * 3 + q] += f * (p[k][q] - H[q]);
@@ -1011,7 +1020,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 
       }
       return;
     }
-    P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
+    P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]); if (P.tm) P.tm.push(marks[mesh.groups[fi]] || marks[part?.group] || 0);
     // (a hair card's corners on the paint's strand strip, dermal-hero.js heroSkinPaint `cardUV`; its colour the band's)
     const card = !painted && pp?.cardUV ? pp.cardUV(fi) : null;
     // (a cloth face's corners on the paint's cloth page, realistic laws 13: dermal-hero.js heroSkinPaint `clothUV`; its colour
@@ -1021,7 +1030,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
-  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); if (P.tan) P.tan.push(...axisTangent([gn[0] / gl, gn[1] / gl, gn[2] / gl])); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(-1, 0) : paint.white)); } } }
+  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); if (P.tm) P.tm.push(0); const gn = P.nrm ? cross(sub(t.p[1], t.p[0]), sub(t.p[2], t.p[0])) : null, gl = gn ? len(gn) || 1 : 1; for (const p of t.p) { if (gn) P.nrm.push(gn[0] / gl, gn[1] / gl, gn[2] / gl); if (P.tan) P.tan.push(...axisTangent([gn[0] / gl, gn[1] / gl, gn[2] / gl])); P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...(carryC ? cover.uvAt(-1, 0) : paint.white)); } } }
   const packedClips = {}, props = [];
   // an actor's ACTS (actor/act.js: a persona's reads played as body takes) pack as its clips do, apart (`acts`): one-shot,
   // their seconds their own, never among the clips a preview lists. Absent ⇒ the pack is byte-identical
@@ -1056,7 +1065,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, acts = null, keys = 
   return {
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
-    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}), ...(P.tan ? { tan: b64f32(P.tan) } : {}) } : null)),
+    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, ...(P.tm && P.tm.some((c) => c) ? { hc: b64u8(P.tm.flatMap((c) => [c, c, c])) } : {}), jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}), ...(P.tan ? { tan: b64f32(P.tan) } : {}) } : null)),
     clips: packedClips, ...(Object.keys(packedActs).length ? { acts: packedActs } : {}), figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white, ...(paint.alphaMask ? { alphaMask: true } : {}) } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),

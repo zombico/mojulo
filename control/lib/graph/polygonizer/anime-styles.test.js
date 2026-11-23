@@ -52,6 +52,9 @@ describe('the style pole', () => {
     expect(remade({}, heroRecord({ cast: 'male', head: 'anime', animeStyle: ANIME_STYLE_NAMES[1] })).animeStyle).toBe(ANIME_STYLE_NAMES[1]);
     expect(remade({}, heroRecord({ cast: 'male', head: 'anime' }))).not.toHaveProperty('animeStyle');
     expect(remade({ animeStyle: ANIME_STYLE_NAMES[2] }, heroRecord({ cast: 'male', head: 'anime' })).animeStyle).toBe(ANIME_STYLE_NAMES[2]);
+    // (and none once the order draws another head: an anime hero remade on the realistic body takes no cast)
+    const realistic = heroRemakeOps({ spec: { cast: 'male', form: 'realistic' } }, { hero: heroRecord({ cast: 'male', head: 'anime', animeStyle: ANIME_STYLE_NAMES[1] }) })[0].value;
+    expect(realistic).not.toHaveProperty('animeStyle');
   });
   it('is stored as its word beside a stamp: kept on the same word, renewed on another, dropped with it', () => {
     const hero = heroRecord({ cast: 'male', head: 'anime', animeStyle: STYLE });

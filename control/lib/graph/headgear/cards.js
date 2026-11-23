@@ -430,6 +430,9 @@ const onRealisticHead = (spec, id, palette) => {
   if ((spec.laws ?? REALISTIC_FROM_LAWS) < REALISTIC_FROM_LAWS) throw new Error(`headgear: '${id}' is fitted to the realistic body from the hero laws ${REALISTIC_FROM_LAWS} (this hero was minted under ${spec.laws})`);
   return { ...spec, headwear: id, palette: { ...palette, ...(spec.palette || {}) } };
 };
+// (a helmet card with a realistic side, a face shield built on the realistic head: headgear/realistic.js; a MASK, since on
+// the realistic head it covers the face and leaves the hair)
+const SHIELDED = (card, id) => ({ ...card, family: 'mask', at: { ...card.at, realistic: (spec) => onRealisticHead(spec, id, card.palette) } });
 const HATTED = (card, id) => ({ ...card, family: 'hat', at: { ...card.at, realistic: (spec) => onRealisticHead(spec, id, card.palette) } });
 const MASKED = (reads, kit, palette) => ({ reads, family: 'mask', palette, at: { tiered: (spec) => withKit({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, kit(spec)) } });
 const HELMETED = (reads, kit, palette) => ({ reads, family: 'helmet', palette, at: { tiered: (spec) => withHelm({ ...spec, palette: { ...(spec.palette || {}), ...palette } }, typeof kit === 'function' ? kit(spec) : helmetKit(kit)) } });
@@ -443,6 +446,14 @@ const EYEWEAR = (reads, word, palette) => ({ reads, family: 'eyegear', words: { 
 
 // the masks' VARIATIONS, each the builder's words (tiered: the cast rides the landmark head): eyegear's DOMINO kind
 const MASK = (reads, words) => ({ reads, family: 'eyegear', words, at: { tiered: (spec) => withKit(spec, maskKit({ ...words, head: spec.head })) } });
+
+// THE TOY HERO ROBOT'S HELM (the herobot's, game-bodies.js): a face-window helm whose cheek guards curl under the jaw (ending
+// at the jaw line, never a chin of their own: the face is seen, side on, with its head turned to the screen) and
+// whose back tucks round to the nape, ear domes capped in the trim, the window's top edge a raised V down to the bridge
+// of the nose framing a gem. Its groups are the robot's armour's own (Armor, Cuff, Gem), so the hero's palette paints it
+// with the rest of the suit; the card's colours only fill what the hero names none of
+export const HEROBOT_HELM = {"id": "helmet", "mode": "shell", "part": "cranium", "s": [2, 5], "t": "wrap", "nt": 8, "ns": 1, "mugen": 0.001, "thick": 0.001, "rigid": true, "stack": false, "group": "Armor", "signature": {"kind": "helm", "group": "Armor", "parts": ["face", "earR", "earL"], "pad": 0.012, "n": 2.2, "crown": 0.95, "drop": -0.02, "flare": 0, "window": {"brow": 0.13, "w": 0.65, "bottom": 0.16, "rim": {"group": "Cuff"}, "nape": 0.22, "jaw": {"drop": 0.14, "curl": 0.5, "wrap": 0.2}, "back": {"tuck": 0.35}, "v": {"apex": 0.1, "curve": 1.6, "raise": 0.004, "group": "Cuff", "frame": {"cheek": [0.004, 0.22], "peak": [0.28, 0.56], "gem": {"corner": [0.1, 0.28], "top": 0.22, "bottom": 0.12}}}, "hug": 0.45}, "ears": {"group": "Armor", "cap": {"group": "Cuff"}}, "gem": {"group": "Gem", "shape": "diamond", "r": 0.02, "setting": {"group": "Armor", "w": 0.15}}, "scale": 1.05}};
+const HEROBOT_HELM_PALETTE = { Armor: '#1f5fc8', Cuff: '#7fd4ff', Gem: '#c4122f', ArmorHighlight: '#a9d3ff', CuffHighlight: '#e8f8ff', GemHighlight: '#ff7d96' };
 
 export const HEADGEAR = Object.freeze({
   // ── HELMETS ──
@@ -519,6 +530,11 @@ export const HEADGEAR = Object.freeze({
   bronzeTVisor: HELMETED('the bronze T-visor: the T-visor helm in burnished bronze, a crest fin over the crown, no rangefinder; the armorer', () => facelessKit({ face: { poly: [[-1.9, 0.35], [1.9, 0.35], [1.9, -0.3], [0.34, -0.3], [0.34, -2.0], [-0.34, -2.0], [-0.34, -0.3], [-1.9, -0.3]] }, faceGroup: 'HelmetVisor', panels: ['teardrop', 'split'], adorn: ['crestFin'] }), { Helmet: '#a8743a', HelmetSeam: '#5e3f1c', HelmetTrim: '#c9a227', HelmetVisor: '#120d09' }),
   nightTVisor: HELMETED('the night T-visor: a black T-visor helm, red trim, ear discs, cracks across its face; the night owl', () => facelessKit({ face: { poly: [[-1.9, 0.35], [1.9, 0.35], [1.9, -0.3], [0.34, -0.3], [0.34, -2.0], [-0.34, -2.0], [-0.34, -0.3], [-1.9, -0.3]] }, faceGroup: 'HelmetVisor', panels: ['teardrop', 'browBand'], adorn: ['earDiscs'], cuts: ['chinVents'], paint: ['cracks'] }), { Helmet: '#1d1f24', HelmetSeam: '#7a1d1d', HelmetTrim: '#a32020', HelmetVisor: '#08090b', HelmetCut: '#050506', MaskSeam: '#5a5f68' }),
   heavyTVisor: HELMETED('the heavy T-visor: a green T-visor helm, a plated shell, vents on the cheeks and under the visor, antennae; the veteran', () => facelessKit({ face: { poly: [[-1.9, 0.35], [1.9, 0.35], [1.9, -0.3], [0.34, -0.3], [0.34, -2.0], [-0.34, -2.0], [-0.34, -0.3], [-1.9, -0.3]] }, faceGroup: 'HelmetVisor', panels: ['plated', 'teardrop'], cuts: ['chinVents', 'cheekVents'], adorn: ['antennae', 'rangefinder'] }), { Helmet: '#5d6b4a', HelmetSeam: '#2a3120', HelmetTrim: '#a3402a', HelmetVisor: '#0e1013', HelmetCut: '#0b0c0e', EyeGlow: '#e0202a' }),
+  // THE WELDING MASK: the blank hood a welder flips down, one dark slot of welding glass across the eyes, a brass rim; its
+  // CRACKED twin the slot burst open so the face shows (a boss's last phase: boss/bosses.js `figure`)
+  weldingMask: SHIELDED(HELMETED('the welding mask: a soot-black hood flipped down, one dark slot of welding glass across the eyes, a brass rim, vents under the chin; the welder', () => facelessKit({ face: { poly: [[-1.55, 0.45], [1.55, 0.45], [1.55, -0.2], [-1.55, -0.2]] }, faceGroup: 'HelmetVisor', panels: ['plated'], cuts: ['chinVents'] }), { Helmet: '#2a2522', HelmetSeam: '#141210', HelmetTrim: '#c9a14a', HelmetVisor: '#10201a', HelmetCut: '#0b0c0e', EyeGlow: '#ffb347' }), 'weldingMask'),
+  shooterWrap: SHIELDED({ ...MASK('the shooter\'s wrap: mirrored shooting glasses wrapped from temple to temple over a scarf wound high on the face; the marksman', { outline: 'technical', eyes: 'lens', detail: 'plain' }), palette: { Helmet: '#d8cfbd', HelmetVisor: '#c9d6de', HelmetTrim: '#1a1a1a' } }, 'shooterWrap'),
+  weldingMaskCracked: SHIELDED(HELMETED('the cracked welding mask: the welder\'s hood with its glass burst out and the plate split, the face showing through; the welder unmasked', () => facelessKit({ face: { poly: [[-1.7, 0.75], [-0.4, 0.6], [0.5, 0.85], [1.7, 0.55], [1.5, -1.1], [0.3, -0.7], [-0.6, -1.3], [-1.6, -0.6]] }, faceGroup: 'HelmetVisor', faceTreat: 'open', panels: ['plated'], cuts: ['chinVents'] }), { Helmet: '#2a2522', HelmetSeam: '#141210', HelmetTrim: '#c9a14a', HelmetVisor: '#10201a', HelmetCut: '#0b0c0e', EyeGlow: '#ffb347' }), 'weldingMaskCracked'),
   // ── STRUCTURED MASKS: the face in flat planes, worn over the hair ──
   ironTyrant: MASKED('the iron tyrant: a riveted iron face of flat planes, a sculpted nose, narrow eye slits, a barred slot of a mouth; the armoured despot', () => structuredKit({ facets: 'iron', panels: ['plates'], cuts: [[CUT({ shape: 'slot', at: [0.95, 0.05], w: 0.6, h: 0.12, tilt: -0.04 })], 'barredMouth'], details: ['rivets'], sculpt: ['brow'] }), { Helmet: '#8c9198', HelmetTrim: '#5f646b', HelmetSeam: '#4a4f56', HelmetCut: '#0a0b0d' }),
   gildedTyrant: MASKED('the gilded tyrant: the iron tyrant in gold, its rivets and plate lines dark; the golden despot', () => structuredKit({ facets: 'iron', panels: ['plates', 'split'], cuts: [[CUT({ shape: 'slot', at: [0.95, 0.05], w: 0.6, h: 0.12, tilt: -0.04 })], 'barredMouth'], details: ['rivets'], sculpt: ['brow'] }), { Helmet: '#c9a227', HelmetTrim: '#6e5414', HelmetSeam: '#6e5414', HelmetCut: '#0a0806' }),
@@ -621,6 +637,9 @@ export const HEADGEAR = Object.freeze({
     at: { tiered: (spec) => withHelm(spec, [HELM({ n: 3.2, pad: 0.014, flare: 0.08, muzzle: 0.008, crown: 0.95, visor: 'slits', faceplate: 'Face' })]) } },
   bandHelm: { reads: 'the band helm: a round helm with a visor band across the eyes; the space hero', family: 'helmet',
     at: { tiered: (spec) => withHelm(spec, [HELM({ n: 2.2, pad: 0.02, flare: 0.2, muzzle: 0.01, crown: 0.9, visor: 'band' })]) } },
+  // ── THE TOY HERO ROBOT (1117) ──
+  heroBotHelm: { reads: 'the hero robot\'s helm: a face window, cheek guards curled under the jaw, ear domes, a raised V over the brow round a gem; the run and gun\'s hero', family: 'helmet', palette: HEROBOT_HELM_PALETTE,
+    at: { tiered: (spec) => withHelm({ ...spec, palette: { ...HEROBOT_HELM_PALETTE, ...(spec.palette || {}) } }, [HEROBOT_HELM]) } },
   // ── FANTASY (1114): what a fantasy hero wears on the head that is not a hood (a hood is a garment's word: an outfit
   // piece's `hood`). Each a card over the builders above, no builder of its own: the CIRCLET an eyegear cast pushed up to
   // the brow with no lenses, its strap the band round the head, a gem on its front; the HATS a soft helmet shell over the

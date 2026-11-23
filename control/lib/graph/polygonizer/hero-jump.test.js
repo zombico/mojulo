@@ -41,6 +41,7 @@ describe('hero-jump', () => {
         for (const n of nodes) { let lo = null, lv = Infinity; for (const [k, p] of Object.entries(n)) { const v = p[2] - flesh(k); if (v < lv - 1e-9) { lv = v; lo = k; } } expect(lo).not.toMatch(/^head/); }
         return;
       }
+      if (JUMPS[name].floor) { expect(J.air).toBeNull(); return; }   // (a move made on the floor: a dash, no flight)
       expect(J.air.takeoff).toBeGreaterThan(0); expect(J.air.land).toBeGreaterThan(J.air.takeoff); expect(J.air.land).toBeLessThan(J.seconds);
       expect(J.air.height).toBeGreaterThan(0.1); expect(J.air.height).toBeLessThan(0.8);
       if (run) { expect(J.air.speed).toBe(5); for (const S of ['L', 'R']) expect(nodes.some((n) => n[R.legs[S].toeBase][2] - R.joints[R.legs[S].toeBase][2] < 1e-6)).toBe(true); }
@@ -48,6 +49,38 @@ describe('hero-jump', () => {
       else expect(J.air.kick).toBeUndefined();
     });
   }
+  it('the poised jump: one pose held through the air, the knee away from the gun arm up; the legs reach down only before the floor', () => {
+    const R = HEROES.male, J = heroJump('jumpPoised', R), at = (t) => rigNodesAt(R, J.fn(t)).nodes;
+    const L = R.legs.L, Rg = R.legs.R, foot = (n, Lg) => n[Lg.toeBase][2];
+    // (held: from just after take-off to late in the fall, every joint of the legs stays where it was)
+    const a = at(0.32), b = at(0.6);
+    for (const Lg of [L, Rg]) for (const k of [Lg.toeBase, Lg.toeTip]) for (const x of [0, 1, 2]) expect(Math.abs(a[k][x] - b[k][x])).toBeLessThan(0.01);
+    // (the left knee drawn up: its foot far higher than the right's, which hangs)
+    expect(foot(a, L) - foot(a, Rg)).toBeGreaterThan(0.15);
+    // (late in the fall both feet reach down: the raised one lowered to near the other)
+    const c = at(0.735);
+    expect(foot(c, L)).toBeLessThan(foot(a, L) - 0.1);
+    expect(Math.abs(foot(c, L) - foot(c, Rg))).toBeLessThan(0.08);
+  });
+  it('the poised dash: never off the floor; leaning in, the off knee forward with its foot swept back, the gun side\'s foot back on its toes, the arms at 4 and 7 o\'clock', () => {
+    const R = HEROES.male, J = heroJump('dashPoised', R), n0 = rigNodesAt(R, J.fn(0)).nodes, n = rigNodesAt(R, J.fn(0.5)).nodes;
+    expect(J.air).toBeNull();
+    // (+y the rig's forward: the left knee ahead of the right foot by most of the split; its foot behind its knee, off
+    // the floor, the toes back of the ankle; the head ahead of the pelvis: the lean)
+    expect(n.kneeL[1] - n[R.legs.R.toeTip][1]).toBeGreaterThan(0.5);
+    expect(n[R.legs.L.hock][1]).toBeLessThan(n.kneeL[1] - 0.1);
+    expect(n[R.legs.L.toeTip][2]).toBeGreaterThan(n0[R.legs.L.toeTip][2] + 0.1);
+    expect(n[R.legs.L.toeTip][1]).toBeLessThan(n[R.legs.L.hock][1] + 0.05);
+    // (the arms on a clock face, the hero facing 3 o'clock: the gun's forearm aimed forward and down (4 o'clock), the off
+    // arm's back and down (7 o'clock), its upper arm behind the shoulder)
+    const clock = (a, b) => 6 - Math.atan2(n[b][1] - n[a][1], -(n[b][2] - n[a][2])) * 180 / Math.PI / 30;
+    expect(clock('elbowR', 'wristR')).toBeGreaterThan(3); expect(clock('elbowR', 'wristR')).toBeLessThan(5);
+    expect(clock('elbowL', 'wristL')).toBeGreaterThan(6.4); expect(clock('elbowL', 'wristL')).toBeLessThan(7.6);
+    expect(n.elbowL[1]).toBeLessThan(n.shoulderL[1] - 0.1);
+    expect(n.headTop[1] - n.pelvisHub[1]).toBeGreaterThan(n0.headTop[1] - n0.pelvisHub[1] + 0.2);
+    // (the rear heel up: its ankle over its toe's height by more than it stands)
+    expect(n[R.legs.R.hock][2] - n[R.legs.R.toeTip][2]).toBeGreaterThan(n0[R.legs.R.hock][2] - n0[R.legs.R.toeTip][2] + 0.03);
+  });
   it('is deterministic, and a longer clip stretches the air', () => {
     const R = HEROES.female; const a = heroJump('jump', R), b = heroJump('jump', R);
     for (const t of [0, 0.3, 0.55, 1]) expect(JSON.stringify(a.fn(t))).toBe(JSON.stringify(b.fn(t)));

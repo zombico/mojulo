@@ -20,6 +20,16 @@ export const SERVICES = Object.freeze({
     uniform: true, room: 'shopfloor', slots: ['the shop'],
     lowers: { menu: 'shop' }, status: 'built',
   }),
+  innkeep: R({
+    reads: 'lets a bed for the night: the party rests, healed, for the inn\'s price',
+    uniform: false, room: 'taproom', slots: ['the inn'],
+    lowers: { menu: 'shop' }, status: 'built',
+  }),
+  shrine: R({
+    reads: 'tends the temple: a blessing for the road, the fallen raised',
+    uniform: true, room: 'sanctuary', slots: ['the temple'],
+    lowers: null, status: 'gap', missing: 'no rite raises the fallen or lifts a curse yet (playscape/rpg: the inn\'s rest raises them): the priest stands at the sanctuary and talks',
+  }),
   smith: R({
     reads: 'works metal for the player: mends and betters their gear',
     uniform: true, room: 'workfloor', slots: ['the work'],

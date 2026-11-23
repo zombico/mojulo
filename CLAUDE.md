@@ -273,6 +273,11 @@ Pointers only; each target carries its own design notes.
   vehicle word through it, and a new vehicle is a row first. The shelves that build them (road, the car shelf's
   personal cars, the mecha shelf's legged frames, the craft shelf's aircraft and boats, the rail shelf), file by file:
   [docs/vehicles.md](docs/vehicles.md).
+- A track's design language: [roads/track-language.js](control/lib/graph/roads/track-language.js) (one card says what a raced
+  track is made of and how its parts are shaped: way, kerb, rail, flags, trees, sky; a kart track's chunky drawing,
+  `roads/chunky-look.js`; a street circuit's town, `roads/street-frontage.js`; a mine's galleries under a hill, lit as
+  a cave, `roads/mine.js`; a new map is a card), the principles a card is written by:
+  [docs/track-design-principles.md](docs/track-design-principles.md).
 - Airports: [airport/](control/lib/graph/airport/) (the transport hub's grammar laid at an airport's real figures, `plan.js`:
   piers, nose-in stands sized to the craft shelf's liners and their jet bridges, the taxiway and runway at their
   separations, the tower and hangar, each concourse a wing; drawn whole as a miniature on a plinth, `miniature.js`, or one
@@ -374,9 +379,15 @@ Pointers only; each target carries its own design notes.
   [era/room-layouts.js](control/lib/graph/era/room-layouts.js) (aisles, machines, islands, stockpile, chicane, rows, each
   held to its laws; a program's `layouts`, a new figure a row), and a facility, [era/facilities.js](control/lib/graph/era/facilities.js)
   (a use, its fighting dials, its layouts and its materials, named by a level's building or a WCD space; a new one a
-  row); a core building laid larger for a third-person camera, `scale` (`era/program-core.js`, the `hall` stair); their
+  row); a core building laid larger for a third-person camera, `scale` (`era/program-core.js`, the `hall` stair); its
+  crawl spaces, `vents` (`era/vents.js`); its glass and mesh, seen through and never walked through (`era/inner-windows.js`,
+  the `cage` layout, `worlds/controllable/barrier.js`); their
   maps in the game book, `/bible?book=facilities` ([gameworld/facility-maps.js](control/lib/graph/gameworld/facility-maps.js)):
   [docs/facility-pieces.md](docs/facility-pieces.md).
+- Offshore rigs (a stealth level of open decks over the sea, the facility's other pole): [offshore/](control/lib/graph/offshore/)
+  (three tiles, floor, rail and pillar, a row each in `tiles.js`, and the modules on them; a deck a map of glyphs, its
+  rails and columns found, `plan.js`; its laws, `laws.js`; built over the sea, `build.js`; a new rig a row of `rigs.js`;
+  drawn in the facility maps book): [docs/offshore-rigs.md](docs/offshore-rigs.md).
 - Room craft: [era/room-craft.js](control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is
   asked, each with its reason and how different places answer it; a new interior answers the questions, never copies
   another kit's things; `readRoomCraft` says which a kit's card answers; the agent's card: `room-craft`).
@@ -386,6 +397,9 @@ Pointers only; each target carries its own design notes.
   as the page walks it). Its clients: the geocity's `under` (podiums and their concourses: `geocity/podium.js`) and a
   stage's `complex` (buildings with basements on one yard, `complex.js`; a WCD level's spaces; a campus by its name,
   `campuses.js`, a new campus a row).
+- Hijack City (the open city's crime game, a starter for a GTA-like: the `hijack-city` rail and its starter,
+  [gameworld/hijack-city.js](control/lib/graph/gameworld/hijack-city.js), the `open-city-crime` genre):
+  [docs/hijack-city.md](docs/hijack-city.md).
 - Quest open worlds: [docs/quest-open-world.md](docs/quest-open-world.md) (the WCD's opposite pole: a geocity's regions
   joined sideways, never gated on the way on; a `design_game` world's `qow`; its principles as laws). The metro it is
   laid on: [geocity/](control/lib/graph/geocity/) (the geocube's `show: 'geocity'`: major streets first, rings, roads,
@@ -394,6 +408,13 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
+  measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
+  and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
+  mines, `mines.js`), seen by `scene/channels/controllable/boss-view.js`: [docs/boss-fights.md](docs/boss-fights.md).
+- Worker bots: [workbots/](control/lib/graph/workbots/) (a toy world's worker bots in their own low-poly language: a
+  few big primitives in toy colours by role, a face of two lit eyes and a mouth; a bot is a card, stood as a rig figure
+  by a figures-map `workbot`; level 0's boss Bulwark is one).
 - Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
   ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
   room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world

@@ -31,7 +31,7 @@ describe('the rail\'s cards', () => {
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
     // (the studio second: the book worked a chapter at a time, read after the guide when the ask is a whole game)
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-ledger', 'gameworld-producer', 'gameworld-main-quest', 'gameworld-quick', 'gameworld-brief', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-course', 'gameworld-mission', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-colour', 'gameworld-sound', 'gameworld-music', 'gameworld-juice', 'gameworld-interface', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-roll', 'gameworld-course-dress', 'gameworld-side-scroll', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-flow', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-ledger', 'gameworld-producer', 'gameworld-main-quest', 'gameworld-quick', 'gameworld-brief', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-course', 'gameworld-mission', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-stylish', 'gameworld-colour', 'gameworld-sound', 'gameworld-music', 'gameworld-juice', 'gameworld-interface', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-roll', 'gameworld-course-dress', 'gameworld-side-scroll', 'gameworld-heroes', 'gameworld-villains', 'gameworld-track-language', 'gameworld-hijack-city', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-flow', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // 4480 since 2026-10-29 (1029-tac-com-simulator-interior: SHOWN FIRST, a draft's book as the approval sheet, 4407 bytes);
     // 4512 since 2026-11-04 (1103-game-design-studio-abstraction: the book's line points at the studio card, the book
@@ -97,7 +97,13 @@ describe('the rail\'s cards', () => {
     // 5197 bytes before, 5541 with them; 5888 the same day for `tree`, a school the party can be in, two lines: 5796)
     // (2026-11-20, 1117-cinematic-action-game: gameworld-wcd 4608 → 4992: a space's or a building's facility and a room's
     // layouts, era/facilities.js and era/room-layouts.js, two lines and the space's key; 4897 bytes with them)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 5888, 'gameworld-next': 5504, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // (2026-11-21, 1120-mana-ui-start-screens: gameworld-interface 4096 → 4736, the start screen, front.stage, five lines:
+    // when it is offered, its shape, its cards and treatments, its part; 4045 bytes before, 4590 with them, 4698 with
+    // the arena shell's menu.stage and the versus title's champion, one subject a screen, one line more;
+    // gameworld-next 5504 → 5632, the `front` move, one line; 5417 bytes before, 5540 with it; gameworld-interface
+    // 4736 → 4864 the same day: the start screen's ground graphic, a picture the creator brings its `background`, one
+    // line, the character or the picture, never both: 4838 bytes)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 5888, 'gameworld-next': 5632, 'gameworld-interface': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

@@ -1,7 +1,8 @@
 import { b64, safeJson } from '../../emit-util.js';
 import { packRigMesh } from '../../../figures/rig-bake.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
-import { surfaceAt } from '../../../roads/surface.js';
+import { surfaceAt, padAt } from '../../../roads/surface.js';
+import { kartItemsViewScript } from './kart-items-view.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI, MSG_SEATS as GAME_MSG_SEATS } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
@@ -23,16 +24,22 @@ import { sightScript } from './sight-view.js';
 import { alarmScript } from './alarm-view.js';
 import { knockoutScript } from './knockout-view.js';
 import { ghostScript } from './ghost-view.js';
+import { bossViewScript } from './boss-view.js';
 import { missionScript } from './mission-view.js';
 import { specialsPaletteScript } from './specials-palette.js';
 import { mergeableFigure, mergedFigureScript, oneDrawFigure, oneDrawScript, farFigureScript } from './merged-figure.js';
 import { groundIndexScript } from './ground-index.js';
 import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
-import { bossScript } from './boss-view.js';
 import { boatWaterScript } from './boat-water.js';
+import { shotLightScript } from './shot-light-view.js';
+import { shutterScript } from './shutter-view.js';
+import { steamScript } from './steam-view.js';
+import { rockScript } from './rock-view.js';
+import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
+import { tellOf } from '../../../worlds/controllable/tell.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -81,7 +88,29 @@ function poolFigureBuffers(figures) {
 // correctives, normals, metal). A skinned figure (`skin: true`, one mesh skinned in the page: __makeSkinGroup) keeps it
 // all. And a figure byte-identical to one before it (a battle's foe slots, one sheet each) is emitted once and named
 // again (`same`). A bank with none of these is returned as it came, so its page is byte for byte as before.
-const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8'];
+/** THE CEL BODY's step on the page (world-scene.js heroFigure `cel`): the key the side strip lights its land from
+ * (era/geocube-side.js SIDE.key), so a body and its land agree, and the N·L past which a face is lit (a form's turning half
+ * in shade: at 0.05 a key behind the camera lit nearly all of it). */
+// (the key the side strip's own, written here: importing the era's side strip into this module reorders the server's boot
+// and leaves a module read before it is made; cel-body.test.js holds the two equal)
+export const CEL_BODY = Object.freeze({ key: Object.freeze([0.52, -0.3, 0.8]), step: 0.3, lamp: 0.45 });
+/** A side map's bodies turn their heads toward the screen (radians, the most): standing, and on the move. */
+export const FACE_SCREEN = Object.freeze({ rest: 0.5, moving: 0.22 });
+/** A cel body charging its buster lit up by its charge, on its FRESNEL: its body and limbs `body` all over, toward their
+ * silhouette `rim` more ((1 − |N·V|)^`power`), its helmet with them; its face (its corners marked) never all over, only
+ * `faceRim` at its edge; by its
+ * fill, pulsing at `rate` (Hz: before a level, after one) down to `low`. */
+/** The charge's energy over the whole body (__chargeFx): the bloom's growth (× its height: at none, the fill's share, a
+ * level's), its opacity, the halo over it and its opacity, the heart's, the sparks (before a level, after one), their turns
+ * a second, how far round the body they are drawn in from (× its height), the motes circling it (before a level, after
+ * one), their turns (radians a second) and their ring (× its height), and the burst a level sets off (× its height: its
+ * base, a level's); the pulse is the body's glow's (CEL_CHARGE). */
+export const CHARGE_FX = Object.freeze({ size: Object.freeze([0.75, 0.25, 0.08]), glow: 0.3, halo: 1, haloOp: 0.2, heart: 0.75, sparks: Object.freeze([24, 48]), motes: Object.freeze([14, 28]), spin: Object.freeze([1.4, 2.4]), ring: 0.42, rate: Object.freeze([1.6, 2.6]), reach: 0.75, burst: Object.freeze([0.12, 0.04]) });
+export const CEL_CHARGE = Object.freeze({ body: 0.45, rim: 1.1, faceRim: 0.5, power: 2.2, rate: Object.freeze([3, 6]), low: 0.35 });
+/** THE SIGNAL on a cel body (a boss's eyes and glow, gameworld/bosses.js; its tell worlds/controllable/tell.js): its corners
+ * keep their colour whatever the light (`base`), brightened by the tell (`gain`) and whitened at its peak (`white`). */
+export const CEL_SIGNAL = Object.freeze({ base: 0.9, gain: 1.1, white: 0.3 });
+const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'spec', 'spec8', 'hcolS', 'faceM', 'sigM'];
 // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's: a corner a triangle, every number a float32), as
 // the page reads it (`full: 1`): the corners that are the same corner are one (its place, its colour, its paint's place,
 // its normal and its face's row all the same), the places on a uint16 grid over the part's own box as a unit rig's are
@@ -89,11 +118,16 @@ const PER_CORNER = ['uv', 'morph', 'corrective', 'nrm', 'tan', 'metal', 'q', 'sp
 // bytes (`nq`), and the face's rows (figures/morph-sparse.js) named by the welded corners. Read by __makeRigGroup's q
 // branch. What cannot be welded so (a face's rows not sparse, a count that does not agree) is returned as it came.
 const FULL_KEYS = ['uv', 'nrm', 'morph'], FULL_ONLY = ['corrective', 'tan', 'metal', 'q', 'spec', 'spec8'];
-function pageFullPart(rest) {
+function pageFullPart(rest, skin = null) {
   const raw = (str) => { const b = Buffer.from(str, 'base64'); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); };
   const pos = new Float32Array(raw(rest.pos)), col = new Uint8Array(raw(rest.col)), nV = (pos.length / 3) | 0;
   const uv = rest.uv ? new Float32Array(raw(rest.uv)) : null, nrm = rest.nrm ? new Float32Array(raw(rest.nrm)) : null, M = rest.morph || null;
-  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z)) return rest;
+  // (a part of a figure drawn as one skin, `skin`: each corner's four bones and weights, welded with it: the corners one only
+  // where they also ride alike)
+  const J = skin ? new Uint8Array(raw(skin.jnt)) : null, W = skin ? new Float32Array(raw(skin.wgt)) : null;
+  // (and its corners' marks, `hc`: a corner one only with its mark the same)
+  const HC = rest.hc ? new Uint8Array(raw(rest.hc)) : null;
+  if (!nV || col.length !== nV * 3 || (uv && uv.length !== nV * 2) || (nrm && nrm.length !== nV * 3) || (M && !M.z) || (J && (J.length !== nV * 4 || W.length !== nV * 4)) || (HC && HC.length !== nV)) return skin ? { ...rest, ...skin } : rest;
   // each corner's face row (its unique row's number), or -1: two corners with different rows are never one
   const rowOf = new Int32Array(nV).fill(-1);
   let mI = null, mU = null;
@@ -108,12 +142,15 @@ function pageFullPart(rest) {
   const ub = uv ? [0, 1].map((k) => box(uv, 2, k)) : null, uo = ub ? ub.map((b) => r6(b[0])) : null, us = ub ? ub.map((b) => grid(b[0], b[1])) : null;
   const qz = (v, lo, st) => { if (!st) return 0; const q = Math.round((v - lo) / st); return q <= 0 ? 0 : q >= 65535 ? 65535 : q; };
   const n8 = (v) => { const q = Math.round(v * 127); return q < -127 ? -127 : q > 127 ? 127 : q; };
-  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [];
+  const seen = new Map(), idx = new (nV > 65535 ? Uint32Array : Uint16Array)(nV), Q = [], C = [], UQ = [], NQ = [], rows = [], JQ = [], WQ = [], HQ = [];
+  const w8 = (v) => { const q = Math.round(v * 255); return q < 0 ? 0 : q > 255 ? 255 : q; };
   for (let i = 0; i < nV; i++) {
     const a = [qz(pos[3 * i], o[0], sp[0]), qz(pos[3 * i + 1], o[1], sp[1]), qz(pos[3 * i + 2], o[2], sp[2]), col[3 * i], col[3 * i + 1], col[3 * i + 2]];
     if (uv) a.push(qz(uv[2 * i], uo[0], us[0]), qz(uv[2 * i + 1], uo[1], us[1]));
     if (nrm) a.push(n8(nrm[3 * i]), n8(nrm[3 * i + 1]), n8(nrm[3 * i + 2]));
     a.push(rowOf[i]);
+    if (HC) a.push(HC[i]);
+    if (J) a.push(J[4 * i], J[4 * i + 1], J[4 * i + 2], J[4 * i + 3], w8(W[4 * i]), w8(W[4 * i + 1]), w8(W[4 * i + 2]), w8(W[4 * i + 3]));
     const key = a.join(',');
     let u = seen.get(key);
     if (u === undefined) {
@@ -121,6 +158,8 @@ function pageFullPart(rest) {
       Q.push(a[0], a[1], a[2]); C.push(a[3], a[4], a[5]);
       let k = 6; if (uv) { UQ.push(a[k], a[k + 1]); k += 2; } if (nrm) NQ.push(a[k], a[k + 1], a[k + 2]);
       rows.push(rowOf[i]);
+      if (J) { const e = a.length - 8; JQ.push(a[e], a[e + 1], a[e + 2], a[e + 3]); WQ.push(a[e + 4], a[e + 5], a[e + 6], a[e + 7]); }
+      if (HC) HQ.push(HC[i]);
     }
     idx[i] = u;
   }
@@ -131,6 +170,8 @@ function pageFullPart(rest) {
   const out = { ...keep, full: 1, q: b64(Uint16Array.from(Q)), o, s: sp, n, idx: b64(n > 65535 ? Uint32Array.from(idx) : (idx instanceof Uint16Array ? idx : Uint16Array.from(idx))), col: b64(Uint8Array.from(C)) };
   if (uv) Object.assign(out, { uq: b64(Uint16Array.from(UQ)), uo, us });
   if (nrm) out.nq = b64(Int8Array.from(NQ));
+  if (J) Object.assign(out, { jq: b64(Uint8Array.from(JQ)), wq: b64(Uint8Array.from(WQ)) });
+  if (HC) out.hc = b64(Uint8Array.from(HQ));
   if (M) {
     const at = [], ur = [];
     for (let u = 0; u < n; u++) if (rows[u] >= 0) { at.push(u); ur.push(rows[u]); }
@@ -138,9 +179,19 @@ function pageFullPart(rest) {
   }
   return out;
 }
-function pagePart(p) {
+function pagePart(p, skin = false) {
   if (!p || (p.jnt === undefined && p.wgt === undefined)) return p;
   const { jnt: _j, wgt: _w, ...rest } = p;
+  // (a part of a figure drawn as ONE SKIN, `skinParts`: its bones and weights kept, welded with its corners where the part is
+  // welded, else as they came)
+  if (skin) {
+    if (typeof rest.pos === 'string' && typeof rest.col === 'string' && FULL_ONLY.every((k) => rest[k] === undefined) && FULL_KEYS.some((k) => rest[k] !== undefined)) return pageFullPart(rest, { jnt: p.jnt, wgt: p.wgt });
+    // (a part not welded keeps its corners, its weights a byte each as a welded one's are)
+    if (typeof p.wgt !== 'string') return p;
+    const wb = Buffer.from(p.wgt, 'base64'), W = new Float32Array(wb.buffer.slice(wb.byteOffset, wb.byteOffset + wb.length)), Q = new Uint8Array(W.length);
+    for (let i = 0; i < W.length; i++) { const q = Math.round(W[i] * 255); Q[i] = q < 0 ? 0 : q > 255 ? 255 : q; }
+    return { ...rest, jnt: p.jnt, wq: Buffer.from(Q.buffer).toString('base64') };
+  }
   // (a part that carries its paint's place, its normals or a face's rows and nothing else laid per corner: welded and
   // on a grid as well, pageFullPart below; one with a corrective, a tangent, a metal or a specular stays as it came)
   if (typeof rest.pos === 'string' && typeof rest.col === 'string' && FULL_ONLY.every((k) => rest[k] === undefined) && FULL_KEYS.some((k) => rest[k] !== undefined)) return pageFullPart(rest);
@@ -176,7 +227,7 @@ export function pageFigures(figures) {
   const out = {}, same = {}, seen = new Map();
   let changed = false;
   for (const [name, f] of Object.entries(figures)) {
-    const g = drop(f) ? { ...f, parts: f.parts.map(pagePart), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
+    const g = drop(f) ? { ...f, parts: f.parts.map((q) => pagePart(q, f.skinParts === true)), ...(f.clips ? { clips: pageClips(f.clips) } : {}), ...(f.acts ? { acts: pageClips(f.acts) } : {}) } : f;
     if (g !== f) changed = true;
     const key = g && typeof g === 'object' ? JSON.stringify(g) : null;
     if (key && key.length >= 4096 && seen.has(key)) { same[name] = seen.get(key); changed = true; continue; }
@@ -191,7 +242,7 @@ export function pageFigures(figures) {
  * through the pilot scheme, riding the frame's input as `input.seats` (worlds/controllable/core.js). A controller sits down
  * with any press (start is the shell's pause): the first to press is seat 1. A ring in the seat's colour stands under each
  * seated body, and a strip names who is in. Emitted only for a world with seats. */
-function seatsScript(seats) {
+function seatsScript(seats, uses = false) {
   const bodies = Array.isArray(seats.bodies) ? seats.bodies.slice(0, 3) : [];
   const max = Math.max(1, Math.min(4, seats.max ?? bodies.length + 1, bodies.length + 1));
   return `// ── SEATS ──
@@ -221,12 +272,17 @@ function __seatSnap(x) {
   else { const st = __padStick(g.axes[0] || 0, g.axes[1] || 0); mx = st[0]; my = -st[1]; }
   const P = __seatPrev[x.n] || (__seatPrev[x.n] = {}), jh = h('jump'), tk = h('tackle');
   const out = { forward: my, turn: __MOUSELOOK ? 0 : mx, strafe: __MOUSELOOK ? mx : 0, lift: (jh ? 1 : 0) - (h('kneel') ? 1 : 0), jump: jh && !P.jump ? 1 : 0, jumpHeld: jh ? 1 : 0, fire: h('fire') ? 1 : 0, boost: h('boost') ? 1 : 0, walk: h('walk') ? 1 : 0, kneel: h('kneel') ? 1 : 0, tackle: tk && !P.tackle ? 1 : 0 };
-  P.jump = jh; P.tackle = tk;
+  P.jump = jh; P.tackle = tk;${uses ? `
+  const ih = h('interact'); if (ih && P.interact === false) __seatUseN[x.n] = (__seatUseN[x.n] || 0) + 1; P.interact = ih;   // (a seat's own use press; the press that sat it down is not one)` : ''}
   return out;
-}
+}${uses ? `
+// a seat's own interact presses, counted (the events channel's seat reach turns them into s<n>:use-<place>), and its key
+const __seatUseN = {};
+window.__mojSeatUses = (n) => __seatUseN[n] || 0;
+window.__mojSeatLabel = (n) => { const x = __SK.seat(__SEATS, n); if (!x) return ''; const f = x.controller === 'keyboard' ? 'keyboard' : 'gamepad', c = (__BIND.bind[f].interact || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; };` : ''}
 // the strip: who is in, in their colours; an empty seat says how to sit down
 const __seatEl = document.createElement('div');
-__seatEl.style.cssText = 'position:fixed;top:calc(8px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';
+__seatEl.style.cssText = 'position:fixed;${uses ? 'bottom:calc(44px + env(safe-area-inset-bottom, 0px))' : 'top:calc(8px + env(safe-area-inset-top, 0px))'};left:50%;transform:translateX(-50%);display:flex;gap:6px;font:600 12px system-ui,sans-serif;pointer-events:none;z-index:5';   // (a shift's seats: at the bottom, the top being its order rail's)
 document.body.appendChild(__seatEl);
 let __seatSaid = '';
 function __seatStrip() {
@@ -760,7 +816,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -779,6 +835,10 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const touchLayer = touch ? touchLayout(entities, camera, { runner: !!runner, course: courseTouch }) : null;
   // a shooter's carried arms (gunplay.js, gunplay-view.js): a body whose rule says gunplay; absent, nothing is emitted
   const gunplay = entities.some((e) => e && e.rule && e.rule.gunplay);
+  // a grenade thrown (throw.js): a body whose loadout carries a thrown weapon; absent, nothing is emitted
+  const throwing = entities.some((e) => e && e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.some((s) => s && s.weapon && s.weapon.throw));
+  // a vehicle got into and ridden (board.js): a world with a vehicle to board; absent, nothing is emitted
+  const boardOn = entities.some((e) => e && e.board);
   // a gun carried in a watcher's hands (gunplay-view.js heldScript): a body with a mind whose rule says armHeld
   const armHeld = entities.some((e) => e && e.rule && e.rule.armHeld);
   // the aim held (aim-view.js, aim-view-view.js): a body whose rule says aimView; absent, nothing is emitted
@@ -815,6 +875,12 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const clearSkips = camSkips.replace("        { const tg0 = __world.byId[c.rule.target]; if (tg0 && hit.distance < Math.hypot(look[0] - tg0.transform.pos[0], look[1] - tg0.transform.pos[1]) - 0.15) continue; }\n", "        { const tg0 = __world.byId[c.rule.target]; if (tg0) { const bx = tg0.transform.pos[0] - look[0], by = tg0.transform.pos[1] - look[1], hz = Math.hypot(d[0], d[1]) || 1e-6; if (Math.abs(bx * d[1] - by * d[0]) / hz < 0.8 && hit.distance * hz < (bx * d[0] + by * d[1]) / hz - 0.15) continue; } }\n");
   // tall grass (veil.js): the world's veils, a watcher's sight lost in them; none, not a byte
   const veilsOn = Array.isArray(veils) && veils.length > 0;
+  // glass and mesh (barrier.js): held out of by a body, seen through by a gaze; none, not a byte
+  const barriersOn = Array.isArray(barriers) && barriers.length > 0;
+  // a boss fight (worlds/controllable/boss.js) and the mines laid in one (mines.js): a body directed as a boss, a weapon laid
+  // rather than fired; none, not a byte
+  const bossOn = entities.some((e) => e && e.rule && e.rule.boss);
+  const minesOn = entities.some((e) => e && ((e.weapon && e.weapon.place) || (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.some((s) => s && s.weapon && s.weapon.place))));
   // a mission in one level (worlds/controllable/mission.js, mission-view.js): a pilot whose rule carries one
   const mission = entities.some((e) => e && e.rule && e.rule.mission);
   // THE RADAR'S REACH (a pilot's `rule.radarRange`, metres to its rim): a person's game reads the bodies within a few
@@ -823,11 +889,25 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const radarRange = ((entities.find((e) => e && e.pilotable && e.rule && e.rule.radarRange > 0) || {}).rule || {}).radarRange ?? 620;
   // a gun on a mount aimed by hand (worlds/controllable/turret.js, turret-view.js): an entity with a turret; absent, nothing
   const turretOn = entities.some((e) => e && e.turret);
-  // a boss fought in phases (worlds/controllable/boss.js, boss-view.js): a body whose rule carries `boss`
-  const bossOn = entities.some((e) => e && e.rule && e.rule.boss);
   // a body steered on its wheels (worlds/controllable/steer.js), its rule's or a form's: absent, nothing
   const hoverOn = entities.some((e) => e && e.rule && e.rule.type === 'hover');
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
+  // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
+  const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
+  // (a FOE'S TRAVELLING ROUND, gameworld/side-map/cast.js: a gun its weapon fires as a round that crosses the room, drawn in
+  // the shot's look in the foe's colour, one look a colour; none, nothing)
+  const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0)]));
+  const foeRoundsOn = Object.keys(foeLooks).length > 0;
+  // (a foe that picks up and THROWS ROCKS, worlds/controllable/foe.js rockStep: its rocks drawn by rock-view.js, never as a
+  // shell; none, nothing)
+  const rockOn = entities.some((e) => e && e.rule && e.rule.foe && e.rule.foe.rock);
+  // (a SABER's body, gameworld/feel/saber.js: a moveset that strikes with a colour, its cuts drawn as slashes; none: nothing)
+  const saberOn = entities.some((e) => e && e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color));
+  // THE DASH'S DUST (round-look.js DASH_DUST, a rule's dash.dust): a body whose ground dash raises it
+  const dustOn = entities.some((e) => e && e.rule && e.rule.dash && e.rule.dash.dust && typeof e.rule.dash.dust === 'object');
+  // THE PAD'S OWN FACES (the pilot's rule.controls, a feel card's `pad`, feel/lower.js): an override over the scheme's
+  // bindings (controls-kernel.js resolve), so the game's faces are its own and its legend says them; none, the scheme's
+  const padOver = (() => { const P = entities.find((e) => e && e.pilotable && e.rule && e.rule.controls && typeof e.rule.controls === 'object'); return P ? P.rule.controls : null; })();
   const steerOn = entities.some((e) => e && ((e.rule && e.rule.steer) || (e.forms && Object.values(e.forms).some((f) => f && f.rule && f.rule.steer))));
   // a person's sprint (rules-platform.js sprintSpeed): Shift held, read only where a body has one; absent, nothing emitted
   const sprint = entities.some((e) => e && e.rule && e.rule.sprintSpeed > 0);
@@ -855,6 +935,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // else the nearest its aim crosses), never over the body: above the drawn model's top, or under its feet when the top
   // leaves the screen. No body asks for one → the emitted channel is byte-identical
   const foeBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'target');
+  // (and a body with no bar of its own, `body.hpBar: 'none'`: a boss, its health the HUD's, gameworld/side-map/boss-cast.js)
+  const noBars = (entities || []).some((e) => e && e.body && e.body.hpBar === 'none');
   // a TARGET RIM (`body.targetRim`: an rgb, gameworld/foes.js): the foe the pilot targets (the bar's own pick) lit at its
   // edges, a fresnel shell on the bone meshes of whatever body it now wears (a mode swapped in is lit as it comes). No body
   // asks for one → the emitted channel is byte-identical
@@ -920,6 +1002,8 @@ function __updateGearLines() {
   // a body with MODES (worlds/controllable/vanish.js): each mode's figure built up front as a loadout's are, the sync's
   // variant swap showing the one it is in. None ⇒ the body as it was, byte for byte
   const hasModes = (entities || []).some((e) => e && e.body && Array.isArray(e.body.modes) && e.body.modes.length > 1);
+  // (a boss whose looks wear figures of their own, boss/stand.js `figures`: each built up front, a phase's swap a warm body)
+  const bossFigs = (entities || []).some((e) => e && e.rule && e.rule.boss && Array.isArray(e.rule.boss.figures) && e.rule.boss.figures.length);
   // a body that sheathes its weapon out of combat (rules-platform.js `combat.drawn` / `combat.sheathed`): both figures built,
   // the rule's choice shown; and a body's POSE LAYERS (\`body.layers\`): none, not a byte
   const hasSheath = (entities || []).some((e) => e && e.rule && e.rule.combat && e.rule.combat.sheathed);
@@ -929,6 +1013,9 @@ function __updateGearLines() {
   // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
   // off where a part's own mesh is read (the toon ink's hulls, a headset's hands). None mergeable ⇒ byte-identical
   const figMerge = !xr && !toonInk && Object.values(figures || {}).some(mergeableFigure);
+  // ONE SKIN A HERO (world-scene.js heroFigure `skinParts`, realistic laws 17): its parts skinned on one skeleton, each corner
+  // carried by its own bones; not where a part's own mesh is read (the toon ink's hull, a headset's hands)
+  const figSkinParts = !xr && !toonInk && Object.values(figures || {}).some((f) => f && f.skinParts === true);
   // (a figure with a pose twin, figure-grades.js: cut in while a close shot is on it; none, not a byte)
   const figPose = figMerge && Object.values(figures || {}).some((f) => f && typeof f.pose === 'string' && mergeableFigure(f));
   // (a figure with a far twin, merged-figure.js farFigureScript: drawn coarse far off; none, not a byte)
@@ -948,6 +1035,8 @@ function __updateGearLines() {
   // a body with FORMS (controllable/forms.js) and a figure baked to be both (transformation/compose.js): the transform
   // press, the clip each form plays, a flying form's attitude. Emitted only when some entity or figure carries forms.
   const hasForms = (entities || []).some((e) => e && e.forms);
+  // the transform press is heard too where the hero carries a Halo Meter (style.js): it buys the transformation
+  const haloOn = !!(styleMeter && typeof styleMeter === 'object' && styleMeter.halo), transforms = hasForms || haloOn;
   // a moveset's beats (gameworld/combos.js): the heavy and special presses read, only where a body carries one
   const moveset = (entities || []).some((e) => e && e.rule && e.rule.moveset);
   // a guard (combat-melee.js stepGuard, a feel card's lowered): the guard held, read only where a body carries one
@@ -979,6 +1068,12 @@ function __updateGearLines() {
   // parts carry their normals where its form writes them, else its mesh's own) and carrying a rig is drawn with the cast
   // material, lit by the page's one sun, its sky and its rim its own; no baked rim over it. Absent, the page carries none
   const figHasCast = Object.values(figures || {}).some((f) => f && f.rig && f.cast && Array.isArray(f.parts));
+  // (a CEL body, world-scene.js heroFigure `cel`: each part's lit tone and its shade tone, stepped by the world's key)
+  const figHasToon = Object.values(figures || {}).some((f) => f && f.rig && f.toon && Array.isArray(f.parts) && f.parts.some((p) => p && p.colS));
+  const toonHook = figHasToon ? '\n    if (fig.toon && part.colS) mesh.material = __toonMat(mesh.material, group);' : '';
+  // (and a SIGNAL, a boss's eyes and glow (world-scene.js celBody's \`sigM\`, gameworld/bosses.js): lit by its TELL each
+  // frame, worlds/controllable/tell.js. No figure carries one: nothing emitted, the cel body as it was)
+  const figHasSignal = figHasToon && Object.values(figures || {}).some((f) => f && f.toon && Array.isArray(f.parts) && f.parts.some((p) => p && p.sigM));
   // (a body that carries its relief, a realistic hero's: its normal map and its occlusion, roughness and metal, on its
   // paint's own atlas; the cast material reads them. None carries one: nothing emitted)
   const figHasRelief = figHasCast && Object.values(figures || {}).some((f) => f && f.cast && f.paintTex && (f.normalTex || f.ormTex));
@@ -991,7 +1086,9 @@ function __updateGearLines() {
   // authored normals, so the geometric fallback orients each triangle away from the part centroid.
   // Gated on the emit-site cfg: a world without toon.ink emits byte-identical controllable text; `lines: false`
   // (silhouette only) leaves the part's line segments unattached, as the toon setup block does.
-  const rigInkHook = toonInk ? `\n    if (typeof __inkBuild === 'function') __inkRigPart(mesh, geo, fig);` : '';
+  // (a body drawn at a scale of its own, `body.scale`: an absolute width is the world's, so its hull is built at its share
+  // of the scale and drawn as wide as every other body's: a side map's small foes grown to a game's size, side-map/cast.js)
+  const rigInkHook = toonInk ? `\n    if (typeof __inkBuild === 'function') __inkRigPart(mesh, geo, fig, b.scale);` : '';
   const rigInkBlock = toonInk ? `
 // toon ink on rig parts (Phase 4b): de-index the part, orient normals off its centroid, ink it.
 const __INKRIG = ${safeJson(toonInk)};
@@ -1005,13 +1102,13 @@ function __inkFigRadius(fig) {   // the figure's scale, for a width every part a
   }
   return (fig.__inkR = r || 1);
 }
-function __inkRigPart(mesh, geo, fig) {
+function __inkRigPart(mesh, geo, fig, scale) {
   const pa = geo.getAttribute('position').array, idx = geo.index ? geo.index.array : null;
   let pos = pa;
   if (idx) { pos = new Float32Array(idx.length * 3); for (let i = 0; i < idx.length; i++) { const k = idx[i] * 3; pos[i * 3] = pa[k]; pos[i * 3 + 1] = pa[k + 1]; pos[i * 3 + 2] = pa[k + 2]; } }
   if (pos.length < 9) return;
   const r = __inkFigRadius(fig), q = Math.max(r * 1.5e-3, 1e-6);
-  const width = __INKRIG.widthAbs != null ? __INKRIG.widthAbs : __INKRIG.width * r;
+  const width = __INKRIG.widthAbs != null ? __INKRIG.widthAbs / (scale > 0 ? scale : 1) : __INKRIG.width * r;
   const e = __inkBuild(pos, __inkGeoNormals(pos, __inkCentroid(pos)), width, __INKRIG.crease, q, __INKRIG.color);
   mesh.add(e.hull);${toonInk.lines === false ? '' : ' mesh.add(e.lines);'}
   mesh.material.polygonOffset = true; mesh.material.polygonOffsetFactor = 1; mesh.material.polygonOffsetUnits = 1; mesh.material.needsUpdate = true;
@@ -1301,8 +1398,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(bossOn ? { boss: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
 ` : ''}${commanderBlock}${flyHudBlock}${(() => {
@@ -1447,10 +1544,89 @@ function __rigFace(rig, clipName, phase) {
   const over = F.ambient && (!tr || (F.ambientOver || []).includes(clipName));
   const w = over ? __rigTrack(F.ambient, now % F.ambient.seconds) : __rigTrack(tr, phase * tr.t[tr.t.length - 1]);
   const ws = w || F.weights; if (!ws) return;
-  for (const mesh of rig.boneMeshes) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
+  for (const mesh of ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) if (mesh && mesh.morphTargetInfluences) for (let t = 0; t < ws.length; t++) mesh.morphTargetInfluences[t] = ws[t];
 }
 ` : ''}${figHasPaint ? `// the painted body's atlas, once per figure (shared by every entity wearing it)
 function __rigTex(fig) { if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; } return fig.__tex; }
+` : ''}${figHasToon ? `// THE CEL BODY (world-scene.js heroFigure \`cel\`, the fighter's toon step, versus-arena.client.js): each corner carries its
+// lit tone (its colour) and its shade tone (\`colorShade\`), the character light's own swatches; the fragment takes the lit
+// one where the surface faces the world's key past the step, over a narrow band so the line holds without stairs. The
+// key is the world's (\`__toonKey\`), never the body's: a body turned the other way keeps its light where the world has it
+const __toonKey = new THREE.Vector3(${CEL_BODY.key.join(', ')}).normalize(), __TOON_STEP = ${CEL_BODY.step};
+// (a KEY A BODY: on a side map, a zone lit by lamps lights a cel body from its nearest lamp's side and height, the land's
+// key's turn toward the camera kept so its face still reads; each body its own key, eased as it moves, CEL_BODY.lamp the
+// lamp's share)
+const __TOON_ZONES = ${safeJson(camera && camera.rule === 'side-map' && Array.isArray(camera.zones) ? camera.zones.map((z) => ({ rect: z.rect, ...(z.lamps ? { lamps: z.lamps } : {}) })) : [])};
+const __toonV = new THREE.Vector3();
+function __toonKeyOf(e, g) {
+  const K = g.userData.toonKey; if (!K || !e.transform) return;
+  const p = e.transform.pos, s = p[1], z = p[2] + 1, Z = __TOON_ZONES.find((q) => q.lamps && s >= q.rect[0] && s <= q.rect[1] && z >= q.rect[2] - 1 && z <= q.rect[3] + 1);
+  __toonV.copy(__toonKey);
+  if (Z) {
+    let best = null, bd = Infinity;
+    for (const l of Z.lamps) { const d = Math.abs(l[1] - s); if (d < bd) { bd = d; best = l; } }
+    // (the lamp says which side and how high, never from behind: the key keeps the land's turn toward the camera, its
+    // along-the-lane and its up taken toward the lamp's)
+    if (best) { const ly = best[1] - p[1], lz = best[2] - z, ll = Math.hypot(ly, lz) || 1, k = ${CEL_BODY.lamp}, side = Math.hypot(__toonKey.y, __toonKey.z); __toonV.set(__toonKey.x, (1 - k) * __toonKey.y + k * side * ly / ll, (1 - k) * __toonKey.z + k * side * lz / ll).normalize(); }
+  }
+  K.lerp(__toonV, 0.15).normalize();
+  // (CHARGING: the buster's charge lights its body up on its FRESNEL, in the level reached's colour, as much as it is full,
+  // pulsing on the world's clock, faster once a level is reached: the whole body a little, toward its silhouette most)
+${figHasSignal ? `  if (g.userData.toonSig) e.tellNow = g.userData.toonSig.value = __tellOf(e, __world.time);
+` : ''}  const Cg = g.userData.toonCharge, B = e.rule && e.rule.buster;
+  if (Cg) {
+    if (B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0) {
+      const lv = e.chargeLevel ? B.levels[e.chargeLevel - 1] : B.tap, c = __toonC.set(lv && lv.color != null ? lv.color : 0xfff2a8);
+      const on = __chargePulse(e);
+      Cg.set(c.r, c.g, c.b, Math.min(1, e.chargeFrac) * on);
+    } else Cg.w = 0;
+  }
+}
+const __toonC = new THREE.Color();${figHasSignal ? `
+// (the SIGNAL's tell: an ember at rest, rising to the next shot while it means to fire, a flash at the shot)
+const __tellOf = ${tellOf.toString()};` : ''}
+// (the charge's pulse, one for its glow, its bloom and its light: slow and deep, faster once a level is reached)
+const __chargePulse = (e) => ${CEL_CHARGE.low} + (1 - ${CEL_CHARGE.low}) * (0.5 + 0.5 * Math.sin(2 * Math.PI * __world.time * (e.chargeLevel ? ${CEL_CHARGE.rate[1]} : ${CEL_CHARGE.rate[0]})));
+// (the face is never lit by the charge, only edged by its rim: its corners marked (heroFigure's cel, \`faceM\`); the rest of
+// the body, the helmet with it, glows)
+function __toonMat(base, g) {
+  const m = base.clone();
+  if (g && !g.userData.toonKey) { g.userData.toonKey = __toonKey.clone(); g.userData.toonCharge = new THREE.Vector4(0, 0, 0, 0);${figHasSignal ? ' g.userData.toonSig = { value: 0 };' : ''} }
+  const key = g ? g.userData.toonKey : __toonKey, charge = g ? g.userData.toonCharge : new THREE.Vector4(0, 0, 0, 0);
+  m.userData.cel = true;
+  const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
+  m.onBeforeCompile = function (sh, r) {
+    if (prev) prev.call(this, sh, r);
+    sh.uniforms.uToonKey = { value: key }; sh.uniforms.uToonStep = { value: __TOON_STEP }; sh.uniforms.uToonCharge = { value: charge };${figHasSignal ? ' sh.uniforms.uToonSig = g ? g.userData.toonSig : { value: 0 };' : ''}
+    sh.vertexShader = 'attribute vec3 colorShade;\\nattribute float aToonFace;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\nvarying float vToonFace;\\n${figHasSignal ? 'attribute float aToonSig;\\nvarying float vToonSig;\\n' : ''}' + sh.vertexShader.replace('#include <fog_vertex>', '#include <fog_vertex>\\n${figHasSignal ? '  vToonSig = aToonSig;\\n' : ''}  vToonShade = colorShade;\\n  vToonN = normalize(mat3(modelMatrix) * normal);\\n  vToonW = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n  vToonFace = aToonFace;');
+    sh.fragmentShader = 'uniform vec3 uToonKey;\\nuniform float uToonStep;\\nuniform vec4 uToonCharge;\\n${figHasSignal ? 'uniform float uToonSig;\\nvarying float vToonSig;\\n' : ''}varying float vToonFace;\\nvarying vec3 vToonShade;\\nvarying vec3 vToonN;\\nvarying vec3 vToonW;\\n' + sh.fragmentShader.replace('#include <color_fragment>',
+      '#if defined( USE_COLOR )\\n  vec3 toonN = normalize(vToonN) * (gl_FrontFacing ? 1.0 : -1.0);\\n  float toonLit = smoothstep(uToonStep - 0.03, uToonStep + 0.03, dot(toonN, uToonKey));\\n  diffuseColor.rgb *= mix(vToonShade, vColor.rgb, toonLit);\\n'
+      + '  if (uToonCharge.a > 0.0) { float toonF = pow(clamp(1.0 - abs(dot(toonN, normalize(cameraPosition - vToonW))), 0.0, 1.0), ${CEL_CHARGE.power}); diffuseColor.rgb += uToonCharge.rgb * uToonCharge.a * mix(${CEL_CHARGE.body} + ${CEL_CHARGE.rim} * toonF, ${CEL_CHARGE.faceRim} * toonF, step(0.5, vToonFace)); }\\n${figHasSignal ? `  if (vToonSig > 0.5) diffuseColor.rgb = vColor.rgb * (${CEL_SIGNAL.base} + ${CEL_SIGNAL.gain} * uToonSig) + vec3(${CEL_SIGNAL.white} * uToonSig * uToonSig);\\n` : ''}#endif');
+  };
+  m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|cel-body${figHasSignal ? '-sig' : ''}'; };
+  return m;
+}
+// (each corner's normal: the faces round its point that turn within the character light's crease (35°) of its own,
+// summed by area, so a rounded part bands smoothly and an armour's edge stays an edge)
+function __toonNormals(pos, idx) {
+  const tri = idx ? idx.length / 3 : pos.length / 9, at = (t, k) => (idx ? idx[t * 3 + k] : t * 3 + k), fn = new Float32Array(tri * 3), by = new Map();
+  const key = (v) => Math.round(pos[v * 3] * 2e4) + ',' + Math.round(pos[v * 3 + 1] * 2e4) + ',' + Math.round(pos[v * 3 + 2] * 2e4);
+  for (let t = 0; t < tri; t++) {
+    const a = at(t, 0), b = at(t, 1), c = at(t, 2), ax = pos[b * 3] - pos[a * 3], ay = pos[b * 3 + 1] - pos[a * 3 + 1], az = pos[b * 3 + 2] - pos[a * 3 + 2], bx = pos[c * 3] - pos[a * 3], by2 = pos[c * 3 + 1] - pos[a * 3 + 1], bz = pos[c * 3 + 2] - pos[a * 3 + 2];
+    fn[t * 3] = ay * bz - az * by2; fn[t * 3 + 1] = az * bx - ax * bz; fn[t * 3 + 2] = ax * by2 - ay * bx;
+    for (let k = 0; k < 3; k++) { const kk = key(at(t, k)); let L = by.get(kk); if (!L) by.set(kk, L = []); L.push(t); }
+  }
+  const out = new Float32Array(pos.length), unit = (t) => { const l = Math.hypot(fn[t * 3], fn[t * 3 + 1], fn[t * 3 + 2]) || 1; return [fn[t * 3] / l, fn[t * 3 + 1] / l, fn[t * 3 + 2] / l]; };
+  for (let t = 0; t < tri; t++) {
+    const u = unit(t);
+    for (let k = 0; k < 3; k++) {
+      const v = at(t, k); let x = 0, y = 0, z = 0;
+      for (const q of by.get(key(v))) { const w = unit(q); if (u[0] * w[0] + u[1] * w[1] + u[2] * w[2] > 0.82) { x += fn[q * 3]; y += fn[q * 3 + 1]; z += fn[q * 3 + 2]; } }
+      const l = Math.hypot(x, y, z) || 1; out[v * 3] = x / l; out[v * 3 + 1] = y / l; out[v * 3 + 2] = z / l;
+    }
+  }
+  return out;
+}
 ` : ''}${figHasSkin ? `// a SKINNED rig: its bones (posed by the sync as a rigid rig's bone meshes are) drive one skinned mesh bound at the rest,
 // every part's corners in it with their joints and weights; it never raycasts (no footing, no target)
 function __makeSkinGroup(fig, b, group) {
@@ -1520,7 +1696,7 @@ function __castMR(fig, c, n) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
-  const boneMeshes = fig.bones.map((bn, bi) => {
+${figSkinParts ? '  let __skinned = null;\n' : ''}  const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;${figHasForm ? `
     if (part.form && fig.form) {
@@ -1540,26 +1716,46 @@ function __castMR(fig, c, n) {
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));`}
     // rig-part colour is packed as normalized uint8 (rig-bake b64u8, 4× smaller than float32) →
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasPaint ? `
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${figHasToon ? `
+    // (a cel body's part: its shade tone a corner, and its normals smoothed within the character light's crease)
+    if (fig.toon && part.colS) { geo.setAttribute('colorShade', new THREE.BufferAttribute(decodeU8(part.colS), 3, true)); geo.setAttribute('aToonFace', part.faceM ? new THREE.BufferAttribute(decodeU8(part.faceM), 1, true) : new THREE.BufferAttribute(new Uint8Array(geo.getAttribute('position').count), 1, true));${figHasSignal ? " geo.setAttribute('aToonSig', part.sigM ? new THREE.BufferAttribute(decodeU8(part.sigM), 1, true) : new THREE.BufferAttribute(new Uint8Array(geo.getAttribute('position').count), 1, true));" : ''} if (!geo.getAttribute('normal')) geo.setAttribute('normal', new THREE.BufferAttribute(__toonNormals(geo.getAttribute('position').array, geo.index ? geo.index.array : null), 3)); }` : ''}${figHasPaint ? `
     const map = fig.paintTex && ((part.uv && !part.q) || part.uq) ? __rigTex(fig) : null;
     if (map) { if (part.uq) { const u = __decodeU16(part.uq), f = new Float32Array(u.length); for (let i = 0; i < u.length; i += 2) { f[i] = part.uo[0] + u[i] * part.us[0]; f[i + 1] = part.uo[1] + u[i + 1] * part.us[1]; } geo.setAttribute('uv', new THREE.BufferAttribute(f, 2)); } else geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2)); }` : ''}${figHasFace ? `
     if (fig.face && part.morph && (!part.q || part.full)) __rigMorph(fig, part, geo);` : ''}${figHasCast ? `
     // (a body under the cast rig: each corner's normal as the lit read wrote it, else its mesh's own)
     if (fig.cast) { if (part.nq) geo.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(decodeU8(part.nq).buffer), 3, true)); else if (part.nrm) geo.setAttribute('normal', new THREE.BufferAttribute(decodeF32(part.nrm), 3)); else geo.computeVertexNormals(); }${figHasResp ? `
     if (fig.cast && Array.isArray(fig.response)) { const cc = geo.getAttribute('color'); geo.setAttribute('aMR', new THREE.BufferAttribute(__castMR(fig, cc.array, cc.count), 2, true)); }` : ''}` : ''}
-    geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
+${roomLit ? `    // (a body a room lights, the room's light below: its normals, the lit read's where it wrote them, else its mesh's own)
+    if (!geo.getAttribute('normal')) geo.computeVertexNormals();
+` : ''}${haloOn ? `    // (a part marked by what it is, the halo's hair and skin: style.js; its corners' class, the recolour's)
+    if (part.hc) geo.setAttribute('aHc', new THREE.BufferAttribute(decodeU8(part.hc), 1));
+` : ''}${figSkinParts ? `    // (one skin: its bones and weights, welded with the part or as they came; a part with none rides its bone rigidly)
+    const SK = fig.skinParts && !fig.wreck && (part.jq || part.jnt) && !/^(weapon_|shield$)/.test(fig.bones[bi].id);
+    if (SK) { if (part.jq) { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jq), 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(decodeU8(part.wq), 4, true)); } else { geo.setAttribute('skinIndex', new THREE.BufferAttribute(decodeU8(part.jnt), 4)); geo.setAttribute('skinWeight', part.wq ? new THREE.BufferAttribute(decodeU8(part.wq), 4, true) : new THREE.BufferAttribute(decodeF32(part.wgt), 4)); } }
+` : ''}    geo.computeBoundingSphere();
+    const mesh = new ${figSkinParts ? '(SK ? THREE.SkinnedMesh : THREE.Mesh)' : 'THREE.Mesh'}(geo, ${figHasCast ? `fig.cast ? __castMat(fig, { vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''}${figHasRelief ? ', ...(map ? __castRelief(fig) : {})' : ''} }) : ` : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${figHasPaint ? (figHasMask ? ', ...(map ? { map, ...(fig.paintTex.alphaMask ? { alphaTest: 0.4 } : {}) } : {})' : ', ...(map ? { map } : {})') : ''} }));${figHasCast ? `
     if (fig.cast) mesh.receiveShadow = true;` : ''}${figHasFace ? `
-    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
-    mesh.matrixAutoUpdate = false;
+    if (geo.morphAttributes.position) mesh.updateMorphTargets();` : ''}${toonHook}${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
+${haloOn ? `    if (part.hc) __haloMat(mesh.material, fig);
+` : ''}    mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);
-    return mesh;
+${figSkinParts ? `    // (a skinned part leaves a bone in its place for the sync to pose; it never raycasts, as the bone meshes are kept from it:
+    // no footing, no camera's occluder)
+    if (SK) { mesh.raycast = function () {}; (__skinned || (__skinned = [])).push(mesh); const bn = new THREE.Bone(); bn.matrixAutoUpdate = false; group.add(bn); return bn; }
+` : ''}    return mesh;
   });
-  scene.add(group);${bodyScaled ? `
+${figSkinParts ? `  // (one skin: every bone posed, a part's or none, and the skinned parts bound to them at the identity, as __makeSkinGroup's)
+  if (__skinned) {
+    for (let i = 0; i < boneMeshes.length; i++) if (!boneMeshes[i]) { const bn = new THREE.Bone(); bn.matrixAutoUpdate = false; group.add(bn); boneMeshes[i] = bn; }
+    group.updateMatrixWorld(true);
+    const sk = new THREE.Skeleton(boneMeshes, boneMeshes.map(() => new THREE.Matrix4()));
+    for (const m of __skinned) m.bind(sk);
+  }
+` : ''}  scene.add(group);${bodyScaled ? `
   if (b.scale > 0) group.scale.setScalar(b.scale);` : ''}
   group.userData.rigFig = { fig, boneMeshes, mix: {}, blendTime: b.blendTime, lookA: 0,
-    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null };${figOneDraw ? `
+    yaw: b.yawOffset != null ? b.yawOffset : -Math.PI / 2, headTrack: b.headTrack || null${figSkinParts ? `, ...(__skinned ? { meshes: [...__skinned, ...boneMeshes.filter((m) => m && m.isMesh)] } : {})` : ''} };${figOneDraw ? `
   if (fig.oneDraw) __oneDraw(fig, group, boneMeshes);   // one draw a lit figure (merged-figure.js)` : ''}
   // muzzle locator: an empty child of the weapon bone mesh at the muzzle's bone-local rest point,
   // so its world position IS the live weapon tip (rides every clip). Shot fx originate here.
@@ -1644,10 +1840,11 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
   // sibling body must not read as footing to the ground probe, nor an active one as a target).
   // An UNPILOTED pilotable suit runs its ambient rule at build time, so its loadout lives on
   // pilotRule — check both, or its weapons could never swap after a T take-over.
-  const lo = (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
+  const lo = ${bossFigs ? `(e.rule && e.rule.boss && Array.isArray(e.rule.boss.figures) && e.rule.boss.figures.length ? [{ figure: b.figure }, ...e.rule.boss.figures.map((f) => ({ figure: f }))] : null)
+    || ` : ''}(e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
     || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''}${hasSheath ? `
-    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }] : null)` : ''};
+    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }, ...Object.values(e.rule.combat.held || {}).map((f) => ({ figure: f }))] : null)` : ''};
   // (a loadout whose slots name no figure, a carried kit's guns: arms-kit.js, has no variant bodies to build; the body is
   // its own figure, below. Without this a hero carrying a kit was never drawn)
   if (lo && lo.some((c) => c && c.figure) && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
@@ -1780,7 +1977,54 @@ const __RIG_Z = new THREE.Vector3(0, 0, 1), __RIG_ONE = new THREE.Vector3(1, 1, 
 const __rigQT = new THREE.Quaternion(), __rigQZ = new THREE.Quaternion();
 const __rigAxis = new THREE.Vector3(), __rigPivot = new THREE.Vector3();${talkJaw ? `
 const __tjHead = new THREE.Quaternion(), __tjQ = new THREE.Quaternion(), __tjAxis = new THREE.Vector3();   // a talking jaw's scratch` : ''}
-// look-pitch aim scratch: rotate the weapon arm about the shoulder to follow vertical look.
+${busterOn ? `// THE ARM CANNON'S SWAP (polygonizer/hero-buster-rig.js: the cannon on a bone of its own, buster<S>): while the buster is
+// out (charging, or a shot just fired: worlds/controllable/buster.js) the cannon's bone grows to full and the hand's bones
+// shrink away, each about its own head, eased over a few frames; otherwise the hand, the cannon put away. A figure with
+// no cannon's bone: nothing (null)
+const __rigS = new THREE.Vector3(1, 1, 1), __BUSTER_HOLD = 0.35, __BUSTER_MIN = 0.001;
+function __busterSwap(e, fig, rig, dt) {
+  if (rig.bsw === undefined) {
+    const at = fig.bones.findIndex((b) => /^buster[LR]$/.test(b.id));
+    if (at < 0) rig.bsw = null;
+    else {
+      const S = fig.bones[at].id.slice(-1), hand = new RegExp('^(hand|wristBridge|thumb|index|middle|ring|little|pinky)[A-Za-z0-9]*' + S + '$');
+      rig.bsw = { at, hand: fig.bones.map((b, i) => (hand.test(b.id) ? i : -1)).filter((i) => i >= 0), k: 0, s: fig.bones.map(() => 1) };
+    }
+  }
+  const W = rig.bsw;
+  if (!W) return null;
+  const out = !!e.busterOn || !!(e.lastShot && __world.time - e.lastShot.t < __BUSTER_HOLD);
+  W.k += ((out ? 1 : 0) - W.k) * Math.min(1, (dt || 1 / 60) * 18);
+  W.s[W.at] = Math.max(__BUSTER_MIN, W.k);
+  for (const i of W.hand) W.s[i] = Math.max(__BUSTER_MIN, 1 - W.k);
+  return W;
+}
+// THE BUSTER ARM RAISED (a shot just fired: worlds/controllable/buster.js e.lastShot): the cannon's arm, the right one
+// whichever way the hero faces (the body turns, never a mirror), lifted level along the facing over whatever the body
+// plays (a run, a jump, a dash): the upper arm turned about the shoulder onto the facing and the forearm about the
+// elbow onto it, the hand, the fingers and the cannon carried; eased up fast, held __BUSTER_RAISE s, eased down
+const __BUSTER_RAISE = 0.3, __baT = new THREE.Vector3(0, 1, 0), __baD = new THREE.Vector3(), __baI = new THREE.Quaternion(), __baF = new THREE.Quaternion(), __baH = new THREE.Vector3();
+function __busterArm(e, fig, rig, dt) {
+  if (rig.bar === undefined) {
+    const id = (n) => fig.bones.findIndex((b) => b.id === n), cb = fig.bones.findIndex((b) => /^buster[LR]$/.test(b.id));
+    const S = cb >= 0 ? fig.bones[cb].id.slice(-1) : null, up = S ? id('upperArm' + S) : -1, fo = S ? id('foreArm' + S) : -1;
+    if (up < 0 || fo < 0) rig.bar = null;
+    else {
+      const hand = new RegExp('^(hand|wristBridge|thumb|index|middle|ring|little|pinky|buster)[A-Za-z0-9]*' + S + '$');
+      const c2 = fig.bones.map((b) => hand.test(b.id)), c1 = fig.bones.map((b, i) => c2[i] || i === fo || b.id === 'elbowFold' + S);
+      const dir = (i) => { const b = fig.bones[i]; return [b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]]; };
+      rig.bar = { up, fo, c1, c2, du: dir(up), df: dir(fo), k: 0, ps: [0, 0, 0], pe: [0, 0, 0], q1: new THREE.Quaternion(), q2: new THREE.Quaternion() };
+    }
+  }
+  const A = rig.bar;
+  if (!A) return null;
+  const up = !!(e.lastShot && __world.time - e.lastShot.t < __BUSTER_RAISE);
+  A.k += ((up ? 1 : 0) - A.k) * Math.min(1, (dt || 1 / 60) * (up ? 30 : 12));
+  return A.k > 1e-3 ? A : null;
+}
+// (a bone carried round a pivot by q: its head orbits, its turn takes q first)
+function __baOrbit(P, q) { __baH.set(__rigPA[0] - P[0], __rigPA[1] - P[1], __rigPA[2] - P[2]).applyQuaternion(q); __rigPA[0] = P[0] + __baH.x; __rigPA[1] = P[1] + __baH.y; __rigPA[2] = P[2] + __baH.z; __rigQA.premultiply(q); }
+` : ''}// look-pitch aim scratch: rotate the weapon arm about the shoulder to follow vertical look.
 const __RIG_X = new THREE.Vector3(1, 0, 0), __apQ = new THREE.Quaternion(), __apH = new THREE.Vector3();
 // PER-SLOT ARM OVERLAY (R17): read one overlay bone's [q, head] from an armOverlays curve (same
 // frame-pair nlerp as __rigBone, but indexed by the overlay's own small bone list). Returns false
@@ -2437,7 +2681,14 @@ ${fires ? `  // (a hold is a clip played once and held: firing, it comes up over
       lookWant = Math.max(-1.0, Math.min(1.0, a));
     }
   }
-  rig.lookA += (lookWant - rig.lookA) * Math.min(1, (dt || 0) * 6);
+${camera && camera.rule === 'side-map' ? `  // (on a side map, a body with nothing to look at turns its head toward the screen: the face seen, not the helm's
+  // side; most when it stands, less on the move, FACE_SCREEN)
+  if (!rig.headTrack) {
+    m.updateMatrixWorld(); __rigT.copy(camera.position); m.worldToLocal(__rigT);
+    const a = Math.atan2(-__rigT.x, __rigT.y), moving = !!e.vel && Math.hypot(e.vel[0], e.vel[1]) > 0.6, cap = moving ? ${FACE_SCREEN.moving} : ${FACE_SCREEN.rest};
+    lookWant = Math.max(-cap, Math.min(cap, a));
+  }
+` : ''}  rig.lookA += (lookWant - rig.lookA) * Math.min(1, (dt || 0) * 6);
   // A bake may carry an explicit 'idle' clip (an armed unit's standing hold —
   // unit-rig.js aim lock); standing still then plays it instead of snapping to
   // the raw rest pose. Bakes without one keep the statik rest, byte-identical.
@@ -2499,6 +2750,7 @@ ${fires ? `  // (a hold is a clip played once and held: firing, it comes up over
   }
 ${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
 ` : ''}${figHasLayers ? `  const PL = e.body && e.body.layers ? __poseLayers(e, fig, dt) : null;
+` : ''}${busterOn ? `  const BS = __busterSwap(e, fig, rig, dt), BA = __busterArm(e, fig, rig, dt);
 ` : ''}${talkJaw ? `  // (a line it says on the landmark head: its jaw's degrees on the line's clock, while the scene channel plays it)
   const TJ = __world.take && fig.face && fig.face.jaws && __world.take.clip.indexOf('talk:') === 0 ? fig.face.jaws[__world.take.clip] : null;
   const tjDeg = TJ ? __rigTrack({ t: TJ.t, w: TJ.d }, Math.min(__world.take.u, 0.999) * TJ.t[TJ.t.length - 1]) || 0 : 0;
@@ -2559,8 +2811,6 @@ ${figHasLayers ? `    // POSE LAYERS (__poseLayers): each op turns its pivot bon
     }
 ` : ''}${turretOn ? `    // (a base's turret and gun bones turned by its turret, worlds/controllable/turret.js: turret-view.js)
     if (e.turret && e.turret.yaw !== undefined && window.__tvReady) __tvRigBone(e, fig, bi, __rigQA, __rigPA, mesh);
-` : ''}${bossOn ? `    // (a boss's guns turned by its aim, what is shot off it hidden, its drones' rotors spun: boss-view.js)
-    if ((e.boss || e.drone) && window.__bossRigBone) __bossRigBone(e, fig, bi, __rigQA, __rigPA, mesh);
 ` : ''}${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
     // then they, and the body, lean, pitch and bounce about the wheelbase's middle
     if (LV && LV.role[bi]) {
@@ -2582,6 +2832,29 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
         __rigQA.premultiply(LV.body);
       }
     }
+` : ''}${busterOn ? `    // (the buster arm raised: the upper arm onto the facing about the shoulder, the forearm about the elbow, the rest carried)
+    if (BA) {
+      if (bi === BA.up) {
+        BA.ps[0] = __rigPA[0]; BA.ps[1] = __rigPA[1]; BA.ps[2] = __rigPA[2];
+        __baD.set(BA.du[0], BA.du[1], BA.du[2]).applyQuaternion(__rigQA).normalize(); __baF.setFromUnitVectors(__baD, __baT);
+        BA.q1.copy(__baI).slerp(__baF, BA.k); __rigQA.premultiply(BA.q1);
+      } else if (BA.c1[bi]) {
+        __baOrbit(BA.ps, BA.q1);
+        if (bi === BA.fo) {
+          BA.pe[0] = __rigPA[0]; BA.pe[1] = __rigPA[1]; BA.pe[2] = __rigPA[2];
+          __baD.set(BA.df[0], BA.df[1], BA.df[2]).applyQuaternion(__rigQA).normalize(); __baF.setFromUnitVectors(__baD, __baT);
+          BA.q2.copy(__baI).slerp(__baF, BA.k); __rigQA.premultiply(BA.q2);
+        } else if (BA.c2[bi]) __baOrbit(BA.pe, BA.q2);
+      }
+    }
+    // (the arm cannon's swap: a bone scaled s about its rest head, M·v = head' + q·s(v − restHead))
+    if (BS && BS.s[bi] !== 1) {
+      const bs = BS.s[bi], bh = fig.bones[bi].head;
+      __rigH.set(bh[0] * bs, bh[1] * bs, bh[2] * bs).applyQuaternion(__rigQA);
+      __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);
+      mesh.matrix.compose(__rigV, __rigQA, __rigS.setScalar(bs));
+      continue;
+    }
 ` : ''}    // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
     const rh = fig.bones[bi].head;
     __rigH.set(rh[0], rh[1], rh[2]).applyQuaternion(__rigQA);
@@ -2596,17 +2869,19 @@ ${figHasRide ? `      // (a ridden machine's front turns about the steering axis
     else __rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);
   }` : `__rigFace(rig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase);`}` : ''}${takes && figHasFace ? `
   // (a taking face's weights, where a headless driver reads them: e.takeFace)
-  if (fig.face) { const fm = tk ? rig.boneMeshes.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
+  if (fig.face) { const fm = tk ? ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}.find((x) => x && x.morphTargetInfluences && x.morphTargetInfluences.length) : null; e.takeFace = fm ? Array.from(fm.morphTargetInfluences) : null; }` : ''}
   // i-frame SHIMMER: while INVINCIBLE the whole rig flickers translucent — the
   // classic i-frame read. Both the acrobatic dodge and the getup rise set
   // e.invincible, so both shimmer; the topple FALL (not invincible) does not.
-  // Restore full opacity when it ends.
-  if (e.invincible) {
+  // Restore full opacity when it ends.${entities.some((x) => x && x.rule && x.rule.dive && x.rule.dive.blink === false) ? `
+  // (a dive whose rule says \`blink: false\`, dive.js: invincible through it, and drawn whole: no flicker while it rolls)
+  if (e.invincible && !(e.dodgeT != null && e.rule && e.rule.dive && e.rule.dive.blink === false)) {` : `
+  if (e.invincible) {`}
     const o = 0.45 + 0.35 * Math.sin(__world.time * 40);
-    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
+    for (const bm of rig.skin ? [rig.skin] : ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) { if (bm && bm.material) { bm.material.transparent = true; bm.material.opacity = o; } }   // (a merged figure: its one skin)
     rig.__shimmered = true;
   } else if (rig.__shimmered) {
-    for (const bm of rig.skin ? [rig.skin] : rig.boneMeshes) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
+    for (const bm of rig.skin ? [rig.skin] : ${figSkinParts ? '(rig.meshes || rig.boneMeshes)' : 'rig.boneMeshes'}) { if (bm && bm.material) { bm.material.opacity = 1; bm.material.transparent = false; } }
     rig.__shimmered = false;
   }
 }
@@ -2670,8 +2945,9 @@ function __applyShieldBreak(e, rigFig) {
   }
 }
 function __syncEntity(e, dt) {
-  let m = __bodies[e.id]; if (!m) return;
-  if (e.gone) { if (m.visible) m.visible = false; return; }   // wreck finisher: the body detonated and is gone
+  let m = __bodies[e.id]; if (!m) return;${figHasToon ? `
+  if (m.userData.toonKey) __toonKeyOf(e, m);` : ''}
+  if (e.gone${boardOn ? ' || e.aboard' : ''}) { if (m.visible) m.visible = false; return; }   // wreck finisher: the body detonated and is gone${boardOn ? '; a rider aboard its vehicle (board.js) is inside it' : ''}
   // loadout swap: the rule changed e.body.figure — show that variant's group from here on. The
   // gait-mix state carries over so the new body continues the crossfade instead of snapping.
   const ld = m.userData && m.userData.loadout;
@@ -2874,7 +3150,10 @@ ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on,
 const __surfaceT = ${safeJson(driveSurface)};
 const __surfaceAt = ${surfaceAt.toString()};
 const __surface = (p) => __surfaceAt(__surfaceT, p);
-` : ''}${groundGridScript()}${groundIndexScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+${driveSurface.pads ? `// boost pads (roads/surface.js padAt): the seconds of boost a wheel on one lights
+const __padAt = ${padAt.toString()};
+const __pad = (p) => __padAt(__surfaceT, p);
+` : ''}${driveSurface.items ? kartItemsViewScript(driveSurface.items.boxes.length) : ''}` : ''}${groundGridScript()}${groundIndexScript()}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __bodySet = () => Object.values(__bodies);
 // WHAT A FRAME COSTS, by side (window.__mojCost): the game's logic (the controllable step, every ray it casts with it),
 // the rays alone (the ground probe, the camera's), and the render call's own time on the CPU; each a running mean (ms).
@@ -2919,7 +3198,8 @@ const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pi
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
 const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
-let __BIND = __CTL.resolve(__SCHEME, __DEV);
+${padOver ? `const __OVER = ${safeJson(padOver)};
+` : ''}let __BIND = __CTL.resolve(__SCHEME, __DEV${padOver ? ', __OVER' : ''});
 const __held = {};
 ${seats ? `// SEATS: seat 1 reads the keyboard only while the keyboard is its controller (or nobody has sat down yet)
 let __seat1 = null;
@@ -2930,7 +3210,11 @@ let __usePad = false;   // the device the player last used (a prompt names its k
 window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
 let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false, __cycleDown = false;' : ''}
-const __canvas = renderer.domElement;
+${busterOn || saberOn ? `// THE BUSTER's fire (worlds/controllable/buster.js): J held (a side-scroller's hands are on the keys; the pad's right trigger
+// fires it too), a press its tap shot, held its charge, let go the charged shot; a SABER's cut on the same key
+window.addEventListener('keydown', (e) => { if (e.code === 'KeyJ') __fireDown = true; });
+window.addEventListener('keyup', (e) => { if (e.code === 'KeyJ') __fireDown = false; });
+` : ''}const __canvas = renderer.domElement;
 const __MOUSELOOK = ${!!(camera && (camera.turnMode === 'look' || camera.mouseLook))};   // FPS look camera?
 if (__MOUSELOOK) {
   // pointer-lock FPS look: click once to capture the mouse, then RAW moves steer (no drag to hold).
@@ -3089,7 +3373,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
   __padSeen = true;
   // the pad's printed layout (Xbox, PlayStation, Nintendo): the glyphs it shows, and where confirm / cancel sit
   const __lay = __CTL.padLayout(g.id);`}
-  if (__lay !== __padLayout) { __padLayout = __lay; __BIND = __CTL.resolve(__SCHEME, __DEV, null, { layout: __lay }); }
+  if (__lay !== __padLayout) { __padLayout = __lay; __BIND = __CTL.resolve(__SCHEME, __DEV, ${padOver ? '__OVER' : 'null'}, { layout: __lay }); }
   const b = (i) => !!(g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > 0.5));
   const __gr = __CTL.gamepadRead(g, __DEV), __ga = __CTL.gamepadRead(g, __DEV, true);
   const pb = (id, quiet) => __CTL.held(__BIND, id, 'gamepad', __gr, quiet ? __DEV.gamepad.faces : null);   // quiet: a held RB silences the face buttons (they chord)
@@ -3135,7 +3419,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     jump: pb('jump', rb),                      // A / PS cross — ascend in space
     cycle, slot,                               // RB tap / RB chord (the selector)
     swap: pb('swapSuit'), ai: pb('aiToggle'),  // D-pad up = switch suit · select = AI toggle
-    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${hasForms ? `
+    lock: pb('lock'),                          // R3 (right stick click) = target lock (lock.js)${transforms ? `
     transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
     interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)${vayoOn ? `
     vayo: !!(g.buttons && g.buttons[13] && g.buttons[13].pressed),   // D-pad down — a vayo move (vayo-move.js)` : ''}
@@ -3156,7 +3440,8 @@ ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (
     suits: W.entities.filter((e) => e.pilotable).length > 1,
     ai: W.entities.some((e) => (e.ambientRule && e.ambientRule.type === 'ai') || (e.rule && e.rule.type === 'ai')),
     follow: !!(W.camera && W.camera.rule && W.camera.rule.type === 'follow'),
-    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)${hasForms ? `
+    interact: !!window.__mojUses,   // the world has somewhere to use (the events channel says)
+    items: !!window.__mojItems,     // a race whose boxes hand out items (kart-items-view.js)${transforms ? `
     forms: true,                    // a body that transforms (forms.js)` : ''}
     active: { gamepad: __padOn && __padSeen }, layout: __padLayout,
   });
@@ -3167,7 +3452,7 @@ let __prevCycle = false, __prevSlot = 0;   // weapon-cycling press edges (R / 1-
 let __prevSwap = false;                    // suit-switcher press edge (T)
 let __prevTackle = false;                  // tackle press edge (Shift) — platform rule, opt-in r.tackle
 let __prevAi = false;                      // AI-attack toggle press edge (G / HUD button)
-let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js${hasForms ? `
+let __prevLock = false;                    // target-lock press edge (C / middle mouse / R3) — lock.js${transforms ? `
 let __prevTransform = false;               // transform press edge (B / L3) — forms.js` : ''}
 let __aiBtnPress = false;                  // HUD button click injects one toggle edge
 // shell AI switch (practice mode): the pause menu posts a DESIRED state over the game-ai sidecar;
@@ -3219,7 +3504,7 @@ function __readInput() {
   // TARGET LOCK press edge (lock.js): C / middle mouse / pad R3 — acquire, cycle, release
   const lk = ${lock ? "__k('lock') || __midDown || !!(__pad && __pad.lock)" : 'false'};
   const lock = lk && !__prevLock ? 1 : 0;
-  __prevLock = lk;${hasForms ? `
+  __prevLock = lk;${transforms ? `
   // TRANSFORM press edge (forms.js): B / pad L3 turns the pilot into its next form
   const tf = __k('transform') || !!(__pad && __pad.transform);
   const transform = tf && !__prevTransform ? 1 : 0;
@@ -3271,7 +3556,7 @@ function __readInput() {
     swap,                            // suit switcher (T): transfer the pilot between pilotable suits
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
     aiToggle,                        // AI attack switch (G): ai-ambient suits stand down / wake up
-    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${hasForms ? `
+    lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge${transforms ? `
     transform,                       // transform (B): a body with forms turns into its next one (forms.js)` : ''}
     missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
@@ -3282,7 +3567,7 @@ function __readInput() {
   __lookDX = 0; __lookDY = 0;
   return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
-${seats ? seatsScript(seats) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
+${seats ? seatsScript(seats, seatUses) : ''}// active whenever there are entities to step; the camera is OWNED only if a camera entity exists
 // (otherwise OrbitControls keeps the view — e.g. a clock-driven figure turntable orbited by hand).
 __ctrlActive = __world.entities.length > 0;
 if (__world.camera) { controls.enabled = false; __ctrlOwnsCamera = true; }
@@ -3595,7 +3880,82 @@ ${aimView ? `  // (a round that CONVERGES goes to the point under the centre of 
     __wep.ret.style.left = ((__wep.aimV.x * 0.5 + 0.5) * cw) + 'px';
     __wep.ret.style.top = ((-__wep.aimV.y * 0.5 + 0.5) * ch) + 'px';
   } else __wep.ret.style.display = 'none';   // aim point behind the camera
-  if (ent.readyT > 0) {
+${aimView ? `  // THE CLIMB AND THE CONE (the aim held over the shoulder, a converging gun with a recoil or a spread): a round leaves
+  // up the crosshair's ray raised by the climb of a spray (combat-ranged.js kickNow), and the view rises only part of
+  // that (gunplay-view.js), so the crosshair is drawn where the climbed ray points; round it, a ring is the cone the next
+  // round leaves in (its base as the sights have scaled it, the move's share, the bloom), so the rounds of a held trigger
+  // land inside what is drawn, and the crosshair settles back as they do. Before, it stayed small and still at the centre
+  // while a spray climbed and opened past it.
+  {
+    // (a scope's picture is its own crosshair and carries the whole climb, gunplay-view.js: neither is drawn over it)
+    const scoped = typeof __GP !== 'undefined' && __GP.scoped;
+    if (scoped) __wep.ret.style.display = 'none';
+    const av = ent.av, cr = __world.camera, on = !scoped && av && av.on && !av.fp && W.converge && (W.spread || W.recoil) && cr && cr.lookAt && cr.rule && cr.rule.type === 'follow';
+    if (on && !__wep.cone) {
+      __wep.cone = document.createElement('div');
+      __wep.cone.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-50%);border-radius:50%;border:1.5px solid rgba(232,244,255,0.55);pointer-events:none;z-index:9;display:none';
+      wrap.appendChild(__wep.cone);
+    }
+    if (__wep.cone) {
+      if (on) {
+        const C = cr.transform.pos, A = cr.lookAt, h = Math.atan2(A[1] - C[1], A[0] - C[0]), pl = Math.atan2(A[2] - C[2], Math.hypot(A[0] - C[0], A[1] - C[1])) + (W.kickNow || 0) * Math.PI / 180;
+        const v = __wep.aimV.set(C[0] + Math.cos(pl) * Math.cos(h) * 100, C[1] + Math.cos(pl) * Math.sin(h) * 100, C[2] + Math.sin(pl) * 100).project(camera);
+        const x = (v.x * 0.5 + 0.5) * cw, y = (-v.y * 0.5 + 0.5) * ch;
+        __wep.ret.style.left = x + 'px'; __wep.ret.style.top = y + 'px';
+        const sp = W.spread, vel = ent.vel || [0, 0, 0], run = Math.min(1, Math.hypot(vel[0] || 0, vel[1] || 0) / 4);
+        const cone = sp ? Math.min(sp.max, sp.base + sp.move * run + (W.bloomNow || 0)) : 0;
+        const r = Math.max(5, (ch / 2) * Math.tan(cone * Math.PI / 180) / (Math.tan(camera.fov * Math.PI / 360) || 1));
+        __wep.cone.style.display = cone > 0 ? '' : 'none'; __wep.cone.style.left = x + 'px'; __wep.cone.style.top = y + 'px';
+        __wep.cone.style.width = __wep.cone.style.height = (2 * r).toFixed(1) + 'px';
+      } else __wep.cone.style.display = 'none';
+    }
+  }
+  // THE ARC (the aim held over the shoulder, a launcher: combat-ranged.js lobPath): the round's flight as it would go
+  // now, a dashed line from the muzzle on the arc through the crosshair, and where it bursts a ring the size of its reach
+  // laid flat there, so a grenade is thrown over a wall onto what the ring takes in
+  {
+    // (not while it cannot fire: reloading, or being drawn)
+    const av = ent.av, L = av && av.on && !av.fp && W.fireClass === 'lob' && W.converge && !W.reloading && !(ent.readyT > 0) && __CW.lobPath ? __CW.lobPath(ent, __world) : null;
+    if (L && !__wep.arc) {
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 900), 3));
+      const line = new THREE.Line(lg, new THREE.LineDashedMaterial({ color: 0xffe2b0, transparent: true, opacity: 0.75, dashSize: 0.3, gapSize: 0.2, depthWrite: false }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffb066, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }));
+      line.frustumCulled = false; line.raycast = function () {}; ring.raycast = function () {}; scene.add(line); scene.add(ring);
+      __wep.arc = { line, ring };
+    }
+    if (__wep.arc) {
+      __wep.arc.line.visible = __wep.arc.ring.visible = !!L;
+      if (L) {
+        // (the ring red where the arc ends on a body: the round goes off on it)
+        // (a stun grenade's ring white, a chaff's its cloud's reach in a cold blue)
+        __wep.arc.ring.material.color.setHex(L.effect === 'chaff' ? 0x8fd4ff : L.effect === 'stun' ? (L.hit ? 0xff9a8a : 0xf2f4ff) : L.hit ? 0xff5a4a : 0xffb066);
+        const n = Math.min(900, L.pts.length), a = __wep.arc.line.geometry.attributes.position;
+        for (let i = 0; i < n; i++) a.setXYZ(i, L.pts[i][0], L.pts[i][1], L.pts[i][2]);
+        a.needsUpdate = true; __wep.arc.line.geometry.setDrawRange(0, n); __wep.arc.line.computeLineDistances();
+        __wep.arc.ring.position.set(L.at[0], L.at[1], L.at[2] + 0.04); __wep.arc.ring.scale.setScalar(Math.max(0.3, L.radius));
+      }
+    }
+  }
+  // THE SHOT BLOCKED (the aim held over the shoulder, a converging round: combat-ranged.js shotBlocked): the camera sees
+  // past what the gun does not, a low wall under its eye, a corner beside it. While the muzzle's line to the point under
+  // the crosshair meets cover first, the crosshair dims and a cross marks where the round would stop, before the trigger
+  // is pulled
+  {
+    const av = ent.av, B = av && av.on && !av.fp && W.converge && __CW.shotBlocked ? __CW.shotBlocked(ent, __world) : null;
+    if (B && !__wep.blk) {
+      __wep.blk = document.createElement('div');
+      __wep.blk.style.cssText = 'position:absolute;left:0;top:0;transform:translate(-50%,-50%);pointer-events:none;z-index:9;display:none';
+      __wep.blk.innerHTML = '<svg width="18" height="18" viewBox="-9 -9 18 18"><g stroke="#ff7a5c" stroke-width="2.4" stroke-linecap="round" stroke-opacity="0.95"><line x1="-5" y1="-5" x2="5" y2="5"/><line x1="-5" y1="5" x2="5" y2="-5"/></g></svg>';
+      wrap.appendChild(__wep.blk);
+    }
+    if (__wep.blk) {
+      const v = B ? __wep.aimV.set(B[0], B[1], B[2]).project(camera) : null;
+      if (v && v.z < 1) { __wep.blk.style.display = ''; __wep.blk.style.left = ((v.x * 0.5 + 0.5) * cw) + 'px'; __wep.blk.style.top = ((-v.y * 0.5 + 0.5) * ch) + 'px'; }
+      else __wep.blk.style.display = 'none';
+    }
+    __wep.ret.style.opacity = B ? '0.4' : '';
+  }
+` : ''}  if (ent.readyT > 0) {
     __retStatus(Math.max(0, Math.min(1, ent.readyT / (ent.readyMax || 1))), '#ffb066');
   } else if (W.cooldownT > 0 && !W.auto) {
     // semi/lob only — an AUTO weapon's between-round gap IS its fire rate (operator, 2026-08-10):
@@ -3767,6 +4127,15 @@ function __updateRadar() {
   x.strokeStyle = 'rgba(120,200,255,0.12)'; x.lineWidth = 1.5;
   x.beginPath(); x.moveTo(C, C - rad); x.lineTo(C, C + rad); x.moveTo(C - rad, C); x.lineTo(C + rad, C); x.stroke();
   const self = __radarSelf();
+  // JAMMED (the pilot inside a chaff cloud, combat-ranged.js state.jams): no blips, a static over the scope (each line's
+  // grey a hash of its row and the frame, never dice) and the word
+  const __jt = __world.time || 0;
+  if (self && __world.jams && __world.jams.some((j) => j.until > __jt && Math.hypot(self.transform.pos[0] - j.at[0], self.transform.pos[1] - j.at[1]) <= j.r)) {
+    const fr = Math.floor(__jt * 24);
+    for (let yy = 0; yy < S; yy += 3) { const hh = Math.sin((yy + 1) * 12.9898 + fr * 78.233) * 43758.5453, a = hh - Math.floor(hh); x.fillStyle = 'rgba(190,210,230,' + (0.04 + 0.22 * a).toFixed(3) + ')'; x.fillRect(0, yy, S, 1.5); }
+    x.fillStyle = '#cfe3ff'; x.font = '700 22px ui-monospace,monospace'; x.textAlign = 'center'; x.fillText('JAMMED', C, C + 8);
+    return;
+  }
   if (self) {
     const sp = self.transform.pos, h = self.transform.heading;
     const fwx = Math.cos(h), fwy = Math.sin(h), rgx = Math.sin(h), rgy = -Math.cos(h);   // forward + right basis
@@ -3835,7 +4204,7 @@ function __updateHpHud() {
 // entity (the piloted suit's own is hidden — its hp is the lower-right bar). Absent when nothing has hp.
 const __ehp = [];
 for (const e of __world.entities) {
-  if (!(e.body && Number.isFinite(e.hpMax) && e.hpMax > 0)) continue;
+  if (!(e.body && Number.isFinite(e.hpMax) && e.hpMax > 0)${noBars ? " || e.body.hpBar === 'none'" : ''}) continue;
   const el = document.createElement('div');
   el.style.cssText = 'position:absolute;width:56px;height:6px;transform:translate(-50%,-50%);border-radius:3px;background:rgba(8,12,20,0.6);box-shadow:inset 0 0 0 1px rgba(255,120,120,0.55),0 1px 3px rgba(0,0,0,0.5);overflow:hidden;pointer-events:none;z-index:8;display:none';
   const fl = document.createElement('div'); fl.style.cssText = 'height:100%;width:100%;background:#ff5a5a';
@@ -3897,7 +4266,7 @@ function __foeRim(id) {
     for (const k of __rim.kids) if (k.parent) k.parent.remove(k);
     __rim.kids = []; __rim.id = id; __rim.g = g;
     const rf = g && g.userData.rigFig;
-    if (rf) for (const m of rf.skin ? [rf.skin] : rf.boneMeshes) {
+    if (rf) for (const m of rf.skin ? [rf.skin] : ${figSkinParts ? '(rf.meshes || rf.boneMeshes)' : 'rf.boneMeshes'}) {
       if (!m || !m.geometry || !m.geometry.attributes.position) continue;
       __rimNormals(m.geometry);
       const k = m.isSkinnedMesh ? new THREE.SkinnedMesh(m.geometry, __tgtRimMat) : new THREE.Mesh(m.geometry, __tgtRimMat);
@@ -4022,7 +4391,8 @@ ${flow ? `// on the flow (rupa-vayo): a hit is a soft flash and a ring of air, s
 const __fxSoftTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const __fxRingTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 18, 32, 32, 31); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.7, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const __fxSprite = (tex, col) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); s.geometry = s.geometry.clone(); s.raycast = function () {}; s.visible = false; scene.add(s); return s; };   // (its own quad: a dropped effect frees what it holds)
-function __spawnImpactFx(b, col, sz, dir, at) {
+function __spawnImpactFx(b, col, sz, dir, at) {${busterOn ? `
+  __blast(b, col, Math.max(0.2, sz * 0.25), 'impact', at); return;` : ''}
   const flash = __fxSprite(__fxSoftTex, 0xffffff); flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42);
   __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
   const glow = __fxSprite(__fxSoftTex, col); glow.position.set(b[0], b[1], b[2]);
@@ -4030,7 +4400,8 @@ function __spawnImpactFx(b, col, sz, dir, at) {
   const ring = __fxSprite(__fxRingTex, col); ring.position.set(b[0], b[1], b[2]);
   __fx.push({ obj: ring, born: at, ttl: 0.2, kind: 'burst', base: sz * 0.9, dim: 0.7 });
 }
-` : ''}function __spawnImpactFx${flow ? 'Mesh' : ''}(b, col, sz, dir, at) {
+` : ''}function __spawnImpactFx${flow ? 'Mesh' : ''}(b, col, sz, dir, at) {${busterOn ? `
+  __blast(b, col, Math.max(0.2, sz * 0.25), 'impact', at); return;` : ''}
   const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
   flash.position.set(b[0], b[1], b[2]); flash.scale.setScalar(sz * 0.42); flash.raycast = function () {}; flash.visible = false; scene.add(flash);
   __fx.push({ obj: flash, born: at, ttl: 0.13, kind: 'impact', base: sz * 0.85 });
@@ -4123,6 +4494,116 @@ function __spawnRoundFx(shot, from, R, range) {
     __fx.push({ obj: sk, born: born + ttl, ttl: 0.05, kind: 'mflash' });
   }
 }
+// A LAUNCHER'S ROUND (a round's \`look\`, gameworld/rounds.js): what an eye sees of a 40 mm grenade. In flight a dull shell
+// a hand long, no glow, tumbling a little on its arc; launched, a short flash and a puff at the muzzle; bursting, a white
+// flash, a ball of fire that billows and is gone, grey smoke rising and spreading after, chips thrown out and falling, a
+// ring of dust running out along the ground to its reach and a dark scorch left there. Sized by the burst's reach, every
+// scatter golden-angle (no dice), so a replay is the same.
+function __lookShell(p) {
+  const g = new THREE.Group(), rk = p.look === 'rocket', m = new THREE.MeshLambertMaterial({ color: rk ? 0x4d5440 : 0x4a4d45 }), cap = new THREE.MeshLambertMaterial({ color: rk ? 0x2e302b : 0x8a7a4a });
+  const part = (geo, mat, y) => { const o = new THREE.Mesh(geo, mat); o.position.y = y; o.raycast = function () {}; g.add(o); return o; };
+  let flame = null;
+  if (rk) {
+    // (a rocket: its body, its nose, four fins at its tail, its flame behind it)
+    part(new THREE.CylinderGeometry(0.04, 0.04, 0.46, 12), m, 0); part(new THREE.ConeGeometry(0.04, 0.16, 12), cap, 0.31);
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4, f = part(new THREE.BoxGeometry(0.006, 0.1, 0.06), cap, -0.19); f.position.x = Math.cos(a) * 0.05; f.position.z = Math.sin(a) * 0.05; f.rotation.y = Math.PI / 2 - a; }
+    flame = __lookPuff(0xffa040, true, 0.95); flame.scale.setScalar(0.28); flame.position.y = -0.32; flame.raycast = function () {}; g.add(flame);
+  } else if (p.look === 'frag') {
+    // (a frag: a round body a fist across, its fuse and lever on top)
+    m.color.setHex(0x4b5238); part(new THREE.SphereGeometry(0.03, 12, 9), m, 0); part(new THREE.CylinderGeometry(0.009, 0.011, 0.025, 8), cap, 0.035).material.color.setHex(0x7d7d76);
+  } else if (p.look === 'stun' || p.look === 'chaff') {
+    // (a stun's or a chaff's can: a short cylinder, its cap and fuse on top; the stun's dark, the chaff's pale)
+    m.color.setHex(p.look === 'stun' ? 0x3a3d40 : 0xa9adb0); part(new THREE.CylinderGeometry(0.026, 0.026, 0.11, 14), m, 0); part(new THREE.CylinderGeometry(0.012, 0.014, 0.022, 8), cap, 0.066).material.color.setHex(0x6d6d68);
+  } else { part(new THREE.CylinderGeometry(0.02, 0.02, 0.07, 10), m, 0); part(new THREE.SphereGeometry(0.02, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), cap, 0.035); }
+  scene.add(g);
+  const at = window.__mojMuzzle && window.__mojMuzzle[p.owner];
+  if (rk && at && p.vel) {
+    // the backblast: fire and smoke out of the tube's back, a metre behind its mouth, thrown back and spreading
+    const v = Math.hypot(p.vel[0], p.vel[1], p.vel[2]) || 1, d = [p.vel[0] / v, p.vel[1] / v, p.vel[2] / v], b0 = [at[0] - d[0] * 1.05, at[1] - d[1] * 1.05, at[2] - d[2] * 1.05];
+    const bf = __lookPuff(0xffb060, true, 0.9); bf.position.set(b0[0] - d[0] * 0.3, b0[1] - d[1] * 0.3, b0[2] - d[2] * 0.3); bf.scale.setScalar(0.3); bf.raycast = function () {}; scene.add(bf); __fx.push({ obj: bf, born: __world.time, ttl: 0.12, kind: 'burst', base: 1.2, dim: 0.9 });
+    for (let k = 0; k < 8; k++) {
+      const s0 = 0.3 + 0.35 * k, a = k * 2.39996, w = 0.12 * k, q = [b0[0] - d[0] * s0 + Math.cos(a) * w, b0[1] - d[1] * s0 + Math.sin(a) * w, b0[2] - d[2] * s0 + 0.05 * k];
+      const pf = __lookPuff(k % 2 ? 0x8a857c : 0xa49e93, false, 0.45); pf.position.set(q[0], q[1], q[2]); pf.scale.setScalar(0.2); pf.raycast = function () {}; scene.add(pf);
+      __fx.push({ obj: pf, born: __world.time, ttl: 1.6 + 0.15 * (k % 3), kind: 'wisp', base: 0.7 + 0.12 * k, dim: 0.45, rise: 0.5, z0: q[2] });
+    }
+  }
+  if (at) { const pf = __lookPuff(0xc9c5bc, false, 0.3); pf.position.set(at[0], at[1], at[2]); pf.scale.setScalar(0.13); pf.raycast = function () {}; scene.add(pf); __fx.push({ obj: pf, born: __world.time, ttl: 0.9, kind: 'wisp', base: 0.45, dim: 0.3, rise: 0.25, z0: at[2] }); const fl = __lookPuff(0xffd59a, true, 0.95); fl.position.set(at[0], at[1], at[2]); fl.scale.setScalar(0.1); fl.raycast = function () {}; scene.add(fl); __fx.push({ obj: fl, born: __world.time, ttl: 0.07, kind: 'burst', base: 0.35, dim: 0.95 }); }
+  return { g, flame, trail: rk ? __world.time : null, spin: p.look === 'frag' || p.look === 'stun' || p.look === 'chaff', off: at ? [at[0] - p.pos[0], at[1] - p.pos[1], at[2] - p.pos[2]] : null, born: __world.time };
+}
+// (a soft round puff, made once: what the blast's fire and smoke are drawn with, so they read as billows and not balls)
+let __lookTexC = null;
+function __lookTex() {
+  if (__lookTexC) return __lookTexC;
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,0.75)'); g.addColorStop(0.8, 'rgba(255,255,255,0.18)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return (__lookTexC = new THREE.CanvasTexture(cv));
+}
+const __lookPuff = (col, add, op) => new THREE.Sprite(new THREE.SpriteMaterial({ map: __lookTex(), color: new THREE.Color(col), transparent: true, opacity: op, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+function __lookBlast(b) {
+  const R = Math.max(1, b.radius || 3), at = b.pos, now = __world.time, low = at[2] < 0.35;
+  // (each born at its first size: a sprite left at its own 1 m would be drawn so for the frame before the fx loop sizes it)
+  const add = (obj, rec) => { obj.raycast = function () {}; if (rec.base) obj.scale.setScalar(rec.base * 0.3); if (rec.delay) obj.visible = false; scene.add(obj); __fx.push({ obj, born: now + (rec.delay || 0), ...rec }); };
+  // (a sprite's scale is its width: the flash, the fire and the smoke given as widths)
+  let m = __lookPuff(0xfff4dc, true, 1); m.position.set(at[0], at[1], at[2] + 0.3); add(m, { ttl: 0.1, kind: 'burst', base: R * 0.9, dim: 1 });
+  for (let k = 0; k < 9; k++) {
+    const a = k * 2.39996, u = (k + 0.5) / 9, r = R * 0.18 * Math.sqrt(u);
+    m = __lookPuff(k % 3 ? 0xff7a1e : 0xffc060, true, 0.9);
+    m.position.set(at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.25 + R * 0.14 * u); add(m, { ttl: 0.3 + 0.06 * (k % 3), kind: 'burst', base: R * (0.42 + 0.1 * (k % 2)), dim: 0.85 });
+  }
+  for (let k = 0; k < 12; k++) {
+    const a = k * 2.39996 + 0.7, r = R * 0.25 * Math.sqrt((k + 0.5) / 12), p0 = [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.3 + 0.06 * k];
+    m = __lookPuff(k % 2 ? 0x56524c : 0x7a756c, false, 0.5); m.position.set(p0[0], p0[1], p0[2]);
+    add(m, { delay: 0.05, ttl: 2.2 + 0.25 * (k % 4), kind: 'wisp', base: R * (0.7 + 0.1 * (k % 3)), dim: 0.5, rise: 1.4 + 0.25 * (k % 3), z0: p0[2] });
+  }
+  const N = 18, pos = new Float32Array(N * 3), vels = [];
+  for (let k = 0; k < N; k++) { const a = k * 2.39996, up = 0.35 + 0.6 * ((k * 7) % 11) / 11, sp = R * (1.4 + ((k * 13) % 9) / 9 * 1.6); vels.push([Math.cos(a) * sp * (1 - up * 0.5), Math.sin(a) * sp * (1 - up * 0.5), sp * up]); pos[k * 3] = at[0]; pos[k * 3 + 1] = at[1]; pos[k * 3 + 2] = at[2] + 0.1; }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  add(new THREE.Points(dg, new THREE.PointsMaterial({ color: 0x2b2824, size: 0.07, transparent: true, opacity: 1, depthWrite: false, sizeAttenuation: true })), { ttl: 1.1, kind: 'debris', p0: [at[0], at[1], at[2] + 0.1], vels, grav: 9.8 });
+  if (low) {
+    m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40), new THREE.MeshBasicMaterial({ color: 0xb7a98f, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+    m.position.set(at[0], at[1], at[2] + 0.05); add(m, { ttl: 0.7, kind: 'ring', base: R, dim: 0.55 });
+    m = new THREE.Mesh(new THREE.CircleGeometry(1, 28), new THREE.MeshBasicMaterial({ color: 0x2a2620, transparent: true, opacity: 0.38, depthWrite: false }));
+    m.position.set(at[0], at[1], at[2] + 0.02); m.scale.setScalar(R * 0.3); add(m, { ttl: 9, kind: 'scorch', dim: 0.38 });
+  }
+}
+// A STUN GRENADE'S BURST: a white flash meters wide and gone in a quarter second, a cold glow after it, a ring of air out
+// along the ground to its reach, a little white smoke; and the eye near it (the camera within one and a half its reach,
+// the burst before it) whited out, more the nearer, the white thinning over a second and a half
+let __stunVeil = null;
+function __lookStun(b) {
+  const R = Math.max(1, b.radius || 6), at = b.pos, now = __world.time;
+  const add = (obj, rec) => { obj.raycast = function () {}; if (rec.base) obj.scale.setScalar(rec.base * 0.3); scene.add(obj); __fx.push({ obj, born: now, ...rec }); };
+  let m = __lookPuff(0xffffff, true, 1); m.position.set(at[0], at[1], at[2] + 0.4); add(m, { ttl: 0.25, kind: 'burst', base: R * 1.3, dim: 1 });
+  m = __lookPuff(0xcfe4ff, true, 0.8); m.position.set(at[0], at[1], at[2] + 0.4); add(m, { ttl: 0.7, kind: 'burst', base: R * 0.7, dim: 0.7 });
+  for (let k = 0; k < 6; k++) { const a = k * 2.39996, r = 0.3 * Math.sqrt((k + 0.5) / 6), q = [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.2 + 0.05 * k]; m = __lookPuff(0xe6e8ea, false, 0.4); m.position.set(q[0], q[1], q[2]); add(m, { ttl: 1.8, kind: 'wisp', base: 1.2, dim: 0.4, rise: 0.8, z0: q[2] }); }
+  if (at[2] < 0.35) { m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide })); m.position.set(at[0], at[1], at[2] + 0.05); add(m, { ttl: 0.45, kind: 'ring', base: R, dim: 0.6 }); }
+  // (the eye: the camera near and the burst ahead of it)
+  const cp = camera.position, d = Math.hypot(cp.x - at[0], cp.y - at[1], cp.z - at[2]);
+  __lookAhead.set(at[0], at[1], at[2]).project(camera);
+  if (d < R * 1.5 && __lookAhead.z < 1 && Math.abs(__lookAhead.x) < 1.2 && Math.abs(__lookAhead.y) < 1.2) {
+    if (!__stunVeil) { __stunVeil = document.createElement('div'); __stunVeil.style.cssText = 'position:absolute;inset:0;background:#fff;pointer-events:none;z-index:20;opacity:0'; wrap.appendChild(__stunVeil); }
+    __stunVeil.__t0 = now; __stunVeil.__k = Math.min(0.9, 1.2 * (1 - d / (R * 1.5)));
+  }
+}
+const __lookAhead = new THREE.Vector3();
+// A CHAFF GRENADE'S BURST: a pop of grey, then its cloud: foil strips thrown out a few metres round, slowing, and drifting
+// down as they turn, each catching the light in its own time (a glitter), the whole fading at the end of its seconds
+function __lookChaff(b) {
+  const at = b.pos, now = __world.time, life = (b.jam && b.jam.for) || 15, N = 260;
+  for (let k = 0; k < 6; k++) { const a = k * 2.39996, r = 0.25 * Math.sqrt((k + 0.5) / 6), q = [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2] + 0.3 + 0.04 * k]; const m = __lookPuff(0xb8bbbe, false, 0.4); m.position.set(q[0], q[1], q[2]); m.scale.setScalar(0.3); m.raycast = function () {}; scene.add(m); __fx.push({ obj: m, born: now, ttl: 1.4, kind: 'wisp', base: 1.1, dim: 0.4, rise: 0.4, z0: q[2] }); }
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), vels = [], tw = [], base = [];
+  for (let k = 0; k < N; k++) {
+    const y = 1 - (k + 0.5) / N * 1.4, rr = Math.sqrt(Math.max(0, 1 - y * y)), ph = k * 2.39996, sp = 2.2 + ((k * 37) % 17) / 17 * 3.2;
+    vels.push([Math.cos(ph) * rr * sp, Math.sin(ph) * rr * sp, (y * 0.6 + 0.5) * sp]);
+    tw.push([4 + ((k * 13) % 11), (k * 1.7) % 6.28]);
+    const c = k % 7 === 0 ? [1, 0.8, 0.45] : k % 5 === 0 ? [0.95, 0.55, 0.5] : [0.85, 0.88, 0.92]; base.push(c);
+    pos[k * 3] = at[0]; pos[k * 3 + 1] = at[1]; pos[k * 3 + 2] = at[2] + 0.3;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.06, vertexColors: true, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  pts.raycast = function () {}; pts.frustumCulled = false; scene.add(pts);
+  __fx.push({ obj: pts, born: now, ttl: life, kind: 'chaff', p0: [at[0], at[1], at[2] + 0.3], vels, tw, base, floor: Math.max(0, at[2] - 0.3) });
+}
 function __updateFx() {
   // EVERY armed entity's shots spawn fx (the pilot, a fixed armed entity, an AI fire-back suit).
   for (const fent of __world.entities) {
@@ -4161,6 +4642,8 @@ function __updateFx() {
       rec.shots = s;
     }
   }
+  // (a stun grenade's white over the eye, thinning over a second and a half)
+  if (__stunVeil && __stunVeil.__t0 != null) { const u = (__world.time - __stunVeil.__t0) / 1.5; __stunVeil.style.opacity = u < 1 ? (__stunVeil.__k * (1 - u) * (1 - u)).toFixed(3) : '0'; if (u >= 1) __stunVeil.__t0 = null; }
   for (let i = __fx.length - 1; i >= 0; i--) {
     const f = __fx[i], age = (__world.time - f.born) / f.ttl;
     if (age >= 1) { scene.remove(f.obj); f.obj.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); __fx.splice(i, 1); continue; }
@@ -4191,6 +4674,23 @@ function __updateFx() {
       ap.needsUpdate = true;
     }
     else if (f.kind === 'impact') { f.obj.material.opacity = 1 - age; f.obj.scale.setScalar(f.base * (0.3 + age * 1.4)); }
+    // a launcher's blast (__lookBlast): its dust running out along the ground to the reach, its scorch fading at the end
+    else if (f.kind === 'ring') { f.obj.material.opacity = f.dim * (1 - age); f.obj.scale.setScalar(f.base * (0.15 + 0.85 * Math.sqrt(age))); }
+    else if (f.kind === 'scorch') { f.obj.material.opacity = f.dim * (1 - Math.pow(age, 4)); }
+    // a chaff cloud (__lookChaff): each strip thrown out and slowed (a drag of 1.6 a second), drifting down at a stroll and
+    // swaying, its glitter its own twinkle; the cloud thinning in its last tenth
+    else if (f.kind === 'chaff') {
+      const t = age * f.ttl, k = (1 - Math.exp(-1.6 * t)) / 1.6, ap = f.obj.geometry.attributes.position, cp = f.obj.geometry.attributes.color;
+      for (let i = 0; i < f.vels.length; i++) {
+        const v = f.vels[i], w = f.tw[i], c = f.base[i];
+        const z = Math.max(f.floor, f.p0[2] + v[2] * k - 0.22 * t);
+        ap.setXYZ(i, f.p0[0] + v[0] * k + 0.25 * Math.sin(t * 0.7 + w[1]), f.p0[1] + v[1] * k + 0.25 * Math.cos(t * 0.6 + w[1]), z);
+        const s = Math.pow(Math.abs(Math.sin(t * w[0] + w[1])), 6);
+        cp.setXYZ(i, c[0] * (0.15 + 0.85 * s), c[1] * (0.15 + 0.85 * s), c[2] * (0.15 + 0.85 * s));
+      }
+      ap.needsUpdate = true; cp.needsUpdate = true;
+      f.obj.material.opacity = age > 0.9 ? (1 - age) / 0.1 : 1;
+    }
     // impact CLUSTER (rifle/vulcan hit): a shock RING expands + fades; a radial SPARK STAR flies out + snaps out.
     else if (f.kind === 'shock') { f.obj.material.opacity = 0.9 * (1 - age); f.obj.scale.setScalar(f.base * (0.3 + age * 1.7)); }
     else if (f.kind === 'shard') { f.obj.material.opacity = 0.95 * (1 - age * age); f.obj.scale.setScalar(f.base * (0.25 + age * 1.25)); }
@@ -4278,14 +4778,387 @@ function __updateChargeRings() {
 // and pop an expanding shell when the engine records a burst in __world.bursts. The engine owns all
 // motion + hit adjudication (deterministic); this only reflects positions and spawns transient fx —
 // a muzzle flash on a round's birth, a glowing round while it flies, an expanding shell on its burst.
-const __projMeshes = {};    // projectile id -> { g } group tracking one live round
+${busterOn || foeRoundsOn ? `// THE SHOT'S LOOK (gameworld/feel/round-look.js): a buster's round as the anime register draws a charged shot, every layer
+// additive: a halo in its hue round it all; the ramp (the hue deep, the hue saturated, a white-hot core) as soft discs
+// stretched along its flight on screen, the core toward its head; streaks inside along its flight; a tail fading behind;
+// sparks trailing on the world's clock; and where it was fired, rings in the accent hue that stay there, growing and
+// fading (they never follow the round). Its level's look by busterLv (0 the tap)
+const __RL = ${safeJson(roundLooks((entities.find((e) => e && e.rule && e.rule.buster) || {}).rule?.buster))};${foeRoundsOn ? `
+// (a foe's round: the tap's look in its colour, by its fxColor)
+const __RLF = ${safeJson(foeLooks)};` : ''}
+const __rlTex = (() => {
+  const mk = (w, h, paint) => { const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  return {
+    soft: mk(64, 64, (x, w, h) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.6)'); g.addColorStop(0.7, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, w, h); }),
+    streak: mk(128, 8, (x, w) => { const g = x.createLinearGradient(0, 0, w, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.75, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 3, w, 2); x.globalAlpha = 0.35; x.fillRect(0, 1, w, 6); }),
+  };
+})();
+const __rlSprite = (tex, col, op) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(col), transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false })); s.raycast = function () {}; return s; };
+const __rlA = new THREE.Vector3(), __rlB = new THREE.Vector3(), __rlDir = new THREE.Vector3(), __rlPerp = new THREE.Vector3(), __rlFwd = new THREE.Vector3(), __rlZ = new THREE.Vector3(0, 0, 1);
+// THE BLAST (gameworld/feel/round-look.js blastLook): a shot's impact and an explosion drawn in the shot's own light: a
+// white-hot core flashing first and fading fastest, the hue saturated round it and deeper at its edge, a halo; shock
+// rings in the accent, their near arc bright; sparks flung out across the camera's plane, the accent's and white; each
+// layer on its own clock over the blast's life. Any colour has its blast (a foe's round's), from its born time (a hitscan
+// impact waits for its bolt)
+const __BLAST = ${safeJson(BLAST_LOOK)};
+const __blastLook = ${blastLook.toString()};
+const __blasts = [];
+function __blast(at, color, size, kind, bornAt) {
+  const L = __blastLook(color, kind, __BLAST), g = new THREE.Group(), born = bornAt != null ? bornAt : __world.time;
+  // (drawn before what it struck: brought toward the camera past the lane's half depth, so a face it burst on, or inside,
+  // never hides it)
+  camera.getWorldDirection(__rlFwd);
+  g.position.set(at[0] - __rlFwd.x * 1.6, at[1] - __rlFwd.y * 1.6, at[2] - __rlFwd.z * 1.6); g.visible = false; scene.add(g);
+  const halo = __rlSprite(__rlTex.soft, L.ramp[1], 0), deep = __rlSprite(__rlTex.soft, L.ramp[2], 0), mid = __rlSprite(__rlTex.soft, L.ramp[1], 0), core = __rlSprite(__rlTex.soft, L.ramp[0], 0);
+  for (const s of [halo, deep, mid, core]) g.add(s);
+  camera.getWorldDirection(__rlFwd);
+  const right = new THREE.Vector3().crossVectors(__rlFwd, __rlZ).normalize(), up = new THREE.Vector3().crossVectors(right, __rlFwd).normalize(), acc = new THREE.Color(L.accent);
+  const rings = [];
+  for (let k = 0; k < L.rings; k++) {
+    const geo = new THREE.TorusGeometry(size, Math.max(0.01, size * 0.05), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.raycast = function () {};
+    // (facing the camera, tipped back about the screen's horizontal so it reads as an ellipse, a shock round the blast)
+    m.quaternion.setFromUnitVectors(__rlZ, __rlB.copy(__rlFwd).negate()); m.rotateOnWorldAxis(right, 1.05 + 0.25 * k);
+    g.add(m); g.updateMatrixWorld(true);
+    const pos = geo.getAttribute('position'), col = new Float32Array(pos.count * 3), w = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) { w.fromBufferAttribute(pos, i).applyQuaternion(m.quaternion); const near = Math.max(0, Math.min(1, 0.5 - w.dot(__rlFwd) / (2 * size))), c = 0.25 + 0.75 * near * near; col[3 * i] = acc.r * c; col[3 * i + 1] = acc.g * c; col[3 * i + 2] = acc.b * c; }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    rings.push({ m, k });
+  }
+  // (sparks: each its own way across the camera's plane, seeded by where and when it went off)
+  let a = (Math.floor(at[0] * 97 + at[1] * 131 + at[2] * 71 + born * 977) | 0) || 1;
+  const rnd = () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const sparks = [];
+  for (let k = 0; k < L.sparks; k++) {
+    const th = (2 * Math.PI * (k + rnd() * 0.8)) / L.sparks, sp = 2 + 2.5 * rnd(), s = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 0);
+    g.add(s); sparks.push({ s, d: [right.x * Math.cos(th) + up.x * Math.sin(th), right.y * Math.cos(th) + up.y * Math.sin(th), right.z * Math.cos(th) + up.z * Math.sin(th)], sp });
+  }
+  __blasts.push({ g, born, L, size, halo, deep, mid, core, rings, sparks });
+}
+// THE CHARGE'S ENERGY (a buster charging, worlds/controllable/buster.js; the round's look, round-look.js), over the WHOLE
+// BODY: from its CORE, a white-hot heart at its chest and a bloom over it head to foot (the level's hue), both drawn over
+// the body as light through it, growing with the fill and swelling on the pulse, and a wider faint HALO behind it; SPARKS drawn in from all round onto its length, the accent's and white, more and faster
+// once a level is reached, each on the world's clock (its way seeded by its turn); a burst in the shot's light at its
+// middle at each level reached. CHARGE_FX the numbers
+const __chg = {};
+function __chargeFx(e) {
+  const B = e.rule && e.rule.buster, on = !!(B && e.charging && e.busterOn && (e.chargeFrac || 0) > 0 && !e.gone);
+  let C = __chg[e.id];
+  if (!on) { if (C) { C.g.visible = false; C.lv = 0; } return; }
+  const lvN = e.chargeLevel || 0, L = __RL[lvN] || __RL[0];
+  if (!C) {
+    const g = new THREE.Group(), halo = __rlSprite(__rlTex.soft, L.ramp[1], 0), glow = __rlSprite(__rlTex.soft, L.ramp[1], 0), heart = __rlSprite(__rlTex.soft, '#ffffff', 0);
+    g.add(halo); g.add(glow); g.add(heart);
+    // (the heart and its glow drawn over the body, never behind it: the energy comes from its core, through it)
+    for (const sp of [glow, heart]) { sp.material.depthTest = false; sp.renderOrder = 3; }
+    const sparks = [];
+    for (let k = 0; k < ${CHARGE_FX.sparks[1]}; k++) { const sp = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 0); g.add(sp); sparks.push(sp); }
+    const motes = [];
+    for (let k = 0; k < ${CHARGE_FX.motes[1]}; k++) { const sp = __rlSprite(__rlTex.soft, k % 2 ? L.ramp[1] : L.accent, 0); g.add(sp); motes.push(sp); }
+    scene.add(g); C = __chg[e.id] = { g, halo, glow, heart, sparks, motes, lv: 0, look: -1 };
+  }
+  const r = e.rule, H = r.collideHeight || 1.7, mid = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + H * 0.5 - (r.eye || 0)];
+  // (its colours the level reached's: re-tinted when it changes; a burst at its middle as it does)
+  if (C.look !== lvN) {
+    C.halo.material.color.set(L.ramp[1]); C.glow.material.color.set(L.ramp[1]);
+    C.sparks.forEach((sp, k) => sp.material.color.set(k % 3 ? L.accent : '#ffffff'));
+    C.motes.forEach((sp, k) => sp.material.color.set(k % 2 ? L.ramp[1] : L.accent));
+    if (lvN > C.lv && C.look >= 0) __blast(mid, B.levels[lvN - 1].color, H * (${CHARGE_FX.burst[0]} + ${CHARGE_FX.burst[1]} * lvN), 'impact');
+    C.look = lvN; C.lv = lvN;
+  }
+  C.g.position.set(mid[0], mid[1], mid[2]); C.g.visible = true;
+  const t = __world.time, fr = Math.min(1, e.chargeFrac), beat = __chargePulse(e), grow = ${CHARGE_FX.size[0]} + ${CHARGE_FX.size[1]} * fr + ${CHARGE_FX.size[2]} * lvN;
+  // (the bloom a body tall and a body's width, stretched up its length; its heart at the chest)
+  const sp2 = (sp, w, h, op) => { sp.scale.set(w, h, 1); sp.material.opacity = Math.max(0, Math.min(1, op)); };
+  sp2(C.glow, H * 0.55 * grow, H * 0.7 * grow, ${CHARGE_FX.glow} * fr * beat);
+  sp2(C.halo, H * 1.3 * grow * ${CHARGE_FX.halo}, H * 1.6 * grow * ${CHARGE_FX.halo}, ${CHARGE_FX.haloOp} * fr * beat);
+  // (the heart and its glow over the chest and the trunk, below the face: the limbs glow in their own light, the face none)
+  C.heart.position.set(0, 0, H * 0.1); sp2(C.heart, H * 0.34 * grow * (0.8 + 0.25 * beat), H * 0.36 * grow * (0.8 + 0.25 * beat), ${CHARGE_FX.heart} * fr * (0.55 + 0.45 * beat));
+  C.glow.position.set(0, 0, -H * 0.06);
+  // (the sparks drawn in: from a seeded way round the body at its turn's start, onto a point of its length over its turn)
+  const n = lvN ? ${CHARGE_FX.sparks[1]} : ${CHARGE_FX.sparks[0]}, rate = lvN ? ${CHARGE_FX.rate[1]} : ${CHARGE_FX.rate[0]}, R = H * ${CHARGE_FX.reach} * (1 + 0.25 * lvN);
+  C.sparks.forEach((sp, k) => {
+    if (k >= n) { sp.material.opacity = 0; return; }
+    const ph = t * rate + k / n, turn = Math.floor(ph), u = ph - turn;
+    let a = (Math.imul(k + 1, 2654435761) ^ Math.imul(turn + 7, 40503)) >>> 0; a = (a ^ (a >>> 15)) >>> 0;
+    const th = (a % 6283) / 1000, along = (((a >>> 13) % 2000) / 1000 - 1) * 0.45 * H, d = R * (1 - u * u);
+    sp.position.set(Math.cos(th) * d * 0.5, Math.sin(th) * d, along * (0.4 + 0.6 * (1 - u)) + Math.sin(th * 1.7) * d * 0.6);
+    const sz = Math.max(0.03, 0.05 + 0.03 * lvN) * (0.6 + 0.6 * u);
+    sp.scale.set(sz, sz, 1); sp.material.opacity = Math.sin(Math.PI * u) * fr;
+  });
+  // (the motes: a ring circling the body, each its own height up its length, bobbing, brighter on the pulse)
+  const nm = lvN ? ${CHARGE_FX.motes[1]} : ${CHARGE_FX.motes[0]}, spin = lvN ? ${CHARGE_FX.spin[1]} : ${CHARGE_FX.spin[0]};
+  C.motes.forEach((sp, k) => {
+    if (k >= nm) { sp.material.opacity = 0; return; }
+    const a = t * spin + (2 * Math.PI * k) / nm, rr = H * ${CHARGE_FX.ring} * (1 + 0.15 * Math.sin(t * 2.3 + k)), up = ((k * 0.618) % 1 - 0.5) * H * 0.9 + Math.sin(t * 3.1 + k * 1.7) * H * 0.06;
+    sp.position.set(Math.cos(a) * rr * 0.5, Math.sin(a) * rr, up);
+    const sz = Math.max(0.025, 0.04 + 0.02 * lvN) * (0.7 + 0.3 * beat);
+    sp.scale.set(sz, sz, 1); sp.material.opacity = fr * (0.35 + 0.65 * beat) * (0.55 + 0.45 * Math.max(0, Math.cos(a)));
+  });
+}
+function __blastAge() {
+  for (let i = __blasts.length - 1; i >= 0; i--) {
+    const B = __blasts[i], u = (__world.time - B.born) / B.L.life, z = B.size;
+    if (u >= 1) { scene.remove(B.g); B.g.traverse((o) => { if (o.geometry && !o.isSprite) o.geometry.dispose(); if (o.material) o.material.dispose(); }); __blasts.splice(i, 1); continue; }
+    B.g.visible = u >= 0;
+    if (u < 0) continue;
+    const out = 1 - (1 - u) * (1 - u), set = (s, sc, op) => { s.scale.set(sc, sc, 1); s.material.opacity = Math.max(0, op); };
+    // (the core first and gone first; the hue blooming out after it; the deep edge and the halo last)
+    set(B.core, z * B.L.core * 2.6 * (1 + 0.4 * out), 1 - Math.min(1, u * 2.2));
+    set(B.mid, z * 2.2 * (0.55 + 0.8 * out), 1 - u * u);
+    set(B.deep, z * 3 * (0.6 + 0.9 * out), (1 - u) * 0.95);
+    set(B.halo, z * B.L.halo * (0.7 + 0.6 * out), 0.32 * (1 - u));
+    for (const R of B.rings) { const v = Math.max(0, (u - 0.08 * R.k) / (1 - 0.08 * R.k)), o = 1 - (1 - v) * (1 - v); R.m.scale.setScalar(0.35 + 1.7 * o); R.m.material.opacity = v > 0 ? 1 - v : 0; }
+    for (const S of B.sparks) { const r = z * S.sp * out; S.s.position.set(S.d[0] * r, S.d[1] * r, S.d[2] * r); const sz = Math.max(0.04, z * 0.22) * (1 - 0.6 * u); S.s.scale.set(sz, sz, 1); S.s.material.opacity = 1 - u; }
+  }
+}
+// (the colour of what broke a thing or destroyed a body: the round that burst there then, else warm)
+function __blastTint(at, when) { let c = 0xffc070, best = 1e9; for (const b of (__world.bursts || [])) { const d = Math.hypot(b.pos[0] - at[0], b.pos[1] - at[1], b.pos[2] - at[2]); if (Math.abs((b.t != null ? b.t : -1e9) - when) <= 0.1 && d <= 3 && d < best && b.fxColor != null) { best = d; c = b.fxColor; } } return c; }
+const __blastWrecks = new Set(), __rlGone = [];
+// the RINGS a charged round leaves at the firing point (not on the round): each round its flight, turned off the camera's
+// axis so it reads as an ellipse, its near arc bright and its far faded, in the accent; each a beat after the last,
+// growing out and fading where it was fired, aged on the world's clock whether or not its round still flies
+const __rlRings = [];
+function __rlMuzzleRings(from, vel, L, r) {
+  const vl = Math.hypot(vel[0], vel[1], vel[2]) || 1, dir = new THREE.Vector3(vel[0] / vl, vel[1] / vl, vel[2] / vl), acc = new THREE.Color(L.accent);
+  camera.getWorldDirection(__rlFwd); const perp = new THREE.Vector3().crossVectors(dir, __rlFwd).normalize();
+  for (let k = 0; k < L.rings; k++) {
+    const R = r * 1.1, geo = new THREE.TorusGeometry(R, Math.max(0.008, r * 0.07), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.raycast = function () {};
+    m.position.set(from[0] + dir.x * r * 0.4 * k, from[1] + dir.y * r * 0.4 * k, from[2] + dir.z * r * 0.4 * k);
+    m.quaternion.setFromUnitVectors(__rlZ, dir); m.rotateOnWorldAxis(perp, 0.9); m.updateMatrixWorld(true);
+    const pos = geo.getAttribute('position'), col = new Float32Array(pos.count * 3), w = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) { w.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).sub(m.position); const near = Math.max(0, Math.min(1, 0.5 - w.dot(__rlFwd) / (2 * R))), c = 0.25 + 0.75 * near * near; col[3 * i] = acc.r * c; col[3 * i + 1] = acc.g * c; col[3 * i + 2] = acc.b * c; }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    scene.add(m); __rlRings.push({ m, born: __world.time + 0.05 * k, life: 0.32, grow: 1.6 + 0.5 * k });
+  }
+}
+function __rlAge() {
+  for (let i = __rlRings.length - 1; i >= 0; i--) {
+    const R = __rlRings[i], u = (__world.time - R.born) / R.life;
+    if (u >= 1) { scene.remove(R.m); R.m.geometry.dispose(); R.m.material.dispose(); __rlRings.splice(i, 1); continue; }
+    const e = Math.max(0, u), o = 1 - (1 - e) * (1 - e);
+    R.m.scale.setScalar(1 + R.grow * o); R.m.material.opacity = u < 0 ? 0 : 1 - e * e;
+  }
+}
+function __rlRound(p) {
+  const L = ${foeRoundsOn ? '(!p.pellet && __RLF[p.fxColor]) || ' : ''}__RL[p.busterLv || 0] || __RL[0] || { size: 0.08, core: 0.55, ramp: ['#ffffff', '#fff2a8', '#7a6a20'], halo: 4.5, stretch: 1.8, streaks: 1, tail: 3, accent: '#a8c8ff', rings: 0, sparks: 2 };
+  const r = p.fxScale != null ? p.fxScale : L.size, g = new THREE.Group();
+  const halo = __rlSprite(__rlTex.soft, L.ramp[1], 0.32), deep = __rlSprite(__rlTex.soft, L.ramp[2], 0.95), mid = __rlSprite(__rlTex.soft, L.ramp[1], 1), core = __rlSprite(__rlTex.soft, L.ramp[0], 1);
+  const tail = __rlSprite(__rlTex.streak, L.ramp[1], 0.55), streaks = [], sparks = [];
+  for (const s of [halo, tail, deep, mid]) g.add(s);
+  for (let k = 0; k < L.streaks; k++) { const s = __rlSprite(__rlTex.streak, k % 2 ? L.ramp[1] : L.ramp[0], 0.9); streaks.push(s); g.add(s); }
+  g.add(core);
+  for (let k = 0; k < L.sparks; k++) { const s = __rlSprite(__rlTex.soft, k % 3 ? L.accent : '#ffffff', 1); sparks.push(s); g.add(s); }
+  scene.add(g);
+  // (its rings at the firing point: the shooter's muzzle when it just fired, else where the round was first seen)
+  const ow = __world.byId && __world.byId[p.owner], ls = ow && ow.lastShot, from = ls && ls.from && __world.time - ls.t < 0.1 ? ls.from : p.pos;
+  if (L.rings) __rlMuzzleRings(from, p.vel || [0, 1, 0], L, r);
+  const tick = (q) => {
+    const v = q.vel || [0, 1, 0], vl = Math.hypot(v[0], v[1], v[2]) || 1, t = __world.time;
+    __rlDir.set(v[0] / vl, v[1] / vl, v[2] / vl);
+    camera.getWorldDirection(__rlFwd); __rlPerp.crossVectors(__rlDir, __rlFwd).normalize();
+    // (the flight's line on screen: the angle every stretched layer is turned to)
+    __rlA.set(q.pos[0], q.pos[1], q.pos[2]).project(camera); __rlB.set(q.pos[0] + __rlDir.x, q.pos[1] + __rlDir.y, q.pos[2] + __rlDir.z).project(camera);
+    const ang = Math.atan2((__rlB.y - __rlA.y) * innerHeight, (__rlB.x - __rlA.x) * innerWidth), st = L.stretch, fl = 0.9 + 0.1 * Math.sin(t * 47);
+    const at = (s, along, across, sx, sy) => { s.position.set(__rlDir.x * along + __rlPerp.x * across, __rlDir.y * along + __rlPerp.y * across, __rlDir.z * along + __rlPerp.z * across); s.scale.set(sx, sy, 1); s.material.rotation = ang; };
+    // (THE BALL AT THE HEAD: its core and its saturated layer centred on the round, where it hits; everything else behind
+    // it, anchored to it: the body's front at the ball's front, the streaks and the tail from its centre back, never ahead)
+    const hd = L.head || st, bk = L.bulk || 1, ball = r * 1.25 * bk;
+    at(halo, -ball * 0.4, 0, r * L.halo * 2 * bk, r * L.halo * 2 * bk);
+    const body = r * 3.6 * st * bk;
+    at(deep, ball * hd - body / 2, 0, body, r * 3.2 * bk);
+    at(mid, 0, 0, 2 * ball * hd * fl, 2 * ball * fl);
+    at(core, 0, 0, r * L.core * 2.4 * hd * bk, r * L.core * 2.4 * bk);
+    const tl = r * L.tail * 0.9 * bk;
+    at(tail, -tl / 2, 0, tl, r * 1.4 * bk);
+    const sl = r * 1.7 * st * bk;
+    streaks.forEach((s, k) => at(s, -sl / 2, r * 0.55 * bk * (k - (streaks.length - 1) / 2) / Math.max(1, streaks.length - 1) * 1.4, sl, r * 0.14));
+    // (sparks trailing back along its flight on the world's clock, each its own phase, spreading and fading as they go)
+    sparks.forEach((s, k) => {
+      const u = (t * 2.4 + k * 0.618) % 1, side = Math.sin(k * 2.39) * r * (0.4 + 1.2 * u), lift = Math.cos(k * 1.71) * r * 0.8 * u;
+      s.position.set(-__rlDir.x * u * r * L.tail * 1.2 + __rlPerp.x * side, -__rlDir.y * u * r * L.tail * 1.2 + __rlPerp.y * side, -__rlDir.z * u * r * L.tail * 1.2 + __rlPerp.z * side + lift);
+      const sz = Math.max(0.06, r * 0.32) * (1 - 0.5 * u); s.scale.set(sz, sz, 1); s.material.opacity = 1 - u;
+    });
+  };
+  return { g, tick, pellet: p.pellet ? { size: r, lv: p.busterLv || 0 } : null };
+}
+` : ''}${saberOn ? `// THE SLASH (gameworld/feel/round-look.js SLASH_LOOK; feel/saber.js): a saber's cut drawn in the shot's light, its
+// colours the blade's (a white-hot core along its outer edge, the hue saturated, the hue deep inward), an arc in the body's
+// own plane sweeping open through the cut's contact window, its head brightest and its tail fading, then gone over its
+// life. Over the bodies (no depth test), as the charge's light is
+const __SLASH = ${safeJson(SLASH_LOOK)}, __SLASH_B = ${safeJson(BLAST_LOOK)};
+const __slashRamp = ${blastLook.toString()};
+const __slashes = {};
+function __slashGeo(arc, R, W) {
+  const N = 40, a0 = arc[0] * Math.PI / 180, a1 = arc[1] * Math.PI / 180, pos = new Float32Array((N + 1) * 2 * 3), uv = new Float32Array((N + 1) * 2 * 2), idx = [];
+  for (let i = 0; i <= N; i++) { const t = i / N, a = a0 + (a1 - a0) * t;
+    for (let j = 0; j < 2; j++) { const r = j ? R : R - W, k = i * 2 + j; pos[k * 3] = Math.cos(a) * r; pos[k * 3 + 1] = Math.sin(a) * r; pos[k * 3 + 2] = 0; uv[k * 2] = t; uv[k * 2 + 1] = j; }
+    if (i < N) idx.push(i * 2, i * 2 + 1, i * 2 + 3, i * 2, i * 2 + 3, i * 2 + 2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); return g;
+}
+function __slashMat(L) {
+  // (light added, never alpha: the frame's alpha left as it was, so its composite never darkens what the slash crosses)
+  return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    uniforms: { uCore: { value: new THREE.Color(L.ramp[0]) }, uHue: { value: new THREE.Color(L.ramp[1]) }, uDeep: { value: new THREE.Color(L.ramp[2]) }, uHead: { value: 0 }, uFade: { value: 0 }, uCoreW: { value: __SLASH.core } },
+    vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 uCore; uniform vec3 uHue; uniform vec3 uDeep; uniform float uHead; uniform float uFade; uniform float uCoreW;\\nvarying vec2 vUv;\\n'
+      + 'void main() {\\n  float a = vUv.x, r = vUv.y;\\n  if (a > uHead) discard;\\n'
+      + '  float tail = clamp(1.0 - (uHead - a) / 0.6, 0.0, 1.0);\\n'
+      + '  float body = smoothstep(0.0, 0.45, r) * (1.0 - smoothstep(0.94, 1.0, r));\\n'
+      + '  float core = smoothstep(1.0 - uCoreW - 0.1, 1.0 - uCoreW * 0.3, r);\\n'
+      + '  vec3 c = mix(mix(uDeep, uHue, smoothstep(0.0, 0.7, r)), uCore, core);\\n'
+      + '  float al = body * (0.2 + 0.8 * tail * tail) * uFade;\\n  gl_FragColor = vec4(c * al, al);\\n}' });
+}
+const __slashUp = new THREE.Vector3(0, 0, 1), __slashF = new THREE.Vector3(), __slashS = new THREE.Vector3(), __slashM = new THREE.Matrix4();
+// THE SABER'S BLADE (round-look.js SABER_STRAND): a STRAND of the charged shot in the hand, its ramp across it (a
+// white-hot core, the hue, the hue deep at its edge) and streaks running up it, the charge's BLOOM round it, over the body;
+// from the hilt's top to past the blade's tip (the hand's farthest point, as the swing trail finds it), lit a little at rest
+// and flaring through a cut
+const __STRAND = ${safeJson(SABER_STRAND)}, __strands = {};
+function __strandMat(L, halo) {
+  return new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide,
+    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    uniforms: { uCore: { value: new THREE.Color(L.ramp[0]) }, uHue: { value: new THREE.Color(L.ramp[1]) }, uDeep: { value: new THREE.Color(L.ramp[2]) }, uK: { value: 0 }, uT: { value: 0 }, uCoreW: { value: __STRAND.core / __STRAND.body }, uN: { value: __STRAND.streaks }, uSpeed: { value: __STRAND.speed }, uGlow: { value: __STRAND.glow } },
+    vertexShader: 'varying vec2 vUv;\\nvoid main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 uCore; uniform vec3 uHue; uniform vec3 uDeep; uniform float uK; uniform float uT; uniform float uCoreW; uniform float uN; uniform float uSpeed; uniform float uGlow;\\nvarying vec2 vUv;\\n'
+      + 'void main() {\\n  float x = vUv.x, y = abs(vUv.y), ends = smoothstep(0.0, 0.05, x) * (1.0 - smoothstep(0.82, 1.0, x));\\n'
+      + (halo ? '  float g = exp(-y * y * 4.0);\\n  gl_FragColor = vec4(uHue * g * ends * uK * uGlow, 1.0);\\n}'
+        : '  float core = 1.0 - smoothstep(uCoreW * 0.45, uCoreW, y), body = exp(-y * y * 3.2), edge = smoothstep(0.35, 0.9, y) * body;\\n'
+        + '  float streak = pow(0.5 + 0.5 * sin((x * uN - uT * uSpeed) * 6.2831), 6.0) * (1.0 - y);\\n'
+        + '  vec3 c = uHue * body + uDeep * edge * 0.6 + uCore * (core + 0.4 * streak * body);\\n  gl_FragColor = vec4(c * ends * uK, 1.0);\\n}') });
+}
+// (its blade's base and tip as the hand carries them: a rigid rig's hand mesh, or a skinned rig's corners held whole by the
+// hand, in the body's rest pose, the hand's matrix taking them on)
+function __strandMake(e) {
+  const B = __bodies[e.id], R = B && B.userData && B.userData.rigFig;
+  if (!R) return undefined;
+  const bi = R.fig.bones.findIndex((bn) => bn.id === 'handR'), m = bi >= 0 ? R.boneMeshes[bi] : null;
+  if (!m) return null;
+  const SG = R.skin && R.skin.geometry, P = SG ? SG.attributes.position : m.geometry && m.geometry.attributes.position;
+  const keep = SG ? (i) => SG.attributes.skinIndex.getX(i) === bi && SG.attributes.skinWeight.getX(i) > 0.99 : null;
+  if (!P) return null;
+  // (the corners in the body's rest pose: the tip the one farthest from the wrist, the hand bone's rest head)
+  const W = R.fig.bones[bi].head || [0, 0, 0];
+  let best = 0, at = -1;
+  for (let i = 0; i < P.count; i++) { if (keep && !keep(i)) continue; const d = (P.getX(i) - W[0]) ** 2 + (P.getY(i) - W[1]) ** 2 + (P.getZ(i) - W[2]) ** 2; if (d > best) { best = d; at = i; } }
+  if (at < 0 || Math.sqrt(best) < 0.32) return null;
+  const tip = new THREE.Object3D(), base = new THREE.Object3D();
+  // (the strand's tip its length times the blade's own reach from the wrist: the light longer than the blade)
+  const SL = __STRAND.length || 1;
+  tip.position.set(W[0] + (P.getX(at) - W[0]) * SL, W[1] + (P.getY(at) - W[1]) * SL, W[2] + (P.getZ(at) - W[2]) * SL);
+  base.position.set(W[0] + (P.getX(at) - W[0]) * __STRAND.base, W[1] + (P.getY(at) - W[1]) * __STRAND.base, W[2] + (P.getZ(at) - W[2]) * __STRAND.base);
+  m.add(tip); m.add(base);
+  const L = __slashRamp(e.rule.strikeFx.color, 'impact', __SLASH_B), mk = (halo) => {
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, -1, 0, 1, 1, 1, 1, -1]), 2)); g.setIndex([0, 1, 2, 0, 2, 3]);
+    const q = new THREE.Mesh(g, __strandMat(L, halo)); q.frustumCulled = false; q.raycast = function () {}; q.renderOrder = halo ? 6 : 7; scene.add(q); return q; };
+  return { m, tip, base, halo: mk(true), blade: mk(false) };
+}
+const __stA = new THREE.Vector3(), __stB = new THREE.Vector3(), __stD = new THREE.Vector3(), __stS = new THREE.Vector3(), __stC = new THREE.Vector3();
+const __stShown = (o) => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+function __strandFx(e) {
+  let T = __strands[e.id];
+  if (T === undefined) { T = __strandMake(e); if (T !== undefined) __strands[e.id] = T; }
+  if (!T) return;
+  const on = !e.gone && __stShown(T.m);
+  T.halo.visible = T.blade.visible = on;
+  if (!on) return;
+  T.base.getWorldPosition(__stA); T.tip.getWorldPosition(__stB);
+  __stD.subVectors(__stB, __stA); const len = __stD.length(); if (len < 1e-3) return; __stD.multiplyScalar(1 / len);
+  __stC.addVectors(__stA, __stB).multiplyScalar(0.5); __stS.subVectors(camera.position, __stC).cross(__stD).normalize();
+  // (lit a little at rest, flaring through a cut's contact window)
+  const P = e.strikeParams, live = e.swingT != null && P && e.swingT >= (P.from != null ? P.from : 0.3) - 0.1 && e.swingT <= (P.to != null ? P.to : 0.62) + 0.15;
+  const k = (live ? __STRAND.cut : __STRAND.idle) * (0.9 + 0.1 * Math.sin(__world.time * 9));
+  for (const [q, w] of [[T.blade, __STRAND.body], [T.halo, __STRAND.halo]]) {
+    const pos = q.geometry.attributes.position, end = __stB.clone().addScaledVector(__stD, w * __STRAND.cap);
+    const c = [[__stA, -w], [__stA, w], [end, w], [end, -w]];
+    c.forEach(([p, s], i) => pos.setXYZ(i, p.x + __stS.x * s, p.y + __stS.y * s, p.z + __stS.z * s));
+    pos.needsUpdate = true; q.material.uniforms.uK.value = k; q.material.uniforms.uT.value = __world.time;
+  }
+}
+function __slashFx(e) {
+  const r = e.rule, P = e.strikeParams, mv = e.mvMove && r.moveset.moves[e.mvMove];
+  let S = __slashes[e.id];
+  if (!S) { S = __slashes[e.id] = { g: new THREE.Group(), meshes: {}, mat: __slashMat(__slashRamp(r.strikeFx.color, 'impact', __SLASH_B)), end: null, key: null }; S.g.renderOrder = 6; scene.add(S.g); }
+  // (the live cut's sweep through its contact window, a little ahead of it; after the window, its fade over the life)
+  const live = e.swingT != null && mv && P && !e.gone;
+  if (live) {
+    const from = P.from != null ? P.from : 0.3, to = P.to != null ? P.to : 0.62, lead = __SLASH.lead, p = (e.swingT - (from - lead)) / Math.max(1e-3, to - from + lead);
+    const key = e.mvMove + ':' + (e.mvHit || 0);
+    if (key !== S.key) { S.key = key; S.end = null; }
+    if (p <= 0) { S.g.visible = false; return; }
+    S.mat.uniforms.uHead.value = Math.min(1, p); S.mat.uniforms.uFade.value = 1;
+    if (p >= 1 && S.end == null) S.end = __world.time;
+    const sw = mv.swing || 'neutral', H = r.collideHeight || 1.7, R = (P.reach || r.strikeReach || 1.6) * __SLASH.radius;
+    let m = S.meshes[sw];
+    if (!m) { m = S.meshes[sw] = new THREE.Mesh(__slashGeo(__SLASH.arcs[sw] || __SLASH.arcs.neutral, R, R * __SLASH.width), S.mat); m.raycast = function () {}; m.renderOrder = 6; S.g.add(m); }
+    for (const k in S.meshes) S.meshes[k].visible = k === sw;
+    const h = e.transform.heading || 0;
+    __slashF.set(Math.cos(h), Math.sin(h), 0); __slashS.crossVectors(__slashF, __slashUp);
+    __slashM.makeBasis(__slashF, __slashUp, __slashS); S.g.quaternion.setFromRotationMatrix(__slashM);
+    S.g.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + H * __SLASH.height);
+    S.g.visible = true;
+    if (S.end != null) S.mat.uniforms.uFade.value = Math.max(0, 1 - (__world.time - S.end) / __SLASH.life);
+  } else if (S.g.visible) {
+    if (S.end == null) S.end = __world.time;
+    const f = Math.max(0, 1 - (__world.time - S.end) / __SLASH.life);
+    S.mat.uniforms.uFade.value = f; S.mat.uniforms.uHead.value = 1;
+    if (f <= 0) { S.g.visible = false; S.key = null; }
+  }
+}
+` : ''}${dustOn ? `// THE DASH'S DUST (gameworld/feel/round-look.js DASH_DUST, the rule's dash.dust): while a body's dash runs on the ground,
+// a wisp of dust and grit thrown back off its feet along the floor (a burst as it kicks off, then a puff a beat), each
+// swelling and thinning over its life, the grit falling; an air dash raises none. Its scatter seeded by the puff's count
+const __dustTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.5, 'rgba(255,255,255,0.5)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const __dust = [], __dustOf = {};
+let __dustN = 0, __dustT = null;
+const __dustRnd = (n) => { const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); };
+function __dustPuff(e, D) {
+  const n = ++__dustN, grit = __dustRnd(n * 3) < D.grit, d = e.dashDir || [0, 1], p = e.transform.pos;
+  const sp = D.back * (0.6 + 0.4 * __dustRnd(n)), side = (__dustRnd(n * 7) - 0.5) * D.spread;
+  const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: __dustTex, color: new THREE.Color(grit && D.gritColor ? D.gritColor : D.color), transparent: true, opacity: D.alpha, depthWrite: false }));
+  const sz = D.size * (grit ? 0.25 : 0.7 + 0.6 * __dustRnd(n * 5));
+  m.scale.setScalar(sz); m.position.set(p[0] - d[0] * 0.2 - d[1] * side * 0.2, p[1] - d[1] * 0.2 + d[0] * side * 0.2, p[2] + 0.06); scene.add(m);
+  __dust.push({ m, v: [-d[0] * sp - d[1] * side, -d[1] * sp + d[0] * side, D.rise * (grit ? 1.6 : 0.6 + 0.6 * __dustRnd(n * 11))], t: 0, life: D.life * (grit ? 0.8 : 0.8 + 0.4 * __dustRnd(n * 13)), sz, grit, a: D.alpha, grow: D.grow });
+}
+function __dashDust() {
+  const now = __world.time, dt = __dustT == null ? 0 : Math.max(0, Math.min(0.1, now - __dustT)); __dustT = now;
+  for (const e of __world.entities) {
+    const D = e.rule && e.rule.dash && e.rule.dash.dust; if (!D) continue;
+    const S = __dustOf[e.id] || (__dustOf[e.id] = { on: false, next: 0 });
+    const on = e.dashT > 0 && e.grounded && !e.dashAir;
+    if (on && !S.on) { for (let k = 0; k < D.burst; k++) __dustPuff(e, D); S.next = now + D.every; }
+    else if (on && now >= S.next) { __dustPuff(e, D); S.next = now + D.every; }
+    S.on = on;
+  }
+  for (let i = __dust.length - 1; i >= 0; i--) {
+    const q = __dust[i]; q.t += dt; const u = q.t / q.life;
+    if (u >= 1) { scene.remove(q.m); q.m.material.dispose(); __dust.splice(i, 1); continue; }
+    const k = 1 / (1 + 4 * dt); q.v[0] *= k; q.v[1] *= k; q.v[2] = q.grit ? q.v[2] - 9.8 * dt : q.v[2] * k;
+    q.m.position.x += q.v[0] * dt; q.m.position.y += q.v[1] * dt; q.m.position.z = Math.max(0.02, q.m.position.z + q.v[2] * dt);
+    if (!q.grit) q.m.scale.setScalar(q.sz * (1 + (q.grow - 1) * u));
+    q.m.material.opacity = q.a * Math.pow(1 - u, 1.4);
+  }
+}
+` : ''}const __projMeshes = {};    // projectile id -> { g } group tracking one live round
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
-function __updateProjectiles() {
+function __updateProjectiles() {${dustOn ? `
+  __dashDust();` : ''}${saberOn ? `
+  for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) { __slashFx(e); __strandFx(e); }` : ''}${busterOn ? `
+  __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
+  __blastAge();
+  for (const e of __world.entities) if (e.rule && e.rule.buster) __chargeFx(e);
+  for (let i = __rlGone.length - 1; i >= 0; i--) if (__world.time - __rlGone[i].t > 0.2) __rlGone.splice(i, 1);
+  // (a body destroyed, dismantled or cleaved: an explosion where it went down, in the colour of the round that did it)
+  for (const e of __world.entities) { const W = e.wreck; if (!W || !e.transform) continue; const key = e.id + ':' + (W.t0 || 0); if (__blastWrecks.has(key)) continue; __blastWrecks.add(key); const at = [e.transform.pos[0], e.transform.pos[1], e.transform.pos[2] + ((e.rule && e.rule.collideHeight) || 1.6) * 0.5]; __blast(at, __blastTint(at, W.t0 || 0), 0.9, 'blast'); }` : ''}
   const ps = __world.projectiles || [];
   const live = {};
-  for (const p of ps) {
+  for (const p of ps) {${rockOn ? `
+    if (p.rock) continue;   // (a thrown rock: rock-view.js draws it)` : ''}
     live[p.id] = true;
     let rec = __projMeshes[p.id];${moveset ? `
     // (a moveset's bow, gameworld/combos.js a draw sidearm: its round an ARROW, a shaft along its flight, its point leading)
@@ -4297,7 +5170,31 @@ function __updateProjectiles() {
         scene.add(g); rec = __projMeshes[p.id] = { g: g };
       }
     }` : ''}
-    if (!rec) {
+    if (!rec && p.look) rec = __projMeshes[p.id] = __lookShell(p);
+    if (rec && rec.spin) {
+      // (a thrown grenade tumbles end over end on its arc)
+      rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]); rec.g.rotation.set((__world.time - rec.born) * 11, 0.6, (__world.time - rec.born) * 4);
+      continue;
+    }
+    if (rec && rec.off) {
+      // (a launcher's round drawn out of the drawn gun's muzzle, eased onto its own flight over a few frames)
+      const k = Math.max(0, 1 - (__world.time - rec.born) / 0.15);
+      rec.g.position.set(p.pos[0] + rec.off[0] * k, p.pos[1] + rec.off[1] * k, p.pos[2] + rec.off[2] * k);
+      if (p.vel) { const vl = Math.hypot(p.vel[0], p.vel[1], p.vel[2]); if (vl > 1e-4) rec.g.quaternion.setFromUnitVectors(__projUpY, __projDir.set(p.vel[0] / vl, p.vel[1] / vl, p.vel[2] / vl)); }
+      // (a rocket's trail: a puff of smoke dropped behind it every few hundredths, hanging and thinning; its flame flickers)
+      if (rec.trail != null) {
+        if (rec.flame) rec.flame.scale.setScalar(0.24 + 0.08 * Math.abs(Math.sin(__world.time * 47)));
+        while (__world.time - rec.trail >= 0.025) {
+          rec.trail += 0.025;
+          const q = rec.g.position, pf = __lookPuff(0xb5afa5, false, 0.5); pf.position.set(q.x, q.y, q.z); pf.scale.setScalar(0.1); pf.raycast = function () {}; scene.add(pf);
+          __fx.push({ obj: pf, born: __world.time, ttl: 1.8, kind: 'wisp', base: 0.6, dim: 0.5, rise: 0.25, z0: q.z });
+        }
+      }
+      continue;
+    }
+${busterOn || foeRoundsOn ? `    // (a buster's round, buster.js, drawn in its level's LOOK, gameworld/feel/round-look.js: the shot's look; a foe's in its)
+    if (!rec && (p.pellet${foeRoundsOn ? ' || __RLF[p.fxColor]' : ''})) rec = __projMeshes[p.id] = __rlRound(p);
+` : ''}    if (!rec) {
       const col = p.fxColor != null ? p.fxColor : 0xffcc66, sz = p.fxScale != null ? p.fxScale : 3;
       // the round is a POINTED SHELL (a hot nose-cone, not a beachball): a long thin cone whose TIP
       // leads along the velocity, wrapped in a translucent glow cone. Oriented per-frame to its heading.
@@ -4312,13 +5209,15 @@ function __updateProjectiles() {
       mf.position.set(p.pos[0], p.pos[1], p.pos[2]); mf.raycast = function () {}; scene.add(mf);
       __fx.push({ obj: mf, born: __world.time, ttl: 0.1, kind: 'burst', base: sz * 0.4, dim: 0.9 });
     }
-    rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]);
+    rec.g.position.set(p.pos[0], p.pos[1], p.pos[2]);${busterOn || foeRoundsOn ? `
+    if (rec.tick) { rec.tick(p); continue; }` : ''}
     // point the nose along the round's velocity (cone apex is +Y → rotate +Y onto the travel direction)
     if (p.vel) { const vl = Math.hypot(p.vel[0], p.vel[1], p.vel[2]); if (vl > 1e-4) rec.g.quaternion.setFromUnitVectors(__projUpY, __projDir.set(p.vel[0] / vl, p.vel[1] / vl, p.vel[2] / vl)); }
   }
   for (const id in __projMeshes) {   // drop rounds that burst/expired this frame
     if (live[id]) continue;
-    const rec = __projMeshes[id];
+    const rec = __projMeshes[id];${busterOn ? `
+    if (rec.pellet) __rlGone.push({ at: rec.g.position.toArray(), size: rec.pellet.size, lv: rec.pellet.lv, t: __world.time });   // (a buster's round gone: its burst is its size's)` : ''}
     scene.remove(rec.g);
     rec.g.traverse(function (o) { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     delete __projMeshes[id];
@@ -4328,19 +5227,27 @@ function __updateProjectiles() {
     if (b.seq <= __burstSeen) continue;
     __burstSeen = b.seq;${flow ? `
     if (window.__mojFlowBursts) continue;   // (on the flow, rupa-vayo: the moment channel sets it off as the flow's blast)` : ''}
+    if (b.effect === 'stun') { __lookStun(b); continue; }
+    if (b.effect === 'chaff') { __lookChaff(b); continue; }
+    if (b.look) { __lookBlast(b); continue; }
     const col = b.fxColor != null ? b.fxColor : 0xffcc66;
     // the shell peaks at the TRUE splash reach (b.radius) — honest to the gameplay AoE — but stays
     // TRANSLUCENT (dim 0.5) so it reads as a fireball, not a screen-filling wash. A small, brighter
     // white flash marks the detonation point. A record may carry fxRadius (the DEATH BURST, R34.1):
     // the spectacle outsizes the shove — safe, because the stagger is adjudicated the frame the
     // record spawns, so the bigger shell never overstates a circle anyone could still dodge.
-    const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), __fxMat(col));
+${busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
+    // (a buster's round's burst its size's, the full charge's an explosion; any other's by its blast)
+    { const R = b.fxRadius || b.radius || 0.3, P = __rlGone.find((q) => Math.abs(q.t - __world.time) < 0.1 && Math.hypot(q.at[0] - b.pos[0], q.at[1] - b.pos[1], q.at[2] - b.pos[2]) < 1.5);
+      if (P) __blast(b.pos, col, Math.max(0.3, P.size * 3.2), P.lv && P.lv === __RL.length - 1 ? 'blast' : 'impact');
+      else __blast(b.pos, col, Math.max(0.3, R * 3), R >= 0.6 || b.debris ? 'blast' : 'impact'); }
+` : `    const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), __fxMat(col));
     shell.position.set(b.pos[0], b.pos[1], b.pos[2]); shell.raycast = function () {}; scene.add(shell);
     __fx.push({ obj: shell, born: __world.time, ttl: 0.4, kind: 'burst', base: (b.fxRadius || b.radius || 0) * 0.9, dim: 0.5 });
     const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
     flash.position.set(b.pos[0], b.pos[1], b.pos[2]); flash.raycast = function () {}; scene.add(flash);
     __fx.push({ obj: flash, born: __world.time, ttl: 0.16, kind: 'burst', base: (b.fxScale != null ? b.fxScale : 3) * 0.5, dim: 1 });
-    // SUIT-DEATH fragment shower (operator 2026-08-13): a suit blows APART into many pieces flung out
+`}    // SUIT-DEATH fragment shower (operator 2026-08-13): a suit blows APART into many pieces flung out
     // and up, arcing down under gravity to rest on the ground — so the death reads as an explosion of
     // debris ahead of the smoke, not just one ball flash. Deterministic (golden-angle directions +
     // modulo speeds, no Math.random), so capture stays byte-identical. Only death bursts carry the flag.
@@ -4744,7 +5651,8 @@ function __applyMatchParams(params) {
   const idOf = (v) => (v && typeof v === 'object' ? (v.id || v.name || '') : String(v == null ? '' : v));
   // the game shell passes a picked party slice as { roster: { <id>: {...} } } — the ids are the keys.
   const rosterIds = (v) => (v && typeof v === 'object' && v.roster && typeof v.roster === 'object' ? Object.keys(v.roster) : null);
-  const want = params.pilot != null ? idOf(params.pilot)
+  // (a light shell's turn pick lands under __picks: a level that stands two heroes, a co-star's, names who goes as its pilot pick)
+  const want = params.pilot != null ? idOf(params.pilot) : params.__picks && params.__picks.pilot != null ? idOf(params.__picks.pilot)
     : ((rosterIds(params.suits) || [])[0]
       || (Array.isArray(params.roster) && params.roster.length ? idOf(params.roster[0]) : null));
   if (want && __world.byId[want] && __world.byId[want].pilotable && __world.pilotId !== want) {
@@ -4822,13 +5730,15 @@ function __spawnBreak(br) {
   const blk = (__world.breakables || []).find((q) => q.id === br.id)${loose ? ' || (__world.loose || []).find((q) => q.id === br.id)' : ''};
   const ext = blk ? Math.max(blk.max[0] - blk.min[0], blk.max[1] - blk.min[1], blk.max[2] - blk.min[2]) : 1;
   const floor = blk ? blk.min[2] : 0;
-  const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
+${busterOn ? `  // (in the shot's light: an explosion where it broke, in the colour of the round that broke it)
+  __blast(br.at, __blastTint(br.at, br.t != null ? br.t : __world.time), Math.max(0.4, ext * 0.6), 'blast');
+` : `  const flash = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), __fxMat(0xffffff));
   flash.position.set(br.at[0], br.at[1], br.at[2]); flash.raycast = function () {}; scene.add(flash);
   __fx.push({ obj: flash, born: __world.time, ttl: 0.16, kind: 'burst', base: ext * 0.7, dim: 0.9 });
   const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.08, 6, 24), __fxMat(0xffe2b0));
   ring.position.set(br.at[0], br.at[1], floor + 0.05); ring.raycast = function () {}; scene.add(ring);
   __fx.push({ obj: ring, born: __world.time, ttl: 0.3, kind: 'shock', base: ext * 0.8 });
-  const show = __breakPieces[br.id], set = show && show.pieces[show.cuts[br.how] || 'chip'];
+`}  const show = __breakPieces[br.id], set = show && show.pieces[show.cuts[br.how] || 'chip'];
   if (!set) return;
   const by = br.by && __world.entities.find((e) => e.id === br.by);
   let bx = 0, byy = 0;
@@ -4896,11 +5806,12 @@ function __updateBreaks(dt) {
 ${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });${tempo ? `
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
     if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
-    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${place ? '\n    __placeStep(dt);' : ''}${seats ? `
+    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${driveSurface && driveSurface.items ? `
+    __kiTick(dt);` : ''}${place ? '\n    __placeStep(dt);' : ''}${seats ? `
     __seatRings();
     __seatStrip();
     __seatsOver();` : ''}
@@ -4947,6 +5858,80 @@ ${hangarHook}  __msHookParams();
 };
 ${styleMeter ? `// the style meter (worlds/controllable/style.js): where it stands, for a HUD and a level's results
 window.__mojStyle = { now: () => __CW.styleOf(__world) };
+` : ''}${haloOn ? `// THE HALO (style.js): the transformation seen. A ring of light over the hero's head and its light on the hero while
+// it lasts, a burst of light as it begins; nothing while it does not
+// (the hair turned white and the skin dark grey as it fades in: a marked corner's colour drawn toward its class's, by one
+// shared amount; every material that draws a marked part)
+function __haloMat(m, fig) {
+  const U = __haloMat.U || (__haloMat.U = { value: 0 });   // (on the function: a body may be built before this line runs)
+  for (const M of [].concat(m)) {
+    const prev = M.onBeforeCompile, prevKey = M.customProgramCacheKey;
+    M.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      sh.uniforms.uHalo = U; sh.uniforms.uHair = { value: new THREE.Color(fig && fig.haloHair ? fig.haloHair : '#000000') }; sh.uniforms.uHairOn = { value: fig && fig.haloHair ? 1 : 0 };
+      sh.vertexShader = 'attribute float aHc;\\nvarying float vHc;\\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vHc = aHc;');
+      sh.fragmentShader = 'uniform float uHalo;\\nuniform vec3 uHair;\\nuniform float uHairOn;\\nvarying float vHc;\\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\\n  if (vHc > 0.5) { float hl = vHc < 1.5 ? 1.0 : uHairOn * (1.0 - smoothstep(0.06, 0.16, distance(diffuseColor.rgb, uHair))); vec3 hT = mix(vec3(0.03, 0.03, 0.034) * (0.55 + 1.6 * dot(diffuseColor.rgb, vec3(0.333))), vec3(0.82, 0.82, 0.86), hl); diffuseColor.rgb = mix(diffuseColor.rgb, hT, uHalo); }');
+    };
+    M.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|halo'; };
+    M.needsUpdate = true;
+  }
+}
+// THE WINGS: a pair of black angel's wings on the hero's back, behind the coat, each its feathers in rows along its arm
+// (the long ones at the tip), unfolded with the transformation and beating slowly while it lasts; on the torso's bone,
+// in the rest frame its bone moves (the hero's back is −y)
+function __haloWing(side) {
+  const P = [], tri = (a, b, c) => P.push(...a, ...b, ...c);
+  const nrm = [0, -1, 0], cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], un = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const feather = (at, dir, len, w) => {
+    const d = un(dir), sd = un(cr(d, nrm)), q = (f, ww) => [at[0] + d[0] * len * f + sd[0] * ww, at[1] + d[1] * len * f + sd[1] * ww, at[2] + d[2] * len * f + sd[2] * ww];
+    const a = q(0, -w / 2), b = q(0, w / 2), c = q(0.72, w * 0.42), e = q(0.72, -w * 0.42), t = q(1, 0);
+    tri(a, b, c); tri(a, c, e); tri(e, c, t);
+  };
+  // the arm: up and out from the root to the wrist, a little back
+  const wrist = [side * 0.5, -0.16, 0.42];
+  for (let i = 0; i < 9; i++) { const u = i / 8, at = [wrist[0] * u, wrist[1] * u, wrist[2] * u];
+    feather(at, [side * (0.25 + 0.75 * u), -0.12, -(1 - 0.55 * u)], 0.34 + 0.62 * u, 0.1);          // the flight feathers, longest at the tip
+    feather([at[0], at[1] - 0.012, at[2] + 0.02], [side * (0.2 + 0.5 * u), -0.1, -0.9], 0.2 + 0.18 * u, 0.09);   // the coverts over them
+  }
+  for (let i = 0; i < 4; i++) feather([wrist[0], wrist[1], wrist[2]], [side * (1 - 0.18 * i), -0.08, 0.3 - 0.35 * i], 0.42 - 0.04 * i, 0.08);   // the tip's fan
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(P), 3)); geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x0b0b0f, roughness: 0.42, metalness: 0.12, side: THREE.DoubleSide }));
+  m.raycast = function () {}; m.castShadow = true; m.frustumCulled = false;
+  const pivot = new THREE.Group(); pivot.add(m); return pivot;
+}
+const __wings = new THREE.Group(), __wingR = __haloWing(1), __wingL = __haloWing(-1);
+__wings.add(__wingR, __wingL); __wings.visible = false;
+(function __halo() {
+  const g = new THREE.Group(), ring = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.022, 10, 48), new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const glow = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.06, 10, 48), new THREE.MeshBasicMaterial({ color: 0xf2b630, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const burst = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 64), new THREE.MeshBasicMaterial({ color: 0xffe6a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  const lamp = new THREE.PointLight(0xffd27a, 0, 7, 1.6);
+  g.add(ring, glow); g.visible = false; scene.add(g); scene.add(burst); scene.add(lamp);
+  let was = false, k = 0, bt = 9, last = performance.now();
+  (function tick() {
+    requestAnimationFrame(tick);
+    const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000); last = now;
+    const H = __world.style && __world.style.halo, p = __world.pilotId && __world.byId[__world.pilotId];
+    const on = !!(H && H.on && p && p.transform);
+    if (on && !was) bt = 0;
+    was = on; k += ((on ? 1 : 0) - k) * Math.min(1, dt * 8);
+    g.visible = k > 0.02; lamp.intensity = 2.4 * k;
+    if (p && p.transform) {
+      // (just over the head's top, the figure's own height where it has one; tilted back off the brow, as a halo is drawn,
+      // so it reads as a ring from a camera at the head's height)
+      const G0 = __bodies[p.id], fh = G0 && G0.userData.rigFig && G0.userData.rigFig.fig.figH, P = p.transform.pos, top = (fh > 1 ? fh : Math.max(1.6, p.body && p.body.egg && p.body.egg.cz ? p.body.egg.cz * 2 : 1.85)) + 0.1;
+      g.position.set(P[0], P[1], P[2] + top + 0.02 * Math.sin(now / 260)); g.rotation.set(0, 0, p.transform.heading || 0); g.rotateY(-0.45); g.rotateZ(now / 1800); g.scale.setScalar(0.4 + 0.6 * k);
+      lamp.position.set(P[0], P[1], P[2] + 1.4); burst.position.set(P[0], P[1], P[2] + 0.05);
+    }
+    bt += dt; burst.visible = bt < 0.6; if (burst.visible) { burst.scale.setScalar(0.5 + bt * 9); burst.material.opacity = 0.9 * (1 - bt / 0.6); }
+    if (__haloMat.U) __haloMat.U.value = k;
+    // (the wings on the torso's bone of whichever figure the hero plays now, their root on its upper back)
+    const G = p && __bodies[p.id], rf = G && G.userData.rigFig, ti = rf ? rf.fig.bones.findIndex((b) => b.id === 'torso') : -1, bone = ti >= 0 ? rf.boneMeshes[ti] : null;
+    if (bone && __wings.parent !== bone) { const T = rf.fig.bones[ti].tail; bone.add(__wings); __wings.position.set(T[0], T[1] - 0.13, T[2] - 0.13); }
+    __wings.visible = k > 0.02 && !!bone;
+    if (__wings.visible) { const f = 0.12 * Math.sin(now / 420) * k; __wings.scale.setScalar(0.05 + 0.95 * k); __wingR.rotation.y = -f; __wingL.rotation.y = f; }
+  })();
+})();
 ` : ''}${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
 window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
@@ -4964,7 +5949,118 @@ function __mojBackdrop(from, look, shift) {
   scene.add(quad);
   return { dispose: () => { scene.remove(quad); quad.geometry.dispose(); quad.material.dispose(); rt.dispose(); } };
 }
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay || armHeld ? gunplayScript(armHeld ? { held: true } : undefined) : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${sightShown ? sightScript() : ''}${alarm ? alarmScript() : ''}${knockout ? knockoutScript() : ''}${ghost ? ghostScript() : ''}${mission ? missionScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${bossOn ? bossScript() : ''}${boatOn ? boatWaterScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
+` : ''}${roomLit ? `// THE ROOM'S LIGHT ON ITS BODIES (a room that asks for its shade, era/stage.js \`shade\`; its lamps over the light its
+// paint was made under, channels/form.js \`__mojForm.lit\`). A body's paint is what it shows by a lamp at arm's length;
+// here each surface is lit as the room is: the ambient, the lamps nearest the pilot each by its falloff and how the
+// surface turns to it (wrapped, as cloth and skin take light), and a cold rim where it turns from the eye, so a body
+// has a lit side, a shade side and an edge against the dark. And each throws its SHADOW on the floor it stands on, ONE,
+// as the room's own are: from the lamp that lights it most, its own silhouette laid flat away from the flame and fading
+// with its length, as dark as the share of the light there that lamp gives (a lone torch's deep, a lit room's faint:
+// the light it takes away, never a black of its own), its edge a penumbra (laid from points of the flame a little apart,
+// each darkening a part, each a few millimetres over the last); and a dark at its feet by the same share. Drawn on one
+// plane each copy darkens once, by the stencil (the floor
+// never moves: a projection is the shadow, as the seventh generation drew an actor's on a baked room)
+(function __roomLight() {
+  const K = 6, FILL = 0.3, U = { uRlP: { value: Array.from({ length: K }, () => new THREE.Vector3()) }, uRlK: { value: Array.from({ length: K }, () => new THREE.Vector3()) },
+    uRlR: { value: new Array(K).fill(1) }, uRlAmb: { value: new THREE.Vector3() }, uRlFall: { value: 2 }, uRlRim: { value: new THREE.Vector3(0.22, 0.27, 0.42) } };
+  const lit = new WeakSet(), twinned = new WeakSet();
+  // the bodies' shading: on their own material, after everything the material already does
+  const shade = (m) => {
+    if (!m || lit.has(m) || !m.isMeshBasicMaterial || m.userData.rlTwin) return; lit.add(m);
+    const prev = m.onBeforeCompile, prevKey = m.customProgramCacheKey;
+    m.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      Object.assign(sh.uniforms, U);
+      sh.vertexShader = 'varying vec3 vRlW;\\nvarying vec3 vRlN;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vRlW = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n#if defined( USE_ENVMAP ) || defined( USE_SKINNING )\\n  vRlN = mat3(modelMatrix) * objectNormal;\\n#else\\n  vRlN = mat3(modelMatrix) * normal;\\n#endif');
+      sh.fragmentShader = 'uniform vec3 uRlP[' + K + '];\\nuniform vec3 uRlK[' + K + '];\\nuniform float uRlR[' + K + '];\\nuniform vec3 uRlAmb;\\nuniform float uRlFall;\\nuniform vec3 uRlRim;\\nvarying vec3 vRlW;\\nvarying vec3 vRlN;\\n'
+        + sh.fragmentShader.replace('#include <aomap_fragment>', '{ vec3 N = vRlN; if ( dot( N, N ) < 1e-4 ) N = cross( dFdx( vRlW ), dFdy( vRlW ) ); N = normalize( N ); if ( !gl_FrontFacing ) N = - N;\\n'
+        + '  vec3 V = normalize( cameraPosition - vRlW ), L = uRlAmb;\\n'
+        + '  for ( int i = 0; i < ' + K + '; i++ ) { vec3 d = uRlP[ i ] - vRlW; float r = length( d ); float t = clamp( 1.0 - max( r, 1.1 ) / uRlR[ i ], 0.0, 1.0 );\\n'
+        + '    L += uRlK[ i ] * pow( t * t, uRlFall ) * clamp( ( dot( N, d / max( r, 1e-3 ) ) + 0.35 ) / 1.35, 0.0, 1.0 ); }\\n'
+        + '  L += uRlRim * pow( 1.0 - clamp( dot( N, V ), 0.0, 1.0 ), 4.0 );\\n'
+        + '  reflectedLight.indirectDiffuse *= clamp( L, vec3( 0.05 ), vec3( 1.6 ) ); }\\n#include <aomap_fragment>');
+    };
+    m.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|roomlit'; };
+    m.needsUpdate = true;
+  };
+  // the shadow: a body's twins on one plane, from points of its key lamp a penumbra apart (PEN m across the flame)
+  const SLOTS = 3, MAX = 4.2, PEN = 0.5, DEEP = 0.6;
+  // (each copy darkens a pixel once: it marks the stencil where it draws, its own value, and draws nowhere already marked;
+  // a depth test between a silhouette's own triangles let some through in stripes, plain to see in a shadow this light.
+  // The characters' rim marks 1 (effect-rim.js): the copies mark past it, and are drawn before the bodies that mark it)
+  const slotMat = (i) => {
+    const S = { uShL: { value: new THREE.Vector3(0, 0, 10) }, uShZ: { value: 0 }, uShO: { value: new THREE.Vector2() } };
+    const m = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+      stencilWrite: true, stencilRef: 2 + i, stencilFunc: THREE.NotEqualStencilFunc, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.ReplaceStencilOp });
+    m.userData.rlTwin = true; m.userData.S = S;
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, S);
+      sh.vertexShader = 'uniform vec3 uShL;\\nuniform float uShZ;\\nuniform vec2 uShO;\\nvarying float vShD;\\n' + sh.vertexShader.replace('#include <project_vertex>',
+        'vec4 rw = modelMatrix * vec4( transformed, 1.0 ); float den = max( uShL.z - rw.z, 0.05 ); vec3 pp = uShL + ( rw.xyz - uShL ) * ( ( uShL.z - uShZ ) / den );\\n'
+        + '  vec2 off = pp.xy - uShO; vShD = length( off ); if ( vShD > ' + MAX.toFixed(1) + ' ) pp.xy = uShO + off / vShD * ' + MAX.toFixed(1) + '; pp.z = uShZ + 0.01;\\n'
+        + '  vec4 mvPosition = viewMatrix * vec4( pp, 1.0 ); gl_Position = projectionMatrix * mvPosition;');
+      sh.fragmentShader = 'varying float vShD;\\n' + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse, opacity * ( 1.0 - smoothstep( ' + (MAX * 0.3).toFixed(2) + ', ' + MAX.toFixed(1) + ', vShD ) ) );');
+    };
+    m.customProgramCacheKey = () => 'roomshadow';
+    return m;
+  };
+  const feetMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.7, depthWrite: true, depthFunc: THREE.LessDepth, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    alphaMap: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, '#fff'); gr.addColorStop(1, '#000'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })() });
+  feetMat.userData.rlTwin = true;
+  const bodies = {};
+  const twin = (o, mat, list) => {
+    let t;
+    if (o.isSkinnedMesh) { t = new THREE.SkinnedMesh(o.geometry, mat); t.bind(o.skeleton, o.bindMatrix); t.bindMode = o.bindMode; }
+    else t = new THREE.Mesh(o.geometry, mat);
+    t.userData.rlTwin = true; t.frustumCulled = false; t.castShadow = false; t.raycast = function () {}; t.renderOrder = -1;
+    t.matrixAutoUpdate = false; t.matrix = o.matrix; o.parent.add(t); list.push({ o, t });
+  };
+  const own = (id, g) => {
+    const B = bodies[id] || (bodies[id] = { slots: Array.from({ length: SLOTS }, (_, i) => ({ mat: slotMat(i), twins: [] })), feet: null, z: null });
+    g.traverse((o) => {
+      if (!o.isMesh || o.userData.rlTwin || twinned.has(o) || !o.parent) return;
+      for (const m of [].concat(o.material)) shade(m);
+      if (o.material && o.material.transparent && o.material.opacity < 0.5) return;
+      twinned.add(o);
+      for (const S of B.slots) twin(o, S.mat, S.twins);
+    });
+    if (!B.feet) { const fm = feetMat.clone(); fm.userData.rlTwin = true; B.feet = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), fm); B.feet.userData.rlTwin = true; B.feet.raycast = function () {}; B.feet.renderOrder = -1; scene.add(B.feet); }
+    return B;
+  };
+  let n = 0;
+  (function tick() {
+    requestAnimationFrame(tick);
+    const F = window.__mojForm, R = F && F.lit; if (!R) return;
+    const scan = n++ % 30 === 0, p = __world.pilotId && __world.byId[__world.pilotId], at = p && p.transform ? p.transform.pos : null;
+    if (at) {
+      const near = R.lamps.map((l) => [l, Math.hypot(l.at[0] - at[0], l.at[1] - at[1], l.at[2] - at[2])]).sort((a, b) => a[1] - b[1]);
+      for (let i = 0; i < K; i++) { const l = near[i] && near[i][0]; U.uRlP.value[i].set(...(l ? l.at : [0, 0, -100])); U.uRlK.value[i].set(...(l ? l.key : [0, 0, 0])); U.uRlR.value[i] = l ? l.r : 1; }
+      // (a body keeps a deeper shade than the stone round it: its fill a share of the room's, so the lamps model it in a room
+      // lit to be read, as the seventh generation lit its cast harder than its set)
+      U.uRlAmb.value.set(R.amb[0] * FILL, R.amb[1] * FILL, R.amb[2] * FILL); U.uRlFall.value = R.fall;
+    }
+    for (const id in __bodies) {
+      const g = __bodies[id], e = __world.byId[id]; if (!g || !e || !e.transform) continue;
+      const B = scan || !bodies[id] ? own(id, g) : bodies[id], P = e.transform.pos, live = g.visible !== false && !e.gone;
+      // (the floor under it: where it last stood, held through a jump)
+      if (B.z === null || e.grounded !== false) B.z = P[2] || 0;
+      // the lamps that light it most, by what each gives at its chest
+      const W = R.lamps.map((l) => { const d = Math.hypot(l.at[0] - P[0], l.at[1] - P[1], l.at[2] - (P[2] || 0) - 1.2), t = Math.max(0, 1 - Math.max(d, 1.1) / l.r); return [l, (0.2126 * l.key[0] + 0.7152 * l.key[1] + 0.0722 * l.key[2]) * Math.pow(t * t, R.fall)]; })
+        .filter((x) => x[1] > 1e-4).sort((a, b) => b[1] - a[1]);
+      const all = W.reduce((s, x) => s + x[1], 0) + (0.2126 * R.amb[0] + 0.7152 * R.amb[1] + 0.0722 * R.amb[2]);
+      // (its key lamp's share of the light at it: what the shadow takes away; the copies together darken by it)
+      const w = W[0], a = live && w ? Math.min(DEEP, w[1] / Math.max(all, 1e-4)) : 0, each = 1 - Math.pow(1 - a, 1 / SLOTS);
+      const sx = w ? -(w[0].at[1] - P[1]) : 0, sy = w ? w[0].at[0] - P[0] : 0, sl = Math.hypot(sx, sy) || 1;
+      B.slots.forEach((S, i) => {
+        S.mat.opacity = each; S.mat.visible = a > 0.02;
+        const o = ((i / Math.max(1, SLOTS - 1)) - 0.5) * PEN;
+        if (w) { S.mat.userData.S.uShL.value.set(w[0].at[0] + (sx / sl) * o, w[0].at[1] + (sy / sl) * o, Math.max(w[0].at[2], B.z + 2.2)); S.mat.userData.S.uShZ.value = B.z + i * 0.004; S.mat.userData.S.uShO.value.set(P[0], P[1]); }
+      });
+      B.feet.visible = live; B.feet.position.set(P[0], P[1], B.z + 0.012); const up = Math.max(0, (P[2] || 0) - B.z); B.feet.scale.setScalar(1 / (1 + up)); B.feet.material.opacity = Math.min(0.7, 0.25 + a);
+    }
+  })();
+})();
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay || armHeld ? gunplayScript(armHeld ? { held: true } : undefined) : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${sightShown ? sightScript() : ''}${alarm ? alarmScript() : ''}${knockout ? knockoutScript() : ''}${ghost ? ghostScript() : ''}${bossOn || minesOn ? bossViewScript() : ''}${mission ? missionScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${entities.some((e) => e && e.body && e.body.steam && Array.isArray(e.body.steam.vents) && e.body.steam.vents.length) ? steamScript() : ''}${rockOn ? rockScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders
 // (the runtime's) and the scene (taken out, not hidden: the ground's ray and the camera's meet nothing where it was).

@@ -18,6 +18,9 @@
  *
  * The state it writes (a spec binds these): course { metres, of, left, says } · run { show, at, of } (the shell's
  * `params.__run`) · hero { stamina, staminaMax, sprints } · coins { count } (the bus's `coins`) · start { count, sub } · hint { show } · moments [].
+ * A race's (`feed.kind: 'race'`, gameworld/race-hud.js): race { place, of, placeSays, field, lap, laps, lapSays, time,
+ * best, hasBest, speed, speedMax, markers, solo } · start { lit, of, sub }: its lights held as a screen with the world
+ * frozen (`window.__mojFreeze`, the race's clock with it) until they go out, then read off the laps mechanic's vars.
  * It reads no device: a HUD is seen. A part that is pressed (a level's button row, tapped or clicked) raises its event on
  * the level's bus (`window.__mojBus.press`, there only for a level with such a row). The page's own gauge and its widget rows are hidden while this stands (by a rule
  * on its class: the runtime that draws it is untouched). `window.__mojHud = { rt, state }` for a headless driver.
@@ -45,13 +48,109 @@ import { manaUiSource } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss } from '../../../mana-ui/theme.js';
 import { hudToMana } from '../../game/hud-mana.js';
+import { LETTER_RIM, letterRimFilter, immersiveCss } from '../../game/immersive-ui.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
-import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan } from '../../gameworld/radar.js';
+import { manaControls, manaHostSource } from '../../controls/mana-controls.js';
+import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan, planFloors, floorPlanSvg } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
 import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
 import { faceFrame, buildTalkFace } from './talk-face.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
+
+/**
+ * THE STYLE METER'S MOTION (a stylish action game's HUD draws no box: what changes is said on the letters). The tier's
+ * letter fills from its foot as the tier is climbed; a tier gained slams it in, a tier lost shakes it; the top tier glows.
+ * The combo's count is struck by each blow and grows heavier as the combo runs. In the theme's own colours and display
+ * face; held still for a player who asks for less motion. Only on a page whose level carries the meter.
+ */
+function styleMeterCss() {
+  const T = '#moj-mana-hud .mana-place[data-at=right] .mana-stack>.mana-text', F = 'calc(var(--moj-style-fill,0) * 100%)';
+  return [
+    `${T}{display:inline-block;font-family:var(--mana-display);font-weight:900;font-style:italic;line-height:.9;transform-origin:100% 60%;background-color:transparent}`,
+    `${T}:first-child{font-size:5.4em;letter-spacing:-.02em;background:linear-gradient(to top,var(--mana-accent) ${F},var(--mana-ink) ${F});-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;text-shadow:none;filter:${letterRimFilter()}}`,
+    `${T}:first-child[data-ch]{animation:moj-style-up .42s cubic-bezier(.2,1.5,.4,1) both}`,
+    `#moj-mana-hud[data-style-way=down] ${T.slice(14)}:first-child[data-ch]{animation:moj-style-down .5s ease-out both}`,
+    `#moj-mana-hud[data-style-top=yes] .mana-place[data-at=right] .mana-stack{filter:drop-shadow(0 0 .6em var(--mana-accent))}`,
+    // (the immersive HUD's letters: a light rim and a light shadow in the theme's accents, game/immersive-ui.js)
+    `#moj-mana-hud :is(.mana-text,.mana-num,.mana-label){text-shadow:${LETTER_RIM}}`,
+    `${T}:nth-child(2){font-size:calc(2.1em + 1.3em * var(--moj-style-heat,0));color:var(--mana-ink);text-shadow:${LETTER_RIM}}`,
+    `${T}:nth-child(2)[data-ch]{animation:moj-style-hit .22s cubic-bezier(.2,1.8,.4,1) both}`,
+    '@keyframes moj-style-up{0%{opacity:0;transform:scale(2.8) rotate(-14deg)}55%{opacity:1;transform:scale(.92) rotate(3deg)}100%{transform:none}}',
+    '@keyframes moj-style-down{0%{opacity:.35;transform:translateX(0)}15%{transform:translateX(-.14em)}30%{transform:translateX(.11em)}45%{transform:translateX(-.07em)}60%{transform:translateX(.03em)}100%{opacity:1;transform:none}}',
+    '@keyframes moj-style-hit{0%{transform:scale(1.7) rotate(-6deg);color:var(--mana-accent)}100%{transform:none}}',
+    `@media (prefers-reduced-motion:reduce){${T}[data-ch]{animation:none!important}}`,
+  ].join('');
+}
+
+/**
+ * THE VITALS' LOOKS (a stylish game's HUD: no box; the forms do the work). The health and the Halo Meter are one figure
+ * anchored by a crest at their root, so a short bar at the game's start reads as composed as a long one at its end: each
+ * bar is drawn at its share of the length it reaches by the game's end (--moj-hp-span, --moj-dv-span), the end cap is one
+ * shape at any length, and the gauge's stocks keep one rhythm however many there are. Three ways the forms answer:
+ *   overlap    one slant; the gauge rides up over the health's lower edge and both run under the crest
+ *   contrast   unlike forms: the health a thin pointed blade, the gauge heavy blocks, the crest round
+ *   echo       one form twice: the same slant and cap, the gauge a step in and a step down, parallel
+ * Lit as the letters are (immersive-ui.js): a light rim in the theme's accents, then the dark that keeps it read.
+ */
+function vitalsCss(look) {
+  const V = '#moj-mana-hud .mana-stack:has(>.mana-bar:is([data-variant=hp],[data-variant=mp]))', H = `${V}>.mana-bar[data-variant=hp]`, D = `${V}>.mana-bar[data-variant=mp]`, S = `${V}>.mana-bar[data-variant=stamina]`;
+  const LIGHT = 'color-mix(in srgb,var(--mana-accent) 60%,#fff)', A2 = 'var(--mana-accent2)';
+  // (the gauge's own hue, as health is green whatever the theme: crimson-violet)
+  const HALO = 'color-mix(in srgb,#d0124e 40%,#7b2cff)';
+  const slant = (k) => `polygon(${k}em 0,100% 0,calc(100% - ${k}em) 100%,0 100%)`;
+  const LOOK = {
+    overlap: { crest: 'rotate(45deg)', crestW: 2.4, pad: 1.5, hp: { h: 1.05, clip: slant(0.55) }, dv: { h: 0.62, clip: slant(0.4), mt: -0.24, ml: 0.75, gap: 0.2 }, st: { mt: 0 } },
+    contrast: { crest: 'none', crestW: 2.1, pad: 2.5, round: true, hp: { h: 0.5, clip: 'polygon(0 0,calc(100% - 1.4em) 0,100% 50%,calc(100% - 1.4em) 100%,0 100%)' }, dv: { h: 1.05, clip: slant(0.3), mt: 0.38, ml: 0, gap: 0.42 }, st: { mt: 0 } },
+    echo: { crest: 'rotate(45deg) scale(.8)', crestW: 2, pad: 2.3, hp: { h: 0.8, clip: slant(0.5) }, dv: { h: 0.54, clip: slant(0.5), mt: 0.26, ml: 0.9, gap: 0.16 }, st: { mt: 0 } },
+  }[look] || null;
+  if (!LOOK) return '';
+  const L = LOOK;
+  return [
+    `${V}{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:0!important;padding:.35em 0 .35em ${L.pad}em;font-size:18px;--moj-full:min(40vw,520px)}`,
+    // the crest at the root: what the figure grows from
+    `${V}::before{content:"";position:absolute;z-index:3;left:0;top:50%;width:${L.crestW}em;height:${L.crestW}em;margin-top:-${L.crestW / 2}em;transform:${L.crest};${L.round ? 'border-radius:50%;' : ''}background:radial-gradient(circle at 35% 30%,${LIGHT},var(--mana-accent) 45%,color-mix(in srgb,var(--mana-accent) 50%,#000));filter:drop-shadow(.06em .06em 0 ${A2}) drop-shadow(-.03em -.03em 0 #fff8) drop-shadow(0 .12em .2em rgba(0,0,0,.6))}`,
+    `${V}>.mana-bar{display:block!important;min-width:0!important;position:relative;filter:drop-shadow(.07em .07em 0 ${A2}) drop-shadow(-.035em -.035em 0 ${LIGHT}) drop-shadow(0 .1em .18em rgba(0,0,0,.65));transition:width .6s cubic-bezier(.2,1.3,.4,1)}`,
+    `${V}>.mana-bar>:is(.mana-label,.mana-num){display:none!important}`,
+    // (every length in the figure is the figure's: the bar's own small type would shrink it)
+    `${V}>.mana-bar,${V}>.mana-bar .mana-track{font-size:18px!important;line-height:1}`,
+    `${V}>.mana-bar .mana-track{border:0!important;border-radius:0!important;box-shadow:none!important;background:color-mix(in srgb,#000 58%,transparent)!important;overflow:hidden}`,
+    // the health: its share of the full length, its cap, its fill lit from above, the chip a hit took held then drained
+    `${H}{width:calc(var(--moj-full) * var(--moj-hp-span,.5))}`,
+    `${H} .mana-track{height:${L.hp.h}em!important;clip-path:${L.hp.clip}}`,
+    `${H} .mana-track i{background:linear-gradient(180deg,color-mix(in srgb,var(--mana-hp) 35%,#fff) 0 24%,var(--mana-hp) 24% 68%,color-mix(in srgb,var(--mana-hp) 65%,#000))!important}`,
+    `${H} .mana-track u{background:color-mix(in srgb,#fff 70%,var(--mana-harm))!important;opacity:.9}`,
+    `${H}[data-low=yes] .mana-track i{background:linear-gradient(180deg,color-mix(in srgb,var(--mana-harm) 35%,#fff) 0 24%,var(--mana-harm) 24%)!important;animation:moj-vit-low .5s ease-in-out infinite alternate}`,
+    // the Halo Meter: its share of the full stocks, one rhythm of stocks, a full stock alight
+    `${D}{width:calc(var(--moj-full) * var(--moj-dv-span,.3) * .82);margin-top:${L.dv.mt}em;margin-left:${L.dv.ml}em;z-index:2}`,
+    `${D} .mana-track{height:${L.dv.h}em!important;clip-path:${L.dv.clip}}`,
+    `${D} .mana-track i{background:linear-gradient(180deg,color-mix(in srgb,${HALO} 55%,#fff) 0 22%,${HALO} 22% 70%,color-mix(in srgb,${HALO} 60%,#000))!important}`,
+    `${D} .mana-track b{position:absolute;top:0;bottom:0;width:${L.dv.gap}em;margin-left:-${L.dv.gap / 2}em;background:#000!important;opacity:.85;transform:skewX(-28deg)}`,
+    `${D} .mana-track s{background:color-mix(in srgb,${HALO} 35%,#fff)!important}`,
+    // the transformation, said without a word: ready, the gauge breathes; transformed, the whole figure burns gold
+    `#moj-mana-hud[data-halo=ready] ${D}{animation:moj-halo-ready .7s ease-in-out infinite alternate}`,
+    `#moj-mana-hud[data-halo=on] ${V}>.mana-bar{filter:drop-shadow(0 0 .3em ${HALO}) drop-shadow(0 0 .7em ${HALO})}`,
+    `#moj-mana-hud[data-halo=on] ${V}::before{background:radial-gradient(circle at 35% 30%,#fff,${HALO} 55%,color-mix(in srgb,${HALO} 55%,#000));animation:moj-halo-on .5s ease-in-out infinite alternate}`,
+    `@keyframes moj-halo-ready{to{filter:drop-shadow(0 0 .45em ${HALO}) brightness(1.35)}}`,
+    `@keyframes moj-halo-on{to{scale:1.12}}`,
+    // the ready moment, once, the instant it comes full: a ring thrown off the crest and the gauge struck white
+    `#moj-mana-hud[data-halo-cue] ${V}::after{content:"";position:absolute;z-index:4;left:${L.crestW / 2}em;top:50%;width:${L.crestW}em;height:${L.crestW}em;margin:-${L.crestW / 2}em 0 0 -${L.crestW / 2}em;border-radius:50%;border:.18em solid color-mix(in srgb,${HALO} 30%,#fff);box-shadow:0 0 .6em ${HALO};pointer-events:none;animation:moj-halo-cue .9s cubic-bezier(.1,.8,.3,1) forwards}`,
+    `#moj-mana-hud[data-halo-cue] ${D} .mana-track i{animation:moj-halo-strike .9s ease-out}`,
+    `@keyframes moj-halo-cue{from{scale:.4;opacity:1}to{scale:5;opacity:0}}`,
+    `@keyframes moj-halo-strike{from{filter:brightness(3) saturate(0)}to{filter:none}}`,
+    `${D}[data-ready=yes]{filter:drop-shadow(.07em .07em 0 ${A2}) drop-shadow(-.035em -.035em 0 ${LIGHT}) drop-shadow(0 0 .35em ${HALO})}`,
+    // the sprint: a hairline over the health, as long as it
+    `${S}{width:calc(var(--moj-full) * var(--moj-hp-span,.5) * .9);margin:${L.st.mt}em 0 .14em .25em}`,
+    `${S} .mana-track{height:.2em!important;clip-path:${slant(0.12)};background:color-mix(in srgb,#000 40%,transparent)!important}`,
+    `${S} .mana-track i{background:${LIGHT}!important}`,
+    '@keyframes moj-vit-low{to{filter:brightness(1.5)}}',
+    `@media (prefers-reduced-motion:reduce){${V} *{animation:none!important}}`,
+  ].join('');
+}
+
+/** The way on's arrow: a letter like the rest (immersive-ui.js), breathing so it is found. */
+const wayCss = () => `#moj-way{position:absolute;display:none;pointer-events:none;font:900 2.4em/1 var(--mana-display,system-ui);color:var(--mana-accent,#ffe07a);text-shadow:${LETTER_RIM};animation:moj-way .8s ease-in-out infinite alternate}@keyframes moj-way{to{scale:1.25;opacity:.7}}@media (prefers-reduced-motion:reduce){#moj-way{animation:none}}`;
+
 
 // the talk box's own place (the presenter's root over the HUD's; the box over the scene's bottom letterbox bar, as the
 // page's own box sat over the bottom one), the page's box and hint put away, the HUD aside while a
@@ -62,9 +161,12 @@ const TALK_CSS = '#moj-mana-talk{position:fixed;inset:0;pointer-events:none;z-in
   + '#moj-mana-talk .mana-each>*{pointer-events:auto;cursor:pointer}'
   + '.moj-scene-box,.moj-scene-hint{display:none!important}.moj-scene-on #moj-mana-hud{visibility:hidden}';
 
-export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null, talk = false } = {}) {
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null, talk = false, boss = false, shared = null } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
-  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, ...(hud.radar ? { radar: hud.radar } : {}), ...(boss ? { boss: true } : {}), style: hud.style === true, vitals: hud.vitals ?? null }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  // (a level's radar look, game/hud-mana.js RADAR_LOOK: its size and a square scope's face are this HUD's own CSS, and its
+  // floor the plan and the guards of the pilot's floor alone; absent, not one byte)
+  const RL = hud && hud.radar ? hud.radar : null, floorRadar = !!(RL && RL.floor);
   if (!hud || !hud.spec) return '';
   // (a HUD of the level's own making, a course's: the level's buttons for a touch screen alone, game/screen-keys.js, are
   // drawn by it too, since the page's own widget rows stand down beside it)
@@ -80,31 +182,142 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     const pad = { use: 'region', props: { at: 'bottom', variant: 'bare' }, when: T('on'), children: [{ use: 'touchpad', props: { lane: T('lane'), held: T('held'), down: T('down'), buttons: T('buttons') } }] };
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
+  const radarCss = !RL ? '' : (RL.size === 'large' ? '#moj-mana-hud .mana-minimap{width:calc(260 * var(--mana-du));height:calc(260 * var(--mana-du))}' : '')
+    + (RL.shape === 'square' ? '#moj-mana-hud .mana-minimap[data-shape=square][data-scope=yes]{border-radius:calc(6 * var(--mana-du));background:color-mix(in srgb,var(--mana-panel) 38%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mana-ink) 40%,transparent);overflow:hidden}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square] .mana-planclip{border-radius:calc(6 * var(--mana-du))}#moj-mana-hud .mana-minimap[data-shape=square] .mana-bezel::before{display:none}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square][data-scope=yes]::before{border-radius:0}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square] .mana-cone{border-radius:0}' : '');
+  // THE WAY ON (a level's `manaHud.ways`: { var, at }): an arrow, no words, toward the place the bus var names (a
+  // gauntlet's next arena waiting to be walked into); only then
+  const ways = hud.ways && typeof hud.ways.var === 'string' && Array.isArray(hud.ways.at) ? { var: hud.ways.var, at: hud.ways.at } : null;
+  const vit = hud.feed && hud.feed.vitals ? hud.feed.vitals : null;
   const R = hud.feed && hud.feed.rows;
-  const css = `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}${talk ? TALK_CSS : ''}`;
+  // (a race's feed, gameworld/race-hud.js: its lights, laps, times and map; any other HUD carries none of it)
+  const race = !!(hud.feed && hud.feed.kind === 'race');
+  // (`shared`: the page carries the runtime and the theme's sheet once for its HUD and its screens, scene-three's
+  // prelude: this host names it and adds only its own rules; alone on a page, it carries both itself, as it did)
+  const css = `${shared ? '' : `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n`}${radarCss ? `${radarCss}\n` : ''}#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`
+    // (money in a corner: the coin and a figure that leads, large, the way an open world shows the cash in hand)
+    + '#moj-mana-hud .mana-place:is([data-at=top-right],[data-at=top-left])>.mana-region>.mana-counter:has(>[data-icon=coin]) .mana-num{font:800 38px/1 var(--mana-display);letter-spacing:-.5px}'
+    + '#moj-mana-hud .mana-place>.mana-region>.mana-counter:has(>[data-icon=coin]){gap:10px;align-items:center}'
+    + (talk ? TALK_CSS : '')
+    + `${hud.feed && hud.feed.immersive ? immersiveCss('#moj-mana-hud') : ''}${hud.feed && hud.feed.style ? styleMeterCss() : ''}${ways ? wayCss() : ''}${vit ? vitalsCss(vit.look) : ''}`;
+  const styled = !!(hud.feed && hud.feed.style);
   const H = !!(hud.feed && hud.feed.hero);
   const faces = !!(talk && talk.faces), speakers = (talk && talk.speakers) || {};
+  // (a HUD of the level's own making may bring its parts' look over the theme: a side map's, gameworld/side-map/hud.js)
+  const sheetCss = hud.css ? `${css}\n${hud.css}` : css, SM = hud.feed && hud.feed.sidemap ? hud.feed.sidemap : null;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
-  const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {} })}, GAME = ${game ? 'true' : 'false'};
-  const manaUi = ${manaUiSource()};${H ? `
+  const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {}, ...(ways ? { ways } : {}) })}, GAME = ${game ? 'true' : 'false'};
+  const manaUi = ${shared || manaUiSource()};${H ? `
   const __hRadar = ${radarMarks.toString()}, __hThings = ${sceneThings.toString()}, __hBearing = ${hitBearing.toString()}, __hR = ${json({ ...RADAR, range: 40 })};
   // (the map under the scope, radar.js: the level's plan from its own colliders and its tall grass, drawn once, the first
   // frame the radar is up; laid under the scope each frame at the radar's scale, ahead at the top)
   const __hPlanSvg = ${planSvg.toString()}, __hPlanBox = ${planBox.toString()}, __hPlanAt = ${radarPlan.toString()};
-  let __hPlan = null;${radarMap ? `
+  let __hPlan = null;${floorRadar ? `
+  // (the radar of one floor: the level's floors, each one's plan drawn the first time the pilot stands on it)
+  const __hFloors = ${planFloors.toString()}, __hFloorSvg = ${floorPlanSvg.toString()};
+  let __hFl = null, __hBox = null; const __hFlPlans = {};` : ''}${radarMap ? `
   // (the land under it too, a level's \`radar.map\`: its contours and its trail, read when the level was built)
   const __hLand = ${json(radarMap)};` : ''}` : ''}
-  const sheet = document.createElement('style'); sheet.textContent = ${json(css)}; document.head.appendChild(sheet);
+  const sheet = document.createElement('style'); sheet.textContent = ${json(sheetCss)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
-  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, gun: { on: false }, focus: { on: false }, radar: { on: false, marks: [], north: 0 }, ring: { on: false, hits: [] }, wheel: { open: false, slots: [], title: '' }, top: {}, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {} };
+  const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, gun: { on: false }, focus: { on: false }, radar: { on: false, marks: [], north: 0 }, ring: { on: false, hits: [] }, wheel: { open: false, slots: [], title: '' }, top: {}, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''}${vit ? ", halo: { on: false, fill: 0, stocks: 1 }, vit: { hp: 0, max: 1, has: false, ghost: 0 }" : ''} };
+  ${SM ? `// A SIDE MAP's columns and screens (gameworld/side-map/hud.js): the energy, the boss's while it fights, READY and the
+  // lives under it, the keys at first; the intro card, the start menu and GAME OVER over the held level
+  const SMF = F.sidemap, SMK = ${json({ keys: manaControls().keys, pad: manaControls().pad })};
+  st.sm = { lives: SMF.lives, livesWord: '×' + SMF.lives, energy: SMF.energy || 0, weaponOn: false, weapon: 0, weaponMax: 1, bossOn: false, boss: SMF.boss ? SMF.boss.hp : 0, ready: !SMF.intro, keysOn: true, keys: SMF.keys, moments: [], weapons: [], gate: '', keep: 'Weapons' };
+  let smLives = -1, smReady = SMF.intro ? -1 : 2.4, smKeys = 8, smBoss = null, smOn = false, smOff = -1, smTint = null, smUp = null, smQuiet = false, smIntro = -1, smOver = -1;
+  if (SMF.intro && SMF.intro.hue) root.style.setProperty('--sm-hue', SMF.intro.hue);
+  // (a screen up holds the level as a level's own menus do: no input to the pilot, the world and its clock stopped, and
+  // the shell's Esc menu not asked for over it, scene-three's .moj-menu-hud)
+  const smHold = document.createElement('div'); smHold.className = 'moj-menu-hud'; smHold.style.display = 'none'; document.body.appendChild(smHold);
+  function smOpen(id) { smQuiet = true; try { rt.close(); rt.open(id); } finally { smQuiet = false; } smUp = id; window.__mojMenuOpen = true; window.__mojFreeze = true; smHold.textContent = id; view.paint(); smTints(); }
+  function smClose() { if (!smUp) return; smUp = null; smQuiet = true; try { rt.close(); } finally { smQuiet = false; } window.__mojMenuOpen = false; window.__mojFreeze = false; setTimeout(function () { if (!smUp) smHold.textContent = ''; }, 0); view.paint(); }
+  // (an event raised on the level's bus, heard by its mechanics and its game: a continue, a giving up)
+  function smBus(type) { const M = window.__mojBus; if (M && M.bus && M.state) M.bus.processEvents(M.state, [{ type: type }]); }
+  function smPilot() { const W = window.__mojCtrl && window.__mojCtrl.world; return W && W.pilotId ? W.byId[W.pilotId] : null; }
+  // the start menu's weapons: the loadout's held slots in order (the buster first), the rest of the game's locked
+  function smWeapons() {
+    const me = smPilot(), lo = me && ((me.pilotRule && me.pilotRule.loadout) || (me.rule && me.rule.loadout)), ws = me && me.loadoutWeapons, rows = [];
+    if (Array.isArray(lo) && ws) lo.forEach(function (c, i) {
+      if (me.loadoutHeld && !me.loadoutHeld[i]) return;
+      const w = ws[i], en = !!(w && w.energyMax > 0);
+      rows.push({ name: (c && c.name) || 'Weapon', icon: rows.length ? 'bolt' : 'target', bar: en, e: en ? Math.max(0, Math.round(w.energy == null ? w.energyMax : w.energy)) : 0, max: en ? w.energyMax : 1, tint: w && typeof w.fxColor === 'string' ? w.fxColor : '', then: { emit: 'sm:equip', i: i } });
+    });
+    else rows.push({ name: 'Buster', icon: 'target', bar: false, e: 0, max: 1, tint: '', then: { emit: 'sm:equip', i: -1 } });
+    while (rows.length < SMF.slots) rows.push({ name: '— — —', icon: 'lock', bar: false, e: 0, max: 1, tint: '#555555', then: { emit: 'sm:none' } });
+    st.sm.weapons = rows;
+  }
+  function smTints() { const R = root.querySelectorAll('.mana-screen .mana-list .mana-row'); st.sm.weapons.forEach(function (w, i) { if (R[i]) { if (w.tint) R[i].style.setProperty('--tint', w.tint); else R[i].style.removeProperty('--tint'); } }); }
+  function smEquip(i) {
+    const me = smPilot(), lo = me && ((me.pilotRule && me.pilotRule.loadout) || (me.rule && me.rule.loadout));
+    if (!me || !Array.isArray(lo) || !me.loadoutWeapons || i < 0 || !me.loadoutWeapons[i]) return;
+    me.loadoutIdx = i; me.weapon = me.loadoutWeapons[i];
+    if (me.body && lo[i] && lo[i].figure) me.body.figure = lo[i].figure;
+  }
+  function smGo() { smClose(); smReady = clock + 2.2; smKeys = clock + 8; }
+  function smAct(e) {
+    if (e.emit === 'mana:closed') {
+      if (smQuiet || !smUp) return;
+      const was = smUp; smUp = null;
+      // (a back: the menu resumes, the card goes on to READY; GAME OVER is left only by its choices)
+      if (was === 'over') { smOpen('over'); return; }
+      if (was === 'intro') { smGo(); return; }
+      window.__mojMenuOpen = false; window.__mojFreeze = false; setTimeout(function () { if (!smUp) smHold.textContent = ''; }, 0);
+      return;
+    }
+    if (e.emit === 'sm:go') { smGo(); return; }
+    if (e.emit === 'sm:continue') { smBus('continue'); smOver = -1; smClose(); smReady = clock + 2.2; return; }
+    if (e.emit === 'sm:quit') { smClose(); smBus('giveup'); return; }
+    if (e.emit === 'sm:equip') { smEquip(e.i); smClose(); return; }
+  }
+` : ''}
   let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
-  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
+${race ? `  // A RACE's (gameworld/race-hud.js): the lights, then the laps, the place and the times off the laps mechanic's vars
+  const RACE = F.kind === 'race' ? { m: F.mech || 0, lights: null, done: 0, lapStart: 0, best: 0, over: false } : null;
+  if (RACE) { st.race = { place: 1, of: F.racers, placeSays: '1st', field: '/ ' + F.racers, lap: 1, laps: F.laps, lapSays: '1/' + F.laps, time: 0, best: 0, hasBest: false, speed: 0, speedMax: F.speedMax, markers: [], solo: F.racers < 2, hasItem: false, itemSays: '—', itemIcon: '' }; st.fx = { finish: 0, best: 0 }; st.start = { lit: 0, of: F.lights.count, lights: '', sub: F.words.ready }; }
+  const lightsSay = function (n) { const out = []; for (let i = 0; i < F.lights.count; i++) out.push(i < n ? '●' : '○'); return out.join(' '); };
+  const nth = function (n) { const t = n % 100, u = n % 10; return n + (t > 10 && t < 14 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th'); };` : ''}
+${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js vitals): the hit's chip held a moment then drained; each bar's length its share of what it
+  // reaches by the game's end, so the figure grows across the game and is laid out for its end from the start
+  const VIT = CFG.feed.vitals; let vHp = null, vGhost = 0, vHold = 0, vCue = 0, vFull = VIT.full.hp || 0;
+  root.dataset.vitals = VIT.look;
+  const at = (path) => (typeof path === 'number' ? path : String(path).split('.').reduce((o, k) => (o == null ? o : o[k]), st));
+  function vitals() {
+    const P = VIT.hp, h = Number(at(P.value)) || 0, mx = Math.max(1, Number(at(P.max)) || 1);
+    st.vit.hp = h; st.vit.max = mx; st.vit.has = P.has ? !!at(P.has) : true;
+    if (vHp !== null && h < vHp) { vGhost = Math.max(vGhost, vHp); vHold = clock + 0.7; } vHp = h; if (clock > vHold) vGhost = h; st.vit.ghost = vGhost;
+    if (!vFull && st.vit.has) vFull = mx * 2;
+    if (vFull) root.style.setProperty('--moj-hp-span', String(Math.min(1, mx / vFull)));
+    const SM = window.__mojStyle && window.__mojStyle.now(), dv = SM && SM.halo; st.halo.on = !!dv;
+    const was = root.dataset.halo; root.dataset.halo = dv ? (dv.on ? 'on' : dv.ready ? 'ready' : '') : '';
+    if (root.dataset.halo === 'ready' && was !== 'ready' && was !== 'on') { root.dataset.haloCue = ''; vCue = clock + 0.9; } else if (vCue && clock > vCue) { delete root.dataset.haloCue; vCue = 0; }
+    if (dv) { st.halo.fill = dv.fill; st.halo.stocks = dv.stocks; root.style.setProperty('--moj-dv-span', String(Math.min(1, dv.stocks / (VIT.full.halo || 10)))); }
+  }
+` : ''}${hud.feed && hud.feed.immersive ? `  // (the immersive HUD, game/immersive-ui.js: the page's own weapon panel on no plate either)
+  let bared = false;
+  function bare() { const a = document.getElementById('__ammoTxt'), pnl = a && a.parentElement && a.parentElement.parentElement; if (pnl) { bared = true; pnl.style.background = 'transparent'; pnl.style.border = '0'; } }
+` : ''}${ways ? `  // the way on: an arrow over the place while it is in view, at the screen's edge pointing to it while it is not
+  const wayEl = document.createElement('div'); wayEl.id = 'moj-way'; wayEl.textContent = '\u27A4'; const wayV = new THREE.Vector3();
+  function way(V) {
+    const k = V ? V[CFG.ways.var] : -1, P = k >= 0 ? CFG.ways.at[k] : null;
+    if (!P || typeof camera === 'undefined') { wayEl.style.display = 'none'; return; }
+    if (!wayEl.parentNode) (root.querySelector('.mana-root') || root).appendChild(wayEl);
+    wayV.set(P[0], P[1], (P[2] || 0) + 1.6).project(camera);
+    let x = wayV.x, y = wayV.y, ang = Math.PI / 2;
+    const behind = wayV.z > 1; if (behind) { x = -x; y = -y; }
+    if (behind || Math.abs(x) > 0.86 || Math.abs(y) > 0.78) { const m = Math.max(Math.abs(x) / 0.86, Math.abs(y) / 0.78) || 1; x /= m; y /= m; ang = Math.atan2(-y, x); }
+    wayEl.style.display = 'block'; wayEl.style.left = ((x + 1) * 50) + '%'; wayEl.style.top = ((1 - y) * 50) + '%'; wayEl.style.transform = 'translate(-50%,-50%) rotate(' + ang.toFixed(3) + 'rad)';
+  }
+` : ''}  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
   function press(e) {
+    ${SM ? "if (e && typeof e.emit === 'string' && (e.emit.indexOf('sm:') === 0 || e.emit === 'mana:closed')) { smAct(e); return; }" : ''}
     if (e && typeof e.key === 'string') { for (const t of ['keydown', 'keyup']) window.dispatchEvent(new KeyboardEvent(t, { key: e.key, code: e.code || e.key, bubbles: true, cancelable: true })); return; }
     if (e && typeof e.emit === 'string' && window.__mojBus && window.__mojBus.press) window.__mojBus.press(e.emit);
   }
@@ -151,12 +364,23 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     const T = __talkOf(v, { noSkip: !!(G && G.on && !G.skip)${faces ? ', face: !!talkFace' : ''} }), k = JSON.stringify(T);
     if (k !== talkKey) { talkKey = k; tst.talk = T; }
   }` : ''}
+  ${SM ? `// the keys and the pad drive the screens while one is up (controls/mana-host.js: with none up a key is play's); the
+  // menu key opens the start menu over play
+  const __smHost = ${manaHostSource()};
+  __smHost.connect(rt, view, { keys: SMK.keys, pad: SMK.pad });
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== SMF.menuKey || e.repeat || smUp || window.__mojMenuOpen || st.sm.lives <= 0) return;
+    smWeapons(); smOpen('menu'); e.preventDefault();
+  });` : ''}
   // the level has started (the shell's params are in): its place in the run, and the start cue
   function begin(params) {
     const R = params && params.__run;
     if (R && R.of > 1) { st.run.show = true; st.run.at = R.at; st.run.of = R.of; }
     if (F.hint && (!R || R.at === 1)) hintUntil = 1e9;   // (shown from the cue; timed from GO)
-    if (F.cue && CFG.spec.screens && CFG.spec.screens.ready) { cue = { t0: clock }; st.start.count = F.cue.beats[0]; st.start.sub = F.cue.sub || ''; rt.open('ready'); view.paint(); }
+    ${SM ? "if (F.sidemap.intro) { smOpen('intro'); smIntro = clock + 3.2; }   // (a world's intro card, then READY)" : ''}
+${race ? `    // (a race's lights: the karts held and the race's clock frozen, the world's, until they go out)
+    if (RACE && CFG.spec.screens && CFG.spec.screens.ready) { RACE.lights = { t0: clock }; st.start.lit = 0; rt.open('ready'); view.paint(); }
+    else ` : '    '}if (F.cue && CFG.spec.screens && CFG.spec.screens.ready) { cue = { t0: clock }; st.start.count = F.cue.beats[0]; st.start.sub = F.cue.sub || ''; rt.open('ready'); view.paint(); }
     else if (hintUntil > 0) hintUntil = clock + F.hint.seconds;
   }
   // A LEVEL'S ROWS (game/hud-mana.js): its vars read off the bus, its gated and timed rows said on or off, its banners
@@ -209,7 +433,8 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     h.rest = share >= 1 && clock - calm.hpT > 3;
     // the gun in hand: its slot on the loadout, else the weapon it carries
     const lo = me.rule && me.rule.loadout, slot = lo ? lo[me.loadoutIdx || 0] : null, w = me.weapon, G = st.gun;
-    G.on = !!(slot || w);
+    // (a holstered sidearm, the open city's: its readout only while it is drawn, worlds/controllable/combat-melee.js gunOut)
+    G.on = !!(slot || w) && !(me.rule && me.rule.holster && !me.gunOut);
     if (G.on) {
       const melee = !!(slot && (slot.fire === 'melee' || slot.strike) && !slot.weapon);
       G.name = (slot && slot.name) || (w && w.name) || '';
@@ -233,10 +458,36 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     }
     // the page's radar, as a scope; its damage ring, as arcs; its weapon selector, as the wheel
     const R = st.radar; R.on = !!document.getElementById('__radar');
-    if (R.on && me.transform) { const p = me.transform.pos, cfgR = me.rule && me.rule.radarRange > 0 ? Object.assign({}, __hR, { range: me.rule.radarRange }) : __hR; R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
+    if (R.on && me.transform) { const p = me.transform.pos, cfgR = me.rule && me.rule.radarRange > 0 ? Object.assign({}, __hR, { range: me.rule.radarRange }) : __hR;${floorRadar ? `
+      // (the floor the pilot stands on: the highest a body's height under its feet; on a stair, the one it left until it
+      // is all but up. Its plan alone, and the foes within a storey of it)
+      if (!__hFl && W.colliders && W.colliders.length) { __hFl = __hFloors(W.colliders); __hBox = __hPlanBox(W.colliders, null); }
+      const foot = p[2] - ((me.rule && me.rule.eye) || 0), fz = (__hFl || []).reduce((a, z) => (z <= foot + 1 ? z : a), (__hFl && __hFl[0]) || 0);
+      R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null).filter((t) => Math.abs(((t.at && t.at[2]) || 0) - fz) < 3), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
+      if (__hBox) { const k = String(fz); if (!__hFlPlans[k]) __hFlPlans[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hFloorSvg(__hPlanSvg, W.colliders, __hBox, fz)); R.plan = Object.assign({ src: __hFlPlans[k] }, __hPlanAt(__hBox, p, me.transform.heading, cfgR.range)); } }` : ` R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
       if (!__hPlan && W.colliders && W.colliders.length) { const box = __hPlanBox(W.colliders, null); __hPlan = { box, src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hPlanSvg(W.colliders, null, box, { rel: true, veils: W.veils || []${radarMap ? ', relief: __hLand.relief, trail: __hLand.trail' : ''} })) }; }
-      if (__hPlan) R.plan = Object.assign({ src: __hPlan.src }, __hPlanAt(__hPlan.box, p, me.transform.heading, cfgR.range)); }
-    const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
+      if (__hPlan) R.plan = Object.assign({ src: __hPlan.src }, __hPlanAt(__hPlan.box, p, me.transform.heading, cfgR.range)); }`}
+    // JAMMED (the pilot inside a chaff cloud, combat-ranged.js state.jams): the radar reads nothing, its scope a static
+    {
+      const p = me && me.transform ? me.transform.pos : null, t = W.time || 0;
+      const jam = R.on && p && (W.jams || []).some(function (j) { return j.until > t && Math.hypot(p[0] - j.at[0], p[1] - j.at[1]) <= j.r; });
+      if (jam) { R.marks = []; R.plan = null; }
+      let J = window.__mojJam;
+      if (jam && !J) {
+        const css = document.createElement('style'); css.textContent = '@keyframes mojJam{0%{background-position:0 0}100%{background-position:0 9px}}'; document.head.appendChild(css);
+        J = window.__mojJam = document.createElement('div');
+        J.style.cssText = 'position:absolute;pointer-events:none;z-index:31;border-radius:50%;display:none;align-items:center;justify-content:center;font:700 11px/1 ui-monospace,monospace;letter-spacing:.2em;color:#cfe3ff;text-shadow:0 0 4px #000;background:repeating-linear-gradient(0deg,rgba(200,215,230,.22) 0 1px,rgba(20,28,40,.5) 1px 3px);animation:mojJam .18s steps(3) infinite';
+        J.textContent = 'JAMMED'; root.appendChild(J);
+      }
+      if (J) {
+        const sc = jam ? root.querySelector('[data-scope="yes"]') : null;
+        if (sc) { const a = sc.getBoundingClientRect(), b = root.getBoundingClientRect(); J.style.borderRadius = getComputedStyle(sc).borderRadius || '50%'; J.style.left = (a.left - b.left) + 'px'; J.style.top = (a.top - b.top) + 'px'; J.style.width = a.width + 'px'; J.style.height = a.height + 'px'; J.style.display = 'flex'; }
+        else J.style.display = 'none';
+      }
+    }
+${boss ? `    // THE BOSS (worlds/controllable/boss.js): the first standing, its name, title, health and its phases' ticks
+    { const Bs = W.bosses || {}, k = Object.keys(Bs).find((id) => !Bs[id].down), b = k ? Bs[k] : null; st.boss = b ? { on: true, name: b.name, title: b.title || '', hp: Math.max(0, b.hp), hpMax: b.hpMax || 1, phases: Math.max(1, b.phases || 1) } : { on: false }; }
+` : ''}    const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
     const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;
     st.wheel.open = !!(C && C.open);
     if (st.wheel.open) { st.wheel.title = C.title || ''; st.wheel.slots = C.rows; }
@@ -261,16 +512,78 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
       const bm = me.rule && me.rule.boostMax > 0 ? me.rule.boostMax : 0;
       st.hero.sprints = bm > 0; st.hero.staminaMax = bm || 1; st.hero.stamina = Math.max(0, Math.min(bm, me.boost == null ? bm : me.boost));
     }
-    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
+${hud.feed && hud.feed.style ? `    // the style meter (worlds/controllable/style.js), where the page says it: it stands while there is style to show
+    const SM = window.__mojStyle && window.__mojStyle.now(); if (SM) { st.style.on = SM.points > 0 || SM.combo > 0; st.style.name = SM.name; st.style.combo = SM.combo; if (SM.tier !== sTier) { root.dataset.styleWay = SM.tier > sTier ? 'up' : 'down'; sTier = SM.tier; root.dataset.styleTop = SM.tier === SM.tiers.length - 1 ? 'yes' : 'no'; } root.style.setProperty('--moj-style-fill', String(SM.fill)); root.style.setProperty('--moj-style-heat', String(Math.min(1, SM.combo / 30))); }
+` : ''}    const V = window.__mojBus && window.__mojBus.state && window.__mojBus.state.vars;
     ${H ? 'if (me) pilot(W, me, V);' : ''}
     if (V && V.coins != null) st.coins.count = V.coins;
-    if (ROWS && V) rows(window.__mojBus.state, V);
-    if (cue) {
+${ways ? '    way(V);\n' : ''}${hud.feed && hud.feed.immersive ? '    if (!bared) bare();\n' : ''}    if (ROWS && V) rows(window.__mojBus.state, V);
+${vit ? '    if (F.hero) vitals();\n' : ''}    if (cue) {
       const k = Math.floor((clock - cue.t0) / F.cue.every);
       if (k < F.cue.beats.length) st.start.count = F.cue.beats[k];
       else { cue = null; rt.close(); st.moments = st.moments.concat([{ id: 'go', text: F.cue.go, weight: 'major' }]); if (hintUntil > 0) hintUntil = clock + F.hint.seconds; }
     }
-    st.hint.show = clock < hintUntil;
+${race ? `    if (RACE) {
+      const L = F.lights;
+      if (RACE.lights) {
+        // (the world held from a beat in, once the camera has found the kart: a world frozen on its first frame has no view)
+        if (clock - RACE.lights.t0 > 0.3) window.__mojFreeze = true;
+        const k = Math.floor((clock - RACE.lights.t0) / L.every);
+        st.start.lit = Math.min(L.count, k); st.start.lights = lightsSay(st.start.lit);
+        if (clock - RACE.lights.t0 >= L.count * L.every + L.hold) { RACE.lights = null; window.__mojFreeze = false; st.start.lit = 0; rt.close(); st.moments = st.moments.concat([{ id: 'go', text: F.words.go, weight: 'major' }]); }
+      }
+      if (V && !RACE.over) {
+        const done = V['__lap_' + RACE.m] || 0, t = (V['__race_' + RACE.m] || 0) / 10;
+        if (done > RACE.done) {
+          const lapT = t - RACE.lapStart; RACE.lapStart = t; RACE.done = done;
+          // (a lap better than the best so far: its sparkles, a screen effect that touches nothing)
+          if (lapT > 0 && (!st.race.hasBest || lapT < st.race.best)) { if (st.race.hasBest) st.fx.best += 1; st.race.best = lapT; st.race.hasBest = true; }
+          if (done >= F.laps) { RACE.over = true; st.fx.finish = 1; st.moments = st.moments.concat([{ id: 'finish', text: F.words.finish, sub: F.racers > 1 ? nth(st.race.place) : '', weight: 'decisive' }]); }
+          else if (done === F.laps - 1 && F.laps > 1) st.moments = st.moments.concat([{ id: 'final', text: F.words.final, weight: 'major' }]);
+        }
+        st.race.lap = Math.min(F.laps, done + 1); st.race.lapSays = st.race.lap + '/' + F.laps;
+        if (!RACE.over) st.race.time = Math.max(0, t - RACE.lapStart);
+        const pl = V['__place_' + RACE.m]; if (pl != null) { st.race.place = pl; st.race.placeSays = nth(pl); }
+      }
+      if (me) st.race.speed = Math.round(Math.abs(me.speed || 0) * 3.6);
+      // (the item held, a race with item boxes: roads/kart-items.js, the page's window.__mojItems)
+      if (F.items && window.__mojItems && W) { const it = window.__mojItems.held(W.pilotId); st.race.hasItem = !!it; st.race.itemSays = it ? String(window.__mojItems.says(it)).toUpperCase() : '—'; st.race.itemIcon = it && window.__mojItems.icon ? String(window.__mojItems.icon(it)) : ''; }
+      // the field on the map: you, and the rivals (their team), each at its place on the track's square
+      if (F.frame && W) {
+        const Fr = F.frame, at = function (p) { return { x: Fr.ox + (p[0] - Fr.x0) * Fr.k, y: 1 - (Fr.oy + (p[1] - Fr.y0) * Fr.k) }; }, mk = [];
+        for (const id in W.byId) { const e = W.byId[id]; if (!e || !e.transform || id === W.pilotId || e.team !== 'rivals') continue; const q = at(e.transform.pos); mk.push({ x: q.x, y: q.y, kind: 'foe' }); }
+        if (me && me.transform) { const q = at(me.transform.pos); mk.push({ x: q.x, y: q.y, kind: 'self' }); }
+        st.race.markers = mk;
+      }
+    }
+` : ''}    st.hint.show = clock < hintUntil;
+    ${SM ? `// (the side map's: READY at the start and after a life lost, the lives under it; the energy; the keys for the first
+    // seconds; the boss's column once it is near and awake, its name said as it comes in, gone a moment after it falls)
+    if (V && V.lives != null) { if (smLives >= 0 && V.lives < smLives && V.lives > 0) smReady = clock + 2.2; smLives = V.lives; st.sm.lives = V.lives; st.sm.livesWord = '×' + V.lives; }
+    if (V && V.energy != null) st.sm.energy = Math.max(0, V.energy);
+    st.sm.ready = !smUp && clock < smReady; st.sm.keysOn = !smUp && clock < smKeys;
+    if (smUp === 'intro' && clock > smIntro) smGo();
+    // GAME OVER: the last life gone, a moment after (the hero back at its gate), where the level offers a continue
+    if (SMF.continues && V && V.lives != null && V.lives <= 0 && smUp !== 'over') {
+      if (smOver < 0) smOver = clock + 1;
+      else if (clock > smOver) {
+        const cam = W && W.entities ? W.entities.find(function (x) { return x.rule && Array.isArray(x.rule.zones) && x.frame; }) : null;
+        st.sm.gate = cam ? 'Gate ' + ((cam._zoneAt || 0) + 1) + ' of ' + cam.rule.zones.length : 'Gate';
+        smOpen('over');
+      }
+    }
+    // (a special weapon's column: the held gun's own energy, in its tint, while it has one; the buster has none)
+    const smW = me && me.weapon && me.weapon.energyMax > 0 ? me.weapon : null;
+    st.sm.weaponOn = !!smW; if (smW) { st.sm.weapon = Math.max(0, smW.energy ?? smW.energyMax); st.sm.weaponMax = smW.energyMax; }
+    const smT = smW && typeof smW.fxColor === 'string' ? smW.fxColor : ''; if (smT !== smTint) { smTint = smT; if (smT) root.style.setProperty('--sm-weapon', smT); else root.style.removeProperty('--sm-weapon'); }
+    if (F.sidemap.boss && V) {
+      if (smBoss === null) for (const k in V) if (/^boss_\\d+$/.test(k)) { smBoss = k; break; }
+      const bv = smBoss ? Number(V[smBoss]) : NaN, Bo = W && W.byId ? W.byId[F.sidemap.boss.id] : null;
+      if (Number.isFinite(bv)) st.sm.boss = Math.max(0, bv);
+      if (!smOn && Bo && me && !Bo.dormant && Math.hypot(Bo.transform.pos[0] - me.transform.pos[0], Bo.transform.pos[1] - me.transform.pos[1]) < 24) { smOn = true; st.sm.moments = st.sm.moments.concat([{ id: 'boss', text: F.sidemap.boss.name, weight: 'decisive' }]); }
+      if (smOn && st.sm.boss <= 0 && smOff < 0) smOff = clock + 1.5;
+      st.sm.bossOn = smOn && (smOff < 0 || clock < smOff);
+    }` : ''}
     // (the touch layer's word for its pad, when the page has one)
     // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)
     const TT = window.__mojTouch; if (TT) { if (TT.view) st.touch = TT.view(); else st.touch.on = !!TT.on() && !window.__mojMenuOpen; }

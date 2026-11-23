@@ -53,10 +53,12 @@ import { buildTrigger } from './trigger.js';
 import { buildMount } from './mount.js';
 import { buildSweep } from './sweep.js';
 import { buildGunplay } from './gunplay.js';
+import { buildThrow } from './throw.js';
 import { buildAimView } from './aim-view.js';
 import { buildFreeRun } from './free-run.js';
 import { buildCarry } from './carry.js';
 import { buildDive } from './dive.js';
+import { buildBoard } from './board.js';
 import { buildTakedown } from './takedown.js';
 import { buildStartle } from './startle.js';
 import { buildStance } from './stance.js';
@@ -65,13 +67,20 @@ import { buildAlert } from './alert.js';
 import { buildAlarm } from './alarm.js';
 import { buildVeil } from './veil.js';
 import { buildKnockout } from './knockout.js';
-import { buildBoss } from './boss.js';
 import { buildGhost } from './ghost.js';
+import { buildBarrier } from './barrier.js';
+import { buildMines } from './mines.js';
+import { buildBoss, buildBossLibFrom } from './boss.js';
+import { layPattern, hazardHit } from '../../boss/patterns.js';
+// (the boss director's pattern functions, their own source the page runs: boss/patterns.js)
+const buildBossLib = buildBossLibFrom(layPattern, hazardHit);
 import { buildTurret } from './turret.js';
 import { buildSteer } from './steer.js';
 import { buildRulesHover } from './rules-hover.js';
 import { buildRulesBoat } from './rules-boat.js';
 import { buildWorldClock } from './world-clock.js';
+import { buildBuster } from './buster.js';
+import { buildSideMap } from './sidemap.js';
 import { buildRoll } from './roll.js';
 import { buildStyle } from './style.js';
 
@@ -91,15 +100,14 @@ export const EMISSION_ENGINE = [buildCore, buildGait, buildRulesBasic, buildRule
 export const EMISSION = [...EMISSION_ENGINE];
 // OPT-IN builders: composed into a page only when its world asks for them (the endless runner, a melee hitstop, a foe's
 // own moves and its touch: foe.js; a downed body's disposal: vanish.js; a summoner's summons: summon.js; a pair's shared fate: pair.js;
-// a hit from a swing in a headset: sweep.js; a shooter's hands on its carried arms: gunplay.js; the aim held, over the shoulder and from the eye: aim-view.js (after gunplay, so it steps first); getting over things, a vault out of the run and a climb: free-run.js; what is in hand, from a held menu: carry.js; the dive on a button: dive.js; a watcher put down from behind: takedown.js; a watcher hurt looks round: startle.js; a watcher that has seen the pilot keeps it: alert.js; the crouch: stance.js; a horse to get on and ride: mount.js;
+// a hit from a swing in a headset: sweep.js; a shooter's hands on its carried arms: gunplay.js; a grenade thrown: throw.js (inside the aim, so its trigger is the aim's); the aim held, over the shoulder and from the eye: aim-view.js (after gunplay, so it steps first); getting over things, a vault out of the run and a climb: free-run.js; what is in hand, from a held menu: carry.js; the dive on a button: dive.js; a vehicle got into and ridden: board.js (inside the takedown and the knockout, so the action is theirs first); a watcher put down from behind: takedown.js; a watcher hurt looks round: startle.js; a watcher that has seen the pilot keeps it: alert.js; the crouch: stance.js; a horse to get on and ride: mount.js;
 // blocks that break by their matter and fall by what holds them: rupa.js; what lies loose, struck and gone, walked through: loose.js;
 // a world's triggered breaks: trigger.js; what a level's seed picks on it: roll.js; a big gun
-// aimed by hand on any base: turret.js; a body steered on its wheels: steer.js; a rotorcraft: rules-hover.js; a boat: rules-boat.js), so a page
+// aimed by hand on any base: turret.js; a body steered on its wheels: steer.js; a rotorcraft: rules-hover.js; a boat: rules-boat.js; a run and gun's arm cannon: buster.js; a side map's zoned camera, its fall and its ladders: sidemap.js), so a page
 // without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec).
-// A boss fought in phases (boss.js) wraps outside the knockout, so it reads every hit the step dealt and what the pilot used.
 // The world clock (a world's `tempo`: world-clock.js) comes last, so it wraps every other step, a hitstop's among them.
 // (The style meter, a world's `styleMeter`: style.js, sits inside it: it reads each step on the world's own clock.)
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, roll: buildRoll, hitstop: buildHitstop, foe: buildFoe, ghost: buildGhost, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, style: buildStyle, clock: buildWorldClock, aimView: buildAimView, freeRun: buildFreeRun, carry: buildCarry, dive: buildDive, takedown: buildTakedown, startle: buildStartle, stance: buildStance, mission: buildMission, alert: buildAlert, alarm: buildAlarm, veil: buildVeil, knockout: buildKnockout, boss: buildBoss });
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, roll: buildRoll, hitstop: buildHitstop, foe: buildFoe, ghost: buildGhost, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, throwing: buildThrow, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, buster: buildBuster, sidemap: buildSideMap, style: buildStyle, clock: buildWorldClock, aimView: buildAimView, freeRun: buildFreeRun, carry: buildCarry, dive: buildDive, board: buildBoard, takedown: buildTakedown, startle: buildStartle, stance: buildStance, mission: buildMission, alert: buildAlert, alarm: buildAlarm, veil: buildVeil, knockout: buildKnockout, mines: buildMines, bossLib: buildBossLib, boss: buildBoss, barrier: buildBarrier  });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {

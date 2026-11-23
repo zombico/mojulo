@@ -20,6 +20,8 @@
  *                  dormitory, a mess
  *     chicane      blocks of crates against the long walls by turns, each past the middle: a corridor that is no
  *                  hallway, its length never seen down, its way a weave
+ *     cage         a ring of mesh (compose-dress.js `mesh-panel`, see-through) inset from the walls, a gate in its long
+ *                  side, its stock in rows inside: an armoury's, a store's; seen into, walked round to the gate
  *
  *   readLayouts(v)        → the program's `layouts` ({ <room id or role>: <layout id> | { layout, …dials } }), checked
  *   layoutOf(L, roomId, role) → the room's asked layout ({ layout, …dials } its dials filled), or null
@@ -158,6 +160,49 @@ export const LAYOUTS = Object.freeze({
       return out;
     },
   }),
+  cage: Object.freeze({
+    reads: 'a cage of mesh inset from the walls, a gate in its long side, its stock in rows inside: an armoury\'s, a store\'s; a guard sees through it, a body goes round it to the gate',
+    dials: Object.freeze({ piece: 'weapon-rack', margin: 1.7, gate: 1.8, aisle: 1.6 }), nudge: false,
+    lay(room, o, piece, dice, fits = () => true) {
+      const F = frame(room), M = piece('mesh-panel'), P = piece(o.piece), out = [];
+      // (the ring: panels stretched to tile each side edge to edge, so no gap stands between two; the long sides whole
+      // across the ring, the end sides fitted between their faces, so the corners meet; the gate a gap in the middle of
+      // its first long side. Each side drawn in from `margin`, a quarter metre at a time, until every panel of it stands
+      // clear (a doorway's approach, a vent's hatch): the ring whole, never broken where a piece would be dropped)
+      const tile = (a, b) => { const n = Math.max(1, Math.round((b - a) / M.w)), w = (b - a) / n; return Array.from({ length: n }, (_, k) => ({ at: a + (k + 0.5) * w, w: +w.toFixed(4) })); };
+      const ring = (u0, u1, v0, v1) => {
+        const gm = (u0 + u1) / 2, g = o.gate / 2, sides = { v0: [], v1: [], u0: [], u1: [] };
+        for (const t of [...tile(u0 - M.d / 2, gm - g), ...tile(gm + g, u1 + M.d / 2)]) sides.v0.push({ kind: 'mesh-panel', at: F.at(t.at, v0), facing: F.across(1), w: t.w, group: 'cage' });
+        for (const t of tile(u0 - M.d / 2, u1 + M.d / 2)) sides.v1.push({ kind: 'mesh-panel', at: F.at(t.at, v1), facing: F.across(-1), w: t.w, group: 'cage' });
+        for (const t of tile(v0 + M.d / 2, v1 - M.d / 2)) { sides.u0.push({ kind: 'mesh-panel', at: F.at(u0, t.at), facing: F.down(1), w: t.w, group: 'cage' }); sides.u1.push({ kind: 'mesh-panel', at: F.at(u1, t.at), facing: F.down(-1), w: t.w, group: 'cage' }); }
+        return sides;
+      };
+      const e = { u0: o.margin, u1: F.Lu - o.margin, v0: o.margin, v1: F.Lv - o.margin }, step = { u0: 0.25, u1: -0.25, v0: 0.25, v1: -0.25 };
+      for (let round = 0; round < 24; round++) {
+        if (e.u1 - e.u0 < 2 * M.w || e.v1 - e.v0 < 2 * M.w) return out;
+        const S = ring(e.u0, e.u1, e.v0, e.v1), bad = Object.keys(S).filter((k) => !S[k].every((p) => fits(p.kind, p.at, p.facing, { w: p.w })));
+        if (!bad.length) { out.push(...S.v0, ...S.v1, ...S.u0, ...S.u1); break; }
+        for (const k of bad) e[k] += step[k];
+      }
+      // (its roof: mesh tiles over the whole ring at the panels' head, stretched to meet each other and the ring's
+      // faces, so no body climbs in over it)
+      if (out.length) {
+        const R = piece('mesh-roof'), ru0 = e.u0 - M.d / 2, ru1 = e.u1 + M.d / 2, rv0 = e.v0 - M.d / 2, rv1 = e.v1 + M.d / 2;
+        for (const a of tile(ru0, ru1)) for (const b of tile(rv0, rv1)) out.push({ kind: 'mesh-roof', at: F.at(a.at, b.at), facing: F.across(1), w: a.w, d: +(b.w * (R.d / R.w)).toFixed(4), over: true, group: 'roof' });
+      }
+      if (!out.length) return out;
+      const u0 = e.u0, u1 = e.u1, v0 = e.v0, v1 = e.v1;
+      // (its stock inside: rows back to back along it, an aisle from the gate between them)
+      const iu = u1 - u0 - 1.0, iv = v1 - v0 - 1.0;
+      if (iu < P.w || iv < 2 * P.d + o.aisle) return out;
+      const rows = Math.max(1, Math.floor((iv + o.aisle) / (2 * P.d + SEAM + o.aisle))), pitch = 2 * P.d + SEAM + o.aisle, used = rows * pitch - o.aisle, vs = v0 + 0.5 + (iv - used) / 2;
+      for (let k = 0; k < rows; k++) {
+        const vc = vs + k * pitch + P.d + SEAM / 2;
+        for (const u of spans(u0 + 0.5, u1 - 0.5, P.w + SEAM, 99, 0)) for (const s of [-1, 1]) out.push({ kind: o.piece, at: F.at(u, vc + s * (P.d / 2 + SEAM / 2)), facing: F.across(s), group: `stock-${k}` });
+      }
+      return out;
+    },
+  }),
   rows: Object.freeze({
     reads: 'benches or bunks in rows across the room from each long wall, a centre aisle down it: a workshop, a dormitory, a mess; the rows a body ducks between',
     dials: Object.freeze({ piece: 'workbench', aisle: 2.4, lane: 1.6, margin: 1.4 }), nudge: false,
@@ -180,7 +225,7 @@ export const LAYOUTS = Object.freeze({
 
 export const LAYOUT_IDS = Object.freeze(Object.keys(LAYOUTS));
 
-const DIAL_RANGES = Object.freeze({ aisle: [1, 4], lane: [0.9, 4], margin: [0.6, 4], spacing: [2.4, 8], jitter: [0, 1.5], fill: [0.3, 1], run: [1, 8], per: [1, 4], cover: [0.3, 0.8], len: [1, 6], gap: [1.5, 8] });
+const DIAL_RANGES = Object.freeze({ gate: [1.2, 3], aisle: [1, 4], lane: [0.9, 4], margin: [0.6, 4], spacing: [2.4, 8], jitter: [0, 1.5], fill: [0.3, 1], run: [1, 8], per: [1, 4], cover: [0.3, 0.8], len: [1, 6], gap: [1.5, 8] });
 
 /** The program's `layouts`: { <room id or role>: <layout id> | { layout, …its dials } }. Throws a sentence on a bad one. */
 export function readLayouts(v, pieceIds = null) {
@@ -268,6 +313,7 @@ export function layoutLaws(room, boxes, doors) {
   const stopped = (a, b, eyeA, eyeB) => {
     const dx = b[0] - a[0], dy = b[1] - a[1];
     for (const B of boxes) {
+      if (B.see) continue;   // (glass and mesh: a gaze goes through)
       let t0 = 0, t1 = 1, miss = false;
       for (let k = 0; k < 2; k++) {
         const o = a[k], d = k ? dy : dx, lo = B.min[k], hi = B.max[k];
@@ -288,7 +334,7 @@ export function layoutLaws(room, boxes, doors) {
   const ends = long ? (w >= d ? [[room.x0 + 0.6, (room.y0 + room.y1) / 2], [room.x1 - 0.6, (room.y0 + room.y1) / 2]] : [[(room.x0 + room.x1) / 2, room.y0 + 0.6], [(room.x0 + room.x1) / 2, room.y1 - 0.6]]) : null;
   const seenFromEnds = (eye) => Math.max(0, ...ends.map((a) => { let n = 0; for (const i of floor) if (!stopped(a, [cx(i), cy(i)], WATCH, eye)) n++; return n / (floor.length || 1); }));
   const stand = long ? seenFromEnds(STAND) : seenFrom(STAND), crouch = long ? seenFromEnds(CROUCH) : seenFrom(CROUCH);
-  const covers = boxes.filter((B) => B.h >= CROUCH + 0.05);
+  const covers = boxes.filter((B) => B.h >= CROUCH + 0.05 && !B.see);
   const near = floor.filter((i) => covers.some((B) => Math.hypot(Math.max(B.min[0] - cx(i), 0, cx(i) - B.max[0]), Math.max(B.min[1] - cy(i), 0, cy(i) - B.max[1])) <= REACH)).length / (floor.length || 1);
   const pc = (f) => `${Math.round(f * 100)}%`;
   return [
