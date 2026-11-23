@@ -20,6 +20,7 @@ const CONTRACT = {
   voiced: (r) => !!(r.palette || r.channel || (r.voices && Object.keys(r.voices).length) || r.recorded === true) || 'a palette cue, a set voice, a channel slot or its recording',
   voices: (r) => Object.entries(r.voices ?? {}).every(([style, set]) => style in STYLES && !STYLES[style].palette && (set in SETS || (set === 'families' && r.make))) || "voices: { <non-palette style>: <set> | 'families' (with make) }",
   make: (r) => r.make === undefined || (r.make.family in FAMILIES && (() => { try { familyDials(r.make.family, r.make.dials); return true; } catch { return false; } })()) || 'make: { family, dials } a family builds at those dials',
+  standIn: (r) => r.standIn === undefined || (r.recorded === true && r.standIn in SOUNDS && SOUNDS[r.standIn].standIn === undefined) || 'standIn: a recorded row\'s stand-in, a row with none of its own',
   channel: (r) => r.channel === undefined || (SLOTS.includes(r.channel) && r.channel === r.slot) || 'channel: the slot its code plays in',
 };
 

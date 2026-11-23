@@ -43,8 +43,16 @@
   shouts, grunts and falls; being spotted sounds an alarm stinger and the extraction a success stinger.
 - Game menus have themed sounds where the library is installed: the title, set-up, pause and results screens click,
   confirm and open in the game's own voice. Fallen Angel's are gothic (bells, iron and heavy doors in a high stone
-  echo), Galaxy Boy's a cheerful little robot's, Steel Serpents' subtle, app-like chimes, every other game's light and
+  echo), Galaxy Boy's clean, app-like chimes, brighter and quicker than Steel Serpents' subtle ones, every other game's light and
   bouncy. The recordings belong to the game UI's sound sets, so any page drawn in a set (a menu, a preview, the
   wireframe board) hears them. A new sound set, robot, joins the others.
 - A recording can be reused: one take can voice several sounds and menu cues (Steel Serpents' extraction chime is also
   its checkpoint and its menus' notification).
+- Mobile suits can be designed to sound apart (Mech Battle Kai's sounds): a suit is heard by its weight (a light
+  suit's quick footfalls and electric servos, a medium one's heavy metal step, a heavy one shaking the ground, each with
+  its own landing), its drive (rocket, jet or ion boosters held by the thrust, their ignition and their quick boost)
+  and its loadout (beam rifle and its charge, beam cannon, railgun, head vulcan, machine gun, bazooka, missiles, beam
+  saber, heat axe), with a roll, a jump, an overheat alarm and its vent, the transform both ways, a lock-on and a power-up
+  every suit shares. A game designs its suit with `sound: { suit: { weight, drive, arms } }`; Mech Battle Kai's own is
+  heard where the library is installed. The firing range's walkers are heard by their weight the same way. Without the
+  library every suit sounds as mech games did before.

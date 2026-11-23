@@ -47,6 +47,11 @@ function voiceOf(id, style, seen, dials) {
   }
   if (set) return { from: `set:${set}`, gestures: SETS[set].cues[id] };
   if (row.palette && S.palette) return { from: `palette:${style}`, gestures: SFX_PALETTES[style][row.palette] };
+  // (a recorded variant is heard as its stand-in, the nearest row the shelf voices, until the library records it)
+  if (row.standIn) {
+    const v = voiceOf(row.standIn, style, seen, dials);
+    if (v) return v;
+  }
   if (row.family && row.family !== id) {
     const v = voiceOf(row.family, style, seen, dials);
     if (v) return { ...v, family: row.family };

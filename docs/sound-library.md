@@ -49,6 +49,15 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   car at the wheel (`road-car-engine`: short of its redline, through a small speaker) and a racing car (`car-engine`:
   the whole range, open) drive the same loops their own ways. Tyres and the road are one loop each. ElevenLabs takes a
   prompt's revs as a mood, not a number, so a loop's `rpm` is what it was asked for until it is calibrated by ear.
+- **A mobile suit's kit** (`sfx-shelf/suit-sounds.js`, recorded from Mech Battle Kai's cards, `cards/mech-battle-kai.js`):
+  not a flavor, since a suit's machine sounds are any mech game's. A suit is heard by its weight (light, medium, heavy:
+  footfall, landing, servos), its drive (rocket, jet, ion: the booster held by the thrust, its ignition, the quick
+  boost) and its loadout (beam rifle and charge, beam cannon, railgun, vulcan, machine gun, bazooka, missiles, beam
+  saber, heat axe), plus what every suit shares (roll, jump and its gathering, overheat alarm and vent, transform both
+  ways, lock-on, power-up). The variants (a light suit's step, an ion boost) are rows of their own, heard as their
+  `standIn` without the library. A game designs its suit with `sound: { suit: { weight, drive, arms } }`; a feel with a
+  mech (Mech Battle Kai's) is heard as its weight implies where the library records it; the firing range's walking
+  frames by their mass. Each card's `tags` name its axis (`suit`, `light`, `rocket`, `arms`…).
 - **Vehicles** (`sfx-shelf/vehicle-sounds.js`): each vehicle in the registry
   ([vehicles.md](vehicles.md)) sounds as its kind (realm and role: a road hauler is a diesel with air brakes and a
   reverse beeper) unless it is named for its own (a muscle car's V8, a tram's bell, a bicycle's freewheel): its
@@ -96,8 +105,8 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   A game's menus (the play shell's title, set-up, pause and result) play the set its rail, its genre or its look names
   (`menuSoundSet`, `MENU_SOUNDS` in `playscape/ui/interface-look.js`), where the library records that set (the game's
   `ui.sounds`; without it its menus are silent, as before). The themes: `crypt` gothic (stone, bells, heavy doors, a
-  high echo: Fallen Angel's), `robot` a cheerful machine's (Galaxy Boy's; a new synthesized set beside the others),
-  `glass` and `terminal` subtle app-like chimes (Steel Serpents', its toast the extraction chime), and `console`,
+  high echo: Fallen Angel's), `robot` clean app-like chimes, brighter and quicker than Steel Serpents' (Galaxy Boy's;
+  a new synthesized set beside the others, its recordings the chimes), `glass` and `terminal` subtle app-like chimes (Steel Serpents', its toast the extraction chime), and `console`,
   `chip`, `paper` and `party` light and bouncy (every other game's).
 - **A recording reused** (its metadata): `also` (more rows the same takes voice: Steel Serpents' extraction chime is
   its checkpoint and its chime too), `ui` and `uiSets` (the menu cues and sets it voices), `tags` (what it is, for

@@ -311,10 +311,32 @@ fallback ([sound-library.md](sound-library.md)). On a page the samples are inlin
 MP3) only when its cues play them; a cue whose recording is not decoded yet plays its fallback, exactly as it would
 have sounded without the library.
 
+A recorded VARIANT is a row of its own the library records (`recorded: true`), heard as its `standIn`, the nearest row
+the shelf voices, until the library is installed: a light suit's footstep (`mech-step-light`) is `mech-step` until its
+recording arrives, so a page that names it sounds as it did. A variant with no stand-in (a rocket's boost) is silent
+without the library.
+
+## A mobile suit's kit
+
+`sfx-shelf/suit-sounds.js` hears a mobile suit by three axes, so several suits can be designed and each sounds as
+itself: its WEIGHT (`SUIT_WEIGHTS`: light, medium, heavy; its footfall, its landing, its servos), its DRIVE
+(`SUIT_DRIVES`: rocket, jet, ion; its booster held by the thrust, the boost's ignition, the quick boost) and its
+LOADOUT (`SUIT_ARMS`: each weapon's shot, hit, charge or swing), and what every suit shares (`SUIT_SHARED`: the roll,
+the jump and its gathering, the overheat and its vent, the transform both ways, the lock-on, the power-up).
+`suitSounds({ weight | mass, drive?, arms? })` answers the shelf words; a weight is read from a frame's mass (under 6 t
+light, under 12 t medium) or a feel's mech weight (0 swift to 1 heavy), and a suit that names no drive takes its
+weight's. A new value on an axis is a row of its table.
+
+Its clients: a game's sheet (`sound.suit`, the suit it designs, heard as written; a feel with a mech, Mech Battle Kai's,
+heard as its weight implies only where the library records it), and the firing range's walking frames (their
+footfalls and servos by their mass). Mech Battle Kai's recordings voice every row of the kit
+([sound-library.md](sound-library.md)).
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
 (`gameworld/practice-room.js`) name their sounds by word and wire them to a moveset's events (`audio.moves`, the
 world-audio card); made levels do not yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
-throttle), recorded beds (the library's ambience loops), and WAVs in the engine handoff.
+throttle), a suit's boost, quick boost, overheat and transform on a level (the level runtime does not carry the mech's
+boost yet: `feel/lower.js` LOST), recorded beds (the library's ambience loops), and WAVs in the engine handoff.

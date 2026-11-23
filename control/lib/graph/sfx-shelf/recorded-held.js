@@ -52,6 +52,13 @@ export const HELD_TUNINGS = Object.freeze({
   hooves: Object.freeze({ loop: 'hooves', rate: [0.7, 1.5] }),
   'walker-hydraulics': Object.freeze({ loop: 'hydraulic-whine', rate: [0.8, 1.3] }),
   'sail-wind': Object.freeze({ loop: 'sails', rate: [0.9, 1.1] }),
+  // a mobile suit's (sfx-shelf/suit-sounds.js): its booster by its drive, swelling with the thrust; its jump gathering; a
+  // light suit's servos by its pace
+  'rocket-booster': Object.freeze({ loop: 'mbk-rocket-loop', rate: [0.85, 1.15] }),
+  'thruster-roar': Object.freeze({ loop: 'mbk-jet-loop', rate: [0.85, 1.2] }),
+  'ion-drive': Object.freeze({ loop: 'mbk-ion-loop', rate: [0.9, 1.15] }),
+  'jump-servo': Object.freeze({ loop: 'mbk-jump-servo', rate: [0.8, 1.4] }),
+  'servo-whine': Object.freeze({ loop: 'mbk-servo-whine', rate: [0.85, 1.3] }),
   // a game's own (a `flavor`: its rail's): heard only by a game of that flavor
   'charge-hum': Object.freeze({ loop: 'gb-charge', flavor: 'galaxy-boy', rate: [0.85, 1.3] }),
 });

@@ -70,6 +70,7 @@ import { sfxSound } from '../sfx-shelf/resolve.js';
 import { vehicleSounds, modelEngines, modelVehicles } from '../sfx-shelf/vehicle-sounds.js';
 import { VEHICLES } from '../vehicle-registry/roster.js';
 import { hasFlavor } from '../sound-library/library.js';
+import { suitSounds, suitRecorded } from '../sfx-shelf/suit-sounds.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { BOSSES } from './bosses.js';
@@ -255,11 +256,12 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, bed?, vary?, level? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, suit?, bed?, vary?, level? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
   if (S.level !== undefined && !(Number.isFinite(S.level) && S.level >= 0 && S.level <= 1)) throw fail(`.level is the effects' level under the score, 0 to 1`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
+  if (S.suit !== undefined) { try { suitSounds(S.suit); } catch (e) { throw fail(`.suit: ${e.message.replace(/^suit sounds: /, '')}`); } }
   const word = (at, w) => { if (!resolveSoundId(w)) throw fail(`${at}: '${w}' is not a sound on the shelf; ${suggestSounds(w)}`); };
   for (const k of ['slots', 'on']) for (const [slot, w] of Object.entries(S[k] ?? {})) word(`.${k}.${slot}`, w);
   if (S.moves !== undefined) {
@@ -345,6 +347,23 @@ export function runSounds(G, own = readSound(G?.sound)) {
   return { run, why };
 }
 
+// A MOBILE SUIT'S SLOTS (a feel with a mech: its weight, feel/cards.js `mount`; or the game's own suit, `sound.suit`): its
+// footfall, its landing, its jump and its roll by the suit kit (sfx-shelf/suit-sounds.js), its swing and its blow by the
+// first blade it carries. A suit the game designs (`sound.suit`) is heard as written; one its feel implies only where the
+// library records it, so a page without the library is as it was. A word with no voice yet (a variant unrecorded and
+// with no stand-in) leaves the slot as it was.
+function suitSlots(G, own) {
+  const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null, mount = pole ? POLES[pole]?.mount : undefined;
+  if (own.suit === undefined && !Number.isFinite(mount)) return null;
+  const K = suitSounds(own.suit ?? { weight: mount });
+  if (own.suit === undefined && !suitRecorded(K)) return null;
+  const blade = K.arms.map((a) => K.loadout[a]).find((a) => a.swing);
+  const want = { step: K.step, land: K.land, jump: K.jump, dodge: K.dodge, ...(blade ? { swing: blade.swing, strike: blade.hit } : {}) };
+  const slots = Object.fromEntries(Object.entries(want).filter(([, w]) => sfxSound(w)));
+  const why = Object.fromEntries(Object.keys(slots).map((k) => [k, `the suit (${K.weight}, ${K.drive}: ${['swing', 'strike'].includes(k) ? K.why.arms : K.why.weight})`]));
+  return { slots, why, suit: { weight: K.weight, drive: K.drive, arms: K.arms } };
+}
+
 /** The game's sheet (see the header). */
 export function soundSheet(G, { manifest = null } = {}) {
   const own = readSound(G?.sound);
@@ -355,9 +374,10 @@ export function soundSheet(G, { manifest = null } = {}) {
   const mv = movesOf(G, own);
   const fs = foeSoundsOf(G, fv.foes, own);
   const rn = runSounds(G, own);
-  const slots = { step: sp.step, jump: 'jump', land: 'land', dodge: 'dodge', swing: st.swing, strike: st.strike, ...(own.slots ?? {}) };
+  const su = suitSlots(G, own);
+  const slots = { step: sp.step, jump: 'jump', land: 'land', dodge: 'dodge', swing: st.swing, strike: st.strike, ...(su?.slots ?? {}), ...(own.slots ?? {}) };
   const on = { ...ON_FRESH, ...(Object.values(fv.foes).length ? { alarm: Object.values(fv.foes)[0] } : {}), ...(own.on ?? {}) };
-  const why = { step: sp.why, swing: st.why, strike: st.why, door: 'a door opening: the latch (a new voice)', ...fv.why, ...fs.why, ...(mv?.why ?? {}), ...(rn?.why ?? {}),
+  const why = { step: sp.why, swing: st.why, strike: st.why, door: 'a door opening: the latch (a new voice)', ...(su?.why ?? {}), ...fv.why, ...fs.why, ...(mv?.why ?? {}), ...(rn?.why ?? {}),
     ...(on.alarm && !own.on?.alarm ? { alarm: `spotted: the ${Object.keys(fv.foes)[0]}'s voice` } : {}) };
   for (const k of Object.keys(own.slots ?? {})) why[k] = 'the game says so';
   for (const k of Object.keys(own.on ?? {})) why[k] = 'the game says so';
@@ -371,7 +391,7 @@ export function soundSheet(G, { manifest = null } = {}) {
   // (its FLAVOR: a game's own recorded sounds, its feel's pole's (Galaxy Boy's), where the library holds them)
   const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null, flavor = pole && hasFlavor(pole) ? pole : null;
   if (flavor) why.flavor = `its own recorded sounds (${flavor}'s), ahead of the shelf's`;
-  return { style, ...(flavor ? { flavor } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), ...(rn?.platform ? { platform: true } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
+  return { style, ...(flavor ? { flavor } : {}), ...(su ? { suit: su.suit } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), ...(rn?.platform ? { platform: true } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
 // a place's environment by its words (its own kit, its weather, its hour and its look's title): the bed it lays under the score
