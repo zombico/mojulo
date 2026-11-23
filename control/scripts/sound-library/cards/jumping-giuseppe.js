@@ -25,6 +25,6 @@ export const CARDS = [
   // what it finds and where it gets to
   shot('jg-pickup', 'pickup', 'collecting a shiny gold coin, a bright sparkling chime', 0.6),
   shot('jg-extra-life', 'chime', 'an extra life gained, a cheerful rising sparkle of chimes', 1.2),
-  shot('jg-checkpoint', 'checkpoint', 'a checkpoint flag reached, a cheerful bell ding with sparkles', 1),
-  shot('jg-goal', 'goal', 'the end of a level reached, a short bright celebratory flourish of bells and sparkles', 2.5),
+  shot('jg-checkpoint', 'checkpoint', 'a cheerful bright bell ding with a flutter of sparkles, a checkpoint flag sound', 1, { role: 'cue' }),
+  shot('jg-goal', 'goal', 'a short bright celebratory flourish of bells and sparkles, an end of level jingle', 2.5, { role: 'cue' }),
 ];

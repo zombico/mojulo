@@ -88,8 +88,8 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
 - **Steel Serpents** (`steel-serpents`): its quiet steps (any floor, a steel catwalk), its vault, drop and roll, its
   knife and its takedown, a keycard door and a security door, a keycard picked up, and its guards' shout, grunt and fall
   where its foes are drawn as people. Nothing of the rail's code: its flavor answers every word its sheet plays. Being
-  spotted and the extraction stay the shelf's cues (their takes came back as voices: a prompt for a cue names no radio,
-  speaker or announcer). The sneak goal's patrolling guards have no voice of their own yet.
+  spotted and the extraction are its own cues (an alarm stinger, a success stinger), named as sounds only: the first
+  takes, asked for over a radio, came back saying words. The sneak goal's patrolling guards have no voice of their own yet.
 - Not yet: the beds (the library's ambience loops), the traffic heard by its own engines, the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
@@ -108,8 +108,17 @@ called by mojulo itself (mojulo calls no generation API):
    `<dir>/ledger.jsonl`; a take already made is skipped, and a call that would cross the budget is not made. The key
    is the operator's (`ELEVENLABS_API_KEY`, or a proxy that adds it; Node's fetch behind a proxy needs
    `NODE_USE_ENV_PROXY=1`), never in a file.
-3. **Audition** (`board.mjs`): every take on one page with its measures, for the ears gate, which is the operator's.
-4. **Condition** (`condition.mjs`, needs ffmpeg): every take kept as a variant (leaving one out is the pick), trimmed,
+3. **Hear for speech** (`check-speech.mjs --cards <sets> --out <dir>`): every take of a card that is not a voice through
+   ElevenLabs' speech-to-text (about a credit a take, in the ledger); a take that says words is left out by the
+   conditioner. The sound model reads a prompt aloud as readily as it makes the sound: a cue asked for as "an intruder
+   spotted … over a radio" came back saying "No intruder spotted". So a card's prompt **names the sound, never the
+   scene**: its sources and their character (three fast rising beeps over a synth swell, a door's pneumatic hiss), with
+   no message, no sayer (radio, announcer, intercom, speaker), no outcome said as words (spotted, reached, complete) and
+   no quoted words; the generator refuses those before a credit is spent (`SPEECH_WORDS`). A **cue** (a stinger: being
+   spotted, an objective done, a checkpoint) is `role: 'cue'` and follows its prompt closely (prompt influence 0.85). A
+   card that is meant to be a voice (a guard's wordless grunt) says `voice: true`.
+4. **Audition** (`board.mjs`): every take on one page with its measures, for the ears gate, which is the operator's.
+5. **Condition** (`condition.mjs`, needs ffmpeg): every take kept as a variant (leaving one out is the pick; a take that speaks is left out), trimmed,
    level-matched (one-shots by peak, beds at -24 LUFS, a vehicle's loops at -14), a loop's seam measured, the masters and `library.json` written; a re-run is byte-identical.
 
 The takes, the masters and the ledger are the operator's, outside the repo; a release carries them as a tarball.

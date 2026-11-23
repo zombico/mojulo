@@ -1,4 +1,11 @@
 /**
+ * WRITING A CARD (every set): the prompt names the SOUND, never the scene. The sound model reads a prompt aloud as
+ * readily as it makes the sound ("an intruder spotted … over a radio" came back saying "No intruder spotted"), so a
+ * card that is not `voice: true` names its sources and their character, with no message, no sayer (radio, announcer,
+ * intercom, speaker), no outcome said as words (spotted, reached, complete) and no quoted words (generate.mjs refuses
+ * them: SPEECH_WORDS). A stinger (being spotted, an objective done, a checkpoint) is `role: 'cue'` and is followed
+ * closely. Then check-speech.mjs hears every take, and condition.mjs leaves a take that speaks out.
+ *
  * The card sets by name: `loadCards('spike,batch2')` → every card of those sets in order, each card id once across
  * them all (a duplicate is an error: a card id names its takes' directory and its library entry).
  */

@@ -40,4 +40,4 @@
   kick, its slide down a wall, its double jump and the foes it stomps.
 - Steel Serpents sounds like itself where the library is installed: an operative's quiet steps on concrete and steel
   catwalks, a vault, a drop and a roll, a knife and a takedown, keycard doors and security doors, and the guards'
-  shouts, grunts and falls; being spotted and the extraction keep the shelf's cues.
+  shouts, grunts and falls; being spotted sounds an alarm stinger and the extraction a success stinger.

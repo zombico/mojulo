@@ -107,6 +107,9 @@ async function main() {
   const masters = path.join(a.out, 'masters');
   mkdirSync(masters, { recursive: true });
   const tmp = path.join(a.out, '.condition.tmp.wav');
+  // (a take that speaks, check-speech.mjs's speech.json, is left out of a card that is not a voice)
+  const speechFile = path.join(a.out, 'speech.json'), speech = existsSync(speechFile) ? JSON.parse(readFileSync(speechFile, 'utf8')) : {};
+  let silenced = 0;
   const cards = {};
   let n = 0;
   for (const c of CARDS) {
@@ -115,7 +118,9 @@ async function main() {
     const takes = readdirSync(dir).filter((f) => f.endsWith('.mp3')).map((f) => parseInt(f)).sort((x, y) => x - y);
     const variants = [];
     for (const t of takes) {
-      const src = path.join(dir, `${t}.mp3`), made = condition(ff, src, c, tmp);
+      const src0 = path.join(dir, `${t}.mp3`);
+      if (!c.voice && speech[createHash('sha256').update(readFileSync(src0)).digest('hex')]?.words?.length) { silenced++; continue; }
+      const src = src0, made = condition(ff, src, c, tmp);
       const bytes = readFileSync(made), id = createHash('sha256').update(bytes).digest('hex').slice(0, 16);
       const at = path.join(masters, `${id}.wav`);
       if (!existsSync(at)) renameSync(made, at);
@@ -134,7 +139,7 @@ async function main() {
   const index = { version: 1, set: a.cards, rate: RATE, levels: { oneShotPeakDb: PEAK_DB, bedLufs: BED_LUFS, loopLufs: LOOP_LUFS }, cards };
   writeFileSync(path.join(a.out, 'library.json'), `${JSON.stringify(index, null, 1)}\n`);
   for (const f of [tmp, `${tmp}.g.wav`]) if (existsSync(f)) spawnSync('rm', ['-f', f]);
-  console.log(`condition: ${n} variants over ${Object.keys(cards).length} cards → ${path.join(a.out, 'library.json')}`);
+  console.log(`condition: ${n} variants over ${Object.keys(cards).length} cards → ${path.join(a.out, 'library.json')}${silenced ? `; ${silenced} takes that speak left out` : ''}`);
 }
 
 main().catch((e) => { console.error(e.message); process.exit(1); });

@@ -44,13 +44,27 @@ function args(argv) {
 
 const readLedger = (file) => (existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []);
 
+// a card's PROMPT, read before a credit is spent. The sound model reads a prompt as words to say as readily as a sound
+// to make: a take asked for "an intruder spotted … over a radio" came back saying "No intruder spotted". So a card that is
+// not a voice (`voice: true`: a guard's wordless grunt) names the SOUND (beeps, a klaxon, a synth hit, a door's hiss) and
+// never a scene, a message or a sayer: none of these words, and no quoted words. A cue (`role: 'cue'`, a stinger: being
+// spotted, an objective done) follows its prompt closely (prompt_influence 0.85 unless it says).
+export const SPEECH_WORDS = /\b(radio|announcer|announcement|intercom|loudspeaker|speaker|narrat\w*|says?|saying|spoken|speech|voice ?over|dialog(ue)?|message|report(s|ed)?|spotted|reached|complete[ds]?|confirmed|warning that)\b|["“”]/i;
+export function promptErrors(c) {
+  if (c.voice) return [];
+  const m = String(c.prompt).match(SPEECH_WORDS);
+  return m ? [`${c.id}: '${m[0]}' invites a spoken take (name the sound, not the scene; a voice says voice: true)`] : [];
+}
+export const influenceOf = (c) => c.influence ?? (c.role === 'cue' ? 0.85 : 0.5);
+
 function rate(ledger) {
+  ledger = ledger.filter((e) => !e.kind);
   const s = ledger.reduce((t, e) => t + (e.seconds || 0), 0), c = ledger.reduce((t, e) => t + (e.cost || 0), 0);
   return s > 0 ? Math.max(EST_PER_SECOND, c / s) : EST_PER_SECOND;
 }
 
 async function take(card, key) {
-  const body = { text: card.prompt, duration_seconds: card.seconds, prompt_influence: card.influence, loop: !!card.loop, model_id: MODEL };
+  const body = { text: card.prompt, duration_seconds: card.seconds, prompt_influence: influenceOf(card), loop: !!card.loop, model_id: MODEL };
   const res = await fetch(`${API}?output_format=${FORMAT}`, { method: 'POST', headers: { 'xi-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const bytes = Buffer.from(await res.arrayBuffer());
   if (!res.ok) throw new Error(`generate: ${card.id} → HTTP ${res.status}: ${bytes.toString('utf8').slice(0, 300)}`);
@@ -65,6 +79,8 @@ async function main() {
   // (the API takes 0.5 to 30 seconds: a card outside them is refused here, before a credit is spent)
   const bad = cards.filter((c) => !(c.seconds >= 0.5 && c.seconds <= 30));
   if (bad.length) throw new Error(`generate: seconds must be 0.5..30: ${bad.map((c) => `${c.id} (${c.seconds})`).join(', ')}`);
+  const said = cards.flatMap(promptErrors);
+  if (said.length) throw new Error(`generate: a prompt that would be spoken:\n - ${said.join('\n - ')}`);
   const ledgerFile = path.join(a.out, 'ledger.jsonl');
   mkdirSync(a.out, { recursive: true });
   let ledger = readLedger(ledgerFile);
