@@ -316,7 +316,9 @@ export function renderBeatsPlan(manifest, opts = {}) {
     const variant = opts.variant ? posInt(opts.variant, 'variant', 0) : 0;
     // far (0..1, the SFX mixer): the cue placed at a distance, duller and roomier. Absent: where it always was.
     if (opts.far !== undefined && !(Number.isFinite(opts.far) && opts.far >= 0 && opts.far <= 1)) throw new Error('beats-render: `far` must be in [0, 1] (how far away the cue is placed)');
-    const place = opts.far ? { far: opts.far } : null;
+    // pan (-1..1, the SFX mixer's side): the cue placed left or right of the listener. Absent: centred.
+    if (opts.pan !== undefined && !(Number.isFinite(opts.pan) && opts.pan >= -1 && opts.pan <= 1)) throw new Error('beats-render: `pan` must be in [-1, 1] (the side the cue is placed on)');
+    const place = opts.far || opts.pan ? { ...(opts.far ? { far: opts.far } : {}), ...(opts.pan ? { pan: opts.pan } : {}) } : null;
     const entries = [{ type: 'cue', t: 0, channel: null, gestures, vel: 1, ...(variant ? { variant } : {}), ...(place ? { place } : {}) }];
     return { entries, duration: opsEnd(kernel.cuePlan(gestures, variant)), meta: variant ? { cue, variant } : { cue } };
   }

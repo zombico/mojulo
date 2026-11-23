@@ -64,9 +64,11 @@ describe('the sampler', () => {
 
   it('with the sampler off, every other feature on is byte for byte the kernel before it', () => {
     // pinned from 1116-rc's kernel with every feature on: the sampler regions, off, leave that text as it was.
+    // Re-pinned 2026-11-23 (a sound on its side): sfxCue's `place.pan` (a stereo panner after the cue's fader, a cue
+    // placed with no side taking the path it always took) is the only difference from the 1116-rc text it was pinned on.
     const t = readFileSync(new URL('./beats-kernel.js', import.meta.url), 'utf8');
     const text = sliceKernelText(t.slice(t.indexOf('function buildBeatsKernel()'), t.lastIndexOf('}') + 1), (f) => f !== 'sampler');
-    expect(sha(text)).toBe('55adeb89fe5d2191d1f8920728303e89f0bab76e35f8fdca1db3b275e83e564a');
+    expect(sha(text)).toBe('077bdd46900777a74507afc7d962d04e1ca6420590bac08c37434c03c315635d');
   });
 
   it('without the library, the recorded kit renders byte-identical to the kit its pieces stand in for', async () => {

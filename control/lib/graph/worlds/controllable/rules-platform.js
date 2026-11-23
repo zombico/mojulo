@@ -38,6 +38,7 @@ export function buildRulesPlatform(E) {
   // THE DASH'S BURST (`dash`, below): its share of the way through (0 → 1); the speed it drives at there — up from where
   // it started to the card's over the first DASH_RISE (eased out), held to DASH_EASE, then eased down to the run's
   const DASH_RISE = 0.25, DASH_EASE = 0.6;
+  const POUND_MIN = 0.3;   // the stomp attack is asked only this far over the ground (metres), as the lab's kernel asks
   const dashU = (e) => (e.dashLen > 0 ? 1 - e.dashT / e.dashLen : 1);
   function dashNow(e, run) {
     const u = dashU(e), top = e.dashSpeed, from = Math.min(top, e.dashFrom || 0), end = Math.min(run, top);
@@ -45,6 +46,17 @@ export function buildRulesPlatform(E) {
     if (u < DASH_EASE) return top;
     const k = (u - DASH_EASE) / (1 - DASH_EASE);
     return top + (end - top) * k * k * (3 - 2 * k);
+  }
+
+  // THE LANDING'S LAG (`landLag`, below): a heavy body's by its fall (`by`: seconds a m/s, at most `max`), else a hard
+  // landing's (`heavy`: `lag` seconds from a fall faster than `fall` m/s), as the action lab's kernel reads its card
+  const landLagOf = (L, fall) => (L.by ? Math.min(L.by.max, L.by.per * fall) : L.heavy && fall > L.heavy.fall ? L.heavy.lag : 0);
+  // THE STOMP ATTACK meets the floor (`pound`, below): a bounce attack springs back up `bounce` metres; a pound or a
+  // plunge lags there `lag` seconds (a pound's jump in it goes higher)
+  function poundFloor(e, riseG) {
+    const P = e.rule.pound; e.pound = null;
+    if (P.kind === 'bounce') { e.vel[2] = Math.sqrt(2 * riseG * (P.bounce ?? 0)); e.grounded = false; return; }
+    if (P.lag > 0) e.poundLagT = P.lag;
   }
 
   function platform(e, input, dt, world) {
@@ -138,6 +150,38 @@ export function buildRulesPlatform(E) {
     const laneMove = !space && r.move === 'lane' && Array.isArray(r.lane) && r.lane.length >= 2;
     const camMove = !space && r.move === 'camera';
     const worldMove = !space && (r.move === 'world' || laneMove || camMove);
+    // THE STOMP ATTACK (opt-in `pound`, a feel card's with its takes: gameworld/feel/lower.js): the attack pressed in the
+    // air, at least POUND_MIN over the ground (with `back`, the stick held against the facing; else any), turns the jump
+    // downward: the body stops where it is, holds `hang` seconds, and drops straight at `speed`. On the floor a bounce
+    // attack springs back up; a pound or a plunge lags `lag` seconds, the body still, and a pound's `jump` (a share of the
+    // jump's height) is the higher jump taken in that lag. A body landed on is stomped as the level stomps (foe.js); a
+    // launch off it ends the drop. Absent → nothing here runs. Field ownership: e.pound, e.poundLagT, e.poundPrev
+    if (r.pound && !space) {
+      const P = r.pound, fire = !!input.fire, edge = fire && !e.poundPrev;
+      e.poundPrev = fire;
+      if (e.poundLagT > 0) e.poundLagT = Math.max(0, e.poundLagT - dt);
+      if (e.pound && e.vel[2] > 0) e.pound = null;   // launched off a body it came down on
+      if (edge && !e.pound && !(e.poundLagT > 0) && !e.grounded && !e.cling) {
+        const gz = probe(t.pos[2] - eye);
+        let ask = gz == null || t.pos[2] - eye - gz >= POUND_MIN;
+        if (ask && P.back) {
+          const side = clamp(input.strafe + (worldMove ? input.turn : 0), -1, 1);
+          let sx = 0, sy = 0;
+          if (laneMove) { const L = laneNear(r.lane, t.pos[0], t.pos[1], side); sx = L.tx * side; sy = L.ty * side; }
+          else if (worldMove) { const my = camMove ? (world && world.cameraYaw != null ? world.cameraYaw : t.heading) : (r.moveYaw ?? HALF_PI), wf = fwdXY(my), wr = rightXY(my); sx = wf[0] * input.forward + wr[0] * side; sy = wf[1] * input.forward + wr[1] * side; }
+          else { const wf = fwdXY(t.heading), wr = rightXY(t.heading); sx = wf[0] * input.forward + wr[0] * side; sy = wf[1] * input.forward + wr[1] * side; }
+          const m = Math.hypot(sx, sy), h = fwdXY(t.heading);
+          ask = m > 1e-3 && sx * h[0] + sy * h[1] < -0.5 * m;
+        }
+        if (ask) { e.pound = { t: 0 }; e.vel[2] = 0; e.drive = [0, 0]; e.dashVel = null; e.carry = 0; e.dashT = 0; }
+      }
+      if (e.pound) e.pound.t += dt;
+      if (e.pound || e.poundLagT > 0) {
+        input = Object.assign({}, input, { forward: 0, strafe: 0, turn: 0, boost: 0, fire: 0, ...(e.pound || !P.jump ? { jump: 0, jumpHeld: 0 } : {}) });
+        if (e.drive) { e.drive[0] = 0; e.drive[1] = 0; }
+      }
+      e.pounding = !!e.pound;
+    }
     let wmX = 0, wmY = 0, wmMag = 0;
     if (worldMove) {
       const side = clamp(input.strafe + input.turn, -1, 1);
@@ -189,6 +233,15 @@ export function buildRulesPlatform(E) {
       // launched off the first as the ground's snap still holds the body)
       e.jumpBuf = input.jump && !e.jumpWas ? bufferT : Math.max(0, (e.jumpBuf ?? 0) - dt);
       e.jumpWas = !!input.jump;
+      // THE LANDING'S LAG (opt-in `landLag`, a feel card's `jump.heavy` and `landing` with its takes: gameworld/feel/
+      // lower.js): a landing lags by its fall (landLagOf); in the lag the body may walk but neither jumps nor dashes, and a
+      // jump pressed in it waits in the buffer and goes as it ends. Absent → nothing here runs. Field ownership: e.lagT
+      if (r.landLag) {
+        if (e.lagT > 0) e.lagT = Math.max(0, e.lagT - dt);
+        if (landedEdge) e.lagT = Math.max(e.lagT || 0, landLagOf(r.landLag, fallSpeed));
+        if (e.lagT > 0) input = Object.assign({}, input, { boost: 0 });
+      }
+      if (r.pound && e.pound && e.grounded) poundFloor(e, riseG);
     }
 
     // movement basis (needed by the jump block below for directed charge leaps)
@@ -302,7 +355,11 @@ export function buildRulesPlatform(E) {
         }
       }
     } else {
-      if ((input.jump || e.jumpBuf > 0) && (e.grounded || e.coyote < coyoteT) && !(e.jumpWind > 0)) {
+      // (a pound's jump, taken in its lag: the jump's height times `pound.jump`)
+      if (e.poundLagT > 0 && r.pound.jump && input.jump && e.grounded) {
+        e.vel[2] = jumpV * Math.sqrt(r.pound.jump); e.grounded = false; e.coyote = coyoteT; e.jumpBuf = 0; e.poundLagT = 0; jumped = true;
+      }
+      if ((input.jump || e.jumpBuf > 0) && (e.grounded || e.coyote < coyoteT) && !(e.jumpWind > 0) && !(e.lagT > 0 || e.poundLagT > 0)) {
         if (windup > 0) { e.jumpWind = windup; e.jumpBuf = 0; }
         else { e.vel[2] = jumpV; e.grounded = false; e.coyote = coyoteT; e.jumpBuf = 0; jumped = true; }
       }
@@ -340,6 +397,9 @@ export function buildRulesPlatform(E) {
     e.charging = charging;
     e.chargeFrac = charging ? chargeFrac : 0;
     if (jumped && chargeMax <= 0) e.jumpPower = 0.2;
+    // THE HANG (opt-in `hang`, seconds, a feel card's `jump.hang` with its takes): every take-off gives the apex its hang,
+    // held while the jump is (below); the ground takes it back. Absent → nothing here runs. Field ownership: e.hangT
+    if (r.hang > 0) { if (jumped) e.hangT = r.hang; else if (e.grounded) e.hangT = 0; }
 
     // THE DASH (opt-in `dash`, a feel card's, a person's F: gameworld/feel/lower.js): a BURST, its length the card's
     // whatever the button does. Pressed on the ground it drives the body along the stick (its facing with the stick at
@@ -559,6 +619,9 @@ export function buildRulesPlatform(E) {
         // (a glide held once the air jumps are spent, `glideSpent`: jump, jump, hold; a first jump held never glides early)
         const fallCap = r.glideFall > 0 && input.jumpHeld && e.vel[2] <= 0 && (!r.glideSpent || (e.airJumpsUsed ?? 0) >= (r.airJumps ?? 0)) ? Math.min(maxFall, r.glideFall) : maxFall;
         if (e.cling && r.cling) e.vel[2] = -r.cling.slide;   // down the wall at a constant speed
+        else if (e.pound) e.vel[2] = e.pound.t <= r.pound.hang ? 0 : -r.pound.speed;   // the stomp: held, then straight down
+        // (the hang: at the apex, the jump held, the body stays up until its hang is spent)
+        else if (r.hang > 0 && e.hangT > 0 && input.jumpHeld && e.vel[2] >= 0 && e.vel[2] - riseG * dt <= 0) { e.vel[2] = 0; e.hangT = Math.max(0, e.hangT - dt); }
         else if (e.dashT > 0 && e.dashAir && dashU(e) < DASH_EASE) e.vel[2] = 0;    // the air dash holds its height at speed
         // (an air move's HANG, combat-melee.js `mvHang`: the hero held aloft, its gravity that share of its own)
         else e.vel[2] = Math.max(-fallCap, e.vel[2] - (e.vel[2] > 0 ? riseG : fallG) * (e.mvHang != null ? e.mvHang : 1) * dt);
@@ -577,9 +640,12 @@ export function buildRulesPlatform(E) {
             t.pos[2] = gz1 + hover + eye; e.vel[2] = 0; e.hovering = true;
             e.dashVel = null;   // a charged leap's carry ends where the fall is caught
           } else {
+            const landing = r.landLag && !e.grounded ? -e.vel[2] : -1;
             t.pos[2] = gz1 + eye; e.vel[2] = 0; e.coyote = 0; e.grounded = true;   // hard touchdown: lock to the surface
             e.dashVel = null;   // the charged leap's carry ends at touchdown
-            if (chargeMax <= 0 && e.jumpBuf > 0) { e.vel[2] = jumpV; e.grounded = false; e.jumpBuf = 0; }   // buffered jump fires on touchdown (legacy mode)
+            if (landing >= 0) e.lagT = Math.max(e.lagT || 0, landLagOf(r.landLag, landing));
+            if (r.pound && e.pound) poundFloor(e, riseG);
+            if (chargeMax <= 0 && e.jumpBuf > 0 && !(e.lagT > 0 || e.poundLagT > 0) && e.grounded) { e.vel[2] = jumpV; e.grounded = false; e.jumpBuf = 0; }   // buffered jump fires on touchdown (legacy mode)
           }
         } else if (e.vel[2] <= 0 && !e.grounded && world && world.ground) {
           // EMBED RECOVERY: boosting/walking into terrain that rises faster than the per-frame step-up
