@@ -1122,3 +1122,8 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-18 (1117-hero-beat-em-up: the review's fixes): `brawl` only. Its page inlines the sway keeping each
 // region's own rest positions (no copy of a part's buffer), and a boss stage's form read as any fighter's recipe. The
 // fixture plays as it did.
+// Re-pinned 2026-11-22 (1122-sim-fixing: the ground grid and index sized to their meshes): the fixtures that embed the
+// controllable runtime. The ground grid's `gridFit` coarsens within 16 cells and 32 listings a triangle, the ground index's
+// `indexBuckets` within 64 cells and 256 listings an item, and the grid raycast first tests the mesh's bounding sphere as
+// three's own does: a flight's land and a race's backdrop no longer exhaust the page. Each only chooses which surfaces a
+// ray tests, so what every fixture plays is as it was.

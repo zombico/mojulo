@@ -73,7 +73,7 @@ describe('the ground by grid', () => {
     // (every call the fitter makes is the page's own index, none to a name the page lacks)
     const fit = src.slice(src.indexOf('const __gridFit'), src.indexOf('const __gridSlow'));
     expect(fit).not.toMatch(/[^_]gridIndex\(/);
-    expect(() => new Function('THREE', 'scene', `${src}\nreturn __gridRaycast;`)({ Mesh: { prototype: { raycast() {} } }, Matrix4: function () {} }, {})).not.toThrow();
+    expect(() => new Function('THREE', 'scene', `${src}\nreturn __gridRaycast;`)({ Mesh: { prototype: { raycast() {} } }, Matrix4: function () {}, Sphere: function () {}, Ray: function () {}, Vector3: function () {} }, {})).not.toThrow();
   });
 });
 
@@ -114,5 +114,54 @@ describe('the grid for every big mesh', () => {
       }
     }
     expect(met).toBeGreaterThan(60);
+  });
+});
+
+// THE GRID SIZED TO ITS MESH: a flight's land 16 km across and a race's backdrop 12 km, made of few big triangles, were
+// gridded at 2 m (36 to 67 million cells, each triangle listed in tens of thousands): the page died before its first
+// frame. A grid now stays within sixteen cells and thirty-two listings a triangle, coarsening as it must, and finds what three
+// finds; a small mesh keeps the grid it had.
+describe('the grid sized to its mesh', () => {
+  // a land of `q` by `q` quads, `size` metres across, gently rolling
+  function land(size, q) {
+    const pos = [], idx = [], s = size / q, h = (x, y) => 40 * Math.sin(x / 900) * Math.cos(y / 700);
+    for (let j = 0; j <= q; j++) for (let i = 0; i <= q; i++) { const x = i * s - size / 2, y = j * s - size / 2; pos.push(x, y, h(x, y)); }
+    for (let j = 0; j < q; j++) for (let i = 0; i < q; i++) { const a = j * (q + 1) + i, b = a + 1, c = a + q + 1, d = c + 1; idx.push(a, b, d, a, d, c); }
+    return { pos: Float32Array.from(pos), idx: Uint32Array.from(idx) };
+  }
+  const listed = (g) => g.cells.reduce((m, c) => m + (c ? c.length : 0), 0);
+
+  it('a flight\'s land and a race\'s backdrop stay within the limits, and a small ground keeps its 2 m grid', () => {
+    for (const [size, q] of [[16384, 48], [12000, 103]]) {
+      const { pos, idx } = land(size, q), G = gridFit(pos, idx);
+      expect(G.nx * G.ny).toBeLessThanOrEqual(Math.max(1 << 14, idx.length / 3 * 16));
+      expect(listed(G)).toBeLessThanOrEqual(Math.max(1 << 16, idx.length / 3 * 32));
+      expect(G.cell).toBeGreaterThan(2);
+      // (and a down ray still finds the land under it)
+      expect(gridRayDown(G, pos, idx, 1234.5, -987.6, 1000).length).toBe(1);
+    }
+    // a crowded corner on a big land: the halving stops at the limits, not at a quarter metre over 16 km
+    const big = land(16384, 48), pile = [], pi = [], base = big.pos.length / 3;
+    for (let k = 0; k < 3000; k++) { pile.push(10, 10, k * 0.01, 10.5, 10, k * 0.01, 10, 10.5, k * 0.01); pi.push(base + k * 3, base + k * 3 + 1, base + k * 3 + 2); }
+    const pos = Float32Array.from([...big.pos, ...pile]), idx = Uint32Array.from([...big.idx, ...pi]), C = gridFit(pos, idx);
+    expect(C.nx * C.ny).toBeLessThanOrEqual(Math.max(1 << 14, idx.length / 3 * 16));
+    expect(listed(C)).toBeLessThanOrEqual(Math.max(1 << 16, idx.length / 3 * 32));
+    // a 300 by 200 m track ground in 2 m quads keeps the 2 m grid it always had
+    const track = land(300, 150);
+    expect(gridFit(track.pos, track.idx).cell).toBe(2);
+  });
+
+  it('on the coarse grid a ray meets what three\'s own raycast meets', async () => {
+    const THREE = await import(pathToFileURL(path.join(process.cwd(), 'public/vendor/three/three.module.min.js')).href);
+    const { pos, idx } = land(16384, 48), G = gridFit(pos, idx), geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })); mesh.updateMatrixWorld(true);
+    // (a plane's view: down from altitude, a long shallow look over the land, a climb that meets nothing)
+    for (const [o, dd, far] of [[[300, -200, 800], [0, 0, -1], 2000], [[-5013.7, -3987.2, 600], [1, 0.8, -0.12], 9000], [[0, 0, 300], [0.3, 0.1, 1], 5000], [[7000, 6100, 120], [-1, -0.83, -0.02], 20000]]) {
+      const d = new THREE.Vector3(...dd).normalize(), rc = new THREE.Raycaster(new THREE.Vector3(...o), d, 0, far), want = [];
+      mesh.raycast(rc, want); want.sort((p, q) => p.distance - q.distance);
+      const got = gridRayCast(G, pos, idx, { x: o[0], y: o[1], z: o[2] }, d, 0, far, 2);
+      expect(got.map((h) => [h.f, +h.t.toFixed(2)])).toEqual(want.map((h) => [h.faceIndex, +h.distance.toFixed(2)]));
+    }
   });
 });
