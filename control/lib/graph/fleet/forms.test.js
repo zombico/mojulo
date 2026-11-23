@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { buildCapital, buildStation, fleetPayload, placeFleet } from './build.js';
 import { clipToGrid, FORMS } from './forms.js';
-import { CAPITAL_CLASSES } from './classes.js';
+import { CAPITAL_CLASSES, STATION_KINDS } from './classes.js';
+import { stencil } from './structures.js';
 import { ROLES } from './language.js';
 import { readKibble, hullKibbleScript } from '../scene/channels/hull-kibble.js';
 
@@ -33,7 +34,7 @@ describe('the fleet\'s forms', () => {
 
   it('builds each family as blocks that never overlap, every one welded back to its reactor, every face on a block', () => {
     expect(CASES.every(Boolean)).toBe(true);
-    expect(Object.keys(FORMS).sort()).toEqual(['concept', 'globform', 'wedge']);
+    expect(Object.keys(FORMS).sort()).toEqual(['concept', 'cylinder', 'globform', 'ringship', 'torus', 'wedge']);
     for (const c of CASES) {
       const B = buildCapital(c), ids = new Set(B.pieces.map((p) => p.id));
       for (let i = 0; i < B.pieces.length; i++) for (let j = i + 1; j < B.pieces.length; j++) expect(overlap(B.pieces[i], B.pieces[j]), `${c} ${B.pieces[i].id} ${B.pieces[j].id}`).toBe(false);
@@ -98,5 +99,40 @@ describe('the fleet\'s forms', () => {
     const B = buildStation('shipyard');
     expect(B.anchor.some((id) => id.startsWith('berth:'))).toBe(true);
     expect(heldAll(B)).toEqual([]);
+  });
+  describe('its structures (fleet/structures.js), civil or military', () => {
+    // (each structure form once, in each dress: the dress is its own procedure)
+    const pickS = (form) => Object.keys(STATION_KINDS).find((k) => STATION_KINDS[k].form === form);
+    const S = [['station', pickS('cylinder')], ['station', pickS('torus')], ['capital', Object.keys(CAPITAL_CLASSES).find((c) => CAPITAL_CLASSES[c].form === 'ringship')]];
+    const build = (kind, k, use) => (kind === 'station' ? buildStation(k, { use }) : buildCapital(k, { use }));
+    const row = (kind, k) => (kind === 'station' ? STATION_KINDS[k] : CAPITAL_CLASSES[k]);
+    it('stands as blocks that never overlap, all welded to its reactor, its systems by its use on it', () => {
+      for (const [kind, k] of S) for (const use of ['civil', 'military']) {
+        const B = build(kind, k, use), tag = `${k} ${use}`, ids = new Set(B.pieces.map((p) => p.id));
+        for (let i = 0; i < B.pieces.length; i++) for (let j = i + 1; j < B.pieces.length; j++) expect(overlap(B.pieces[i], B.pieces[j]), tag).toBe(false);
+        expect(heldAll(B), tag).toEqual([]);
+        expect(B.faces.every((f) => ids.has(f.piece)), tag).toBe(true);
+        expect(B.systems.map((y) => y.kind), tag).toEqual(row(kind, k).systems[use].map((y) => y.kind));
+      }
+    });
+    it('dresses by its use: civil glazed and lit, no guns; military armoured, gunned, numbered, no glazing', () => {
+      for (const [kind, k] of S) {
+        const C = build(kind, k, 'civil'), M = build(kind, k, 'military');
+        const glazed = (B) => B.faces.filter((f) => f.lit && f.color === '#5c7e9e').length;
+        expect(glazed(C), k).toBeGreaterThan(0);
+        expect(glazed(M), k).toBe(0);
+        expect(C.hardpoints.length, k).toBe(0);
+        expect(M.hardpoints.length, k).toBeGreaterThan(0);
+        // (its number: a stencil's bars in its paint, dark on its light hull)
+        expect(M.faces.some((f) => /^#1[d-f]/.test(f.color)), k).toBe(true);
+        expect(M.pieces.some((p) => p.role === 'armour') || M.faces.length > C.faces.length * 0.5, k).toBe(true);
+      }
+    });
+    it('paints a hull number seven-segment, a bar a segment', () => {
+      const bars = (t) => stencil(t, [0, 0, 0], [1, 0, 0], [0, 0, 1], 10).length;
+      expect(bars('8')).toBe(7);
+      expect(bars('1')).toBe(2);
+      expect(bars('07')).toBe(6 + 3);
+    });
   });
 });

@@ -88,4 +88,29 @@ describe('rupa in space', () => {
     for (const [dx, dy] of [[4, 0], [-4, 0], [0, 4], [0, -4], [6, 6]]) torpedo([c[0] + dx, c[1] + dy, b.max[2] + 20]);
     expect(e('cv').downed).toBe(true);
   });
+  it('a procedural enemy: its hull the share of its systems standing; the last one gone, it blows up out from its heart', () => {
+    const P = placeFleet(buildCapital('corvette'), { id: 'cv', at: [0, 0, 0] });
+    const breakables = P.blocks.map((b) => ({ ...b, hp: 1, ...(P.anchor.includes(b.id) ? { anchor: true } : {}) }));
+    const sys = P.systems.map((y, k) => ({ id: `s${k}`, team: 'foes', rule: { type: 'static' }, onBlock: y.block, body: { type: 'mesh', shape: 'box', size: [1, 1, 1], hittable: true, hp: 12 }, transform: { pos: y.at, heading: 0 } }));
+    const entities = [{ id: 'cv', team: 'foes', rule: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [1, 1, 1], hittable: false, hp: 100 }, structure: { systems: sys.map((x) => x.id), prefix: 'cv/' }, transform: { pos: [0, 0, 0], heading: 0 } }, ...sys];
+    const w = CW.createWorld({ entities, breakables, rupa: { g: 0 } }), e = (id) => w.entities.find((x) => x.id === id);
+    step(w);
+    expect(sys.length).toBe(3);
+    // (its plating shrugs off what is not a system: a blow to a hull block downs nothing)
+    e('s0').downed = true; step(w);
+    expect(e('cv').body.hp).toBe(67);
+    expect(e('cv').downed).toBeFalsy();
+    e('s1').downed = true; e('s2').downed = true; step(w);
+    expect(e('cv').downed).toBe(true);
+    // over its blow time every block goes, flung out from the middle, a blast at every third
+    const n0 = w.burstSeq || 0;
+    step(w, 60 * 4);
+    expect(w.breakables.filter((b) => b.id.startsWith('cv/')).every((b) => b.broken)).toBe(true);
+    const D = w.breaks.filter((r) => r.how === 'drift' && r.drift.n === 1);
+    expect(D.length).toBe(P.blocks.length);
+    expect(w.burstSeq - n0).toBeGreaterThan(P.blocks.length / 4);   // (the blasts, counted as they went: the page reads them as they come)
+    // (each away from the middle: its body's velocity along its way out)
+    const out = D.every((r) => { const b = w.rupa.bodies.find((q) => q.id === r.body); return b && b.vel[0] * r.away[0] + b.vel[1] * r.away[1] + b.vel[2] * r.away[2] > 2.9; });
+    expect(out).toBe(true);
+  });
 });

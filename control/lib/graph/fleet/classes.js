@@ -101,6 +101,12 @@ export const CAPITAL_CLASSES = Object.freeze({
     pods: [S({ at: 0.06, len: 0.3, y: 34, r: 8 })],
     guns: [S({ at: 0.3, on: 'top' }), S({ at: 0.62, on: 'bottom' })],
     kibble: S({ hull: 0.25, drive: 0.7, core: 0.35, truss: 0 }) }),
+  // A RING SHIP (fleet/structures.js): a wheel round a drive spine, `spine` its radius, the wheel's `radius` and `tube`
+  // `ringAt` along it; dressed by its `use` (civil | military), a sortie's group may ask the other.
+  ringship: S({ label: 'a ring ship', form: 'ringship', use: 'military', length: 700, spine: 34, radius: 220, tube: 30, ringAt: 0.55, cell: 55,
+    systems: S({ civil: [S({ kind: 'dock', on: 'fore', at: [0.5, 0] }), S({ kind: 'shield', on: 'top', at: [0.55, 0] }), S({ kind: 'reactor', on: 'aft', at: [0.5, 0] })],
+      military: [S({ kind: 'shield', on: 'top', at: [0.55, 0] }), S({ kind: 'shield', on: 'bottom', at: [0.55, 0] }), S({ kind: 'bridge', on: 'top', at: [0.95, 0] }), S({ kind: 'reactor', on: 'aft', at: [0.5, 0] })] }),
+    kibble: S({ civil: S({ hull: 0.4, hab: 0.3, deck: 0.6, tower: 0.7, drive: 0.7, core: 0.5, truss: 0 }), military: S({ hull: 0.9, hab: 0.85, deck: 0.9, tower: 1, drive: 0.85, core: 0.8, armour: 0.25, truss: 0 }) }) }),
 });
 
 /** Stations: each kind its plan (fleet/build.js stationPieces). Sizes in m. */
@@ -111,4 +117,17 @@ export const STATION_KINDS = Object.freeze({
   shipyard: S({ label: 'a shipyard', breach: 4, look: 'civil', frame: S({ l: 380, w: 130, h: 100, beam: 8 }), cranes: 3, berth: 'frigate' }),
   // a battle platform: an armoured core in tiers of decks, turrets thick on every rim, shield masts on top
   platform: S({ label: 'a battle platform', breach: 8, look: 'navy', core: S({ w: 60, h: 90 }), tiers: 3, tierR: 80, tierH: 22, turretsPerRim: 8 }),
+  // ── STRUCTURES (fleet/structures.js): read as one shape, dressed by their `use` (civil | military) ──
+  // A HABITAT CYLINDER (an O'Neill cylinder), its axis x: civil, its land and window strips, mirrors, a farm wheel and
+  // a dock ahead; military, armour belts, guns, slits, a drive and its number on its bow.
+  cylinder: S({ label: 'a habitat cylinder', form: 'cylinder', use: 'civil', length: 1400, radius: 240, cell: 120, coreCells: 2,
+    systems: S({ civil: [S({ kind: 'dock', on: 'fore', at: [0.5, 0] }), S({ kind: 'shield', on: 'top', at: [0.3, 0] }), S({ kind: 'reactor', on: 'aft', at: [0.5, 0] })],
+      military: [S({ kind: 'shield', on: 'top', at: [0.3, 0] }), S({ kind: 'shield', on: 'bottom', at: [0.3, 0] }), S({ kind: 'bridge', on: 'top', at: [0.75, 0] }), S({ kind: 'reactor', on: 'aft', at: [0.5, 0] })] }),
+    kibble: S({ civil: S({ hull: 0.35, hab: 0.3, deck: 0.6, drive: 0.7, core: 0.5, truss: 0 }), military: S({ hull: 0.9, deck: 0.9, drive: 0.85, core: 0.8, armour: 0.25, truss: 0 }) }) }),
+  // A TORUS STATION (a wheel), its axis z: a ring of habitat bays on four spokes, its hub, its dock above; civil, its
+  // inner band glazed, windows round its rim, solar arrays below; military, armour collars, guns, slits, masts, a number.
+  torus: S({ label: 'a torus station', form: 'torus', use: 'civil', radius: 420, tube: 48, hub: S({ r: 70, h: 120 }), cell: 64,
+    systems: S({ civil: [S({ kind: 'dock', on: 'top', at: [0.5, 0] }), S({ kind: 'shield', on: 'top', at: [0.95, 0] }), S({ kind: 'reactor', on: 'bottom', at: [0.5, 0] })],
+      military: [S({ kind: 'shield', on: 'top', at: [0.95, 0] }), S({ kind: 'shield', on: 'top', at: [0.05, 0] }), S({ kind: 'comms', on: 'top', at: [0.5, 0.95] }), S({ kind: 'reactor', on: 'bottom', at: [0.5, 0] })] }),
+    kibble: S({ civil: S({ hab: 0.3, deck: 0.6, core: 0.5, truss: 0 }), military: S({ hab: 0.85, deck: 0.9, core: 0.8, armour: 0.25, truss: 0 }) }) }),
 });

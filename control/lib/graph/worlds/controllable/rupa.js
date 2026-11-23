@@ -1733,7 +1733,8 @@ export function buildRupa(E) {
   // (`onBlock: <block>`) goes down when the block it stands on does.
   // (a structure's entity and a gun on one keep what ties them to their blocks)
   E.registerNormalize((ent, raw) => {
-    if (raw.structure && Array.isArray(raw.structure.core)) ent.structure = { core: raw.structure.core.slice(), ...(raw.structure.breach > 0 ? { breach: raw.structure.breach } : {}) };
+    const RS = raw.structure;
+    if (RS && (Array.isArray(RS.core) || Array.isArray(RS.systems))) ent.structure = { ...(Array.isArray(RS.core) ? { core: RS.core.slice() } : {}), ...(RS.breach > 0 ? { breach: RS.breach } : {}), ...(Array.isArray(RS.systems) ? { systems: RS.systems.slice() } : {}), ...(typeof RS.prefix === 'string' ? { prefix: RS.prefix } : {}), ...(RS.blowTime > 0 ? { blowTime: RS.blowTime } : {}) };
     if (typeof raw.onBlock === 'string') ent.onBlock = raw.onBlock;
   });
   // (weightless before the break pass settles anything, so nothing falls even the first frame)
@@ -1749,7 +1750,13 @@ export function buildRupa(E) {
     for (const e of state.entities) {
       if (e.downed) continue;
       const S = e.structure;
-      if (S && Array.isArray(S.core) && S.core.length) {
+      if (S && Array.isArray(S.systems) && S.systems.length) {
+        // (a procedural enemy: its SYSTEMS, the targets a mission names; its hull reads how many stand, and with the last
+        // of them gone it blows up: a chain of blasts out from its heart, its blocks flung apart)
+        const left = S.systems.filter((id) => { const x = state.byId[id]; return x && !x.downed && !x.gone; }).length;
+        if (e.body) e.body.hp = Math.round((100 * left) / S.systems.length);
+        if (!left) { e.downed = true; e.moving = false; if (e.body) e.body.hp = 0; blowUp(state, R, e); }
+      } else if (S && Array.isArray(S.core) && S.core.length) {
         // (a steel casing is holed, not worn down: its BREACHES, the holes through it, are what kill a reactor, S.breach
         // of them; or the casing torn away. The hull reads the lesser of what is left of either)
         const cap = S.core.reduce((s, id) => s + ((byId.get(id) && byId.get(id).rupa && byId.get(id).rupa.cap) || 0), 0), left = S.core.reduce((s, id) => s + (gone(id) ? 0 : (byId.get(id).rupa.joules || 0)), 0);
@@ -1760,6 +1767,47 @@ export function buildRupa(E) {
       if (e.onBlock && gone(e.onBlock)) { e.downed = true; e.moving = false; if (e.body) e.body.hp = 0; }
     }
   }, 36.5);
+  // ── A BLOW-UP: a structure whose systems are all gone goes in a chain of blasts out from its heart over `blowTime` s
+  // (3.5), each block, as its turn comes, stripped and flung away from the middle at a few to a dozen m/s, tumbling;
+  // its breaks say `how: 'drift'` with its own pivot and spin, and a blast (a craft's burst) at every third ──
+  const hz = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h / 4294967296; };
+  function blowUp(state, R, e) {
+    const S = e.structure, pre = S.prefix;
+    if (!pre) return;
+    const blocks = state.breakables.filter((b) => b.rupa && !b.broken && b.id.startsWith(pre));
+    if (!blocks.length) return;
+    const vol = (b) => Math.max(1e-6, (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2])), V = blocks.reduce((s, b) => s + vol(b), 0);
+    const c = [0, 1, 2].map((k) => blocks.reduce((s, b) => s + (vol(b) * (b.min[k] + b.max[k])) / 2, 0) / V);
+    // (the order: its skin first, blown off outward, then deeper in, the heart last in the biggest blast, so nothing
+    // flung out meets a plate still standing; each a little early or late by the dice)
+    const d = (b) => Math.hypot(...[0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2 - c[k])) * (0.75 + 0.5 * hz(b.id));
+    const ids = blocks.slice().sort((a, b) => d(b) - d(a) || (a.id < b.id ? -1 : 1)).map((b) => b.id);
+    for (const b of blocks) b.rupa.blowing = true;
+    const ext = Math.max(...[0, 1, 2].map((k) => Math.max(...blocks.map((b) => b.max[k])) - Math.min(...blocks.map((b) => b.min[k]))));
+    (R.blowups || (R.blowups = [])).push({ of: e.id, ids, c, t0: state.time, span: S.blowTime ?? 3.5, i: 0, size: ext });
+  }
+  E.registerWorldPass('rupa-blowup', (state) => {
+    const R = state.rupa;
+    if (!R || !R.blowups || !R.blowups.length) return;
+    if (!state.bursts) { state.bursts = []; state.burstSeq = 0; }
+    for (const U of R.blowups) {
+      if (U.i >= U.ids.length) continue;
+      const due = Math.ceil(U.ids.length * Math.pow(Math.min(1, (state.time - U.t0) / U.span), 0.7));
+      for (; U.i < due; U.i++) {
+        const b = state.breakables.find((q) => q.id === U.ids[U.i]);
+        if (!b || b.broken) continue;
+        const m = [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2), size = Math.max(...[0, 1, 2].map((k) => b.max[k] - b.min[k]));
+        const v = [m[0] - U.c[0], m[1] - U.c[1], m[2] - U.c[2]], L = Math.hypot(v[0], v[1], v[2]) || 1, h = hz(b.id), away = v.map((x) => x / L);
+        if (U.i % 3 === 0) state.bursts.push({ seq: state.burstSeq++, pos: m, t: state.time, radius: 4, fxRadius: Math.round(Math.max(12, Math.min(70, size * 0.7))), fxColor: 0xffa03c, fxScale: Math.round(size * 0.3), debris: true, craft: true });
+        stripIt(state, b, null, { from: [2 * U.c[0] - m[0], 2 * U.c[1] - m[1], 2 * U.c[2] - m[2]] });
+        const br = state.breaks[state.breaks.length - 1], body = R.bodies.find((x) => x.id === br.body);
+        if (body) body.vel = away.map((x) => x * (3 + 9 * h));
+        br.how = 'drift'; br.drift = { pivot: m.map((x) => Math.round(x * 1e3) / 1e3), away, n: 1, spin: Math.round((0.2 + 0.6 * hz(b.id + '~')) * 1e3) / 1e3 }; br.away = away; b.broken.drift = true;
+      }
+      // (the heart's own blast as the last block goes)
+      if (U.i >= U.ids.length) state.bursts.push({ seq: state.burstSeq++, pos: U.c.slice(), t: state.time, radius: 4, fxRadius: Math.round(Math.max(40, Math.min(220, U.size * 0.35))), fxColor: 0xfff0c8, fxScale: Math.round(U.size * 0.1), debris: true, craft: true });
+    }
+  }, 36.6);
   function spaceHeld(state, R) {
     const live = state.breakables.filter((b) => b.rupa && !b.broken && !(b.hp <= 0)), touch = (a, b) => {
       let flush = 0;
@@ -1778,7 +1826,8 @@ export function buildRupa(E) {
     // (cut loose: each piece of what is left, the blocks that touch, goes as ONE: off away from what held it at a walk,
     // every block of it at that one velocity, so it drifts whole; its breaks name its pivot and the way it goes, and
     // the page turns it about that pivot as it goes)
-    const loose = live.filter((b) => !held.has(b)), seen = new Set();
+    // (what is blowing up goes its own way: a blow-up's turn, not a drift)
+    const loose = live.filter((b) => !held.has(b) && !b.rupa.blowing), seen = new Set();
     for (const b0 of loose) {
       if (seen.has(b0)) continue;
       const part = [b0], q = [b0]; seen.add(b0);

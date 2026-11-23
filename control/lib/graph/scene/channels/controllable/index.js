@@ -5821,7 +5821,7 @@ function __updateDrifts() {
   for (const d of __drifts) {
     const body = ((__world.rupa && __world.rupa.bodies) || []).find((x) => x.id === d.br.body);
     if (!body) continue;
-    const P = d.br.drift.pivot, at = d.br.at, q = new THREE.Quaternion().setFromAxisAngle(d.axis, (__world.time - d.t0) * 0.12);
+    const P = d.br.drift.pivot, at = d.br.at, q = new THREE.Quaternion().setFromAxisAngle(d.axis, (__world.time - d.t0) * (d.br.drift.spin || 0.12));
     const c = new THREE.Vector3(P[0], P[1], P[2]).applyQuaternion(q), o = [P[0] + body.pos[0] - at[0], P[1] + body.pos[1] - at[1], P[2] + body.pos[2] - at[2]];
     for (const m of d.ms) { m.quaternion.copy(q); m.position.set(o[0] - c.x, o[1] - c.y, o[2] - c.z); }
   }

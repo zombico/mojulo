@@ -410,9 +410,11 @@ Pointers only; each target carries its own design notes.
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
 - Capital ships and stations: [fleet/](control/lib/graph/fleet/) (the fleet's industrial-realism language, its classes and
   station kinds as rows, a builder laying each as blocks of matter; a ship read as one shape, a wedge, a concept solid
-  or blobs on an anchor, `forms.js`, its volume cut into blocks and its surface clipped to them; its detail the
-  shader's parallax kibble by block, `scene/channels/hull-kibble.js`; a sortie's `capital` / `station` group;
-  destructible in zero g, held by welds to its reactor, breached and cut loose: [docs/rupa.md](docs/rupa.md#in-space)).
+  or blobs on an anchor, `forms.js`, its volume cut into blocks and its surface clipped to them; the structures, a
+  habitat cylinder, a torus station and a ring ship dressed civil or military by their `use`, `structures.js`; its
+  detail the shader's parallax kibble by block, `scene/channels/hull-kibble.js`; a sortie's `capital` / `station`
+  group; a procedural enemy, its named systems the targets, `systems.js`, blown up when they are gone; destructible in
+  zero g, held by welds to its reactor, cut loose: [docs/rupa.md](docs/rupa.md#in-space)).
 - Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
   measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
   and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the

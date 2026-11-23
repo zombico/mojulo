@@ -32,92 +32,10 @@ import { mulberry32, strHash } from '../city/plan/dice.js';
 import { surfaceNetFaces } from '../polygonizer/field-mesh.js';
 import { FLEET_LOOKS, LIGHTS } from './language.js';
 
-const r2 = (v) => Math.round(v * 100) / 100;
-const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const unit = (a) => { const L = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / L, a[1] / L, a[2] / L]; };
-const mid = (P) => P.reduce((s, p) => [s[0] + p[0] / P.length, s[1] + p[1] / P.length, s[2] + p[2] / P.length], [0, 0, 0]);
-/** A polygon's normal by Newell's sum (its winding's). */
-function newell(P) {
-  const n = [0, 0, 0];
-  for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]); }
-  return unit(n);
-}
-function tint(hex, k) { return '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k))).toString(16).padStart(2, '0')).join(''); }
+import { r2, sub, dot, unit, mid, newell, tint, part, boxPart, planPrism, drum, ellipsoid, octahedron, clipToGrid } from './geometry.js';
+import { STRUCTURE_FORMS } from './structures.js';
 
-// ── CONVEX PARTS: each its polygons wound out from its own middle, its inside test, its bounds ──
-function part(polys, inside, o = {}) {
-  const all = polys.flat(), c = mid(all);
-  const out = polys.map((P) => (dot(newell(P), sub(mid(P), c)) < 0 ? P.slice().reverse() : P));
-  return { polys: out, inside, min: [0, 1, 2].map((k) => Math.min(...all.map((p) => p[k]))), max: [0, 1, 2].map((k) => Math.max(...all.map((p) => p[k]))), ...o };
-}
-function boxPart(min, max, o = {}) {
-  const [a, b] = [min, max], c = (x, y, z) => [x ? b[0] : a[0], y ? b[1] : a[1], z ? b[2] : a[2]];
-  const polys = [[c(0, 0, 0), c(0, 1, 0), c(0, 1, 1), c(0, 0, 1)], [c(1, 0, 0), c(1, 1, 0), c(1, 1, 1), c(1, 0, 1)], [c(0, 0, 0), c(1, 0, 0), c(1, 0, 1), c(0, 0, 1)],
-    [c(0, 1, 0), c(1, 1, 0), c(1, 1, 1), c(0, 1, 1)], [c(0, 0, 0), c(1, 0, 0), c(1, 1, 0), c(0, 1, 0)], [c(0, 0, 1), c(1, 0, 1), c(1, 1, 1), c(0, 1, 1)]];
-  return part(polys, (p) => p[0] > a[0] && p[0] < b[0] && p[1] > a[1] && p[1] < b[1] && p[2] > a[2] && p[2] < b[2], o);
-}
-/** A prism over a convex plan (points [x, y], wound either way) from z0 to z1. */
-function planPrism(plan, z0, z1, o = {}) {
-  const lo = plan.map(([x, y]) => [x, y, z0]), hi = plan.map(([x, y]) => [x, y, z1]);
-  const sides = plan.map((_, i) => { const j = (i + 1) % plan.length; return [lo[i], lo[j], hi[j], hi[i]]; });
-  const area = plan.reduce((s, p, i) => { const q = plan[(i + 1) % plan.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0), w = area >= 0 ? 1 : -1;
-  const inPlan = (x, y) => plan.every((p, i) => { const q = plan[(i + 1) % plan.length]; return w * ((q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0])) > 0; });
-  return part([lo, hi, ...sides], (p) => p[2] > z0 && p[2] < z1 && inPlan(p[0], p[1]), o);
-}
-/** A cylinder along x from x0 to x1 about (y, z), n sides. */
-function drum(x0, x1, y, z, r, n, o = {}) {
-  const ring = (x) => Array.from({ length: n }, (_, i) => [x, y + r * Math.cos((2 * Math.PI * i) / n), z + r * Math.sin((2 * Math.PI * i) / n)]);
-  const A = ring(x0), B = ring(x1), sides = A.map((_, i) => { const j = (i + 1) % n; return [A[i], A[j], B[j], B[i]]; });
-  return part([A, B, ...sides], (p) => p[0] > x0 && p[0] < x1 && Math.hypot(p[1] - y, p[2] - z) < r * Math.cos(Math.PI / n), o);
-}
-/** An ellipsoid of radii r about c, nu rings round and nv from pole to pole. */
-function ellipsoid(c, r, nu, nv, o = {}) {
-  const at = (i, j) => { const u = (2 * Math.PI * i) / nu, v = Math.PI * (j / nv - 0.5); return [c[0] + r[0] * Math.cos(v) * Math.cos(u), c[1] + r[1] * Math.cos(v) * Math.sin(u), c[2] + r[2] * Math.sin(v)]; };
-  const polys = [];
-  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) {
-    const q = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
-    polys.push(j === 0 ? [q[0], q[2], q[3]] : j === nv - 1 ? [q[0], q[1], q[2]] : q);
-  }
-  return part(polys, (p) => ((p[0] - c[0]) / r[0]) ** 2 + ((p[1] - c[1]) / r[1]) ** 2 + ((p[2] - c[2]) / r[2]) ** 2 < 1, o);
-}
-function octahedron(c, r, o = {}) {
-  const v = [[r, 0, 0], [-r, 0, 0], [0, r, 0], [0, -r, 0], [0, 0, r], [0, 0, -r]].map((d) => [c[0] + d[0], c[1] + d[1], c[2] + d[2]]);
-  const polys = [];
-  for (const a of [0, 1]) for (const b of [2, 3]) for (const z of [4, 5]) polys.push([v[a], v[b], v[z]]);
-  return part(polys, (p) => Math.abs(p[0] - c[0]) + Math.abs(p[1] - c[1]) + Math.abs(p[2] - c[2]) < r, o);
-}
-
-// ── THE GRID: a convex polygon cut by a grid's planes, each piece in its cell ──
-function clipPlane(P, k, at, keepAbove) {
-  const out = [], inS = (p) => (keepAbove ? p[k] >= at - 1e-9 : p[k] <= at + 1e-9);
-  for (let i = 0; i < P.length; i++) {
-    const a = P[i], b = P[(i + 1) % P.length], ia = inS(a), ib = inS(b);
-    if (ia) out.push(a);
-    if (ia !== ib) { const t = (at - a[k]) / (b[k] - a[k]); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]); }
-  }
-  return out.length >= 3 ? out : null;
-}
-/** A convex polygon cut by the grid { min, size, n }: each piece and its cell [i, j, l] (a piece on a plane between two
- *  cells goes to the lower). */
-export function clipToGrid(poly, G) {
-  let pieces = [{ poly, cell: [] }];
-  for (let k = 0; k < 3; k++) {
-    const next = [];
-    for (const { poly: P, cell } of pieces) {
-      const lo = Math.min(...P.map((p) => p[k])), hi = Math.max(...P.map((p) => p[k]));
-      const c0 = Math.max(0, Math.floor((lo - G.min[k]) / G.size[k] + 1e-9)), c1 = Math.min(G.n[k] - 1, Math.floor((hi - G.min[k]) / G.size[k] - 1e-9));
-      for (let c = c0; c <= Math.max(c0, c1); c++) {
-        let Q = P;
-        if (c > c0) Q = Q && clipPlane(Q, k, G.min[k] + c * G.size[k], true);
-        if (c < c1) Q = Q && clipPlane(Q, k, G.min[k] + (c + 1) * G.size[k], false);
-        if (Q) next.push({ poly: Q, cell: [...cell, c] });
-      }
-    }
-    pieces = next;
-  }
-  return pieces.filter((q) => { const a = q.poly; let s = 0; for (let i = 1; i < a.length - 1; i++) { const u = sub(a[i], a[0]), v = sub(a[i + 1], a[0]); s += Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]); } return s > 1e-4; });
-}
+export { clipToGrid };
 
 // ── THE FAMILIES ──
 // (each: its parts, a role for a point in it, its reactor's place, its lit faces and lights, where its guns go)
@@ -255,12 +173,14 @@ function globForm(C, L0, rnd) {
   return { parts, blob: { sdf, min: lo, max: hi, role: 'hull', color: L0.base, cells: C.skin ?? 56 }, lit, lights, guns, core: (() => { const g = globs[C.coreGlob ?? 1] || globs[0]; return [g.c[0], g.c[1], g.c[2] - g.r[2] * 0.75]; })(), driveX: back.c[0] - back.r[0] * 0.5, length: L };
 }
 
-export const FORMS = Object.freeze({ wedge: wedgeForm, concept: conceptForm, globform: globForm });
+export const FORMS = Object.freeze({ wedge: wedgeForm, concept: conceptForm, globform: globForm, ...STRUCTURE_FORMS });
 
 /** A class with a `form` built as that form: its parts and skin, its blocks the grid's cells tightened to the solid,
  *  each face clipped to its block, the reactor's cells its anchors, its guns found on its surface. */
-export function buildForm(cls, C, { seed = 1, look } = {}) {
-  const L0 = FLEET_LOOKS[look ?? C.look] ?? FLEET_LOOKS.navy, rnd = mulberry32(strHash(`form|${cls}|${seed}`));
+export function buildForm(cls, C0, { seed = 1, look, use } = {}) {
+  // (its use, civil or military: the row's, or the one it is asked as; its look by it when it names none)
+  const C = use ? { ...C0, use } : C0;
+  const L0 = FLEET_LOOKS[look ?? (use && use !== C0.use ? null : C.look) ?? (C.use === 'military' ? 'navy' : 'civil')] ?? FLEET_LOOKS.navy, rnd = mulberry32(strHash(`form|${cls}|${C.use ?? ''}|${seed}`));
   const F = FORMS[C.form](C, L0, rnd);
   const inside = (p) => F.parts.some((q) => q.inside(p)) || (F.blob ? F.blob.sdf(p) < 0 : false);
   const lo = [0, 1, 2].map((k) => Math.min(...F.parts.map((q) => q.min[k]), F.blob ? F.blob.min[k] : Infinity));
@@ -311,9 +231,9 @@ export function buildForm(cls, C, { seed = 1, look } = {}) {
   // part's own faces cover the buried half)
   const buried = (Q, nn, skip) => [mid(Q), ...Q].every((q) => { const o = [q[0] + nn[0] * 0.3, q[1] + nn[1] * 0.3, q[2] + nn[2] * 0.3]; return F.parts.some((x, xi) => xi !== skip && x.inside(o)) || (skip >= 0 && F.blob ? F.blob.sdf(o) < 0 : false); });
   for (const [pi, Pt] of F.parts.entries()) {
-    for (const poly of Pt.polys) {
-      const nn = newell(poly), color = Pt.faceColor ? Pt.faceColor(nn) : Pt.color;
-      for (const { poly: Q, cell } of clipToGrid(poly, G)) if (!buried(Q, nn, pi)) give(Q, nn, color, cell, false, pi + 1);
+    for (const [qi, poly] of Pt.polys.entries()) {
+      const nn = newell(poly), color = Pt.polyColor ? Pt.polyColor(qi, nn, poly) : Pt.faceColor ? Pt.faceColor(nn) : Pt.color, glow = !!(Pt.litPoly && Pt.litPoly(qi, nn, poly));
+      for (const { poly: Q, cell } of clipToGrid(poly, G)) if (!buried(Q, nn, pi)) give(Q, nn, color, cell, glow, pi + 1);
     }
   }
   if (F.blob) {
@@ -326,6 +246,8 @@ export function buildForm(cls, C, { seed = 1, look } = {}) {
     }
   }
   for (const f of F.lit) give(f.corners, f.n, f.color, null, true);
+  // (what stands off the volume, no collider of its own: a mirror, an array, a rib, a stencil; with the block nearest it)
+  for (const d of F.decor || []) give(d.corners, newell(d.corners), d.color, null, false, -1);
   // its guns: each where a ray down onto the hull meets it, a turret there (its faces its block's), facing out
   const hard = [];
   for (const g of F.guns) {
@@ -342,7 +264,8 @@ export function buildForm(cls, C, { seed = 1, look } = {}) {
   }
   const lights = F.lights.map((l) => ({ at: l.at.map(r2), color: l.color, piece: nearest(l.at).id }));
   // (a form's kibble by role: its own levels over the language's, the shader carrying the detail the polygons leave out)
-  const out = pieces.map(({ at: _a, share: _s, ...p }) => (C.kibble && C.kibble[p.role] !== undefined ? { ...p, kibble: C.kibble[p.role] } : p));
+  const KB = C.kibble && (C.kibble[C.use] || C.kibble);
+  const out = pieces.map(({ at: _a, share: _s, ...p }) => (KB && typeof KB[p.role] === 'number' ? { ...p, kibble: KB[p.role] } : p));
   return { kind: cls, label: C.label, length: F.length, pieces: out, faces, hardpoints: hard, lights, core: core.map((p) => p.id), anchor: core.map((p) => p.id) };
 }
 

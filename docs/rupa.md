@@ -870,10 +870,13 @@ that cuts a section loose sends it off as one piece, every block of it stripped 
 the anchors (the breaks say `how: 'drift'` and its `drift` { pivot, away, n }), and the page turns its own drawing
 slowly about that pivot as it goes; the pieces of a break fly on and fade instead of falling.
 
-A thing built of such blocks is an entity with a `structure` { core, breach }: its hull reads what is left of its core
-blocks and the holes through them, and it is downed when the core is gone or holed `breach` times (a steel casing is
-holed, not worn down, so its holes are what kill it). An entity with `onBlock` (a gun on its mount) is downed when its
-block goes.
+A thing built of such blocks is an entity with a `structure`. With `systems` (entity ids) and a block `prefix` it is a
+procedural enemy: its hull reads the share of its systems standing, and when the last goes it is downed and BLOWS UP.
+Its blocks are stripped in a chain over `blowTime` s (3.5), outermost first and the heart last. Each is flung away from
+the middle at a few to a dozen m/s with a spin of its own (a drift break with `n: 1`), and every third goes with a
+craft's blast. With `core` and `breach` instead, its hull reads its core blocks and the holes through them, and it is
+downed when the core is gone or holed `breach` times. An entity with `onBlock` (a gun on its mount, a system on the
+hull) is downed when its block goes.
 
 ## Where it plugs in
 

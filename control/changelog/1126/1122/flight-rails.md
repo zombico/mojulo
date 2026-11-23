@@ -385,3 +385,28 @@ They share one foundation, built first, and these themes record it as it lands.
 - Fixed: the cruiser's fourth turret floated over the stepped bow (it now sits on the piece under it), and the
   shipyard's half-built frigate was not held in its frame (its reactor is clamped in the cradle now), so in zero g it
   would have drifted out of the berth.
+- **Capital ships and stations are procedural enemies** (`fleet/systems.js`). A big ship is not worn down by hit
+  points: it carries a few named systems on its hull, by default two shield generators and a reactor vent (a class may
+  name others: a bridge, a sensor array, a comms mast, docking control, a drive cluster). Each is a target of its own
+  that the computer names and the goal key cycles through, and each is drawn to be found:
+  - a dome, a glowing vent, a windowed block, a dish or a mast, on the hull's skyline;
+  - a ring of amber caution lights round its foot.
+
+  Destroy them all and the ship blows up. It goes in a chain of blasts, skin first and its heart last in the biggest
+  one, every block flung out tumbling. Its hull reads how many of its systems still stand. The reactor breach count no
+  longer decides a ship's kill.
+- **Structures** (`fleet/structures.js`): the big things that live in space rather than cross it.
+  - The **habitat cylinder** (an O'Neill cylinder): land strips and ribbed window strips, three mirrors hinged at one
+    end, a farm wheel and a dock ahead of its bow.
+  - The **torus station**: a ring of habitat bays on four spokes round a hub, its dock above and its arrays below.
+  - The **ring ship**: a wheel round a drive spine, command at its nose.
+
+  Each is dressed by its **use**, civil or military, in the field vehicles' hard-surface manner (plates, welded-on
+  armour, stencils), carried past this century's engineering:
+  - **civil:** glazing (a cylinder's window strips, a wheel's inner band) and rows of lit windows, mirrors and solar
+    arrays, docks with hazard stripes, a pale hull;
+  - **military:** no glazing, plates of two tones, faceted armour belts and collars, gun blisters, lit slits, a drive,
+    and its hull number stencilled huge on its face in paint that contrasts with the hull.
+
+  A sortie's group names its `use`; each row has a default and its systems for either use. The shared convex
+  geometry is `fleet/geometry.js`.

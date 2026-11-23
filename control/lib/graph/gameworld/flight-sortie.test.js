@@ -84,18 +84,21 @@ describe('a sortie\'s capital ships and stations (fleet/)', () => {
     bad({ id: 'a', side: 'foe', capital: 'frigate', station: 'outpost' }, /not both/);
     bad({ id: 'a', side: 'foe', capital: 'frigate', count: 2 }, /is one/);
   });
-  it('casts its blocks placed ahead, its hull an entity downed by its reactor, a gun a mind on each hardpoint', () => {
+  it('casts its blocks placed ahead, its hull the sum of its systems (each a target), a gun a mind on each hardpoint', () => {
     const { entities: C, fleet } = sortieCast(readSortie(S1), ends);
     const by = Object.fromEntries(C.map((e) => [e.id, e]));
     expect(fleet).toHaveLength(2);
     const [F] = fleet;
-    expect(by['frigate-1'].structure).toEqual({ core: F.core, breach: 4 });
-    expect(by['frigate-1'].body).toMatchObject({ hittable: true, hp: 100, name: 'Frigate', goal: true });
+    // (a procedural enemy: destroy its systems and it blows up; its hull no target of its own)
+    expect(by['frigate-1'].structure).toEqual({ systems: ['frigate-shield1', 'frigate-shield2', 'frigate-reactor1'], prefix: 'frigate/' });
+    expect(by['frigate-1'].body.hittable).toBe(false);
     expect(by['frigate-1'].team).toBe('foes');
-    // (the hull's mark at its reactor's middle, ahead of the start)
-    const core = F.blocks.filter((b) => F.core.includes(b.id));
-    expect(core.every((b) => [0, 1, 2].every((k) => by['frigate-1'].transform.pos[k] >= b.min[k] - 1e-6 && by['frigate-1'].transform.pos[k] <= b.max[k] + 1e-6))).toBe(true);
     expect(by['frigate-1'].transform.pos[0]).toBeGreaterThan(1000);
+    for (const id of by['frigate-1'].structure.systems) {
+      expect(by[id].body).toMatchObject({ hittable: true, hp: SORTIE.systems.hp, goal: true });
+      expect(F.blocks.some((b) => b.id === by[id].onBlock)).toBe(true);
+    }
+    expect(by['frigate-shield1'].body.name).toBe('Frigate shield generator');
     const guns = C.filter((e) => e.id.startsWith('frigate-gun'));
     expect(guns).toHaveLength(F.hardpoints.length);
     expect(guns.every((g, k) => g.onBlock === F.hardpoints[k].block && g.rule.type === 'ai' && g.rule.speed === 0)).toBe(true);

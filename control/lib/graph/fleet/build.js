@@ -21,6 +21,7 @@ import { FLEET_LOOKS, ROLES, LIGHTS, KIBBLE_SCALE, shade } from './language.js';
 import { blockMatter } from '../rupa/matter.js';
 import { mulberry32, strHash } from '../city/plan/dice.js';
 import { buildForm } from './forms.js';
+import { placeSystems, DEFAULT_SYSTEMS } from './systems.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 const PLATE = { hull: 8, bow: 7, armour: 6, core: 5, drive: 6, tower: 4, tank: 6, hab: 5, deck: 8, turret: 3 };
@@ -141,11 +142,22 @@ function boxFaces(B, color, lit = false) {
 }
 
 /** A capital ship's pieces and its faces in its own frame. */
-export function buildCapital(cls, { seed = 1, look } = {}) {
+/** The systems a mission destroys, laid on a built ship or station (fleet/systems.js): its class's, else the defaults. */
+function withSystems(B, row, look, use) {
+  // (a row's systems: its list, or one by its use; else the defaults)
+  const u = use ?? row.use, L0 = FLEET_LOOKS[look ?? (use && use !== row.use ? (use === 'military' ? 'navy' : 'civil') : row.look)] ?? FLEET_LOOKS.navy;
+  const specs = Array.isArray(row.systems) ? row.systems : (row.systems && row.systems[u]) || DEFAULT_SYSTEMS, S = placeSystems(B, specs, L0);
+  return { ...B, faces: [...B.faces, ...S.faces], lights: [...B.lights, ...S.lights], systems: S.systems };
+}
+
+export function buildCapital(cls, opts = {}) {
   const C = CAPITAL_CLASSES[cls];
   if (!C) throw new Error(`fleet: '${cls}' is not a capital ship's class (${Object.keys(CAPITAL_CLASSES).join(', ')})`);
-  // (a form: one shape, fleet/forms.js)
-  if (C.form) return buildForm(cls, C, { seed, look });
+  return withSystems(C.form ? buildForm(cls, C, opts) : buildModular(cls, opts), C, opts.look, opts.use);
+}
+
+function buildModular(cls, { seed = 1, look } = {}) {
+  const C = CAPITAL_CLASSES[cls];
   const L0 = FLEET_LOOKS[look ?? C.look] ?? FLEET_LOOKS.navy, rnd = mulberry32(strHash(`capital|${cls}|${seed}`));
   const pieces = [], hard = [], lights = [], extra = [];
   const add = (id, role, min, max, o = {}) => { const p = { id, role, min: min.map(r2), max: max.map(r2), ...o }; pieces.push(p); return p; };
@@ -259,7 +271,13 @@ function bayFaces(sec, x0, x1, hw, hh, look) {
 }
 
 /** A station's pieces and faces in its own frame (z its axis). */
-export function buildStation(kind, { seed = 1, look } = {}) {
+export function buildStation(kind, opts = {}) {
+  const K = STATION_KINDS[kind];
+  if (!K) throw new Error(`fleet: '${kind}' is not a station's kind (${Object.keys(STATION_KINDS).join(', ')})`);
+  return withSystems(K.form ? buildForm(kind, K, opts) : buildStationModular(kind, opts), K, opts.look, opts.use);
+}
+
+function buildStationModular(kind, { seed = 1, look } = {}) {
   const K = STATION_KINDS[kind];
   if (!K) throw new Error(`fleet: '${kind}' is not a station's kind (${Object.keys(STATION_KINDS).join(', ')})`);
   const L0 = FLEET_LOOKS[look ?? K.look] ?? FLEET_LOOKS.civil, rnd = mulberry32(strHash(`station|${kind}|${seed}`));
@@ -313,7 +331,7 @@ export function buildStation(kind, { seed = 1, look } = {}) {
     // cranes riding its top chords, a hook-block hanging from each
     for (let i = 0; i < K.cranes; i++) { const cx = -hx + (F.l * (i + 1)) / (K.cranes + 1); add(`crane${i}`, 'deck', [cx - 6, -hy - b / 2, hz + b / 2], [cx + 6, hy + b / 2, hz + b / 2 + 8]); lights.push({ at: [cx, hy + b + 0.2, hz + b / 2 + 4], color: LIGHTS.hazard, piece: `crane${i}` }); }
     // the berth: a frigate's hull, half plated, its drive not yet fitted
-    const S = buildCapital(K.berth, { seed, look: 'civil' }), keep = S.pieces.filter((p) => p.role !== 'drive' && p.role !== 'radiator' && !p.id.startsWith('strut'));
+    const S = buildModular(K.berth, { seed, look: 'civil' }), keep = S.pieces.filter((p) => p.role !== 'drive' && p.role !== 'radiator' && !p.id.startsWith('strut'));
     for (const p of keep) add(`berth:${p.id}`, p.role === 'hull' && rnd() < 0.35 ? 'truss' : p.role, p.min, p.max, { ...(p.windows ? { windows: false } : {}), band: p.band });
     core = keep.filter((p) => p.role === 'core').map((p) => `berth:${p.id}`);
     // (held in the frame by its cradle's clamps: its reactor's casing is anchored with the frame)
@@ -358,8 +376,9 @@ export function placeFleet(B, { at = [0, 0, 0], heading = 0, id = B.kind } = {})
   });
   const lights = B.lights.map((l) => ({ at: P(l.at), color: l.color, group: `break:${bid(l.piece ?? near(l.at))}` }));
   const hardpoints = B.hardpoints.map((h) => ({ block: bid(h.id), at: P(h.at), up: rot(h.up) }));
+  const systems = (B.systems || []).map((y) => ({ id: y.id, kind: y.kind, name: y.name, block: bid(y.block), at: P(y.at), up: rot(y.up), size: y.size }));
   const lo = [0, 1, 2].map((k) => Math.min(...blocks.map((b) => b.min[k]))), hi = [0, 1, 2].map((k) => Math.max(...blocks.map((b) => b.max[k])));
-  return { id, kind: B.kind, label: B.label, blocks, faces, lights, hardpoints, core: B.core.map(bid), anchor: B.anchor.map(bid), bounds: { min: lo, max: hi },
+  return { id, kind: B.kind, label: B.label, blocks, faces, lights, hardpoints, systems, core: B.core.map(bid), anchor: B.anchor.map(bid), bounds: { min: lo, max: hi },
     colliders: blocks.map((b) => ({ id: b.id, min: b.min, max: b.max })) };
 }
 

@@ -6,8 +6,9 @@
  *
  *   goal.flight = { sortie: {
  *     groups: [{ id, name?, craft?, count?, side: 'friend' | 'foe', arrive?, at?, shields?, hull? }
- *              | { id, name?, side, capital: <class> | station: <kind>, at?, heading?, look? }],   (a capital ship or a
- *              station, fleet/: one, there from the start, destructible; its hull down when its reactor is breached)
+ *              | { id, name?, side, capital: <class> | station: <kind>, at?, heading?, look?, use? }],   (a capital ship or
+ *              a station, fleet/: one, there from the start, destructible, dressed civil or military by its `use`; a
+ *              procedural enemy, down and blown up when its systems are destroyed, each a target of its own)
  *     goals:  [{ destroy: id | [ids] } | { protect: id | [ids] } | { survive: s }, each with an optional say],
  *   } }
  *     craft    a shelf archetype (craft-shelf/craft-archetypes.js); a foe's the interceptor, a friend's the strike foil
@@ -22,8 +23,8 @@
  *   readSortie(v, at?)            → the sortie read (throws naming the field)
  *   sortieMechanics(S, ends)      → the level's mechanics
  *   sortieCast(S, ends)           → { entities, figures, fleet? } the groups as craft, minds on their sides; a capital
- *                                   ship's or a station's blocks placed (fleet: fleet/build.js placeFleet), its hull and
- *                                   its guns entities
+ *                                   ship's or a station's blocks placed (fleet: fleet/build.js placeFleet), its hull,
+ *                                   its systems and its guns entities
  *
  * Pure: the same sortie, the same craft in the same places.
  */
@@ -46,9 +47,11 @@ export const SORTIE = Object.freeze({
   spacing: 70,
   // a mind's numbers by side: its cannons' rate, its bursts (a wingman helps, the player carries the mission)
   guns: Object.freeze({ foe: Object.freeze({ rof: 3, burst: 0.4, pause: 1.4 }), friend: Object.freeze({ rof: 1.5, burst: 0.3, pause: 3 }), turret: Object.freeze({ rof: 2.5, burst: 0.5, pause: 1.8, hp: 3 }) }),
+  // (a capital ship's or a station's systems: what a mission destroys, a few cannon passes or a warhead each)
+  systems: Object.freeze({ hp: 12 }),
 });
 const SIDES = ['friend', 'foe'];
-const GROUP_KEYS = ['id', 'name', 'craft', 'count', 'side', 'arrive', 'at', 'shields', 'hull', 'hold', 'capital', 'station', 'heading', 'look'];
+const GROUP_KEYS = ['id', 'name', 'craft', 'count', 'side', 'arrive', 'at', 'shields', 'hull', 'hold', 'capital', 'station', 'heading', 'look', 'use'];
 
 export function readSortie(v, at = 'goal.flight.sortie') {
   const fail = (m) => { throw new Error(`gameworld: ${at}${m}`); };
@@ -73,8 +76,9 @@ export function readSortie(v, at = 'goal.flight.sortie') {
       if (g.arrive !== undefined && g.arrive !== 'start') fail(`${w}.arrive: a capital ship or a station is there from the start`);
       if (g.heading !== undefined && ![0, 90, 180, 270].includes(g.heading)) fail(`${w}.heading is 0, 90, 180 or 270 (degrees from the start's own heading)`);
       if (g.look !== undefined && !FLEET_LOOKS[g.look]) fail(`${w}.look is a fleet's livery (${Object.keys(FLEET_LOOKS).join(', ')})`);
+      if (g.use !== undefined && g.use !== 'civil' && g.use !== 'military') fail(`${w}.use is civil or military (how it is dressed: glazing and arrays, or armour and guns)`);
       if (g.at !== undefined && !(isObj(g.at) && Object.entries(g.at).every(([f, x]) => ['ahead', 'side', 'up'].includes(f) && Number.isFinite(x) && Math.abs(x) <= 20000))) fail(`${w}.at is { ahead?, side?, up? } in metres from the start`);
-      return { id: g.id, name: g.name ?? (g.capital ? CAPITAL_CLASSES[g.capital] : STATION_KINDS[g.station]).label.replace(/^an? /, '').replace(/^./, (c) => c.toUpperCase()), count: 1, side: g.side, arrive: { start: true }, ...(g.capital ? { capital: g.capital } : { station: g.station }), ...(g.at ? { at: { ...g.at } } : {}), ...(g.heading !== undefined ? { heading: g.heading } : {}), ...(g.look ? { look: g.look } : {}) };
+      return { id: g.id, name: g.name ?? (g.capital ? CAPITAL_CLASSES[g.capital] : STATION_KINDS[g.station]).label.replace(/^an? /, '').replace(/^./, (c) => c.toUpperCase()), count: 1, side: g.side, arrive: { start: true }, ...(g.capital ? { capital: g.capital } : { station: g.station }), ...(g.at ? { at: { ...g.at } } : {}), ...(g.heading !== undefined ? { heading: g.heading } : {}), ...(g.look ? { look: g.look } : {}), ...(g.use ? { use: g.use } : {}) };
     }
     const craft = g.craft ?? SORTIE.craft[g.side];
     if (!CRAFT_ARCHETYPES[craft]) fail(`${w}.craft '${craft}' is not a craft of the shelf (${Object.keys(CRAFT_ARCHETYPES).join(', ')})`);
@@ -135,12 +139,12 @@ export function sortieCast(S, ends) {
   const L = STARFIGHTER.lasers, entities = [], figures = {};
   const fleet = [];
   for (const g of S.groups) {
-    // A CAPITAL SHIP OR A STATION (fleet/): built of destructible matter, welded to its reactor and weightless; its
-    // hull an entity the computer names and the mission counts (down when its reactor is breached), its guns minds on
-    // their hardpoints (down with their mounts)
+    // A CAPITAL SHIP OR A STATION (fleet/): built of destructible matter, welded to its reactor and weightless; a
+    // procedural enemy, its hull the entity the mission counts, down (and blown up) when its systems are destroyed, each
+    // a target the computer names; its guns minds on their hardpoints (down with their mounts)
     if (g.capital || g.station) {
-      const row = g.capital ? CAPITAL_CLASSES[g.capital] : STATION_KINDS[g.station];
-      const built = g.capital ? buildCapital(g.capital, { seed: S.groups.indexOf(g) + 1, ...(g.look ? { look: g.look } : {}) }) : buildStation(g.station, { seed: S.groups.indexOf(g) + 1, ...(g.look ? { look: g.look } : {}) });
+      const opt = { seed: S.groups.indexOf(g) + 1, ...(g.look ? { look: g.look } : {}), ...(g.use ? { use: g.use } : {}) };
+      const built = g.capital ? buildCapital(g.capital, opt) : buildStation(g.station, opt);
       // (a big one stands further off: the start at least its length and a half from its middle)
       const A = { ...SORTIE.at.structure, ahead: Math.max(SORTIE.at.structure.ahead, r2(1.5 * (built.length || 0) + 300)), ...(g.at ?? {}) }, team = g.side === 'foe' ? 'foes' : 'player';
       const at = [r2(p[0] + fx * A.ahead + rx * A.side), r2(p[1] + fy * A.ahead + ry * A.side), r2(p[2] + A.up)];
@@ -148,8 +152,14 @@ export function sortieCast(S, ends) {
       const P = placeFleet(built, { at, heading: turn, id: g.id });
       fleet.push(P);
       const core = P.blocks.filter((b) => P.core.includes(b.id)), mid = core.length ? [0, 1, 2].map((k) => r2(core.reduce((s, b) => s + (b.min[k] + b.max[k]) / 2, 0) / core.length)) : at;
-      entities.push({ id: `${g.id}-1`, team, rule: { type: 'static' }, structure: { core: P.core, breach: row.breach },
-        body: { type: 'mesh', shape: 'box', size: [1, 1, 1], color: '#000000', hittable: true, hp: 100, radius: 2, name: g.name, ...(goalIds.has(g.id) ? { goal: true } : {}) }, transform: { pos: mid, heading: 0, pitch: 0 } });
+      // (a procedural enemy: its hull no target of its own, down with the last of its SYSTEMS, each a target the
+      // computer names and the mission's goal keys cycle through; then it blows up, rupa.js)
+      const sys = P.systems.map((y, k) => ({ ...y, eid: `${g.id}-${y.kind}${P.systems.slice(0, k).filter((q) => q.kind === y.kind).length + 1}` }));
+      entities.push({ id: `${g.id}-1`, team, rule: { type: 'static' }, structure: { systems: sys.map((y) => y.eid), prefix: `${g.id}/` },
+        body: { type: 'mesh', shape: 'box', size: [1, 1, 1], color: '#000000', hittable: false, hp: 100, radius: 2, name: g.name }, transform: { pos: mid, heading: 0, pitch: 0 } });
+      for (const y of sys) entities.push({ id: y.eid, team, onBlock: y.block, rule: { type: 'static' },
+        body: { type: 'mesh', shape: 'box', size: [1, 1, 1], color: '#000000', hittable: true, hp: SORTIE.systems.hp, poise: 99, radius: r2(y.size), egg: { a: r2(y.size), c: r2(y.size * 0.8), cz: 0 }, name: `${g.name} ${y.name}`, ...(goalIds.has(g.id) ? { goal: true } : {}) },
+        transform: { pos: y.at, heading: 0, pitch: 0 } });
       // (its guns: a mind each on its hardpoint, firing the other side's bolts, down when the block it stands on is)
       P.hardpoints.forEach((H, k) => entities.push({ id: `${g.id}-gun${k + 1}`, team, onBlock: H.block,
         rule: { type: 'ai', space: true, speed: 0, turn: 2.2, standoff: 0, target: 'enemy', fireArc: 14, burst: SORTIE.guns.turret.burst, pause: SORTIE.guns.turret.pause, sightRange: r2(12 * c.cruise), eye: 0 },
