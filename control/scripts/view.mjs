@@ -11,6 +11,8 @@
  *   GET  /vendor/three/…      three.js, as a level's page imports it
  *
  * `--warm` runs the warmer alone (each game's path, each level's still check) and exits.
+ * `--out <dir>` writes the view as a folder of static pages instead (lib/view/export.js), each level's page inlined, and
+ * exits: `[--no-play]` leaves the playable pages out, `[--game <ref>]…` only those games. As `mojulo script view --out`.
  */
 import http from 'node:http';
 import fs from 'node:fs';
@@ -22,11 +24,12 @@ import { register } from 'node:module';
 import { resolveMojuloPaths } from './mojulo-paths.mjs';
 
 register('./mcp-stdio-loader.mjs', import.meta.url);
+process.env.MOJULO_INVOKE_CWD ??= process.cwd();
 resolveMojuloPaths();
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.chdir(CONTROL_DIR);
 
-const { values: args } = parseArgs({ options: { port: { type: 'string', default: '3002' }, host: { type: 'string', default: '127.0.0.1' }, warm: { type: 'boolean', default: false } } });
+const { values: args } = parseArgs({ options: { port: { type: 'string', default: '3002' }, host: { type: 'string', default: '127.0.0.1' }, warm: { type: 'boolean', default: false }, out: { type: 'string' }, 'no-play': { type: 'boolean', default: false }, game: { type: 'string', multiple: true } } });
 const D = await import('@/lib/view/data.js');
 const V = await import('@/lib/view/verify.js');
 const P = await import('@/lib/view/pages.js');
@@ -117,6 +120,12 @@ const routes = [
 const body = (req) => new Promise((ok) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 1e5) req.destroy(); }); req.on('end', () => ok(s)); });
 
 if (args.warm) { await warmAll(); process.exit(0); }
+if (args.out) {
+  const { exportView } = await import('@/lib/view/export.js');
+  const out = await exportView(path.resolve(process.env.MOJULO_INVOKE_CWD, args.out), { play: !args['no-play'], games: args.game ?? null, log: (l) => process.stderr.write(`${l}\n`) });
+  process.stdout.write(`${JSON.stringify({ ok: true, dir: out.dir, files: out.files.length, levels: out.levels, stills: out.stills, open: path.join(out.dir, 'index.html') }, null, 2)}\n`);
+  process.exit(0);
+}
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'), p = decodeURIComponent(url.pathname);

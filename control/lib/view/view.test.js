@@ -12,6 +12,8 @@ import { page, esc, NAV } from './html.js';
 import { games, gameOf, levels, characters, objects, printOf } from './data.js';
 import { still, gates, eyes, stampEyes, stillNow, recordStill } from './verify.js';
 import { gamesPage, gamePage, levelPage, levelsPage, charactersPage, objectsPage } from './pages.js';
+import { exportView } from './export.js';
+import { STATIC } from './html.js';
 
 // THE GAME VIEW (lib/view/): games first, then levels, characters, objects; on every level its machine gates and the
 // person's eyes, never conflated. The concept on the smallest store: one designed game, its level, a hero, an object;
@@ -116,4 +118,22 @@ describe('the pages', () => {
     expect(objectsPage(objects())).toContain('A crate');
     expect(gamesPage([])).toContain('No games yet');
   });
+});
+
+describe('the view as a folder', () => {
+  it('every page a file, linked relatively, each level playable from disk; no stamp where nothing can record it', async () => {
+    store();
+    const out = path.join(DIR, 'site');
+    const R = await exportView(out, { play: true });
+    expect(R.levels).toBe(2);
+    expect(R.stills).toEqual({ pass: 1, fail: 1, skip: 0 });
+    for (const f of ['index.html', 'levels.html', 'characters.html', 'objects.html', STATIC.game('g'), STATIC.level('lv-a'), STATIC.play('lv-a')]) expect(fs.existsSync(path.join(out, f)), f).toBe(true);
+    const game = fs.readFileSync(path.join(out, STATIC.game('g')), 'utf8');
+    expect(game).toContain(`href="${STATIC.level('lv-b')}"`);
+    expect(game).not.toMatch(/href="\//);   // no link a disk cannot follow
+    const lv = fs.readFileSync(path.join(out, STATIC.level('lv-b')), 'utf8');
+    expect(lv).not.toContain('<form');
+    expect(lv).toContain('Tell your agent');
+    expect(fs.readFileSync(path.join(out, STATIC.play('lv-a')), 'utf8')).not.toContain('/vendor/three');   // three.js inlined
+  }, 300_000);
 });

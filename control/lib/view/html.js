@@ -3,17 +3,26 @@
  * stylesheet, no script but what a page asks for; low fidelity on purpose (layout and plain styling, no design pass).
  *
  *   esc(s)                         → text made safe for HTML
- *   page({ title, active, body })  → a whole document: the nav (games first), the title, the body
+ *   page({ title, active, body, to? }) → a whole document: the nav (games first), the title, the body
+ *   SERVED / STATIC                the links a page writes (`to`): the server's paths, or a static export's files (flat,
+ *                                  relative, so the folder opens from disk or an artifact host)
  *   badge(state, text)             → a gate's state as a chip: pass | fail | open | skip
  *   NAV                            → the view's sections, in the order the work is
  */
 
-export const NAV = Object.freeze([
-  ['games', 'Games', '/'],
-  ['levels', 'Levels', '/levels'],
-  ['characters', 'Characters', '/characters'],
-  ['objects', 'Objects', '/objects'],
-]);
+export const NAV = Object.freeze([['games', 'Games'], ['levels', 'Levels'], ['characters', 'Characters'], ['objects', 'Objects']]);
+
+const file = (ref) => encodeURIComponent(ref);
+export const SERVED = Object.freeze({
+  games: '/', levels: '/levels', characters: '/characters', objects: '/objects',
+  game: (r) => `/games/${file(r)}`, level: (r) => `/levels/${file(r)}`, play: (r) => `/play/${file(r)}`,
+  character: (r) => `/characters#${file(r)}`, eyes: (r) => `/levels/${file(r)}/eyes`,
+});
+export const STATIC = Object.freeze({
+  games: 'index.html', levels: 'levels.html', characters: 'characters.html', objects: 'objects.html',
+  game: (r) => `game-${file(r)}.html`, level: (r) => `level-${file(r)}.html`, play: (r) => `play/${file(r)}.html`,
+  character: (r) => `characters.html#${file(r)}`, eyes: null,
+});
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
@@ -50,8 +59,8 @@ button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; b
 @media (max-width: 600px) { main { padding: 14px 16px; } th:nth-child(n+4), td:nth-child(n+4) { display: none; } }
 `;
 
-export function page({ title, active = null, body = '' }) {
-  const nav = NAV.map(([id, label, href]) => `<a href="${href}"${id === active ? ' class="on"' : ''}>${label}</a>`).join('');
+export function page({ title, active = null, body = '', to = SERVED }) {
+  const nav = NAV.map(([id, label]) => `<a href="${esc(to[id])}"${id === active ? ' class="on"' : ''}>${label}</a>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)} · mojulo</title><style>${CSS}</style></head>
 <body><header><b>mojulo</b><nav>${nav}</nav></header><main>${body}</main></body></html>`;
