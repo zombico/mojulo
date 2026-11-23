@@ -12,3 +12,10 @@
   left to ring, each played on its nearest take across F#2 to F#5 and damped when the key is let go; asking each note's
   register in words (a left hand's low notes, a bright treble) lands most takes in their octave. Without the library it
   is the tuned grand, byte for byte; not on the instrument shelf until chosen by ear.
+- The robot band's pitched instruments recorded the same way: the celesta, the vibraphone (recorded with its motor off,
+  the synthesized one's tremolo laid over it), the steel drum and the picked bass, struck once and left to ring; and the
+  organ's low register asked again, reaching down to F#2. Each part matches its synthesized one's loudness and falls back
+  to it, byte for byte, without the library. `RECORDED_TWINS` names each synthesized patch's recorded twin, so a band is
+  heard recorded by naming the twins as its parts' patches; none is on the instrument shelf until chosen by ear.
+- The pitch converter reads a struck note while it rings, not the silence after it: a celesta's bell, gone in a second,
+  is measured over that second.

@@ -5,7 +5,8 @@
  * loop (pitch.js), so the instrument is zoned by what each take is: a page plays each note on its nearest take, bent
  * the rest of the way, held on its loop (beats-kernel.js sampleZone; audio-patches.js organRec).
  *
- * Twelve letters in the middle register, four asked low; two takes each. No vibrato, no Leslie swirl, no chord: a
+ * Twelve letters in the middle register, four asked low, and twelve in the low register asked in the left hand's words;
+ * two takes each. No vibrato, no Leslie swirl, no chord: a
  * note that wobbles or beats does not loop.
  */
 
@@ -20,4 +21,6 @@ const note = (name, octave, register) => ({
 export const CARDS = [
   ...LETTERS.map((n) => note(n, 4, 'in the middle register')),
   ...['C', 'E', 'G', 'A#'].map((n) => note(n, 2, 'a deep low bass note')),
+  // (the low register asked again in words, as the piano's was: its first asks came back an octave or two up)
+  ...LETTERS.map((n) => note(n, 3, 'in its low register, a full warm low note played by the left hand')),
 ];

@@ -151,8 +151,13 @@ bends on the osc's frequency (`glideFrom`, `bend`, `path`), velocity layers, rel
 the organ (`cards/organ.js`, the patch `organRec`, its fallback the synthesized `organ`); the second the piano
 (`cards/piano.js`, `pianoRec`, its fallback `pianoGrand3`; struck, not looped: a note rings as its take does and is damped
 when the key is let go). Asking a note's register in words lands most takes in their octave: the piano's 72 takes,
-asked in three registers, kept 68 and covered 30 notes from F#2 to F#5; the organ's, asked by letter alone, clustered
-round C4.
+asked in three registers, now keeps all 72 and covers 31 notes from F#2 to A#5; the organ's, asked by letter alone,
+clustered round C4 until its low register was asked in words (now 17 notes, F#2 to A4). The robot band's pitched
+instruments follow (`cards/band.js`; patches `celestaRec`, `vibraphoneRec` with the synthesized tremolo laid over its
+motor-off takes, `steelpanRec`, `bassPickRec`), each matched to its synthesized one's loudness; `RECORDED_TWINS`
+(audio-patches.js) names each synthesized patch's recorded twin. Coverage as conditioned: the celesta 24 notes (C4 to
+D6), the vibraphone 26 (D2 to G#5), the steel drum 12 (one octave, C4 to B4: its high asks landed low), the bass 14 (E1
+to D#3). A struck note is read while it rings (steadyPitch reads inside the sounding part of the take).
 
 ## Making it
 

@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { renderBeatsOffline } from './beats-render.js';
 import { normalizeBeatsManifest } from './beats-manifest.js';
-import { PATCHES } from './audio-patches.js';
+import { PATCHES, RECORDED_TWINS } from './audio-patches.js';
 import { forgetLibrary, sampleSlice, hasInstrument } from '../sound-library/library.js';
 import { fundamental, steadyPitch, loopPoints } from '../../../scripts/sound-library/pitch.js';
 
@@ -117,5 +117,14 @@ describe('an instrument from the library', () => {
     const own = await renderBeatsOffline(normalizeBeatsManifest({ kind: 'beats-composition', title: 'p', bpm: 120, parts: [{ name: 'k', patch: INST, events: [[0, 'C4', 2, 0.8]] }] }));
     const synth = await renderBeatsOffline(normalizeBeatsManifest({ kind: 'beats-composition', title: 'p', bpm: 120, parts: [{ name: 'k', patch: Object.keys(PATCHES).find((k) => PATCHES[k] === PATCHES[INST].fallback), events: [[0, 'C4', 2, 0.8]] }] }));
     expect(sha(own.wav)).toBe(sha(synth.wav));
+  });
+});
+
+describe('the recorded twins', () => {
+  it('each names a zoned recorded instrument standing in for the synthesized patch it is the twin of', () => {
+    for (const [synth, twin] of Object.entries(RECORDED_TWINS)) {
+      expect(PATCHES[twin]).toMatchObject({ voice: 'sample', zones: true });
+      expect(PATCHES[twin].fallback).toBe(PATCHES[synth]);
+    }
   });
 });

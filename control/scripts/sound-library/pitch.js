@@ -7,9 +7,10 @@
  *        the harmonic product spectrum of a stretch of the take (a 2^n FFT of `seconds` from `from`, Hann windowed; the
  *        log magnitudes at 1…5 times each bin summed), its peak in [lo, hi] Hz refined by a parabola; `clarity` the
  *        peak's height over the median (a noise has none worth trusting)
- *   steadyPitch(x, rate) → { hz, midi, cents, spread } | null: the fundamental read at three stretches of the take (its
- *        start, its middle, its later sustain), their median and how far apart they are (cents): a take whose reads
- *        disagree by more than 40 cents is no note (a blast, a gust), null
+ *   steadyPitch(x, rate) → { hz, midi, cents, spread } | null: the fundamental read at three stretches of the take while
+ *        it sounds (its start, its middle, its later sustain: a struck note's ring, not the silence after it), their
+ *        median and how far apart they are (cents): a take whose reads disagree by more than 40 cents is no note (a
+ *        blast, a gust), null
  *   loopPoints(x, rate, hz, { from?, to?, periods? }) → [start, end] seconds: a held note's loop, an upward zero
  *        crossing near `from` (a share of the take) to the one nearest a whole number of periods later, inside `to`, so
  *        the seam meets itself in phase
@@ -84,7 +85,14 @@ export function loopPoints(x, rate, hz, { from = 0.35, to = 0.92, periods = null
 }
 
 export function steadyPitch(x, rate, { most = 40 } = {}) {
-  const T = x.length / rate, len = Math.min(0.5, T / 4);
+  // (read inside the note while it sounds: a struck bell that dies in a second is read over that second, not over the
+  // silence after it; the sounding part ends where a 50 ms stretch falls 30 dB under the loudest)
+  const W = Math.round(0.05 * rate), env = [];
+  for (let s0 = 0; s0 + W <= x.length; s0 += W) { let e = 0; for (let i = s0; i < s0 + W; i++) e += x[i] * x[i]; env.push(Math.sqrt(e / W)); }
+  const peak = Math.max(...env, 1e-9);
+  let last = env.length - 1;
+  while (last > 0 && env[last] < peak * 0.0316) last--;
+  const T = Math.max(0.2, ((last + 1) * W) / rate), len = Math.min(0.5, T / 4);
   const reads = [0.08, 0.35, 0.6].map((f) => fundamental(x, rate, { from: f * T, seconds: len })).filter((r) => r.hz > 0);
   if (reads.length < 3) return null;
   const m = reads.map((r) => r.midi).sort((a, b) => a - b), spread = Math.round((m[2] - m[0]) * 100);

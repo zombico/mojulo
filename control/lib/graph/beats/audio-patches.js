@@ -506,9 +506,22 @@ PATCHES.recRockKit = { kit: { ...PATCHES.rockKit90s.kit, 35: 'recKick', 36: 'rec
 // rest of the way, its two copies spread a few cents as the synthesized organ's unison is; on a machine without the
 // library (or before its takes are decoded) the synthesized organ it stands in for. A part plays it as
 // `{ instrument: 'organ', patch: 'organRec' }` (the organ's chain kept). Not on the instrument shelf until heard.
-PATCHES.organRec = { voice: 'sample', library: 'organ', zones: true, loop: true, oneShot: false, attack: 0.012, decay: 0.04, sustain: 1, release: 0.12, volume: -9, unison: 2, detune: 4, fallback: PATCHES.organ };
+PATCHES.organRec = { voice: 'sample', library: 'organ', zones: true, loop: true, oneShot: false, attack: 0.012, decay: 0.04, sustain: 1, release: 0.12, volume: -12, unison: 2, detune: 4, fallback: PATCHES.organ };
 // The recorded PIANO (the sound library's instrument `piano`: a grand's notes struck once and left to ring, each zoned
 // by its measured root, scripts/sound-library/cards/piano.js): each note on its nearest take, bent the rest of the way,
 // ringing as its take does and damped when the key is let go (no loop: a struck string dies away); on a machine without
 // the library the tuned grand it stands in for. Played as `{ instrument: 'grand-piano-3', patch: 'pianoRec' }`.
 PATCHES.pianoRec = { voice: 'sample', library: 'piano', zones: true, oneShot: false, attack: 0.002, decay: 0, sustain: 1, release: 0.3, volume: -18, fallback: PATCHES.pianoGrand3 };
+// The robot band's colour instruments and its bass recorded (scripts/sound-library/cards/band.js), struck once and left
+// to ring, each on its nearest measured take and damped when the note ends; each falls back to the synthesized patch it
+// stands in for. The vibraphone was recorded with its motor off: the synthesized one's tremolo is laid over its takes.
+const recStruck = (library, synth, release, volume, extra = {}) => ({ voice: 'sample', library, zones: true, oneShot: false, attack: 0.001, decay: 0, sustain: 1, release, volume, ...extra, fallback: PATCHES[synth] });
+Object.assign(PATCHES, {
+  celestaRec: recStruck('celesta', 'celesta', 0.5, -9),
+  vibraphoneRec: recStruck('vibraphone', 'vibraphone', 0.4, -7, { tremolo: PATCHES.vibraphone.tremolo }),
+  steelpanRec: recStruck('steelpan', 'steelpan', 0.3, -3.5),
+  bassPickRec: recStruck('bass', 'bassPick', 0.12, -7.3),
+});
+// each synthesized patch's recorded twin (the sound library's instruments), so a band can be heard recorded where the
+// library is installed: a part names the twin as its patch, keeping its instrument's chain
+export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'pianoRec', celesta: 'celestaRec', vibraphone: 'vibraphoneRec', steelpan: 'steelpanRec', bassPick: 'bassPickRec' });
