@@ -2,11 +2,12 @@
 /**
  * `node scripts/view.mjs [--port 3002]` — the game view (lib/view/): mojulo's work as a person sees it, games first, every
  * level's gates beside it. A `node:http` server over pure renderers, no framework, no dependency: the store is read
- * where the CLI reads it (resolveMojuloPaths), and the one write is the person's eyes stamp on a level they played.
+ * where the CLI reads it (resolveMojuloPaths), and nothing is written to it (read only: a level's eyes gate says to tell
+ * the agent).
  *
  *   GET  /                    the games                GET  /games/<ref>     a game: its path to level 1, levels, cast
- *   GET  /levels              every level              GET  /levels/<ref>    a level: play it, its gates, the stamp
- *   POST /levels/<ref>/eyes   the person's verdict     GET  /play/<ref>      the level's own page (the iframe's)
+ *   GET  /levels              every level              GET  /levels/<ref>    a level: play it, its gates
+ *   GET  /play/<ref>          the level's own page (the iframe's)
  *   GET  /characters          heroes, foes, figures    GET  /objects         everything else
  *   GET  /vendor/three/…      three.js, as a level's page imports it
  *
@@ -117,7 +118,6 @@ const routes = [
   ['GET', /^\/objects$/, async () => P.objectsPage(D.objects())],
 ];
 
-const body = (req) => new Promise((ok) => { let s = ''; req.on('data', (c) => { s += c; if (s.length > 1e5) req.destroy(); }); req.on('end', () => ok(s)); });
 
 if (args.warm) { await warmAll(); process.exit(0); }
 if (args.out) {
@@ -130,12 +130,6 @@ if (args.out) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'), p = decodeURIComponent(url.pathname);
   try {
-    const eyes = req.method === 'POST' && /^\/levels\/([^/]+)\/eyes$/.exec(p);
-    if (eyes) {
-      const f = new URLSearchParams(await body(req));
-      V.stampEyes(D.row(eyes[1]), { verdict: f.get('verdict'), note: f.get('note') || '' });
-      res.writeHead(303, { location: `/levels/${encodeURIComponent(eyes[1])}` }); res.end(); return;
-    }
     // three.js as the level's page imports it (its import map: /vendor/three/…), from the package's own copy
     if (req.method === 'GET' && p.startsWith('/vendor/three/')) {
       const root = path.join(CONTROL_DIR, 'public', 'vendor', 'three'), f = path.resolve(root, '.' + p.slice('/vendor/three'.length));
