@@ -10,6 +10,7 @@ import { heroDermisSpec } from '../epidermis/dermal-hero.js';
 import { heroRecord, expandLayeredManifest, planLayered, HERO_FORMS, REALISTIC_LAWS_VERSION, withRolledFace, withFaceFit, realisticFaceOf, heroReadout, heroPlanOf, validateHeroSpec, adultsOnly, ROLLED_ETHNICITIES, HERO_FACE } from '../../mcp/tools/layered.js';
 import { heroRemakeOps } from '../../mcp/tools/hero-mint.js';
 import { readDermis, skinBase } from '../epidermis/dermal-map.js';
+import { LASH_CELL0, LOCK_CELL0 } from '../epidermis/hair-strands.js';
 import { raisedEar, evenFace } from './head-relational.js';
 
 const refused = (spec) => { try { heroRecord(spec); return null; } catch (e) { return e.message; } };
@@ -134,12 +135,15 @@ describe('the realistic hero at the door', () => {
   it('wears its face\'s hair: the beard (its locks under the lip on the jaw), the brows and the lashes, in the hair\'s own colour over the plan\'s', () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ form: 'realistic', cast: 'male', face: { seed: 1, ethnicity: 'western' } }) });
     const P = m.recipe.parts, A = auditLayered(compileLayered(m.recipe, m.dials));
-    for (const k of ['hairBeard', 'hairLashes', 'hairCap', 'hairBeardCoat', 'hairBeardCoatJaw']) { expect(P[k]?.pin.parent, k).toBe('headSkin'); expect(A[k].pass, k).toBe(true); }
-    // (realistic laws 10: the scalp's locks over a shell; the short beard its sculpted coat with the moustache's band on it
-    // and nothing hanging; every one ONE colour, no root band)
-    expect(P.hair.group).toBe('Hair'); expect(P.hairCap.group).toBe('Hair'); expect(P.hairBeardCoat.group).toBe('Beard'); expect(P.hairBeard.group).toBe('Beard');
+    for (const k of ['hairLashes', 'hairCap', 'hairBeardCoat', 'hairBeardCoatJaw']) { expect(P[k]?.pin.parent, k).toBe('headSkin'); expect(A[k].pass, k).toBe(true); }
+    // (realistic laws 10: the scalp's locks over a shell; the short beard its sculpted coat and nothing hanging; every one
+    // ONE colour, no root band. The seated head, laws 14: a short beard is its coat alone, the coat on the skin's page,
+    // no lock under BEARD_FLOW_MIN; the scalp's locks and the lashes on their pages, hair-strands.js)
+    expect(P.hair.group).toBe('Hair'); expect(P.hairCap.group).toBe('Hair'); expect(P.hairBeardCoat.group).toBe('Beard');
+    expect(P.hairBeard).toBeUndefined(); expect(m.recipe.faceHairPaint.beard).toBe(true);
+    expect(Object.values(P.hair.cardUV).every(([, , c]) => c >= LOCK_CELL0)).toBe(true); expect(Object.values(P.hairLashes.cardUV).every(([, , c]) => c >= LASH_CELL0 && c < LOCK_CELL0)).toBe(true);
     // (the seated head, laws 14: the brows the skin's paint, the recipe carrying their groom; no band, dermal-brow.js)
-    expect(P.hairBrows).toBeUndefined(); expect(m.recipe.browPaint.epidermis.hair.brows).toBeTruthy();
+    expect(P.hairBrows).toBeUndefined(); expect(m.recipe.faceHairPaint.epidermis.hair.brows).toBeTruthy();
     expect(Object.keys(m.recipe.palette).filter((k) => /Root$/.test(k))).toEqual([]);
     // (clipped hair, a stubble's and a fade's foot, the skin's paint: the recipe says where, dermal-texture.js)
     expect(m.recipe.hairClip.beard).toBe(true);

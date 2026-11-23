@@ -32,5 +32,13 @@ face toward the proportions and the clean structure of a current game character,
   read as a plank stuck on the face: the skin shows between the hairs, the band thins at its head and tail, and it moves
   with the brow. A woman's brow arches higher and is a little finer, a man's lies flatter; on her the heavy and the level
   brow are rarer, the arched likelier.
+- The lashes are a ribbon of alpha cards along each lid, drawn with a lash texture of their own (thick at the root,
+  tapering, gathered in clumps toward the tips) and darker than the hair, over a lash line painted along each margin:
+  about 200 faces where a blade a lash was about 1,100, and dark lashes where the blades' lit edges read pale.
+- A beard reads as hair: its skin is painted with streaks along the beard's growth, and its coat, the shell over the
+  skin, shows that paint instead of one flat colour, so a short beard is a textured shell with no shards and its edge
+  fades into the cheek; only hair longer than 16 mm still grows a lock. A moustache the same.
+- The hair's locks, the scalp's and a long beard's, are drawn with a hair texture along them (fine strands of their
+  own light and shade, darker at the root) where each was one flat colour.
 
-Still to come: the upper lid's fold, the lashes. The scalp's hair is not part of it.
+Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards, and the scalp's on the skull.

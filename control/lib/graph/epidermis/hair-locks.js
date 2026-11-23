@@ -49,6 +49,7 @@ import { dermisAt, CLIPPER } from './dermal-map.js';
 import { growScalp, partDistance } from './dermal-hair.js';
 import { capMesh, hairClass, HAT_CAP } from './hair-depict.js';
 import { overlapHair } from './hair-score.js';
+import { LOCK_CELL0, LOCK_PAGE } from './hair-strands.js';
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -234,9 +235,12 @@ function gather(feats, k) {
  * (the share of its thickness), `out(i)` the way off the head a station faces, `ring` points round. Its underside flat (it
  * lies on what is under it), its top domed and grooved; `rail(station, across −1 … 1, across axis)` a section's underside
  * point where a flow's guides give it (null: the spine's straight section). Pushes into `M` ({ vertices, faces, groups }); `group(u)` a face's.
+ * With `M.uv` each point's place on the LOCK PAGE (hair-strands.js lockPage): [round its ring, mirrored so the ring's seam
+ * never jumps, along its spine root to tip, its cell], a lock its own cell.
  */
 function loftLock(M, spine, { width, thick, grooves = 0, depth = 0, ring = 8, outAt, group, clear, twist = 0, rail = null, round = false, tipOut = 0 }) {
   const N = spine.length - 1, base = M.vertices.length, rows = [];
+  const cell = M.uv ? LOCK_CELL0 + ((M.lofted = (M.lofted ?? 0) + 1) * 5 + 1) % LOCK_PAGE.cells : 0;
   for (let i = 0; i <= N; i++) {
     const u = i / N, t = unit(sub(spine[Math.min(N, i + 1)], spine[Math.max(0, i - 1)])), o0 = outAt(i, t);
     const tw = twist * u * Math.PI * 2, A0 = unit(cross(t, o0), unit(perp([1, 0, 0], t)));
@@ -253,6 +257,7 @@ function loftLock(M, spine, { width, thick, grooves = 0, depth = 0, ring = 8, ou
       // (twice: a point pushed off one sample can land under its neighbour's plane)
       if (clear) p = clear(clear(clear(p)));
       row.push(M.vertices.push(p.map(r7)) - 1);
+      if (M.uv) M.uv.push([Math.abs((2 * r) / ring - 1), u, cell]);
     }
     rows.push(row);
   }
@@ -265,6 +270,7 @@ function loftLock(M, spine, { width, thick, grooves = 0, depth = 0, ring = 8, ou
   const mid = (row) => scl(row.reduce((s, v) => add(s, M.vertices[v]), [0, 0, 0]), 1 / row.length);
   // (`tipOut` (m): the tip on past the spine's end, so a lock lying on the skin never closes on a point of its last ring)
   const tEnd = unit(sub(spine[N], spine[N - 1])), end = (p) => (clear ? clear(clear(clear(p))) : p), r0 = M.vertices.push(end(mid(rows[0])).map(r7)) - 1, tip = M.vertices.push(end(add(spine[N], scl(tEnd, tipOut))).map(r7)) - 1;
+  if (M.uv) M.uv.push([0.5, 0, cell], [0.5, 1, cell]);
   for (let r = 0; r < ring; r++) { face(r0, rows[0][r], rows[0][(r + 1) % ring], group(0)); face(tip, rows[N][(r + 1) % ring], rows[N][r], group(1)); }
   return base;
 }
@@ -354,7 +360,7 @@ function noise3(p, s) {
  * THE LOCK HAIR on a head: the groom `S` (readScalp's) on `chart` with dermis `D`, at the ladder's `level`, `stylize` the
  * dial, `centre` the head's middle (a lock's top faces away from it), `colliders` surfaces the hair falls outside.
  */
-export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], stylize = HAIR_STYLIZE, colliders = [], maps = false, seal = false } = {}) {
+export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], stylize = HAIR_STYLIZE, colliders = [], maps = false, seal = false, uv = false } = {}) {
   const s = readStylize(stylize), St = lockStyleAt(s), R = LOCK_RUNG[level] ?? LOCK_RUNG.L1, cls = lockClass(S);
   // (the head's skin, then what the hero gives the hair to fall over: its neck, its shoulders, its back)
   // (a lock lies over the shell, never under it: the shell would hide it)
@@ -450,7 +456,7 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
   let M, cards, locks, streak, overlap = null, round = 0, trailers = 0;
   const step = new Map(groupsAll.map((g) => [g, 0]));
   for (let r = 0; r < LOCK_OVERLAP.wide.length; r++) {
-    M = { vertices: [], faces: [], groups: [] }; cards = []; locks = []; streak = null; round++; counts.tails = 0; trailers = 0;
+    M = { vertices: [], faces: [], groups: [], ...(uv ? { uv: [] } : {}) }; cards = []; locks = []; streak = null; round++; counts.tails = 0; trailers = 0;
     for (const flow of groupsAll) for (const members of [flow, ...trailersOf(flow)]) {
       // (a trailer: one guide of its flow, from `LOCK_TRAIL.from` along it to its tip, thinner; standing hair's a spike)
       const wide = LOCK_OVERLAP.wide[step.get(members.trail ? members.flow : members) ?? 0];
@@ -676,7 +682,7 @@ function faceStyleAt(kind, s) {
  *
  *   lockStrands(guides, chart, { kind, centre, stylize, level, group, sides, under }) → { mesh, flows } | null
  */
-export function lockStrands(guides, chart, { kind = 'beard', centre = [0, 0, 0], stylize = HAIR_STYLIZE, level = 'L1', group = 'Beard', sides = false, under = () => 0 } = {}) {
+export function lockStrands(guides, chart, { kind = 'beard', centre = [0, 0, 0], stylize = HAIR_STYLIZE, level = 'L1', group = 'Beard', sides = false, under = () => 0, uv = false } = {}) {
   const s = readStylize(stylize), F = faceStyleAt(kind, s), St0 = lockStyleAt(s), St = F.round ? { ...St0, round: Math.max(St0.round, F.round) } : St0, R = LOCK_RUNG[level] ?? LOCK_RUNG.L1, skin = surfaceClear(chart, 0.02);
   const banded = F.flows !== undefined, height = (p) => { const i = skin.nearest(p); if (i < 0) return null; const n = unit(chart.normals[i]); return { h: dot(sub(p, chart.vertices[i]), n), n }; };
   const tipOff = (g) => height(g.pts.at(-1))?.h ?? Infinity;
@@ -690,7 +696,7 @@ export function lockStrands(guides, chart, { kind = 'beard', centre = [0, 0, 0],
   const clear = banded ? (p) => skin.out(p, under(p) + HAIR_CLEAR.gap) : (p) => skin.out(p, HAIR_CLEAR.gap);
   const feats = live.map((g) => { const cum = arcOf(g.pts), m = at(g.pts, cum, 0.4), e = at(g.pts, cum, 1); return [...g.pts[0], ...scl(m, 0.8), ...scl(e, 0.4)]; });
   const halves = sides ? [(i) => live[i].pts[0][0] < 0, (i) => live[i].pts[0][0] >= 0] : [() => true];
-  const M = { vertices: [], faces: [], groups: [] };
+  const M = { vertices: [], faces: [], groups: [], ...(uv ? { uv: [] } : {}) };
   let flows = 0;
   /** a flow lofted from its members' guides, each point held by `bound` (a band's) */
   const loft = (members, bound) => {

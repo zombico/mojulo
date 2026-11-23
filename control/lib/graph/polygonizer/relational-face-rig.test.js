@@ -135,7 +135,7 @@ describe('the realistic face rig', () => {
     // stood off it and swung further; seated, laws 11, the brows hang lower on the fold, where the raise reaches a little
     // less)
     // (painted, laws 14: the skin it lies on, as the band rode it)
-    expect(m.recipe.parts.hairBrows).toBeUndefined(); expect(m.recipe.browPaint).toBeTruthy();
+    expect(m.recipe.parts.hairBrows).toBeUndefined(); expect(m.recipe.faceHairPaint).toBeTruthy();
     expect(move('browRaise', brow)).toBeGreaterThan(0.0015);
     // (the scalp's hair stays, but for the fringe lying on the forehead's skin, which the frontalis lifts)
     const ti2 = F.targets.indexOf('browRaise'); let hair = 0, moved = 0;

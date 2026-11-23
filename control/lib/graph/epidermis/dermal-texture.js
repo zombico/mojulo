@@ -36,8 +36,22 @@ import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
 
+/** a beard's hair streaks: shown from `min` mm, the noise's cell (mm), the run it is drawn out along (mm) in `taps` a side,
+ * the stretch that restores the run's averaged-out contrast, and the streaks' contrast over the beard's colour */
+export const BEARD_STREAK = Object.freeze({ min: 2, cell: 0.22, run: 3.2, taps: 6, stretch: 3, contrast: 0.9 });
+/** the streak at (X, Y) mm on the head for a flow `th` (dermal-map.js flowOf: round the head and up it as sin, cos): the
+ * mean of a fine value noise along the flow, stretched back to its contrast (a line integral: streaks that follow the
+ * growth wherever it turns, no hair placed), 0 … 1 */
+function streakAt(X, Y, th, seed) {
+  const S = BEARD_STREAK, fx = Math.sin(th), fy = Math.cos(th), step = S.run / (2 * S.taps);
+  let m = 0;
+  for (let k = -S.taps; k <= S.taps; k++) m += vnoise((X + fx * k * step) / S.cell, (Y + fy * k * step) / S.cell, seed + 91);
+  return Math.max(0, Math.min(1, 0.5 + (m / (2 * S.taps + 1) - 0.5) * S.stretch));
+}
 /** a brow hair's colour against the hair's mean */
 const BROW_TONE = 0.8;
+/** the lash line's colour against the hair's mean: the lashes' roots, the darkest hair on the face */
+const LASH_TONE = 0.45;
 /** a fold's shadow by channel: the blue and green darkened more than the red (the blood under the skin) */
 const FOLD_SHADOW = [0.8, 1, 1.12];
 /** a fold's inks at its deepest: the smooth shade's darkening, the thin core's within it, the lip's lift; `lit` their
@@ -108,13 +122,13 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  * stubble's by its length; absent, the paint as it was. `opts.brows` (dermal-brow.js `browStrokes`) the brows painted on
  * the head's texels, each hair a stroke; absent, none.
  */
-export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null } = {}) {
+export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null, beardStreaks = false } = {}) {
   const P = dermalPages(layout, D), clipAt = clip ? clipField(clip.scalp) : null;
   for (const r of layout.rects) {
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
       grid: (i, j) => addressAt(chart, r, Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), clamp01((j * STEP + 0.5) / r.h)),
       texel: (px, py) => addressAt(chart, r, (px + 0.5) / r.w * (1 + r.extra), (py + 0.5) / r.h),
-      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}), ...(brows ? { brows } : {}),
+      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}), ...(brows ? { brows } : {}), ...(beardStreaks ? { beardStreaks } : {}),
     });
   }
   return finishPages(P, chart, faceUVs(chart, layout), D, layout);
@@ -138,7 +152,7 @@ export function dermalPages(layout, D) {
  * masks being smooth, bilinear between; the fine detail per texel (`texel(px, py)` the texel's own address). `flowSign`
  * −1 where the rectangle's u runs against `around` (its hair's flow turned to match). `mpt` the texel's millimetres.
  */
-export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false, clip = null, brows = null }) {
+export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false, clip = null, brows = null, beardStreaks = false }) {
   const { N, albedo, rough, trans, hair, fuzz, detail, classIndex, hairLin } = P;
   const gw = Math.ceil(r.w / STEP) + 1, gh = Math.ceil(r.h / STEP) + 1, grid = new Array(gw * gh);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) grid[j * gw + i] = dermisAt(gridAt(i, j), D, { detail: false });
@@ -182,11 +196,14 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
       // (over a sideburn already painted, only what it left: the two meet as the larger, never darker for their overlap)
       const more = sbApplied > 0 ? Math.max(0, (share - sbApplied) / Math.max(1e-6, 1 - sbApplied)) : share;
       if (more > 0) col = mixc(col, clip?.beard && bl < CLIPPER.shell ? hairLin : hairLin.map((x) => x * 0.8), more);
+      // (`beardStreaks`: its HAIRS, streaks along the beard's growth, the noise drawn out along the flow (BEARD_STREAK), as
+      // much as the beard covers; what the beard's coat shows, its faces on the skin's page: dermal-hero.js)
+      if (beardStreaks && A.marks && bl >= BEARD_STREAK.min) { const { X, Y } = headXY(A), v = streakAt(X, Y, near.hair.flow, D.seed ?? 1); col = col.map((x) => x * (1 + BEARD_STREAK.contrast * (v - 0.5) * share)); }
     }
     // THE BROWS (dermal-brow.js): the band's root shade, then each hair's stroke in the hair's colour, a little darker
-    // (a brow's hairs are coarser and read darker than the scalp's mean)
+    // (a brow's hairs are coarser and read darker than the scalp's mean); and the LASH LINE along the lids' margins
     const bw = brows && A.marks ? browAt(brows, headXY(A).X, headXY(A).Y, mpt) : null;
-    if (bw) { col = mixc(col, hairLin, bw.root); col = mixc(col, hairLin.map((x) => x * BROW_TONE), bw.cover); }
+    if (bw) { col = mixc(col, hairLin, bw.root); col = mixc(col, hairLin.map((x) => x * BROW_TONE), bw.cover); if (bw.line > 0) col = mixc(col, hairLin.map((x) => x * LASH_TONE), bw.line); }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
     // (a fold in the skin's own shadow, warmer and redder than grey: the broad smooth shade first, then the thin core

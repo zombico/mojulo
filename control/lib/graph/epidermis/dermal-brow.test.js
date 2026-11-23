@@ -28,3 +28,15 @@ describe('the painted brow', () => {
     expect(browStrokes(head, { from: 'default', hair: { brows: false } })).toBeNull();
   });
 });
+
+describe('the painted lash line', () => {
+  it('runs along each lid\'s margin, under the brow, darker on the upper', () => {
+    const L = browStrokes(head, { from: 'default' }, { lashLine: true }), line = L.segs.filter((s) => s[4] === 1);
+    expect(line.length).toBeGreaterThan(20);
+    // (between the canthi's height and the brow's)
+    const ys = line.map((s) => s[1]), brow = Math.min(...B.segs.map((s) => Math.min(s[1], s[3])));
+    expect(Math.max(...ys)).toBeLessThan(brow); expect(Math.min(...ys)).toBeGreaterThan(M.points.al?.Y ?? M.points.alR.Y);
+    const up = line.find((s) => s[5] === 1), at = browAt(L, (up[0] + up[2]) / 2, (up[1] + up[3]) / 2, 0.4);
+    expect(at.line).toBeGreaterThan(0.5);
+  });
+});
