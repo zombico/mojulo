@@ -170,6 +170,39 @@ describe('rule: starfighter', () => {
     expect(p.ship.sh[1]).toBe(1);
   });
 
+  it('a mind routes its own power: shields under fire or low, engines extending, lasers on its run in; its speed and bursts follow its run in\'s', () => {
+    const mind = (ship) => ({ id: 'm', team: 'empire', rule: { type: 'ai', space: true, passes: true, target: 'enemy', speed: 80, burst: 0.4, pause: 1.4, standoff: 200 },
+      body: { type: 'mesh', hittable: true, hp: 10, ship }, weapon: { fireClass: 'lob', auto: true, rof: 3, damage: 1, range: 600, energyMax: 20, energyCost: 1, energyRegen: 0 }, transform: { pos: [0, 0, 0], heading: 0 } });
+    const w = createWorld({ entities: [mind({ shields: { max: 4, regen: 0.4 }, generator: { out: 12 } })] });
+    const m = w.byId.m, S = m.ship, step = () => stepWorld(w, {}, DT, space);
+    step();
+    expect(S.stance).toBe('even');
+    expect(S.pow).toEqual({ lasers: 2, shields: 2, engines: 2 });
+    // on its run in: as fast and as long a burst as its rule says (where its numbers are tuned)
+    m.passState = 'attack'; step();
+    expect(S.stance).toBe('lasers');
+    expect(m.rule.speed).toBe(80);
+    expect(m.rule.burst).toBeCloseTo(0.4, 6);
+    m.passState = 'extend'; step();
+    expect(S.stance).toBe('engines');
+    expect(m.rule.speed).toBeGreaterThan(80);
+    // a round on its shields: it raises them, and charges them faster for it, slower and shorter-fused meanwhile
+    m.passState = 'attack'; S.hitT = w.time; step();
+    expect(S.stance).toBe('shields');
+    expect(S.pow.shields).toBe(4);
+    expect(m.rule.speed).toBe(80);
+    expect(m.rule.burst).toBeCloseTo(0.1, 6);
+    S.sh = [0, 0]; m.weapon.energy = 0; S.gen.t = 0.999; step();
+    expect(S.sh[0] + S.sh[1]).toBeCloseTo((12 * 4) / 6 / S.shCost, 6);
+    // a craft without shields routes their share to the others, even as fast as its rule says
+    const n = createWorld({ entities: [mind({ generator: { out: 8 } })] });
+    stepWorld(n, {}, DT, space);
+    expect(n.byId.m.ship.pow).toEqual({ lasers: 3, shields: 0, engines: 3 });
+    expect(n.byId.m.rule.speed).toBeCloseTo(80 * 1.15, 6);
+    n.byId.m.ship.hitT = n.time; stepWorld(n, {}, DT, space);
+    expect(n.byId.m.ship.stance).toBe('even');                  // no shields to raise
+  });
+
   it('power over lasers, shields and engines: a pip taken from the fullest of the others; the engines set the top speed, the lasers their recharge', () => {
     const w = E.createWorld({ entities: [fighter()] });
     const p = w.byId.p;

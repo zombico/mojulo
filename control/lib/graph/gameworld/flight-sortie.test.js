@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { readSortie, sortieMechanics, sortieCast, SORTIE } from './flight-sortie.js';
 import { scopeMarks, leadPoint } from '../scene/channels/cockpit-hud.js';
+import { cockpitOf } from '../skyscape/cockpits.js';
 
 // ── a cockpit level's sortie (gameworld/flight-sortie.js): its flight groups and its goals ─────────────────────────────
 // Read teaching; lowered onto the sortie mechanic and the pilot's hull; cast as craft on their sides, drawn as their
@@ -47,8 +48,13 @@ describe('a sortie', () => {
     expect(by['convoy-1'].weapon).toBeUndefined();
     expect([by['bomber-1'].dormant, by['fighter-1'].dormant]).toEqual([true, undefined]);
     expect(by['fighter-2'].body).toMatchObject({ type: 'figure-rig', figure: `craft-${SORTIE.craft.foe}`, name: 'Fighter 2', goal: true, hittable: true });
-    expect(by['red-1'].body.ship).toBeTruthy();
-    expect(by['fighter-1'].body.ship).toBeUndefined();
+    // each fighter's systems: a friend's shields, and every fighter its craft's generator, its cannons charged from it;
+    // a foe without shields; a transport that holds has neither
+    expect(by['red-1'].body.ship.shields).toBeTruthy();
+    expect(by['fighter-1'].body.ship).toEqual({ generator: { out: cockpitOf(SORTIE.craft.foe).numbers.generator } });
+    expect(by['fighter-1'].weapon).toMatchObject({ energyMax: cockpitOf(SORTIE.craft.foe).numbers.lasers.energy, energyRegen: 0 });
+    expect(by['red-1'].body.ship.generator.out).toBe(cockpitOf(SORTIE.craft.friend).numbers.generator);
+    expect(by['convoy-1'].body.ship?.generator).toBeUndefined();
     expect(figures['craft-twinPodBomber']).toEqual({ craft: { archetype: 'twinPodBomber', flying: true, gear: 'up' } });
     // foes ahead of the start facing it, friends beside it on its heading
     expect(by['fighter-1'].transform.pos[0]).toBeGreaterThan(1000);

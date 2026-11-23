@@ -6,7 +6,8 @@
  *   over the world   the TARGET in brackets with its range, and the LEAD PIP: where to fire for the bolts to meet it
  *                    (its course and the bolts' speed); the target off screen held at the edge with an arrow
  *   centre           the gunsight
- *   bottom           THE TARGETING COMPUTER: the target's name, range and closure, its hull, its shields fore and aft
+ *   bottom           THE TARGETING COMPUTER: the target's name, how it routes its power (shields up, weapons hot,
+ *                    running), its range and closure, its hull, its shields fore and aft
  *   bottom-left      THE FORE SENSOR: what lies ahead, each by its angle off the nose (the nose the middle, the edge
  *                    abeam), up the top; foe, friend and the target told apart
  *   bottom-right     THE AFT SENSOR: what lies behind, by its angle off the tail
@@ -86,6 +87,8 @@ export function cockpitHudSpec() {
     region('top', [{ use: 'moments', props: { rows: B('comms'), as: 'toast' } }], {}, true),
     region('bottom', [stack([
       text(B('tName'), 'heading'),
+      // (how it routes its power: shields up, weapons hot, running; nothing said when even)
+      text(B('tStance'), 'caption'),
       stack([{ use: 'stat', props: { label: 'range', value: B('tRange') } }, { use: 'stat', props: { label: 'closing', value: B('tClosure') } }], 'row', 'apart'),
       // (the target's shields and hull read off its plan: no words)
       { use: 'shields', props: { fore: B('tFore'), aft: B('tAft'), max: B('tShMax'), hull: B('tHull'), hullMax: 100, shape: B('tPlan') } },
@@ -248,7 +251,7 @@ export function cockpitFramePage(F, card) {
 export function cockpitHudPage(cfg, ui, spec, css, frame) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-ck'; (document.getElementById('wrap') || document.body).appendChild(root);
-  const S = { ck: { on: false, shOn: false, sMaxOn: 0, plan: cfg.plan || '', tPlan: '', tShMax: 0, tOn: false, tShOn: false, brackets: [], pip: [], edge: [], fore: [], aft: [], comms: [], tName: '', tRange: '', tClosure: '', tHull: 0, tFore: 0, tAft: 0, sFore: 0, sAft: 0, sMax: 1, hull: 0, hullMax: 1, laser: 0, laserMax: 1, linkSay: '', speed: '', throttle: 0, pL: 2, pS: 2, pE: 2, warheads: '', warheadsOn: false, genOn: false, genOff: true, gPhase: 0, gTick: 0, gFeeds: [] } };
+  const S = { ck: { on: false, shOn: false, sMaxOn: 0, plan: cfg.plan || '', tPlan: '', tShMax: 0, tOn: false, tShOn: false, brackets: [], pip: [], edge: [], fore: [], aft: [], comms: [], tName: '', tStance: '', tRange: '', tClosure: '', tHull: 0, tFore: 0, tAft: 0, sFore: 0, sAft: 0, sMax: 1, hull: 0, hullMax: 1, laser: 0, laserMax: 1, linkSay: '', speed: '', throttle: 0, pL: 2, pS: 2, pE: 2, warheads: '', warheadsOn: false, genOn: false, genOff: true, gPhase: 0, gTick: 0, gFeeds: [] } };
   let pv = null;
   // (a point of the world on the HUD, 0..1 of its frame, `back` when it is behind the camera)
   const screenOf = (q) => { if (typeof camera === 'undefined' || typeof THREE === 'undefined') return null; pv = pv || new THREE.Vector3(); camera.updateMatrixWorld(); pv.set(q[0], q[1], q[2]).project(camera); return { x: (pv.x + 1) / 2, y: (1 - pv.y) / 2, back: pv.z >= 1 }; };
@@ -256,6 +259,7 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
   const set = (k, v) => { if (JSON.stringify(v) !== JSON.stringify(S.ck[k])) S.ck[k] = v; };
   const rangeSay = (d) => (d < 1000 ? d + ' m' : (d / 1000).toFixed(2) + ' km');
   const LINK = { 1: 'single fire', 2: 'dual fire', 4: 'quad fire' };
+  const STANCE_SAY = { shields: 'shields up', lasers: 'weapons hot', engines: 'running' };
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
   ui.mount(root, rt, { auto: true });
   let said = '', nth = 0;
@@ -310,7 +314,7 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
         set('brackets', inside ? [{ id: T.id, x: r3(at.x), y: r3(at.y), range: rangeSay(I.d) }] : []);
         set('pip', ps && !ps.back && ps.x >= 0 && ps.x <= 1 && ps.y >= 0 && ps.y <= 1 ? [{ id: 'pip', x: r3(ps.x), y: r3(ps.y) }] : []);
         set('edge', !inside && at ? [{ x: r3(at.back ? 1 - at.x : at.x), y: r3(at.back ? 2 : at.y), kind: 'target' }] : []);
-        set('tOn', true); set('tName', I.name); set('tRange', rangeSay(I.d)); set('tClosure', I.closure + ' m/s');
+        set('tOn', true); set('tName', I.name); set('tStance', STANCE_SAY[I.stance] || ''); set('tRange', rangeSay(I.d)); set('tClosure', I.closure + ' m/s');
         set('tShOn', !!I.shields); set('tShMax', I.shields ? 100 : 0); set('tHull', I.hull == null ? 0 : I.hull);
         // (its plan by its craft: a shelf craft's figure is craft-<archetype>)
         const fg = T.body && typeof T.body.figure === 'string' ? T.body.figure : '', arch = fg.indexOf('craft-') === 0 ? fg.slice(6) : '';

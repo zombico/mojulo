@@ -13,7 +13,7 @@
  *     up or down by the engines' power when the craft has systems.
  *   • TARGETING: `tgt` picks the target: 'next' / 'prev' (every craft round, the nearest first), 'near' (the nearest
  *     hostile), 'atk' (the last one to hit the craft), 'goal' (the next one the mission names: `body.goal`). The
- *     target's facts are kept on the craft (`target`, `tgtInfo` { id, d, closure, hull, shields, name }).
+ *     target's facts are kept on the craft (`target`, `tgtInfo` { id, d, closure, hull, shields, stance, name }).
  *
  * THE SHIP'S SYSTEMS (`body.ship`, on any craft: a pilot's or a foe's, whatever flies it):
  *   ship { shields?: { max, regen, cost? }, lasers?: { regen, links? }, power?: true, generator?: { out, tick? } }
@@ -30,7 +30,9 @@
  *     else what charges them at their own `regen` when the power is even), fed as their mode sets. REDIRECTED: a full
  *     pool's share goes to the other (full cannons charge the shields, full shields the cannons); what neither holds
  *     is lost. `transfer` 'lasers' | 'shields' (an edge) moves up to a tick's worth at once into the pool it names from
- *     the other. With a generator, nothing recharges but by its ticks. Facts: `ship.gen` { out, tick, phase (0..1 to
+ *     the other. With a generator, nothing recharges but by its ticks. A MIND routes its own (a craft on an `ai` rule):
+ *     its stance (`ship.stance`) read off its fight, shields under fire or low, engines extending from a pass, lasers on
+ *     its run in, else even; its engines' pips set its speed and its lasers' its bursts against its run in's. Facts: `ship.gen` { out, tick, phase (0..1 to
  *     the next tick), n, last: { lasers, shields, toLasers, toShields, engines, lost }, xfer: { to, units, n } }.
  *   • LASERS: the craft's weapon's energy pool (combat-ranged.js `energyMax`), recharged at `lasers.regen` times its
  *     power. `link` (an edge) cycles the cannons fired at once (one, two, all four): each shot of a link costs and
@@ -128,9 +130,28 @@ export function buildStarfighter(E) {
     for (const k of S.sh[0] >= S.sh[1] ? [0, 1] : [1, 0]) { const g = Math.min(pts, S.sh[k]); S.sh[k] -= g; pts -= g; }
     return toLasers(w, take);
   }
-  E.registerEntityTimer('ship-systems', (e, dt) => {
+  // ── THE POWER OFFICER: a mind's own routing (a craft on an `ai` rule with a generator) ──
+  // its stance read off its fight each frame, the pips set to it as it changes: SHIELDS while it is under fire (hit in
+  // the last `hit` s) or its shields are under `low` of full; ENGINES while it extends away from a pass; LASERS on its
+  // run in; else EVEN. A craft without shields puts their share in the others. Its engines' pips set its speed and its
+  // lasers' its bursts, each against its run in's (as fast and as long as its rule says on its run, where a mind's
+  // numbers are tuned: faster extending, slower and shorter-fused with its shields up)
+  const STANCE = { hit: 2.5, low: 0.5 };
+  const STANCES = { even: [{ lasers: 3, shields: 0, engines: 3 }, { lasers: 2, shields: 2, engines: 2 }], shields: [null, { lasers: 1, shields: 4, engines: 1 }],
+    engines: [{ lasers: 2, shields: 0, engines: 4 }, { lasers: 1, shields: 2, engines: 3 }], lasers: [{ lasers: 4, shields: 0, engines: 2 }, { lasers: 4, shields: 1, engines: 1 }] };
+  function powerOfficer(e, S, now) {
+    const r = e.rule, sh = S.shMax > 0 ? 1 : 0;
+    const hurt = sh && ((Number.isFinite(S.hitT) && now - S.hitT < STANCE.hit) || S.sh[0] + S.sh[1] < 2 * S.shMax * STANCE.low);
+    const stance = hurt ? 'shields' : e.passState === 'extend' ? 'engines' : e.passState === 'attack' ? 'lasers' : 'even';
+    if (stance !== S.stance) { S.stance = stance; S.pow = { ...STANCES[stance][sh] }; }
+    const B = S.aiBase || (S.aiBase = { speed: r.speed, burst: r.burst, ref: STANCES.lasers[sh] });
+    if (Number.isFinite(B.speed)) r.speed = B.speed * (1 + 0.15 * (S.pow.engines - B.ref.engines));
+    if (Number.isFinite(B.burst)) r.burst = (B.burst * S.pow.lasers) / B.ref.lasers;
+  }
+  E.registerEntityTimer('ship-systems', (e, dt, state) => {
     const S = e.ship;
     if (!S || e.gone || e.downed) return;
+    if (S.gen && e.rule && e.rule.type === 'ai' && S.powered) powerOfficer(e, S, (state && state.time) || 0);
     if (S.gen) {
       // (a generator's ship charges by its ticks alone: the cannons' own recharge off)
       const G = S.gen, w = e.weapon;
@@ -223,6 +244,8 @@ export function buildStarfighter(E) {
       id: T.id, name: T.body.name || T.id, d: Math.round(d), closure: dt > 0 ? Math.round((prev - d) / dt) : 0,
       hull: Number.isFinite(hp) && hpMax > 0 ? Math.round((100 * hp) / hpMax) : null,
       shields: T.ship && T.ship.shMax > 0 ? [Math.round((100 * T.ship.sh[0]) / T.ship.shMax), Math.round((100 * T.ship.sh[1]) / T.ship.shMax)] : null,
+      // (how it routes its power, a mind's: shields, lasers, engines or even)
+      stance: (T.ship && T.ship.stance) || null,
       team: T.team || null,
     };
   }

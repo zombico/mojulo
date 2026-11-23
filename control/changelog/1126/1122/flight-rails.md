@@ -245,3 +245,11 @@ They share one foundation, built first, and these themes record it as it lands.
   transferred one is ringed in the second accent. A sortie's other craft still recharge continuously. The shield
   plan's spent-side and low-hull beats now reach their elements: they had kept selectors from before the shield parts
   were renamed.
+- **The AI pilots route their own power** (`rules-starfighter.js`, the power officer; `gameworld/flight-sortie.js`). Each
+  sortie fighter carries its craft's generator, and its cannons charge from it. A mind picks a stance from its fight
+  each frame and sets its pips to match: shields up while under fire (hit in the last 2.5 s) or with its shields under
+  half; engines while it breaks away from a pass; lasers on its run in; otherwise even. A craft without shields puts
+  their share into the others. Its engine pips set its speed and its laser pips its bursts, both measured against the
+  run in, where its numbers were tuned. So it attacks exactly as it did before, runs faster as it breaks off, and fires
+  shorter bursts at its old speed while its shields are up. The targeting computer names the target's stance under
+  its name: shields up, weapons hot, running.

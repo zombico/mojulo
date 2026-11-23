@@ -25,6 +25,7 @@
  */
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { STARFIGHTER } from '../skyscape/starfighter.js';
+import { cockpitOf } from '../skyscape/cockpits.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -118,6 +119,11 @@ export function sortieCast(S, ends) {
     figures[fig] = { craft: { archetype: g.craft, flying: true, gear: 'up' } };
     const A = { ...(g.arrive.start ? SORTIE.at[g.side] : SORTIE.at.arrive), ...(g.at ?? {}) };
     const team = g.side === 'foe' ? 'foes' : 'player';
+    // (a fighter's systems: its shields where it has them, and its craft's generator, routed by its own power officer
+    // (rules-starfighter.js); its cannons charged from it alone; a transport that holds has neither)
+    const N = cockpitOf(g.craft).numbers, gen = !g.hold && N.generator > 0;
+    const ship = g.shields || gen ? { ...(g.shields ? { shields: { ...SORTIE.shields } } : {}), ...(gen ? { generator: { out: N.generator } } : {}) } : null;
+    const pool = gen ? { energyMax: N.lasers.energy, energyCost: 1, energyRegen: 0, energyUnlockFrac: 0.25 } : {};
     craftIds(g).forEach((id, k) => {
       const across = A.side + (k - (g.count - 1) / 2) * SORTIE.spacing * (g.side === 'friend' && !g.at && k % 2 ? -1 : 1);
       const pos = [r2(p[0] + fx * A.ahead + rx * across), r2(p[1] + fy * A.ahead + ry * across), r2(p[2] + A.up + (k % 2 ? 12 : 0))];
@@ -127,8 +133,8 @@ export function sortieCast(S, ends) {
         id, team, ...(g.arrive.start ? {} : { dormant: true }),
         // (a group that holds: in its place, unarmed; else a mind on its side, its cannons firing bolts it leads)
         ...(g.hold ? { rule: { type: 'static' } } : { rule: { type: 'ai', space: true, passes: true, target: 'enemy', speed, turn: 1.4, standoff: r2(2.5 * speed), fireArc: 6, burst: SORTIE.guns[g.side].burst, pause: SORTIE.guns[g.side].pause, sightRange: r2(14 * c.cruise), eye: 0 } }),
-        ...(g.hold ? {} : { weapon: { fireClass: 'lob', auto: true, rof: SORTIE.guns[g.side].rof, damage: L.damage, impact: 0, range: L.speed * L.fuse * 0.6, coreAngle: 2, assistAngle: 2, eye: 0, lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true, smokeTrail: false, fxColor: g.side === 'foe' ? 0x5cff6a : 0xff3b2e, fxScale: STARFIGHTER.bolt.size, fxMin: STARFIGHTER.bolt.min, foeRound: true } }),
-        body: { type: 'figure-rig', figure: fig, hittable: true, hp: g.hull, poise: 99, radius: size, egg: { a: size, c: r2(size * 0.6), cz: 0 }, blast: r2(size * STARFIGHTER.blast * (g.hold ? 2 : 1)), name: `${g.name} ${k + 1}`, ...(goalIds.has(g.id) ? { goal: true } : {}), ...(g.shields ? { ship: { shields: { ...SORTIE.shields } } } : {}) },
+        ...(g.hold ? {} : { weapon: { fireClass: 'lob', auto: true, rof: SORTIE.guns[g.side].rof, damage: L.damage, impact: 0, range: L.speed * L.fuse * 0.6, coreAngle: 2, assistAngle: 2, eye: 0, lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true, smokeTrail: false, fxColor: g.side === 'foe' ? 0x5cff6a : 0xff3b2e, fxScale: STARFIGHTER.bolt.size, fxMin: STARFIGHTER.bolt.min, foeRound: true, ...pool } }),
+        body: { type: 'figure-rig', figure: fig, hittable: true, hp: g.hull, poise: 99, radius: size, egg: { a: size, c: r2(size * 0.6), cz: 0 }, blast: r2(size * STARFIGHTER.blast * (g.hold ? 2 : 1)), name: `${g.name} ${k + 1}`, ...(goalIds.has(g.id) ? { goal: true } : {}), ...(ship ? { ship } : {}) },
         transform: { pos, heading: r2(heading), pitch: 0 },
       });
     });
