@@ -458,6 +458,22 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     out.thruster = { level: Number.isFinite(th.level) ? th.level : 0.5 };
     if (th.voice !== undefined) out.thruster.voice = heldVoice(th.voice, 'audio.thruster.voice');
   }
+  // a RIDDEN ANIMAL's sounds (`mount`: { hooves?, mounted?, gallop?, level? }, the mount lane's): its hooves a held
+  // voice the audio channel drives by its speed over its top gait's while it is ridden, a cue as its rider settles in the
+  // saddle (`mounted`) and one as it is urged up to its top gait (`gallop`)
+  if (audioSpec.mount !== undefined) {
+    const m = audioSpec.mount;
+    if (!m || typeof m !== 'object' || Array.isArray(m)) throw new Error('audio.mount is { hooves?: <a held voice>, mounted?, gallop?: <a gesture list>, level? }');
+    const mo = {};
+    if (m.hooves !== undefined) mo.hooves = heldVoice(m.hooves, 'audio.mount.hooves');
+    for (const k of ['mounted', 'gallop']) {
+      if (m[k] === undefined) continue;
+      const check = validateBeatsManifest({ kind: 'beats-sfx', title: `mount ${k}`, cues: { [k]: m[k] } });
+      if (!check.ok) throw new Error(`audio.mount.${k}: invalid cue:\n - ${check.errors.join('\n - ')}`);
+      mo[k] = m[k];
+    }
+    if (Object.keys(mo).length) out.mount = { ...mo, level: Number.isFinite(m.level) ? Math.max(0, Math.min(1, m.level)) : 0.5 };
+  }
 
   // JUMP audio: the stop-and-charge GATHER whine (sustained synth) + a RELEASE transient scaled by
   // hold-time + a metal-clang LAND cue scaled by fall speed. `charge`/`release` take `{ level }` (or

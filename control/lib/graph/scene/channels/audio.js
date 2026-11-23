@@ -244,7 +244,30 @@ if (__AUDIO.on && typeof __BUS !== 'undefined') {
     return out;
   };
 }
-${audio.battle ? `// an RPG BATTLE's sounds (audio.battle, beats-world.js; sfx-shelf/magic-sounds.js battleSounds): the page's RPG puts
+${audio.mount ? `// a RIDDEN ANIMAL (audio.mount, beats-world.js; the mount lane's horse): its hooves held by its speed over its top
+// gait's while it is ridden and silent standing, a call as its rider settles in the saddle, a snort as it is urged up to
+// its top gait. Read-only, as every layer here is.
+(function () {
+  const M = __AUDIO.mount, L = { id: null, gi: 0 };
+  let H = null;
+  (function __beatsMount() {
+    requestAnimationFrame(__beatsMount);
+    if (!__beatsEng) return;
+    const c = window.__mojCtrl && window.__mojCtrl.world;
+    if (!c) return;
+    let h = null;
+    for (const e of c.entities) if (e.mount && e.riderId && !e.gone) { const r = c.byId[e.riderId]; if (r && r.mountPhase === 'ride') { h = e; break; } }
+    const G = (h && h.rule && h.rule.gaits) || [], top = G.length ? G[G.length - 1].v : 1;
+    if (M.hooves) {
+      if (h && !H) { try { H = __beatsEng.sustain(Object.assign({}, M.hooves, { level: (M.hooves.level == null ? 1 : M.hooves.level) * M.level })); } catch (e) { return; } }
+      if (H) H.set(__beatsMuted || !h ? 0 : Math.max(0, Math.min(1, Math.abs(h.speed || 0) / (top || 1))));
+    }
+    if (h && L.id !== h.id) { if (M.mounted) __beatsCue(M.mounted); L.gi = 0; }
+    if (h) { const gi = h.gaitIx | 0; if (M.gallop && G.length > 1 && gi === G.length - 1 && L.gi < gi) __beatsCue(M.gallop); L.gi = gi; }
+    L.id = h ? h.id : null;
+  })();
+})();
+` : ''}${audio.battle ? `// an RPG BATTLE's sounds (audio.battle, beats-world.js; sfx-shelf/magic-sounds.js battleSounds): the page's RPG puts
 // each happening of a moment on the bus as rpg-on:<key> (a blow's skill, its element, a crit, a weakness, the hit); of
 // those a frame carries, the first of each lane plays (the act: a status, a heal, a blow, a cast; its end: a foe gone, a
 // level, the fight's start), the accents (crit, weak) over them. Read-only, as every layer here is.
