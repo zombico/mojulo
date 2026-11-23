@@ -333,43 +333,52 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *                `mixed: { of, with, share }`)
  * A lid roll may name `none`: the rig's own lid (a crease and a lid space, no cover).
  */
+/** the East and North Asian eye, read as a game's character reads it: WIDER and LESS TALL than the pole's (the fissure
+ * ~1.5 mm lower, the eye ~1.5 mm longer), never slanted (the tilt stays the rolls'). The height comes off the LOWER lid,
+ * `lidSplit` raised so the upper margin stays where the pole holds it over the iris and the lower rises to the iris's
+ * edge (lowered from above, the white showed under the iris: a tired eye). The inner canthi still wider apart than the
+ * canon's, a little less than the anthropometry's so the longer eye stays on the face; the `large` shape (a taller,
+ * rounder eye) rolled rarely */
+export const EAST_ASIAN_EYE = Object.freeze({ fifths: 0.012, fissure: -0.006, lidSplit: 0.06, large: 0.25 });
 export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 }, bald: 1 },
   'north-asian': {
     note: 'Northeast Asian ancestry: Mongolia, Korea, northern China, the Siberian peoples (the asiatic look\'s centre)',
     hairMale: 'east-asian', beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
     ancestry: ['east-asian'],
-    // a broad, round, short vault; a broad face with high, forward, flat cheekbones and a fuller jaw; the inner canthi
+    // a broad, round, short vault; a broad face with high, forward, flat cheekbones and a fuller jaw; the eye wider and
+    // less tall (`EAST_ASIAN_EYE`); the inner canthi
     // wide apart under a low, flat root (a broad bridge, the nose leaning short and flat); a light brow ridge over a flat
     // brow; thinner lips. The lid most often a monolid or an in-fold, the epicanthic fold common
     base: {
-      cephalic: 0.03, headLength: -0.015, faceWidth: 0.02, jaw: 0.02, malarDepth: -0.006, intercanthal: 0.14, nasalIndex: 0.08, radix: -0.012,
+      cephalic: 0.03, headLength: -0.015, faceWidth: 0.02, jaw: 0.02, malarDepth: -0.006, intercanthal: 0.1, nasalIndex: 0.08, radix: -0.012,
+      fifths: EAST_ASIAN_EYE.fifths, fissure: EAST_ASIAN_EYE.fissure, lidSplit: EAST_ASIAN_EYE.lidSplit,
       nasionDepth: -0.004, dorsum: 0.15, browProjection: -0.005, brow: -0.08, forehead: 0.004, lipFullness: -0.05, upperVermilion: -0.002,
     },
     nose: { mean: -0.35, spread: 0.55 },
     lids: { monolid: 2, 'inner-fold': 2, hooded: 1, parallel: 0.5 },
     bald: 0.5,
-    weights: { eyes: { deep: 0, hooded: 0, large: 0.6 }, nose: { classical: 0.4, soft: 1.4 }, cheeks: { sculpted: 1.3 }, lips: { fine: 1.3 }, brows: { straight: 1.6 } },
+    weights: { eyes: { deep: 0, hooded: 0, large: EAST_ASIAN_EYE.large }, nose: { classical: 0.4, soft: 1.4 }, cheeks: { sculpted: 1.3 }, lips: { fine: 1.3 }, brows: { straight: 1.6 } },
   },
   'east-asian': {
     note: 'East Asian ancestry, China\'s centre and south and Japan (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
     ancestry: ['east-asian'],
     hairMale: 'east-asian', beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
-    // a rounder, shorter vault; the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
+    // a rounder, shorter vault; the eye wider and less tall (`EAST_ASIAN_EYE`); the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
     // a little less projected, its bridge broader; a lighter brow ridge and a rounder forehead; the cheekbones further
     // forward; the lips a little more forward. Measured against what the POLE already does, not the male canon: the
     // female pole's refined nose already projects ~15–16 mm (sn-prn), about the population's mean, so the tip moves
     // little (a −0.04 here, the canon's difference, counted it twice: ~12 mm, below the population and the head's floor)
     // (the nose's length and projection are its axis's: `nose`, the people leaning short and flat)
     base: {
-      cephalic: 0.02, headLength: -0.01, intercanthal: 0.12, nasalIndex: 0.1,
+      cephalic: 0.02, headLength: -0.01, intercanthal: 0.08, nasalIndex: 0.1, fifths: EAST_ASIAN_EYE.fifths, fissure: EAST_ASIAN_EYE.fissure, lidSplit: EAST_ASIAN_EYE.lidSplit,
       nasionDepth: -0.002, dorsum: 0.15, browProjection: -0.004, brow: -0.05, forehead: 0.005, malarDepth: -0.004, lipProjection: 0.003,
     },
     nose: { mean: -0.4, spread: 0.6 },
     // (the egocube's East Asian lid derive's own weights: the in-fold the likeliest)
     lids: { 'inner-fold': 2, monolid: 1, parallel: 1, hooded: 1 },
     bald: 0.55,
-    weights: { eyes: { deep: 0, hooded: 0 }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
+    weights: { eyes: { deep: 0, hooded: 0, large: EAST_ASIAN_EYE.large }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
   },
   // SOUTH ASIA is a cline from the north-west to the south: its two ends as buckets, `south-asian` the faces along it
   'indo-aryan': {
@@ -529,7 +538,7 @@ export const FACE_LIMITS = Object.freeze({ noseProjection: [0.2, Infinity], ceph
  */
 export const HYBRID_TRAITS = Object.freeze({
   skull: ['cephalic', 'headLength', 'faceWidth', 'jaw', 'forehead'],
-  eyes: ['intercanthal', 'fissure', 'browProjection', 'brow'],
+  eyes: ['intercanthal', 'fifths', 'fissure', 'lidSplit', 'browProjection', 'brow'],
   nose: ['nasalIndex', 'dorsum', 'radix', 'nasionDepth', 'noseProjection'],
   cheeks: ['malarDepth'],
   lips: ['lipFullness', 'upperVermilion', 'lowerVermilion', 'lipProjection', 'mouthWidth'],

@@ -60,6 +60,11 @@ face toward the proportions and the clean structure of a current game character,
 - The fold under the lower lip is shallower (about 4 mm on her where it was 5, under 3 on him where it was 3.6 to 4.4),
   the pad between the lip and the chin brought forward and up, and the skin's baked shadow softer on the painted face
   (its darkest 0.72 of the colour, where it was half), so a crease reads as a soft shadow, never a black slot.
+- The East and North Asian eye wider and less tall (`EAST_ASIAN_EYE` in `face-compose.js`): the eye ~1.5 mm longer and
+  its opening ~1.5 mm lower, the height taken off the lower lid, which now rises to the iris's edge while the upper stays
+  where it was (lowered from above, the white showed under the iris); never slanted; the inner corners a little closer so
+  the longer eye stays on the face, and the large, round eye shape rolled rarely. A mixed face carries the eye's width
+  and split from both parents.
 
 Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; a crop's shell a ledge at the
 nape.
