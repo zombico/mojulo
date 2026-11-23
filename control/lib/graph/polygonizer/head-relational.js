@@ -1286,7 +1286,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // the shorter wave rides the jaw). Where masses crowd, the summed wave swells the skin ~k·ln(n) past each of them (four
   // within a centimetre under the jaw's side swelled it ~10 mm, a soft fullness that turned under over ~16 mm and hid the
   // jaw's line); a shorter wave there keeps the bone's own edge
-  const boneLines = [...['jawBorderL', 'jawBorderR', 'chin', 'browL', 'browR'].map((n) => [n, BONE_WAVE.share, BONE_WAVE.reach])];
+  // (along the brow's arch at half the cut: the full cut reshaped the fold the shut lid's skin unrolls from, and a blink
+  // stretched it past 4×; at half it reads 3.1×)
+  const boneLines = [...['jawBorderL', 'jawBorderR', 'chin'].map((n) => [n, BONE_WAVE.share, BONE_WAVE.reach]), ...['browL', 'browR'].map((n) => [n, 0.75, BONE_WAVE.reach])];
   // (the shortening scaled by the head's `boneEdge`: softer where the bones read through more soft tissue)
   const edge = rel.boneEdge ?? 1, boneFoci = boneLines.filter(([n]) => Vn[n]).flatMap(([n, share, reach]) => [[Vn[n].a, Vn[n].c], [Vn[n].c, Vn[n].b]].map(([a, b]) => ({ a: S(a), b: S(b), cut: (1 - share) * edge, s2: (reach * sc) ** 2 })));
   const segQ = (p, a, b, s2) => { const ab = [b.x - a.x, b.y - a.y, b.z - a.z], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2; const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab[0] + (p.y - a.y) * ab[1] + (p.z - a.z) * ab[2]) / (L2 || 1))); return ((p.x - a.x - ab[0] * t) ** 2 + (p.y - a.y - ab[1] * t) ** 2 + (p.z - a.z - ab[2] * t) ** 2) / s2; };
