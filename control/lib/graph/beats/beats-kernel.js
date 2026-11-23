@@ -1290,6 +1290,7 @@ export function buildBeatsKernel() {
       for (const [id, r] of Object.entries(slice.roots || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { root: r }));
       for (const [id, l] of Object.entries(slice.loops || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { loop: l }));
       for (const [id, v] of Object.entries(slice.vels || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { vel: v }));
+      for (const [id, v] of Object.entries(slice.keyAt || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { keyAt: v }));
       const bytes = slice.bytes || {};
       return Promise.all(Object.keys(bytes).map((id) => (sampleBufs.has(id) ? null
         : Promise.resolve(ctx.decodeAudioData(bytes[id])).then((b) => { sampleBufs.set(id, b); }))));
@@ -1312,6 +1313,16 @@ export function buildBeatsKernel() {
       if (!zone.length) return null;
       const id = zone[(k >>> 0) % zone.length], M = sampleMeta.get(id);
       return { buf: sampleBufs.get(id), root: M.root, loop: M.loop || null };
+    }
+    // an instrument's KEY-OFF (its release sound, `<library>~release`): of its decoded takes, those for the register
+    // nearest the note (`keyAt`), one by the note's key; a buffer or null
+    function sampleKeyOff(patch, k, hz) {
+      const m = 69 + 12 * Math.log2(hz / 440);
+      const ids = (sampleCards[patch.library + '~release'] || []).filter((id) => sampleBufs.has(id) && sampleMeta.has(id) && Number.isFinite(sampleMeta.get(id).keyAt));
+      let near = Infinity;
+      for (const id of ids) near = Math.min(near, Math.abs(sampleMeta.get(id).keyAt - m));
+      const zone = ids.filter((id) => Math.abs(sampleMeta.get(id).keyAt - m) <= near + 0.5);
+      return zone.length ? sampleBufs.get(zone[(k >>> 0) % zone.length]) : null;
     }
     // a cue's recorded gestures that are not loaded here (no library on the page, or not decoded yet) give way to the
     // synthesized gestures they stand in for, in their place, before the cue is planned: the cue is then exactly the
@@ -2605,6 +2616,17 @@ export function buildBeatsKernel() {
           if (typeof pmod !== 'undefined' && pmod) pmod.connect(src.detune);
           if (typeof lfoTo !== 'undefined' && lfoTo) lfoTo(src.detune, 'pitch');
           src.connect(ug || env); src.start(t); src.stop(end);
+        }
+        // (the KEY-OFF: when the key is let go, the instrument's release sound for the note's register, `keyOff` dB under
+        // the note's own level (`volume`) and softer the softer the note was played; outside the note's envelope, which
+        // is releasing then)
+        if (patch.keyOff != null) {
+          const R = sampleKeyOff(patch, nk, hz);
+          if (R) {
+            const ks = ctx.createBufferSource(), kg = ctx.createGain();
+            ks.buffer = R; kg.gain.value = dbGain((patch.volume || 0) + patch.keyOff) * (0.4 + 0.6 * (vel == null ? 0.8 : vel));
+            ks.connect(kg); kg.connect(dest || master); ks.start(t + dur); ks.stop(t + dur + R.duration + 0.05);
+          }
         }
       } else
 /*|

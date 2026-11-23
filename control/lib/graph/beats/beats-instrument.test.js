@@ -67,6 +67,10 @@ beforeAll(() => {
   const nb = wavOf(Float32Array.from({ length: SR / 4 }, (_, i) => Math.sin(i * 12.9898) * 0.3)), nid = sha(nb).slice(0, 16);
   writeFileSync(path.join(dir, 'masters', `${nid}.wav`), nb);
   cards['inst-noise'] = { instrument: NAME, pitched: true, role: 'instrument', variants: [{ id: nid, take: 1, seconds: 0.25 }] };
+  // the held instrument's key-off: a short noise burst for the middle register (no root: it is no note)
+  { let q = 3; const b = wavOf(Float32Array.from({ length: SR / 5 }, (_, i) => { q = (Math.imul(q, 1664525) + 1013904223) >>> 0; return (q / 2 ** 32 - 0.5) * Math.exp(-i / (SR * 0.2)); })), id = sha(b).slice(0, 16);
+    writeFileSync(path.join(dir, 'masters', `${id}.wav`), b);
+    cards['inst-keyoff'] = { instrument: NAME, keyOff: true, role: 'instrument', variants: [{ id, take: 1, seconds: 0.2, keyAt: 64 }] }; }
   // a struck instrument's one note in two strengths: soft a pure sine, hard a bright sawtooth
   const saw = (p) => ((p / (2 * Math.PI)) % 1) * 2 - 1;
   for (const [layer, vel, shape] of [['soft', 0.3, undefined], ['hard', 0.95, saw]]) {
@@ -264,5 +268,28 @@ describe('a recorded note moves as the synthesized one would', () => {
     expect(Math.abs(at(x, 0.1, 0.3) - 69)).toBeLessThan(0.3);
     expect(Math.abs(at(x, 0.6, 0.3) - 72)).toBeLessThan(0.3);
     expect(Math.abs(at(x, 1.1, 0.3) - 76)).toBeLessThan(0.3);
+  });
+});
+
+describe('a key let go', () => {
+  it('a page is handed an instrument\'s key-offs beside its notes, each with its register', () => {
+    library(true);
+    const S = sampleSlice([NAME]);
+    expect(S.cards[`${NAME}~release`]).toHaveLength(1);
+    expect(Object.values(S.keyAt)).toEqual([64]);
+    expect(S.cards[NAME]).toHaveLength(ROOTS.length);
+  });
+
+  it('sounds the release after the note has gone, where the patch asks for one', async () => {
+    library(true);
+    expect(PATCHES[INST].keyOff).toBeLessThan(0);
+    const off = async () => samplesOf((await renderBeatsOffline(normalizeBeatsManifest({ kind: 'beats-composition', title: 'off', bpm: 120, parts: [{ name: 'k', patch: INST, events: [[0, 'E4', 1, 0.8]] }] }), { tail: 1 })).wav);
+    // (the note held 0.5 s, its own release over by 0.65 s; after it, the key-off's burst is what sounds, where the
+    // synthesized organ, without the library, is silent)
+    const x = await off();
+    library(false);
+    const y = await off();
+    expect(rms(x, 0.66, 0.76)).toBeGreaterThan(1e-4);
+    expect(rms(x, 0.66, 0.76)).toBeGreaterThan(20 * rms(y, 0.66, 0.76));
   });
 });

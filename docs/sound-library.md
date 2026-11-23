@@ -160,7 +160,15 @@ tremolo and the chain sit after it as on any voice. The
 synth's moves of its frequency ride the take's playback rate as the same ratios: a glide in from the row's previous note
 (`glideFrom`), a bend, a portamento or a sliding glissando (`bend`), a legato run (`path`), one take, no retrigger. A guitar heard through a saturating amp takes its level from the
 amp's makeup (`ampTrim`, laid on the instrument's amp once as the part expands). Not carried yet: release samples
-(a key let go is a fade, not the damper's thump).
+for the harpsichord and the Rhodes (see KEY-OFFS).
+
+KEY-OFFS (release samples): an instrument's release sounds are cards with `keyOff: true` and `at`, the register each is
+for as MIDI (`cards/releases.js`); conditioning measures no pitch for them and writes `keyAt`, and the library hands them
+to the page beside the instrument's notes under `<instrument>~release`. A patch with `keyOff` (dB under its `volume`)
+plays, when a note's key is let go, the take for the nearest register, softer the softer the note was played, outside the
+note's envelope (beats-kernel.js sampleKeyOff). The piano (`keyOff: -14`) and the organ (`-20`) have them. A release must
+hold no pitch of its own: the harpsichord's and the Rhodes' came back with a buzz or a tick at one fixed pitch (near E3
+and F#3, whatever register was asked) and are recorded but not played; `steadyPitch` on a release take finds it.
 
 VELOCITY LAYERS: an instrument's takes can carry the strength they were asked at (a card's `vel`, 0…1, written to each
 variant by conditioning and handed to the page as `vels`). A note then plays the take nearest it in pitch and in

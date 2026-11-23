@@ -48,3 +48,7 @@
 - A recorded instrument now moves as its synthesized one does: a glide in from the previous note, a portamento, a
   glissando that slides (a struck one still runs the scale), and a legato run, one take whose pitch walks its notes with
   no retrigger. The take's playback rate rides the same ramps the oscillator's frequency would.
+- A key let go is heard on the recorded piano and organ: the piano's felt damper falling back onto its strings (low,
+  middle and high registers) and the organ's key click, played when the note's key is released, under the note's level
+  and softer the softer it was played. The harpsichord's and the Rhodes' recorded releases came back with a buzz at one
+  fixed pitch, so their notes still simply fade.

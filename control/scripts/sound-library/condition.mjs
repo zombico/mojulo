@@ -141,7 +141,9 @@ async function main() {
       // (a pitched take's ROOT, measured: the note it really is, which an instrument is zoned by; a held one's LOOP, a
       // whole number of its periods inside its sustain; pitch.js. A take with no clear pitch is left out of its instrument)
       let tone = null;
-      if (c.instrument) {
+      // (a key-off, an instrument's release sound, has no pitch to measure: it carries its register, `keyAt`)
+      if (c.keyOff) tone = { keyAt: c.at };
+      else if (c.instrument) {
         // (searched round the note asked, its band's `<instrument>:<note>`: an octave and a half either side, since the
         // generator lands the letter but not always the octave)
         const asked = /:([A-G]#?)(-?\d)$/.exec(c.band || ''), L = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -158,7 +160,7 @@ async function main() {
       });
       n++;
     }
-    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), ...(c.engine ? { engine: c.engine, rpm: c.rpm } : {}), ...(c.flavor ? { flavor: c.flavor } : {}), ...(c.also ? { also: c.also } : {}), ...(c.ui ? { ui: c.ui, uiSets: c.uiSets || [] } : {}), ...(c.tags ? { tags: c.tags } : {}), ...(c.instrument ? { instrument: c.instrument, pitched: true, ...(c.sustain ? { sustain: true } : {}) } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
+    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), ...(c.engine ? { engine: c.engine, rpm: c.rpm } : {}), ...(c.flavor ? { flavor: c.flavor } : {}), ...(c.also ? { also: c.also } : {}), ...(c.ui ? { ui: c.ui, uiSets: c.uiSets || [] } : {}), ...(c.tags ? { tags: c.tags } : {}), ...(c.instrument ? { instrument: c.instrument, ...(c.keyOff ? { keyOff: true } : { pitched: true }), ...(c.sustain ? { sustain: true } : {}) } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
   }
   const index = { version: 1, set: a.cards, rate: RATE, levels: { oneShotPeakDb: PEAK_DB, bedLufs: BED_LUFS, loopLufs: LOOP_LUFS }, cards };
   writeFileSync(path.join(a.out, 'library.json'), `${JSON.stringify(index, null, 1)}\n`);

@@ -506,12 +506,12 @@ PATCHES.recRockKit = { kit: { ...PATCHES.rockKit90s.kit, 35: 'recKick', 36: 'rec
 // rest of the way, its two copies spread a few cents as the synthesized organ's unison is; on a machine without the
 // library (or before its takes are decoded) the synthesized organ it stands in for. A part plays it as
 // `{ instrument: 'organ', patch: 'organRec' }` (the organ's chain kept). Not on the instrument shelf until heard.
-PATCHES.organRec = { voice: 'sample', library: 'organ', zones: true, loop: true, oneShot: false, attack: 0.012, decay: 0.04, sustain: 1, release: 0.12, volume: -12, unison: 2, detune: 4, fallback: PATCHES.organ };
+PATCHES.organRec = { voice: 'sample', library: 'organ', zones: true, loop: true, oneShot: false, attack: 0.012, decay: 0.04, sustain: 1, release: 0.12, volume: -12, unison: 2, detune: 4, keyOff: -20, fallback: PATCHES.organ };
 // The recorded PIANO (the sound library's instrument `piano`: a grand's notes struck once and left to ring, each zoned
 // by its measured root, scripts/sound-library/cards/piano.js): each note on its nearest take, bent the rest of the way,
 // ringing as its take does and damped when the key is let go (no loop: a struck string dies away); on a machine without
 // the library the tuned grand it stands in for. Played as `{ instrument: 'grand-piano-3', patch: 'pianoRec' }`.
-PATCHES.pianoRec = { voice: 'sample', library: 'piano', zones: true, oneShot: false, attack: 0.002, decay: 0, sustain: 1, release: 0.3, volume: -18, fallback: PATCHES.pianoGrand3 };
+PATCHES.pianoRec = { voice: 'sample', library: 'piano', zones: true, oneShot: false, attack: 0.002, decay: 0, sustain: 1, release: 0.3, volume: -18, keyOff: -14, fallback: PATCHES.pianoGrand3 };
 // The robot band's colour instruments and its bass recorded (scripts/sound-library/cards/band.js), struck once and left
 // to ring, each on its nearest measured take and damped when the note ends; each falls back to the synthesized patch it
 // stands in for. The vibraphone was recorded with its motor off: the synthesized one's tremolo is laid over its takes.
@@ -548,6 +548,7 @@ Object.assign(PATCHES, {
   guitarCleanRec: recStruck('acoustic-guitar', 'guitarClean', 0.14, -15.3),
   guitarNylonRec: recStruck('nylon-guitar', 'guitarNylon', 0.16, -15.6),
   guitarClassicalRec: recStruck('nylon-guitar', 'guitarClassical', 0.22, -14.0),
+  // (no key-off: its recorded releases came back with a tick at one fixed pitch, F#3, that would clash with the note)
   rhodesRec: recStruck('rhodes', 'rhodes', 0.9, -9.7),
   harpRec: recStruck('harp', 'harp', 1.4, -16.8),
   marimbaRec: recStruck('marimba', 'marimba', 0.3, -7.7),
@@ -572,6 +573,7 @@ Object.assign(PATCHES, {
   tubularBellsRec: recStruck('tubular-bells', 'tubularBells', 2, -4.2),
   // the setting colours (scripts/sound-library/cards/colours.js): a court's harpsichord, a title's music box, the
   // frontier's banjo and harmonica, East Asia's shamisen, the country road's pedal steel
+  // (no key-off: its recorded releases came back with a string buzz at one fixed pitch, near E3, whatever the note)
   harpsichordRec: recStruck('harpsichord', 'harpsichord', 0.1, -14),
   musicBoxRec: recStruck('music-box', 'musicBox', 0.8, -16),
   banjoRec: recStruck('banjo', 'banjo', 0.06, -12),
