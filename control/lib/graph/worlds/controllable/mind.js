@@ -345,17 +345,23 @@ export function buildMind(E) {
   // perceive(e, r, target, world) — in `sightRange` (120), in the facing cone `sightCone` (half-angle 1.2 rad; skipped
   // while it saw the target in the last half second), and a clear line past the colliders, eye to eye. A sighting is
   // recorded on `e.lastSeen` { pos, t, id }; a fresh one counts `e.sightings` (the bus's `seen`).
+  // AT ARM'S LENGTH (opt-in `rule.near: { r?: 1.6, back?: 100 }`): a target within `r` m is in its sight whatever way it
+  // faces, unless it stands in the `back` degrees square behind it (the arc a takedown comes from, takedown.js), and that
+  // only while it walks: a patrol stopped to look round (foe.js `patrol.look`, e.foeLook) feels it all round; a body
+  // circling a guard at its elbow is seen; absent, the cone alone, as it always was.
   function perceive(e, r, target, world) {
     const t = e.transform, q = target.transform.pos, now = (world && world.time) || 0;
     const dx = q[0] - t.pos[0], dy = q[1] - t.pos[1];
     if (Math.hypot(dx, dy) > (r.sightRange ?? 120)) return false;
     const recent = e.lastSeen && e.lastSeen.id === target.id && now - e.lastSeen.t < 0.5;
     if (!recent) {
-      const off = Math.atan2(dy, dx) - t.heading;
-      if (Math.abs(Math.atan2(Math.sin(off), Math.cos(off))) > (r.sightCone ?? 1.2)) return false;
+      const off = Math.atan2(dy, dx) - t.heading, a = Math.abs(Math.atan2(Math.sin(off), Math.cos(off)));
+      if (a > (r.sightCone ?? 1.2) && !(r.near && Math.hypot(dx, dy) <= (r.near.r ?? 1.6) && (e.foeLook || a < Math.PI - (((r.near.back ?? 100) / 2) * Math.PI) / 180))) return false;
     }
     const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
     if (world && world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(target)], world.colliders)) return false;
+    // (nor through tall grass, veil.js: a world with veils, its lines run through them)
+    if (world && world.veils && E.veilBlocked && E.veilBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(target)], world.veils)) return false;
     // a FRESH sighting (not seen in the last half second) is counted: castFacts says it on the bus (`seen`)
     if (!recent) { e.sightings = (e.sightings || 0) + 1; e.seenId = target.id; }
     e.lastSeen = { pos: [q[0], q[1], q[2]], t: now, id: target.id };

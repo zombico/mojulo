@@ -61,7 +61,7 @@ export const REALITY = Object.freeze({
     grade: {
       values: {
         none: { status: 'built', note: 'the frames as the renderer draws them' },
-        graded: { status: 'built', since: '2026-11-02', lowers: 'lib/graph/gameworld/grade.js', note: 'a world\'s grade over every level: a word (film, noir, bleach, vivid, pastel, cold, warm), dials, or the register\'s own (anime drawn vivid, western on film); a tempo moment\'s look pushes from it and returns' },
+        graded: { status: 'built', since: '2026-11-02', lowers: 'lib/graph/gameworld/grade.js', note: 'a world\'s grade over every level: a word (film, noir, bleach, vivid, pastel, cold, warm, night), dials, or the register\'s own (anime drawn vivid, western on film); a tempo moment\'s look pushes from it and returns' },
       },
     },
     // the game's own screens (the interface department; its runtime is mana-ui, lib/mana-ui: one runtime every game's UI

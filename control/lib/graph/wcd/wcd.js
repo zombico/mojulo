@@ -45,6 +45,7 @@
  */
 import { readCompose } from '../era/compose.js';
 import { PROGRAM_IDS } from '../era/programs.js';
+import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
 import { readTone } from '../era/tone.js';
 
 export const WCD_KINDS = Object.freeze({
@@ -67,7 +68,7 @@ export const WCD_PRINCIPLES = Object.freeze({
   'keys-inside': 'Keys open a door out of an escape room.',
 });
 const KEYS = ['core', 'spaces', 'doors'];
-const SPACE_KEYS = ['kind', 'depth', 'level', 'use', 'look', 'tone', 'built'];
+const SPACE_KEYS = ['kind', 'depth', 'level', 'use', 'facility', 'look', 'tone', 'built'];
 const DOOR_KEYS = ['from', 'to', 'via', 'gate', 'oneWay'];
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -117,9 +118,14 @@ export function readWcd(spec, { levels = null, escapes = null } = {}) {
     if (!(Number.isInteger(S.depth) && S.depth >= 0)) fail(`${at}.depth is a whole number, 0 the outermost`);
     if (S.level !== undefined && (typeof S.level !== 'string' || (levels && !levels.includes(S.level)))) fail(`${at}.level '${S.level}' is not a level of the world${levels ? ` (${levels.join(', ')})` : ''}`);
     if (S.use !== undefined && !PROGRAM_IDS.includes(S.use)) fail(`${at}.use '${S.use}' is not a building use (${PROGRAM_IDS.join(', ')})`);
+    // (a facility, era/facilities.js: a building designed to move through, its use, its rooms' layouts and its look, the
+    // space's own look winning)
+    const Fa = S.facility !== undefined ? FACILITIES[S.facility] : null;
+    if (S.facility !== undefined && !Fa) fail(`${at}.facility '${S.facility}' is not one (${FACILITY_IDS.join(', ')})`);
+    if (Fa && S.use !== undefined && S.use !== Fa.use) fail(`${at}: facility '${S.facility}' is a ${Fa.use}, not a ${S.use}: give one`);
     if (S.built !== undefined && S.built !== false) fail(`${at}.built is false (a space on the path, not made yet), or left out`);
     if (S.tone !== undefined) try { readTone(S.tone); } catch (e) { fail(`${at}.tone: ${e.message.replace(/^stage: tone:? ?/, '')}`); }
-    spaces[id] = { id, kind: S.kind, depth: S.depth, ...(S.level ? { level: S.level } : {}), ...(S.use ? { use: S.use } : {}), look: lookOf(S.look, at), ...(S.tone !== undefined ? { tone: S.tone } : {}), built: S.built !== false };
+    spaces[id] = { id, kind: S.kind, depth: S.depth, ...(S.level ? { level: S.level } : {}), ...(S.use || Fa ? { use: S.use ?? Fa.use } : {}), ...(Fa ? { facility: S.facility } : {}), look: lookOf(S.look, at) ?? (Fa ? { ...Fa.look } : null), ...(S.tone !== undefined ? { tone: S.tone } : {}), built: S.built !== false };
   }
   if (typeof spec.core !== 'string' || !spaces[spec.core]) fail(`core is one of the spaces (${Object.keys(spaces).join(', ')})`);
   if (spec.doors !== undefined && !Array.isArray(spec.doors)) fail('doors is a list of { from, to, via, gate?, oneWay? }');

@@ -53,6 +53,13 @@ const TWILIGHT = -0.45;
 const TWI = Object.freeze({ zenith: [34, 44, 86], horizon: [206, 124, 104], fog: '#7a6474', ambient: '#4e5070' });
 // a cube with no moon of its own is lit at night by this one (the city's, city/plan/look.js)
 const MOON = Object.freeze({ color: '#9fb0e0', elevation: 34, azimuth: 300, gain: 0.8 });
+// THE NIGHT'S REGISTER (a cube's `light.night`): `stylized` (absent) is the night reference's own, a gothic game's deep
+// blue and violet; `realistic` is the night as the eye and a film's night see it: the colour drained by the dark (the eye
+// sees colour poorly by moonlight), the moon a pale light barely cool, the shade and the sky near-neutral greys, a cool
+// grey's hue (`hue`, OKLCH degrees) at no more than `chroma`; the twilight before it drained to `twilight`. The drama is
+// the value and the lamps, never a hue
+export const REALISTIC_NIGHT = Object.freeze({ chroma: 0.012, twilight: 0.035, moon: 0.018, hue: 235 });
+export const NIGHT_REGISTERS = Object.freeze(['stylized', 'realistic']);
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const smooth = (u) => u * u * (3 - 2 * u);
@@ -61,6 +68,9 @@ const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const hexOf = (c) => '#' + c.map((v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0')).join('');
 // a colour at another's value: its hue and (quietened) chroma, the other's lightness (geocube.js solveInto's move)
 const atValueOf = (hex, rgb) => { const [, C, h] = lchOf(hexToRgb(hex)), [L] = lchOf(rgb); return rgbToHex(oklch(L, Math.min(C, 0.06), h)); };
+// a colour drained: its own lightness, at most `c` of chroma, in the realistic night's cool grey
+const drainedOf = (hex, c) => { const [L] = lchOf(hexToRgb(hex)); return rgbToHex(oklch(L, c, REALISTIC_NIGHT.hue)); };
+const drainedRgb = (rgb, c) => rgbOf(drainedOf(hexOf(rgb), c));
 
 /** A recipe's hour → a number in [0, 24). */
 export function readHour(v) {
@@ -109,10 +119,14 @@ export function hourLight(cube, h) {
   const ownHex = { zenith: hexOf(own.zenith), horizon: hexOf(own.horizon), fog: own.fog };
   const carried = (R, keepHorizon = false) => ({ zenith: rgbOf(atValueOf(ownHex.zenith, R.air.dome.zenith)), horizon: keepHorizon ? [...R.air.dome.horizon] : rgbOf(atValueOf(ownHex.horizon, R.air.dome.horizon)),
     fog: keepHorizon ? R.air.fog.color : atValueOf(ownHex.fog, rgbOf(R.air.fog.color)) });
-  const twilight = { zenith: rgbOf(atValueOf(ownHex.zenith, TWI.zenith)), horizon: [...TWI.horizon], fog: TWI.fog };
-  const sky = along(keyframes(skyS(refS), own, { night: carried(NIGHT), twilight, golden: carried(GOLD, true), day: carried(DAY) }), skyS(s), mixSky);
-  const ambient = along(keyframes(skyS(refS), ref.light.ambient, { night: NIGHT.light.ambient, twilight: TWI.ambient, golden: GOLD.light.ambient, day: DAY.light.ambient }), skyS(s), mixHex);
-  const moonlit = s < MOON_AT, moon = { ...MOON, ...(cube.light.moon ?? {}) };
+  const real = cube.light.night === 'realistic', R = REALISTIC_NIGHT;
+  const twi0 = { zenith: rgbOf(atValueOf(ownHex.zenith, TWI.zenith)), horizon: [...TWI.horizon], fog: TWI.fog };
+  // (the realistic night: its sky, its twilight and its shade drained to a cool grey, each at the stylized one's value)
+  const twilight = real ? { zenith: drainedRgb(twi0.zenith, R.twilight), horizon: drainedRgb(twi0.horizon, R.twilight), fog: drainedOf(twi0.fog, R.twilight) } : twi0;
+  const night0 = carried(NIGHT), nightSky = real ? { zenith: drainedRgb(night0.zenith, R.chroma), horizon: drainedRgb(night0.horizon, R.chroma), fog: drainedOf(night0.fog, R.chroma) } : night0;
+  const sky = along(keyframes(skyS(refS), own, { night: nightSky, twilight, golden: carried(GOLD, true), day: carried(DAY) }), skyS(s), mixSky);
+  const ambient = along(keyframes(skyS(refS), ref.light.ambient, { night: real ? drainedOf(NIGHT.light.ambient, R.chroma) : NIGHT.light.ambient, twilight: real ? drainedOf(TWI.ambient, R.twilight) : TWI.ambient, golden: GOLD.light.ambient, day: DAY.light.ambient }), skyS(s), mixHex);
+  const moonlit = s < MOON_AT, moon0 = { ...MOON, ...(cube.light.moon ?? {}) }, moon = real ? { ...moon0, color: drainedOf(moon0.color, R.moon) } : moon0;
   let key, gainK;
   if (moonlit) {
     key = { color: moon.color, elevation: moon.elevation, azimuth: moon.azimuth };

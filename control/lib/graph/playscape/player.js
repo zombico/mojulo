@@ -98,11 +98,16 @@ export const LIBRARY_BOB = Object.freeze({ 'quaternius-ual': Object.freeze({ Jog
 export const libraryBob = (library, clip) => LIBRARY_BOB[library]?.[clip] ?? 0;
 
 /** The traversal states a model need not have (the city stalker's wall and gear, worlds/controllable/wall.js and
- *  swing.js): each falls back, in order, to a state every player already plays, so no figure is refused for a clip it
+ *  swing.js; a vault out of the run, free-run.js; the crouch, stance.js): each falls back, in order, to a state every player already plays, so no figure is refused for a clip it
  *  lacks. */
 export const TRAVERSAL_FALLBACK = Object.freeze({
   wall_crawl: ['climb', 'leap'],
   mantle: ['climb', 'squat', 'leap'],
+  vault: ['stepVault', 'hurdle', 'leap'],
+  crouch_idle: ['kneel', 'squat', 'idle'],
+  crouch_walk: ['walk', 'forward'],
+  prone_idle: ['crouch_idle', 'kneel', 'squat', 'idle'],
+  prone_crawl: ['crouch_walk', 'walk', 'forward'],
   perch: ['kneel', 'squat', 'idle'],
   dive: ['leap'],
   swing: ['leap'],

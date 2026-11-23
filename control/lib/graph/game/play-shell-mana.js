@@ -19,6 +19,7 @@
  *                                  quit, sound, rows(), owner(), homeWord(), open }, playing() }
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, lettersCss, themeCss, readTheme, titleLetters } from '../../mana-ui/index.js';
+import { uiSoundAudio, UI_SOUND_SET_IDS } from '../beats/ui-sounds.js';
 import { immersiveCss } from './immersive-ui.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
 
@@ -31,7 +32,8 @@ const B = (p) => ({ bind: `ui.${p}` });
 export function readShellUi(ui, where = 'ui') {
   if (!isObj(ui)) return [`${where} is { theme, languages?, language? }: the look the game's screens are drawn in by mana-ui`];
   const errors = [];
-  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language', 'immersive'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language, immersive)`);
+  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language', 'immersive', 'sounds'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language, immersive, sounds)`);
+  if (ui.sounds !== undefined && !(isObj(ui.sounds) && UI_SOUND_SET_IDS.includes(ui.sounds.set))) errors.push(`${where}.sounds: { set } a UI sound set its menus play (${UI_SOUND_SET_IDS.join(', ')})`);
   if (ui.immersive !== undefined && typeof ui.immersive !== 'boolean') errors.push(`${where}.immersive: true where the screens draw no box (a stylish action game's, immersive-ui.js)`);
   try { readTheme(ui.theme === undefined ? 'greybox' : ui.theme); } catch (e) { errors.push(`${where}.theme: ${e.message}`); }
   if (ui.languages !== undefined || ui.language !== undefined) {
@@ -99,12 +101,39 @@ export function shellManaSpec(ui = {}, { picks = false, staged = false } = {}) {
 export const shellManaCss = (ui = {}) => `${manaCss()}\n${lettersCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}${ui.immersive === true ? immersiveCss('#mana') : ''}`;
 export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
-  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
+  // (its menus' sounds, `ui.sounds`: the set, the recorded library's over it; none recorded here, none at all)
+  const A = ui.sounds ? uiSoundAudio([ui.sounds.set]) : null, sounds = A && A.samples ? { set: ui.sounds.set, cues: A.sets[ui.sounds.set], samples: A.samples } : null;
+  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, ...(sounds ? { sounds, soundsK: A.source, soundsOf: A.of } : {}) };
 }
-export const shellManaScript = () => `const __manaUi = ${manaUiSource()};
+/** The page's code; `mana` (cfg.mana) with `sounds` also plays the menus' sounds: the beats kernel the set needs, the cue
+ *  picker, and the runtime's host wrapped so its sound effects (cues 'full') are heard, not passed on; the recordings
+ *  decoded before the first. Muted with the game's sound (the shell's ui.settings.sound). Without, not a byte of it.
+ *  (shellManaConfig's `sounds`, `soundsK` and `soundsOf` are this script's: the page's cfg.mana leaves them out) */
+export const shellManaScript = (mana = null) => `const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
 const __manaPadLayout = (${padLayoutSource()});
-const __mojMana = (${playShellManaRuntime.toString()});`;
+const __mojMana = (${playShellManaRuntime.toString()});${mana && mana.sounds ? `
+// THE MENUS' SOUNDS (play-shell-mana.js shellManaConfig: the set, the recorded library's over it)
+(function () {
+  const S = { K: (${mana.soundsK})(), of: (${mana.soundsOf}), n: 0 };
+  const M0 = ${JSON.stringify(mana.sounds).replace(/</g, '\\u003c')}, cfgOf = () => M0;
+  const ready = () => {
+    if (S.engine) return S.engine;
+    try { const C = window.AudioContext || window.webkitAudioContext; S.ctx = new C(); S.engine = S.K.createEngine(S.ctx); const M = cfgOf();
+      S.engine.loadSamples({ cards: M.samples.cards, bytes: Object.fromEntries(Object.entries(M.samples.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])) }); } catch (err) { S.engine = null; }
+    return S.engine;
+  };
+  const hear = (e) => {
+    const M = cfgOf(), st = window.__mojManaState;
+    if (!M || (st && st.ui && st.ui.settings && st.ui.settings.sound === 0)) return;
+    const g = M.cues[S.of(e)] || M.cues[e.sound], E = g && ready();
+    if (!E) return;
+    if (S.ctx.state === 'suspended') S.ctx.resume();
+    E.playCue(g, null, null, 1, ++S.n);
+  };
+  const run = __manaUi.runtime;
+  __manaUi.runtime = (spec, host) => run(spec, Object.assign({}, host, { cues: 'full', act: (e, from) => { if (e && typeof e.sound === 'string') hear(e); else host.act(e, from); } }));
+})();` : ''}`;
 
 /**
  * The page's code (inlined with toString(), references nothing outside itself but the kernel, the host and the pad

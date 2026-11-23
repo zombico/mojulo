@@ -337,13 +337,24 @@ describe('a composed game\'s place (its stages carry no kit of their own: the wo
   });
 });
 
+describe('a sheet\'s events', () => {
+  it('voices any bus event by a shelf word, a cue of the level\'s each, over the mechanics\' own', () => {
+    const A = resolveWorldAudio({ sfx: { sheet: { style: 'realistic', events: { seen: 'spotted', 'alarm:found': 'siren', 'mission:item': 'pickup' } } } }, { ref: 'lv' });
+    expect(A.on).toMatchObject({ seen: 'ev-alarm', 'alarm:found': 'ev-siren', 'mission:item': 'ev-pickup' });
+    expect(A.cues['ev-alarm']).toBeTruthy();
+    expect(() => resolveWorldAudio({ sfx: { sheet: { events: { seen: 'no such sound' } } } }, { ref: 'lv' })).toThrow(/not a sound on the SFX shelf/);
+  });
+});
+
 describe('a run and gun\'s own voices (its buster, its hero, its robot foes, a rock, the shutter, a boss\'s treads)', () => {
   const RUN = { feel: { pole: 'galaxy-boy', takes: true }, levels: { first: { sidemap: { boss: 'bulwark' } } } };
 
   it('a run and gun hears every event; a hero with no buster keeps the rest; a boss on treads its treads; another game none', async () => {
     const { RUN_SOUNDS, RUN_HELD } = await import('./sound-sheet.js');
     const { RUN_EVENTS, RUN_HELD: HELD } = await import('../beats/beats-world.js');
-    expect(Object.keys(RUN_SOUNDS)).toEqual(RUN_EVENTS);
+    // (the page's events: the run and gun's, then a platformer's own beyond them, the double jump)
+    const { PLATFORM_RUN } = await import('./sound-sheet.js');
+    expect([...new Set([...Object.keys(RUN_SOUNDS), ...Object.keys(PLATFORM_RUN)])]).toEqual(RUN_EVENTS);
     expect([...RUN_HELD]).toEqual([...HELD]);
     expect(soundSheet(RUN).run).toEqual({ ...RUN_SOUNDS });
     for (const [ev, w] of Object.entries(RUN_SOUNDS)) expect(RUN_HELD.includes(ev) ? sfxSound(w)?.sustain : SOUNDS[w], ev).toBeDefined();

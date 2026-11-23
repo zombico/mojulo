@@ -31,6 +31,8 @@
  */
 import { DRESS_THEMES, readDress } from './course-dress.js';
 import { THEMES } from '../../mana-ui/theme.js';
+import { menuSoundSet } from '../playscape/ui/interface-look.js';
+import { hasUi } from '../sound-library/library.js';
 import { fighterSpec } from '../versus/versus-sheet.js';
 import { cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { atlasOf, coreOf } from './megaworld.js';
@@ -69,7 +71,7 @@ import { STADIUM_PRESETS } from '../stadium/stadium-words.js';
 import { LANE_KITS } from '../broadcast/broadcast-package.js';
 import { SPORT_KITS } from '../sportswear/kits.js';
 import { quickGuns, LEVEL_GOAL, levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, brawlStreets, brawlCrowd, brawlBody, brawlSetup, brawlGuns, BRAWL_SCENES, brawlArenas, brawlHeroes, readHeroes, heroFighters, heroAdvice, heroFront, powerLabel, castWaves, BRAWL_STREET, brawlByDesign, brawlAsStreets, withStreetScenes, sportArenas, sportSlots, sportKitOf, sportWords, sportConceptOf, tabletopArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, workCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickTransformer, quickRacers, quickSupercars, quickStore } from './quick.js';
-import { sheetAudio, sheetBed, onSheet, levelSheet, citySounds, rideSound, rideTop } from './sound-sheet.js';
+import { sheetAudio, sheetBed, onSheet, levelSheet, citySounds, rideSound, rideEvents, rideTop } from './sound-sheet.js';
 import { cueSheet, levelScore, onScore, cityScore } from './cue-sheet.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { castingOf, laidCasting, laidJoins } from './casting.js';
@@ -203,6 +205,13 @@ const composedAudits = (audits, C, composite) => (Array.isArray(composite) ? aud
 // (a world with a mission level and no `ui` of its own: the mission's look, so the game is on mana-ui end to end, its
 // front and its result as its briefing and its HUD are: mission-mana.js MISSION_LOOK)
 function shellUi(G) {
+  const S = shellUiLook(G);
+  // (and its menus' sound where the recorded library voices that set: the set its rail, its genre or its look asks for,
+  // interface-look.js menuSoundSet; without the library its menus are as they were, silent)
+  const set = S.ui ? menuSoundSet(G, S.ui.theme) : null;
+  return set && hasUi(set) ? { ...S, ui: { ...S.ui, sounds: { set } } } : S;
+}
+function shellUiLook(G) {
   // (a game of obstacle courses says no `ui` and still gets its screens from the game UI runtime, in its course's own
   // look: the dress's `ui`, course-dress.js. A running game's title, pause and result are part of how it reads)
   // (and a game whose every level is a STREET, a beat-em-up's or a run & gun's: the street's own look, brawl-street,
@@ -213,7 +222,7 @@ function shellUi(G) {
   if (G.ui === undefined) {
     const look = courseLook(G), ids = G.ids ?? [];
     if (look) return { ui: { theme: look } };
-    return ids.length && ids.every((k) => G.levels[k]?.brawlStreet || G.levels[k]?.street) ? { ui: { theme: cardTheme('brawl-street') } } : ids.some((id) => G.levels[id].mission !== undefined) ? { ui: { theme: cardTheme(MISSION_LOOK) } } : {};
+    return ids.length && ids.every((k) => G.levels[k]?.brawlStreet || G.levels[k]?.street) ? { ui: { theme: cardTheme('brawl-street') } } : ids.some((id) => G.levels[id]?.mission !== undefined) ? { ui: { theme: cardTheme(MISSION_LOOK) } } : {};
   }
   return { ui: { theme: interfaceLook(G).theme, ...(G.ui.languages ? { languages: G.ui.languages } : {}), ...(G.ui.language ? { language: G.ui.language } : {}) } };
 }
@@ -721,7 +730,10 @@ const foeSteps = (G, ref, ready, ids = null) => {
     // tune. A kin the cube would adorn stands BARE where its skin names neither, the wild: its order says so, its print
     // as it was; one `adorned` is dressed as the cube dresses any kin, by its own sheet)
     const kinSheet = isKin(entry.skin && entry.skin.people) ? rollEgocube(roll) : null;
-    const body = hench ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear, kin = kinWords(entry.skin, { rank: entry.rank, sheet: kinSheet });
+    // (a kin drawn on the beast's tiered body, egocube/plan.js beastOnTiered, has a body and a head of its own: the
+    // henchman's, a person's, is never laid over it, or the tradition's head would meet the kin's skull and the door refuse)
+    const onTiered = !!kinSheet && beastOnTiered(kinSheet);
+    const body = hench && !onTiered ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear, kin = kinWords(entry.skin, { rank: entry.rank, sheet: kinSheet });
     const words = body || gear || kin ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}) } : null;
     const bare = kinBare(entry.skin, kinSheet) ? { dress: 'kit' } : {}, adorned = entry.skin && entry.skin.adorned ? { adorned: true } : {};
     return [
@@ -1266,9 +1278,12 @@ function quickSteps(world, G, ref, lookup) {
   const guns = quickGuns(G, Q);
   const runScore = scoreOfRun(world, G, ref);
   // (and its ride's engine, by what is ridden and how fast it goes: sound-sheet.js rideSound; a transformer's forms are not on the sheet)
-  const engine = ride && !Q.transformer && ride.rule ? rideSound(G, { quick: Q, words: [Q.ride, Q.vehicle, rode?.class, rode?.archetype, rode?.kind].filter((w) => typeof w === 'string').join(' '), top: rideTop(ride.rule) }) : null;
+  const rideWords = [Q.ride, Q.vehicle, rode?.class, rode?.archetype, rode?.kind].filter((w) => typeof w === 'string').join(' ');
+  const engine = ride && !Q.transformer && ride.rule ? rideSound(G, { quick: Q, words: rideWords, top: rideTop(ride.rule) }) : null;
+  // (and its events where the recorded library voices them: its start, horn, brakes, gears, tyres: sound-sheet.js rideEvents)
+  const rideEv = engine ? rideEvents(G, { quick: Q, words: rideWords, voice: engine.engine.voice }) : null;
   const gameRef = childRef(ref, 'game'), scoreOf = (s, i) => goalAudio(Q, { manifest: s.manifest ?? {}, final: stages.length > 1 && i === stages.length - 1, game: seedOfRef(gameRef),
-    ...(onSheet(G, Q) ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }), ...(guns ? { cues: guns.cues } : {}), ...(engine ? { engine: engine.engine } : {}) } : {}),
+    ...(onSheet(G, Q) ? { sheet: sheetAudio(G, { manifest: s.manifest ?? null }), bed: sheetBed(G, { manifest: s.manifest ?? null }), ...(guns || rideEv ? { cues: { ...(guns?.cues ?? {}), ...(rideEv?.cues ?? {}) } } : {}), ...(engine ? { engine: { ...engine.engine, ...(rideEv?.engine ?? {}) } } : {}) } : {}),
     ...(runScore ? { score: levelScore(world, s.level, { sheet: runScore.sheet }) } : {}) });
   stages.forEach((s, i) => {
     if (s.building?.ref) return;

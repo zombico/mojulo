@@ -6,6 +6,8 @@ import { audioFeatures, beatsFeatures } from './beats-features.js';
 import { validateBeatsManifest, SFX_SPACE_NAMES, SFX_CHAIN_TYPES } from './beats-manifest.js';
 import { renderBeatsOffline } from './beats-render.js';
 import { resolveWorldAudio } from './beats-world.js';
+import { audioChannelScript } from '../scene/channels/audio.js';
+import { sheetAudio, readSound } from '../gameworld/sound-sheet.js';
 import { decodeWav, lrCorrelation, rms, centroid, peak } from './audio-measure.js';
 
 // The SFX mixer (kernel feature `sfxmix`): a gesture as a layer with its own chain, pan and send; the duck gesture;
@@ -95,6 +97,20 @@ describe('detection and validation', () => {
     expect(resolveWorldAudio({ sfx: { auto: 'arcade', mix: { space: 'open' } } }).mix).toEqual({ space: 'open', distance: true });
     expect(() => resolveWorldAudio({ sfx: { cues, mix: { space: 'attic' } } })).toThrow(/audio\.sfx\.mix/);
   });
+
+  it('the side: a world asks for it with its mix, a game with its sound; the page carries it only then', () => {
+    const cues = { boom: CUE };
+    expect(resolveWorldAudio({ sfx: { cues, mix: { pan: true } } }).mix).toEqual({ pan: true, distance: true });
+    expect(() => resolveWorldAudio({ sfx: { cues, mix: { pan: 'left' } } })).toThrow(/mix\.pan/);
+    expect(sheetAudio({ sound: { pan: true } }).sheet.mix).toMatchObject({ pan: true });
+    expect(sheetAudio({ sound: {} }).sheet.mix?.pan).toBeUndefined();
+    expect(() => readSound({ pan: 1 })).toThrow(/\.pan/);
+    // the page: the side's code with the mix's pan, not a byte of it without
+    const page = (mix) => audioChannelScript(resolveWorldAudio({ sfx: { cues, on: { 'x:*': 'boom' }, ...(mix ? { mix } : {}) } }));
+    expect(page({ space: 'open', pan: true })).toContain('function __side');
+    expect(page({ space: 'open' })).not.toContain('__side');
+    expect(page({ space: 'open' })).not.toContain('pan:');
+  });
 });
 
 describe('the gates (rendered as an export renders)', () => {
@@ -117,6 +133,15 @@ describe('the gates (rendered as an export renders)', () => {
     const [clean] = await render(sfx(body)), [driven] = await render(sfx([{ ...CUE[0], chain: [{ type: 'drive', amount: 0.9, tone: 8000 }] }]));
     const crest = (y) => db(peak(y) / rms(y, onset(y), onset(y) + Math.round(0.2 * SR)));
     expect(crest(driven)).toBeLessThan(crest(clean) - 1);
+  });
+
+  it('placed to a side, the cue is heard there; centred, both ears alike', async () => {
+    const [L0, R0] = await render(sfx(CUE)), [L, R] = await render(sfx(CUE), { pan: -0.8 }), [L2, R2] = await render(sfx(CUE), { pan: 0.8 });
+    const level = (y) => rms(y, onset(y), onset(y) + Math.round(0.3 * SR));
+    expect(Math.abs(db(level(L0) / level(R0)))).toBeLessThan(0.5);
+    expect(db(level(L) / level(R))).toBeGreaterThan(6);
+    expect(db(level(R2) / level(L2))).toBeGreaterThan(6);
+    await expect(renderBeatsOffline(sfx(CUE), { cue: 'c', pan: 2 })).rejects.toThrow(/pan/);
   });
 
   it('far darkens the attack', async () => {

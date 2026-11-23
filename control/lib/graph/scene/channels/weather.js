@@ -176,7 +176,10 @@ ${cfg.surfaceRings ? `    // (a page whose wet surfaces are struck in their own 
     for (const q of pts) {
       if (U.n >= CAP) break;
       const u = q.u; let s, b;
-      if (im === 'rings') { s = (0.05 + 0.32 * u) * q.s; b = (1 - u) * 0.55; }
+${cfg.roofs && cfg.roofs.length ? `      // (nor does anything land under a roof: a landing on a floor inside a roof's box is not drawn)
+      const gz = ground(q.p[0], q.p[1]);
+      if (ROOFS.some((B) => q.p[0] > B[0] && q.p[0] < B[2] && q.p[1] > B[1] && q.p[1] < B[3] && gz < B[4])) continue;
+` : ''}      if (im === 'rings') { s = (0.05 + 0.32 * u) * q.s; b = (1 - u) * 0.55; }
       else if (im === 'crowns') { s = (0.04 + 0.24 * u) * q.s; b = (1 - u) * 0.8; }
       else if (im === 'puffs') { s = (0.1 + 0.55 * u) * q.s; b = (1 - u) * 0.3; }
       else { s = P.F.size * 2.4 * q.s; b = (u < 0.15 ? u / 0.15 : Math.max(0, 1 - (u - 0.15) / 0.85)) * 0.8; }

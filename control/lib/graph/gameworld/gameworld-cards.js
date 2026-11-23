@@ -13,8 +13,11 @@
  *
  * Pure.
  */
+import { FACILITY_IDS } from '../era/facilities.js';
+import { LAYOUT_IDS } from '../era/room-layouts.js';
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
 import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet, variantOf } from './rails.js';
+import { levelKindLine } from './level-kinds.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -270,7 +273,7 @@ function soundCard() {
     'A game hears it once it writes a `sound`, even an empty one:   patch [{ op: \'set\', path: \'/sound\', value: {} }]',
     'Every level it builds then carries the sheet. A game with no `sound` builds the levels it built.',
     '',
-    'sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary? }: each value a SHELF WORD, over',
+    'sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary?, pan? }: each value a SHELF WORD, over',
     'what the sheet solves. A word off the shelf is refused with the shelf\'s nearest.',
     '  style     mouth (the default: mouth foley, the newest voices) | realistic | foley | arcade | orchestral | synth',
     '  slots     { step, jump, land, dodge, swing, strike }        on    { <event cue>: word } (door, pickup, goal, alarm …)',
@@ -279,6 +282,8 @@ function soundCard() {
     '  guns      { <gun>: { shot?, reload?, hit?, draw? } }       foes  { <foe id>: { attack?, hurt?, down? } }',
     '  ride      a held voice (car-engine, motorbike-engine, kart-engine, diesel-engine, tank-engine, boat-engine) | false',
     '  bed       rain | night | forest | cave | swamp | farm | false',
+    '  pan       true: each sound heard on the side its source is, round the camera (a guard\'s step behind to the left',
+    '            is heard there); absent, every sound centred, placed by its distance alone',
     '',
     'READ AND HEAR IT: /api/sketches/<ref>/bible?book=sound lists every sound, its word and why, each with a play',
     'button, what is OWED (a foe with no voice, a slot the style does not voice), and the music department\'s advice.',
@@ -1236,7 +1241,7 @@ function wcdCard() {
     '  three walls (Maria, Rose, Sina) are WCDs.',
     '  A stealth game is close to a stack of them; a metroidvania is WCDs side by side, one core\'s reward opening another\'s gate.',
     '',
-    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, look?, built? } }, doors: [{ from, to, via,',
+    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, facility?, look?, built? } }, doors: [{ from, to, via,',
     '        gate?, oneWay? }] }',
     'SPACES',
     ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
@@ -1251,6 +1256,8 @@ function wcdCard() {
     '',
     'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
     ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
+    `FACILITIES (a space's or a building's facility: a use built to move through, loops, a catwalk, its floors laid): ${FACILITY_IDS.join(', ')}`,
+    `  a room of any building: building.layouts { <room or role>: ${LAYOUT_IDS.join(' | ')} | { layout, …dials } }`,
     '  parked: its level\'s building.parked: true (a truck and an APC) | [vehicles] | { vehicles?, livery?, wear? }: parked',
     '                in its hangar (else its largest room), solid, painted as its foes\' faction, else its setting\'s camo',
     '',
@@ -1693,6 +1700,8 @@ function railCard(id, variant = null) {
     'THE CHAIN, by size (pull a step\'s card when it is reached, not before):',
     ...S.chain.flatMap((c) => [`  ${c.size}:`, ...c.steps.map((st, i) => `    ${i + 1}. ${st.step.padEnd(12)}${st.does}${st.card ? `  (${st.card})` : ''}`)]),
     ...(S.lacks.length ? ['', 'WHAT IT DOES NOT DO YET (say it when the ask reaches for it):', ...S.lacks.map((l) => `  ${l}`)] : []),
+    ...(S.kinds ? ['', 'ITS LEVEL KINDS (a game is kinds in an order, the brief\'s; pick one by name, its laws are its proof):',
+      ...S.kinds.flatMap((k) => [`  ${levelKindLine(k)}`, `             teaches ${k.teaches.join(', ')}; laws: ${k.laws.join('; ')}${k.example ? `; made in ${k.example}` : ''}`])] : []),
     ...(S.variants ? ['', 'ITS VARIANTS (the ask\'s words name one: pull its own sheet, its chain asks its own question first):',
       ...S.variants.map((v) => `  ${v.name}: ${v.like} (gameworld-rail-${S.id}-${v.id}; the pitch's rail: { from: '${S.id}', variant: '${v.id}' })`)] : []),
   );

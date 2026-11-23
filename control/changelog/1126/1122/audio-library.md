@@ -1,0 +1,81 @@
+### Recorded sound library
+
+- **In progress.** Games and worlds can play recorded sound effects alongside the synthesized ones: a library of
+  realistic sounds recorded with ElevenLabs, installed on demand and never part of the npm package. A sound keeps its
+  synthesized voice, which still plays wherever the library is not installed.
+- The SFX shelf plays its recordings: where the library is installed, a realistic one-shot it records (a gunshot by
+  its cartridge, a footstep by its surface, an impact, a creature) plays one of its recorded takes per hit, and a
+  creature the realistic style had no voice for gets one. A page carries only the recordings its level plays, as MP3.
+  Other styles, sounds asked for at their own dials and machines without the library are unchanged.
+- Cars sound recorded: an engine is a set of loops recorded at steady revs, crossfaded and bent in pitch as it revs, so
+  it climbs smoothly; tyres screech and the road roars from recordings too. The open city's car and a racing car share
+  the recordings and drive them their own ways (the city's through a small speaker, short of its redline; the racer's
+  over the whole range). Recorded engines: a hatchback, a V8, a V12, a race car, a sportbike, a V-twin, a scooter, a
+  kart, a diesel truck, a locomotive, an electric motor, an outboard, a propeller plane and a jet.
+- Every vehicle in the registry has its sounds: its engine, what it runs on (tracks, rails, a rotor, a freewheel,
+  hooves, sails) and the events it is known by (sirens, horns, bells, air brakes, a reverse beeper, a car's alarm and
+  its lock, a flyby, a liftoff), by its kind or its own. A ride a game names is heard by its vehicle: a helicopter by
+  its rotor, a supercar by its V12.
+- In the open city (Hijack City), the car you take is heard by its own engine where the library is installed: a muscle
+  car's V8, a luxury saloon's V12, an electric car's whine, a stolen van's or truck's diesel, each heard from the
+  driver's seat; every other car keeps the city's hatchback. It is heard by its own events too: a V8's start, a truck's
+  air horn, air brakes and reverse beeper, a bus's folding doors, a backfire as a muscle car or a hot hatch comes off
+  the pedal, the lock's chirp as you walk away; an electric car starts without a crank.
+- The horn (H) sounds at the wheel of a car in the open city again: it only answered while getting in.
+- Racing games hear their car the same way where the library is installed: its start as the race begins, its revs
+  climbing through the gears with each change heard, its brakes, its horn on H, a backfire as a muscle car comes off the
+  pedal, and its tyres roaring on the road and screeching in a slide. A ride named in plain words ("a car", "muscle
+  car", "rally car") is heard as the vehicle it names.
+- Music can play recorded instruments. A recorded piece plays one of its takes per hit and falls back to the
+  synthesized piece it stands in for where the library is not installed; recipes without recorded pieces are
+  unchanged to the byte. The first recorded drum kit lost to the synthesized 90s rock kit by ear, so no recorded
+  instrument is offered yet.
+- Galaxy Boy sounds like itself where the library is installed: its arm cannon's tap, charged and full shots and the
+  charge building, its small robot hero's dash, wall kick, wall slide, jump, landing and the hits it takes, its robot
+  foes firing, sparking, glancing rounds off their armour and blowing apart, its bosses going up in a chain of blasts,
+  the stomp, the boulder thrown, the boss room's blast door. A game's own sounds are its flavor: they never reach
+  another game, which keeps the shelf's.
+- Jumping Giuseppe sounds like itself where the library is installed: a springy cartoon hero's steps, jumps and
+  landings, its coins, extra lives, checkpoints and goal, its bumps and falls, and, heard for the first time, its wall
+  kick, its slide down a wall, its double jump and the foes it stomps.
+- Steel Serpents sounds like itself where the library is installed: an operative's quiet steps on concrete and steel
+  catwalks, a vault, a drop and a roll, a knife and a takedown, keycard doors and security doors, and the guards'
+  shouts, grunts and falls; being spotted sounds an alarm stinger and the extraction a success stinger.
+- Game menus have themed sounds where the library is installed: the title, set-up, pause and results screens click,
+  confirm and open in the game's own voice. Fallen Angel's are gothic (bells, iron and heavy doors in a high stone
+  echo), Galaxy Boy's clean, app-like chimes, brighter and quicker than Steel Serpents' subtle ones, every other game's light and
+  bouncy. The recordings belong to the game UI's sound sets, so any page drawn in a set (a menu, a preview, the
+  wireframe board) hears them. A new sound set, robot, joins the others.
+- A recording can be reused: one take can voice several sounds and menu cues (Steel Serpents' extraction chime is also
+  its checkpoint and its menus' notification).
+- Mobile suits can be designed to sound apart (Mech Battle Kai's sounds): a suit is heard by its weight (a light
+  suit's quick footfalls and electric servos, a medium one's heavy metal step, a heavy one shaking the ground, each with
+  its own landing), its drive (rocket, jet or ion boosters held by the thrust, their ignition and their quick boost)
+  and its loadout (beam rifle and its charge, beam cannon, railgun, head vulcan, machine gun, bazooka, missiles, beam
+  saber, heat axe), with a roll, a jump, an overheat alarm and its vent, the transform both ways, a lock-on and a power-up
+  every suit shares. A game designs its suit with `sound: { suit: { weight, drive, arms } }`; Mech Battle Kai's own is
+  heard where the library is installed. The firing range's walkers are heard by their weight the same way. Without the
+  library every suit sounds as mech games did before.
+- Magic has sounds: every element (fire, ice, thunder, water, wind, earth, light, dark, poison, nature, arcane) as a
+  spell gathering and landing at three sizes (a bolt, a burst over many, a cataclysm), the statuses (poison, burn,
+  freeze, paralysis, sleep, silence, confusion, blindness, stun, petrify, doom, regen, haste, slow, berserk, a barrier)
+  with a stat raised or lowered, a cure and a status wearing off, the spells (heals great and small, a revive, a drain,
+  mana, a dispel, time stopped, a teleport, a summoning), and what magic does to a world: a quake, the ground cracking,
+  stone rising and sinking, lava erupting, a flood, ice spreading, vines growing, portals, a ward over the land, the sky
+  darkening and dawn breaking, with lava, a portal, an aura and a poison bog held. Party battles (Isekai Party's) are
+  heard by them where the library is installed: each spell at its size, the statuses, the heals, a critical hit or a
+  weakness ringing over the blow, a foe dissolving, a level gained, a skill learned, the fight's start and a boss's
+  entrance. `sound: { battle: false }` keeps a game's battles silent. Without the library battles are silent as before.
+- Animals have voices: every animal mojulo makes (the 144 of the fauna roster, the insects, the sea's creatures, the
+  bestiary's and the RPG's monsters) is heard as one of its kind, a big cat, a canine, a bear, a horse, a bird of prey,
+  a songbird, a buzzing or chirping insect, a crawler, a whale, a dinosaur, a dragon, a slime, a golem, the undead and
+  others, each with a call at rest, a threat, a cry of pain and a dying cry, and wings, slithers, splashes and a swarm
+  for what moves without a voice. Where the library is installed, a game's foes are heard by them: a wolf snarls as it
+  attacks, yelps when struck and whimpers as it falls, an unskinned brute is a bear, a party battle's foe falls in its own
+  voice. Without the library foes sound as before.
+- The mount lane's horse is heard where the library is installed: its hooves keep its pace from the walk to the gallop
+  and fall silent when it stands, it neighs as the hero settles in the saddle and snorts when urged into the gallop.
+- A field sounds alive where the library is installed: a flock of crows calls over the site about as often as one
+  crosses, gnats buzz at their clouds, ducks quack on the stream, mice squeak and roaches skitter by the walls, and each
+  herd calls from its own ground, a heavy animal heard farther off than a small one. Fireflies and butterflies stay
+  silent. Without the library a field is as quiet as before.

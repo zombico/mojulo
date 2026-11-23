@@ -35,6 +35,8 @@
 import { buildBeatsKernel } from './beats-kernel.js';
 import { expandBeatsManifest } from './beats-authoring.js';
 import { PATCHES } from './audio-patches.js';
+import { sampleCards } from './beats-features.js';
+import { sampleSlice } from '../sound-library/library.js';
 import { authorSyllable } from './beats-song-lyrics.js';
 import { renderParametricNote } from './beats-song-voice-parametric.js';
 
@@ -314,7 +316,9 @@ export function renderBeatsPlan(manifest, opts = {}) {
     const variant = opts.variant ? posInt(opts.variant, 'variant', 0) : 0;
     // far (0..1, the SFX mixer): the cue placed at a distance, duller and roomier. Absent: where it always was.
     if (opts.far !== undefined && !(Number.isFinite(opts.far) && opts.far >= 0 && opts.far <= 1)) throw new Error('beats-render: `far` must be in [0, 1] (how far away the cue is placed)');
-    const place = opts.far ? { far: opts.far } : null;
+    // pan (-1..1, the SFX mixer's side): the cue placed left or right of the listener. Absent: centred.
+    if (opts.pan !== undefined && !(Number.isFinite(opts.pan) && opts.pan >= -1 && opts.pan <= 1)) throw new Error('beats-render: `pan` must be in [-1, 1] (the side the cue is placed on)');
+    const place = opts.far || opts.pan ? { ...(opts.far ? { far: opts.far } : {}), ...(opts.pan ? { pan: opts.pan } : {}) } : null;
     const entries = [{ type: 'cue', t: 0, channel: null, gestures, vel: 1, ...(variant ? { variant } : {}), ...(place ? { place } : {}) }];
     return { entries, duration: opsEnd(kernel.cuePlan(gestures, variant)), meta: variant ? { cue, variant } : { cue } };
   }
@@ -590,6 +594,13 @@ export async function renderWithKernel(K, manifest, opts = {}) {
   const ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * sampleRate)), sampleRate);
   const engine = K.createEngine(ctx);
   if (engine.setMaster) engine.setMaster(manifest.master);
+  // recorded pieces (the sound library's): their samples decoded before a note is scheduled (`opts.samples`, else the
+  // installed library's); with none, each piece plays the synthesized piece it stands in for.
+  if (engine.loadSamples) {
+    const cards = sampleCards(manifest);
+    const slice = cards.length ? (opts.samples !== undefined ? opts.samples : sampleSlice(cards)) : null;
+    if (slice) await engine.loadSamples({ cards: slice.cards, bytes: Object.fromEntries(Object.entries(slice.bytes).map(([id, b]) => [id, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)])) });
+  }
   // the SFX mixer (a beats-sfx manifest's `mix`): its bus and space, before any row routes.
   if (engine.setSfx && manifest.kind === 'beats-sfx' && manifest.mix) engine.setSfx(manifest.mix);
 

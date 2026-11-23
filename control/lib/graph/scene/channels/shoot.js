@@ -221,7 +221,9 @@ ${warp ? `  const __shWarp = ${clocksAt.toString()};
     const last = parts[parts.length - 1];
     return s.length - at >= last.length && s.endsWith(last);
   };
-  let __shCue = null, __shCueQ = null;
+  // (__shCueAt: the cued shot's own seconds, said by who fired it, cueAt: a shot that plays over something with a
+  // clock of its own, a ride, keeps that clock, where a cue otherwise runs on the page's from the moment it fired)
+  let __shCue = null, __shCueQ = null, __shCueAt = null;
   if (typeof __BUS !== 'undefined' && __BUS) {
     const __shPE = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
@@ -239,6 +241,7 @@ ${warp ? `  const __shWarp = ${clocksAt.toString()};
     __shLastT = raw || 0;
     const sec = __shLastT / 1000;${cues ? `
     if (__shCueQ) { __shCue = { c: __shCueQ, t0: sec }; __shCueQ = null; }
+    if (__shCue && __shCueAt != null) __shCue.t0 = sec - __shCueAt;
     if (__shCue && sec - __shCue.t0 > __shCue.c.length) __shCue = null;
     if (__shCue && __shForce < 0) {
       const c = __shCue.c;
@@ -276,7 +279,8 @@ ${warp ? `  const __shWarp = ${clocksAt.toString()};
   };
 ${set ? `  window.__mojShootGizmos = __shGizmos;   // the shoot set hides them while it renders a portal's far view
 ` : ''}  window.__mojShoot = { cameras: __shRigs.length, shots: SH.shots.length, total: SH.total, now: () => __shNow,${cues ? `
-    cue: (type) => { const c = SH.cues.find((q) => q.on.some((p) => __shGlob(type, p))); if (c) __shCueQ = c; return !!c; },` : ''}
+    cue: (type) => { const c = SH.cues.find((q) => q.on.some((p) => __shGlob(type, p))); if (c) __shCueQ = c; return !!c; },
+    cueAt: (t) => { if (t === false) { __shCue = null; __shCueQ = null; __shCueAt = null; } else __shCueAt = t == null ? null : +t; },` : ''}
     look: (on) => { __shSetLook(!!on); __shRedraw(); }, seek: (tau) => { __shPlay = false; __shSeek(+tau || 0); __shRedraw(); } };
 }`;
 }

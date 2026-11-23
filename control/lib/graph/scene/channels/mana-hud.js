@@ -51,7 +51,7 @@ import { hudToMana } from '../../game/hud-mana.js';
 import { LETTER_RIM, letterRimFilter, immersiveCss } from '../../game/immersive-ui.js';
 import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 import { manaControls, manaHostSource } from '../../controls/mana-controls.js';
-import { radarMarks, sceneThings, RADAR } from '../../gameworld/radar.js';
+import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan, planFloors, floorPlanSvg } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
 import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
 import { faceFrame, buildTalkFace } from './talk-face.js';
@@ -161,9 +161,12 @@ const TALK_CSS = '#moj-mana-talk{position:fixed;inset:0;pointer-events:none;z-in
   + '#moj-mana-talk .mana-each>*{pointer-events:auto;cursor:pointer}'
   + '.moj-scene-box,.moj-scene-hint{display:none!important}.moj-scene-on #moj-mana-hud{visibility:hidden}';
 
-export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, talk = false, shared = null } = {}) {
+export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null, talk = false, boss = false, shared = null } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
-  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, style: hud.style === true, vitals: hud.vitals ?? null }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, ...(hud.radar ? { radar: hud.radar } : {}), ...(boss ? { boss: true } : {}), style: hud.style === true, vitals: hud.vitals ?? null }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  // (a level's radar look, game/hud-mana.js RADAR_LOOK: its size and a square scope's face are this HUD's own CSS, and its
+  // floor the plan and the guards of the pilot's floor alone; absent, not one byte)
+  const RL = hud && hud.radar ? hud.radar : null, floorRadar = !!(RL && RL.floor);
   if (!hud || !hud.spec) return '';
   // (a HUD of the level's own making, a course's: the level's buttons for a touch screen alone, game/screen-keys.js, are
   // drawn by it too, since the page's own widget rows stand down beside it)
@@ -179,6 +182,11 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     const pad = { use: 'region', props: { at: 'bottom', variant: 'bare' }, when: T('on'), children: [{ use: 'touchpad', props: { lane: T('lane'), held: T('held'), down: T('down'), buttons: T('buttons') } }] };
     hud = { ...hud, spec: { ...hud.spec, hud: { ...hud.spec.hud, children: [...(hud.spec.hud.children ?? []), pad] } } };
   }
+  const radarCss = !RL ? '' : (RL.size === 'large' ? '#moj-mana-hud .mana-minimap{width:calc(260 * var(--mana-du));height:calc(260 * var(--mana-du))}' : '')
+    + (RL.shape === 'square' ? '#moj-mana-hud .mana-minimap[data-shape=square][data-scope=yes]{border-radius:calc(6 * var(--mana-du));background:color-mix(in srgb,var(--mana-panel) 38%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mana-ink) 40%,transparent);overflow:hidden}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square] .mana-planclip{border-radius:calc(6 * var(--mana-du))}#moj-mana-hud .mana-minimap[data-shape=square] .mana-bezel::before{display:none}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square][data-scope=yes]::before{border-radius:0}'
+      + '#moj-mana-hud .mana-minimap[data-shape=square] .mana-cone{border-radius:0}' : '');
   // THE WAY ON (a level's `manaHud.ways`: { var, at }): an arrow, no words, toward the place the bus var names (a
   // gauntlet's next arena waiting to be walked into); only then
   const ways = hud.ways && typeof hud.ways.var === 'string' && Array.isArray(hud.ways.at) ? { var: hud.ways.var, at: hud.ways.at } : null;
@@ -188,7 +196,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const race = !!(hud.feed && hud.feed.kind === 'race');
   // (`shared`: the page carries the runtime and the theme's sheet once for its HUD and its screens, scene-three's
   // prelude: this host names it and adds only its own rules; alone on a page, it carries both itself, as it did)
-  const css = `${shared ? '' : `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n`}#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`
+  const css = `${shared ? '' : `${manaCss()}\n${themeCss(hud.theme ?? 'greybox')}\n`}${radarCss ? `${radarCss}\n` : ''}#moj-mana-hud{position:absolute;inset:0;pointer-events:none;z-index:30}.moj-c-gauge,.moj-hud-col${hud.feed && hud.feed.hero ? ',.moj-c-hp,#__radar,#__wc,#__damageRing,div:has(>#__wepIcon)' : ''}{display:none!important}`
     // (money in a corner: the coin and a figure that leads, large, the way an open world shows the cash in hand)
     + '#moj-mana-hud .mana-place:is([data-at=top-right],[data-at=top-left])>.mana-region>.mana-counter:has(>[data-icon=coin]) .mana-num{font:800 38px/1 var(--mana-display);letter-spacing:-.5px}'
     + '#moj-mana-hud .mana-place>.mana-region>.mana-counter:has(>[data-icon=coin]){gap:10px;align-items:center}'
@@ -204,7 +212,16 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
 (function () {
   const CFG = ${json({ spec: hud.spec, feed: hud.feed ?? {}, ...(ways ? { ways } : {}) })}, GAME = ${game ? 'true' : 'false'};
   const manaUi = ${shared || manaUiSource()};${H ? `
-  const __hRadar = ${radarMarks.toString()}, __hThings = ${sceneThings.toString()}, __hBearing = ${hitBearing.toString()}, __hR = ${json({ ...RADAR, range: 40 })};` : ''}
+  const __hRadar = ${radarMarks.toString()}, __hThings = ${sceneThings.toString()}, __hBearing = ${hitBearing.toString()}, __hR = ${json({ ...RADAR, range: 40 })};
+  // (the map under the scope, radar.js: the level's plan from its own colliders and its tall grass, drawn once, the first
+  // frame the radar is up; laid under the scope each frame at the radar's scale, ahead at the top)
+  const __hPlanSvg = ${planSvg.toString()}, __hPlanBox = ${planBox.toString()}, __hPlanAt = ${radarPlan.toString()};
+  let __hPlan = null;${floorRadar ? `
+  // (the radar of one floor: the level's floors, each one's plan drawn the first time the pilot stands on it)
+  const __hFloors = ${planFloors.toString()}, __hFloorSvg = ${floorPlanSvg.toString()};
+  let __hFl = null, __hBox = null; const __hFlPlans = {};` : ''}${radarMap ? `
+  // (the land under it too, a level's \`radar.map\`: its contours and its trail, read when the level was built)
+  const __hLand = ${json(radarMap)};` : ''}` : ''}
   const sheet = document.createElement('style'); sheet.textContent = ${json(sheetCss)}; document.head.appendChild(sheet);
   // (laid over the scene's own frame, as the level's widgets were: a letterboxed scene keeps its HUD inside it)
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
@@ -441,8 +458,36 @@ ${race ? `    // (a race's lights: the karts held and the race's clock frozen, t
     }
     // the page's radar, as a scope; its damage ring, as arcs; its weapon selector, as the wheel
     const R = st.radar; R.on = !!document.getElementById('__radar');
-    if (R.on && me.transform) { const p = me.transform.pos; R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), __hR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]); }
-    const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
+    if (R.on && me.transform) { const p = me.transform.pos, cfgR = me.rule && me.rule.radarRange > 0 ? Object.assign({}, __hR, { range: me.rule.radarRange }) : __hR;${floorRadar ? `
+      // (the floor the pilot stands on: the highest a body's height under its feet; on a stair, the one it left until it
+      // is all but up. Its plan alone, and the foes within a storey of it)
+      if (!__hFl && W.colliders && W.colliders.length) { __hFl = __hFloors(W.colliders); __hBox = __hPlanBox(W.colliders, null); }
+      const foot = p[2] - ((me.rule && me.rule.eye) || 0), fz = (__hFl || []).reduce((a, z) => (z <= foot + 1 ? z : a), (__hFl && __hFl[0]) || 0);
+      R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null).filter((t) => Math.abs(((t.at && t.at[2]) || 0) - fz) < 3), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
+      if (__hBox) { const k = String(fz); if (!__hFlPlans[k]) __hFlPlans[k] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hFloorSvg(__hPlanSvg, W.colliders, __hBox, fz)); R.plan = Object.assign({ src: __hFlPlans[k] }, __hPlanAt(__hBox, p, me.transform.heading, cfgR.range)); } }` : ` R.marks = __hRadar(p, me.transform.heading, __hThings(W, me, null), cfgR); R.north = __hBearing(p, me.transform.heading, [p[0], p[1] + 1, 0]);
+      if (!__hPlan && W.colliders && W.colliders.length) { const box = __hPlanBox(W.colliders, null); __hPlan = { box, src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(__hPlanSvg(W.colliders, null, box, { rel: true, veils: W.veils || []${radarMap ? ', relief: __hLand.relief, trail: __hLand.trail' : ''} })) }; }
+      if (__hPlan) R.plan = Object.assign({ src: __hPlan.src }, __hPlanAt(__hPlan.box, p, me.transform.heading, cfgR.range)); }`}
+    // JAMMED (the pilot inside a chaff cloud, combat-ranged.js state.jams): the radar reads nothing, its scope a static
+    {
+      const p = me && me.transform ? me.transform.pos : null, t = W.time || 0;
+      const jam = R.on && p && (W.jams || []).some(function (j) { return j.until > t && Math.hypot(p[0] - j.at[0], p[1] - j.at[1]) <= j.r; });
+      if (jam) { R.marks = []; R.plan = null; }
+      let J = window.__mojJam;
+      if (jam && !J) {
+        const css = document.createElement('style'); css.textContent = '@keyframes mojJam{0%{background-position:0 0}100%{background-position:0 9px}}'; document.head.appendChild(css);
+        J = window.__mojJam = document.createElement('div');
+        J.style.cssText = 'position:absolute;pointer-events:none;z-index:31;border-radius:50%;display:none;align-items:center;justify-content:center;font:700 11px/1 ui-monospace,monospace;letter-spacing:.2em;color:#cfe3ff;text-shadow:0 0 4px #000;background:repeating-linear-gradient(0deg,rgba(200,215,230,.22) 0 1px,rgba(20,28,40,.5) 1px 3px);animation:mojJam .18s steps(3) infinite';
+        J.textContent = 'JAMMED'; root.appendChild(J);
+      }
+      if (J) {
+        const sc = jam ? root.querySelector('[data-scope="yes"]') : null;
+        if (sc) { const a = sc.getBoundingClientRect(), b = root.getBoundingClientRect(); J.style.borderRadius = getComputedStyle(sc).borderRadius || '50%'; J.style.left = (a.left - b.left) + 'px'; J.style.top = (a.top - b.top) + 'px'; J.style.width = a.width + 'px'; J.style.height = a.height + 'px'; J.style.display = 'flex'; }
+        else J.style.display = 'none';
+      }
+    }
+${boss ? `    // THE BOSS (worlds/controllable/boss.js): the first standing, its name, title, health and its phases' ticks
+    { const Bs = W.bosses || {}, k = Object.keys(Bs).find((id) => !Bs[id].down), b = k ? Bs[k] : null; st.boss = b ? { on: true, name: b.name, title: b.title || '', hp: Math.max(0, b.hp), hpMax: b.hpMax || 1, phases: Math.max(1, b.phases || 1) } : { on: false }; }
+` : ''}    const D = window.__mojDamageRing; st.ring.on = !!(D && D.hits && D.hits.length); st.ring.hits = st.ring.on ? D.hits : [];
     const C = window.__mojWc && window.__mojWc.view ? window.__mojWc.view() : null;
     st.wheel.open = !!(C && C.open);
     if (st.wheel.open) { st.wheel.title = C.title || ''; st.wheel.slots = C.rows; }

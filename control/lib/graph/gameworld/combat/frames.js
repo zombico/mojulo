@@ -3,8 +3,15 @@
  * and the big walkers) as the artillery range's bases: one turret (worlds/controllable/turret.js) on a frame's weapon
  * mounts, standing at a stance (no frame walks on a page yet: its gait is not built).
  *
- *   frameBase({ frame, stance?, palette? }, { mounts? }) → { id, archetype, stance, armed, figure, turret, rounds }
+ *   frameBase({ frame, stance?, palette? }, { mounts?, reload?, places? }) → { id, archetype, stance, armed, figure, turret, rounds }
  *   FRAME_MOUNTS                                          the mount classes a frame's guns slew on
+ *
+ *   reload    true (opt-in): a frame whose backpack is served by twin tails (the siege walkers') carries a clip of its
+ *             tails at work, `tails:reload`, played once: both tails turn from stowed to the spare magazine behind their
+ *             weapon, lift it to the weapon's magazine and stow again (mecha-backpacks.js TAIL_POSES fetch, reload, stow),
+ *             the frame standing as it stands; a frame without twin tails has none
+ *   places    [body ids] (opt-in): where each of those bodies stands in each form, `places: { walker: { id: [x, y, z] },
+ *             tank?: { … } }`, in vehicle space (what a fight aims at: gameworld/combat/boss-fight.js)
  *
  *   frame     a word the vehicle registry knows for a mecha shelf frame ('utility walker', 'rover walker', 'siege walker')
  *   stance    one of the frame's stances (its archetype's `stances`): absent, braced to fire where it braces, else standing;
@@ -90,8 +97,17 @@ function roofOf(placements) {
   return { id: top.id, at: [0, r3((top.bounds.min[1] + top.bounds.max[1]) / 2), r3(top.bounds.max[2])] };
 }
 
-/** A frame of the mecha shelf as the range's base: its figure rigged on its mounts, its turret and its rounds. */
-export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
+/** A frame of the mecha shelf as the range's base: its figure rigged on its mounts, its turret and its rounds. (A few kept
+ * by their words: a machine to ride reads its numbers and then its figure, gameworld/ride-machine.js.) */
+const BASES = new Map();
+export function frameBase(base, { mounts = FRAME_MOUNTS, reload = false, places = null } = {}) {
+  const key = mounts === FRAME_MOUNTS ? JSON.stringify([base, reload, places]) : null;
+  if (key && BASES.has(key)) return BASES.get(key);
+  const out = frameBaseOf(base, mounts, { reload, places });
+  if (key) { if (BASES.size > 4) BASES.clear(); BASES.set(key, out); }
+  return out;
+}
+function frameBaseOf(base, mounts, { reload = false, places = null } = {}) {
   const errs = validateFrame(base);
   if (errs.length) throw new Error(`artillery range: ${errs.join('; ')}`);
   const { id, archetype } = frameOf(base.frame), row = MECHA_ARCHETYPES[archetype];
@@ -157,10 +173,17 @@ export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
     clips['transform:tank'] = { k: fold.length, once: true, b: fold.flatMap((it) => keyed(it)) };
     clips['transform:walker'] = { k: fold.length, once: true, b: [...fold].reverse().flatMap((it) => keyed(it)) };
   }
+  // (its tails at work, where it has twin tails and is asked for them: the reload, played once)
+  if (reload && row.tails) {
+    const keys = reloadKeys(archetype, words, readout.archetype ?? archetype, row, bakeAt);
+    clips['tails:reload'] = { k: keys.length, once: true, b: keys.flatMap((it) => keyed(it)) };
+  }
+  // (where the bodies asked for stand in each of its forms)
+  const placed = places ? Object.fromEntries([['walker', itemsAt(archetype, words, bakeAt)], ...(rollItems ? [['tank', rollItems]] : [])].map(([form, items]) => [form, Object.fromEntries(places.filter((id) => items.has(id)).map((id) => [id, items.get(id).t.map(r3)]))])) : null;
   // (its steered wheels as the page turns them: each one's place off the fixed axles' line, the steering wheelbase)
   if (Object.keys(clips).length) figure = { ...figure, clips, ...(drive ? { forms: { base: 'walker' }, steer: { wheelbase: drive.steer.wheelbase, wheels: drive.steer.wheels } } : {}) };
   const T = mountOf('light-tank', { mount: M.mount, gun: M.gun });
-  return { id, archetype, mass: row.mass, stance, ...(transforms ? { form: stance === 'roll' ? 'tank' : 'walker', walkStance: bakeAt } : {}), armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), ...(drive ? { drive: { ...drive.out, steer: { wheelbase: drive.steer.wheelbase, max: drive.steer.max, rate: drive.steer.rate } } } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
+  return { id, archetype, mass: row.mass, stance, ...(placed ? { places: placed } : {}), ...(transforms ? { form: stance === 'roll' ? 'tank' : 'walker', walkStance: bakeAt } : {}), armed, weapons, mountClass, figure, rounds, ...(gait ? { gait } : {}), ...(drive ? { drive: { ...drive.out, steer: { wheelbase: drive.steer.wheelbase, max: drive.steer.max, rate: drive.steer.rate } } } : {}), turret: { ...T, mount: { ...T.mount, at: rounds[0].at }, gun: { ...T.gun, barrel: rounds[0].barrel } }, height: r3(B.faces.reduce((a, f) => f.corners.reduce((b, c) => (c[2] > b ? c[2] : b), a), 0)) };
 }
 
 // a body's orientation from its item's `rotate` (degrees, Rz·Ry·Rx: the assembler's)
@@ -210,6 +233,29 @@ function foldKeys(archetype, words, key, from) {
     const u = k / (FOLD_KEYS - 1), e = u * u * (3 - 2 * u), joints = {};
     for (const j of Object.keys(A.joints)) joints[j] = Math.round((A.joints[j] + ((B.joints[j] ?? A.joints[j]) - A.joints[j]) * e) * 100) / 100;
     return itemsAt(archetype, words, { joints, root: A.root.t.map((v, i) => v + (B.root.t[i] - v) * e) });
+  });
+}
+// the tails' reload: from the standing stance, both tails stowed, to the spare behind each weapon (fetch), up to the
+// weapon's magazine (reload) and stowed again, the frame's other joints held as it stands; each stretch eased, its keys
+// placed by the chain (as the fold's are)
+const RELOAD_KEYS = 16, RELOAD_AT = Object.freeze([[0, 'stow'], [0.3, 'fetch'], [0.45, 'fetch'], [0.75, 'reload'], [0.85, 'reload'], [1, 'stow']]);
+function reloadKeys(archetype, words, key, row, from) {
+  const A = posedFrame(key, from), tailJoints = (S) => Object.values(row.tails[S].joints);
+  // (each tail's joints at a pose of its own side: the stance that puts that side's tail there)
+  const at = (pose) => {
+    if (pose === 'stow') return A.joints;
+    const j = { ...A.joints };
+    for (const S of Object.keys(row.tails)) { const P = posedFrame(key, `${pose}${S.toUpperCase()}`).joints; for (const n of tailJoints(S)) j[n] = P[n] ?? j[n]; }
+    return j;
+  };
+  const poses = RELOAD_AT.map(([u, pose]) => [u, at(pose)]);
+  return Array.from({ length: RELOAD_KEYS }, (_, k) => {
+    const u = k / (RELOAD_KEYS - 1);
+    let i = 0;
+    while (i < poses.length - 2 && u > poses[i + 1][0]) i++;
+    const [u0, J0] = poses[i], [u1, J1] = poses[i + 1], v = u1 > u0 ? Math.max(0, Math.min(1, (u - u0) / (u1 - u0))) : 1, e = v * v * (3 - 2 * v), joints = {};
+    for (const j of Object.keys(J0)) joints[j] = Math.round((J0[j] + ((J1[j] ?? J0[j]) - J0[j]) * e) * 100) / 100;
+    return itemsAt(archetype, words, { joints, root: A.root.t });
   });
 }
 /**

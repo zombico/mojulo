@@ -21,6 +21,9 @@ describe('reading a trail\'s dress', () => {
   it('the dirt, its rubble and the default patches where it says nothing; a list picks the kinds', () => {
     expect(readTrailDress(undefined)).toEqual({ surface: 'earth', rubble: true, patches: PATCH_DEFAULT });
     expect(readTrailDress({ rubble: false, patches: false })).toMatchObject({ rubble: false, patches: [] });
+    // (the rubble the ground's shader's: none strewn, its pebbles drawn instead)
+    expect(readTrailDress({ rubble: 'parallax' })).toMatchObject({ rubble: false, pebbles: true });
+    expect(readTrailDress({})).not.toHaveProperty('pebbles');
     expect(readTrailDress({ patches: ['puddle', 'crown', 'puddle'] }).patches).toEqual(['puddle', 'crown']);
     // (the street's ground words, the two a trail brought among them)
     expect(TRAIL_SURFACES).toEqual(expect.arrayContaining(['earth', 'stone-road', 'gravel', 'flags', 'setts', 'brick-paving']));
@@ -133,4 +136,11 @@ describe('a trail dressed on a stage', () => {
     expect(patches(K).length).toBeGreaterThan(0);
     expect(patches(K).some((f) => f.corners.some(inBox))).toBe(false);
   }, 90000);
+
+  it('match: how near the core\'s dirt sits to the edge\'s, 0 to 1, carried where it is said', () => {
+    expect(readTrailDress({}).match).toBeUndefined();
+    expect(readTrailDress({ match: 0.85 }).match).toBe(0.85);
+    expect(() => readTrailDress({ match: 2 })).toThrow(/match/);
+    expect(readOutTrail({ match: 0.5 })).toBeTruthy();
+  });
 });

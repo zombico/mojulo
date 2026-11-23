@@ -483,3 +483,21 @@ for (const g of ['guitarClean', 'guitarNylon', 'guitarClassical', 'guitarFlamenc
 // thud at key-off, a longer release toward the bass, no damper above E6;
 // `ringExact`: the treble rings its ringT60 instead of dying in the loop filter. New name.
 PATCHES.pianoGrand3 = { ...PATCHES.pianoGrand, unisonSpread: 0.6, life: true, ringExact: true, damper: { above: 88, bass: 2, thud: -34, tone: 260, ring: 2.5 } };
+
+// The recorded rock kit (the sound library's): each piece a `voice: 'sample'` naming its library card, its variants
+// one per hit by the note's key, played to its end; on a machine without the library (or before its samples are
+// decoded) each piece plays the arena kit's synthesized piece it stands in for (`fallback`). The kit keeps the arena
+// kit's map, the pieces the library does not hold (rim, ride, china, bell, splash) still synthesized. New names.
+// Not on the instrument shelf: heard beside the synthesized 90s kit in the robot rock band, the synthesized kit won
+// (operator, by ear, 2026-11-22). Kept as the sampler's proving patch, reachable only by naming `recRockKit`.
+const rec = (library, fallback, volume) => ({ voice: 'sample', library, fallback: PATCHES[fallback], attack: 0.001, decay: 0, sustain: 1, release: 0.05, volume });
+Object.assign(PATCHES, {
+  recKick: rec('kick', 'kickAcoustic', -3),
+  recSnare: rec('snare', 'snareArena', -4),
+  recHatClosed: rec('hat-closed', 'hatAcoustic', -11),
+  recHatOpen: rec('hat-open', 'hatAcousticOpen', -12),
+  recTomLow: rec('tom-low', 'tomArenaFloor', -5),
+  recTomHigh: rec('tom-high', 'tomArenaMid', -5),
+  recCrash: rec('crash', 'crashArena', -11),
+});
+PATCHES.recRockKit = { kit: { ...PATCHES.rockKit90s.kit, 35: 'recKick', 36: 'recKick', 38: 'recSnare', 41: 'recTomLow', 43: 'recTomLow', 45: 'recTomLow', 47: 'recTomHigh', 48: 'recTomHigh', 50: 'recTomHigh', 42: 'recHatClosed', 44: 'recHatClosed', 46: 'recHatOpen', 49: 'recCrash', 57: 'recCrash' }, chokes: PATCHES.rockKit90s.chokes };

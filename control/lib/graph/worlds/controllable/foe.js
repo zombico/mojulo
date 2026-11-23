@@ -13,7 +13,11 @@
  *     PATROL  the same stretch walked as a round (`patrol`: { calm s }), watching ahead as it goes: a hero in its sight (the
  *             mind's words, `sightRange` and `sightCone`, and a clear line past the colliders, eye to eye) hands it to
  *             the mind the same step, which perceives it and engages; once the mind has seen no one for `calm` s it
- *             walks its round again from where it stands
+ *             walks its round again from where it stands. `patrol.look: { secs?: 6 }` (opt-in): at each end it stands
+ *             and LOOKS ROUND before it walks back: it turns all the way round, one way, and on to face back (540° in
+ *             `secs`: lookRound below), so a body that followed it to the end is swept wherever it lies (one that turned
+ *             to one side and back again would leave a sector unswept to hide in); absent, it turns on the spot as it
+ *             always did
  *     HOP     the same stretch in hops (`hop`: { period s, air (share of it off the ground), height m }): it travels
  *             only in the air, an arc over the ground, and sits between hops
  *     DIVE    a flier's (`dive`: { altitude, radius, telegraph s, speed, cooldown s }): it weaves round its home at
@@ -42,7 +46,7 @@
  * Opt-in (compose.js EMISSION_OPT_IN): emitted only into a page whose world stands a foe, so every other page keeps
  * every byte; on the live instance a world without one steps exactly as before. Wraps the `ai` rule and stepWorld, as
  * hitstop.js does, so the pinned pipeline order is untouched. Import-free (the page runs this source via toString()).
- * Field ownership: e.foe- (foeRail, foeRailT, foeRailFrom, foeEnds, foeLeg, foeHopT, foeDive, foeT, foeAt, foeAim, foeCool, foeRush, foeRun, foeStunFor,
+ * Field ownership: e.foe- (foeRail, foeRailT, foeRailFrom, foeEnds, foeLeg, foeLook, foeHopT, foeDive, foeT, foeAt, foeAim, foeCool, foeRush, foeRun, foeStunFor,
  * foeAwake, foeCharging, foeStomped, foeMercyT, foeFire, foeRock, foeRockT, foeRockShot).
  */
 
@@ -151,15 +155,28 @@ export function buildFoe(E) {
   function sees(e, r, p, world) {
     const t = e.transform, q = p.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1];
     if (Math.hypot(dx, dy) > (r.sightRange ?? 120)) return false;
-    const off = Math.atan2(dy, dx) - t.heading;
-    if (Math.abs(Math.atan2(Math.sin(off), Math.cos(off))) > (r.sightCone ?? 1.2)) return false;
+    // (the cone, or at arm's length anywhere but square behind it, and all round while it looks round: `rule.near`, mind.js
+    // perceive)
+    const off = Math.atan2(dy, dx) - t.heading, a = Math.abs(Math.atan2(Math.sin(off), Math.cos(off)));
+    if (a > (r.sightCone ?? 1.2) && !(r.near && Math.hypot(dx, dy) <= (r.near.r ?? 1.6) && (e.foeLook || a < Math.PI - (((r.near.back ?? 100) / 2) * Math.PI) / 180))) return false;
     const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
     return !(world && world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(p)], world.colliders));
   }
+  // (a look round at an end, `patrol.look`, u its share 0 to 1 done: all the way round, one way, and on to face back;
+  // gameworld/stealth-routes.js reads the same turn)
+  const lookRound = (h, u) => h + 3 * Math.PI * u;
   function patrol(e, r, dt, world) {
     const now = (world && world.time) || 0;
-    if (e.lastSeen && now - e.lastSeen.t < (r.foe.patrol.calm ?? 4)) return false;
+    if (e.lastSeen && now - e.lastSeen.t < (r.foe.patrol.calm ?? 4)) { e.foeLook = null; return false; }
     for (const p of pilotsOf(world)) if (p && !p.downed && !p.gone && sees(e, r, p, world)) return false;
+    const L = r.foe.patrol.look;
+    if (L) {
+      if (e.foeLook) {
+        const u = (now - e.foeLook.t) / (L.secs ?? 6);
+        if (u < 1) { e.transform.heading = lookRound(e.foeLook.h, u); e.moving = false; return true; }
+        e.foeLook = null; e.foeLeg = 1 - (e.foeLeg ?? 1);
+      } else if (e.foeEnds && flat(e.transform.pos, e.foeEnds[e.foeLeg ?? 1]) <= 0.25) { e.foeLook = { t: now, h: e.transform.heading }; e.moving = false; return true; }
+    }
     pace(e, r, dt, world);
     return true;
   }

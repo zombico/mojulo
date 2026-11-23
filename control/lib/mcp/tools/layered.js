@@ -582,7 +582,9 @@ function withSkin(R, hero) {
   const { spec, base } = heroDermisSpec(faceSkin(hero));
   // an OUTFIT takes the body's suit off (the trunk and the limbs painted Top and Bottom): its garments are the clothes, the
   // body under them skin (a face they cover on the base colour, one they leave bare textured); the feet keep their shoes
-  const dressed = Array.isArray(hero.outfit) ? hero.outfit.length > 0 : !!hero.outfit && hero.outfit !== 'none';
+  // (a BODYSTOCKING, `stocking: true`: the suit is kept under the outfit, the trunk and the limbs in the Top's and the
+  // Bottom's own colours, so where two garments part at an elbow, a hip or a knee what shows is their colour, not skin)
+  const dressed = (Array.isArray(hero.outfit) ? hero.outfit.length > 0 : !!hero.outfit && hero.outfit !== 'none') && hero.stocking !== true;
   const parts = dressed ? Object.fromEntries(Object.entries(R.parts).map(([k, p]) => [k, SUITED.test(k) && p.group !== 'Skin' && !p.garment ? { ...p, group: 'Skin' } : p])) : R.parts;
   return { ...R, parts, dermis: spec, palette: { ...(R.palette || {}), Skin: base } };
 }
@@ -918,7 +920,7 @@ function withHeadwear(R, hero) {
   if (!H) return R;
   // (its groups' colours: the card's, under the operator's own)
   const own = hero.palette || {}, card = withHeadgear({}, 'realistic', id).palette || {};
-  const tones = Object.fromEntries([W.group, W.gemGroup, W.trimGroup].filter(Boolean).map((g) => [g, own[g] ?? card[g]]).filter(([, v]) => v));
+  const tones = Object.fromEntries([W.group, W.gemGroup, W.trimGroup, W.visorGroup, W.wrap && W.wrap.group].filter(Boolean).map((g) => [g, own[g] ?? card[g]]).filter(([, v]) => v));
   return { ...R, parts: { ...R.parts, ...H.parts }, palette: { ...(R.palette || {}), ...tones } };
 }
 /** An anime hero's LOOK stamp kept with its words: re-resolved only when the list changed (a re-tuned look word never
@@ -1033,7 +1035,7 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
  * globe's side show bare from 3/4 and the side */
 export const REALISTIC_LAWS_VERSION = 17;
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies', 'stocking'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
  * compared (case and spacing aside), naming the hero that holds it. */
@@ -1413,6 +1415,7 @@ function faceReadout(hero) {
 function realisticErrors(spec) {
   const errs = [], R = spec.form === 'realistic';
   if (spec.physique !== undefined && spec.physique !== null && !R) errs.push("physique: dials the realistic body; add form: 'realistic' (or leave physique out)");
+  if (spec.stocking !== undefined && spec.stocking !== null && (!R || spec.stocking !== true)) errs.push("stocking: true keeps the realistic body's suit under its outfit (the trunk and the limbs painted Top and Bottom, so a gap between garments shows their colour, not skin); add form: 'realistic' (or leave it out)");
   // (the relational head on the lofted body, fighter wiring: its skin words its head's and its body's)
   if (spec.skin !== undefined && spec.skin !== null && !R && spec.head !== 'relational') errs.push("skin: the realistic body's skin (its tone and its look: undertone, age, freckles, lines, war paint …); add form: 'realistic' (another form's skin colour is palette: { Skin })");
   if (realisticFaced(spec) && spec.face !== undefined && spec.face !== null) errs.push(...realisticFaceErrors(spec.face));
@@ -1527,6 +1530,8 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (spec.emote !== undefined && spec.emote !== null) hero.emote = spec.emote;
   // the ambient blink: on by default (read at export, never stored); stored only when turned off
   if (spec.blink === false) hero.blink = false;
+  // (a BODYSTOCKING: the realistic body's suit kept under its outfit, withSkin)
+  if (spec.stocking === true) hero.stocking = true;
   // held and carried gear (hero-gear.js): each slot's build words with the laws stamped; absent ⇒ no key
   const gear = gearRecord(spec.gear); if (gear) hero.gear = gear;
   // worn objects (hero-attach.js): each as given, a ref copied in so the hero stays its own recipe; absent ⇒ no key

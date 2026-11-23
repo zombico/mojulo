@@ -46,7 +46,8 @@ describe('every use lays a building the stage builds and the level plays', () =>
     expect(nave(two).h).toBeGreaterThan(nave(one).h * 1.3);
     expect(nave(planProgram({ use: 'temple', seed: 2, scale: 2, rooms: { nave: { w: 8, d: 12 } } }))).toMatchObject({ w: 8, d: 12 });
     expect(() => planProgram({ use: 'temple', scale: 5 })).toThrow(/scale is how much larger/);
-    expect(() => planProgram({ use: 'office', scale: 2 })).toThrow(/not a setting/);
+    // (a building of the core shape takes scale too since 2026-11-20, 1 to 2: program-scale.test.js)
+    expect(() => planProgram({ use: 'office', scale: 3 })).toThrow(/scale is how much larger/);
   });
 
   it('an unknown use or setting, or an open-ground kit, is refused, saying what is', () => {

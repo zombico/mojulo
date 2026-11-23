@@ -23,7 +23,7 @@ import { expandBeatsManifest, checkAuthoring } from './beats-authoring.js';
 export const BEATS_KINDS = ['beats-ambient', 'beats-composition', 'beats-pattern', 'beats-sfx'];
 const KIND_SET = new Set(BEATS_KINDS);
 const ROLES = new Set(['harmony', 'roots', 'melody', 'pulse']);
-const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck', 'trace', 'syrinx']);
+const GESTURES = new Set(['sweep', 'flutter', 'burst', 'thump', 'grain', 'ring', 'tone', 'riser', 'downlifter', 'impact', 'reverse-cymbal', 'scratch', 'duck', 'trace', 'syrinx', 'sample']);
 // the SFX mixer (sfxmix): the effects a gesture's own `chain` may carry (none runs an oscillator or computes an impulse
 // per hit: the space is the reverb), and the spaces setSfx knows (the kernel's SFX_SPACES; beats-sfxmix.test.js holds
 // the two lists equal).
@@ -443,11 +443,12 @@ function checkLayer(g, w, errors) {
 
 /**
  * The SFX mixer's settings (a beats-sfx manifest's `mix`, a world's `audio.sfx.mix`): { space?: a name
- * (SFX_SPACE_NAMES) or { decay, predelay?, damp?, level? }, send?: 0..1, voices?: 1..64, distance?: boolean (a world) }.
+ * (SFX_SPACE_NAMES) or { decay, predelay?, damp?, level? }, send?: 0..1, voices?: 1..64, distance?: boolean, pan?: boolean
+ * (a world's: a cue heard on the side its source is, round the listener's facing) }.
  */
 export function checkSfxMix(m, where, errors, { world = false } = {}) {
-  if (!isObj(m)) { errors.push(`${where} must be { space?, send?, voices?${world ? ', distance?' : ''} }`); return; }
-  const keys = ['space', 'send', 'voices', ...(world ? ['distance'] : [])];
+  if (!isObj(m)) { errors.push(`${where} must be { space?, send?, voices?${world ? ', distance?, pan?' : ''} }`); return; }
+  const keys = ['space', 'send', 'voices', ...(world ? ['distance', 'pan'] : [])];
   for (const k of Object.keys(m)) if (!keys.includes(k)) errors.push(`${where}.${k} is not a mix setting (${keys.join(', ')})`);
   if (m.space !== undefined) {
     if (typeof m.space === 'string') { if (!SFX_SPACE_NAMES.includes(m.space)) errors.push(`${where}.space must be one of: ${SFX_SPACE_NAMES.join(', ')} (or { decay, predelay?, damp?, level? })`); }
@@ -460,6 +461,7 @@ export function checkSfxMix(m, where, errors, { world = false } = {}) {
   if (m.send !== undefined && !inRange(m.send, 0, 1)) errors.push(`${where}.send must be in [0, 1] (the share of a cue sent to the space, where its layer names none)`);
   if (m.voices !== undefined && !(Number.isInteger(m.voices) && m.voices >= 1 && m.voices <= 64)) errors.push(`${where}.voices must be an integer in [1, 64] (how many cues may sound at once)`);
   if (world && m.distance !== undefined && typeof m.distance !== 'boolean') errors.push(`${where}.distance must be true or false (a far cue duller and roomier, not only quieter)`);
+  if (world && m.pan !== undefined && typeof m.pan !== 'boolean') errors.push(`${where}.pan must be true or false (a cue heard on the side its source is)`);
 }
 
 /**
@@ -473,9 +475,21 @@ export function checkSustain(sp, where, errors) {
   for (const k of ['attack', 'release']) if (sp[k] !== undefined && !inRange(sp[k], 0.005, 5)) errors.push(`${where}.${k} must be seconds in [0.005, 5] (how fast it follows the control ${k === 'attack' ? 'up' : 'down'})`);
   if (sp.level !== undefined && !inRange(sp.level, 0, 2)) errors.push(`${where}.level must be in [0, 2]`);
   if (sp.send !== undefined && !inRange(sp.send, 0, 1)) errors.push(`${where}.send must be in [0, 1] (its share to the mix's space)`);
+  // a held voice of recordings (the sound library's loops) names the synthesized voice it stands in for
+  if (sp.fallback !== undefined) {
+    if (isObj(sp.fallback) && (sp.fallback.layers || []).some((L) => L && L.kind === 'sample')) errors.push(`${where}.fallback must be a synthesized held voice (no recording inside its fallback)`);
+    else checkSustain(sp.fallback, `${where}.fallback`, errors);
+  }
   sp.layers.forEach((L, i) => {
     const w = `${where}.layers[${i}]`;
-    if (!isObj(L) || !['noise', 'osc'].includes(L.kind)) { errors.push(`${w}.kind must be 'noise' or 'osc'`); return; }
+    if (isObj(L) && L.kind === 'sample') {
+      if (typeof L.library !== 'string' || !/^[a-z0-9-]{1,64}$/.test(L.library)) errors.push(`${w}.library must be a sound library card id (kebab-case)`);
+      if (L.take !== undefined && !(Number.isInteger(L.take) && L.take >= 0)) errors.push(`${w}.take must be a non-negative integer (which of the card's takes)`);
+      // (an engine's lowest loop is bent far up at the control's top, where its window has long faded it out: the range is wide)
+      range(L.rate, `${w}.rate`, 0.01, 32, 'its playback rate at each end of the control');
+      if (L.window !== undefined && !(Array.isArray(L.window) && L.window.length === 3 && L.window.every((v) => inRange(v, 0, 1)) && L.window[0] <= L.window[1] && L.window[1] <= L.window[2])) errors.push(`${w}.window must be [lo, at, hi] in 0..1, rising (where the recording is heard on the control)`);
+    }
+    if (!isObj(L) || !['noise', 'osc', 'sample'].includes(L.kind)) { errors.push(`${w}.kind must be 'noise', 'osc' or 'sample'`); return; }
     if (L.wave !== undefined && !WAVES.has(L.wave)) errors.push(`${w}.wave must be one of: ${[...WAVES].join(', ')}`);
     range(L.gain, `${w}.gain`, 0, 2, 'its level at each end of the control');
     range(L.pitch, `${w}.pitch`, 1, 20000, 'Hz');
@@ -552,6 +566,19 @@ function checkSyrinx(g, w, errors) {
   }
 }
 
+// a recorded sound (the sound library's): its card, the seconds of its longest variant (what a cue's extent reads), its
+// level and playback rate, and the synthesized gestures it stands in for where the recording is not loaded
+function checkSample(g, w, errors) {
+  if (typeof g.library !== 'string' || !/^[a-z0-9-]{1,64}$/.test(g.library)) errors.push(`${w}.library must be a sound library card id (kebab-case)`);
+  for (const [k, lo, hi] of [['dur', 0, 60], ['vol', 0, 4], ['rate', 0.25, 4], ['at', 0, 60]]) {
+    if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]`);
+  }
+  if (g.fallback !== undefined) {
+    if (Array.isArray(g.fallback) && g.fallback.some((f) => f && f.type === 'sample')) errors.push(`${w}.fallback must be synthesized gestures (no sample inside a sample)`);
+    else checkGestures(g.fallback, `${w}.fallback`, errors);
+  }
+}
+
 function checkGestures(list, where, errors) {
   if (!Array.isArray(list) || !list.length) { errors.push(`${where} must be a non-empty gesture array`); return; }
   list.forEach((g, i) => {
@@ -563,6 +590,7 @@ function checkGestures(list, where, errors) {
     checkLayer(g, `${where}[${i}]`, errors);
     if (g.type === 'trace') checkTrace(g, `${where}[${i}]`, errors);
     if (g.type === 'syrinx') checkSyrinx(g, `${where}[${i}]`, errors);
+    if (g.type === 'sample') checkSample(g, `${where}[${i}]`, errors);
     if (PRODUCTION_GESTURES.has(g.type)) {
       const w = `${where}[${i}]`, lim = (k, lo, hi, why) => { if (g[k] !== undefined && !inRange(g[k], lo, hi)) errors.push(`${w}.${k} must be in [${lo}, ${hi}]${why ? ` (${why})` : ''}`); };
       lim('dur', 0.05, 60, 'seconds'); lim('bars', 0.25, 64, 'bars at the recipe\'s tempo'); lim('beats', 0.25, 256); lim('vol', 0, 2); lim('at', 0, 60, 'seconds after the hit');
