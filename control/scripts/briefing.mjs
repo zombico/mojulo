@@ -36,5 +36,5 @@ console.log(`${M.name} · ${placeLine(M.place)} · ${M.status}\n→ ${file}`);
 if (args.includes('--laws')) {
   for (const L of missionLaws(M)) console.log(`${L.ok ? '  ok  ' : '  ADVISE'} ${L.law}: ${L.says}`);
   const C = compileMission(M);
-  console.log(`compiled: ${C.level.goal.flight.sortie.groups.map((g) => `${g.name} ×${g.count ?? 1}`).join(', ')}; the build lays ${C.build.fleet.map((f) => `${f.name} (${f.capital ?? f.station})`).join(', ')}`);
+  console.log(`compiled: ${C.level.goal.flight.sortie.groups.map((g) => `${g.name} ×${g.count ?? 1}`).join(', ')}; the fleet laid: ${C.build.fleet.map((f) => `${f.name} (${f.kind})`).join(', ')}`);
 }

@@ -32,18 +32,21 @@ export const REBEL_STORM_LOOK = 'orbit';
 /**
  * The missions designed whole. Mission 1, Patrol, at Vigil Station over Kessa's fourth moon: the patrol the old sortie
  * flew, now with the station it screens, a corvette laid up at it, and the frigate whose interceptors come after the
- * patrol, told on the holo table step by step. A draft until the person approves its briefing.
+ * patrol, told on the holo table step by step. Approved by the person on its briefing (eyes gate, theirs): its level is
+ * compiled from it.
  */
 export const MISSION_DESIGNS = Object.freeze({
   'mission-1': Object.freeze({
-    id: 'mission-1', name: 'Patrol', status: 'draft',
+    id: 'mission-1', name: 'Patrol', status: 'approved',
     place: { system: 'Kessa', cluster: 'Varn', station: 'Vigil', moon: 4, star: 'orange' },
     theatre: {
       field: 6000,
       moon: { kind: 'arctic', bearing: 38, elevation: 14, size: 'near' },
       station: { kind: 'outpost', at: [-300, -1100, -150], side: 'friend' },
       rocks: 'sparse',
-      nav: { nav1: { name: 'Nav 1', at: [200, 1700, 60] }, jump: { name: 'Jump point', at: [900, 2650, 260] } },
+      // (Nav 1 dead ahead: off the pilot's line the patrol turns on the wingmen first and loses to them, so a pilot who
+      // flies nothing wins it: the flight proof's still pilot, design_game's run)
+      nav: { nav1: { name: 'Nav 1', at: [0, 1700, 60] }, jump: { name: 'Jump point', at: [900, 2650, 260] } },
     },
     cast: [
       { id: 'red', name: 'Red', side: 'friend', craft: 'strikeFoil', count: 3, at: 'start', pilot: true },

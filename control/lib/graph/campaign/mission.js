@@ -23,9 +23,10 @@
  *   missionLaws(M)        → [{ law, ok, says }]   the machine gate: every step shows what exists, every foe introduced,
  *                           every goal shown before launch, the pilot's flight in it, the briefing a length a pilot sits
  *                           through; advisory, never refusing
- *   compileMission(M, { airframe? }) → { level, build, approved }   the level a gameworld lays (airspace + a sortie of
- *                           the flight groups) and what the build lays beyond the sortie (the capital ships and the station
- *                           off the fleet, the moon as the sky's large world, the cluster's rocks)
+ *   compileMission(M, { airframe? }) → { level, build, approved }   the level a gameworld lays: its airspace (the field,
+ *                           the cluster's rocks, the capital ships and the station off the fleet where the briefing showed
+ *                           them, `space.fleet`, the numbered moon the sky's large world at its bearing,
+ *                           `space.backdrop.toward`) and a sortie of the flight groups; and what was laid, by name
  *   CAST_SIDES · MISSION_STEPS
  *
  * Pure: the same design, the same mission.
@@ -152,15 +153,18 @@ export function compileMission(M, { airframe = 'strikeFoil' } = {}) {
   readSortie({ groups, goals: M.goals }, `campaign: mission '${M.id}' compiled`);
   const sortie = { groups, goals: JSON.parse(JSON.stringify(M.goals)) };
   const T = M.theatre;
+  // the capital ships and the station, laid off the fleet where the briefing showed them (skyscape/space-fleet.js)
+  const fleet = M.cast.filter((c) => c.capital || c.station).map((c) => ({ id: c.id, ...(c.capital ? { capital: c.capital } : { station: c.station }), at: toAt(posOf(M, c)), heading: c.heading ?? 0 }));
   const level = {
     name: M.name,
-    airspace: { map: { craft: 'fighter', field: T.field }, space: { asteroids: T.rocks, backdrop: { worlds: [T.moon.kind], proximity: T.moon.size } }, airframe, cockpit: true },
+    airspace: { map: { craft: 'fighter', field: T.field }, space: { asteroids: T.rocks, fleet,
+      // (the numbered moon the sky's large world, where the briefing put it)
+      backdrop: { worlds: [T.moon.kind], proximity: T.moon.size, toward: { bearing: T.moon.bearing, elevation: T.moon.elevation } } }, airframe, cockpit: true },
     goal: { flight: { sortie } },
   };
-  const fleet = M.cast.filter((c) => c.capital || c.station).map((c) => ({ id: c.id, name: c.name, side: c.side, ...(c.capital ? { capital: c.capital } : { station: c.station }), at: posOf(M, c), heading: c.heading ?? 0 }));
   return {
     level,
     approved: M.status === 'approved',
-    build: { place: placeLine(M.place), fleet, moon: { ...T.moon }, rocks: T.rocks, says: 'the capital ships and the station are laid off the fleet (fleet/build.js) when the level is built; the moon is the sky\'s large world at the design\'s bearing' },
+    build: { place: placeLine(M.place), fleet: M.cast.filter((c) => c.capital || c.station).map((c) => ({ id: c.id, name: c.name, side: c.side, kind: c.capital ?? c.station })), moon: { ...T.moon }, rocks: T.rocks },
   };
 }

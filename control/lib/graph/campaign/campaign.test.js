@@ -67,7 +67,12 @@ describe('campaign: a mission designed', () => {
     expect(() => readSortie(S)).not.toThrow();
     expect(S.groups.map((g) => [g.id, g.count])).toEqual([['red', 1], ['foe', 2], ['late', 1]]);
     expect(S.groups[1].at).toEqual({ side: 0, ahead: 1500, up: 0 });
-    expect(C.level.airspace).toMatchObject({ cockpit: true, space: { backdrop: { worlds: ['barren'] } } });
+    expect(C.level.airspace).toMatchObject({ cockpit: true, space: { backdrop: { worlds: ['barren'], toward: { bearing: 10, elevation: 5 } } } });
+    // the capital ships and the station laid off the fleet where the briefing shows them
+    expect(C.level.airspace.space.fleet).toEqual([
+      { id: 'station', station: 'outpost', at: { side: 0, ahead: -800, up: 0 }, heading: 0 },
+      { id: 'ship', capital: 'corvette', at: { side: 800, ahead: 2400, up: 0 }, heading: 180 },
+    ]);
     expect(C.build.fleet.map((f) => f.id)).toEqual(['station', 'ship']);
     expect(C.approved).toBe(false);
   });
@@ -98,13 +103,14 @@ describe('campaign: the holo briefing', () => {
 });
 
 describe('Rebel Storm: mission 1 designed', () => {
-  it('reads, meets its laws, and compiles; a draft leaves its sortie as it was', () => {
+  it('reads, meets its laws; approved, its level is compiled from it; a mission with no design keeps its sortie', () => {
     const M = readMission(MISSION_DESIGNS['mission-1']);
     expect(placeLine(M.place)).toBe('Kessa System | Varn Cluster | Vigil Station | Moon IV');
     expect(missionLaws(M).filter((L) => !L.ok)).toEqual([]);
-    expect(() => compileMission(M)).not.toThrow();
-    expect(M.status).toBe('draft');
-    expect(missionLevel(MISSIONS[0]).goal.flight.sortie).toEqual(JSON.parse(JSON.stringify(MISSIONS[0].sortie)));
+    expect(M.status).toBe('approved');
+    expect(missionLevel(MISSIONS[0])).toEqual(compileMission(M, { airframe: 'strikeFoil' }).level);
+    expect(missionLevel(MISSIONS[0]).airspace.space.fleet.map((f) => f.id)).toEqual(['station', 'kestrel', 'dominion']);
+    expect(missionLevel(MISSIONS[1]).goal.flight.sortie).toEqual(JSON.parse(JSON.stringify(MISSIONS[1].sortie)));
   });
   it('its game is drawn by mana-ui in the campaign\'s look, the creator\'s own ui winning', () => {
     expect(rebelStormStart({}).world.ui).toEqual({ theme: 'orbit' });

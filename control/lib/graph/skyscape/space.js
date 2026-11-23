@@ -21,6 +21,7 @@
  */
 import { pilotEye } from './eye.js';
 import { validateBackdrop } from './backdrop.js';
+import { readSpaceFleet } from './space-fleet.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { gnoise, hashSeed } from '../polygonizer/landform.js';
@@ -54,6 +55,8 @@ export function validateSpace(m = {}, s = {}) {
   if (s.trench !== undefined && typeof s.trench !== 'boolean') e.push('space.trench must be true (a battle station\'s trench to run, trench.js) or false');
   if (s.trench && s.asteroids !== undefined && s.asteroids !== 'none') e.push('space.trench: a station\'s surface has no asteroids over it');
   e.push(...validateBackdrop(s.backdrop));
+  // capital ships and stations laid in the fight (space-fleet.js)
+  if (s.fleet !== undefined) e.push(...readSpaceFleet(s.fleet));
   return e;
 }
 
