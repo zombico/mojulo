@@ -73,6 +73,14 @@ const rampOfHex = (hexes) => ({ stops: hexes.map(rgbOf), pos: [0, 1 / 3, 2 / 3, 
 const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 
+/** The ground's ramps under a light's tint (a low sun's warmth, an overcast's grey): each stop multiplied by it; none,
+ *  the ramps as they are. */
+function tintRamps(R, tint) {
+  if (!tint || tint.every((v) => Math.abs(v - 1) < 1e-4)) return R;
+  const t = (r) => ({ ...r, stops: r.stops.map((c) => c.map((v, i) => Math.round(v * tint[i] * 100) / 100)) });
+  return { soil: t(R.soil), stone: t(R.stone), scree: t(R.scree), beds: R.beds.map(t) };
+}
+
 /** Errors (strings) for a ground ask; [] when it lays. */
 export function readGroundAsk(ask = {}) {
   const e = [];
@@ -264,7 +272,7 @@ function padLayer(p, datum) {
  * normalAt, colorAt, bounds, meta, pageConfig) plus `pads` (each with its datum), a `report`, and `water` (the sea's
  * colour, a palette's only).
  */
-export function mapGround(map, ask = {}, { palette } = {}) {
+export function mapGround(map, ask = {}, { palette, sky: flight = null } = {}) {
   const errs = readGroundAsk(ask); if (errs.length) throw new Error(`ground: ${errs.join('; ')}`);
   const land = LANDS[ask.land ?? (map.form === 'basin' ? 'mountains' : map.form === 'canyon' ? 'mesas' : 'hills')];
   const seed = hashSeed(ask.seed ?? map.seed ?? 'skyscape') % 100003;
@@ -311,8 +319,9 @@ export function mapGround(map, ask = {}, { palette } = {}) {
     horizon: { mode: B.sea ? 'sea' : 'plain', fall: B.fall / s, amp: B.amp / zs, base: (map.form === 'basin' ? B.wall : B.base) / zs },
     sea: sea === null ? null : sea / zs, beds: null,
     detail: { octaves, norm: octaves.reduce((a, o) => a + o[1], 0) || 1, rock: 0.06 * L0, soil: 0.012 * L0, seed },
-    light: LIGHT.dir, lambert: { ambient: LIGHT.ambient, gain: LIGHT.gain },
-    ramps: painted ? { ...painted.ramps, beds: [painted.ramps.stone] } : { soil: rampOfHex(R4.grass), stone: rampOfHex(R4.stone), scree: rampOfHex(R4.sand ?? R4.floor), beds: [rampOfHex(R4.stone)] },
+    // (the flight sky, sky.js: the sun at its hour and the weather's light; absent, the map's afternoon as ever)
+    light: flight ? flight.sun.dir : LIGHT.dir, lambert: flight ? { ambient: flight.light.ambient, gain: flight.light.gain } : { ambient: LIGHT.ambient, gain: LIGHT.gain },
+    ramps: tintRamps(painted ? { ...painted.ramps, beds: [painted.ramps.stone] } : { soil: rampOfHex(R4.grass), stone: rampOfHex(R4.stone), scree: rampOfHex(R4.sand ?? R4.floor), beds: [rampOfHex(R4.stone)] }, flight ? flight.light.tint : null),
   };
   // the pads: each sited near where it was asked for, where it needs the least earthwork (the most the natural ground
   // stands off its datum over the footprint), dry, inside the field and clear of the pads before it; graded flat
@@ -339,7 +348,7 @@ export function mapGround(map, ask = {}, { palette } = {}) {
     for (const r of aerial.roofs) { const i = Math.floor((x - r.x0) / 10), j = Math.floor((y - r.y0) / 10); if (i >= 0 && j >= 0 && i < r.nx && j < r.ny) { const t = r.top[j * r.nx + i]; if (t > z) z = t; } }
     return z;
   } : town.topAt;
-  const sky = painted ? painted.atlas.sky : { ...DAY_SKY };
+  const sky = painted ? painted.atlas.sky : flight ? { zenith: flight.colours.zenith, horizon: flight.colours.horizon, day: 1 } : { ...DAY_SKY };
   return {
     K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     // the highest surface: the ground, or a city's roof over it (what a course and a pilot keep clear of)
@@ -349,6 +358,7 @@ export function mapGround(map, ask = {}, { palette } = {}) {
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,
     ...(gorge ? { gorge } : {}),
+    ...(flight ? { sky: flight } : {}),
     // the sea's colour: the palette's water ramp at its middle (no palette: the page's own, from the sky)
     ...(painted && sea !== null ? { water: rgbHex(painted.atlas.ramps.water.stops[2]) } : {}),
     report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), ...(P ? { palette: P.id } : { geocube: cube.id }), scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}), ...(country ? { country: { ...country.report, masses: aerial.report } } : {}) },

@@ -15,7 +15,8 @@
  * ride and the licence) is laid by later lessons on the same words.
  *
  *   PILOT_SCHOOL                    the school's craft, assist and airfield
- *   LESSONS                         the lessons, in order: { id, name, brief, tasks, grade }
+ *   LESSONS                         the lessons, in order: { id, name, brief, sky, tasks, grade } (sky: the lesson's
+ *                                   weather, skyscape/sky.js)
  *   lessonLevel(lesson)             → a gameworld level: its airspace and its flight goal
  *   pilotSchoolStart(world)         → { world }: the rail's starter, the first lessons under what the creator wrote
  *
@@ -35,6 +36,8 @@ const LIFT_OFF = Object.freeze({ band: Object.freeze({ agl: Object.freeze([20, n
 export const LESSONS = Object.freeze([
   Object.freeze({
     id: 'lesson-1', name: 'First flight', brief: 'Take off, climb out over the field, fly the first rings and level off.',
+    // (a still morning, a few fair-weather clouds: the sky a first flight is booked for)
+    sky: Object.freeze({ kind: 'fair', cover: 0.1, hour: 9.5, wind: Object.freeze({ speed: 3 }) }),
     tasks: Object.freeze([
       { ...LIFT_OFF, text: 'Open the throttle with W (it stays where you leave it). At 55 knots, ease the nose up with Space' },
       { gates: [1, 2], text: 'Fly through the first two rings: A and D bank, Space and Shift move the nose' },
@@ -44,6 +47,7 @@ export const LESSONS = Object.freeze([
   }),
   Object.freeze({
     id: 'lesson-2', name: 'Straight and level, and turns', brief: 'Hold a height and a heading, then turn to new ones and hold those.',
+    sky: 'fair',
     tasks: Object.freeze([
       { ...LIFT_OFF, text: 'Take off as before' },
       { band: { height: [200, 260], turn: [-10, 10] }, seconds: 15, text: 'Climb to 230 m and hold it on the runway heading' },
@@ -54,6 +58,8 @@ export const LESSONS = Object.freeze([
   }),
   Object.freeze({
     id: 'lesson-3', name: 'Climbs and descents', brief: 'Climb to a height and hold it; come down under a speed and hold that.',
+    // (an afternoon under mid-level cloud: plenty of room to climb under it)
+    sky: Object.freeze({ kind: 'high', hour: 16 }),
     tasks: Object.freeze([
       { ...LIFT_OFF, text: 'Take off as before' },
       { band: { height: [370, 430] }, seconds: 10, text: 'Climb to 400 m: full throttle, the nose a little up, then level off and hold it' },
@@ -69,7 +75,7 @@ export const LESSONS = Object.freeze([
 export function lessonLevel(lesson) {
   return {
     name: lesson.name,
-    airspace: { map: { craft: PILOT_SCHOOL.craft }, ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })), country: { ...PILOT_SCHOOL.airfield.country } }, course: true, assist: PILOT_SCHOOL.assist },
+    airspace: { map: { craft: PILOT_SCHOOL.craft }, ...(lesson.sky ? { sky: JSON.parse(JSON.stringify(lesson.sky)) } : {}), ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })), country: { ...PILOT_SCHOOL.airfield.country } }, course: true, assist: PILOT_SCHOOL.assist },
     goal: { flight: { tasks: lesson.tasks.map((t) => JSON.parse(JSON.stringify(t))), crash: 'fail', grade: JSON.parse(JSON.stringify(lesson.grade)) } },
   };
 }

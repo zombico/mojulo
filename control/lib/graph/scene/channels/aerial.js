@@ -212,6 +212,8 @@ export function aerialScript(cfg) {
       .replace('#include <project_vertex>', '#include <project_vertex>\\nvAer = aerial; vAWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\n' + ${JSON.stringify(GROUND_GLSL)})
       .replace('#include <color_fragment>', '#include <color_fragment>\\nif (vAer.y > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, aerialAlbedo(vAWP.xy, vAer.z) * vAer.x, clamp(vAer.y, 0.0, 1.0));');
+    // (the flight sky's cloud shadows over it, flight-sky.js)
+    if (window.__mojSkyPatch) window.__mojSkyPatch(sh);
   };
   __tMat.needsUpdate = true;
   // THE CITY: one material for every mass, lit by the ground's light

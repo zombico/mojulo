@@ -3,6 +3,8 @@ import { terrainPlantsScript } from './terrain-plants.js';
 import { terrainGrassScript } from './terrain-grass.js';
 import { terrainWindScript } from './terrain-wind.js';
 import { aerialVertexFn, aerialScript } from './aerial.js';
+import { flightSkyScript } from './flight-sky.js';
+import { oceanScript } from './ocean.js';
 
 // In-page script: the TERRAIN channel (opt-in via emitThreeWorld({ terrain })). The page
 // carries the terrain world's RECIPE — the kernel's source (terrain-kernel.js, inlined as text) and its quantised grids —
@@ -31,7 +33,7 @@ import { aerialVertexFn, aerialScript } from './aerial.js';
 export function terrainChannelScript(cfg) {
   const { kernel, plants, grass, wind, ...rest } = cfg;   // plants (terrain-plants.js), grass (terrain-grass.js) and the wind that bends them (terrain-wind.js): scripts of their own, after the ground's
   // the aerial ground (aerial.js, a flight map's country): its cover kernel's source inlined in its own script, not twice
-  const A = rest.aerial || null;
+  const A = rest.aerial || null, SK = rest.sky || null, OC = rest.ocean || null;   // (the flight sky and its ocean: flight-sky.js, ocean.js)
   if (A) rest.aerial = { ...A, cover: { ...A.cover, kernel: undefined } };
   return `
 // --- terrain world (opt-in): the recipe's ground, meshed around the camera ---
@@ -258,11 +260,11 @@ window.__mojTerrain.groundZ = __tGroundZ;
 // the coarse levels exist before the first frame, so there is always ground
 if (!__tPL) { for (let l = 0; l <= 2; l++) for (let i = 0; i < (1 << l); i++) for (let j = 0; j < (1 << l); j++) __tChunks.set(__tKey(-1, l, i, j), { mesh: __tBuild(-1, l, i, j), f: -1, level: l, ix: i, iy: j, used: 0 }); }
 else { for (let f = 0; f < 6; f++) for (let l = 0; l <= 1; l++) for (let i = 0; i < (1 << l); i++) for (let j = 0; j < (1 << l); j++) __tChunks.set(__tKey(f, l, i, j), { mesh: __tBuild(f, l, i, j), f, level: l, ix: i, iy: j, used: 0 }); }
-if (TERRAIN.water && !__tPL) {
+if (TERRAIN.water && !__tPL${OC ? ' && !TERRAIN.ocean' : ''}) {
   const W = TERRAIN.water, S = TERRAIN.root.size * 4;
   const wm = new THREE.Mesh(new THREE.PlaneGeometry(S, S), new THREE.MeshBasicMaterial({ color: new THREE.Color(W.color), transparent: true, opacity: W.opacity, depthWrite: false }));
   wm.position.set(TERRAIN.root.cx, TERRAIN.root.cy, W.z); wm.renderOrder = 1; scene.add(wm);
 }
 __tTick();
-${A ? aerialScript(A) : ''}${wind ? terrainWindScript(wind) : ''}${plants ? terrainPlantsScript(plants, !!wind) : ''}${grass ? terrainGrassScript(grass, !!wind) : ''}`;
+${SK ? flightSkyScript(SK, { ownsGround: !A }) : ''}${OC ? oceanScript() : ''}${A ? aerialScript(A) : ''}${wind ? terrainWindScript(wind) : ''}${plants ? terrainPlantsScript(plants, !!wind) : ''}${grass ? terrainGrassScript(grass, !!wind) : ''}`;
 }

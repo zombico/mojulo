@@ -308,6 +308,63 @@ over their piers. Pylons are lattices of lines, and their conductors sag span to
 **Pilot School** flies over this country: its island airfield has a market town, two villages, the lanes between them
 and the field, a line of pylons and a mast.
 
+## The sky a pilot flies in
+
+A pilot spends most of a flight looking at the sky. An airspace's `sky` is its weather, in the geocube's own words:
+`clear`, `fair`, `high`, `haze`, `overcast` or `storm`. It takes the kind alone, or
+`{ kind, cover?, hour?, wind?: { from?, speed? }, base?, seed? }` (`control/lib/graph/skyscape/sky.js`). Absent, the
+sky is fair at mid afternoon, with the sun where the map always lit its ground from. A gameworld level takes it as
+`levels.<id>.airspace.sky`.
+
+A walker's sky is a band painted round the dome. A pilot climbs through cloud, flies over its tops and looks down
+through its gaps, so each weather is made of layers at their heights:
+
+- **Cumulus** are heaped clouds over a flat base, placed in streets along the wind. A storm's cumulonimbus climb
+  kilometres, spread an anvil downwind, and drop rain shafts to the sea.
+- **Decks** are sheets between a base and a top: stratus (the overcast's lid), stratocumulus (the storm's broken
+  shelf) and altocumulus (mid-level ripples). `cover` is the share of the sky a deck closes.
+- **Cirrus** is a thin high veil of streaks along the wind.
+
+The weather also sets the light:
+
+- The sun stands at its hour: east in the morning, south at noon, low and warm late in the day. The ground's light
+  follows it, so its direction and tint reach the terrain kernel's ramps and every country shader.
+- An overcast's light is flat.
+- Haze is thicker in haze and storm, and never thinner than the map planned (`map.js` keeps its edge unseen).
+- The wind drifts the clouds, and raises the sea as a fully developed one (Pierson-Moskowitz: the sea's height and its
+  peak wave's length from the wind's speed).
+
+`meta.sky` briefs the pilot: the kind, the hour, a METAR's wind, visibility and cloud groups (`25012KT 5700 FEW036`),
+and the sea's height.
+
+**On the page** (`control/lib/graph/scene/channels/flight-sky.js`):
+
+- **The sky** is shaded as air: the haze's colour at the horizon rising to the zenith's, a glow round the sun, and its
+  disc, lost under an overcast.
+- **Cumulus** are clusters of camera-facing puffs in one instanced draw, re-sorted far to near as the eye moves. A puff
+  is cut off at its cloud's base, so every cumulus has a flat bottom. Puffs are lit by the sun through the cloud, so
+  the top is bright and the belly takes the sky's shade, and a cloud between the eye and the sun glows through.
+  Clouds wrap round the eye as they drift, so the pilot is always under a sky.
+- **Decks** show their dark bellies from below. From above, the sky clears to the hour's and the deck is a sunlit
+  floor, with the air over it thinner. A thunderhead's crown, risen over its shelf, is sunlit too.
+- **Inside a cloud** the eye sees the cloud's grey all round (whiteout), clearing as it flies out.
+- **Cloud shadows** are the cumulus' footprints cast along the sun onto the ground, drifting with them.
+
+**The sea** (`control/lib/graph/scene/channels/ocean.js`) replaces the flat sheet round an island:
+
+- **The sheet** is rings round the eye, scaled by its height over the water.
+- **The waves** are the wind sea's trains and a long swell, summed as deep-water Gerstner waves. Each train shapes the
+  light per pixel and fades as it falls under a pixel.
+- **The light** comes from the aqua look: fine ripples, the sky by Fresnel, the sun's glint, foam as bubble lace.
+- **Whitecaps** break, torn along the wind, once the wind passes a moderate breeze.
+- **At the shore**, the water's depth over the land is baked from the terrain kernel. The waves shoal, the water turns
+  turquoise over the shallows, and surf runs in bands to the beach.
+
+**Pilot School** flies its lessons under their own skies: a still, nearly clear morning for the first flight, fair
+weather for turns, and an afternoon under altocumulus for climbs.
+
+Exports carry neither the clouds nor the ocean. They are the live page's.
+
 ## What comes next
 
 The shelf is the asset layer. In order, the moves that turn it into flight games:
