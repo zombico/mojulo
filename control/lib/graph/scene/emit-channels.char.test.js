@@ -1141,3 +1141,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // gone (mind.js); a ship's shields are asked first by the shield absorption (combat-hit.js). The starfighter, its
 // cockpit and its HUD are opt-in, emitted only into a page whose pilot is one. No fixture has a space mind with a
 // travelling round, a sleeping body hunted, or a ship, so what each plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: fighters fly passes): the fixtures that embed the controllable runtime. A space
+// mind with `rule.passes` flies down its nose, runs in, breaks and extends (mind.js); no fixture's mind has it, so what each
+// plays is as it was.

@@ -9,10 +9,11 @@
  *   arrowInterceptor  speed      an arrowhead interceptor: a low faceted canopy close over the head, one hoop, two cannons,
  *                                thin shields, the fastest and quickest to turn; its panel a narrow centre console, the
  *                                speed and the throttle read first
- *   heavyFighter      firepower  a carrier heavy fighter: an armoured canopy (thick bars, two hoops), four heavy cannons and
+ *   heavyFighter      firepower  a carrier heavy fighter: an armoured canopy (its posts and both hoops), four heavy cannons and
  *                                racks of warheads, the deepest shields and hull, slow to turn; its panel wide and deep,
  *                                the ordnance read beside the targeting computer
- *   twinPanel         the other side's general: the twin-panel fighter's ball pod, seen out of its round spoked viewport,
+ *   twinPanel         the other side's general: the twin-panel fighter's ball pod, seen out of its round viewport (a fine
+ *                                rim and spokes, a window's tracery and not girders),
  *                                no shields, two cannons, quick; its panel the curve of the ball under the window
  *
  * A card:
@@ -32,6 +33,8 @@
  *   canopyFrame(airframe)          → { bars: [{ pts: [[x, y, z]…], r }], window?: { z, r, hub } , fill: 'bubble' | 'round' }
  *                                    the canopy's frame in the eye's frame (x right, y up, z ahead, m): a bubble's facet
  *                                    edges and its hoops from the shelf's own canopy; a round window's rim and spokes
+ *   frameCover(airframe, { aspect?, vfov? }) → the share of the view over the panel the bars cover (each segment
+ *                                    projected as the page projects it, as thick as it is near): how much the frame hides
  *
  * Pure: the same craft, the same cockpit.
  */
@@ -42,6 +45,8 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const P = (pts) => Object.freeze(pts.map((p) => Object.freeze(p)));
 
 export const PANEL_HEIGHT = 0.28;
+/** The most of the view over the panel a cockpit's frame may hide (frameCover): the view is what is flown by. */
+export const FRAME_COVER_MAX = 0.16;
 
 export const COCKPITS = Object.freeze({
   strikeFoil: Object.freeze({
@@ -69,7 +74,7 @@ export const COCKPITS = Object.freeze({
   heavyFighter: Object.freeze({
     tuning: 'firepower',
     numbers: Object.freeze({ speedOfMax: 0.6, rates: Object.freeze({ pitch: 1.1, yaw: 0.8, roll: 1.6 }), hull: 20, shields: Object.freeze({ max: 12, regen: 0.25 }), lasers: Object.freeze({ energy: 30, regen: 4, rof: 5, damage: 1.5, links: Object.freeze([1, 2, 4]) }), warheads: 12 }),
-    eye: Object.freeze({ t: 0.76, up: 0.56 }), frame: Object.freeze({ edges: Object.freeze(['shoulder', 'crown']), bows: Object.freeze([0.3, 0.65]), bar: 0.04, bow: 0.035 }),
+    eye: Object.freeze({ t: 0.76, up: 0.56 }), frame: Object.freeze({ edges: Object.freeze(['shoulder']), bows: Object.freeze([0.3, 0.65]), bar: 0.028, bow: 0.024 }),
     panel: Object.freeze({
       height: PANEL_HEIGHT,
       // wide and deep, flat across, its side consoles stepped up
@@ -80,7 +85,7 @@ export const COCKPITS = Object.freeze({
   twinPanel: Object.freeze({
     tuning: 'general',
     numbers: Object.freeze({ speedOfMax: 0.85, rates: Object.freeze({ pitch: 1.7, yaw: 1.3, roll: 2.6 }), hull: 8, shields: null, lasers: Object.freeze({ energy: 20, regen: 5, rof: 7, damage: 1, links: Object.freeze([1, 2]) }), warheads: 0 }),
-    eye: Object.freeze({ back: 0.72 }), frame: Object.freeze({ bar: 0.035, bow: 0.035 }),
+    eye: Object.freeze({ back: 0.72 }), frame: Object.freeze({ bar: 0.012, bow: 0.012 }),
     panel: Object.freeze({
       height: PANEL_HEIGHT,
       // the curve of the ball under its window
@@ -129,4 +134,26 @@ export function canopyFrame(airframe) {
     bars.push({ pts, r: C.frame.bow });
   }
   return { fill: 'bubble', bars };
+}
+
+/** How much of the view over the panel the canopy's bars hide: each segment projected as the page draws it (cockpit-hud.js
+ *  cockpitFramePage: its radius over its depth, a stroke at most an eighth of the screen's height), its length clipped to
+ *  the screen, summed over the area above the panel. An estimate (overlaps counted twice), to tell one frame from another. */
+export function frameCover(airframe, { aspect = 16 / 9, vfov = 60 } = {}) {
+  const F = canopyFrame(airframe), C = cockpitOf(airframe), t = Math.tan((vfov * Math.PI) / 360), H = 1, W = aspect, f = H / 2 / t;
+  const top = Math.min(...C.panel.top.map(([, y]) => y)), at = (p) => [W / 2 + (p[0] / p[2] / (t * aspect)) * (W / 2), H / 2 - (p[1] / p[2] / t) * (H / 2)];
+  const inView = (q) => q[0] >= 0 && q[0] <= W && q[1] >= 0 && q[1] <= top;
+  let area = 0;
+  for (const B of F.bars) {
+    if (!(B.r > 0)) continue;
+    for (let i = 1; i < B.pts.length; i++) {
+      const p0 = B.pts[i - 1], p1 = B.pts[i];
+      if (p0[2] <= 0.05 || p1[2] <= 0.05) continue;
+      const a = at(p0), b = at(p1), w = Math.min(H * 0.12, (2 * B.r * f) / ((p0[2] + p1[2]) / 2));
+      // (the share of the segment on the screen over the panel, by its sampled points)
+      let on = 0; for (let k = 0; k <= 8; k++) { const u = k / 8; on += inView([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]) ? 1 : 0; }
+      area += Math.hypot(b[0] - a[0], b[1] - a[1]) * w * (on / 9);
+    }
+  }
+  return Math.round((area / (W * top)) * 1000) / 1000;
 }

@@ -174,11 +174,17 @@ They share one foundation, built first, and these themes record it as it lands.
   A craft without a card flies the general one's.
   - **The canopy's frame** is the shelf's own: the faceted bubble's edges and hoops (or the round viewport's rim and
     spokes) seen from the seat. The card says which edges are framed bars and which are seams in the glass (a
-    snubfighter's shoulder posts and forward hoop, an armoured canopy's crown rails and two hoops). Each bar is drawn
-    as thick as it is near, and the cockpit's sides stand under the sills.
+    snubfighter's shoulder posts and forward hoop, an armoured canopy's posts and both hoops, a round viewport's fine
+    rim and spokes). Each bar is drawn as thick as it is near, and the cockpit's sides stand under the sills. No frame
+    hides more than 16% of the view over the panel (`frameCover`, measured as the page projects it): the heavy
+    fighter's and the twin-panel's were thinned from 27% and 40% to about 13% and 14%.
   - **The instrument panel** fills the screen's foot (28%), its silhouette the card's (a glare shield, a narrow centre
     console, a wide deep dashboard, the curve of a ball). Each instrument sits in its own bezelled screen: the targeting
     computer, the systems, the flight readouts, and the two sensors as round scopes. The instruments float as a HUD
     only in the chase view.
   - **Sound cues** for a sortie's goal met, a group arriving, the mission won and lost. A new card,
     `gameworld-cockpit`, teaches the cockpit and the sortie; the flight card points at it.
+- **AI fighters fly passes** (`mind.js` `rule.passes`, on every sortie's fighters). A fighter never hovers: it flies
+  down its nose at its speed, its nose (and its pitch) turned at its own rate. It runs in on its target firing,
+  breaks off near it, extends away to one side, and turns back in for another pass. It holds its fire while it
+  extends. Before, a space mind slid straight at its target and stopped at its standoff.

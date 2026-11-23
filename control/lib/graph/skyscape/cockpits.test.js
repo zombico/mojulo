@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { COCKPITS, cockpitOf, canopyFrame, PANEL_HEIGHT } from './cockpits.js';
+import { COCKPITS, cockpitOf, canopyFrame, frameCover, PANEL_HEIGHT, FRAME_COVER_MAX } from './cockpits.js';
 import { starfighterPilot, cockpitCamera } from './starfighter.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 
@@ -52,6 +52,14 @@ describe('the cockpits', () => {
     expect(F.window.z).toBeGreaterThan(0);
     expect(F.bars.length).toBe(2 + 8);
     expect(F.window.hub).toBeLessThan(F.window.r / 3);
+  });
+
+  it('no frame hides much of the view it is flown by', () => {
+    for (const id of Object.keys(COCKPITS)) {
+      const c = frameCover(id);
+      expect(c, id).toBeGreaterThan(0.03);                       // a frame there is, all the same
+      expect(c, id).toBeLessThan(FRAME_COVER_MAX);
+    }
   });
 
   it('each panel takes the screen\'s foot, its instruments inside it', () => {
