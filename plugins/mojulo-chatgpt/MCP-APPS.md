@@ -58,8 +58,8 @@ Official references checked September 29, 2026:
 
 `mojulo-dev` is a development connection to a source checkout. Production runs the
 released npm package; the preview protocol does not depend on a Git checkout.
-The plugin is the discovery/workflow/connection package, while npm distributes the
-engine. `npx mojulo init` remains an advanced setup path, not the intended main UX.
+The plugin is the discovery/workflow/connection package, while npm distributes Mojulo
+itself (the server, and the game engine its games run on). `npx mojulo init` remains an advanced setup path, not the intended main UX.
 
 For a shell-enabled Work session, the skill can bootstrap the pinned npm package
 inside that workspace. That execution path is field-tested; automatic registration
