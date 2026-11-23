@@ -346,8 +346,13 @@ Pointers only; each target carries its own design notes.
   [arena-map/](control/lib/graph/arena-map/), [docs/arena-maps.md](docs/arena-maps.md). The damage ring (where a hit came from, round the aim) is its own concept,
   `gameworld/damage-ring.js`: a mission draws it on mana-ui, a quick shooter's level and a deathmatch through the page's
   damage ring channel.
-- The game producer: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (a new game type is a row first),
-  [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js), [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js).
+- The rails and the producer's loop: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (one row a game type,
+  naming into the feel templates, genre cubes, quick goals and pixelizer games that measure it; the size call; the shape
+  and a rail's sheet, served by id as `gameworld-rails` and `gameworld-rail-<id>`; the pitch, a gameworld's `rail`),
+  the producer's steps and its one question in [gameworld/goalposts.js](control/lib/graph/gameworld/goalposts.js), a
+  locked pitch stored on its rail's starter level by [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js),
+  and the first unit proposed to the director by [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js):
+  [docs/zero-to-level-one.md](docs/zero-to-level-one.md).
 - The exhibit producer: [exhibit/producer.js](control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
   [exhibit/scales.js](control/lib/graph/exhibit/scales.js), [exhibit/fit.js](control/lib/graph/exhibit/fit.js),
   [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
@@ -370,6 +375,19 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Facility pieces (a building designed to move through, not hallways and boxes): a room's floor laid in a figure,
+  [era/room-layouts.js](control/lib/graph/era/room-layouts.js) (aisles, machines, islands, stockpile, chicane, rows, each
+  held to its laws; a program's `layouts`, a new figure a row), and a facility, [era/facilities.js](control/lib/graph/era/facilities.js)
+  (a use, its fighting dials, its layouts and its materials, named by a level's building or a WCD space; a new one a
+  row); a core building laid larger for a third-person camera, `scale` (`era/program-core.js`, the `hall` stair); its
+  crawl spaces, `vents` (`era/vents.js`); its glass and mesh, seen through and never walked through (`era/inner-windows.js`,
+  the `cage` layout, `worlds/controllable/barrier.js`); their
+  maps in the game book, `/bible?book=facilities` ([gameworld/facility-maps.js](control/lib/graph/gameworld/facility-maps.js)):
+  [docs/facility-pieces.md](docs/facility-pieces.md).
+- Offshore rigs (a stealth level of open decks over the sea, the facility's other pole): [offshore/](control/lib/graph/offshore/)
+  (three tiles, floor, rail and pillar, a row each in `tiles.js`, and the modules on them; a deck a map of glyphs, its
+  rails and columns found, `plan.js`; its laws, `laws.js`; built over the sea, `build.js`; a new rig a row of `rigs.js`;
+  drawn in the facility maps book): [docs/offshore-rigs.md](docs/offshore-rigs.md).
 - Room craft: [era/room-craft.js](control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is
   asked, each with its reason and how different places answer it; a new interior answers the questions, never copies
   another kit's things; `readRoomCraft` says which a kit's card answers; the agent's card: `room-craft`).
@@ -390,6 +408,10 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
+  measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
+  and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
+  mines, `mines.js`), seen by `scene/channels/controllable/boss-view.js`: [docs/boss-fights.md](docs/boss-fights.md).
 - Worker bots: [workbots/](control/lib/graph/workbots/) (a toy world's worker bots in their own low-poly language: a
   few big primitives in toy colours by role, a face of two lit eyes and a mouth; a bot is a card, stood as a rig figure
   by a figures-map `workbot`; level 0's boss Bulwark is one).

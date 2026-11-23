@@ -24,7 +24,7 @@
 // The viewmodel draws over the world (its depth cleared before it), so it never sinks into a wall.
 import { viewHand } from '../../../equipment/arms/view-hand.js';
 
-export function gunplayScript() {
+export function gunplayScript({ held = false } = {}) {
   return `
 // ── GUNPLAY ──
 const __GP = { aim: false, breath: false, reload: false, wheel: 0, kick: 0, shots: {}, slot: -1, prev: -1, views: {}, bob: 0, lag: [0, 0], lastH: null, lastP: null, fov0: null, fovSet: null, arrows: new Map(), scene: false };
@@ -322,7 +322,7 @@ function __gpFrame(dt) {
   const idx = p ? p.loadoutIdx || 0 : 0, S = lo ? lo[idx] : null, g = S && S.gunplay, w = p && p.weapon;
   for (const k in __GP.views) __GP.views[k].grp.visible = false;
   __gpHandsHide();
-  if (!g || !w) { __gpScope.style.display = 'none'; return; }
+  if (!g || !w) { __gpScope.style.display = 'none'; __GP.scoped = false; return; }
   if (!__GP.scene) { scene.add(camera); if (camera.near > 0.03) { camera.near = 0.03; camera.updateProjectionMatrix(); } __GP.scene = true; }
   const G = p.gp || { aim: 0 }, a = __gpEase(G.aim);
   // (a drawn bow is its own sign of the charge: no charge ring at its muzzle)
@@ -332,14 +332,18 @@ function __gpFrame(dt) {
   const z = 1 + (g.ads.zoom - 1) * a, fov = 2 * Math.atan(Math.tan(__GP.fov0 * __gpD / 2) / z) / __gpD;
   if (Math.abs(camera.fov - fov) > 1e-4) { camera.fov = fov; camera.updateProjectionMatrix(); }
   __GP.fovSet = camera.fov;
-  // the climb of a spray lifts the view (the round already leaves along it)
-  if (w.kickNow) camera.rotateX(w.kickNow * 0.6 * __gpD);
-  const fp = !!(__world.camera && __world.camera.rule && __world.camera.rule.type === 'eye');
+  // the climb of a spray lifts the view (the round already leaves along it): part of it, and through a scope all of it,
+  // so the scope's crosshair is where the next round goes while the rifle settles
   const scoped = !!g.ads.scope && a > 0.92;
+  __GP.scoped = scoped;
+  if (w.kickNow) camera.rotateX(w.kickNow * (scoped ? 1 : 0.6) * __gpD);
+  const fp = !!(__world.camera && __world.camera.rule && __world.camera.rule.type === 'eye');
   __gpScope.style.display = scoped ? 'block' : 'none';
   if (scoped) { const b = G.tired > 0 ? 1 : (G.breath || 0) / 4; __gpBreath.style.width = Math.round((1 - b) * 100) + '%'; __gpBreath.style.background = G.tired > 0 ? '#e55' : '#cfe8ff'; }
   if (fp && window.__mojMuzzle) __gpMz(p.id, null);
   if (!fp || scoped) return;
+  // (a thrown weapon, a hand grenade, has no gun to draw before the eye: its throw is the body's)
+  if (g.view && g.view.kind === 'throw') return;
   // the switch: the outgoing lowered over its swapOut, the incoming raised over its swapIn
   if (__GP.slot !== idx) { __GP.prev = __GP.slot; __GP.slot = idx; }
   let show = idx, low = 0;
@@ -423,14 +427,17 @@ function __gpHoldRig(rig) {
     c0.addScaledVector(a0, -c0.dot(a0)).normalize();
     // (the palm: inward on either hand, so the right's is c × a and the left's a × c)
     const palm = s === 'R' ? c0.clone().cross(a0) : a0.clone().cross(c0);
-    return { up, fo, hand, fingers, chains, ef: ix('elbowFold' + s), clav: ix('clavicle' + s), sf: ix('shoulderFold' + s), a0, c0, palm, hl, la: __gpA(B[up].tail).distanceTo(__gpA(B[up].head)), lb: __gpA(B[fo].tail).distanceTo(__gpA(B[fo].head)) };
+    return { up, fo, hand, fingers, chains, ef: ix('elbowFold' + s), ec: ix('elbowCrease' + s), clav: ix('clavicle' + s), sf: ix('shoulderFold' + s), a0, c0, palm, hl, la: __gpA(B[up].tail).distanceTo(__gpA(B[up].head)), lb: __gpA(B[fo].tail).distanceTo(__gpA(B[fo].head)) };
   };
   const R = side('R'), L = side('L'), lumbar = ix('lumbar') >= 0 ? ix('lumbar') : ix('pelvis'), neck = ix('neck'), head = ix('head');
   if (!R || !L || lumbar < 0 || head < 0) return (rig.__hold = null);
   // the lower body keeps the stride; the rest turns about the spine, the neck and head back to the line
   const lower = new Set(), top = new Set([head]);
   B.forEach((b, i) => { if (/^(pelvis|lumbar|thigh|shank|foot|toes|hipFold|kneeFold)/.test(b.id)) lower.add(i); if (/^(jaw|eye|brow|lid|hair)/.test(b.id)) top.add(i); });
-  return (rig.__hold = { R, L, lumbar, neck, head, lower, top, torso: ix('torso'), pivot: __gpA(B[lumbar].head), ready: 0, last: -1e9, shots: -1, kick: 0, slot: -1, prev: -1 });
+  // (the strong eye at rest, by the head's own length: a little to its right, forward of the skull's base and above it,
+  // where a sight is brought to)
+  const hb = B[head], hl = __gpA(hb.tail).distanceTo(__gpA(hb.head)), eye = [hb.head[0] + 0.24 * hl, hb.head[1] + 0.65 * hl, hb.head[2] + 1.1 * hl];
+  return (rig.__hold = { R, L, lumbar, neck, head, lower, top, eye, torso: ix('torso'), pivot: __gpA(B[lumbar].head), ready: 0, last: -1e9, shots: -1, kick: 0, slot: -1, prev: -1 });
 }
 // a frame turning rest vectors (a0 exactly, b0 as near as square allows) onto posed ones (a1, b1)
 function __gpAlign(a0, b0, a1, b1, q) {
@@ -466,6 +473,8 @@ function __gpReach(rig, A, fist, a1, c1, pole, curl = 1) {
   const qf = __gpAlign(dir(A.fo), A.c0, Wr.clone().sub(E), A.c0.clone().applyQuaternion(qh), new THREE.Quaternion());
   __gpPut(rig, A.up, qu, S); __gpPut(rig, A.fo, qf, E);
   if (A.ef >= 0) __gpPut(rig, A.ef, qu.clone().slerp(qf, 0.5), E);
+  // (and the elbow's crease, a later hero's bone: the sleeve's ring there goes with the arm, where it stayed with the stride's)
+  if (A.ec >= 0) __gpPut(rig, A.ec, qu.clone().slerp(qf, 0.5), E);
   __gpPut(rig, A.hand, qh, Wr);
   // the digits closed round the station: each joint bent toward the palm (the fingers about the line across the
   // knuckles, the thumb across the palm, less), laid out from the hand as the hand now stands; the stride's own finger
@@ -510,8 +519,11 @@ function __gpHold(e, m, rig, dt) {
   H.ready += (want - H.ready) * Math.min(1, dt * 10);
   const re = w.reloading && w.reload > 0 ? Math.sin(Math.PI * (1 - w.reloadT / w.reload)) : 0;
   const pistol = g.view.kind === 'handgun';
-  // the gun's frame: along the look, dipped at a low ready, lower still while stowed, rolled to reload
-  const pitch = (e.transform.pitch || 0) - (1 - H.ready) * (pistol ? 0.7 : 0.5) - low * 0.9 - re * 0.25;
+  // the sight picture: how far the sights are at the eye (the aim up, not stowing, not reloading)
+  const sk = a * (1 - low) * (1 - re);
+  // the gun's frame: along the look, dipped at a low ready, lower still while stowed, rolled to reload; a round flips its
+  // muzzle up (a pistol's more, in the wrists), and it settles as the kick does
+  const pitch = (e.transform.pitch || 0) - (1 - H.ready) * (pistol ? 0.7 : 0.5) - low * 0.9 - re * 0.25 + H.kick * (pistol ? 0.16 : 0.05);
   const F = new THREE.Vector3(0, Math.cos(pitch), Math.sin(pitch)), U = new THREE.Vector3(0, -Math.sin(pitch), Math.cos(pitch)), L = new THREE.Vector3(-1, 0, 0);
   if (re) { const qr = new THREE.Quaternion().setFromAxisAngle(F, -0.5 * re); U.applyQuaternion(qr); L.applyQuaternion(qr); }
   const item = (p, o) => o.clone().addScaledVector(L, p[0] / 100).addScaledVector(U, p[1] / 100).addScaledVector(F, p[2] / 100);
@@ -527,11 +539,28 @@ function __gpHold(e, m, rig, dt) {
   // forward and down, turned with the chest), a pistol's grip out on the line at the arms' reach, drawn in at the ready;
   // through a reload drawn in toward the chest; and where the support hand closes on it (the nearer station if the far
   // will not reach, the magazine's well through a reload)
+  // (the strong eye as the stride holds the head, which the blade does not turn)
+  const EYE = __gpV().set(H.eye[0], H.eye[1], H.eye[2]); if (rig.boneMeshes[H.head]) EYE.applyMatrix4(rig.boneMeshes[H.head].matrix);
+  // (the sight's rear; off the bore's side where it is: a bazooka's beside its tube, where the eye goes)
+  const rear = item([g.view.sight.x || 0, g.view.sight.y, g.view.sight.rear], __gpV()), reachR = H.R.la + H.R.lb + 0.5 * H.R.hl, LIFT = 0.25;
   const place = (blade, pull = 0) => {
     const q = new THREE.Quaternion().setFromAxisAngle(__gpT.z, -blade - swing);
     let O;
     if (hands.butt && !pistol) O = about(SR0, q).add(new THREE.Vector3(-0.07, 0.05, -0.04).applyQuaternion(q)).sub(item(hands.butt, __gpV()));
     else O = about(N0, q).add(new THREE.Vector3(0.05, 0, -0.2)).addScaledVector(F, 0.28 + 0.12 * H.ready).sub(item(hands.strong.at, __gpV()));
+    // AIMED, the sights on the strong eye's line along the look: a long gun's butt kept in the shoulder's pocket and
+    // lifted a share of the way toward the line (LIFT; the head comes down onto the stock for the rest, below); a pistol
+    // pushed out along it to the arms' reach (the sights 0.6 m from the eye, nearer only where the strong arm would not
+    // reach), so the gun is on the line the round flies and, over the shoulder, in the frame
+    if (sk > 0) {
+      let Oa;
+      if (hands.butt && !pistol) { const off = EYE.clone().sub(O).sub(rear); Oa = O.clone().addScaledVector(off.addScaledVector(F, -off.dot(F)), LIFT); }
+      else {
+        const SR = about(SR0, q);
+        for (let d = 0.6; d >= 0.3; d -= 0.03) { Oa = EYE.clone().addScaledVector(F, d).sub(rear); if (SR.distanceTo(item(hands.strong.at, Oa)) <= reachR * 0.97) break; }
+      }
+      O.lerp(Oa, sk);
+    }
     O.addScaledVector(F, -0.035 * H.kick - 0.14 * re - pull).addScaledVector(L, 0.06 * re);
     const SL = about(SL0, q);
     let s = sp, fist = null;
@@ -555,6 +584,16 @@ function __gpHold(e, m, rig, dt) {
     if (k) __gpTurn(rig, bi, k === 1 ? at.q : __gpT.q2.setFromAxisAngle(__gpT.z, -(blade + swing) * k), P);
   }
   const O = at.O;
+  // THE CHEEK ON THE STOCK (a long gun aimed): what is left between the eye and the sight line once the butt has risen
+  // its share, the head takes, turned down and over about the top of the neck (to a limit), so the eye looks down the
+  // sights with the stock under the cheek, where the gun brought up to the eye ran its stock through the head
+  if (sk > 0 && hands.butt && !pistol) {
+    const sp = item([0, g.view.sight.y, g.view.sight.rear], O), res = sp.sub(EYE); res.addScaledVector(F, -res.dot(F));
+    const Hp = __gpHeadOf(rig, H.head, __gpV()), r0 = EYE.clone().sub(Hp), r1 = r0.clone().add(res.multiplyScalar(sk));
+    const qh = new THREE.Quaternion().setFromUnitVectors(r0.normalize(), r1.normalize()), ang = 2 * Math.acos(Math.min(1, Math.abs(qh.w)));
+    if (ang > 0.45) qh.slerp(new THREE.Quaternion(), 1 - 0.45 / ang);
+    for (const bi of H.top) __gpTurn(rig, bi, qh, Hp);
+  }
   V.grp.matrix.makeBasis(L, U, F).setPosition(O); V.grp.visible = true;
   if (V.mag) V.mag.visible = re < 0.85;
   m.updateMatrixWorld(true); __gpMz(e.id, V.grp.localToWorld(new THREE.Vector3(0, 0, (g.view.muzzle || 0) / 100)));
@@ -566,7 +605,7 @@ function __gpHold(e, m, rig, dt) {
     if (at.short > 0 && A.clav >= 0) {
       const C = __gpHeadOf(rig, A.clav, __gpV()), SL = __gpHeadOf(rig, A.up, __gpV()), r = SL.distanceTo(C);
       const ax = SL.clone().sub(C).cross(at.fist.clone().sub(SL)).normalize(), th = Math.min(0.5, at.short / Math.max(0.05, r));
-      if (ax.lengthSq() > 0.5) { const qc = new THREE.Quaternion().setFromAxisAngle(ax, th); for (const bi of [A.clav, A.sf, A.up, A.fo, A.hand, A.ef, ...A.fingers]) if (bi >= 0) __gpTurn(rig, bi, qc, C); }
+      if (ax.lengthSq() > 0.5) { const qc = new THREE.Quaternion().setFromAxisAngle(ax, th); for (const bi of [A.clav, A.sf, A.up, A.fo, A.hand, A.ef, A.ec, ...A.fingers]) if (bi >= 0) __gpTurn(rig, bi, qc, C); }
     }
     __gpReach(rig, A, at.fist, along(at.s.a), along(at.s.c), new THREE.Vector3(-0.25, 0, -1), 0.8);
   }
@@ -580,5 +619,94 @@ if (typeof __syncRigEntity === 'function') {
 window.__mojCtrl.hands = () => ({ R: !!(__gpHands.R && __gpHands.R.hand.visible), L: !!(__gpHands.L && __gpHands.L.hand.visible), knife: !!(__gpHands.knife && __gpHands.knife.visible && __gpHands.L.hand.visible) });
 const __gpStep0 = stepControllable;
 stepControllable = (dt, inputOverride) => { __gpStep0(dt, inputOverride); __gpFrame(dt || 0); __gpArrows(); };
+${held ? heldScript() : ''}`;
+}
+
+// THE GUN IN A WATCHER'S HANDS (a body with a mind whose rule says `armHeld`, its slot's `gunplay` view the arm it
+// carries: gameworld/infiltration-room.js): the same arm, the same reach of the hands and turn of the chest as the
+// hero's, its posture read off the watcher's alert (worlds/controllable/alert.js `e.alert.up`) rather than a trigger.
+//   calm      the patrol carry: the butt in the shoulder's pocket, the muzzle down and across the body, the chest
+//             little turned, over the walk
+//   search    a high ready: the muzzle a little under the line, the chest turned
+//   combat    the attack stance: shouldered, the chest side-on to the line, the gun on the mind's own aim (its heading
+//             and its pitch at the target's chest), kicking with each round; its rounds leave from its muzzle
+// A body without an alert carries by its trigger: up while it fires and a second after. Emitted only into a page that
+// has such a body, so every other page keeps every byte.
+function heldScript() {
+  return `
+const __gpMindHeld = {};
+function __gpHoldMind(e, m, rig, dt) {
+  const lo = Array.isArray(e.rule.loadout) ? e.rule.loadout : null, S0 = lo && lo[e.loadoutIdx || 0], g = S0 && S0.gunplay, w = e.weapon;
+  const V0 = __gpMindHeld[e.id];
+  if (V0) V0.grp.visible = false;
+  if (window.__mojMuzzle) __gpMz(e.id, null);
+  if (!g || !w || !g.view || !g.view.hands || g.view.kind === 'bow' || e.downed || e.dead || e.gone || e.tumble || e.staggerT != null || e.swingT != null || e.takenDown) return;
+  const H = __gpHoldRig(rig); if (!H) return;
+  const V = V0 || (__gpMindHeld[e.id] = __gpBuild(g, true)), hands = g.view.hands, pistol = g.view.kind === 'handgun';
+  if (V.grp.parent !== m) m.add(V.grp);
+  // the posture: the alert's weapon up (0 the carry, 1 the stance), else up while it fires
+  if (H.shots >= 0 && (w.shots || 0) > H.shots) { H.last = __world.time; H.kick = 1; }
+  H.shots = w.shots || 0; H.kick = Math.max(0, H.kick - dt * 9);
+  const want = e.alert ? e.alert.up : __world.time - H.last < 1 ? 1 : 0;
+  H.ready += (want - H.ready) * Math.min(1, dt * 8);
+  const r = __gpEase(H.ready), re = w.reloading && w.reload > 0 ? Math.sin(Math.PI * (1 - w.reloadT / w.reload)) : 0;
+  // the gun's frame: on the mind's aim as it comes up, down and across the body as it goes down, rolled to reload
+  const pitch = (e.transform.pitch || 0) * r - (1 - r) * (pistol ? 1.0 : 0.85) - re * 0.25, yaw = (1 - r) * (pistol ? 0.2 : 0.5);
+  const F = new THREE.Vector3(0, Math.cos(pitch), Math.sin(pitch)), U = new THREE.Vector3(0, -Math.sin(pitch), Math.cos(pitch)), L = new THREE.Vector3(-1, 0, 0);
+  const qy = new THREE.Quaternion().setFromAxisAngle(__gpT.z, yaw); F.applyQuaternion(qy); U.applyQuaternion(qy); L.applyQuaternion(qy);
+  if (re) { const qr = new THREE.Quaternion().setFromAxisAngle(F, -0.5 * re); U.applyQuaternion(qr); L.applyQuaternion(qr); }
+  const item = (p, o) => o.clone().addScaledVector(L, p[0] / 100).addScaledVector(U, p[1] / 100).addScaledVector(F, p[2] / 100);
+  const along = (v) => L.clone().multiplyScalar(v[0]).addScaledVector(U, v[1]).addScaledVector(F, v[2]).normalize();
+  const P = H.pivot, SR0 = __gpHeadOf(rig, H.R.up, __gpV()), SL0 = __gpHeadOf(rig, H.L.up, __gpV()), N0 = __gpHeadOf(rig, H.neck >= 0 ? H.neck : H.head, __gpV());
+  const about = (v, q) => v.clone().sub(P).applyQuaternion(q).add(P);
+  let swing = 0;
+  if (H.torso >= 0) { const v = new THREE.Vector3(1, 0, 0).applyQuaternion(__gpQOf(rig, H.torso, new THREE.Quaternion())); swing = Math.atan2(v.y, v.x); }
+  const sp = hands.support, reachL = H.L.la + H.L.lb + 0.5 * H.L.hl;
+  const place = (blade, pull = 0) => {
+    const q = new THREE.Quaternion().setFromAxisAngle(__gpT.z, -blade - swing);
+    let O;
+    if (hands.butt && !pistol) O = about(SR0, q).add(new THREE.Vector3(-0.07, 0.05, -0.04).applyQuaternion(q)).sub(item(hands.butt, __gpV()));
+    else O = about(N0, q).add(new THREE.Vector3(0.05, 0, -0.2)).addScaledVector(F, 0.28 + 0.12 * r).sub(item(hands.strong.at, __gpV()));
+    O.addScaledVector(F, -0.035 * H.kick - 0.14 * re - pull).addScaledVector(L, 0.06 * re);
+    const SL = about(SL0, q);
+    let s = sp, fist = null;
+    if (sp) {
+      if (sp.alt && SL.distanceTo(item(sp.at, O)) > reachL * 0.98) s = sp.alt;
+      fist = item(s.at, O);
+      if (re && g.view.mag) fist.lerp(item(g.view.mag, O), re);
+    }
+    return { q, O, s, fist, short: fist ? SL.distanceTo(fist) - reachL * 0.97 : 0 };
+  };
+  // (the chest little turned at the carry, side-on to the line in the stance)
+  let blade = pistol ? 0.18 : 0.3 + 0.32 * r, at = place(blade);
+  for (let k = 0; k < 5 && at.short > 0; k++) { blade += 0.08; at = place(blade); }
+  for (let pull = 0.03; pull <= 0.18 && at.short > 0; pull += 0.03) at = place(blade, pull);
+  const B = rig.fig.bones;
+  for (let bi = 0; bi < B.length; bi++) {
+    if (H.lower.has(bi) && bi !== H.lumbar) continue;
+    const k = bi === H.lumbar ? 0.4 : bi === H.neck ? 0.5 : H.top.has(bi) ? 0 : 1;
+    if (k) __gpTurn(rig, bi, k === 1 ? at.q : __gpT.q2.setFromAxisAngle(__gpT.z, -(blade + swing) * k), P);
+  }
+  const O = at.O;
+  V.grp.matrix.makeBasis(L, U, F).setPosition(O); V.grp.visible = true;
+  if (V.mag) V.mag.visible = re < 0.85;
+  m.updateMatrixWorld(true); __gpMz(e.id, V.grp.localToWorld(new THREE.Vector3(0, 0, (g.view.muzzle || 0) / 100)));
+  __gpReach(rig, H.R, item(hands.strong.at, O), along(hands.strong.a), along(hands.strong.c), new THREE.Vector3(0.6, -0.2, -0.8));
+  if (at.fist) {
+    const A = H.L;
+    if (at.short > 0 && A.clav >= 0) {
+      const C = __gpHeadOf(rig, A.clav, __gpV()), SL = __gpHeadOf(rig, A.up, __gpV()), rr = SL.distanceTo(C);
+      const ax = SL.clone().sub(C).cross(at.fist.clone().sub(SL)).normalize(), th = Math.min(0.5, at.short / Math.max(0.05, rr));
+      if (ax.lengthSq() > 0.5) { const qc = new THREE.Quaternion().setFromAxisAngle(ax, th); for (const bi of [A.clav, A.sf, A.up, A.fo, A.hand, A.ef, A.ec, ...A.fingers]) if (bi >= 0) __gpTurn(rig, bi, qc, C); }
+    }
+    __gpReach(rig, A, at.fist, along(at.s.a), along(at.s.c), new THREE.Vector3(-0.25, 0, -1), 0.8);
+  }
+}
+if (typeof __syncRigEntity === 'function') {
+  const __gpSyncM = __syncRigEntity;
+  __syncRigEntity = function (e, m, rig, dt) { __gpSyncM(e, m, rig, dt); if (e.rule && e.rule.armHeld && e.id !== __world.pilotId) __gpHoldMind(e, m, rig, dt || 0); };
+}
+// (what each watcher's gun shows, for a page's check: its posture, 0 the carry to 1 the stance, and whether it is drawn)
+window.__mojCtrl.held = () => Object.fromEntries(Object.entries(__gpMindHeld).map(([id, V]) => [id, { drawn: V.grp.visible, ready: (__bodies[id] && __bodies[id].userData.rigFig && __bodies[id].userData.rigFig.__hold && __bodies[id].userData.rigFig.__hold.ready) || 0 }]));
 `;
 }

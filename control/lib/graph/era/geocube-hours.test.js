@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { GEOCUBE_PRESETS, readGeocube, lowerGeocube, withGeocube, assembleGeocubeScene } from './geocube.js';
-import { HOUR_WORDS, readHour, referenceHour, hourLight } from './geocube-hours.js';
+import { HOUR_WORDS, readHour, referenceHour, hourLight, REALISTIC_NIGHT } from './geocube-hours.js';
+import { lchOf, hexToRgb } from '../color-theorist/oklab.js';
 import { SIXTH_GEN_REFERENCES, resolveLook } from './sixth-gen.js';
 import { lookOf } from './style/looks.js';
 import { assembleStageScene } from './stage.js';
@@ -161,3 +162,24 @@ describe('the flora at an hour', () => {
     expect(hourWin(w, -2)).toEqual({ lit: [0, 2], shade: [0, 0] });
   });
 });
+
+describe('the night\'s register', () => {
+  const chroma = (c) => lchOf(Array.isArray(c) ? c : hexToRgb(c))[1], light = (c) => lchOf(Array.isArray(c) ? c : hexToRgb(c))[0];
+  const real = readGeocube({ ...DAY, light: { ...DAY.light, night: 'realistic' } });
+  it('realistic: at night the moon, the shade and the sky are drained to a cool grey, each at the stylized one\'s value', () => {
+    const S = hourLight(DAY, 23), R = hourLight(real, 23);
+    expect(R.moonlit).toBe(true);
+    expect(chroma(R.key.color)).toBeLessThanOrEqual(REALISTIC_NIGHT.moon + 0.004);
+    expect(chroma(R.ambient)).toBeLessThanOrEqual(REALISTIC_NIGHT.chroma + 0.004);
+    for (const k of ['zenith', 'horizon']) expect(chroma(R.dome[k])).toBeLessThanOrEqual(REALISTIC_NIGHT.chroma + 0.006);
+    expect(chroma(S.key.color)).toBeGreaterThan(chroma(R.key.color) * 3);         // (the stylized moon is blue)
+    expect(light(R.ambient)).toBeCloseTo(light(S.ambient), 2);                    // (the dark as dark, its hue gone)
+  });
+  it('the day is the same whichever night', () => {
+    expect(hourLight(real, 12)).toEqual(hourLight(DAY, 12));
+  });
+  it('a night register is stylized or realistic', () => {
+    expect(() => readGeocube({ ...DAY, light: { ...DAY.light, night: 'moody' } })).toThrow(/stylized or realistic/);
+  });
+});
+

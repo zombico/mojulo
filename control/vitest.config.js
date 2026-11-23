@@ -93,6 +93,8 @@ export const E2E = [
   'lib/graph/scene/live-light.chrome.test.js',
   'lib/mana-ui/snapshot.chrome.test.js',
   'lib/graph/scene/channels/controllable/armed-body.chrome.test.js',
+  // the ray budget: a walker on a gen-7 land in headless Chrome, no ray testing a big mesh triangle by triangle
+  'lib/graph/scene/channels/controllable/ray-budget.chrome.test.js',
   // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts
   'lib/graph/gameworld/combat/range-sound.chrome.test.js',
   'lib/graph/gameworld/combat/artillery.chrome.test.js',

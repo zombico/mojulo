@@ -26,7 +26,7 @@ export const TEMPLATE_LOADOUTS = Object.freeze({
   conscription: { weapons: Object.freeze(['rifle', 'handgun', KNIFE_SLOT]), why: 'the contemporary FPS: a rifle, a sidearm, a knife' },
   'cogs-of-combat': { weapons: Object.freeze(['rifle', 'shotgun', 'handgun']), why: 'the cover shooter: a rifle, a shotgun for close, a sidearm' },
   'infinity-crisis': { weapons: Object.freeze(['rifle', Object.freeze({ name: 'launcher', fire: 'projectile' })]), why: 'the arena shooter: a rifle and a rocket launcher' },
-  'steel-serpents': { weapons: Object.freeze(['handgun', KNIFE_SLOT]), why: 'the stealth game: a silenced pistol and a knife, no rifle' },
+  'steel-serpents': { weapons: Object.freeze(['dart', 'handgun', KNIFE_SLOT]), why: 'the stealth game: a sleep dart gun, a silenced pistol and a knife, no rifle' },
 });
 
 // an arm's build words → the kit word that builds it (its item and model; an item alone its first word), or null

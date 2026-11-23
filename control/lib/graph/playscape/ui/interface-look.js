@@ -32,12 +32,13 @@ import { manaUi } from '../../../mana-ui/kernel.js';
 import { THEME_CARDS, THEME_CARD_IDS, cardTheme } from './theme-cards/loader.js';
 import { solvePalette } from '../../color-theorist/solve.js';
 import { juiceOfGame, juiceSuggestion } from '../../gameworld/juice.js';
+import { readRadarLook } from '../../game/hud-mana.js';
 import { readMapUi } from '../../gameworld/city-map.js';
 import { readBagUi } from '../../gameworld/bag-ui.js';
 import { readPhoneUi } from '../../gameworld/phone-ui.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['theme', 'colour', 'languages', 'language', 'map', 'inventory', 'phone'];
+const KEYS = ['theme', 'colour', 'languages', 'language', 'radar', 'map', 'inventory', 'phone'];
 
 // the art director's register by the game's intent (gameworld/intent.js GENRES): where its look starts
 export const INTENT_LOOKS = Object.freeze({
@@ -114,6 +115,8 @@ export function readUi(ui, where = 'ui') {
   if (ui.languages !== undefined || ui.language !== undefined) {
     try { manaUi.readSpec({ screens: {}, languages: ui.languages, language: ui.language }); } catch (e) { errors.push(`${where}: ${e.message}`); }
   }
+  // (its radar's look, game/hud-mana.js RADAR_LOOK: square, large, of the pilot's floor alone)
+  if (ui.radar !== undefined) { try { readRadarLook(ui.radar); } catch (e) { errors.push(`${where}.${e.message}`); } }
   // (the map: what a played city's shows and how it is seen, gameworld/city-map.js)
   if (ui.map !== undefined) errors.push(...readMapUi(ui.map, `${where}.map`));
   // (the inventory: how what is carried is shown, gameworld/bag-ui.js)

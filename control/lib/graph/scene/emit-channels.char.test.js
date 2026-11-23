@@ -843,6 +843,78 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-19 a seventh time (1117-cinematic-action-game: a guard's reach at arm's length): the seventeen
+// fixtures whose page embeds the controllable runtime. A mind's perceive (mind.js) takes an opt-in `rule.near`: a body
+// within its reach is seen whatever way it faces, unless square behind it while it walks (and all round while a patrol
+// looks round, foe.js `patrol.look`). No fixture's mind carries `near`, so every sight is the cone's as it was; only the
+// runtime's text moved. foe.js's look round is emitted only where a world stands a foe, and no fixture does.
+// Re-pinned 2026-11-19 (1117-cinematic-action-game: crawling under things): `mission` only. The world's veils may carry a
+// crawl space (veil.js `under`, a box with no patch's middle and radius), so the radar's plan (gameworld/radar.js
+// planSvg, inlined by the page) draws tall grass from the patches alone. The fixture has no veils: its plan is as it was;
+// only the inlined source moved.
+// Re-pinned 2026-11-19 a sixth time (1117-mana-ui-talking-heads merged into 1117-cinematic-action-game): the fixtures
+// whose page inlines text either side had moved since (that side: the talk box on mana-ui and its talking faces, a game
+// UI's root laid in the scene's frame, the radar's plan at the floor a level stands on, every shooter's HUD; this side:
+// the world's rays and the ground's index, the follow camera's clear line, the minimap translucent, tall grass). The
+// radar's plan takes either side's word (a floor height, or the options with `z` among them). Twenty fixtures moved
+// from that side's pin: the seventeen that inline the controllable runtime, and `brawl`, `holo` and `mission` (the game
+// UI's styles and the radar's plan); every other fixture holds that side's pin byte for byte. The merged text is
+// neither side's pin; no fixture's behaviour is claimed changed.
+// Re-pinned 2026-11-19 a fifth time (1117-cinematic-action-game: the grid for meshes of two hundred triangles and the
+// camera's first ray): the same seventeen; the grid's threshold and one line before the camera's drive.
+// Re-pinned 2026-11-19 a fourth time (1117-cinematic-action-game: the grid for every big mesh): the same seventeen. The
+// ground grid's raycast takes a mesh placed by a transform (the ray carried into its own frame) and one of several
+// materials (each face its group's side), where three's own raycast took them triangle by triangle; what a ray finds is
+// what three finds (tested ray by ray). Emission changes by that function alone.
+// Re-pinned 2026-11-19 a third time (1117-cinematic-action-game: the ground's index): the same seventeen. The ground
+// probe reads the surfaces over its own cell (controllable/ground-index.js, baked with the grid and again when the
+// scene's surfaces change, a surface that moves tested wherever it stands) instead of a ray through the whole scene; what
+// it finds is what that ray found.
+// Re-pinned 2026-11-19 again (1117-cinematic-action-game: what a frame costs, by side): the same seventeen. The page
+// keeps window.__mojCost, the game's logic, its rays and the render call's time a frame, each a running mean, and each
+// big mesh a ray has tested triangle by triangle (the grid's slow path, named); the frame loop times its step and its
+// render where a page has controllable bodies. What runs and what it draws are as they were.
+// Re-pinned 2026-11-19 (1117-cinematic-action-game: the world's rays made cheap): the seventeen fixtures whose page
+// embeds the controllable runtime. Every ray through the world (the ground probe, the camera's pull-in and its clear line,
+// a gun's sightline) now tests the scene's children but the bodies (`__rayRoots`), whose hits each ray threw away after
+// testing their every triangle (a skinned body's each corner posed by its bones first); and the ground grid indexes again
+// whenever the scene's top changes and every 120 probes, so a mesh built after the first probe (a gen-7 land's) takes the
+// grid. What each ray finds is as it was; emission changes by those lines alone.
+// Re-pinned 2026-11-18 a third time (1117-cinematic-action-game: the minimap translucent): `brawl`, `holo` and `mission`,
+// the three fixtures whose page inlines the game UI's styles. A scope's face is now a third of the panel's colour at its
+// middle (it was seven tenths) and the map under it at 0.55 (0.8): the world is seen through it. Emission changes by
+// that stylesheet alone; every other fixture holds.
+// Re-pinned 2026-11-18 again (1117-cinematic-action-game: the radar's map topographical): `mission` only, the one fixture
+// that inlines the radar's plan (gameworld/radar.js planSvg), which takes `relief` (the land's contours) and `trail` (the
+// way walked) where a level's `radar.map` is 'topo'. The fixture asks for neither, so its map draws as it did.
+// Re-pinned 2026-11-18 (1117-cinematic-action-game: the map under the radar): `brawl`, `holo` and `mission`, the three
+// fixtures whose page inlines the game UI kernel and its styles. The kernel's minimap takes an optional `plan` (a picture
+// of the place laid under it, its point at the middle, turned about it), and `mission` also inlines the radar's plan,
+// which now draws a land's things by their own heights and its tall grass where asked. No fixture's minimap carries a
+// plan and no plan asks either, so each draws as it did; only the inlined text moved. Every other fixture holds.
+// Re-pinned 2026-11-17 a fifth time (1117-cinematic-action-game: tall grass as cover): the seventeen fixtures whose page
+// inlines the controllable runtime. The engine's step hands a world's `veils` to its minds (core.js, one spread in the
+// world record: none, none handed), and a mind's sight asks them (mind.js perceive: a line lost in tall grass,
+// worlds/controllable/veil.js, the opt-in module that answers). No fixture's world carries veils, so every sight is the
+// colliders' as it was; only the runtime's text moved. Every fixture with no controllable runtime holds byte for byte.
+// Re-pinned 2026-11-17 a fourth time (1117-cinematic-action-game: a watcher's sight on the radar): `brawl`, `holo` and
+// `mission`, the three fixtures whose page inlines the game UI kernel and its styles. The kernel's map draws a marker's
+// `fan` as a wedge under it (what a watcher sees, gameworld/radar.js), and `mission` also inlines the radar's marks,
+// which now carry that fan for a watcher whose rule shows its sight. No fixture's marker carries one, so each map
+// draws as it did; only the inlined text moved. Every other fixture holds byte for byte.
+// Re-pinned 2026-11-17 a third time (1117-cinematic-action-game: a cued shot keeps its caller's clock): `shoot-live`
+// only, the one fixture whose plan carries a cue. The shoot channel's cue block gains `cueAt` (a cued shot's seconds
+// said by who fired it: a ride's own clock, so its camera and its deck stay together when the world is slowed). Nobody
+// calls it in the fixture, so its cue runs on the page's clock from the moment it fires, as it did; only the block's
+// text moved. Every fixture without a cue holds byte for byte.
+// Re-pinned 2026-11-17 again (1116-rc merged into 1117-cinematic-action-game): the fixtures whose page inlines text
+// either side had moved since (the candidate: the camera's moves and shake, the sea, the street; this side: the mission
+// and damage-ring channels, the aim held's chase). The merged text is neither side's pin; no behaviour is claimed changed.
+// Re-pinned 2026-11-17 (1117-cinematic-action-game-ui merged into 1117-cinematic-action-game): the fixtures whose page
+// inlines the controllable runtime or the game UI kernel, and the two fixtures the UI branch added (`mission`,
+// `damage-ring`), written here for the first time. Each side had moved the runtime's and the page's text (this side:
+// the chase's pull-in on an aim-held page, the lying body's whole-body turn; that side: the ladder's hold, a mind's
+// ledges and flight, the HUD), so the merged text is neither side's pin. No fixture's behaviour is claimed changed.
 // Pinned 2026-11-15 (1115-shooting-rails: a mission's briefing, HUD, pause and debrief on mana-ui): the new `mission`
 // fixture only (the mission channel's block: mana-ui, the controls host and the mission's runtime in a scope of their
 // own). Every other fixture carries no `mission` and keeps its bytes: the channel adds nothing where it is absent.

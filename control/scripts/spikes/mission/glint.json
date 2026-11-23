@@ -1,0 +1,25 @@
+{
+ "cast": "male",
+ "form": "realistic",
+ "physique": { "from": "skinny", "bulk": 0.15, "weight": -0.4, "tone": 0.3, "height": 0.8 },
+ "hair": "swept",
+ "headgear": "shooterWrap",
+ "outfit": {
+  "type": "outfit",
+  "style": "operative",
+  "language": {
+   "top": { "family": "woven", "sleeve": "long", "hem": "hip", "fit": "fitted", "collar": true },
+   "bottom": { "family": "woven", "leg": "long", "cut": "straight", "into": "boots" },
+   "outer": { "family": "woven", "sleeve": "long", "hem": "midi", "open": true, "fit": "eased", "collar": true },
+   "feet": "boots",
+   "tuck": true
+  },
+  "pieces": [{ "kind": "vest", "cut": "slick" }, { "kind": "thighPouch" }]
+ },
+ "palette": {
+  "Outer": "#6b6250", "Top": "#b9a27a", "Bottom": "#5e5444", "OutfitSecond": "#7a6a4c", "OutfitTrim": "#3a2f24",
+  "Leather": "#3a2f24", "Buckle": "#7a7a74", "Shoes": "#2a231c", "Hair": "#8a6a44", "HairHighlight": "#a8875c",
+  "Helmet": "#d8cfbd", "HelmetVisor": "#c9d6de", "HelmetTrim": "#1a1a1a"
+ },
+ "face": { "seed": 7310, "ethnicity": "western", "age": 41, "want": { "chin": "strong", "nose": "fine", "eyes": "almond" } }
+}

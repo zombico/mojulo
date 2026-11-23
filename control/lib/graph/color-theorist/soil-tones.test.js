@@ -30,4 +30,17 @@ describe('soilTones', () => {
     const { powder } = soilTones('#9a7a58');
     expect(hueGap(lch(powder)[2], lch('#9a7a58')[2])).toBeLessThan(2);
   });
+
+  it('match brings the clay to the powder: its hue, fullness and light the powder\'s, a worn shade darker; none, as it was', () => {
+    const floor = '#8f8f7a', light = '#ffe0c0', T0 = soilTones(floor, light), P = lch(T0.powder), Q0 = lch(T0.clay);
+    expect(soilTones(floor, light, { match: 0 })).toEqual(T0);
+    const Q1 = lch(soilTones(floor, light, { match: 1 }).clay), Qh = lch(soilTones(floor, light, { match: 0.5 }).clay);
+    expect(hueGap(Q1[2], P[2])).toBeLessThan(2);
+    expect(Math.abs(Q1[1] - P[1])).toBeLessThan(0.01);
+    expect(Q1[0]).toBeLessThan(P[0]);
+    expect(P[0] - Q1[0]).toBeLessThan(0.05);
+    expect(Q1[0]).toBeGreaterThan(Q0[0]);
+    expect(hueGap(Qh[2], P[2])).toBeLessThan(hueGap(Q0[2], P[2]));
+    expect(soilTones(floor, light, { match: 1 }).powder).toBe(T0.powder);
+  });
 });

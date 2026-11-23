@@ -90,8 +90,17 @@ function roofOf(placements) {
   return { id: top.id, at: [0, r3((top.bounds.min[1] + top.bounds.max[1]) / 2), r3(top.bounds.max[2])] };
 }
 
-/** A frame of the mecha shelf as the range's base: its figure rigged on its mounts, its turret and its rounds. */
+/** A frame of the mecha shelf as the range's base: its figure rigged on its mounts, its turret and its rounds. (A few kept
+ * by their words: a machine to ride reads its numbers and then its figure, gameworld/ride-machine.js.) */
+const BASES = new Map();
 export function frameBase(base, { mounts = FRAME_MOUNTS } = {}) {
+  const key = mounts === FRAME_MOUNTS ? JSON.stringify(base) : null;
+  if (key && BASES.has(key)) return BASES.get(key);
+  const out = frameBaseOf(base, mounts);
+  if (key) { if (BASES.size > 4) BASES.clear(); BASES.set(key, out); }
+  return out;
+}
+function frameBaseOf(base, mounts) {
   const errs = validateFrame(base);
   if (errs.length) throw new Error(`artillery range: ${errs.join('; ')}`);
   const { id, archetype } = frameOf(base.frame), row = MECHA_ARCHETYPES[archetype];

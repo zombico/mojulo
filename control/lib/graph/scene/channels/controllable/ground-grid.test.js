@@ -76,3 +76,43 @@ describe('the ground by grid', () => {
     expect(() => new Function('THREE', 'scene', `${src}\nreturn __gridRaycast;`)({ Mesh: { prototype: { raycast() {} } }, Matrix4: function () {} }, {})).not.toThrow();
   });
 });
+
+// THE GRID FOR EVERY BIG MESH: one placed by a transform (moved, turned, scaled, even mirrored) and one of several
+// materials take the grid, the ray carried into the mesh's own frame and each face its own group's side; what a ray finds
+// is what three's own raycast finds.
+describe('the grid for every big mesh', () => {
+  it('a placed, a mirrored and a two-material mesh: the grid finds what three finds, down rays and slanting ones', async () => {
+    const path = await import('node:path'), { pathToFileURL } = await import('node:url');
+    const THREE = await import(pathToFileURL(path.join(process.cwd(), 'public/vendor/three/three.module.min.js')).href);
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
+    const lumpy = () => { const g = new THREE.PlaneGeometry(20, 20, 50, 50), p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 0.7) * Math.cos(p.getY(i) * 0.5)); g.computeVertexNormals(); return g; };
+    const placed = new THREE.Mesh(lumpy(), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+    placed.position.set(5, -3, 2); placed.rotation.set(0.3, -0.2, 0.9); placed.scale.set(1.2, 0.8, 1.5);
+    const mirrored = new THREE.Mesh(lumpy(), new THREE.MeshBasicMaterial());
+    mirrored.position.set(-20, 0, 1); mirrored.scale.set(-1, 1, 1);
+    const g2 = lumpy(); g2.clearGroups(); const half = g2.index.count / 2; g2.addGroup(0, half, 0); g2.addGroup(half, g2.index.count - half, 1);
+    const two = new THREE.Mesh(g2, [new THREE.MeshBasicMaterial({ side: THREE.FrontSide }), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })]);
+    two.position.set(0, 25, 0);
+    scene.add(placed, mirrored, two); scene.updateMatrixWorld(true);
+    const page = new Function('THREE', 'scene', `${groundGridScript()}\n__gridMeshes();\nreturn __gridRaycast;`)(THREE, scene);
+    expect([placed, mirrored, two].every((m) => m.raycast === page)).toBe(true);
+    const R = new THREE.Raycaster();
+    let rnd = 7; const r = () => { rnd = (rnd * 16807) % 2147483647; return rnd / 2147483647; };
+    let met = 0;
+    for (const m of [placed, mirrored, two]) {
+      const c = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld);
+      for (let k = 0; k < 60; k++) {
+        const o = new THREE.Vector3(c.x + (r() - 0.5) * 16, c.y + (r() - 0.5) * 16, c.z + 8);
+        const d = k % 3 === 0 ? new THREE.Vector3(0, 0, -1) : new THREE.Vector3(r() - 0.5, r() - 0.5, -1 - r()).normalize();
+        if (k % 5 === 4) { o.z = c.z - 8; d.z = -d.z; }                       // (from below: a face's back)
+        R.set(o, d); R.camera = camera;
+        const grid = []; page.call(m, R, grid); grid.sort((a, b) => a.distance - b.distance);
+        const own = []; THREE.Mesh.prototype.raycast.call(m, R, own); own.sort((a, b) => a.distance - b.distance);
+        expect(grid.length, `${k}`).toBe(own.length);
+        for (let i = 0; i < own.length; i++) { expect(grid[i].distance).toBeCloseTo(own[i].distance, 4); expect(grid[i].point.distanceTo(own[i].point)).toBeLessThan(1e-3); }
+        met += own.length;
+      }
+    }
+    expect(met).toBeGreaterThan(60);
+  });
+});

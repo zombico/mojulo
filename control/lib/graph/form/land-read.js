@@ -18,7 +18,8 @@
  *     the map alone, the page grows its brush); sward: how long it is (the biocube's `flora.grass.sward`: 'tall',
  *     'short' or { short?, medium? }), in the map's fourth channel (0 tall, a half medium, 1 short); drifts: wheat, chaff, any grass kind and the flowers in
  *     areas of their own (form/grass-drifts.js readDrifts: [{ id, share, mix? }]), a channel each of a second map; relief:
- *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`; moss:
+ *     the rock's relief (form/rock-relief.js: a preset id or a document; false for none), drawn with `reliefSeed`;
+ *     stones: the share of the scree's stones stood up (1, all; a lean ground fewer); moss:
  *     how much moss the rock wears, 0–1 (the biocube's `flora.moss`), none by default.
  *     Each vertex's face and corner (`faceOf`, `cornerOf`) so a caller can lay its own per-vertex readings beside. Null
  *     for a payload with no land.
@@ -37,10 +38,11 @@ import { dressedMaterial, screeDice } from '../matte-paint/dressed.js';
 import { encodePng } from '../landscape/surface-textures.js';
 import { landLayers, LAYER_OF, PATH_REACH } from './land-layers.js';
 import { strHash } from '../city/plan/dice.js';
-import { landStones, stoneForms, SHAPES } from './land-stones.js';
+import { landStones, stoneForms, SHAPES, STONE_DENSITY } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
 import { readRelief, reliefMap } from './rock-relief.js';
 import { DRIFT_CELL, DRIFT_SEAM, driftForms, weedForms } from './grass-drifts.js';
+import { patchCover, standOf, fieldOf } from './tall-grass.js';
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 /** The sward's short areas: the field's cell (metres) and the seam a short area eases into a tall one over (a share of
@@ -82,6 +84,10 @@ export const GRASS_CARDS = 'isekai:grass';
 export const RELIEF_DEFAULT = 'ledged';
 /** A trail's dress when none is written: rubble half, a little dust, some clay, the three patch kinds. */
 export const DRESS_DEFAULT = Object.freeze({ surface: 'earth', rubble: 0.5, dust: 0.3, clay: 0.45, patches: Object.freeze(['worn', 'damp', 'gravel']) });
+/** A trail whose rubble is the shader's (`path.rubble: 'parallax'`, era/trail-dress.js): no stone stood up on or beside it;
+ *  its pebbles marched in the ground's parallax in clusters over `share` of it and its verge, the verge's scree texture at
+ *  `verge` (a dress's rubble), the half default's half. */
+export const ROAD_PEBBLES = Object.freeze({ share: 0.35, verge: 0.25 });
 
 /** The layer atlas's cells in order (`LAYERS` in landRead): the four the corners weigh (`spl`: rock, scree, soil, sand), the
  *  trail's two dirts and the undergrowth; an engine's terrain shader reads the atlas by them. */
@@ -116,7 +122,7 @@ function layerAtlas(LAYERS, surface) {
   return R;
 }
 
-export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null, snow = null, lawn = null } = {}) {
+export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass = false, relief = RELIEF_DEFAULT, reliefSeed = 3, moss = 0, sward = 'tall', drifts = [], grown = null, snow = null, lawn = null, tallGrass = null, stones = 1 } = {}) {
   // (no land to read: a payload with no faces of the land's groups)
   if (!P0.faces.some((f) => /^isekai:(sand|ground|soil|scree|cliff|rock|water)$/.test(f.group))) return null;
   // (the cards a land stands up, the grass's blades and the sky's clouds, are drawn by their cut-out textures: not read here
@@ -161,11 +167,12 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // (the layers' textures are the cuts', the same for every cube: painted once per dress surface and kept)
   const { A, means, png, dicePng } = layerAtlas(LAYERS, dress.surface);
   // the path's mask as the page reads it: the weight a byte, the trail's height two (over the trail's own span)
-  // (the mask's distance SIGNED: inside the trail negative, to SD_IN deep, so its edge can feather both ways)
+  // (the mask's distance SIGNED: inside the trail negative, to SD_IN deep, so its edge can feather both ways; deeper is
+  // held at SD_IN, where it once ran under the byte and wrapped to the far verge: a wide trail's middle read as off it)
   const SD_IN = 1.5, PM = LY.path, pathTex = PM && (() => {
     let zlo = Infinity, zhi = -Infinity; for (let k = 0; k < PM.z.length; k++) if (PM.weight[k] > 0) { zlo = Math.min(zlo, PM.z[k]); zhi = Math.max(zhi, PM.z[k]); }
     const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(PM.weight.length * 4);
-    for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = Math.round(((PM.dist[k] - PM.inside[k] + SD_IN) / (SD_IN + PATH_REACH)) * 255); px[k * 4 + 2] = q >> 8; px[k * 4 + 3] = q & 255; }
+    for (let k = 0; k < PM.weight.length; k++) { const q = Math.round(((PM.z[k] - zlo) / span) * 65535); px[k * 4] = Math.round(PM.weight[k] * 255); px[k * 4 + 1] = Math.round(((PM.dist[k] - Math.min(SD_IN, PM.inside[k]) + SD_IN) / (SD_IN + PATH_REACH)) * 255); px[k * 4 + 2] = q >> 8; px[k * 4 + 3] = q & 255; }
     return { origin: PM.origin, size: PM.size, metres: PM.size.map((n) => n * PM.cell), cell: PM.cell, z: [zlo, span], px: b64(px) };
   })();
   // (the cover's dirt, under the undergrowth on a green land, the theorist's humus; the bare island's soil its own floor)
@@ -238,11 +245,12 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // the finer ones stay the layer's (its normal map, its parallax near)
   // the DIRT'S TWO TONES (color-theorist/ground.js soilTones): the floor's powder and clay as targets, their bases the floor's
   // solved base moved by each target's share of the floor's (so the light that shows the floor shows them)
-  const tones = soilTones(C.colour.floor, light.sun.color), floorLin = lin(hexRgb(C.colour.floor));
+  // (a trail whose dress brings its dirts together, `match`: the clay nearer the powder)
+  const tones = soilTones(C.colour.floor, light.sun.color, dress.match ? { match: dress.match } : undefined), floorLin = lin(hexRgb(C.colour.floor));
   const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
   // (the ground the trail's things claim, era/isekai.js ALLOT: its plants' `clear`, [x, y, r] each; no stone and no grass there)
   const CLAIMS = P0.plants?.clear?.length ? P0.plants.clear : null;
-  const STONES = landStones(P.faces, LY, { seed: 3, rubble: dress.rubble, ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
+  const STONES = landStones(P.faces, LY, { seed: 3, ...(stones !== 1 ? { density: STONE_DENSITY * stones } : {}), rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
   const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
   // THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
   // off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways
@@ -273,6 +281,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const lat = (x, y, cell, tag) => { const u = x / cell, v = y / cell, i = Math.floor(u), j = Math.floor(v), e = (t) => t * t * (3 - 2 * t), a = e(u - i), b = e(v - j), h = (p, q) => hashOf(`3|${tag}|${p},${q}`) / 4294967296;
       return (h(i, j) * (1 - a) + h(i + 1, j) * a) * (1 - b) + (h(i, j + 1) * (1 - a) + h(i + 1, j + 1) * a) * b; };
     const ease = (t) => t * t * (3 - 2 * t), bareFrom = LW ? LW.bare : 0.27;
+    // (the green ground before the field thins it: where a patch of tall grass may stand, form/tall-grass.js)
+    const green0 = tallGrass ? Float32Array.from(cov) : null;
     for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) { const x = x0 + ii * GCELL, y = y0 + j * GCELL, n = 0.65 * lat(x, y, 7, 'grass-at') + 0.35 * lat(x, y, 2.5, 'grass-at2'); cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (n - bareFrom) / 0.2))); }
     // (none where snow lies, whatever its depth: a winter's ground is the snow's, the grass under it; a snow line's land
     // keeps its grass below the line; era/snow.js snowMap)
@@ -295,6 +305,25 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
       const j0 = Math.max(0, Math.floor((cy - R - y0) / GCELL)), j1 = Math.min(ny - 1, Math.ceil((cy + R - y0) / GCELL));
       for (let j = j0; j <= j1; j++) for (let ii = i0; ii <= i1; ii++) cov[j * nx + ii] *= ease(Math.min(1, Math.max(0, (Math.hypot(x0 + ii * GCELL - cx, y0 + j * GCELL - cy) - r) / GRASS_OFF)));
     }
+    // (TALL GRASS, form/tall-grass.js: a stealth land's grass its patches', whole there on green ground, the trail's and
+    // the claims' masks not read inside them, so what is drawn is what hides; elsewhere none, or the land's own)
+    if (tallGrass) for (let j = 0; j < ny; j++) for (let ii = 0; ii < nx; ii++) {
+      const q = j * nx + ii, pc = green0[q] * patchCover(x0 + ii * GCELL, y0 + j * GCELL, tallGrass.patches);
+      cov[q] = tallGrass.elsewhere === 'grass' || tallGrass.elsewhere === 'paint' || tallGrass.elsewhere === 'meadow' ? Math.max(cov[q], pc) : pc;
+    }
+    // (and how each patch stands: the share of its ground that is level and green, where its grass grows, and that ground's
+    // mean height, its foot; world-scene.js lays its veil there, or none where too little grows)
+    const patchRead = tallGrass ? tallGrass.patches.map((p) => {
+      let n = 0, g = 0, z = 0;
+      const i0 = Math.max(0, Math.floor((p.at[0] - p.r - x0) / GCELL)), i1 = Math.min(nx - 1, Math.ceil((p.at[0] + p.r - x0) / GCELL));
+      const j0 = Math.max(0, Math.floor((p.at[1] - p.r - y0) / GCELL)), j1 = Math.min(ny - 1, Math.ceil((p.at[1] + p.r - y0) / GCELL));
+      for (let j = j0; j <= j1; j++) for (let ii = i0; ii <= i1; ii++) {
+        if (Math.hypot(x0 + ii * GCELL - p.at[0], y0 + j * GCELL - p.at[1]) > p.r) continue;
+        const q = j * nx + ii; n++;
+        if (green0[q] > 0.5 && top[q] > -Infinity) { g++; z += top[q]; }
+      }
+      return { at: p.at, r: p.r, h: p.h, share: n ? Math.round((g / n) * 100) / 100 : 0, z: g ? Math.round((z / g) * 1000) / 1000 : null };
+    }) : null;
     let zlo = Infinity, zhi = -Infinity; for (const z of top) if (z > -Infinity) { zlo = Math.min(zlo, z); zhi = Math.max(zhi, z); }
     const span = Math.max(1e-6, zhi - zlo), px = new Uint8Array(nx * ny * 4);
     // (the sward: how long the grass is, a mood's choice: tall everywhere, short everywhere, or a share of the grass laid as
@@ -311,7 +340,10 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const rankIn = (R, f) => { let lo = 0, hi = R.length; while (lo < hi) { const m = (lo + hi) >> 1; if (R[m] < f) lo = m + 1; else hi = m; } return lo / Math.max(1, R.length); };
     const areaAt = (share, R, f) => (x, y) => (share >= 1 ? 1 : share <= 0 || !R?.length ? 0 : ease(Math.min(1, Math.max(0, (share - rankIn(R, f(x, y))) / SWARD_SEAM + 0.5))));
     const shortAt = areaAt(shortShare, ranked(shortShare, swardF), swardF), mediumAt = areaAt(mediumShare, ranked(mediumShare, mediumF), mediumF);
-    const lengthAt = (x, y) => Math.max(shortAt(x, y), 0.5 * mediumAt(x, y));
+    // (a stealth land's TALL GRASS, form/tall-grass.js: its patches the tall sward, the page's stand; the land's own grass
+    // round them, where it has any, short, never the stand: grass that hides nothing is never drawn as grass that does)
+    // (a MEADOW round the patches, `elsewhere: 'meadow'`: the land's own lengths there, short and medium, never tall)
+    const lengthAt = tallGrass ? (tallGrass.elsewhere === 'meadow' ? (x, y) => (patchCover(x, y, tallGrass.patches) > 0.35 ? 0 : Math.max(0.5, shortAt(x, y), 0.5 * mediumAt(x, y))) : (x, y) => (patchCover(x, y, tallGrass.patches) > 0.35 ? 0 : 1)) : (x, y) => Math.max(shortAt(x, y), 0.5 * mediumAt(x, y));
     for (let q = 0; q < nx * ny; q++) { const zq = top[q] === -Infinity ? 0 : Math.round(((top[q] - zlo) / span) * 65535); px[q * 4] = zq >> 8; px[q * 4 + 1] = zq & 255; px[q * 4 + 2] = Math.round(cov[q] * 255); px[q * 4 + 3] = Math.round(lengthAt(...cellXY(q)) * 255); }
     // (the drifts: each its own field at a finer cell, ranked to its share over the grass's cells no drift named before it
     // has taken, a channel each; so each holds its share of the land's grass, and no two share a cell)
@@ -328,7 +360,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const at = (x, y) => { const ii = Math.round((x - x0) / GCELL), j = Math.round((y - y0) / GCELL); if (ii < 0 || j < 0 || ii >= nx || j >= ny) return null; const q = j * nx + ii; return top[q] === -Infinity ? null : { z: top[q], c: cov[q] }; };
     // (no grass anywhere, a land wholly under snow: no grass on the page at all)
     if (!cov.some((v) => v > 1e-3)) return null;
-    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}) };
+    return { origin: [x0, y0], cell: GCELL, size: [nx, ny], z: [zlo, span], px: b64(px), at, ...(dpx ? { drift: b64(dpx) } : {}), ...(tallGrass ? { stand: standOf(tallGrass.patches), patches: patchRead, ...(tallGrass.elsewhere === 'grass' ? { field: fieldOf() } : tallGrass.elsewhere === 'paint' ? { field: { paint: true } } : {}) } : {}) };
   })() : null;
   // the far: fins along the ground in rows three ways (60° apart, ROW apart, SEG long), each row's line wandering so the
   // rows weave rather than rule, each fin from the ground up a height that wanders (its bristles drawn on the page), only
@@ -378,7 +410,7 @@ export function formPayload(R) {
     ranges, pos: b64(Float32Array.from(pos)), c7: b64(Uint8Array.from(c7)), spl: b64(Uint8Array.from(spl)), nrm: b64(Int8Array.from(nrm)),
     wet: { z: L.waterZ, band: WET_BAND, tone: WET_TONE, rough: WET_ROUGH },
     light: { sun: light.sun.linear, ambient: light.ambient.linear, sea: { base: bases.water } },
-    dress: { surface: dress.surface, clay: dress.clay, rubble: dress.rubble, dust: dress.dust, patches: ['worn', 'damp', 'gravel'].map((k) => (dress.patches.includes(k) ? 1 : 0)), reach: PATH_REACH, sdIn: SD_IN },
+    dress: { surface: dress.surface, clay: dress.clay, rubble: dress.rubble, dust: dress.dust, patches: ['worn', 'damp', 'gravel'].map((k) => (dress.patches.includes(k) ? 1 : 0)), reach: PATH_REACH, sdIn: SD_IN, ...(dress.pebbles ? { pebbles: dress.pebbles } : {}) },
     // (the stones' shapes as the rock studies break a rock, form/land-stones.js stoneForms: chipped near, the block far)
     stones: { n: STONES.length, shapes: SHAPES, base: stoneBase, px: b64(new Uint8Array(stonePack.buffer)),
       forms: Object.fromEntries(Object.entries(stoneForms()).map(([k, L]) => [k, L.map((f) => ({ pos: b64(new Uint8Array(f.pos.buffer)), nrm: b64(Int8Array.from(f.nrm, (x) => Math.round(x * 127))) }))])) },
@@ -389,7 +421,9 @@ export function formPayload(R) {
     // (the grass's ground map: its height and where grass grows, at GCELL; channels/form-grass.js draws the grass from it)
     grass: grassMap && { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass,
       // (the drifts: their map, a channel each, and their plants)
-      ...(driftKinds ? { drifts: { px: grassMap.drift, kinds: driftKinds } } : {}), ...(weedKinds ? { weeds: weedKinds } : {}) },
+      ...(driftKinds ? { drifts: { px: grassMap.drift, kinds: driftKinds } } : {}), ...(weedKinds ? { weeds: weedKinds } : {}),
+      // (a stealth land's tall grass, form/tall-grass.js: its clump, drawn at every distance)
+      ...(grassMap.stand ? { stand: grassMap.stand } : {}), ...(grassMap.field ? { field: grassMap.field } : {}) },
     // (the relief's heights in 16 bits over its range, row by row up the face)
     relief: relief && { tile: relief.tile, size: relief.size, lo: r4(relief.lo), hi: r4(relief.hi), px: b64(new Uint8Array(Uint16Array.from(relief.h, (v) => Math.round(((v - relief.lo) / Math.max(1e-6, relief.hi - relief.lo)) * 65535)).buffer)) },
   };

@@ -91,6 +91,35 @@ hung cloth sway in it; a physical level's blocks, dust, smoke and leaves feel th
   `anchor` names another, in a `style` (its own, else `buildings.style`). A town walks on a trail.
 - **Flora** (`biocube`): what grows on its land, its trees composed as silhouettes in the cube's colours
   (`get_sketch_vocab({ id: 'biocube' })`).
+- **Tall grass** (a geocube recipe's `tallGrass: { patches: [{ at: [x, y], r?, h? }], elsewhere?: 'none' | 'grass' | 'paint' | 'meadow' }`, the
+  gen-7 form render): a stealth game's cover. Grass only in the patches (tight clumps, 1.2 m by default), drawn at every
+  distance, none elsewhere, so the land keeps its look at a fraction of the meadow's cost. Each patch is a veil the
+  runtime's guards read: a body crouched or lying a stride into it, or low behind it, is unseen; standing, its head is
+  over it; a guard within 2 m sees it, a lookout up a tower sees a crouch but not a body lying flat. Lay a patch on level
+  green ground: on a bank little grows, and a patch where under half grows hides nothing.
+  `elsewhere: 'paint'` keeps the land's own grass as its colour on the ground from the eye out (no blade built): the
+  field reads as grass and only the patches stand. `'meadow'` keeps the land's own grass as a meadow has it, real blades
+  in its short and medium areas, never tall: the tall sward is the patches' alone. A stealth level's tall grass is cover
+  first: lay it where it hides.
+- **A lean ground** (a geocube page's `parallax: false`, gen-7): its cliffs plain faces (no relief cut into them) and a
+  third of its scree's stones stood up; none of the ground's height marched near the eye (the
+  scree's stones, the rock's, the undergrowth's, the procedural pebbles and cracks), each layer its maps alone, the
+  pebbles and cracks on the trail only. The ground is most of a gen-7 frame's cost on a laptop's GPU (over half of it on
+  a stealth level); a level played at a window's full size asks for it. With it, `density` (0.75 to 2; 1.5 unless said) caps the page's
+  pixel density: at 1 a full window on a high-DPI laptop shades fewer pixels than a boxed page at 1.5.
+- **A lean ground that keeps its rock** (`parallax: 'cliffs'`): the ground as lean as `false`, but its rock as rock: the
+  fractured plates over it (the blocks a wall reads by), its own march near the eye, and its cliffs' relief at a coarser
+  cut. A gorge or a canyon level asks for it: lean, its walls read as plaster.
+- **One body's live shadow** (a page's `shadows: { actors: 'pilot', hour?, feet?, … }`): the body the player pilots casts
+  into the live light each frame; every other body keeps a soft pool at its feet.
+- **One far grass** (`farGrass: 'lift'`): past the view's reach the grass is the ground raised to its own height (taller
+  over tall cover), coloured calm, no speck; the near blades, the cover's included, end at the reach as it begins. One
+  impression of the far grass, not a painted field with blades standing out of it. `{ as: 'lift', blades?, raise? }`:
+  `blades` the share of the reach the blades are drawn whole to (0.42 to 0.9; further, less of the grass is seen thinning
+  in), `raise` the lift's height over the grass's mean (1 to 4, 1.5 unless said; higher, a raised platform far off).
+- **Far figures** (a level's `farFigures: { at?, budget? }`): each body no player pilots baked a second time coarse
+  (`budget` triangles, 4000 unless said; its face dropped) and drawn so past `at` metres from the eye (24), the same
+  bones and clips; with the `air` drawn in to swallow the far land, the far background costs little.
 - **Snow** (`snow`): the cube's land under snow, its trail's stage and the far ridges. `true`, a depth (`dusting`,
   `cover`, `deep`), or `{ line?, depth?, hold?, drift?, lee? }`: `line` metres over the land's lowest ground where it
   begins (snowcapped crags; absent, the whole land), `depth` a word or metres, `hold` how level ground must be to hold
@@ -151,7 +180,16 @@ A cube that names no domains offers one per terrain and one per interior.
   on the micro-town or micro-city builds it in that style, over the settlement's own; `path` dresses the trail its
   street lies on (as a stage's `trail` does): `surface` a ground word (earth, the dirt, by default; stone-road and
   gravel laid in the dirt; flags, setts, brick-paving, pavement, asphalt kept), and on a gritty cube's dirt `rubble` at
-  its edges and `patches` (worn, damp, gravel, crown, puddle), each `false` for none;
+  its edges and `patches` (worn, damp, gravel, crown, puddle), each `false` for none; `match` (0 to 1) brings the
+  dirt's core (its clay, turned toward red) to its edge's (the powder), so the two read as one ground, a shade darker in
+  the middle (gen-7); a scene's `trail` takes `width`, the walked way in metres (1.2 to 8; absent, the kit's footpath of
+  about two; four or more is a track a vehicle takes); `floods` (gen-7) up to four floodlights, each `{ at, aim, colour?,
+  power?, cone?, reach?, shadow? }` (where the lamp hangs and the point on the ground it shines at, metres; its light at ten
+  metres in the land's own units, a noon sun's about 1): real spots that light the land and the cast as the sun does,
+  falling with distance, their heads burning; the first two cast what stands in their beam. With `hour: 'night'` the
+  moon is the key and the floods the light a body is seen in; the cube's `light.night` says how that night looks:
+  `stylized` (unless said) its reference's deep blue, `realistic` the colour drained by the dark, a pale moon barely
+  cool, the shade and the sky near-neutral greys (a realistic game's night: the drama its value and its lamps);
   `show: 'hall'` its interior (its room, or an inside domain) walked as a HALL, rooms strung on a walk from the seed
   (era/in-hall.js: squeeze, reveal, landmark, pocket, rest; the kit's set piece in the landmark's room), `hall` its
   recipe (`run`, `heartbeat`, `beats`, `height`, `mouth`, `exit`), its laws on the answer;

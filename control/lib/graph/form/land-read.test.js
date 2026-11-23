@@ -81,6 +81,17 @@ describe('landRead', () => {
     expect(formPayload(R).grass.drifts.kinds.map((k) => k.id)).toEqual(['wheat', 'chaff']);
   }, 120_000);
 
+  it('a wide trail is inside itself all across: its depth held at the byte\'s floor, never wrapped to the far verge', () => {
+    // (a trail six metres wide is three deep at its middle, past the signed distance's SD_IN: held there, it reads as the
+    // trail's deepest; run under the byte, it wrapped to the far verge's value and the middle read as off the trail)
+    const R = landRead(assembleStageScene({ kind: 'stage', kit: 'isekai-meadow', trail: { width: 6, run: 12 } }, {}), C);
+    const T = formPayload(R).path, px = Buffer.from(T.px, 'base64'), floor = Math.round((R.SD_IN / (R.SD_IN + 3)) * 255);
+    let on = 0, deep = 0;
+    for (let q = 0; q < px.length; q += 4) if (px[q] === 255) { on++; expect(px[q + 1]).toBeLessThanOrEqual(floor + 1); if (px[q + 1] <= 1) deep++; }
+    expect(on).toBeGreaterThan(100);
+    expect(deep).toBeGreaterThan(0);            // (the middle reaches the floor: deeper than SD_IN, held)
+  });
+
   it('a town\'s lawn: its fields\' dice even (as varied along y as along x), its grass bare in fewer places', () => {
     // (the lattice's dice a step along each axis: the bare hash keeps its high bits along y, where the key's last
     // character moves; the even one is as varied both ways)

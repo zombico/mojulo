@@ -133,6 +133,36 @@ describe('a foe\'s own moves', () => {
   });
 });
 
+describe('a sentry\'s look and reach', () => {
+  const P = byMove('patrol');
+  it('with `look`, a patrol stands at each end and turns all the way round, one way, then walks back; without, it turns on the spot', () => {
+    const own = MOVES.patrol.own.patrol;
+    const st = world([pilot(FAR), foe('g', P, [0, 0, 0], 0, { foe: { ends: [[0, 0, 0], [3, 0, 0]], patrol: { ...own, look: { secs: 1 } } } })]);
+    let turned = 0, prev = 0, held = 0, back = false;
+    for (let i = 0; i < 300; i++) {
+      run(st, 1); const g = st.byId.g, h = g.transform.heading;
+      if (g.foeLook) { held++; turned += Math.atan2(Math.sin(h - prev), Math.cos(h - prev)); expect(Math.min(Math.abs(g.transform.pos[0]), Math.abs(g.transform.pos[0] - 3))).toBeLessThan(0.3); }   // (at an end, either)
+      else if (held && g.transform.pos[0] < 2.5) back = true;
+      prev = h;
+    }
+    expect(held).toBeGreaterThan(0.8 / DT);
+    expect(Math.abs(turned)).toBeGreaterThan(2.6 * Math.PI);                 // (all the way round and on, ~540° an end)
+    expect(back).toBe(true);
+    // (without it: never stands to look)
+    const plain = world([pilot(FAR), foe('g', P, [0, 0, 0], 0, { foe: { ends: [[0, 0, 0], [3, 0, 0]] } })]);
+    for (let i = 0; i < 300; i++) { run(plain, 1); expect(plain.byId.g.foeLook).toBeFalsy(); }
+  });
+  it('with `near`, a body at its side within reach is seen, one square behind it is not, while it walks', () => {
+    const narrow = { rule: { sightCone: 0.4, near: { r: 3, back: 100 } }, foe: { ends: [[0, 0, 0], [20, 0, 0]] } };
+    const side = world([pilot([1, 2, 0]), foe('g', P, [0, 0, 0], 0, narrow)]); run(side, 2);
+    expect(side.byId.g.lastSeen?.id).toBe('p');
+    const behind = world([pilot([-2, 0, 0]), foe('g', P, [0, 0, 0], 0, narrow)]); run(behind, 2);
+    expect(behind.byId.g.lastSeen).toBeFalsy();
+    const without = world([pilot([1, 2, 0]), foe('g', P, [0, 0, 0], 0, { ...narrow, rule: { sightCone: 0.4 } })]); run(without, 2);
+    expect(without.byId.g.lastSeen).toBeFalsy();
+  });
+});
+
 describe('body to body', () => {
   const TOUCH = classBy('that hurts by touch', (c) => ATTACKS[c.attack.kind].verb === 'contact' && !ATTACKS[c.attack.kind].during && c.stomp === 'blow');
   const still = { foe: { move: 'hold' } };

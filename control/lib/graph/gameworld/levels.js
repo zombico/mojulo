@@ -25,6 +25,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { facilityBuilding } from '../era/facilities.js';
 import { raceHud, RACE_DIAL } from './race-hud.js';
 import { levelHud } from '../game/hud-mana.js';
 import { interfaceLook } from '../playscape/ui/interface-look.js';
@@ -1252,7 +1253,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
   let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
-  // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js)
+  // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js), and
   // a mission's is its own channel's (mission-mana.js)
   // (a level with a HUD grammar, hud-grammar.js, has its HUD: its hearts, its compass and its actions stand in for the
   // rows, so they are not drawn a second time)
@@ -1273,7 +1274,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // (a level that carries the style meter, style-meter.js, shows it there, whether or not the world writes a `ui`)
   if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !MX && !manifest.events?.grammar) {
     const U = G.ui && typeof G.ui === 'object' ? G.ui : {};
-    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}) } };
+    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}) } };
   }
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
@@ -2183,19 +2184,23 @@ export function gameLinks(stages, refs) {
 const roomKitFor = (anchor) => (anchor === 'shell' ? 'research-lab' : 'gothic-stone');
 
 /** A building level's stage recipe: its program in its civilization's language, dressed by its kit or cube. */
-export function buildingStage(B) {
+export function buildingStage(B0) {
+  // (a facility, era/facilities.js: its use, plan dials, rooms' layouts and look, the recipe's own over them)
+  const B = B0.facility !== undefined ? facilityBuilding(B0.facility, B0) : B0;
   const { use, seed, rooms, add, kit, geocube, goal, from, anchor, look, tone } = B;
   // (a military base's building is composed, so its rooms are stocked by their uses (era/stocking.js): by the look of the
   // walled-core dungeon's space it is, else by its kit's own register; its space's tone colours it)
   const composed = look || PROGRAMS[use]?.base ? { compose: look ? { construction: look.construction, palette: look.palette } : {} } : {};
   // (a building's use names its bay kit, whatever the world's language, and takes its plan's settings: era/programs.js)
-  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale', 'fight'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const plan = Object.fromEntries(['storeys', 'wings', 'loading', 'bays', 'scale', 'fight', 'layouts', 'vents', 'windows'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   return {
     kind: 'stage',
     ...(geocube !== undefined ? { geocube } : { kit: kit ?? PROGRAMS[use]?.kit ?? roomKitFor(anchor) }),
     program: { use, seed, ...(rooms ? { rooms } : {}), ...(add ? { add } : {}), ...(anchor !== undefined ? { civilization: anchor } : {}), ...plan },
     level: { ...(goal !== undefined ? { goal } : {}), ...(from !== undefined ? { from } : {}) },
     ...composed, ...(tone !== undefined ? { tone } : {}),
+    // (its highest floor stood taller, era/stage.js withCeilings: a played building's top storey clear of the follow camera)
+    ...(B.headroom !== undefined ? { headroom: B.headroom } : {}),
     // (its rooms' light designed, `plot`: era/stage.js)
     ...(B.plot !== undefined ? { plot: B.plot } : {}),
   };

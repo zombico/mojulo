@@ -220,7 +220,7 @@ function __syncHud(t, incoming) {
 // frame seeds dt 0 (frame zero → no events), so a frozen still / ?t render is the initial condition.
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
-export function eventsChannelScript(events0, { fxDay = null, rollItems = false, questMana = null, manaShared = null } = {}) {
+export function eventsChannelScript(events0, { fxDay = null, rollItems = false, facts: factsAsked = false, questMana = null, manaShared = null } = {}) {
   // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them;
   // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
   const fxs = events0 && events0.fxStyle;
@@ -231,7 +231,8 @@ export function eventsChannelScript(events0, { fxDay = null, rollItems = false, 
   const { widgets } = normalizeHud(events.hud, { register: events.register });   // the title rows dressed by the play direction's register
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
-  const facts = cast || listensForHits(events);   // the characters' happenings are read (a hit counts there too)
+  // the characters' happenings are read (a hit counts there too; and a page whose audio hears them asks, `facts`)
+  const facts = cast || listensForHits(events) || factsAsked;
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';

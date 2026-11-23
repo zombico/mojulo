@@ -45,6 +45,13 @@ describe('gunplay', () => {
     expect(P.gp.aim).toBe(0);
   });
 
+  it('a held trigger opens less aimed: the bloom of an aimed spray is the sights\' share of the hip\'s, and its most too', () => {
+    const spray = (aim) => { const w = world(['rifle']), P = w.byId.p; run(w, { aim }, 1); run(w, { aim, fire: 1 }, 1.5); return P.weapon.bloomNow; };
+    const hip = spray(0), aimed = spray(1), g = world(['rifle']).byId.p.rule.loadout[0].gunplay;
+    expect(hip).toBeGreaterThan(0);
+    expect(aimed).toBeCloseTo(hip * g.ads.bloom, 6);   // (both at their most after a held second and a half)
+  });
+
   it('sway: from the hip more than aimed, on the move more than still; a scope\'s breath held steadies it, then the body wants air', () => {
     const hip = swayOver(world(['sniper']), {}, 6), aimed = swayOver(world(['sniper']), { aim: 1 }, 6), moving = swayOver(world(['sniper']), { aim: 1, forward: 1 }, 6);
     expect(hip).toBeGreaterThan(aimed * 1.5); expect(moving).toBeGreaterThan(aimed);

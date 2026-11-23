@@ -21,10 +21,11 @@ import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
 import { viewConeScript } from './view-cone.js';
 import { formSkyScript } from './form-sky.js';
-import { farFieldScript, FAR_BLANKET_GLSL, farBlanketUniforms } from './far-field.js';
+import { farFieldScript, FAR_BLANKET_GLSL, farBlanketGlsl, farBlanketUniforms } from './far-field.js';
 import { farLiftScript, readFarLift } from './far-lift.js';
 import { farStructuresScript } from './far-structures.js';
 import { formFloraScript } from './form-flora.js';
+import { floodsScript } from './form-floods.js';
 
 /** THE GROUND'S OWN PARALLAX KINDS, procedural (a Voronoi field, no texture): `pebbles` (domes strewn `cell` m apart over the soil, a cell in four bare,
  *  `depth` m tall), `cracks` (dry mud in plates `cell` m across, cracks `depth` m deep, their edges curled up), `plates`
@@ -165,7 +166,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
       sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
-        + ${JSON.stringify(FAR_BLANKET_GLSL)}
+        + ${JSON.stringify(form.farCalm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)}
         // (the ground's own parallax kinds, procedural: a Voronoi cell's distance, its edge and its dice; and each kind's
         // height over its cells, GROUND_PARALLAX)
         + 'vec3 vor5( vec2 p ) { vec2 i = floor( p ), f = fract( p ); float d1 = 8.0, d2 = 8.0; vec2 id = vec2( 0.0 ); for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) { vec2 g = vec2( float( x ), float( y ) ), o = vec2( hn( i + g ), hn( i + g + 17.3 ) ) * 0.8 + 0.1; float d = length( g + o - f ); if ( d < d1 ) { d2 = d1; d1 = d; id = i + g; } else if ( d < d2 ) d2 = d; } return vec3( d1, d2 - d1, hn( id + 5.1 ) ); }\\n'
@@ -199,7 +200,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     // frame, so its stones stand up and hide what is behind them; fading out with distance to the flat map
     vec2 scUV = uvW / uTile[ 1 ];
     float camD = length( cameraPosition - vWPos ), pomK = 1.0 - smoothstep( 18.0, 36.0, camD );
-    if ( vSplat.y > 0.001 && pomK > 0.0 ) {
+    if ( ${form.parallax === false ? 'false && ' : ''}vSplat.y > 0.001 && pomK > 0.0 ) {
       vec3 V = normalize( cameraPosition - vWPos ), vt = vec3( dot( V, tT ), dot( V, tB ), dot( V, nW ) );
       vec2 gx = dFdx( scUV ), gy = dFdy( scUV ), dP = vt.xy / max( vt.z, 0.25 ) * ( 0.08 / uTile[ 1 ] ) * pomK / 16.0;
       float lay = 0.0, hh = 1.0 - textureGrad( tOrm, vec3( scUV, 1.0 ), gx, gy ).b;
@@ -207,13 +208,13 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     }
     // the CLAY's parallax, cheap: one fetch of its height and the coordinate offset along the view by it, near only
     vec2 clUV = uvW / uTile[ 5 ];
-    if ( pw > 0.001 && uClay > 0.0 && camD < 30.0 ) {
+    if ( ${form.parallax === false ? 'false && ' : ''}pw > 0.001 && uClay > 0.0 && camD < 30.0 ) {
       vec3 V2 = normalize( cameraPosition - vWPos ), vt2 = vec3( dot( V2, tT ), dot( V2, tB ), dot( V2, nW ) );
       clUV -= vt2.xy / max( vt2.z, 0.3 ) * ( texture( tOrm, vec3( clUV, 5.0 ) ).b - 0.5 ) * ( 0.035 / uTile[ 5 ] ) * ( 1.0 - smoothstep( 15.0, 30.0, camD ) );
     }
     // the UNDERGROWTH's parallax: a short march (four steps) near, where the green land's cover is
     vec2 ugUV = uvW / uTile[ 6 ];
-    if ( uUnder > 0.5 && vSplat.z > 0.05 && camD < 20.0 ) {
+    if ( ${form.parallax === false ? 'false && ' : ''}uUnder > 0.5 && vSplat.z > 0.05 && camD < 20.0 ) {
       vec3 V3 = normalize( cameraPosition - vWPos ), vt3 = vec3( dot( V3, tT ), dot( V3, tB ), dot( V3, nW ) );
       vec2 dU = vt3.xy / max( vt3.z, 0.3 ) * ( 0.02 / uTile[ 6 ] ) * ( 1.0 - smoothstep( 10.0, 20.0, camD ) ) / 4.0;
       float l3 = 0.0, h3 = 1.0 - texture( tOrm, vec3( ugUV, 6.0 ) ).b;
@@ -228,7 +229,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       else { rk2 = vec2( vWPos.y * sign( nW.x ), vWPos.z ); rT2 = vec3( 0.0, sign( nW.x ), 0.0 ); rkB = 0.5 * ( 1.0 - smoothstep( 0.0, 0.12, 0.5 - bx ) ); }
       rB2 = vec3( 0.0, 0.0, 1.0 ); rk2 /= uTile[ 0 ];
     }
-    if ( vSplat.x > 0.05 && camD < 26.0 ) {
+    if ( ${form.parallax === false && !form.rockParallax ? 'false && ' : ''}vSplat.x > 0.05 && camD < 26.0 ) {${form.parallax === false && form.rockParallax ? '   // (the rock\'s march kept on a lean ground: its cliffs read as rock near the eye, parallax \'cliffs\')' : ''}
       vec3 V4 = normalize( cameraPosition - vWPos ), vt4 = vec3( dot( V4, tT ), dot( V4, tB ), dot( V4, nW ) );
       vec2 gx4 = dFdx( rkUV ), gy4 = dFdy( rkUV ), dR = vt4.xy / max( vt4.z, 0.3 ) * ( 0.06 / uTile[ 0 ] ) * ( 1.0 - smoothstep( 14.0, 26.0, camD ) ) / 8.0;
       float l4 = 0.0, h4 = 1.0 - textureGrad( tOrm, vec3( rkUV, 0.0 ), gx4, gy4 ).b;
@@ -322,9 +323,14 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       float bare = sS * smoothstep( 0.15, 0.7, gBare ) * smoothstep( 0.55, 0.8, nW.z );
       float dryF = smoothstep( 0.45, 0.65, vn( vWPos.xy / ${GROUND_PARALLAX.dry.toFixed(1)} + 4.2 ) );
       float tvF = vn( vWPos.xy / ${GROUND_PARALLAX.stretch.toFixed(1)} + 55.0 ), tPeb = 1.0 - smoothstep( 0.28, 0.38, tvF ), tCrk = smoothstep( 0.62, 0.72, tvF );
-      float fines = vSplat.y * ( 1.0 - kept ) * smoothstep( 0.55, 0.8, nW.z ) * ( 1.0 - pw );
-      float wK0 = clamp( bare * ( 1.0 - dryF ) + tsh * tPeb + fines * 0.9, 0.0, 1.0 ), wK1 = clamp( bare * dryF + tsh * tCrk, 0.0, 1.0 );
-      float wK2 = rS * 0.85 * smoothstep( 0.5, 0.62, vn( vWPos.xy / 6.0 + vWPos.z * 0.35 + 9.0 ) ), wMax = max( wK0, max( wK1, wK2 ) );
+      float fines = vSplat.y * ( 1.0 - kept ) * smoothstep( 0.55, 0.8, nW.z ) * ( 1.0 - pw );${form.parallax === false ? `
+      // (a lean ground, parallax false: the kinds on the trail alone, the open ground its layers' maps)
+      bare = 0.0; fines = 0.0;` : ''}
+${form.dress && form.dress.pebbles ? `      // (a trail whose rubble is the shader's, path.rubble 'parallax': its pebbles in clusters over its share of the trail
+      // and its verge, where the stones would have lain; none stood up)
+      float roadP = ( tsh + ( pd < 98.0 ? exp( -pow( ( pd - 0.45 ) / 0.7, 2.0 ) ) : 0.0 ) * smoothstep( 0.6, 0.85, nW.z ) ) * smoothstep( ${(1 - form.dress.pebbles - 0.06).toFixed(3)}, ${(1 - form.dress.pebbles + 0.06).toFixed(3)}, vn( vWPos.xy / 1.4 + 91.0 ) * 0.7 + vn( vWPos.xy / 0.45 + 13.0 ) * 0.3 );
+` : ''}      float wK0 = clamp( bare * ( 1.0 - dryF ) + tsh * tPeb + fines * 0.9${form.dress && form.dress.pebbles ? ' + roadP' : ''}, 0.0, 1.0 ), wK1 = clamp( bare * dryF + tsh * tCrk, 0.0, 1.0 );
+      float wK2 = ${form.parallax === false && !form.rockParallax ? '0.0' : 'rS * 0.85 * smoothstep( 0.5, 0.62, vn( vWPos.xy / 6.0 + vWPos.z * 0.35 + 9.0 ) )'}, wMax = max( wK0, max( wK1, wK2 ) );
       if ( wMax > 0.02 ) {
         int kd = wK0 >= wMax ? 0 : wK1 >= wMax ? 1 : 2;
         float cellK = kd == 0 ? ${GROUND_PARALLAX.pebbles.cell.toFixed(3)} : kd == 1 ? ${GROUND_PARALLAX.cracks.cell.toFixed(3)} : ${GROUND_PARALLAX.plates.cell.toFixed(3)};
@@ -332,7 +338,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
         vec2 gp = uvW / cellK;
         float detK = 1.0 - smoothstep( 0.25, 0.7, length( fwidth( gp ) ) );
         if ( detK > 0.0 ) {
-          if ( camD < ${GROUND_PARALLAX.near.toFixed(1)} ) {
+          if ( ${form.parallax === false ? 'false && ' : ''}camD < ${GROUND_PARALLAX.near.toFixed(1)} ) {
             vec3 V5 = normalize( cameraPosition - vWPos ), vt5 = vec3( dot( V5, tT ), dot( V5, tB ), dot( V5, nW ) );
             vec2 dG = vt5.xy / max( vt5.z, 0.3 ) * ( depK / cellK ) * ( 1.0 - smoothstep( ${(GROUND_PARALLAX.near * 0.6).toFixed(1)}, ${GROUND_PARALLAX.near.toFixed(1)}, camD ) ) / 8.0;
             float lG = 0.0, hG = 1.0 - gHt( kd, gp );
@@ -392,7 +398,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
     return st * ((1 - w2) * samp(u1, z) + w2 * samp(u2, z));
   }
   function reliefPart(R) {
-    const key = (x, y, z) => Math.round(x * 500) + ',' + Math.round(y * 500) + ',' + Math.round(z * 500), NS = 6;
+    const key = (x, y, z) => Math.round(x * 500) + ',' + Math.round(y * 500) + ',' + Math.round(z * 500), NS = ${Number.isInteger(form.reliefCut) && form.reliefCut >= 1 && form.reliefCut <= 6 ? form.reliefCut : 6};
     const others = new Set(); for (const Q of D.ranges) if (Q !== R) for (let v = Q.start; v < Q.start + Q.count; v++) others.add(key(POS[v * 3], POS[v * 3 + 1], POS[v * 3 + 2]));
     const P = [], CO = [], SP = [], NI = [], WK = [], cut = [];
     const push = (p, c, s, n, w, k) => { P.push(p[0], p[1], p[2]); CO.push(c[0], c[1], c[2], c[3]); SP.push(s[0], s[1], s[2], s[3]); NI.push(n[0], n[1], n[2]); WK.push(w); cut.push(k); };
@@ -445,7 +451,7 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
   sunLight.shadow.mapSize.set(4096, 4096); sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.04;
   // (the cube's sun at its hour: from the light's direction, far off the land's middle)
   sunLight.target.position.copy(mid); sunLight.position.copy(mid).addScaledVector(new THREE.Vector3(...D.sun).normalize(), rad * 2); scene.add(sunLight, sunLight.target);
-  for (const R of D.ranges) {
+${form.floods ? floodsScript() : ''}  for (const R of D.ranges) {
     const water = R.key === 'water';
     // (the sea one plane where there is a depth to fade it by; what the read could not class stays painted)
     // (the stage's far ring: FAR_LAND, its own facets in the land's colours under the sky's air; what the read could not
@@ -538,7 +544,7 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
   }
 
   // (the gen-7 sky over a land that has one: a cavern has none)
-  if (D.sky) {${formSkyScript({ capture })}}${viewConeScript(form.cone || null)}${formGrassScript()}${flora ? formFloraScript(flora, { snow: !!form.snow, capture }) : ''}${farFieldScript()}${farLiftScript(readFarLift(form.farLift))}
+  if (D.sky) {${formSkyScript({ capture })}}${viewConeScript(form.cone || null)}${formGrassScript(form.grass && form.grass.stand ? { stand: true, ...(form.grass.field && form.grass.field.paint ? { paint: true } : {}), ...(form.farLift ? { reach: true } : {}), ...(Number.isFinite(form.farBlades) ? { thin: form.farBlades } : {}) } : Number.isFinite(form.farBlades) ? { thin: form.farBlades } : {})}${flora ? formFloraScript(flora, { snow: !!form.snow, capture }) : ''}${farFieldScript(form.grass && form.grass.field && form.grass.field.paint ? { paint: true } : {})}${farLiftScript(form.farLift ? { ...readFarLift(form.farLift), ...(form.farCalm ? { calm: true } : {}), ...(Number.isFinite(form.farBlades) ? { from: form.farBlades } : {}), ...(Number.isFinite(form.farRaise) ? { stand: form.farRaise } : {}) } : null)}
   // open sea: deep water's colour under it, where the recipe lays no floor (the shallows' floor fades into the same colour)
   if (D.seabed) { const B = D.seabed, g = new THREE.PlaneGeometry(B.x[1] - B.x[0], B.y[1] - B.y[0]); g.translate((B.x[0] + B.x[1]) / 2, (B.y[0] + B.y[1]) / 2, B.z);
     scene.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: rgb(D.deep), roughness: 1, metalness: 0 }))); }

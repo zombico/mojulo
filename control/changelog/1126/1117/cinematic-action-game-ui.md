@@ -22,3 +22,17 @@ look. This work is UI only: nothing about how a level plays has changed.
   cap beside what it does. The first mission's pause takes the same layout.
 - **For every game.** These are parts of the shared game UI: a charge ring, a weapon wheel, a pause with where you are
   beside it. The wireframe board gains a cinematic action HUD and the wheel.
+- **The radar a game asks for.** A world's `ui.radar` (game/hud-mana.js `RADAR_LOOK`) names its look:
+  - `shape: 'square'`: the scope in a square, still turning with the player, translucent, with an inner square.
+  - `size: 'large'`: about a third larger.
+  - `floor: true`: the plan and the guards of the floor the player stands on alone. The level's floors are read off its
+    slabs (gameworld/radar.js `planFloors`), and each floor's plan is drawn the first time it is stood on
+    (`floorPlanSvg`): its slabs as ground, what stands at it on them, the rest dark. On a stair, the radar keeps the
+    floor left until the player is all but up.
+
+  Absent, the round scope as it was, byte for byte. Steel Serpents asks for all three.
+- **Crouch on the pad.** The operative's south face is its stance: a press crouches and stands, held it lies down, as C
+  does, and the left stick's click still does too. The dive moves to the north face. On a touch screen its pads read
+  crouch and dive.
+- **The roll drawn whole.** A dive rule's `blink: false` (worlds/controllable/dive.js) keeps the dive invincible and
+  stops the page flickering the body through it; every other i-frame still shimmers. The operative's dive says so.

@@ -19,6 +19,7 @@
  * photographs its Foes section shows (foe-cast-html.js foeBiblePart), each foe its silhouette without one. Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
+import { buildingMaps } from './facility-maps.js';
 import { readGeocube, geocubeRamps, cubeStreetParts } from '../era/geocube.js';
 import { inferCity } from '../city/plan/card.js';
 import { trackCourse } from '../roads/track.js';
@@ -194,6 +195,9 @@ function buildLevel(G, id) {
   if (R.building) {
     const B = R.building, name = B.complex ? 'complex' : B.use ?? B.ref;
     const svg = B.complex ? complexPlanSvg(complexStage(B), 300) : B.ref ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80"><text x="150" y="44" text-anchor="middle" fill="currentColor" font-size="13">the building ${esc(B.ref)}, as made</text></svg>`
+      // (a facility, or a building whose rooms are laid in figures: its ground floor as the facility maps draw it, every
+      // piece by what it hides, facility-maps.js; else its plan of rooms)
+      : B.facility !== undefined || B.layouts !== undefined ? buildingMaps(B).storeys[0].svg
       : (() => { const m = withProgram(buildingStage(B)); return programPlanSvg({ use: B.use, rooms: m.rooms, links: m.links, entry: m._program.entry, goal: m._program.goal }, 300); })();
     // (what it will wear: its finishes, read off the stage it is built as)
     const stage = B.complex ? null : levelBuildingStage(G, R, id), finishes = stage ? finishesOf(stage, { palette: R.style?.palette ?? G.style?.palette ?? null }) : null;
