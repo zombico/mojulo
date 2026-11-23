@@ -1001,7 +1001,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // enough to glide to the first gate), followed from behind by a chase camera that banks with it
     const aloft = ends.seat.rule.engine === false;
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${aloft ? '' : 'W / S  throttle (it holds) · '}A / D  bank · Space / Shift  nose up / down · mouse  pitch${ride?.transformer ? ' · B  transform' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
-    pilotPart = { ...craftPilot(ends.airMap, ends.seat), events: P.events || {} };
+    pilotPart = { ...craftPilot(ends.airMap, ends.seat, { airframe: stage.manifest?.airframe }), events: P.events || {} };
     if (ride?.transformer) {
       // A FLIER THAT TRANSFORMS (quick.transformer): seated as the craft is, in its vehicle form on the seat's rule, its
       // body the transformer; B drops it into its robot form (it falls, lands, walks) and back into the air

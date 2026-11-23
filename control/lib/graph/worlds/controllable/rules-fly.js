@@ -53,7 +53,7 @@
  *     the nose is then turned toward the centre's height rather than levelled.
  *
  * AFFORDANCE FACTS (the D5 doctrine): locomotion 'fly'|'taxi', airspeed, throttle, bank,
- * climbRate, stalled (+stallStart), airborne, takeoff/touchdown edges, gaitPhase as the prop
+ * climbRate, stalled (+stallStart), airborne, agl (over the ground under it), takeoff/touchdown edges, gaitPhase as the prop
  * driver, and `tilt` { pitch, roll } — the renderer's mesh sync reads it to attitude the body.
  *
  * Pure + deterministic; reads the input snapshot + world.ground, writes only its entity.
@@ -175,6 +175,7 @@ export function buildRulesFly(E) {
     e.takeoff = airborne && !wasAirborne ? true : false;
     e.touchdown = !airborne && wasAirborne ? true : false;
     e.airborne = airborne;
+    e.agl = gz != null ? t.pos[2] - gz : null;                 // over the ground under it (the HUD's AGL; a gauge's `agl`)
 
     // ── the affordance facts ──
     e.airspeed = v;

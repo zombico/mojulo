@@ -1694,10 +1694,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // (`craft`: { archetype, look?, livery?, wear?, fold?, pad?, made? }, what a parked helicopter, aircraft or drone
         // writes), in the form render, made unless `made: false`, lit by its world's sky, its rotors still; `pad` a
         // helipad under it. Absent ⇒ no craft is resolved, byte-identical.
+        // A FLYING craft (`flying: true`, a flight level's pilot: skyscape/craft.js craftPilot) is drawn level, its gear
+        // `up` or `down` (where it starts: aloft or on the runway), and marked as a form that flies (`forms`), so the page
+        // banks and pitches it as its rule tilts it, as the artillery range's aircraft are.
         if (rawSpec.craft && typeof rawSpec.craft === 'object') {
           const { craftFormFigure } = await import('@/lib/graph/craft-shelf/craft-form.js');
           const K = rawSpec.craft;
           const opts = Object.fromEntries(['look', 'livery', 'wear', 'fold', 'pad'].filter((k) => K[k] !== undefined && K[k] !== false).map((k) => [k, K[k]]));
+          if (K.flying) {
+            const fig = craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: K.gear === 'down' ? 0 : 1 }, attitude: 'level', made: K.made !== false, ...opts });
+            payload.figures[name] = await atRigFidelity({ ...fig, forms: { base: 'air' } });
+            continue;
+          }
           payload.figures[name] = await atRigFidelity(craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: 0 }, attitude: 'ground', made: K.made !== false, ...opts }));
           continue;
         }

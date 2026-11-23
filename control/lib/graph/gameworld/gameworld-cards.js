@@ -1844,6 +1844,38 @@ const sideScrollCard = () => {
   ].join('\n');
 };
 
+// THE FLIGHT (flight-goal.js): what an airspace level is flown for, the one reading both doors share
+const flightCard = () => [
+  'THE FLIGHT — an airspace level (levels.<id>.airspace: a map, its ground, its space, its course) is flown for its',
+  'goal: levels.<id>.goal = { flight }. The quick door\'s flights read the same goal (quick fly: a course; quick shoot with',
+  'a craft: a dogfight, or a trench run on a trench).',
+  '',
+  'GOALS (flight):',
+  "  'course'   the course's gates in three dimensions, then the landing, against the clock (airspace.course)",
+  "  'dogfight' | { dogfight: { foes?, waves? } }   a wing shot down; the craft's hp takes their hits, a crash comes back",
+  "  'trench'   the trench flown to its port, the port shot (airspace.space: { trench: true })",
+  "  { tasks: [ … ], crash?: 'fail' | 'respawn' }   a lesson, a stage, a sortie: tasks done in order (game/objectives.js)",
+  'No goal: an airspace with a course is flown as one, with a trench as a trench run; else to its exit.',
+  'The craft is drawn as its class\'s airframe off the craft shelf (a trainer a light single, a jet a jet fighter, the',
+  "space fighter a strike foil); airspace.airframe names another (any of the shelf's archetypes), or false for a slab.",
+  '',
+  'TASKS (each may carry text: what the player is told; a plain one is written when absent):',
+  '  { gates: true | [from, to] }   the course\'s gates in order (from 1); one flown out of turn does nothing',
+  '  { land: true }                 set down soft on a runway or a pad (ground.pads); a hard one, or one off them, crashes',
+  '  { band: { alt?, agl?, speed?, climb?, bank?, heading? }, seconds, total? }   held in the band, the HUD\'s units',
+  '                                 (m, m, knots, m/s, degrees, compass degrees); [min, max], null for open; a heading',
+  '                                 wraps through north (min above max); leaving starts the clock again (total: adds up)',
+  '  { reach: [x, y, z] | { gate: n }, radius? }   a nav point',
+  '  { down: n | true }             the next n fighters shot down (true: a wing), asleep until the task wakes them',
+  "A crash: 'fail' ends the attempt (a lesson's: the default with no fighters); 'respawn' brings the craft back at the",
+  "start, costing hp (the default with fighters, whose hits the level's hp takes too).",
+  '',
+  'A FIRST LESSON:',
+  "  levels: { 'lesson-1': { name: 'Climb out', airspace: { map: { craft: 'trainer' }, ground: { pads: [{ kind: 'runway', at: [0.5, 0.25] }] }, course: true },",
+  "    goal: { flight: { tasks: [{ gates: [1, 2], text: 'Take off and fly the first two gates' },",
+  "      { band: { alt: [250, 350], heading: [80, 100] }, seconds: 15, text: 'Level off at 300 m, heading 090' }, { land: true }] } } } }",
+].join('\n');
+
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
   ['gameworld-studio', 'The studio', 'the book worked a chapter at a time: the departments in waves, a chapter\'s session, the build', 'a big game, many levels, several departments, who does what and in what order, subagents, a team of agents', studioCard],
@@ -1857,6 +1889,7 @@ const CARDS = [
   ['gameworld-wcd', 'The walled-core dungeon', 'layers on a critical path toward a core: inners, outers and the doors between, each gated', 'a dungeon of layers to the core, a base to infiltrate, keycards to the next area, walls within walls', wcdCard],
   ['gameworld-course', 'The course', 'a platformer\'s level: floors and gaps over a trail sized by the hero\'s reach, each teaching a move', 'a platformer level, a side-scroller, a 3D platformer, jumps over gaps, a tutorial level, teach the double jump, a wall jump section, platforming, level 1', courseCard],
   ['gameworld-mission', 'The mission', 'a shooter\'s first level: the firing range stretched into sections, each with a task, on mana-ui', 'a first level for my shooter, a mission with objectives, an FPS level, clear the room then move on, a tutorial level for the guns, hold the point then extract, level 1 of my shooter', missionCard],
+  ['gameworld-flight', 'The flight', 'what an airspace level is flown for: a course, a dogfight, a trench, or a lesson\'s or a sortie\'s tasks in order (gates, a band held, a landing, nav points, wings)', 'a flight lesson, take off and land, fly the gates, hold an altitude, a flight school, a sortie, shoot down the fighters, a flight level with objectives, a mission in the air', flightCard],
   ['gameworld-qow', 'The quest open world', 'regions joined sideways, loaded as they are passed, never gated on the way on: the WCD\'s opposite pole', 'an open world, a city to roam, an island to explore, side quests anywhere, no forced path, an errand, a fetch quest, a delivery run, a bounty board', qowCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],

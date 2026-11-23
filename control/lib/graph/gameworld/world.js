@@ -42,6 +42,9 @@
  *                                         // at its end fought turn by turn, hp on the HUD, guards who see to get past
  *                                         // unseen, its last stage an escape room (escape.js: its way out sealed
  *                                         // until its locks open, their keys along the way); none: reach the exit
+ *                                         // on an AIRSPACE level the goal is { flight } alone (flight-goal.js: 'course',
+ *                                         // 'dogfight', 'trench' or { tasks }: gates, a band held, a landing, nav points,
+ *                                         // wings); none: its course, its trench, else its exit
  *       foes?: true | { from?, count? },  // the bestiary's foes on its trail stages (or a building's rooms), one a free beat (foes.js): hostile
  *                                         // classes in the hero's way; its hp then takes their hits
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
@@ -131,6 +134,7 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
+import { readFlightGoal } from './flight-goal.js';
 import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
 import { readLayouts } from '../era/room-layouts.js';
 import { readShift } from './kitchen-shifts.js';
@@ -319,7 +323,7 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
 const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways', 'hats'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -628,9 +632,18 @@ export function readGameworld(W) {
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
-    if (L.goal !== undefined) {
+    // an airspace's goal is a flight's (flight-goal.js: a course, a dogfight, a trench, or a list of tasks), alone
+    if (L.goal !== undefined && L.airspace !== undefined) {
+      if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
+      if (!isObj(L.goal) || Object.keys(L.goal).length !== 1 || L.goal.flight === undefined) throw new Error(`gameworld: ${at}.goal on an airspace is { flight }: what the level is flown for (a course, a dogfight, a trench, or { tasks })`);
+      const fg = readFlightGoal(L.goal.flight, `${at}.goal.flight`);
+      if (fg.kind === 'course' && !L.airspace?.course) throw new Error(`gameworld: ${at}.goal.flight: a course is flown on a course: give the airspace one (airspace.course: true)`);
+      if (fg.kind === 'trench' && !L.airspace?.space?.trench) throw new Error(`gameworld: ${at}.goal.flight: a trench run needs a trench (airspace.space: { trench: true })`);
+      if (fg.kind === 'tasks' && fg.tasks.some((t) => t.gates !== undefined || t.reach?.gate !== undefined) && !L.airspace?.course) throw new Error(`gameworld: ${at}.goal.flight: gates are a course's: give the airspace one (airspace.course: true)`);
+    } else if (L.goal !== undefined) {
       const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true | { win }, health?: true, guards?: true, escape?: true | 1…4, gauntlet?: { arenas } }, at least one`;
       if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
+      if (Gl.flight !== undefined) throw new Error(`gameworld: ${at}.goal.flight is an airspace level's goal (levels.<id>.airspace)`);
       if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
       if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
       for (const k of Object.keys(Gl)) if (!LEVEL_GOAL_PARTS.includes(k)) throw new Error(`gameworld: ${at}.goal.${k} is not a level goal (${LEVEL_GOAL_PARTS.join(', ')})`);

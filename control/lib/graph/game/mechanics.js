@@ -225,6 +225,42 @@ const MECHANICS = {
     },
   },
 
+  // CRASH (a flight that is not a race: a lesson, a sortie, a stage): what a crash is and what it costs. A touchdown
+  // harder than the gear takes (the page's `touchdown`, `hard: 1`), or a soft one outside every `pads` box (the runways
+  // and pads a craft may set down on; none: any touchdown after flying), is a `crash`; the page says one itself for a
+  // surface in space. `then: 'fail'` (a lesson: the attempt is over) ends the level; `'respawn'` brings the craft back at
+  // `at` ({ spot, heading?, aloft? }: the respawn mechanic's point), `hurt` hp the less.
+  crash: {
+    role: 'terminal', ends: ['fail'], requires: [],
+    lower(p, ctx) {
+      const then = p.then ?? 'fail';
+      if (then !== 'fail' && then !== 'respawn') throw new Error(`crash[${ctx.i}]: then is 'fail' (the attempt is over) or 'respawn' (it comes back at at)`);
+      const pads = p.pads === undefined ? [] : p.pads;
+      if (!Array.isArray(pads) || !pads.every((q) => q && Array.isArray(q.at) && q.at.length === 3 && Array.isArray(q.half) && q.half.length === 3)) throw new Error(`crash[${ctx.i}]: pads is [{ at: [x, y, z], half: [hx, hy, hz] }]: the boxes a craft may set down in`);
+      const R = Array.isArray(p.at) ? { spot: p.at } : p.at ?? (Array.isArray(ctx.spawn) ? { spot: ctx.spawn } : null);
+      if (then === 'respawn' && !(R && Array.isArray(R.spot) && R.spot.length === 3)) throw new Error(`crash[${ctx.i}]: at is { spot: [x, y, z], heading?, aloft? }: where a crash comes back`);
+      const hurt = Number.isFinite(p.hurt) && p.hurt > 0 ? p.hurt : 0, i = ctx.i;
+      const world = { vars: {}, sources: [], reactions: [{ on: 'touchdown', match: { hard: 1 }, do: 'emit', type: 'crash', why: 'hard' }], hud: [{ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }] };
+      if (pads.length) {
+        // off every pad: the count of the pads' boxes it is not in equals their number (as the laps mechanic's landing)
+        const offs = `__crash_off_${i}`;
+        world.vars[offs] = pads.length;
+        pads.forEach((q, k) => {
+          const zone = `crash_pad_${i}_${k}`;
+          world.sources.push({ type: 'zone', zone, at: q.at.slice(), half: q.half.slice(), planar: false, watch: ctx.player });
+          world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: offs, by: -1 }, { on: 'exit', match: { zone }, do: 'inc', var: offs, by: 1 });
+        });
+        world.reactions.push({ on: 'touchdown', match: { hard: 0 }, if: { var: offs, eq: pads.length }, do: 'emit', type: 'crash', why: 'off' });
+      } else world.reactions.push({ on: 'touchdown', match: { hard: 0 }, do: 'emit', type: 'crash', why: 'ground' });
+      if (then === 'respawn') {
+        world.reactions.push({ on: 'crash', do: 'emit', type: 'respawn:0', spot: R.spot, heading: R.heading ?? 0, aloft: R.aloft ? 1 : 0 });
+        if (hurt) world.reactions.push({ on: 'crash', do: 'inc', var: 'hp', by: -hurt, min: 0 });
+        return { world };
+      }
+      return { world, on: { crash: { end: 'fail' } } };
+    },
+  },
+
   'fail-on-death': {
     role: 'terminal', ends: ['fail'], requires: ['character'],
     lower(p, ctx) {
@@ -858,7 +894,7 @@ const MECHANICS = {
 
   // OBJECTIVES (objectives.js): a level's tasks done in order, a section each: walked into, it begins (its foes woken);
   // met, its way on opens; the last met wins. A mission's structure (gameworld/mission-level.js)
-  objectives: { role: 'terminal', ends: ['success'], requires: [], lower: lowerObjectives },
+  objectives: { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerObjectives },
 
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in

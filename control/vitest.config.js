@@ -36,6 +36,8 @@ export const E2E = [
   'lib/mcp/tools/design-game.climb.test.js',
   'lib/mcp/tools/design-game.quest.test.js',
   'lib/mcp/tools/design-game.mission.test.js',
+  // designed flight levels: each airspace flown for its flight goal (a lesson's tasks, a sortie's wings, a course)
+  'lib/mcp/tools/design-game.flight.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',

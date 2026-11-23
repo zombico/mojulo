@@ -33,7 +33,7 @@ import { mapGround, readGroundAsk } from './ground.js';
 import { terrainPageChannel, bakeTerrainFaces } from '../terrain/terrain-world.js';
 import * as dmath from '../../util/dmath.js';
 
-import { seatCraft, craftPilot } from './craft.js';
+import { seatCraft, craftPilot, airframeOf } from './craft.js';
 import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace } from './space.js';
@@ -71,6 +71,7 @@ export function validateAirspace(m) {
   if (m.course !== undefined && m.course !== true && m.course !== false && !(m.course && typeof m.course === 'object')) e.push('airspace.course must be true or { gates?, laps?, land? }: plan a gate course on the map (false: none)');
   if (m.fly && typeof m.fly === 'object' && m.fly.craft !== undefined) { try { craftOf(m.fly.craft); } catch (err) { e.push(`airspace.fly: ${err.message}`); } }
   if (m.palette !== undefined) { try { readPaletteSpec(m.palette, 'airspace.palette'); } catch (err) { e.push(err.message); } }
+  if (m.airframe !== undefined && m.airframe !== false) { try { airframeOf({ key: null }, m.airframe); } catch (err) { e.push(err.message); } }
   return e;
 }
 
@@ -123,7 +124,7 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
     ...(field.report.cities || []).map((c, i) => { const [x, y] = c.center, R = dmath.hypot(c.size[0], c.size[1]), gz = field.groundAt(x, y); return { name: i ? `city-${i + 1}` : 'city', worldFraming: { cameraPosition: over(x - 0.7 * R, y - 0.7 * R, gz + c.tallest + 2 * low), lookAt: [x, y, gz + 0.3 * c.tallest], horizontalFov: 60 } }; }),
   ];
   // the craft, seated (`fly`): on the departure threshold, its nose down the pad; a craft with no engine launched aloft
-  const pilot = manifest.fly ? craftPilot(map, seat) : null;
+  const pilot = manifest.fly ? craftPilot(map, seat, { airframe: false }) : null;   // (a slab: a payload resolves no figures; a level's pilot flies its airframe)
   const s = field.meta.sky;
   const sky = { zenith: s.zenith, horizon: s.horizon, day: s.day, stars: 0, seed: 1, center: spawn, radius: 290 };
   const bg = rgbHex(s.horizon);
@@ -155,7 +156,7 @@ function assembleSpace(manifest, { title }) {
   const { map, field } = airspaceOf(manifest);
   const course = manifest.course ? planCourse(map, field, { ...(manifest.course === true ? {} : manifest.course), seed: manifest.seed ?? 1 }) : null;
   const seat = seatCraft(map, field, course, { assist: manifest.assist }), p = seat.transform.pos, R = map.rings.reach;
-  const pilot = manifest.fly ? craftPilot(map, seat) : null;
+  const pilot = manifest.fly ? craftPilot(map, seat, { airframe: false }) : null;   // (a slab: a payload resolves no figures; a level's pilot flies its airframe)
   const ahead = [p[0] + Math.cos(seat.transform.heading) * 400, p[1] + Math.sin(seat.transform.heading) * 400, p[2]];
   const cameras = [
     { name: 'start', worldFraming: { cameraPosition: [p[0] - Math.cos(seat.transform.heading) * 60, p[1] - Math.sin(seat.transform.heading) * 60, p[2] + 15], lookAt: ahead, horizontalFov: 70 } },

@@ -150,7 +150,9 @@ export const MECHANIC_SFX = {
   waves: { wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' },
   notes: { 'note:hit': 'beat-hit', 'note:miss': 'beat-miss', 'notes:failed': 'lose', 'notes:done': 'goal' },
   'wave-gauntlet': { wave: 'wave', 'gauntlet:arena': 'chime', 'gauntlet:again': 'lose', 'gauntlet:sealed:*': 'thud', 'gauntlet:clear:*': 'chime', 'gauntlet:out:*': 'goal' },
-  objectives: { 'objective:begin': 'chime', 'objective:done': 'checkpoint', 'objective:sealed': 'thud', wave: 'wave', 'objectives:done': 'goal' },
+  objectives: { 'objective:begin': 'chime', 'objective:done': 'checkpoint', 'objective:sealed': 'thud', 'objective:gate': 'checkpoint', wave: 'wave', 'objectives:done': 'goal', 'objectives:failed': 'death' },
+  // a flight's crash: the attempt over (a lesson's) or the craft brought back
+  crash: { crash: 'death' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },

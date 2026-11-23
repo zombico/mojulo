@@ -1362,6 +1362,9 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
     return out;
   }
   function tick() {
+    // (not before the world is published: a page with rig figures awaits their pool, and a frame can come first, before
+    // the ground's probe exists)
+    if (!window.__mojCtrl) { requestAnimationFrame(tick); return; }
     var p = __world.pilotId && __world.byId[__world.pilotId];
     if (p && p.rule && p.rule.type === 'fly') {
       hook(p);

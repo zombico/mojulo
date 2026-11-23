@@ -1127,3 +1127,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // `indexBuckets` within 64 cells and 256 listings an item, and the grid raycast first tests the mesh's bounding sphere as
 // three's own does: a flight's land and a race's backdrop no longer exhaust the page. Each only chooses which surfaces a
 // ray tests, so what every fixture plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: flight goals and the craft as its airframe): the fixtures that embed the
+// controllable runtime or the event bus. The bus's zone pass reads a `gauge` source too (a fact of a pilot's in a range:
+// worlds/event-bus.js); the fly rule writes `agl`; the flight HUD's tick waits for the world to be published. No fixture
+// has a gauge or a flight, so what each plays is as it was.

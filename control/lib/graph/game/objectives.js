@@ -11,13 +11,24 @@
  *   hold     still there when `seconds` have run, while its `waves` are woken one every `every` seconds (the first
  *            after a breath); what still stands when the clock runs out is left standing
  *
+ * A flight's tasks (a lesson, a stage, a sortie: gameworld/flight-goal.js lays them), each in three dimensions:
+ *   gates    fly through its `gates` ([{ at, radius }]) in order; each passed is said (`objective:gate`)
+ *   land     set down on one of its `pads` ([{ at, half }]: boxes), its wheels touching while inside one and no harder
+ *            than the gear takes (the page's `touchdown`, `hard: 0`); a touchdown elsewhere does not meet it
+ *   band     hold the pilot inside its `band` (any of alt, agl, speed, climb, bank, heading: [min, max], either null for
+ *            open; the units the HUD shows: m, knots, m/s, degrees) for `seconds`: the clock runs only while every
+ *            gauge holds, and starts again from nothing when one is left (`total: true`: it adds up instead)
+ *   protect  keep its `who` (ids) up: one of them down while it is in hand, or before it, fails the level
+ *            (`objectives:failed`); met when `seconds` have run, or when the first of them arrives at `arrive`
+ *            ({ at, radius? }: an escort's end)
+ *
  * Lowered onto the bus the other mechanics use (no runtime of its own), as the wave gauntlet is: a var for the task in
  * hand, a zone a section, a counter of downs a clear, a clock a hold, a guarded hand-over. A way on that is still
  * sealed puts a body that walks into it back (`back`), as the gauntlet's does.
  *
  * Params:
  *   { id?: 'obj', tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, planar?, foes?, gun?, seconds?, every?, waves?,
- *                           door?: { at, back, radius? } }] }
+ *                           door?: { at, back, radius? }, gates?, pads?, band?, total?, who?, arrive? }] }
  *   zone   the section's box (its centre and half-extents; or { at, radius }, a round one, for a section in an open
  *          place): walking into it begins the task (none: it begins as the one
  *          before is met; the first begins as the level starts)
@@ -31,7 +42,8 @@
  *
  * It keeps for the level's result (the contract's `keep`): the tasks met, the foes downed, the seconds taken.
  * Events it says: objective:begin { n, of, task, text }, objective:done { n, of, task }, objective:sealed { task },
- * wave { n, of }, objectives:done (the win).
+ * objective:gate { n, of, task }, wave { n, of }, objectives:done (the win), objectives:failed { task } (the loss: a
+ * protected one down).
  * The audit: none can fight, so it is not auto-auditable; its proof is on the bus with each fall given
  * (gameworld/mission-proof.js), and a player's on the runtime.
  *
@@ -39,7 +51,10 @@
  */
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold']);
+export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect']);
+/** The facts a `band` holds (worlds/event-bus.js gauges), in the units the flight HUD shows. */
+export const BAND_FACTS = Object.freeze(['alt', 'agl', 'speed', 'climb', 'bank', 'heading']);
+const isRange = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => x === null || Number.isFinite(x)) && !(v[0] === null && v[1] === null);
 
 export const objectiveNames = (id) => ({ task: `__${id}`, seal: (k) => `${id}-seal-${k}`, left: (k) => `__${id}_left${k}`, downs: (k) => `__${id}_d${k}`, felled: `__${id}_downs`, time: `__${id}_time` });
 export const objectivesOf = (mechanics) => (Array.isArray(mechanics) ? mechanics.find((m) => m && m.kind === 'objectives') ?? null : null);
@@ -66,6 +81,25 @@ export function lowerObjectives(p, ctx) {
       if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long it is held, above 0`);
       if (t.every !== undefined && !(Number.isFinite(t.every) && t.every > 0)) fail(`${at}.every is the seconds between its waves, above 0`);
       if (t.waves !== undefined && (!Array.isArray(t.waves) || t.waves.some((w) => !Array.isArray(w) || !w.length || w.some((f) => typeof f !== 'string' || !f)))) fail(`${at}.waves is [[<foe id>, …], …]`);
+    }
+    if (t.kind === 'gates' && !(Array.isArray(t.gates) && t.gates.length && t.gates.every((g) => g && isVec(g.at) && Number.isFinite(g.radius) && g.radius > 0))) fail(`${at}.gates is [{ at: [x, y, z], radius }], at least one, in the order they are flown`);
+    if (t.kind === 'land' && !(Array.isArray(t.pads) && t.pads.length && t.pads.every((q) => q && isVec(q.at) && isVec(q.half)))) fail(`${at}.pads is [{ at: [x, y, z], half: [hx, hy, hz] }]: the boxes a craft may set down in`);
+    if (t.kind === 'band') {
+      const B = t.band, keys = B && typeof B === 'object' ? Object.keys(B) : [];
+      if (!keys.length) fail(`${at}.band is { ${BAND_FACTS.join('?, ')}? }: each [min, max] (null for open), at least one`);
+      for (const f of keys) {
+        if (!BAND_FACTS.includes(f)) fail(`${at}.band.${f} is not a gauge (${BAND_FACTS.join(', ')})`);
+        if (!isRange(B[f])) fail(`${at}.band.${f} is [min, max], each a number or null (open), not both null`);
+        if (f !== 'heading' && B[f][0] !== null && B[f][1] !== null && B[f][0] > B[f][1]) fail(`${at}.band.${f}: its min is above its max (only a heading wraps)`);
+      }
+      if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long the band is held, above 0`);
+      if (t.total !== undefined && typeof t.total !== 'boolean') fail(`${at}.total is true (the seconds add up) or false (held in one go: the default)`);
+    }
+    if (t.kind === 'protect') {
+      if (!Array.isArray(t.who) || !t.who.length || t.who.some((w) => typeof w !== 'string' || !w)) fail(`${at}.who is the ids kept up, at least one`);
+      const by = (Number.isFinite(t.seconds) && t.seconds > 0 ? 1 : 0) + (t.arrive !== undefined ? 1 : 0);
+      if (by !== 1) fail(`${at}: a protect is met by seconds (kept up that long) or by arrive ({ at, radius? }: the first of them gets there), one of them`);
+      if (t.arrive !== undefined && !(t.arrive && isVec(t.arrive.at))) fail(`${at}.arrive is { at: [x, y, z], radius? }`);
     }
     for (const f of [...(t.foes ?? []), ...(t.waves ?? []).flat()]) { if (woken.has(f)) fail(`${at}: '${f}' is woken twice (a foe is woken once: name another)`); woken.add(f); }
     if (t.zone !== undefined && !(t.zone && isVec(t.zone.at) && (isVec(t.zone.half) || (Number.isFinite(t.zone.radius) && t.zone.radius > 0)))) fail(`${at}.zone is { at: [x, y, z], half: [hx, hy, hz] } (the section's box) or { at, radius } (a round one)`);
@@ -103,6 +137,65 @@ export function lowerObjectives(p, ctx) {
       world.vars[d] = 0;
       for (const f of t.foes) world.reactions.push({ on: 'down', match: { entity: f }, do: 'inc', var: d, by: 1 });
       world.watches.push({ type: metE(k), when: { var: d, gte: t.foes.length } });
+    } else if (t.kind === 'gates') {
+      // the gates in order: the next one due is a count that only moves while the task is in hand (-1 until it begins),
+      // so a gate flown out of turn, or before, does nothing
+      const g = `${pre}_g${k}`, n = t.gates.length;
+      world.vars[g] = -1;
+      world.reactions.push({ on: beginE(k), if: { var: g, eq: -1 }, do: 'set', var: g, to: 0 });
+      t.gates.forEach((G, j) => {
+        const zone = `${id}_gate_${k}_${j}`;
+        world.sources.push({ type: 'zone', zone, at: G.at.slice(), radius: G.radius, planar: false, watch: ctx.player });
+        world.reactions.push({ on: 'enter', match: { zone }, if: { var: g, eq: j }, do: 'emit', type: `${pre}:gate:${k}:${j}` });
+        world.reactions.push({ on: `${pre}:gate:${k}:${j}`, do: 'set', var: g, to: j + 1 }, { on: `${pre}:gate:${k}:${j}`, do: 'emit', type: 'objective:gate', n: j + 1, of: n, task: t.id });
+      });
+      world.watches.push({ type: metE(k), when: { var: g, gte: n } });
+    } else if (t.kind === 'land') {
+      // in a pad's box or not (a count of the boxes it is out of, as the laps mechanic's landing keeps), and a
+      // touchdown judged in two steps (the bus has no conjunctions): in hand and soft, then inside a box
+      const offs = `${pre}_off${k}`, td = `${pre}:td:${k}`;
+      world.vars[offs] = t.pads.length;
+      t.pads.forEach((q, j) => {
+        const zone = `${id}_pad_${k}_${j}`;
+        world.sources.push({ type: 'zone', zone, at: q.at.slice(), half: q.half.slice(), planar: false, watch: ctx.player });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: offs, by: -1 }, { on: 'exit', match: { zone }, do: 'inc', var: offs, by: 1 });
+      });
+      world.reactions.push({ on: 'touchdown', match: { hard: 0 }, if: mine, do: 'emit', type: td });
+      world.reactions.push({ on: td, if: { var: offs, lt: t.pads.length }, do: 'emit', type: metE(k) });
+    } else if (t.kind === 'band') {
+      // each gauge a source; inside all of them is a count of the gauges entered equal to their number; the clock ticks
+      // while the task is in hand, and adds a second only while every gauge holds (else it starts again)
+      const facts = Object.keys(t.band), inN = `${pre}_in${k}n`, held = `${pre}_held${k}`, on = `${pre}_on${k}`, tick = `${pre}:tick:${k}`;
+      world.vars[inN] = 0; world.vars[held] = 0; world.vars[on] = 0;
+      facts.forEach((f) => {
+        const zone = `${id}_band_${k}_${f}`, [lo, hi] = t.band[f];
+        world.sources.push({ type: 'gauge', zone, fact: f, ...(lo !== null ? { min: lo } : {}), ...(hi !== null ? { max: hi } : {}), watch: ctx.player });
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: inN, by: 1 }, { on: 'exit', match: { zone }, do: 'inc', var: inN, by: -1 });
+      });
+      world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'set', var: on, to: 1 });
+      world.timers.push({ every: 1, emit: { type: tick }, while: { var: on, eq: 1 } });
+      world.reactions.push({ on: tick, if: { var: inN, gte: facts.length }, do: 'inc', var: held, by: 1 });
+      if (!t.total) world.reactions.push({ on: tick, if: { var: inN, lt: facts.length }, do: 'set', var: held, to: 0 });
+      world.watches.push({ type: metE(k), when: { var: held, gte: Math.ceil(t.seconds) } });
+      world.reactions.push({ on: advE(k), do: 'set', var: on, to: 0 });
+      world.hud.push({ var: held, label: 'Held', as: 'counter', max: Math.ceil(t.seconds) });
+    } else if (t.kind === 'protect') {
+      // one of them down while the task is still to be met (in hand, or before it) loses the level
+      for (const w of t.who) world.reactions.push({ on: 'down', match: { entity: w }, if: { var: cur, lte: k }, do: 'emit', type: 'objectives:failed', task: t.id });
+      if (t.arrive) {
+        const zone = `${id}_arrive_${k}`;
+        world.sources.push({ type: 'zone', zone, at: t.arrive.at.slice(), radius: Number.isFinite(t.arrive.radius) ? t.arrive.radius : 30, planar: false, watch: t.who[0] });
+        world.reactions.push({ on: 'enter', match: { zone }, if: mine, do: 'emit', type: metE(k) });
+      } else {
+        const left = names.left(k), on = `${pre}_on${k}`, tick = `${pre}:tick:${k}`;
+        world.vars[left] = Math.ceil(t.seconds); world.vars[on] = 0;
+        world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'set', var: on, to: 1 });
+        world.timers.push({ every: 1, emit: { type: tick }, while: { var: on, eq: 1 } });
+        world.reactions.push({ on: tick, do: 'inc', var: left, by: -1, min: 0 });
+        world.watches.push({ type: metE(k), when: { var: left, lte: 0 } });
+        world.reactions.push({ on: advE(k), do: 'set', var: on, to: 0 });
+        world.hud.push({ var: left, label: 'Hold', as: 'counter' });
+      }
     } else {
       // a hold: its clock runs once it has begun, its waves on the clock, the task met when the clock is out
       const left = names.left(k), on = `${pre}_on${k}`, tick = `${pre}:tick:${k}`, waves = t.waves ?? [], every = t.every ?? Math.max(1, t.seconds / (waves.length + 1));
@@ -143,5 +236,8 @@ export function lowerObjectives(p, ctx) {
   world.hud.unshift({ var: cur, label: 'Objective', as: 'counter', max: N }, { on: 'objective:begin', text: '{event.text}', ttl: 3 }, { on: 'objective:sealed', text: 'The way on is sealed', as: 'toast', ttl: 1.2 });
   for (const ch of ['watches', 'sequences', 'timers', 'entities', 'sources']) if (!world[ch].length) delete world[ch];
   const keep = [{ var: cur, label: 'Tasks met', best: 'high' }, { var: downs, label: 'Foes down', best: 'high' }, { var: time, label: 'Time', best: 'low', unit: 's' }];
-  return { world, on: { 'objectives:done': { end: 'success' } }, keep, emits: ['objective:begin', 'objective:done', 'objective:sealed', 'objectives:done', 'wave'] };
+  const fails = T.some((t) => t.kind === 'protect');
+  if (fails) world.hud.push({ on: 'objectives:failed', text: 'Failed', as: 'toast', ttl: 2 });
+  if (T.some((t) => t.kind === 'gates')) world.hud.push({ on: 'objective:gate', text: 'gate {event.n} of {event.of}', as: 'toast', ttl: 1 });
+  return { world, on: { 'objectives:done': { end: 'success' }, ...(fails ? { 'objectives:failed': { end: 'fail' } } : {}) }, keep, emits: ['objective:begin', 'objective:done', 'objective:sealed', 'objective:gate', 'objectives:done', 'objectives:failed', 'wave'] };
 }
