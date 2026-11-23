@@ -1131,3 +1131,8 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // controllable runtime or the event bus. The bus's zone pass reads a `gauge` source too (a fact of a pilot's in a range:
 // worlds/event-bus.js); the fly rule writes `agl`; the flight HUD's tick waits for the world to be published. No fixture
 // has a gauge or a flight, so what each plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: Wolf Squadron's rail): the fixtures that embed the controllable runtime or the
+// event bus. The page's controllable block treats a rail pilot as a vehicle (scene/channels/controllable/index.js); the
+// bus's gauges read `along`; a hazard's hp stops at zero, as a hit's does (game/mechanics.js hazard-damage). The rail
+// rule and its foes on station are opt-in, emitted only into a page with a rail pilot. No fixture has a rail, a gauge on
+// `along`, or a hazard taking its hp past zero, so what each plays is as it was.

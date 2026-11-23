@@ -340,7 +340,7 @@ describe('the composed manifest actually drives the real bus (end to end)', () =
     const B = buildBus();
     const state = B.createBusState({ ...out.events, reactions: [...out.events.reactions, { on: 'dead', do: 'set', var: 'lost', to: 1 }] }, out.events.entities || []);
     const hero = { id: 'hero', transform: { pos: [0, 0, 0] } };
-    // walk into the hazard twice (60 dmg each → hp 100 → 40 → -20)
+    // walk into the hazard twice (60 dmg each → hp 100 → 40 → 0: it stops at none, as a hit's does)
     let z = B.deriveZoneEvents([hero], undefined, out.events.sources);
     B.processEvents(state, z.events);
     hero.transform.pos = [5, 0, 0];
@@ -348,7 +348,7 @@ describe('the composed manifest actually drives the real bus (end to end)', () =
     expect(state.vars.hp).toBe(40);
     hero.transform.pos = [0, 0, 0]; z = B.deriveZoneEvents([hero], z.prev, out.events.sources); B.processEvents(state, z.events);
     hero.transform.pos = [5, 0, 0]; z = B.deriveZoneEvents([hero], z.prev, out.events.sources); B.processEvents(state, z.events);
-    expect(state.vars.hp).toBe(-20);
+    expect(state.vars.hp).toBe(0);
     // the fail-on-death watch edges true → dead → lost
     B.processEvents(state, B.watchEvents(state));
     expect(state.vars.lost).toBe(1);

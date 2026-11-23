@@ -25,6 +25,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { planRailStage } from '../skyscape/rail-stage.js';
 import { facilityBuilding } from '../era/facilities.js';
 import { raceHud, RACE_DIAL } from './race-hud.js';
 import { levelHud } from '../game/hud-mana.js';
@@ -407,12 +408,16 @@ export function airspaceEnds(manifest) {
   const out = { spawn: [sx, sy, seat.ground], heading: seat.transform.heading, exit, exitFrom: course?.finish ? 'the runway' : 'the last gate', planar: false, beats: [], hazards: [] };
   // and the course flown by its own craft (skyscape/autopilot.js): the flight's walkability, a machine gate
   // (a trench run's proof is its line: down the middle, waypoints a little narrower than the trench, trench.js)
-  const run = course ?? (field.line?.length ? { gates: field.line.map((at) => ({ at, radius: field.trench.w / 2 - 5 })), laps: 1, finish: null } : null);
+  // a rail stage (skyscape/rail-stage.js): its path, its hazards, its waves and its boss, laid on this map; started at
+  // the way's head, ended in the boss's arena
+  const rail = manifest.rail ? planRailStage(map, field, { seed: manifest.seed ?? 1, ...(manifest.rail === true ? {} : manifest.rail) }) : null;
+  if (rail) { out.spawn = rail.path[0].slice(); out.heading = Math.atan2(rail.path[1][1] - rail.path[0][1], rail.path[1][0] - rail.path[0][0]); out.exit = rail.boss.at; out.exitFrom = 'the boss\'s arena'; }
+  const run = rail ? null : course ?? (field.line?.length ? { gates: field.line.map((at) => ({ at, radius: field.trench.w / 2 - 5 })), laps: 1, finish: null } : null);
   const flown = run ? flyCourse(map, field, run, { rule: seat.rule }) : null;
   // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
-  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
+  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(rail ? rail.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
     .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
-  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);
   return out;
 }
@@ -1003,6 +1008,13 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     const aloft = ends.seat.rule.engine === false;
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${aloft ? '' : 'W / S  throttle (it holds) · '}A / D  bank · Space / Shift  nose up / down · mouse  pitch${ride?.transformer ? ' · B  transform' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = { ...craftPilot(ends.airMap, ends.seat, { airframe: stage.manifest?.airframe }), events: P.events || {} };
+    // A RAIL STAGE (skyscape/rail-stage.js): the craft carried down the stage's path on the rail rule, seated at its head
+    // facing along it; the stick steers it about the way, W boosts and S brakes, Q / E roll, and the ground is a floor
+    if (ends.rail) {
+      const e0 = pilotPart.entities[0], S = ends.rail, [a, b] = S.path;
+      pilotPart = { ...pilotPart, entities: [{ ...e0, rule: { ...S.rule, eye: e0.rule.eye ?? 0 }, transform: { pos: a.slice(), heading: Math.atan2(b[1] - a[1], b[0] - a[0]), pitch: 0 } }, ...pilotPart.entities.slice(1)], camera: { ...pilotPart.camera, rollFollow: 0.35 } };
+      pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `A / D  steer · Space / Shift  up / down · W  boost · S  brake · Q / E  roll${legend ? ` · ${legend}` : ''}` }).events || {};
+    }
     if (ride?.transformer) {
       // A FLIER THAT TRANSFORMS (quick.transformer): seated as the craft is, in its vehicle form on the seat's rule, its
       // body the transformer; B drops it into its robot form (it falls, lands, walks) and back into the air

@@ -459,7 +459,7 @@ export function buildBus() {
   // watch? }, entered while the watched body's fact is in [min, max] (either open), with the same `enter` / `exit`
   // events. The facts are a pilot's, in the units its HUD shows: alt (m), agl (m over the ground under it), speed
   // (knots), climb (m/s), bank (degrees, right positive), heading (compass degrees, 0 north, 90 east: a range whose min
-  // is above its max wraps through north). A body that has no such fact is in no gauge. A flight lesson's "hold 300 m on
+  // is above its max wraps through north), along (m down a rail stage's path: worlds/controllable/rules-rail.js). A body that has no such fact is in no gauge. A flight lesson's "hold 300 m on
   // 270 at 90 kt" is three gauges (game/objectives.js `band`).
   function gaugeFact(e, fact) {
     const t = e.transform;
@@ -471,6 +471,7 @@ export function buildBus() {
       case 'climb': return Number.isFinite(e.climbRate) ? e.climbRate : null;
       case 'bank': return Number.isFinite(e.bank) ? e.bank * 180 / Math.PI : null;
       case 'heading': return Number.isFinite(t.heading) ? ((90 - t.heading * 180 / Math.PI) % 360 + 360) % 360 : null;
+      case 'along': return Number.isFinite(e.along) ? e.along : null;
       default: return null;
     }
   }

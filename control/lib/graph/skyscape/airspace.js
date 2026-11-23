@@ -4,7 +4,7 @@
  * a roadway.
  *
  * manifest: { kind: 'airspace', map?: { form?, field?, craft?, ceiling?, lands? }, ground?: { land?, heartbeat?, scale?,
- *             pads?, cities?, geocube?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? }, assist?: 'arcade' | 'sim',
+ *             pads?, cities?, geocube?, gorge?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? }, assist?: 'arcade' | 'sim',
  *             course?: true | { gates?, laps?, land? }, palette? }
  *
  * `palette` (a color-theorist spec: pick_palette's, a preset such as 'coastal-noon', or a gameworld level's, moved by
@@ -38,6 +38,9 @@ import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace } from './space.js';
 import { trenchField } from './trench.js';
+import { railPath, railKeep, planRailStage } from './rail-stage.js';
+import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
+import { makeLight } from '../polygonizer/vexar.js';
 import { readPaletteSpec } from '../color-theorist/solve.js';
 
 /** A space manifest: its map's form is 'void', or its craft is a space craft (the fighter), whose map is space. */
@@ -72,6 +75,13 @@ export function validateAirspace(m) {
   if (m.fly && typeof m.fly === 'object' && m.fly.craft !== undefined) { try { craftOf(m.fly.craft); } catch (err) { e.push(`airspace.fly: ${err.message}`); } }
   if (m.palette !== undefined) { try { readPaletteSpec(m.palette, 'airspace.palette'); } catch (err) { e.push(err.message); } }
   if (m.airframe !== undefined && m.airframe !== false) { try { airframeOf({ key: null }, m.airframe); } catch (err) { e.push(err.message); } }
+  // a rail stage (rail-stage.js): down a canyon's floor, or through a field of rocks in space
+  if (m.rail !== undefined) {
+    if (m.rail !== true && !(m.rail && typeof m.rail === 'object' && Object.keys(m.rail).every((k) => ['speed', 'waves', 'per'].includes(k)))) e.push('airspace.rail is true or { speed?, waves?, per? }: a stage flown down a path');
+    if (!isSpace(m) && (m.map?.form ?? 'island') !== 'canyon') e.push("airspace.rail: a ground stage runs down a canyon (map.form: 'canyon'); a space stage needs a space craft or map.form 'void'");
+    if (m.course) e.push('airspace.rail: a rail stage has its path, not a course');
+    if (m.space?.trench) e.push('airspace.rail: a trench is its own run (space.trench), not a rail stage');
+  }
   return e;
 }
 
@@ -87,13 +97,30 @@ export function airspaceOf(manifest) {
     // a battle station's trench (trench.js): its own ground and its own run, no rocks
     if (manifest.space?.trench) return { map, field: trenchField(map, { seed }) };
     const course = planCourse(map, spaceField(map, { asteroids: 'none' }), { ...(manifest.course && manifest.course !== true ? manifest.course : {}), seed });
-    const field = spaceField(map, { asteroids: manifest.space?.asteroids ?? 'field', seed, keep: courseTubes(map, course, spaceSeat(map, course)) });
+    // (a rail stage's way laid first too, and its rocks kept off it: rail-stage.js, the stage's own laid on this field)
+    const rail = manifest.rail ? railKeep(railPath(map, null, { seed, ...(manifest.rail.speed ? { speed: manifest.rail.speed } : {}) })) : [];
+    const field = spaceField(map, { asteroids: manifest.space?.asteroids ?? 'field', seed, keep: [...courseTubes(map, course, spaceSeat(map, course)), ...rail] });
     field.loop = course;   // the lanes kept open: a level with no course still starts on its run-in (craft.js)
     return { map, field };
   }
   const map = planMap({ ...(manifest.map || {}), ...(craft ? { craft } : {}), seed });
-  const field = mapGround(map, { seed: manifest.seed, ...(manifest.ground || {}) }, { palette: manifest.palette || undefined });
+  // (a rail stage down a canyon runs down a gorge cut along it: ground.js `gorge`, unless the ground says otherwise)
+  const gorge = manifest.rail && map.form === 'canyon' && manifest.ground?.gorge === undefined ? { gorge: true } : {};
+  const field = mapGround(map, { seed: manifest.seed, ...gorge, ...(manifest.ground || {}) }, { palette: manifest.palette || undefined });
   return { map, field };
+}
+
+/** A rail stage's hazards drawn as the land's own rocks (rail-stage.js): a rock in space where it stands, a pillar a
+ *  stack of them from the canyon's floor to above the way. The stage is planned as the level plans it (the same seed,
+ *  the same ask), so what is drawn is what the stage's hazard mechanic hurts. [] without a rail. */
+function railHazardRepeats(manifest, map, field, { light, tone, rock = 'granite' }) {
+  if (!manifest.rail) return [];
+  const S = planRailStage(map, field, { seed: manifest.seed ?? 1, ...(manifest.rail === true ? {} : manifest.rail) }), items = [];
+  for (const h of S.hazards) {
+    if (!h.size) { items.push({ x: h.at[0], y: h.at[1], z0: r2(h.at[2] - h.radius), size: r2(2 * h.radius) }); continue; }
+    for (let z = h.base - h.radius * 0.4, top = h.base + h.size[2], k = 0; z < top; z += h.radius * 0.6, k++) items.push({ x: r2(h.at[0] + (k % 2 ? 0.15 : -0.15) * h.radius), y: h.at[1], z0: r2(z), size: r2(2.3 * h.radius) });
+  }
+  return items.length ? rockRepeats(rockPool({ rock, variants: 4, detail: 1, tone, seed: `rail::hazards::${manifest.seed ?? 1}`, light, group: 'hazards' }), items, { sink: 0, group: 'hazards' }) : [];
 }
 
 export function assembleAirspace(manifest, { title = 'mojulo airspace', live = false } = {}) {
@@ -132,7 +159,7 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   return {
     faces: [...(live ? [] : bakeTerrainFaces(field, { spacing: 2 * map.grid.cell, patches: field.pads.map((p) => ({ x0: p.x0, y0: p.y0, w: p.x1 - p.x0, d: p.y1 - p.y0 })) })), ...(live ? field.cityFormed : field.cityFaces), ...(course ? course.faces : [])],
     // the live page's city masses: instanced unit boxes (city.js), a few numbers each
-    ...(live && field.cityRepeats.length ? { repeats: field.cityRepeats } : {}),
+    ...((R) => (R.length ? { repeats: R } : {}))([...(live ? field.cityRepeats : []), ...railHazardRepeats(manifest, map, field, { light: makeLight({ direction: field.K.light.map((v) => -v), ambient: 0.5, diffuse: 0.6 }), tone: '#' + field.K.ramps.stone.stops[3].map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), rock: field.meta.rock || 'granite' })]),
     terrain: channel, cameras, sky, bg, title,
     // the haze IS the map's edge cheat: the density the map planned, thinned with height by the channel's hazeHeight
     haze: { color: bg, density: map.haze.density },
@@ -164,7 +191,7 @@ function assembleSpace(manifest, { title }) {
   ];
   const laws = [...spaceLaws(map, field, course, seat.transform), ...(course ? course.laws : [])];
   return {
-    faces: [...(field.faces || []), ...(course ? course.faces : [])], repeats: field.repeats, cameras, title,
+    faces: [...(field.faces || []), ...(course ? course.faces : [])], repeats: [...field.repeats, ...railHazardRepeats(manifest, map, field, { light: makeLight({ direction: [-0.45, 0.35, -0.82], ambient: 0.32, diffuse: 0.78 }), tone: '#7d756c' })], cameras, title,
     sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000 }, bg: '#03040a',
     ...(pilot ? {} : { walk: { speed: 20, spawn: p, radius: 0.4, minEye: 1.7, gravity: 0, jump: 0 } }),
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },

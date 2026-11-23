@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > action-hero emits byte-identically 1`] = `"0b03c0c7808229c63c401c5fba285b19291bdaed9f2c0171ef2628347cb08e83"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > action-hero emits byte-identically 1`] = `"b34a51895859b0172099ae0a8522c96407222c14da9998b9813eaffed4f9e37a"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > ao emits byte-identically 1`] = `"b1315ca46530ca5dde84ad50ae153ac24cc03447b807d9d5cf48450d5a36b82b"`;
 
@@ -64,9 +64,9 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > effects emits byte-identically 1`] = `"f81c567db3aa2d43586dfc1bf164493bf982e8e463029608c8c947434a5311ca"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > events emits byte-identically 1`] = `"d9fc4e46a374630797e79362fe0af673c2b0009918c41326dddff1390acd505c"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > events emits byte-identically 1`] = `"b9c3b94eea6e60511e9b8ac5ea1a61275946d8b2013f0b355e841034c9105f53"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > events-hud emits byte-identically 1`] = `"2a081d448c350282a7dbbe1055eb0b4790433f1df9c7c2ed325660e2e521574b"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > events-hud emits byte-identically 1`] = `"40ae7b95bc6b0bdb4beccc80e436590d1659f6536fbed61c65e4f6088bf69772"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > face-extras emits byte-identically 1`] = `"6f8c83d48cd6eaaa7043671a40e3fb0c13094cd8f05b55ea34573bbba49cf8b7"`;
 
@@ -88,9 +88,9 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > innings emits byte-identically 1`] = `"824ed3695b3b5bc6f9db47bfb4cdc6df1f90c15c44335f8e61c479dc1632a5ee"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink emits byte-identically 1`] = `"e708a980f650b8851ca2409d346777cc1d70a7730a1f94d23dd08429fd1ebdbe"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink emits byte-identically 1`] = `"897d44f515a2d1393b6d0cd728c8a10be76ba9af95d66260c685b5540de65cf0"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink-capture emits byte-identically 1`] = `"a922a9c616457f0601971f5c807d241a858c453d8e8f10f46112f055e94a9350"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > kitchen-sink-capture emits byte-identically 1`] = `"b762d325d6296dcb429c8af00786af5cf281d5641b78d79ae2129eddeaa11140"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > liquid-sheet emits byte-identically 1`] = `"b92061ba74b989e42a95b63a10274e272fab0e0f326cf4d68757a0f242c6eab8"`;
 
@@ -132,7 +132,7 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > shoot emits byte-identically 1`] = `"c8928c6337dd98cb07acf4c27a188b8f98b5c4446f360cd25b870df4ce0eb49b"`;
 
-exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > shoot-live emits byte-identically 1`] = `"7b8e1104d26b5e20d674fd2097f452a6314986a40f61a8af0cb127893ff3ce69"`;
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > shoot-live emits byte-identically 1`] = `"10cc738889a13a56933c379d41f4fb1ebef39dba308f460aad9b8168879de148"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > shoot-set emits byte-identically 1`] = `"84f75ec3dbe4b71c04556fe2bb11683d3e4cbfca888aee72efedb7ce43e0525a"`;
 

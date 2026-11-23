@@ -8,6 +8,9 @@
  *   dogfight  a wing of fighters, every one shot down (skyscape/dogfight.js): the craft's hp taken by their hits and by a
  *             crash, which comes back aloft at the start; `waves` wings, each woken when the one before is down
  *   trench    a battle station's trench flown to its port, the port shot (skyscape/trench.js): won by the port alone
+ *   stage     an arcade stage flown down a path (airspace.rail; skyscape/rail-stage.js, the rail rule): its waves woken
+ *             as the craft passes their marks, its hazards met where they stand (a pillar's column, a rock), its boss's
+ *             parts shot down to win; the craft's shield the level's hp, taken by hits and hazards, never by the ground
  *   tasks     a list done in order (game/objectives.js), in the level's own words:
  *               { gates: true | [from, to] }            the course's gates (all, or gates from..to, counted from 1)
  *               { land: true }                          set down soft on a runway or a pad of the map
@@ -35,12 +38,22 @@
  * Pure: no database, no clock, no dice (the cast's dice are the dogfight's, seeded by its map).
  */
 import { flightLaps, padBoxes } from '../skyscape/course.js';
-import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
+import { dogfightCast, waveIds, WING, wingFighter, armedPilot, guns } from '../skyscape/dogfight.js';
 import { BAND_FACTS } from '../game/objectives.js';
 
 /** A fight in the air's costs: the craft's hp, what a hit on it takes, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hp: 100, hit: 4, crash: 25 });
-export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'tasks']);
+export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'stage', 'tasks']);
+/** A stage's costs and its foes: what a hit and a hazard flown into take off the shield, how its fighters fire (an
+ *  arcade wing: no missiles, short bursts, long pauses, so a wave is broken up and not a wall of fire), and what they
+ *  fire: a round that travels (m/s, flat, seen), so the craft steered out of its way or rolled through it is not hit. */
+export const STAGE = Object.freeze({
+  hit: 2, hazard: 20,
+  wing: Object.freeze({ burst: 0.3, pause: 3.2, rof: 2 }), boss: Object.freeze({ burst: 0.5, pause: 1.8 }),
+  // (the craft's guns on a stage: an arcade's sights, wider than a dogfight's)
+  sights: Object.freeze({ coreAngle: 4, assistAngle: 12 }),
+  round: Object.freeze({ fireClass: 'lob', lobAngle: 0, projectileSpeed: 170, projectileGravity: 0, projRadius: 2, splashRadius: 0, fuse: 4, noGround: true, passTeam: true, smokeTrail: false, fxColor: 0xff5a3c, fxScale: 2 }),
+});
 export const FLIGHT_TASKS = Object.freeze(['gates', 'land', 'band', 'reach', 'down']);
 export const FLIGHT_CRASH = Object.freeze(['fail', 'respawn']);
 /** A band's words: the gauges, and a lesson's two said against the airfield. */
@@ -52,12 +65,12 @@ export const FIGHT_LEGEND = 'click or Z  guns · R  missile · X  flare · F  bo
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-const SHAPE = `is 'course' | 'dogfight' | 'trench', { dogfight: true | { foes?, waves? } }, or { tasks: [ ${FLIGHT_TASKS.map((k) => `{ ${k} }`).join(' | ')} ], crash?: ${FLIGHT_CRASH.join(' | ')} }`;
+const SHAPE = `is 'course' | 'dogfight' | 'trench' | 'stage', { dogfight: true | { foes?, waves? } }, or { tasks: [ ${FLIGHT_TASKS.map((k) => `{ ${k} }`).join(' | ')} ], crash?: ${FLIGHT_CRASH.join(' | ')} }`;
 
 /** A flight goal in a level's words, read and taught. */
 export function readFlightGoal(v, at = 'goal.flight') {
   const fail = (m) => { throw new Error(`gameworld: ${at}${m}`); };
-  if (v === 'course' || v === 'dogfight' || v === 'trench') return { kind: v };
+  if (v === 'course' || v === 'dogfight' || v === 'trench' || v === 'stage') return { kind: v };
   if (!isObj(v)) fail(` ${SHAPE}`);
   const keys = Object.keys(v);
   if (v.dogfight !== undefined) {
@@ -117,6 +130,7 @@ export function flightGoalOfQuick(quick) {
 
 /** What an airspace with no goal of its own is flown for: its course when it has one, its trench when it has one. */
 export function defaultFlightGoal(airspace) {
+  if (airspace?.rail) return { kind: 'stage' };
   if (airspace?.space?.trench) return { kind: 'trench' };
   if (airspace?.course) return { kind: 'course' };
   return null;
@@ -147,6 +161,17 @@ export function flightGoalMechanics(goal, ends) {
   if (goal.kind === 'course') {
     if (!course) fail('a course is flown on a course: give the airspace one (course: true)');
     return [flightLaps(course, map, field, seat)];
+  }
+  if (goal.kind === 'stage') {
+    const S = ends.rail;
+    if (!S) fail('a stage is flown down a rail: give the airspace one (airspace.rail: true)');
+    return [
+      // the shield: the level's hp, a bar; a hit takes its share, a hazard flown into more
+      { kind: 'fail-on-death', startHp: DOGFIGHT.hp, hits: STAGE.hit, bar: true },
+      ...(S.waves.length ? [{ kind: 'wake', marks: S.waves.map((w) => ({ fact: 'along', min: w.along, foes: w.foes })) }] : []),
+      ...(S.hazards.length ? [{ kind: 'hazard-damage', hazards: S.hazards.map((h) => (h.size ? { at: [h.at[0], h.at[1], h.base + h.size[2] / 2], half: [h.radius, h.radius, h.size[2] / 2], damage: STAGE.hazard, planar: false } : { at: h.at, radius: h.radius, damage: STAGE.hazard, planar: false })) }] : []),
+      { kind: 'defeat-all', who: 'boss-*', count: S.boss.parts.length, label: 'Boss' },
+    ];
   }
   if (goal.kind === 'dogfight' || goal.kind === 'trench') {
     if (goal.kind === 'trench' && !field.port) fail('a trench run needs a trench: the airspace\'s space is { trench: true }');
@@ -214,6 +239,27 @@ export function flightGoalMechanics(goal, ends) {
  * turrets, the craft's guns and a mouse that flies it; null when it stands nothing (a course, a lesson). */
 export function flightGoalCast(goal, ends) {
   const map = ends.airMap, field = ends.airField, seat = ends.seat;
+  if (goal.kind === 'stage' && ends.rail) {
+    // the stage's fighters at their posts, asleep until their marks; its boss's parts, static minds with guns; the craft
+    // armed (its cannon and missiles). Its hazards are the airspace's own to draw (rocks: airspace.js), the mechanic's to hurt
+    const S = ends.rail, c = map.craft, size = Math.round(Math.max(4, c.max / 25) * 100) / 100, entities = [];
+    const toward = (at) => { const e = S.path[0]; return Math.atan2(e[1] - at[1], e[0] - at[0]); };
+    // (an arcade wing: the dogfight's fighter without its missiles, firing in short bursts, on station ahead of the craft
+    // once woken: rules-rail.js)
+    for (const f of S.foes) {
+      const w = wingFighter(map, f.id, f.at, toward(f.at), { dormant: true }), { missiles: _m, ...rule } = w.rule;
+      entities.push({ ...w, rule: { ...rule, burst: STAGE.wing.burst, pause: STAGE.wing.pause, station: { of: 'player', ...f.station } }, weapon: { ...w.weapon, ...STAGE.round, rof: STAGE.wing.rof } });
+    }
+    for (const p of S.boss.parts) entities.push({
+      id: p.id, team: 'foes',
+      rule: { type: 'ai', space: true, speed: 0, turn: 2, standoff: 0, fireArc: 12, burst: STAGE.boss.burst, pause: STAGE.boss.pause, sightRange: Math.round(5 * c.cruise), eye: 0 },
+      weapon: { ...guns(c), ...STAGE.round, rof: p.id === 'boss-core' ? 4 : 2, range: Math.round(3 * c.cruise), assistAngle: 3 },
+      body: { type: 'mesh', shape: 'box', size: [p.size, p.size, p.size * 0.6], color: p.id === 'boss-core' ? '#b8323a' : '#5c6470', hittable: true, hp: p.hp, poise: 99, radius: p.size / 2, egg: { a: p.size / 2, c: p.size / 2, cz: 0 } },
+      transform: { pos: p.at, heading: toward(p.at), pitch: 0 },
+    });
+    const A = armedPilot(c, size);
+    return { entities, pilot: { weapon: { ...A.weapon, ...STAGE.sights }, rule: { missiles: A.rule.missiles }, body: A.body } };
+  }
   if (goal.kind === 'dogfight' || goal.kind === 'trench') return dogfightCast(map, field, seat, { foes: goal.foes, waves: goal.waves });
   if (goal.kind !== 'tasks') return null;
   const W = wingOf(goal);
@@ -231,6 +277,7 @@ export function flightGoalCast(goal, ends) {
 
 /** The keys the goal's play adds to the level's legend: a fight's guns, or nothing. */
 export function flightLegend(goal) {
+  if (goal.kind === 'stage') return 'click or Z  guns · R  missile';
   if (goal.kind === 'dogfight' || goal.kind === 'trench') return FIGHT_LEGEND;
   if (goal.kind === 'tasks' && goal.tasks.some((t) => t.down !== undefined)) return FIGHT_LEGEND;
   return null;

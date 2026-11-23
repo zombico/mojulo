@@ -1588,11 +1588,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     try { return { mission_proof: { gate: 'machine', levels: proveMissions(W, missionStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })).manifests), note: 'machine gate: each mission\'s tasks done in order on the bus with every way on sealed until its task was met, and the level played headless by a gunner that walks, aims and reloads (no cover, no flank); whether it is a good first level is the creator\'s to say in play (the eyes gate has not run)' } }; } catch (e) { return { mission_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
   // a run's flight levels flown for their tasks by the lesson pilot on the fly rule, judged on the bus by their own
-  // mechanics, each with its medal (machine gate, gameworld/flight-proof.js)
-  const flightProof = ran && Object.values(W.levels ?? {}).some((L) => L?.airspace !== undefined && L?.goal?.flight?.tasks) ? (() => {
+  // mechanics, each with its medal; its rail stages flown by the stage pilot and a still one (machine gate,
+  // gameworld/flight-proof.js)
+  const flightProof = ran && Object.values(W.levels ?? {}).some((L) => L?.airspace !== undefined && (L?.goal?.flight?.tasks || L.airspace?.rail)) ? (() => {
     try {
       const levels = proveFlights(flightStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })));
-      return levels ? { flight_proof: { gate: 'machine', levels, note: 'machine gate: each flight level\'s tasks flown by a careful student on the fly rule the page runs (one task at a time, its bands held at their middles), judged on the bus by the level\'s own mechanics; its medal is what a clean flight earns. Whether the lesson teaches is the creator\'s to say in play (the eyes gate has not run)' } } : {};
+      return levels ? { flight_proof: { gate: 'machine', levels, note: 'machine gate: each flight level\'s tasks flown by a careful student on the fly rule the page runs (one task at a time, its bands held at their middles), judged on the bus by the level\'s own mechanics; its medal is what a clean flight earns. Each rail stage flown on the runtime the page runs by an attentive player (hazards taken wide, the nearest fighter in range brought onto the guns, rounds rolled through) and by a still one: proved when the first wins and the second does not. Whether the lesson teaches or the stage is fun is the creator\'s to say in play (the eyes gate has not run)' } } : {};
     } catch (e) { return { flight_proof: { gate: 'machine', levels: [], error: e.message } }; }
   })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed

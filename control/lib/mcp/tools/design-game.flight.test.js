@@ -103,6 +103,41 @@ describe('design_game: designed flight levels', () => {
     expect(['silver', 'bronze', 'no medal', undefined], JSON.stringify([sloppy.result, sloppy.grade, sloppy.kept])).toContain(sloppy.grade);
   }, 400000);
 
+  it('Wolf Squadron: a locked pitch lays a planet stage and a space stage; built, each flown down its rail to a boss', async () => {
+    const out = await designGameHandler({ title: 'Wolves', world: { id: 'wolves', name: 'Wolves', rail: { from: 'wolf-squadron', locked: true } } });
+    expect(out.pitch).toMatchObject({ stored: true, by: 'wolf-squadron', levels: ['stage-1', 'stage-2'] });
+    const ref = out.ref, run = await designGameHandler({ ref, run: true });
+    expect(run.ran.filter((r) => r.action === 'make').map((r) => r.key)).toEqual(expect.arrayContaining(['level-stage-1-0', 'level-stage-2-0', 'game']));
+    for (const [id, ground] of [['stage-1', true], ['stage-2', false]]) {
+      const M = SketchRepository.getByRef(`${ref}-level-${id}-0`).manifest, kinds = M.game.mechanics.map((m) => m.kind);
+      // flown down its path on the rail rule: the ground a floor on the planet, none in space; the starfighter its body
+      const P = M.entities.find((e) => e.pilotable);
+      expect(P.rule.type).toBe('rail');
+      expect(P.rule.path.length).toBeGreaterThan(10);
+      expect(Number.isFinite(P.rule.floor)).toBe(ground);
+      expect(P.weapon).toBeTruthy();
+      expect(M.figures.craft.craft.archetype).toBe('strikeFoil');
+      // its shield, its waves woken by the way's marks, its hazards met where they stand, its boss to shoot down
+      expect(kinds).toEqual(expect.arrayContaining(['fail-on-death', 'wake', 'hazard-damage', 'defeat-all']));
+      expect(kinds).not.toContain('reach-exit');
+      const wake = M.game.mechanics.find((m) => m.kind === 'wake');
+      expect(wake.marks).toHaveLength(3);
+      expect(wake.marks.every((k) => k.fact === 'along' && k.foes.length === 3)).toBe(true);
+      const foes = M.entities.filter((e) => /^foe-/.test(e.id));
+      expect(foes.length).toBe(9);
+      expect(foes.every((e) => e.dormant)).toBe(true);
+      expect(M.entities.filter((e) => /^boss-/.test(e.id)).map((e) => e.id)).toEqual(['boss-core', 'boss-gun-1', 'boss-gun-2']);
+      expect(M.game.mechanics.find((m) => m.kind === 'defeat-all')).toMatchObject({ who: 'boss-*', count: 3 });
+      expect(M.game.mechanics.find((m) => m.kind === 'hazard-damage').hazards.every((h) => h.planar === false)).toBe(true);
+      // its fighters on station ahead of the craft once woken, firing rounds that travel (dodged, rolled through)
+      expect(foes.every((e) => e.rule.station?.of === 'player' && e.rule.station.lead >= 250 && !e.rule.missiles)).toBe(true);
+      expect(foes.every((e) => e.weapon.fireClass === 'lob' && e.weapon.projectileGravity === 0)).toBe(true);
+    }
+    // the run's readout: each stage won by an attentive player on the page's runtime, and lost by a still one
+    expect(run.flight_proof.gate).toBe('machine');
+    expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.result, l.still]), JSON.stringify(run.flight_proof.levels)).toEqual([['stage-1', true, 'success', 'lost'], ['stage-2', true, 'success', 'lost']]);
+  }, 400000);
+
   it('refuses a flight goal it cannot lay, teaching', async () => {
     const bad = async (lv, msg) => { await expect(designGameHandler({ ref: 'bad', title: 'Bad', world: world({ x: lv }) })).rejects.toThrow(msg); };
     await bad({ airspace: { map: { craft: 'jet' } }, goal: { flight: 'course' } }, /a course is flown on a course/);

@@ -74,3 +74,39 @@ They share one foundation, built first, and these themes record it as it lands.
     craft has flown past its stall.
   - An airspace level is titled by its name, not "lesson-1 · airspace".
   - A band's clock shows only while its task is in hand.
+- **Wolf Squadron, the first two stages** (`gameworld/wolf-squadron.js`, the rail `wolf-squadron`, genre
+  `space-shooter`; the generic flight rail keeps air combat). An arcade flier: flight as a concept, not a simulation. A
+  locked pitch lays two stages, both flown in the strike foil:
+  - Canyon run: down a gorge on a planet, rock pillars in the way;
+  - Debris field: through a field of rocks in space, rocks let into the way.
+
+  Each has three waves and a boss (a core and two guns) at the way's end. An airspace level's goal `'stage'` (its
+  default with `airspace.rail`) is a shield bar, the waves, the hazards and the boss.
+- **The rail** (`worlds/controllable/rules-rail.js`, opt-in: emitted only into a page whose pilot rides one). The
+  craft is carried down a stage's path at its speed and steered about it in a box: A / D and Space / Shift move it, W
+  boosts and S brakes from one meter, Q / E roll it aside and through fire. The ground is a floor, never a crash; what
+  hurts is what stands in the way and what shoots back. Its speed across is `sway`: a rule's `steer` is a car's
+  wheels, and the steering pre-step turned the rail's input into wheel angle, so the craft would not steer.
+- **Fighters on station** (the same module: an `ai` with `rule.station`). Woken, a stage's fighter holds a place
+  straight ahead of the craft down its heading on the way, at its place in the box, weaving. A bend never puts it off
+  the craft's nose, and it never chases from behind. It fires in bursts, then peels off and is gone. A stage's
+  fighters carry no missiles, and they and the boss fire rounds that travel and can be dodged, not hitscan. The
+  craft's guns on a stage have an arcade's wider sights.
+- **The stage** (`skyscape/rail-stage.js`). It lays the path, the waves (woken by `wake`, below), the hazards and the
+  boss on a canyon or a space map, with laws: the way skims the floor, each hazard leaves a way past, and the way is
+  walled on both sides when it runs down a gorge.
+- **A gorge** (`skyscape/ground.js`, `ground.gorge: true | { width, depth }`). The canyon form's walls stood outside
+  the field, so a canyon run was flown over open hills. A gorge is cut through the field along a weaving line, its
+  floor low and its walls raised. The rail's path follows the gorge's line (`field.gorge`). A rail stage on a canyon
+  asks for one unless its ground says otherwise.
+- **Hazards drawn as rocks** (`skyscape/airspace.js`). A stage's hazards are drawn as the land's own rocks, lit:
+  a rock in space, a pillar as a stack of rocks from the gorge's floor. Before, they were unlit entity bodies that
+  read as flat discs.
+- **Waking by a gauge** (`game/wake.js`, a mechanic with its card). Foes are minted asleep and woken when the player
+  enters a gauge's range. A stage wakes its waves by `along`, the craft's distance down its path, a new gauge fact.
+  The hazard damage mechanic takes `planar` and `half` per hazard, so a pillar or a rock in the air is met in three
+  dimensions. Its hp now stops at zero, as a hit's does.
+- **The stage proof** (`skyscape/stage-pilot.js`, in `design_game`'s `flight_proof`). Each rail stage is flown on
+  the runtime the page runs by an attentive player (hazards taken wide, the nearest fighter in range brought onto the
+  guns, rounds rolled through) and by a still one. A stage is proved when the first wins and the second does not.
+  Both Wolf stages are.

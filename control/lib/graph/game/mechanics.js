@@ -25,6 +25,7 @@ import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
 import { lowerGrade } from './grade.js';
+import { lowerWake } from './wake.js';
 import { lowerWork } from './work-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
@@ -193,8 +194,9 @@ const MECHANICS = {
       const world = { sources: [], reactions: [], ...(body ? {} : { vars: { hp: Number.isFinite(p.startHp) ? p.startHp : 100 }, hud: [{ var: 'hp', label: 'HP' }] }) };
       hazards.forEach((hz, j) => {
         const zone = `hz_${ctx.i}_${j}`, by = Number.isFinite(hz.damage) ? hz.damage : 20;
-        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], radius: hz.radius != null ? hz.radius : 1.5, planar: true, watch: ctx.player });
-        world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by });
+        // (planar, as a hazard on a floor is; `planar: false` meets it at its height: a pillar or a rock in a flight's way)
+        world.sources.push({ type: 'zone', zone, at: hz.at || [0, 0, 0], ...(Array.isArray(hz.half) ? { half: hz.half } : { radius: hz.radius != null ? hz.radius : 1.5 }), planar: hz.planar !== false, watch: ctx.player });
+        world.reactions.push(body ? { on: 'enter', match: { zone }, do: 'ctrl', op: 'hurt', who: ctx.player, by } : { on: 'enter', match: { zone }, do: 'inc', var: 'hp', by: -by, min: 0 });
       });
       return { world };
     },
@@ -899,6 +901,9 @@ const MECHANICS = {
   // THE GRADE (grade.js): a level's medal read off what it kept when it is won, each criterion's bounds of gold, silver
   // and bronze; the worst a criterion gives is the medal, kept by its name
   grade: { role: 'emitter', requires: [], lower: lowerGrade },
+  // WAKE (wake.js): foes asleep until the player passes a mark of one of its facts (a rail stage's waves by the distance
+  // along its path), each wave woken once
+  wake: { role: 'emitter', requires: [], lower: lowerWake },
 
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in

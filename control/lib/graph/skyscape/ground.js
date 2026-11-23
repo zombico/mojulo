@@ -15,6 +15,9 @@
  *              world), flat to the datum under the wheels whatever the detail around them, painted with their marks
  *   cities     fractal cities (city.js, terrain-city.js's): sited clear of the pads' climb-outs, graded, seated as
  *              plain metro masses; their roofs are obstacles (`topAt`)
+ *   gorge      a gorge cut through the field along x (`gorge: true | { width?, depth? }`, the floor's width and the walls'
+ *              height in m): the land beside a weaving centreline raised into walls, its floor kept low; `field.gorge`
+ *              carries its line (x → y), so a way laid down it (rail-stage.js) runs its floor. Absent: no gorge
  *   paint      a geocube's key colours as the kernel's ramps (grass the soil, stone the rock, sand the scree); or,
  *              given a palette (color-theorist/), the palette's: its ground, rock and sky ramps, its sea sunk from its sky
  *
@@ -66,7 +69,8 @@ const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('b
 /** Errors (strings) for a ground ask; [] when it lays. */
 export function readGroundAsk(ask = {}) {
   const e = [];
-  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, geocube?, seed? }'];
+  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, geocube?, gorge?, seed? }'];
+  if (ask.gorge !== undefined && typeof ask.gorge !== 'boolean' && !(ask.gorge && typeof ask.gorge === 'object' && ['width', 'depth'].every((k) => ask.gorge[k] === undefined || (Number.isFinite(ask.gorge[k]) && ask.gorge[k] >= 40 && ask.gorge[k] <= 2000)))) e.push('ground.gorge must be true, false or { width?, depth? } in metres, each 40–2000');
   e.push(...readCityAsk(ask.cities));
   if (ask.land !== undefined && !LANDS[ask.land]) e.push(`ground.land must be one of ${Object.keys(LANDS).join(', ')}`);
   if (ask.scale !== undefined && !(Number.isFinite(ask.scale) && ask.scale >= 1 && ask.scale <= 100)) e.push('ground.scale must be 1–100: the heartbeat\'s metres are multiplied by it (its places stay relative)');
@@ -149,6 +153,18 @@ function formAt(map, x, y, seed) {
   if (map.form === 'basin') return { lift: 1, add: B.wall * smooth(0.35, 1.3, out), rim: smooth(0.25, 1, out) };
   if (map.form === 'canyon') { const across = B.axis === 'x' ? ey : ex; return { lift: 1, add: B.wall * smooth(0.1, 0.8, across), rim: smooth(0.25, 1, out) }; }
   return { lift: 1, add: 0, rim: smooth(0.25, 1, out) };
+}
+
+/** A gorge's floor width and wall height (m) by default, and the run of its walls (m, the floor's edge to the top). */
+export const GORGE = Object.freeze({ width: 320, depth: 260, slope: 240 });
+
+/** The gorge asked for on this map: its line down the field along x (a slow seeded weave), its floor's half-width, its
+ *  walls' height and run. null without one. */
+function gorgeOf(map, ask, seed) {
+  if (!ask) return null;
+  const F = map.rings.field, A = ask === true ? {} : ask, x0 = -0.9 * F.hx, span = 1.8 * F.hx, amp = 0.04 * F.hy;
+  const ph = ((seed % 997) / 997) * 2 * Math.PI;
+  return { half: (A.width ?? GORGE.width) / 2, depth: A.depth ?? GORGE.depth, slope: GORGE.slope, line: (x) => amp * Math.sin(ph + ((x - x0) / span) * 5.2) };
 }
 
 /** The pads asked for, in metres: { id, kind, length, width, falloff, center, along (null: either axis, sited) }. */
@@ -251,11 +267,16 @@ export function mapGround(map, ask = {}, { palette } = {}) {
   const shape = SHAPES[land.shape], wave = land.wave * Math.max(1, F.hx / 2000);
   // the land's height: its near height, rising to its far height where a slow mask says this is high country (so a
   // field has hills to fly round and flats to land on) and toward the reach where the form rings it
+  // (a gorge: the land beside its line raised into walls, its floor a third of the land's own height)
+  const gorge = gorgeOf(map, ask.gorge, seed);
   const relief = (x, y) => {
     const f = formAt(map, x, y, seed);
     const high = smooth(0.42, 0.78, 0.5 + 0.9 * gnoise(x / (wave * 3), y / (wave * 3), seed + 9));
     const h = land.near + (land.far - land.near) * Math.max(high, f.rim);
-    return h * f.lift * shape(x / wave, y / wave, seed, land) + f.add;
+    const z = h * f.lift * shape(x / wave, y / wave, seed, land) + f.add;
+    if (!gorge) return z;
+    const w = smooth(gorge.half, gorge.half + gorge.slope, Math.abs(y - gorge.line(x)));
+    return z * (0.35 + 0.65 * w) + gorge.depth * w;
   };
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) g.z[j * g.nx + i] = relief(gridX(g, i), gridY(g, j));
   const centre = relief(0, 0);
@@ -309,6 +330,7 @@ export function mapGround(map, ask = {}, { palette } = {}) {
     bounds,
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,
+    ...(gorge ? { gorge } : {}),
     // the sea's colour: the palette's water ramp at its middle (no palette: the page's own, from the sky)
     ...(painted && sea !== null ? { water: rgbHex(painted.atlas.ramps.water.stops[2]) } : {}),
     report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), ...(P ? { palette: P.id } : { geocube: cube.id }), scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}) },
