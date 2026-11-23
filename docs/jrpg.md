@@ -384,7 +384,9 @@ portrait.
 The world bible's battles section shows what each wears: each member in its own clothes and in each armour its class may
 wear, photographed where the run has made the look (`lib/mcp/tools/wardrobe-portraits.js`), else named. An engine
 handoff's level record carries each member's looks on its marker (`looks: { <armour>: { figure, ref } }`): the ref is the
-look's own made body, which `export_model` hands off as an asset.
+look's own made body, which `export_model` hands off as an asset. On the anime head mail is worn without its coif's head pieces (the drape over the
+shoulders kept); a plate helm is refused there. Each look adds its own body to the level's page (about 0.8 MB a look on
+the starter's party).
 
 ## The screen and sound in words
 

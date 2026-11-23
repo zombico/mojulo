@@ -366,3 +366,7 @@
   bible route); an engine handoff's level record gives each member's marker its looks, each armour's figure and the made
   body behind it. A run may now record a hero's look (`made.js` `MADE_KEY`: `hero-look-<armour>`), which it refused.
   The world bible no longer fails on a party RPG whose hub is a street (`battles-page.js` read it as a level graph).
+- **The wardrobe played with its real bodies.** `control/scripts/spikes/wardrobe-play/` makes a party's members and their
+  looks as a run does and plays a wilds block in Chrome: loaded in the starting gear's looks, taken off and put on, and
+  fought in them by all four. It found mail refused on the anime head (its coif's head pieces are not fitted there): mail
+  on that head is now worn without them, its drape kept (`hero-dress.js`).
