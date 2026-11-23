@@ -564,6 +564,16 @@ export function manaCss(scope = '.mana-root') {
     `${s} .mana-table tr[data-mark=yes] td{font-weight:700;background:${v('wash')}}`,
     `${s} .mana-table tr[data-mark=yes] td:first-child::before{content:"\\25B6  "}`,
     `${s} .mana-gauge{display:inline-flex;flex-direction:column;align-items:center;gap:${u(3)}}`,
+    // a craft's shields on a plan of it (no words): the plan tinted from the hull's colour to harm as it drains, an arc over
+    // the nose and one under the tail, each the shield's colour full, drained toward harm, faint and beating when spent
+    `${s} .mana-shields{position:relative;display:block;width:100%;aspect-ratio:1/1.1;max-height:100%;margin:0 auto}`,
+    `${s} .mana-shields .mana-sh-plan{position:absolute;left:24%;right:24%;top:20%;bottom:20%;background:color-mix(in srgb,${v('hp')} calc(var(--h,1) * 100%),${v('harm')});-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}`,
+    `${s} .mana-shields .mana-sh-plan[data-shape=none]{border-radius:40% 40% 20% 20%}`,
+    `${s} .mana-shields .mana-sh-arc{position:absolute;left:8%;right:8%;height:42%;box-sizing:border-box;border:${u(7)} solid transparent;border-radius:50%}`,
+    `${s} .mana-shields .mana-sh-arc[data-side=fore]{top:0;border-top-color:color-mix(in srgb,${v('shield')} calc(var(--f,0) * 100%),${v('harm')});opacity:calc(.3 + .7 * var(--f,0))}`,
+    `${s} .mana-shields .mana-sh-arc[data-side=aft]{bottom:0;border-bottom-color:color-mix(in srgb,${v('shield')} calc(var(--a,0) * 100%),${v('harm')});opacity:calc(.3 + .7 * var(--a,0))}`,
+    `${s} .mana-shields[data-fore=down] .mana-arc[data-side=fore],${s} .mana-shields[data-aft=down] .mana-arc[data-side=aft]{opacity:.35;animation:mana-pulse .8s steps(2) infinite;animation-play-state:${v('loop')}}`,
+    `${s} .mana-shields[data-hull=low] .mana-plan{animation:mana-pulse 1s ease-in-out infinite;animation-play-state:${v('loop')}}`,
     `${s} .mana-dial{position:relative;display:flex;align-items:center;justify-content:center;width:${u(144)};height:${u(144)};border-radius:50%;border:${v('rule-w')} solid ${v('line')};background:conic-gradient(from -120deg,${v('plain')} calc(var(--r,0)*240deg),${v('paper')} 0 240deg,transparent 0)}`,
     `${s} .mana-dial::after{content:"";position:absolute;inset:${u(14)};border-radius:50%;background:${v('panel')}}`,
     `${s} .mana-dial i{position:absolute;left:calc(50% - 1px);bottom:50%;width:2px;height:${u(60)};background:${v('ink')};transform-origin:50% 100%;z-index:1}`,

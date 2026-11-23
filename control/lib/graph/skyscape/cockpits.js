@@ -33,6 +33,8 @@
  *   canopyFrame(airframe)          → { bars: [{ pts: [[x, y, z]…], r }], window?: { z, r, hub } , fill: 'bubble' | 'round' }
  *                                    the canopy's frame in the eye's frame (x right, y up, z ahead, m): a bubble's facet
  *                                    edges and its hoops from the shelf's own canopy; a round window's rim and spokes
+ *   CRAFT_PLANS · planOf(archetype) → a craft's outline from above (an SVG path in a 100 box, its nose up): what its
+ *                                    shields are read off (mana-ui `shields`); a craft with none a plain dart
  *   frameCover(airframe, { aspect?, vfov? }) → the share of the view over the panel the bars cover (each segment
  *                                    projected as the page projects it, as thick as it is near): how much the frame hides
  *
@@ -156,4 +158,28 @@ export function frameCover(airframe, { aspect = 16 / 9, vfov = 60 } = {}) {
     }
   }
   return Math.round((area / (W * top)) * 1000) / 1000;
+}
+
+/** Each craft's outline seen from above, its nose up (an SVG path in a 100 box): the plan its shields are read off. */
+export const CRAFT_PLANS = Object.freeze({
+  // the four foils swept back off a long nose
+  strikeFoil: 'M47 3 L53 3 L55 48 L95 56 L95 68 L56 71 L57 93 L43 93 L44 71 L5 68 L5 56 L45 48 Z',
+  // an arrowhead, its two pods at its trailing corners
+  arrowInterceptor: 'M50 5 L88 86 L66 94 L50 84 L34 94 L12 86 Z',
+  // a long body on short wings, its twin fins aft
+  heavyFighter: 'M43 3 L57 3 L60 38 L91 50 L91 64 L62 66 L64 95 L36 95 L38 66 L9 64 L9 50 L40 38 Z',
+  // a ball between two flat panels, seen edge on from above
+  twinPanel: 'M3 18 L11 18 L11 82 L3 82 Z M89 18 L97 18 L97 82 L89 82 Z M11 47 L36 47 L36 53 L11 53 Z M64 47 L89 47 L89 53 L64 53 Z M50 33 A17 17 0 1 1 49.9 33 Z',
+  // the ball between two bent dagger panels
+  daggerInterceptor: 'M4 8 L12 14 L14 50 L12 86 L4 92 L8 50 Z M96 8 L88 14 L86 50 L88 86 L96 92 L92 50 Z M14 47 L37 47 L37 53 L14 53 Z M63 47 L86 47 L86 53 L63 53 Z M50 35 A15 15 0 1 1 49.9 35 Z',
+  // two pods side by side, panels outboard
+  twinPodBomber: 'M3 20 L10 20 L10 80 L3 80 Z M90 20 L97 20 L97 80 L90 80 Z M10 47 L22 47 L22 53 L10 53 Z M78 47 L90 47 L90 53 L78 53 Z M34 14 A12 12 0 0 1 46 26 L46 86 L22 86 L22 26 A12 12 0 0 1 34 14 Z M54 30 L78 30 L78 84 L54 84 Z',
+  // a long liner
+  starliner: 'M50 3 C63 9 66 28 66 48 L66 92 L34 92 L34 48 C34 28 37 9 50 3 Z',
+});
+const DART = 'M50 6 L74 90 L50 78 L26 90 Z';
+
+/** A craft's outline from above: its own, else a plain dart. */
+export function planOf(archetype) {
+  return CRAFT_PLANS[archetype] ?? DART;
 }

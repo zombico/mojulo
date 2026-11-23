@@ -421,6 +421,21 @@ describe('mana-ui: the live game', () => {
     expect(sl).toContain('>E<');
     expect(hudOf([at({ use: 'gauge', props: { value: 120, max: 240 } })]).view()).toContain('rotate(0deg)');
   });
+  it('a craft\'s shields are read off its plan, no words: each side\'s share and the hull\'s, a spent side marked, the plan its mask', () => {
+    const v = hudOf([at({ use: 'shields', props: { fore: 6, aft: 0, max: 8, hull: 3, hullMax: 12, shape: 'M50 5 L90 90 L10 90 Z' } })]).view();
+    expect(v).toContain('--f:0.75;--a:0;--h:0.25');
+    expect(v).toContain('data-aft="down"');
+    expect(v).not.toContain('data-fore=');
+    expect(v).toContain('data-hull="low"');
+    expect(v).toMatch(/mask-image:url\(&quot;data:image\/svg\+xml,[^"]*M50%205%20L90%2090/);
+    expect((v.match(/mana-sh-arc/g) || []).length).toBe(2);
+    expect(v).not.toMatch(/>[a-z]/i);                                  // no words drawn
+    // a craft with no shields: the plan alone; a shape is only its path's letters (nothing else reaches the image)
+    const n = hudOf([at({ use: 'shields', props: { hull: 12, hullMax: 12, shape: 'M0 0 L9 9 Z<script>' } })]).view();
+    expect(n).toContain('data-shields="none"');
+    expect(n).not.toContain('mana-sh-arc');
+    expect(n).toContain('d%3D&#39;M0%200%20L9%209%20Zsct&#39;');   // the path's letters and figures only: no tag reaches the image
+  });
   it('a hud holds regions and layers only; a screen lays its own parts out in regions over the held game', () => {
     expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, peril, letterbox, effect\)/);
     const rt = run(screen([{ use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'list', props: { rows: [{ label: 'Attack', active: true }, { label: 'Guard' }] } }] }]));

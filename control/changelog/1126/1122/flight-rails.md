@@ -188,3 +188,10 @@ They share one foundation, built first, and these themes record it as it lands.
   down its nose at its speed, its nose (and its pitch) turned at its own rate. It runs in on its target firing,
   breaks off near it, extends away to one side, and turns back in for another pass. It holds its fire while it
   extends. Before, a space mind slid straight at its target and stopped at its standoff.
+- **Shields read off a plan of the craft** (mana-ui `shields`, a new component; `skyscape/cockpits.js` `CRAFT_PLANS`).
+  A craft's shields and hull are drawn without words. Its outline from above is tinted from the hull's colour toward
+  harm as the hull drains (beating when low). An arc over its nose is the fore shield and one under its tail the aft,
+  each in the shield's colour when full, drained toward harm, and faint and beating when spent. A craft with no
+  shields shows the plan alone. The cockpit's systems screen shows the pilot's own craft (its card's outline, in place
+  of the shield and hull bars); the targeting computer shows the target's, by its craft. Every mission's craft has its
+  outline, and another craft draws as a plain dart.

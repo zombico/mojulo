@@ -37,7 +37,7 @@
 import { manaUiSource, manaUi } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
-import { cockpitOf, canopyFrame, COCKPITS } from '../../skyscape/cockpits.js';
+import { cockpitOf, canopyFrame, COCKPITS, CRAFT_PLANS, planOf } from '../../skyscape/cockpits.js';
 
 const json = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 
@@ -84,15 +84,14 @@ export function cockpitHudSpec() {
     region('bottom', [stack([
       text(B('tName'), 'heading'),
       stack([{ use: 'stat', props: { label: 'range', value: B('tRange') } }, { use: 'stat', props: { label: 'closing', value: B('tClosure') } }], 'row', 'apart'),
-      { use: 'bar', props: { label: 'hull', value: B('tHull'), max: 100, variant: 'hp', numbers: false } },
-      { ...stack([{ use: 'bar', props: { label: 'fore', value: B('tFore'), max: 100, variant: 'shield', size: 'thin', numbers: false } }, { use: 'bar', props: { label: 'aft', value: B('tAft'), max: 100, variant: 'shield', size: 'thin', numbers: false } }], 'row'), when: B('tShOn') },
+      // (the target's shields and hull read off its plan: no words)
+      { use: 'shields', props: { fore: B('tFore'), aft: B('tAft'), max: B('tShMax'), hull: B('tHull'), hullMax: 100, shape: B('tPlan') } },
     ])], { when: B('tOn') }),
     region('bottom-left', [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('fore'), label: 'fore' } }], {}, true),
     region('bottom-right', [{ use: 'minimap', props: { shape: 'round', scope: true, markers: B('aft'), label: 'aft' } }], {}, true),
     region('left', [stack([
-      { use: 'bar', props: { label: 'shield fore', value: B('sFore'), max: B('sMax'), variant: 'shield', numbers: false }, when: B('shOn') },
-      { use: 'bar', props: { label: 'shield aft', value: B('sAft'), max: B('sMax'), variant: 'shield', numbers: false }, when: B('shOn') },
-      { use: 'bar', props: { label: 'hull', value: B('hull'), max: B('hullMax'), variant: 'hp', numbers: false } },
+      // (the craft's own shields and hull read off its plan: the fore arc over its nose, the aft under its tail)
+      { use: 'shields', props: { fore: B('sFore'), aft: B('sAft'), max: B('sMaxOn'), hull: B('hull'), hullMax: B('hullMax'), shape: B('plan') } },
       { use: 'bar', props: { label: 'lasers', value: B('laser'), max: B('laserMax'), variant: 'mp', numbers: false } },
       text(B('linkSay'), 'caption'),
     ])], { when: B('on') }),
@@ -138,6 +137,7 @@ export function cockpitPanelCss(card) {
     // (a stat's figure on no highlight of its own: the screen's phosphor)
     `${V} ${I} .mana-stat *{background:none!important;color:var(--mana-accent)!important;padding:0!important}`,
     `${V} [data-at=bottom] .mana-text[data-role=heading]{font-size:min(2cqh,15px)!important;letter-spacing:.08em}`,
+
   ];
   for (const [k, [x0, y0, x1, y1]] of Object.entries(S)) {
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}]{left:${pc(x0)};top:${pc(y0)};width:${pc(x1 - x0)};height:${pc(y1 - y0)};right:auto;bottom:auto;transform:none;max-width:none;padding:0;align-items:stretch}`);
@@ -145,6 +145,12 @@ export function cockpitPanelCss(card) {
   // the sensors round, a CRT each, filling their bezels
   out.push(`${V} .mana-place:is([data-at=bottom-left],[data-at=bottom-right])>*{border-radius:50%!important;padding:0!important;display:flex;align-items:center;justify-content:center}`,
   );
+  // (a plan of shields as tall as its screen leaves it: the systems' over the lasers and the link, the computer's under the
+  // target's name and readings)
+  for (const [k, less] of [['systems', 34], ['computer', 50]]) {
+    const [, y0, , y1] = S[k], hgt = `calc(${((y1 - y0) * 100).toFixed(2)}cqh - ${less}px)`;
+    out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}] .mana-shields{height:${hgt};width:auto;max-width:100%;aspect-ratio:1/1.1;flex:none}`);
+  }
   for (const k of ['fore', 'aft']) {
     const [x0, y0, x1, y1] = S[k], d = `calc(min(${((x1 - x0) * 100).toFixed(2)}cqw, ${((y1 - y0) * 100).toFixed(2)}cqh) * 0.94)`;
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}] .mana-minimap[data-scope=yes]{width:${d}!important;height:${d}!important}`);
@@ -227,7 +233,7 @@ export function cockpitFramePage(F, card) {
 export function cockpitHudPage(cfg, ui, spec, css, frame) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-ck'; (document.getElementById('wrap') || document.body).appendChild(root);
-  const S = { ck: { on: false, shOn: false, tOn: false, tShOn: false, brackets: [], pip: [], edge: [], fore: [], aft: [], comms: [], tName: '', tRange: '', tClosure: '', tHull: 0, tFore: 0, tAft: 0, sFore: 0, sAft: 0, sMax: 1, hull: 0, hullMax: 1, laser: 0, laserMax: 1, linkSay: '', speed: '', throttle: 0, pL: 2, pS: 2, pE: 2, warheads: '', warheadsOn: false } };
+  const S = { ck: { on: false, shOn: false, sMaxOn: 0, plan: cfg.plan || '', tPlan: '', tShMax: 0, tOn: false, tShOn: false, brackets: [], pip: [], edge: [], fore: [], aft: [], comms: [], tName: '', tRange: '', tClosure: '', tHull: 0, tFore: 0, tAft: 0, sFore: 0, sAft: 0, sMax: 1, hull: 0, hullMax: 1, laser: 0, laserMax: 1, linkSay: '', speed: '', throttle: 0, pL: 2, pS: 2, pE: 2, warheads: '', warheadsOn: false } };
   let pv = null;
   // (a point of the world on the HUD, 0..1 of its frame, `back` when it is behind the camera)
   const screenOf = (q) => { if (typeof camera === 'undefined' || typeof THREE === 'undefined') return null; pv = pv || new THREE.Vector3(); camera.updateMatrixWorld(); pv.set(q[0], q[1], q[2]).project(camera); return { x: (pv.x + 1) / 2, y: (1 - pv.y) / 2, back: pv.z >= 1 }; };
@@ -248,7 +254,7 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
     if (me && me.sfF) {
       set('on', true);
       const sh = me.ship, w = me.weapon;
-      set('shOn', !!(sh && sh.shMax > 0));
+      set('shOn', !!(sh && sh.shMax > 0)); set('sMaxOn', sh && sh.shMax > 0 ? sh.shMax : 0);
       if (sh) { set('sFore', Math.round(sh.sh[0] * 10) / 10); set('sAft', Math.round(sh.sh[1] * 10) / 10); set('sMax', sh.shMax || 1); set('pL', sh.pow.lasers); set('pS', sh.pow.shields); set('pE', sh.pow.engines); set('linkSay', (LINK[sh.link] || '') + (sh.mode !== 'even' ? ' · shields ' + sh.mode : '')); }
       set('hull', Math.max(0, me.body && Number.isFinite(me.body.hp) ? me.body.hp : 0)); set('hullMax', me.hpMax || (me.body && me.body.hp) || 1);
       if (w && w.energyMax > 0) { set('laser', Math.round(w.energy)); set('laserMax', w.energyMax); }
@@ -274,7 +280,10 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
         set('pip', ps && !ps.back && ps.x >= 0 && ps.x <= 1 && ps.y >= 0 && ps.y <= 1 ? [{ id: 'pip', x: r3(ps.x), y: r3(ps.y) }] : []);
         set('edge', !inside && at ? [{ x: r3(at.back ? 1 - at.x : at.x), y: r3(at.back ? 2 : at.y), kind: 'target' }] : []);
         set('tOn', true); set('tName', I.name); set('tRange', rangeSay(I.d)); set('tClosure', I.closure + ' m/s');
-        set('tShOn', !!I.shields); set('tHull', I.hull == null ? 0 : I.hull); set('tFore', I.shields ? I.shields[0] : 0); set('tAft', I.shields ? I.shields[1] : 0);
+        set('tShOn', !!I.shields); set('tShMax', I.shields ? 100 : 0); set('tHull', I.hull == null ? 0 : I.hull);
+        // (its plan by its craft: a shelf craft's figure is craft-<archetype>)
+        const fg = T.body && typeof T.body.figure === 'string' ? T.body.figure : '', arch = fg.indexOf('craft-') === 0 ? fg.slice(6) : '';
+        set('tPlan', (cfg.plans && cfg.plans[arch]) || cfg.dart || ''); set('tFore', I.shields ? I.shields[0] : 0); set('tAft', I.shields ? I.shields[1] : 0);
       } else { set('tOn', false); set('brackets', []); set('pip', []); set('edge', []); }
     } else set('on', false);
     // the comms: the level's guide's line, each said once
@@ -298,6 +307,6 @@ export function cockpitHudScript(cfg = {}) {
 // THE COCKPIT HUD (scene/channels/cockpit-hud.js): the starfighter's instruments on mana-ui, in its cockpit (${id})
 const __ckScope = ${scopeMarks.toString()}, __ckLead = ${leadPoint.toString()};
 const __ckFrame = (${cockpitFramePage.toString()})(${json(canopyFrame(id))}, ${json({ panel: card.panel })});
-window.__mojCockpitHud = (${cockpitHudPage.toString()})(${json({ cockpit: id })}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(theme)}\n${HOST_CSS}\n${cockpitPanelCss(card)}`)}, __ckFrame);
+window.__mojCockpitHud = (${cockpitHudPage.toString()})(${json({ cockpit: id, plan: planOf(id), plans: CRAFT_PLANS, dart: planOf(null) })}, ${manaUiSource()}, ${json(spec)}, ${json(`${manaCss()}\n${themeCss(theme)}\n${HOST_CSS}\n${cockpitPanelCss(card)}`)}, __ckFrame);
 `;
 }

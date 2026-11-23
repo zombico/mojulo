@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { COCKPITS, cockpitOf, canopyFrame, frameCover, PANEL_HEIGHT, FRAME_COVER_MAX } from './cockpits.js';
+import { COCKPITS, cockpitOf, canopyFrame, frameCover, planOf, CRAFT_PLANS, PANEL_HEIGHT, FRAME_COVER_MAX } from './cockpits.js';
 import { starfighterPilot, cockpitCamera } from './starfighter.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 
@@ -52,6 +52,15 @@ describe('the cockpits', () => {
     expect(F.window.z).toBeGreaterThan(0);
     expect(F.bars.length).toBe(2 + 8);
     expect(F.window.hub).toBeLessThan(F.window.r / 3);
+  });
+
+  it('each cockpit\'s craft, and each a mission flies, has its plan to read its shields off; another a plain dart', () => {
+    for (const id of [...Object.keys(COCKPITS), 'daggerInterceptor', 'twinPodBomber', 'starliner']) {
+      expect(CRAFT_ARCHETYPES[id], id).toBeTruthy();
+      expect(planOf(id), id).toMatch(/^M[MLHVCSQTAZmlhvcsqtaz0-9 .,-]+$/);
+    }
+    expect(Object.keys(CRAFT_PLANS).every((id) => CRAFT_ARCHETYPES[id])).toBe(true);
+    expect(planOf('podSpine')).toBe(planOf(null));
   });
 
   it('no frame hides much of the view it is flown by', () => {
