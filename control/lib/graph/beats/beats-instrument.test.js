@@ -179,3 +179,11 @@ describe('a twin heard through an amp', () => {
     expect(normalizeBeatsManifest(once)).toEqual(once);
   });
 });
+
+describe('a held twin of a bowed or blown patch', () => {
+  it('carries the synthesized vibrato as a pitch lfo, since a sample voice has no oscillator to wobble', () => {
+    const held = Object.values(RECORDED_TWINS).map((t) => PATCHES[t]).filter((p) => p.loop && p.fallback.vibrato);
+    expect(held.length).toBeGreaterThan(0);
+    for (const p of held) expect(p.lfo).toContainEqual(expect.objectContaining({ target: 'pitch', rate: p.fallback.vibrato.rate, depth: p.fallback.vibrato.depth }));
+  });
+});

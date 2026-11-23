@@ -531,9 +531,37 @@ Object.assign(PATCHES, {
   guitarLeadRec: recStruck('guitar', 'guitarLead', 0.2, -13, { filter: { ...PATCHES.guitarLead.filter }, ampTrim: -4.3 }),
   brassRec: recStruck('brass', 'fmBrass', 0.25, -6.4, { loop: true, attack: 0.02, filter: { mode: 'lowpass', freq: 5200, q: 0.6 }, velToFilter: 1.2 }),
   stringsRec: recStruck('strings', 'stringMachine', 0.9, -16.8, { loop: true, attack: 0.25, decay: 0.3, sustain: 0.9, unison: 2, detune: 7, lfo: PATCHES.stringMachine.lfo.map((l) => ({ ...l })) }),
-  bassSlapRec: recStruck('slap-bass', 'bassSlap', 0.1, 2.9),
+  bassSlapRec: recStruck('slap-bass', 'bassSlap', 0.1, 1.2),
+});
+// More of the shelf (scripts/sound-library/cards/instruments.js): each a twin of the synthesized patch it stands in
+// for. Struck and plucked ones ring as their takes do; bowed and blown ones (recorded with no vibrato) hold on their
+// loops with the synthesized patch's swell, release and filter, its `vibrato` carried as a pitch lfo (the sample voice
+// has no oscillator vibrato) and its unison as copies a few cents apart. The electric guitar plays the band's clean guitar.
+const vibLfo = (v) => (v ? [{ rate: v.rate, target: 'pitch', depth: v.depth, ...(v.delay ? { delay: v.delay } : {}) }] : undefined);
+const recHeld = (library, synth, volume) => {
+  const P = PATCHES[synth];
+  return { voice: 'sample', library, zones: true, loop: true, oneShot: false, attack: P.attack, decay: P.decay ?? 0.1, sustain: P.sustain ?? 1, release: P.release, volume,
+    ...(P.filter ? { filter: { ...P.filter } } : {}), ...(P.unison > 1 ? { unison: 2, detune: P.detune || 0 } : {}), ...(P.vibrato ? { lfo: vibLfo(P.vibrato) } : {}), fallback: P };
+};
+Object.assign(PATCHES, {
+  guitarElectricRec: recStruck('guitar', 'guitarElectric', 0.18, -13.1),
+  guitarCleanRec: recStruck('acoustic-guitar', 'guitarClean', 0.14, -15.3),
+  guitarNylonRec: recStruck('nylon-guitar', 'guitarNylon', 0.16, -15.6),
+  guitarClassicalRec: recStruck('nylon-guitar', 'guitarClassical', 0.22, -14.0),
+  rhodesRec: recStruck('rhodes', 'rhodes', 0.9, -9.7),
+  harpRec: recStruck('harp', 'harp', 1.4, -16.8),
+  marimbaRec: recStruck('marimba', 'marimba', 0.3, -7.7),
+  xylophoneRec: recStruck('xylophone', 'xylophone', 0.2, -12.4),
+  glockenspielRec: recStruck('glockenspiel', 'glockenspiel', 0.6, -3.2),
+  bassUprightRec: recStruck('upright-bass', 'bassUpright', 0.12, -5.8),
+  violinRec: recHeld('violin', 'violin', -6.6),
+  celloRec: recHeld('cello', 'cello', -6.5),
+  fluteRec: recHeld('flute', 'flute', -7.6),
+  trumpetRec: recHeld('trumpet', 'trumpet', -9.0),
 });
 // each synthesized patch's recorded twin (the sound library's instruments), so a band can be heard recorded where the
 // library is installed: a part names the twin as its patch, keeping its instrument's chain
 export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'pianoRec', celesta: 'celestaRec', vibraphone: 'vibraphoneRec', steelpan: 'steelpanRec', bassPick: 'bassPickRec',
-  guitarAmp: 'guitarRec', guitarLead: 'guitarLeadRec', fmBrass: 'brassRec', stringMachine: 'stringsRec', bassSlap: 'bassSlapRec' });
+  guitarAmp: 'guitarRec', guitarLead: 'guitarLeadRec', fmBrass: 'brassRec', stringMachine: 'stringsRec', bassSlap: 'bassSlapRec',
+  guitarElectric: 'guitarElectricRec', guitarClean: 'guitarCleanRec', guitarNylon: 'guitarNylonRec', guitarClassical: 'guitarClassicalRec', rhodes: 'rhodesRec', harp: 'harpRec',
+  marimba: 'marimbaRec', xylophone: 'xylophoneRec', glockenspiel: 'glockenspielRec', bassUpright: 'bassUprightRec', violin: 'violinRec', cello: 'celloRec', flute: 'fluteRec', trumpet: 'trumpetRec' });

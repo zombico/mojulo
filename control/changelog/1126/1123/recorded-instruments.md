@@ -25,3 +25,9 @@
   the rhythm and the lead (the amp is each part's chain, its level the amp's makeup), the brass and the strings held on
   their loops (the brass brighter the harder it is played, the strings with the string machine's swell and vibrato), and
   the slap bass. The kit stays synthesized.
+- More of the instrument shelf recorded and twinned, each matched to its synthesized one's loudness: the steel-string
+  and nylon-string acoustic guitars (the classical guitar on the nylon), the electric guitar (on the band's clean
+  guitar), the Rhodes, the harp, the marimba, the xylophone and the glockenspiel, the upright bass, and, held on their
+  loops, the violin, the cello, the flute and the trumpet: recorded with no vibrato, the synthesized vibrato laid over
+  each as a pitch lfo. A fretted instrument's low notes are asked by string and fret, the way a player names a pitch:
+  the guitar now reaches its open low E (E2), where its low asks in words never came below C#3.

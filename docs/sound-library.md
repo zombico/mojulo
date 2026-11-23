@@ -167,7 +167,18 @@ the strings with the string machine's swell, release and vibrato) and `bassSlapR
 (beats-manifest.js) puts every part whose patch is in `RECORDED_TWINS` on its twin, a part's `recorded: false` keeping
 it synthesized; without the library the song renders byte for byte as without the switch. Coverage: the guitar 22 notes
 (C#3 to A#4: its low strings asked never came below, so its low roots are bent down), the brass 19 (E3 to C5), the strings
-21 (F#3 to A#5), the slap bass 5 (E1 to D2).
+21 (F#3 to A#5), the slap bass 8 (E1 to E2) after a second pass.
+
+More of the shelf (`cards/instruments.js`): a fretted instrument's low notes are asked by STRING AND FRET ("the low E
+string at the 5th fret, the note A2"), the way a player names a pitch, which lands the octave where words alone did not
+(the guitar's low asks in words never came below C#3; by fret it reaches E2). Twins: `guitarElectricRec` (the band's
+clean guitar), `guitarCleanRec`, `guitarNylonRec` and `guitarClassicalRec` (one nylon guitar), `rhodesRec`, `harpRec`,
+`marimbaRec`, `xylophoneRec`, `glockenspielRec`, `bassUprightRec`, and the held `violinRec`, `celloRec`, `fluteRec`,
+`trumpetRec` (recHeld: the synthesized patch's swell, release, filter and unison, its `vibrato` carried as a pitch lfo,
+the takes recorded with no vibrato so they loop). Each is matched to its synthesized one's loudness. Coverage as
+conditioned: the guitar 27 notes (E2 to A#4), acoustic 19, nylon 17, Rhodes 18, harp 22, marimba 19, xylophone 16,
+glockenspiel 6 (its highest asks landed low), upright bass 16 (F1 to E3), violin 13, cello 21 (E2 to G4), flute 21,
+trumpet 14.
 
 ## Making it
 
