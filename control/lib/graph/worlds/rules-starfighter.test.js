@@ -115,6 +115,61 @@ describe('rule: starfighter', () => {
     expect(p.ship.sh[0]).toBeCloseTo(f0, 6);
   });
 
+  it('the generator: nothing between its ticks; each tick its yield split by the pips, a unit an energy, a shield point its cost', () => {
+    const w = createWorld({ entities: [fighter({ body: { ship: { shields: { max: 6, regen: 1 }, lasers: { regen: 4 }, generator: { out: 12 } } } })] });
+    const p = w.byId.p, G = p.ship.gen;
+    expect(p.ship.shCost).toBeCloseTo(12 / 6, 6);                // (what charges the shields at their own rate, even)
+    p.weapon.energy = 0; p.ship.sh = [0, 0];
+    run(w, {}, 50);                                              // under a second: nothing yet
+    expect(p.weapon.energy).toBe(0);
+    expect(p.ship.sh).toEqual([0, 0]);
+    expect(G.phase).toBeGreaterThan(0.8);
+    run(w, {}, 12);                                              // the tick lands
+    expect(G.n).toBe(1);
+    expect(p.weapon.energy).toBeCloseTo(4, 6);                   // the lasers' third
+    expect(p.ship.sh[0] + p.ship.sh[1]).toBeCloseTo(4 / 2, 6);  // the shields' third, at two a point, even over both
+    expect(p.ship.sh[0]).toBeCloseTo(p.ship.sh[1], 6);
+    expect(G.last.engines).toBeCloseTo(4, 6);
+    // power to the lasers: a pip from the fullest of the others; the next tick routes it so
+    run(w, { power: 'lasers' }, 1);
+    const e0 = p.weapon.energy;
+    run(w, {}, 60);
+    expect(p.weapon.energy - e0).toBeCloseTo(12 * 3 / 6, 6);
+  });
+
+  it('redirected: a full pool\'s share charges the other; what neither holds is lost; a transfer moves a tick\'s worth at once', () => {
+    const w = createWorld({ entities: [fighter({ body: { ship: { shields: { max: 6, regen: 1 }, lasers: { regen: 4 }, generator: { out: 12 } } } })] });
+    const p = w.byId.p, G = p.ship.gen;
+    // the cannons full: the shields take both shares
+    p.ship.sh = [0, 0];
+    run(w, {}, 61);
+    expect(p.weapon.energy).toBe(p.weapon.energyMax);
+    expect(p.ship.sh[0] + p.ship.sh[1]).toBeCloseTo(8 / 2, 6);
+    expect(G.last.toShields).toBeCloseTo(4, 6);
+    // the shields full: the cannons take both
+    p.ship.sh = [6, 6]; p.weapon.energy = 0;
+    run(w, {}, 60);
+    expect(p.weapon.energy).toBeCloseTo(8, 6);
+    expect(G.last.toLasers).toBeCloseTo(4, 6);
+    // both full: lost
+    p.weapon.energy = p.weapon.energyMax;
+    run(w, {}, 60);
+    expect(G.last.lost).toBeCloseTo(8, 6);
+    // a transfer to the shields: a tick's worth out of the cannons, at once
+    p.ship.sh = [0, 0];
+    run(w, { transfer: 'shields' }, 1);
+    expect(p.weapon.energy).toBeCloseTo(p.weapon.energyMax - 12, 6);
+    expect(p.ship.sh[0] + p.ship.sh[1]).toBeCloseTo(12 / 2, 6);
+    // held, it moves once; let go and pressed again, once more, the other way, from the fuller side
+    run(w, { transfer: 'shields' }, 5);
+    expect(p.ship.sh[0] + p.ship.sh[1]).toBeCloseTo(6, 6);
+    run(w, {}, 1); p.ship.sh = [6, 1];
+    const before = p.weapon.energy;
+    run(w, { transfer: 'lasers' }, 1);
+    expect(p.weapon.energy - before).toBeCloseTo(Math.min(12, p.weapon.energyMax - before), 6);
+    expect(p.ship.sh[1]).toBe(1);
+  });
+
   it('power over lasers, shields and engines: a pip taken from the fullest of the others; the engines set the top speed, the lasers their recharge', () => {
     const w = E.createWorld({ entities: [fighter()] });
     const p = w.byId.p;

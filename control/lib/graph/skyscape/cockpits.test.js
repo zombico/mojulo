@@ -23,6 +23,9 @@ describe('the cockpits', () => {
     expect(by.firepower.body.hp).toBeGreaterThan(by.general.body.hp);
     expect(by.firepower.weapon.damage).toBeGreaterThan(by.general.weapon.damage);
     expect(by.firepower.body.ship.shields.max).toBeGreaterThan(by.speed.body.ship.shields.max);
+    // the generator by the tuning: the speed one's the least, the firepower one's the most; each on the pilot's ship
+    expect(by.speed.body.ship.generator.out).toBeLessThan(by.general.body.ship.generator.out);
+    expect(by.firepower.body.ship.generator.out).toBeGreaterThan(by.general.body.ship.generator.out);
     // the other side's craft flies without shields, its cannons linked one or two
     expect(by.other.body.ship.shields).toBeUndefined();
     expect(by.other.body.ship.lasers.links).toEqual([1, 2]);

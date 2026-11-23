@@ -487,8 +487,8 @@ const OPERATIVE = {
 // the mouse flies (pitch and yaw, the pointer captured), A / D roll, W / S move the throttle's setting and the row above
 // the Enter key sets it (Backspace stop, \\ full, [ a third, ] two thirds, Enter the target's speed); the targeting
 // computer on T, Y, R, E, U (next, previous, nearest foe, the one attacking you, the mission's), the cannons linked on
-// X, the power on 1 to 4 (lasers, shields, engines, even), the shields' recharge set on G, the warhead on the right
-// button or Space, the cockpit and the chase swapped on C. A page whose pilot is a starfighter reads this scheme in the
+// X, the power on 1 to 4 (lasers, shields, engines, even), a transfer on 5 and 6 (to lasers, to shields), the
+// shields' recharge set on G, the warhead on the right button or Space, the cockpit and the chase swapped on C. A page whose pilot is a starfighter reads this scheme in the
 // pilot's place.
 const COCKPIT_BIND = {
   moveForward: { keyboard: ['KeyW'], gamepad: ['rt'] }, moveBack: { keyboard: ['KeyS'], gamepad: ['lt'] },
@@ -523,6 +523,8 @@ const COCKPIT = {
     { id: 'powShields', label: 'power to shields', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit2'] } },
     { id: 'powEngines', label: 'power to engines', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit3'] } },
     { id: 'powEven', label: 'power even', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit4'] } },
+    { id: 'xferLasers', label: 'transfer: shields to lasers', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit5'] } },
+    { id: 'xferShields', label: 'transfer: lasers to shields', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit6'] } },
     { id: 'shieldSet', label: 'shields: even, fore, aft', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyG'] } },
     { id: 'cockpitView', label: 'cockpit / chase view', group: 'camera', in: ['vehicle'], bind: { keyboard: ['KeyC'], gamepad: ['ls'] } },
   ],
@@ -538,6 +540,7 @@ const COCKPIT = {
       { ids: ['linkFire'], label: 'link the cannons' },
       { ids: ['tgtNext', 'tgtPrev', 'tgtNear', 'tgtAtk', 'tgtGoal'], sep: ' ', label: 'target: next, previous, nearest, attacker, mission' },
       { ids: ['powLasers', 'powShields', 'powEngines', 'powEven'], sep: ' ', label: 'power: lasers, shields, engines, even' },
+      { ids: ['xferLasers', 'xferShields'], sep: ' ', label: 'transfer: to lasers, to shields' },
       { ids: ['shieldSet'], label: 'shields: even, fore, aft' },
       { ids: ['cockpitView'], label: 'cockpit / chase' },
       { ids: ['reverseView'], label: 'look back', when: 'follow' },

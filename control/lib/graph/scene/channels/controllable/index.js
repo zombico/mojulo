@@ -3617,6 +3617,7 @@ ${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js
     thr: __k('thrZero') ? 'zero' : __k('thrFull') ? 'full' : __k('thrThird') ? 'third' : __k('thrTwoThirds') ? 'twothirds' : __k('matchSpeed') ? 'match' : null,
     tgt: __k('tgtNext') ? 'next' : __k('tgtPrev') ? 'prev' : __k('tgtNear') ? 'near' : __k('tgtAtk') ? 'atk' : __k('tgtGoal') ? 'goal' : null,
     power: __k('powLasers') ? 'lasers' : __k('powShields') ? 'shields' : __k('powEngines') ? 'engines' : __k('powEven') ? 'even' : null,
+    transfer: __k('xferLasers') ? 'lasers' : __k('xferShields') ? 'shields' : null,
     shieldSet: __k('shieldSet') ? 1 : 0, link: __k('linkFire') ? 1 : 0, view: __k('cockpitView') ? 1 : 0,
     lookDX: __MOUSELOOK ? -__lookDX : __lookDX, lookDY: __MOUSELOOK ? -__lookDY : __lookDY,
 ` : `    lookDX: __lookDX, lookDY: __lookDY,

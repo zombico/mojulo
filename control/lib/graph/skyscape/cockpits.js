@@ -19,7 +19,9 @@
  * A card:
  *   tuning   'general' | 'speed' | 'firepower'
  *   numbers  { speedOfMax, rates: { pitch, yaw, roll }, hull, shields: { max, regen } | null, lasers: { energy, regen, rof,
- *              damage, links }, warheads }   (skyscape/starfighter.js lays the pilot from them)
+ *              damage, links }, warheads, generator }   (skyscape/starfighter.js lays the pilot from them; `generator`
+ *              the power it yields a second, routed to lasers, shields and engines by the pips: the speed tuning's the
+ *              least, the firepower one's the most; `regen`s the rates its shares charge them at when the power is even)
  *   eye      where the pilot's eye sits in the canopy: { t: its share of the canopy's length back from the front, up: its
  *            share of the canopy's height over the sill } (a bubble), { back: m behind the window } (a round window)
  *   frame    which of the canopy's members are bars: { edges: ['shoulder' | 'crown' …] (the facet edges along it that are
@@ -53,7 +55,7 @@ export const FRAME_COVER_MAX = 0.16;
 export const COCKPITS = Object.freeze({
   strikeFoil: Object.freeze({
     tuning: 'general',
-    numbers: Object.freeze({ speedOfMax: 0.75, rates: Object.freeze({ pitch: 1.5, yaw: 1.1, roll: 2.4 }), hull: 12, shields: Object.freeze({ max: 8, regen: 0.25 }), lasers: Object.freeze({ energy: 24, regen: 4, rof: 6, damage: 1, links: Object.freeze([1, 2, 4]) }), warheads: 6 }),
+    numbers: Object.freeze({ speedOfMax: 0.75, rates: Object.freeze({ pitch: 1.5, yaw: 1.1, roll: 2.4 }), hull: 12, shields: Object.freeze({ max: 8, regen: 0.25 }), lasers: Object.freeze({ energy: 24, regen: 4, rof: 6, damage: 1, links: Object.freeze([1, 2, 4]) }), warheads: 6, generator: 12 }),
     eye: Object.freeze({ t: 0.74, up: 0.58 }), frame: Object.freeze({ edges: Object.freeze(['shoulder']), bows: Object.freeze([0.3]), bar: 0.02, bow: 0.02 }),
     panel: Object.freeze({
       height: PANEL_HEIGHT,
@@ -64,7 +66,7 @@ export const COCKPITS = Object.freeze({
   }),
   arrowInterceptor: Object.freeze({
     tuning: 'speed',
-    numbers: Object.freeze({ speedOfMax: 0.95, rates: Object.freeze({ pitch: 1.9, yaw: 1.4, roll: 3.2 }), hull: 8, shields: Object.freeze({ max: 5, regen: 0.3 }), lasers: Object.freeze({ energy: 20, regen: 4, rof: 7, damage: 1, links: Object.freeze([1, 2]) }), warheads: 4 }),
+    numbers: Object.freeze({ speedOfMax: 0.95, rates: Object.freeze({ pitch: 1.9, yaw: 1.4, roll: 3.2 }), hull: 8, shields: Object.freeze({ max: 5, regen: 0.3 }), lasers: Object.freeze({ energy: 20, regen: 4, rof: 7, damage: 1, links: Object.freeze([1, 2]) }), warheads: 4, generator: 10 }),
     eye: Object.freeze({ t: 0.78, up: 0.66 }), frame: Object.freeze({ edges: Object.freeze(['shoulder']), bows: Object.freeze([0.4]), bar: 0.018, bow: 0.018 }),
     panel: Object.freeze({
       height: PANEL_HEIGHT,
@@ -75,7 +77,7 @@ export const COCKPITS = Object.freeze({
   }),
   heavyFighter: Object.freeze({
     tuning: 'firepower',
-    numbers: Object.freeze({ speedOfMax: 0.6, rates: Object.freeze({ pitch: 1.1, yaw: 0.8, roll: 1.6 }), hull: 20, shields: Object.freeze({ max: 12, regen: 0.25 }), lasers: Object.freeze({ energy: 30, regen: 4, rof: 5, damage: 1.5, links: Object.freeze([1, 2, 4]) }), warheads: 12 }),
+    numbers: Object.freeze({ speedOfMax: 0.6, rates: Object.freeze({ pitch: 1.1, yaw: 0.8, roll: 1.6 }), hull: 20, shields: Object.freeze({ max: 12, regen: 0.25 }), lasers: Object.freeze({ energy: 30, regen: 4, rof: 5, damage: 1.5, links: Object.freeze([1, 2, 4]) }), warheads: 12, generator: 15 }),
     eye: Object.freeze({ t: 0.76, up: 0.56 }), frame: Object.freeze({ edges: Object.freeze(['shoulder']), bows: Object.freeze([0.3, 0.65]), bar: 0.028, bow: 0.024 }),
     panel: Object.freeze({
       height: PANEL_HEIGHT,
@@ -86,7 +88,7 @@ export const COCKPITS = Object.freeze({
   }),
   twinPanel: Object.freeze({
     tuning: 'general',
-    numbers: Object.freeze({ speedOfMax: 0.85, rates: Object.freeze({ pitch: 1.7, yaw: 1.3, roll: 2.6 }), hull: 8, shields: null, lasers: Object.freeze({ energy: 20, regen: 5, rof: 7, damage: 1, links: Object.freeze([1, 2]) }), warheads: 0 }),
+    numbers: Object.freeze({ speedOfMax: 0.85, rates: Object.freeze({ pitch: 1.7, yaw: 1.3, roll: 2.6 }), hull: 8, shields: null, lasers: Object.freeze({ energy: 20, regen: 5, rof: 7, damage: 1, links: Object.freeze([1, 2]) }), warheads: 0, generator: 8 }),
     eye: Object.freeze({ back: 0.72 }), frame: Object.freeze({ bar: 0.012, bow: 0.012 }),
     panel: Object.freeze({
       height: PANEL_HEIGHT,

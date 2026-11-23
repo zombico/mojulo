@@ -1151,3 +1151,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // burst takes a body's `blast` (its size, marked a craft's) and a body with one is gone in it (combat-match.js); a ship's
 // shield records where it took a round (rules-starfighter.js). No fixture's body has a blast or a ship, so what each plays
 // is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: power redirection): the fixtures whose page carries mana-ui (brawl, holo,
+// mission). Its kernel gains the `power` component (a generator and its feeds) and its sheet that component's rules
+// and beats; the shield plan's spent-side and low-hull rules now name its own parts. No fixture draws either, so what
+// each shows is as it was.

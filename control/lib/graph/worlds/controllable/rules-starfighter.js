@@ -16,14 +16,22 @@
  *     target's facts are kept on the craft (`target`, `tgtInfo` { id, d, closure, hull, shields, name }).
  *
  * THE SHIP'S SYSTEMS (`body.ship`, on any craft: a pilot's or a foe's, whatever flies it):
- *   ship { shields?: { max, regen }, lasers?: { regen, links? }, power?: true }   (`links` the cannons fired at once it
- *        cycles through: [1, 2, 4] by default, [1, 2] for a craft of two)
+ *   ship { shields?: { max, regen, cost? }, lasers?: { regen, links? }, power?: true, generator?: { out, tick? } }
+ *        (`links` the cannons fired at once it cycles through: [1, 2, 4] by default, [1, 2] for a craft of two)
  *   • SHIELDS fore and aft, each `max`: a round takes the shield on the side it came from, as much of it as the shield
  *     holds, and the hull (`body.hp`) the rest. They recharge at `regen` (per s, per side) times their power; `shieldSet` (an edge) cycles
  *     where the recharge goes: even, fore, aft.
  *   • POWER: six pips over lasers, shields and engines (two each). `power` 'lasers' | 'shields' | 'engines' takes a pip
  *     from the fullest of the others; 'even' puts them back. Engines set the top speed (0.7 to 1.3 of it), shields and
  *     lasers their recharge (0 to 2 of it).
+ *   • THE GENERATOR (`ship.generator` { out, tick? }: the core resource): every `tick` s (1) it yields `out` units, and
+ *     the pips route them: each system its pips' sixth. The engines' share drives the craft (its top speed, above); the
+ *     lasers' charges the cannons (a unit an energy), the shields' recharges the shields (`shields.cost` units a point,
+ *     else what charges them at their own `regen` when the power is even), fed as their mode sets. REDIRECTED: a full
+ *     pool's share goes to the other (full cannons charge the shields, full shields the cannons); what neither holds
+ *     is lost. `transfer` 'lasers' | 'shields' (an edge) moves up to a tick's worth at once into the pool it names from
+ *     the other. With a generator, nothing recharges but by its ticks. Facts: `ship.gen` { out, tick, phase (0..1 to
+ *     the next tick), n, last: { lasers, shields, toLasers, toShields, engines, lost }, xfer: { to, units, n } }.
  *   • LASERS: the craft's weapon's energy pool (combat-ranged.js `energyMax`), recharged at `lasers.regen` times its
  *     power. `link` (an edge) cycles the cannons fired at once (one, two, all four): each shot of a link costs and
  *     hurts as that many. Facts: `ship` { sh: [fore, aft], shMax, mode, pow: { lasers, shields, engines }, link,
@@ -67,10 +75,71 @@ export function buildStarfighter(E) {
     const sh = S.shields && S.shields.max > 0 ? S.shields.max : 0;
     const links = S.lasers && Array.isArray(S.lasers.links) && S.lasers.links.length ? S.lasers.links.slice() : LINKS.slice();
     ent.ship = { sh: [sh, sh], shMax: sh, shRegen: sh ? S.shields.regen ?? sh / 10 : 0, lRegen: S.lasers && S.lasers.regen > 0 ? S.lasers.regen : null, mode: 'even', pow: { lasers: 2, shields: 2, engines: 2 }, link: links[0], links, powered: S.power !== false };
+    // (the generator: what it yields a tick, and a shield point's cost in it, the card's or the one that charges the
+    // shields at their own rate when the power is even)
+    const G = S.generator;
+    if (G && G.out > 0) {
+      ent.ship.gen = { out: G.out, tick: G.tick > 0 ? G.tick : 1, t: 0, phase: 0, n: 0, last: null, xfer: null };
+      ent.ship.shCost = sh ? (S.shields.cost > 0 ? S.shields.cost : G.out / (6 * Math.max(1e-6, ent.ship.shRegen))) : 0;
+    }
   });
+  // ── THE GENERATOR: power in ticks, routed by the pips, a full pool's share redirected to the other ──
+  // (the shields' room, in the generator's units, on the sides the mode feeds: both, or the one it favours first)
+  const shSides = (S) => (S.mode === 'fore' ? [0, 1] : S.mode === 'aft' ? [1, 0] : [0, 1]);
+  const shRoom = (S) => (S.shMax > 0 ? (2 * S.shMax - S.sh[0] - S.sh[1]) * S.shCost : 0);
+  // (units into the shields: even, half each and the rest to whichever has room; else the favoured side first)
+  function toShields(S, units) {
+    if (!(S.shMax > 0) || !(units > 0)) return 0;
+    let pts = units / S.shCost;
+    const fill = (k, want) => { const g = Math.min(want, S.shMax - S.sh[k]); S.sh[k] += g; pts -= g; };
+    if (S.mode === 'even') { const h = pts / 2; fill(0, h); fill(1, h); }
+    for (const k of shSides(S)) if (pts > 1e-9) fill(k, pts);
+    return units - pts * S.shCost;
+  }
+  function toLasers(w, units) {
+    if (!w || !(w.energyMax > 0) || !(units > 0)) return 0;
+    const g = Math.min(units, w.energyMax - (w.energy ?? w.energyMax));
+    w.energy = (w.energy ?? w.energyMax) + g;
+    return g;
+  }
+  /** One tick: the generator's yield split by the pips (the engines' share drives the craft), each pool charged with
+   *  its share, a full pool's spill redirected to the other, what neither holds lost. → what went where (units). */
+  function genTick(e, S) {
+    const G = S.gen, w = e.weapon, share = (k) => (S.powered ? S.pow[k] / 6 : 1 / 3);
+    const aL = G.out * share('lasers'), aS = G.out * share('shields');
+    const l = toLasers(w, aL), sv = toShields(S, aS);
+    // (the redirect: what one pool could not take, offered to the other)
+    const l2 = toLasers(w, aS - sv), s2 = toShields(S, aL - l);
+    return { lasers: l + l2, shields: sv + s2, toLasers: l2, toShields: s2, engines: G.out * share('engines'), lost: aL + aS - l - sv - l2 - s2 };
+  }
+  // (a transfer, at once: up to a tick's worth from one pool into the other)
+  function transfer(e, S, to) {
+    const G = S.gen, w = e.weapon;
+    if (!w || !(w.energyMax > 0)) return 0;
+    if (to === 'shields') {
+      const take = Math.min(G.out, w.energy ?? w.energyMax, shRoom(S));
+      if (!(take > 0)) return 0;
+      w.energy -= take; return toShields(S, take);
+    }
+    const have = (S.sh[0] + S.sh[1]) * S.shCost, take = Math.min(G.out, have, w.energyMax - (w.energy ?? w.energyMax));
+    if (!(take > 0)) return 0;
+    // (drawn from the fuller side first)
+    let pts = take / S.shCost;
+    for (const k of S.sh[0] >= S.sh[1] ? [0, 1] : [1, 0]) { const g = Math.min(pts, S.sh[k]); S.sh[k] -= g; pts -= g; }
+    return toLasers(w, take);
+  }
   E.registerEntityTimer('ship-systems', (e, dt) => {
     const S = e.ship;
     if (!S || e.gone || e.downed) return;
+    if (S.gen) {
+      // (a generator's ship charges by its ticks alone: the cannons' own recharge off)
+      const G = S.gen, w = e.weapon;
+      if (w && w.energyMax > 0) w.energyRegen = 0;
+      G.t += dt;
+      while (G.t >= G.tick) { G.t -= G.tick; G.n += 1; G.last = genTick(e, S); }
+      G.phase = G.t / G.tick;
+      return;
+    }
     const pw = (k) => (S.powered ? S.pow[k] / 2 : 1);
     if (S.shMax > 0) {
       const add = S.shRegen * pw('shields') * dt, M = S.mode;
@@ -114,6 +183,11 @@ export function buildStarfighter(E) {
       }
     }
     if (input.shieldSet && !P.shieldSet) S.mode = MODES[(MODES.indexOf(S.mode) + 1) % MODES.length];
+    // (a transfer, an edge: a tick's worth moved at once to the pool it names, from the other)
+    if (S.gen && (input.transfer === 'lasers' || input.transfer === 'shields') && input.transfer !== P.transfer) {
+      const moved = transfer(e, S, input.transfer);
+      S.gen.xfer = { to: input.transfer, units: moved, n: ((S.gen.xfer && S.gen.xfer.n) || 0) + 1 };
+    }
     if (input.link && !P.link) { const Ls = S.links || LINKS; S.link = Ls[(Ls.indexOf(S.link) + 1) % Ls.length]; }
     // (the link on the cannons: each shot of a link is that many bolts' cost and hurt, the pair fired side by side)
     const w = e.weapon;
@@ -199,7 +273,7 @@ export function buildStarfighter(E) {
     // ── the targeting computer ──
     if (input.tgt && input.tgt !== P.tgt) e.target = retarget(e, input.tgt, world);
     targetFacts(e, world, dt);
-    P.thr = input.thr || null; P.tgt = input.tgt || null; P.power = input.power || null; P.shieldSet = !!input.shieldSet; P.link = !!input.link;
+    P.thr = input.thr || null; P.tgt = input.tgt || null; P.power = input.power || null; P.shieldSet = !!input.shieldSet; P.link = !!input.link; P.transfer = input.transfer || null;
   }
 
   // ── the cockpit: the eye at the craft's seat, down its nose, rolled with it ──

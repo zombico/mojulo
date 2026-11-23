@@ -11,8 +11,9 @@
  *                    abeam), up the top; foe, friend and the target told apart
  *   bottom-right     THE AFT SENSOR: what lies behind, by its angle off the tail
  *   left             the craft's shields fore and aft, its hull, its laser charge and how its cannons are linked
- *   right            the speed and the throttle's setting, the power to lasers, shields and engines (pips), the
- *                    warheads
+ *   right            the speed and the throttle's setting, the power to lasers, shields and engines (pips): where the
+ *                    craft has a generator, the generator itself (mana-ui `power`: its tick filling and landing, routed
+ *                    by the pips to each feed's gauge, a redirect or a transfer ringed); the warheads
  *   top              the comms: what the level says (its guide's line), one at a time
  *
  * THE COCKPIT itself, drawn in the cockpit view (a card a craft: skyscape/cockpits.js): the canopy's frame bars as the
@@ -100,9 +101,12 @@ export function cockpitHudSpec() {
     region('right', [stack([
       { use: 'stat', props: { label: 'speed', value: B('speed') } },
       { use: 'bar', props: { label: 'throttle', value: B('throttle'), max: 100, variant: 'plain', numbers: false } },
-      { use: 'pips', props: { label: 'lasers', value: B('pL'), max: 4 } },
-      { use: 'pips', props: { label: 'shields', value: B('pS'), max: 4 } },
-      { use: 'pips', props: { label: 'engines', value: B('pE'), max: 4 } },
+      // (the generator, where the craft has one: its ticks routed by the pips to the cannons, the shields and the
+      // engines, each feed's gauge beside its pips; else the pips alone)
+      { use: 'power', props: { phase: B('gPhase'), pulse: B('gTick'), feeds: B('gFeeds') }, when: B('genOn') },
+      { use: 'pips', props: { label: 'lasers', value: B('pL'), max: 4 }, when: B('genOff') },
+      { use: 'pips', props: { label: 'shields', value: B('pS'), max: 4 }, when: B('genOff') },
+      { use: 'pips', props: { label: 'engines', value: B('pE'), max: 4 }, when: B('genOff') },
       { use: 'counter', props: { label: 'warheads', value: B('warheads') }, when: B('warheadsOn') },
     ])], { when: B('on') }),
   ] } };
@@ -244,7 +248,7 @@ export function cockpitFramePage(F, card) {
 export function cockpitHudPage(cfg, ui, spec, css, frame) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-ck'; (document.getElementById('wrap') || document.body).appendChild(root);
-  const S = { ck: { on: false, shOn: false, sMaxOn: 0, plan: cfg.plan || '', tPlan: '', tShMax: 0, tOn: false, tShOn: false, brackets: [], pip: [], edge: [], fore: [], aft: [], comms: [], tName: '', tRange: '', tClosure: '', tHull: 0, tFore: 0, tAft: 0, sFore: 0, sAft: 0, sMax: 1, hull: 0, hullMax: 1, laser: 0, laserMax: 1, linkSay: '', speed: '', throttle: 0, pL: 2, pS: 2, pE: 2, warheads: '', warheadsOn: false } };
+  const S = { ck: { on: false, shOn: false, sMaxOn: 0, plan: cfg.plan || '', tPlan: '', tShMax: 0, tOn: false, tShOn: false, brackets: [], pip: [], edge: [], fore: [], aft: [], comms: [], tName: '', tRange: '', tClosure: '', tHull: 0, tFore: 0, tAft: 0, sFore: 0, sAft: 0, sMax: 1, hull: 0, hullMax: 1, laser: 0, laserMax: 1, linkSay: '', speed: '', throttle: 0, pL: 2, pS: 2, pE: 2, warheads: '', warheadsOn: false, genOn: false, genOff: true, gPhase: 0, gTick: 0, gFeeds: [] } };
   let pv = null;
   // (a point of the world on the HUD, 0..1 of its frame, `back` when it is behind the camera)
   const screenOf = (q) => { if (typeof camera === 'undefined' || typeof THREE === 'undefined') return null; pv = pv || new THREE.Vector3(); camera.updateMatrixWorld(); pv.set(q[0], q[1], q[2]).project(camera); return { x: (pv.x + 1) / 2, y: (1 - pv.y) / 2, back: pv.z >= 1 }; };
@@ -255,6 +259,7 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
   const rt = ui.runtime(spec, { read: (p) => ui.readPath(S, p), act: function () {}, now: () => performance.now() / 1000 });
   ui.mount(root, rt, { auto: true });
   let said = '', nth = 0;
+  const genX = { n: 0, to: null, t: -1 };
   const lastAt = {};
   function step() {
     const W = window.__mojCtrl && window.__mojCtrl.world, me = W && W.pilotId ? W.byId[W.pilotId] : null;
@@ -269,6 +274,21 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
       if (sh) { set('sFore', Math.round(sh.sh[0] * 10) / 10); set('sAft', Math.round(sh.sh[1] * 10) / 10); set('sMax', sh.shMax || 1); set('pL', sh.pow.lasers); set('pS', sh.pow.shields); set('pE', sh.pow.engines); set('linkSay', (LINK[sh.link] || '') + (sh.mode !== 'even' ? ' · shields ' + sh.mode : '')); }
       set('hull', Math.max(0, me.body && Number.isFinite(me.body.hp) ? me.body.hp : 0)); set('hullMax', me.hpMax || (me.body && me.body.hp) || 1);
       if (w && w.energyMax > 0) { set('laser', Math.round(w.energy)); set('laserMax', w.energyMax); }
+      // the generator: its tick's fill, its beat, and each feed (its share of the routing, its gauge, what the last tick
+      // gave it, and whether that was the other's redirected, or a transfer just made into it)
+      const G = sh && sh.gen;
+      set('genOn', !!G); set('genOff', !G);
+      if (G) {
+        const r2 = (v) => Math.round(v * 100) / 100, Lt = G.last || {}, of = (u) => r2(Math.min(1, (u || 0) / G.out)), nowT = performance.now() / 1000;
+        if (G.xfer && G.xfer.n !== genX.n) { genX.n = G.xfer.n; genX.to = G.xfer.units > 0 ? G.xfer.to : null; genX.t = nowT; }
+        const xTo = genX.to && nowT - genX.t < 0.8 ? genX.to : null;
+        set('gPhase', r2(G.phase)); set('gTick', G.n);
+        set('gFeeds', [
+          { id: 'lasers', share: sh.pow.lasers / 4, pips: sh.pow.lasers, max: 4, fill: w && w.energyMax > 0 ? r2(w.energy / w.energyMax) : 0, got: of(Lt.lasers), spill: (Lt.toLasers || 0) > 0.01 || xTo === 'lasers' },
+          ...(sh.shMax > 0 ? [{ id: 'shields', share: sh.pow.shields / 4, pips: sh.pow.shields, max: 4, fill: r2((sh.sh[0] + sh.sh[1]) / (2 * sh.shMax)), got: of(Lt.shields), spill: (Lt.toShields || 0) > 0.01 || xTo === 'shields' }] : []),
+          { id: 'engines', share: sh.pow.engines / 4, pips: sh.pow.engines, max: 4, fill: r2(Math.min(1, (me.airspeed || 0) / Math.max(1, me.topSpeed || 1))), got: of(Lt.engines), spill: false },
+        ]);
+      }
       set('speed', Math.round(me.airspeed || 0) + ' m/s'); set('throttle', Math.round((me.throttle || 0) * 100));
       const nW = Number.isFinite(me.missilesLeft) ? me.missilesLeft : null; set('warheadsOn', nW != null); set('warheads', nW != null ? String(nW) : '');
       // the sensors: every craft round, foe and friend and the target told apart

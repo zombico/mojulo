@@ -436,6 +436,26 @@ describe('mana-ui: the live game', () => {
     expect(n).not.toContain('mana-sh-arc');
     expect(n).toContain('d%3D&#39;M0%200%20L9%209%20Zsct&#39;');   // the path's letters and figures only: no tag reaches the image
   });
+  it('a generator and its feeds: the core filling to the tick and beating as each lands, a conduit each by its share, a gauge each, a full and a redirected one marked', () => {
+    const feeds = [{ id: 'lasers', share: 0.75, fill: 1, got: 0 }, { id: 'shields', share: 0.5, fill: 0.4, got: 1, spill: true }, { id: 'engines', share: 0, fill: 0.5, got: 0 }];
+    const v = hudOf([at({ use: 'power', props: { phase: 0.25, pulse: 3, feeds } })]).view();
+    expect(v).toContain('--ph:0.25');
+    expect(v).toContain('data-beat="b"');
+    expect(v).toContain('--s:0.75;--f:1;--g:0');
+    const feed = (id) => (v.match(new RegExp(`<span class="mana-pw-feed"[^>]*data-id="${id}"[^>]*>`)) || [''])[0];
+    expect(feed('lasers')).toContain('data-full="yes"');
+    expect(feed('shields')).toContain('data-spill="yes"');
+    expect(feed('engines')).toContain('data-off="yes"');
+    expect(feed('lasers')).not.toContain('data-spill');
+    // a feed's routing as pips, where given
+    const pv = hudOf([at({ use: 'power', props: { feeds: [{ id: 'lasers', share: 0.75, pips: 3, max: 4, fill: 0.5 }] } })]).view();
+    expect(pv).toContain('<span class="mana-pw-pips">●●●○</span>');
+    expect(v).not.toContain('mana-pw-pips');
+    expect((v.match(/mana-pw-pool/g) || []).length).toBe(3);
+    // the next tick swaps the beat, so its pulse starts over; before any tick, no beat
+    expect(hudOf([at({ use: 'power', props: { phase: 0, pulse: 4, feeds } })]).view()).toContain('data-beat="a"');
+    expect(hudOf([at({ use: 'power', props: { phase: 0.5, feeds } })]).view()).not.toContain('data-beat');
+  });
   it('a hud holds regions and layers only; a screen lays its own parts out in regions over the held game', () => {
     expect(() => manaUi.readNode({ use: 'hud', children: [{ use: 'gauge', props: { value: 1, max: 2 } }] })).toThrow(/a region .* or a layer \(anchors, edges, threat, peril, letterbox, effect\)/);
     const rt = run(screen([{ use: 'region', props: { at: 'bottom-left' }, children: [{ use: 'list', props: { rows: [{ label: 'Attack', active: true }, { label: 'Guard' }] } }] }]));

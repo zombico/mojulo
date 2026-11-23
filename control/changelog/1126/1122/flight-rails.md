@@ -229,3 +229,19 @@ They share one foundation, built first, and these themes record it as it lands.
   lever's setting above it, a surge while the craft speeds up toward the setting, and a cut while it slows. An enemy
   fighter flying passes burns at its cruise. A page without drives carries none of the code. Before, the
   nozzles were flat red discs at every speed.
+- **Power redirection: the generator is a starfighter's core resource** (`worlds/controllable/rules-starfighter.js`
+  `ship.generator`; `skyscape/cockpits.js` `generator`; mana-ui `power`). A ship with a generator charges by its
+  ticks alone. Every second the generator yields its output, and the pips route it: each system gets its pips' sixth.
+  The engines' share drives the craft, and its top speed still follows their pips. The lasers' share charges the
+  cannons, one unit per energy point. The shields' share recharges the shields at a cost per point; that cost is the
+  one that charges them at their own rate when the power is even, so an even split flies as before. The power is
+  redirected: a full pool's share charges the other (full cannons feed the shields, full shields the cannons), and
+  what neither holds is lost. A transfer (5 to the lasers, 6 to the shields) moves up to a tick's worth at once from
+  one pool into the other. Each cockpit's generator follows its tuning: the speed craft's is the smallest (10), the
+  general one's 12, the firepower one's the largest (15); the other side's craft, with no shields, has 8, and the
+  shields' share spills to its cannons. The flight screen draws the generator in place of the three pip rows. Its core
+  is a ring that fills to the next tick and beats as it lands. A conduit to each feed is as thick as its share and
+  lights as the tick reaches it. Each feed shows its pips and its gauge; a full gauge is ringed, and a redirected or
+  transferred one is ringed in the second accent. A sortie's other craft still recharge continuously. The shield
+  plan's spent-side and low-hull beats now reach their elements: they had kept selectors from before the shield parts
+  were renamed.

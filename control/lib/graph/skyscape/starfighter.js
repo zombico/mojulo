@@ -64,7 +64,7 @@ export function starfighterPilot(map, pilot, { airframe, seat } = {}) {
   return {
     ...pilot, team: pilot.team ?? 'player',
     rule: { type: 'starfighter', speed: top, accel: r2(top / 3), pitchRate: R.pitch, yawRate: R.yaw, rollRate: R.roll, throttle: 2 / 3, seat: seat ?? [r2(size * STARFIGHTER.seat.ahead * 2), 0, r2(size * STARFIGHTER.seat.up * 2)], eye: 0 },
-    body: { ...pilot.body, hittable: true, hp: N.hull, radius: size, egg: { a: size, c: r2(size * 0.5), cz: 0 }, blast: r2(size * STARFIGHTER.blast), ship: { ...(N.shields ? { shields: { ...N.shields } } : {}), lasers: { regen: N.lasers.regen, links: [...N.lasers.links] } } },
+    body: { ...pilot.body, hittable: true, hp: N.hull, radius: size, egg: { a: size, c: r2(size * 0.5), cz: 0 }, blast: r2(size * STARFIGHTER.blast), ship: { ...(N.shields ? { shields: { ...N.shields } } : {}), lasers: { regen: N.lasers.regen, links: [...N.lasers.links] }, ...(N.generator > 0 ? { generator: { out: N.generator } } : {}) } },
     weapon: cockpitLasers(c, airframe),
   };
 }
