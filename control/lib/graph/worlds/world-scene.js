@@ -2333,6 +2333,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
+  // a biocube's FAUNA heard (era/fauna-audio.js): the field's kinds and its herds calling from where they live, as place
+  // sounds joining the level's audio (its own cues win), only where the sound library records their voices. None ⇒ nothing.
+  if (payload && (payload.fauna || (payload.entities || []).some((e) => e && e.fauna))) {
+    const { faunaAudio } = await import('@/lib/graph/era/fauna-audio.js');
+    const fa = faunaAudio({ fauna: payload.fauna ?? null, entities: payload.entities ?? [] });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, emitters: [...(payload.audio.emitters ?? []), ...A.emitters].slice(0, 32) } : A;
+    }
+  }
 
   // generic, opt-in GAME channel: the level contract. A manifest may
   // carry `game` ({ levelRef, consumes, produces, presets, on? }) declaring the level's signature —

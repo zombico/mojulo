@@ -71,6 +71,7 @@
  *                                                                    screen draws them so (the play shell's title); said or
  *                                                                    left out (titleLetters: a rise)
  *     sounds    glass | console | chip | terminal | paper | party      which of the UI sound library's sets the page plays
+ *               | robot
  *               | hydraulic | clack | crypt | jackpot                  (beats/ui-sounds.js: one interval plan, each set a
  *                                                                    voice; the last four the heavy ones);
  *                                                                    how many it hears is `cues`
@@ -127,7 +128,7 @@ export const THEME_WORDS = Object.freeze({
   breakout: ['none', 'tab', 'echo', 'full'],
   overlay: ['none', 'scanlines', 'crt', 'grid', 'vignette', 'grain'],
   stage: ['none', 'band', 'burst', 'shards', 'stripes', 'rings', 'chevrons', 'dots', 'confetti', 'tunnel', 'streaks', 'zigzag'],
-  sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party', 'hydraulic', 'clack', 'crypt', 'jackpot'],
+  sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party', 'robot', 'hydraulic', 'clack', 'crypt', 'jackpot'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
   hud: ['panel', 'bare'],
   // the style its pictograms are drawn in (icons.js); none: an icon is its name's initials
