@@ -18,12 +18,13 @@ describe('the space backdrop', () => {
 
   it('its primary lit from the side, every planet clear of the star and of each other, the far sun far from the near', () => {
     for (const seed of [1, 2, 3]) {
-      const B = planBackdrop({ star: S, seed, planets: 3 }), [P] = B.planets;
+      const B = planBackdrop({ star: S, seed, planets: 3, worlds: ['jovian'] }), [P] = B.planets;
       const a = ang(P.dir, S);
       expect(a).toBeGreaterThanOrEqual(BACKDROP.phase[0] - 1e-6);
       expect(a).toBeLessThanOrEqual(BACKDROP.phase[1] + 1e-6);
       expect(P.r).toBeGreaterThanOrEqual(BACKDROP.primary[0]);
       for (const p of B.planets) expect(ang(p.dir, S)).toBeGreaterThan(p.r + BACKDROP.clear);
+      for (const p of B.planets.slice(1)) expect(ang(p.dir, S)).toBeLessThanOrEqual(BACKDROP.lit + 1e-6);   // (lit, at least half)
       for (let i = 0; i < B.planets.length; i++) for (let j = i + 1; j < B.planets.length; j++) expect(ang(B.planets[i].dir, B.planets[j].dir)).toBeGreaterThan(B.planets[i].r + B.planets[j].r);
       for (const f of B.suns) expect(ang(f.dir, S)).toBeGreaterThanOrEqual(BACKDROP.sun.from);
     }
@@ -40,6 +41,16 @@ describe('the space backdrop', () => {
     expect(validateBackdrop({ moons: 1 })[0]).toMatch(/not a backdrop's word/);
   });
 
+  it('the worlds a level names are the ones it gets, the rest drawn; a black hole keeps its whole disk clear of the star', () => {
+    const B = planBackdrop({ star: S, seed: 9, planets: 3, worlds: ['black-hole', 'random', 'city'] });
+    expect(B.planets.map((p) => p.kind)[0]).toBe('black-hole');
+    expect(B.planets[2].kind).toBe('city');
+    const H = B.planets[0];
+    expect(ang(H.dir, S)).toBeGreaterThan(H.r * H.disk[1]);
+    expect(validateBackdrop({ worlds: ['black-hole', 'saturnian'] })).toEqual([]);
+    expect(validateBackdrop({ worlds: ['dyson-sphere'] })[0]).toMatch(/not a kind of world/);
+  });
+
   it('a space map\'s sky carries it, unless it says none; the page bakes it only where it is, and keeps stars off its planets', () => {
     const M = { kind: 'airspace', map: { craft: 'fighter', field: 3000 }, space: { asteroids: 'none' }, seed: 3 };
     const sky = assembleAirspace(M, {}).sky;
@@ -48,6 +59,10 @@ describe('the space backdrop', () => {
     const base = { space: true, zenith: [], horizon: [], day: 0, stars: 1, seed: 7, center: [0, 0, 0], radius: 7000, sun: { dir: S } };
     expect(skyDomeScript(base)).not.toContain('space backdrop');
     const page = skyDomeScript({ ...base, backdrop: sky.backdrop });
-    for (const w of ['space backdrop', 'WebGLCubeRenderTarget', 'scene.background = rt.texture', 'HalfFloatType', '__onPlanet']) expect(page, w).toContain(w);
+    for (const w of ['space backdrop', 'WebGLCubeRenderTarget', 'scene.background = sky.texture', 'HalfFloatType', '__onPlanet']) expect(page, w).toContain(w);
+    // (the lensing pass only for a sky with a black hole in it)
+    expect(page).not.toContain('HOLE =');
+    const hole = planBackdrop({ star: S, seed: 9, worlds: ['black-hole'] });
+    expect(skyDomeScript({ ...base, backdrop: hole })).toContain('HOLE =');
   });
 });

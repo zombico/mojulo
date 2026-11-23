@@ -191,7 +191,7 @@ function backdropOf(manifest) {
   const B = manifest.space && manifest.space.backdrop;
   if (B === false) return {};
   const o = B && typeof B === 'object' ? B : {};
-  return { backdrop: planBackdrop({ star: SPACE_STAR.dir, seed: o.seed ?? manifest.seed ?? 1, ...(o.planets !== undefined ? { planets: o.planets } : {}), ...(o.nebula !== undefined ? { nebula: o.nebula } : {}), ...(o.suns !== undefined ? { suns: o.suns } : {}) }) };
+  return { backdrop: planBackdrop({ star: SPACE_STAR.dir, seed: o.seed ?? manifest.seed ?? 1, ...(o.planets !== undefined ? { planets: o.planets } : {}), ...(o.nebula !== undefined ? { nebula: o.nebula } : {}), ...(o.suns !== undefined ? { suns: o.suns } : {}), ...(Array.isArray(o.worlds) ? { worlds: o.worlds } : {}) }) };
 }
 
 /** The space map on the World page (space.js): stars all round, the rocks instanced, the course's gates, no ground. */

@@ -9,42 +9,40 @@
  *   code, cockpit-look.js: the target is found by its hue alone). It is dim: a backdrop under the stars, the bolts and
  *   the instruments, never over them.
  *   THE PLANETS: a primary, large, set where the star lights it from the side (its phase a crescent or a gibbous, never
- *   full-faced and flat, never all dark), and up to two small ones; each of a kind (rocky, gas, ice, ocean, lava), its
- *   palette the kind's, a gas giant sometimes ringed, an atmosphere a rim in its own colour. Every planet clear of the
- *   star and of each other, so the star the craft are lit by is always seen.
+ *   full-faced and flat, never all dark), and up to two small ones; each a world the planet generator makes
+ *   (planet-gen.js: an earthlike world, a desert, an ice giant, a city world, a black hole…), named by the level or
+ *   drawn by weight. Every planet clear of the star and of each other (a black hole of its whole disk), so the star the
+ *   craft are lit by is always seen.
  *   A FAR SUN: a small second star, red or blue-white by its temperature, far from the near one; it lights nothing.
  *
- *   planBackdrop({ star, seed?, planets?, nebula?, suns? }) → { nebula, planets, suns }   (star: the direction toward the
- *     map's star, unit; planets 0..3 (2), nebula true | false, suns 0..1 (1))
- *   BACKDROP              the numbers: the planets' sizes (angular radius, °), the clearances, the kinds and their palettes
- *   validateBackdrop(v)   → errors (strings) for a level's `space.backdrop` (false | true | { planets?, nebula?, suns?, seed? })
+ *   planBackdrop({ star, seed?, planets?, worlds?, nebula?, suns? }) → { nebula, planets, suns }   (star: the direction
+ *     toward the map's star, unit; planets 0..3 (2); worlds: the kinds asked, the first the large one ('random' a
+ *     slot left to the dice); nebula true | false; suns 0..1 (1))
+ *   BACKDROP              the numbers: the planets' sizes (angular radius, °), the clearances
+ *   validateBackdrop(v)   → errors (strings) for a level's `space.backdrop` (false | true | { planets?, worlds?, nebula?,
+ *                           suns?, seed? })
  *
  * Pure: the same star and seed, the same sky.
  */
 import { mulberry32, strHash } from '../city/plan/dice.js';
+import { PLANET_KINDS, BLACK_HOLE, generatePlanet, pickKind } from './planet-gen.js';
 
 export const BACKDROP = Object.freeze({
   // a planet's angular radius (°): the primary's, a small one's
   primary: Object.freeze([7, 12]), small: Object.freeze([1.2, 3]),
-  // the primary from the star (°): lit from the side, a crescent to a gibbous
-  phase: Object.freeze([55, 125]),
+  // the primary from the star (°): lit from the side, a half to a broad gibbous (its land and its terminator both seen)
+  phase: Object.freeze([50, 105]),
+  // a small world no further round from the star than this (°): at least about half of it lit, so it reads as itself
+  lit: 110,
   // clear of the star (° past its radius) and of each other
   clear: 18, apart: 6,
   // a far sun at least this far from the near one (°), its size (° radius, the glow round it)
   sun: Object.freeze({ from: 70, r: 0.35, glow: 3.5 }),
-  kinds: Object.freeze({
-    rocky: Object.freeze({ base: '#8a6f55', alt: '#5a4636', atmo: '#9fb6d6', atmoK: 0.35 }),
-    gas: Object.freeze({ base: '#c9a272', alt: '#7f5d40', atmo: '#e8c89a', atmoK: 0.6 }),
-    ice: Object.freeze({ base: '#b8d7e6', alt: '#6f93a8', atmo: '#cfe9ff', atmoK: 0.5 }),
-    ocean: Object.freeze({ base: '#2f5d8a', alt: '#3f7a4a', atmo: '#7fb7ff', atmoK: 0.9 }),
-    lava: Object.freeze({ base: '#3a2320', alt: '#ff6a2a', atmo: '#ff9a5a', atmoK: 0.25 }),
-  }),
   // the nebula's hue families (°), cool for a warm star (blue to violet: a teal reads green on the dark); the target's
   // band left out (cockpit-look.js magenta)
   hues: Object.freeze([200, 215, 230, 248, 265]), warm: 28, forbid: Object.freeze([285, 345]),
 });
 
-const KINDS = Object.keys(BACKDROP.kinds);
 const DEG = Math.PI / 180;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const unit = (v) => { const L = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / L, v[1] / L, v[2] / L]; };
@@ -64,9 +62,13 @@ function hsv(h, s, v) {
 
 export function validateBackdrop(v) {
   if (v === undefined || v === true || v === false) return [];
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return ['space.backdrop is true, false or { planets?, nebula?, suns?, seed? }'];
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return ['space.backdrop is true, false or { planets?, worlds?, nebula?, suns?, seed? }'];
   const e = [];
-  for (const k of Object.keys(v)) if (!['planets', 'nebula', 'suns', 'seed'].includes(k)) e.push(`space.backdrop.${k} is not a backdrop's word (planets, nebula, suns, seed)`);
+  for (const k of Object.keys(v)) if (!['planets', 'nebula', 'suns', 'seed', 'worlds'].includes(k)) e.push(`space.backdrop.${k} is not a backdrop's word (planets, worlds, nebula, suns, seed)`);
+  if (v.worlds !== undefined) {
+    if (!Array.isArray(v.worlds) || v.worlds.length > 3) e.push('space.backdrop.worlds is a list of up to 3 kinds of world (the first the large one)');
+    else for (const w of v.worlds) if (w !== 'random' && !PLANET_KINDS[w]) e.push(`space.backdrop.worlds: '${w}' is not a kind of world (${Object.keys(PLANET_KINDS).join(', ')}, or random)`);
+  }
   if (v.planets !== undefined && !(Number.isInteger(v.planets) && v.planets >= 0 && v.planets <= 3)) e.push('space.backdrop.planets is 0 to 3');
   if (v.suns !== undefined && !(Number.isInteger(v.suns) && v.suns >= 0 && v.suns <= 1)) e.push('space.backdrop.suns is 0 or 1');
   if (v.nebula !== undefined && typeof v.nebula !== 'boolean') e.push('space.backdrop.nebula is true or false');
@@ -74,24 +76,27 @@ export function validateBackdrop(v) {
   return e;
 }
 
-export function planBackdrop({ star, seed = 1, planets = 2, nebula = true, suns = 1 } = {}) {
+export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebula = true, suns = 1 } = {}) {
   const S = unit(star || [0, 0, 1]), rnd = mulberry32(strHash(`backdrop|${seed}`)), pick = (a) => a[Math.floor(rnd() * a.length) % a.length];
   const span = ([lo, hi]) => lo + rnd() * (hi - lo);
   const placed = [{ dir: S, r: 1 + BACKDROP.clear }];
   const free = (d, r, gap) => placed.every((p) => angle(d, p.dir) > p.r + r + gap);
-  // THE PLANETS: the primary from the side of the star, then the small ones where the sky is free
-  const out = [];
-  for (let i = 0; i < planets; i++) {
-    const primary = i === 0, r = span(primary ? BACKDROP.primary : BACKDROP.small);
+  // THE PLANETS (planet-gen.js): each slot a kind (named, or drawn by weight: the first a large world, the rest small
+  // ones), its world generated; the primary from the side of the star, the small ones where the sky is free. A black
+  // hole takes its disk's room
+  const out = [], n = Math.max(planets, worlds ? worlds.length : 0);
+  for (let i = 0; i < n; i++) {
+    const primary = i === 0, asked = worlds && worlds[i] && worlds[i] !== 'random' ? worlds[i] : null;
+    const kind = asked ?? pickKind(rnd, primary ? 'large' : 'small'), world = generatePlanet(kind, rnd);
+    const r = world.blackHole ? span(BLACK_HOLE.r) : span(primary ? BACKDROP.primary : BACKDROP.small), reach = world.blackHole ? r * world.disk[1] * 1.15 : world.rings ? r * world.rings.outer : r;
     let dir = null;
-    for (let t = 0; t < 40 && !dir; t++) {
-      const d = primary ? around(S, span(BACKDROP.phase), rnd() * 2 * Math.PI) : unit([rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]);
-      if (free(d, r, BACKDROP.apart)) dir = d;
+    for (let t = 0; t < 60 && !dir; t++) {
+      const d = primary ? around(S, span(world.blackHole ? [70, 140] : BACKDROP.phase), rnd() * 2 * Math.PI) : unit([rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]);
+      if (free(d, reach, BACKDROP.apart) && (primary || world.blackHole || angle(d, S) <= BACKDROP.lit)) dir = d;
     }
     if (!dir) continue;
-    const kind = primary ? pick(['gas', 'gas', 'ocean', 'rocky', 'ice']) : pick(KINDS), K = BACKDROP.kinds[kind];
-    out.push({ dir: dir.map(r3), r: r3(r), kind, base: K.base, alt: K.alt, atmo: K.atmo, atmoK: K.atmoK, seed: Math.floor(rnd() * 1e6), ...(kind === 'gas' && rnd() < 0.55 ? { rings: { inner: r3(1.35 + rnd() * 0.2), outer: r3(2 + rnd() * 0.5), tilt: r3(10 + rnd() * 25) } } : {}) });
-    placed.push({ dir, r: r * (out[out.length - 1].rings ? 2.5 : 1) });
+    out.push({ dir: dir.map(r3), r: r3(r), ...world });
+    placed.push({ dir, r: reach });
   }
   // A FAR SUN: its temperature red or blue-white
   const far = [];

@@ -21,7 +21,6 @@ import { safeJson } from '../emit-util.js';
 export const BACKDROP_FACE = 1024;
 
 const lin = (h) => [1, 3, 5].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }).map((v) => Math.round(v * 1e4) / 1e4);
-const KIND_ID = { gas: 0, rocky: 1, ice: 2, ocean: 3, lava: 4 };
 
 const NOISE = `
 float bdHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
@@ -50,36 +49,101 @@ void main() {
 }`;
 
 const PLANET_FRAG = `${NOISE}
-uniform vec3 uSun, uBase, uAlt, uAtmo; uniform float uAtmoK, uSeed; uniform int uKind; varying vec3 vN, vW;
+// ANY WORLD from its knobs (skyscape/planet-gen.js): a giant's bands and storm, or a rocky world's sea, land, plants,
+// ice, craters, lava and cities; then its clouds, its haze, the star's light with a soft terminator, the night side's
+// own glow and lights, the atmosphere's rim, the limb antialiased
+uniform vec3 uSun, uLand0, uLand1, uSea, uVeg, uIce, uCloud, uAtmo, uLava, uB0, uB1, uB2, uStorm;
+uniform float uGas, uOcean, uVegK, uIceK, uCloudK, uCraters, uLavaK, uLights, uDunes, uHaze, uAtmoK, uGlow, uFreq, uTurb, uStormK, uSeed;
+varying vec3 vN, vW;
 void main() {
   vec3 n = normalize(vN), o = vec3(uSeed * 0.0017, uSeed * 0.0009, uSeed * 0.0013), c;
-  float glow = 0.0;
-  if (uKind == 0) {          // gas: bands warped by its weather, a storm or two
-    float t = n.z * 7.0 + (bdFbm(n * 3.0 + o) - 0.5) * 2.4;
-    c = mix(uBase, uAlt, 0.5 + 0.5 * sin(t * 2.6));
-    c = mix(c, uAlt * 1.25, smoothstep(0.78, 0.9, bdFbm(n * 9.0 + o)) * 0.6);
-  } else if (uKind == 1) {   // rocky: plains and highlands, a few craters' rims
-    float h = bdFbm(n * 4.0 + o);
-    c = mix(uAlt, uBase, smoothstep(0.38, 0.62, h)) * (0.85 + 0.3 * bdNoise(n * 40.0 + o));
-  } else if (uKind == 2) {   // ice: pale, its fractures darker
-    c = mix(uBase, uAlt, smoothstep(0.55, 0.8, bdFbm(n * 5.0 + o)) * 0.7);
-  } else if (uKind == 3) {   // ocean: land, then cloud over both
-    float land = smoothstep(0.52, 0.56, bdFbm(n * 3.2 + o));
-    c = mix(uBase, uAlt, land);
-    c = mix(c, vec3(0.85), smoothstep(0.55, 0.78, bdFbm(n * 6.0 + o + 5.0)) * 0.85);
-  } else {                   // lava: a dark crust, its cracks alight
-    float k = abs(bdFbm(n * 5.0 + o) - 0.5);
-    c = uBase; glow = smoothstep(0.035, 0.0, k);
+  float lat = abs(n.z), water = 0.0, emit = 0.0, land = 1.0;
+  if (uGas > 0.5) {
+    // (bands round its axis, warped by its weather; a storm, an eye in the bands)
+    float t = n.z * uFreq + (bdFbm(n * 3.0 + o) - 0.5) * uTurb;
+    c = mix(mix(uB0, uB1, 0.5 + 0.5 * sin(t * 2.2)), uB2, smoothstep(0.55, 0.95, 0.5 + 0.5 * sin(t * 0.83 + 1.3)));
+    c *= 0.9 + 0.2 * bdNoise(n * 18.0 + o);
+    vec3 sd = normalize(vec3(cos(uSeed), sin(uSeed), -0.35));
+    float sdist = length(n - sd), sw = smoothstep(0.16, 0.0, sdist) * uStormK;
+    c = mix(c, uStorm, sw * (0.6 + 0.4 * sin(sdist * 60.0 + bdNoise(n * 9.0) * 3.0)));
+    land = 0.0;
+  } else {
+    float e = bdFbm(n * 3.0 + o) + (bdFbm(n * 12.0 + o) - 0.5) * 0.15;
+    water = uOcean > 0.0 ? 1.0 - smoothstep(uOcean * 0.62 + 0.19 - 0.004, uOcean * 0.62 + 0.19 + 0.004, e) : 0.0;
+    float hi = smoothstep(0.45, 0.75, e);
+    c = mix(uLand0, uLand1, hi);
+    // (dunes: long streaks across its plains)
+    c *= 1.0 + uDunes * 0.18 * sin(dot(n, vec3(31.0, 17.0, 5.0)) + bdNoise(n * 6.0 + o) * 6.0);
+    // (plants where it is neither high nor polar)
+    float veg = uVegK * smoothstep(0.35, 0.62, bdFbm(n * 6.0 + o + 3.0)) * (1.0 - smoothstep(0.55, 0.85, lat)) * (1.0 - hi * 0.6);
+    c = mix(c, uVeg, veg);
+    // (craters: rims and dark floors, on a world with little air)
+    float cr = bdNoise(n * 22.0 + o), rim = smoothstep(0.72, 0.76, cr) - smoothstep(0.78, 0.84, cr);
+    c *= 1.0 + uCraters * (rim * 0.35 - smoothstep(0.8, 0.9, cr) * 0.3);
+    // (its sea, deeper where the land falls away)
+    c = mix(c, mix(uSea * 0.55, uSea, smoothstep(0.1, 0.5, e)), water);
+    land = 1.0 - water;
+    // (lava: a crust's cracks alight)
+    emit = uLavaK * smoothstep(0.04, 0.0, abs(bdFbm(n * 5.0 + o + 9.0) - 0.5)) * land;
+    c = mix(c, uLand0 * 0.4, uLavaK * 0.6 * land);
   }
-  float lit = dot(n, uSun), k = smoothstep(-0.08, 0.3, lit) * max(lit + 0.08, 0.0);
+  // (ice: its caps, ragged at the edge; frozen seas too)
+  float ice = uIceK > 0.0 ? smoothstep(1.0 - uIceK - 0.04, 1.0 - uIceK + 0.04, lat + (bdFbm(n * 8.0 + o) - 0.5) * 0.12) : 0.0;
+  c = mix(c, uIce, ice);
+  // (clouds, swirled, over the lot)
+  float cl = uCloudK > 0.0 ? smoothstep(1.0 - uCloudK, 1.0 - uCloudK + 0.28, bdFbm(n * 4.5 + o + 7.0 + vec3(bdFbm(n * 2.0 + o) * 0.8))) : 0.0;
+  c = mix(c, uCloud, cl * 0.9);
+  c = mix(c, uAtmo, uHaze);
+  float lit = dot(n, uSun), k = smoothstep(-0.08, 0.3, lit) * max(lit + 0.08, 0.0), night = 1.0 - smoothstep(-0.15, 0.12, lit);
   vec3 col = c * k * 1.05 + c * 0.004;
-  col += uAlt * glow * 0.6 * (1.0 - smoothstep(-0.2, 0.3, lit) * 0.6);
-  // (its atmosphere: a rim, brightest on the lit limb, a thin line round the dark one)
+  col += uLava * emit * (0.35 + 0.65 * night) * (1.0 - cl * 0.7);
+  col += uLava * uGlow * night * 0.12;
+  // (cities: lights on its night side, on its land, where people would gather)
+  float city = uLights * land * (1.0 - ice) * step(0.6, bdNoise(n * 70.0 + o)) * smoothstep(0.45, 0.65, bdFbm(n * 7.0 + o + 2.0));
+  col += vec3(1.0, 0.78, 0.45) * city * night * 0.6 * (1.0 - cl * 0.8);
   vec3 V = normalize(cameraPosition - vW);
   float fres = pow(1.0 - max(dot(n, V), 0.0), 3.0);
   col += uAtmo * fres * uAtmoK * (0.08 + smoothstep(-0.35, 0.45, lit));
-  // (its limb antialiased: the cube is drawn without samples, so the disc's last sliver fades to what is behind it)
   gl_FragColor = vec4(col, smoothstep(0.0, 0.09, dot(n, V)));
+}`;
+
+// THE BLACK HOLE, a second pass over the sky already drawn (uSky): each direction near it bent as a point lens bends
+// light (a source at β seen at θ, β = θ − θE²/θ: an Einstein ring, the sky behind drawn round it), the shadow black
+// inside its edge with the photon ring bright on it; its accretion disk tilted near edge-on, hot white at its inner
+// edge to orange at its outer, brighter on the side turning toward the eye; the disk's far side seen bent up over the
+// shadow and down under it
+const HOLE_FRAG = `${NOISE}
+uniform samplerCube uSky; uniform vec3 uC, uE1, uHot, uCool; uniform float uR, uIn, uOut, uEin, uTilt, uSeed; varying vec3 vW;
+vec3 sky(vec3 d) { return textureCube(uSky, d).rgb; }
+vec3 diskAt(float r, float side) {
+  if (r < uIn || r > uOut) return vec3(0.0);
+  float T = pow(uIn / r, 0.75), edge = smoothstep(uIn, uIn + 0.25, r) * (1.0 - smoothstep(uOut - 1.2, uOut, r));
+  // (Doppler: the side turning toward the eye brighter and whiter, the other dimmer and redder)
+  vec3 col = mix(uCool, uHot, clamp(T + 0.25 * side, 0.0, 1.0)) * T * edge * (1.0 + 0.85 * side);
+  return col * 1.4 * (0.6 + 0.8 * bdNoise(vec3(r * 6.0, side * 4.0, uSeed * 0.001))) * (0.8 + 0.4 * bdNoise(vec3(r * 24.0, 0.0, uSeed * 0.002)));
+}
+void main() {
+  vec3 d = normalize(vW), C = normalize(uC), E2 = normalize(cross(C, uE1));
+  float th = acos(clamp(dot(d, C), -1.0, 1.0)), x = th / uR;
+  vec3 e = normalize(d - C * dot(d, C) + 1e-6 * uE1);
+  float px = dot(e, uE1) * x, py = dot(e, E2) * x;
+  // the lens: the sky behind, bent; past the plane's edge, the sky as it is
+  float fade = 1.0 - smoothstep(5.5, 7.5, x), beta = th - (uEin * uEin * uR * uR / max(th, 1e-4)) * fade;
+  vec3 dir = C * cos(abs(beta)) + e * sign(beta) * sin(abs(beta));
+  vec3 col = x < 1.0 ? vec3(0.0) : sky(dir);
+  // the photon ring on the shadow's edge
+  col += uHot * exp(-pow((x - 1.03) / 0.03, 2.0)) * 1.4;
+  // the disk, near edge-on: X along it, Y across it (its far side Y > 0, behind the shadow)
+  float ci = sin(uTilt), X = px, Y = py / max(ci, 0.05), r = sqrt(X * X + Y * Y), side = r > 0.0 ? X / r : 0.0;
+  vec3 dk = diskAt(r, side);
+  col += Y < 0.0 ? dk : (x < 1.0 ? vec3(0.0) : dk);
+  // the far side bent over the top and under the bottom of the shadow: the disk's light drawn round it as a halo, its
+  // inner edge on the photon ring, widest and brightest across the disk (above and below), thinning toward its plane
+  float across = abs(py) / max(x, 1e-3), reach = 1.02 + (uOut - uIn) * 0.32 * (0.35 + 0.65 * across);
+  float arc = smoothstep(1.0, 1.06, x) * (1.0 - smoothstep(reach * 0.8, reach, x)) * (0.3 + 0.7 * across);
+  col += diskAt(uIn + (x - 1.02) / max(reach - 1.02, 0.05) * (uOut - uIn) * 0.7, px / max(x, 1e-3)) * arc;
+  // (no seam: its plane's square edge fades into the sky the plane covers)
+  gl_FragColor = vec4(col, 1.0 - smoothstep(6.5, 7.6, x));
 }`;
 
 // a planet's halo: its atmosphere's glow past the limb, a thin ring brightest on its lit side
@@ -109,17 +173,28 @@ void main() {
   gl_FragColor = vec4(uCol * g * (1.0 - smoothstep(0.7, 1.0, r)), 1.0);    // (to nothing at its edge: no square)
 }`;
 
+// a world's knobs as its shader's uniforms (linear colours; a knob the world leaves out, nothing of it)
+const COLOURS = { uLand0: 'land0', uLand1: 'land1', uSea: 'sea', uVeg: 'vegC', uIce: 'iceC', uCloud: 'cloudC', uAtmo: 'atmoC', uLava: 'lavaC', uB0: 'band0', uB1: 'band1', uB2: 'band2', uStorm: 'stormC' };
+const NUMBERS = { uGas: 'gas', uOcean: 'ocean', uVegK: 'veg', uIceK: 'ice', uCloudK: 'cloud', uCraters: 'craters', uLavaK: 'lava', uLights: 'lights', uDunes: 'dunes', uHaze: 'haze', uAtmoK: 'atmo', uGlow: 'glow', uFreq: 'freq', uTurb: 'turb', uStormK: 'storm', uSeed: 'seed' };
+function worldInput(p) {
+  const u = {};
+  for (const [k, w] of Object.entries(COLOURS)) u[k] = typeof p[w] === 'string' ? lin(p[w]) : [0, 0, 0];
+  for (const [k, w] of Object.entries(NUMBERS)) u[k] = Number.isFinite(p[w]) ? p[w] : 0;
+  return { dir: p.dir, r: p.r, u, ...(p.rings ? { rings: { ...p.rings, color: lin(p.rings.color || p.band2 || '#d8c8a0') } } : {}) };
+}
+
 export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
   const D = {
     nebula: B.nebula ? { ...B.nebula, a: lin(B.nebula.a), b: lin(B.nebula.b), warm: lin(B.nebula.warm) } : null,
-    planets: (B.planets || []).map((p) => ({ dir: p.dir, r: p.r, kind: KIND_ID[p.kind] ?? 1, base: lin(p.base), alt: lin(p.alt), atmo: lin(p.atmo), atmoK: p.atmoK, seed: p.seed, ...(p.rings ? { rings: p.rings } : {}) })),
+    planets: (B.planets || []).filter((p) => !p.blackHole).map(worldInput),
+    holes: (B.planets || []).filter((p) => p.blackHole).map((p) => ({ dir: p.dir, r: p.r, disk: p.disk, einstein: p.einstein, tilt: p.tilt, spin: p.spin, hot: lin(p.hot), cool: lin(p.cool), seed: p.seed })),
     suns: (B.suns || []).map((s) => ({ dir: s.dir, r: s.r, glow: s.glow, color: lin(s.color) })),
   };
   return `
 // --- the space backdrop (skyscape/backdrop.js; channels/space-backdrop.js): baked once into the sky at infinity ---
 (function () {
   const BD = ${safeJson(D)}, SUN = (SKY.sun && SKY.sun.dir) || [0, 0, 1];
-  const NEB = ${JSON.stringify(NEBULA_FRAG)}, PLA = ${JSON.stringify(PLANET_FRAG)}, RING = ${JSON.stringify(RING_FRAG)}, GLOW = ${JSON.stringify(GLOW_FRAG)}, HALO = ${JSON.stringify(HALO_FRAG)};
+  const NEB = ${JSON.stringify(NEBULA_FRAG)}, PLA = ${JSON.stringify(PLANET_FRAG)}, RING = ${JSON.stringify(RING_FRAG)}, GLOW = ${JSON.stringify(GLOW_FRAG)}, HALO = ${JSON.stringify(HALO_FRAG)}${D.holes.length ? `, HOLE = ${JSON.stringify(HOLE_FRAG)}` : ''};
   const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]), sunV = v3(SUN).normalize();
   const VERT_DIR = 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
   const VERT_N = 'varying vec3 vN; varying vec3 vW; void main(){ vN = normalize(position); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
@@ -142,15 +217,15 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
       const c = v3(P.dir).normalize().multiplyScalar(60), R = 60 * Math.tan(P.r * Math.PI / 180);
       // (its halo behind it, a plane facing the eye: the atmosphere's glow past its limb, lit on the star's side)
       const hs = R * 1.18, halo = add(new THREE.Mesh(new THREE.PlaneGeometry(2 * hs, 2 * hs), new THREE.ShaderMaterial({ vertexShader: VERT_UV, fragmentShader: HALO, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-        uniforms: { uAtmo: { value: v3(P.atmo) }, uAtmoK: { value: P.atmoK }, uIn: { value: R / hs }, uSunUv: { value: new THREE.Vector3() } } })));
+        uniforms: { uAtmo: { value: v3(P.u.uAtmo) }, uAtmoK: { value: P.u.uAtmoK }, uIn: { value: R / hs }, uSunUv: { value: new THREE.Vector3() } } })));
       halo.position.copy(c).multiplyScalar(1.02); halo.lookAt(0, 0, 0); halo.updateMatrixWorld(true);
       { const inv = new THREE.Matrix4().copy(halo.matrixWorld).invert(), sp = sunV.clone().transformDirection(inv); halo.material.uniforms.uSunUv.value.set(sp.x, sp.y, 0).normalize(); }
       const m = add(new THREE.Mesh(new THREE.SphereGeometry(R, 96, 48), new THREE.ShaderMaterial({ transparent: true, vertexShader: VERT_N, fragmentShader: PLA,
-        uniforms: { uSun: { value: sunV }, uBase: { value: v3(P.base) }, uAlt: { value: v3(P.alt) }, uAtmo: { value: v3(P.atmo) }, uAtmoK: { value: P.atmoK }, uSeed: { value: P.seed }, uKind: { value: P.kind } } })));
+        uniforms: Object.assign({ uSun: { value: sunV } }, ...Object.entries(P.u).map(([k, v]) => ({ [k]: { value: Array.isArray(v) ? v3(v) : v } }))) })));
       m.position.copy(c);
       if (P.rings) {
         const ring = add(new THREE.Mesh(new THREE.RingGeometry(R * P.rings.inner, R * P.rings.outer, 160, 1), new THREE.ShaderMaterial({ side: THREE.DoubleSide, transparent: true, depthWrite: false, vertexShader: VERT_W, fragmentShader: RING, extensions: { derivatives: true },
-          uniforms: { uSun: { value: sunV }, uBase: { value: v3(P.alt).lerp(v3(P.base), 0.6) }, uCenter: { value: c.clone() }, uIn: { value: R * P.rings.inner }, uOut: { value: R * P.rings.outer }, uR: { value: R }, uSeed: { value: P.seed } } })));
+          uniforms: { uSun: { value: sunV }, uBase: { value: v3(P.rings.color) }, uCenter: { value: c.clone() }, uIn: { value: R * P.rings.inner }, uOut: { value: R * P.rings.outer }, uR: { value: R }, uSeed: { value: P.u.uSeed } } })));
         // (its plane tilted off the line of sight by the plan's tilt, about the planet's own equator)
         ring.position.copy(c); ring.lookAt(0, 0, 0); ring.rotateX((90 - P.rings.tilt) * Math.PI / 180);
       }
@@ -161,7 +236,27 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
     rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
     const cam = new THREE.CubeCamera(0.5, 400, rt); cam.up.set(0, 0, 1);
     cam.update(renderer, room);
-    scene.background = rt.texture;
+    let sky = rt;${D.holes.length ? `
+    // the black holes: a second pass, the sky just drawn bent round each (HOLE_FRAG), drawn again into a second cube
+    {
+      const room2 = new THREE.Scene(), rt2 = new THREE.WebGLCubeRenderTarget(${size}, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+      rt2.texture.colorSpace = THREE.LinearSRGBColorSpace;
+      const back = new THREE.Mesh(new THREE.SphereGeometry(150, 64, 32), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, uniforms: { uSky: { value: rt.texture } }, vertexShader: VERT_DIR, fragmentShader: 'uniform samplerCube uSky; varying vec3 vDir; void main(){ vec3 d = normalize(vDir); gl_FragColor = vec4(textureCube(uSky, d).rgb, 1.0); }' }));
+      room2.add(back); made.push(back);
+      for (const H of BD.holes) {
+        const C = v3(H.dir).normalize(), R = H.r * Math.PI / 180, s = 2 * 60 * Math.tan(Math.min(1.4, R * 8));
+        // (its disk's long axis round the line of sight by its spin)
+        const ref = Math.abs(C.z) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0), a = new THREE.Vector3().crossVectors(C, ref).normalize(), b = new THREE.Vector3().crossVectors(C, a), sp = H.spin * Math.PI / 180;
+        const e1 = a.clone().multiplyScalar(Math.cos(sp)).add(b.clone().multiplyScalar(Math.sin(sp)));
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(s, s), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, vertexShader: VERT_W, fragmentShader: HOLE,
+          uniforms: { uSky: { value: rt.texture }, uC: { value: C }, uE1: { value: e1 }, uHot: { value: v3(H.hot) }, uCool: { value: v3(H.cool) }, uR: { value: R }, uIn: { value: H.disk[0] }, uOut: { value: H.disk[1] }, uEin: { value: H.einstein }, uTilt: { value: H.tilt * Math.PI / 180 }, uSeed: { value: H.seed } } }));
+        m.position.copy(C).multiplyScalar(60); m.lookAt(0, 0, 0); room2.add(m); made.push(m);
+      }
+      const cam2 = new THREE.CubeCamera(0.5, 400, rt2); cam2.up.set(0, 0, 1);
+      cam2.update(renderer, room2);
+      sky = rt2; rt.dispose();
+    }` : ''}
+    scene.background = sky.texture;
     for (const m of made) { m.geometry.dispose(); m.material.dispose(); }
   }
   setTimeout(bake, 0);
@@ -169,5 +264,6 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
 `;
 }
 
-/** Whether a direction falls on a planet's disc (a star there is left out): the page's star loop asks it. */
-export const onPlanetSource = `(d) => { for (const P of SKY.backdrop.planets) { const L = Math.hypot(P.dir[0], P.dir[1], P.dir[2]) || 1; if ((d[0] * P.dir[0] + d[1] * P.dir[1] + d[2] * P.dir[2]) / L > Math.cos(P.r * 1.06 * Math.PI / 180)) return true; } return false; }`;
+/** Whether a direction falls on a planet's disc, or within a black hole's lens (a star there is left out, since it would
+ *  shine through the shadow, unbent): the page's star loop asks it. */
+export const onPlanetSource = `(d) => { for (const P of SKY.backdrop.planets) { const L = Math.hypot(P.dir[0], P.dir[1], P.dir[2]) || 1; if ((d[0] * P.dir[0] + d[1] * P.dir[1] + d[2] * P.dir[2]) / L > Math.cos(P.r * (P.blackHole ? 2 : 1.06) * Math.PI / 180)) return true; } return false; }`;

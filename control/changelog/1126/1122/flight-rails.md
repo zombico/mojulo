@@ -297,3 +297,23 @@ They share one foundation, built first, and these themes record it as it lands.
   - The bake is stored in half-float, because in eight bits the nebula's faint gradients banded into green.
 - **No CRT over space.** The terminal theme laid scanlines and a green glow over the whole stage, tinting the space
   seen through the canopy. The cockpit's theme drops it (`overlay: 'none'`); the screens keep their own glass.
+- **A planet generator, and black holes** (`skyscape/planet-gen.js` `PLANET_KINDS`, `generatePlanet`; the backdrop's
+  one world shader and its lensing pass). A world is now a set of physical knobs rather than one of five fixed looks:
+  rock or gas, sea level, land and mineral colours, plants, ice caps, cloud cover, craters, lava, city lights on its
+  night side, dunes, haze, its air's colour and depth, its own heat; a giant's three-colour bands, their count and
+  turbulence, its storm; rings. The kinds are rows over those knobs, the words people say: an earthlike world, an
+  ocean, a desert, a jungle, an ice world, a volcanic world, a toxic world, a barren moon, a rust world, crimson
+  forests, a city world, a molten world, a gas giant, an ice giant, a hot jupiter, a ringed giant, and a black hole.
+  A new kind is a row. Each world turns its palette's hues and values a little by the dice, so no two are alike, and
+  none turns into the cockpit's target magenta. One shader draws any of them: the star's light with a soft terminator,
+  lava and cities glowing on the night side, an atmosphere's rim, an antialiased limb. A black hole is drawn in a
+  second pass over the baked sky:
+  - the sky behind it bent as a point lens bends light, so an Einstein ring forms and the nebula bends round it;
+  - the shadow inside its edge, with a bright photon ring;
+  - its accretion disk near edge-on, white-hot within and orange without, brighter and whiter on the side turning
+    toward the eye;
+  - the disk's far side seen bent over the top and under the bottom of the shadow.
+
+  Stars behind its lens go dark, as behind a planet. A level names its worlds with
+  `space.backdrop.worlds: ['black-hole', 'random', 'city']` (the first is the large one); otherwise the dice draw them
+  by weight. A small world stands where the star lights at least about half of it.
