@@ -51,6 +51,9 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
 export const COVER_DEEP = 55;
 /** the corner fill's reach (V): it stretches to its whole this far inside each canthus */
 export const COVER_CORNER = 0.004;
+/** where a canthus is closed in to the limb (`closed`), how far past it the corner fill ends, how softly, and how much
+ * further back its front is set (V) */
+export const COVER_CLOSED = Object.freeze([0.003, 0.004, 0.012]);
 /** a seated lid's edge (V): its rim's radius at the canthi, what it gains toward the middle, its centre's lift off the
  * margin there (+ up) and how far forward of the globe it rides, [base, taper, lift, forward] for the upper and the lower */
 export const RIM = Object.freeze({ upper: Object.freeze([0.0032, 0.0035, 0.003, 0.0035]), lower: Object.freeze([0.0035, 0.0028, -0.0015, 0.005]) });
@@ -201,7 +204,7 @@ export function browBridge(P, pull = {}, { seat = false } = {}) {
  * at a surface point ('pupil' | 'iris' | 'sclera') or null, and `irisTone(p)` the iris's pattern there (a tone about 1);
  * `margins` are the lash lines (upper, lower) and the upper lid's crease as functions of t.
  */
-export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.6, { seat = false } = {}) {
+export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.6, { seat = false, closed = null } = {}) {
   const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`];
   const gc = { x: e.x, y: e.y - GLOBE.back, z: e.z };
   // THE GAZE: the axis the cornea, iris and pupil turn to (+yaw toward the figure's right, +pitch up)
@@ -448,14 +451,22 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   // (and out to the canthi, `COVER_CORNER`: the fissure is wider than the globe, so each corner lies past its limb; the
   // fill, a sphere about the globe, ended short of the canthus there and left a slot between the globe's flank and the lids'
   // meeting, dark from the front. Past the limb it stretches sideways till its front reaches the canthi's depth)
+  // (at a CLOSED canthus its front set back further, `COVER_CLOSED[2]`: the closed canthus lies on the chord, forward of
+  // the face beside it, and a fill brought to its depth stood ~2.6 mm proud of the face there, the bean's side wall)
   const kCorner = Object.fromEntries([['en', en], ['ex', ex]].map(([k, q]) => {
-    const dx = Math.abs(q.x - gc.x), yT = Math.min(en.y, ex.y) - 0.004 - gc.y, room = lidR ** 2 - yT ** 2 - (q.z - gc.z) ** 2;
+    const shut = closed && closed[k === 'ex' ? 'outer' : 'inner'] ? COVER_CLOSED[2] : 0;
+    const dx = Math.abs(q.x - gc.x), yT = Math.min(en.y, ex.y) - 0.004 - shut - gc.y, room = lidR ** 2 - yT ** 2 - (q.z - gc.z) ** 2;
     return [k, { K: room > 0 ? Math.max(1, dx / Math.sqrt(room)) : 1, from: GLOBE.r, to: Math.max(GLOBE.r + 0.004, dx - COVER_CORNER) }];
   }));
   const stretch = (p) => { const dx = p.x - gc.x, k = kCorner[(dx > 0) === (ex.x > gc.x) ? 'ex' : 'en']; return 1 + (k.K - 1) * smooth01((Math.abs(dx) - k.from) / (k.to - k.from)); };
+  // (and, at a canthus CLOSED in to the globe's limb, `closed` (the head's `innerClose` / `outerClose`), ended just past
+  // it, `COVER_CLOSED`: stretched on past where the lids meet, its front stood ahead of the face there, a bean beside the
+  // corner; the face's own skin carries on beyond it)
+  const ends = closed && (closed.inner || closed.outer) ? (p) => Math.max(closed.outer ? sgx * (p.x - ex.x) - COVER_CLOSED[0] : -Infinity, closed.inner ? sgx * (en.x - p.x) - COVER_CLOSED[0] : -Infinity) : null;
   const coverEnds = cover ? (p) => {
     const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z) || 1e-9, rs = Math.hypot((p.x - gc.x) / stretch(p), p.y - gc.y, p.z - gc.z);
-    return Math.max(rs - lidR - rim(p, r), ((p.y - gc.y) / r - cd) * lidR);
+    const f = Math.max(rs - lidR - rim(p, r), ((p.y - gc.y) / r - cd) * lidR);
+    return ends ? smax(f, ends(p), COVER_CLOSED[1]) : f;
   } : null;
   // (and joined to the face the wider there, `COVER_RIM.blend`: the cheekbone's top rising into it, never a ledge)
   const coverBlend = cover ? (p) => COVER_RIM.blend * rimW(p, Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z)) : null;

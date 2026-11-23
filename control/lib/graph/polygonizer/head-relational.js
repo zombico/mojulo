@@ -1440,7 +1440,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // at a point there as they do at the inner corner; past the limb the corner had been filled sideways to the
     // canthus's depth, a pale wall standing at the end of the opening)
     const Pr = rel.outerClose || rel.innerClose ? closedEnds(Pe, s, rel.innerClose, rel.outerClose) : Pe;
-    const r = eyeRig(Pr, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
+    const r = eyeRig(Pr, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat, closed: { inner: !!rel.innerClose, outer: !!rel.outerClose } });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,

@@ -75,6 +75,10 @@ face toward the proportions and the clean structure of a current game character,
   the pole's is ~11, the brow ~1.5 mm back, so no pocket stands between the bridge and the inner corner from the side;
   the tent's volume held from the eye's lid space (its cut had taken the tent's corner away again), and the lids, their
   rims and their lashes ending where the tent takes the inner corner over (`innerClose`), never flapping out over it.
+- At a closed canthus (`innerClose`, `outerClose`) the corner fill ends just past where the lids meet and its front is
+  set back to the face (`COVER_CLOSED`): stretched on to the canthus's depth it stood ~2.6 mm proud of the face beside
+  the outer corner, a bean at the eye's side wall where the East Asian face, with less of the orbit's frame showing,
+  runs flat from the lids into the temple.
 
 Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; a crop's shell a ledge at the
 nape.
