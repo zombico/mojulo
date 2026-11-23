@@ -30,11 +30,14 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR, CLIPPER, clipCover, sideburnOf } from './dermal-map.js';
+import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR, CLIPPER, clipCover, sideburnOf, headXY } from './dermal-map.js';
+import { browAt } from './dermal-brow.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
 import { encodePng, encodePngGrey, encodePngRgba } from '../landscape/surface-textures.js';
 
+/** a brow hair's colour against the hair's mean */
+const BROW_TONE = 0.8;
 /** a fold's shadow by channel: the blue and green darkened more than the red (the blood under the skin) */
 const FOLD_SHADOW = [0.8, 1, 1.12];
 /** a fold's inks at its deepest: the smooth shade's darkening, the thin core's within it, the lip's lift; `lit` their
@@ -102,15 +105,16 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  * shadow); `opts.scalpPaint` the paint's share (default 0.8); `opts.clip` (realistic laws 10, the recipe's `hairClip`:
  * { scalp: { n, mm } | null, beard }) the hair a clipper took under its shell painted as its SHADOW, the
  * hair's colour by the share its length covers (dermal-map.js CLIPPER), the scalp's where its guides say, a styled
- * stubble's by its length; absent, the paint as it was.
+ * stubble's by its length; absent, the paint as it was. `opts.brows` (dermal-brow.js `browStrokes`) the brows painted on
+ * the head's texels, each hair a stroke; absent, none.
  */
-export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null } = {}) {
+export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null } = {}) {
   const P = dermalPages(layout, D), clipAt = clip ? clipField(clip.scalp) : null;
   for (const r of layout.rects) {
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
       grid: (i, j) => addressAt(chart, r, Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), clamp01((j * STEP + 0.5) / r.h)),
       texel: (px, py) => addressAt(chart, r, (px + 0.5) / r.w * (1 + r.extra), (py + 0.5) / r.h),
-      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}),
+      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}), ...(brows ? { brows } : {}),
     });
   }
   return finishPages(P, chart, faceUVs(chart, layout), D, layout);
@@ -134,7 +138,7 @@ export function dermalPages(layout, D) {
  * masks being smooth, bilinear between; the fine detail per texel (`texel(px, py)` the texel's own address). `flowSign`
  * −1 where the rectangle's u runs against `around` (its hair's flow turned to match). `mpt` the texel's millimetres.
  */
-export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false, clip = null }) {
+export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false, clip = null, brows = null }) {
   const { N, albedo, rough, trans, hair, fuzz, detail, classIndex, hairLin } = P;
   const gw = Math.ceil(r.w / STEP) + 1, gh = Math.ceil(r.h / STEP) + 1, grid = new Array(gw * gh);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) grid[j * gw + i] = dermisAt(gridAt(i, j), D, { detail: false });
@@ -179,6 +183,10 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
       const more = sbApplied > 0 ? Math.max(0, (share - sbApplied) / Math.max(1e-6, 1 - sbApplied)) : share;
       if (more > 0) col = mixc(col, clip?.beard && bl < CLIPPER.shell ? hairLin : hairLin.map((x) => x * 0.8), more);
     }
+    // THE BROWS (dermal-brow.js): the band's root shade, then each hair's stroke in the hair's colour, a little darker
+    // (a brow's hairs are coarser and read darker than the scalp's mean)
+    const bw = brows && A.marks ? browAt(brows, headXY(A).X, headXY(A).Y, mpt) : null;
+    if (bw) { col = mixc(col, hairLin, bw.root); col = mixc(col, hairLin.map((x) => x * BROW_TONE), bw.cover); }
     // the creator's sliders, per texel: the face's lines darken it, the dirt's blotches stain it, war paint over all
     const det = A.marks && (D.lines > 0 || D.paint) ? dermalDetail(A, D) : null;
     // (a fold in the skin's own shadow, warmer and redder than grey: the broad smooth shade first, then the thin core

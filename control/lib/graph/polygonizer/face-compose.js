@@ -88,9 +88,11 @@ export const FACE_SHAPES = Object.freeze({
 });
 export const FACE_FEATURES = Object.freeze(Object.keys(FACE_SHAPES));
 /** the sex's own weights over the shapes (× the bucket's; absent × 1): on a man the plucked and the refined shapes rarer
- * (a thin or a high-arched brow, large eyes, a heart's chin and outline), never gone */
+ * (a thin or a high-arched brow, large eyes, a heart's chin and outline), never gone; on a woman the heavy and the level
+ * brow rarer, the arched likelier (a woman's brow is finer and arches higher: the painted brow, dermal-brow.js) */
 export const FACE_SEX_WEIGHTS = Object.freeze({
   male: { brows: { thin: 0.15, arched: 0.25 }, eyes: { large: 0.35 }, chin: { heart: 0.35, pointed: 0.6 }, outline: { heart: 0.35 } },
+  female: { brows: { thick: 0.3, straight: 0.5, arched: 1.6 } },
 });
 /**
  * THE PROPORTIONS — what differs person to person whatever the character: the skull's length and breadth, the vault's
@@ -113,8 +115,11 @@ export const FACE_GROOMS = Object.freeze({
   lashes: { density: [0.7, 1.4], length: [0.85, 1.2] },
 });
 /** the sex's own weight over the rolled grooms (× the rolled share; absent × 1): a man's brows taller and fuller (the male
- * pole's, 2026-10-22, the operator's eyes) */
-export const FACE_GROOM_SEX = Object.freeze({ male: { brows: { thickness: 1.6, density: 1.4 }, lashes: { length: 0.85 } } });
+ * pole's, 2026-10-22, the operator's eyes); a woman's a little finer */
+export const FACE_GROOM_SEX = Object.freeze({ male: { brows: { thickness: 1.6, density: 1.4 }, lashes: { length: 0.85 } }, female: { brows: { thickness: 0.85 } } });
+/** the brow's arch by sex (epidermis.js BROW_SHAPES `arch`, 0 level … 1 high): a share of the way toward high (+) or
+ * toward level (−) over the shape word's; a woman's brow arches higher than a man's, whatever its word */
+export const FACE_BROW_ARCH = Object.freeze({ female: 0.3, male: -0.15 });
 /**
  * THE NOSE'S AXIS — one roll per face, −1 … 1, from a SHORT, FLAT nose (less projected, shorter, its parts smaller, its
  * root lower, its base wider, its bridge broader) to a LONG, POINTED one (more projected, longer, a finer bridge and a
@@ -661,6 +666,10 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     grooms[g][k] = Math.round(groomShape[g][k] * share * bySex * 1000) / 1000;
     proportions[`${g}.${k}`] = Math.round(share * 100) / 100;
   }
+  // (the brow's ARCH by sex, `FACE_BROW_ARCH`: drawn toward high on a woman, toward level on a man, by a share of the way;
+  // no die, so a seed keeps its face)
+  const arch = FACE_BROW_ARCH[sex];
+  if (arch) { const a0 = groomShape.brows.arch; grooms.brows.arch = Math.round((arch > 0 ? a0 + (1 - a0) * arch : a0 * (1 + arch)) * 1000) / 1000; }
   // the tone, where the bucket holds its own range (rolled before the nose, after the rest)
   const tone = B.tones ? B.tones[0] + Math.floor(d() * (B.tones[1] - B.tones[0] + 1)) : null;
   // the nose's axis, last (a seed keeps the rest of its face)

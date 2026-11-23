@@ -23,6 +23,7 @@ import { vertexNormals } from './dermal-chart.js';
 import { headChartOf, STAND_M } from './dermal-head.js';
 import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
 import { layoutDermis, paintDermis } from './dermal-texture.js';
+import { browStrokes } from './dermal-brow.js';
 import { encodePngRgba } from '../landscape/surface-textures.js';
 import { strandPage, strandCellUV } from './hair-strands.js';
 import { clothPage, clothAlbedo, CLOTH_PAGE } from './cloth-relief.js';
@@ -193,7 +194,9 @@ function headSkin(mesh, recipe, D, page) {
   const moved = shut ? src.map((v, i) => { const q = shut[pointOf(mesh, v)]; if (!q) return vertices[i]; const s = stand(q); return [s.x * STAND_M, s.y * STAND_M, s.z * STAND_M]; }) : null;
   const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi], ...(earPart ? { earAt: (vi) => earPart[vi] } : {}), ...(moved ? { moved } : {}) });
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
-  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, recipe.hairClip ? { clip: recipe.hairClip } : {});
+  // (the brows PAINTED where the recipe says, `browPaint`: the groom's hairs as strokes on the head it charts, dermal-brow.js)
+  const brows = recipe.browPaint ? browStrokes(H, recipe.browPaint.epidermis) : null;
+  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, { ...(recipe.hairClip ? { clip: recipe.hairClip } : {}), ...(brows ? { brows } : {}) });
   return { chart, layout, maps, local, skinFace };
 }
 

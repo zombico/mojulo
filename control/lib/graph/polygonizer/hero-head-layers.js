@@ -334,7 +334,7 @@ function clumps(strands, cell) {
  * split at the lip line whole, so its halves meet; a full beard's hang as flows out of it; each moustache half and each
  * brow a mass along it with the dial's strokes on it; no root band. Deterministic.
  */
-export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null, level = 'L1', budget = false, cards: asCards = false, locks = null } = {}) {
+export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = null, level = 'L1', budget = false, cards: asCards = false, locks = null, browPaint = false } = {}) {
   const fit = recipe.headFit;
   if (!fit || !faceSkinOf(recipe)[0]) return { parts: {}, palette: {} };
   const { sex, k, ty, men, relations, eyes } = fit, D = readDermis(dermis);
@@ -406,13 +406,14 @@ export function heroFaceHair(recipe, dermis, { type = 'straight', epidermis = nu
     const hairs = Bg ? all.filter((_, i) => i % Bg.browEvery === 0) : all, twins = !Bg || Bg.browTwin ? hairs.map((st) => browTwin(st, centre, die)) : [];
     const brows = [...hairs, ...twins].map((st) => bladeOf(st, B.width * (Bg?.browWiden ?? 1), Bg?.browStations ?? B.stations, B.turn));
     // (realistic laws 10, `locks`: each brow its MASS and the dial's few flows over it, one colour, hair-locks.js lockStrands)
-    const browLocks = locks ? lockStrands(all, relationalHeadChart(head, { cells: CELLS }), { kind: 'brow', centre, stylize: locks.stylize, level, group: 'Brow', sides: true }) : null;
+    // (`browPaint`: the brows are the skin's paint, dermal-brow.js, read off the recipe's `browPaint`; no mass, no blades)
+    const browLocks = locks && !browPaint ? lockStrands(all, relationalHeadChart(head, { cells: CELLS }), { kind: 'brow', centre, stylize: locks.stylize, level, group: 'Brow', sides: true }) : null;
     const lashes = E.strands.filter((st) => /^lash/.test(st.groom) && st.pts.length > 1).map((st) => bladeOf({ pts: st.pts.map(M) }, FACE_CARD.lash, FACE_CARD.lashStations, 20));
     const pin = visagePin(visage, compiled, 'head', at(L.n), skinName);
     if (pin) {
       const frame = pinFrame(compiled, pin);
       if (browLocks) { parts.hairBrows = pinMesh(frame, toHero, browLocks.mesh, pin, 'Brow'); palette.Brow = mean(0.7); }
-      else if (brows.length && !locks) { parts.hairBrows = pinMesh(frame, toHero, stripMesh(brows, BROW_BANDS, { centre }), pin, 'BrowRoot', { volume }); palette.Brow = mean(0.7); palette.BrowRoot = linHex(greyed(0.7).map((v) => v * B.root)); }
+      else if (brows.length && !locks && !browPaint) { parts.hairBrows = pinMesh(frame, toHero, stripMesh(brows, BROW_BANDS, { centre }), pin, 'BrowRoot', { volume }); palette.Brow = mean(0.7); palette.BrowRoot = linHex(greyed(0.7).map((v) => v * B.root)); }
       if (lashes.length) { parts.hairLashes = pinMesh(frame, toHero, stripMesh(lashes, [[1.01, 'Lash']], { centre }), pin, 'Lash'); palette.Lash = linHex(hairColourOfDermis(D).map((v) => v * 0.55)); }
     }
   }

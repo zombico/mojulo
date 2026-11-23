@@ -413,7 +413,11 @@ function relationalHeadWorn(S, hero) {
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
-  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}) }));
+  // (the seated head, laws 14: the brows the skin's PAINT, each hair a stroke, dermal-brow.js; the recipe carries the groom,
+  // the hero's skin paint reads it, as it reads `hairClip`; the lock's mass before, a band that read as a plank)
+  const browPaint = one && laws >= 14;
+  if (browPaint) out = { ...out, browPaint: { epidermis } };
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}), ...(browPaint ? { browPaint: true } : {}) }));
   return out;
 }
 /** THE DOOR'S HAIR ON THE REALISTIC FACE: a landmark style (the word a cast or a crew writes, egocube/plan.js) read as the

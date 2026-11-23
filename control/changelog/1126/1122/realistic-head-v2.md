@@ -28,5 +28,9 @@ face toward the proportions and the clean structure of a current game character,
   instead of a slot under a ceiling facing down, the skin round the globe's flank reaches out to the corners (the
   fissure is wider than the globe), and the brow's outer end sits on the brow's corner instead of a bone's thickness in
   front of it, so the skin beside her outer corner no longer stands well forward of it.
+- The brows are painted into the skin, each hair of the brow's groom a stroke, where the hero wore a solid band that
+  read as a plank stuck on the face: the skin shows between the hairs, the band thins at its head and tail, and it moves
+  with the brow. A woman's brow arches higher and is a little finer, a man's lies flatter; on her the heavy and the level
+  brow are rarer, the arched likelier.
 
-Still to come: the upper lid's fold and the eye's corners, the nose. Hair, brows and lashes are not part of it.
+Still to come: the upper lid's fold, the lashes. The scalp's hair is not part of it.
