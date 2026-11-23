@@ -425,6 +425,14 @@ is hidden. `rules.stage: 'arena'` clears its own arena the same way. The guard i
 fight, nothing but the land covers more than 5 % of the frame before the fight; the measure is
 `control/scripts/spikes/fight-clear/` (a grid of rays through the screen).
 
+## The command window beside the one acting
+
+Each fighter's HP and MP stand parked over its head. On a member's turn the command window opens beside its bar, to
+the right first, never over the member: of the places beside the bar (its top at the bar's, rising from its foot, over
+it, under the member's feet; then the same to its left), held inside the screen, the one that covers the acting
+member's figure least, then the rest of the party's, then the foes' (`rpg-channel.js` besideAt). The guard is
+`gameworld/fight-clear.live.test.js`: the acting member uncovered, no other member more than 15 % covered.
+
 ## The fights acted out
 
 The fighters move on their own line, as a console RPG's do:

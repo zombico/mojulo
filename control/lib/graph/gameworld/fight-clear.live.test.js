@@ -4,6 +4,8 @@
 // so what stands nearer than the fight covers next to nothing of the frame. Measured as the fight-clear spike measures it
 // (control/scripts/spikes/fight-clear/): a grid of rays through the screen, a cell covered where something not the land
 // stands nearer than the nearest fighter, a hit the clearing discards not seen. The whole party fights, as after the town.
+// And the command window opens beside the acting member's bar, parked over its head, never over its figure, nor much of
+// the rest of the party's (each member's figure, head to feet, a share under the window).
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -59,6 +61,18 @@ async function fightOn(L) {
     }
     return { covered: (100 * covered) / (GX * GY), boxes: CB.length, fighters: fighters.length };
   });
+  // THE COMMAND WINDOW beside the acting member's bar, its figure (head to feet) uncovered
+  await page.waitForFunction(() => window.__mojRpg.state().phase === 'command' && document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]'), { timeout: 60000 });
+  await nap(1500);
+  seen.window = await page.evaluate(() => {
+    const m = window.__mojRpg.state().member, w = window.__mojCtrl.world, P = window.__mojCtrl.project, q = document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]').getBoundingClientRect();
+    // (each member's share of its figure, head to feet, under the window)
+    const cover = (id) => { const e = w.byId[id] || w.byId[w.pilotId], top = (e.rule && e.rule.collideHeight) || 1.8, z = e.transform.pos[2] - ((e.rule && e.rule.eye) || 0), f = P(e.transform.pos[0], e.transform.pos[1], z), h = P(e.transform.pos[0], e.transform.pos[1], z + top);
+      const half = Math.abs(f[1] - h[1]) * 0.2, body = { l: f[0] - half, r: f[0] + half, t: Math.min(f[1], h[1]), b: Math.max(f[1], h[1]) };
+      return Math.max(0, Math.min(q.right, body.r) - Math.max(q.left, body.l)) * Math.max(0, Math.min(q.bottom, body.b) - Math.max(q.top, body.t)) / Math.max(1, (body.r - body.l) * (body.b - body.t)); };
+    const ids = window.__mojRpg.R.b.ids.filter((id) => w.byId[id]);
+    return { member: m, covered: cover(m), party: Math.max(0, ...ids.map(cover)), each: Object.fromEntries(ids.map((id) => [id, Math.round(cover(id) * 100) / 100])) };
+  });
   await page.close();
   return seen;
 }
@@ -72,6 +86,11 @@ describe('a party battle\'s shot is kept clear', () => {
       expect(S.boxes, L.key).toBe(2);
       expect(S.fighters, L.key).toBeGreaterThan(3);
       expect(S.covered, L.key).toBeLessThanOrEqual(COVER);
+      // (the command window opens beside the one acting, never over it)
+      if (process.env.FC_OUT) (await import('node:fs')).appendFileSync(process.env.FC_OUT, JSON.stringify({ level: L.key, ...S.window }) + '\n');
+      expect(S.window.covered, `${L.key}: ${S.window.member}`).toBeLessThan(0.05);
+      // (nor over the rest of the party: a member beside the one acting kept in view, JSON the share of each)
+      expect(S.window.party, `${L.key}: ${JSON.stringify(S.window.each)}`).toBeLessThan(0.15);
     }
   }, 1500000);
 });

@@ -706,11 +706,23 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     const Wd = window.innerWidth || 960, Ht = window.innerHeight || 540, q = (v) => Math.round(v * 1000) / 1000;
     return { x: q(m[0] / Wd), y: q(m[1] / Ht), r: q(Math.max(0.02, (Math.abs(h[1] - m[1]) / Ht) * 1.1)) };
   }
-  // THE WINDOW BESIDE THE ONE ACTING: the member's bar as it was drawn (its anchor, keyed by the member's id) and the
-  // window's own size as drawn the frame before (a first frame, a guess), the window to the bar's right (its left near
-  // the right edge), its top at the bar's and held inside the screen, clear of its bottom; null while the bar is not on
-  // the screen (the window takes its corner)
+  // THE WINDOW BESIDE THE ONE ACTING: the member's bar parked over its head (its anchor, keyed by the member's id), and
+  // the window's own size as drawn the frame before (a first frame, a guess), opened to the bar's right, never over the
+  // one acting: of the places beside the bar (to its right, then to its left), each held inside the screen and clear of
+  // its bottom, the one that covers the
+  // acting member's figure least, then the party's, then the foes' (each its box on the screen, head to feet), the
+  // right first where they tie; null while the bar is not on the screen (the window takes its corner)
   const BESIDE = { gap: 10, edge: 12, size: [240, 200] };
+  // (a figure's box on the screen, px: from its feet to over its head, as wide as a body is for its height)
+  function figBox(fig) {
+    const w = W(), proj = window.__mojCtrl && window.__mojCtrl.project, e = fig && w && w.byId[fig];
+    if (!e || !e.transform || !proj || e.gone) return null;
+    const top = (e.rule && e.rule.collideHeight) || 1.8, z = e.transform.pos[2] - ((e.rule && e.rule.eye) || 0);
+    const f = proj(e.transform.pos[0], e.transform.pos[1], z), h = proj(e.transform.pos[0], e.transform.pos[1], z + top + 0.1);
+    if (!(f[2] < 1 && h[2] < 1)) return null;
+    const hh = Math.abs(f[1] - h[1]), half = hh * 0.28;
+    return { l: Math.min(f[0], h[0]) - half, r: Math.max(f[0], h[0]) + half, t: Math.min(f[1], h[1]), b: Math.max(f[1], h[1]) };
+  }
   function besideAt(m) {
     const bar = root.querySelector('.mana-anchor[data-key="a' + m + '"]');
     if (!bar) return null;
@@ -718,13 +730,22 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     if (!(r.width > 0 && r.height > 0)) return null;
     // (a window whose screen has closed stays a moment, leaving: data-leaving, never the one measured)
     const win = root.querySelector('.mana-screen:not([data-leaving]) .mana-anchor[data-key="acmd"]'), q = win && win.getBoundingClientRect();
-    const w = q && q.width > 0 ? q.width : BESIDE.size[0], h = q && q.height > 0 ? q.height : BESIDE.size[1], E = BESIDE.edge;
-    let left = r.right + BESIDE.gap;
-    if (left + w > Wd - E) left = r.left - BESIDE.gap - w;
-    left = Math.max(E, Math.min(Wd - E - w, left));
-    const top = Math.max(E, Math.min(Ht - E - h, r.top));
+    const w = q && q.width > 0 ? q.width : BESIDE.size[0], h = q && q.height > 0 ? q.height : BESIDE.size[1], E = BESIDE.edge, G = BESIDE.gap;
+    const me = figBox(figureOf(m)), mine = figureOf(m);
+    const party = [...new Set(R.b.ids.map((x) => figureOf(x)))].filter((f) => f && f !== mine).map(figBox).filter(Boolean);
+    const foes = [...new Set(R.b.foes.filter((x) => x.hp > 0).map((x) => figureOf(x.uid)))].filter(Boolean).map(figBox).filter(Boolean);
+    const over = (a, B) => (B ? Math.max(0, Math.min(a.r, B.r) - Math.max(a.l, B.l)) * Math.max(0, Math.min(a.b, B.b) - Math.max(a.t, B.t)) : 0);
+    const held = (left, top) => { const l = Math.max(E, Math.min(Wd - E - w, left)), t = Math.max(E, Math.min(Ht - E - h, top)); return { l, t, r: l + w, b: t + h }; };
+    // (on each side, the right first: its top at the bar's, rising from the bar's foot, over the bar, under the one acting's feet)
+    const tops = [r.top, r.bottom - h, r.top - G - h, (me ? me.b : r.bottom) + G];
+    const C = [...tops.map((t) => held(r.right + G, t)), ...tops.map((t) => held(r.left - G - w, t))];
+    let best = null;
+    for (const c of C) {
+      const score = 100 * over(c, me) + 4 * party.reduce((a, B) => a + over(c, B), 0) + foes.reduce((a, B) => a + over(c, B), 0);
+      if (!best || score < best.score - 1e-6) best = { ...c, score };
+    }
     // (an anchor stands its row's bottom middle on its point)
-    return [(left + w / 2) / Wd, (top + h) / Ht];
+    return [(best.l + w / 2) / Wd, best.b / Ht];
   }
   // (the world's own states on a fighter, by how a line says them: cfg.states, rpg.js)
   const ownStates = (st) => (cfg.states ? Object.keys(cfg.states).filter((k) => st[k] > 0).map((k) => cfg.states[k].said) : []);

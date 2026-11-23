@@ -380,3 +380,8 @@
   The clearing is patched into the materials as the page settles, not at the first fight. And a bar's news is drawn
   for at least three frames as well as 1.8 s: on a slow renderer, a frame longer than that, the struck foe's bar was
   never drawn (`rpg-channel.js` TOLD_FRAMES).
+- **The command window opens beside the one acting, clear of the party.** The window beside the acting member's bar
+  (its HP and MP parked over its head) now tries the places beside the bar, the right first, and takes the one that
+  covers the acting member least, then the rest of the party, then the foes (`rpg-channel.js` besideAt). It was laid to
+  the bar's right at the bar's top whatever stood there, and covered about half the hero beside the one acting in every
+  fight of the starter's first three fighting levels; now none, and 14 % on a town level's tightest frame.
