@@ -62,3 +62,6 @@
 - The Rhodes' release is heard: its recorded key-off carries a tick at one pitch, so it is tuned to each note let go
   (a release with a pitch of its own is measured, and a patch can ask for it to follow the note).
 - The harp, the marimba and the vibraphone have velocity layers, soft and hard beside their medium takes.
+- The shelf has saxophones: `soprano-sax`, `alto-sax`, `tenor-sax` and `baritone-sax`, synthesized (a conical bore's
+  full row of harmonics, a reed's breath and drift, a singer's vibrato, a horn's body) and recorded note by note, each
+  matched to its synthesized one's loudness. The casting table reads them as smoky, late-night woodwinds.

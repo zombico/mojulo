@@ -50,6 +50,7 @@ const ROWS = [
   [['fm-brass'], 'brass', ['C3', 'C6'], 'a synth brass: 80s, bright and stabby'],
   [['flute', 'flute-2', 'flute-3', 'clarinet', 'clarinet-2', 'clarinet-3', 'oboe', 'oboe-2', 'oboe-3', 'bassoon', 'bassoon-2', 'bassoon-3'], 'woodwind'],
   [['harmonica'], 'woodwind', null, 'a blues harp: lonesome, the road, the frontier'],
+  [['soprano-sax', 'alto-sax', 'tenor-sax', 'baritone-sax'], 'woodwind', null, 'a saxophone: smoky, soulful, late night, a city after dark; the baritone honks'],
   [['acoustic-guitar', 'acoustic-guitar-2', 'nylon-guitar', 'nylon-guitar-2', 'classical-guitar', 'classical-guitar-2', 'flamenco-guitar', 'flamenco-guitar-2', 'gypsy-jazz-guitar', 'gypsy-jazz-guitar-2', 'banjo'], 'plucked'],
   [['shamisen'], 'plucked', null, 'a three-string lute: sharp, percussive, Japanese'],
   [['harp', 'harp-2'], 'plucked', null, 'a harp: glistening, mythic, a dream or a memory'],

@@ -195,7 +195,10 @@ false` keeps it synthesized. The cards, by set: `cards/organ.js` and `cards/pian
 (the robot band's pitched instruments: the colour instruments, both basses, one clean guitar under both guitars, the
 brass and the strings), `cards/instruments.js` (guitars, keys, harp, mallets, the upright bass, the violin, cello, flute
 and trumpet, and the low passes by string and fret), `cards/orchestra.js` (the rest of the orchestra) and
-`cards/colours.js` (the setting colours: harpsichord, music box, banjo, harmonica, shamisen, pedal steel). The erhu was
+`cards/colours.js` (the setting colours: harpsichord, music box, banjo, harmonica, shamisen, pedal steel) and
+`cards/saxes.js` (the soprano, alto, tenor and baritone saxophones, held; their top notes asked again, most coming
+back an octave low as the violin's did, so each horn's top few notes and the baritone's lowest are takes stretched a few
+semitones). The erhu was
 recorded and is not twinned: its takes came back on its open strings, whatever note was asked, in words and again by
 string and position.
 

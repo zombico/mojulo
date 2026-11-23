@@ -237,9 +237,16 @@ for (const [name, base, extra] of [
 const round3 = (x) => Math.round(x * 1000) / 1000;
 const pulse = (d, n) => Array.from({ length: n }, (_, i) => round3(Math.abs(Math.sin(Math.PI * (i + 1) * d)) / (i + 1) / Math.sin(Math.PI * d)));
 const REED = { drift: 2, curve: 'exp', keyTrack: 0.4 };
+const SAX = [1, 0.7, 0.52, 0.38, 0.3, 0.22, 0.16, 0.11, 0.08, 0.05, 0.035, 0.02];
 Object.assign(PATCHES, {
   flute: { voice: 'osc', harmonics: [1, 0.12, 0.05, 0.02, 0.01], attack: 0.06, decay: 0.12, sustain: 0.88, release: 0.22, volume: -15, curve: 'exp', vibrato: { rate: 5.2, depth: 11, delay: 0.35 }, breath: { level: -26, tone: 2600, q: 0.9 }, attackNoise: { level: -22, decay: 0.03, tone: 3200, q: 0.8 }, filter: { mode: 'lowpass', freq: 5200, q: 0.5 }, keyTrack: 0.3 },
   clarinet: { voice: 'osc', harmonics: [1, 0.03, 0.62, 0.03, 0.38, 0.02, 0.24, 0.02, 0.14, 0.01, 0.08, 0.01, 0.05], attack: 0.035, decay: 0.1, sustain: 0.9, release: 0.16, volume: -15, ...REED, keyTrack: 0.6, breath: { level: -34, tone: 1800, q: 0.8 }, filter: { mode: 'lowpass', freq: 2600, q: 0.6 } },
+  // the saxophones: a conical bore, so every harmonic sounds, falling off gently (the clarinet's cylinder keeps the odd
+  // ones), a reed's drift, its breath, a singer's vibrato; darker and breathier the bigger the horn
+  saxSoprano: { voice: 'osc', harmonics: SAX, attack: 0.04, decay: 0.12, sustain: 0.88, release: 0.16, volume: -16, ...REED, keyTrack: 0.5, vibrato: { rate: 5.6, depth: 12, delay: 0.3 }, breath: { level: -28, tone: 3000, q: 0.8 }, filter: { mode: 'lowpass', freq: 4600, q: 0.7 } },
+  saxAlto: { voice: 'osc', harmonics: SAX, attack: 0.04, decay: 0.12, sustain: 0.88, release: 0.17, volume: -16, ...REED, keyTrack: 0.5, vibrato: { rate: 5.4, depth: 14, delay: 0.32 }, breath: { level: -27, tone: 2600, q: 0.8 }, filter: { mode: 'lowpass', freq: 3800, q: 0.7 } },
+  saxTenor: { voice: 'osc', harmonics: SAX, attack: 0.045, decay: 0.14, sustain: 0.88, release: 0.18, volume: -15, ...REED, keyTrack: 0.5, vibrato: { rate: 5.2, depth: 16, delay: 0.35 }, breath: { level: -26, tone: 2200, q: 0.8 }, filter: { mode: 'lowpass', freq: 3000, q: 0.7 } },
+  saxBaritone: { voice: 'osc', harmonics: SAX, attack: 0.05, decay: 0.15, sustain: 0.9, release: 0.2, volume: -14, ...REED, keyTrack: 0.5, vibrato: { rate: 4.8, depth: 12, delay: 0.4 }, breath: { level: -26, tone: 1600, q: 0.8 }, filter: { mode: 'lowpass', freq: 2200, q: 0.7 } },
   oboe: { voice: 'osc', harmonics: pulse(0.14, 16), attack: 0.03, decay: 0.08, sustain: 0.9, release: 0.14, volume: -19, ...REED, vibrato: { rate: 5.4, depth: 9, delay: 0.3 }, breath: { level: -36, tone: 2200, q: 0.8 }, filter: { mode: 'lowpass', freq: 4600, q: 0.7 } },
   bassoon: { voice: 'osc', harmonics: pulse(0.2, 14), attack: 0.04, decay: 0.1, sustain: 0.88, release: 0.18, volume: -15, ...REED, vibrato: { rate: 4.8, depth: 7, delay: 0.4 }, breath: { level: -36, tone: 900, q: 0.8 }, filter: { mode: 'lowpass', freq: 1900, q: 0.8 } },
   // concert harp: a tuned string, soft finger (pick), long bass ring, rings on after the note.
@@ -581,6 +588,11 @@ Object.assign(PATCHES, {
   shamisenRec: recStruck('shamisen', 'shamisen', 0.08, -9.0),
   // (no erhu: its takes came back as a drone, reading D#4 or D#5 whatever note was asked; it stays synthesized)
   pedalSteelRec: recStruck('pedal-steel', 'pedalSteel', 0.45, -13, { attack: 0.18 }),
+  // the saxophones (scripts/sound-library/cards/saxes.js), held: their vibrato laid over the take
+  saxSopranoRec: recHeld('soprano-sax', 'saxSoprano', -10),
+  saxAltoRec: recHeld('alto-sax', 'saxAlto', -11.3),
+  saxTenorRec: recHeld('tenor-sax', 'saxTenor', -10.5),
+  saxBaritoneRec: recHeld('baritone-sax', 'saxBaritone', -9.1),
 });
 // the orchestra's second and third tiers (violin2, frenchHorn3…: the same instrument, voiced again): each heard on its
 // first tier's recording, at its first tier's twin's level moved as far as the tier's own patch moves from its first's
@@ -608,4 +620,4 @@ export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'p
   marimba: 'marimbaRec', xylophone: 'xylophoneRec', glockenspiel: 'glockenspielRec', bassUpright: 'bassUprightRec', violin: 'violinRec', cello: 'celloRec', flute: 'fluteRec', trumpet: 'trumpetRec',
   frenchHorn: 'frenchHornRec', trombone: 'tromboneRec', tuba: 'tubaRec', viola: 'violaRec', contrabass: 'contrabassRec', clarinet: 'clarinetRec', oboe: 'oboeRec', bassoon: 'bassoonRec',
   timpani: 'timpaniRec', tubularBells: 'tubularBellsRec', harpsichord: 'harpsichordRec', musicBox: 'musicBoxRec', banjo: 'banjoRec', harmonica: 'harmonicaRec',
-  shamisen: 'shamisenRec', pedalSteel: 'pedalSteelRec', ...TIER_TWINS });
+  shamisen: 'shamisenRec', pedalSteel: 'pedalSteelRec', saxSoprano: 'saxSopranoRec', saxAlto: 'saxAltoRec', saxTenor: 'saxTenorRec', saxBaritone: 'saxBaritoneRec', ...TIER_TWINS });
