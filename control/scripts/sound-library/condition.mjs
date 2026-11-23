@@ -12,7 +12,8 @@
  *   - beds and loops: never trimmed (the seam is the loop's), loudness-normalized (beds -24 LUFS, a vehicle's loops -14), the
  *     seam measured: the jump from the last sample to the first against the bed's median sample-to-sample step;
  *   - a pitched take (an instrument's note, `pitched`): its ROOT measured, the note it really is (pitch.js), and a held
- *     one's (`sustain`) loop, a whole number of its periods: the variant's `root` (MIDI, to the cent) and `loopAt`;
+ *     one's (`sustain`) loop, a whole number of its periods: the variant's `root` (MIDI, to the cent) and `loopAt`; and
+ *     the strength it was asked at (a card's `vel`, a velocity layer's), its `vel`;
  *   - named by its bytes: <out>/masters/<sha16>.wav, with <sha16>.mp3 beside it (160 kbps, the form a page inlines:
  *     about a tenth of the WAV; an offline render reads the WAV).
  * Writes <out>/library.json: { version, cards: { <card>: { shelf | band, role, loop, prompt, variants: [ { id,
@@ -147,7 +148,7 @@ async function main() {
         const hz = asked ? 440 * Math.pow(2, (L.indexOf(asked[1]) + 12 * (Number(asked[2]) + 1) - 69) / 12) : null;
         const X = mono(bytes, w), F = steadyPitch(X, w.rate, hz ? { lo: Math.max(30, hz / 2.83), hi: Math.min(4400, hz * 2.83) } : {});
         if (!F) { console.log(`condition: ${c.id} #${t} holds no steady pitch; left out of its instrument`); continue; }
-        tone = { root: F.midi, ...(c.sustain ? { loopAt: loopPoints(X, w.rate, F.hz) } : {}) };
+        tone = { root: F.midi, ...(c.sustain ? { loopAt: loopPoints(X, w.rate, F.hz) } : {}), ...(Number.isFinite(c.vel) ? { vel: c.vel } : {}) };
       }
       variants.push({
         id, take: t, seconds: +(w.frames / w.rate).toFixed(3), rate: w.rate, channels: w.channels, peakDb: lv.peakDb, lufs: lv.lufs,

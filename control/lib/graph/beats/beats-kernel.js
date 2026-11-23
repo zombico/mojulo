@@ -1289,6 +1289,7 @@ export function buildBeatsKernel() {
       Object.assign(sampleCards, slice.cards || {});
       for (const [id, r] of Object.entries(slice.roots || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { root: r }));
       for (const [id, l] of Object.entries(slice.loops || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { loop: l }));
+      for (const [id, v] of Object.entries(slice.vels || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { vel: v }));
       const bytes = slice.bytes || {};
       return Promise.all(Object.keys(bytes).map((id) => (sampleBufs.has(id) ? null
         : Promise.resolve(ctx.decodeAudioData(bytes[id])).then((b) => { sampleBufs.set(id, b); }))));
@@ -1298,13 +1299,16 @@ export function buildBeatsKernel() {
       return ids.length ? sampleBufs.get(ids[(k >>> 0) % ids.length]) || null : null;
     }
     // the zone a note is played from: of the instrument's decoded takes with a root, those nearest the note (within a
-    // quarter tone of the nearest), one of them by the note's key; { buf, root, loop } or null
-    function sampleZone(patch, k, hz) {
-      const m = 69 + 12 * Math.log2(hz / 440);
+    // quarter tone of the nearest), one of them by the note's key; { buf, root, loop } or null. A velocity layer's takes
+    // (a `vel` each) are near by strength too: three semitones a whole velocity, so a soft note plays a soft take a
+    // semitone off before a medium one on the note, and an instrument with no layers is chosen by pitch alone.
+    function sampleZone(patch, k, hz, vel) {
+      const m = 69 + 12 * Math.log2(hz / 440), v = vel == null ? 0.8 : vel;
+      const cost = (id) => { const M = sampleMeta.get(id); return Math.abs(M.root - m) + (Number.isFinite(M.vel) ? 3 * Math.abs(M.vel - v) : 0); };
       let near = Infinity;
       const ids = (sampleCards[patch.library] || []).filter((id) => sampleBufs.has(id) && sampleMeta.has(id) && Number.isFinite(sampleMeta.get(id).root));
-      for (const id of ids) near = Math.min(near, Math.abs(sampleMeta.get(id).root - m));
-      const zone = ids.filter((id) => Math.abs(sampleMeta.get(id).root - m) <= near + 0.25);
+      for (const id of ids) near = Math.min(near, cost(id));
+      const zone = ids.filter((id) => cost(id) <= near + 0.25);
       if (!zone.length) return null;
       const id = zone[(k >>> 0) % zone.length], M = sampleMeta.get(id);
       return { buf: sampleBufs.get(id), root: M.root, loop: M.loop || null };
@@ -2422,7 +2426,7 @@ export function buildBeatsKernel() {
       // take's loop for as long as the note lasts, never rung out to the take's end)
       let sbuf = null, srate = 1, sloop = null;
       if (voice === 'sample') {
-        const Z = patch.zones ? sampleZone(patch, nk, hz) : null;
+        const Z = patch.zones ? sampleZone(patch, nk, hz, vel) : null;
         sbuf = Z ? Z.buf : patch.zones ? null : sampleBuf(patch, nk);
         if (!sbuf) return patch.fallback ? playVoice(patch.fallback, hz, t, dur, vel, dest, key) : undefined;
         const root = Z ? Z.root : patch.root;

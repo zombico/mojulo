@@ -158,7 +158,14 @@ to the take: `unison` copies spread over `detune` cents, `pitchLane` and `vib`, 
 blown patch's `vibrato` as a pitch lfo (recHeld: the takes recorded with no vibrato so they loop); filters, envelopes,
 tremolo and the chain sit after it as on any voice. A guitar heard through a saturating amp takes its level from the
 amp's makeup (`ampTrim`, laid on the instrument's amp once as the part expands). Not carried yet: glide and bends on the
-osc's frequency (`glideFrom`, `bend`, `path`), velocity layers, release samples.
+osc's frequency (`glideFrom`, `bend`, `path`), release samples.
+
+VELOCITY LAYERS: an instrument's takes can carry the strength they were asked at (a card's `vel`, 0…1, written to each
+variant by conditioning and handed to the page as `vels`). A note then plays the take nearest it in pitch and in
+strength, a whole velocity counting as three semitones (beats-kernel.js sampleZone: a soft note plays a soft take a
+semitone off before a medium one on the note); its level still follows its velocity. The piano and the Rhodes are
+recorded soft (0.3), medium (0.65) and hard (0.95), `cards/layers.js`; an instrument with no `vel` on its takes is chosen
+by pitch alone.
 
 Each synthesized patch's recorded twin is named in `RECORDED_TWINS` (audio-patches.js), each matched to its synthesized
 one's loudness and falling back to it, byte for byte, without the library; the orchestra's second and third tiers are

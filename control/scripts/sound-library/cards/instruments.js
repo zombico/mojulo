@@ -16,8 +16,8 @@ const card = (inst, id, prompt, seconds, held, tag) => ({ id, band: `${inst}:${t
 const END = 'solo, one note only, no chord, no music, no voice';
 
 // by letter and register in words
-const registered = (inst, what, registers, seconds, { held = false, how = 'struck once and left to ring' } = {}) => registers.flatMap(([octave, words]) => LETTERS.map((name) =>
-  card(inst, `${inst}-${name.replace('#', 's')}${octave}`, `a single ${what} note, ${words}, the note ${name}${octave} (${HZ(name, octave)} Hz), ${how}, ${END}`, seconds, held, `${name}${octave}`)));
+const registered = (inst, what, registers, seconds, { held = false, how = 'struck once and left to ring', vel } = {}) => registers.flatMap(([octave, words]) => LETTERS.map((name) =>
+  ({ ...card(inst, `${inst}-${name.replace('#', 's')}${octave}`, `a single ${what} note, ${words}, the note ${name}${octave} (${HZ(name, octave)} Hz), ${how}, ${END}`, seconds, held, `${name}${octave}`), ...(vel ? { vel } : {}) })));
 // by string and fret: the string's open note and twelve frets up it
 const fretted = (inst, what, strings, seconds, how = 'picked once and left to ring') => strings.flatMap(([string, open]) => [...Array(12).keys()].map((f) => {
   const m = LETTERS.indexOf(open.slice(0, -1)) + 12 * (Number(open.slice(-1)) + 1) + f, name = LETTERS[m % 12], octave = Math.floor(m / 12) - 1;
@@ -34,7 +34,8 @@ export const CARDS = [
   ...fretted('nylon-guitar', 'nylon-string classical guitar', [['E', 'E2']], 3, 'plucked once with the fingers and left to ring'),
   ...registered('nylon-guitar', 'nylon-string classical guitar', [[3, 'in the middle of the neck']], 3, { how: 'plucked once with the fingers and left to ring' }),
   // keys and harp
-  ...registered('rhodes', 'Rhodes electric piano', [[3, 'in its low register, warm'], [4, 'in its middle register, bell-like']], 3),
+  // (asked at no strength, heard as medium: its soft and hard layers are cards/layers.js)
+  ...registered('rhodes', 'Rhodes electric piano', [[3, 'in its low register, warm'], [4, 'in its middle register, bell-like']], 3, { vel: 0.65 }),
   ...registered('harp', 'concert harp', [[3, 'in its low register, warm and round'], [5, 'in its upper register, bright and clear']], 3, { how: 'plucked once and left to ring' }),
   // mallets
   ...registered('marimba', 'marimba', [[3, 'in its low register, deep and woody'], [4, 'in its middle register']], 2),

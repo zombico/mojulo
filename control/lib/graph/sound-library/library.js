@@ -10,7 +10,8 @@
  *   `sampleSlice(cards)`        what an engine's `loadSamples` takes for those card names: { cards: { <card>: [id…] },
  *                               bytes: { <id>: Buffer } }, only the cards the library holds; null when it holds none
  *                               (a name no card has but an INSTRUMENT's, a card's `instrument`: every pitched take that
- *                               plays it, with `roots` { <id>: MIDI } and `loops` { <id>: [start, end] s } beside)
+ *                               plays it, with `roots` { <id>: MIDI }, `loops` { <id>: [start, end] s } and a velocity
+ *                               layer's `vels` { <id>: 0…1 } beside)
  *   `hasInstrument(name)`       whether the library holds an instrument's pitched takes
  *   `sampleSliceBase64(cards)`  the same with the bytes as base64, for a page to inline: each variant's MP3 where the
  *                               library carries one (`masters/<id>.mp3`, a tenth of the WAV), else its WAV
@@ -134,6 +135,7 @@ export function sampleSlice(cards, { compact = false } = {}) {
     // (a pitched take's measured root and its held loop: an instrument is played from them)
     if (Number.isFinite(v.root)) (out.roots ??= {})[v.id] = v.root;
     if (Array.isArray(v.loopAt)) (out.loops ??= {})[v.id] = v.loopAt.slice();
+    if (Number.isFinite(v.vel)) (out.vels ??= {})[v.id] = v.vel;
     return true;
   };
   for (const name of [...new Set(cards || [])].sort()) {
@@ -158,7 +160,7 @@ export function sampleSlice(cards, { compact = false } = {}) {
 export function sampleSliceBase64(cards) {
   const s = sampleSlice(cards, { compact: true });
   if (!s) return null;
-  return { cards: s.cards, bytes: Object.fromEntries(Object.entries(s.bytes).map(([id, b]) => [id, b.toString('base64')])), ...(s.roots ? { roots: s.roots } : {}), ...(s.loops ? { loops: s.loops } : {}) };
+  return { cards: s.cards, bytes: Object.fromEntries(Object.entries(s.bytes).map(([id, b]) => [id, b.toString('base64')])), ...(s.roots ? { roots: s.roots } : {}), ...(s.loops ? { loops: s.loops } : {}), ...(s.vels ? { vels: s.vels } : {}) };
 }
 
 export function hasInstrument(name) {

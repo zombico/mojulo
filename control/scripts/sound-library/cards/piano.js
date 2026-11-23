@@ -16,7 +16,7 @@ const REGISTERS = [
   [5, 'a bright treble note in the upper register'],
 ];
 const note = (name, octave, register) => ({
-  id: `piano-${name.replace('#', 's')}${octave}`, band: `piano:${name}${octave}`, instrument: 'piano', role: 'instrument',
+  id: `piano-${name.replace('#', 's')}${octave}`, band: `piano:${name}${octave}`, instrument: 'piano', role: 'instrument', vel: 0.65,
   prompt: `a single grand piano note, ${register}, the note ${name}${octave} (${HZ(name, octave)} Hz), struck once at medium velocity and left to ring, solo, one note only, no chord, no music, no voice`,
   seconds: 4, influence: 0.85, loop: false, takes: 2, tags: ['instrument', 'piano', `${name}${octave}`],
 });

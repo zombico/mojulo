@@ -18,6 +18,9 @@ import { fundamental, steadyPitch, loopPoints, soundingEnd } from '../../../scri
 // the instrument patch (a zoned, looped sample voice), chosen in code
 const INST = Object.keys(PATCHES).find((k) => PATCHES[k].voice === 'sample' && PATCHES[k].zones && PATCHES[k].loop);
 const NAME = PATCHES[INST].library;
+// a struck twin (zoned, not looped), whose library the velocity layers are built under
+const LAYERED = Object.keys(PATCHES).find((k) => PATCHES[k].voice === 'sample' && PATCHES[k].zones && !PATCHES[k].loop && PATCHES[k].library !== NAME);
+const LAYERED_LIB = PATCHES[LAYERED].library;
 const SR = 44100;
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const sha = (b) => createHash('sha256').update(b).digest('hex');
@@ -64,6 +67,13 @@ beforeAll(() => {
   const nb = wavOf(Float32Array.from({ length: SR / 4 }, (_, i) => Math.sin(i * 12.9898) * 0.3)), nid = sha(nb).slice(0, 16);
   writeFileSync(path.join(dir, 'masters', `${nid}.wav`), nb);
   cards['inst-noise'] = { instrument: NAME, pitched: true, role: 'instrument', variants: [{ id: nid, take: 1, seconds: 0.25 }] };
+  // a struck instrument's one note in two strengths: soft a pure sine, hard a bright sawtooth
+  const saw = (p) => ((p / (2 * Math.PI)) % 1) * 2 - 1;
+  for (const [layer, vel, shape] of [['soft', 0.3, undefined], ['hard', 0.95, saw]]) {
+    const b = wavOf(tone(1, mtof(60), shape)), id = sha(b).slice(0, 16);
+    writeFileSync(path.join(dir, 'masters', `${id}.wav`), b);
+    cards[`layer-${layer}`] = { instrument: LAYERED_LIB, pitched: true, role: 'instrument', variants: [{ id, take: 1, seconds: 1, root: 60, vel }] };
+  }
   writeFileSync(path.join(dir, 'library.json'), JSON.stringify({ version: 1, cards }));
 });
 afterAll(() => {
@@ -213,5 +223,22 @@ describe('a tier of an orchestral patch', () => {
     const tiers = Object.keys(RECORDED_TWINS).filter((k) => /[23]$/.test(k) && RECORDED_TWINS[k.slice(0, -1)]);
     expect(tiers.length).toBeGreaterThan(0);
     for (const t of tiers) expect(PATCHES[RECORDED_TWINS[t]].library).toBe(PATCHES[RECORDED_TWINS[t.slice(0, -1)]].library);
+  });
+});
+
+describe('velocity layers', () => {
+  // (how bright a render is: its sample-to-sample motion over its level, a sawtooth's far above a sine's)
+  const bright = (x) => { let d = 0, e = 0; for (let i = 1; i < Math.min(x.length, SR); i++) { d += (x[i] - x[i - 1]) ** 2; e += x[i] ** 2; } return d / (e || 1); };
+  const play = async (vel) => samplesOf((await renderBeatsOffline(normalizeBeatsManifest({ kind: 'beats-composition', title: 'layers', bpm: 120, parts: [{ name: 'k', patch: LAYERED, events: [[0, 'C4', 1, vel]] }] }), { tail: 0.3 })).wav);
+
+  it('a gentle note plays the soft take and a hard one the hard take', async () => {
+    library(true);
+    const soft = bright(await play(0.25)), hard = bright(await play(0.95));
+    expect(hard).toBeGreaterThan(soft * 3);
+  });
+
+  it('a page is handed each take\'s strength', () => {
+    library(true);
+    expect(Object.values(sampleSlice([LAYERED_LIB]).vels).sort()).toEqual([0.3, 0.95]);
   });
 });

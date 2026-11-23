@@ -41,3 +41,7 @@
   partial no longer reads as the note), reads six stretches of the sounding note and keeps the largest agreeing group
   (one slipped read no longer throws a good take away), and loops a held note inside the part that still sounds. Nearly
   every instrument now keeps all its takes: the music box went from 2 to 40, the glockenspiel from 15 to 47.
+- The recorded piano and Rhodes have velocity layers: each note recorded soft and hard beside the medium takes, so a
+  note played gently is a gentle note (darker, rounder) and one struck hard is a hard one (brighter, its hammer heard),
+  not the same take turned down or up. Each note plays the take nearest it in pitch and in strength; its level still
+  follows its velocity. An instrument without layers is played exactly as before.
