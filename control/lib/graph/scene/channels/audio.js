@@ -69,7 +69,7 @@ function __beatsUnlock() {
   if (__beatsCtx) { if (__beatsCtx.state === 'suspended' && !__beatsMuted) __beatsCtx.resume().catch(() => {}); return; }
   __beatsCtx = new (window.AudioContext || window.webkitAudioContext)();
   __beatsEng = __BEATS.createEngine(__beatsCtx);${samples ? `
-  __beatsEng.loadSamples({ cards: __SAMPLES.cards, bytes: Object.fromEntries(Object.entries(__SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])) });   // the recorded sounds` : ''}${mix ? `
+  __beatsEng.loadSamples({ cards: __SAMPLES.cards, bytes: Object.fromEntries(Object.entries(__SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])), roots: __SAMPLES.roots, loops: __SAMPLES.loops });   // the recorded sounds` : ''}${mix ? `
   __beatsEng.setSfx(__AUDIO.mix);   // the SFX mixer: the cues' bus and space, and the music bus a duck dips (before the score starts)` : ''}
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}

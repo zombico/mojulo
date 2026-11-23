@@ -1281,10 +1281,14 @@ export function buildBeatsKernel() {
     // recorded samples (opt-in, the sound library's): loadSamples({ cards: { <card>: [id…] }, bytes: { <id>: an
     // ArrayBuffer of a WAV } }) decodes each once for this engine; a `voice: 'sample'` patch names its card
     // (`library`), whose ids are its variants, one chosen per hit by the note's key, so a hit replays identically.
-    const sampleCards = {}, sampleBufs = new Map();
+    // an INSTRUMENT's takes carry their measured `roots` ({ <id>: MIDI }) and a held one's `loops` ({ <id>: [start, end]
+    // s }): a `zones` patch plays each note on the take whose root is nearest, bent the rest of the way.
+    const sampleCards = {}, sampleBufs = new Map(), sampleMeta = new Map();
     function loadSamples(slice) {
       if (!slice) return Promise.resolve();
       Object.assign(sampleCards, slice.cards || {});
+      for (const [id, r] of Object.entries(slice.roots || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { root: r }));
+      for (const [id, l] of Object.entries(slice.loops || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { loop: l }));
       const bytes = slice.bytes || {};
       return Promise.all(Object.keys(bytes).map((id) => (sampleBufs.has(id) ? null
         : Promise.resolve(ctx.decodeAudioData(bytes[id])).then((b) => { sampleBufs.set(id, b); }))));
@@ -1292,6 +1296,18 @@ export function buildBeatsKernel() {
     function sampleBuf(patch, k) {
       const ids = sampleCards[patch.library] || [];
       return ids.length ? sampleBufs.get(ids[(k >>> 0) % ids.length]) || null : null;
+    }
+    // the zone a note is played from: of the instrument's decoded takes with a root, those nearest the note (within a
+    // quarter tone of the nearest), one of them by the note's key; { buf, root, loop } or null
+    function sampleZone(patch, k, hz) {
+      const m = 69 + 12 * Math.log2(hz / 440);
+      let near = Infinity;
+      const ids = (sampleCards[patch.library] || []).filter((id) => sampleBufs.has(id) && sampleMeta.has(id) && Number.isFinite(sampleMeta.get(id).root));
+      for (const id of ids) near = Math.min(near, Math.abs(sampleMeta.get(id).root - m));
+      const zone = ids.filter((id) => Math.abs(sampleMeta.get(id).root - m) <= near + 0.25);
+      if (!zone.length) return null;
+      const id = zone[(k >>> 0) % zone.length], M = sampleMeta.get(id);
+      return { buf: sampleBufs.get(id), root: M.root, loop: M.loop || null };
     }
     // a cue's recorded gestures that are not loaded here (no library on the page, or not decoded yet) give way to the
     // synthesized gestures they stand in for, in their place, before the cue is planned: the cue is then exactly the
@@ -2402,12 +2418,17 @@ export function buildBeatsKernel() {
 /*@sampler{*/
       // a sample voice plays its recorded variant to its end (a one-shot rings out past a short note); unloaded (no
       // library on this machine, or not decoded yet) it plays the synthesized piece it stands in for, `fallback`.
-      let sbuf = null, srate = 1;
+      // (an instrument, `zones`: the note on its nearest take, bent from that take's root; a held one, `loop`, holds on its
+      // take's loop for as long as the note lasts, never rung out to the take's end)
+      let sbuf = null, srate = 1, sloop = null;
       if (voice === 'sample') {
-        sbuf = sampleBuf(patch, nk);
+        const Z = patch.zones ? sampleZone(patch, nk, hz) : null;
+        sbuf = Z ? Z.buf : patch.zones ? null : sampleBuf(patch, nk);
         if (!sbuf) return patch.fallback ? playVoice(patch.fallback, hz, t, dur, vel, dest, key) : undefined;
-        srate = patch.root ? hz / (440 * Math.pow(2, (patch.root - 69) / 12)) : 1;
-        if (patch.oneShot !== false) dur = Math.max(dur, sbuf.duration / srate - (patch.release == null ? 0.05 : patch.release));
+        const root = Z ? Z.root : patch.root;
+        srate = root ? hz / (440 * Math.pow(2, (root - 69) / 12)) : 1;
+        sloop = patch.loop && Z && Z.loop ? Z.loop : null;
+        if (patch.oneShot !== false && !sloop) dur = Math.max(dur, sbuf.duration / srate - (patch.release == null ? 0.05 : patch.release));
       }
 /*|
 @*/
@@ -2553,8 +2574,19 @@ export function buildBeatsKernel() {
       }
 /*@sampler{*/
       if (sbuf) {
-        const src = ctx.createBufferSource(); src.buffer = sbuf; src.playbackRate.value = srate;
-        src.connect(env); src.start(t); src.stop(end);
+        // (the synth's modulators carried to the take: `unison` copies spread over `detune` cents, its pitch lanes and
+        // vibrato, `pitchLane`/`vib`, and an lfo aimed at pitch on each copy's detune; its filter, envelope, tremolo and
+        // amp lfo already sit after it)
+        const n = Math.max(1, patch.unison | 0), ug = n > 1 ? ctx.createGain() : null;
+        if (ug) { ug.gain.value = 1 / Math.sqrt(n); ug.connect(env); }
+        for (let u = 0; u < n; u++) {
+          const src = ctx.createBufferSource(); src.buffer = sbuf; src.playbackRate.value = srate;
+          if (n > 1) src.detune.value = (u / (n - 1) - 0.5) * (patch.detune || 0);
+          if (sloop) { src.loop = true; src.loopStart = sloop[0]; src.loopEnd = sloop[1]; }
+          if (typeof pmod !== 'undefined' && pmod) pmod.connect(src.detune);
+          if (typeof lfoTo !== 'undefined' && lfoTo) lfoTo(src.detune, 'pitch');
+          src.connect(ug || env); src.start(t); src.stop(end);
+        }
       } else
 /*|
 @*/

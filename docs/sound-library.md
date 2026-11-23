@@ -131,6 +131,25 @@ The kernel's `sampler` slice carries all of it; a recipe without recorded sounds
 render on a machine without the library is byte for byte what it was. Under test the library is never the
 developer's (`vitest.setup.js` points `MOJULO_SOUNDS_DIR` at nothing); a suite that tests it builds its own.
 
+## Instruments, note by note
+
+An INSTRUMENT is a set of pitched takes (cards with `instrument: <name>`, `sustain: true` for one that holds) played
+note by note. Conditioning measures each take with the pitch converter (`scripts/sound-library/pitch.js`): its
+fundamental by the harmonic product spectrum, read at three stretches of the take and kept only when they agree within
+40 cents (a blast or a gust is no note), as the variant's `root` (MIDI, to the cent); a held take's loop (`loopAt`) is
+an upward zero crossing to the one nearest a whole number of its periods later, so the seam meets itself in phase.
+Takes are zoned by their measured root, never by the note they were asked at: the generator lands on a note's letter
+within a few cents but on its octave by chance (the first organ's twelve asked notes landed between D#3 and A4; its four
+asked low came back an octave or two up).
+
+`sampleSlice([<instrument>])` hands a page every rooted take with `roots` and `loops`; a `zones` patch (`voice:
+'sample'`, `library: <instrument>`) plays each note on the take whose root is nearest (one of them by the note's key,
+a quarter tone either side), bent from that root, and with `loop` holds it on the take's loop for the note's length.
+The synth's modulators are carried to the take: `unison` copies spread over `detune` cents, `pitchLane` and `vib`, an
+`lfo` aimed at pitch; filters, envelopes, tremolo and the chain sit after it as on any voice. Not carried yet: glide and
+bends on the osc's frequency (`glideFrom`, `bend`, `path`), velocity layers, release samples. The first instrument is
+the organ (`cards/organ.js`, the patch `organRec`, its fallback the synthesized `organ`).
+
 ## Making it
 
 Maintainer tooling in [control/scripts/sound-library/](../control/scripts/sound-library/), never shipped and never

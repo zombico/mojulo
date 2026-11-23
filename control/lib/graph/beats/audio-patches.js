@@ -501,3 +501,9 @@ Object.assign(PATCHES, {
   recCrash: rec('crash', 'crashArena', -11),
 });
 PATCHES.recRockKit = { kit: { ...PATCHES.rockKit90s.kit, 35: 'recKick', 36: 'recKick', 38: 'recSnare', 41: 'recTomLow', 43: 'recTomLow', 45: 'recTomLow', 47: 'recTomHigh', 48: 'recTomHigh', 50: 'recTomHigh', 42: 'recHatClosed', 44: 'recHatClosed', 46: 'recHatOpen', 49: 'recCrash', 57: 'recCrash' }, chokes: PATCHES.rockKit90s.chokes };
+// The recorded ORGAN (the sound library's instrument `organ`: an electric drawbar organ's held notes, each take zoned by
+// its measured root and held on its loop, scripts/sound-library/cards/organ.js): each note on its nearest take, bent the
+// rest of the way, its two copies spread a few cents as the synthesized organ's unison is; on a machine without the
+// library (or before its takes are decoded) the synthesized organ it stands in for. A part plays it as
+// `{ instrument: 'organ', patch: 'organRec' }` (the organ's chain kept). Not on the instrument shelf until heard.
+PATCHES.organRec = { voice: 'sample', library: 'organ', zones: true, loop: true, oneShot: false, attack: 0.012, decay: 0.04, sustain: 1, release: 0.12, volume: -9, unison: 2, detune: 4, fallback: PATCHES.organ };

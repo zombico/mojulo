@@ -597,7 +597,7 @@ export async function renderWithKernel(K, manifest, opts = {}) {
   if (engine.loadSamples) {
     const cards = sampleCards(manifest);
     const slice = cards.length ? (opts.samples !== undefined ? opts.samples : sampleSlice(cards)) : null;
-    if (slice) await engine.loadSamples({ cards: slice.cards, bytes: Object.fromEntries(Object.entries(slice.bytes).map(([id, b]) => [id, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)])) });
+    if (slice) await engine.loadSamples({ cards: slice.cards, bytes: Object.fromEntries(Object.entries(slice.bytes).map(([id, b]) => [id, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)])), ...(slice.roots ? { roots: slice.roots } : {}), ...(slice.loops ? { loops: slice.loops } : {}) });
   }
   // the SFX mixer (a beats-sfx manifest's `mix`): its bus and space, before any row routes.
   if (engine.setSfx && manifest.kind === 'beats-sfx' && manifest.mix) engine.setSfx(manifest.mix);

@@ -39,7 +39,7 @@ function samplerScript(manifest) {
   return `const SAMPLES = ${JSON.stringify(slice)};
 { const make = KERNEL.createEngine; KERNEL.createEngine = (c, o) => { const e = make(c, o);
   const bytes = Object.fromEntries(Object.entries(SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (ch) => ch.charCodeAt(0)).buffer]));
-  const ready = e.loadSamples({ cards: SAMPLES.cards, bytes });
+  const ready = e.loadSamples({ cards: SAMPLES.cards, bytes, roots: SAMPLES.roots, loops: SAMPLES.loops });
   for (const k of ['startAmbient', 'startComposition', 'startPattern']) { const f = e[k]; e[k] = (r, p) => { ready.then(() => f(r, p)); }; }
   return e; }; }
 `;
