@@ -15,9 +15,12 @@
  *   craft are lit by is always seen.
  *   A FAR SUN: a small second star, red or blue-white by its temperature, far from the near one; it lights nothing.
  *
- *   planBackdrop({ star, seed?, planets?, worlds?, nebula?, suns? }) → { nebula, planets, suns }   (star: the direction
- *     toward the map's star, unit; planets 0..3 (2); worlds: the kinds asked, the first the large one ('random' a
- *     slot left to the dice); nebula true | false; suns 0..1 (1))
+ *   planBackdrop({ star, seed?, planets?, worlds?, proximity?, nebula?, suns? }) → { nebula, planets, suns, planetshine?,
+ *     proximity? }   (star: the direction toward the map's star, unit; planets 0..3 (2); worlds: the kinds asked, the
+ *     first the large one ('random' a slot left to the dice); proximity: how close the large world is, PROXIMITY
+ *     (distant, near, high-orbit, low-orbit); nebula true | false; suns 0..1 (1)); planetshine: a close world's light
+ *     on the craft from below { color, k }
+ *   PROXIMITY             how close: the large world's angular radius and where it stands, drawn live when close
  *   BACKDROP              the numbers: the planets' sizes (angular radius, °), the clearances
  *   validateBackdrop(v)   → errors (strings) for a level's `space.backdrop` (false | true | { planets?, worlds?, nebula?,
  *                           suns?, seed? })
@@ -43,6 +46,16 @@ export const BACKDROP = Object.freeze({
   hues: Object.freeze([200, 215, 230, 248, 265]), warm: 28, forbid: Object.freeze([285, 345]),
 });
 
+/** HOW CLOSE the large world is: its angular radius (°) and where it stands. Distant and near, off to the side of the
+ *  star, lit from the side; in orbit, below the fight (its centre `nadir`° off straight down), the day side under it and
+ *  the horizon round it, as a fleet fights over a world. Near and closer, drawn live at the screen's own resolution
+ *  (`live`), never baked; a black hole comes no closer than near (never close enough to fall into it). */
+export const PROXIMITY = Object.freeze({
+  distant: Object.freeze({ label: 'far off', r: null, live: false }),
+  near: Object.freeze({ label: 'near: a quarter of the sky', r: Object.freeze([20, 28]), live: true }),
+  'high-orbit': Object.freeze({ label: 'high orbit: the world below fills the lower sky', r: Object.freeze([52, 62]), nadir: Object.freeze([28, 40]), live: true }),
+  'low-orbit': Object.freeze({ label: 'low orbit: a horizon round the fight', r: Object.freeze([72, 79]), nadir: Object.freeze([6, 14]), live: true }),
+});
 const DEG = Math.PI / 180;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const unit = (v) => { const L = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / L, v[1] / L, v[2] / L]; };
@@ -62,9 +75,10 @@ function hsv(h, s, v) {
 
 export function validateBackdrop(v) {
   if (v === undefined || v === true || v === false) return [];
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return ['space.backdrop is true, false or { planets?, worlds?, nebula?, suns?, seed? }'];
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return ['space.backdrop is true, false or { planets?, worlds?, proximity?, nebula?, suns?, seed? }'];
   const e = [];
-  for (const k of Object.keys(v)) if (!['planets', 'nebula', 'suns', 'seed', 'worlds'].includes(k)) e.push(`space.backdrop.${k} is not a backdrop's word (planets, worlds, nebula, suns, seed)`);
+  for (const k of Object.keys(v)) if (!['planets', 'nebula', 'suns', 'seed', 'worlds', 'proximity'].includes(k)) e.push(`space.backdrop.${k} is not a backdrop's word (planets, worlds, proximity, nebula, suns, seed)`);
+  if (v.proximity !== undefined && !PROXIMITY[v.proximity]) e.push(`space.backdrop.proximity is how close the large world is: ${Object.keys(PROXIMITY).join(' | ')}`);
   if (v.worlds !== undefined) {
     if (!Array.isArray(v.worlds) || v.worlds.length > 3) e.push('space.backdrop.worlds is a list of up to 3 kinds of world (the first the large one)');
     else for (const w of v.worlds) if (w !== 'random' && !PLANET_KINDS[w]) e.push(`space.backdrop.worlds: '${w}' is not a kind of world (${Object.keys(PLANET_KINDS).join(', ')}, or random)`);
@@ -76,7 +90,7 @@ export function validateBackdrop(v) {
   return e;
 }
 
-export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebula = true, suns = 1 } = {}) {
+export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebula = true, suns = 1, proximity = 'distant' } = {}) {
   const S = unit(star || [0, 0, 1]), rnd = mulberry32(strHash(`backdrop|${seed}`)), pick = (a) => a[Math.floor(rnd() * a.length) % a.length];
   const span = ([lo, hi]) => lo + rnd() * (hi - lo);
   const placed = [{ dir: S, r: 1 + BACKDROP.clear }];
@@ -88,14 +102,21 @@ export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebul
   for (let i = 0; i < n; i++) {
     const primary = i === 0, asked = worlds && worlds[i] && worlds[i] !== 'random' ? worlds[i] : null;
     const kind = asked ?? pickKind(rnd, primary ? 'large' : 'small'), world = generatePlanet(kind, rnd);
-    const r = world.blackHole ? span(BLACK_HOLE.r) : span(primary ? BACKDROP.primary : BACKDROP.small), reach = world.blackHole ? r * world.disk[1] * 1.15 : world.rings ? r * world.rings.outer : r;
+    // (how close: the large world's own, a black hole no closer than near)
+    const P = primary && proximity !== 'distant' ? PROXIMITY[world.blackHole && proximity !== 'near' ? 'near' : proximity] : null;
+    const r = P ? span(P.r) / (world.blackHole ? 4 : 1) : world.blackHole ? span(BLACK_HOLE.r) : span(primary ? BACKDROP.primary : BACKDROP.small);
+    const reach = world.blackHole ? r * world.disk[1] * 1.15 : world.rings ? r * world.rings.outer : r;
     let dir = null;
     for (let t = 0; t < 60 && !dir; t++) {
-      const d = primary ? around(S, span(world.blackHole ? [70, 140] : BACKDROP.phase), rnd() * 2 * Math.PI) : unit([rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]);
+      // (in orbit: below the fight, its centre a little off straight down; else from the side of the star)
+      const d = P && P.nadir ? around([0, 0, -1], span(P.nadir), rnd() * 2 * Math.PI) : primary ? around(S, span(world.blackHole ? [70, 140] : BACKDROP.phase), rnd() * 2 * Math.PI) : unit([rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]);
       if (free(d, reach, BACKDROP.apart) && (primary || world.blackHole || angle(d, S) <= BACKDROP.lit)) dir = d;
     }
     if (!dir) continue;
-    out.push({ dir: dir.map(r3), r: r3(r), ...world });
+    // (its axis: a far world tilted a little, any way; in orbit, the point under the fight at a middle latitude, so a
+    // giant's bands cross the view and a world's caps stand off at its horizon)
+    const axis = P && P.nadir ? [r3(55 + rnd() * 20), r3(rnd() * 360)] : [r3(rnd() * 30), r3(rnd() * 360)];
+    out.push({ dir: dir.map(r3), r: r3(r), ...world, axis, ...(P && P.live ? { live: true } : {}) });
     placed.push({ dir, r: reach });
   }
   // A FAR SUN: its temperature red or blue-white
@@ -112,5 +133,9 @@ export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebul
     const hues = BACKDROP.hues, i = Math.floor(rnd() * (hues.length - 1)), a = hues[i], b = hues[Math.min(hues.length - 1, i + 1 + Math.floor(rnd() * 2))];
     neb = { plane: unit([rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]).map(r3), width: r3(0.22 + rnd() * 0.18), a: hsv(a, 0.62, 0.55), b: hsv(b, 0.55, 0.5), warm: hsv(BACKDROP.warm, 0.7, 0.75), dust: r3(0.45 + rnd() * 0.3), glow: r3(0.17 + rnd() * 0.07), seed: Math.floor(rnd() * 1e6) };
   }
-  return { nebula: neb, planets: out, suns: far };
+  // PLANETSHINE: a close world's light thrown back onto the craft from below (its albedo at its lit share of the sky)
+  const near = out[0] && out[0].live && !out[0].blackHole ? out[0] : null;
+  const shine = near ? { color: near.gas ? near.band0 : mixHex(near.ocean > 0.5 ? near.sea : near.land1, near.cloudC || '#ffffff', near.cloud * 0.6), k: r3((1 - Math.cos(near.r * DEG)) / 2) } : null;
+  return { nebula: neb, planets: out, suns: far, ...(shine ? { planetshine: shine } : {}), ...(proximity !== 'distant' ? { proximity } : {}) };
 }
+const mixHex = (a, b, t) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');

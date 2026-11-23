@@ -43,6 +43,9 @@ export function formLight(mood, materials, { ground = null } = {}) {
  * law), the key side about fifteen times it. Nothing behind the hull to outline it, so the rim carries the silhouette
  * (the rig's separation law): a cool starlit edge. The sky it reflects is the void, the star in it the one hot glint.
  */
+/** A close world's light on a hull from below: its colour at its share of the sky, times this (a lit world's albedo
+ *  under a star, seen across half the sky, is a strong fill: a third of the key's level at full). */
+export const PLANETSHINE = 0.55;
 export const SPACE_MOOD = Object.freeze({
   key: [1, 0.96, 0.91], level: 3.1, ambient: [0.05, 0.05, 0.07],
   sky: Object.freeze({ zenith: [7, 9, 17], horizon: [11, 13, 24] }), ground: [3, 3, 6],
@@ -56,7 +59,10 @@ export const SPACE_MOOD = Object.freeze({
 export function skyMood(sky) {
   if (sky && sky.space) {
     const d = Array.isArray(sky.sun?.dir) ? sky.sun.dir : null, L = d ? Math.hypot(d[0], d[1], d[2]) : 0;
-    return { ...SPACE_MOOD, ...(L > 0 ? { toLight: d.map((v) => v / L) } : {}) };
+    // (a close world below: its light thrown back up onto the hull, the ground of its hemisphere, skyscape/backdrop.js)
+    const sh = sky.backdrop && sky.backdrop.planetshine, lin = (h) => [1, 3, 5].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+    const hemi = sh && /^#[0-9a-f]{6}$/i.test(sh.color) ? { sky: SPACE_MOOD.hemi.sky, ground: SPACE_MOOD.hemi.ground.map((g, k) => Math.round((g + lin(sh.color)[k] * sh.k * PLANETSHINE) * 1e4) / 1e4) } : null;
+    return { ...SPACE_MOOD, ...(hemi ? { hemi } : {}), ...(L > 0 ? { toLight: d.map((v) => v / L) } : {}) };
   }
   if (!sky || !Array.isArray(sky.zenith) || !Array.isArray(sky.horizon)) return null;
   const d = Number.isFinite(sky.day) ? Math.max(0, Math.min(1, sky.day)) : 1;

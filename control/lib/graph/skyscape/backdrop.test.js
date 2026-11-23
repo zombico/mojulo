@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { planBackdrop, validateBackdrop, BACKDROP } from './backdrop.js';
+import { planBackdrop, validateBackdrop, BACKDROP, PROXIMITY } from './backdrop.js';
+import { skyMood, SPACE_MOOD } from '../car-designer/form-light.js';
 import { assembleAirspace } from './airspace.js';
 import { SPACE_STAR } from './space.js';
 import { skyDomeScript } from '../scene/channels/sky-dome.js';
@@ -51,6 +52,30 @@ describe('the space backdrop', () => {
     expect(validateBackdrop({ worlds: ['dyson-sphere'] })[0]).toMatch(/not a kind of world/);
   });
 
+  it('how close: far off a disc by the star, near a quarter of the sky, in orbit the world below the fight with a horizon round it', () => {
+    const far = planBackdrop({ star: S, seed: 4, worlds: ['ocean'] }).planets[0];
+    expect(far.live).toBeUndefined();
+    for (const p of ['near', 'high-orbit', 'low-orbit']) {
+      const B = planBackdrop({ star: S, seed: 4, proximity: p, worlds: ['ocean'] }), W = B.planets[0];
+      expect(W.live, p).toBe(true);
+      expect(W.r).toBeGreaterThanOrEqual(PROXIMITY[p].r[0]);
+      expect(W.r).toBeLessThanOrEqual(PROXIMITY[p].r[1]);
+      expect(ang(W.dir, S), p).toBeGreaterThan(W.r + BACKDROP.clear);          // (the star never behind it)
+      if (PROXIMITY[p].nadir) expect(ang(W.dir, [0, 0, -1]), p).toBeLessThanOrEqual(PROXIMITY[p].nadir[1] + 1e-6);
+      expect(B.planetshine.k).toBeGreaterThan(0);
+    }
+    // the closer, the more of the sky it fills, and the more of its light on the hull from below
+    const k = (p) => planBackdrop({ star: S, seed: 4, proximity: p, worlds: ['ocean'] }).planetshine.k;
+    expect(k('low-orbit')).toBeGreaterThan(k('high-orbit'));
+    expect(k('high-orbit')).toBeGreaterThan(k('near'));
+    const hull = skyMood({ space: true, sun: { dir: S }, backdrop: planBackdrop({ star: S, seed: 4, proximity: 'low-orbit', worlds: ['ocean'] }) });
+    expect(hull.hemi.ground[2]).toBeGreaterThan(SPACE_MOOD.hemi.ground[2] * 2);
+    // a black hole never closer than near: never close enough to fall in
+    const H = planBackdrop({ star: S, seed: 4, proximity: 'low-orbit', worlds: ['black-hole'] }).planets[0];
+    expect(H.r * 4).toBeLessThanOrEqual(PROXIMITY.near.r[1] + 1e-6);
+    expect(validateBackdrop({ proximity: 'surface' })[0]).toMatch(/how close/);
+  });
+
   it('a space map\'s sky carries it, unless it says none; the page bakes it only where it is, and keeps stars off its planets', () => {
     const M = { kind: 'airspace', map: { craft: 'fighter', field: 3000 }, space: { asteroids: 'none' }, seed: 3 };
     const sky = assembleAirspace(M, {}).sky;
@@ -64,5 +89,8 @@ describe('the space backdrop', () => {
     expect(page).not.toContain('HOLE =');
     const hole = planBackdrop({ star: S, seed: 9, worlds: ['black-hole'] });
     expect(skyDomeScript({ ...base, backdrop: hole })).toContain('HOLE =');
+    // (a close world drawn live, only where one is)
+    expect(page).not.toContain('THE CLOSE WORLD');
+    expect(skyDomeScript({ ...base, backdrop: planBackdrop({ star: S, seed: 4, proximity: 'low-orbit' }) })).toContain('THE CLOSE WORLD');
   });
 });

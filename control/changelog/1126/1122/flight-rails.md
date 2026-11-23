@@ -317,3 +317,19 @@ They share one foundation, built first, and these themes record it as it lands.
   Stars behind its lens go dark, as behind a planet. A level names its worlds with
   `space.backdrop.worlds: ['black-hole', 'random', 'city']` (the first is the large one); otherwise the dice draw them
   by weight. A small world stands where the star lights at least about half of it.
+- **How close the world is: fights in orbit** (`skyscape/backdrop.js` `PROXIMITY`; the backdrop's live world).
+  `space.backdrop.proximity` says how close a space map's large world is:
+  - `distant` (as before): a disc by the star;
+  - `near`: about a quarter of the sky;
+  - `high-orbit`: the world below the fight, filling the lower sky;
+  - `low-orbit`: almost straight below, with a curved horizon round the fight, as fleets fight over a world.
+
+  A black hole comes no closer than near, never close enough to fall into. A world near or closer is not baked into
+  the sky (its eleven pixels a degree would blur): it is drawn live at the screen's resolution, a sphere held at
+  infinity round the eye and behind everything, so the fight is always in front of it. Its features are sized for
+  what an orbit sees of it (continents, coastlines, cloud and a giant's belts at their scale), a city world's day side
+  in its urban fabric. Each world's axis is tilted, and in orbit the fight is over its middle latitudes, so a giant's
+  bands cross the view. Its air is a shell over it: the ray's path through the air, faint over the ground and a bright
+  band along the horizon, lit where the star is up there. Its light reaches the hull from below as planetshine (its
+  colour at its share of the sky, in the craft's hemisphere fill), and stars behind it go dark. Clouds now cover the
+  share their word says: "0.6 cloudy" was hiding about four fifths of a world.

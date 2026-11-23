@@ -955,7 +955,7 @@ const QUICK_LEVERS = {
   fly: () => [
     `  craft: ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join(', ')}`,
     '  assist: arcade (never stalls, the wings level quickly) | sim (the bank holds where it is put); laps: n (not a glider)',
-    `  airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} }, ground?, space?, course? }   space: { asteroids, backdrop? } for a space craft (backdrop: its sky's nebula, planets and far sun, seeded; false for stars alone; { planets? 0-3, worlds?: [kinds of world, the first the large one: earthlike, ocean, desert, jungle, arctic, volcanic, toxic, barren, rust, crimson, city, molten, jovian, ice-giant, hot-jupiter, saturnian, black-hole, random], nebula?, suns? 0-1, seed? })`,
+    `  airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} }, ground?, space?, course? }   space: { asteroids, backdrop? } for a space craft (backdrop: its sky's nebula, planets and far sun, seeded; false for stars alone; { planets? 0-3, worlds?: [kinds of world, the first the large one: earthlike, ocean, desert, jungle, arctic, volcanic, toxic, barren, rust, crimson, city, molten, jovian, ice-giant, hot-jupiter, saturnian, black-hole, random], proximity?: distant | near | high-orbit | low-orbit (how close the large world is: in orbit the fight is over it, a horizon round it), nebula?, suns? 0-1, seed? })`,
     '  world: { style: { palette } }: pick_palette\'s spec, or { preset: \'coastal-noon\' }; paints the land, sky, haze and sea',
     '  followed from behind; no hero, ride, climb, building or run',
   ],

@@ -15,6 +15,10 @@ import { safeJson } from '../emit-util.js';
 // The stars (sky-dome.js) are drawn over the backdrop; a star whose direction falls on a planet's disc is left out.
 // Pure source: the noise is a hash, no dice; the same plan, the same sky.
 //
+//   a close world (near, in orbit: skyscape/backdrop.js PROXIMITY) is not baked: it is drawn live at the screen's
+//                resolution, a sphere held at infinity round the eye and behind everything, its finer relief and its
+//                cities in it, its air a shell over it (the horizon's bright band, lit where the star is up)
+//
 //   spaceBackdropScript(B, { size? }) → the page's block (in a scope with THREE, scene, renderer, SKY)
 
 /** The cube's face (px): a primary planet of 10° radius is ~230 px across. */
@@ -53,25 +57,33 @@ const PLANET_FRAG = `${NOISE}
 // ice, craters, lava and cities; then its clouds, its haze, the star's light with a soft terminator, the night side's
 // own glow and lights, the atmosphere's rim, the limb antialiased
 uniform vec3 uSun, uLand0, uLand1, uSea, uVeg, uIce, uCloud, uAtmo, uLava, uB0, uB1, uB2, uStorm;
-uniform float uGas, uOcean, uVegK, uIceK, uCloudK, uCraters, uLavaK, uLights, uDunes, uHaze, uAtmoK, uGlow, uFreq, uTurb, uStormK, uSeed;
+uniform float uGas, uOcean, uVegK, uIceK, uCloudK, uCraters, uLavaK, uLights, uDunes, uHaze, uAtmoK, uGlow, uFreq, uTurb, uStormK, uSeed, uDetail;
+uniform mat3 uSpin;
 varying vec3 vN, vW;
 void main() {
-  vec3 n = normalize(vN), o = vec3(uSeed * 0.0017, uSeed * 0.0009, uSeed * 0.0013), c;
-  float lat = abs(n.z), water = 0.0, emit = 0.0, land = 1.0;
+  // (its surface in its own frame: its axis tilted, uSpin; its light and its air in the sky's)
+  // (close, its features sized for what an orbit sees of it, a slice of the sphere: its noise zoomed, Z)
+  vec3 ns = normalize(vN), n0 = normalize(uSpin * ns), o = vec3(uSeed * 0.0017, uSeed * 0.0009, uSeed * 0.0013), c;
+  float Z = 1.0 + 3.0 * uDetail; vec3 n = n0 * Z;
+  float lat = abs(n0.z), water = 0.0, emit = 0.0, land = 1.0;
   if (uGas > 0.5) {
     // (bands round its axis, warped by its weather; a storm, an eye in the bands)
     float t = n.z * uFreq + (bdFbm(n * 3.0 + o) - 0.5) * uTurb;
+    // (a giant's albedo: half the light back, as Jupiter's)
     c = mix(mix(uB0, uB1, 0.5 + 0.5 * sin(t * 2.2)), uB2, smoothstep(0.55, 0.95, 0.5 + 0.5 * sin(t * 0.83 + 1.3)));
-    c *= 0.9 + 0.2 * bdNoise(n * 18.0 + o);
+    c *= (0.9 + 0.2 * bdNoise(n * 18.0 + o)) * 0.78;
     vec3 sd = normalize(vec3(cos(uSeed), sin(uSeed), -0.35));
-    float sdist = length(n - sd), sw = smoothstep(0.16, 0.0, sdist) * uStormK;
+    float sdist = length(n0 - sd) * Z, sw = smoothstep(0.16, 0.0, sdist) * uStormK;
     c = mix(c, uStorm, sw * (0.6 + 0.4 * sin(sdist * 60.0 + bdNoise(n * 9.0) * 3.0)));
     land = 0.0;
   } else {
-    float e = bdFbm(n * 3.0 + o) + (bdFbm(n * 12.0 + o) - 0.5) * 0.15;
+    // (close, uDetail: the finer relief a world seen from orbit shows, coastlines and ridges at its scale)
+    float e = bdFbm(n * 3.0 + o) + (bdFbm(n * 12.0 + o) - 0.5) * 0.15 + (bdFbm(n * 48.0 + o) - 0.5) * 0.06 * uDetail;
     water = uOcean > 0.0 ? 1.0 - smoothstep(uOcean * 0.62 + 0.19 - 0.004, uOcean * 0.62 + 0.19 + 0.004, e) : 0.0;
     float hi = smoothstep(0.45, 0.75, e);
-    c = mix(uLand0, uLand1, hi);
+    c = mix(uLand0, uLand1, hi) * (1.0 + (bdNoise(n * 220.0 + o) - 0.5) * 0.22 * uDetail);
+    // (a city world's day side: its fabric, blocks and their streets, over the land)
+    c *= 1.0 + (step(0.5, bdNoise(n * (90.0 + 260.0 * uDetail) + o)) - 0.5) * 0.25 * uLights;
     // (dunes: long streaks across its plains)
     c *= 1.0 + uDunes * 0.18 * sin(dot(n, vec3(31.0, 17.0, 5.0)) + bdNoise(n * 6.0 + o) * 6.0);
     // (plants where it is neither high nor polar)
@@ -88,23 +100,42 @@ void main() {
     c = mix(c, uLand0 * 0.4, uLavaK * 0.6 * land);
   }
   // (ice: its caps, ragged at the edge; frozen seas too)
-  float ice = uIceK > 0.0 ? smoothstep(1.0 - uIceK - 0.04, 1.0 - uIceK + 0.04, lat + (bdFbm(n * 8.0 + o) - 0.5) * 0.12) : 0.0;
+  float ice = uIceK > 0.0 ? smoothstep(1.0 - uIceK - 0.04, 1.0 - uIceK + 0.04, lat + (bdFbm(n * 8.0 + o) - 0.5) * 0.12 / Z) : 0.0;
   c = mix(c, uIce, ice);
   // (clouds, swirled, over the lot)
-  float cl = uCloudK > 0.0 ? smoothstep(1.0 - uCloudK, 1.0 - uCloudK + 0.28, bdFbm(n * 4.5 + o + 7.0 + vec3(bdFbm(n * 2.0 + o) * 0.8))) : 0.0;
+  // (cloud: its cover a share of the ground hidden: the noise's middle is a half, so a cover of c clears above 0.68 − 0.32 c)
+  float cl = uCloudK > 0.0 ? smoothstep(0.68 - 0.32 * uCloudK, 0.68 - 0.32 * uCloudK + 0.16, bdFbm(n * 4.5 + o + 7.0 + vec3(bdFbm(n * 2.0 + o) * 0.8)) + (bdFbm(n * 36.0 + o) - 0.5) * 0.12 * uDetail) : 0.0;
   c = mix(c, uCloud, cl * 0.9);
   c = mix(c, uAtmo, uHaze);
-  float lit = dot(n, uSun), k = smoothstep(-0.08, 0.3, lit) * max(lit + 0.08, 0.0), night = 1.0 - smoothstep(-0.15, 0.12, lit);
+  float lit = dot(ns, uSun), k = smoothstep(-0.08, 0.3, lit) * max(lit + 0.08, 0.0), night = 1.0 - smoothstep(-0.15, 0.12, lit);
   vec3 col = c * k * 1.05 + c * 0.004;
   col += uLava * emit * (0.35 + 0.65 * night) * (1.0 - cl * 0.7);
   col += uLava * uGlow * night * 0.12;
   // (cities: lights on its night side, on its land, where people would gather)
-  float city = uLights * land * (1.0 - ice) * step(0.6, bdNoise(n * 70.0 + o)) * smoothstep(0.45, 0.65, bdFbm(n * 7.0 + o + 2.0));
+  float city = uLights * land * (1.0 - ice) * step(0.6, bdNoise(n * (70.0 + 130.0 * uDetail) + o)) * smoothstep(0.45, 0.65, bdFbm(n * 7.0 + o + 2.0));
   col += vec3(1.0, 0.78, 0.45) * city * night * 0.6 * (1.0 - cl * 0.8);
   vec3 V = normalize(cameraPosition - vW);
-  float fres = pow(1.0 - max(dot(n, V), 0.0), 3.0);
-  col += uAtmo * fres * uAtmoK * (0.08 + smoothstep(-0.35, 0.45, lit));
-  gl_FragColor = vec4(col, smoothstep(0.0, 0.09, dot(n, V)));
+  // (its air at its rim, a far world's; a close one's air is its shell, AIR_FRAG, the rim term would wash its ground)
+  float fres = pow(1.0 - max(dot(ns, V), 0.0), 3.0);
+  col += uAtmo * fres * uAtmoK * (0.08 + smoothstep(-0.35, 0.45, lit)) * (1.0 - 0.9 * uDetail);
+  // (a close world is drawn live, into the screen: its colour encoded as the baked sky's is when three draws it)
+  if (uDetail > 0.5) col = pow(max(col, 0.0), vec3(1.0 / 2.2));
+  gl_FragColor = vec4(col, smoothstep(0.0, 0.09, dot(ns, V)));
+}`;
+
+// A CLOSE WORLD'S AIR (live): a shell just over it, each ray's path through the air between the shell and the ground
+// (longest at the limb, the bright band along the horizon), lit where the star is up at that point of it
+const AIR_FRAG = `uniform vec3 uC, uAtmo, uSun; uniform float uR, uRs, uK; varying vec3 vW;
+void main() {
+  vec3 dir = normalize(vW - cameraPosition), C = uC - cameraPosition;
+  float t = dot(C, dir), h2 = dot(C, C) - t * t;
+  float outer = sqrt(max(uRs * uRs - h2, 0.0)), inner = h2 < uR * uR ? sqrt(uR * uR - h2) : 0.0;
+  float path = (h2 < uR * uR ? outer - inner : 2.0 * outer) / (2.0 * sqrt(uRs * uRs - uR * uR));
+  vec3 m = cameraPosition + dir * (t - (h2 < uR * uR ? (outer + inner) * 0.5 : 0.0));
+  float lit = smoothstep(-0.25, 0.35, dot(normalize(m - uC), uSun));
+  // (over the ground its haze is faint, the band along the horizon bright; encoded, as the ground under it is)
+  vec3 col = uAtmo * clamp(path, 0.0, 1.6) * lit * uK * (h2 < uR * uR ? 0.3 : 1.0);
+  gl_FragColor = vec4(pow(max(col, 0.0), vec3(1.0 / 2.2)), 1.0);
 }`;
 
 // THE BLACK HOLE, a second pass over the sky already drawn (uSky): each direction near it bent as a point lens bends
@@ -175,18 +206,19 @@ void main() {
 
 // a world's knobs as its shader's uniforms (linear colours; a knob the world leaves out, nothing of it)
 const COLOURS = { uLand0: 'land0', uLand1: 'land1', uSea: 'sea', uVeg: 'vegC', uIce: 'iceC', uCloud: 'cloudC', uAtmo: 'atmoC', uLava: 'lavaC', uB0: 'band0', uB1: 'band1', uB2: 'band2', uStorm: 'stormC' };
-const NUMBERS = { uGas: 'gas', uOcean: 'ocean', uVegK: 'veg', uIceK: 'ice', uCloudK: 'cloud', uCraters: 'craters', uLavaK: 'lava', uLights: 'lights', uDunes: 'dunes', uHaze: 'haze', uAtmoK: 'atmo', uGlow: 'glow', uFreq: 'freq', uTurb: 'turb', uStormK: 'storm', uSeed: 'seed' };
+const NUMBERS = { uDetail: 'live', uGas: 'gas', uOcean: 'ocean', uVegK: 'veg', uIceK: 'ice', uCloudK: 'cloud', uCraters: 'craters', uLavaK: 'lava', uLights: 'lights', uDunes: 'dunes', uHaze: 'haze', uAtmoK: 'atmo', uGlow: 'glow', uFreq: 'freq', uTurb: 'turb', uStormK: 'storm', uSeed: 'seed' };
 function worldInput(p) {
   const u = {};
   for (const [k, w] of Object.entries(COLOURS)) u[k] = typeof p[w] === 'string' ? lin(p[w]) : [0, 0, 0];
-  for (const [k, w] of Object.entries(NUMBERS)) u[k] = Number.isFinite(p[w]) ? p[w] : 0;
-  return { dir: p.dir, r: p.r, u, ...(p.rings ? { rings: { ...p.rings, color: lin(p.rings.color || p.band2 || '#d8c8a0') } } : {}) };
+  for (const [k, w] of Object.entries(NUMBERS)) u[k] = Number.isFinite(p[w]) ? p[w] : p[w] === true ? 1 : 0;
+  return { dir: p.dir, r: p.r, u, spin: p.axis ?? [0, 0], ...(p.rings ? { rings: { ...p.rings, color: lin(p.rings.color || p.band2 || '#d8c8a0') } } : {}) };
 }
 
 export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
   const D = {
     nebula: B.nebula ? { ...B.nebula, a: lin(B.nebula.a), b: lin(B.nebula.b), warm: lin(B.nebula.warm) } : null,
-    planets: (B.planets || []).filter((p) => !p.blackHole).map(worldInput),
+    planets: (B.planets || []).filter((p) => !p.blackHole && !p.live).map(worldInput),
+    live: (B.planets || []).filter((p) => !p.blackHole && p.live).map(worldInput),
     holes: (B.planets || []).filter((p) => p.blackHole).map((p) => ({ dir: p.dir, r: p.r, disk: p.disk, einstein: p.einstein, tilt: p.tilt, spin: p.spin, hot: lin(p.hot), cool: lin(p.cool), seed: p.seed })),
     suns: (B.suns || []).map((s) => ({ dir: s.dir, r: s.r, glow: s.glow, color: lin(s.color) })),
   };
@@ -194,8 +226,11 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
 // --- the space backdrop (skyscape/backdrop.js; channels/space-backdrop.js): baked once into the sky at infinity ---
 (function () {
   const BD = ${safeJson(D)}, SUN = (SKY.sun && SKY.sun.dir) || [0, 0, 1];
-  const NEB = ${JSON.stringify(NEBULA_FRAG)}, PLA = ${JSON.stringify(PLANET_FRAG)}, RING = ${JSON.stringify(RING_FRAG)}, GLOW = ${JSON.stringify(GLOW_FRAG)}, HALO = ${JSON.stringify(HALO_FRAG)}${D.holes.length ? `, HOLE = ${JSON.stringify(HOLE_FRAG)}` : ''};
+  const NEB = ${JSON.stringify(NEBULA_FRAG)}, PLA = ${JSON.stringify(PLANET_FRAG)}, AIR = ${JSON.stringify(AIR_FRAG)}, RING = ${JSON.stringify(RING_FRAG)}, GLOW = ${JSON.stringify(GLOW_FRAG)}, HALO = ${JSON.stringify(HALO_FRAG)}${D.holes.length ? `, HOLE = ${JSON.stringify(HOLE_FRAG)}` : ''};
   const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]), sunV = v3(SUN).normalize();
+  // (a world's axis: tilted about x by its tilt, turned about its axis by its turn, as a 3×3 for its shader)
+  const spinOf = (sp) => new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationZ(sp[1] * Math.PI / 180).multiply(new THREE.Matrix4().makeRotationX(sp[0] * Math.PI / 180)));
+  const uniOf = (P) => Object.assign({ uSun: { value: sunV }, uSpin: { value: spinOf(P.spin) } }, ...Object.entries(P.u).map(([k, v]) => ({ [k]: { value: Array.isArray(v) ? v3(v) : v } })));
   const VERT_DIR = 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
   const VERT_N = 'varying vec3 vN; varying vec3 vW; void main(){ vN = normalize(position); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
   const VERT_W = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
@@ -221,7 +256,7 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
       halo.position.copy(c).multiplyScalar(1.02); halo.lookAt(0, 0, 0); halo.updateMatrixWorld(true);
       { const inv = new THREE.Matrix4().copy(halo.matrixWorld).invert(), sp = sunV.clone().transformDirection(inv); halo.material.uniforms.uSunUv.value.set(sp.x, sp.y, 0).normalize(); }
       const m = add(new THREE.Mesh(new THREE.SphereGeometry(R, 96, 48), new THREE.ShaderMaterial({ transparent: true, vertexShader: VERT_N, fragmentShader: PLA,
-        uniforms: Object.assign({ uSun: { value: sunV } }, ...Object.entries(P.u).map(([k, v]) => ({ [k]: { value: Array.isArray(v) ? v3(v) : v } }))) })));
+        uniforms: uniOf(P) })));
       m.position.copy(c);
       if (P.rings) {
         const ring = add(new THREE.Mesh(new THREE.RingGeometry(R * P.rings.inner, R * P.rings.outer, 160, 1), new THREE.ShaderMaterial({ side: THREE.DoubleSide, transparent: true, depthWrite: false, vertexShader: VERT_W, fragmentShader: RING, extensions: { derivatives: true },
@@ -259,7 +294,22 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
     scene.background = sky.texture;
     for (const m of made) { m.geometry.dispose(); m.material.dispose(); }
   }
-  setTimeout(bake, 0);
+  setTimeout(bake, 0);${D.live.length ? `
+  // THE CLOSE WORLD, live (near, or in orbit): a sphere at infinity drawn at the screen's own resolution, behind
+  // everything (first, no depth: the fight is always in front of it), held round the eye as the sky is; its air a shell
+  // over it, the horizon's band
+  const LD = 4000;
+  for (const P of BD.live) {
+    const dir = v3(P.dir).normalize(), R = LD * Math.sin(P.r * Math.PI / 180), Rs = R * 1.018;
+    const at = (o, cam) => { const e = cam.matrixWorld.elements; o.position.set(e[12] + dir.x * LD, e[13] + dir.y * LD, e[14] + dir.z * LD); o.updateMatrixWorld(); };
+    const ground = new THREE.Mesh(new THREE.SphereGeometry(R, 256, 128), new THREE.ShaderMaterial({ depthTest: false, depthWrite: false, vertexShader: VERT_N, fragmentShader: PLA,
+      uniforms: uniOf(P) }));
+    ground.renderOrder = -10; ground.frustumCulled = false; ground.onBeforeRender = (r, sc, cam) => at(ground, cam);
+    const air = new THREE.Mesh(new THREE.SphereGeometry(Rs, 192, 96), new THREE.ShaderMaterial({ depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending, vertexShader: VERT_W, fragmentShader: AIR,
+      uniforms: { uC: { value: new THREE.Vector3() }, uAtmo: { value: v3(P.u.uAtmo) }, uSun: { value: sunV }, uR: { value: R }, uRs: { value: Rs }, uK: { value: 0.35 + 0.9 * P.u.uAtmoK } } }));
+    air.renderOrder = -9; air.frustumCulled = false; air.onBeforeRender = (r, sc, cam) => { at(air, cam); air.material.uniforms.uC.value.copy(air.position); };
+    scene.add(ground, air);
+  }` : ''}
 })();
 `;
 }
