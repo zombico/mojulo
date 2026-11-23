@@ -365,6 +365,16 @@ P opens the party menu: Status, Class, Equip and Skills, and Item (a battle item
 focus or on all the party) and Formation (two members traded: the order fought in, the first `rules.size` of it at the
 front). It saves at save points, never from the menu: the store is written as a level is left.
 
+## What a member wears, seen
+
+`battles.wardrobe: true` mints each party member once more for each armour its class may wear: its own body and dress
+under the armour's build (the hero door's `adorn`), a figure per look (`gameworld/wardrobe.js`). The armour slot alone
+sets the look, since it is what changes the outline; weapons are held as before. The presets are a row per armour of
+the starter gear (leather a third of the body, mail to the knee); `wardrobe: { <armour>: { adorn } | null }` is the
+book's own over them, null for an armour that changes nothing. The looks are the run's steps (`hero-look-<armour>`,
+`cast-<id>-look-<armour>`). They are minted, not yet swapped in on equip: the page still shows the base figure. Dialogue
+heads stay the base portrait.
+
 ## The screen and sound in words
 
 A cue's (or a scene beat's `do`) effects may touch the screen and play a sound:

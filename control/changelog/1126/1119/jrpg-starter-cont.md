@@ -343,3 +343,8 @@
   the citadel's lines were said in the page's plain box before. `gameworld/jrpg-story.live.test.js` (the e2e tier) plays
   the composed round's story in Chrome: the opening staged on the town's page, a moment at the way out holding the
   level's end until its line is closed, the citadel's line as it begins and its ending staged there.
+- **What a member wears, minted.** `battles.wardrobe: true` (or the book's own table over the presets) mints a figure
+  per party member per armour its class may wear, the member's own body and dress under the armour's `adorn`
+  (`gameworld/wardrobe.js`): leather a third of the body, mail to the knee. The looks are run steps
+  (`hero-look-<armour>`, `cast-<id>-look-<armour>`) beside the base figure; the page swapping them in on equip is the
+  next step.

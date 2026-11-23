@@ -45,6 +45,9 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
+import { wardrobeLooks, lookKey } from './wardrobe.js';
+import { readRpg } from '../playscape/rpg/rpg.js';
+import { battleBase } from './battles.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, foeGearOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER, hubCast, hubFolkShops } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
@@ -367,6 +370,16 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
       const order = { egocube: castRef, member: M.path, title: `${G.name ?? G.id} · ${M.name}`, ...(Object.keys(spec).length ? { spec } : {}) };
       steps.push({ key: `cast-${M.id}`, ref: childRef(ref, `cast-${M.id}`), ready: gate.ready, ...waits(gate), order, print: fingerprint({ cast: manifest, member: M.path, ...(M.gear ? { gear: M.gear } : {}), ...(M.win ? { win: M.win } : {}) }) });
     }
+  }
+  // THE WARDROBE (wardrobe.js): each party member in each armour its class may wear, a figure apiece, its own order with
+  // the armour laid over its words (an adopted hero is its row, never remade)
+  for (const L of G.battles?.wardrobe ? wardrobeLooks(G, readRpg({ rpg: battleBase(G) })) : []) {
+    const base = steps.find((st) => st.key === (L.member === 'hero' ? 'hero' : `cast-${L.member}`));
+    if (!base || base.adopt || !base.order) continue;
+    const O = base.order, key = lookKey(L.member, L.item), dress = { adorn: L.adorn };
+    const order = O.egocube ? { ...O, title: `${O.title} · ${L.item}`, spec: { ...(O.spec ?? {}), ...dress } }
+      : O.mint ? { ...O, mint: { ...O.mint, title: `${O.mint.title ?? O.title ?? key} · ${L.item}`, spec: { ...O.mint.spec, ...dress } }, spec: { ...(O.spec ?? O.mint.spec), ...dress } } : null;
+    if (order) steps.push({ key, ref: childRef(ref, key), ready: base.ready, ...(base.waiting ? { waiting: base.waiting } : {}), order, print: fingerprint({ of: base.print, look: L.item, ...dress }) });
   }
   const GL = laidCasting(G);   // the rolled members in the book's cast: the story places them, the field party carries them
   // party battles (battles.js): where the world writes its own foe look, one foe figure, minted as a hero is, standing for

@@ -64,6 +64,7 @@ import { manualBattles } from './battles-manual.js';
 import { treesBattles } from './battles-tree.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
 import { chestCast, chestsPer, chestKinds, readChests, CHEST_SLICE } from './chests.js';
+import { readWardrobe } from './wardrobe.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { WIN_OF_CLASS } from '../egocube/moves.js';
 
@@ -229,7 +230,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests', 'techs'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests', 'techs', 'wardrobe'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -298,6 +299,8 @@ export function readBattles(v, characters = null, ids = null) {
   if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
+  // (what each member looks like in the armour it wears: wardrobe.js)
+  readWardrobe(v.wardrobe, err);
   // (how tall each beast foe stands in a fight)
   if (v.heights !== undefined && !(isObj(v.heights) && Object.values(v.heights).every((h) => typeof h === 'number' && h >= 0.3 && h <= 12))) throw err('.heights is { <foe id>: metres, 0.3 to 12 }: how tall a beast foe stands in a fight');
   // (each foe's own look, in a character door's words: a beast, a people, or a person's spec)
