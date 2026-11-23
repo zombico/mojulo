@@ -325,3 +325,9 @@
   the last doorway between a guard and what lies past it, its key (named for the space it opens: the Vault Key) carried
   by that guard and given as its fight is won. A door with no doorway there is not laid, never a lock whose key lies past
   it; the composed citadel meets one lock (its last guard stands in the boss's room).
+- **Joint techs.** `play.rpg.techs` (a book's `battles.techs`): a skill two or three members make together, each
+  knowing one of its `needs`; listed in a member's skills with whom it is made (or no partner), each maker paying its
+  part's MP, the partners' turns spent on it (reserved as a round is picked, so none moves first; on the timeline their
+  gauges emptied), made with their stat summed; never started by a familiar. Five presets (Fire Strike, Frost Strike,
+  Holy Cross, Venom Flame, Trinity, a triple), their juice (`joint`, `joined`); a composed party RPG asks for them, a
+  world asking none lists none.

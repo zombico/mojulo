@@ -227,6 +227,16 @@ export const FOE_PRESETS = Object.freeze({
   },
 });
 
+// JOINT TECHS (rpg.js `techs`): a blow or a spell two or three members make together, each knowing one of its `needs` and
+// paying that part's MP, their turns spent on it; its stat the sum of theirs (kernel.js)
+export const TECH_PRESETS = Object.freeze({
+  'fire-strike': { name: 'Fire Strike', about: 'a blade wreathed in a mage\'s fire', needs: ['power-strike', 'fire'], target: 'foe', power: 8, stat: 'atk', scale: 0.9, element: 'fire' },
+  'frost-strike': { name: 'Frost Strike', about: 'a blade sheathed in a mage\'s ice', needs: ['power-strike', 'blizzard'], target: 'foe', power: 8, stat: 'atk', scale: 0.9, element: 'ice' },
+  'holy-cross': { name: 'Holy Cross', about: 'a cut and a prayer crossed in light', needs: ['power-strike', 'heal'], target: 'foe', power: 10, stat: 'atk', scale: 0.85, element: 'light' },
+  'venom-flame': { name: 'Venom Flame', about: 'poison thrown through fire, on every foe', needs: ['poison-blade', 'fire'], target: 'foes', power: 6, stat: 'mag', scale: 0.6, element: 'fire', status: { is: 'poison', chance: 0.5 } },
+  trinity: { name: 'Trinity', about: 'blade, flame and prayer as one, on every foe', needs: ['power-strike', 'fire', 'heal'], target: 'foes', power: 12, stat: 'atk', scale: 0.7, element: 'light' },
+});
+
 export const ITEM_PRESETS = Object.freeze({
   potion: { name: 'Potion', price: 8, heal: 30, target: 'ally' },
   'hi-potion': { name: 'Hi-Potion', price: 30, heal: 90, target: 'ally' },

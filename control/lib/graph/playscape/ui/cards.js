@@ -188,6 +188,7 @@ function cuesCard() {
   '  ROWS: rules.rows: true, party[].row: front | back (blows from or at the back at half; a skill\'s or weapon\'s ranged?: true',
   '  reaches), the Row command. SCAN: scan?: true on a skill or an item says a foe\'s HP, weaknesses and guards.',
   '  OPENINGS: rules.openings: true | { first?, ambush? } (never at a boss), encounters[].opening: normal | first | ambush.',
+  '  TECHS: techs: true | [ids] | { <id>: { needs: [2-3 skills], …a skill } }: made together, each maker its part.',
   '  encounters[].pages: [{ when: { start: true } | { foe?, hpBelow } | { round }, say, who?, sets?, summon?, heal? }],',
   '  each said once; summon: [foe] calls foes in (a dormant figure each past the foes\' in who), heal: share.',
   '  states: { <id>: { said, skip?, noCast?, miss?, wild?, tick?, stats?, takes?, berserk?, reflect?, taunt?, doom?, rates?,',

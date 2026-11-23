@@ -77,6 +77,11 @@
  *                 price (an item's or gear's `price`, else the preset's), bought into the bag with `rules.gold`, and the
  *                 bag's priced things bought back at half unless `buys: false`; `inn`: a night's stay for that gold (full
  *                 HP and MP, cured). A cue opens one: `then: { emit: 'rpg-shop:<id>' }`
+ *     techs?:     true | [tech ids] | { <id>: { needs: [skills], …a skill's fields } }   JOINT TECHS (presets.js TECH_PRESETS):
+ *                 a skill two or three members make together, each knowing one of its needs (2 or 3, different): listed in
+ *                 a member's skills with whom it is made (or no partner), each maker paying its part's MP, the partners'
+ *                 turns spent on it (in rounds reserved as the round is picked; on the timeline their gauges emptied),
+ *                 made with their stat summed; never by a familiar. None asked, none listed
  *     juice?:     false | { on?: { <happening>: juice }, <name>: [steps] }   what the fight's moments feel like, over the
  *                 defaults (juice.js); a skill's own `juice` too. Every beat says rpg-on:<happening> on the bus
  *     rules?:     { gold?: '<var>', defeat?: 'fail' | 'retry', switch?: 'anywhere' | 'never', carry?: 'class' | 'all',
@@ -113,7 +118,7 @@
  *   lowerRpg(play)      → { vars, rpg: cfg } or null (absent: zero bytes)
  *   RPG_RULES, RPG_TARGETS, RPG_STATUSES
  */
-import { CLASS_PRESETS, SKILL_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS, GEAR_SLOTS, STATE_PRESETS } from './presets.js';
+import { CLASS_PRESETS, SKILL_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS, GEAR_SLOTS, STATE_PRESETS, TECH_PRESETS } from './presets.js';
 import { RPG_STATS, rpgInit, rpgMirror } from './kernel.js';
 import { readJuice } from './juice.js';
 import { itemKey } from '../ui/items.js';
@@ -429,7 +434,7 @@ export function readRpg(play) {
   const P = play && play.rpg;
   if (P === undefined) return null;
   if (!isObj(P)) throw err(' is { party, classes?, skills?, foes?, items?, encounters?, random?, rules? }');
-  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'shops', 'rules', 'juice', 'states'], '');
+  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'shops', 'rules', 'juice', 'states', 'techs'], '');
   // the world's own states (read first: a skill or an item names them), each its definition, or true for the preset
   const statesGiven = table(P.states, '.states') ?? {};
   knownStates = Object.fromEntries(Object.entries(statesGiven).map(([k, d]) => [id(k, '.states key'), d === null ? STATE_PRESETS[k] ?? (() => { throw err(`.states: '${k}' is no preset state (${Object.keys(STATE_PRESETS).join(', ')}): define it ({ said, skip | noCast | miss | wild | tick, rounds? })`); })() : d]));
@@ -547,6 +552,10 @@ export function readRpg(play) {
   for (const d of Object.values(table(P.gear, '.gear') ?? {})) for (const k of (isObj(d) && Array.isArray(d.grants) ? d.grants : [])) if (typeof k === 'string') skillWant.add(k);
   for (const d of Object.values(GEAR_PRESETS)) for (const k of d.grants ?? []) skillWant.add(k);
   // the skills: the world's, then every one a class or a foe names
+  // (the JOINT TECHS the world asks for: true, every preset; a list of preset ids; or its own { <id>: { needs, … } };
+  // their parts are wanted as skills too)
+  const techsGiven = P.techs === undefined || P.techs === false ? {} : P.techs === true ? Object.fromEntries(Object.keys(TECH_PRESETS).map((k) => [k, null])) : Array.isArray(P.techs) ? Object.fromEntries(P.techs.map((k) => [k, null])) : isObj(P.techs) ? { ...P.techs } : (() => { throw err('.techs is true (every preset), [tech ids] or { <id>: { needs: [skills], …a skill\'s fields } }: what two or three members make together'); })();
+  for (const [k, d0] of Object.entries(techsGiven)) { const d = d0 ?? TECH_PRESETS[k]; if (!d) throw err(`.techs: '${k}' is no preset tech (${Object.keys(TECH_PRESETS).join(', ')}): define it ({ needs, target, power, … })`); for (const n of Array.isArray(d.needs) ? d.needs : []) if (typeof n === 'string') skillWant.add(n); }
   const skillsGiven = table(P.skills, '.skills') ?? {};
   for (const s of skillWant) if (!(s in skillsGiven)) skillsGiven[s] = null;
   const skills = {};
@@ -554,6 +563,18 @@ export function readRpg(play) {
     const d = d0 ?? SKILL_PRESETS[k];
     if (!d) throw err(`.skills: '${k}' is no preset skill: define it ({ mp, target, power, stat, … })`);
     skills[k] = readSkill(k, d, `.skills.${k}`);
+  }
+  // (each tech a skill of its own, its `needs` the parts its makers know: two or three, each a skill of the world's)
+  const joints = [];
+  for (const [k, d0] of Object.entries(techsGiven)) {
+    const d = d0 ?? TECH_PRESETS[k], at = `.techs.${k}`;
+    if (!isObj(d)) throw err(`${at} is { needs: [skills], …a skill's fields }`);
+    const { needs, ...rest } = d;
+    if (!Array.isArray(needs) || needs.length < 2 || needs.length > 3 || new Set(needs).size !== needs.length) throw err(`${at}.needs is two or three different skills, one each its makers know`);
+    for (const n of needs) if (!skills[n]) throw err(`${at}.needs: '${n}' is no skill of the world's`);
+    if (skills[k]) throw err(`${at}: '${k}' is a skill too; a tech takes a name of its own`);
+    skills[id(k, `${at} key`)] = { ...readSkill(k, rest, at), joint: [...needs] };
+    joints.push(k);
   }
 
   // the items a fight can use (default: every preset), their names the world's own when play.items names them
@@ -678,7 +699,7 @@ export function readRpg(play) {
   const keys = isObj(play.items) ? Object.fromEntries(Object.entries(play.items).filter(([, d]) => isObj(d) && d.kind === 'key').map(([k, d]) => [itemKey(k), typeof d.name === 'string' && d.name ? d.name : words(k)])) : {};
   // (a world with a limit break keeps each member's gauge; one with none carries no gauge at all)
   const limits = Object.values(skills).some((S) => S.limit);
-  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(limits ? { limits: true } : {}), ...(Object.keys(keys).length ? { keys } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
+  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, ...(states ? { states } : {}), ...(limits ? { limits: true } : {}), ...(Object.keys(keys).length ? { keys } : {}), ...(joints.length ? { joints } : {}), ...(shops ? { shops } : {}), rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;

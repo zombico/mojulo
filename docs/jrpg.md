@@ -294,6 +294,15 @@ fight the chest stands for, sprung as the party walks up, its treasure had when 
 two a stage, one in four locked and about one in seven a mimic. The citadel's own gated doors are met in play as locks,
 each opened by the key its guard carries (docs/walled-core-dungeon.md, Met in play).
 
+**Joint techs** (`play.rpg.techs`, a book's `battles.techs`: true for every preset, a list, or the world's own
+`{ needs, …a skill }`): a blow or a spell two or three members make together, each knowing one of its `needs`. A member
+sees each tech it could make a part of in its skills, with whom it would be made, or "no partner"; picked, each maker
+pays its own part's MP, the partners' turns are spent on it (in rounds they are reserved as the round is picked, so
+none moves first; on the timeline their gauges empty), and it is made with their stat summed, so it outhits any one of
+them. A familiar never starts one. The presets: Fire Strike and Frost Strike (a fighter's Power Strike with a mage's
+Fire or Blizzard), Holy Cross (Power Strike and a cleric's Heal), Venom Flame (a rogue's Poison Blade and Fire, on every
+foe) and Trinity (all three, on every foe). A composed party RPG asks for them.
+
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour
 among the town's wares. Each is opened by its keeper, and only where its lot's door is laid on the town's stage.

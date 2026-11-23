@@ -584,6 +584,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   }
   // (and keeps treasure off the path: two chests a fighting stage, opened once, gameworld/chests.js)
   if (turnBased && world.battles && world.battles.chests === undefined) world.battles = { ...world.battles, chests: { ...ROUND_CHESTS } };
+  // (and its party makes joint techs together where its members know their parts: play.rpg techs)
+  if (turnBased && world.battles && world.battles.techs === undefined) world.battles = { ...world.battles, techs: true };
   if (hubbed) world.brief.hub = hubId;
   // (round a hub: its castle's level, its dungeon, the trades on its town's street, said as the world was laid)
   if (hubbed && (castled || dungeoned || turnBased)) world.brief.round = { ...(castled ? { castle: `${wid}-${castleAt + 1}`.slice(0, 48) } : {}), ...(dungeoned ? { dungeon: `${wid}-${N}`.slice(0, 48) } : {}), ...(turnBased ? { trades: ['inn', 'temple'] } : {}) };

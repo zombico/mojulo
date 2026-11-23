@@ -29,7 +29,7 @@
  *                          the merchant's wares by how far on (SHOP_WARES) or the book's own, bought back at half; a
  *                          night at the inn for INN_PRICE gold, more further on, or the book's price (inn: false, none)
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
- *     classes?, skills?, foes?, items?, gear?, juice?, states?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
+ *     classes?, skills?, foes?, items?, gear?, juice?, states?, techs?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
  *     manual?: <a lorecube manual, at any depth>,   a setting's creatures fielded (battles-manual.js): its foes and their
  *                          skills, its packs by role and level and its boss, each under the page's own word for it
  *     tree?: <a lorecube skill tree, at any depth> | [trees],   a school the party can be in (battles-tree.js): a class
@@ -229,7 +229,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests', 'techs'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -384,7 +384,7 @@ export function battleParty(G) {
 /** The play.rpg every stage shares, less its encounters. */
 export function battleBase(G) {
   const B = G.battles ?? {};
-  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'techs'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   // gold is the bag's (held:bag:gold), so it is carried as every item is
   // a book fighting on boards has the board's own book besides (the summoner and its summons), when it uses it
   const base = { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };

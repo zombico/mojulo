@@ -698,6 +698,50 @@ describe('openings', () => {
   });
 });
 
+// JOINT TECHS (play.rpg.techs): a skill two or three members make together, each knowing one of its needs: listed with
+// whom it is made, each maker paying its part, the partners' turns spent on it, its stat their sum; never by a familiar,
+// never without a free partner; a world asking none lists none
+describe('joint techs', () => {
+  const dummy = { name: 'Dummy', hp: 9999, mp: 0, atk: 1, def: 0, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['fire'] };
+  const cfgOf = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 8 }, { id: 'bram', class: 'mage', level: 8 }], foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }], techs: true, ...extra } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); return [R, v]; };
+  const tech = (cfg, R, v, k) => rpgOptions(cfg, R, 'ayla', v).skills.find((x) => x.id === k);
+
+  it('is listed with whom it is made, or why not; a world asking none lists none', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    expect(tech(cfg, R, v, 'fire-strike')).toMatchObject({ ok: true, joint: ['Bram'] });
+    // (a tech it could make a part of, its other makers missing: listed, never usable)
+    expect(tech(cfg, R, v, 'trinity')).toMatchObject({ ok: false, why: 'partner' });
+    R.b.side.bram.st.sleep = 2;
+    expect(tech(cfg, R, v, 'fire-strike')).toMatchObject({ ok: false, why: 'partner' });
+    const plain = cfgOf({ techs: undefined }), [RP, vP] = begin(plain);
+    expect(rpgOptions(plain, RP, 'ayla', vP).skills.some((x) => x.joint)).toBe(false);
+    expect('joints' in plain).toBe(false);
+  });
+
+  it('is made together: each pays its part, the partner\'s turn spent, the blow their sum', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg), mp = R.m.bram.mp;
+    const out = rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'fire-strike', target: 'f0' }, bram: { act: 'attack', target: 'f0' } }, v);
+    expect(out.find((x) => x.joint)).toMatchObject({ text: 'Ayla and Bram: Fire Strike!', who: 'ayla', joint: ['bram'] });
+    expect(out.some((x) => x.kind === 'joined' && x.who === 'bram')).toBe(true);
+    expect(R.m.bram.mp).toBe(mp - cfg.skills.fire.mp);
+    // (the partner's own pick this round never made: its turn went to the tech)
+    expect(out.some((x) => x.who === 'bram' && x.kind !== 'joined')).toBe(false);
+    expect(out.find((x) => x.kind === 'hurt' && x.target === 'f0')).toMatchObject({ element: 'fire', mul: 2 });
+    // (its next round its own again)
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' }, bram: { act: 'attack', target: 'f0' } }, v).some((x) => x.who === 'bram' || x.by === 'bram')).toBe(true);
+  });
+
+  it('on the timeline the partner\'s gauge is emptied; a familiar never starts one; each read and taught', () => {
+    const cfg = cfgOf({ rules: { turns: 'timeline' } }), [R, v] = begin(cfg);
+    while (R.b.turn !== 'ayla') rpgRound(cfg, R, { [R.b.turn]: { act: 'guard' } }, v);
+    rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'fire-strike', target: 'f0' } }, v);
+    expect(R.b.turn).not.toBe('bram');
+    expect(() => cfgOf({ techs: { solo: { needs: ['fire'], target: 'foe', power: 3 } } })).toThrow(/two or three different skills/);
+    expect(() => cfgOf({ techs: { odd: { needs: ['fire', 'nope'], target: 'foe', power: 3 } } })).toThrow(/no preset skill|no skill of the world's/);
+  });
+});
+
 // A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
 // the blow let go at twice its power; a guard takes half of it like any blow
 describe('a charged blow', () => {

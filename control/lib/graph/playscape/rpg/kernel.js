@@ -217,6 +217,13 @@ export function buildRpg() {
       const why = silenced && S.mp > 0 ? 'silenced' : M.mp < S.mp ? 'mp' : S.hpCost && M.hp <= S.hpCost ? 'hp' : S.limit && gauge < LIMIT ? 'limit' : wait > 0 ? 'cooldown' : '';
       return { id: k, name: S.name, mp: S.mp, target: S.target, ok: !why, why, ...(S.hpCost ? { hp: S.hpCost } : {}), ...(S.limit ? { limit: gauge } : {}), ...(wait ? { wait } : {}) };
     });
+    // (the JOINT TECHS it can make a part of, in a fight: with whom, or why not)
+    if (cfg.joints && R.b) for (const k of cfg.joints) {
+      const S = cfg.skills[k];
+      if (!S.joint.some((n) => knows(cfg, R, id, n))) continue;
+      const P = makersOf(cfg, R, id, k);
+      skills.push({ id: k, name: S.name, mp: P.ok ? cfg.skills[P.parts[id]].mp : 0, target: S.target, ok: P.ok, why: P.ok ? '' : 'partner', joint: P.ok ? P.with.map((m) => nameOf(cfg, R, m)) : [] });
+    }
     const items = [];
     for (const k in cfg.items) { const n = (vars && vars['held:bag:' + k]) || 0; if (n > 0) items.push({ id: k, name: cfg.items[k].name, count: n, target: cfg.items[k].target }); }
     const commands = [
@@ -556,6 +563,47 @@ export function buildRpg() {
     if (b.ct) b.ct[uid] = 0;
     out.push({ text: f.name + ' appears!', kind: 'summon', who: uid, target: uid });
   }
+  // ── JOINT TECHS (rpg.js `techs`): a skill its makers make together, each knowing one of its needs ──────────────
+  // whether a member knows a skill (its class's, carried or granted, learned)
+  const knows = (cfg, R, m, k) => usable(cfg, R, m).indexOf(k) >= 0;
+  // whether a member can make its part now: standing, free to act, its part's MP and voice
+  function canPart(cfg, R, m, k) {
+    const s = R.b.side[m], S = cfg.skills[k];
+    if (!s || R.m[m].hp <= 0 || s.st.sleep || (cfg.states && stuck(cfg, R, m)) || s.joined === R.b.round + 1) return false;
+    return R.m[m].mp >= S.mp && !(s.st.silence && S.mp > 0) && knows(cfg, R, m, k);
+  }
+  // the makers of a tech with `who` among them: { ok, parts: { <member>: <need> }, with: [the others] }
+  function makersOf(cfg, R, who, k) {
+    const needs = cfg.skills[k].joint, parts = {};
+    const mine = needs.find((n) => canPart(cfg, R, who, n));
+    if (!mine) return { ok: false, parts, with: [] };
+    parts[who] = mine;
+    for (const n of needs) {
+      if (n === mine) continue;
+      const m = R.b.ids.find((x) => !(x in parts) && !isAuto(cfg, x) && canPart(cfg, R, x, n));
+      if (m == null) return { ok: false, parts, with: [] };
+      parts[m] = n;
+    }
+    return { ok: true, parts, with: Object.keys(parts).filter((m) => m !== who) };
+  }
+  // a tech made: each maker pays its part, the blow or spell made with their stat summed, the others' turns spent on it
+  function joint(cfg, R, who, A, pick, vars, out) {
+    const S = cfg.skills[pick.skill], P = makersOf(cfg, R, who, pick.skill);
+    if (!P.ok) { out.push({ text: A.name + ' has no one to make ' + S.name + ' with.', kind: 'miss', who }); return; }
+    const makers = [who, ...P.with];
+    for (const m of makers) R.m[m].mp -= cfg.skills[P.parts[m]].mp;
+    out.push({ text: makers.map((m) => nameOf(cfg, R, m)).join(' and ') + ': ' + S.name + '!', kind: 'cast', who, skill: pick.skill, target: pick.target, joint: P.with.slice(), mp: A.mp });
+    for (const m of P.with) {
+      out.push({ text: '', kind: 'joined', who: m, skill: pick.skill, mp: R.m[m].mp });
+      // (its turn spent: in rounds, it sits out the rest of this one; on the timeline, its gauge emptied)
+      R.b.side[m].joined = R.b.round + 1;
+      if (R.b.ct) R.b.ct[m] = Math.min(R.b.ct[m], 0);
+    }
+    // (made with every maker's stat: a proxy of the one who leads, its number the sum)
+    const sum = makers.reduce((n, m) => n + statsOf(cfg, R, m)[S.stat], 0), L = Object.create(A);
+    L.S = Object.assign({}, A.S, { [S.stat]: sum });
+    apply(cfg, R, L, S, S.target, pick.target, out, vars);
+  }
   function actOne(cfg, R, who, pick, vars, out) {
     const A = unit(cfg, R, who);
     if (!A || A.hp <= 0) return;
@@ -585,6 +633,7 @@ export function buildRpg() {
       apply(cfg, R, A, pick.charged ? charged(attackOf(cfg, A)) : attackOf(cfg, A), 'foe', pick.target, out);
       return;
     }
+    if (pick.act === 'skill' && cfg.skills[pick.skill] && cfg.skills[pick.skill].joint) return joint(cfg, R, who, A, pick, vars, out);
     if (pick.act === 'skill') {
       const S0 = cfg.skills[pick.skill], S = S0 && pick.charged ? charged(S0) : S0;
       if (!S) return;
@@ -679,7 +728,7 @@ export function buildRpg() {
   const isAuto = (cfg, id) => { const p = memberOf(cfg, id); return !!(p && p.auto); };
   function allyPick(cfg, R, id, vars) {
     const p = memberOf(cfg, id), keeper = p.auto.keeper, S = (k) => cfg.skills[k];
-    const ok = options(cfg, R, id, vars).skills.filter((x) => x.ok).map((x) => x.id);
+    const ok = options(cfg, R, id, vars).skills.filter((x) => x.ok && !x.joint).map((x) => x.id);
     const ratio = (m) => R.m[m].hp / Math.max(1, statsOf(cfg, R, m).hp);
     const hurt = living(R).filter((m) => ratio(m) < 0.4).sort((a, c) => (a === keeper ? -1 : c === keeper ? 1 : ratio(a) - ratio(c)));
     const mend = ok.find((k) => S(k).heal && (S(k).target === 'ally' || S(k).target === 'allies'));
@@ -784,6 +833,14 @@ export function buildRpg() {
     b.round++;
     for (const m of b.ids) b.side[m].guard = 0;
     const fleeing = b.ids.some((m) => R.m[m].hp > 0 && picks[m] && picks[m].act === 'flee');
+    // (a tech picked: its partners reserved for it before anyone acts, so none makes its own move first; a member
+    // already reserved by another's tech makes no tech of its own)
+    if (cfg.joints) for (const m of living(R)) {
+      const p = picks[m];
+      if (!p || p.act !== 'skill' || !cfg.skills[p.skill] || !cfg.skills[p.skill].joint || b.side[m].reserved === b.round + 1) continue;
+      const P = makersOf(cfg, R, m, p.skill);
+      if (P.ok) for (const x of P.with) b.side[x].reserved = b.round + 1;
+    }
     let order = [];
     if (fleeing) {
       if (flee(cfg, R, vars, out)) return out;
@@ -794,6 +851,8 @@ export function buildRpg() {
     order.sort((x, y) => y.key - x.key || x.i - y.i);
     for (const o of order) {
       if (!livingFoes(R).length || !living(R).length) break;
+      // (a member whose turn a tech spent, or is spending, this round sits it out)
+      if (!o.foe && b.side[o.who] && (b.side[o.who].joined === b.round + 1 || b.side[o.who].reserved === b.round + 1)) continue;
       if (o.foe) { if (o.foe.hp > 0) act(cfg, R, o.who, o.foe.st.sleep ? { act: 'sleep' } : foePick(cfg, R, o.foe), vars, out); }
       else act(cfg, R, o.who, isAuto(cfg, o.who) ? pickOf(cfg, R, o.who, picks, vars) : o.pick, vars, out);
     }
