@@ -85,6 +85,11 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   (`PLATFORM_RUN` in `gameworld/sound-sheet.js`: the wall kick, the wall slide, a blow taken, a foe stomped on, the
   double jump, `air`, e.airJumpsUsed up). A flavored card on a palette row voices every row that stands on it, for its
   flavor: one cartoon step on any floor. The ground pound is the feel lab's and not yet the runtime's, so it is silent.
+- **Steel Serpents** (`steel-serpents`): its quiet steps (any floor, a steel catwalk), its vault, drop and roll, its
+  knife and its takedown, a keycard door and a security door, a keycard picked up, the moment it is spotted, the
+  extraction, and its guards' shout, grunt and fall where its foes are drawn as people. Nothing of the rail's code: its
+  flavor answers every word its sheet plays. The sneak goal's patrolling guards have no voice of their own yet; being
+  spotted is theirs.
 - Not yet: the beds (the library's ambience loops), the traffic heard by its own engines, the engine handoffs.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a

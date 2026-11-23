@@ -38,3 +38,6 @@
 - Jumping Giuseppe sounds like itself where the library is installed: a springy cartoon hero's steps, jumps and
   landings, its coins, extra lives, checkpoints and goal, its bumps and falls, and, heard for the first time, its wall
   kick, its slide down a wall, its double jump and the foes it stomps.
+- Steel Serpents sounds like itself where the library is installed: an operative's quiet steps on concrete and steel
+  catwalks, a vault, a drop and a roll, a knife and a takedown, keycard doors and security doors, the alert as a guard
+  spots you, the extraction, and the guards' shouts, grunts and falls.
