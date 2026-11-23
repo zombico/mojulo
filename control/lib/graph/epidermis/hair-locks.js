@@ -132,7 +132,12 @@ export const LOCK_RAIL = Object.freeze({ margin: 0.8, slope: 0.6, rise: 0.015 })
  * the skin, letting go by `far`; each flow `layer` (m) at most further out the higher its root (the crown's hair lies over
  * the nape's), its root on the shell and rising to its layer over `rise` of its length (a root comes out of the scalp) */
 export const LOCK_CONFORM = Object.freeze({ near: 0.02, far: 0.035, layer: 0.006, rise: 0.12 });
-export const LOCK_EDGE = Object.freeze({ step: 0.002, reach: 0.035, held: 0.4 });
+export const LOCK_EDGE = Object.freeze({ step: 0.002, reach: 0.035, held: 0.4, lies: 0.012 });
+/** a lock hanging below the head's middle (`flush`): its distance from the head's upright axis grows by at most this share
+ * of its run */
+export const LOCK_HANG = 0.35;
+/** and each of its steps there sideways at most [share of its drop, plus m] */
+export const LOCK_HANG_STEP = Object.freeze([0.6, 0.003]);
 /** a TRAILER: riding its flow's edge (`at` across it, −1 … 1) from `from` along it to its tip, on past a free tip by `beyond`
  * of that run, `width` of its flow's; standing hair's `spikes` × the dial's trailers (each its own guide) */
 export const LOCK_TRAIL = Object.freeze({ from: 0.35, at: 0.7, beyond: 0.15, width: 0.35, spikes: 2 });
@@ -498,7 +503,12 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       // (and its tip on downstream to where the hair stops or turns to stubble, when that is within reach: the cut's line,
       // a fade's, is the locks' and not the shell's edge)
       let cutEnd = false;
-      if (!tied && !stand && !ride) { const N0 = spine.length - 1, tEnd = unit(sub(spine[N0], spine[N0 - 1])), end = toEdge(spine[N0], scl(tEnd, -1), (q) => !grows[skin.nearest(q)] || exempt(q)); if (end) { spine = [...spine, end]; cutEnd = true; } }
+      // (`flush`, the painted face's hair: only a tip that LIES on the scalp where hair grows, within LOCK_EDGE.lies of it, is
+      // carried on to the cut's line; a lock hanging free past the ear or the nape found the skin under its tip, no hair
+      // growing there, and was carried onto it: its tip kinked toward the skin and held its width to it, a flat blunt
+      // wedge standing out of long hair)
+      const onScalp = (p) => { const h = heightOn(p); return !!h && h.h < LOCK_EDGE.lies && grows[skin.nearest(p)]; };
+      if (!tied && !stand && !ride && (!flush || onScalp(spine.at(-1)))) { const N0 = spine.length - 1, tEnd = unit(sub(spine[N0], spine[N0 - 1])), end = toEdge(spine[N0], scl(tEnd, -1), (q) => !grows[skin.nearest(q)] || exempt(q)); if (end) { spine = [...spine, end]; cutEnd = true; } }
       // (a flow that reaches the cut's line keeps its width to it, cut there: only a free end draws to its tip)
       const along = (u) => (cutEnd ? Math.min(u, LOCK_EDGE.held) : u);
       // (`seal`, realistic laws 14: a stroke STOPS where it meets the body, as it does on the head. Where its spine runs into
@@ -509,6 +519,17 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
         const k = spine.findIndex((p, i) => i > pre && body.some((B) => B.depth(p) < -HAIR_CLEAR.inside));
         if (k >= 0 && k <= pre + 2) { if (trail) trailers--; counts.dropped = (counts.dropped ?? 0) + 1; continue; }
         if (k >= 0) { spine = spine.slice(0, k); cutEnd = false; counts.stopped = (counts.stopped ?? 0) + 1; }
+      }
+      // (`flush`, the painted face's hair: below the head's middle a lock HANGS: its distance from the head's upright axis
+      // grows by at most LOCK_HANG of its run, so a tip that turns out (a layer's short end at the jaw, a guide bent round
+      // the ear) falls with the rest and never stands out of the hair as a spike; the clearance keeps it off the body)
+      if (flush && !tied) for (let i = 1; i < spine.length; i++) {
+        const p = spine[i], q = spine[i - 1]; if (p[2] >= centre[2]) continue;
+        const rp = Math.hypot(p[0] - centre[0], p[1] - centre[1]), rq = Math.hypot(q[0] - centre[0], q[1] - centre[1]), maxR = rq + LOCK_HANG * len(sub(p, q));
+        if (rp > maxR && rp > 1e-9) { const k = maxR / rp; spine[i] = [centre[0] + (p[0] - centre[0]) * k, centre[1] + (p[1] - centre[1]) * k, p[2]]; }
+        // (and each step sideways at most LOCK_HANG_STEP of its drop, round the head too: a tip running off level)
+        const h = [spine[i][0] - q[0], spine[i][1] - q[1]], hl = Math.hypot(h[0], h[1]), hmax = LOCK_HANG_STEP[0] * Math.abs(spine[i][2] - q[2]) + LOCK_HANG_STEP[1];
+        if (hl > hmax) spine[i] = [q[0] + (h[0] * hmax) / hl, q[1] + (h[1] * hmax) / hl, spine[i][2]];
       }
       spine = spine.map(clear);
       // (a lying flow's root, walked or reached back along its first tangent, laid round the head at its first guide point's height: a

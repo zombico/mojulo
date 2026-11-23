@@ -22,7 +22,7 @@ import { readDermis, skinBase, toSrgb, hairColourOf } from './dermal-map.js';
 import { vertexNormals } from './dermal-chart.js';
 import { headChartOf, STAND_M } from './dermal-head.js';
 import { bodyDermis, neckTone, BODY_DERMIS } from './dermal-body.js';
-import { layoutDermis, paintDermis } from './dermal-texture.js';
+import { layoutDermis, paintDermis, AO_FLOOR } from './dermal-texture.js';
 import { browStrokes } from './dermal-brow.js';
 import { encodePngRgba } from '../landscape/surface-textures.js';
 import { strandPage, strandCellUV, lashPage, lashCellUV, LASH_CELL0, LASH_PAGE, lockPage, lockCellUV, LOCK_CELL0, LOCK_PAGE } from './hair-strands.js';
@@ -77,17 +77,36 @@ function coatOnSkin(mesh, head) {
     return best;
   };
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-  return (fi) => {
-    const tri = mesh.faces[fi], m = [0, 1, 2].map((q) => (V[tri[0]][q] + V[tri[1]][q] + V[tri[2]][q]) / 3), v = nearest(m);
-    if (v === null) return null;
+  // (the skin's face nearest a point, by the skin's point nearest it and then that point's faces by their middles)
+  const faceNear = (m) => {
+    const v = nearest(m); if (v === null) return null;
     let sf = null, sd = Infinity;
     for (const f of faces.get(v)) { const t = mesh.faces[f], c = [0, 1, 2].map((q) => (V[t[0]][q] + V[t[1]][q] + V[t[2]][q]) / 3), d = Math.hypot(...sub(m, c)); if (d < sd) { sd = d; sf = f; } }
+    return sf;
+  };
+  // (a point read off a skin face's place on the page by its barycentric weights, clamped into the face: a point read
+  // off past it landed in the page's white gutter, a white fleck)
+  const onFace = (sf, p) => {
     const [A, B, Cc] = mesh.faces[sf].map((q) => V[q]), uv = head.maps.faceUV(head.local.get(sf));
     const e0 = sub(B, A), e1 = sub(Cc, A), d00 = dot(e0, e0), d01 = dot(e0, e1), d11 = dot(e1, e1), den = d00 * d11 - d01 * d01 || 1e-18;
-    // (the weights clamped into the face: a corner read off past it landed in the page's white gutter, a white fleck)
-    return tri.map((q) => { const e2 = sub(V[q], A), d20 = dot(e2, e0), d21 = dot(e2, e1), w = [0, (d11 * d20 - d01 * d21) / den, (d00 * d21 - d01 * d20) / den]; w[0] = 1 - w[1] - w[2]; const cw = w.map((x) => Math.max(0, x)), t = cw[0] + cw[1] + cw[2] || 1; return [0, 1].map((k) => (cw[0] * uv[0][k] + cw[1] * uv[1][k] + cw[2] * uv[2][k]) / t); });
+    const e2 = sub(p, A), d20 = dot(e2, e0), d21 = dot(e2, e1), w = [0, (d11 * d20 - d01 * d21) / den, (d00 * d21 - d01 * d20) / den]; w[0] = 1 - w[1] - w[2];
+    const cw = w.map((x) => Math.max(0, x)), t = cw[0] + cw[1] + cw[2] || 1;
+    return [0, 1].map((k) => (cw[0] * uv[0][k] + cw[1] * uv[1][k] + cw[2] * uv[2][k]) / t);
+  };
+  // (each coat POINT its own place, shared by the faces that use it, so the export splits no corner (game speed: the GPU
+  // skins every vertex); only a face whose corners land on the page's two sides of its seam reads all three off the skin
+  // face nearest its middle, a corner at a time having stretched the page between them)
+  const memo = new Map(), atPoint = (q) => { if (!memo.has(q)) { const sf = faceNear(V[q]); memo.set(q, sf === null ? null : onFace(sf, V[q])); } return memo.get(q); };
+  return (fi) => {
+    const tri = mesh.faces[fi], per = tri.map(atPoint);
+    if (per.every(Boolean)) { const us = per.map((u) => u[0]), vs = per.map((u) => u[1]); if (Math.max(...us) - Math.min(...us) < COAT_SEAM && Math.max(...vs) - Math.min(...vs) < COAT_SEAM) return per; }
+    const sf = faceNear([0, 1, 2].map((q) => (V[tri[0]][q] + V[tri[1]][q] + V[tri[2]][q]) / 3));
+    return sf === null ? null : tri.map((q) => onFace(sf, V[q]));
   };
 }
+/** a coat face whose corners' places on the head's page lie further apart than this (a share of the page) straddles its
+ * seam */
+const COAT_SEAM = 0.1;
 /** a head point this far inside its field (m) is let down under another part's skin */
 const HIDDEN = 0.0003;
 
@@ -238,7 +257,7 @@ function headSkin(mesh, recipe, D, page) {
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
   // (the brows PAINTED where the recipe says, `faceHairPaint`: the groom's hairs as strokes on the head it charts, dermal-brow.js)
   const brows = recipe.faceHairPaint ? browStrokes(H, recipe.faceHairPaint.epidermis, { lashLine: !!recipe.faceHairPaint.lashLine }) : null;
-  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, { ...(recipe.hairClip ? { clip: recipe.hairClip } : {}), ...(brows ? { brows } : {}), ...(recipe.faceHairPaint?.beard ? { beardStreaks: true } : {}), ...(recipe.faceHairPaint?.scalp ? { scalpStreaks: true } : {}) });
+  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, { ...(recipe.hairClip ? { clip: recipe.hairClip } : {}), ...(brows ? { brows } : {}), ...(recipe.faceHairPaint?.beard ? { beardStreaks: true } : {}), ...(recipe.faceHairPaint?.scalp ? { scalpStreaks: true, aoFloor: AO_FLOOR } : {}) });
   return { chart, layout, maps, local, skinFace };
 }
 
@@ -269,7 +288,11 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   // skin's full rung. No chart, no page: the atlas as before, byte for byte.
   const rung = opts.cloth && Hd ? RELIEF_SIZE[reliefRung(recipe)] : 0, scale = rung ? rung / HW : 0;
   const cloth = rung ? clothPage(opts.cloth, { width: Math.round(W * scale), texel: (CLOTH_PAGE.texel * RELIEF_SIZE.L2) / rung }) : null;
-  const CH = cloth ? Math.round(cloth.H / scale) : 0, TH = BH + HH + SH + LH + KH + CH;
+  // (the painted face's hair, `faceHairPaint`: the strips in the head's row, beside its page, where the atlas is as wide as
+  // the body's and the head's page half of it; under it the atlas grew a strip a kind: game speed, a smaller texture)
+  const side = !!recipe.faceHairPaint && !!Hd && W - HW >= SW && HH >= SH + LH + KH, below = side ? 0 : SH + LH + KH;
+  const sx = side ? HW : 0, sy = side ? BH : BH + HH;
+  const CH = cloth ? Math.round(cloth.H / scale) : 0, TH = BH + HH + below + CH;
   const px = new Uint8Array(W * TH * 4).fill(255);
   for (let y = 0; y < BH; y++) px.set(B.albedo.subarray(y * BW * 4, (y + 1) * BW * 4), y * W * 4);
   if (Hd) for (let y = 0; y < HH; y++) px.set(Hd.albedo.subarray(y * HW * 4, (y + 1) * HW * 4), ((BH + y) * W) * 4);
@@ -278,11 +301,11 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   // (realistic laws 10: the lock hair's cards, `strands: 'plain'`, undyed: white strands, their colour the mass's own)
   const plain = Object.values(recipe.parts || {}).some((P) => P?.strands === 'plain');
   const dye = !plain && hairHex && pigment.every(Number.isFinite) ? { tint: hex3(hairHex).map(lin).map((m, i) => pigment[i] / Math.max(1e-6, m)), grey: H.dermis.grey ?? 0 } : null;
-  if (SH) { const S = strandPage({ w: SW, h: SH, dye }); for (let y = 0; y < SH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((BH + HH + y) * W) * 4); }
-  if (LH) { const S = lashPage({ w: SW, h: LH }); for (let y = 0; y < LH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((BH + HH + SH + y) * W) * 4); }
-  if (KH) { const S = lockPage({ w: SW, h: KH }); for (let y = 0; y < KH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((BH + HH + SH + LH + y) * W) * 4); }
+  if (SH) { const S = strandPage({ w: SW, h: SH, dye }); for (let y = 0; y < SH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((sy + y) * W + sx) * 4); }
+  if (LH) { const S = lashPage({ w: SW, h: LH }); for (let y = 0; y < LH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((sy + SH + y) * W + sx) * 4); }
+  if (KH) { const S = lockPage({ w: SW, h: KH }); for (let y = 0; y < KH; y++) px.set(S.rgba.subarray(y * SW * 4, (y + 1) * SW * 4), ((sy + SH + LH + y) * W + sx) * 4); }
   // (the clothes' PATTERNS on their page: each a grey its cloth's colour is multiplied by, white where none is)
-  if (cloth) clothAlbedo(opts.cloth, cloth, px, { W, row: BH + HH + SH + LH + KH, scale });
+  if (cloth) clothAlbedo(opts.cloth, cloth, px, { W, row: BH + HH + below, scale });
   // (a page's [s, t], t up, onto the atlas's)
   const onBody = ([s, t]) => [(s * BW) / W, 1 - ((1 - t) * BH) / TH], onHead = ([s, t]) => [(s * HW) / W, 1 - (BH + (1 - t) * HH) / TH];
   const white = onBody(B.faceUV(-1)?.[0] ?? [0.001, 0.999]), fis = new Map();
@@ -290,13 +313,13 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
   const q = W > 1024 ? 1e5 : 1e4, r5 = ([s, t]) => [Math.round(s * q) / q, Math.round(t * q) / q];
   const onHeadPage = new Set();
   mesh.faces.forEach((tri, fi) => { const f = H.faceOf(fi); if (f) { fis.set(fi, f.uv.map((q) => r5((f.page === 'head' ? onHead : onBody)(q)))); if (f.page === 'head') onHeadPage.add(fi); } });
-  const onStrands = ([s, t]) => [(s * SW) / W, 1 - (BH + HH + (1 - t) * SH) / TH], cardUVs = new Map();
-  const onLashes = ([s, t]) => [(s * SW) / W, 1 - (BH + HH + SH + (1 - t) * LH) / TH], onLocks = ([s, t]) => [(s * SW) / W, 1 - (BH + HH + SH + LH + (1 - t) * KH) / TH];
+  const onStrands = ([s, t]) => [(sx + s * SW) / W, 1 - (sy + (1 - t) * SH) / TH], cardUVs = new Map();
+  const onLashes = ([s, t]) => [(sx + s * SW) / W, 1 - (sy + SH + (1 - t) * LH) / TH], onLocks = ([s, t]) => [(sx + s * SW) / W, 1 - (sy + SH + LH + (1 - t) * KH) / TH];
   const cardAt = (a, l, cell) => (cell >= LOCK_CELL0 ? onLocks(lockCellUV(cell - LOCK_CELL0, [a, l])) : cell >= LASH_CELL0 ? onLashes(lashCellUV(cell - LASH_CELL0, [a, l])) : onStrands(strandCellUV(cell, [a, l])));
   for (const [fi, cs] of cards) if (!fis.has(fi)) cardUVs.set(fi, cs.map(([a, l, cell]) => r5(cardAt(a, l, cell))));
   // (a cloth face's corners on the cloth page: its texels the map's, the page's the atlas's over the map's scale)
   const clothUVs = new Map();
-  if (cloth) mesh.faces.forEach((tri, fi) => { if (fis.has(fi) || cardUVs.has(fi)) return; const c = cloth.faceUV(fi); if (c) clothUVs.set(fi, c.map(([x, y]) => r5([x / scale / W, 1 - (BH + HH + SH + LH + KH + y / scale) / TH]))); });
+  if (cloth) mesh.faces.forEach((tri, fi) => { if (fis.has(fi) || cardUVs.has(fi)) return; const c = cloth.faceUV(fi); if (c) clothUVs.set(fi, c.map(([x, y]) => r5([x / scale / W, 1 - (BH + HH + below + y / scale) / TH]))); });
   let face = -1;
   const url = `data:image/png;base64,${encodePngRgba(Buffer.from(px.buffer, px.byteOffset, px.byteLength), W, TH).toString('base64')}`;
   const uvAt = (ref) => { const c = fis.get(face); if (!c || ref.vi === undefined) return white; const k = mesh.faces[face].indexOf(ref.vi); return k < 0 ? white : c[k]; };
@@ -311,7 +334,10 @@ export function heroSkinPaint(mesh, recipe, opts = {}) {
     faceUV: (fi) => fis.get(fi) ?? null, onHead: (fi) => onHeadPage.has(fi), pages: { W, H: TH, body: [BW, BH], head: [HW, HH], ...(cloth ? { cloth: [W, CH] } : {}) },
     // (`clothUV(fi)` a cloth face's three corners on the cloth page, null off it; `cloth` the page for the relief to bake:
     // its pack, its chart, the map's scale and the page's first row on the atlas)
-    ...(cloth ? { clothUV: (fi) => clothUVs.get(fi) ?? null, cloth: { page: cloth, chart: opts.cloth, scale, row: BH + HH + SH + LH + KH } } : {}),
+    ...(cloth ? { clothUV: (fi) => clothUVs.get(fi) ?? null, cloth: { page: cloth, chart: opts.cloth, scale, row: BH + HH + below } } : {}),
     // (`cardUV(fi)` a hair card face's three corners on the strand strip, null off one; `alphaMask` the atlas has edges)
-    ...(cardUVs.size ? { cardUV: (fi) => cardUVs.get(fi) ?? null, alphaMask: true } : {}) };
+    ...(cardUVs.size ? { cardUV: (fi) => cardUVs.get(fi) ?? null, alphaMask: true } : {}),
+    // (`alphaBox` [u0, v0, u1, v1], glTF's v down: the strips whose strands have edges, the strand page's and the lash
+    // page's, so an export draws only the faces on it alpha tested and the body opaque; the lock page is opaque)
+    ...(cardUVs.size && SH + LH > 0 ? { alphaBox: [sx / W, sy / TH, (sx + SW) / W, (sy + SH + LH) / TH] } : {}) };
 }

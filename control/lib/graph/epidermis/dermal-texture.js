@@ -53,6 +53,8 @@ function streakAt(X, Y, th, seed) {
 export const HAIR_FRINGE = Object.freeze({ from: 0, reach: 3, share: 0.75 });
 /** the share of hair a clipped scalp is painted with at least, on the painted face's hair */
 export const CLIP_SOLID = 0.65;
+/** the painted face's floor under the baked occlusion (finishPages `aoFloor`) */
+export const AO_FLOOR = 0.72;
 /** a brow hair's colour against the hair's mean */
 const BROW_TONE = 0.8;
 /** the lash line's colour against the hair's mean: the lashes' roots, the darkest hair on the face */
@@ -127,7 +129,7 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  * stubble's by its length; absent, the paint as it was. `opts.brows` (dermal-brow.js `browStrokes`) the brows painted on
  * the head's texels, each hair a stroke; absent, none.
  */
-export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null, beardStreaks = false, scalpStreaks = false } = {}) {
+export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null, beardStreaks = false, scalpStreaks = false, aoFloor = undefined } = {}) {
   const P = dermalPages(layout, D), clipAt = clip ? clipField(clip.scalp) : null;
   for (const r of layout.rects) {
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
@@ -136,7 +138,7 @@ export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, 
       scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}), ...(brows ? { brows } : {}), ...(beardStreaks ? { beardStreaks } : {}), ...(scalpStreaks ? { scalpStreaks } : {}),
     });
   }
-  return finishPages(P, chart, faceUVs(chart, layout), D, layout);
+  return finishPages(P, chart, faceUVs(chart, layout), D, layout, aoFloor !== undefined ? { aoFloor } : {});
 }
 
 /** The pages, blank: the albedo white, the roughness mid, the flow at rest. */
@@ -259,7 +261,7 @@ const SHADE = Object.freeze({ radius: 0.035, strength: 3, depth: 0.75, tint: 0.6
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const smoothKnee = (o) => { const t = Math.max(0, Math.min(1, (o - SHADE.knee) / (1 - SHADE.knee))); return t * t * (3 - 2 * t); };
 /** The white tile, the occlusion baked through the faces' UVs (`chart.ao`) and multiplied in: the texture. */
-export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
+export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1, aoFloor = 0.5 } = {}) {
   const { N, NH, albedo, rough, trans, hair, fuzz, detail, classes } = P;
   // the white tile: what no skin face samples
   for (let y = 0; y < WHITE; y++) for (let x = 0; x < WHITE; x++) { const o = y * N + x; albedo.fill(255, o * 4, o * 4 + 4); }
@@ -269,7 +271,9 @@ export function finishPages(P, chart, uvOf, D, layout, { aoEmpty = 1 } = {}) {
   if (Array.isArray(chart.ao)) {
     ao = bakeVertex(chart, uvOf, N, NH, chart.ao, aoEmpty);
     // (and the dirt gathers where the skin is enclosed: the creases, the sockets' corners, the nostrils' rims)
-    for (let i = 0; i < N * NH; i++) { const k = 0.5 + 0.5 * ao[i] ** 1.3, g = D.dirt * Math.min(1, 1.6 * (1 - ao[i])); for (let c = 0; c < 3; c++) { const x = srgbLin(albedo[i * 4 + c] / 255) * k; albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, Math.min(1, x + (DIRT_COLOUR[c] * k - x) * 0.6 * g)))); } }
+    // (`aoFloor` the albedo's darkest under the baked occlusion: 0.5 as it was; the painted face's 0.72, AO_FLOOR, as a
+    // game's face bakes it, so a crease (under the lower lip, the eye's corners) reads as a soft shadow, never a black hole)
+    for (let i = 0; i < N * NH; i++) { const k = aoFloor + (1 - aoFloor) * ao[i] ** 1.3, g = D.dirt * Math.min(1, 1.6 * (1 - ao[i])); for (let c = 0; c < 3; c++) { const x = srgbLin(albedo[i * 4 + c] / 255) * k; albedo[i * 4 + c] = Math.round(255 * toSrgb(Math.max(0, Math.min(1, x + (DIRT_COLOUR[c] * k - x) * 0.6 * g)))); } }
     ao = Uint8Array.from(ao, (v) => byte(v));
   }
   // the SHADING (the dermis's `shade`, absent nothing): the occlusion at a face's reach, the sockets, the hollow under

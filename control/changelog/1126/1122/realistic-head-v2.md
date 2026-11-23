@@ -48,6 +48,18 @@ face toward the proportions and the clean structure of a current game character,
   onto the forehead over 16 mm instead of standing as a lip and a lock's root nearly on the skin; the scalp under a crop
   is the hair's own colour, with no dark line where the fade met it, and the fade's small cards are gone. The locks'
   texture is fine strands without the waves that read as wood grain.
+- Game speed held by a budget: the default woman and man are minted and exported as an engine takes them and held under
+  their triangles, vertices and atlas, the body drawn opaque (an E2E test). The textured shells share their corners again
+  (the man's vertices back from 43,445 to 36,765), the alpha cards (the lashes, the strand cards) are a primitive and a
+  masked material of their own over the body's vertices so the body draws opaque, and the strand, lash and lock strips
+  sit beside the head's page instead of under it (the atlas 2048 x 3104, where it was 3616 for her).
 
-Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; long hair has a few flat wedges
-standing out of it at the jaw's height and across the back, and a crop's shell a ledge at the nape.
+- Long hair hangs: no flat wedges standing out of it at the jaw's height and across the back. A lock's tip is carried on
+  to the cut's line only where it lies on the scalp (a lock hanging free was carried onto the skin under its tip and held
+  its width to it, a flat blunt wedge), and below the head's middle a lock falls, never turning out or running off level.
+- The fold under the lower lip is shallower (about 4 mm on her where it was 5, under 3 on him where it was 3.6 to 4.4),
+  the pad between the lip and the chin brought forward and up, and the skin's baked shadow softer on the painted face
+  (its darkest 0.72 of the colour, where it was half), so a crease reads as a soft shadow, never a black slot.
+
+Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; a crop's shell a ledge at the
+nape.

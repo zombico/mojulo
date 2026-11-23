@@ -303,6 +303,10 @@ const ALAR_CREASE = 0.3;
 const TEMPORAL_LINE = Object.freeze({ at: [[0.8, 0.07], [0.74, 0.17], [0.7, 0.3]], r: [0.03, 0.035, 0.03], prom: [0.004, 0.006, 0.004], join: 0.04 });
 /** the brow arch's shape: its peak's place out from the eye's centre (V, + out) and its outer end's radius */
 const BROW_SHAPE = Object.freeze({ peakOut: 0, tail: 0.025 });
+/** the fold under the lower lip, for looks: the mentalis pad brought forward (`pad`, V) and up (`up`, V) and the fold's
+ * carve its share (`carve`) of its radii, so the lip rolls down into a shallow fold, never an undercut, its underside
+ * facing down into a slot that the baked shadow turned black */
+export const MENTOLABIAL = Object.freeze({ pad: 0.012, up: 0.012, carve: 0.6 });
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
  * radius (its width), its edge's blend */
@@ -701,7 +705,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // of it (with nothing there the skin fell back to the bone between the lip's body and the chin's mass: a hollow
   // ~9 mm behind the lip where a face has 4–6, the lip a shelf over it)
   {
-    const mz = (P.li.z + P.pg.z) / 2 - 0.004, my = P.pg.y - 0.03, side = (sg) => ({ x: sg * 0.06, y: my - 0.014, z: mz + 0.004 });
+    const mz = (P.li.z + P.pg.z) / 2 - 0.004 + MENTOLABIAL.up, my = P.pg.y - 0.03 + MENTOLABIAL.pad, side = (sg) => ({ x: sg * 0.06, y: my - 0.014, z: mz + 0.004 });
     v('mentalis', side(-1), { x: 0, y: my, z: mz }, side(1), [0.02, 0.03, 0.02], 'lipBody', [J, J, J]);
   }
   // THE NOSE — nasion → rhinion → tip
@@ -797,7 +801,7 @@ export function coreVajras(P, rel = RELATIONS) {
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`loMid${s}`].x), end = at(P[`loMid${s}`], { x: sg * 0.026, y: -0.026, z: -0.036 });
     const FO = ['foldOpen'];
-    cut(`mentolabial${s}`, end, { x: sg * 0.03, y: (end.y + mlC.y) / 2 + 0.01, z: mlC.z + 0.25 * (end.z - mlC.z) }, mlC, [0.005, 0.011, 0.015], [FO, FO, FO], 0.022);
+    cut(`mentolabial${s}`, end, { x: sg * 0.03, y: (end.y + mlC.y) / 2 + 0.01, z: mlC.z + 0.25 * (end.z - mlC.z) }, mlC, [0.005, 0.011, 0.015].map((r) => r * MENTOLABIAL.carve), [FO, FO, FO], 0.022);
   }
   // THE TEETH — the upper dental arch, anchored at the incisal point: each side seven crowns on a curved arch (the
   // central and lateral incisors, the canine, two premolars, two molars: `DENTITION`, placed out from the midline and

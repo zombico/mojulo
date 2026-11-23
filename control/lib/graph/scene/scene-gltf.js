@@ -867,8 +867,12 @@ class GlbBuilder {
     // extras (`mojulo.height`: an engine that reads parallax or displacement binds it). Absent ⇒ byte-identical.
     const covered = this.lit && tex === null && fig.coverTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.uv === 'string' && typeof p.nrm === 'string' && typeof p.tan === 'string'));
     const ctex = covered ? Object.fromEntries(['base', 'normal', 'orm', 'height'].map((k) => [k, this.imageFromDataUrl(fig.coverTex[k])])) : null;
-    // (an atlas with edges, the hero's hair cards: dermal-hero.js heroSkinPaint `alphaMask`, the figure's material alpha tested)
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), ...(dtex !== null ? { extras: { mojulo: { relief: { height: dtex, depth: fig.depthTex.depth, perM: fig.depthTex.perM } } } } : {}), ...(fig.paintTex.alphaMask ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
+    // (an atlas with edges, the hero's hair cards: dermal-hero.js heroSkinPaint `alphaMask`, the figure's material alpha tested;
+    // with `alphaBox` only the faces on its strips are, a second primitive of their own, the body OPAQUE: game speed, a masked
+    // material over a whole body keeps the GPU from rejecting hidden pixels before it shades them)
+    const boxed = tex !== null && fig.paintTex?.alphaMask && Array.isArray(fig.paintTex.alphaBox);
+    const cardMaterial = boxed ? this.surfaceMaterial({ name: `fig:${name}:cards`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), alphaCutoff: HAIR_ALPHA_CUTOFF }) : null;
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), ...(dtex !== null ? { extras: { mojulo: { relief: { height: dtex, depth: fig.depthTex.depth, perM: fig.depthTex.perM } } } } : {}), ...(fig.paintTex.alphaMask && !boxed ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
     const uvs = tex !== null || ctex ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
@@ -1008,6 +1012,13 @@ class GlbBuilder {
       ...(A.T ? { TANGENT: this.floatAccessor(A.T, 4) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
+    // (the CARDS apart, `boxed`: a face all of whose corners lie in the alpha box, its own index list over the same vertices)
+    let cardIdx = null;
+    if (boxed && A.U) {
+      const [u0, v0, u1, v1] = fig.paintTex.alphaBox, inBox = (v) => A.U[2 * v] >= u0 && A.U[2 * v] <= u1 && A.U[2 * v + 1] >= v0 && A.U[2 * v + 1] <= v1, body = [], cards = [];
+      for (let t = 0; t < I.length; t += 3) (inBox(I[t]) && inBox(I[t + 1]) && inBox(I[t + 2]) ? cards : body).push(I[t], I[t + 1], I[t + 2]);
+      if (cards.length) { I = body; cardIdx = cards; }
+    }
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(I)) };
     const prims = [prim];
     if (inkParts) {
@@ -1120,6 +1131,8 @@ class GlbBuilder {
         targets: corr.targets.map((c) => ({ id: c.id, driver: { ...c.driver } })), joints: corr.joints,
       } } : {}) } };
     }
+    // (the cards' primitive: the body's vertices, its morph targets with them (a lash blinks with its lid), the masked material)
+    if (cardIdx) prims.push({ attributes, mode: MODE_TRIANGLES, material: cardMaterial, indices: this.indexAccessor(IndexArr.from(cardIdx)), ...(prim.targets ? { targets: prim.targets } : {}) });
     const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims, ...(faceMesh || {}) }) - 1;
 
     // IBM: identity + translation(−restHead), column-major. An engine skeleton also lists the VRM leaves (the biped's
