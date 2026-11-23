@@ -443,11 +443,12 @@ function checkLayer(g, w, errors) {
 
 /**
  * The SFX mixer's settings (a beats-sfx manifest's `mix`, a world's `audio.sfx.mix`): { space?: a name
- * (SFX_SPACE_NAMES) or { decay, predelay?, damp?, level? }, send?: 0..1, voices?: 1..64, distance?: boolean (a world) }.
+ * (SFX_SPACE_NAMES) or { decay, predelay?, damp?, level? }, send?: 0..1, voices?: 1..64, distance?: boolean, pan?: boolean
+ * (a world's: a cue heard on the side its source is, round the listener's facing) }.
  */
 export function checkSfxMix(m, where, errors, { world = false } = {}) {
-  if (!isObj(m)) { errors.push(`${where} must be { space?, send?, voices?${world ? ', distance?' : ''} }`); return; }
-  const keys = ['space', 'send', 'voices', ...(world ? ['distance'] : [])];
+  if (!isObj(m)) { errors.push(`${where} must be { space?, send?, voices?${world ? ', distance?, pan?' : ''} }`); return; }
+  const keys = ['space', 'send', 'voices', ...(world ? ['distance', 'pan'] : [])];
   for (const k of Object.keys(m)) if (!keys.includes(k)) errors.push(`${where}.${k} is not a mix setting (${keys.join(', ')})`);
   if (m.space !== undefined) {
     if (typeof m.space === 'string') { if (!SFX_SPACE_NAMES.includes(m.space)) errors.push(`${where}.space must be one of: ${SFX_SPACE_NAMES.join(', ')} (or { decay, predelay?, damp?, level? })`); }
@@ -460,6 +461,7 @@ export function checkSfxMix(m, where, errors, { world = false } = {}) {
   if (m.send !== undefined && !inRange(m.send, 0, 1)) errors.push(`${where}.send must be in [0, 1] (the share of a cue sent to the space, where its layer names none)`);
   if (m.voices !== undefined && !(Number.isInteger(m.voices) && m.voices >= 1 && m.voices <= 64)) errors.push(`${where}.voices must be an integer in [1, 64] (how many cues may sound at once)`);
   if (world && m.distance !== undefined && typeof m.distance !== 'boolean') errors.push(`${where}.distance must be true or false (a far cue duller and roomier, not only quieter)`);
+  if (world && m.pan !== undefined && typeof m.pan !== 'boolean') errors.push(`${where}.pan must be true or false (a cue heard on the side its source is)`);
 }
 
 /**

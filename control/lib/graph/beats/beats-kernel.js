@@ -3100,7 +3100,7 @@ export function buildBeatsKernel() {
     function sfxCue(gestures, ops, t, dest, vs, place) {
       const list = gestures || [];
       for (const op of ops) if (op.kind === 'duck') duck(t + op.at, op.depth, op.hold, op.release);
-      if (!sfx && !(place && place.far > 0) && !list.some((g) => g && (g.chain || g.pan != null || g.send != null))) { playOps(ops, t, dest, vs); return; }
+      if (!sfx && !(place && (place.far > 0 || place.pan)) && !list.some((g) => g && (g.chain || g.pan != null || g.send != null))) { playOps(ops, t, dest, vs); return; }
       const v = vs == null ? 1 : vs;
       let end = t;
       for (const op of ops) end = Math.max(end, t + op.at + (op.decay || op.dur || op.len || 0) + (op.release || 0) + 0.05);
@@ -3122,6 +3122,9 @@ export function buildBeatsKernel() {
         lp.frequency.value = 16000 * Math.pow(1 - far, 2) + 900;
         fader.connect(lp); head = lp;
       }
+      // (placed to a side, `place.pan` in [-1, 1]: left to right of the listener; absent, centred as it always was)
+      const side = place && place.pan ? Math.max(-1, Math.min(1, place.pan)) : 0;
+      if (side && ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = side; head.connect(pn); head = pn; }
       head.connect(dest && dest !== master ? dest : sfx ? sfx.bus : master);
       let wet = null;
       const wetGain = 1 + 2 * far;

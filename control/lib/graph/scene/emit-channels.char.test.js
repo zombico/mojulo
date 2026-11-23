@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-23 (the jump's missing moves): every fixture that embeds the controllable runtime. The platform rule
+// gained `hang`, `landLag` and `pound` (rules-platform.js: the apex held, the landing's lag, the stomp attack), each
+// taken only by a rule that names it (no fixture's does). Checked: each moved hash is the old emission with only the
+// platform builder's source swapped; their worlds step as before.
 // Re-pinned 2026-11-18 (the open city's shops and guns): every fixture that embeds the controllable runtime. A weapon
 // may start with fewer rounds than it holds (combat-ranged.js `loaded`), the cast gains `repaint` (a respray), and a
 // moveset's hero may carry its sidearm in a holster (combat-melee.js `holster`, its trigger in combat-ranged.js). Each

@@ -24,16 +24,16 @@ the same world, which is what lets a level be replayed and walked headless.
 | Layer | What it does | Where |
 |---|---|---|
 | World step and collision | blocking against colliders on foot and in 3D, sight and shots against the same boxes, bodies against bodies, riding what moves, frame-rate-independent smoothing | [core.js](../control/lib/graph/worlds/controllable/core.js) |
-| Character controllers | one rule a way of moving: on foot, the platform rule (gravity, variable jump, coyote time, buffering, a faster fall, air control), driving, flying, hovering, boats | `rules-*.js` beside it |
+| Character controllers | one rule a way of moving: on foot, the platform rule (gravity, variable jump, coyote time, buffering, a faster fall, air control; with a feel's takes, its wall slide and kick, dash, hang at the apex, landing lag and stomp attack), driving, flying, hovering, boats | `rules-*.js` beside it |
 | Feel | a game's feel template lowered onto the platform rule's numbers; what the rule does not carry yet is reported, never dropped | [gameworld/feel/lower.js](../control/lib/graph/gameworld/feel/lower.js), the templates `POLES` in `cards.js` |
 | Rigid bodies | mass, bounce, friction and spin on a fixed step, wind, drag and attractors | [physics-sim.js](../control/lib/graph/worlds/physics-sim.js) |
 | Destructible matter | matter, heat and ground that break, burn and fall (opt-in) | [rupa/](../control/lib/graph/rupa/), [rupa.md](rupa.md) |
 | Game logic | a declarative bus: facts become events, reactions guarded by the world's variables, watches, timers and sequences; each mechanic is a lowering onto it, never runtime code of its own | [event-bus.js](../control/lib/graph/worlds/event-bus.js), `MECHANIC_KINDS` in [game/mechanics.js](../control/lib/graph/game/mechanics.js) |
-| Minds and navigation | foes' and guards' behaviour; A* on a grid baked from the colliders, string-pulled | [mind.js](../control/lib/graph/worlds/controllable/mind.js), [nav.js](../control/lib/graph/worlds/controllable/nav.js), [foes.md](foes.md) |
+| Minds and navigation | foes' and guards' behaviour; A* on a grid baked from the colliders, string-pulled, one floor at a body's height; between floors, the floors and stairs a level lays (`rule.floors`: a mission's map, a building's storeys, a tower's top) | [mind.js](../control/lib/graph/worlds/controllable/mind.js), [nav.js](../control/lib/graph/worlds/controllable/nav.js), [foes.md](foes.md) |
 | Combat and bosses | hits, melee, ranged, turrets, attack timelines with their tells | the combat builders beside core.js, [boss-fights.md](boss-fights.md) |
 | Interface | title, set-up, pause, results, HUD, touch pad | [mana-ui.md](mana-ui.md) |
 | Rendering | three.js (vendored, inlined by default), the scene's channels: land, sky, sea, light, effects, figures | [scene-three.js](../control/lib/graph/scene/scene-three.js), [scene/channels/](../control/lib/graph/scene/channels/) |
-| Sound | synthesized effects and score, recorded lines where a game has them | [game-audio.md](game-audio.md), [sfx-shelf.md](sfx-shelf.md) |
+| Sound | synthesized effects and score, recorded lines where a game has them; each effect placed by its distance from the pilot, and with a game's `sound.pan` on its side of the camera | [game-audio.md](game-audio.md), [sfx-shelf.md](sfx-shelf.md) |
 | Input | keyboard, mouse with pointer lock, gamepads, touch, a headset | `scene/channels/controllable/`, `controls/` |
 | Flow, store and saves | what plays when, the store that carries a game's state between levels, a long level's own save | [game-flow.md](game-flow.md), `game/game-shell.js`, `game/level-contract.js` |
 
@@ -56,24 +56,35 @@ From the lightest to the deepest:
 
 1. The recipe's own words: a rail's template, its feel, a brief's mix, a structure's parts. Recipes are starters,
    edited in place.
-2. A level's own `events` block, merged with the mechanics' on the same bus (`worlds/world-scene.js`).
+2. A level's own `events` block, merged with the mechanics' on the same bus (`worlds/world-scene.js`); or its
+   `events.program`, a program run in the code realm as the level resolves that returns those rows
+   ([game/events-program.js](../control/lib/graph/game/events-program.js)), for logic too regular or too large to write
+   row by row. The page runs only the data it returns.
 3. A new mechanic: a lowering onto the bus, with its contract and its audit hint. No runtime change.
 4. A new move on a controller: a phase on the platform rule's registry (maneuver, equip, act, dash, claim).
 5. A new builder: runtime code, held to the builder contract and the byte pins.
 
-Geometry has a program door (a recipe carrying code run at render, [code-realm.js](../control/lib/graph/polygonizer/code-realm.js));
-game logic does not yet.
+Geometry and play share one program door, the code realm ([code-realm.js](../control/lib/graph/polygonizer/code-realm.js)):
+a recipe carries code, run deterministically when it is read, that returns data. What a program returns is bounded by
+what the bus and the mechanics can say; a new verb is still a change to the runtime.
 
 ## What it does not do yet
 
 Said so a promise is never made past them:
 
-- **Collision shapes.** Bodies, spheres, planes and boxes; no triangle-mesh colliders, joints, constraints or ragdolls.
-- **Navigation across floors.** One floor at a body's height; stairs and multi-level floors are out of `nav.js`'s scope.
-- **Moves.** Each feel template's lowering names what the platform rule does not carry yet (`feelReport`): wall cling
-  and wall jump, the held charge, the ground pound, a mech's boost gauge and heavy landing among them.
-- **Positional sound.** Sound is not placed in the world.
-- **A program door for play.** Logic beyond the bus's verbs is a change to the runtime, not to the recipe.
+- **Collision shapes.** A body stands on any surface the page's ground probe finds (a slope, a ramp, terrain), but what
+  blocks it, and its sight and its shots, are axis-aligned boxes: a diagonal wall is boxes in steps. No joints,
+  constraints or ragdolls.
+- **Navigation across floors.** A mind goes between floors by the floors and stairs its level lays (`rule.floors`); a
+  level whose generator lays none keeps its minds on one floor, and from one upper floor to another a mind goes down to
+  the ground and up again.
+- **Moves.** Each feel template's lowering names what the platform rule does not carry yet (`feelReport`): the dodge
+  roll and its invincible frames, the held charge, a mech's boost gauge and heavy gait among them. A stomp attack's
+  own blow is the level's stomp, and a plunge's shockwave beside a body is not struck.
+- **Sound's direction, by default.** A sound is placed by its distance (quieter, and with the mix's distance duller,
+  the farther off its source). Its side, left or right of the camera, is opt-in: a game's `sound.pan`.
+- **Verbs.** A program writes the bus's rows, not new verbs: logic the bus's verbs cannot express is a change to the
+  runtime, not to the recipe.
 - **One thread.** No work is moved off the page's main thread.
 - **Proof.** The machine gate walks a level whose goal is to reach, survive or escape; other goals are left to the
   person who plays them ([bicycles.md](bicycles.md)).

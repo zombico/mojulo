@@ -56,6 +56,7 @@ import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/pro
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests, deriveLevelPlayer } from '@/lib/graph/game/level-synth';
+import { lowerEventsProgram } from '@/lib/graph/game/events-program.js';
 import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
 import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
@@ -2088,7 +2089,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // and sequences beside it. Absent `play` ⇒ not a byte changes.
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
   const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, speakers: _playSpeakers, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
-  let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
+  // A PROGRAM FOR PLAY (opt-in `events.program`, game/events-program.js): run in the code realm here, its bus data joined
+  // to the level's own rows; the program itself never reaches the page. Absent ⇒ the events block as it was.
+  const ownEv = payload && sketch.manifest.events && sketch.manifest.events.program !== undefined
+    ? lowerEventsProgram(sketch.manifest.events, { anchors: payload.anchors, entities: Array.isArray(sketch.manifest.entities) ? sketch.manifest.entities.map((e) => e && e.id).filter(Boolean) : [] })
+    : sketch.manifest.events;
+  let ev = payload && mergeEventManifests(mergeEventManifests(ownEv, Object.keys(playBus).length ? playBus : null), mechEvents);
   // (a level whose play is a library alone has no bus of its own yet: the shelf still needs the page's)
   if (!ev && payload && playEv && playEv.library) ev = {};
   if (ev && playEv) {

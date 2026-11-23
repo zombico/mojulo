@@ -248,10 +248,11 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, bed?, vary?, level? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, bed?, vary?, level?, pan? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
   if (S.level !== undefined && !(Number.isFinite(S.level) && S.level >= 0 && S.level <= 1)) throw fail(`.level is the effects' level under the score, 0 to 1`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
+  if (S.pan !== undefined && typeof S.pan !== 'boolean') throw fail(`.pan is true or false (each sound heard on the side its source is: a guard's step behind and to the left is heard there)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
   const word = (at, w) => { if (!resolveSoundId(w)) throw fail(`${at}: '${w}' is not a sound on the shelf; ${suggestSounds(w)}`); };
   for (const k of ['slots', 'on']) for (const [slot, w] of Object.entries(S[k] ?? {})) word(`.${k}.${slot}`, w);
@@ -419,7 +420,7 @@ export function sheetAudio(G, opts = {}) {
   const space = levelSpace(G, opts);
   // (the effects' level under the score: the game's own, else a run and gun's)
   const level = Number.isFinite(G?.sound?.level) ? G.sound.level : S.run ? RUN_LEVEL : null;
-  return { sheet: { style: S.style, slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(level != null ? { level } : {}) } };
+  return { sheet: { style: S.style, slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space || G?.sound?.pan ? { mix: { ...(space ? { space } : {}), ...(G?.sound?.pan ? { pan: true } : {}) } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(level != null ? { level } : {}) } };
 }
 
 /**

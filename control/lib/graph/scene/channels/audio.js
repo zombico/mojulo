@@ -30,6 +30,9 @@ export function audioChannelScript(audio) {
   // (the mix's reach, opt-in with its distance: the metres a cue is heard to, for a range of big guns whose shells burst
   // kilometres off; absent, the arena's 900)
   const reach = mixFar && mix.reach > 900 ? mix.reach : 0;
+  // (the mix's side, opt-in with its distance: a cue heard to the left or the right of the listener's facing, the
+  // camera's where it is steered, else the pilot's; absent, every cue centred as it was)
+  const mixPan = mixFar && mix.pan === true;
   // held voices (the sustain feature): a thruster or a jump charge given a `voice` plays it, not its own synth
   // the ground by place (audio.surfaces, opt-in) and the sounds of a place (audio.emitters, opt-in): absent, not a byte
   const surf = !!(audio.surfaces && audio.surfaces.length), fsOf = surf ? '__fsOf(e)' : '__AUDIO.footsteps';
@@ -187,10 +190,19 @@ ${mixFar ? `// the SFX mixer's distance (audio.mix.distance): __proxGain also le
 // cue it scales, read once and only by the call that passes that same gain (a loop that only reads a gain leaves no
 // distance for another cue) — a far cue duller and roomier, not only quieter.
 let __pf = null;
-__proxGain = (function (g) { return function (p) { var L = __listenerPos(), v = g(p); __pf = L && p ? { far: Math.min(1, Math.hypot(p[0] - L[0], p[1] - L[1], p[2] - L[2]) / 900), g: v } : null; return v; }; })(__proxGain);
+${mixPan ? `// the mix's side (audio.mix.pan): the source's bearing round the listener's facing, sin of it (the left the minus,
+// as heading turns left), at most 0.8, eased in over the first 4 m so a sound at the listener's feet stays centred
+function __side(p, L) {
+  var w = window.__mojCtrl && window.__mojCtrl.world, P = w && w.pilotId && w.byId ? w.byId[w.pilotId] : null;
+  var yaw = w && w.cameraYaw != null ? w.cameraYaw : P && P.transform ? P.transform.heading || 0 : 0;
+  var dx = p[0] - L[0], dy = p[1] - L[1], d = Math.hypot(dx, dy);
+  if (d < 1e-3) return 0;
+  return -Math.sin(Math.atan2(dy, dx) - yaw) * 0.8 * Math.min(1, d / 4);
+}
+` : ''}__proxGain = (function (g) { return function (p) { var L = __listenerPos(), v = g(p); __pf = L && p ? { far: Math.min(1, Math.hypot(p[0] - L[0], p[1] - L[1], p[2] - L[2]) / 900), g: v${mixPan ? ', pan: __side(p, L)' : ''} } : null; return v; }; })(__proxGain);
 ${reach ? `// the mix's reach (audio.mix.reach): a source as far off as the arena's distances times its reach is heard as one at them
 __proxGain = (function (g) { var k = ${900 / reach}; return function (p) { var L = __listenerPos(); return L && p ? g([L[0] + (p[0] - L[0]) * k, L[1] + (p[1] - L[1]) * k, L[2] + (p[2] - L[2]) * k]) : g(p); }; })(__proxGain);
-` : ''}${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
+` : ''}${audio.vary ? 'let __beatsVar = 0;\n' : ''}function __beatsCue(cue, gain) { var pl = __pf && gain != null && __pf.g === gain ? { far: __pf.far${mixPan ? ', pan: __pf.pan' : ''} } : null; __pf = null; if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ${audio.vary ? '++__beatsVar' : 'undefined'}, pl); }` : audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (seeded per-hit variation).
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 ${audio.breath ? `// one breath across the game's hits (audio.breath, the sound sheet's): each hit is played at the breath left (down to
