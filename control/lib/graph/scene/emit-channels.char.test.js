@@ -1136,3 +1136,8 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // bus's gauges read `along`; a hazard's hp stops at zero, as a hit's does (game/mechanics.js hazard-damage). The rail
 // rule and its foes on station are opt-in, emitted only into a page with a rail pilot. No fixture has a rail, a gauge on
 // `along`, or a hazard taking its hp past zero, so what each plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: the cockpit core): the fixtures that embed the controllable runtime. A space
+// mind leads a travelling round in three dimensions, and a mind hunting the other side passes over a body asleep or
+// gone (mind.js); a ship's shields are asked first by the shield absorption (combat-hit.js). The starfighter, its
+// cockpit and its HUD are opt-in, emitted only into a page whose pilot is one. No fixture has a space mind with a
+// travelling round, a sleeping body hunted, or a ship, so what each plays is as it was.

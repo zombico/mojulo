@@ -40,10 +40,12 @@
 import { flightLaps, padBoxes } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING, wingFighter, armedPilot, guns } from '../skyscape/dogfight.js';
 import { BAND_FACTS } from '../game/objectives.js';
+import { readSortie, sortieMechanics, sortieCast } from './flight-sortie.js';
+import { cockpitOf } from '../skyscape/cockpits.js';
 
 /** A fight in the air's costs: the craft's hp, what a hit on it takes, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hp: 100, hit: 4, crash: 25 });
-export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'stage', 'tasks']);
+export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'stage', 'sortie', 'tasks']);
 /** A stage's costs and its foes: what a hit and a hazard flown into take off the shield, how its fighters fire (an
  *  arcade wing: no missiles, short bursts, long pauses, so a wave is broken up and not a wall of fire), and what they
  *  fire: a round that travels (m/s, flat, seen), so the craft steered out of its way or rolled through it is not hit. */
@@ -65,7 +67,7 @@ export const FIGHT_LEGEND = 'click or Z  guns · R  missile · X  flare · F  bo
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-const SHAPE = `is 'course' | 'dogfight' | 'trench' | 'stage', { dogfight: true | { foes?, waves? } }, or { tasks: [ ${FLIGHT_TASKS.map((k) => `{ ${k} }`).join(' | ')} ], crash?: ${FLIGHT_CRASH.join(' | ')} }`;
+const SHAPE = `is 'course' | 'dogfight' | 'trench' | 'stage', { dogfight: true | { foes?, waves? } }, { sortie: { groups, goals } } (a cockpit's), or { tasks: [ ${FLIGHT_TASKS.map((k) => `{ ${k} }`).join(' | ')} ], crash?: ${FLIGHT_CRASH.join(' | ')} }`;
 
 /** A flight goal in a level's words, read and taught. */
 export function readFlightGoal(v, at = 'goal.flight') {
@@ -79,6 +81,10 @@ export function readFlightGoal(v, at = 'goal.flight') {
     if (!isObj(D) || Object.keys(D).some((k) => k !== 'foes' && k !== 'waves')) fail('.dogfight is true or { foes?, waves? }');
     for (const k of ['foes', 'waves']) if (D[k] !== undefined && !(Number.isInteger(D[k]) && D[k] >= 1 && D[k] <= WING.max)) fail(`.dogfight.${k} is a whole number, 1 to ${WING.max}`);
     return { kind: 'dogfight', ...(D.foes !== undefined ? { foes: D.foes } : {}), ...(D.waves !== undefined ? { waves: D.waves } : {}) };
+  }
+  if (v.sortie !== undefined) {
+    if (keys.length !== 1) fail(': a sortie is { sortie: { groups, goals } } alone');
+    return { kind: 'sortie', sortie: readSortie(v.sortie, `${at}.sortie`) };
   }
   if (v.tasks === undefined) fail(` ${SHAPE}`);
   for (const k of keys) if (!['tasks', 'crash', 'grade'].includes(k)) fail(`.${k} is not a flight goal's (tasks, crash, grade)`);
@@ -173,11 +179,19 @@ export function flightGoalMechanics(goal, ends) {
       { kind: 'defeat-all', who: 'boss-*', count: S.boss.parts.length, label: 'Boss' },
     ];
   }
+  // a sortie (flight-sortie.js): a cockpit's mission, its flight groups and its goals together
+  if (goal.kind === 'sortie') {
+    if (!ends.cockpit) fail('a sortie is flown from a cockpit: the airspace is { cockpit: true } in space');
+    return sortieMechanics(goal.sortie);
+  }
   if (goal.kind === 'dogfight' || goal.kind === 'trench') {
     if (goal.kind === 'trench' && !field.port) fail('a trench run needs a trench: the airspace\'s space is { trench: true }');
     return [
-      { kind: 'fail-on-death', startHp: DOGFIGHT.hp, hits: DOGFIGHT.hit },
-      { kind: 'respawn', at: { spot: p.pos, heading: p.heading, aloft: 1 }, hurt: DOGFIGHT.crash },
+      // (a cockpit's hull is its body's, its shields in front of it: the level lost when the craft is down; else the
+      // level's hp takes each hit, and a crash comes back)
+      ...(ends.cockpit ? [{ kind: 'fail-on-death', of: 'body' }] : [
+        { kind: 'fail-on-death', startHp: DOGFIGHT.hp, hits: DOGFIGHT.hit },
+        { kind: 'respawn', at: { spot: p.pos, heading: p.heading, aloft: 1 }, hurt: DOGFIGHT.crash }]),
       // a dogfight in waves: wing after wing, each woken when the one before is down (dogfight.js waveIds); a trench run
       // won by its port alone; a dogfight by the wing
       ...(goal.waves && !field.port ? [{ kind: 'waves', waves: waveIds(goal.waves, goal.foes ?? WING.n), clear: true }] : [
@@ -228,16 +242,30 @@ export function flightGoalMechanics(goal, ends) {
   return [
     { kind: 'objectives', tasks, say: 'line' },
     ...grade,
-    ...(W.total ? [{ kind: 'fail-on-death', startHp: DOGFIGHT.hp, hits: DOGFIGHT.hit }] : []),
-    crash === 'fail'
+    ...(W.total ? [ends.cockpit ? { kind: 'fail-on-death', of: 'body' } : { kind: 'fail-on-death', startHp: DOGFIGHT.hp, hits: DOGFIGHT.hit }] : []),
+    ...(ends.cockpit ? [] : [crash === 'fail'
       ? { kind: 'crash', then: 'fail', ...(pads.length ? { pads } : {}) }
-      : { kind: 'crash', then: 'respawn', ...(pads.length ? { pads } : {}), at: { spot: p.pos, heading: p.heading, aloft: map.form === 'void' || seat.rule.engine === false ? 1 : 0 }, ...(W.total ? { hurt: DOGFIGHT.crash } : {}) },
+      : { kind: 'crash', then: 'respawn', ...(pads.length ? { pads } : {}), at: { spot: p.pos, heading: p.heading, aloft: map.form === 'void' || seat.rule.engine === false ? 1 : 0 }, ...(W.total ? { hurt: DOGFIGHT.crash } : {}) }]),
   ];
 }
 
 /** What the goal stands in the airspace: its fighters (asleep until their task wakes them), the trench's port and
  * turrets, the craft's guns and a mouse that flies it; null when it stands nothing (a course, a lesson). */
 export function flightGoalCast(goal, ends) {
+  const X = castOf(goal, ends);
+  if (!X || !ends.cockpit || !X.pilot) return X;
+  // (a cockpit keeps its own cannons, its lasers, and flies without the arcade's boost and roll: its warheads ride)
+  const { weapon: _w, rule = {}, body: _b, ...pilot } = X.pilot, { boost: _o, roll: _r, ...keep } = rule;
+  return { ...X, pilot: { ...pilot, rule: keep } };
+}
+
+function castOf(goal, ends) {
+  // (a sortie's flight groups as craft; the pilot armed with its warheads)
+  if (goal.kind === 'sortie') {
+    // (its warheads its cockpit card's count: a craft that carries none flies with its cannons alone)
+    const n = cockpitOf(ends.airframe).numbers.warheads, M = armedPilot(ends.airMap.craft, 6).rule.missiles;
+    return { ...sortieCast(goal.sortie, ends), ...(n > 0 ? { pilot: { rule: { missiles: { ...M, count: n } } } } : {}) };
+  }
   const map = ends.airMap, field = ends.airField, seat = ends.seat;
   if (goal.kind === 'stage' && ends.rail) {
     // the stage's fighters at their posts, asleep until their marks; its boss's parts, static minds with guns; the craft

@@ -153,6 +153,8 @@ export const MECHANIC_SFX = {
   objectives: { 'objective:begin': 'chime', 'objective:done': 'checkpoint', 'objective:sealed': 'thud', 'objective:gate': 'checkpoint', wave: 'wave', 'objectives:done': 'goal', 'objectives:failed': 'death' },
   // a flight's crash: the attempt over (a lesson's) or the craft brought back
   crash: { crash: 'death' },
+  // a cockpit's mission: each goal met, a flight group arriving, the mission won or a protected craft lost
+  sortie: { 'sortie:goal': 'checkpoint', arrival: 'wave', 'sortie:won': 'goal', 'sortie:lost': 'death' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },

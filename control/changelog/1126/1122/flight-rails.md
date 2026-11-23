@@ -110,3 +110,75 @@ They share one foundation, built first, and these themes record it as it lands.
   the runtime the page runs by an attentive player (hazards taken wide, the nearest fighter in range brought onto the
   guns, rounds rolled through) and by a still one. A stage is proved when the first wins and the second does not.
   Both Wolf stages are.
+- **Two space sims on one cockpit core.** The space rails were re-scoped. **Rebel Storm / Rise of Empire** is the 90s
+  cockpit combat sim: linear campaigns, combat first, from either side of one war. **Star Privateer** becomes the
+  open-world one (planets flown down to and explored) and is to come.
+- **The starfighter** (`worlds/controllable/rules-starfighter.js`, opt-in). A craft flown from its cockpit:
+  - **Attitude:** a true one (a forward and an up vector turned in the craft's own frame), so it loops and rolls; the
+    page's angles are derived from it, and it draws any attitude unchanged. The mouse pitches and yaws, A / D roll.
+  - **Throttle:** a setting, not a held key. W / S move it; Backspace stops, \ is full, [ and ] are the thirds; Enter
+    matches the target's speed. The speed eases to it; the craft turns best near a third.
+  - **The ship's systems** (`body.ship`, on any craft, the AI's too):
+    - shields fore and aft over the hull; a round takes the side it came from, as much as that shield holds, and the
+      hull the rest;
+    - power over lasers, shields and engines (1 to 4), which set their recharge and the top speed; the shields'
+      recharge set even, fore or aft (G);
+    - the cannons' charge (the weapon's energy pool) and their linking (X: one, two, all four a shot).
+  - **The targeting computer:** R nearest foe, T / Y next and previous, E the attacker, U the mission's. The target's
+    name, range, closure, hull and shields are kept as facts.
+  - **The cockpit camera:** at the seat, carrying the craft's up vector (the page sets the camera's up from it, exact
+    at any attitude); C swaps it with the chase. The body is hidden in the cockpit.
+  - Its keys are a **cockpit control scheme** (`controls/schemes.js`), the pilot's own rebound, with pad bindings and
+    a legend.
+- **The cockpit HUD** (`scene/channels/cockpit-hud.js`), on mana-ui in the phosphor `terminal` look:
+  - the gunsight, the target bracketed with its range, the lead pip (where to fire for the bolts to meet it), the
+    target held at the screen's edge when off it;
+  - the targeting computer (bottom);
+  - fore and aft sensor scopes, each craft by its angle off the nose or the tail;
+  - shields, hull, laser charge and link (left); speed, throttle, power pips and warheads (right);
+  - the comms line.
+
+  The page's own reticle, ammo panel and radar are not built or are put away under it.
+- **An airspace level from the cockpit** (`airspace.cockpit: true`, in space; `skyscape/starfighter.js`). The class's
+  speed on the starfighter rule, its systems, its cannons firing led bolts, the view in the cockpit. A designed space
+  level with a cockpit lays no gate course. Its hull is its body's (`fail-on-death` of the body).
+- **A sortie** (`gameworld/flight-sortie.js`, the goal `{ sortie: { groups, goals } }`). A mission's craft in flight
+  groups and its goals over them:
+  - **a group:** a name, a shelf craft, a count, a side, when it arrives (at the start, after seconds, once another
+    group is down), where it comes in, its shields and hull; `hold` for unarmed transports;
+  - **goals:** destroy, protect and survive, met in any order.
+
+  Its craft are minds on their sides (wingmen hunt the foes, foes hunt the pilot's side), drawn as their shelf
+  airframes and named for the targeting computer.
+- **The sortie mechanic** (`game/sortie.js`, with its card). A mission's goals held together: won when all are met,
+  lost when a protected craft goes down; its craft arriving after a time or once others are down, with a transit.
+- **The space mind leads in three dimensions.** A mind firing travelling rounds in space aims where its target will be
+  (the target's own velocity, or its pace), its nose pitched there. A mind hunting the other side no longer hunts a
+  body that is asleep or gone.
+- **Rebel Storm, the opening tour** (`gameworld/rebel-storm.js`, the rail `rebel-storm`, a new genre `space-sim`).
+  A locked pitch lays three missions in the strike foil, Red flight beside it:
+  - Patrol: fighters, then interceptors jumping in;
+  - Convoy: transports to protect, raiders, then bombers on the convoy;
+  - Strike: gunboats behind an interceptor screen.
+- **The sortie proof** (`skyscape/sortie-pilot.js`, in `design_game`'s `flight_proof`). Each mission is flown on the
+  page's runtime by a steady pilot and by a still one; proved when the first wins and the second does not. The steady
+  pilot targets the nearest hostile, puts the lead pip on the nose, fires when it covers the target, slows to a third
+  close in, and extends for another pass when too close to turn. All three missions are proved.
+- **Cockpits that read as cockpits** (`skyscape/cockpits.js`). Each starfighter has a card for its tuning and the
+  cockpit it is flown from. Four:
+  - the strike foil (general);
+  - the arrow interceptor (speed: the fastest and quickest to turn, thin shields, two cannons);
+  - the heavy fighter (firepower: slow, the deepest shields and hull, heavy cannons, racks of warheads);
+  - the twin-panel fighter (the other side's: no shields, two cannons, quick).
+
+  A craft without a card flies the general one's.
+  - **The canopy's frame** is the shelf's own: the faceted bubble's edges and hoops (or the round viewport's rim and
+    spokes) seen from the seat. The card says which edges are framed bars and which are seams in the glass (a
+    snubfighter's shoulder posts and forward hoop, an armoured canopy's crown rails and two hoops). Each bar is drawn
+    as thick as it is near, and the cockpit's sides stand under the sills.
+  - **The instrument panel** fills the screen's foot (28%), its silhouette the card's (a glare shield, a narrow centre
+    console, a wide deep dashboard, the curve of a ball). Each instrument sits in its own bezelled screen: the targeting
+    computer, the systems, the flight readouts, and the two sensors as round scopes. The instruments float as a HUD
+    only in the chase view.
+  - **Sound cues** for a sortie's goal met, a group arriving, the mission won and lost. A new card,
+    `gameworld-cockpit`, teaches the cockpit and the sortie; the flight card points at it.

@@ -40,6 +40,7 @@ import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND 
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
+import { cockpitHudScript } from '../cockpit-hud.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -893,6 +894,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const hoverOn = entities.some((e) => e && e.rule && e.rule.type === 'hover');
   // (an arcade flier carried down a stage's path: worlds/controllable/rules-rail.js, composed in and keyed as a flight)
   const railOn = entities.some((e) => e && e.rule && e.rule.type === 'rail');
+  // a starfighter flown from its cockpit, or a body with a ship's systems (worlds/controllable/rules-starfighter.js)
+  const sfOn = entities.some((e) => e && ((e.rule && e.rule.type === 'starfighter') || (e.body && e.body.ship)));
+  const sfPilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'starfighter');
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
   // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
@@ -1406,11 +1410,11 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(railOn ? { rail: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''} });
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
-` : ''}${commanderBlock}${flyHudBlock}${(() => {
+` : ''}${commanderBlock}${flyHudBlock}${sfPilot ? cockpitHudScript({ cockpit: camera && camera.cockpit }) : ''}${(() => {
     const { figs, same } = PAGE;
     // (clips on 16 bits: decoded once, after the bank and its pool, before any consumer reads a frame)
     const q16 = Object.values(figs).some((f) => f && ['clips', 'acts'].some((k) => f[k] && Object.values(f[k]).some((c) => c && c.b && c.b.q16 !== undefined)));
@@ -2970,7 +2974,8 @@ function __syncEntity(e, dt) {
   // wreck finisher: a respawn cleared the vanish — re-show the body. NOT while the hangar
   // menu holds this body hidden (userData.hangarHidden, __showActive): this unconditional
   // per-frame re-show is what superposed every suit at the origin after the respawn work.
-  if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}${aimView ? ' && !__avHides(e)' : ''}) m.visible = true;${aimView ? `
+  if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}${aimView ? ' && !__avHides(e)' : ''}${sfPilot ? ' && !__sfHides(e)' : ''}) m.visible = true;${sfPilot ? `
+  if (__sfHides(e)) m.visible = false;   // the cockpit (rules-starfighter.js): the eye sits in this craft` : ''}${aimView ? `
   if (__avHides(e)) m.visible = false;   // the aim at the eye (aim-view.js): the camera rides inside this body` : ''}${hideId ? `
   if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}${xr ? `
   if (__xrCtl && __xrCtl.hides(e)) m.visible = false;   // in the headset: the player stands inside this body` : ''}
@@ -3151,7 +3156,8 @@ ${camSkips}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) {
     }
   }
   camera.position.set(px, py, pz);
-  camera.lookAt(look[0], look[1], look[2]);
+  ${sfPilot ? `// (a cockpit carries its craft's up: the camera rolled and looped with it, exact at any attitude)
+  if (c.up) { camera.up.set(c.up[0], c.up[1], c.up[2]); camera.lookAt(look[0], look[1], look[2]); camera.up.set(0, 0, 1); } else ` : ''}camera.lookAt(look[0], look[1], look[2]);
   if (c.roll) camera.rotateZ(-c.roll);   // a follow camera banking with its target (rollFollow): about the view axis
 }
 ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on, for the vehicle classes' rule
@@ -3194,7 +3200,9 @@ function __groundBy(pos) {
 // mouse button serves an action is the pilot scheme's (controls/schemes.js), read through the controls
 // kernel per device family (controls/devices.js); __BIND is the live table, so a remap replaces it and
 // nothing below changes. This page drives the keyboard, mouse and standard-mapping gamepad families.
-${aimView ? `// the aim held (aim-view.js): a body whose camera rides its eye for now is hidden
+${sfPilot ? `// the cockpit (rules-starfighter.js): the craft the eye sits in is hidden while it does
+const __sfHides = (e) => { const r = __world.camera && __world.camera.rule; return !!r && r.type === 'cockpit' && r.hideTarget === true && r.target === e.id; };
+` : ''}${aimView ? `// the aim held (aim-view.js): a body whose camera rides its eye for now is hidden
 const __avHides = (e) => { const r = __world.camera && __world.camera.rule; return !!r && r.type === 'eye' && r.hideTarget === true && r.target === e.id; };
 ` : ''}${freeRun ? `// getting over things (free-run.js): the chase is not pulled in on what its body gets over: a thing it vaults out of
 // the run or climbs (its top within the hands' reach of the feet). It neither closes in as the body comes up to such a
@@ -3204,7 +3212,7 @@ const __avHides = (e) => { const r = __world.camera && __world.camera.rule; retu
 const __frTop = (x, y, feet) => { const C = __world.colliders; if (!C) return null; let top = null, grew = true; while (grew) { grew = false; for (const b of C) { if (x < b.min[0] - 0.08 || x > b.max[0] + 0.08 || y < b.min[1] - 0.08 || y > b.max[1] + 0.08 || b.max[2] <= (top ?? feet) + 1e-6 || b.min[2] > (top ?? feet + 0.35) + 0.05) continue; top = b.max[2]; grew = true; } } return top; };
 const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; const feet = (p.fr ? p.fr.from[2] : p.transform.pos[2] - (p.rule.eye || 0)), top = __frTop(hit.point.x, hit.point.y, feet); return top != null && top <= feet + Math.max(F.vault ?? 1.15, Math.min(F.climb ?? 2.2, F.grab ?? 2.15)) + 0.1; };
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
-const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : SCHEMES.pilot)};
+const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : sfPilot ? SCHEMES.cockpit : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
 ${padOver ? `const __OVER = ${safeJson(padOver)};
 ` : ''}let __BIND = __CTL.resolve(__SCHEME, __DEV${padOver ? ', __OVER' : ''});
@@ -3542,7 +3550,7 @@ function __readInput() {
   // boosting while a vehicle is piloted (F is reserved there anyway). Keyed off the LIVE piloted
   // entity's rule each frame, so T in-and-out of a car swaps the scheme with the seat.
   const __vp = __world.pilotId && __world.byId[__world.pilotId];
-  const __veh = !!(__vp && __vp.rule && (__vp.rule.type === 'drive' || __vp.rule.type === 'fly'${hoverOn ? " || __vp.rule.type === 'hover'" : ''}${railOn ? " || __vp.rule.type === 'rail'" : ''}));
+  const __veh = !!(__vp && __vp.rule && (__vp.rule.type === 'drive' || __vp.rule.type === 'fly'${hoverOn ? " || __vp.rule.type === 'hover'" : ''}${railOn ? " || __vp.rule.type === 'rail'" : ''}${sfPilot ? " || __vp.rule.type === 'starfighter'" : ''}));
   const inp = {
     forward: __kx('moveForward', 'moveBack')
       || (__veh && __pad && (__pad.rt > 0.02 || __pad.lt > 0.02) ? __pad.rt - __pad.lt : __pmy),
@@ -3570,8 +3578,17 @@ function __readInput() {
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
     vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}${sprint ? `
     sprint: __kbRead('ShiftLeft') || __kbRead('ShiftRight') ? 1 : 0,   // a person's sprint, held (rules-platform.js sprintSpeed)` : ''}
-    lookDX: __lookDX, lookDY: __lookDY,
-  };
+${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
+    // throttle, pick the target, link the cannons and move the power; the mouse, captured, flies right and nose-up
+    // as it moves right and down (a stick pulled back)
+    pitch: __kx('pitchUp', 'pitchDown'), yaw: __kx('yawRight', 'yawLeft'), roll: __kx('turnRight', 'turnLeft'),
+    thr: __k('thrZero') ? 'zero' : __k('thrFull') ? 'full' : __k('thrThird') ? 'third' : __k('thrTwoThirds') ? 'twothirds' : __k('matchSpeed') ? 'match' : null,
+    tgt: __k('tgtNext') ? 'next' : __k('tgtPrev') ? 'prev' : __k('tgtNear') ? 'near' : __k('tgtAtk') ? 'atk' : __k('tgtGoal') ? 'goal' : null,
+    power: __k('powLasers') ? 'lasers' : __k('powShields') ? 'shields' : __k('powEngines') ? 'engines' : __k('powEven') ? 'even' : null,
+    shieldSet: __k('shieldSet') ? 1 : 0, link: __k('linkFire') ? 1 : 0, view: __k('cockpitView') ? 1 : 0,
+    lookDX: __MOUSELOOK ? -__lookDX : __lookDX, lookDY: __MOUSELOOK ? -__lookDY : __lookDY,
+` : `    lookDX: __lookDX, lookDY: __lookDY,
+`}  };
   __lookDX = 0; __lookDY = 0;
   return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
@@ -3712,7 +3729,8 @@ const __armed = __world.entities.find((e) => e.weapon
   || (__entLoadout(e) || []).some((c) => c && c.weapon));
 // SPECTATE: no pilot aims a weapon — the reticle + ammo panel are pilot HUDs, so skip building them
 // (the watched fighter's own fire fx still render; only the operator's crosshair is gone).
-if (__armed && !__world.spectate) {
+// (a cockpit's sight and its charge are the cockpit HUD's: channels/cockpit-hud.js)
+if (__armed && !__world.spectate${sfPilot ? ' && false' : ''}) {
   const __lo = __entLoadout(__armed);
   const W = __armed.weapon
     || __CW.normalizeEntity({ weapon: __lo.find((c) => c && c.weapon).weapon }, 0).weapon;

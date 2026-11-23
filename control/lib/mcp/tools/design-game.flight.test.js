@@ -138,6 +138,34 @@ describe('design_game: designed flight levels', () => {
     expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.result, l.still]), JSON.stringify(run.flight_proof.levels)).toEqual([['stage-1', true, 'success', 'lost'], ['stage-2', true, 'success', 'lost']]);
   }, 400000);
 
+  it('Rebel Storm: a locked pitch lays the opening tour; built, each mission a sortie flown from the cockpit', async () => {
+    const out = await designGameHandler({ title: 'Storm', world: { id: 'storm', name: 'Storm', rail: { from: 'rebel-storm', locked: true } } });
+    expect(out.pitch).toMatchObject({ stored: true, by: 'rebel-storm', levels: ['mission-1', 'mission-2', 'mission-3'] });
+    const ref = out.ref, run = await designGameHandler({ ref, run: true });
+    for (const id of ['mission-1', 'mission-2', 'mission-3']) {
+      const M = SketchRepository.getByRef(`${ref}-level-${id}-0`).manifest, kinds = M.game.mechanics.map((m) => m.kind);
+      // the pilot on the starfighter rule, its ship's systems, its cannons' bolts; the camera in its cockpit, a chase to go out to
+      const P = M.entities.find((e) => e.pilotable);
+      expect(P.rule).toMatchObject({ type: 'starfighter' });
+      expect(P.body.ship.shields.max).toBeGreaterThan(0);
+      expect(P.weapon).toMatchObject({ fireClass: 'lob', projectileGravity: 0 });
+      expect(M.camera).toMatchObject({ rule: 'cockpit', target: 'player', hideTarget: true, chase: { rule: 'follow' } });
+      expect(M.figures.craft.craft.archetype).toBe('strikeFoil');
+      // its mission: the sortie over its flight groups, the hull its body's; no gates
+      expect(kinds).toEqual(['fail-on-death', 'sortie']);
+      expect(M.game.mechanics[0]).toEqual({ kind: 'fail-on-death', of: 'body' });
+      const crafts = M.entities.filter((e) => !e.pilotable && e.body?.figure?.startsWith('craft-'));
+      expect(crafts.length).toBeGreaterThan(3);
+      expect(crafts.every((e) => M.figures[e.body.figure]?.craft?.flying)).toBe(true);
+    }
+    // the convoy holds, unarmed, and is the mission's to protect
+    const M2 = SketchRepository.getByRef(`${ref}-level-mission-2-0`).manifest;
+    expect(M2.entities.find((e) => e.id === 'convoy-1').rule).toEqual({ type: 'static' });
+    expect(M2.game.mechanics[1].goals.find((g) => g.protect)).toEqual({ protect: ['convoy-1', 'convoy-2'], say: 'The convoy is lost' });
+    // the run's readout: each mission won by a steady pilot on the page's runtime, and lost by a still one
+    expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.result, l.still]), JSON.stringify(run.flight_proof.levels)).toEqual([['mission-1', true, 'success', 'lost'], ['mission-2', true, 'success', 'lost'], ['mission-3', true, 'success', 'lost']]);
+  }, 400000);
+
   it('refuses a flight goal it cannot lay, teaching', async () => {
     const bad = async (lv, msg) => { await expect(designGameHandler({ ref: 'bad', title: 'Bad', world: world({ x: lv }) })).rejects.toThrow(msg); };
     await bad({ airspace: { map: { craft: 'jet' } }, goal: { flight: 'course' } }, /a course is flown on a course/);

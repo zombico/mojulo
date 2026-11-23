@@ -234,7 +234,7 @@ export function buildMind(E) {
         let bd = Infinity;
         for (const id in world.byId) {
           const o = world.byId[id];
-          if (o === e || o === skip || o.isCamera || o.downed || o.invincible || !(o.body && o.body.hittable)) continue;
+          if (o === e || o === skip || o.isCamera || o.downed || o.gone || o.dormant || o.invincible || !(o.body && o.body.hittable)) continue;   // (asleep or gone: not there to hunt)
           if (teamAware && o.team && o.team === e.team) continue;   // TEAM: never hunt an ally
           const ddx = o.transform.pos[0] - t.pos[0], ddy = o.transform.pos[1] - t.pos[1];
           const dd = ddx * ddx + ddy * ddy;
@@ -1153,10 +1153,26 @@ export function buildMind(E) {
       e.leadPrev = { id: target.id, at: [q[0], q[1]] };
       if (e.leadVel) { const tf = dist2d / w.projectileSpeed; ax = dx + e.leadVel[0] * tf; ay = dy + e.leadVel[1] * tf; }
     }
+    // (in space, led in three dimensions: the target's own velocity where it keeps one (a starfighter's), else its pace
+    // over its steps; the nose pitched at where it will be)
+    let aimZ = null;
+    if (w && w.fireClass === 'lob' && w.projectileSpeed > 0 && r.space) {
+      const q = target.transform.pos, lp = e.leadPrev;
+      let v = target.vel || null;
+      if (!v) {
+        if (lp && lp.id === target.id && dt > 0 && Math.hypot(q[0] - lp.at[0], q[1] - lp.at[1], q[2] - (lp.at[2] || 0)) < 60) {
+          const vv = [(q[0] - lp.at[0]) / dt, (q[1] - lp.at[1]) / dt, (q[2] - (lp.at[2] || 0)) / dt], o = e.leadVel && e.leadVel.length === 3 ? e.leadVel : vv;
+          e.leadVel = [o[0] * 0.7 + vv[0] * 0.3, o[1] * 0.7 + vv[1] * 0.3, o[2] * 0.7 + vv[2] * 0.3];
+        } else e.leadVel = null;
+        e.leadPrev = { id: target.id, at: [q[0], q[1], q[2]] };
+        v = e.leadVel;
+      }
+      if (v) { const tf = Math.hypot(dx, dy, q[2] - t.pos[2]) / w.projectileSpeed; ax = dx + v[0] * tf; ay = dy + v[1] * tf; aimZ = q[2] + v[2] * tf; }
+    }
     const rem = turnToward(t, Math.atan2(ay, ax), r, dt);
     const tb = target.body || {};
     const tcz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 0);
-    t.pitch = clamp(Math.atan2((target.transform.pos[2] + tcz) - (t.pos[2] + (w ? w.eye || 0 : 0)), dist2d), -1.2, 1.2);
+    t.pitch = clamp(Math.atan2(((aimZ ?? target.transform.pos[2]) + tcz) - (t.pos[2] + (w ? w.eye || 0 : 0)), aimZ === null ? dist2d : Math.hypot(ax, ay)), -1.2, 1.2);
 
     // ENGAGE: move to attack. Close to `standoff` while facing, then hold. With opt-in BOOST (`r.boost`) it juke-boosts
     // in bursts: `boostBurst` s weaving (boost armour live, a single bolt doesn't stun) then `boostRest` s grounded and

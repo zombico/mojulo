@@ -26,6 +26,7 @@
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
 import { planRailStage } from '../skyscape/rail-stage.js';
+import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
 import { facilityBuilding } from '../era/facilities.js';
 import { raceHud, RACE_DIAL } from './race-hud.js';
 import { levelHud } from '../game/hud-mana.js';
@@ -417,7 +418,7 @@ export function airspaceEnds(manifest) {
   // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
   const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(rail ? rail.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
     .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
-  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, cockpit: manifest.cockpit === true, airframe: manifest.airframe ?? null, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);
   return out;
 }
@@ -1014,6 +1015,14 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       const e0 = pilotPart.entities[0], S = ends.rail, [a, b] = S.path;
       pilotPart = { ...pilotPart, entities: [{ ...e0, rule: { ...S.rule, eye: e0.rule.eye ?? 0 }, transform: { pos: a.slice(), heading: Math.atan2(b[1] - a[1], b[0] - a[0]), pitch: 0 } }, ...pilotPart.entities.slice(1)], camera: { ...pilotPart.camera, rollFollow: 0.35 } };
       pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `A / D  steer · Space / Shift  up / down · W  boost · S  brake · Q / E  roll${legend ? ` · ${legend}` : ''}` }).events || {};
+    }
+    // A COCKPIT (airspace.cockpit, skyscape/starfighter.js): the craft flown from its seat on the starfighter rule, the
+    // 90s space-combat sims' craft: the mouse flies it, the throttle a setting, its shields, power and cannons its own;
+    // the view starts in the cockpit, C out to the chase
+    if (ends.cockpit) {
+      const frame = pilotPart.figures?.craft?.craft?.archetype, e0 = starfighterPilot(ends.airMap, pilotPart.entities[0], { airframe: frame });
+      pilotPart = { ...pilotPart, entities: [e0, ...pilotPart.entities.slice(1)], camera: cockpitCamera(e0, pilotPart.camera, frame) };
+      pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `mouse  fly · A / D  roll · W / S  throttle · click  lasers · Space  warhead · R  nearest foe · T  next target · C  cockpit / chase${legend ? ` · ${legend}` : ''}` }).events || {};
     }
     if (ride?.transformer) {
       // A FLIER THAT TRANSFORMS (quick.transformer): seated as the craft is, in its vehicle form on the seat's rule, its

@@ -350,6 +350,19 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'space-sim',
+    name: 'Space combat sim',
+    anchor: false,
+    why: 'a starfighter flown from its cockpit: the throttle set, the target picked, shields and power split, flight groups to destroy and craft to protect, mission by mission',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'first-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['fly', 'follow', 'ai'], combat: ['ranged'], mechanics: ['sortie', 'fail-on-death'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'air-combat',
     name: 'Air combat',
     anchor: false,

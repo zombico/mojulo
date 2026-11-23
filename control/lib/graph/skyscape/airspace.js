@@ -82,6 +82,12 @@ export function validateAirspace(m) {
     if (m.course) e.push('airspace.rail: a rail stage has its path, not a course');
     if (m.space?.trench) e.push('airspace.rail: a trench is its own run (space.trench), not a rail stage');
   }
+  // a cockpit (starfighter.js): the craft flown from its seat in the 90s space-combat register, in space
+  if (m.cockpit !== undefined) {
+    if (typeof m.cockpit !== 'boolean') e.push('airspace.cockpit is true or false: the craft flown from its cockpit (a space combat sim)');
+    else if (m.cockpit && !isSpace(m)) e.push('airspace.cockpit: a cockpit flies in space (a space craft, or map.form \'void\'); a craft over a ground flies on the fly rule');
+    else if (m.cockpit && m.rail) e.push('airspace.cockpit: a rail stage is flown down its path, not from a cockpit');
+  }
   return e;
 }
 

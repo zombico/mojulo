@@ -26,6 +26,7 @@ import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
 import { lowerGrade } from './grade.js';
 import { lowerWake } from './wake.js';
+import { lowerSortie } from './sortie.js';
 import { lowerWork } from './work-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
@@ -904,6 +905,8 @@ const MECHANICS = {
   // WAKE (wake.js): foes asleep until the player passes a mark of one of its facts (a rail stage's waves by the distance
   // along its path), each wave woken once
   wake: { role: 'emitter', requires: [], lower: lowerWake },
+  // a mission's goals together, its craft arriving through it (game/sortie.js): a space-combat sim's sortie
+  sortie: { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerSortie },
 
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in

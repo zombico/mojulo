@@ -1590,10 +1590,10 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   // a run's flight levels flown for their tasks by the lesson pilot on the fly rule, judged on the bus by their own
   // mechanics, each with its medal; its rail stages flown by the stage pilot and a still one (machine gate,
   // gameworld/flight-proof.js)
-  const flightProof = ran && Object.values(W.levels ?? {}).some((L) => L?.airspace !== undefined && (L?.goal?.flight?.tasks || L.airspace?.rail)) ? (() => {
+  const flightProof = ran && Object.values(W.levels ?? {}).some((L) => L?.airspace !== undefined && (L?.goal?.flight?.tasks || L.airspace?.rail || L.airspace?.cockpit)) ? (() => {
     try {
       const levels = proveFlights(flightStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })));
-      return levels ? { flight_proof: { gate: 'machine', levels, note: 'machine gate: each flight level\'s tasks flown by a careful student on the fly rule the page runs (one task at a time, its bands held at their middles), judged on the bus by the level\'s own mechanics; its medal is what a clean flight earns. Each rail stage flown on the runtime the page runs by an attentive player (hazards taken wide, the nearest fighter in range brought onto the guns, rounds rolled through) and by a still one: proved when the first wins and the second does not. Whether the lesson teaches or the stage is fun is the creator\'s to say in play (the eyes gate has not run)' } } : {};
+      return levels ? { flight_proof: { gate: 'machine', levels, note: 'machine gate: each flight level\'s tasks flown by a careful student on the fly rule the page runs (one task at a time, its bands held at their middles), judged on the bus by the level\'s own mechanics; its medal is what a clean flight earns. Each rail stage flown on the runtime the page runs by an attentive player (hazards taken wide, the nearest fighter in range brought onto the guns, rounds rolled through) and by a still one: proved when the first wins and the second does not; each cockpit sortie the same way, by a steady pilot (its target the nearest hostile, the lead pip on the nose, the trigger pulled there). Whether the lesson teaches or the stage is fun is the creator\'s to say in play (the eyes gate has not run)' } } : {};
     } catch (e) { return { flight_proof: { gate: 'machine', levels: [], error: e.message } }; }
   })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
