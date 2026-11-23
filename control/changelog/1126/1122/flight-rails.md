@@ -268,3 +268,7 @@ They share one foundation, built first, and these themes record it as it lands.
   onto the metal and a stencilled placard naming it. The generator's feeds are named LAS, SHD and ENG, and narrow
   screens wrap their readings rather than run them together. In the chase strip, the computer's readings keep clear
   of the target's plan.
+- **The master lamps in the chase too** (`cockpit-hud.js` `chaseLampsCss`). In the chase view, a pair of master lamps
+  sits over the targeting computer on the strip, lit by the same alerts as the cockpit's glare-shield pair (the
+  warning beating). They sit beside the HUD's root, which the runtime redraws, and carry the view and the alerts
+  themselves.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { COCKPIT_COLOURS, COCKPIT_THEME, COCKPIT_ALERTS, PLACARDS, cockpitAlerts, keyOnPanel, panelPaint } from './cockpit-look.js';
-import { cockpitHudScript, CHASE_SLOTS } from './cockpit-hud.js';
+import { cockpitHudScript, cockpitPanelCss, CHASE_SLOTS } from './cockpit-hud.js';
 import { COCKPITS } from '../../skyscape/cockpits.js';
 import { readTheme } from '../../../mana-ui/theme.js';
 
@@ -66,8 +66,14 @@ describe('the cockpit\'s look', () => {
     expect(Object.keys(PLACARDS).sort()).toEqual(Object.keys(CHASE_SLOTS).sort());
   });
 
-  it('the page carries the code, the lamps and the placards; the alerts and the star\'s light run on it', () => {
+  it('the page carries the code, the lamps (the cockpit\'s and the chase\'s) and the placards; the alerts and the star\'s light run on it', () => {
     const s = cockpitHudScript({ cockpit: 'heavyFighter' });
+    // (the chase's own lamps, over its computer, lit by the same alerts; hidden in the cockpit, whose own stand on its lip)
+    const css = cockpitPanelCss(COCKPITS.heavyFighter);
+    expect(css).toContain('.moj-ck-lamps{display:none}');
+    expect(css).toMatch(/\.moj-ck-lamps\[data-view=chase\]\{display:flex/);
+    expect(css).toMatch(/\.moj-ck-lamps\[data-mwarning\] \.moj-ck-lamp\[data-lamp=warning\]\{[^}]*animation:ck-beat/);
+    for (const w of ['moj-ck-lamps', 'mcaution', 'mwarning']) expect(s, w).toContain(w);
     for (const w of ['MASTER CAUTION', 'MASTER WARNING', '--ck-target:' + COCKPIT_COLOURS.target, '__ckAlerts', '__ckKey', 'ckKey', PLACARDS.computer, COCKPITS.heavyFighter.panel.paint]) expect(s, w).toContain(w);
   });
 });

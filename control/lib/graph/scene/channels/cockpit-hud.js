@@ -120,7 +120,7 @@ export function cockpitHudSpec() {
 // (the colours of the code as the layer's own variables, cockpit-look.js; a gauge past its threshold coloured by the word
 // the root carries for its pool, a warning beating)
 const K = COCKPIT_COLOURS;
-const HOST_CSS = `.moj-ck{position:absolute;inset:0;pointer-events:none;z-index:7;--ck-label:${K.label};--ck-figure:${K.figure};--ck-normal:${K.normal};--ck-friend:${K.friend};--ck-hostile:${K.hostile};--ck-target:${K.target};--ck-caution:${K.caution};--ck-warning:${K.warning};--ck-shields:${K.shields}}.moj-ck .mana-root{background:none}`
+const HOST_CSS = `.moj-ck{position:absolute;inset:0;pointer-events:none;z-index:7}.moj-ck,.moj-ck-lamps{--ck-label:${K.label};--ck-figure:${K.figure};--ck-normal:${K.normal};--ck-friend:${K.friend};--ck-hostile:${K.hostile};--ck-target:${K.target};--ck-caution:${K.caution};--ck-warning:${K.warning};--ck-shields:${K.shields}}.moj-ck .mana-root{background:none}`
   + '.moj-c-radar,.moj-c-gauge,.moj-c-lock,.moj-c-hp,.moj-c-ehp,.moj-hud-top-left,.moj-w-legend{display:none!important}'
   // (a ship's sensor has no north: its top is the craft's up)
   + '.moj-ck .mana-minimap .mana-north,.moj-ck .mana-minimap [data-north]{display:none!important}'
@@ -213,7 +213,22 @@ function placesCss(V, S, { glass = 0.95, inline = false } = {}) {
 
 /** The instruments' places: in the cockpit, set in the card's panel; in the chase, along a slim strip over the world. */
 export function cockpitPanelCss(card) {
-  return [...placesCss('.moj-ck[data-view=cockpit]', card.panel.slots), ...placesCss('.moj-ck[data-view=chase]', CHASE_SLOTS, { glass: 0.62, inline: true })].join('\n');
+  return [...placesCss('.moj-ck[data-view=cockpit]', card.panel.slots), ...placesCss('.moj-ck[data-view=chase]', CHASE_SLOTS, { glass: 0.62, inline: true }), ...chaseLampsCss()].join('\n');
+}
+
+/** The master lamps in the chase: a pair over the targeting computer's screen, dark until a caution or a warning lights
+ *  one (the warning beating), as the cockpit's stand on its glare shield. Absent in the cockpit (its own are drawn). */
+function chaseLampsCss() {
+  const [x0, y0, x1] = CHASE_SLOTS.computer;
+  return [
+    '.moj-ck-lamps{display:none}',
+    `.moj-ck-lamps[data-view=chase]{display:flex;gap:6px;position:absolute;z-index:7;pointer-events:none;left:${pc((x0 + x1) / 2)};top:calc(${pc(y0)} - 24px);transform:translateX(-50%);padding:3px;border-radius:3px;background:rgba(6,8,10,.72);box-shadow:0 0 0 1px rgba(0,0,0,.6)}`,
+    '.moj-ck-lamp{font:700 9px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;padding:4px 8px;border-radius:2px;white-space:nowrap}',
+    '.moj-ck-lamp[data-lamp=caution]{color:var(--ck-caution);background:color-mix(in srgb,var(--ck-caution) 14%,transparent);opacity:.6}',
+    '.moj-ck-lamp[data-lamp=warning]{color:var(--ck-warning);background:color-mix(in srgb,var(--ck-warning) 14%,transparent);opacity:.6}',
+    '.moj-ck-lamps[data-mcaution] .moj-ck-lamp[data-lamp=caution]{background:var(--ck-caution);color:#1a0d00;opacity:1;box-shadow:0 0 10px var(--ck-caution)}',
+    '.moj-ck-lamps[data-mwarning] .moj-ck-lamp[data-lamp=warning]{background:var(--ck-warning);color:#1a0d00;opacity:1;box-shadow:0 0 10px var(--ck-warning);animation:ck-beat .7s steps(2) infinite}',
+  ];
 }
 
 /** The cockpit drawn over the world (inlined by toString): the canopy's bars projected through the camera, the sides
@@ -352,6 +367,11 @@ export function cockpitFramePage(F, card) {
 export function cockpitHudPage(cfg, ui, spec, css, frame) {
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-ck'; (document.getElementById('wrap') || document.body).appendChild(root);
+  // (the master lamps in the chase, over the targeting computer: the cockpit's own stand on its glare shield, __ckFrame;
+  // beside the HUD's root, not in it, which the runtime draws over; it carries the view and the alerts' words itself)
+  const lampsEl = document.createElement('div'); lampsEl.className = 'moj-ck-lamps';
+  for (const [k, say] of [['caution', 'MASTER CAUTION'], ['warning', 'MASTER WARNING']]) { const l = document.createElement('span'); l.className = 'moj-ck-lamp'; l.dataset.lamp = k; l.textContent = say; lampsEl.appendChild(l); }
+  root.parentNode.appendChild(lampsEl);
   const S = { ck: { on: false, shOn: false, sMaxOn: 0, plan: cfg.plan || '', tPlan: '', tShMax: 0, tOn: false, tShOn: false, brackets: [], pip: [], edge: [], fore: [], aft: [], comms: [], tName: '', tStance: '', tRange: '', tClosure: '', tHull: 0, tFore: 0, tAft: 0, sFore: 0, sAft: 0, sMax: 1, hull: 0, hullMax: 1, laser: 0, laserMax: 1, linkSay: '', speed: '', throttle: 0, pL: 2, pS: 2, pE: 2, warheads: '', warheadsOn: false, genOn: false, genOff: true, gPhase: 0, gTick: 0, gFeeds: [] } };
   let pv = null;
   // (a point of the world on the HUD, 0..1 of its frame, `back` when it is behind the camera)
@@ -370,7 +390,7 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
     const W = window.__mojCtrl && window.__mojCtrl.world, me = W && W.pilotId ? W.byId[W.pilotId] : null;
     // the cockpit view, or the chase: the cockpit drawn and its instruments set in the panel, or floating
     const inCockpit = !!(W && W.camera && W.camera.rule && W.camera.rule.type === 'cockpit');
-    if (root.dataset.view !== (inCockpit ? 'cockpit' : 'chase')) root.dataset.view = inCockpit ? 'cockpit' : 'chase';
+    if (root.dataset.view !== (inCockpit ? 'cockpit' : 'chase')) root.dataset.view = lampsEl.dataset.view = inCockpit ? 'cockpit' : 'chase';
     if (me && me.sfF) {
       set('on', true);
       const sh = me.ship, w = me.weapon;
@@ -379,6 +399,7 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
       const hullMax = me.hpMax || (me.body && me.body.hp) || 1;
       const A = __ckAlerts({ hull: me.body && Number.isFinite(me.body.hp) ? me.body.hp / hullMax : null, shields: sh && sh.shMax > 0 ? [sh.sh[0] / sh.shMax, sh.sh[1] / sh.shMax] : null, lasers: w && w.energyMax > 0 ? w.energy / w.energyMax : null }, cfg.alerts);
       for (const pool of ['hull', 'shields', 'lasers']) { const v = A.warning.includes(pool) ? 'warning' : A.caution.includes(pool) ? 'caution' : ''; if ((root.dataset[pool] || '') !== v) { if (v) root.dataset[pool] = v; else delete root.dataset[pool]; } }
+      for (const [k, on] of [['mcaution', A.caution.length > 0], ['mwarning', A.warning.length > 0]]) if (!!lampsEl.dataset[k] !== on) { if (on) lampsEl.dataset[k] = 'on'; else delete lampsEl.dataset[k]; }
       const sun = typeof SKY !== 'undefined' && SKY && SKY.sun && Array.isArray(SKY.sun.dir) ? SKY.sun.dir : null;
       if (frame) frame(inCockpit, { key: __ckKey(sun, me.sfF, me.sfU), caution: A.caution.length > 0, warning: A.warning.length > 0, beat: Math.floor(performance.now() / 350) % 2 === 0 });
       set('shOn', !!(sh && sh.shMax > 0)); set('sMaxOn', sh && sh.shMax > 0 ? sh.shMax : 0);
@@ -428,7 +449,7 @@ export function cockpitHudPage(cfg, ui, spec, css, frame) {
         const fg = T.body && typeof T.body.figure === 'string' ? T.body.figure : '', arch = fg.indexOf('craft-') === 0 ? fg.slice(6) : '';
         set('tPlan', (cfg.plans && cfg.plans[arch]) || cfg.dart || ''); set('tFore', I.shields ? I.shields[0] : 0); set('tAft', I.shields ? I.shields[1] : 0);
       } else { set('tOn', false); set('brackets', []); set('pip', []); set('edge', []); }
-    } else { set('on', false); if (frame) frame(inCockpit, null); }
+    } else { set('on', false); delete lampsEl.dataset.mcaution; delete lampsEl.dataset.mwarning; if (frame) frame(inCockpit, null); }
     // the comms: the level's guide's line, each said once
     const GV = window.__mojGuide && window.__mojGuide.view ? window.__mojGuide.view() : null;
     const card = GV && GV.text ? GV.mode + ':' + GV.text : '';
