@@ -6,7 +6,8 @@
  * Named as sounds only (cards/index.js): a menu cue is a cue.
  *
  *   crypt                      gothic: stone, iron, bells and heavy doors, a high cathedral echo (Fallen Angel's)
- *   robot                      a cheerful little robot: blips, chirps, servos (Galaxy Boy's)
+ *   robot                      Steel Serpents' clean app-like chimes, brighter and quicker (Galaxy Boy's; its first
+ *                              takes, a robot's chirps and servos, are out of the set)
  *   glass, terminal            subtle, app-like chimes (Steel Serpents'; the extraction chime their toast)
  *   console, chip, paper, party   lighthearted and bouncy, the fun platform game's (every other game's)
  */
@@ -24,14 +25,14 @@ export const CARDS = [
   cue('ui-fa-close', CRYPT, ['close'], 'a heavy wooden door shutting with a deep boom echoing in a stone hall, a gothic game menu sound effect', 1.5),
   cue('ui-fa-deny', CRYPT, ['deny'], 'a dull stone thud and an iron chain rattle, echoing, a gothic game menu sound effect', 0.8),
   cue('ui-fa-toast', CRYPT, ['toast'], 'a high crystalline bell chime ringing out in a vast cathedral, a gothic game menu sound effect', 2),
-  // Galaxy Boy: very robot, and fun
-  cue('ui-gb-move', ROBOT, MOVE, 'a tiny cheerful robot blip, one quick bright beep, a sci-fi game menu sound effect', 0.5),
-  cue('ui-gb-accept', ROBOT, ['accept'], 'a happy robot chirp: two rising bright beeps and a quick servo whir, a sci-fi game menu sound effect', 0.7),
-  cue('ui-gb-back', ROBOT, ['back'], 'a little robot chirp falling away: a descending double beep, a sci-fi game menu sound effect', 0.6),
-  cue('ui-gb-open', ROBOT, ['open'], 'a small robot hatch sliding open with a servo whir and a chirp, a sci-fi game menu sound effect', 0.8),
-  cue('ui-gb-close', ROBOT, ['close'], 'a small robot hatch sliding shut with a servo whir and a click, a sci-fi game menu sound effect', 0.7),
-  cue('ui-gb-deny', ROBOT, ['deny'], 'a grumpy robot buzz: a low double bloop, a sci-fi game menu sound effect', 0.6),
-  cue('ui-gb-toast', ROBOT, ['toast'], 'a cheerful robot jingle of bright rising beeps and a sparkle, a sci-fi game menu sound effect', 1.2),
+  // Galaxy Boy: Steel Serpents' clean app-like chimes, a touch brighter and quicker (upbeat)
+  cue('ui-gb2-move', ROBOT, MOVE, 'a soft bright interface tick, a tiny clean click with a light sparkle, a minimal upbeat app sound effect', 0.5),
+  cue('ui-gb2-accept', ROBOT, ['accept'], 'a bright clean interface chime: a quick cheerful ascending two-note tone, a minimal upbeat app sound effect', 0.6),
+  cue('ui-gb2-back', ROBOT, ['back'], 'a soft clean interface tone: a quick light descending two-note tone, a minimal upbeat app sound effect', 0.6),
+  cue('ui-gb2-open', ROBOT, ['open'], 'a light airy interface swoosh with a bright glassy chime, a minimal upbeat app sound effect', 0.7),
+  cue('ui-gb2-close', ROBOT, ['close'], 'a light airy reversed swoosh ending in a soft click, a minimal upbeat app sound effect', 0.6),
+  cue('ui-gb2-deny', ROBOT, ['deny'], 'a soft muted low interface double tone, gentle, a minimal app sound effect', 0.6),
+  cue('ui-gb2-toast', ROBOT, ['toast'], 'a bright cheerful interface chime: three quick ascending clean notes, a minimal upbeat app sound effect', 1),
   // Steel Serpents: very subtle, app-like chimes (its toast the extraction chime)
   cue('ui-ss-move', APP, MOVE, 'a very soft subtle interface tick, a tiny clean click, a minimal app sound effect', 0.5),
   cue('ui-ss-accept', APP, ['accept'], 'a soft clean interface chime: a short gentle ascending two-note tone, a minimal app sound effect', 0.6),
