@@ -422,3 +422,9 @@ They share one foundation, built first, and these themes record it as it lands.
 
   Bolt impacts in space keep their flash and sparks but lose their shock rings. Its textures are painted on the page
   from seeded dice, and pages that are not in space are unchanged.
+- **The minds fly round the hulls** (`rules-starfighter.js`, the `sf-avoid` pass). A fighter flown by its mind on
+  passes in space looks down its nose 2.5 s of flight ahead. On a hull in its way (a capital ship's plates, a
+  station's) it turns its nose off that block's face, harder the nearer it is and faster than it turns back toward its
+  target, so it skims past and carries on with its pass. A step that would still end inside a hull puts it back
+  outside. A rule's `avoid` { look, rate } tunes it. In the destroyer's level the minds spent no step inside a hull in
+  40 s of fighting, and a fifth of their steps within 60 m of one.

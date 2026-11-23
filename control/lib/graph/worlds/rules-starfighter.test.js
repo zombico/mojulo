@@ -328,4 +328,30 @@ describe('rule: starfighter', () => {
     expect(d.ship.sh[0]).toBe(0);
     expect(d.body.hp).toBeGreaterThan(c.body.hp);
   });
+  it('a mind flying passes keeps off a hull: turns off the plate in its way, never inside it, and comes round to its target', () => {
+    // a wall of plate between a foe fighter and its target (a capital ship's side, 40 m thick, 400 m across)
+    const wall = { min: [300, -200, -200], max: [340, 200, 200] };
+    const ai = { id: 'a', team: 'foes', rule: { type: 'ai', space: true, passes: true, target: 'enemy', speed: 80, turn: 1.4, standoff: 150, fireArc: 6, sightRange: 3000, eye: 0 },
+      body: { type: 'mesh', hittable: true, hp: 10, radius: 5 }, transform: { pos: [0, 0, 0], heading: 0, pitch: 0 } };
+    const tgt = { id: 't', team: 'player', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 99, radius: 5 }, transform: { pos: [700, 0, 0], heading: 0 } };
+    const inWall = (p) => p[0] > wall.min[0] - 5 && p[0] < wall.max[0] + 5 && Math.abs(p[1]) < 205 && Math.abs(p[2]) < 205;
+    const fly = (colliders) => {
+      const w = E.createWorld({ entities: [ai, tgt], ...(colliders ? { colliders } : {}) });
+      let inside = 0, closest = Infinity, turned = false;
+      for (let i = 0; i < 60 * 14; i++) {
+        E.stepWorld(w, {}, DT, space);
+        const p = w.byId.a.transform.pos;
+        if (inWall(p)) inside++;
+        closest = Math.min(closest, Math.hypot(p[0] - 700, p[1], p[2]));
+        if (w.byId.a.avoidT != null) turned = true;
+      }
+      return { inside, closest, turned };
+    };
+    // (without the wall it flies straight through where the wall would be)
+    expect(fly(null).inside).toBeGreaterThan(0);
+    const R = fly([wall]);
+    expect(R.inside).toBe(0);
+    expect(R.turned).toBe(true);
+    expect(R.closest).toBeLessThan(150);
+  });
 });

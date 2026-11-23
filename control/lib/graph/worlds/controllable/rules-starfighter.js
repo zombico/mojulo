@@ -14,6 +14,8 @@
  *   • TARGETING: `tgt` picks the target: 'next' / 'prev' (every craft round, the nearest first), 'near' (the nearest
  *     hostile), 'atk' (the last one to hit the craft), 'goal' (the next one the mission names: `body.goal`). The
  *     target's facts are kept on the craft (`target`, `tgtInfo` { id, d, closure, hull, shields, stance, name }).
+ *   • AVOIDANCE (a mind flying passes in space): it looks down its nose and turns off a solid in its way, faster than it
+ *     turns back to its target, and is never left inside one (`avoid` { look, rate }).
  *   • A CRASH: flown into a solid (the world's colliders: a capital ship's plates, a station's), it stops at the plate
  *     and glances off it, slowed and hurt as squarely as it struck, the shield on that side first (`crash` { hurt,
  *     speed, bounce }). Facts: crashT, crashN, crashBy.
@@ -372,6 +374,49 @@ export function buildStarfighter(E) {
     } else { c.sfChase = c.rule; c.rule = c.sfCockpit || { type: 'cockpit', target: p.id, seat: (p.rule.seat || [0, 0, 0]).slice(), hideTarget: true }; }
     return null;
   }, 35);
+
+  // ── AVOIDANCE: a mind flying passes in space (`rule.space` and `rule.passes`) keeps off the solids (a capital ship's
+  // plates, a station's). Each step it looks down its nose `avoid.look` s of flight ahead (2.5); on a solid in its way it
+  // turns its nose off that solid's face (the way from the box's middle to where its line meets it, across its nose),
+  // harder the nearer it is, faster than its mind turns it back toward its target (`avoid.rate` its turn rate, 2.5), so
+  // it skims past and goes on with its pass; and a step that still ends inside one puts it back outside (a sphere of its
+  // body's radius against the box). Facts: avoidT (when it last turned off one), avoidBy (the solid's id). ──
+  const wrapA = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  E.registerWorldPass('sf-avoid', (state, input, dt) => {
+    const C = state.colliders;
+    if (!C || !C.length || !(dt > 0)) return;
+    for (const e of state.entities) {
+      const r = e.rule;
+      if (!r || r.type !== 'ai' || !r.space || !r.passes || e.downed || e.gone || e.dormant || !e.transform) continue;
+      const t = e.transform, rc = (e.body && e.body.radius) || 4, v = e.airspeed || r.speed || 0;
+      if (!(v > 0)) continue;
+      // (never inside: out the nearest face)
+      if (E.resolveBlocking3D) E.resolveBlocking3D(t.pos, e.vel || [0, 0, 0], rc, C);
+      const A = r.avoid || {}, cp = Math.cos(t.pitch || 0), f = [cp * Math.cos(t.heading), cp * Math.sin(t.heading), Math.sin(t.pitch || 0)];
+      const L = Math.max(rc * 8, v * (A.look ?? 2.5)), end = [t.pos[0] + f[0] * L, t.pos[1] + f[1] * L, t.pos[2] + f[2] * L], m = rc * 2;
+      let bt = 1, box = null;
+      for (let k = 0; k < C.length; k++) {
+        const c = C[k];
+        if (!c || !c.min || !c.max) continue;
+        const h = E.segAabbT(t.pos, end, [c.min[0] - m, c.min[1] - m, c.min[2] - m], [c.max[0] + m, c.max[1] + m, c.max[2] + m]);
+        if (h != null && h < bt) { bt = h; box = c; }
+      }
+      if (!box) continue;
+      const hit = [t.pos[0] + f[0] * L * bt, t.pos[1] + f[1] * L * bt, t.pos[2] + f[2] * L * bt];
+      let a = [0, 1, 2].map((k) => hit[k] - (box.min[k] + box.max[k]) / 2);
+      const along = a[0] * f[0] + a[1] * f[1] + a[2] * f[2];
+      a = [a[0] - f[0] * along, a[1] - f[1] * along, a[2] - f[2] * along];
+      let an = Math.hypot(a[0], a[1], a[2]);
+      // (square on its middle: up, or across if its nose is up)
+      if (an < 1e-3) { a = Math.abs(f[2]) < 0.9 ? [-f[0] * f[2], -f[1] * f[2], 1 - f[2] * f[2]] : [1, 0, 0]; an = Math.hypot(a[0], a[1], a[2]) || 1; }
+      const k = 0.5 + 1.5 * (1 - bt), want = [f[0] + (a[0] / an) * k, f[1] + (a[1] / an) * k, f[2] + (a[2] / an) * k];
+      const turn = (r.turn ?? 1.8) * (A.rate ?? 2.5) * dt;
+      const wh = Math.atan2(want[1], want[0]), wp = Math.atan2(want[2], Math.hypot(want[0], want[1]));
+      t.heading = t.heading + clamp(wrapA(wh - t.heading), -turn, turn);
+      t.pitch = clamp((t.pitch || 0) + clamp(wp - (t.pitch || 0), -turn, turn), -1.2, 1.2);
+      e.passH = t.heading; e.passP = t.pitch; e.avoidT = state.time; e.avoidBy = box.of || box.id || null;
+    }
+  }, 12);
 
   Object.assign(RULES, { starfighter, cockpit });
   E.starfighterFrame = frameOf;
