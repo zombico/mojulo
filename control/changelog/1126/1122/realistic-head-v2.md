@@ -7,6 +7,8 @@ face toward the proportions and the clean structure of a current game character,
   mouth less full. Her face reads apart from his from the 3/4: her bones show through softer tissue (the jaw's border
   and the cheekbone gentler), her lower face shorter, her chin finer, her nose smaller and shorter (its root lower, between the eyes) and her
   cheeks fuller high up.
+- The forehead turns to the temple at the temporal line instead of rolling round as one ball, and the brow is fullest
+  over the eye's inner half, finer toward its outer corner.
 - The nose's wings join the cheek without the dark pit at their outer corners: the alar crease a fine line scaled with
   the nose, the cheek's pad running under the wing's base.
 - The mouth: the lips lie on the curve of the teeth instead of standing on a mound, their corners tuck into the cheek,

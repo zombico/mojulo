@@ -297,6 +297,12 @@ const CHEEKBONE = Object.freeze({ soft: 0.008, join: 0.038, r: [0.026, 0.033, 0.
 /** the alar crease's radii, a share of the canon's (at the canon's it cut a trench 2-2.5 mm deep and ~4 mm wide beside a
  * smaller nose's wing, a dark crescent between the wing and the cheek; the alar-facial groove is a fine line) */
 const ALAR_CREASE = 0.3;
+/** the temporal lines: their beads [share of the euryon's half-width out, height over the eye] (above the brow's outer end,
+ * the forehead's middle height, high and back), each bead's radius, how far proud of the front bulb's skin each stands,
+ * and how broadly the ridge is joined to the skin, in V */
+const TEMPORAL_LINE = Object.freeze({ at: [[0.8, 0.07], [0.74, 0.17], [0.7, 0.3]], r: [0.03, 0.035, 0.03], prom: [0.004, 0.006, 0.004], join: 0.04 });
+/** the brow arch's shape: its peak's place out from the eye's centre (V, + out) and its outer end's radius */
+const BROW_SHAPE = Object.freeze({ peakOut: 0, tail: 0.025 });
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
  * radius (its width), its edge's blend */
@@ -459,6 +465,19 @@ export function coreVajras(P, rel = RELATIONS) {
   const crown = { x: 0, y: P.euR.y, z: 1 - T('vertex') - rP };
   const back = { x: 0, y: P.op.y + T('op') + rO, z: P.op.z + 0.02 };
   v('vault', front, crown, back, [rF, rP, rO]);
+  // THE TEMPORAL LINES — where the forehead's front turns to the temple: a ridge each side from just above the brow's
+  // outer end, up and back along the frontal bone's temporal line, laid on the front bulb's skin (its centre, its bone
+  // radius and the forehead's tissue) and standing `TEMPORAL_LINE.prom` proud of it, joined to the skin after the wave as
+  // a feature (`temporalLine`), so the forehead turns there at the ridge's radius (without it the forehead was one round
+  // from brow to ear, ~55 mm across at its middle height, and the head read soft from the 3/4)
+  {
+    const TL = TEMPORAL_LINE, rr = TL.r, skinR = rF + T('g'), onBulb = (x, z, prom) => { const dz = z - front.z, q = skinR * skinR - x * x - dz * dz; return { x, y: front.y + Math.sqrt(Math.max(q, 0)) + prom, z }; };
+    for (const s of ['L', 'R']) {
+      const sg = Math.sign(P[`eu${s}`].x), eX = Math.abs(P[`eu${s}`].x), pts = TL.at.map(([sx, dz], i) => onBulb(sg * sx * eX, P[`eye${s}`].z + dz, TL.prom[i]));
+      const inset = (p, r) => { const n = { x: p.x - front.x, y: p.y - front.y, z: p.z - front.z }, l = Math.hypot(n.x, n.y, n.z) || 1; return { x: p.x - (n.x / l) * r, y: p.y - (n.y / l) * r, z: p.z - (n.z / l) * r }; };
+      V.push({ name: `temporalLine${s}`, a: inset(pts[0], rr[0]), c: inset(pts[1], rr[1]), b: inset(pts[2], rr[2]), r: rr, group: 'temporalLine' });
+    }
+  }
   // The rest of the bone is authored at its SKIN size (`skin: true`): a bead's bone radius is its radius less the
   // tissue at its centre (relationalHead), so the skin over it — the bone plus the same depth — is the bead again.
   const w = (name, a, c, b, r, drive, opts = {}) => V.push({ name, a, c, b, r, group: 'bone', skin: true, ...(drive ? { drive } : {}), ...opts });
@@ -535,8 +554,11 @@ export function coreVajras(P, rel = RELATIONS) {
   const rb = 0.03 + 0.02 * R.brow, rS = 0.036 + 0.008 * R.brow;
   for (const s of ['L', 'R']) {
     const e = P[`eye${s}`], sg = Math.sign(e.x);
-    const peak = { x: e.x + sg * 0.012, y: e.y + R.browProjection - rS, z: e.z + 0.065 };
-    w(`brow${s}`, at(P.g, { y: -rb }), peak, P[`fz${s}`], [rb, rS, 0.035]);
+    // (the peak over the pupil, `BROW_SHAPE`, and the outer end finer: the superciliary arch is fullest over the eye's
+    // inner half and the glabella, the supraorbital margin thinning toward the brow's outer corner; with the peak over the
+    // iris's outer edge and the outer end as thick as the middle, the brow read as one straight bar from temple to temple)
+    const peak = { x: e.x + sg * BROW_SHAPE.peakOut, y: e.y + R.browProjection - rS, z: e.z + 0.065 };
+    w(`brow${s}`, at(P.g, { y: -rb }), peak, P[`fz${s}`], [rb, rS, BROW_SHAPE.tail]);
     // THE LATERAL ORBITAL RIM — the zygoma's frontal process: the brow's outer end → beside the outer canthus, its
     // deepest (Hertel's rim, ~16 mm behind the cornea) → the cheekbone; it closes the orbit's side behind the eye.
     // Authored at its BONE size and in the SKULL only: the skin over it is already the wave of the brow, the cheek and
@@ -1131,9 +1153,9 @@ export function earPart(P, rel, s, baseX) {
 
 
 /** the blend width per group, in V (the bone melts broadly; the nose and the lips keep their lobes) */
-const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lipBody: 0.05, lips: 0.01, teeth: 0.0006, tongue: 0.012, cheekbone: 0.02 };
+const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lipBody: 0.05, lips: 0.01, teeth: 0.0006, tongue: 0.012, cheekbone: 0.02, temporalLine: 0.02 };
 /** how each soft feature joins the skin */
-const JOIN = { soft: 0.04, nose: 0.02, lipBody: 0.016, lips: 0.012, ear: 0.01, cheekbone: CHEEKBONE.join };
+const JOIN = { soft: 0.04, nose: 0.02, lipBody: 0.016, lips: 0.012, ear: 0.01, cheekbone: CHEEKBONE.join, temporalLine: TEMPORAL_LINE.join };
 /** the head's layers: the skull alone, or the skin over it */
 export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
 
@@ -1264,7 +1286,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // the shorter wave rides the jaw). Where masses crowd, the summed wave swells the skin ~k·ln(n) past each of them (four
   // within a centimetre under the jaw's side swelled it ~10 mm, a soft fullness that turned under over ~16 mm and hid the
   // jaw's line); a shorter wave there keeps the bone's own edge
-  const boneLines = [...['jawBorderL', 'jawBorderR', 'chin'].map((n) => [n, BONE_WAVE.share, BONE_WAVE.reach])];
+  const boneLines = [...['jawBorderL', 'jawBorderR', 'chin', 'browL', 'browR'].map((n) => [n, BONE_WAVE.share, BONE_WAVE.reach])];
   // (the shortening scaled by the head's `boneEdge`: softer where the bones read through more soft tissue)
   const edge = rel.boneEdge ?? 1, boneFoci = boneLines.filter(([n]) => Vn[n]).flatMap(([n, share, reach]) => [[Vn[n].a, Vn[n].c], [Vn[n].c, Vn[n].b]].map(([a, b]) => ({ a: S(a), b: S(b), cut: (1 - share) * edge, s2: (reach * sc) ** 2 })));
   const segQ = (p, a, b, s2) => { const ab = [b.x - a.x, b.y - a.y, b.z - a.z], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2; const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab[0] + (p.y - a.y) * ab[1] + (p.z - a.z) * ab[2]) / (L2 || 1))); return ((p.x - a.x - ab[0] * t) ** 2 + (p.y - a.y - ab[1] * t) ** 2 + (p.z - a.z - ab[2] * t) ** 2) / s2; };
@@ -1308,7 +1330,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     let d = lo - k * SM.log(sum);
     // (BARE: the skin wave alone, no feature joined and nothing cut: what the face's parts lie over)
     if (bare) return d;
-    for (const k of ['nose', 'lipBody', 'lips', 'cheekbone']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
+    for (const k of ['nose', 'lipBody', 'lips', 'cheekbone', 'temporalLine']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
     // the grooves and the mouth cut from the skin (the eyes are their own rig, set in after)
     for (const c of carves) d = smax(d, -c.f(p), (c.blend ?? 0.003) * sc);
     if (mouthF) d = smax(d, -mouthF(p), 0.006 * sc);
