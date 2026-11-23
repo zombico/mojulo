@@ -9,7 +9,8 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { renderBeatsOffline } from './beats-render.js';
-import { normalizeBeatsManifest } from './beats-manifest.js';
+import { normalizeBeatsManifest, validateBeatsManifest } from './beats-manifest.js';
+import { INSTRUMENTS } from './instruments.js';
 import { PATCHES, RECORDED_TWINS } from './audio-patches.js';
 import { forgetLibrary, sampleSlice, hasInstrument } from '../sound-library/library.js';
 import { fundamental, steadyPitch, loopPoints } from '../../../scripts/sound-library/pitch.js';
@@ -126,5 +127,42 @@ describe('the recorded twins', () => {
       expect(PATCHES[twin]).toMatchObject({ voice: 'sample', zones: true });
       expect(PATCHES[twin].fallback).toBe(PATCHES[synth]);
     }
+  });
+});
+
+describe('the recorded switch', () => {
+  // an instrument whose patch has a twin, and one whose has none, chosen in code
+  const TWINNED = Object.keys(INSTRUMENTS).find((i) => RECORDED_TWINS[INSTRUMENTS[i].patch] === INST);
+  const PLAIN = Object.keys(INSTRUMENTS).find((i) => typeof INSTRUMENTS[i].patch === 'string' && !RECORDED_TWINS[INSTRUMENTS[i].patch] && !PATCHES[INSTRUMENTS[i].patch]?.kit);
+  const song = (extra = {}, part = {}) => ({ kind: 'beats-composition', title: 'switch', bpm: 120, ...extra, parts: [
+    { name: 'a', instrument: TWINNED, events: [[0, 'C4', 2, 0.8]], ...part }, { name: 'b', instrument: PLAIN, events: [[0, 'E4', 2, 0.7]] }] });
+
+  it('puts every part whose patch has a twin on it, its instrument\'s chain kept, and leaves the rest', () => {
+    const N = normalizeBeatsManifest(song({ recorded: true }));
+    expect(N.parts[0].patch).toBe(INST);
+    expect(N.parts[0].chain).toEqual(INSTRUMENTS[TWINNED].chain);
+    expect(N.parts[1].patch).toBe(INSTRUMENTS[PLAIN].patch);
+    expect(normalizeBeatsManifest(song({ recorded: true }, { recorded: false })).parts[0].patch).toBe(INSTRUMENTS[TWINNED].patch);
+    expect(normalizeBeatsManifest(song({}, { recorded: true })).parts[0].patch).toBe(INST);
+    expect(normalizeBeatsManifest(song()).parts[0].patch).toBe(INSTRUMENTS[TWINNED].patch);
+  });
+
+  it('is a yes or a no', () => {
+    expect(validateBeatsManifest(song({ recorded: 'yes' })).errors.join(' ')).toMatch(/recorded is true or false/);
+    expect(validateBeatsManifest(song({ recorded: true })).ok).toBe(true);
+  });
+
+  it('without the library a song switched to recorded renders byte for byte as it does without the switch', async () => {
+    library(false);
+    const on = await renderBeatsOffline(normalizeBeatsManifest(song({ recorded: true })));
+    const off = await renderBeatsOffline(normalizeBeatsManifest(song()));
+    expect(sha(on.wav)).toBe(sha(off.wav));
+  });
+
+  it('with it, the switched song is the one that names its twins by hand', async () => {
+    library(true);
+    const on = await renderBeatsOffline(normalizeBeatsManifest(song({ recorded: true })));
+    const hand = await renderBeatsOffline(normalizeBeatsManifest(song({}, { patch: INST })));
+    expect(sha(on.wav)).toBe(sha(hand.wav));
   });
 });
