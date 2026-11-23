@@ -127,7 +127,14 @@ describe('a bush as flock (a realistic stage\'s, its `flock` row)', () => {
     for (const k of takes) {
       const B = bushForm(k, { seed: 1 }), F = BUSH_HABITS[k].flock, P = bushPuffs(B, F), s0 = F.size * B.height;
       expect(P.length).toBeGreaterThan(3);
-      for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) expect(Math.hypot(...P[i].p.map((v, c) => v - P[j].p[c]))).toBeGreaterThanOrEqual(s0 * F.apart - 1e-3);
+      // (a mass's kept apart; a fountain's along its arches, over the stem where its leaves are, from `along` of the way out)
+      if (F.along === undefined) for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) expect(Math.hypot(...P[i].p.map((v, c) => v - P[j].p[c]))).toBeGreaterThanOrEqual(s0 * F.apart - 1e-3);
+      else {
+        expect(B.arches.length).toBeGreaterThan(1);
+        const near = (q) => Math.min(...B.arches.flatMap((A) => A.pts.slice(Math.floor(F.along * (A.pts.length - 1))).map((x) => Math.hypot(...x.map((v, c) => v - q.p[c])))));
+        for (const q of P) expect(near(q)).toBeLessThan(q.s * (F.lift + 0.6));
+        expect(P.length).toBeGreaterThanOrEqual(B.arches.length);
+      }
       // (one mass: each puff reaches another, its radii summed past the distance between them)
       for (const a of P) expect(P.some((b) => b !== a && Math.hypot(...a.p.map((v, c) => v - b.p[c])) < (a.s + b.s) * 1.6)).toBe(true);
       // (every clump of its outline within a puff's reach: the mass is the bush's shape)

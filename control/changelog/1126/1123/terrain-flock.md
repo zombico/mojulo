@@ -5,8 +5,9 @@
   a beech's oval one). It is the realistic crown's look from now on; a scene can turn it off, leave the leaves off, or
   choose its shadow: dappled, solid or none. Far trees are the same sponge, so a tree keeps its look as it
   recedes; exported models keep the crown as it was.
-- Leafy bushes on the same scenes are flock too: a box or laurel dome and a forsythia's fountain stand as clumps of
-  sponge with their own small leaves on the skin, the light through them, near and far. Hostas, ferns and the needled
+- Leafy bushes on the same scenes are flock too: a box or laurel dome stands as clumps of sponge, and a forsythia's
+  fountain as runs of sponge along its arches, each with its own small leaves on the skin and the light through it, near
+  and far. Hostas, ferns and the needled
   bushes keep their own look.
 - A spike compares the crown as it was with the sponge and the sponge with leaves from the same cameras
   (`scripts/spikes/flock`).

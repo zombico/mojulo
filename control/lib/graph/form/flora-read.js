@@ -372,7 +372,7 @@ function bushTemplate(kind, height, adorn, name, flock = false) {
     const B = { ...B0, clumps: Q.clumps, sites: Q.sites };
     const extra = adorn ? { adorn: { kind: adorn, list: adorn === 'bloom' ? packBlooms(B.blooms) : packBerries(B.berries), geo: adorn === 'bloom' ? [packGeo(bushBlossom(B.look))] : Array.from({ length: ADORN.berries[1] - ADORN.berries[0] + 1 }, (_, k) => packGeo(bushBerries(B.look, ADORN.berries[0] + k, 1 + k))), lo: ADORN.berries[0] } } : {};
     // (its puffs as a realistic crown's: its sites, its lobes in their variants, its card full, its own leaf)
-    const puffs = PF.length ? { blobs: packSites(PF), nBlobs: PF.length, blobGeo: Array.from({ length: PUFF.variants }, (_, k) => packGeo(lobeTris(17 + k, { ...PUFF, ...FH.puff }, PUFF.detail))), far: REALISTIC.far, flockLeaf: flockLeafOf(B0.leaf), flockGrain: FH.grain, clumps: packSites([]), nClumps: 0 } : {};
+    const puffs = PF.length ? { blobs: packSites(PF), nBlobs: PF.length, blobGeo: Array.from({ length: PUFF.variants }, (_, k) => packGeo(lobeTris(17 + k, { ...PUFF, ...FH.puff }, FH.detail ?? PUFF.detail))), far: REALISTIC.far, flockLeaf: flockLeafOf(B0.leaf), flockGrain: FH.grain, clumps: packSites([]), nClumps: 0 } : {};
     // (its reach its clumps', as without its puffs: none of them kept, so its outline is the sponge's)
     CACHE.set(key, { ...template('bush', name, B, B.leaf, extra), budget: Q.budget, ...(Q.lean ? { clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafClump(B.leaf, { seed: 17 + k, lean: true }).tris)) } : {}), ...puffs });
   }

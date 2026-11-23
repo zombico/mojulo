@@ -41,14 +41,17 @@ const TAU = 2 * Math.PI;
  * `flock` (a leafy habit that reads as clump foliage: the dome, the fountain): its PUFFS when its stage's realistic crowns
  * are flock (form/flora-read.js FLOCK), each `size` × its height, set `sink` × that in from its outline, `apart` × that
  * from each other, shaped `puff` (form/flora-read.js PUFF's keys), its sponge's grain `grain` × a tree's (its leaves are
- * smaller); none of its clumps kept: the sponge and its leaves are its foliage. bushPuffs.
+ * smaller); none of its clumps kept: the sponge and its leaves are its foliage. A fountain's (`along`) follow its ARCHES
+ * instead: from `along` of the way out to the tip, where its leaves are, `apart` × their size from each other along it
+ * (so they overlap into a run), shrinking to `taper` at the tip, `lift` × their size over the stem, long along it.
+ * `detail` its puffs' subdivisions (form/flora-read.js PUFF.detail where it says none: a small puff needs fewer). bushPuffs.
  */
 export const BUSH_HABITS = Object.freeze({
   spray: Object.freeze({ shape: 'dome', radius: 1, fill: 1.35, dense: 1, leaf: Object.freeze({ leafSize: 0.045, outline: 'ovate', phyllo: 'spiral' }), reads: 'a dome of small leaves: box, laurel',
     flock: Object.freeze({ size: 0.3, sink: 0.6, apart: 1.1, grain: 0.4, puff: Object.freeze({ wide: 1, top: 0.9, bottom: 0.6 }) }) }),
   plate: Object.freeze({ shape: 'mound', radius: 1.7, fill: 1.3, dense: 1.1, reach: 0.65, sprays: 2, leaf: Object.freeze({ needle: 'silverfir', scale: 0.26 }), reads: 'a low wide mound, its pads level in layers: juniper' }),
   weep: Object.freeze({ shape: 'fountain', radius: 1.25, fill: 1.15, dense: 1, leaf: Object.freeze({ leafSize: 0.05, outline: 'ovate', phyllo: 'distichous' }), reads: 'arches from the foot, leaves along them: forsythia',
-    flock: Object.freeze({ size: 0.22, sink: 0.4, apart: 1, grain: 0.45, puff: Object.freeze({ wide: 1.1, long: 1.2, top: 0.7, bottom: 0.5 }) }) }),
+    flock: Object.freeze({ along: 0.4, size: 0.2, apart: 1.45, taper: 0.65, lift: 0.3, grain: 0.45, detail: 0, puff: Object.freeze({ wide: 0.85, long: 1.5, top: 0.75, bottom: 0.45 }) }) }),
   tuft: Object.freeze({ shape: 'upright', radius: 0.8, fill: 1.1, dense: 1.3, reach: 0.55, leaf: Object.freeze({ needle: 'pine', scale: 0.45 }), reads: 'a vase of upright stems, brushes at their tips: broom, heather' }),
   whorl: Object.freeze({ shape: 'rosette', radius: 1.2, fill: 1, dense: 1, leaf: Object.freeze({ leafSize: 0.12, outline: 'broad', phyllo: 'spiral' }), reads: 'long leaves in rings from the ground: hosta, fern' }),
   spire: Object.freeze({ shape: 'cone', radius: 0.6, fill: 1.2, dense: 1.6, leaf: Object.freeze({ needle: 'spruce', scale: 0.3 }), reads: 'a small cone: a dwarf conifer' }),
@@ -85,6 +88,9 @@ function outline(shape, z, h, R) {
   return 0;
 }
 
+/** A fountain's arches as `bushForm` returns them (`arches`: [{ ax, pts }], its way out and its points from its foot to its
+ *  tip, this many spans), for its flock's puffs to follow. */
+export const ARCH_SAMPLES = 20;
 export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
   if (adorn !== null && adorn !== 'bloom' && adorn !== 'fruit') throw new Error(`bush-form: adorn is 'bloom', 'fruit' or null (green), not '${adorn}'`);
   const K = readBush(kind), H = BUSH_HABITS[K.form];
@@ -93,7 +99,7 @@ export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
   const dice = (a, b = 0) => hashN(seed * 7919 + a * 131 + b * 17);
   // a clump's span: its leaves' reach (sprays.js CLUMP, a leaf 3.5 times the leaf's, tilted out), or a pad's length
   const span = needles ? (needles === 'pine' ? 1.2 : 1.1) * leaf.scale : leaf.leafSize * 3.5 * 1.8, gap = span * BUSH_FORM.spacing / Math.sqrt(K.density) / H.dense;
-  const clumps = [], sites = [], W = { pos: [], nrm: [], uv: [], idx: [] };
+  const clumps = [], sites = [], arches = [], W = { pos: [], nrm: [], uv: [], idx: [] };
   const clump = (p, o, d, e, s) => clumps.push({ p: p.map(r4), d: unit(d).map(r4), o: unit(o).map(r4), s: r4(s * H.fill), e: r4(Math.max(0, Math.min(1, e))), r: r4(dice(clumps.length, 3)) });
   const girth = K.girth * h, ns = K.stems, splay = (K.splay * Math.PI) / 180, yaw0 = TAU * dice(1);
 
@@ -106,6 +112,7 @@ export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
       const ax = [dmath.cos(az), dmath.sin(az), 0], at = (t) => add(mul(ax, reach * t), [0, 0, top * dmath.sin(Math.PI * t * 0.78)]);
       const pts = [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1].map(at), rs = pts.map((_, i) => girth * (1 - 0.75 * (i / (pts.length - 1))));
       pushTube(W, pts, rs, BUSH_FORM.sides, true);
+      arches.push({ ax: ax.map(r4), pts: Array.from({ length: ARCH_SAMPLES + 1 }, (_, i) => at(i / ARCH_SAMPLES).map(r4)) });
       const L = pts.reduce((s, p, i) => (i ? s + len(sub(p, pts[i - 1])) : 0), 0), n = Math.max(2, Math.round((L * 0.6) / gap));
       for (let q = 0; q < n; q++) {
         const t = 0.4 + (0.6 * (q + 0.5)) / n, p = at(t), tan = sub(at(Math.min(1, t + 0.02)), at(Math.max(0, t - 0.02)));
@@ -182,7 +189,7 @@ export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
   }
   clumps.sort((a, b) => a.r - b.r); sites.sort((a, b) => a.r - b.r); blooms.sort((a, b) => a.r - b.r).splice(ADORN.cap[0]); berries.sort((a, b) => a.r - b.r).splice(ADORN.cap[1]);
   // (a bush's sprays come in closer than a tree's: it is small, and stands by the walk)
-  return { form: K.form, detail: BUSH_FORM.detail, draw: H.draw ?? BUSH_FORM.draw, height: r4(h), radius: r4(R), wood: W, clumps, sites, leaf, bark: 'beech', ...(adorn ? { adorn, blooms, berries, look: BUSH_ADORN[K.form][adorn] } : {}), ...(needles ? { needles, pad: false } : {}) };
+  return { form: K.form, detail: BUSH_FORM.detail, draw: H.draw ?? BUSH_FORM.draw, height: r4(h), radius: r4(R), wood: W, clumps, sites, leaf, bark: 'beech', ...(adorn ? { adorn, blooms, berries, look: BUSH_ADORN[K.form][adorn] } : {}), ...(needles ? { needles, pad: false } : {}), ...(arches.length ? { arches } : {}) };
 }
 
 /** A blossom: five petals round an eye, cupped a little, facing +z; each petal two facets so a sun finds them. */
@@ -215,6 +222,7 @@ export function bushBerries(look, n, seed = 1) {
  */
 export function bushPuffs(form, F) {
   if (!F) return [];
+  if (F.along !== undefined && form.arches) return archPuffs(form, F);
   const s0 = F.size * form.height, out = [];
   const byRank = [...form.clumps].sort((a, b) => a.r - b.r || a.p[0] - b.p[0] || a.p[1] - b.p[1] || a.p[2] - b.p[2]);
   for (const c of byRank) {
@@ -224,4 +232,20 @@ export function bushPuffs(form, F) {
     out.push({ p: p.map(r4), o: ol > 1e-3 ? [r4(c.o[0] / ol), r4(c.o[1] / ol), 0] : [1, 0, 0], d: c.d, s: r4(s), e: c.e });
   }
   return out.map((q, i) => ({ ...q, r: r4(i / out.length) }));
+}
+
+// a fountain's puffs along its arches (BUSH_HABITS `flock.along`): each arch walked by its length from `along` of the way out
+// to its tip, a puff every `apart` × its size, smaller toward the tip, a little over the stem, turned out along the arch
+function archPuffs(form, F) {
+  const s0 = F.size * form.height, out = [];
+  form.arches.forEach(({ ax, pts }, a) => {
+    const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(...pts[i].map((v, k) => v - pts[i - 1][k])));
+    const L = cum[cum.length - 1], at = (l) => { let i = 1; while (i < cum.length - 1 && cum[i] < l) i++; const u = (l - cum[i - 1]) / Math.max(1e-9, cum[i] - cum[i - 1]); return { p: pts[i - 1].map((v, k) => v + (pts[i][k] - v) * u), d: unit(sub(pts[i], pts[i - 1])) }; };
+    for (let l = F.along * L; l <= L + 1e-9;) {
+      const f = l / L, s = s0 * (1 - (1 - F.taper) * (f - F.along) / (1 - F.along)) * (0.9 + 0.2 * hashN(a * 97 + out.length * 13 + 5)), { p, d } = at(l);
+      out.push({ p: add(p, [0, 0, s * F.lift]).map(r4), o: [ax[0], ax[1], 0], d: d.map(r4), s: r4(s), e: r4(0.55 + 0.45 * f) });
+      l += s * F.apart;
+    }
+  });
+  return out.map((q, i) => ({ ...q, r: r4(hashN(i * 31 + 3)) }));
 }

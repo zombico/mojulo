@@ -373,7 +373,9 @@ stage says `crowns: { form: 'realistic', flock: false }`.
 - **Bushes too.** On a stage whose realistic crowns are flock, a leafy bush that reads as clump foliage (a habit with a
   `flock` row in form/bush-form.js `BUSH_HABITS`: the dome, box and laurel; the fountain, forsythia) stands its mass as
   puffs (`bushPuffs`): one where a clump stands, by the clumps' rank, set in from the outline and kept apart, so they
-  overlap into one mass the bush's shape. They are drawn as a realistic crown's: the sponge, the bush's own leaf at its
+  overlap into one mass the bush's shape. A fountain's follow its arches instead (`flock.along`): runs of smaller, coarser
+  puffs, long along each arch, over its outer part where its leaves are, shrinking toward the tip, so it reads as
+  arches and not as a hedge (about 40 puffs, 800 triangles, as many as its leaf cards had). They are drawn as a realistic crown's: the sponge, the bush's own leaf at its
   size (a box's 4.5 cm ovate), the light through, its far card baked from the sponge. Its sponge is finer than a
   tree's (`grain`, written into its material's source, so a tree's source is as it was), and none of its leaf-card
   clumps are kept. The rosette (hosta, fern) and the needled habits keep their own look.
