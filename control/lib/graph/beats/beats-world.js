@@ -260,6 +260,16 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       moves = kept({ swing: byWeight(swing), hit: byWeight(hit), ...Object.fromEntries(Object.entries(one).map(([ev, word]) => [ev, idOf(word)])) });
       for (const id of Object.keys(cues)) if (!cues[id]) delete cues[id];
     }
+    // a battle's moments (`sheet.battle`, sound-sheet.js and sfx-shelf/magic-sounds.js battleSounds): each happening of the
+    // page's RPG by shelf word, each word a cue of the level's (`rpg-<word>`), in its lanes; the audio channel plays them
+    let battle = null;
+    if (sheet.battle && audioSpec.battle === undefined) {
+      // (a word with no voice here, a row the library does not record yet and with no stand-in, is left out)
+      const idOf = (word) => { const id = `rpg-${word}`; if (!(id in cues)) cues[id] = sfxSound(word, { style, flavor })?.gestures ?? null; return cues[id] ? id : null; };
+      const lane = (L) => (Array.isArray(L) ? L : []).map(([k, w]) => [k, idOf(w)]).filter(([, id]) => id);
+      battle = { order: lane(sheet.battle.order), ends: lane(sheet.battle.ends), also: kept(Object.fromEntries(Object.entries(sheet.battle.also ?? {}).map(([k, w]) => [k, idOf(w)]))) };
+      for (const id of Object.keys(cues)) if (!cues[id]) delete cues[id];
+    }
     // a run and gun's voices (`sheet.run`, sound-sheet.js RUN_SOUNDS): each word its gestures, a held one its sustain
     const run = sheet.run && audioSpec.run === undefined ? kept(Object.fromEntries(Object.entries(sheet.run).map(([ev, word]) => [ev, ev === 'foes' ? Object.fromEntries(Object.entries(word).map(([id, M]) => [id, kept(Object.fromEntries(Object.entries(M).map(([k, w]) => [k, cueOf(w)])))])) : RUN_HELD.includes(ev) ? sfxSound(word, { style, flavor })?.sustain ?? null : cueOf(word)]))) : null;
     audioSpec = {
@@ -272,6 +282,7 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       ...(moves ? { moves } : { strike: audioSpec.strike ?? kept({ swing: slot('swing', 'swing'), hit: slot('strike', 'strike') }) }),
       dodge: audioSpec.dodge ?? slot('dodge', 'dodge'),
       ...(run && Object.keys(run).length ? { run } : {}),
+      ...(battle && (battle.order.length || battle.ends.length) ? { battle } : {}),
     };
     out.sheet = style;
     // (the effects' level under the score, the sheet's `level`: a run and gun's busy fire never buries its music)
@@ -530,6 +541,10 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (Object.keys(rOut).length) out.run = rOut;
   }
   if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
+  // an RPG battle's sounds (`battle`: { order, ends: [[<happening>, <cue id>]…], also: { crit?, weak? } }): of the
+  // happenings a frame of the page's RPG carries (playscape/rpg/juice.js juiceKeys, on the bus as rpg-on:<key>), the
+  // first of each lane plays, the accents over them; each a cue id of the level's
+  if (audioSpec.battle !== undefined) out.battle = resolveBattle(audioSpec.battle, out.cues || {});
   // a sheet level's FOES (above): { <foe id>: { attack?, hurt?, down? } }, each a cue id of the level's
   if (sheetFoes && out.cues) out.foes = sheetFoes;
 
@@ -537,6 +552,20 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
 }
 
 export const MOVE_SOUNDS = Object.freeze({ weighted: ['swing', 'hit'], weights: ['light', 'heavy', 'finisher'], one: ['block', 'parry', 'break', 'draw', 'loose', 'arrow', 'felled', 'cycle', 'foeSwing', 'hurt'] });
+function resolveBattle(b, cues) {
+  const bad = (m) => new Error(`audio.battle${m}`);
+  if (!b || typeof b !== 'object' || Array.isArray(b)) throw bad(' is { order?, ends?: [[<happening>, <cue id>]…], also?: { crit?, weak? } }');
+  const lane = (k) => {
+    const L = b[k] ?? [];
+    if (!Array.isArray(L) || !L.every((x) => Array.isArray(x) && typeof x[0] === 'string' && typeof x[1] === 'string')) throw bad(`.${k} is a list of [<happening>, <cue id>]`);
+    for (const [h, id] of L) if (!cues[id]) throw bad(`.${k}: '${h}' plays '${id}', not a cue of the level`);
+    return L.map(([h, id]) => [h, id]);
+  };
+  const also = b.also ?? {};
+  for (const [k, id] of Object.entries(also)) { if (!['crit', 'weak'].includes(k)) throw bad(`.also.${k}: the accents are crit and weak`); if (!cues[id]) throw bad(`.also.${k}: '${id}' is not a cue of the level`); }
+  return { order: lane('order'), ends: lane('ends'), ...(Object.keys(also).length ? { also: { ...also } } : {}) };
+}
+
 function resolveMoves(m, cues) {
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
   const say = (msg) => { throw new Error(`audio.moves${msg}`); };

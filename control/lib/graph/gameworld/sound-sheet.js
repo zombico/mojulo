@@ -71,6 +71,9 @@ import { vehicleSounds, modelEngines, modelVehicles } from '../sfx-shelf/vehicle
 import { VEHICLES } from '../vehicle-registry/roster.js';
 import { hasFlavor } from '../sound-library/library.js';
 import { suitSounds, suitRecorded } from '../sfx-shelf/suit-sounds.js';
+import { battleSounds, magicRecorded } from '../sfx-shelf/magic-sounds.js';
+import { SKILL_PRESETS, ITEM_PRESETS } from '../playscape/rpg/presets.js';
+import { laidBattles } from './battles.js';
 import { POLES } from './feel/cards.js';
 import { feelCard } from './feel/lower.js';
 import { BOSSES } from './bosses.js';
@@ -256,11 +259,12 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, suit?, bed?, vary?, level? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, suit?, battle?, bed?, vary?, level? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
   if (S.level !== undefined && !(Number.isFinite(S.level) && S.level >= 0 && S.level <= 1)) throw fail(`.level is the effects' level under the score, 0 to 1`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
+  if (S.battle !== undefined && S.battle !== false) throw fail(`.battle is false (no battle sounds), or left out: a game's battles are heard by the magic kit where the library records it`);
   if (S.suit !== undefined) { try { suitSounds(S.suit); } catch (e) { throw fail(`.suit: ${e.message.replace(/^suit sounds: /, '')}`); } }
   const word = (at, w) => { if (!resolveSoundId(w)) throw fail(`${at}: '${w}' is not a sound on the shelf; ${suggestSounds(w)}`); };
   for (const k of ['slots', 'on']) for (const [slot, w] of Object.entries(S[k] ?? {})) word(`.${k}.${slot}`, w);
@@ -364,6 +368,19 @@ function suitSlots(G, own) {
   return { slots, why, suit: { weight: K.weight, drive: K.drive, arms: K.arms } };
 }
 
+// A PARTY BATTLE'S SOUNDS (a game that lays battles, gameworld/battles.js: Isekai Party's, a world that fights turn by
+// turn): each happening of its fights by the magic kit (sfx-shelf/magic-sounds.js battleSounds), its skills the presets'
+// and its own, each elemental one at its tier; only where the library records the kit, so a page without it is as it was
+function battleOf(G) {
+  if (!G || G.sound?.battle === false || !magicRecorded()) return null;
+  // (a world the battles cannot be read from fights none: its sounds never break a game)
+  let L = null;
+  try { L = laidBattles(G); } catch { return null; }
+  if (L.battles === undefined || L.battles?.on === 'board') return null;
+  const own = (k) => (isObj(L.battles[k]) ? L.battles[k] : {});
+  return battleSounds({ ...SKILL_PRESETS, ...own('skills') }, { items: { ...ITEM_PRESETS, ...own('items') } });
+}
+
 /** The game's sheet (see the header). */
 export function soundSheet(G, { manifest = null } = {}) {
   const own = readSound(G?.sound);
@@ -391,7 +408,9 @@ export function soundSheet(G, { manifest = null } = {}) {
   // (its FLAVOR: a game's own recorded sounds, its feel's pole's (Galaxy Boy's), where the library holds them)
   const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null, flavor = pole && hasFlavor(pole) ? pole : null;
   if (flavor) why.flavor = `its own recorded sounds (${flavor}'s), ahead of the shelf's`;
-  return { style, ...(flavor ? { flavor } : {}), ...(su ? { suit: su.suit } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), ...(rn?.platform ? { platform: true } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
+  const battle = battleOf(G);
+  if (battle) why.battle = 'its battles heard by the magic kit: each element at its tier, the statuses, the heals, the fight\'s moments';
+  return { style, ...(flavor ? { flavor } : {}), ...(su ? { suit: su.suit } : {}), ...(battle ? { battle } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), ...(rn?.platform ? { platform: true } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
 // a place's environment by its words (its own kit, its weather, its hour and its look's title): the bed it lays under the score
@@ -458,7 +477,7 @@ export function sheetAudio(G, opts = {}) {
   const space = levelSpace(G, opts);
   // (the effects' level under the score: the game's own, else a run and gun's)
   const level = Number.isFinite(G?.sound?.level) ? G.sound.level : S.run && !S.platform ? RUN_LEVEL : null;
-  return { sheet: { style: S.style, ...(S.flavor ? { flavor: S.flavor } : {}), slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(level != null ? { level } : {}) } };
+  return { sheet: { style: S.style, ...(S.flavor ? { flavor: S.flavor } : {}), slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(S.battle ? { battle: S.battle } : {}), ...(level != null ? { level } : {}) } };
 }
 
 /**

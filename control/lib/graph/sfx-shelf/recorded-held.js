@@ -59,6 +59,11 @@ export const HELD_TUNINGS = Object.freeze({
   'ion-drive': Object.freeze({ loop: 'mbk-ion-loop', rate: [0.9, 1.15] }),
   'jump-servo': Object.freeze({ loop: 'mbk-jump-servo', rate: [0.8, 1.4] }),
   'servo-whine': Object.freeze({ loop: 'mbk-servo-whine', rate: [0.85, 1.3] }),
+  // what magic holds in a world (sfx-shelf/magic-sounds.js WORLD_HELD), by how near or how strong
+  'lava-flow': Object.freeze({ loop: 'mg-lava-flow', rate: [0.9, 1.1] }),
+  'portal-hum': Object.freeze({ loop: 'mg-portal-hum', rate: [0.85, 1.2] }),
+  'arcane-aura': Object.freeze({ loop: 'mg-arcane-aura', rate: [0.9, 1.15] }),
+  'poison-bog': Object.freeze({ loop: 'mg-poison-bog', rate: [0.9, 1.1] }),
   // a game's own (a `flavor`: its rail's): heard only by a game of that flavor
   'charge-hum': Object.freeze({ loop: 'gb-charge', flavor: 'galaxy-boy', rate: [0.85, 1.3] }),
 });

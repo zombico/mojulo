@@ -332,11 +332,38 @@ heard as its weight implies only where the library records it), and the firing r
 footfalls and servos by their mass). Mech Battle Kai's recordings voice every row of the kit
 ([sound-library.md](sound-library.md)).
 
+## Magic as a kit
+
+`sfx-shelf/magic-sounds.js` hears magic by what it is. Each ELEMENT (`ELEMENTS`: fire, ice, thunder, water, wind,
+earth, light, dark, poison, nature, arcane; the words games use for them, `ELEMENT_WORDS`: lightning is thunder, holy
+is light, shadow is dark) has its phases and tiers: the cast gathering (`<el>-cast`), then the blow as a bolt (minor),
+a burst (major) or a cataclysm (ultimate). Then the STATUSES taken (`status-<s>`: poison, burn, freeze, paralysis,
+sleep, silence, confusion, blindness, stun, petrify, doom, regen, haste, slow, berserk, barrier) and what every status
+shares (a stat up or down, a cure, a status wearing off, poison's tick); the SPELLS that are no element's blow (a great
+heal, a revive, a drain, mana, a dispel, time stopped, the shelf's heal, buff, curse, teleport and summon); a BATTLE's
+moments (its start, a boss appearing, a critical hit, a weakness struck, a blow resisted, a foe dissolving, a level
+gained, a skill learned); and the WORLD (a quake, the ground cracking, stone rising and sinking, lava erupting, a flood,
+ice spreading, vines growing, a portal opening and closing, a ward, the sky darkening, dawn breaking; held: lava, a
+portal's hum, an arcane aura, a poison bog). Every word is a row (`MAGIC_ROWS`, laid by the roster), recorded and heard
+as its stand-in until the library records it. A new element, status or world effect is a row of its table.
+
+`skillSounds(skill)` hears an RPG skill (playscape/rpg's shape) as cast and as landed: its element at its tier (a skill
+on every foe, or a blow of power 10 and more, is major), a heal (great by its reach), a revive, a stat raised or
+lowered; a blow with no magic casts nothing. `battleSounds(skills)` turns a battle's happenings (the RPG's `juiceKeys`,
+on the bus as `rpg-on:<key>`) into two lanes, the act (a status, a heal, a blow by its skill then its element, a cast)
+and its end (a foe dissolving, a member falling, a level, the fight's start), and the accents (a crit, a weakness): of
+the happenings a frame carries, the page plays the first of each lane and the accents over them (`audio.battle`, the
+audio channel's). A game that lays battles (`gameworld/battles.js`, Isekai Party's) is heard this way where the library
+records the kit; `sound: { battle: false }` turns it off.
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
 (`gameworld/practice-room.js`) name their sounds by word and wire them to a moveset's events (`audio.moves`, the
 world-audio card); made levels do not yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
-throttle), a suit's boost, quick boost, overheat and transform on a level (the level runtime does not carry the mech's
+throttle), a suit's boost, quick boost, overheat and transform on a level; magic on the action games (Fable of Artesia's
+spells, the cast op's statuses: `worlds/controllable/cast.js` emits no event when a status is taken), the RPG's
+statuses wearing off and poison's tick (its kernel names neither), the world's effects and terrain on the events that
+could carry them (a rupa break by how it broke, a hazard by its kind) (the level runtime does not carry the mech's
 boost yet: `feel/lower.js` LOST), recorded beds (the library's ambience loops), and WAVs in the engine handoff.

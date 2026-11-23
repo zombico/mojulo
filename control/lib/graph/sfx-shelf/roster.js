@@ -31,6 +31,7 @@
  *
  * Pure data and pure functions: no clock, no dice.
  */
+import { MAGIC_ROWS } from './magic-sounds.js';
 
 /** Where a sound sits. A category with no row yet is a gap the shelf owes (sfxGaps). */
 export const CATEGORIES = Object.freeze({
@@ -498,6 +499,9 @@ const ROWS = {
   'missile-salvo': recorded('weapon', 'shoot', 'weapon.shot', 'a salvo of missiles launching in quick succession', ['missile salvo', 'missile pod', 'micro missiles'], { matter: ['fire', 'machine'], standIn: 'missile-launch' }),
   'heat-axe-swing': recorded('melee', 'swing', 'strike.swing', 'a heat axe swung: a heavy whoosh with a hot sizzle', ['heat axe', 'heat hawk', 'axe swing mech'], { matter: ['metal', 'fire'], standIn: 'saber-swing' }),
   'heat-axe-hit': recorded('melee', 'strike', 'strike.hit', 'a heat axe chopping into armour: a crunch and a hot sear', ['heat axe hit', 'heat hawk hit'], { matter: ['metal', 'fire'], standIn: 'saber-hit' }),
+  // ── magic as a kit (sfx-shelf/magic-sounds.js): each element by its phase and tier, the statuses, the spells, a battle's
+  //    moments, what magic does to a world; each `recorded`, heard as its stand-in until the library records it ──
+  ...Object.fromEntries(MAGIC_ROWS.map((r) => [r.id, recorded(r.category, null, r.slot, r.label, r.aliases, { matter: r.matter, ...(r.standIn ? { standIn: r.standIn } : {}) })])),
   // ── the audio channel's own synth slots (scene/channels/audio.js): its code plays them, unless the level gives the
   //    slot the row's voice (a port of that code, range for range) ──
   'thruster-roar': { ...made('machinery', null, 'thruster', 'a thruster held: a jet whine that swells with the thrust', ['thruster', 'boost', 'booster'], 'booster', { kind: 'jet' }), channel: 'thruster' },

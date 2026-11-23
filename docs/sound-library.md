@@ -58,6 +58,13 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   `standIn` without the library. A game designs its suit with `sound: { suit: { weight, drive, arms } }`; a feel with a
   mech (Mech Battle Kai's) is heard as its weight implies where the library records it; the firing range's walking
   frames by their mass. Each card's `tags` name its axis (`suit`, `light`, `rocket`, `arms`…).
+- **Magic's kit** (`sfx-shelf/magic-sounds.js`, recorded from `cards/magic.js`): every element (fire, ice, thunder,
+  water, wind, earth, light, dark, poison, nature, arcane) as its cast and its three tiers (bolt, burst, cataclysm), the
+  statuses taken and what they share, the spells, a battle's moments, and what magic does to a world (terrain shifting,
+  the sky turning, lava and portals held). Not a flavor. A game that lays party battles (Isekai Party's) hears each of
+  its fights' happenings by it where the library is installed: each elemental skill at its tier, the statuses, the heals,
+  a crit or a weakness over the blow, a foe dissolving, a level gained. Tags: `magic`, the element, `status`, `spell`,
+  `battle`, `world`, `terrain`, the tier.
 - **Vehicles** (`sfx-shelf/vehicle-sounds.js`): each vehicle in the registry
   ([vehicles.md](vehicles.md)) sounds as its kind (realm and role: a road hauler is a diesel with air brakes and a
   reverse beeper) unless it is named for its own (a muscle car's V8, a tram's bell, a bicycle's freewheel): its

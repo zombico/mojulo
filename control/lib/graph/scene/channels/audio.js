@@ -244,7 +244,28 @@ if (__AUDIO.on && typeof __BUS !== 'undefined') {
     return out;
   };
 }
-// footsteps: two sources, both read-only. Controllable entities expose gait edges (gaitPhase /
+${audio.battle ? `// an RPG BATTLE's sounds (audio.battle, beats-world.js; sfx-shelf/magic-sounds.js battleSounds): the page's RPG puts
+// each happening of a moment on the bus as rpg-on:<key> (a blow's skill, its element, a crit, a weakness, the hit); of
+// those a frame carries, the first of each lane plays (the act: a status, a heal, a blow, a cast; its end: a foe gone, a
+// level, the fight's start), the accents (crit, weak) over them. Read-only, as every layer here is.
+if (typeof __BUS !== 'undefined') {
+  const __rpgB = __AUDIO.battle, __rpgPE = __BUS.processEvents;
+  __BUS.processEvents = function (state, events) {
+    const n0 = state.log.length;
+    const out = __rpgPE(state, events);
+    if (!__beatsEng || __beatsMuted) return out;
+    const has = {};
+    let any = false;
+    for (let i = n0; i < state.log.length; i++) { const ev = state.log[i], t = ev && ev.type; if (typeof t === 'string' && t.indexOf('rpg-on:') === 0) { has[t.slice(7)] = true; any = true; } }
+    if (!any) return out;
+    const C = __AUDIO.cues || {};
+    for (const L of [__rpgB.order, __rpgB.ends]) for (const p of L) if (has[p[0]]) { __beatsCue(C[p[1]]); break; }
+    const A = __rpgB.also || {};
+    for (const k in A) if (has[k]) __beatsCue(C[A[k]]);
+    return out;
+  };
+}
+` : ''}// footsteps: two sources, both read-only. Controllable entities expose gait edges (gaitPhase /
 // jumped / landed — controllable-world.js computes them for exactly this); first-person walk mode
 // has no entity, so accumulated camera travel stands in for stride. Half-gait crossings = steps.
 if (__AUDIO.footsteps) {${surf ? `

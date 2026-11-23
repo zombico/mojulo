@@ -56,3 +56,13 @@
   every suit shares. A game designs its suit with `sound: { suit: { weight, drive, arms } }`; Mech Battle Kai's own is
   heard where the library is installed. The firing range's walkers are heard by their weight the same way. Without the
   library every suit sounds as mech games did before.
+- Magic has sounds: every element (fire, ice, thunder, water, wind, earth, light, dark, poison, nature, arcane) as a
+  spell gathering and landing at three sizes (a bolt, a burst over many, a cataclysm), the statuses (poison, burn,
+  freeze, paralysis, sleep, silence, confusion, blindness, stun, petrify, doom, regen, haste, slow, berserk, a barrier)
+  with a stat raised or lowered, a cure and a status wearing off, the spells (heals great and small, a revive, a drain,
+  mana, a dispel, time stopped, a teleport, a summoning), and what magic does to a world: a quake, the ground cracking,
+  stone rising and sinking, lava erupting, a flood, ice spreading, vines growing, portals, a ward over the land, the sky
+  darkening and dawn breaking, with lava, a portal, an aura and a poison bog held. Party battles (Isekai Party's) are
+  heard by them where the library is installed: each spell at its size, the statuses, the heals, a critical hit or a
+  weakness ringing over the blow, a foe dissolving, a level gained, a skill learned, the fight's start and a boss's
+  entrance. `sound: { battle: false }` keeps a game's battles silent. Without the library battles are silent as before.
