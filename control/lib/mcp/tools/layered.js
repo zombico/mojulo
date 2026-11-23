@@ -418,7 +418,7 @@ function relationalHeadWorn(S, hero) {
   // the hero's skin paint reads it, as it reads `hairClip`; the lock's mass before, a band that read as a plank. The lashes
   // a ribbon of alpha cards, their line the same paint: hero-head-layers.js lashRibbon)
   const faceHairPaint = one && laws >= 14;
-  if (faceHairPaint) out = { ...out, faceHairPaint: { epidermis, lashLine: true, beard: true } };
+  if (faceHairPaint) out = { ...out, faceHairPaint: { epidermis, lashLine: true, beard: true, scalp: true } };
   wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}), ...(faceHairPaint ? { faceHairPaint: true, lashCards: true, beardCoat: true } : {}) }));
   return out;
 }

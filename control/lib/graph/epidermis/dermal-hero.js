@@ -59,22 +59,33 @@ const BODY = /^(torso|neck|pelvis|upperArm[RL]|foreArm[RL]|hand[RL]|thumb[RL]|in
 const COAT = /^hairBeardCoat(Jaw)?$/;
 /** a coat point takes the skin's place within this reach (m) */
 const COAT_REACH = 0.02;
-/** each coat point's place on the head's page: the skin's point nearest it (a grid of the skin's points, each its corner's
- * place on the page from a face that uses it), null past COAT_REACH */
-function coatOnSkin(mesh, head, partOf) {
-  const at = new Map(), C = 0.004, grid = new Map(), key = (p) => p.map((v) => Math.floor(v / C)).join('|');
-  mesh.faces.forEach((tri, fi) => { const l = head.local.get(fi); if (l === undefined || !head.skinFace[l]) return; const uv = head.maps.faceUV(l); tri.forEach((v, k) => { if (!at.has(v)) { at.set(v, uv[k]); const g = key(mesh.vertices[v]); (grid.get(g) || grid.set(g, []).get(g)).push(v); } }); });
-  const memo = new Map();
-  return (v) => {
-    if (memo.has(v)) return memo.get(v);
-    const p = mesh.vertices[v], c = p.map((x) => Math.floor(x / C)), R = Math.ceil(COAT_REACH / C);
+/** each coat face's corners on the head's page: the skin's face nearest its middle (by the skin's point nearest it, then
+ * that point's faces, the nearest by its middle), each corner projected onto that face's plane and read off its corners'
+ * places by its barycentric weights; so a face's three corners come from one place on the page, never across its seam
+ * (a corner a point at a time took two sides of the head's page at its back and stretched the page between them).
+ * Null past COAT_REACH. */
+function coatOnSkin(mesh, head) {
+  const V = mesh.vertices, C = 0.004, grid = new Map(), faces = new Map(), key = (p) => p.map((v) => Math.floor(v / C)).join('|');
+  mesh.faces.forEach((tri, fi) => { const l = head.local.get(fi); if (l === undefined || !head.skinFace[l]) return; tri.forEach((v) => { if (!faces.has(v)) { faces.set(v, []); const g = key(V[v]); (grid.get(g) || grid.set(g, []).get(g)).push(v); } faces.get(v).push(fi); }); });
+  const nearest = (p) => {
+    const c = p.map((x) => Math.floor(x / C)), R = Math.ceil(COAT_REACH / C);
     let best = null, bd = COAT_REACH;
-    for (let r = 0; r <= R && !best; r++) for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) for (let k = -r; k <= r; k++) {
+    for (let r = 0; r <= R && best === null; r++) for (let i = -r; i <= r; i++) for (let j = -r; j <= r; j++) for (let k = -r; k <= r; k++) {
       if (Math.max(Math.abs(i), Math.abs(j), Math.abs(k)) !== r) continue;
-      for (const q of grid.get(`${c[0] + i}|${c[1] + j}|${c[2] + k}`) || []) { const d = Math.hypot(p[0] - mesh.vertices[q][0], p[1] - mesh.vertices[q][1], p[2] - mesh.vertices[q][2]); if (d < bd) { bd = d; best = q; } }
+      for (const q of grid.get(`${c[0] + i}|${c[1] + j}|${c[2] + k}`) || []) { const d = Math.hypot(p[0] - V[q][0], p[1] - V[q][1], p[2] - V[q][2]); if (d < bd) { bd = d; best = q; } }
     }
-    const uv = best === null ? null : at.get(best);
-    memo.set(v, uv); return uv;
+    return best;
+  };
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  return (fi) => {
+    const tri = mesh.faces[fi], m = [0, 1, 2].map((q) => (V[tri[0]][q] + V[tri[1]][q] + V[tri[2]][q]) / 3), v = nearest(m);
+    if (v === null) return null;
+    let sf = null, sd = Infinity;
+    for (const f of faces.get(v)) { const t = mesh.faces[f], c = [0, 1, 2].map((q) => (V[t[0]][q] + V[t[1]][q] + V[t[2]][q]) / 3), d = Math.hypot(...sub(m, c)); if (d < sd) { sd = d; sf = f; } }
+    const [A, B, Cc] = mesh.faces[sf].map((q) => V[q]), uv = head.maps.faceUV(head.local.get(sf));
+    const e0 = sub(B, A), e1 = sub(Cc, A), d00 = dot(e0, e0), d01 = dot(e0, e1), d11 = dot(e1, e1), den = d00 * d11 - d01 * d01 || 1e-18;
+    // (the weights clamped into the face: a corner read off past it landed in the page's white gutter, a white fleck)
+    return tri.map((q) => { const e2 = sub(V[q], A), d20 = dot(e2, e0), d21 = dot(e2, e1), w = [0, (d11 * d20 - d01 * d21) / den, (d00 * d21 - d01 * d20) / den]; w[0] = 1 - w[1] - w[2]; const cw = w.map((x) => Math.max(0, x)), t = cw[0] + cw[1] + cw[2] || 1; return [0, 1].map((k) => (cw[0] * uv[0][k] + cw[1] * uv[1][k] + cw[2] * uv[2][k]) / t); });
   };
 }
 /** a head point this far inside its field (m) is let down under another part's skin */
@@ -92,9 +103,13 @@ export function heroDermis(mesh, recipe, { sex = recipe.headFit?.sex ?? 'male', 
   // (the BEARD'S COAT on the skin's page, the recipe's `faceHairPaint.beard`: each of its points takes the place of the
   // skin's point nearest it, so the coat shows the beard the skin is painted with, its streaks, its colour, where it
   // was one flat colour; a game's shell beard)
-  const coatUV = head && recipe.faceHairPaint?.beard ? coatOnSkin(mesh, head, partOf) : null;
+  // (and the SCALP'S SHELL, `faceHairPaint.scalp`: a crop's whole hair, a long cut's base, as the beard's coat)
+  const coatUV = head && (recipe.faceHairPaint?.beard || recipe.faceHairPaint?.scalp) ? coatOnSkin(mesh, head) : null;
+  // (the scalp's shell only where it is the hair, a crop's: under a cut's locks it stays the hair's colour, or a parting
+  // showed the scalp's paint through as a bald patch)
+  const shell = (part) => (recipe.faceHairPaint?.beard && COAT.test(part)) || (recipe.faceHairPaint?.scalp && part === 'hairCap' && !recipe.parts?.hair);
   const faceOf = (fi) => {
-    if (coatUV && COAT.test(partOf(mesh.faces[fi][0]))) { const uv = mesh.faces[fi].map(coatUV); return uv.every(Boolean) ? { page: 'head', uv } : null; }
+    if (coatUV && shell(partOf(mesh.faces[fi][0]))) { const uv = coatUV(fi); return uv ? { page: 'head', uv } : null; }
     if (groupOf(fi) !== 'Skin') return null;
     const tri = mesh.faces[fi], part = partOf(tri[0]);
     if (head && HEAD.test(part)) { const l = head.local.get(fi); return l === undefined || !head.skinFace[l] ? null : { page: 'head', uv: head.maps.faceUV(l) }; }
@@ -223,7 +238,7 @@ function headSkin(mesh, recipe, D, page) {
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
   // (the brows PAINTED where the recipe says, `faceHairPaint`: the groom's hairs as strokes on the head it charts, dermal-brow.js)
   const brows = recipe.faceHairPaint ? browStrokes(H, recipe.faceHairPaint.epidermis, { lashLine: !!recipe.faceHairPaint.lashLine }) : null;
-  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, { ...(recipe.hairClip ? { clip: recipe.hairClip } : {}), ...(brows ? { brows } : {}), ...(recipe.faceHairPaint?.beard ? { beardStreaks: true } : {}) });
+  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, { ...(recipe.hairClip ? { clip: recipe.hairClip } : {}), ...(brows ? { brows } : {}), ...(recipe.faceHairPaint?.beard ? { beardStreaks: true } : {}), ...(recipe.faceHairPaint?.scalp ? { scalpStreaks: true } : {}) });
   return { chart, layout, maps, local, skinFace };
 }
 

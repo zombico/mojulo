@@ -40,5 +40,9 @@ face toward the proportions and the clean structure of a current game character,
   fades into the cheek; only hair longer than 16 mm still grows a lock. A moustache the same.
 - The hair's locks, the scalp's and a long beard's, are drawn with a hair texture along them (fine strands of their
   own light and shade, darker at the root) where each was one flat colour.
+- A crop reads as short hair and no longer as a helmet: the scalp's skin is painted with streaks along its growth and
+  the crop's shell shows that paint, its hairline soft and its sides fading into the skin, each of its faces read off one
+  face of the skin so the head's seam shows no line. Under a cut's locks the shell keeps the hair's colour.
 
-Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards, and the scalp's on the skull.
+Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; long hair has a few flat wedges
+standing out of it at the jaw's height and across the back, and a crop's shell a ledge at the nape.

@@ -122,13 +122,13 @@ const byte = (x) => Math.round(clamp01(x) * 255);
  * stubble's by its length; absent, the paint as it was. `opts.brows` (dermal-brow.js `browStrokes`) the brows painted on
  * the head's texels, each hair a stroke; absent, none.
  */
-export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null, beardStreaks = false } = {}) {
+export function paintDermis(chart, D, layout, { scalp = true, scalpPaint = 0.8, clip = null, brows = null, beardStreaks = false, scalpStreaks = false } = {}) {
   const P = dermalPages(layout, D), clipAt = clip ? clipField(clip.scalp) : null;
   for (const r of layout.rects) {
     paintIsland(P, r, D, layout.mmPerTexel / r.density, {
       grid: (i, j) => addressAt(chart, r, Math.min(1 + r.extra, (i * STEP + 0.5) / r.w * (1 + r.extra)), clamp01((j * STEP + 0.5) / r.h)),
       texel: (px, py) => addressAt(chart, r, (px + 0.5) / r.w * (1 + r.extra), (py + 0.5) / r.h),
-      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}), ...(brows ? { brows } : {}), ...(beardStreaks ? { beardStreaks } : {}),
+      scalp, scalpPaint, ...(clip ? { clip: { at: clipAt, beard: !!clip.beard, head: true } } : {}), ...(brows ? { brows } : {}), ...(beardStreaks ? { beardStreaks } : {}), ...(scalpStreaks ? { scalpStreaks } : {}),
     });
   }
   return finishPages(P, chart, faceUVs(chart, layout), D, layout);
@@ -152,7 +152,7 @@ export function dermalPages(layout, D) {
  * masks being smooth, bilinear between; the fine detail per texel (`texel(px, py)` the texel's own address). `flowSign`
  * −1 where the rectangle's u runs against `around` (its hair's flow turned to match). `mpt` the texel's millimetres.
  */
-export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false, clip = null, brows = null, beardStreaks = false }) {
+export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, scalpPaint = 0.8, flowSign = 1, tone = null, softHair = false, clip = null, brows = null, beardStreaks = false, scalpStreaks = false }) {
   const { N, albedo, rough, trans, hair, fuzz, detail, classIndex, hairLin } = P;
   const gw = Math.ceil(r.w / STEP) + 1, gh = Math.ceil(r.h / STEP) + 1, grid = new Array(gw * gh);
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) grid[j * gw + i] = dermisAt(gridAt(i, j), D, { detail: false });
@@ -184,6 +184,9 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
       if (scalp) col = mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }
+    // (`scalpStreaks`: the scalp's hairs as the beard's are, streaks along its growth, as much as its paint covers; what the
+    // scalp's shell shows, its faces on the skin's page: dermal-hero.js)
+    if (scalpStreaks && A.marks && scalpW > 0.01 && !D.bareScalp) { const { X, Y } = headXY(A), v = streakAt(X, Y, near.hair.flow, (D.seed ?? 1) + 7); col = col.map((x) => x * (1 + BEARD_STREAK.contrast * (v - 0.5) * scalpW)); }
     if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
     // (under a styled beard, the skin in the hair's colour, as the scalp's under its groom: a gap between
     // the locks, foreshortened where they point at the eye, reads as beard, never as the shaven shadow's grey)
