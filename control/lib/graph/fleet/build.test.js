@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCapital, buildStation, placeFleet } from './build.js';
+import { buildCapital, buildStation, fleetPayload, placeFleet } from './build.js';
 import { CAPITAL_CLASSES, STATION_KINDS } from './classes.js';
 import { FLEET_LOOKS, ROLES } from './language.js';
 
@@ -44,5 +44,20 @@ describe('the fleet', () => {
 
   it('its palette is narrow and never the cockpit\'s target magenta', () => {
     for (const L of Object.values(FLEET_LOOKS)) for (const c of Object.values(L)) if (typeof c === 'string') { const H = hue(c); if (H && H.s > 0.25) expect(H.h > 285 && H.h < 345, c).toBe(false); }
+  });
+  it('goes into a page as destructible blocks (its reactor\'s anchors said), each face and light in its block\'s group; or, without physics, as colliders', () => {
+    const P = placeFleet(buildCapital('corvette'), { id: 'c' });
+    const D = fleetPayload([P]);
+    expect(D.breakables.map((b) => b.id)).toEqual(P.blocks.map((b) => b.id));
+    expect(D.breakables.filter((b) => b.anchor).map((b) => b.id)).toEqual(P.anchor);
+    expect(D.breakables.every((b) => b.hp === 1 && b.matter)).toBe(true);
+    const ids = new Set(P.blocks.map((b) => b.id));
+    expect(D.faces.every((f) => f.group === 'break:' + f.node && ids.has(f.node))).toBe(true);
+    // (a light a small lit cube: six faces in its colour)
+    expect(D.faces.length).toBe(P.faces.length + 6 * P.lights.length);
+    expect(D.colliders).toEqual([]);
+    const S = fleetPayload([P], { physical: false });
+    expect(S.breakables).toEqual([]);
+    expect(S.colliders).toHaveLength(P.blocks.length);
   });
 });

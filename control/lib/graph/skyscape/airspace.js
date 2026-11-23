@@ -212,6 +212,8 @@ function assembleSpace(manifest, { title }) {
     // through and never past)
     sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: [...SPACE_STAR.dir], size: SPACE_STAR.size, glow: SPACE_STAR.glow }, ...backdropOf(manifest) }, bg: '#03040a',
     ...(pilot ? {} : { walk: { speed: 20, spawn: p, radius: 0.4, minEye: 1.7, gravity: 0, jump: 0 } }),
+    // (a fleet's ships and stations, fleet/: their blocks to the world's build, destructible under physical)
+    ...(Array.isArray(manifest.fleet) && manifest.fleet.length ? { physicalFleet: manifest.fleet } : {}),
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
     ...(pilot || {}),
     meta: {

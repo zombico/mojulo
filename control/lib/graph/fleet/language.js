@@ -22,9 +22,12 @@
  *
  *   FLEET_LOOKS     a fleet's livery: base, trim (structure), dark (shadowed recesses and seams), accent, plate variation
  *   ROLES           what each part is made of for destructible physics (rupa): its matter and the solid share of its
- *                   box, and whether it is welded on by its side (an armour plate: stripped, not broken)
+ *                   box, and whether it is welded on by its side (an armour plate: stripped, not broken); and its
+ *                   KIBBLE, the shader's panel detail it carries (scene/channels/hull-kibble.js): a superstructure
+ *                   dense with kit, an armour belt plain, a truss none (it is its own detail)
+ *   KIBBLE_SCALE    the kibble's cell (m): a plate twice it
  *   LIGHTS          the lit colours (windows, running lights, drive glow, hazard), drawn unshaded
- *   shade(hex, n, sun) → a face's colour under the map's star: a hard key and a dark fill, space's own light
+ *   shade(hex, n, sun) → a face's colour under the map's star: a hard key, a dark fill and the world's bounce below (SHADE)
  */
 
 export const FLEET_LOOKS = Object.freeze({
@@ -40,26 +43,31 @@ export const FLEET_LOOKS = Object.freeze({
 
 /** The parts' matter (rupa/matter.js), the solid share of the box, and the lateral weld of a plate hung by its side. */
 export const ROLES = Object.freeze({
-  hull: Object.freeze({ matter: 'steel', fill: 0.05 }),          // a module: a steel shell round decks and air
-  bow: Object.freeze({ matter: 'steel', fill: 0.06 }),
-  armour: Object.freeze({ matter: 'armour-steel', fill: 1, lateral: true }),   // a belt's plate, welded on by its side
-  core: Object.freeze({ matter: 'armour-steel', fill: 0.12 }),   // the reactor's casing: the heart, armoured
-  drive: Object.freeze({ matter: 'steel', fill: 0.1 }),
-  tower: Object.freeze({ matter: 'steel', fill: 0.06 }),
-  truss: Object.freeze({ matter: 'steel', fill: 0.02 }),          // an open frame: little steel, much space
-  tank: Object.freeze({ matter: 'steel', fill: 0.04 }),
-  radiator: Object.freeze({ matter: 'aluminium', fill: 0.12, lateral: true }),
-  turret: Object.freeze({ matter: 'armour-steel', fill: 0.3 }),
-  hab: Object.freeze({ matter: 'steel', fill: 0.05 }),
-  deck: Object.freeze({ matter: 'steel', fill: 0.07 }),
+  hull: Object.freeze({ matter: 'steel', fill: 0.05, kibble: 0.45 }),          // a module: a steel shell round decks and air
+  bow: Object.freeze({ matter: 'steel', fill: 0.06, kibble: 0.5 }),
+  armour: Object.freeze({ matter: 'armour-steel', fill: 1, kibble: 0.15, lateral: true }),   // a belt's plate, welded on by its side
+  core: Object.freeze({ matter: 'armour-steel', fill: 0.12, kibble: 0.6 }),   // the reactor's casing: the heart, armoured
+  drive: Object.freeze({ matter: 'steel', fill: 0.1, kibble: 0.7 }),
+  tower: Object.freeze({ matter: 'steel', fill: 0.06, kibble: 0.8 }),
+  truss: Object.freeze({ matter: 'steel', fill: 0.02, kibble: 0 }),          // an open frame: little steel, much space
+  tank: Object.freeze({ matter: 'steel', fill: 0.04, kibble: 0.3 }),
+  radiator: Object.freeze({ matter: 'aluminium', fill: 0.12, kibble: 0.1, lateral: true }),
+  turret: Object.freeze({ matter: 'armour-steel', fill: 0.3, kibble: 0.5 }),
+  hab: Object.freeze({ matter: 'steel', fill: 0.05, kibble: 0.4 }),
+  deck: Object.freeze({ matter: 'steel', fill: 0.07, kibble: 0.6 }),
 });
+
+/** The kibble's cell (m): the shader's plates twice it, its kit a third of it. */
+export const KIBBLE_SCALE = 3;
 
 export const LIGHTS = Object.freeze({ window: '#ffd9a0', port: '#ff3b2e', starboard: '#3cff7a', strobe: '#f4f8ff', drive: '#a8d4ff', bay: '#ffe7b8', hazard: '#e8b21a' });
 
 const SUN = [0.4506, -0.3505, 0.8211];
-/** A face's colour under the map's star: the key on it by its normal, and the dark of space for its fill (a little
- *  more than none: the hull is read in its shade, as the craft are under the cast rig's value law). */
+/** A face's colour under the map's star: the key on it by its normal; the dark of space for its fill (a little more
+ *  than none: the hull is read in its shade, as the craft are under the cast rig's value law); and the bounce off the
+ *  world below on the faces turned down to it (a fleet fights in a world's orbit: its lit side is under the keel). */
+export const SHADE = Object.freeze({ fill: 0.32, bounce: 0.16 });
 export function shade(hex, n, sun = SUN) {
-  const L = Math.hypot(...sun), k = 0.26 + 0.74 * Math.max(0, (n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]) / L);
+  const L = Math.hypot(...sun), k = Math.min(1, SHADE.fill + (1 - SHADE.fill) * Math.max(0, (n[0] * sun[0] + n[1] * sun[1] + n[2] * sun[2]) / L) + SHADE.bounce * Math.max(0, -n[2]));
   return '#' + [1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k))).toString(16).padStart(2, '0')).join('');
 }

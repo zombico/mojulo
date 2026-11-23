@@ -333,3 +333,55 @@ They share one foundation, built first, and these themes record it as it lands.
   band along the horizon, lit where the star is up there. Its light reaches the hull from below as planetshine (its
   colour at its share of the sky, in the craft's hemisphere fill), and stars behind it go dark. Clouds now cover the
   share their word says: "0.6 cloudy" was hiding about four fifths of a world.
+- **Capital ships and stations** (`fleet/`: the fleet's language, its classes and its builder). Industrial realism for
+  the big things in space, read as working machines: form follows function (command forward and high, hangars
+  amidships, the reactor armoured at the heart, the drive aft with the radiator wings its heat needs), one big mass,
+  some medium, many small, built in modules of a standard length, plated in staggered courses of slightly mismatched
+  plates, a narrow palette with a thin accent band, hazard stripes only where things dock, red and green running
+  lights, lit windows, soot aft. The capital ships are a corvette, a frigate, a cruiser and a carrier (140 m to 560 m);
+  the stations are an outpost, a shipyard with a frigate half built in its frame, and a battle platform. A new one is a
+  row of `CAPITAL_CLASSES` or `STATION_KINDS`; a fleet's livery is a row of `FLEET_LOOKS` (navy, raider, civil,
+  shadow). A sortie's group names one (`{ id, side, capital: 'frigate' }` or `station: 'outpost'`, with `at`,
+  `heading` and `look`): one of it, there from the start, placed ahead of the start.
+- **Destructible in zero g** (rupa): every piece of a capital ship or a station is a block of matter (a module a steel
+  shell round decks and air, the reactor's casing armour steel, a belt's plates armour welded on by their side, the
+  radiators aluminium), under destructible physics with the world's gravity 0 (`matter.g`). Nothing falls: a block is
+  held by its welds back to the reactor, and what a hit cuts loose (the forward half, when the spine goes) drifts off as
+  one piece, every block of it at one velocity, turning slowly about its middle. A steel casing is holed, not worn
+  down, so a ship's hull (the entity the targeting computer names and the mission counts) reads what is left of its
+  reactor and goes down when the casing is breached enough times (`breach`: 4 for a frigate, 6 for a cruiser):
+  torpedoes breach it, cannons dent and hole its plating. Each gun is a mind on its hardpoint, firing the other side's
+  bolts, and goes down with the block it stands on. A fighter flown into a hull crashes: it stops at the plate and
+  glances off, slowed and hurt as squarely as it struck, its shield on that side taking the blow first.
+- **Capital ships as forms: the wedge, the concept solid and the globform** (`fleet/forms.js`). A ship can now be one
+  shape instead of a run of modules, each family a different way of being big:
+  - a **wedge** (`destroyer` 900 m, `lancer` 380 m): an isosceles triangle in plan, its long sides mirrored to a point
+    at the bow and its short side the stern, with a ridge down its spine, a rim band of lit windows, a superstructure
+    stepping up aft to a bridge across a neck, and the drive's bells across the stern;
+  - a **concept** solid (`monolith` a cube, `orb` a sphere with a trench and a dish, `prism` an octahedron): no front
+    and no back, slabs of machinery proud of its faces;
+  - a **globform** (`consular`, `courier`): blobs along a main axis joined by a smooth union, optionally anchored by
+    an angular shape (a slab under them running out to a prow), with drive pods on the flanks.
+
+  A new one is a row of `CAPITAL_CLASSES` with a `form`. Each stays destructible as the modular ships are: its volume
+  is cut into a grid of blocks (each box tightened to the solid in it, so a fighter crashes where the hull is), every
+  face of the surface is clipped to that grid and belongs to its block, and every block is welded back to the
+  reactor. Each reactor sits where a pilot can reach it: a wedge's at the keel (a run under the ship), a solid's under
+  one face (a sphere's under its dish), a globform's under its main blob. A sortie places a big ship further off, a
+  length and a half from its middle.
+- **Hull kibble** (`scene/channels/hull-kibble.js`): the detail of a capital ship is drawn by the shader, not
+  modelled, so a kilometre of hull costs hundreds of faces. The panel detail of a miniature is painted on in parallax
+  layers:
+  - plates in staggered courses with their seams;
+  - recesses cut into them, whose insides slide against the plate as the eye moves;
+  - kit boxes standing in the recesses;
+  - a dark floor below.
+
+  All of it comes in octaves (a deck's scale, a plate's and the greebles'), each faded in as its cells resolve. So a
+  hull shows degrees of detail by distance: decks and bays far off, plates nearer, the kit up close, and it never
+  shimmers. Each block carries a level by its role and its class (a superstructure or a concept solid at full, an
+  armour belt plain, a blob's skin light, a truss none), and a cut-loose piece carries its kibble with it. It is pure
+  procedure with no texture, and a page without a fleet gains nothing.
+- Fixed: the cruiser's fourth turret floated over the stepped bow (it now sits on the piece under it), and the
+  shipyard's half-built frigate was not held in its frame (its reactor is clamped in the cradle now), so in zero g it
+  would have drifted out of the berth.

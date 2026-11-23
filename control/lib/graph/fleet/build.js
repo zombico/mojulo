@@ -7,7 +7,7 @@
  * aluminium, the reactor's casing armour; its faces are its block's, so what breaks takes its faces with it.
  *
  *   buildCapital(cls, { seed?, look? }) → { kind, label, pieces, faces, hardpoints, lights }   in its own frame (x the
- *                bow, y port, z up, its middle at the origin)
+ *                bow, y port, z up, its middle at the origin); a class with a `form` is one shape (fleet/forms.js)
  *   buildStation(kind, { seed?, look? }) → the same for a station (z its axis)
  *   placeFleet(piece, { at, heading?, id }) → { blocks, faces, colliders, hardpoints, core, anchor, bounds }   in the
  *                world: rotated by a quarter-turn heading (0 | 90 | 180 | 270°: rupa's blocks are boxes on the world's
@@ -17,9 +17,10 @@
  * Pure: the same class and seed, the same ship.
  */
 import { CAPITAL_CLASSES, STATION_KINDS } from './classes.js';
-import { FLEET_LOOKS, ROLES, LIGHTS, shade } from './language.js';
+import { FLEET_LOOKS, ROLES, LIGHTS, KIBBLE_SCALE, shade } from './language.js';
 import { blockMatter } from '../rupa/matter.js';
 import { mulberry32, strHash } from '../city/plan/dice.js';
+import { buildForm } from './forms.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 const PLATE = { hull: 8, bow: 7, armour: 6, core: 5, drive: 6, tower: 4, tank: 6, hab: 5, deck: 8, turret: 3 };
@@ -143,6 +144,8 @@ function boxFaces(B, color, lit = false) {
 export function buildCapital(cls, { seed = 1, look } = {}) {
   const C = CAPITAL_CLASSES[cls];
   if (!C) throw new Error(`fleet: '${cls}' is not a capital ship's class (${Object.keys(CAPITAL_CLASSES).join(', ')})`);
+  // (a form: one shape, fleet/forms.js)
+  if (C.form) return buildForm(cls, C, { seed, look });
   const L0 = FLEET_LOOKS[look ?? C.look] ?? FLEET_LOOKS.navy, rnd = mulberry32(strHash(`capital|${cls}|${seed}`));
   const pieces = [], hard = [], lights = [], extra = [];
   const add = (id, role, min, max, o = {}) => { const p = { id, role, min: min.map(r2), max: max.map(r2), ...o }; pieces.push(p); return p; };
@@ -215,7 +218,10 @@ export function buildCapital(cls, { seed = 1, look } = {}) {
   // turrets on its hardpoints: an armoured block and its twin barrels, the hardpoint where a gun is mounted
   for (const [i, T] of (C.turrets || []).entries()) {
     const cx = -total / 2 + total * T.at, s = secs.find((q) => cx >= q.x0 && cx <= q.x1) || secs[0], hw = s.w / 2 + (s.belt ? 0.8 : 0), hh = s.h / 2, sz = Math.max(4, s.h * 0.16);
-    const box = T.on === 'top' ? [[cx - sz, -sz, hh], [cx + sz, sz, hh + sz * 0.7]] : T.on === 'bottom' ? [[cx - sz, -sz, -hh - sz * 0.7], [cx + sz, sz, -hh]]
+    // (on the hull piece under it, welded to its face: a bow's steps are lower than its section's height)
+    const under = pieces.filter((q) => (q.role === 'hull' || q.role === 'bow' || q.role === 'core' || q.role === 'deck' || q.role === 'drive') && cx >= q.min[0] && cx <= q.max[0] && q.min[1] <= 0 && q.max[1] >= 0);
+    const zt = under.length ? Math.max(...under.map((q) => q.max[2])) : hh, zb = under.length ? Math.min(...under.map((q) => q.min[2])) : -hh;
+    const box = T.on === 'top' ? [[cx - sz, -sz, zt], [cx + sz, sz, zt + sz * 0.7]] : T.on === 'bottom' ? [[cx - sz, -sz, zb - sz * 0.7], [cx + sz, sz, zb]]
       : T.on === 'port' ? [[cx - sz, hw, -sz * 0.6], [cx + sz, hw + sz * 0.7, sz * 0.6]] : [[cx - sz, -hw - sz * 0.7, -sz * 0.6], [cx + sz, -hw, sz * 0.6]];
     const p = add(`turret${i}`, 'turret', box[0], box[1]);
     const up = T.on === 'top' ? [0, 0, 1] : T.on === 'bottom' ? [0, 0, -1] : T.on === 'port' ? [0, 1, 0] : [0, -1, 0];
@@ -310,6 +316,8 @@ export function buildStation(kind, { seed = 1, look } = {}) {
     const S = buildCapital(K.berth, { seed, look: 'civil' }), keep = S.pieces.filter((p) => p.role !== 'drive' && p.role !== 'radiator' && !p.id.startsWith('strut'));
     for (const p of keep) add(`berth:${p.id}`, p.role === 'hull' && rnd() < 0.35 ? 'truss' : p.role, p.min, p.max, { ...(p.windows ? { windows: false } : {}), band: p.band });
     core = keep.filter((p) => p.role === 'core').map((p) => `berth:${p.id}`);
+    // (held in the frame by its cradle's clamps: its reactor's casing is anchored with the frame)
+    anchor.push(...core);
   } else if (kind === 'platform') {
     // the core: an armoured shaft in courses, its middle the reactor; tiers of deck round it, turrets on every rim
     const c = K.core, hw = c.w / 2, n = Math.round(c.h / 22);
@@ -340,7 +348,7 @@ export function placeFleet(B, { at = [0, 0, 0], heading = 0, id = B.kind } = {})
   const P = (p) => { const r = rot(p); return [r2(r[0] + at[0]), r2(r[1] + at[1]), r2(r[2] + at[2])]; };
   const box = (mn, mx) => { const a = P(mn), b = P(mx); return { min: [0, 1, 2].map((k) => Math.min(a[k], b[k])), max: [0, 1, 2].map((k) => Math.max(a[k], b[k])) }; };
   const bid = (pid) => `${id}/${pid}`;
-  const blocks = B.pieces.map((p) => { const b = box(p.min, p.max), R = ROLES[p.role] ?? ROLES.hull; return { id: bid(p.id), ...b, role: p.role, ...(R.lateral ? { bond: 'lateral' } : {}), ...blockMatter(b, { matter: R.matter, fill: R.fill }, `fleet ${id}.${p.id}`) }; });
+  const blocks = B.pieces.map((p) => { const b = box(p.min, p.max), R = ROLES[p.role] ?? ROLES.hull; return { id: bid(p.id), ...b, role: p.role, kibble: p.kibble ?? R.kibble ?? 0, ...(R.lateral ? { bond: 'lateral' } : {}), ...blockMatter(b, { matter: R.matter, fill: p.fill ?? R.fill }, `fleet ${id}.${p.id}`) }; });
   // (a face with no piece of its own, a bay's, goes with the block nearest its middle)
   const near = (c) => { let best = null, bd = Infinity; for (const p of B.pieces) { const d = Math.hypot(...[0, 1, 2].map((k) => Math.max(p.min[k] - c[k], 0, c[k] - p.max[k]))); if (d < bd) { bd = d; best = p.id; } } return best; };
   const faces = B.faces.map((f) => {
@@ -353,4 +361,29 @@ export function placeFleet(B, { at = [0, 0, 0], heading = 0, id = B.kind } = {})
   const lo = [0, 1, 2].map((k) => Math.min(...blocks.map((b) => b.min[k]))), hi = [0, 1, 2].map((k) => Math.max(...blocks.map((b) => b.max[k])));
   return { id, kind: B.kind, label: B.label, blocks, faces, lights, hardpoints, core: B.core.map(bid), anchor: B.anchor.map(bid), bounds: { min: lo, max: hi },
     colliders: blocks.map((b) => ({ id: b.id, min: b.min, max: b.max })) };
+}
+
+/** The placed ships and stations as a payload's destructible part: every block a breakable (its anchor said), every
+ *  face with its block's node, each light a small lit cube in its block's group, and each block's kibble level (the
+ *  page's hull-kibble channel). Not under destructible physics, the same faces stand as they are and the blocks as
+ *  plain colliders. */
+export function fleetPayload(placed, { physical = true } = {}) {
+  const breakables = [], faces = [], colliders = [], kibble = {};
+  for (const P of placed) {
+    const anchors = new Set(P.anchor);
+    for (const { kibble: kb, ...b } of P.blocks) {
+      if (kb > 0) kibble[b.id] = kb;
+      if (physical) breakables.push({ ...b, hp: 1, ...(anchors.has(b.id) ? { anchor: true } : {}) });
+      else colliders.push({ min: b.min, max: b.max });
+    }
+    for (const f of P.faces) faces.push({ corners: f.corners, fill: f.fill, group: f.group, node: f.group.slice(6) });
+    for (const l of P.lights) {
+      const h = 0.7, B = { min: l.at.map((v) => v - h), max: l.at.map((v) => v + h) };
+      for (let k = 0; k < 3; k++) for (const s of [1, -1]) {
+        const u = (k + 1) % 3, v = (k + 2) % 3;
+        faces.push({ corners: rect(k, s, s > 0 ? B.max[k] : B.min[k], B.min[u], B.max[u], B.min[v], B.max[v]), fill: l.color, group: l.group, node: l.group.slice(6) });
+      }
+    }
+  }
+  return { breakables, faces, colliders, ...(Object.keys(kibble).length ? { kibble: { scale: KIBBLE_SCALE, blocks: kibble } } : {}) };
 }

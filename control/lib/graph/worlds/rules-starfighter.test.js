@@ -299,4 +299,33 @@ describe('rule: starfighter', () => {
     expect(by(60).fxRadius).toBeLessThan(18);
     expect(w.byId.g.gone).toBeFalsy();
   });
+  it('crashes into a solid: stopped at its plate, glanced off it, hurt as squarely as it struck, the shield first', () => {
+    // a wall of plate 200 m ahead, across the craft's path (a capital ship's side)
+    const wall = { min: [200, -2000, -500], max: [220, 2000, 500] };
+    const fly = (heading, shields) => {
+      const w = E.createWorld({ entities: [fighter({ rule: { throttle: 1 }, body: { hp: 100, ship: shields ? { shields: { max: 6, regen: 0 } } : {} } })], colliders: [wall] });
+      w.byId.p.transform.heading = heading;
+      let p = w.byId.p;
+      for (let i = 0; i < 600 && !p.crashN; i++) p = run(w, {}, 1);
+      return p;
+    };
+    // head on at full speed: it stops at the plate (never through it), turned back off it, slowed, the hull hurt hard
+    const a = fly(0, false);
+    expect(a.crashN).toBe(1);
+    expect(a.transform.pos[0]).toBeLessThan(200);
+    expect(a.sfF[0]).toBeLessThan(0);
+    expect(a.airspeed).toBeLessThan(50);
+    expect(a.body.hp).toBeLessThan(10);
+    // a glancing blow, 15 degrees onto the plate: along it on, a scrape
+    const c = fly(1.31, false);
+    expect(c.crashN).toBe(1);
+    expect(c.sfF[0]).toBeLessThan(0.1);
+    expect(c.sfF[1]).toBeGreaterThan(0.9);
+    expect(c.body.hp).toBeGreaterThan(a.body.hp);
+    expect(c.body.hp).toBeLessThan(100);
+    // shielded, the shield on its nose takes the blow first
+    const d = fly(1.31, true);
+    expect(d.ship.sh[0]).toBe(0);
+    expect(d.body.hp).toBeGreaterThan(c.body.hp);
+  });
 });

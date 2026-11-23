@@ -31,6 +31,7 @@ import { readPanels } from '@/lib/graph/rupa/panels.js';
 import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
 import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
 import { treeBlocks } from '@/lib/graph/rupa/tree-blocks.js';
+import { fleetPayload } from '@/lib/graph/fleet/build.js';
 import { groundGrid, waterBodies } from '@/lib/graph/rupa/ground-grid.js';
 import { groundOfShares } from '@/lib/graph/rupa/look-matter.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
@@ -1401,10 +1402,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const facesSoFar = shells ? shells.faces : broken ? broken.faces : payload.faces;
     const treeSet = destruction === 'physical' && Array.isArray(payload.physicalTrees) ? treeBlocks(payload.physicalTrees, facesSoFar, { matterOf: cubeMatterOf }) : null;
     if (payload.physicalTrees !== undefined) delete payload.physicalTrees;
-    if ((broken && broken.breakables.length) || shells || treeSet) {
-      const faces = treeSet ? treeSet.faces : facesSoFar, colliders = [...(shells ? shells.colliders : broken ? broken.colliders : payload.colliders || []), ...(treeSet ? treeSet.footings : [])];
-      const breakables = [...(broken ? broken.breakables : []), ...(shells ? shells.breakables : []), ...(treeSet ? treeSet.breakables : [])];
-      payload.faces = faces; payload.colliders = colliders; payload.breakables = breakables; payload.breakPieces = piecesOf(breakables, faces, shells || treeSet ? { share: true } : {});
+    // and a space map's fleet (fleet/build.js: capital ships and stations, each a block a piece, welded back to its
+    // anchor and weightless: `matter.g` 0); not under physical, its faces stand and its blocks are plain colliders
+    const fleetSet = Array.isArray(payload.physicalFleet) ? fleetPayload(payload.physicalFleet, { physical: destruction === 'physical' }) : null;
+    if (payload.physicalFleet !== undefined) delete payload.physicalFleet;
+    if (fleetSet && destruction !== 'physical') { payload.faces = [...(payload.faces || []), ...fleetSet.faces]; payload.colliders = [...(payload.colliders || []), ...fleetSet.colliders]; }
+    const fleetOn = fleetSet && destruction === 'physical' ? fleetSet : null;
+    // (its plating's kibble: each block's level, drawn by the page's hull-kibble channel)
+    if (fleetSet && fleetSet.kibble) payload.kibble = fleetSet.kibble;
+    if ((broken && broken.breakables.length) || shells || treeSet || fleetOn) {
+      const faces = [...(treeSet ? treeSet.faces : facesSoFar || []), ...(fleetOn ? fleetOn.faces : [])], colliders = [...(shells ? shells.colliders : broken ? broken.colliders : payload.colliders || []), ...(treeSet ? treeSet.footings : [])];
+      const breakables = [...(broken ? broken.breakables : []), ...(shells ? shells.breakables : []), ...(treeSet ? treeSet.breakables : []), ...(fleetOn ? fleetOn.breakables : [])];
+      payload.faces = faces; payload.colliders = colliders; payload.breakables = breakables; payload.breakPieces = piecesOf(breakables, faces, shells || treeSet || fleetOn ? { share: true } : {});
       // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
       if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}), ...(treeSet ? { trees: treeSet.trees.length } : {}) };
     }

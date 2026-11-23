@@ -928,6 +928,8 @@ export function buildRupa(E) {
       // plastic matter keeps what a blow does to it: its dents, and a count the page redraws it by
       if (s.yield > 0 || s.kerfWork > 0) Object.assign(b.rupa, { yield: s.yield || 0, wall: s.wall > 0 ? s.wall : null, kerfWork: s.kerfWork || 0, kerfHard: s.kerfHard || 0, tensile: s.tensile || 0, dents: [], cuts: [], form: 0, squash: 0 });
       b.hp = Infinity;   // the count never breaks it: the energy does
+      // (in space: an anchor, the block a structure is held by, rupa-space)
+      if (s.anchor) b.rupa.anchor = true;
     });
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
@@ -1721,6 +1723,80 @@ export function buildRupa(E) {
   // downwind edge and slid by its push, and held by its weight (W·half its depth; μW) and, at a mortared joint, by the
   // joint's cohesion (its bending section b·t²/6; its area). A stack that goes leaves the structure as falling bodies. ──
   const MU = 0.6, CP = 1.3;
+  // ── SPACE (a world with no weight, `rupa.g` 0: a fleet's ships and stations, fleet/build.js) ──
+  // Nothing falls and nothing is crushed by weight. A block is HELD while it touches, face to face (welded on every side),
+  // a block that is held, back to an ANCHOR (a ship's reactor, a station's core or its frame: `anchor` on the block); a
+  // block no longer held, its section cut loose, DRIFTS: a body of its own (as a stripped plate is), moving off away from
+  // what it was held by. A STRUCTURE's entity (`structure: { core, breach? }`: a capital ship's hull, the one the
+  // targeting computer names and a mission counts) goes down when its reactor's casing is BREACHED (`breach` holes
+  // through it: a steel casing is holed, not worn down) or torn away; its hull reads what is left of either. A gun on it
+  // (`onBlock: <block>`) goes down when the block it stands on does.
+  // (a structure's entity and a gun on one keep what ties them to their blocks)
+  E.registerNormalize((ent, raw) => {
+    if (raw.structure && Array.isArray(raw.structure.core)) ent.structure = { core: raw.structure.core.slice(), ...(raw.structure.breach > 0 ? { breach: raw.structure.breach } : {}) };
+    if (typeof raw.onBlock === 'string') ent.onBlock = raw.onBlock;
+  });
+  // (weightless before the break pass settles anything, so nothing falls even the first frame)
+  E.registerWorldPass('rupa-weightless', (state) => { if (state.rupa && state.rupa.g === 0) { state.fallGravity = 0; state.breakFloor = -Infinity; } }, 34.9);
+  E.registerWorldPass('rupa-space', (state) => {
+    const R = state.rupa;
+    if (!R || R.g !== 0 || !state.breakables) return;
+    // (the held graph only when something has broken since the last look)
+    const n = state.breaks ? state.breaks.length : 0;
+    if (R.spaceN !== n) spaceHeld(state, R);
+    // the structures' entities: a hull its core's share, down with it; a gun down with its mount
+    const byId = R.spaceById || (R.spaceById = new Map(state.breakables.map((b) => [b.id, b]))), gone = (id) => { const b = byId.get(id); return !b || b.broken || b.hp <= 0; };
+    for (const e of state.entities) {
+      if (e.downed) continue;
+      const S = e.structure;
+      if (S && Array.isArray(S.core) && S.core.length) {
+        // (a steel casing is holed, not worn down: its BREACHES, the holes through it, are what kill a reactor, S.breach
+        // of them; or the casing torn away. The hull reads the lesser of what is left of either)
+        const cap = S.core.reduce((s, id) => s + ((byId.get(id) && byId.get(id).rupa && byId.get(id).rupa.cap) || 0), 0), left = S.core.reduce((s, id) => s + (gone(id) ? 0 : (byId.get(id).rupa.joules || 0)), 0);
+        const holes = S.core.reduce((s, id) => s + (gone(id) ? 0 : ((byId.get(id).rupa.dents || []).filter((d) => d.hole).length)), 0), breach = S.breach > 0 ? S.breach : 4;
+        if (e.body && cap > 0) e.body.hp = Math.max(0, Math.round(100 * Math.min(left / cap, 1 - Math.min(1, holes / breach))));
+        if (S.core.every(gone) || holes >= breach) { e.downed = true; e.moving = false; if (e.body) e.body.hp = 0; }
+      }
+      if (e.onBlock && gone(e.onBlock)) { e.downed = true; e.moving = false; if (e.body) e.body.hp = 0; }
+    }
+  }, 36.5);
+  function spaceHeld(state, R) {
+    const live = state.breakables.filter((b) => b.rupa && !b.broken && !(b.hp <= 0)), touch = (a, b) => {
+      let flush = 0;
+      for (let k = 0; k < 3; k++) {
+        const o = Math.min(a.max[k], b.max[k]) - Math.max(a.min[k], b.min[k]);
+        if (o < -0.05) return false;
+        if (o <= 0.05) flush++;
+      }
+      return flush === 1;
+    };
+    const held = new Set(live.filter((b) => b.rupa.anchor)), queue = [...held];
+    while (queue.length) { const a = queue.pop(); for (const b of live) if (!held.has(b) && touch(a, b)) { held.add(b); queue.push(b); } }
+    const anchors = live.filter((b) => b.rupa.anchor), mid = anchors.length ? [0, 1, 2].map((k) => anchors.reduce((s, b) => s + (b.min[k] + b.max[k]) / 2, 0) / anchors.length) : null;
+    for (const b of live) if (held.has(b)) b.falling = null;
+    if (!anchors.length) { R.spaceN = state.breaks.length; return; }
+    // (cut loose: each piece of what is left, the blocks that touch, goes as ONE: off away from what held it at a walk,
+    // every block of it at that one velocity, so it drifts whole; its breaks name its pivot and the way it goes, and
+    // the page turns it about that pivot as it goes)
+    const loose = live.filter((b) => !held.has(b)), seen = new Set();
+    for (const b0 of loose) {
+      if (seen.has(b0)) continue;
+      const part = [b0], q = [b0]; seen.add(b0);
+      while (q.length) { const a = q.pop(); for (const b of loose) if (!seen.has(b) && touch(a, b)) { seen.add(b); part.push(b); q.push(b); } }
+      const vol = (b) => Math.max(1e-9, (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2])), V = part.reduce((s, b) => s + vol(b), 0);
+      const pivot = [0, 1, 2].map((k) => part.reduce((s, b) => s + vol(b) * (b.min[k] + b.max[k]) / 2, 0) / V);
+      const d = [pivot[0] - mid[0], pivot[1] - mid[1], pivot[2] - mid[2]], L = Math.hypot(d[0], d[1], d[2]) || 1, away = d.map((v) => v / L);
+      const vel = away.map((v) => v * (R.drift ?? 1.5));
+      for (const b of part) {
+        stripIt(state, b, null, { from: [2 * pivot[0] - mid[0], 2 * pivot[1] - mid[1], 2 * pivot[2] - mid[2]] });
+        const br = state.breaks[state.breaks.length - 1], body = R.bodies.find((x) => x.id === br.body);
+        if (body) body.vel = vel.slice();
+        br.how = 'drift'; br.drift = { pivot: pivot.map((v) => Math.round(v * 1e3) / 1e3), away, n: part.length }; br.away = away; b.broken.drift = true;
+      }
+    }
+    R.spaceN = state.breaks.length;
+  }
+
   E.registerWorldPass('rupa-wind', (state) => {
     const R = state.rupa;
     if (!R || !R.wind || state.time - R.windAt < 0.25) return;

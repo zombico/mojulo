@@ -5,7 +5,9 @@
  * mechanic (game/sortie.js: goals together, arrivals) and the pilot's hull (`fail-on-death` of its body).
  *
  *   goal.flight = { sortie: {
- *     groups: [{ id, name?, craft?, count?, side: 'friend' | 'foe', arrive?, at?, shields?, hull? }],
+ *     groups: [{ id, name?, craft?, count?, side: 'friend' | 'foe', arrive?, at?, shields?, hull? }
+ *              | { id, name?, side, capital: <class> | station: <kind>, at?, heading?, look? }],   (a capital ship or a
+ *              station, fleet/: one, there from the start, destructible; its hull down when its reactor is breached)
  *     goals:  [{ destroy: id | [ids] } | { protect: id | [ids] } | { survive: s }, each with an optional say],
  *   } }
  *     craft    a shelf archetype (craft-shelf/craft-archetypes.js); a foe's the interceptor, a friend's the strike foil
@@ -19,13 +21,18 @@
  *
  *   readSortie(v, at?)            → the sortie read (throws naming the field)
  *   sortieMechanics(S, ends)      → the level's mechanics
- *   sortieCast(S, ends)           → { entities, figures } the groups as craft, minds on their sides
+ *   sortieCast(S, ends)           → { entities, figures, fleet? } the groups as craft, minds on their sides; a capital
+ *                                   ship's or a station's blocks placed (fleet: fleet/build.js placeFleet), its hull and
+ *                                   its guns entities
  *
  * Pure: the same sortie, the same craft in the same places.
  */
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { STARFIGHTER } from '../skyscape/starfighter.js';
 import { cockpitOf } from '../skyscape/cockpits.js';
+import { CAPITAL_CLASSES, STATION_KINDS } from '../fleet/classes.js';
+import { FLEET_LOOKS } from '../fleet/language.js';
+import { buildCapital, buildStation, placeFleet } from '../fleet/build.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -35,13 +42,13 @@ export const SORTIE = Object.freeze({
   most: 6, hull: Object.freeze({ foe: 3, friend: 8 }), shields: Object.freeze({ max: 4, regen: 0.4 }),
   craft: Object.freeze({ foe: 'twinPanel', friend: 'strikeFoil' }),
   // where a group comes in by default (m from the pilot's start: along its heading, across it, up); its craft this far apart
-  at: Object.freeze({ foe: Object.freeze({ ahead: 1600, side: 0, up: 0 }), friend: Object.freeze({ ahead: -40, side: 60, up: 0 }), arrive: Object.freeze({ ahead: 2400, side: 0, up: 120 }) }),
+  at: Object.freeze({ foe: Object.freeze({ ahead: 1600, side: 0, up: 0 }), friend: Object.freeze({ ahead: -40, side: 60, up: 0 }), arrive: Object.freeze({ ahead: 2400, side: 0, up: 120 }), structure: Object.freeze({ ahead: 1400, side: 0, up: -60 }) }),
   spacing: 70,
   // a mind's numbers by side: its cannons' rate, its bursts (a wingman helps, the player carries the mission)
-  guns: Object.freeze({ foe: Object.freeze({ rof: 3, burst: 0.4, pause: 1.4 }), friend: Object.freeze({ rof: 1.5, burst: 0.3, pause: 3 }) }),
+  guns: Object.freeze({ foe: Object.freeze({ rof: 3, burst: 0.4, pause: 1.4 }), friend: Object.freeze({ rof: 1.5, burst: 0.3, pause: 3 }), turret: Object.freeze({ rof: 2.5, burst: 0.5, pause: 1.8, hp: 3 }) }),
 });
 const SIDES = ['friend', 'foe'];
-const GROUP_KEYS = ['id', 'name', 'craft', 'count', 'side', 'arrive', 'at', 'shields', 'hull', 'hold'];
+const GROUP_KEYS = ['id', 'name', 'craft', 'count', 'side', 'arrive', 'at', 'shields', 'hull', 'hold', 'capital', 'station', 'heading', 'look'];
 
 export function readSortie(v, at = 'goal.flight.sortie') {
   const fail = (m) => { throw new Error(`gameworld: ${at}${m}`); };
@@ -57,6 +64,18 @@ export function readSortie(v, at = 'goal.flight.sortie') {
     if (seen.has(g.id)) fail(`${w}.id '${g.id}' is named twice`);
     seen.add(g.id);
     if (!SIDES.includes(g.side)) fail(`${w}.side is friend or foe`);
+    // (a capital ship or a station: one of it, there from the start, built of destructible matter: fleet/)
+    if (g.capital !== undefined || g.station !== undefined) {
+      if (g.capital !== undefined && g.station !== undefined) fail(`${w} is a capital ship or a station, not both`);
+      if (g.capital !== undefined && !CAPITAL_CLASSES[g.capital]) fail(`${w}.capital is a ship's class (${Object.keys(CAPITAL_CLASSES).join(', ')})`);
+      if (g.station !== undefined && !STATION_KINDS[g.station]) fail(`${w}.station is a station's kind (${Object.keys(STATION_KINDS).join(', ')})`);
+      if (g.count !== undefined && g.count !== 1) fail(`${w}.count: a capital ship or a station is one`);
+      if (g.arrive !== undefined && g.arrive !== 'start') fail(`${w}.arrive: a capital ship or a station is there from the start`);
+      if (g.heading !== undefined && ![0, 90, 180, 270].includes(g.heading)) fail(`${w}.heading is 0, 90, 180 or 270 (degrees from the start's own heading)`);
+      if (g.look !== undefined && !FLEET_LOOKS[g.look]) fail(`${w}.look is a fleet's livery (${Object.keys(FLEET_LOOKS).join(', ')})`);
+      if (g.at !== undefined && !(isObj(g.at) && Object.entries(g.at).every(([f, x]) => ['ahead', 'side', 'up'].includes(f) && Number.isFinite(x) && Math.abs(x) <= 20000))) fail(`${w}.at is { ahead?, side?, up? } in metres from the start`);
+      return { id: g.id, name: g.name ?? (g.capital ? CAPITAL_CLASSES[g.capital] : STATION_KINDS[g.station]).label.replace(/^an? /, '').replace(/^./, (c) => c.toUpperCase()), count: 1, side: g.side, arrive: { start: true }, ...(g.capital ? { capital: g.capital } : { station: g.station }), ...(g.at ? { at: { ...g.at } } : {}), ...(g.heading !== undefined ? { heading: g.heading } : {}), ...(g.look ? { look: g.look } : {}) };
+    }
     const craft = g.craft ?? SORTIE.craft[g.side];
     if (!CRAFT_ARCHETYPES[craft]) fail(`${w}.craft '${craft}' is not a craft of the shelf (${Object.keys(CRAFT_ARCHETYPES).join(', ')})`);
     const count = g.count ?? (g.side === 'foe' ? 3 : 2);
@@ -114,7 +133,30 @@ export function sortieCast(S, ends) {
   const fx = Math.cos(h), fy = Math.sin(h), rx = Math.sin(h), ry = -Math.cos(h);
   const size = r2(Math.max(4, c.max / 25)), speed = r2(0.85 * c.cruise), goalIds = new Set(S.goals.flatMap((g) => g.destroy ?? []));
   const L = STARFIGHTER.lasers, entities = [], figures = {};
+  const fleet = [];
   for (const g of S.groups) {
+    // A CAPITAL SHIP OR A STATION (fleet/): built of destructible matter, welded to its reactor and weightless; its
+    // hull an entity the computer names and the mission counts (down when its reactor is breached), its guns minds on
+    // their hardpoints (down with their mounts)
+    if (g.capital || g.station) {
+      const row = g.capital ? CAPITAL_CLASSES[g.capital] : STATION_KINDS[g.station];
+      const built = g.capital ? buildCapital(g.capital, { seed: S.groups.indexOf(g) + 1, ...(g.look ? { look: g.look } : {}) }) : buildStation(g.station, { seed: S.groups.indexOf(g) + 1, ...(g.look ? { look: g.look } : {}) });
+      // (a big one stands further off: the start at least its length and a half from its middle)
+      const A = { ...SORTIE.at.structure, ahead: Math.max(SORTIE.at.structure.ahead, r2(1.5 * (built.length || 0) + 300)), ...(g.at ?? {}) }, team = g.side === 'foe' ? 'foes' : 'player';
+      const at = [r2(p[0] + fx * A.ahead + rx * A.side), r2(p[1] + fy * A.ahead + ry * A.side), r2(p[2] + A.up)];
+      const turn = Math.round(((h * 180) / Math.PI + (g.heading ?? 90)) / 90) * 90;
+      const P = placeFleet(built, { at, heading: turn, id: g.id });
+      fleet.push(P);
+      const core = P.blocks.filter((b) => P.core.includes(b.id)), mid = core.length ? [0, 1, 2].map((k) => r2(core.reduce((s, b) => s + (b.min[k] + b.max[k]) / 2, 0) / core.length)) : at;
+      entities.push({ id: `${g.id}-1`, team, rule: { type: 'static' }, structure: { core: P.core, breach: row.breach },
+        body: { type: 'mesh', shape: 'box', size: [1, 1, 1], color: '#000000', hittable: true, hp: 100, radius: 2, name: g.name, ...(goalIds.has(g.id) ? { goal: true } : {}) }, transform: { pos: mid, heading: 0, pitch: 0 } });
+      // (its guns: a mind each on its hardpoint, firing the other side's bolts, down when the block it stands on is)
+      P.hardpoints.forEach((H, k) => entities.push({ id: `${g.id}-gun${k + 1}`, team, onBlock: H.block,
+        rule: { type: 'ai', space: true, speed: 0, turn: 2.2, standoff: 0, target: 'enemy', fireArc: 14, burst: SORTIE.guns.turret.burst, pause: SORTIE.guns.turret.pause, sightRange: r2(12 * c.cruise), eye: 0 },
+        weapon: { fireClass: 'lob', auto: true, rof: SORTIE.guns.turret.rof, damage: L.damage, impact: 0, range: L.speed * L.fuse * 0.7, coreAngle: 2, assistAngle: 2, eye: 0, lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true, smokeTrail: false, fxColor: g.side === 'foe' ? 0x5cff6a : 0xff3b2e, fxScale: STARFIGHTER.bolt.size, fxMin: STARFIGHTER.bolt.min, foeRound: true },
+        body: { type: 'mesh', shape: 'box', size: [2.4, 2.4, 1.6], color: '#2a2d31', hittable: true, hp: SORTIE.guns.turret.hp, radius: 2.5, name: `${g.name} gun ${k + 1}` }, transform: { pos: H.at, heading: 0, pitch: 0 } }));
+      continue;
+    }
     const fig = `craft-${g.craft}`;
     figures[fig] = { craft: { archetype: g.craft, flying: true, gear: 'up' } };
     const A = { ...(g.arrive.start ? SORTIE.at[g.side] : SORTIE.at.arrive), ...(g.at ?? {}) };
@@ -139,5 +181,5 @@ export function sortieCast(S, ends) {
       });
     });
   }
-  return { entities, figures };
+  return { entities, figures, ...(fleet.length ? { fleet } : {}) };
 }

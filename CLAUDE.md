@@ -408,6 +408,11 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Capital ships and stations: [fleet/](control/lib/graph/fleet/) (the fleet's industrial-realism language, its classes and
+  station kinds as rows, a builder laying each as blocks of matter; a ship read as one shape, a wedge, a concept solid
+  or blobs on an anchor, `forms.js`, its volume cut into blocks and its surface clipped to them; its detail the
+  shader's parallax kibble by block, `scene/channels/hull-kibble.js`; a sortie's `capital` / `station` group;
+  destructible in zero g, held by welds to its reactor, breached and cut loose: [docs/rupa.md](docs/rupa.md#in-space)).
 - Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
   measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
   and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the

@@ -545,7 +545,7 @@ __ground = function (pos) {   // eslint-disable-line no-func-assign
 `;
 }
 
-export function distortViewScript() {
+export function distortViewScript({ weightless = false } = {}) {
   return `// distortion: blocks keep the shape their blows leave
 const __dentDraw = {}, __dentLight = [0.35, -0.55, 0.76];
 function __dentAt(b, ax, side, p, thick, hw) {
@@ -618,7 +618,7 @@ function __updateDents() {
     if (!b.rupa || !b.rupa.dents) continue;
     const id = b.id;
     let D = __dentDraw[id];
-    if (b.broken && b.broken.how !== 'strip') { if (D && D.mesh.visible) D.mesh.visible = false; continue; }
+    if (b.broken && (b.broken.how !== 'strip'${weightless ? ' || b.broken.drift' : ''})) { if (D && D.mesh.visible) D.mesh.visible = false; continue; }${weightless ? '   // (a module cut loose drifts as it was drawn: __updateDrifts)' : ''}
     if (!b.broken && b.rupa.form && (!D || D.form !== b.rupa.form)) {
       if (D) __dentDrop(D);
       D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form };
@@ -828,6 +828,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const scarsOn = !!(rupa && rupa.scars);
   // ground (rupa, the land as a soil grid): drawn and probed only when the world has ground, so every other page keeps its bytes
   const groundOn = !!(rupa && rupa.ground);
+  // weightless (rupa, `g: 0`: a capital ship, a station): a module cut loose drifts off as it was drawn, tumbling, and
+  // the pieces of a break fly on and fade, never falling; drawn only in zero g, so every other page keeps its bytes
+  const weightless = !!(rupa && rupa.g === 0);
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -5810,7 +5813,19 @@ const __breakPieces = ${safeJson(breakPieces || {})};${Object.values(breakPieces
 // blocks of one size and cut share their pieces (playscape/destruct/breakability.js piecesOf share): each takes the first's, in its own colour
 for (const k in __breakPieces) { const v = __breakPieces[k]; if (v.like) __breakPieces[k] = { ...__breakPieces[v.like], fill: v.fill, tex: v.tex }; }` : ''}
 const __pieces = [];
-let __breaksSeen = 0;
+let __breaksSeen = 0;${weightless ? `
+// a piece cut loose (a break \`drift\` { pivot, away }: every block of it at one velocity): each block's own drawing
+// rides its body off, the piece turning as one about its pivot, slowly, about an axis across the way it goes
+const __drifts = [];
+function __updateDrifts() {
+  for (const d of __drifts) {
+    const body = ((__world.rupa && __world.rupa.bodies) || []).find((x) => x.id === d.br.body);
+    if (!body) continue;
+    const P = d.br.drift.pivot, at = d.br.at, q = new THREE.Quaternion().setFromAxisAngle(d.axis, (__world.time - d.t0) * 0.12);
+    const c = new THREE.Vector3(P[0], P[1], P[2]).applyQuaternion(q), o = [P[0] + body.pos[0] - at[0], P[1] + body.pos[1] - at[1], P[2] + body.pos[2] - at[2]];
+    for (const m of d.ms) { m.quaternion.copy(q); m.position.set(o[0] - c.x, o[1] - c.y, o[2] - c.z); }
+  }
+}` : ''}
 const __PART = { impact: { speed: 3.2, up: 2.2, blow: 1.6, hold: 0 }, blade: { speed: 0.9, up: 0.6, blow: 0.9, hold: 0.06 }, laser: { speed: 0.3, up: 0.2, blow: 0.2, hold: 0.25 }, anime: { speed: 1.2, up: 0.5, blow: 0.7, hold: 0.42 } };
 const __pieceLight = [0.35, -0.55, 0.76];
 function __spawnBreak(br) {
@@ -5855,7 +5870,7 @@ ${busterOn ? `  // (in the shot's light: an explosion where it broke, in the col
     m.position.set(k.at[0], k.at[1], k.at[2]); m.raycast = function () {}; scene.add(m);
     let ox = k.at[0] - br.at[0], oy = k.at[1] - br.at[1], oz = k.at[2] - br.at[2]; const ol = Math.hypot(ox, oy, oz) || 1; ox /= ol; oy /= ol; oz /= ol;
     const sp = P.speed * (0.7 + 0.6 * rnd());
-    __pieces.push({ m, born: __world.time, hold: P.hold, rest: floor + lo, r: r * 0.6,
+    __pieces.push({ m, born: __world.time, hold: P.hold, rest: ${weightless ? '-Infinity' : 'floor + lo'}, r: r * 0.6,
       v: [ox * sp + bx * P.blow, oy * sp + byy * P.blow, Math.max(0, oz) * sp + P.up * (0.6 + 0.8 * rnd())],
       w: [(rnd() - 0.5) * 9 * P.speed / 3.2, (rnd() - 0.5) * 9 * P.speed / 3.2, (rnd() - 0.5) * 4], settled: false });
   }
@@ -5867,7 +5882,8 @@ function __pieceBlocked(x, y, z, r) {
 function __updateBreaks(dt) {
   const B = __world.breaks || [];
   for (; __breaksSeen < B.length; __breaksSeen++) {
-    const br = B[__breaksSeen], m = meshes['break:' + br.id];
+    const br = B[__breaksSeen], m = meshes['break:' + br.id];${weightless ? `
+    if (br.drift) { if (m) { const a = br.drift.away, ax = new THREE.Vector3(-a[1], a[0], 0.35).normalize(); __drifts.push({ br, ms: [m, ...(m.userData.tex || [])], axis: ax, t0: br.t }); } continue; }` : ''}
     if (m) { m.visible = false; for (const tm of (m.userData.tex || [])) tm.visible = false; }
     if (br.how !== 'restore'${distort ? " && br.how !== 'strip' && br.how !== 'cut'" : ''}) __spawnBreak(br);   // a restored break (an aftermath carried in) is simply gone${distort ? '; a stripped plate falls whole and a cut block parts in two (__updateDents)' : ''}
   }
@@ -5875,9 +5891,9 @@ function __updateBreaks(dt) {
     const q = __pieces[i], age = __world.time - q.born;
     if (age > 4) { scene.remove(q.m); q.m.geometry.dispose(); q.m.material.dispose(); __pieces.splice(i, 1); continue; }
     if (age < q.hold) continue;   // the cut is drawn before anything parts
-    if (age > 3.2) { q.m.position.z -= dt * 0.25; continue; }   // sink away through the floor
+    ${weightless ? `if (age > 3.2) q.m.scale.multiplyScalar(Math.max(0, 1 - dt * 1.25));   // in zero g: flying on, fading away` : `if (age > 3.2) { q.m.position.z -= dt * 0.25; continue; }   // sink away through the floor`}
     if (q.settled) continue;
-    q.v[2] -= 9.8 * dt;
+    ${weightless ? '' : 'q.v[2] -= 9.8 * dt;'}
     // the walls hold them: each horizontal step that would put a piece inside a collider bounces back off it instead
     const x1 = q.m.position.x + q.v[0] * dt, y1 = q.m.position.y + q.v[1] * dt, z = q.m.position.z;
     if (__pieceBlocked(x1, q.m.position.y, z, q.r)) q.v[0] *= -0.3; else q.m.position.x = x1;
@@ -5890,7 +5906,7 @@ function __updateBreaks(dt) {
     }
   }
 }
-${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript(weightless ? { weightless } : {}) : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `
@@ -5908,7 +5924,7 @@ ${hangarHook}  __msHookParams();
     __updateClashes();
     __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
     __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables || loose ? `
-    __updateBreaks(${tempo ? 'wdt' : 'dt'});${distort ? `
+    __updateBreaks(${tempo ? 'wdt' : 'dt'});${weightless ? ' __updateDrifts();' : ''}${distort ? `
     __updateDents();` : ''}${rupa ? `
     __updateSmoke();` : ''}` : ''}${panelsOn ? `
     __updatePanels();` : ''}${scarsOn ? `

@@ -73,6 +73,37 @@ describe('a sortie', () => {
   });
 });
 
+describe('a sortie\'s capital ships and stations (fleet/)', () => {
+  const S1 = { groups: [{ id: 'red', side: 'friend', count: 2 }, { id: 'frigate', side: 'foe', capital: 'frigate' }, { id: 'yard', side: 'foe', station: 'outpost', at: { side: 900 } }],
+    goals: [{ destroy: ['frigate', 'yard'] }] };
+  it('is one of it, there from the start, named by its class; refused otherwise, teaching', () => {
+    const S = readSortie(S1);
+    expect(S.groups.slice(1).map((g) => [g.id, g.name, g.count, g.capital ?? g.station])).toEqual([['frigate', 'Frigate', 1, 'frigate'], ['yard', 'Outpost', 1, 'outpost']]);
+    const bad = (g, m) => expect(() => readSortie({ groups: [g], goals: [{ destroy: g.id }] })).toThrow(m);
+    bad({ id: 'a', side: 'foe', capital: 'dreadnought' }, /a ship's class/);
+    bad({ id: 'a', side: 'foe', capital: 'frigate', station: 'outpost' }, /not both/);
+    bad({ id: 'a', side: 'foe', capital: 'frigate', count: 2 }, /is one/);
+  });
+  it('casts its blocks placed ahead, its hull an entity downed by its reactor, a gun a mind on each hardpoint', () => {
+    const { entities: C, fleet } = sortieCast(readSortie(S1), ends);
+    const by = Object.fromEntries(C.map((e) => [e.id, e]));
+    expect(fleet).toHaveLength(2);
+    const [F] = fleet;
+    expect(by['frigate-1'].structure).toEqual({ core: F.core, breach: 4 });
+    expect(by['frigate-1'].body).toMatchObject({ hittable: true, hp: 100, name: 'Frigate', goal: true });
+    expect(by['frigate-1'].team).toBe('foes');
+    // (the hull's mark at its reactor's middle, ahead of the start)
+    const core = F.blocks.filter((b) => F.core.includes(b.id));
+    expect(core.every((b) => [0, 1, 2].every((k) => by['frigate-1'].transform.pos[k] >= b.min[k] - 1e-6 && by['frigate-1'].transform.pos[k] <= b.max[k] + 1e-6))).toBe(true);
+    expect(by['frigate-1'].transform.pos[0]).toBeGreaterThan(1000);
+    const guns = C.filter((e) => e.id.startsWith('frigate-gun'));
+    expect(guns).toHaveLength(F.hardpoints.length);
+    expect(guns.every((g, k) => g.onBlock === F.hardpoints[k].block && g.rule.type === 'ai' && g.rule.speed === 0)).toBe(true);
+    // the sortie counts the hulls
+    expect(sortieMechanics(readSortie(S1))[1].goals).toEqual([{ destroy: ['frigate-1', 'yard-1'] }]);
+  });
+});
+
 describe('the cockpit HUD\'s readings', () => {
   const me = { pos: [0, 0, 0], f: [1, 0, 0], u: [0, 0, 1] };
   it('a sensor: dead ahead the middle, abeam the edge, up the top; the aft one what lies behind', () => {

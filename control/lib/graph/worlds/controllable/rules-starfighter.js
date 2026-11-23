@@ -14,6 +14,9 @@
  *   • TARGETING: `tgt` picks the target: 'next' / 'prev' (every craft round, the nearest first), 'near' (the nearest
  *     hostile), 'atk' (the last one to hit the craft), 'goal' (the next one the mission names: `body.goal`). The
  *     target's facts are kept on the craft (`target`, `tgtInfo` { id, d, closure, hull, shields, stance, name }).
+ *   • A CRASH: flown into a solid (the world's colliders: a capital ship's plates, a station's), it stops at the plate
+ *     and glances off it, slowed and hurt as squarely as it struck, the shield on that side first (`crash` { hurt,
+ *     speed, bounce }). Facts: crashT, crashN, crashBy.
  *
  * THE SHIP'S SYSTEMS (`body.ship`, on any craft: a pilot's or a foe's, whatever flies it):
  *   ship { shields?: { max, regen, cost? }, lasers?: { regen, links? }, power?: true, generator?: { out, tick? } }
@@ -284,8 +287,9 @@ export function buildStarfighter(E) {
     f = norm(f); const fu = dot(f, u); u = norm([u[0] - f[0] * fu, u[1] - f[1] * fu, u[2] - f[2] * fu]);
     e.sfF = f; e.sfU = u;
     // ── the craft carried down its nose ──
-    const v = e.airspeed, lastZ = t.pos[2];
+    const v = e.airspeed, lastZ = t.pos[2], from = t.pos.slice();
     t.pos[0] += f[0] * v * dt; t.pos[1] += f[1] * v * dt; t.pos[2] += f[2] * v * dt;
+    if (world.colliders && world.colliders.length && crash(e, from, world)) f = e.sfF;
     const A = anglesOf(f, u);
     t.heading = A.h; t.pitch = A.p;
     e.tilt = { pitch: A.p, roll: A.r }; e.bank = A.r;
@@ -297,6 +301,49 @@ export function buildStarfighter(E) {
     if (input.tgt && input.tgt !== P.tgt) e.target = retarget(e, input.tgt, world);
     targetFacts(e, world, dt);
     P.thr = input.thr || null; P.tgt = input.tgt || null; P.power = input.power || null; P.shieldSet = !!input.shieldSet; P.link = !!input.link; P.transfer = input.transfer || null;
+  }
+
+  // ── A CRASH: the craft's path this step into a solid (a capital ship's plates, a station's: the world's colliders, a
+  // box each, grown by the craft's own radius). It stops at the plate and glances off it: its nose turned off the face
+  // as a ball's would be (the share of its speed into the face reversed at `crash.bounce`), its speed cut by that
+  // share, and it is hurt as squarely as it struck (`crash.hurt` at `crash.speed` m/s into the face or more), the
+  // shield on that side taking it first. Facts: crashT, crashN, crashBy (the solid's id). ──
+  function crash(e, from, world) {
+    const t = e.transform, to = t.pos, C = world.colliders, rc = (e.rule.collideRadius ?? (e.body && e.body.radius)) || 2;
+    let best = null, bt = 1;
+    for (let k = 0; k < C.length; k++) {
+      const c = C[k];
+      if (!c || !c.min || !c.max) continue;
+      const mn = [c.min[0] - rc, c.min[1] - rc, c.min[2] - rc], mx = [c.max[0] + rc, c.max[1] + rc, c.max[2] + rc];
+      // (already inside: a step that starts in it is not a crash into it, it flies out)
+      if (from[0] > mn[0] && from[0] < mx[0] && from[1] > mn[1] && from[1] < mx[1] && from[2] > mn[2] && from[2] < mx[2]) continue;
+      const h = E.segAabbT(from, to, mn, mx);
+      if (h != null && h < bt) { bt = h; best = { c, mn, mx }; }
+    }
+    if (!best) return false;
+    const hit = [from[0] + (to[0] - from[0]) * bt, from[1] + (to[1] - from[1]) * bt, from[2] + (to[2] - from[2]) * bt];
+    // (the face struck: the axis the hit stands furthest out on, as a share of the grown box's half)
+    let ax = 0, far = -1;
+    for (let k = 0; k < 3; k++) { const mid = (best.mn[k] + best.mx[k]) / 2, half = (best.mx[k] - best.mn[k]) / 2 || 1, o = Math.abs(hit[k] - mid) / half; if (o > far) { far = o; ax = k; } }
+    const n = [0, 0, 0]; n[ax] = hit[ax] >= (best.mn[ax] + best.mx[ax]) / 2 ? 1 : -1;
+    const f = e.sfF, into = -dot(f, n), v = e.airspeed, vn = Math.max(0, into) * v;
+    const K = e.rule.crash || {}, bounce = K.bounce ?? 0.3;
+    // (hurt before it turns: the shield struck is the one on the side it struck with)
+    const hurt = (K.hurt ?? 100) * clamp(vn / (K.speed ?? 80), 0, 1);
+    if (hurt > 0 && e.body && Number.isFinite(e.body.hp)) {
+      const src = [hit[0] - n[0] * 5, hit[1] - n[1] * 5, hit[2] - n[2] * 5];
+      if (!(E.shipAbsorb && E.shipAbsorb(e, src, hurt, world))) {
+        e.body.hp = Math.max(0, e.body.hp - hurt);
+        if (e.body.hp <= 0 && E.armReaction) E.armReaction(e, 'topple');
+      }
+    }
+    const nf = norm([f[0] + (1 + bounce) * into * n[0], f[1] + (1 + bounce) * into * n[1], f[2] + (1 + bounce) * into * n[2]]);
+    // (the up vector kept square to the new nose)
+    const fu = dot(nf, e.sfU); e.sfU = norm([e.sfU[0] - nf[0] * fu, e.sfU[1] - nf[1] * fu, e.sfU[2] - nf[2] * fu]); e.sfF = nf;
+    e.airspeed = v * (1 - 0.7 * Math.max(0, into));
+    t.pos[0] = hit[0] + n[0] * 0.05; t.pos[1] = hit[1] + n[1] * 0.05; t.pos[2] = hit[2] + n[2] * 0.05;
+    e.crashT = world.time; e.crashN = (e.crashN || 0) + 1; e.crashBy = best.c.of || best.c.id || null;
+    return true;
   }
 
   // ── the cockpit: the eye at the craft's seat, down its nose, rolled with it ──

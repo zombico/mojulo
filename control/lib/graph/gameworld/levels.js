@@ -27,6 +27,8 @@
  */
 import { planRailStage } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
+/** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
+const FLEET_POWER = 1e3;
 import { facilityBuilding } from '../era/facilities.js';
 import { raceHud, RACE_DIAL } from './race-hud.js';
 import { levelHud } from '../game/hud-mana.js';
@@ -1274,6 +1276,10 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
   let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  // A FLEET in it (a sortie's capital ships and stations, fleet/): its blocks the airspace's to draw, the level under
+  // destructible physics, weightless (matter.g 0), its blows at a space fight's power (FLEET_POWER: a fighter's bolt
+  // dents armour and holes a hull's thin plate, a torpedo breaches a reactor's casing)
+  if (X?.fleet?.length) manifest = { ...manifest, fleet: X.fleet, destruction: 'physical', matter: { ...(manifest.matter ?? {}), g: 0, power: FLEET_POWER } };
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js), and
   // a mission's is its own channel's (mission-mana.js)

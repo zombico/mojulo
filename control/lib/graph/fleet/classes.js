@@ -1,5 +1,7 @@
 /**
  * THE FLEET'S CLASSES — capital ships and stations as rows (fleet/build.js lays any of them out; a new one is a row).
+ * A row with a `form` (wedge | concept | globform) is read as one shape by fleet/forms.js; the rest are modular.
+ * `breach`: the holes through its reactor's casing that kill it (rupa-space: a steel casing is holed, not worn down).
  * A ship is its SECTIONS from aft to bow (the drive, the reactor, the hull, a spine, a hangar, the bow), each its length
  * (m) and its section's width and height, and what is fixed onto it (a tower, radiator wings, armour belts, turrets). A
  * station is its kind's own plan. Sizes are a navy's, from a corvette a fighter can strafe end to end in a few seconds to
@@ -16,7 +18,7 @@
 const S = (o) => Object.freeze(o);
 
 export const CAPITAL_CLASSES = Object.freeze({
-  corvette: S({ label: 'a corvette', length: 140, look: 'navy', module: 20,
+  corvette: S({ label: 'a corvette', length: 140, breach: 3, look: 'navy', module: 20,
     sections: [
       S({ kind: 'drive', len: 22, w: 20, h: 14, bells: [2, 1] }),
       S({ kind: 'core', len: 16, w: 22, h: 16 }),
@@ -26,7 +28,7 @@ export const CAPITAL_CLASSES = Object.freeze({
     tower: S({ at: 0.42, len: 16, w: 10, h: 10, levels: 2 }),
     radiators: S({ at: 0, span: 16, chord: 14, pairs: 1 }),
     turrets: [S({ at: 0.6, on: 'top' }), S({ at: 0.75, on: 'top' }), S({ at: 0.55, on: 'bottom' })] }),
-  frigate: S({ label: 'a frigate', length: 280, look: 'navy', module: 24,
+  frigate: S({ label: 'a frigate', length: 280, breach: 4, look: 'navy', module: 24,
     sections: [
       S({ kind: 'drive', len: 40, w: 34, h: 26, bells: [2, 2] }),
       S({ kind: 'core', len: 24, w: 36, h: 30 }),
@@ -37,7 +39,7 @@ export const CAPITAL_CLASSES = Object.freeze({
     tower: S({ at: 0.66, len: 24, w: 14, h: 14, levels: 3 }),
     radiators: S({ at: 0, span: 34, chord: 30, pairs: 1 }),
     turrets: [S({ at: 0.55, on: 'top' }), S({ at: 0.82, on: 'top' }), S({ at: 0.6, on: 'port' }), S({ at: 0.6, on: 'starboard' }), S({ at: 0.75, on: 'bottom' })] }),
-  cruiser: S({ label: 'a cruiser', length: 480, look: 'navy', module: 28,
+  cruiser: S({ label: 'a cruiser', length: 480, breach: 6, look: 'navy', module: 28,
     sections: [
       S({ kind: 'drive', len: 60, w: 56, h: 40, bells: [3, 2] }),
       S({ kind: 'core', len: 34, w: 60, h: 46 }),
@@ -49,7 +51,7 @@ export const CAPITAL_CLASSES = Object.freeze({
     radiators: S({ at: 0, span: 54, chord: 44, pairs: 1 }),
     turrets: [S({ at: 0.5, on: 'top' }), S({ at: 0.6, on: 'top' }), S({ at: 0.72, on: 'top' }), S({ at: 0.82, on: 'top' }),
       S({ at: 0.55, on: 'port' }), S({ at: 0.55, on: 'starboard' }), S({ at: 0.7, on: 'port' }), S({ at: 0.7, on: 'starboard' }), S({ at: 0.65, on: 'bottom' })] }),
-  carrier: S({ label: 'a carrier', length: 560, look: 'navy', module: 30,
+  carrier: S({ label: 'a carrier', length: 560, breach: 6, look: 'navy', module: 30,
     sections: [
       S({ kind: 'drive', len: 64, w: 60, h: 44, bells: [3, 2] }),
       S({ kind: 'core', len: 36, w: 64, h: 48 }),
@@ -59,14 +61,54 @@ export const CAPITAL_CLASSES = Object.freeze({
     tower: S({ at: 0.3, len: 46, w: 22, h: 30, levels: 4 }),
     radiators: S({ at: 0, span: 56, chord: 46, pairs: 1 }),
     turrets: [S({ at: 0.45, on: 'top' }), S({ at: 0.62, on: 'top' }), S({ at: 0.8, on: 'top' }), S({ at: 0.5, on: 'port' }), S({ at: 0.5, on: 'starboard' }), S({ at: 0.75, on: 'port' }), S({ at: 0.75, on: 'starboard' })] }),
+
+  // ── FORMS (fleet/forms.js): a ship read as one shape, its detail the shader's kibble ──
+  // A WEDGE: the plan an isosceles triangle (the bow its point, the stern its short side), `beam` across the stern,
+  // `deck` the ridge's height there and `keel` the depth below, a `rim` band round the edge; `tiers` the superstructure
+  // stepping up aft (from / to shares of the length from the stern, `w` a share of the beam, `h` over the ridge), the
+  // `tower` a bridge across a neck on the top tier; `bells` [across, up] the drive's; `guns` on the rim (port |
+  // starboard, `at` a share of the length, `y` a share of the half-beam there) or on the tiers (`on: 'tier'`).
+  destroyer: S({ label: 'a wedge destroyer', form: 'wedge', length: 900, beam: 500, deck: 70, keel: 46, rim: 16, cell: 60, breach: 5, look: 'navy', coreAt: 0.2,
+    tiers: [S({ from: 0.02, to: 0.4, w: 0.36, h: 18 }), S({ from: 0.04, to: 0.27, w: 0.24, h: 44 }), S({ from: 0.06, to: 0.17, w: 0.15, h: 66 })],
+    tower: S({ at: 0.1, len: 30, w: 120, h: 30, neck: 22 }), bells: [3, 1],
+    guns: [S({ at: 0.3, on: 'port', y: 0.85 }), S({ at: 0.3, on: 'starboard', y: 0.85 }), S({ at: 0.5, on: 'port', y: 0.8 }), S({ at: 0.5, on: 'starboard', y: 0.8 }), S({ at: 0.68, on: 'port', y: 0.7 }), S({ at: 0.68, on: 'starboard', y: 0.7 }), S({ at: 0.32, on: 'tier', y: 0.25 }), S({ at: 0.32, on: 'tier', y: -0.25 })],
+    kibble: S({ hull: 0.75, deck: 1, tower: 1, drive: 0.85, core: 0.8 }) }),
+  lancer: S({ label: 'a lancer', form: 'wedge', length: 380, beam: 130, deck: 30, keel: 22, rim: 7, cell: 30, breach: 3, look: 'navy', coreAt: 0.24,
+    tiers: [S({ from: 0.02, to: 0.32, w: 0.4, h: 10 }), S({ from: 0.05, to: 0.18, w: 0.24, h: 22 })],
+    tower: S({ at: 0.1, len: 14, w: 46, h: 12, neck: 9 }), bells: [2, 1],
+    guns: [S({ at: 0.35, on: 'port', y: 0.8 }), S({ at: 0.35, on: 'starboard', y: 0.8 }), S({ at: 0.55, on: 'tier', y: 0 })],
+    kibble: S({ hull: 0.7, deck: 1, tower: 1, drive: 0.85, core: 0.8 }) }),
+  // A CONCEPT SHAPE: a pure solid (`shape` cube | sphere | octahedron), `size` across; a cube's `slabs` of machinery
+  // proud of each face, a sphere's equatorial `trench` and its `dish`; the kibble at full all over.
+  monolith: S({ label: 'a monolith', form: 'concept', shape: 'cube', size: 420, cell: 70, breach: 5, look: 'shadow', slabs: 4, guns: 6, coreCells: 4,
+    kibble: S({ hull: 1, deck: 1, core: 1 }) }),
+  orb: S({ label: 'an orb', form: 'concept', shape: 'sphere', size: 380, cell: 63, breach: 5, look: 'navy', trench: true, dish: true, guns: 6, coreCells: 4,
+    kibble: S({ hull: 0.95, core: 1 }) }),
+  prism: S({ label: 'a prism', form: 'concept', shape: 'octahedron', size: 340, cell: 57, breach: 4, look: 'raider', guns: 6, coreCells: 4,
+    kibble: S({ hull: 1, core: 1 }) }),
+  // A GLOBFORM: `globs` along its length (`at` a share from the stern, radii `r` [along, across, up], `y`/`z` off the
+  // axis), joined by a smooth union `blend` m wide; an `anchor` (an angular prism under or across them: its `plan`
+  // [[share of length, share of the half-beam]], at `z`, `h` thick) giving the soft masses a line; `pods` on the
+  // flanks; the reactor in the glob `coreGlob`.
+  consular: S({ label: 'a consular cruiser', form: 'globform', length: 300, beam: 120, cell: 32, breach: 4, look: 'civil', blend: 24, coreGlob: 1, skin: 46,
+    globs: [S({ at: 0.16, r: [44, 34, 28] }), S({ at: 0.42, r: [70, 46, 36] }), S({ at: 0.68, r: [52, 36, 30] })],
+    anchor: S({ plan: [[0.5, 0.9], [0.9, 0.95], [1.02, 0.55], [1.02, -0.55], [0.9, -0.95], [0.5, -0.9]], z: 0, h: 10 }),
+    pods: [S({ at: 0.04, len: 0.26, y: 60, r: 12 })],
+    guns: [S({ at: 0.42, on: 'top' }), S({ at: 0.68, on: 'top' }), S({ at: 0.42, on: 'bottom' })],
+    kibble: S({ hull: 0.3, deck: 0.95, drive: 0.7, core: 0.4, truss: 0 }) }),
+  courier: S({ label: 'a courier', form: 'globform', length: 200, beam: 70, cell: 24, breach: 3, look: 'civil', blend: 18, coreGlob: 0, skin: 42,
+    globs: [S({ at: 0.3, r: [46, 30, 24] }), S({ at: 0.62, r: [34, 24, 20] }), S({ at: 0.85, r: [20, 14, 12], z: 4 })],
+    pods: [S({ at: 0.06, len: 0.3, y: 34, r: 8 })],
+    guns: [S({ at: 0.3, on: 'top' }), S({ at: 0.62, on: 'bottom' })],
+    kibble: S({ hull: 0.25, drive: 0.7, core: 0.35, truss: 0 }) }),
 });
 
 /** Stations: each kind its plan (fleet/build.js stationPieces). Sizes in m. */
 export const STATION_KINDS = Object.freeze({
   // a spindle: a column, a ring of habitats on spokes at its waist, docking arms, solar and radiator arrays on masts
-  outpost: S({ label: 'an outpost', look: 'civil', column: S({ w: 28, h: 140 }), ring: S({ r: 70, n: 8, w: 22, h: 18 }), arms: 4, arm: 50, arrays: 2 }),
+  outpost: S({ label: 'an outpost', breach: 5, look: 'civil', column: S({ w: 28, h: 140 }), ring: S({ r: 70, n: 8, w: 22, h: 18 }), arms: 4, arm: 50, arrays: 2 }),
   // a yard: an open frame of trusses round a berth, cranes on its top chords, a frigate's hull half built in it
-  shipyard: S({ label: 'a shipyard', look: 'civil', frame: S({ l: 380, w: 130, h: 100, beam: 8 }), cranes: 3, berth: 'frigate' }),
+  shipyard: S({ label: 'a shipyard', breach: 4, look: 'civil', frame: S({ l: 380, w: 130, h: 100, beam: 8 }), cranes: 3, berth: 'frigate' }),
   // a battle platform: an armoured core in tiers of decks, turrets thick on every rim, shield masts on top
-  platform: S({ label: 'a battle platform', look: 'navy', core: S({ w: 60, h: 90 }), tiers: 3, tierR: 80, tierH: 22, turretsPerRim: 8 }),
+  platform: S({ label: 'a battle platform', breach: 8, look: 'navy', core: S({ w: 60, h: 90 }), tiers: 3, tierR: 80, tierH: 22, turretsPerRim: 8 }),
 });
