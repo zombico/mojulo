@@ -13,13 +13,56 @@
  * dagger interceptor, its twin-pod bomber and its heavy fighter.
  *
  *   REBEL_STORM            the side's craft
- *   MISSIONS               the missions, in order: { id, name, brief, sortie }
+ *   MISSIONS               the missions, in order: { id, name, brief, sortie, design? }
+ *   MISSION_DESIGNS        a mission designed whole (campaign/mission.js: its place, its theatre, its cast, its goals and
+ *                          its briefing's steps), drawn as a holo briefing (campaign/briefing-page.js) for the person to
+ *                          approve; a design's status `approved` is what lays its level from it (compileMission), a draft
+ *                          leaves the mission's sortie as it was
+ *   REBEL_STORM_LOOK       the look its menus, briefing and HUD are drawn in by mana-ui (a theme card)
  *   rebelStormStart(world) → { world }: the rail's starter, its opening tour under what the creator wrote
  *
  * Pure: the same campaign lays the same missions.
  */
 
+import { readMission, compileMission } from '../campaign/mission.js';
+
 export const REBEL_STORM = Object.freeze({ airframe: 'strikeFoil', side: 'rebels' });
+export const REBEL_STORM_LOOK = 'orbit';
+
+/**
+ * The missions designed whole. Mission 1, Patrol, at Vigil Station over Kessa's fourth moon: the patrol the old sortie
+ * flew, now with the station it screens, a corvette laid up at it, and the frigate whose interceptors come after the
+ * patrol, told on the holo table step by step. A draft until the person approves its briefing.
+ */
+export const MISSION_DESIGNS = Object.freeze({
+  'mission-1': Object.freeze({
+    id: 'mission-1', name: 'Patrol', status: 'draft',
+    place: { system: 'Kessa', cluster: 'Varn', station: 'Vigil', moon: 4, star: 'orange' },
+    theatre: {
+      field: 6000,
+      moon: { kind: 'arctic', bearing: 38, elevation: 14, size: 'near' },
+      station: { kind: 'outpost', at: [-300, -1100, -150], side: 'friend' },
+      rocks: 'sparse',
+      nav: { nav1: { name: 'Nav 1', at: [200, 1700, 60] }, jump: { name: 'Jump point', at: [900, 2650, 260] } },
+    },
+    cast: [
+      { id: 'red', name: 'Red', side: 'friend', craft: 'strikeFoil', count: 3, at: 'start', pilot: true },
+      { id: 'kestrel', name: 'Kestrel', side: 'friend', capital: 'corvette', at: [-720, -880, -110], heading: 20 },
+      { id: 'fighter', name: 'Fighter', side: 'foe', craft: 'twinPanel', count: 4, at: 'nav1' },
+      { id: 'dominion', name: 'Dominion', side: 'foe', capital: 'frigate', at: [1450, 2800, 200], heading: -150 },
+      { id: 'interceptor', name: 'Interceptor', side: 'foe', craft: 'daggerInterceptor', count: 3, hull: 4, at: 'jump', arrive: { down: 'fighter', after: 3, say: 'Interceptors launching from the Dominion' } },
+    ],
+    goals: [{ destroy: ['fighter', 'interceptor'], say: 'The patrol is broken' }],
+    steps: [
+      { title: 'Vigil Station', say: 'Vigil Station screens the moon\'s ice mines. The corvette Kestrel is laid up at her for repairs and cannot fight: tonight the screen is you.', show: ['station', 'kestrel'] },
+      { title: 'Red Flight', say: 'You fly Red 1, with Red 2 and Red 3 on your wing. Patrol out from the station to Nav 1.', show: ['red', 'nav1'], routes: [['start', 'nav1']] },
+      { title: 'The patrol', say: 'Four fighters are inbound on Nav 1, probing the screen. Break them up before they can report the Kestrel.', show: ['fighter', 'nav1', 'red'], routes: [['fighter', 'station']] },
+      { title: 'The Dominion', say: 'A frigate, the Dominion, holds at the jump point. Her guns outreach yours: do not close with her.', show: ['dominion', 'jump'] },
+      { title: 'Interceptors', say: 'Once her patrol is down, the Dominion will launch interceptors. Meet them before they reach Vigil.', show: ['interceptor', 'dominion', 'station'], routes: [['jump', 'station']] },
+      { title: 'Your orders', say: 'Destroy the patrol, then the interceptors. Keep clear of the Dominion. Red Flight, launch when ready.', show: ['red', 'fighter', 'interceptor'] },
+    ],
+  }),
+});
 
 const SECTOR = Object.freeze({ map: Object.freeze({ craft: 'fighter', field: 6000 }), space: Object.freeze({ asteroids: 'sparse' }) });
 
@@ -63,13 +106,17 @@ export const MISSIONS = Object.freeze([
   }),
 ]);
 
-/** A mission as a gameworld level: a sector of space flown from the cockpit, its goal the sortie. */
+/** A mission as a gameworld level: a sector of space flown from the cockpit, its goal the sortie; a mission whose design
+ *  the person approved is compiled from it (campaign/mission.js), a draft's level stays its sortie's. */
 export function missionLevel(M) {
+  const D = MISSION_DESIGNS[M.id];
+  if (D && D.status === 'approved') return compileMission(readMission(D), { airframe: REBEL_STORM.airframe }).level;
   return { name: M.name, airspace: { ...JSON.parse(JSON.stringify(SECTOR)), airframe: REBEL_STORM.airframe, cockpit: true }, goal: { flight: { sortie: JSON.parse(JSON.stringify(M.sortie)) } } };
 }
 
 /** The rail's starter: its opening tour, under what the creator wrote (every key they wrote wins). */
 export function rebelStormStart(world, { missions = MISSIONS.length } = {}) {
   const levels = Object.fromEntries(MISSIONS.slice(0, missions).map((M) => [M.id, missionLevel(M)]));
-  return { world: { mode: 'autonomous', style: { kit: 'trail-valley' }, start: MISSIONS[0].id, ...world, levels } };
+  // (its menus, its pause and its HUD drawn by mana-ui in the campaign's look; the creator's own `ui` wins)
+  return { world: { mode: 'autonomous', style: { kit: 'trail-valley' }, ui: { theme: REBEL_STORM_LOOK }, start: MISSIONS[0].id, ...world, levels } };
 }

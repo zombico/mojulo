@@ -408,6 +408,11 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Space campaigns (a mission designed whole before its level is built): [campaign/](control/lib/graph/campaign/) (the
+  place, "Kessa System | Varn Cluster | Vigil Station | Moon IV", and its orrery, `theatre.js`; a mission's design, its
+  laws and its compile onto a sortie, `mission.js`; the holo briefing the person approves it on, `briefing-page.js`, on
+  mana-ui's campaign idioms; `node scripts/briefing.mjs rebel-storm mission-1`). Rebel Storm's missions are its first
+  designs (`gameworld/rebel-storm.js` `MISSION_DESIGNS`): a design's level is compiled from it once it is `approved`.
 - Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
   measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
   and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
