@@ -223,6 +223,22 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
     rule.cling = { slide: K.slide, toward: K.toward, kick: steppedSpeed(J.height * (K.up ?? 1), J.gRise), away: K.away, lock: r4(K.lock / FPS), coyote: r4(K.coyote / FPS) };
     carried.push('cling'); moves.add('cling');
   }
+  // THE HANG, THE LANDING'S LAG AND THE STOMP ATTACK (rules-platform.js `hang`, `landLag`, `pound`), with the takes as
+  // the wall is: the apex held while the jump is; a landing that lags by its fall (a heavy body's `landing` wins over the
+  // jump's `heavy`, as the lab's kernel reads them); the attack pressed in the air turned downward
+  if (takes && J.hang > 0) { rule.hang = r4(J.hang / FPS); carried.push('jump.hang'); moves.add('jump.hang'); }
+  if (takes && (J.heavy || C.landing)) {
+    rule.landLag = C.landing ? { by: { per: r4(C.landing.per / FPS), max: r4(C.landing.max / FPS) } } : { heavy: { fall: J.heavy.fall, lag: r4(J.heavy.lag / FPS) } };
+    if (J.heavy) { carried.push('jump.heavy'); moves.add('jump.heavy'); }
+    if (C.landing) { half('landing', 'the lag by the fall, the jump and the dash held in it; its crouch is the landing clip\'s, not deepened by the fall'); moves.add('landing'); }
+  }
+  if (takes && C.pound) {
+    const P = C.pound;
+    rule.pound = { kind: P.kind, back: P.stick === 'back', hang: r4((P.hang ?? 0) / FPS), speed: P.speed, lag: r4((P.lag ?? 0) / FPS),
+      ...(P.kind === 'pound' && P.jump ? { jump: P.jump } : {}), ...(P.kind === 'bounce' ? { bounce: P.bounce ?? 0 } : {}) };
+    half('pound', `the attack in the air${P.stick === 'back' ? ' with the stick held back' : ''} turned downward: held ${P.hang ?? 0} frames, dropped straight at ${P.speed} m/s, ${P.kind === 'bounce' ? 'sprung back up off the floor' : `${P.lag ?? 0} frames of lag on the floor${P.kind === 'pound' && P.jump ? ', a higher jump taken in it' : ''}`}; a body landed on takes the level's stomp (foe.js), not the ${P.kind}'s own blow${P.kind === 'plunge' ? ', and its shockwave beside a body is not struck' : ''}`);
+    moves.add('pound');
+  }
   // (the AIR DASH alone, a card's `dash.ground: false`: F in the air, the takes or not; on the ground F stays the
   // sprint's and the dodge's)
   if (!takes && C.dash && C.dash.kind === 'dash' && C.dash.ground === false && C.dash.air?.count > 0) {

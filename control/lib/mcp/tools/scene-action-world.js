@@ -16,6 +16,7 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { validateProgram } from '@/lib/graph/polygonizer/code-realm.js';
 import { assembleControllableScene } from '@/lib/graph/worlds/controllable-world';
 import { compose, lowerIdioms } from '@/lib/graph/worlds/game-idioms';
 
@@ -32,17 +33,20 @@ export function mintActionWorld({ title, entities, idioms, events, faces, ground
 
   // compose: bus props first, then idiom fragments, then any raw passthrough. compose() throws if two
   // idioms declare the same var (an authoring bug — which idiom owns `score`?), surfaced loudly.
+  // (a raw block's `program`, game/events-program.js, is kept beside the composed rows: it runs as the world resolves)
+  const { program: evProgram, ...rawEvents } = hasRaw ? events : {};
+  if (evProgram !== undefined) { const errs = validateProgram(evProgram, 'events.program'); if (errs.length) throw new Error(errs.join('; ')); }
   const composed = compose(
     ...(props.length ? [{ entities: props }] : []),
     ...fragments,
-    ...(hasRaw ? [events] : []),
+    ...(hasRaw ? [rawEvents] : []),
   );
 
   const navWalk = walk === undefined ? true : walk;   // action worlds default to first-person WASD
   const manifest = {
     kind: 'controllable',
     ...(navWalk ? { walk: navWalk } : {}),
-    events: composed,
+    events: evProgram !== undefined ? { ...composed, program: evProgram } : composed,
     ...(Array.isArray(faces) && faces.length ? { faces } : {}),
     ...(ground && typeof ground === 'object' ? { ground } : {}),
     ...(worldFraming && typeof worldFraming === 'object' ? { worldFraming } : {}),

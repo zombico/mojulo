@@ -104,6 +104,8 @@ resolveMojuloPaths();
 // don't strictly need it, but every bin exporting it keeps resolution uniform.
 const CONTROL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 process.env.MOJULO_CONTROL_DIR ??= CONTROL_DIR;
+// (the folder the person ran the command in, for a script that writes where it was told: `script view --out ./site`)
+process.env.MOJULO_INVOKE_CWD ??= process.cwd();
 process.chdir(CONTROL_DIR);
 
 // Stdout is the MCP protocol channel — any stray log corrupts the frame
@@ -127,7 +129,7 @@ console.info = console.error;
 // where scripts/ sits inside the npx cache (house-compose-language). Allowlisted to the
 // ones that ship in `files`; the child inherits stdio and the paths env resolved above.
 // `script` is one more reserved word on the bin.
-const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender', 'visual-gate', 'pack-data'];
+const SCRIPT_COMMANDS = ['bake-world-gi', 'blender-bake', 'export-blender', 'visual-gate', 'pack-data', 'view'];
 if (process.argv[2] === 'script') {
   const name = process.argv[3];
   if (!SCRIPT_COMMANDS.includes(name)) {

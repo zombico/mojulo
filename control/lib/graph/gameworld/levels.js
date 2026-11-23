@@ -965,7 +965,10 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // pilot with a quick knife (arms-kit.js) cuts on V (the page's gunplay view reads it; the chase camera's V is its own)
   // (a mission stands its own cast: its foes asleep on their spots, the world's guns in the pilot's hands)
   const MX = stage.section === 'mission' ? missionCast(G, stage.mission.mission, { refs: { foe: gunnerRef }, hero: !!heroRef, camera: cam, quiet: true }) : null;
-  const X0 = MX ?? (extra ? extra(ends) : goalCast ? goalCast(ends) : null);
+  // (a sneak's stage, one with guards: its foes stand on no guard's post and where the spawn is out of their sight, foes.js
+  // foePlacements `sneak`, so the level is never lost before the first press)
+  const castEnds = guards?.ref ? { ...ends, sneak: { posts: guards.posts(ends).map((p) => p.at) } } : ends;
+  const X0 = MX ?? (extra ? extra(castEnds) : goalCast ? goalCast(castEnds) : null);
   if (MX) legend = legend ? `${MX.legend} · ${legend}` : MX.legend;
   const shoulder = !!heroRef && !look && (cam ?? 'third-person') === 'third-person' && !!(X0?.camera?.mouseLook || shotItem(G));
   const moveWords = stage.section === 'runner' ? 'A / D  change lane · S  slide' : lane ? 'A / D  run' : steered ? `W A S D  move${actionOrbit ? ' · mouse  look' : steered === 'orbit' ? ' · drag / right stick  look' : ''}` : top ? `W A S D  move${heroRef && !pilot && !heroMoves(G)?.gear ? ' · Z  walk' : ''}` : look || shoulder ? `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  step aside · mouse  look` : `${heroRef ? walkRun(pilot, heroMoves(G)?.gear ? 'F ' : legend) : 'W / S  walk'} · A / D  turn`;
