@@ -219,12 +219,15 @@ export async function GET(request, { params }) {
         // photographs are data; none without a browser, each foe its silhouette)
         const { foePortraits } = await import('@/lib/mcp/tools/foe-portraits');
         const shots = (book === 'foes' || book === 'world') && castable(world) ? await foePortraits(world) : { portraits: {}, key: '' };
+        // (each member in each armour it may wear, photographed for the world bible's battles section: wardrobe.js)
+        const { wardrobePortraits } = await import('@/lib/mcp/tools/wardrobe-portraits');
+        const worn = book === 'world' && world.battles?.wardrobe ? await wardrobePortraits(world) : { portraits: {}, key: '' };
         const cast = request.nextUrl.searchParams.get('cast') ?? 'male';
         if (book === 'feel' && !BOOK_CASTS.includes(cast)) return NextResponse.json({ error: `cast is one of ${BOOK_CASTS.join(', ')}` }, { status: 400 });
         // (the character book shows the hero the run made and pinned live, through its World; a download carries none)
         const pinned = book === 'characters' && !download ? world.characters?.hero?.looks?.base?.ref : null;
         const heroLive = pinned && SketchRepository.getByRef(pinned) ? { worldSrc: `/api/sketches/${encodeURIComponent(pinned)}/world` } : {};
-        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}${heroLive.worldSrc ? ':live' : ''}${shots.key ? `:${shots.key}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world, { renders: heroLive }) : book === 'feel' ? feelBookHtml(world, { cast }) : book === 'foes' ? foeCastHtml(world, { portraits: shots.portraits }) : gameworldBibleHtml(world, { foePortraits: shots.portraits })));
+        html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}${book === 'feel' ? `:${cast}` : ''}${heroLive.worldSrc ? ':live' : ''}${shots.key ? `:${shots.key}` : ''}${worn.key ? `:${worn.key}` : ''}`, () => (book === 'characters' ? characterBibleHtml(world, { renders: heroLive }) : book === 'feel' ? feelBookHtml(world, { cast }) : book === 'foes' ? foeCastHtml(world, { portraits: shots.portraits }) : gameworldBibleHtml(world, { foePortraits: shots.portraits, lookPortraits: worn.portraits })));
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}${book === 'world' ? '' : `-${book}`}`;
       }
     } else if (sketch.manifest?.tour || sketch.manifest?.curation) {

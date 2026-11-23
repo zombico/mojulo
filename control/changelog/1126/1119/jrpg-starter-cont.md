@@ -361,3 +361,8 @@
   bodies are (only where a figure has looks: none, not a byte), and the RPG channel shows the look the member's armour
   slot names (`rpg-channel.js` `dress`), on the map and in a fight, equipped from the menu or loaded from the store.
   `gameworld/wardrobe.live.test.js` (the e2e tier) puts armour on and takes it off in Chrome.
+- **What a member wears, in the book and the handoff.** The world bible's battles section has a wardrobe card: each
+  member in its own clothes and in each armour, photographed where made (`lib/mcp/tools/wardrobe-portraits.js`, the
+  bible route); an engine handoff's level record gives each member's marker its looks, each armour's figure and the made
+  body behind it. A run may now record a hero's look (`made.js` `MADE_KEY`: `hero-look-<armour>`), which it refused.
+  The world bible no longer fails on a party RPG whose hub is a street (`battles-page.js` read it as a level graph).

@@ -381,6 +381,11 @@ slot names, every frame: put on from the party menu, carried in from the store a
 change. The fight is played by the map's figures, so a member fights in what it wears. Dialogue heads stay the base
 portrait.
 
+The world bible's battles section shows what each wears: each member in its own clothes and in each armour its class may
+wear, photographed where the run has made the look (`lib/mcp/tools/wardrobe-portraits.js`), else named. An engine
+handoff's level record carries each member's looks on its marker (`looks: { <armour>: { figure, ref } }`): the ref is the
+look's own made body, which `export_model` hands off as an asset.
+
 ## The screen and sound in words
 
 A cue's (or a scene beat's `do`) effects may touch the screen and play a sound:
