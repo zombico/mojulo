@@ -12,6 +12,11 @@
  *   wardrobeLooks(G, cfg) → [{ member, item, adorn }] each member's look for each armour its class may wear (`cfg`: the
  *                    battles' read play.rpg, its party and gear)
  *   lookKey(member, item) → the run's step key for it (hero-look-<item>, cast-<member>-look-<item>)
+ *   wearLooks(manifest, looks) → the level's manifest with each member's figure in its looks: `looks` { <member>:
+ *                    { <armour item>: <ref> } }; each member's figure copied once a look, its made body the look's
+ *                    (`<figure>-look-<item>`), and its entity's `looks: { base, by: { <item>: <figure> } }`, which the
+ *                    page builds up front and the RPG channel shows by the armour slot (scene/channels/rpg-channel.js
+ *                    dress). A member with no made figure on the level (a stand-in) is left as it is
  *
  * A new armour's look is a row. Pure.
  */
@@ -55,6 +60,22 @@ export function wardrobeLooks(G, cfg) {
     out.push({ member: p.id, item, adorn: w.adorn });
   }
   return out;
+}
+
+/** The level's manifest with its members' looks laid on their figures (see the header). */
+export function wearLooks(manifest, looks) {
+  if (!manifest || !looks || !Array.isArray(manifest.entities)) return manifest;
+  const figures = { ...(manifest.figures ?? {}) };
+  let worn = false;
+  const entities = manifest.entities.map((e) => {
+    const L = looks[e?.id], fig = e?.body?.figure, F = fig && figures[fig];
+    if (!L || !F || typeof F.heroRef !== 'string' || !Object.keys(L).length) return e;
+    const by = {};
+    for (const [item, ref] of Object.entries(L)) { const name = `${fig}-look-${item}`; figures[name] = { ...F, heroRef: ref }; by[item] = name; }
+    worn = true;
+    return { ...e, looks: { base: fig, by } };
+  });
+  return worn ? { ...manifest, figures, entities } : manifest;
 }
 
 export const lookKey = (member, item) => (member === 'hero' ? `hero-look-${item}` : `cast-${member}-look-${item}`);

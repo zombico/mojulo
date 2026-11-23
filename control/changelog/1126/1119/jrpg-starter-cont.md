@@ -356,3 +356,8 @@
   signature, a surcoat on request: `language: { coif, surcoat }`). Four cards: `jerkin`, `studded`, `hauberk`,
   `surcoat`. Worn over a designed outfit, a period armour leaves off the outfit's outer layer and its own armour
   pieces (a mantle, pauldrons, a chest plate, bracers, wraps), which hid it.
+- **What a member wears, shown.** Each level lays the wardrobe's looks on its members' figures (`wardrobe.js`
+  `wearLooks`, the hero's from the figure that holds its weapon); the page builds every look up front, as a loadout's
+  bodies are (only where a figure has looks: none, not a byte), and the RPG channel shows the look the member's armour
+  slot names (`rpg-channel.js` `dress`), on the map and in a fight, equipped from the menu or loaded from the store.
+  `gameworld/wardrobe.live.test.js` (the e2e tier) puts armour on and takes it off in Chrome.

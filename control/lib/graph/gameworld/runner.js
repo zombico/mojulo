@@ -45,7 +45,7 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
-import { wardrobeLooks, lookKey } from './wardrobe.js';
+import { wardrobeLooks, lookKey, wearLooks } from './wardrobe.js';
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { battleBase } from './battles.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, foeGearOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER, hubCast, hubFolkShops } from './battles.js';
@@ -373,12 +373,16 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   }
   // THE WARDROBE (wardrobe.js): each party member in each armour its class may wear, a figure apiece, its own order with
   // the armour laid over its words (an adopted hero is its row, never remade)
+  // (each member's looks by armour, as the levels lay them: member → { item: ref })
+  let looks = null;
   for (const L of G.battles?.wardrobe ? wardrobeLooks(G, readRpg({ rpg: battleBase(G) })) : []) {
-    const base = steps.find((st) => st.key === (L.member === 'hero' ? 'hero' : `cast-${L.member}`));
+    // (the hero's look is the pilot's own, holding what it carries where the adornment step made it)
+    const base = steps.find((st) => st.key === (L.member === 'hero' ? 'hero-equipped' : `cast-${L.member}`)) ?? (L.member === 'hero' ? steps.find((st) => st.key === 'hero') : null);
     if (!base || base.adopt || !base.order) continue;
     const O = base.order, key = lookKey(L.member, L.item), dress = { adorn: L.adorn };
     const order = O.egocube ? { ...O, title: `${O.title} · ${L.item}`, spec: { ...(O.spec ?? {}), ...dress } }
       : O.mint ? { ...O, mint: { ...O.mint, title: `${O.mint.title ?? O.title ?? key} · ${L.item}`, spec: { ...O.mint.spec, ...dress } }, spec: { ...(O.spec ?? O.mint.spec), ...dress } } : null;
+    if (order) ((looks ??= {})[L.member] ??= {})[L.item] = childRef(ref, key);
     if (order) steps.push({ key, ref: childRef(ref, key), ready: base.ready, ...(base.waiting ? { waiting: base.waiting } : {}), order, print: fingerprint({ of: base.print, look: L.item, ...dress }) });
   }
   const GL = laidCasting(G);   // the rolled members in the book's cast: the story places them, the field party carries them
@@ -572,6 +576,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(ownAll ? { moves: ownAll } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
+    // (what each member wears, seen: its looks on its figure, the page showing the one its armour names: wardrobe.js)
+    if (looks && L.args?.manifest) L.args = { ...L.args, manifest: wearLooks(L.args.manifest, looks) };
     // on an epoch's map, a level won goes back to the map
     if (onBoard) L.args = toMap(L.args);
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: levelPrint(G, L.args, hostile), ...(L.laws ? { laws: L.laws } : {}) });

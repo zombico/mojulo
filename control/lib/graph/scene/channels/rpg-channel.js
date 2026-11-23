@@ -978,10 +978,20 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     lastPos = [p[0], p[1]];
   }
 
+  // WHAT THEY WEAR, SEEN (gameworld/wardrobe.js): a member whose figure carries looks shows the one its armour slot names,
+  // else its own; equipped from the menu, carried in from the store, lost to a class change, on the map and in a fight
+  // alike (the fight is played by the map's figures). A figure without looks is left as it is
+  function dress() {
+    const w = W(); if (!w) return;
+    for (const id in R.m) { const e = w.byId[id], L = e && e.looks; if (!L || !L.by) continue;
+      const want = L.by[R.m[id].gear && R.m[id].gear.armor] || L.base; if (e.body.figure !== want) e.body.figure = want; }
+  }
+
   function step(t) {
     const now = typeof t === 'number' ? t : 0, dt = lastT ? Math.max(0, Math.min(now - lastT, 1000)) : 0;   // real time: a slow frame still moves the playback on
     lastT = now;
     changed();
+    dress();
     hookCarry();
     listen();
     padSelect();

@@ -375,8 +375,11 @@ with its coif, its `mail` family); `wardrobe: { <armour>: { adorn } | null }` is
 book's own over them (any armour card: plate, lamellar, leather, mail), null for an armour that changes nothing. Worn
 over a member's outfit, the armour takes the place of its outer layer and its own armour pieces (a mantle, pauldrons,
 bracers). The looks are the run's steps (`hero-look-<armour>`,
-`cast-<id>-look-<armour>`). They are minted, not yet swapped in on equip: the page still shows the base figure. Dialogue
-heads stay the base portrait.
+`cast-<id>-look-<armour>`). Every level lays them on the members' figures (`wardrobe.js` `wearLooks`: an entity's `looks: { base,
+by: { <armour>: <figure> } }`); the page builds each look up front, and the RPG channel shows the one the member's armour
+slot names, every frame: put on from the party menu, carried in from the store as a level loads, taken off by a class
+change. The fight is played by the map's figures, so a member fights in what it wears. Dialogue heads stay the base
+portrait.
 
 ## The screen and sound in words
 
