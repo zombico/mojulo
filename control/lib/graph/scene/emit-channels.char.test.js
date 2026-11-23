@@ -1144,3 +1144,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-23 (1122-sim-fixing: fighters fly passes): the fixtures that embed the controllable runtime. A space
 // mind with `rule.passes` flies down its nose, runs in, breaks and extends (mind.js); no fixture's mind has it, so what each
 // plays is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: shields on a plan): the fixtures whose page carries mana-ui (brawl, holo,
+// mission). Its kernel gains the `shields` component (a craft's shields read off its plan) and its sheet that
+// component's rules; no fixture draws one, so what each shows is as it was.
