@@ -939,6 +939,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const figHasForm = Object.values(figures || {}).some((f) => f && f.rig && f.form && Array.isArray(f.parts) && f.parts.some((p) => p && p.form));
   // (a form body whose light writes its own fill and rim, form-light.js SPACE_MOOD: a craft under a star in the void)
   const figFormOwn = figHasForm && Object.values(figures || {}).some((f) => f && f.form && f.form.hemi);
+  // (a craft's drives on its figure, craft-form.js: thrusters of kind `drive`, their plume and their mouth's flare burning
+  // by how hard the craft is driven, e.thrust)
+  const figDrives = Object.values(figures || {}).some((f) => f && Array.isArray(f.thrusters) && f.thrusters.some((t) => t && t.kind === 'drive'));
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
@@ -1710,7 +1713,29 @@ function __castMR(fig, c, n) {
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
+// over the nozzle that swells and brightens as the craft is driven harder, and its plume, a cone of its glow trailing a
+// few mouths aft with a white-hot core, long at full throttle and short at idle; flattened to a slit's mouth
+let __driveTex = null;
+function __driveJet(th, holder, len, rad) {
+  if (!__driveTex) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+    const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.75)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64); __driveTex = new THREE.CanvasTexture(cv);
+  }
+  const col = new THREE.Color(th.color || '#ff8a3c'), hot = col.clone().lerp(new THREE.Color(0xffffff), 0.65);
+  const add = (geo, c) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.raycast = function () {}; m.frustumCulled = false; holder.add(m); return m; };
+  const outerG = new THREE.ConeGeometry(rad, len, 14, 1, true); outerG.translate(0, len / 2, 0);
+  const innerG = new THREE.ConeGeometry(rad * 0.55, len * 0.5, 10, 1, true); innerG.translate(0, len * 0.25, 0);
+  const core = add(outerG, col), inner = add(innerG, hot);
+  const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: __driveTex, color: hot, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  // (the flare on the mouth itself, beside the plume: round however the plume is stretched)
+  flare.raycast = function () {}; flare.frustumCulled = false; holder.parent.add(flare);
+  const h = th.half || [rad, rad], sq = [h[0] / rad, h[1] / rad];
+  return { holder, core, inner, flare, kind: 'drive', rad, sq, baseQ: holder.quaternion.clone() };
+}
+` : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
@@ -1830,7 +1855,8 @@ ${figSkinParts ? `  // (one skin: every bone posed, a part's or none, and the sk
       holder.quaternion.setFromUnitVectors(__jUp, new THREE.Vector3(th.dir[0], th.dir[1], th.dir[2]).normalize());
       holder.visible = false;
       loc.add(holder);
-      const len = th.len || th.size * 4, rad = th.size;
+      const len = th.len || th.size * 4, rad = th.size;${figDrives ? `
+      if (th.kind === 'drive') { jets.push(__driveJet(th, holder, len, rad)); continue; }` : ''}
       const coneG = new THREE.ConeGeometry(rad, len, 10, 1, true);
       coneG.translate(0, len / 2, 0);
       const core = new THREE.Mesh(coneG, new THREE.MeshBasicMaterial({ color: new THREE.Color(0x8fd0ff), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -5394,8 +5420,17 @@ function __updateThrusters(dt) {
     const jyaw = Math.atan2(rf.jetVY, rf.jetVX);
     for (let i = 0; i < rf.jets.length; i++) {
       const j = rf.jets[i];
-      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false; continue; }
-      j.holder.visible = true;
+      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false;${figDrives ? ' if (j.flare) j.flare.visible = false;' : ''} continue; }
+      j.holder.visible = true;${figDrives ? `
+      if (j.kind === 'drive') {
+        // (a drive: its plume long and bright as it is driven, a pilot flame at idle; its mouth's flare swelling with it)
+        const fd = 0.92 + 0.08 * Math.sin(__world.time * 37 + i * 1.3), L = (0.25 + 0.75 * amt) * fd;
+        j.holder.scale.set(j.sq[0] * (0.8 + 0.2 * amt), L, j.sq[1] * (0.8 + 0.2 * amt));
+        j.core.material.opacity = 0.18 + 0.4 * amt; j.inner.material.opacity = 0.3 + 0.6 * amt;
+        const fs = j.rad * (2.2 + 3.2 * amt) * fd;
+        j.flare.visible = true; j.flare.scale.set(fs, fs, 1); j.flare.material.opacity = 0.35 + 0.6 * amt;
+        continue;
+      }` : ''}
       if (j.kind === 'backpack') {
         __jetQ.setFromAxisAngle(__jetZ, -jyaw);
         j.holder.quaternion.copy(__jetQ).multiply(j.baseQ);

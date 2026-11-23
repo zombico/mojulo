@@ -67,6 +67,24 @@ describe('rule: starfighter', () => {
     expect(p.throttle).toBeCloseTo(0.4 + 0.3, 2);
   });
 
+  it('its drives burn by how hard it is driven: a pilot flame at zero, a surge as it speeds up, steady at full', () => {
+    const w = createWorld({ entities: [fighter()] });
+    let p = run(w, { thr: 'zero' }, 1); p = run(w, {}, 400);
+    const idle = p.thrust;
+    expect(idle).toBeGreaterThan(0.1);
+    expect(idle).toBeLessThan(0.3);
+    p = run(w, { thr: 'full' }, 1); p = run(w, {}, 30);
+    const surge = p.thrust;
+    expect(p.airspeed).toBeLessThan(90);                         // still speeding up
+    p = run(w, {}, 400);
+    expect(p.airspeed).toBeCloseTo(100, 3);
+    expect(surge).toBeGreaterThan(p.thrust);
+    expect(p.thrust).toBeGreaterThan(idle + 0.4);
+    // and cut back while it slows
+    p = run(w, { thr: 'third' }, 1); p = run(w, {}, 20);
+    expect(p.thrust).toBeLessThan(0.2 + 0.55 / 3 + 0.01);
+  });
+
   it('shields fore and aft take a round from their side while they hold, then the hull lets it through; they recharge where they are set', () => {
     const w = E.createWorld({ entities: [fighter()] });
     const p = w.byId.p;

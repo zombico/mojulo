@@ -222,3 +222,10 @@ They share one foundation, built first, and these themes record it as it lands.
 - **The chase sits the craft low** (`skyscape/starfighter.js` `chaseFrame`). The cockpit's chase is nearer, by a
   fifth, and looks well ahead of the craft, so the craft sits about seven tenths of the way down the screen with the
   space it flies into above it, clear of the instruments' strip. Before, it sat near the middle.
+- **A craft's drives burn by how hard it is driven** (`craft-shelf/craft-form.js` `drives`, `DRIVE_PLUME`; the page's
+  thrusters of kind `drive`). A spacecraft that flies carries each drive's lit mouth on its figure. Its exhaust is a
+  soft flare over the nozzle in the glow's own colour, white-hot at the middle, with a plume trailing a few mouths aft.
+  Both grow and brighten with `e.thrust`. The starfighter rule sets that from the throttle: a pilot flame at zero, the
+  lever's setting above it, a surge while the craft speeds up toward the setting, and a cut while it slows. An enemy
+  fighter flying passes burns at its cruise. A page without drives carries none of the code. Before, the
+  nozzles were flat red discs at every speed.

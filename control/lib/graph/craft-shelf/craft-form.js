@@ -24,10 +24,12 @@
  *                                                   slots, lights, payloads and livery; absent, an archetype's own stock
  *                                                   `livery` when it carries one (a navy boat's number). Each absent adds
  *                                                   nothing.
- *     → { items: [{ id, head, faces }], length, span, height, readout }   the craft centred on x and y, its lowest
- *                                                   point on z = 0 (craft-rig.js craftPieces' frame)
- *   craftFormFigure(archetype, { …craftForm's, setting?, keys? }) → the rig figure, one bone per item, in the form
- *                                                   render, lit by its world's sky (form-light.js skyMood) or noon
+ *     → { items: [{ id, head, faces }], length, span, height, readout, drives? }   the craft centred on x and y, its
+ *                                                   lowest point on z = 0 (craft-rig.js craftPieces' frame); drives a
+ *                                                   spacecraft's: each drive's lit mouth { id, at, half, color }
+ *   craftFormFigure(archetype, { …craftForm's, setting?, keys?, drives? }) → the rig figure, one bone per item, in the
+ *                                                   form render, lit by its world's sky (form-light.js skyMood) or
+ *                                                   noon; `drives`: its drives' exhaust as the page's `thrusters`
  *
  * Craft space: +y the nose, +z up, metres. Pure and deterministic, as the shelf is.
  */
@@ -65,6 +67,8 @@ export const AIR_MATERIALS = Object.freeze({
 });
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
+/** A drive's plume at full: this many of its mouth's half-widths long (its glow trailing a few mouths behind it). */
+export const DRIVE_PLUME = 7;
 const CANOPY_GOLD = '#6f6a52';
 /** A polygon's corners in the order that turns anticlockwise about `n` (reversed where they turn the other way). */
 export function woundTo(c, n) {
@@ -166,7 +170,7 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
     const fs = smoothForm(own, { crease: 35 });
     if (!fs.length) return;
     const odm = CRAFT_ODM[skuOf.get(id)];
-    stage.push({ id, kind: odm?.kind, family: odm?.build?.family ?? null, fs });
+    stage.push({ id, kind: odm?.kind, family: odm?.build?.family ?? null, ...(odm?.realm === 'space' && odm.kind === 'craft-engine' ? { drive: true } : {}), fs });
   });
   // (the livery: its camo cut into the paint before the skin's seams, so a seam is the camo's own colour darkened;
   // graded by the hull's height, its waist the middle of its skin)
@@ -193,9 +197,23 @@ export function craftForm(archetype, { palette, colors, pose = { gear: 1 }, atti
     for (const f of fs) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }
     return { id, head: lo.map((v, k) => r4((v + hi[k]) / 2)), faces: fs };
   });
+  // (a spacecraft's drives: each one's lit mouth, where its exhaust leaves it)
+  const drives = stage.filter((it) => it.drive).map((it) => driveOf(it)).filter(Boolean);
   // (a drone's rotors and propellers: each one's hub, its axis and the way it turns, so its figure can spin it)
   const spins = row.look || row.layout.some((e) => CRAFT_ODM[e.sku]?.kind === 'heli-rotor') ? spinsOf(manifest, placements, N) : [];
-  return { items, length: r4(mx[1] - mn[1]), span: r4(mx[0] - mn[0]), height: r4(mx[2] - mn[2]), readout, ...(spins.length ? { spins } : {}) };
+  return { items, length: r4(mx[1] - mn[1]), span: r4(mx[0] - mn[0]), height: r4(mx[2] - mn[2]), readout, ...(spins.length ? { spins } : {}), ...(drives.length ? { drives } : {}) };
+}
+
+// A space drive's mouth: its lit faces (the slot its glow is drawn in), their middle and their half-width across and
+// half-height, the exhaust leaving it aft (−y) in that slot's colour. None lit, none.
+const LIT = new Set(['glow', 'navRed', 'navGreen']);
+function driveOf(it) {
+  const lit = it.fs.filter((f) => LIT.has(f.material));
+  if (!lit.length) return null;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const f of lit) for (const c of f.corners) for (let k = 0; k < 3; k++) { if (c[k] < lo[k]) lo[k] = c[k]; if (c[k] > hi[k]) hi[k] = c[k]; }
+  const slot = AIR_MATERIALS[lit[0].material];
+  return { id: it.id, at: [r4((lo[0] + hi[0]) / 2), r4(lo[1]), r4((lo[2] + hi[2]) / 2)], half: [r4(Math.max(0.05, (hi[0] - lo[0]) / 2)), r4(Math.max(0.05, (hi[2] - lo[2]) / 2))], color: slot.emissive };
 }
 
 // each rotor's and propeller's hub (its mount: its axis runs through it), its axis in the craft (a rotor's the vertical,
@@ -232,7 +250,7 @@ function spinOf(bones, spins) {
 
 /** The craft as a rig figure in the form render: one bone per item, still (a craft's parts turn by their own clips
  *  when a game moves them), lit by its world's sky when it stands in one, else noon. */
-export function craftFormFigure(archetype, { setting = null, keys = 2, spin = false, pad = null, ...opts } = {}) {
+export function craftFormFigure(archetype, { setting = null, keys = 2, spin = false, pad = null, drives = false, ...opts } = {}) {
   // (a craft is big: its own shadow's steps on its curved skin want a deeper bias than a car's)
   const C = craftForm(archetype, opts), { length, span, height, spins = [] } = C;
   // (`pad`: a helipad under it, its own bone: a square of concrete a little wider than the craft's body, its ring and H)
@@ -250,6 +268,9 @@ export function craftFormFigure(archetype, { setting = null, keys = 2, spin = fa
     ...fig,
     clips: { idle: spin && spinClip ? spinClip : fig.clips.roll, ...(spinClip ? { spin: spinClip } : {}) },
     ...(pad ? { pad: true } : {}),
+    // (`drives`: a craft that flies, its drives' exhaust on its figure, the page's thrusters of kind `drive`: each one's
+    // mouth, its plume a length of its mouth's size aft, in its glow's colour, burning by how hard the craft is driven)
+    ...(drives && C.drives ? { thrusters: C.drives.map((d) => ({ bone: d.id, local: d.at, dir: [0, -1, 0], size: Math.max(...d.half), half: d.half, len: r4(Math.max(...d.half) * DRIVE_PLUME), kind: 'drive', color: d.color })) } : {}),
     form: { ...formLight(skyMood(setting?.sky), AIR_MATERIALS, {}), normalBias: 0.14 },
     figH: r4(height), length, span, height,
   };

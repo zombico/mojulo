@@ -1702,7 +1702,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const K = rawSpec.craft;
           const opts = Object.fromEntries(['look', 'livery', 'wear', 'fold', 'pad'].filter((k) => K[k] !== undefined && K[k] !== false).map((k) => [k, K[k]]));
           if (K.flying) {
-            const fig = craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: K.gear === 'down' ? 0 : 1 }, attitude: 'level', made: K.made !== false, ...opts });
+            // (its drives' exhaust on it, a spacecraft's: the page's thrusters, burning as hard as it is driven)
+            const fig = craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: K.gear === 'down' ? 0 : 1 }, attitude: 'level', made: K.made !== false, drives: true, ...opts });
             payload.figures[name] = await atRigFidelity({ ...fig, forms: { base: 'air' } });
             continue;
           }

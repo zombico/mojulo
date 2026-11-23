@@ -169,6 +169,10 @@ export function buildStarfighter(E) {
     e.lever = clamp(e.lever + (input.forward || 0) * (r.leverRate ?? 0.6) * dt, 0, 1);
     const want = e.lever * top, a = r.accel ?? top / 3, v0 = e.airspeed || 0;
     e.airspeed = v0 + clamp(want - v0, -a * dt, a * dt);
+    // (how hard it is driven, its drives' burn on the page, e.thrust: the lever's setting over a pilot flame, and a surge
+    // while it speeds up toward it, cut back while it slows; eased, so a throttle slammed open flares and settles)
+    const surge = clamp((want - v0) / Math.max(1, a), -1, 1), burn = clamp(0.2 + 0.55 * e.lever + 0.45 * Math.max(0, surge) - 0.15 * Math.max(0, -surge), 0, 1);
+    e.thrust = (e.thrust ?? burn) + (burn - (e.thrust ?? burn)) * Math.min(1, dt * 6);
     // ── the stick: pitch and yaw from the mouse and the keys, roll from A / D, turned in the craft's own frame ──
     const k = 1 - 0.3 * Math.abs(e.airspeed / Math.max(1, top) - 1 / 3);
     const sens = r.mouse ?? 0.004, cap = (rate) => rate * dt * 1.5;
