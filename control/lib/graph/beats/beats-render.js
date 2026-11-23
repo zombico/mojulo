@@ -35,6 +35,8 @@
 import { buildBeatsKernel } from './beats-kernel.js';
 import { expandBeatsManifest } from './beats-authoring.js';
 import { PATCHES } from './audio-patches.js';
+import { sampleCards } from './beats-features.js';
+import { sampleSlice } from '../sound-library/library.js';
 import { authorSyllable } from './beats-song-lyrics.js';
 import { renderParametricNote } from './beats-song-voice-parametric.js';
 
@@ -592,6 +594,13 @@ export async function renderWithKernel(K, manifest, opts = {}) {
   const ctx = new OfflineAudioContext(2, Math.max(1, Math.ceil(total * sampleRate)), sampleRate);
   const engine = K.createEngine(ctx);
   if (engine.setMaster) engine.setMaster(manifest.master);
+  // recorded pieces (the sound library's): their samples decoded before a note is scheduled (`opts.samples`, else the
+  // installed library's); with none, each piece plays the synthesized piece it stands in for.
+  if (engine.loadSamples) {
+    const cards = sampleCards(manifest);
+    const slice = cards.length ? (opts.samples !== undefined ? opts.samples : sampleSlice(cards)) : null;
+    if (slice) await engine.loadSamples({ cards: slice.cards, bytes: Object.fromEntries(Object.entries(slice.bytes).map(([id, b]) => [id, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)])) });
+  }
   // the SFX mixer (a beats-sfx manifest's `mix`): its bus and space, before any row routes.
   if (engine.setSfx && manifest.kind === 'beats-sfx' && manifest.mix) engine.setSfx(manifest.mix);
 

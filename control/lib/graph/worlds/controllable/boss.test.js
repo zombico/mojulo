@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { composeLive } from './compose.js';
-import { bossRule, vehicleEntity } from '../../boss/stand.js';
+import { composeLive, composeControllable, EMISSION, EMISSION_OPT_IN } from './compose.js';
+import { bossRule, vehicleEntity, carrierEntities } from '../../boss/stand.js';
 import { BOSSES } from '../../boss/bosses.js';
 
 // THE BOSS DIRECTOR (boss.js) on the live runtime: a human boss's moves laid at its tempo, their hazards landing on a body
@@ -207,5 +207,136 @@ describe('the page carries the boss fight only where there is one', () => {
     for (const k of ['stepWithBoss', 'buildBossLib', 'stepWithMines', '__bvFrame']) expect(withBoss).toContain(k);
     expect(withMine).toContain('stepWithMines');
     expect(withMine).not.toContain('stepWithBoss');
+  });
+});
+
+// A MECHA (boss.js `frame`): THE SIEGE WALKER, its barrage and cover, its reload slowed by its reloaders shot from behind,
+// mines under its feet folding it into a tank, beaten as a tank with its hips open from its sides.
+describe('the siege walker', () => {
+  const ROUTE = [[-20, 0], [20, 0]];
+  const walker = (extra = {}) => ({ ...vehicleEntity('siege-walker', { at: [-20, 0], hp: 300, route: ROUTE, seed: 3 }), ...extra });
+  const local = (e, q) => { const h = e.transform.heading, p = e.transform.pos; return [p[0] + Math.cos(h) * q[0] - Math.sin(h) * q[1], p[1] + Math.sin(h) * q[0] + Math.cos(h) * q[1], p[2] + q[2]]; };
+  const mid = (box) => [0, 1, 2].map((k) => (box[0][k] + box[1][k]) / 2);
+  const st = (s) => s.byId['siege-walker'].bossS.state;
+
+  it('its barrage lands on a body in the open; a wall between its gun and the body, nothing does', () => {
+    const open = world([pilot([0, 0]), walker()]);
+    run(open, 9);
+    expect(open.byId.p.body.hp).toBeLessThan(100);
+    const covered = world([pilot([0, 0]), walker()], { colliders: [{ min: [-3, -6, 0], max: [-2.5, 6, 3] }] });
+    run(covered, 9);
+    expect(covered.byId.p.body.hp).toBe(100);
+  });
+
+  it('its tails reload it; each reloader shot from behind (and only from behind) makes the reload slower', () => {
+    const s = world([pilot([30, 0]), walker()]);
+    run(s, 0.1);
+    const e = s.byId['siege-walker'], tail = local(e, mid(e.rule.boss.parts['tail-right'].box));
+    // (from in front: nothing counts)
+    for (let k = 0; k < 4; k++) E.bossHit(s, e, 'round', tail, 0, local(e, [20, 0, 1.5]));
+    run(s, 0.05);
+    expect(s.bosses['siege-walker'].broken).not.toContain('tail-right');
+    for (const side of ['tail-right', 'tail-left']) { const q = local(e, mid(e.rule.boss.parts[side].box)); for (let k = 0; k < 4; k++) E.bossHit(s, e, 'round', q, 0, local(e, [-20, 0, 1.5])); }
+    run(s, 0.05);
+    expect(s.bosses['siege-walker'].broken).toEqual(expect.arrayContaining(['tail-right', 'tail-left']));
+    let t0 = null, t1 = null;
+    run(s, 40, {}, (w) => { if (st(w) === 'reloading' && t0 == null) t0 = w.time; if (t0 != null && t1 == null && st(w) !== 'reloading') t1 = w.time; });
+    // (eight seconds, 1.8 times that for each of the two)
+    expect(t1 - t0).toBeGreaterThan(8 * 2.6 - 0.2);
+    expect(s.byId['siege-walker'].locomotion).toBeDefined();
+  });
+
+  it('mines on its round break a leg under it: it folds onto its wheels and fights as a tank, its hips open from its sides', () => {
+    const s = world([pilot([0, 25]), walker()]);
+    run(s, 0.1);
+    // (two mines on its round, armed, a stride ahead of where it walks)
+    s.mines = [{ id: 'm1', at: [-6, -1.2, 0], armAt: 0, trip: 1.4, splash: 3.5, dmg: 40, owner: 'p', team: 'hero' }, { id: 'm2', at: [2, -1.2, 0], armAt: 0, trip: 1.4, splash: 3.5, dmg: 40, owner: 'p', team: 'hero' }];
+    const seen = new Set();
+    run(s, 60, {}, (w) => seen.add(st(w)));
+    expect(seen.has('folding')).toBe(true);
+    expect(st(s)).toBe('tank');
+    const e = s.byId['siege-walker'];
+    expect(e.form).toBe('tank');
+    // (a hip from in front counts nothing; from its side it hurts)
+    const hp = e.body.hp, hip = local(e, mid(e.rule.boss.parts['hip-right'].box));
+    E.bossHit(s, e, 'round', hip, 20, local(e, [20, 0, 1]));
+    expect(e.body.hp).toBe(hp);
+    E.bossHit(s, e, 'round', hip, 20, local(e, [0, -20, 1]));
+    expect(e.body.hp).toBeLessThan(hp);
+  });
+});
+
+// A CARRIER (boss.js `carrier`): THE BROOD WALKER, its gunners, its drones hacked with the RF gun and turned on it.
+describe('the brood walker', () => {
+  // (the RF gun's round on a drone, laid inside the step as its rounds would: a builder before the director)
+  function buildAim(X) { const step = X.stepWorld; X.stepWorld = function stepWithAim(state, input, dt, h) { const out = step(state, input, dt, h); if (state.aimAt) state.byId.p.lastShot = { mode: 'core', targetId: state.aimAt, t: state.time }; return out; }; }
+  const OPT = Object.entries(EMISSION_OPT_IN), at = OPT.findIndex(([k]) => k === 'bossLib');
+  const EA = composeControllable([...EMISSION, ...OPT.slice(0, at).map(([, b]) => b), buildAim, ...OPT.slice(at).map(([, b]) => b)]);
+  const RF = { name: 'RF gun', weapon: { fireClass: 'sight', auto: true, rof: 10, damage: 0, magazine: 999, range: 60, jam: true } };
+  const runA = (s, secs, input = {}, each) => { for (let k = 0; k < secs / 0.05; k++) { EA.stepWorld(s, input, 0.05, hooks); if (each) each(s); } return s; };
+  const brood = (pilotAt, { hp = 330 } = {}) => EA.createWorld({ camera: { rule: 'follow', target: 'p' }, entities: [
+    pilot(pilotAt, { rule: { type: 'platform', speed: 5, eye: 0, jumpSpeed: 0, collideHeight: 1.7, loadout: [RF] }, weapon: RF.weapon }),
+    vehicleEntity('brood-walker', { at: [0, 0], hp, packages: [{ id: 'pkg', at: [10, -12] }] }),
+    ...carrierEntities('brood-walker', { at: [0, 0], crewBody: { figure: 'guard', hp: 100 } }),
+  ] });
+  const C = (s) => s.bosses['brood-walker'].carrier;
+  const crewDown = (s) => { for (const id of ['roof', 'door-right', 'door-left']) s.byId[`brood-walker:${id}`].downed = true; };
+  const holdOn = (s, id, secs) => { s.aimAt = id; runA(s, secs, { fire: 1 }); s.aimAt = null; };
+  const lapping = (s) => ['brood-walker:drone1', 'brood-walker:drone8'].find((id) => s.byId[id].drone && s.byId[id].drone.st === 'lap');
+  const courierOut = (s) => { for (let k = 0; k < 600 && !lapping(s); k++) runA(s, 0.05); return lapping(s); };
+
+  it('a gunner fires on the pilot in its arc; down, it stays down and fires no more', () => {
+    // (off its right side: the right door gunner's arc)
+    const s = brood([0, -25]);
+    runA(s, 6);
+    expect(s.byId.p.body.hp).toBeLessThan(100);
+    expect(C(s).crew['door-right'].up).toBe(true);
+    s.byId['brood-walker:door-right'].ko = { t0: s.time }; s.byId['brood-walker:roof'].downed = true;
+    runA(s, 0.1);
+    const hp = s.byId.p.body.hp;
+    runA(s, 6);
+    expect(C(s).crew['door-right'].up).toBe(false);
+    expect(s.byId.p.body.hp).toBe(hp);
+  });
+
+  it('only a courier is hacked; hacked, it fetches the package and goes off in an open door', () => {
+    const s = brood([0, 30]);
+    runA(s, 0.05); crewDown(s);
+    const c1 = courierOut(s);
+    holdOn(s, 'brood-walker:drone2', 1); runA(s, 0.05);
+    expect(C(s).drones['brood-walker:drone2'].hacked).toBe(false);
+    holdOn(s, c1, 2.4);
+    expect(C(s).drones[c1].hacked).toBe(true);
+    runA(s, 60, {}, () => {}); 
+    expect(C(s).deliveries).toBeGreaterThanOrEqual(1);
+    expect(s.byId['brood-walker'].body.hp).toBeLessThanOrEqual(220);
+  });
+
+  it('from the second delivery its hunters chase the hacked courier and, left alone, shoot it down', () => {
+    const s = brood([0, 30]);
+    runA(s, 0.05); crewDown(s);
+    s.byId['brood-walker'].bossS.carrier.deliveries = 1;
+    const c1 = courierOut(s);
+    holdOn(s, c1, 2.4);
+    runA(s, 0.2);
+    expect(Object.values(C(s).drones).some((d) => d.chase)).toBe(true);
+    let lost = false;
+    runA(s, 40, {}, (w) => { if (!C(w).drones[c1].hacked) lost = true; });
+    expect(lost).toBe(true);
+    expect(C(s).deliveries).toBe(1);
+  });
+
+  it('three deliveries destroy it, and its drones fall', () => {
+    const s = brood([0, 30], { hp: 330 });
+    runA(s, 0.05); crewDown(s);
+    for (let n = 0; n < 6 && !s.bosses['brood-walker'].down; n++) {
+      // (the pilot kept standing through the minutes it takes: its hunters' drops are another test's)
+      s.byId.p.body.hp = 100;
+      holdOn(s, courierOut(s), 2.4);
+      // (its chasers kept off it)
+      runA(s, 60, {}, (w) => { for (const x of w.byId['brood-walker'].bossS.carrier.drones) if (x.drone.chase) x.body.hp = 0; });
+    }
+    expect(s.bosses['brood-walker'].down).toBe(true);
+    expect(s.bosses['brood-walker'].carrier.deliveries).toBe(3);
   });
 });

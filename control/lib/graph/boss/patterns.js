@@ -62,6 +62,14 @@ export const PATTERNS = Object.freeze({
   rain: { reach: 9, tell: { for: 0.4, says: 'calls it in; each landing is marked before it comes' },
     hazards: [-1, 0, 1, 2, 3].map((k, i) => ({ shape: 'disc', origin: 'target', c: [[0, 0], [2.6, 2.2], [-2.4, 1.8], [1.8, -2.6], [-2.2, -2.4]][i], r: 1.9, mark: 0.2 + 0.25 * i, at: 1.4 + 0.25 * i, for: 0.35, harm: 0.15 })).slice(0, 5),
     open: { at: 2.8, for: 1.6 }, reads: 'landings marked one after another round the body: out of each mark in turn' },
+  // a BARRAGE: a siege gun's shells and a launcher's missiles laid round where the body stood, every landing marked as
+  // it is fired, each shell's long before it comes down: out from under the marks, or a wall between the gun and the body
+  barrage: { reach: 20, tell: { for: 1.6, says: 'its guns rise; each landing is marked on the ground as it is fired' },
+    hazards: [
+      ...[[0, 0], [3.6, 2.6], [-3.2, 3.4], [2.6, -3.8]].map((c, i) => ({ shape: 'disc', origin: 'target', c, r: 3, mark: 0.3 * i, at: 2.6 + 0.8 * i, for: 0.4, harm: i ? 0.16 : 0.22, cover: true })),
+      ...[0, 1, 2, 3, 4, 5].map((k) => ({ shape: 'disc', origin: 'target', c: [Math.round(Math.cos(k * 1.05 + 0.4) * 55) / 10, Math.round(Math.sin(k * 1.05 + 0.4) * 55) / 10], r: 1.8, mark: 2.4 + 0.15 * k, at: 5.6 + 0.2 * k, for: 0.3, harm: 0.08, cover: true })),
+    ],
+    open: { at: 7, for: 1.6 }, reads: 'shells and missiles laid round where the body stood, each marked as it is fired: out from under the marks, or a wall between the gun and the body' },
   // a lock: a line that follows the body, then holds, then fires: break the line behind cover, or step off it once held
   lock: { reach: 14, tell: { for: 1.6, says: 'the lock follows; it holds, and fires' },
     hazards: [{ shape: 'line', from: [0, 0], to: [30, 0], width: 0.9, track: 1.25, at: 1.75, for: 0.12, harm: 0.3, cover: true }],
