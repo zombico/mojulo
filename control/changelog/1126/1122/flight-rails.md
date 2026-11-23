@@ -410,3 +410,15 @@ They share one foundation, built first, and these themes record it as it lands.
 
   A sortie's group names its `use`; each row has a default and its systems for either use. The shared convex
   geometry is `fleet/geometry.js`.
+- **Explosions in space as the effects shops filmed them** (`scene/channels/controllable/space-blast.js`). A ship
+  blown up on a starfighter's page (a fighter, a gun, a system, every blast of a capital ship's blow-up) is now a real
+  fireball and no longer a graphic:
+  - a white-hot flash gone in a blink;
+  - lobes of flame billowing out from the heart, slowing as they go and cooling from yellow through orange and deep
+    red, with dark smoke rising behind them as they cool and hanging after;
+  - hard debris (shards and plates in a hull's greys) flung straight on and tumbling, with nothing to slow it or pull
+    it down, a third of it still burning;
+  - a spray of embers.
+
+  Bolt impacts in space keep their flash and sparks but lose their shock rings. Its textures are painted on the page
+  from seeded dice, and pages that are not in space are unchanged.

@@ -37,6 +37,7 @@ import { shutterScript } from './shutter-view.js';
 import { steamScript } from './steam-view.js';
 import { rockScript } from './rock-view.js';
 import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
+import { spaceBlastScript } from './space-blast.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
@@ -4876,7 +4877,7 @@ function __blast(at, color, size, kind, bornAt) {
   camera.getWorldDirection(__rlFwd);
   const right = new THREE.Vector3().crossVectors(__rlFwd, __rlZ).normalize(), up = new THREE.Vector3().crossVectors(right, __rlFwd).normalize(), acc = new THREE.Color(L.accent);
   const rings = [];
-  for (let k = 0; k < L.rings; k++) {
+  for (let k = 0; k < ${sfFx && !busterOn ? '0' : 'L.rings'}; k++) {${sfFx && !busterOn ? '   // (in space no shock rings: a hit is its flash and its sparks)' : ''}
     const geo = new THREE.TorusGeometry(size, Math.max(0.01, size * 0.05), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.raycast = function () {};
     // (facing the camera, tipped back about the screen's horizontal so it reads as an ellipse, a shock round the blast)
@@ -5211,8 +5212,8 @@ let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic b
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
 ${sfFx && !busterOn ? `const __sfShield = new Map();   // (a ship's shields' hits drawn: the count seen, rules-starfighter.js hitN)
-` : ''}function __updateProjectiles() {${sfFx && !busterOn ? `
-  __blastAge();
+${spaceBlastScript()}` : ''}function __updateProjectiles() {${sfFx && !busterOn ? `
+  __blastAge(); __spaceBlastAge();
   // (a round another ship's shield took: a faint shell of its shield flashing round it on that side, quick)
   for (const e of __world.entities) {
     const S = e.ship; if (!S || e.gone || e.id === __world.pilotId) continue;   // (the pilot's own: its instruments say it)
@@ -5312,10 +5313,11 @@ ${busterOn || foeRoundsOn ? `    // (a buster's round, buster.js, drawn in its l
     // white flash marks the detonation point. A record may carry fxRadius (the DEATH BURST, R34.1):
     // the spectacle outsizes the shove — safe, because the stagger is adjudicated the frame the
     // record spawns, so the bigger shell never overstates a circle anyone could still dodge.
-${sfFx && !busterOn ? `    // (a starfighter's page, in the shot's light: a craft blown apart its own blast, as big as it is or a twentieth of the
-    // view at least, its debris flung; a bolt's hit a spark, its own size, a three-hundredth of the view at least)
+${sfFx && !busterOn ? `    // (a starfighter's page: a craft blown apart as the effects shops filmed it, a fireball as big as it is or a
+    // twenty-fifth of the view at least, its smoke and its debris; a bolt's hit a spark in the shot's light, its own
+    // size, a three-hundredth of the view at least)
     { const R = b.fxRadius || b.radius || 0.3, dc = camera.position.distanceTo(__rlA.set(b.pos[0], b.pos[1], b.pos[2]));
-      if (b.craft) __blast(b.pos, 0xffa03c, Math.max(R, dc * 0.05), 'blast');
+      if (b.craft || b.debris) __spaceBlast(b.pos, Math.max(R, dc * 0.04), b.seq);   // (a ship, a gun, a system blown up: fireball, smoke and debris, space-blast.js)
       else __blast(b.pos, col, Math.max(0.3, R * 0.5, dc * 0.003), 'impact'); }
 ` : busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
     // (a buster's round's burst its size's, the full charge's an explosion; any other's by its blast)
@@ -5332,7 +5334,7 @@ ${sfFx && !busterOn ? `    // (a starfighter's page, in the shot's light: a craf
     // and up, arcing down under gravity to rest on the ground — so the death reads as an explosion of
     // debris ahead of the smoke, not just one ball flash. Deterministic (golden-angle directions +
     // modulo speeds, no Math.random), so capture stays byte-identical. Only death bursts carry the flag.
-    if (b.debris) {
+    if (b.debris${sfFx && !busterOn ? " && false" : ''}) {${sfFx && !busterOn ? "   // (in space every death's debris is its blast's, flying straight on)" : ''}
       const N = 28, base = (b.fxScale != null ? b.fxScale : 6), col2 = b.fxColor != null ? b.fxColor : 0xffa03c;
       const positions = new Float32Array(N * 3), vels = [];
       for (let k = 0; k < N; k++) {
