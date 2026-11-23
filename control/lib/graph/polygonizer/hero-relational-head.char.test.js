@@ -56,22 +56,22 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: 'fa11671787832d00', female: 'ee38a35c4bbc80eb' };
+const PINS = { male: '749700687aaa1cc9', female: '421c0b4e16a58c22' };
 // the ONE SKIN (realistic laws 2, hero-one-skin.js): the skin, the mouth, the globes in place of the pieces
 const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
-const ONE_PINS = { male: '2a16444328052eee', female: '1f0cc0a63aec76c3' };
+const ONE_PINS = { male: 'eb01c82cdff5677d', female: 'a185ce8576b4a920' };
 // the CERVICAL NECK (realistic laws 3, body-relational-builds.js CERVICAL_NECK): the one skin on the leaning neck
-const NECK_PINS = { male: 'a14a902de2d024e7', female: '13ad6498dfd39d08' };
+const NECK_PINS = { male: '9973eb3d82567d85', female: '6f99d310bc640e84' };
 // the EAR RAISED to the canon (realistic laws 10, head-relational.js EAR_RAISE): its top at the brow line, the lobule at
 // the nose's base (the one skin's ear and the skin it welds to move with it)
-const EAR_PINS = { male: '0843ab6771671eca', female: '0feefb8dfbae7077' };
+const EAR_PINS = { male: '39122e3b8a7c3649', female: '8baa565f845a5b90' };
 // the lids SEATED (realistic laws 11, head-relational-eye.js SEAT: the brow's arc and ties lower, the fold a pad, a deep-set
 // eye forward), over the ear raised; re-pinned when the seat (laws 10 on 1027-hero-pack-v2) came after the raised ear
-const SEATED_PINS = { male: 'bad6794ddc76a6a6', female: '5fb1b99964a40e3f' };
+const SEATED_PINS = { male: '1a5f22ae8321723e', female: '6493c51860451d7a' };
 // the MOUTH WITH TEETH (realistic laws 12, hero-one-skin.js `teeth`): the cup, the teeth and the tongue, the corners'
 // lens, over the seat
 const TEETH_PARTS = [...ONE_PARTS, 'teethUpper', 'teethLower', 'tongue'];
-const TEETH_PINS = { male: '22ca6d4a47c19cb7', female: 'c9311e0e26cf406a' };
+const TEETH_PINS = { male: '1fe853c4d3d23b04', female: '5860a88b7596d4da' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {

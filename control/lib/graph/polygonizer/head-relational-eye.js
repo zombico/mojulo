@@ -49,13 +49,15 @@ export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris:
  * stacked under the brow, and a blink stretched the lid across them) */
 /** how far from straight ahead (degrees) the opening may bare the globe: past it the skin covers the globe again */
 export const COVER_DEEP = 55;
+/** the corner fill's reach (V): it stretches to its whole this far inside each canthus */
+export const COVER_CORNER = 0.004;
 /** a seated lid's edge (V): its rim's radius at the canthi, what it gains toward the middle, its centre's lift off the
  * margin there (+ up) and how far forward of the globe it rides, [base, taper, lift, forward] for the upper and the lower */
 export const RIM = Object.freeze({ upper: Object.freeze([0.0032, 0.0035, 0.003, 0.0035]), lower: Object.freeze([0.0035, 0.0028, -0.0015, 0.005]) });
 /** the cover's fullness under the eye's outer corner (V): its lift and its blend into the face at the middle of the sector
  * `toward` [out, forward, up] from the globe's centre, eased to none `spread` degrees off it */
 export const COVER_RIM = Object.freeze({ lift: 0.003, blend: 0.014, toward: [0.6, 0.35, -0.7], spread: 50 });
-export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026], forwardOut: Object.freeze({ female: [1 / 3, 0.008], male: [1 / 3, 0.024] }), shelf: [0.03, 0.005] });
+export const SEAT = Object.freeze({ reach: 0.045, lie: 0.0005, rise: [0.4, 60], blend: 0.012, fold: [0.9, 80, 0.03, 0.012], section: [0.3, 80, 0.03, 0.012], side: [0.3, 20, 0.12, 0.05], brow: [0.016, 0.012], forward: [1 / 3, 0.026], forwardOut: Object.freeze({ female: [1 / 3, 0.008], male: [1 / 3, 0.024] }), shelf: [0.03, 0.005], ends: [0.03, 0.008, 0.008] });
 
 /** the channels, [rest, min, max]; the gaze in degrees (+yaw toward the figure's right, +pitch up) */
 export const EYE_CHANNELS = Object.freeze({
@@ -302,6 +304,11 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   // is a tunnel down to the globe, a dark void between lid and eye; with it the skin within `SEAT.reach` of the margins
   // is cut back to the lid shell over the globe, rising out of it with the distance from the margin (`SEAT.rise`, a
   // slope and a curl), so each margin lies on the globe and the lid rolls out into the cheek and the fold above
+  // (seated as one section, `seat` 2, the seat and the lid space CLOSE into the canthi, `SEAT.ends` [shrink, from inside,
+  // to past]: each shrinks by up to `shrink` from `from` inside a canthus to `to` past it, so it ends in a ramp; held at
+  // their depth to their ends, past the canthi each was a slot under a level ceiling at the crease's height, its roof facing
+  // down, dark beside the eye's corners)
+  const closing = seat === 2 ? (p) => { const edge = (Math.abs((p.x - en.x) / span - 0.5) - 0.5) * Math.abs(span), [shrink, from, to] = SEAT.ends; return shrink * smooth01((edge + from) / (from + to)); } : () => 0;
   const seatSpace = seat ? (p) => {
     const t = (p.x - en.x) / span, tc = clamp(t, 0, 1), out = Math.abs(t - tc) * Math.abs(span);
     const zu = upZ(tc), zl = loZ(tc);
@@ -310,9 +317,9 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     const dv = p.z > (zu + zl) / 2 ? p.z - zu : zl - p.z, dd = Math.hypot(Math.max(0, dv), out);
     if (dd > SEAT.reach) return Infinity;
     // (over the slope, so it reads as a distance and the blend is as wide where the rise curls)
-    return (shellY(p.x, p.z) + SEAT.lie + SEAT.rise[0] * dd + SEAT.rise[1] * dd * dd - p.y) / Math.hypot(1, SEAT.rise[0] + 2 * SEAT.rise[1] * dd);
+    return (shellY(p.x, p.z) + SEAT.lie + SEAT.rise[0] * dd + SEAT.rise[1] * dd * dd - p.y) / Math.hypot(1, SEAT.rise[0] + 2 * SEAT.rise[1] * dd) + closing(p);
   } : null;
-  const lidSpace = (p) => {
+  const lidSpaceAt = (p) => {
     const t = (p.x - en.x) / span, F = foldAt(p.x, t);
     if (!F) return Infinity;
     if (p.z <= F.zk) return Math.max(F.zm - p.z, shellY(p.x, p.z) + F.shallow - p.y);
@@ -333,6 +340,7 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     const u = Math.min(1, (p.z - F.zk) / F.h), rise = yArc - F.yk, slope = (2 * rise * u) / F.h;
     return Math.max(p.z - F.za, (F.yk + rise * u * u - p.y) / Math.hypot(1, slope));
   };
+  const lidSpace = seat === 2 ? (p) => { const v = lidSpaceAt(p); return v === Infinity ? v : v + closing(p); } : lidSpaceAt;
   // the crease: a groove along the knee
   // (seated as one section under the brow, `seat` 2: no groove cut along the knee)
   if (seat === 2) c = { ...c, crease: 0 };
@@ -437,7 +445,18 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   const rimW = (p, r) => { const t = Math.min(1, Math.max(0, (((p.x - gc.x) * rimD[0] + (p.y - gc.y) * rimD[1] + (p.z - gc.z) * rimD[2]) / (r || 1e-9) - rimC) / (1 - rimC))); return t * t * (3 - 2 * t); };
   const rim = (p, r) => COVER_RIM.lift * rimW(p, r);
   const cover = seat === 2 ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z); return r - lidR - rim(p, r); } : null, cd = Math.cos((COVER_DEEP * Math.PI) / 180);
-  const coverEnds = cover ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z) || 1e-9; return Math.max(cover(p), ((p.y - gc.y) / r - cd) * lidR); } : null;
+  // (and out to the canthi, `COVER_CORNER`: the fissure is wider than the globe, so each corner lies past its limb; the
+  // fill, a sphere about the globe, ended short of the canthus there and left a slot between the globe's flank and the lids'
+  // meeting, dark from the front. Past the limb it stretches sideways till its front reaches the canthi's depth)
+  const kCorner = Object.fromEntries([['en', en], ['ex', ex]].map(([k, q]) => {
+    const dx = Math.abs(q.x - gc.x), yT = Math.min(en.y, ex.y) - 0.004 - gc.y, room = lidR ** 2 - yT ** 2 - (q.z - gc.z) ** 2;
+    return [k, { K: room > 0 ? Math.max(1, dx / Math.sqrt(room)) : 1, from: GLOBE.r, to: Math.max(GLOBE.r + 0.004, dx - COVER_CORNER) }];
+  }));
+  const stretch = (p) => { const dx = p.x - gc.x, k = kCorner[(dx > 0) === (ex.x > gc.x) ? 'ex' : 'en']; return 1 + (k.K - 1) * smooth01((Math.abs(dx) - k.from) / (k.to - k.from)); };
+  const coverEnds = cover ? (p) => {
+    const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z) || 1e-9, rs = Math.hypot((p.x - gc.x) / stretch(p), p.y - gc.y, p.z - gc.z);
+    return Math.max(rs - lidR - rim(p, r), ((p.y - gc.y) / r - cd) * lidR);
+  } : null;
   // (and joined to the face the wider there, `COVER_RIM.blend`: the cheekbone's top rising into it, never a ledge)
   const coverBlend = cover ? (p) => COVER_RIM.blend * rimW(p, Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z)) : null;
   return { opening, lidSpace, seat: seatSpace, lids, rims, crease, globe, paint, irisTone, bound, gaze: d, margins, ...(cover ? { cover, coverEnds, coverBlend } : {}) };

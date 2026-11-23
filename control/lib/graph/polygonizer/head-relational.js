@@ -558,7 +558,10 @@ export function coreVajras(P, rel = RELATIONS) {
     // inner half and the glabella, the supraorbital margin thinning toward the brow's outer corner; with the peak over the
     // iris's outer edge and the outer end as thick as the middle, the brow read as one straight bar from temple to temple)
     const peak = { x: e.x + sg * BROW_SHAPE.peakOut, y: e.y + R.browProjection - rS, z: e.z + 0.065 };
-    w(`brow${s}`, at(P.g, { y: -rb }), peak, P[`fz${s}`], [rb, rS, BROW_SHAPE.tail]);
+    // (its outer end set back by its radius, as the glabella's and the peak's are, so the bone's surface lies on fz: laid
+    // with its centre there it stood a bone's thickness in front of the brow's corner, and her fz is low, just over the
+    // eye's outer corner, so it held the skin beside the canthus forward of it and the corner sat in a pocket)
+    w(`brow${s}`, at(P.g, { y: -rb }), peak, at(P[`fz${s}`], { y: -BROW_SHAPE.tail }), [rb, rS, BROW_SHAPE.tail]);
     // THE LATERAL ORBITAL RIM — the zygoma's frontal process: the brow's outer end → beside the outer canthus, its
     // deepest (Hertel's rim, ~16 mm behind the cornea) → the cheekbone; it closes the orbit's side behind the eye.
     // Authored at its BONE size and in the SKULL only: the skin over it is already the wave of the brow, the cheek and

@@ -69,8 +69,9 @@ describe('the realistic head\'s relief', () => {
     // (flat on the cheek: well under a degree; the even face's cheek, realistic laws 14, is rounder where it is read, and
     // the lateral periorbital fill's foot, laws 16, rounds its top a little more: 0.85 where it was under 0.8; the
     // nasolabial pad, the cheek's side of the fold, rounds the cheek beside where it is read: 1.0; the jaw's shorter wave
-    // and the slimmer depressor give the lower cheek a little more shape than the simplified skin keeps: 1.14)
-    expect(mean(acc.cheek)).toBeLessThan(1.25);
+    // and the slimmer depressor give the lower cheek a little more shape than the simplified skin keeps: 1.14; the brow's
+    // outer end on its corner, its bone wave's reach moved with it: 1.32)
+    expect(mean(acc.cheek)).toBeLessThan(1.4);
   });
 
   it('is the same bytes on a rebuild; the atlas off the head flat; a hero minted before laws 5 bakes none', () => {

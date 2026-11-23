@@ -24,5 +24,9 @@ face toward the proportions and the clean structure of a current game character,
 - The eyes open wider and read awake: the lids' edges at a lid's own thickness, the opening 7.7 mm tall on him and 8.4
   on her where it was 6.0 and 7.4. A relaxed adult's 9 to 11 waits on the blink: a lid opened that far stretches its
   skin past what the shut lid can spread.
+- The eye's corners read clean, without the dark pocket beside each: the lids' spaces close into the canthi in a ramp
+  instead of a slot under a ceiling facing down, the skin round the globe's flank reaches out to the corners (the
+  fissure is wider than the globe), and the brow's outer end sits on the brow's corner instead of a bone's thickness in
+  front of it, so the skin beside her outer corner no longer stands well forward of it.
 
 Still to come: the upper lid's fold and the eye's corners, the nose. Hair, brows and lashes are not part of it.
