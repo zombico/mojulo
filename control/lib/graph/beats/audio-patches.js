@@ -521,7 +521,19 @@ Object.assign(PATCHES, {
   vibraphoneRec: recStruck('vibraphone', 'vibraphone', 0.4, -7, { tremolo: PATCHES.vibraphone.tremolo }),
   steelpanRec: recStruck('steelpan', 'steelpan', 0.3, -3.5),
   bassPickRec: recStruck('bass', 'bassPick', 0.12, -7.3),
+  // the rest of the band: one clean guitar under both guitars (the amp and the room are their chains'), the rhythm's
+  // pick detune as two copies a few cents apart, the lead's resonant lowpass kept; the brass and the strings held on
+  // their loops, the brass brighter the harder it is played (a lowpass opened by velocity, for its operators'), the
+  // strings with the string machine's swell, its release and its vibrato; the slap bass struck. A guitar's level is its
+// amp's makeup (`ampTrim`, dB, laid on the instrument's amp as the part expands: beats-manifest.js), a saturating amp's
+// output following its makeup, not its input
+  guitarRec: recStruck('guitar', 'guitarAmp', 0.22, -14, { unison: 2, detune: 9, ampTrim: 3.7 }),
+  guitarLeadRec: recStruck('guitar', 'guitarLead', 0.2, -13, { filter: { ...PATCHES.guitarLead.filter }, ampTrim: -4.3 }),
+  brassRec: recStruck('brass', 'fmBrass', 0.25, -6.4, { loop: true, attack: 0.02, filter: { mode: 'lowpass', freq: 5200, q: 0.6 }, velToFilter: 1.2 }),
+  stringsRec: recStruck('strings', 'stringMachine', 0.9, -16.8, { loop: true, attack: 0.25, decay: 0.3, sustain: 0.9, unison: 2, detune: 7, lfo: PATCHES.stringMachine.lfo.map((l) => ({ ...l })) }),
+  bassSlapRec: recStruck('slap-bass', 'bassSlap', 0.1, 2.9),
 });
 // each synthesized patch's recorded twin (the sound library's instruments), so a band can be heard recorded where the
 // library is installed: a part names the twin as its patch, keeping its instrument's chain
-export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'pianoRec', celesta: 'celestaRec', vibraphone: 'vibraphoneRec', steelpan: 'steelpanRec', bassPick: 'bassPickRec' });
+export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'pianoRec', celesta: 'celestaRec', vibraphone: 'vibraphoneRec', steelpan: 'steelpanRec', bassPick: 'bassPickRec',
+  guitarAmp: 'guitarRec', guitarLead: 'guitarLeadRec', fmBrass: 'brassRec', stringMachine: 'stringsRec', bassSlap: 'bassSlapRec' });

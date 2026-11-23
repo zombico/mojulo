@@ -166,3 +166,16 @@ describe('the recorded switch', () => {
     expect(sha(on.wav)).toBe(sha(hand.wav));
   });
 });
+
+describe('a twin heard through an amp', () => {
+  it('moves its instrument\'s amp makeup by its trim, once: a song normalized twice is the song normalized once', () => {
+    const twin = Object.keys(PATCHES).find((k) => PATCHES[k].ampTrim);
+    const synth = Object.keys(RECORDED_TWINS).find((k) => RECORDED_TWINS[k] === twin);
+    const inst = Object.keys(INSTRUMENTS).find((i) => INSTRUMENTS[i].patch === synth && (INSTRUMENTS[i].chain || []).some((f) => f.type === 'amp'));
+    const amp = (m) => m.parts[0].chain.find((f) => f.type === 'amp').level;
+    const plain = normalizeBeatsManifest({ kind: 'beats-composition', title: 'amp', bpm: 120, parts: [{ name: 'g', instrument: inst, events: [[0, 'E3', 1, 0.8]] }] });
+    const once = normalizeBeatsManifest({ kind: 'beats-composition', title: 'amp', bpm: 120, recorded: true, parts: [{ name: 'g', instrument: inst, events: [[0, 'E3', 1, 0.8]] }] });
+    expect(amp(once)).toBeCloseTo((amp(plain) ?? -10) + PATCHES[twin].ampTrim, 5);
+    expect(normalizeBeatsManifest(once)).toEqual(once);
+  });
+});

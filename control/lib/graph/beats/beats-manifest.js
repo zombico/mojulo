@@ -1033,6 +1033,10 @@ function expandNode(node, { allowInstrument, recorded = false }) {
     const r = resolveInstrument(node.instrument, { patch: node.patch, chain: node.chain, feel: node.feel });
     out.patch = twinOf(r.patch, on);
     if (r.chain !== undefined) out.chain = r.chain; else delete out.chain;
+    // (a recorded twin heard through its instrument's amp: the amp's makeup moved by the twin's `ampTrim`, since a
+    // saturating amp's level follows its makeup, not its input; only on the instrument's own chain, once, as it expands)
+    const T = typeof out.patch === 'string' && PATCHES[out.patch] ? PATCHES[out.patch].ampTrim : undefined;
+    if (T && node.chain === undefined && Array.isArray(out.chain)) out.chain = out.chain.map((f) => (f && f.type === 'amp' ? { ...f, level: Math.round(((f.level == null ? -10 : f.level) + T) * 10) / 10 } : f));
     if (r.feel !== undefined) out.feel = r.feel; else delete out.feel;
     delete out.instrument;
   } else if (node.feel !== undefined) {

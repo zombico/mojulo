@@ -52,7 +52,8 @@ style built from traits, with no fixed recipe. Write it as a `beats-composition`
 | Pad / colour | `string-machine`; per stage `vibraphone`, `organ`, `celesta`, `steel-drum` | pad held 2 bars, `tone` about 0.5 |
 
 `recorded: true` on the song plays the band on its recorded instruments where the sound library is installed: each part
-whose patch has a recorded twin (the organ, the picked bass and the colour instruments) is heard on it, its chain kept,
+whose patch has a recorded twin (both basses, both guitars, the brass, the string machine, the organ and the colour
+instruments) is heard on it, its chain kept,
 and a part says `recorded: false` to stay synthesized. Without the library the song is exactly the synthesized one. The
 kit stays synthesized: the recorded kit lost to it by ear.
 

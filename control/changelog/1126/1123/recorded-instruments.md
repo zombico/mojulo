@@ -19,3 +19,9 @@
   heard recorded by naming the twins as its parts' patches; none is on the instrument shelf until chosen by ear.
 - The pitch converter reads a struck note while it rings, not the silence after it: a celesta's bell, gone in a second,
   is measured over that second.
+- A song plays its whole band on its recorded instruments with `recorded: true`: every part whose patch has a recorded
+  twin is heard on it with its instrument's chain, and a part says `recorded: false` to stay synthesized. Without the
+  library the song is exactly the synthesized one. The rest of the robot band is recorded for it: one clean guitar under
+  the rhythm and the lead (the amp is each part's chain, its level the amp's makeup), the brass and the strings held on
+  their loops (the brass brighter the harder it is played, the strings with the string machine's swell and vibrato), and
+  the slap bass. The kit stays synthesized.

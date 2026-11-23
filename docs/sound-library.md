@@ -159,6 +159,16 @@ motor-off takes, `steelpanRec`, `bassPickRec`), each matched to its synthesized 
 D6), the vibraphone 26 (D2 to G#5), the steel drum 12 (one octave, C4 to B4: its high asks landed low), the bass 14 (E1
 to D#3). A struck note is read while it rings (steadyPitch reads inside the sounding part of the take).
 
+The rest of the band: `guitarRec` and `guitarLeadRec` (one clean, dry guitar, `cards/band.js`, under both guitars; the
+rhythm's pick detune as two copies, the lead's resonant lowpass kept; each one's level its amp's makeup, `ampTrim`,
+laid on the instrument's amp as the part expands, since a saturating amp's output follows its makeup, not its input),
+`brassRec` and `stringsRec` (held on their loops; the brass's lowpass opened by velocity for the FM brass's brightness,
+the strings with the string machine's swell, release and vibrato) and `bassSlapRec`. A song's `recorded: true`
+(beats-manifest.js) puts every part whose patch is in `RECORDED_TWINS` on its twin, a part's `recorded: false` keeping
+it synthesized; without the library the song renders byte for byte as without the switch. Coverage: the guitar 22 notes
+(C#3 to A#4: its low strings asked never came below, so its low roots are bent down), the brass 19 (E3 to C5), the strings
+21 (F#3 to A#5), the slap bass 5 (E1 to D2).
+
 ## Making it
 
 Maintainer tooling in [control/scripts/sound-library/](../control/scripts/sound-library/), never shipped and never
