@@ -525,8 +525,8 @@ every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it t
 the way it went (`way`), a stepper's the step it took (`step`).
 
 **The sound library** (`control/lib/graph/beats/ui-sounds.js`) is what a page plays: beats-sfx gestures (the beats
-tool's own, nothing new in its kernel), in ten sets: `glass`, `console`, `chip`, `terminal`, `paper`, `party`, and the
-heavy ones, `hydraulic` (servos, pneumatic hiss, clamps landing), `clack` (hardwood blocks, a clapper's double clack on
+tool's own, nothing new in its kernel), in sets (`UI_SOUND_SETS`): `glass`, `console`, `chip`, `terminal`, `paper`,
+`party`, `robot` (a cheerful little machine's chirps), and the heavy ones, `hydraulic` (servos, pneumatic hiss, clamps landing), `clack` (hardwood blocks, a clapper's double clack on
 confirm, for serious games), `crypt` (stone, iron and a toll, a dungeon door that creaks open and slams shut, for grim
 and souls-like games) and `jackpot` (coin clinks counting, a brass stab on confirm, a riser into a boom, a fanfare and a
 shower of coins on a rare one). Every set is built from one interval plan over its root, so the sets differ in timbre
@@ -547,7 +547,9 @@ cancel falls, the cursor stays quiet):
 | `vanish`, `shuffle` | the tick falling, softer; a breath and a run of quick clicks |
 
 The sets are level-matched on confirm (measured on their rendered reels), and within a set what is pressed most is
-heard least; a heavy set's big moments are let past confirm on purpose (the crypt's door, the jackpot's jackpot). A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets
+heard least; a heavy set's big moments are let past confirm on purpose (the crypt's door, the jackpot's jackpot).
+Where the recorded sound library is installed, a set's cues it records play the recordings over the set's own
+gestures, on every page that plays the set ([sound-library.md](sound-library.md): a card's `ui` cues on its `uiSets`). A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets
 each name one); `uiSoundAudio()` hands a page the beats kernel (only the features the sets need), the sets and the cue
 picker, as `manaUiPage(spec, { audio })` or `manaUiBoard({ audio })` (this folder imports nothing outside itself, so
 it is handed in). Each set is also a beats-sfx recipe (`uiSoundManifest`) that `create_beats` mints and the beats
