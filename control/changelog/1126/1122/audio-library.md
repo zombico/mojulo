@@ -73,3 +73,9 @@
   for what moves without a voice. Where the library is installed, a game's foes are heard by them: a wolf snarls as it
   attacks, yelps when struck and whimpers as it falls, an unskinned brute is a bear, a party battle's foe falls in its own
   voice. Without the library foes sound as before.
+- The mount lane's horse is heard where the library is installed: its hooves keep its pace from the walk to the gallop
+  and fall silent when it stands, it neighs as the hero settles in the saddle and snorts when urged into the gallop.
+- A field sounds alive where the library is installed: a flock of crows calls over the site about as often as one
+  crosses, gnats buzz at their clouds, ducks quack on the stream, mice squeak and roaches skitter by the walls, and each
+  herd calls from its own ground, a heavy animal heard farther off than a small one. Fireflies and butterflies stay
+  silent. Without the library a field is as quiet as before.

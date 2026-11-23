@@ -369,7 +369,11 @@ screams, a hyena laughs, a donkey brays), a foe class by the species it stands o
 words by `MONSTER_VOICE`. A fish, a shark or a cephalopod has no voice: its moves only. A new family, order or monster is
 a row of its table; a test holds the tables to every family and order the catalogs have.
 
-Its clients: a game's foes in an action level (`sound-sheet.js` foeSoundsOf: a beast's attack, hurt and fall in its
+Its clients: the mount lane's horse (`gameworld/mount-lane.js`: its hooves held by its pace while ridden, the equine's
+call as the hero settles in the saddle, its alert as it is urged to the gallop; the audio channel's `audio.mount`), a
+biocube's fauna (`era/fauna-audio.js`: each field kind's sound settings, `FIELD_SOUNDS`, which call, how often, how far
+and how loud, a firefly's and a butterfly's none; each herd from its ground by its voice's weight, `HERD_SOUND`; laid as
+the page's place sounds, `audio.emitters`), a game's foes in an action level (`sound-sheet.js` foeSoundsOf: a beast's attack, hurt and fall in its
 class's voice, by its species or its class's stand-in, so an unskinned brute is a bear) and a party battle's foes (each
 foe's fall, `ko:<foe>`, in its own voice ahead of the magic kit's dissolve), both only where the library records the
 class.
@@ -383,7 +387,7 @@ surfaces and vehicles to their sounds by word, a level's held voices on its `hol
 throttle), a suit's boost, quick boost, overheat and transform on a level; magic on the action games (Fable of Artesia's
 spells, the cast op's statuses: `worlds/controllable/cast.js` emits no event when a status is taken), the RPG's
 statuses wearing off and poison's tick (its kernel names neither), the world's effects and terrain on the events that
-could carry them (a rupa break by how it broke, a hazard by its kind); the animals beyond the foes: a herd's calls
-(the biocube's herds carry no audio; `petted` is the one event), a mount's neigh and hooves (the mount lane's horse is
-heard by human steps), the field fauna and the sea's walkers (no events: emitters would carry them) (the level runtime does not carry the mech's
+could carry them (a rupa break by how it broke, a hazard by its kind); the animals beyond the foes and the field: a herd
+answering when petted or struck (`petted`, its hits), the sea's walkers (no events), a game's own mounts beyond the
+lane's (the level runtime does not carry the mech's
 boost yet: `feel/lower.js` LOST), recorded beds (the library's ambience loops), and WAVs in the engine handoff.
