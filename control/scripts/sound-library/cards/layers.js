@@ -3,7 +3,8 @@
  * and one struck hard is a hard one (brighter, its hammer heard), not the same take turned down or up. Each card's `vel`
  * (0…1) is the strength it was asked at; the takes asked at medium carry 0.65 (cards/piano.js, cards/instruments.js).
  * The kernel plays each note on the take nearest it in pitch and in strength (beats-kernel.js sampleZone); its level
- * still follows the note's velocity. The piano in its three registers, the Rhodes in its two; two takes a note.
+ * still follows the note's velocity. The piano in its three registers, the Rhodes, the harp, the marimba and the
+ * vibraphone in their two; two takes a note.
  */
 
 const LETTERS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -18,4 +19,8 @@ const layered = (inst, what, registers, seconds) => Object.entries(STRENGTH).fla
 export const CARDS = [
   ...layered('piano', 'grand piano', [[2, 'a low bass note in the lower register, played by the left hand, deep and resonant'], [4, 'in the middle register, near middle C'], [5, 'a treble note in the upper register']], 4),
   ...layered('rhodes', 'Rhodes electric piano', [[3, 'in its low register, warm'], [4, 'in its middle register, bell-like']], 3),
+  // the harp and the mallets: plucked or struck softly, a round dark note; hard, its attack bright and ringing
+  ...layered('harp', 'concert harp', [[3, 'in its low register, warm and round'], [5, 'in its upper register, bright and clear']], 3),
+  ...layered('marimba', 'marimba', [[3, 'in its low register, deep and woody'], [4, 'in its middle register']], 2),
+  ...layered('vibraphone', 'vibraphone, motor off, struck with mallets', [[3, 'in its low register, warm and mellow'], [4, 'in its middle register']], 3),
 ];

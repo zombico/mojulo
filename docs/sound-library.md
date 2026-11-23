@@ -149,7 +149,9 @@ played by the left hand", "high in its upper register"), and for a fretted or bo
 AND FRET ("the low E string at the 5th fret, the note A2"), the way a player names a pitch. A bowed instrument's upper register,
 asked in words, can come back an octave low (the violin's "upper strings" did, every one): asked by string and position
 ("on the E string, stopped 7 semitones up, the note B5"), about a third land and the rest an octave low, still notes
-(`cards/repass.js`). Check where a set landed against the notes asked before trusting a register.
+(`cards/repass.js`). Check where a set landed against the notes asked before trusting a register. The violin's E5 to A5 did not
+land at all (thirty asks up the E string in the same words, every one an octave low): its top is A#5, and a melody there
+is bent a few semitones from D#5 or A#5.
 
 ONE INSTRUMENT, ONE WORDING: takes asked in different words in different passes come back as different instruments to
 the ear (the violin's register pass and its string pass were two violins: a run crossing them changed instrument
@@ -173,15 +175,16 @@ KEY-OFFS (release samples): an instrument's release sounds are cards with `keyOf
 for as MIDI (`cards/releases.js`); conditioning measures no pitch for them and writes `keyAt`, and the library hands them
 to the page beside the instrument's notes under `<instrument>~release`. A patch with `keyOff` (dB under its `volume`)
 plays, when a note's key is let go, the take for the nearest register, softer the softer the note was played, outside the
-note's envelope (beats-kernel.js sampleKeyOff). The piano (`keyOff: -14`) and the organ (`-20`) have them. A release must
-hold no pitch of its own: the harpsichord's and the Rhodes' came back with a buzz or a tick at one fixed pitch (near E3
-and F#3, whatever register was asked) and are recorded but not played; `steadyPitch` on a release take finds it.
+note's envelope (beats-kernel.js sampleKeyOff). The piano (`keyOff: -14`) and the organ (`-20`) have them. A release with
+a pitch of its own (a tick, a string's buzz) is measured as it is conditioned (`keyRoot`), and a patch with `keyOffTuned`
+plays it tuned to the note let go, within two octaves: the Rhodes' tick (about F#3, whatever register was asked) is.
+The harpsichord's buzz (near E3) is recorded and not played: tuned, a string's buzz is still another string's.
 
 VELOCITY LAYERS: an instrument's takes can carry the strength they were asked at (a card's `vel`, 0…1, written to each
 variant by conditioning and handed to the page as `vels`). A note then plays the take nearest it in pitch and in
 strength, a whole velocity counting as three semitones (beats-kernel.js sampleZone: a soft note plays a soft take a
-semitone off before a medium one on the note); its level still follows its velocity. The piano and the Rhodes are
-recorded soft (0.3), medium (0.65) and hard (0.95), `cards/layers.js`; an instrument with no `vel` on its takes is chosen
+semitone off before a medium one on the note); its level still follows its velocity. The piano, the Rhodes, the harp,
+the marimba and the vibraphone are recorded soft (0.3), medium (0.65) and hard (0.95), `cards/layers.js`; an instrument with no `vel` on its takes is chosen
 by pitch alone.
 
 Each synthesized patch's recorded twin is named in `RECORDED_TWINS` (audio-patches.js), each matched to its synthesized

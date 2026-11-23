@@ -142,7 +142,9 @@ async function main() {
       // whole number of its periods inside its sustain; pitch.js. A take with no clear pitch is left out of its instrument)
       let tone = null;
       // (a key-off, an instrument's release sound, has no pitch to measure: it carries its register, `keyAt`)
-      if (c.keyOff) tone = { keyAt: c.at };
+      // (and, where it carries a pitch of its own, a tick or a string's buzz, that pitch: `keyRoot`, so a patch can tune it
+      // to the note let go, `keyOffTuned`)
+      if (c.keyOff) { const F = steadyPitch(mono(bytes, w), w.rate); tone = { keyAt: c.at, ...(F ? { keyRoot: F.midi } : {}) }; }
       else if (c.instrument) {
         // (searched round the note asked, its band's `<instrument>:<note>`: an octave and a half either side, since the
         // generator lands the letter but not always the octave)

@@ -26,7 +26,9 @@ export const CARDS = [
   ...violin('G', 'G3', 0, 6),
   ...violin('D', 'D4', 0, 6),
   ...violin('A', 'A4', 0, 6),
-  ...violin('E', 'E5', 0, 11).map((c) => ({ ...c, id: c.id.replace('violin-E-', 'violin-E2-') })),
+  // (its E string's first six positions asked six times: most asks up the E string land an octave low, so more takes
+  // of the same words fill E5 to A5 without a second wording)
+  ...violin('E', 'E5', 0, 11).map((c, i) => ({ ...c, id: c.id.replace('violin-E-', 'violin-E2-'), ...(i <= 5 ? { takes: 6 } : {}) })),
   // (the E string's first ask, its words not the others': set aside)
   ...bowed('violin', 'violin (the highest string, bright and singing)', 'E', 'E5', 0, 14).map((c) => ({ ...c, instrument: 'violin-set-aside' })),
   // the erhu, up both its strings (inner D, outer A)

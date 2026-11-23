@@ -548,8 +548,8 @@ Object.assign(PATCHES, {
   guitarCleanRec: recStruck('acoustic-guitar', 'guitarClean', 0.14, -15.3),
   guitarNylonRec: recStruck('nylon-guitar', 'guitarNylon', 0.16, -15.6),
   guitarClassicalRec: recStruck('nylon-guitar', 'guitarClassical', 0.22, -14.0),
-  // (no key-off: its recorded releases came back with a tick at one fixed pitch, F#3, that would clash with the note)
-  rhodesRec: recStruck('rhodes', 'rhodes', 0.9, -9.7),
+  // (its key-off carries a tick at one pitch, about F#3, so it is tuned to the note let go: keyOffTuned)
+  rhodesRec: recStruck('rhodes', 'rhodes', 0.9, -9.7, { keyOff: -14, keyOffTuned: true }),
   harpRec: recStruck('harp', 'harp', 1.4, -16.8),
   marimbaRec: recStruck('marimba', 'marimba', 0.3, -7.7),
   xylophoneRec: recStruck('xylophone', 'xylophone', 0.2, -12.4),

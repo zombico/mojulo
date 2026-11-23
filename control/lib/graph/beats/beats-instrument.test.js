@@ -21,6 +21,9 @@ const NAME = PATCHES[INST].library;
 // a struck twin (zoned, not looped), whose library the velocity layers are built under
 const LAYERED = Object.keys(PATCHES).find((k) => PATCHES[k].voice === 'sample' && PATCHES[k].zones && !PATCHES[k].loop && PATCHES[k].library !== NAME);
 const LAYERED_LIB = PATCHES[LAYERED].library;
+// a twin whose key-off is tuned to the note let go
+const TUNED = Object.keys(PATCHES).find((k) => PATCHES[k].keyOffTuned);
+const TUNED_LIB = PATCHES[TUNED].library;
 const SR = 44100;
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const sha = (b) => createHash('sha256').update(b).digest('hex');
@@ -71,6 +74,13 @@ beforeAll(() => {
   { let q = 3; const b = wavOf(Float32Array.from({ length: SR / 5 }, (_, i) => { q = (Math.imul(q, 1664525) + 1013904223) >>> 0; return (q / 2 ** 32 - 0.5) * Math.exp(-i / (SR * 0.2)); })), id = sha(b).slice(0, 16);
     writeFileSync(path.join(dir, 'masters', `${id}.wav`), b);
     cards['inst-keyoff'] = { instrument: NAME, keyOff: true, role: 'instrument', variants: [{ id, take: 1, seconds: 0.2, keyAt: 64 }] }; }
+  // a tuned instrument (a twin whose key-off is tuned to the note): one note, and a key-off carrying a long tone at F#3
+  { const b = wavOf(tone(1, mtof(60))), id = sha(b).slice(0, 16);
+    writeFileSync(path.join(dir, 'masters', `${id}.wav`), b);
+    cards['tuned-note'] = { instrument: TUNED_LIB, pitched: true, role: 'instrument', variants: [{ id, take: 1, seconds: 1, root: 60 }] };
+    const kb = wavOf(Float32Array.from(tone(3, mtof(54)), (v, i) => v * Math.exp(-i / (SR * 2)))), kid = sha(kb).slice(0, 16);
+    writeFileSync(path.join(dir, 'masters', `${kid}.wav`), kb);
+    cards['tuned-keyoff'] = { instrument: TUNED_LIB, keyOff: true, role: 'instrument', variants: [{ id: kid, take: 1, seconds: 3, keyAt: 60, keyRoot: 54 }] }; }
   // a struck instrument's one note in two strengths: soft a pure sine, hard a bright sawtooth
   const saw = (p) => ((p / (2 * Math.PI)) % 1) * 2 - 1;
   for (const [layer, vel, shape] of [['soft', 0.3, undefined], ['hard', 0.95, saw]]) {
@@ -291,5 +301,15 @@ describe('a key let go', () => {
     const y = await off();
     expect(rms(x, 0.66, 0.76)).toBeGreaterThan(1e-4);
     expect(rms(x, 0.66, 0.76)).toBeGreaterThan(20 * rms(y, 0.66, 0.76));
+  });
+});
+
+describe('a key-off with a pitch of its own', () => {
+  it('is tuned to the note let go, where the patch asks: what rings after the note is the note\'s pitch, not the take\'s', async () => {
+    library(true);
+    const x = samplesOf((await renderBeatsOffline(normalizeBeatsManifest({ kind: 'beats-composition', title: 'tuned', bpm: 120, parts: [{ name: 'k', patch: TUNED, events: [[0, 'E4', 1, 0.9]] }] }), { tail: 3 })).wav);
+    // (the note held 0.5 s and released over its patch's release; long after, only the key-off rings)
+    const after = 0.5 + PATCHES[TUNED].release + 0.3;
+    expect(Math.abs(fundamental(x, SR, { from: after, seconds: 0.5, lo: 100, hi: 800 }).midi - 64)).toBeLessThan(0.3);
   });
 });

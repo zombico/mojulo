@@ -12,7 +12,7 @@
  *                               (a name no card has but an INSTRUMENT's, a card's `instrument`: every pitched take that
  *                               plays it, with `roots` { <id>: MIDI }, `loops` { <id>: [start, end] s } and a velocity
  *                               layer's `vels` { <id>: 0…1 } beside; its key-offs under `<name>~release`, with
- *                               `keyAt` { <id>: MIDI } the register each is for)
+ *                               `keyAt` { <id>: MIDI } the register each is for and `keyRoot` the pitch one carries)
  *   `hasInstrument(name)`       whether the library holds an instrument's pitched takes
  *   `sampleSliceBase64(cards)`  the same with the bytes as base64, for a page to inline: each variant's MP3 where the
  *                               library carries one (`masters/<id>.mp3`, a tenth of the WAV), else its WAV
@@ -154,7 +154,7 @@ export function sampleSlice(cards, { compact = false } = {}) {
       // key-offs, the release sounds, under `<name>~release`, each with the register it is for, `keyAt`)
       const offs = [];
       for (const k of Object.keys(lib.cards).sort()) if (lib.cards[k]?.instrument === name) for (const v of lib.cards[k].variants || []) {
-        if (lib.cards[k].keyOff) { if (Number.isFinite(v.keyAt) && take(v)) { offs.push(v.id); (out.keyAt ??= {})[v.id] = v.keyAt; } }
+        if (lib.cards[k].keyOff) { if (Number.isFinite(v.keyAt) && take(v)) { offs.push(v.id); (out.keyAt ??= {})[v.id] = v.keyAt; if (Number.isFinite(v.keyRoot)) (out.keyRoot ??= {})[v.id] = v.keyRoot; } }
         else if (Number.isFinite(v.root) && take(v)) ids.push(v.id);
       }
       if (ids.length && offs.length) out.cards[`${name}~release`] = offs;
@@ -167,7 +167,7 @@ export function sampleSlice(cards, { compact = false } = {}) {
 export function sampleSliceBase64(cards) {
   const s = sampleSlice(cards, { compact: true });
   if (!s) return null;
-  return { cards: s.cards, bytes: Object.fromEntries(Object.entries(s.bytes).map(([id, b]) => [id, b.toString('base64')])), ...(s.roots ? { roots: s.roots } : {}), ...(s.loops ? { loops: s.loops } : {}), ...(s.vels ? { vels: s.vels } : {}), ...(s.keyAt ? { keyAt: s.keyAt } : {}) };
+  return { cards: s.cards, bytes: Object.fromEntries(Object.entries(s.bytes).map(([id, b]) => [id, b.toString('base64')])), ...(s.roots ? { roots: s.roots } : {}), ...(s.loops ? { loops: s.loops } : {}), ...(s.vels ? { vels: s.vels } : {}), ...(s.keyAt ? { keyAt: s.keyAt } : {}), ...(s.keyRoot ? { keyRoot: s.keyRoot } : {}) };
 }
 
 export function hasInstrument(name) {

@@ -36,9 +36,9 @@ export const CARDS = [
   // keys and harp
   // (asked at no strength, heard as medium: its soft and hard layers are cards/layers.js)
   ...registered('rhodes', 'Rhodes electric piano', [[3, 'in its low register, warm'], [4, 'in its middle register, bell-like']], 3, { vel: 0.65 }),
-  ...registered('harp', 'concert harp', [[3, 'in its low register, warm and round'], [5, 'in its upper register, bright and clear']], 3, { how: 'plucked once and left to ring' }),
+  ...registered('harp', 'concert harp', [[3, 'in its low register, warm and round'], [5, 'in its upper register, bright and clear']], 3, { how: 'plucked once and left to ring', vel: 0.65 }),
   // mallets
-  ...registered('marimba', 'marimba', [[3, 'in its low register, deep and woody'], [4, 'in its middle register']], 2),
+  ...registered('marimba', 'marimba', [[3, 'in its low register, deep and woody'], [4, 'in its middle register']], 2, { vel: 0.65 }),
   ...registered('xylophone', 'xylophone', [[5, 'in its middle register, bright and woody'], [6, 'in its upper register']], 1.5),
   ...registered('glockenspiel', 'glockenspiel', [[6, 'in its middle register, a bright metal bell'], [7, 'high in its upper register, a tiny bright bell']], 2),
   // the upright bass, by string and fret

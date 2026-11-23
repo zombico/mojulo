@@ -59,3 +59,6 @@
 - The recorded violin is one violin: its takes from separate passes in different words played as different violins side
   by side (a high run heard as another instrument). It is recorded again as one set, every note asked the same way up its
   four strings, and its earlier passes are kept but set aside.
+- The Rhodes' release is heard: its recorded key-off carries a tick at one pitch, so it is tuned to each note let go
+  (a release with a pitch of its own is measured, and a patch can ask for it to follow the note).
+- The harp, the marimba and the vibraphone have velocity layers, soft and hard beside their medium takes.

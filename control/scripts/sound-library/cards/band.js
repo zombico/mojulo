@@ -18,7 +18,7 @@ const instrument = (inst, what, registers, seconds = 2.5, { held = false, how = 
 
 export const CARDS = [
   ...instrument('celesta', 'celesta', [[5, 'in its middle register, a soft bell-like chime'], [6, 'high in its upper register, a bright twinkling chime']]),
-  ...instrument('vibraphone', 'vibraphone, motor off, struck with soft mallets', [[3, 'in its low register, warm and mellow'], [4, 'in its middle register']], 3),
+  ...instrument('vibraphone', 'vibraphone, motor off, struck with soft mallets', [[3, 'in its low register, warm and mellow'], [4, 'in its middle register']], 3).map((c) => ({ ...c, vel: 0.65 })),
   ...instrument('steelpan', 'tenor steel pan (steel drum)', [[4, 'in its middle register'], [5, 'in its upper register, bright']]),
   ...instrument('bass', 'electric bass guitar, picked with a pick', [[1, 'a deep low note on the bottom strings'], [2, 'in its middle register']]),
   // the rest of the band: its guitars recorded clean and dry (the band's amp, delay and room are its chain's, as the
