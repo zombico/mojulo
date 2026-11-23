@@ -127,8 +127,8 @@ export function sortieCast(S, ends) {
         id, team, ...(g.arrive.start ? {} : { dormant: true }),
         // (a group that holds: in its place, unarmed; else a mind on its side, its cannons firing bolts it leads)
         ...(g.hold ? { rule: { type: 'static' } } : { rule: { type: 'ai', space: true, passes: true, target: 'enemy', speed, turn: 1.4, standoff: r2(2.5 * speed), fireArc: 6, burst: SORTIE.guns[g.side].burst, pause: SORTIE.guns[g.side].pause, sightRange: r2(14 * c.cruise), eye: 0 } }),
-        ...(g.hold ? {} : { weapon: { fireClass: 'lob', auto: true, rof: SORTIE.guns[g.side].rof, damage: L.damage, impact: 0, range: L.speed * L.fuse * 0.6, coreAngle: 2, assistAngle: 2, eye: 0, lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true, smokeTrail: false, fxColor: g.side === 'foe' ? 0x5cff6a : 0xff3b2e, fxScale: 1.6 } }),
-        body: { type: 'figure-rig', figure: fig, hittable: true, hp: g.hull, poise: 99, radius: size, egg: { a: size, c: r2(size * 0.6), cz: 0 }, name: `${g.name} ${k + 1}`, ...(goalIds.has(g.id) ? { goal: true } : {}), ...(g.shields ? { ship: { shields: { ...SORTIE.shields } } } : {}) },
+        ...(g.hold ? {} : { weapon: { fireClass: 'lob', auto: true, rof: SORTIE.guns[g.side].rof, damage: L.damage, impact: 0, range: L.speed * L.fuse * 0.6, coreAngle: 2, assistAngle: 2, eye: 0, lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true, smokeTrail: false, fxColor: g.side === 'foe' ? 0x5cff6a : 0xff3b2e, fxScale: STARFIGHTER.bolt.size, fxMin: STARFIGHTER.bolt.min, foeRound: true } }),
+        body: { type: 'figure-rig', figure: fig, hittable: true, hp: g.hull, poise: 99, radius: size, egg: { a: size, c: r2(size * 0.6), cz: 0 }, blast: r2(size * STARFIGHTER.blast * (g.hold ? 2 : 1)), name: `${g.name} ${k + 1}`, ...(goalIds.has(g.id) ? { goal: true } : {}), ...(g.shields ? { ship: { shields: { ...SORTIE.shields } } } : {}) },
         transform: { pos, heading: r2(heading), pitch: 0 },
       });
     });

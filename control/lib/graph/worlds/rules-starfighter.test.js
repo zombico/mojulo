@@ -74,6 +74,7 @@ describe('rule: starfighter', () => {
     expect(p.ship.sh).toEqual([6, 6]);
     expect(E.absorbShield(p, [50, 0, 0], 4, w)).toBe(true);      // from ahead: the fore shield
     expect(p.ship.sh).toEqual([2, 6]);
+    expect([p.ship.hitSide, p.ship.hitN]).toEqual([0, 1]);         // where and how many: the page flashes it
     expect(E.absorbShield(p, [-50, 0, 0], 6, w)).toBe(true);     // from behind: the aft, to nothing
     expect(p.ship.sh).toEqual([2, 0]);
     expect(E.absorbShield(p, [-50, 0, 0], 1, w)).toBe(false);    // the aft gone: the hull's (the caller's hp)
@@ -177,5 +178,19 @@ describe('rule: starfighter', () => {
     const a = go(), b = go();
     expect(a.transform.pos).toEqual(b.transform.pos);
     expect(a.tilt).toEqual(b.tilt);
+  });
+
+  it('a craft with a blast of its own blows apart in it: its burst that size, marked a craft\'s, the craft gone', () => {
+    const w = E.createWorld({ entities: [fighter(), { id: 'f', team: 'empire', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 1, radius: 6, egg: { a: 6, c: 3, cz: 0 }, blast: 18 }, transform: { pos: [300, 0, 0] } },
+      { id: 'g', team: 'empire', rule: { type: 'static' }, body: { type: 'mesh', hittable: true, hp: 1, radius: 6, egg: { a: 6, c: 3, cz: 0 } }, transform: { pos: [300, 60, 0] } }] });
+    w.byId.f.body.hp = 0; w.byId.f.downed = true; w.byId.g.body.hp = 0; w.byId.g.downed = true;
+    E.stepWorld(w, {}, DT, space);
+    const by = (x) => w.bursts.find((b) => Math.abs(b.pos[1] - x) < 1);
+    expect(by(0)).toMatchObject({ debris: true, craft: true, fxRadius: 18 });
+    expect(w.byId.f.gone).toBe(true);
+    // (one without: the suit's burst by its height, its wreck left where it fell)
+    expect(by(60).craft).toBeUndefined();
+    expect(by(60).fxRadius).toBeLessThan(18);
+    expect(w.byId.g.gone).toBeFalsy();
   });
 });

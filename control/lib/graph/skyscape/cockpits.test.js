@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { COCKPITS, cockpitOf, canopyFrame, frameCover, planOf, CRAFT_PLANS, PANEL_HEIGHT, FRAME_COVER_MAX } from './cockpits.js';
 import { starfighterPilot, cockpitCamera } from './starfighter.js';
+import { cockpitPanelCss, CHASE_SLOTS } from '../scene/channels/cockpit-hud.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 
 // ── the cockpits (skyscape/cockpits.js): a craft's tuning and the cockpit it is flown from ─────────────────────────────
@@ -82,5 +83,15 @@ describe('the cockpits', () => {
         expect(y0, `${id}.${k} sits in the panel`).toBeGreaterThan(topMost - 0.01);
       }
     }
+  });
+
+  it('in the chase the instruments ride a slim strip along the screen\'s foot, clear of the craft the camera follows', () => {
+    for (const [k, [x0, y0, x1, y1]] of Object.entries(CHASE_SLOTS)) {
+      expect(y0, k).toBeGreaterThanOrEqual(0.78);                 // under the craft (the chase holds it near the middle)
+      expect(x0 < x1 && y1 <= 1, k).toBe(true);
+    }
+    const css = cockpitPanelCss(COCKPITS.strikeFoil);
+    expect(css).toContain('.moj-ck[data-view=chase] .mana-place[data-at=bottom]{left:36%');
+    expect(css).toContain('.moj-ck[data-view=cockpit] .mana-place[data-at=bottom]{left:40.5%');
   });
 });

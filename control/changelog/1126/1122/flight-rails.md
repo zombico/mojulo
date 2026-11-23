@@ -195,3 +195,17 @@ They share one foundation, built first, and these themes record it as it lands.
   shields shows the plan alone. The cockpit's systems screen shows the pilot's own craft (its card's outline, in place
   of the shield and hull bars); the targeting computer shows the target's, by its craft. Every mission's craft has its
   outline, and another craft draws as a plain dart.
+- **Lasers, explosions and shield hits that read at combat range.** Every starfighter's cannons fire bolts in the
+  shot's look (gameworld/feel/round-look.js: a white-hot core, the colour's ramp and halo, stretched along the flight,
+  a tail), red for the pilot's side and green for the other. A bolt is never drawn under a least size on screen
+  (`weapon.fxMin`), so it reads as a streak at a kilometre where it was a speck. A craft has a blast of its own
+  (`body.blast`, three of its sizes across, `combat-match.js`): its death burst is that size and marked a craft's,
+  drawn as an explosion in the same light (a flash, the core and its halo, shock rings, sparks, debris), at least a
+  twentieth of the view across. The craft is gone in it, where it used to drift on as a wreck. A bolt's hit is a spark
+  its own size. A shield taking a round on another craft flashes faintly on that side (the ship records `hitSide`,
+  `hitT`, `hitN`); the pilot's own show on its instruments. Before, a bolt was a dot and a fighter's death a few orange
+  pixels.
+- **The chase view's instruments ride a slim strip** along the screen's foot (`CHASE_SLOTS`), on lighter glass, clear
+  of the craft the camera follows: the sensors at its ends, the systems and the flight beside them, and the targeting
+  computer in the middle with the target's plan at its right. Before, they floated as a HUD and the targeting computer
+  covered the pilot's own craft.

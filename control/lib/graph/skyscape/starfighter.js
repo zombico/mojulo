@@ -23,6 +23,11 @@ const r2 = (v) => Math.round(v * 100) / 100;
 export const STARFIGHTER = Object.freeze({
   // the bolts: their speed (m/s), how long they fly (s); the rest is each craft's card (cockpits.js)
   lasers: Object.freeze({ speed: 900, fuse: 2, damage: 1 }),
+  // how a bolt is drawn (the shot's look, gameworld/feel/round-look.js): its size (m), and the least it is drawn on screen
+  // (rad: past where its size would shrink under it, it is drawn that size, so a bolt reads at a kilometre)
+  bolt: Object.freeze({ size: 1.4, min: 0.0035 }),
+  // a craft blows apart in a blast this many times its size across (its fireball, the craft gone in it)
+  blast: 3,
   // the seat: this share of the craft's length ahead of its middle, and of its span above it
   seat: Object.freeze({ ahead: 0.12, up: 0.06 }),
 });
@@ -33,7 +38,7 @@ export function cockpitLasers(c, airframe) {
   return {
     fireClass: 'lob', auto: true, rof: N.rof, damage: N.damage, impact: 0, range: L.speed * L.fuse, coreAngle: 2, assistAngle: 4, eye: 0,
     lobAngle: 0, projectileSpeed: L.speed, projectileGravity: 0, projRadius: 1.5, splashRadius: 0, fuse: L.fuse, noGround: true, passTeam: true,
-    smokeTrail: false, fxColor: 0xff3b2e, fxScale: 1.6, energyMax: N.energy, energyCost: 1, energyRegen: N.regen, energyUnlockFrac: 0.25,
+    smokeTrail: false, fxColor: 0xff3b2e, fxScale: STARFIGHTER.bolt.size, fxMin: STARFIGHTER.bolt.min, foeRound: true, energyMax: N.energy, energyCost: 1, energyRegen: N.regen, energyUnlockFrac: 0.25,
     magazine: 9999,
   };
 }
@@ -44,7 +49,7 @@ export function starfighterPilot(map, pilot, { airframe, seat } = {}) {
   return {
     ...pilot, team: pilot.team ?? 'player',
     rule: { type: 'starfighter', speed: top, accel: r2(top / 3), pitchRate: R.pitch, yawRate: R.yaw, rollRate: R.roll, throttle: 2 / 3, seat: seat ?? [r2(size * STARFIGHTER.seat.ahead * 2), 0, r2(size * STARFIGHTER.seat.up * 2)], eye: 0 },
-    body: { ...pilot.body, hittable: true, hp: N.hull, radius: size, egg: { a: size, c: r2(size * 0.5), cz: 0 }, ship: { ...(N.shields ? { shields: { ...N.shields } } : {}), lasers: { regen: N.lasers.regen, links: [...N.lasers.links] } } },
+    body: { ...pilot.body, hittable: true, hp: N.hull, radius: size, egg: { a: size, c: r2(size * 0.5), cz: 0 }, blast: r2(size * STARFIGHTER.blast), ship: { ...(N.shields ? { shields: { ...N.shields } } : {}), lasers: { regen: N.lasers.regen, links: [...N.lasers.links] } } },
     weapon: cockpitLasers(c, airframe),
   };
 }

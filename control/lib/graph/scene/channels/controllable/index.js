@@ -902,8 +902,11 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
   // (a FOE'S TRAVELLING ROUND, gameworld/side-map/cast.js: a gun its weapon fires as a round that crosses the room, drawn in
   // the shot's look in the foe's colour, one look a colour; none, nothing)
-  const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0)]));
+  // (a round's least size on screen, `weapon.fxMin` rad: a starfighter's bolt, drawn so it reads at a kilometre)
+  const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, { ...roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0), ...(e.weapon.fxMin > 0 ? { min: e.weapon.fxMin } : {}) }]));
   const foeRoundsOn = Object.keys(foeLooks).length > 0;
+  // (a starfighter's page whose rounds carry the shot's look: its bolts, its blasts and its shields' shimmer drawn so)
+  const sfFx = sfPilot && foeRoundsOn;
   // (a foe that picks up and THROWS ROCKS, worlds/controllable/foe.js rockStep: its rocks drawn by rock-view.js, never as a
   // shell; none, nothing)
   const rockOn = entities.some((e) => e && e.rule && e.rule.foe && e.rule.foe.rock);
@@ -4990,7 +4993,9 @@ function __rlRound(p) {
     const at = (s, along, across, sx, sy) => { s.position.set(__rlDir.x * along + __rlPerp.x * across, __rlDir.y * along + __rlPerp.y * across, __rlDir.z * along + __rlPerp.z * across); s.scale.set(sx, sy, 1); s.material.rotation = ang; };
     // (THE BALL AT THE HEAD: its core and its saturated layer centred on the round, where it hits; everything else behind
     // it, anchored to it: the body's front at the ball's front, the streaks and the tail from its centre back, never ahead)
-    const hd = L.head || st, bk = L.bulk || 1, ball = r * 1.25 * bk;
+${sfFx ? `    // (never drawn smaller than its least size on screen: past the range its size would shrink under it, it grows)
+    if (L.min) { const dc = camera.position.distanceTo(g.position); g.scale.setScalar(Math.max(1, (dc * L.min) / r)); }
+` : ''}    const hd = L.head || st, bk = L.bulk || 1, ball = r * 1.25 * bk;
     at(halo, -ball * 0.4, 0, r * L.halo * 2 * bk, r * L.halo * 2 * bk);
     const body = r * 3.6 * st * bk;
     at(deep, ball * hd - body / 2, 0, body, r * 3.2 * bk);
@@ -5172,7 +5177,19 @@ function __dashDust() {
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
-function __updateProjectiles() {${dustOn ? `
+${sfFx && !busterOn ? `const __sfShield = new Map();   // (a ship's shields' hits drawn: the count seen, rules-starfighter.js hitN)
+` : ''}function __updateProjectiles() {${sfFx && !busterOn ? `
+  __blastAge();
+  // (a round another ship's shield took: a faint shell of its shield flashing round it on that side, quick)
+  for (const e of __world.entities) {
+    const S = e.ship; if (!S || e.gone || e.id === __world.pilotId) continue;   // (the pilot's own: its instruments say it)
+    const seen = __sfShield.get(e.id); __sfShield.set(e.id, S.hitN || 0);
+    if (seen == null || !(S.hitN > seen)) continue;
+    const rr = (e.body && e.body.radius) || 5, f = e.sfF || [Math.cos(e.transform.heading), Math.sin(e.transform.heading), 0], k = S.hitSide === 1 ? -1 : 1;
+    const sh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), __fxMat(0x7fc8ff)); sh.raycast = function () {};
+    sh.position.set(e.transform.pos[0] + f[0] * k * rr * 0.35, e.transform.pos[1] + f[1] * k * rr * 0.35, e.transform.pos[2] + f[2] * k * rr * 0.35); scene.add(sh);
+    __fx.push({ obj: sh, born: __world.time, ttl: 0.2, kind: 'burst', base: rr * 0.8, dim: 0.22 });
+  }` : ''}${dustOn ? `
   __dashDust();` : ''}${saberOn ? `
   for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) { __slashFx(e); __strandFx(e); }` : ''}${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
@@ -5262,7 +5279,12 @@ ${busterOn || foeRoundsOn ? `    // (a buster's round, buster.js, drawn in its l
     // white flash marks the detonation point. A record may carry fxRadius (the DEATH BURST, R34.1):
     // the spectacle outsizes the shove — safe, because the stagger is adjudicated the frame the
     // record spawns, so the bigger shell never overstates a circle anyone could still dodge.
-${busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
+${sfFx && !busterOn ? `    // (a starfighter's page, in the shot's light: a craft blown apart its own blast, as big as it is or a twentieth of the
+    // view at least, its debris flung; a bolt's hit a spark, its own size, a three-hundredth of the view at least)
+    { const R = b.fxRadius || b.radius || 0.3, dc = camera.position.distanceTo(__rlA.set(b.pos[0], b.pos[1], b.pos[2]));
+      if (b.craft) __blast(b.pos, 0xffa03c, Math.max(R, dc * 0.05), 'blast');
+      else __blast(b.pos, col, Math.max(0.3, R * 0.5, dc * 0.003), 'impact'); }
+` : busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
     // (a buster's round's burst its size's, the full charge's an explosion; any other's by its blast)
     { const R = b.fxRadius || b.radius || 0.3, P = __rlGone.find((q) => Math.abs(q.t - __world.time) < 0.1 && Math.hypot(q.at[0] - b.pos[0], q.at[1] - b.pos[1], q.at[2] - b.pos[2]) < 1.5);
       if (P) __blast(b.pos, col, Math.max(0.3, P.size * 3.2), P.lv && P.lv === __RL.length - 1 ? 'blast' : 'impact');

@@ -26,7 +26,8 @@
  *     lasers their recharge (0 to 2 of it).
  *   • LASERS: the craft's weapon's energy pool (combat-ranged.js `energyMax`), recharged at `lasers.regen` times its
  *     power. `link` (an edge) cycles the cannons fired at once (one, two, all four): each shot of a link costs and
- *     hurts as that many. Facts: `ship` { sh: [fore, aft], shMax, mode, pow: { lasers, shields, engines }, link }.
+ *     hurts as that many. Facts: `ship` { sh: [fore, aft], shMax, mode, pow: { lasers, shields, engines }, link,
+ *     hitSide, hitT, hitN (the last round a shield took: its side, its time, how many so far) }.
  *
  * THE COCKPIT (a camera rule, `cockpit` { target, seat?: [ahead, left, up] m, hideTarget?, chase? }): the eye at the
  * craft's seat, looking down its nose, rolled with it: it carries the craft's up vector (`up`), and the page sets the
@@ -81,14 +82,15 @@ export function buildStarfighter(E) {
     if (w && S.lRegen && w.energyMax > 0) w.energyRegen = S.lRegen * pw('lasers');
   }, 50);
   // a round on a ship: the shield on the side it came from takes it while it holds (combat-hit.js absorbShield asks)
-  E.shipAbsorb = (tg, src, drain) => {
+  E.shipAbsorb = (tg, src, drain, state) => {
     const S = tg.ship;
     if (!S || !(S.shMax > 0)) return null;
     const f = tg.sfF || frameOf(tg.transform.heading, tg.transform.pitch || 0, 0).f;
     const k = dot([src[0] - tg.transform.pos[0], src[1] - tg.transform.pos[1], src[2] - tg.transform.pos[2]], f) >= 0 ? 0 : 1;
     const had = S.sh[k];
     if (!(had > 0)) return false;
-    S.hitSide = k;
+    // (where and when: the page flashes the shield on that side, `hitSide` `hitT` `hitN`)
+    S.hitSide = k; S.hitT = state ? state.time : 0; S.hitN = (S.hitN || 0) + 1;
     // (it takes what it holds; what it cannot is the hull's: a shield all but spent is no wall)
     if (had >= drain) { S.sh[k] = had - drain; return true; }
     S.sh[k] = 0;

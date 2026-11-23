@@ -19,7 +19,8 @@
  * seat sees them (the shelf's own canopy, its facet edges and hoops, or a round window's rim and spokes, projected
  * through the page's camera, each bar as thick as it is near), the cockpit's sides under the sills, and the instrument
  * panel over the screen's foot (its share, 28%), its silhouette the card's; the instruments set into the panel in the
- * card's slots, each a screen in a bezel (the sensors round). In the chase they float as a HUD.
+ * card's slots, each a screen in a bezel (the sensors round). In the chase they ride a slim strip along the screen's foot,
+ * clear of the craft, on lighter glass.
  *
  * The page is its host: each frame it reads the pilot (controllable/index.js `window.__mojCtrl`: the starfighter rule's
  * facts, worlds/controllable/rules-starfighter.js) into the state mana-ui draws, projecting the target and the pip
@@ -32,7 +33,8 @@
  *   cockpitHudSpec(theme?)         → the mana-ui spec
  *   cockpitHudScript({ cockpit? }) → the page's script (emitted only on a page whose pilot is a starfighter; `cockpit`
  *                                    the craft whose cockpit it is, its card's: the general one's when absent)
- *   cockpitPanelCss(card)          → the instruments' places in the panel (the cockpit view's)
+ *   cockpitPanelCss(card)          → the instruments' places: set in the panel (the cockpit view), along a slim strip
+ *                                    at the screen's foot (the chase: CHASE_SLOTS, clear of the craft it follows)
  */
 import { manaUiSource, manaUi } from '../../../mana-ui/kernel.js';
 import { manaCss } from '../../../mana-ui/css.js';
@@ -123,13 +125,19 @@ const HOST_CSS = '.moj-ck{position:absolute;inset:0;pointer-events:none;z-index:
 const SLOT_AT = Object.freeze({ fore: 'bottom-left', aft: 'bottom-right', computer: 'bottom', systems: 'left', flight: 'right' });
 const pc = (v) => `${Math.round(v * 10000) / 100}%`;
 
-/** The instruments' places in the panel, the cockpit view's: each in its slot, a screen in a bezel; the sensors round. */
-export function cockpitPanelCss(card) {
-  const S = card.panel.slots, V = '.moj-ck[data-view=cockpit]', I = ':is(' + Object.values(SLOT_AT).map((a) => `.mana-place[data-at=${a}]`).join(',') + ')';
+/** The instruments' places in the chase view: a slim strip along the screen's foot, clear of the craft the camera follows
+ *  (the sensors at its ends, the systems and the flight beside them, the targeting computer in the middle). */
+export const CHASE_SLOTS = Object.freeze({ fore: [0.01, 0.84, 0.1, 0.995], systems: [0.108, 0.8, 0.235, 0.99], computer: [0.36, 0.86, 0.64, 0.99], flight: [0.765, 0.8, 0.892, 0.99], aft: [0.9, 0.84, 0.99, 0.995] });
+
+/** One view's instruments, each in its slot, a screen (`glass` its opacity: the cockpit's set in the panel, the chase's
+ *  over the world); the sensors round; a plan of shields as tall as its screen leaves it (the computer's beside its
+ *  readings where the screen is short). */
+function placesCss(V, S, { glass = 0.95, inline = false } = {}) {
+  const I = ':is(' + Object.values(SLOT_AT).map((a) => `.mana-place[data-at=${a}]`).join(',') + ')', a = (x) => Math.round(x * glass * 100) / 100;
   const out = [
-    // (each instrument a screen: glass dark under its phosphor, set in the panel, no plate of the HUD's own; its words
-    // small, as an instrument's are)
-    `${V} ${I}>*{background:radial-gradient(ellipse at 50% 40%,rgba(18,40,24,.92),rgba(3,9,5,.97))!important;border:0!important;border-radius:6px!important;box-shadow:inset 0 0 10px rgba(0,0,0,.9),inset 0 0 2px rgba(125,255,154,.35)!important;padding:5px 7px!important;opacity:1!important;width:100%;height:100%;box-sizing:border-box;overflow:hidden}`,
+    // (each instrument a screen: glass dark under its phosphor, no plate of the HUD's own; its words small, as an
+    // instrument's are)
+    `${V} ${I}>*{background:radial-gradient(ellipse at 50% 40%,rgba(18,40,24,${a(0.97)}),rgba(3,9,5,${a(1.02)}))!important;border:0!important;border-radius:6px!important;box-shadow:inset 0 0 10px rgba(0,0,0,${a(0.95)}),inset 0 0 2px rgba(125,255,154,.35)!important;padding:5px 7px!important;opacity:1!important;width:100%;height:100%;box-sizing:border-box;overflow:hidden;position:relative}`,
     `${V} ${I} *{font-size:min(1.55cqh,12px)!important;line-height:1.2!important}`,
     `${V} ${I} .mana-stack{gap:3px!important}`,
     `${V} ${I} .mana-bar .mana-track{min-width:0}`,
@@ -137,25 +145,28 @@ export function cockpitPanelCss(card) {
     // (a stat's figure on no highlight of its own: the screen's phosphor)
     `${V} ${I} .mana-stat *{background:none!important;color:var(--mana-accent)!important;padding:0!important}`,
     `${V} [data-at=bottom] .mana-text[data-role=heading]{font-size:min(2cqh,15px)!important;letter-spacing:.08em}`,
-
   ];
   for (const [k, [x0, y0, x1, y1]] of Object.entries(S)) {
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}]{left:${pc(x0)};top:${pc(y0)};width:${pc(x1 - x0)};height:${pc(y1 - y0)};right:auto;bottom:auto;transform:none;max-width:none;padding:0;align-items:stretch}`);
   }
   // the sensors round, a CRT each, filling their bezels
-  out.push(`${V} .mana-place:is([data-at=bottom-left],[data-at=bottom-right])>*{border-radius:50%!important;padding:0!important;display:flex;align-items:center;justify-content:center}`,
-  );
-  // (a plan of shields as tall as its screen leaves it: the systems' over the lasers and the link, the computer's under the
-  // target's name and readings)
-  for (const [k, less] of [['systems', 34], ['computer', 50]]) {
+  out.push(`${V} .mana-place:is([data-at=bottom-left],[data-at=bottom-right])>*{border-radius:50%!important;padding:0!important;display:flex;align-items:center;justify-content:center}`);
+  for (const [k, less] of [['systems', 34], ['computer', inline ? 8 : 50]]) {
     const [, y0, , y1] = S[k], hgt = `calc(${((y1 - y0) * 100).toFixed(2)}cqh - ${less}px)`;
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}] .mana-shields{height:${hgt};width:auto;max-width:100%;aspect-ratio:1/1.1;flex:none}`);
   }
+  // (the computer's plan beside its readings, at its right, where its screen is short)
+  if (inline) out.push(`${V} .mana-place[data-at=bottom] .mana-shields{position:absolute;right:8px;top:4px;margin:0}`);
   for (const k of ['fore', 'aft']) {
     const [x0, y0, x1, y1] = S[k], d = `calc(min(${((x1 - x0) * 100).toFixed(2)}cqw, ${((y1 - y0) * 100).toFixed(2)}cqh) * 0.94)`;
     out.push(`${V} .mana-place[data-at=${SLOT_AT[k]}] .mana-minimap[data-scope=yes]{width:${d}!important;height:${d}!important}`);
   }
-  return out.join('\n');
+  return out;
+}
+
+/** The instruments' places: in the cockpit, set in the card's panel; in the chase, along a slim strip over the world. */
+export function cockpitPanelCss(card) {
+  return [...placesCss('.moj-ck[data-view=cockpit]', card.panel.slots), ...placesCss('.moj-ck[data-view=chase]', CHASE_SLOTS, { glass: 0.62, inline: true })].join('\n');
 }
 
 /** The cockpit drawn over the world (inlined by toString): the canopy's bars projected through the camera, the sides
