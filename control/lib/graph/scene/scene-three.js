@@ -711,7 +711,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
       center: Array.isArray(sky.center) ? sky.center : mesh.center,
       radius: Number.isFinite(sky.radius) ? sky.radius : (mesh.radius || 20),
       // a painted cloud band round the dome (matte-paint/sky.js): only a sky that carries one
-      ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}) }
+      ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}),
+      // a space sky flown through (skyscape/airspace.js): at infinity, its stars and its star riding with the eye
+      ...(sky.space && sky.follow === true ? { follow: true } : {}) }
     : null;
   const skyBlock = skyDome ? skyDomeScript(bloomOn ? { ...skyDome, hot: true } : skyDome) : '';
   // DISTANCE HAZE (opt-in `haze: { color, density }`): three's exponential fog over every basic-material

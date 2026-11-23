@@ -209,3 +209,16 @@ They share one foundation, built first, and these themes record it as it lands.
   of the craft the camera follows: the sensors at its ends, the systems and the flight beside them, and the targeting
   computer in the middle with the target's plan at its right. Before, they floated as a HUD and the targeting computer
   covered the pilot's own craft.
+- **Space lit by one star** (`car-designer/form-light.js` `SPACE_MOOD`, `skyscape/space.js` `SPACE_STAR`). A craft
+  under a space sky is lit as gen-7 lights a body in the void: one hard key, a G star's white at full strength from
+  where the sky draws its star; the galaxy's faint cool glow as its only fill, so its shade side is dark and never
+  black (the cast rig's value law); a cool starlit rim that carries its silhouette against the void (the rig's
+  separation law); and the void, with the star's glint in it, as what it reflects. A mood may now write its key's
+  level, its ground, and the body's own fill and rim (`level`, `ground`, `hemi`, `rim`); the controllable page takes
+  them only where a figure carries them. The space map's sky draws its star in the direction the rocks were always lit
+  from. The stars and the star ride with the eye (`sky.follow`, `scene/channels/sky-dome.js`), so a flight across the
+  field never passes them. Before, a craft in space was lit as at noon on the ground (a blue sky over a warm ground,
+  reflected), and nothing in the sky said where its light came from.
+- **The chase sits the craft low** (`skyscape/starfighter.js` `chaseFrame`). The cockpit's chase is nearer, by a
+  fifth, and looks well ahead of the craft, so the craft sits about seven tenths of the way down the screen with the
+  space it flies into above it, clear of the instruments' strip. Before, it sat near the middle.

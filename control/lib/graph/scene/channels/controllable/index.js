@@ -937,6 +937,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // slots drawn with physical materials, lit by the world's sun and an environment of its sky. No form body → the
   // emitted channel is byte-identical.
   const figHasForm = Object.values(figures || {}).some((f) => f && f.rig && f.form && Array.isArray(f.parts) && f.parts.some((p) => p && p.form));
+  // (a form body whose light writes its own fill and rim, form-light.js SPACE_MOOD: a craft under a star in the void)
+  const figFormOwn = figHasForm && Object.values(figures || {}).some((f) => f && f.form && f.form.hemi);
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
@@ -1489,11 +1491,12 @@ function __formEnv(F) {
 }
 // THE BODY'S LIGHT is the cast rig's (../cast-rig.js, color-theorist/cast-rig.js): one key, and the sky over the ground
 // in the body's own shader, where it lights nothing else. The rig is read off the body's own setting (its sky, its
-// ground, its ambient: what its hemisphere light was), its key's gain 1 and no rim (a body's rim is its sky, reflected).
+// ground, its ambient: what its hemisphere light was), its key's gain 1 and no rim (a body's rim is its sky, reflected)${figFormOwn ? `;
+// a body whose light writes its own fill and rim (a craft under a star, nothing behind it to reflect) takes them` : ''}.
 function __formRig(F) {
   ${place ? 'if (__castNow && __castNow.U) return __castNow.U;\n  if (!__castNow && F.__rig) return F.__rig;' : 'if (F.__rig) return F.__rig;'}
   const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }, a = (F.ambient * 1.6) / Math.PI;
-  const U = castKit.uniforms({ key: { linear: F.key, gain: 1 }, hemi: { sky: F.sky.zenith.map((c) => lin(c) * a), ground: F.sky.ground.map((c) => lin(c) * a), gain: 1 }, rim: { linear: [0, 0, 0], strength: 0, power: 3 }, tone: { exposure: 1 } });
+  const U = castKit.uniforms({ key: { linear: F.key, gain: 1 }, hemi: ${figFormOwn ? 'F.hemi || ' : ''}{ sky: F.sky.zenith.map((c) => lin(c) * a), ground: F.sky.ground.map((c) => lin(c) * a), gain: 1 }, rim: ${figFormOwn ? 'F.rim || ' : ''}{ linear: [0, 0, 0], strength: 0, power: 3 }, tone: { exposure: 1 } });
   ${place ? 'if (__castNow) return (__castNow.U = U);\n  ' : ''}return (F.__rig = U);
 }
 // the key: ${formLand ? "the land's own sun (channels/form-land.js): a body on a form page asks for no light of its own" : "the shadow lights the page already casts with take the key's colour and strength (they were white and seen by\n// nothing lit: the world is painted); with none, a key of its own along the sun"}

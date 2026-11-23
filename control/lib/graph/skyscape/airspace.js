@@ -36,7 +36,7 @@ import * as dmath from '../../util/dmath.js';
 import { seatCraft, craftPilot, airframeOf } from './craft.js';
 import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
-import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace } from './space.js';
+import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace, SPACE_STAR } from './space.js';
 import { trenchField } from './trench.js';
 import { railPath, railKeep, planRailStage } from './rail-stage.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
@@ -198,7 +198,9 @@ function assembleSpace(manifest, { title }) {
   const laws = [...spaceLaws(map, field, course, seat.transform), ...(course ? course.laws : [])];
   return {
     faces: [...(field.faces || []), ...(course ? course.faces : [])], repeats: [...field.repeats, ...railHazardRepeats(manifest, map, field, { light: makeLight({ direction: [-0.45, 0.35, -0.82], ambient: 0.32, diffuse: 0.78 }), tone: '#7d756c' })], cameras, title,
-    sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000 }, bg: '#03040a',
+    // (the star the craft are lit by, where the rocks' light comes from: space.js SPACE_STAR; the sky at infinity, flown
+    // through and never past)
+    sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: [...SPACE_STAR.dir], size: SPACE_STAR.size, glow: SPACE_STAR.glow } }, bg: '#03040a',
     ...(pilot ? {} : { walk: { speed: 20, spawn: p, radius: 0.4, minEye: 1.7, gravity: 0, jump: 0 } }),
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
     ...(pilot || {}),

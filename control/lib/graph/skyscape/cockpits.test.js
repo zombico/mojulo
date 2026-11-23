@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { COCKPITS, cockpitOf, canopyFrame, frameCover, planOf, CRAFT_PLANS, PANEL_HEIGHT, FRAME_COVER_MAX } from './cockpits.js';
-import { starfighterPilot, cockpitCamera } from './starfighter.js';
+import { starfighterPilot, cockpitCamera, chaseFrame, STARFIGHTER } from './starfighter.js';
 import { cockpitPanelCss, CHASE_SLOTS } from '../scene/channels/cockpit-hud.js';
 import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 
@@ -87,9 +87,18 @@ describe('the cockpits', () => {
 
   it('in the chase the instruments ride a slim strip along the screen\'s foot, clear of the craft the camera follows', () => {
     for (const [k, [x0, y0, x1, y1]] of Object.entries(CHASE_SLOTS)) {
-      expect(y0, k).toBeGreaterThanOrEqual(0.78);                 // under the craft (the chase holds it near the middle)
+      expect(y0, k).toBeGreaterThanOrEqual(0.78);                 // under the craft (the chase holds it low, chaseFrame)
       expect(x0 < x1 && y1 <= 1, k).toBe(true);
     }
+    // the chase holds the craft low, the space it flies into above it, and still clear of the strip
+    const ch = cockpitCamera(pilotOf('strikeFoil'), { rule: 'follow', dist: 40, height: 10, lead: 8, lookH: 1.5 }, 'strikeFoil').chase;
+    expect(ch).toMatchObject(chaseFrame({ rule: 'follow', dist: 40, height: 10, lead: 8, lookH: 1.5 }));
+    expect(ch.dist).toBeLessThan(40);
+    const half = Math.tan((STARFIGHTER.chase.vfov * Math.PI) / 360), axis = Math.atan2(ch.height - ch.lookH, ch.dist + ch.lead);
+    const sit = 0.5 + 0.5 * Math.tan(Math.atan2(ch.height, ch.dist) - axis) / half;
+    expect(sit).toBeCloseTo(STARFIGHTER.chase.sit, 2);
+    expect(sit).toBeGreaterThan(0.62);
+    expect(sit).toBeLessThan(Math.min(...Object.values(CHASE_SLOTS).map(([, y0]) => y0)));
     const css = cockpitPanelCss(COCKPITS.strikeFoil);
     expect(css).toContain('.moj-ck[data-view=chase] .mana-place[data-at=bottom]{left:36%');
     expect(css).toContain('.moj-ck[data-view=cockpit] .mana-place[data-at=bottom]{left:40.5%');

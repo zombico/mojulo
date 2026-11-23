@@ -7,10 +7,11 @@
  * Each craft flies to its cockpit card's tuning (cockpits.js: general, speed, firepower), a craft with none the general
  * one's.
  *
- *   STARFIGHTER                                    the shared numbers (the bolts, the seat's place)
+ *   STARFIGHTER                                    the shared numbers (the bolts, the seat's place, the chase)
  *   cockpitLasers(c, airframe?)                    → the cannons (bolts at the bolts' speed, a charge to fire from)
  *   starfighterPilot(map, pilot, { airframe?, seat? }) → the pilot on the starfighter rule, its systems on its body
  *   cockpitCamera(pilot, chase, airframe?)         → the world's camera: the cockpit (its card named), its chase
+ *   chaseFrame(chase)                              → that chase, nearer, the craft low with the space ahead above it
  *
  * Pure: the same craft, the same numbers.
  */
@@ -30,7 +31,21 @@ export const STARFIGHTER = Object.freeze({
   blast: 3,
   // the seat: this share of the craft's length ahead of its middle, and of its span above it
   seat: Object.freeze({ ahead: 0.12, up: 0.06 }),
+  // the chase: nearer than a flight's (`near` of its distance and height), and looking `ahead` of its distance past the
+  // craft, so the craft sits low on the screen (`sit` of the way down, at a view `vfov`° high) with the space it flies
+  // into above it, clear of the instruments' strip at the foot (cockpit-hud.js CHASE_SLOTS)
+  chase: Object.freeze({ near: 0.8, ahead: 1.25, sit: 0.7, vfov: 60 }),
 });
+
+/** The chase a cockpit's world toggles out to (a flight's `follow`, craft.js craftPilot): nearer, and its look point
+ *  solved so the craft sits STARFIGHTER.chase.sit of the way down the screen. */
+export function chaseFrame(chase) {
+  const C = STARFIGHTER.chase, dist = r2((chase.dist ?? 40) * C.near), height = r2((chase.height ?? 10) * C.near), lead = r2(dist * C.ahead);
+  // (the craft is atan(height / dist) under the eye; the view's axis is held that less the sit's angle under it)
+  const below = Math.atan2(height, dist), off = Math.atan((2 * C.sit - 1) * Math.tan((C.vfov * Math.PI) / 360));
+  const lookH = r2(height - Math.tan(below - off) * (dist + lead));
+  return { ...chase, dist, height, lead, lookH };
+}
 
 /** The cannons: bolts that travel, fired from a charge the lasers' power recharges (the ship's systems). */
 export function cockpitLasers(c, airframe) {
@@ -56,5 +71,5 @@ export function starfighterPilot(map, pilot, { airframe, seat } = {}) {
 
 /** The world's camera: in the cockpit (the craft hidden round the eye), its chase the follow the craft came with. */
 export function cockpitCamera(pilot, chase, airframe) {
-  return { rule: 'cockpit', target: pilot.id, seat: pilot.rule.seat, hideTarget: true, mouseLook: true, cockpit: COCKPIT_IDS.includes(airframe) ? airframe : 'strikeFoil', chase: { ...chase, rule: chase.rule ?? 'follow', rollFollow: 1 } };
+  return { rule: 'cockpit', target: pilot.id, seat: pilot.rule.seat, hideTarget: true, mouseLook: true, cockpit: COCKPIT_IDS.includes(airframe) ? airframe : 'strikeFoil', chase: { ...chaseFrame(chase), rule: chase.rule ?? 'follow', rollFollow: 1 } };
 }

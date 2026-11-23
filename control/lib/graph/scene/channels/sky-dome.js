@@ -21,7 +21,10 @@ export function skyDomeScript(d) {
 const SKY = ${safeJson(d)};
 {
   const srgbLin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-  const R = Math.min(SKY.radius * 12, 3500);
+  const R = Math.min(SKY.radius * 12, 3500);${d.follow ? `
+  // (a sky at infinity, \`follow\`: a flight through space crosses more than the sky's radius, so the stars and the star
+  // ride with the eye, each drawn where it is from wherever the camera stands, and none is ever flown past)
+  const __skyFollow = (o, at) => { o.frustumCulled = false; o.onBeforeRender = (r, sc, cam) => { const e = cam.matrixWorld.elements; o.position.set(at[0] + e[12] - SKY.center[0], at[1] + e[13] - SKY.center[1], at[2] + e[14] - SKY.center[2]); o.updateMatrixWorld(); }; };` : ''}
   // ATMOSPHERE sky only: a gradient dome from horizon→zenith. SPACE sky skips it — the void is
   // the scene bg and stars wrap the full sphere, so there is no dome seam to orbit past.
   if (!SKY.space) {
@@ -75,7 +78,8 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     sg.setAttribute('color', new THREE.BufferAttribute(sc, 3));
     const stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.8, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     stars.renderOrder = -1;
-    scene.add(stars);
+    scene.add(stars);${d.follow ? `
+    __skyFollow(stars, [0, 0, 0]);` : ''}
   }
   if (SKY.moon) {
     const M = SKY.moon;
@@ -135,7 +139,8 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     const sz = R * 0.06 * (S.size || 1);
     ssp.position.set(SKY.center[0] + dir[0] * rr, SKY.center[1] + dir[1] * rr, SKY.center[2] + dir[2] * rr);
     ssp.scale.set(sz, sz, 1); ssp.renderOrder = -1;
-    scene.add(ssp);${d.hot ? `
+    scene.add(ssp);${d.follow ? `
+    __skyFollow(ssp, ssp.position.toArray());` : ''}${d.hot ? `
     ssp.material.color.setScalar(${SUN_HOT});   // (under the bloom the sun's disc is drawn past white: a world's finish)` : ''}
   }
 }`;
