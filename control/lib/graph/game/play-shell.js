@@ -841,7 +841,8 @@ export function playShellRuntime(cfg, K) {
   // the KEPT numbers (a level's game.keep, sent as stats.kept): each beside the best this save has seen, and a new best
   // remembered. A low best (a time) counts only a cleared run; a high one (a score) any run.
   function keptList(lv, env) {
-    const fmt = (k, v) => (Number.isInteger(v) ? String(v) : v.toFixed(1)) + (k.unit || '');
+    // (a value with names, a medal's, said by its name)
+    const fmt = (k, v) => (Array.isArray(k.names) && Number.isInteger(v) && k.names[v] !== undefined ? k.names[v] : (Number.isInteger(v) ? String(v) : v.toFixed(1)) + (k.unit || ''));
     return el('ul', { cls: 'gains' }, env.stats.kept.map((k) => {
       const key = SAVE_KEY + ':best:' + lv.ref + ':' + k.label, v = Number(k.value);
       let prior = null;
@@ -903,7 +904,7 @@ export function playShellRuntime(cfg, K) {
     if (won && next && isOpen(next) && onOf('next')) items.push({ label: 'next: ' + next.title, then: { emit: 'next' } });
     if (onOf('again')) items.push({ label: won ? 'play again' : 'try again', then: { emit: 'again' } });
     if (onOf('home')) items.push({ label: homeWord(), then: { emit: 'home' } });
-    const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: String(k.value) + (k.unit || '') })) : [];
+    const kept = env.stats && Array.isArray(env.stats.kept) ? env.stats.kept.map((k) => ({ label: k.label, value: Array.isArray(k.names) && Number.isInteger(k.value) && k.names[k.value] !== undefined ? k.names[k.value] : String(k.value) + (k.unit || '') })) : [];
     return { outcome: (won ? 'cleared' : env.result === 'fail' ? 'failed' : 'left') + ' · ' + lv.title, stats: (o.ok ? gainsOf(env.events || []) : []).map((g) => ({ label: g, value: '' })).concat(kept), rank: o.fin && M.final ? 'complete' : (env.stats && typeof env.stats.rank === 'string' ? env.stats.rank : ''), items };
   }
   // a run's end as data (the run is over once it is said)

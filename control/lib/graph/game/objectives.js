@@ -17,7 +17,8 @@
  *            than the gear takes (the page's `touchdown`, `hard: 0`); a touchdown elsewhere does not meet it
  *   band     hold the pilot inside its `band` (any of alt, agl, speed, climb, bank, heading: [min, max], either null for
  *            open; the units the HUD shows: m, knots, m/s, degrees) for `seconds`: the clock runs only while every
- *            gauge holds, and starts again from nothing when one is left (`total: true`: it adds up instead)
+ *            gauge holds, and starts again from nothing when one is left (`total: true`: it adds up instead); the
+ *            seconds it is left once it has been reached are its slip (objectiveNames' `slip`, kept for a grade)
  *   protect  keep its `who` (ids) up: one of them down while it is in hand, or before it, fails the level
  *            (`objectives:failed`); met when `seconds` have run, or when the first of them arrives at `arrive`
  *            ({ at, radius? }: an escort's end)
@@ -36,7 +37,9 @@
  *   planar false: a take or a reach met at its height (a place on a storey: never from the floor over or under it)
  *
  *   objectiveNames(id)      → { task (the var: the index in hand, the count when all are met), seal(k), left(k), downs(k),
- *                             felled, time } the names it gives its things (felled: every foe of its downed; time: seconds)
+ *                             felled, time, slip, sink } the names it gives its things (felled: every foe of its downed;
+ *                             time: seconds; slip: seconds out of a band in hand; sink: the landing's sink, m/s; say:
+ *                             the words of the task in hand)
  *   objectivesOf(mechanics) → the mechanic of a level's list, or null
  *   lowerObjectives(p, ctx) → { world, on, emits }   (game/mechanics.js registers it)
  *
@@ -56,7 +59,7 @@ export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', '
 export const BAND_FACTS = Object.freeze(['alt', 'agl', 'speed', 'climb', 'bank', 'heading']);
 const isRange = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => x === null || Number.isFinite(x)) && !(v[0] === null && v[1] === null);
 
-export const objectiveNames = (id) => ({ task: `__${id}`, seal: (k) => `${id}-seal-${k}`, left: (k) => `__${id}_left${k}`, downs: (k) => `__${id}_d${k}`, felled: `__${id}_downs`, time: `__${id}_time` });
+export const objectiveNames = (id) => ({ task: `__${id}`, seal: (k) => `${id}-seal-${k}`, left: (k) => `__${id}_left${k}`, downs: (k) => `__${id}_d${k}`, felled: `__${id}_downs`, time: `__${id}_time`, slip: `__${id}_slip`, sink: `__${id}_sink`, say: `__${id}_say` });
 export const objectivesOf = (mechanics) => (Array.isArray(mechanics) ? mechanics.find((m) => m && m.kind === 'objectives') ?? null : null);
 
 export function lowerObjectives(p, ctx) {
@@ -160,7 +163,9 @@ export function lowerObjectives(p, ctx) {
         world.sources.push({ type: 'zone', zone, at: q.at.slice(), half: q.half.slice(), planar: false, watch: ctx.player });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: offs, by: -1 }, { on: 'exit', match: { zone }, do: 'inc', var: offs, by: 1 });
       });
-      world.reactions.push({ on: 'touchdown', match: { hard: 0 }, if: mine, do: 'emit', type: td });
+      world.reactions.push({ on: 'touchdown', match: { hard: 0 }, if: mine, do: 'emit', type: td, sink: 'event.sink' });
+      // (the sink it met the ground at, kept for the result and a grade: names.sink)
+      world.reactions.push({ on: td, if: { var: offs, lt: t.pads.length }, do: 'set', var: names.sink, to: 'event.sink' });
       world.reactions.push({ on: td, if: { var: offs, lt: t.pads.length }, do: 'emit', type: metE(k) });
     } else if (t.kind === 'band') {
       // each gauge a source; inside all of them is a count of the gauges entered equal to their number; the clock ticks
@@ -175,10 +180,21 @@ export function lowerObjectives(p, ctx) {
       world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'set', var: on, to: 1 });
       world.timers.push({ every: 1, emit: { type: tick }, while: { var: on, eq: 1 } });
       world.reactions.push({ on: tick, if: { var: inN, gte: facts.length }, do: 'inc', var: held, by: 1 });
+      // (every second out of it once it has been reached, over all the bands: names.slip, kept for a grade; the time it
+      // takes to get into it is the task's, not a slip)
+      const got = `${pre}_got${k}`, out = `${pre}:out:${k}`;
+      world.vars[got] = 0;
+      world.reactions.push({ on: tick, if: { var: inN, gte: facts.length }, do: 'set', var: got, to: 1 });
+      world.reactions.push({ on: tick, if: { var: inN, lt: facts.length }, do: 'emit', type: out });
+      world.reactions.push({ on: out, if: { var: got, eq: 1 }, do: 'inc', var: names.slip, by: 1 });
       if (!t.total) world.reactions.push({ on: tick, if: { var: inN, lt: facts.length }, do: 'set', var: held, to: 0 });
       world.watches.push({ type: metE(k), when: { var: held, gte: Math.ceil(t.seconds) } });
       world.reactions.push({ on: advE(k), do: 'set', var: on, to: 0 });
-      world.hud.push({ var: held, label: 'Held', as: 'counter', max: Math.ceil(t.seconds) });
+      // (its clock on the HUD only while it is in hand: a list of bands shows one Held, the one being flown)
+      const shown = `${id}-held-${k}`;
+      world.vars[`ui-${shown}`] = 0;
+      world.reactions.push({ on: beginE(k), do: 'set', var: `ui-${shown}`, to: 1 }, { on: advE(k), do: 'set', var: `ui-${shown}`, to: 0 });
+      world.hud.push({ var: held, label: 'Held', as: 'counter', max: Math.ceil(t.seconds), id: shown });
     } else if (t.kind === 'protect') {
       // one of them down while the task is still to be met (in hand, or before it) loses the level
       for (const w of t.who) world.reactions.push({ on: 'down', match: { entity: w }, if: { var: cur, lte: k }, do: 'emit', type: 'objectives:failed', task: t.id });
@@ -233,9 +249,21 @@ export function lowerObjectives(p, ctx) {
   });
   // on the page's own HUD: how many are met, each task said as it begins, a sealed way said (a page that draws its
   // HUD on mana-ui reads the same var and events: gameworld/mission-mana.js)
-  world.hud.unshift({ var: cur, label: 'Objective', as: 'counter', max: N }, { on: 'objective:begin', text: '{event.text}', ttl: 3 }, { on: 'objective:sealed', text: 'The way on is sealed', as: 'toast', ttl: 1.2 });
+  // (the words of the task in hand kept as a var, `names.say`, as it begins: the banner shows the var, since a banner is
+  // raised off the log, which keeps an event's type and not its words)
+  // `say`: seconds the words stand as a banner (3), or 'line': a standing line at the top, the task in hand's words for
+  // as long as it is in hand (a lesson's instruction)
+  const line = p.say === 'line', say = Number.isFinite(p.say) && p.say > 0 ? p.say : 3;
+  world.vars[names.say] = '';
+  world.reactions.push({ on: 'objective:begin', do: 'set', var: names.say, to: 'event.text' });
+  world.hud.unshift({ var: cur, label: 'Objective', as: 'counter', max: N }, line ? { var: names.say, label: '', as: 'text', slot: 'top' } : { on: 'objective:begin', text: `{${names.say}}`, ttl: say }, { on: 'objective:sealed', text: 'The way on is sealed', as: 'toast', ttl: 1.2 });
   for (const ch of ['watches', 'sequences', 'timers', 'entities', 'sources']) if (!world[ch].length) delete world[ch];
-  const keep = [{ var: cur, label: 'Tasks met', best: 'high' }, { var: downs, label: 'Foes down', best: 'high' }, { var: time, label: 'Time', best: 'low', unit: 's' }];
+  const banded = T.some((t) => t.kind === 'band'), landed = T.some((t) => t.kind === 'land');
+  if (banded) world.vars[names.slip] = 0;
+  if (landed) world.vars[names.sink] = 0;
+  // (foes down kept only where a task has foes: a lesson's result says nothing of them)
+  const keep = [{ var: cur, label: 'Tasks met', best: 'high' }, ...(woken.size ? [{ var: downs, label: 'Foes down', best: 'high' }] : []), { var: time, label: 'Time', best: 'low', unit: 's' },
+    ...(banded ? [{ var: names.slip, label: 'Out of the band', best: 'low', unit: 's' }] : []), ...(landed ? [{ var: names.sink, label: 'Touchdown', best: 'low', unit: ' m/s' }] : [])];
   const fails = T.some((t) => t.kind === 'protect');
   if (fails) world.hud.push({ on: 'objectives:failed', text: 'Failed', as: 'toast', ttl: 2 });
   if (T.some((t) => t.kind === 'gates')) world.hud.push({ on: 'objective:gate', text: 'gate {event.n} of {event.of}', as: 'toast', ttl: 1 });

@@ -245,9 +245,10 @@ export function gameStages(world) {
     if (R.obstacles) { out.push({ level, node: 'obstacles', section: 'obstacles', index: 0, manifest: obstacleStage(G, R.obstacles) }); continue; }
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
     if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
-    // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's
+    // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's, titled by
+    // the level's name (a lesson's, a stage's)
     // manifest, coloured by the level's palette (the world's, or the world's moved by its script) where it has one
-    if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
+    if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
     const laid = layLevel(R.level);
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
     // along one straight lane, each its own length and its own course (sideSegments, stripCourse), played on one page

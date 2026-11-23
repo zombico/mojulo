@@ -193,7 +193,12 @@ export const RAILS = Object.freeze({
   racing: row({ name: 'Racing', like: 'a race: a track or a road, checkpoints, rivals, the best time kept',
     handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick']), level1: 'a race: the laps, the podium' }),
   flight: row({ name: 'Flight', like: 'flying: a gate course, a dogfight, a sector of space',
-    handles: row({ genres: list(['flight-sim', 'air-combat', 'space-shooter']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
+    handles: row({ genres: list(['air-combat', 'space-shooter']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
+  // a licence earned lesson by lesson (pilot-school.js: its starter, the lessons on one airfield, each graded)
+  'pilot-school': row({ name: 'Pilot School', like: 'learning to fly a light aircraft: lessons on one airfield, each graded bronze to gold, a licence at the end',
+    handles: row({ genres: list(['flight-sim']) }), sizes: list(['designed']), level1: 'a lesson: the take-off, the first rings, leveling off over the field',
+    words: list(['pilot school', 'flight school', 'learn to fly', 'flying lessons', 'flight lessons', 'flight training', 'pilot licence', 'pilot license', 'pilotwings', 'flight instructor', 'realistic flight']),
+    lacks: list(['the circuit and the landing lesson, the stall, the cross-country, the crosswind and the check ride are later lessons, laid on the same words']) }),
   sports: row({ name: 'Sports', like: 'a sport in an arena: a net game, a turn sport, a team goal game, bat and ball, an athletics meet',
     handles: row({ genres: list(['net-game', 'turn-sport', 'team-goal-game', 'athletics-meet']), quick: list(['contest', 'meet']) }), sizes: list(['quick']), level1: 'a match, or an event of the meet',
     words: list(['sport', 'match', 'tournament', 'cricket']) }),

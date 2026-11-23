@@ -84,6 +84,20 @@ describe('objectives in the air', () => {
     expect(T.cur()).toBe(1);
   });
 
+  it('a band counts the seconds flown out of it, and a landing keeps the sink it met the ground at', () => {
+    const pads = [{ at: [0, 0, 1], half: [15, 300, 3] }];
+    const F = fly([{ id: 'level', kind: 'band', text: 'Hold it', band: { alt: [280, 320] }, seconds: 3 }, { id: 'down', kind: 'land', text: 'Land', pads }]);
+    F.at([0, 0, 300]); F.time(1.1);
+    F.at([0, 0, 360]); F.time(2.1);                    // two seconds out: the clock starts again, the slip counts them
+    F.at([0, 0, 300]); F.time(3.2);
+    expect(F.cur()).toBe(1);
+    expect(F.s.vars.__obj_slip).toBe(2);
+    F.at([0, 0, 1]); F.pump([{ type: 'touchdown', entity: 'p', hard: 0, sink: 1.4 }]);
+    expect(F.cur()).toBe(2);
+    expect(F.s.vars.__obj_sink).toBe(1.4);
+    expect(F.c.keep.map((k) => k.label)).toEqual(expect.arrayContaining(['Time', 'Out of the band', 'Touchdown']));
+  });
+
   it('a heading band wraps through north', () => {
     const F = fly([{ id: 'north', kind: 'band', text: 'Fly north', band: { heading: [350, 10] }, seconds: 2 }]);
     F.at([0, 0, 300], { heading: hdg(355) }); F.time(1.1);

@@ -11,14 +11,19 @@
  *   tasks     a list done in order (game/objectives.js), in the level's own words:
  *               { gates: true | [from, to] }            the course's gates (all, or gates from..to, counted from 1)
  *               { land: true }                          set down soft on a runway or a pad of the map
- *               { band: { alt?, agl?, speed?, climb?, bank?, heading? }, seconds, total? }
- *                                                       hold the pilot in the band (the HUD's units: m, knots, m/s, degrees)
+ *               { band: { alt?, agl?, speed?, climb?, bank?, heading?, height?, turn? }, seconds, total? }
+ *                                                       hold the pilot in the band (the HUD's units: m, knots, m/s, degrees);
+ *                                                       a lesson's words are said against the airfield, so they hold on any
+ *                                                       seed's map: `height` m over the runway, `turn` degrees from its
+ *                                                       heading (right positive), laid as the alt and the heading
  *               { reach: [x, y, z] | { gate: n }, radius? }   a nav point: fly to it
  *               { down: n | true }                      the next n of the level's fighters shot down (true: WING.n); they
  *                                                       are minted asleep and woken as the task begins
  *             each with an optional `text` (what the player is told; a plain one is written when absent). A crash is
  *             `crash`: 'fail' (the attempt is over: a lesson's, the default with no fighters) or 'respawn' (it comes
- *             back at the start, costing hp: the default with fighters, whose hits the level's hp takes too)
+ *             back at the start, costing hp: the default with fighters, whose hits the level's hp takes too). A
+ *             `grade` gives a medal (game/grade.js) by `time` (s), `slip` (s out of its bands) and `sink` (the landing's
+ *             m/s), each [gold, silver, bronze], least best
  *
  *   readFlightGoal(v, at)          → { kind, foes?, waves?, tasks?, crash? }; throws, teaching
  *   flightGoalOfQuick(quick)       → the quick game's flight goal, or null (not a flight)
@@ -38,6 +43,10 @@ export const DOGFIGHT = Object.freeze({ hp: 100, hit: 4, crash: 25 });
 export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'tasks']);
 export const FLIGHT_TASKS = Object.freeze(['gates', 'land', 'band', 'reach', 'down']);
 export const FLIGHT_CRASH = Object.freeze(['fail', 'respawn']);
+/** A band's words: the gauges, and a lesson's two said against the airfield. */
+export const BAND_WORDS = Object.freeze([...BAND_FACTS, 'height', 'turn']);
+/** What a grade reads, each [gold, silver, bronze], least best: the time, the seconds out of a band, a landing's sink. */
+export const GRADE_BY = Object.freeze(['time', 'slip', 'sink']);
 /** The legend a fight in the air adds: the craft's guns and missiles, its flares, boost and roll. */
 export const FIGHT_LEGEND = 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll';
 
@@ -59,7 +68,14 @@ export function readFlightGoal(v, at = 'goal.flight') {
     return { kind: 'dogfight', ...(D.foes !== undefined ? { foes: D.foes } : {}), ...(D.waves !== undefined ? { waves: D.waves } : {}) };
   }
   if (v.tasks === undefined) fail(` ${SHAPE}`);
-  for (const k of keys) if (k !== 'tasks' && k !== 'crash') fail(`.${k} is not a flight goal's (tasks, crash)`);
+  for (const k of keys) if (!['tasks', 'crash', 'grade'].includes(k)) fail(`.${k} is not a flight goal's (tasks, crash, grade)`);
+  if (v.grade !== undefined) {
+    if (!isObj(v.grade) || !Object.keys(v.grade).length) fail(`.grade is { ${GRADE_BY.join('?, ')}? }, each [gold, silver, bronze]`);
+    for (const [g, b] of Object.entries(v.grade)) {
+      if (!GRADE_BY.includes(g)) fail(`.grade.${g} is not graded (${GRADE_BY.join(', ')})`);
+      if (!(Array.isArray(b) && b.length === 3 && b.every(Number.isFinite) && b[0] <= b[1] && b[1] <= b[2])) fail(`.grade.${g} is [gold, silver, bronze], least best (gold the smallest)`);
+    }
+  }
   if (v.crash !== undefined && !FLIGHT_CRASH.includes(v.crash)) fail(`.crash is ${FLIGHT_CRASH.join(' or ')}: what a crash does`);
   if (!Array.isArray(v.tasks) || !v.tasks.length) fail('.tasks is a list, at least one, done in order');
   const tasks = v.tasks.map((t, k) => {
@@ -73,10 +89,11 @@ export function readFlightGoal(v, at = 'goal.flight') {
     if (K === 'gates' && !(t.gates === true || (Array.isArray(t.gates) && t.gates.length === 2 && t.gates.every((n) => Number.isInteger(n) && n >= 1) && t.gates[0] <= t.gates[1]))) fail(`${where}.gates is true (every gate) or [from, to] (counted from 1)`);
     if (K === 'land' && t.land !== true) fail(`${where}.land is true: set down on a runway or a pad of the map`);
     if (K === 'band') {
-      if (!isObj(t.band) || !Object.keys(t.band).length) fail(`${where}.band is { ${BAND_FACTS.join('?, ')}? }, each [min, max]`);
+      if (!isObj(t.band) || !Object.keys(t.band).length) fail(`${where}.band is { ${BAND_WORDS.join('?, ')}? }, each [min, max]`);
       for (const f of Object.keys(t.band)) {
         const r = t.band[f];
-        if (!BAND_FACTS.includes(f)) fail(`${where}.band.${f} is not a gauge (${BAND_FACTS.join(', ')})`);
+        if (!BAND_WORDS.includes(f)) fail(`${where}.band.${f} is not a gauge (${BAND_WORDS.join(', ')})`);
+        if ((f === 'height' && t.band.alt !== undefined) || (f === 'turn' && t.band.heading !== undefined)) fail(`${where}.band: ${f} and ${f === 'height' ? 'alt' : 'heading'} say the same thing, one of them`);
         if (!(Array.isArray(r) && r.length === 2 && r.every((x) => x === null || Number.isFinite(x)) && !(r[0] === null && r[1] === null))) fail(`${where}.band.${f} is [min, max], each a number or null (open), not both null`);
       }
       if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${where}.seconds is how long the band is held, above 0`);
@@ -87,7 +104,7 @@ export function readFlightGoal(v, at = 'goal.flight') {
     if (K === 'down' && !(t.down === true || (Number.isInteger(t.down) && t.down >= 1 && t.down <= WING.max))) fail(`${where}.down is true (a wing of ${WING.n}) or how many, 1 to ${WING.max}`);
     return t;
   });
-  return { kind: 'tasks', tasks, ...(v.crash !== undefined ? { crash: v.crash } : {}) };
+  return { kind: 'tasks', tasks, ...(v.crash !== undefined ? { crash: v.crash } : {}), ...(v.grade !== undefined ? { grade: v.grade } : {}) };
 }
 
 /** The quick game's flight goal: `fly` a course, `shoot` with a craft a dogfight (a trench run when its space says so). */
@@ -113,12 +130,12 @@ function wingOf(goal) {
   return { total: per.reduce((a, b) => a + b, 0), most: per.length ? Math.max(...per) : 0, bands: per.length, ids: per.map((c) => Array.from({ length: c }, () => `foe-${++n}`)) };
 }
 // a band in words: "280 to 320 m, 85 to 95 kt"
-const UNIT = { alt: 'm', agl: 'm over the ground', speed: 'kt', climb: 'm/s climbing', bank: '° of bank', heading: '' };
+const UNIT = { alt: 'm', agl: 'm over the ground', speed: 'kt', climb: 'm/s climbing', bank: '° of bank', heading: '', height: 'm over the field', turn: '° from the runway heading' };
 function bandText(t) {
   const part = (f) => {
     const [lo, hi] = t.band[f], u = UNIT[f];
     const say = lo === null ? `under ${hi}` : hi === null ? `over ${lo}` : `${lo} to ${hi}`;
-    return f === 'heading' ? `heading ${say}` : `${say} ${u}`.trim();
+    return f === 'heading' ? `heading ${say}` : f === 'turn' ? `${say}${u}` : `${say} ${u}`.trim();
   };
   return `Hold ${Object.keys(t.band).map(part).join(', ')} for ${t.seconds} s`;
 }
@@ -144,6 +161,17 @@ export function flightGoalMechanics(goal, ends) {
   }
   // a list of tasks done in order (game/objectives.js), each said in the air's own terms
   const W = wingOf(goal), pads = padBoxes(field), gates = course?.gates ?? [];
+  // a lesson's words against the airfield: the runway's datum and the compass heading it is taken off along
+  const datum = field.pads?.[0]?.datum, depart = ((90 - (seat.transform.heading * 180) / Math.PI) % 360 + 360) % 360;
+  const wrap = (x) => Math.round((((x % 360) + 360) % 360) * 100) / 100;
+  const gaugesOf = (B, k) => Object.fromEntries(Object.entries(B).map(([f, r]) => {
+    if (f === 'height') {
+      if (!Number.isFinite(datum)) fail(`tasks[${k}].band.height is over the runway: give the map one (ground.pads)`);
+      return ['alt', r.map((x) => (x === null ? null : Math.round((datum + x) * 100) / 100))];
+    }
+    if (f === 'turn') return ['heading', [r[0] === null ? null : wrap(depart + r[0]), r[1] === null ? null : wrap(depart + r[1])]];
+    return [f, r];
+  }));
   let d = 0;
   const tasks = goal.tasks.map((t, k) => {
     const id = `t${k + 1}`;
@@ -157,7 +185,7 @@ export function flightGoalMechanics(goal, ends) {
       if (!pads.length) fail(`tasks[${k}]: a landing needs a runway or a pad on the map (ground.pads)`);
       return { id, kind: 'land', text: t.text ?? 'Land on the runway', pads };
     }
-    if (t.band !== undefined) return { id, kind: 'band', text: t.text ?? bandText(t), band: t.band, seconds: t.seconds, ...(t.total ? { total: true } : {}) };
+    if (t.band !== undefined) return { id, kind: 'band', text: t.text ?? bandText(t), band: gaugesOf(t.band, k), seconds: t.seconds, ...(t.total ? { total: true } : {}) };
     if (t.reach !== undefined) {
       const at = Array.isArray(t.reach) ? t.reach : gates[t.reach.gate - 1]?.at;
       if (!at) fail(`tasks[${k}].reach.gate: the course has ${gates.length} gates`);
@@ -167,8 +195,14 @@ export function flightGoalMechanics(goal, ends) {
     return { id, kind: 'clear', text: t.text ?? (foes.length === 1 ? 'Shoot down the fighter' : `Shoot down the ${foes.length} fighters`), foes };
   });
   const crash = goal.crash ?? (W.total ? 'respawn' : 'fail');
+  // its grade, read off what the objectives keep (game/objectives.js objectiveNames: the time, a band's slip, the sink)
+  const N = { time: '__obj_time', slip: '__obj_slip', sink: '__obj_sink' };
+  if (goal.grade?.slip && !tasks.some((t) => t.kind === 'band')) fail('grade.slip grades the seconds out of a band: the goal has none');
+  if (goal.grade?.sink && !tasks.some((t) => t.kind === 'land')) fail('grade.sink grades a landing: the goal has none');
+  const grade = goal.grade ? [{ kind: 'grade', criteria: Object.entries(goal.grade).map(([g, [gold, silver, bronze]]) => ({ var: N[g], best: 'low', gold, silver, bronze })) }] : [];
   return [
-    { kind: 'objectives', tasks },
+    { kind: 'objectives', tasks, say: 'line' },
+    ...grade,
     ...(W.total ? [{ kind: 'fail-on-death', startHp: DOGFIGHT.hp, hits: DOGFIGHT.hit }] : []),
     crash === 'fail'
       ? { kind: 'crash', then: 'fail', ...(pads.length ? { pads } : {}) }

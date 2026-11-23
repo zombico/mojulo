@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
+import { flyTasks } from '@/lib/graph/skyscape/lesson-pilot.js';
 
 // DESIGNED FLIGHT LEVELS (the e2e tier: it makes a whole game through the real doors). An airspace level of a designed
 // game is flown for its flight goal (gameworld/flight-goal.js), the one a quick flight reads: a lesson's tasks (the
@@ -66,6 +67,40 @@ describe('design_game: designed flight levels', () => {
     const K = level('circuit');
     expect(K.game.mechanics.map((m) => m.kind)).toEqual(['laps']);
     expect(K.game.mechanics[0].land.pads.length).toBeGreaterThan(0);
+  }, 400000);
+
+  it('Pilot School: a locked pitch lays its first lessons; built, each is graded and said against its airfield', async () => {
+    const out = await designGameHandler({ title: 'School', world: { id: 'school', name: 'School', rail: { from: 'pilot-school', locked: true } } });
+    expect(out.pitch).toMatchObject({ stored: true, by: 'pilot-school', levels: ['lesson-1', 'lesson-2', 'lesson-3'] });
+    const ref = out.ref;
+    const run = await designGameHandler({ ref, run: true });
+    expect(run.ran.filter((r) => r.action === 'make').map((r) => r.key)).toEqual(expect.arrayContaining(['level-lesson-1-0', 'level-lesson-2-0', 'level-lesson-3-0', 'game']));
+    const M = (id) => SketchRepository.getByRef(`${ref}-level-${id}-0`).manifest;
+    const L1 = M('lesson-1'), O1 = L1.game.mechanics.find((m) => m.kind === 'objectives');
+    expect(O1.tasks.map((t) => t.kind)).toEqual(['band', 'gates', 'band']);
+    expect(L1.game.mechanics.map((m) => m.kind)).toEqual(expect.arrayContaining(['grade', 'crash']));
+    expect(L1.entities.find((e) => e.pilotable).rule.assist).toBe('sim');
+    expect(L1.figures.craft.craft).toMatchObject({ archetype: 'lightSingle', gear: 'down' });
+    // a height over the runway laid as the altitude over its datum; a turn from its heading laid as a compass heading
+    const datum = L1.meta?.pads?.[0]?.datum ?? null, O2 = M('lesson-2').game.mechanics.find((m) => m.kind === 'objectives');
+    const hold = O2.tasks[1].band, right = O2.tasks[2].band;
+    expect(hold.alt[1] - hold.alt[0]).toBeCloseTo(60, 6);
+    if (datum !== null) expect(hold.alt[0]).toBeCloseTo(datum + 200, 1);
+    const across = ((right.heading[0] - hold.heading[0]) % 360 + 360) % 360;
+    expect(across).toBeCloseTo(90, 1);
+    // the grade reads the objectives' time and their bands' slip
+    const G = M('lesson-3').game.mechanics.find((m) => m.kind === 'grade');
+    expect(G.criteria.map((c) => c.var)).toEqual(['__obj_time', '__obj_slip']);
+    // the run's readout says each lesson flown (the machine gate), with its medal
+    expect(run.flight_proof.gate).toBe('machine');
+    expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.grade])).toEqual([['lesson-1', true, 'gold'], ['lesson-2', true, 'gold'], ['lesson-3', true, 'gold']]);
+    // each lesson passed by the student on the fly rule, judged on the bus by its own mechanics, with a medal
+    const flown = ['lesson-1', 'lesson-2', 'lesson-3'].map((id) => ({ id, ...flyTasks(M(id)) }));
+    expect(flown.map((f) => [f.id, f.result, f.reason, f.time, f.grade, f.kept])).toEqual(flown.map((f) => [f.id, 'success', null, f.time, f.grade, f.kept]));
+    expect(flown.map((f) => f.grade), JSON.stringify(flown.map((x) => [x.id, x.time, x.grade, x.kept]))).toEqual(['gold', 'gold', 'gold']);
+    // and a careless flight (its height and heading drifting) is told apart: a lesser medal, or none
+    const sloppy = flyTasks(M('lesson-2'), { wobble: 1 });
+    expect(['silver', 'bronze', 'no medal', undefined], JSON.stringify([sloppy.result, sloppy.grade, sloppy.kept])).toContain(sloppy.grade);
   }, 400000);
 
   it('refuses a flight goal it cannot lay, teaching', async () => {

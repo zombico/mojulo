@@ -79,6 +79,7 @@ import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/gr
 import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
 import { railReport } from '@/lib/graph/gameworld/rails.js';
 import { pitchStart } from '@/lib/graph/gameworld/pitch-start.js';
+import { flightStageManifests, proveFlights } from '@/lib/graph/gameworld/flight-proof.js';
 import { handOff } from '@/lib/graph/gameworld/hand-off.js';
 import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
 import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
@@ -1586,6 +1587,14 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   const missionProof = ran && Object.values(W.levels ?? {}).some((L) => L?.mission !== undefined) ? (() => {
     try { return { mission_proof: { gate: 'machine', levels: proveMissions(W, missionStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })).manifests), note: 'machine gate: each mission\'s tasks done in order on the bus with every way on sealed until its task was met, and the level played headless by a gunner that walks, aims and reloads (no cover, no flank); whether it is a good first level is the creator\'s to say in play (the eyes gate has not run)' } }; } catch (e) { return { mission_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
+  // a run's flight levels flown for their tasks by the lesson pilot on the fly rule, judged on the bus by their own
+  // mechanics, each with its medal (machine gate, gameworld/flight-proof.js)
+  const flightProof = ran && Object.values(W.levels ?? {}).some((L) => L?.airspace !== undefined && L?.goal?.flight?.tasks) ? (() => {
+    try {
+      const levels = proveFlights(flightStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })));
+      return levels ? { flight_proof: { gate: 'machine', levels, note: 'machine gate: each flight level\'s tasks flown by a careful student on the fly rule the page runs (one task at a time, its bands held at their middles), judged on the bus by the level\'s own mechanics; its medal is what a clean flight earns. Whether the lesson teaches is the creator\'s to say in play (the eyes gate has not run)' } } : {};
+    } catch (e) { return { flight_proof: { gate: 'machine', levels: [], error: e.message } }; }
+  })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
   if (framed) {
     const made = { ...W.made }, base = W;
@@ -1603,12 +1612,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     // a unit's own req (the live one asked for it): its remit, its precedent, its budget
     // (a job's seat reads its own req, whatever its status, and only its own job: the rest is the director's)
     const own = seat ? ledger.L.reqs.find((r) => r.id === seat.job.req) : ledger.L.reqs.find((r) => (r.unit === chapter || r.crew?.includes(chapter)) && !TERMINAL_REQ.has(r.status));
-    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
+    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...flightProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
     const R = own ? reqView(ref, own, ledger.L.reqs, { W, parts: ledgerStamps(ref, W), seat, agents: !seat && clientTakesJobAgents(context?.mcpSessionId ? getClientInfo(context.mcpSessionId) : null) }) : null;
     return { ok: true, readout: 'chapter', ...view, ...(seat ? { as: `${seat.job.req}.${seat.job.id}` } : {}), ...(R ? { req: R } : {}), ...(!seat && req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ticket ? { ask: ticket } : {}), ...share };
   }
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...flightProof, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...flightProof, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet

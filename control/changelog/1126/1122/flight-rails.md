@@ -45,3 +45,32 @@ They share one foundation, built first, and these themes record it as it lands.
 - **The flight HUD waits for the world.** A page with rig figures awaits their pool, and a frame could come first: the
   HUD's tick asked for the ground before its probe existed, threw, and left the HUD blank. It now waits until the
   controllable world is published.
+- **Pilot School, the first lessons** (`gameworld/pilot-school.js`, the rail `pilot-school`). A licence earned lesson
+  by lesson. It takes the `flight-sim` genre; the generic flight rail keeps air combat, the space shooter and the quick
+  `fly`. A locked pitch lays three lessons on one island airfield, a light trainer on the sim assist:
+  - First flight: the take-off, the first rings, leveling off.
+  - Straight and level, and turns: the runway heading held, then two turns, each held.
+  - Climbs and descents: to a height, down under a speed, held level.
+
+  The game opens on the lesson list, each lesson locked until the one before is cleared. A crash ends the attempt.
+  Each task's words stand at the top of the screen while it is flown (objectives' `say: 'line'`).
+- **A lesson's words** (`flight-goal.js`):
+  - `height` is metres over the runway and `turn` degrees from its heading, laid as the altitude and the compass
+    heading, so a lesson holds on any seed's map;
+  - `grade: { time, slip, sink }` gives a medal.
+- **The grade** (`game/grade.js`, a mechanic with its card). A level's medal is read off what it kept when won: each
+  criterion's gold, silver and bronze bounds, the worst criterion deciding. It is kept with its names, and the result
+  screen says "Medal gold" (a kept value may carry `names`). The objectives now keep:
+  - a band's slip: the seconds it was left once reached;
+  - a landing's sink;
+  - foes down only where a task has foes.
+- **The flight proof** (`skyscape/lesson-pilot.js`, `gameworld/flight-proof.js`, `design_game`'s `flight_proof`). A
+  run's flight task lists are flown by a careful student on the fly rule the page runs, judged on the bus by the level's
+  own mechanics, and the medal said. The three lessons are flown to gold. A sloppy student, its height and heading
+  drifting, earns less.
+- **The page fixes it brought out:**
+  - A craft set down a little over the runway fell onto it at load, and the page counted that settling as a touchdown.
+    A lesson failed on its first frame, and a quick flight was respawned unseen. A touchdown now counts only once the
+    craft has flown past its stall.
+  - An airspace level is titled by its name, not "lesson-1 · airspace".
+  - A band's clock shows only while its task is in hand.

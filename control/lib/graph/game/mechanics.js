@@ -24,6 +24,7 @@ import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
 import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
+import { lowerGrade } from './grade.js';
 import { lowerWork } from './work-mechanics.js';
 
 const ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
@@ -895,6 +896,9 @@ const MECHANICS = {
   // OBJECTIVES (objectives.js): a level's tasks done in order, a section each: walked into, it begins (its foes woken);
   // met, its way on opens; the last met wins. A mission's structure (gameworld/mission-level.js)
   objectives: { role: 'terminal', ends: ['success', 'fail'], requires: [], lower: lowerObjectives },
+  // THE GRADE (grade.js): a level's medal read off what it kept when it is won, each criterion's bounds of gold, silver
+  // and bronze; the worst a criterion gives is the medal, kept by its name
+  grade: { role: 'emitter', requires: [], lower: lowerGrade },
 
   // PUSH (a terminal): a grid of cells (`cols` × `rows`, `cell` metres, from `origin` its corner) with boulders on some
   // and plates on others. Walking into a boulder's cell from a side pushes it one cell on, if that cell is free (in

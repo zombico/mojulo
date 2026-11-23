@@ -1230,7 +1230,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // a flight's game (the laps mechanic's land / respawn): each touchdown told to the bus with whether it sank harder
   // than the gear takes (rule.sinkMax), and its respawn carried out; a city's roofs (rule.roofs) counted as ground, so a
   // tower is hit, not flown through
-  // a touchdown counts once the craft has flown (over ARM m above the ground): not the first frames' settling on the pad
+  // a touchdown counts once the craft has flown (over ARM m above the ground, past its stall): not the first frames'
+  // settling on the pad
   var roofs = null, wasAir = null, lastVs = 0, hooked = false, armed = false, ARM = 3;
   function roofAt(x, y) {
     for (var k = 0; k < roofs.length; k++) {
@@ -1374,7 +1375,9 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
         clearOfRocks = !hit;
       }
       var q0 = p.transform.pos, g0 = __ground([q0[0], q0[1], q0[2]]);
-      if (p.airborne && g0 !== null && q0[2] - g0 > ARM) armed = true;
+      // (armed by flight, not by height alone: a craft set down a little over the runway falls onto it at rest, and that
+      // settling is no landing; flying is being up and past the stall, which a glider launched aloft already is)
+      if (p.airborne && g0 !== null && q0[2] - g0 > ARM && (p.airspeed || 0) > (p.rule.stallSpeed || 15)) armed = true;
       if (wasAir === null) wasAir = !!p.airborne;
       if (p.airborne) lastVs = p.climbRate || 0;
       else if (wasAir && armed && window.__mojBus && window.__mojBus.bus) {
