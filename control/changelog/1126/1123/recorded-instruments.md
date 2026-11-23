@@ -35,3 +35,9 @@
   the oboe and the bassoon held on their loops (their synthesized vibrato laid over them), the timpani and the tubular
   bells struck. Every orchestral patch's second and third tiers are heard on their first tier's recording, each matched
   to its own patch's loudness, so a score written on any tier of the orchestra is heard recorded with `recorded: true`.
+- The setting colours recorded: the harpsichord, the music box, the banjo, the harmonica (held, its vibrato laid over it),
+  the shamisen and the pedal steel. The erhu was recorded too but stays synthesized: its takes came back as a drone.
+- The pitch converter reads every recorded instrument better: it searches round the note asked (a hum or a bell's odd
+  partial no longer reads as the note), reads six stretches of the sounding note and keeps the largest agreeing group
+  (one slipped read no longer throws a good take away), and loops a held note inside the part that still sounds. Nearly
+  every instrument now keeps all its takes: the music box went from 2 to 40, the glockenspiel from 15 to 47.

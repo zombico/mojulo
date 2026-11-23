@@ -141,7 +141,11 @@ async function main() {
       // whole number of its periods inside its sustain; pitch.js. A take with no clear pitch is left out of its instrument)
       let tone = null;
       if (c.instrument) {
-        const X = mono(bytes, w), F = steadyPitch(X, w.rate);
+        // (searched round the note asked, its band's `<instrument>:<note>`: an octave and a half either side, since the
+        // generator lands the letter but not always the octave)
+        const asked = /:([A-G]#?)(-?\d)$/.exec(c.band || ''), L = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const hz = asked ? 440 * Math.pow(2, (L.indexOf(asked[1]) + 12 * (Number(asked[2]) + 1) - 69) / 12) : null;
+        const X = mono(bytes, w), F = steadyPitch(X, w.rate, hz ? { lo: Math.max(30, hz / 2.83), hi: Math.min(4400, hz * 2.83) } : {});
         if (!F) { console.log(`condition: ${c.id} #${t} holds no steady pitch; left out of its instrument`); continue; }
         tone = { root: F.midi, ...(c.sustain ? { loopAt: loopPoints(X, w.rate, F.hz) } : {}) };
       }

@@ -531,7 +531,7 @@ Object.assign(PATCHES, {
   guitarLeadRec: recStruck('guitar', 'guitarLead', 0.2, -13, { filter: { ...PATCHES.guitarLead.filter }, ampTrim: -4.3 }),
   brassRec: recStruck('brass', 'fmBrass', 0.25, -6.4, { loop: true, attack: 0.02, filter: { mode: 'lowpass', freq: 5200, q: 0.6 }, velToFilter: 1.2 }),
   stringsRec: recStruck('strings', 'stringMachine', 0.9, -16.8, { loop: true, attack: 0.25, decay: 0.3, sustain: 0.9, unison: 2, detune: 7, lfo: PATCHES.stringMachine.lfo.map((l) => ({ ...l })) }),
-  bassSlapRec: recStruck('slap-bass', 'bassSlap', 0.1, 1.2),
+  bassSlapRec: recStruck('slap-bass', 'bassSlap', 0.1, -0.1),
 });
 // More of the shelf (scripts/sound-library/cards/instruments.js): each a twin of the synthesized patch it stands in
 // for. Struck and plucked ones ring as their takes do; bowed and blown ones (recorded with no vibrato) hold on their
@@ -552,7 +552,7 @@ Object.assign(PATCHES, {
   harpRec: recStruck('harp', 'harp', 1.4, -16.8),
   marimbaRec: recStruck('marimba', 'marimba', 0.3, -7.7),
   xylophoneRec: recStruck('xylophone', 'xylophone', 0.2, -12.4),
-  glockenspielRec: recStruck('glockenspiel', 'glockenspiel', 0.6, -3.2),
+  glockenspielRec: recStruck('glockenspiel', 'glockenspiel', 0.6, -9.7),
   bassUprightRec: recStruck('upright-bass', 'bassUpright', 0.12, -5.8),
   violinRec: recHeld('violin', 'violin', -6.6),
   celloRec: recHeld('cello', 'cello', -6.5),
@@ -563,13 +563,22 @@ Object.assign(PATCHES, {
   frenchHornRec: recHeld('french-horn', 'frenchHorn', -7.4),
   tromboneRec: recHeld('trombone', 'trombone', -8.0),
   tubaRec: recHeld('tuba', 'tuba', -4.8),
-  violaRec: recHeld('viola', 'viola', -1.0),
+  violaRec: recHeld('viola', 'viola', -2.0),
   contrabassRec: recHeld('contrabass', 'contrabass', -5.3),
   clarinetRec: recHeld('clarinet', 'clarinet', -9.7),
   oboeRec: recHeld('oboe', 'oboe', -13.8),
   bassoonRec: recHeld('bassoon', 'bassoon', -13.0),
   timpaniRec: recStruck('timpani', 'timpani', 1.2, -2.3),
   tubularBellsRec: recStruck('tubular-bells', 'tubularBells', 2, -4.2),
+  // the setting colours (scripts/sound-library/cards/colours.js): a court's harpsichord, a title's music box, the
+  // frontier's banjo and harmonica, East Asia's shamisen, the country road's pedal steel
+  harpsichordRec: recStruck('harpsichord', 'harpsichord', 0.1, -14),
+  musicBoxRec: recStruck('music-box', 'musicBox', 0.8, -16),
+  banjoRec: recStruck('banjo', 'banjo', 0.06, -12),
+  harmonicaRec: recHeld('harmonica', 'harmonica', -9.2),
+  shamisenRec: recStruck('shamisen', 'shamisen', 0.08, -9.0),
+  // (no erhu: its takes came back as a drone, reading D#4 or D#5 whatever note was asked; it stays synthesized)
+  pedalSteelRec: recStruck('pedal-steel', 'pedalSteel', 0.45, -13, { attack: 0.18 }),
 });
 // the orchestra's second and third tiers (violin2, frenchHorn3…: the same instrument, voiced again): each heard on its
 // first tier's recording, at its first tier's twin's level moved as far as the tier's own patch moves from its first's
@@ -596,4 +605,5 @@ export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'p
   guitarElectric: 'guitarElectricRec', guitarClean: 'guitarCleanRec', guitarNylon: 'guitarNylonRec', guitarClassical: 'guitarClassicalRec', rhodes: 'rhodesRec', harp: 'harpRec',
   marimba: 'marimbaRec', xylophone: 'xylophoneRec', glockenspiel: 'glockenspielRec', bassUpright: 'bassUprightRec', violin: 'violinRec', cello: 'celloRec', flute: 'fluteRec', trumpet: 'trumpetRec',
   frenchHorn: 'frenchHornRec', trombone: 'tromboneRec', tuba: 'tubaRec', viola: 'violaRec', contrabass: 'contrabassRec', clarinet: 'clarinetRec', oboe: 'oboeRec', bassoon: 'bassoonRec',
-  timpani: 'timpaniRec', tubularBells: 'tubularBellsRec', ...TIER_TWINS });
+  timpani: 'timpaniRec', tubularBells: 'tubularBellsRec', harpsichord: 'harpsichordRec', musicBox: 'musicBoxRec', banjo: 'banjoRec', harmonica: 'harmonicaRec',
+  shamisen: 'shamisenRec', pedalSteel: 'pedalSteelRec', ...TIER_TWINS });

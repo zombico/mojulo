@@ -7,12 +7,13 @@
  *        the harmonic product spectrum of a stretch of the take (a 2^n FFT of `seconds` from `from`, Hann windowed; the
  *        log magnitudes at 1…5 times each bin summed), its peak in [lo, hi] Hz refined by a parabola; `clarity` the
  *        peak's height over the median (a noise has none worth trusting)
- *   steadyPitch(x, rate) → { hz, midi, cents, spread } | null: the fundamental read at three stretches of the take while
- *        it sounds (its start, its middle, its later sustain: a struck note's ring, not the silence after it), their
- *        median and how far apart they are (cents): a take whose reads disagree by more than 40 cents is no note (a
- *        blast, a gust), null
+ *   steadyPitch(x, rate, { lo?, hi? }) → { hz, midi, cents, spread, agree } | null: the fundamental read at six
+ *        stretches of the take while it sounds (a struck note's ring, not the silence after it), searched in [lo, hi] Hz
+ *        (conditioning gives the band round the note asked: a hum or a bell's odd partial falls outside it); the note is
+ *        the largest group of reads agreeing within 40 cents, its median, kept only when at least half the reads join
+ *        it: a blast or a gust has no such group (null), and one read slipped an octave sinks no take
  *   loopPoints(x, rate, hz, { from?, to?, periods? }) → [start, end] seconds: a held note's loop, an upward zero
- *        crossing near `from` (a share of the take) to the one nearest a whole number of periods later, inside `to`, so
+ *        crossing near `from` (a share of the part of the take that still sounds, `soundingEnd`) to the one nearest a whole number of periods later, inside `to`, so
  *        the seam meets itself in phase
  *
  * Pure (Float32Array in, numbers out); no clock, no dice.
@@ -71,8 +72,20 @@ export function fundamental(x, rate, { from = 0.1, seconds = 1, lo = 40, hi = 14
   return { hz: Math.round(hz * 100) / 100, midi: Math.round(midi * 100) / 100, cents: Math.round((midi - Math.round(midi)) * 100), clarity: Math.round((best - median) * 100) / 100 };
 }
 
+// where a take stops sounding (a 50 ms stretch 30 dB under its loudest), as a count of samples
+export function soundingEnd(x, rate) {
+  const W = Math.round(0.05 * rate), env = [];
+  for (let s0 = 0; s0 + W <= x.length; s0 += W) { let e = 0; for (let i = s0; i < s0 + W; i++) e += x[i] * x[i]; env.push(Math.sqrt(e / W)); }
+  const peak = Math.max(...env, 1e-9);
+  let last = env.length - 1;
+  while (last > 0 && env[last] < peak * 0.0316) last--;
+  return Math.min(x.length, (last + 1) * W);
+}
+
 export function loopPoints(x, rate, hz, { from = 0.35, to = 0.92, periods = null } = {}) {
-  const P = rate / hz, start0 = Math.round(from * x.length), stop = Math.round(to * x.length);
+  // (inside the part of the take that still sounds: a note held briefly before a silent tail loops on the note)
+  const S = soundingEnd(x, rate);
+  const P = rate / hz, start0 = Math.round(from * S), stop = Math.round(to * S);
   const up = (i) => x[i - 1] <= 0 && x[i] > 0;
   let s = start0;
   while (s < stop && !up(s)) s++;
@@ -84,7 +97,7 @@ export function loopPoints(x, rate, hz, { from = 0.35, to = 0.92, periods = null
   return [Math.round((s / rate) * 1e5) / 1e5, Math.round((e / rate) * 1e5) / 1e5];
 }
 
-export function steadyPitch(x, rate, { most = 40 } = {}) {
+export function steadyPitch(x, rate, { most = 40, lo = 40, hi = 4200, reads: n = 6 } = {}) {
   // (read inside the note while it sounds: a struck bell that dies in a second is read over that second, not over the
   // silence after it; the sounding part ends where a 50 ms stretch falls 30 dB under the loudest)
   const W = Math.round(0.05 * rate), env = [];
@@ -93,10 +106,13 @@ export function steadyPitch(x, rate, { most = 40 } = {}) {
   let last = env.length - 1;
   while (last > 0 && env[last] < peak * 0.0316) last--;
   const T = Math.max(0.2, ((last + 1) * W) / rate), len = Math.min(0.5, T / 4);
-  const reads = [0.08, 0.35, 0.6].map((f) => fundamental(x, rate, { from: f * T, seconds: len })).filter((r) => r.hz > 0);
-  if (reads.length < 3) return null;
-  const m = reads.map((r) => r.midi).sort((a, b) => a - b), spread = Math.round((m[2] - m[0]) * 100);
-  if (spread > most) return null;
-  const mid = reads.find((r) => r.midi === m[1]);
-  return { hz: mid.hz, midi: mid.midi, cents: mid.cents, spread };
+  // (n reads spread over the sounding part, the last ending at its end; the note is the largest group of them that
+  // agree within `most` cents, and it must hold at least half: one read slipped an octave or a fifth sinks no take)
+  const reads = [...Array(n).keys()].map((k) => fundamental(x, rate, { from: 0.05 * T + (k / Math.max(1, n - 1)) * Math.max(0, T * 0.95 - len - 0.05 * T), seconds: len, lo, hi })).filter((r) => r.hz > 0);
+  const m = reads.slice().sort((a, b) => a.midi - b.midi);
+  let best = [];
+  for (let a = 0, b = 0; b < m.length; b++) { while ((m[b].midi - m[a].midi) * 100 > most) a++; if (b - a + 1 > best.length) best = m.slice(a, b + 1); }
+  if (best.length < Math.ceil(n / 2)) return null;
+  const mid = best[best.length >> 1];
+  return { hz: mid.hz, midi: mid.midi, cents: mid.cents, spread: Math.round((best[best.length - 1].midi - best[0].midi) * 100), agree: best.length };
 }

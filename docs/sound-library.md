@@ -134,58 +134,42 @@ developer's (`vitest.setup.js` points `MOJULO_SOUNDS_DIR` at nothing); a suite t
 ## Instruments, note by note
 
 An INSTRUMENT is a set of pitched takes (cards with `instrument: <name>`, `sustain: true` for one that holds) played
-note by note. Conditioning measures each take with the pitch converter (`scripts/sound-library/pitch.js`): its
-fundamental by the harmonic product spectrum, read at three stretches of the take and kept only when they agree within
-40 cents (a blast or a gust is no note), as the variant's `root` (MIDI, to the cent); a held take's loop (`loopAt`) is
-an upward zero crossing to the one nearest a whole number of its periods later, so the seam meets itself in phase.
-Takes are zoned by their measured root, never by the note they were asked at: the generator lands on a note's letter
-within a few cents but on its octave by chance (the first organ's twelve asked notes landed between D#3 and A4; its four
-asked low came back an octave or two up).
+note by note. Conditioning measures each take with the pitch converter (`scripts/sound-library/pitch.js`):
+
+- its ROOT: the fundamental by the harmonic product spectrum, read at six stretches of the part of the take that still
+  sounds (`soundingEnd`: a struck bell is read over its ring, not the silence after it), searched in a band an octave and
+  a half either side of the note asked (a mechanism's hum or a bell's odd partial falls outside it); the note is the
+  largest group of reads agreeing within 40 cents, kept only when at least half the reads join it (a blast or a gust
+  has none; one read slipped an octave sinks no take). The variant's `root` is MIDI, to the cent.
+- a held take's LOOP (`loopAt`): an upward zero crossing inside the sounding part to the one nearest a whole number of
+  its periods later, so the seam meets itself in phase.
+
+Takes are zoned by their measured root, never by the note they were asked at: the generator lands a note's letter
+within a few cents but its octave by chance. Two ways of asking land the octave: the REGISTER in words ("a low bass note
+played by the left hand", "high in its upper register"), and for a fretted or bowed instrument's low notes the STRING
+AND FRET ("the low E string at the 5th fret, the note A2"), the way a player names a pitch. An instrument's coverage is
+its variants' roots in `library.json` (the notes its takes landed on); a gap between them is bent across.
 
 `sampleSlice([<instrument>])` hands a page every rooted take with `roots` and `loops`; a `zones` patch (`voice:
 'sample'`, `library: <instrument>`) plays each note on the take whose root is nearest (one of them by the note's key,
-a quarter tone either side), bent from that root, and with `loop` holds it on the take's loop for the note's length.
-The synth's modulators are carried to the take: `unison` copies spread over `detune` cents, `pitchLane` and `vib`, an
-`lfo` aimed at pitch; filters, envelopes, tremolo and the chain sit after it as on any voice. Not carried yet: glide and
-bends on the osc's frequency (`glideFrom`, `bend`, `path`), velocity layers, release samples. The first instrument is
-the organ (`cards/organ.js`, the patch `organRec`, its fallback the synthesized `organ`); the second the piano
-(`cards/piano.js`, `pianoRec`, its fallback `pianoGrand3`; struck, not looped: a note rings as its take does and is damped
-when the key is let go). Asking a note's register in words lands most takes in their octave: the piano's 72 takes,
-asked in three registers, now keeps all 72 and covers 31 notes from F#2 to A#5; the organ's, asked by letter alone,
-clustered round C4 until its low register was asked in words (now 17 notes, F#2 to A4). The robot band's pitched
-instruments follow (`cards/band.js`; patches `celestaRec`, `vibraphoneRec` with the synthesized tremolo laid over its
-motor-off takes, `steelpanRec`, `bassPickRec`), each matched to its synthesized one's loudness; `RECORDED_TWINS`
-(audio-patches.js) names each synthesized patch's recorded twin. Coverage as conditioned: the celesta 24 notes (C4 to
-D6), the vibraphone 26 (D2 to G#5), the steel drum 12 (one octave, C4 to B4: its high asks landed low), the bass 14 (E1
-to D#3). A struck note is read while it rings (steadyPitch reads inside the sounding part of the take).
+a quarter tone either side), bent from that root; with `loop` it holds on the take's loop for the note's length, and
+without, a struck note rings as its take does and is damped when the key is let go. The synth's modulators are carried
+to the take: `unison` copies spread over `detune` cents, `pitchLane` and `vib`, an `lfo` aimed at pitch, and a bowed or
+blown patch's `vibrato` as a pitch lfo (recHeld: the takes recorded with no vibrato so they loop); filters, envelopes,
+tremolo and the chain sit after it as on any voice. A guitar heard through a saturating amp takes its level from the
+amp's makeup (`ampTrim`, laid on the instrument's amp once as the part expands). Not carried yet: glide and bends on the
+osc's frequency (`glideFrom`, `bend`, `path`), velocity layers, release samples.
 
-The rest of the band: `guitarRec` and `guitarLeadRec` (one clean, dry guitar, `cards/band.js`, under both guitars; the
-rhythm's pick detune as two copies, the lead's resonant lowpass kept; each one's level its amp's makeup, `ampTrim`,
-laid on the instrument's amp as the part expands, since a saturating amp's output follows its makeup, not its input),
-`brassRec` and `stringsRec` (held on their loops; the brass's lowpass opened by velocity for the FM brass's brightness,
-the strings with the string machine's swell, release and vibrato) and `bassSlapRec`. A song's `recorded: true`
-(beats-manifest.js) puts every part whose patch is in `RECORDED_TWINS` on its twin, a part's `recorded: false` keeping
-it synthesized; without the library the song renders byte for byte as without the switch. Coverage: the guitar 22 notes
-(C#3 to A#4: its low strings asked never came below, so its low roots are bent down), the brass 19 (E3 to C5), the strings
-21 (F#3 to A#5), the slap bass 8 (E1 to E2) after a second pass.
-
-More of the shelf (`cards/instruments.js`): a fretted instrument's low notes are asked by STRING AND FRET ("the low E
-string at the 5th fret, the note A2"), the way a player names a pitch, which lands the octave where words alone did not
-(the guitar's low asks in words never came below C#3; by fret it reaches E2). Twins: `guitarElectricRec` (the band's
-clean guitar), `guitarCleanRec`, `guitarNylonRec` and `guitarClassicalRec` (one nylon guitar), `rhodesRec`, `harpRec`,
-`marimbaRec`, `xylophoneRec`, `glockenspielRec`, `bassUprightRec`, and the held `violinRec`, `celloRec`, `fluteRec`,
-`trumpetRec` (recHeld: the synthesized patch's swell, release, filter and unison, its `vibrato` carried as a pitch lfo,
-the takes recorded with no vibrato so they loop). Each is matched to its synthesized one's loudness. Coverage as
-conditioned: the guitar 27 notes (E2 to A#4), acoustic 19, nylon 17, Rhodes 18, harp 22, marimba 19, xylophone 16,
-glockenspiel 6 (its highest asks landed low), upright bass 16 (F1 to E3), violin 13, cello 21 (E2 to G4), flute 21,
-trumpet 14.
-
-The orchestra (`cards/orchestra.js`): `frenchHornRec`, `tromboneRec`, `tubaRec`, `violaRec`, `contrabassRec` (bowed,
-asked by string and position), `clarinetRec`, `oboeRec`, `bassoonRec` held on their loops, `timpaniRec` and
-`tubularBellsRec` struck. The orchestral patches' second and third tiers (`violin2`, `frenchHorn3`…) are twinned on
-their first tier's recording, each matched to its own patch's loudness (`TIER_TRIM`: a tier's filters and voicing move
-its level as well as its volume). Coverage as conditioned: the horn 16 notes (F3 to A#4), trombone 13, tuba 14 (C2 to
-E3), viola 13, contrabass 17, clarinet 21, oboe 17, bassoon 15 (E2 to C#4), timpani 8 (A#1 to D3), tubular bells 16.
+Each synthesized patch's recorded twin is named in `RECORDED_TWINS` (audio-patches.js), each matched to its synthesized
+one's loudness and falling back to it, byte for byte, without the library; the orchestra's second and third tiers are
+twinned on their first tier's recording, each with its own measured trim (`TIER_TRIM`). A song's `recorded: true`
+(beats-manifest.js) puts every part whose patch has a twin on it, its instrument's chain kept, and a part's `recorded:
+false` keeps it synthesized. The cards, by set: `cards/organ.js` and `cards/piano.js` (the first two), `cards/band.js`
+(the robot band's pitched instruments: the colour instruments, both basses, one clean guitar under both guitars, the
+brass and the strings), `cards/instruments.js` (guitars, keys, harp, mallets, the upright bass, the violin, cello, flute
+and trumpet, and the low passes by string and fret), `cards/orchestra.js` (the rest of the orchestra) and
+`cards/colours.js` (the setting colours: harpsichord, music box, banjo, harmonica, shamisen, pedal steel). The erhu was
+recorded and is not twinned: its takes came back as a drone on two notes, whatever note was asked.
 
 ## Making it
 

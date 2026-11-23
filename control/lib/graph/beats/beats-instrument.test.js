@@ -13,7 +13,7 @@ import { normalizeBeatsManifest, validateBeatsManifest } from './beats-manifest.
 import { INSTRUMENTS } from './instruments.js';
 import { PATCHES, RECORDED_TWINS } from './audio-patches.js';
 import { forgetLibrary, sampleSlice, hasInstrument } from '../sound-library/library.js';
-import { fundamental, steadyPitch, loopPoints } from '../../../scripts/sound-library/pitch.js';
+import { fundamental, steadyPitch, loopPoints, soundingEnd } from '../../../scripts/sound-library/pitch.js';
 
 // the instrument patch (a zoned, looped sample voice), chosen in code
 const INST = Object.keys(PATCHES).find((k) => PATCHES[k].voice === 'sample' && PATCHES[k].zones && PATCHES[k].loop);
@@ -73,6 +73,26 @@ afterAll(() => {
 });
 
 describe('the pitch converter', () => {
+  it('finds a held note\'s sounding part, so a loop never lands in the silence after it', () => {
+    const x = new Float32Array(SR * 2);
+    x.set(tone(1, 220));
+    const end = soundingEnd(x, SR) / SR;
+    expect(end).toBeGreaterThan(0.95);
+    expect(end).toBeLessThan(1.1);
+    const [, b] = loopPoints(x, SR, 220);
+    expect(b).toBeLessThan(1);
+  });
+
+  it('keeps a note whose reads mostly agree, a read slipped an octave notwithstanding, and searches only round the note asked', () => {
+    // (a note an octave up for its first sixth: one read of six slips, the rest agree)
+    const x = new Float32Array(SR * 2), hz = mtof(57);
+    for (let i = 0; i < x.length; i++) x[i] = 0.6 * Math.sin((2 * Math.PI * (i < SR / 3 ? 2 * hz : hz) * i) / SR);
+    expect(Math.abs(steadyPitch(x, SR).midi - 57)).toBeLessThan(0.1);
+    // (a hum far under the note asked is outside the band searched)
+    const y = Float32Array.from({ length: SR * 2 }, (_, i) => 0.5 * Math.sin((2 * Math.PI * 50 * i) / SR) + 0.3 * Math.sin((2 * Math.PI * mtof(84) * i) / SR));
+    expect(Math.round(steadyPitch(y, SR, { lo: mtof(84) / 2.83, hi: mtof(84) * 2.83 }).midi)).toBe(84);
+  });
+
   it('reads a note to the cent, harmonics and all, and refuses a take that holds no pitch', () => {
     const saw = (p) => ((p / (2 * Math.PI)) % 1) * 2 - 1;
     expect(Math.abs(fundamental(tone(1, 300, saw), SR).hz - 300)).toBeLessThan(1);
