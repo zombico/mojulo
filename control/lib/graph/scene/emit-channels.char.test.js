@@ -1147,3 +1147,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-23 (1122-sim-fixing: shields on a plan): the fixtures whose page carries mana-ui (brawl, holo,
 // mission). Its kernel gains the `shields` component (a craft's shields read off its plan) and its sheet that
 // component's rules; no fixture draws one, so what each shows is as it was.
+// Re-pinned 2026-11-23 (1122-sim-fixing: a craft's own blast): the fixtures that embed the controllable runtime. A death
+// burst takes a body's `blast` (its size, marked a craft's) and a body with one is gone in it (combat-match.js); a ship's
+// shield records where it took a round (rules-starfighter.js). No fixture's body has a blast or a ship, so what each plays
+// is as it was.
