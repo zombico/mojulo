@@ -4,7 +4,7 @@
  * a roadway.
  *
  * manifest: { kind: 'airspace', map?: { form?, field?, craft?, ceiling?, lands? }, ground?: { land?, heartbeat?, scale?,
- *             pads?, cities?, geocube?, gorge?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? }, assist?: 'arcade' | 'sim',
+ *             pads?, cities?, country?, geocube?, gorge?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? }, assist?: 'arcade' | 'sim',
  *             course?: true | { gates?, laps?, land? }, palette? }
  *
  * `palette` (a color-theorist spec: pick_palette's, a preset such as 'coastal-noon', or a gameworld level's, moved by
@@ -21,7 +21,9 @@
  * level's kind), so only airspace's own keys are checked here.
  *
  * A city on the ground (`ground.cities`, city.js) comes as instanced boxes on the live page and as faces in exports: its
- * masses do not mesh with the terrain.
+ * masses do not mesh with the terrain. The country (`ground.country`, country.js) comes to the live page as the terrain
+ * channel's `aerial` (aerial.js: the land's cover and plan in the ground's shader, the buildings under a facade shader,
+ * the pylons and their lines) and to exports as its buildings' faces.
  *
  * The payload carries no ground faces on the live page (it meshes them round the camera); exports and stills get the
  * ground baked at twice the map's grid cell. Bookmarks: the first pad's threshold looking down it, the field from a
@@ -43,6 +45,8 @@ import { railPath, railKeep, planRailStage } from './rail-stage.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { readPaletteSpec } from '../color-theorist/solve.js';
+import { aerialPageConfig } from './aerial.js';
+import { countryFaces } from './country.js';
 
 /** A space manifest: its map's form is 'void', or its craft is a space craft (the fighter), whose map is space. */
 export function isSpace(m) {
@@ -54,6 +58,9 @@ const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v)
 const r2 = (v) => Math.round(v * 100) / 100;
 /** The spacing (m) a city's ground is meshed at near it: a street's width, so the painted plan reads. */
 const CITY_PIN = 8;
+/** The spacing (m) a country's settlement is meshed at, and from how many of its nodes off (its whole extent is seen
+ *  from a flyover's distance): a block's ground, so a quay and a grade hold. */
+const COUNTRY_PIN = 16, COUNTRY_SPLIT = 10;
 
 /** Errors (strings) for an airspace manifest; [] when it builds. */
 export function validateAirspace(m) {
@@ -136,10 +143,18 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   const channel = terrainPageChannel(field, { n: map.lod.n, split: map.lod.split, minSize: map.lod.minSize, horizonScale: map.lod.horizonScale });
   channel.hazeHeight = map.haze.hazeHeight;
   if (field.water && channel.water) channel.water = { ...channel.water, color: field.water };
+  // the country (country.js): its cover, its plan and its city drawn by the terrain channel's aerial script (aerial.js)
+  if (live && field.aerial) channel.aerial = aerialPageConfig(field, map);
   // a city's painted streets read only where the mesh is finer than they are: over its footprint a node splits, while
   // the eye is near enough to see them, down to CITY_PIN m between vertices (the terrain world's pin)
   const towns = field.report.cities || [];
   if (towns.length) channel.pins = towns.map((c) => ({ rect: [c.center[0] - c.size[0] / 2, c.center[0] + c.size[0] / 2, c.center[1] - c.size[1] / 2, c.center[1] + c.size[1] / 2], size: CITY_PIN * map.lod.n, split: map.lod.split }));
+  // the country's settlements (and a metro's harbour) likewise, at COUNTRY_PIN: their quays and grades stay steps, never
+  // a coarse chunk's slope out of the water
+  if (live && field.aerial) {
+    const pins = field.country.settlements.map((s) => ({ rect: [s.origin[0] - 60, s.origin[0] + s.extent[0] + 60, s.origin[1] - 60, s.origin[1] + s.extent[1] + 60], size: COUNTRY_PIN * map.lod.n, split: Math.max(map.lod.split, COUNTRY_SPLIT) }));
+    channel.pins = [...(channel.pins || []), ...pins];
+  }
   // the free camera flies at the craft's speeds: its stall at the ground, faster with height
   channel.speeds = { walk: 4.5, flyMin: map.craft.stall, flyPerAlt: r2(map.craft.cruise / Math.max(1, map.ceiling / 4)) };
   const F = map.rings.field;
@@ -154,6 +169,8 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
     { name: 'threshold', worldFraming: { cameraPosition: [spawn[0], spawn[1], spawn[2] + 2], lookAt: [look[0], look[1], look[2] + 2], horizontalFov: 70 } },
     { name: 'low-pass', worldFraming: { cameraPosition: [-F.hx * 0.9, -F.hy * 0.9, field.groundAt(-F.hx * 0.9, -F.hy * 0.9) + 2 * low], lookAt: [0, 0, field.groundAt(0, 0)], horizontalFov: 65 } },
     { name: 'ceiling', worldFraming: { cameraPosition: over(0, -fieldR * 1.6, top), lookAt: [0, 0, field.groundAt(0, 0)], horizontalFov: 60 } },
+    // each of the country's settlements from an approach off its corner, a flyover's height over it
+    ...(field.report.country?.settlements || []).map((c) => { const [x, y] = c.center, R = dmath.hypot(c.size[0], c.size[1]), gz = field.groundAt(x, y), up = (c.kind === 'metro' ? 0.18 : 0.3) * R; return { name: c.id, worldFraming: { cameraPosition: over(x - 0.75 * R, y - 0.75 * R, gz + up), lookAt: [x, y, gz], horizontalFov: 60 } }; }),
     // each city from a low pass off its corner, a little above its tallest roof
     ...(field.report.cities || []).map((c, i) => { const [x, y] = c.center, R = dmath.hypot(c.size[0], c.size[1]), gz = field.groundAt(x, y); return { name: i ? `city-${i + 1}` : 'city', worldFraming: { cameraPosition: over(x - 0.7 * R, y - 0.7 * R, gz + c.tallest + 2 * low), lookAt: [x, y, gz + 0.3 * c.tallest], horizontalFov: 60 } }; }),
   ];
@@ -164,7 +181,7 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   const bg = rgbHex(s.horizon);
   const b = field.bounds;
   return {
-    faces: [...(live ? [] : bakeTerrainFaces(field, { spacing: 2 * map.grid.cell, patches: field.pads.map((p) => ({ x0: p.x0, y0: p.y0, w: p.x1 - p.x0, d: p.y1 - p.y0 })) })), ...(live ? field.cityFormed : field.cityFaces), ...(course ? course.faces : [])],
+    faces: [...(live ? [] : bakeTerrainFaces(field, { spacing: 2 * map.grid.cell, patches: field.pads.map((p) => ({ x0: p.x0, y0: p.y0, w: p.x1 - p.x0, d: p.y1 - p.y0 })) })), ...(live ? field.cityFormed : field.cityFaces), ...(!live && field.aerial ? countryFaces(field.aerial, { dir: field.K.light, ambient: field.K.lambert.ambient, gain: field.K.lambert.gain }) : []), ...(course ? course.faces : [])],
     // the live page's city masses: instanced unit boxes (city.js), a few numbers each
     ...((R) => (R.length ? { repeats: R } : {}))([...(live ? field.cityRepeats : []), ...railHazardRepeats(manifest, map, field, { light: makeLight({ direction: field.K.light.map((v) => -v), ambient: 0.5, diffuse: 0.6 }), tone: '#' + field.K.ramps.stone.stops[3].map((v) => Math.round(v).toString(16).padStart(2, '0')).join(''), rock: field.meta.rock || 'granite' })]),
     terrain: channel, cameras, sky, bg, title,

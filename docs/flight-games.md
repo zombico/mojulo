@@ -249,6 +249,65 @@ masses, the dogfight's foes, the space map's rocks and trench, and the craft's l
 the shelf's paint, trim and light roles (`resolveCraftPalette`). There is no cloud layer yet, so the palette's
 `cloud` role is unused here.
 
+## The ground from the air: a pilot's country
+
+A flight level's land was the terrain kernel's ramp, coloured per vertex: from altitude, flat paint over rolling
+hills. `ground.country` lays settled country on it (`control/lib/graph/skyscape/country.js`), and the page draws it at
+a pilot's grain (`control/lib/graph/scene/channels/aerial.js`). What reads from the air is drawn. What only a walker
+sees is not: no street kit, no people, no shop fronts.
+
+```js
+{ kind: 'airspace', map: { craft: 'trainer', field: 12000 },
+  ground: { pads: [{ kind: 'runway', at: [0.5, 0.25] }], country: { metro: true, towns: 2, villages: 3 } }, fly: true }
+```
+
+`country: true` lays a town and two villages. Otherwise the object takes `metro` (true, or a geocity recipe such as
+`{ metro: 'harbour-island' }`), `towns`, `villages`, or an explicit `settlements: [{ kind, at?, geocity? }]`. It also
+takes `roads`, `power` and `landmarks` (each on by default).
+
+**One generator at every grain.** Every settlement is a geocity design (`geocity/design.js`) laid on the map's own
+natural ground, at a card by its size (`SETTLEMENTS`):
+
+- A **metro** is a geocity metro card at its own extent. It is sited on the coast when the sea allows. Its water side
+  is turned to the sea, so its shore expressway and waterfront face real water, and its harbour band is dredged under
+  the sea.
+- A **town** is the same generator at a market town's card: a low core round its crossing, mid-rise round that,
+  houses outward, a works at its edge.
+- A **village** is a crossroads of houses and a main street, three storeys at most.
+
+Each settlement is graded onto its streets' ground with a kernel `grade` layer, as a pad is. The ground under its
+buildings is the ground its design stood them on.
+
+**The network.** A minimum spanning tree joins the settlements and the airfield. Each road is routed across the land
+on the map's grid: grade is a cost, the sea and the pads are walls. A metro's link to a town is a highway, a village's
+link is a lane, and a road carries the country on past the field. A pylon line runs from the metro's substation (else a
+town's) out to the reach, away from the airfield. A water tower stands on each town's and village's high edge, and a
+mast on the field's highest ground with its tip lit. The roofs, the towers and the mast join the craft's ground
+(`roofs`), so a craft can hit them.
+
+**The cover.** `skyscape/cover-kernel.js` reads the land's use off the land: woods on slopes too steep to plough, on
+high ground and in scattered woodlots, cleared round the settlements; heath on the most exposed ground; sand by the
+sea; crops on the flat low ground near the settlements; pasture elsewhere. It is self-contained, like the terrain
+kernel. The page inlines it and bakes it to a texture over the map's grid.
+
+**The page.** The ground's own shader draws the cover per pixel, not per vertex:
+
+- field systems turned with the land, their parcels hedged, furrowed, cropped or grazed;
+- woods as a canopy, heath, and beaches;
+- the settlements' ground plans and the roads, painted from a canvas;
+- every pattern fading to its mean once it falls under a pixel.
+
+The cover is lit by each vertex's light relative to flat ground. Rock, the sea and the pads keep the kernel's colour.
+Every building is one instance of a unit box under a facade shader, with windows a storey and a bay by what the
+building is: a curtain wall, an office, a flat, a hall's ribbon, a house. The glass catches the sky as the eye grazes
+it. Houses and halls have gables. Tanks, spheres, stacks and water towers are rounds, and the highways run on decks
+over their piers. Pylons are lattices of lines, and their conductors sag span to span.
+
+**Exports** carry the buildings as faces. The cover is the page's: an export's ground keeps the kernel's colours.
+
+**Pilot School** flies over this country: its island airfield has a market town, two villages, the lanes between them
+and the field, a line of pylons and a mast.
+
 ## What comes next
 
 The shelf is the asset layer. In order, the moves that turn it into flight games:

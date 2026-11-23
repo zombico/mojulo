@@ -1860,6 +1860,7 @@ const flightCard = () => [
   'No goal: an airspace with a course is flown as one, with a trench as a trench run; else to its exit.',
   'The craft is drawn as its class\'s airframe off the craft shelf (a trainer a light single, a jet a jet fighter, the',
   "space fighter a strike foil); airspace.airframe names another (any of the shelf's archetypes), or false for a slab.",
+  'Its land: airspace.ground.country = true | { metro?, towns?, villages? } (farms, woods, roads, geocities, pylons).',
   '',
   'TASKS (each may carry text: what the player is told; a plain one is written when absent):',
   '  { gates: true | [from, to] }   the course\'s gates in order (from 1); one flown out of turn does nothing',

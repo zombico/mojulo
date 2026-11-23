@@ -2,6 +2,7 @@ import { safeJson } from '../emit-util.js';
 import { terrainPlantsScript } from './terrain-plants.js';
 import { terrainGrassScript } from './terrain-grass.js';
 import { terrainWindScript } from './terrain-wind.js';
+import { aerialVertexFn, aerialScript } from './aerial.js';
 
 // In-page script: the TERRAIN channel (opt-in via emitThreeWorld({ terrain })). The page
 // carries the terrain world's RECIPE — the kernel's source (terrain-kernel.js, inlined as text) and its quantised grids —
@@ -29,6 +30,9 @@ import { terrainWindScript } from './terrain-wind.js';
 //          under a city's streets and lots stays nearly as fine as they are wherever they can be seen (flat worlds).
 export function terrainChannelScript(cfg) {
   const { kernel, plants, grass, wind, ...rest } = cfg;   // plants (terrain-plants.js), grass (terrain-grass.js) and the wind that bends them (terrain-wind.js): scripts of their own, after the ground's
+  // the aerial ground (aerial.js, a flight map's country): its cover kernel's source inlined in its own script, not twice
+  const A = rest.aerial || null;
+  if (A) rest.aerial = { ...A, cover: { ...A.cover, kernel: undefined } };
   return `
 // --- terrain world (opt-in): the recipe's ground, meshed around the camera ---
 const TERRAIN = ${safeJson(rest)};
@@ -62,9 +66,10 @@ const __tKey = (f, l, i, j) => f + ':' + l + ':' + i + ':' + j;
 const __tC = __tPL ? new THREE.Vector3(0, 0, -__tPL.R) : null;
 const __tFaces = [[[0, 0, 1], [1, 0, 0], [0, 1, 0]], [[0, 0, -1], [1, 0, 0], [0, -1, 0]], [[1, 0, 0], [0, 1, 0], [0, 0, 1]], [[-1, 0, 0], [0, -1, 0], [0, 0, 1]], [[0, 1, 0], [-1, 0, 0], [0, 0, 1]], [[0, -1, 0], [1, 0, 0], [0, 0, 1]]];
 function __tDir(f, u, v) { const F = __tFaces[f]; const x = F[0][0] + u * F[1][0] + v * F[2][0], y = F[0][1] + u * F[1][1] + v * F[2][1], z = F[0][2] + u * F[1][2] + v * F[2][2], l = Math.sqrt(x * x + y * y + z * z); return [x / l, y / l, z / l]; }
-function __tFinish(pos, col, cx, cy, cz) {
+function __tFinish(pos, col, cx, cy, cz${A ? ', aux' : ''}) {
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(__tIndex);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(__tIndex);${A ? `
+  if (aux) geo.setAttribute('aerial', new THREE.BufferAttribute(aux, 3));` : ''}
   geo.computeBoundingSphere();
   const mesh = new THREE.Mesh(geo, __tMat); mesh.position.set(cx, cy, cz); mesh.userData.g = 'terrain'; mesh.layers.set(1); mesh.visible = false;
   scene.add(mesh); if (typeof walkColliders !== 'undefined') walkColliders.push(mesh);
@@ -84,18 +89,20 @@ function __tBuildFlat(l, ix, iy) {
   const step = size / __tN, W = __tV + 2, Hg = new Float64Array(W * W);
   for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) Hg[j * W + i] = __tk.heightAt(x0 + (i - 1) * step, y0 + (j - 1) * step);
   const cx = x0 + size / 2, cy = y0 + size / 2, nv = __tV * __tV + __tPerim.length;
-  const pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3);
+  const pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3);${A ? ' const aux = new Float32Array(nv * 3);' : ''}
   for (let j = 0; j < __tV; j++) for (let i = 0; i < __tV; i++) {
     const v = j * __tV + i, h = Hg[(j + 1) * W + i + 1], X = x0 + i * step, Y = y0 + j * step;
     const gx = (Hg[(j + 1) * W + i + 2] - Hg[(j + 1) * W + i]) / (2 * step), gy = (Hg[(j + 2) * W + i + 1] - Hg[j * W + i + 1]) / (2 * step);
     const ln = Math.sqrt(gx * gx + gy * gy + 1), c = __tk.colorAt(X, Y, h, [-gx / ln, -gy / ln, 1 / ln], undefined, step);
     pos[v * 3] = X - cx; pos[v * 3 + 1] = Y - cy; pos[v * 3 + 2] = h;
-    col[v * 3] = __tLin(c[0]); col[v * 3 + 1] = __tLin(c[1]); col[v * 3 + 2] = __tLin(c[2]);
+    col[v * 3] = __tLin(c[0]); col[v * 3 + 1] = __tLin(c[1]); col[v * 3 + 2] = __tLin(c[2]);${A ? `
+    __aVert(X, Y, h, gx, gy, ln, aux, v);` : ''}
   }
-  __tSkirt(pos, col, TERRAIN.skirt * size, null);
-  return __tFinish(pos, col, cx, cy, 0);
+  __tSkirt(pos, col, TERRAIN.skirt * size, null);${A ? `
+  for (let p = 0; p < __tPerim.length; p++) { const s0 = __tPerim[p], d = __tV * __tV + p; aux[d * 3] = aux[s0 * 3]; aux[d * 3 + 1] = aux[s0 * 3 + 1]; aux[d * 3 + 2] = aux[s0 * 3 + 2]; }` : ''}
+  return __tFinish(pos, col, cx, cy, 0${A ? ', aux' : ''});
 }
-const __tSea = __tPL ? __tPL.sea : null;
+${A ? aerialVertexFn() + '\n' : ''}const __tSea = __tPL ? __tPL.sea : null;
 function __tBuildPlanet(f, l, ix, iy) {
   const R = __tPL.R, span = 2 / (1 << l), u0 = -1 + ix * span, v0 = -1 + iy * span, step = span / __tN, W = __tV + 2;
   const P = new Float64Array(W * W * 3), H = new Float64Array(W * W), XY = new Float64Array(W * W * 2), D = new Float64Array(W * W * 3);
@@ -257,5 +264,5 @@ if (TERRAIN.water && !__tPL) {
   wm.position.set(TERRAIN.root.cx, TERRAIN.root.cy, W.z); wm.renderOrder = 1; scene.add(wm);
 }
 __tTick();
-${wind ? terrainWindScript(wind) : ''}${plants ? terrainPlantsScript(plants, !!wind) : ''}${grass ? terrainGrassScript(grass, !!wind) : ''}`;
+${A ? aerialScript(A) : ''}${wind ? terrainWindScript(wind) : ''}${plants ? terrainPlantsScript(plants, !!wind) : ''}${grass ? terrainGrassScript(grass, !!wind) : ''}`;
 }

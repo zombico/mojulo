@@ -15,6 +15,11 @@
  *              world), flat to the datum under the wheels whatever the detail around them, painted with their marks
  *   cities     fractal cities (city.js, terrain-city.js's): sited clear of the pads' climb-outs, graded, seated as
  *              plain metro masses; their roofs are obstacles (`topAt`)
+ *   country    the settled land (country.js): geocities at a metro's, a town's and a village's card, sited (a metro on
+ *              the coast, its water the sea), graded onto their streets' ground, joined by roads to each other and the
+ *              airfield, a power line out to the reach, water towers and a mast; seated at flight detail (`aerial`:
+ *              boxes a facade shader draws, gables, rounds, decks and piers, pylons and wires, the ground plan), their
+ *              roofs obstacles too. Absent, the ground is as it was
  *   gorge      a gorge cut through the field along x (`gorge: true | { width?, depth? }`, the floor's width and the walls'
  *              height in m): the land beside a weaving centreline raised into walls, its floor kept low; `field.gorge`
  *              carries its line (x → y), so a way laid down it (rail-stage.js) runs its floor. Absent: no gorge
@@ -37,7 +42,9 @@ import { landformGrid, gridX, gridY, hashSeed, gnoise } from '../polygonizer/lan
 import { LANDS, SHAPES } from '../roads/surrounds.js';
 import { terrainKernel } from '../terrain/terrain-kernel.js';
 import * as dmath from '../../util/dmath.js';
-import { readCityAsk, prepareCities, seatCities } from './city.js';
+import { readCityAsk, prepareCities, seatCities, packRoofs } from './city.js';
+import { readCountryAsk, planCountry, seatCountry } from './country.js';
+import { coverPalette } from './aerial.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { terrainRamps, atlasGround } from '../color-theorist/ground.js';
 
@@ -69,7 +76,8 @@ const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('b
 /** Errors (strings) for a ground ask; [] when it lays. */
 export function readGroundAsk(ask = {}) {
   const e = [];
-  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, geocube?, gorge?, seed? }'];
+  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, country?, geocube?, gorge?, seed? }'];
+  e.push(...readCountryAsk(ask.country));
   if (ask.gorge !== undefined && typeof ask.gorge !== 'boolean' && !(ask.gorge && typeof ask.gorge === 'object' && ['width', 'depth'].every((k) => ask.gorge[k] === undefined || (Number.isFinite(ask.gorge[k]) && ask.gorge[k] >= 40 && ask.gorge[k] <= 2000)))) e.push('ground.gorge must be true, false or { width?, depth? } in metres, each 40–2000');
   e.push(...readCityAsk(ask.cities));
   if (ask.land !== undefined && !LANDS[ask.land]) e.push(`ground.land must be one of ${Object.keys(LANDS).join(', ')}`);
@@ -250,7 +258,7 @@ function padLayer(p, datum) {
 }
 
 /**
- * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, cities?, geocube?, seed? }. `palette`: a palette spec
+ * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, cities?, country?, geocube?, seed? }. `palette`: a palette spec
  * (color-theorist/solve.js) that colours the ground, the sky and the sea in place of the geocube and the day sky (the
  * relief, the pads and the cities are the same with or without it). → a terrain field (K, kernel, heightAt, groundAt,
  * normalAt, colorAt, bounds, meta, pageConfig) plus `pads` (each with its datum), a `report`, and `water` (the sea's
@@ -318,22 +326,32 @@ export function mapGround(map, ask = {}, { palette } = {}) {
   // the cities (city.js): sited on the natural ground clear of the pads and their climb-outs, graded beside them
   const bounds = { x: [g.x0, g.x0 + (g.nx - 1) * g.dx], y: [g.y0, g.y0 + (g.ny - 1) * g.dx], z: [lo, hi], cell: cellM };
   const preps = prepareCities(map, { K, kernel: natural, heightAt: natural.heightAt, groundAt: natural.groundAt, bounds }, ask.cities, pads);
-  const layers = [...pads.map((p) => padLayer(p, p.datum)), ...preps.map((p) => p.grade.layer)];
+  // the country (country.js): its settlements sited clear of the pads, their climb-outs and the fractal cities
+  const country = ask.country ? planCountry(map, { nat, sea, pads, taken: preps.map((p) => [p.center[0], p.center[1], p.rect.w, p.rect.d]), seed }, ask.country) : null;
+  const layers = [...pads.map((p) => padLayer(p, p.datum)), ...preps.map((p) => p.grade.layer), ...(country ? country.layers.map((L) => ({ ...L, ramp: K.ramps.soil })) : [])];
   if (layers.length) K.grade = layers;
   const kernel = layers.length ? terrainKernel(K) : natural;
   const town = seatCities(preps, { K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, bounds });
+  const aerial = country ? { ...seatCountry(country, kernel.heightAt, cube), cover: coverPalette(cube) } : null;
+  // (the country's roofs join the cities': each a grid of its tallest tops, the ground under the rest)
+  const topAt = aerial ? (x, y) => {
+    let z = town.topAt(x, y);
+    for (const r of aerial.roofs) { const i = Math.floor((x - r.x0) / 10), j = Math.floor((y - r.y0) / 10); if (i >= 0 && j >= 0 && i < r.nx && j < r.ny) { const t = r.top[j * r.nx + i]; if (t > z) z = t; } }
+    return z;
+  } : town.topAt;
   const sky = painted ? painted.atlas.sky : { ...DAY_SKY };
   return {
     K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     // the highest surface: the ground, or a city's roof over it (what a course and a pilot keep clear of)
-    topAt: town.topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [], roofs: town.roofs ?? [],
+    topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [], roofs: [...(town.roofs ?? []), ...(aerial ? aerial.roofs.map(packRoofs) : [])],
+    ...(aerial ? { aerial, country } : {}),
     bounds,
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,
     ...(gorge ? { gorge } : {}),
     // the sea's colour: the palette's water ramp at its middle (no palette: the page's own, from the sky)
     ...(painted && sea !== null ? { water: rgbHex(painted.atlas.ramps.water.stops[2]) } : {}),
-    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), ...(P ? { palette: P.id } : { geocube: cube.id }), scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}) },
+    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), ...(P ? { palette: P.id } : { geocube: cube.id }), scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}), ...(country ? { country: { ...country.report, masses: aerial.report } } : {}) },
     pageConfig() {
       const { hq: q, hard: h, apron: a, grade, ...rest } = K;
       return { ...rest, grids: { hq: b64(q), hard: b64(h), apron: b64(a) }, ...(grade ? { grade: grade.map((L) => ({ ...L, dq: b64(L.dq), w: b64(L.w), ...(L.paint ? { paint: { ...L.paint, pc: b64(L.paint.pc) } } : {}) })) } : {}) };

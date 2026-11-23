@@ -1,7 +1,8 @@
 /**
  * PILOT SCHOOL — the realistic flight rail's starter: a licence earned lesson by lesson, each a level flown for its tasks
  * (flight-goal.js) and graded bronze to gold (game/grade.js) by how long it took and how cleanly it held its bands. The
- * syllabus is a light trainer's, on one island airfield, flown on the sim assist (the bank holds where it is put, the
+ * syllabus is a light trainer's, on one island airfield in farmed country (a market town, villages, lanes, a line of
+ * pylons: skyscape/country.js), flown on the sim assist (the bank holds where it is put, the
  * stall is real), its lessons in order:
  *
  *   lesson-1  First flight              the throttle, the take-off, the first rings, leveling off over the field
@@ -23,7 +24,9 @@
 
 export const PILOT_SCHOOL = Object.freeze({
   craft: 'trainer', assist: 'sim',
-  airfield: Object.freeze({ pads: Object.freeze([Object.freeze({ kind: 'runway', at: Object.freeze([0.5, 0.25]) })]) }),
+  // (the island round the field is farmed country, skyscape/country.js: a market town, two villages, the lanes between
+  // them and the field, a line of pylons and a mast; a student learns to fly over somewhere)
+  airfield: Object.freeze({ pads: Object.freeze([Object.freeze({ kind: 'runway', at: Object.freeze([0.5, 0.25]) })]), country: Object.freeze({ towns: 1, villages: 2 }) }),
 });
 
 // a lift-off: the wheels off and climbing, three seconds clear of the ground
@@ -66,7 +69,7 @@ export const LESSONS = Object.freeze([
 export function lessonLevel(lesson) {
   return {
     name: lesson.name,
-    airspace: { map: { craft: PILOT_SCHOOL.craft }, ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })) }, course: true, assist: PILOT_SCHOOL.assist },
+    airspace: { map: { craft: PILOT_SCHOOL.craft }, ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })), country: { ...PILOT_SCHOOL.airfield.country } }, course: true, assist: PILOT_SCHOOL.assist },
     goal: { flight: { tasks: lesson.tasks.map((t) => JSON.parse(JSON.stringify(t))), crash: 'fail', grade: JSON.parse(JSON.stringify(lesson.grade)) } },
   };
 }
