@@ -9,7 +9,7 @@
  *
  *   cd control
  *   node scripts/spikes/mission/hangar.mjs --out /abs/dir [--dry] [--hero <ref>] [--guard <ref>] [--vault …] [--roll …]
- *     [--climb …] [--crouch a,b] [--prone a,b] [--capture]
+ *     [--climb …] [--crouch a,b] [--prone a,b] [--capture] [--siege-page boss-siege-walker.html]
  */
 import { register } from 'node:module';
 import fs from 'node:fs/promises';
@@ -111,7 +111,10 @@ const mission = {
     { id: 'true', says: M.objectives.true.reads, after: M.reveal.flag, done: 'intel-siege' },
   ],
   // (the lobby's door: out to the yard, where the mission ends; a body that came in by it stands in the lobby)
-  exits: [{ id: 'lobby-door', name: 'Out to the yard', at: r2(mid(R.lobby, 0, -2.6)), radius: 1.6, to: opt('--yard-page', 'level-1-perimeter.html'), door: 'hangar-bay-1' }],
+  exits: [{ id: 'lobby-door', name: 'Out to the yard', at: r2(mid(R.lobby, 0, -2.6)), radius: 1.6, to: opt('--yard-page', 'level-1-perimeter.html'), door: 'hangar-bay-1' },
+    // (the hall's doors, out the back onto the test apron, once the proof of the siege walker is held: it is awake, and
+    // the fight with it is there: boss.mjs --boss siege-walker)
+    { id: 'apron-door', name: 'Out the back, onto the apron: the walker is awake', at: r2([H.max[0] - 1.6, (H.min[1] + H.max[1]) / 2, H.min[2]]), radius: 2.2, needs: { items: ['intel-siege'] }, to: opt('--siege-page', 'boss-siege-walker.html'), door: 'hangar-back' }],
   arrivals: { 'lobby-door': { at: start0, heading: Math.PI / 2 } },
   leave: M.result.when,
   unsure: 'something in this hangar does not add up: look around',
@@ -127,7 +130,7 @@ const entities = [
 ];
 const parked = [...line.map((at) => ({ vehicle: 'field walker', role: 'assault', at, heading: -Math.PI / 2 })), { vehicle: 'siege walker', at: siege, heading: Math.PI }];
 console.log(`hangar: hall ${JSON.stringify({ min: r2(H.min), max: r2(H.max) })} · under ${JSON.stringify({ min: r2(U.min), max: r2(U.max) })} · lift ${JSON.stringify(lift)} · start ${start}`);
-console.log(`hangar: items ${mission.items.map((i) => `${i.id}@${i.at}`).join(' ')} · clues ${mission.clues.map((i) => `${i.id}@${i.at}`).join(' ')} · stairwell ${mission.ways[1].a} ↔ ${mission.ways[1].b} · out ${mission.exits[0].at}`);
+console.log(`hangar: the apron's door ${mission.exits[1].at} · items ${mission.items.map((i) => `${i.id}@${i.at}`).join(' ')} · clues ${mission.clues.map((i) => `${i.id}@${i.at}`).join(' ')} · stairwell ${mission.ways[1].a} ↔ ${mission.ways[1].b} · out ${mission.exits[0].at}`);
 if (argv.includes('--dry')) process.exit(0);
 
 const manifest = { ...stage, figures: room.manifest.figures, entities, fxStyle: room.manifest.fxStyle, parked, shoot, figureGrade: room.manifest.figureGrade };

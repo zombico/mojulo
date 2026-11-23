@@ -2811,6 +2811,8 @@ ${figHasLayers ? `    // POSE LAYERS (__poseLayers): each op turns its pivot bon
     }
 ` : ''}${turretOn ? `    // (a base's turret and gun bones turned by its turret, worlds/controllable/turret.js: turret-view.js)
     if (e.turret && e.turret.yaw !== undefined && window.__tvReady) __tvRigBone(e, fig, bi, __rigQA, __rigPA, mesh);
+` : ''}${bossOn ? `    // (a mecha boss's parts shot off it hidden, a carrier's drones' rotors spun: boss-view.js)
+    if ((e.drone || (e.rule && e.rule.boss && e.rule.boss.frame)) && window.__bossRigBone) window.__bossRigBone(e, fig, bi, __rigQA, __rigPA, mesh);
 ` : ''}${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
     // then they, and the body, lean, pitch and bounce about the wheelbase's middle
     if (LV && LV.role[bi]) {
