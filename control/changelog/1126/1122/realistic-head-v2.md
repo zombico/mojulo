@@ -43,10 +43,11 @@ face toward the proportions and the clean structure of a current game character,
 - A crop reads as short hair and no longer as a helmet: the scalp's skin is painted with streaks along its growth and
   the crop's shell shows that paint, its hairline soft and its sides fading into the skin, each of its faces read off one
   face of the skin so the head's seam shows no line. Under a cut's locks the shell keeps the hair's colour.
-- The hairline has no gap: the hair thins out onto the forehead through a fringe of fine short hairs painted on the
-  skin, rising through a crop's fade into the full hair; a crop's shell lies down onto the forehead over 16 mm instead of
-  standing as a lip, and a lock's root lies nearly on the skin; the scalp under a crop is the hair's own colour, with no
-  dark line where the fade met it, and the fade's small cards are gone.
+- The hairline has no gap and stops at its edge: a few millimetres of fine short hairs painted along it, the clipped
+  hair under a taper or a fade painted as hair (never a pale band of skin under the locks), a crop's shell lying down
+  onto the forehead over 16 mm instead of standing as a lip and a lock's root nearly on the skin; the scalp under a crop
+  is the hair's own colour, with no dark line where the fade met it, and the fade's small cards are gone. The locks'
+  texture is fine strands without the waves that read as wood grain.
 
 Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; long hair has a few flat wedges
 standing out of it at the jaw's height and across the back, and a crop's shell a ledge at the nape.

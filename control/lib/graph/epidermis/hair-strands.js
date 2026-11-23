@@ -115,7 +115,7 @@ export function lashCellUV(cell, [across, along]) {
  * mass's depth where it leaves the head). White about 1: the face's colour is its group's (`Hair`, `Beard`) times it.
  * A lock's cell is LOCK_CELL0 + its index.
  */
-export const LOCK_PAGE = Object.freeze({ cells: 4, strands: 64, value: [0.8, 1], band: 0.05, wave: 1.5, root: 0.18, w: 512, h: 128 });
+export const LOCK_PAGE = Object.freeze({ cells: 4, strands: 96, value: [0.85, 1], band: 0, wave: 0.4, root: 0.18, w: 512, h: 128 });
 export const LOCK_CELL0 = 200;
 export function lockPage({ w = LOCK_PAGE.w, h = LOCK_PAGE.h } = {}) {
   const P = LOCK_PAGE, cw = w / P.cells, rgba = new Uint8Array(w * h * 4);

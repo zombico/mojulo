@@ -50,7 +50,9 @@ function streakAt(X, Y, th, seed) {
 }
 /** a hairline's FRINGE: from `from` mm under the hairline (where the scalp's paint has faded out) on `reach` mm, at most
  * `share` of a texel in hair */
-export const HAIR_FRINGE = Object.freeze({ from: 3, reach: 9, share: 0.75 });
+export const HAIR_FRINGE = Object.freeze({ from: 0, reach: 3, share: 0.75 });
+/** the share of hair a clipped scalp is painted with at least, on the painted face's hair */
+export const CLIP_SOLID = 0.65;
 /** a brow hair's colour against the hair's mean */
 const BROW_TONE = 0.8;
 /** the lash line's colour against the hair's mean: the lashes' roots, the darkest hair on the face */
@@ -180,7 +182,9 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     // (and the SIDEBURN where the face grows a beard: its band in the beard's length, over whatever skin is under it)
     const sb = clip?.head ? sideburnOf(A, D) : null, sbShare = sb ? clipCover(sb.mm) * mottle(41) * sb.w : 0;
     let sbApplied = 0;
-    if (mm !== null && mm < CLIPPER.shell) { const sh = Math.max(sbShare, Math.min(1, clipCover(mm) * mottle(31) + (1 - clipCover(mm)) * smooth(CLIPPER.shell - CLIPPER.meet, CLIPPER.shell, mm)) * scalpW); col = mixc(col, hairLin, sh); sbApplied = sh; }
+    // (`scalpStreaks`, the painted face's hair: a clipper's short hair as solid as the hair it meets, CLIP_SOLID, so the
+    // hair stops at its hairline and never shows a pale band of skin under a taper or a fade; looks, not a clipper's shadow)
+    if (mm !== null && mm < CLIPPER.shell) { const sh = Math.max(sbShare, (scalpStreaks ? CLIP_SOLID : 0) * scalpW, Math.min(1, clipCover(mm) * mottle(31) + (1 - clipCover(mm)) * smooth(CLIPPER.shell - CLIPPER.meet, CLIPPER.shell, mm)) * scalpW); col = mixc(col, hairLin, sh); sbApplied = sh; }
     // (where the scalp's own paint is the fainter, the hairline's soft edge or a cell the clip has no length for, the band's)
     else if (sbShare > 0 && sbShare > (scalp ? scalpPaint * scalpW : 0)) { col = mixc(col, hairLin, sbShare); sbApplied = sbShare; }
     else if (scalpW > 0.01 && !D.bareScalp) {
