@@ -394,3 +394,15 @@
   places, the plants round it (`form-flora.js` `__formFloraNear`) and what is built within 12 m. No pack is laid on a
   whole town or a street, nor within 30 m of what a stage has built beside its trail (`battles.js` SETTLED). The
   starter's castle heights fought in front of its church, the camera cut through its wall; it fights on the open hill.
+- **RPG dungeon kits.** Four room kits for RPG dungeons, none of them built stone as the gothic kits are: `deep-forge`,
+  `fungal-grotto`, `drowned-shrine`, `arcane-vault` (`era/stage.js` STAGE_KITS, their style cards
+  `era/style/dungeon-kits.js`), each a chamber and its halls (`KIT_STARTERS`). One data-driven dressing,
+  `era/dungeon.js` `dungeonDress`, reads each card's set piece, floor feature, walls, corners, halls and ceiling and
+  places twenty-three new doodads (a forge hearth, anvils, ore carts, chain hoists, a molten channel; a mushroom grove,
+  glowcaps, bracket fungi, roots, spores, a still pool; a drowned altar, coral, kelp, jellyfish lanterns, a flood; an
+  orrery, a rune circle, bookcases, a lectern, crystal clusters, floating crystals) at the props' places
+  (`props.js` `wallSpots`); their glow is self-lit and lays its light. A kit may light no lamp (`torch.none`).
+  [docs/dungeon-kits.md](../../../../docs/dungeon-kits.md).
+- **A town with a story carries its bag in again.** Once a level has story scenes (the round's opening in the town),
+  what it carries in was read off the story's scenes alone, so the townsfolk's own pages that read the bag (the
+  priest's crypt key) lost it (`levels.js` storyPart); both are read now.

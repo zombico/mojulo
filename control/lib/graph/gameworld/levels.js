@@ -1389,7 +1389,8 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   if (scenes.length) {
     const spots = stageSpots(ends, lane);
     // where a scene's has and done read: the game's inventories and its campaign (only when its scenes ask)
-    const asks = sceneNeeds({ scenes }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
+    // (the story's scenes and the play's own, a townsperson's pages that read the bag: what either asks is carried in)
+    const asks = sceneNeeds({ scenes: [...scenes, ...(play?.scenes ?? [])] }), from = carryFrom && (asks.items.length || asks.done.length) ? carryFrom : null;
     // (and how each acts a script: the cast's and the hero's `actor`, playscape/ui/scene-script.js; none said, none carried)
     const actors = storyActors(G);
     play = { ...(play ?? {}), spots: [...(play?.spots ?? []), ...spots], scenes: [...(play?.scenes ?? []), ...scenes], ...(storyCarried(G) ? { carry: STORY_SLICE } : {}), ...(from ? { carryFrom: from } : {}), ...(actors ? { actors } : {}) };
