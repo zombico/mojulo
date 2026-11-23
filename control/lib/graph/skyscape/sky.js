@@ -17,14 +17,21 @@
  * speed) and the sea's colour.
  *
  *   FLIGHT_SKIES, readSkyAsk(ask) → errors
- *   flightSky(ask, { map, seed }) → { kind, hour, sun: { dir, elev, az, color }, light: { ambient, gain, tint },
+ *   flightSky(ask, { map, seed }) → { kind, hour, night, sun: { dir, elev, az, color }, moon, light: { dir, ambient, gain, tint }, lightning,
  *     colours: { zenith, horizon, haze, cloudLit, cloudShade, sea, seaShallow }, hazeMul, wind: { from, speed, dir },
  *     layers, clouds: [[x, y, base, radius, height, seed]…], domain, sea: { height, waves: [[dirx, diry, length, amp, phase]…] }, aloft,
  *     metar }
  *
- * `ask`: a kind ('fair') or { kind?, cover?, hour?, wind?: { from?, speed? }, base?, seed? }. Absent: fair at mid
- * afternoon, the sun where the map always lit its ground from. Metres, degrees for bearings (from north, clockwise, the
- * way a pilot reads them), hours 5–19. Pure, seeded (mulberry32).
+ * `ask`: a kind ('fair') or { kind?, cover?, hour?, wind?: { from?, speed? }, base?, seed?, lightning?, moon? }. Absent:
+ * fair at mid afternoon, the sun where the map always lit its ground from. Metres, degrees for bearings (from north,
+ * clockwise, the way a pilot reads them), hours 0–24.
+ *
+ * NIGHT: past sunset the day's colours fade through the twilight (its afterglow on the horizon) into the night's: a
+ * dark sky with its stars, the moon (its lit share `moon`, else the dice's) lighting the ground and the clouds, the
+ * ground's tint dark and blue. A town lights itself (the page's city lights, aerial.js and night-lights.js).
+ * LIGHTNING (`lightning`, a storm's by default): the page's flashes in the thunderheads, by day or night.
+ *
+ * Pure, seeded (mulberry32).
  */
 import * as dmath from '../../util/dmath.js';
 import { streamOf } from '../city/plan/dice.js';
@@ -58,10 +65,12 @@ export function readSkyAsk(ask, at = 'airspace.sky') {
   if (typeof ask === 'string') return FLIGHT_SKIES[ask] ? [] : [`${at} must be one of ${FLIGHT_SKY_IDS.join(', ')}, or { kind?, cover?, hour?, wind?, base?, seed? }`];
   if (!isObj(ask)) return [`${at} must be a weather (${FLIGHT_SKY_IDS.join(', ')}) or { kind?, cover?, hour?, wind?, base?, seed? }`];
   const e = [];
-  for (const k of Object.keys(ask)) if (!['kind', 'cover', 'hour', 'wind', 'base', 'seed'].includes(k)) e.push(`${at}.${k} is not a setting (kind, cover, hour, wind, base, seed)`);
+  for (const k of Object.keys(ask)) if (!['kind', 'cover', 'hour', 'wind', 'base', 'seed', 'lightning', 'moon'].includes(k)) e.push(`${at}.${k} is not a setting (kind, cover, hour, wind, base, seed, lightning, moon)`);
+  if (ask.lightning !== undefined && typeof ask.lightning !== 'boolean') e.push(`${at}.lightning is true or false (a storm's is on)`);
+  if (ask.moon !== undefined && !(Number.isFinite(ask.moon) && ask.moon >= 0 && ask.moon <= 1)) e.push(`${at}.moon is the moon's lit share, 0 (new) to 1 (full)`);
   if (ask.kind !== undefined && !FLIGHT_SKIES[ask.kind]) e.push(`${at}.kind must be one of ${FLIGHT_SKY_IDS.join(', ')}`);
   if (ask.cover !== undefined && !(Number.isFinite(ask.cover) && ask.cover >= 0 && ask.cover <= 1)) e.push(`${at}.cover is the share of the sky its main layer closes, 0–1`);
-  if (ask.hour !== undefined && !(Number.isFinite(ask.hour) && ask.hour >= 5 && ask.hour <= 19)) e.push(`${at}.hour is the hour of the day, 5–19 (the sun up)`);
+  if (ask.hour !== undefined && !(Number.isFinite(ask.hour) && ask.hour >= 0 && ask.hour <= 24)) e.push(`${at}.hour is the hour of the day, 0–24 (dusk past 18, night past 19.5, dawn from 4.5)`);
   if (ask.base !== undefined && !(Number.isFinite(ask.base) && ask.base >= 150 && ask.base <= 6000)) e.push(`${at}.base is its main layer's base in metres, 150–6000`);
   if (ask.seed !== undefined && !Number.isInteger(ask.seed)) e.push(`${at}.seed is a whole number`);
   if (ask.wind !== undefined && !(isObj(ask.wind) && Object.keys(ask.wind).every((k) => ['from', 'speed'].includes(k))
@@ -70,12 +79,23 @@ export function readSkyAsk(ask, at = 'airspace.sky') {
   return e;
 }
 
-/** The sun at an hour: its height (0 at 6 and 18, highest at noon) and its bearing (east at 6, south at noon, west at
- *  18: a northern map), and the unit vector toward it (x east, y north, z up). */
+/** The sun at an hour: its height (0 at 6 and 18, highest at noon, under the horizon at night) and its bearing (east at
+ *  6, south at noon, west at 18: a northern map), and the unit vector toward it (x east, y north, z up). */
 export function sunAt(hour) {
-  const elev = 58 * dmath.sin(Math.PI * (hour - 6) / 12), bearing = 90 + 180 * (hour - 6) / 12;
-  const e = Math.max(2, elev) * Math.PI / 180, b = bearing * Math.PI / 180;
-  return { elev: r2(elev), az: r2(bearing), dir: [r4(dmath.cos(e) * dmath.sin(b)), r4(dmath.cos(e) * dmath.cos(b)), r4(dmath.sin(e))] };
+  const elev = 58 * dmath.sin(Math.PI * (hour - 6) / 12), bearing = (90 + 180 * (hour - 6) / 12 + 720) % 360;
+  return { elev: r2(elev), az: r2(bearing), dir: dirOf(elev, bearing) };
+}
+const dirOf = (elev, bearing) => { const e = elev * Math.PI / 180, b = bearing * Math.PI / 180; return [r4(dmath.cos(e) * dmath.sin(b)), r4(dmath.cos(e) * dmath.cos(b)), r4(dmath.sin(e))]; };
+/** How far into the night an hour is: 0 while the sun is up, rising through the twilight (the sun 2° over the horizon to
+ *  10° under it), 1 past it. */
+export const nightOf = (elev) => 1 - smooth(-10, 2, elev);
+/** The night's own colours (0–255): its sky, its haze, its clouds (moonlit, or barely there), its sea; scaled by the
+ *  moon's lit share. */
+function nightColours(kind, phase, W) {
+  const m = 0.55 + 0.45 * phase, veil = W.light.gain < 0.3 ? 1 : 0;
+  const zenith = [4, 7, 17].map((v) => v * (veil ? 1.4 : 1)), horizon = [16, 21, 34].map((v) => v * (veil ? 1.25 : 1) * m);
+  return { zenith, horizon, cloudLit: [62, 68, 84].map((v) => v * m * (veil ? 0.7 : 1)), cloudShade: [20, 23, 31], sea: [5, 10, 18],
+    tint: [0.1, 0.125, 0.2].map((v) => v * m), sunCol: [190, 204, 230].map((v) => v * m) };
 }
 
 /** A fully developed sea under a wind (Pierson-Moskowitz): its significant height (m) and its peak wave's length (m);
@@ -147,15 +167,21 @@ function skyColours(kind, sun, W) {
 export function flightSky(ask, { map, seed = 1 } = {}) {
   const errs = readSkyAsk(ask); if (errs.length) throw new Error(`sky: ${errs.join('; ')}`);
   const A = typeof ask === 'string' ? { kind: ask } : ask || {}, kind = A.kind ?? 'fair', W = FLIGHT_SKIES[kind], sd = A.seed ?? seed;
-  const hour = A.hour ?? DEFAULT_HOUR, sun = sunAt(hour);
+  const hour = A.hour ?? DEFAULT_HOUR, sun = sunAt(hour), night = nightOf(sun.elev);
+  // the moon at night: high in the south-east of the sun's night, its lit share the ask's or the dice's
+  const phase = A.moon ?? r2(0.45 + 0.55 * streamOf(sd, 'sky', 'moon')()), moonAz = (sun.az + 205) % 360, moon = { elev: 38, az: r2(moonAz), dir: dirOf(38, moonAz), phase };
   // the wind: from the kind's default bearing (west-south-west, the prevailing) unless said; its unit vector the way it blows
   const from = A.wind?.from ?? 250, speed = A.wind?.speed ?? W.wind, fb = (from * Math.PI) / 180, dir = [r4(-dmath.sin(fb)), r4(-dmath.cos(fb))];
   const wind = { from, speed, dir };
   // the light the hour leaves: low, the sun is warm and dim and the horizon glows
   const low = 1 - smooth(4, 28, sun.elev), dim = smooth(0, 14, sun.elev);
-  const C = skyColours(kind, sun, W), A0 = skyColours('clear', sun, FLIGHT_SKIES.clear);
+  // the day's colours (a set sun's: its afterglow), fading through the twilight into the night's
+  const up = { ...sun, elev: Math.max(0.3, sun.elev) }, Nc = nightColours(kind, phase, W), Na = nightColours('clear', phase, FLIGHT_SKIES.clear);
+  const fade = (D, N) => ({ zenith: mix(D.zenith, N.zenith, night), horizon: mix(D.horizon, N.horizon, night), sunCol: D.sunCol, tint: mix(D.tint, N.tint, night),
+    cloudLit: mix(D.cloudLit, N.cloudLit, night), cloudShade: mix(D.cloudShade, N.cloudShade, night) });
+  const C = fade(skyColours(kind, up, W), Nc), A0 = fade(skyColours('clear', up, FLIGHT_SKIES.clear), Na);
   const { zenith, horizon, sunCol, tint, cloudLit, cloudShade } = C;
-  const sea = mix(rgb(W.sea), horizon, 0.08 + 0.12 * low);
+  const sea = mix(mix(rgb(W.sea), horizon, 0.08 + 0.12 * low), Nc.sea, night);
   // the layers, the main one taking the ask's cover and base
   const layers = W.layers.map((L, i) => ({ ...L, ...(i === 0 && A.cover !== undefined ? { cover: A.cover } : {}), ...(i === 0 && A.base !== undefined ? { base: A.base } : {}) }));
   // the clouds placed over a square the ceiling's eye reaches across (at most 40 km)
@@ -164,7 +190,10 @@ export function flightSky(ask, { map, seed = 1 } = {}) {
   layers.forEach((L) => { if (L.type === 'cumulus') for (const c of placeCumulus(L, L.cover, half, wind, sd)) clouds.push(c); });
   const metar = metarOf(kind, layers, wind, map);
   return {
-    kind, read: W.read, hour, sun: { ...sun, color: hex(sunCol) }, light: { ambient: W.light.ambient, gain: r4(W.light.gain * (0.55 + 0.45 * dim)), tint: tint.map(r4) },
+    kind, read: W.read, hour, night: r4(night), sun: { ...sun, color: hex(sunCol) }, moon: { ...moon, color: hex(Nc.sunCol) },
+    // the ground's light: the sun's by day, the moon's by night (its direction; how dark is the tint's)
+    light: { dir: night > 0.5 ? moon.dir : dirOf(Math.max(2, sun.elev), sun.az), ambient: r4(W.light.ambient + (0.3 - W.light.ambient) * night), gain: r4(W.light.gain * (0.55 + 0.45 * Math.max(dim, night))), tint: tint.map(r4) },
+    lightning: A.lightning ?? kind === 'storm',
     colours: { zenith: zenith.map(Math.round), horizon: horizon.map(Math.round), haze: hex(horizon), cloudLit: hex(cloudLit), cloudShade: hex(cloudShade), sea: hex(sea), seaShallow: hex(mix([46, 150, 150], sea, 0.35)) },
     // over the cloud: the clear sky of the hour, the sun's own colour on the tops (what a pilot sees on top of a deck)
     aloft: { zenith: A0.zenith.map(Math.round), horizon: A0.horizon.map(Math.round), sun: hex(A0.sunCol), cloudLit: hex(A0.cloudLit) },

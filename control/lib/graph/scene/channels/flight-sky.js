@@ -17,6 +17,11 @@
 //                to it), clearing as it flies out
 //   shadows      the cumulus' shadows on the ground, cast along the sun and drifting with them (a footprint map the
 //                ground's shader reads, window.__mojSkyPatch)
+//   night        the stars, the moon's disc lit to its phase and its halo, the towns' light thrown up into the air
+//                over them (an orange glow on the horizon toward each) and onto the bellies of the clouds above them
+//   lightning    a storm's: in some of the clock's slots a stroke in a thunderhead near the eye, its return strokes
+//                flickering over half a second, the cloud lit through, the air, the haze and the ground under it
+//                flaring; most a bolt to the land or the sea, jagged and branching, drawn as a core and a glow
 //
 // The clock is window.__mojClock when a capture pins it, so a frame is reproducible. `window.__mojSky` → { puffs,
 // decks, inside } what is drawn.
@@ -25,6 +30,13 @@ const NOISE_GLSL = `
 float skH(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float skN(vec2 p) { vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f); return mix(mix(skH(i), skH(i + vec2(1, 0)), u.x), mix(skH(i + vec2(0, 1)), skH(i + vec2(1, 1)), u.x), u.y); }
 float skF(vec2 p) { float s = 0.0, a = 0.5; mat2 R = mat2(0.8, 0.6, -0.6, 0.8); for (int i = 0; i < 5; i++) { s += a * skN(p); p = R * p * 2.03 + 7.1; a *= 0.5; } return s / 0.97; }`;
+
+
+const GLOW_GLSL = `
+uniform float uNight; uniform vec4 uGlow[8]; uniform int uGlowN; uniform vec3 uGlowCol; uniform float uFlash; uniform vec3 uFlashPos;
+// a town's light thrown up under the cloud over it: each town a glow over its land (x, y, radius, its strength)
+float cityUnder(vec2 p) { float g = 0.0; for (int i = 0; i < 8; i++) { if (i >= uGlowN) break; vec2 t = (p - uGlow[i].xy) / max(uGlow[i].z, 1.0); g += uGlow[i].w * exp(-dot(t, t) * 0.7); } return g; }
+const vec3 FLASH = vec3(0.78, 0.84, 1.0);`;
 
 const SKY_VERT = `
 varying vec3 vSkD;
@@ -35,10 +47,12 @@ void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vSkD = wp.xyz - camer
 }`;
 const SKY_FRAG = `
 uniform vec3 uZen; uniform vec3 uHor; uniform vec3 uSun; uniform vec3 uSunCol; uniform float uClear;
-uniform vec3 uZenA; uniform vec3 uHorA; uniform vec3 uSunA; uniform float uAbove;
+uniform vec3 uZenA; uniform vec3 uHorA; uniform vec3 uSunA; uniform float uAbove; uniform vec3 uMoon; uniform vec3 uMoonCol; uniform float uMoonPhase;
 varying vec3 vSkD;
 #include <common>
 #include <logdepthbuf_pars_fragment>
+${NOISE_GLSL}
+${GLOW_GLSL}
 void main() {
   #include <logdepthbuf_fragment>
   vec3 d = normalize(vSkD); float h = d.z, mu = max(dot(d, normalize(uSun)), 0.0);
@@ -49,6 +63,25 @@ void main() {
   c += hor * 0.16 * exp(-h * 14.0) * smoothstep(0.0, 0.03, h);
   c += sc * (0.10 * pow(mu, 6.0) + 0.35 * pow(mu, 120.0)) * mix(0.45, 1.0, clr) * smoothstep(-0.02, 0.02, h);
   c += sc * 5.0 * smoothstep(0.99994, 0.99997, mu) * clr;
+  if (uNight > 0.01) {
+    // NIGHT: the stars (one in a few score cells of the sphere, each its own brightness), dimmed toward the horizon's
+    // murk and in a flash; the moon's disc, lit to its phase, and its halo; the towns' light thrown up into the air
+    vec2 sph = vec2(atan(d.y, d.x), asin(clamp(h, -1.0, 1.0))) * 90.0, cell = floor(sph), f = fract(sph);
+    float sh = skH(cell);
+    if (sh > 0.984) { vec2 at = vec2(skH(cell + 3.1), skH(cell + 7.7)) * 0.7 + 0.15; float st = smoothstep(0.16, 0.0, length(f - at)) * (0.25 + 0.75 * skH(cell + 1.3));
+      c += vec3(0.9, 0.93, 1.0) * st * uNight * smoothstep(0.02, 0.2, h) * (1.0 - min(1.0, uFlash)); }
+    vec3 mo = normalize(uMoon); float md = dot(d, mo), disc = smoothstep(0.99996, 0.99998, md);
+    vec3 mr = normalize(cross(mo, vec3(0.0, 0.0, 1.0))); float mx = dot(d - mo * md, mr) / 0.0063;
+    c += uMoonCol * 2.2 * disc * smoothstep(-0.15, 0.15, mx + 2.0 * uMoonPhase - 1.0) * uNight;
+    c += uMoonCol * (0.05 * pow(max(md, 0.0), 300.0) + 0.012 * pow(max(md, 0.0), 12.0)) * uMoonPhase * uNight;
+    float city = 0.0;
+    for (int i = 0; i < 8; i++) { if (i >= uGlowN) break; vec2 to = uGlow[i].xy - cameraPosition.xy; float dist = max(length(to), 1.0), spread = clamp(uGlow[i].z / dist, 0.06, 3.0);
+      float az = acos(clamp(dot(normalize(d.xy + 1e-5), to / dist), -1.0, 1.0));
+      city += uGlow[i].w * exp(-az * az / (spread * spread)) * exp(-max(h, 0.0) * 9.0 / min(spread + 0.15, 1.5)) / (1.0 + dist / 9000.0); }
+    c += uGlowCol * city * uNight * 0.025;
+  }
+  // a lightning flash: the whole air brightens, most toward it
+  if (uFlash > 0.0) { vec3 fd = normalize(uFlashPos - cameraPosition); c += FLASH * uFlash * (0.1 + 0.8 * pow(max(dot(d, fd), 0.0), 6.0)); }
   gl_FragColor = vec4(c, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -80,6 +113,7 @@ varying vec2 vUv; varying vec4 vInfo; varying vec3 vWP; varying float vFade; var
 #include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
 ${NOISE_GLSL}
+${GLOW_GLSL}
 void main() {
   #include <logdepthbuf_fragment>
   float r2 = dot(vUv, vUv); if (r2 > 1.0) discard;
@@ -103,7 +137,10 @@ void main() {
   c *= mix(0.78, 1.0, base);
   // backlit: a cloud between the eye and the sun glows through, its outer puffs most (a whole puff, never a rim)
   vec3 V = normalize(vWP - cameraPosition);
-  c += uSunCol * pow(max(dot(V, L), 0.0), 8.0) * (0.25 + 0.45 * (1.0 - vInfo.y)) * uClear;
+  c += uSunCol * pow(max(dot(V, L), 0.0), 8.0) * (0.25 + 0.45 * (1.0 - vInfo.y)) * uClear * (1.0 - uNight);
+  // at night a town's light on the cloud's belly over it; a flash lighting the cloud it strikes from, through and through
+  c += uGlowCol * cityUnder(vC.xy) * (1.0 - height) * uNight * 0.035;
+  c += FLASH * uFlash * 3.0 * exp(-distance(vC, uFlashPos) / 1600.0) * (0.6 + 0.4 * n);
   gl_FragColor = vec4(c, a);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -148,6 +185,28 @@ void main() {
   #include <fog_fragment>
 }`;
 
+const BOLT_VERT = `
+attribute vec3 tang; attribute float side; uniform float uW; uniform float uPx;
+varying float vS;
+#include <common>
+#include <logdepthbuf_pars_vertex>
+void main() {
+  vec3 v = normalize(cameraPosition - position), o = normalize(cross(tang, v) + 1e-6);
+  float w = max(uW, length(cameraPosition - position) * uPx);
+  vS = side; gl_Position = projectionMatrix * viewMatrix * vec4(position + o * side * w, 1.0);
+  #include <logdepthbuf_vertex>
+}`;
+const BOLT_FRAG = `
+uniform float uFlash; uniform float uA;
+varying float vS;
+#include <common>
+#include <logdepthbuf_pars_fragment>
+void main() {
+  #include <logdepthbuf_fragment>
+  float a = uA * uFlash * pow(1.0 - abs(vS), 1.5);
+  gl_FragColor = vec4(vec3(0.85, 0.9, 1.0) * a, a);
+}`;
+
 const DECK_VERT = `
 varying vec3 vWP;
 #include <common>
@@ -164,6 +223,7 @@ varying vec3 vWP;
 #include <fog_pars_fragment>
 #include <logdepthbuf_pars_fragment>
 ${NOISE_GLSL}
+${GLOW_GLSL}
 float deckCover(vec2 P) {
   vec2 q = (P - uDrift) / uScale;
   if (uForm > 2.5) { vec2 w = normalize(uWind); q = vec2(dot(q, w) * 0.15, dot(q, vec2(-w.y, w.x)) * 1.2); return smoothstep(0.45, 0.85, skF(q)) * 0.55; }   // cirrus
@@ -185,6 +245,8 @@ void main() {
   else if (below) c = mix(uShade * 0.8, uShade * 1.15, n) * mix(1.0, 0.75, a);            // its belly, darker where thick
   else { vec2 g = vec2(skF((vWP.xy - uDrift) / (uScale * 0.6) + vec2(4.25, 4.2)) - n, skF((vWP.xy - uDrift) / (uScale * 0.6) + vec2(4.2, 4.25)) - n);
     float lit = clamp(0.8 + 9.0 * dot(-g, normalize(uSun.xy)) * (1.0 - uSun.z * 0.5), 0.55, 1.2); c = mix(uLit, uLitA, uAbove) * lit * (0.88 + 0.18 * n); }  // its top, lumps lit by the sun over it
+  if (below && uForm < 2.5) c += uGlowCol * cityUnder(vWP.xy) * uNight * 0.035;
+  c += FLASH * uFlash * 2.0 * exp(-distance(vWP, uFlashPos) / 2600.0) * (0.5 + 0.5 * n);
   gl_FragColor = vec4(c, a);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -198,8 +260,8 @@ window.__mojSkyPatch = function (sh) {
   const S = window.__mojSky; if (!S || !S.shadow) return;
   Object.assign(sh.uniforms, S.shadow.uniforms);
   sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\nvarying vec3 vSkWP;').replace('#include <project_vertex>', '#include <project_vertex>\\nvSkWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\nuniform sampler2D uSkShadow; uniform vec3 uSkSun; uniform vec2 uSkDrift; uniform float uSkHalf; uniform float uSkBase; uniform float uSkK; varying vec3 vSkWP;')
-    .replace('#include <opaque_fragment>', 'vec2 skP = vSkWP.xy + uSkSun.xy / max(uSkSun.z, 0.05) * max(0.0, uSkBase - vSkWP.z) - uSkDrift;\\nfloat skS = texture2D(uSkShadow, skP / (2.0 * uSkHalf) + 0.5).r;\\noutgoingLight *= 1.0 - uSkK * skS;\\n#include <opaque_fragment>');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\nuniform sampler2D uSkShadow; uniform vec3 uSkSun; uniform vec2 uSkDrift; uniform float uSkHalf; uniform float uSkBase; uniform float uSkK; uniform float uFlash; uniform vec3 uFlashPos; varying vec3 vSkWP;')
+    .replace('#include <opaque_fragment>', 'vec2 skP = vSkWP.xy + uSkSun.xy / max(uSkSun.z, 0.05) * max(0.0, uSkBase - vSkWP.z) - uSkDrift;\\nfloat skS = texture2D(uSkShadow, skP / (2.0 * uSkHalf) + 0.5).r;\\noutgoingLight *= 1.0 - uSkK * skS;\\noutgoingLight += vec3(0.6, 0.65, 0.8) * uFlash * 0.45 * exp(-length(vSkWP - uFlashPos) / 5000.0);\\n#include <opaque_fragment>');
 };`;
 
 /** The flight sky's page source, in the terrain channel's scope (THREE, scene, camera, TERRAIN, __tMat, __tLin).
@@ -214,12 +276,18 @@ ${SHADOW_PATCH}
   const lin3 = (c) => new THREE.Vector3(__tLin(c[0]), __tLin(c[1]), __tLin(c[2]));
   const clock = () => (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000;
   const sun = new THREE.Vector3(...K.sun).normalize(), sunCol = col(K.sunCol), lit = col(K.cloudLit), shade = col(K.cloudShade), clear = K.clear;
-  const out = window.__mojSky = { puffs: 0, decks: 0, inside: 0 };
+  const out = window.__mojSky = { puffs: 0, decks: 0, inside: 0, flash: 0 };
+  // (shared by the sky, the clouds, the decks, the bolts and the ground: the night, the towns' glow, a flash)
+  const glows = (K.glows || []).slice(0, 8), FX = { uNight: { value: K.night || 0 }, uGlowN: { value: glows.length }, uGlowCol: { value: col(K.glowCol || '#ffb46a') },
+    uGlow: { value: Array.from({ length: 8 }, (_, i) => new THREE.Vector4(...(glows[i] || [0, 0, 1, 0]))) }, uFlash: { value: 0 }, uFlashPos: { value: new THREE.Vector3() } };
+  const withFX = (m) => { Object.assign(m.uniforms, FX); return m; };
   const drift = new THREE.Vector2();
   // THE SKY: a sphere round the eye, drawn first and behind everything
   const skyMat = new THREE.ShaderMaterial({ vertexShader: ${JSON.stringify(SKY_VERT)}, fragmentShader: ${JSON.stringify(SKY_FRAG)}, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
     uniforms: { uZen: { value: lin3(K.zenith) }, uHor: { value: lin3(K.horizon) }, uSun: { value: sun }, uSunCol: { value: new THREE.Vector3(sunCol.r, sunCol.g, sunCol.b) }, uClear: { value: clear },
-      uZenA: { value: lin3(K.aloft.zenith) }, uHorA: { value: lin3(K.aloft.horizon) }, uSunA: { value: ((c) => new THREE.Vector3(c.r, c.g, c.b))(col(K.aloft.sun)) }, uAbove: { value: 0 } } });
+      uZenA: { value: lin3(K.aloft.zenith) }, uHorA: { value: lin3(K.aloft.horizon) }, uSunA: { value: ((c) => new THREE.Vector3(c.r, c.g, c.b))(col(K.aloft.sun)) }, uAbove: { value: 0 },
+      uMoon: { value: new THREE.Vector3(...(K.moon ? K.moon.dir : [0, 0, 1])) }, uMoonCol: { value: col(K.moon ? K.moon.color : '#ffffff') }, uMoonPhase: { value: K.moon ? K.moon.phase : 1 } } });
+  withFX(skyMat);
   const skyBall = new THREE.Mesh(new THREE.SphereGeometry(1000, 48, 24), skyMat);
   skyBall.renderOrder = -1; skyBall.frustumCulled = false; skyBall.raycast = () => {};
   // (the weather's state is brought up to the eye at every render, the sky being drawn first: a captured frame, rendered
@@ -232,13 +300,14 @@ ${SHADOW_PATCH}
   const P = [], I = [];
   for (let k = 0; k < K.clouds.n; k++) {
     const x = C[k * 6], y = C[k * 6 + 1], base = C[k * 6 + 2], rad = C[k * 6 + 3], hgt = C[k * 6 + 4], R = mul(C[k * 6 + 5]);
-    const tower = hgt > 1.5 * rad, n = Math.max(10, Math.min(70, Math.round(8 + rad / 45 + hgt / (tower ? 140 : 70)))), top = base + hgt;
+    const tower = hgt > 1.5 * rad, n = Math.max(10, Math.min(tower ? 140 : 70, Math.round(8 + rad / 45 + hgt / (tower ? 70 : 70)))), top = base + hgt;
     for (let i = 0; i < n; i++) {
       // up the cloud: the lower puffs wide and many, the crown narrowing (a tower's anvil spreading at its top, downwind)
-      const t = i < n * 0.4 ? R() * 0.25 : Math.min(1, 0.2 + R() * 0.85 * (i / n) + 0.15), spread = tower ? (t > 0.85 ? 1.3 : 0.45) : 1 - 0.7 * t;
-      const ang = R() * 6.2832, rr = Math.sqrt(R()) * rad * 0.7 * spread, pr = rad * (tower ? (t > 0.85 ? 0.34 : 0.24) : 0.36 - 0.17 * t) * (0.7 + 0.6 * R());
+      // (a thunderhead: a broad foot, a tower narrowing a little as it climbs, an anvil spread wide at its top)
+      const t = i < n * 0.4 ? R() * 0.25 : Math.min(1, 0.2 + R() * 0.85 * (i / n) + 0.15), spread = tower ? (t > 0.86 ? 1.7 : 0.85 - 0.25 * t) : 1 - 0.7 * t;
+      const ang = R() * 6.2832, rr = Math.sqrt(R()) * rad * 0.7 * spread, pr = rad * (tower ? (t > 0.86 ? 0.3 : 0.27 - 0.06 * t) : 0.36 - 0.17 * t) * (0.65 + 0.7 * R());
       const ax = tower && t > 0.85 ? K.wind[0] * rad * 0.6 : 0, ay = tower && t > 0.85 ? K.wind[1] * rad * 0.6 : 0;
-      const px = x + Math.cos(ang) * rr + ax, py = y + Math.sin(ang) * rr + ay, pz = base + pr * 0.55 + t * Math.max(0, hgt - pr);
+      const px = x + Math.cos(ang) * rr + ax, py = y + Math.sin(ang) * rr + ay, pz = base + pr * 0.55 + (tower && t > 0.86 ? (0.9 + 0.1 * R()) : t) * Math.max(0, hgt - pr) * (tower && t > 0.86 ? 1 : 1);
       // its light inside its cloud: the side toward the sun bright, the far side and the deep middle shaded
       const ox = (px - x) / rad, oy = (py - y) / rad, oz = (pz - (base + hgt / 2)) / Math.max(hgt, 1), toward = ox * sun.x + oy * sun.y + oz * sun.z;
       P.push(px, py, pz, pr); I.push(R(), Math.min(1, Math.max(0.35, 0.68 + 0.45 * toward)), base, top);
@@ -255,7 +324,7 @@ ${SHADOW_PATCH}
     geo.setAttribute('iPos', new THREE.InstancedBufferAttribute(aP, 4)); geo.setAttribute('iInfo', new THREE.InstancedBufferAttribute(aI, 4)); geo.instanceCount = NP;
     const mat = new THREE.ShaderMaterial({ vertexShader: ${JSON.stringify(PUFF_VERT)}, fragmentShader: ${JSON.stringify(PUFF_FRAG)}, transparent: true, depthWrite: false, fog: true,
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uSun: { value: sun }, uLit: { value: lit }, uShade: { value: shade }, uSunCol: { value: sunCol }, uClear: { value: clear }, uDrift: { value: drift }, uHalf: { value: half }, uLitA: { value: col(K.aloft.cloudLit) }, uDeckTop: { value: deckTop } }]) });
-    mat.uniforms.uDrift.value = drift;
+    mat.uniforms.uDrift.value = drift; withFX(mat);
     puffMesh = new THREE.Mesh(geo, mat); puffMesh.frustumCulled = false; puffMesh.renderOrder = 3; puffMesh.raycast = () => {}; scene.add(puffMesh);
     // far to near: the puffs re-sorted as the eye moves (their wrapped places, drifted)
     const order = new Uint32Array(NP), dist = new Float32Array(NP);
@@ -297,7 +366,7 @@ ${SHADOW_PATCH}
     for (const z of form === 3 || !L.depth ? [L.base] : [L.base, L.base + L.depth]) {
       const m = new THREE.ShaderMaterial({ vertexShader: ${JSON.stringify(DECK_VERT)}, fragmentShader: ${JSON.stringify(DECK_FRAG)}, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
         uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uSun: { value: sun }, uLit: { value: lit }, uLitA: { value: col(K.aloft.cloudLit) }, uAbove: { value: 0 }, uShade: { value: shade }, uDrift: { value: drift }, uCover: { value: L.cover }, uScale: { value: scale }, uForm: { value: form }, uTop: { value: z > L.base ? 1 : 0 }, uEdge: { value: EDGE }, uWind: { value: new THREE.Vector2(K.wind[0], K.wind[1]) } }]) });
-      m.uniforms.uDrift.value = drift;
+      m.uniforms.uDrift.value = drift; withFX(m);
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2 * EDGE, 2 * EDGE), m); mesh.position.z = z; mesh.renderOrder = 2; mesh.frustumCulled = false; mesh.raycast = () => {};
       mesh.onBeforeRender = (r, sc, cam) => { mesh.position.x = cam.position.x; mesh.position.y = cam.position.y; mesh.updateMatrixWorld(); };
       scene.add(mesh); decks.push({ L, form, scale, mat: m });
@@ -319,7 +388,7 @@ ${SHADOW_PATCH}
     }
     const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.NoColorSpace;
     const base = Math.min(...K.layers.filter((L) => L.type === 'cumulus').map((L) => L.base));
-    out.shadow = { uniforms: { uSkShadow: { value: tex }, uSkSun: { value: sun }, uSkDrift: { value: drift }, uSkHalf: { value: half }, uSkBase: { value: base }, uSkK: { value: 0.42 * clear } } };
+    out.shadow = { uniforms: { uSkShadow: { value: tex }, uSkSun: { value: sun }, uSkDrift: { value: drift }, uSkHalf: { value: half }, uSkBase: { value: base }, uSkK: { value: 0.42 * clear * (1 - (K.night || 0)) }, uFlash: FX.uFlash, uFlashPos: FX.uFlashPos } };
   }${ownsGround ? `
   if (out.shadow) { __tMat.onBeforeCompile = (sh) => window.__mojSkyPatch(sh); __tMat.needsUpdate = true; }` : ''}
   // WHITEOUT: the eye inside a cloud sees its grey all round; the fog thickened toward it, eased in and out
@@ -342,12 +411,58 @@ ${SHADOW_PATCH}
     let above = 0;
     for (const D of decks) if (D.form < 3 && D.L.cover >= 0.85) above = Math.max(above, Math.min(1, Math.max(0, (c.z - D.L.base - D.L.depth) / 150)));
     out.above = above; skyMat.uniforms.uAbove.value = above; for (const D of decks) D.mat.uniforms.uAbove.value = above;
+    const fl = lightning(t, c); FX.uFlash.value = fl; out.flash = fl;
     if (scene.fog && fogBase && scene.fog.isFogExp2) {
       scene.fog.color.copy(fogBase).lerp(aloftHor, above).lerp(cloudFog, Math.min(1, inside * 1.2));
       if (scene.fog.density !== fogSet) fogFrom = scene.fog.density;   // (the terrain's own, as it last set it)
       scene.fog.density = fogSet = Math.max(fogFrom * (1 - 0.6 * above), 0.012 * inside);
+      if (FX.uFlash.value > 0) scene.fog.color.lerp(flashFog, Math.min(0.5, FX.uFlash.value * 0.3));
       if (scene.background && scene.background.isColor) scene.background.copy(scene.fog.color);
     }
+  }
+  // LIGHTNING (a storm's): a stroke in some of the clock's slots, in a thunderhead within reach of the eye, its return
+  // strokes flickering over half a second; a ground stroke a bolt to the land or the sea under it, branching as it falls
+  const flashFog = new THREE.Color(0.55, 0.6, 0.75), towersL = [];
+  for (let k = 0; k < K.clouds.n; k++) if (C[k * 6 + 4] > 1500) towersL.push(k);
+  const hs = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233 + 0.5) * 43758.5453; return x - Math.floor(x); };
+  let boltId = null, bolt = null;
+  const boltMats = [[3, 0.0011, 1.0], [26, 0.006, 0.28]].map(([w, px, a]) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide,
+    vertexShader: ${JSON.stringify(BOLT_VERT)}, fragmentShader: ${JSON.stringify(BOLT_FRAG)}, uniforms: { uFlash: FX.uFlash, uW: { value: w }, uPx: { value: px }, uA: { value: a } } }));
+  function boltOf(sd, x, y, base) {
+    const R = mul(Math.floor(sd * 1e6)), seg = [];
+    const ground = Math.max(__tk.heightAt(x, y), __tk.seaZ == null ? -1e9 : __tk.seaZ), N = 30, run = (base - ground) / N;
+    let p = [x, y, base];
+    for (let i = 1; i <= N; i++) { const q = [p[0] + (R() - 0.5) * run * 1.4, p[1] + (R() - 0.5) * run * 1.4, base - i * run]; seg.push([p, q]); p = q; }
+    for (let b = 0; b < 4; b++) { const i0 = 3 + Math.floor(R() * N * 0.5); let q = seg[i0][1]; const dx = (R() - 0.5) * 2, dy = (R() - 0.5) * 2; for (let i = 0; i < 6 + Math.floor(R() * 5); i++) { const r = [q[0] + (dx + (R() - 0.5)) * run, q[1] + (dy + (R() - 0.5)) * run, q[2] - run * (0.4 + 0.5 * R())]; seg.push([q, r]); q = r; } }
+    const pos = [], tang = [], side = [];
+    for (const [a, b] of seg) { const t = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(t[0], t[1], t[2]) || 1; for (const [P, s2] of [[a, -1], [a, 1], [b, 1], [a, -1], [b, 1], [b, -1]]) { pos.push(P[0], P[1], P[2]); tang.push(t[0] / l, t[1] / l, t[2] / l); side.push(s2); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('tang', new THREE.Float32BufferAttribute(tang, 3)); g.setAttribute('side', new THREE.Float32BufferAttribute(side, 1));
+    const grp = new THREE.Group(); for (const m of boltMats) { const me = new THREE.Mesh(g, m); me.frustumCulled = false; me.renderOrder = 4; me.raycast = () => {}; grp.add(me); }
+    return grp;
+  }
+  function lightning(t, c) {
+    if (!K.lightning || !towersL.length) return 0;
+    const P = 0.9, s0 = Math.floor(t / P);
+    for (let s = s0; s >= s0 - 1; s--) {
+      if (hs(s, 0) > 0.22) continue;
+      const age = t - (s * P + hs(s, 1) * 0.4); if (age < 0 || age > 0.7) continue;
+      // the thunderheads within twenty kilometres; the stroke in the slot's own pick of them
+      const w = 2 * half, near = [];
+      for (const k of towersL) { let x = C[k * 6] + drift.x - c.x, y = C[k * 6 + 1] + drift.y - c.y; x = ((x + half) % w + w) % w - half; y = ((y + half) % w + w) % w - half; if (Math.hypot(x, y) < 20000) near.push([k, c.x + x, c.y + y]); }
+      if (!near.length) return 0;
+      const [k, x, y] = near[Math.floor(hs(s, 4) * near.length)], base = C[k * 6 + 2], hgt = C[k * 6 + 4];
+      let I = 0; for (const p of [0, 0.07 + 0.05 * hs(s, 2), 0.2 + 0.12 * hs(s, 3)]) if (age >= p) I = Math.max(I, Math.exp(-(age - p) / 0.045));
+      FX.uFlashPos.value.set(x, y, base + hgt * 0.3);
+      if (boltId !== s) {
+        if (bolt) { scene.remove(bolt); bolt.children[0].geometry.dispose(); bolt = null; }
+        boltId = s;
+        if (hs(s, 5) < 0.6) { bolt = boltOf(hs(s, 6), x + (hs(s, 7) - 0.5) * C[k * 6 + 3], y + (hs(s, 8) - 0.5) * C[k * 6 + 3], base); scene.add(bolt); }
+      }
+      if (bolt) bolt.visible = I > 0.03;
+      return I;
+    }
+    if (bolt) bolt.visible = false;
+    return 0;
   }
 })();
 `;

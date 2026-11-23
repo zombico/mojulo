@@ -5,6 +5,7 @@ import { terrainWindScript } from './terrain-wind.js';
 import { aerialVertexFn, aerialScript } from './aerial.js';
 import { flightSkyScript } from './flight-sky.js';
 import { oceanScript } from './ocean.js';
+import { nightLightsScript } from './night-lights.js';
 
 // In-page script: the TERRAIN channel (opt-in via emitThreeWorld({ terrain })). The page
 // carries the terrain world's RECIPE — the kernel's source (terrain-kernel.js, inlined as text) and its quantised grids —
@@ -33,7 +34,7 @@ import { oceanScript } from './ocean.js';
 export function terrainChannelScript(cfg) {
   const { kernel, plants, grass, wind, ...rest } = cfg;   // plants (terrain-plants.js), grass (terrain-grass.js) and the wind that bends them (terrain-wind.js): scripts of their own, after the ground's
   // the aerial ground (aerial.js, a flight map's country): its cover kernel's source inlined in its own script, not twice
-  const A = rest.aerial || null, SK = rest.sky || null, OC = rest.ocean || null;   // (the flight sky and its ocean: flight-sky.js, ocean.js)
+  const A = rest.aerial || null, SK = rest.sky || null, OC = rest.ocean || null, NL = rest.lights || null;   // (the flight sky, its ocean and the night's lights: flight-sky.js, ocean.js, night-lights.js)
   if (A) rest.aerial = { ...A, cover: { ...A.cover, kernel: undefined } };
   return `
 // --- terrain world (opt-in): the recipe's ground, meshed around the camera ---
@@ -266,5 +267,5 @@ if (TERRAIN.water && !__tPL${OC ? ' && !TERRAIN.ocean' : ''}) {
   wm.position.set(TERRAIN.root.cx, TERRAIN.root.cy, W.z); wm.renderOrder = 1; scene.add(wm);
 }
 __tTick();
-${SK ? flightSkyScript(SK, { ownsGround: !A }) : ''}${OC ? oceanScript() : ''}${A ? aerialScript(A) : ''}${wind ? terrainWindScript(wind) : ''}${plants ? terrainPlantsScript(plants, !!wind) : ''}${grass ? terrainGrassScript(grass, !!wind) : ''}`;
+${SK ? flightSkyScript(SK, { ownsGround: !A }) : ''}${OC ? oceanScript() : ''}${A ? aerialScript(A) : ''}${NL ? nightLightsScript() : ''}${wind ? terrainWindScript(wind) : ''}${plants ? terrainPlantsScript(plants, !!wind) : ''}${grass ? terrainGrassScript(grass, !!wind) : ''}`;
 }

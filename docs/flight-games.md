@@ -363,7 +363,40 @@ and the sea's height.
 **Pilot School** flies its lessons under their own skies: a still, nearly clear morning for the first flight, fair
 weather for turns, and an afternoon under altocumulus for climbs.
 
-Exports carry neither the clouds nor the ocean. They are the live page's.
+Exports carry neither the clouds nor the ocean nor the night's lights. They are the live page's.
+
+## Night, city lights and lightning
+
+`sky.hour` runs 0–24. Past sunset the day's colours fade through the twilight, with its afterglow on the horizon,
+into the night's. A sky may name the moon's lit share (`moon: 0–1`); absent, the dice choose it.
+
+- **The night sky** (`flight-sky.js`) has its stars, the moon's disc lit to its phase, and its halo. The towns' light
+  is thrown up into the air over them: an orange glow on the horizon toward each, and on the bellies of the clouds
+  above them.
+- **The ground** is lit by the moon. Its tint is dark and blue in the terrain kernel's ramps and in the country's cover,
+  walls and roofs. The pads' asphalt and marks darken too, so a runway is dark but for its lights.
+- **The towns light themselves** (`aerial.js`):
+  - their streets glow lamp-lit in sodium orange, with a halo;
+  - their plazas, lots and yards are dimmer;
+  - the highways are white LED;
+  - some of every building's windows are lit, warm or cool, each its own (an office fewer than a flat), fading to
+    their mean far off.
+- **The night's lights** (`control/lib/graph/skyscape/night-lights.js`, the page's `night-lights.js`), from the dusk on:
+  - the runway's edge lights, green thresholds and white approach bars;
+  - red beacons flashing on the mast and on every building over 45 m;
+  - the traffic, on every country road but a lane, the settlements' arterials and the highways' decks. Each car is a
+    pair of lamps, white to an eye it drives toward and red to one it drives away from.
+
+  Each light keeps a pixel or two however far off it is.
+
+**Lightning** (`lightning: true`, a storm's by default) strikes in the thunderheads near the eye, in seeded slots of
+the page's clock:
+
+- a stroke's return strokes flicker over half a second;
+- the cloud lights through and through, and the air, the haze and the ground under it flare;
+- most strokes are a jagged, branching bolt to the land or the sea, drawn as a core and a glow.
+
+A captured frame at a pinned clock sees the same stroke.
 
 ## What comes next
 

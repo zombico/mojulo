@@ -12,7 +12,7 @@ describe('the flight sky', () => {
     expect(readSkyAsk('fair')).toEqual([]);
     expect(readSkyAsk({ kind: 'storm', cover: 0.3, hour: 17, wind: { from: 270, speed: 20 } })).toEqual([]);
     expect(readSkyAsk('drizzle').join()).toMatch(/one of/);
-    expect(readSkyAsk({ hour: 23 }).join()).toMatch(/hour/);
+    expect(readSkyAsk({ hour: 25 }).join()).toMatch(/hour/);
     expect(readSkyAsk({ wind: { speed: 80 } }).join()).toMatch(/wind/);
     expect(validateAirspace({ kind: 'airspace', sky: { fog: 1 } }).join()).toMatch(/fog/);
     expect(validateAirspace({ kind: 'airspace', map: { form: 'void' }, sky: 'fair' }).join()).toMatch(/space has no weather/);
@@ -61,7 +61,7 @@ describe('the sky on an airspace map', () => {
   const M = { kind: 'airspace', map: { craft: 'trainer' }, ground: { pads: [{ kind: 'runway', at: [0.5, 0.25] }] }, seed: 2 };
   it('lights the ground by the weather\'s sun and leaves its haze thicker, never thinner', () => {
     const fair = airspaceOf(M).field, storm = airspaceOf({ ...M, sky: 'storm' }).field;
-    expect(fair.K.light).toEqual(fair.sky.sun.dir);
+    expect(fair.K.light).toEqual(fair.sky.light.dir);
     expect(storm.K.lambert.gain).toBeLessThan(fair.K.lambert.gain);
     const a = assembleAirspace(M, { live: true }), b = assembleAirspace({ ...M, sky: 'storm' }, { live: true });
     expect(b.haze.density).toBeGreaterThan(a.haze.density);
@@ -82,5 +82,43 @@ describe('the sky on an airspace map', () => {
     const live = assembleAirspace(M, { live: true }), { sky: _s, ocean: _o, ...plain } = live.terrain;
     const src = terrainChannelScript(plain);
     expect(src).not.toMatch(/__mojSky|__mojOcean/);
+  });
+});
+
+describe('night and lightning', () => {
+  const M = { kind: 'airspace', map: { craft: 'trainer' }, ground: { pads: [{ kind: 'runway', at: [0.5, 0.25] }], country: { towns: 1, villages: 1 } }, seed: 2 };
+  it('fades the day through the twilight into a moonlit night, the ground darkened and lit by the moon', () => {
+    const day = flightSky({ kind: 'fair', hour: 14 }, { map }), dusk = flightSky({ kind: 'fair', hour: 18.2 }, { map }), night = flightSky({ kind: 'fair', hour: 22, moon: 0.9 }, { map });
+    expect(day.night).toBe(0); expect(dusk.night).toBeGreaterThan(0); expect(dusk.night).toBeLessThan(1); expect(night.night).toBe(1);
+    expect(night.light.dir).toEqual(night.moon.dir);
+    expect(Math.max(...night.light.tint)).toBeLessThan(0.3);
+    expect(night.colours.zenith.reduce((a, v) => a + v, 0)).toBeLessThan(60);
+    expect(night.moon.phase).toBe(0.9);
+    expect(readSkyAsk({ moon: 2 }).join()).toMatch(/moon/);
+  });
+
+  it('lights a storm, and only a storm unless asked', () => {
+    expect(flightSky('storm', { map }).lightning).toBe(true);
+    expect(flightSky('fair', { map }).lightning).toBe(false);
+    expect(flightSky({ kind: 'overcast', lightning: true }, { map }).lightning).toBe(true);
+    expect(readSkyAsk({ lightning: 'yes' }).join()).toMatch(/lightning/);
+  });
+
+  it('carries the night\'s lights to the page from the dusk on: the runway, the beacons, the traffic, the towns\' glow', () => {
+    const day = assembleAirspace(M, { live: true }), night = assembleAirspace({ ...M, sky: { kind: 'fair', hour: 21 } }, { live: true });
+    expect(day.terrain.lights).toBeUndefined();
+    const L = night.terrain.lights;
+    expect(L.n).toBeGreaterThan(30);
+    expect(L.traffic.length).toBeGreaterThan(2);
+    expect(night.terrain.sky.night).toBe(1);
+    expect(night.terrain.sky.glows.length).toBe(2);
+    expect(night.terrain.aerial.night).toBe(1);
+    expect(night.terrain.aerial.tint.every((v) => v < 0.1)).toBe(true);
+    const src = terrainChannelScript(night.terrain);
+    expect(src).toMatch(/the ground's lights at night/);
+    expect(terrainChannelScript(day.terrain)).not.toMatch(/__mojLights/);
+    // (a runway is dark at night but for its lights: its asphalt under the night's tint)
+    const pad = airspaceOf({ ...M, sky: { kind: 'fair', hour: 21 } }).field.K.grade[0];
+    expect(Math.max(...pad.ramp.stops[3])).toBeLessThan(40);
   });
 });

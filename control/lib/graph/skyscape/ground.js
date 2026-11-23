@@ -320,7 +320,7 @@ export function mapGround(map, ask = {}, { palette, sky: flight = null } = {}) {
     sea: sea === null ? null : sea / zs, beds: null,
     detail: { octaves, norm: octaves.reduce((a, o) => a + o[1], 0) || 1, rock: 0.06 * L0, soil: 0.012 * L0, seed },
     // (the flight sky, sky.js: the sun at its hour and the weather's light; absent, the map's afternoon as ever)
-    light: flight ? flight.sun.dir : LIGHT.dir, lambert: flight ? { ambient: flight.light.ambient, gain: flight.light.gain } : { ambient: LIGHT.ambient, gain: LIGHT.gain },
+    light: flight ? flight.light.dir : LIGHT.dir, lambert: flight ? { ambient: flight.light.ambient, gain: flight.light.gain } : { ambient: LIGHT.ambient, gain: LIGHT.gain },
     ramps: tintRamps(painted ? { ...painted.ramps, beds: [painted.ramps.stone] } : { soil: rampOfHex(R4.grass), stone: rampOfHex(R4.stone), scree: rampOfHex(R4.sand ?? R4.floor), beds: [rampOfHex(R4.stone)] }, flight ? flight.light.tint : null),
   };
   // the pads: each sited near where it was asked for, where it needs the least earthwork (the most the natural ground
@@ -338,6 +338,13 @@ export function mapGround(map, ask = {}, { palette, sky: flight = null } = {}) {
   // the country (country.js): its settlements sited clear of the pads, their climb-outs and the fractal cities
   const country = ask.country ? planCountry(map, { nat, sea, pads, taken: preps.map((p) => [p.center[0], p.center[1], p.rect.w, p.rect.d]), seed }, ask.country) : null;
   const layers = [...pads.map((p) => padLayer(p, p.datum)), ...preps.map((p) => p.grade.layer), ...(country ? country.layers.map((L) => ({ ...L, ramp: K.ramps.soil })) : [])];
+  // (the pads' and the cities' own ground, their asphalt and their painted marks, under the weather's light too: a
+  // runway is dark at night but for its lights)
+  const tint = flight ? flight.light.tint : null;
+  if (tint && !tint.every((v) => Math.abs(v - 1) < 1e-4)) for (const L of layers) {
+    if (L.ramp) L.ramp = tintRamps({ soil: L.ramp, stone: L.ramp, scree: L.ramp, beds: [] }, tint).soil;
+    if (L.paint) { const pc = new Uint8Array(L.paint.pc); for (let k = 0; k < pc.length; k += 4) for (let c = 0; c < 3; c++) pc[k + c] = Math.round(pc[k + c] * tint[c]); L.paint = { ...L.paint, pc }; }
+  }
   if (layers.length) K.grade = layers;
   const kernel = layers.length ? terrainKernel(K) : natural;
   const town = seatCities(preps, { K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, bounds });

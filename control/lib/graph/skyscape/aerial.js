@@ -26,7 +26,7 @@ const rgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), pa
 const lin = (v) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
 const linHex = (h) => rgb(h).map((v) => Math.round(lin(v) * 1e4) / 1e4);
 const mixHex = (a, b, t) => '#' + [1, 3, 5].map((k) => Math.round(parseInt(a.slice(k, k + 2), 16) * (1 - t) + parseInt(b.slice(k, k + 2), 16) * t).toString(16).padStart(2, '0')).join('');
-const r2 = (v) => Math.round(v * 100) / 100;
+const r2 = (v) => Math.round(v * 100) / 100, r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /** The cover's palette, in the order the shader reads it: pasture ×2, crops ×5 (ripe, barley, green, young, rapeseed),
  *  ploughed soil, fallow, hedge, woods dark and light, heath ×2, sand, verge, rock. Each leaned toward the cube's own. */
@@ -79,7 +79,7 @@ function packPlan(plan) {
   return {
     rect: [r2(x0), r2(y0), r2(x1), r2(y1)], px: r2(px), rects: b64(R), n: plan.rects.length,
     ribbons: plan.ribbons.map(([rank, w, pts]) => [idx[rank] ?? idx.road, w, ...pts.map(r2)]), dots: b64(new Float32Array(plan.dots.flat())), nd: plan.dots.length,
-    paints: names.map((n) => plan.colours[n]), verge: idx.lawn, tree: idx.tree,
+    paints: names.map((n) => plan.colours[n]), verge: idx.lawn, tree: idx.tree, names,
   };
 }
 
@@ -97,6 +97,8 @@ export function aerialPageConfig(field, map) {
     masses: packMasses(field.aerial),
     light: { dir: K.light, ambient: K.lambert.ambient, gain: K.lambert.gain },
     pylon: { h: COUNTRY.pylon, arms: PYLON.arms.map(([reach, h]) => [reach, r2(h * COUNTRY.pylon / PYLON.peak)]) },
+    // the weather's (sky.js): the cover and the walls darkened and tinted by its light, the towns lit at night
+    tint: (field.sky?.light.tint ?? [1, 1, 1]).map((v) => r4(v ** 2.2)), night: field.sky?.night ?? 0,
     seed: K.detail.seed,
   };
 }

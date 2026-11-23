@@ -40,7 +40,9 @@ function __aVert(X, Y, h, gx, gy, ln, aux, v) {
 /** The ground's fragment: the cover's albedo at a world point. Uniforms and functions; `aerialAlbedo(P)` → linear rgb. */
 const GROUND_GLSL = `
 uniform sampler2D aCov; uniform vec4 aCovR; uniform sampler2D aPlan; uniform vec4 aPlanR; uniform float aHasPlan;
-uniform vec3 aPal[17]; uniform float aSeed;
+uniform vec3 aPal[17]; uniform float aSeed; uniform vec3 aTint; uniform float aNight; uniform sampler2D aLights;
+// the towns' lights at night (their streets, their highways, their yards), a light of their own over the ground's
+vec3 aerialLights(vec2 P) { vec2 pu = (P - aPlanR.xy) / (aPlanR.zw - aPlanR.xy); return (pu.x >= 0.0 && pu.y >= 0.0 && pu.x <= 1.0 && pu.y <= 1.0) ? texture2D(aLights, pu).rgb : vec3(0.0); }
 varying vec3 vAer; varying vec3 vAWP;
 float aH(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031 + aSeed * 0.000137); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float aN(vec2 p) { vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f); return mix(mix(aH(i), aH(i + vec2(1, 0)), u.x), mix(aH(i + vec2(0, 1)), aH(i + vec2(1, 1)), u.x), u.y); }
@@ -115,7 +117,7 @@ void main() {
   #include <fog_vertex>
 }`;
 const MASS_FRAG = `
-uniform vec3 uSun; uniform vec3 uLam; uniform vec3 uSky; uniform vec3 uGlass;
+uniform vec3 uSun; uniform vec3 uLam; uniform vec3 uSky; uniform vec3 uGlass; uniform vec3 uTint; uniform float uNight;
 varying vec3 vWall; varying vec3 vRoof; varying vec2 vInfo; varying vec3 vN; varying vec3 vL; varying vec3 vSize; varying vec3 vWP;
 #include <common>
 #include <fog_pars_fragment>
@@ -124,7 +126,7 @@ float h21(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33
 float band(float x, float a, float b, float w) { return smoothstep(a - w, a + w, x) - smoothstep(b - w, b + w, x); }
 void main() {
   #include <logdepthbuf_fragment>
-  vec3 n = normalize(vN), c;
+  vec3 n = normalize(vN), c, em = vec3(0.0);
   float skin = vInfo.x, fh = max(2.5, vInfo.y);
   vec3 V = normalize(cameraPosition - vWP);
   if (n.z > 0.5 && vSize.z > 0.0 && skin < 6.5) {
@@ -146,6 +148,13 @@ void main() {
     // a hall's ribbon of glazing high along it; a plain wall or a deck none
     if (skin > 2.5 && skin < 3.5) { float top = vSize.z; w = band(v, top - 2.6, top - 1.4, fwidth(v)); share = 1.2 / max(top, 1.0) * 0.5; }
     if (skin > 4.5) { w = 0.0; share = 0.0; }
+    // at night some of its windows lit (an office's fewer than a flat's), warm or cool, each its own; far off its mean
+    if (uNight > 0.01) {
+      float litShare = skin < 0.5 ? 0.22 : skin < 1.5 ? 0.28 : skin < 2.5 ? 0.4 : skin < 3.5 ? 0.3 : skin < 4.5 ? 0.4 : 0.0;
+      vec2 bc = floor((vWP.xy - vL.xy) / 7.0), wc = floor(vec2(fx, fy)) + bc * 3.7;
+      float on = step(1.0 - litShare, h21(wc)) * step(0.5, v), lit = mix(w * on, share * litShare * 0.55, smoothstep(0.3, 0.75, max(wx, wy))) * (skin < 0.5 ? 0.6 : 1.0);
+      em = mix(vec3(1.0, 0.68, 0.36), vec3(0.82, 0.88, 1.0), step(0.65, h21(wc + 5.3))) * (0.55 + 0.6 * h21(wc * 1.3 + 2.1)) * lit;
+    }
     w = mix(w, share, smoothstep(0.3, 0.75, max(wx, wy)));
     // the glass: dark, the sky in it as the eye grazes it, each pane its own
     float fr = pow(1.0 - abs(dot(V, n)), 3.0), pane = h21(floor(vec2(fx, fy)) + floor(vWP.xy / 50.0));
@@ -159,7 +168,7 @@ void main() {
     c *= 0.9 + 0.1 * smoothstep(0.0, 8.0, v);
   }
   float lam = uLam.x + uLam.y * max(0.0, dot(n, uSun));
-  gl_FragColor = vec4(c * lam / uLam.z, 1.0);
+  gl_FragColor = vec4(c * lam / uLam.z * uTint + em * uNight, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
   #include <fog_fragment>
@@ -181,7 +190,7 @@ export function aerialScript(cfg) {
   const covTex = new THREE.DataTexture(cov, N, N, THREE.RGBAFormat); covTex.magFilter = THREE.LinearFilter; covTex.minFilter = THREE.LinearFilter; covTex.needsUpdate = true;
   out.cover = { res: N };
   // THE PLAN, painted to a canvas
-  let planTex = null;
+  let planTex = null, lightTex = null;
   if (A.plan) {
     const P = A.plan, W = Math.min(4096, Math.ceil((P.rect[2] - P.rect[0]) / P.px)), H = Math.min(4096, Math.ceil((P.rect[3] - P.rect[1]) / P.px));
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
@@ -202,16 +211,33 @@ export function aerialScript(cfg) {
     planTex = new THREE.CanvasTexture(cv); planTex.colorSpace = THREE.SRGBColorSpace; planTex.generateMipmaps = true; planTex.minFilter = THREE.LinearMipmapLinearFilter;
     if (typeof renderer !== 'undefined') planTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     out.plan = { w: W, h: H };
+    // THE TOWNS' LIGHTS (at night): their streets lamp-lit (the land's ground under its blocks, sodium orange), their
+    // yards and plazas dimmer, the highways white, the country roads barely; a halo round each by a blurred pass
+    if (A.night > 0.01) {
+      const lw = Math.ceil(W / 2), lh = Math.ceil(H / 2), lv = document.createElement('canvas'); lv.width = lw; lv.height = lh;
+      const l = lv.getContext('2d'), lx = (x) => (x - P.rect[0]) / (2 * P.px), ly = (y) => (P.rect[3] - y) / (2 * P.px);
+      l.fillStyle = '#000'; l.fillRect(0, 0, lw, lh); l.lineJoin = 'round'; l.lineCap = 'round';
+      const LIT = { road: 'rgba(255,140,50,0.34)', plaza: 'rgba(255,180,110,0.16)', lot: 'rgba(255,150,70,0.14)', yard: 'rgba(230,235,255,0.12)', court: 'rgba(255,170,90,0.05)', site: 'rgba(230,235,255,0.1)', quay: 'rgba(255,170,90,0.2)' };
+      for (const r of P.ribbons) { const name = P.names[r[0]], pts = r.slice(2); if (name === 'lane') continue;
+        l.beginPath(); l.moveTo(lx(pts[0]), ly(pts[1])); for (let k = 2; k < pts.length; k += 2) l.lineTo(lx(pts[k]), ly(pts[k + 1]));
+        l.strokeStyle = name === 'highway' ? 'rgba(235,240,255,0.45)' : 'rgba(255,160,70,0.1)'; l.lineWidth = Math.max(1, r[1] / (2 * P.px)); l.stroke(); }
+      for (let k = 0; k < P.n; k++) { const o = k * 5; l.fillStyle = LIT[P.names[rs[o + 4]]] || '#000'; l.fillRect(lx(rs[o]), ly(rs[o + 3]), (rs[o + 2] - rs[o]) / (2 * P.px), (rs[o + 3] - rs[o + 1]) / (2 * P.px)); }
+      const glow = document.createElement('canvas'); glow.width = lw; glow.height = lh; const gg = glow.getContext('2d');
+      gg.filter = 'blur(' + Math.max(1, Math.round(8 / P.px)) + 'px)'; gg.drawImage(lv, 0, 0); gg.filter = 'none'; gg.globalCompositeOperation = 'lighter'; gg.globalAlpha = 0.7; gg.drawImage(lv, 0, 0);
+      lightTex = new THREE.CanvasTexture(glow); lightTex.colorSpace = THREE.SRGBColorSpace; lightTex.minFilter = THREE.LinearMipmapLinearFilter;
+      out.lights = { w: lw, h: lh };
+    }
   }
   // the ground's shader, patched: the cover's albedo, lit as the land, where the vertex says the cover lies
   const uni = { aCov: { value: covTex }, aCovR: { value: new THREE.Vector4(R[0], R[1], R[2], R[3]) }, aPlan: { value: planTex || covTex }, aPlanR: { value: A.plan ? new THREE.Vector4(...A.plan.rect) : new THREE.Vector4() }, aHasPlan: { value: A.plan ? 1 : 0 },
-    aPal: { value: A.pal.map((c) => new THREE.Vector3(c[0], c[1], c[2])) }, aSeed: { value: A.seed % 9973 } };
+    aPal: { value: A.pal.map((c) => new THREE.Vector3(c[0], c[1], c[2])) }, aSeed: { value: A.seed % 9973 },
+    aTint: { value: new THREE.Vector3(...(A.tint || [1, 1, 1])) }, aNight: { value: A.night || 0 }, aLights: { value: lightTex || covTex } };
   __tMat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uni);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\nattribute vec3 aerial; varying vec3 vAer; varying vec3 vAWP;')
       .replace('#include <project_vertex>', '#include <project_vertex>\\nvAer = aerial; vAWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\n' + ${JSON.stringify(GROUND_GLSL)})
-      .replace('#include <color_fragment>', '#include <color_fragment>\\nif (vAer.y > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, aerialAlbedo(vAWP.xy, vAer.z) * vAer.x, clamp(vAer.y, 0.0, 1.0));');
+      .replace('#include <color_fragment>', '#include <color_fragment>\\nif (vAer.y > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, aerialAlbedo(vAWP.xy, vAer.z) * vAer.x * aTint, clamp(vAer.y, 0.0, 1.0));\\nif (aNight > 0.01 && aHasPlan > 0.5) diffuseColor.rgb += aerialLights(vAWP.xy) * aNight * 0.6;');
     // (the flight sky's cloud shadows over it, flight-sky.js)
     if (window.__mojSkyPatch) window.__mojSkyPatch(sh);
   };
@@ -220,7 +246,7 @@ export function aerialScript(cfg) {
   const Lt = A.light, flat = Lt.ambient + Lt.gain * Math.max(0, Lt.dir[2]);
   const mat = new THREE.ShaderMaterial({ fog: true, vertexShader: ${JSON.stringify(MASS_VERT)}, fragmentShader: ${JSON.stringify(MASS_FRAG)},
     uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uSun: { value: new THREE.Vector3(...Lt.dir).normalize() }, uLam: { value: new THREE.Vector3(Lt.ambient, Lt.gain, flat) },
-      uSky: { value: new THREE.Color(TERRAIN.bg) }, uGlass: { value: new THREE.Color('#1d2833') } }]) });
+      uSky: { value: new THREE.Color(TERRAIN.bg) }, uGlass: { value: new THREE.Color('#1d2833') }, uTint: { value: new THREE.Vector3(...(A.tint || [1, 1, 1])) }, uNight: { value: A.night || 0 } }]) });
   const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1), V3 = new THREE.Vector3(), S3 = new THREE.Vector3();
   const instanced = (geo, n, fill) => {
     const wall = new Float32Array(n * 3), roof = new Float32Array(n * 3), info = new Float32Array(n * 2), mesh = new THREE.InstancedMesh(geo, mat, n);

@@ -47,6 +47,7 @@ import { makeLight } from '../polygonizer/vexar.js';
 import { readPaletteSpec } from '../color-theorist/solve.js';
 import { aerialPageConfig } from './aerial.js';
 import { readSkyAsk, flightSky } from './sky.js';
+import { nightLightsConfig } from './night-lights.js';
 import { AQUA_PRESETS } from '../materials/aqua-look.js';
 import { countryFaces } from './country.js';
 
@@ -143,19 +144,27 @@ function railHazardRepeats(manifest, map, field, { light, tone, rock = 'granite'
 }
 
 /** The flight sky for the page (flight-sky.js): its light and colours, its layers, its cumulus packed. */
-function skyPageConfig(S) {
+function skyPageConfig(S, field) {
   const F = new Float32Array(S.clouds.flat());
+  // (the towns' light at night, thrown up into the air and onto the clouds over them: each settlement's middle, its
+  // reach and its strength by its size)
+  const strength = { metro: 1, town: 0.45, village: 0.15 };
+  const glows = (field.report.country?.settlements || []).map((c) => [c.center[0], c.center[1], r2(Math.max(...c.size) * 0.6), strength[c.kind] ?? 0.2]);
   return { sun: S.sun.dir, sunCol: S.sun.color, zenith: S.colours.zenith, horizon: S.colours.horizon, cloudLit: S.colours.cloudLit, cloudShade: S.colours.cloudShade,
     aloft: S.aloft,
     clear: S.light.gain > 0.3 ? 1 : 0.15, wind: S.wind.dir, windSpeed: S.wind.speed, layers: S.layers.map((L) => ({ type: L.type, form: L.form ?? null, base: L.base, depth: Array.isArray(L.depth) ? L.depth[1] : L.depth ?? 0, cover: L.cover })),
-    clouds: { n: S.clouds.length, data: Buffer.from(F.buffer).toString('base64') }, domain: S.domain, shadow: true };
+    clouds: { n: S.clouds.length, data: Buffer.from(F.buffer).toString('base64') }, domain: S.domain, shadow: true,
+    night: S.night, moon: { dir: S.moon.dir, color: S.moon.color, phase: S.moon.phase }, lightning: S.lightning, glows, glowCol: '#ffb062' };
 }
 /** The ocean for the page (ocean.js): the sea's colours (a palette's water where one paints it), its trains, its wind,
  *  the rect its depth is baked over, the aqua look's ripples. */
 function oceanPageConfig(field, S) {
   const b = field.bounds, A = AQUA_PRESETS.ocean;
-  return { z: field.meta.sea, deep: field.water ?? S.colours.sea, shallow: S.colours.seaShallow, foam: '#eef2f0', zenith: S.colours.zenith, horizon: S.colours.horizon, sun: S.sun.dir, sunCol: S.sun.color,
-    glint: S.light.gain > 0.3 ? 1 : 0.2, waves: S.sea.waves, wind: S.wind.speed, rect: [b.x[0], b.y[0], b.x[1], b.y[1]].map(r2), res: 256,
+  // (by night the moon's glint, its path across the water)
+  const moonlit = S.night > 0.5;
+  return { z: field.meta.sea, deep: moonlit ? S.colours.sea : field.water ?? S.colours.sea, shallow: moonlit ? S.colours.sea : S.colours.seaShallow, foam: moonlit ? '#5a6270' : '#eef2f0', zenith: S.colours.zenith, horizon: S.colours.horizon,
+    sun: moonlit ? S.moon.dir : S.sun.dir, sunCol: moonlit ? S.moon.color : S.sun.color,
+    glint: moonlit ? 0.5 * S.moon.phase : S.light.gain > 0.3 ? 1 : 0.2, waves: S.sea.waves, wind: S.wind.speed, rect: [b.x[0], b.y[0], b.x[1], b.y[1]].map(r2), res: 256,
     look: { rough: A.rough, nScale: A.nScale * 0.5, nAmp: A.nAmp * (0.6 + Math.min(1, S.wind.speed / 12)), nSpeed: A.nSpeed, froth: A.froth } };
 }
 
@@ -168,7 +177,12 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   // the country (country.js): its cover, its plan and its city drawn by the terrain channel's aerial script (aerial.js)
   if (live && field.aerial) channel.aerial = aerialPageConfig(field, map);
   // the weather's sky and clouds (flight-sky.js) and the sea with its waves (ocean.js), on the live page
-  if (live && field.sky) { channel.sky = skyPageConfig(field.sky); if (field.meta.sea !== null) channel.ocean = oceanPageConfig(field, field.sky); }
+  if (live && field.sky) {
+    channel.sky = skyPageConfig(field.sky, field);
+    if (field.meta.sea !== null) channel.ocean = oceanPageConfig(field, field.sky);
+    // (from the dusk on: the runway's lights, the beacons, the traffic: night-lights.js)
+    const lights = nightLightsConfig(field); if (lights) channel.lights = lights;
+  }
   // a city's painted streets read only where the mesh is finer than they are: over its footprint a node splits, while
   // the eye is near enough to see them, down to CITY_PIN m between vertices (the terrain world's pin)
   const towns = field.report.cities || [];
