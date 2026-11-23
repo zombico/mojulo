@@ -45,3 +45,6 @@
   note played gently is a gentle note (darker, rounder) and one struck hard is a hard one (brighter, its hammer heard),
   not the same take turned down or up. Each note plays the take nearest it in pitch and in strength; its level still
   follows its velocity. An instrument without layers is played exactly as before.
+- A recorded instrument now moves as its synthesized one does: a glide in from the previous note, a portamento, a
+  glissando that slides (a struck one still runs the scale), and a legato run, one take whose pitch walks its notes with
+  no retrigger. The take's playback rate rides the same ramps the oscillator's frequency would.

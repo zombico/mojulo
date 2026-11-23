@@ -156,9 +156,11 @@ a quarter tone either side), bent from that root; with `loop` it holds on the ta
 without, a struck note rings as its take does and is damped when the key is let go. The synth's modulators are carried
 to the take: `unison` copies spread over `detune` cents, `pitchLane` and `vib`, an `lfo` aimed at pitch, and a bowed or
 blown patch's `vibrato` as a pitch lfo (recHeld: the takes recorded with no vibrato so they loop); filters, envelopes,
-tremolo and the chain sit after it as on any voice. A guitar heard through a saturating amp takes its level from the
-amp's makeup (`ampTrim`, laid on the instrument's amp once as the part expands). Not carried yet: glide and bends on the
-osc's frequency (`glideFrom`, `bend`, `path`), release samples.
+tremolo and the chain sit after it as on any voice. The
+synth's moves of its frequency ride the take's playback rate as the same ratios: a glide in from the row's previous note
+(`glideFrom`), a bend, a portamento or a sliding glissando (`bend`), a legato run (`path`), one take, no retrigger. A guitar heard through a saturating amp takes its level from the
+amp's makeup (`ampTrim`, laid on the instrument's amp once as the part expands). Not carried yet: release samples
+(a key let go is a fade, not the damper's thump).
 
 VELOCITY LAYERS: an instrument's takes can carry the strength they were asked at (a card's `vel`, 0…1, written to each
 variant by conditioning and handed to the page as `vels`). A note then plays the take nearest it in pitch and in

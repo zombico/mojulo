@@ -2581,10 +2581,25 @@ export function buildBeatsKernel() {
         // (the synth's modulators carried to the take: `unison` copies spread over `detune` cents, its pitch lanes and
         // vibrato, `pitchLane`/`vib`, and an lfo aimed at pitch on each copy's detune; its filter, envelope, tremolo and
         // amp lfo already sit after it)
+        // (and the synth's moves of its frequency, as ratios of its rate: a glide in from the row's previous note
+        // (`glideFrom`), a bend or a portamento (`bend` [from, to, startS, endS]), a legato run (`path` [[s, ratio]…]),
+        // each the same ramp the oscillator's frequency would take, on the take's playback rate)
+        const rideRate = (P) => {
+          if (patch.glideFrom) { P.setValueAtTime(srate * patch.glideFrom / hz, t); P.exponentialRampToValueAtTime(srate, t + (patch.glide || 0.08)); } else P.value = srate;
+          if (patch.bend) { const b = patch.bend; P.setValueAtTime(srate * b[0], t + b[2]); P.exponentialRampToValueAtTime(srate * b[1], t + Math.max(b[2] + 0.005, b[3])); }
+          if (patch.path) {
+            let r = 1;
+            for (const [dt, q] of patch.path) {
+              if (!dt) continue;
+              const g = Math.min(patch.pathGlide || 0.06, dt * 0.5);
+              P.setValueAtTime(srate * r, t + dt - g); P.exponentialRampToValueAtTime(srate * q, t + dt); r = q;
+            }
+          }
+        };
         const n = Math.max(1, patch.unison | 0), ug = n > 1 ? ctx.createGain() : null;
         if (ug) { ug.gain.value = 1 / Math.sqrt(n); ug.connect(env); }
         for (let u = 0; u < n; u++) {
-          const src = ctx.createBufferSource(); src.buffer = sbuf; src.playbackRate.value = srate;
+          const src = ctx.createBufferSource(); src.buffer = sbuf; rideRate(src.playbackRate);
           if (n > 1) src.detune.value = (u / (n - 1) - 0.5) * (patch.detune || 0);
           if (sloop) { src.loop = true; src.loopStart = sloop[0]; src.loopEnd = sloop[1]; }
           if (typeof pmod !== 'undefined' && pmod) pmod.connect(src.detune);

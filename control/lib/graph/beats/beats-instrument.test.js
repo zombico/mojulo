@@ -242,3 +242,27 @@ describe('velocity layers', () => {
     expect(Object.values(sampleSlice([LAYERED_LIB]).vels).sort()).toEqual([0.3, 0.95]);
   });
 });
+
+describe('a recorded note moves as the synthesized one would', () => {
+  const at = (x, from, seconds) => fundamental(x, SR, { from, seconds, lo: 150, hi: 1400 }).midi;
+  const play = async (events) => samplesOf((await renderBeatsOffline(normalizeBeatsManifest({ kind: 'beats-composition', title: 'moves', bpm: 120, parts: [{ name: 'k', patch: INST, events }] }), { tail: 0.3 })).wav);
+
+  it('a glissando slides the take from its note to the next', async () => {
+    library(true);
+    const x = await play([[0, 'A4', 2, 0.8, { type: 'gliss', to: 'A5' }]]);
+    // (rising from the first moment: the first window already a little above A4)
+    expect(at(x, 0.02, 0.12)).toBeGreaterThan(68.7);
+    expect(at(x, 0.02, 0.12)).toBeLessThan(70.5);
+    // (still sliding as the window closes: most of the octave climbed, and climbing)
+    expect(at(x, 0.86, 0.12)).toBeGreaterThan(79.5);
+    expect(at(x, 0.86, 0.12)).toBeGreaterThan(at(x, 0.5, 0.12));
+  });
+
+  it('a legato run is one take whose pitch walks its notes', async () => {
+    library(true);
+    const x = await play([[0, 'A4', 1, 0.8, 'legato'], [1, 'C5', 1, 0.8, 'legato'], [2, 'E5', 1, 0.8, 'legato']]);
+    expect(Math.abs(at(x, 0.1, 0.3) - 69)).toBeLessThan(0.3);
+    expect(Math.abs(at(x, 0.6, 0.3) - 72)).toBeLessThan(0.3);
+    expect(Math.abs(at(x, 1.1, 0.3) - 76)).toBeLessThan(0.3);
+  });
+});
