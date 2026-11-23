@@ -58,6 +58,18 @@ export const FAMILY_MATERIALS = Object.freeze({
     Visor: 'glass',
     Suit: 'rubber',
   }),
+  // leather (armor/leather.js): hide welted and laced in hide, studded and buckled in iron
+  leather: Object.freeze({
+    Leather: 'leather', Welt: 'leather', Lace: 'leather',
+    Rivet: Object.freeze({ metal: 'steel', finish: 'polished' }),
+    Buckle: Object.freeze({ metal: 'tone', finish: 'polished' }),
+  }),
+  // mail (armor/mail.js): rings of iron, a leather belt, a cloth surcoat
+  mail: Object.freeze({
+    Mail: Object.freeze({ metal: 'steel', finish: 'blasted' }),
+    Belt: 'leather', Tabard: 'matte',
+    Buckle: Object.freeze({ metal: 'tone', finish: 'polished' }),
+  }),
 });
 
 // what an age does to a metal surface, by metal: copper alloys take a tarnish film (years), steel a finish

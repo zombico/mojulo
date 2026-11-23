@@ -33,7 +33,7 @@ describe('dress materials: the table', () => {
     // the same name in another family is another material: a hardsuit's plate is paint, a lamellar's lacquer satin
     expect(dressSurfaces({ family: 'hardsuit', palette: { Plate: '#e8eaed' } }).Plate).toBe('satin');
     expect(dressSurfaces({ family: 'lamellar', palette: { Kanamono: '#caa24a' } }).Kanamono).toMatchObject({ metal: 'gold' });
-    expect(Object.keys(FAMILY_MATERIALS)).toEqual(['plate', 'lamellar', 'hardsuit']);
+    expect(Object.keys(FAMILY_MATERIALS)).toEqual(['plate', 'lamellar', 'hardsuit', 'leather', 'mail']);
   });
 
   it('takes a cube\'s overrides, `false` leaving a group as paint, and refuses a bad one', () => {

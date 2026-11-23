@@ -3,12 +3,14 @@
 // dials (principles.js): a new direction is a new card, not code.
 //
 // A card:
-//   family    'plate' | 'lamellar' | 'hardsuit' — the construction (law 12), which picks the grammar and its coverage
+//   family    'plate' | 'lamellar' | 'hardsuit' | 'leather' | 'mail' — the construction (law 12), which picks the grammar and its coverage
 //             order
 //   dials     { stylize, mass, coverage, ornament } — the defaults a build's own `dials` override
 //   language  plate: { pauldron: 'spaulder' | 'bell', focalSide: 'R' | 'L', fnSide: 'R' | 'L' } — the focal shoulder and
 //             the arm that carries function (a bow arm takes the first bracer)
 //             lamellar: { crest: 'crescent' | 'kuwagata' | 'sun' }
+//             leather: { cut: 'jerkin' | 'cuirass', studs: 0–3 } (leather.js); mail: { coif: boolean, surcoat: 'none' |
+//             'tabard' } (mail.js)
 //             hardsuit: { helm: 'power' | 'trooper' | 'faceplate' | 'none' (bareheaded: an anime head wears none yet), pauldron: 'dome' | 'cap' | 'segmented' |
 //             'lames' | 'none', chest: 'plain' | 'reactor' | 'plates' | 'box' | 'bands' | 'none', pack: 'power' | 'jet' | 'none', segments: 1–3 (the
 //             panel lines), and the archetype words (hardsuit.js HARD_WORDS: arms, legs, skirt, glow, collar, pauldronSide), focal: 'helm' | 'pauldron' |
@@ -28,7 +30,7 @@
 
 import { validateMaterialRef } from '../polygonizer/materials.js';
 
-export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit']);
+export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit', 'leather', 'mail']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
 export const SIDES = Object.freeze(['R', 'L']);
 const HARD = { helm: ['power', 'trooper', 'faceplate', 'shell', 'none'], pauldron: ['dome', 'cap', 'segmented', 'lames', 'none'], chest: ['plain', 'reactor', 'plates', 'box', 'bands', 'none'], pack: ['power', 'jet', 'tanks', 'none'], focal: ['helm', 'pauldron', 'reactor'],
@@ -113,6 +115,38 @@ export const SEEDED_ARMOR = Object.freeze({
     "emissive": ["Lens", "Reactor"],
     "materials": { "Face": { "metal": "stainless", "finish": "brushed" } }
   },
+  // soft leather: a jerkin laced up the front, welted in a darker hide, rounded caps on the shoulders, laced bracers
+  jerkin: {
+    "id": "jerkin",
+    "family": "leather",
+    "dials": { "stylize": 0.3, "mass": 1, "coverage": 0.6, "ornament": 1 },
+    "language": { "cut": "jerkin", "studs": 0 },
+    "tones": { "Leather": "#7a4f2c", "Welt": "#4a2f1a", "Lace": "#2e1d10", "Rivet": "#b3a88f", "Buckle": "#9a8456", "Top": "#6e6a5c", "Bottom": "#3d3a33", "Shoes": "#3a2616" }
+  },
+  // boiled leather: one moulded cuirass buckled at the sides, its field studded in rows; the brigand's and the ranger's
+  "studded": {
+    "id": "studded",
+    "family": "leather",
+    "dials": { "stylize": 0.3, "mass": 1.05, "coverage": 0.8, "ornament": 1 },
+    "language": { "cut": "cuirass", "studs": 2 },
+    "tones": { "Leather": "#5a3a22", "Welt": "#33210f", "Lace": "#20150b", "Rivet": "#c9c2b0", "Buckle": "#a0884f", "Top": "#4b4a44", "Bottom": "#2f2c28", "Shoes": "#2a1c10" }
+  },
+  // a hauberk of linked rings past the hips, its sleeves and coif, a belt over it
+  hauberk: {
+    "id": "hauberk",
+    "family": "mail",
+    "dials": { "stylize": 0.3, "mass": 1, "coverage": 0.65, "ornament": 1 },
+    "language": { "coif": true, "surcoat": "none" },
+    "tones": { "Mail": "#8a8d91", "Belt": "#4a3020", "Buckle": "#a08a55", "Tabard": "#7a1f1f", "Trim": "#c9a55a", "Top": "#4a4238", "Bottom": "#35302a", "Shoes": "#2e2218" }
+  },
+  // the hauberk under a surcoat: the crusading knight's
+  surcoat: {
+    "id": "surcoat",
+    "family": "mail",
+    "dials": { "stylize": 0.3, "mass": 1, "coverage": 0.8, "ornament": 1 },
+    "language": { "coif": true, "surcoat": "tabard" },
+    "tones": { "Mail": "#8a8d91", "Belt": "#4a3020", "Buckle": "#a08a55", "Tabard": "#e8e2d2", "Trim": "#9e2621", "Top": "#4a4238", "Bottom": "#35302a", "Shoes": "#2e2218" }
+  },
 });
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
@@ -140,6 +174,14 @@ export function validateArmorCard(card, at = 'style') {
     for (const k of ['focalSide', 'fnSide']) if (L[k] !== undefined && !SIDES.includes(L[k])) errs.push(`${at}.language.${k}: 'R' | 'L'`);
   }
   if (card.family === 'lamellar' && L.crest !== undefined && !['crescent', 'kuwagata', 'sun'].includes(L.crest)) errs.push(`${at}.language.crest: one of crescent, kuwagata, sun`);
+  if (card.family === 'leather') {
+    if (L.cut !== undefined && !['jerkin', 'cuirass'].includes(L.cut)) errs.push(`${at}.language.cut: one of jerkin, cuirass`);
+    if (L.studs !== undefined && !(Number.isInteger(L.studs) && L.studs >= 0 && L.studs <= 3)) errs.push(`${at}.language.studs: an integer 0–3 (rows of rivets across the field)`);
+  }
+  if (card.family === 'mail') {
+    if (L.coif !== undefined && typeof L.coif !== 'boolean') errs.push(`${at}.language.coif: true | false (the hood)`);
+    if (L.surcoat !== undefined && !['none', 'tabard'].includes(L.surcoat)) errs.push(`${at}.language.surcoat: one of none, tabard`);
+  }
   if (card.family === 'hardsuit') {
     for (const [k, vs] of Object.entries(HARD)) if (L[k] !== undefined && !vs.includes(L[k])) errs.push(`${at}.language.${k}: one of ${vs.join(', ')}`);
     if (L.segments !== undefined && !(Number.isInteger(L.segments) && L.segments >= 1 && L.segments <= 3)) errs.push(`${at}.language.segments: an integer 1–3 (the panel lines)`);

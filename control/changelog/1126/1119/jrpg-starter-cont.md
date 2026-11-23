@@ -345,6 +345,14 @@
   level's end until its line is closed, the citadel's line as it begins and its ending staged there.
 - **What a member wears, minted.** `battles.wardrobe: true` (or the book's own table over the presets) mints a figure
   per party member per armour its class may wear, the member's own body and dress under the armour's `adorn`
-  (`gameworld/wardrobe.js`): leather a third of the body, mail to the knee. The looks are run steps
+  (`gameworld/wardrobe.js`): leather armour a laced jerkin, chain mail a hauberk. The looks are run steps
   (`hero-look-<armour>`, `cast-<id>-look-<armour>`) beside the base figure; the page swapping them in on equip is the
   next step.
+- **Leather and mail in the armour library.** Two families beside plate, lamellar and the hard-suit, each its own
+  construction rather than plates: `leather` (`armor/leather.js`: a jerkin laced up the front or a boiled cuirass
+  buckled at the sides, welted edges, a yoke and rounded caps on the shoulders, laced bracers and greaves, a belt and
+  hanging strips, studs in rows: `language: { cut, studs }`) and `mail` (`armor/mail.js`: a byrnie, then a hauberk's
+  slit skirt and belt, long sleeves, a coif and chausses, every piece worked in courses of rings by a new `courses`
+  signature, a surcoat on request: `language: { coif, surcoat }`). Four cards: `jerkin`, `studded`, `hauberk`,
+  `surcoat`. Worn over a designed outfit, a period armour leaves off the outfit's outer layer and its own armour
+  pieces (a mantle, pauldrons, a chest plate, bracers, wraps), which hid it.

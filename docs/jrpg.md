@@ -370,8 +370,11 @@ front). It saves at save points, never from the menu: the store is written as a 
 `battles.wardrobe: true` mints each party member once more for each armour its class may wear: its own body and dress
 under the armour's build (the hero door's `adorn`), a figure per look (`gameworld/wardrobe.js`). The armour slot alone
 sets the look, since it is what changes the outline; weapons are held as before. The presets are a row per armour of
-the starter gear (leather a third of the body, mail to the knee); `wardrobe: { <armour>: { adorn } | null }` is the
-book's own over them, null for an armour that changes nothing. The looks are the run's steps (`hero-look-<armour>`,
+the starter gear (leather armour a laced jerkin, the armour library's `leather` family; chain mail a hauberk of rings
+with its coif, its `mail` family); `wardrobe: { <armour>: { adorn } | null }` is the
+book's own over them (any armour card: plate, lamellar, leather, mail), null for an armour that changes nothing. Worn
+over a member's outfit, the armour takes the place of its outer layer and its own armour pieces (a mantle, pauldrons,
+bracers). The looks are the run's steps (`hero-look-<armour>`,
 `cast-<id>-look-<armour>`). They are minted, not yet swapped in on equip: the page still shows the base figure. Dialogue
 heads stay the base portrait.
 

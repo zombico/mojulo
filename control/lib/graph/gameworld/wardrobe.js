@@ -17,10 +17,10 @@
  */
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
-// (light plate over the clothes: a third of the body; mail to the knee in plate's grammar, the shoulders and the chest)
+// (leather armour a laced jerkin, armor/leather.js; chain mail a hauberk of rings with its coif, armor/mail.js)
 export const WARDROBE = Object.freeze({
-  'leather-armor': Object.freeze({ adorn: Object.freeze({ type: 'armor', style: 'knight', dials: Object.freeze({ coverage: 0.35, mass: 0.75, ornament: 0 }) }) }),
-  'chain-mail': Object.freeze({ adorn: Object.freeze({ type: 'armor', style: 'knight', dials: Object.freeze({ coverage: 0.75, mass: 0.95, ornament: 1 }) }) }),
+  'leather-armor': Object.freeze({ adorn: Object.freeze({ type: 'armor', style: 'jerkin' }) }),
+  'chain-mail': Object.freeze({ adorn: Object.freeze({ type: 'armor', style: 'hauberk' }) }),
 });
 
 /** The book's wardrobe read: true (the presets), its own table over them, or false. Throws teaching. */
