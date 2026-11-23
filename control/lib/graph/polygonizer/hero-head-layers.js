@@ -260,7 +260,7 @@ export function heroLockHair(recipe, dermis, scalp, { level = 'L1', budget = fal
   // (realistic laws 14: the hair SEALED against the neck and the body, HAIR_SEAL)
   const sealed = seal ? sealSkin(recipe) : null;
   // (`textured`: the locks drawn with the lock page's hair, hair-strands.js lockPage; one flat colour before)
-  const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart, sealed), seal: !!sealed, uv: textured });
+  const H = lockHair(relationalHeadChart(head, { cells: CELLS }), D, S, { level, centre, stylize, colliders: bodyColliders(recipe, toChart, sealed), seal: !!sealed, uv: textured, flush: textured });
   const cap = budget ? leanCoat(H.cap, HEAD_BUDGET[level]?.coat) : H.cap;
   if (!H.mesh && !cap && !H.cards) return { parts: {}, palette: {}, counts: H.counts };
   const [skinName, visage] = faceSkinOf(recipe), compiled = compileLayered({ parts: { [skinName]: visage }, dials: {}, creases: {} }).parts[skinName];

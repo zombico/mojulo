@@ -51,6 +51,10 @@ import { capMesh, hairClass, HAT_CAP } from './hair-depict.js';
 import { overlapHair } from './hair-score.js';
 import { LOCK_CELL0, LOCK_PAGE } from './hair-strands.js';
 
+/** the painted face's hair lying FLUSH at its hairline (`flush`): a crop's shell rising over `edge` (m) from its edge, a
+ * lock's root `root[0]` of its thickness, swelling to its whole by `root[1]` of its length */
+export const HAIR_FLUSH = Object.freeze({ edge: 0.016, root: [0.08, 0.45] });
+
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
@@ -360,7 +364,7 @@ function noise3(p, s) {
  * THE LOCK HAIR on a head: the groom `S` (readScalp's) on `chart` with dermis `D`, at the ladder's `level`, `stylize` the
  * dial, `centre` the head's middle (a lock's top faces away from it), `colliders` surfaces the hair falls outside.
  */
-export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], stylize = HAIR_STYLIZE, colliders = [], maps = false, seal = false, uv = false } = {}) {
+export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], stylize = HAIR_STYLIZE, colliders = [], maps = false, seal = false, uv = false, flush = false } = {}) {
   const s = readStylize(stylize), St = lockStyleAt(s), R = LOCK_RUNG[level] ?? LOCK_RUNG.L1, cls = lockClass(S);
   // (the head's skin, then what the hero gives the hair to fall over: its neck, its shoulders, its back)
   // (a lock lies over the shell, never under it: the shell would hide it)
@@ -398,8 +402,11 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       const q = scl(p, 1 / St.puff), n = 0.65 * noise3(q, S.seed ?? 1) + 0.35 * noise3(scl(q, 2.1), (S.seed ?? 1) + 7);
       return Math.max(HAT_CAP.height, h * (1 + St.lump * (2 * n - 1)));
     };
-    cap = shellMesh(chart, D, S, heightAt, { edge: cls === 'coil' ? 0.02 : 0.006, where: shelled });
-    const fc = fadeCards(cap, skin, onClipped), fade = cardMesh(fc, (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap));
+    // (`flush`, the painted face's hair: a crop's shell rises over HAIR_FLUSH.edge from its edge, so its front lies down on
+    // the forehead into the painted fringe; over 6 mm it stood as a lip, a step and a shadow at the hairline)
+    cap = shellMesh(chart, D, S, heightAt, { edge: cls === 'coil' ? 0.02 : flush ? HAIR_FLUSH.edge : 0.006, where: shelled });
+    // (`flush`: the fringe is the skin's paint, dermal-texture.js HAIR_FRINGE; the fade's cards drew small dark combs on it)
+    const fc = flush ? [] : fadeCards(cap, skin, onClipped), fade = fc.length ? cardMesh(fc, (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap)) : null;
     if (cls === 'cropped' || cls === 'coil' || !guides.length) return { mesh: null, cards: fade, cap: bare(cap), locks: [], ...(clip ? { clip } : {}), counts: { ...counts, shell: cap?.faces.length ?? 0, fade: fade ? fc.length : 0 } };
   }
   // (the shell under locks a little raised, so a gap between two locks shows hair, not a painted scalp)
@@ -550,7 +557,8 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
       };
       const spineOff = spine.map(offScalp);
       // (its thickness its width's share, at most the dial's `thick`: volume, never a slab)
-      const lockThick = (u) => Math.min(St.thick, widthAt(u) * flat) * (0.25 + 0.75 * smooth(0, 0.3, u));
+      // (`flush`: a lock's root thinner and swelling the longer, so the locks' front lies on the forehead, HAIR_FLUSH.root)
+      const lockThick = (u) => Math.min(St.thick, widthAt(u) * flat) * (flush ? HAIR_FLUSH.root[0] + (1 - HAIR_FLUSH.root[0]) * smooth(0, HAIR_FLUSH.root[1], u) : 0.25 + 0.75 * smooth(0, 0.3, u));
       loftLock(M, spine, { width: widthAt, thick: lockThick, grooves: R.ring >= 8 ? St.grooves : 0, depth: St.depth, ring: R.ring, outAt, group, clear, rail });
       if (!trail) { locks.push({ guides: members.length, length: Lm, width: w0 }); flowGeom.set(members, { spine, rail, thick: lockThick, widthAt, outAt, cutEnd }); }
       // the TIP CARDS (the dial's share), on from the lock's last third (the hairline is the fade's)
@@ -600,7 +608,7 @@ export function lockHair(chart, D, S, { level = 'L1', centre = [0, 0, 0], styliz
   const overlapMaps = maps && overlap?.maps ? { maps: overlap.maps, px: overlap.px } : null;
   if (overlap) counts.overlap = { open: overlap.open, worst: overlap.worst, split: overlap.split, passes: overlap.passes, rounds: round };
   // (the locks' cards laid off the head as the locks are; the fade's on the skin, its ends over it)
-  const fade = fadeCards(cap, skin, onClipped), C = joinCards(cardMesh(cards.filter(Boolean), (p) => clear(clear(p))), cardMesh(fade, (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap)));
+  const fade = flush ? [] : fadeCards(cap, skin, onClipped), C = joinCards(cardMesh(cards.filter(Boolean), (p) => clear(clear(p))), cardMesh(fade, (p) => skin.out(skin.out(p, LOCK_FADE.gap), LOCK_FADE.gap)));
   counts.fade = fade.length;
   cap = bare(cap);
   counts.cards = cards.filter(Boolean).length;

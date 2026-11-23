@@ -30,7 +30,7 @@
  * Pure and deterministic: no dice outside the seeds, no clock. Faces whose corners lie on different parts, or off the
  * skin, take the white texel at the page's corner.
  */
-import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR, CLIPPER, clipCover, sideburnOf, headXY } from './dermal-map.js';
+import { dermisAt, dermalDetail, hairMeanOf, freckle, seedOf, toSrgb, DIRT_COLOUR, CLIPPER, clipCover, sideburnOf, headXY, headHairline } from './dermal-map.js';
 import { browAt } from './dermal-brow.js';
 import { skinRelief } from './skin-relief.js';
 import { hash3, vnoise } from '../era/dirt.js';
@@ -48,6 +48,9 @@ function streakAt(X, Y, th, seed) {
   for (let k = -S.taps; k <= S.taps; k++) m += vnoise((X + fx * k * step) / S.cell, (Y + fy * k * step) / S.cell, seed + 91);
   return Math.max(0, Math.min(1, 0.5 + (m / (2 * S.taps + 1) - 0.5) * S.stretch));
 }
+/** a hairline's FRINGE: from `from` mm under the hairline (where the scalp's paint has faded out) on `reach` mm, at most
+ * `share` of a texel in hair */
+export const HAIR_FRINGE = Object.freeze({ from: 3, reach: 9, share: 0.75 });
 /** a brow hair's colour against the hair's mean */
 const BROW_TONE = 0.8;
 /** the lash line's colour against the hair's mean: the lashes' roots, the darkest hair on the face */
@@ -181,11 +184,21 @@ export function paintIsland(P, r, D, mpt, { grid: gridAt, texel, scalp = true, s
     // (where the scalp's own paint is the fainter, the hairline's soft edge or a cell the clip has no length for, the band's)
     else if (sbShare > 0 && sbShare > (scalp ? scalpPaint * scalpW : 0)) { col = mixc(col, hairLin, sbShare); sbApplied = sbShare; }
     else if (scalpW > 0.01 && !D.bareScalp) {
-      if (scalp) col = mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
+      // (`scalpStreaks`, the painted face's hair: the scalp the hair's own colour, as the fade's is, since the crop's shell
+      // shows this paint; at the old share a dark line ran where the fade met it)
+      if (scalp) col = scalpStreaks ? mixc(col, hairLin, scalpW) : mixc(col, hairLin.map((x) => x * 0.8), scalpPaint * scalpW);
       else col = mixc(col, hairLin, follicles(A, 200, 0.3, mpt, D.seed + 17) * scalpW * 0.6);
     }
     // (`scalpStreaks`: the scalp's hairs as the beard's are, streaks along its growth, as much as its paint covers; what the
     // scalp's shell shows, its faces on the skin's page: dermal-hero.js)
+    // (and its FRINGE: the fine short hairs a hairline thins out through, streaks a few millimetres on past where the scalp's
+    // paint ends, fewer the further, so the hair meets the forehead with no line where the shell or the locks begin)
+    if (scalpStreaks && A.marks && A.part === 'head' && !D.bareScalp) {
+      // (and on up through the scalp's edge, a clipper's fade: there its short hair's share is thin, a pale band between the
+      // fringe and the shell; over the scalp's own hair the strokes are the hair over itself)
+      const H = headHairline(A, D), below = H.hl + H.wander - H.q.Y, w = smooth(HAIR_FRINGE.from + HAIR_FRINGE.reach, HAIR_FRINGE.from, below);
+      if (w > 0.01) { const v = streakAt(H.q.X, H.q.Y, near.hair.flow, (D.seed ?? 1) + 13); col = mixc(col, hairLin.map((x) => x * 0.85), HAIR_FRINGE.share * w * smooth(0.42, 0.72, v)); }
+    }
     if (scalpStreaks && A.marks && scalpW > 0.01 && !D.bareScalp) { const { X, Y } = headXY(A), v = streakAt(X, Y, near.hair.flow, (D.seed ?? 1) + 7); col = col.map((x) => x * (1 + BEARD_STREAK.contrast * (v - 0.5) * scalpW)); }
     if (beardD > 0.5 && D.stubble > 0) col = mixc(col, hairLin, follicles(A, beardD, D.stubble, mpt, D.seed + 23));
     // (under a styled beard, the skin in the hair's colour, as the scalp's under its groom: a gap between
