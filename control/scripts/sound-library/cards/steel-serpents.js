@@ -1,8 +1,11 @@
 /**
  * Steel Serpents' own sounds (the `steel-serpents` rail, stealth action: a covert operative slipping through a guarded
  * compound): a FLAVOR, heard only by a game of that flavor. Its sheet's slots (quiet steps on concrete and steel, a
- * vault, a drop, a roll, a knife), its doors, the moment it is spotted, the extraction, a keycard, and its guards' voices
- * where its foes are drawn as people. Described as sounds of their own, never as another game's.
+ * vault, a drop, a roll, a knife), its doors, a keycard, and its guards' voices where its foes are drawn as people.
+ * Described as sounds of their own, never as another game's.
+ *
+ * Being spotted (`alarm`) and the extraction (`goal`) stay the shelf's cues: asked for "over a radio", their takes came
+ * back as voices, and a cue must stay a cue (a prompt for a cue names no radio, speaker or announcer).
  */
 
 const FLAVOR = 'steel-serpents';
@@ -21,8 +24,6 @@ export const CARDS = [
   shot('ss-latch', 'latch', 'a security door keycard reader beeping and its electronic lock clunking open, no voice', 1.2),
   shot('ss-door', 'door', 'a heavy steel security door sliding open with a pneumatic hiss, no voice', 1.5),
   shot('ss-pickup', 'pickup', 'picking up a keycard, a soft plastic click and a short confirming beep, no voice', 0.6),
-  shot('ss-alarm', 'alarm', 'an intruder spotted: a sudden tense rising electronic alert tone and a radio crackle, no voice', 1.5),
-  shot('ss-goal', 'goal', 'an extraction point reached: a short secure electronic confirmation tone over a radio, no voice', 1.5),
   // its guards, where they are drawn as people
   shot('ss-guard-shout', 'attack-shout', 'a soldier\'s sharp short shout as he lunges, a wordless yell', 0.6),
   shot('ss-guard-hurt', 'hurt-grunt', 'a soldier grunting as he is struck, a short wordless grunt', 0.5),
