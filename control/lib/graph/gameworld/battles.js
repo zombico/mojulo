@@ -229,6 +229,10 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats), or a building level's rooms on the way to its goal
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
+/** A stage that is a settlement whole (a whole town, a street): no pack is laid in it; on a stage a settlement stands
+ * beside its trail (its level's places), no pack stands within SETTLED_CLEAR m of what is built there (battleCast). */
+export const SETTLED = (G, s) => ['geotown', 'street'].includes(s.section);
+export const SETTLED_CLEAR = 30;
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
 const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests', 'techs', 'wardrobe'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
@@ -390,7 +394,8 @@ export function battleBase(G) {
   const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'techs'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   // gold is the bag's (held:bag:gold), so it is carried as every item is
   // a book fighting on boards has the board's own book besides (the summoner and its summons), when it uses it
-  const base = { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
+  // (fought on the level's own battle scene, its most open place, every fight there, rpg-channel.js; a board's are its own)
+  const base = { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.on === 'board' ? {} : { stage: 'scene' }), ...(B.rules ?? {}) } };
   return B.on === 'board' ? withBoardBook(base) : base;
 }
 
@@ -433,13 +438,14 @@ export const roomOf = (ends) => freeBeats(ends).length;
 export function battlePlan(G, stages, room = () => Infinity, lair = () => false) {
   const B = G.battles ?? {}, packs = B.packs ?? PACKS, per = B.per ?? 2, plan = {};
   let k = 0;
-  // (none in the hub: the town is where the party comes back to)
+  // (none in the hub: the town is where the party comes back to; and none in a whole town or a street, SETTLED: fights
+  // are the wilds' and the dungeons')
   // (walked in the order the main quest plays its levels, act by act, beat by beat: the plains before the woods before
   // the dungeon, whatever order the world writes its levels in; a level no beat plays after them, in the stages' order)
   const parts = G.mainQuest ? G.mainQuest[G.mainQuest.shape ?? 'acts'] : null;
   const order = Array.isArray(parts) ? [...new Set(parts.flatMap((A) => (A.beats ?? []).map((b) => (b?.as?.kind === 'level' ? b.as.at : b?.as?.level))).filter(Boolean))] : [];
   const rank = (i) => { const r = order.indexOf(stages[i].level); return r < 0 ? order.length : r; };
-  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub)).map(([, i]) => i).sort((a, b) => rank(a) - rank(b) || a - b);
+  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub) && !SETTLED(G, s)).map(([, i]) => i).sort((a, b) => rank(a) - rank(b) || a - b);
   const last = B.boss ? [...fought].reverse().find((i) => lair(i) || Math.min(per || 1, room(i)) > 0) : undefined;
   // (a glyph map's stage is the whole chapter: `per` in each of its regions past the first, the town it sets out from)
   // (its regions as the map reads them, level/grid.js: a planned map's segments, each its region, stitched)
@@ -465,7 +471,10 @@ export function battlePlan(G, stages, room = () => Infinity, lair = () => false)
  */
 export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, packs = [], from = 0, seed = 1 } = {}) {
   const B = G.battles ?? {}, base = battleBase(G);
-  const along = freeBeats(ends);
+  // (a beat by what is built on the stage, a town's or a castle's, holds no pack: fights are the wilds' and the
+  // dungeons', never in a settlement's streets)
+  const built = (ends.places ?? []).map((p) => p.at).filter(Boolean);
+  const along = freeBeats(ends).filter((b) => !built.some((q) => Math.hypot(b.at[0] - q[0], b.at[1] - q[1]) < SETTLED_CLEAR));
   // (a building's boss stands in its goal room, `bossAt`, the packs before it in the rooms on the way; on a trail it is
   // the last pack along the way)
   const lair = !!(B.boss && ends.bossAt && packs.at(-1) === B.boss);

@@ -564,7 +564,10 @@ ${fights ? `          // (a fight's clearing, scene-three.js __mojClip: a plant 
         // (the trunks stand: each template's share of its wood held still, and of its leaves at full sway)
         rigid: T.map(({ t, parts }) => { const w = parts.wood.im.geometry.getAttribute('aSway').array, l = parts.crown.im.geometry.getAttribute('aSway').array; let a = 0, b = 0; for (const v of w) if (v < 0.05) a++; for (const v of l) if (v > 0.95) b++; return { name: t.name, wood: +(a / w.length).toFixed(2), leaves: +(b / l.length).toFixed(2) }; }) };
     }
-    sortPlants();
+    sortPlants();${fights ? `
+    // (how many plants stand round a place, their crowns within r m of it: a fight's scene is solved where fewest do,
+    // rpg-channel.js)
+    window.__formFloraNear = (x, y, r) => { let n = 0; for (let i = 0; i < N; i++) { const b = i * STRIDE; if (Math.hypot(P[b] - x, P[b + 1] - y) < r + FL.templates[P[b + 11]].radius * P[b + 3]) n++; } return n; };` : ''}
     // the shaking: a walked-through bush brushed by the walker (the camera's foot within its reach) shakes, settling as
     // it is left; written each frame into the copies' slots
     const soft = []; for (let i = 0; i < N; i++) if (P[i * STRIDE + 12] > 0.5 && P[i * STRIDE + 12] < 1.5) soft.push(i);

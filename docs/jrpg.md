@@ -412,6 +412,20 @@ A cue's walk may find its way (`walk: { who, to, find: true }`, RPG Maker's move
 stands in the way (the page's pathfinder, A* over the world's colliders), arriving only at the places it named. Without
 `find` a walk goes in straight lines and stops at a wall, `stuck`.
 
+## Where a fight is fought
+
+A party RPG's fights are fought on the level's own **battle scene** (`rules.stage: 'scene'`, the battles' default): as
+a console RPG cut to its battle screen, every fight on a level is fought at one place, solved at its first fight and
+kept for the level (`rpg-channel.js` arenaStage). It is the level's most open place round where its fights are laid and
+where the party set out (out to 18 m): the most level, nothing standing in its fighters' places, fewest plants round it
+(the flora's) and nothing built within 12 m (the world's colliders), its camera on the party's side seeing every
+fighter. Each fight's party and pack are fitted to it. A fight met in a room is fought in that room. A book names
+another stage (`'live'`, where it is met; `'arena'`, solved near where it is met; `'backdrop'`).
+
+No fight is laid in a settlement: none in the hub, none on a stage that is a whole town or a street, and on a stage a
+town or a castle stands beside its trail, no pack within 30 m of what is built there (`battles.js` SETTLED,
+SETTLED_CLEAR): a stage with fewer free beats stands fewer packs.
+
 ## The fight's shot kept clear
 
 A fight on the map is seen from a camera the fight places round its fighters (`rpg-channel.js` stage: `rules.view`,

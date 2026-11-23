@@ -361,7 +361,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     const fid0 = figureOf(R.b.foes && R.b.foes[0] && R.b.foes[0].uid), fid = placed(fid0) ? fid0 : null, pid = placed(w.pilotId) ? w.pilotId : null, P = pid && w.byId[pid];
     const ids = [...new Set(R.b.ids.map((m) => figureOf(m)).filter(placed))], F = fid && w.byId[fid];
     if (!P || !ids.length) return;
-    if (cfg.rules && cfg.rules.stage === 'arena' && window.__mojCtrl && window.__mojCtrl.ground) { arenaStage(w, P, fid, ids, placed); return; }
+    if (cfg.rules && (cfg.rules.stage === 'arena' || cfg.rules.stage === 'scene') && window.__mojCtrl && window.__mojCtrl.ground) { arenaStage(w, P, fid, ids, placed); return; }
     const fp = F ? F.transform.pos : [P.transform.pos[0] + Math.cos(P.transform.heading) * STAGE.gap, P.transform.pos[1] + Math.sin(P.transform.heading) * STAGE.gap, P.transform.pos[2]];
     let ux = P.transform.pos[0] - fp[0], uy = P.transform.pos[1] - fp[1];
     const n = Math.hypot(ux, uy);
@@ -459,6 +459,13 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   // fixed, and what stands in the arena and between the camera and it cleared for the fight (window.__mojClip, the
   // page's: the land kept)
   const ARENA_RINGS = [0, 4, 8], ARENA_BEARINGS = 6, ARENA_AXES = 8, ARENA_GAP = 4.6;
+  // THE LEVEL'S BATTLE SCENE (rules.stage 'scene'): the arena solved once for the level, not where each pack is met: its
+  // candidates round every place a fight is laid on it (its encounters) and where the party set out, out to SCENE_RINGS
+  // metres, scored as an arena's are and by the plants that stand round it (SCENE_PLANTS m: the flora's, form-flora.js)
+  // and what is built round it (SCENE_BUILT m: the world's colliders);
+  // its place and its line kept (sceneAt), every fight on the level fought there, its fighters fitted to it each time
+  const SCENE_RINGS = [0, 6, 12, 18], SCENE_PLANTS = 9, SCENE_BUILT = 12;
+  let sceneAt = null, setOut = null;
   const PARTY_AT = [[0, 0], [-1.3, 1.5], [-0.7, -1.6], [-2.2, 0.3]], PACK_AT = [[0, 0], [1.3, 1.4], [1.1, -1.5], [2.4, 0.2], [2.6, -2.8], [2.6, 2.9]];
   function arenaStage(w, P, fid, ids, placed) {
     const met = (cfg.met || []).find((x) => x.id === R.b.enc), crew = met && Array.isArray(met.who) ? met.who.slice(1).filter(placed) : [];
@@ -488,12 +495,23 @@ export function rpgPage(cfg, K, ctl, jk, M) {
         cands.push({ c, u, S, zs: all.map((q) => gnd(q[0], q[1], z0)), score: behind });
       }
     }
-    if (!room) for (const r of ARENA_RINGS) for (let k = 0; k < (r ? ARENA_BEARINGS : 1); k++) {
-      const t = (k / ARENA_BEARINGS) * 2 * Math.PI, c = [E[0] + r * Math.cos(t), E[1] + r * Math.sin(t)];
-      for (let j = 0; j < ARENA_AXES; j++) {
-        const a = (j / ARENA_AXES) * 2 * Math.PI, u = [Math.cos(a), Math.sin(a)], S = slots(c, u), all = [...S.party, ...S.pack];
-        const zs = all.map((q) => gnd(q[0], q[1], z0)), spread = Math.max(...zs) - Math.min(...zs);
-        cands.push({ c, u, S, zs, score: spread * 4 + all.filter(blocked).length * 3 + r * 0.05 });
+    const scene = !room && cfg.rules.stage === 'scene', plants = scene && window.__formFloraNear ? window.__formFloraNear : null;
+    if (scene && sceneAt) {
+      // (the level's scene, solved at its first fight: this fight's fighters fitted to its place and its line)
+      const S = slots(sceneAt.c, sceneAt.u), all = [...S.party, ...S.pack];
+      cands.push({ c: sceneAt.c, u: sceneAt.u, S, zs: all.map((q) => gnd(q[0], q[1], sceneAt.z)), score: 0 });
+    } else if (!room) {
+      const anchors = scene ? [...(cfg.met || []).map((m) => m.at), ...(setOut ? [setOut] : []), [E[0], E[1]]] : [[E[0], E[1]]];
+      for (const A of anchors) for (const r of scene ? SCENE_RINGS : ARENA_RINGS) for (let k = 0; k < (r ? ARENA_BEARINGS : 1); k++) {
+        const t = (k / ARENA_BEARINGS) * 2 * Math.PI, c = [A[0] + r * Math.cos(t), A[1] + r * Math.sin(t)];
+        // (and what is built round it, the world's colliders within SCENE_BUILT m: a scene is the open country's, never a
+        // town's street or a castle's yard)
+        const crowd = (plants ? plants(c[0], c[1], SCENE_PLANTS) : 0) + (scene ? 4 * cols.filter((k) => Math.hypot(Math.max(k.min[0] - c[0], 0, c[0] - k.max[0]), Math.max(k.min[1] - c[1], 0, c[1] - k.max[1])) < SCENE_BUILT).length : 0);
+        for (let j = 0; j < ARENA_AXES; j++) {
+          const a = (j / ARENA_AXES) * 2 * Math.PI, u = [Math.cos(a), Math.sin(a)], S = slots(c, u), all = [...S.party, ...S.pack];
+          const zs = all.map((q) => gnd(q[0], q[1], z0)), spread = Math.max(...zs) - Math.min(...zs);
+          cands.push({ c, u, S, zs, score: spread * 4 + all.filter(blocked).length * 3 + crowd * 1.5 + (scene ? 0 : r * 0.05) });
+        }
       }
     }
     cands.sort((x, y) => x.score - y.score);
@@ -518,6 +536,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     let K = null, shot = null;
     for (const cand of cands.slice(0, 8)) { const sh = shotOf(cand); if (!shot || sh.hit < shot.hit || (sh.hit === shot.hit && cand.score < K.score)) { K = cand; shot = sh; } if (sh.hit === 0) break; }
     if (!K) return;
+    if (scene && !sceneAt) sceneAt = { c: K.c.slice(), u: K.u.slice(), z: z0 };
     // (the fighters stood on their places, each facing across the line; the camera fixed)
     const C = w.camera && w.camera.transform ? w.camera : null;
     staged = { at: {}, cam: C ? { pos: C.transform.pos.slice(), heading: C.transform.heading, pitch: C.transform.pitch, lookAt: C.lookAt ? C.lookAt.slice() : null, rule: C.rule } : null };
@@ -1034,6 +1053,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   function step(t) {
     const now = typeof t === 'number' ? t : 0, dt = lastT ? Math.max(0, Math.min(now - lastT, 1000)) : 0;   // real time: a slow frame still moves the playback on
     lastT = now; frameN++;
+    // (where the party set out on the level: one of the places its battle scene is sought round, rules.stage 'scene')
+    if (!setOut) { const w = W(), me = w && w.byId[w.pilotId]; if (me && me.transform) setOut = [me.transform.pos[0], me.transform.pos[1]]; }
     changed();
     dress();
     hookCarry();

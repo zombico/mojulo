@@ -388,3 +388,9 @@
 - **Only the one acting has its bar up.** On a member's turn only its HP and MP are over its head; choosing a target,
   only the target in focus shows its bar, moving with the cursor (`rpg-channel.js` battleModel `onAim`, `rpg-ui.js`
   HEAD); a round playing keeps its news. Every fighter's bar was up on the player's turn and hid the cast.
+- **Each level its battle scene; no fights in a settlement.** A party RPG's fights are now fought at one place a level,
+  solved at its first fight and kept (`rules.stage: 'scene'`, the battles' default, `rpg-channel.js` arenaStage): the
+  level's most open place round its fights and where the party set out, scored by its level ground, what stands in its
+  places, the plants round it (`form-flora.js` `__formFloraNear`) and what is built within 12 m. No pack is laid on a
+  whole town or a street, nor within 30 m of what a stage has built beside its trail (`battles.js` SETTLED). The
+  starter's castle heights fought in front of its church, the camera cut through its wall; it fights on the open hill.
