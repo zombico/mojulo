@@ -108,12 +108,14 @@ describe('Rebel Storm: mission 1 designed', () => {
     expect(placeLine(M.place)).toBe('Kessa System | Varn Cluster | Vigil Station | Moon IV');
     expect(missionLaws(M).filter((L) => !L.ok)).toEqual([]);
     expect(M.status).toBe('approved');
-    expect(missionLevel(MISSIONS[0])).toEqual(compileMission(M, { airframe: 'strikeFoil' }).level);
+    expect(missionLevel(MISSIONS[0])).toEqual(compileMission(M, { airframe: 'strikeFoil', design: MISSION_DESIGNS['mission-1'] }).level);
+    // (briefed on the holo table as its level loads: the design itself rides the level, read again by the page)
+    expect(readMission(missionLevel(MISSIONS[0]).airspace.briefing)).toEqual(M);
     expect(missionLevel(MISSIONS[0]).airspace.space.fleet.map((f) => f.id)).toEqual(['station', 'kestrel', 'dominion']);
     expect(missionLevel(MISSIONS[1]).goal.flight.sortie).toEqual(JSON.parse(JSON.stringify(MISSIONS[1].sortie)));
   });
   it('its game is drawn by mana-ui in the campaign\'s look, the creator\'s own ui winning', () => {
-    expect(rebelStormStart({}).world.ui).toEqual({ theme: 'orbit' });
+    expect(rebelStormStart({}).world.ui).toEqual({ theme: { from: 'orbit', overlay: 'none' } });
     expect(rebelStormStart({ ui: { theme: 'static' } }).world.ui).toEqual({ theme: 'static' });
   });
 });

@@ -2401,6 +2401,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a mission on the world (gameworld/mission-level.js): its plan, its tasks and its briefing; the page's mission channel
   // draws its briefing, HUD, pause and debrief on mana-ui from them. Absent ⇒ nothing (scene/channels/mission.js).
   if (payload && sketch.manifest.mission && typeof sketch.manifest.mission === 'object' && Array.isArray(sketch.manifest.mission.tasks)) payload.mission = sketch.manifest.mission;
+  // a space mission's briefing over its cockpit level (campaign/: its design, read and drawn as the holo table); the
+  // page's briefing channel holds the mission behind it until Launch. Absent ⇒ nothing (scene/channels/briefing.js).
+  if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.briefing && typeof sketch.manifest.briefing === 'object') {
+    const { readMission } = await import('@/lib/graph/campaign/mission.js');
+    const { briefingData } = await import('@/lib/graph/campaign/briefing.js');
+    payload.briefing = { data: briefingData(readMission(sketch.manifest.briefing)) };
+  }
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).

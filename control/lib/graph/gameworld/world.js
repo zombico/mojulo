@@ -134,6 +134,7 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
+import { readMission as readSpaceMission } from '../campaign/mission.js';
 import { readFlightGoal } from './flight-goal.js';
 import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
 import { readLayouts } from '../era/room-layouts.js';
@@ -323,7 +324,7 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
 const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways', 'hats'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit'];
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -799,6 +800,11 @@ export function readGameworld(W) {
       for (const k of Object.keys(As)) if (!AIRSPACE_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.airspace.${k} is not an airspace level setting (${AIRSPACE_LEVEL_KEYS.join(', ')})`);
       const errs = validateAirspace({ kind: 'airspace', ...As });
       if (errs.length) throw new Error(`gameworld: ${at}.${errs[0]}`);
+      // a cockpit mission's briefing: its design (campaign/mission.js), told on the holo table before it is flown
+      if (As.briefing !== undefined) {
+        if (As.cockpit !== true) throw new Error(`gameworld: ${at}.airspace.briefing: a briefing is a cockpit mission's (airspace.cockpit: true)`);
+        try { readSpaceMission(As.briefing); } catch (e) { throw new Error(`gameworld: ${at}.airspace.briefing: ${e.message.replace(/^campaign: /, '')}`); }
+      }
     } else if (L.roadway !== undefined) {
       // a roadway level: a track built for driving (roads/track.js), laid on its own ground
       if (L.walk !== undefined || L.building !== undefined || L.city !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city or a roadway, one of them`);
@@ -1107,8 +1113,9 @@ export function resolveLevel(world, id) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
     // (a rail stage has its path and no course; its airframe, and its rail, ride as written)
     // (a cockpit's sortie has its flight groups and no gates, as a rail stage has its path)
-    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe } = L.airspace, inSpace = isSpace(L.airspace);
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}) } };
+    // (a cockpit mission's briefing, its design, rides as written: scene/channels/briefing.js tells it as the level loads)
+    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe, briefing } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}), ...(briefing ? { briefing } : {}) } };
   }
   // a glyph-map level: the map's level as the map kind takes it (level/grid-scene.js), its seed the level's
   if (L.glyphs) {

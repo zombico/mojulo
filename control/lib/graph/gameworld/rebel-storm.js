@@ -18,7 +18,7 @@
  *                          its briefing's steps), drawn as a holo briefing (campaign/briefing-page.js) for the person to
  *                          approve; a design's status `approved` is what lays its level from it (compileMission), a draft
  *                          leaves the mission's sortie as it was
- *   REBEL_STORM_LOOK       the look its menus, briefing and HUD are drawn in by mana-ui (a theme card)
+ *   REBEL_STORM_LOOK       the look its menus and HUD are drawn in by mana-ui (the orbit card, nothing across the view)
  *   rebelStormStart(world) → { world }: the rail's starter, its opening tour under what the creator wrote
  *
  * Pure: the same campaign lays the same missions.
@@ -27,7 +27,9 @@
 import { readMission, compileMission } from '../campaign/mission.js';
 
 export const REBEL_STORM = Object.freeze({ airframe: 'strikeFoil', side: 'rebels' });
-export const REBEL_STORM_LOOK = 'orbit';
+// (orbit's dark glass and cyan edges, without its grid drawn across the picture: over a cockpit the grid lies on the view
+// out of the canopy)
+export const REBEL_STORM_LOOK = Object.freeze({ from: 'orbit', overlay: 'none' });
 
 /**
  * The missions designed whole. Mission 1, Patrol, at Vigil Station over Kessa's fourth moon: the patrol the old sortie
@@ -110,10 +112,11 @@ export const MISSIONS = Object.freeze([
 ]);
 
 /** A mission as a gameworld level: a sector of space flown from the cockpit, its goal the sortie; a mission whose design
- *  the person approved is compiled from it (campaign/mission.js), a draft's level stays its sortie's. */
+ *  the person approved is compiled from it (campaign/mission.js) and briefed on the holo table as its level loads
+ *  (`airspace.briefing`), a draft's level stays its sortie's. */
 export function missionLevel(M) {
   const D = MISSION_DESIGNS[M.id];
-  if (D && D.status === 'approved') return compileMission(readMission(D), { airframe: REBEL_STORM.airframe }).level;
+  if (D && D.status === 'approved') return compileMission(readMission(D), { airframe: REBEL_STORM.airframe, design: JSON.parse(JSON.stringify(D)) }).level;
   return { name: M.name, airspace: { ...JSON.parse(JSON.stringify(SECTOR)), airframe: REBEL_STORM.airframe, cockpit: true }, goal: { flight: { sortie: JSON.parse(JSON.stringify(M.sortie)) } } };
 }
 
@@ -121,5 +124,5 @@ export function missionLevel(M) {
 export function rebelStormStart(world, { missions = MISSIONS.length } = {}) {
   const levels = Object.fromEntries(MISSIONS.slice(0, missions).map((M) => [M.id, missionLevel(M)]));
   // (its menus, its pause and its HUD drawn by mana-ui in the campaign's look; the creator's own `ui` wins)
-  return { world: { mode: 'autonomous', style: { kit: 'trail-valley' }, ui: { theme: REBEL_STORM_LOOK }, start: MISSIONS[0].id, ...world, levels } };
+  return { world: { mode: 'autonomous', style: { kit: 'trail-valley' }, ui: { theme: { ...REBEL_STORM_LOOK } }, start: MISSIONS[0].id, ...world, levels } };
 }

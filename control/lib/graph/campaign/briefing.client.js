@@ -1,7 +1,8 @@
-// THE HOLO BRIEFING'S CLIENT — the page's own code (briefing-page.js inlines it after `import * as THREE` and the
-// briefing's data, BRIEF): the table, the system as an orrery, the theatre in miniature, a step at a time. It exposes
-// `window.__brief`: { go(k), step, steps, ready } for the page's words (mana-ui) and for probes. It draws only what the
-// data says; the words over it are mana-ui's.
+// THE HOLO BRIEFING'S CLIENT — the page's own code (briefing-page.js inlines it after `import * as THREE`, the
+// briefing's data, BRIEF, and the canvas it draws on, BRIEF_CANVAS): the table, the system as an orrery, the theatre in
+// miniature, a step at a time. It exposes `window.__brief`: { go(k), step, steps, ready, stop() } for the page's words
+// (mana-ui) and for probes; stop() ends its frames and gives its GL context back (a level's briefing, once launched). It
+// draws only what the data says; the words over it are mana-ui's.
 
 const COL = { friend: new THREE.Color('#38d8ff'), foe: new THREE.Color('#ff4a5c'), neutral: new THREE.Color('#ffc93a'), nav: new THREE.Color('#a8f4ff'), dim: new THREE.Color('#5fb7d8') };
 const R = 6, LIFT = 1.5;                       // the table's radius and the height of the theatre's plane over it (units)
@@ -10,7 +11,7 @@ const MINI = { fighter: 0.22, bomber: 0.26, transport: 0.5, probe: 0.14 };   // 
 const SHIP_LEAST = 0.42;                       // a capital ship or a station is drawn at scale, never smaller than this
 const FONT = '"Rajdhani","Bahnschrift","Segoe UI",system-ui,sans-serif';
 
-const canvas = document.getElementById('holo');
+const canvas = BRIEF_CANVAS;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
 renderer.setClearColor(0x02050a, 1);
@@ -109,13 +110,13 @@ function label(text, color, { size = 1, sub = '' } = {}) {
 // ── the orrery: the system, the cluster, the moon ─────────────────────────────────────────────────────────
 const O = BRIEF.orrery, orr = new THREE.Group(); orr.position.z = LIFT; scene.add(orr);
 const OR = R * 0.92;   // the outermost orbit (units)
-const orrHolos = [], orrLabels = [];
+const orrHolos = [], orrLabels = [], orrFade = [];   // (orrFade: the orrery's plain lights and lines, each faded as it zooms away)
 const starCol = new THREE.Color(O.star.color);
 {
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 16), additive(starCol, 0.95)); orr.add(core);
-  for (const [r, o] of [[0.45, 0.25], [0.75, 0.1], [1.2, 0.05]]) orr.add(new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), additive(starCol, o)));
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.28, 24, 16), additive(starCol, 0.95)); orr.add(core); orrFade.push([core.material, 0.95]);
+  for (const [r, o] of [[0.45, 0.25], [0.75, 0.1], [1.2, 0.05]]) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 16), additive(starCol, o)); orr.add(m); orrFade.push([m.material, o]); }
 }
-const ringLine = (r, color, opacity, seg = 128) => { const pts = []; for (let k = 0; k <= seg; k++) { const a = (k / seg) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, 0)); } return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat(color, opacity)); };
+const ringLine = (r, color, opacity, seg = 128) => { const pts = []; for (let k = 0; k <= seg; k++) { const a = (k / seg) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, 0)); } const L = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat(color, opacity)); orrFade.push([L.material, opacity]); return L; };
 const homeAt = new THREE.Vector3(), moonAt = new THREE.Vector3(), clusterAt = new THREE.Vector3();
 O.planets.forEach((P, i) => {
   const home = i === O.home, col = new THREE.Color(home ? '#7fe9ff' : P.color);
@@ -287,13 +288,15 @@ function resize() {
 addEventListener('resize', resize); resize();
 
 const damp = (a, b, k, dt) => a + (b - a) * (1 - Math.exp(-k * dt));
-let last = performance.now();
+let last = performance.now(), stopped = false;
 function tick(t) {
-  const dt = Math.min(0.05, (t - last) / 1000); last = t; now += dt;
+  if (stopped) return;
+  // (on the clock, not by frames: over a held level the page draws slower, and the zoom still takes its time)
+  const dt = Math.min(0.25, Math.max(0, (t - last) / 1000)); last = t; now += dt;
   // the stage's blend: the orrery zooms through its moon and away as the theatre rises
   mix = damp(mix, mixTo, 3.2, dt);
   const zs = 1 + 7 * mix; orr.scale.setScalar(zs); orr.position.set(-moonAt.x * (zs - 1), -moonAt.y * (zs - 1), LIFT);
-  orr.visible = mix < 0.98; th.visible = mix > 0.02;
+  orr.visible = mix < 0.97; th.visible = mix > 0.02;
   const ts = 0.3 + 0.7 * mix; th.scale.setScalar(ts); th.position.set(0, 0, LIFT * (1 - ts));
   // the light of each hologram: lit if its step is about it (or no step is), dimmed if not, faded with its stage
   for (const H of holos) {
@@ -309,7 +312,9 @@ function tick(t) {
     if (P.holo) P.holo.target = arrived ? (on ? 1 : 0.16) : 0;
     if (P.label && arrived) P.label.material.opacity = damp(P.label.material.opacity, (on ? 1 : 0.28) * mix, 5, dt);
   }
-  for (const sp of orrLabels) sp.material.opacity = 1 - mix;
+  // (the orrery's names gone early: as it zooms through its moon a name would swell over the screen)
+  for (const sp of orrLabels) sp.material.opacity = Math.max(0, 1 - 4 * mix);
+  for (const [m, o] of orrFade) m.opacity = o * Math.max(0, 1 - 2 * mix);
   moonMark.material.opacity = (0.5 + 0.4 * Math.sin(now * 4)) * (1 - mix); clusterMark.material.opacity = (0.35 + 0.3 * Math.sin(now * 3)) * (1 - mix);
   // the routes: drawn out from their start, then light running along them
   for (const Rt of routes) {
@@ -327,7 +332,11 @@ function tick(t) {
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
-window.__brief = { go, step: 0, steps: BRIEF.steps.length, ready: true, freeze: () => {} };
+function stop() {
+  stopped = true; removeEventListener('resize', resize);
+  try { renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* a context already lost */ }
+}
+window.__brief = { go, stop, step: 0, steps: BRIEF.steps.length, ready: true };
 go(0);
 view.target.copy(want.target); view.dist = want.dist * 1.6; view.el = want.el;
 requestAnimationFrame(tick);

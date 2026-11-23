@@ -40,3 +40,11 @@ level compiled and built. Rebel Storm's first mission is the first one designed,
   its level is compiled from the design (`missionLevel`); a mission without a design keeps its sortie. Its flight proof
   holds (won by a steady pilot, lost by a still one): with Nav 1 off the pilot's line the patrol turned on the wingmen
   and lost to them, so a pilot who flew nothing won, and Nav 1 was moved onto the line.
+- **The briefing before each mission, in the game** (`scene/channels/briefing.js`, a cockpit level's
+  `airspace.briefing`). A compiled mission carries its design on its level, and the level's page opens the holo
+  briefing over itself as it loads, the mission held behind it (the pause the shell's own pause uses). The player steps
+  through it on the keys, a pad or a finger; Launch takes it away (its frames stopped, its GL context given back) and
+  the mission flies. It plays before every mission and every retry, inside the game's shell or on the level alone. A
+  page without a briefing carries none of it.
+- **Rebel Storm's look without the grid.** Its `orbit` look drew its grid across the whole picture while the HUD was up,
+  over the view out of the canopy; Rebel Storm now wears `orbit` with no overlay.

@@ -26,7 +26,8 @@
  *   compileMission(M, { airframe? }) → { level, build, approved }   the level a gameworld lays: its airspace (the field,
  *                           the cluster's rocks, the capital ships and the station off the fleet where the briefing showed
  *                           them, `space.fleet`, the numbered moon the sky's large world at its bearing,
- *                           `space.backdrop.toward`) and a sortie of the flight groups; and what was laid, by name
+ *                           `space.backdrop.toward`), the design itself to brief the level with (`design`: the mission
+ *                           as written, `airspace.briefing`), and a sortie of the flight groups; and what was laid, by name
  *   CAST_SIDES · MISSION_STEPS
  *
  * Pure: the same design, the same mission.
@@ -137,7 +138,7 @@ export function missionLaws(M) {
 const toAt = (p) => ({ side: p[0], ahead: p[1], up: p[2] });
 
 /** The design compiled: the level a gameworld lays, and what the build lays beyond the sortie. */
-export function compileMission(M, { airframe = 'strikeFoil' } = {}) {
+export function compileMission(M, { airframe = 'strikeFoil', design = null } = {}) {
   const groups = [];
   for (const c of M.cast) {
     if (!c.craft) continue;
@@ -159,7 +160,9 @@ export function compileMission(M, { airframe = 'strikeFoil' } = {}) {
     name: M.name,
     airspace: { map: { craft: 'fighter', field: T.field }, space: { asteroids: T.rocks, fleet,
       // (the numbered moon the sky's large world, where the briefing put it)
-      backdrop: { worlds: [T.moon.kind], proximity: T.moon.size, toward: { bearing: T.moon.bearing, elevation: T.moon.elevation } } }, airframe, cockpit: true },
+      backdrop: { worlds: [T.moon.kind], proximity: T.moon.size, toward: { bearing: T.moon.bearing, elevation: T.moon.elevation } } }, airframe, cockpit: true,
+      // (the design itself, told on the holo table over the level as it loads: scene/channels/briefing.js)
+      ...(design ? { briefing: design } : {}) },
     goal: { flight: { sortie } },
   };
   return {

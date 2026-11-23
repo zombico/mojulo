@@ -7,6 +7,9 @@
  *   briefingSpec()                       → the mana-ui spec (its defs only the idioms it uses)
  *   briefingState(B)                     → the words' state at the first step
  *   briefingPage(M, { theme?, cdn? })    → the page (html), for a mission read by readMission (mission.js)
+ *   briefingScript(D, { theme?, level? }) → the code both run (after `import * as THREE`)
+ *   briefingChannelSource({ data, theme? }) → the block a level page splices (scene/channels/briefing.js): the briefing
+ *                                        over the level as it loads, the mission held behind it; Launch lets it go
  *   BRIEFING_LOOK                        the look when none is said: the `orbit` theme card, nothing drawn across the
  *                                        screen (the table is the screen)
  *
@@ -21,6 +24,7 @@ import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../co
 import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { inlineImportmap, CDN_IMPORTMAP } from '../scene/emit-util.js';
 import { briefingData } from './briefing.js';
+import { MSG_PAUSE } from '../game/level-contract.js';
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/campaign');
 const clientSource = () => readFileSync(join(SRC, 'briefing.client.js'), 'utf8');
@@ -87,9 +91,59 @@ function stepWords(S, D, k) {
     steps: D.steps.slice(0, k + 1).map((s, i) => ({ title: s.title, mark: i === k ? '▶' : '✓', then: { emit: 'brief:go', to: i } })) };
 }
 
+/**
+ * The briefing's code (after `import * as THREE`): the data, the canvas, the client, mana-ui and its host, and the words
+ * stepped with the table. `level`: drawn over a level's page, the mission held behind it until Launch, then gone (its
+ * frames stopped, its GL context given back, the scene let go); else the page's own, Launch opening the launch screen.
+ */
+export function briefingScript(D, { theme = null, level = false } = {}) {
+  const T = themeOf(theme), C = manaControls(), spec = briefingSpec();
+  // (over a level: its own root, its sheet's look scoped to it, so a HUD the level draws on mana-ui keeps its own)
+  const sheet = [manaCss(), themeCss(T).replace(/\.mana-root/g, '#mjbrief .mana-root'),
+    '#mjbrief .mana-root{--mana-stage:none;--mana-overlay:none}#mjbrief{position:fixed;inset:0;z-index:2147483000;background:#02050a}#mjbrief>canvas{position:absolute;inset:0;width:100%;height:100%;display:block}#mjbrief>.bf-mana{position:absolute;inset:0}',
+    '#mjbrief .mana-screen[data-place=left]{max-width:min(36vw,520px)}'].join('\n');
+  const open = level ? `const __bfRoot = document.createElement('div');
+__bfRoot.id = 'mjbrief';
+__bfRoot.innerHTML = '<canvas></canvas><div class="bf-mana"></div>';
+document.body.appendChild(__bfRoot);
+const __bfCss = document.createElement('style');
+__bfCss.textContent = ${json(sheet)};
+document.head.appendChild(__bfCss);
+const BRIEF_CANVAS = __bfRoot.querySelector('canvas'), __bfMana = __bfRoot.querySelector('.bf-mana');
+// (the mission held behind the briefing on the pause sidecar the shell's pause uses, until Launch)
+const __bfHold = (on) => { window.__mojMenuOpen = on; try { window.postMessage({ moj: ${json(MSG_PAUSE)}, on }, '*'); } catch (e) { /* no scene */ } };
+__bfHold(true);` : `const BRIEF_CANVAS = document.getElementById('holo'), __bfMana = document.getElementById('mana');`;
+  const launch = level
+    ? `{ window.__brief.stop(); rt.close(); __bfRoot.remove(); __bfCss.remove(); __bfHold(false); launched = true; }`
+    : `rt.open('launch');`;
+  return `const BRIEF = ${json(D)};
+${open}
+${clientSource()}
+const __manaUi = window.__manaUiKernel = ${manaUiSource()};
+const __manaHostK = ${manaHostSource()};
+const __manaPadLayout = (${padLayoutSource()});
+const STATE = window.__manaState = ${json(briefingState(D))};
+const stepWords = ${stepWords.toString()};
+let rt = null, mview = null, launched = false;
+const showStep = (k) => { if (launched) return; window.__brief.go(k); stepWords(STATE, BRIEF, window.__brief.step); if (mview) mview.paint(); };
+const act = (e) => {
+  if (e.emit === 'brief:next') showStep(window.__brief.step + 1);
+  else if (e.emit === 'brief:prev') showStep(window.__brief.step - 1);
+  else if (e.emit === 'brief:go') showStep(e.to);
+  else if (e.emit === 'brief:launch' && !launched) ${launch}
+};
+rt = __manaUi.runtime(${json(spec)}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: 'silent' });
+rt.glyphs(${json(manaGlyphs())});
+mview = __manaUi.mount(__bfMana, rt, { auto: true });
+__manaHostK.connect(rt, mview, { keys: ${json(C.keys)}, pad: ${json(C.pad)}, padLayout: __manaPadLayout });
+stepWords(STATE, BRIEF, 0);
+mview.paint();
+window.${level ? '__mojBriefing' : '__manaUi'} = ${level ? '{ rt, get up() { return !launched; }, launch: () => act({ emit: \'brief:launch\' }) }' : 'rt'};`;
+}
+
 /** The page for a mission read by readMission. */
 export function briefingPage(M, { theme = null, cdn = false } = {}) {
-  const D = briefingData(M), T = themeOf(theme), C = manaControls(), spec = briefingSpec();
+  const D = briefingData(M), T = themeOf(theme);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(D.name)} · briefing</title>
 <script type="importmap">${cdn ? CDN_IMPORTMAP : inlineImportmap()}</script>
@@ -103,26 +157,13 @@ ${themeCss(T)}
 </style></head><body><canvas id="holo"></canvas><div id="mana"></div>
 <script type="module">
 import * as THREE from 'three';
-const BRIEF = ${json(D)};
-${clientSource()}
-const __manaUi = window.__manaUiKernel = ${manaUiSource()};
-const __manaHostK = ${manaHostSource()};
-const __manaPadLayout = (${padLayoutSource()});
-const STATE = window.__manaState = ${json(briefingState(D))};
-const stepWords = ${stepWords.toString()};
-let rt = null, mview = null;
-const showStep = (k) => { window.__brief.go(k); stepWords(STATE, BRIEF, window.__brief.step); if (mview) mview.paint(); };
-const act = (e) => {
-  if (e.emit === 'brief:next') showStep(window.__brief.step + 1);
-  else if (e.emit === 'brief:prev') showStep(window.__brief.step - 1);
-  else if (e.emit === 'brief:go') showStep(e.to);
-  else if (e.emit === 'brief:launch') rt.open('launch');
-};
-rt = window.__manaUi = __manaUi.runtime(${json(spec)}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: 'silent' });
-rt.glyphs(${json(manaGlyphs())});
-mview = __manaUi.mount(document.getElementById('mana'), rt, { auto: true });
-__manaHostK.connect(rt, mview, { keys: ${json(C.keys)}, pad: ${json(C.pad)}, padLayout: __manaPadLayout });
-stepWords(STATE, BRIEF, 0);
-mview.paint();
+${briefingScript(D, { theme })}
 </script></body></html>`;
+}
+
+/** The block a level page's briefing channel splices (scene/channels/briefing.js): in a scope of its own. */
+export function briefingChannelSource({ data, theme = null }) {
+  return `{
+${briefingScript(data, { theme, level: true })}
+}`;
 }
