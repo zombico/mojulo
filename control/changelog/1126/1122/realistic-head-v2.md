@@ -65,6 +65,12 @@ face toward the proportions and the clean structure of a current game character,
   where it was (lowered from above, the white showed under the iris); never slanted; the inner corners a little closer so
   the longer eye stays on the face, and the large, round eye shape rolled rarely. A mixed face carries the eye's width
   and split from both parents.
+- The East and North Asian eye reworked after reference faces: the tilt turned about the pupil (`tiltPivot`), so a
+  lifted outer corner no longer lifts the opening off the iris; the globe set toward the inner corner (`globeShift`),
+  the white running out to the temple; the flesh TENTED from the low nasal root over the inner corner (`tent`,
+  `MEDIAL_TENT`), so the fold is that skin and never a roll hooking down to the nose; and the outer corner's lids
+  meeting at a point just past the globe (`outerClose`), as the inner's do, where a pale wall stood at the opening's
+  end. Each a head relation absent from every other face.
 
 Still to come: the upper lid's fold; a long beard's locks still hang as broad flat shards; a crop's shell a ledge at the
 nape.

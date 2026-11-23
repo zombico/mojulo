@@ -82,6 +82,14 @@ export const RELATIONS = Object.freeze({
   lidSplit: 0.32,       // the share of the fissure above the pupil: the upper lash line ~4.5 mm over it, covering the iris's
                         // top (MRD1), the lower ~5.3 mm under it at the iris's lower edge (MRD2) — a neutral eye, not a stare
   canthalTilt: 0.008,   // the lateral canthus above the medial / v-me
+  tiltPivot: 0,         // where the tilt turns the canthi's chord: 0 about the medial canthus (the outer lifted alone, the
+                        // chord over the pupil by half the tilt), 0.5 about the pupil (the inner lowered as the outer
+                        // rises, the iris even between the margins)
+  globeShift: 0,        // the globe set toward the medial canthus by this share of the fissure's length (+ the white
+                        // shown long to the temple, the inner corner close to the iris, as a fold covering it reads)
+  tent: 0,              // the flesh tented from the nose's root over the inner corner (`MEDIAL_TENT`; 0 none, 1 full)
+  outerClose: 0,        // the outer corner's lids meeting this far past the globe's limb / v-me (0: at the canthus): the
+                        // margins taper to their point there, as at the inner corner, the canthus beyond them a seam
   upperVermilion: 0.035, // the upper lip's red height / v-me
   lowerVermilion: 0.043, // the lower lip's / v-me (the lower lip the fuller)
   chin: 0,              // pg ahead of the nasion vertical / v-me (− a receding chin)
@@ -232,9 +240,9 @@ export function corePoints(rel = RELATIONS) {
   side('condyle', zyX * 0.87, 0.045, zEye - 0.08);           // ahead of the ear canal, under the arch, inside the zygion
   side('go', goX, 0.07, zSto - (0.03 + R.gonionDrop));                        // the jaw's corner
   side('ment', goX * (0.35 + R.chinWidth), pg.y - 0.035, 0.045);              // the mental tubercle: the chin's corners
-  side('en', enX, eyeY + 0.025, zEye);
-  side('ex', exX, eyeY - 0.02, zEye + R.canthalTilt);
-  side('eye', (enX + exX) / 2, eyeY, zEye);
+  side('en', enX, eyeY + 0.025, zEye - R.tiltPivot * R.canthalTilt);
+  side('ex', exX, eyeY - 0.02, zEye + (1 - R.tiltPivot) * R.canthalTilt);
+  side('eye', (enX + exX) / 2 - R.globeShift * eye, eyeY, zEye);
   side('al', alX, sn.y + R.nostrilSet * ns, zSn + R.nostrilRise * ns);
   side('ch', chX, sn.y + R.lipProjection - 0.045, zSto);
   // THE MODIOLUS — where the muscles of the cheek meet beside the mouth's corner: authored at the corner, set back by
@@ -306,6 +314,19 @@ const BROW_SHAPE = Object.freeze({ peakOut: 0, tail: 0.025 });
 /** the fold under the lower lip, for looks: the mentalis pad brought forward (`pad`, V) and up (`up`, V) and the fold's
  * carve its share (`carve`) of its radii, so the lip rolls down into a shallow fold, never an undercut, its underside
  * facing down into a slot that the baked shadow turned black */
+/** the medial tent's beads (`tent`), each a point on the surface it names (x out from the plumb line or from the inner
+ * canthus, y forward, z up; v-me) and its radius: on the bridge's side below the nasion, just medial of the inner
+ * canthus (forward of it by `tent`'s share of its y: the skin there brought to the corner's depth and over it), and over
+ * the upper lid's inner third */
+export const MEDIAL_TENT = Object.freeze({ bridge: [0.022, -0.008, -0.012], corner: [0.012, 0.004, 0.003], lid: [0.008, 0.002, 0.026], r: [0.02, 0.022, 0.02] });
+/** the points with a side's outer canthus brought in along the canthi's chord to `past` beyond the globe's limb (the
+ * eye's own centre its globe's; the canthus kept where it already lies inside that) */
+function closedOuter(P, s, past) {
+  const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`], sg = Math.sign(ex.x - en.x) || 1, xc = e.x + sg * (GLOBE.r + past);
+  if (sg * (ex.x - xc) <= 0) return P;
+  const f = (xc - en.x) / (ex.x - en.x);
+  return { ...P, [`ex${s}`]: { x: xc, y: en.y + f * (ex.y - en.y), z: en.z + f * (ex.z - en.z) } };
+}
 export const MENTOLABIAL = Object.freeze({ pad: 0.012, up: 0.012, carve: 0.6 });
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
@@ -649,6 +670,18 @@ export function coreVajras(P, rel = RELATIONS) {
     if (R.periorbital) {
       const ex = P[`ex${s}`], sx = Math.sign(ex.x), k = R.periorbital, rim = (dx, y, z) => ({ x: ex.x + sx * dx, y: ex.y + y, z: ex.z + z });
       soft(`periorbital${s}`, rim(0.012, -0.03, 0.03), rim(0.01, -0.022 + 0.004 * k, -0.008), rim(-0.012, -0.012, -0.055), [0.016, 0.02 * k, 0.02]);
+    }
+    // THE MEDIAL TENT (the `tent` relation: 0 or absent, none): the flesh TENTED from the nose's root across the inner
+    // corner into the upper lid's inner third, as a low, flat root carries it (the East Asian face): the skin between the
+    // bridge and the eye runs flat and covers the inner corner, the fold being that skin and not a roll laid on the lid
+    // (with the socket hollow beside the bridge, the fold stood as a tube hooking down to the nose). Its beads at skin
+    // size, each set behind the surface it names by its radius (`MEDIAL_TENT`); the opening is still cut through it
+    if (R.tent) {
+      const en = P[`en${s}`], sx = Math.sign(en.x), k = R.tent, T = MEDIAL_TENT, [ra, rc, rb] = T.r.map((r) => r * (0.5 + 0.5 * k));
+      const bridge = { x: sx * T.bridge[0], y: P.n.y + T.bridge[1] - ra, z: P.n.z + T.bridge[2] };
+      const corner = { x: en.x - sx * T.corner[0], y: en.y + T.corner[1] * k - rc, z: en.z + T.corner[2] };
+      const lid = { x: en.x + sx * T.lid[0], y: en.y + T.lid[1] * k - rb, z: en.z + T.lid[2] };
+      soft(`tent${s}`, bridge, corner, lid, [ra, rc, rb]);
     }
     // the lids: corner → over the globe → corner, upper and lower
   }
@@ -1389,10 +1422,16 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const per = (k) => Math.min(1, act(k) + act(`${k}${s}`)), wd = per('wide'), sq = per('squint'), bi = act('browInner'), bl0 = per('browLower'), cr = per('cheekRaise'), bo = per('browOuter');
     // (a blink lifts the lower lid a little, `0.12`: the lids meet a touch below the eye's middle, the lower travelling a
     // millimetre or so of the upper's ten, so the upper has that much less to roll)
+    // (a tented face's inner corner is covered by the tent's skin: the lid's own epicanthic roll gives way to it)
     const c = resolveEye(spec, s, { lower: 0.6 * sm + 0.35 * sq + 0.3 * cr + 0.12 * bl, lowerShape: 0.3 * sm - 0.4 * sq + 0.2 * cr, open: 0.25 * act('browRaise') - 0.12 * bl0 + 0.5 * wd - 0.06 * sq + 0.08 * bi + 0.1 * bo - 0.05 * cr,
       upperShape: -0.3 * bl0 - 0.2 * sq, upperPeak: -0.45 * bi + 0.25 * bo, crease: 0.3 * wd });
     c.open *= 1 - bl;
-    const r = eyeRig(Pe, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
+    if (rel.tent) c.epicanthus *= Math.max(0, 1 - rel.tent);
+    // (`outerClose`: the rig's outer canthus brought in along the chord to just past the globe's limb, so the lids meet
+    // at a point there as they do at the inner corner; past the limb the corner had been filled sideways to the
+    // canthus's depth, a pale wall standing at the end of the opening)
+    const Pr = rel.outerClose ? closedOuter(Pe, s, rel.outerClose) : Pe;
+    const r = eyeRig(Pr, s, c, rel.fissure, bridge.arcs[s], rel.lidSplit, { seat });
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
     return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
