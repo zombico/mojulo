@@ -108,6 +108,8 @@ export const RELATIONS = Object.freeze({
   asymJaw: 0,           // the left jaw's corner wider, a share (+ wider)
   asymCheek: 0,         // the left cheekbone wider, a share
   // ── the years' deep folds, as shape (the fine lines are the skin's wrinkle map, dermal-texture.js's FOLD page)
+  boneEdge: 1,          // how crisply the bones near the skin read through it: the jaw's border's shorter wave and the
+                        // cheekbone's prominence at full (1); less is more soft tissue over the same bones (a woman's face)
   furrows: 0,           // the forehead's furrows cut into the skin, 0 none … 1 an old face's (~0.8 mm deep, ~5 mm wide)
   // ── the jaw's limits: how far it opens at full activation (`jaw: 1`), and how
   jawOpen: 0.17,        // the incisors' opening at full / v-me (~39 mm: a full, comfortable opening; the anatomical
@@ -154,7 +156,9 @@ export const raisedEar = (rel = null, sex = 'male') => { const E = EAR_RAISE[sex
  * cheek over a gaunt one, and the cheekbone and the brow's outer corner stood as bumps). Laws 1–13 keep the face they had.
  */
 export const EVEN_FACE = Object.freeze({
-  female: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, malarDepth: 0.02, lowerCheek: 0.3, jaw: 0.08, masseter: 0.3, earForward: 0.015 }),
+  // (hers lighter at the jaw and fuller high in the cheek than at first: the full offsets, over the jaw's border and
+  // the cheekbone, gave her his lower face from the 3/4)
+  female: Object.freeze({ cheeks: 0, cheekBack: 0.02, malarDepth: 0.02, lowerCheek: 0.1, jaw: 0.04, masseter: 0.1, earForward: 0.015 }),
   // (his cheekbone kept forward, its front not set back: with his eye set deeper it is what covers the globe's flank)
   male: Object.freeze({ cheeks: -0.15, cheekBack: 0.06, lowerCheek: 0.3, jaw: 0.05, masseter: 0.2, earForward: 0.015 }),
 });
@@ -173,13 +177,15 @@ export const RELATION_POLES = Object.freeze({
   // the female pole (2026-10-21, the face-harmony study, approved by the operator's eyes): beyond the canon's sex cues, a
   // shorter, less projected nose with a finer bridge and a narrower base; larger eyes; fuller, taller, more forward lips
   // over a finer philtrum; a lighter, flatter brow; a narrower jaw and a narrower, pointed chin that no longer recedes;
-  // the cheeks fuller and the lower cheek bowed out over the jaw (a soft outline, never a hollowed one)
+  // the cheeks fuller and the lower cheek bowed out over the jaw (a soft outline, never a hollowed one). (2026-11-23: from
+  // the 3/4 she read as his sister: her bones read softly, `boneEdge`, her lower face shorter, her nose smaller and her
+  // chin narrower and finer again)
   female: Object.freeze({
-    third: 0.28, eyeLine: 0.49, nasionDrop: 0.06, headLength: 0.84, cephalic: 0.79, faceWidth: 0.87, jaw: 0.64,
-    fifths: 0.232, fissure: 0.047, lidSplit: 0.36, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.29, noseFat: 0.026, dorsum: -0.35,
-    nasionDepth: 0.006, browProjection: 0.019, brow: 0.22, malarDepth: 0.037, forehead: 0.01,
+    third: 0.27, eyeLine: 0.49, nasionDrop: 0.06, headLength: 0.84, cephalic: 0.79, faceWidth: 0.87, jaw: 0.64,
+    fifths: 0.232, fissure: 0.045, lidSplit: 0.36, canthalTilt: 0.011, nasalIndex: 0.55, noseProjection: 0.28, noseSize: -0.12, noseFat: 0.026, dorsum: -0.35,
+    nasionDepth: 0.006, browProjection: 0.019, brow: 0.22, malarDepth: 0.037, forehead: 0.02, boneEdge: 0.4,
     lipFullness: 1.3, upperVermilion: 0.04, lowerVermilion: 0.05, lipProjection: 0.023, mouthWidth: 1.7, philtrumVolume: 0.02, jowl: 0.008,
-    chinWidth: -0.05, chinRound: -0.1, gonionDrop: -0.006, cheeks: 0.5, lowerCheek: 0.5,
+    chinWidth: -0.11, chinRound: -0.2, gonionDrop: -0.006, cheeks: 0.5, lowerCheek: 0.5,
     archWidth: 0.96, incisorShow: 0.028, jawOpen: 0.16,
   }),
 });
@@ -285,8 +291,9 @@ const BONE_WAVE = Object.freeze({ share: 0.5, reach: 0.06 });
 const DEPRESSOR_BELLY = Object.freeze({ back: 0.008, r: 0.026 });
 /** the cheekbone's ridge: its beads' radii (its medial end, the eminence, the arch), the medial end's skin point in from
  * the malar point, behind the eminence's depth and below it, the eminence's off the malar point (out, up) at its depth
- * behind the subnasale, and the arch's off the zygion (forward, up, in), and how broadly it is joined to the skin, in V */
-const CHEEKBONE = Object.freeze({ join: 0.038, r: [0.026, 0.033, 0.026], medial: [0.04, 0.01, 0.015], out: 0.012, depth: 0.057, up: -0.01, back: [0.03, -0.02, 0.012] });
+ * behind the subnasale, and the arch's off the zygion (forward, up, in), how broadly it is joined to the skin, and how far
+ * the eminence sets back where the bones read softly (`boneEdge` 0), in V */
+const CHEEKBONE = Object.freeze({ soft: 0.008, join: 0.038, r: [0.026, 0.033, 0.026], medial: [0.04, 0.01, 0.015], out: 0.012, depth: 0.057, up: -0.01, back: [0.03, -0.02, 0.012] });
 const LIP_ARCH = Object.freeze({ bow: 0.012, r: 0.0165 });
 /** a closed mouth's lip line, cut to one depth (mm): the groove's depth below the less prominent lip's front, its tube's
  * radius (its width), its edge's blend */
@@ -473,7 +480,8 @@ export function coreVajras(P, rel = RELATIONS) {
     const s0 = { x: m.x - sg * CB.medial[0], y: P.sn.y - CB.depth - CB.medial[1], z: m.z - CB.medial[2] };
     // (the eminence's depth is read from the subnasale, not off the malar point: the summed skin stands ~9 mm ahead of
     // that point, and a ridge hung off it lay buried)
-    const s1 = { x: m.x + sg * CB.out, y: P.sn.y - CB.depth, z: m.z + CB.up };
+    // (set back by `CB.soft` where the bones read softly, `boneEdge` under 1)
+    const s1 = { x: m.x + sg * CB.out, y: P.sn.y - CB.depth - CB.soft * (1 - R.boneEdge), z: m.z + CB.up };
     const s2 = inX(at(P[`zy${s}`], { y: CB.back[0], z: CB.back[1] }), CB.back[2]);
     // (its own feature at its own radius, joined to the skin after the wave as the nose and the lips are: bone dressed
     // in the malar's 11 mm of tissue made a ridge of any size a round of 11 mm and more, and the turn stayed broad; and
@@ -1252,7 +1260,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // within a centimetre under the jaw's side swelled it ~10 mm, a soft fullness that turned under over ~16 mm and hid the
   // jaw's line); a shorter wave there keeps the bone's own edge
   const boneLines = [...['jawBorderL', 'jawBorderR', 'chin'].map((n) => [n, BONE_WAVE.share, BONE_WAVE.reach])];
-  const boneFoci = boneLines.filter(([n]) => Vn[n]).flatMap(([n, share, reach]) => [[Vn[n].a, Vn[n].c], [Vn[n].c, Vn[n].b]].map(([a, b]) => ({ a: S(a), b: S(b), cut: 1 - share, s2: (reach * sc) ** 2 })));
+  // (the shortening scaled by the head's `boneEdge`: softer where the bones read through more soft tissue)
+  const edge = rel.boneEdge ?? 1, boneFoci = boneLines.filter(([n]) => Vn[n]).flatMap(([n, share, reach]) => [[Vn[n].a, Vn[n].c], [Vn[n].c, Vn[n].b]].map(([a, b]) => ({ a: S(a), b: S(b), cut: (1 - share) * edge, s2: (reach * sc) ** 2 })));
   const segQ = (p, a, b, s2) => { const ab = [b.x - a.x, b.y - a.y, b.z - a.z], L2 = ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2; const t = Math.max(0, Math.min(1, ((p.x - a.x) * ab[0] + (p.y - a.y) * ab[1] + (p.z - a.z) * ab[2]) / (L2 || 1))); return ((p.x - a.x - ab[0] * t) ** 2 + (p.y - a.y - ab[1] * t) ** 2 + (p.z - a.z - ab[2] * t) ** 2) / s2; };
   const depth = depthOf(markersV.map((m) => ({ p: S(m.p), t: m.t * sc })), (0.04 * sc) ** 2);
   const skin = layer !== 'skull';
