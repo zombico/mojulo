@@ -555,7 +555,7 @@ Object.assign(PATCHES, {
   xylophoneRec: recStruck('xylophone', 'xylophone', 0.2, -12.4),
   glockenspielRec: recStruck('glockenspiel', 'glockenspiel', 0.6, -9.7),
   bassUprightRec: recStruck('upright-bass', 'bassUpright', 0.12, -5.8),
-  violinRec: recHeld('violin', 'violin', -7.8),
+  violinRec: recHeld('violin', 'violin', -6.3),
   celloRec: recHeld('cello', 'cello', -6.5),
   fluteRec: recHeld('flute', 'flute', -7.6),
   trumpetRec: recHeld('trumpet', 'trumpet', -9.0),

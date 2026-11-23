@@ -44,7 +44,9 @@ export const CARDS = [
   // the upright bass, by string and fret
   ...fretted('upright-bass', 'upright acoustic double bass', [['E', 'E1'], ['A', 'A1']], 2.5, 'plucked once with the finger, jazz pizzicato'),
   // bowed and blown, held: no vibrato, so the take loops; the synthesized vibrato is laid over it
-  ...registered('violin', 'violin', [[4, 'on its lower strings'], [5, 'on its upper strings']], 4, { held: true, how: 'bowed and held steady at one pitch with no vibrato' }),
+  // (the violin's first pass, by register in words: set aside, its upper register an octave low and its character not
+  // the violin recorded by string and position, cards/repass.js)
+  ...registered('violin', 'violin', [[4, 'on its lower strings'], [5, 'on its upper strings']], 4, { held: true, how: 'bowed and held steady at one pitch with no vibrato' }).map((c) => ({ ...c, instrument: 'violin-set-aside' })),
   ...registered('cello', 'cello', [[2, 'on its low strings, deep and rich'], [3, 'in its middle register']], 4, { held: true, how: 'bowed and held steady at one pitch with no vibrato' }),
   ...registered('flute', 'concert flute', [[4, 'in its low register, breathy'], [5, 'in its middle register, clear']], 3, { held: true, how: 'blown and held steady at one pitch with no vibrato' }),
   ...registered('trumpet', 'trumpet', [[3, 'in its low register'], [4, 'in its middle register, bright']], 3, { held: true, how: 'blown and held steady at one pitch with no vibrato' }),

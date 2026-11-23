@@ -18,10 +18,17 @@ const bowed = (inst, what, string, open, from, to, seconds = 4) => [...Array(to 
   };
 });
 
+// (THE VIOLIN AS ONE INSTRUMENT: every note asked the same way, up its four strings in the same plain words, so its
+// takes are one violin's. Its first passes, asked by register in words, and an E string asked as "bright and singing"
+// played as another violin beside them, and are kept but set aside: their cards' instrument is not `violin`)
+const violin = (string, open, from, to) => bowed('violin', 'violin', string, open, from, to);
 export const CARDS = [
-  // the violin's upper register: up its highest string, and the A string below it
-  ...bowed('violin', 'violin (the highest string, bright and singing)', 'E', 'E5', 0, 14),
-  ...bowed('violin', 'violin', 'A', 'A4', 0, 6),
+  ...violin('G', 'G3', 0, 6),
+  ...violin('D', 'D4', 0, 6),
+  ...violin('A', 'A4', 0, 6),
+  ...violin('E', 'E5', 0, 11).map((c) => ({ ...c, id: c.id.replace('violin-E-', 'violin-E2-') })),
+  // (the E string's first ask, its words not the others': set aside)
+  ...bowed('violin', 'violin (the highest string, bright and singing)', 'E', 'E5', 0, 14).map((c) => ({ ...c, instrument: 'violin-set-aside' })),
   // the erhu, up both its strings (inner D, outer A)
   ...bowed('erhu', 'Chinese erhu (two-string fiddle)', 'inner D', 'D4', 0, 11),
   ...bowed('erhu', 'Chinese erhu (two-string fiddle)', 'outer A', 'A4', 0, 11),

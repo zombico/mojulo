@@ -150,7 +150,12 @@ played by the left hand", "high in its upper register"), and for a fretted or bo
 AND FRET ("the low E string at the 5th fret, the note A2"), the way a player names a pitch. A bowed instrument's upper register,
 asked in words, can come back an octave low (the violin's "upper strings" did, every one): asked by string and position
 ("on the E string, stopped 7 semitones up, the note B5"), about a third land and the rest an octave low, still notes
-(`cards/repass.js`). Check where a set landed against the notes asked before trusting a register. An instrument's coverage is
+(`cards/repass.js`). Check where a set landed against the notes asked before trusting a register.
+
+ONE INSTRUMENT, ONE WORDING: takes asked in different words in different passes come back as different instruments to
+the ear (the violin's register pass and its string pass were two violins: a run crossing them changed instrument
+mid-phrase). An instrument's takes are asked the same way throughout; a pass that cannot match is set aside (its cards'
+`instrument` renamed, `violin-set-aside`), never mixed in. The violin is recorded as one set up its four strings. An instrument's coverage is
 its variants' roots in `library.json` (the notes its takes landed on); a gap between them is bent across.
 
 `sampleSlice([<instrument>])` hands a page every rooted take with `roots` and `loops`; a `zones` patch (`voice:

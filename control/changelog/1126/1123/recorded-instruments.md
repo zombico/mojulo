@@ -54,5 +54,8 @@
   fixed pitch, so their notes still simply fade.
 - The recorded violin reaches its upper register: its notes asked "on its upper strings" had all come back an octave
   low (nothing above B4, so a melody at E5 was a lower take stretched up as much as an octave, thin and screechy). Asked
-  again by string and position (up the E string, up the A string), it now reaches B5, every note of a high melody within
-  two semitones of a real take. The erhu, asked the same way, still came back on its open strings, so it stays synthesized.
+  again by string and position (up the E string, up the A string), it now reaches A#5, every note of a high melody within
+  a few semitones of a real take. The erhu, asked the same way, still came back on its open strings, so it stays synthesized.
+- The recorded violin is one violin: its takes from separate passes in different words played as different violins side
+  by side (a high run heard as another instrument). It is recorded again as one set, every note asked the same way up its
+  four strings, and its earlier passes are kept but set aside.
