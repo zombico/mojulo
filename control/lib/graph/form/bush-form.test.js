@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { bushForm, bushBlossom, bushBerries, BUSH_HABITS, BUSH_FORM, BUSH_ADORN, ADORN } from './bush-form.js';
+import { bushForm, bushBlossom, bushBerries, bushPuffs, BUSH_HABITS, BUSH_FORM, BUSH_ADORN, ADORN } from './bush-form.js';
 import { leafClump, leafSpray, leafHolds, needleHabit } from '../vegetation/sprays.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
 
@@ -115,5 +115,26 @@ describe('the sprays take a leaf where they take a species', () => {
     const needle = Object.values(BUSH_HABITS).find((h) => h.leaf.needle).leaf;
     expect(span(leafClump(needle, { seed: 1 }))).toBeLessThan(span(leafClump({ needle: needle.needle }, { seed: 1 })));
     expect(leafHolds(leaf).clump).toBeGreaterThan(leafHolds(leaf).spray);
+  });
+});
+
+describe('a bush as flock (a realistic stage\'s, its `flock` row)', () => {
+  it('stands its mass as puffs where its clumps are, set in from its outline and apart, overlapping into one mass', () => {
+    // (one habit per outline that takes it, chosen from the rows; a habit without the row none)
+    const takes = Object.keys(BUSH_HABITS).filter((k) => BUSH_HABITS[k].flock), not = Object.keys(BUSH_HABITS).find((k) => !BUSH_HABITS[k].flock);
+    expect(takes.length).toBeGreaterThan(0);
+    expect(bushPuffs(bushForm(not, { seed: 1 }), BUSH_HABITS[not].flock)).toEqual([]);
+    for (const k of takes) {
+      const B = bushForm(k, { seed: 1 }), F = BUSH_HABITS[k].flock, P = bushPuffs(B, F), s0 = F.size * B.height;
+      expect(P.length).toBeGreaterThan(3);
+      for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) expect(Math.hypot(...P[i].p.map((v, c) => v - P[j].p[c]))).toBeGreaterThanOrEqual(s0 * F.apart - 1e-3);
+      // (one mass: each puff reaches another, its radii summed past the distance between them)
+      for (const a of P) expect(P.some((b) => b !== a && Math.hypot(...a.p.map((v, c) => v - b.p[c])) < (a.s + b.s) * 1.6)).toBe(true);
+      // (every clump of its outline within a puff's reach: the mass is the bush's shape)
+      for (const c of B.clumps) expect(Math.min(...P.map((q) => Math.hypot(...c.p.map((v, i) => v - q.p[i])) - q.s))).toBeLessThan(s0 * 1.6);
+      expect(bushPuffs(bushForm(k, { seed: 1 }), F)).toEqual(P);
+      // (its sponge finer than a tree's: its leaves are smaller)
+      expect(F.grain).toBeLessThan(1);
+    }
   });
 });

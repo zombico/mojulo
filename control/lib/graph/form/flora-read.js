@@ -23,7 +23,7 @@
  */
 import { treeForm, crossClumps, massCrown, majorBalls, anchorBlobs } from './tree-form.js';
 import { bambooForm } from './bamboo-form.js';
-import { bushForm, bushBlossom, bushBerries, ADORN } from './bush-form.js';
+import { bushForm, bushBlossom, bushBerries, bushPuffs, ADORN, BUSH_HABITS } from './bush-form.js';
 import { barkMaterial } from './bark-material.js';
 import { leafSpray, leafClump, needleHabit } from '../vegetation/sprays.js';
 import { leafCross, leafShape as leafOutlineOf, LEAF_SHAPES } from '../vegetation/twigs.js';
@@ -185,9 +185,15 @@ export function readFlock(v = true) {
  *  species' stylized `leafScale`) and its outline's half-width along the midrib (× the length, FLOCK_TABLE entries from
  *  the petiole to the tip; vegetation/twigs.js LEAF_SHAPES). null for a needled tree or one without a leaf. */
 export function flockLeaf(species) {
-  const S = SPECIES[species], A = S && ARCHITECTURES[S.arch], sh = S && LEAF_SHAPES[leafOutlineOf(species)];
-  if (!A || A.needles || A.frond || !sh || !(A.leafSize > 0)) return null;
-  return { length: r4(A.leafSize), w: Array.from({ length: FLOCK_TABLE }, (_, i) => r4(Math.max(0, sh.w(i / (FLOCK_TABLE - 1))))) };
+  const S = SPECIES[species], A = S && ARCHITECTURES[S.arch];
+  if (!A || A.needles || A.frond) return null;
+  return flockLeafOf({ leafSize: A.leafSize, outline: leafOutlineOf(species) });
+}
+/** The same for a bush's LEAF (form/bush-form.js BUSH_HABITS `leaf`: { leafSize, outline }); null for a needled one. */
+export function flockLeafOf(leaf) {
+  const sh = leaf && !leaf.needle && LEAF_SHAPES[leaf.outline];
+  if (!sh || !(leaf.leafSize > 0)) return null;
+  return { length: r4(leaf.leafSize), w: Array.from({ length: FLOCK_TABLE }, (_, i) => r4(Math.max(0, sh.w(i / (FLOCK_TABLE - 1))))) };
 }
 /** The kinds grown for the realistic look alone, which no leaf form names: a scene reaches one by a kind's `species`
  *  word (`{ form, species }`, speciesFor). */
@@ -352,16 +358,23 @@ function bambooTemplate(species, height, v) {
   }
   return CACHE.get(key);
 }
-function bushTemplate(kind, height, adorn, name) {
-  const key = `bush:${JSON.stringify(kind)}:${height}:${adorn}`;
+// (`flock`: its stage's realistic crowns are flock, FLOCK: a habit with a `flock` row its mass as puffs, form/bush-form.js
+// bushPuffs, drawn as a realistic crown's, its sponge at its own grain; none of its clumps kept)
+function bushTemplate(kind, height, adorn, name, flock = false) {
+  const FH = flock ? BUSH_HABITS[readBush(kind).form]?.flock ?? null : null;
+  const key = `bush:${JSON.stringify(kind)}:${height}:${adorn}${FH ? ':flock' : ''}`;
   if (!CACHE.has(key)) {
     const B0 = bushForm(kind, { seed: 1, height, adorn });
     // (within the plants' budget, FLORA_BUDGET)
     const Q = budgeted(B0, { clumpTris: leafClump(B0.leaf, { seed: 17 }).tris.length, leanTris: leafClump(B0.leaf, { seed: 17, lean: true }).tris.length,
       sprayTris: leafSpray(B0.leaf, { seed: 31 }).tris.length, woodTris: (B0.wood.idx || []).length / 3 });
+    const PF = FH ? bushPuffs(B0, FH) : [];
     const B = { ...B0, clumps: Q.clumps, sites: Q.sites };
     const extra = adorn ? { adorn: { kind: adorn, list: adorn === 'bloom' ? packBlooms(B.blooms) : packBerries(B.berries), geo: adorn === 'bloom' ? [packGeo(bushBlossom(B.look))] : Array.from({ length: ADORN.berries[1] - ADORN.berries[0] + 1 }, (_, k) => packGeo(bushBerries(B.look, ADORN.berries[0] + k, 1 + k))), lo: ADORN.berries[0] } } : {};
-    CACHE.set(key, { ...template('bush', name, B, B.leaf, extra), budget: Q.budget, ...(Q.lean ? { clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafClump(B.leaf, { seed: 17 + k, lean: true }).tris)) } : {}) });
+    // (its puffs as a realistic crown's: its sites, its lobes in their variants, its card full, its own leaf)
+    const puffs = PF.length ? { blobs: packSites(PF), nBlobs: PF.length, blobGeo: Array.from({ length: PUFF.variants }, (_, k) => packGeo(lobeTris(17 + k, { ...PUFF, ...FH.puff }, PUFF.detail))), far: REALISTIC.far, flockLeaf: flockLeafOf(B0.leaf), flockGrain: FH.grain, clumps: packSites([]), nClumps: 0 } : {};
+    // (its reach its clumps', as without its puffs: none of them kept, so its outline is the sponge's)
+    CACHE.set(key, { ...template('bush', name, B, B.leaf, extra), budget: Q.budget, ...(Q.lean ? { clumpGeo: Array.from({ length: VARIANTS }, (_, k) => packGeo(leafClump(B.leaf, { seed: 17 + k, lean: true }).tris)) } : {}), ...puffs });
   }
   return CACHE.get(key);
 }
@@ -489,6 +502,9 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   const leafBase = bases.foliage, barkBase = bases.floor.map((v) => v * 0.5);
   const leafOf = (K) => (K && K.leaf ? solve(offer.leaves[K.leaf - 1], C.foliage, leafBase) : leafBase);
   const barkTarget = (K) => (K && K.bark ? solve(offer.barks[K.bark - 1], C.floor, barkBase) : barkBase);
+  // (a realistic crown as FLOCK, its stage's setting, its bushes too; none for a stage without realistic crowns or with
+  // `flock: false`)
+  const flock = plants.crowns === 'realistic' && plants.flock ? plants.flock : null;
   const out = [], templates = [], index = new Map(), barks = {};
   const use = (T) => { if (!index.has(T)) { index.set(T, templates.length); templates.push(T); if (T.bark) barks[T.bark] = barkOf(T.bark); } return index.get(T); };
   // (a bark's tint: half-way from its own colour to the target, so a species keeps its bark and the level its palette; a
@@ -533,16 +549,14 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   // the bushes: each thicket kind its habit at its middle height; the shrubs the dome, in their season
   for (const b of plants.bushes) {
     const K = readBush(bushKinds[b.kind]), aim = Math.round(((K.height[0] + K.height[1]) / 2) * 10) / 10;
-    push(bushTemplate(bushKinds[b.kind], aim, null, `bush:${K.form}`), b, b.h, K, !!b.soft);
+    push(bushTemplate(bushKinds[b.kind], aim, null, `bush:${K.form}`, !!flock), b, b.h, K, !!b.soft);
   }
   for (const s of plants.shrubs) {
     const adorn = s.state === 'bloom' || s.state === 'fruit' ? s.state : null;
-    push(bushTemplate(SHRUB_HABIT, 1.2, adorn, `shrub:${SHRUB_HABIT}`), s, s.h, null, !!s.soft);
+    push(bushTemplate(SHRUB_HABIT, 1.2, adorn, `shrub:${SHRUB_HABIT}`, !!flock), s, s.h, null, !!s.soft);
   }
-  // (a realistic crown as FLOCK, its stage's setting: each realistic template its leaf, the page the setting; none
-  // carried for a stage without realistic crowns or with `flock: false`)
-  const flock = plants.crowns === 'realistic' && plants.flock ? plants.flock : null;
-  const T = flock ? templates.map((t) => (t.far && t.nBlobs > 0 ? { ...t, flock: { leaf: flock.leaves ? flockLeaf(t.name) : null } } : t)) : templates;
+  // (each flock template its leaf, a tree's its species', a bush's its habit's; the page the setting)
+  const T = flock ? templates.map((t) => { if (!(t.far && t.nBlobs > 0)) return t; const { flockLeaf: own, flockGrain: grain, ...rest } = t; return { ...rest, flock: { leaf: flock.leaves ? (own !== undefined ? own : flockLeaf(t.name)) : null, ...(grain !== undefined ? { grain } : {}) } }; }) : templates;
   return { templates: T, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4), ...(autumn > 0 ? { autumn } : {}), ...(flock && T.some((t) => t.flock) ? { flock } : {}) };
 }
 

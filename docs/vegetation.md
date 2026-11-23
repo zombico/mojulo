@@ -370,11 +370,19 @@ stage says `crowns: { form: 'realistic', flock: false }`.
   its puff's own round there, and a thin hit is marked so the card also takes the sun through it. Seen side-on, a puff
   covers about 85% of its outline. The bake adds about half a second to a stand's load (measured with everything flock
   adds, in software GL).
+- **Bushes too.** On a stage whose realistic crowns are flock, a leafy bush that reads as clump foliage (a habit with a
+  `flock` row in form/bush-form.js `BUSH_HABITS`: the dome, box and laurel; the fountain, forsythia) stands its mass as
+  puffs (`bushPuffs`): one where a clump stands, by the clumps' rank, set in from the outline and kept apart, so they
+  overlap into one mass the bush's shape. They are drawn as a realistic crown's: the sponge, the bush's own leaf at its
+  size (a box's 4.5 cm ovate), the light through, its far card baked from the sponge. Its sponge is finer than a
+  tree's (`grain`, written into its material's source, so a tree's source is as it was), and none of its leaf-card
+  clumps are kept. The rosette (hosta, fern) and the needled habits keep their own look.
 - **Absent, nothing.** A page without flock crowns carries none of its code (`form-flock.test.js`).
 - **Known limits:**
   - the occlusion prepass and the exports (GLB, USD, engines) see the puffs whole;
   - a leaf whose tip would pass the puff's mesh is clipped by it, and a few leaves stand clear of the mass;
   - gen-6's painted realistic trees (era/isekai.js `realisticBands`) do not draw it;
+  - close up, a bush's puffs show their facets in its light (the sponge's shade breaks them, its normals do not);
   - the march's cost is not measured on a GPU yet.
 - The spike that found it, the crown as it was beside the sponge and the sponge with leaves, from the same cameras:
   `control/scripts/spikes/flock/`.

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { floraRead, floraBox, speciesFor, treeSizes, viewHeld, AUTUMN, FLORA_SPECIES, FLORA_DEFAULT, FLORA_STRIDE, FLORA_HIDES, VIEW_CLEAR, SKIRT_FLAG, APART, MASS_BLOB, REALISTIC, PUFF, REALISTIC_HABITS, habitOf } from './flora-read.js';
-import { readFlock, flockLeaf, FLOCK } from './flora-read.js';
+import { readFlock, flockLeaf, flockLeafOf, FLOCK } from './flora-read.js';
+import { BUSH_HABITS } from './bush-form.js';
 import { FLOCK_TABLE } from '../scene/channels/form-flock.js';
 import { ARCHITECTURES } from '../vegetation/grow.js';
 import { LEAF_FORM_IDS } from '../era/leaf-forms.js';
@@ -242,4 +243,19 @@ describe('a realistic crown as flock (`crowns: realistic`, its `flock`)', () => 
     expect(off.templates.some((t) => t.flock)).toBe(false);
     expect(JSON.stringify(read({ ...beech, crowns: 'hybrid', flock: readFlock() }))).toBe(JSON.stringify(read({ ...beech, crowns: 'hybrid' })));
   }, 300000);
+
+  it('stands a leafy bush as flock too: its puffs, its own leaf, its sponge finer; its clumps none; as it was without', () => {
+    const shrub = { form: 'blob', kinds: null, bushKinds: null, trees: [], bushes: [], shrubs: [{ x: 3, y: 3, z: 0, h: 1.2 }] };
+    const read = (p) => floraRead(p, { colours, bases });
+    const B = read({ ...shrub, crowns: 'realistic', flock: readFlock() }).templates[0], H = BUSH_HABITS.spray;
+    expect(B.kind).toBe('bush');
+    expect(B.nBlobs).toBeGreaterThan(3);
+    expect(B.nClumps).toBe(0);
+    expect(B.flock).toEqual({ leaf: flockLeafOf(H.leaf), grain: H.flock.grain });
+    expect(B.flockLeaf).toBeUndefined();
+    expect(flockLeafOf(H.leaf).length).toBe(H.leaf.leafSize);
+    const off = read({ ...shrub, crowns: 'realistic' });
+    expect(off.templates[0].nBlobs).toBeUndefined();
+    expect(off.templates[0].nClumps).toBeGreaterThan(0);
+  });
 });

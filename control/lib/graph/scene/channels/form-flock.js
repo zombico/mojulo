@@ -9,8 +9,9 @@
  * of its radius, in the template's own metres, so the holes stay with the tree and run on across puffs that overlap);
  * the first sample whose field passes the threshold is the pixel; a ray that meets none went out through the holes and
  * is not drawn (the sky through). The field is two octaves of value noise at leaf-cluster grain (`grain` m and `fine`
- * m); the threshold falls from `skin` at the puff's skin to `core` within `close` of the way in: porous outside, dense
- * inside, as a trimmed sponge is.
+ * m, × the plant's own `grain`, written into its material's source where it is not 1 (flockGrain): a
+ * tree's 1, a bush's finer, its leaves smaller); the threshold falls from `skin`
+ * at the puff's skin to `core` within `close` of the way in: porous outside, dense inside, as a trimmed sponge is.
  * ITS SHADE (`FLOCK_LOOK.shade`): the hit's depth its own shade (`skin` at the skin to `core` by `deep` of the way in,
  * the sponge's inside in its own shadow), each leaf-cluster cell (`cell` m) toned its own way within `vary`.
  * THE LIGHT THROUGH (`FLOCK_LOOK.glow`): seen against the sun (`power`: how near it the eye must look), the sun comes
@@ -47,7 +48,7 @@ float spH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) 
 float spN( vec3 p ) { vec3 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( mix( spH( i ), spH( i + vec3( 1, 0, 0 ) ), f.x ), mix( spH( i + vec3( 0, 1, 0 ) ), spH( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
               mix( mix( spH( i + vec3( 0, 0, 1 ) ), spH( i + vec3( 1, 0, 1 ) ), f.x ), mix( spH( i + vec3( 0, 1, 1 ) ), spH( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z ); }
-float sponge( vec3 q ) { return 0.65 * spN( q / ${f(S.grain)} ) + 0.35 * spN( q / ${f(S.fine)} + 11.0 ); }
+float sponge( vec3 q ) { /*grain*/return 0.65 * spN( q / ${f(S.grain)} ) + 0.35 * spN( q / ${f(S.fine)} + 11.0 ); }
 float spongeMarchT( vec3 P, vec3 D, vec3 C, float R, out float tHit ) {
   float span = ${f(S.span)} * R; tHit = 1e9;
   for ( int i = 0; i < ${S.steps}; i++ ) {
@@ -125,3 +126,7 @@ export function flockMarch(P, D, C, R, S, cell) {
   }
   return null;
 }
+
+/** A plant's sponge at its own grain (× a tree's): the field's source with `q /= grain` written in where it is not 1, so a
+ *  tree's source is exactly as it was. */
+export const flockGrain = (glsl, grain) => glsl.replace('/*grain*/', grain && grain !== 1 ? `q /= ${grain.toFixed(4)}; ` : '');

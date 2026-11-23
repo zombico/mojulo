@@ -38,11 +38,17 @@ const TAU = 2 * Math.PI;
  *   upright  a vase of upright stems, brushes at their tips (broom, heather)
  *   rosette  long leaves in rings from the ground (hosta, fern)
  *   cone     a small cone (a dwarf conifer)
+ * `flock` (a leafy habit that reads as clump foliage: the dome, the fountain): its PUFFS when its stage's realistic crowns
+ * are flock (form/flora-read.js FLOCK), each `size` × its height, set `sink` × that in from its outline, `apart` × that
+ * from each other, shaped `puff` (form/flora-read.js PUFF's keys), its sponge's grain `grain` × a tree's (its leaves are
+ * smaller); none of its clumps kept: the sponge and its leaves are its foliage. bushPuffs.
  */
 export const BUSH_HABITS = Object.freeze({
-  spray: Object.freeze({ shape: 'dome', radius: 1, fill: 1.35, dense: 1, leaf: Object.freeze({ leafSize: 0.045, outline: 'ovate', phyllo: 'spiral' }), reads: 'a dome of small leaves: box, laurel' }),
+  spray: Object.freeze({ shape: 'dome', radius: 1, fill: 1.35, dense: 1, leaf: Object.freeze({ leafSize: 0.045, outline: 'ovate', phyllo: 'spiral' }), reads: 'a dome of small leaves: box, laurel',
+    flock: Object.freeze({ size: 0.3, sink: 0.6, apart: 1.1, grain: 0.4, puff: Object.freeze({ wide: 1, top: 0.9, bottom: 0.6 }) }) }),
   plate: Object.freeze({ shape: 'mound', radius: 1.7, fill: 1.3, dense: 1.1, reach: 0.65, sprays: 2, leaf: Object.freeze({ needle: 'silverfir', scale: 0.26 }), reads: 'a low wide mound, its pads level in layers: juniper' }),
-  weep: Object.freeze({ shape: 'fountain', radius: 1.25, fill: 1.15, dense: 1, leaf: Object.freeze({ leafSize: 0.05, outline: 'ovate', phyllo: 'distichous' }), reads: 'arches from the foot, leaves along them: forsythia' }),
+  weep: Object.freeze({ shape: 'fountain', radius: 1.25, fill: 1.15, dense: 1, leaf: Object.freeze({ leafSize: 0.05, outline: 'ovate', phyllo: 'distichous' }), reads: 'arches from the foot, leaves along them: forsythia',
+    flock: Object.freeze({ size: 0.22, sink: 0.4, apart: 1, grain: 0.45, puff: Object.freeze({ wide: 1.1, long: 1.2, top: 0.7, bottom: 0.5 }) }) }),
   tuft: Object.freeze({ shape: 'upright', radius: 0.8, fill: 1.1, dense: 1.3, reach: 0.55, leaf: Object.freeze({ needle: 'pine', scale: 0.45 }), reads: 'a vase of upright stems, brushes at their tips: broom, heather' }),
   whorl: Object.freeze({ shape: 'rosette', radius: 1.2, fill: 1, dense: 1, leaf: Object.freeze({ leafSize: 0.12, outline: 'broad', phyllo: 'spiral' }), reads: 'long leaves in rings from the ground: hosta, fern' }),
   spire: Object.freeze({ shape: 'cone', radius: 0.6, fill: 1.2, dense: 1.6, leaf: Object.freeze({ needle: 'spruce', scale: 0.3 }), reads: 'a small cone: a dwarf conifer' }),
@@ -199,4 +205,23 @@ export function bushBerries(look, n, seed = 1) {
     tris.push({ p: [[0, 0, 0], [R * 0.15, 0, 0], V[4]], c: [70, 90, 50] });
   }
   return tris;
+}
+
+/**
+ * A bush's PUFFS, its mass as flock (BUSH_HABITS `flock`; the page draws them as the realistic crown's, a porous sponge
+ * with the bush's own leaves on its skin, channels/form-flock.js): one where a clump stands, by the clumps' rank, set in
+ * from the outline along the clump's facing and kept apart, so they overlap into one mass the shape of the bush. → [{ p, o,
+ * d, s, e, r }] (as a realistic crown's puffs, o level), [] for a habit without one. Deterministic: the clumps' ranks.
+ */
+export function bushPuffs(form, F) {
+  if (!F) return [];
+  const s0 = F.size * form.height, out = [];
+  const byRank = [...form.clumps].sort((a, b) => a.r - b.r || a.p[0] - b.p[0] || a.p[1] - b.p[1] || a.p[2] - b.p[2]);
+  for (const c of byRank) {
+    const s = s0 * (0.85 + 0.3 * hashN(out.length * 31 + 7)), p = c.p.map((v, k) => v - c.o[k] * s0 * F.sink);
+    if (out.some((q) => Math.hypot(q.p[0] - p[0], q.p[1] - p[1], q.p[2] - p[2]) < s0 * F.apart)) continue;
+    const ol = Math.hypot(c.o[0], c.o[1]);
+    out.push({ p: p.map(r4), o: ol > 1e-3 ? [r4(c.o[0] / ol), r4(c.o[1] / ol), 0] : [1, 0, 0], d: c.d, s: r4(s), e: c.e });
+  }
+  return out.map((q, i) => ({ ...q, r: r4(i / out.length) }));
 }

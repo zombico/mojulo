@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { formFloraScript } from './form-flora.js';
-import { flockGlsl, flockFragment, flockLight, flockMarch, FLOCK_LOOK, FLOCK_TABLE } from './form-flock.js';
+import { flockGlsl, flockFragment, flockLight, flockMarch, flockGrain, FLOCK_LOOK, FLOCK_TABLE } from './form-flock.js';
 
 const flora = (flock) => ({ templates: [], n: 0, trees: '', lod: { detail: [6, 16], mid: 25, sprayed: 6 }, leafRef: [0.1, 0.2, 0.1], barks: {}, ...(flock ? { flock } : {}) });
 const parses = (src) => new Function('THREE', 'scene', 'D', 'bytes', 'camera', 'sunLight', src);
@@ -20,7 +20,7 @@ describe('a realistic crown as flock', () => {
     const on = formFloraScript(flora({ leaves: true, shadow: 'sponge' })), bare = formFloraScript(flora({ leaves: false, shadow: 'sponge' }));
     expect(() => parses(on)).not.toThrow();
     expect(() => parses(bare)).not.toThrow();
-    expect(on).toContain("(flock ? '-flock' : '')");
+    expect(on).toContain("(flock ? '-flock' + (flock.grain && flock.grain !== 1 ? '-' + flock.grain : '') : '')");
     expect(on).toContain('leafMarch');
     expect(on).toContain(`uLeafW[ ${FLOCK_TABLE} ]`);
     expect(bare).toContain('spongeMarchT');
@@ -36,8 +36,8 @@ describe('a realistic crown as flock', () => {
 
   it('casts the sponge\'s shadow, its puffs\' whole, or none', () => {
     const src = formFloraScript(flora({ leaves: true, shadow: 'none' }));
-    expect(src).toContain("if (FLOCK.shadow === 'none') parts.crown.im.castShadow = false; else if (FLOCK.shadow === 'sponge') parts.crown.im.customDepthMaterial = flockDepth(leaf.userData.flockU);");
-    expect(src).toContain("customProgramCacheKey = () => 'form-flock-depth'");
+    expect(src).toContain("if (FLOCK.shadow === 'none') parts.crown.im.castShadow = false; else if (FLOCK.shadow === 'sponge') parts.crown.im.customDepthMaterial = flockDepth(leaf.userData.flockU, t.flock.grain); }");
+    expect(src).toContain("customProgramCacheKey = () => 'form-flock-depth' + (grain && grain !== 1 ? '-' + grain : '')");
     expect(src).toContain('"shadow":"none"');
   });
 
@@ -69,5 +69,16 @@ describe('a realistic crown as flock', () => {
     expect(src).toContain('if (LSI && Math.hypot(o[0], o[1], o[2]) > 1.5) { spongeTri(');
     expect(src).toContain('impA.a > 0.75 && impA.a < 0.9');
     expect(formFloraScript(flora(null))).not.toContain('spongeTri');
+  });
+
+  it('writes a plant\'s own grain into its sponge\'s source, a tree\'s (1) as it was', () => {
+    const g = flockGlsl();
+    expect(flockGrain(g, 1)).not.toContain('/*grain*/');
+    expect(flockGrain(g, 1)).toContain('float sponge( vec3 q ) { return 0.65');
+    expect(flockGrain(g, undefined)).toBe(flockGrain(g, 1));
+    expect(flockGrain(g, 0.4)).toContain('float sponge( vec3 q ) { q /= 0.4000; return');
+    const src = formFloraScript(flora({ leaves: true, shadow: 'sponge' }));
+    expect(src).toContain("spGrain(FLOCK.glsl, flock.grain)");
+    expect(src).toContain("'-flock' + (flock.grain && flock.grain !== 1 ? '-' + flock.grain : '')");
   });
 });
