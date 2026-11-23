@@ -2309,6 +2309,9 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  const manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  let manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  // (the world's interface on a building's page too, as a walk's (stageLevelOrder): its HUD on mana-ui, and with it the
+  // talk box its scenes are said in)
+  if (G.ui !== undefined && !manifest.manaHud && !manifest.events?.grammar) manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null }), ...(G.ui.map !== undefined ? { map: G.ui.map } : {}), ...(G.ui.inventory !== undefined ? { inventory: G.ui.inventory } : {}), ...(G.ui.phone !== undefined ? { phone: G.ui.phone } : {}) } };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

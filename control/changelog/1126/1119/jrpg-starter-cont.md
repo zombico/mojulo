@@ -338,3 +338,8 @@
   a line as the core begins, its ending in the core, staged by the flow on their pages); and a level won or lost while a
   scene is up ends as the scene closes (`scene/channels/game.js`: a quarter second's grace on a page with scenes, then
   held), so a moment at an exit is no longer cut short.
+- **A building's page carries the world's interface, and the story's live test.** A building level now takes the
+  world's HUD on mana-ui as a walk does (`levels.js` buildingLevelOrder), and with it the talk box its scenes are said in:
+  the citadel's lines were said in the page's plain box before. `gameworld/jrpg-story.live.test.js` (the e2e tier) plays
+  the composed round's story in Chrome: the opening staged on the town's page, a moment at the way out holding the
+  level's end until its line is closed, the citadel's line as it begins and its ending staged there.

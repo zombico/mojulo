@@ -46,6 +46,10 @@ a townsperson's talk fired on its event. It writes `report.json` and a shot of e
 - Finding 3: a level's end waits for a scene that is up (`scene/channels/game.js` end: a quarter second's grace, then
   held until the scene closes); the rerun's reached moment shows `endedWhileUp: false, endedAfter: true`.
 
+- A building's page had no talk box (no mana HUD: `buildingLevelOrder` never took the world's `ui`), so the citadel's
+  lines were said in the page's plain box; it now takes it as a walk does.
+- Next 4 done: `gameworld/jrpg-story.live.test.js`, on the e2e list.
+
 ## Next, in order (as first written)
 
 1. Bind moments to building stages (finding 2), from `buildingEnds`: its rooms as places, the goal room, the boss's spot.
