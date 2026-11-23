@@ -147,7 +147,10 @@ note by note. Conditioning measures each take with the pitch converter (`scripts
 Takes are zoned by their measured root, never by the note they were asked at: the generator lands a note's letter
 within a few cents but its octave by chance. Two ways of asking land the octave: the REGISTER in words ("a low bass note
 played by the left hand", "high in its upper register"), and for a fretted or bowed instrument's low notes the STRING
-AND FRET ("the low E string at the 5th fret, the note A2"), the way a player names a pitch. An instrument's coverage is
+AND FRET ("the low E string at the 5th fret, the note A2"), the way a player names a pitch. A bowed instrument's upper register,
+asked in words, can come back an octave low (the violin's "upper strings" did, every one): asked by string and position
+("on the E string, stopped 7 semitones up, the note B5"), about a third land and the rest an octave low, still notes
+(`cards/repass.js`). Check where a set landed against the notes asked before trusting a register. An instrument's coverage is
 its variants' roots in `library.json` (the notes its takes landed on); a gap between them is bent across.
 
 `sampleSlice([<instrument>])` hands a page every rooted take with `roots` and `loops`; a `zones` patch (`voice:
@@ -186,7 +189,8 @@ false` keeps it synthesized. The cards, by set: `cards/organ.js` and `cards/pian
 brass and the strings), `cards/instruments.js` (guitars, keys, harp, mallets, the upright bass, the violin, cello, flute
 and trumpet, and the low passes by string and fret), `cards/orchestra.js` (the rest of the orchestra) and
 `cards/colours.js` (the setting colours: harpsichord, music box, banjo, harmonica, shamisen, pedal steel). The erhu was
-recorded and is not twinned: its takes came back as a drone on two notes, whatever note was asked.
+recorded and is not twinned: its takes came back on its open strings, whatever note was asked, in words and again by
+string and position.
 
 ## Making it
 
