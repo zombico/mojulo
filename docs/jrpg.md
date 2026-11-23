@@ -291,8 +291,8 @@ world names them as `play.items` of kind `key`, else each is called by its id. A
 and a share mimics (`battles.chests: { n, locked?, mimics? }`): a LOCKED chest says so until its Iron Key is won from
 one of its stage's packs (never the boss), the bag holding it then opening the chest (and keeping it); a MIMIC is a
 fight the chest stands for, sprung as the party walks up, its treasure had when it is won. A composed party RPG keeps
-two a stage, one in four locked and about one in seven a mimic. The citadel's own inner gates are not yet doors met in
-play: its walled core is the design's.
+two a stage, one in four locked and about one in seven a mimic. The citadel's own gated doors are met in play as locks,
+each opened by the key its guard carries (docs/walled-core-dungeon.md, Met in play).
 
 **The temple and the smithy.** A party RPG's town whose street keeps a temple has a temple shop (`shops.<id>.raise`,
 the gold to raise each fallen member, healed and cured); one that keeps a smithy has the smithy's, the arms and armour

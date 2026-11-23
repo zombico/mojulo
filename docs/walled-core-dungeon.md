@@ -28,6 +28,16 @@ the stage it is built as, toned when it is, with its light: a draft's book is th
 style palette does not colour a bay building; its look or its tone does. The book's look is the world's `book: { skin }` (`gameworld/book-skin.js`): a preset (`briefing`) or the
 model's own colours, faces, frame and texture.
 
+## Met in play: a party RPG's citadel
+
+A party RPG's citadel (a walled core on one building level, `gameworld/compose.js`) meets its gated doors in play as
+LOCKS across the building's route (`game/mechanics.js` `lock`, laid by `gameworld/battles.js` `citadelLocks`): each
+door after one of its packs, on the last doorway between that guard and what lies past it (the next pack, or the boss),
+a seal in the doorway that turns the party back, saying what opens it, until the bag holds its key. The key, named for
+the space it opens (the Vault Key), is carried by that guard and given as its fight is won; it is kept, in the party
+menu's Key tab. A door with no doorway between a guard and what follows is not laid: never a lock whose key lies past
+it, so a citadel whose last guard stands in the boss's room keeps one lock fewer than its design.
+
 ## The escape room
 
 The smallest a layer can be: a space you are held in, its way out sealed, until N locks are open, each by a key found

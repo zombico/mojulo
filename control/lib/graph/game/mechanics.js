@@ -112,6 +112,44 @@ const MECHANICS = {
     },
   },
 
+  // a LOCK across the way (a walled core's gated door, met in play): a seal in a doorway that walking into opens for good
+  // where the bag holds its key (kept), else says what opens it and puts the walker back where it came from. Not an end:
+  // the way on is only barred. { id, key: '<bag item>', name?: its key's name, at, radius?, planar?, back }
+  //   lock:open:<id>   it opens (its seal off, `lock-<id>` set)
+  //   lock:shut:<id>   tried without its key (the walker put back)
+  lock: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+      if (typeof p.id !== 'string' || !/^[a-z][a-z0-9-]{0,31}$/.test(p.id)) throw new Error(`lock[${ctx.i}]: id is a lower-case word`);
+      if (typeof p.key !== 'string' || !p.key) throw new Error(`lock[${ctx.i}]: key is the bag item that opens it`);
+      if (!isVec(p.at) || !isVec(p.back)) throw new Error(`lock[${ctx.i}]: at is where it stands and back where a walker without its key is put, each [x, y, z]`);
+      const id = p.id, zone = `lock_${id}`, seal = `lock-${id}`, flag = `lock-${id}`, held = `held:bag:${p.key}`, name = p.name || p.key;
+      const tryT = `lock:try:${id}`, openT = `lock:open:${id}`, shutT = `lock:shut:${id}`;
+      return {
+        world: {
+          vars: { [flag]: 0 },
+          sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 1.4, planar: p.planar !== false, watch: ctx.player }],
+          entities: [{ id: seal, type: 'seal', on: true, position: p.at.slice(), radius: 0.9, color: '#7a1f1a' }],
+          reactions: [
+            // (its key held: the flag set at once, so the shut below sees it open; an unheld key is no var at all)
+            { on: 'enter', match: { zone }, if: { var: flag, eq: 0 }, do: 'emit', type: tryT },
+            { on: tryT, if: { var: held, gte: 1 }, do: 'set', var: flag, to: 1 },
+            { on: tryT, if: { var: held, gte: 1 }, do: 'emit', type: openT },
+            { on: tryT, if: { var: flag, eq: 0 }, do: 'emit', type: shutT },
+            { on: openT, do: 'toggle', target: seal, to: false },
+            { on: shutT, do: 'move', target: ctx.player, to: p.back.slice() },
+          ],
+          hud: [
+            { on: shutT, text: `Locked: the ${name} opens it`, as: 'toast', ttl: 1.6 },
+            { on: openT, text: `The ${name} opens the way`, as: 'toast', ttl: 1.6 },
+          ],
+        },
+        emits: [openT, shutT],
+      };
+    },
+  },
+
   // a WARP within the level: walking into its zone moves the walker to `to` (its position, as its spawn is given: a fall
   // caught moves it the same way), and says `then` (an event a scene starts on: the arrival shown). Not an end: a
   // subway's tunnel left at one station and its next station's platform arrived on.

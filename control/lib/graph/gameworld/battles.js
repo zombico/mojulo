@@ -163,6 +163,58 @@ const reachOf = (G, kind) => {
   const m = bodyOf(look.species, { ooze: look.ooze });
   return Math.min(2.5, Math.max(0.15, m.extent * (heightOf(G, kind) / Math.max(0.05, m.height)) * 0.5));
 };
+/**
+ * THE CITADEL'S LOCKS, met in play: a walled core's gated doors (wcd/wcd.js, a door with a `gate`) between spaces this
+ * building stands for are LOCKS across its route (game/mechanics.js `lock`), each after one of its packs in the order the
+ * route meets them: each on the last doorway between its guard and what lies past it (the next pack, or the boss), its
+ * key, named for the space it opens (the Vault Key), carried by that guard and given as its fight is won (kept: the party
+ * menu's Key tab). A door with no doorway between a guard and what follows is not laid: never a lock whose key lies past
+ * it. → { mechanics, cues, items } or null (no walled core here, no route, no pack to carry a key)
+ */
+export function citadelLocks(G, stage, ends, encounters) {
+  const W = G.wcd, via = ends?.via;
+  if (!W || stage.section !== 'building' || !Array.isArray(via) || via.length < 3) return null;
+  const here = (sp) => W.spaces?.[sp]?.level === stage.level;
+  const doors = (W.doors ?? []).filter((d) => d.gate && here(d.from) && here(d.to));
+  const guards = encounters.filter((e) => e.flee !== false && /^pack-/.test(e.id)), boss = encounters.find((e) => e.flee === false);
+  if (!doors.length || !guards.length) return null;
+  // (at the walker's eye, as an escape room's locks are: escape.js; the goal room's floor's)
+  const z = ends.exit?.[2] ?? ends.spawn?.[2] ?? 0, pt = (p) => [p[0], p[1], z];
+  // (how far along the route a point lies: its projection on the route's nearest leg, as a distance from the way in)
+  const legs = via.slice(1).map((b, k) => { const a = via[k]; return { a, b, from: 0, len: Math.hypot(b[0] - a[0], b[1] - a[1]) }; });
+  legs.reduce((acc, L) => { L.from = acc; return acc + L.len; }, 0);
+  const along = (q) => {
+    let best = Infinity, s = 0;
+    for (const L of legs) {
+      const dx = L.b[0] - L.a[0], dy = L.b[1] - L.a[1], t = L.len ? Math.max(0, Math.min(1, ((q[0] - L.a[0]) * dx + (q[1] - L.a[1]) * dy) / (L.len * L.len))) : 0;
+      const d = Math.hypot(L.a[0] + dx * t - q[0], L.a[1] + dy * t - q[1]);
+      if (d < best) { best = d; s = L.from + L.len * t; }
+    }
+    return s;
+  };
+  // (the doorways the route passes, its waypoints between the way in and the goal; the guards and the boss along it)
+  const ways = via.slice(1, -1).map((p, k) => ({ p, prev: via[k], s: along(p) }));
+  const order = guards.map((e) => ({ e, s: along(e.at) })).sort((a, b) => a.s - b.s);
+  const end = boss ? along(boss.at) : along(via.at(-1));
+  const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1), mechanics = [], cues = [], items = {};
+  // (each door after a guard, on the last doorway before what lies past it, the next guard or the boss; a door with no
+  // doorway there is not laid, never one its key lies beyond)
+  let g = 0;
+  for (const D of doors) {
+    for (; g < order.length; g++) {
+      const lo = order[g].s, hi = g + 1 < order.length ? order[g + 1].s : end, way = ways.filter((w) => w.s > lo + 0.5 && w.s < hi - 0.5).at(-1);
+      if (!way) continue;
+      const key = `${D.to}-key`, name = `${cap(D.to)} Key`;
+      mechanics.push({ kind: 'lock', id: `${D.to}`.slice(0, 32), key, name, at: pt(way.p), back: pt(way.prev), radius: 1.2, planar: false });
+      items[key] = { name, kind: 'key' };
+      cues.push({ id: `${key}-won`, when: { on: `rpg-won:${order[g].e.id}` }, once: true, then: [{ give: key }, { say: `Found the ${name}!`, as: 'toast' }] });
+      g++;
+      break;
+    }
+  }
+  return mechanics.length ? { mechanics, cues, items } : null;
+}
+
 /** The look a foe stands in: the world's one foe look where it writes it, else the foe's own, else the plain one. */
 export const foeLookOf = (G, id) => G.battles?.foe ?? G.battles?.looks?.[id] ?? FOE_LOOKS[id] ?? BATTLE_FOE;
 export { isPeopleLook };
@@ -470,6 +522,8 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   const chests = chestSpots.length ? chestCast(chestSpots, { tier: tierOf(from), from: 0, seed: seed + from, named, packs: encounters.filter((e) => e.flee !== false).map((e) => e.id), ...chestKinds(G) }) : null;
   if (chests) entities.push(...chests.entities);
   if (chests?.encounters) encounters.push(...chests.encounters);
+  // (a walled core's gated doors on this building, met in play: citadelLocks below)
+  const locks = citadelLocks(G, stage, ends, encounters);
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
   // (in a hub world they stand in the hub instead, hubCast)
@@ -485,7 +539,9 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   // (a stage with chests keeps what each still holds in the store: the bag's holders, so an opened chest stays open)
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE, ...(chestsPer(G) ? { holders: CHEST_SLICE } : {}) }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
   if (chests) rest.push(...chests.play.cues);
-  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}), ...(chests ? { menus: chests.play.menus, ...(chests.play.items ? { items: chests.play.items } : {}) } : {}) }, mechanics };
+  if (locks) { rest.push(...locks.cues); mechanics.push(...locks.mechanics); }
+  const items = { ...(chests?.play.items ?? {}), ...(locks?.items ?? {}) };
+  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}), ...(chests ? { menus: chests.play.menus } : {}), ...(Object.keys(items).length ? { items } : {}) }, mechanics };
 }
 
 // the wares the world can sell: the tier's (or the book's own), less what the world's items and gear leave out

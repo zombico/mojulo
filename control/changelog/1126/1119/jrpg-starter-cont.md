@@ -319,3 +319,9 @@
   foe; a Trap Drone, a Booby Trap in the eras), sprung as the party walks up, its treasure had when it is won. A
   composed party RPG asks for both (one in four, about one in seven); a book asking none keeps its chests as they were.
   The citadel's inner gates are not yet doors met in play.
+- **The citadel's locks, met in play.** A new non-terminal mechanic, `lock` (`game/mechanics.js`): a seal in a doorway
+  that opens for good where the bag holds its key (kept), else says what opens it and puts the party back. A party RPG's
+  citadel lays its walled core's gated doors as locks across the building's route (`battles.js` `citadelLocks`), each on
+  the last doorway between a guard and what lies past it, its key (named for the space it opens: the Vault Key) carried
+  by that guard and given as its fight is won. A door with no doorway there is not laid, never a lock whose key lies past
+  it; the composed citadel meets one lock (its last guard stands in the boss's room).

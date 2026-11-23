@@ -284,6 +284,11 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
     const M = steps().find((s) => s.key === `level-${core}-0`).order.manifest, E = M.play.rpg.encounters;
     expect(E.length).toBeGreaterThan(1);
     expect(E.at(-1)).toMatchObject({ foes: ['drake'], flee: false });
+    // (its gated doors met in play: a lock on its route, its key carried by a guard before it, citadelLocks)
+    const lock = M.level.mechanics.find((m) => m.kind === 'lock');
+    expect(lock).toMatchObject({ key: expect.stringMatching(/-key$/) });
+    expect(M.play.items[lock.key]).toMatchObject({ kind: 'key' });
+    expect(M.play.cues.find((c) => c.id === `${lock.key}-won`).when.on).toMatch(/^rpg-won:pack-/);
     // (a citadel the words name is always laid, its boss though no word named one; the JRPG's own, unnamed, only where
     // the words lay a dungeon: a round of a town and its wilds stays one)
     const named = composeGameworld({ prompt: 'a jrpg where we save the princess from the citadel', seed: 3 });
