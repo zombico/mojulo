@@ -8,7 +8,7 @@
  *
  *   frameBody(build, { palette?, wear? })  → { bones, faces, mounts, thrusters, height, hips, footprint, rig, build }
  *     bones      [{ id, head }]: each joint's pivot in the rest frame, absolute (never a hierarchy): root (the pelvis),
- *                core, head, booster, armUpR, armLowR (forearm, hand and the gun it holds), armUpL, armLowL, backR, backL
+ *                core, head (none on a headless core: a forward fuselage carries its cockpit and optics), booster, armUpR, armLowR (forearm, hand and the gun it holds), armUpL, armLowL, backR, backL
  *                (a shoulder weapon's, only where one is carried), thighR, shinR, footR, thighL, shinL, footL
  *     faces      Map bone id → [{ corners, material, albedo, fill, outNormal, cornerNormals? }]: every face on one bone;
  *                material a slot of FRAME_SLOTS, albedo its colour unlit, fill the same under a plain key (a page that
@@ -19,7 +19,8 @@
  *                `half` the mouth's half-extent on each axis
  *     height     the top of the frame over its soles (m); hips the root's height (the legs' `height`)
  *     footprint  { L, W, H }: what the standing frame takes up (+y its front)
- *     rig        what the clips read (clips.js): each bone's parent, the legs' lengths, the rest pose's angles
+ *     rig        what the clips read (clips.js): each bone's parent, the legs' joint ('biped' | 'reverse', its knee bent
+ *                forward or back: `bend` 1 | −1), their lengths and the rest pose's hip, knee and ankle
  *   FRAME_SLOTS        the material slots: paint (the satin military paint), chrome (polished metal), gunmetal (the
  *                      structure's dark metal), seal (rubber, cables, boots), lens (sensor glass), glow (lit), stencil
  *   FRAME_PALETTES     federation (default: cold blue-grey over chrome), mars (rust red, sand), ash (dark grey, hazard
@@ -69,6 +70,7 @@ const mm = (a, b) => { const o = new Array(9); for (let i = 0; i < 3; i++) for (
 const rx = (a) => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, c, -s, 0, s, c]; };
 const ry = (a) => { const c = Math.cos(a), s = Math.sin(a); return [c, 0, s, 0, 1, 0, -s, 0, c]; };
 const rz = (a) => { const c = Math.cos(a), s = Math.sin(a); return [c, -s, 0, s, c, 0, 0, 0, 1]; };
+const mtv = (m, v) => [m[0] * v[0] + m[3] * v[1] + m[6] * v[2], m[1] * v[0] + m[4] * v[1] + m[7] * v[2], m[2] * v[0] + m[5] * v[1] + m[8] * v[2]];
 const cols = (ex, ey, ez) => [ex[0], ey[0], ez[0], ex[1], ey[1], ez[1], ex[2], ey[2], ez[2]];
 const MIRROR = f([-1, 0, 0, 0, 1, 0, 0, 0, 1]);
 const T0 = f({ m: I3, t: [0, 0, 0] });
@@ -283,20 +285,25 @@ const LEGS = f({
   light: f({ hw: 0.6, ha: 0.5, t: 0.82, foot: [0.52, 1.25], fw: 0.72, toes: 2, pod: false }),
   medium: f({ hw: 0.74, ha: 0.58, t: 1, foot: [0.62, 1.45], fw: 0.92, toes: 2, pod: true }),
   heavy: f({ hw: 0.92, ha: 0.7, t: 1.28, foot: [0.78, 1.68], fw: 1.22, toes: 3, pod: false }),
+  // (reverse-joint legs: the ankle a raised heel over a short metatarsal, three toes splayed from its ball, a spur behind;
+  // the knee bent back, the shin the longer bone)
+  reverse: f({ hw: 0.8, ha: 0.95, t: 1.04, foot: [0.7, 1.45], fw: 1.1, toes: 3, pod: true, bend: -1, rake: 28, split: 0.42 }),
 });
 const ARMS = f({ light: f({ a: 0.78, up: 1.5, fo: 1.3 }), medium: f({ a: 1, up: 1.6, fo: 1.4 }), heavy: f({ a: 1.28, up: 1.66, fo: 1.46 }) });
-const CORE_CH = f({ light: 1.75, medium: 1.85, heavy: 1.9 });
+const CORE_CH = f({ light: 1.75, medium: 1.85, heavy: 1.9, prow: 1.5 });
+const legsLook = (P) => LEGS[P.joint === 'reverse' ? 'reverse' : P.class];
 const classOf = (slot, id) => partOf(slot, id).class ?? 'medium';
 
 /** The rest skeleton of a build: every joint where it stands. */
 function skeleton(B) {
   const P = { core: partOf('core', B.core), legs: partOf('legs', B.legs), arms: partOf('arms', B.arms) };
-  const s = P.core.size, Lg = LEGS[P.legs.class], A = ARMS[P.arms.class];
-  const H = P.legs.height, D = H - Lg.ha, reach = D / Math.cos(14 * DEG);
-  const L1 = reach * 0.47, L2 = reach * 0.53;
-  const zc0 = H + 0.72, zc1 = zc0 + CORE_CH[P.core.class] * s;
+  const s = P.core.size, Lg = legsLook(P.legs), A = ARMS[P.arms.class];
+  // (the legs' two bones over the hip-to-ankle drop: a biped's knee bent forward a little, a reverse joint's back far)
+  const H = P.legs.height, D = H - Lg.ha, reach = D / Math.cos((Lg.rake ?? 14) * DEG), bend = Lg.bend ?? 1;
+  const L1 = reach * (Lg.split ?? 0.47), L2 = reach - L1;
+  const zc0 = H + 0.72, zc1 = zc0 + CORE_CH[P.core.headless ? 'prow' : P.core.class] * s;
   const halfW = 1.18 * s, shoulderX = halfW + 0.36 * A.a;
-  const sk = { s, H, L1, L2, Lg, A, zc0, zc1, halfW, depth: 0.95 * s };
+  const sk = { s, H, L1, L2, Lg, A, zc0, zc1, halfW, depth: 0.95 * s, bend, joint: bend < 0 ? 'reverse' : 'biped', headless: !!P.core.headless };
   sk.root = [0, 0, H];
   sk.core = [0, -0.05, H + 0.5];
   sk.neck = [0, 0.12 * s, zc1 + 0.04];
@@ -309,15 +316,16 @@ function skeleton(B) {
   sk.grip = add(sk.wrist, [0, 0.2 * A.a, -0.04]);
   sk.mount = [0.7 * s + 0.16, -0.62 * s, zc1 - 0.3];
   sk.hip = [Lg.hw, 0, H];
-  sk.ankle = [Lg.hw + 0.06, 0.02, Lg.ha];
-  sk.knee = legKnee(sk.hip, sk.ankle, L1, L2, [1, 0, 0]);
+  sk.ankle = [Lg.hw + 0.06, bend < 0 ? 0.1 : 0.02, Lg.ha];
+  sk.knee = legKnee(sk.hip, sk.ankle, L1, L2, [1, 0, 0], bend);
   return sk;
 }
 
-/** The knee of a two-bone leg from the hip to the ankle, bending forward (its plane's normal `n`, +x at rest). */
-export function legKnee(hip, ankle, L1, L2, n) {
+/** The knee of a two-bone leg from the hip to the ankle, in the plane square to `n` (+x at rest): bent forward
+ *  (`bend` 1, a biped's) or back (−1, a reverse joint's, a bird's). */
+export function legKnee(hip, ankle, L1, L2, n, bend = 1) {
   const dv = sub(ankle, hip), D = Math.min(len(dv), (L1 + L2) * 0.9995), u = unit(dv);
-  const nn = unit(sub(n, mul(u, dot(n, u)))), w = cross(nn, u);
+  const nn = unit(sub(n, mul(u, dot(n, u)))), w = mul(cross(nn, u), bend < 0 ? -1 : 1);
   const ca = Math.max(-1, Math.min(1, (L1 * L1 + D * D - L2 * L2) / (2 * L1 * D))), a = Math.acos(ca);
   return add(hip, add(mul(u, L1 * Math.cos(a)), mul(w, L1 * Math.sin(a))));
 }
@@ -379,12 +387,15 @@ function core(K, sk, id, cls) {
   K.box(bc, bs, 'paint2', { ch: 0.07 });
   K.on(bc, bs, '-y', () => { K.vent(-0.62 * s, ch * 0.2, -0.32 * s, ch * 0.34, 4); K.vent(0.32 * s, ch * 0.2, 0.62 * s, ch * 0.34, 4); });
   for (const sg of [-1, 1]) K.cable([[sg * 0.55 * s, -0.95 * s, zm + 0.1], [sg * 0.9 * s, -0.7 * s, zc1 - 0.1], [sg * (hw + 0.05), -0.35 * s, zc1 - 0.25]], 0.05);
-  if (id === 'cr-citadel' || cls === 'heavy') citadelChest(K, sk);
+  if (id === 'cr-prow' || sk.headless) prowFuselage(K, sk);
+  else if (id === 'cr-citadel' || cls === 'heavy') citadelChest(K, sk);
   else if (id === 'cr-raptor' || cls === 'light') raptorChest(K, sk);
   else vanguardChest(K, sk);
-  // (the collar round the neck: a chrome ring on its dark seat)
-  K.cyl([0, sk.neck[1], zc1 - 0.06], [0, sk.neck[1], zc1 + 0.04], 0.42 * s, 0.38 * s, 'gunmetal', { n: 12, smooth: false });
-  K.cyl([0, sk.neck[1], zc1 + 0.04], [0, sk.neck[1], zc1 + 0.09], 0.34 * s, 0.34 * s, 'chrome', { n: 12 });
+  // (the collar round the neck: a chrome ring on its dark seat; a fuselage has no neck)
+  if (!sk.headless) {
+    K.cyl([0, sk.neck[1], zc1 - 0.06], [0, sk.neck[1], zc1 + 0.04], 0.42 * s, 0.38 * s, 'gunmetal', { n: 12, smooth: false });
+    K.cyl([0, sk.neck[1], zc1 + 0.04], [0, sk.neck[1], zc1 + 0.09], 0.34 * s, 0.34 * s, 'chrome', { n: 12 });
+  }
   // (the back's verniers, low each side: a quick boost's sideways kick)
   for (const sg of [-1, 1]) {
     const p = [sg * (0.78 * s), -0.95 * s, zc0 + 0.25 * s], d = unit([sg * 0.85, -0.5, -0.15]);
@@ -516,6 +527,98 @@ function citadelChest(K, sk) {
   K.in(at([0, -0.35 * s, zc1 + 0.36], rx(0.2)), () => K.box([0, 0, 0], [1.25 * s, 0.24, 0.85], 'paint', { ch: 0.07, taper: [0.85, 1] }));
   K.box([0, 1.03 * s, zc0 + 0.95 * ch], [0.5 * s, 0.1, 0.1], 'lens', { ch: 0.02 });
   K.box([0, 1.06 * s, zc0 + 0.95 * ch], [0.38 * s, 0.06, 0.04], 'glow');
+}
+
+/** A forward fuselage (a headless core): a long armoured prow ahead of the shoulders, the cockpit in it under a narrow
+ *  canopy, its optics in a chin turret under the nose, sensor fins behind the canopy; the shoulders and the arms hang
+ *  at its root, behind and under it, as a gunship's nose carries its guns. */
+function prowFuselage(K, sk) {
+  const { s, zc0, zc1, halfW: hw } = sk, ch = zc1 - zc0;
+  // the prow's line: from its root at the chest (y0) to its nose (y0 + L), its top falling and its sides drawing in
+  const y0 = 0.3 * s, L = 2.5 * s, zp = zc0 + 0.6 * ch, W = 1.3 * s, Hh = 1.0 * ch, tw = 0.5, th = 0.55, drop = 0.2 * s;
+  const along = (t) => [0, y0 + L * t, zp - drop * t];
+  const halfH = (t) => (Hh / 2) * (1 + (th - 1) * t), halfWd = (t) => (W / 2) * (1 + (tw - 1) * t);
+  const top = (t) => along(t)[2] + halfH(t), bottom = (t) => along(t)[2] - halfH(t);
+  const slope = Math.atan2(top(0) - top(1), L);
+  // (the hull: built up its length, the nose its narrow end, dropped a little)
+  K.in(at([0, y0, zp], rx(-Math.PI / 2)), () => K.box([0, 0, L / 2], [W, Hh, L], 'paint2', { ch: 0.12, taper: [tw, th], shear: [0, drop] }));
+  // (the root's frame where the prow meets the chest, and the armoured hump behind it over the cockpit block)
+  K.box([0, y0 - 0.05, zp], [W * 1.08, 0.3, Hh * 1.05], 'gunmetal', { ch: 0.06 });
+  K.in(at([0, -0.25 * s, zc1 - 0.08], rx(0.06)), () => {
+    const c = [0, 0, 0], sz = [1.45 * s, 1.25 * s, 0.26];
+    K.box(c, sz, 'paint', { ch: 0.08, taper: [0.9, 0.9] });
+    K.on(c, sz, '+z', () => { K.vent(-0.5 * s, -0.4 * s, -0.22 * s, -0.05 * s, 4); K.vent(0.22 * s, -0.4 * s, 0.5 * s, -0.05 * s, 4); K.rect(-0.04 * s, -0.55 * s, 0.04 * s, 0.5 * s, 'trim'); });
+  });
+  // (the deck: an armour plate over the prow's top, along its fall, its seams, its edge polished)
+  K.in(at(add(along(0.42), [0, 0, halfH(0.42) + 0.05]), rx(-slope)), () => {
+    const c = [0, 0, 0], sz = [W * 0.72, L * 0.86, 0.1];
+    K.box(c, sz, 'paint', { ch: 0.04 });
+    K.on(c, sz, '+z', () => {
+      K.seam(-0.36 * W, -0.38 * L, -0.36 * W, 0.38 * L); K.seam(0.36 * W, -0.38 * L, 0.36 * W, 0.38 * L);
+      for (const v of [-0.38 * L, 0.38 * L]) for (const u of [-0.3 * W, 0.3 * W]) K.bolt(u, v, 0.03);
+      // (the canopy: a narrow ridge of glass raised in a polished sill, its bars across it, the cockpit lit inside
+      // along its spine; its foot faired into the deck)
+      K.box([0, 0.08 * L, 0.06], [0.5 * s, 0.6 * L, 0.12], 'chrome', { ch: 0.05 });
+      K.in(at([0, 0.08 * L, 0.12], rx(-Math.PI / 2)), () => K.box([0, -0.13, 0], [0.4 * s, 0.26, 0.56 * L], 'lens', { ch: 0.06, taper: [0.8, 0.6] }));
+      K.box([0, -0.06 * L, 0.38], [0.05 * s, 0.2 * L, 0.02], 'glow');
+      for (const v of [-0.1 * L, 0.06 * L, 0.22 * L]) K.box([0, v, 0.27], [0.36 * s, 0.04, 0.3], 'chrome', { ch: 0.012, taper: [0.55, 1] });
+      K.box([0, -0.26 * L, 0.12], [0.44 * s, 0.1, 0.22], 'paint2', { ch: 0.03 });
+      K.rect(-0.3 * W, 0.3 * L, 0.3 * W, 0.34 * L, 'trim');
+    });
+  });
+  // (the cheeks: plates down the prow's flanks, an intake in each, the frame's number on the right)
+  for (const sg of [-1, 1]) {
+    K.in(at([0, 0, 0], sg < 0 ? MIRROR : I3), () => {
+      const t = 0.38, p = along(t), yaw = Math.atan2((halfWd(0) - halfWd(1)), L);
+      K.in(at([halfWd(t) + 0.03, p[1], p[2] - 0.02], mm(rz(yaw), rx(-slope * 0.5))), () => {
+        const c = [0, 0, 0], sz = [0.12, L * 0.62, Hh * 0.62];
+        K.box(c, sz, 'paint', { ch: 0.04 });
+        K.on(c, sz, '+x', () => {
+          K.vent(-0.26 * L, -0.12 * Hh, -0.08 * L, 0.12 * Hh, 4);
+          K.rect(-0.3 * L, 0.2 * Hh, 0.3 * L, 0.25 * Hh, 'trim');
+          K.seam(0.02 * L, -0.28 * Hh, 0.02 * L, 0.28 * Hh);
+          K.digits('07', 0.17 * L, 0.0, 0.17 * s);
+          K.edge(-0.3 * L, 0.3 * L, -0.3 * Hh, 0.04);
+        });
+      });
+      // (a sensor fin behind the canopy, raked back, and the antenna off its root)
+      K.in(at([0.28 * s, y0 + 0.05 * L, top(0.05) + 0.02], ry(sg > 0 ? 0.32 : 0.32)), () => K.box([0, 0, 0.2], [0.035, 0.5, 0.4], 'chrome', { taper: [1, 0.35], shear: [0, -0.3] }));
+      K.cyl([0.4 * s, y0 - 0.15, top(0) - 0.05], [0.48 * s, y0 - 0.9, top(0) + 0.55], 0.022, 0.01, 'chrome', { n: 6 });
+    });
+  }
+  // (the nose: a polished sensor cone and its lens)
+  const nose = along(1);
+  K.cyl(nose, add(nose, [0, 0.32, -0.02]), Math.min(halfWd(1), halfH(1)) * 0.8, 0.06, 'chrome', { n: 12 });
+  K.cyl(add(nose, [0, 0.32, -0.02]), add(nose, [0, 0.35, -0.02]), 0.05, 0.05, 'glow', { n: 8, smooth: false, caps: [false, true] });
+  // (the chin turret: a ball on a ring under the nose, its optic forward, lit, a twin pair of lenses beside it)
+  const tp = along(0.78), tz = bottom(0.78);
+  K.cyl([0, tp[1], tz + 0.02], [0, tp[1], tz - 0.1], 0.26 * s, 0.24 * s, 'gunmetal', { n: 12, smooth: false });
+  K.in(at([0, tp[1], tz - 0.3 * s]), () => {
+    K.dome([0, 0, -0.05], 0.3 * s, 0.3 * s, 0.25 * s, 'paint', { n: 12, rings: 3 });
+    K.cyl([0, 0, -0.05], [0, 0, -0.15], 0.3 * s, 0.26 * s, 'paint', { n: 12 });
+    K.cyl([0, 0.18 * s, -0.04], [0, 0.36 * s, -0.04], 0.13 * s, 0.13 * s, 'gunmetal', { n: 12 });
+    K.cyl([0, 0.36 * s, -0.04], [0, 0.4 * s, -0.04], 0.1 * s, 0.1 * s, 'lens', { n: 12, smooth: false });
+    K.cyl([0, 0.4 * s, -0.04], [0, 0.41 * s, -0.04], 0.06 * s, 0.06 * s, 'glow', { n: 10, smooth: false, caps: [false, true] });
+    for (const sg of [-1, 1]) {
+      K.cyl([sg * 0.2 * s, 0.16 * s, 0.05], [sg * 0.2 * s, 0.3 * s, 0.05], 0.05 * s, 0.05 * s, 'chrome', { n: 8, smooth: false });
+      K.cyl([sg * 0.2 * s, 0.3 * s, 0.05], [sg * 0.2 * s, 0.31 * s, 0.05], 0.035 * s, 0.035 * s, 'glow', { n: 8, smooth: false, caps: [false, true] });
+    }
+  });
+  // (under the prow's root: the chest's lower plates over the cockpit block, the bands down to the waist)
+  K.in(at([0, 0.56 * s, zc0 + 0.18 * ch], rx(-0.14)), () => {
+    const c = [0, 0, 0], sz = [1.3 * s, 0.32 * s, 0.32 * ch];
+    K.box(c, sz, 'paint', { ch: 0.06, taper: [1.12, 1] });
+    K.on(c, sz, '+y', () => { K.rect(-0.45 * s, -0.02, 0.45 * s, 0.02, 'dark'); K.bolt(-0.5 * s, 0.08, 0.03); K.bolt(0.5 * s, 0.08, 0.03); });
+  });
+  for (const sg of [-1, 1]) {
+    K.in(at([0, 0, 0], sg < 0 ? MIRROR : I3), () => {
+      // (the shoulders' yoke plates, and an intake at each side of the prow's root)
+      K.in(at([hw - 0.38 * s, -0.1, zc1 - 0.04], ry(0.14)), () => K.box([0, 0, 0], [0.9 * s, 1.35 * s, 0.22], 'paint', { ch: 0.07 }));
+      const c = [hw - 0.2 * s, 0.4 * s, zc0 + 0.45 * ch], sz = [0.42 * s, 0.4 * s, 0.5 * ch];
+      K.box(c, sz, 'gunmetal', { ch: 0.06 });
+      K.on(c, sz, '+y', () => K.vent(-0.15 * s, -0.2 * ch, 0.15 * s, 0.2 * ch, 4));
+    });
+  }
 }
 
 function head(K, sk, id, cls) {
@@ -934,6 +1037,89 @@ function leg(K, sk, sg, cls) {
   });
 }
 
+/** Reverse-joint legs: the thigh slung back and down from the hip, the knee bent back as a bird's, a long shin forward
+ *  and down to the raised ankle, a short metatarsal to the ball of a splayed three-toed foot, a spur behind. Chrome rams
+ *  along the back of the thigh and the front of the shin; verniers on the shins' backs. */
+function reverseLeg(K, sk, sg) {
+  const side = sg > 0 ? 'R' : 'L', Lg = sk.Lg, t = Lg.t;
+  const hip = sk.hip, knee = sk.knee, ankle = sk.ankle, L1 = sk.L1, L2 = sk.L2;
+  K.in(at([0, 0, 0], sg < 0 ? MIRROR : I3), () => {
+    // ── the thigh: a heavy drum at the hip, the thigh's plated mass, two rams down its back to the knee
+    K.bone(`thigh${side}`);
+    K.in(segFrame(hip, knee, [0, 1, 0]), () => {
+      const tt = t * 1.2;
+      K.drum([0.05, 0, 0], 0.34 * tt, 0.5 * tt);
+      K.box([0, 0, -0.5 * L1], [0.5 * tt, 0.5 * tt, L1 - 0.35], 'gunmetal', { ch: 0.05 });
+      const fc = [0, 0.16 * tt, -0.42 * L1], fs = [0.7 * tt, 0.42 * tt, 0.72 * L1];
+      K.box(fc, fs, 'paint', { ch: 0.1, taper: [0.8, 0.75] });
+      K.on(fc, fs, '+y', () => { K.panel(-0.2 * tt, -0.2 * L1, 0.2 * tt, 0.15 * L1, 'paint2', 0.04); K.seam(-0.32 * tt, -0.27 * L1, 0.32 * tt, -0.27 * L1); K.edge(-0.3 * tt, 0.3 * tt, 0.33 * L1, 0.045); for (const u of [-0.26 * tt, 0.26 * tt]) K.bolt(u, 0.25 * L1, 0.03); });
+      const oc = [0.33 * tt, 0.04, -0.4 * L1], os = [0.14 * tt, 0.6 * tt, 0.62 * L1];
+      K.box(oc, os, 'paint', { ch: 0.05, taper: [1, 0.85] });
+      K.on(oc, os, '+x', () => { K.panel(-0.18 * tt, -0.18 * L1, 0.18 * tt, 0.1 * L1, 'paint2', 0.035); K.rect(-0.24 * tt, 0.18 * L1, 0.24 * tt, 0.22 * L1, 'trim'); K.digits(side === 'R' ? '07' : '70', 0, -0.04 * L1, 0.13 * tt); });
+      for (const x of [-0.16 * tt, 0.16 * tt]) K.ram([x, -0.32 * tt, -0.12], [x, -0.3 * tt, -L1 + 0.12], 0.08 * tt, { split: 0.45 });
+      K.cable([[-0.3 * tt, -0.2 * tt, -0.15], [-0.32 * tt, -0.22 * tt, -0.55 * L1], [-0.2 * tt, -0.15 * tt, -L1 + 0.2]], 0.04);
+      K.drum([0, 0, -L1], 0.27 * t, 0.46 * t);
+    });
+    // ── the shin: long, forward and down; its greave on its front, rams beside it, a spur of armour behind the knee
+    K.bone(`shin${side}`);
+    const ST = segFrame(knee, ankle, [0, 1, 0]);
+    K.in(ST, () => {
+      K.box([0, -0.02, -0.48 * L2], [0.38 * t, 0.38 * t, L2 * 0.9], 'gunmetal', { ch: 0.04 });
+      const gc = [0, 0.16 * t, -0.5 * L2], gs = [0.56 * t, 0.26 * t, 0.78 * L2];
+      K.box(gc, gs, 'paint', { ch: 0.08, taper: [1.25, 1.3] });
+      K.on(gc, gs, '+y', () => {
+        K.panel(-0.14 * t, -0.25 * L2, 0.14 * t, 0.12 * L2, 'paint2', 0.04);
+        K.edge(-0.2 * t, 0.2 * t, 0.36 * L2, 0.05); K.seam(-0.25 * t, -0.3 * L2, 0.25 * t, -0.3 * L2);
+        K.rect(-0.2 * t, 0.22 * L2, 0.2 * t, 0.26 * L2, 'trim');
+      });
+      K.on(gc, gs, '+x', () => K.vent(-0.2 * L2, -0.06 * t, -0.05 * L2, 0.06 * t, 3));
+      for (const x of [-0.27 * t, 0.27 * t]) K.ram([x, 0.24 * t, -0.08], [x, 0.22 * t, -0.86 * L2], 0.06 * t, { split: 0.5 });
+      // (behind the knee: its cap, a wedge of plate standing back, as the knee is the leg's back)
+      K.in(at([0, -0.28 * t, 0.05], rx(-0.5)), () => { K.box([0, 0, 0], [0.5 * t, 0.36 * t, 0.62], 'paint2', { ch: 0.07, taper: [0.7, 0.6] }); K.on([0, 0, 0], [0.5 * t, 0.36 * t, 0.62], '-y', () => K.rect(-0.14 * t, 0.12, 0.14 * t, 0.17, 'trim')); });
+      K.cable([[0.22 * t, -0.18 * t, -0.1], [0.24 * t, -0.2 * t, -0.5 * L2], [0.2 * t, -0.15 * t, -L2 + 0.25]], 0.035);
+      // (the shin's verniers: a pod on its back below the knee, two bells back and down)
+      const pc = [0, -0.3 * t, -0.3 * L2], ps = [0.42 * t, 0.26 * t, 0.36 * L2];
+      K.box(pc, ps, 'paint', { ch: 0.05 });
+      K.on(pc, ps, '-y', () => K.vent(-0.12 * t, -0.05 * L2, 0.12 * t, 0.1 * L2, 3));
+      const vd = unit(mtv(ST.m, [0, -0.55, -0.83]));
+      for (const x of [-0.1 * t, 0.1 * t]) {
+        const p0 = [x, -0.42 * t, -0.42 * L2], rr = 0.1;
+        K.bell(p0, add(p0, mul(vd, rr * 2.2)), rr * 0.55, rr, { n: 10 });
+        sk.legThrusters.push({ side, at: add(p0, mul(vd, rr * 2.2)), dir: vd, r: rr });
+      }
+      K.drum([0, 0, -L2], 0.23 * t, 0.4 * t);
+    });
+    // ── the foot: the metatarsal down to its ball, three toes splayed from it, a spur behind (world axes at the ankle)
+    K.bone(`foot${side}`);
+    K.in(at(ankle), () => {
+      const ha = Lg.ha, [heel, toe] = Lg.foot, ball = [0, 0.42, -ha + 0.26];
+      K.in(segFrame([0, 0, 0], ball, [0, 1, 0]), () => {
+        const Lm = len(ball);
+        K.box([0, 0, -0.5 * Lm], [0.36 * t, 0.36 * t, Lm + 0.1], 'gunmetal', { ch: 0.05 });
+        K.box([0, 0.12 * t, -0.48 * Lm], [0.42 * t, 0.18 * t, Lm * 0.8], 'paint', { ch: 0.05 });
+        for (const x of [-0.2 * t, 0.2 * t]) K.ram([x, 0.05, -0.05], [x, 0.08, -Lm + 0.08], 0.045 * t, { n: 6 });
+      });
+      K.cyl(add(ball, [-0.22 * t, 0, 0]), add(ball, [0.22 * t, 0, 0]), 0.16 * t, 0.16 * t, 'chrome', { n: 10 });
+      K.box(add(ball, [0, -0.05, -0.12]), [0.44 * t, 0.42, 0.18], 'seal', { ch: 0.04 });
+      // (the toes: one forward, two splayed, each a plate and a dark claw)
+      for (const a of [-30 * DEG, 0, 30 * DEG]) {
+        const Lt = a === 0 ? toe : toe * 0.82;
+        K.in(at(ball, rz(-a)), () => {
+          K.box([0, Lt * 0.42, -0.14], [0.3 * t, Lt * 0.78, 0.24], 'paint2', { ch: 0.06, taper: [0.85, 0.9] });
+          K.on([0, Lt * 0.42, -0.14], [0.3 * t, Lt * 0.78, 0.24], '+z', () => { K.rect(-0.04 * t, -0.25 * Lt, 0.04 * t, 0.25 * Lt, 'trim'); K.bolt(0, -0.3 * Lt, 0.025); });
+          K.in(at([0, Lt * 0.86, -0.135], rx(-0.3)), () => K.box([0, 0, 0], [0.24 * t, 0.3, 0.15], 'gunmetal', { ch: 0.03, taper: [0.6, 0.6] }));
+        });
+      }
+      // (the spur: back off the ankle's foot, down to the ground behind)
+      K.in(at([0, -0.08, -ha + 0.3], rx(0.32)), () => {
+        K.box([0, -heel * 0.45, 0], [0.26 * t, heel * 0.9, 0.2], 'paint2', { ch: 0.05 });
+        K.box([0, -heel * 0.95, 0.012], [0.2 * t, 0.22, 0.14], 'gunmetal', { ch: 0.03 });
+      });
+      for (const sx of [-1, 1]) K.box([sx * 0.25 * t, 0.02, -0.05], [0.1, 0.46 * t, 0.4], 'paint2', { ch: 0.03 });
+    });
+  });
+}
+
 // ── the body ───────────────────────────────────────────────────────────────────────────────────────────────────────
 const BONE_ORDER = f(['root', 'core', 'head', 'booster', 'armUpR', 'armLowR', 'armUpL', 'armLowL', 'backR', 'backL', 'thighR', 'shinR', 'footR', 'thighL', 'shinL', 'footL']);
 const PARENT = f({ root: null, core: 'root', head: 'core', booster: 'core', armUpR: 'core', armLowR: 'armUpR', armUpL: 'core', armLowL: 'armUpL', backR: 'core', backL: 'core', thighR: 'root', shinR: 'thighR', footR: 'shinR', thighL: 'root', shinL: 'thighL', footL: 'shinL' });
@@ -966,7 +1152,7 @@ export function frameBody(build, { palette, wear } = {}) {
   const cls = (slot) => classOf(slot, B[slot]);
   pelvis(K, sk, cls('legs'));
   core(K, sk, B.core, cls('core'));
-  head(K, sk, B.head, cls('head'));
+  if (B.head) head(K, sk, B.head, cls('head'));
   booster(K, sk, B.booster, cls('booster'));
   for (const sg of [1, -1]) arm(K, sk, sg, B.arms, cls('arms'), B[sg > 0 ? 'armR' : 'armL'] ? partOf(sg > 0 ? 'armR' : 'armL', B[sg > 0 ? 'armR' : 'armL']) : null);
   for (const [slot, sg] of [['backR', 1], ['backL', -1]]) {
@@ -978,7 +1164,7 @@ export function frameBody(build, { palette, wear } = {}) {
     }));
     sk.muzzles[slot] = [sg * sk.muzzles[slot][0], sk.muzzles[slot][1], sk.muzzles[slot][2]];
   }
-  for (const sg of [1, -1]) leg(K, sk, sg, cls('legs'));
+  for (const sg of [1, -1]) (sk.joint === 'reverse' ? reverseLeg : leg)(K, sk, sg, cls('legs'));
 
   // the bones: each joint's pivot (a left one the right's, mirrored)
   const L = (p) => [-p[0], p[1], p[2]];
@@ -1050,7 +1236,7 @@ export function frameBody(build, { palette, wear } = {}) {
     footprint: { L: r4(hi[1] - lo[1]), W: r4(hi[0] - lo[0]), H: r4(hi[2] - Math.min(0, lo[2])) },
     rig: {
       parent: PARENT,
-      legs: { L1: r4(sk.L1), L2: r4(sk.L2), hip: sk.hip.map(r4), knee: sk.knee.map(r4), ankle: sk.ankle.map(r4) },
+      legs: { joint: sk.joint, bend: sk.bend, L1: r4(sk.L1), L2: r4(sk.L2), hip: sk.hip.map(r4), knee: sk.knee.map(r4), ankle: sk.ankle.map(r4) },
       grip: sk.grip.map(r4),
     },
   };

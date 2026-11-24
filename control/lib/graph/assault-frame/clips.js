@@ -3,7 +3,8 @@
  * and its pivot (vehicle-rig.js packVehicleFigure's packing, [qx, qy, qz, qw, hx, hy, hz]), the page placing each bone
  * as M·v = head' + q·(v − restHead). The bones are absolute, so the kinematics are worked here: the pelvis carries the
  * core and the hips, the core the head, the booster, the shoulder weapons and the upper arms; each leg is solved to its
- * foot (two bones, the knee bending forward in the leg's plane); the forearms hold their guns forward and level in every
+ * foot (two bones, the knee bending forward in the leg's plane, or back on a reverse joint: the rig's `bend`); a frame
+ * with no head has no head bone to carry; the forearms hold their guns forward and level in every
  * clip (an AC always aims), whatever the body does round them.
  *
  *   frameClips(body)   → { idle, forward, boost, boost_left, boost_right, boost_back, hover, fall, land }, each
@@ -83,7 +84,7 @@ function pose(body, P) {
   on('root', 'core', qc);
   // (the head looks ahead: it takes back most of the pitch the pelvis and the core lean it by)
   const lean = (R.pitch ?? 0) + (Cc.pitch ?? 0);
-  on('core', 'head', qMul(qc, qEuler(-0.75 * lean + (Hd.pitch ?? 0), -0.6 * ((R.roll ?? 0) + (Cc.roll ?? 0)), Hd.yaw ?? 0)));
+  if (has('head')) on('core', 'head', qMul(qc, qEuler(-0.75 * lean + (Hd.pitch ?? 0), -0.6 * ((R.roll ?? 0) + (Cc.roll ?? 0)), Hd.yaw ?? 0)));
   for (const id of ['booster', 'backR', 'backL']) if (has(id)) on('core', id, qc);
   // (the arms: the upper arm rides the core; the forearm stays level and forward, turned only with the body's heading)
   const heading = (R.yaw ?? 0) + (Cc.yaw ?? 0);
@@ -101,7 +102,8 @@ function pose(body, P) {
     const F = P.feet?.[s] ?? {};
     const hip = add(root, qRot(qr, sub(hipR, H.root)));
     const ankle = F.rel ? add(hip, mir(F.rel)) : add(ankleR, mir(F.at ?? [0, 0, 0]));
-    const u = unit(sub(ankle, hip)), n = unit(sub(n0, mul(u, dot(n0, u)))), w = cross(n, u);
+    // (the knee bends forward of the hip-to-ankle line on a biped, behind it on a reverse joint)
+    const u = unit(sub(ankle, hip)), n = unit(sub(n0, mul(u, dot(n0, u)))), w = mul(cross(n, u), L.bend < 0 ? -1 : 1);
     const D = Math.min(len(sub(ankle, hip)), (L.L1 + L.L2) * 0.9995);
     const ca = Math.max(-1, Math.min(1, (L.L1 ** 2 + D ** 2 - L.L2 ** 2) / (2 * L.L1 * D))), al = Math.acos(ca);
     const knee = add(hip, add(mul(u, L.L1 * Math.cos(al)), mul(w, L.L1 * Math.sin(al))));

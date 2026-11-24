@@ -10,6 +10,11 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - a weapon in each hand and on each shoulder (`parts.js`). The hands carry a rifle, a shotgun, a gatling, a bazooka or
     a laser. The shoulders carry a missile pod, a mortar or a plasma cannon.
   - Three stock frames: the medium Vanguard, the light Raptor, the heavy Citadel.
+  - The pilot's Vanguard is headless on reverse-joint legs. Its core is a forward fuselage (`cr-prow`): a long
+    armoured prow ahead of the shoulders, the cockpit under a narrow canopy, the optics in a chin turret, a chrome
+    sensor cone at the nose, so the head slot is empty and the core's sensors lengthen the lock. Its legs
+    (`lg-reverse`) bend the knee back as a bird's, a long shin forward to a splayed three-toed foot with a spur: they
+    jump highest and land lightest. The Raptor and the Citadel keep their heads and biped legs.
   - A new part is a row. The assembly (`assemble.js`) reads a build into the frame's weight, armour, movement, energy and
     lock. It holds the build to laws: within the legs' load, the booster carrying its mass, the generator good for three
     quick boosts. The laws advise and never refuse: an overweight frame is slower, not forbidden.

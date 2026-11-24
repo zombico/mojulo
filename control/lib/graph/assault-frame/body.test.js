@@ -1,6 +1,6 @@
 // The assault frame's body (body.js), its clips (clips.js) and its figure (figure.js): one case per concept, the
-// builds picked from the stock by what they exercise (a light frame, a heavy one, a shoulder left empty), never the
-// whole catalogue.
+// builds picked from the stock by what they exercise (a light frame, a heavy one, a headless fuselage on reverse-joint
+// legs, a biped with a head, a shoulder left empty), never the whole catalogue.
 import { describe, it, expect } from 'vitest';
 import { frameBody, FRAME_SLOTS, frameFaceCount } from './body.js';
 import { frameClips, posedBones, placeOn } from './clips.js';
@@ -8,8 +8,18 @@ import { frameFigure } from './figure.js';
 import { STOCK, partOf } from './parts.js';
 
 const stockBy = (cls) => Object.keys(STOCK).find((k) => partOf('legs', STOCK[k].legs).class === cls);
+const stockWhere = (fn) => Object.keys(STOCK).find((k) => fn(STOCK[k]));
 const corners = (body) => [...body.faces.values()].flatMap((fs) => fs.flatMap((f) => f.corners));
 const medium = frameBody(stockBy('medium'));
+// (a headless core on reverse-joint legs, and a biped carrying a head)
+const reverse = frameBody(stockWhere((b) => partOf('legs', b.legs).joint === 'reverse' && partOf('core', b.core).headless));
+const biped = frameBody(stockWhere((b) => !partOf('legs', b.legs).joint && b.head));
+/** How far a knee stands ahead of (+) or behind (−) the line from its hip to its ankle. */
+const kneeAhead = (hip, knee, ankle) => {
+  const u = [ankle[0] - hip[0], ankle[1] - hip[1], ankle[2] - hip[2]], l = Math.hypot(...u), d = [knee[0] - hip[0], knee[1] - hip[1], knee[2] - hip[2]];
+  const t = (d[0] * u[0] + d[1] * u[1] + d[2] * u[2]) / (l * l);
+  return knee[1] - (hip[1] + u[1] * t);
+};
 
 describe('the assault frame\'s body', () => {
   it('stands on its soles at z = 0, a frame of nine metres or so, its hips the legs\' height', () => {
@@ -58,6 +68,25 @@ describe('the assault frame\'s body', () => {
     expect(medium.thrusters.some((t) => t.kind === 'vernier' && t.bone === 'shinL')).toBe(true);
   });
 
+  it('drops the head bone with the head: a headless fuselage has none, a frame with a head keeps it', () => {
+    expect(reverse.build.head).toBeNull();
+    expect(reverse.bones.some((b) => b.id === 'head')).toBe(false);
+    expect(reverse.faces.has('head')).toBe(false);
+    expect(biped.bones.some((b) => b.id === 'head')).toBe(true);
+    // (its guns and its shoulder weapons all still carried)
+    expect(Object.keys(reverse.mounts).sort()).toEqual(['armL', 'armR', 'backL', 'backR'].filter((s) => reverse.build[s]).sort());
+    // (its cockpit ahead of its shoulders: the fuselage's glass forward of the arms' pivots)
+    const glass = reverse.faces.get('core').filter((f) => f.material === 'lens').flatMap((f) => f.corners);
+    expect(Math.max(...glass.map((c) => c[1]))).toBeGreaterThan(reverse.bones.find((b) => b.id === 'armUpR').head[1] + 1);
+  });
+
+  it('bends a reverse joint\'s knee back behind the hip-to-ankle line, a biped\'s ahead of it', () => {
+    const L = (b) => b.rig.legs;
+    expect(L(reverse).joint).toBe('reverse');
+    expect(kneeAhead(L(reverse).hip, L(reverse).knee, L(reverse).ankle)).toBeLessThan(-0.5);
+    expect(kneeAhead(L(biped).hip, L(biped).knee, L(biped).ankle)).toBeGreaterThan(0.2);
+  });
+
   it('draws a light frame leaner than a heavy one', () => {
     const light = frameBody(stockBy('light')), heavy = frameBody(stockBy('heavy'));
     expect(heavy.footprint.W).toBeGreaterThan(light.footprint.W);
@@ -85,7 +114,7 @@ describe('the assault frame\'s clips', () => {
   it('keeps each chain joined: the knee where the thigh carries it, the elbow where the upper arm does', () => {
     for (const [name, c] of Object.entries(clips)) for (let k = 0; k < c.k; k++) {
       const P = posedBones(medium, c, k);
-      for (const [a, b] of [['thighR', 'shinR'], ['shinL', 'footL'], ['armUpR', 'armLowR'], ['core', 'head']]) {
+      for (const [a, b] of [['thighR', 'shinR'], ['shinL', 'footL'], ['armUpR', 'armLowR'], ['core', 'booster']]) {
         const at = placeOn(rest[a], P.get(a), rest[b]), want = P.get(b).head;
         for (let i = 0; i < 3; i++) expect(Math.abs(at[i] - want[i]), `${name}[${k}] ${a}→${b}`).toBeLessThan(0.01);
       }
@@ -103,6 +132,23 @@ describe('the assault frame\'s clips', () => {
     expect(posedBones(medium, clips.forward, 0).get('footR').head[2]).toBeCloseTo(rest.footR[2], 2);
     // (airborne: the feet tucked up off the ground)
     expect(posedBones(medium, clips.hover, 0).get('footR').head[2]).toBeGreaterThan(rest.footR[2] + 0.5);
+  });
+
+  it('keeps a reverse joint\'s knee bent back in every clip, and the head out of a headless frame\'s', () => {
+    const C = frameClips(reverse), R = Object.fromEntries(reverse.bones.map((b) => [b.id, b.head]));
+    for (const [name, c] of Object.entries(C)) {
+      expect(c.b.length, name).toBe(c.k * reverse.bones.length * 7);
+      for (let k = 0; k < c.k; k++) {
+        const P = posedBones(reverse, c, k);
+        for (const s of ['R', 'L']) {
+          const hip = P.get(`thigh${s}`).head, knee = P.get(`shin${s}`).head, ankle = P.get(`foot${s}`).head;
+          // (the knee behind the line, in the pelvis's own lean: measured square to its forward)
+          expect(kneeAhead(hip, knee, ankle), `${name}[${k}] ${s}`).toBeLessThan(-0.2);
+          const at = placeOn(R[`thigh${s}`], P.get(`thigh${s}`), R[`shin${s}`]);
+          for (let i = 0; i < 3; i++) expect(Math.abs(at[i] - knee[i])).toBeLessThan(0.01);
+        }
+      }
+    }
   });
 });
 
