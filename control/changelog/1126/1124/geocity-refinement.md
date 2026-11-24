@@ -40,3 +40,12 @@
   drive gleam the same way, the sky in their roofs and doors and the sun glinting off their panels.
 - Roads, walks and plazas keep their own colour under a low sun instead of turning navy, and a highway's underside is
   textured concrete instead of a dark flat slab.
+- Highways no longer run into buildings: every elevated highway now has its own corridor, the deck plus 3 m of
+  clearance each side, and the arterial under it is laid that wide before any block is cut, so nothing is built under
+  or against a deck (a wider sidewalk runs under it instead).
+- The city has places now: some neighbourhoods have a church, a mosque or a temple on its forecourt and lawn behind a
+  railing; some have a cemetery with rows of headstones, crosses and ledgers, gravel walks, trees and a chapel at the
+  gate. Which faiths a city has is a setting (`civic.faiths`), and `civic: false` turns them off.
+- Big city parks are no longer bare lawn: promenades cross at an obelisk, each quarter has a playground, a pavilion,
+  benches and trees, and the park is railed along its streets. Park blocks are railed too, and car parks are lined with
+  bollards along their streets.

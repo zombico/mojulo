@@ -6,7 +6,7 @@ import { assembleGeocityScene } from './scene.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 
 const CITY = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon', geocity: { metro: { from: 'lakeshore', rings: { core: 160, frame: 330 } }, extent: [900, 800], water: { sides: ['s'], depth: 100 }, core: [0.5, 0.45] } };
-const KEPT = ['geocity:night-window', 'geocity:facade'];
+const KEPT = ['geocity:night-window', 'geocity:facade', 'geocity:sacred'];
 const walls = (P) => P.faces.filter((f) => f.cornerLight !== undefined && Math.abs(f.normal[2]) < 0.3);
 
 describe('a city\'s massing in the form render', () => {

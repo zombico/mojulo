@@ -83,6 +83,16 @@ way; the traffic and the car the player takes under the same coat on their own p
 (`form/sun-light.js` `level`), so a low sun leaves them their own paint, and a deck's underside wears its concrete. No
 building stands on air: a wall over ground that falls away from it is carried down to it on a plinth.
 
+Its highways are laid in corridors: an arterial that carries one is laid to the deck's width and 3 m of clearance each
+side before its blocks are cut (`geocity/highways.js` `highwayPlan`, `corridorHalf`; each highway's `corridor`), so no
+building stands under or against a deck, and nothing taller than the deck's underside stands in the corridor (the
+`highway-corridor` law). The city keeps its places (the metro's `civic`, `geocity/blocks.js`): some neighbourhoods give
+a calm block to a church, a mosque or a temple (the city library's own buildings, their faith by the metro's weights:
+`civic: { faiths: { church, mosque, temple } }`) on a forecourt and a lawn behind a railing, and their largest to a
+cemetery (rows of headstones, crosses and ledgers, gravel walks, a chapel by its gate); a whole neighbourhood's park is
+laid with promenades crossing at an obelisk, a playground and a pavilion in each quarter, and railed at its streets; a
+park block is railed and a car park's streets are lined with bollards. `civic: false` keeps none of the places.
+
 ## Locales
 
 `hijackCityWorld({ locale })` stands the game in a place (`gameworld/locales.js` `LOCALES`, one row each): its suburbs'

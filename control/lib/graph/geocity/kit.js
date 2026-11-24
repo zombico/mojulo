@@ -17,7 +17,8 @@
  *     `hydro` a residential street's wooden pole, its crossarm and the lamp hung off it (facing), `can` a transformer's
  *     can hung on one (facing its lamp's way, hung off the other side); a site's and a lot's:
  *     `scaffold` a bay against a wall (facing out of it), `fence` a temporary panel, `hoarding` a plywood one, `barrier`,
- *     `cone`, `car` (facing: its length along x for e/w, y for n/s; its body pale for an instance's tint), `stall`
+ *     `cone`, `car` (facing: its length along x for e/w, y for n/s; its body pale for an instance's tint), `stall`;
+ *     a cemetery's: `headstone`, `cross`, `ledger` (facing: the way its face looks, toward the walk it is read from)
  *
  * Pure; no dice.
  */
@@ -132,6 +133,15 @@ const gate = (L) => realize([
   ...[0.14, RAIL_H - 0.08].map((z) => ({ kind: 'tram-bracket', x: -0.76, y: -0.015, w: 1.54, d: 0.03, z0: z, z1: z + 0.05, tint: '#1f2123' })),
   ...Array.from({ length: 8 }, (_, k) => ({ kind: 'tram-bracket', x: -0.68 + k * 0.19, y: -0.01, w: 0.02, d: 0.02, z0: 0.14, z1: RAIL_H - 0.04, tint: '#1f2123' })),
 ], L);
+/** A GRAVE'S MARKER, its face to the walk it is read from (`facing`): an upright headstone on its base, a cross on its
+ *  plinth, a ledger lying the grave's length with a low head at its end; granite and marble greys. */
+const markerBox = ([dx, dy], thin, wide, z0, z1, tint, off = 0) => (dx ? { x: -thin / 2 + off * dx, y: -wide / 2, w: thin, d: wide, z0, z1, tint } : { x: -wide / 2, y: -thin / 2 + off * dy, w: wide, d: thin, z0, z1, tint });
+const headstone = (v, L) => realize([markerBox(v, 0.34, 0.8, 0, 0.12, '#8d8a84'), markerBox(v, 0.14, 0.62, 0.12, 0.95, '#a9a69f')].map((b) => ({ kind: 'grave', ...b })), L);
+const crossMarker = (v, L) => realize([markerBox(v, 0.4, 0.5, 0, 0.3, '#8f8c86'), markerBox(v, 0.14, 0.14, 0.3, 1.45, '#c9c6bf'), markerBox(v, 0.14, 0.7, 1.0, 1.14, '#c9c6bf')].map((b) => ({ kind: 'grave', ...b })), L);
+const ledger = ([dx, dy], L) => realize([
+  { kind: 'grave', ...(dx ? { x: -1.1, y: -0.45, w: 2.0, d: 0.9 } : { x: -0.45, y: -1.1, w: 0.9, d: 2.0 }), z0: 0, z1: 0.3, tint: '#9a978f' },
+  { kind: 'grave', ...markerBox([dx, dy], 0.16, 0.86, 0.3, 0.8, '#b4b1aa', -0.95) },
+], L);
 /** A stainless bollard (the metro's drop-off bollard). */
 const bollard = (L) => realize([{ kind: 'drop-off-bollard', x: -0.11, y: -0.11, w: 0.22, d: 0.22, z0: 0, z1: 0.95, tint: '#9aa0a6' }], L);
 /** A wooden hydro pole (fractal-city.js's power pole at its size), its crossarm across the street it serves, and a lamp
@@ -229,6 +239,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     bench: four((v) => bench(v, L)),
     can: four((v) => can(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L), railing: railing(L), gate: gate(L),
+    headstone: four((v) => headstone(v, L)), cross: four((v) => crossMarker(v, L)), ledger: four((v) => ledger(v, L)),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a
     // parked car (along x for 'e'/'w', y for 'n'/'s'), a stall's line

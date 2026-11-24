@@ -53,7 +53,7 @@ import { roadKinds, layoutOf } from './roads.js';
 import { townsOf, blockTownsOf } from './towns.js';
 import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
-import { highwaysOf, highwayLaws } from './highways.js';
+import { highwaysOf, highwayLaws, highwayPlan, corridorHalf } from './highways.js';
 import { waterfrontOf, waterfrontLaws } from './waterfront.js';
 import { terrainField } from '../terrain/terrain-field.js';
 import { profileStreets, climbLift } from '../geotown/profile.js';
@@ -192,6 +192,13 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   for (const l of lines) {
     const lay = layoutOf(kinds[l.id], l.axis, M.roads, G.traffic), h = r3(lay.road / 2 + sec.walk);
     Object.assign(l, { kind: kinds[l.id], road: lay.road, half: h, bands: lay.bands, tracks: lay.tracks, rect: l.axis === 'ns' ? [r3(l.at - h), land[1], r3(l.at + h), land[3]] : [land[0], r3(l.at - h), land[2], r3(l.at + h)] });
+  }
+  // (an arterial that carries a highway, highways.js: laid to its corridor, the deck's half and its clearance each side,
+  // so no block is cut under or against the deck; the right-of-way's walks wide under it)
+  for (const p of highwayPlan(M, { lines, water, seat, frame: { W, D } })) {
+    const l = lines.find((x) => x.id === p.along), c = corridorHalf(M.highways.lanes);
+    if (!l || l.half >= c) continue;
+    Object.assign(l, { half: c, rect: l.axis === 'ns' ? [r3(l.at - c), land[1], r3(l.at + c), land[3]] : [land[0], r3(l.at - c), land[2], r3(l.at + c)] });
   }
   const widest = Math.max(...lines.map((l) => l.half));
   section.half = widest; section.road = r3(Math.max(...lines.map((l) => l.road))); section.row = r3(2 * widest);

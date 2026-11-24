@@ -16,13 +16,15 @@
  *             frame's with a long side on an arterial mid-rise, the rest mid-rise or slabs; the outskirts' with a long
  *             side on an arterial an edge (its avenue facing it), on a collector a main street (a short end on either is
  *             its houses' corners), a school at its middle, the rest houses, walk-ups and low-rises by weight
+ *   places    a share of neighbourhoods (the metro's `civic`) a calm block a place of worship (its `faith`) and their
+ *             largest a cemetery, on their own dice
  *   storeys   the field's median at the block's middle inside its ring's rail, a block on an arterial its frontage's;
  *             a tower block's towers past it (the core's tail) and its podium
  *   ground    its segment's shares of its area, every square metre once
  *
  *   blocksOf(d) → { <region id>: { streets: [{ id, axis, at, w, rank, runs }], blocks: [block], park: rect | null,
  *                   ledger: { area, streets, blocks, park, surfaces } } }
- *   block: { id, rect, area, kind, ring, sides: { n, e, s, w: { kind, rank? } }, storeys: { median, rail }, podium?,
+ *   block: { id, rect, area, kind, ring, sides: { n, e, s, w: { kind, rank? } }, storeys: { median, rail }, podium?, faith?,
  *            towers?: [{ rect, storeys }], surfaces: { <surface>: m² } }
  *
  * Pure: a neighbourhood's dice are its own (`${seed}|blocks-v1|<id>:<layer>`), so a change to one moves no other.
@@ -149,16 +151,31 @@ export function blocksOf(d) {
       const lively = c === civicAt ? null : u < L.construction ? 'construction' : u < L.construction + L.parking ? 'parking' : u < L.construction + L.parking + L.vacant ? 'vacant' : null;
       return { c, kind: lively ?? kind, ...(lively === 'construction' ? { becomes: kind } : {}) };
     });
+    // THE PLACES IT KEEPS (the metro's `civic`, segments.js `worship` and `cemetery`): on their own dice, a share of
+    // neighbourhoods give a calm block to a place of worship, its faith by the metro's weights, and their largest to a
+    // cemetery; the blocks they take are their own, so no other block moves
+    if (!ind && M.civic) {
+      const Rc = streamOf(d.seed, 'blocks', `${r.id}:civic`), Cv = M.civic, free = (x) => x.c !== civicAt && !['construction', 'park'].includes(x.kind);
+      const fits = (x, most) => { const a = area(x.c.rect); return a >= Cv.block[0] && a <= Math.min(Cv.block[1], most); };
+      if (Rc() < (Cv.worship[ring] ?? 0)) {
+        const w = calm.map((c) => blocks.find((x) => x.c === c)).find((x) => x && free(x) && fits(x, 9000));
+        if (w) { const faith = pick(Rc, Cv.faiths); Object.assign(w, { kind: 'worship', faith }); delete w.becomes; }
+      }
+      if (Rc() < (Cv.cemetery[ring] ?? 0)) {
+        const big = blocks.filter((x) => free(x) && x.kind !== 'worship' && fits(x, Infinity) && area(x.c.rect) >= 4000).sort((p, q) => area(q.c.rect) - area(p.c.rect))[0];
+        if (big) { big.kind = 'cemetery'; delete big.becomes; }
+      }
+    }
 
     // storeys, towers and ground
     const H = M.heights;
-    const built = blocks.map(({ c, kind, becomes }, k) => {
+    const built = blocks.map(({ c, kind, becomes, faith }, k) => {
       const rect = c.rect, a = r3(area(rect)), id = `${r.id}.${c.i}.${c.j}`, Rb = streamOf(d.seed, 'blocks', `${id}:build`);
       const rail = [...H[ring].rail], m0 = d.heights.storeysAt((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2).median;
       let median = Math.min(rail[1], Math.max(rail[0], m0));
       for (const [s, v] of Object.entries(c.sides)) if (v.kind === 'arterial' && r.frontage[s]) { median = Math.max(median, r.frontage[s].median); rail[1] = Math.max(rail[1], r.frontage[s].rail[1]); }
       if (CARDS[kind]?.storeys) { rail[0] = CARDS[kind].storeys[0]; rail[1] = CARDS[kind].storeys[1]; median = rail[0]; }
-      const b = { id, rect, area: a, kind, ring, sides: c.sides, storeys: { median: r3(median), rail } };
+      const b = { id, rect, area: a, kind, ring, sides: c.sides, storeys: { median: r3(median), rail }, ...(faith ? { faith } : {}) };
       // a building going up: what it becomes, and how far it has risen
       if (kind === 'construction') { const P0 = CARDS.construction.progress; b.becomes = becomes; b.progress = r3(P0[0] + (P0[1] - P0[0]) * Rb()); }
       if (kind === 'tower') {

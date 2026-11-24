@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { designGeocity } from './design.js';
 import { readGeocity } from './metro.js';
-import { highwaysOf, highwayLaws, deckAt, deckWidth, HIGHWAY } from './highways.js';
+import { highwaysOf, highwayLaws, deckAt, deckWidth, HIGHWAY, corridorHalf } from './highways.js';
 import { assembleGeocityScene } from './scene.js';
 
 const d = designGeocity({ evoke: 'neighbourhood' }, { seed: 2 }), H = d.highways;
@@ -32,6 +32,18 @@ describe('the metro\'s highways, planned', () => {
       expect(deckAt(h, town.at) - HIGHWAY.depth - deckAt(town, h.at)).toBeGreaterThanOrEqual(HIGHWAY.clear);
       expect(Math.abs(deckAt(h, h.lo) - deckAt(shore, h.at))).toBeLessThan(0.5);
     }
+  });
+
+  it('keeps its corridor clear: the arterial it rides laid to its deck and its clearance, no neighbourhood within it', () => {
+    for (const h of H.filter((x) => x.line || x.along !== 'shore')) {
+      const l = d.lines.find((x) => x.id === h.along);
+      if (!l) continue;
+      expect(l.half).toBeGreaterThanOrEqual(corridorHalf(h.lanes) - 1e-6);
+      const c = h.corridor;
+      expect(c[2] - c[0] === h.hi - h.lo || c[3] - c[1] === h.hi - h.lo).toBe(true);
+      for (const r of d.regions) expect(Math.min(c[2], r.rect[2]) - Math.max(c[0], r.rect[0]) <= 0.01 || Math.min(c[3], r.rect[3]) - Math.max(c[1], r.rect[1]) <= 0.01, `${r.id} in ${h.id}`).toBe(true);
+    }
+    expect(highwayLaws(d, H).find((l) => l.law === 'highway-corridor').ok).toBe(true);
   });
 
   it('stands its piers in its arterial\'s kerb lanes and never in a crossing', () => {

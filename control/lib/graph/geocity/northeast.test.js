@@ -30,7 +30,7 @@ describe('a northeast metro', () => {
 
   it('draws the lakeshore metro as it was: its frame\'s arterials midrises, no main street or garden asked of it', () => {
     const d = designGeocity({ metro: { from: 'lakeshore' } }, { seed: 1 });
-    expect(kinds(d, 'frame').filter((k) => !['midrise', 'slab', 'construction', 'parking', 'vacant', 'park', 'geotown'].includes(k))).toEqual([]);
+    expect(kinds(d, 'frame').filter((k) => !['midrise', 'slab', 'construction', 'parking', 'vacant', 'park', 'geotown', 'worship', 'cemetery'].includes(k))).toEqual([]);
     expect(kinds(d, 'outskirts')).not.toContain('garden');
   });
 

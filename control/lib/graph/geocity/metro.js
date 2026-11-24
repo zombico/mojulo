@@ -48,6 +48,11 @@
  *                   a spacer on some, one-way pairs of three lanes by the core, streetcar rails on the spines and some
  *     lively        { <ring>: { construction, parking, vacant } }: the share of a ring's blocks (off its civic one) a
  *                   building going up, a surface parking lot, a vacant lot takes in place of its segment (blocks.js)
+ *     civic         { worship: { <ring>: share }, cemetery: { <ring>: share }, faiths: { church, mosque, temple },
+ *                   block: [least, most] } or false: THE PLACES a city keeps (blocks.js): the share of a ring's
+ *                   neighbourhoods that give one calm block to a place of worship (its faith by the weights, its
+ *                   building the city library's church, mosque or temple, segments.js `worship`) and to a cemetery (its
+ *                   largest block, `cemetery`), on their own dice; a block's area held inside `block` (m²)
  *     industry      { share, segments: { works, warehouse, storage, tanks }, block: [least, most] } or false: the share
  *                   of the outskirts' neighbourhoods built as industry (design.js; its edge's and its shore's first),
  *                   their blocks' segments by weight (segments.js), a substation in each, the length of a block's side
@@ -252,7 +257,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -347,6 +352,15 @@ export function readGeocity(spec = {}) {
     if (!isObj(w) || Object.keys(w).some((k) => !ids.includes(k)) || !Object.values(w).every((v) => num(v, 0, 100)) || !Object.values(w).some((v) => v > 0)) no(`segments.${ring} is weights over ${ids.join(', ')}, one of them above 0`);
   }
   if (!isObj(M.lively) || !RING_IDS.every((r) => isObj(M.lively[r]) && ['construction', 'parking', 'vacant'].every((k) => num(M.lively[r][k] ?? 0, 0, 0.5)) && Object.keys(M.lively[r]).every((k) => ['construction', 'parking', 'vacant'].includes(k)))) no('lively is { core, frame, outskirts }, each { construction, parking, vacant } shares 0–0.5');
+  // (its places, blocks.js: `false` none; else the share of each ring's neighbourhoods with a place of worship and with a
+  // cemetery, the faiths by weight, the blocks' area they take)
+  const CIV = { worship: { core: 0.3, frame: 0.45, outskirts: 0.4 }, cemetery: { core: 0, frame: 0.1, outskirts: 0.2 }, faiths: { church: 0.75, mosque: 0.15, temple: 0.1 }, block: [1200, 26000] };
+  M.civic = M.civic === false ? { ...CIV, worship: { core: 0, frame: 0, outskirts: 0 }, cemetery: { core: 0, frame: 0, outskirts: 0 } } : merge(CIV, M.civic ?? {});
+  const Cv = M.civic, FAITHS = ['church', 'mosque', 'temple'];
+  if (!isObj(Cv) || Object.keys(Cv).some((k) => !Object.keys(CIV).includes(k)) || !['worship', 'cemetery'].every((k) => isObj(Cv[k]) && RING_IDS.every((r) => num(Cv[k][r] ?? 0, 0, 1)) && Object.keys(Cv[k]).every((r) => RING_IDS.includes(r)))
+    || !isObj(Cv.faiths) || Object.keys(Cv.faiths).some((k) => !FAITHS.includes(k)) || !Object.values(Cv.faiths).every((v) => num(v, 0, 100)) || !Object.values(Cv.faiths).some((v) => v > 0)
+    || !(Array.isArray(Cv.block) && Cv.block.length === 2 && num(Cv.block[0], 200, 1e5) && num(Cv.block[1], Cv.block[0], 1e6)))
+    no(`civic is false or { worship: { core, frame, outskirts } 0–1, cemetery: the same, faiths: weights over ${FAITHS.join(', ')}, block: [least, most] m² }`);
   // (its industry, industry.js: `false` none; else the share of its outskirts' neighbourhoods given to it, its blocks'
   // segments by weight, the length of a side its blocks are laid at)
   const IND = { share: 0.2, segments: { works: 3, warehouse: 3, storage: 1.5, tanks: 1.5 }, block: [120, 190] };

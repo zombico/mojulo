@@ -13,7 +13,8 @@
  *   an industrial neighbourhood of the outskirts (design.js `industry`) its own cards: a `works`, a `warehouse`,
  *   `storage`, a tank farm (`tanks`), and its `substation`, each drawn by industry.js
  *   and in any ring, a share of its blocks (the card's `lively`, LIVELY): a `construction` site (its building part risen,
- *   `progress` of its storeys), a surface `parking` lot, a `vacant` lot
+ *   `progress` of its storeys), a surface `parking` lot, a `vacant` lot; and a share of its neighbourhoods (the metro's
+ *   `civic`, CIVIC_SEGMENTS) a place of `worship` and a `cemetery`
  *   the outskirts are the geotown's own segments (geotown/pattern.js SEGMENTS: houses, main-street, edge, lowrise,
  *   apartments, school), their ground shared as the geotown lays it: read once from the geotown's own design of each
  *   (the town to scale for houses, an evoked segment for the rest), its streets left out, so an outskirts block keeps a
@@ -45,6 +46,7 @@ export const SURFACES = Object.freeze({
   yard: { read: 'a works\' yard: concrete hardstanding, a truck court before its doors, oil-stained', soft: false },
   bund: { read: 'a tank farm\'s ground: gravel inside the low concrete walls that would hold a spill', soft: false },
   switchyard: { read: 'a substation\'s gravel inside its fence, its apparatus on it', soft: false },
+  graves: { read: 'a cemetery\'s ground: lawn in rows of graves, gravel walks between them', soft: true },
 });
 export const isSoft = (s) => (SURFACES[s] ?? TOWN_SURFACES[s])?.soft === true || s === 'park' || s === 'margin';
 
@@ -67,6 +69,12 @@ export const CARDS = Object.freeze({
     surfaces: { lot: 0.9, planting: 0.1 }, storeys: [0, 0] }),
   vacant: Object.freeze({ read: 'a vacant lot: scrub over old gravel behind a temporary fence', ring: 'any',
     surfaces: { scrub: 1 }, storeys: [0, 0] }),
+  // THE PLACES A CITY KEEPS (any ring, a share of its neighbourhoods: the metro's `civic`, blocks.js): a place of worship
+  // on its forecourt and its lawn, a cemetery in its rows
+  worship: Object.freeze({ read: 'a place of worship: a church, a mosque or a temple (the city library\'s, its faith\'s) on a paved forecourt, a lawn and trees round it, a railing at its streets', ring: 'any',
+    surfaces: { building: 0.3, plaza: 0.25, planting: 0.45 }, storeys: [1, 1] }),
+  cemetery: Object.freeze({ read: 'a cemetery: headstones in rows on its lawn, gravel walks between them, a chapel at its gate, trees along its walks, a wall or a railing round it', ring: 'any',
+    surfaces: { graves: 0.82, plaza: 0.08, building: 0.02, planting: 0.08 }, storeys: [1, 1] }),
   // INDUSTRY (an industrial neighbourhood of the outskirts, design.js; drawn by industry.js): a works, a warehouse,
   // storage, a tank farm, and its substation (one in each, the block its line comes in to)
   works: Object.freeze({ read: 'a works: its hall of corrugated steel under a low gable, a lantern along its ridge, its office at its front in block, roller doors on its yard, trucks, a chimney on some, containers out back', ring: 'industry',
@@ -82,6 +90,7 @@ export const CARDS = Object.freeze({
 });
 export const INDUSTRY_SEGMENTS = Object.freeze(['works', 'warehouse', 'storage', 'tanks', 'substation']);
 export const LIVELY = Object.freeze(['construction', 'parking', 'vacant']);
+export const CIVIC_SEGMENTS = Object.freeze(['worship', 'cemetery']);
 export const CARD_IDS = Object.freeze(Object.keys(CARDS));
 export const OUTSKIRTS_SEGMENTS = Object.freeze(['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', 'garden']);
 // a geotown segment's streets (its block's ground is the rest)

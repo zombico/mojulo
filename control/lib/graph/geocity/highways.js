@@ -5,20 +5,24 @@
  * other way, flying over the crosstown where they meet and joining the shore's where they reach it).
  *
  *   highwaysOf(d) → [{ id, role, along, axis, at, lo, hi, w, lanes, H, stations: [u, z, …], piers: [{ u, cols: [off] }],
- *                    joins: [id], over: [id] }]: `axis` 'x' (it runs east-west, `at` its y) or 'y'; `lo`…`hi` its run;
+ *                    corridor: [x0, y0, x1, y1], joins: [id], over: [id] }]: `axis` 'x' (it runs east-west, `at` its y) or 'y'; `lo`…`hi` its run;
  *                    `stations` its deck's top every STATION metres along it (u the axis coordinate ascending); its
  *                    piers, each its columns' offsets across it (a pair in its arterial's kerb lanes, or one under its
- *                    middle over the water)
+ *                    middle over the water); `corridor` the ground its deck and its clearance stand over
+ *   highwayPlan(M, { lines, water, seat, frame }) → [{ role, along }]: the lines they run on, chosen before the blocks
+ *                  are cut, so an arterial that carries one is laid to its corridor
+ *   corridorHalf(lanes)   a highway's corridor's half-width: its deck's half and HIGHWAY.side's clearance each side
  *   deckAt(h, u)   its deck's top at u
  *   HIGHWAY        its numbers: a lane, a shoulder, the median, the deck's depth, a pier's stride, the clearance and the
- *                  rise it flies over another by, the steepest it climbs
+ *                  rise it flies over another by, the steepest it climbs, the clearance kept each side of its deck
  *   highwayLaws(d, hs) → [{ law, ok, value }]: each no steeper than it climbs, clear of the ground under it, a flyover
- *                  clear of the deck it crosses
+ *                  clear of the deck it crosses, its corridor clear of every block (no neighbourhood within its deck and
+ *                  its clearance)
  *
  * Metres, the design's frame. Pure; no dice (where it runs is the metro's lines).
  */
 const r2 = (v) => Math.round(v * 100) / 100 + 0, r3 = (v) => Math.round(v * 1000) / 1000 + 0;
-export const HIGHWAY = Object.freeze({ lane: 3.6, shoulder: 1.2, median: 1, depth: 1.8, pier: 32, station: 16, clear: 5.2, fly: 8, grade: 0.045, offshore: 22, smooth: 60 });
+export const HIGHWAY = Object.freeze({ lane: 3.6, shoulder: 1.2, median: 1, depth: 1.8, pier: 32, station: 16, clear: 5.2, fly: 8, grade: 0.045, offshore: 22, smooth: 60, side: 3 });
 
 /** Its deck's width: its lanes each way, a shoulder each side of them, the median between. */
 export const deckWidth = (lanes) => r2(2 * (lanes * HIGHWAY.lane + 2 * HIGHWAY.shoulder) + HIGHWAY.median);
@@ -33,13 +37,14 @@ export function deckAt(h, u) {
   return g[2 * a + 1] + ((g[2 * b + 1] - g[2 * a + 1]) * (u - g[2 * a])) / (g[2 * b] - g[2 * a] || 1e-6);
 }
 
-/** The highways a metro runs: by its `highways` setting (count, lanes, height, along), each on its line. */
-export function highwaysOf(d) {
-  const H0 = d.metro.highways;
+/** The lines a metro's highways run on, chosen before its blocks are cut (so an arterial that carries one is laid
+ *  wide enough for its corridor): by its `highways` setting (count, along), the shore first, the crosstown, the cross
+ *  highways. → [{ role, along }] ('shore' or an arterial's id). */
+export function highwayPlan(M, { lines, water, seat, frame }) {
+  const H0 = M.highways;
   if (!H0 || !(H0.count > 0)) return [];
-  const S = d.land.S, [lx0, ly0, lx1, ly1] = d.land.rect, w = deckWidth(H0.lanes), seat = d.seat;
   // the shore it runs along: the side its land falls toward, else the first of its water
-  const sides = d.water.map((x) => x.side), shore = sides.includes(d.metro.fall?.toward) ? d.metro.fall.toward : sides[0];
+  const sides = water.map((x) => x.side), shore = sides.includes(M.fall?.toward) ? M.fall.toward : sides[0];
   const along = (side) => (side === 's' || side === 'n' ? 'x' : 'y');
   const plan = [];
   if (H0.along) for (const a of H0.along) plan.push(a === 'shore' ? { role: 'shore', along: 'shore' } : { role: 'arterial', along: a });
@@ -47,8 +52,8 @@ export function highwaysOf(d) {
     if (shore) plan.push({ role: 'shore', along: 'shore' });
     // (the crosstown: the arterial along the shore farthest from it; the cross highways: the outermost arterials the
     // other way, either side of the seat; without a shore, the metro's long way)
-    const ax = shore ? along(shore) : d.frame.W >= d.frame.D ? 'x' : 'y', lineAxis = (a) => (a === 'x' ? 'ew' : 'ns');
-    const par = d.lines.filter((l) => l.axis === lineAxis(ax) && l.rank !== 'spine'), crs = d.lines.filter((l) => l.axis !== lineAxis(ax) && l.rank !== 'spine');
+    const ax = shore ? along(shore) : frame.W >= frame.D ? 'x' : 'y', lineAxis = (a) => (a === 'x' ? 'ew' : 'ns');
+    const par = lines.filter((l) => l.axis === lineAxis(ax) && l.rank !== 'spine'), crs = lines.filter((l) => l.axis !== lineAxis(ax) && l.rank !== 'spine');
     const fromShore = (l) => (shore === 's' || shore === 'w' ? l.at : -l.at);
     const far = par.slice().sort((p, q) => fromShore(q) - fromShore(p))[0];
     if (far) plan.push({ role: 'crosstown', along: far.id });
@@ -56,7 +61,21 @@ export function highwaysOf(d) {
     for (const l of [lo, hi]) if (l) plan.push({ role: 'cross', along: l.id });
     if (!shore && !far) plan.splice(0);
   }
-  const chosen = plan.slice(0, H0.count);
+  return plan.slice(0, H0.count);
+}
+
+/** A highway's CORRIDOR's half-width: its deck's half and the clearance kept each side of it (m), the right-of-way an
+ *  arterial that carries one is laid to, so no block, and nothing built on one, stands under or against its deck. */
+export const corridorHalf = (lanes) => r2(deckWidth(lanes) / 2 + HIGHWAY.side);
+
+/** The highways a metro runs: by its `highways` setting (count, lanes, height, along), each on its line. */
+export function highwaysOf(d) {
+  const H0 = d.metro.highways;
+  if (!H0 || !(H0.count > 0)) return [];
+  const S = d.land.S, [lx0, ly0, lx1, ly1] = d.land.rect, w = deckWidth(H0.lanes);
+  const sides = d.water.map((x) => x.side), shore = sides.includes(d.metro.fall?.toward) ? d.metro.fall.toward : sides[0];
+  const along = (side) => (side === 's' || side === 'n' ? 'x' : 'y');
+  const chosen = highwayPlan(d.metro, d);
   // each laid at grade-plus-its-height along its line, smoothed and held to its grade
   const out = chosen.map((p, k) => {
     const id = `hw-${k}`;
@@ -121,7 +140,10 @@ export function highwaysOf(d) {
       piers.push({ u: r2(v), cols });
     }
     const stations = h.us.flatMap((u, i) => [r2(u), r2(h.z[i])]);
-    return { id: h.id, role: h.role, along: h.along, axis: h.axis, at: r3(h.at), lo: r2(h.lo), hi: r2(h.hi), w: h.w, lanes: h.lanes, H: h.H, stations, piers, ...(h.water ? { water: true } : {}), ...(h.boulevard ? { boulevard: true } : {}), ...(h.joins ? { joins: h.joins } : {}), ...(h.over ? { over: h.over } : {}) };
+    // (its corridor: the ground its deck and its clearance stand over, kept clear of blocks and of what stands taller
+    // than its underside)
+    const c = h.w / 2 + HIGHWAY.side, corridor = (h.axis === 'x' ? [h.lo, h.at - c, h.hi, h.at + c] : [h.at - c, h.lo, h.at + c, h.hi]).map(r2);
+    return { id: h.id, role: h.role, along: h.along, axis: h.axis, at: r3(h.at), lo: r2(h.lo), hi: r2(h.hi), w: h.w, lanes: h.lanes, H: h.H, stations, piers, corridor, ...(h.water ? { water: true } : {}), ...(h.boulevard ? { boulevard: true } : {}), ...(h.joins ? { joins: h.joins } : {}), ...(h.over ? { over: h.over } : {}) };
   });
   // (a deck's profile before it is held: the deck being laid's z at u)
   function deckProfile(h, u) { const i = Math.max(0, Math.min(h.us.length - 1, Math.round(((u - h.lo) / (h.hi - h.lo)) * (h.us.length - 1)))); return h.z[i]; }
@@ -143,7 +165,18 @@ export function highwayLaws(d, hs) {
     }
     for (const o of hs.filter((x) => (h.over ?? []).includes(x.id))) fly = Math.min(fly, deckAt(h, o.at) - HIGHWAY.depth - deckAt(o, h.at));
   }
+  // (its corridor: no neighbourhood's ground within its deck's half and its clearance, along the land it runs over)
+  let worst = Infinity, hit = null;
+  for (const h of hs) {
+    if (h.water || h.boulevard) continue;
+    const R = h.corridor;
+    for (const r of d.regions) {
+      const ox = Math.min(R[2], r.rect[2]) - Math.max(R[0], r.rect[0]), oy = Math.min(R[3], r.rect[3]) - Math.max(R[1], r.rect[1]);
+      if (ox > 0.01 && oy > 0.01) { const into = Math.min(ox, oy); if (-into < worst) { worst = -into; hit = `${r.id} under ${h.id}`; } }
+    }
+  }
   return [
+    { law: 'highway-corridor', ok: hit === null, value: hit ? `${hit}, ${(-worst).toFixed(1)} m into its corridor` : `${hs.filter((h) => !h.water && !h.boulevard).length} corridors clear by ${HIGHWAY.side} m each side`, want: 'no neighbourhood within a deck and its clearance' },
     { law: 'highway-grade', ok: steep <= HIGHWAY.grade + 1e-3, value: `${hs.length} highways, the steepest ${(steep * 100).toFixed(1)}%`, want: `≤ ${HIGHWAY.grade * 100}%` },
     { law: 'highway-clear', ok: low >= HIGHWAY.clear - 1e-3 && (fly === Infinity || fly >= HIGHWAY.clear - 1e-3), value: `${Number.isFinite(low) ? low.toFixed(1) : '—'} m under its decks at the least${fly < Infinity ? `, ${fly.toFixed(1)} m under a flyover` : ''}`, want: `≥ ${HIGHWAY.clear} m` },
   ];
