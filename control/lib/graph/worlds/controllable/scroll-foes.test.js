@@ -105,6 +105,32 @@ describe('the foes', () => {
     expect(st.byId.ship.body.hp).toBe(4);
   });
 
+  it('a fixed foe stands where it is in the world, in as the screen reaches it, and never leaves', () => {
+    const st = world({ track: [{ by: [600, 0], pace: 40 }], foes: [{ ...foe('g', 'drone', { path: { kind: 'fixed' } }), rule: { ...foe('g', 'drone').rule, path: { kind: 'fixed' }, at: [SA / 2 + 120, 10], speed: 0 } }] });
+    step(st, {}, 30);
+    expect(st.byId.g.waiting).toBe(true);
+    step(st, {}, 60 * 4);
+    expect(st.byId.g.waiting).toBe(false);
+    expect(off(st, 'g')[0] + st.camera._sc[0]).toBeCloseTo(SA / 2 + 120, 6);
+    step(st, {}, 60 * 6);
+    expect(st.byId.g.gone).toBeFalsy();
+  });
+
+  it('a hull on the play plane is terrain: the hitbox in a standing block\'s outline takes a hit and is put back out', () => {
+    const st = world({ hp: 5 });
+    step(st, {}, 2);
+    const h = st.byId.ship.screenAt;
+    st.breakables = [{ id: 'h/b', min: [-30, h[0] - 5, h[1] - 3], max: [0, h[0] + 5, h[1] + 1], broken: null }];
+    step(st, {}, 1);
+    expect(st.byId.ship.body.hp).toBe(4);
+    step(st, {}, 1);                                                                           // (the push lands on the next frame)
+    const v = st.byId.ship.screenAt[1];
+    expect(v - FS.hitbox > h[1] + 1 - 1e-6 || v + FS.hitbox < h[1] - 3 + 1e-6).toBe(true);
+    st.breakables[0].broken = { how: 'shot' };
+    step(st, {}, 90);
+    expect(st.byId.ship.body.hp).toBe(4);
+  });
+
   it('the ship is down at 0', () => {
     const st = world({ hp: 1 }), sh = () => st.byId.ship.screenAt;
     step(st, {}, 2);

@@ -23,6 +23,10 @@
  *                  bomb   an ejected pod in flight; at its fuse, its ring
  *                and, while FIRE is held, the live pod's BEAM (from the muzzle ahead, `length` × `width`, its damage a
  *                second) and ORBIT (a ball `radius` round the ship at `rate` turns a second, a foe hit once each `every`)
+ *   a HULL       a capital ship on the play plane (rupa's breakables, its near face the plane): what is fired skims its
+ *                plated face to its systems and its guns, never breaking a plate (rupa's distortion would draw a struck
+ *                steel block as its bare dented box, its plating gone); the hull itself is never a target (`hittable:
+ *                false`), its systems are, and rupa blows it apart in its chain when they are gone, Rebel Storm's way
  *   a HIT        a foe (an entity of team 'foes', not down) within reach: its body's hp less the damage, flashed
  *                (`hitFlash`), and at 0 down (`downed`, `deadAt`), its pod dropped; a body with a `blast` is blown apart by the
  *                death burst (combat-match.js) and gone after it, one without gone at once
@@ -51,7 +55,8 @@ export function buildScrollPods(E) {
   function foesOf(state, B) {
     const out = [];
     for (const b of state.entities) {
-      if (b.team !== 'foes' || b.downed || b.gone || b.waiting || b.isCamera) continue;   // (waiting: off the screen's edge, not in yet)
+      // (waiting: off the screen's edge, not in yet; a hull that is no target of its own, its systems are: rupa's structure)
+      if (b.team !== 'foes' || b.downed || b.gone || b.waiting || b.isCamera || (b.body && b.body.hittable === false)) continue;
       const q = S(B, b.transform.pos);
       out.push({ b, u: q[0], v: q[1], r: radiusOf(b) });
     }
@@ -98,7 +103,10 @@ export function buildScrollPods(E) {
       const r = ship.rule, A = r && r.type === 'scroll-ship' && r.arsenal;
       if (!A || ship.gone || !ship.screenAt) continue;
       const K = r.keys || {}, inp = (k, d) => input[K[k] || d] || 0;
-      if (!ship.slots) { ship.slots = new Array(A.slots || 2).fill(null); ship.live = 0; ship.strikes = []; ship._fireT = 0; ship._orbitHit = {}; }
+      if (!ship.slots) { ship.slots = new Array(A.slots || 2).fill(null); ship.live = 0; }
+      if (!ship.strikes) ship.strikes = [];
+      if (!ship._orbitHit) ship._orbitHit = {};
+      if (!Number.isInteger(ship.live)) ship.live = 0;
       const at = ship.screenAt, muzzle = [at[0] + ((r.size && r.size[0]) || 0) / 2, at[1]];
       const foes = foesOf(state, B);
       // ── SLOT: its press switches the live slot ──

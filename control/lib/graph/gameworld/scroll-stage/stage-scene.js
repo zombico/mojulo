@@ -19,7 +19,9 @@
  *               count? (1), formation?: line | column | vee | echelon | swarm (FORMATIONS), v?: screens across from the
  *               middle, carries?: a pod (the wave's last foe brings it) }]: the foes, each flying its path and its pattern
  *     hp?       the ship's (SHIP_HP): each bullet in its hitbox takes one
- *     hulls?    [{ capital: a fleet class, at: screens along, v?: screens across, depth?: camera distances back (HULL_DEPTH),
+ *     hulls?    [{ capital: a fleet class, at: screens along, v?: screens across, depth?: camera distances back (HULL_DEPTH;
+ *               0: ON THE PLAY PLANE, its near face the plane: terrain flown along and broken, its systems the targets, its
+ *               guns turrets, blown up in a chain when its systems are gone, rupa in zero g as Rebel Storm's fleet is),
  *               heading?: 0 (the way the stage scrolls) | 180, seed? }]: capital ships going by behind the fight
  *     backdrop? false (stars alone) | { planets?, nebula?, suns?, worlds?, proximity?, seed? } (skyscape/backdrop.js),
  *               its large world set in the camera's view
@@ -70,6 +72,8 @@ export const FORMATIONS = Object.freeze({
   echelon: (k, n) => [k, (k - (n - 1) / 2) * 0.7],
   swarm: (k, n, die) => [die() * Math.max(1, n / 2), (die() - 0.5) * Math.max(1.5, n / 2)],
 });
+/** A hull's system's hp (a target on a capital ship on the play plane): a pod's work, not a tap's. */
+export const SYSTEM_HP = 14;
 /** A target's hp where it names none: a few taps of the base gun. */
 export const TARGET_HP = 4;
 const HULL_KEYS = ['capital', 'at', 'v', 'depth', 'heading', 'seed'];
@@ -122,7 +126,7 @@ export function readScrollStage(v) {
       if (!isObj(Wv)) { e.push(`${w} is { at, foe, … }`); return; }
       for (const f of Object.keys(Wv)) if (!['at', 'foe', 'count', 'formation', 'v', 'carries'].includes(f)) e.push(`${w}.${f} is not a wave's word (at, foe, count, formation, v, carries)`);
       if (!isNum(Wv.at) || Wv.at < 0) e.push(`${w}.at is screens along the stage`);
-      if (!FOES[Wv.foe]) e.push(`${w}.foe is a foe (${FOE_IDS.join(', ')})`);
+      if (!FOES[Wv.foe] || !FOES[Wv.foe].craft) e.push(`${w}.foe is a foe that flies (${FOE_IDS.filter((id) => FOES[id].craft).join(', ')}); a turret comes with its hull`);
       if (Wv.count !== undefined && !(Number.isInteger(Wv.count) && Wv.count >= 1 && Wv.count <= 12)) e.push(`${w}.count is 1 to 12`);
       if (Wv.formation !== undefined && !FORMATIONS[Wv.formation]) e.push(`${w}.formation is ${Object.keys(FORMATIONS).join(' | ')}`);
       if (Wv.v !== undefined && !(isNum(Wv.v) && Math.abs(Wv.v) < 0.5)) e.push(`${w}.v is screens across from the middle (under a half either way)`);
@@ -140,7 +144,7 @@ export function readScrollStage(v) {
       if (!CAPITAL_CLASSES[H.capital]) e.push(`${w}.capital is a fleet class (${Object.keys(CAPITAL_CLASSES).join(', ')})`);
       if (!isNum(H.at)) e.push(`${w}.at is screens along the stage`);
       if (H.v !== undefined && !isNum(H.v)) e.push(`${w}.v is screens across`);
-      if (H.depth !== undefined && !(isNum(H.depth) && H.depth < 0)) e.push(`${w}.depth is camera distances behind the play (negative)`);
+      if (H.depth !== undefined && !(isNum(H.depth) && H.depth <= 0)) e.push(`${w}.depth is camera distances behind the play (negative), or 0: on the play plane`);
       if (H.heading !== undefined && ![0, 180].includes(H.heading)) e.push(`${w}.heading is 0 (the way the stage scrolls) or 180`);
       if (H.seed !== undefined && !Number.isInteger(H.seed)) e.push(`${w}.seed is a whole number`);
     });
@@ -149,6 +153,20 @@ export function readScrollStage(v) {
   if (isObj(v.backdrop) && v.backdrop.toward !== undefined) e.push(`${at('backdrop')}: its large world stands in the camera's view; toward is not a scroll stage's word`);
   if (v.seed !== undefined && !Number.isInteger(v.seed)) e.push(`${at('seed')} is a whole number`);
   return e;
+}
+
+// THE PROFILE a hull on the play plane shows the side view: a capital ship's flanks (port and starboard, the fleet's ±y) are
+// the side view's depth, so what stands entirely off its body's flanks (its radiator wings on their trusses) would stand
+// toward the camera in front of its own profile; it is left off, the elevation kept. The top view keeps all: its flanks
+// lie in the screen's plane.
+const BODY = ['drive', 'core', 'hull', 'bow', 'deck', 'armour', 'tank', 'hangar'];
+function profileOf(B, view) {
+  if (view !== 'side') return B;
+  const body = B.pieces.filter((p) => BODY.includes(p.role)), lo = Math.min(...body.map((p) => p.min[1])), hi = Math.max(...body.map((p) => p.max[1]));
+  const off = new Set(B.pieces.filter((p) => p.min[1] >= hi - 1e-6 || p.max[1] <= lo + 1e-6).map((p) => p.id));
+  if (!off.size) return B;
+  return { ...B, pieces: B.pieces.filter((p) => !off.has(p.id)), faces: B.faces.filter((f) => !off.has(f.piece)), lights: B.lights.filter((l) => !off.has(l.piece)),
+    hardpoints: B.hardpoints.filter((h) => !off.has(h.id)), systems: (B.systems || []).filter((y) => !off.has(y.block)), anchor: B.anchor.filter((a) => !off.has(a)), core: B.core.filter((c) => !off.has(c)) };
 }
 
 /** The stage as numbers: its camera from its ship, its track and start in metres, the centres it sweeps. */
@@ -173,7 +191,17 @@ export function scrollStageOf(manifest) {
       return { id: `foe-${w}-${k}`, kind: Wv.foe, enter: r2(Wv.at * A + du * sp), v: r2((Wv.v ?? 0) * C + dv * sp), r: r2(sizeOf[Wv.foe] * 0.42), ...(Wv.carries && k === n - 1 ? { carries: Wv.carries } : {}) };
     });
   });
-  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed: S.seed ?? manifest.seed ?? 1, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP };
+  // the hulls ON THE PLAY PLANE (depth 0): built and placed as Rebel Storm's fleet is, their near face the plane (the
+  // whole ship behind it, so the ship is drawn before it and its silhouette is its collision), their blocks rupa's
+  const V = SCROLL_VIEWS[view], seed = S.seed ?? manifest.seed ?? 1;
+  const plane = (S.hulls ?? []).map((H, k) => ({ H, k })).filter(({ H }) => H.depth === 0).map(({ H, k }) => {
+    const id = `hull-${k}`, B = profileOf(buildCapital(H.capital, { seed: H.seed ?? seed }), view), heading = (H.heading ?? 0) === 180 ? 270 : 90;
+    const at0 = toWorld(view, [H.at * A, (H.v ?? 0) * C, 0]), P0 = placeFleet(B, { at: at0, heading, id });
+    const near = Math.max(...P0.blocks.flatMap((b) => [b.min, b.max].map((q) => q[0] * V.toward[0] + q[1] * V.toward[1] + q[2] * V.toward[2])));
+    return { id, H, P: placeFleet(B, { at: at0.map((x, i) => r2(x - V.toward[i] * near)), heading, id }) };
+  });
+  const turretSet = plane.length ? lowerFoes(['turret'], { L: ship.length, S: C }) : null;
+  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, plane, turretSet };
 }
 
 // a body that blows apart when it falls: Rebel Storm's space blast at its own size (combat-match.js explodeUnit, its
@@ -181,7 +209,7 @@ export function scrollStageOf(manifest) {
 const blastOf = (r) => ({ blast: r2(r * 2.4), egg: { a: r, c: r, cz: 0 } });
 // the ship on the d-pad, a quarter of a screen back of the middle, and the camera carried down the track
 function playOf(G, { airframe = true } = {}) {
-  const { view, cam, ship, track, start, arsenal, targets, foes, foeSet, hp } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0], back = Math.atan2(-V.along[1], -V.along[0]);
+  const { view, cam, ship, track, start, arsenal, targets, foes, foeSet, hp, plane, turretSet } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0], back = Math.atan2(-V.along[1], -V.along[0]);
   // (a target: a drone's block in the foes' colour, its size a ship's breadth, on the play plane facing back at the ship)
   const tsize = r2(ship.breadth * 0.8);
   const body = airframe ? { type: 'figure-rig', figure: 'craft' } : { type: 'mesh', shape: 'box', size: view === 'side' ? [r2(ship.breadth / 3), ship.length, ship.breadth] : [ship.breadth, ship.length, r2(ship.breadth / 3)], color: '#e9eef4' };
@@ -197,8 +225,30 @@ function playOf(G, { airframe = true } = {}) {
       return { id: F.id, team: 'foes', rule: { type: 'scroll-foe', enter: F.enter, v: F.v, path: K.path, speed: K.speed, ...(K.pattern ? { pattern: foeSet.patterns[K.pattern] } : {}), safe: foeSet.safe, hue: foeSet.hue, score: K.score, ...(F.carries ? { carries: F.carries } : {}) },
         body: { ...(airframe ? { type: 'figure-rig', figure: `foe-${F.kind}` } : { type: 'mesh', shape: 'box', size: [F.r, F.r * 2, F.r], color: '#c04a3a' }), hp: K.hp, radius: F.r, ...blastOf(F.r) },
         transform: { pos: toWorld(view, [F.enter + F.r, F.v, 0]).map(r2), heading: back } };
+    }),
+    // a hull on the play plane (Rebel Storm's procedural enemy, gameworld/flight-sortie.js): the hull no target of its own,
+    // down with the last of its SYSTEMS (each a target on its block), then blown up in a chain (worlds/controllable/rupa.js);
+    // its GUNS turrets on their hardpoints, fixed, firing at the ship, down with their mounts
+    ...plane.flatMap(({ id, P }) => {
+      const core = P.blocks.filter((b) => P.core.includes(b.id)), mid = core.length ? [0, 1, 2].map((k) => r2(core.reduce((s, b) => s + (b.min[k] + b.max[k]) / 2, 0) / core.length)) : P.bounds.min;
+      const sys = P.systems.map((y, k) => ({ ...y, eid: `${id}-${y.kind}${k + 1}` })), T = turretSet.foes.turret, sysHp = SYSTEM_HP, gunR = r2(ship.length * 0.25);
+      return [
+        { id, team: 'foes', rule: { type: 'static' }, structure: { systems: sys.map((y) => y.eid), prefix: `${id}/`, blowTime: 3.5 },
+          body: { type: 'mesh', shape: 'box', size: [1, 1, 1], color: '#000000', hittable: false, hp: 100, radius: 2 }, transform: { pos: mid, heading: 0, pitch: 0 } },
+        ...sys.map((y) => ({ id: y.eid, team: 'foes', onBlock: y.block, rule: { type: 'static', score: 800 },
+          body: { type: 'mesh', shape: 'box', size: [1, 1, 1], color: '#000000', hittable: true, hp: sysHp, poise: 99, radius: r2(Math.max(y.size, ship.length * 0.4)), ...blastOf(r2(y.size)) },
+          transform: { pos: y.at, heading: 0, pitch: 0 } })),
+        ...P.hardpoints.map((Hp, k) => {
+          const q = [Hp.at[0] * V.along[0] + Hp.at[1] * V.along[1] + Hp.at[2] * V.along[2], Hp.at[0] * V.across[0] + Hp.at[1] * V.across[1] + Hp.at[2] * V.across[2]];
+          return { id: `${id}-gun${k + 1}`, team: 'foes', onBlock: Hp.block,
+            rule: { type: 'scroll-foe', enter: r2(q[0]), v: 0, at: q.map(r2), path: T.path, speed: 0, pattern: turretSet.patterns[T.pattern], safe: turretSet.safe, hue: turretSet.hue, score: T.score },
+            body: { type: 'mesh', shape: 'box', size: [gunR, gunR, gunR], color: '#2a2d31', hp: T.hp, radius: gunR, ...blastOf(gunR) }, transform: { pos: Hp.at, heading: back } };
+        }),
+      ];
     })],
     camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track },
+    // (a hull on the play plane breaks as Rebel Storm's fleet does: destructible matter, weightless, gameworld/levels.js)
+    ...(plane.length && airframe ? { destruction: 'physical', matter: { g: 0, power: 1e3 } } : {}),
     ...(airframe ? { figures: { craft: { craft: { archetype: ship.craft, flying: true, gear: 'up' } }, ...Object.fromEntries(Object.keys(foeSet.foes).map((k) => [`foe-${k}`, { craft: { archetype: foeSet.foes[k].craft, flying: true, gear: 'up' } }])) } } : {}),
   };
 }
@@ -213,7 +263,7 @@ export function assembleScrollStage(manifest, { title = 'Blaze Gunner' } = {}) {
   // side map's key, never the cube's own bearing); the star the backdrop's worlds are lit by
   const sun = unit(V.toward.map((t, i) => t * 0.6 + V.up[i] * 0.7 + V.along[i] * 0.35));
   const space = layScrollSpace(cam, extent, { seed, ...(S.layers ? { layers: S.layers } : {}) });
-  const hulls = (S.hulls ?? []).map((H, k) => {
+  const hulls = (S.hulls ?? []).map((H, k) => ({ H, k })).filter(({ H }) => H.depth !== 0).map(({ H, k }) => {
     const d = (H.depth ?? HULL_DEPTH) * cam.dist, pos = toWorld(view, [H.at * cam.screen.along, (H.v ?? 0) * cam.screen.across, d]).map(r2);
     // (built and placed as Rebel Storm's fleet is, fleet/build.js: its pieces blocks, its faces in their blocks' groups, so
     // the page's hull kibble plates each block in parallax as it plates a capital ship flown past; its bow the way the
@@ -234,6 +284,9 @@ export function assembleScrollStage(manifest, { title = 'Blaze Gunner' } = {}) {
     sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: sun, size: SPACE_STAR.size, glow: SPACE_STAR.glow }, ...(B ? { backdrop: B } : {}) },
     bg: SPACE_VOID,
     ...(Object.keys(kibble).length ? { kibble: { scale: kScale, blocks: kibble } } : {}),
+    // (the hulls on the play plane: the world's fleet, made breakable under physical by the world scene, fleet/build.js
+    // fleetPayload; its kibble the world scene's)
+    ...(G.plane.length ? { physicalFleet: G.plane.map((h) => h.P) } : {}),
     // (the finish: the bloom, so what is hot glows: a drive's plume, the shots, the sun, the lit windows of a hull)
     finish: readFinish({ finish: { bloom: { strength: 0.9, radius: 0.8 } } }),
     ...playOf(G, { airframe: false }),

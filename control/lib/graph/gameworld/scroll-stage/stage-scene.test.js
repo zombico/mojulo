@@ -79,6 +79,32 @@ describe('the scroll stage', () => {
     expect(readScrollStage({ waves: [{ at: 1, foe: 'kraken' }] }).join(' ')).toMatch(/is a foe/);
   });
 
+  it('a hull on the play plane is Rebel Storm\'s procedural enemy: its near face the plane, its systems the targets, its guns turrets, breakable in zero g', () => {
+    const M = stage({ hulls: [{ capital: small, at: 1, depth: 0 }] }), G = scrollStageOf(M), P = assembleScrollStage(M), play = scrollStagePlay(M);
+    const near = Math.max(...G.plane[0].P.blocks.map((b) => b.max[0]));
+    expect(near).toBeCloseTo(0, 6);                                                            // the whole hull behind the plane
+    expect(P.physicalFleet[0].id).toBe('hull-0');
+    const hull = play.entities.find((e) => e.id === 'hull-0'), sys = play.entities.filter((e) => hull.structure.systems.includes(e.id));
+    expect(hull.body.hittable).toBe(false);
+    expect(sys.length).toBeGreaterThan(0);
+    for (const y of sys) expect(y).toMatchObject({ team: 'foes', body: { hittable: true } });
+    for (const y of sys) expect(G.plane[0].P.blocks.map((b) => b.id)).toContain(y.onBlock);
+    const guns = play.entities.filter((e) => e.id.startsWith('hull-0-gun'));
+    for (const g of guns) expect(g.rule).toMatchObject({ type: 'scroll-foe', path: { kind: 'fixed' } });
+    expect(play).toMatchObject({ destruction: 'physical', matter: { g: 0 } });
+    expect(P.destruction).toBeUndefined();                                                     // a bare page breaks nothing
+  });
+
+  it('the side view shows a hull\'s profile: nothing that stands wholly off its flanks toward the camera', () => {
+    const big = Object.keys(CAPITAL_CLASSES).find((c) => scrollStageOf(stage({ hulls: [{ capital: c, at: 1, depth: 0 }], view: 'top' })).plane[0].P.blocks.length
+      > scrollStageOf(stage({ hulls: [{ capital: c, at: 1, depth: 0 }] })).plane[0].P.blocks.length);
+    expect(big).toBeTruthy();                                                                  // a class with flank wings exists
+    // (every block overlaps the body's own depth: none stands wholly off its flank, toward the camera or away)
+    const side = scrollStageOf(stage({ hulls: [{ capital: big, at: 1, depth: 0 }] })).plane[0].P.blocks, body = side.filter((b) => ['hull', 'core', 'drive', 'bow'].includes(b.role));
+    const lo = Math.min(...body.map((b) => b.min[0])), hi = Math.max(...body.map((b) => b.max[0]));
+    for (const b of side) expect(b.max[0] > lo - 1e-6 && b.min[0] < hi + 1e-6, b.id).toBe(true);
+  });
+
   it('the airspace hands a scroll stage its own reader and builder', () => {
     expect(validateAirspace(stage())).toEqual([]);
     expect(validateAirspace({ kind: 'airspace', scroll: { speed: 3 } }).join(' ')).toMatch(/not a scroll stage's word/);

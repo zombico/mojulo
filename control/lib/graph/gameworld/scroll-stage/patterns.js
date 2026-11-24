@@ -15,6 +15,7 @@
  *                (how fast it flies its path), score }
  *   a PATH       line (straight back across the screen) | sine { amp S, period s } | dive (to the ship's height, then on)
  *                | hold { at: share of the screen from its right edge, for: s } (comes in, holds station, fires, leaves)
+ *                | fixed (where it stands in the world: a hull's gun)
  *
  *   PATTERNS, PATTERN_IDS, FOES, FOE_IDS, HITBOX (the ship's, a share of its length), SEEN (the fastest a bullet is),
  *   SAFE (no volley fired from nearer the ship than this, in ship lengths), DODGE (the margin a gap leaves round the hitbox)
@@ -69,6 +70,9 @@ export const FOES = Object.freeze({
   carrier: row({ hp: 5, craft: 'utilityShuttle', path: row({ kind: 'line' }), speed: 0.15, score: 300 }),
   // a wall layer: holds back and lays a wall with a gap
   layer: row({ hp: 10, craft: 'facetRaider', pattern: 'wall', path: row({ kind: 'hold', at: 0.12, for: 8 }), speed: 0.16, score: 600 }),
+  // a hull's gun on its hardpoint (a capital ship on the play plane): fixed where it stands, aimed at the ship while it is
+  // on the screen, down with its mount's block (rupa's `onBlock`); never in a wave, it comes with its hull
+  turret: row({ hp: 4, pattern: 'aimed', path: row({ kind: 'fixed' }), speed: 0, score: 250 }),
 });
 export const FOE_IDS = Object.freeze(Object.keys(FOES));
 

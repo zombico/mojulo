@@ -12,6 +12,8 @@
  *                  sine   so, weaving `amp` either side of where it came in, a `period` a weave
  *                  dive   to the ship's height for a second and a half, then straight on
  *                  hold   in to `at` of the screen from its right edge, held there `for` seconds, then out the way it came
+ *                  fixed  where it stands in the world (`at` [u, v]: a hull's gun on its hardpoint), in as the screen's
+ *                         edge reaches it, never leaving
  *                and leaves (gone, no score) past the screen's far edge
  *   its PATTERN  told (`tellNow` 0 → 1 over `tell`: the page glows it, its signal light), then fired: `volleys` of
  *                `shots`, a fan over `spread`° (360 a ring) round its aim (`ship`, or `ahead`: back down the scroll),
@@ -19,6 +21,8 @@
  *                foe with one gap laid in the half the ship is not in. Never fired from nearer the ship than `safe`,
  *                nor from off the screen
  *   a BULLET     `state.foeShots`: { u, v, du, dv, r, dmg, t, hue, w }, carried by the scroll, gone off the screen
+ *   TERRAIN      a hull on the play plane (its blocks, rupa.js's breakables): the hitbox inside a standing block's outline
+ *                takes a hit and is put back out across it, the nearer way
  *   a HIT        a bullet within the ship's HITBOX (`rule.hitbox`: { r, at } metres, `at` ahead of its centre: round its
  *                canopy): the ship's body hp less its damage, flashed, and unhurt for `invuln` seconds after (`_iT`);
  *                at 0 the ship is down (`downed`; its lives are the stage's)
@@ -50,6 +54,11 @@ export function buildScrollFoes(E) {
     if (!cam || e.gone || e.downed) return;
     const B = VIEWS[cam.rule.view === 'top' ? 'top' : 'side'], SA = cam.rule.screen[0], SC = cam.rule.screen[1], c = cam._sc;
     const rad = (e.body && e.body.radius) || 1;
+    // (a FIXED foe, a hull's gun: where it stands in the world, `at` [u, v]; in once the screen's edge reaches it, never leaving)
+    if (r.path && r.path.kind === 'fixed' && Array.isArray(r.at)) {
+      if (c[0] + SA / 2 < r.at[0] - rad) { e.waiting = true; return; }
+      e.waiting = false; e._at = [r.at[0] - c[0], r.at[1] - c[1]]; e._t = (e._t || 0) + dt; return;
+    }
     if (!e._at) {
       if (c[0] + SA / 2 < r.enter) { e.waiting = true; e.transform.pos = W(B, r.enter + rad, c[1] + (r.v || 0)); return; }
       e.waiting = false; e._at = [SA / 2 + rad, r.v || 0]; e._t = 0; e._v0 = r.v || 0;
@@ -118,17 +127,34 @@ export function buildScrollFoes(E) {
     }
     // the bullets: carried by the scroll, off the screen gone; one in the hitbox a hit
     if (ship && ship._iT > 0) ship._iT = Math.max(0, ship._iT - dt);
+    const hurtShip = (dmg) => {
+      if (ship._iT > 0) return;
+      if (!ship.body) ship.body = { type: 'none' };
+      if (!Number.isFinite(ship.body.hp)) ship.body.hp = sr.hp || 10;
+      ship.body.hp -= dmg; ship.hitFlash = state.time; ship.hitsTaken = (ship.hitsTaken || 0) + 1; ship._iT = sr.invuln ?? 1;
+      if (ship.body.hp <= 0) { ship.downed = true; ship.deadAt = state.time; }
+    };
+    // a HULL on the play plane is terrain (a fleet's blocks, rupa.js's breakables): the hitbox inside a standing block's
+    // outline takes a hit and is put back out across it, the nearer way
+    if (hc && !ship.downed && sr && Array.isArray(state.breakables) && state.breakables.length) {
+      const dot = (a, q) => a[0] * q[0] + a[1] * q[1] + a[2] * q[2];
+      for (const k of state.breakables) {
+        if (k.broken || !k.min) continue;
+        const u0 = Math.min(dot(B.along, k.min), dot(B.along, k.max)), u1 = Math.max(dot(B.along, k.min), dot(B.along, k.max));
+        const v0 = Math.min(dot(B.across, k.min), dot(B.across, k.max)), v1 = Math.max(dot(B.across, k.min), dot(B.across, k.max));
+        if (hc[0] < u0 - hb.r || hc[0] > u1 + hb.r || hc[1] < v0 - hb.r || hc[1] > v1 + hb.r) continue;
+        hurtShip(1);
+        const up = v1 + hb.r - hc[1], down = hc[1] - (v0 - hb.r);
+        if (ship.off) ship.off[1] += up < down ? up : -down;
+        break;
+      }
+    }
     const keep = [];
     for (const s of shots) {
       s.t += dt; s.u += s.du * dt; s.v += s.dv * dt;
       if (Math.abs(s.u - c[0]) > SA / 2 + 4 * s.r || Math.abs(s.v - c[1]) > SC / 2 + 4 * s.r || s.t > 20) continue;
       if (hc && !ship.downed && Math.hypot(s.u - hc[0], s.v - hc[1]) <= s.r + hb.r) {
-        if (!(ship._iT > 0)) {
-          if (!ship.body) ship.body = { type: 'none' };
-          if (!Number.isFinite(ship.body.hp)) ship.body.hp = sr.hp || 10;
-          ship.body.hp -= s.dmg; ship.hitFlash = state.time; ship.hitsTaken = (ship.hitsTaken || 0) + 1; ship._iT = sr.invuln ?? 1;
-          if (ship.body.hp <= 0) { ship.downed = true; ship.deadAt = state.time; }
-        }
+        hurtShip(s.dmg);
         continue;
       }
       s.w = W(B, s.u, s.v); keep.push(s);
