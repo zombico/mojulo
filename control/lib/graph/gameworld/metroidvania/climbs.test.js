@@ -1,7 +1,7 @@
 // THE CLIMBS: going up is going across. Each figure laid on one screen is held to the body (nothing over her head),
 // the jump (no rise over one, no gap a jump cannot cross) and the screen (it spreads across it); the deal varies them.
 import { describe, it, expect } from 'vitest';
-import { layClimb, climbFaults, climbDeal, CLIMB_IDS, CLIMB } from './climbs.js';
+import { layClimb, climbFaults, climbDeal, CLIMB_IDS, CLIMB, layStructure, structFaults, STRUCT } from './climbs.js';
 import { layBox } from './box.js';
 import { greyboxOf, LEDGE, WALL } from './rooms.js';
 import { GREYBOX_HERO, LEDGE_SHARE } from './gates.js';
@@ -47,9 +47,33 @@ describe('the climbs', () => {
     expect(climbDeal('sill', 3)).toEqual(['zigzag']);
     for (const as of ['shaft', 'storey']) expect(climbDeal(as, 2).at(-1)).toBe('zigzag');
     const G = greyboxOf(layBox(vampireSonata()));
+    // (the castle is climbed by its structure, but its sill's room)
     const shafts = G.chains.filter((c) => c.figure !== 'zigzag');
-    expect(new Set(shafts.map((c) => c.figure))).toEqual(new Set(['switchback', 'flights']));
+    expect(new Set(shafts.map((c) => c.figure))).toEqual(new Set(['stair-tower', 'great-stair']));
     // (each climb says where its stands are: one span a stand above the floor, a hole's last stand under it)
     for (const c of G.chains) expect(c.spans.length).toBe(c.stands.length - (G.holes.some((h) => h.door === c.door) ? 2 : 1));
+  });
+
+  it('climbs a tower by its structure: solid pieces, a ladder at each turn, the way woven through its pier', () => {
+    const W = 20.03, floor = 1, top = 3 * 11.27 - LEDGE_SHARE * hero.jump, ctx = { a: 0.6, b: 2 * W - 0.6, pier: [W - 0.8, W + 0.8], floor, top, exit: { bay: 1, end: 'hi' }, hero, door: 4.3, ceiling: 3 * 11.27 - 0.6 };
+    const T = layStructure('stair-tower', ctx);
+    expect(T).not.toBeNull();
+    expect(structFaults(T.pieces, ctx)).toEqual([]);
+    // (stands on both screens, a ladder where the way doubles back, a pier with an archway at each crossing)
+    expect(T.stands.some((p) => p.s1 < W - 0.8) && T.stands.some((p) => p.s0 > W + 0.8)).toBe(true);
+    expect(new Set(T.stands.map((p) => p.way))).toEqual(new Set(['walk', 'ladder']));
+    expect(T.ladders.every((l) => l.z1 - l.z0 <= STRUCT.ladder + 1e-6)).toBe(true);
+    expect(T.openings.length).toBeGreaterThan(0);
+    expect(T.pieces.filter((p) => p.kind === 'pier').length).toBe(T.openings.length + 1);
+    // (the flight that rises from the floor is built up from it; the rest hang on their stringers)
+    expect(T.pieces.some((p) => p.kind === 'stair' && p.z0 === floor && p.z1 > floor + 1)).toBe(true);
+    // (a great stair leaps every other flight; on the castle's rock, what rises from the floor is the rock)
+    const G = layStructure('great-stair', { ...ctx, terrain: true });
+    expect(new Set(G.stands.map((p) => p.way))).toContain('jump');
+    expect(G.pieces.filter((p) => p.terrain).every((p) => p.z0 === floor)).toBe(true);
+    // (a hole in the floor she comes up through, under where the way starts, is never covered: the structure is not laid)
+    const low = T.pieces.filter((p) => p.kind !== 'pier' && p.z0 <= floor + 1e-6);
+    expect(layStructure('stair-tower', { ...ctx, floorHoles: low.map((p) => [p.s0, p.s1]) })).toBeNull();
+    expect(layStructure('stair-tower', ctx)).toEqual(T);
   });
 });

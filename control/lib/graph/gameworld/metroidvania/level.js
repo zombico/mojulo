@@ -29,6 +29,7 @@ import { playerWorld } from '../../playscape/player.js';
 import { feelRule, readFeel, feelCard, takesOfCard } from '../feel/lower.js';
 import { SIDE_MAP_STATURE } from '../side-map/scene.js';
 import { SIDE_FALL, LIMBO } from '../side-map/play.js';
+import { LADDER_RATE } from '../side-map/layout.js';
 import { boxOf, BOSS_HP } from './scene.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
 import { boxHud, BOX_LOOKS, BOX_MENU_KEY } from './hud.js';
@@ -42,13 +43,22 @@ export const BOX_VITALS = Object.freeze({ hp: 100, mp: 40 });
 /** where the hero stands in a room as it comes back to it: a little in from its near wall, on its floor */
 const IN = 2.5;
 
+/** The box's LADDERS (rooms.js greybox `ladders`, climbs.js): each a climbable as the side map's runtime takes it (UP at its
+ * foot, the climb owning the body to its head, stepped off onto the landing beside it), at LADDER_RATE. */
+export function boxLadders(B) {
+  return (B.greybox.ladders ?? []).map((l, i) => {
+    const base = [0, l.s, l.z0], length = r3(l.z1 - l.z0);
+    return { id: `box-ladder-${i}`, rule: { type: 'climbable', form: 'ladder', base, axis: [0, 0, 1], length, N: [1, 0, 0], Nh: [1, 0, 0], U: [0, 1, 0], half: 0, speed: LADDER_RATE, standoff: 0.35, pitch: 0.3, top: [0, l.off[0], l.off[1]] }, body: { type: 'none' }, transform: { pos: base, heading: Math.PI } };
+  });
+}
+
 /** The box's rooms as the side map's camera zones, in the order the spiral walks them. */
 export function boxCamera(B, { target = 'hero' } = {}) {
   const { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height, C = boxCameraOf(B.stature);
   const room = new Map(L.rooms.map((r) => [r.id, r]));
   const zones = L.walk.map((id) => {
     const r = room.get(id), [c, rr, w, h] = r.rect, s0 = c * W, z0 = rr * H;
-    return { rect: [r3(s0), r3((c + w) * W), r3(z0), r3((rr + h) * H)], lock: r.kind === 'corridor' ? 'z' : r.kind === 'shaft' ? 's' : null, checkpoint: [r3(s0 + IN), r3(z0 + FLOOR)] };
+    return { rect: [r3(s0), r3((c + w) * W), r3(z0), r3((rr + h) * H)], lock: r.kind === 'corridor' ? 'z' : r.kind === 'shaft' && w === 1 ? 's' : null, checkpoint: [r3(s0 + IN), r3(z0 + FLOOR)] };
   });
   return { rule: 'side-map', target, screen: [W, H], dist: C.dist, tilt: C.tilt, lookH: C.lookH, stature: B.stature, limbo: LIMBO, zones };
 }
@@ -74,7 +84,8 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   // the hero: the feel's rule on the lane, as tall as it stands
   const written = G.feel ? feelRule(G.feel) : null;
   const rule = { ...(written ?? {}), move: 'lane', lane: [[0, -20], [0, r3(L.box[0] * W + 20)]], collideHeight: stature };
-  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const ladders = boxLadders(B);
+  const controls = `A / D  run · Space  jump${ladders.length ? ' · W / S  climb' : ''}${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
   const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule, ...(takes ? { takes } : {}) });
   // (her VITALS, an action RPG's and never a run and gun's lives: health on her body, struck by what she meets; MP the
@@ -92,7 +103,7 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const ev = W0.events ?? {};
   const events = { ...ev, sources: [...(ev.sources ?? []), { type: 'zone', zone: SIDE_FALL, at: [0, 0, LIMBO], half: [1e6, 1e6, 200], watch: 'hero' }] };
   const manifest = {
-    ...manifest0, title: name, figures, entities: [hero], camera, events,
+    ...manifest0, title: name, figures, entities: [hero, ...ladders], camera, events,
     game: { levelRef: ref, mechanics: [reach, ...lives], fall: 'none' },
     ...(mechanics?.play ? { play: mechanics.play } : {}),
     ...(audio ? { audio } : {}),

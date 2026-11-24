@@ -72,37 +72,57 @@ its shade, the walk numbered room by room, the gates in their colours and shapes
 powers and pockets marked, and the laws under it.
 
 ```bash
-node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 12x8]
+node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 14x8]
 ```
 
 ## Climbs: going up is going across
 
-A shaft climbed as a hop straight up a column is a lift, not a place. Each climb is a FIGURE laid across the screen
-([climbs.js](../control/lib/graph/gameworld/metroidvania/climbs.js)), so the hero turns left and right as she rises and
-the room is played through:
+A shaft climbed as a hop straight up a column is a lift, not a place, and a run of floating steps makes a castle a
+platform game. A room is climbed by its STRUCTURE ([climbs.js](../control/lib/graph/gameworld/metroidvania/climbs.js),
+`layStructure`): every piece is built onto the castle and stands solid, a closed part she stands on and never jumps up
+through. Going up is going across: the way turns left and right as it rises, and a tower's way weaves from one screen to
+the other.
 
-| Figure | What it is | Where it is dealt |
+| Piece | What it is | How she gets on it |
 |---|---|---|
-| switchback | galleries across the screen, one over another two rises apart, joined at their ends by a step at the wall on its corbel: each storey climbed is a gallery run | shafts, alternately |
-| flights | treads a jump apart rising diagonally across the screen, a landing at the wall, the next flight back over it (the flights stacked in a V, the tread over hers always two rises up) | shafts, alternately; a storey's climb |
-| stair | steps walked up without a jump, one flight across the screen toward the door, its top a hop | a storey's climb, where it fits one flight |
-| zigzag | ledges a jump apart, each aside of the one below | a room left through a double jump's sill (its stair kept clear of the sill); any room no other figure fits |
+| a flight | steps a riser under the runtime's step apart, rising across a bay, a stringer under them; the flight that rises from the floor is built up from it, one stepped mass | walked |
+| great steps | blocks a leap apart rising across a bay, each reaching well under the one before it, so the flight is one stepped mass | leapt |
+| a landing | a block at the end of a flight, built out from a wall or the tower's pier on its corbel | walked or leapt onto |
+| a ladder | at a turn, where the way doubles back above itself: set in a slot at the wall beside the landing over it, from the landing at its foot to the one at its head | held up (W), stepped off at its head |
+| the pier | a tower's middle, from its floor to its ceiling, an archway at its foot and one at each landing the way crosses it by | walked through |
+| the rock | in the rooms on the box's bottom row, what rises from the floor is the castle's own rock breaking through | as the piece it is |
 
-A room's figures are dealt by what it is (`CLIMB_DEAL`): a shaft takes switchback and flights in turn, so no two shafts
-climbed one after another are alike; a room climbed a storey tries a stair first. Each is tried in turn until one fits,
-the zigzag last. A figure fits when it holds:
+Two structures are dealt room by room in turn (`STRUCT_DEAL`): the **stair tower** (every flight walked) and the **great
+stair** (every other flight leapt). Each is laid from the door it climbs to downward: the landing under the door's hole (or
+at its doorway), then the way back down a cycle (a flight across a bay, through the pier, a flight across the other bay,
+a ladder at its wall where the way doubles back, a flight back, through the pier, ...), until the lowest flight reaches
+the floor and is built up from it. A door a room is climbed to stands over the end of a bay (the hole near a wall, a
+tower's outer wall) so the way ends at a landing built onto the castle.
 
-1. **A jump at a time.** No rise past a jump, and no gap between edges past `CLIMB.reach` jumps on a rise.
-2. **Nothing over her head.** No stand within a body (her stature, a ledge's thickness and `CLIMB.head`) of what is
-   stood on under it. The runtime lifts a falling body onto a ledge within its height, so a ledge low over another is
-   a trap as well as an eyesore. A gallery low over the floor is cut to its end at the step above it.
-3. **Across the screen.** Its stands spread over at least `ACROSS` of a screen's width.
+A structure fits when it holds:
 
-The double jump, once found, skips a switchback's galleries straight up: a power that changes how a room is crossed.
-A climb's stands are its chain's `spans`, so a bot can play it: the level's e2e climbs every room that is not gated, a
-jump at a time (a stair walked), and out through its door. Laws: `climbs-across`, `headroom`. The fabric builds each
-piece in its room's material: a stair's steps a stone mass, a gallery's planks hung on rods from the one above, a
-step at the wall on a corbel.
+1. **A jump at a time.** No rise past a jump but a ladder's, no gap past `CLIMB.reach` jumps.
+2. **Clear over her head.** No solid closer than a jump and a body over what is stood on under it: she would strike it
+   rising. So a ladder rises `STRUCT.ladder`, the landing at its head clear of the one at its foot.
+3. **Clear of the way in.** Nothing over a hole in the floor she comes up through, and no mass before a doorway at the
+   floor or over what stands on it (a save, a relic, a key).
+
+A room no structure fits, or one left through a double jump's sill, is climbed by the older figures of ledges
+(`CLIMB_DEAL`: switchback, flights, stair, the zigzag last), held to the same jump and to a body's headroom.
+
+**Towers.** A ring's words may say `towers: true` (box.js): its legs up and down are two screens wide, its corners as
+wide, the rings inside it a column further in. Vampire Sonata's outer wall has them, so its box is 14 × 8. A tower is
+closed against the night (the outer wall's `shaft` locale, `tower` in themes.js: banners, arrow-slit lancets, torches),
+its way woven through its pier from screen to screen; the side map's camera follows across both its screens.
+
+A climb's stands are its chain's `spans`, and how each is got onto its `ways` (walk, jump, ladder), so a bot can play
+it: the level's e2e climbs every room of the castle that is not gated, stairs walked, great steps leapt, ladders held,
+and out through its door. The double jump, once found, reaches a landing two leaps up: a power that changes how a room is
+climbed. Laws: `climbs-across` (a climb of more than a storey spreads across its screen), `headroom` (ledges a body
+clear, a structure a jump and a body clear), `no-kick` (a ladder's rise excepted). The fabric builds each piece in the
+room's stone: a flight one coursed mass, its tread lit and its nosing proud; a great step in courses, coped; a landing on
+its corbel; the pier quoined, its archways made as a doorway is; the ladder's rails and rungs behind her on the lane; the
+rock in boulders, their tops lit.
 
 ## The shapes: a spiral and its siblings
 

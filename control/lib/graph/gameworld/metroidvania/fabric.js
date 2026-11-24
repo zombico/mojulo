@@ -187,7 +187,7 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
         built.push({ i: s.i, as: crown ? 'machicolations' : 'cornice' });
       }
       ends(out, s.s0, s.s1, s.z0, s.z1, st);
-    } else if (s.role === 'wall' || (s.role === 'niche' && tall > 1)) {
+    } else if (s.role === 'wall' || s.role === 'pier' || (s.role === 'niche' && tall > 1)) {
       // A WALL quoined: each course one stone or two, a plinth at its foot, an impost under the ceiling, a string course
       // at every storey it rises through
       face(out, F - 0.004, s.s0, s.s1, s.z0, s.z1, under, 'box:mortar');
@@ -220,7 +220,38 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
       }
       if (open) weather(s.s0, s.s1, s.z0 + FABRIC.plinth + 0.1, Lk, d, 0.6);
       ends(out, s.s0, s.s1, s.z0, s.z1, st);
-      built.push({ i: s.i, as: r.kind === 'shaft' ? 'tower-wall' : 'wall' });
+      built.push({ i: s.i, as: s.role === 'pier' ? 'pier' : r.kind === 'shaft' ? 'tower-wall' : 'wall' });
+    } else if (s.role === 'stair' || s.role === 'landing') {
+      // A CLIMB'S STRUCTURE (climbs.js): a walked step, its tread lit and its nosing proud; a great step, two courses of
+      // stone coped; a landing coped, on a corbel out of the wall or the pier it is built from; where the room stands on
+      // the castle's rock, what rises from its floor is the rock, its top facets lit
+      const rock = s.terrain, body = rock ? mix(mix(st, '#4a4038', 0.55), T.night.towers, 0.15) : mix(st, Lk.top, 0.18), cap = rock ? mix(body, Lk.top, 0.35) : Lk.top;
+      const great = s.piece === 'great', step = s.role === 'stair' && !great;
+      top(out, s.z1, -HALF, HALF, s.s0, s.s1, step && Lk.path === 'boards' ? mix(WOOD.top, Lk.top, 0.6) : cap, 'box:ledge');
+      face(out, F - 0.004, s.s0, s.s1, s.z0, s.z1, under, 'box:mortar');
+      if (rock) {
+        // (a boulder: its face in two or three convex chunks, its top facet lit)
+        const k = Math.max(1, Math.round((s.s1 - s.s0) / 1.6)), w = (s.s1 - s.s0) / k;
+        for (let q = 0; q < k; q++) { const a = s.s0 + q * w, b = a + w, j = 0.12 + d() * 0.2; poly(out, F, [[a, s.z0], [b, s.z0], [b, s.z1 - j], [a + w * 0.6, s.z1], [a, s.z1 - j * 0.6]], shade(body, 0.82 + d() * 0.3), 'box:ledge', { pillow: 0.5 }); }
+        face(out, F2, s.s0, s.s1, s.z1 - 0.1, s.z1, cap, 'box:ledge', { tilt: [0, 0.8] });
+      } else if (step) {
+        // (a flight reads as one stepped mass: every step's face one stone, coursed across the flight at one height)
+        face(out, F, s.s0, s.s1, s.z0, s.z1 - 0.07, shade(body, 0.9), 'box:ledge', { pillow: 0.12 });
+        for (let zc = Math.ceil((s.z0 + 0.2) / 0.9) * 0.9; zc < s.z1 - 0.2; zc += 0.9) face(out, F + 0.004, s.s0, s.s1, zc - 0.025, zc + 0.025, under, 'box:ledge');
+        face(out, F2, s.s0 - 0.03, s.s1 + 0.03, s.z1 - 0.07, s.z1, cap, 'box:ledge', { tilt: [0, 0.5] });
+      } else {
+        const ht = s.z1 - s.z0 - FABRIC.tread, n = Math.max(1, Math.round(ht / 0.45));
+        stones(out, F, s.s0, s.s1, s.z0, s.z1 - FABRIC.tread, { course: ht / n, long: [0.9, 1.6], fill: body, under, d, sizes, group: 'box:ledge' });
+        face(out, F2, s.s0, s.s1, s.z1 - FABRIC.tread, s.z1, cap, 'box:ledge', { tilt: [0, 0.45] });
+        // (a landing built out from a wall or the pier: its corbel under it, into what it is built from)
+        if (s.role === 'landing' && s.z0 > r.rect[1] * H + FLOOR + 0.3) {
+          const pier = r.rect[2] === 2 && s.piece === 'pier' ? rs0 + W : null;
+          const at = pier != null ? (Math.abs(s.s0 - pier) < Math.abs(s.s1 - pier) ? s.s0 : s.s1) : s.s0 - rs0 < rs1 - s.s1 ? s.s0 : s.s1, dir = at === s.s0 ? 1 : -1;
+          poly(out, F, [[at, s.z0], [at + dir * 1.2, s.z0], [at, s.z0 - 1.3]], shade(body, 0.78), 'box:ledge', { tilt: [0, -0.6] });
+        }
+      }
+      ends(out, s.s0, s.s1, s.z0, s.z1, rock ? body : st);
+      built.push({ i: s.i, as: rock ? 'rock' : great ? 'great-step' : s.role === 'stair' ? 'step' : `landing:${s.piece ?? 'plain'}` });
     } else {
       // A LEDGE by its look's material (a niche's shelf is stone)
       const kind = s.role === 'niche' ? 'stone' : LEDGES[Lk.ledge] ? Lk.ledge : 'stone';
@@ -284,7 +315,9 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
   // DOORWAYS made: a segmental arch in the head, a threshold, the passage's far reveal; and the box's entry, its gate
   const A = FABRIC.arch, entry = room.get(L.entry.room), door = G.door ?? 4.3;
   const ways = [...G.doorways.map((w) => ({ id: w.door, s: w.s, a: WALL, z0: w.z0, z1: w.z1, room: null })),
-    { id: 'entry', s: entry.rect[0] * W + WALL / 2, a: WALL / 2, z0: entry.rect[1] * H + FLOOR, z1: entry.rect[1] * H + FLOOR + door, room: entry.id }];
+    { id: 'entry', s: entry.rect[0] * W + WALL / 2, a: WALL / 2, z0: entry.rect[1] * H + FLOOR, z1: entry.rect[1] * H + FLOOR + door, room: entry.id },
+    // (and a tower's pier's archways, made as a doorway is)
+    ...(G.arches ?? []).map((w, k) => ({ id: `arch:${w.room}:${k}`, s: w.s, a: w.a, z0: w.z0, z1: w.z1, room: w.room }))];
   const lookAt = (s, z) => { const r = L.rooms.find((q) => s >= q.rect[0] * W - 1e-3 && s <= (q.rect[0] + q.rect[2]) * W + 1e-3 && z >= q.rect[1] * H && z <= (q.rect[1] + q.rect[3]) * H); return lookRoom.get((r ?? L.rooms[0]).id); };
   for (const w of ways) {
     const Lk = lookAt(w.s - 0.01, w.z0 + 1), st = Lk.stone, rise = Math.min(A.rise, w.a), R = (w.a * w.a + rise * rise) / (2 * rise), cz = w.z1 - R, p0 = Math.asin(Math.min(1, w.a / R));
@@ -303,6 +336,12 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
     face(out, -HALF - 0.02, w.s - w.a - 0.2, w.s + w.a + 0.2, w.z0, w.z1 + 0.4, shade(st, 0.42), 'box:mortar');
     for (let z = w.z0, k = 0; z < w.z1 + 0.4 - 0.1; z += FABRIC.quoin, k++) face(out, -HALF - 0.01, w.s - w.a - 0.2 + (k % 2 ? 0.3 : 0), w.s + w.a + 0.2 - (k % 2 ? 0 : 0.3), z + 0.02, Math.min(w.z1 + 0.4, z + FABRIC.quoin) - 0.02, shade(st, 0.55 + 0.05 * (k % 3)), 'box:stone');
     doorways.push({ id: w.id, arch: true, reveal: true });
+  }
+  // LADDERS (climbs.js): two rails and their rungs, behind her on the lane, from the landing at the foot up past the head
+  for (const l of G.ladders ?? []) {
+    const x = -0.45, wood = shade(WOOD.face, 1.25), rails = [l.s - 0.32, l.s + 0.32];
+    for (const rs of rails) face(out, x, rs - 0.05, rs + 0.05, l.z0, l.z1 + 1.1, wood, 'box:ledge', { pillow: 0.3 });
+    for (let z = l.z0 + 0.3; z < l.z1 + 1.0; z += 0.3) face(out, x + 0.006, rails[0], rails[1], z - 0.035, z + 0.035, shade(wood, 0.9), 'box:ledge');
   }
   // HOLES framed: rim stones either side through the slab, the slab's far reveal through the cut
   for (const h of G.holes) {

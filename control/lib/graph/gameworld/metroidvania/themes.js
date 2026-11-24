@@ -54,7 +54,7 @@ const CASTLE = Object.freeze({
   night: Object.freeze({ zenith: '#0b0d1f', horizon: '#2a2550', moon: Object.freeze({ colour: '#f1ecd6', r: 1.3 }), towers: '#17162e' }),
   looks: Object.freeze([
     Object.freeze({ place: 'the ramparts', open: true, back: '#1b1f38', stone: '#6c6875', mortar: '#3d3a46', top: '#a6a2ad', trim: '#4f4b58',
-      path: 'flags', ledge: 'stone', bays: Object.freeze(['merlons', 'merlons']), focal: 'gargoyle', dark: 0.5, lamp: Object.freeze({ kind: 'torch', colour: '#ffad55', reach: 6 }) }),
+      path: 'flags', ledge: 'stone', bays: Object.freeze(['merlons', 'merlons']), focal: 'gargoyle', dark: 0.5, lamp: Object.freeze({ kind: 'torch', colour: '#ffad55', reach: 6 }), shaft: 'tower' }),
     Object.freeze({ place: 'the great halls', back: '#3b2a2c', stone: '#8c8179', mortar: '#55493f', top: '#c4b8a6', trim: '#8a6a3e', glass: '#5d7cb4', carpet: '#7a1a26', path: 'flags', ledge: 'timber',
       bays: Object.freeze(['arch', 'shelf']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'portrait', dark: 0.36, lamp: Object.freeze({ kind: 'candles', colour: '#ffcc80', reach: 5.5 }), shaft: 'library', alt: 'alchemy' }),
     Object.freeze({ place: 'the inner ward', back: '#1f2c2a', stone: '#5a6658', mortar: '#2f3a30', top: '#8d9a86', trim: '#3f4a3c', glass: '#7fa6a0', path: 'flags', ledge: 'timber',
@@ -64,9 +64,12 @@ const CASTLE = Object.freeze({
   ]),
   locales: Object.freeze({
     // (a save room: whitewashed plaster, lancets of coloured glass, a rose window, candles; her light coloured by it)
-    chapel: Object.freeze({ place: 'the chapel', wall: 'plaster', back: '#5e5868', trim: '#b49a5a', carpet: '#3c2c66', path: 'tiles', bays: Object.freeze(['stained', 'stained']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'rose', dark: 0.42, lamp: Object.freeze({ kind: 'candles', colour: '#ffdca8', reach: 5.5 }) }),
+    chapel: Object.freeze({ place: 'the chapel', wall: 'plaster', back: '#5e5868', trim: '#b49a5a', carpet: '#3c2c66', path: 'tiles', bays: Object.freeze(['stained', 'stained']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'rose', dark: 0.42, lamp: Object.freeze({ kind: 'candles', colour: '#ffdca8', reach: 5.1 }) }),
     // (the great halls' tall stacks: cases two storeys high under their galleries, an orrery turning under the roof)
     library: Object.freeze({ place: 'the library', calm: true, back: '#3c2a1e', trim: '#8a6436', path: 'boards', ledge: 'timber', bays: Object.freeze(['shelf', 'shelf']), ceiling: 'beams', pier: 'square', near: 'column', lancets: true, focal: 'orrery', dark: 0.34, lamp: Object.freeze({ kind: 'candles', colour: '#ffc880', reach: 5.5 }) }),
+    // (the outer wall's towers, closed against the night: rough ashlar, arrow-slit lancets, banners, torches; their stairs
+    // built onto their walls and their pier)
+    tower: Object.freeze({ place: 'the towers', open: false, back: '#2c2a36', trim: '#5c5866', glass: '#5d6c9c', path: 'flags', ledge: 'stone', bays: Object.freeze(['banner', 'arms']), ceiling: 'beams', pier: 'square', near: 'chain', lancets: true, focal: 'statue', dark: 0.36, lamp: Object.freeze({ kind: 'torch', colour: '#ffad55', reach: 6.5 }) }),
     // (the inner ward's clock tower: brick, gears turning in the wall, the great clock's face, its hands going round)
     clocktower: Object.freeze({ place: 'the clock tower', wall: 'brick', back: '#56302a', trim: '#9a7a44', path: 'boards', ledge: 'iron', bays: Object.freeze(['gears', 'gears']), ceiling: 'beams', pier: 'square', near: 'chain', lancets: true, focal: 'clockface', dark: 0.34, lamp: Object.freeze({ kind: 'torch', colour: '#ffa050', reach: 6 }) }),
     // (the catacombs under the ward: rough rock, skulls stacked in their niches, a sarcophagus, candles)
@@ -101,7 +104,7 @@ export const BOX_THEMES = Object.freeze({
     night: { zenith: '#081626', horizon: '#2c4c6c', towers: '#12283c', moon: { colour: '#eef8ff' } },
     looks: [{ back: '#1c2c40', stone: '#8a9aac', mortar: '#4a5866', top: '#d4e2ee', trim: '#5c6c7e' }, { back: '#3a3452', stone: '#a49ab4', top: '#dcd6e8', trim: '#8a80a8', glass: '#8ab8e8', carpet: '#24406a' },
       { back: '#1c2c34', stone: '#5e7078', top: '#9ab4bc', trim: '#3e5058', glass: '#a8e0f0' }, { back: '#121e36', stone: '#3e4a60', top: '#8a9ab4', trim: '#9ab8e0', carpet: '#1c3c8c' }],
-    locales: { chapel: { back: '#566476', carpet: '#24406a' }, library: { back: '#263240' }, clocktower: { back: '#3c4a5c' }, catacombs: { back: '#2a3238' }, throne: { back: '#141e3c', carpet: '#1c3c8c', glass: '#8ab8e8' }, alchemy: { back: '#22343c' }, armoury: { back: '#263044' } },
+    locales: { chapel: { back: '#566476', carpet: '#24406a' }, tower: { back: '#1e2a3a' }, library: { back: '#263240' }, clocktower: { back: '#3c4a5c' }, catacombs: { back: '#2a3238' }, throne: { back: '#141e3c', carpet: '#1c3c8c', glass: '#8ab8e8' }, alchemy: { back: '#22343c' }, armoury: { back: '#263044' } },
     lamp: (l) => ({ colour: l.kind === 'ghost' ? '#c8f4ff' : '#9fd4ff' }),
   }),
   // under a BLOOD MOON: a crimson night and a red moon, the halls in deep reds, every flame hotter
@@ -110,7 +113,7 @@ export const BOX_THEMES = Object.freeze({
     night: { zenith: '#16040a', horizon: '#5c1422', towers: '#22080e', moon: { colour: '#ff6a52', r: 1.6 } },
     looks: [{ back: '#2a0e16', stone: '#6e5458', top: '#b08a8a', trim: '#5a3a40' }, { back: '#3e1416', carpet: '#5a0a14', glass: '#b45a6a' },
       { back: '#2c1418', stone: '#5c4a48', top: '#9a7a72', glass: '#c07070' }, { back: '#30060e', carpet: '#b0101e' }],
-    locales: { chapel: { back: '#5a3a44' }, throne: { back: '#30060e', carpet: '#c0141e' } },
+    locales: { chapel: { back: '#5a3a44' }, tower: { back: '#2e1418' }, throne: { back: '#30060e', carpet: '#c0141e' } },
     lamp: (l) => ({ colour: l.kind === 'ghost' ? '#ff8a8a' : '#ff6a30' }),
   }),
 });
@@ -130,7 +133,8 @@ export function lookOf(theme, ring, rings) {
  * open ring, or where the theme has none. */
 export function localeOf(theme, room, rings, corridorIndex = 0) {
   const T = typeof theme === 'string' ? BOX_THEMES[theme] : theme, L = lookOf(T, room.ring, rings), X = T.locales ?? {};
-  if (L.open) return null;
+  // (an open ring's rooms are under the sky, but its towers, where its look names a locale for its shafts)
+  if (L.open && !(room.kind === 'shaft' && L.shaft && X[L.shaft])) return null;
   const want = room.save ? 'chapel' : room.boss ? L.boss : room.kind === 'shaft' ? L.shaft : room.kind === 'hall' ? L.hall : room.kind === 'corridor' && corridorIndex % 2 === 1 ? L.alt : null;
   return want && X[want] ? want : null;
 }

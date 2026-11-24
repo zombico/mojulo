@@ -63,11 +63,14 @@ describe('the backdrop\'s craft', () => {
   it('draws the relief by the light: every face lit corner by corner, a block domed toward its lamp, a column lit round', () => {
     const W = B.greybox.screen.width, H = B.greybox.screen.height, lum = (h) => { const n = parseInt(h.slice(1), 16); return (n >> 16) + ((n >> 8) & 255) + (n & 255); };
     expect(B.dress.faces.filter((f) => f.group === 'box:back').every((f) => f.cornerFills?.length === f.corners.length)).toBe(true);
-    // (a wall lamp of the halls, and a block a little way from it: its corner nearest the lamp the lightest)
-    const lamp = B.dress.lamps.find((l) => l.kind === 'candles'), [ls, lz] = [lamp.at[1], lamp.at[2]];
-    const block = B.dress.faces.find((f) => f.group === 'box:back' && (() => { const p = centre(f); return Math.hypot(p[1] - ls, p[2] - lz) > 1.5 && Math.hypot(p[1] - ls, p[2] - lz) < 2.5; })());
-    const d = block.corners.map((p) => Math.hypot(p[1] - ls, p[2] - lz)), near = d.indexOf(Math.min(...d)), far = d.indexOf(Math.max(...d));
-    expect(lum(block.cornerFills[near])).toBeGreaterThan(lum(block.cornerFills[far]));
+    // (a wall lamp of the halls, and the blocks a little way from it: most with their corner nearest the lamp the
+    // lightest, the rest in a shadow something standing out of the wall casts)
+    // (in ashlar: a chapel's plaster is lit smooth, never domed block by block)
+    const lamp = B.dress.lamps.find((l) => l.kind === 'candles' && !B.dress.plan[l.room].locale), [ls, lz] = [lamp.at[1], lamp.at[2]];
+    const blocks = B.dress.faces.filter((f) => f.group === 'box:back' && (() => { const p = centre(f); return Math.hypot(p[1] - ls, p[2] - lz) > 1.5 && Math.hypot(p[1] - ls, p[2] - lz) < 2.5; })());
+    const toward = blocks.map((block) => { const d = block.corners.map((p) => Math.hypot(p[1] - ls, p[2] - lz)), near = d.indexOf(Math.min(...d)), far = d.indexOf(Math.max(...d)); return lum(block.cornerFills[near]) - lum(block.cornerFills[far]); });
+    expect(blocks.length).toBeGreaterThan(3);
+    expect(toward.reduce((a, v) => a + v, 0) / toward.length).toBeGreaterThan(0);
     // (the near column standing between two lamps of a hall's cell: its strips lit toward the nearer lamp)
     const cs = Math.floor(ls / W), cz = Math.floor(lz / H), mid = (cs + 0.5) * W;
     const strips = B.dress.faces.filter((f) => f.corners.every((p) => Math.abs(p[0] + 2.3) < 0.01 && Math.abs(p[1] - mid) <= 0.51) && centre(f)[2] > cz * H + 3 && centre(f)[2] < cz * H + 6).sort((a, b) => centre(a)[1] - centre(b)[1]);

@@ -71,7 +71,8 @@ describe('a box dressed in its theme', () => {
     const rings = vampireSonata().rings.length, B = boxOf(M(vampireSonata())), D = B.dress, T = BOX_THEMES.castle;
     // (every save room in a closed ring is a chapel; an open ring's rooms are its ramparts, none a locale)
     for (const r of B.layout.rooms) {
-      if (lookOf(T, r.ring, rings).open) expect(D.plan[r.id].locale).toBeUndefined();
+      // (an open ring's rooms stand under the sky, but its shafts: its towers, closed against the night)
+      if (lookOf(T, r.ring, rings).open) expect(D.plan[r.id].locale).toBe(r.kind === 'shaft' ? lookOf(T, r.ring, rings).shaft : undefined);
       else if (r.save) expect(D.plan[r.id].locale).toBe('chapel');
     }
     expect(localeOf(T, { ring: 1, kind: 'shaft' }, rings)).toBe(lookOf(T, 1, rings).shaft);

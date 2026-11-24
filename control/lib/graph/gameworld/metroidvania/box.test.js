@@ -66,4 +66,13 @@ describe('the spiralling box: laid', () => {
   it('is laid from its words alone', () => {
     expect(layBox(vampireSonata())).toEqual(layBox(vampireSonata()));
   });
+
+  it('lays a ring\'s towers two screens wide, the rings inside it a column further in', () => {
+    const L = layBox(vampireSonata()), [outer, inner] = L.rings;
+    expect(L.rooms.filter((r) => r.ring === 0 && r.kind === 'shaft').every((r) => r.rect[2] === 2)).toBe(true);
+    expect(L.rooms.filter((r) => r.ring === 0 && r.kind === 'turn').every((r) => r.rect[2] === 2)).toBe(true);
+    expect(inner.rect[0]).toBe(outer.rect[0] + 2);
+    expect(L.rooms.filter((r) => r.ring === 1 && r.kind === 'shaft').every((r) => r.rect[2] === 1)).toBe(true);
+    expect(() => readBox({ ...vampireSonata(), rings: vampireSonata().rings.map((R, k) => (k === 3 ? { ...R, towers: true } : R)) })).toThrow(/towers/);
+  });
 });

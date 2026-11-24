@@ -24,7 +24,7 @@
  * null`, the dash never off a wall), no stomp (the card's `pound` is null), no buster; her sword is steel, not the
  * saber's light (`blade.steel`: no strand over it, her cut's slash in steel).
  *
- *   vampireSonata({ box?, turn? }) → the map's words (box.js readBox's), the castle at 12 × 8 screens unless said
+ *   vampireSonata({ box?, turn? }) → the map's words (box.js readBox's), the castle at 14 × 8 screens unless said (its outer wall's towers two screens wide)
  *   bellTower({ box? }) · courtyard({ box? })   → the castle's other boxes: a serpentine and a hub (shapes.js)
  *   erinaHero()          → the character door's words for her (create_character { as: 'hero', spec, toon })
  *   vampireSonataGame({ heroRef?, id?, name? }) → a designed game's words: the feel, the side camera, her book (adopted
@@ -41,7 +41,7 @@ export const VAMPIRE_SONATA_POWERS = Object.freeze({
 });
 
 /** The castle as the map's words. */
-export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
+export function vampireSonata({ box = [14, 8], turn = 'ccw' } = {}) {
   return {
     premise: VAMPIRE_SONATA_PREMISE,
     box: [...box],
@@ -49,7 +49,7 @@ export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
     theme: 'castle',
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     rings: [
-      { id: 'outer-wall', place: 'the outer wall', key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
+      { id: 'outer-wall', place: 'the outer wall', towers: true, key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
         pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }, { gate: 'wall-break', holds: 'a relic' }, { gate: 'form', holds: 'a heart vessel' }] },
       { id: 'great-halls', place: 'the great halls', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
       { id: 'inner-ward', place: 'the inner ward', boss: 'the Bellkeeper', finds: 'mist-veil', inward: 'form' },
