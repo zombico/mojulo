@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readRpg } from './rpg.js';
-import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, rpgFieldUse, rpgSwap, rpgPartyOf, rpgRaise, buildRpg } from './kernel.js';
+import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, rpgFieldUse, rpgSwap, rpgRename, rpgPartyOf, rpgRaise, buildRpg } from './kernel.js';
 
 const trio = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'bram', class: 'mage' }, { id: 'cass', class: 'cleric' }], ...extra } });
 
@@ -949,6 +949,12 @@ describe('the party menu\'s item and formation', () => {
     expect(rpgPartyOf(cfg, R2, {})).toEqual(['cass', 'bram']);
     // (a save that never set one carries no place)
     expect('ord' in rpgSave(cfg, rpgInit(cfg)).ayla).toBe(false);
+  });
+  it('a member named again: its name in every line said after; an empty or long name refused', () => {
+    const cfg = trio(), R = rpgInit(cfg);
+    expect([rpgRename(cfg, R, 'nobody', 'X'), rpgRename(cfg, R, 'ayla', '   '), rpgRename(cfg, R, 'ayla', 'A'.repeat(13))]).toEqual(['none', 'name', 'name']);
+    expect(rpgRename(cfg, R, 'ayla', ' Ayla Rose ')).toBe('');
+    expect(cfg.party.find((p) => p.id === 'ayla').name).toBe('Ayla Rose');
   });
 });
 

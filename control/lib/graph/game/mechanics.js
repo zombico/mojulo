@@ -1121,7 +1121,7 @@ const MECHANICS = {
     role: 'emitter', requires: ['party'],
     lower(p, ctx) {
       const slice = ctx.resolve('party', p.slice, `party[${ctx.i}]`);
-      return { produces: [{ type: 'setStat', slice }], consumes: [{ slice }], party: { slice } };
+      return { produces: [{ type: 'setStat', slice }, { type: 'rename', slice }], consumes: [{ slice }], party: { slice } };
     },
   },
 

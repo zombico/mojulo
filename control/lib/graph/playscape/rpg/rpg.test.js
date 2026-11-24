@@ -118,7 +118,7 @@ function page(play, vars = {}, game = null, more = {}) {
   const api = new Function('document', 'window', '__busState', '__inputQueue', 'cfg', 'K', 'ctl', 'M', `return (${rpgPage.toString()})(cfg, K, ctl, ${juiceKeys.toString()}, M);`)(document, window, bus, queue, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl, M);
   let t = 0;
   const frames = (n = 1) => { for (let i = 0; i < n; i++) { t += 100; api.step(t); } };
-  const press = (code) => window.dispatchEvent(new window.KeyboardEvent('keydown', { code, bubbles: true, cancelable: true }));
+  const press = (code, key) => window.dispatchEvent(new window.KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true }));
   // what the page said on the bus, less the juice's happenings (rpg-on:<key>)
   const said = () => queue.filter((e) => !e.type.startsWith('rpg-on:'));
   const root = document.querySelector('.moj-rpg');
@@ -392,6 +392,31 @@ describe('the party menu: Equip', () => {
   });
 });
 
+describe('the party menu: a member named again', () => {
+  it('Rename opens the keyboard: typed from the keys (P a letter there), done names them, said, and carried on the store', () => {
+    const out = [], g = { contract: { party: { slice: 'party' } }, onStart: (cb) => cb({}, 1), emit: (e) => out.push(e) };
+    const P = page(PLAY, {}, g);
+    P.frames();
+    P.press('KeyP');
+    P.press('ArrowRight'); P.press('Enter');   // Status: its Rename
+    expect(P.api.state().screen).toBe('rpg-name');
+    for (let i = 0; i < 6; i++) P.press('Backspace', 'Backspace');
+    for (const k of 'Pia') P.press('Key' + k.toUpperCase(), k);
+    expect(P.api.state().screen).toBe('rpg-name');   // the P typed, the menu kept open
+    P.press('Enter', 'Enter');
+    expect(P.api.state().screen).toBe('rpg-party');
+    expect(P.root.textContent).toContain('Pia');
+    expect(out.filter((e) => e.type === 'rename')).toEqual([{ type: 'rename', slice: 'party', id: 'ayla', name: 'Pia' }]);
+  });
+  it('a name carried in on the roster is the member\'s in the next level', () => {
+    const g = { contract: { party: { slice: 'party' } }, onStart: (cb) => cb({ party: { roster: { ayla: { name: 'Pia', stats: { lv: 2 } } } } }, 1), emit: () => {} };
+    const P = page(PLAY, {}, g);
+    P.frames();
+    P.press('KeyP');
+    expect(P.root.textContent).toContain('Pia');
+  });
+});
+
 describe('the party carried between levels (the party mechanic)', () => {
   const S = buildGameStoreKernel();
   // a game channel just big enough: the contract's party slice, the params it starts with, what is emitted
@@ -413,10 +438,10 @@ describe('the party carried between levels (the party mechanic)', () => {
     expect(R2.m.ayla.cl.fighter.lv).toBe(3);
   });
 
-  it('the mechanic: consumes the party slice, produces setStat into it, names it for the page', () => {
+  it('the mechanic: consumes the party slice, produces setStat and rename into it, names it for the page', () => {
     const schema = { slices: [{ name: 'party', kind: 'party' }, { name: 'campaign', kind: 'progression' }] };
     const c = composeMechanics([{ kind: 'reach-exit', at: [1, 0, 0] }, { kind: 'party' }], { storeSchema: schema });
-    expect(c).toMatchObject({ party: { slice: 'party' }, consumes: [{ slice: 'party' }], produces: [{ type: 'setStat', slice: 'party' }] });
+    expect(c).toMatchObject({ party: { slice: 'party' }, consumes: [{ slice: 'party' }], produces: [{ type: 'setStat', slice: 'party' }, { type: 'rename', slice: 'party' }] });
     expect(() => composeMechanics([{ kind: 'reach-exit', at: [1, 0, 0] }, { kind: 'party' }], { storeSchema: { slices: [{ name: 'campaign', kind: 'progression' }] } })).toThrow(/party/);
   });
 

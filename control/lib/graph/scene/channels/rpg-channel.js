@@ -64,7 +64,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   let fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
   const SLOT = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory' };
   // (a shop's id, what was last said; the party menu's slot being chosen for, and whose)
-  let shopId = null, shopAsk = null, smsg = '', fslot = null, fwho = null;
+  let shopId = null, shopAsk = null, smsg = '', fslot = null, fwho = null, fname = null;
   const SHOP_WHY = { gold: 'Not enough gold.', ware: '', none: 'None left to sell.', shop: '', fine: 'None of the party has fallen.' };
   // CARRIED (the party mechanic: the level contract's game.party): the roster loaded as the level starts, and each
   // number that changed since put back as a setStat after a fight, a class switch, a skill bought, a rest
@@ -79,6 +79,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     G.onStart(function (params) {
       const sl = params && params[P.slice];
       if (sl && sl.roster) K.load(cfg, R, sl.roster, V());
+      // (a name the player gave a member, carried in: the store's roster keeps it)
+      if (sl && sl.roster) for (const p of cfg.party) { const r = sl.roster[p.id]; if (r && typeof r.name === 'string' && r.name !== p.id && r.name !== p.name) K.rename(cfg, R, p.id, r.name); }
       carry.sent = K.save(cfg, R);
     });
   }
@@ -906,7 +908,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     for (const r of rows) { r.items = items; r.formation = formation; r.keys = keys; }
     // (a slot being chosen for: take it off, or what the bag holds for it)
     const g = fslot && fwho ? K.gearOf(cfg, R, fwho, V()).find((x) => x.slot === fslot) : null;
-    return { members: rows, gold, said: fmsg, slot: g ? memberName(fwho) + ' · ' + SLOT[fslot] : '', choices: g ? [{ id: '-', label: '—', right: '', disabled: !g.item }, ...g.can.map((c) => ({ id: c.item, label: c.name, right: '×' + c.count }))] : [] };
+    return { members: rows, gold, said: fmsg, naming: fname ? { title: 'Name · ' + memberName(fname), name: memberName(fname) } : {}, slot: g ? memberName(fwho) + ' · ' + SLOT[fslot] : '', choices: g ? [{ id: '-', label: '—', right: '', disabled: !g.item }, ...g.can.map((c) => ({ id: c.item, label: c.name, right: '×' + c.count }))] : [] };
   }
   function party(e) {
     const said = (why, ok) => { fmsg = why ? WHY[why] || why : ok; };
@@ -919,6 +921,15 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     }
     else if (e.emit === 'use') { bagFrom(); const why = K.fieldUse(cfg, R, e.item, e.member, V()); bagSay(); said(why, cfg.items[e.item].name + (cfg.items[e.item].target === 'allies' ? ' for the party.' : ' for ' + memberName(e.member) + '.')); if (!why) keep(); }
     else if (e.emit === 'swap') { const why = K.swap(cfg, R, e.member, e.with); said(why, memberName(e.member) + ' and ' + memberName(e.with) + ' trade places.'); if (!why) keep(); }
+    else if (e.emit === 'naming') fname = e.member;
+    // (a name typed: the page's party row takes it, and the store's roster, so the next level calls them by it)
+    else if (e.emit === 'rename' && fname) {
+      const was = memberName(fname), why = K.rename(cfg, R, fname, e.name);
+      said(why === 'name' ? 'A name takes 1 to 12 characters.' : why, was === memberName(fname) ? '' : was + ' is now ' + memberName(fname) + '.');
+      const G = window.__mojGame;
+      if (!why && carry.slice && G) G.emit({ type: 'rename', slice: carry.slice, id: fname, name: memberName(fname) });
+      fname = null;
+    }
     else if (e.emit === 'learn') { const why = K.buy(cfg, R, e.member, e.skill); said(why, memberName(e.member) + ' learned ' + cfg.skills[e.skill].name + '.'); if (!why) keep(); }
   }
   // ── a shop and an inn (rpg.js shops): opened by a cue's rpg-shop:<id>, its wares bought with the gold into the bag ──
@@ -984,6 +995,8 @@ export function rpgPage(cfg, K, ctl, jk, M) {
   // ── input: the menus are mana-host's (the menu scheme on the keys and every pad); P and a pad's select are play's ──
   window.addEventListener('keydown', (ev) => {
     if (ev.code !== 'KeyP' || ev.repeat) return;
+    // (a name being typed takes the P as a letter)
+    if (rt.typing()) return;
     if (mode === 'field') { ev.preventDefault(); ev.stopImmediatePropagation(); return closeField(); }
     if (!mode) { openField(); if (mode) { ev.preventDefault(); ev.stopImmediatePropagation(); } }
   }, true);

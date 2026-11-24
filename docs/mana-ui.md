@@ -153,6 +153,13 @@ widgets under a pointer (only the view knows where they are).
   Backspace and Delete erase, Enter is done, and the arrows, Esc and Tab still move and back out. A pad still types
   from the grid. The runtime takes text, never keys: `rt.typing(seat)`, `rt.type(text, seat)` (the entry's charset and
   max kept, lower case read as capitals), `rt.erase(seat)`, `rt.submit(seat)`.
+- **The keyboard on the screen.** A text entry with `charset: 'name'` is a name's whole keyboard, for a pad first: three
+  pages of one size (capitals, small letters, marks and digits) under tabs, the shoulders turning them with the cursor
+  kept on its key; Space, Delete, Done and, when the entry answers `cancel`, Cancel under the grid. On a pad, back erases
+  what this visit typed (with nothing typed it backs out as ever); a keyboard keeps Esc for leaving and types any page's
+  character in its own case. `min` holds Done back (a denied press) until the name is that long. The legend says the
+  pages and the erase. The RPG's party menu names a member with it (Status, Rename: `rpg-name`), and the store's
+  `rename` event carries the name to the next level.
 - **The glyphs out.**
   - `manaGlyphs()` gives each action's control per family and layout. A `prompt` and a `legend` print the one in hand
     ("Enter", "A", "✕"), switching as the player picks up another device; a touch screen draws no legend.
@@ -193,7 +200,7 @@ widgets under a pointer (only the view knows where they are).
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
 | value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars, a magazine (the gun's wireframe over it, the rounds as the figure, the reserve its caption, a belt of the cartridges it feeds; low, empty and reloading said) |
-| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
+| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type; `charset: 'name'` a paged keyboard with cancel and a minimum). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
 | hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound; a region bare, on a scrim, or at rest) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (arcs where harm came from, fading), the peril (the screen's edge closing in as danger rises), the cinema bars; reticle, minimap (or a scope: a bezel, the wedge ahead, north), compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 

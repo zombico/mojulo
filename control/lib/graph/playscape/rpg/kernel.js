@@ -1220,12 +1220,23 @@ export function buildRpg() {
     return '';
   }
   /** Two members trade places in the formation (the order the party is fought in, and who of it fights). */
+  const RENAME_MAX = 12;
   function swap(cfg, R, a, b) {
     const O = R.order || cfg.party.map((p) => p.id), i = O.indexOf(a), j = O.indexOf(b);
     if (i < 0 || j < 0) return 'none';
     if (i === j) return '';
     const next = O.slice(); next[i] = b; next[j] = a;
     R.order = next;
+    return '';
+  }
+  /** A member named again (the party menu's Name, a keyboard on the screen): its name in every line the run says after.
+   *  The page's own copy of the party row takes it (cfg is the page's). → '' | 'none' (no such member) | 'name' (empty,
+   *  or past RENAME_MAX characters) */
+  function rename(cfg, R, who, name) {
+    const p = memberOf(cfg, who), nm = typeof name === 'string' ? name.trim() : '';
+    if (!p) return 'none';
+    if (!nm || nm.length > RENAME_MAX) return 'name';
+    p.name = nm;
     return '';
   }
 
@@ -1241,7 +1252,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, stuck, fieldUse, swap, raise, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
+  return { STATS, roll: rnd, stuck, fieldUse, swap, rename, raise, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto, shopOf, waresOf, sellsOf, purchase, sell, stay };
 }
 
 const _rpg = buildRpg();
@@ -1271,4 +1282,5 @@ export const rpgEquip = _rpg.equip;
 export const rpgUnequip = _rpg.unequip;
 export const rpgFieldUse = _rpg.fieldUse;
 export const rpgSwap = _rpg.swap;
+export const rpgRename = _rpg.rename;
 export const rpgRaise = _rpg.raise;

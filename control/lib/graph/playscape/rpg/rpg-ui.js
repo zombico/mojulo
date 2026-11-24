@@ -18,12 +18,14 @@
  *     rpg-watch                                     a round playing out: accept skips ahead (`next`), a long film cut
  *     rpg-party · rpg-equip                         the party menu (Status, Class, Equip, Skills, Item, Formation in tabs), a
  *                                                   slot's choices
+ *     rpg-name                                      a member named again: mana-ui's keyboard (a pad types from its grid, a
+ *                                                   keyboard straight in), done or cancel back to the party
  *     rpg-shop                                      a shop's tabs (Buy, Sell, Stay), the party and the gold beside them
  *
  *   EFFECTS the host answers (never the bus's: the host says on the bus what came of them): { emit: command | skill |
  *   item | target, id }, { emit: undo }, { emit: next }, { emit: class, member, cls }, { emit: slot, member, slot },
  *   { emit: equip, item }, { emit: learn, member, skill }, { emit: use, member, item },
- *   { emit: swap, member, with }, { emit: deal, kind: buy | sell | stay, item }
+ *   { emit: swap, member, with }, { emit: naming, member }, { emit: rename, name }, { emit: deal, kind: buy | sell | stay, item }
  *
  *   RPG_SCREENS              the screen ids
  *   rpgUiSpec()              → the spec (readSpec reads it): its screens, its HUD, its lens (the screen round a figure)
@@ -36,7 +38,7 @@ import { manaCss, lensCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
 
 export const RPG_SCOPE = '.moj-rpg .mana-root';
-export const RPG_SCREENS = Object.freeze(['rpg-watch', 'rpg-cmd', 'rpg-skill', 'rpg-item', 'rpg-target', 'rpg-spoils', 'rpg-party', 'rpg-equip', 'rpg-shop']);
+export const RPG_SCREENS = Object.freeze(['rpg-watch', 'rpg-cmd', 'rpg-skill', 'rpg-item', 'rpg-target', 'rpg-spoils', 'rpg-party', 'rpg-equip', 'rpg-name', 'rpg-shop']);
 
 const B = (path) => ({ bind: path });
 const I = (field) => ({ item: field });
@@ -126,6 +128,8 @@ const SCREENS = {
           { use: 'each', props: { rows: K('members.stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), max: I('max') } } } },
           { use: 'divider', props: { label: 'Skills' } }, txt(K('members.skills'), 'caption'),
           { use: 'divider', props: { label: 'Worn' } }, txt(K('members.worn'), 'caption'),
+          // (the member named again: its keyboard over the menu)
+          { use: 'button', props: { label: 'Rename' }, on: { accept: [{ emit: 'naming', member: K('members.id') }, { open: 'rpg-name' }] } },
         ])] },
         { use: 'tab', props: { label: 'Class' }, children: [{ use: 'list', props: { rows: K('members.classes'), row: line }, on: { accept: { emit: 'class', member: K('members.id'), cls: I('id') } } }] },
         { use: 'tab', props: { label: 'Equip' }, children: [{ use: 'list', props: { rows: K('members.slots'), row: line }, on: { accept: [{ emit: 'slot', member: K('members.id'), slot: I('id') }, { open: 'rpg-equip' }] } }] },
@@ -144,6 +148,10 @@ const SCREENS = {
   'rpg-equip': { use: 'screen', props: { title: B('party.slot'), layer: 'modal', place: 'center' }, children: [
     { use: 'window', children: [{ use: 'list', props: { rows: B('party.choices'), row: line }, on: { accept: [{ emit: 'equip', item: I('id') }, { back: true }] } }] },
     legend([{ action: 'accept', label: 'wear' }, { action: 'back', label: 'back' }]),
+  ] },
+  // a member's name typed again: the page's keyboard lives while the entry has the focus
+  'rpg-name': { use: 'screen', props: { title: B('party.naming.title'), layer: 'modal', place: 'center' }, children: [
+    { use: 'window', children: [{ use: 'textentry', props: { value: B('party.naming.name'), max: 12, min: 1, charset: 'name' }, on: { done: [{ emit: 'rename', name: { input: true } }, { back: true }], cancel: { back: true } } }] },
   ] },
   'rpg-shop': { use: 'screen', props: { title: B('shop.name'), layer: 'modal', place: 'center' }, children: [
     { use: 'split', children: [

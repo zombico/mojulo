@@ -410,3 +410,10 @@
   (`era/laws.js` PRINCIPLE_LAWS, its cards in `statedPrinciples`; a card's `id` now its kit's, `dressing: 'dungeon'`
   sending it to its dressing). They add a law, `light-has-a-source` (every light is something in the place that gives
   it), measured by `era/dungeon.js` `sourceless`: each kit's starter lays no light away from its own glow.
+- **A name typed in game.** mana-ui's text entry grows a name's keyboard (`charset: 'name'`): capitals, small letters
+  and marks on pages of one size, turned by the shoulders or their tabs, with Space, Delete, Done and Cancel (when the
+  entry answers `cancel`); `min` holds Done back. A pad types from the grid and its back erases what it typed; a
+  computer keyboard types straight in whenever the entry has the focus, its case and marks kept. The RPG's party menu
+  uses it: Status, Rename opens `rpg-name`, the kernel's `rename` names the member in every line after, and the store's
+  new `rename` event (a party slice's, produced by the party mechanic) carries the name into the next level. The page's
+  P key no longer closes the menu while a name is being typed.

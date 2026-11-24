@@ -34,11 +34,11 @@ export function buildGameStoreKernel() {
   const EVENTS_BY_KIND = {
     character: ['setStat', 'levelUp'],
     inventory: ['grant', 'consume'],
-    party: ['recruit', 'dismiss', 'setStat', 'levelUp'],
+    party: ['recruit', 'dismiss', 'setStat', 'levelUp', 'rename'],
     progression: ['promote'],
     flags: ['setFlag'],
   };
-  const EVENT_TYPES = ['grant', 'consume', 'setStat', 'levelUp', 'setFlag', 'promote', 'recruit', 'dismiss'];
+  const EVENT_TYPES = ['grant', 'consume', 'setStat', 'levelUp', 'setFlag', 'promote', 'recruit', 'dismiss', 'rename'];
 
   function clone(v) { return v === undefined ? v : JSON.parse(JSON.stringify(v)); }
 
@@ -141,6 +141,12 @@ export function buildGameStoreKernel() {
         } else if (ev.type === 'dismiss') {
           if (!ev.id || !s.roster[ev.id]) { errors.push(where + ': dismiss — no member "' + ev.id + '" in the roster'); return; }
           delete s.roster[ev.id];
+        } else if (ev.type === 'rename') {
+          // a member named again in play (a name typed on the keyboard): words, never empty, never long
+          if (!ev.id || !s.roster[ev.id]) { errors.push(where + ': rename — no member "' + ev.id + '" in the roster'); return; }
+          const nm = typeof ev.name === 'string' ? ev.name.trim() : '';
+          if (!nm || nm.length > 24) { errors.push(where + ': rename needs a name of 1 to 24 characters'); return; }
+          s.roster[ev.id].name = nm;
         } else {
           if (!ev.id || !s.roster[ev.id]) { errors.push(where + ': ' + ev.type + ' on a party needs id of a roster member (no "' + ev.id + '")'); return; }
           applyToMember(s.roster[ev.id], ev, where, errors);

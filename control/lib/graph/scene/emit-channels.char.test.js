@@ -35,6 +35,9 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont: a name typed in game): `brawl`, `mission` and `holo`, the pages that
+// embed the game UI runtime whole. Its text entry grows a name's keyboard (`charset: 'name'`: pages, Space, Cancel, `min`),
+// a pad's back erasing a draft and its shoulders turning the pages, and two words (Space, Page). Nothing else moved.
 // Re-pinned 2026-11-18 (1116-rc's lens merged into Hijack City): `brawl`, `mission` and `holo`, the runtime they embed
 // now carrying both the candidate's lens and this branch's "No ammo" word.
 // Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI
