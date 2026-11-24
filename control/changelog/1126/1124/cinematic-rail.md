@@ -86,3 +86,9 @@
   of it. A stunt level's hero has it: a short jump at the far roof is caught on its edge, and the climb's face is now
   stones a hand-hold apart, caught from a jump and leapt up, where it was the wall crawl. The framing gate and the
   played levels climb it so.
+- **The ledge's poses** (`playscape/player.js` `LEDGE_CLIPS`, `ledgeStates`): a body hung from a lip by its hands, the
+  arms up to it and the legs loose, swaying while it holds; the hands drawn together and spread again as it shimmies;
+  the elbows driven down and a knee brought up as it pulls over. A stunt level's hero carries them; a stored hero hangs
+  on its jump's flight and pulls up on its wind-up. Before, a held hang played the idle (the page plays a body's own
+  clip only while it moves), so the hero stood upright against the face. The climb's first stone is raised (4.6 m over
+  the approach's top, 2.6), so the feet leave the ground on the first hold.

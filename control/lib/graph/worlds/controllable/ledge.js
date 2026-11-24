@@ -170,8 +170,10 @@ export function buildLedge(E) {
     t.heading = Math.atan2(-H.n[1], -H.n[0]);   // (facing the face)
     still();
     const moving = Math.abs(S.along) > 0.2;
-    e.locomotion = moving ? 'shimmy' : 'hang'; e.moving = moving;
-    if (moving) e.gaitPhase = ((e.gaitPhase || 0) + Math.abs(S.along) * D.shimmy * dt / 0.8) % 1;
+    // (a hang is played, never the idle: the page plays a body's own clip only while it moves, so a held hang is a body
+    // in motion, its phase a slow sway; a shimmy's at its pace along the hold)
+    e.locomotion = moving ? 'shimmy' : 'hang'; e.moving = true;
+    e.gaitPhase = ((e.gaitPhase || 0) + (moving ? Math.abs(S.along) * D.shimmy / 0.8 : 0.35) * dt) % 1;
     return true;
   }, 50);
 

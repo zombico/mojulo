@@ -62,7 +62,7 @@ describe('the template movie, played', () => {
       // a headless page to a few frames, and the bot's mash counts frames)
       const O = stageLevelOrder(G, st, { ref: `lv_${i}` }), M = O.args.manifest;
       expect(M.figures.hero.hero.face).toEqual({ seed: 1116, ethnicity: 'levantine', age: 34 });
-      const manifest = { ...M, figures: { ...M.figures, hero: { ...M.figures.hero, hero: { cast: 'male' } } } };
+      const manifest = { ...M, figures: { ...M.figures, hero: { ...M.figures.hero, hero: { cast: 'male', clips: M.figures.hero.hero.clips } } } };
       const { got, errors } = await playLevel(manifest, `lost-nomad-${st.level}`, GAPS[st.stunt.kind]);
       expect(errors).toEqual([]);
       expect(Object.values(got.results).every((r) => r === 'hit'), JSON.stringify(got.results)).toBe(true);

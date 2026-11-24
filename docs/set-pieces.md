@@ -76,6 +76,12 @@ reach above or along, else pulls up over the lip onto its top; held away it drop
 short jump at a roof is caught on its edge rather than missed, and a climb's face is climbed stone by stone. A box
 marked `hold: false` gives none. The bus hears `ledge:catch | pull | leap | drop`.
 
+The body plays the ledge's own poses (`playscape/player.js` `LEDGE_CLIPS`, in the hero door's pose words): `hang` (the
+arms up and a little forward to the lip, the legs loose, a slow sway while held), `shimmy` (the hands drawn together and
+spread again along the hold) and `pullUp` (the elbows driven down, a knee brought up onto the lip). A set piece's hero
+carries them (`ledgeStates`); a stored hero, which cannot take clips there, hangs on its jump's flight and pulls up on
+its wind-up, so no body stands upright against a face.
+
 A kind's site may carry breakable blocks (`breaks: true`): their faces are their own and the world holds them solid until
 a beat brings them down. A new kind is a row.
 

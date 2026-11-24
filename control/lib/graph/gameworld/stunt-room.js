@@ -16,7 +16,7 @@
  * Pure.
  */
 import { feelRule } from './feel/lower.js';
-import { playerWorld } from '../playscape/player.js';
+import { playerWorld, LEDGE_CLIPS, ledgeStates } from '../playscape/player.js';
 import { lowerSetPiece, setPieceLaws } from './set-piece.js';
 import { layKind, siteOf, SET_PIECE_KINDS } from './set-piece-kinds.js';
 import { TARIQ } from './lost-nomad.js';
@@ -35,7 +35,10 @@ export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, 
   const P = playerWorld({ heroRef: own ? heroRef : 'stand-in', id: 'hero', title: title ?? 'stunt', controls: STUNT_LEGEND, rule });
   const { heroRef: _r, ...lib } = P.figures.hero;
   const standIn = cast === 'stand-in';
-  const figures = { hero: own ? { ...lib, heroRef } : { ...lib, hero: standIn ? { cast: 'male' } : TARIQ } };
+  // (hung from a lip, shimmying along it and pulled up over it in the ledge's own poses; a stored hero, which cannot take
+  // clips here, plays them on its jump)
+  const body = standIn ? { cast: 'male' } : TARIQ;
+  const figures = { hero: own ? { ...lib, heroRef, clips: ledgeStates(lib.clips, false) } : { ...lib, hero: { ...body, clips: { ...(body.clips ?? {}), ...LEDGE_CLIPS } }, clips: ledgeStates(lib.clips) } };
   const e0 = P.entities[0];
   const hero = { ...e0, body: { ...e0.body, hittable: true, hp: 100 }, transform: { pos: K.start.slice(), heading: K.heading } };
   const site = siteOf(K.blocks);

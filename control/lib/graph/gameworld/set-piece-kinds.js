@@ -97,7 +97,7 @@ export const CLIMB_STEP = 1.6;
 function climb(W) {
   const H = W.height, face = W.face, top = H + face;
   const stones = [];
-  for (let z = H + 2.2; z < top - 0.5; z += CLIMB_STEP) stones.push(z);
+  for (let z = H + 2.6; z < top - 0.5; z += CLIMB_STEP) stones.push(z);   // (the first high enough that the feet leave the ground)
   // (the last stone sits a step under the lip, or less: the lip is reached from it)
   const blocks = [
     { id: 'approach', x: [-3, 20], y: [-4, 4], z: [0, H], fill: STONE },

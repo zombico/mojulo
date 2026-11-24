@@ -32,6 +32,7 @@ describe('the ledge', () => {
     expect(h.transform.pos[2]).toBeCloseTo(5 - 1.9, 5);
     expect(h.transform.pos[1]).toBeLessThan(0);              // outside the face
     expect(h.locomotion).toBe('hang');
+    expect(h.moving).toBe(true);                               // (held still, the hang is played, never the idle)
   });
 
   it('shimmies along it with the stick, as the camera reads it', () => {
