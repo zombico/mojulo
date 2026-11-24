@@ -26,3 +26,11 @@
 - A giant set piece: the reactor, the machine the plant makes, a wheel larger than the window turning slowly about a
   pulsing core, an inner ring turning the other way, pistons pumping before it. It is seen in the reactor gallery and
   again in the core. The page's ambient channel learned to spin a group about its hub.
+- The castle's rooms are dressed as locales by what they are: every save room a chapel of stained glass with a rose
+  window over its altar; the great halls' shafts the library's stacks under an orrery whose worlds turn; the inner
+  ward's shafts and the Bellkeeper's room a brick clock tower, its gears meshing and the great clock's hands going round;
+  every other corridor of the ward the catacombs, rough rock, skulls in their niches and a sarcophagus; the Lord's room
+  a throne room. The backs are laid in their own walls (ashlar, brick, rock, plaster), and every backdrop law still
+  holds.
+- The night's clouds are banks you can see, puffed and lit on the moon's side, and one crosses the moon.
+

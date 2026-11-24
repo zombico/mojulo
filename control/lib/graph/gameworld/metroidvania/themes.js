@@ -25,10 +25,18 @@
  *     lamp     its light, one a bay: `torch` (a bracket and a flame), `candles` (a sconce of three), `ghost` (a cold
  *              lamp), `brazier` (a bowl of fire on the floor); its colour and its `reach` (m) baked into what stands
  *              near it, its flames haloed, dust hanging in its light
+ *     wall     the back's masonry (WALLS in dress.js): `ashlar` (unsaid), `brick`, `rock` (a cave's rough beds), `plaster`
  *   the NIGHT { zenith, horizon, moon: { colour, r }, towers }   the sky an open ring stands under
+ *   the LOCALES  a room its own place inside its ring (docs/metroidvania-map.md "Locales"): a locale is a look's words laid
+ *              over its ring's look for one room, by what the room is: a save room is a chapel, a ring's `shaft` its
+ *              shafts, its `boss` its boss's room, its `alt` every other of its corridors. A closed ring's rooms are then
+ *              not one hall all through: the halls have their library stacks, the ward its clock tower and catacombs, the
+ *              keep its throne room. Its closed parts (the floors she stands on) stay the ring's.
  *
  *   BOX_THEMES, BOX_THEME_IDS, LAMP_KINDS
  *   lookOf(theme, ring, rings) → the ring's look (`rings` the box's ring count, the core counted)
+ *   localeOf(theme, room, rings, corridorIndex?) → the locale's id a room is dressed as, or null (its ring's look)
+ *   roomLook(theme, room, rings, corridorIndex?) → the look a room is dressed in: its locale over its ring's
  *   themeLaws(theme, rings, gates?) → [{ id, holds, says }]   rings-distinct: each ring unlike the one outside it;
  *                                     gates-read: every gate's colour stands out from the back of each ring it is in
  *
@@ -46,12 +54,24 @@ export const BOX_THEMES = Object.freeze({
       Object.freeze({ place: 'the ramparts', open: true, back: '#1b1f38', stone: '#6c6875', mortar: '#3d3a46', top: '#a6a2ad', trim: '#4f4b58',
         bays: Object.freeze(['merlons', 'merlons']), focal: 'gargoyle', dark: 0.5, lamp: Object.freeze({ kind: 'torch', colour: '#ffad55', reach: 6 }) }),
       Object.freeze({ place: 'the great halls', back: '#3b2a2c', stone: '#8c8179', mortar: '#55493f', top: '#c4b8a6', trim: '#8a6a3e', glass: '#5d7cb4', carpet: '#7a1a26',
-        bays: Object.freeze(['arch', 'shelf']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'portrait', dark: 0.36, lamp: Object.freeze({ kind: 'candles', colour: '#ffcc80', reach: 5.5 }) }),
+        bays: Object.freeze(['arch', 'shelf']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'portrait', dark: 0.36, lamp: Object.freeze({ kind: 'candles', colour: '#ffcc80', reach: 5.5 }), shaft: 'library' }),
       Object.freeze({ place: 'the inner ward', back: '#1f2c2a', stone: '#5a6658', mortar: '#2f3a30', top: '#8d9a86', trim: '#3f4a3c', glass: '#7fa6a0',
-        bays: Object.freeze(['arch', 'ivy']), ceiling: 'beams', pier: 'square', near: 'chain', focal: 'statue', dark: 0.34, lamp: Object.freeze({ kind: 'ghost', colour: '#9fe0ff', reach: 5 }) }),
+        bays: Object.freeze(['arch', 'ivy']), ceiling: 'beams', pier: 'square', near: 'chain', focal: 'statue', dark: 0.34, lamp: Object.freeze({ kind: 'ghost', colour: '#9fe0ff', reach: 5 }), shaft: 'clocktower', boss: 'clocktower', alt: 'catacombs' }),
       Object.freeze({ place: 'the keep', back: '#2a0f16', stone: '#4c3b40', mortar: '#2a1e22', top: '#8a7466', trim: '#c9a24a', carpet: '#8c1020',
-        bays: Object.freeze(['banner', 'niche']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', lancets: true, focal: 'arms', dark: 0.32, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }) }),
+        bays: Object.freeze(['banner', 'niche']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', lancets: true, focal: 'arms', dark: 0.32, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }), boss: 'throne' }),
     ]),
+    locales: Object.freeze({
+      // (a save room: whitewashed plaster, lancets of coloured glass, a rose window, candles; her light coloured by it)
+      chapel: Object.freeze({ place: 'the chapel', wall: 'plaster', back: '#5e5868', trim: '#b49a5a', carpet: '#3c2c66', bays: Object.freeze(['stained', 'stained']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'rose', dark: 0.42, lamp: Object.freeze({ kind: 'candles', colour: '#ffdca8', reach: 5.5 }) }),
+      // (the great halls' tall stacks: cases two storeys high under their galleries, an orrery turning under the roof)
+      library: Object.freeze({ place: 'the library', calm: true, back: '#3c2a1e', trim: '#8a6436', bays: Object.freeze(['shelf', 'shelf']), ceiling: 'beams', pier: 'square', near: 'column', lancets: true, focal: 'orrery', dark: 0.34, lamp: Object.freeze({ kind: 'candles', colour: '#ffc880', reach: 5.5 }) }),
+      // (the inner ward's clock tower: brick, gears turning in the wall, the great clock's face, its hands going round)
+      clocktower: Object.freeze({ place: 'the clock tower', wall: 'brick', back: '#56302a', trim: '#9a7a44', bays: Object.freeze(['gears', 'gears']), ceiling: 'beams', pier: 'square', near: 'chain', lancets: true, focal: 'clockface', dark: 0.34, lamp: Object.freeze({ kind: 'torch', colour: '#ffa050', reach: 6 }) }),
+      // (the catacombs under the ward: rough rock, skulls stacked in their niches, a sarcophagus, candles)
+      catacombs: Object.freeze({ place: 'the catacombs', wall: 'rock', back: '#3a332c', trim: '#5a5046', bays: Object.freeze(['skulls', 'niche']), near: 'chain', lancets: true, focal: 'sarcophagus', dark: 0.28, lamp: Object.freeze({ kind: 'candles', colour: '#ffb468', reach: 4.8 }) }),
+      // (the keep's heart: the lord's throne on its dais under a canopy, banners and tall windows, braziers)
+      throne: Object.freeze({ place: 'the throne room', back: '#3e0e1a', trim: '#d0a84a', carpet: '#9a1222', glass: '#6c64a8', bays: Object.freeze(['banner', 'arch']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', focal: 'throne', dark: 0.3, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }) }),
+    }),
   }),
 });
 export const BOX_THEME_IDS = Object.freeze(Object.keys(BOX_THEMES));
@@ -63,6 +83,21 @@ export function lookOf(theme, ring, rings) {
   if (ring === last) return L[L.length - 1];
   const mid = L.slice(1, -1);
   return mid.length ? mid[(ring - 1) % mid.length] : L[Math.min(ring, L.length - 1)];
+}
+
+/** The locale a room is dressed as (themes' `locales`): a save room the chapel; its ring's `boss` its boss's room, its
+ * `shaft` its shafts, its `alt` every other corridor (`corridorIndex` its order among the ring's corridors); none in an
+ * open ring, or where the theme has none. */
+export function localeOf(theme, room, rings, corridorIndex = 0) {
+  const T = typeof theme === 'string' ? BOX_THEMES[theme] : theme, L = lookOf(T, room.ring, rings), X = T.locales ?? {};
+  if (L.open) return null;
+  const want = room.save ? 'chapel' : room.boss ? L.boss : room.kind === 'shaft' ? L.shaft : room.kind === 'corridor' && corridorIndex % 2 === 1 ? L.alt : null;
+  return want && X[want] ? want : null;
+}
+/** The look a room is dressed in: its locale's words over its ring's look. */
+export function roomLook(theme, room, rings, corridorIndex = 0) {
+  const T = typeof theme === 'string' ? BOX_THEMES[theme] : theme, L = lookOf(T, room.ring, rings), id = localeOf(T, room, rings, corridorIndex);
+  return id ? { ...L, ...T.locales[id], locale: id } : L;
 }
 
 const rgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };

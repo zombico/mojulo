@@ -60,7 +60,9 @@ export const DETAIL = Object.freeze({ min: 1, max: 60 });
 /** the pools of light: the share of a storey's wall lit above its dark, and a pool's heart against the dark between */
 export const POOLS = Object.freeze({ lit: Object.freeze([0.15, 0.7]), contrast: 2.5 });
 /** what counts as detail: the dress's own faces, not the wall's blocks nor the closed parts */
-export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame']);
+export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame', 'box:stained']);
+// (a piece that turns is its own group, `box:turn:<id>`, so the page spins it about its hub; it is detail all the same)
+const isDetail = (g) => DETAIL_GROUPS.includes(g) || (typeof g === 'string' && g.startsWith('box:turn:'));
 export const BAY_PIECES = Object.freeze({
   arch: 'a pointed window of moonlit glass, its frame and its mullion',
   shelf: 'a library case standing on its floor: a cupboard base, boards of books at their size, a ladder',
@@ -69,12 +71,20 @@ export const BAY_PIECES = Object.freeze({
   arms: 'a coat of arms: a shield and two blades crossed behind it',
   ivy: 'cracked stone, ivy grown over it',
   merlons: 'a parapet\'s teeth against the sky',
+  stained: 'a lancet of stained glass, its panes in their colours, lit from behind by the night',
+  gears: 'a clock\'s gears turning in the wall, meshed, each the other way from the one it drives',
+  skulls: 'a niche of skulls stacked in their rows, the catacombs\' dead',
 });
 export const FOCAL_PIECES = Object.freeze({
   portrait: 'a great portrait in a gilt frame: the lord of the castle, looking down',
   statue: 'a broken statue on its plinth, its rubble at its foot',
   arms: 'the house\'s arms on a carved cartouche over the room, its blades still a sword\'s length',
   gargoyle: 'a gargoyle crouched on the parapet against the sky',
+  rose: 'a rose window high in the chapel\'s wall, its petals of coloured glass round a heart of gold',
+  clockface: 'the great clock\'s face over the room, its hands going round',
+  sarcophagus: 'a stone coffin on its plinth, its lord carved lying on the lid',
+  throne: 'the lord\'s throne on its dais under a canopy, its back a spire',
+  orrery: 'an orrery hung under the roof, its worlds turning round a golden sun',
 });
 export const BACKDROP_LAWS = Object.freeze(['eye-detail', 'calm-play', 'bay-rhythm', 'focal', 'depths', 'pools', 'lane-reads', 'scale']);
 /** the body SCALE's sizes are said for, in metres; a smaller or larger hero scales them */
@@ -94,6 +104,8 @@ const poly = (out, x, pts, fill, group = 'box:dress', extra) => out.push({ corne
 const rect = (out, x, s0, s1, z0, z1, fill, group = 'box:dress', extra) => { if (s1 - s0 > 1e-4 && z1 - z0 > 1e-4) poly(out, x, [[s0, z0], [s1, z0], [s1, z1], [s0, z1]], fill, group, extra); };
 // a bar from one point to another, `w` wide: a rib, a blade, a crack
 const bar = (out, x, a, b, w, fill, group) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = (-dz / l) * (w / 2), nz = (dx / l) * (w / 2); poly(out, x, [[a[0] + nx, a[1] + nz], [b[0] + nx, b[1] + nz], [b[0] - nx, b[1] - nz], [a[0] - nx, a[1] - nz]], fill, group); };
+/** stained glass's panes */
+const STAINED_PANES = ['#c0303c', '#2c5cc4', '#e0aa30', '#3a9a5a', '#8a40b0', '#2c8cc4'];
 const shade = (hex, k) => rgbHex(hexRgb(hex).map((v) => Math.min(1, v * k)));
 const mix = (a, b, k) => rgbHex(hexRgb(a).map((v, i) => v + (hexRgb(b)[i] - v) * k));
 const seedOf = (id) => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return h >>> 0; };
@@ -114,7 +126,8 @@ export function composeRoom(room, look, { cellsAcross = room.rect[2] } = {}) {
 export const archOf = ({ floor, top }) => { const aw = 3.2; return { aw, a0: floor + 2.6, a1: Math.min(top - aw * 0.85 - 0.9, floor + 8.5) }; };
 
 /** A piece on the back at a bay, at its true size (10). */
-export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice, sizes, occ) {
+export function drawPiece(out, id, { s, floor, top, x, focal = false, spins }, L, dice, sizes, occ) {
+  const at = { spins };
   const trim = L.trim, dark = shade(L.back, 0.55), mid = (floor + top) / 2;
   // (what stands out of the wall, `d` metres: it casts its shadow from each lamp, dress.js)
   const proud = (s0, s1, z0, z1, d) => { if (occ) occ.push({ s0, s1, z0, z1, d }); };
@@ -138,7 +151,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
       const gz = z0 + 4.0, gw = w / 2 + 0.7;
       rect(out, x + 0.07, s - gw, s + gw, gz - 0.2, gz, shade(trim, 0.9));
       for (const d of [-gw + 0.2, gw - 0.2]) poly(out, x + 0.07, [[s + d - 0.15, gz - 0.2], [s + d + 0.15, gz - 0.2], [s + d, gz - 0.75]], shade(trim, 0.75));
-      const upper = caseOf(out, x, s, w, gz, Math.min(top - 1.0, gz + 3.0), 0, trim, dark, spines, dice, sizes, false);
+      const upper = caseOf(out, x, s, w, gz, Math.min(top - 1.0, gz + 3.0), 0, trim, dark, spines, dice, sizes, !!L.calm);
       proud(s - gw, s + gw, gz - 0.2, gz, 1.0); proud(s - w / 2 - 0.22, s + w / 2 + 0.22, gz, upper + 0.3, 0.45);
       rect(out, x + 0.08, s - gw, s + gw, gz + 0.95, gz + 1.02, shade(trim, 0.85));   // (its rail)
       for (let b = s - gw + 0.1; b <= s + gw - 0.05; b += 0.6) rect(out, x + 0.08, b - 0.025, b + 0.025, gz, gz + 0.95, shade(trim, 0.8));
@@ -226,7 +239,116 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     poly(out, x + 0.01, [[s + 0.4 * k, b + 1.2 * k], [s + 1.1 * k, b + 1.4 * k], [s + 1.2 * k, b + 1.9 * k], [s + 0.5 * k, b + 1.9 * k]], g);
     poly(out, x + 0.01, [[s + 0.6 * k, b + 1.9 * k], [s + 0.75 * k, b + 2.35 * k], [s + 0.9 * k, b + 1.9 * k]], g);
     measure(sizes, 'gargoyle.h', 2.4 * k);
+  } else if (id === 'stained') {
+    // (a lancet of coloured glass: its stone frame, its panes in rows under a pointed head, its leading between)
+    const { a0, a1 } = archOf({ floor, top }), aw = 1.9, head = a1 + 1.6, cols = 2, rows = 5, ph = (a1 - a0) / rows;
+    poly(out, x, [[s - aw / 2 - 0.3, a0 - 0.3], [s + aw / 2 + 0.3, a0 - 0.3], [s + aw / 2 + 0.3, a1], [s, head + 0.35], [s - aw / 2 - 0.3, a1]], trim);
+    poly(out, x + 0.005, [[s - aw / 2, a0], [s + aw / 2, a0], [s + aw / 2, a1], [s, head], [s - aw / 2, a1]], '#1a1620');   // (its leading)
+    const pane = (k) => STAINED_PANES[(Math.floor(dice() * STAINED_PANES.length) + k) % STAINED_PANES.length];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) rect(out, x + 0.01, s - aw / 2 + 0.06 + (c * aw) / cols, s - aw / 2 + ((c + 1) * aw) / cols - 0.06, a0 + r * ph + 0.06, a0 + (r + 1) * ph - 0.06, pane(r + c), 'box:stained');
+    poly(out, x + 0.01, [[s - aw / 2 + 0.08, a1 + 0.06], [s + aw / 2 - 0.08, a1 + 0.06], [s, head - 0.12]], '#f0c040', 'box:stained');
+    rect(out, x + 0.02, s - aw / 2 - 0.45, s + aw / 2 + 0.45, a0 - 0.5, a0 - 0.3, shade(L.top, 0.8));   // (its sill)
+    proud(s - aw / 2 - 0.45, s + aw / 2 + 0.45, a0 - 0.5, a0 - 0.3, 0.25);
+  } else if (id === 'rose') {
+    // (a rose window high over the altar: a stone ring, petals of coloured glass round a heart of gold)
+    const cz = Math.min(top - 3.2, floor + 7.4), R = 2.4;
+    ring(out, x, s, cz, R + 0.35, 24, trim);
+    ring(out, x + 0.005, s, cz, R, 24, '#1a1620');
+    for (let k = 0; k < 12; k++) {
+      const a0 = (k / 12) * 2 * Math.PI, a1 = ((k + 0.82) / 12) * 2 * Math.PI, ri = R * 0.48, ro = R * 0.94;
+      poly(out, x + 0.01, [[s + ri * Math.cos(a0), cz + ri * Math.sin(a0)], [s + ro * Math.cos(a0), cz + ro * Math.sin(a0)], [s + ro * Math.cos(a1), cz + ro * Math.sin(a1)], [s + ri * Math.cos(a1), cz + ri * Math.sin(a1)]], STAINED_PANES[k % STAINED_PANES.length], 'box:stained');
+    }
+    ring(out, x + 0.015, s, cz, R * 0.42, 12, '#e8b838', 'box:stained');
+    ring(out, x + 0.02, s, cz, R * 0.2, 8, '#c0303c', 'box:stained');
+    // (an altar under it, its cloth and two candlesticks)
+    rect(out, x + 0.02, s - 1.3, s + 1.3, floor, floor + 1.05, shade(L.stone, 0.8));
+    rect(out, x + 0.03, s - 1.4, s + 1.4, floor + 1.05, floor + 1.15, shade(L.top, 0.9));
+    rect(out, x + 0.035, s - 0.5, s + 0.5, floor + 0.3, floor + 1.05, L.carpet || '#3c2c66');
+    proud(s - 1.4, s + 1.4, floor, floor + 1.15, 0.7);
+  } else if (id === 'gears') {
+    // (three gears meshed in the wall, each turning the other way from the one that drives it, the small ones faster)
+    const base = floor + 3.4, set = [[s - 1.2, base + 1.7, 1.25], [s + 0.85, base + 0.75, 0.72], [s + 0.55, base + 3.35, 0.82]];
+    set.forEach(([gs, gz, r], k) => gear(out, x + 0.02 + 0.01 * k, gs, gz, r, k % 2 ? 1 : -1, shade(trim, 0.75 + 0.1 * k), at.spins, `${Math.round(gs * 100)}:${Math.round(gz * 100)}`));
+    proud(s - 2.5, s + 1.6, base - 0.2, base + 4.2, 0.12);
+  } else if (id === 'clockface') {
+    // (the great clock's face: its rim, its dial, its hours, its hands going round, the minute's a turn a minute)
+    const cz = Math.min(top - 3.4, floor + 7.0), R = 2.6;
+    ring(out, x, s, cz, R + 0.3, 28, trim);
+    ring(out, x + 0.005, s, cz, R, 28, '#e8dcc0');
+    for (let k = 0; k < 12; k++) { const a = (k / 12) * 2 * Math.PI, q = k % 3 ? 0.07 : 0.13, l0 = R * (k % 3 ? 0.84 : 0.78); bar(out, x + 0.01, [s + l0 * Math.sin(a), cz + l0 * Math.cos(a)], [s + R * 0.92 * Math.sin(a), cz + R * 0.92 * Math.cos(a)], q * 1.6, '#2a2220'); }
+    const id0 = `clock:${Math.round(s * 100)}:${Math.round(cz * 100)}`, hand = (g, len, w, rate) => { poly(out, x + 0.02, [[s - w, cz - 0.3], [s + w, cz - 0.3], [s + w * 0.5, cz + len], [s - w * 0.5, cz + len]], '#1c1614', g); if (at.spins) at.spins[g] = { spin: { at: [Math.round(s * 1000) / 1000, Math.round(cz * 1000) / 1000], rate } }; };
+    hand(`box:turn:${id0}:h`, R * 0.55, 0.12, -0.012);
+    hand(`box:turn:${id0}:m`, R * 0.86, 0.08, -0.105);
+    ring(out, x + 0.03, s, cz, 0.16, 8, trim);
+    proud(s - R - 0.3, s + R + 0.3, cz - R - 0.3, cz + R + 0.3, 0.2);
+  } else if (id === 'skulls') {
+    // (a niche cut in the rock, skulls stacked in it at their size, two rows of them)
+    const w = 2.6, z0 = floor + 2.7, z1 = z0 + 1.7, bone = '#cfc4a8', sk = 0.22;
+    rect(out, x, s - w / 2 - 0.2, s + w / 2 + 0.2, z0 - 0.2, z1 + 0.2, shade(L.back, 0.75));
+    rect(out, x + 0.005, s - w / 2, s + w / 2, z0, z1, shade(L.back, 0.3));
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) {
+      const cs = s - w / 2 + 0.33 + c * 0.64 + (r ? 0.16 : 0), cz = z0 + 0.42 + r * 0.72;
+      ring(out, x + 0.01, cs, cz, sk, 8, shade(bone, 0.85 + dice() * 0.2));
+      for (const e of [-0.08, 0.08]) rect(out, x + 0.02, cs + e - 0.045, cs + e + 0.045, cz - 0.02, cz + 0.06, '#1a1410');
+    }
+    measure(sizes, 'face.w', sk * 2 * 0.7);
+    proud(s - w / 2 - 0.2, s + w / 2 + 0.2, z0 - 0.2, z0, 0.2);
+  } else if (id === 'sarcophagus') {
+    // (a stone coffin on its plinth, its lord carved lying on the lid, hands folded on a sword)
+    const st = mix(L.stone, '#d8d0c0', 0.25), b0 = floor, b1 = floor + 0.35, c1 = b1 + 1.0, len = 2.6;
+    rect(out, x, s - len / 2 - 0.3, s + len / 2 + 0.3, b0, b1, shade(st, 0.7));
+    rect(out, x + 0.01, s - len / 2, s + len / 2, b1, c1, shade(st, 0.85));
+    for (const d of [-0.8, 0, 0.8]) rect(out, x + 0.015, s + d - 0.3, s + d + 0.3, b1 + 0.2, c1 - 0.2, shade(st, 0.72));   // (its panels)
+    rect(out, x + 0.02, s - len / 2 - 0.1, s + len / 2 + 0.1, c1, c1 + 0.18, st);   // (its lid)
+    poly(out, x + 0.03, [[s - len / 2 + 0.25, c1 + 0.18], [s + len / 2 - 0.55, c1 + 0.18], [s + len / 2 - 0.65, c1 + 0.42], [s - len / 2 + 0.35, c1 + 0.38]], shade(st, 1.08));   // (the lord, lying)
+    ring(out, x + 0.035, s + len / 2 - 0.42, c1 + 0.38, 0.17, 8, shade(st, 1.1));   // (his head)
+    measure(sizes, 'figure.h', len - 0.4);
+    proud(s - len / 2 - 0.3, s + len / 2 + 0.3, b0, c1 + 0.4, 0.6);
+  } else if (id === 'throne') {
+    // (the lord's throne on its dais of three steps, its back a spire in his colours, a canopy over it, drapes either side)
+    const c = L.carpet || '#9a1222', st = shade(L.stone, 0.9);
+    rect(out, x, s - 2.4, s + 2.4, floor, floor + 0.45, shade(st, 0.9));   // (its dais)
+    const seat = floor + 0.45 + 0.5, back = seat + 2.6;
+    poly(out, x + 0.04, [[s - 0.85, seat], [s + 0.85, seat], [s + 0.85, back - 0.6], [s, back + 0.5], [s - 0.85, back - 0.6]], trim);
+    poly(out, x + 0.045, [[s - 0.65, seat + 0.1], [s + 0.65, seat + 0.1], [s + 0.65, back - 0.7], [s, back + 0.15], [s - 0.65, back - 0.7]], c);
+    rect(out, x + 0.05, s - 1.0, s + 1.0, seat - 0.5, seat, shade(trim, 0.8));   // (its seat)
+    for (const d of [-1, 1]) rect(out, x + 0.055, s + d * 0.95 - 0.12, s + d * 0.95 + 0.12, seat - 0.5, seat + 0.55, trim);   // (its arms)
+    const ct = Math.min(top - 0.8, back + 2.2);
+    rect(out, x + 0.02, s - 2.2, s + 2.2, ct - 0.5, ct, trim);   // (the canopy's pelmet)
+    for (const d of [-1, 1]) poly(out, x + 0.015, [[s + d * 2.2, ct - 0.5], [s + d * 1.5, ct - 0.5], [s + d * 1.9, ct - 3.2], [s + d * 2.35, ct - 3.0]], shade(c, 0.85));
+    // (his crest over the canopy: a shield in his colours under a crown)
+    const cr = ct + 0.9;
+    poly(out, x + 0.02, [[s - 0.55, cr + 0.55], [s + 0.55, cr + 0.55], [s + 0.55, cr - 0.1], [s, cr - 0.6], [s - 0.55, cr - 0.1]], trim);
+    poly(out, x + 0.025, [[s - 0.42, cr + 0.45], [s + 0.42, cr + 0.45], [s + 0.42, cr - 0.08], [s, cr - 0.46], [s - 0.42, cr - 0.08]], c);
+    poly(out, x + 0.02, [[s - 0.5, cr + 0.6], [s + 0.5, cr + 0.6], [s + 0.5, cr + 0.95], [s + 0.25, cr + 0.75], [s, cr + 1.0], [s - 0.25, cr + 0.75], [s - 0.5, cr + 0.95]], trim);
+    measure(sizes, 'figure.h', 2.0);
+    proud(s - 2.4, s + 2.4, floor, floor + 0.45, 0.8); proud(s - 1.0, s + 1.0, seat - 0.5, back, 0.5);
+  } else if (id === 'orrery') {
+    // (an orrery hung from the roof: a golden sun, three worlds each on its arm turning round it at its own pace)
+    const cz = Math.min(top - 3.6, floor + 6.8), gold = '#e0b040';
+    bar(out, x + 0.01, [s, top], [s, cz + 0.4], 0.08, shade(trim, 0.8));
+    ring(out, x + 0.02, s, cz, 0.42, 10, gold);
+    [[1.2, '#5a8ad0', 0.32, 0.18], [2.0, '#c0603a', 0.26, -0.12], [2.8, '#7ab070', 0.36, 0.08]].forEach(([r, col, pr, rate], k) => {
+      const g = `box:turn:orrery:${Math.round(s * 100)}:${Math.round(cz * 100)}:${k}`;
+      bar(out, x + 0.03 + 0.01 * k, [s, cz], [s + r, cz], 0.05, shade(gold, 0.8), g);
+      ring(out, x + 0.035 + 0.01 * k, s + r, cz, pr, 8, col, g);
+      if (at.spins) at.spins[g] = { spin: { at: [Math.round(s * 1000) / 1000, Math.round(cz * 1000) / 1000], rate } };
+    });
+    proud(s - 0.45, s + 0.45, cz - 0.45, cz + 0.45, 0.4);
   }
+}
+
+/** a disc of `n` sides */
+function ring(out, x, s, z, r, n, fill, group = 'box:dress') { poly(out, x, Array.from({ length: n }, (_, k) => { const a = (k / n) * 2 * Math.PI; return [s + r * Math.cos(a), z + r * Math.sin(a)]; }), fill, group); }
+/** a gear: its body, its teeth, its hub and its spokes, one group the page turns about its hub (`sense` its way round) */
+function gear(out, x, s, z, r, sense, fill, spins, key) {
+  const g = `box:turn:gear:${key}`, teeth = Math.max(8, Math.round(r * 9));
+  ring(out, x, s, z, r * 0.86, teeth, fill, g);
+  for (let k = 0; k < teeth; k++) { const a = (k / teeth) * 2 * Math.PI, h = Math.PI / teeth * 0.55, ri = r * 0.84, ro = r; poly(out, x - 0.002, [[s + ri * Math.cos(a - h), z + ri * Math.sin(a - h)], [s + ro * Math.cos(a - h * 0.7), z + ro * Math.sin(a - h * 0.7)], [s + ro * Math.cos(a + h * 0.7), z + ro * Math.sin(a + h * 0.7)], [s + ri * Math.cos(a + h), z + ri * Math.sin(a + h)]], fill, g); }
+  ring(out, x + 0.005, s, z, r * 0.62, teeth, shade(fill, 0.6), g);
+  for (let k = 0; k < 4; k++) { const a = (k / 4) * 2 * Math.PI + 0.4; bar(out, x + 0.01, [s, z], [s + r * 0.6 * Math.cos(a), z + r * 0.6 * Math.sin(a)], r * 0.14, fill, g); }
+  ring(out, x + 0.015, s, z, r * 0.16, 8, shade(fill, 1.2), g);
+  if (spins) spins[g] = { spin: { at: [Math.round(s * 1000) / 1000, Math.round(z * 1000) / 1000], rate: (sense * 0.32) / r } };
 }
 
 /** a case of books from `z0` to `z1`, its `base` a cupboard; the books in runs of their spines, a set bound alike to a
@@ -290,7 +412,7 @@ export function backdropLaws(B, D) {
   // (a piece counts in every eye segment it covers: a plinth along a whole cell is seen in every glance along it)
   const sw = W / EYE.across, sh = H / EYE.up;
   for (const f of D.faces) {
-    if (!DETAIL_GROUPS.includes(f.group)) continue;
+    if (!isDetail(f.group)) continue;
     const ss = f.corners.map((p) => p[1]), zs = f.corners.map((p) => p[2]);
     const i0 = Math.floor(Math.min(...ss) / sw + 1e-6), i1 = Math.floor(Math.max(...ss) / sw - 1e-6), j0 = Math.floor(Math.min(...zs) / sh + 1e-6), j1 = Math.floor(Math.max(...zs) / sh - 1e-6);
     for (let gi = i0; gi <= Math.max(i0, i1); gi++) for (let gj = j0; gj <= Math.max(j0, j1); gj++) {

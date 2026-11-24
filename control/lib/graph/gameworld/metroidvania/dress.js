@@ -34,7 +34,7 @@
  * Pure: the same box and theme make the same faces.
  */
 import { r5, hexRgb, rgbHex } from '../../era/geom.js';
-import { BOX_THEMES, lookOf } from './themes.js';
+import { BOX_THEMES, lookOf, roomLook } from './themes.js';
 import { FLOOR, CEIL, boxCameraOf } from './rooms.js';
 import { composeRoom, drawPiece, diceOf, measure, archOf } from './backdrop.js';
 
@@ -43,6 +43,14 @@ export const COURSE = 0.8, JOINT = 1.6, LAMP_REACH = 8;
  * own length (seeded), so the wall is laid stone, never a grid; each block lit domed (its lamp side light, its far side
  * dark: PILLOW) */
 export const ASHLAR = Object.freeze({ long: Object.freeze([0.9, 1.7]), courses: Object.freeze([0.55, 0.7, 0.85]) });
+/** THE WALLS a back is laid in (a look's `wall`): each its blocks' lengths and its courses' heights (m), how far a block's
+ * stone strays from the next (`vary`) and the joint left between them (`gap`: none, plaster's, a smooth face lit as one) */
+export const WALLS = Object.freeze({
+  ashlar: Object.freeze({ ...ASHLAR, vary: 0.2, gap: 0.05 }),
+  brick: Object.freeze({ long: Object.freeze([0.66, 0.78]), courses: Object.freeze([0.36, 0.4]), vary: 0.3, gap: 0.045 }),
+  rock: Object.freeze({ long: Object.freeze([1.0, 2.4]), courses: Object.freeze([0.7, 1.0, 1.3]), vary: 0.45, gap: 0.09 }),
+  plaster: Object.freeze({ long: Object.freeze([1.2, 1.2]), courses: Object.freeze([1.0]), vary: 0.05, gap: 0 }),
+});
 /** THE LIGHT'S RELIEF: how domed a block is lit, how far a turned face takes a lamp's light toward it or from it, how
  * much of a lamp a shadow lets through, and how far out from the wall a lamp's flame stands (m) */
 export const RELIEF = Object.freeze({ pillow: 0.5, turn: 1.5, shadow: 0.1, flame: 0.5 });
@@ -54,10 +62,12 @@ export const GLOW = Object.freeze({ scale: 0.3, opacity: 0.8 });
 /** THE NIGHT'S DEPTH (docs/side-scroll-backgrounds.md): stars by the square metre of sky (thicker up it), the moonlit cloud
  * wisps, the far mountains and the forest ridge in front of the towers' feet, each a step darker toward the eye; the
  * moon's halo in rings */
-export const NIGHT = Object.freeze({ stars: 0.03, star: Object.freeze([0.1, 0.16]), cloud: Object.freeze({ every: [10, 22], w: [12, 28], h: [0.6, 1.4] }), mountains: Object.freeze([1.2, 5]), ridge: Object.freeze([0.2, 1.6]), halo: Object.freeze([[1.18, 0.2], [1.4, 0.12], [1.7, 0.06]]) });
+export const NIGHT = Object.freeze({ stars: 0.03, star: Object.freeze([0.1, 0.16]), cloud: Object.freeze({ every: [9, 20], w: [12, 26], h: [0.8, 1.7] }), mountains: Object.freeze([1.2, 5]), ridge: Object.freeze([0.2, 1.6]), halo: Object.freeze([[1.18, 0.2], [1.4, 0.12], [1.7, 0.06]]) });
 /** MOONLIGHT through a window: the glass shows the night (the moon's side pale at its foot, the dark at its head) and
  * a shaft falls from it to the floor away from the moon, `slant` metres along for each metre down, at `alpha` */
 export const MOONBEAM = Object.freeze({ slant: 0.42, alpha: 0.075, colour: '#b9c6ff', glass: Object.freeze({ foot: 0.24, head: 0.5 }) });
+/** STAINED GLASS's panes and the light it lets in (a chapel's): the coloured moonbeam is one of its panes' colours */
+export const STAINED = Object.freeze(['#c0303c', '#2c5cc4', '#e0aa30', '#3a9a5a', '#8a40b0', '#e06a2a']);
 /** THE LIVE FLAMES (the page's flames channel): each painted flame drawn as an ember `core` of its size, the live flame
  * over it `grow` times its size; and THE MOTION (channels/ambient.js) of what moves behind the play */
 export const LIVE = Object.freeze({ core: 0.5, grow: 1.3 });
@@ -142,6 +152,12 @@ export function dressBox(B, theme) {
   const T = typeof theme === 'string' ? BOX_THEMES[theme] : theme, { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height;
   const rings = L.rings.length, [cols, rows] = L.box, faces = [], lamps = [], night = [], flames = [], live = [], beams = [];
   const look = (ring) => lookOf(T, ring, rings), ringOf = new Map(L.rooms.map((r) => [r.id, r.ring]));
+  // (a room's own look: its LOCALE over its ring's, themes.js roomLook; its corridors counted in its ring's walk order)
+  const corridorAt = new Map(), seenCorr = new Map();
+  for (const r of [...L.rooms].sort((a, b) => a.walk - b.walk)) if (r.kind === 'corridor') { const k = seenCorr.get(r.ring) ?? 0; corridorAt.set(r.id, k); seenCorr.set(r.ring, k + 1); }
+  const lookRoom = new Map(L.rooms.map((r) => [r.id, roomLook(T, r, rings, corridorAt.get(r.id) ?? 0)]));
+  const cellRoom = new Map(L.rooms.flatMap((r) => r.cells.map((c) => [`${c[0]},${c[1]}`, r.id])));
+  const lookAt = (s, z) => lookRoom.get(cellRoom.get(`${Math.floor(s / W)},${Math.floor(z / H)}`)) ?? look(0), spins = {};
   const cellRing = new Map(L.rooms.flatMap((r) => r.cells.map((c) => [`${c[0]},${c[1]}`, r.ring])));
   const ringAt = (s, z) => cellRing.get(`${Math.floor(s / W)},${Math.floor(z / H)}`) ?? 0;
   const anyOpen = L.rooms.some((r) => look(r.ring).open);
@@ -180,14 +196,23 @@ export function dressBox(B, theme) {
       poly(night, STAR_X, [[s - r, z], [s, z - r], [s + r, z], [s, z + r]], fill, 'box:stars');
       if (b > 0.88) { bar(night, STAR_X + 0.01, [s - r * 3, z], [s + r * 3, z], r * 0.35, fill, 'box:stars'); bar(night, STAR_X + 0.01, [s, z - r * 3], [s, z + r * 3], r * 0.35, fill, 'box:stars'); }
     }
-    const Cn = NIGHT.cloud;
+    const Cn = NIGHT.cloud, M0 = T.night.moon.colour;
+    // (a CLOUD: a flat-bottomed bank, puffs along its top lit on the moon's side, its underside in the night's shade;
+    // each part a convex shape a step nearer than the last so none laps another on its plane)
+    const cloud = (x, s, z, w, h, sky, k = 1) => {
+      const lens = (dx, cs, cz, rw, rh, fill) => poly(night, x + dx, Array.from({ length: 14 }, (_, q) => { const a = (q / 14) * 2 * Math.PI; return [cs + rw * Math.cos(a), cz + rh * Math.sin(a) * (Math.sin(a) > 0 ? 1 : 0.4)]; }), fill, 'box:clouds');
+      lens(0, s, z, w / 2, h, mix(sky, M0, 0.2 * k));
+      const nd2 = diceOf(`cloud:${Math.round(s)}:${Math.round(z)}`);
+      for (let q = 0; q < 3; q++) { const u = (q - 1) * 0.28 + (nd2() - 0.5) * 0.1, r = w * (0.13 + 0.07 * nd2()); lens(0.02 + 0.01 * q, s + u * w, z + h * 0.55, r, r * 0.7, mix(sky, M0, (0.32 + 0.08 * q) * k)); }
+      lens(0.06, s + w * 0.08, z + h * 0.9, w * 0.32, h * 0.22, mix(sky, M0, 0.55 * k));
+    };
     for (let s = s0n, i = 0; s < s1n; i++) {
       s += Cn.every[0] + nd() * (Cn.every[1] - Cn.every[0]);
       const w = Cn.w[0] + nd() * (Cn.w[1] - Cn.w[0]), h = Cn.h[0] + nd() * (Cn.h[1] - Cn.h[0]), z = 3 + nd() * (top - 3), sky = skyAt(z);
-      const lens = (dz, hh, fill) => poly(night, CLOUD_X + dz * 0.01, Array.from({ length: 12 }, (_, q) => { const a = (q / 12) * 2 * Math.PI; return [s + (w / 2) * Math.cos(a), z + dz + hh * Math.sin(a) * (Math.sin(a) > 0 ? 1 : 0.45)]; }), fill, 'box:clouds');
-      lens(0, h, mix(sky, T.night.moon.colour, 0.1));
-      lens(h * 0.3, h * 0.5, mix(sky, T.night.moon.colour, 0.2));
+      cloud(CLOUD_X, s, z, w, h, sky);
     }
+    // (and a bank crossing the moon, in front of it: the moonlight through the cloud)
+    cloud(MOON_X + 0.5, ms - mr * 0.4, mz - mr * 0.55, mr * 3.6, mr * 0.45, skyAt(mz), 1.4);
     const ridge = (x, [lo, hi], fill, every, seed) => { const d = diceOf(seed), pts = [[s0n, bot]]; for (let s = s0n; s <= s1n; s += every) pts.push([s, lo + d() * (hi - lo)]); pts.push([s1n, bot]); for (let q = 1; q < pts.length - 2; q++) poly(night, x, [[pts[q][0], bot], [pts[q + 1][0], bot], [pts[q + 1][0], pts[q + 1][1]], [pts[q][0], pts[q][1]]], fill, 'box:night'); };
     ridge(MOUNT_X, NIGHT.mountains, mix(T.night.horizon, T.night.towers, 0.45), 9, 'mountains');
     ridge(RIDGE_X, NIGHT.ridge, shade(T.night.towers, 0.72), 2.2, 'ridge');
@@ -197,8 +222,8 @@ export function dressBox(B, theme) {
   measure(sizes, 'block.w', ASHLAR.long[0] - 0.05); measure(sizes, 'block.w', ASHLAR.long[1] - 0.05);
   for (const h of ASHLAR.courses) measure(sizes, 'block.h', h - 0.05);
   for (const r of L.rooms) {
-    const Lk = look(r.ring), [c, rr, w, h] = r.rect, C = composeRoom(r, Lk), dice = diceOf(r.id);
-    const P = plan[r.id] = { order: C.order, focals: 0, near: false, through: !!Lk.open, open: !!Lk.open };
+    const Lk = lookRoom.get(r.id), [c, rr, w, h] = r.rect, C = composeRoom(r, Lk), dice = diceOf(r.id), Wl = WALLS[Lk.wall ?? 'ashlar'];
+    const P = plan[r.id] = { order: C.order, focals: 0, near: false, through: !!Lk.open, open: !!Lk.open, ...(Lk.locale ? { locale: Lk.locale } : {}) };
     for (let i = 0; i < w; i++) for (let j = 0; j < h; j++) {
       const s0 = (c + i) * W, s1 = s0 + W, z0 = (rr + j) * H, z1 = z0 + H, floor = z0 + FLOOR, top = z1 - CEIL, mid = (s0 + s1) / 2;
       if (Lk.open) {
@@ -210,18 +235,21 @@ export function dressBox(B, theme) {
           if (i === C.focal.cell) { drawPiece(faces, Lk.focal, { s: s0 + W * (C.focal.bay ? 0.75 : 0.25), floor, top, x: PARAPET_X + 0.02, focal: true }, Lk, dice, sizes); P.focals++; }
         }
       } else {
-        // (1) THE WALL: ashlar in courses, each course its own height (the same along the row, seeded by its height in
-        // the box) and each block its own length and stone, lit domed; its joints breaking bond course to course
+        // (1) THE WALL: laid in its WALLS' masonry (ashlar unsaid; a chapel's plaster, a clock tower's brick, the
+        // catacombs' rock) in courses, each course its own height (the same along the row, seeded by its height in the
+        // box) and each block its own length and stone, lit domed; its joints breaking bond course to course
         for (let z = z0; z < z1 - 1e-3;) {
-          const n = Math.round(z / 0.05), ch = ASHLAR.courses[Math.floor(diceOf(`course:${n}`)() * ASHLAR.courses.length)];
+          const n = Math.round(z / 0.05), ch = Wl.courses[Math.floor(diceOf(`course:${n}`)() * Wl.courses.length)];
           const zt = Math.min(z1, z + ch);
-          for (let s = s0 - dice() * ASHLAR.long[0]; s < s1 - 1e-3;) {
-            const len = ASHLAR.long[0] + dice() * (ASHLAR.long[1] - ASHLAR.long[0]), a = Math.max(s0, s), b = Math.min(s1, s + len);
-            if (b - a > 0.1) face(faces, BACK, a, b - 0.05, z, zt - 0.05, shade(Lk.back, 0.9 + dice() * 0.2), 'box:back', { pillow: RELIEF.pillow });
+          for (let s = s0 - dice() * Wl.long[0]; s < s1 - 1e-3;) {
+            const len = Wl.long[0] + dice() * (Wl.long[1] - Wl.long[0]), a = Math.max(s0, s), b = Math.min(s1, s + len);
+            if (b - a > 0.1) face(faces, BACK, a, b - Wl.gap, z, zt - Wl.gap, shade(Lk.back, 1 - Wl.vary / 2 + dice() * Wl.vary), 'box:back', { pillow: Wl.gap ? RELIEF.pillow : 0.15 });
             s += len;
           }
           z = zt;
         }
+        // (plaster wears its age: a few cracks; rock its seams)
+        if (Lk.wall === 'plaster') for (let k = 0; k < 3; k++) { let p = [s0 + 1.5 + dice() * (W - 3), top - dice() * 2]; for (let q = 0; q < 3; q++) { const nx = [p[0] + (dice() - 0.5) * 1.2, p[1] - 0.5 - dice() * 0.7]; bar(faces, BACK + 0.012, p, nx, 0.035, shade(Lk.back, 0.6), 'box:dress'); p = nx; } }
         face(faces, BACK - 0.01, s0, s1, z0, z1, shade(Lk.back, 0.55), 'box:joint');   // (the mortar behind the blocks)
         // (structure: a pier at the cell's edge, a plinth or a wainscot along its floor, cobwebs in its top corners)
         if (Lk.pier) pier(faces, occ, s0 + 0.45, floor, top - 2.9, z1, Lk.pier, Lk, `pier:${c + i},${rr + j}`);
@@ -252,8 +280,8 @@ export function dressBox(B, theme) {
           const at = { s: s0 + W * (b ? 0.75 : 0.25), floor, top, x: BACK + 0.04 }, letter = C.order[(i * 2 + b) % C.order.length];
           const f0 = faces.length, o0 = occ.length, pc = `piece:${c + i},${rr + j},${b}`;
           const isFocal = j === 0 && i === C.focal.cell && b === C.focal.bay && P.focals === 0, drawn = isFocal ? Lk.focal : Lk.bays[letter === 'B' ? 1 : 0];
-          if (isFocal) { drawPiece(faces, Lk.focal, { ...at, focal: true }, Lk, dice, sizes, occ); P.focals++; }
-          else drawPiece(faces, drawn, at, Lk, dice, sizes, occ);
+          if (isFocal) { drawPiece(faces, Lk.focal, { ...at, focal: true, spins }, Lk, dice, sizes, occ); P.focals++; }
+          else drawPiece(faces, drawn, { ...at, spins }, Lk, dice, sizes, occ);
           for (let k = f0; k < faces.length; k++) faces[k].pc = pc;
           // (MOONLIGHT through an arched window: its glass shows the night, and a shaft falls from it to the floor, away
           // from the moon; it breathes as cloud passes the moon)
@@ -261,6 +289,11 @@ export function dressBox(B, theme) {
             const { aw, a0, a1 } = archOf(at), head = a1 + aw * 0.85, run = (head - floor) * MOONBEAM.slant;
             for (let k = f0; k < faces.length; k++) if (faces[k].group === 'box:glass') faces[k].sky = [a0, head];
             beams.push({ corners: [[BEAM_X, at.s - aw / 2, head - 0.4], [BEAM_X, at.s + aw / 2, head - 0.4], [BEAM_X, at.s + aw / 2 - run, floor + 0.04], [BEAM_X, at.s - aw / 2 - run, floor + 0.04]].map((q) => q.map(r5)), normal: N.px, fill: MOONBEAM.colour, alpha: MOONBEAM.alpha, group: 'box:beam' });
+          }
+          // (through STAINED glass the moonlight falls coloured: a shaft in one of its panes' colours)
+          if (drawn === 'stained') {
+            const { a0, a1 } = archOf(at), head = a1 + 1.6, run = (head - floor) * MOONBEAM.slant, cw = 1.0, col = mix(STAINED[Math.floor(diceOf(`beam:${pc}`)() * STAINED.length)], '#ffffff', 0.35);
+            beams.push({ corners: [[BEAM_X, at.s - cw, head - 0.4], [BEAM_X, at.s + cw, head - 0.4], [BEAM_X, at.s + cw - run, floor + 0.04], [BEAM_X, at.s - cw - run, floor + 0.04]].map((q) => q.map(r5)), normal: N.px, fill: col, alpha: MOONBEAM.alpha * 1.2, group: 'box:beam' });
           }
           for (let k = o0; k < occ.length; k++) occ[k] = { ...occ[k], pc, x0: BACK, x1: BACK + occ[k].d };
           // (the bay's shafts: slender, either side of its piece, springing from carved corbels over her head (the band
@@ -272,7 +305,7 @@ export function dressBox(B, theme) {
             poly(faces, BACK + 0.055, [[ss - 0.16, rib - 0.3], [ss + 0.16, rib - 0.3], [ss + 0.3, rib], [ss - 0.3, rib]], shade(Lk.top, 0.8), 'box:dress', { tilt: [0, -0.4], pc: spc });
             occ.push({ pc: spc, x0: BACK, x1: BACK + 0.2, s0: ss - 0.16, s1: ss + 0.16, z0: cb - 0.25, z1: rib });
           }
-          if ((letter === 'A' ? Lk.bays[0] : Lk.bays[1]) === 'arch') P.through = true;
+          if (['arch', 'stained'].includes(drawn) || (isFocal && Lk.focal === 'rose')) P.through = true;
           // (a lancet: a slit of moonlit glass high over the bay's piece, where the wall has no window)
           if (Lk.lancets && !(j === 0 && i === C.focal.cell && b === C.focal.bay)) { const ls = at.s, l1 = top - 1.0, l0 = l1 - 2.2; face(faces, BACK + 0.03, ls - 0.45, ls + 0.45, l0 - 0.15, l1, Lk.trim, 'box:dress'); poly(faces, BACK + 0.04, [[ls - 0.3, l0], [ls + 0.3, l0], [ls + 0.3, l1 - 0.5], [ls, l1 - 0.1], [ls - 0.3, l1 - 0.5]], '#5a6f9e', 'box:glass', { sky: [l0, l1] }); P.through = true; }
         }
@@ -322,7 +355,7 @@ export function dressBox(B, theme) {
   // (a gate in a floor stands in its hole: the holes are every cut)
   const cuts = G.holes.map((h) => ({ s0: h.s0 - 0.2, s1: h.s1 + 0.2, z: h.z }));
   for (const r of L.rooms) {
-    const Lk = look(r.ring);
+    const Lk = lookRoom.get(r.id);
     if (!Lk.carpet) continue;
     const [c, rr, w] = r.rect, z = rr * H + FLOOR, s0 = c * W + 1.2, s1 = (c + w) * W - 1.2;
     const here = cuts.filter((q) => Math.abs(q.z - rr * H) < 1e-3 && q.s1 > s0 && q.s0 < s1).sort((a, b) => a.s0 - b.s0);
@@ -352,7 +385,7 @@ export function dressBox(B, theme) {
     return t1 > 1e-3 && t0 < 1 - 1e-3;
   };
   const shine = (p, f, tilt, base, ls, os) => {
-    const cz = Math.floor(p[2] / H), top = cz * H + H - CEIL, Lk = look(ringAt(p[1], p[2]));
+    const cz = Math.floor(p[2] / H), top = cz * H + H - CEIL, Lk = lookAt(p[1], p[2]);
     // (close round what stands out of the wall the dark gathers; and under the ceiling)
     let ao = 1;
     for (const o of os) {
@@ -377,6 +410,8 @@ export function dressBox(B, theme) {
     const n = f.corners.length, cx = f.corners.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + p[2] / n], [0, 0, 0]);
     const cs = Math.floor(cx[1] / W), cz = Math.floor(cx[2] / H), ls = around(byCell, cs, cz), os = around(occCell, cs, cz), base = hexRgb(f.fill);
     const { tilt, pillow, pc, sky, ...rest } = f;
+    // (stained glass is lit from behind, by the night: it keeps its colours, a step brighter where a lamp is near)
+    if (f.group === 'box:stained') return rest;
     let hs = 0, hz = 0;
     if (pillow) for (const p of f.corners) { hs = Math.max(hs, Math.abs(p[1] - cx[1])); hz = Math.max(hz, Math.abs(p[2] - cx[2])); }
     let cols = f.corners.map((p) => shine(p, f, tilt ?? (pillow ? [pillow * (p[1] - cx[1]) / (hs || 1), pillow * (p[2] - cx[2]) / (hz || 1)] : null), base, ls, os));
@@ -392,6 +427,7 @@ export function dressBox(B, theme) {
     lights: lamps.filter((l) => !look(ringOf.get(l.room)).open).map((l) => [l.at[0], l.at[1], l.at[2], (l.reach || LAMP_REACH) * 0.8].map(r5)), color: MOTES.color, size: MOTES.size, drift: MOTES.drift } : null;
   // (what moves behind the play: the stars twinkle, the clouds drift, the moonbeams breathe, the cold lamps pulse)
   const all = [...night, ...faces.map(lit), ...flames, ...beams], groups = new Set(all.map((f) => f.group));
-  const ambient = { groups: Object.fromEntries(Object.entries(MOTION).filter(([g]) => groups.has(g))) };
+  // (and the gears turn, the clocks' hands go round, the orreries' arms: each its own group about its own hub)
+  const ambient = { groups: { ...Object.fromEntries(Object.entries(MOTION).filter(([g]) => groups.has(g))), ...Object.fromEntries(Object.entries(spins).filter(([g]) => groups.has(g))) } };
   return { faces: all, lamps, plan, sizes, ...(motes ? { motes } : {}), glow: GLOW, ...(live.length ? { live } : {}), ...(Object.keys(ambient.groups).length ? { ambient } : {}) };
 }

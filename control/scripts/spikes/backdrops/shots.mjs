@@ -4,7 +4,7 @@
  * its page would be, its play left out (no hero, no foes, no events: the backdrop alone), shot from the game's own side
  * camera at a few places along it, and laid on a contact sheet a game.
  *
- *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9]   (galaxy: those zones only)
+ *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9 | --rooms id,id]   (galaxy: those zones; vampire: those rooms)
  *
  *   giuseppe   Jumping Giuseppe's strip (the side strip in scoops), framed by SHAPED_CAMERA along the lane
  *   galaxy     Galaxy Boy's plant (the side map), a shot a zone
@@ -34,7 +34,7 @@ const { sideMapOf } = await lib('gameworld/side-map/scene.js');
 const { SHAPED_CAMERA } = await lib('era/geocube-side.js');
 const { loadSharp } = await import(pathToFileURL(path.join(control, 'lib/sharp-lazy.js')).href);
 
-const out = path.resolve(process.argv[2] ?? 'backdrop-shots'), only = process.argv[3], zi = process.argv.indexOf('--zones'), zonesAsked = zi > 0 ? process.argv[zi + 1].split(',').map(Number) : null;
+const out = path.resolve(process.argv[2] ?? 'backdrop-shots'), only = process.argv[3], zi = process.argv.indexOf('--zones'), zonesAsked = zi > 0 ? process.argv[zi + 1].split(',').map(Number) : null, ri = process.argv.indexOf('--rooms'), roomsAsked = ri > 0 ? process.argv[ri + 1].split(',') : null;
 mkdirSync(out, { recursive: true });
 const hfovOf = (vfov, aspect) => (2 * Math.atan(Math.tan((vfov * Math.PI) / 360) * aspect) * 180) / Math.PI;
 // (the level's manifest, its play left out: the backdrop alone)
@@ -74,5 +74,5 @@ if (!only || only === 'vampire') {
   const m = backdropOf(readGameworld(vampireSonataGame({ heroRef: 'hero-ref' })), 1.69), B = boxOf(m), W = B.greybox.screen.width, H = B.greybox.screen.height, C = boxCameraOf(B.stature);
   const rings = new Map();
   for (const r of [...B.layout.rooms].sort((a, b) => b.rect[1] - a.rect[1])) if ((rings.get(r.ring) ?? []).length < 2) rings.set(r.ring, [...(rings.get(r.ring) ?? []), r]);
-  await shoot('vampire', m, [...rings.values()].flat().map((r) => { const s = (r.rect[0] + 0.5) * W, look = r.rect[1] * H + FLOOR + C.lookH; return { cameraPosition: [C.dist, s, look + C.dist * C.tilt], lookAt: [0, s, look], horizontalFov: hfovOf(C.vfov, W / H) }; }));
+  await shoot('vampire', m, (roomsAsked ? B.layout.rooms.filter((r) => roomsAsked.includes(r.id)) : [...rings.values()].flat()).map((r) => { const s = (r.rect[0] + 0.5) * W, look = r.rect[1] * H + FLOOR + C.lookH; return { cameraPosition: [C.dist, s, look + C.dist * C.tilt], lookAt: [0, s, look], horizontalFov: hfovOf(C.vfov, W / H) }; }));
 }

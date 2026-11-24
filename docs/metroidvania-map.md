@@ -224,6 +224,26 @@ The night over an open ring is laid in bands by height, one colour at one height
 without a seam. The moon stands in the box's top far corner, placed by its parallax so the camera there sees it. A new
 theme is a row of `BOX_THEMES`; a new place is a look.
 
+## Locales
+
+A ring is a region, but a region is not one hall all through. A LOCALE is a look's words laid over its ring's look
+for one room, chosen by what the room is ([themes.js](../control/lib/graph/gameworld/metroidvania/themes.js)
+`localeOf`, `roomLook`): a save room is a chapel; a ring's `shaft` dresses its shafts, its `boss` its boss's room and
+its `alt` every other corridor. The open ring's rooms stay its ramparts, and the floors she stands on stay the ring's.
+
+| Locale | Its wall | Its bays | Its focal piece | What moves |
+|---|---|---|---|---|
+| the chapel (every save room) | plaster, cracked | lancets of stained glass | a rose window over an altar | the moonbeams, coloured by the glass |
+| the library (the halls' shafts) | ashlar | cases under their galleries, bound in calm sets | an orrery under the roof | its worlds, each on its arm |
+| the clock tower (the ward's shafts and the Bellkeeper's room) | brick | gears meshed in the wall | the great clock's face | the gears, each the other way from the one it drives, and the clock's hands |
+| the catacombs (every other corridor of the ward) | rough rock | niches of skulls, a statue's niche | a sarcophagus, its lord carved on the lid | the candles |
+| the throne room (the keep's boss's room) | ashlar in crimson | banners, tall windows | the lord's throne on its dais under a canopy and his crest | the braziers |
+
+A back's masonry is a row of `WALLS` (dress.js): ashlar, brick, rock and plaster, each with its blocks, its courses, how
+far a stone strays from the next and the joint between them. A piece that turns is its own group (`box:turn:<id>`),
+and the page's ambient channel spins it about its hub. Stained glass is lit from behind and keeps its colours. Every
+backdrop law holds over the locales.
+
 ## The backdrop's craft
 
 In a side view the back wall does the work a dungeon's walls do in 3D. These are the principles a room's back is built
@@ -270,7 +290,8 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 8. **The lane reads.** The tops she stands on are lighter than the wall behind them. Law: `lane-reads`.
 9. **A kit, a composition.** A ring's rooms draw on one kit; each room is composed by a seeded hand from its own id
    (`composeRoom`: its bays' order and its focal piece), so neighbours differ and the same recipe makes the same room.
-10. **The night and the moon are seen.** Over the open ring the night has stars that twinkle, cloud wisps that drift,
+10. **The night and the moon are seen.** Over the open ring the night has stars that twinkle, clouds that drift (banks
+   with puffed tops lit on the moon's side, one crossing the moon itself),
    a haloed moon, far mountains and a forest ridge before the towers' feet, each a step darker toward the eye. The
    night's bands meet edge to edge, because the page lifts a lapped face a step toward the eye. Every window's glass
    shows the night (pale on its foot, dark at its head), and a moonbeam falls from it to the floor away from the moon,

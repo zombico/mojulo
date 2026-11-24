@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { assembleBox, boxOf } from './scene.js';
 import { dressBox, LIVE, MOTION } from './dress.js';
-import { BOX_THEMES, lookOf, themeLaws } from './themes.js';
+import { BOX_THEMES, lookOf, themeLaws, localeOf, roomLook } from './themes.js';
 import { vampireSonata } from './vampire-sonata.js';
 import { readBox } from './box.js';
 
@@ -62,6 +62,29 @@ describe('a box dressed in its theme', () => {
     expect(D.live.length).toBe(D.faces.filter((f) => f.group === 'box:flame' && f.corners.length === 5).length);
     expect(P.flames).toEqual(D.live);
     expect(LIVE.grow).toBeGreaterThan(1);
-    expect(Object.keys(P.ambient.groups).sort()).toEqual(Object.keys(MOTION).sort());
+    expect(Object.keys(P.ambient.groups)).toEqual(expect.arrayContaining(Object.keys(MOTION)));
+  });
+
+  // (docs/metroidvania-map.md "Locales") a room its own place inside its ring
+  it('dresses a room as its locale by what it is, in its own wall, and turns what turns', () => {
+    const rings = vampireSonata().rings.length, B = boxOf(M(vampireSonata())), D = B.dress, T = BOX_THEMES.castle;
+    // (every save room in a closed ring is a chapel; an open ring's rooms are its ramparts, none a locale)
+    for (const r of B.layout.rooms) {
+      if (lookOf(T, r.ring, rings).open) expect(D.plan[r.id].locale).toBeUndefined();
+      else if (r.save) expect(D.plan[r.id].locale).toBe('chapel');
+    }
+    expect(localeOf(T, { ring: 1, kind: 'shaft' }, rings)).toBe(lookOf(T, 1, rings).shaft);
+    expect(roomLook(T, { ring: 1, kind: 'shaft' }, rings).focal).toBe(T.locales[lookOf(T, 1, rings).shaft].focal);
+    expect(roomLook(T, { ring: 1, kind: 'corridor' }, rings)).toBe(lookOf(T, 1, rings));
+    // (stained glass keeps its colours, lit from behind; each gear and each clock hand turns about its own hub)
+    const stained = D.faces.filter((f) => f.group === 'box:stained');
+    expect(stained.length).toBeGreaterThan(0);
+    expect(stained.every((f) => !f.cornerFills)).toBe(true);
+    const turns = Object.entries(D.ambient.groups).filter(([g, m]) => g.startsWith('box:turn:') && m.spin);
+    expect(turns.some(([g]) => g.includes(':gear:'))).toBe(true);
+    expect(turns.some(([g]) => g.includes('clock:'))).toBe(true);
+    for (const [g] of turns) expect(D.faces.some((f) => f.group === g)).toBe(true);
+    // (every backdrop law still holds over the locales)
+    expect(B.laws.filter((l) => l.id.startsWith('backdrop:') && !l.holds)).toEqual([]);
   });
 });
