@@ -61,6 +61,8 @@ describe('the JRPG starter\'s town on the page', () => {
       const tick = () => { let v = false; try { v = f(a); } catch { /* not yet */ } if (v) ok(true); else if (++i > k) no(new Error(`not within ${k} frames`)); else requestAnimationFrame(tick); };
       tick();
     }), fn.toString(), n, arg);
+    // (a key held until the page has seen what it does, as E is held below: a fixed hold can fall between two frames)
+    const pressUntil = async (key, fn) => { await page.keyboard.down(key); try { await withinFrames(fn, 60); } finally { await page.keyboard.up(key); } };
     const useAt = async (at, id, who) => {
       // (a spot in its reach and clear of every door's zone, with room to spare: standing on one walks in through it)
       const clear = ([x, y]) => doors.every((d) => Math.abs(x - d.at[0]) > d.half[0] + 1 || Math.abs(y - d.at[1]) > d.half[1] + 1);
@@ -93,29 +95,25 @@ describe('the JRPG starter\'s town on the page', () => {
       // (JRPG_SHOT=<png>: the town's talk, for the eyes)
       if (process.env.JRPG_SHOT) await page.screenshot({ path: process.env.JRPG_SHOT });
       // skipped to its end, the box goes; the innkeeper's use opens the inn (the shop's Stay)
-      await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
-      await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 15000 });
+      await pressUntil('Escape', () => !window.__mojScenes.on());
       const inn = zones().find((c) => c.then?.emit === 'rpg-shop:innkeeper');
       await useAt(inn.when.use.at, `cue-${inn.id}`, inn.id.replace(/-talk$/, ''));
-      await page.waitForFunction(() => window.__mojRpg.state().mode === 'shop', { timeout: 15000 });
+      await withinFrames(() => window.__mojRpg.state().mode === 'shop', 60);
       expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('innkeeper');
       // THE PRIEST FOLLOWS THE STORY (folk/pages.js): spoken to before the core's key is held, they say where it is kept;
       // with it in the bag, that the way is open (a page each, the first whose if holds)
-      await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
-      await page.waitForFunction(() => !window.__mojRpg.state().mode, { timeout: 15000 });
+      await pressUntil('Escape', () => !window.__mojRpg.state().mode);
       const pages = M.play.scenes.filter((x) => /-p\d$/.test(x.id)), on = pages[0].when.on, pid = on.slice('folk-say:'.length);
       const priest = (M.play.cues ?? []).filter((c) => c.when?.use && c.then?.emit === on).sort((a, b) => !!a.if - !!b.if)[0];
       const said = async () => {
         await useAt(priest.when.use.at, `cue-${priest.id}`, pid);
-        await page.waitForFunction(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, { timeout: 20000 });
+        await withinFrames(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, 60);
         const t = await page.evaluate(() => window.__mojTalk.state.talk.text);
-        await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
-        await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 15000 });
+        await pressUntil('Escape', () => !window.__mojScenes.on());
         // (the priest keeps the temple: their page said, its rite opens as the talk ends; closed again)
-        await page.waitForFunction(() => window.__mojRpg.state().mode === 'shop', { timeout: 15000 });
+        await withinFrames(() => window.__mojRpg.state().mode === 'shop', 60);
         expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('temple');
-        await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
-        await page.waitForFunction(() => !window.__mojRpg.state().mode, { timeout: 15000 });
+        await pressUntil('Escape', () => !window.__mojRpg.state().mode);
         return t;
       };
       const sealed = pages.find((x) => x.if.some((c) => c.ne === 1)).beats[0].line.say, open = pages.find((x) => x.if.some((c) => c.has)).beats[0].line.say;
