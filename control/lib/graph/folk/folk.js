@@ -7,7 +7,8 @@
  *
  *   readFolk(spec)                                  → { seed?, cap, pool, domicile?, domiciles? } or throws, naming the known words
  *     pool       how many people each body pool mints as themselves (bodies.js)
- *     say        { <person path | role>: text | [text, …] } the operator's words in place of the line book's (lines.js)
+ *     say        { <person path | role>: text | [text, …] | [{ if?, say }, …] } the operator's words in place of the line
+ *                book's (lines.js), or pages said as the story moves on: the first whose `if` holds (pages.js)
  *     sidequests [{ id, giver, steps, … }] checklists the folk give, and the chains they make (sidequests.js)
  *     recurring  { <id>: { role, name? } } the people met in every town (RECURRING below)
  *     day        true | { start?, rate? } the folk keep a day on the level's clock (routines.js), which the level then has
@@ -44,6 +45,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { ROLES, ROOTS, RELATIONS, FOLK_PULL } from './roles.js';
 import { SERVICES } from './services.js';
 import { readSidequests } from './sidequests.js';
+import { isPaged, readPages } from './pages.js';
 import { readDay } from './routines.js';
 import { readDomicile, rollDomicile, notationOf, SHAPES, DWELLER, partnerLean, childLean } from './domicile.js';
 
@@ -71,9 +73,11 @@ export function readFolk(spec) {
   const domiciles = spec.domiciles ? Object.fromEntries(Object.entries(spec.domiciles).map(([k, d]) => [k, readDomicile(d)])) : undefined;
   const pool = spec.pool ?? FOLK_POOL.default;
   if (!(Number.isInteger(pool) && pool >= 1 && pool <= FOLK_POOL.max)) throw new Error(`folk: pool is a whole number from 1 to ${FOLK_POOL.max} (how many people each body pool mints as themselves; ${FOLK_POOL.default} when left out)`);
-  if (spec.say !== undefined && !(isObj(spec.say) && Object.values(spec.say).every((v) => (typeof v === 'string' && v) || (Array.isArray(v) && v.length && v.every((t) => typeof t === 'string' && t))))) {
-    throw new Error('folk: say is { <person path | role>: text | [text, …] }: the words a person (or every person of a role) says in place of the line book\'s');
+  if (spec.say !== undefined && !(isObj(spec.say) && Object.values(spec.say).every((v) => (typeof v === 'string' && v) || isPaged(v) || (Array.isArray(v) && v.length && v.every((t) => typeof t === 'string' && t))))) {
+    throw new Error('folk: say is { <person path | role>: text | [text, …] | [{ if?, say }, …] }: the words a person (or every person of a role) says in place of the line book\'s, or their pages, the first whose if holds said (pages.js)');
   }
+  // (pages read whole here, so a page's slip is named at once)
+  if (spec.say !== undefined) for (const [who, v] of Object.entries(spec.say)) if (isPaged(v)) readPages(v, `.${who}`);
   const recurring = spec.recurring !== undefined ? readRecurring(spec.recurring) : undefined;
   // (life: false, the people keep still where they stand; by default each one not looked for potters about its door)
   if (spec.life !== undefined && typeof spec.life !== 'boolean') throw new Error('folk: life is false for people who keep still where they stand (by default they potter about their doors)');

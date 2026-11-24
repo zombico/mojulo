@@ -12,6 +12,8 @@ const screen = (children, props = {}) => ({ use: 'screen', props, children });
 const run = (s, state = {}, log = []) => manaUi.runtime({ start: 'a', screens: { a: s } }, host(state, log));
 const press = (rt, ...as) => as.forEach((a) => rt.press(a));
 const txt = (value) => ({ use: 'text', props: { value } });
+// (a paged keyboard's key under its grid: down from the first row onto the keys, then along them)
+const toKey = (rt, kind) => { for (let i = 0; i < 12 && rt.state().kind !== kind; i++) rt.press(i < 3 ? 'down' : 'right'); expect(rt.state().kind).toBe(kind); };
 
 describe('mana-ui: reading teaches', () => {
   const read = (n, defs) => () => manaUi.readNode(n, defs);
@@ -85,6 +87,34 @@ describe('mana-ui: props down and state in three places', () => {
     expect(S.name).toBe('AB');
     while (rt.state().kind !== 'button') rt.press('down');
     expect([rt.typing(), rt.type('a'), rt.erase(), rt.submit()]).toEqual([false, false, false, false]);   // nothing in focus to type into
+  });
+  it('a name\'s keyboard: pages of capitals, small letters and marks, a pad\'s shoulders turn them and its back erases', () => {
+    const S = { name: 'Ash' }, log = [], rt = run(screen([{ use: 'textentry', props: { value: { bind: 'name' }, max: 6, min: 1, charset: 'name' }, on: { done: { emit: 'named', to: { input: true } }, cancel: { emit: 'kept' } } }], { layer: 'modal' }), S, log);
+    rt.input('pad', 'xbox');
+    press(rt, 'accept');                                  // the draft is the name held: Ash, and A after it
+    expect(rt.view()).toContain('AshA');
+    press(rt, 'tabNext', 'accept');                       // the small letters' page: the cursor stays on its key
+    expect(rt.view()).toContain('AshAa');
+    press(rt, 'back');                                    // a pad's back erases what this visit typed
+    expect(rt.view()).toContain('AshA<');
+    press(rt, 'tabPrev', 'tabPrev', 'accept');            // round to the marks: 0
+    expect(rt.view()).toContain('AshA0');
+    toKey(rt, 'char-done');
+    rt.press('accept');
+    expect([S.name, log.map((x) => x.e.emit)]).toEqual(['AshA0', [undefined, 'named']]);
+  });
+  it('a name\'s keyboard typed straight in keeps its case and marks; min holds done back; cancel leaves the name', () => {
+    const S = { name: '' }, log = [], rt = run(screen([{ use: 'textentry', props: { value: { bind: 'name' }, max: 8, min: 2, charset: 'name' }, on: { cancel: { emit: 'kept' } } }]), S, log);
+    expect(rt.type('R')).toBe(true);
+    expect(rt.submit()).toBe(true);                       // one letter: done refuses (a deny), the draft kept
+    expect(S.name).toBe('');
+    expect(rt.type("ex O'Hara")).toBe(true);
+    expect(rt.view()).toContain('Rex O&#39;Ha');              // its case kept, a mark kept, the max kept
+    toKey(rt, 'char-cancel');
+    rt.press('accept');
+    expect([S.name, log.map((x) => x.e.emit)]).toEqual(['', ['kept']]);
+    expect(rt.view()).not.toContain('Rex');               // the draft let go
+    expect(rt.submit()).toBe(true);
   });
   it('when and unless draw a node only while their value says so', () => {
     const rt = run(screen([{ use: 'text', props: { value: 'ready' }, when: { bind: 'ok' } }, { use: 'text', props: { value: 'wait' }, unless: { bind: 'ok' } }]), { ok: false });

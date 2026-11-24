@@ -25,7 +25,7 @@
  * with the cast. Tones that detail needs (folds, quilt, cuffs) are derived from the palette's own Top / Bottom / Shoes,
  * so a palette change carries them; any tone the operator names wins. */
 import { SLOT_FAMILIES, segmentShape } from './station-loft-plan.js';
-import { isArmorBuild, validateArmor, expandArmor, armorTones } from '../armor/expand.js';
+import { isArmorBuild, validateArmor, expandArmor, armorTones, armorFamily } from '../armor/expand.js';
 import { validatePaint } from './body-paint.js';
 import { FOOTWEAR, footwearCard } from '../footwear/index.js';
 import { SUITS } from '../plating/index.js';
@@ -53,7 +53,7 @@ export const KIT_WORDS = ['ranger', 'none'];
  * (armor/expand.js) to fewer, larger lames (`stylize` at least), no ornament (`ornament` at most) and its readability
  * floor measured on the chibi's own height (`height`, of an adult's). The build's own dials win. */
 export const CHIBI_DRESS = Object.freeze({ bold: 1.35, thick: 1.6, kit: Object.freeze(['belt', 'pauldron']),
-  armor: Object.freeze({ stylize: 0.5, ornament: 0, height: 0.7, keep: Object.freeze({ plate: Object.freeze(['pauldron', 'cuirass', 'greave']), lamellar: Object.freeze(['do', 'suneate']), hardsuit: Object.freeze(['cuirass', 'pauldron', 'boot']) }) }) });
+  armor: Object.freeze({ stylize: 0.5, ornament: 0, height: 0.7, keep: Object.freeze({ plate: Object.freeze(['pauldron', 'cuirass', 'greave']), lamellar: Object.freeze(['do', 'suneate']), hardsuit: Object.freeze(['cuirass', 'pauldron', 'boot']), leather: Object.freeze(['cuirass', 'caps', 'belt']), mail: Object.freeze(['byrnie', 'skirt']) }) }) });
 const both = (xs) => xs.flatMap((n) => (/R$/.test(n) ? [n, n.replace(/R$/, 'L')] : [n]));
 
 /** the register's ring halves: the torso's (`slots`) and the limbs' (`limbSlots`). On a plan with the structured core's
@@ -368,7 +368,9 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
   // an armour build expands on every read into a kit (armor/expand.js), from the register's ring halves and the scale
   // (`with`: a kit worn over the build, after it; a head piece in it (on the cranium: a helmet, a mask) replaces the
   // armour's own helm)
-  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx), W = adorn.with || [], head = W.some((a) => a.part === 'cranium');
+  // (mail's coif is no helm: on the anime head, which its pieces are not fitted to yet, the mail is worn without it, its
+  // drape over the shoulders kept; a helm of the other families is refused there, layered.js)
+  if (wantAdorn && isArmorBuild(adorn)) { const A = expandArmor(adorn, ctx), W = adorn.with || [], head = W.some((a) => a.part === 'cranium') || (!!figure.anime && armorFamily(adorn) === 'mail');
     plan.adorn = overChest(overPelvis([...(head ? A.kit.filter((a) => a.part !== 'cranium') : A.kit), ...W], ctx), ctx); if (A.emissive.length) plan.emissive = [...new Set([...(plan.emissive || []), ...A.emissive])]; }
   else if (wantAdorn) plan.adorn = overChest(overPelvis(typeof adorn === 'string' ? rangerKit(ctx) : adorn, ctx), ctx);
   if (wantPaint) plan.paint = lowerPaint(paint, plan);
@@ -376,6 +378,10 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
   if (wantOutfit && isOutfitBuild(outfit)) {
     // an outfit build: its garments, its trims painted on them after any paint of the operator's, its buttons as body
     // detail rows and its belt as the last adornment, all from the words on every read
+    // (armour worn over an outfit is its outer layer: the cut's own outer (a vest, a jerkin, a coat) is left off under
+    // a period armour, which would sit beneath it; the hardsuit's ensembles compose their own)
+    const fam = wantAdorn ? armorFamily(adorn) : null, L = outfit.style?.language;
+    if (fam && fam !== 'hardsuit' && L?.outer && typeof outfit.style === 'object') { const { outer: _o, ...lang } = L; outfit = { ...outfit, style: { ...outfit.style, language: lang } }; }
     built = expandOutfit(outfit, { have: new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, ''))), scale, drawn: figure.anime ? 'anime' : null }, { ...plan.palette, ...outfitTones(outfit), ...operatorPalette });
     plan.garments = built.garments;
     // (a jacket's front words, the tailor's on the realistic body: layered.js hands them to the wear adapter)

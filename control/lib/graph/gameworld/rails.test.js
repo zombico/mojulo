@@ -396,7 +396,9 @@ describe('the producer leads: one question a turn, before the goalposts', () => 
 });
 
 describe('the pitch kept: a locked pitch with no level is given the rail\'s starter', () => {
-  const composed = RAIL_IDS.find((k) => RAILS[k].sizes.includes('designed') && RAILS[k].handles.genres.some(laid) && !['platformer'].includes(POLES[RAILS[k].handles.pole]?.base) && !STYLISH.includes(RAILS[k].handles.pole));
+  const composed = RAIL_IDS.find((k) => RAILS[k].sizes.includes('designed') && RAILS[k].handles.genres.some(laid) && !RAILS[k].starter && !['platformer'].includes(POLES[RAILS[k].handles.pole]?.base) && !STYLISH.includes(RAILS[k].handles.pole));
+  // (a rail with its own starter words: laid from them, its levels theirs)
+  const started = RAIL_IDS.find((k) => RAILS[k].starter && RAILS[k].sizes.includes('designed'));
   const stylish = RAIL_IDS.find((k) => STYLISH.includes(RAILS[k].handles.pole) && RAILS[k].sizes.includes('designed'));
   const platformer = RAIL_IDS.find((k) => POLES[RAILS[k].handles.pole]?.base === 'platformer' && RAILS[k].sizes.includes('designed'));
   const small = RAIL_IDS.find((k) => !RAILS[k].sizes.includes('designed'));
@@ -419,6 +421,17 @@ describe('the pitch kept: a locked pitch with no level is given the rail\'s star
     // what the creator wrote wins, and the same pitch lays the same starter
     expect(pitchStart({ ...base, feel: 'ebon-spirits', intent: { from: S.starts, why: 'theirs' }, rail: { from: composed, locked: true } }).world).toMatchObject({ feel: 'ebon-spirits', intent: { why: 'theirs' } });
     expect(JSON.stringify(pitchStart({ ...base, rail: { from: composed, locked: true }, intake: 'none' }))).toBe(JSON.stringify(P));
+  });
+
+  it('a rail with its own starter lays it: the party RPG\'s round, its town, its wilds, its castle and its core, its steps in its chain', () => {
+    const P = pitchStart({ ...base, rail: { from: started, locked: true } });
+    expect(P.laid).toMatchObject({ by: 'compose' });
+    expect(P.laid.levels).toHaveLength(RAILS[started].starter.levels);
+    expect(P.world.megaworld).toMatchObject({ shape: 'mandala' });
+    expect(P.world.battles).toMatchObject({ boss: expect.any(Array) });
+    expect(() => readGameworld(P.world)).not.toThrow();
+    const chain = railSheet(started).chain.find((c) => c.size === 'designed').steps.map((x) => x.step);
+    expect(chain.slice(chain.indexOf('chapters'), chain.indexOf('first-level') + 1)).toEqual(['chapters', ...RAILS[started].steps.map((x) => x.step), 'first-level']);
   });
 
   it('a platformer\'s rail lays its own first level and the flow that plays it', () => {

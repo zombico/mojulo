@@ -6,19 +6,26 @@
  * command, then a skill, then a target, one back apart) and the look (the theme: the world's guide, else the console
  * preset); the controls layer's mana-host drives it from the menu scheme. Nothing here names a key or a colour.
  *
- *   THE HUD (while a fight is up): a bar over each fighter's head (HP, MP, statuses, the one picking marked, the target in
- *     focus marked), the numbers where blows land (each its own, rising once), the foes' box with the turn order, the
- *     message line. Every place a binding: the host moves the boxes to the corners its view leaves clear.
+ *   THE HUD (while a fight is up): a bar over each fighter's head, a member's and a foe's (HP, MP, statuses, the one
+ *     picking marked, the target in focus marked), up on the player's turn and, while a round plays, over one whose
+ *     numbers just moved (the host says which: battle.heads); the numbers where blows land (each its own, rising once);
+ *     the message line. No foes' box and no turn order.
  *   THE SCREENS (one up at a time; back steps out of each):
  *     rpg-cmd · rpg-skill · rpg-item · rpg-target   the member's commands, then what it chose, then whom; back from the
- *                                                   commands is the member before (`undo`)
+ *                                                   commands is the member before (`undo`); the window beside the
+ *                                                   member's bar while it is on the screen (battle.beside), else in a
+ *                                                   corner (battle.cmdAt)
  *     rpg-watch                                     a round playing out: accept skips ahead (`next`), a long film cut
- *     rpg-party · rpg-equip                         the party menu (Status, Class, Equip, Skills in tabs), a slot's choices
+ *     rpg-party · rpg-equip                         the party menu (Status, Class, Equip, Skills, Item, Formation in tabs), a
+ *                                                   slot's choices
+ *     rpg-name                                      a member named again: mana-ui's keyboard (a pad types from its grid, a
+ *                                                   keyboard straight in), done or cancel back to the party
  *     rpg-shop                                      a shop's tabs (Buy, Sell, Stay), the party and the gold beside them
  *
  *   EFFECTS the host answers (never the bus's: the host says on the bus what came of them): { emit: command | skill |
  *   item | target, id }, { emit: undo }, { emit: next }, { emit: class, member, cls }, { emit: slot, member, slot },
- *   { emit: equip, item }, { emit: learn, member, skill }, { emit: deal, kind: buy | sell | stay, item }
+ *   { emit: equip, item }, { emit: learn, member, skill }, { emit: use, member, item },
+ *   { emit: swap, member, with }, { emit: naming, member }, { emit: rename, name }, { emit: deal, kind: buy | sell | stay, item }
  *
  *   RPG_SCREENS              the screen ids
  *   rpgUiSpec()              → the spec (readSpec reads it): its screens, its HUD, its lens (the screen round a figure)
@@ -31,7 +38,7 @@ import { manaCss, lensCss } from '../../../mana-ui/css.js';
 import { themeCss, readTheme } from '../../../mana-ui/theme.js';
 
 export const RPG_SCOPE = '.moj-rpg .mana-root';
-export const RPG_SCREENS = Object.freeze(['rpg-watch', 'rpg-cmd', 'rpg-skill', 'rpg-item', 'rpg-target', 'rpg-party', 'rpg-equip', 'rpg-shop']);
+export const RPG_SCREENS = Object.freeze(['rpg-watch', 'rpg-cmd', 'rpg-skill', 'rpg-item', 'rpg-target', 'rpg-spoils', 'rpg-party', 'rpg-equip', 'rpg-name', 'rpg-shop']);
 
 const B = (path) => ({ bind: path });
 const I = (field) => ({ item: field });
@@ -46,35 +53,42 @@ const line = row([row([txt(I('label')), { use: 'text', props: { value: I('small'
 const legend = (rows) => ({ use: 'legend', props: { rows } });
 
 // ── the battle's HUD ──
-const HEAD = col([
+const HEAD_BODY = [
   aimed,
   { use: 'badge', props: { value: '▼', turn: true }, when: I('turn') },
   { use: 'statuses', props: { rows: I('statuses') }, when: I('statuses') },
   { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp' }, unless: I('foe') },
+  // (a foe's HP the same bar, its numbers kept back, where the book shows foes' HP: rules.foeHp 'bar')
+  { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp', numbers: false }, when: I('foeBar') },
   { use: 'bar', props: { value: I('mp'), max: I('mpMax'), variant: 'mp' }, when: I('mpMax') },
+];
+// (a head up only while a target is chosen, `onAim`, shows only while it is the one in focus: the rest of the cast seen)
+const HEAD = col([
+  { use: 'stack', props: { gap: 'tight' }, unless: I('onAim'), children: HEAD_BODY },
+  { use: 'stack', props: { gap: 'tight' }, when: I('onAim'), children: [{ use: 'stack', props: { gap: 'tight' }, when: K({ format: 'targets.aim.{id}' }), children: HEAD_BODY }] },
 ]);
-const FOES = { use: 'window', children: [
-  { use: 'each', props: { rows: B('battle.foes'), row: col([
-    row([{ use: 'awareness', props: { state: 'down', label: false }, when: I('down') }, txt(I('name')), aimed], 'start'),
-    { use: 'bar', props: { value: I('hp'), max: I('hpMax'), variant: 'hp', numbers: false }, when: B('battle.foeHp') },
-    { use: 'statuses', props: { rows: I('statuses') }, when: I('statuses') },
-  ]) } },
-  { use: 'each', when: B('battle.turns'), props: { dir: 'row', rows: B('battle.turns'), row: { use: 'badge', props: { value: I('name'), variant: I('variant'), turn: I('turn') } } } },
-] };
+// (no foes' box and no turn order: each fighter's bar over their own head says it, a foe's as a member's)
 const HUD = { use: 'hud', when: B('battle.on'), children: [
-  { use: 'anchors', when: B('battle.panels'), props: { rows: B('battle.heads'), row: HEAD } },
+  // (up whenever the numbers are: the host keeps them to the player's turn, and to news while a round plays)
+  { use: 'anchors', when: B('battle.numbers'), props: { rows: B('battle.heads'), row: HEAD } },
   { use: 'anchors', when: B('battle.numbers'), props: { rows: B('battle.pops'), pass: true, row: row([txt(I('value'), I('role')), { use: 'text', props: { value: I('kind'), role: 'caption' }, when: I('kind') }], 'center') } },
-  { use: 'region', props: { at: B('battle.foesAt') }, when: B('battle.panels'), children: [FOES] },
   { use: 'region', props: { at: 'top' }, when: B('battle.told'), children: [txt(B('battle.message'), 'heading')] },
 ] };
 
 // ── the screens ──
-// a member's list: its commands, then a skill or an item, then a target, each in the corner the view leaves clear
-const pick = (rows, verb, extra = {}) => ({ use: 'screen', props: { layer: 'overlay', place: 'full' }, ...extra, children: [
-  { use: 'region', props: { at: B('battle.cmdAt') }, children: [{ use: 'window', props: { title: B('battle.title') }, children: [
+// a member's list: its commands, then a skill or an item, then a target: BESIDE the member's own bar while it is on the
+// screen (battle.beside, the host's place for it, kept clear of the screen's bottom), so the one acting is seen whole;
+// else in the corner the view leaves clear
+const pick = (rows, verb, extra = {}) => {
+  const win = { use: 'window', props: { title: B('battle.title') }, children: [
     { use: 'list', ...(verb === 'target' ? { id: 'targets' } : {}), props: { rows, empty: '—', row: line }, on: { accept: { emit: verb, id: I('id') } } },
-  ] }] },
-] });
+  ] };
+  return { use: 'screen', props: { layer: 'overlay', place: 'full' }, ...extra, children: [
+    // (bare: no anchor's plate round the window, held in a stack so the window keeps its own)
+    { use: 'anchors', when: B('battle.beside'), props: { variant: 'bare', rows: B('battle.besideAt'), row: col([win]) } },
+    { use: 'region', unless: B('battle.beside'), props: { at: B('battle.cmdAt') }, children: [win] },
+  ] };
+};
 const SCREENS = {
   // (a round playing: nothing to pick; accept skips ahead, or cuts a long film short)
   'rpg-watch': { use: 'screen', props: { layer: 'overlay', place: 'full' }, on: { back: [] }, children: [
@@ -84,6 +98,24 @@ const SCREENS = {
   'rpg-skill': pick(B('battle.skills'), 'skill'),
   'rpg-item': pick(B('battle.items'), 'item'),
   'rpg-target': pick(B('battle.targets'), 'target'),
+  // (a fight won: what it paid and what each member standing came away with: its level and its way to the next, a level
+  // gained and what it raised, a rank risen, skills learned; continue closes the fight)
+  'rpg-spoils': { use: 'screen', props: { title: B('battle.spoils.title'), layer: 'modal', place: 'center' }, on: { back: { emit: 'next' } }, children: [
+    { use: 'window', children: [col([
+      row([{ use: 'counter', props: { label: 'XP', value: B('battle.spoils.xp') } }, { use: 'counter', props: { label: 'Gold', value: B('battle.spoils.gold') } }], 'start'),
+      { use: 'text', props: { value: B('battle.spoils.found'), role: 'caption' }, when: B('battle.spoils.found') },
+      { use: 'divider' },
+      { use: 'each', props: { rows: B('battle.spoils.members'), row: col([
+        row([row([txt(I('name'), 'heading'), txt({ format: 'Lv {level}' }, 'numeral')], 'start'), { use: 'badge', props: { value: 'Level up!', variant: 'strong' }, when: I('up') }]),
+        { use: 'bar', props: { label: 'XP', value: I('xp'), max: I('xpMax'), numbers: false } },
+        txt(I('toNext'), 'caption'),
+        { use: 'each', props: { rows: I('stats'), row: row([txt(I('label'), 'label'), txt(I('value'), 'numeral')]) }, when: I('up') },
+        { use: 'text', props: { value: I('rank'), role: 'caption' }, when: I('rank') },
+        { use: 'text', props: { value: I('learned'), role: 'caption' }, when: I('learned') },
+      ]) } },
+    ], 'normal'),
+    { use: 'button', props: { label: { word: 'continue' } }, on: { accept: { emit: 'next' } } }] },
+  ] },
   'rpg-party': { use: 'screen', props: { title: 'Party', layer: 'modal', place: 'center' }, children: [
     { use: 'split', children: [
       { use: 'window', children: [
@@ -96,10 +128,18 @@ const SCREENS = {
           { use: 'each', props: { rows: K('members.stats'), row: { use: 'stat', props: { label: I('label'), value: I('value'), max: I('max') } } } },
           { use: 'divider', props: { label: 'Skills' } }, txt(K('members.skills'), 'caption'),
           { use: 'divider', props: { label: 'Worn' } }, txt(K('members.worn'), 'caption'),
+          // (the member named again: its keyboard over the menu)
+          { use: 'button', props: { label: 'Rename' }, on: { accept: [{ emit: 'naming', member: K('members.id') }, { open: 'rpg-name' }] } },
         ])] },
         { use: 'tab', props: { label: 'Class' }, children: [{ use: 'list', props: { rows: K('members.classes'), row: line }, on: { accept: { emit: 'class', member: K('members.id'), cls: I('id') } } }] },
         { use: 'tab', props: { label: 'Equip' }, children: [{ use: 'list', props: { rows: K('members.slots'), row: line }, on: { accept: [{ emit: 'slot', member: K('members.id'), slot: I('id') }, { open: 'rpg-equip' }] } }] },
         { use: 'tab', props: { label: 'Skills' }, children: [col([txt(K('members.points'), 'label'), { use: 'list', props: { rows: K('members.tree'), empty: 'No skills on this class', row: line }, on: { accept: { emit: 'learn', member: K('members.id'), skill: I('id') } } }])] },
+        // (a battle item from the bag, on the member in focus, or on all the party: `all`)
+        { use: 'tab', props: { label: 'Item' }, children: [{ use: 'list', props: { rows: K('members.items'), empty: 'Nothing to use', row: line }, on: { accept: { emit: 'use', member: K('members.id'), item: I('id') } } }] },
+        // (the member in focus traded for the one picked: the order fought in, the first of it fighting)
+        { use: 'tab', props: { label: 'Formation' }, children: [{ use: 'list', props: { rows: K('members.formation'), row: line }, on: { accept: { emit: 'swap', member: K('members.id'), with: I('id') } } }] },
+        // (the key items the party carries: shown, never used here)
+        { use: 'tab', props: { label: 'Key' }, children: [{ use: 'list', props: { rows: K('members.keys'), empty: 'No key items', row: line } }] },
       ] }] },
     ] },
     { use: 'text', props: { value: B('party.said'), role: 'caption' }, when: B('party.said') },
@@ -108,6 +148,10 @@ const SCREENS = {
   'rpg-equip': { use: 'screen', props: { title: B('party.slot'), layer: 'modal', place: 'center' }, children: [
     { use: 'window', children: [{ use: 'list', props: { rows: B('party.choices'), row: line }, on: { accept: [{ emit: 'equip', item: I('id') }, { back: true }] } }] },
     legend([{ action: 'accept', label: 'wear' }, { action: 'back', label: 'back' }]),
+  ] },
+  // a member's name typed again: the page's keyboard lives while the entry has the focus
+  'rpg-name': { use: 'screen', props: { title: B('party.naming.title'), layer: 'modal', place: 'center' }, children: [
+    { use: 'window', children: [{ use: 'textentry', props: { value: B('party.naming.name'), max: 12, min: 1, charset: 'name' }, on: { done: [{ emit: 'rename', name: { input: true } }, { back: true }], cancel: { back: true } } }] },
   ] },
   'rpg-shop': { use: 'screen', props: { title: B('shop.name'), layer: 'modal', place: 'center' }, children: [
     { use: 'split', children: [

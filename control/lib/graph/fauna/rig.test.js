@@ -9,6 +9,7 @@ import { SPECIES } from './species.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { bindLayered } from '../polygonizer/station-loft-rig.js';
 import { faunaSkeleton } from './skeleton.js';
+import { strikeSeconds } from './behavior/strike.js';
 import { PER_RIG } from './test-cases.js';
 
 // The fauna rig contract, on one species per rig: a species minted with motion binds every vertex to its skeleton, skins to itself at rest,
@@ -90,6 +91,16 @@ describe('fauna rig', () => {
     expect(clip.k).toBe(12); expect(clip.b.length).toBe(12 * nb * 7);
     expect(clip.b.slice(o + 4, o + 7).map((v, a) => Math.abs(v - f.bones.head.head[a]))).toSatisfy((d) => d.every((x) => x < 1e-4));
     expect(clip.s).toBe(behaviorSeconds(id, 'relax'));
+  });
+
+  it('a beast\'s ways at a foe pack as clips of their names, each at its own pace, beside its strike', () => {
+    const id = 'sheep', { mesh, skin } = minted(id), nb = faunaBones(id).bones.length;
+    const pack = packFaunaRig(mesh, skin, { species: id, strike: true, strikes: { snap: true, roar: true }, keys: 8 });
+    expect(Object.keys(pack.clips)).toEqual(['strike', 'snap', 'roar']);
+    expect(pack.clips.snap.b.length).toBe(8 * nb * 7);
+    expect(pack.clips.snap.s).toBe(strikeSeconds(undefined, 'snap'));
+    expect(pack.clips.roar.s).toBeGreaterThan(pack.clips.strike.s);
+    expect(pack.clips.snap.b).not.toEqual(pack.clips.strike.b);
   });
 
   it('a variant packs its other way; a behavior or variant it cannot do is refused, naming what it can', () => {

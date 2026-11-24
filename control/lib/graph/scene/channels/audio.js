@@ -15,6 +15,60 @@ import { runAudioScript } from './run-audio.js';
 // READS sim state (bus events, gait phase, camera motion) and never writes back. The browser
 // autoplay policy needs a user gesture — the canvas's existing click/pointer-lock entry is the
 // unlock; a small HUD speaker toggles mute after that.
+// THE MUSIC AN EVENT CHANGES TO (audio.pieces, beats-world.js; a cue's `music`, playscape/ui/cues.js): `music:<mood>` on
+// the bus fades the playing score out and the mood's piece in on an engine of its own; `music:stop` fades to silence;
+// `music:place` brings the place's own score back (the explore piece where the level has a fight's). While a piece
+// plays, the fight's change waits. Before the unlock gesture the change is kept, and played as the sound starts.
+function piecesScript(combat, mix) {
+  return `
+let __piece = null, __pieceEng = null, __scoreUp = true;
+const __FADE = 1.5;
+function __playOn(eng, r) {
+  if (r.kind === 'beats-composition') eng.startComposition(r, __BEATS_PATCHES);
+  else if (r.kind === 'beats-pattern') eng.startPattern(r, __BEATS_PATCHES);
+  else eng.startAmbient(r, __BEATS_PATCHES);
+}
+// (an engine faded out is stopped once it is silent, unless it was brought back meanwhile)
+function __fadeOut(e, t) { const g = e.__g = (e.__g || 0) + 1; e.master.gain.cancelScheduledValues(t); e.master.gain.setValueAtTime(e.master.gain.value, t); e.master.gain.linearRampToValueAtTime(0, t + __FADE); setTimeout(() => { if (e.__g === g) e.stop(); }, (__FADE + 0.2) * 1000); }
+function __fadeIn(e, t) { e.__g = (e.__g || 0) + 1; e.master.gain.cancelScheduledValues(t); e.master.gain.setValueAtTime(0, t); e.master.gain.linearRampToValueAtTime(__beatsMuted ? 0 : 0.9 * __beatsVol, t + __FADE); }
+function __scoreOff(t) {
+  __scoreUp = false;${combat ? `
+  if (__engs) __fadeOut(__engs[__music.active], t);` : `
+  __beatsEng.stop();   // (the cues share this engine: the score's transport stopped, its last notes ringing out)`}
+}
+function __scoreOn(t) {
+  __scoreUp = true;
+  if (!__AUDIO.soundtrack) return;${combat ? `
+  if (!__engs) return;
+  __music = { active: 'explore', below: 0 };
+  __playOn(__engs.explore, __AUDIO.soundtrack); __musicT0 = t + 0.08; __fadeIn(__engs.explore, t);` : `
+  __playOn(__beatsEng, __AUDIO.soundtrack);`}
+}
+function __musicTo(w) {
+  if (w === (__piece || 'place') && (w !== 'place' || __scoreUp)) return;
+  __piece = w === 'place' ? null : w;
+  if (!__beatsCtx || !__beatsEng) return;
+  const t = __beatsCtx.currentTime;
+  if (__pieceEng) { __fadeOut(__pieceEng, t); __pieceEng = null; }
+  else if (__scoreUp) __scoreOff(t);
+  if (w === 'place') { __scoreOn(t); return; }
+  const r = __AUDIO.pieces[w];
+  if (w === 'stop' || !r) return;
+  const e = __BEATS.createEngine(__beatsCtx);${mix ? `
+  e.setSfx({}); __beatsEng.linkDuck(e);` : ''}
+  __playOn(e, r); __fadeIn(e, t); __pieceEng = e;
+}
+if (typeof __BUS !== 'undefined') {
+  const __musPE = __BUS.processEvents;
+  __BUS.processEvents = function (state, events) {
+    const n0 = state.log.length, out = __musPE(state, events);
+    for (let i = n0; i < state.log.length; i++) { const ev = state.log[i]; if (ev && typeof ev.type === 'string' && ev.type.indexOf('music:') === 0) __musicTo(ev.type.slice(6)); }
+    return out;
+  };
+}
+window.__mojMusicTo = { get piece() { return __piece; }, get up() { return __scoreUp; } };`;
+}
+
 export function audioChannelScript(audio) {
   // adaptive music (audio.combat): the scores play on two engines of their own, crossfaded; the first engine keeps the
   // cues, footsteps and wind at a steady level. Without it every line below is as it was.
@@ -51,10 +105,12 @@ export function audioChannelScript(audio) {
   // a racing car's (a ride's) own events and tyres (audio.engine.ride, sound-sheet.js rideEvents): absent, not a byte of it
   const rideEv = !!(audio.engine && !audio.engine.cab && audio.engine.ride), rideHas = (k) => rideEv && !!(audio.cues && audio.cues[`ride:${k}`]);
   const carSets = !!(audio.engine && audio.engine.cab && audio.engine.cueOf), carHas = (k) => carSets && Object.keys(audio.cues || {}).some((c) => c.indexOf(`${k}@`) === 0);
+  // the music an event changes to (audio.pieces, a cue's `music`): absent, not a byte of it is emitted
+  const pieces = !!audio.pieces;
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
-const __BEATS_PATCHES = ${safeJson(bossOn ? pagePatches(audio.soundtrack, audio.combat, audio.boss) : combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
+const __BEATS_PATCHES = ${safeJson(combat || pieces ? pagePatches(audio.soundtrack, ...(combat ? [audio.combat] : []), ...(bossOn ? [audio.boss] : []), ...Object.values(audio.pieces || {})) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
 let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;${bed ? '\nlet __bedEng = null;' : ''}${samples ? `
 const __SAMPLES = ${safeJson(samples)};` : ''}
@@ -65,7 +121,8 @@ function __beatsApply() {
   if (!__beatsEng) return;
   __beatsEng.master.gain.value = __beatsMuted ? 0 : ${sfxGain} * __beatsVol;${bed ? `
   if (__bedEng) __bedEng.master.gain.value = __beatsMuted ? 0 : ${bedLevel} * __beatsVol;` : ''}${combat ? `
-  if (__engs && !__switching) __engs[__music.active].master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}
+  if (__engs && !__switching) __engs[__music.active].master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}${pieces ? `
+  if (__pieceEng) __pieceEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}
   if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume().catch(() => {});
 }
 function __beatsUnlock() {
@@ -86,12 +143,13 @@ ${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __
   }
   if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);${bed ? `
   __bedEng = __BEATS.createEngine(__beatsCtx); __bedEng.startPattern(__AUDIO.bed, __BEATS_PATCHES);   // the environment's bed` : ''}
-  __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture
+  __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture${pieces ? `
+  if (__piece) { const p = __piece; __piece = null; __musicTo(p); }   // a change an event made before the unlock` : ''}
 }
 renderer.domElement.addEventListener('pointerdown', __beatsUnlock);
 // (a key, a pad's play or the game shell's word that sound is on also unlock it: a game played on the keys or hosted in the
 // shell's frame, which delegates autoplay, is never clicked, and was silent)
-window.addEventListener('keydown', __beatsUnlock);${audio.tension ? `
+window.addEventListener('keydown', __beatsUnlock);${pieces ? piecesScript(combat, !!mix) : ''}${audio.tension ? `
 // THE TENSION (adaptive-music.js, the same closure the tests hold): raised by the level's own events off the bus log
 // (like the stingers: the reducer drains reaction-emitted events internally), leaking back toward calm. Read-only.
 const __ADAPT = (${buildAdaptive.toString()})();
@@ -133,9 +191,9 @@ function __switchTo(to) {
   if (!__beatsCtx || __beatsCtx.state !== 'running') return;
   const now = __beatsCtx.currentTime, dt = __tenLast === null ? 0 : Math.min(0.25, now - __tenLast);
   __tenLast = now;
-  __tension = __ADAPT.leak(__tension, dt, __TEN.decay);${combat ? `
-  if (!__engs || __switching || __beatsMuted) return;${bossOn ? `
-  // (the boss's room shut behind the hero, sidemap.js the camera's _shut: its piece, for good)
+  __tension = __ADAPT.leak(__tension, dt, __TEN.decay);${audio.tension && audio.tension.held ? `
+  if (typeof __busState !== 'undefined' && __busState.vars[${JSON.stringify(audio.tension.held)}]) __tension = 1;   // held: the meter full while its var is set` : ''}${combat ? `
+  if (!__engs || __switching || __beatsMuted${pieces ? ' || __piece' : ''}) return;${bossOn ? `
   if (__music.active === 'boss') return;
   const __cw = window.__mojCtrl && window.__mojCtrl.world, __sh = __cw && __cw.camera && __cw.camera._shut;
   if (__sh && Object.keys(__sh).some((k) => __sh[k] != null)) { __switchTo('boss'); return; }` : ''}

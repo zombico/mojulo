@@ -54,7 +54,7 @@ export function dryRunContract(store, contract) {
   // party setStat/levelUp need a SURVIVOR member, distinct from the dismiss victim (__dryrun__),
   // so a contract that both dismisses and levels up a party is still composable. Seed it first.
   for (const e of events) {
-    if ((e.type === 'setStat' || e.type === 'levelUp') && kindByName.get(e.slice) === 'party') {
+    if ((e.type === 'setStat' || e.type === 'levelUp' || e.type === 'rename') && kindByName.get(e.slice) === 'party') {
       const s = K.applyEvents(store, state, [{ type: 'recruit', slice: e.slice, member: { id: '__target__', name: 'Dry Run Target' } }]);
       if (s.ok) state = s.state;
     }
@@ -73,6 +73,7 @@ export function dryRunContract(store, contract) {
       else if (e.type === 'levelUp') synth.push({ type: 'levelUp', slice: e.slice, id: kind === 'party' ? '__target__' : undefined, by: 1 });
       else if (e.type === 'setFlag') synth.push({ type: 'setFlag', slice: e.slice, key: 'dryrun', value: true });
       else if (e.type === 'promote') synth.push({ type: 'promote', slice: e.slice, ref: contract.levelRef, result: 'success' });
+      else if (e.type === 'rename') synth.push({ type: 'rename', slice: e.slice, id: kind === 'party' ? '__target__' : undefined, name: 'Dry Run' });
       else if (e.type === 'recruit') synth.push({ type: 'recruit', slice: e.slice, member: { id: 'recruit' + i, name: 'Recruit' } });
       else if (e.type === 'dismiss') { if (i === 0) synth.push({ type: 'dismiss', slice: e.slice, id: '__dryrun__' }); }
     }

@@ -39,6 +39,13 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont merged with 1116-rc): `game`, `kitchen-sink`, `kitchen-sink-capture`,
+// `brawl`, `holo` and `mission`, each pinned anew on both sides since they parted: the candidate's emission and the
+// branch's (the party RPG's channel and its fight shot, the wardrobe's looks, the music an event changes to, a walk that
+// finds its way, mana-ui's name keyboard) read together. Every other page is the candidate's, byte for byte.
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont: a name typed in game): `brawl`, `mission` and `holo`, the pages that
+// embed the game UI runtime whole. Its text entry grows a name's keyboard (`charset: 'name'`: pages, Space, Cancel, `min`),
+// a pad's back erasing a draft and its shoulders turning the pages, and two words (Space, Page). Nothing else moved.
 // Re-pinned 2026-11-20 (start screens, mana-ui's letters): `brawl`, `mission` and `holo`, the pages that embed the game UI
 // runtime: its text takes `letters` (a display entering letter by letter) and its kernel source carries the split. No
 // page here draws letters (their sheet, lettersCss, is laid only by the play shell's title and the board); they draw as before.

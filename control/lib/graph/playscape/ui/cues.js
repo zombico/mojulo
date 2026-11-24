@@ -25,6 +25,17 @@
  *            { open: '<menu id>' } | { close: '<menu id>' | true }             a menu (menus.js) comes up or goes
  *            { set: '<var>', to } | { add: '<var>', by, min?, max? } | { emit: '<event>' }   the game's own state
  *            { weather: '<state>' | { is, for?, blend? } }                     the sky takes a state (weather/weather.js) for `for` seconds, or until the cue ends
+ *            { sound: '<word>' }                                              a sound off the SFX shelf by its word (sfx-shelf/),
+ *                                                                       played as it fires (`sfx:<word>` on the bus: the
+ *                                                                       level's sound sheet voices it, beats/beats-world.js)
+ *            { screen: { fade?: out | in, tint?: '#rrggbb' | none, flash?: '#rrggbb', for? } }   the screen itself: a fade to
+ *                                                                       black (and back in), the world washed in a colour, a
+ *                                                                       flash; `for` seconds, or until the cue ends, then as it was
+ *                                                                       (the page's screen layer, scene/channels/screen-fx.js)
+ *            { music: '<mood>' | 'stop' | 'place' }                            the music changes: a mood off the score
+ *                                                                       (beats/field-score.js, club-score.js) in the level's
+ *                                                                       key in place of the place's, silence, or the place's
+ *                                                                       own again (`music:<word>` on the bus, the page's audio)
  *            { spawn | vanish | kill | hurt | heal | walk | stop: … }        the cast: a character (cast.js)
  *            { raise | grant | xp | level | buy: … }                       the stats (stats/stats.js); a cast number may be a scaling
  *     until?: a when | { ttl },                                             the effects end (shown → hidden, a prompt goes)
@@ -50,6 +61,8 @@
 import { UI_STATES } from './parts.js';
 import { STATE_NAMES } from '../../weather/weather.js';
 import { regionOf, HUD_REGIONS } from './regions.js';
+import { SCORE_MOODS } from '../../beats/field-score.js';
+import { CLUB_MOODS } from '../../beats/club-score.js';
 import { CAST_WHEN, CAST_THEN, readCastWhen, readCastEffect, castFire, lowerCastEffect } from './cast.js';
 import { itemKey, lowerMove, NOWHERE } from './items.js';
 import { readLooks } from '../elements/elements.js';
@@ -85,6 +98,9 @@ export const CUE_THEN = Object.freeze({
   use: 'spend one of an item from the bag and do its use effects (play.items[item].use); when the bag has none it says so',
   equip: 'wear an item from the bag in its slot (play.items[item].equip): what wore the slot goes back to the bag',
   unequip: 'take a worn item off, back into the bag',
+  sound: 'a sound off the SFX shelf by its word (a chime, a door, a roar), played as it fires: the level\'s sound sheet voices it',
+  music: 'the music changes, crossfaded: a mood off the score in the level\'s key in place of the place\'s (\'sorrow\', \'tension\'…), \'stop\' (silence) or \'place\' (the place\'s own again)',
+  screen: 'the screen itself: { fade: out | in, tint: "#rrggbb" | "none", flash: "#rrggbb", for? } (a fade to black and back, the world washed in a colour, a flash; for `for` seconds, or until the cue ends, then as it was)',
   weather: `the sky takes a state (${STATE_NAMES.join(', ')}) for \`for\` seconds, or until the cue ends: { is, for?, blend? } (blend: seconds the change takes, else the climate's)`,
   ...CAST_THEN,
   ...STAT_THEN,
@@ -96,6 +112,16 @@ export const PHASE_VAR = 'phase';
  *  cue has its own pair (`weather-force:<event>`), so one cue's end or timer never clears another's; the page takes the
  *  newest force that is still set. */
 export const WEATHER_VAR = 'weather-force', WEATHER_BLEND_VAR = 'weather-blend';
+/** The bus vars the page's screen layer reads (scene/channels/screen-fx.js): faded to black (1), the tint ('' none), the
+ *  flashes counted and the last one's colour. */
+export const SCREEN_VARS = Object.freeze({ fade: 'screen-fade', tint: 'screen-tint', flash: 'screen-flash', flashColour: 'screen-flash-colour' });
+const HEX = /^#[0-9a-f]{6}$/i;
+/** The bus event a cue's `sound` raises: the level's sound sheet voices `sfx:<word>` (beats/beats-world.js). */
+export const SOUND_EVENT = 'sfx:', soundEvent = (word) => `${SOUND_EVENT}${word}`;
+/** The bus event a cue's `music` raises: the page's audio plays `music:<mood>` (beats/beats-world.js `pieces`), or stops
+ *  (`music:stop`), or the place's own again (`music:place`). */
+export const MUSIC_EVENT = 'music:', musicEvent = (word) => `${MUSIC_EVENT}${word}`, MUSIC_WORDS = Object.freeze(['stop', 'place']);
+const musicMood = (w) => (Object.prototype.hasOwnProperty.call(SCORE_MOODS, w) && !SCORE_MOODS[w].stinger) || Object.prototype.hasOwnProperty.call(CLUB_MOODS, w);
 export const weatherVar = (on) => `${WEATHER_VAR}:${on}`, weatherBlendVar = (on) => `${WEATHER_BLEND_VAR}:${on}`;
 export const cueVar = (part, state = false) => `ui-${part}${state ? '-state' : ''}`;
 export const menuVar = (menu) => `ui-menu-${menu}`;
@@ -208,6 +234,25 @@ export function readEffect(t, where, ctx = {}) {
     for (const x of ['min', 'max']) if (t[x] !== undefined && !Number.isFinite(t[x])) throw new Error(`${where}.${x} is a number`);
     return { kind: 'add', var: t.add, by: t.by, ...(t.min !== undefined ? { min: t.min } : {}), ...(t.max !== undefined ? { max: t.max } : {}), page: true };
   }
+  if (k === 'sound') {
+    if (!(typeof t.sound === 'string' && /^[a-z][a-z0-9-]*$/.test(t.sound))) throw new Error(`${where}.sound is a sound's word on the SFX shelf (lower case, hyphens: a chime, door-creak)`);
+    return { kind: 'sound', word: t.sound, page: true };
+  }
+  if (k === 'music') {
+    if (!(typeof t.music === 'string' && (MUSIC_WORDS.includes(t.music) || musicMood(t.music)))) throw new Error(`${where}.music is a mood of the score (${Object.keys(SCORE_MOODS).filter(musicMood).join(', ')}; or the club's: ${Object.keys(CLUB_MOODS).join(', ')}), 'stop' or 'place'`);
+    return { kind: 'music', word: t.music, page: true };
+  }
+  if (k === 'screen') {
+    const o = t.screen;
+    if (!isObj(o)) throw new Error(`${where}.screen is { fade?: out | in, tint?: '#rrggbb' | none, flash?: '#rrggbb', for? }`);
+    for (const x of Object.keys(o)) if (!['fade', 'tint', 'flash', 'for'].includes(x)) throw new Error(`${where}.screen.${x} is not a screen effect setting (fade, tint, flash, for)`);
+    if (o.fade !== undefined && o.fade !== 'out' && o.fade !== 'in') throw new Error(`${where}.screen.fade is out (to black) or in (back)`);
+    if (o.tint !== undefined && o.tint !== 'none' && !(typeof o.tint === 'string' && HEX.test(o.tint))) throw new Error(`${where}.screen.tint is a colour '#rrggbb', or none`);
+    if (o.flash !== undefined && !(typeof o.flash === 'string' && HEX.test(o.flash))) throw new Error(`${where}.screen.flash is a colour '#rrggbb'`);
+    if (o.for !== undefined && !(Number.isFinite(o.for) && o.for > 0)) throw new Error(`${where}.screen.for is seconds`);
+    if (o.fade === undefined && o.tint === undefined && o.flash === undefined) throw new Error(`${where}.screen says what it does: fade, tint or flash`);
+    return { kind: 'screen', fade: o.fade ?? null, tint: o.tint ?? null, flash: o.flash ?? null, for: o.for ?? null, page: true };
+  }
   if (k === 'weather') {
     const o = typeof t.weather === 'string' ? { is: t.weather } : t.weather;
     if (!isObj(o)) throw new Error(`${where}.weather is a state (${STATE_NAMES.join(', ')}) or { is, for?, blend? }`);
@@ -252,7 +297,9 @@ export function effectContext(play, phases = (play && play.phases) || ['playing'
   const partIds = new Set();
   for (const p of (play && play.parts) || []) if (p && isStr(p.id)) { if (partIds.has(p.id)) throw new Error(`play.parts: two parts called '${p.id}'`); partIds.add(p.id); }
   const menuIds = new Set(((play && play.menus) || []).map((m) => m && m.id).filter(isStr));
-  return { partIds, phases, menuIds, looks: readLooks(play), explosions: readExplosions(play), beams: readBeams(play), stats: readStats(play) };
+  // (the chests looted whole as they open, menus.js loot: 'all': their open says menu-open:<id>, which loots them)
+  const loots = new Set(((play && play.menus) || []).filter((m) => m && m.kind === 'chest' && m.loot === 'all').map((m) => m.id));
+  return { partIds, phases, menuIds, loots, looks: readLooks(play), explosions: readExplosions(play), beams: readBeams(play), stats: readStats(play) };
 }
 
 /** The cues of a play block, read; shape errors throw and teach. */
@@ -348,7 +395,7 @@ const shown = UI_STATES.indexOf('shown');
  * vars; set and emit are the game's own. `end` (when given) undoes what came up: a show is hidden, a state goes back
  * to shown, an opened menu closes (a phase, a set and an emit stay: they are the game's, not the moment's).
  */
-export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new Set(), end = null, ttl = null, places = [] } = {}) {
+export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new Set(), end = null, ttl = null, places = [], loots = null } = {}) {
   for (const t of ts) {
     if (t.kind === 'stat') { lowerStatEffect(t, on, frag); continue; }
     if (t.kind === 'cast') {
@@ -370,6 +417,20 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     if (t.kind === 'wear') { frag.reactions.push({ on, do: 'emit', type: `${t.verb}:${t.item}` }); continue; }
     if (t.kind === 'give') { lowerMove({ item: t.item, n: t.n, from: NOWHERE, to: 'bag', on }, frag); continue; }
     if (t.kind === 'use') { const { ok } = lowerMove({ item: t.item, from: 'bag', to: NOWHERE, on, deny: `No ${t.item.replace(/-/g, ' ')} left` }, frag); frag.reactions.push({ on: ok, do: 'emit', type: `used:${t.item}` }); continue; }
+    if (t.kind === 'sound') { frag.reactions.push({ on, do: 'emit', type: soundEvent(t.word) }); continue; }
+    if (t.kind === 'music') { frag.reactions.push({ on, do: 'emit', type: musicEvent(t.word) }); continue; }
+    if (t.kind === 'screen') {
+      // the page's screen layer reads its vars (screen-fx.js); what a cue faded or tinted is undone after `for`, or when it ends
+      const V = SCREEN_VARS;
+      frag.vars[V.fade] ??= 0; frag.vars[V.tint] ??= ''; frag.vars[V.flash] ??= 0; frag.vars[V.flashColour] ??= '';
+      if (t.fade) frag.reactions.push({ on, do: 'set', var: V.fade, to: t.fade === 'out' ? 1 : 0 });
+      if (t.tint) frag.reactions.push({ on, do: 'set', var: V.tint, to: t.tint === 'none' ? '' : t.tint });
+      if (t.flash) frag.reactions.push({ on, do: 'set', var: V.flashColour, to: t.flash }, { on, do: 'inc', var: V.flash, by: 1 });
+      const undo = [...(t.fade === 'out' ? [{ do: 'set', var: V.fade, to: 0 }] : []), ...(t.tint && t.tint !== 'none' ? [{ do: 'set', var: V.tint, to: '' }] : [])];
+      if (t.for && undo.length) frag.sequences.push({ id: `screen-${on}`, scope: `screen-${on}`, trigger: { on }, steps: [{ await: { timer: t.for } }, ...undo] });
+      if (end) for (const u of undo) frag.reactions.push({ on: end, ...u });
+      continue;
+    }
     if (t.kind === 'weather') {
       // the page's sky reads two vars: the state forced, and the change's length; cleared after `for`, or when the cue ends
       const fv = weatherVar(on), bv = weatherBlendVar(on);
@@ -388,6 +449,7 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     const to = t.kind === 'phase' ? phases.indexOf(t.phase) : t.kind === 'state' ? UI_STATES.indexOf(t.to) : t.kind === 'show' || t.kind === 'open' ? 1 : 0;
     if (!(v in frag.vars)) frag.vars[v] = t.kind === 'phase' ? 0 : t.kind === 'state' ? shown : t.kind === 'hide' ? 1 : 0;
     frag.reactions.push({ on, do: 'set', var: v, to });
+    if (t.kind === 'open' && loots && loots.has(t.menu)) frag.reactions.push({ on, do: 'emit', type: `menu-open:${t.menu}` });
     if (end && t.kind !== 'phase') frag.reactions.push({ on: end, do: 'set', var: v, to: t.kind === 'state' ? shown : t.kind === 'show' || t.kind === 'open' ? 0 : 1 });
   }
   return frag;
@@ -401,7 +463,7 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
   const phases = (play && play.phases) || ['playing'];
   const cues = readCues(play, phases);
   if (!cues.length) return null;
-  const { menuIds } = effectContext(play, phases), frag = emptyFrag();
+  const { menuIds, loots } = effectContext(play, phases), frag = emptyFrag();
   const add = (f) => { for (const k of ['sources', 'reactions', 'watches', 'initial', 'timers']) frag[k].push(...f[k]); };
   for (const c of cues) {
     const on = `cue:${c.id}`, end = `cue-end:${c.id}`, zone = `cue-${c.id}`;
@@ -415,7 +477,7 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
         frag.reactions.push({ on: from, if: g, do: 'emit', type: to });
         if (c.otherwise) frag.reactions.push({ on: from, if: flipped(g), do: 'emit', type: `cue-else:${c.id}` });
       });
-      if (c.otherwise) lowerEffects(c.otherwise, `cue-else:${c.id}`, frag, { phases, menuIds, places });
+      if (c.otherwise) lowerEffects(c.otherwise, `cue-else:${c.id}`, frag, { phases, menuIds, loots, places });
     }
     if (c.once) frag.watches.push({ type: on, when: { count: pass, gte: 1 } });
     add(fire(c.when, hit, zone, anchors, player));
@@ -425,7 +487,7 @@ export function lowerCues(play, { anchors = [], player = null, places = anchors 
     // a use at a place ends, as a near does, when the figure walks off it (what it opened closes)
     const used = !c.until && c.when.kind === 'use' ? usePlace(c.when, zone, anchors) : null;
     if (used) frag.reactions.push({ on: 'exit', match: { zone: used.zone }, do: 'emit', type: end });
-    lowerEffects(c.then, on, frag, { phases, menuIds, places, end: c.until || used ? end : null, ttl: c.until && c.until.kind === 'ttl' ? c.until.ttl : null });
+    lowerEffects(c.then, on, frag, { phases, menuIds, loots, places, end: c.until || used ? end : null, ttl: c.until && c.until.kind === 'ttl' ? c.until.ttl : null });
   }
   // two cues on one place share its zone (one enter, one exit); the first prompt given is its word
   const byZone = new Map();

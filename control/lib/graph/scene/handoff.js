@@ -372,7 +372,10 @@ export function levelRecord(sketch, payload) {
     return { name: `entity:${id}`, role, ...(seat ? { seat } : {}), ...(e.rule?.type ? { rule: e.rule.type } : {}),
       at: v3(e.transform?.pos) ?? [0, 0, 0], ...(Number.isFinite(e.transform?.heading) ? { heading: r5(e.transform.heading) } : {}),
       ...(mind ? { mind: Object.fromEntries(['rank', 'skill', 'group', 'motivation'].filter((k) => mind[k] !== undefined).map((k) => [k, mind[k]])) } : {}),
-      ...(e.rule?.foe ? { attack: e.rule.foe } : {}) };
+      ...(e.rule?.foe ? { attack: e.rule.foe } : {}),
+      // (what a member wears, seen, gameworld/wardrobe.js: each armour's figure and the made body behind it, which
+      // export_model hands off as an asset; the level's own body is the member's own clothes)
+      ...(e.looks?.by ? { looks: Object.fromEntries(Object.entries(e.looks.by).map(([item, fig]) => [item, { figure: fig, ref: sketch?.manifest?.figures?.[fig]?.heroRef ?? null }])) } : {}) };
   });
   const ex = levelSceneExtras(payload) ?? {};
   const markers = [
