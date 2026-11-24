@@ -84,3 +84,10 @@
   give souls, and souls become points to spend on her trees. Until their figures are made, the foes stand as blocks of
   their size and class. The castle checks that the foes stand clear of doorways and holes, and that between two save
   rooms she meets no more than her health can bear.
+- The castle's bosses stand as real foes once its foes have joined. Each boss is read by name from a shelf of the
+  castle's bosses: the Gate Warden, the Bellkeeper, the Great Bell, the Crypt Lord, the Lord of the Keep and the rest,
+  each a foe class at the boss's rank, taller than Erina by its tier, its health a count of her blows. It stands in its
+  room facing the way in and never follows her out. Its name and health show as a long bar across the bottom while she
+  is in its room. Cut down, it gives what its room gives: its seal breaks and its power is hers. Until its figure is
+  made, it stands as a tall block. The castle checks that every boss is on the shelf, has room to fight, and that the
+  bosses never get easier going in.

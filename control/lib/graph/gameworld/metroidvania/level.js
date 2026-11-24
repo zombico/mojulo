@@ -12,6 +12,9 @@
  *   the GATES    the box's held gates (worlds/controllable/held-gates.js): each shut until what opens it is held, the
  *                double jump's sill a closed part the second jump clears; what is picked up gives what it gives (the
  *                double jump its move), a boss's stand-in struck down gives its power and breaks its seal
+ *   the BOSSES   once its foes have joined (`extra` and the level's `foes`), each boss a body of the world in its room
+ *                (bosses.js: a foe class at the boss's rank, at its tier, its health its blows, kept to its room), its bar
+ *                the castle's; felled, it gives what its stand-in gave; its laws beside the box's, each `bosses:<id>`
  *   the VITALS   health on her body and MP on her moveset (BOX_VITALS): no
  *                lives. A save room fills both and is where she wakes; her health spent, she wakes in the last she stood
  *                in, keeping everything (held-gates.js)
@@ -37,6 +40,7 @@ import { HERO } from '../../foes/vocab.js';
 import { sideFoe } from '../side-map/cast.js';
 import { bestiaryOf } from '../foes.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
+import { standBosses, bossRow, bossLaws } from './bosses.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 /** The world's trees lowered on a box's hero: the runtime's spec, her moveset with the techs' strings in it, and the
@@ -52,11 +56,11 @@ function treesOfBox(G, L, rule, { placed = [] } = {}) {
 }
 
 /** the stand-ins' shades by class: what a greybox foe is read as before its figure is made */
-export const STAND_IN = Object.freeze({ walker: '#8c9c7a', swooper: '#4a4a5e', charger: '#8a6e9c', guard: '#b4b6c4', hopper: '#7a9c9c', lurker: '#5e7a5e', turret: '#9c7a5e' });
-function standIn(e, figures, bestiary) {
+export const STAND_IN = Object.freeze({ walker: '#8c9c7a', swooper: '#4a4a5e', charger: '#8a6e9c', guard: '#b4b6c4', hopper: '#7a9c9c', lurker: '#5e7a5e', turret: '#9c7a5e', lobber: '#9c8a5e', pursuer: '#9c4a5e', stalker: '#6e5e9c' });
+function standIn(e, figures, bestiary, cls0 = null) {
   const F = figures[e.body?.figure];
   if (!F || F.heroRef || F.ref || F.workbot) return e;
-  const cls = bestiary[String(e.body.figure).replace(/^foe-/, '')]?.class ?? null, h = e.rule?.collideHeight ?? 1, r = e.rule?.collideRadius ?? 0.4, flies = cls === 'swooper';
+  const cls = cls0 ?? bestiary[String(e.body.figure).replace(/^foe-/, '')]?.class ?? null, h = e.rule?.collideHeight ?? 1, r = e.rule?.collideRadius ?? 0.4, flies = cls === 'swooper';
   const { figure: _f, scale: _s, fit: _fit, ...body } = e.body;
   // (a walker's block twice its height, centred on its feet: the floor's slab hides the half under it; a flyer's its own size)
   return { ...e, body: { ...body, type: 'mesh', shape: 'box', size: [r3(r * 1.6), r3(r * 2.2), r3(flies ? h : h * 2)], color: STAND_IN[cls] ?? '#9c8c7a', marker: false } };
@@ -82,7 +86,9 @@ export function boxCamera(B, { target = 'hero' } = {}) {
 export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, audio = null, extra = null, foeFrom = [] } = {}) {
   if (!heroRef) throw new Error('levels: a metroidvania is played by a hero seen from the side; give the world a hero (its characters)');
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
-  const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature };
+  // (its BOSSES stood as bodies of the world once its foes have joined, bosses.js: the stand-in blocks left off the box)
+  const stood = !!(extra && foeFrom.length);
+  const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature, ...(stood ? { bosses: 'stood' } : {}) };
   const B = boxOf(manifest0), { layout: L, greybox: Gb } = B, W = Gb.screen.width, H = Gb.screen.height;
   const camera = boxCamera(B), spawn = [0, ...camera.zones[0].checkpoint];
   spawn[2] = r3(spawn[2] + 0.05);
@@ -111,8 +117,12 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const figures = { ...(W0.figures ?? {}), ...(X?.figures ?? {}) };
   // (each foe at the side map's game scale, sideFoe; one whose figure is not made yet, a greybox's, stood as a STAND-IN:
   // a block of its size in its class's shade, its figure left off the page)
-  const foes = (X?.entities ?? []).map((e) => (e.team === 'foes' ? standIn(sideFoe(e, stature), figures, bestiaryOf(G)) : e));
-  const drawnFigures = Object.fromEntries(Object.entries(figures).filter(([k]) => !(k.startsWith('foe-') && foes.every((e) => e.body?.figure !== k))));
+  const foes0 = (X?.entities ?? []).map((e) => (e.team === 'foes' ? standIn(sideFoe(e, stature), figures, bestiaryOf(G)) : e));
+  // (its BOSSES, each in its room at its tier, a stand-in of its class until its figure is made: bosses.js)
+  const Bs = stood ? standBosses(G, B, { stature }) : null;
+  Object.assign(figures, Bs?.figures ?? {});
+  const foes = [...foes0, ...(Bs?.entities ?? []).map((e) => standIn(e, figures, {}, bossRow(B.bosses.find((b) => b.id === e.id).name).class))];
+  const drawnFigures = Object.fromEntries(Object.entries(figures).filter(([k]) => !((k.startsWith('foe-') || k.startsWith('boss-')) && foes.every((e) => e.body?.figure !== k))));
   // the goal: the throne's far side, behind its boss
   const throne = L.rooms.filter((r) => L.rings[r.ring].core).at(-1), [tc, tr, tw] = throne.rect;
   const reach = { kind: 'reach-exit', at: [0, r3((tc + tw) * W - 2.5), r3(tr * H + FLOOR + 1)], radius: 2.5, planar: false };
@@ -126,5 +136,5 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
     ...(audio ? { audio } : {}),
   };
   const cast = foeFrom.length ? castLaws(L, Gb, boxPlaced(L, Gb, foeFrom, { bestiary: bestiaryOf(G) }), { bestiary: bestiaryOf(G), hp: V.hp, hit: HERO.hit }) : [];
-  return { tool: 'create_sketch', args: { title: name, manifest }, laws: [...B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })), ...(T ? T.laws.map((l) => ({ ...l, id: `trees:${l.id}` })) : []), ...cast.map((l) => ({ ...l, id: `foes:${l.id}` }))] };
+  return { tool: 'create_sketch', args: { title: name, manifest }, laws: [...B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })), ...(T ? T.laws.map((l) => ({ ...l, id: `trees:${l.id}` })) : []), ...cast.map((l) => ({ ...l, id: `foes:${l.id}` })), ...(stood ? bossLaws(B).map((l) => ({ ...l, id: `bosses:${l.id}` })) : [])] };
 }

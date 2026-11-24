@@ -1,6 +1,8 @@
 // The castle's foes played as its page resolves them (cast.js; foes.js hostileCast; worlds/controllable): Vampire
 // Sonata's bestiary haunting its rooms region by region, each on the lane's rail with its class's mind, a stand-in block
 // until its figure is made. A rat in the outer wall falls to Erina's saber string and its soul fills the trees' purse.
+// Its bosses stood with them (bosses.js), each in its room: the Gate Warden cut down gives the second leap and breaks its
+// seal.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readGameworld } from '../world.js';
 import { gameStages, stageLevelOrder } from '../levels.js';
@@ -11,6 +13,7 @@ import { faceGround, pageGroundFaces, SIM_DT } from '../../game/level-equivalenc
 import { vampireSonataGame, VAMPIRE_SONATA_FOES } from './vampire-sonata.js';
 import { FLOOR } from './rooms.js';
 import { boxOf } from './scene.js';
+import { bossRow } from './bosses.js';
 
 const ZERO = { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0, boost: 0, fire: 0, heavy: 0, special: 0, mod: 0 };
 let payload, order, B;
@@ -25,7 +28,7 @@ beforeAll(async () => {
 
 describe('the castle\'s foes, played', () => {
   it('haunts its rooms region by region, held to the cast\'s laws, stand-ins until their figures are made', () => {
-    const foes = payload.entities.filter((e) => e.team === 'foes');
+    const foes = payload.entities.filter((e) => e.team === 'foes' && !e.id.startsWith('boss-'));
     expect(foes.length).toBeGreaterThan(20);
     expect(new Set(foes.map((e) => e.id.replace(/-\d+$/, '').replace(/^foe-/, '')))).toEqual(new Set(Object.keys(VAMPIRE_SONATA_FOES)));
     expect(foes.every((e) => e.body.type === 'mesh' && e.rule.rail)).toBe(true);
@@ -47,5 +50,47 @@ describe('the castle\'s foes, played', () => {
     expect(rat.downed).toBeTruthy();
     step({}, 2);
     expect(w.trees.souls).toBe(souls0 + 1);
+  });
+
+  it('stands each boss in its room as a body of the world, kept to its room, and the Gate Warden cut down gives the second leap', () => {
+    const bosses = payload.entities.filter((e) => e.id.startsWith('boss-'));
+    expect(bosses.length).toBe(B.bosses.length);
+    expect(payload.breakables.some((b) => b.id.startsWith('boss-'))).toBe(false);
+    for (const e of bosses) {
+      const b = B.bosses.find((x) => x.id === e.id), q = payload.heldGates.bosses.find((x) => x.id === e.id);
+      expect(q.entity).toBe(e.id);
+      expect(e.rule.rail.a[1]).toBeGreaterThanOrEqual(q.room[0]);
+      expect(e.rule.rail.b[1]).toBeLessThanOrEqual(q.room[1]);
+      expect(e.body.hpBar).toBe('none');
+      expect(e.rule.collideHeight).toBeCloseTo(1.69 * bossRow(b.name).tier, 2);
+    }
+    const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders, camera: payload.camera, world: payload }, { ground: faceGround(pageGroundFaces(payload.faces)) });
+    const w = sim.world, H = w.byId.hero, step = (inp = {}, n = 1) => { for (let i = 0; i < n; i++) { Object.assign(sim.input, ZERO, inp); sim.frame(SIM_DT); } };
+    const r = B.layout.rooms.find((x) => x.boss === 'the Gate Warden'), warden = w.byId[`boss-${r.id}`];
+    const seal = w.breakables.find((b) => b.id === `gate-${B.layout.doors.find((d) => d.gate === 'boss' && d.a === r.id).id}`);
+    expect(H.rule.airJumps ?? 0).toBe(0);
+    // (her health held full: the cut is what is measured here, not the fight's toll)
+    const floor = r.rect[1] * B.greybox.screen.height + FLOOR;
+    const mid = (r.rect[0] + r.rect[2] / 2) * B.greybox.screen.width;
+    H.transform.pos = [0, warden.transform.pos[1] + Math.sign(mid - warden.transform.pos[1]) * 2.4, floor + (H.rule.eye || 0) + 0.05]; H.vel = [0, 0, 0];
+    step({}, 10);
+    // (closed in to a cut's reach, turned to it, the string pressed; followed as each blow knocks it back. Her cuts land
+    // on it; brought to its last blow (the fight's length is the shelf's `blows`, not what is measured here), it is cut down)
+    const hp0 = warden.body.hp;
+    for (let k = 0; k < 400 && !warden.downed; k++) {
+      H.body.hp = H.hpMax;
+      const d = warden.transform.pos[1] - H.transform.pos[1];
+      if (Math.abs(d) > 1.6) { step({ strafe: Math.sign(d) }, 4); continue; }
+      step({ strafe: Math.sign(d) }, 1); step({ fire: 1 }, 2); step({}, 10);
+      if (warden.body.hp < hp0 && warden.body.hp > 1) warden.body.hp = 1;
+    }
+    expect(hp0).toBe(14 * 20);
+    expect(warden.downed).toBeTruthy();
+    step({}, 4);
+    expect(w.heldGates.held[`boss:${r.id}`]).toBeDefined();
+    expect(w.heldGates.held['gate:double-jump']).toBeDefined();
+    expect(H.rule.airJumps).toBe(1);
+    step({}, 10);
+    expect(seal.broken).toBeTruthy();
   });
 });

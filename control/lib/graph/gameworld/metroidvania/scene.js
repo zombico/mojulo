@@ -18,7 +18,9 @@
  *   the EXPLORED MAP   the tiles she walks recorded as she stands in them, a map room's lectern showing its region's
  *                      (worlds/controllable/explore.js), drawn as a minimap and, on M, the whole map (explored.js)
  *   the BOSSES         a stand-in in each boss room until the foes join: a tall block in the boss's colour, struck down
- *                      by the hero's blows (BOSS_HP of them); its fall gives what the boss gives and breaks its seal
+ *                      by the hero's blows (BOSS_HP of them); its fall gives what the boss gives and breaks its seal.
+ *                      `bosses: 'stood'` (a level whose foes have joined: level.js) leaves the block off: the boss is a body
+ *                      of the world stood in its room (bosses.js), felled as a foe is; `bosses[k].place` says where
  *
  *   BOX_SCENE_KEYS, BOSS_HP
  *   boxOf(m)            → { layout, greybox, solved, laws, stature, held }: the box as data, its held gates' spec in `held`;
@@ -45,9 +47,11 @@ import { dressBox } from './dress.js';
 import { mapOf, mapLaws } from './explored.js';
 import { backdropLaws } from './backdrop.js';
 
-export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees']);
+export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees', 'bosses']);
 /** a boss stand-in's blows to fall */
 export const BOSS_HP = 6;
+/** a stood boss keeps this far from its room's walls (its doorways): it never follows her out */
+const CLEAR_WALL = 2.5;
 const HALF = 1.5, BACK = -3, LIT = 0.14, RELIC = 0.5;
 const SOLID = '#8d8a84', EDGE = '#d9d5cb', LEDGE = '#c4c0b6', BOSS = '#b0353a', KEY = '#e8c547', PRIZE = '#f3efe6';
 const RING_BACK = ['#3a4150', '#3d3650', '#4a3540', '#552c30', '#4a2638'];
@@ -76,16 +80,17 @@ function readBoxScene(m) {
   if (!isObj(m)) no('a box is { kind: \'geocube\', show: \'metroidvania\', metroidvania: { box, powers, rings }, feel?, stature? }');
   for (const k of Object.keys(m)) if (!BOX_SCENE_KEYS.includes(k)) no(`${k} is not a box's word (${BOX_SCENE_KEYS.join(', ')})`);
   if (m.metroidvania === undefined) no('metroidvania is the box\'s words: { box: [cols, rows], powers, rings }');
+  if (m.bosses !== undefined && m.bosses !== 'stood') no('bosses is \'stood\' (each boss a body of the world the level stands in its room) or absent (a stand-in block)');
   if (m.stature !== undefined && !(Number.isFinite(m.stature) && m.stature > 0.3 && m.stature < 5)) no('stature is the hero\'s height in metres (the screen is sized from it)');
   // (laid by the hero's MEASURED jump where a feel is named: its run's jump and, where its card has one, its air jump)
   const reach = m.feel === undefined ? null : reachOf(readFeel(typeof m.feel === 'string' ? { pole: m.feel, takes: true } : m.feel));
   const jump = reach ? r3(reach.moves.run.height) : undefined;
-  return { words: m.metroidvania, hero: readHero({ ...(m.stature !== undefined ? { stature: m.stature } : {}), ...(jump ? { jump } : {}) }) };
+  return { words: m.metroidvania, stood: m.bosses === 'stood', hero: readHero({ ...(m.stature !== undefined ? { stature: m.stature } : {}), ...(jump ? { jump } : {}) }) };
 }
 
 /** The box as data: laid, built, solved, held to its laws, and what its world holds shut. */
 export function boxOf(m) {
-  const R = readBoxScene(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k))));
+  const R = readBoxScene(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k)))), stood = R.stood;
   // (a box, or a castle of boxes joined by their connectors: castle.js, laid as one map)
   const castle = isCastle(R.words), layout = castle ? layCastle(R.words) : layBox(R.words), greybox = greyboxOf(layout, { hero: R.hero }), solved = solveBox(layout);
   // (and, dressed, its theme's: each ring unlike the last of its box, every gate standing out from its room)
@@ -112,9 +117,13 @@ export function boxOf(m) {
       // (the stand-in toward the room's far side from the way in: clear of its hole and its door)
       const inAt = layout.doors.find((d) => d.b === r.id && d.kind !== 'shortcut'), fromRight = inAt && room.get(inAt.a).rect[0] > r.rect[0];
       const at = r.rect[0] * W + (fromRight ? 0.22 : 0.72) * r.rect[2] * W, id = `boss-${r.id}`;
-      breakables.push({ id, min: [-0.9, r3(at - 1), r3(z)], max: [0.9, r3(at + 1), r3(z + 3.2)], hp: BOSS_HP });
-      const R0 = rule(r.finds);
-      bosses.push({ id, name: r.boss, gives: [`boss:${r.id}`, ...(r.finds ? [`gate:${layout.powers[r.finds].opens}`] : [])], ...(R0 ? { rule: R0 } : {}), ...(r.finds ? { power: layout.powers[r.finds].name ?? r.finds } : {}) });
+      // (STOOD, `bosses: 'stood'`: the boss a body of the world, a foe at the boss's rank the level stands there, level.js;
+      // its fall felled as the entity's: held-gates.js `entity`. Else its stand-in block, struck down)
+      const R0 = rule(r.finds), span = [r3(r.rect[0] * W + CLEAR_WALL), r3((r.rect[0] + r.rect[2]) * W - CLEAR_WALL)];
+      if (!stood) breakables.push({ id, min: [-0.9, r3(at - 1), r3(z)], max: [0.9, r3(at + 1), r3(z + 3.2)], hp: BOSS_HP });
+      bosses.push({ id, name: r.boss, gives: [`boss:${r.id}`, ...(r.finds ? [`gate:${layout.powers[r.finds].opens}`] : [])], ...(R0 ? { rule: R0 } : {}), ...(r.finds ? { power: layout.powers[r.finds].name ?? r.finds } : {}),
+        ...(stood ? { entity: id, title: r.boss.replace(/^the\s+/i, (t) => t[0].toUpperCase() + t.slice(1)), room: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)] } : {}),
+        place: { room: r.id, at: [0, r3(at), r3(z)], heading: r3(fromRight ? Math.PI / 2 : -Math.PI / 2), span } });
     } else if (r.finds) {
       const R0 = rule(r.finds);
       relics.push({ id: `relic-${r.id}`, at: [0, r3(s), r3(z + 1)], gives: `gate:${layout.powers[r.finds].opens}`, name: layout.powers[r.finds].name ?? r.finds, ...(R0 ? { rule: R0 } : {}), colour: GATES[layout.powers[r.finds].opens].colour });
@@ -127,7 +136,7 @@ export function boxOf(m) {
   // (a boss's fall is its seal's opener; and its stand-in's id the seal's boss)
   // (its save rooms: walked into, the hero is full and wakes there; the gate room first, where she wakes before any)
   const saves = layout.rooms.filter((r) => r.save).sort((a, b) => a.walk - b.walk).map((r) => ({ id: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], at: [r3(midOf(r)), r3(floorOf(r))] }));
-  const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })), saves };
+  const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, place: _p, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })), saves };
   // DRESSED in its theme where its words name one (dress.js), and held to the backdrop's craft (backdrop.js)
   const B0 = { layout, greybox, stature: R.hero.stature }, dress = layout.theme ? dressBox(B0, BOX_THEMES[layout.theme]) : null;
   if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })));

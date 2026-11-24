@@ -5,7 +5,7 @@
  * on and under as any wall does, and a blow strikes them; this builder decides when each may go.
  *
  *   spec.heldGates: { target, gates: [{ id, opens, kind, near?, hp? }], relics: [{ id, at, r?, gives, name?, rule? }],
- *                     bosses: [{ id, gives: [token], name?, rule? }], saves?: [SAVE] }
+ *                     bosses: [{ id, entity?, gives: [token], name?, rule?, title?, room? }], saves?: [SAVE] }
  *     a GATE      its breakable `id`, shut until `opens` (a token) is held: a `wall-break` is then struck down (its hp
  *                 `hp`, the swing's or a shot's blows; before, no blow tells), any other breaks as the target comes within
  *                 `near` metres of it (a grate the small form slips, a lock its key turns); a `boss` seal breaks wherever
@@ -13,8 +13,9 @@
  *     a RELIC     a thing picked up where the target comes within `r` (1.2) of `at`: the token it `gives`, and a `rule`
  *                 laid over the target's own (a power's move: the double jump's `airJumps`); its page group
  *                 `break:<id>` hidden as it is taken
- *     a BOSS      a breakable struck down by the hero (a stand-in until the foes join): its fall gives its tokens and its
- *                 `rule`
+ *     a BOSS      a breakable struck down by the hero (a stand-in block), or a body of the world (`entity`: a foe stood at
+ *                 the boss's rank) felled: its fall gives its tokens and its `rule`; `title` and `room` ([s0, s1, z0, z1])
+ *                 its name and where its bar is shown (held-gates-view.js)
  *     a SAVE      a save room, `{ id, name, rect: [s0, s1, z0, z1], at: [s, z] }`: walked into, it fills the target's
  *                 health (its body's `hpMax`) and its MP (its moveset's `mp.max`, the arsenal's pool) and becomes where it
  *                 wakes; the first named is where it wakes before it has stood in any
@@ -114,8 +115,10 @@ export function buildHeldGates(E) {
     }
     // BOSSES: struck down, they give
     for (const B of H.bosses || []) {
-      const b = blk(B.id);
-      if (!b || !b.broken || G.felled[B.id] != null) continue;
+      // (a stand-in block struck down, or a boss that is a body of the world, `entity`, felled)
+      const b = B.entity ? null : blk(B.id), e = B.entity && state.byId ? state.byId[B.entity] : null;
+      if (B.entity ? !(e && (e.downed || e.gone)) : !(b && b.broken)) continue;
+      if (G.felled[B.id] != null) continue;
       G.felled[B.id] = state.time;
       give(state, G, T, B.gives || [], B.rule, B.id, B.name);
     }

@@ -267,8 +267,8 @@ rank on a skin, stood on the lane's rail with its class's mind.
   measured by the walk's depth whatever the number of regions).
 - **Where:** spread along the floor, never within `CLEAR` metres of a doorway nor over a hole, `APART` from each other,
   facing the way in.
-- **None in** the gate room, a save room, a map room, a boss's room (its boss alone) or the throne: where she rests,
-  reads, or fights the one she came for.
+- **None in** the gate room, a save room, a map room, a boss's room (its boss alone: [Bosses](#bosses)) or the throne:
+  where she rests, reads, or fights the one she came for.
 - **Until their figures are made,** they stand as greybox blocks of their size in their class's shade (`STAND_IN`).
 - **A fall gives souls** by rank. The game's trees take `souls: { minion, elite, per }`: a point for every `per` souls,
   so the fight fills the same purse the bosses and prizes do.
@@ -283,6 +283,31 @@ The cast's laws (`CAST_LAWS`, `foes:<id>`):
 - `rising`: each region's threat a screen (an elite counts `THREAT` minions) is never below `EASE` of the mean of the
   regions before it in its box.
 - `between-saves`: no more foes between two save rooms than `SURVIVE` times the hits her health takes.
+
+## Bosses
+
+Each boss a box names (a ring's `boss`, a connector's keeper) is read from the castle's boss shelf
+([bosses.js](../control/lib/graph/gameworld/metroidvania/bosses.js)) by its name, its words lower-cased and hyphened (`the
+Gate Warden` reads as `gate-warden`). A row is a foe class at the boss's rank on a skin, its `tier` (how many times the
+hero's height it stands), its `blows` (its health in the hero's blows) and what it reads as in a line. A boss the shelf
+does not know stands as the default row and the `known` law says so. A new boss is a row.
+
+Once the level's foes have joined (the stage's foe cast and the level's `foes`), the box is laid `bosses: 'stood'`. The
+stand-in block is left off, and the level stands the boss through the foe shelf (`standFoe`, as the side map stands its
+robots) where its room says: toward the room's far side from the way in, facing it, on its room's own stretch of the lane
+(`span`, short of the walls by `CLEAR_WALL`), so it never follows her out. Its fall is felled by the held gates
+(`entity`): its seal breaks, its power is given, and its tokens and points are hers, as the block's were. Its health is
+the castle's bar across the bottom, its name over it, shown while she stands in its room and it stands; never a bar over
+its head. Until its figure is made, it stands as a block of its tier's height in its class's shade.
+
+Erina's castle: the Gate Warden (a dead halberdier, a guard), the Bellkeeper and the Bell Ringer (lobbers throwing their
+bells), the Great Bell (a turret tolling rounds across the spire), the Warden (a quick devil, a stalker), the Crypt Lord
+(a great wolf that waits and springs), the Gatekeeper (a horned guard) and the Lord of the Keep (a pursuer).
+
+The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
+- `known`: each boss a row of the shelf.
+- `room-to-fight`: each boss on at least `FIGHT_ROOM` metres of lane.
+- `rising`: no boss along the walk under `BOSS_EASE` of the hardest before it.
 
 ## The explored map
 
@@ -424,10 +449,11 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
   the foreground: things passing in front of the lane in silhouette.
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
-  one menu (status, equipment, items, the map of rooms visited). Then the merchant, MP spells and real bosses in place of
-  the stand-ins.
-- **Foes and real bosses** on the side map's foe shelf and the boss director, in place of the stand-ins. A boss's
-  room shut behind her as a side map's is.
+  one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
+- **The bosses' fights.** Each boss is a foe class at the boss's rank today. Telegraphed patterns from the boss director
+  (`boss/`) need a jump rule first: its hazards lie on the ground plane, and a side view escapes them by jumping. Also
+  still to come: a boss's room shut behind her as a side map's is, its health back to full when she wakes at a save, and
+  its figure made.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
 - **The rail**, once a first box plays.
 - **The explored map's next affordances:** the player's own pins, a warp room's network drawn on it, a region's map

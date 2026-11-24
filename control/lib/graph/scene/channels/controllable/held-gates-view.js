@@ -1,7 +1,8 @@
 // In-page script: a metroidvania's HELD GATES seen (worlds/controllable/held-gates.js): what the hero picks up said as
 // it is taken, a band across the top of the screen with its name, held a moment and gone (and a save room's "Saved", a
 // waking after death); what the hero holds listed small under it; her health and MP as bars at the top left, under the page's own
-// buttons (the page's health panel hidden: one set of vitals). The gates themselves are breakables: the page's break pass hides each as it opens.
+// buttons (the page's health panel hidden: one set of vitals); a boss that is a body of the world (`entity`) its name and
+// its health as a long bar across the bottom while she stands in its room and it stands. The gates themselves are breakables: the page's break pass hides each as it opens.
 // Emitted only into a page whose world has held gates, so every other page keeps every byte.
 
 export const HELD_TOAST = Object.freeze({ hold: 2.4, fade: 0.5 });
@@ -22,6 +23,12 @@ __hgV.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bo
   + '<div style="display:flex;align-items:center;gap:6px"><span style="width:22px">MP</span><div style="flex:1;height:7px;background:#141a2a;border:1px solid #34406b"><div data-mp style="height:100%;width:100%;background:linear-gradient(#6f9cf0,#2a4ea8)"></div></div></div>';
 document.body.appendChild(__hgV);
 const __hgHp = __hgV.querySelector('[data-hp]'), __hgMp = __hgV.querySelector('[data-mp]');
+// (a BOSS's bar: its name over a long bar across the bottom, while she is in its room and it stands)
+const __hgB = document.createElement('div');
+__hgB.style.cssText = 'position:fixed;left:50%;bottom:58px;width:min(560px,70vw);transform:translateX(-50%);pointer-events:none;z-index:30;display:none;font:600 13px/1 Georgia,serif;color:#f3e6c4;letter-spacing:.1em;text-align:center;text-shadow:0 1px 2px #000';
+__hgB.innerHTML = '<div data-name style="margin-bottom:6px"></div><div style="height:10px;background:#1a0c10;border:1px solid #c9a75a"><div data-bhp style="height:100%;width:100%;background:linear-gradient(#c8454a,#6e1420)"></div></div>';
+document.body.appendChild(__hgB);
+const __hgBName = __hgB.querySelector('[data-name]'), __hgBHp = __hgB.querySelector('[data-bhp]'), __hgBMax = {};
 let __hgSeen = 0, __hgAt = -1;
 function __hgFrame() {
   const G = __world.heldGates;
@@ -34,6 +41,16 @@ function __hgFrame() {
     __hgHp.style.width = (hp * 100).toFixed(1) + '%';
     __hgMp.style.width = (M ? Math.max(0, (T.mp == null ? M.max : T.mp) / M.max) * 100 : 0).toFixed(1) + '%';
   }
+  // (the boss whose room she stands in, standing)
+  let __b = null;
+  if (T) for (const B of G.spec.bosses || []) {
+    const e = B.entity && __world.byId[B.entity], q = B.room, p = T.transform.pos;
+    if (!e || !q) continue;
+    if (__hgBMax[B.id] == null && Number.isFinite(e.body.hp)) __hgBMax[B.id] = e.body.hp;
+    if (!e.downed && !e.gone && G.felled[B.id] == null && p[1] >= q[0] && p[1] <= q[1] && p[2] >= q[2] && p[2] <= q[3]) { __b = { B, e }; break; }
+  }
+  __hgB.style.display = __b ? 'block' : 'none';
+  if (__b) { __hgBName.textContent = __b.B.title || __b.B.id; __hgBHp.style.width = (Math.max(0, __b.e.body.hp / (__hgBMax[__b.B.id] || 1)) * 100).toFixed(1) + '%'; }
   if (G.got.length > __hgSeen) {
     const g = G.got[G.got.length - 1]; __hgSeen = G.got.length; __hgAt = __world.time;
     __hgEl.textContent = g.name;
