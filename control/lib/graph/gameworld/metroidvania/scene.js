@@ -19,7 +19,8 @@
  *                      by the hero's blows (BOSS_HP of them); its fall gives what the boss gives and breaks its seal
  *
  *   BOX_SCENE_KEYS, BOSS_HP
- *   boxOf(m)            → { layout, greybox, solved, laws, stature, held }: the box as data, its held gates' spec in `held`
+ *   boxOf(m)            → { layout, greybox, solved, laws, stature, held }: the box as data, its held gates' spec in `held`;
+ *                       `metroidvania` a box's words or a castle's (castle.js: boxes joined by connectors, laid as one map)
  *   assembleBox(m, ctx) the `geocube` kind's `show: 'metroidvania'`: { metroidvania, feel?, stature?, seed? } → payload
  *                       (faces, colliders, breakables, heldGates, a camera at the gate), its `metroidvania` (not
  *                       enumerable) the box as data
@@ -31,11 +32,12 @@ import { readFeel } from '../feel/lower.js';
 import { reachOf } from '../feel/reach.js';
 import { TRAVERSAL_MOVES } from '../actions.js';
 import { layBox } from './box.js';
+import { isCastle, layCastle, castleLaws } from './castle.js';
 import { greyboxOf, FLOOR, boxCameraOf } from './rooms.js';
 import { solveBox } from './solve.js';
 import { boxLaws } from './laws.js';
 import { GATES, readHero } from './gates.js';
-import { BOX_THEMES, themeLaws } from './themes.js';
+import { BOX_THEMES, themeLaws, lookOf } from './themes.js';
 import { dressBox } from './dress.js';
 import { backdropLaws } from './backdrop.js';
 
@@ -80,10 +82,13 @@ function readBoxScene(m) {
 /** The box as data: laid, built, solved, held to its laws, and what its world holds shut. */
 export function boxOf(m) {
   const R = readBoxScene(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k))));
-  const layout = layBox(R.words), greybox = greyboxOf(layout, { hero: R.hero }), solved = solveBox(layout);
-  // (and, dressed, its theme's: each ring unlike the last, every gate standing out from its room)
+  // (a box, or a castle of boxes joined by their connectors: castle.js, laid as one map)
+  const castle = isCastle(R.words), layout = castle ? layCastle(R.words) : layBox(R.words), greybox = greyboxOf(layout, { hero: R.hero }), solved = solveBox(layout);
+  // (and, dressed, its theme's: each ring unlike the last of its box, every gate standing out from its room)
   const gateRings = (d) => [...new Set([d.a, d.b].map((id) => layout.rooms.find((r) => r.id === id).ring))];
-  const laws = [...boxLaws(layout, { solved, greybox }), ...(layout.theme ? themeLaws(layout.theme, layout.rings.length, layout.doors.filter((d) => d.gate && d.gate !== 'double-jump').map((d) => ({ kind: d.gate, colour: GATES[d.gate].colour, rings: gateRings(d) }))).map((l) => ({ ...l, id: `theme:${l.id}` })) : [])];
+  const T = layout.theme ? BOX_THEMES[layout.theme] : null, looks = T ? layout.rings.map((r, k) => (r.look !== undefined ? T.looks[r.look] : lookOf(T, k, layout.rings.length))) : null;
+  const breaks = new Set(layout.rings.filter((r, k) => k && (r.connector || layout.rings[k - 1].connector || r.box !== layout.rings[k - 1].box)).map((r) => r.i));
+  const laws = [...(castle ? castleLaws(layout, { solved, greybox }) : boxLaws(layout, { solved, greybox })), ...(T ? themeLaws(layout.theme, looks, layout.doors.filter((d) => d.gate && d.gate !== 'double-jump').map((d) => ({ kind: d.gate, colour: GATES[d.gate].colour, rings: gateRings(d) })), { breaks }).map((l) => ({ ...l, id: `theme:${l.id}` })) : [])];
   const W = greybox.screen.width, H = greybox.screen.height, room = new Map(layout.rooms.map((r) => [r.id, r]));
   const floorOf = (r) => r.rect[1] * H + FLOOR, midOf = (r) => (r.rect[0] + r.rect[2] / 2) * W;
   const tokenOf = (kind, door) => (kind === 'key' ? `key:${room.get(door.a).ring}` : kind === 'boss' ? `boss:${door.a}` : `gate:${kind}`);

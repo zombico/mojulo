@@ -158,6 +158,7 @@ import { readBackdrop } from '../lorecube/backdrop.js';
 import { readIntake } from './intake.js';
 import { readRail } from './rails.js';
 import { readBox } from './metroidvania/box.js';
+import { isCastle, readCastle } from './metroidvania/castle.js';
 import { readMegaworld } from './megaworld.js';
 import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
@@ -722,7 +723,8 @@ export function readGameworld(W) {
       const other = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'places', 'ground', 'arena', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap'].filter((k) => L[k] !== undefined);
       if (other.length) throw new Error(`gameworld: ${at}: a metroidvania level is the box alone: no ${other.join(', ')} beside it`);
       if (W.camera !== 'side') throw new Error(`gameworld: ${at}.metroidvania is seen from the side: set camera: 'side' (the side map's camera holds its rooms)`);
-      try { readBox(L.metroidvania); } catch (e) { throw new Error(`gameworld: ${at}.metroidvania: ${e.message.replace(/^metroidvania:\s*/, '')}`); }
+      // (a box, or a castle of boxes joined by their connectors: metroidvania/castle.js)
+      try { (isCastle(L.metroidvania) ? readCastle : readBox)(L.metroidvania); } catch (e) { throw new Error(`gameworld: ${at}.metroidvania: ${e.message.replace(/^metroidvania:\s*/, '')}`); }
     } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground

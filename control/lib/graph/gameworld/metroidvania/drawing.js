@@ -76,6 +76,12 @@ export function drawBox({ layout: L, greybox: G, laws = [], solved }, { width = 
     o.push(`<line x1="${X(s)}" y1="${Y(c.stands.at(-2))}" x2="${X(s)}" y2="${Y(c.stands.at(-1))}" stroke="${GATES['double-jump'].colour}" stroke-width="3"/>`);
   }
 
+  // a castle's boxes: each outlined and named, its shape said (castle.js)
+  for (const B of L.castle?.boxes ?? []) {
+    const [bc, br, bw, bh] = B.rect;
+    o.push(rect(bc * W, (bc + bw) * W, br * H, (br + bh) * H, 'fill="none" stroke="#f3efe6" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="10 6"'));
+    o.push(`<text x="${r1(X(bc * W) + 6)}" y="${r1(Y((br + bh) * H) - 6)}" fill="#f3efe6" fill-opacity="0.8" font-size="13" font-weight="600">${esc(B.id)} · a ${esc(B.shape)}</text>`);
+  }
   // the way back: shortcuts and loops
   for (const d of L.doors.filter((x) => x.kind === 'shortcut' || x.kind === 'loop' || x.kind === 'return')) {
     const [p, q] = d.cells;

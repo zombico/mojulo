@@ -8,7 +8,8 @@
  *   2  detail by the EYE SEGMENT     a screen is EYE.across × EYE.up eye segments (a glance's worth of wall); every
  *                                    segment of a closed room holds DETAIL.min to DETAIL.max pieces of detail (faces of
  *                                    dress, each counted in every segment it covers), so none reads as a void and none
- *                                    as noise
+ *                                    as noise; what is one thing to the eye counts once: a column's shading strips are
+ *                                    its light (`box:relief`), a board's books its texture (`box:texture`)
  *   3  calm behind the play          the band the hero moves in (the lowest of a storey's segments) holds less detail
  *                                    than the bands above it: what she fights reads against it
  *   4  structure, dressing, story    bays dressed by the wall's rhythm (A and B, never three alike, never a pair
@@ -246,11 +247,12 @@ function caseOf(out, x, s, w, z0, z1, base, trim, dark, spines, dice, sizes, set
         const rw = Math.min(b - 0.03 - t, sets ? 0.4 + dice() * 0.4 : 0.16 + dice() * 0.3), bh = sets ? 0.27 : 0.2 + dice() * 0.13;
         if (!sets && dice() < 0.14) {   // (a gap where books were taken, one leaning into it)
           const gw = 0.12 + dice() * 0.12;
-          bar(out, x + 0.03, [t + 0.03, zb + 0.01], [t + gw - 0.02, zb + bh * 0.92], 0.05, spines[Math.floor(dice() * spines.length)]);
+          bar(out, x + 0.03, [t + 0.03, zb + 0.01], [t + gw - 0.02, zb + bh * 0.92], 0.05, spines[Math.floor(dice() * spines.length)], 'box:texture');
           measure(sizes, 'book.h', Math.hypot(gw - 0.05, bh * 0.92));
           t += gw; continue;
         }
-        rect(out, x + 0.03, t, t + rw - 0.02, zb, zb + bh, sets ? shade(set, 0.9 + dice() * 0.2) : spines[Math.floor(dice() * spines.length)]);
+        // (a board's books are its texture, the board the detail: a run of like things is one thing to the eye)
+        rect(out, x + 0.03, t, t + rw - 0.02, zb, zb + bh, sets ? shade(set, 0.9 + dice() * 0.2) : spines[Math.floor(dice() * spines.length)], 'box:texture');
         measure(sizes, 'book.h', bh);
         t += rw;
       }

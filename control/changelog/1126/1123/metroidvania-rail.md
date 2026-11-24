@@ -54,3 +54,10 @@
   of the lane are round. The light is baked smoothly across every surface and shows the relief: columns are lit round on
   the side of their lamp, each stone is lit domed, and what stands out of the wall casts a shadow across it from each
   candle, torch and brazier, with the dark gathering around it and under the ceiling.
+- A castle of boxes. Several boxes can be joined into one level through their ports. Every box is entered on its left. A
+  climbed tower is left where its top row runs to, and a courtyard at its top right. A keep wound to its core is where the
+  castle ends. The boxes are joined by connectors: a bridge open to the night, or a gatehouse with a save room and a gate,
+  its own boss standing in it. Powers are found once across the castle and open things in the boxes after them. Each box
+  is checked against its own shape, and the castle as one walk through all of it. Vampire Sonata's castle climbs its bell
+  tower, crosses the bell bridge to an open courtyard, and passes the Gatekeeper into the keep. It is drawn as one
+  elevation and played as one level.

@@ -59,8 +59,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const word = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 80;
 const fail = (m) => { throw new Error(`metroidvania: ${m}`); };
 const BOX_KEYS = ['premise', 'box', 'shape', 'turn', 'theme', 'powers', 'rings'];
-const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets'];
-const CORE_KEYS = ['id', 'place', 'boss'];
+const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets', 'look'];
+const CORE_KEYS = ['id', 'place', 'boss', 'look'];
 
 /** The words as read: throws, teaching, on any it does not know. */
 export function readBox(v) {
@@ -106,6 +106,12 @@ export function readBox(v) {
     if (!word(R.place)) fail(`${at}.place is the place it is, a word (the outer wall, the great halls)`);
     const r = { i, id: R.id, place: R.place.trim(), rect: [i, cols - 1 - i, i, rows - 1 - i], ...(core ? { core: true } : {}) };
     if (R.boss !== undefined) { if (!word(R.boss)) fail(`${at}.boss is the boss's name`); if (out.shape === 'hub' && i === 1) fail(`${at}.boss: the hub is walked through to every wing, never fought in (a wing holds a boss)`); r.boss = R.boss.trim(); }
+    // (its LOOK, where it says: the theme's look by its place in the theme's looks, else its place in the box's rings')
+    if (R.look !== undefined) {
+      const n = out.theme ? BOX_THEMES[out.theme].looks.length : 0;
+      if (!(Number.isInteger(R.look) && R.look >= 0 && (!n || R.look < n))) fail(`${at}.look is a look of the theme's, by its place (0 to ${n ? n - 1 : 'its last'}${out.theme ? `: ${BOX_THEMES[out.theme].looks.map((x) => x.place).join(', ')}` : ''})`);
+      r.look = R.look;
+    }
     if (core) return r;
     if (R.finds !== undefined) {
       if (!out.powers[R.finds]) fail(`${at}.finds is a power's id (${Object.keys(out.powers).join(', ') || 'none: say them in powers'})`);
@@ -123,6 +129,7 @@ export function readBox(v) {
     }
     if (R.pockets !== undefined) {
       if (!Array.isArray(R.pockets)) fail(`${at}.pockets is [{ gate, holds }]`);
+      if (out.shape === 'hub' && i < 2) fail(`${at}.pockets: a hub's ${i ? 'hub' : 'approach'} is climbed in shafts, and a pocket is an alcove off a corridor: put it in a wing`);
       r.pockets = R.pockets.map((p, k) => {
         if (!isObj(p) || Object.keys(p).some((x) => !['gate', 'holds'].includes(x))) fail(`${at}.pockets[${k}] is { gate, holds }`);
         if (!(GATES[p.gate] && GATES[p.gate].by === 'power' && opened.has(p.gate))) fail(`${at}.pockets[${k}].gate is a gate a power opens (${[...opened].join(' | ') || 'none said'})`);
@@ -155,6 +162,9 @@ const rectOf = (cells) => {
   return [c, r, Math.max(...cs) - c + 1, Math.max(...rs) - r + 1];
 };
 const touches = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+
+/** a laid box's rings, each with the look its words name */
+const withLooks = (rings, M) => rings.map((r, k) => (M.rings[k].look !== undefined ? { ...r, look: M.rings[k].look } : r));
 
 /** The box laid: rings, rooms, doors and the walk. */
 export function layBox(v) {
@@ -263,7 +273,7 @@ export function layBox(v) {
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {
     box: M.box, shape: M.shape, turn: M.turn, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry,
-    rings, rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
+    rings: withLooks(rings, M), rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
   };
 }
 
@@ -292,11 +302,11 @@ function layShaped(M, ctx) {
     // (a boss's room sealed on its way on: the door out of it the walk takes, or a wing's return to the hub)
     if (R.boss) { const d = doors.find((x) => x.a === end.id && (x.kind === 'path' || x.kind === 'return') && !x.gate); if (d) d.gate = 'boss'; }
     const corridors = rs.filter((x) => x.kind === 'corridor' && x !== end);
-    (R.pockets ?? []).forEach((p, j) => { const at = corridors[Math.floor(((j + 0.5) * corridors.length) / R.pockets.length)]; if (at) at.pockets.push({ ...p }); });
+    (R.pockets ?? []).forEach((p, j) => { const at = corridors[Math.floor(((j + 0.5) * corridors.length) / R.pockets.length)]; if (!at) throw new Error(`metroidvania: ${R.id}.pockets: no corridor to hold ${p.holds} (a pocket is an alcove off a corridor)`); at.pockets.push({ ...p }); });
   }
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {
     box: M.box, shape: M.shape, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry: L.entry, ...(L.exit ? { exit: L.exit } : {}),
-    rings: L.rings, rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
+    rings: withLooks(L.rings, M), rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
   };
 }

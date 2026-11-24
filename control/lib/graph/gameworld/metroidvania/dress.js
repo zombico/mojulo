@@ -120,7 +120,8 @@ function pier(out, occ, c, floor, cap, z1, kind, L, pc) {
 export function dressBox(B, theme) {
   const T = typeof theme === 'string' ? BOX_THEMES[theme] : theme, { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height;
   const rings = L.rings.length, [cols, rows] = L.box, faces = [], lamps = [], night = [], flames = [];
-  const look = (ring) => lookOf(T, ring, rings), ringOf = new Map(L.rooms.map((r) => [r.id, r.ring]));
+  // (a ring's look its words name, a castle's rings each theirs; else its place in the box's rings)
+  const look = (ring) => (L.rings[ring]?.look !== undefined ? T.looks[L.rings[ring].look] : lookOf(T, ring, rings)), ringOf = new Map(L.rooms.map((r) => [r.id, r.ring]));
   const cellRing = new Map(L.rooms.flatMap((r) => r.cells.map((c) => [`${c[0]},${c[1]}`, r.ring])));
   const ringAt = (s, z) => cellRing.get(`${Math.floor(s / W)},${Math.floor(z / H)}`) ?? 0;
   const anyOpen = L.rooms.some((r) => look(r.ring).open);

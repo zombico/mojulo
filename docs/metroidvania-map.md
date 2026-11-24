@@ -105,6 +105,50 @@ Vampire Sonata keeps two more boxes of the castle: the **bell tower** (`bellTowe
 foot, the belfry, the spire) and the **courtyard** (`courtyard()`, a hub of 7 × 8: the barbican, the court, the chapel,
 the armoury, the crypt). `node scripts/metroidvania.mjs --shape serpentine | hub` draws them.
 
+## A castle of boxes: ports and connectors
+
+A castle is several boxes set on one grid of screens and joined across the night between them, laid as one map
+([castle.js](../control/lib/graph/gameworld/metroidvania/castle.js)): the megaworld's rings at the next scale. Each box keeps
+its own shape, and the castle is walked one box into the next.
+
+- **Ports** are where a box is entered and left: a door on its side. Every box is entered by its gate, `in` (its left
+  side's bottom room). A box that passes through or joins is left by its `out`:
+  - a serpentine where its top row runs to, its last room's far side (an odd number of rows leaves on its right);
+  - a hub at its top right, its upper right wing's far corner.
+
+  A spiral is a destination and is never left.
+- **Connectors** join one box's `out` to the next box's `in`, a row each (`CONNECTORS`):
+  - **bridge:** a span open to the night, `length` screens, its far end gated where it says (a power's gate);
+  - **gatehouse:** a gate-tower of two rooms, its hall a save room, then its gate on the way on (a boss standing in it,
+    `boss`, or a power's gate).
+
+  A box whose out room holds its core's boss is sealed by it: what passes through a box beats it.
+- **The castle** places its boxes in the order the walk takes them. Each next box's gate is level with the last box's out,
+  its connector's `length` screens on. The walk is the boxes' walks one after another through their connectors, and the
+  castle's core is the last box's. The powers are the castle's, each found once in it, and a region may name its theme
+  look (`look`, by its place in the theme's looks), so the courtyard can stand open to the sky.
+- **The laws.** Each box is held on its own to its shape's laws (`<box>:<law>`, `BOX_SHARE`: its entry, its filling, its
+  shape, its axes, its gates in, its rhythm, its saves, its core's boss). The castle is held to the laws of a walk through
+  all of it (`CASTLE_LAWS`):
+  - `joined`: every box on the chain, each join from an out to the next gate, nothing laid over another;
+  - `roles`: a destination never passed through, and the castle ending in its core;
+  - `connectors`: each as its row says;
+  - every gate's opener found before it, the castle finished, every power opening something behind it, every pocket
+    opened;
+  - `way-back`: from the castle's core to its gate a fraction of the way in;
+  - no kick, the sills holding, and the saves.
+
+Vampire Sonata's castle (`vampireSonataCastle()`; `vampireSonataGame({ castle: true })` plays it) has three boxes:
+- **The bell tower**, a serpentine of 8 × 5. The second leap is at its foot and the Great Bell in its open spire, sealing
+  the way out.
+- **The bell bridge.**
+- **The courtyard**, a hub of 7 × 8, open to the sky. The chapel holds the Warden and the ram strike, the armoury the mist
+  veil, and the crypt its lord.
+- **The keep's gatehouse**, with its Gatekeeper.
+- **The keep**, a spiral of 8 × 6 to the Lord of the Keep.
+
+`node scripts/metroidvania.mjs --castle` draws it as one elevation, each box outlined.
+
 ## The words
 
 ```js
@@ -296,7 +340,7 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
 - **The rail**, once a first box plays; the map shown in the game from the rooms visited.
 - **Dressed** by the side map's paint, cake and vista, a place a ring.
-- **Several boxes** joined as castle wings round a keep: the megaworld at the next scale. The shapes are its first half
-  (the bell tower passes through, the courtyard joins, the keep is the destination); ports on a box's sides and the
-  connectors between boxes (a bridge, a gatehouse) are the next.
-- **A courtyard open to the sky.** The hub is dressed as its region's look, the halls; a hub's own look would open it.
+- **More of the castle's joins.** Ports on a box's top and bottom, so a castle climbs and descends as well as runs
+  rightward. A hub with more than one way out, joining more than two boxes. Connectors that climb: a stair, a lift.
+- **A courtyard dressed as one.** The castle's courtyard stands open to the sky, but its shafts are only ledges against
+  the night: it wants flagstones, a well, its walls round it.

@@ -60,6 +60,8 @@ export function boxLaws(L, { solved, greybox } = {}) {
   law('entered-left', L.entry.side === 'left' && first.rect[0] === 0, `entered through the ${L.entry.side} side at ${first.id} (column ${first.rect[0]})`);
   law('fills-the-box', L.cells / (cols * rows) >= FILL, `the rooms take ${L.cells} of ${cols * rows} cells (${pct(L.cells / (cols * rows))}; at least ${pct(FILL)})`);
 
+  // (the shape's and the axes' laws are a box's: a map of several boxes, a castle, holds each box to them on its own)
+  if (SHAPES[L.shape ?? 'spiral']) {
   // the shape
   const shape = L.shape ?? 'spiral', rings = L.walk.map((id) => room.get(id).ring), back = L.walk.filter((id, k) => k && room.get(id).ring < rings[k - 1]);
   const endsCore = L.rings[room.get(L.walk.at(-1)).ring].core;
@@ -103,6 +105,7 @@ export function boxLaws(L, { solved, greybox } = {}) {
   }
   const band = SHAPES[shape].axes, vert = upDown / Math.max(1, across + upDown);
   law('both-axes', vert >= band[0] && vert <= band[1] && !noClimb.length, `${upDown} cells climbed or dropped against ${across} crossed (${pct(vert)}; ${pct(band[0])}–${pct(band[1])} for a ${shape})${noClimb.length ? `; ${noClimb.join(', ')} never climb${noClimb.length === 1 ? 's' : ''} and drop${noClimb.length === 1 ? 's' : ''}` : ''}`, noClimb);
+  }
 
   // the gates in
   // (a hub whose own region says no gate leaves its first wing open: the hub is where the walk chooses)

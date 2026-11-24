@@ -366,7 +366,8 @@ Pointers only; each target carries its own design notes.
   gates rows of `gates.js`; Vampire Sonata its template and Erina its hero, no stomp and no wall kick; a box's look a
   theme, ring by ring, `themes.js` (the castle) laid by `dress.js`; a world's
   `levels.<id>.metroidvania`, built as the geocube's `show: 'metroidvania'` and played in greybox on the side map's
-  runtime, its gates held shut until the hero holds what opens them, `worlds/controllable/held-gates.js`):
+  runtime, its gates held shut until the hero holds what opens them, `worlds/controllable/held-gates.js`; boxes of
+  other shapes, `shapes.js`, joined port to port by connectors into a castle laid as one map, `castle.js`):
   [gameworld/metroidvania/](control/lib/graph/gameworld/metroidvania/), [docs/metroidvania-map.md](docs/metroidvania-map.md).
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a

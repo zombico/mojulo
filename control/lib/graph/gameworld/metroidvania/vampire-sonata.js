@@ -26,8 +26,9 @@
  *
  *   vampireSonata({ box?, turn? }) → the map's words (box.js readBox's), the castle at 12 × 8 screens unless said
  *   bellTower({ box? }) · courtyard({ box? })   → the castle's other boxes: a serpentine and a hub (shapes.js)
+ *   vampireSonataCastle() → a castle of boxes (castle.js): the tower, a bridge, the courtyard, a gatehouse, the keep
  *   erinaHero()          → the character door's words for her (create_character { as: 'hero', spec, toon })
- *   vampireSonataGame({ heroRef?, id?, name? }) → a designed game's words: the feel, the side camera, her book (adopted
+ *   vampireSonataGame({ heroRef?, id?, name?, castle? }) → a designed game's words: the feel, the side camera, her book (adopted
  *                        by `heroRef`, the row erinaHero mints), the castle one level
  *   VAMPIRE_SONATA_PREMISE, VAMPIRE_SONATA_POWERS, VAMPIRE_SONATA_FEEL, ERINA
  *
@@ -89,6 +90,42 @@ export function courtyard({ box = [7, 8] } = {}) {
   };
 }
 
+/**
+ * THE CASTLE OF BOXES (castle.js): the bell tower climbed from its foot to its open spire, a bridge across the night to
+ * the courtyard's barbican, the courtyard open to the sky with its chapel, armoury and crypt, a gatehouse and its keeper,
+ * and the keep wound in to the throne. The powers are the castle's, each found once: the second leap at the tower's
+ * foot, the ram strike in the chapel, the mist veil in the armoury; every one opens something behind as well as on.
+ */
+export function vampireSonataCastle() {
+  return {
+    premise: 'A hunter climbs the bell tower, crosses to the courtyard and storms the keep', theme: 'castle',
+    powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
+    boxes: [
+      { id: 'tower', box: [8, 5], shape: 'serpentine', rings: [
+        { id: 'foot', place: 'the tower foot', look: 1, boss: 'the Bell Ringer', finds: 'second-leap', inward: 'double-jump', pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }] },
+        { id: 'belfry', place: 'the belfry', look: 2, key: true, inward: 'key', pockets: [{ gate: 'wall-break', holds: 'a relic' }] },
+        { id: 'spire', place: 'the spire', look: 0, boss: 'the Great Bell' },
+      ] },
+      { id: 'court', box: [7, 8], shape: 'hub', rings: [
+        { id: 'barbican', place: 'the barbican', look: 3, key: true, inward: 'key' },
+        { id: 'yard', place: 'the courtyard', look: 0 },
+        { id: 'chapel', place: 'the chapel', look: 1, boss: 'the Warden', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
+        { id: 'armoury', place: 'the armoury', look: 3, finds: 'mist-veil', inward: 'form' },
+        { id: 'crypt', place: 'the crypt', look: 2, boss: 'the Crypt Lord' },
+      ] },
+      { id: 'keep', box: [8, 6], rings: [
+        { id: 'lower', place: 'the lower keep', look: 1, key: true, inward: 'double-jump' },
+        { id: 'upper', place: 'the upper keep', look: 2, inward: 'form' },
+        { id: 'throne', place: 'the throne room', look: 3, boss: 'the Lord of the Keep' },
+      ] },
+    ],
+    joins: [
+      { from: 'tower', to: 'court', by: 'bridge', length: 2, place: 'the bell bridge' },
+      { from: 'court', to: 'keep', by: 'gatehouse', gate: 'boss', boss: 'the Gatekeeper', place: 'the keep\'s gatehouse' },
+    ],
+  };
+}
+
 /** The castle's feel: Zero Boy's saber string on the run and gun's body, without its wall (no slide, no kick off one),
  * played with a sword of steel (`blade.steel`: no strand of light over it, its slash in steel, feel/saber.js). */
 export const VAMPIRE_SONATA_FEEL = Object.freeze({ pole: 'galaxy-boy', variant: 'saber', takes: true, set: Object.freeze({ cling: null, dash: Object.freeze({ wall: false }), blade: Object.freeze({ steel: true }) }) });
@@ -106,13 +143,14 @@ export const ERINA = Object.freeze({
 export const erinaHero = () => ({ as: 'hero', toon: { light: true }, spec: structuredClone({ ...ERINA }) });
 
 /** Vampire Sonata as a designed game's words: Erina's feel and book, the castle its one level. */
-export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vampire Sonata', box, turn } = {}) {
+export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vampire Sonata', box, turn, castle = false } = {}) {
   return {
     id, name,
     feel: structuredClone(VAMPIRE_SONATA_FEEL),
     camera: 'side',
     // (no lives: an action RPG's vitals, health and MP, her death a waking in the last save room: metroidvania/level.js)
     characters: { direction: { tradition: 'anime', body: { rail: 'realistic', style: 'anime' } }, ...(heroRef ? { hero: { ref: heroRef } } : {}) },
-    levels: { castle: { name: 'The castle', metroidvania: vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },
+    // (the castle one box, or, `castle`, the castle of boxes: the tower, the courtyard and the keep joined, castle.js)
+    levels: { castle: { name: 'The castle', metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },
   };
 }

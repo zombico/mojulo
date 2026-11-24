@@ -29,7 +29,8 @@
  *
  *   BOX_THEMES, BOX_THEME_IDS, LAMP_KINDS
  *   lookOf(theme, ring, rings) → the ring's look (`rings` the box's ring count, the core counted)
- *   themeLaws(theme, rings, gates?) → [{ id, holds, says }]   rings-distinct: each ring unlike the one outside it;
+ *   themeLaws(theme, rings, gates?, { breaks? }) → [{ id, holds, says }]   rings: a count, or the rings' looks; rings-distinct:
+ *                                     each ring unlike the one before it (but across `breaks`, ring indices a castle starts afresh at);
  *                                     gates-read: every gate's colour stands out from the back of each ring it is in
  *
  * Pure.
@@ -76,14 +77,15 @@ export const RING_APART = 0.12;
 export const GATE_READS = 2.2;
 
 /** The theme's laws over a box of `rings` rings (the core counted), and, given, the gates it lays: [{ kind, colour, rings }]. */
-export function themeLaws(theme, rings, gates = []) {
-  const looks = Array.from({ length: rings }, (_, k) => lookOf(theme, k, rings)), out = [];
+export function themeLaws(theme, rings, gates = [], { breaks } = {}) {
+  const looks = Array.isArray(rings) ? rings : Array.from({ length: rings }, (_, k) => lookOf(theme, k, rings)), out = [];
   const close = [];
   for (let k = 1; k < looks.length; k++) {
+    if (breaks?.has(k)) continue;   // (a castle's box starts its rings afresh: a connector, a new box, compared with nothing)
     const a = looks[k - 1], b = looks[k];
     if (dist(a.back, b.back) + dist(a.stone, b.stone) < RING_APART) close.push(`${a.place} and ${b.place}`);
   }
-  out.push({ id: 'rings-distinct', holds: !close.length, says: close.length ? `${close.join('; ')} look alike` : `each of ${rings} rings unlike the one outside it, in its back and its stone` });
+  out.push({ id: 'rings-distinct', holds: !close.length, says: close.length ? `${close.join('; ')} look alike` : `each of ${looks.length} rings unlike the one before it, in its back and its stone` });
   const faint = [];
   for (const g of gates) for (const r of g.rings) { const c = contrast(g.colour, looks[r].back); if (c < GATE_READS) faint.push(`${g.kind} on ${looks[r].place} (${Math.round(c * 10) / 10})`); }
   out.push({ id: 'gates-read', holds: !faint.length, says: faint.length ? `faint against their room: ${faint.join(', ')}` : `every gate stands out from its room's back (contrast ${GATE_READS} or more)` });
