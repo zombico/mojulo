@@ -47,4 +47,9 @@
 - Seeded variations, Galaxy Boy's: every side map setting's places have their own tones; three vistas built from the
   existing pieces (a neon market, an orbit with stars and a planet rising under the window, a greenhouse of domed
   gardens); two settings dealt from them, a neon city and an orbital colony. Every side map law holds in every setting.
+- Seeded variations, the castle's: two re-keys, castle-frost (an ice-blue night, a pale moon, cold lamps) and
+  castle-blood (a blood moon, crimson halls), each the same rings and locales in other colours with no drawing of its
+  own; two locales from new pieces, the alchemist's laboratory (potions glowing on their shelves, a cauldron bubbling
+  under its hood) in every other corridor of the halls, and the armoury (weapon racks, a suit of armour) in the keep's
+  other hall. Every law holds in every theme.
 

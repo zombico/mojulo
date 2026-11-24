@@ -76,6 +76,7 @@ export const MOTION = Object.freeze({
   'box:clouds': Object.freeze({ amp: [0, 5, 0.3], period: 95, spread: 0.03 }),
   'box:beam': Object.freeze({ depth: 0.45, beat: 13, spread: 0.05 }),
   'box:ghost': Object.freeze({ depth: 0.3, beat: 2.7, spread: 0.6 }),
+  'box:brew': Object.freeze({ amp: [0, 0, 0.03], period: 1.4, spread: 3.1, depth: 0.35, beat: 1.8 }),
 });
 const HALF = 1.5, BACK = -3, NEAR_X = -2.3, NEAR_SHADE = 0.55, LIT = 0.14, SKY_X = -14, TOWER_X = -12, MOON_X = -10, PARAPET_X = -2.2, SKY_BAND = 4;
 const STAR_X = SKY_X + 0.6, MOUNT_X = SKY_X + 1.0, CLOUD_X = SKY_X + 1.4, RIDGE_X = TOWER_X + 0.6, BEAM_X = BACK + 0.55;
@@ -280,8 +281,8 @@ export function dressBox(B, theme) {
           const at = { s: s0 + W * (b ? 0.75 : 0.25), floor, top, x: BACK + 0.04 }, letter = C.order[(i * 2 + b) % C.order.length];
           const f0 = faces.length, o0 = occ.length, pc = `piece:${c + i},${rr + j},${b}`;
           const isFocal = j === 0 && i === C.focal.cell && b === C.focal.bay && P.focals === 0, drawn = isFocal ? Lk.focal : Lk.bays[letter === 'B' ? 1 : 0];
-          if (isFocal) { drawPiece(faces, Lk.focal, { ...at, focal: true, spins }, Lk, dice, sizes, occ); P.focals++; }
-          else drawPiece(faces, drawn, { ...at, spins }, Lk, dice, sizes, occ);
+          if (isFocal) { drawPiece(faces, Lk.focal, { ...at, focal: true, spins, live }, Lk, dice, sizes, occ); P.focals++; }
+          else drawPiece(faces, drawn, { ...at, spins, live }, Lk, dice, sizes, occ);
           for (let k = f0; k < faces.length; k++) faces[k].pc = pc;
           // (MOONLIGHT through an arched window: its glass shows the night, and a shaft falls from it to the floor, away
           // from the moon; it breathes as cloud passes the moon)
@@ -411,7 +412,7 @@ export function dressBox(B, theme) {
     const cs = Math.floor(cx[1] / W), cz = Math.floor(cx[2] / H), ls = around(byCell, cs, cz), os = around(occCell, cs, cz), base = hexRgb(f.fill);
     const { tilt, pillow, pc, sky, ...rest } = f;
     // (stained glass is lit from behind, by the night: it keeps its colours, a step brighter where a lamp is near)
-    if (f.group === 'box:stained') return rest;
+    if (f.group === 'box:stained' || f.group === 'box:brew') return rest;
     let hs = 0, hz = 0;
     if (pillow) for (const p of f.corners) { hs = Math.max(hs, Math.abs(p[1] - cx[1])); hz = Math.max(hz, Math.abs(p[2] - cx[2])); }
     let cols = f.corners.map((p) => shine(p, f, tilt ?? (pillow ? [pillow * (p[1] - cx[1]) / (hs || 1), pillow * (p[2] - cx[2]) / (hz || 1)] : null), base, ls, os));

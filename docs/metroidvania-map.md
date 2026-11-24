@@ -238,6 +238,14 @@ its `alt` every other corridor. The open ring's rooms stay its ramparts, and the
 | the clock tower (the ward's shafts and the Bellkeeper's room) | brick | gears meshed in the wall | the great clock's face | the gears, each the other way from the one it drives, and the clock's hands |
 | the catacombs (every other corridor of the ward) | rough rock | niches of skulls, a statue's niche | a sarcophagus, its lord carved on the lid | the candles |
 | the throne room (the keep's boss's room) | ashlar in crimson | banners, tall windows | the lord's throne on its dais under a canopy and his crest | the braziers |
+| the alchemist's laboratory (every other corridor of the halls) | brick | shelves of glowing potions, a library case | the cauldron on its fire under a hood, an alembic, herbs drying | the cauldron's fire, its brew bubbling |
+| the armoury (the keep's other hall) | ashlar | racks of spears and swords, the house's arms | a suit of armour on its stand, a halberd in its hand | the torches |
+
+A theme may be a RE-KEY of another (`rekey` in themes.js): the same rings, locales and pieces with its night, each
+ring's colours, each locale's colours and its lamps' colour laid over the base's. The castle has two:
+`castle-frost` (an ice-blue night under a pale moon, cold stone, lamps gone blue, the keep in sapphire) and
+`castle-blood` (a blood moon on a crimson night, the halls in deep reds, every flame hotter). A box's words name one
+as their `theme`. The rings-distinct law caught a first frost whose ramparts and halls were too alike.
 
 A back's masonry is a row of `WALLS` (dress.js): ashlar, brick, rock and plaster, each with its blocks, its courses, how
 far a stone strays from the next and the joint between them. A piece that turns is its own group (`box:turn:<id>`),

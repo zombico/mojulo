@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { assembleBox, boxOf } from './scene.js';
 import { dressBox, LIVE, MOTION } from './dress.js';
-import { BOX_THEMES, lookOf, themeLaws, localeOf, roomLook } from './themes.js';
+import { BOX_THEMES, BOX_THEME_IDS, lookOf, themeLaws, localeOf, roomLook } from './themes.js';
 import { vampireSonata } from './vampire-sonata.js';
 import { readBox } from './box.js';
 
@@ -59,7 +59,8 @@ describe('a box dressed in its theme', () => {
     expect(beams.every((f) => f.alpha > 0 && f.alpha < 0.2)).toBe(true);
     expect(D.faces.filter((f) => f.group === 'box:glass').every((f) => new Set(f.cornerFills).size > 1)).toBe(true);
     // (a live flame for every painted flame but the cold lamps', the painted one kept as its ember)
-    expect(D.live.length).toBe(D.faces.filter((f) => f.group === 'box:flame' && f.corners.length === 5).length);
+    // (and a cauldron's fire is live with no painted flame of its own)
+    expect(D.live.length).toBeGreaterThanOrEqual(D.faces.filter((f) => f.group === 'box:flame' && f.corners.length === 5).length);
     expect(P.flames).toEqual(D.live);
     expect(LIVE.grow).toBeGreaterThan(1);
     expect(Object.keys(P.ambient.groups)).toEqual(expect.arrayContaining(Object.keys(MOTION)));
@@ -86,5 +87,22 @@ describe('a box dressed in its theme', () => {
     for (const [g] of turns) expect(D.faces.some((f) => f.group === g)).toBe(true);
     // (every backdrop law still holds over the locales)
     expect(B.laws.filter((l) => l.id.startsWith('backdrop:') && !l.holds)).toEqual([]);
+  });
+
+  // (docs/backdrop-variations.md) seeded: re-keys of the castle with no drawing of their own, and locales from new pieces
+  it('seeds the castle: its re-keys keep its rings and locales in other colours, every law holding', () => {
+    const plain = boxOf(M(vampireSonata()));
+    for (const id of BOX_THEME_IDS.filter((t) => t !== 'castle')) {
+      const T = BOX_THEMES[id], B = boxOf(M({ ...vampireSonata(), theme: id }));
+      expect(T.looks.map((L) => L.bays)).toEqual(BOX_THEMES.castle.looks.map((L) => L.bays));
+      expect(Object.keys(T.locales)).toEqual(Object.keys(BOX_THEMES.castle.locales));
+      expect(T.night.moon.colour).not.toBe(BOX_THEMES.castle.night.moon.colour);
+      expect(Object.fromEntries(Object.entries(B.dress.plan).map(([k, p]) => [k, p.locale]))).toEqual(Object.fromEntries(Object.entries(plain.dress.plan).map(([k, p]) => [k, p.locale])));
+      expect(B.laws.filter((l) => !l.holds), id).toEqual([]);
+    }
+    // (the seeded locales stand where their rule puts them: the halls' every other corridor, the keep's hall)
+    const locs = new Set(Object.values(plain.dress.plan).map((p) => p.locale).filter(Boolean));
+    for (const l of ['alchemy', 'armoury']) expect(locs.has(l), l).toBe(true);
+    expect(plain.dress.faces.some((f) => f.group === 'box:brew' && !f.cornerFills)).toBe(true);
   });
 });

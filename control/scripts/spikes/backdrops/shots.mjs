@@ -75,7 +75,10 @@ if (!only || only === 'galaxy') {
   }));
 }
 if (!only || only === 'vampire') {
-  const m = backdropOf(readGameworld(vampireSonataGame({ heroRef: 'hero-ref' })), 1.69), B = boxOf(m), W = B.greybox.screen.width, H = B.greybox.screen.height, C = boxCameraOf(B.stature);
+  const m = backdropOf(readGameworld(vampireSonataGame({ heroRef: 'hero-ref' })), 1.69);
+  // (another theme: the castle re-keyed, metroidvania/themes.js)
+  if (opt('--theme')) m.metroidvania = { ...m.metroidvania, theme: opt('--theme') };
+  const B = boxOf(m), W = B.greybox.screen.width, H = B.greybox.screen.height, C = boxCameraOf(B.stature);
   const rings = new Map();
   for (const r of [...B.layout.rooms].sort((a, b) => b.rect[1] - a.rect[1])) if ((rings.get(r.ring) ?? []).length < 2) rings.set(r.ring, [...(rings.get(r.ring) ?? []), r]);
   await shoot('vampire', m, (roomsAsked ? B.layout.rooms.filter((r) => roomsAsked.includes(r.id)) : [...rings.values()].flat()).map((r) => { const s = (r.rect[0] + 0.5) * W, look = r.rect[1] * H + FLOOR + C.lookH; return { cameraPosition: [C.dist, s, look + C.dist * C.tilt], lookAt: [0, s, look], horizontalFov: hfovOf(C.vfov, W / H) }; }));

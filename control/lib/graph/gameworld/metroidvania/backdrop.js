@@ -60,7 +60,7 @@ export const DETAIL = Object.freeze({ min: 1, max: 60 });
 /** the pools of light: the share of a storey's wall lit above its dark, and a pool's heart against the dark between */
 export const POOLS = Object.freeze({ lit: Object.freeze([0.15, 0.7]), contrast: 2.5 });
 /** what counts as detail: the dress's own faces, not the wall's blocks nor the closed parts */
-export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame', 'box:stained']);
+export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame', 'box:stained', 'box:brew']);
 // (a piece that turns is its own group, `box:turn:<id>`, so the page spins it about its hub; it is detail all the same)
 const isDetail = (g) => DETAIL_GROUPS.includes(g) || (typeof g === 'string' && g.startsWith('box:turn:'));
 export const BAY_PIECES = Object.freeze({
@@ -74,6 +74,8 @@ export const BAY_PIECES = Object.freeze({
   stained: 'a lancet of stained glass, its panes in their colours, lit from behind by the night',
   gears: 'a clock\'s gears turning in the wall, meshed, each the other way from the one it drives',
   skulls: 'a niche of skulls stacked in their rows, the catacombs\' dead',
+  flasks: 'a shelf of potions, each glowing in its bottle',
+  rack: 'a rack of spears and swords, a shield hung on it',
 });
 export const FOCAL_PIECES = Object.freeze({
   portrait: 'a great portrait in a gilt frame: the lord of the castle, looking down',
@@ -85,6 +87,8 @@ export const FOCAL_PIECES = Object.freeze({
   sarcophagus: 'a stone coffin on its plinth, its lord carved lying on the lid',
   throne: 'the lord\'s throne on its dais under a canopy, its back a spire',
   orrery: 'an orrery hung under the roof, its worlds turning round a golden sun',
+  cauldron: 'the alchemist\'s cauldron on its fire, its brew glowing and bubbling',
+  armour: 'a suit of armour on its stand, a halberd in its hand',
 });
 export const BACKDROP_LAWS = Object.freeze(['eye-detail', 'calm-play', 'bay-rhythm', 'focal', 'depths', 'pools', 'lane-reads', 'scale']);
 /** the body SCALE's sizes are said for, in metres; a smaller or larger hero scales them */
@@ -126,8 +130,8 @@ export function composeRoom(room, look, { cellsAcross = room.rect[2] } = {}) {
 export const archOf = ({ floor, top }) => { const aw = 3.2; return { aw, a0: floor + 2.6, a1: Math.min(top - aw * 0.85 - 0.9, floor + 8.5) }; };
 
 /** A piece on the back at a bay, at its true size (10). */
-export function drawPiece(out, id, { s, floor, top, x, focal = false, spins }, L, dice, sizes, occ) {
-  const at = { spins };
+export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, live }, L, dice, sizes, occ) {
+  const at = { spins, live };
   const trim = L.trim, dark = shade(L.back, 0.55), mid = (floor + top) / 2;
   // (what stands out of the wall, `d` metres: it casts its shadow from each lamp, dress.js)
   const proud = (s0, s1, z0, z1, d) => { if (occ) occ.push({ s0, s1, z0, z1, d }); };
@@ -323,6 +327,62 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins }, L
     poly(out, x + 0.02, [[s - 0.5, cr + 0.6], [s + 0.5, cr + 0.6], [s + 0.5, cr + 0.95], [s + 0.25, cr + 0.75], [s, cr + 1.0], [s - 0.25, cr + 0.75], [s - 0.5, cr + 0.95]], trim);
     measure(sizes, 'figure.h', 2.0);
     proud(s - 2.4, s + 2.4, floor, floor + 0.45, 0.8); proud(s - 1.0, s + 1.0, seat - 0.5, back, 0.5);
+  } else if (id === 'flasks') {
+    // (a shelf of potions at a bottle's size: two boards on brackets, the bottles on them glowing in their colours)
+    const z0 = floor + 3.0, potions = ['#7cff6a', '#ff5ad0', '#5ad8ff', '#ffc84a', '#b07cff'];
+    for (const [k, zb] of [[0, z0], [1, z0 + 1.0]]) {
+      rect(out, x, s - 1.4, s + 1.4, zb - 0.08, zb, trim);
+      for (const d of [-1.2, 1.2]) poly(out, x, [[s + d - 0.1, zb - 0.08], [s + d + 0.1, zb - 0.08], [s + d, zb - 0.4]], shade(trim, 0.8));
+      for (let b = 0; b < 5; b++) {
+        const bs = s - 1.15 + b * 0.57 + (dice() - 0.5) * 0.1, bh = 0.24 + dice() * 0.18, bw = 0.09 + dice() * 0.06, c = potions[(b + k * 2) % potions.length];
+        rect(out, x + 0.01, bs - bw, bs + bw, zb, zb + bh, c, 'box:brew');
+        rect(out, x + 0.01, bs - 0.03, bs + 0.03, zb + bh, zb + bh + 0.12, shade(c, 0.7), 'box:brew');
+        measure(sizes, 'candle.h', bh);
+      }
+    }
+    proud(s - 1.4, s + 1.4, z0 - 0.08, z0 + 1.0, 0.3);
+  } else if (id === 'cauldron') {
+    // (the cauldron at a cauldron's size on its legs over its fire, its brew glowing and bubbling, live fire under it)
+    const r = 0.85, cz = floor + 0.55 + r * 0.7, brew = '#7cff6a';
+    for (const d of [-0.6, 0.6]) bar(out, x, [s + d, floor], [s + d * 0.8, cz - 0.3], 0.1, '#1e1a1a');
+    ring(out, x + 0.01, s, cz, r, 14, '#22201f');
+    rect(out, x + 0.015, s - r * 1.05, s + r * 1.05, cz + r * 0.55, cz + r * 0.72, '#2e2a28');   // (its rim)
+    rect(out, x + 0.02, s - r * 0.95, s + r * 0.95, cz + r * 0.72, cz + r * 0.86, brew, 'box:brew');   // (its brew)
+    for (let k = 0; k < 4; k++) ring(out, x + 0.025, s - r * 0.6 + k * r * 0.4, cz + r * (0.95 + 0.18 * dice()), 0.07 + 0.06 * dice(), 8, '#c8ffb8', 'box:brew');
+    if (at.live) at.live.push({ at: [x + 0.06, s, floor + 0.02].map((v) => Math.round(v * 1e5) / 1e5), w: 1.1, h: 0.75, color: [1, 0.6, 0.25] });
+    // (its hood over the fire and the flue up the wall, an alembic's coils and the herbs hung drying beside it)
+    const hz = cz + r + 1.4;
+    poly(out, x - 0.01, [[s - 1.5, hz], [s + 1.5, hz], [s + 0.45, hz + 1.3], [s - 0.45, hz + 1.3]], shade(L.stone, 0.75));
+    rect(out, x - 0.01, s - 1.55, s + 1.55, hz - 0.15, hz, trim);
+    rect(out, x - 0.015, s - 0.4, s + 0.4, hz + 1.3, Math.max(hz + 2, top - 0.3), shade(L.stone, 0.68));
+    for (let k = 0; k < 3; k++) { const ks = s - 2.6 + k * 0.42, kz = hz + 0.4 + (k % 2) * 0.3; bar(out, x + 0.01, [ks, kz + 1.0], [ks, kz + 0.5], 0.03, '#5a4a30'); poly(out, x + 0.012, [[ks - 0.16, kz + 0.5], [ks + 0.16, kz + 0.5], [ks + 0.05, kz - 0.1], [ks - 0.05, kz - 0.1]], ['#5a7a3a', '#7a8a3a', '#6a5a2a'][k]); }
+    ring(out, x + 0.01, s + 2.3, hz + 0.9, 0.35, 10, '#b07a3a');
+    for (let k = 0; k < 3; k++) bar(out, x + 0.012, [s + 2.3 + 0.2, hz + 0.9 - k * 0.3], [s + 2.3 + 0.55, hz + 0.75 - k * 0.3], 0.05, '#c08a4a');
+    proud(s - r, s + r, cz - r, cz + r, 0.8);
+  } else if (id === 'rack') {
+    // (a weapon rack at its size: two posts and its rails, spears standing in it, two swords and a shield hung on it)
+    const z0 = floor + 2.9, z1 = z0 + 2.2, iron = shade(L.top, 1.05);
+    for (const d of [-1.3, 1.3]) rect(out, x, s + d - 0.07, s + d + 0.07, z0, z1, trim);
+    for (const zr of [z0 + 0.3, z1 - 0.25]) rect(out, x + 0.005, s - 1.4, s + 1.4, zr - 0.05, zr + 0.05, shade(trim, 0.85));
+    for (const d of [-0.9, -0.55]) { bar(out, x + 0.01, [s + d, z0], [s + d, z1 + 0.5], 0.05, '#5a4030'); poly(out, x + 0.015, [[s + d - 0.07, z1 + 0.5], [s + d + 0.07, z1 + 0.5], [s + d, z1 + 0.78]], iron); }
+    for (const d of [0.15, 0.45]) { bar(out, x + 0.01, [s + d, z0 + 0.2], [s + d, z0 + 1.3], 0.07, iron); rect(out, x + 0.015, s + d - 0.13, s + d + 0.13, z0 + 1.3, z0 + 1.35, trim); rect(out, x + 0.015, s + d - 0.03, s + d + 0.03, z0 + 1.35, z0 + 1.55, '#3a2a1e'); }
+    measure(sizes, 'sword.l', 1.35);
+    poly(out, x + 0.02, [[s + 0.75, z1 - 0.35], [s + 1.25, z1 - 0.35], [s + 1.25, z1 - 0.95], [s + 1.0, z1 - 1.25], [s + 0.75, z1 - 0.95]], L.carpet || '#6a1420');
+    measure(sizes, 'shield.h', 0.9);
+    proud(s - 1.4, s + 1.4, z0, z1, 0.25);
+  } else if (id === 'armour') {
+    // (a suit of armour at a man's size on its stand: greaves, a cuirass, pauldrons, a helm and its visor, a halberd)
+    const st = shade(L.top, 1.1), dk = shade(L.top, 0.7), b = floor + 0.35, u = 1.85 / 8;
+    rect(out, x, s - 0.7, s + 0.7, floor, b, shade(L.stone, 0.8));
+    for (const d of [-0.18, 0.18]) rect(out, x + 0.01, s + d - 0.11, s + d + 0.11, b, b + 3.6 * u, d < 0 ? st : dk);
+    poly(out, x + 0.015, [[s - 0.34, b + 3.6 * u], [s + 0.34, b + 3.6 * u], [s + 0.42, b + 6.2 * u], [s - 0.42, b + 6.2 * u]], st);
+    for (const d of [-1, 1]) { ring(out, x + 0.02, s + d * 0.48, b + 6.0 * u, 0.17, 8, dk); rect(out, x + 0.018, s + d * 0.48 - 0.08, s + d * 0.48 + 0.08, b + 3.6 * u, b + 5.9 * u, d < 0 ? st : dk); }
+    ring(out, x + 0.02, s, b + 7.0 * u, 0.19, 10, st);
+    rect(out, x + 0.025, s - 0.12, s + 0.12, b + 6.95 * u, b + 7.05 * u, '#141414');   // (its visor's slit)
+    bar(out, x + 0.03, [s + 0.62, floor], [s + 0.62, b + 9.2 * u], 0.06, '#4a3424');
+    poly(out, x + 0.035, [[s + 0.62, b + 8.2 * u], [s + 0.95, b + 8.5 * u], [s + 0.95, b + 9.0 * u], [s + 0.62, b + 9.2 * u]], st);
+    measure(sizes, 'figure.h', 8 * u);
+    proud(s - 0.5, s + 0.5, b, b + 7.4 * u, 0.4);
   } else if (id === 'orrery') {
     // (an orrery hung from the roof: a golden sun, three worlds each on its arm turning round it at its own pace)
     const cz = Math.min(top - 3.6, floor + 6.8), gold = '#e0b040';
