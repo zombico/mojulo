@@ -254,6 +254,20 @@ not the saber's light: the feel's `blade: { steel: true }` draws no strand of li
 cold steel (`feel/saber.js` `STEEL_SLASH`). `vampireSonataGame()`
 is the designed game's words: her feel, her book and the castle as its one level.
 
+## Her trees
+
+Erina grows as she hunts, by two trees (`VAMPIRE_SONATA_TREES`, the game's `trees`: [trees.md](trees.md)). One purse
+serves both, a point for each boss felled and each pocket's prize.
+
+- **The skills (movement):** the second leap's double jump, found with it and the tree's root; a third leap on it; a
+  swifter run, the dash carried further, an air dash more.
+- **The techs (spells and attacks):**
+  - attacks: the hunter's thrust on the heavy, the cleave forked off her string, the rising cut and the plunge from the
+    air;
+  - spells for MP: the soul burst on the special, and the crescent dash and the blood spiral with the modifier.
+
+The trees hold more than a castle's points buy, so she grows one way or another. T opens them as one screen.
+
 ## The castle
 
 A box's words may name a THEME ([themes.js](../control/lib/graph/gameworld/metroidvania/themes.js)): what each ring is

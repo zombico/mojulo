@@ -333,6 +333,9 @@ Pointers only; each target carries its own design notes.
   `roadsters.js` (its cars through `artillery.js` `vehicleBase`), its page's view
   `scene/channels/controllable/turret-view.js`); the tester's spike, its findings and the grown arena are
   `control/scripts/spikes/combat-tester/`.
+- A game's trees (the skill tree on movement, the tech tree on spells and attacks: a world's `trees`, a node a row of
+  `trees/movement.js` or `trees/techs.js`, learned at runtime by `worlds/controllable/trees.js` and on T by the trees
+  channel): [gameworld/trees/](control/lib/graph/gameworld/trees/), [docs/trees.md](docs/trees.md).
 - Game feel: [gameworld/feel/](control/lib/graph/gameworld/feel/) (the action lab's cards and templates, a gameworld's
   `feel` lowered onto the hero's platform rule, its suggestions, the feel book); the lab and its gate are
   `control/scripts/spikes/action-lab/` (`verify.mjs` holds the lowered rule to the lab's numbers). How a hero swings a

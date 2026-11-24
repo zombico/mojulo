@@ -21,7 +21,8 @@
  *   BOX_SCENE_KEYS, BOSS_HP
  *   boxOf(m)            → { layout, greybox, solved, laws, stature, held }: the box as data, its held gates' spec in `held`;
  *                       `metroidvania` a box's words or a castle's (castle.js: boxes joined by connectors, laid as one map)
- *   assembleBox(m, ctx) the `geocube` kind's `show: 'metroidvania'`: { metroidvania, feel?, stature?, seed? } → payload
+ *   assembleBox(m, ctx) the `geocube` kind's `show: 'metroidvania'`: { metroidvania, feel?, stature?, seed?, trees? } → payload
+ *                       (`trees` the hero's trees' runtime spec, gameworld/trees/tree.js lowerTrees, carried to the page)
  *                       (faces, colliders, breakables, heldGates, a camera at the gate), its `metroidvania` (not
  *                       enumerable) the box as data
  *
@@ -41,7 +42,7 @@ import { BOX_THEMES, themeLaws, lookOf } from './themes.js';
 import { dressBox } from './dress.js';
 import { backdropLaws } from './backdrop.js';
 
-export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox']);
+export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees']);
 /** a boss stand-in's blows to fall */
 export const BOSS_HP = 6;
 const HALF = 1.5, BACK = -3, LIT = 0.14, RELIC = 0.5;
@@ -163,7 +164,7 @@ export function assembleBox(m, ctx = {}) {
   // (a stair's ledges and lips are stood on, never walked into: faces with no collider, jumped up through from under them)
   const colliders = [...G.solids.filter((s) => s.role !== 'ledge' && s.role !== 'lip'), ...sills].map((s) => ({ min: [-HALF, s.s0, s.z0], max: [HALF, s.s1, s.z1] }));
   const payload = {
-    faces, lights: [], colliders, breakables: B.breakables, heldGates: B.held,
+    faces, lights: [], colliders, breakables: B.breakables, heldGates: B.held, ...(m.trees ? { trees: m.trees } : {}),
     // (dressed: its flames haloed and dust hanging in their light, the page's glow sprites and motes)
     ...(D ? { glow: D.glow, ...(D.motes ? { motes: D.motes } : {}) } : {}),
     cameras: [{ name: 'metroidvania', worldFraming: { cameraPosition: [r5(C.dist), r5(s0), r5(look + C.dist * C.tilt)], lookAt: [0, r5(s0), r5(look)], horizontalFov: r5(hfov) } }],

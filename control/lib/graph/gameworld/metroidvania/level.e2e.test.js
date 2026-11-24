@@ -15,7 +15,7 @@ import { vampireSonataGame } from './vampire-sonata.js';
 import { boxOf } from './scene.js';
 import { FLOOR } from './rooms.js';
 
-const ZERO = { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0, boost: 0, fire: 0 };
+const ZERO = { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0, boost: 0, fire: 0, heavy: 0, special: 0, mod: 0 };
 let payload, B;
 beforeAll(async () => {
   const W = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' })), [stage] = gameStages(W);
@@ -138,5 +138,27 @@ describe('a metroidvania level, played as its page resolves it', () => {
     P.step({}, 2);
     P.cut(1, 8);
     expect(g.broken).toBeTruthy();
+  });
+
+  it('grows by her trees: a boss felled gives a point, the thrust learned plays on the heavy, the swift foot runs her faster', () => {
+    const P = play(), w = P.sim.world, H = P.hero;
+    expect(w.trees.points()).toBe(0);
+    // (the heavy before the thrust is learned: no move on it)
+    P.place(B.layout.rooms.find((r) => r.ring === 0 && r.kind === 'corridor').id, 0.4);
+    const n0 = H.swingCount || 0;
+    P.step({ heavy: 1 }, 2); P.step({}, 40);
+    expect(H.swingCount || 0).toBe(n0);
+    // (a boss felled: a point to spend; the thrust bought with it, its string opened in what she plays)
+    P.held['boss:x'] = w.time;
+    expect(w.trees.points()).toBe(1);
+    expect(w.trees.learn('thrust')).toEqual({ ok: true });
+    P.step({ heavy: 1 }, 2); P.step({}, 10);
+    expect(H.swingCount).toBe(n0 + 1);
+    expect(H.lastSwingDir).toBe('forward');
+    // (the swift foot: her run a sixth faster, from her own rule)
+    const run0 = H.rule.speed;
+    P.held['boss:y'] = w.time;
+    expect(w.trees.learn('swift').ok).toBe(true);
+    expect(H.rule.speed).toBeCloseTo(run0 * 7 / 6, 3);
   });
 });

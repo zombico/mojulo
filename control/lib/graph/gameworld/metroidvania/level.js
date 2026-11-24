@@ -17,6 +17,9 @@
  *                in, keeping everything (held-gates.js)
  *   a FALL       out of the frame's bottom (none is laid: every room has its floor), counted as the side map counts it
  *   the GOAL     the throne's far side, behind the core's boss
+ *   the TREES    the world's `trees` (trees/tree.js): the skill tree on how she moves, the tech tree on her spells and
+ *                attacks, lowered on her rule and her own strings, learned as she plays (worlds/controllable/trees.js) with
+ *                the points what she holds gives; their laws beside the box's, each `trees:<id>`
  *
  *   boxLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, audio? })
  *     → { tool: 'create_sketch', args: { title, manifest }, laws }   laws: the box's own (laws.js), each `metroidvania:<id>`
@@ -24,13 +27,24 @@
  * Pure.
  */
 import { playerWorld } from '../../playscape/player.js';
-import { feelRule, readFeel, feelCard, takesOfCard } from '../feel/lower.js';
+import { feelRule, readFeel, feelCard, takesOfCard, feelCombos } from '../feel/lower.js';
+import { readTrees, lowerTrees, treeLaws } from '../trees/tree.js';
 import { SIDE_MAP_STATURE } from '../side-map/scene.js';
 import { SIDE_FALL, LIMBO } from '../side-map/play.js';
 import { boxOf } from './scene.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
+/** The world's trees lowered on a box's hero: the runtime's spec, her moveset with the techs' strings in it, and the
+ * trees' laws (the points a box gives: each boss, power, key and pocket's prize it holds at the trees' rates). */
+function treesOfBox(G, L, rule) {
+  const R = readTrees(G.trees), powers = L.powers ?? {};
+  const { spec, moveset } = lowerTrees(R, { rule, combos: G.feel ? feelCombos(G.feel) : null, powers });
+  const held = { boss: L.rooms.filter((r) => r.boss).length, power: Object.keys(powers).length, key: L.rooms.filter((r) => r.key).length, prize: L.rooms.reduce((n, r) => n + r.pockets.length, 0) };
+  const earnable = Object.entries(R.points).reduce((n, [k, v]) => n + v * (held[k] ?? 0), 0);
+  return { spec, moveset, laws: treeLaws(R, { powers, earnable }) };
+}
+
 /** A box's hero's VITALS: her health and her MP (levels and their growth are the stats' to come) */
 export const BOX_VITALS = Object.freeze({ hp: 100, mp: 40 });
 /** where the hero stands in a room as it comes back to it: a little in from its near wall, on its floor */
@@ -57,8 +71,11 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   spawn[2] = r3(spawn[2] + 0.05);
   // the hero: the feel's rule on the lane, as tall as it stands
   const written = G.feel ? feelRule(G.feel) : null;
-  const rule = { ...(written ?? {}), move: 'lane', lane: [[0, -20], [0, r3(L.box[0] * W + 20)]], collideHeight: stature };
-  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const rule0 = { ...(written ?? {}), move: 'lane', lane: [[0, -20], [0, r3(L.box[0] * W + 20)]], collideHeight: stature };
+  // (her TREES, the world's: the skill tree on how she moves and the tech tree on her spells and attacks, learned as she
+  // plays: trees/tree.js lowered on her rule and her own strings, the techs' strings in her moveset held shut until learned)
+  const T = G.trees ? treesOfBox(G, L, rule0) : null, rule = T?.moveset ? { ...rule0, moveset: T.moveset } : rule0;
+  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${T ? ' · T  skills and techs' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
   const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule, ...(takes ? { takes } : {}) });
   // (her VITALS, an action RPG's and never a run and gun's lives: health on her body, struck by what she meets; MP the
@@ -76,10 +93,10 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const ev = W0.events ?? {};
   const events = { ...ev, sources: [...(ev.sources ?? []), { type: 'zone', zone: SIDE_FALL, at: [0, 0, LIMBO], half: [1e6, 1e6, 200], watch: 'hero' }] };
   const manifest = {
-    ...manifest0, title: name, figures, entities: [hero], camera, events,
+    ...manifest0, ...(T ? { trees: T.spec } : {}), title: name, figures, entities: [hero], camera, events,
     game: { levelRef: ref, mechanics: [reach, ...lives], fall: 'none' },
     ...(mechanics?.play ? { play: mechanics.play } : {}),
     ...(audio ? { audio } : {}),
   };
-  return { tool: 'create_sketch', args: { title: name, manifest }, laws: B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })) };
+  return { tool: 'create_sketch', args: { title: name, manifest }, laws: [...B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })), ...(T ? T.laws.map((l) => ({ ...l, id: `trees:${l.id}` })) : [])] };
 }

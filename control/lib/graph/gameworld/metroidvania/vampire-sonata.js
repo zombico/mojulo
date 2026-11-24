@@ -30,7 +30,7 @@
  *   erinaHero()          → the character door's words for her (create_character { as: 'hero', spec, toon })
  *   vampireSonataGame({ heroRef?, id?, name?, castle? }) → a designed game's words: the feel, the side camera, her book (adopted
  *                        by `heroRef`, the row erinaHero mints), the castle one level
- *   VAMPIRE_SONATA_PREMISE, VAMPIRE_SONATA_POWERS, VAMPIRE_SONATA_FEEL, ERINA
+ *   VAMPIRE_SONATA_PREMISE, VAMPIRE_SONATA_POWERS, VAMPIRE_SONATA_FEEL, VAMPIRE_SONATA_TREES, ERINA
  *
  * Pure: words in, words out.
  */
@@ -126,6 +126,35 @@ export function vampireSonataCastle() {
   };
 }
 
+/**
+ * ERINA'S TREES (trees/tree.js), one purse for both: a point for each boss felled and each pocket's prize.
+ *   the SKILLS (movement)  the second leap's double jump, found with it; a third leap on it; a faster run, the dash carried
+ *                          further, an air dash more
+ *   the TECHS (spells and attacks)   the hunter's thrust on the heavy, the cleave forked off her string, the rising cut
+ *                          and the plunge from the air; the soul burst on the special, the crescent dash and the blood
+ *                          spiral with the modifier, each for MP
+ * More than a castle's points buy: she grows one way or another.
+ */
+export const VAMPIRE_SONATA_TREES = Object.freeze({
+  points: Object.freeze({ boss: 1, prize: 1 }),
+  movement: Object.freeze({ name: 'Skills', nodes: Object.freeze([
+    Object.freeze({ move: 'double-jump', name: 'Second leap', found: 'second-leap' }),
+    Object.freeze({ move: 'triple-jump', name: 'Third leap', requires: Object.freeze(['double-jump']), cost: 2 }),
+    Object.freeze({ move: 'swift', name: 'Swift foot', cost: 1 }),
+    Object.freeze({ move: 'long-dash', name: 'Long dash', requires: Object.freeze(['swift']), cost: 1 }),
+    Object.freeze({ move: 'air-dash', name: 'Wing dash', requires: Object.freeze(['long-dash']), cost: 2 }),
+  ]) }),
+  techs: Object.freeze({ name: 'Techs', nodes: Object.freeze([
+    Object.freeze({ tech: 'thrust', name: 'Hunter\'s thrust', cost: 1 }),
+    Object.freeze({ tech: 'cleave', name: 'Cleave', requires: Object.freeze(['thrust']), cost: 1 }),
+    Object.freeze({ tech: 'rising-cut', name: 'Rising cut', requires: Object.freeze(['thrust']), cost: 2 }),
+    Object.freeze({ tech: 'plunge', name: 'Plunge', requires: Object.freeze(['rising-cut']), cost: 2 }),
+    Object.freeze({ tech: 'soul-burst', name: 'Soul burst', cost: 1 }),
+    Object.freeze({ tech: 'crescent-dash', name: 'Crescent dash', requires: Object.freeze(['soul-burst']), cost: 2 }),
+    Object.freeze({ tech: 'blood-spiral', name: 'Blood spiral', requires: Object.freeze(['crescent-dash']), cost: 3 }),
+  ]) }),
+});
+
 /** The castle's feel: Zero Boy's saber string on the run and gun's body, without its wall (no slide, no kick off one),
  * played with a sword of steel (`blade.steel`: no strand of light over it, its slash in steel, feel/saber.js). */
 export const VAMPIRE_SONATA_FEEL = Object.freeze({ pole: 'galaxy-boy', variant: 'saber', takes: true, set: Object.freeze({ cling: null, dash: Object.freeze({ wall: false }), blade: Object.freeze({ steel: true }) }) });
@@ -148,7 +177,9 @@ export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vamp
     id, name,
     feel: structuredClone(VAMPIRE_SONATA_FEEL),
     camera: 'side',
-    // (no lives: an action RPG's vitals, health and MP, her death a waking in the last save room: metroidvania/level.js)
+    // (no lives: an action RPG's vitals, health and MP, her death a waking in the last save room: metroidvania/level.js;
+    // her growth her trees, learned with the points the castle gives)
+    trees: structuredClone(VAMPIRE_SONATA_TREES),
     characters: { direction: { tradition: 'anime', body: { rail: 'realistic', style: 'anime' } }, ...(heroRef ? { hero: { ref: heroRef } } : {}) },
     // (the castle one box, or, `castle`, the castle of boxes: the tower, the courtyard and the keep joined, castle.js)
     levels: { castle: { name: 'The castle', metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },

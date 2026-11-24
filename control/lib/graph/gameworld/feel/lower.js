@@ -31,7 +31,7 @@
  */
 import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep } from './cards.js';
 import { jumpShares } from '../../polygonizer/hero-jump.js';
-import { saberRule } from './saber.js';
+import { saberRule, SABER_COMBOS } from './saber.js';
 import { DASH_DUST } from './round-look.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -314,6 +314,13 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
 }
 
 /** The rule a written feel lays over the hero's platform rule: its card lowered, with its takes when it asks for them. */
+/** The combo manifest a feel's moveset is lowered from (combos.js: its moves and its strings, written), or null where its
+ * card strikes no string: what a tech tree (trees/techs.js) builds its strings on. */
+export function feelCombos(feel) {
+  const C = feelCard(feel);
+  return C.blade?.kit === 'saber' ? structuredClone(SABER_COMBOS) : null;
+}
+
 export function feelRule(feel) {
   const F = readFeel(feel);
   // (the template's worn gear with it: a glider it holds is carried, lowerFeel)
