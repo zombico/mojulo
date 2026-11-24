@@ -106,7 +106,8 @@ describe('night and lightning', () => {
 
   it('carries the night\'s lights to the page from the dusk on: the runway, the beacons, the traffic, the towns\' glow', () => {
     const day = assembleAirspace(M, { live: true }), night = assembleAirspace({ ...M, sky: { kind: 'fair', hour: 21 } }, { live: true });
-    expect(day.terrain.lights).toBeUndefined();
+    // (by day a runway's PAPI alone: four lamps an end; no traffic)
+    expect(day.terrain.lights.n).toBe(8); expect(day.terrain.lights.traffic).toEqual([]);
     const L = night.terrain.lights;
     expect(L.n).toBeGreaterThan(30);
     expect(L.traffic.length).toBeGreaterThan(2);
@@ -116,9 +117,33 @@ describe('night and lightning', () => {
     expect(night.terrain.aerial.tint.every((v) => v < 0.1)).toBe(true);
     const src = terrainChannelScript(night.terrain);
     expect(src).toMatch(/the ground's lights at night/);
-    expect(terrainChannelScript(day.terrain)).not.toMatch(/__mojLights/);
+
     // (a runway is dark at night but for its lights: its asphalt under the night's tint)
     const pad = airspaceOf({ ...M, sky: { kind: 'fair', hour: 21 } }).field.K.grade[0];
     expect(Math.max(...pad.ramp.stops[3])).toBeLessThan(40);
+  });
+});
+
+describe('the airfield: its taxiway and its PAPI', () => {
+  const M = { kind: 'airspace', map: { craft: 'trainer' }, ground: { pads: [{ kind: 'runway', at: [0.5, 0.25] }] }, seed: 2 };
+  it('lays a taxiway beside the runway, joined to it, on graded ground with the grass kept between', async () => {
+    const { field } = airspaceOf(M), p = field.pads[0], T = p.taxiway;
+    expect(T.rects.length).toBe(4);
+    const [par] = T.rects, ax = p.along === 'x';
+    expect(ax ? par.rect[2] - par.rect[0] : par.rect[3] - par.rect[1]).toBeCloseTo(p.length, 0);
+    // flat at the runway's datum along the taxiway's middle
+    const mid = [(par.rect[0] + par.rect[2]) / 2, (par.rect[1] + par.rect[3]) / 2];
+    expect(Math.abs(field.groundAt(...mid) - p.datum)).toBeLessThan(0.5);
+  });
+
+  it('stands a PAPI at each end beside the aim, its lamps steepest nearest the runway, facing their approach', async () => {
+    const { papiOf, RUNWAY_AIM } = await import('./night-lights.js');
+    const { field } = airspaceOf(M), p = field.pads[0], P = papiOf(p);
+    expect(P.length).toBe(8);
+    expect(P.slice(0, 4).map((l) => l[3])).toEqual([3.5, 3.17, 2.83, 2.5]);
+    const ax = p.along === 'x' ? 0 : 1, end = p.center[ax] - p.length / 2;
+    expect(Math.abs(P[0][ax] - (end + RUNWAY_AIM))).toBeLessThan(0.5);
+    // the first end's lamps face back down its approach (toward the low end)
+    expect(P[0][4 + ax]).toBe(-1);
   });
 });

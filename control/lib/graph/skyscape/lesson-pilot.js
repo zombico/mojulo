@@ -12,8 +12,8 @@
  *   gates           the next one due, its height and its bearing
  *   a nav point     its height and its bearing
  *   a landing       the runway it is lined up nearest (the end it comes at): onto its extended centreline first (an
- *                   intercept that narrows as the line comes up, the height held no lower than LANDING.hold m over the
- *                   runway while it is off it), then down a 3° glide path at LANDING.approach times the stall to a
+ *                   intercept that narrows as the line comes up, coming down toward the slope's height meanwhile but no
+ *                   lower than LANDING.hold m over the runway while it is off it), then down a 3° glide path at LANDING.approach times the stall to a
  *                   touchdown zone LANDING.zone m past the threshold, the flare under LANDING.flare m (the sink eased
  *                   with the height to a few decimetres a second, the power holding it over the stall), the lever to
  *                   idle in the last metre and a half, and on the ground the brakes
@@ -40,6 +40,7 @@ import { buildBus } from '../worlds/event-bus.js';
 import { objectivesOf, objectiveNames } from '../game/objectives.js';
 import { GRADE_VAR, GRADE_NAMES } from '../game/grade.js';
 import { airspaceOf } from './airspace.js';
+import { RUNWAY_AIM } from './night-lights.js';
 
 let E = null, B = null;
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -54,9 +55,10 @@ const headingMiddle = ([lo, hi]) => (lo === null || hi === null ? (lo ?? hi) : l
 // a touchdown counts once the craft has flown this high (the page's ARM: not the first frames' settling on the pad)
 const ARM = 10;
 /** A landing as the student flies it: the glide path's slope (3°), the approach speed as a share over the stall, the
- *  touchdown zone past the threshold (m), the height the flare begins at (m), the sink it is eased to (m/s), the least
- *  height over the runway held while the craft is off the centreline (m). */
-export const LANDING = Object.freeze({ slope: 0.0524, approach: 1.35, zone: 150, flare: 7, sink: 0.45, hold: 150 });
+ *  touchdown zone past the threshold (m: the runway's aim, where its PAPI stands, night-lights.js), the height the
+ *  flare begins at (m), the sink it is eased to (m/s), the least height over the runway held while the craft is off the
+ *  centreline (m). */
+export const LANDING = Object.freeze({ slope: 0.0524, approach: 1.35, zone: RUNWAY_AIM, flare: 7, sink: 0.45, hold: 90 });
 /** The runway a landing is flown to: the one whose axis the craft's heading is nearest, at the end it comes at. */
 function landingOf(field, heading) {
   const rws = (field.pads ?? []).filter((q) => q.kind === 'runway'), all = rws.length ? rws : field.pads ?? [];
@@ -108,11 +110,12 @@ export function flyTasks(manifest, { seconds = 600, dt = 1 / 30, wobble = 0 } = 
       hdg = L.hdg - clamp(0.004 * across, -0.8, 0.8) * (along < 0 ? 1 : 0.3);
       speed = c.stall * LANDING.approach;
       // the centreline first: off it, the height held (no lower than LANDING.hold over the runway); on it, the glide path
-      const agl = q[2] - top(q[0], q[1]) - (rule.eye ?? 0), over = q[2] - (rule.eye ?? 0) - L.datum, lined = Math.abs(across) < 90 + 0.04 * Math.max(0, -along);
-      const want = lined ? Math.max(0, -along) * LANDING.slope : Math.max(Math.min(over, LANDING.hold * 1.6), LANDING.hold);
+      const agl = q[2] - top(q[0], q[1]) - (rule.eye ?? 0), over = q[2] - (rule.eye ?? 0) - L.datum, lined = Math.abs(across) < 120 + 0.06 * Math.max(0, -along);
+      // (off it, down toward the slope's height as on base, never under LANDING.hold until lined up)
+      const slopeAt = Math.max(0, -along) * LANDING.slope, want = lined ? slopeAt : Math.max(slopeAt, LANDING.hold);
       // (the flare begins higher the faster it sinks; the path never steeper than about six degrees, so it can be flared)
       landing.flare = lined && (agl < Math.max(LANDING.flare, 2.2 * Math.max(0, -(p.climbRate || 0))) || along > 0);
-      landing.agl = agl; landing.vz = landing.flare ? -LANDING.sink - 0.15 * Math.max(0, agl) : clamp((lined ? -v * LANDING.slope : 0) + 0.12 * (Math.min(want, over + 40) - over), -v * 0.1, 3);
+      landing.agl = agl; landing.vz = landing.flare ? -LANDING.sink - 0.15 * Math.max(0, agl) : clamp((lined ? -v * LANDING.slope : 0) + 0.25 * (Math.min(want, over + 40) - over), -v * 0.1, 3);
     } else {
       const at = task.kind === 'gates' ? task.gates[clamp(S.vars[`__${O.id ?? 'obj'}_g${k}`] ?? 0, 0, task.gates.length - 1)].at : task.at;
       alt = at[2]; hdg = Math.atan2(at[1] - q[1], at[0] - q[0]);

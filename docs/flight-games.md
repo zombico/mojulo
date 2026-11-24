@@ -393,6 +393,25 @@ into the night's. A sky may name the moon's lit share (`moon: 0–1`); absent, t
 
   Each light keeps a pixel or two however far off it is.
 
+**The airfield.** A runway has a taxiway (`TAXIWAY` in `control/lib/graph/skyscape/ground.js`): a parallel one 85 m
+off its centreline on the side toward the field's middle, joined to it by a connector at each end and one at its
+middle. Both lie on the runway's graded ground, with the grass between them kept grass. They are painted asphalt with a
+yellow centre line, and at night their edges are blue and the connectors' centre lines green.
+
+A runway is sited for its approach as well as its departure. It is landed the way it is taken off, so the ground
+beyond its other end must stay under a 2° surface (`APPROACH`), and a 3° glide path clears it with room.
+
+Each runway end has a **PAPI** (`papiOf` in `night-lights.js`) beside the touchdown aim, 150 m past the threshold
+(`RUNWAY_AIM`), on the left as the runway is landed on. It is four lamps in a row out from the edge. Each shows white
+seen from above its angle and red from under it (3.5°, 3.17°, 2.83°, 2.5°, the nearest the runway steepest), so:
+
+- on the 3° path, two white and two red;
+- too high, more white;
+- too low, more red.
+
+The page colours each lamp by the eye's elevation from it, only toward its approach, by day as well as by night. The
+lesson pilot aims at the same point, and the flight proof checks that its final reads two red and two white.
+
 **Lightning** (`lightning: true`, a storm's by default) strikes in the thunderheads near the eye, in seeded slots of
 the page's clock:
 

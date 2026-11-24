@@ -1,6 +1,7 @@
 // In-page script (part of the terrain channel, channels/terrain-lod.js): THE GROUND'S LIGHTS AT NIGHT (skyscape/
-// night-lights.js): a runway's edges, thresholds and approach bars, the red beacons on the mast and the tall buildings
-// (flashing), and the traffic: cars on the roads, the arterials and the highways' decks, each a pair of lamps that shows
+// night-lights.js): a runway's edges, thresholds and approach bars, its taxiway's blue edges and green lead-on lines,
+// its PAPI (each lamp white or red by the eye's elevation from it, by day too), the red beacons on the mast and the
+// tall buildings (flashing), and the traffic: cars on the roads, the arterials and the highways' decks, each a pair of lamps that shows
 // white to an eye it is coming toward and red to one it is going from. Every light a point that keeps a pixel or two
 // however far it is, dimmed by the haze it shines through more weakly than a lit surface is. Opt-in (`lights` on the
 // terrain channel, an airspace from the dusk on); absent, nothing of this is emitted.
@@ -20,8 +21,17 @@ void main() {
   float d = max(-mvPosition.z, 1.0);
   gl_PointSize = max(1.6, info.x * uPxPerM / d);
   // a beacon flashes about once a second, each on its own beat
-  float blink = info.y > 0.5 ? step(0.55, fract(uTime * 0.95 + fract(position.x * 0.013 + position.y * 0.007))) : 1.0;
-  vCol = color; vA = blink * clamp(info.x * uPxPerM / d / 1.6, 0.35, 1.0);
+  float blink = info.y > 0.5 && info.y < 1.5 ? step(0.55, fract(uTime * 0.95 + fract(position.x * 0.013 + position.y * 0.007))) : 1.0;
+  vCol = color;
+  if (info.y > 1.5) {
+    // a PAPI lamp (its colour its angle and its facing): white to an eye above its angle, red under it, a sliver of
+    // pink at the change; seen only from its approach
+    vec3 to = cameraPosition - (modelMatrix * vec4(position, 1.0)).xyz; float hz = max(length(to.xy), 1.0), el = degrees(atan(to.z, hz));
+    float w = smoothstep(color.x - 0.06, color.x + 0.06, el); vCol = mix(vec3(1.7, 0.1, 0.05), vec3(1.6, 1.5, 1.3), w);
+    blink = smoothstep(0.1, 0.4, dot(to.xy / hz, color.yz));
+    gl_PointSize = max(2.4, info.x * uPxPerM / d);
+  }
+  vA = blink * clamp(info.x * uPxPerM / d / 1.6, 0.35, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   #include <logdepthbuf_vertex>
   #include <fog_vertex>

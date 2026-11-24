@@ -107,6 +107,12 @@ describe('design_game: designed flight levels', () => {
     expect(M('lesson-1').sky).toMatchObject({ kind: 'fair', hour: 9.5 });
     expect(L4.game.mechanics.find((m) => m.kind === 'grade').criteria.map((c) => c.var)).toContain('__obj_sink');
     expect(flown[3].kept.Touchdown).toBeLessThan(1.2);
+    // and the PAPI agrees with its glide path: down the last kilometre of the final, two red and two white
+    const { papiOf } = await import('@/lib/graph/skyscape/night-lights.js'), { airspaceOf } = await import('@/lib/graph/skyscape/airspace.js');
+    const P4 = papiOf(airspaceOf(L4).field.pads[0]), T4 = flown[3].track, end = T4[T4.length - 1], back = T4[T4.length - 6];
+    const lamps = P4.filter((l) => l[4] * (end[0] - back[0]) + l[5] * (end[1] - back[1]) < 0);
+    const reads = T4.slice(-22, -4).map((q) => lamps.map(([x, y, z, a]) => (Math.atan2(q[2] - z, Math.hypot(q[0] - x, q[1] - y)) * 180 / Math.PI > a ? 'W' : 'R')).join(''));
+    expect(reads.filter((r) => r === 'RRWW').length, reads.join(' ')).toBeGreaterThan(reads.length / 2);
     const sloppy = flyTasks(M('lesson-2'), { wobble: 1 });
     expect(['silver', 'bronze', 'no medal', undefined], JSON.stringify([sloppy.result, sloppy.grade, sloppy.kept])).toContain(sloppy.grade);
   }, 400000);
