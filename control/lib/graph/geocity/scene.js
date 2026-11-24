@@ -71,7 +71,7 @@ import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISH
 import { INDUSTRY_SEGMENTS, CIVIC_SEGMENTS } from './segments.js';
 import { HIGHWAY, deckAt } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates, shoreAt } from './waterfront.js';
-import { rooftopTemplates, rooftopPlan, beaconsOf, BEACON } from './rooftop.js';
+import { rooftopTemplates, rooftopPlan, lotRoofPlan, beaconsOf, BEACON, ROOFTOP } from './rooftop.js';
 import { assembleGeotownScene, coloursOf as townColoursOf } from '../geotown/scene.js';
 import { readCrowns } from '../form/flora-read.js';
 import { PATTERNS } from '../geotown/pattern.js';
@@ -137,6 +137,28 @@ export const FORM_GROUND = Object.freeze(['geocity:park', 'geocity:median', 'geo
 /** The PLANTS a form read grows (form/flora-read.js): the metro's street trees, each its species at its height, and its
  *  composed towns' (their trees, bushes and shrubs moved into the metro's frame; a block town's those on its block, its
  *  bushes' kinds merged into one list), with the ground every trunk and claim takes from the grass. */
+/** Each arterial's MOUTHS: where a neighbourhood's own street runs out to it, the street's carriageway across the
+ *  arterial's walk on that side. → Map<line id, [{ side: ±1 (the side of the line the street comes from), lo, hi }]>. */
+export function mouthsOf(d) {
+  const out = new Map();
+  for (const r of d.regions) {
+    if (r.park) continue;
+    const W0 = walkOf(r);
+    for (const st of r.streets ?? []) for (const [a, b] of st.runs ?? []) {
+      for (const [end, s] of [[a, st.axis === 'ns' ? 's' : 'w'], [b, st.axis === 'ns' ? 'n' : 'e']]) {
+        const sd = r.sides[s];
+        if (sd?.kind !== 'arterial') continue;
+        const edge = st.axis === 'ns' ? (s === 's' ? r.rect[1] : r.rect[3]) : (s === 'w' ? r.rect[0] : r.rect[2]);
+        if (Math.abs(end - edge) > 0.5) continue;
+        const half = st.w / 2 - W0;
+        if (!out.has(sd.street)) out.set(sd.street, []);
+        out.get(sd.street).push({ side: s === 's' || s === 'w' ? 1 : -1, lo: r5(st.at - half), hi: r5(st.at + half) });
+      }
+    }
+  }
+  return out;
+}
+
 function metroPlants(trees, towns, own = []) {
   const T = [], B = [], Sh = [], clear = [], kinds = [], kindKey = new Map();
   for (const sp of [...trees.keys()].sort()) for (const t of trees.get(sp)) T.push({ x: t.x, y: t.y, z: r5(t.z0 - 0.15), h: t.height, kind: -1, cluster: T.length, species: sp, ...(t.toward !== undefined ? { toward: t.toward } : {}), ...(t.young ? { young: true } : {}) });
@@ -674,11 +696,19 @@ export function assembleGeocityScene(m, ctx = {}) {
   const runsOf = (spans, lo, hi) => { const out = []; let at = lo; for (const [a, b] of spans.slice().sort((p, q) => p[0] - q[0])) { if (a > at) out.push([at, a]); at = Math.max(at, b); } if (hi > at) out.push([at, hi]); return out; };
   const runsNS = runsOf(EW.map((l) => [l.at - l.half, l.at + l.half]), ly0, ly1), runsEW = runsOf(NS.map((l) => [l.at - l.half, l.at + l.half]), lx0, lx1);
   const across = (l, a, b, p, q) => (l.axis === 'ns' ? [l.at + a, p, l.at + b, q] : [p, l.at + a, q, l.at + b]);
+  // each arterial's MOUTHS: where a neighbourhood's own street meets it, its walk opened the street's carriageway wide and
+  // the street's road carried across to the arterial's (never a street run into a walk), and nothing stood in it
+  const MOUTHS = mouthsOf(d);
+  const minus = ([p, q], cuts) => { let out = [[p, q]]; for (const [a, b] of cuts) out = out.flatMap(([u, v]) => (b <= u || a >= v ? [[u, v]] : [...(a > u ? [[u, a]] : []), ...(b < v ? [[b, v]] : [])])); return out.filter(([u, v]) => v - u > 0.05); };
   for (const l of d.lines) {
-    const R2 = l.road / 2;
+    const R2 = l.road / 2, M = MOUTHS.get(l.id) ?? [];
     for (const [p, q] of l.axis === 'ns' ? runsNS : [[lx0, lx1]]) {
       drape(across(l, -R2, R2, p, q), 'geocity:road', col.road);
-      drape(across(l, -l.half, -R2, p, q), 'geocity:walk', col.walk, KERB); drape(across(l, R2, l.half, p, q), 'geocity:walk', col.walk, KERB);
+      for (const side of [-1, 1]) {
+        const cuts = M.filter((m) => m.side === side).map((m) => [m.lo, m.hi]), [o0, o1] = side > 0 ? [R2, l.half] : [-l.half, -R2];
+        for (const [u, v] of minus([p, q], cuts)) drape(across(l, o0, o1, u, v), 'geocity:walk', col.walk, KERB);
+        for (const [u, v] of cuts) if (v > p && u < q) drape(across(l, o0, o1, Math.max(u, p), Math.min(v, q)), 'geocity:road', col.road);
+      }
       for (const b of l.bands) {
         if (b.kind === 'median') drape(across(l, b.from, b.to, p, q), 'geocity:median', col.lawn, KERB);
         else if (b.kind === 'streetcar-row') drape(across(l, b.from, b.to, p, q), 'geocity:streetcar-row', col.row, 0.06);
@@ -2352,7 +2382,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (a house its door on its street, windows round it)
       // (a row of shops walked into: its ground its shops, each open)
       const side = F.b.sides?.[f], ground = F.open ? 'shops' : F.house ? (f === F.house ? 'entries' : 'windows') : groundOf(F.use, side, F.b);
-      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, ...(formB ? { panes: true } : {}), frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
+      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, ...(formB ? { panes: true } : {}), ...(F.b.ring !== 'outskirts' ? { blades: true } : {}), frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
         (frontStamps.get(p.key) ?? frontStamps.set(p.key, []).get(p.key)).push({ pos: P3(p.pos), ...(p.scale ? { scale: p.scale } : {}), ...(p.tint ? { tint: p.tint } : {}) });
       }
       counts.fronts = (counts.fronts ?? 0) + 1;
@@ -2367,6 +2397,13 @@ export function assembleGeocityScene(m, ctx = {}) {
   const roofStamps = new Map(), beaconAt = [];
   if (E?.evoke !== 'skyline') {
     for (const it of rooftopPlan(shells, seed)) (roofStamps.get(it.key) ?? roofStamps.set(it.key, []).get(it.key)).push({ pos: P3(it.at) });
+    // (and the roofs of the buildings at a facade's detail: a tower's penthouse and cooling towers, a flat roof's bulkhead
+    // and kit, rooftop.js lotRoofPlan)
+    // (a massing's roofs too: a tower's penthouse and cooling towers, a flat roof's bulkhead and cooling tower; its low kit
+    // rooftopPlan's above)
+    const massRoofs = shells.filter((sh) => sh.flat && (sh.group === 'geocity:tower' || ROOFTOP.groups.includes(sh.group))).map((sh) => ({ id: sh.id, x0: sh.min[0], y0: sh.min[1], x1: sh.max[0], y1: sh.max[1], z0: sh.min[2], h: sh.max[2] - sh.min[2], tower: sh.group === 'geocity:tower', shape: 'box' }));
+    for (const it of lotRoofPlan(massRoofs, seed, { kit: false })) (roofStamps.get(it.key) ?? roofStamps.set(it.key, []).get(it.key)).push({ pos: P3(it.at), ...(it.scale ? { scale: it.scale } : {}) });
+    for (const it of lotRoofPlan(lots.map((l) => ({ ...l, shape: l.shape ?? skinLot(l, G, seed).shape })), seed)) (roofStamps.get(it.key) ?? roofStamps.set(it.key, []).get(it.key)).push({ pos: P3(it.at), ...(it.scale ? { scale: it.scale } : {}) });
     for (const [x, y, z] of towersAt) { (roofStamps.get('celltower') ?? roofStamps.set('celltower', []).get('celltower')).push({ pos: P3([x, y, z]) }); beaconAt.push([r5(x), r5(y), r5(z + 30.6)]); }
     counts.rooftop = Object.fromEntries([...roofStamps].map(([k, v]) => [k.split(':')[0], v.length]).reduce((m, [k, n]) => m.set(k, (m.get(k) ?? 0) + n), new Map()));
   }
@@ -2378,6 +2415,18 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
     beaconAt.push(...beaconsOf(tall));
     if (beaconAt.length) counts.beacons = beaconAt.length;
+  }
+  // (nothing stood in a street's mouth: what an arterial's kerb stood across it moved out, its trees with it; what lies
+  // flat on the road and what hangs over it stays)
+  {
+    const boxes = [];
+    for (const [id, ms] of MOUTHS) { const l = d.lines.find((x) => x.id === id), R2 = l.road / 2; for (const m of ms) { const [o0, o1] = m.side > 0 ? [R2 - 0.3, l.half + 0.3] : [-l.half - 0.3, -R2 + 0.3]; boxes.push(across(l, o0, o1, m.lo - 0.8, m.hi + 0.8)); } }
+    const inMouth = (x, y) => boxes.some((q) => x > q[0] && x < q[2] && y > q[1] && y < q[3]), FLAT = new Set(['bar', 'dash', 'line', 'yellow', 'rail', 'wire']);
+    if (boxes.length) {
+      for (const [k, list] of stamps) if (!FLAT.has(k.split(':')[0])) stamps.set(k, list.filter((t) => !inMouth(t.pos[0], t.pos[1])));
+      for (const [k, list] of trees) trees.set(k, list.filter((t) => !inMouth(t.x, t.y)));
+    }
+    counts.mouths = boxes.length;
   }
   // (the kit's repeats, each drawn near the camera only; the skyline draws none. Its heavy templates, a vehicle's model,
   // a site's machine, a crane, a shop's inside, ride COMPACT: scene-three.js `compact`, three eighths of the bytes)

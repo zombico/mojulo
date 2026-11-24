@@ -54,3 +54,9 @@
   plaza, instead of standing on a lawn behind a railing (that churchyard form stays for the suburbs).
 - Downtown streets are dressed: dashed centre lines, zebra crossings at every junction, cars parked along both kerbs
   with parking meters, trees in their pits between the lamps, hydrants and newspaper boxes at the corners.
+- Hijack City's downtown is the city's core now: its towers, podiums and square, with the inner city round it (the
+  suburbs are their own district).
+- A side street no longer dead-ends into the main road's sidewalk: where it meets an arterial the sidewalk is opened
+  across its mouth and the road runs through, and no bench, lamp, bin or tree stands in the way.
+- Downtown shops hang blade signs over the sidewalk, and the roofs are dressed: towers carry a mechanical penthouse
+  and cooling towers, flat roofs a stair bulkhead, a row of air handlers and, on the big ones, a cooling tower.

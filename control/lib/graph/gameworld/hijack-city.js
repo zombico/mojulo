@@ -35,12 +35,14 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export const HIJACK_CITY = 'Hijack City';
 
-/** The district a Hijack City is played in: a neighbourhood near a lakeshore metro's core, water on its south, its
- *  outskirts a West Coast tract. */
+/** The district a Hijack City is played in: a lakeshore metro's downtown, its core (its most lived-in neighbourhood),
+ *  water on its south, its outskirts a West Coast tract. */
 export const HIJACK_DISTRICT = Object.freeze({
   metro: Object.freeze({ from: 'lakeshore', rings: Object.freeze({ core: 350, frame: 700 }) }),
   extent: Object.freeze([1800, 1500]), water: Object.freeze({ sides: Object.freeze(['s']), depth: 200 }), core: Object.freeze([0.5, 0.2]),
-  evoke: 'neighbourhood', at: 'B4', shops: true,
+  // (downtown: the metro's core, its towers, its podiums and its square, the frame round it; the suburbs are a district
+  // of their own)
+  evoke: 'neighbourhood', at: 'core', shops: true,
   // (its outskirts' register: a West Coast tract of stucco ranches under palms, geotown/pattern.js; the downtown the
   // metro's own)
   outskirts: 'west-coast',

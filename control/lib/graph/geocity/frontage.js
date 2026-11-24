@@ -20,7 +20,8 @@
  *                                  | 'lobby' | 'windows' | 'none', windows?: false (its ground only), balconies?: true,
  *                                  palette: { frame, shop, sign, awning, door, rail } (lists of hex), frames? (the
  *                                  windows' baked paints: a window its frame's variant), panes?: true (a window's glass
- *                                  its own stamp, `win-pane…`: the form render's), open?: true | [a bay's
+ *                                  its own stamp, `win-pane…`: the form render's), blades?: true (a blade sign over
+ *                                  some of its shops: a downtown's), open?: true | [a bay's
  *                                  place along it…] (its shops OPEN, each or those named walked into: wider bays, no
  *                                  leaf in an open one's door), signs?, sinks? ({ <bay>: … }: an open shop's sign's
  *                                  colour, and how far its front stands under the wall's foot) }; R its dice
@@ -30,6 +31,7 @@
  * Metres; a wall's frame `u` along it, `v` out of it, `z` up from its foot. Pure.
  */
 import { litFactor, scaleHex } from '../polygonizer/vexar.js';
+import { strHash } from '../city/plan/dice.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 export const FACINGS = Object.freeze({ s: [0, -1], n: [0, 1], e: [1, 0], w: [-1, 0] });
@@ -43,6 +45,8 @@ export const FRONTAGE = Object.freeze({
   entry: { every: 18, w: 2.6 },
   balcony: { share: 0.45 },
   window: { h: 3 },
+  // the share of shops with a blade sign over them (`blades`: a downtown's)
+  blade: 0.4,
 });
 // a window block's bays and storeys, and its nominal bay (m): stretched to a wall's bay and storey
 const WIN_BLOCK = [4, 2], WIN_BAY = 3.4;
@@ -97,6 +101,13 @@ const PIECES = {
   ],
   // a band along a wall (a cornice, a band over its shops): a unit box, stretched along the wall and in its height
   band: [B(0, 1, 0, 0.4, 0, 0.5, 'band')],
+  // a BLADE SIGN over a shop: a board square to the wall, out over the walk above the fascia, on two iron brackets
+  blade: [
+    B(-0.05, 0.05, 0.32, 1.28, 4.3, 5.9, 'blade'), B(-0.07, 0.07, 0.3, 1.3, 4.24, 4.3, 'bracket'), B(-0.07, 0.07, 0.3, 1.3, 5.9, 5.96, 'bracket'),
+    B(-0.025, 0.025, 0, 0.32, 4.22, 4.28, 'bracket'), B(-0.025, 0.025, 0, 0.32, 5.92, 5.98, 'bracket'),
+    // (its face each side: a pale panel its lettering is read on, in its board's frame)
+    B(-0.065, 0.065, 0.44, 1.16, 4.48, 5.72, 'letters'),
+  ],
 };
 // an OPEN storefront (a shop walked into): the same front, its door stood in from its end (a store behind it keeps its
 // own pier inside the party wall, so a door at the bay's end would stand in it), no leaf in it, its head raised to a
@@ -113,11 +124,11 @@ const PIECES = {
   ];
 }
 // each part's paint: a fixed one, or white for its instance's tint (TINTS: the parts a building or a shop paints)
-const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS };
-const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band']);
+const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS, bracket: '#2a2c2f', letters: '#efe6d2' };
+const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band', 'blade']);
 // each piece's parts gathered into the templates it stamps (a window one, its glass and sill tinted with its frame: a
 // metro stamps tens of thousands); a template is tinted when a part in it is
-const PART_OF_PIECE = { win: { glass: 'unit', frame: 'unit', stone: 'unit' }, shop: { shopglass: 'glass', doorglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, shopopen: { shopglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, awning: { awning: 'awning' },
+const PART_OF_PIECE = { blade: { blade: 'board', bracket: 'bracket', letters: 'bracket' }, win: { glass: 'unit', frame: 'unit', stone: 'unit' }, shop: { shopglass: 'glass', doorglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, shopopen: { shopglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, awning: { awning: 'awning' },
   entry: { door: 'door', transom: 'stone', stone: 'stone', canopy: 'canopy' }, lobby: { shopglass: 'glass', frame: 'frame', canopy: 'canopy' }, balcony: { stone: 'slab', railglass: 'slab', rail: 'rail' }, band: { band: 'band' } };
 const TINTED = new Set(Object.values(PART_OF_PIECE).flatMap((m) => Object.entries(m).filter(([part]) => TINTS.has(part)).map(([, g]) => g)));
 
@@ -194,6 +205,7 @@ export function frontsOf(wall, spec, R) {
   // (a stretch along the wall and in height: the axis the wall runs on)
   const sc = (su, sz = 1) => (Math.abs(su - 1) < 1e-6 && Math.abs(sz - 1) < 1e-6 ? null : ns ? [r4(su), 1, r4(sz)] : [1, r4(su), r4(sz)]);
   const r2 = (v) => Math.round(v * 100) / 100 + 0;
+  const pos0 = (u) => `${r2(a[0] + t[0] * u)},${r2(a[1] + t[1] * u)}`;
   const put = (piece, u, z, tint, scale = null) => {
     const pos = [r2(a[0] + t[0] * u), r2(a[1] + t[1] * u), r2(z)];
     // (a window of a baked frame, or a block of them: its variant, untinted)
@@ -220,6 +232,8 @@ export function frontsOf(wall, spec, R) {
       // (a shop sunk under its row's pad, `sinks`: its front as far down, its door on its floor)
       const zb = z0 - (spec.sinks?.[i] ?? 0);
       put(pieceOf(i), u, zb, { frame, sign }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
+      // (a blade sign over some, at the bay's end, in its sign's colour: by the place's own hash, so no other dice move)
+      if (spec.blades && strHash(`${facing}:${pos0(u)}`) % 100 < FRONTAGE.blade * 100) put('blade', u + w / 2 - 0.45, zb, { board: sign }, sc(1, shopRise(floorH)));
       if (R() < FRONTAGE.shop.awning) put('awning', u, zb, { awning: pick(P.awning) }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
     }
     // (a band over the shops, the storey's floor)

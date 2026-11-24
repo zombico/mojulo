@@ -48,7 +48,7 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
 - **name**: the game's own title (the rail's name is ours; the game's is theirs).
 - **characters**: the hero (create_character words: body, clothes, how it moves).
 - **levels**: the district by a word, `HIJACK_DISTRICTS` (`hijackCityWorld({ district })`): `downtown` (the starter's
-  own), `inner-city` (a Northeast metro's frame: brick walk-ups, four-storey low-rises and main streets among its
+  own: the metro's core, its towers, podiums and square, the frame round it), `inner-city` (a Northeast metro's frame: brick walk-ups, four-storey low-rises and main streets among its
   midrises) or `suburbs` (its outskirts: colonials, garden apartments, walk-ups); its suburbs' register
   (`hijackCityWorld({ register })`, `geocity.outskirts`: `west-coast` downtown's, `northeast` the inner city's and the
   suburbs', `tropical`, `san-francisco`, `sunset`, `bay-and-gable`, `old-town`; the two San Francisco ones laying the
@@ -96,7 +96,11 @@ laid with promenades crossing at an obelisk, a playground and a pavilion in each
 park block is railed and a car park's streets are lined with bollards. A downtown street (the core's and the frame's own
 streets) is dressed as one: its centre line dashed, a zebra at each crossing and where it meets an arterial, cars parked
 along both kerbs with a meter every second bay, its trees in their pits between its lamps, a hydrant and newspaper boxes
-by its corners (`geocity/scene.js` `DOWNTOWN`). `civic: false` keeps none of the places.
+by its corners (`geocity/scene.js` `DOWNTOWN`). Where a neighbourhood's own street meets an arterial the arterial's walk is opened
+across its mouth and the road carried through to the arterial's (`mouthsOf`), nothing of the kerb's stood in it. A
+downtown's shops hang blade signs over the walk (`geocity/frontage.js` `blades`), and its roofs are dressed: a tower's
+mechanical penthouse and cooling towers, a flat roof's stair bulkhead, its row of air handlers and a cooling tower on the
+big ones (`geocity/rooftop.js` `lotRoofPlan`). `civic: false` keeps none of the places.
 
 ## Locales
 
