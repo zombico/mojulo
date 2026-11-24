@@ -3,7 +3,7 @@ import { PATTERNS, PATTERN_IDS, readPattern, layPattern, hazardHit } from './pat
 import { patternLaws, hazardReads, BODY } from './laws.js';
 import { BOSSES, BOSS_IDS, readBoss, moveOf, mindPhases, bossLaws } from './bosses.js';
 import { VEHICLES, VEHICLE_IDS, readVehicle, partHit, vehicleLaws } from './vehicles.js';
-import { ATTACK_LOOKS, readAttackLook, lookOfMove } from './looks.js';
+import { ATTACK_LOOKS, ATTACK_POSES, POSE_REST, readAttackLook, lookOfMove, windClips } from './looks.js';
 
 // BOSS FIGHTS (lib/graph/boss/): attack patterns as timelines held to the laws a body needs of them, human bosses as
 // gimmicks over those patterns in phases, vehicle bosses as parts and states won by mechanics.
@@ -85,6 +85,17 @@ describe('attack looks', () => {
     expect(() => readAttackLook({ tell: { smoke: true }, hit: 'crescent' })).toThrow(/tell/);
     expect(() => readAttackLook({ tell: { glint: 'tail' }, hit: 'crescent' })).toThrow(/glint/);
     expect(() => readAttackLook({ tell: {}, hit: 'boom' })).toThrow(/hit/);
+  });
+});
+
+describe('attack poses', () => {
+  it('a person\'s body winds up and strikes: two two-key clips a posed pattern, rest to wound, wound to struck', () => {
+    const id = Object.keys(ATTACK_POSES)[0], C = windClips([id, id, 'no-such-pattern']);
+    expect(Object.keys(C)).toEqual([`wind_${id}`, `strike_${id}`]);
+    expect(C[`wind_${id}`]).toEqual([POSE_REST, ATTACK_POSES[id].wound]);
+    expect(C[`strike_${id}`]).toEqual([ATTACK_POSES[id].wound, ATTACK_POSES[id].struck]);
+    // (every attack with a look has a body to go with it)
+    for (const k of Object.keys(ATTACK_LOOKS)) expect(ATTACK_POSES[k]).toBeDefined();
   });
 });
 

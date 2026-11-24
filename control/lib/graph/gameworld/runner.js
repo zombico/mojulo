@@ -101,7 +101,7 @@ import { BOSSES } from './bosses.js';
 import { bossSpec } from './boss-spec.js';
 import { sideMapOf } from './side-map/scene.js';
 import { sideMapBossCast } from './side-map/boss-cast.js';
-import { CASTLE_FIGURES, figuredBosses } from './metroidvania/bosses.js';
+import { castleFigure, figuredBosses } from './metroidvania/bosses.js';
 import { isCastle, layCastle } from './metroidvania/castle.js';
 import { layBox } from './metroidvania/box.js';
 import { stagedFront } from './front-stage.js';
@@ -760,7 +760,7 @@ const sideMapBossRefs = (G, ref) => Object.fromEntries(sideMapBossIds(G).map((id
 const castleBossIds = (G) => figuredBosses(G.ids.flatMap((id) => { const w = G.levels[id].metroidvania; if (!w) return []; const L = isCastle(w) ? layCastle(w) : layBox(w); return L.rooms.filter((r) => r.boss).map((r) => r.boss); }));
 const castleBossRefs = (G, ref) => Object.fromEntries(castleBossIds(G).map((id) => [id, childRef(ref, `boss-${id}`)]));
 const castleBossSteps = (G, ref) => castleBossIds(G).map((id) => {
-  const F = CASTLE_FIGURES[id], key = `boss-${id}`, title = `${G.name ?? G.id} ${id.replace(/-/g, ' ')}`;
+  const F = castleFigure(id), key = `boss-${id}`, title = `${G.name ?? G.id} ${id.replace(/-/g, ' ')}`;
   if (F.animal) return beastStep(key, childRef(ref, key), F.animal, title);
   const mint = { kind: 'layered', via: 'hero', title, spec: F.hero };
   return { key, ref: childRef(ref, key), ready: true, order: { spec: F.hero, mint, motion: null }, print: fingerprint({ spec: F.hero }) };

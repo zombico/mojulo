@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { boxOf } from './scene.js';
-import { CASTLE_BOSSES, BOSS_DEFAULT, BOSS_LAWS, FIGHT_ROOM, CASTLE_FIGURES, bossRow, bossLaws, figuredBosses, standBosses } from './bosses.js';
+import { CASTLE_BOSSES, BOSS_DEFAULT, BOSS_LAWS, FIGHT_ROOM, CASTLE_FIGURES, bossRow, bossLaws, figuredBosses, standBosses, castleFigure } from './bosses.js';
 import { readGameworld } from '../world.js';
 import { runSteps } from '../runner.js';
 import { vampireSonataGame } from './vampire-sonata.js';
@@ -69,4 +69,11 @@ describe('the castle\'s bosses', () => {
     expect(bare.figures[bare.entities[0].body.figure].heroRef ?? null).toBe(null);
     expect(figuredBosses(['the Great Bell', 'a stranger'])).toEqual([]);
   }, 120000);
+
+  it('a person boss\'s figure carries a wind-up and a strike for each of its moves; a beast\'s is its own', () => {
+    const id = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].hero), F = castleFigure(id);
+    for (const m of Object.values(CASTLE_BOSSES[id].moves)) { expect(F.hero.clips[`wind_${m.pattern}`]).toHaveLength(2); expect(F.hero.clips[`strike_${m.pattern}`]).toHaveLength(2); }
+    const beast = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].animal);
+    expect(castleFigure(beast)).toEqual(CASTLE_FIGURES[beast]);
+  });
 });

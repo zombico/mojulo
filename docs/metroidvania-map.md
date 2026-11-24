@@ -346,6 +346,14 @@ Lord (a wolf grown `dire` and `shadow`). The runner makes each one a box names (
 its ref, a door's body grown by its tier, a beast fitted to its tier's height. The Great Bell has no figure yet (no door
 makes a bell): it stands as a block.
 
+Its BODY tells the move too: each person boss's figure is minted with a wind-up and a strike for each pattern its moves
+use (`boss/looks.js` `ATTACK_POSES`, in the rig's pose words, its weapon in its right hand: the cleave's blade drawn back
+over its shoulder then swept down; the quake's hands raised high then driven into the floor; the toss's arm drawn back
+low then flung out; the toll's arms spread wide and the head thrown back, then thrust ahead; the lunge sunk low on bent
+knees, then sprung out flat). The page plays `wind_<pattern>` through the tell, held wound at its landing, and
+`strike_<pattern>` through the blow, then eases back to its stand (`__bossWind`, emitted only where a director's boss
+stands). The great wolf has none yet: its door is the animal door, its clips its species' gaits.
+
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.
 - `fights`: each boss's fight held to the director's laws for her on the lane, her jump among her escapes: every move
@@ -495,7 +503,8 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
-- **The bosses' bodies, further.** Their moves seen in their figures (a wind-up a pose of its clips, not only a mark).
+- **The bosses' bodies, further.** The great wolf's wind-ups (a crouch and a spring of its own species' clips). A
+  wind-up turned to the camera where a profile hides it (a twist read side on).
   The Great Bell made (a card: a bell on its beam, its clapper on a bone). The undead word under the knight's sabatons and
   the cleric's robe (the door refuses both today). The knight's pauldrons, grey and large on a brute. A boss's look
   changed by its phase. The fight's length is the

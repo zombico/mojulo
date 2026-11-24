@@ -111,3 +111,7 @@
 - Their attacks have their own looks: a glint on the blade and a crimson crescent for a swing, glowing cracks and rolling
   dust walls for a slam, rings of shimmering air and a wall of ripples for a toll, a falling bell or a swarm of bats for
   a throw, and speed streaks for a lunge.
+- The castle's bosses wind up with their bodies. Before a swing, a boss draws its weapon back over its shoulder; before
+  a slam, it raises both hands high; before a throw, it draws its arm back low; before a toll, it spreads its arms and
+  throws its head back; before a lunge, it sinks low on bent knees. As the attack lands it strikes through, then eases
+  back to its stand. The great wolf does not wind up yet.

@@ -77,7 +77,8 @@ export function buildBoss(E) {
     const zb = p[2] - ((e.rule && e.rule.eye) || 0);
     H.forEach((h, k) => state.bossHazards.push({ ...h, z: h.rise != null ? zb : z, id: `${e.id}:${S.count}:${k}`, by: e.id, move: id, k, ...(look.hazard ? { colour: look.hazard } : {}), ...(look.tell ? { tellColour: look.tell } : {}) }));
     const end = Math.max(...H.map((h) => h.t1)) - t;
-    S.cur = { id, t0: t, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' || P.carries ? H[0] : null, vent: !!P.vent, scope: !!P.scope };
+    // (when it lands, its first hazard's landing, and its pattern: the page's wind-up and strike, boss-view)
+    S.cur = { id, t0: t, land: Math.min(...H.map((h) => h.t0)), pattern: P.pattern || null, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' || P.carries ? H[0] : null, vent: !!P.vent, scope: !!P.scope };
   }
 
   // a phase's arena event, as the crossing runs it

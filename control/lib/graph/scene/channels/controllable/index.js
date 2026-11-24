@@ -2620,6 +2620,14 @@ function __sidearmProps(e, m, rig, fig, AL) {
     const mz = (R.dual && e.weapon && (e.weapon.shots || 0) % 2 ? G.L : G.R).userData.mz; mz.userData.sidearm = true; rig.muzzle = mz;
   }
 }
+` : ''}${bossOn ? `const __BOSS_STRIKE = 0.35;
+function __bossWind(e, fig) {
+  const C = e.bossS && e.bossS.cur, p = C && C.pattern, t = __world.time || 0;
+  if (!p || e.downed || !fig.clips || !fig.clips['wind_' + p]) return null;
+  if (t < C.land) return { mode: 'wind_' + p, phase: Math.min(0.5, 0.5 * Math.max(0, t - C.t0) / Math.max(0.05, C.land - C.t0)) };
+  if (t < C.land + __BOSS_STRIKE && fig.clips['strike_' + p]) return { mode: 'strike_' + p, phase: Math.min(0.5, 0.5 * (t - C.land) / __BOSS_STRIKE) };
+  return null;
+}
 ` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
@@ -2648,7 +2656,7 @@ function __sidearmProps(e, m, rig, fig, AL) {
     if (q) m.scale.set(s0 * q[0], s0 * q[0], s0 * q[1]); else { m.scale.setScalar(s0); m.userData.s0 = null; }
   }
   ` : ''}const fig = rig.fig;
-  ${figHasForms || acts || moveset || takes || fires ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
+  ${figHasForms || acts || moveset || takes || fires || bossOn ? 'let' : 'const'} mode = e.moving ? e.locomotion : ${moveset ? "(e.idleClip && rig.fig.clips && rig.fig.clips[e.idleClip] ? e.idleClip : 'idle')" : "'idle'"};${moveset ? '   // (a moveset\'s hero in combat idles in its fighting stance: mv_ready)' : ''}${moveset ? `
   // A SIDEARM'S AIM (e.mvPose, combat-melee.js: the archer's draw at its share, the gunslinger's guns): the whole body
   // standing, the body above the hips over the walk (the aim layer in the bone loop, __aimLayer)
   const AP = e.mvPose && e.staggerT == null && fig.clips && fig.clips[e.mvPose.clip] ? e.mvPose : null;   // (none while reeling)
@@ -2671,7 +2679,12 @@ function __sidearmProps(e, m, rig, fig, AL) {
 ${fires ? `  // (a hold is a clip played once and held: firing, it comes up over a fifth of a second and stays; standing in one, it
   // is held; neither runs on the gait's phase, which stands still on a body that stands)
   const heldU = mode === 'flinch' ? Math.max(0, Math.min(0.999, flinchU)) : mode === 'fire' ? (rig.fireU = Math.min(0.999, (rig.fireU || 0) + (dt || 0) / 0.2)) : (rig.fireU = 0, mode === 'idle' && fig.clips.idle && fig.clips.idle.held ? 0.999 : null);
-` : ''}  const mix = __CW.advanceGaitMix(rig.mix, mode, ${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
+` : ''}${bossOn ? `// A BOSS WINDS UP (worlds/controllable/boss.js, its move told: e.bossS.cur): a figure with its pattern's clips plays
+  // wind_<pattern> through the tell, held wound at its landing, then strike_<pattern> through the blow; each a two-key
+  // clip played over its first half (rest to wound, wound to struck); then the mix eases it back
+  const BW = __bossWind(e, fig);
+  if (BW) mode = BW.mode;
+  ` : ''}  const mix = __CW.advanceGaitMix(rig.mix, mode, ${bossOn ? 'BW ? BW.phase : ' : ''}${fires ? 'heldU != null ? heldU : ' : ''}${takes ? `tk ? Math.min(tk.u, 0.999) : ` : ''}${moveset ? `(AP && mode === AP.clip ? AP.phase : ${acts ? 'phase' : 'e.gaitPhase'})` : acts ? 'phase' : 'e.gaitPhase'}, dt || 0, ${moveset ? "(typeof mode === 'string' && mode.indexOf('mv_') === 0 && e.rule && e.rule.moveset ? e.rule.moveset.blend : rig.blendTime)" : 'rig.blendTime'});${moveset ? '   // (into a move\'s own clip: the moveset\'s blend, its travel waiting it out: no foot slides)' : ''}
   const w = mix.prevMode ? mix.w * mix.w * (3 - 2 * mix.w) : 1;
   // head-look-at overlay (renderer-convergence step 2, procedural rung): ease the head bone's
   // yaw toward a tracked entity, clamped to a natural range — a runtime joint override no

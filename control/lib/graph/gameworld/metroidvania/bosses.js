@@ -39,7 +39,7 @@ import { sideFoe } from '../side-map/cast.js';
 import { HERO } from '../../foes/vocab.js';
 import { bossRule, bossMind } from '../../boss/stand.js';
 import { bossLaws as directorLaws } from '../../boss/bosses.js';
-import { lookOfMove } from '../../boss/looks.js';
+import { lookOfMove, windClips } from '../../boss/looks.js';
 // (its FIGHT: the director's words for a human boss, boss/bosses.js: its moves over the side view's patterns,
 // boss/patterns.js, said in its own words, and its phases, quicker as its health falls)
 const ph = (moves, tempo, more = {}) => Object.freeze({ moves: Object.freeze(moves), tempo, ...more });
@@ -104,6 +104,15 @@ export const CASTLE_FIGURES = Object.freeze({
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
     stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } } }),
 });
+/** A castle boss's figure as its door is asked for it: a person's with its moves' wind-up and strike clips (boss/looks.js
+ * ATTACK_POSES, played by the page as it winds up and strikes); a beast's as it is (its own gaits). */
+export function castleFigure(id) {
+  const F = CASTLE_FIGURES[id];
+  if (!F || F.animal) return F ?? null;
+  const pats = Object.values(CASTLE_BOSSES[id].moves).map((m) => m.pattern);
+  return { hero: { ...F.hero, clips: { ...windClips(pats), ...(F.hero.clips ?? {}) } } };
+}
+
 /** The castle bosses a box's words name that have a figure to make: their row ids. */
 export function figuredBosses(names) {
   return [...new Set(names.map((n) => bossRow(n)).filter((r) => r.known && CASTLE_FIGURES[r.id]).map((r) => r.id))];
