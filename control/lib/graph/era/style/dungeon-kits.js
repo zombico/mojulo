@@ -1,4 +1,5 @@
-// THE RPG DUNGEON KITS' STYLE CARDS (stage.js STAGE_KITS, dressed by era/dungeon.js): four dungeons that are not built
+// THE RPG DUNGEON KITS' STYLE CARDS (stage.js STAGE_KITS, dressed by era/dungeon.js, `dressing: 'dungeon'`; each card's
+// `id` its kit's, its principles counted in era/laws.js PRINCIPLE_LAWS): four dungeons that are not built
 // stone at all, or not stone as a church is, each its own cause read in what stands in it. A card: its `principles`,
 // its `materials` (role → hex: glow and glow2 the self-lit), what its doodads cast (`light`), and what stands where
 // (`centre`, `lay`, `walls`, `corners`, `hall`, `ceiling`: dungeon.js). A new dungeon is a card here and a kit card
@@ -6,7 +7,7 @@
 
 // THE DEEP FORGE: a hall the dwarves cut to work metal, square and heavy, the light the forge's and the molten run's
 export const DEEP_FORGE = Object.freeze({
-  id: 'dungeon', kit: 'deep-forge',
+  id: 'deep-forge', dressing: 'dungeon',
   principles: Object.freeze([
     'The hall is cut, not built: square piers left standing in the rock, a flat beam over each, nothing arched.',
     'Its light is work: the forge glows at the heart, the molten run lights the floor beside the walk, the walls are dark.',
@@ -24,7 +25,7 @@ export const DEEP_FORGE = Object.freeze({
 
 // THE FUNGAL GROTTO: a cave the fungus has taken, no hand in it at all; the light is the growth's own
 export const FUNGAL_GROTTO = Object.freeze({
-  id: 'dungeon', kit: 'fungal-grotto',
+  id: 'fungal-grotto', dressing: 'dungeon',
   principles: Object.freeze([
     'No one built it: rough rock walls and vault, no plinth, no cornice, no pier but the rock\'s own.',
     'The light is alive: the caps glow under their gills, small growth glows at the walls\' feet, spores glow in the air.',
@@ -42,7 +43,7 @@ export const FUNGAL_GROTTO = Object.freeze({
 
 // THE DROWNED SHRINE: a sea god's temple the sea took back, flooded to the ankle, the light the deep's cold glow
 export const DROWNED_SHRINE = Object.freeze({
-  id: 'dungeon', kit: 'drowned-shrine',
+  id: 'drowned-shrine', dressing: 'dungeon',
   principles: Object.freeze([
     'The sea came in and stayed: still water over the floor, coral and kelp grown up the walls the priests built.',
     'The altar still stands above the water, on its steps, the god\'s shell open on it and the pearl alight.',
@@ -60,7 +61,7 @@ export const DROWNED_SHRINE = Object.freeze({
 
 // THE ARCANE VAULT: a mage's sealed archive, precise and quiet, its light the crystals' and the circle's
 export const ARCANE_VAULT = Object.freeze({
-  id: 'dungeon', kit: 'arcane-vault',
+  id: 'arcane-vault', dressing: 'dungeon',
   principles: Object.freeze([
     'It is a mind made into a room: everything set out exactly, the orrery at the centre of its circle.',
     'The light is the work\'s own: the circle\'s runes, the crystals floating under the vault, a mote over the open book.',

@@ -406,3 +406,7 @@
 - **A town with a story carries its bag in again.** Once a level has story scenes (the round's opening in the town),
   what it carries in was read off the story's scenes alone, so the townsfolk's own pages that read the bag (the
   priest's crypt key) lost it (`levels.js` storyPart); both are read now.
+- **The dungeons' principles counted, and one measured.** Each dungeon card's principles map to the shared laws
+  (`era/laws.js` PRINCIPLE_LAWS, its cards in `statedPrinciples`; a card's `id` now its kit's, `dressing: 'dungeon'`
+  sending it to its dressing). They add a law, `light-has-a-source` (every light is something in the place that gives
+  it), measured by `era/dungeon.js` `sourceless`: each kit's starter lays no light away from its own glow.

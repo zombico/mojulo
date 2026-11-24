@@ -20,6 +20,7 @@
  *
  *   DUNGEON_DOODADS             kind → builder(ctx, p, N, U, s, seed, opts)
  *   dungeonDress(plan, geom)    → the stage's dressing { faces, after, lights, pools, anchors, blends, cut, shadowSkip }
+ *   sourceless(dress, reach?)   → the lights no self-lit face of it gives (the law 'light-has-a-source'; none, it holds)
  */
 import { P, r5, panel, hexRgb, lathe } from './geom.js';
 import { obox, wallSpots } from './props.js';
@@ -186,7 +187,8 @@ export const DUNGEON_DOODADS = Object.freeze({
     const r = o.r ?? 2.2;
     disc(ctx, c, r, 0.03, 'water', false, 18);
     ring(ctx, c, r, r + 0.25, 0.035, 'glow2', true, 18, 3);
-    shine(ctx, add(c, [0, 0, 0.4]), 0.5, 'glow2');
+    // (its light the rim's growth, where it glows)
+    for (let k = 0; k < 3; k++) { const a = (k / 3) * 2 * Math.PI + 0.3; shine(ctx, [c[0] + Math.cos(a) * (r + 0.12), c[1] + Math.sin(a) * (r + 0.12), 0.35], 0.3, 'glow2'); }
   },
 
   // THE DROWNED SHRINE's
@@ -260,7 +262,8 @@ export const DUNGEON_DOODADS = Object.freeze({
     ring(ctx, c, r + 0.5, r + 0.6, 0.012, 'glow', true, 32);
     for (let k = 0; k < 12; k++) { const a = (k / 12) * 2 * Math.PI, m = r + 0.25, at = [c[0] + Math.cos(a) * m, c[1] + Math.sin(a) * m, 0.014], t = [-Math.sin(a), Math.cos(a), 0], rd = [Math.cos(a), Math.sin(a), 0];
       const w = 0.07 + 0.05 * (k % 3), h = 0.14; glowFace(ctx, [add(at, add(mul(t, -w), mul(rd, -h))), add(at, add(mul(t, w), mul(rd, -h))), add(at, add(mul(t, w), mul(rd, h))), add(at, add(mul(t, -w), mul(rd, h)))], Z, 'glow', 2.6); }
-    shine(ctx, [c[0], c[1], 0.6], 0.6);
+    // (its light the runes', on the ring where they burn)
+    for (let k = 0; k < 4; k++) { const a = (k / 4) * 2 * Math.PI + 0.4; shine(ctx, [c[0] + Math.cos(a) * (r + 0.25), c[1] + Math.sin(a) * (r + 0.25), 0.4], 0.3); }
   },
   // a tall bookcase in the wall's bay: its frame, shelves, and books of many bindings
   bookcase(ctx, p, N, U, s, seed) {
@@ -296,6 +299,22 @@ export const DUNGEON_DOODADS = Object.freeze({
   },
 });
 const FLOOR_KINDS = new Set(['molten-channel', 'still-pool', 'flood', 'rune-circle']);
+
+/** LIGHT HAS A SOURCE (era/laws.js 'light-has-a-source'), measured: the dressing's lights that stand by none of its
+ * own self-lit faces (none within `reach` m of the light, measured to the face's nearest point). A dungeon's every light is a thing in it
+ * that gives it; none hangs from nowhere. → [light] (empty: the law holds) */
+export function sourceless(dress, reach = 1.2) {
+  return dress.lights.filter((l) => !dress.after.some((f) => faceDistance(f.corners, l.at) <= reach));
+}
+// (a point's distance to a flat convex face: to the face itself where it falls over it, else to its nearest edge)
+function faceDistance(cs, q) {
+  const n = unit(cross(sub(cs[1], cs[0]), sub(cs[2], cs[0]))), d = (q[0] - cs[0][0]) * n[0] + (q[1] - cs[0][1]) * n[1] + (q[2] - cs[0][2]) * n[2], p = sub(q, mul(n, d));
+  const inside = cs.every((a, i) => { const b = cs[(i + 1) % cs.length], e = cross(sub(b, a), sub(p, a)); return e[0] * n[0] + e[1] * n[1] + e[2] * n[2] >= -1e-9; });
+  if (inside) return Math.abs(d);
+  let best = Infinity;
+  for (let i = 0; i < cs.length; i++) { const a = cs[i], b = cs[(i + 1) % cs.length], ab = sub(b, a), t = Math.max(0, Math.min(1, ((q[0] - a[0]) * ab[0] + (q[1] - a[1]) * ab[1] + (q[2] - a[2]) * ab[2]) / ((ab[0] ** 2 + ab[1] ** 2 + ab[2] ** 2) || 1))); best = Math.min(best, Math.hypot(...sub(q, add(a, mul(ab, t))))); }
+  return best;
+}
 
 /** The rooms of a kit's plan read as a chamber and its halls: the largest room the chamber. */
 export function chamberOf(plan) {

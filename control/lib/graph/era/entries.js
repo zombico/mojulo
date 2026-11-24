@@ -55,7 +55,9 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // limestone-crags; it stands at 5729 with all three
 // (6300 since the craft laws, the wetness law and the builder's 'too-small-to-read' (era/skandart.js its first reader)
 // joined the laws card: the laws of both eras and of craft, one line each)
-export const STAGE_CARD_BODY_CEILING = 6300;
+// 6300 -> 6400 (2026-11-24): the RPG dungeons' law, 'light-has-a-source' (era/dungeon.js sourceless measures it), one
+// line on the laws card; it stands at 6368 with it
+export const STAGE_CARD_BODY_CEILING = 6400;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));

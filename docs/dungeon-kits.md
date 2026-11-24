@@ -37,6 +37,22 @@ Things at the walls and corners stand at the room props' places (`era/props.js` 
 walking line or on the set piece. The kit card shapes the shell (piers, plinth, cornice, arch or none, the tiles, a
 frieze, the lamps; `torch.none` for a place no hand lit).
 
+## The principles
+
+Each card states its principles (`principles`), and each is counted against the shared laws (`era/laws.js`
+`PRINCIPLE_LAWS`: a row of laws per principle, in order; `laws.test.js` fails a card that gains a principle without
+its row). The dungeons stand on the composition laws every room kit does (`focus`, `by-cause`, `corner-things`,
+`air-is-furnished`, `dark-is-a-place`, `live-emitters`) and add one of their own:
+
+- **`light-has-a-source`**: every light is something in the place that gives it; none hangs from nowhere. It is
+  measured, not only stated: `dungeon.js` `sourceless(dress)` names each light the dressing lays that stands more
+  than 1.2 m from every one of its own self-lit faces, and `dungeon.test.js` holds each kit's to none. A doodad that
+  `shine`s lays its light by what glows (on a ring's rim, not its empty middle).
+
+A new dungeon's card writes its principles and their row in `PRINCIPLE_LAWS`, and lists itself in
+`statedPrinciples`. A card's `id` is its kit's (the laws key by it); `dressing: 'dungeon'` is what sends it to this
+dressing.
+
 ## The doodads
 
 `DUNGEON_DOODADS` (`era/dungeon.js`), each `(ctx, p, N, U, s, seed, o)`: the foot on the floor, the way into the room,
@@ -53,5 +69,5 @@ A doodad is one kit's by its look, not by rule: any card may name any of them.
 ## Adding one
 
 - **A new thing:** a `DUNGEON_DOODADS` row; name it on a card. A floor feature joins `FLOOR_KINDS`.
-- **A new dungeon:** a style card in `style/dungeon-kits.js` (`id: 'dungeon'`), a kit card in `STAGE_KITS`, a starter
-  in `KIT_STARTERS`, its words in `KIT_WORDS`. `era/dungeon.test.js` holds every card to doodads that exist.
+- **A new dungeon:** a style card in `style/dungeon-kits.js` (`id` its kit's, `dressing: 'dungeon'`), a kit card in
+  `STAGE_KITS`, a starter in `KIT_STARTERS`, its words in `KIT_WORDS`, its principles' row in `PRINCIPLE_LAWS`. `era/dungeon.test.js` holds every card to doodads that exist.

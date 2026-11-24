@@ -2,7 +2,8 @@
 // every doodad a card names is one the shelf builds; the starter's chamber holds its set piece and its floor's feature;
 // the glow lays the light; the grotto no hand lit has no lamp on its walls; the same plan, the same dressing.
 import { describe, it, expect } from 'vitest';
-import { DUNGEON_DOODADS, dungeonDress, chamberOf } from './dungeon.js';
+import { DUNGEON_DOODADS, dungeonDress, chamberOf, sourceless } from './dungeon.js';
+import { PRINCIPLE_LAWS } from './laws.js';
 import { DUNGEON_STYLES } from './style/dungeon-kits.js';
 import { STAGE_KITS, planStage, buildStageGeometry } from './stage.js';
 import { starter } from './entries.js';
@@ -32,6 +33,17 @@ describe('the RPG dungeon kits', () => {
       expect(D.lights.every((l) => l.fixture === 'glow' && l.at.every(Number.isFinite))).toBe(true);
       expect(JSON.stringify(dungeonDress(plan, geom).faces)).toBe(JSON.stringify(D.faces));
     }
+  });
+
+  it('its principles are counted (laws.js), and the one it adds is measured: every light it lays has its source beside it', () => {
+    for (const k of KITS) {
+      expect(PRINCIPLE_LAWS[k], k).toHaveLength(DUNGEON_STYLES[k].principles.length);
+      expect(PRINCIPLE_LAWS[k].flat(), k).toContain('light-has-a-source');
+      const plan = planStage({ ...starter(k), seed: 3 }), D = dungeonDress(plan, buildStageGeometry(plan));
+      expect(sourceless(D), k).toEqual([]);
+    }
+    // (a light laid from nowhere breaks it)
+    expect(sourceless({ after: [], lights: [{ at: [0, 0, 1] }] })).toHaveLength(1);
   });
 
   it('the grotto no hand lit has no lamp on its walls; the forge has its lamps', () => {
