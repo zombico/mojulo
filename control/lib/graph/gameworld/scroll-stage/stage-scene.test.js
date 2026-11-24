@@ -3,7 +3,8 @@
 // the play plane holds the ship alone (every layer and hull stands off it); a level flies the ship's airframe, a bare
 // page a slab; the airspace hands a scroll stage its own reader and builder, and refuses its words teaching.
 import { describe, it, expect } from 'vitest';
-import { readScrollStage, scrollStageOf, scrollStagePlay, assembleScrollStage, SCROLL_PACE, HULL_DEPTH } from './stage-scene.js';
+import { readScrollStage, scrollStageOf, scrollStagePlay, assembleScrollStage, SCROLL_PACE, HULL_DEPTH, TARGET_HP } from './stage-scene.js';
+import { POD_IDS, PODS } from './pods.js';
 import { SCROLL_FRAME, toScreen } from './frame.js';
 import { validateAirspace, assembleAirspace } from '../../skyscape/airspace.js';
 import { CAPITAL_CLASSES } from '../../fleet/classes.js';
@@ -51,6 +52,16 @@ describe('the scroll stage', () => {
     expect(P.entities[0].rule.type).toBe('scroll-ship');
   });
 
+  it('the ship carries the stage\'s arsenal, only the pods it names; its targets stand as foes, a carrier in its pod\'s hue', () => {
+    const [p0, p1] = POD_IDS, play = scrollStagePlay(stage({ pods: [p0], targets: [{ at: [0.5, 0.1], carries: p0 }, { at: [0.8, -0.1], hp: 9 }] }));
+    const ship = play.entities[0], [a, b] = play.entities.slice(1);
+    expect(Object.keys(ship.rule.arsenal.pods)).toEqual([p0]);
+    expect(ship.rule.arsenal.pods[p1]).toBeUndefined();
+    expect(a).toMatchObject({ team: 'foes', rule: { carries: p0 }, body: { hp: TARGET_HP, color: PODS[p0].hue } });
+    expect(b.body.hp).toBe(9);
+    expect(Math.abs(toScreen('side', a.transform.pos)[2])).toBeLessThan(1e-9);
+  });
+
   it('the airspace hands a scroll stage its own reader and builder', () => {
     expect(validateAirspace(stage())).toEqual([]);
     expect(validateAirspace({ kind: 'airspace', scroll: { speed: 3 } }).join(' ')).toMatch(/not a scroll stage's word/);
@@ -64,5 +75,8 @@ describe('the scroll stage', () => {
     expect(readScrollStage({ track: [{ hold: true }] }).join(' ')).toMatch(/until/);
     expect(readScrollStage({ hulls: [{ capital: 'dreadnought', at: 1, depth: 2 }] }).join(' ')).toMatch(/fleet class.*negative|negative.*fleet class/s);
     expect(readScrollStage({ backdrop: { toward: { bearing: 0, elevation: 0 } } }).join(' ')).toMatch(/camera's view/);
+    expect(readScrollStage({ pods: ['railgun'] }).join(' ')).toMatch(/names pods/);
+    expect(readScrollStage({ pods: [POD_IDS[0]], targets: [{ at: [1, 0], carries: POD_IDS[1] }] }).join(' ')).toMatch(/leave out/);
+    expect(readScrollStage({ targets: [{ at: [1, 0], hp: -1 }] }).join(' ')).toMatch(/positive/);
   });
 });

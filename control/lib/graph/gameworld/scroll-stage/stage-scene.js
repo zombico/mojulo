@@ -12,6 +12,9 @@
  *     pace?     screens a second a leg without its own moves at (SCROLL_PACE)
  *     start?    [u, v] screens: where the screen starts (a shot down the stage)
  *     layers?   the space layers laid (SPACE_LAYER_IDS, all where none are named)
+ *     pods?     the pods the stage's arsenal carries (POD_IDS, all where none are named: pods.js), lowered onto the ship
+ *     targets?  [{ at: [u, v] screens, hp?, carries?: a pod }]: foes standing still on the play plane (a range to try the
+ *               arsenal on: a target that carries a pod drops it as it falls)
  *     hulls?    [{ capital: a fleet class, at: screens along, v?: screens across, depth?: camera distances back (HULL_DEPTH),
  *               heading?: 0 (the way the stage scrolls) | 180, seed? }]: capital ships going by behind the fight
  *     backdrop? false (stars alone) | { planets?, nebula?, suns?, worlds?, proximity?, seed? } (skyscape/backdrop.js),
@@ -19,7 +22,7 @@
  *     seed?
  *   } }
  *
- *   SCROLL_STAGE_KEYS, SCROLL_PACE, SCROLL_CRAFT, HULL_DEPTH
+ *   SCROLL_STAGE_KEYS, SCROLL_PACE, SCROLL_CRAFT, HULL_DEPTH, TARGET_HP
  *   readScrollStage(v)                → errors (strings); [] when it builds
  *   scrollStageOf(manifest)           → { cam, ship, track, start, extent }: the stage as numbers, no faces
  *   scrollStagePlay(manifest, { airframe? }) → { entities, camera, figures? }: the ship and the scroll camera, as a level
@@ -39,8 +42,9 @@ import { planBackdrop } from '../../skyscape/backdrop.js';
 import { SPACE_STAR } from '../../skyscape/space.js';
 import { SCROLL_VIEWS, SCROLL_VIEW_IDS, scrollCamera, toWorld, trackExtent } from './frame.js';
 import { SPACE_LAYER_IDS, SPACE_VOID, layScrollSpace, hazeHulls } from './space-layers.js';
+import { POD_IDS, lowerArsenal } from './pods.js';
 
-export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'hulls', 'backdrop', 'seed']);
+export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'pods', 'targets', 'hulls', 'backdrop', 'seed']);
 /** A leg's pace where it names none: a tenth of a screen a second (an arcade scroll's unhurried crawl). */
 export const SCROLL_PACE = 0.1;
 /** The ship a stage flies where it names none: the craft shelf's hero gunship (craft-shelf/hero-gunship.js), Blaze
@@ -49,6 +53,8 @@ export const SCROLL_CRAFT = 'heroGunship';
 /** How far behind the play a hull stands where it names no depth (camera distances): back enough that a capital ship
  * reads whole and quiet behind the fight. */
 export const HULL_DEPTH = -4;
+/** A target's hp where it names none: a few taps of the base gun. */
+export const TARGET_HP = 4;
 const HULL_KEYS = ['capital', 'at', 'v', 'depth', 'heading', 'seed'];
 const DEFAULT_TRACK = Object.freeze([Object.freeze({ by: Object.freeze([12, 0]) })]);
 
@@ -80,6 +86,18 @@ export function readScrollStage(v) {
   if (v.pace !== undefined && !(isNum(v.pace) && v.pace > 0)) e.push(`${at('pace')} is screens a second`);
   if (v.start !== undefined && !pair(v.start)) e.push(`${at('start')} is [u, v] screens`);
   if (v.layers !== undefined && !(Array.isArray(v.layers) && v.layers.every((l) => SPACE_LAYER_IDS.includes(l)))) e.push(`${at('layers')} names space layers (${SPACE_LAYER_IDS.join(', ')})`);
+  if (v.pods !== undefined && !(Array.isArray(v.pods) && v.pods.every((p) => POD_IDS.includes(p)))) e.push(`${at('pods')} names pods (${POD_IDS.join(', ')})`);
+  if (v.targets !== undefined) {
+    if (!Array.isArray(v.targets)) e.push(`${at('targets')} is a list of { at: [u, v] screens, hp?, carries? }`);
+    else v.targets.forEach((T, k) => {
+      const w = `${at('targets')}[${k}]`;
+      if (!isObj(T) || !pair(T.at)) { e.push(`${w} is { at: [u, v] screens, hp?, carries? }`); return; }
+      for (const f of Object.keys(T)) if (!['at', 'hp', 'carries'].includes(f)) e.push(`${w}.${f} is not a target's word (at, hp, carries)`);
+      if (T.hp !== undefined && !(isNum(T.hp) && T.hp > 0)) e.push(`${w}.hp is a positive number`);
+      if (T.carries !== undefined && !POD_IDS.includes(T.carries)) e.push(`${w}.carries is a pod (${POD_IDS.join(', ')})`);
+      if (T.carries !== undefined && v.pods !== undefined && !v.pods.includes(T.carries)) e.push(`${w}.carries '${T.carries}', which the stage's pods leave out`);
+    });
+  }
   if (v.hulls !== undefined) {
     if (!Array.isArray(v.hulls)) e.push(`${at('hulls')} is a list of { capital, at, v?, depth?, heading?, seed? }`);
     else v.hulls.forEach((H, k) => {
@@ -110,16 +128,23 @@ export function scrollStageOf(manifest) {
   const cam = scrollCamera(ship.length, { view }), A = cam.screen.along, C = cam.screen.across;
   const track = (S.track ?? DEFAULT_TRACK).map((L) => (L.by ? { by: [r2(L.by[0] * A), r2(L.by[1] * C)], pace: r2((L.pace ?? S.pace ?? SCROLL_PACE) * A) } : { ...L }));
   const start = S.start ? [r2(S.start[0] * A), r2(S.start[1] * C)] : [0, 0];
-  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed: S.seed ?? manifest.seed ?? 1 };
+  const arsenal = lowerArsenal(S.pods ?? POD_IDS, { L: ship.length, S: cam.screen.across });
+  const targets = (S.targets ?? []).map((T, k) => ({ id: `target-${k}`, at: [r2(T.at[0] * A), r2(T.at[1] * C)], hp: T.hp ?? TARGET_HP, ...(T.carries ? { carries: T.carries } : {}) }));
+  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed: S.seed ?? manifest.seed ?? 1, arsenal, targets };
 }
 
 // the ship on the d-pad, a quarter of a screen back of the middle, and the camera carried down the track
 function playOf(G, { airframe = true } = {}) {
-  const { view, cam, ship, track, start } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0];
+  const { view, cam, ship, track, start, arsenal, targets } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0];
+  // (a target: a drone's block in the foes' colour, its size a ship's breadth, on the play plane facing back at the ship)
+  const tsize = r2(ship.breadth * 0.8);
   const body = airframe ? { type: 'figure-rig', figure: 'craft' } : { type: 'mesh', shape: 'box', size: view === 'side' ? [r2(ship.breadth / 3), ship.length, ship.breadth] : [ship.breadth, ship.length, r2(ship.breadth / 3)], color: '#e9eef4' };
   return {
-    entities: [{ id: 'player', pilotable: true, rule: { type: 'scroll-ship', size: [ship.length, ship.breadth], at }, ambient: { type: 'static' }, body,
-      transform: { pos: toWorld(view, [start[0] + at[0], start[1] + at[1], 0]).map(r2), heading: Math.atan2(V.along[1], V.along[0]) } }],
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'scroll-ship', size: [ship.length, ship.breadth], at, arsenal }, ambient: { type: 'static' }, body,
+      transform: { pos: toWorld(view, [start[0] + at[0], start[1] + at[1], 0]).map(r2), heading: Math.atan2(V.along[1], V.along[0]) } },
+    ...targets.map((T) => ({ id: T.id, team: 'foes', rule: { type: 'static', ...(T.carries ? { carries: T.carries } : {}) },
+      body: { type: 'mesh', shape: 'box', size: [tsize, tsize, tsize], color: T.carries ? arsenal.pods[T.carries].hue : '#c04a3a', hp: T.hp, radius: r2(tsize * 0.7) },
+      transform: { pos: toWorld(view, [T.at[0], T.at[1], 0]).map(r2), heading: Math.atan2(-V.along[1], -V.along[0]) } }))],
     camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track },
     ...(airframe ? { figures: { craft: { craft: { archetype: ship.craft, flying: true, gear: 'up' } } } } : {}),
   };
