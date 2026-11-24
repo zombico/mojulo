@@ -423,7 +423,9 @@ Pointers only; each target carries its own design notes.
   `?book=briefing&mission=<id>&edit=1`, saved through `POST /api/sketches/<ref>/missions`), an approved one laid as its
   level, briefed as it loads (`airspace.briefing`, `scene/channels/briefing.js`). Beacons (a sortie's `beacons`,
   `game/sortie.js`) are its places and triggers. Rebel Storm's rail writes its designs (`MISSION_DESIGNS`) as missions. An arcade stage is designed the same way (`stage.js`: its route, waves in formation,
-  boss, points and medals), compiled onto a rail stage's `plan`; Wolf Squadron's rail writes its `STAGE_DESIGNS`.
+  boss, points and medals), compiled onto a rail stage's `plan`; Wolf Squadron's rail writes its `STAGE_DESIGNS`. A
+  ground stage's route is laid in segments (a canyon, open country, a sci-fi colony) on a route map under the flight
+  sky, told over its real ground (`stage-ground.js`): [docs/flight-games.md](docs/flight-games.md).
 - Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
   measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
   and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the

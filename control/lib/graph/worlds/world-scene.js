@@ -2416,7 +2416,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { readMission } = await import('@/lib/graph/campaign/mission.js');
     const { briefingData } = await import('@/lib/graph/campaign/briefing.js');
     // (an arcade stage's design, one that names its route, told on the same table: campaign/stage.js)
-    if (sketch.manifest.briefing.route !== undefined) { const { readStage, stageBriefingData } = await import('@/lib/graph/campaign/stage.js'); payload.briefing = { data: stageBriefingData(readStage(sketch.manifest.briefing)) }; }
+    // (a stage's: on its real ground when it is flown down a planet or a moon, campaign/stage-ground.js)
+    if (sketch.manifest.briefing.route !== undefined) {
+      const { readStage, stageBriefingData } = await import('@/lib/graph/campaign/stage.js');
+      const { stageGround } = await import('@/lib/graph/campaign/stage-ground.js');
+      payload.briefing = { data: stageBriefingData(readStage(sketch.manifest.briefing), { ground: stageGround(sketch.manifest, { seed: sketch.manifest.seed ?? 1 }) }) };
+    }
     else payload.briefing = { data: briefingData(readMission(sketch.manifest.briefing)) };
   }
   // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the

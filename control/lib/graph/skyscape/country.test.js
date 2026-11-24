@@ -18,7 +18,7 @@ describe('the country on a pilot\'s map', () => {
     expect(readCountryAsk({ settlements: [{ kind: 'hamlet' }] }).join()).toMatch(/kind/);
     expect(readCountryAsk({ metro: { metro: 'atlantis' } }).join()).toMatch(/atlantis/);
     expect(validateAirspace({ ...M, ground: { ...M.ground, country: { suburbs: 1 } } }).join()).toMatch(/suburbs/);
-    expect(Object.keys(SETTLEMENTS)).toEqual(['metro', 'town', 'village']);
+    expect(Object.keys(SETTLEMENTS)).toEqual(['metro', 'town', 'village', 'colony']);
   });
 
   it('is one generator at every grain: each settlement a geocity at its card, on the map\'s land, clear of the pads', () => {

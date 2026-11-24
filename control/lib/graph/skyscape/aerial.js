@@ -13,7 +13,7 @@
  *   light    the ground's own light (the kernel's), so a wall is lit as the ground beside it
  *
  *   aerialPageConfig(field, map) → the channel's config | null (no country on the map)
- *   coverPalette(cube) → the cover's paints (hex) by COVER_KEYS, from a geocube's key colours
+ *   coverPalette(cube, { style? }) → the cover's paints (hex) by COVER_KEYS, from a geocube's key colours (a colony's its world's)
  *
  * Pure.
  */
@@ -29,9 +29,19 @@ const mixHex = (a, b, t) => '#' + [1, 3, 5].map((k) => Math.round(parseInt(a.sli
 const r2 = (v) => Math.round(v * 100) / 100, r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /** The cover's palette, in the order the shader reads it: pasture ×2, crops ×5 (ripe, barley, green, young, rapeseed),
- *  ploughed soil, fallow, hedge, woods dark and light, heath ×2, sand, verge, rock. Each leaned toward the cube's own. */
+ *  ploughed soil, fallow, hedge, woods dark and light, heath ×2, sand, verge, rock. Each leaned toward the cube's own;
+ *  a colony's (`style: 'colony'`) most of the way to its world's. */
 export const COVER_KEYS = Object.freeze(['pasture', 'pasture2', 'ripe', 'barley', 'green', 'young', 'rape', 'soil', 'fallow', 'hedge', 'wood', 'wood2', 'heath', 'heath2', 'sand', 'verge', 'rock']);
-export function coverPalette(cube) {
+// (a colony's world: each of the cover's paints leaned this far to the world's own (its ground, its dust, its rock), so a
+// rust moon's plots are its dust, not an island's fields; each key the cube's colour it leans to)
+const WORLD_LEAN = 0.8;
+const WORLD_OF = Object.freeze({ pasture: 'grass', pasture2: 'grass', ripe: 'sand', barley: 'sand', green: 'grass', young: 'grass', rape: 'sand', soil: 'floor', fallow: 'floor', hedge: 'foliage', wood: 'foliage', wood2: 'foliage', heath: 'floor', heath2: 'grass', sand: 'sand', verge: 'grass', rock: 'stone' });
+export function coverPalette(cube, { style = 'earth' } = {}) {
+  const P = earthCover(cube);
+  if (style !== 'colony') return P;
+  return Object.fromEntries(COVER_KEYS.map((k) => [k, mixHex(P[k], cube.colour[WORLD_OF[k]] ?? P[k], WORLD_LEAN)]));
+}
+function earthCover(cube) {
   const C = cube.colour, g = C.grass, f = C.foliage;
   return {
     pasture: mixHex('#5b763c', g, 0.08), pasture2: mixHex('#687f44', g, 0.08), ripe: mixHex('#a99a64', C.sand ?? '#d8c8a0', 0.12), barley: mixHex('#9a8e62', C.sand ?? '#d8c8a0', 0.1),

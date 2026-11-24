@@ -87,10 +87,11 @@ function tintRamps(R, tint) {
 /** Errors (strings) for a ground ask; [] when it lays. */
 export function readGroundAsk(ask = {}) {
   const e = [];
-  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, country?, geocube?, gorge?, seed? }'];
+  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, country?, geocube?, gorge?, segments?, seed? }'];
   e.push(...readCountryAsk(ask.country));
   if (ask.gorge !== undefined && typeof ask.gorge !== 'boolean' && !(ask.gorge && typeof ask.gorge === 'object' && ['width', 'depth'].every((k) => ask.gorge[k] === undefined || (Number.isFinite(ask.gorge[k]) && ask.gorge[k] >= 40 && ask.gorge[k] <= 2000)))) e.push('ground.gorge must be true, false or { width?, depth? } in metres, each 40–2000');
   e.push(...readCityAsk(ask.cities));
+  e.push(...readSegments(ask.segments));
   if (ask.land !== undefined && !LANDS[ask.land]) e.push(`ground.land must be one of ${Object.keys(LANDS).join(', ')}`);
   if (ask.scale !== undefined && !(Number.isFinite(ask.scale) && ask.scale >= 1 && ask.scale <= 100)) e.push('ground.scale must be 1–100: the heartbeat\'s metres are multiplied by it (its places stay relative)');
   if (ask.heartbeat !== undefined) { try { readHeartbeat(ask.heartbeat); } catch (err) { e.push(`ground.heartbeat: ${err.message}`); } }
@@ -177,11 +178,55 @@ function formAt(map, x, y, seed) {
 /** A gorge's floor width and wall height (m) by default, and the run of its walls (m, the floor's edge to the top). */
 export const GORGE = Object.freeze({ width: 320, depth: 260, slope: 240 });
 
+/**
+ * A way's SEGMENTS (`ground.segments`): the field's length (x) cut into stretches, each its own ground about the
+ * gorge's line, so one map holds a run of them (a rail stage flown down it, rail-stage.js):
+ *   canyon   the gorge: its walls stand over the line
+ *   open     open country: the line runs down a broad valley, no walls
+ *   colony   a settlement on the line (country.js, the country's own style), its stretch a broad valley as the open's
+ * [{ kind, from, to, settlement? }]: `from` and `to` shares of the field's length, in order, each its own stretch;
+ * `settlement` a colony's card (country.js SETTLEMENTS: the `colony` by default, its core towers). The walls rise and fall over SEGMENT_EASE metres at a join.
+ */
+export const SEGMENT_KINDS = Object.freeze({
+  canyon: 'the gorge: its walls over the way',
+  open: 'open country: a broad valley, no walls',
+  colony: 'a settlement on the way, in a broad valley',
+});
+export const SEGMENT_EASE = 600;
+/** The broad valley of an open stretch or a colony's: the gorge's half-width and its walls' run, times this. */
+const VALLEY = 3;
+function readSegments(v) {
+  if (v === undefined) return [];
+  const at = 'ground.segments', e = [];
+  if (!Array.isArray(v) || !v.length || v.length > 12) return [`${at} must be a list of 1 to 12 stretches { kind, from, to, settlement? } down the field's length`];
+  v.forEach((g, i) => {
+    if (!g || typeof g !== 'object') { e.push(`${at}[${i}] must be { kind, from, to, settlement? }`); return; }
+    for (const k of Object.keys(g)) if (!['kind', 'from', 'to', 'settlement'].includes(k)) e.push(`${at}[${i}].${k} is not a stretch's (kind, from, to, settlement)`);
+    if (!SEGMENT_KINDS[g.kind]) e.push(`${at}[${i}].kind must be one of ${Object.keys(SEGMENT_KINDS).join(', ')}`);
+    if (!(Number.isFinite(g.from) && Number.isFinite(g.to) && g.from >= 0 && g.to <= 1 && g.to > g.from)) e.push(`${at}[${i}] runs from a share of the field's length to a later one (0–1)`);
+    else if (i && Number.isFinite(v[i - 1]?.to) && g.from < v[i - 1].to - 1e-9) e.push(`${at}[${i}].from comes at or after the stretch before it ends (${v[i - 1].to})`);
+    if (g.settlement !== undefined && (g.kind !== 'colony' || !['colony', 'metro', 'town', 'village'].includes(g.settlement))) e.push(`${at}[${i}].settlement is a colony's card: colony (the default), metro, town or village`);
+  });
+  return e;
+}
+/** The stretches in metres along x: [{ kind, x0, x1, settlement? }]. */
+function segmentsOf(F, v) {
+  return v ? v.map((g) => ({ kind: g.kind, x0: r2(-F.hx + g.from * 2 * F.hx), x1: r2(-F.hx + g.to * 2 * F.hx), ...(g.kind === 'colony' ? { settlement: g.settlement ?? 'colony' } : {}) })) : null;
+}
+/** How much of the canyon's walls stand at x: 1 in a canyon's stretch, 0 elsewhere, eased at the joins. */
+function wallsAt(S, x) {
+  let k = 0;
+  for (const g of S) if (g.kind === 'canyon') k += smooth(g.x0 - SEGMENT_EASE, g.x0 + SEGMENT_EASE, x) * (1 - smooth(g.x1 - SEGMENT_EASE, g.x1 + SEGMENT_EASE, x));
+  return k > 1 ? 1 : k;
+}
+
 /** The gorge asked for on this map: its line down the field along x (a slow seeded weave), its floor's half-width, its
  *  walls' height and run. null without one. */
+const ROUTE_WEAVE = Object.freeze({ span: 9000, amp: 0.12 });
 function gorgeOf(map, ask, seed) {
   if (!ask) return null;
-  const F = map.rings.field, A = ask === true ? {} : ask, x0 = -0.9 * F.hx, span = 1.8 * F.hx, amp = 0.04 * F.hy;
+  // (a route's line weaves by the metre, not by the field: a turn each ROUTE_WEAVE m, wider about the way)
+  const F = map.rings.field, A = ask === true ? {} : ask, x0 = -0.9 * F.hx, span = map.route ? ROUTE_WEAVE.span : 1.8 * F.hx, amp = (map.route ? ROUTE_WEAVE.amp : 0.04) * F.hy;
   const ph = ((seed % 997) / 997) * 2 * Math.PI;
   return { half: (A.width ?? GORGE.width) / 2, depth: A.depth ?? GORGE.depth, slope: GORGE.slope, line: (x) => amp * Math.sin(ph + ((x - x0) / span) * 5.2) };
 }
@@ -324,15 +369,19 @@ export function mapGround(map, ask = {}, { palette, sky: flight = null } = {}) {
   // the land's height: its near height, rising to its far height where a slow mask says this is high country (so a
   // field has hills to fly round and flats to land on) and toward the reach where the form rings it
   // (a gorge: the land beside its line raised into walls, its floor a third of the land's own height)
-  const gorge = gorgeOf(map, ask.gorge, seed);
+  // (a way's segments: a canyon's stretch walled, an open one's or a colony's a broad valley; segments lay the gorge's line)
+  const segs = segmentsOf(F, ask.segments);
+  const gorge = gorgeOf(map, ask.gorge ?? (segs ? true : undefined), seed);
   const relief = (x, y) => {
     const f = formAt(map, x, y, seed);
     const high = smooth(0.42, 0.78, 0.5 + 0.9 * gnoise(x / (wave * 3), y / (wave * 3), seed + 9));
     const h = land.near + (land.far - land.near) * Math.max(high, f.rim);
     const z = h * f.lift * shape(x / wave, y / wave, seed, land) + f.add;
     if (!gorge) return z;
-    const w = smooth(gorge.half, gorge.half + gorge.slope, Math.abs(y - gorge.line(x)));
-    return z * (0.35 + 0.65 * w) + gorge.depth * w;
+    const d = Math.abs(y - gorge.line(x)), w = smooth(gorge.half, gorge.half + gorge.slope, d);
+    if (!segs) return z * (0.35 + 0.65 * w) + gorge.depth * w;
+    const k = wallsAt(segs, x), wv = smooth(gorge.half * VALLEY, (gorge.half + gorge.slope) * VALLEY, d), ws = k * w + (1 - k) * wv;
+    return z * (0.35 + 0.65 * ws) + gorge.depth * w * k;
   };
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) g.z[j * g.nx + i] = relief(gridX(g, i), gridY(g, j));
   const centre = relief(0, 0);
@@ -377,7 +426,10 @@ export function mapGround(map, ask = {}, { palette, sky: flight = null } = {}) {
   const bounds = { x: [g.x0, g.x0 + (g.nx - 1) * g.dx], y: [g.y0, g.y0 + (g.ny - 1) * g.dx], z: [lo, hi], cell: cellM };
   const preps = prepareCities(map, { K, kernel: natural, heightAt: natural.heightAt, groundAt: natural.groundAt, bounds }, ask.cities, pads);
   // the country (country.js): its settlements sited clear of the pads, their climb-outs and the fractal cities
-  const country = ask.country ? planCountry(map, { nat, sea, pads, taken: preps.map((p) => [p.center[0], p.center[1], p.rect.w, p.rect.d]), seed }, ask.country) : null;
+  // (a colony's stretch: its settlement on the line at its middle, with the country's own; in the country's style)
+  const colonies = segs ? segs.filter((g) => g.kind === 'colony').map((g) => { const x = (g.x0 + g.x1) / 2; return { kind: g.settlement, at: [r2((x + F.hx) / (2 * F.hx)), r2(clamp01((gorge.line(x) + F.hy) / (2 * F.hy)))] }; }) : [];
+  const countryAsk = colonies.length ? { ...(ask.country && typeof ask.country === 'object' ? ask.country : {}), settlements: [...colonies, ...(ask.country?.settlements ?? [])] } : ask.country;
+  const country = countryAsk ? planCountry(map, { nat, sea, pads, taken: preps.map((p) => [p.center[0], p.center[1], p.rect.w, p.rect.d]), seed }, countryAsk) : null;
   // (the grass between a runway and its taxiway: the cover's pasture, the field it is cut from; a palette's soil at its
   // middle tone. Untinted: the weather's light tints the paint below, once)
   const grassRgb = painted ? painted.ramps.soil.stops[2].map((v) => Math.round(v)) : [1, 3, 5].map((k) => parseInt(coverPalette(cube).pasture.slice(k, k + 2), 16));
@@ -392,23 +444,33 @@ export function mapGround(map, ask = {}, { palette, sky: flight = null } = {}) {
   if (layers.length) K.grade = layers;
   const kernel = layers.length ? terrainKernel(K) : natural;
   const town = seatCities(preps, { K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, bounds });
-  const aerial = country ? { ...seatCountry(country, kernel.heightAt, cube), cover: coverPalette(cube) } : null;
+  const aerial = country ? { ...seatCountry(country, kernel.heightAt, cube, { style: countryAsk.style }), cover: coverPalette(cube, { style: countryAsk.style }) } : null;
   // (the country's roofs join the cities': each a grid of its tallest tops, the ground under the rest)
   const topAt = aerial ? (x, y) => {
     let z = town.topAt(x, y);
     for (const r of aerial.roofs) { const i = Math.floor((x - r.x0) / 10), j = Math.floor((y - r.y0) / 10); if (i >= 0 && j >= 0 && i < r.nx && j < r.ny) { const t = r.top[j * r.nx + i]; if (t > z) z = t; } }
     return z;
   } : town.topAt;
+  // (the tallest roof in a rect: a way's box swept down its stretch, so a narrow spire is never missed between samples)
+  const topIn = aerial ? (x0, y0, x1, y1) => {
+    let z = -Infinity;
+    for (const r of aerial.roofs) {
+      const i0 = Math.max(0, Math.floor((x0 - r.x0) / 10)), i1 = Math.min(r.nx - 1, Math.floor((x1 - r.x0) / 10)), j0 = Math.max(0, Math.floor((y0 - r.y0) / 10)), j1 = Math.min(r.ny - 1, Math.floor((y1 - r.y0) / 10));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const t = r.top[j * r.nx + i]; if (t > z) z = t; }
+    }
+    return z;
+  } : null;
   const sky = painted ? painted.atlas.sky : flight ? { zenith: flight.colours.zenith, horizon: flight.colours.horizon, day: 1 } : { ...DAY_SKY };
   return {
     K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     // the highest surface: the ground, or a city's roof over it (what a course and a pilot keep clear of)
-    topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [], roofs: [...(town.roofs ?? []), ...(aerial ? aerial.roofs.map(packRoofs) : [])],
+    topAt, ...(topIn ? { topIn } : {}), cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [], roofs: [...(town.roofs ?? []), ...(aerial ? aerial.roofs.map(packRoofs) : [])],
     ...(aerial ? { aerial, country } : {}),
     bounds,
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,
     ...(gorge ? { gorge } : {}),
+    ...(segs ? { segments: segs } : {}),
     ...(flight ? { sky: flight } : {}),
     // the sea's colour: the palette's water ramp at its middle (no palette: the page's own, from the sky)
     ...(painted && sea !== null ? { water: rgbHex(painted.atlas.ramps.water.stops[2]) } : {}),

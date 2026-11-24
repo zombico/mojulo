@@ -7,6 +7,7 @@
 const COL = { friend: new THREE.Color('#38d8ff'), foe: new THREE.Color('#ff4a5c'), neutral: new THREE.Color('#ffc93a'), beacon: new THREE.Color('#ffc23a'), nav: new THREE.Color('#a8f4ff'), dim: new THREE.Color('#5fb7d8') };
 const R = 6, LIFT = 1.5;                       // the table's radius and the height of the theatre's plane over it (units)
 const HALF = BRIEF.theatre.field / 2, S = (R * 0.9) / HALF;   // metres to units
+const V = BRIEF.theatre.vertical || 1;         // a ground stage's heights stretched so its land reads on the table
 const MINI = { fighter: 0.22, bomber: 0.26, transport: 0.5, probe: 0.14 };   // a craft's miniature length (units)
 const SHIP_LEAST = 0.42;                       // a capital ship or a station is drawn at scale, never smaller than this
 const FONT = '"Rajdhani","Bahnschrift","Segoe UI",system-ui,sans-serif';
@@ -155,11 +156,29 @@ const clusterMark = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.45, 64), addit
 
 // ── the theatre: the fight's own space in miniature ──────────────────────────────────────────────────────
 const th = new THREE.Group(); scene.add(th);
-const toTable = (p) => new THREE.Vector3(p[0] * S, p[1] * S, LIFT + p[2] * S);
+const toTable = (p) => new THREE.Vector3(p[0] * S, p[1] * S, LIFT + p[2] * S * V);
 const places = {};   // id → { at: Vector3 (in the theatre's frame), r: radius (units), holo?, label? }
 const thLabels = [];
+// a ground stage's land (stage-ground.js): its heightfield as a hologram, its contours every few samples, the colony's
+// masses on it; then no plane, the land is the theatre's floor
+const TG = BRIEF.theatre.terrain || null;
+if (TG) {
+  const { x0, y0, dx, nx, ny, z } = TG, pos = new Float32Array(nx * ny * 3), idx = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; pos.set([(x0 + i * dx) * S, (y0 + j * dx) * S, LIFT + (z[k] / 10) * S * V], k * 3); }
+  for (let j = 0; j + 1 < ny; j++) for (let i = 0; i + 1 < nx; i++) { const k = j * nx + i; idx.push(k, k + 1, k + nx, k + 1, k + nx + 1, k + nx); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const col = new THREE.Color('#5fd8c8'), mat = holoMaterial(col), em = lineMat(col, 0.3), lines = [], step = 4;
+  for (let j = 0; j < ny; j += step) for (let i = 0; i + 1 < nx; i++) { const a = (j * nx + i) * 3, b = a + 3; lines.push(pos[a], pos[a + 1], pos[a + 2], pos[b], pos[b + 1], pos[b + 2]); }
+  for (let i = 0; i < nx; i += step) for (let j = 0; j + 1 < ny; j++) { const a = (j * nx + i) * 3, b = a + nx * 3; lines.push(pos[a], pos[a + 1], pos[a + 2], pos[b], pos[b + 1], pos[b + 2]); }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lines), 3));
+  const group = new THREE.Group(); group.add(new THREE.Mesh(g, mat), new THREE.LineSegments(lg, em)); th.add(group);
+  const H = { group, mats: [mat], edges: [em], edgeBase: 0.3, alpha: 1, target: 1, stage: 'theatre', reveal: 1, revealTo: 1, base: 0.5 };
+  holos.push(H); places.land = { holo: H };
+  const M = BRIEF.theatre.masses || [];
+  if (M.length) { const C = makeHolo(M.map(([x, y, zz, w, d, h]) => ({ box: [x * S, y * S, LIFT + (zz + h / 2) * S * V, w * S, d * S, h * S * V] })), new THREE.Color('#dff6ff'), 1, { edges: false }); th.add(C.group); C.base = 0.8; places.colony = { holo: C }; }
+}
 // the theatre's plane: a faint grid at the start's level, its field's edge
-{
+if (!TG) {
   const pts = [], n = 12, e = HALF * S;
   for (let k = 0; k <= n; k++) { const v = -e + (2 * e * k) / n; pts.push(new THREE.Vector3(-e, v, LIFT), new THREE.Vector3(e, v, LIFT), new THREE.Vector3(v, -e, LIFT), new THREE.Vector3(v, e, LIFT)); }
   const grid = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), lineMat(0x2a86b0, 0.12)); th.add(grid);
@@ -176,7 +195,7 @@ const thLabels = [];
 }
 // the rocks of the cluster
 {
-  const parts = BRIEF.theatre.rocks.map(([x, y, z, r]) => ({ box: [x * S, y * S, LIFT + z * S, Math.max(0.05, r * S * 1.8), Math.max(0.05, r * S * 1.6), Math.max(0.05, r * S * 1.4)], rot: [x, y, x + y] }));
+  const parts = BRIEF.theatre.rocks.map(([x, y, z, r]) => ({ box: [x * S, y * S, LIFT + z * S * V, Math.max(0.05, r * S * 1.8), Math.max(0.05, r * S * 1.6), Math.max(0.05, r * S * 1.4)], rot: [x, y, x + y] }));
   if (parts.length) { const H = makeHolo(parts, new THREE.Color('#c8ad7f'), 1, { edges: true, edgeAlpha: 0.25 }); th.add(H.group); H.base = 0.55; places.rocks = { holo: H }; }
 }
 // the nav points: a diamond and its name, a line down to the plane

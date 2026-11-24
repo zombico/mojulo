@@ -83,7 +83,7 @@ const lengthOf = (P) => { let L = 0; for (let i = 1; i < P.length; i++) L += dma
  *  across (down its gorge's line, `line`: x → y, where the ground has one: ground.js); or through a field of rocks,
  *  weaving in all three (a space map's: no ground, so it can be laid before the rocks are, and the rocks kept off it:
  *  airspace.js). → [[x, y, z], …] */
-export function railPath(map, ground, { seed = 1, speed, line = null } = {}) {
+export function railPath(map, ground, { seed = 1, speed, line = null, topIn = null } = {}) {
   const c = map.craft, F = map.rings.field, space = map.form === 'void', R = rng(seed);
   const v = speed ?? c.cruise * RAIL.speedOfCruise, step = v * RAIL.stepS;
   const span = 2 * F.hx * 0.9, n = Math.max(4, Math.ceil(span / step)), x0 = -F.hx * 0.9;
@@ -93,7 +93,12 @@ export function railPath(map, ground, { seed = 1, speed, line = null } = {}) {
     const x = x0 + (span * i) / n, y = line ? line(x) : wy * Math.sin(ph + (i / n) * 5.2);
     let z;
     if (space) z = wz * Math.sin(ph2 + (i / n) * 4.1);
-    else { let top = -Infinity; for (const dy of [-RAIL.box.hx, 0, RAIL.box.hx]) for (const dx of [-step / 2, 0, step / 2]) top = Math.max(top, ground(x + dx, y + dy)); z = top + RAIL.skim; }
+    else {
+      let top = -Infinity; for (const dy of [-RAIL.box.hx, 0, RAIL.box.hx]) for (const dx of [-step / 2, 0, step / 2]) top = Math.max(top, ground(x + dx, y + dy));
+      // (the buildings in the box's sweep, whatever their size: `topIn`, the ground's roofs; a spire is not missed)
+      if (topIn) top = Math.max(top, topIn(x - step / 2, y - RAIL.box.hx, x + step / 2, y + RAIL.box.hx));
+      z = top + RAIL.skim;
+    }
     raw.push([x, y, z]);
   }
   // (a ground way smoothed so it never dips between its samples: each point the most of itself and its neighbours')
@@ -122,7 +127,7 @@ export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wa
   const c = map.craft, space = map.form === 'void', R = rng(`${seed}::stage`);
   if (!space && map.form !== 'canyon') throw new Error(`rail stage: a ground stage runs down a canyon (map.form 'canyon'), not ${map.form}; a space stage on a void map`);
   const speed = r2(speedAsk ?? c.cruise * RAIL.speedOfCruise), step = speed * RAIL.stepS, ground = (x, y) => (field.topAt ?? field.groundAt)(x, y);
-  const path = railPath(map, ground, { seed, speed, line: field.gorge?.line ?? null });
+  const path = railPath(map, ground, { seed, speed, line: field.gorge?.line ?? null, topIn: field.topIn ?? null });
   const length = lengthOf(path), seconds = length / speed;
   if (seconds < RAIL.minS) throw new Error(`rail stage: the way is ${Math.round(seconds)} s at its speed, under the ${RAIL.minS} s a stage needs (a larger map, or a slower stage)`);
   const rule = { type: 'rail', path, speed, box: { ...RAIL.box }, sway: r2(Math.max(28, speed * 0.45)), agility: 6, boost: { mul: 1.7, time: 3, recharge: 0.6 }, brake: { mul: 0.5 }, roll: { time: 0.6, side: 24, cooldown: 1.2 }, ...(space ? {} : { floor: RAIL.floor }) };
@@ -152,6 +157,8 @@ export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wa
   const hzS = plan && plan.hazards !== undefined ? plan.hazards : RAIL.hazardS;
   for (let s = speed * 8, h = 0; hzS > 0 && s < arena - speed * 2; s += speed * hzS) {
     if (marks.some((m) => Math.abs(m - s) < speed * 1.5)) continue;
+    // (never in a colony's stretch: its buildings are what stands in the way there)
+    if (inColony(field, railPathFrame(path, s).p[0])) continue;
     const F2 = railPathFrame(path, s), hl = Math.hypot(F2.t[0], F2.t[1]) || 1, rx = F2.t[1] / hl, ry = -F2.t[0] / hl;
     const side = (R() < 0.5 ? -1 : 1) * (0.2 + 0.5 * R()) * RAIL.box.hx, radius = space ? r2(14 + 10 * R()) : r2(10 + 6 * R());
     const at = [r2(F2.p[0] + rx * side), r2(F2.p[1] + ry * side), r2(space ? F2.p[2] + (R() - 0.5) * RAIL.box.hz : F2.p[2])];
@@ -185,12 +192,17 @@ export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wa
   if (field.gorge) {
     const G = field.gorge, off = G.half + G.slope;
     let worst = Infinity;
-    for (let s = 0; s <= length; s += step) { const q = railPathFrame(path, s).p; for (const d of [-off, off]) worst = Math.min(worst, ground(q[0], q[1] + d) - q[2]); }
-    laws.push({ law: 'walled', ok: worst > 0, note: worst > 0 ? `the gorge's walls stand at least ${Math.round(worst)} m over the way on both sides` : `a wall falls ${Math.round(-worst)} m under the way: the gorge is too shallow for its floor` });
+    // (a way in segments is walled in its canyon's stretches only, clear of their eased joins)
+    const walledAt = (x) => !field.segments || field.segments.some((g) => g.kind === 'canyon' && x >= g.x0 + 600 && x <= g.x1 - 600);
+    for (let s = 0; s <= length; s += step) { const q = railPathFrame(path, s).p; if (!walledAt(q[0])) continue; for (const d of [-off, off]) worst = Math.min(worst, ground(q[0], q[1] + d) - q[2]); }
+    if (worst < Infinity) laws.push({ law: 'walled', ok: worst > 0, note: worst > 0 ? `the gorge's walls stand at least ${Math.round(worst)} m over the way on both sides${field.segments ? ' down its canyon' : ''}` : `a wall falls ${Math.round(-worst)} m under the way: the gorge is too shallow for its floor` });
   }
   laws.push({ law: 'length', ok: seconds >= RAIL.minS, note: `${Math.round(seconds)} s at ${Math.round(speed)} m/s, ${waves.length} waves, ${hazards.length} hazards` });
   return { path, length: r2(length), seconds: r2(seconds), rule, hazards, waves, foes, boss, laws, ...(plan && plan.score ? { score: plan.score } : {}) };
 }
+
+// (a point down a way in segments is in a colony's stretch)
+const inColony = (field, x) => !!field.segments && field.segments.some((g) => g.kind === 'colony' && x >= g.x0 && x <= g.x1);
 
 // a design's wave (its plan's): its fighters posted ahead of its mark in its formation, each held on station there once
 // woken: abreast (line), trailing back from its leader (vee), stepped back and up across the way (echelon), or loose and

@@ -13,6 +13,7 @@
  *   town      the same generator at a market town's card: a kilometre and a half, a low core of shops and offices round
  *             its crossing, mid-rise round that, houses outward, a works or two at its edge; no highway
  *   village   a crossroads' worth: houses and a main street, two or three storeys, nothing taller
+ *   colony    a town's grain round a core of towers (a way's colony stretch, ground.js `segments`), for the colony style
  *
  * Each is graded onto its streets' ground S (a kernel `grade` layer, as a pad is: the ground under its buildings is the
  * ground its design stood them on), eased back into the land past its edge, never into the sea.
@@ -29,9 +30,10 @@
  *   SETTLEMENTS, readCountryAsk(ask) → errors
  *   planCountry(map, ctx, ask) → { settlements, roads, power, landmarks, layers (the grade layers), report }
  *     ctx { nat (x, y) → the natural ground, sea (m | null), pads (sited), taken ([cx, cy, w, d] rects kept clear), seed }
- *   seatCountry(country, groundAt, cube) → { boxes, gables, rounds, decks, piers, pylons, wires, plan, roofs, report }:
- *     the masses at flight detail on the graded ground, the ground plan to paint (rects and ribbons), and each
- *     settlement's roof grid (city.js packRoofs' shape) so a tower is something a craft can hit
+ *   seatCountry(country, groundAt, cube, { style? }) → { boxes, gables, rounds, decks, piers, pylons, wires, masts, plan,
+ *     roofs, report }: the masses at flight detail on the graded ground, the ground plan to paint (rects and ribbons),
+ *     and each settlement's roof grid (city.js packRoofs' shape) so a tower is something a craft can hit. `style`
+ *     (COUNTRY_STYLES): `earth` the towns of now; `colony` the same masses dressed as a sci-fi colony (COLONY)
  *
  * Metres, world frame (x east, y north, z up). Pure, deterministic: the dice are streamOf(seed, layer, key).
  */
@@ -66,8 +68,22 @@ export const SETTLEMENTS = Object.freeze({
     }),
     gap: 300, falloff: 60,
   }),
+  // (a colony: a town's grain round a core of towers, for the colony style's spires; habs outward, its works its tanks)
+  colony: Object.freeze({
+    read: 'a colony: a core of towers round its crossing, blocks round that, habitat modules outward, fuel tanks at its edge',
+    geocity: Object.freeze({
+      metro: { from: 'harbour-island', arterials: { core: [180, 240], outer: [280, 340], reach: 420 }, rings: { core: 240, frame: 440 } },
+      extent: [1400, 1100], water: { sides: [], depth: 0 }, core: [0.5, 0.5], hills: false,
+      heights: { core: { rail: [8, 16], median: [10, 13] }, frame: { rail: [3, 7], median: [4, 5] }, outskirts: { rail: [1, 3], median: [1.5, 2.2] }, corridor: { spine: 6, arterial: 4, depth: 26 }, nodes: { every: 0, reach: 0 } },
+      segments: { core: { tower: 2, podium: 1 }, frame: { midrise: 1, slab: 1 }, outskirts: { houses: 5, apartments: 1, lowrise: 2 } },
+      green: { parks: 1, share: 0.06 }, highways: false, industry: { share: 0.2 }, waterfront: false,
+    }),
+    gap: 500, falloff: 90,
+  }),
 });
 export const SETTLEMENT_IDS = Object.freeze(Object.keys(SETTLEMENTS));
+/** How the country's buildings are dressed: `earth` the towns of now, `colony` a sci-fi settlement (colonyStyle). */
+export const COUNTRY_STYLES = Object.freeze(['earth', 'colony']);
 
 /** The country's numbers: the grade's grid (m); the road grid's cell (m); a road's width by rank (m); a pylon span (m)
  *  and height (m); a mast's height (m); a water tower's legs and tank (m). */
@@ -101,9 +117,10 @@ function readAsk(ask) {
 /** Errors (strings) for `ground.country`; [] when it lays. */
 export function readCountryAsk(ask, at = 'ground.country') {
   if (ask === undefined || ask === false || ask === true) return [];
-  if (!isObj(ask)) return [`${at} must be true, false or { metro?, towns?, villages?, settlements?, roads?, power?, landmarks? }`];
+  if (!isObj(ask)) return [`${at} must be true, false or { metro?, towns?, villages?, settlements?, roads?, power?, landmarks?, style? }`];
   const e = [];
-  for (const k of Object.keys(ask)) if (!['metro', 'towns', 'villages', 'settlements', 'roads', 'power', 'landmarks'].includes(k)) e.push(`${at}.${k} is not a setting (metro, towns, villages, settlements, roads, power, landmarks)`);
+  for (const k of Object.keys(ask)) if (!['metro', 'towns', 'villages', 'settlements', 'roads', 'power', 'landmarks', 'style'].includes(k)) e.push(`${at}.${k} is not a setting (metro, towns, villages, settlements, roads, power, landmarks, style)`);
+  if (ask.style !== undefined && !COUNTRY_STYLES.includes(ask.style)) e.push(`${at}.style must be one of ${COUNTRY_STYLES.join(', ')} (earth: the towns of now; colony: a sci-fi settlement's)`);
   for (const k of ['towns', 'villages']) if (ask[k] !== undefined && !(Number.isInteger(ask[k]) && ask[k] >= 0 && ask[k] <= 6)) e.push(`${at}.${k} must be a whole number 0–6`);
   if (ask.metro !== undefined && typeof ask.metro !== 'boolean' && !isObj(ask.metro)) e.push(`${at}.metro must be true or a geocity recipe ({ metro: 'lakeshore' | 'harbour-island', … })`);
   for (const k of ['roads', 'power', 'landmarks']) if (ask[k] !== undefined && typeof ask[k] !== 'boolean') e.push(`${at}.${k} must be true or false`);
@@ -433,7 +450,69 @@ const PAD_OF = Object.freeze({ tower: 'plaza', podium: 'plaza', square: 'plaza',
  * the pylons and their wires; the landmarks; the ground plan (rects and ribbons, painted on the page under the land's
  * light); and each settlement's roof grid.
  */
-export function seatCountry(country, groundAt, cube) {
+export function seatCountry(country, groundAt, cube, { style = 'earth' } = {}) {
+  const seated = seatEarth(country, groundAt, cube);
+  return style === 'colony' ? colonyStyle(seated, cube) : seated;
+}
+
+// ── the colony: the same settlement's masses dressed as a sci-fi one ──────────────────────────────────────────
+/** A colony's dress: composite hull panels in light greys, graphite roofs, teal glass, a safety accent; its towers
+ *  spires (a crown set back over each, a lit mast on the tallest), its blocks panelled (one lit band of glazing high
+ *  along each wall, not a grid of windows), its houses habitat modules under domes (no gables),
+ *  its halls flat-roofed, its water towers radar domes on their legs; its ground plan a colony's (dark composite
+ *  roads, landing aprons for plazas, hydroponic greens, no garden trees). */
+export const COLONY = Object.freeze({
+  hull: Object.freeze(['#d9dde2', '#c9ced6', '#e6e9ec', '#b8bec7', '#cfd3d6']),
+  dark: Object.freeze(['#3a4048', '#2f343b', '#4a525c']),
+  glass: Object.freeze(['#3f8f9e', '#4f7f9a', '#357f8c']),
+  accent: Object.freeze(['#ff8a2a', '#2fd0ff', '#ffd23a']),
+  // a tower this tall (m) is crowned and wears a mast; a crown this share of its tower's footprint and height
+  spire: 32, crown: Object.freeze([0.5, 0.28]), mast: 20,
+  // a gable over a footprint this small (m) is a habitat's: its dome; a larger one a hall's, flat-roofed
+  hab: 22, dome: 0.42,
+});
+function colonyStyle(seated, cube) {
+  const pick = (list, k) => list[k % list.length], C = COLONY;
+  const boxes = [], rounds = [], masts = [...seated.masts], extra = [];
+  seated.boxes.forEach((b, k) => {
+    const [cx, cy, z0, w, d, h, , , skin, fh, rid] = b;
+    if (skin === SKINS.glass) {
+      boxes.push([cx, cy, z0, w, d, h, pick(C.glass, k), pick(C.hull, k), SKINS.glass, fh, rid]);
+      if (h >= C.spire) {
+        const cw = r2(w * C.crown[0]), cd = r2(d * C.crown[0]), ch = r2(h * C.crown[1]);
+        boxes.push([cx, cy, r2(z0 + h), cw, cd, ch, pick(C.hull, k + 1), pick(C.dark, k), SKINS.industrial, fh, rid]);
+        masts.push([cx, cy, r2(z0 + h + ch), C.mast]);
+        extra.push([cx, cy, z0, cw, cd, h + ch + C.mast]);
+      }
+    // (a block's panels: one lit band of glazing high along each wall, not a street's grid of windows)
+    } else if (skin === SKINS.house || skin === SKINS.residential || skin === SKINS.office) boxes.push([cx, cy, z0, w, d, h, pick(C.hull, k), pick(C.dark, k), SKINS.industrial, fh, rid]);
+    else if (skin === SKINS.industrial) boxes.push([cx, cy, z0, w, d, h, pick(C.dark, k), pick(C.hull, k), SKINS.plain, fh, rid]);
+    else boxes.push([cx, cy, z0, w, d, h, pick(C.hull, k), pick(C.dark, k), skin, fh, rid]);
+  });
+  // a habitat's gable its dome (half of it over its roof); a hall's gable none (its roof flat)
+  seated.gables.forEach(([x, y, z, w, d], k) => { if (Math.max(w, d) <= C.hab) rounds.push([x, y, z, r2(Math.min(w, d) * C.dome), r2(Math.min(w, d) * C.dome), pick(C.hull, k + 2), 1]); });
+  // the rounds: tanks and silos in hull white; a water tower's tank (kind 3) a radar dome on its legs
+  for (const r of seated.rounds) {
+    if (r[6] === 3) rounds.push([r[0], r[1], r2(r[2] + r[4] / 2), r2(r[3] * 1.25), r2(r[3] * 1.25), '#eef1f3', 1]);
+    else rounds.push([r[0], r[1], r[2], r[3], r[4], r[6] === 2 ? pick(C.dark, 0) : pick(C.hull, rounds.length), r[6]]);
+  }
+  const roofs = [...seated.roofs];
+  for (const e of extra) roofs.push(roofGrid([e[0] - e[3], e[1] - e[4], e[0] + e[3], e[1] + e[4]], [e]));
+  const plan = { ...seated.plan, dots: [], colours: colonyPlan(cube, seated.plan.colours) };
+  return { ...seated, boxes, gables: [], rounds, masts, roofs, plan, report: { ...seated.report, style: 'colony', domes: rounds.filter((r) => r[6] === 1).length, spires: extra.length } };
+}
+/** A colony's ground plan paints: its streets dark composite, its plazas landing aprons, its greens hydroponic. */
+function colonyPlan(cube, earth) {
+  const C = cube.colour;
+  return {
+    ...earth,
+    road: '#2e3238', highway: '#26292e', lane: mixHex('#3a3e44', C.floor, 0.2), walk: '#8a9098', plaza: '#9aa2ac', court: '#7d858f',
+    lot: '#4a5058', yard: '#6a7078', bund: '#5d636b', site: mixHex('#6a6460', C.floor, 0.3), quay: '#8a9098',
+    lawn: '#4f7a6e', park: '#3f6e5e', field: '#5a8a5e', garden: mixHex('#6a6a64', C.floor, 0.5), tree: '#2f5048',
+  };
+}
+
+function seatEarth(country, groundAt, cube) {
   const col = planColours(cube), boxes = [], gables = [], rounds = [], decks = [], piers = [], rects = [], ribbons = [], dots = [], roofs = [];
   const B = (q, z0, h, wall, roof, skin, floorH = 3.4, rid = 0) => { if (q[2] - q[0] < 0.5 || q[3] - q[1] < 0.5 || h < 0.5) return; boxes.push([r2((q[0] + q[2]) / 2), r2((q[1] + q[3]) / 2), r2(z0), r2(q[2] - q[0]), r2(q[3] - q[1]), r2(h), wall, roof, skin, floorH, rid]); };
   const counts = { boxes: 0, houses: 0, towers: 0, rounds: 0 };

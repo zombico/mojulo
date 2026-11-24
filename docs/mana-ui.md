@@ -1076,6 +1076,10 @@ amber, menus that slam in on chevrons), and each of its stages is designed whole
 - **The designer** (`campaign/designer.js`) knows a stage by its `route`: the same `missions` on the world, drafted and
   approved the same way, its laws said in `design_game`'s readout. An approved stage's level is compiled onto the rail
   stage's `plan` (`skyscape/rail-stage.js`): its waves at their marks in their formations, its hazards, its boss.
+- **A stage down a planet or a moon is told over its real ground.** The level's land is drawn as terrain on the table
+  (`campaign/stage-ground.js`, its heights stretched so a canyon reads), with the way as flown, the waves where they
+  are posted, the boss where it waits and a colony's masses. The route is laid in stretches (a canyon, open country, a
+  colony): [flight-games.md](flight-games.md#a-route-down-a-moon-a-rail-stage-in-segments).
 - **It is told on the same holo table** as a mission, as the level loads. The route is drawn as a ribbon, each wave
   sits at its mark, the boss is past the route's end, and the orders give the points and the medals. It is held until
   Launch and takes the keyboard as it opens, so Enter steps it from inside the game's shell. A stage's table follows

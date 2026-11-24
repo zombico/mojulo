@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { readStage, stageLaws, stagePoints, compileStage, stagePlace, stageBriefingData, SCORE, HAZARDS, FORMATIONS } from './stage.js';
+import { readStage, stageLaws, stagePoints, compileStage, stagePlace, stageBriefingData, routeGround, worldGeocube, SCORE, HAZARDS, FORMATIONS, SEGMENTS } from './stage.js';
+import { stageGround, TABLE_GROUND } from './stage-ground.js';
 import { designKind, missionsReadout, withMissions, applyMissionEdit } from './designer.js';
 import { readRailPlan } from '../skyscape/rail-stage.js';
 import { STAGE_DESIGNS, WOLF_SQUADRON_LOOK, wolfSquadronStart } from '../gameworld/wolf-squadron.js';
@@ -78,6 +79,54 @@ describe('an arcade stage\'s design', () => {
     expect(B.goals.at(-1).text).toContain(`${S.medals.gold}`);
     expect(JSON.stringify(stageBriefingData(readStage(space)))).toBe(JSON.stringify(B));
     expect(FORMATIONS).toContain('swarm');
+  });
+});
+
+describe('a ground stage in segments, told over its ground', () => {
+  const D = Object.values(STAGE_DESIGNS).find((x) => x.route.segments), S = readStage(D);
+  it('reads its stretches and its sky, teaching each fault', () => {
+    expect(S.route.segments.map((g) => g.kind)).toEqual(D.route.segments.map((g) => g.kind));
+    const bad = (route, m) => expect(() => readStage({ ...D, route: { ...D.route, ...route } })).toThrow(m);
+    bad({ segments: [{ kind: 'swamp', seconds: 20 }] }, /canyon, open, colony/);
+    bad({ segments: [{ kind: 'open', seconds: 4 }] }, /seconds/);
+    bad({ segments: [] }, /1 to 8/);
+    bad({ sky: 'murk' }, /route\.sky/);
+    expect(() => readStage({ ...space, route: { ...space.route, segments: [{ kind: 'open', seconds: 20 }] } })).toThrow(/ground route/);
+  });
+
+  it('lays one long route: its stretches at their shares of the way, the world\'s colours, a colony in its style, its sky', () => {
+    const G = routeGround(S), total = S.route.segments.reduce((a, g) => a + g.seconds, 0);
+    expect(G.map.route).toBe(true);
+    expect(G.map.field[0]).toBeCloseTo((S.route.speed * (SEGMENTS.lead + total + SEGMENTS.arena)) / SEGMENTS.span, -2);
+    expect(G.ground.segments[0].from).toBe(0);
+    expect(G.ground.segments.at(-1).to).toBe(1);
+    for (let i = 1; i < G.ground.segments.length; i++) expect(G.ground.segments[i].from).toBe(G.ground.segments[i - 1].to);
+    expect(G.ground.geocube).toEqual(worldGeocube(S.route.world));
+    expect(G.ground.pads).toEqual([]);
+    expect(G.ground.country?.style).toBe(S.route.segments.some((g) => g.kind === 'colony') ? 'colony' : undefined);
+    expect(G.sky).toEqual(D.route.sky);
+    const { level } = compileStage(S);
+    expect(level.airspace).toMatchObject({ map: { form: 'canyon', route: true }, ground: G.ground, sky: G.sky });
+    // (a stage without stretches lays as it did)
+    expect(compileStage(readStage(space)).level.airspace.ground).toBeUndefined();
+  });
+
+  it('is told on its real ground: the land as terrain, the way as flown, each wave where it is posted, the boss at the end', () => {
+    const { level } = compileStage(S), Gr = stageGround(level.airspace, { seed: 7 }), B = stageBriefingData(S, { ground: Gr });
+    const T = B.theatre.terrain;
+    expect(T.nx * T.ny).toBe(T.z.length);
+    expect(T.nx).toBeLessThanOrEqual(TABLE_GROUND.across + 1);
+    expect(B.theatre.vertical).toBe(TABLE_GROUND.vertical);
+    expect(B.theatre.masses.length).toBeGreaterThan(0);
+    // (the way runs up the table: its start low on y, the boss past its end; the waves in their order along it)
+    const ys = B.things.filter((t) => t.kind === 'group' && t.side === 'foe').map((t) => t.at[1]);
+    expect(ys).toEqual([...ys].sort((a, b) => a - b));
+    expect(B.things.find((t) => t.id === 'squad').at[1]).toBeLessThan(ys[0]);
+    expect(B.things.find((t) => t.id === 'boss').at[1]).toBeGreaterThan(ys.at(-1));
+    expect(B.theatre.nav.find((n) => n.id === 'start').at).toEqual(Gr.path[0]);
+    // (a space stage has no ground under its table; the same level, the same table)
+    expect(stageGround(compileStage(readStage(space)).level.airspace)).toBeNull();
+    expect(JSON.stringify(stageGround(level.airspace, { seed: 7 }))).toBe(JSON.stringify(Gr));
   });
 });
 

@@ -10,9 +10,12 @@
  *     id, name, status?: 'draft' | 'approved',
  *     place:  { system, cluster, station, moon, star?, seed? }   (theatre.js readPlace; its third part names the stage's
  *             zone: a canyon, a field of rocks), read widest first, "Kessa System | Varn Cluster | Red Canyon | Moon IV"
- *     route:  { ground: 'canyon' | 'space', world?: <planet kind>, speed?: m/s, hazards?: 'none' | 'few' | 'some' | 'many' }
+ *     route:  { ground: 'canyon' | 'space', world?: <planet kind>, speed?: m/s, hazards?: 'none' | 'few' | 'some' | 'many',
+ *               segments?: [{ kind: 'canyon' | 'open' | 'colony', seconds }], sky?: <a flight sky> }
  *             down a canyon on the moon, or through rocks over it; its speed (a canyon's 120, a field's 60); its hazards
- *             how thick the pillars or the rocks let into the way stand
+ *             how thick the pillars or the rocks let into the way stand. A ground route's `segments` lay it as one long
+ *             route in stretches (a canyon walled, open country, a colony on the way), its ground the world's colours,
+ *             under its `sky` (an afternoon's fair-weather cloud by default)
  *     waves:  [{ id, name, count: 1–6, at: share of the way 0.05–0.85, formation?: 'line' | 'vee' | 'echelon' | 'swarm',
  *              say? }]   each woken as the squadron passes its mark, in its formation ahead of the craft
  *     boss:   { name, guns?: 1–6, armour?: 'light' | 'heavy', hull?: <a capital class, its miniature on the table>, say? }
@@ -31,8 +34,13 @@
  *                             boss's guns and armour, its score and medals), the design to brief it with
  *                             (`airspace.briefing`), its goal a stage
  *   stagePlace(S)           → the stage's place as one line (its zone as written)
- *   stageBriefingData(S)    → the holo table's data (campaign/briefing.js's shape: the place, the orrery, the theatre, the
- *                             things, the steps, the roster, the orders), so the stage is told on the same table
+ *   stageBriefingData(S, { ground? }) → the holo table's data (campaign/briefing.js's shape: the place, the orrery, the
+ *                             theatre, the things, the steps, the roster, the orders), so the stage is told on the same
+ *                             table; `ground` (stage-ground.js) a ground stage's real land under it as terrain, the way as
+ *                             flown, each wave where it is posted, the boss where it waits; else the route's schematic
+ *   routeGround(S)          → a ground route's map, ground and sky (its segments laid as one long route)
+ *   worldGeocube(kind)      → a world's ground as a geocube (its land's colours)
+ *   SEGMENTS
  *   STAGE_GROUNDS · FORMATIONS · HAZARDS · SCORE
  *
  * Pure: the same design, the same stage.
@@ -41,6 +49,7 @@ import { readPlace, placeParts as stationParts, orrery, roman, STAR_KINDS } from
 import { craftMini, capitalMini } from './holo-minis.js';
 import { CAPITAL_CLASSES } from '../fleet/classes.js';
 import { PLANET_KINDS } from '../skyscape/planet-gen.js';
+import { readSkyAsk } from '../skyscape/sky.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -56,6 +65,19 @@ const GROUND = Object.freeze({
   space: Object.freeze({ map: Object.freeze({ craft: 'fighter', field: 6000 }), speed: 60 }),
 });
 const ROCKS = Object.freeze({ none: 'none', few: 'sparse', some: 'field', many: 'dense' });
+/** A ground route's stretches (`route.segments`, skyscape/ground.js SEGMENT_KINDS): a canyon walled, open country, a
+ *  colony on the way; each its seconds of the way. The map laid as one long route, its width WIDTH m, a lead-in and the
+ *  boss's arena past them (rail-stage.js: the way starts a breath in and ends in the arena). */
+export const SEGMENTS = Object.freeze({ kinds: Object.freeze(['canyon', 'open', 'colony']), seconds: Object.freeze([10, 90]), most: 8, width: 4000, lead: 5, arena: 6, span: 0.9 });
+/** A ground route's sky when none is said: an afternoon of fair-weather cloud (skyscape/sky.js). */
+const GROUND_SKY = Object.freeze({ kind: 'fair', hour: 15 });
+const hexMix = (a, b, t) => '#' + [1, 3, 5].map((k) => Math.round(parseInt(a.slice(k, k + 2), 16) * (1 - t) + parseInt(b.slice(k, k + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+/** A world's ground as a geocube: its land's colours (planet-gen.js) over the island's light, so a rust moon's canyon
+ *  is its dust and its red rock, not an island's grass. */
+export function worldGeocube(kind) {
+  const C = PLANET_KINDS[kind].colors;
+  return { from: 'island-noon', colour: { stone: hexMix(C.land0, '#000000', 0.15), floor: C.land0, grass: hexMix(C.land1, C.vegC, 0.35), foliage: C.vegC, sand: C.land1, water: C.sea } };
+}
 const STEPS = Object.freeze({ least: 2, most: 8 });
 // (a stage's place: the system and the cluster as a mission's, its third part the zone as it is written (a canyon, a
 // field: not a station), its moon by its numeral)
@@ -76,12 +98,26 @@ export function readStage(v) {
   const place = readPlace(v.place);
   const R = v.route;
   if (!isObj(R)) fail('.route is { ground: canyon | space, world?, speed?, hazards? }');
-  for (const k of Object.keys(R)) if (!['ground', 'world', 'speed', 'hazards'].includes(k)) fail(`.route.${k} is not a route's (ground, world, speed, hazards)`);
+  for (const k of Object.keys(R)) if (!['ground', 'world', 'speed', 'hazards', 'segments', 'sky'].includes(k)) fail(`.route.${k} is not a route's (ground, world, speed, hazards, segments, sky)`);
   if (!STAGE_GROUNDS.includes(R.ground)) fail(`.route.ground is ${STAGE_GROUNDS.join(' or ')}: down a canyon on the moon, or through rocks over it`);
   if (R.world !== undefined && !PLANET_KINDS[R.world]) fail(`.route.world is a planet's kind (${Object.keys(PLANET_KINDS).join(', ')})`);
   if (R.speed !== undefined && !(Number.isFinite(R.speed) && R.speed >= 40 && R.speed <= 180)) fail('.route.speed is m/s, 40–180 (a canyon\'s 120, a field\'s 60)');
   if (R.hazards !== undefined && HAZARDS[R.hazards] === undefined) fail(`.route.hazards is ${Object.keys(HAZARDS).join(', ')}`);
-  const route = { ground: R.ground, world: R.world ?? (R.ground === 'canyon' ? 'desert' : 'barren'), speed: R.speed ?? GROUND[R.ground].speed, hazards: R.hazards ?? 'some' };
+  let segments = null;
+  if (R.segments !== undefined) {
+    if (R.ground !== 'canyon') fail('.route.segments are a ground route\'s (ground: canyon): its stretches down the moon');
+    if (!Array.isArray(R.segments) || !R.segments.length || R.segments.length > SEGMENTS.most) fail(`.route.segments are 1 to ${SEGMENTS.most} stretches { kind, seconds }`);
+    segments = R.segments.map((g, i) => {
+      const at = `.route.segments[${i}]`;
+      if (!isObj(g)) fail(`${at} is { kind, seconds }`);
+      for (const k of Object.keys(g)) if (!['kind', 'seconds'].includes(k)) fail(`${at}.${k} is not a stretch's (kind, seconds)`);
+      if (!SEGMENTS.kinds.includes(g.kind)) fail(`${at}.kind is ${SEGMENTS.kinds.join(', ')}: a canyon walled, open country, a colony on the way`);
+      if (!(Number.isFinite(g.seconds) && g.seconds >= SEGMENTS.seconds[0] && g.seconds <= SEGMENTS.seconds[1])) fail(`${at}.seconds is how long it is flown, ${SEGMENTS.seconds[0]}–${SEGMENTS.seconds[1]} s`);
+      return { kind: g.kind, seconds: g.seconds };
+    });
+  }
+  if (R.sky !== undefined) { const e = readSkyAsk(R.sky, 'route.sky'); if (e.length) fail(`.${e[0]}`); if (R.ground !== 'canyon') fail('.route.sky is a ground route\'s: space has none'); }
+  const route = { ground: R.ground, world: R.world ?? (R.ground === 'canyon' ? 'desert' : 'barren'), speed: R.speed ?? GROUND[R.ground].speed, hazards: R.hazards ?? 'some', ...(segments ? { segments } : {}), ...(R.sky !== undefined ? { sky: R.sky } : {}) };
   if (!Array.isArray(v.waves) || !v.waves.length || v.waves.length > 8) fail('.waves are 1 to 8 waves: { id, name, count, at, formation?, say? }');
   const seen = new Set(['squad', 'boss', 'start', 'end', 'route']);
   const waves = v.waves.map((w, i) => {
@@ -153,8 +189,10 @@ export function compileStage(S, { airframe = 'strikeFoil', design = null } = {})
     boss: { guns: S.boss.guns, armour: S.boss.armour },
     score: { fighter: SCORE.fighter, gun: SCORE.gun, core: SCORE.core, medals: [S.medals.gold, S.medals.silver, S.medals.bronze] },
   };
+  const laid = S.route.segments ? routeGround(S) : null;
   const airspace = {
-    map: { ...G.map },
+    map: { ...G.map, ...(laid ? laid.map : {}) },
+    ...(laid ? { ground: laid.ground, sky: laid.sky } : {}),
     ...(space ? { space: { asteroids: ROCKS[S.route.hazards], backdrop: { worlds: [S.route.world], proximity: 'near' } } } : {}),
     rail: { speed: S.route.speed, plan },
     airframe,
@@ -162,12 +200,35 @@ export function compileStage(S, { airframe = 'strikeFoil', design = null } = {})
   };
   const level = { name: S.name, airspace, goal: { flight: 'stage' } };
   const build = [
-    `a ${space ? 'field of rocks over' : 'canyon on'} ${placeParts(S.place)[3].name} at ${S.route.speed} m/s, its hazards ${S.route.hazards}`,
+    laid ? `a route down ${placeParts(S.place)[3].name}, ${Math.round(laid.map.field[0] / 100) / 10} km at ${S.route.speed} m/s: ${S.route.segments.map((g) => `${g.kind} ${g.seconds} s`).join(', ')}; its hazards ${S.route.hazards}`
+      : `a ${space ? 'field of rocks over' : 'canyon on'} ${placeParts(S.place)[3].name} at ${S.route.speed} m/s, its hazards ${S.route.hazards}`,
     ...S.waves.map((w) => `${w.name}: ${w.count} in a ${w.formation} at ${Math.round(w.at * 100)}% of the way`),
     `the ${S.boss.name}: a core and ${S.boss.guns} gun${S.boss.guns === 1 ? '' : 's'}, ${S.boss.armour} armour`,
     `medals at ${S.medals.gold} · ${S.medals.silver} · ${S.medals.bronze} of ${stagePoints(S)} points`,
   ];
   return { level, build, approved: S.status === 'approved' };
+}
+
+/** A ground route laid as its map: one long route (map.js `route`), its stretches as the ground's segments at their
+ *  shares of the way, a colony in the colony style, the world's ground colours, its sky. */
+export function routeGround(S) {
+  const v = S.route.speed, total = S.route.segments.reduce((a, g) => a + g.seconds, 0), T = SEGMENTS.lead + total + SEGMENTS.arena;
+  const length = Math.round((v * T) / SEGMENTS.span / 100) * 100;
+  // (the way runs the middle SEGMENTS.span of the field: a stretch's share of the field from its seconds down the way;
+  // the first opens the field and the last closes it)
+  const edge = (1 - SEGMENTS.span) / 2, share = (sec) => edge + SEGMENTS.span * (sec / T);
+  let at = SEGMENTS.lead;
+  const segments = S.route.segments.map((g, i) => {
+    const from = i === 0 ? 0 : share(at); at += g.seconds;
+    return { kind: g.kind, from: Math.round(from * 1e4) / 1e4, to: i === S.route.segments.length - 1 ? 1 : Math.round(share(at) * 1e4) / 1e4 };
+  });
+  const colony = segments.some((g) => g.kind === 'colony');
+  return {
+    map: { field: [length, SEGMENTS.width], route: true },
+    // (no airfield: a stage is flown in, not taken off from)
+    ground: { segments, geocube: worldGeocube(S.route.world), pads: [], ...(colony ? { country: { style: 'colony', roads: true, power: false } } : {}) },
+    sky: S.route.sky ?? { ...GROUND_SKY },
+  };
 }
 
 // ── THE HOLO TABLE: the route schematic, at the table's own metres (x across, y ahead, z up) ──
@@ -176,21 +237,23 @@ const ORD = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 
 const FORM_WORDS = Object.freeze({ line: 'in line abreast', vee: 'in a vee', echelon: 'in echelon', swarm: 'in a swarm' });
 
 /** The stage on the holo table: its route as a ribbon of nav points, its waves at their marks, the boss at the end. */
-export function stageBriefingData(S) {
-  const parts = placeParts(S.place), space = S.route.ground === 'space';
-  const L = S.route.speed * ROUTE.seconds, field = Math.round(L * 1.25), w = L * ROUTE.weave;
-  const along = (u) => [r1(w * Math.sin(u * 5.2)), r1(-L / 2 + u * L), r1(space ? w * 0.5 * Math.sin(u * 4.1 + 1) : 0)];
+export function stageBriefingData(S, { ground = null } = {}) {
+  const parts = placeParts(S.place), space = S.route.ground === 'space', G = ground;
+  const L = S.route.speed * ROUTE.seconds, field = G ? G.field : Math.round(L * 1.25), w = L * ROUTE.weave;
+  // (on its ground, stage-ground.js: the way as it is flown, sampled; else the schematic's weave)
+  const pathAt = (u) => { const P = G.path, f = Math.min(P.length - 1, u * (P.length - 1)), i = Math.min(P.length - 2, Math.floor(f)), t = f - i; return [0, 1, 2].map((k) => r1(P[i][k] + (P[i + 1][k] - P[i][k]) * t)); };
+  const along = G ? pathAt : (u) => [r1(w * Math.sin(u * 5.2)), r1(-L / 2 + u * L), r1(space ? w * 0.5 * Math.sin(u * 4.1 + 1) : 0)];
   const nav = Array.from({ length: ROUTE.points + 1 }, (_, i) => ({ id: `r${i}`, name: '', at: along(i / ROUTE.points) }));
   nav.push({ id: 'start', name: 'Start', at: along(0) }, { id: 'end', name: 'The arena', at: along(1) });
   const O = orrery(S.place, { moonKind: S.route.world });
   const things = [
     { id: 'squad', name: 'Wolf Squadron', side: 'friend', kind: 'group', label: 'Strike foil', at: along(0), heading: 0, count: 1, pilot: true, mini: craftMini('strikeFoil') },
-    ...S.waves.map((x) => ({ id: x.id, name: x.name, side: 'foe', kind: 'group', label: `${x.count} ${FORM_WORDS[x.formation]}`, at: along(x.at), heading: 180, count: x.count, arrives: true, mini: craftMini('twinPanel') })),
-    { id: 'boss', name: S.boss.name, side: 'foe', kind: 'capital', label: `a core and ${S.boss.guns} gun${S.boss.guns === 1 ? '' : 's'}`, at: along(1.15), heading: 180, mini: capitalMini(S.boss.hull) },
+    ...S.waves.map((x, i) => ({ id: x.id, name: x.name, side: 'foe', kind: 'group', label: `${x.count} ${FORM_WORDS[x.formation]}`, at: G && G.waves[i] ? G.waves[i] : along(x.at), heading: 180, count: x.count, arrives: true, mini: craftMini('twinPanel') })),
+    { id: 'boss', name: S.boss.name, side: 'foe', kind: 'capital', label: `a core and ${S.boss.guns} gun${S.boss.guns === 1 ? '' : 's'}`, at: G ? G.boss : along(1.15), heading: 180, mini: capitalMini(S.boss.hull) },
   ];
   // (the hazards on the table: rocks crowding the way in space, pillars standing in it in a canyon)
-  const rocks = [], gap = HAZARDS[S.route.hazards];
-  if (gap) for (let u = 0.08, k = 0; u < 0.88; u += gap / ROUTE.seconds, k++) { const p = along(u), side = k % 2 ? 1 : -1; rocks.push([r1(p[0] + side * w * 0.6), p[1], p[2], r1(space ? 40 : 26)]); }
+  const rocks = G ? G.rocks.map((r) => r.slice()) : [], gap = HAZARDS[S.route.hazards];
+  if (gap && !G) for (let u = 0.08, k = 0; u < 0.88; u += gap / ROUTE.seconds, k++) { const p = along(u), side = k % 2 ? 1 : -1; rocks.push([r1(p[0] + side * w * 0.6), p[1], p[2], r1(space ? 40 : 26)]); }
   const ribbon = nav.slice(0, ROUTE.points).map((n, i) => [n.id, nav[i + 1].id]);
   const star = STAR_KINDS[O.star.kind].label;
   const opening = [
@@ -204,7 +267,9 @@ export function stageBriefingData(S) {
     id: S.id, name: S.name, status: S.status,
     place: { line: placeLine(S.place), parts: parts.map((p) => p.name) },
     orrery: { ...O, homeMoons: O.planets[O.home].moons.length },
-    theatre: { field, moon: { kind: S.route.world, bearing: 0, elevation: space ? 22 : 8, size: 'near' }, rocks, nav },
+    // (on the ground: the land under the way as terrain, its heights stretched `vertical` times, the colony's masses)
+    theatre: { field, moon: { kind: S.route.world, bearing: 0, elevation: space ? 22 : 8, size: 'near' }, rocks, nav,
+      ...(G ? { terrain: G.terrain, vertical: G.vertical, masses: G.masses } : {}) },
     things,
     steps,
     roster: [{ id: 'squad', name: 'Wolf Squadron', craft: 'Strike foil', count: 1, side: 'friend' },

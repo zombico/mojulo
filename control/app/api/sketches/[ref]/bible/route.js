@@ -172,7 +172,10 @@ export async function GET(request, { params }) {
           // (an arcade stage's: its table drawn from its route and its waves, approved from its briefing, never moved about)
           const { readStage, stageBriefingData } = await import('@/lib/graph/campaign/stage');
           const S = readStage({ ...D, id });
-          html = briefingPage(null, { data: stageBriefingData(S), editor: { ref, mission: id, design: { ...D, id }, edit: false, fixed: true, post, at } });
+          // (on its real ground once its level is built: the built level's own map, ground, way and seed)
+          const { stageGround } = await import('@/lib/graph/campaign/stage-ground');
+          const L = get(`${ref}-level-${id}-0`)?.manifest, ground = L && L.kind === 'airspace' ? stageGround(L, { seed: L.seed ?? 1 }) : null;
+          html = briefingPage(null, { data: stageBriefingData(S, { ground }), editor: { ref, mission: id, design: { ...D, id }, edit: false, fixed: true, post, at } });
         } else {
           const edit = request.nextUrl.searchParams.get('edit') === '1';
           html = briefingPage(readMission({ ...D, id }), { editor: { ref, mission: id, design: { ...D, id }, edit, post, at } });

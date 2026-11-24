@@ -39,18 +39,25 @@ export const STAGE_DESIGNS = Object.freeze({
   'stage-1': Object.freeze({
     id: 'stage-1', name: 'Canyon run', status: 'approved',
     place: { system: 'Kessa', cluster: 'Varn', station: 'Red Canyon', moon: 4, star: 'orange' },
-    route: { ground: 'canyon', world: 'rust', speed: 120, hazards: 'some' },
+    // (down Moon IV in three stretches: open country, the Red Canyon colony on the way, then the canyon to its mouth;
+    // under an afternoon's fair-weather cloud)
+    route: {
+      ground: 'canyon', world: 'rust', speed: 120, hazards: 'some',
+      segments: [{ kind: 'open', seconds: 25 }, { kind: 'colony', seconds: 25 }, { kind: 'canyon', seconds: 50 }],
+      sky: { kind: 'fair', hour: 16 },
+    },
     waves: [
       { id: 'scouts', name: 'Scouts', count: 3, at: 0.12, formation: 'line' },
-      { id: 'raiders', name: 'Raiders', count: 4, at: 0.32, formation: 'vee' },
-      { id: 'hunters', name: 'Hunters', count: 3, at: 0.52, formation: 'echelon' },
+      { id: 'raiders', name: 'Raiders', count: 4, at: 0.3, formation: 'vee' },
+      { id: 'hunters', name: 'Hunters', count: 3, at: 0.48, formation: 'echelon' },
       { id: 'swarm', name: 'Swarm', count: 6, at: 0.72, formation: 'swarm' },
     ],
     boss: { name: 'Gunship', guns: 2, armour: 'light', hull: 'corvette' },
     steps: [
-      { title: 'Red Canyon', say: 'Down Red Canyon, low and fast. The walls are your cover; the pillars in the way are not.', show: ['squad', 'route', 'start', 'end'] },
-      { title: 'First contact', say: 'Scouts first, three abreast. Then raiders, four in a vee.', show: ['scouts', 'raiders'] },
-      { title: 'Hunters and the swarm', say: 'Hunters come stepped across the canyon. Past them, a swarm: roll through it, guns hot.', show: ['hunters', 'swarm'] },
+      { title: 'Red Canyon', say: 'In low over the dust flats, through the colony, then down Red Canyon to its mouth.', show: ['squad', 'route', 'start', 'end'] },
+      { title: 'First contact', say: 'Scouts on the flats, three abreast. Raiders meet you at the colony\'s edge, four in a vee.', show: ['scouts', 'raiders'] },
+      { title: 'Through the colony', say: 'Hunters come stepped across the colony\'s towers. Mind the spires; the walls of the canyon are next.', show: ['hunters'] },
+      { title: 'Into the canyon', say: 'In the canyon a swarm: roll through it, guns hot. The pillars in the way are rock.', show: ['swarm'] },
       { title: 'The gunship', say: 'A gunship holds the canyon\'s mouth. Its two guns first, then its core.', show: ['boss'], routes: [['squad', 'boss']] },
       { title: 'Wolves, go', say: 'Every fighter a hundred, a gun two fifty, the core a thousand. Bring home gold.', show: ['squad', 'boss'] },
     ],

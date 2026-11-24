@@ -1174,3 +1174,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-24 (1122-sim-fixing: Wolf Squadron's stages): the `briefing` fixture's level page takes the keys
 // as its briefing mounts (window.focus), so a pilot steps the table from the game's shell without clicking into it.
 // Every other page is byte-identical.
+// Re-pinned 2026-11-24 (1122-sim-fixing: Wolf Squadron's ground stages): the holo table's client draws a ground stage's
+// land (theatre.terrain, its heights stretched by theatre.vertical, the colony's masses); a mission's table, with neither,
+// draws as it did. Every other page is byte-identical.

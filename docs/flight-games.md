@@ -421,6 +421,51 @@ the page's clock:
 
 A captured frame at a pinned clock sees the same stroke.
 
+## A route down a moon: a rail stage in segments
+
+An arcade stage flown down a planet or a moon (Wolf Squadron's) is one long way, not a field to roam. Three things lay
+it.
+
+**A route map.** `map.route: true` (`control/lib/graph/skyscape/map.js`) makes the field a long box down its length.
+- Its reach is the field and a narrow band, since the rail keeps the craft on its way.
+- Its haze is sized to see ahead (`SEE_S` of cruise), not across the field corner to corner.
+- Its one grid spends the same cell budget along the way, so a 15 km route bakes at about 50 m cells where a square
+  map of its length bakes at 130.
+- A walled form's backdrop band is capped to what the corridor sees.
+
+Its laws are its own: the way seen ahead, and no turn back to need room for.
+
+**Segments.** `ground.segments` (`control/lib/graph/skyscape/ground.js`) cuts the field's length into stretches about
+the gorge's line, eased at their joins:
+- a `canyon` stretch has the gorge's walls standing over the way;
+- an `open` stretch is a broad valley with no walls;
+- a `colony` stretch stands a settlement on the line in the country's colony style.
+
+The rail (`rail-stage.js`) reads them. It keeps its hazards out of a colony, checks its walls only down a canyon, and
+sweeps its box over every roof, so the way rises over a spire rather than through it.
+
+**The colony style.** `country.style: 'colony'` (`control/lib/graph/skyscape/country.js`) dresses the same
+generator's settlement as a sci-fi colony:
+- its blocks are composite panels with one lit band of glazing, not a street's grid of windows;
+- its glass is teal, and its towers are spires with a crown set back and a lit mast;
+- its houses are habitat modules under domes, and its halls are flat-roofed;
+- its water towers are radar domes on their legs;
+- its plan has dark composite roads, landing aprons and hydroponic greens, with no garden trees;
+- its cover leans to its world's own colours, so a rust moon's plots are its dust.
+
+The `colony` settlement card is a town's grain round a core of towers. It is all data, so the page's facade shader is
+untouched.
+
+A stage's design (`control/lib/graph/campaign/stage.js`) writes all of it from `route.segments` (each a kind and its
+seconds) and `route.sky` (a flight sky; an afternoon's fair-weather cloud by default). The ground is coloured for its
+world (`worldGeocube`). Its holo table is drawn over the level's real ground (`campaign/stage-ground.js`): the land
+under the way as terrain with its heights stretched, the way as flown, each wave where it is posted, the boss where it
+waits, and the colony's masses.
+
+The flight sky's clouds and the aerial country are the live page's. The dashboard's `/world` route builds them, and
+the game shell iframes levels from it. A game exported to files bakes the country to faces and draws no clouds, as it
+does for every airspace level.
+
 ## What comes next
 
 The shelf is the asset layer. In order, the moves that turn it into flight games:
