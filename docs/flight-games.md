@@ -462,9 +462,8 @@ world (`worldGeocube`). Its holo table is drawn over the level's real ground (`c
 under the way as terrain with its heights stretched, the way as flown, each wave where it is posted, the boss where it
 waits, and the colony's masses.
 
-The flight sky's clouds and the aerial country are the live page's. The dashboard's `/world` route builds them, and
-the game shell iframes levels from it. A game exported to files bakes the country to faces and draws no clouds, as it
-does for every airspace level.
+The flight sky's clouds and the aerial country are the live page's: the dashboard's `/world` route builds them, and a
+game exported to files (`export_game`) ships its airspace levels the same way, every byte inline.
 
 ## What comes next
 

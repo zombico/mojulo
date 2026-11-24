@@ -44,6 +44,3 @@ Its briefing is told over the moon's real ground.
   mission's, draw as they did.
 - **The Canyon run redesigned**: 25 s open, 25 s colony, 50 s canyon, four waves across them, its briefing in six steps.
   The flight proof's attentive pilot wins it; a still one loses it.
-
-The clouds and the aerial country are the live page's (the dashboard's `/world` route, which the game shell iframes). A
-game exported to files bakes the country to faces and draws no clouds, as it does for every airspace level.
