@@ -12,9 +12,9 @@
  *                dash   a dash jump: from a stand, the dash pressed and held, the jump a few frames into it (a feel
  *                       with its takes, whose card dashes and jumps out of it: `dash.jump`)
  *                airDash  out of the run, held, the air dash held from the apex (`dash.air`)
- *   the wall (a feel with its takes whose card clings: `cling`): `wall: { kick, climb }` — the metres a kick rises over
- *              the point it kicked from, and the height a kick gains on a single wall, kicked at once and held back to
- *              it (the climb of Mega Man X's wall)
+ *   the wall (a feel with its takes whose card clings: `cling`): `wall: { kick, climb, every }` — the metres a kick
+ *              rises over the point it kicked from, the height a kick gains on a single wall, kicked at once and held
+ *              back to it (the climb of Mega Man X's wall), and the seconds from one kick to the next
  *   reachOf(feel) → { rule, speed, moves: { <move>: { height, long, air, arc } } }
  *                height  metres the feet rise to at the apex, over the take-off
  *                long    metres the body travels from the take-off to touching back down at the take-off's height:
@@ -91,16 +91,18 @@ function wallOf(rule) {
   const W = 3, world = { ground: () => 0 };
   const w = createWorld({ colliders: [{ min: [W, -50, 0], max: [W + 0.6, 50, 200] }], entities: [{ id: 'p', rule: { ...rule, eye: 0 }, transform: { pos: [0, 0, 0], heading: 0 } }] }), e = w.byId.p;
   for (let i = 0; i < 6; i++) stepWorld(w, {}, DT, world);
-  const clungAt = [], rises = []; let last = -99, from = null, top = -Infinity;
+  const clungAt = [], kickedAt = [], rises = []; let last = -99, from = null, top = -Infinity;
   for (let f = 0; f < 600 && clungAt.length < 5; f++) {
     const kick = !!e.cling && f - last > 2 && f > 20;
-    if (kick) { clungAt.push(e.transform.pos[2]); if (from !== null) rises.push(top - from); from = e.transform.pos[2]; top = from; last = f; }
+    if (kick) { clungAt.push(e.transform.pos[2]); kickedAt.push(f); if (from !== null) rises.push(top - from); from = e.transform.pos[2]; top = from; last = f; }
     stepWorld(w, { forward: 1, jump: f === 10 || kick, jumpHeld: true }, DT, world);
     if (from !== null) top = Math.max(top, e.transform.pos[2]);
   }
   if (clungAt.length < 3) return null;
   const gains = clungAt.slice(1).map((z, i) => z - clungAt[i]);
-  return { kick: r4(Math.max(...rises)), climb: r4(gains.reduce((a, b) => a + b, 0) / gains.length) };
+  // (and how long a kick takes, kick to kick: what a climb by kicks is timed by, side-map/layout.js climbTime)
+  const every = kickedAt.slice(1).map((f, i) => (f - kickedAt[i]) * DT);
+  return { kick: r4(Math.max(...rises)), climb: r4(gains.reduce((a, b) => a + b, 0) / gains.length), every: r4(every.reduce((a, b) => a + b, 0) / every.length) };
 }
 
 /** Each move's reach for a feel, on the rule its game ships. */

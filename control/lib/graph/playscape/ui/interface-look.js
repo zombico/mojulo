@@ -32,12 +32,13 @@ import { manaUi } from '../../../mana-ui/kernel.js';
 import { THEME_CARDS, THEME_CARD_IDS, cardTheme } from './theme-cards/loader.js';
 import { solvePalette } from '../../color-theorist/solve.js';
 import { juiceOfGame, juiceSuggestion } from '../../gameworld/juice.js';
+import { readRadarLook } from '../../game/hud-mana.js';
 import { readMapUi } from '../../gameworld/city-map.js';
 import { readBagUi } from '../../gameworld/bag-ui.js';
 import { readPhoneUi } from '../../gameworld/phone-ui.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['theme', 'colour', 'languages', 'language', 'map', 'inventory', 'phone'];
+const KEYS = ['theme', 'colour', 'languages', 'language', 'radar', 'map', 'inventory', 'phone'];
 
 // the art director's register by the game's intent (gameworld/intent.js GENRES): where its look starts
 export const INTENT_LOOKS = Object.freeze({
@@ -54,6 +55,20 @@ export const INTENT_LOOKS = Object.freeze({
   farming: 'storybook', 'top-down-adventure': 'storybook', 'action-rpg': 'storybook', metroidvania: 'console',
   racing: 'modern', 'athletics-meet': 'modern', 'net-game': 'modern', 'turn-sport': 'modern', 'team-goal-game': 'modern',
 });
+// the MENUS' SOUND (the game UI runtime's sound set, beats/ui-sounds.js) a rail or a genre asks for over its look's: a
+// gothic game's crypt (stone, iron, heavy doors), a robot hero's robot, a stealth game's glass (subtle, app-like); the
+// recorded library pins its menu recordings to these sets (sound-library: a card's `uiSets`)
+export const MENU_SOUNDS = Object.freeze({
+  pole: Object.freeze({ 'fallen-angel': 'crypt', 'galaxy-boy': 'robot', 'steel-serpents': 'glass' }),
+  intent: Object.freeze({ 'stylish-action': 'crypt', metroidvania: 'robot', stealth: 'glass', 'tactical-espionage': 'glass' }),
+});
+/** The sound set a game's menus play: its rail's (its feel's pole), else its genre's, else its look's (`theme`'s sounds). */
+export function menuSoundSet(G, theme) {
+  const F = G && G.feel, pole = typeof F === 'string' ? F : F && typeof F === 'object' ? F.pole : null;
+  const own = (pole && MENU_SOUNDS.pole[pole]) || MENU_SOUNDS.intent[G && G.intent && G.intent.from];
+  if (own) return own;
+  try { return readTheme(theme === undefined ? 'greybox' : theme).sounds; } catch { return null; }
+}
 // looks that keep still on purpose: an anime register does not make them snap
 const CALM = new Set(['grim', 'tactician', 'storybook', 'terminal']);
 
@@ -101,6 +116,8 @@ export function readUi(ui, where = 'ui') {
   if (ui.languages !== undefined || ui.language !== undefined) {
     try { manaUi.readSpec({ screens: {}, languages: ui.languages, language: ui.language }); } catch (e) { errors.push(`${where}: ${e.message}`); }
   }
+  // (its radar's look, game/hud-mana.js RADAR_LOOK: square, large, of the pilot's floor alone)
+  if (ui.radar !== undefined) { try { readRadarLook(ui.radar); } catch (e) { errors.push(`${where}.${e.message}`); } }
   // (the map: what a played city's shows and how it is seen, gameworld/city-map.js)
   if (ui.map !== undefined) errors.push(...readMapUi(ui.map, `${where}.map`));
   // (the inventory: how what is carried is shown, gameworld/bag-ui.js)

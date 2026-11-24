@@ -21,7 +21,8 @@ import { SOUNDS, resolveSoundId } from '../sfx-shelf/roster.js';
 import { BEDS } from '../sfx-shelf/beds.js';
 import { MECHANIC_SFX } from '../beats/sfx-palettes.js';
 import { emitBeatsKernel } from '../beats/beats-kernel.js';
-import { audioFeatures } from '../beats/beats-features.js';
+import { audioFeatures, gestureSampleCards } from '../beats/beats-features.js';
+import { sampleSliceBase64 } from '../sound-library/library.js';
 import { safeJson } from '../scene/emit-util.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -104,6 +105,9 @@ export function soundBookHtml(world) {
   const beds = B.levels.filter((L) => L.bed);
   const bedIds = [...new Set(beds.map((L) => L.bed.id))];
   const source = emitBeatsKernel(audioFeatures({ cues: B.cues, sustains: B.held, vary: true }));
+  // the recorded sounds (the sound library's): a row the library records auditions its recording where this machine
+  // holds it; without the library no row has one and nothing is emitted
+  const cards = gestureSampleCards(B.cues), samples = cards.length ? sampleSliceBase64(cards) : null;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(B.name)}: sound</title><style>${CSS}</style></head><body><main>
 <h1>${esc(B.name)}: the sound</h1>
 <p class="lede">Every sound this game plays, the word on the SFX shelf that plays it, and why. Style: <code>${esc(B.style)}</code> (a sound the style does not voice plays its fallback). Press a row to hear it as the game plays it.</p>
@@ -113,9 +117,10 @@ ${bedIds.length ? `<h2>The beds</h2><div class="wrap"><table><tr><th>under the s
 ${B.taste.length ? `<h2>The music department says</h2><p class="lede">Advice against the game's audio direction. Play decides.</p><ul>${B.taste.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
 ${B.owed.length ? `<h2>Owed</h2><ul>${B.owed.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
 </main><script>
-const K = (${source})(), CUES = ${safeJson(B.cues)}, HELD = ${safeJson(B.held)};
+const K = (${source})(), CUES = ${safeJson(B.cues)}, HELD = ${safeJson(B.held)};${samples ? `
+const SAMPLES = ${safeJson(samples)};` : ''}
 let ctx = null, eng = null, n = 0;
-const engine = () => { if (!eng) { const C = window.AudioContext || window.webkitAudioContext; ctx = new C(); eng = K.createEngine(ctx); } if (ctx.state === 'suspended') ctx.resume(); return eng; };
+const engine = () => { if (!eng) { const C = window.AudioContext || window.webkitAudioContext; ctx = new C(); eng = K.createEngine(ctx);${samples ? ` eng.loadSamples({ cards: SAMPLES.cards, bytes: Object.fromEntries(Object.entries(SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])) });` : ''} } if (ctx.state === 'suspended') ctx.resume(); return eng; };
 for (const b of document.querySelectorAll('button.play')) b.addEventListener('click', () => {
   const E = engine(), id = b.dataset.id;
   if (b.dataset.kind === 'cue') { if (CUES[id]) E.playCue(CUES[id], undefined, undefined, undefined, n++); return; }

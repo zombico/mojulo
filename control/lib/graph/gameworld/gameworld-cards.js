@@ -13,9 +13,12 @@
  *
  * Pure.
  */
+import { FACILITY_IDS } from '../era/facilities.js';
+import { LAYOUT_IDS } from '../era/room-layouts.js';
 import { ROUND_BOSS_IDS } from './round-bosses.js';
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
 import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet, variantOf } from './rails.js';
+import { levelKindLine } from './level-kinds.js';
 import { COATS } from '../mount/coats.js';
 import { ERRAND_LAWS } from './errand.js';
 import { GAME_BODIES, GAME_BODY_NAMES } from './game-bodies.js';
@@ -26,7 +29,13 @@ import { AXES, VIBES } from './hero-vibe.js';
 import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
 import { WIN_OF_CLASS } from '../egocube/moves.js';
 import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
-import { TEMPLATE_ARSENALS } from './combos.js';
+import { TEMPLATE_ARSENALS, KNOCK_WORDS } from './combos.js';
+import { STYLISH, VITALS_LOOKS } from './style-meter.js';
+import { SHELF_IDS } from './weapon-shelf.js';
+import { ACTION_OUTFITS } from '../outfit/styles.js';
+import { MOOD_IDS } from './action-first-level.js';
+import { ACTION_LEVEL_IDS } from './action-levels.js';
+import { PLOT_KEYS } from '../era/stage.js';
 import { GENRE_FEEL, FEEL_WORDS } from './feel/suggest.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
@@ -98,6 +107,8 @@ import { GENRE_COLOUR } from './world-palette.js';
 import { BOOK_SKINS } from './book-skin.js';
 import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
 import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
+import { FRONT_CARD_IDS } from '../playscape/ui/front-cards/loader.js';
+import { STAGE_TREATMENTS } from '../game/front-stage.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
 import { FLOW_KINDS, SCREEN_EVENTS, LEVEL_EVENTS, FLOW_SPECIALS, FLOW_GUARDS, FLOW_IN_PLAY } from '../game/flow.js';
 import { SECTIONS, BANDS, TASKS, MISSION_LIMITS, MISSION_DEFAULTS, MISSION_MAPS, MISSION_BUILDINGS } from '../mission/index.js';
@@ -264,7 +275,7 @@ function soundCard() {
     'A game hears it once it writes a `sound`, even an empty one:   patch [{ op: \'set\', path: \'/sound\', value: {} }]',
     'Every level it builds then carries the sheet. A game with no `sound` builds the levels it built.',
     '',
-    'sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary? }: each value a SHELF WORD, over',
+    'sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary?, pan? }: each value a SHELF WORD, over',
     'what the sheet solves. A word off the shelf is refused with the shelf\'s nearest.',
     '  style     mouth (the default: mouth foley, the newest voices) | realistic | foley | arcade | orchestral | synth',
     '  slots     { step, jump, land, dodge, swing, strike }        on    { <event cue>: word } (door, pickup, goal, alarm …)',
@@ -273,6 +284,8 @@ function soundCard() {
     '  guns      { <gun>: { shot?, reload?, hit?, draw? } }       foes  { <foe id>: { attack?, hurt?, down? } }',
     '  ride      a held voice (car-engine, motorbike-engine, kart-engine, diesel-engine, tank-engine, boat-engine) | false',
     '  bed       rain | night | forest | cave | swamp | farm | false',
+    '  pan       true: each sound heard on the side its source is, round the camera (a guard\'s step behind to the left',
+    '            is heard there); absent, every sound centred, placed by its distance alone',
     '',
     'READ AND HEAR IT: /api/sketches/<ref>/bible?book=sound lists every sound, its word and why, each with a play',
     'button, what is OWED (a foe with no voice, a slot the style does not voice), and the music department\'s advice.',
@@ -511,6 +524,50 @@ function motionCard() {
   );
 }
 
+/** THE STYLISH GAME's card: what a stylish rail lays when its pitch is locked, and every word that changes it */
+function stylishCard() {
+  const rail = STYLISH.map((p) => `'${p}'`).join(' | ');
+  return lines(
+    `THE STYLISH GAME — a character action game (Devil May Cry, Bayonetta): its rail (${rail}) locked lays a STARTER,`,
+    'each part a default the creator changes by name; every key they write wins. It is the rail\'s first reading, never',
+    'their game: name the hero, the foes, the place, the weapons and the look as theirs.',
+    `  feel '<pole>'; camera 'orbit' (locks on; pulls back in a tall room); arsenal { from: '<pole>' }; styleMeter 'auto';`,
+    '  a level plan (THE PLACE): its building { use, rooms, plot, geocube }, its fights (a duel, a melee, a gallery, a boss)',
+    '  and foes, goal.tasks one per room; grade (the screen\'s look).',
+    '',
+    'THE KIT (gameworld-feel): arsenal { from, art?, weapons: [{ id, name?, reach, damage, held?, moves, combos }] }; a',
+    'weapon of the same id replaces the template\'s, a new id joins it. A move: { swing | strike, role: opener | filler |',
+    'finisher | launcher, frames, cancel?, contact?, arc? (360: all round), travel?, damage, impact?, topple?, launch?,',
+    `rise?, air?, slam?, knock? (${KNOCK_WORDS.join(' | ')} | joules), cooldown? }. A combo: { id, name, beats: ['L', 'L', 'H'], moves }.`,
+    `A SECOND WEAPON from the shelf: weapons: [{ shelf: '<row>', id?, …edits }] (rows: ${SHELF_IDS.join(', ')}; each its moves,`,
+    'its strings and what is held). It shows in the hand while it is up, manifested, the blade on the back; the run makes',
+    'its hero. Your own: a weapon with held: { item, style?, parts? } (an item\'s build words). { id: \'fist\', drop: true }',
+    'leaves the template\'s fist out.',
+    '',
+    `THE METER: styleMeter 'auto' | true | false | { tiers?, step?, gain?, repeat?, memory?, grace?, decay?, halo?, vitals? }:`,
+    'varied strings, the air, a switch mid-string and a clean run climb its tiers; a rank on the results. halo { stocks?,',
+    'per?, hit?, hurt?, at?, drain?, might?, swift?, heal? }: the gauge and the transformation it buys (stronger, faster,',
+    `healing). vitals { look: ${VITALS_LOOKS.join(' | ')}, hp?, halo? }: how the HUD draws health and the gauge, no box.`,
+    '',
+    `THE PLACE: a level plan names where it is fought (${ACTION_LEVEL_IDS.join(', ')}): its building, its rooms sized for their`,
+    'fights, the fight each holds in order, its cube and its mood. The starter lays the one its pitch\'s words name (a',
+    'cathedral, catacombs, a tower; else the citadel); the readout\'s `place` step offers each other as a patch. Make each',
+    'level a different place. Then building.rooms { <room>: { w?, d?, h?, drop? } } (metres; a melee asks 18 m a side, a',
+    'boss 22, a launch 6 m of headroom); goal.tasks [{ fight, at }] in the order fought; fights { <name>: { kind, waves } }; a room\'s light',
+    `designed, plot { <room>: { ${Object.keys(PLOT_KEYS).join(', ')} } } (the torches kept; the fill and the hung key light;`,
+    'a brighter pair by the way on; each flame its own; a moonlit window); the dark, geocube.light.shade (0.02 dark to 0.6',
+    `lit); grade { from, vignette?, exposure? }. A LIGHT MOOD writes the three at once: ${MOOD_IDS.join(', ')} (the starter's`,
+    `${MOOD_IDS[0]}; the readout's \`mood\` step offers each as a patch), then change any word.`,
+    '',
+    `THE HERO (gameworld-looks): the underlayer's style '${ACTION_OUTFITS.join("' | '")}' (a long coat that fights), or your own words:`,
+    'outer { hem: \'midi\', open: true, posed: true, stormFlap?: true }: cut away in front below the hip, two tails set by',
+    'the pose (open standing, behind the hips walking, streaming back running, hung behind in a strike, flared in the air)',
+    'on the realistic body (looks.body.form \'realistic\', the starter\'s); on another a long open coat.',
+    '',
+    'A worked example, read, never copied: docs/examples/fallen-angel (its world, its README).'
+  );
+}
+
 function feelCard() {
   return lines(
     'THE FEEL — how the hero moves, as a game template: feel: \'<template>\' | { pole, variant?, toward?, t?, set?, takes? }.',
@@ -622,7 +679,15 @@ function interfaceCard() {
     `FAMILIES: ${Object.entries(THEME_FAMILIES).map(([f, ids]) => `${f} ${ids.join(' ')}`).join('; ')}.`,
     `CARDS: ${THEME_CARD_IDS.join(', ')}. A NEW LOOK IS A CARD: { id, name, about, family?, tags?, from, ...words } as a`,
     'JSON file on the shelf (playscape/ui/theme-cards/, its README), the way a WordPress theme is a theme.json; for one',
-    'game only, the same inline as ui.theme. WORDS (closed):',
+    'game only, the same inline as ui.theme.',
+    'THE START SCREEN (front.stage): a launcher before any engine loads, ONE of the game\'s subjects (hero, ally, foe,',
+    'ride, prop) on a graphic ground, never a cast or a set. Offered last (next: front), once the first level plays;',
+    'sooner only when asked. { composition: a front card, subjects?: [a role or a ref], mode?: still | 3d, treatment? }:',
+    `  cards ${FRONT_CARD_IDS.join(', ')}; treatments ${STAGE_TREATMENTS.join(', ')}; 3d brings the cutout or`,
+    '  silhouette alive over its picture. Part interface:front; seen on the exported game (export_game). An arena',
+    '  shell game\'s is menu.stage (a ref); a versus game\'s title is the champion, drawn. The character on a graphic',
+    '  ground, or a picture the creator brings INSTEAD (never both): background: { path } (filed) or { stash, item }.',
+    'WORDS (closed):',
     ...Object.entries(THEME_WORDS).map(([k, ws]) => `  ${k}: ${ws.join('|')}`),
   );
 }
@@ -1181,7 +1246,7 @@ function wcdCard() {
     '  three walls (Maria, Rose, Sina) are WCDs.',
     '  A stealth game is close to a stack of them; a metroidvania is WCDs side by side, one core\'s reward opening another\'s gate.',
     '',
-    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, look?, built? } }, doors: [{ from, to, via,',
+    'wcd     on the world: { core, spaces: { <id>: { kind, depth, level?, use?, facility?, look?, built? } }, doors: [{ from, to, via,',
     '        gate?, oneWay? }] }',
     'SPACES',
     ...Object.entries(WCD_KINDS).map(([k, v]) => `  ${k.padEnd(13)} ${v}`),
@@ -1196,6 +1261,8 @@ function wcdCard() {
     '',
     'A BASE\'S BUILDINGS (a space\'s use; each on the bay kit of what it is, so the layers look unlike each other):',
     ...BASE_USES.map((u) => `  ${u.padEnd(13)} ${PROGRAMS[u].reads} (${PROGRAMS[u].kit})`),
+    `FACILITIES (a space's or a building's facility: a use built to move through, loops, a catwalk, its floors laid): ${FACILITY_IDS.join(', ')}`,
+    `  a room of any building: building.layouts { <room or role>: ${LAYOUT_IDS.join(' | ')} | { layout, …dials } }`,
     '  parked: its level\'s building.parked: true (a truck and an APC) | [vehicles] | { vehicles?, livery?, wear? }: parked',
     '                in its hangar (else its largest room), solid, painted as its foes\' faction, else its setting\'s camo',
     '',
@@ -1476,6 +1543,7 @@ function nextCard() {
     '  compile    `compile.blockers` (by chapter): what the build would hit; fix first. `estimate`: the build left.',
     '  req        the unit being worked (`unit`): its view { ref, chapter: unit } carries its `req` (gameworld-ledger).',
     '  composite  accepted `levels` the game lacks: run: true makes the game of them alone, playable to the last.',
+    '  front      the first level plays: its start screen, offered (`composition`, `subjects`, `patch`); the creator\'s to take.',
     '  chapters   (not a step) each chapter: department, state, `open` parts, what it `waits` on. Work one at a time,',
     '             upstream first: { ref, chapter } is its view (a department, or a subagent given only that and its card).',
     '             With run: true it makes that chapter and what it names, ahead of approvals (`ahead`: say so).',
@@ -1622,6 +1690,7 @@ function railCard(id, variant = null) {
   return lines(
     `THE RAIL: ${S.name} — ${S.like}. A TEMPLATE: the person's game starts from it and is theirs (its name, hero, world`,
     'and story). Say what they keep from it and where their game departs.',
+    ...(STYLISH.includes(railOf(id).handles.pole) ? ['Locked, it lays a stylish starter (its kit, its meter, the citadel, a look): what each part is and the words that change it, gameworld-stylish.'] : []),
     '',
     `seen: ${S.seen.length ? seenSays(S.seen) : 'as its page lays it'}${S.seen.length > 1 ? ' (a choice: ask which)' : ''}.   first: ${S.level1}.`,
     ...S.sizes.map((z) => `  ${z.size.padEnd(9)}${z.door}   ${set(z.with)}`),
@@ -1639,6 +1708,8 @@ function railCard(id, variant = null) {
     'THE CHAIN, by size (pull a step\'s card when it is reached, not before):',
     ...S.chain.flatMap((c) => [`  ${c.size}:`, ...c.steps.map((st, i) => `    ${i + 1}. ${st.step.padEnd(12)}${st.does}${st.card ? `  (${st.card})` : ''}`)]),
     ...(S.lacks.length ? ['', 'WHAT IT DOES NOT DO YET (say it when the ask reaches for it):', ...S.lacks.map((l) => `  ${l}`)] : []),
+    ...(S.kinds ? ['', 'ITS LEVEL KINDS (a game is kinds in an order, the brief\'s; pick one by name, its laws are its proof):',
+      ...S.kinds.flatMap((k) => [`  ${levelKindLine(k)}`, `             teaches ${k.teaches.join(', ')}; laws: ${k.laws.join('; ')}${k.example ? `; made in ${k.example}` : ''}`])] : []),
     ...(S.variants ? ['', 'ITS VARIANTS (the ask\'s words name one: pull its own sheet, its chain asks its own question first):',
       ...S.variants.map((v) => `  ${v.name}: ${v.like} (gameworld-rail-${S.id}-${v.id}; the pitch's rail: { from: '${S.id}', variant: '${v.id}' })`)] : []),
   );
@@ -1801,6 +1872,7 @@ const CARDS = [
   ['gameworld-looks', 'The looks', 'the hero bare: body, head, hair, colour and the underlayer', 'what my hero looks like', looksCard],
   ['gameworld-motion', 'The motion', 'how the hero feels to move: vibe words on four axes', 'make my hero feel heavy, bouncy, bold', motionCard],
   ['gameworld-feel', 'The feel', 'how the controls play: a game template (the run, the jump, its windows) lowered onto the hero', 'play like Mega Man X, a Devil May Cry feel, a Souls-like weight, a Mario jump, tighter controls, floatier jump, coyote time', feelCard],
+  ['gameworld-stylish', 'The stylish game', 'a character action game: what its rail lays (the kit, the meter, the citadel, the look) and the words that change each', 'a Devil May Cry like game, a stylish action game, a character action game, a style meter, a devil trigger, a second weapon, combos and launchers, a hack and slash', stylishCard],
   ['gameworld-colour', 'The colour', 'the game coloured as a whole: its land and the cast on it, measured, and the ways it could go', 'what colours should my game be, the enemies blend into the grass, make the hero stand out, colour options for my game, recolour the world', colourCard],
   ['gameworld-sound', 'The sound', 'the sound sheet: which SFX shelf sound plays each thing the game does, solved from the game and overridden by word', 'sound effects for my game, footsteps, sword swings, gunshots, a monster\'s roar, an engine, make my game sound, SFX', soundCard],
   ['gameworld-music', 'The music', 'the audio direction and the cue sheet: the game\'s taste in sound, and a cue for every place that asks for music, on one identity', 'music for my game, a soundtrack, boss music, level music, a score, the game\'s sound direction, orchestral or electronic', musicCard],

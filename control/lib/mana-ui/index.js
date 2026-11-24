@@ -22,11 +22,11 @@ import { manaUi, manaUiSource } from './kernel.js';
 import { manaCss } from './css.js';
 import { themeCss, readTheme } from './theme.js';
 import { withIdioms } from './idioms.js';
-import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey } from './board.js';
+import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey, samplesScript } from './board.js';
 
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
-export { manaCss, lensCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
-export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, themeCss, themeAdvice, contrast, gameHudCss } from './theme.js';
+export { manaCss, lensCss, lettersCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
+export { THEMES, THEME_IDS, THEME_WORDS, FACE_STACKS, readTheme, titleLetters, themeCss, themeAdvice, contrast, gameHudCss } from './theme.js';
 export { ICONS, ICON_IDS, ICON_STYLES, ICON_ALIASES, ICON_MEANING, ICON_TONES, iconOf, iconSvg, iconCss } from './icons.js';
 export { IDIOMS, IDIOM_IDS, SCREEN_IDIOMS, HUD_IDIOM_IDS, withIdioms, coverageOverlap } from './idioms.js';
 export { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
@@ -51,7 +51,7 @@ ${themeCss(theme)}
 const manaUi = ${manaUiSource()};
 const STATE = window.__manaState = ${json(state)}, LOG = window.__manaLog = [];
 ${audio ? AUDIO_SCRIPT : ''}
-const SOUNDS = window.__manaSounds = ${soundsOf(audio, readTheme(theme).sounds)};
+const SOUNDS = window.__manaSounds = ${soundsOf(audio, readTheme(theme).sounds)};${samplesScript(audio)}
 const host = {
   read: (p) => manaUi.readPath(STATE, p),
   // the game's clock (a preview's is the page's; a game hands its own, held while it is)

@@ -25,6 +25,7 @@ describe('live light: the settings', () => {
   it('reads actors and hour, and nothing else asks for it', () => {
     for (const off of [undefined, null, true, {}, { cast: true }, { r: 12 }, { actors: false }]) expect(readLiveShadows(off)).toBeNull();
     expect(readLiveShadows({ actors: true })).toEqual({ actors: true, hour: false });
+    expect(readLiveShadows({ actors: 'pilot', hour: true })).toEqual({ actors: true, hour: true });   // (the pilot alone: the page's)
     expect(readLiveShadows({ hour: true, alpha: 0.5 })).toEqual({ actors: false, hour: true });
     expect(wantsSunShare({ actors: true })).toBe(true);
     expect(wantsSunShare({ cast: true })).toBe(false);

@@ -32,7 +32,8 @@ describe('the air', () => {
     expect(inn.visibility).toBeLessThan(out.visibility);
     expect(readAtmosphere({ kind, visibility: 300, height: false, blur: false })).toMatchObject({ visibility: 300, height: null, blur: 0 });
     expect(readAtmosphere({ blur: 4 }).blur).toBe(4);
-    expect(readAtmosphere({ kind: 'fog', colour: '#ff0080' }).colour).toEqual([1, 0, 0.502]);
+    // (as the eye sees it: the hex sRGB, decoded to the fog's linear light; #80 is a fifth of full, not a half)
+    expect(readAtmosphere({ kind: 'fog', colour: '#ff0080' }).colour).toEqual([1, 0, 0.2159]);
     expect(readAtmosphere('fog').colour).toBeNull();
     // (a geocity's measures are a metro's: the same word sees further, lying in a deeper layer)
     const city = readAtmosphere(kind, { where: 'city' });

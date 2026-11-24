@@ -21,6 +21,8 @@
  *   channel   the audio channel slot whose own code synthesizes it (SLOTS) unless the level gives that slot this row's
  *             voice (the thruster's `voice`, the jump charge's)
  *   slot      the audio channel slot it fills (SLOTS): where a level plays it
+ *   recorded  true: the row is voiced by its recording (the sound library's, sfx-shelf/resolve.js), with no synthesized
+ *             voice of its own (`voices` empty): its family stands in where it has one; with neither, it is silent
  *   say       the sound's own words (optional): its onomatopoeia, the Japanese in kana with its romaji (`カチャ`,
  *             `kacha`), English where it has one (`clink`). Mouth foley's scores are these words, so the word that
  *             makes a sound also finds it (find.js). One word may score several sounds (ヒュン is the katana's swing
@@ -29,6 +31,8 @@
  *
  * Pure data and pure functions: no clock, no dice.
  */
+import { MAGIC_ROWS } from './magic-sounds.js';
+import { ANIMAL_ROWS } from './animal-voices.js';
 
 /** Where a sound sits. A category with no row yet is a gap the shelf owes (sfxGaps). */
 export const CATEGORIES = Object.freeze({
@@ -74,6 +78,9 @@ const mouthOnly = (category, family, slot, label, aliases, more = {}) => ({ labe
 
 // built by a family (families.js) at a dial preset, voiced realistic
 const made = (category, family, slot, label, aliases, fam, dials = {}) => ({ label, aliases, category, family, voices: { realistic: 'families' }, make: { family: fam, dials }, slot });
+// a row voiced by its RECORDING (the sound library's): no synthesized voice of its own, its palette stand-in (`family`)
+// where it has one, silent where it has none and the library is not installed
+const recorded = (category, family, slot, label, aliases, more = {}) => ({ label, aliases, category, family, voices: {}, recorded: true, slot, ...more });
 
 const ROWS = {
   // ── the palettes' cue ids (beats/sfx-palettes.js): voiced by arcade, foley, orchestral and synth ──
@@ -108,6 +115,10 @@ const ROWS = {
   'beam-rifle-shot': mecha('weapon', 'shoot', 'weapon.shot', 'a beam rifle firing', ['beam rifle', 'long rifle', 'beam shot']),
   'beam-rifle-hit': mecha('impact', 'hit', 'weapon.hit', 'a beam round landing', ['beam hit', 'beam impact']),
   'beam-charge': mecha('weapon', null, 'weapon.charge', 'a beam rifle charging', ['charge up', 'beam charge']),
+  // ── an arm cannon (sets/buster.js): a run and gun's energy shots, the tap, the first charge and the full charge ──
+  'buster-shot': { label: 'an arm cannon\'s shot: a bright pew of energy', aliases: ['arm cannon', 'buster', 'pew', 'energy shot', 'laser shot'], category: 'weapon', family: 'shoot', voices: { realistic: 'buster' }, slot: 'weapon.shot' },
+  'buster-charged-shot': { label: 'an arm cannon\'s charged shot: lower, driven, a warble on it', aliases: ['buster charge shot', 'charged pew'], category: 'weapon', family: 'shoot', voices: { realistic: 'buster' }, slot: 'weapon.chargedShot' },
+  'buster-full-shot': { label: 'an arm cannon\'s full charge let go: a blast with a long falling tail', aliases: ['full charge', 'buster blast', 'charged blast'], category: 'weapon', family: 'shoot', voices: { realistic: 'buster' }, slot: 'weapon.chargedShot' },
   'beam-charged-shot': mecha('weapon', 'shoot', 'weapon.chargedShot', 'a charged beam shot', ['charged shot', 'charge shot']),
   'bazooka-shot': mecha('weapon', 'shoot', 'weapon.shot', 'a bazooka firing', ['bazooka', 'launcher shot', 'rocket launch']),
   'bazooka-hit': mecha('impact', 'hit', 'weapon.hit', 'a bazooka round bursting', ['bazooka hit', 'shell burst']),
@@ -235,6 +246,7 @@ const ROWS = {
   'brake-squeal': made('machinery', null, 'on', 'a car\'s brakes squealing as it stops hard', ['brakes', 'brake', 'squealing brakes'], 'motoring', { act: 'brake-squeal' }),
   'diesel-engine': made('machinery', null, 'hold', 'a heavy diesel by its throttle: a truck, a carrier, a walking machine\'s power pack', ['diesel', 'truck engine', 'heavy engine'], 'engine', { kind: 'diesel' }),
   'tank-engine': made('machinery', null, 'hold', 'a tracked vehicle by its throttle: its diesel and its tracks clanking', ['tank engine', 'tracked engine', 'track clatter'], 'engine', { kind: 'tracked' }),
+  'steam-hiss': made('machinery', null, 'hold', 'a machine venting steam, by its pressure: its exhaust hissing and chuffing', ['steam', 'steam vent', 'exhaust steam', 'venting'], 'servo', { kind: 'steam' }),
   'walker-hydraulics': made('machinery', null, 'hold', 'a walking machine\'s hydraulics by its pace: its pump straining, its valves chuffing with its steps', ['hydraulics', 'walker servo', 'mech hydraulics'], 'servo', { kind: 'walker' }),
   'boat-engine': made('machinery', null, 'hold', 'an outboard by its throttle', ['boat', 'speedboat', 'outboard'], 'engine', { kind: 'boat' }),
   'helicopter': made('machinery', null, 'hold', 'a helicopter by its throttle', ['chopper', 'rotor'], 'engine', { kind: 'helicopter' }),
@@ -422,6 +434,78 @@ const ROWS = {
   // the door creak's trace heard as a lion (operator, 2026-11-11): a short roar, smooth and rough
   'roar-lion-short': mouthOnly('creature', null, 'on', 'a lion\'s short roar', ['short roar', 'lion grunt', 'big cat snarl'], { matter: ['creature', 'voice'], weight: 'heavy' }),
   'roar-lion-rough': mouthOnly('creature', null, 'on', 'a lion\'s short roar, rough in the throat', ['rough roar', 'lion snarl', 'big cat growl'], { matter: ['creature', 'voice'], weight: 'heavy' }),
+  // ── the vehicle registry's sounds (vehicle-registry/roster.js through sfx-shelf/vehicle-sounds.js): engines on the
+  //    engine family at their nearest kind until the library's loops voice them (recorded-held.js), what a vehicle runs
+  //    on, and the events a vehicle is known by, recorded where no synthesized voice stands in ──
+  'electric-motor': made('machinery', null, 'hold', 'an electric motor by its throttle: its inverter\'s whine', ['electric motor', 'ev motor', 'electric car', 'inverter whine'], 'engine', { kind: 'car' }),
+  'scooter-engine': made('machinery', null, 'hold', 'a scooter\'s small two-stroke by its throttle', ['scooter', 'moped', 'two stroke'], 'engine', { kind: 'motorbike' }),
+  'vtwin-engine': made('machinery', null, 'hold', 'a cruiser motorcycle\'s V-twin by its throttle', ['v twin', 'cruiser bike', 'chopper bike'], 'engine', { kind: 'motorbike' }),
+  'v8-engine': made('machinery', null, 'hold', 'a muscle car\'s V8 by its throttle', ['v8 engine', 'muscle car', 'big block'], 'engine', { kind: 'car' }),
+  'supercar-engine': made('machinery', null, 'hold', 'a supercar\'s V12 by its throttle', ['v12', 'supercar', 'exotic car'], 'engine', { kind: 'road' }),
+  'race-engine': made('machinery', null, 'hold', 'an open-wheel race car\'s engine by its throttle', ['race car', 'race engine', 'open wheel', 'formula car'], 'engine', { kind: 'road' }),
+  'locomotive-engine': made('machinery', null, 'hold', 'a locomotive\'s diesel by its notch', ['locomotive', 'train engine', 'diesel locomotive'], 'engine', { kind: 'diesel' }),
+  'tank-tracks': made('machinery', null, 'hold', 'a tracked vehicle\'s tracks by its speed: clanking and squealing', ['tank tracks', 'tracks', 'track squeal'], 'engine', { kind: 'tracked' }),
+  'rail-wheels': made('machinery', null, 'hold', 'a train\'s wheels on the rails by its speed: the clack of the joints', ['train wheels', 'rail wheels', 'clickety clack'], 'tires', { surface: 'road' }),
+  'bicycle-freewheel': made('machinery', null, 'hold', 'a bicycle coasting by its speed: its freewheel ticking', ['freewheel', 'bicycle', 'bike coasting'], 'tires', { surface: 'road' }),
+  'air-jump': recorded('movement', 'jump', 'on', 'a jump in the air: a second leap, a spin', ['double jump', 'air jump', 'spin jump'], { matter: ['air'] }),
+  hooves: recorded('creature', null, 'hold', 'a horse\'s hooves on the road by its pace', ['hooves', 'trotting', 'hoofbeats'], { matter: ['creature'] }),
+  'sail-wind': recorded('elemental', null, 'hold', 'a sailing boat under way: wind in its sails, its ropes, the water', ['sails', 'sailing', 'under sail'], { matter: ['air', 'water'] }),
+  'police-siren': recorded('machinery', 'alarm', 'on', 'a police car\'s siren wailing', ['police siren', 'siren wail', 'cop siren'], { matter: ['electric'] }),
+  'police-yelp': recorded('machinery', 'alarm', 'on', 'a police siren\'s fast yelp', ['yelp', 'siren yelp'], { matter: ['electric'] }),
+  'hilo-siren': recorded('machinery', 'alarm', 'on', 'an ambulance\'s two-tone siren', ['hi lo siren', 'two tone siren', 'ambulance two tone'], { matter: ['electric'] }),
+  'fire-horn': made('machinery', 'alarm', 'on', 'a fire engine\'s air horn', ['fire horn', 'fire truck horn'], 'motoring', { act: 'truck-horn' }),
+  'train-horn': made('machinery', 'alarm', 'on', 'a train\'s horn', ['train horn', 'locomotive horn'], 'motoring', { act: 'truck-horn' }),
+  'ship-horn': made('machinery', 'alarm', 'on', 'a ship\'s foghorn', ['ship horn', 'foghorn'], 'motoring', { act: 'truck-horn' }),
+  'v8-ignition': made('machinery', null, 'on', 'a V8 started: its starter cranking, the big engine catching with a blip', ['v8 start', 'muscle car start'], 'motoring', { act: 'ignition' }),
+  'diesel-ignition': made('machinery', null, 'on', 'a diesel truck started: its starter cranking, the engine clattering to life', ['diesel start', 'truck start'], 'motoring', { act: 'ignition' }),
+  'bike-ignition': made('machinery', null, 'on', 'a motorcycle started: its starter and a fast idle', ['bike start', 'motorcycle start'], 'motoring', { act: 'ignition' }),
+  'train-brakes': made('machinery', null, 'on', 'a train braking: its wheels squealing on the rails', ['train brakes', 'rail squeal'], 'motoring', { act: 'brake-squeal' }),
+  'reverse-beeper': recorded('machinery', 'alarm', 'on', 'a truck\'s reverse warning beeper', ['reverse beeper', 'backup beeper', 'reversing alarm'], { matter: ['electric'] }),
+  'air-brakes': recorded('machinery', null, 'on', 'a bus\'s or a truck\'s air brakes releasing', ['air brakes', 'air brake', 'brake hiss'], { matter: ['air', 'machine'] }),
+  'bus-door': recorded('machinery', 'door', 'on', 'a bus door folding open', ['bus door', 'folding door'], { matter: ['metal', 'air'] }),
+  'bicycle-bell': recorded('machinery', 'chime', 'on', 'a bicycle\'s bell', ['bicycle bell', 'bike bell'], { matter: ['metal'] }),
+  'tram-bell': recorded('machinery', 'chime', 'on', 'a tram\'s bell', ['tram bell', 'trolley bell'], { matter: ['metal'] }),
+  'car-alarm': recorded('machinery', 'alarm', 'on', 'a car\'s alarm going off', ['car alarm', 'vehicle alarm'], { matter: ['electric'] }),
+  'lock-chirp': recorded('machinery', 'pickup', 'on', 'a car locked by its key fob: a chirp and the locks', ['lock chirp', 'car lock', 'key fob'], { matter: ['electric', 'machine'] }),
+  'jet-flyby': recorded('machinery', null, 'on', 'a jet flying low overhead', ['jet flyby', 'flyby', 'fly past'], { matter: ['machine', 'air'] }),
+  'prop-flyby': recorded('machinery', null, 'on', 'a propeller plane flying low overhead', ['prop flyby', 'plane flyby'], { matter: ['machine', 'air'] }),
+  'heli-flyby': recorded('machinery', null, 'on', 'a helicopter flying low overhead', ['heli flyby', 'helicopter flyby'], { matter: ['machine', 'air'] }),
+  'turret-traverse': recorded('machinery', null, 'on', 'a tank\'s turret turning', ['turret', 'turret traverse', 'turret turn'], { matter: ['machine', 'metal'] }),
+  'jet-spool': recorded('machinery', null, 'on', 'a jet engine starting, spooling up to idle', ['jet start', 'spool up', 'jet spool'], { matter: ['machine', 'air'] }),
+  'prop-start': recorded('machinery', null, 'on', 'a propeller plane\'s engine cranking and catching', ['prop start', 'plane start'], { matter: ['machine'] }),
+  'rocket-liftoff': recorded('machinery', null, 'on', 'a large rocket launching: ignition and a long roar', ['liftoff', 'rocket liftoff', 'launch roar'], { matter: ['fire', 'machine'] }),
+  // ── a mobile suit's kit by its axes (sfx-shelf/suit-sounds.js): its weight, its drive, its loadout. A variant is heard as
+  //    its `standIn` (the nearest row the shelf voices) until the library records it; one with none is silent until then ──
+  'mech-step-light': recorded('movement', 'step', 'footsteps.step', 'a light mobile suit\'s footstep: quick, firm, an electric servo', ['light mech step', 'light suit step'], { matter: ['metal', 'machine'], standIn: 'mech-step' }),
+  'mech-step-heavy': recorded('movement', 'step', 'footsteps.step', 'a heavy mobile suit\'s footfall: the ground shaking, plates rattling', ['heavy mech step', 'heavy suit step'], { matter: ['metal', 'machine'], standIn: 'giant-step' }),
+  'mech-land-light': recorded('movement', 'land', 'jump.land', 'a light mobile suit landing: a sharp impact, a quick compression', ['light mech land', 'light suit landing'], { matter: ['metal', 'machine'], standIn: 'mech-land' }),
+  'mech-land-heavy': recorded('movement', 'land', 'jump.land', 'a heavy mobile suit crashing down: a ground-shaking slam', ['heavy mech land', 'heavy suit landing'], { matter: ['metal', 'machine'], standIn: 'mech-land' }),
+  'mech-jump': recorded('movement', null, 'on', 'a mobile suit jumping: a piston launch and a burst of thrusters', ['mech jump', 'suit jump'], { matter: ['machine'] }),
+  'servo-whine': recorded('machinery', null, 'hold', 'a light machine\'s electric servos by its pace: a clean actuator whine', ['servo whine', 'electric servos', 'actuators'], { matter: ['electric', 'machine'], standIn: 'walker-hydraulics' }),
+  'rocket-boost': recorded('machinery', null, 'on', 'a rocket booster igniting: a hard burst of flame and a rising roar', ['rocket boost', 'rocket ignition'], { matter: ['fire', 'machine'] }),
+  'jet-boost': recorded('machinery', null, 'on', 'a jet thruster kicking in: a whoosh and a rising whine', ['jet boost', 'thruster kick'], { matter: ['air', 'machine'] }),
+  'ion-boost': recorded('machinery', null, 'on', 'an ion thruster engaging: a charge-up zap and a humming surge', ['ion boost', 'ion surge'], { matter: ['electric', 'energy'] }),
+  'rocket-quick-boost': recorded('movement', null, 'on', 'a rocket quick boost: one sharp blast of thrust', ['rocket quick boost', 'rocket dash'], { matter: ['fire', 'machine'] }),
+  'jet-quick-boost': recorded('movement', null, 'on', 'a jet quick boost: a fast burst of air and a short shriek', ['jet quick boost', 'quick boost'], { matter: ['air', 'machine'] }),
+  'ion-quick-boost': recorded('movement', null, 'on', 'an ion quick boost: a crisp electric snap and a swish', ['ion quick boost', 'ion dash'], { matter: ['electric', 'energy'] }),
+  'overheat-alarm': recorded('machinery', 'alarm', 'on', 'a cockpit\'s overheat alarm: a fast pulsing warning buzzer', ['overheat', 'overheat alarm', 'heat warning'], { matter: ['electric'] }),
+  'thruster-vent': recorded('machinery', null, 'on', 'hot thrusters venting: a steam blast and a sizzle', ['thruster vent', 'heat vent', 'cooling vent'], { matter: ['air', 'machine'] }),
+  'mech-transform': recorded('machinery', null, 'on', 'a mobile suit folding into its vehicle: servos, sliding plates, locks', ['mech transform', 'transform', 'fold into vehicle'], { matter: ['metal', 'machine'] }),
+  'mech-unfold': recorded('machinery', null, 'on', 'a vehicle unfolding into its mobile suit: servos rising, plates opening, a lock', ['mech unfold', 'unfold', 'transform back'], { matter: ['metal', 'machine'] }),
+  'lock-on': recorded('machinery', null, 'on', 'a targeting system locking on: rising beeps and a locked tone', ['lock on', 'target lock', 'missile lock'], { matter: ['electric'] }),
+  'suit-boot': recorded('machinery', null, 'on', 'a mobile suit powering up: a hum rising, relays, a reactor building', ['suit boot', 'mech power up', 'reactor start'], { matter: ['electric', 'machine'] }),
+  'beam-cannon-shot': recorded('weapon', 'shoot', 'weapon.shot', 'a beam cannon firing: a thunderous discharge and a long beam', ['beam cannon', 'mega beam', 'mega particle cannon'], { matter: ['energy'], standIn: 'beam-charged-shot' }),
+  'railgun-shot': recorded('weapon', 'shoot', 'weapon.shot', 'a railgun firing: a charge whine snapping into a metallic crack', ['railgun', 'rail gun', 'mass driver'], { matter: ['electric', 'metal'], standIn: 'beam-rifle-shot' }),
+  'vulcan-burst': recorded('weapon', 'shoot', 'weapon.shot', 'a head vulcan\'s short rapid burst', ['vulcan burst', 'head vulcan', 'head gun'], { matter: ['metal'], standIn: 'machine-gun-shot' }),
+  'missile-salvo': recorded('weapon', 'shoot', 'weapon.shot', 'a salvo of missiles launching in quick succession', ['missile salvo', 'missile pod', 'micro missiles'], { matter: ['fire', 'machine'], standIn: 'missile-launch' }),
+  'heat-axe-swing': recorded('melee', 'swing', 'strike.swing', 'a heat axe swung: a heavy whoosh with a hot sizzle', ['heat axe', 'heat hawk', 'axe swing mech'], { matter: ['metal', 'fire'], standIn: 'saber-swing' }),
+  'heat-axe-hit': recorded('melee', 'strike', 'strike.hit', 'a heat axe chopping into armour: a crunch and a hot sear', ['heat axe hit', 'heat hawk hit'], { matter: ['metal', 'fire'], standIn: 'saber-hit' }),
+  // ── magic as a kit (sfx-shelf/magic-sounds.js): each element by its phase and tier, the statuses, the spells, a battle's
+  //    moments, what magic does to a world; each `recorded`, heard as its stand-in until the library records it ──
+  ...Object.fromEntries(MAGIC_ROWS.map((r) => [r.id, recorded(r.category, null, r.slot, r.label, r.aliases, { matter: r.matter, ...(r.standIn ? { standIn: r.standIn } : {}) })])),
+  // ── the animals by their voice classes (sfx-shelf/animal-voices.js: each class's call, alert, hurt and death) and what
+  //    moves without a voice; each `recorded`, silent until the library records it (which species is which: animal-sounds.js) ──
+  ...Object.fromEntries(ANIMAL_ROWS.map((r) => [r.id, recorded(r.category, null, r.slot, r.label, r.aliases, { matter: r.matter, weight: r.weight })])),
   // ── the audio channel's own synth slots (scene/channels/audio.js): its code plays them, unless the level gives the
   //    slot the row's voice (a port of that code, range for range) ──
   'thruster-roar': { ...made('machinery', null, 'thruster', 'a thruster held: a jet whine that swells with the thrust', ['thruster', 'boost', 'booster'], 'booster', { kind: 'jet' }), channel: 'thruster' },

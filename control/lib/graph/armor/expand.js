@@ -17,6 +17,7 @@ import { SEEDED_ARMOR, validateArmorCard, cardAtLaws } from './styles.js';
 import { plateSuit } from './plate.js';
 import { lamellarSuit } from './lamellar.js';
 import { hardSuit } from './hardsuit.js';
+import { toySuit } from './toy.js';
 import { leatherSuit } from './leather.js';
 import { mailSuit } from './mail.js';
 import { themeArmor } from './theme.js';
@@ -76,6 +77,7 @@ export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth, chi
   const ctx = { Ht, Hl, k: scale, height: 1.75 * scale * (C?.height ?? 1), armorLaws: build.laws ?? ARMOR_LAWS_VERSION, ...(pelvis ? { pelvis: true, Hth } : {}), ...(C ? { keep: C.keep[card.family] } : {}) };
   let out = card.family === 'lamellar' ? lamellarSuit(dials, ctx, { crest: lang.crest ?? 'crescent' })
     : card.family === 'hardsuit' ? hardSuit(dials, ctx, lang)
+      : card.family === 'toy' ? toySuit(dials, ctx, lang)
       : card.family === 'leather' ? leatherSuit(dials, ctx, { cut: lang.cut ?? 'jerkin', studs: lang.studs ?? 0 })
       : card.family === 'mail' ? mailSuit(dials, ctx, { coif: lang.coif ?? true, surcoat: lang.surcoat ?? 'none' })
       : plateSuit(dials, ctx, { variant: lang.pauldron ?? 'spaulder', focalSide: lang.focalSide ?? 'R', fnSide: lang.fnSide ?? 'L' });
@@ -84,7 +86,7 @@ export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth, chi
   return { kit: out.kit, tones, emissive, trace: { style: typeof build.style === 'string' ? build.style : card.id || 'inline', family: card.family, dials, language: lang, laws: build.laws ?? ARMOR_LAWS_VERSION, ...out.trace } };
 }
 
-/** The construction a build is made in ('plate' | 'lamellar' | 'hardsuit' | 'leather' | 'mail'), or null for anything not an armour build. */
+/** The construction a build is made in ('plate' | 'lamellar' | 'hardsuit' | 'toy' | 'leather' | 'mail'), or null for anything not an armour build. */
 export function armorFamily(build) {
   const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight') : null;
   return card && typeof card === 'object' ? card.family ?? null : null;

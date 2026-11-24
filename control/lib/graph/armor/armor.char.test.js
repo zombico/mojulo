@@ -39,6 +39,10 @@ const PINS = {
   'armored-hero@0': '196c4fc450ea2e25',
   'armored-hero@0.5': '75469bbce6ad5353',
   'armored-hero@1': 'e5ffef415410f11e',
+  // the toy family (toy.js): the toy hero robot's suit, first pinned 1117
+  'herobot@0': '17717dabdbffd38a',
+  'herobot@0.5': '844abbcbae608e87',
+  'herobot@1': '090691e0809bdbdd',
   // leather and mail (leather.js, mail.js): the jerkin and the studded cuirass, the hauberk and the surcoat over it
   'jerkin@0': '683a5c04a089160d',
   'jerkin@0.5': '755ae0062655712c',

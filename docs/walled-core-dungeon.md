@@ -55,6 +55,16 @@ Its `look` composes the stage (`era/compose.js`), its `tone` colours it (`era/to
 survive a rerun. A base building (`BASE_USES`, `era/programs.js`) is always composed, so its rooms are stocked
 (`era/stocking.js`); the `bunker` construction (`era/style/bay-axes.js`, `era/bay.js`) dresses its walled layers.
 
+## A space built of pieces: a facility
+
+A space's `facility` (`era/facilities.js`) is a building designed to move through rather than a corridor of rooms: its
+use, the plan's fighting dials (loops, wide corridors, a catwalk), its rooms' floors laid in figures (`era/room-layouts.js`:
+aisles, machines, islands, stockpile, chicane, rows) and its look, a construction and a palette of its own. The space's
+own look wins, so the layers still differ. A level's building takes `facility` and `layouts` directly. Each laid room is
+held to its laws (doorways joined, a way round, the gaze broken, cover in reach) in the stage's `compose.layouts`. The
+pieces, their dials and how to add one: [facility-pieces.md](facility-pieces.md). The game book's facility maps
+(`?book=facilities`) draw them: this game's buildings and the shelf, each storey from above with its laws.
+
 ## Several spaces on one level: a complex
 
 A building level's `building: { complex: true }` stands the dungeon's spaces on that level as buildings on one yard

@@ -21,7 +21,7 @@
  *                         its `also`: the keypad, Tab and Shift+Tab, Page Up and Down; previewKey its keydown
  */
 import { manaUiSource, manaUi } from './kernel.js';
-import { manaCss, FRAME_CSS } from './css.js';
+import { manaCss, lettersCss, FRAME_CSS } from './css.js';
 import { THEMES, themeCss, themeAdvice, readTheme } from './theme.js';
 import { IDIOMS, SCREEN_IDIOMS, withIdioms } from './idioms.js';
 import { SAMPLE_STATE, SAMPLE_LANGUAGES } from './samples.js';
@@ -70,6 +70,12 @@ export const PREVIEW_KEYS = Object.freeze({
 // (a key or a tap has been pressed by then, so the browser lets it start)
 // a screen that opens ripples a soft tick down the rows it fills with, on the theme's own lead and stagger (read off the
 // root, so the sound lands as each row does); rows that came, went or moved are heard as one sound, however many
+/** The recorded library's sounds a page's audio carries (`audio.samples`, beats/ui-sounds.js uiSoundAudio): its engine
+ *  made now and the recordings decoded before the first cue (the context resumes on the first press, as hear does);
+ *  a page whose audio carries none gets not a byte. */
+export const samplesScript = (audio) => (audio && audio.samples ? `
+try { const C = window.AudioContext || window.webkitAudioContext; SOUNDS.ctx = new C(); SOUNDS.engine = SOUNDS.K.createEngine(SOUNDS.ctx);
+  SOUNDS.engine.loadSamples({ cards: ${JSON.stringify(audio.samples.cards)}, bytes: Object.fromEntries(Object.entries(${JSON.stringify(audio.samples.bytes)}).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])) }); } catch (err) { /* silent */ }` : '');
 export const AUDIO_SCRIPT = `const hear = (SOUNDS, e) => {
   if (!SOUNDS || typeof e.sound !== 'string') return;
   const cues = SOUNDS.sets[SOUNDS.set] || SOUNDS.sets[Object.keys(SOUNDS.sets)[0]], g = cues && (cues[SOUNDS.of(e)] || cues[e.sound]);
@@ -143,6 +149,7 @@ h2.sec{margin:22px 24px 8px;font-size:13px;letter-spacing:.14em;text-transform:u
 figure{margin:0}figcaption{margin-top:6px;font-size:12px;color:#333}figcaption span{display:inline-block;width:44px;color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.08em}
 pre{margin:4px 0 0;font:10px/1.3 ui-monospace,monospace;color:#555;white-space:pre-wrap;min-height:13px}
 ${manaCss('.mana-stage .mana-root')}
+${lettersCss('.mana-stage .mana-root')}
 ${FRAME_CSS}
 </style><style id="mana-theme"></style></head><body><header><h1>${esc(title)}</h1><p>Every idiom over one sample state: the structure, the data it reads and the effects it emits, in greybox; a theme is a layer over it. Click a frame to drive it: arrows, WASD or the keypad, Enter, Escape, [ and ] for tabs, letters into a name; a second seat on I J K L, U, O.</p>
 <p><label for="look">Theme</label><select id="look">${looks.map((l) => `<option value="${esc(l.id)}"${l.id === theme ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></p><div id="advice"></div></header>${body}
@@ -153,7 +160,7 @@ const FRAMES = ${json(frames.map((f) => ({ spec: { ...f.spec, defs: undefined },
 const STATE = ${json(state)};
 const LOOKS = ${json(looks)};
 ${audio ? AUDIO_SCRIPT : ''}
-const SOUNDS = window.__manaSounds = ${audio ? `{ K: (${audio.source})(), sets: ${json(audio.sets)}, of: (${audio.of}), set: null }` : 'null'};
+const SOUNDS = window.__manaSounds = ${audio ? `{ K: (${audio.source})(), sets: ${json(audio.sets)}, of: (${audio.of}), set: null }` : 'null'};${samplesScript(audio)}
 const look = (id) => { const L = LOOKS.find((x) => x.id === id) || LOOKS[0]; document.getElementById('mana-theme').textContent = L.css; document.getElementById('advice').textContent = L.advice.join('\\n'); if (SOUNDS) SOUNDS.set = L.sounds; };
 document.getElementById('look').addEventListener('change', (ev) => look(ev.target.value));
 look(${json(theme)});

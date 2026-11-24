@@ -39,10 +39,14 @@ describe('the cast material', () => {
     const lit = kit.material(castRigInput(RIG), { surface: 'form' }), sh = compiled(lit);
     expect(lit.isMeshStandardMaterial).toBe(true);
     expect(sh.fragmentShader).toContain('irradiance = PI * uCastFill * mix( uCastGround, uCastSky');
-    expect(sh.fragmentShader).toContain('reflectedLight.directDiffuse *= uCastKey');
+    // (the key's gain on each directional light alone, in three's own loop: a spot or a point lights the body as it lights
+    // the land; three's chunk laid out in place for it)
+    expect(sh.fragmentShader).toContain('getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= uCastKey;');
+    expect(sh.fragmentShader).not.toContain('reflectedLight.directDiffuse *= uCastKey');
+    expect(sh.fragmentShader).not.toContain('#include <lights_fragment_begin>');
     expect(sh.fragmentShader).toContain('totalEmissiveRadiance += uCastRim');
-    // (the hemisphere after three has read the page's ambient, the rim after the emissive map)
-    expect(sh.fragmentShader.indexOf('irradiance = PI')).toBeGreaterThan(sh.fragmentShader.indexOf('#include <lights_fragment_begin>'));
+    // (the hemisphere after three has read the page's ambient (the chunk's own lights), the rim after the emissive map)
+    expect(sh.fragmentShader.indexOf('irradiance = PI')).toBeGreaterThan(sh.fragmentShader.indexOf('getDirectionalLightInfo( directionalLight, directLight );'));
     // (over form the renderer tones it with the land; over paint the body tones itself)
     expect(sh.fragmentShader).not.toContain('castNeutral');
     const own = compiled(kit.material(castRigInput(RIG), { surface: 'paint' }));

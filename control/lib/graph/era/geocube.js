@@ -11,7 +11,11 @@
  *             the sky gives (`skyShare`, 0–1: the form render's, era/cube-light.js; left out, the look's own, raised
  *             to meet the sky the cube paints), and the cast's `rim`
  *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
- *             the reference's horizon at the cast light's own strength)
+ *             the reference's horizon at the cast light's own strength), and the night's register (`night`:
+             stylized, the night reference's deep blue, unless said; realistic, the colour drained by the dark, a pale
+             moon, near-neutral greys: era/geocube-hours.js REALISTIC_NIGHT), and the inside's `shade` (0.02–0.6: the share of
+ *             the light its shade keeps from its lamps, era/stage.js; low, black shade and lamp-lit pools, its figures lit
+ *             by its lamps where they stand)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   palette   the color theorist's spec (color-theorist/solve.js) the colours are SOLVED from: with a seed, the colours,
@@ -112,6 +116,8 @@
  *   geocubeRegisterOf(manifest)    the crease pass's terms (creases, outline) that cube's register asks for, or null
  *   geocubeEraOf(manifest)         the era (era/eras.js) of the cube a world manifest is painted by, or null
  */
+import { readTallGrass } from '../form/tall-grass.js';
+import { readFloods } from '../scene/channels/form-floods.js';
 import { validateTerrainWind } from '../vegetation/wind.js';
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { readAvoid, measureAvoid } from './geocube-laws.js';
@@ -143,7 +149,7 @@ import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
 import { grittyOf } from '../matte-paint/fabric.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
-import { hourLight, hourAir, readHour, referenceHour } from './geocube-hours.js';
+import { hourLight, hourAir, readHour, referenceHour, NIGHT_REGISTERS } from './geocube-hours.js';
 import { cubeLight } from './cube-light.js';
 import { wetOfWeather } from './wetness.js';
 import { townDressOf } from './town-dress.js';
@@ -463,7 +469,9 @@ const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 // A LEVEL LAID ON THE PLACE AS IT STANDS (gameworld/mission-site.js: a mission on a cube's building, its yard and its
 // weather): the page's own channels a level rides, each read by the world's resolve as on any kind and by nothing here;
 // and a camera that is the page's (an entity's, with a `rule`) is not a still. Absent, the kind is as it was.
-const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked']);
+// (and `figureGrade`: the grade its bodies are baked at, figures/figure-grades.js: a level played on the place asks for
+// the play grade, as every other level does; and `farFigures`: its bodies drawn coarse far off, worlds/world-scene.js)
+const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade', 'screen', 'radar', 'farFigures']);
 const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
@@ -527,7 +535,9 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade'], 'light');
+  if (c.light.night !== undefined && !NIGHT_REGISTERS.includes(c.light.night)) no(`light.night is the night's register: ${NIGHT_REGISTERS.join(' or ')} (stylized, the reference's own deep blue, unless said; realistic, the colour drained by the dark, a pale moon, near-neutral greys)`);
+  if (c.light.shade !== undefined && !(typeof c.light.shade === 'number' && c.light.shade >= 0.02 && c.light.shade <= 0.6)) no('light.shade is the share of the light the inside\'s shade keeps from its lamps, 0.02 (black shade, lamp-lit pools) to 0.6 (era/stage.js shade)');
   if (c.light.skyShare !== undefined && !(typeof c.light.skyShare === 'number' && c.light.skyShare > 0 && c.light.skyShare < 1)) no('light.skyShare is the share of its light the sky gives, between 0 and 1 (0.1 a hard sun over deep shade, 0.4 a clear noon, 0.85 an overcast sky; the form render\'s, era/cube-light.js: left out, the look\'s own, raised to meet the sky it paints)');
   if (c.light.sun !== undefined && !(isObj(c.light.sun) && Object.keys(c.light.sun).every((k) => k === 'color') && HEX.test(c.light.sun.color ?? ''))) no('light.sun is { color: \'#rrggbb\' }: the sun\'s colour (its arc and strength are the reference\'s)');
   c.light.shadows ??= SHADOWS;
@@ -750,7 +760,7 @@ function lowerInside(cube) {
     groups: { 'stage:floor': 'floor', 'stage:gutter': 'floor', 'stage:rubble': 'floor', 'stage:trim': 'trim', 'stage:motif-band': 'trim', 'stage:kick': 'trim', 'stage:skirt': 'trim', 'stage:column': 'trim', 'stage:accent': 'accent' },
     keep: ['stage:fixture', 'stage:lamp'],
   };
-  return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows,
+  return { kind: 'stage', kit: cube.inside.bones, reference: cube.light.reference, dress: false, shadows: cube.light.shadows, ...(cube.light.shade !== undefined ? { shade: cube.light.shade } : {}),
     tiles: gritty ? dressedSurfaces(cube) : { wall: cube.surfaces.wall, floor: cube.surfaces.floor, ...(cube.surfaces.pillar !== undefined ? { pillar: cube.surfaces.pillar } : {}), ...(cube.surfaces.plinth !== undefined ? { plinth: cube.surfaces.plinth } : {}) }, tone,
     rooms: [{ id: 'room', x: 0, y: 0, w, d, h, open: ['-y', '+x'] }] };
 }
@@ -1449,7 +1459,17 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'crowns', 'grass', 'hats', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart; the page's live light: shadows, occlusion, light; solid); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', 'grade', 'crowns', 'grass', 'hats', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid; the frame's grade); build a level on a cube with a stage recipe's geocube`);
+  // (a stealth land's tall grass, form/tall-grass.js: patches, each a middle and a radius)
+  // (its floodlights, a gen-7 land's: scene/channels/form-floods.js)
+  if (manifest.floods !== undefined) { try { readFloods(manifest.floods); } catch (e) { no(e.message.replace(/^floods: /, 'floods: ')); } }
+  { const F = manifest.farGrass, ok = F === undefined || F === 'lift' || (F && typeof F === 'object' && !Array.isArray(F) && F.as === 'lift' && Object.keys(F).every((k) => ['as', 'blades', 'raise'].includes(k)) && (F.blades === undefined || (Number.isFinite(F.blades) && F.blades >= 0.42 && F.blades <= 0.9)) && (F.raise === undefined || (Number.isFinite(F.raise) && F.raise >= 1 && F.raise <= 4)));
+    if (!ok) no('farGrass is \'lift\' or { as: \'lift\', blades?: 0.42 to 0.9, raise?: 1 to 4 }: one far grass, the ground raised to the grass\'s height past the reach, its colour calm (blades: the share of the reach drawn whole, where the lift begins; raise: the lift\'s height over the grass\'s mean, 1.5 unless said)'); }
+  if (manifest.farFigures !== undefined && (!manifest.farFigures || typeof manifest.farFigures !== 'object' || Array.isArray(manifest.farFigures) || Object.keys(manifest.farFigures).some((k) => k !== 'at' && k !== 'budget') || (manifest.farFigures.at !== undefined && !(Number.isFinite(manifest.farFigures.at) && manifest.farFigures.at >= 8 && manifest.farFigures.at <= 200)) || (manifest.farFigures.budget !== undefined && !(Number.isFinite(manifest.farFigures.budget) && manifest.farFigures.budget >= 500 && manifest.farFigures.budget <= 20000)))) no('farFigures is { at?: 8 to 200 m (24), budget?: 500 to 20000 triangles (4000) }: each body no player pilots drawn coarse past `at` metres from the eye');
+  if (manifest.radar !== undefined && (!manifest.radar || typeof manifest.radar !== 'object' || Array.isArray(manifest.radar) || Object.keys(manifest.radar).some((k) => k !== 'map') || (manifest.radar.map !== undefined && !['plan', 'topo'].includes(manifest.radar.map)))) no('radar is { map?: \'plan\' | \'topo\' }: the map under a level\'s radar, its plan alone or with the land\'s contours and its trail');
+  if (manifest.density !== undefined && !(typeof manifest.density === 'number' && manifest.density >= 0.75 && manifest.density <= 2)) no('density is the page\'s pixel density at most, 0.75 to 2 (its pixel budget\'s cap, 1.5 unless said): 1 draws a full window at the screen\'s own pixels on a high-DPI one');
+  if (manifest.parallax !== undefined && typeof manifest.parallax !== 'boolean' && manifest.parallax !== 'cliffs') no('parallax is true (the ground\'s height marched near the eye, the default), false (its layers\' maps alone and its cliffs plain: a lean ground, the cheapest frame) or \'cliffs\' (the ground lean, its cliffs\' relief kept at a coarser cut)');
+  if (manifest.tallGrass !== undefined && !readTallGrass(manifest.tallGrass)) no('tallGrass is { patches: [{ at: [x, y], r?, h? }], elsewhere?: \'none\' | \'grass\' | \'paint\' | \'meadow\' }: grass in tight clumps where a body may hide, none elsewhere (or the land\'s own grass thinned, its colour painted on the ground, or its meadow never tall)');
   // (`camera`: the still it is first seen from, STILLS: a camera glyph's, gameworld/glyph-words.js)
   if (manifest.camera !== undefined && !pageCamera(manifest.camera) && !STILLS.includes(manifest.camera)) no(`camera is the still it is first seen from: ${STILLS.join(', ')}`);
   // (`words`, and its `brief`: the words a scene was asked in and what each decided, written at authoring time into the

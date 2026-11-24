@@ -239,8 +239,13 @@ Pointers only; each target carries its own design notes.
   `scene/engines/`. The visual gate (`scene/visual-gate.js`, `scripts/visual-gate.mjs`) renders a level's cameras on the
   page and in each engine installed and scores each shot. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` /
   `MOJULO_UNREAL` / `MOJULO_UNITY`; CI's `godot` job runs Godot's legs (the handoff, a humanoid's import, the visual
-  gate's) on a pinned Godot; the others run locally. No engine runs a game: the game runtimes (Godot's, Roblox's,
-  Unity's) are retired, and the web build is the game.
+  gate's) on a pinned Godot; the others run locally. No outside engine runs a game: the game runtimes (Godot's,
+  Roblox's, Unity's) are retired, and the web build, on mojulo's own runtime, is the game.
+- The play runtime (mojulo's own engine, every game's: the world step and collision, the character controllers and the
+  one jump every feel template tunes, the event bus the mechanics lower onto, navigation, mana-ui, three.js drawing; one
+  source for Node and the page, `worlds/controllable/compose.js`), what sits on top, where an agent extends it and its
+  gaps today: [docs/runtime.md](docs/runtime.md). "Mojulo ships a lightweight game engine": unnamed on purpose (a part
+  is named by what it is; the whole is mojulo), not a fidelity rival and not general-purpose.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
@@ -346,8 +351,13 @@ Pointers only; each target carries its own design notes.
   [arena-map/](control/lib/graph/arena-map/), [docs/arena-maps.md](docs/arena-maps.md). The damage ring (where a hit came from, round the aim) is its own concept,
   `gameworld/damage-ring.js`: a mission draws it on mana-ui, a quick shooter's level and a deathmatch through the page's
   damage ring channel.
-- The game producer: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (a new game type is a row first),
-  [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js), [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js).
+- The rails and the producer's loop: [gameworld/rails.js](control/lib/graph/gameworld/rails.js) (one row a game type,
+  naming into the feel templates, genre cubes, quick goals and pixelizer games that measure it; the size call; the shape
+  and a rail's sheet, served by id as `gameworld-rails` and `gameworld-rail-<id>`; the pitch, a gameworld's `rail`),
+  the producer's steps and its one question in [gameworld/goalposts.js](control/lib/graph/gameworld/goalposts.js), a
+  locked pitch stored on its rail's starter level by [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js),
+  and the first unit proposed to the director by [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js):
+  [docs/zero-to-level-one.md](docs/zero-to-level-one.md).
 - The exhibit producer: [exhibit/producer.js](control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
   [exhibit/scales.js](control/lib/graph/exhibit/scales.js), [exhibit/fit.js](control/lib/graph/exhibit/fit.js),
   [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
@@ -370,6 +380,19 @@ Pointers only; each target carries its own design notes.
 - Walled-core dungeons: [docs/walled-core-dungeon.md](docs/walled-core-dungeon.md) (layers on a critical path toward a
   core, a `design_game` world's `wcd`; its principles as laws; a space builds its level; a military base's buildings,
   stocked by `era/stocking.js`).
+- Facility pieces (a building designed to move through, not hallways and boxes): a room's floor laid in a figure,
+  [era/room-layouts.js](control/lib/graph/era/room-layouts.js) (aisles, machines, islands, stockpile, chicane, rows, each
+  held to its laws; a program's `layouts`, a new figure a row), and a facility, [era/facilities.js](control/lib/graph/era/facilities.js)
+  (a use, its fighting dials, its layouts and its materials, named by a level's building or a WCD space; a new one a
+  row); a core building laid larger for a third-person camera, `scale` (`era/program-core.js`, the `hall` stair); its
+  crawl spaces, `vents` (`era/vents.js`); its glass and mesh, seen through and never walked through (`era/inner-windows.js`,
+  the `cage` layout, `worlds/controllable/barrier.js`); their
+  maps in the game book, `/bible?book=facilities` ([gameworld/facility-maps.js](control/lib/graph/gameworld/facility-maps.js)):
+  [docs/facility-pieces.md](docs/facility-pieces.md).
+- Offshore rigs (a stealth level of open decks over the sea, the facility's other pole): [offshore/](control/lib/graph/offshore/)
+  (three tiles, floor, rail and pillar, a row each in `tiles.js`, and the modules on them; a deck a map of glyphs, its
+  rails and columns found, `plan.js`; its laws, `laws.js`; built over the sea, `build.js`; a new rig a row of `rigs.js`;
+  drawn in the facility maps book): [docs/offshore-rigs.md](docs/offshore-rigs.md).
 - Room craft: [era/room-craft.js](control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is
   asked, each with its reason and how different places answer it; a new interior answers the questions, never copies
   another kit's things; `readRoomCraft` says which a kit's card answers; the agent's card: `room-craft`).
@@ -390,6 +413,13 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
+  measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
+  and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
+  mines, `mines.js`), seen by `scene/channels/controllable/boss-view.js`: [docs/boss-fights.md](docs/boss-fights.md).
+- Worker bots: [workbots/](control/lib/graph/workbots/) (a toy world's worker bots in their own low-poly language: a
+  few big primitives in toy colours by role, a face of two lit eyes and a mouth; a bot is a card, stood as a rig figure
+  by a figures-map `workbot`; level 0's boss Bulwark is one).
 - Fight levels (Mojulo Fighter, internal name versus): a fight is laid on any level by its LANE
   ([versus/versus-lane.js](control/lib/graph/versus/versus-lane.js): where it runs, its walls, its floor, the camera's
   room); [versus/versus-levels.js](control/lib/graph/versus/versus-levels.js) turns each kind of level into a world
@@ -437,7 +467,14 @@ Pointers only; each target carries its own design notes.
 - Game sounds: [sfx-shelf/](control/lib/graph/sfx-shelf/) (the SFX library: one row per sound under the words people
   say, voiced by style, the palettes frozen behind it; recipes, never samples: cues, held voices, and families that
   build them from dials, a variation a dial point; measured on `measure.js`'s yardstick and held to `register.js`; a new
-  sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md).
+  sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md). The one opt-in exception:
+  the recorded sound library ([sound-library/](control/lib/graph/sound-library/), installed per machine, never in the
+  package) voices the realistic one-shots it records, each falling back to its synthesized voice:
+  [docs/sound-library.md](docs/sound-library.md). Kits pick a thing's sounds by its axes (a new value is a row): a mobile
+  suit's (`sfx-shelf/suit-sounds.js`: weight, drive, loadout) and magic's (`sfx-shelf/magic-sounds.js`: each element by
+  phase and tier, statuses, spells, a battle's moments, the world's effects) and the animals' (`sfx-shelf/animal-sounds.js`:
+  each species to a voice class by its family, order or name, each class's call, alert, hurt and death), their variants
+  recorded rows heard as a `standIn` (or silent) without the library.
 - Underwater: [scene/channels/sea.js](control/lib/graph/scene/channels/sea.js) (a geocube's `sea`: its land put under
   water by light alone on a gen-7 page, the air's sibling on three's fog chunk; waters and depth zones are rows, a zone
   says what the read stands on; lamps where the sun does not reach) and what grows on the bed,

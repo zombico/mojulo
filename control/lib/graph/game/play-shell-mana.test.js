@@ -43,11 +43,11 @@ describe('the play shell\'s screens in mana-ui', () => {
   });
 
   it('a game over in mana-ui: its screen drawn only for a game that has one, continue and quit to title', () => {
-    const S = shellManaSpec({ theme: 'classic-rpg' }, { gameOver: true });
+    const S = shellManaSpec({ theme: 'grim' }, { gameOver: true });
     expect(S.screens.gameover).toBeTruthy();
     expect(JSON.stringify(S.screens.gameover)).toContain('"emit":"continue"');
     expect(JSON.stringify(S.screens.gameover)).toContain('"emit":"home"');
-    expect(shellManaSpec({ theme: 'classic-rpg' }).screens.gameover).toBeUndefined();
+    expect(shellManaSpec({ theme: 'grim' }).screens.gameover).toBeUndefined();
   });
 
   it('a name asked as a game begins: the keyboard on its own screen, typed in, kept in the save by rename, then the level', async () => {

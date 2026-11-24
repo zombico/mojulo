@@ -282,6 +282,17 @@ wherever there is text to read. Every theme keeps these rules on its own; no wor
 Display words may still perform: a title can echo huge and hollow behind itself, break out of its box, lean all the way
 and slam in. A menu's rows, labels, values and buttons stay plain.
 
+**A title that enters letter by letter.** A text's `letters` (`rise`, `slam`, `wipe`, `track`; `none` the default)
+draws its words a span a letter, each numbered so it enters after the one before, the whole read aloud as one word
+(`aria-label`). The entrance runs on the theme's motion (its stagger, travel, pop, duration and ease), so a look with no
+motion shows the words at once, and a calm reader (reduced motion, `data-motion=reduced`) sees them fade. Its sheet is
+`lettersCss`, kept apart from the main sheet: only a surface that draws letters lays it (the play shell's title and
+attract screens, the board), so no other page changes. A look says how its title enters with the theme word `title`
+(`still | rise | slam | wipe | track`); a look that says none is read without it and its title rises (`titleLetters`).
+The title screen's `bare` draws its menu as words with no window behind, for a start screen whose picture is its own
+stage (the play shell's front stage, `game/front-stage-page.js`, where the stage draws the name behind its subjects and
+mana-ui draws the menu).
+
 ### Theme cards: a look is data
 
 A new look is a card, not code: one JSON file on the shelf (`control/lib/graph/playscape/ui/theme-cards/`), the way a
@@ -522,8 +533,8 @@ every one. A theme's `cues` word says it for a game, and `manaUiPage` hands it t
 the way it went (`way`), a stepper's the step it took (`step`).
 
 **The sound library** (`control/lib/graph/beats/ui-sounds.js`) is what a page plays: beats-sfx gestures (the beats
-tool's own, nothing new in its kernel), in ten sets: `glass`, `console`, `chip`, `terminal`, `paper`, `party`, and the
-heavy ones, `hydraulic` (servos, pneumatic hiss, clamps landing), `clack` (hardwood blocks, a clapper's double clack on
+tool's own, nothing new in its kernel), in sets (`UI_SOUND_SETS`): `glass`, `console`, `chip`, `terminal`, `paper`,
+`party`, `robot` (a cheerful little machine's chirps), and the heavy ones, `hydraulic` (servos, pneumatic hiss, clamps landing), `clack` (hardwood blocks, a clapper's double clack on
 confirm, for serious games), `crypt` (stone, iron and a toll, a dungeon door that creaks open and slams shut, for grim
 and souls-like games) and `jackpot` (coin clinks counting, a brass stab on confirm, a riser into a boom, a fanfare and a
 shower of coins on a rare one). Every set is built from one interval plan over its root, so the sets differ in timbre
@@ -544,7 +555,9 @@ cancel falls, the cursor stays quiet):
 | `vanish`, `shuffle` | the tick falling, softer; a breath and a run of quick clicks |
 
 The sets are level-matched on confirm (measured on their rendered reels), and within a set what is pressed most is
-heard least; a heavy set's big moments are let past confirm on purpose (the crypt's door, the jackpot's jackpot). A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets
+heard least; a heavy set's big moments are let past confirm on purpose (the crypt's door, the jackpot's jackpot).
+Where the recorded sound library is installed, a set's cues it records play the recordings over the set's own
+gestures, on every page that plays the set ([sound-library.md](sound-library.md): a card's `ui` cues on its `uiSets`). A game's key transposes the pitched gestures (`tonic`). A theme's `sounds` word picks the set (the presets
 each name one); `uiSoundAudio()` hands a page the beats kernel (only the features the sets need), the sets and the cue
 picker, as `manaUiPage(spec, { audio })` or `manaUiBoard({ audio })` (this folder imports nothing outside itself, so
 it is handed in). Each set is also a beats-sfx recipe (`uiSoundManifest`) that `create_beats` mints and the beats
@@ -654,7 +667,11 @@ not whether a principle holds.
    belongs to the pause, the map and the briefing (`objective-order`).
 10. **The map is an instrument.** A radar is round and centred on the player, with ahead at the top, so it turns as
     the player turns. It has a bezel of ticks, the wedge the player sees, north riding the bezel, and a face that fades
-    into the world. It is never a picture in a square frame (`minimap` `scope`, `north`; `radar-scope`).
+    into the world. It is never a picture in a square frame (`minimap` `scope`, `north`; `radar-scope`). A game may
+    ask for its scope square and larger, a tactical espionage radar's, still centred, turning and translucent; and
+    for one floor's alone: the plan and the guards of the floor or deck the player stands on, a level of storeys
+    read one at a time. The world's `ui.radar: { shape: 'square', size: 'large', floor: true }` (game/hud-mana.js
+    `RADAR_LOOK`; the plan of a floor, gameworld/radar.js `floorPlanSvg`).
 11. **Harm says where it came from.** A hit marks an arc of a ring round the aim at the attacker's bearing. The arc
     tapers at its ends, fades as it ages, and follows the attacker while it stands (`threat`, a mark's `fade`).
 12. **Geometry carries the genre.** Cut corners, a lean shared by bars and belts, tick marks, a mark before an order,
@@ -1097,6 +1114,36 @@ given to the arena's block beside its client, which asks whether it was given on
 - The cursor is the `board` scheme's, over the cells projected as the camera shows them now (the camera turns to the
   seat to play), drawn as a ring on the cell.
 - Its sheet and theme are scoped to its own root (`#mana-holo`); the theme sets no cover and no veil.
+
+### The side map's HUD
+
+A side map level (`gameworld/side-map/level.js`) of a game with a `ui` is given a HUD of its own
+(`gameworld/side-map/hud.js`), hosted by the level page's HUD host on its `sidemap` feed, in the game's look (Galaxy
+Boy's is the `galaxy` card: navy plates, a square edge, energy in yellow ticks, a boss's in red, a monospace face in
+capitals). It is read as the 8-bit action platformers read, and nothing else is over the play:
+
+- The hero's energy is a column of fine ticks at the top left, filling from the foot (the lives mechanic's `energy`: a
+  hit takes ticks, a life goes when they run out). A level with no energy draws its lives there, one block a life.
+- A special weapon's energy is a column beside it, in the weapon's tint, while the hero holds a gun with energy of its
+  own (`energyMax`). The buster has none, so the column waits for the special weapons.
+- The boss's column stands at the opposite corner, top right, once the boss is awake and near, and is gone a moment
+  after it falls. Its name is said across the top as it comes in.
+- READY flashes in the middle as the level starts and after a life is lost, the lives left under it. The keys are key
+  caps along the foot for the first seconds.
+- It puts away the level's own rows (the energy, the lives chip, the boss's bar), the radar and the melee ring: a side
+  scroller reads its foes on the screen.
+
+Its screens are the HUD's own, opened by its host over the held level: `window.__mojMenuOpen` and `__mojFreeze` set, as
+a level's own menus hold it, and a `.moj-menu-hud` marker so the shell's Esc menu is not asked for over them. The keys
+and the pad drive them through the controls host (`controls/mana-host.js`), which leaves every key to play while no
+screen is up.
+
+- `intro`, a world's intro card as the level starts (`press: any`): the boss's name in its hue (`--sm-hue`), its world,
+  its tell and what it gives; any button or three seconds, then READY.
+- `menu`, the start menu on the menu key (`MENU_KEY`, Enter): the weapons from the pilot's loadout in order, the slots
+  not yet won locked; accept equips. Back resumes.
+- `over`, GAME OVER where the level lets the player continue (the lives mechanic's `continues`). Continue and Give up
+  raise `continue` and `giveup` on the level's bus; back does not leave it.
 
 ### The open city
 

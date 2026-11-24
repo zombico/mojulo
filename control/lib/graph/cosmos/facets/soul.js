@@ -49,13 +49,13 @@ export const SOUL = Object.freeze({
     },
     // proportions and a vibe are baked into the figure and its clips; gear rides it
     cast: { source: { module: 'lib/graph/polygonizer/figure-cast.js', table: 'CAST_PRESETS' } },
-    // built 11-01 (the body rails, gameworld/game-bodies.js): the kind of body a game puts in it, hero and henchman
+    // built 11-01 (the body rails, gameworld/game-bodies.js; 11-17 the toy hero robot's): the kind of body a game puts in it, hero and henchman
     // alike, by its type (characters.direction.body, a quick game's body), each in the styles its tradition draws. A
     // game's figures are baked at the play grade and cut to their pose twin on a close shot (figures/figure-grades.js)
     body: {
       source: {
         module: 'lib/graph/gameworld/game-bodies.js', table: 'GAME_BODIES',
-        since: { comic: '2026-11-01', realistic: '2026-11-01', muscular: '2026-11-01', mascot: '2026-11-01' },
+        since: { comic: '2026-11-01', realistic: '2026-11-01', muscular: '2026-11-01', mascot: '2026-11-01', herobot: '2026-11-17' },
       },
     },
     vibe: { source: { module: 'lib/graph/gameworld/hero-vibe.js', table: 'VIBES' } },

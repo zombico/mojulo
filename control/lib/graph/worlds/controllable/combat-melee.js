@@ -160,6 +160,8 @@ export function buildCombatMelee(E) {
       // consumes THIS swing outright (no further targets this swing).
       // (`rule.clash: false` on either body: its blades never lock: the swing lands as a hit, a game whose foes are cut
       // down, never crossed with)
+      // (a hero whose blows CLANG, `rule.clang`: blades that meet only ring, either's swing going on; never a lock)
+      if (tg.swingT != null && tg.strikeParams && tg.staggerT == null && ((e.rule && e.rule.clang) || (tg.rule && tg.rule.clang))) { out.push({ tg, kind: 'clang', v, flat }); continue; }
       if (tg.swingT != null && tg.strikeParams && tg.staggerT == null && !(e.rule && e.rule.clash === false) && !(tg.rule && tg.rule.clash === false)) { out.push({ tg, kind: 'clash', v, flat }); break; }
       out.push({ tg, kind: 'hit', v, flat });
     }
@@ -173,6 +175,12 @@ export function buildCombatMelee(E) {
         e.struckThisSwing[tg.id] = true;
         if (Number.isFinite(tg.poise) && tg.staggerT == null) armReaction(tg, 'stagger');
         continue;
+      }
+      if (kind === 'clang') {
+        // (met blades ring: a spark at the cross, nothing stopped, and the blow LANDS as a hit, below: a foe mid-swing is
+        // not defending. One that is, its guard up, blocks with the clang: guardMeets, never a parry)
+        const ux = -v[0] / flat, uy = -v[1] / flat, lr = latR(tg);
+        state.clashes.push({ seq: state.clashSeq++, pos: [tg.transform.pos[0] + ux * lr, tg.transform.pos[1] + uy * lr, hullZ(tg)], dir: [ux, uy], t: state.time, fxColor: 0xcfe8ff, fxScale: 2.5, n: 16 });
       }
       if (kind === 'clash') {
         e.struckThisSwing[tg.id] = true;
@@ -507,7 +515,8 @@ export function buildCombatMelee(E) {
     const can = e.swingT == null && !ctx.dodging && e.staggerT == null && e.grounded !== false && !(e.weapon && e.weapon.charging) && !(St && e.guardSt <= 0 && !e.guarding);
     const want = !!input.guard;
     if (want && !e.guarding && can) { e.guarding = true; e.guardAt = now; }
-    else if (e.guarding && e.blockT <= 0 && (!want || !can)) e.guarding = false;
+    // (`blockT` is unset until the guard first blocks: a guard never struck still comes down when let go)
+    else if (e.guarding && !(e.blockT > 0) && (!want || !can)) e.guarding = false;
   }
   // a blow (attacker A's swing, `v` from A to the guard's body) meets the guard `tg`: 'parry', 'block', or null (it lands)
   function guardMeets(tg, A, v, flat, state) {
@@ -516,7 +525,8 @@ export function buildCombatMelee(E) {
     const f = fwdXY(tg.transform.heading), ux = -v[0] / flat, uy = -v[1] / flat;
     if (f[0] * ux + f[1] * uy <= 0) return null;   // (from behind: it lands)
     const lr = latR(tg), at = [tg.transform.pos[0] + ux * lr, tg.transform.pos[1] + uy * lr, hullZ(tg)];
-    const parry = G.parry == null || state.time - (tg.guardAt ?? -1e9) <= G.parry + 1e-9;
+    // (a hero whose blows clang, `rule.clang`, is never parried: the guard only blocks, its string going on)
+    const parry = !(A.rule && A.rule.clang) && (G.parry == null || state.time - (tg.guardAt ?? -1e9) <= G.parry + 1e-9);
     tg.guardSeq = (tg.guardSeq || 0) + 1;
     if (parry) {
       // PARRIED: the attacker's swing spent, it staggered open for the riposte; the guard free at once
@@ -719,8 +729,13 @@ export function buildCombatMelee(E) {
         // body ahead nearer than that, it plays in place: its `_still` clip, no travel), so the feet its clip plants
         // stay planted on the floor; a figure with the move's own clips plays them, any other its swing's
         const room = mv.travel ? mvRoom(e, world, fwdXY(t.heading)) : Infinity, travels = !!mv.travel && (mv.travel.kind === 'dash' || room >= mv.travel.m - 1e-9);   // (a dash glides in, closing on what is ahead)
-        e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : mv.clip) : spec.clip;
-        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), ...(mv.reach ? { reach: mv.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0, ...(mv.slam ? { slam: mv.slam } : {}) };
+        // (a PLANT chained into from another plant while its feet are still more split than not, before the middle of
+        // their drawing back, begins split: its `_on` clip, so the feet hold their split from cut to cut; the closing
+        // runs from the blow's end to hero-swing-body.js PLANT.end, 0.94, here its own copy)
+        const was = M.moves[S.move], c1 = was ? (was.contact ?? r.strikeContact ?? [0, 0.6])[1] : 0;
+        const onPlant = !!(mv.plant && was && was.plant && e.swingT != null && e.swingT <= (c1 + Math.max(c1 + 0.05, 0.94)) / 2);
+        e.swingT = 0; e.swingClip = r.moveClips && mv.clip ? (mv.travel && !travels ? `${mv.clip}_still` : onPlant ? `${mv.clip}_on` : mv.clip) : spec.clip;
+        e.strikeParams = { ...spec.params, ...(Wc && Wc.reach != null ? { reach: Wc.reach } : {}), ...(mv.reach ? { reach: mv.reach } : {}), damage: (r.strikeDamage ?? 0) * (Wc && Wc.damage != null ? Wc.damage : 1) * (mv.damage ?? 1), ...(mv.impact != null ? { impact: mv.impact } : {}), topple: !!mv.topple, launch: mv.launch ?? 0, ...(mv.slam ? { slam: mv.slam } : {}), ...(mv.knock ? { knock: mv.knock } : {}) };
         // (an air move's KICK, the air's stickiness: the climb or the fall stopped, the hero lifted a little as it begins, the
         // hang holding it there beside the foe it struck)
         if (mv.air && M.air && !e.grounded) e.vel[2] = M.air.kick;

@@ -54,6 +54,13 @@ describe('the JRPG starter\'s town on the page', () => {
     // stand the pilot at a zone, and press the interact key (held a frame: the runtime reads it once a frame); stood a
     // little over the feet of the one it talks to and let fall, so on ground higher than where it was it lands on it
     // rather than inside it (a teleport the walk never makes: walking, the pilot follows the ground)
+    // (a wait counted in the page's frames, not in seconds: the runtime steps once a frame, and a runner drawing a heavy
+    // town in software under load draws a frame a second or slower, so a wait in seconds fails on a slow runner)
+    const withinFrames = (fn, n, arg) => page.evaluate((src, k, a) => new Promise((ok, no) => {
+      const f = new Function(`return (${src})`)(); let i = 0;
+      const tick = () => { let v = false; try { v = f(a); } catch { /* not yet */ } if (v) ok(true); else if (++i > k) no(new Error(`not within ${k} frames`)); else requestAnimationFrame(tick); };
+      tick();
+    }), fn.toString(), n, arg);
     const useAt = async (at, id, who) => {
       // (a spot in its reach and clear of every door's zone, with room to spare: standing on one walks in through it)
       const clear = ([x, y]) => doors.every((d) => Math.abs(x - d.at[0]) > d.half[0] + 1 || Math.abs(y - d.at[1]) > d.half[1] + 1);
@@ -61,11 +68,11 @@ describe('the JRPG starter\'s town on the page', () => {
       for (const r of [0.9, 1.2, 0.6]) for (let k = 0; k < 16; k++) spots.push([at[0] + r * Math.cos((k * Math.PI) / 8), at[1] + r * Math.sin((k * Math.PI) / 8)]);
       const spot = spots.find(clear) ?? spots[0];
       await page.evaluate((a, w) => { const W = window.__mojCtrl.world, me = W.byId[W.pilotId], f = w && W.byId[w]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; if (f) { me.transform.pos[2] = f.transform.pos[2] + 0.4; if (me.vel) me.vel[2] = 0; } }, spot, who ?? null);
-      await page.waitForFunction((z) => window.__mojReach === z, { timeout: 15000 }, id);
+      await withinFrames((z) => window.__mojReach === z, 60, id);
       // (E held until the bus says the cue fired: the runtime reads it once a frame, and software GL under a heavy town
       // draws a frame a second or slower, so a fixed hold can fall between two frames)
       await page.keyboard.down('KeyE');
-      try { await page.waitForFunction((t) => (window.__mojBus.state.log || []).some((x) => x && x.type === t), { timeout: 30000 }, id.replace(/^cue-/, 'cue:')); }
+      try { await withinFrames((t) => (window.__mojBus.state.log || []).some((x) => x && x.type === t), 60, id.replace(/^cue-/, 'cue:')); }
       finally { await page.keyboard.up('KeyE'); }
     };
     try {
@@ -127,5 +134,5 @@ describe('the JRPG starter\'s town on the page', () => {
       await page.keyboard.down('Enter'); await nap(300); await page.keyboard.up('Enter');
       await page.waitForFunction(() => (window.__mojBus.state.log || []).some((x) => x && x.type === 'goal:reached:save'), { timeout: 15000 });
     } finally { await page.close(); }
-  }, 480000);
+  }, 600000);
 });

@@ -16,6 +16,13 @@ import { safeJson } from '../../emit-util.js';
 // the long-shadow tell that ties the actors into the keyed stage. Mesh-body entities (target
 // spheres, props) join the pass under a key; without one the template interpolates the original
 // suits-only strings, so every existing shadow world's emitted bytes are untouched.
+//
+// AT THE FEET (`feet: true`, a body that casts no live shadow on a page that must stay cheap): no down-probe (a ray through
+// the whole scene a body a frame); the blob sits at the body's own feet, a few centimetres up, where its runtime already
+// stood it. Without it, the probe's strings as they were.
+//
+// THE OTHERS (`others: true`, a page whose pilot alone casts a live shadow, shadows.actors 'pilot'): every body but the
+// pilot. Without it, every body as it was.
 export function suitShadowBlock(cfg) {
   return `
 // --- suit contact shadows (opt-in world 'shadows') ---
@@ -70,24 +77,24 @@ function __shProbe(own, x, y, from) {   // nearest non-entity surface straight b
 }
 function __updateSuitShadows() {
   for (const id in __suitShadows) if (!__bodies[id]) __suitShadows[id].m.visible = false;   // despawned seat → blob off
-  const own = __bodySet();
-  for (const e of __world.entities) {
+  ${cfg.feet ? '' : 'const own = __bodySet();\n  '}for (const e of __world.entities) {
     const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig;
     ${cfg.key
     ? `if (!rf && !(e.body && e.body.type === 'mesh' && e.body.hittable)) continue;   // under a key: suits + hittable mesh props`
     : `if (!rf) continue;   // blobs are a SUIT dressing — rig-figure bodies only`}
-    if (e.gone) { const gs = __suitShadows[e.id]; if (gs) gs.m.visible = false; continue; }   // vanished wreck casts no blob
+    if (e.gone) { const gs = __suitShadows[e.id]; if (gs) gs.m.visible = false; continue; }   // vanished wreck casts no blob${cfg.others ? `
+    if (e.id === __world.pilotId) { const ps = __suitShadows[e.id]; if (ps) ps.m.visible = false; continue; }   // (the pilot casts its own: shadows.actors 'pilot')` : ''}
     const s = __shadowFor(e.id), p = e.transform.pos;
-    const zc = __shProbe(own, p[0], p[1], p[2] + 2);   // one probe: seat height + the altitude fade
+    ${cfg.feet ? 'const zc = p[2];   // at the feet: where the runtime stood the body' : 'const zc = __shProbe(own, p[0], p[1], p[2] + 2);   // one probe: seat height + the altitude fade'}
     const k = zc == null ? 0 : 1 - Math.max(0, p[2] - zc) / __SH.fade;
     if (k <= 0) { s.m.visible = false; continue; }   // airborne beyond the fade (or over void) → no blob
     ${cfg.key ? `const rb = rf ? __SH.r : Math.max(4, (e.body.radius || __SH.r) * 0.9);
     const r = rb * (0.62 + 0.38 * k);   // contact = full pool; high = tight faint disc
     const off = Math.min((p[2] - zc > 0 ? p[2] - zc : 0) * __SH.key.stretch, __SH.fade);   // airborne: the shadow slides downlight
     const L = r * (1 + __SH.key.stretch * 0.35);   // the low-sun ellipse, anchored at the feet (stylized-short, not 1/tan-physical)
-    s.m.position.set(p[0] + __SH.key.dir[0] * ((L - r) * 0.5 + off), p[1] + __SH.key.dir[1] * ((L - r) * 0.5 + off), zc + 0.4);
+    s.m.position.set(p[0] + __SH.key.dir[0] * ((L - r) * 0.5 + off), p[1] + __SH.key.dir[1] * ((L - r) * 0.5 + off), zc + ${cfg.feet ? '0.04' : '0.4'});
     s.m.rotation.z = __SH.key.rot;
-    s.m.scale.set(L, r, 1);` : `s.m.position.set(p[0], p[1], zc + 0.4);
+    s.m.scale.set(L, r, 1);` : `s.m.position.set(p[0], p[1], zc + ${cfg.feet ? '0.04' : '0.4'});
     const r = __SH.r * (0.62 + 0.38 * k);   // contact = full pool; high = tight faint disc
     s.m.scale.set(r, r, 1);`}
     s.m.material.opacity = __SH.alpha * k;

@@ -27,6 +27,37 @@ describe('the ground\'s parallax kinds', () => {
     expect(page).toContain('uStoneBase * tone');
   });
 
+  it('draws a trail\'s rubble as its pebbles only where its dress says so, in clusters over its share', () => {
+    expect(formLandScript(land)).not.toContain('roadP');
+    const page = formLandScript({ ...land, dress: { pebbles: 0.35 } });
+    expect(page).toContain('+ roadP');
+    expect(page).toContain('smoothstep( 0.590, 0.710,');
+  });
+
+  it('a lean ground marches no height and lays its kinds on the trail alone; a full one as it was', () => {
+    const full = formLandScript(land), lean = formLandScript({ ...land, parallax: false });
+    expect(full).not.toContain('false && ');
+    expect((lean.match(/if \( false && /g) || []).length).toBe(5);
+    expect(lean).toContain('bare = 0.0; fines = 0.0;');
+    expect(lean).toContain('float wK2 = 0.0,');
+  });
+
+  it('a lean ground that keeps its cliffs (parallax \'cliffs\') cuts their relief coarser; any other land the full cut', () => {
+    expect(formLandScript(land)).toContain(', NS = 6;');
+    expect(formLandScript({ ...land, parallax: false, reliefCut: 3 })).toContain(', NS = 3;');
+    expect(formLandScript({ ...land, reliefCut: 9 })).toContain(', NS = 6;');   // (out of its range: the full cut)
+    // (and the rock's own march kept: one condition of the lean ground's five lifted)
+    const rock = formLandScript({ ...land, parallax: false, reliefCut: 3, rockParallax: true });
+    expect((rock.match(/if \( false && /g) || []).length).toBe(4);
+    expect(rock).not.toContain('float wK2 = 0.0,');                       // (its plates over the rock, as a full ground's)
+    expect(rock).toContain('bare = 0.0; fines = 0.0;');                  // (the open ground's kinds still the trail's alone)
+  });
+
+  it('draws the tall grass\'s stand only on a land that has it', () => {
+    expect(formLandScript(land)).not.toContain("T.kind === 'stand'");
+    expect(formLandScript({ ...land, grass: { stand: { scale: 2 } } })).toContain("T.kind === 'stand'");
+  });
+
   it('carries the view cone before its grass, the reach fixed only when the world fixes it', () => {
     const page = formLandScript(land), cone = page.indexOf('window.__mojCone = K;');
     expect(cone).toBeGreaterThan(-1);

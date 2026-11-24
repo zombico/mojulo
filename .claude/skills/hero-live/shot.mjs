@@ -10,7 +10,8 @@
 //            hold?: { morph: w }, relief?: the normal map's strength (1 as shipped; 0 off, more to read it); parallax?: the
 //            depth map's (the same), look?: { bone, from?: [x, y, z], dist?, fov?, off?: [x, y, z] } (a closeup on a bone's
 //            head as posed, `off` metres from it in the world: foreArmR the elbow) | { az, el, dist, at, fov } (a free camera:
-//            az degrees round from the front, el up), wire?: bool, bones?: bool, clay?: bool (the form alone, one grey) }; default, per variant, the first take at
+//            az degrees round from the front, el up), wire?: bool, bones?: bool, clay?: bool (the form alone, one grey), rest?: bool (the bind
+//            pose, every action stopped) }; default, per variant, the first take at
 //            mid-phase, face and full body
 //   --cols   frames per row of the sheet (default 4)
 //
@@ -66,6 +67,8 @@ try {
       H.seek(S.phase ?? 0.5);
       if (S.hold) H.hold(S.hold); else H.release();
       // (a bone's closeup once the pose is set: it frames the bone as posed)
+      // (`rest`: the bind pose, every action stopped: what the mesh is before any clip moves it)
+      if (S.rest) H.rest();
       if (S.look?.bone) H.look(S.look);
       const s = H.state(); return `${S.label ? `${S.label} · ` : ''}${s.variant} · ${s.take} · ${s.view.startsWith('v') ? s.view.slice(1) : s.view} · ${s.phase.toFixed(2)}${S.hold ? ' · held' : ''}`;
     }, S);

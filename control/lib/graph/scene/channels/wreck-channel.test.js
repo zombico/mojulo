@@ -48,6 +48,11 @@ describe('a dismantle cuts the joints', () => {
   it('a rig with no parents given joins each bone to the bone nearest its head', () => {
     expect(wreckGroups(bones, null, { sever: 'head' }).groups.length).toBe(2);
   });
+  it('a rig drawn by parts (bones with no tail, a worker bot\'s) breaks at every joint, each bone its own piece', () => {
+    const parts = [{ id: 'root', head: [0, 0, 0] }, { id: 'head', head: [0, 0.1, 2.3] }, { id: 'armL', head: [0.8, 0, 1.6] }, { id: 'armR', head: [-0.8, 0, 1.6] }];
+    expect(wreckGroups(parts, null, { sever: 'all' }).groups).toHaveLength(4);
+    expect(wreckGroups(parts, null, { sever: 'head' }).groups).toHaveLength(2);
+  });
 });
 
 describe('a cleave cuts by part', () => {

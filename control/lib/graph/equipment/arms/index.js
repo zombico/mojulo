@@ -1,12 +1,12 @@
 // equipment/arms — modern and future arms as equipment: pistols (service, compact, heavy, revolver), the carbine, rifles
-// (assault, marksman, bullpup), the submachine gun, shotguns (pump, tactical) and knives (combat, tanto, dagger,
+// (assault, marksman, bullpup), the submachine gun, shotguns (pump, tactical), the grenade launcher and knives (combat, tanto, dagger,
 // karambit; and the near line's smart pistol, pdw, caseless rifle, coilgun and breacher), each in the modern, the future
 // or the near line and a finish card, its parts tunable by word. Built by the laws in
 // laws.js for the seventh-generation look: side outlines pushed through their widths, every edge chamfered to catch
 // the key, materials told apart by how they reflect, the bore one line, detail in three tiers.
 //
 //   build: { type: 'equipment', item, model?, line?, style?, parts?, dials?: { stylize, mass }, laws? }
-//     item    pistol | carbine | shotgun | rifle | smg | knife
+//     item    pistol | carbine | shotgun | rifle | smg | launcher | knife
 //     model   the archetype (models.js ARM_MODELS); absent → the item's default
 //     line    'modern' | 'future' | 'near' (law 9: futuristic, styled real); absent → the finish card's, else the model's
 //     style   a finish (finishes.js: black, fde, od, stainless, walnut; white, gunship, titan, hazard; the firearm
@@ -25,9 +25,10 @@ import { buildPistol, buildRevolver } from './handguns.js';
 import { buildLongGun, buildBullpup, buildShotgun } from './longguns.js';
 import { buildKnife } from './knives.js';
 import { buildPdw, buildCaseless, buildCoilgun } from './nearfuture.js';
+import { buildLauncher } from './launchers.js';
 
 export { ARM_MODELS, ARM_ITEMS, ARMS_ONLY_ITEMS, ARM_FINISHES, ARMS_LAWS_VERSION, ARMS_LAWS, LINES, armClass };
-const BUILDERS = { pistol: buildPistol, revolver: buildRevolver, long: buildLongGun, bullpup: buildBullpup, shotgun: buildShotgun, knife: buildKnife, pdw: buildPdw, caseless: buildCaseless, coilgun: buildCoilgun };
+const BUILDERS = { pistol: buildPistol, revolver: buildRevolver, long: buildLongGun, bullpup: buildBullpup, shotgun: buildShotgun, knife: buildKnife, pdw: buildPdw, caseless: buildCaseless, coilgun: buildCoilgun, launcher: buildLauncher };
 const SAMPLE_FIREARMS = ['pistol', 'carbine', 'shotgun'];
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const an = (w) => `${/^[aeiou]/i.test(w) ? 'an' : 'a'} ${w}`;

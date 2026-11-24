@@ -46,7 +46,9 @@ export const LIVE_SHADOW_KEYS = Object.freeze(['cast', 'actors', 'hour', 'alpha'
 export function readLiveShadows(s) {
   if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
   for (const k of ['actors', 'hour']) {
-    if (s[k] !== undefined && typeof s[k] !== 'boolean') throw new Error(`shadows.${k} is true or false (${k === 'actors' ? 'only what moves casts a live shadow; the static world keeps its baked sun' : 'the static world in its own shadow map, drawn when the hour changes, never per frame'})`);
+    // (`actors: 'pilot'`: the body a player pilots alone casts each frame, every other body keeps a pool at its feet)
+    if (k === 'actors' && s[k] === 'pilot') continue;
+    if (s[k] !== undefined && typeof s[k] !== 'boolean') throw new Error(`shadows.${k} is true or false (${k === 'actors' ? 'only what moves casts a live shadow; the static world keeps its baked sun; or \'pilot\': the body a player pilots alone' : 'the static world in its own shadow map, drawn when the hour changes, never per frame'})`);
   }
   if (!s.actors && !s.hour) return null;
   if (s.cast) throw new Error('shadows.cast draws every mass into a shadow map each frame; shadows.actors and shadows.hour split that (what moves each frame, the static world once an hour). Ask for cast, or for actors and/or hour, not both');

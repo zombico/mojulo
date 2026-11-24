@@ -18,11 +18,28 @@ music: {
   direction: { style?, identity?, cast?, sfx?, space?, ui? },
   cues: { '<request id>': '<mood>' | { mood, style?, seed?, cast? } | false },
 }
-sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary? }
+sound: { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, bed?, vary? }
 ```
 
 A game with neither key builds the levels it built: nothing is laid behind its back. `sound` puts a game on the
 sound sheet; `music` (even `music: {}`) puts it on the cue sheet and gives its levels a space on the mixer.
+
+A run and gun (a feel whose template's charge is a shot: Galaxy Boy's) hears its own events too, `run`: the buster's
+tap, its charged round and the full charge's (energy, synthesized: the arm cannon set, `sfx-shelf/sets/buster.js`), the charge held as a hum that rises as it fills; the hero's dash, wall kick,
+slide down a wall and a blow taken; a foe's round leaving, a robot struck, a heavy's armour glancing a round off, a
+wreck, a boss blown apart; a thrown rock heaved, flying, landing or shot apart; the boss room's shutter coming down; a
+boss's treads as a held engine by its speed and its exhausts' steam as a held hiss; a foe stomped on. Each foe also
+sounds by what its kind does (`run.foes`, by its class: a robot sparks on as it first comes into the frame, a creature
+the shelf voices calls, a hopper springs, a charger revs as it braces and slams into what stops it, a swooper swells
+as it dives, a turret fires its own round, a heavy turret a cannon). Each is a shelf word (`RUN_SOUNDS` in `gameworld/sound-sheet.js`, a game's
+`sound.run` over it, `false` for none) played by the page's run channel (`scene/channels/run-audio.js`). A foe is
+heard while it is on the screen, a little past its edges, never across the level. A hero with no buster (Zero Boy's
+saber) keeps the rest and swings with the sheet's blade. The rail writes `sound: {}` and an electronic score for a side
+scroller, so its first level is heard from the first build.
+
+A side map's boss has its own piece: the cue sheet asks for it (`boss:<level>`, an electronic game's `peak`), and the
+level changes to it on the bar line, for good, once the boss's room has shut behind the hero (the level's audio
+`boss`, beside its `combat`); the fights before it come in with the tension as any level's do.
 
 ## The audio direction
 
@@ -61,8 +78,15 @@ another mood for a request, or `false` for silence. An id nothing asked is liste
 (`levelScore`, the adaptive music), on every level the game builds. A quick game's own `quick.music` still wins.
 The outcomes' stingers play when a level is won or lost: a game's shell plays stored beats sketches, so a run mints
 each as a step of the score's chapter (`cue-victory`, `cue-defeat`, at `<ref>-cue-<id>`) and the game names them
-(`music.victory`, `music.defeat`). A changed answer remakes its cue in place. The flow's cues (title, menus,
-credits, cinematics) are on the sheet and not yet played: the play shell scores no flow step.
+(`music.victory`, `music.defeat`). A changed answer remakes its cue in place. The screens' score is the title cue
+(else the menus'), minted the same way (`cue-menu`) and named `music.menu`: the play shell loops it while a screen is up
+(the title, the menus, the results between levels), stops it as a level launches and holds it under a stinger. A
+browser lets it start only once the player has pressed something, so the first title is silent until then. The
+credits' and the cinematics' cues are on the sheet and not yet played.
+
+**A level is heard on the keys.** A level's sound starts on the player's first press: a click on the page, a key, or
+the game shell's word that sound is on (the shell's frame delegates autoplay, so a key pressed on the title is enough).
+A game played on the keys in the shell was silent before.
 
 **Stand-ins.** The generators have no title theme and no cue that ends. Until they do, the title, the menus, the
 credits and the cinematics are answered by the nearest mood that exists, marked `stand-in` and listed as owed.

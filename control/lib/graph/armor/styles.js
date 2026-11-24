@@ -3,12 +3,14 @@
 // dials (principles.js): a new direction is a new card, not code.
 //
 // A card:
-//   family    'plate' | 'lamellar' | 'hardsuit' | 'leather' | 'mail' — the construction (law 12), which picks the grammar and its coverage
+//   family    'plate' | 'lamellar' | 'hardsuit' | 'toy' | 'leather' | 'mail' — the construction (law 12), which picks the grammar and its coverage
 //             order
 //   dials     { stylize, mass, coverage, ornament } — the defaults a build's own `dials` override
 //   language  plate: { pauldron: 'spaulder' | 'bell', focalSide: 'R' | 'L', fnSide: 'R' | 'L' } — the focal shoulder and
 //             the arm that carries function (a bow arm takes the first bracer)
 //             lamellar: { crest: 'crescent' | 'kuwagata' | 'sun' }
+//             toy: { pauldron: 'ball' | 'none', chest: 'barrel' | 'none', arms: 'football' | 'none', legs: 'cone' | 'none',
+//             knees: 'cap' | 'none', collar: 'band' | 'none', brief: 'brief' | 'none' } (toy.js TOY_WORDS)
 //             leather: { cut: 'jerkin' | 'cuirass', studs: 0–3 } (leather.js); mail: { coif: boolean, surcoat: 'none' |
 //             'tabard' } (mail.js)
 //             hardsuit: { helm: 'power' | 'trooper' | 'faceplate' | 'none' (bareheaded: an anime head wears none yet), pauldron: 'dome' | 'cap' | 'segmented' |
@@ -29,8 +31,9 @@
 //             only where a level names `materials` (a geocube's), under that level's own overrides and age
 
 import { validateMaterialRef } from '../polygonizer/materials.js';
+import { TOY_WORDS } from './toy.js';
 
-export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit', 'leather', 'mail']);
+export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit', 'toy', 'leather', 'mail']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
 export const SIDES = Object.freeze(['R', 'L']);
 const HARD = { helm: ['power', 'trooper', 'faceplate', 'shell', 'none'], pauldron: ['dome', 'cap', 'segmented', 'lames', 'none'], chest: ['plain', 'reactor', 'plates', 'box', 'bands', 'none'], pack: ['power', 'jet', 'tanks', 'none'], focal: ['helm', 'pauldron', 'reactor'],
@@ -115,6 +118,15 @@ export const SEEDED_ARMOR = Object.freeze({
     "emissive": ["Lens", "Reactor"],
     "materials": { "Face": { "metal": "stainless", "finish": "brushed" } }
   },
+  // the toy hero robot's suit (toy.js): moulded volumes in its blues, its cuffs light, the gem red (the helm is the
+  // headgear card heroBotHelm, worn as the build's `with`)
+  herobot: {
+    "id": "herobot",
+    "family": "toy",
+    "dials": { "stylize": 0.5, "mass": 1, "coverage": 1, "ornament": 2 },
+    "language": {},
+    "tones": { "Armor": "#1f5fc8", "Cuff": "#7fd4ff", "Chest": "#1f5fc8", "Pec": "#3f8ef2", "Plaque": "#8fd6ff", "Gem": "#c4122f", "Top": "#4aa8ff", "Bottom": "#4aa8ff", "Shoes": "#1f5fc8" }
+  },
   // soft leather: a jerkin laced up the front, welted in a darker hide, rounded caps on the shoulders, laced bracers
   jerkin: {
     "id": "jerkin",
@@ -146,7 +158,7 @@ export const SEEDED_ARMOR = Object.freeze({
     "dials": { "stylize": 0.3, "mass": 1, "coverage": 0.8, "ornament": 1 },
     "language": { "coif": true, "surcoat": "tabard" },
     "tones": { "Mail": "#8a8d91", "Belt": "#4a3020", "Buckle": "#a08a55", "Tabard": "#e8e2d2", "Trim": "#9e2621", "Top": "#4a4238", "Bottom": "#35302a", "Shoes": "#2e2218" }
-  },
+  }
 });
 
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
@@ -174,6 +186,7 @@ export function validateArmorCard(card, at = 'style') {
     for (const k of ['focalSide', 'fnSide']) if (L[k] !== undefined && !SIDES.includes(L[k])) errs.push(`${at}.language.${k}: 'R' | 'L'`);
   }
   if (card.family === 'lamellar' && L.crest !== undefined && !['crescent', 'kuwagata', 'sun'].includes(L.crest)) errs.push(`${at}.language.crest: one of crescent, kuwagata, sun`);
+  if (card.family === 'toy') for (const [k, vs] of Object.entries(TOY_WORDS)) if (L[k] !== undefined && !vs.includes(L[k])) errs.push(`${at}.language.${k}: one of ${vs.join(', ')}`);
   if (card.family === 'leather') {
     if (L.cut !== undefined && !['jerkin', 'cuirass'].includes(L.cut)) errs.push(`${at}.language.cut: one of jerkin, cuirass`);
     if (L.studs !== undefined && !(Number.isInteger(L.studs) && L.studs >= 0 && L.studs <= 3)) errs.push(`${at}.language.studs: an integer 0–3 (rows of rivets across the field)`);

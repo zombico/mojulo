@@ -42,6 +42,9 @@ export const libraryFeet = (outfit) => {
   if (isOutfitBuild(outfit)) { const f = outfitLanguage(outfit)?.feet; return typeof f === 'string' && LIBRARY_FEET.includes(f) ? [f] : []; }
   return (Array.isArray(outfit) ? outfit : typeof outfit === 'string' ? [outfit] : []).filter((w) => typeof w === 'string' && LIBRARY_FEET.includes(w));
 };
+/** the handwear library's cards an outfit card names on its hands (`hands: 'cavalierGloves'`), worn as a word list's
+ * glove word is: a game's hero, whose clothes are one outfit card, wears its gloves so */
+export const libraryHands = (outfit) => { if (!isOutfitBuild(outfit)) return []; const h = outfitLanguage(outfit)?.hands; return typeof h === 'string' && HANDWEAR[h] ? [h] : []; };
 export const KIT_WORDS = ['ranger', 'none'];
 /** THE CHIBI'S DRESS (hero laws 12, on a plan whose style says `body: 'chibi'`: hero-form.js CHIBI_FORM): what it wears
  * drawn for its body, a toy's, not a small adult's, and FEW: a body that small cannot carry every piece, so it wears

@@ -221,7 +221,7 @@ function __syncHud(t, incoming) {
 // frame seeds dt 0 (frame zero → no events), so a frozen still / ?t render is the initial condition.
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
-export function eventsChannelScript(events0, { fxDay = null, rollItems = false, questMana = null, manaShared = null } = {}) {
+export function eventsChannelScript(events0, { fxDay = null, rollItems = false, facts: factsAsked = false, questMana = null, manaShared = null } = {}) {
   // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them;
   // a composed one (juice-style.js: the game's register and its game type's time) at its own numbers
   const fxs = events0 && events0.fxStyle;
@@ -234,7 +234,8 @@ export function eventsChannelScript(events0, { fxDay = null, rollItems = false, 
   const { widgets } = normalizeHud(events.hud, { register: events.register });   // the title rows dressed by the play direction's register
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
-  const facts = cast || listensForHits(events);   // the characters' happenings are read (a hit counts there too)
+  // the characters' happenings are read (a hit counts there too; and a page whose audio hears them asks, `facts`)
+  const facts = cast || listensForHits(events) || factsAsked;
   const stats = !!(events.stats && typeof events.stats === 'object');   // play.stats: the stats kernel takes its ops off the ctrl queue
   const uses = usesOf(events.sources);   // usable places (a cue's use): the reach prompt and the interact press
   const reach = Object.keys(uses).length ? reachScript(uses) : '';
@@ -391,6 +392,22 @@ function __updateAim() {   // park the aim dot where the character is looking (n
 });
 function __ensureMarker(e) {
   if (__markerMeshes[e.id]) return __markerMeshes[e.id];
+  // a SEAL that knows its doorway's facing (game/wave-gauntlet.js: the way back into the room): a barrier across the
+  // doorway, a veil of its colour glowing from the floor and fading up, breathing; any other marker, its sphere
+  if (e.type === 'seal' && Array.isArray(e.facing)) {
+    const W = Number.isFinite(e.w) ? e.w : 2.8, H = Number.isFinite(e.h) ? e.h : 3.4, col = new THREE.Color(e.color != null ? e.color : '#7a1f1a').multiplyScalar(2.2);
+    const U = { uC: { value: col }, uT: { value: 0 } };
+    const mat = new THREE.ShaderMaterial({ uniforms: U, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      vertexShader: 'varying vec2 vU; void main() { vU = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 uC; uniform float uT; varying vec2 vU; void main() { float edge = smoothstep(0.0, 0.08, vU.x) * smoothstep(1.0, 0.92, vU.x); float up = pow(1.0 - vU.y, 1.6); float vein = 0.5 + 0.5 * sin(vU.y * 26.0 - uT * 3.0 + sin(vU.x * 9.0 + uT) * 1.5); float a = edge * (0.18 + 0.5 * up) * (0.75 + 0.25 * sin(uT * 2.4)) * (0.7 + 0.3 * vein); gl_FragColor = vec4(uC * a, a); }' });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), mat);
+    // (the plane stood up across the doorway: its face along the way in, its foot on the floor)
+    mesh.geometry.rotateX(Math.PI / 2); mesh.geometry.translate(0, 0, H / 2);
+    mesh.rotation.z = Math.atan2(e.facing[1], e.facing[0]) + Math.PI / 2;
+    mesh.onBeforeRender = () => { U.uT.value = performance.now() / 1000; };
+    mesh.__entityId = e.id; mesh.renderOrder = 2; scene.add(mesh); __markerMeshes[e.id] = mesh;
+    return mesh;
+  }
   const r = Number.isFinite(e.radius) ? e.radius : 0.4;
   const col = e.color != null ? new THREE.Color(e.color) : new THREE.Color(__MARKER_COLOR);
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 12), new THREE.MeshBasicMaterial({ color: col }));

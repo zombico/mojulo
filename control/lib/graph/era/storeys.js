@@ -196,13 +196,37 @@ function placeSwitchback(l, byId, taken, links, ways, t, S, profile, shafts) {
 }
 
 /**
+ * Each LIFT (`{ lower, upper, w?, d?, at? }`) given its opening: a rect through the floor between the lower room and the
+ * one over it, `w` by `d` metres (7 by 9 where it fits, never nearer a wall than a metre and a half), standing `at`
+ * [u, v] across their overlap (the middle by default). → [{ lower, upper, rect, z0, z1, rise }]. The opening is cut as a
+ * stair's is (the ceiling under it, the floor over it), its shaft lined between them, its edge marked on the upper
+ * floor; no flight and no rail is laid: what travels it is the level's own (a deck, a moving thing).
+ */
+export function placeLifts(rooms, lifts) {
+  const byId = new Map(rooms.map((r) => [r.id, r]));
+  return lifts.map((l, i) => {
+    const L = byId.get(l.lower), U = byId.get(l.upper);
+    if (!L || !U) throw new Error(`stage: lifts[${i}] joins '${l.lower}' and '${l.upper}', and one is no room of this stage`);
+    if (U.storey !== L.storey + 1) throw new Error(`stage: lifts[${i}]: '${l.upper}' stands on storey ${U.storey}, '${l.lower}' on ${L.storey}; a lift's opening is through one floor`);
+    const x0 = Math.max(L.x0, U.x0), x1 = Math.min(L.x1, U.x1), y0 = Math.max(L.y0, U.y0), y1 = Math.min(L.y1, U.y1), M = 1.5;
+    if (x1 - x0 < 2 * M + 2 || y1 - y0 < 2 * M + 2) throw new Error(`stage: lifts[${i}]: '${l.upper}' and '${l.lower}' overlap too little for a deck`);
+    const w = Math.min(Number.isFinite(l.w) ? l.w : 7, x1 - x0 - 2 * M), d = Math.min(Number.isFinite(l.d) ? l.d : 9, y1 - y0 - 2 * M);
+    const [u, v] = Array.isArray(l.at) ? l.at : [0.5, 0.5];
+    const cx = Math.max(x0 + M + w / 2, Math.min(x1 - M - w / 2, x0 + (x1 - x0) * u)), cy = Math.max(y0 + M + d / 2, Math.min(y1 - M - d / 2, y0 + (y1 - y0) * v));
+    return { lower: L.id, upper: U.id, rect: [r5(cx - w / 2), r5(cy - d / 2), r5(cx + w / 2), r5(cy + d / 2)], z0: L.z0, z1: U.z0, rise: r5(U.z0 - L.z0) };
+  });
+}
+
+/**
  * Cut a storey's own faces (its kit's geometry, before the bake) round its stairs: over a flight (in its lower room)
  * every face above the floor goes (its ceiling exactly, its beams and ducts whole), and under a hole (in its upper
  * room) the floor goes exactly and anything standing on it whole. `cuts`: { flights, holes } (rects in plan).
  */
 export function storeyCut(faces, cuts) {
   if (!cuts) return faces;
-  const regions = [...cuts.flights.map((s) => ({ R: s.rect, keep: (z) => z <= 0.05 })), ...cuts.holes.map((s) => ({ R: s.rect, keep: (z) => z >= 0.5 }))];
+  const regions = [...cuts.flights.map((s) => ({ R: s.rect, keep: (z) => z <= 0.05 })), ...cuts.holes.map((s) => ({ R: s.rect, keep: (z) => z >= 0.5 })),
+    // (a lift's opening: under it, all that stands over the floor; over it, the floor and what stands on it)
+    ...(cuts.lifts ? [...cuts.lifts.under.map((s) => ({ R: s.rect, keep: (z) => z <= 0.05 })), ...cuts.lifts.over.map((s) => ({ R: s.rect, keep: (z) => z >= 0.5 }))] : [])];
   let out = faces;
   for (const { R, keep } of regions) {
     const next = [];
@@ -224,6 +248,7 @@ export function storeyCut(faces, cuts) {
 /** Does a point stand in a storey's stairs: over a flight (above its floor) or in a hole's room under it (on its floor)? */
 export function inStairs(cuts, p) {
   if (!cuts) return false;
+  if (cuts.lifts && [...cuts.lifts.under, ...cuts.lifts.over].some((s) => inside(p, [s.rect[0] - 0.4, s.rect[1] - 0.4, s.rect[2] + 0.4, s.rect[3] + 0.4]))) return true;
   return cuts.flights.some((s) => p[2] > 0.05 && inside(p, s.rect)) || cuts.holes.some((s) => { const t = guardOf(s).t; return p[2] < 2.5 && inside(p, [s.rect[0] - t, s.rect[1] - t, s.rect[2] + t, s.rect[3] + t]); });
 }
 
@@ -231,6 +256,7 @@ export function inStairs(cuts, p) {
 export function boxInStairs(cuts, b) {
   if (!cuts || !b) return false;
   const R = [b.min[0], b.min[1], b.max[0], b.max[1]];
+  if (cuts.lifts && [...cuts.lifts.under, ...cuts.lifts.over].some((s) => overlap(R, s.rect, 0.4))) return true;
   return cuts.flights.some((s) => overlap(R, s.rect)) || cuts.holes.some((s) => overlap(R, s.rect, guardOf(s).t));
 }
 
@@ -300,6 +326,24 @@ export function stairFaces(out, cuts, surf, ceilingOf) {
     }
   }
   for (const s of cuts.holes) for (const [mn, mx] of railBoxes(s, 0)) box(out, mn, mx, { ...tread, group: 'stage:stair' }, tread.cell, ['-z']);
+  if (cuts.lifts) {
+    // a lift's shaft: from the ceiling under it to the floor over it, round the opening, facing in
+    for (const s of cuts.lifts.under) {
+      const h = ceilingOf(s.lower), [x0, y0, x1, y1] = s.rect, up = s.rise - h;
+      if (up > 1e-3) {
+        panel(out, [x0, y0, h], [1, 0, 0], x1 - x0, [0, 0, 1], up, [0, 1, 0], side, cell);
+        panel(out, [x1, y1, h], [-1, 0, 0], x1 - x0, [0, 0, 1], up, [0, -1, 0], side, cell);
+        panel(out, [x0, y1, h], [0, -1, 0], y1 - y0, [0, 0, 1], up, [1, 0, 0], side, cell);
+        panel(out, [x1, y0, h], [0, 1, 0], y1 - y0, [0, 0, 1], up, [-1, 0, 0], side, cell);
+      }
+    }
+    // its edge on the floor over it: a marked curb a hand wide, low enough to step over
+    for (const s of cuts.lifts.over) {
+      const [x0, y0, x1, y1] = s.rect, e = 0.3, zt = 0.03, haz = { ...tread, group: 'stage:hazard' };
+      box(out, [x0 - e, y0 - e, 0], [x1 + e, y0, zt], haz, tread.cell, ['-z']); box(out, [x0 - e, y1, 0], [x1 + e, y1 + e, zt], haz, tread.cell, ['-z']);
+      box(out, [x0 - e, y0, 0], [x0, y1, zt], haz, tread.cell, ['-z']); box(out, [x1, y0, 0], [x1 + e, y1, zt], haz, tread.cell, ['-z']);
+    }
+  }
 }
 
 /** A hole's rails: low walls along its two sides and its foot, just outside it, the head left open. At floor `z`. */
@@ -428,6 +472,7 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
     const turned = lastOk ? null : [...links].reverse().find((l) => !stairRooms.has(l.from));
     const ordered = lastOk ? [...links.filter((l) => l !== lastOk), lastOk] : turned ? [...links.filter((l) => l !== turned), { ...turned, from: turned.to, to: turned.from }] : links;
     const cuts = { flights: plan.stairs.filter((x) => mine.has(x.lower)), holes: plan.stairs.filter((x) => mine.has(x.upper)), flat: [...plan.flat].filter((id) => mine.has(id)),
+      ...(plan.lifts && plan.lifts.some((x) => mine.has(x.lower) || mine.has(x.upper)) ? { lifts: { under: plan.lifts.filter((x) => mine.has(x.lower)), over: plan.lifts.filter((x) => mine.has(x.upper)) } } : {}),
       ...(s === goalStorey ? {} : { bare: true }) };
     const sub = {
       ...manifest, rooms, links: ordered, _storey: cuts,
@@ -436,6 +481,8 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
       ...(manifest._ground ? { _ground: { ...manifest._ground, lift: st.z0 } } : {}),
       ...(manifest.doors ? { doors: manifest.doors.filter((d) => mine.has(d.room)) } : {}),
       ...(manifest.items ? { items: manifest.items.filter((it) => it.room === undefined ? s === 0 : mine.has(it.room)) } : {}),
+      // (a room's light designed, `plot` (stage.js): each storey its own rooms')
+      ...(manifest.plot ? { plot: Object.fromEntries(Object.entries(manifest.plot).filter(([id]) => mine.has(id))) } : {}),
       ...(s > 0 ? { camera: undefined } : {}),
       // (a composed building's rooms keep the roles the whole building gave them, each focus in its storey's own frame)
       ...(plan.compose ? { _composeRoles: plan.compose.roles.filter((r) => mine.has(r.room)).map((r) => ({ ...r, focus: [r.focus[0], r.focus[1], r5(r.focus[2] - st.z0)] })) } : {}),
@@ -445,6 +492,7 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
     if (sub.doors && !sub.doors.length) delete sub.doors;
     if (sub.items && !sub.items.length) delete sub.items;
     if (sub.ways && !sub.ways.length) delete sub.ways;
+    if (sub.plot && !Object.keys(sub.plot).length) delete sub.plot;
     return { s, z: st.z0, P: assemble(sub, ctx) };
   });
   const tag = (s) => (id) => (s === 0 || id == null ? id : `${id}@${s}`);
@@ -462,7 +510,8 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
   const anchors = parts.flatMap(({ s, z, P: Q }) => (Q.anchors || []).map((a) => ({ ...lift(a, z), id: tag(s)(a.id), ...(a.node ? { node: tag(s)(a.node) } : {}), storey: s })));
   const rooms = parts.flatMap(({ s, z, P: Q }) => (Q.rooms || []).map((r) => ({ ...r, box: { min: P([r.box.min[0], r.box.min[1], r.box.min[2] + z]), max: P([r.box.max[0], r.box.max[1], r.box.max[2] + z]) }, storey: s,
     doorways: r.doorways.map(tag(s)), stairs: plan.stairs.filter((x) => x.lower === r.id || x.upper === r.id).map((x) => `stair-${x.lower}-${x.upper}`) })));
-  const stairs = plan.stairs.map((x) => ({ id: `stair-${x.lower}-${x.upper}`, kind: 'stair', room: x.lower, between: [x.lower, x.upper], at: P([x.approach[0], x.approach[1], x.z0]), to: P([x.arrival[0], x.arrival[1], x.z1]), rise: x.rise, treads: x.n }));
+  // (each with its footprint, `rect`: where a walker is on it, a page's follow camera reads it: controllable/index.js)
+  const stairs = plan.stairs.map((x) => ({ id: `stair-${x.lower}-${x.upper}`, kind: 'stair', room: x.lower, between: [x.lower, x.upper], at: P([x.approach[0], x.approach[1], x.z0]), to: P([x.arrival[0], x.arrival[1], x.z1]), rise: x.rise, treads: x.n, ...(Array.isArray(x.rect) ? { rect: x.rect.slice() } : {}) }));
   const cutouts = [...new Set(parts.flatMap(({ P: Q }) => Q.cutouts || []))].sort();
   const fires = parts.flatMap(({ z, P: Q }) => (Q.fireSources || []).map((f) => lift(f, z)));
   const mote = parts.map(({ z, P: Q }) => Q.motes && { ...Q.motes, boxes: Q.motes.boxes.map((b) => [b[0], b[1], r5(b[2] + z), b[3], b[4], r5(b[5] + z)]), lights: Q.motes.lights.map((l) => [l[0], l[1], r5(l[2] + z), l[3]]) }).filter(Boolean);
@@ -473,11 +522,16 @@ export function assembleStoreys(manifest, ctx, plan, assemble) {
   return {
     ...g,
     ...(composed ? { compose: composed } : {}),
-    faces, lights, colliders, anchors: [...anchors, ...stairs], rooms,
+    faces, lights, colliders, anchors: [...anchors, ...stairs, ...(plan.lifts ?? []).map((x) => ({ id: `lift-${x.lower}-${x.upper}`, kind: 'lift', room: x.lower, between: [x.lower, x.upper], rect: x.rect.slice(), at: P([(x.rect[0] + x.rect[2]) / 2, (x.rect[1] + x.rect[3]) / 2, x.z0]), to: P([(x.rect[0] + x.rect[2]) / 2, (x.rect[1] + x.rect[3]) / 2, x.z1]), rise: x.rise }))], rooms,
     ...(cutouts.length ? { cutouts } : {}),
     ...(g.doors || parts.some(({ P: Q }) => Q.doors) ? { doors: parts.flatMap(({ z, P: Q }) => (Q.doors || []).map((d) => lift(d, z))) } : {}),
     ...(parts.some(({ P: Q }) => Q.items) ? { items: parts.flatMap(({ z, P: Q }) => (Q.items || []).map((it) => lift(it, z))) } : {}),
     ...(fires.length ? { fireSources: fires } : {}),
+    // (every storey's crawl spaces, its vents and its glass and mesh, each lifted to its storey: era/vents.js,
+    // era/inner-windows.js, worlds/controllable/barrier.js; the ground's alone came through before)
+    ...(parts.some(({ P: Q }) => Q.veils) ? { veils: parts.flatMap(({ z, P: Q }) => (Q.veils || []).map((v) => lift(v, z))) } : {}),
+    ...(parts.some(({ P: Q }) => Q.vents) ? { vents: parts.flatMap(({ s, P: Q }) => (Q.vents || []).map((d) => ({ ...d, storey: s }))) } : {}),
+    ...(parts.some(({ P: Q }) => Q.barriers) ? { barriers: parts.flatMap(({ s, z, P: Q }) => (Q.barriers || []).map((b) => ({ ...lift(b, z), ...(s > 0 && b.of ? { of: `${b.of}@${s}` } : {}) }))) } : {}),
     ...(mote.length ? { motes: { ...mote[0], count: Math.min(3200, mote.reduce((a, m) => a + m.count, 0)), boxes: mote.flatMap((m) => m.boxes), lights: mote.flatMap((m) => m.lights).slice(0, 48) } } : {}),
     ...(lamps.length ? { flicker: { lamps: lamps.slice(0, 8) } } : {}),
     ...(kinds.length ? { fauna: { seed: fauna.seed, ...Object.fromEntries(kinds.map((k) => [k, { ...parts.find(({ P: Q }) => Q.fauna && Q.fauna[k]).P.fauna[k], runs: critters(k) }])) } } : {}),

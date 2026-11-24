@@ -81,13 +81,16 @@ import { fitSwing, swingPhases, HELD_SWINGS, swingTiming } from './hero-swing.js
 import { layeredClip, plantedFoot } from './station-loft-rig.js';
 import { createWorld, stepWorld, advanceGaitMix } from '../worlds/controllable-world.js';
 import { BASIC_COMBOS, BASIC_ARSENAL, lowerCombos, lowerArsenal } from '../gameworld/combos.js';
+import { SABER_COMBOS, SABER_STRIKE } from '../gameworld/feel/saber.js';
 
 const CONTACT = [0.44, 0.52];
-function chain({ footwork, foeAt = 6, style = null, fist = false, presses = { 0: { fire: 1 }, 2: { fire: 1 }, 17: { fire: 1 } } }) {
-  const R = rig('male', 'sword'), M = fist ? lowerArsenal(BASIC_ARSENAL).find((W) => W.id === 'fist').moveset : lowerCombos(BASIC_COMBOS);
+function chain({ footwork, foeAt = 6, style = null, fist = false, combos = BASIC_COMBOS, contact = CONTACT, on = true, presses = { 0: { fire: 1 }, 2: { fire: 1 }, 17: { fire: 1 } } }) {
+  const R = rig('male', 'sword'), M = fist ? lowerArsenal(BASIC_ARSENAL).find((W) => W.id === 'fist').moveset : lowerCombos(combos), CONTACT = contact;
   const ctx = { R, cls: 'normal', base: STRUCTURED_SWING_BASE, grip: [], own: 'chop', body: true, style, timing: style ? swingTiming('normal', style) : null, contact: CONTACT, layeredClip, rigNodesAt, plantedFoot, swingClipKeys, fitSwing, swingPhases, HELD_SWINGS };
   const clips = {};
   for (const mv of Object.values(M.moves)) if (mv.swing) { clips[mv.clip] = moveClip(mv, { ...ctx, footwork }); clips[`${mv.clip}_still`] = moveClip({ ...mv, travel: null }, ctx); }
+  // (a plant's `_on`: the move begun split, chained into; `on: false` plays the plain clip in its place)
+  for (const mv of Object.values(M.moves)) if (mv.plant) clips[`${mv.clip}_on`] = on ? moveClip({ ...mv, plantOn: true }, ctx) : clips[mv.clip];
   clips.mv_ready = readyClip(ctx);   // (the fighting stance: the idle in combat)
   if (fist) {
     // (the fist: the body's strikes, their guard its stance)
@@ -117,6 +120,9 @@ function chain({ footwork, foeAt = 6, style = null, fist = false, presses = { 0:
     const h = p.transform.heading - Math.PI / 2, c = Math.cos(h), s = Math.sin(h);
     feet.push({ at: `${mode}@${phase.toFixed(3)} w${(mix.w ?? 1).toFixed(2)}`, ...Object.fromEntries(['L', 'R'].map((S) => { const q = node(R.legs[S].toeBase); return [S, [p.transform.pos[0] + c * q[0] - s * q[1], p.transform.pos[1] + s * q[0] + c * q[1], q[2]]]; })) });
   }
+  // (any foot, lifted or not: the most it moves in a frame, a jump where the blend snaps it)
+  let jump = 0;
+  for (let i = 1; i < feet.length; i++) for (const S of ['L', 'R']) if (feet[i - 1] && feet[i]) jump = Math.max(jump, Math.hypot(...[0, 1, 2].map((a) => feet[i][S][a] - feet[i - 1][S][a])));
   // a planted foot (its toe base on the floor in two frames running): how far it moved across the floor between them
   let worst = 0, total = 0;
   expect(feet.filter(Boolean).length).toBeGreaterThan(150);   // (the idle in combat is the fighting stance: every frame drawn)
@@ -127,7 +133,7 @@ function chain({ footwork, foeAt = 6, style = null, fist = false, presses = { 0:
   }
   // (the rear foot through a lunge: how far it moved on the floor before the blow, and whether it came up after)
   const rearAt = (i) => feet[i] && feet[i].R;
-  return { worst, total, frames: feet.length, travelled: p.transform.pos[0], feet };
+  return { worst, total, jump, frames: feet.length, travelled: p.transform.pos[0], feet, clips: Object.keys(clips) };
 }
 
 describe('the footwork through a string', () => {
@@ -159,6 +165,32 @@ describe('the footwork through a string', () => {
     const F = chain({ footwork: true, fist: true });
     expect(F.worst).toBeLessThan(0.01);
     expect(F.travelled).toBeGreaterThan(0.6);   // (0.15 + 0.2 + the hook's 0.35 lunge)
+  });
+  it('a PLANT (the saber\'s string): the body never moves, the feet split one forward one back at each blow, held from cut to cut, square again after', () => {
+    const presses = { 0: { fire: 1 }, 8: { fire: 1 }, 20: { fire: 1 } }, S = chain({ footwork: true, combos: SABER_COMBOS, contact: SABER_STRIKE.contact, presses });
+    expect(Math.abs(S.travelled)).toBeLessThan(1e-6);
+    // the three cuts, the two chained into begun split
+    const played = [...new Set(S.feet.filter(Boolean).map((f) => f.at.split('@')[0]).filter((m) => m.startsWith('mv_saber')))];
+    expect(played).toEqual(['mv_saber-1', 'mv_saber-2_on', 'mv_saber-3_on']);
+    // (along the facing, +x: the lead foot ahead of the rear by the plant over the stance's own split)
+    const at = S.feet.filter(Boolean), gap = (f) => Math.abs(f.L[0] - f.R[0]), start = gap(at[0]), end = gap(at[at.length - 1]);
+    const widest = Math.max(...at.map(gap));
+    expect(widest - start).toBeGreaterThan(SABER_COMBOS.moves['saber-1'].plant * 0.7);
+    expect(Math.abs(end - start)).toBeLessThan(0.01);
+    // no foot jumps between the cuts; begun square instead, the blend snaps the feet home and out again
+    // (a foot's most in a frame over the blend into each chained cut)
+    const seam = (C) => {
+      let most = 0;
+      for (let i = 1; i < C.feet.length; i++) {
+        const a = C.feet[i - 1], b = C.feet[i];
+        if (!a || !b || a.at.split('@')[0] === b.at.split('@')[0] || !/^mv_saber-[23]/.test(b.at)) continue;
+        for (let j = i; j < i + 4 && C.feet[j] && C.feet[j - 1]; j++) for (const F of ['L', 'R']) most = Math.max(most, Math.hypot(...[0, 1, 2].map((x) => C.feet[j][F][x] - C.feet[j - 1][F][x])));
+      }
+      return most;
+    };
+    const plain = chain({ footwork: true, combos: SABER_COMBOS, contact: SABER_STRIKE.contact, presses, on: false });
+    expect(seam(S)).toBeLessThan(0.03);
+    expect(seam(plain)).toBeGreaterThan(seam(S) * 2);
   });
   it('a foe too near for the travel: the moves play in place, the feet still', () => {
     const near = chain({ footwork: true, foeAt: 1.0 });

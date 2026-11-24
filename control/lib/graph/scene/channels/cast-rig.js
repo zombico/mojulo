@@ -91,14 +91,17 @@ vec3 castNeutral( vec3 color ) {
       // the hemisphere in the page's ambient's place, and the body's own key gain on its direct light
       put('#include <lights_fragment_begin>', `  {
     vec3 castN = inverseTransformDirection( geometryNormal, viewMatrix );
-    irradiance = PI * uCastFill * mix( uCastGround, uCastSky, 0.5 + 0.5 * castN.z );
-    reflectedLight.directDiffuse *= uCastKey;
-    reflectedLight.directSpecular *= uCastKey;${resp ? `
+    irradiance = PI * uCastFill * mix( uCastGround, uCastSky, 0.5 + 0.5 * castN.z );${resp ? `
     // (and what the surface gives back of the rig's own sky and ground, by its response: a metal is this, in its colour;
     // skin and an eye a faint sheen; cloth next to nothing)
     vec3 castRw = inverseTransformDirection( reflect( - normalize( vViewPosition ), normalize( normal ) ), viewMatrix );
     reflectedLight.indirectSpecular += uCastFill * mix( uCastGround, uCastSky, smoothstep( -0.3, 0.5, castRw.z ) ) * material.specularColor * ( 1.0 - 0.6 * material.roughness ) * 3.0;` : ''}
   }`, true);
+      // (the body's own key gain on the KEY alone: each directional light's colour, in three's own loop, so a lamp or a
+      // flood (a spot, a point) lights it as it lights the land; the chunk laid out in place, its directional loop
+      // spliced, a patch after this one finding the same text)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', THREE.ShaderChunk.lights_fragment_begin)
+        .replace('getDirectionalLightInfo( directionalLight, directLight );', 'getDirectionalLightInfo( directionalLight, directLight );\n\t\tdirectLight.color *= uCastKey;');
       if (own) put('#include <tonemapping_fragment>', '  gl_FragColor.rgb = castNeutral( gl_FragColor.rgb * uCastExposure );', false);
     };
     material.customProgramCacheKey = function () { return (beforeKey ? beforeKey.call(this) + '+' : '') + 'cast-' + (cel ? 'cel' : 'lit') + (own ? '-own' : '-form') + (resp ? '-resp' : ''); };

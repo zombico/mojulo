@@ -37,6 +37,7 @@ import { emitThreeWorld } from '../../scene/scene-three.js';
 import { MATTER } from '../../rupa/matter.js';
 import { sfxSound } from '../../sfx-shelf/resolve.js';
 import { resolveSoundId } from '../../sfx-shelf/roster.js';
+import { suitSounds } from '../../sfx-shelf/suit-sounds.js';
 import { MOUNTS, MOUNT_NAMES, mountOf } from './mount.js';
 import { resolveVehicle, handlesOf } from '../../vehicle-registry/roster.js';
 import { MILITARY_CLASSES } from '../../car-designer/road-military.js';
@@ -329,10 +330,11 @@ export function artilleryOf(spec = {}) {
   const rule = F ? (driveRule ? (F.form === 'tank' ? driveRule : walkRule) : walkRule ?? { type: 'static' }) : BV ? BV.rule : base === 'hull' ? { type: 'walk', speed: 8, turn: 0.45, eye: 0, collideRadius: 3.5, collideHeight: 2.5 } : { type: 'static' };
   const pilot = { id: 'gun', pilotable: true, rule, ...formsOf, turret, weapon: rounds[0], body: BV || F ? { type: 'figure-rig', figure: 'base' } : { type: 'none' }, transform: OWN ? OWN.transform : { pos: [0, 0, 0], heading: 0, pitch: 0 } };
   const keys = OWN ? `${OWN.keys} · 1-${words.length}  load (${words.join(', ')}) · O  view` : `mouse  lay the gun · click  fire · 1-${words.length}  load (${words.join(', ')}) · right click  zoom · O  view${F ? (F.drive ? ' · W / S  walk or drive · A / D  turn or steer · B  transform' : F.gait ? ' · W / S  walk · A / D  turn' : ` · ${F.stance}`) : V ? ' · W / S  drive · A / D  steer' : base === 'hull' ? ' · W / S  drive · A / D  turn the hull' : ''}`;
-  // the base heard (its own, from the shelf): a frame's footfalls by its weight at each foot's planting, its hydraulics by
+  // the base heard (its own, from the shelf): a frame's footfalls by its weight at each foot's planting (a suit's by the suit
+  // kit, sfx-shelf/suit-sounds.js: light, medium or heavy by its mass; a trooper's frame a heavy step), its servos by
   // its pace and its power pack; a tracked hull's engine and its tracks; a wheeled hull's diesel; a fixed gun nothing
   const held = (w) => sfxSound(w).sustain;
-  const baseSound = !heard ? null : F ? { engine: held('diesel-engine'), ...(F.gait ? { hydraulics: held('walker-hydraulics'), step: cue(F.mass < 1500 ? 'heavy step' : F.mass < 12000 ? 'mech step' : 'giant step'), legs: Object.values(F.gait.phase), stepGain: r2(Math.min(1, 0.45 + F.mass / 40000)) } : {}) }
+  const baseSound = !heard ? null : F ? { engine: held('diesel-engine'), ...(F.gait ? { hydraulics: held(F.mass < 1500 ? 'walker-hydraulics' : suitSounds({ mass: F.mass }).servo), step: cue(F.mass < 1500 ? 'heavy step' : suitSounds({ mass: F.mass }).step), legs: Object.values(F.gait.phase), stepGain: r2(Math.min(1, 0.45 + F.mass / 40000)) } : {}) }
     : OWN ? (OWN.engine ? { engine: held(OWN.engine), ...(CY ? {} : { throttle: true }) } : null) : V ? { engine: held(V.tracked ? 'tank-engine' : RV && !MILITARY_CLASSES[RV.class] ? 'car-engine' : 'diesel-engine') } : base === 'hull' ? { engine: held('tank-engine') } : null;
   const audio = heard ? { mix: { space: 'open', voices: 12, distance: true, reach: 6000 }, cues: { shot: heard.shot, reload: heard.reload, burst: heard.burst, ...(baseSound?.step ? { 'base:step': baseSound.step } : {}) }, weapon: { shot: heard.shot, reload: heard.reload }, burst: heard.burst, ...(baseSound ? { base: baseSound, sustains: Object.fromEntries(['engine', 'hydraulics'].filter((k) => baseSound[k]).map((k) => [k, baseSound[k]])) } : {}) } : null;
   // (the camera is the turret view's: the sight, or outside; a base of its own figure is drawn, its turret hidden in the

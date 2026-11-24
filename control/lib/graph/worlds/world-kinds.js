@@ -15,6 +15,7 @@
  * as sketch.title || manifest.title || descriptor.title.
  */
 
+import { posedCoatClips } from '../polygonizer/coat-poses.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity, CITY_METERS_PER_UNIT } from '@/lib/graph/city/fractal-city';
 import { assembleRoadwayScene } from '@/lib/graph/roads/roadway';
@@ -27,6 +28,7 @@ import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer'
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
+import { assembleSideMap, SIDE_MAP_SCENE_KEYS } from '@/lib/graph/gameworld/side-map/scene';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene, GEOCITY_KEYS } from '@/lib/graph/geocity/scene';
@@ -90,6 +92,7 @@ import { animePerformanceTrack } from '@/lib/graph/face-acting/anime-read';
 import { animeFormed } from '@/lib/graph/polygonizer/anime-looks';
 import { formBodied } from '@/lib/graph/polygonizer/hero-form';
 import { clothFlows, heroClothRig, bakeClothClips } from '@/lib/graph/polygonizer/hero-cloth';
+import { busterRig } from '@/lib/graph/polygonizer/hero-buster-rig';
 import { emoteTake, emoteClips } from '@/lib/graph/face-acting/emotes';
 import { actClipOn } from '@/lib/graph/actor/act';
 // a scene's takes on the page (ctx.takes): the body's keys a second, the face's frames a second (a take runs a scene's
@@ -617,6 +620,10 @@ export const WORLD_KINDS = {
       // a side-scroller's strip (era/geocube-side.js): a course skinned in the cube's layers, its land behind it in layers;
       // played, the level's pilot and game layered over it by the page
       if (m.show === 'side') return assembleSideStrip(m, { title: ctx.title });
+      // a traditional side-scroller's map (gameworld/side-map/scene.js): a zone chain laid in screens and the hero's
+      // reach, dressed and built where the camera sees, lit by the cube
+      // (played, a level's: its pilot, camera and game layered over it by the page, the scene reading its own words only)
+      if (m.show === 'sidemap') return assembleSideMap(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k))), { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
@@ -1038,6 +1045,8 @@ export const WORLD_KINDS = {
               if (!mv.swing) continue;
               swings[mv.clip] = moveClip(mv, { ...mc, footwork: true });
               if (mv.travel) swings[`${mv.clip}_still`] = moveClip({ ...mv, travel: null }, mc);
+              // (a PLANT's feet split in place; `_on` the same move begun already split, chained into from another)
+              if (mv.plant) swings[`${mv.clip}_on`] = moveClip({ ...mv, plantOn: true }, mc);
             }
           }
           clipsIn = { ...clipsIn, ...swings };
@@ -1086,7 +1095,12 @@ export const WORLD_KINDS = {
         // the page and the skinned GLB play it as bones. A row minted before, or nothing that flows ⇒ the rig, the skin and
         // the clips as they were, byte for byte
         const cloth = m.hero && clothFlows(m.hero) ? heroClothRig(mesh, m.recipe, m.hero, m.plan) : null;
-        const packR = typeof ctx.ride === 'function' ? { ...(cloth ? cloth.R : R), reach: 'clamp' } : cloth ? cloth.R : R;
+        const packR0 = typeof ctx.ride === 'function' ? { ...(cloth ? cloth.R : R), reach: 'clamp' } : cloth ? cloth.R : R;
+        // THE ARM CANNON'S BONE (polygonizer/hero-buster-rig.js): a hero wearing the toy armour's cannon carries it on a bone
+        // of its own after every other (the body's and the cloth's), so the page swaps the hand for it while the buster is
+        // out and an export carries the swap. No cannon ⇒ the rig and the skin as they were
+        const buster = m.hero ? busterRig(mesh, packR0, cloth ? cloth.skin : skin) : null;
+        const packR = buster ? buster.R : packR0, packSkin = buster ? buster.skin : cloth ? cloth.skin : skin;
         if (typeof ctx.ride === 'function') clipsIn = { ...clipsIn, ...ctx.ride(R, dz) };
         // (a hero whose cloth flows plays every clip over ONE duration on the page and in an export, the one its cloth's
         // swing is baked at: hero-gesture.js clothClipSeconds. Before, a clip with none played three seconds on the page
@@ -1171,8 +1185,11 @@ export const WORLD_KINDS = {
         // THE COVER (beast/cover.js): a beast-kin's fur, scales, chitin or feathers as a tiling material over its coat, on
         // the same lit, skinned export (its tile's UVs, each corner's tangent; the GLB's maps). Any other figure: none
         const coverKind = engineLit && ctx.face && !paintPack ? beastCoverStyleOf(m.hero) : null, cover = coverKind ? coverMap(mesh, m.recipe, engineLit, coverKind, beastCoatOf(m.hero)) : null;
+        // (a POSED coat's hinges set by each clip's family, coat-poses.js: wrapped standing, behind the hips walking, flared
+        // open in action; a recipe without one, its clips as they were)
+        if (m.recipe.coatPoses) clipsIn = posedCoatClips(clipsIn, m.recipe.coatPoses, R);
         const clothClips = cloth ? bakeClothClips(cloth, clipsIn, R, { seconds, speeds }) : clipsIn, clothActs = cloth && acts ? bakeClothClips(cloth, acts, R) : acts;
-        const pack = packLayeredRig(mesh, cloth ? cloth.skin : skin, packR, { clips: clothClips, ...(clothActs ? { acts: clothActs } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
+        const pack = packLayeredRig(mesh, packSkin, packR, { ...(ctx.marks ? { marks: ctx.marks } : {}), clips: clothClips, ...(clothActs ? { acts: clothActs } : {}), ...(correctives ? { correctives } : {}), ...(engineLit ? { engineLit: true } : {}), ...(relief ? { relief } : {}), ...(cover ? { cover } : {}), keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : engineLit ? { normals: engineLit } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         // (the page's face rows as 16-bit steps of each part's own scale, about a micron: an export keeps its floats)
         // (and said once and only where they move: a corner's row shared with its vertex's others, a target's column its own
         // rows alone, figures/morph-sparse.js; exact, the same steps)

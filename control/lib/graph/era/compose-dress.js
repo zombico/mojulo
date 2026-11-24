@@ -25,6 +25,7 @@ import { box, r5 } from './geom.js';
 import { STAIR_PROFILES } from '../construction/circulation.js';
 import { STOCK, HOSPITAL_STOCK, GREAT, EXTINGUISHER, roleOf, stockLaws, TOWN_STOCK, TOWN_GREAT, HALL_COVER } from './stocking.js';
 import { CELL as ARENA_CELL } from '../arena-map/blocks.js';
+import { LAYOUTS, layoutOf, layoutLaws } from './room-layouts.js';
 import { resolveFurniture } from '../furnishings/forms.js';
 import { lockedFurnitureFaces } from '../construction/facades.js';
 
@@ -112,6 +113,17 @@ export const PIECES = Object.freeze({
   hearth: { class: 'set-piece', w: 2.2, d: 0.9, h: 2.6, parts: [B(0, 0.45, 0, 0.9, 0, 1.5, 'concrete'), B(1.75, 2.2, 0, 0.9, 0, 1.5, 'concrete'), B(0.45, 1.75, 0, 0.2, 0, 1.5, 'trim'), B(0, 2.2, 0, 0.9, 1.5, 1.7, 'beam'),
     B(0.3, 1.9, 0, 0.7, 1.7, 2.6, 'concrete'), B(0.5, 1.7, 0.2, 0.75, 0, 0.12, 'concrete'), B(0.8, 1.4, 0.35, 0.6, 0.12, 0.35, 'paint')] },
   workbench: { class: 'bench', w: 2.0, d: 0.8, h: 0.9, parts: [B(0, 2, 0, 0.8, 0.82, 0.9, 'beam'), B(0.05, 0.15, 0.05, 0.75, 0, 0.82, 'beam'), B(1.85, 1.95, 0.05, 0.75, 0, 0.82, 'beam'), B(0.15, 1.85, 0.1, 0.7, 0.25, 0.3, 'cabinet'), B(0.3, 0.8, 0.2, 0.6, 0.9, 1.05, 'trim'), B(1.2, 1.7, 0.3, 0.55, 0.9, 0.98, 'paint')] },
+  // a MESH PANEL (see-through: `see`, a gaze passes it and a body does not, worlds/controllable/barrier.js): posts at
+  // its ends, rails at its foot, its waist and its head, and the wires between them a hand apart; a cage is a ring of
+  // them (room-layouts.js `cage`)
+  // a cage's ROOF (see-through, laid overhead, `over`: it takes no floor): a mesh tile at the panels' head, its border and
+  // its wires both ways; tiles stretched to cover the ring edge to edge
+  'mesh-roof': { class: 'fence', w: 1.5, d: 1.5, h: 2.4, see: true, parts: [B(0, 1.5, 0, 0.04, 2.36, 2.4, 'trim'), B(0, 1.5, 1.46, 1.5, 2.36, 2.4, 'trim'), B(0, 0.04, 0.04, 1.46, 2.36, 2.4, 'trim'), B(1.46, 1.5, 0.04, 1.46, 2.36, 2.4, 'trim'),
+    ...Array.from({ length: 9 }, (_, k) => B(0.04 + (k + 1) * 0.142 - 0.006, 0.04 + (k + 1) * 0.142 + 0.006, 0.04, 1.46, 2.37, 2.385, 'grate')),
+    ...Array.from({ length: 9 }, (_, k) => B(0.04, 1.46, 0.04 + (k + 1) * 0.142 - 0.006, 0.04 + (k + 1) * 0.142 + 0.006, 2.385, 2.4, 'grate'))] },
+  'mesh-panel': { class: 'fence', w: 1.5, d: 0.06, h: 2.4, see: true, parts: [B(0, 0.05, 0, 0.06, 0, 2.4, 'column'), B(1.45, 1.5, 0, 0.06, 0, 2.4, 'column'),
+    B(0.05, 1.45, 0.01, 0.05, 0, 0.06, 'trim'), B(0.05, 1.45, 0.01, 0.05, 1.12, 1.16, 'trim'), B(0.05, 1.45, 0.01, 0.05, 2.34, 2.4, 'trim'),
+    ...Array.from({ length: 9 }, (_, k) => B(0.05 + (k + 1) * 0.14 - 0.006, 0.05 + (k + 1) * 0.14 + 0.006, 0.025, 0.035, 0.06, 2.34, 'grate'))] }
 });
 export const PIECE_SETS = Object.freeze({
   military: Object.freeze(['crate', 'ammo-can', 'drum', 'tool-chest']),
@@ -131,6 +143,9 @@ const CLUSTERS = Object.freeze({ arrival: 1, passage: 0, landmark: 2, pocket: 2,
 const CLUTTER = Object.freeze({ even: 0, drama: 0, noir: 1 });
 // a room's clear edge (off its walls' faces, its corners), a sightline's half width, the gap between pieces abreast
 const EDGE = 0.5, SIGHT = 0.8, GAP = 0.08;
+// a doorway's way through for a body: as deep into the room as a step and a turn (a layout keeps this clear, not the
+// dressing's whole approach: room-layouts.js)
+const BODY_DOOR = 1.4;
 const SIDES = Object.freeze(['-y', '+y', '-x', '+x']);
 const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const hashOf = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
@@ -151,16 +166,34 @@ function openingsOf(plan, r) {
   return out;
 }
 
-/** Where nothing stands: each doorway's approach, each stair with its foot and head, each doorway's sightline to the focus. */
+/** Where nothing stands: each doorway's approach, each stair with its foot and head (a gallery's too), each doorway's
+ *  sightline to the focus. */
 export function keepOuts(plan) {
   const depth = STAIR_PROFILES.game.door, roles = new Map((plan.compose?.roles || []).map((R) => [R.room, R])), out = [];
   for (const r of plan.rooms) {
     const R = roles.get(r.id);
     for (const o of openingsOf(plan, r)) {
       const a = [o.at, o.at + o.into * depth].sort((x, y) => x - y), lo = o.lo - 0.6, hi = o.hi + 0.6;
-      out.push({ room: r.id, kind: 'door', min: o.X ? [a[0], lo] : [lo, a[0]], max: o.X ? [a[1], hi] : [hi, a[1]] });
+      // (`near`: a body's way through it, all a room's layout keeps clear: room-layouts.js)
+      const b = [o.at, o.at + o.into * BODY_DOOR].sort((x, y) => x - y), nl = o.lo - 0.3, nh = o.hi + 0.3;
+      out.push({ room: r.id, kind: 'door', min: o.X ? [a[0], lo] : [lo, a[0]], max: o.X ? [a[1], hi] : [hi, a[1]], near: { min: o.X ? [b[0], nl] : [nl, b[0]], max: o.X ? [b[1], nh] : [nh, b[1]] } });
       if (R) { const m = (o.lo + o.hi) / 2; out.push({ room: r.id, kind: 'sight', a: o.X ? [o.at, m] : [m, o.at], b: [R.focus[0], R.focus[1]], half: SIGHT }); }
     }
+  }
+  // (a gallery's stairs, the catwalk's way up from a hall's floor, stage.js: its near flight along the wall from its
+  // foot, a long one's second coming in square to it; every piece keeps off them, the stock, a layout and the cover)
+  for (const g of (plan.galleries ?? []).filter((x) => !x.lost)) {
+    const X = g.side.endsWith('x'), into = g.side.startsWith('-') ? 1 : -1;
+    const band = (a, b, deep) => { const v = [g.at, g.at + into * deep].sort((p, q) => p - q); out.push({ room: g.hall, kind: 'stair', min: X ? [v[0], a] : [a, v[0]], max: X ? [v[1], b] : [b, v[1]] }); };
+    band(Math.min(g.foot, g.near[0]) - 0.6, Math.max(g.foot, g.near[1]) + 0.6, g.depth[1] + 1.2);
+    if (g.front) band(g.front[0] - 1.2, g.front[1] + 1.2, g.reach + 1.8);
+  }
+  // (a vent's duct, vents.js: its floor along the back wall, and a body's room before each hatch to get down and in)
+  for (const d of plan.vents?.ducts ?? []) for (const s of d.segments) {
+    out.push({ room: s.room, kind: 'stair', min: [s.strip.min[0] - 0.2, s.strip.min[1] - 0.2], max: [s.strip.max[0] + 0.2, s.strip.max[1] + 0.2] });
+    const [hx, hy] = s.hatch.at, X = s.hatch.side.endsWith('x'), k = s.hatch.side.startsWith('+') ? 1 : -1;
+    const a = X ? [hx, hx + k * 1.6].sort((p, q) => p - q) : [hy, hy + k * 1.6].sort((p, q) => p - q);
+    out.push({ room: s.room, kind: 'stair', min: X ? [a[0], hy - 0.8] : [hx - 0.8, a[0]], max: X ? [a[1], hy + 0.8] : [hx + 0.8, a[1]] });
   }
   for (const s of plan.stairs || []) {
     const [x0, y0, x1, y1] = s.rect;
@@ -181,7 +214,8 @@ const hits = (k, mn, mx) => {
 
 /** An item's footprint (plan): its piece's w along the wall it backs on, d out from it, its centre at `at`. */
 export function footprintOf(it) {
-  const P = PIECES[it.kind], k = it.scale ?? 1, along = it.facing.endsWith('y'), hw = ((along ? P.w : P.d) * k) / 2, hd = ((along ? P.d : P.w) * k) / 2;
+  // (a piece stretched to a length of its own, `w` along it and `d` deep: a run of mesh tiled end to end, a roof's tile)
+  const P = PIECES[it.kind], k = it.scale ?? 1, W = it.w ?? P.w, Dp = it.d ?? P.d, along = it.facing.endsWith('y'), hw = ((along ? W : Dp) * k) / 2, hd = ((along ? Dp : W) * k) / 2;
   return { min: [it.at[0] - hw, it.at[1] - hd], max: [it.at[0] + hw, it.at[1] + hd] };
 }
 
@@ -189,9 +223,12 @@ export function footprintOf(it) {
 export function layProps(plan) {
   const C = plan.compose, reg = C.axes.dressing, set = PIECE_SETS[reg], keep = keepOuts(plan), items = [], town = reg === 'vernacular';
   const off = (plan.kit?.B?.pilaster?.out ?? 0.1) + 0.05;
-  const free = (r, mn, mx) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
-    && !keep.some((k) => k.room === r.id && hits(k, mn, mx))
-    && !items.some((o) => { if (o.room !== r.id || o.wall) return false; const f = footprintOf(o); return mn[0] < f.max[0] + GAP && mx[0] > f.min[0] - GAP && mn[1] < f.max[1] + GAP && mx[1] > f.min[1] - GAP; });
+  // (`sight` false: a doorway's sightline is not kept, as a room's layout breaks it on purpose)
+  // (`see`: a see-through piece, mesh, abuts another as a run of fence does; what hangs overhead, a cage's roof, takes no
+  // floor)
+  const free = (r, mn, mx, sight = true, see = false) => mn[0] >= r.x0 + 0.05 && mx[0] <= r.x1 - 0.05 && mn[1] >= r.y0 + 0.05 && mx[1] <= r.y1 - 0.05
+    && !keep.some((k) => k.room === r.id && (sight || k.kind !== 'sight') && hits(sight || k.kind !== 'door' ? k : { kind: 'door', ...k.near }, mn, mx))
+    && !items.some((o) => { if (o.room !== r.id || o.wall || o.over) return false; const f = footprintOf(o), g = see && PIECES[o.kind]?.see ? -0.012 : GAP; return mn[0] < f.max[0] + g && mx[0] > f.min[0] - g && mn[1] < f.max[1] + g && mx[1] > f.min[1] - g; });
   const add = (it, P, dice) => {
     const base = it.id, idx = items.filter((o) => o.id.startsWith(`${base}-`) && !o.id.includes('@')).length + 1;
     it.id = `${base}-${idx}`;
@@ -253,6 +290,31 @@ export function layProps(plan) {
       }
     }
   };
+  // a room given a layout (room-layouts.js, the program's `layouts`): its floor laid in the layout's figure, each piece
+  // where it stands clear (of the doorways' approaches and the stairs, not of their sightlines), in place of its stock
+  const layLayout = (r, o) => {
+    if (plan.use && !town) layExtinguishers(r);
+    const dice = mulberry32(hashOf(`layout|${r.id}`)), L = LAYOUTS[o.layout], before = items.length;
+    const fits = (kind, at, facing, more = {}) => { const f = footprintOf({ kind, at, facing, ...more }); return free(r, f.min, f.max, false, !!PIECES[kind].see); };
+    // (a piece its place does not hold, a doorway's approach or a stair's foot over it, moved the least that clears it,
+    // half a metre at a time up to a metre and a half: a piece moves, it is not dropped)
+    const NUDGE = [[0, 0]];
+    for (let d = 0.5; d <= 1.5; d += 0.5) for (const [a, b] of [[d, 0], [-d, 0], [0, d], [0, -d], [d, d], [-d, d], [d, -d], [-d, -d]]) NUDGE.push([a, b]);
+    for (const c of L.lay(r, o, (k) => PIECES[k], dice, fits)) {
+      // (what hangs overhead, a cage's roof, is laid where the figure says: it takes no floor)
+      if (c.over) { add({ id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: c.at, facing: c.facing, over: true, ...(c.w ? { w: c.w } : {}), ...(c.d ? { d: c.d } : {}) }, PIECES[c.kind], dice); continue; }
+      for (const [a, b] of L.nudge ? NUDGE : NUDGE.slice(0, 1)) {
+        // (a rack a layout lays carries a load of its own, propFaces: rows of them read as stock, never as copies)
+      const it = { id: `${r.id}/layout/${c.kind}`, kind: c.kind, room: r.id, at: [r5(c.at[0] + a), r5(c.at[1] + b)], facing: c.facing, ...(LOADED[c.kind] ? { load: true } : {}), ...(c.w ? { w: c.w } : {}), ...(c.d ? { d: c.d } : {}) }, f = footprintOf(it);
+        // (moved, it keeps a body's way to every wall, or stands against it: never a gap a body sticks in)
+        const gaps = [f.min[0] - r.x0, r.x1 - f.max[0], f.min[1] - r.y0, r.y1 - f.max[1]];
+        if ((a || b) && gaps.some((g) => g > 0.35 && g < 0.9)) continue;
+        if (free(r, f.min, f.max, false, !!PIECES[c.kind].see)) { add(it, PIECES[c.kind], dice); break; }
+      }
+    }
+    // (how many it laid, the extinguishers aside: none, and the room keeps its stock)
+    return items.slice(before).some((it) => it.id.includes('/layout/'));
+  };
   for (const R of C.roles) {
     const r = plan.rooms.find((x) => x.id === R.room), dice = mulberry32(hashOf(`props|${r.id}`));
     // the set piece its role names: at the focus a great object, a find, a prize; over the way on, a sign
@@ -288,11 +350,13 @@ export function layProps(plan) {
     // a military base's building or a hospital's (plan.use): each room its stock (stocking.js) in place of the register's clusters, and
     // an extinguisher by each of its doorways; a room the tables do not stock (a corridor, a core) holds none of it
     // (a town's building, the vernacular register: its room's role's stock, stocking.js TOWN_STOCK; no extinguisher)
+    const LO = plan.layouts ? layoutOf(plan.layouts, r.id, roleOf(r.id)) : null;
+    if (LO && layLayout(r, LO)) continue;
     if (plan.use) {
       const lines = (plan.stock === 'hospital' ? HOSPITAL_STOCK : town ? TOWN_STOCK : STOCK)[roleOf(r.id)];
       if (lines) {
         // (the extinguishers first: the safety kit claims its place by the doors before the stock fills the walls)
-        if (!town) layExtinguishers(r);
+        if (!town && !LO) layExtinguishers(r);
         const sd = mulberry32(hashOf(`stock|${r.id}`));
         for (const [kind, [lo, hi], where] of lines) layStock(r, kind, lo + Math.floor(sd() * (hi - lo + 1)), where, sd);
       }
@@ -327,6 +391,24 @@ export function layProps(plan) {
 }
 
 /**
+ * A laid plan's layouts, each room given one held to its laws (room-layouts.js layoutLaws): { <room id>: { layout,
+ * pieces, laws } }. `items` its props. Rooms without a layout are not said.
+ */
+export function layoutReport(plan, items) {
+  const out = {};
+  for (const r of plan.rooms) {
+    const o = plan.layouts ? layoutOf(plan.layouts, r.id, roleOf(r.id)) : null;
+    if (!o) continue;
+    const mine = items.filter((it) => it.room === r.id && PIECES[it.kind]?.solid !== false && !it.wall && !it.over);
+    const boxes = mine.map((it) => { const f = footprintOf(it); return { min: f.min, max: f.max, h: PIECES[it.kind].h * (it.scale ?? 1) * ((it.level ?? 0) + 1), ...(PIECES[it.kind].see ? { see: true } : {}) }; });
+    const pieces = mine.filter((it) => it.id.includes('/layout/') && !it.level).length;
+    // (a layout its room could not hold, its doorways' approaches over every place: the room keeps its stock, said)
+    out[r.id] = { layout: o.layout, pieces, ...(pieces ? {} : { stocked: true }), laws: layoutLaws(r, boxes, openingsOf(plan, r)) };
+  }
+  return out;
+}
+
+/**
  * A HALL'S COVER (a building designed as a fighting map, programs.js FIGHT `cover`): each hall stocking.js HALL_COVER
  * names broken by its own stock. Its BLOCKS stand on a seeded lattice of the arena's cells (arena-map/blocks.js CELL: a
  * block a standing place across), every other cell of every other row, the rows offset, some left open by the dice; a
@@ -335,14 +417,8 @@ export function layProps(plan) {
  * LANE round the walls, a body's width between any two things. → items as layProps lays them.
  */
 export function layCover(plan, items = []) {
+  // (the stairs kept are keepOuts', a gallery's among them)
   const keep = keepOuts(plan).filter((k) => k.kind !== 'sight'), out = [], C = COVER_CELL;
-  // (a gallery's stairs: its near flight along the wall from its foot, a long one's second coming in square to it)
-  for (const g of (plan.galleries ?? []).filter((x) => !x.lost)) {
-    const X = g.side.endsWith('x'), into = g.side.startsWith('-') ? 1 : -1;
-    const band = (a, b, deep) => { const v = [g.at, g.at + into * deep].sort((p, q) => p - q); keep.push({ room: g.hall, kind: 'stair', min: X ? [v[0], a] : [a, v[0]], max: X ? [v[1], b] : [b, v[1]] }); };
-    band(Math.min(g.foot, g.near[0]) - 0.6, Math.max(g.foot, g.near[1]) + 0.6, g.depth[1] + 1.2);
-    if (g.front) band(g.front[0] - 1.2, g.front[1] + 1.2, g.reach + 1.8);
-  }
   const all = () => [...items, ...out];
   const clear = (r, f, gap) => f.min[0] >= r.x0 + LANE && f.max[0] <= r.x1 - LANE && f.min[1] >= r.y0 + LANE && f.max[1] <= r.y1 - LANE
     && !keep.some((k) => k.room === r.id && hits(k, f.min, f.max))
@@ -403,7 +479,8 @@ const COVER_CELL = ARENA_CELL, BLOCK = 2.4, LANE = 1.2, WAY = 1.2, BAFFLE = 2.4;
 
 // an item's part as a world box: the piece's frame turned to face the room (u along its wall, v out of it)
 function partBox(it, p, z0) {
-  const k = it.scale ?? 1, [u0, u1, v0, v1, pz0, pz1] = p.slice(0, 6).map((v) => v * k), f = footprintOf(it), dir = it.facing[0] === '+' ? 1 : -1;
+  const P = PIECES[it.kind], k = it.scale ?? 1, su = it.w !== undefined ? it.w / P.w : 1, sv = it.d !== undefined ? it.d / P.d : 1;
+  const [u0, u1, v0, v1, pz0, pz1] = p.slice(0, 6).map((v, i) => v * k * (i < 2 ? su : i < 4 ? sv : 1)), f = footprintOf(it), dir = it.facing[0] === '+' ? 1 : -1;
   // (the piece's back on the wall: v grows away from it; u runs left to right as one faces the piece)
   if (it.facing.endsWith('y')) {
     const x0 = dir > 0 ? f.min[0] + u0 : f.max[0] - u1, x1 = dir > 0 ? f.min[0] + u1 : f.max[0] - u0;
@@ -429,6 +506,44 @@ function prism(out, c, r, z0, z1, sides, sf) {
 }
 
 /** Each item's faces, named by its id, and an anchor each (a prop of its piece's class). */
+/**
+ * A RACK'S LOAD, each its own (an item's `load: true`, laid by a room's layout, room-layouts.js): the rack's frame as it
+ * is, and on each of its levels, by dice seeded from the item's id, a pallet of cartons of mixed sizes (stacked two high
+ * where they fit), one wrapped load, a row of totes, or nothing (a gap: a glimpse into the next aisle), each box in a
+ * surface and a variant of its own. A rack without `load` carries its one fixed load, as every rack laid before did.
+ */
+const LOADED = Object.freeze({ rack: Object.freeze({ frame: 8, levels: Object.freeze([[0, 0.98], [1.16, 1.98], [2.16, 2.92]]), u: Object.freeze([0.15, 2.55]), v: Object.freeze([0.12, 0.88]) }) });
+const LOAD_SURFS = Object.freeze(['cabinet', 'services', 'paint', 'cabinet', 'trim']);
+function loadParts(P, L, seed) {
+  const d = mulberry32(seed), pick = (a) => a[Math.floor(d() * a.length)], parts = P.parts.slice(0, L.frame), r3 = (v) => Math.round(v * 1000) / 1000;
+  const [U0, U1] = L.u, [V0, V1] = L.v;
+  for (const [z0, z1] of L.levels) {
+    const kind = pick(['cartons', 'cartons', 'cartons', 'wrapped', 'totes', 'empty']), room = z1 - z0;
+    if (kind === 'empty') continue;
+    if (kind === 'wrapped') {
+      const w = 0.9 + d() * 0.5, u = U0 + d() * (U1 - U0 - w), h = room * (0.7 + d() * 0.25);
+      parts.push([r3(u), r3(u + w), V0 + 0.04, V1 - 0.04, z0, r3(z0 + h), 'services', Math.floor(d() * 4)]);
+      continue;
+    }
+    if (kind === 'totes') {
+      const n = 3 + Math.floor(d() * 3), w = (U1 - U0) / n, s = pick(LOAD_SURFS);
+      for (let i = 0; i < n; i++) { if (d() < 0.15) continue; const h = 0.26 + d() * 0.12; parts.push([r3(U0 + i * w + 0.03), r3(U0 + (i + 1) * w - 0.03), V0 + 0.1, V1 - 0.1, z0, r3(z0 + h), s, Math.floor(d() * 4)]); }
+      continue;
+    }
+    // (cartons: a pallet under them on the floor level, boxes of two to four widths across, some stacked)
+    const base = z0 === 0 ? 0.12 : 0;
+    if (base) parts.push([U0, U1, V0, V1, 0, base, 'beam', 0]);
+    let u = U0;
+    while (u < U1 - 0.3) {
+      const w = Math.min(U1 - u, 0.35 + d() * 0.55), dv = 0.5 + d() * (V1 - V0 - 0.5), v0 = V0 + d() * (V1 - V0 - dv), h = 0.3 + d() * 0.3, s = pick(LOAD_SURFS), vr = Math.floor(d() * 4);
+      parts.push([r3(u + 0.02), r3(u + w - 0.02), r3(v0), r3(v0 + dv), r3(z0 + base), r3(z0 + base + h), s, vr]);
+      if (base + 2 * h + 0.04 < room && d() < 0.55) { const h2 = h * (0.6 + d() * 0.4); parts.push([r3(u + 0.06), r3(u + w - 0.06), r3(v0 + 0.04), r3(v0 + dv - 0.04), r3(z0 + base + h), r3(z0 + base + h + h2), pick(LOAD_SURFS), Math.floor(d() * 4)]); }
+      u += w + 0.03;
+    }
+  }
+  return parts;
+}
+
 export function propFaces(plan, items, surf) {
   const faces = [], anchors = [], rooms = new Map(plan.rooms.map((r) => [r.id, r]));
   for (const it of items) {
@@ -446,17 +561,17 @@ export function propFaces(plan, items, surf) {
         out.push({ corners: fc.corners.map(turn), fill: fc.fill, cornerFills: fc.corners.map(() => fc.fill), ...(n ? { normal: n, outNormal: n } : {}), ...(fc.doubleSided ? { doubleSided: true } : {}), group: 'stage:furniture' });
       }
     }
-    for (const p of P.furniture ? [] : P.parts) {
+    for (const p of P.furniture ? [] : it.load && LOADED[it.kind] ? loadParts(P, LOADED[it.kind], hashOf(`load|${it.id}`)) : P.parts) {
       if (p[0] === 'prism') {
         const [, cu, cv, rad, pz0, pz1, sides, s] = p, [mn] = partBox(it, [cu, cu, cv, cv, pz0, pz1], z0);
         prism(out, [mn[0], mn[1]], rad * k, z0 + pz0 * k, z0 + pz1 * k, sides, surf(s));
       } else {
         const [mn, mx] = partBox(it, p, z0);
-        box(out, mn.map(r5), mx.map(r5), surf(p[6]), 2);
+        box(out, mn.map(r5), mx.map(r5), p[7] === undefined ? surf(p[6]) : surf(p[6], p[7]), 2);
       }
     }
     for (const f of out) faces.push({ ...f, node: it.id });
-    anchors.push({ id: it.id, kind: 'prop', form: P.class, room: it.room, at: [it.at[0], it.at[1], r5(z0)], ...(P.solid === false ? {} : { solid: true }), ...(it.breakable !== undefined ? { breakable: it.breakable } : {}) });
+    anchors.push({ id: it.id, kind: 'prop', form: P.class, room: it.room, at: [it.at[0], it.at[1], r5(z0)], ...(P.see ? { see: true } : P.solid === false ? {} : { solid: true }), ...(it.breakable !== undefined ? { breakable: it.breakable } : {}) });
   }
   return { faces, anchors };
 }
@@ -465,8 +580,9 @@ export function propFaces(plan, items, surf) {
 export function dressLaws(plan, items) {
   const keep = keepOuts(plan), inKeep = [], inSight = [];
   for (const it of items) {
-    if (it.set || it.wall || !PIECES[it.kind]) continue;
-    const f = footprintOf(it), k = keep.find((q) => q.room === it.room && hits(q, f.min, f.max));
+    if (it.set || it.wall || it.over || !PIECES[it.kind]) continue;
+    // (a room's layout keeps a doorway's way through for a body, not its whole approach: room-layouts.js)
+    const lay = it.id.includes('/layout/'), f = footprintOf(it), k = keep.find((q) => q.room === it.room && (!lay || q.kind !== 'sight') && hits(lay && q.kind === 'door' ? { kind: 'door', ...q.near } : q, f.min, f.max));
     if (k) (k.kind === 'sight' ? inSight : inKeep).push(it.id);
   }
   const count = {};

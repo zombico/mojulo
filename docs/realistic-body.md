@@ -74,6 +74,25 @@ kit and the cloth are made by the rules in [garment-principles.md](garment-princ
   target (a blend shape) driven by the raise.
 - Today, per side: `pauldronBag`, `pauldronCap`, `pauldronDeltoid` (torso and upper arm), `shoulderLevel`,
   `shoulderOverhead` (torso).
+- **The clothes carry them** (`layered.js`). A garment copied ring for ring from a body segment takes that segment's
+  offsets, slot for slot (`garmentCorrectives`). Under realistic laws 17 the tailor's own cloth does too (its merged
+  tubes, a coat's `_body` and `_arm<S>`, a second skin): each of its points moves as the skin nearest it moves, its few
+  nearest skin points' offsets weighted by nearness, those a corrective leaves still counting as still
+  (`carriedCorrectives`). Before, a raised arm pushed the shoulder's skin out through a coat. Its test
+  (`body-relational-carry.test.js`) counts what a pose brings into view of what the coat covers at rest: an arm raised
+  overhead shows under half of it.
+
+## One skin on the page (realistic laws 17)
+
+A World page draws a hero as rigid parts by default: one mesh a bone, each vertex carried by its one strongest bone
+(`controllable/index.js` `__makeRigGroup`). At every joint neighbouring triangles go to different bones and step
+apart, and layers of cloth a few millimetres off each other cross there in rows of teeth (the sawtooth along a
+coat's hem, its armholes, a rolled cuff). A realistic hero minted under laws 17 is drawn as ONE SKIN
+(`world-scene.js` `heroFigure` says `skinParts`): each part a skinned mesh on one skeleton, every corner carried by
+the bones it is weighed to, as an engine's export is. The page's bank keeps its parts' bones and weights, welded with
+their corners where a part is welded (`pageFigures`), and each part keeps what it drew as a rigid mesh (its paint, its
+normals, its face, the cast rig's light). A weapon or a shield rides its bone as before, as does a body a fight breaks
+apart, a page with the toon ink's hull or a headset's hands. A hero minted before, as it was, byte for byte.
 
 ## The relief (realistic laws 5)
 
@@ -178,7 +197,15 @@ between a margin and the eye. Above the crease the fold rises to the brow as a p
 upright under the brow, so a light from above reaches it; the brow's arc and its ties hang lower; a deep-set eye (its
 globe, lids and lashes) comes forward a share of the way toward the nose's tip, short of the glabella; the lower
 lashes root on the margin's front, shorter. Everything that rebuilds the head from its fit (the bake, the hair, the
-face rig) reads the same seated head. Under laws 12 the mouth has TEETH (`hero-one-skin.js` `teeth`): the bag behind the
+face rig) reads the same seated head. Under laws 14 the face's hair is drawn as a game draws it (the recipe's
+`faceHairPaint`): each brow hair of the groom a stroke in the head's page (`epidermis/dermal-brow.js`), the band
+thinning at its head and tail, with the lash line's dark band along each margin; the lashes a ribbon of alpha cards
+textured from their own strip of the atlas (`hair-strands.js` `LASH_PAGE`); a beard a coat over the skin textured with
+the hair's streaks, its points sharing the skin page's coordinates; the scalp painted the hair's colour under the locks,
+the hairline stopping at its edge, and the locks textured from a strip of their own (`LOCK_PAGE`), their tips kept off
+the skin. The cards are a primitive of their own with a MASK material (`alphaBox`), the body opaque, and the default
+heroes are held to a game's budget of triangles, vertices, atlas and materials (`hero-budget.e2e.test.js`). Under laws
+12 the mouth has TEETH (`hero-one-skin.js` `teeth`): the bag behind the
 lips is cut open at its front into a cup facing in, and in it the head's own dentition (`head-relational.js` `DENTITION`,
 each crown a tube along its vajra, the front ones blades) on the head bone above and the jaw's below, and the tongue on
 the jaw's; their colours are the palette's `Teeth`, `TeethShade` and `Tongue`. Toward each corner the lips' share of the
@@ -200,3 +227,13 @@ expression channels and their eye looks (`humanoid-head.js` `EYE_LOOKS`); the Wo
 In the one skin a lid's weight and turn are smoothed over the skin's own neighbours (`SKIN_FOLLOW.smooth`), so a
 blink shuts the lid as one sheet. The lips stretch as the
 jaw opens.
+
+The face over the relational head is composed (`face-compose.js` `composeFace`): its ancestry's bucket (`FACE_BUCKETS`)
+sets the population's mean as offsets over the sex's pole, then the rolls. The East and North Asian eye
+(`EAST_ASIAN_EYE`) is wider and less tall, its height taken off the lower lid; its tilt turns about the pupil
+(`tiltPivot`), so a lifted outer corner leaves the iris even between the lids; the globe sits toward the inner corner
+(`globeShift`), the white running out to the temple; the flesh is TENTED from the low nasal root over the inner corner
+(`tent`, `MEDIAL_TENT`, held from the lid space's cut), the fold being that skin in place of the lid's epicanthic roll;
+the lids close at both corners just past the globe (`innerClose`, `outerClose`), where the corner fill ends, set back to
+the face (`COVER_CLOSED`), so no bean stands at the eye's side; and the root and the brow sit back to the eye (the
+nasion ~6 mm ahead of the cornea). Each of these is 0 or absent on every other face, which renders as before.

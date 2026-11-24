@@ -35,6 +35,9 @@
  *       actions?,                                // what it can do (actions.js)
  *       adornment?,                              // the equipment the main loop calls for (adornment.js)
  *     },
+ *     costar?: { ref, name, variant? },          // a second hero the player may play in the hero's place (a run and
+ *                                              // gun's pair): adopted by ref, its name the screens say, the feel's
+ *                                              // variant it plays; a level stands both, the player picks who goes
  *     cast?: { <id>: { name?, looks?, motion? } }, // the other people: each a looks and a motion page, as the hero's,
  *                                              // styled by the same direction (no actions, adornment or gear: those
  *                                              // are the player's); placed in levels by the story (story.js)
@@ -78,7 +81,7 @@ const DIRECTION_KEYS = ['tradition', 'from', 'motif', 'primary', 'secondary', 'p
 /** The hero's looks: each element its own page, each the hero-door fields it decides. */
 export const LOOKS_ELEMENTS = Object.freeze({
   body: { read: 'the silhouette: its cast, build and register, its form and what muscle it shows', fields: ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'core', 'form', 'physique', 'animeBody', 'muscleShirt'] },
-  head: { read: 'the head and face', fields: ['headPreset', 'animeStyle', 'face', 'sculpt', 'expression', 'look', 'genki'] },
+  head: { read: 'the head and face', fields: ['headPreset', 'animeStyle', 'face', 'sculpt', 'expression', 'look', 'genki', 'skin'] },
   hair: { read: 'the hair', fields: ['hair'] },
   colour: { read: 'the colour: the hero\'s palette', fields: ['palette'] },
 });
@@ -104,7 +107,9 @@ const NOT_LOOKS = Object.freeze({
  * They share the world's `review` field with the world's own parts. */
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
 const HERO_KEYS = ['ref', 'name', 'looks', 'motion', 'actions', 'adornment', 'actor'];
-const KEYS = ['direction', 'hero', 'cast', 'casting', 'folk'];
+const KEYS = ['direction', 'hero', 'costar', 'cast', 'casting', 'folk'];
+// the CO-STAR's page: a second hero the player may play in the hero's place (a run and gun's pair)
+const COSTAR_KEYS = ['ref', 'name', 'variant'];
 /** The character book's keys and its hero's (the chapter registry, chapters.js, gives each its chapter). */
 export const CHARACTER_BOOK_KEYS = Object.freeze([...KEYS]), CHARACTER_HERO_KEYS = Object.freeze([...HERO_KEYS]);
 /** The casting page's part: present only in a book that has one (casting.js). */
@@ -277,6 +282,17 @@ export function readCharacters(C) {
     if (C.hero.actions !== undefined) out.hero.actions = readActions(C.hero.actions);
     if (C.hero.adornment !== undefined) out.hero.adornment = readAdornment(C.hero.adornment);
     if (C.hero.actor !== undefined) out.hero.actor = actorOf(C.hero.actor, 'hero.actor');
+  }
+  // THE CO-STAR (a run and gun's pair): a second hero made on its own and adopted (`ref`), its `name` the screens say, the
+  // feel's `variant` it plays (feel/cards.js: how it plays, a saber in place of the buster); a level laid with it stands
+  // both and the player picks who goes (side-map/level.js, the flow's `pilot` pick)
+  if (C.costar !== undefined) {
+    if (!isObj(C.costar)) throw err(`costar is { ${COSTAR_KEYS.join(', ')} }: a second hero the player may play`);
+    for (const k of Object.keys(C.costar)) if (!COSTAR_KEYS.includes(k)) throw err(`costar.${k} is not part of the co-star's page (${COSTAR_KEYS.join(', ')})`);
+    if (!(typeof C.costar.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(C.costar.ref))) throw err('costar.ref is the sketch ref of the co-star made with create_character (the run adopts it)');
+    if (typeof C.costar.name !== 'string' || !C.costar.name.trim()) throw err('costar.name is what the screens call the co-star');
+    if (C.costar.variant !== undefined && typeof C.costar.variant !== 'string') throw err('costar.variant is the feel\'s variant the co-star plays (feel/cards.js variants)');
+    out.costar = { ref: C.costar.ref, name: C.costar.name, ...(C.costar.variant !== undefined ? { variant: C.costar.variant } : {}) };
   }
   return out;
 }

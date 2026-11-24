@@ -355,10 +355,24 @@ function volumeAt(g, S) {
     slab: (q) => 1 + ((S.taper ?? 1) - 1) * q }[S.shape];
   const U = Array.from({ length: K }, (_, i) => u0 + (u1 - u0) * i / (K - 1)), rad = U.map((u, i) => R * prof(i / (K - 1)));
   const rings = U.map((u, i) => ring(off(u), rad[i]));
-  // a rounded proximal end (the volume swells out of the limb), a flat distal face (a cuff, a sole, a muzzle)
-  const body = loftParts(rings, add(off(u0), mul(a, -rad[0] * 0.35)), off(u1));
+  // a rounded proximal end (the volume swells out of the limb), a flat distal face (a cuff, a sole, a muzzle); or with
+  // `dome` { depth? } the distal end closed in a DOME, `depth` its height a share of the end's radius (an arm cannon's
+  // rounded end), and a `nozzle` { r, len, group?, rings? } out of its apex, a short barrel `r` of the end's radius across
+  // and `len` of it long, its bore dark in its face. Absent both: as before, byte for byte
+  const rEnd = rad[K - 1], D = S.dome ? (S.dome.depth ?? 0.85) : 0;
+  const domeRings = D ? Array.from({ length: 6 }, (_, j) => { const th = (Math.PI / 2) * (j + 1) / 7; return ring(add(off(u1), mul(a, rEnd * D * dmath.sin(th))), Math.max(1e-4, rEnd * dmath.cos(th))); }) : [];
+  const apex = D ? add(off(u1), mul(a, rEnd * D)) : off(u1);
+  const body = loftParts([...rings, ...domeRings], add(off(u0), mul(a, -rad[0] * 0.35)), apex);
   const out = [body];
-  if (S.bore) { const br = rad[K - 1] * (S.bore.r ?? 0.62); out.push({ ...disc(add(off(u1), mul(a, 0.0005)), a, br, Math.max(0.001, br * 0.12), m, 0.7), group: S.bore.group }); }
+  let face = apex, faceR = rEnd;
+  if (D && S.nozzle) {
+    const nr = rEnd * (S.nozzle.r ?? 0.32), nl = rEnd * (S.nozzle.len ?? 0.45), sink = rEnd * D * (1 - dmath.cos(dmath.asin(Math.min(1, (S.nozzle.r ?? 0.32))))) + nr * 0.1;
+    const n0 = add(apex, mul(a, -sink)), n1 = add(apex, mul(a, nl)), NK = S.nozzle.rings ?? 4;
+    const nRings = Array.from({ length: NK }, (_, i) => ring(add(n0, mul(sub(n1, n0), i / (NK - 1))), nr * (i === NK - 1 ? 1.08 : 1)));
+    out.push({ ...loftParts(nRings, n0, n1), ...(S.nozzle.group ? { group: S.nozzle.group } : {}) });
+    face = n1; faceR = nr;
+  }
+  if (S.bore) { const br = (D ? faceR : rad[K - 1]) * (S.bore.r ?? 0.62); out.push({ ...disc(add(face, mul(a, 0.0005)), a, br, Math.max(0.001, br * 0.12), m, 0.7), group: S.bore.group }); }
   if (S.lip) { const hi = S.lip.at !== 'low', w = S.lip.w ?? 0.12, o = 1 + (S.lip.out ?? 0.06), Q = 3;
     const band = Array.from({ length: Q }, (_, i) => { const q = hi ? 1 - w + w * i / (Q - 1) : w * i / (Q - 1), u = u0 + (u1 - u0) * q; return ring(off(u), R * prof(q) * o); });
     out.push({ ...loftParts(band, off(u0 + (u1 - u0) * (hi ? 1 - w : 0)), off(u0 + (u1 - u0) * (hi ? 1 : w))), group: S.lip.group }); }
@@ -1135,8 +1149,11 @@ export const SIGNATURES = {
     // a PONYTAIL out of the helm's back: `n` flattened, tapering clumps from a tie at height `u` (behind), falling `len`
     // down and `back` behind, fanning `spread` (of len) toward the tips; `wild` scatters each clump's direction, length and
     // flick by a fixed pattern (no dice), so the tail reads as wild hair: { u, len, r, n?, spread?, back?, wild?, flick?,
-    // group, tie?: { group, r? } }
-    if (S.ponytail) { const T = S.ponytail, nC = T.n ?? 9, root = at(T.u, -Math.PI / 2, 0.004), bk = [0, -1, 0], len = T.len;
+    // group, tie?: { group, r? }, twin? }. `twin` (radians): TWO tails, tied that far either side of the back, each
+    // swung out to its own side as it falls (twin tails)
+    if (S.ponytail) { const T = S.ponytail;
+      for (const tw of T.twin ? [T.twin, -T.twin] : [0]) {
+      const nC = T.n ?? 9, root = at(T.u, -Math.PI / 2 + tw, 0.004), bk = tw ? unit([dmath.sin(tw) * 0.9, -1, 0]) : [0, -1, 0], len = T.len;
       const hsh = (i, k) => { const x = dmath.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
       if (T.tie) out.push({ ...disc(add(root, mul(bk, -0.004)), unit(add(bk, [0, 0, -0.35])), T.tie.r ?? T.r * 1.4, T.r * 0.9, 10, 0.6), group: T.tie.group ?? S.group });
       for (let i = 0; i < nC; i++) { const ph = i * 2.39996, w = T.wild ?? 0.5, L = len * (1 - 0.3 * w * hsh(i, 1)), sp = (T.spread ?? 0.35) * (0.5 + hsh(i, 2));
@@ -1144,7 +1161,7 @@ export const SIGNATURES = {
         const spine = Array.from({ length: K }, (_, j) => { const t = j / (K - 1);
           return add(add(add(root, mul(bk, L * (T.back ?? 0.3) * dmath.pow(Math.min(1, t * 2.2), 0.6))), [0, 0, -L * dmath.pow(t, 1.25)]),
             add(mul(side, sp * L * dmath.pow(t, 0.9)), [0, -(T.flick ?? 0.12) * L * w * hsh(i, 3) * t * t * t, 0])); });
-        out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, T.r * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } }
+        out.push({ ...sweep(spine, spine.slice(0, -1).map((_, j) => Math.max(0.0008, T.r * (0.7 + 0.5 * hsh(i, 4)) * dmath.pow(1 - j / (K - 1), 0.85))), 5, { squash: [1, 0.45] }), group: T.group ?? 'Hair' }); } } }
     // a GEM on the brow, centred over the window (the forehead jewel): { r, h?, u?, group, setting?: { group, w? }, shape?:
     // 'diamond' (a faceted rhombus, `tall`/`wide` its half-extents in r, on a rhombus plate `w` wider: the border) }
     if (S.gem) { const G = S.gem, ug = G.u ?? (VP ? uTw - 0.3 * (uTw - uAv) : Math.min(0.95, uE + (S.window?.brow ?? 0.12) + 0.07)), c = at(ug, F, vLift), nrm = unit(sub(at(ug, F, 0.02), c)), r = G.r ?? w * 0.07;
@@ -1168,6 +1185,13 @@ export const SIGNATURES = {
       if (G.setting) out.push({ ...disc(add(c, mul(nrm, -0.001)), nrm, r * 1.4, r * 0.3, 16, 0.8), group: G.setting.group ?? S.group });
       out.push({ ...disc(add(c, mul(nrm, G.setting ? r * 0.25 : 0)), nrm, r, G.h ?? r * 0.6, 12, 0.55), group: G.group ?? S.group }); } }
     if (S.grille) for (let i = 0; i < S.grille; i++) { const u = 0.12 + i * 0.05; out.push(bar(arc(u, F - 0.35, F + 0.35, 5), w * 0.025, 0.004, S.grilleGroup ?? S.group)); }
+    // an OBJECT HEAD's rim and what it holds (a boss's head that is its theme's object: a crucible, gameworld/bosses.js): a
+    // LIP, a proud ring round the helm's top edge at `u` (a donut cuff, the toy's honest bead) { u?, w?, t?, group }, and a
+    // POOL, a disc over the flat crown inside it, domed `rise` m over the lip so a side-on camera sees it { fill?, rise?,
+    // group } (the molten metal, its signal's glow). Absent, none
+    if (S.lip) { const L = S.lip, u = L.u ?? 0.97, k = 2 * m; out.push(bar(Array.from({ length: k + 1 }, (_, q) => [u, (2 * Math.PI * q) / k]), L.w ?? w * 0.07, L.t ?? 0.012, L.group ?? S.group)); }
+    if (S.pool) { const Q = S.pool, r = Math.min(rx0, ry0) * shape(0.99) * (Q.fill ?? 0.85);
+      out.push({ ...disc([0, cy, zT + 0.001], [0, 0, 1], r, Q.rise ?? 0.004, 24, Q.rise ? 0.55 : 0.95), group: Q.group ?? S.group }); }
     // a BROW: a proud bar over the eyes that casts the face beneath into shadow ({ group, t? })
     if (S.brow) out.push(bar(arc(Math.min(0.97, uE + 0.075), F - 0.85, F + 0.85), w * 0.07, S.brow.t ?? w * 0.05, S.brow.group ?? S.group));
     // a CORONET: spikes round a band at height `u` (the silhouette verb on the helm's crest line), over `arc` of the
@@ -1284,9 +1308,11 @@ export const SIGNATURES = {
    * chamfered moulding) squashed by `squash` [lateral, forward]; `bias` [lateral, forward, along] moves it off the axis
    * (fractions of the radius; the forward is the figure's +y, or up for a carrier that already points forward, a foot);
    * `extend` [proximal, distal] runs it past the window (fractions of the window's length). `bore` { group, r? } sets a
-   * dark muzzle disc on the distal face (the arm cannon); `lip` { group, at: 'low' | 'high', w?, out? } a proud band at
+   * dark muzzle disc on the distal face (the arm cannon); `dome` { depth? } closes the distal end in a dome, and
+   * `nozzle` { r, len, group?, rings? } stands a short barrel out of its apex (the bore then in the nozzle's face);
+   * `lip` { group, at: 'low' | 'high', w?, out? } a proud band at
    * one end (a cuff); `half` { cut } a flat face `cut` radii below the axis along the whole length (a half-egg foot's sole).
-   * { shape, girth, peak?, mouth?, taper?, n?, squash?, bias?, extend?, at?, m?, rings?, bore?, lip?, half? } */
+   * { shape, girth, peak?, mouth?, taper?, n?, squash?, bias?, extend?, at?, m?, rings?, bore?, dome?, nozzle?, lip?, half? } */
   volume: (fig, g, _b, S) => volumeAt(g, S),
   /** a PLAQUE: a thick trapezoid plate lying on the carrier (`part`, default the adornment's own) between stations `s`
    * [bottom, top], centred on the front (t 0), its half-width in ring units `w` [at the bottom, at the top], lifted `lift`

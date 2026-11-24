@@ -12,10 +12,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 // leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
 // A list, not a suffix: a rename would collide with every branch still editing these files.
 export const E2E = [
+  // a side map level resolved as its page resolves it and played to its goal by the side map's bot (gameworld/side-map/)
+  'lib/graph/gameworld/side-map/level.e2e.test.js',
   'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
   // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed
   'lib/mcp/tools/shoot-contact.e2e.test.js',
+  // the default heroes minted and exported as an engine takes them, held under their game budget (triangles, vertices,
+  // the atlas, the body opaque)
+  'lib/mcp/tools/hero-budget.e2e.test.js',
   // the exhibit starters made through create_exhibit: Pompeii resolves a whole historic town and its people
   'lib/graph/exhibit/starters.e2e.test.js',
   // a glyph map built whole through the kit's builder, tile by tile, and its laws measured (level/grid-scene.js)
@@ -82,7 +87,7 @@ export const E2E = [
   'lib/graph/scene/channels/controllable/seats.live.test.js',
   'lib/graph/worlds/controllable/vayo-air.live.test.js',
   'lib/graph/worlds/controllable/vayo-move.live.test.js',
-  'lib/graph/worlds/controllable/knock.live.test.js',
+  'lib/graph/worlds/controllable/knock.live.test.js', 'lib/graph/scene/channels/controllable/shot-light.live.test.js', 'lib/graph/worlds/cel-body.e2e.test.js',
   'lib/graph/worlds/mount-ride.live.test.js',
   'lib/mcp/tools/design-game.seats.test.js',
   'lib/graph/science-worlds/conformance.chrome.test.js',
@@ -93,6 +98,8 @@ export const E2E = [
   'lib/graph/scene/live-light.chrome.test.js',
   'lib/mana-ui/snapshot.chrome.test.js',
   'lib/graph/scene/channels/controllable/armed-body.chrome.test.js',
+  // the ray budget: a walker on a gen-7 land in headless Chrome, no ray testing a big mesh triangle by triangle
+  'lib/graph/scene/channels/controllable/ray-budget.chrome.test.js',
   // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts
   'lib/graph/gameworld/combat/range-sound.chrome.test.js',
   'lib/graph/gameworld/combat/artillery.chrome.test.js',

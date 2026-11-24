@@ -197,3 +197,25 @@ describe('a building\'s stair: the game profile\'s switchback (construction/circ
     expect(() => planStage({ ...TOWER, stair: 'ladder' })).toThrow(/keep or game/);
   });
 });
+
+describe('a played building\'s rules', () => {
+  it('its stairs say their footprints, for a follow camera that keeps off a walker on them', () => {
+    const S = scene.anchors.find((a) => a.kind === 'stair');
+    expect(S.rect).toEqual(st.rect);
+    expect(S.to[2]).toBeGreaterThan(S.at[2]);
+  });
+  it('its highest floor stood taller (headroom.top): the top storey\'s rooms, no floor moved; without it, as it was', async () => {
+    const { withHeadroom } = await import('./stage.js');
+    const M = withHeadroom({ ...KEEP2, headroom: { top: 1.5 } });
+    expect(M.rooms.filter((r) => r.storey === 1).map((r) => r.h)).toEqual([5.5, 6]);
+    expect(M.rooms.filter((r) => !r.storey).map((r) => r.h)).toEqual([4, 4, 7]);
+    const P = planStage(M);
+    expect(P.rooms.find((r) => r.id === 'guard').z0).toBe(plan.rooms.find((r) => r.id === 'guard').z0);
+    // (one storey: every room is the top's)
+    expect(withHeadroom({ ...KEEP2, rooms: KEEP2.rooms.filter((r) => !r.storey), headroom: { top: 1 } }).rooms.map((r) => r.h)).toEqual([5, 5, 8]);
+    expect(() => withHeadroom({ ...KEEP2, headroom: { top: 9 } })).toThrow(/headroom is \{ top \}/);
+    const tall = assembleStageScene({ ...KEEP2, headroom: { top: 1.5 } }, { unshaded: true });
+    const topZ = (sc) => Math.max(...sc.faces.flatMap((f) => f.corners.map((c) => c[2])));
+    expect(topZ(tall)).toBeGreaterThan(topZ(scene) + 1);
+  });
+});

@@ -448,5 +448,40 @@ const ACTION = {
   },
 };
 
-export const SCHEMES = { pilot: PILOT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, brawl: BRAWL, action: ACTION };
+// THE OPERATIVE: the pilot's actions laid out as a stealth action game lays them (the principles of the tactical
+// espionage pad): the aim is HELD on the left trigger and the right trigger fires only then; from the aim, the right
+// shoulder goes to the eye and the right stick's click to the other shoulder; the stick's push is the run (there is no
+// sprint); the south face is the stance (a press down to a crouch and up again, held down to lying), as is the stick's
+// click; the west face is the action (use, open, pick up), the east reloads, the north dives; the D-pad's up HELD is
+// the weapon menu and its left HELD the item menu (worlds/controllable/carry.js: the look steps, letting go chooses). A page whose pilot aims this way (worlds/controllable/aim-view.js) reads this
+// scheme in the pilot's place. The binoculars, the radio and the item slots have no action yet: their buttons are left
+// free for them.
+const OPERATIVE_BIND = {
+  boost: { keyboard: ['KeyF'] }, kneel: { keyboard: ['KeyX'] }, guard: { keyboard: ['Shift'] },
+  strafeLeft: { xr: ['left.thumbstickX-'] }, tackle: {},
+  // (the jump's action is the dive's on this pilot, aim-view-view.js: Space, and the north face; south is the stance's)
+  jump: { keyboard: ['Space'], gamepad: ['north'], xr: ['right.primary'] },
+  cycleWeapon: {}, lock: {}, swapSuit: { keyboard: ['KeyT'] }, transform: { keyboard: ['KeyB'] },
+  aiToggle: {}, reverseView: {}, pause: { keyboard: ['Escape'], gamepad: ['start', 'select'] },
+};
+const OPERATIVE = {
+  ...PILOT, id: 'operative', label: 'the operative: a third-person stealth action pilot, the aim held',
+  actions: [
+    ...PILOT.actions.map((a) => (OPERATIVE_BIND[a.id] ? { ...a, bind: OPERATIVE_BIND[a.id] } : a)),
+    { id: 'aim', label: 'aim (hold)', group: 'combat', hold: true, in: ['ground'], bind: { mouse: ['right'], gamepad: ['lt'] } },
+    { id: 'view', label: 'first-person view (while aiming)', group: 'camera', in: ['ground'], bind: { keyboard: ['Tab'], gamepad: ['rb'] } },
+    { id: 'shoulder', label: 'the other shoulder (while aiming)', group: 'camera', in: ['ground'], bind: { keyboard: ['KeyQ'], gamepad: ['rs'] } },
+    { id: 'reload', label: 'reload', group: 'combat', in: ['ground'], bind: { keyboard: ['KeyR'], gamepad: ['east'] } },
+    { id: 'crouch', label: 'crouch / stand (hold: lie down)', group: 'move', in: ['ground'], bind: { keyboard: ['KeyC'], gamepad: ['south', 'ls'] } },
+    { id: 'equip', label: 'weapon menu (hold, look to step)', group: 'combat', hold: true, in: ['ground'], bind: { keyboard: ['KeyG'], gamepad: ['up'] } },
+    { id: 'item', label: 'item menu (hold, look to step)', group: 'world', hold: true, in: ['ground'], bind: { keyboard: ['KeyH'], gamepad: ['left'] } },
+  ],
+  legend: {
+    ...PILOT.legend,
+    keyboard: [...PILOT.legend.keyboard, { ids: ['crouch'], label: 'crouch (hold: lie down)' }, { ids: ['aim'], dev: 'mouse', label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
+    gamepad: [...PILOT.legend.gamepad, { ids: ['crouch'], label: 'crouch (hold: lie down)' }, { ids: ['aim'], label: 'aim (hold)' }, { ids: ['view', 'shoulder'], sep: ' · ', label: 'first person · other shoulder (aiming)' }, { ids: ['reload'], label: 'reload' }, { ids: ['equip', 'item'], sep: ' · ', label: 'weapon menu · item menu (hold)' }],
+  },
+};
+
+export const SCHEMES = { pilot: PILOT, operative: OPERATIVE, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, brawl: BRAWL, action: ACTION };
 export const SCHEME_IDS = Object.keys(SCHEMES);

@@ -91,6 +91,7 @@
     "scripts/export-blender.mjs",
     "scripts/visual-gate.mjs",
     "scripts/pack-data.mjs",
+    "scripts/view.mjs",
     "public/vendor/**"
   ],
   "scripts": {

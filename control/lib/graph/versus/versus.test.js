@@ -206,4 +206,15 @@ describe('versus: the inlined pages', () => {
     expect(data.wire).toMatchObject({ ready: 'game-ready', init: 'game-init', outcome: 'game-outcome' });
     expect(() => new Function(`let stepFight; ${versusChannelScript(data)}`)).not.toThrow();
   });
+
+  it('its title is laid out by the champion front card: the card\'s frames and beats, read from the shelf', async () => {
+    const { emitVersusPage } = await import('./versus-page.js');
+    const { FRONT_CARDS } = await import('../playscape/ui/front-cards/loader.js');
+    const F = FRONT_CARDS['champion'], html = emitVersusPage({ title: 't' });
+    const front = JSON.parse(html.match(/const VERSUS_FRONT = (.*);\n/)[1]);
+    expect(front.wide.subjects).toEqual(F.frames.wide.subjects);
+    expect(front.tall.menu.box).toEqual(F.frames.tall.menu.box);
+    expect(front.motion).toEqual(F.motion);
+    expect(html).toContain('prefers-reduced-motion: reduce');
+  });
 });

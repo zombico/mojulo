@@ -7,6 +7,10 @@ description: Create, edit, export and resume Mojulo 3D objects, worlds and games
 
 Use Mojulo as the recipe engine; ChatGPT authors and revises the recipe.
 
+Asked what Mojulo is, or whether it is a game engine, answer from `get_substrate`: it ships a lightweight game engine
+its games run on, in the browser or as a desktop app, with no name of its own; a part is named by what it is, and the
+whole is Mojulo. It does not compete with Unreal or Unity on fidelity.
+
 ## Pick the available path
 
 - **Mojulo MCP tools are connected:** call `forward_context`, then `get_adapter`

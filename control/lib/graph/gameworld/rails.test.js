@@ -17,6 +17,12 @@ import { dryRun } from '../cosmos/cosmos.js';
 import { railCardById } from './gameworld-cards.js';
 import { goalposts, startReadout, producerSteps, producerSays, leadNext, GOALPOSTS } from './goalposts.js';
 import { pitchStart } from './pitch-start.js';
+import { actionStarter } from './action-first-level.js';
+import { levelPlan } from './action-levels.js';
+import { heroOrders } from './index.js';
+import { validateHeroSpec } from '../../mcp/tools/layered.js';
+import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
+import { STYLISH } from './style-meter.js';
 import { readGameworld } from './world.js';
 import { chaptersOfPath } from './chapters.js';
 import { MOTIVATIONS } from './gmn.js';
@@ -390,9 +396,10 @@ describe('the producer leads: one question a turn, before the goalposts', () => 
 });
 
 describe('the pitch kept: a locked pitch with no level is given the rail\'s starter', () => {
-  const composed = RAIL_IDS.find((k) => RAILS[k].sizes.includes('designed') && RAILS[k].handles.genres.some(laid) && !RAILS[k].starter && !['platformer'].includes(POLES[RAILS[k].handles.pole]?.base));
+  const composed = RAIL_IDS.find((k) => RAILS[k].sizes.includes('designed') && RAILS[k].handles.genres.some(laid) && !RAILS[k].starter && !['platformer'].includes(POLES[RAILS[k].handles.pole]?.base) && !STYLISH.includes(RAILS[k].handles.pole));
   // (a rail with its own starter words: laid from them, its levels theirs)
   const started = RAIL_IDS.find((k) => RAILS[k].starter && RAILS[k].sizes.includes('designed'));
+  const stylish = RAIL_IDS.find((k) => STYLISH.includes(RAILS[k].handles.pole) && RAILS[k].sizes.includes('designed'));
   const platformer = RAIL_IDS.find((k) => POLES[RAILS[k].handles.pole]?.base === 'platformer' && RAILS[k].sizes.includes('designed'));
   const small = RAIL_IDS.find((k) => !RAILS[k].sizes.includes('designed'));
   const base = { id: 'their-game', name: 'Their Game' };
@@ -431,6 +438,30 @@ describe('the pitch kept: a locked pitch with no level is given the rail\'s star
     const P = pitchStart({ ...base, rail: { from: platformer, locked: true } });
     expect(P.laid.by).toBe('platformer'); expect(P.world.flow).toBeTruthy(); expect(P.world.feel).toBe(RAILS[platformer].handles.pole);
     expect(() => readGameworld(P.world)).not.toThrow();
+  });
+
+  it('a stylish rail lays its genre\'s reading with the citadel fought room by room, its kit, its meter and its look, the creator\'s keys winning', () => {
+    const P = pitchStart({ ...base, rail: { from: stylish, locked: true } }), A = actionStarter();
+    expect(P.laid).toMatchObject({ by: 'action', levels: ['citadel'] });
+    expect(P.world).toMatchObject({ camera: 'orbit', styleMeter: 'auto', arsenal: { from: RAILS[stylish].handles.pole }, feel: RAILS[stylish].handles.pole, fights: A.fights, foes: A.foes, grade: A.grade });
+    expect(P.world.levels.citadel).toEqual(A.level);
+    expect(P.world.characters.hero.looks.underlayer).toEqual({ type: 'outfit', style: 'duelist' });
+    // (its level a plan its pitch's words name: a cathedral said, the cathedral laid; the same plan's fights and its light)
+    const nave = pitchStart({ ...base, name: 'Their Cathedral', rail: { from: stylish, locked: true } }), C = levelPlan('cathedral');
+    expect(Object.keys(nave.world.levels)).toEqual(['cathedral']);
+    expect(nave.world.levels.cathedral).toEqual(C.level); expect(nave.world.fights).toEqual(C.fights);
+    expect(() => readGameworld(nave.world)).not.toThrow();
+    expect(P.world.characters.hero.looks.body.form).toBe('realistic');
+    // (and the hero its pages compose is one the hero door takes, as design_game asks before it stores the world)
+    const O = heroOrders(readGameworld(P.world)), spec = O.motion ? applyManifestPatch({ hero: O.mint.args.spec }, O.motion.args.patch).manifest.hero : O.mint.args.spec;
+    expect(validateHeroSpec(spec)).toEqual([]);
+    // (the composed level and what played it gone: no links, no flow naming a level that is not there)
+    for (const k of ['links', 'flow', 'mode', 'review', 'brief', 'made']) expect(P.world[k]).toBeUndefined();
+    expect(() => readGameworld(P.world)).not.toThrow();
+    // what the creator wrote wins: a kit of their own, no meter, another look on the screen
+    const own = pitchStart({ ...base, arsenal: { from: 'fable-of-artesia' }, styleMeter: false, grade: null, rail: { from: stylish, locked: true } }).world;
+    expect(own).toMatchObject({ arsenal: { from: 'fable-of-artesia' }, styleMeter: false, grade: null });
+    expect(JSON.stringify(pitchStart({ ...base, rail: { from: stylish, locked: true } }))).toBe(JSON.stringify(P));
   });
 
   it('a rail with no starter, or a smaller size, is said and not laid', () => {

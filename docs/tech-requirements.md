@@ -202,8 +202,8 @@ Gatekeeper and Windows SmartScreen warn on first open. Verified: macOS arm64, El
 
 ## Engine handoff: Godot, Unity, Unreal, Blender
 
-The rule for every engine: **mojulo writes a project; you supply the engine.** No engine runs the game: the
-browser build is the game (alone or as the desktop app), and a team's engine gets a handoff of it,
+The rule for every engine: **mojulo writes a project; you supply the engine.** No outside engine runs the game: the
+browser build, on mojulo's own runtime ([runtime.md](runtime.md)), is the game (alone or as the desktop app), and a team's engine gets a handoff of it,
 `export_model { ref, engine }`: a world's level, or each of a game's levels, as a project the engine opens, with every
 surface a material the engine lights, the layered ground and the sea on shaders ported from the page, the sun, lamps,
 sky and haze set to the page's (each engine's light units measured), the markers and seats as objects carrying their

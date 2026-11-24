@@ -204,6 +204,8 @@ export function validateLevelContract(game, schema) {
 
   // KEEP: the numbers a level reports at its end (a score, a time), each kept best by the shell: { var, label, best:
   // 'high' | 'low', scale?, unit? } (the laps and score mechanics write them)
+  // RANK: a level ranked on its results (game/rank.js): { par?: the seconds it is judged against }
+  if (game.rank !== undefined && (!game.rank || typeof game.rank !== 'object' || Array.isArray(game.rank) || (game.rank.par !== undefined && !(Number.isFinite(game.rank.par) && game.rank.par > 0)))) errors.push('game.rank is { par?: seconds, more than 0 }');
   if (game.keep !== undefined) {
     if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit? }]');
     else game.keep.forEach((k, i) => { if (!k || typeof k.var !== 'string' || typeof k.label !== 'string' || (k.best !== 'high' && k.best !== 'low') || (k.scale !== undefined && !Number.isFinite(k.scale)) || (k.unit !== undefined && typeof k.unit !== 'string')) errors.push(`game.keep[${i}] is { var, label, best: 'high' | 'low', scale?, unit? }`); });

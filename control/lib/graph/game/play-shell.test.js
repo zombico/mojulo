@@ -123,8 +123,22 @@ describe('the shell field', () => {
     const base = { kind: 'game', title: 't', store: { slices: [{ name: 'c', kind: 'progression' }] }, levels: [{ ref: 'a' }] };
     expect(validateGameManifest({ ...base, shell: 'play' }).ok).toBe(true);
     expect(validateGameManifest({ ...base, shell: 'arena' }).errors.join()).toMatch(/shell is 'play'/);
-    const music = validateGameManifest({ ...base, shell: 'play', music: { menu: 'm' } });
+    const music = validateGameManifest({ ...base, shell: 'play', music: { battle: ['m'] } });
     expect(music.errors.join()).toMatch(/shell 'play' has no music/);
+  });
+});
+
+describe('the play shell\'s screens have a score (music.menu)', () => {
+  it('looped while a screen is up, stopped as a level launches, held under a stinger; a game without one carries not a byte of it', async () => {
+    const { emitPlayShell } = await import('./play-shell.js');
+    const base = { kind: 'game', title: 't', shell: 'play', store: { slices: [{ name: 'c', kind: 'progression' }] }, levels: [{ ref: 'a' }] };
+    expect(validateGameManifest({ ...base, music: { menu: 'm', victory: 'v' } }).ok).toBe(true);
+    const levels = [{ ref: 'a', title: 'A', src: 'levels/a.html', contract: { levelRef: 'a', consumes: [], produces: { events: [] } } }];
+    const html = emitPlayShell(base, levels, { stingers: { menu: 'assets/m.wav', victory: 'assets/v.wav' } });
+    expect(html).toContain('"screens":"assets/m.wav"');
+    expect(html).toContain('screensEl.loop = true');
+    const plain = emitPlayShell(base, levels, { stingers: { victory: 'assets/v.wav' } });
+    expect(plain).not.toContain('"screens"');
   });
 });
 

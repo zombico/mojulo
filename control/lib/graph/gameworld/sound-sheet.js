@@ -4,7 +4,7 @@
  * (chapters.js `sound`). Pure.
  *
  *   soundSheet(G, { manifest? })  → { style, slots: { step, jump, land, dodge, swing, strike }, on: { <palette cue id>:
- *                       <shelf word> }, moves?, foes: { <id>: <shelf word> }, foeSounds: { <id>: { attack?, hurt?, down? } }, why: { <slot | cue | foe>: reason }, owed: [reason] }
+ *                       <shelf word> }, moves?, foes: { <id>: <shelf word> }, foeSounds: { <id>: { attack?, hurt?, down? } }, run?: { <event>: <shelf word> }, why: { <slot | cue | foe>: reason }, owed: [reason] }
  *                       (a level's `manifest` sets its ground: a stage grown on a nature or jungle kit is grass underfoot)
  *   sheetAudio(G, { manifest? })  → the level's `audio.sfx` word for the sheet: { sheet: { style, slots, on, moves? } }
  *                       (beats-world.js voices it)
@@ -30,6 +30,14 @@
  * ITS RIDE: a level driven in a vehicle hears its engine (rideSound below): a held voice of the shelf by the words of
  * what is ridden (a motorbike, a kart, a truck's diesel, a tank, a boat; else a car), following the ride's speed up
  * to its top (the page's engine channel, scene/channels/audio.js). `sound.ride` is the game's own word, or false.
+ *
+ * A RUN AND GUN'S OWN (runSounds below): a game whose feel is a run and gun's (feel/cards.js: its template's charge a
+ * shot, Galaxy Boy's) hears what its buster, its hero, its robot foes, a boss and the boss's room do (`run`: the
+ * buster's tap, its two charged rounds and the charge held as it builds, a dash, a wall kick and the slide down it, a
+ * blow taken, a foe's round leaving, a robot struck, a heavy's armour glancing a round off, a wreck, a boss blown
+ * apart, a rock heaved, thrown, landing and shot apart, the shutter coming down, a boss's treads), each a shelf word
+ * (RUN_SOUNDS), played by the page's run channel (scene/channels/run-audio.js). A hero with no buster (Zero Boy's
+ * saber) keeps the rest. A game overrides an event with `sound.run: { <event>: <shelf word> }`, or `sound.run: false`.
  *
  * THE AUDIO DIRECTION (audio-direction.js, the music department's): a game with a `music` reads it. The sheet's style
  * is the direction's `sfx` where `sound.style` says none, and each level's sounds are heard in a space (levelSpace: the
@@ -59,6 +67,18 @@ import { stageKit } from '../era/stage.js';
 import { resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { gunCues } from './combat/range-sound.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
+import { vehicleSounds, modelEngines, modelVehicles } from '../sfx-shelf/vehicle-sounds.js';
+import { VEHICLES } from '../vehicle-registry/roster.js';
+import { hasFlavor } from '../sound-library/library.js';
+import { suitSounds, suitRecorded } from '../sfx-shelf/suit-sounds.js';
+import { battleSounds, magicRecorded } from '../sfx-shelf/magic-sounds.js';
+import { animalSounds, animalVoice, animalRecorded } from '../sfx-shelf/animal-sounds.js';
+import { ANIMAL_CLASSES } from '../sfx-shelf/animal-voices.js';
+import { SKILL_PRESETS, ITEM_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
+import { laidBattles } from './battles.js';
+import { POLES } from './feel/cards.js';
+import { feelCard } from './feel/lower.js';
+import { BOSSES } from './bosses.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -70,6 +90,33 @@ export const MOVE_SOUND_WORDS = Object.freeze({ 'blade-light': 'blade-swing', 'b
 // a moveset's one-cue events (beats-world.js MOVE_SOUNDS.one) → the table's row
 const MOVE_EVENTS = Object.freeze({ block: 'block', parry: 'parry', break: 'guard-break', draw: 'bow-draw', loose: 'bow-shot', arrow: 'arrow-hit', felled: 'felled', cycle: 'cycle', foeSwing: 'foe-swing', hurt: 'hurt' });
 const WEAPON_KEYS = Object.freeze(['swing', 'heavy', 'hit', 'finisher']);
+// A RUN AND GUN'S VOICES by event (scene/channels/run-audio.js plays them): the buster's (`tap`, `shot` its first charged
+// round, `full` the full charge's, `charge` HELD as it builds, its pitch by how full), the hero's (`dash`, `kick` off a
+// wall, `cling` on one, `hurt`), its foes' (`foeShot` a round leaving, `foeHit` a robot struck, `armour` a heavy's plating
+// glancing it off, `wreck`, `boss` a boss blown apart), a thrower's rock (`lift`, `throw`, `rock` landing, `break` shot
+// apart in the air), the boss room's shutter (`shut`), a boss's treads (`treads`, HELD, by its speed) and its exhausts'
+// steam (`steam`, HELD), a foe stomped on (`stomp`)
+export const RUN_SOUNDS = Object.freeze({ tap: 'buster-shot', shot: 'buster-charged-shot', full: 'buster-full-shot', charge: 'charge-hum',
+  dash: 'dodge', kick: 'kick', cling: 'slide', hurt: 'hurt', foeShot: 'shoot', foeHit: 'metal-impact', armour: 'ricochet', wreck: 'wreck-explosion',
+  boss: 'big-explosion', lift: 'metal-creak', throw: 'throw', rock: 'stone-impact', break: 'stone-break', shut: 'portcullis', treads: 'tank-engine',
+  steam: 'steam-hiss', stomp: 'stomp' });
+// A PLATFORMER'S OWN MOVES through the same channel (a feel on the platformer's base whose charge is no shot: Jumping
+// Giuseppe's): its wall kick, its wall slide, a blow taken, a foe stomped on, its jump in the air (the double jump); heard
+// only where the game's own recordings are (its flavor, sound-library), so a page without the library is as it was
+export const PLATFORM_RUN = Object.freeze({ kick: 'kick', cling: 'slide', hurt: 'hurt', stomp: 'stomp', air: 'air-jump' });
+// A RUN AND GUN'S MIX: its effects under its score at this level (a busy fire, a tap a press, never buries the music); a
+// game's `sound.level` over it
+export const RUN_LEVEL = 0.5;
+// the run's held voices (a sustain of the shelf's, driven 0 … 1), and the buster's own events (none for a hero without one)
+export const RUN_HELD = Object.freeze(['charge', 'treads', 'steam']);
+// EACH FOE BY WHAT IT DOES (`run.foes`: { <foe id>: { <move>: <shelf word> } }), by its class's moves (lib/graph/foes/,
+// worlds/controllable/foe.js): a robot sparks as it wakes and leaps in (a creature the shelf voices, its own call); a
+// hopper springs, a charger revs as it braces and slams into what stops it, a swooper swells as it dives, a turret's
+// round is its own (a heavy's a cannon)
+export const FOE_MOVES = Object.freeze(['wake', 'hop', 'brace', 'stun', 'dive', 'shot']);
+const CLASS_MOVES = Object.freeze({ hopper: { hop: 'bounce-pad' }, charger: { brace: 'motor-rev', stun: 'body-slam' }, swooper: { dive: 'swell-in' }, turret: { shot: 'shoot' } });
+const HEAVY_MOVES = Object.freeze({ turret: { shot: 'cannon' } });
+const RUN_BUSTER = Object.freeze(['tap', 'shot', 'full', 'charge']);
 // a ride by its words: the engine it is heard by (the first that matches; a car's where none does)
 const ENGINES = Object.freeze([
   { test: /motor ?(bike|cycle)|\b(bike|cycle|scooter|chopper|cruiser|superbike|dirt ?bike|moped)\b/, voice: 'motorbike-engine' },
@@ -191,11 +238,16 @@ function foeSoundsOf(G, voices, own) {
   const out = {}, why = {};
   for (const [id, e] of Object.entries(isObj(G?.foes) ? G.foes : {})) {
     const o = own.foes?.[id] ?? {};
-    const base = voices[id] ? { attack: voices[id], ...(BEAST_HURT[voices[id]] ? { hurt: BEAST_HURT[voices[id]] } : {}) } : e?.skin?.people ? { ...PERSON_SOUNDS } : {};
+    // (an animal heard by its voice class, sfx-shelf/animal-sounds.js: its species, else its class's stand-in; its
+    // threat as it attacks, its hurt, its death; only where the library records the class, else as before)
+    const A = e?.skin?.people ? null : animalSounds(String(e?.skin?.species ?? e?.class ?? id));
+    const animal = A?.voice && animalRecorded(A.voice) ? A : null;
+    const base = animal ? { attack: animal.alert, hurt: animal.hurt, down: animal.death }
+      : voices[id] ? { attack: voices[id], ...(BEAST_HURT[voices[id]] ? { hurt: BEAST_HURT[voices[id]] } : {}) } : e?.skin?.people ? { ...PERSON_SOUNDS } : {};
     const S = { ...base, ...o };
     if (!Object.keys(S).length) continue;
     out[id] = S;
-    why[`foe:${id}:sounds`] = Object.keys(o).length ? 'the game says so' : voices[id] ? `its attack in its own voice (${SOUNDS[voices[id]].label})` : 'drawn as a person: a shout, a grunt, a cry';
+    why[`foe:${id}:sounds`] = Object.keys(o).length ? 'the game says so' : animal ? `heard as ${ANIMAL_CLASSES[animal.voice].label}: its threat, its hurt, its death` : voices[id] ? `its attack in its own voice (${SOUNDS[voices[id]].label})` : 'drawn as a person: a shout, a grunt, a cry';
   }
   return { foeSounds: out, why };
 }
@@ -214,10 +266,14 @@ function foeVoices(G) {
 /** A game's own `sound` (its style, its slots and cues by shelf word), checked; throws `gameworld: sound…`. */
 export function readSound(S) {
   if (S === undefined) return {};
-  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, ride?, bed?, vary? } (got ${JSON.stringify(S)})`);
+  if (!isObj(S)) throw fail(` is { style?, slots?, on?, weapons?, moves?, guns?, foes?, run?, ride?, suit?, battle?, bed?, vary?, level?, pan? } (got ${JSON.stringify(S)})`);
   if (S.bed !== undefined && S.bed !== false && !resolveBed(S.bed)) throw fail(`.bed '${S.bed}' is a bed (${Object.keys(BEDS).join(', ')}) or false`);
+  if (S.level !== undefined && !(Number.isFinite(S.level) && S.level >= 0 && S.level <= 1)) throw fail(`.level is the effects' level under the score, 0 to 1`);
   if (S.vary !== undefined && typeof S.vary !== 'boolean') throw fail(`.vary is true or false (every hit a variant: a combo, a burst of fire, never one sound said twice)`);
+  if (S.pan !== undefined && typeof S.pan !== 'boolean') throw fail(`.pan is true or false (each sound heard on the side its source is: a guard's step behind and to the left is heard there)`);
   if (S.style !== undefined && !(S.style in STYLES)) throw fail(`.style '${S.style}' is one of ${Object.keys(STYLES).join(', ')}`);
+  if (S.battle !== undefined && S.battle !== false) throw fail(`.battle is false (no battle sounds), or left out: a game's battles are heard by the magic kit where the library records it`);
+  if (S.suit !== undefined) { try { suitSounds(S.suit); } catch (e) { throw fail(`.suit: ${e.message.replace(/^suit sounds: /, '')}`); } }
   const word = (at, w) => { if (!resolveSoundId(w)) throw fail(`${at}: '${w}' is not a sound on the shelf; ${suggestSounds(w)}`); };
   for (const k of ['slots', 'on']) for (const [slot, w] of Object.entries(S[k] ?? {})) word(`.${k}.${slot}`, w);
   if (S.moves !== undefined) {
@@ -238,6 +294,22 @@ export function readSound(S) {
       for (const [k, w] of Object.entries(o)) { if (!FOE_KEYS.includes(k)) throw fail(`.foes.${id}.${k}: a foe's sounds are ${FOE_KEYS.join(', ')}`); word(`.foes.${id}.${k}`, w); }
     }
   }
+  if (S.run !== undefined && S.run !== false) {
+    if (!isObj(S.run)) throw fail(`.run is { ${Object.keys(RUN_SOUNDS).join('?, ')}?, foes? }, each a shelf word, or false`);
+    for (const [ev, w] of Object.entries(S.run)) {
+      if (ev === 'foes') {
+        if (!isObj(w)) throw fail(`.run.foes is { <foe id>: { ${FOE_MOVES.join('?, ')}? } }, each a shelf word`);
+        for (const [id, o] of Object.entries(w)) {
+          if (!isObj(o)) throw fail(`.run.foes.${id} is { ${FOE_MOVES.join('?, ')}? }, each a shelf word`);
+          for (const [k, x] of Object.entries(o)) { if (!FOE_MOVES.includes(k)) throw fail(`.run.foes.${id}.${k}: a foe's moves are ${FOE_MOVES.join(', ')}`); word(`.run.foes.${id}.${k}`, x); }
+        }
+        continue;
+      }
+      if (!(ev in RUN_SOUNDS) && !(ev in PLATFORM_RUN)) throw fail(`.run.${ev} is not a run and gun's event (${Object.keys(RUN_SOUNDS).join(', ')})`);
+      word(`.run.${ev}`, w);
+      if (RUN_HELD.includes(ev) && !sfxSound(w)?.sustain) throw fail(`.run.${ev} '${w}' is a held voice of the shelf (as '${RUN_SOUNDS[ev]}' is)`);
+    }
+  }
   if (S.ride !== undefined && S.ride !== false) {
     const v = typeof S.ride === 'string' && resolveSoundId(S.ride) ? sfxSound(S.ride) : null;
     if (!v?.sustain) throw fail(`.ride '${S.ride}' is a held voice of the shelf (an engine: ${ENGINES.map((e) => e.voice).join(', ')}) or false`);
@@ -252,6 +324,79 @@ export function readSound(S) {
   return S;
 }
 
+/** A run and gun's own voices (see the header): { run: { <event>: <shelf word> }, why } | null, for a game whose feel is a
+ *  run and gun's; the buster's events where its hero carries one, a boss's treads where a level's boss rolls. */
+function platformRun(pole, own) {
+  if (!hasFlavor(pole)) return null;
+  const run = Object.fromEntries(Object.entries(PLATFORM_RUN).map(([ev, w]) => [ev, own.run?.[ev] ?? w]));
+  const why = { run: `a platformer (${POLES[pole].name}): its wall kick, its wall slide, a blow taken, a foe stomped on, its jump in the air` };
+  for (const ev of Object.keys(own.run ?? {})) why[`run:${ev}`] = 'the game says so';
+  return { run, why, platform: true };
+}
+
+export function runSounds(G, own = readSound(G?.sound)) {
+  if (own.run === false) return null;
+  const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null;
+  if (pole && POLES[pole]?.base === 'platformer' && POLES[pole]?.set?.charge?.kind !== 'shot') return platformRun(pole, own);
+  if (!pole || POLES[pole]?.set?.charge?.kind !== 'shot') return null;
+  let buster = true;
+  try { buster = feelCard(F)?.charge?.kind === 'shot'; } catch { buster = false; }
+  const bosses = Object.values(isObj(G?.levels) ? G.levels : {}).map((L) => BOSSES[L?.sidemap?.boss]).filter(Boolean);
+  const rolls = bosses.some((B) => B.roll), vents = bosses.some((B) => B.workbot);
+  const keep = (ev) => (buster || !RUN_BUSTER.includes(ev)) && (ev !== 'treads' || rolls) && (ev !== 'steam' || vents);
+  const run = Object.fromEntries(Object.entries(RUN_SOUNDS).filter(([ev]) => keep(ev)).map(([ev, w]) => [ev, own.run?.[ev] ?? w]));
+  // (each foe of its bestiary by its class's moves; a robot's wake a spark, a creature's its own call where the shelf has it)
+  const foes = {};
+  for (const [id, F] of Object.entries(isObj(G?.foes) ? G.foes : {})) {
+    const ooze = [].concat(F?.skin?.ooze ?? []), robot = ooze.includes('herobot'), species = F?.skin?.species;
+    const call = !robot && species && resolveSoundId(species) && !sfxSound(species)?.sustain ? resolveSoundId(species) : null;
+    const M = { ...(robot ? { wake: 'spark' } : call ? { wake: call } : {}), ...(CLASS_MOVES[F?.class] ?? {}), ...(F?.rank === 'elite' ? HEAVY_MOVES[F?.class] ?? {} : {}), ...(own.run?.foes?.[id] ?? {}) };
+    if (Object.keys(M).length) foes[id] = M;
+  }
+  if (Object.keys(foes).length) run.foes = foes;
+  const why = { run: `a run and gun (${POLES[pole].name})${buster ? ': its buster' : ''}, its robot foes${Object.keys(foes).length ? ' each by what it does' : ''}${rolls ? ', a boss on treads' : ''}${vents ? ', its exhausts steaming' : ''}` };
+  for (const ev of Object.keys(own.run ?? {})) why[`run:${ev}`] = 'the game says so';
+  return { run, why };
+}
+
+// A MOBILE SUIT'S SLOTS (a feel with a mech: its weight, feel/cards.js `mount`; or the game's own suit, `sound.suit`): its
+// footfall, its landing, its jump and its roll by the suit kit (sfx-shelf/suit-sounds.js), its swing and its blow by the
+// first blade it carries. A suit the game designs (`sound.suit`) is heard as written; one its feel implies only where the
+// library records it, so a page without the library is as it was. A word with no voice yet (a variant unrecorded and
+// with no stand-in) leaves the slot as it was.
+function suitSlots(G, own) {
+  const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null, mount = pole ? POLES[pole]?.mount : undefined;
+  if (own.suit === undefined && !Number.isFinite(mount)) return null;
+  const K = suitSounds(own.suit ?? { weight: mount });
+  if (own.suit === undefined && !suitRecorded(K)) return null;
+  const blade = K.arms.map((a) => K.loadout[a]).find((a) => a.swing);
+  const want = { step: K.step, land: K.land, jump: K.jump, dodge: K.dodge, ...(blade ? { swing: blade.swing, strike: blade.hit } : {}) };
+  const slots = Object.fromEntries(Object.entries(want).filter(([, w]) => sfxSound(w)));
+  const why = Object.fromEntries(Object.keys(slots).map((k) => [k, `the suit (${K.weight}, ${K.drive}: ${['swing', 'strike'].includes(k) ? K.why.arms : K.why.weight})`]));
+  return { slots, why, suit: { weight: K.weight, drive: K.drive, arms: K.arms } };
+}
+
+// A PARTY BATTLE'S SOUNDS (a game that lays battles, gameworld/battles.js: Isekai Party's, a world that fights turn by
+// turn): each happening of its fights by the magic kit (sfx-shelf/magic-sounds.js battleSounds), its skills the presets'
+// and its own, each elemental one at its tier, and each foe's fall in its own voice (the animal shelf's, by its id or its
+// name); only where the library records them, so a page without it is as it was
+function battleOf(G) {
+  if (!G || G.sound?.battle === false) return null;
+  const magic = magicRecorded();
+  // (each foe's fall in its own voice, the animal shelf's, where the library records its class)
+  if (!magic && !Object.keys(ANIMAL_CLASSES).some((v) => animalRecorded(v))) return null;
+  // (a world the battles cannot be read from fights none: its sounds never break a game)
+  let L = null;
+  try { L = laidBattles(G); } catch { return null; }
+  if (L.battles === undefined || L.battles?.on === 'board') return null;
+  const own = (k) => (isObj(L.battles[k]) ? L.battles[k] : {});
+  const foes = { ...FOE_PRESETS, ...own('foes') };
+  const falls = Object.keys(foes).sort().map((id) => [id, animalVoice(id) ?? animalVoice(String(foes[id]?.name ?? ''))]).filter(([, v]) => v && animalRecorded(v)).map(([id, v]) => [`ko:${id}`, `${v}-death`]);
+  const B = magic ? battleSounds({ ...SKILL_PRESETS, ...own('skills') }, { items: { ...ITEM_PRESETS, ...own('items') } }) : null;
+  if (!B && !falls.length) return null;
+  return { order: B?.order ?? [], ends: [...falls, ...(B?.ends ?? [])], also: B?.also ?? {} };
+}
+
 /** The game's sheet (see the header). */
 export function soundSheet(G, { manifest = null } = {}) {
   const own = readSound(G?.sound);
@@ -261,9 +406,11 @@ export function soundSheet(G, { manifest = null } = {}) {
   const st = strikeOf(G), sp = stepOf(G, manifest), fv = foeVoices(G);
   const mv = movesOf(G, own);
   const fs = foeSoundsOf(G, fv.foes, own);
-  const slots = { step: sp.step, jump: 'jump', land: 'land', dodge: 'dodge', swing: st.swing, strike: st.strike, ...(own.slots ?? {}) };
+  const rn = runSounds(G, own);
+  const su = suitSlots(G, own);
+  const slots = { step: sp.step, jump: 'jump', land: 'land', dodge: 'dodge', swing: st.swing, strike: st.strike, ...(su?.slots ?? {}), ...(own.slots ?? {}) };
   const on = { ...ON_FRESH, ...(Object.values(fv.foes).length ? { alarm: Object.values(fv.foes)[0] } : {}), ...(own.on ?? {}) };
-  const why = { step: sp.why, swing: st.why, strike: st.why, door: 'a door opening: the latch (a new voice)', ...fv.why, ...fs.why, ...(mv?.why ?? {}),
+  const why = { step: sp.why, swing: st.why, strike: st.why, door: 'a door opening: the latch (a new voice)', ...(su?.why ?? {}), ...fv.why, ...fs.why, ...(mv?.why ?? {}), ...(rn?.why ?? {}),
     ...(on.alarm && !own.on?.alarm ? { alarm: `spotted: the ${Object.keys(fv.foes)[0]}'s voice` } : {}) };
   for (const k of Object.keys(own.slots ?? {})) why[k] = 'the game says so';
   for (const k of Object.keys(own.on ?? {})) why[k] = 'the game says so';
@@ -272,8 +419,14 @@ export function soundSheet(G, { manifest = null } = {}) {
   const owed = [];
   if (style === 'mouth') for (const [k, w] of Object.entries(slots)) if (!fresh(w)) owed.push(`${k}: '${id(w)}' has no new voice yet (it plays realistic)`);
   const mute = Object.keys(isObj(G?.foes) ? G.foes : {}).filter((id) => !fs.foeSounds[id]);
-  if (mute.length) owed.push(`${mute.join(', ')}: no voice of its own (neither a beast the shelf voices nor drawn as a person): it sounds only by the blows it gives and takes`);
-  return { style, slots, on, ...(mv ? { moves: mv.moves } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
+  if (mute.length && !rn) owed.push(`${mute.join(', ')}: no voice of its own (neither a beast the shelf voices nor drawn as a person): it sounds only by the blows it gives and takes`);
+  if (rn && style === 'mouth') { const old = Object.entries(rn.run).filter(([ev, w]) => ev !== 'foes' && !fresh(w)).map(([ev]) => ev); if (old.length) owed.push(`the run's ${old.join(', ')}: no new voice yet (they play realistic)`); }
+  // (its FLAVOR: a game's own recorded sounds, its feel's pole's (Galaxy Boy's), where the library holds them)
+  const F = G?.feel, pole = typeof F === 'string' ? F : isObj(F) ? F.pole : null, flavor = pole && hasFlavor(pole) ? pole : null;
+  if (flavor) why.flavor = `its own recorded sounds (${flavor}'s), ahead of the shelf's`;
+  const battle = battleOf(G);
+  if (battle) why.battle = 'its battles heard by the magic kit: each element at its tier, the statuses, the heals, the fight\'s moments';
+  return { style, ...(flavor ? { flavor } : {}), ...(su ? { suit: su.suit } : {}), ...(battle ? { battle } : {}), slots, on, ...(mv ? { moves: mv.moves } : {}), ...(rn ? { run: rn.run } : {}), ...(rn?.platform ? { platform: true } : {}), foes: fv.foes, foeSounds: fs.foeSounds, why, owed };
 }
 
 // a place's environment by its words (its own kit, its weather, its hour and its look's title): the bed it lays under the score
@@ -338,7 +491,9 @@ export const STEP_GAIN = 0.15;
 export function sheetAudio(G, opts = {}) {
   const S = soundSheet(G, opts);
   const space = levelSpace(G, opts);
-  return { sheet: { style: S.style, slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space ? { mix: { space } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}) } };
+  // (the effects' level under the score: the game's own, else a run and gun's)
+  const level = Number.isFinite(G?.sound?.level) ? G.sound.level : S.run && !S.platform ? RUN_LEVEL : null;
+  return { sheet: { style: S.style, ...(S.flavor ? { flavor: S.flavor } : {}), slots: S.slots, on: S.on, steps: { gain: Number.isFinite(G?.sound?.steps) ? G.sound.steps : STEP_GAIN }, ...(space || G?.sound?.pan ? { mix: { ...(space ? { space } : {}), ...(G?.sound?.pan ? { pan: true } : {}) } } : {}), ...(S.moves ? { moves: S.moves } : {}), ...(Object.keys(S.foeSounds).length ? { foes: S.foeSounds } : {}), ...(S.run ? { run: S.run } : {}), ...(S.battle ? { battle: S.battle } : {}), ...(level != null ? { level } : {}) } };
 }
 
 /**
@@ -395,8 +550,44 @@ export function rideSound(G, { words = '', top = null, quick = G?.quick } = {}) 
   const own = readSound(G?.sound).ride;
   if (own === false) return null;
   const hit = own ? null : ENGINES.find((e) => e.test.test(String(words).toLowerCase()));
-  const voice = own ? resolveSoundId(own) : hit.voice;
+  // a ride the words above leave to the car's engine is asked of the vehicle registry (sfx-shelf/vehicle-sounds.js): a
+  // helicopter's rotor, a supercar's V12, a bicycle's freewheel; one it does not know stays the car's
+  const veh = !own && hit === ENGINES[ENGINES.length - 1] ? rideVehicle(words) : null;
+  const voice = own ? resolveSoundId(own) : (veh && (veh.engine || veh.runs)) || hit.voice;
   return { engine: { voice, top: Math.round(top * 100) / 100 }, why: own ? 'the game says so' : `${SOUNDS[voice].label}${words ? ` (${String(words).trim()})` : ''}` };
+}
+
+// a RIDE's events (a racing car, a quick game's vehicle: sfx-shelf/vehicle-sounds.js), the cues the audio channel plays
+// them by while it is driven
+// a ride's words → the registry vehicle they name: the words whole ("muscle car" is `muscle-car`), then word by word
+function rideVehicle(words) {
+  const said = String(words).trim().toLowerCase();
+  for (const w of [said, said.replace(/\s+/g, '-'), ...said.split(/\s+/).filter((t) => t.length >= 3)]) { const V = w ? vehicleSounds(w) : null; if (V) return V; }
+  return null;
+}
+// a ride the registry does not know is heard as the vehicle its engine is (a 'car' is a sedan)
+const ENGINE_VEHICLE = Object.freeze({ 'car-engine': 'sedan', 'kart-engine': 'kart', 'motorbike-engine': 'motorcycle', 'diesel-engine': 'box-truck', 'tank-engine': 'tank' });
+const RIDE_EVENT = Object.freeze([['start', 'ride:start'], ['horn', 'ride:horn'], ['brake', 'ride:brake'], ['shift', 'ride:shift'], ['backfire', 'ride:backfire'], ['reverse', 'ride:reverse']]);
+// and what it runs on under the engine, by its speed and its slip (the city car's own: CITY_CAR.drive)
+const RIDE_DRIVE = Object.freeze({ road: Object.freeze({ voice: 'road-roar', level: 0.35 }), skid: Object.freeze({ voice: 'tire-squeal', level: 0.4 }) });
+
+/** A ride's EVENTS by what is ridden (`words`: the vehicle registry's), where the recorded library voices them: its start
+ * as the level begins, its horn on H, its brakes, its gears changed up (and its revs through them), a backfire off the
+ * pedal, a reverse beeper; its tyres' roar and screech. → { engine: { ride: true, gears?, drive? }, cues: { 'ride:<event>':
+ * gestures }, why } for the level's audio beside rideSound's engine (`voice` its engine row: a ride the registry does not
+ * know by its words is heard as the vehicle that engine is), or null: a game on no sheet, `sound.ride: false`, a
+ * ride that is no road or off-road vehicle, or none of its events recorded (a page without the library is as it was). */
+export function rideEvents(G, { words = '', voice = null, quick = G?.quick } = {}) {
+  if (!onSheet(G, quick) || readSound(G?.sound).ride === false) return null;
+  const V = rideVehicle(words) ?? (ENGINE_VEHICLE[voice] ? vehicleSounds(ENGINE_VEHICLE[voice]) : null);
+  const realm = V && VEHICLES[V.id]?.realm;
+  if (!V || (realm !== 'road' && realm !== 'offroad')) return null;
+  const style = soundSheet(G).style, cues = {};
+  for (const [e, k] of RIDE_EVENT) { const w = V.events[e], s = w ? sfxSound(w, { style }) : null; if (s?.recorded && s.gestures) cues[k] = s.gestures; }
+  const drive = Object.fromEntries(Object.entries(RIDE_DRIVE).filter(([, d]) => sfxSound(d.voice)?.recorded).map(([k, d]) => [k, { ...d }]));
+  if (!Object.keys(cues).length && !Object.keys(drive).length) return null;
+  return { engine: { ride: true, ...(cues['ride:shift'] ? { gears: true } : {}), ...(Object.keys(drive).length ? { drive } : {}) }, cues,
+    why: [Object.keys(cues).length ? `${V.id}'s own ${Object.keys(cues).map((k) => k.slice(5)).join(', ')}` : '', Object.keys(drive).length ? `its tyres' ${Object.keys(drive).join(' and ')}` : ''].filter(Boolean).join('; ') };
 }
 
 // a level that is a played town or district (a geocube's geotown or geocity, played: its entities or its game)
@@ -417,6 +608,27 @@ export const CITY_CAR = Object.freeze({ top: 28, level: 0.55, engine: 'road-car-
   drive: Object.freeze({ load: Object.freeze({ voice: 'road-car-load', level: 0.45 }), road: Object.freeze({ voice: 'road-roar', level: 0.35 }), skid: Object.freeze({ voice: 'tire-squeal', level: 0.4 }) }),
   // (the city's traffic far off, held under the street's bed)
   ambience: Object.freeze({ voice: 'traffic-hum', level: 0.32 }) });
+// a car's EVENTS (sfx-shelf/vehicle-sounds.js) → the city's cues they play
+const EVENT_CUE = Object.freeze([['start', 'car:start'], ['stop', 'car:off'], ['open', 'car:open'], ['door', 'car:door'], ['doors', 'car:door'], ['horn', 'car:horn'], ['brake', 'car:brake'], ['shift', 'car:shift'], ['lock', 'car:lock'], ['siren', 'car:siren'], ['reverse', 'car:reverse'], ['backfire', 'car:backfire']]);
+// the city's own car's cues by those keys (CITY_CAR): what a car with an event of its own is heard by instead
+const CITY_CUE = Object.freeze({ 'car:start': CITY_CAR.start, 'car:off': CITY_CAR.off, 'car:open': CITY_CAR.open, 'car:door': CITY_CAR.door, 'car:horn': CITY_CAR.horn, 'car:brake': CITY_CAR.brake, 'car:shift': CITY_CAR.shift });
+// the sets of cues the town's car models have of their own, where the library records them: { sets: { <name>: { cues:
+// { <cue>: <word> } } }, cueOf: { <model>: <name> }, mute: { <name>: [<cue>…] } }, a set named for the first vehicle that
+// has it; a model whose events are all the city car's has none
+function citySets(style) {
+  const sets = {}, bySig = new Map(), cueOf = {}, mute = {};
+  for (const [model, vid] of Object.entries(modelVehicles())) {
+    const V = vehicleSounds(vid), ev = V?.events ?? {}, cues = {};
+    for (const [e, k] of EVENT_CUE) { const w = ev[e]; if (w && w !== CITY_CUE[k] && sfxSound(w, { style })?.recorded) cues[k] = w; }
+    const off = [...new Set(EVENT_CUE.filter(([e]) => (V?.silent ?? []).includes(e)).map(([, k]) => k))];
+    if (!Object.keys(cues).length) continue;
+    const sig = JSON.stringify([cues, off]);
+    if (!bySig.has(sig)) { bySig.set(sig, vid); sets[vid] = { cues }; if (off.length) mute[vid] = off; }
+    cueOf[model] = bySig.get(sig);
+  }
+  return { sets, cueOf, mute };
+}
+
 export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   if (!onSheet(G, quick) || !playedCity(manifest)) return null;
   const R = rideSound(G, { quick, words: 'car', top: CITY_CAR.top });
@@ -426,6 +638,15 @@ export function citySounds(G, { manifest = null, quick = G?.quick } = {}) {
   const cues = Object.fromEntries([['car:door', CITY_CAR.door], ['car:horn', CITY_CAR.horn], ['car:crash', CITY_CAR.crash], ['car:open', CITY_CAR.open], ['car:start', CITY_CAR.start], ['car:off', CITY_CAR.off], ['car:brake', CITY_CAR.brake], ['car:shift', CITY_CAR.shift], ...(G?.law ? [['law:siren', CITY_CAR.siren]] : [])].map(([k, w]) => [k, cue(w)]).filter(([, g]) => g));
   // (the car's engine the road car's, voiced for a small speaker, unless the game names its own ride)
   const own = readSound(G?.sound).ride;
-  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true, drive: { load: { ...CITY_CAR.drive.load }, road: { ...CITY_CAR.drive.road }, skid: { ...CITY_CAR.drive.skid } } }, cues, ambience: { ...CITY_CAR.ambience },
+  // (and the car taken heard by its OWN engine where the recorded library voices it, heard from the cab: a muscle car's V8,
+  // an electric car's whine, a truck's diesel, sfx-shelf/vehicle-sounds.js; the road car's elsewhere, as without it)
+  const models = own ? {} : Object.fromEntries(Object.entries(modelEngines()).filter(([, w]) => w !== R.engine.voice && w !== CITY_CAR.engine && sfxSound(w, { cab: true })?.recorded));
+  // (and its own EVENTS where the library records them: a V8's start, a truck's air horn and air brakes and its reverse
+  // beeper, a bus's doors, a police car's siren, a muscle car's backfire, the lock's chirp as its driver walks off; an
+  // electric car has no starter to crank. Each set of a car's own is its cues under `<cue>@<set>`, `cueOf` naming a
+  // car model's set and `mute` the city's cues a set has none of)
+  const sets = own ? null : citySets(style);
+  for (const [name, S] of Object.entries(sets?.sets ?? {})) for (const [k, w] of Object.entries(S.cues)) { const g = cue(w); if (g) cues[`${k}@${name}`] = g; }
+  return { engine: { ...R.engine, ...(own ? {} : { voice: CITY_CAR.engine }), level: CITY_CAR.level, cab: true, ...(Object.keys(models).length ? { models } : {}), ...(sets && Object.keys(sets.cueOf).length ? { cueOf: sets.cueOf, ...(Object.keys(sets.mute).length ? { mute: sets.mute } : {}) } : {}), drive: { load: { ...CITY_CAR.drive.load }, road: { ...CITY_CAR.drive.road }, skid: { ...CITY_CAR.drive.skid } } }, cues, ambience: { ...CITY_CAR.ambience },
     why: `${R.why}, heard only at the wheel: started as its driver gets in and stopped as they get out, its growl under the pedal, its tyres on the road and in a slide, the brakes, a gear changed; the door, the horn, a crash; the city's traffic far off` };
 }

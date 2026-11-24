@@ -30,6 +30,7 @@ import { ringSlots, mixW, four, mirrorPart } from './body-relational-resample.js
 import { r6 } from './body-relational-vec.js';
 import { smin } from './vajra.js';
 import { oneSkinHead } from './hero-one-skin.js';
+import * as DM from '../../util/dmath.js';
 
 /** the head's density and its joins: `multiple` head slots to a neck slot, `jaw` and `cranium` rings, the neck's join
  * to the head (`join`, metres: the smooth union's width, and how far outside the head the seam ring stands) */
@@ -57,8 +58,8 @@ export const RELATIONAL_HEAD = Object.freeze({
  * takes most of a minute, and a minted head is a compatibility promise (hero-relational-head.deep.test.js holds these to
  * the solver; re-pin with the solver's output in the commit that moves it) */
 export const HEAD_TUNES = Object.freeze({
-  male: Object.freeze({ eu: 0.006847826086956521, zy: 0.034434782608695653, go: 0.072, op: 0.019760869565217394, g: 0.01643478260869565, gn: 0.0064565217391304355, n: 0.03130434782608695, sn: 0.014086956521739132, prn: -0.012130434782608697, al: 0.005584493885869565, mod: -0.08 }),
-  female: Object.freeze({ eu: 0.007434782608695652, zy: 0.034043478260869564, go: 0.07552173913043479, op: 0.009489130434782611, g: 0.030521739130434784, gn: 0.017070652173913046, n: -0.005771739130434786, sn: 0.02465217391304348, prn: -0.01682608695652174, al: 0.004206521739130434, mod: -0.08 }),
+  male: Object.freeze({ eu: 0.006847826086956521, zy: 0.034434782608695653, go: 0.0706304347826087, op: 0.020250000000000004, g: 0.014478260869565218, gn: 0.003228260869565217, n: 0.03169565217391304, sn: 0.014086956521739132, prn: -0.013695652173913043, al: 0.005295983355978258, mod: -0.08 }),
+  female: Object.freeze({ eu: 0.007434782608695652, zy: 0.034434782608695653, go: 0.08, op: 0.03375, g: 0.03326086956521739, gn: 0.01418478260869565, n: -0.018195652173913043, sn: 0.03, prn: -0.013695652173913046, al: 0.008804347826086956, mod: -0.08 }),
 });
 
 const ramp = (x) => { const y = Math.max(0, Math.min(1, x)); return y * y * (3 - 2 * y); };
@@ -138,22 +139,22 @@ function withNormals(P, f, e = 1e-4) {
  * `tilt`°), 0° `up` and 90° toward the figure's right; a point cast onto a field along the look, and a point's place in
  * the disc ({ r, th } and its depth `h` along the look's reverse) */
 function reliefFrame(c, tilt, reach) {
-  const t = (tilt * Math.PI) / 180, d = [0, Math.cos(t), -Math.sin(t)], up = [0, Math.sin(t), Math.cos(t)], side = [1, 0, 0];
-  const inPlane = (th, r) => add3(add3(c, up, r * Math.cos(th)), side, r * Math.sin(th));
+  const t = (tilt * Math.PI) / 180, d = [0, DM.cos(t), -DM.sin(t)], up = [0, DM.sin(t), DM.cos(t)], side = [1, 0, 0];
+  const inPlane = (th, r) => add3(add3(c, up, r * DM.cos(th)), side, r * DM.sin(th));
   const cast = (f, q) => castAlong(f, add3(q, d, reach), d.map((v) => -v), 2 * reach);
   const at = (q) => {
     const v = [q[0] - c[0], q[1] - c[1], q[2] - c[2]], a = v[0] * up[0] + v[1] * up[1] + v[2] * up[2], b = v[0] * side[0] + v[1] * side[1] + v[2] * side[2];
-    return { r: Math.hypot(a, b), th: Math.atan2(b, a), h: v[0] * d[0] + v[1] * d[1] + v[2] * d[2] };
+    return { r: Math.hypot(a, b), th: DM.atan2(b, a), h: v[0] * d[0] + v[1] * d[1] + v[2] * d[2] };
   };
   return { c, d, up, side, inPlane, cast, at };
 }
 
 /** an outline's convex hull (radii at N even angles from 0°), read back at the same angles */
 function hullOf(radii) {
-  const N = radii.length, pts = radii.map((r, j) => [r * Math.cos((2 * Math.PI * j) / N), r * Math.sin((2 * Math.PI * j) / N)]);
+  const N = radii.length, pts = radii.map((r, j) => [r * DM.cos((2 * Math.PI * j) / N), r * DM.sin((2 * Math.PI * j) / N)]);
   const side = (a, b, q) => (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0]);
   return radii.map((_, j) => {
-    const u = [Math.cos((2 * Math.PI * j) / N), Math.sin((2 * Math.PI * j) / N)];
+    const u = [DM.cos((2 * Math.PI * j) / N), DM.sin((2 * Math.PI * j) / N)];
     let r = 0;
     for (let i = 0; i < N; i++) for (let k = i + 1; k < N; k++) {
       const a = pts[i], b = pts[k], den = u[0] * (b[1] - a[1]) - u[1] * (b[0] - a[0]);
@@ -194,17 +195,17 @@ function visageFrame(fF, fB, c, C) {
 function noseFrame(fF, fB, c, sn, C) {
   const F = reliefFrame(c, C.tilt, C.reach), N = C.noseSlots, half = N / 2, raw = [];
   // (no lower than the nose's base: under it the lips are the visage's)
-  const floor = F.at(sn).r * Math.cos(F.at(sn).th) - C.noseBase;
+  const floor = F.at(sn).r * DM.cos(F.at(sn).th) - C.noseBase;
   for (let j = 0; j <= half; j++) {
     const th = (2 * Math.PI * j) / N;
-    const most = Math.cos(th) < -1e-6 ? Math.min(C.noseMost, floor / Math.cos(th)) : C.noseMost;
+    const most = DM.cos(th) < -1e-6 ? Math.min(C.noseMost, floor / DM.cos(th)) : C.noseMost;
     let o = most;
     for (let r = 0.004; r <= most; r += 0.0005) { const q = F.inPlane(th, r), a = F.cast(fF, q), b = F.cast(fB, q); if (a && b && dist3(a, b) < 0.0004) { o = r; break; } }
     raw.push(o);
   }
   const O = lookup(hullOf(Array.from({ length: N }, (_, j) => raw[j <= half ? j : N - j])));
   // (its reach shorter toward the lips, so the lips' line is the visage's)
-  const scale = (th) => 1 - C.noseShortDown * Math.max(0, -Math.cos(th)) ** 2;
+  const scale = (th) => 1 - C.noseShortDown * Math.max(0, -DM.cos(th)) ** 2;
   return { ...F, O, scale, beyond: (q) => { const p = F.at(q); return (p.r - O(p.th)) / scale(p.th); } };
 }
 
@@ -221,7 +222,7 @@ function eyeFrame(fF, paintAt, c, C) {
   }
   const O = lookup(hullOf(open));
   // (its reach shorter toward the nose, so the bridge is the nose's)
-  const scale = (th) => 1 - C.eyeShortIn * Math.max(0, -Math.sin(th)) ** 2;
+  const scale = (th) => 1 - C.eyeShortIn * Math.max(0, -DM.sin(th)) ** 2;
   // the ROOM out past the edge, per direction: where the outer ring would cast past the face's side (a wide eye on a
   // narrow face, the skin there turned away from the eye's look), the rings out there close in to the furthest that
   // still meets the skin; elsewhere 1 (the rings as drawn)
@@ -305,7 +306,7 @@ function earPart(fE, tragion, C) {
     const [yb, yf] = [w[0] + 0.0004, w[1] - 0.0004], pts = new Array(C.earSlots);
     // slot j from the front edge (0) over the lateral face to the back edge (half), and back over the medial face
     for (let j = 0; j < C.earSlots; j++) {
-      const s = j <= half ? j / half : (C.earSlots - j) / half, y = yf + (yb - yf) * (0.5 - 0.5 * Math.cos(Math.PI * s));
+      const s = j <= half ? j / half : (C.earSlots - j) / half, y = yf + (yb - yf) * (0.5 - 0.5 * DM.cos(Math.PI * s));
       const p = (j <= half ? lat : med)(y, z) ?? (j <= half ? med : lat)(y, z);
       pts[j] = p ?? [tragion[0], y, z];
     }
@@ -362,8 +363,8 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
 
   // the centre: over the seam ring's middle, at the ear canal's height
   const P = head.points, c0 = mean(seamPts), O = [0, c0[1], toHero(P.porionR)[2]];
-  const az = seamPts.map((p) => Math.atan2(p[0] - O[0], p[1] - O[1]));
-  const dir = (a, f) => [Math.sin(a) * Math.cos(f), Math.cos(a) * Math.cos(f), Math.sin(f)];
+  const az = seamPts.map((p) => DM.atan2(p[0] - O[0], p[1] - O[1]));
+  const dir = (a, f) => [DM.sin(a) * DM.cos(f), DM.cos(a) * DM.cos(f), DM.sin(f)];
   // the OUTERMOST crossing along the ray, marched in from outside (`reach` out): the head's field is not negative all
   // through (pockets between the masses, behind the lips), so the first crossing outward from O can be a pocket's wall
   const reach = 0.22, LIP = 4;
@@ -378,13 +379,13 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
     }
     return null;
   };
-  const latOf = (p) => Math.atan2(p[2] - O[2], Math.hypot(p[0] - O[0], p[1] - O[1]));
+  const latOf = (p) => DM.atan2(p[2] - O[2], Math.hypot(p[0] - O[0], p[1] - O[1]));
   // the latitude at which column a's skin stands at height z (bisection: the crossing's height rises with the latitude)
   const latAt = (a, z, lo, hi) => { for (let i = 0; i < 28; i++) { const m = (lo + hi) / 2, q = cast(a, m); if (q && q[2] < z) lo = m; else hi = m; } return (lo + hi) / 2; };
 
   // THE MOUTH RING: level with the stomion, and across the mouth on the lips' meeting line (the groove: the nearest
   // the skin comes to O between the lips), eased back to the level past the corners
-  const zM = toHero(P.sto)[2], ch = toHero(P.chR), aCh = Math.atan2(ch[0] - O[0], ch[1] - O[1]), ease = (6 * Math.PI) / 180;
+  const zM = toHero(P.sto)[2], ch = toHero(P.chR), aCh = DM.atan2(ch[0] - O[0], ch[1] - O[1]), ease = (6 * Math.PI) / 180;
   const shut = (a) => ramp((Math.abs(a) - aCh) / ease);   // 0 between the corners, 1 past them
   const latM = new Array(H);
   if (!faceOnly) for (let j = 0; j <= half; j++) {
@@ -484,7 +485,7 @@ export function relationalHeadRecipe(recipe, { sex = 'male', relations = null, e
   }), sto = toHero(P.sto);
   const lipZ = (x) => { const u = Math.min(1, Math.abs(x) / Math.abs(ch[0])); return sto[2] + (ch[2] - sto[2]) * u * u + (zM - ch[2]) * ramp((Math.abs(x) - Math.abs(ch[0])) / 0.01); };
   const visW = (p) => {
-    const a = Math.atan2(p[0] - O[0], p[1] - O[1]), s = shut(a), below = (1 - s) * ramp((lipZ(p[0]) - p[2] + 0.0005) / 0.001) + s * ramp((lipZ(p[0]) - p[2]) / 0.015);
+    const a = DM.atan2(p[0] - O[0], p[1] - O[1]), s = shut(a), below = (1 - s) * ramp((lipZ(p[0]) - p[2] + 0.0005) / 0.001) + s * ramp((lipZ(p[0]) - p[2]) / 0.015);
     const wj = r6(ramp((ahead(p) + 0.006) / 0.018) * below);
     return wj > 0 ? (wj < 1 ? { head: r6(1 - wj), jaw: wj } : { jaw: 1 }) : { head: 1 };
   };
@@ -535,14 +536,14 @@ function oneSkinRecipe(r, recipe, { sex, own, own_, head, k, ty, men, toHero, in
   const seamW = Array.from({ length: H }, (_, j) => { const i = Math.floor(j / C.multiple), t = (j % C.multiple) / C.multiple; return mixW(neckW(neck.slots[i]), neckW(neck.slots[(i + 1) % N]), t); });
   // the jaw's share: ahead of the ramus, under the lips' line (sharp across it between the corners, eased past them)
   const P = head.points, c0 = mean(seamPts), O = [0, c0[1], toHero(P.porionR)[2]];
-  const ch = toHero(P.chR), sto = toHero(P.sto), zM = sto[2], aCh = Math.atan2(ch[0] - O[0], ch[1] - O[1]), ease = (6 * Math.PI) / 180;
+  const ch = toHero(P.chR), sto = toHero(P.sto), zM = sto[2], aCh = DM.atan2(ch[0] - O[0], ch[1] - O[1]), ease = (6 * Math.PI) / 180;
   const shut = (a) => ramp((Math.abs(a) - aCh) / ease);
   const go = toHero(P.goR), cd = toHero(P.condyleR), ry = cd[1] - go[1], rz = cd[2] - go[2], rl = Math.hypot(ry, rz);
   const ahead = (p) => ((p[1] - go[1]) * rz - (p[2] - go[2]) * ry) / rl;
   const lipZ = (x) => { const u = Math.min(1, Math.abs(x) / Math.abs(ch[0])); return sto[2] + (ch[2] - sto[2]) * u * u + (zM - ch[2]) * ramp((Math.abs(x) - Math.abs(ch[0])) / 0.01); };
   // (`side`, the cut's: +1 the upper lip's, −1 the lower's, 0 a point the cut does not reach, its side by its height)
   const jawW = (p, side = 0) => {
-    const a = Math.atan2(p[0] - O[0], p[1] - O[1]), s = shut(a), cut = side > 0 ? 0 : side < 0 ? 1 : ramp((lipZ(p[0]) - p[2] + 0.0005) / 0.001);
+    const a = DM.atan2(p[0] - O[0], p[1] - O[1]), s = shut(a), cut = side > 0 ? 0 : side < 0 ? 1 : ramp((lipZ(p[0]) - p[2] + 0.0005) / 0.001);
     const below = (1 - s) * cut + s * ramp((lipZ(p[0]) - p[2]) / 0.015);
     const wj = r6(ramp((ahead(p) + 0.006) / 0.018) * below);
     return wj > 0 ? (wj < 1 ? { head: r6(1 - wj), jaw: wj } : { jaw: 1 }) : { head: 1 };
@@ -679,7 +680,7 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
   // the nostrils, the alar creases) or is netted coarse, and a settled point stood out as a spike on the layer beside its own)
   const settles = (p) => ramp((p[2] - eyeC[2] + F.settleFrom[0]) / F.settleFrom[1]);
   const apart = (id, p) => { if (!jawShare) return 0; const s = 1 - ramp((Math.abs(p[0]) - Math.abs(ch[0]) - LA[0]) / LA[2]), t = 1 - ramp((Math.abs(p[2] - sto[2]) - LA[1]) / LA[2]); return s * t * ((jawShare[id] ?? 0) >= 0.5 ? -1 : 1); };
-  const carry = (p, side = 0) => { const m = [0, 0, 0]; let s = 0; for (const b of beads) { const d2 = (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2; let w = Math.exp(-d2 / (b.r * b.r)); if (side && b.lip && Math.sign(side) !== b.lip) w *= 1 - Math.abs(side); if (w < 1e-4) continue; s += w; for (let a = 0; a < 3; a++) m[a] += w * b.d[a]; } const q = s > 1 ? 1 / s : 1; return m.map((x) => x * q); };
+  const carry = (p, side = 0) => { const m = [0, 0, 0]; let s = 0; for (const b of beads) { const d2 = (p[0] - b.p[0]) ** 2 + (p[1] - b.p[1]) ** 2 + (p[2] - b.p[2]) ** 2; let w = DM.exp(-d2 / (b.r * b.r)); if (side && b.lip && Math.sign(side) !== b.lip) w *= 1 - Math.abs(side); if (w < 1e-4) continue; s += w; for (let a = 0; a < 3; a++) m[a] += w * b.d[a]; } const q = s > 1 ? 1 / s : 1; return m.map((x) => x * q); };
   // (to the depth it had: a point the rim let down under the cranium stays that far under)
   const settle = (p, n, depth, most = F.settle) => { let T = 0; for (let it = 0; it < 4; it++) { const q = p.map((x, a) => x + n[a] * T), g = gradA(q), gn = g[0] * n[0] + g[1] * n[1] + g[2] * n[2]; if (Math.abs(gn) < 1e-6) break; const t = (depth - fA(q)) / gn, T2 = Math.max(-most, Math.min(most, T + t)); if (Math.abs(T2 - T) < 1e-6) { T = T2; break; } T = T2; } return p.map((x, a) => x + n[a] * T); };
   // (the rest eye's frame: within the eye's footprint the beads carry nothing, the lids are the eye's own)
@@ -687,7 +688,7 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
   // (the opening at rest per column across the eye: its upper and lower margins in the eye's plane, u across, v up)
   let cols = null;
   {
-    const N = 360, pts = Array.from({ length: N }, (_, j) => { const th = (2 * Math.PI * j) / N, r = E0.O(th); return [r * Math.sin(th), r * Math.cos(th)]; });
+    const N = 360, pts = Array.from({ length: N }, (_, j) => { const th = (2 * Math.PI * j) / N, r = E0.O(th); return [r * DM.sin(th), r * DM.cos(th)]; });
     const u0 = Math.min(...pts.map((q) => q[0])), u1 = Math.max(...pts.map((q) => q[0])), B = 96, top = new Array(B + 1).fill(-Infinity), bot = new Array(B + 1).fill(Infinity);
     for (const [u, v] of pts) { const b = Math.round(((u - u0) / (u1 - u0)) * B); top[b] = Math.max(top[b], v); bot[b] = Math.min(bot[b], v); }
     for (let b = 0; b <= B; b++) if (!Number.isFinite(top[b])) { let l = b; while (l > 0 && !Number.isFinite(top[l])) l--; top[b] = top[l]; bot[b] = bot[l]; }
@@ -697,8 +698,8 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
   // the lids' turn: about the globe's centre, square to the look (E0.side), a point's elevation the angle from the look
   const gC = toHero(rest.globes.find((g) => g.side === 'R').centre), D0 = E0.d, U0 = E0.up, S0 = E0.side;
   const rel = (q) => [q[0] - gC[0], q[1] - gC[1], q[2] - gC[2]], dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-  const dotD = (q) => dot3(rel(q), D0), elevOf = (q) => { const r = rel(q); return Math.atan2(dot3(r, U0), dot3(r, D0)); };
-  const turnLid = (q, da) => { const r = rel(q), x = dot3(r, S0), f = dot3(r, D0), w = dot3(r, U0), c = Math.cos(da), sn = Math.sin(da), f2 = f * c - w * sn, w2 = f * sn + w * c; return [0, 1, 2].map((a) => gC[a] + S0[a] * x + D0[a] * f2 + U0[a] * w2); };
+  const dotD = (q) => dot3(rel(q), D0), elevOf = (q) => { const r = rel(q); return DM.atan2(dot3(r, U0), dot3(r, D0)); };
+  const turnLid = (q, da) => { const r = rel(q), x = dot3(r, S0), f = dot3(r, D0), w = dot3(r, U0), c = DM.cos(da), sn = DM.sin(da), f2 = f * c - w * sn, w2 = f * sn + w * c; return [0, 1, 2].map((a) => gC[a] + S0[a] * x + D0[a] * f2 + U0[a] * w2); };
   // (each margin's elevation per column, at rest and acted: the eye rig's own lash lines, the margins exactly)
   const inV = (c) => toHero({ x: c.x * HEAD_V, y: c.y * HEAD_V, z: c.z * HEAD_V });
   const line = (m) => { const A = Array.from({ length: 65 }, (_, i) => { const q = inV(m(i / 64).c); return [dot3([q[0] - eyeC[0], q[1] - eyeC[1], q[2] - eyeC[2]], S0), elevOf(q)]; }).sort((x, y) => x[0] - y[0]);
@@ -748,7 +749,7 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
     for (const [id, p] of Object.entries(points)) {
       const m = p[0] < 0, pp = m ? [-p[0], p[1], p[2]] : p, n0 = normals[id], s = geo.up.get(id); if (!n0 || !(s <= geo.low.get(id))) continue;
       const n = m ? [-n0[0], n0[1], n0[2]] : n0, r = rel(pp), rg = Math.hypot(...r); if (rg > F.lidReach || dotD(pp) < -0.004) continue;
-      const at = E0.at(pp), u = at.r * Math.sin(at.th); if (u < cols.u0 || u > cols.u1) continue;
+      const at = E0.at(pp), u = at.r * DM.sin(at.th); if (u < cols.u0 || u > cols.u1) continue;
       const a = elevOf(pp), aT = elev.top(u), b = bin(u); if (a <= aT || a > elev.crease(u) + 0.6) continue;
       Ls[b].push([s, rg - rTop(u)]);
       if (rg > rTop(u) + 0.0005 && dot3(n, r.map((x) => x / rg)) <= F.faceIn && rg > R[b]) { R[b] = rg; A[b] = a; }
@@ -778,7 +779,7 @@ export function oneSkinFollow({ sex = 'male', relations = null, eyes = null, sea
     const socket = globes.some((g) => g(S2(p)) < 0);
     let inside = 0, under = 0, lid = null;
     {
-      const m = p[0] < 0, pp = m ? [-p[0], p[1], p[2]] : p, at = E0.at(pp), u = at.r * Math.sin(at.th), v = at.r * Math.cos(at.th);
+      const m = p[0] < 0, pp = m ? [-p[0], p[1], p[2]] : p, at = E0.at(pp), u = at.r * DM.sin(at.th), v = at.r * DM.cos(at.th);
       const back = (q) => (m ? [-q[0], q[1], q[2]] : q);
       // (the eye's footprint, eased out over `eyeEase` m past it: the settle's reach there shrinks to `settleIn` of its own)
       const uc = Math.max(cols.u0, Math.min(cols.u1, u)), out_ = Math.max(cols.u0 - u, u - cols.u1, 0, v - (cols.top(uc) + F.lid), cols.bot(uc) - 0.5 * F.lid - v);

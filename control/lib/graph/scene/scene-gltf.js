@@ -40,6 +40,7 @@ import { levelCameras, shootCameraDefs, levelEntityNodes, levelSceneExtras, leve
 import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 import { SKIN_ROUGH } from '../epidermis/cloth-relief.js';
+import { HAND_BONE } from '../polygonizer/hero-buster-rig.js';
 
 const COMPONENT_FLOAT = 5126;
 const COMPONENT_USHORT = 5123;
@@ -866,8 +867,12 @@ class GlbBuilder {
     // extras (`mojulo.height`: an engine that reads parallax or displacement binds it). Absent ⇒ byte-identical.
     const covered = this.lit && tex === null && fig.coverTex && fig.parts.some(Boolean) && fig.parts.every((p) => !p || (typeof p.uv === 'string' && typeof p.nrm === 'string' && typeof p.tan === 'string'));
     const ctex = covered ? Object.fromEntries(['base', 'normal', 'orm', 'height'].map((k) => [k, this.imageFromDataUrl(fig.coverTex[k])])) : null;
-    // (an atlas with edges, the hero's hair cards: dermal-hero.js heroSkinPaint `alphaMask`, the figure's material alpha tested)
-    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), ...(dtex !== null ? { extras: { mojulo: { relief: { height: dtex, depth: fig.depthTex.depth, perM: fig.depthTex.perM } } } } : {}), ...(fig.paintTex.alphaMask ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
+    // (an atlas with edges, the hero's hair cards: dermal-hero.js heroSkinPaint `alphaMask`, the figure's material alpha tested;
+    // with `alphaBox` only the faces on its strips are, a second primitive of their own, the body OPAQUE: game speed, a masked
+    // material over a whole body keeps the GPU from rejecting hidden pixels before it shades them)
+    const boxed = tex !== null && fig.paintTex?.alphaMask && Array.isArray(fig.paintTex.alphaBox);
+    const cardMaterial = boxed ? this.surfaceMaterial({ name: `fig:${name}:cards`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), alphaCutoff: HAIR_ALPHA_CUTOFF }) : null;
+    const material = tex !== null ? this.surfaceMaterial({ name: `fig:${name}`, baseColorTexture: tex, ...(ntex !== null ? { normalTexture: ntex } : {}), ...(otex !== null ? { ormTexture: otex, roughness: Math.min(1, this.litRoughness / SKIN_ROUGH) } : {}), ...(dtex !== null ? { extras: { mojulo: { relief: { height: dtex, depth: fig.depthTex.depth, perM: fig.depthTex.perM } } } } : {}), ...(fig.paintTex.alphaMask && !boxed ? { alphaCutoff: HAIR_ALPHA_CUTOFF } : {}) }) : ctex ? this.coverMaterial(`fig:${name}`, ctex, fig.coverTex) : this.surfaceMaterial({ name: `fig:${name}` });
     const uvs = tex !== null || ctex ? [] : null;
     const bones = fig.bones;
     const hasTails = bones.every((b) => Array.isArray(b.tail) && b.tail.length === 3);
@@ -1007,6 +1012,13 @@ class GlbBuilder {
       ...(A.T ? { TANGENT: this.floatAccessor(A.T, 4) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
+    // (the CARDS apart, `boxed`: a face all of whose corners lie in the alpha box, its own index list over the same vertices)
+    let cardIdx = null;
+    if (boxed && A.U) {
+      const [u0, v0, u1, v1] = fig.paintTex.alphaBox, inBox = (v) => A.U[2 * v] >= u0 && A.U[2 * v] <= u1 && A.U[2 * v + 1] >= v0 && A.U[2 * v + 1] <= v1, body = [], cards = [];
+      for (let t = 0; t < I.length; t += 3) (inBox(I[t]) && inBox(I[t + 1]) && inBox(I[t + 2]) ? cards : body).push(I[t], I[t + 1], I[t + 2]);
+      if (cards.length) { I = body; cardIdx = cards; }
+    }
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(I)) };
     const prims = [prim];
     if (inkParts) {
@@ -1119,6 +1131,8 @@ class GlbBuilder {
         targets: corr.targets.map((c) => ({ id: c.id, driver: { ...c.driver } })), joints: corr.joints,
       } } : {}) } };
     }
+    // (the cards' primitive: the body's vertices, its morph targets with them (a lash blinks with its lid), the masked material)
+    if (cardIdx) prims.push({ attributes, mode: MODE_TRIANGLES, material: cardMaterial, indices: this.indexAccessor(IndexArr.from(cardIdx)), ...(prim.targets ? { targets: prim.targets } : {}) });
     const meshIdx = this.json.meshes.push({ name: `${name}:skinned`, primitives: prims, ...(faceMesh || {}) }) - 1;
 
     // IBM: identity + translation(−restHead), column-major. An engine skeleton also lists the VRM leaves (the biped's
@@ -1216,6 +1230,9 @@ class GlbBuilder {
       animations++;
       if (!parents) animations += this.addBodyLayers(`emote:${clip}`, bones, jointNodes, E);
     }
+    // THE ARM CANNON'S SWAP (polygonizer/hero-buster-rig.js: a cannon on a bone of its own): `buster:out`, the hand to the
+    // cannon, played as an override layer over a body clip. A figure with no cannon's bone writes nothing
+    animations += this.addBusterSwap(fig.bones, jointNodes);
     return { nodes: 1, animations, vertices, triangles, skinned: true, soft: hasTails, humanoid: !!hb, authored: fig.parts.some((p) => p && typeof p.jnt === 'string'), ...(hasFace ? { face: true } : {}), ...(corr ? { correctives: corr.targets.length } : {}) };
   }
 
@@ -1228,6 +1245,26 @@ class GlbBuilder {
     const heads = Object.fromEntries(bones.map((b) => [b.id, b.head]));
     return (T.breath ? this.addLayerClip(`breath:${clipName}`, bones, jointNodes, T, breathBones(heads, T.breath)) : 0)
       + (T.head ? this.addLayerClip(`head:${clipName}`, bones, jointNodes, T, headBones(heads, T.head)) : 0);
+  }
+
+  /**
+   * THE ARM CANNON'S SWAP (polygonizer/hero-buster-rig.js, the page's __busterSwap): `buster:out`, two keys a tenth of a
+   * second apart, the cannon's bone (`buster<S>`) scaled from nothing to whole and the bones of that hand (the palm, the
+   * wrist's bridge, the fingers: HAND_BONE) from whole to nothing, each about its own head. An engine plays it forward to
+   * bring the cannon out (the buster fired or charging) and back to put it away; it moves no bone but these, so it lays
+   * over any body clip. → 1 when written, 0 for a figure with no cannon's bone.
+   */
+  addBusterSwap(bones, jointNodes) {
+    const at = bones.findIndex((b) => /^buster[LR]$/.test(b.id));
+    if (at < 0 || jointNodes[at] == null) return 0;
+    const hand = HAND_BONE(bones[at].id.slice(-1)), MIN = 0.001;
+    const times = Float32Array.from([0, 0.1]), input = this.floatAccessor(times, 1, { min: [0], max: [0.1] }, null), samplers = [], channels = [];
+    const scale = (node, from, to) => channels.push({ sampler: samplers.push({ input, output: this.floatAccessor(Float32Array.from([from, from, from, to, to, to]), 3, null, null), interpolation: 'LINEAR' }) - 1, target: { node, path: 'scale' } });
+    scale(jointNodes[at], MIN, 1);
+    bones.forEach((b, bi) => { if (hand.test(b.id) && jointNodes[bi] != null) scale(jointNodes[bi], 1, MIN); });
+    if (!this.json.animations) this.json.animations = [];
+    this.json.animations.push({ name: 'buster:out', samplers, channels, extras: { 'moj:layer': 'override', 'moj:swap': 'the hand to the arm cannon while the buster is out' } });
+    return 1;
   }
 
   /**

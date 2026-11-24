@@ -27,3 +27,17 @@ describe('the gun in the hands', () => {
     expect(formScript({ lights: [{ at: [0, 0, 3], key: [1, 1, 1], radius: 6, live: true }], ambient: [0.2, 0.2, 0.2], fall: 2, maps: {} })).toContain('probe.light = { U, K }');
   });
 });
+
+// THE GUN IN A WATCHER'S HANDS (heldScript): drawn for a body with a mind whose rule says `armHeld`, its posture read
+// off its alert (worlds/controllable/alert.js), never the pilot's; a page without one carries none of it.
+describe('the gun in a watcher\'s hands', () => {
+  it('is emitted only into a page that asks for it, and the hero\'s own hold is unchanged by it', () => {
+    const plain = gunplayScript(), held = gunplayScript({ held: true });
+    expect(plain).not.toContain('__gpHoldMind');
+    expect(held.startsWith(plain.trimEnd())).toBe(true);
+    expect(held).toContain('e.rule.armHeld && e.id !== __world.pilotId');
+    // (its posture the alert's weapon up, else up while it fires; its rounds leave from its own muzzle)
+    expect(held).toContain('e.alert ? e.alert.up');
+    expect(held).toContain('__gpMz(e.id, V.grp.localToWorld');
+  });
+});

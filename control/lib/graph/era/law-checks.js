@@ -84,7 +84,9 @@ export function checkStageLaws(payload, { only = null, plan = null } = {}) {
   add('arches-and-rounds', vault > 0 && archTrim > 0 && curved >= 0.08,
     `${vault} vault faces, ${archTrim} arched trim faces, ${(curved * 100).toFixed(1)}% of the built faces curved (≥ 8%)`);
   // height: the highest crown of any vault
-  const crown = Math.max(0, ...faces.filter((f) => f.group === 'stage:ceiling').flatMap((f) => f.corners.map((c) => c[2])));
+  // (folded, not spread: a building's faces are more than a call's arguments hold)
+  let crown = 0;
+  for (const f of faces) if (f.group === 'stage:ceiling') for (const c of f.corners) if (c[2] > crown) crown = c[2];
   add('dare-height', crown >= 8, `the highest vault crowns at ${crown.toFixed(1)} m (≥ 8 m)`);
   const bands = faces.filter((f) => f.group === 'stage:motif-band');
   add('motif-small', bands.length > 0, bands.length ? `${bands.length} band faces carry the motif` : 'no motif band: nothing small repeats on the stone');
@@ -101,7 +103,8 @@ export function checkStageLaws(payload, { only = null, plan = null } = {}) {
   let crowd = 0;
   for (let i = 0; i < ctr.length; i++) for (let j = i + 1; j < ctr.length; j++) if (Math.hypot(ctr[i][0] - ctr[j][0], ctr[i][1] - ctr[j][1]) < 2 && !cluster(ctr[i], ctr[j])) crowd++;
   add('doodads-apart', crowd === 0, crowd ? `${crowd} pair${crowd > 1 ? 's' : ''} of doodads stand together outside a corner's cluster` : `${ctr.length} doodads, none crowded`);
-  const darkest = Math.min(...faces.filter((f) => f.cornerFills && !f.blend).flatMap((f) => f.cornerFills.map((h) => Math.max(...hex(h)))));
+  let darkest = Infinity;
+  for (const f of faces) if (f.cornerFills && !f.blend) for (const h of f.cornerFills) { const v = Math.max(...hex(h)); if (v < darkest) darkest = v; }
   add('shade-is-colour', darkest > 0.03, `darkest corner ${darkest.toFixed(3)}`);
   const kept = only ? out.filter((x) => only.includes(x.law)) : out;
   return { values: v, laws: kept, passed: kept.filter((x) => x.ok).length, of: kept.length };

@@ -105,6 +105,8 @@
  */
 export function buildManaUi() {
   const ROLES = ['display', 'title', 'heading', 'body', 'label', 'caption', 'numeral'];
+  // how a display's words enter letter by letter (css.js lettersCss); none: whole, as they always were
+  const LETTER_ENTRANCES = ['none', 'rise', 'slam', 'wipe', 'track'];
   const REGIONS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
   // an enemy's awareness, each a SHAPE (never a colour alone): what it knows of you
   const AWARENESS = { unaware: '–', suspicious: '?', searching: '??', alert: '!', combat: '!!', fleeing: '»', down: '✕' };
@@ -197,7 +199,7 @@ export function buildManaUi() {
     touchpad: { group: 'hud', about: 'the look of a touch screen\'s virtual pad: a stick and round buttons, each named by the gamepad control it is (a word, or { label, control: south | east | west | north | rb … }); the touch driver (controllable/touch.js) reads it, never this runtime; what the driver knows is drawn: `lane` a stick held to left and right, `held` the stick under a thumb ({ ox, oy: where it rose from its rest, dx, dy: its nub, in px }), `down` the controls pressed', props: { stick: [B, true], buttons: [L, ['A', 'B']], lane: [B, false], held: [A], down: [L, []] } },
     legend: { group: 'value', about: 'what the buttons do here (a row: { action | actions: [..], label }), each with the glyph of the control the player is holding (keys, an Xbox, a PlayStation or a Nintendo pad); a finger needs none, so a touch screen draws none', props: { rows: [L, [], true] } },
     // values
-    text: { group: 'value', about: 'words in a type role; `tone` what a number means (a blow\'s kind: hit, crit, heal, miss, block), the theme\'s colour', props: { value: [T, '', true], role: [ROLES, 'body'], tone: [A, 'plain'] } },
+    text: { group: 'value', about: 'words in a type role; `tone` what a number means (a blow\'s kind: hit, crit, heal, miss, block), the theme\'s colour; `letters` a display\'s words entering letter by letter (rise, slam, wipe, track: css.js lettersCss), read aloud whole', props: { value: [T, '', true], role: [ROLES, 'body'], tone: [A, 'plain'], letters: [LETTER_ENTRANCES, 'none'] } },
     // a load: the unglamorous rules each game relearns (docs/mana-ui.md, loading)
     loader: { group: 'value', about: 'a load in progress, honest about it: the progress never goes back (null: not known, a sweep), an activity mark that moves even while the page is busy, the step it is on, a still-loading line once nothing has moved for `stall` seconds, tips that turn every `turn` seconds (left and right turn them too; `seed` mixes their order), a failure said with its words; `auto` goes on by itself once ready (after `least` seconds on screen, or at once if ready before `grace`), else it waits for the player (a press made in the first moment after ready is not an answer); on the game\'s clock (host.now)', props: { progress: [A], max: [N, 100], step: [T], tips: [L, []], tip: [T], ready: [B, false], error: [T], auto: [B, false], stall: [N, 10], turn: [N, 8], seed: [N, 0], least: [N, 1], grace: [N, 0.3] }, verbs: ['done'] },
     stat: { group: 'value', about: 'a label and its number; `count` counts it up from zero as it first shows (a results row, on the game\'s clock with host.countUp)', props: { label: [T, '', true], value: [T, '', true], max: [T], count: [B, false] } },
@@ -222,7 +224,7 @@ export function buildManaUi() {
     prompt: { group: 'value', about: 'what a button does here: [E] Talk (the glyph is the host\'s legend, else the action)', props: { action: [T, 'accept'], label: [T, '', true], glyph: [T] } },
     // in-game: aim, maps, the feed, moments
     reticle: { group: 'hud', about: 'the aim; a hit adds a hitmarker shape', props: { shape: [Object.keys(RETICLES), 'cross'], hit: [B, false] } },
-    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape; `route` the way drawn under them as a dotted line (a track, a road: points x, y from 0 to 1), in the place of the blank map; `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you)', props: { markers: [L, []], route: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N] } },
+    minimap: { group: 'hud', about: 'the map in a corner: markers at x, y from 0 to 1, each kind a shape, and one with a `fan` (points, itself first) its sight drawn under it as a wedge in its `state` (calm, search, seen); `route` the way drawn under them as a dotted line (a track, a road: points x, y from 0 to 1), in the place of the blank map; `scope` an instrument, not a picture in a box: a bezel of ticks, the wedge you see ahead (the top), its edge fading into the world; `north` where north lies on it (degrees clockwise from its top: a radar that turns with you); `plan` the map under it, { src, x, y, size, turn }: a picture of the place, the point x, y of it (0 to 1) at the middle, its side `size` times the minimap\'s, turned `turn` degrees clockwise about that point', props: { markers: [L, []], route: [L, []], shape: [['square', 'round'], 'square'], label: [T], scope: [B, false], north: [N], plan: [A] } },
     map: { group: 'hud', about: `a MAP of the place: its ground as shapes (each { kind: ${MAP_KINDS.join(' | ')}, x, y, w, h } from 0 to 1, north up, a \`tall\` one raised in the miniature) and what is on it as markers ({ x, y, kind?, icon?, label?, named?, heading?, you? }: an icon by its name, else its kind's shape; \`you\` turned to its heading; \`named: false\` keeps its name off the map where names are written), seen one of three ways: \`plan\` from straight above, north up; \`follow\` from above with the heading up and the focus at the centre (a corner's radar); \`miniature\` tilted, a model on a table, its tall shapes standing. \`focus\` { x, y } and \`zoom\` say what part; \`size\` how big it is drawn; \`labels\` writes each marker's name`, props: { shapes: [L, []], markers: [L, []], view: [['plan', 'follow', 'miniature'], 'plan'], focus: [A], heading: [N, 0], zoom: [N, 1], size: [['corner', 'panel', 'full'], 'panel'], labels: [B, false], label: [T] } },
     compass: { group: 'hud', about: 'a heading strip with the bearings of markers', props: { heading: [N, 0, true], markers: [L, []] } },
     feed: { group: 'hud', about: 'the last few lines of a log (kills, pickups, chat from the world); a line said again in a row merges (×3)', props: { rows: [L, [], true], field: [T, 'text'], max: [N, 4] } },
@@ -733,6 +735,13 @@ export function buildManaUi() {
           case 'text': {
             const tone = TONES.includes(p.tone) && p.tone !== 'plain' ? p.tone : null;
             // a display's words carry their echo (a theme's breakout draws them again, huge and hollow, behind)
+            // (a display entering letter by letter: each letter its own span, numbered for its delay, the whole read aloud
+            // as one word; absent, the words as they were)
+            if (p.letters !== 'none' && p.role !== 'numeral' && String(p.value).length) {
+              const chars = Array.from(String(p.value));
+              return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, 'data-echo': p.role === 'display' ? p.value : null, 'data-letters': p.letters, 'aria-label': String(p.value) },
+                ...chars.map((ch, i) => ['span', { class: 'mana-letter', 'aria-hidden': 'true', style: `--n:${i}` }, ch])];
+            }
             if (p.role !== 'numeral') return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, 'data-echo': p.role === 'display' ? p.value : null }, p.value];
             const c = changeOf(key, p.value);
             return ['span', { class: cls, 'data-role': p.role, 'data-tone': tone, ...chOf(c) }, words(counting(key, p.value, c, false))];
@@ -910,10 +919,18 @@ export function buildManaUi() {
           case 'prompt': { const g = p.glyph || glyphOf(p.action) || p.action; return ['div', { class: cls }, ['span', { class: 'mana-key', 'data-icon': iconName(g) }, g], ['span', null, p.label]]; }
           case 'legend': return legendOf(p.rows);
           case 'reticle': return ['div', { class: cls, 'data-shape': p.shape, 'data-hit': p.hit ? 'yes' : null }, ['span', null, RETICLES[p.shape] || '+'], p.hit ? ['span', { class: 'mana-hit' }, '✕'] : null];
-          case 'minimap': return ['div', { class: cls, 'data-shape': p.shape, ...(p.route.length ? { 'data-route': 'on' } : {}), 'data-scope': p.scope ? 'yes' : null }, p.scope ? ['span', { class: 'mana-bezel' }, ['i', { class: 'mana-cone' }], p.north !== undefined && isFinite(p.north) ? ['b', { class: 'mana-north', style: `transform:rotate(${Math.round(p.north)}deg)` }, ['span', { style: `transform:rotate(${-Math.round(p.north)}deg)` }, 'N']] : null] : null, ...p.route.map((q) => (isObj(q) && isFinite(Number(q.x)) && isFinite(Number(q.y)) ? ['span', { class: 'mana-trace', style: `left:${pct(q.x)};top:${pct(q.y)}` }] : null)), ...p.markers.map((m) => {
+          case 'minimap': { const M = isObj(p.plan) && typeof p.plan.src === 'string' && isFinite(Number(p.plan.x)) && isFinite(Number(p.plan.y)) && Number(p.plan.size) > 0 ? p.plan : null;
+            // (the map under it: the place's picture, its point x, y at the middle, turned about it; clipped to the minimap)
+            // (its own percentages, never clamped: the picture is larger than the minimap and runs past its edges)
+            const pf = (v) => Math.round(Number(v) * 1000) / 10 + '%';
+            const plan = M ? ['span', { class: 'mana-planclip' }, ['img', { class: 'mana-plan', src: M.src, alt: '', style: `width:${pf(M.size)};height:${pf(M.size)};left:${pf(0.5 - M.x * M.size)};top:${pf(0.5 - M.y * M.size)};transform-origin:${pf(M.x)} ${pf(M.y)};transform:rotate(${Math.round(Number(M.turn) || 0)}deg)` }]] : null;
+            return ['div', { class: cls, 'data-shape': p.shape, ...(p.route.length ? { 'data-route': 'on' } : {}), 'data-scope': p.scope ? 'yes' : null }, plan, p.scope ? ['span', { class: 'mana-bezel' }, ['i', { class: 'mana-cone' }], p.north !== undefined && isFinite(p.north) ? ['b', { class: 'mana-north', style: `transform:rotate(${Math.round(p.north)}deg)` }, ['span', { style: `transform:rotate(${-Math.round(p.north)}deg)` }, 'N']] : null] : null, ...p.route.map((q) => (isObj(q) && isFinite(Number(q.x)) && isFinite(Number(q.y)) ? ['span', { class: 'mana-trace', style: `left:${pct(q.x)};top:${pct(q.y)}` }] : null)), ...p.markers.map((m) => {
             if (!isObj(m) || !isFinite(Number(m.x)) || !isFinite(Number(m.y))) return null;
-            return ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
-          }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null];
+            const mark = ['span', { class: 'mana-marker', 'data-kind': MARKERS[m.kind] ? m.kind : 'poi', style: `left:${pct(m.x)};top:${pct(m.y)}`, title: m.label || null }, MARKERS[m.kind] || MARKERS.poi];
+            // (what it sees: a marker's `fan`, points on the map with itself first, drawn under it as a wedge in its `state`)
+            const fan = Array.isArray(m.fan) && m.fan.length >= 3 && m.fan.every((q) => Array.isArray(q) && isFinite(Number(q[0])) && isFinite(Number(q[1]))) ? m.fan : null;
+            return fan ? ['span', { class: 'mana-seen' }, ['i', { class: 'mana-sight', 'data-state': ['search', 'seen'].includes(m.state) ? m.state : 'calm', style: `clip-path:polygon(${fan.map((q) => `${pct(q[0])} ${pct(q[1])}`).join(',')})` }], mark] : mark;
+          }), p.label ? ['span', { class: 'mana-caption' }, p.label] : null]; }
           case 'map': {
             const view = p.view, mini = view === 'miniature', rot = view === 'follow' ? (Number(p.heading) || 0) : 0, z = clamp(Number(p.zoom) || 1, 1, 16);
             const f = isObj(p.focus) ? p.focus : {}, fx = clamp(isFinite(Number(f.x)) ? Number(f.x) : 0.5, 0, 1), fy = clamp(isFinite(Number(f.y)) ? Number(f.y) : 0.5, 0, 1);

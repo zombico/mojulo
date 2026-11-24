@@ -4,7 +4,8 @@
  * cycle. `castRig` (cast-rig.js) is this with the cube's light solve (era/cube-light.js); what a rig is, is written there.
  *
  *   castRigOf(cube, { hour?, register?, palette? }, solve)   the rig: `solve(cube, { hour })` the cube's light where
- *     there is a cube; with none, the card, and no solve asked for
+ *     there is a cube; with none, the card, and no solve asked for. `palette` (the body's groups → hex): what the
+ *     separation and the value laws read it as (a middle grey where absent)
  *   castCard(register, { palette? })   the card as a rig
  *   CAST_REGISTERS, CAST_RIG_LAWS, CAST_BANDS, CAST_CARD
  */
@@ -16,11 +17,22 @@ export const CAST_REGISTERS = Object.freeze(['western', 'anime']);
 // (`form`, `separation` and `rimLift` are the hero light's own, HERO_LIGHT_LAWS, and `rim` the baked cast light's,
 // CAST_LIGHT.rim, written here: this module reads no other of the era's, so a page's channel can carry the card from
 // inside the era's import cycle; cast-rig.test.js holds them to the ones they stand for)
-export const CAST_RIG_LAWS = Object.freeze({ form: 1.6, depth: 6, keyGain: 3, keyCos: 0.8, separation: 0.12, rimLift: 0.25, rim: Object.freeze({ strength: 0.45, power: 3 }) });
+// (`floor` and `lift`: no body's shade side darker than `floor` (an OKLab L: dark, never black), its key and fill raised
+// together by at most `lift` × to reach it, so its form keeps its turn; read off its bulk, `BULK`, a dark suit's own)
+// (`night`: under the moon a body sits in the dark the land sits in. From the twilight (the sky's height under 0) to the
+// night (`from` under, −0.5) its floor falls to `floor`, its lift to `lift`× (the eye's own adapting, never a lamp held on
+// it), its rim to `rim` of its strength, as bright as the world's own light on it (never its lifted key's), and no rim is
+// raised to carry an outline: a silhouette lost in the dark is the night's; a floodlight still lights it, as it lights
+// the land)
+export const CAST_RIG_LAWS = Object.freeze({ form: 1.6, depth: 6, keyGain: 3, keyCos: 0.8, separation: 0.12, rimLift: 0.25, floor: 0.27, lift: 6, rim: Object.freeze({ strength: 0.45, power: 3 }),
+  night: Object.freeze({ from: 0.5, floor: 0.17, lift: 3, rim: 0.5 }) });
 /** The cel's tones (the fight rig's ramp: the shadow side, the turn, the light). */
 export const CAST_BANDS = Object.freeze({ steps: 3, ramp: Object.freeze([0.36, 0.65, 1]) });
 /** A body with no palette is read as a middle grey. */
 const GREY = 0.3;
+/** What most of a body is (a hero's palette groups: its top and its bottom, the cloth that covers it); a palette with none
+ *  of them is read by all its colours. */
+const BULK = Object.freeze(['Top', 'Bottom']);
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
@@ -52,7 +64,7 @@ function readRegister(register) {
 export function castRigOf(cube, { hour, register = 'western', palette = null } = {}, solve = null) {
   readRegister(register);
   const LAW = CAST_RIG_LAWS, why = [];
-  let toLight, sun, sky, ground, horizon, strength, power, from;
+  let toLight, sun, sky, ground, horizon, strength, power, from, night = 0;
   if (cube) {
     if (typeof solve !== 'function') throw new Error('cast rig: a cube\'s rig is solved by its light (castRig, cast-rig.js); the core alone gives the card');
     const L = solve(cube, hour === undefined ? {} : { hour });
@@ -63,6 +75,8 @@ export function castRigOf(cube, { hour, register = 'western', palette = null } =
     horizon = L.sky.horizon.map((v) => decodeSrgb(v / 255));
     strength = cube.light.rim?.strength ?? LAW.rim.strength; power = cube.light.rim?.power ?? LAW.rim.power;
     from = { geocube: cube.id ?? null, hour: L.hour };
+    // (how far into the night: 0 by day and at the golden horizon, 1 from `night.from` under it)
+    if (Number.isFinite(L.height)) night = Math.max(0, Math.min(1, -L.height / LAW.night.from));
     why.push(`The key is the world's own ${L.sun.elevation > 0 ? 'light' : 'key'} at ${L.hour} h, the solve the land is lit by; the sky's light over the floor's bounce fills it; the horizon rims it.`);
   } else {
     const K = CAST_CARD[register];
@@ -86,15 +100,30 @@ export function castRigOf(cube, { hour, register = 'western', palette = null } =
       : keyGain > 1 ? `the world's light turns a body only ${r4(raw)}× (a sky-lit level): the body's own key raised ${r4(keyGain)}×${formOk ? '' : `, its most, for ${r4(ratio)}× (want ${LAW.form}×)`}`
       : hemiGain > 1 ? `the world's light leaves the shade side a hole (${r4(raw)}×): the body's own fill raised ${r4(hemiGain)}×, the key side ${LAW.depth}× the shade` : `the key side is ${r4(ratio)}× the shade side: the form turns` });
 
+  // VALUE: the body's own shade side never black. A dark suit under a weak sky (an evening, a haze) sits under the floor
+  // whatever its turn: its key and its fill raised together, as a photographer fills a dark subject, the turn kept
+  const hexes = (ks) => ks.map((k) => palette[k]).filter((h) => typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h));
+  const bulk = palette ? (() => { const own = hexes(BULK), a = (own.length ? own : hexes(Object.keys(palette))).map((h) => luminance(linOf(h))); return a.length ? a.reduce((x, v) => x + v, 0) / a.length : GREY; })() : GREY;
+  const floorL = LAW.floor + (LAW.night.floor - LAW.floor) * night, most = LAW.lift + (LAW.night.lift - LAW.lift) * night;
+  const shade0 = bulk * wall * hemiGain, want = floorL ** 3, lift = cube && shade0 < want ? Math.min(most, want / Math.max(1e-9, shade0)) : 1;
+  const keyGain0 = keyGain, hemiGain0 = hemiGain;
+  keyGain *= lift; hemiGain *= lift;
+  reads.push({ law: 'value', ok: Lof(bulk * wall * hemiGain) >= floorL - 1e-6, shade: r4(Lof(shade0)), lift: r4(lift), want: r4(floorL), ...(night > 0 ? { night: r4(night) } : {}),
+    note: lift > 1 ? `the body's shade side would be ${r4(Lof(shade0))} L, under the floor (${r4(floorL)}${night > 0 ? ', the night\'s' : ''}): its key and fill raised ${r4(lift)}× together${Lof(bulk * wall * hemiGain) < floorL - 1e-6 ? `, its most (a body as dark as this keeps some black)` : ''}` : `the body's shade side stands at ${r4(Lof(shade0))} L, over the floor` });
+
   // SEPARATION: the figure's shade side against the horizon behind it; too close, and the rim carries the outline
   const albedo = palette ? (() => { const a = Object.values(palette).filter((h) => typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h)).map((h) => luminance(linOf(h))); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : GREY; })() : GREY;
   const gap = Math.abs(Lof(albedo * wall * hemiGain) - Lof(luminance(horizon))), sepOk = gap >= LAW.separation;
-  if (!sepOk) strength = Math.min(1, strength + LAW.rimLift);
+  // (at night no rim is raised to carry the outline: lost in the dark is how a body is seen then)
+  if (!sepOk) strength = Math.min(1, strength + LAW.rimLift * (1 - night));
   reads.push({ law: 'separation', ok: sepOk, gap: r4(gap), want: LAW.separation,
     note: sepOk ? `the shade side stands ${r4(gap)} L off the horizon: the rim is an accent` : `the shade side is ${r4(gap)} L off the horizon (want ${LAW.separation}): the rim carries the outline, raised to ${r4(strength)}` });
 
-  // the rim: the horizon's hue, as bright as the key side at strength 1
-  const lit = wall * hemiGain + LAW.keyCos * yS * keyGain, rimLin = scaled(horizon, lit / Math.max(1e-9, luminance(horizon)));
+  // the rim: the horizon's hue, as bright as the key side at strength 1; at night as bright as the world's own light on it
+  // (the key side before the value's lift), and a share of its strength
+  const litOf = (kg, hg) => wall * hg + LAW.keyCos * yS * kg, lit = litOf(keyGain, hemiGain) + (litOf(keyGain0, hemiGain0) - litOf(keyGain, hemiGain)) * night;
+  const rimLin = scaled(horizon, lit / Math.max(1e-9, luminance(horizon)));
+  if (night > 0) { strength *= 1 + (LAW.night.rim - 1) * night; why.push(`Night (${r4(night)}): the body sits in the dark the land sits in, its lift held to ${r4(most)}×, its floor ${r4(floorL)} L, its rim the moon's own and faint (${r4(strength)}).`); }
   if (register === 'anime') why.push('Cel: the same rig, its tones stepped and its rim in bands; the world is lit as any other.');
   return {
     from, register,

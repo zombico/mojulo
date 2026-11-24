@@ -55,7 +55,11 @@ export function mountLane(G, { refs = {}, cast = 'male', coat = null, sound = 'r
   const e0 = P.entities[0];
   const soundOf = (word) => { const v = sound === 'none' ? null : sfxSound(word, { style: sound }); return v && v.gestures ? v.gestures : null; };
   const step = soundOf('step-concrete'), jump = soundOf('jump'), land = soundOf('land');
-  const audio = step ? { footsteps: Object.fromEntries(Object.entries({ step, jump, land }).filter(([, v]) => v)) } : null;
+  // (its horse heard, where the sound library records it: its hooves by its pace, its neigh as the hero settles in the
+  // saddle, its snort as it is urged to the gallop; the animal shelf's equine; without the library nothing of it)
+  const voice = (word) => (sound === 'none' ? null : sfxSound(word, { style: sound }));
+  const horse = Object.fromEntries(Object.entries({ hooves: voice('hooves')?.sustain, mounted: voice('equine-call')?.gestures, gallop: voice('equine-alert')?.gestures }).filter(([, v]) => v));
+  const audio = step ? { footsteps: Object.fromEntries(Object.entries({ step, jump, land }).filter(([, v]) => v)), ...(Object.keys(horse).length ? { mount: horse } : {}) } : null;
   const { faces, colliders } = laneGround();
   const manifest = {
     kind: 'controllable', title: `Mount lane · ${G.name ?? G.id ?? 'game'}`, bg: '#a9c0cf', faces, colliders, figures,

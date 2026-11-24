@@ -2982,6 +2982,30 @@ describe('dodge cooldown + act-breaks-invincibility (2026-07-27)', () => {
   });
 });
 
+describe('a clanging blade (rule.clang: a stylish hero whose met blades only ring)', () => {
+  const FLAT = { ground: () => 0 };
+  const mkPair = (clang) => createWorld({ entities: [
+    { id: 'a', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeDur: 0.5, strikeReach: 12, strikeDamage: 25, ...(clang ? { clang: true } : {}) },
+      body: { type: 'figure-rig', hittable: true, radius: 1, hp: 500, poise: 50, staggerDur: 1 }, transform: { pos: [0, 0, 0], heading: 0 } },
+    { id: 'b', rule: { type: 'platform', eye: 0, speed: 6, strike: 'melee', strikeDur: 0.5, strikeReach: 12, strikeDamage: 25 },
+      body: { type: 'figure-rig', hittable: true, radius: 1, hp: 500, poise: 50, staggerDur: 1 }, transform: { pos: [10, 0, 0], heading: Math.PI } },
+  ] });
+  it('met blades ring: no lock, a spark, the blow lands on a foe that is swinging (not defending), and the swing goes on', () => {
+    const w = mkPair(true);
+    run(w, {}, 5, 1 / 60, FLAT);
+    stepWorld(w, { fire: 1, forward: 1 }, 1 / 60, FLAT);
+    const a = w.byId.a, b = w.byId.b, sparks0 = (w.clashes || []).length;
+    run(w, {}, 12, 1 / 60, FLAT);
+    expect(a.clashT == null).toBe(true);
+    expect(b.body.hp).toBeLessThan(500);
+    expect((w.clashes || []).length).toBeGreaterThan(sparks0);
+    expect(a.swingT).not.toBeNull();
+    // (and without it, the pair lock as before)
+    const v = mkPair(false); run(v, {}, 5, 1 / 60, FLAT); stepWorld(v, { fire: 1, forward: 1 }, 1 / 60, FLAT); run(v, {}, 12, 1 / 60, FLAT);
+    expect(v.byId.a.clashT).not.toBeNull();
+  });
+});
+
 describe('clash event (2026-07-28 — mutual melee locks the pair, invincible, then separates)', () => {
   const FLAT = { ground: () => 0 };
   // two plain platform strikers facing each other — BOTH receive the global input (neither is

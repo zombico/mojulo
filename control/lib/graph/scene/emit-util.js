@@ -75,4 +75,4 @@ function inlineImportmap() {
   });
 }
 
-export { VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap };
+export { VENDOR_DIR, VENDOR_IMPORTMAP, CDN_IMPORTMAP, CDN_THREE_VERSION, inlineImportmap };

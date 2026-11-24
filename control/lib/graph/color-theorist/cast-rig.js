@@ -25,16 +25,20 @@
  *   tone   { curve, exposure, form, paint }   one rule an era: on a form page the renderer's curve tones the body with
  *          the land ('renderer'); on a painted page the body tones itself to the paint's range ('body')
  *   reads  the rig's laws, each { law, ok, …, note }: form (the key side over the shade side, held between FORM and
- *          DEPTH by the two gains), separation (the shade side against the horizon)
+ *          DEPTH by the two gains), value (the shade side of the body's bulk never under the floor, dark and never
+ *          black: both gains raised together where it would be), separation (the shade side against the horizon)
  *
  * Units are the solve's: out = base × light. A renderer that divides diffuse by π, as three does, sets its lights to π ×
  * these. Pure: no dice, no clock; the same cube and hour, the same rig, byte for byte. Its making is the core's
  * (cast-rig-core.js: the laws, the card, the rig with the solve passed in), which reads none of the era's modules.
  */
 import { cubeLight } from '../era/cube-light.js';
+import { hourLight } from '../era/geocube-hours.js';
 import { castRigOf } from './cast-rig-core.js';
 
 export { CAST_REGISTERS, CAST_RIG_LAWS, CAST_BANDS, CAST_CARD, castCard } from './cast-rig-core.js';
 
 /** The rig (the core's, cast-rig-core.js castRigOf) under the cube's own light solve. */
-export const castRig = (cube, opts = {}) => castRigOf(cube, opts, cubeLight);
+// (the solve, with the sky's height at its hour, hourLight's `s`: night −1, the golden horizon 0, noon 1; the rig's night law reads it)
+const solveWithHeight = (cube, o) => { const L = cubeLight(cube, o); return { ...L, height: hourLight(cube, L.hour).s }; };
+export const castRig = (cube, opts = {}) => castRigOf(cube, opts, solveWithHeight);

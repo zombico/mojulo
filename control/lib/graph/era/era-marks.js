@@ -45,7 +45,10 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'trafficLanes', 'trafficConstants', 'flow', 'beacons', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
   'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'roll', 'manaHud', 'courseTouch', 'tempo', 'styleMeter', 'grade',
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'mission', 'damageRing', 'cone', 'formSky', 'air', 'sea', 'marine', 'soften',
-  'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs', 'cityMap', 'bagUi', 'phoneUi',
+  'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs',
+  // (tall grass's sight, the pixel budget's cap, the radar's map, a building's stairs for the follow camera; glass and
+  // mesh a body is held out of and a gaze goes through, worlds/controllable/barrier.js)
+  'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

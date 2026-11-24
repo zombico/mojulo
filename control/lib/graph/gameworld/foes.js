@@ -35,7 +35,8 @@
  *   isModel(entry)                      → the entry is skinned as a model made elsewhere: it stands on its own ref (the
  *                                         sketch its model is bound onto), made by no step, on the library as a person
  *   foePlacements(G, level, ends)       → [{ id, entry, at, heading, group? }]: who stands where on a stage (its trail
- *                                         node, `ends.node`, picks its density: DENSITY_WORDS)
+ *                                         node, `ends.node`, picks its density: DENSITY_WORDS); on a sneak's stage
+ *                                         (`ends.sneak: { posts }`) never on a guard's post nor in sight of the spawn
  *   hostileCast(G, level, ends, { refs, hero, hurt? })   → the stage's extra (levels.js stageLevelOrder): a fight that comes
  *                                         after another (a scenario beat's `after`) minted asleep, its cues waking it; the foes' figures and
  *                                         entities, and a hittable pilot (`hurt`: what a foe's touch takes off its body's
@@ -52,6 +53,7 @@
  */
 import { FOE_CLASSES, foeClass } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
+import { SIGHTS } from '../mind/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { foeFigure, fieldFigure, modelFigure, libraryFigure, facing } from './stage-figures.js';
 import { dressOrders } from '../foes/dress.js';
@@ -237,6 +239,16 @@ export const dressOf = (G, id, entry) => dressOrders(entry.skin, { seed: peopleS
 export const isModel = (entry) => isModelSkin(entry?.skin);
 
 const freeBeats = (ends) => (ends?.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
+// A SNEAK's stage (`ends.sneak`, levels.js levelOrder: a stage with guards): a foe stands on no guard's post and on no beat
+// its sight reaches the spawn from (the farthest-seeing class it may be, mind/vocab.js SIGHTS, and SNEAK_MARGIN more), so
+// nobody sees the hero before its first press; a beat that close is left to the guards' own spacing, empty.
+const SNEAK_MARGIN = 2, POSTED = 1.5;
+function sneakBeats(beats, ends, from, B) {
+  if (!ends?.sneak) return beats;
+  const reach = Math.max(0, ...from.map((eid) => SIGHTS[foeClass(B[eid].class).mind?.sight]?.knobs.sightRange ?? 0)) + SNEAK_MARGIN;
+  const near = (a, b, r) => Math.hypot(a[0] - b[0], a[1] - b[1]) < r;
+  return beats.filter((b) => !(ends.sneak.posts ?? []).some((p) => near(p, b.at, POSTED)) && !near(ends.spawn, b.at, reach));
+}
 // the k-th of n bodies round a point, `r` out, the first on it
 const round = (at, k, n, r) => (k === 0 ? at : [r3(at[0] + r * Math.cos((2 * Math.PI * k) / n)), r3(at[1] + r * Math.sin((2 * Math.PI * k) / n)), at[2]]);
 
@@ -267,9 +279,9 @@ export function foePlacements(G, level, ends) {
     }
     return out;
   }
-  const free = freeBeats(ends);
-  if (!free.length) return [];
   const read = readLevelFoes(LF, G.foes, `levels.${level}`), B = bestiaryOf(G), out = [];
+  const free = sneakBeats(freeBeats(ends), ends, read.from, B);
+  if (!free.length) return [];
   // (a stage whose beats name their trail node, a side strip's segments: each node's beats at that node's density, in
   // order along the way; else the stage's node for all of them)
   const groups = free.some((b) => b.node !== undefined) ? free.reduce((g, b) => { const last = g[g.length - 1]; if (last && last.node === b.node) last.beats.push(b); else g.push({ node: b.node, beats: [b] }); return g; }, []) : [{ node: ends.node, beats: free }];
@@ -437,6 +449,8 @@ export function hostileCast(G, level, ends, { refs, hero = true, hurt = null, ra
   }
   // on a side strip's rail: each body that stands (a summons sleeps on its summoner) is ON the rail where it was stood,
   // held to the lane in all it does; a rare one (railAmbush) waits behind the lane and comes in
+  // (a side map says its own rail in its ends: side-map/cast.js sideMapEnds)
+  rail = rail ?? ends?.rail ?? null;
   if (rail) {
     let k = 0;
     const taken = [];

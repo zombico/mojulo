@@ -87,6 +87,16 @@ describe('geocube: the two specimens share one style', () => {
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', show: 'trail', seed: 1.5 }, {})).toThrow(/seed is an integer/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', hour: 'noon' }, {})).toThrow(/hour is the outside's/);
     expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', rooms: [] }, {})).toThrow(/'rooms' is not a setting/);
+    // (the frame's grade, any world's: the page's compositing stage, read by the world scene)
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', grade: 'night' }, {})).not.toThrow(/is not a setting/);
+    // (a lean ground: false, true or 'cliffs', its cliffs' relief kept; nothing else)
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', parallax: 'ground' }, {})).toThrow(/parallax is true .*'cliffs'/);
+    // (one far grass: 'lift', nothing else)
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', farGrass: 'painted' }, {})).toThrow(/farGrass is 'lift'/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', farGrass: { as: 'lift', raise: 9 } }, {})).toThrow(/raise\?: 1 to 4/);
+    // (a level's far figures: a distance and a budget, each in its range, and nothing else)
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', farFigures: { at: 3 } }, {})).toThrow(/farFigures is \{ at\?/);
+    expect(() => WORLD_KINDS.geocube.resolve({ kind: 'geocube', cube: 'gothic-night', farFigures: { far: 30 } }, {})).toThrow(/farFigures is/);
   });
 });
 

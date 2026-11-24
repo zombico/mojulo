@@ -12,7 +12,7 @@
 //   forearm (shield) its height along the forearm, its face outward, its back grip at the hand
 //   back    across the shoulder blades on the torso: a blade hilt-up over the right shoulder, anything else head-up
 //   hip     at the left hip on the pelvis, hilt forward and up, the tip back and down
-//   firearm (pistol, carbine, shotgun, rifle, smg) at LOW READY in the hand: the grip's line along the fist's (the thumb's side up
+//   firearm (pistol, carbine, shotgun, rifle, smg, launcher) at LOW READY in the hand: the grip's line along the fist's (the thumb's side up
 //           the grip toward the bore), the muzzle down along the arm and forward out of it, its end kept above the
 //           floor; on the back slung across the shoulder blades muzzle down, its side flat to the back; a pistol on the
 //           hip in a holster at the RIGHT thigh (the strong side), muzzle down, the grip back. A long gun has no hip.
@@ -32,7 +32,7 @@ import { rigNodesAt } from './station-loft-rig.js';
 import { DEFAULT_LIGHT } from './vexar.js';
 
 export const GEAR_SLOTS = Object.freeze(['right', 'left', 'back', 'hip']);
-const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', knife: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm', pistol: 'firearm', carbine: 'firearm', shotgun: 'firearm', rifle: 'firearm', smg: 'firearm' });
+const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', knife: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm', pistol: 'firearm', carbine: 'firearm', shotgun: 'firearm', rifle: 'firearm', smg: 'firearm', launcher: 'firearm' });
 /** the firearm's muzzle forward of straight down along the arm at low ready (°), more when the floor asks */
 const READY = 25;
 /** the firearms carried on the hip (a holster): the pistol alone */

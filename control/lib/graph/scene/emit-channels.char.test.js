@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-23 (the jump's missing moves): every fixture that embeds the controllable runtime. The platform rule
+// gained `hang`, `landLag` and `pound` (rules-platform.js: the apex held, the landing's lag, the stomp attack), each
+// taken only by a rule that names it (no fixture's does). Checked: each moved hash is the old emission with only the
+// platform builder's source swapped; their worlds step as before.
 // Re-pinned 2026-11-18 (the open city's shops and guns): every fixture that embeds the controllable runtime. A weapon
 // may start with fewer rounds than it holds (combat-ranged.js `loaded`), the cast gains `repaint` (a respray), and a
 // moveset's hero may carry its sidearm in a holster (combat-melee.js `holster`, its trigger in combat-ranged.js). Each
@@ -35,9 +39,16 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont merged with 1116-rc): `game`, `kitchen-sink`, `kitchen-sink-capture`,
+// `brawl`, `holo` and `mission`, each pinned anew on both sides since they parted: the candidate's emission and the
+// branch's (the party RPG's channel and its fight shot, the wardrobe's looks, the music an event changes to, a walk that
+// finds its way, mana-ui's name keyboard) read together. Every other page is the candidate's, byte for byte.
 // Re-pinned 2026-11-24 (1119-jrpg-starter-cont: a name typed in game): `brawl`, `mission` and `holo`, the pages that
 // embed the game UI runtime whole. Its text entry grows a name's keyboard (`charset: 'name'`: pages, Space, Cancel, `min`),
 // a pad's back erasing a draft and its shoulders turning the pages, and two words (Space, Page). Nothing else moved.
+// Re-pinned 2026-11-20 (start screens, mana-ui's letters): `brawl`, `mission` and `holo`, the pages that embed the game UI
+// runtime: its text takes `letters` (a display entering letter by letter) and its kernel source carries the split. No
+// page here draws letters (their sheet, lettersCss, is laid only by the play shell's title and the board); they draw as before.
 // Re-pinned 2026-11-18 (1116-rc's lens merged into Hijack City): `brawl`, `mission` and `holo`, the runtime they embed
 // now carrying both the candidate's lens and this branch's "No ammo" word.
 // Re-pinned 2026-11-18 (Hijack City, mana-ui's magazine): `brawl`, `mission` and `holo`, the pages that embed the game UI
@@ -843,6 +854,78 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // stands inside its round, the pads fill from the screen's edge, the HUD's bottom corners stand over a pad, a region
 // whose every part is gated off draws no plate, and a glass theme no longer blurs behind a bare region; neither page
 // draws a touch pad or an empty region, and every other fixture holds byte for byte.
+// Re-pinned 2026-11-19 a seventh time (1117-cinematic-action-game: a guard's reach at arm's length): the seventeen
+// fixtures whose page embeds the controllable runtime. A mind's perceive (mind.js) takes an opt-in `rule.near`: a body
+// within its reach is seen whatever way it faces, unless square behind it while it walks (and all round while a patrol
+// looks round, foe.js `patrol.look`). No fixture's mind carries `near`, so every sight is the cone's as it was; only the
+// runtime's text moved. foe.js's look round is emitted only where a world stands a foe, and no fixture does.
+// Re-pinned 2026-11-19 (1117-cinematic-action-game: crawling under things): `mission` only. The world's veils may carry a
+// crawl space (veil.js `under`, a box with no patch's middle and radius), so the radar's plan (gameworld/radar.js
+// planSvg, inlined by the page) draws tall grass from the patches alone. The fixture has no veils: its plan is as it was;
+// only the inlined source moved.
+// Re-pinned 2026-11-19 a sixth time (1117-mana-ui-talking-heads merged into 1117-cinematic-action-game): the fixtures
+// whose page inlines text either side had moved since (that side: the talk box on mana-ui and its talking faces, a game
+// UI's root laid in the scene's frame, the radar's plan at the floor a level stands on, every shooter's HUD; this side:
+// the world's rays and the ground's index, the follow camera's clear line, the minimap translucent, tall grass). The
+// radar's plan takes either side's word (a floor height, or the options with `z` among them). Twenty fixtures moved
+// from that side's pin: the seventeen that inline the controllable runtime, and `brawl`, `holo` and `mission` (the game
+// UI's styles and the radar's plan); every other fixture holds that side's pin byte for byte. The merged text is
+// neither side's pin; no fixture's behaviour is claimed changed.
+// Re-pinned 2026-11-19 a fifth time (1117-cinematic-action-game: the grid for meshes of two hundred triangles and the
+// camera's first ray): the same seventeen; the grid's threshold and one line before the camera's drive.
+// Re-pinned 2026-11-19 a fourth time (1117-cinematic-action-game: the grid for every big mesh): the same seventeen. The
+// ground grid's raycast takes a mesh placed by a transform (the ray carried into its own frame) and one of several
+// materials (each face its group's side), where three's own raycast took them triangle by triangle; what a ray finds is
+// what three finds (tested ray by ray). Emission changes by that function alone.
+// Re-pinned 2026-11-19 a third time (1117-cinematic-action-game: the ground's index): the same seventeen. The ground
+// probe reads the surfaces over its own cell (controllable/ground-index.js, baked with the grid and again when the
+// scene's surfaces change, a surface that moves tested wherever it stands) instead of a ray through the whole scene; what
+// it finds is what that ray found.
+// Re-pinned 2026-11-19 again (1117-cinematic-action-game: what a frame costs, by side): the same seventeen. The page
+// keeps window.__mojCost, the game's logic, its rays and the render call's time a frame, each a running mean, and each
+// big mesh a ray has tested triangle by triangle (the grid's slow path, named); the frame loop times its step and its
+// render where a page has controllable bodies. What runs and what it draws are as they were.
+// Re-pinned 2026-11-19 (1117-cinematic-action-game: the world's rays made cheap): the seventeen fixtures whose page
+// embeds the controllable runtime. Every ray through the world (the ground probe, the camera's pull-in and its clear line,
+// a gun's sightline) now tests the scene's children but the bodies (`__rayRoots`), whose hits each ray threw away after
+// testing their every triangle (a skinned body's each corner posed by its bones first); and the ground grid indexes again
+// whenever the scene's top changes and every 120 probes, so a mesh built after the first probe (a gen-7 land's) takes the
+// grid. What each ray finds is as it was; emission changes by those lines alone.
+// Re-pinned 2026-11-18 a third time (1117-cinematic-action-game: the minimap translucent): `brawl`, `holo` and `mission`,
+// the three fixtures whose page inlines the game UI's styles. A scope's face is now a third of the panel's colour at its
+// middle (it was seven tenths) and the map under it at 0.55 (0.8): the world is seen through it. Emission changes by
+// that stylesheet alone; every other fixture holds.
+// Re-pinned 2026-11-18 again (1117-cinematic-action-game: the radar's map topographical): `mission` only, the one fixture
+// that inlines the radar's plan (gameworld/radar.js planSvg), which takes `relief` (the land's contours) and `trail` (the
+// way walked) where a level's `radar.map` is 'topo'. The fixture asks for neither, so its map draws as it did.
+// Re-pinned 2026-11-18 (1117-cinematic-action-game: the map under the radar): `brawl`, `holo` and `mission`, the three
+// fixtures whose page inlines the game UI kernel and its styles. The kernel's minimap takes an optional `plan` (a picture
+// of the place laid under it, its point at the middle, turned about it), and `mission` also inlines the radar's plan,
+// which now draws a land's things by their own heights and its tall grass where asked. No fixture's minimap carries a
+// plan and no plan asks either, so each draws as it did; only the inlined text moved. Every other fixture holds.
+// Re-pinned 2026-11-17 a fifth time (1117-cinematic-action-game: tall grass as cover): the seventeen fixtures whose page
+// inlines the controllable runtime. The engine's step hands a world's `veils` to its minds (core.js, one spread in the
+// world record: none, none handed), and a mind's sight asks them (mind.js perceive: a line lost in tall grass,
+// worlds/controllable/veil.js, the opt-in module that answers). No fixture's world carries veils, so every sight is the
+// colliders' as it was; only the runtime's text moved. Every fixture with no controllable runtime holds byte for byte.
+// Re-pinned 2026-11-17 a fourth time (1117-cinematic-action-game: a watcher's sight on the radar): `brawl`, `holo` and
+// `mission`, the three fixtures whose page inlines the game UI kernel and its styles. The kernel's map draws a marker's
+// `fan` as a wedge under it (what a watcher sees, gameworld/radar.js), and `mission` also inlines the radar's marks,
+// which now carry that fan for a watcher whose rule shows its sight. No fixture's marker carries one, so each map
+// draws as it did; only the inlined text moved. Every other fixture holds byte for byte.
+// Re-pinned 2026-11-17 a third time (1117-cinematic-action-game: a cued shot keeps its caller's clock): `shoot-live`
+// only, the one fixture whose plan carries a cue. The shoot channel's cue block gains `cueAt` (a cued shot's seconds
+// said by who fired it: a ride's own clock, so its camera and its deck stay together when the world is slowed). Nobody
+// calls it in the fixture, so its cue runs on the page's clock from the moment it fires, as it did; only the block's
+// text moved. Every fixture without a cue holds byte for byte.
+// Re-pinned 2026-11-17 again (1116-rc merged into 1117-cinematic-action-game): the fixtures whose page inlines text
+// either side had moved since (the candidate: the camera's moves and shake, the sea, the street; this side: the mission
+// and damage-ring channels, the aim held's chase). The merged text is neither side's pin; no behaviour is claimed changed.
+// Re-pinned 2026-11-17 (1117-cinematic-action-game-ui merged into 1117-cinematic-action-game): the fixtures whose page
+// inlines the controllable runtime or the game UI kernel, and the two fixtures the UI branch added (`mission`,
+// `damage-ring`), written here for the first time. Each side had moved the runtime's and the page's text (this side:
+// the chase's pull-in on an aim-held page, the lying body's whole-body turn; that side: the ladder's hold, a mind's
+// ledges and flight, the HUD), so the merged text is neither side's pin. No fixture's behaviour is claimed changed.
 // Pinned 2026-11-15 (1115-shooting-rails: a mission's briefing, HUD, pause and debrief on mana-ui): the new `mission`
 // fixture only (the mission channel's block: mana-ui, the controls host and the mission's runtime in a scope of their
 // own). Every other fixture carries no `mission` and keeps its bytes: the channel adds nothing where it is absent.
@@ -944,6 +1027,57 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // runtime. A strike's row may name its own kind, and its description speaks of a turn-based fight's figure; the level
 // HUD lays no lens again. Nothing else moved.
 //
+//
+// Re-pinned 2026-11-19 (a move's PLANT, gameworld/combos.js: the feet split in place through a cut): the runtime the
+// page embeds (combat-melee.js stepMoveset) plays a plant chained into from another plant on its `_on` clip, begun split.
+// One place: where a move's clip is chosen. A moveset with no plant plays its clips as before; every fixture that embeds
+// the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-19 (a card's own dash, feel/lower.js `takes.dash`): the runtime the page embeds (rules-platform.js)
+// plays a body's `dash` clip over its dash's burst, on the ground and in an air dash, where its takes name one; a rule
+// whose takes name none holds the running jump's gather as before. One place, where the dash's pose is chosen; every
+// fixture that embeds the controllable runtime re-pinned with it. (The dash's dust is a block of its own, gated on a
+// rule's `dash.dust`: no fixture has one, and none emits it.)
+// Re-pinned 2026-11-20 (the wall slide faces out, rules-platform.js): the runtime the page embeds turns a body caught on
+// a wall to face out from it, where the stick moves it in the world's frame, and the stick no longer turns a clinging
+// body. A rule with no `cling` steps as before; every fixture that embeds the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-20 (a foe's rounds travel, combat-ranged.js): a weapon may say `noGround` (its round flies on over
+// and under z = 0) and `passTeam` (its round passes through its own team's bodies), carried onto the round it launches
+// and read by the contact sweep; a weapon that says neither launches and sweeps as before. Every fixture that embeds the
+// controllable runtime re-pinned with it. (The page's foe-round look and the boss room's shutter are blocks of their
+// own, gated on a foe weapon's `foeRound` and a side-map zone's `shut`: no fixture has either, and none emits them.)
+// Re-pinned 2026-11-21 (the audio channel unlocks on a key and on the game shell's word that sound is on): a game played
+// on the keys, or hosted in the shell's frame, was never clicked and stayed silent. The fixtures that carry `audio`
+// (audio, kitchen-sink) re-pinned with it; every other fixture keeps every byte.
+// Re-pinned 2026-11-21 (the platform rule's FLINCH, rules-platform.js `flinch`, opt-in: a blow taken holds a run-and-gun
+// hero in its hurt; the buster's tap held while it flinches): a rule without `flinch` steps as before; every fixture
+// that embeds the controllable runtime re-pinned with it. (The side map's shutter wall and its room put back after a
+// fall are the side-map runtime's, emitted only under a side map's camera: no fixture has one.)
+// Re-pinned 2026-11-21 (the game-params seam reads a light shell's turn pick, params.__picks.pilot, as its pilot: a co-star's
+// level stands two heroes in the player's seat): a level with no pick pilots as before; every fixture that embeds the
+// controllable channel re-pinned with it.
+//
+// Re-pinned 2026-11-21 (1116-rc merged into 1117-side-scroller-galaxy): the fixtures both lines moved, together. Those
+// that embed the controllable runtime (this line's buster, flinch and co-star pick over the candidate's talking jaw and
+// bare fists), those whose pages inline the game UI runtime and the HUD host (this line's side map's HUD over the
+// candidate's race, radar and talk box), and those that carry `audio` (this line's unlock and run voices over the
+// candidate's ambience and cab). Nothing else moved.
+// Re-pinned 2026-11-18 (the chase in a tall room): the runtime the page embeds gained the follow rule's `tall` branch
+// (rules-basic.js: in a room over seven metres the chase stands back and up, as far as the room allows, and its look
+// lifts). A block added before the chase's distance, that line and the height's taking its terms, and one line after
+// the first look keeping the camera under the ceiling; a rule with no `tall` runs as before. Every fixture that embeds
+// the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-19 (a weapon held as its own item, and a move's knockback): the runtime the page embeds gained the
+// platform rule's `combat.held` (rules-platform.js: a weapon held as its own item shows its own hero in combat while it is
+// up, the line choosing the figure guarded by it) and a moveset move's `knock` carried onto its blow (combat-melee.js
+// stepMoveset: one field spread in). A hero with no held weapon and a move with no knock run as before. Every fixture that
+// embeds the controllable runtime re-pinned with it.
+// Re-pinned 2026-11-21 (1116-rc merged into 1115-stylish-action-rails): the fixtures both lines moved, together; the
+// runtime the page embeds carries this line's clang, combat run and held weapon beside the candidate's, and the game UI
+// runtime's HUD host this line's style meter and vitals beside the candidate's talk box and pilot strip.
+// Re-pinned 2026-11-22 (the clang lands; a guard never struck comes down): the runtime the page embeds (combat-melee.js)
+// lands a clanging hero's blow on a foe mid-swing (the spark kept, no lock, no block: the foe is not defending), and a
+// guard raised before its first block comes down when let go (`blockT` unset read as none). A hero without `clang` and a
+// guard that has blocked run as before; every fixture that embeds the controllable runtime re-pinned with it.
 describe('emitThreeWorld characterization (byte-level pin over the fixture matrix)', () => {
   it.each(EMIT_FIXTURES.map(([name]) => name))('%s emits byte-identically', (name) => {
     const [, opts] = EMIT_FIXTURES.find(([n]) => n === name);

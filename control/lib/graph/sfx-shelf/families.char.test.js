@@ -128,6 +128,8 @@ const PINS = {
   'diesel-engine': 'c096cf2c7466',
   'tank-engine': '603e700a05e4',
   'walker-hydraulics': '94b48bc613a7',
+  // (a machine venting steam: a new row, servo's steam dial, 2026-11-20)
+  'steam-hiss': '0a6272248c1d',   // re-pinned 2026-11-21: silent at no pressure and gone after its 0.4 s release, as the servo family is (its channel holds a body that stands at its standing pressure)
   // (the helicopter and a multirotor drone's motors: the artillery range's rotorcraft)
   'helicopter': '6a1db48b91b1',
   'drone-motors': 'f9e1b6875b8b',
@@ -227,6 +229,24 @@ const PINS = {
   'land-grunt': 'ac1b5646ee99',
   'attack-shout': 'b376691209c7',
   'strain-grunt': '919053862b1b',
+  // the vehicle registry's rows (sfx-shelf/vehicle-sounds.js): each a build of a family at its nearest kind, new rows
+  'electric-motor': 'd7ba558abcc2',
+  'scooter-engine': '59c974d98996',
+  'vtwin-engine': '59c974d98996',
+  'v8-engine': 'd7ba558abcc2',
+  'supercar-engine': '3bff9d8db5e6',
+  'race-engine': '3bff9d8db5e6',
+  'locomotive-engine': 'c096cf2c7466',
+  'tank-tracks': '603e700a05e4',
+  'rail-wheels': 'a6b6adaa341b',
+  'bicycle-freewheel': 'a6b6adaa341b',
+  'fire-horn': '00e49ca24936',
+  'train-horn': '00e49ca24936',
+  'ship-horn': '00e49ca24936',
+  'train-brakes': '4c70edf4c909',
+  'v8-ignition': '0050e366d421',
+  'diesel-ignition': '0050e366d421',
+  'bike-ignition': '0050e366d421',
 };
 
 describe('the families\' builds, pinned', () => {

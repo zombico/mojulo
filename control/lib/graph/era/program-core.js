@@ -18,7 +18,12 @@
  * from 0, era/storeys.js, so the basement is storey 0 and the building stands with storey 1 at its ground). It is the
  * ground plate's twin room for room, so every ground room stands over one: under the lobby a CONCOURSE, under the core
  * its stair's `core-0` (climbing to `core-1`), under each corridor its own (`corridor-0a`), under each wing room a store
- * (`store-001`), under an annex its undercroft; their doorways the ground's. `under.ports` names the basement's walls
+ * (`store-001`), under an annex its undercroft; their doorways the ground's. `basement: { hall: <metres> }` makes that
+ * undercroft a hall that high, so the whole storey is lodged that much deeper under the ground (its other rooms keep
+ * their height). The core's stair does not climb that far in its shaft: no flight is laid to it, and what joins it is
+ * its level's (a lift, a stairwell's door). `basement: { lift: true | { w?, d?, at? } }` asks for the lift: an opening
+ * through the floor between the annex and the hall under it, for a deck that travels it (era/storeys.js; the deck is
+ * the level's, a moving thing). `under.ports` names the basement's walls
  * that face out, where a network's passages may leave it (network/): the concourse's front and sides, each basement
  * corridor's far end.
  *
@@ -38,6 +43,11 @@
  *            the wing meets, at the floor of the storey over the ground, opening from that storey's corridor (stage.js
  *            planStage opens it, era/bay.js builds the deck, its rail and its stairs)
  *   (cover is the stage's: compose-dress.js layCover)
+ *
+ * LAID LARGER (`program.scale`, 1 to 2, opt-in; 1 the plan as it was): a third-person camera wants room a walker does
+ * not. The rooms' depth and the bays' width, the corridors, the core and the lobby and the annex's floor are laid that
+ * many times larger, each storey (and the annex) the square root of it taller, and the core's stair the `hall` profile
+ * (construction/circulation.js: wider flights, more floor at its ends and on its landing).
  *
  * Layout in plan: the core at the origin, x to its right, y to its back; the lobby on its front (−y), the way in on the
  * lobby's front. Pure: the dice are the program's.
@@ -67,16 +77,22 @@ export function planCore(P, program, kit, rnd) {
   // (every size on the kit's grid: a gothic kit's is not a metre)
   const snap = (v) => +(Math.max(1, Math.round(v / g)) * g).toFixed(6), up = (v) => +(Math.ceil(v / g - 1e-9) * g).toFixed(6);
   // (room, programs.js FIGHT: the corridors ROOMY.corridor wide and every storey ROOMY.rise taller, the lobby with them)
-  const roomy = program.fight?.room === true;
-  const cw = up(Math.max(roomy ? ROOMY.corridor : 3, need + 0.4)), D = snap(CORE.room), bay = snap(kit.bay ?? CORE.room), CW = snap(CORE.w + (roomy ? ROOMY.core[0] : 0)), CD = snap(CORE.d + (roomy ? ROOMY.core[1] : 0)), LD = snap(P.lobby.d);
+  const roomy = program.fight?.room === true, S = program.scale ?? 1;
+  if (!(typeof S === 'number' && S >= 1 && S <= 2)) throw new Error('program: scale is how much larger a building is laid than a walker needs, 1 to 2');
+  const tall = (v) => (S === 1 ? v : +(v * Math.sqrt(S)).toFixed(1));
+  const cw = up(Math.max((roomy ? ROOMY.corridor : 3) * S, need + 0.4)), D = snap(CORE.room * S), bay = snap((kit.bay ?? CORE.room) * S), CW = snap((CORE.w + (roomy ? ROOMY.core[0] : 0)) * S), CD = snap((CORE.d + (roomy ? ROOMY.core[1] : 0)) * S), LD = snap(P.lobby.d * S);
   const storeys = program.storeys ?? C.storeys, wings = program.wings ?? C.wings, loading = program.loading ?? C.loading, bays = program.bays ?? C.bays;
   if (!(Number.isInteger(storeys) && storeys >= CORE.storeys[0] && storeys <= CORE.storeys[1])) throw new Error(`program: storeys is a whole number, ${CORE.storeys.join(' to ')}`);
   if (!SHAPES[wings]) throw new Error(`program: wings is ${CORE.wings.join(', ')} (the plan's shape round its core)`);
   if (!CORE.loading.includes(loading)) throw new Error(`program: loading is single (rooms on one side of the corridor) or double (both)`);
   if (!(Number.isInteger(bays) && bays >= CORE.bays[0] && bays <= CORE.bays[1])) throw new Error(`program: bays is a wing's length in bays, ${CORE.bays.join(' to ')}`);
-  const h = C.h + (roomy ? ROOMY.rise : 0), rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
+  const h = tall(C.h) + (roomy ? ROOMY.rise : 0), rooms = [], links = [], findings = [], off = program.basement ? 1 : 0;
   const free = (b) => !rooms.some((q) => (q.storey ?? 0) === (b.storey ?? 0) && overlaps(b, q));
-  if (program.basement !== undefined && typeof program.basement !== 'boolean') throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin) or false');
+  const deepHall = program.basement && typeof program.basement === 'object' ? program.basement.hall : undefined;
+  // (a LIFT between the annex and its undercroft: a deck's opening through the floor between them, era/storeys.js)
+  const liftAsk = program.basement && typeof program.basement === 'object' ? program.basement.lift : undefined;
+  if (liftAsk !== undefined && liftAsk !== true && !(liftAsk && typeof liftAsk === 'object' && !Array.isArray(liftAsk) && Object.keys(liftAsk).every((k) => ['w', 'd', 'at'].includes(k)))) throw new Error('program: basement.lift is true (a deck between the annex and the hall under it) or { w?, d?, at?: [u, v] } (its size in metres, where it stands across the hall, 0 to 1 each way)');
+  if (program.basement !== undefined && typeof program.basement !== 'boolean' && !(program.basement && typeof program.basement === 'object' && !Array.isArray(program.basement) && Object.keys(program.basement).every((k) => k === 'hall' || k === 'lift') && (deepHall === undefined || (Number.isFinite(deepHall) && deepHall >= 3.5 && deepHall <= 20)))) throw new Error('program: basement is true (a storey under the ground one: a concourse under the lobby, the plate\'s twin), { hall: 3.5 to 20 } (the same, its annex\'s undercroft that many metres high: the storey lodged that much deeper), or false');
   const put = (b) => { rooms.push(b); return b; };
   // (designed as a fighting map: programs.js FIGHT, each dial opt-in; `ring` a doorway that is a dial's, never a tree's)
   const F = program.fight ?? null, ring = (l) => links.push(l);
@@ -107,7 +123,7 @@ export function planCore(P, program, kit, rnd) {
   // (fight.stairs: a stair room past each wing's far end with no annex, sized for the building's switchback: its two
   // flights and well across with a passage beside them, its approach, flights and landing along with a doorway's floor
   // clear at its foot)
-  const SP = STAIR_PROFILES.game, rise = (off ? Math.max(h, 3.5) : h) + SLAB_M, half = Math.ceil(rise / (2 * SP.riser) - 1e-9);
+  const SP = S > 1 ? STAIR_PROFILES.hall : STAIR_PROFILES.game, rise = (off ? Math.max(h, 3.5) : h) + SLAB_M, half = Math.ceil(rise / (2 * SP.riser) - 1e-9);
   const stairW = up(2 * SP.width + SP.well + 2 * SP.in + PASSAGE + kit.wall), stairL = up(cw + SP.foot + half * SP.going + SP.landing + 2 * SP.body + 0.4 + kit.wall);
   const stairBox = (W, cor, tries) => {
     const e = W.end, across = W.along === 'x' ? cor.y : cor.x, alongBox = (lo) => (W.along === 'x' ? { x: +(e.side === '+x' ? e.x : e.x - stairW).toFixed(6), y: lo, w: stairW, d: stairL } : { x: lo, y: +e.y.toFixed(6), w: stairL, d: stairW });
@@ -117,7 +133,7 @@ export function planCore(P, program, kit, rnd) {
   for (let s = 0; s < storeys; s++) {
     const n = s + 1, at = (b) => ({ ...b, h, ...(s + off ? { storey: s + off } : {}) });
     // (the lobby first: the plan's first room is its way in)
-    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: (P.lobby.h ?? C.h) + (roomy ? ROOMY.rise : 0), ...(off ? { storey: off } : {}) });
+    if (!s) put({ id: 'lobby', x: 0, y: -LD, w: CW, d: LD, h: tall(P.lobby.h ?? C.h) + (roomy ? ROOMY.rise : 0), ...(off ? { storey: off } : {}) });
     const core = put(at({ id: `core-${n}`, x: 0, y: 0, w: CW, d: CD }));
     // (stagger, a wing off the core's back: the lobby's doorway to the far end of the core's front from it)
     const lobbyAt = !s && F?.stagger && SHAPES[wings].includes('+y') ? doorAt(0, CW, 1) : null;
@@ -150,7 +166,13 @@ export function planCore(P, program, kit, rnd) {
           // (the doorways between neighbours at either end of their wall by turns, so no line runs room to room down
           // the wing)
           const p = prev.get(si);
-          if (p && sharedOf(p, r) >= need) { const lo = W.along === 'x' ? r.y : r.x, hi = lo + (W.along === 'x' ? r.d : r.w); ring({ from: p.id, to: r.id, along: doorAt(lo, hi, b % 2), alongX: W.along !== 'x' }); }
+          // (a building with vents, vents.js, keeps its rooms' back walls for the duct: the doorways by turns at the
+          // corridor's end of the wall and at its middle)
+          if (p && sharedOf(p, r) >= need) {
+            const lo = W.along === 'x' ? r.y : r.x, hi = lo + (W.along === 'x' ? r.d : r.w);
+            const front = (W.along === 'x' ? cor.y + cor.d / 2 : cor.x + cor.w / 2) > (lo + hi) / 2;
+            ring({ from: p.id, to: r.id, along: program.vents ? (b % 2 ? doorAt(lo, hi, front) : +((lo + hi) / 2).toFixed(6)) : doorAt(lo, hi, b % 2), alongX: W.along !== 'x' });
+          }
           if (b === 0) { const hub = hubs.find((q) => q && sharedOf(q, r) >= need); if (hub) ring({ from: hub.id, to: r.id }); }
           prev.set(si, r);
         }
@@ -181,7 +203,7 @@ export function planCore(P, program, kit, rnd) {
   // the annex: the use's tall room at the first wing's far end, on the ground, nothing over it; its own ways out
   const ways = [{ room: 'lobby', side: '-y' }];
   if (P.annex) {
-    const A = { ...P.annex, w: snap(P.annex.w), d: snap(P.annex.d) }, W = plate[0], e = W.end, y = W.along === 'x' ? e.y + cw / 2 - A.d / 2 : e.y;
+    const A = { ...P.annex, w: snap(P.annex.w * S), d: snap(P.annex.d * S), h: tall(P.annex.h) }, W = plate[0], e = W.end, y = W.along === 'x' ? e.y + cw / 2 - A.d / 2 : e.y;
     const box = { id: A.role, x: +(e.side === '+x' ? e.x : e.side === '-x' ? e.x - A.w : Math.round((e.x + cw / 2 - A.w / 2) / g) * g).toFixed(6), y: +(Math.round(y / g) * g).toFixed(6), w: A.w, d: A.d, h: A.h, ...(off ? { storey: off } : {}) };
     if (free(box)) {
       put(box); links.push({ from: `corridor-1${W.letter}`, to: box.id });
@@ -205,10 +227,13 @@ export function planCore(P, program, kit, rnd) {
     for (const r of ground) {
       const id = r.id === 'lobby' ? 'concourse' : r.id === 'core-1' ? 'core-0' : /^corridor-1/.test(r.id) ? r.id.replace(/^corridor-1/, 'corridor-0') : r.id === P.annex?.role ? `${r.id}-under` : `${P.roles.basement ?? 'store'}-0${String(++k).padStart(2, '0')}`;
       twin.set(r.id, id);
-      rooms.push({ id, x: r.x, y: r.y, w: r.w, d: r.d, h: bh });
+      rooms.push({ id, x: r.x, y: r.y, w: r.w, d: r.d, h: deepHall !== undefined && r.id === P.annex?.role ? Math.max(bh, deepHall) : bh });
     }
     for (const l of [...links]) if (twin.has(l.from) && twin.has(l.to)) links.push({ ...l, from: twin.get(l.from), to: twin.get(l.to) });
-    links.unshift({ from: 'core-0', to: 'core-1' });
+    // (a storey lodged deeper than a storey's own height is past what the core's stair climbs in its shaft: no flight is
+    // laid, and it is reached as its level joins it, by a lift or a stairwell's door)
+    if (deepHall !== undefined && deepHall > bh) findings.push({ id: 'deep-floor', room: 'core-0', says: `floor 0 is lodged ${deepHall} m down: the core's stair does not reach it (a lift or a stairwell's door joins it)` });
+    else links.unshift({ from: 'core-0', to: 'core-1' });
     // (its walls that face out: the concourse's front and sides, each corridor's far end where no annex stands)
     const ports = [{ room: 'concourse', side: '-y' }, { room: 'concourse', side: '-x' }, { room: 'concourse', side: '+x' }];
     for (const W of plate) if (twin.has(`corridor-1${W.letter}`) && !(P.annex && W === plate[0] && rooms.some((r) => r.id === `${P.annex.role}-under`))) ports.push({ room: `corridor-0${W.letter}`, side: W.end.side });
@@ -234,5 +259,7 @@ export function planCore(P, program, kit, rnd) {
   for (const r of rooms) if (depth.has(r.id) && r.id.indexOf('core-') !== 0 && r.id !== 'lobby' && (r.storey ?? 0) >= off && coreDepth(r) > CORE.deep) findings.push({ id: 'deep', room: r.id, says: `the ${r.id} is ${coreDepth(r)} doors from the stair` });
   // (the goal's doorway last: a kit seats its set piece in the walk's last room)
   const ordered = goal ? [...links.filter((l) => l.to !== goal), ...links.filter((l) => l.to === goal)] : links;
-  return { rooms, links: ordered, ways, entry: 'lobby', goal, findings, plan: { storeys, wings, loading, bays, corridor: cw, ...(off ? { basement: true } : {}), ...(F ? { fight: Object.keys(F).filter((k) => F[k]) } : {}) }, ...(under ? { under } : {}) };
+  const lifts = liftAsk && P.annex && rooms.some((r) => r.id === `${P.annex.role}-under`) ? [{ lower: `${P.annex.role}-under`, upper: P.annex.role, ...(liftAsk === true ? {} : liftAsk) }] : null;
+  if (liftAsk && !lifts) findings.push({ id: 'no-lift', says: 'a lift stands between an annex and the hall under it: this building has no annex' });
+  return { rooms, links: ordered, ways, entry: 'lobby', goal, findings, plan: { storeys, wings, loading, bays, corridor: cw, ...(off ? { basement: true } : {}), ...(F ? { fight: Object.keys(F).filter((k) => F[k]) } : {}) }, ...(under ? { under } : {}), ...(lifts ? { lifts } : {}) };
 }
