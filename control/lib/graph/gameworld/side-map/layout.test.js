@@ -64,27 +64,33 @@ describe('the side map\'s layout', () => {
     const Z = [{ run: 'across', screens: 2, teach: 'gauntlet', spawners: 2 }, { run: 'up', screens: 1, climb: 'switchback' }, { room: [2, 1] }];
     expect(JSON.stringify(lay(Z))).toBe(JSON.stringify(lay(Z)));
   });
-  it('a tower and an atrium are climbed by their structure; a climb of more than a screen has its storeys, open where the way rises', () => {
-    const T = lay([{ run: 'across', screens: 1 }, { run: 'up', screens: 1, climb: 'tower' }, { run: 'across', screens: 1 }]);
+  it('a tower and an atrium are climbed as a wall kicker climbs: storeys, a chimney up each at its ends in turn, a ladder only in the open', () => {
+    const T = lay([{ run: 'across', screens: 1 }, { run: 'up', screens: 2, climb: 'tower' }, { run: 'across', screens: 1 }]);
     const shaft = T.open.find((r) => r.zone === 1);
     expect(shaft.s1 - shaft.s0).toBeLessThan(T.screen.width - 2);
     expect(T.zones[1].lock).toBe('s');
-    const A = lay([{ run: 'across', screens: 1 }, { run: 'up', screens: 3, climb: 'atrium' }, { run: 'across', screens: 1 }]), H = A.screen.height;
+    const legs = T.towers.find((t) => t.zone === 1).legs;
+    expect(legs.map((g) => g.kind)).toEqual(['chimney', 'chimney']);
+    // (the ends in turn, so each storey is crossed; the last at the far end, left over the far wall's top)
+    expect(Math.sign(legs[0].span[0] - legs[1].span[0])).toBe(-1);
+    expect(legs.at(-1).exitDir).toBe(1);
+    const kick = reach.wall.climb;
+    for (const g of legs) { const zs = [g.zb, ...g.rests.map((r) => r.z), g.zt]; zs.slice(1).forEach((z, k) => expect(z - zs[k]).toBeLessThanOrEqual(3 * kick + 1e-6)); }
+    // (a thick floor between the storeys, open at the chute the chimney under it comes up through)
+    const slabs = T.solids.filter((r) => r.zone === 1 && r.role === 'slab');
+    expect(slabs.length).toBeGreaterThan(0);
+    expect(slabs.every((r) => r.z1 - r.z0 >= 1.5)).toBe(true);
+    expect(slabs.some((r) => Math.min(r.s1, legs[0].span[1]) - Math.max(r.s0, legs[0].span[0]) > 0.1)).toBe(false);
+    expect(T.ladders.filter((l) => l.zone === 1)).toEqual([]);
+    // (an atrium: two screens, its middle storey risen by a ladder in the open, its ends by chimneys; no stairs)
+    const A = lay([{ run: 'across', screens: 1 }, { run: 'up', screens: 3, climb: 'atrium' }, { run: 'across', screens: 1 }]);
     expect(A.zones[1].lock).toBeNull();
     expect(wide(A.zones[1].rect)).toBeGreaterThan(A.screen.width * 1.9);
-    const st = A.rests.filter((r) => r.zone === 1 && r.order !== undefined).sort((a, b) => a.order - b.order);
-    expect(new Set(st.map((r) => r.way))).toContain('walk');
-    // (the core up its middle; the way on both sides of it)
-    const core = A.solids.filter((r) => r.zone === 1 && r.role === 'core'), mid = (A.zones[1].rect[0] + A.zones[1].rect[1]) / 2;
-    expect(core.length).toBeGreaterThan(0);
-    expect(st.some((r) => r.s1 < mid) && st.some((r) => r.s0 > mid)).toBe(true);
-    // (a thick floor a storey: never over a stand within a jump and a body, a chute where the way rises through)
-    const slabs = A.solids.filter((r) => r.zone === 1 && r.role === 'slab');
-    expect(new Set(slabs.map((r) => r.z1)).size).toBe(2);
-    expect(slabs.every((r) => r.z1 - r.z0 >= 1.5 && r.s1 - r.s0 >= 4)).toBe(true);
-    for (const sl of slabs) for (const r of st) if (Math.min(sl.s1, r.s1) - Math.max(sl.s0, r.s0) > 0 && sl.z0 > r.z) expect(sl.z0 - r.z).toBeGreaterThan(reach.moves.run.height + STATURE);
-    for (const z1 of new Set(slabs.map((r) => r.z1))) expect(slabs.filter((r) => r.z1 === z1).reduce((a, r) => a + r.s1 - r.s0, 0)).toBeLessThan(wide(A.zones[1].rect) - 3);
+    const AL = A.towers.find((t) => t.zone === 1).legs;
+    expect(AL.map((g) => g.kind)).toEqual(['chimney', 'ladder', 'chimney']);
+    const mid = (A.zones[1].rect[0] + A.zones[1].rect[1]) / 2;
+    expect(Math.abs(AL[1].s - mid)).toBeLessThan(1);
+    expect(A.solids.some((r) => r.zone === 1 && r.role === 'step')).toBe(false);
     expect(A.advice).toEqual([]);
-    void H;
   });
 });

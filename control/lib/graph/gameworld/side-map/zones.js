@@ -50,8 +50,8 @@ export const CLIMBS = Object.freeze({
   chimney: 'a shaft between two walls climbed by kicks, with rests: the wall kick, sustained',
   stair: 'a short flight of ledges inside: a breather between climbs',
   ladder: 'climbed hand over hand: the free way up, or the way back',
-  tower: 'a screen wide, climbed by its structure: stairs walked across it, landings on its walls, a ladder at each turn',
-  atrium: 'two screens wide round a core, climbed by its structure, the way woven through the core from screen to screen',
+  tower: 'a screen wide in thick storeys, each risen by a chimney at one end and the next at the other: kicked up, crossed between',
+  atrium: 'two screens wide in thick storeys, risen by chimneys at its ends and a ladder in the open at its middle: crossed screen to screen',
 });
 export const DROPS = Object.freeze({ cascade: 'steps down: going down is free', chute: 'a one-way drop: a commit' });
 

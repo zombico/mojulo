@@ -11,7 +11,8 @@
  *   a foe      ahead on its floor within FOE_AHEAD m (cast.js): fired at, a tap every FOE_TAP frames; hopped when it reaches it;
  *              with a BLADE (a saber's string, feel/saber.js), closed on and cut in its reach, press after press
  *   a ladder   walked to, held up to its top
- *   a tower    (an atrium) its stands in the order climbed: walked, leapt, or laddered, then off over the far wall's top
+ *   a tower    (an atrium) storey by storey: across to its chimney and kicked up it as a chimney is, or up its ladder;
+ *              then off over the far wall's top
  *   a drop     walked off (a cascade's steps, a chute)
  *   a room     crossed to its far wall: the end; a room holding a foe (a boss) fought first, from ROOM_NEAR to ROOM_FAR m
  *              off it, firing, hopping now and then over what it lobs
@@ -43,7 +44,6 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
   const blade = h.rule && h.rule.moveset && h.rule.strike === 'melee' ? (h.rule.strikeReach ?? 1.6) : 0;
   const climbs = L.zones.filter((Z) => Z.run === 'up').map((Z) => ({ zone: Z.i, climb: Z.climb, kicks: 0, margin: Infinity, t0: null, time: null }));
   let f = 0, dashAt = null, lastKick = -99, done = false, aim = null, standZ = null;
-  const towerAt = {};
   const press = (input) => { if (trace) trace(f, h, w.camera.frame, input); return drive ? drive.step(input) : stepWorld(w, input, DT, hooks); };
   for (; f < seconds / DT && !done; f++) {
     // (its zone: the furthest along whose open space it stands in, not the camera's, which turns a corner early)
@@ -67,18 +67,23 @@ export function playSideMap(layout, reach, { stature = 1.7, seconds = 240, trace
       if (w.camera.frame && !w.camera._fell) C.margin = Math.min(C.margin, z - w.camera.frame.z0);
     }
     for (const c of climbs) if (c.t0 !== null && c.time === null && c.zone !== k) c.time = r3(w.time - c.t0);
-    // a TOWER, an ATRIUM: its stands in the order climbed, each walked, leapt from the edge of the one stood on (or
-    // from under it), or laddered (walked to its foot, held up to its head); then off over the far wall's top
+    // a TOWER, an ATRIUM: storey by storey, across to where it is risen, then up its chimney (as a chimney is climbed:
+    // the next stand, kicked up to from the wall across from it, or up the exit's own wall over its lip) or its ladder
     if (Z.run === 'up' && (Z.climb === 'tower' || Z.climb === 'atrium')) {
-      const st = L.rests.filter((r) => r.zone === Z.i && r.order !== undefined).sort((a, b) => a.order - b.order);
-      const T = (towerAt[Z.i] ??= { k: 0 });
+      const legs = (L.towers ?? []).find((t) => t.zone === Z.i)?.legs ?? [];
       if (h.climbing) { press({ forward: 1 }); continue; }
-      while (T.k < st.length && h.grounded && Math.abs(z - st[T.k].z) < 0.2 && s > st[T.k].s0 - 0.6 && s < st[T.k].s1 + 0.6) T.k++;
-      if (T.k >= st.length) { press({ strafe: 1, jumpHeld: true }); continue; }
-      const p = st[T.k], on = T.k ? st[T.k - 1] : { s0: -1e9, s1: 1e9, z: Z.rect[2] }, lad = p.way === 'ladder' ? L.ladders.find((l) => l.zone === Z.i && Math.abs(l.lip[1] - p.z) < 0.05) : null;
-      if (lad) { press(Math.abs(lad.foot[0] - s) < 0.3 ? { forward: 1 } : { strafe: Math.sign(lad.foot[0] - s) }); continue; }
-      const aim = (p.s0 + p.s1) / 2, dir = Math.sign(aim - s), under = s > p.s0 - 0.2 && s < p.s1 + 0.2, atEdge = dir > 0 ? on.s1 - s < 0.45 : s - on.s0 < 0.45;
-      press({ strafe: Math.abs(aim - s) > 0.1 ? dir : 0, jump: p.way === 'jump' && h.grounded && (under || atEdge), jumpHeld: true });
+      if (h.grounded || standZ === null) standZ = z;
+      const g = legs.find((x) => standZ < x.zt - 0.3);
+      if (!g) { press({ strafe: 1, jumpHeld: true }); continue; }
+      if (g.kind === 'ladder') { press(Math.abs(g.s - s) < 0.3 ? { forward: 1 } : { strafe: Math.sign(g.s - s) }); continue; }
+      const [a, b] = g.span, inside = s > a - 0.1 && s < b + 0.1;
+      if (!inside && Math.abs(standZ - g.zb) < 0.5) { press({ strafe: Math.sign((a + b) / 2 - s), jumpHeld: true }); continue; }
+      const stands = [...g.rests.map((r) => ({ s0: r.s0, s1: r.s1, z: r.z })), g.exitDir > 0 ? { s0: b, s1: b + 3, z: g.zt, exit: true } : { s0: a - 3, s1: a, z: g.zt, exit: true }].sort((p, q) => p.z - q.z);
+      const next = stands.find((t) => t.z > standZ + 0.25) ?? stands.at(-1), mid = (next.s0 + next.s1) / 2, onNear = mid < (a + b) / 2;
+      if (z >= next.z + 0.3) { const dir = Math.abs(mid - s) < 0.25 ? 0 : Math.sign(mid - s); press({ strafe: dir, jumpHeld: true }); continue; }
+      const wallDir = next.exit ? (onNear ? -1 : 1) : onNear ? 1 : -1, kick = (h.grounded || h.cling) && f - lastKick > kickGap;
+      if (kick && h.cling && C) { C.kicks++; lastKick = f; } else if (kick) lastKick = f;
+      press({ strafe: wallDir, jump: kick, jumpHeld: true });
       continue;
     }
     // a CHIMNEY, a ledge stair, a switchback, a stair: the next stand, kicked or jumped to
