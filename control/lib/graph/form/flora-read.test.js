@@ -286,4 +286,15 @@ describe('a realistic crown as flock (`crowns: realistic`, its `flock`)', () => 
     // (no realistic crowns: no way grown, the way ignored)
     expect(floraRead({ ...street, crowns: undefined, apart: undefined }, { colours, bases }).templates.some((t) => t.lean)).toBe(false);
   }, 300000);
+
+  it('draws a young tree its scene plants in the plain crown, airy as a sapling\'s, never grown one way', () => {
+    const at = (x, young) => ({ x, y: 0, z: 0, h: 6, kind: -1, cluster: 0, species: 'cherry', toward: 0.5, ...(young ? { young: true } : {}) });
+    const street = { form: 'blob', kinds: null, bushKinds: null, trees: [at(0, true), at(30, false)], bushes: [], shrubs: [], crowns: 'realistic', flock: readFlock(), apart: false };
+    const F = floraRead(street, { colours, bases }), P = unpack(F.trees), [Y, O] = [0, 1].map((i) => F.templates[P[i * FLORA_STRIDE + 11]]);
+    expect(Y.far).toBeUndefined();
+    expect(Y.flock).toBeUndefined();
+    expect(Y.lean).toBeUndefined();
+    expect(O.far).toBeTruthy();
+    expect(O.lean).toBe(true);
+  }, 300000);
 });

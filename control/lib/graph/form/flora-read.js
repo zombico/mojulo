@@ -439,8 +439,10 @@ export function treeSizes(plants) {
 function treePlan(plants, kindAt) {
   const groups = new Map(), plan = [];
   // (a tree its scene gives a way, `toward`, grows one way: its own group, its template REALISTIC.lean's)
-  const leans = (t) => plants.crowns === 'realistic' && Number.isFinite(t.toward);
-  for (const t of plants.form === 'bamboo' ? [] : plants.trees) { const K = kindAt(t), sp = speciesFor(t, K), g = leans(t) ? `${sp}\u0000lean` : sp; if (!groups.has(g)) groups.set(g, []); groups.get(g).push([t, K]); }
+  // (a YOUNG tree its scene plants, `young`: the plain crown, airy as a sapling's, though the scene's crowns are read
+  // otherwise; never grown one way)
+  const leans = (t) => plants.crowns === 'realistic' && Number.isFinite(t.toward) && !t.young;
+  for (const t of plants.form === 'bamboo' ? [] : plants.trees) { const K = kindAt(t), sp = speciesFor(t, K), g = t.young && plants.crowns ? `${sp}\u0000young` : leans(t) ? `${sp}\u0000lean` : sp; if (!groups.has(g)) groups.set(g, []); groups.get(g).push([t, K]); }
   // (a crossed broadleaf TO SCALE: grown at its species' own heights, each tree where it ranks among the level's, so its
   // crown stands over a walker's head as a grown tree's does; any other at the level's own)
   const lv = plants.trees.map((t) => t.h), lo = Math.min(...lv), hi = Math.max(...lv);
@@ -448,9 +450,9 @@ function treePlan(plants, kindAt) {
   const own = plants.crowns && plants.apart === false;
   const scaled = (sp, h) => { const S = SPECIES[sp]; if (own || !S || S.kind !== 'tree' || needleHabit(sp) || !S.heights) return h; const k = hi > lo ? (h - lo) / (hi - lo) : 0.5; return r4((S.heights[0] + (S.heights[1] - S.heights[0]) * k) * FLORA_TALL); };
   for (const [g, list] of groups) {
-    const [sp, lean] = g.split('\u0000'), hOf = ([t, K]) => scaled(sp, t.h) * (K?.scale ?? 1);
+    const [sp, way] = g.split('\u0000'), hOf = ([t, K]) => scaled(sp, t.h) * (K?.scale ?? 1);
     const hs = list.map(hOf).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
-    const T = treeTemplate(sp, aim, plants.crowns ?? null, !!lean);
+    const T = treeTemplate(sp, aim, way === 'young' ? null : plants.crowns ?? null, way === 'lean');
     for (const e of list) plan.push({ t: e[0], K: e[1], T, h: hOf(e) });
   }
   return plan;

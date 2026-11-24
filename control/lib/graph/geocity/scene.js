@@ -130,7 +130,7 @@ export const FORM_GROUND = Object.freeze(['geocity:park', 'geocity:median', 'geo
  *  bushes' kinds merged into one list), with the ground every trunk and claim takes from the grass. */
 function metroPlants(trees, towns, own = []) {
   const T = [], B = [], Sh = [], clear = [], kinds = [], kindKey = new Map();
-  for (const sp of [...trees.keys()].sort()) for (const t of trees.get(sp)) T.push({ x: t.x, y: t.y, z: r5(t.z0 - 0.15), h: t.height, kind: -1, cluster: T.length, species: sp, ...(t.toward !== undefined ? { toward: t.toward } : {}) });
+  for (const sp of [...trees.keys()].sort()) for (const t of trees.get(sp)) T.push({ x: t.x, y: t.y, z: r5(t.z0 - 0.15), h: t.height, kind: -1, cluster: T.length, species: sp, ...(t.toward !== undefined ? { toward: t.toward } : {}), ...(t.young ? { young: true } : {}) });
   // (the street trees' trunks claim their ground; a town's claims come with it)
   const street = T.map((t) => [t.x, t.y, 0.6]);
   for (const { p, at, keep } of towns) {
@@ -198,7 +198,10 @@ const GLASS_SPEC = Object.freeze([0.55, 48]);
 // street trees: a pit's stride along a close-built arterial, a verge's along an outskirts street, their species, the
 // height they are grown to (m), the detail their template keeps and its faces' budget
 // (an outskirts' residential street a mix: maples the most, flowering cherries and slender birches among them)
-const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
+// (`young`: with realistic crowns, the share of its street and park trees recently planted, drawn in the plain crown at
+// `height` m, airy as a sapling's; a vacant lot's self-sown trees all young)
+const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
+  young: Object.freeze({ share: 0.35, height: Object.freeze([5, 8]) }) });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -338,11 +341,13 @@ export function assembleGeocityScene(m, ctx = {}) {
   const trees = new Map();
   // (`toward`: the way to its street's middle, a street tree's: a realistic one grows that way, over the street and off
   // the buildings behind it, form/flora-read.js REALISTIC.lean)
-  const plant = (where, x, y, z, key, h = null, toward = null) => {
+  // (`young`: with realistic crowns, a recently planted tree, TREE.young: its share by the tree's own dice, or always)
+  const plant = (where, x, y, z, key, h = null, toward = null, young = null) => {
     const R = streamOf(seed, 'trees', key), list = TREE.species[where], sp = list[Math.floor(R() * list.length)];
     if (!trees.has(sp)) trees.set(sp, []);
     const height = TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R();
-    trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(h ?? height), ...(toward !== null ? { toward: r5(toward) } : {}) });
+    const yg = CR?.crowns === 'realistic' && (young ?? R() < TREE.young.share), hy = yg ? Math.min(h ?? Infinity, TREE.young.height[0] + (TREE.young.height[1] - TREE.young.height[0]) * R()) : null;
+    trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(hy ?? h ?? height), ...(toward !== null ? { toward: r5(toward) } : {}), ...(yg ? { young: true } : {}) });
   };
   // a pane no light shades (a lit room at night)
   const pane = (corners, n, hex) => { faces.push({ corners: corners.map(P3), normal: P3(n), outNormal: P3(n), group: 'geocity:night-window', fill: hex, cornerFills: corners.map(() => hex) }); counts.panes++; };
@@ -609,7 +614,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
     }
   };
-  const growBack = (Fr, ts, key, where = 'low') => ts.forEach((t, k) => { const [x, y] = Fr.xy(t.u, t.v); plant(where, x, y, t.z, `back:${key}:${k}`, t.h); });
+  const growBack = (Fr, ts, key, where = 'low', young = null) => ts.forEach((t, k) => { const [x, y] = Fr.xy(t.u, t.v); plant(where, x, y, t.z, `back:${key}:${k}`, t.h, null, young); });
   const parkBack = (Fr, cs, key) => cs.forEach((c, k) => { const [x, y] = Fr.xy(c.u, c.v); vehicleAt('civilian', x, y, c.z, c.along === 'u' ? Fr.ex : Fr.ey, `back:${key}:${k}`); });
   // (each block's terraces, read again by what is walked into: geocity/podium.js)
   const zOf = new Map();
@@ -993,7 +998,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     else if (b.kind === 'vacant') {
       fenced(b, { x0, y0, x1, y1 }, zAt, 'fence');
       // (its young trees, seeded where they fell, backs.js)
-      if (BACKS_ON && !far) { const Fr = backFrame([x0, y0], null); growBack(Fr, volunteers([0, 0, x1 - x0, y1 - y0], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', b.id) }).trees, b.id); }
+      if (BACKS_ON && !far) { const Fr = backFrame([x0, y0], null); growBack(Fr, volunteers([0, 0, x1 - x0, y1 - y0], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', b.id) }).trees, b.id, 'low', true); }
     }
     else if (INDUSTRY_SEGMENTS.includes(b.kind)) industrial(b, { zAt, Rb, far });
     else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps });

@@ -399,6 +399,10 @@ stage says `crowns: { form: 'realistic', flock: false }`.
   realistic tree within 12 m of a house the way away from them (its street, or the far side of its yard); a geocity
   gives its street trees the way to their street's middle. On valley-morning's town: 27 trees (21 plain), 19 grown one
   way.
+- **Young trees** (a tree's `young`). A tree its scene planted recently is drawn in the plain crown, airy as a sapling's,
+  though the scene's crowns are realistic; it is never grown one way. A geocity with realistic crowns plants a share of
+  its street and park trees young (`TREE.young`: about a third, 5–8 m), and its vacant lots' self-sown trees all young;
+  without realistic crowns it is as it was.
 - **A residential mix.** A geotown's residential pattern (`bay-and-gable`) and a geocity's outskirts plant maples, flowering
   cherries and birches; on valley-morning's town, maples at 11–14 m, cherries at about 9 m, birches at 12–14 m and
   the shade beeches at about 17 m.

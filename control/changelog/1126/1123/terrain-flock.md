@@ -19,3 +19,5 @@
 - A town's hedges are clipped hedges, flat on top and straight along their line, and its gardens are filled with small
   plants: a bed along each house's front and companions round each bed's plant, box balls, heathers, hostas and little
   flowering shrubs.
+- A city's streets and parks look planted over the years: about a third of its trees are young, short and airy, among
+  the grown ones; a vacant lot's self-sown trees are all young.
