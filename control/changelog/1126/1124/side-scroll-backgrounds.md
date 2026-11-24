@@ -37,4 +37,9 @@
   the far hills reflected, light glinting, a sailing boat drifting), a forest's edge (a mint canopy behind a blossom
   one, swaying) and the coast (the sea to the horizon, islands, a sand beach). A headland stands where the scenery
   changes. A level names them as its `style.scenery`.
+- What made the three backdrops starters, written down (`docs/backdrop-variations.md`): a place is a row, a piece a
+  word, and the deal matches them by role; the slots every backdrop fills; the principles of composition, colour
+  keying (the cube keys the light, the place its hue within a band set apart from play, the lit things the accent),
+  light and motion that let a variation be new words; the pitfalls the page taught; and how to add a scenery, a place,
+  a vista or a locale.
 

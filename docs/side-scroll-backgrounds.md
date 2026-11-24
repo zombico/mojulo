@@ -7,7 +7,9 @@ lays them: [side-strip-principles.md](side-strip-principles.md) (a mascot platfo
 [side-map-principles.md](side-map-principles.md) (a run and gun's stage and its vistas, Galaxy Boy's and Astro Girl's)
 and [metroidvania-map.md](metroidvania-map.md) "The backdrop's craft" (a castle's rooms, Vampire Sonata's).
 
-The principles below cover five things: contrast, colour, composition, light and motion.
+The principles below cover five things: contrast, colour, composition, light and motion. How the three backdrops
+were made into starters, so that a variation is new words (another scenery, place, vista or locale, another colour
+key) and not new code: [backdrop-variations.md](backdrop-variations.md).
 
 ## Contrast: the play owns the extremes
 
