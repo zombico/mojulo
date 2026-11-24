@@ -26,7 +26,7 @@
 export const SETTLE = Object.freeze({
   lift: 0.012, reach: 0.8, cell: 4,
   // paint: each piece's length along its own +x (0: a square seated by the slope under its middle)
-  paint: Object.freeze({ dash: 3, line: 10, yellow: 10, rail: 10, bar: 3, stall: 0, pit: 0 }),
+  paint: Object.freeze({ dash: 3, line: 10, yellow: 10, rail: 10, bar: 3, stall: 0, pit: 0, soil: 0 }),
   // standing on the ground
   stands: Object.freeze(['lamp', 'signal', 'pole', 'hydro', 'hydrant', 'bin', 'bench', 'ring', 'papers', 'sign', 'stop', 'barrier', 'cone', 'fence', 'hoarding']),
   // the surfaces each lies on: paint on a carriageway or a lot; the rest on a walk and what a walk becomes
@@ -79,7 +79,8 @@ export function settleStamps(stamps, ground) {
   for (const [key, list] of stamps) {
     const kind = key.split(':')[0], len = SETTLE.paint[kind], paint = len !== undefined;
     if (!paint && !SETTLE.stands.includes(kind)) continue;
-    const G = paint && kind !== 'pit' ? ground.carriage : ground.walked;
+    // (a tree's pit and its box of soil lie in the walk; the rest of the paint on a carriageway or a lot)
+    const G = paint && kind !== 'pit' && kind !== 'soil' ? ground.carriage : ground.walked;
     for (const t of list) {
       const [x, y, z] = t.pos, a = t.rotZ ?? 0, dx = Math.cos(a), dy = Math.sin(a);
       const zl = z, h0 = G.at(x, y, zl);

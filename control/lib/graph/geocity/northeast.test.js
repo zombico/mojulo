@@ -34,12 +34,18 @@ describe('a northeast metro', () => {
     expect(kinds(d, 'outskirts')).not.toContain('garden');
   });
 
-  it('plants its street trees on their walks: none on a carriageway, none in a crossing, played or not', () => {
+  it('plants its street trees on their walks, small, each in its box of soil: none on a carriageway, none in a crossing', () => {
     const geocity = { metro: { from: 'northeast', rings: { core: 350, frame: 900 } }, extent: [3000, 2400], water: { sides: ['e'], depth: 200 }, core: [0.85, 0.5], evoke: 'neighbourhood', at: 'outskirts' };
     const P = assembleGeocityScene({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity });
     const L = P.geocity.laws.find((l) => l.law === 'trees-clear');
     expect(L.ok, L.value).toBe(true);
     expect(L.value).toMatch(/[1-9]\d* trees, none on a carriageway/);
+    // (a sidewalk tree a small street tree in its box of soil: none a park's giant)
+    const F = assembleGeocityScene({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, crowns: 'realistic', geocity }, { form: true });
+    const side = F.plants.trees.filter((t) => t.toward !== undefined);
+    expect(side.length).toBeGreaterThan(0);
+    expect(Math.max(...side.map((t) => t.h))).toBeLessThanOrEqual(10);
+    expect(F.repeats.filter((r) => /soil/.test(r.group)).reduce((n, r) => n + r.transforms.length, 0)).toBeGreaterThan(0);
   }, 300000);
 });
 

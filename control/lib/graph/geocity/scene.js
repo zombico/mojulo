@@ -112,6 +112,8 @@ const SECTION = readSection('passage');
 // the cells streets and grounds are draped on the land in (m), a kerb's height, a sidewalk round a block, a terrace's
 // most step to the next
 const CELL = 40, KERB = 0.15, WALK = 2.4, STEP = 1.2;
+// a neighbourhood's walks: an outskirts one's wide enough for its sidewalk trees' boxes (TREE.walk), the city's else
+const walkOf = (r) => (r.builds === 'outskirts' ? TREE.walk : WALK);
 // an outskirts house: a semi pair's frontage, the gap between pairs, its depth, its front yard; a storey; a shop's depth
 const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
 // (a house is a house: a semi pair stands this many storeys at most, whatever its corridor lifts the block's others to)
@@ -201,8 +203,10 @@ const GLASS_SPEC = Object.freeze([0.55, 48]);
 // (`young`: with realistic crowns, the share of its street and park trees recently planted, drawn in the plain crown at
 // `height` m, airy as a sapling's; a vacant lot's self-sown trees all young)
 // (`kerb`: how far behind the kerb, on the walk, an outskirts street's tree stands, m; `corner`: how far past a crossing
-// street's walks it keeps, for the corner's sight lines, m)
-const TREE = Object.freeze({ pit: 12, verge: 11, kerb: 0.9, corner: 5, species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
+// street's walks it keeps, for the corner's sight lines, m; `sidewalk`: a SIDEWALK TREE's, one on a walk or in a pit:
+// a small street tree, flowering cherries, birches and maples at `height` m, never a park's or a yard's giant; `walk`:
+// an outskirts street's walk, wider than the city's (WALK) to hold its trees' boxes and a clear way past them)
+const TREE = Object.freeze({ pit: 12, verge: 11, kerb: 0.9, corner: 5, walk: 3.2, sidewalk: Object.freeze({ species: ['cherry', 'cherry', 'birch', 'maple'], height: Object.freeze([6, 10]) }), species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
   young: Object.freeze({ share: 0.35, height: Object.freeze([5, 8]) }) });
 // a garden-apartment block's bars (m): their least length along a side, the gap between them, their depth, their setback
 // behind their lawn, the block's ends kept clear, their storeys (two or three)
@@ -348,9 +352,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   // the buildings behind it, form/flora-read.js REALISTIC.lean)
   // (`young`: with realistic crowns, a recently planted tree, TREE.young: its share by the tree's own dice, or always)
   const plant = (where, x, y, z, key, h = null, toward = null, young = null) => {
-    const R = streamOf(seed, 'trees', key), list = TREE.species[where], sp = list[Math.floor(R() * list.length)];
+    const R = streamOf(seed, 'trees', key), list = where === 'sidewalk' ? TREE.sidewalk.species : TREE.species[where], sp = list[Math.floor(R() * list.length)];
     if (!trees.has(sp)) trees.set(sp, []);
-    const height = TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R();
+    const Hr = where === 'sidewalk' ? TREE.sidewalk.height : TREE.height, height = Hr[0] + (Hr[1] - Hr[0]) * R();
     const yg = CR?.crowns === 'realistic' && (young ?? R() < TREE.young.share), hy = yg ? Math.min(h ?? Infinity, TREE.young.height[0] + (TREE.young.height[1] - TREE.young.height[0]) * R()) : null;
     trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(hy ?? h ?? height), ...(toward !== null ? { toward: r5(toward) } : {}), ...(yg ? { young: true } : {}) });
   };
@@ -628,6 +632,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (massed && !massed.has(r.id)) { backdrop(r); continue; }
     if (r.park) { drape(r.rect, 'geocity:park', col.park); continue; }
     drape(r.rect, 'geocity:road', col.road);
+    const WALK = walkOf(r);
     for (const b of r.blocks) {
       const [x0, y0, x1, y1] = b.rect, Rb = streamOf(seed, 'scene', b.id), longY = y1 - y0 >= x1 - x0;
       // the walk round it (into the street, at a kerb over it), where the street is the neighbourhood's
@@ -742,7 +747,7 @@ export function assembleGeocityScene(m, ctx = {}) {
           if (!dense(s0) || lampAt < 2 || lampAt > LAMP - 2) continue;
           kerb(side, 1.3, s0, 'pit');
           const [x, yy] = at(l, side * (l.road / 2 + 1.3), s0), [cx, cy] = at(l, 0, s0);
-          plant('dense', x, yy, S(x, yy) + KERB, `${l.id}:${side}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
+          plant('sidewalk', x, yy, S(x, yy) + KERB, `${l.id}:${side}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
         }
       }
     }
@@ -787,7 +792,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   function streetsNear() {
     for (const r of d.regions) {
       if (r.park || (massed && !massed.has(r.id))) continue;
-      const low = r.builds === 'outskirts';
+      const low = r.builds === 'outskirts', WALK = walkOf(r);
       for (const st of r.streets) {
         const ns = st.axis === 'ns', kerbOff = st.w / 2 - WALK + 0.4, pt = (side, s0, o = kerbOff) => (ns ? [st.at + side * o, s0] : [s0, st.at + side * o]);
         const side = streamOf(seed, 'scene', `hydro:${st.id}`)() < 0.5 ? -1 : 1;
@@ -817,7 +822,9 @@ export function assembleGeocityScene(m, ctx = {}) {
               // (and clear of every crossing: none in a street that crosses its own, nor in the corner's sight lines, TREE.corner
               // past that street's walks)
               if (r.streets.some((o) => o !== st && o.axis !== st.axis && Math.abs((o.axis === 'ns' ? x : yy) - o.at) < o.w / 2 + TREE.corner)) continue;
-              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + KERB, `${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
+              // (a sidewalk tree: small, in its box of soil in the walk)
+              plant('sidewalk', x, yy, S(x, yy) + KERB, `${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
+              stamp('soil', [x, yy, S(x, yy) + KERB], ns ? Math.PI / 2 : 0);
             }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
@@ -1905,7 +1912,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   {
     const onRoad = (x, y) => d.lines.some((l) => Math.abs((l.axis === 'ns' ? x : y) - l.at) < l.road / 2 && x >= l.rect[0] && x <= l.rect[2] && y >= l.rect[1] && y <= l.rect[3])
       || d.regions.some((r) => x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3] && (r.streets ?? []).some((st) => { const ns = st.axis === 'ns', o = Math.abs((ns ? x : y) - st.at), u = ns ? y : x;
-        return o < st.w / 2 - WALK && (st.runs ?? []).some(([a, b]) => u >= a && u <= b); }));
+        return o < st.w / 2 - walkOf(r) && (st.runs ?? []).some(([a, b]) => u >= a && u <= b); }));
     let n = 0, on = 0; for (const list of trees.values()) for (const t of list) { n++; if (onRoad(t.x, t.y)) on++; }
     laws.push({ law: 'trees-clear', ok: on === 0, value: on ? `${on} of ${n} trees on a carriageway` : `${n} trees, none on a carriageway`, want: 'every street tree on its walk, its verge or in its pit; none where a car drives or parks' });
   }

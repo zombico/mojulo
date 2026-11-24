@@ -13,4 +13,6 @@
   city's district can be asked for by its ring.
 - A city's street trees stand on the walk, behind the kerb and clear of every crossing, in a game or out of one; none
   were left standing in the road where it is shown rather than played.
+- Sidewalk trees are small street trees (flowering cherries, birches, maples of 6 to 10 m), each in a box of soil in
+  the walk; an outskirts walk is wider to hold them with a clear way past. Park, yard and garden trees keep their size.
 

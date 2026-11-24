@@ -209,6 +209,9 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     bar: flat(3, 0.6, 0, '#e3ded0', L),
     // a street tree's pit in the walk: its grate's dark square, centred
     pit: [quad([[-0.7, -0.7, 0], [0.7, -0.7, 0], [0.7, 0.7, 0], [-0.7, 0.7, 0]], [0, 0, 1], '#3b3a38', L)],
+    // a sidewalk tree's box in the walk: its soil, and its edging round it a little proud of the walk
+    soil: [quad([[-0.6, -0.6, 0.01], [0.6, -0.6, 0.01], [0.6, 0.6, 0.01], [-0.6, 0.6, 0.01]], [0, 0, 1], '#5a4430', L),
+      ...[[-0.7, -0.7, 0.7, -0.6], [-0.7, 0.6, 0.7, 0.7], [-0.7, -0.6, -0.6, 0.6], [0.6, -0.6, 0.7, 0.6]].map(([a, b, c, d]) => quad([[a, b, 0.06], [c, b, 0.06], [c, d, 0.06], [a, d, 0.06]], [0, 0, 1], '#9a958a', L))],
     bench: four((v) => bench(v, L)),
     can: four((v) => can(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L),
