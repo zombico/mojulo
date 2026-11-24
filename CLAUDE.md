@@ -339,6 +339,10 @@ Pointers only; each target carries its own design notes.
   blade (an arsenal's `art`: `SWORD_ARTS` in `polygonizer/hero-swing-body.js`): [docs/sword-arts.md](docs/sword-arts.md). A game's play
   tried before its levels (the action and platform rooms, the mount lane, the firing and artillery ranges, the roll room, the work room and the game room, chosen by how
   it plays): [gameworld/practice.js](control/lib/graph/gameworld/practice.js), [docs/practice-rooms.md](docs/practice-rooms.md).
+- Set pieces (the cinematic action game's runs and stunts, Lost Nomad's rail): [gameworld/set-piece.js](control/lib/graph/gameworld/set-piece.js)
+  over the chase line and its track camera ([worlds/controllable/chase-line.js](control/lib/graph/worlds/controllable/chase-line.js):
+  the stick read along the line, the camera keyed along it) and the quick-time prompt (`worlds/controllable/prompt.js`,
+  drawn by `scene/channels/prompt-mana.js`); played in the stunt room (`gameworld/stunt-room.js`): [docs/set-pieces.md](docs/set-pieces.md).
 - Missions (a shooter's first level): [mission/](control/lib/graph/mission/) (the firing range stretched into sections,
   each a band the world's guns are for with a task in it: the section table, the brief read from the guns, the seeded
   composition, the laws; a new section is a row) and [gameworld/mission-level.js](control/lib/graph/gameworld/mission-level.js)

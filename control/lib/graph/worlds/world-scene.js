@@ -23,6 +23,8 @@ import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readRoll, rolledIds, pickupsOf } from '@/lib/graph/game/roll';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readKeying } from '@/lib/graph/worlds/controllable/keying';
+import { readChase } from '@/lib/graph/worlds/controllable/chase-line';
+import { readPrompts } from '@/lib/graph/worlds/controllable/prompt';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { skandartLoose, landLoose } from '@/lib/graph/era/skandart';
@@ -2314,6 +2316,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // KEYING (worlds/controllable/keying.js): the animated bodies posed on twos or threes, each layer its own grain, the
   // world and the camera on ones; the page carries the key clock only then. Absent: every byte as it was.
   if (payload && sketch.manifest.keying != null && sketch.manifest.keying !== false) { const K = readKeying(sketch.manifest.keying); if (K) payload.keying = K; }
+  // the CHASE LINES (worlds/controllable/chase-line.js): a set piece's way, the stick read along it whatever the camera
+  // does; the page composes the line only then. Absent: every byte as it was.
+  if (payload && sketch.manifest.chase != null && sketch.manifest.chase !== false) { const L = readChase(sketch.manifest.chase); if (L) payload.chase = L; }
+  // the QUICK-TIME PROMPTS (worlds/controllable/prompt.js, drawn by channels/prompt-mana.js): one button in a window, held
+  // to its laws; the page composes them only then. Absent: every byte as it was.
+  if (payload && sketch.manifest.prompts != null && sketch.manifest.prompts !== false) { const P = readPrompts(sketch.manifest.prompts); if (P) payload.prompts = P; }
   // (and a scene's own moments, its script's slow motion and freezes, playscape/ui/scenes.js sceneMoments: the clock
   // composed for them, beside the world's own; none ⇒ as it was)
   if (payload && playEv?.scenes) {

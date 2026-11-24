@@ -27,6 +27,7 @@
  */
 import { practiceRoom } from './practice-room.js';
 import { platformRoom, COURSE } from './platform-room.js';
+import { stuntRoom } from './stunt-room.js';
 import { mountLane, FENCES } from './mount-lane.js';
 import { rollRoom, rollRoomMeasured, FORMS } from './roll-room.js';
 import { feelReport, readFeel } from './feel/lower.js';
@@ -172,6 +173,19 @@ async function resolved(manifest, ref) {
   return payload;
 }
 const emitted = async (payload, cdn) => (await import('../scene/scene-three.js')).emitThreeWorld({ ...payload, wireframe: false, walk: true, spin: false, decollide: true, hud: false, inline: !cdn, cdn });
+
+/** The stunt room's page (stunt-room.js): its set piece's laws said in a corner, the rest the World page's. */
+export async function stuntRoomHtml(G, { refs = {}, cast = 'male', cdn = false } = {}) {
+  const room = stuntRoom(G, { refs, cast });
+  const payload = await resolved(room.manifest, `${G.id ?? 'game'}-stunt-room`);
+  let html = await emitted(payload, cdn);
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const laws = room.laws.map((l) => `<div class="${l.ok ? 'ok' : 'bad'}">${l.ok ? '✓' : '✗'} <b>${esc(l.law)}</b> ${esc(l.says)}</div>`).join('');
+  const HUD = `<style>#st{position:fixed;top:10px;left:10px;width:330px;font:12px/1.45 ui-monospace,monospace;color:#e8e6e1;background:rgba(14,15,18,.8);border:1px solid #3a3d44;padding:8px 10px;z-index:50;pointer-events:none}#st .ok{color:#8fd18f}#st .bad{color:#f08a7a}</style>
+<div id="st"><b>Stunt room</b> · ${esc(room.setPiece.id)}<div>${esc('the camera directed along the way; the stick runs down it')}</div>${laws}</div>`;
+  html = html.replace('</body>', `${HUD}</body>`);
+  return { html, room };
+}
 
 /** The platform room's page (see the header). */
 export async function platformRoomHtml(G, { refs = {}, cast = 'male', sound = 'realistic', cdn = false } = {}) {
@@ -490,5 +504,5 @@ export async function practiceHtml(G, id, opts = {}) {
     const course = P?.v0 ? { ...room.course, camera: courseCamera({ react: room.course.reactAt, vfov: P.v0, near: COURSE_NEAR.tall }) } : room.course;
     return { html: courseSheetHtml(course, { title: G.name ?? G.id ?? 'Course', ...(P ? { aspect: P.aspect } : {}), ...(P?.v0 ? { vfov: P.v0 } : {}) }), room };
   }
-  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'roll' ? rollRoomHtml(G, opts) : id === 'work' ? workRoomHtml(G, opts) : id === 'room' ? gameRoomHtml(G, opts) : mountLaneHtml(G, opts);
+  return id === 'practice' ? practiceRoomHtml(G, opts) : id === 'platform' ? platformRoomHtml(G, opts) : id === 'stunt' ? stuntRoomHtml(G, opts) : id === 'roll' ? rollRoomHtml(G, opts) : id === 'work' ? workRoomHtml(G, opts) : id === 'room' ? gameRoomHtml(G, opts) : mountLaneHtml(G, opts);
 }

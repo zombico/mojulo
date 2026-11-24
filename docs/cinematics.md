@@ -233,6 +233,22 @@ grain of 24 drawings a second. On twos that is 12 poses a second, on threes 8.
 - **Say it once for a game.** A gameworld's `keying` is laid on every level. `'auto'` follows the juice: the cel
   look, whose effects are already drawn on twos, keys its bodies on twos too.
 
+## The camera directed in play
+
+A cutscene takes the stick; a set piece does not. Its camera (the rule `track`, `worlds/controllable/chase-line.js`) is
+keyed by how far the hero has run along the set piece's chase line, while the player keeps control.
+
+- **The stick follows the way.** While the line holds the hero, up runs down the line whichever way the camera faces,
+  so the camera can stand ahead of the hero looking back (`lead`) without the controls reversing.
+- **Frames in the line's own terms.** `lead`, `chase` (low behind), `profile`, `wide`, `low`, `over`, `overhead`,
+  `close`: each is a place round the hero (behind, beside, above) and a look point ahead of or behind them. A key may
+  override any of them.
+- **Swing, don't pass through.** Between keys the camera orbits the hero over the `blend` metres before the next key; a
+  `cut` key cuts. Its heading eases round the line's corners, so a camera far from the hero is not flung round.
+- **A key's lens and shake.** A key's `fov` and `shake` are laid on the page while it holds.
+
+The principles a set piece is written by are in [set-pieces.md](set-pieces.md).
+
 ## Compositing
 
 The World page's grade (`scene/channels/grade.js`) is its compositing stage, the last thing laid over the frame, on the

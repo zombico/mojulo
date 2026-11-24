@@ -475,8 +475,8 @@ export const FIXTURES = Object.freeze([
     why: 'a hero seen over the shoulder works through a linear run of set pieces: a gun aimed off the eye and a knife, objectives laid as a mission, getting over and onto things, cutscenes cut into play (Lost Nomad)',
     cube: {
       reality: { medium: '3d' },
-      space: { camera: 'third-person', topology: 'linear', levelForm: 'mission', traversal: 'wall' },
-      power: { combat: ['melee', 'ranged'], gunplay: 'realistic', mechanics: ['hp-pool', 'objectives'] },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'mission', traversal: 'wall', levelDesign: ['set-piece'] },
+      power: { combat: ['melee', 'ranged'], gunplay: 'realistic', mechanics: ['hp-pool', 'objectives', 'prompt'] },
       soul: { hero: 'hero' },
       time: { progression: 'linear', sequence: ['cutscene', 'in-play'] },
     },

@@ -20,6 +20,7 @@ export const POWER = Object.freeze({
         // that break. Built 11-04 (natural knockback, worlds/controllable/knock.js, an opt-in builder): a blow carries
         // joules apart from its hurt, said on a power (`kinetic`, `impact`: gameworld/actions.js), a weapon or a strike, or
         // laid on a level (`knockback`); no gameworld key lays it on every level yet, a power's energy does
+        prompt: { status: 'built', since: '2026-11-24', lowers: 'lib/graph/worlds/controllable/prompt.js', note: 'a quick-time prompt: one button in a window (a press, a mash, a hold, the stick toward a mark), told before it opens and timed on the screen\'s clock under a slowed world, its button as the device draws it in a ring that closes (scene/channels/prompt-mana.js); a miss back to the checkpoint, a hurt or nothing, said beside it' },
         knockback: { status: 'built', since: '2026-11-04', lowers: 'lib/graph/worlds/controllable/knock.js', note: 'a blow carries joules apart from its hurt: a direct hit pushes its target along the blow, an impact spreads as a shock split between the ground and what stands near; what passes a body\'s footing is thrown, an arc then a slide, a wall stopping it with a stagger; a power\'s kinetic and impact (tap, light, heavy, massive or joules), a level\'s knockback' },
         // (11-10: local, the brawler's clinch throws the body it holds, forward into the crowd or behind, and a weapon is
         // thrown with special at the first foe lined up ahead: brawl-core.js; nothing else throws a body yet)

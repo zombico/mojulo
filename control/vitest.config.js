@@ -98,6 +98,12 @@ export const E2E = [
   'lib/graph/scene/channels/controllable/armed-body.chrome.test.js',
   // keying in play: a walking body on twos in headless Chrome, its pose on the key and its place on every frame
   'lib/graph/scene/channels/controllable/keying.chrome.test.js',
+  // a set piece's chase line under its track camera in headless Chrome: the line run, the camera on its key
+  'lib/graph/scene/channels/controllable/chase.chrome.test.js',
+  // the quick-time prompt drawn in headless Chrome: told, open and closing, answered
+  'lib/graph/scene/channels/controllable/prompt.chrome.test.js',
+  // the stunt room played in headless Chrome: a bot clears its set piece, and is put back by a late press
+  'lib/graph/gameworld/stunt-room.live.test.js',
   // the ray budget: a walker on a gen-7 land in headless Chrome, no ray testing a big mesh triangle by triangle
   'lib/graph/scene/channels/controllable/ray-budget.chrome.test.js',
   // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts

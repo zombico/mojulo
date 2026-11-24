@@ -5,6 +5,8 @@
  *
  *   practice   the action room (practice-room.js): the arsenal's swings, strings, weapons, guard and parry on a foe that
  *              falls and comes back; a feel template that fights hand to hand, or any world with an arsenal
+ *   stunt      the stunt room (stunt-room.js): one set piece on greybox rooftops, the camera directed along a chase line,
+ *              its prompts; a template of the cinematic action game's (Lost Nomad's feel)
  *   platform   the platform room (platform-room.js): steps, a gap, the double jump's ledge, the wall kick's chimney, foes to
  *              stomp; a template of the platformer's (its base feel, or a wall or a stomp among its moves)
  *   mount      the mount lane (mount-lane.js): the gaits, the jump's clearance, the fences, the turn; a world with `mounts`
@@ -49,6 +51,7 @@ import { readFeel } from './feel/lower.js';
 import { practiceRoom, roomEligible, FIGHTS_ELSEWHERE } from './practice-room.js';
 import { variesHits } from './sound-sheet.js';
 import { platformRoom } from './platform-room.js';
+import { stuntRoom } from './stunt-room.js';
 import { mountLane } from './mount-lane.js';
 import { rollRoom, rollRoomMeasured } from './roll-room.js';
 import { loadoutOf } from './loadout.js';
@@ -61,6 +64,7 @@ import { missionFor, missionLevel } from './mission-level.js';
 export const PRACTICE_ROOMS = Object.freeze({
   practice: { name: 'The practice room', about: 'the arsenal\'s swings, strings, weapons, guard and parry on a foe that falls and comes back' },
   platform: { name: 'The platform room', about: 'the jump, the double jump, the wall kick and the stomp on a greybox course' },
+  stunt: { name: 'The stunt room', about: 'a set piece on greybox rooftops: a run the camera directs, a gap, a blast, a drop, a prompt where the stick cannot do it' },
   mount: { name: 'The mount lane', about: 'the horse\'s gaits, its jump\'s clearance, the fences and the turn' },
   range: { name: 'The firing range', about: 'the game\'s guns from the eye: rounds and seconds to drop a body at 5, 15 and 30 m, cone and climb, marks by matter, switching' },
   mission: { name: 'The first mission', about: 'the firing range stretched into a level: a section for each band its guns are for, a task in each (take, clear, hold, reach), the way on sealed until it is met; briefed, played and debriefed' },
@@ -120,6 +124,7 @@ export function practiceFor(G) {
   const pole = poleOf(G), rooms = [];
   if (!roomEligible(G)) rooms.push('practice');
   if (platforms(pole)) rooms.push('platform');
+  if (pole === 'lost-nomad') rooms.push('stunt');   // (a cinematic action game's: its set piece before its levels)
   if (G?.mounts != null && G.mounts !== false) rooms.push('mount');
   if (rangeFor(G)) rooms.push('range');
   if (missionFor(G)) rooms.push('mission');
@@ -138,7 +143,7 @@ export function practiceRoomOf(G, id, opts = {}) {
   const { rooms, why } = practiceFor(G);
   if (!rooms.includes(id)) throw new Error(`practice: this world has no ${PRACTICE_ROOMS[id].name.replace(/^The /, '').toLowerCase()}${rooms.length ? ` (it has ${rooms.join(', ')})` : `: ${why}`}`);
   // (a gun room's build is its spec: the range's measures and the frame's assembly are its page's, a few seconds each)
-  return id === 'practice' ? practiceRoom(G, opts) : id === 'platform' ? platformRoom(G, opts) : id === 'mount' ? mountLane(G, opts) : id === 'roll' ? rollRoom(G, opts)
+  return id === 'practice' ? practiceRoom(G, opts) : id === 'platform' ? platformRoom(G, opts) : id === 'stunt' ? stuntRoom(G, opts) : id === 'mount' ? mountLane(G, opts) : id === 'roll' ? rollRoom(G, opts)
     : id === 'range' ? { spec: rangeFor(G) } : id === 'mission' ? missionLevel(G, opts) : id === 'work' ? workRoom(G, opts) : id === 'room' ? gameRoom(G, opts) : { spec: artilleryFor(G) };
 }
 

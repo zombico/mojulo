@@ -74,6 +74,7 @@ export const CAST_THEN = Object.freeze({
   blast: '{ blast: { at: place, radius?, hurt? } } a charge goes off at a place: it breaks what the world lets break in its radius (2.5 m), as a grenade would; hurt takes that much hp from each body in it',
   collapse: "{ collapse: group | { group, how?: 'base' | 'whole', storey?, stagger? } } a building comes down: base breaks what stands within storey metres (3) of its foot and the rest falls on it; whole breaks every block; stagger seconds between blocks, bottom up",
   break: '{ break: id } one block breaks (or each block of a group)',
+  prompt: '{ prompt: id } a quick-time prompt the level carries comes up (worlds/controllable/prompt.js): its button, its word, its window; the bus hears prompt:<id>:hit or :miss',
   dig: "{ dig: who | { who? | at: place, to?: place, scoop?: 'hand' | 'bucket' | 'excavator' | m³ } } the shovel: a scoop out of a physical level's ground in front of who (or at a place), its soil piled beside them (or at to)",
 });
 // the effects that break the world (worlds/controllable/trigger.js): no one is named, a place or a group is
@@ -153,6 +154,11 @@ export function readCastWhen(k, w, where) {
 
 export function readCastEffect(k, t, where, ctx = {}) {
   const v = t[k], w = `${where}.${k}`;
+  // a quick-time prompt brought up: one the level carries, by its id
+  if (k === 'prompt') {
+    if (!isStr(v)) throw new Error(`${w} is a prompt's id (the level's prompts)`);
+    return { kind: 'cast', op: 'prompt', who: null, id: v, page: true };
+  }
   // a puff stands at a place, or at a character
   if (k === 'puff' && isObj(v) && v.who === undefined) {
     if (v.at === undefined) throw new Error(`${w} is a character's id, or { at: place, is? }`);
@@ -291,6 +297,7 @@ export function lowerCastEffect(t, on, frag, places = []) {
   if (t.by !== undefined) r.by = t.by;
   for (const k of ['is', 'for', 'color', 'with', 'into', 'shake', 'k', 'spec', 'scale']) if (t[k] !== undefined) r[k] = t[k];
   if (t.op === 'shake') delete r.who;
+  if (t.op === 'prompt') { delete r.who; r.id = t.id; }
   if (BREAK_OPS.includes(t.op)) {
     if (!(t.op === 'dig' && t.who)) delete r.who;
     for (const k of ['radius', 'hurt', 'group', 'how', 'storey', 'stagger', 'id', 'scoop']) if (t[k] !== undefined) r[k] = t[k];

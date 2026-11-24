@@ -43,7 +43,7 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'breakPieces', 'loose', 'rupa', 'hangar', 'match', 'smoke', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'commander', 'events', 'fog',
   'audio', 'fx', 'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'game', 'backdrop', 'cars', 'signals',
   'trafficLanes', 'trafficConstants', 'flow', 'beacons', 'xr', 'stream', 'haze', 'crystalLight', 'fire', 'metersPerUnit', 'cutouts', 'doors',
-  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'roll', 'manaHud', 'courseTouch', 'tempo', 'keying', 'styleMeter', 'grade',
+  'items', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'weather', 'pack', 'pixel', 'versus', 'brawl', 'board', 'screen', 'runner', 'roll', 'manaHud', 'courseTouch', 'tempo', 'keying', 'chase', 'prompts', 'styleMeter', 'grade',
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'mission', 'damageRing', 'cone', 'formSky', 'air', 'sea', 'marine', 'soften',
   'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs',
   // (tall grass's sight, the pixel budget's cap, the radar's map, a building's stairs for the follow camera; glass and

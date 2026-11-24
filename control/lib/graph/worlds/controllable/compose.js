@@ -79,6 +79,8 @@ import { buildSteer } from './steer.js';
 import { buildRulesHover } from './rules-hover.js';
 import { buildRulesBoat } from './rules-boat.js';
 import { buildWorldClock } from './world-clock.js';
+import { buildChaseLine } from './chase-line.js';
+import { buildPrompt } from './prompt.js';
 import { buildBuster } from './buster.js';
 import { buildSideMap } from './sidemap.js';
 import { buildRoll } from './roll.js';
@@ -107,7 +109,7 @@ export const EMISSION = [...EMISSION_ENGINE];
 // without one keeps every byte; the live Node instance carries them all (each is a no-op on a world without its spec).
 // The world clock (a world's `tempo`: world-clock.js) comes last, so it wraps every other step, a hitstop's among them.
 // (The style meter, a world's `styleMeter`: style.js, sits inside it: it reads each step on the world's own clock.)
-export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, roll: buildRoll, hitstop: buildHitstop, foe: buildFoe, ghost: buildGhost, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, throwing: buildThrow, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, buster: buildBuster, sidemap: buildSideMap, style: buildStyle, clock: buildWorldClock, aimView: buildAimView, freeRun: buildFreeRun, carry: buildCarry, dive: buildDive, board: buildBoard, takedown: buildTakedown, startle: buildStartle, stance: buildStance, mission: buildMission, alert: buildAlert, alarm: buildAlarm, veil: buildVeil, knockout: buildKnockout, mines: buildMines, bossLib: buildBossLib, boss: buildBoss, barrier: buildBarrier  });
+export const EMISSION_OPT_IN = Object.freeze({ runner: buildRunner, roll: buildRoll, hitstop: buildHitstop, foe: buildFoe, ghost: buildGhost, vanish: buildVanish, summon: buildSummon, pair: buildPair, sweep: buildSweep, gunplay: buildGunplay, throwing: buildThrow, mount: buildMount, rupa: buildRupa, vayoAir: buildVayoAir, vayoMove: buildVayoMove, knock: buildKnock, loose: buildLoose, trigger: buildTrigger, hover: buildRulesHover, boat: buildRulesBoat, turret: buildTurret, steer: buildSteer, buster: buildBuster, sidemap: buildSideMap, chase: buildChaseLine, prompt: buildPrompt, style: buildStyle, clock: buildWorldClock, aimView: buildAimView, freeRun: buildFreeRun, carry: buildCarry, dive: buildDive, board: buildBoard, takedown: buildTakedown, startle: buildStartle, stance: buildStance, mission: buildMission, alert: buildAlert, alarm: buildAlarm, veil: buildVeil, knockout: buildKnockout, mines: buildMines, bossLib: buildBossLib, boss: buildBoss, barrier: buildBarrier  });
 
 // The live Node instance factory (the façade composes one; tests may compose their own).
 export function composeLive() {
