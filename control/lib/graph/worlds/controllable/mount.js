@@ -38,7 +38,7 @@
  */
 
 export function buildMount(E) {
-  const { clamp, fwdXY, resolveBlocking, TAU, RULES, ZERO_INPUT, registerNormalize } = E;
+  const { clamp, fwdXY, resolveBlocking, TAU, RULES, ZERO_INPUT, registerNormalize, nearestWallT } = E;
   const step = E.stepWorld;
   // (a horse's `mount` and a body's `rides`, carried onto the entity)
   registerNormalize((ent, raw) => { if (raw.mount && typeof raw.mount === 'object') ent.mount = { ...raw.mount }; if (raw.rides === true) ent.rides = true; });
@@ -296,6 +296,15 @@ export function buildMount(E) {
           if (p.eject) { const to = p.eject.to; if (Array.isArray(to)) { p.transform.pos[0] = to[0]; p.transform.pos[1] = to[1]; p.transform.pos[2] = to[2]; } p.eject = null; }
         }
       }
+    }
+    // PULLED IN (a ride's camera `pullIn`: metres kept off a wall, a cab's, gameworld/cars.js): where a wall stands between
+    // the ridden body's look point and where its chase stands, the chase stands in front of it, `pullIn` short of it, never
+    // nearer than a quarter of the way; a big vehicle's long chase is not stood inside the building behind it. Only while
+    // something is ridden, and only with the word: on foot, and absent, the chase is as the follow rule left it
+    const C = state.camera, R = C && C.rule, ridden = state.byId[state.pilotId];
+    if (R && R.pullIn > 0 && ridden && ridden.riderId && state.colliders && nearestWallT && C.transform) {
+      const tp = ridden.transform.pos, from = [tp[0], tp[1], tp[2] + (R.lookH ?? 1)], at = C.transform.pos, wt = nearestWallT(from, at, state.colliders);
+      if (wt != null) { const len = Math.hypot(at[0] - from[0], at[1] - from[1], at[2] - from[2]) || 1, t = Math.max(0.25, wt - R.pullIn / len); C.transform.pos = [from[0] + (at[0] - from[0]) * t, from[1] + (at[1] - from[1]) * t, from[2] + (at[2] - from[2]) * t]; }
     }
     return state;
   };

@@ -78,7 +78,7 @@ keeps the chase it always had (`gameworld/cars.js` `CAB.camera`); a bigger vehic
 `back` metres off the lens, and from higher, so the eye's line over its roof's back edge lands on the road `see` metres
 past its bumper, looking at a point over it in proportion to its height (`CAB_VIEW`). A parked cab is framed by its
 model when the level makes it, a vehicle taken from the traffic by its own template when it is taken. The chase keeps
-`CAB.pullIn` metres off a wall between it and the car (`rules-basic.js` `pullIn`), so a rig's long chase does not stand
+`CAB.pullIn` metres off a wall between it and the car (`worlds/controllable/mount.js` `pullIn`, only while it is ridden), so a rig's long chase does not stand
 inside the building behind it.
 
 ## What it does not do yet

@@ -37,7 +37,7 @@ export const CAB = Object.freeze({
   door: 0.5,
   in: 0.35, out: 0.35, slow: 1.5,
   camera: Object.freeze({ dist: 8.5, height: 3.2, lookH: 1.1 }),
-  // (the chase kept this far off a wall that stands between it and its car: worlds/controllable/rules-basic.js `pullIn`)
+  // (the chase kept this far off a wall that stands between it and its car, while it is driven: worlds/controllable/mount.js `pullIn`)
   pullIn: 0.6,
   // its box against a wall: half its width, its height; a kerb it climbs
   radius: 1, height: 1.5, step: 0.3,

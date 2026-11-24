@@ -1,6 +1,6 @@
-// THE VIEW FROM BEHIND A VEHICLE (cab-pool.js cabView, gameworld/cars.js, rules-basic.js `pullIn`): a cab's chase framed
+// THE VIEW FROM BEHIND A VEHICLE (cab-pool.js cabView, gameworld/cars.js, mount.js `pullIn`): a cab's chase framed
 // by its size, so a big vehicle never hides the road it is driven down, and pulled in front of a wall that stands
-// behind it. One case per concept: a car as it was; a truck back and up, its eye line over its roof to the road ahead;
+// behind it (mount.js: only while something is ridden). One case per concept: a car as it was; a truck back and up, its eye line over its roof to the road ahead;
 // the parked cab framed by its own model; the chase pulled in, and as it was without the word.
 import { describe, it, expect } from 'vitest';
 import { cabView, CAB_VIEW } from './cab-pool.js';
@@ -33,11 +33,18 @@ describe('the view from behind a vehicle', () => {
     expect(truck.mount.camera.height).toBeGreaterThan(sedan.mount.camera.height);
   });
 
-  it('a chase with `pullIn` stands in front of a wall behind its target; without it, where it would', () => {
+  it('a ridden cab\'s chase with `pullIn` stands in front of a wall behind it; without it, where it would', () => {
     const E = composeLive(), hooks = { ground: () => 0 };
-    // (the target at the origin facing +x, a wall 5 m behind it; the chase wants 12 m back)
-    const world = (camera) => E.createWorld({ colliders: [{ min: [-5.4, -20, 0], max: [-5, 20, 30] }], camera: { rule: 'follow', target: 'p', dist: 12, height: 3, lookH: 1, ...camera },
-      entities: [{ id: 'p', pilotable: true, rule: { type: 'platform', speed: 0, eye: 0 }, body: { type: 'mesh' }, transform: { pos: [0, 0, 0], heading: 0 } }] });
+    // (a cab at the origin facing +x, ridden, a wall 5 m behind it; its chase wants 12 m back)
+    const world = (camera) => {
+      const w = E.createWorld({ colliders: [{ min: [-5.4, -20, 0], max: [-5, 20, 30] }], camera: { rule: 'follow', target: 'car', dist: 12, height: 3, lookH: 1, ...camera },
+        entities: [
+          { id: 'p', pilotable: true, rule: { type: 'platform', speed: 0, eye: 0 }, body: { type: 'mesh' }, transform: { pos: [0, 3, 0], heading: 0 } },
+          { id: 'car', rule: { type: 'platform', speed: 0, eye: 0 }, mount: { cab: true, hull: [0.95, 2.3], stand: [-1.45, 0.25], mount: { s: 0.35 }, dismount: { s: 0.35 } }, body: { type: 'mesh' }, transform: { pos: [0, 0, 0], heading: 0 } },
+        ] });
+      w.pilotId = 'car'; w.byId.car.riderId = 'p'; w.byId.p.gone = true;
+      return w;
+    };
     const run = (w) => { for (let k = 0; k < 240; k++) E.stepWorld(w, {}, 1 / 60, hooks); return w.camera.transform.pos; };
     const pulled = run(world({ pullIn: 0.6 })), plain = run(world({}));
     expect(pulled[0]).toBeGreaterThan(-5);
