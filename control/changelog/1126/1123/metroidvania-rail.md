@@ -120,3 +120,9 @@
 - The Crypt Lord winds up like a wolf: it crouches with its head down before it pounces or mauls, then springs, and
   drops low with its head thrown up before it howls.
 - The two knights lose the extra shoulder cape that sat over their armour like a roof, and carry heavier weapons.
+- The castle's bosses trade their big shoulder plates for capes and grim details. The Gate Warden wears a black cloak to
+  the floor lined in dried blood, a standing collar, a chain and a skull at its hip. The Gatekeeper's ragged cloak hangs
+  with bone charms and skulls. The bell ringers carry bells and chains, and the Lord of the Keep wears a high collar and a
+  floor-length cloak lined in crimson.
+- Armour can leave pieces off: `adorn: { type: 'armor', without: ['pauldron'] }` wears a plate suit with its shoulders
+  bare, so a cape can hang from them.

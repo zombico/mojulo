@@ -40,6 +40,7 @@ import { HERO } from '../../foes/vocab.js';
 import { bossRule, bossMind } from '../../boss/stand.js';
 import { bossLaws as directorLaws } from '../../boss/bosses.js';
 import { lookOfMove, windClips } from '../../boss/looks.js';
+import { SEEDED_OUTFITS } from '../../outfit/styles.js';
 // (its FIGHT: the director's words for a human boss, boss/bosses.js: its moves over the side view's patterns,
 // boss/patterns.js, said in its own words, and its phases, quicker as its health falls)
 const ph = (moves, tempo, more = {}) => Object.freeze({ moves: Object.freeze(moves), tempo, ...more });
@@ -79,20 +80,28 @@ export const BOSS_DEFAULT = 'gate-warden';
 // (refused), so the Bellkeeper's outline is the bell's; the `knight` silhouette lays garment pauldrons over the armour's
 // own (a grey roof over the shoulders), so the knights' outline is the plain wedge
 const MYTH = Object.freeze({ genre: 'fantasy', register: 'mythic', canon: 'western' });
+// (the castle's creepy dress, the outfit's own pieces: a CLOAK to its length, wrapped round, lined in a colour of its own;
+// a SHROUD a dress of those pieces alone, worn over the plate (no top, no bottom: the armour's); a seeded card with
+// pieces added, and some dropped)
+const cloak = (hem, wrap, lining) => ({ kind: 'cloak', hem, wrap, material: 'wool', lining, hood: { worn: 'down', point: 'none' } });
+const shroud = (id, pieces, tones) => ({ type: 'outfit', style: { id, dials: { stylize: 0.45, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces, tones } });
+const withPieces = (style, add, { drop = [] } = {}) => { const C = SEEDED_OUTFITS[style]; return { ...structuredClone(C), id: `${style}-castle`, pieces: [...C.pieces.filter((p) => !drop.includes(p.kind)), ...add] }; };
 export const CASTLE_FIGURES = Object.freeze({
   'gate-warden': Object.freeze({ hero: { name: 'The Gate Warden', cast: { pole: 'male', build: 'brute' }, head: 'landmark',
-    adorn: { type: 'armor', style: 'knight', theme: 'death-knight', language: { pauldron: 'bell' }, dials: { mass: 0.7, ornament: 1 } },
+    adorn: { type: 'armor', style: 'knight', theme: 'death-knight', without: ['pauldron'], dials: { mass: 0.7, ornament: 1 } },
+    outfit: shroud('grave-shroud', [cloak('ankle', 0.75, 'accent'), { kind: 'collar', rise: 0.2 }, { kind: 'chain' }, { kind: 'trophy' }], { OutfitSecond: '#100c0c', OutfitAccent: '#4a0c10', OutfitTrim: '#6a6a60' }),
     palette: { Skin: '#9a9a86' }, gear: { right: { item: 'staff', style: 'grave', parts: { head: 'halberd' }, dials: { mass: 1.6 } } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
   gatekeeper: Object.freeze({ hero: { name: 'The Gatekeeper', cast: { pole: 'male', build: 'brute' }, head: 'landmark',
-    adorn: { type: 'armor', style: 'knight', language: { pauldron: 'bell' }, dials: { mass: 0.7, ornament: 1 } }, headgear: 'skullKnight',
+    adorn: { type: 'armor', style: 'knight', without: ['pauldron'], dials: { mass: 0.7, ornament: 1 } }, headgear: 'skullKnight',
+    outfit: shroud('gate-rags', [cloak('calf', 0.65, 'accent'), { kind: 'charms', charm: 'bone' }, { kind: 'trophy' }, { kind: 'chain' }], { OutfitSecond: '#1a0c0c', OutfitAccent: '#5a1410', OutfitTrim: '#9a6a32' }),
     palette: { Skin: '#7a2a22', Plate: '#3a1a1a', Iron: '#2a1a1a', Bronze: '#9a6a32', Helm: '#2a1414', Trim: '#9a6a32', Rivet: '#c9a75a', Accent: '#8a1a1a', Leather: '#1e1212', Top: '#2a1416', Bottom: '#1a0e10', Shoes: '#120a0a' },
     gear: { right: { item: 'greatsword', style: 'brutal', dials: { mass: 1.3 } } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
   'bell-ringer': Object.freeze({ hero: { name: 'The Bell Ringer', cast: { pole: 'male', build: 'stout' }, head: 'landmark',
-    undead: { form: 'zombie' }, outfit: { type: 'outfit', style: 'mage' },
+    undead: { form: 'zombie' }, outfit: { type: 'outfit', style: withPieces('mage', [{ kind: 'charms', charm: 'bell' }, { kind: 'chain' }]) },
     palette: { Skin: '#8a9a7a', OutfitBase: '#4a3a2a', OutfitSecond: '#2e241a', OutfitTrim: '#8a6a32', OutfitAccent: '#c9a75a', Outer: '#2e241a', Top: '#4a3a2a', Bottom: '#3a2e22', Shoes: '#221a14' },
     gear: { right: { item: 'staff', style: 'grave', parts: { head: 'mace' } } }, stylism: { ...MYTH, silhouette: 'monk' } } }),
   bellkeeper: Object.freeze({ hero: { name: 'The Bellkeeper', cast: { pole: 'male', build: 'stout' }, head: 'landmark',
-    outfit: { type: 'outfit', style: 'cleric' },
+    outfit: { type: 'outfit', style: withPieces('cleric', [{ kind: 'charms', charm: 'both' }, { kind: 'chain' }]) },
     palette: { Skin: '#a8a490', OutfitBase: '#3a3440', OutfitSecond: '#26222c', OutfitTrim: '#8a7a5a', OutfitAccent: '#c9a75a', Outer: '#26222c', Top: '#3a3440', Bottom: '#2a2630', Shoes: '#1a141a' },
     gear: { right: { item: 'staff', style: 'grave', parts: { head: 'ringed' } } }, stylism: { ...MYTH, silhouette: 'bell' } } }),
   warden: Object.freeze({ hero: { name: 'The Warden', cast: { pole: 'male', build: 'lithe' }, head: 'landmark',
@@ -106,7 +115,8 @@ export const CASTLE_FIGURES = Object.freeze({
   // (the great bell: no door makes a bell, so it is a card of its own, bell.js, built on the page with its swings)
   'great-bell': Object.freeze({ bell: { card: 'great-bell' } }),
   'lord-of-the-keep': Object.freeze({ hero: { name: 'The Lord of the Keep', cast: 'male', head: 'anime', animeStyle: 'shonen-high', animeBody: 'toji',
-    look: 'rival', hair: ['swept-back'], expression: 'deadpan', outfit: { type: 'outfit', style: 'noble' },
+    look: 'rival', hair: ['swept-back'], expression: 'deadpan',
+    outfit: { type: 'outfit', style: withPieces('noble', [{ kind: 'collar', rise: 0.24, flare: 3 }, cloak('ankle', 0.8, 'base')], { drop: ['mantle'] }) },
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
     stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } } }),
 });

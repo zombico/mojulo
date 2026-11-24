@@ -77,6 +77,8 @@ export const PLATE_ORDER = Object.freeze([
   [0.8, 'rerebrace', 'both'], [0.8, 'fauld', null], [0.8, 'tasset', 'both'], [0.9, 'cuisse', 'both'], [1.0, 'gauntlet', 'both'], [1.0, 'sabaton', 'both'],
 ]);
 // WEAR ORDER (inner → outer): true stacking lifts each over what is worn before it on the same carrier names
+/** the pieces a plate suit can be asked to leave off (expand.js `without`) */
+export const PLATE_PIECES = Object.freeze([...new Set(PLATE_ORDER.map((r) => r[1]))]);
 const WEAR = ['cuirass', 'fauld', 'tasset', 'gorget', 'rerebrace', 'vambrace', 'couter', 'gauntlet', 'cuisse', 'greave', 'poleyn', 'sabaton', 'pauldron'];
 
 /** a plate suit at `dials.coverage` as one kit. opts: focalSide, fnSide, variant ('spaulder' | 'bell') */
@@ -129,12 +131,12 @@ export function plateSuit(dials, ctx, { focalSide = 'R', fnSide = 'L', variant =
   };
   const pieces = []; const worn = [];
   for (const [th, slot, who] of PLATE_ORDER) {
-    if (c < th - 1e-9 || (ctx.keep && !ctx.keep.includes(slot))) continue;
+    if (c < th - 1e-9 || (ctx.keep && !ctx.keep.includes(slot)) || (ctx.without && ctx.without.includes(slot))) continue;
     const sides = who === 'both' ? [focalSide, other(focalSide)] : who === 'fn' ? [fnSide] : who === 'other' ? [other(fnSide)] : who === 'focal' ? [focalSide] : who === 'partner' ? [other(focalSide)] : [null];
     for (const S of sides) { worn.push(`${slot}${S ? ':' + S : ''}`);
       if (slot === 'pauldron') { const rank = who === 'focal' ? 'focal' : 'partner'; pieces.push({ slot, rank, entries: pauldron(variant, dials, ctx, { side: S, rank, groups }).kit }); }
       else pieces.push({ slot, entries: SLOTS[slot](S) }); }
   }
   pieces.sort((a, b) => WEAR.indexOf(a.slot) - WEAR.indexOf(b.slot) || (a.rank === 'focal') - (b.rank === 'focal'));
-  return { kit: pieces.flatMap((p) => p.entries), trace: { worn, pieces: pieces.length, focal: `pauldron:${focalSide}` } };
+  return { kit: pieces.flatMap((p) => p.entries), trace: { worn, pieces: pieces.length, focal: worn.some((w) => w.startsWith('pauldron')) ? `pauldron:${focalSide}` : 'cuirass' } };
 }

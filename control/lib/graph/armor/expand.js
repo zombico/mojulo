@@ -7,6 +7,7 @@
 //     theme     a theme name (themes/themes.js) or an inline card: the motifs carried down the suit (laws 13–16),
 //               leaning the dials and language between the style's and the build's own
 //     wear      the optional pieces the realistic body wears only when named (['gorget']); the authored body wears its own
+//     without   the plate pieces left off the suit (PLATE_PIECES: ['pauldron'] its shoulders bare, for a cape over them)
 //     laws      the version of principles.js the build was minted under (stamped by the hero record; absent → current)
 //     with      a KIT worn over the suit (a helmet, a mask, a cape's clasp): appended after it; a head piece replaces the helm
 //
@@ -14,7 +15,7 @@
 // the kit is baked like any other (station-loft-adorn.js). Pure and deterministic: no dice, fixed order.
 import { ARMOR_LAWS_VERSION } from './principles.js';
 import { SEEDED_ARMOR, validateArmorCard, cardAtLaws } from './styles.js';
-import { plateSuit } from './plate.js';
+import { plateSuit, PLATE_PIECES } from './plate.js';
 import { lamellarSuit } from './lamellar.js';
 import { hardSuit } from './hardsuit.js';
 import { toySuit } from './toy.js';
@@ -50,6 +51,11 @@ export function validateArmor(build) {
   if (build.language !== undefined && card && !validateArmorCard(card).length) errs.push(...validateArmorCard({ ...card, language: { ...card.language, ...build.language } }, 'adorn').filter((e) => e.includes('language')));
   // `wear`: the pieces the realistic body leaves off unless named (polygonizer/body-relational-armour.js OPTIONAL_PIECES)
   if (build.wear !== undefined && !(Array.isArray(build.wear) && build.wear.every((w) => WEARABLE.includes(w)))) errs.push(`adorn.wear: a list of the optional pieces the realistic body wears only when named (${WEARABLE.join(', ')})`);
+  // `without`: plate pieces left off (a plate suit's own slots); a suit of another family has none to name
+  if (build.without !== undefined) {
+    if (!(Array.isArray(build.without) && build.without.every((w) => PLATE_PIECES.includes(w)))) errs.push(`adorn.without: a list of the plate pieces left off (${PLATE_PIECES.join(', ')})`);
+    else if (card && !validateArmorCard(card).length && card.family !== 'plate') errs.push(`adorn.without: only a plate suit leaves pieces off (this style is ${card.family})`);
+  }
   if (build.theme !== undefined) { if (typeof build.theme === 'string') { if (!Object.hasOwn(THEMES, build.theme)) errs.push(`adorn.theme: '${build.theme}' is not a theme (${Object.keys(THEMES).join(', ')}); or pass an inline card`); } else errs.push(...validateTheme(build.theme, 'adorn.theme')); }
   // a theme's language leans the style's family words: the same choices as the card's own
   const TL = card && !validateArmorCard(card).length ? themeOf(build.theme)?.language?.[card.family] : undefined;
@@ -72,7 +78,7 @@ export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth, chi
   const dials = { ...leaned, ...lean, ...build.dials };
   const lang = { ...(card.language || {}), ...(T?.language?.[card.family] || {}), ...(build.language || {}) };
   // (a chibi wears only its family's `keep` pieces: CHIBI_DRESS)
-  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale * (C?.height ?? 1), armorLaws: build.laws ?? ARMOR_LAWS_VERSION, ...(pelvis ? { pelvis: true, Hth } : {}), ...(C ? { keep: C.keep[card.family] } : {}) };
+  const ctx = { Ht, Hl, k: scale, height: 1.75 * scale * (C?.height ?? 1), armorLaws: build.laws ?? ARMOR_LAWS_VERSION, ...(pelvis ? { pelvis: true, Hth } : {}), ...(C ? { keep: C.keep[card.family] } : {}), ...(build.without?.length ? { without: build.without } : {}) };
   let out = card.family === 'lamellar' ? lamellarSuit(dials, ctx, { crest: lang.crest ?? 'crescent' })
     : card.family === 'hardsuit' ? hardSuit(dials, ctx, lang)
       : card.family === 'toy' ? toySuit(dials, ctx, lang)
