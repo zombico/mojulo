@@ -190,12 +190,17 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     glass domes lit from inside and needle towers, neon down the near buildings, a skyway with its train and craft
     drifting between the layers. A vista may be built round one giant SET: the `reactor`, the machine the plant makes,
     a wheel bigger than the window turning about a pulsing core with an inner ring turning the other way and pistons
-    pumping before it, centred on the zone's opening (the page's ambient channel spins it).
+    pumping before it, centred on the zone's opening (the page's ambient channel spins it). Seeded from these rows
+    (docs/backdrop-variations.md): `market` (towers crowded close, neon billboards on their faces, craft thick between),
+    `orbit` (no dusk but stars, a planet rising under the window with its air and its ring, a station's needles) and
+    `greenhouse` (glass domes under a far wall, gardens growing in them).
 37. **A place its own colour.** A setting's place may carry a TONE (a hue off the setting's place hue, a saturation, a
     lightness), so a stage runs through its places in their own colours and is never one hue all through. The hue
     swings only within `PLACE_SWING`, so play stays across the wheel and the boss's colour stays its own. The plant's
     places are tuned this way, and a run and gun's side map is drawn in its own cube, a city by night
-    (`SIDE_MAP_CUBE`), never the mascot platformer's orchard.
+    (`SIDE_MAP_CUBE`), never the mascot platformer's orchard. Every setting's places carry a tone, and two settings are
+    seeded from the rows: `city` (rooftops, a neon market, the metro, the highway, a plaza, the penthouse) and
+    `orbital` (a docking ring, a hydroponics bay, a market deck, an observation deck, a reactor ring, the bridge).
 38. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark. A step past its doorway it shuts behind the hero: a shutter comes down
     and the room is walled up (a camera zone's `shut`, `side-map/play.js`). An intro stage's boss (level 0's) is a

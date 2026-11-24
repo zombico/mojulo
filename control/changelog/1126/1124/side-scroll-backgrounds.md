@@ -44,4 +44,7 @@
   a vista or a locale.
 - Seeded variations, Giuseppe's: dunes (warm sand hills, a beach, teal cacti in the groves) and a snowfield (the hills
   under snow, a snow terrace, frosted crowns), each a re-key of the orchard's rows with no drawing of its own.
+- Seeded variations, Galaxy Boy's: every side map setting's places have their own tones; three vistas built from the
+  existing pieces (a neon market, an orbit with stars and a planet rising under the window, a greenhouse of domed
+  gardens); two settings dealt from them, a neon city and an orbital colony. Every side map law holds in every setting.
 

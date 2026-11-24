@@ -52,14 +52,22 @@ export const SETTINGS = Object.freeze({
     play: 'warm', places: { across: [P('the gate tunnel', 'rock', true, 'wall', [-22, 0.3, 0.44]), P('the factory floor', 'machine', true, 'hall', [8, 0.5, 0.56]), P('the loading dock', 'built', true, 'yard', [-28, 0.48, 0.5]), P('the assembly line', 'machine', true, 'hall', [50, 0.46, 0.55]), P('the reactor gallery', 'machine', true, 'reactor', [30, 0.55, 0.6]), P('the sky bridge', 'machine', true, 'future', [-12, 0.6, 0.62])],
       up: [P('the freight shaft', 'padded', true, null, [20, 0.4, 0.52]), P('the service chimney', 'machine', true, 'hall', [-16, 0.45, 0.5])], down: [P('the stairwell', 'built', true, null, [40, 0.38, 0.5]), P('the drop chute', 'machine', true, null, [-26, 0.5, 0.46])], room: [P('the core', 'machine', true, 'reactor', [54, 0.5, 0.5])] } }),
   mountain: Object.freeze({ words: ['mountain', 'volcano', 'cliff', 'peak', 'canyon', 'cave', 'crag'], threads: 'roots', subject: 'what sleeps in the mountain',
-    play: 'cool', places: { across: [P('the cliff path', 'rock', false, 'peaks'), P('the caldera rim', 'rock', false, 'peaks'), P('the plateau', 'rock', false, 'peaks'), P('the works in the rock', 'machine', true, 'hall')],
-      up: [P('the chimney', 'rock'), P('the crevice', 'rock')], down: [P('the scree', 'rock', false, 'peaks'), P('the lava tube', 'rock')], room: [P('the summit chamber', 'built')] } }),
+    play: 'cool', places: { across: [P('the cliff path', 'rock', false, 'peaks', [0, 0.4, 0.55]), P('the caldera rim', 'rock', false, 'peaks', [-24, 0.55, 0.5]), P('the plateau', 'rock', false, 'peaks', [30, 0.35, 0.62]), P('the works in the rock', 'machine', true, 'hall', [50, 0.45, 0.5])],
+      up: [P('the chimney', 'rock', true, null, [-12, 0.35, 0.48]), P('the crevice', 'rock', true, null, [18, 0.3, 0.45])], down: [P('the scree', 'rock', false, 'peaks', [10, 0.35, 0.6]), P('the lava tube', 'rock', true, null, [-28, 0.6, 0.45])], room: [P('the summit chamber', 'built', true, null, [40, 0.5, 0.55])] } }),
   temple: Object.freeze({ words: ['temple', 'ruin', 'shrine', 'tomb', 'pyramid', 'sanctum'], threads: 'channels', subject: 'the idol it keeps',
-    play: 'cool', places: { across: [P('the causeway', 'built', false, 'colonnade'), P('the hall of pillars', 'built', true, 'colonnade'), P('the flooded gallery', 'built', true, 'colonnade')],
-      up: [P('the bell shaft', 'built')], down: [P('the stairs down', 'built')], room: [P('the inner sanctum', 'built')] } }),
+    play: 'cool', places: { across: [P('the causeway', 'built', false, 'colonnade', [0, 0.45, 0.6]), P('the hall of pillars', 'built', true, 'colonnade', [-22, 0.5, 0.52]), P('the flooded gallery', 'built', true, 'greenhouse', [40, 0.45, 0.55])],
+      up: [P('the bell shaft', 'built', true, null, [20, 0.4, 0.5])], down: [P('the stairs down', 'built', true, null, [-14, 0.4, 0.5])], room: [P('the inner sanctum', 'built', true, null, [52, 0.55, 0.5])] } }),
+  // (seeded from the starters' rows, docs/backdrop-variations.md: a city by night of neon and towers, and a station in
+  // orbit over its planet; their places dealt by role like any setting's, each in its own tone)
+  city: Object.freeze({ words: ['city', 'downtown', 'metro', 'highway', 'skyline', 'neon', 'rooftop'], threads: 'cables', subject: 'the tower at its heart',
+    play: 'cool', places: { across: [P('the rooftops', 'machine', true, 'future', [0, 0.55, 0.58]), P('the neon market', 'built', true, 'market', [44, 0.5, 0.55]), P('the metro', 'machine', true, 'hall', [-24, 0.45, 0.48]), P('the highway', 'built', true, 'skyline', [20, 0.5, 0.6]), P('the plaza', 'built', true, 'future', [-10, 0.55, 0.62])],
+      up: [P('the elevator', 'machine', true, null, [30, 0.4, 0.5])], down: [P('the fire stairs', 'built', true, null, [-20, 0.4, 0.48]), P('the garbage chute', 'machine', true, null, [50, 0.45, 0.45])], room: [P('the penthouse', 'machine', true, 'market', [54, 0.5, 0.52])] } }),
+  orbital: Object.freeze({ words: ['orbital', 'orbit', 'spaceport', 'colony', 'satellite', 'space'], threads: 'cables', subject: 'the engine that keeps it aloft',
+    play: 'warm', places: { across: [P('the docking ring', 'machine', true, 'orbit', [-20, 0.5, 0.55]), P('the hydroponics bay', 'padded', true, 'greenhouse', [40, 0.45, 0.55]), P('the market deck', 'built', true, 'market', [10, 0.55, 0.6]), P('the observation deck', 'machine', true, 'orbit', [-28, 0.4, 0.62]), P('the reactor ring', 'machine', true, 'reactor', [52, 0.5, 0.52])],
+      up: [P('the spoke lift', 'machine', true, null, [20, 0.4, 0.5])], down: [P('the airlock drop', 'machine', true, null, [-15, 0.5, 0.46])], room: [P('the bridge', 'machine', true, 'orbit', [50, 0.5, 0.5])] } }),
   base: Object.freeze({ words: ['base', 'fortress', 'bunker', 'station', 'hangar', 'barracks'], threads: 'cables', subject: 'the weapon it guards',
-    play: 'warm', places: { across: [P('the gate', 'built', false, 'skyline'), P('the barracks', 'built'), P('the hangar', 'machine', true, 'hall')],
-      up: [P('the lift shaft', 'machine')], down: [P('the drop shaft', 'machine')], room: [P('the command centre', 'machine', true, 'skyline')] } }),
+    play: 'warm', places: { across: [P('the gate', 'built', false, 'skyline', [0, 0.45, 0.55]), P('the barracks', 'built', true, null, [-20, 0.4, 0.5]), P('the hangar', 'machine', true, 'hall', [36, 0.5, 0.55])],
+      up: [P('the lift shaft', 'machine', true, null, [14, 0.4, 0.5])], down: [P('the drop shaft', 'machine', true, null, [-24, 0.5, 0.46])], room: [P('the command centre', 'machine', true, 'future', [50, 0.5, 0.52])] } }),
 });
 /** The setting a premise's words name; the plant when they name none. */
 export function settingOf(premise = '') {

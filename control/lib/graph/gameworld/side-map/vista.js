@@ -83,6 +83,22 @@ export const VISTAS = Object.freeze({
   reactor: Object.freeze({ far: Object.freeze({ x: -30, tone: 0.34 }), haze: 0.45, set: Object.freeze({ kind: 'reactor', x: -21, h: 0.92 }), layers: Object.freeze([
     L(-12, 'piston', [8, 12], [1.5, 2.2], [0.45, 0.7], 0.72),
   ]) }),
+  // (SEEDED from the rows above, docs/backdrop-variations.md) a NEON MARKET: towers crowded close, their windows lit and
+  // billboards of neon on their faces, craft thick between
+  market: Object.freeze({ sky: true, haze: 0.7, traffic: 14, layers: Object.freeze([
+    L(-92, 'arcology', [7, 12], [4, 7], [0.45, 0.8], 0.4),
+    L(-52, 'tower', [4, 7], [3.5, 6], [0.35, 0.62], 0.52, { windows: true, neon: true }),
+    L(-26, 'tower', [6, 10], [4, 6.5], [0.2, 0.36], 0.64, { windows: true, neon: true }),
+  ]) }),
+  // ORBIT: no dusk but the stars, a planet rising under the window, a ring across it, a station's needles far off
+  orbit: Object.freeze({ sky: true, glow: false, stars: 160, haze: 0.5, traffic: 5, set: Object.freeze({ kind: 'planet', x: -140, h: 1.5 }), layers: Object.freeze([
+    L(-70, 'needle', [26, 40], [5, 8], [0.35, 0.6], 0.5),
+  ]) }),
+  // a GREENHOUSE: glass domes under a far wall, gardens growing in them, pipes feeding them
+  greenhouse: Object.freeze({ far: Object.freeze({ x: -26, tone: 0.32 }), haze: 0.45, layers: Object.freeze([
+    L(-18, 'dome', [12, 16], [8, 11], [0.38, 0.55], 0.6, { garden: true }),
+    L(-8, 'pipe', [7, 10], [0.3, 0.45], [0.95, 1.1], 0.76),
+  ]) }),
   // a colonnade's columns and arches before a far wall
   colonnade: Object.freeze({ far: Object.freeze({ x: -24, tone: 0.38 }), haze: 0.5, layers: Object.freeze([
     L(-18, 'arch', [12, 16], [6, 8], [0.62, 0.75], 0.6),
@@ -118,6 +134,8 @@ export const VISTA_MOTION = Object.freeze({
   'sidemap:vista-dome': Object.freeze({ depth: 0.3, beat: 6, spread: 0.2 }),
   'sidemap:vista-piston': Object.freeze({ amp: [0, 0, 1.6], period: 2.4, spread: 1.4 }),
   'sidemap:vista-core': Object.freeze({ depth: 0.45, beat: 2.2, spread: 0 }),
+  'sidemap:vista-stars': Object.freeze({ depth: 0.7, beat: 3.6, spread: 1.9 }),
+  'sidemap:vista-garden': Object.freeze({ amp: [0, 0.08, 0.05], period: 4.2, spread: 0.7 }),
 });
 /** THE REACTOR's measures: its rim (a share of its radius) cut in segments and lit at `lights`; its spokes; its inner
  * ring; its core; how fast its wheel and its ring turn (radians a second, the ring the other way) */
@@ -142,7 +160,7 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
     const fillAt = (x, k) => mix(tone(z.key, k), into, haze(x));
     // (a shape drawn flat at its depth: a dome, a disc, a ring's segment, a spoke; its bounds kept for what reads a box)
     const motion = {};
-    const shape = (x, pts, fill, { lit = false, group } = {}) => { const ss = pts.map((q) => q[0]), zz = pts.map((q) => q[1]); boxes.push({ x0: r3(x), x1: r3(x), s0: r3(Math.min(...ss)), s1: r3(Math.max(...ss)), z0: r3(Math.min(...zz)), z1: r3(Math.max(...zz)), poly: pts.map(([a, b]) => [r3(a), r3(b)]), fill, ...(lit ? { lit: true } : {}), ...(group ? { group } : {}) }); };
+    const shape = (x, pts, fill, { lit = false, group } = {}) => { const ss = pts.map((q) => q[0]), zz = pts.map((q) => q[1]); if (room && (Math.min(...ss) < Z.rect[0] - 1e-3 || Math.max(...ss) > Z.rect[1] + 1e-3)) return; boxes.push({ x0: r3(x), x1: r3(x), s0: r3(Math.min(...ss)), s1: r3(Math.max(...ss)), z0: r3(Math.min(...zz)), z1: r3(Math.max(...zz)), poly: pts.map(([a, b]) => [r3(a), r3(b)]), fill, ...(lit ? { lit: true } : {}), ...(group ? { group } : {}) }); };
     const arc = (cs, cz, r, h, a0, a1, n) => Array.from({ length: n + 1 }, (_, k) => { const a = a0 + ((a1 - a0) * k) / n; return [cs + r * Math.cos(a), cz + h * Math.sin(a)]; });
     const domeAt = (x, cs, cz, r, h, fill, opts) => shape(x, [...arc(cs, cz, r, h, 0, Math.PI, 14)], fill, opts);
     const discAt = (x, cs, cz, r, fill, opts) => shape(x, arc(cs, cz, r, r, 0, 2 * Math.PI * (17 / 18), 17), fill, opts);
@@ -156,7 +174,7 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
     }
     // (under the sky, the GLOW: bands of dusk behind the far layer, low over its foot, so what stands before it is dark
     // against light)
-    if (V.sky && V.layers.length) {
+    if (V.sky && V.glow !== false && V.layers.length) {
       const X = Math.min(...V.layers.map((Ly) => Ly.x - Math.max(0.6, 1.2 * view(Ly.x)))) - 2, [g0, g1] = span(X);
       VISTA_LIFE.glow.forEach(([v, k], i) => boxes.push({ x0: r3(X - 0.5 * i), x1: r3(X + 0.02 * i), s0: r3(g0), s1: r3(g1), z0: r3(foot(X)), z1: r3(at(X, v)), fill: mix(into, VISTA_LIFE.dusk, k), lit: true, group: 'sidemap:vista-glow' }));
     }
@@ -176,6 +194,8 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
         if (Ly.kind === 'tower') {
           box(a, b, z0, top);
           if (live() < Bc.share) beacon(s, top, Bc.red, live() < Bc.mast ? (top - z0) * 0.14 : 0);
+          // (a billboard of neon on its face: a lit panel and its frame)
+          if (Ly.neon && live() < 0.55) { const bh = Math.min((top - z0) * 0.25, 2.2 * f), bz = z0 + (top - z0) * (0.45 + 0.3 * live()), c = NEON[Math.floor(live() * NEON.length)]; boxes.push({ x0: r3(Ly.x + 0.02), x1: r3(Ly.x + 0.04), s0: r3(a + w * 0.08), s1: r3(b - w * 0.08), z0: r3(bz - 0.1 * f), z1: r3(bz + bh + 0.1 * f), fill: dark, lit: true }); boxes.push({ x0: r3(Ly.x + 0.04), x1: r3(Ly.x + 0.07), s0: r3(a + w * 0.14), s1: r3(b - w * 0.14), z0: r3(bz), z1: r3(bz + bh), fill: mix(c, into, haze(Ly.x) * 0.3), lit: true, group: 'sidemap:vista-neon' }); }
           // (the middle layer's windows: fewer and dimmer than the nearest's, so the city is lived in at every depth)
           if (!Ly.windows && !nearest && live() < 0.5) { const ww = 0.35 * f, wh = 0.5 * f, gap = 1.6 * f; for (let wz = z0 + gap * 2; wz < top - gap; wz += gap) for (let ws = a + gap * 0.5; ws < b - gap * 0.5; ws += gap) if (live() < 0.22) boxes.push({ x0: r3(Ly.x), x1: r3(Ly.x + 0.03), s0: r3(ws), s1: r3(ws + ww), z0: r3(wz), z1: r3(wz + wh), fill: mix(WINDOW.warm, into, haze(Ly.x) * 0.75), lit: true }); }
           if (Ly.windows) { const ww = 0.35 * f, wh = 0.5 * f, gap = 1.1 * f, c = d() < 0.5 ? WINDOW.warm : WINDOW.cool;
@@ -199,6 +219,8 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
           box(a - w * 0.05, b + w * 0.05, z0, pod, dark);
           domeAt(Ly.x, s, pod, r, top - pod, fill);
           domeAt(Ly.x + 0.02, s, pod, r * 0.88, (top - pod) * 0.86, glass, { lit: true, group: 'sidemap:vista-dome' });
+          // (a garden under the glass: round crowns of green growing in it, stirring)
+          if (Ly.garden) for (let k = 0; k < 4; k++) { const gs = s + (k - 1.5) * r * 0.42, gr = r * (0.16 + 0.08 * live()), gz = pod + gr * (0.9 + live()); discAt(Ly.x + 0.03, gs, gz, gr, mix(['#4fb36a', '#7fd06a', '#2f9a5a'][k % 3], into, haze(Ly.x) * 0.4), { lit: true, group: 'sidemap:vista-garden' }); }
           for (const k of [-0.5, 0, 0.5]) shape(Ly.x + 0.04, [[s + k * r * 0.88 - 0.08 * f, pod], [s + k * r * 0.88 + 0.08 * f, pod], [s + k * r * 0.3 + 0.05 * f, pod + (top - pod) * (0.95 - 0.35 * Math.abs(k))], [s + k * r * 0.3 - 0.05 * f, pod + (top - pod) * (0.95 - 0.35 * Math.abs(k))]], dark);
           beacon(s, top, Bc.red, (top - z0) * 0.12);
         } else if (Ly.kind === 'needle') {
@@ -266,6 +288,22 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
       discAt(X + 0.1, cs, cz, R * Rr.core * 0.55, mix(lamp, '#ffffff', 0.6), { lit: true, group: 'sidemap:vista-core' });
       motion[wheel] = { spin: { at: [r3(cs), r3(cz)], rate: Rr.turn } };
       motion[ring] = { spin: { at: [r3(cs), r3(cz)], rate: Rr.counter } };
+    }
+    // (THE PLANET: a world rising under the window at the set's depth, its night side toward the camera, its day's rim lit,
+    // its air a band round it and a ring across it)
+    if (V.set?.kind === 'planet') {
+      const X = V.set.x, f = view(X), [t0, t1] = span(X), R = H * f * V.set.h * 0.5, cs = (Z.rect[0] + Z.rect[1]) / 2 + (t1 - t0) * 0.12, cz = foot(X) - R * 0.55;
+      discAt(X - 0.6, cs, cz, R * 1.05, mix('#9fd8ff', into, 0.35), { lit: true });
+      discAt(X, cs, cz, R, '#2c3f8a', { lit: true });
+      discAt(X + 0.2, cs - R * 0.08, cz - R * 0.05, R * 0.93, '#1c2a5e', { lit: true });
+      for (let k = 0; k < 4; k++) { const bz = cz + R * (0.15 + 0.2 * k); boxes.push({ x0: r3(X + 0.3), x1: r3(X + 0.32), s0: r3(cs - Math.sqrt(Math.max(0, R * R * 0.86 - (bz - cz) ** 2))), s1: r3(cs + Math.sqrt(Math.max(0, R * R * 0.86 - (bz - cz) ** 2))), z0: r3(bz), z1: r3(bz + R * 0.05), fill: '#3a56a8', lit: true }); }
+      // (its ring: an ellipse in segments, across it)
+      for (let k = 0; k < 36; k++) { const a0 = (k / 36) * 2 * Math.PI, a1 = ((k + 1) / 36) * 2 * Math.PI, ra = R * 1.7, rb = R * 0.22, w2 = R * 0.12; shape(X + 0.5, [[cs + ra * Math.cos(a0), cz + R * 0.35 + rb * Math.sin(a0)], [cs + (ra + w2) * Math.cos(a0), cz + R * 0.35 + (rb + w2 * 0.13) * Math.sin(a0)], [cs + (ra + w2) * Math.cos(a1), cz + R * 0.35 + (rb + w2 * 0.13) * Math.sin(a1)], [cs + ra * Math.cos(a1), cz + R * 0.35 + rb * Math.sin(a1)]], mix('#e0c890', into, 0.25), { lit: true }); }
+    }
+    // (stars over a vista with no dusk: lit points scattered high, twinkling)
+    if (V.stars) {
+      const X = Math.min(...V.layers.map((Ly) => Ly.x)) - 30, f = view(X), [t0, t1] = span(X);
+      for (let k = 0; k < V.stars; k++) { const cs = t0 + (t1 - t0) * live(), cz = at(X, 0.1 + 1.1 * live()), q = (0.06 + 0.12 * live() ** 3) * f; boxes.push({ x0: r3(X), x1: r3(X + 0.02), s0: r3(cs - q), s1: r3(cs + q), z0: r3(cz - q), z1: r3(cz + q), fill: live() < 0.2 ? '#ffe6c4' : '#e8eeff', lit: true, group: 'sidemap:vista-stars' }); }
     }
     // (craft drifting between the layers, their lights lit)
     if (V.traffic) {

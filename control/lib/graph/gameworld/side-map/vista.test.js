@@ -4,7 +4,7 @@
 // widens to fill the frame from anywhere along the zone; further back is further into the air; the same seed, the same vista.
 import { describe, it, expect } from 'vitest';
 import { vistaOf, VISTAS, VISTA_IDS } from './vista.js';
-import { dressSideMap } from './dress.js';
+import { dressSideMap, SETTINGS, settingOf } from './dress.js';
 import { layoutSideMap } from './layout.js';
 import { assembleSideMap } from './scene.js';
 import { reachOf } from '../feel/reach.js';
@@ -99,6 +99,21 @@ describe('the side map\'s vistas', () => {
     const page = assembleSideMap(M('reactor'));
     expect(Object.values(page.ambient.groups).filter((g) => g.spin).length % 2).toBe(0);
     expect(Object.values(page.ambient.groups).filter((g) => g.spin).length).toBeGreaterThanOrEqual(2);
+  });
+
+  // (docs/backdrop-variations.md) seeded from the starters' rows: every setting's places toned, two settings and three
+  // vistas made of rows and pieces already there, every law holding
+  it('seeds settings and vistas from the starters\' rows: each place toned, every law holding', () => {
+    for (const set of Object.keys(SETTINGS)) for (const P of Object.values(SETTINGS[set].places).flat()) expect(P.tone, `${set}: ${P.name}`).toBeDefined();
+    for (const set of ['city', 'orbital']) expect(settingOf(`into the ${SETTINGS[set].words[0]}`)).toBe(set);
+    const orb = laid(chain('orbit')), [O] = vistaOf(orb.L, orb.D, { seed: 3 });
+    expect(O.boxes.some((b) => b.group === 'sidemap:vista-stars')).toBe(true);
+    expect(O.boxes.some((b) => b.group === 'sidemap:vista-glow')).toBe(false);
+    const mk = laid(chain('market')), [K] = vistaOf(mk.L, mk.D, { seed: 3 });
+    expect(K.boxes.filter((b) => b.group === 'sidemap:vista-neon').length).toBeGreaterThan(1);
+    const gh = laid(chain('greenhouse')), [G2] = vistaOf(gh.L, gh.D, { seed: 3 });
+    expect(G2.boxes.some((b) => b.group === 'sidemap:vista-garden')).toBe(true);
+    for (const v of ['market', 'orbit', 'greenhouse']) expect(assembleSideMap(M(v)).sidemap.laws.filter((l) => !l.holds), v).toEqual([]);
   });
 
   it('the same seed, the same vista', () => {
