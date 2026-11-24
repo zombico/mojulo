@@ -5,16 +5,19 @@
  *
  *   entered-left     the way in is on the box's left side, at its first room
  *   fills-the-box    the rooms take most of the box (FILL): the space is spent, not left as mass between corridors
- *   spirals-in       the walk never steps out to a ring it left, turns one way round every ring, and ends at the core
- *   both-axes        the walk climbs and drops as well as crossing: every ring has a leg up and a leg down, and the
- *                    cells walked up or down are a share of the walk (AXES)
+ *   shape            the walk keeps its shape's form (shapes.js) and ends at the core: a spiral never steps out to a ring
+ *                    it left and turns one way round every ring; a serpentine never drops a row on its way and turns at
+ *                    every row's end; a hub's every wing is stepped into from the hub and returns to it at its end
+ *   both-axes        the walk climbs and drops as well as crossing: the cells walked up or down are a share of the walk
+ *                    within its shape's band (a spiral's AXES; every spiral ring has a leg up and a leg down)
  *   gated-in         every step into a ring inside is a gate (the walled-core dungeon's `gated`)
  *   one-new-thing    each step in asks something no step before it asked
  *   found-before     every gate on the walk is met after what opens it is found (a key before its lock, a power before
  *                    its gate), so the walk is never stopped at a gate it cannot yet open
  *   solvable         walked to its end, every room is reached, the core's boss falls, and no one-way door lands where
  *                    the way back up to it is shut
- *   shortcuts        every ring past the first opens back out to the one outside it besides the step in, and the way
+ *   shortcuts        every ring past the first opens back out to the one before it besides the step in (a shortcut, or
+ *                    a hub wing's return), and the way
  *                    back from the core is at most BACK of the way in
  *   revisits         every power opens something behind where it is found (a pocket, a shortcut), as well as ahead
  *   pockets          every pocket is opened by the time the box is done
@@ -32,10 +35,11 @@
  */
 import { solveBox } from './solve.js';
 import { greyboxOf } from './rooms.js';
+import { SHAPES } from './shapes.js';
 
-export const BOX_LAWS = Object.freeze(['entered-left', 'fills-the-box', 'spirals-in', 'both-axes', 'gated-in', 'one-new-thing', 'found-before', 'solvable', 'shortcuts', 'revisits', 'pockets', 'no-kick', 'sill-holds', 'saves', 'boss-at-core']);
+export const BOX_LAWS = Object.freeze(['entered-left', 'fills-the-box', 'shape', 'both-axes', 'gated-in', 'one-new-thing', 'found-before', 'solvable', 'shortcuts', 'revisits', 'pockets', 'no-kick', 'sill-holds', 'saves', 'boss-at-core']);
 export const FILL = 0.8;
-export const AXES = Object.freeze([0.2, 0.6]);
+export const AXES = SHAPES.spiral.axes;
 export const BACK = 0.5;
 export const SAVE_EVERY = 10;
 /** how far across from a sill, in jumps, nothing may stand within a jump under its top (a running jump's length and more) */
@@ -56,23 +60,56 @@ export function boxLaws(L, { solved, greybox } = {}) {
   law('entered-left', L.entry.side === 'left' && first.rect[0] === 0, `entered through the ${L.entry.side} side at ${first.id} (column ${first.rect[0]})`);
   law('fills-the-box', L.cells / (cols * rows) >= FILL, `the rooms take ${L.cells} of ${cols * rows} cells (${pct(L.cells / (cols * rows))}; at least ${pct(FILL)})`);
 
-  // the spiral
-  const rings = L.walk.map((id) => room.get(id).ring), back = L.walk.filter((id, k) => k && room.get(id).ring < rings[k - 1]);
-  const legs = L.rings.filter((r) => !r.core).map((r) => r.legs.map((l) => l.dir).join(' '));
-  const want = (L.turn === 'cw' ? CW : CCW).join(' '), wrong = L.rings.filter((r, k) => !r.core && legs[k] !== want).map((r) => r.id);
+  // the shape
+  const shape = L.shape ?? 'spiral', rings = L.walk.map((id) => room.get(id).ring), back = L.walk.filter((id, k) => k && room.get(id).ring < rings[k - 1]);
   const endsCore = L.rings[room.get(L.walk.at(-1)).ring].core;
-  law('spirals-in', !back.length && !wrong.length && endsCore, back.length ? `the walk steps back out at ${back.join(', ')}` : wrong.length ? `${wrong.join(', ')} turn${wrong.length === 1 ? 's' : ''} against the box's ${L.turn}` : endsCore ? `${K} ring${K === 1 ? '' : 's'} walked ${L.turn}, each inside the last, to the core` : 'the walk ends short of the core', back);
+  let wrong = [], form = '';
+  if (shape === 'spiral') {
+    const legs = L.rings.filter((r) => !r.core).map((r) => r.legs.map((l) => l.dir).join(' '));
+    const want = (L.turn === 'cw' ? CW : CCW).join(' ');
+    wrong = L.rings.filter((r, k) => !r.core && legs[k] !== want).map((r) => r.id);
+    form = wrong.length ? `${wrong.join(', ')} turn${wrong.length === 1 ? 's' : ''} against the box's ${L.turn}` : `${K} ring${K === 1 ? '' : 's'} walked ${L.turn}, each inside the last, to the core`;
+  } else if (shape === 'serpentine') {
+    // (never a row lower than the last, and every row run the other way from the one under it)
+    const low = L.walk.filter((id, k) => k && room.get(id).rect[1] < room.get(L.walk[k - 1]).rect[1]);
+    const runs = new Map();   // row → the way the walk crosses it (its first walked cell to its last)
+    for (const id of L.walk) for (const c of room.get(id).cells) { const o = runs.get(c[1]) ?? { from: c[0] }; o.to = c[0]; runs.set(c[1], o); }
+    for (const [row, o] of runs) runs.set(row, Math.sign(o.to - o.from));
+    const same = [...runs].filter(([row, d]) => runs.has(row - 1) && runs.get(row - 1) === d).map(([row]) => `row ${row}`);
+    wrong = [...low, ...same];
+    form = low.length ? `the walk drops a row at ${low.join(', ')}` : same.length ? `${same.join(', ')} run${same.length === 1 ? 's' : ''} the way the row under it ran` : `${rows} rows walked, each back the other way, climbing a row a turn, in ${K + 1} bands`;
+  } else {
+    // (every wing stepped into from the hub, and its end returning to it)
+    const hub = L.rings[1], wings = L.rings.slice(2);
+    const shut = wings.filter((w) => !L.doors.some((d) => d.kind === 'step' && room.get(d.a).ring === hub.i && room.get(d.b).ring === w.i)
+      || !L.doors.some((d) => d.kind === 'return' && room.get(d.a).ring === w.i && room.get(d.b).ring === hub.i)).map((w) => w.id);
+    wrong = shut;
+    form = shut.length ? `${shut.join(', ')} ${shut.length === 1 ? 'is' : 'are'} not walked out from the hub and back to it` : `the approach climbed to ${hub.id}, ${wings.length} wing${wings.length === 1 ? '' : 's'} walked out from it and back`;
+  }
+  law('shape', !back.length && !wrong.length && endsCore, back.length ? `the walk steps back to a region it left at ${back.join(', ')}` : !endsCore ? 'the walk ends short of the core' : `a ${shape}: ${form}`, back.length ? back : wrong.filter((x) => room.has(x)));
 
-  // both axes: cells walked up or down, of all walked (a shaft's cells and a turn's climb through it)
-  let across = 0, upDown = 0;
-  for (const id of L.walk) { const r = room.get(id); if (r.kind === 'shaft') upDown += r.rect[3]; else if (r.kind !== 'turn') across += r.rect[2]; }
-  const vert = upDown / Math.max(1, across + upDown), noClimb = L.rings.filter((r) => !r.core && !(r.legs.some((l) => l.dir === 'up') && r.legs.some((l) => l.dir === 'down'))).map((r) => r.id);
-  law('both-axes', vert >= AXES[0] && vert <= AXES[1] && !noClimb.length, `${upDown} cells climbed or dropped against ${across} crossed (${pct(vert)}; ${pct(AXES[0])}–${pct(AXES[1])})${noClimb.length ? `; ${noClimb.join(', ')} never climb${noClimb.length === 1 ? 's' : ''} and drop${noClimb.length === 1 ? 's' : ''}` : ''}`, noClimb);
+  // both axes: cells walked up or down, of all walked (a spiral's shafts and its turns' climbs through them; another
+  // shape's shafts, and each door on its walk that climbs or drops a row)
+  let across = 0, upDown = 0, noClimb = [];
+  if (shape === 'spiral') {
+    for (const id of L.walk) { const r = room.get(id); if (r.kind === 'shaft') upDown += r.rect[3]; else if (r.kind !== 'turn') across += r.rect[2]; }
+    noClimb = L.rings.filter((r) => !r.core && !(r.legs.some((l) => l.dir === 'up') && r.legs.some((l) => l.dir === 'down'))).map((r) => r.id);
+  } else {
+    L.walk.forEach((id, k) => {
+      const r = room.get(id);
+      if (r.kind === 'shaft') upDown += r.rect[3]; else across += r.rect[2];
+      if (k && r.kind !== 'shaft' && room.get(L.walk[k - 1]).kind !== 'shaft' && r.rect[1] !== room.get(L.walk[k - 1]).rect[1]) upDown += 1;
+    });
+  }
+  const band = SHAPES[shape].axes, vert = upDown / Math.max(1, across + upDown);
+  law('both-axes', vert >= band[0] && vert <= band[1] && !noClimb.length, `${upDown} cells climbed or dropped against ${across} crossed (${pct(vert)}; ${pct(band[0])}–${pct(band[1])} for a ${shape})${noClimb.length ? `; ${noClimb.join(', ')} never climb${noClimb.length === 1 ? 's' : ''} and drop${noClimb.length === 1 ? 's' : ''}` : ''}`, noClimb);
 
   // the gates in
-  const steps = L.doors.filter((d) => d.kind === 'step'), open = steps.filter((d) => !d.gate);
-  law('gated-in', !open.length && steps.length === K, open.length ? `the step${open.length === 1 ? '' : 's'} into ${open.map((d) => d.b).join(', ')} stand${open.length === 1 ? 's' : ''} open` : `every step in is a gate: ${steps.map((d) => d.gate).join(', ')}`, open.map((d) => d.b));
-  const kinds = steps.map((d) => d.gate), again = kinds.filter((g, k) => g && kinds.indexOf(g) < k);
+  // (a hub whose own region says no gate leaves its first wing open: the hub is where the walk chooses)
+  const free = L.shape === 'hub' && !L.rings[1].inward ? L.doors.find((d) => d.kind === 'step' && room.get(d.a).ring === 1 && room.get(d.b).ring === 2) : null;
+  const steps = L.doors.filter((d) => d.kind === 'step'), open = steps.filter((d) => !d.gate && d !== free);
+  law('gated-in', !open.length && steps.length === K, open.length ? `the step${open.length === 1 ? '' : 's'} into ${open.map((d) => d.b).join(', ')} stand${open.length === 1 ? 's' : ''} open` : `every step in is a gate: ${steps.filter((d) => d !== free).map((d) => d.gate).join(', ')}${free ? ` (the hub opens ${L.rings[2].id} freely)` : ''}`, open.map((d) => d.b));
+  const kinds = steps.filter((d) => d !== free).map((d) => d.gate), again = kinds.filter((g, k) => g && kinds.indexOf(g) < k);
   law('one-new-thing', !again.length, again.length ? `a step in asks ${again.join(', ')} again` : `each step in asks something new: ${kinds.join(' → ')}`);
 
   // what opens each gate is found before it, on the walk
@@ -83,7 +120,8 @@ export function boxLaws(L, { solved, greybox } = {}) {
   }
   const late = [];
   for (const d of L.doors.filter((x) => x.gate && x.gate !== 'boss' && (x.kind === 'path' || x.kind === 'step'))) {
-    const t = d.gate === 'key' ? `key:${room.get(d.a).ring}` : `gate:${d.gate}`, at = walkAt.get(d.a);
+    // (met when the walk goes through it: a hub's wing door is passed on the way to an earlier wing, and met when its wing is next)
+    const t = d.gate === 'key' ? `key:${room.get(d.a).ring}` : `gate:${d.gate}`, at = Math.max(walkAt.get(d.a), walkAt.get(d.b) - 1);
     if (!(firstFound.get(t) <= at)) late.push(d.a);
   }
   law('found-before', !late.length, late.length ? `the walk meets a gate before what opens it at ${late.join(', ')}` : 'every gate on the walk is met after what opens it is found', late);
@@ -93,7 +131,7 @@ export function boxLaws(L, { solved, greybox } = {}) {
     S.unreached);
 
   // the way back
-  const out1 = L.rings.slice(1).filter((r) => !r.core).filter((r) => !L.doors.some((d) => d.kind === 'shortcut' && (room.get(d.a).ring === r.i || room.get(d.b).ring === r.i))).map((r) => r.id);
+  const out1 = L.rings.slice(1).filter((r) => !r.core).filter((r) => !L.doors.some((d) => (d.kind === 'shortcut' || d.kind === 'return') && (room.get(d.a).ring === r.i || room.get(d.b).ring === r.i))).map((r) => r.id);
   const ratio = S.wayIn && S.wayBack !== null ? S.wayBack / S.wayIn : Infinity;
   law('shortcuts', !out1.length && ratio <= BACK, `${out1.length ? `${out1.join(', ')} open${out1.length === 1 ? 's' : ''} no way back out; ` : ''}the way back from the core is ${S.wayBack ?? 'shut'} cells, the way in ${S.wayIn} (${Number.isFinite(ratio) ? pct(ratio) : 'none'}; at most ${pct(BACK)})`);
 

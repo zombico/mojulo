@@ -76,12 +76,41 @@ powers and pockets marked, and the laws under it.
 node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 12x8]
 ```
 
+## The shapes: a spiral and its siblings
+
+The spiral is one way to fill a box: a destination, walked in to a core. A box can take other shapes
+([shapes.js](../control/lib/graph/gameworld/metroidvania/shapes.js), `SHAPES`, a row each). Each fills the box and
+gates its regions the same way, and each has its own role in a castle of boxes:
+
+- **The spiral** (unsaid): round the outside, inward ring by ring to a core. A keep: it ends inside.
+- **The serpentine**: row by row from the bottom left. Each row is run to its end, climbed at its end, and run back the
+  other way, so the walk climbs a row a turn. Its regions are bands of rows, the lowest first, each stepped into through
+  a gate at a row's end. Its way back is the **chute**, a one-way drop down the box's middle column through every row,
+  landing only where the walk has been. Each band past the first is climbed into from the band below through a gate its
+  own find opens. A bell tower, or an approach up a cliff: it passes through, in low on the left and out at the top.
+- **The hub**: a centre column of shafts, the hub. The **approach** is climbed column by column from the entry to arrive
+  beside it. Its **wings** (lower right, upper right, upper left) are each stepped into from the hub, walked out and back
+  row by row to end beside it, and **return** to it through a one-way door. A wing's boss seals that return, and each
+  wing's prize opens the next wing's door on the hub. The hub's own region may leave its first wing open, since the hub
+  is where the walk chooses. A courtyard: it joins.
+
+The hub's size is set by its geometry: an odd number of columns whose sides are odd too (7, 11, 15), so the approach
+arrives beside the hub, and 4, 8 or 12 rows, so each wing ends beside it. Its regions are the approach, the hub and one
+to three wings. Every region is furnished the same way whatever the shape: a save room at its first room and its middle,
+its key early and its lock halfway, and its boss and prize (or its relic) where the shape puts its end. That end is a
+wing's dead end, or the room before a band's last turn. Pockets are spread along its corridors, and the last region's
+last room is the throne.
+
+Vampire Sonata keeps two more boxes of the castle: the **bell tower** (`bellTower()`, a serpentine of 8 × 6: the tower
+foot, the belfry, the spire) and the **courtyard** (`courtyard()`, a hub of 7 × 8: the barbican, the court, the chapel,
+the armoury, the crypt). `node scripts/metroidvania.mjs --shape serpentine | hub` draws them.
+
 ## The words
 
 ```js
-{ premise, box: [cols, rows], turn: 'ccw' | 'cw',
+{ premise, box: [cols, rows], shape?: 'spiral' | 'serpentine' | 'hub', turn: 'ccw' | 'cw',   // turn: a spiral's
   powers: { <id>: { opens: <gate>, name } },
-  rings: [ { id, place, finds?, boss?, key?, inward, pockets?: [{ gate, holds }] }, …,   // outermost first
+  rings: [ { id, place, finds?, boss?, key?, inward, pockets?: [{ gate, holds }] }, …,   // the regions in walk order
            { id, place, boss? } ] }                                                    // the core
 ```
 
@@ -103,8 +132,9 @@ holds the throne.
 The laws ([laws.js](../control/lib/graph/gameworld/metroidvania/laws.js), `BOX_LAWS`) are measured on the laid box, its
 solution ([solve.js](../control/lib/graph/gameworld/metroidvania/solve.js): the box walked through every door its holdings
 open, picking up what each room holds, again while anything new is held) and its greybox. They advise; none refuses:
-entered from the left, the box filled, the spiral turning one way inward to the core, both axes travelled, every step in
-gated and asking something new, every gate's opener found before it, the box finished with no one-way trap, shortcuts
+entered from the left, the box filled, the walk keeping its shape to the core (a spiral turning one way inward, a
+serpentine never dropping a row, a hub's every wing walked out from it and back), both axes travelled within its shape's
+band, every step in gated and asking something new, every gate's opener found before it, the box finished with no one-way trap, shortcuts
 out and a short way back, every power opening something behind it, every pocket opened, no rise past a jump but a
 double-jump gate's, every double-jump sill clear of a stand that brings it in one jump, save rooms close together, a
 boss at the core.
@@ -226,6 +256,15 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 8. **The lane reads.** The tops she stands on are lighter than the wall behind them. Law: `lane-reads`.
 9. **A kit, a composition.** A ring's rooms draw on one kit; each room is composed by a seeded hand from its own id
    (`composeRoom`: its bays' order and its focal piece), so neighbours differ and the same recipe makes the same room.
+10. **She is the measure.** A wall is read against the body on the lane, so a piece is drawn at its size to hers, never
+   at its bay's. What a hand holds or a body uses keeps its true size: a book, a sword, a shield, a candle, a ladder's
+   rung, a block of stone. A figure, painted or carved, is life-size to heroic and never colossal. Furniture stands on its
+   floor. Only the architecture (a window, a vault, a column, a banner's cloth) is as big as the hall. A tall hall is
+   filled with more things at their size, never with the same things blown up: the library is a case twice her height,
+   with a cupboard base and boards a book's height apart, under a gallery with a second case on it and a ladder between.
+   A focal piece is made by its place, its frame and its light. A statue in a niche stands high in the wall on its
+   corbel, and the lord's portrait hangs over her head. Every part's size is noted as it is drawn and held to `SCALE`,
+   said for a body of `REF_STATURE` and scaled to hers. Law: `scale`.
 
 ## Not yet
 
@@ -244,4 +283,7 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
 - **The rail**, once a first box plays; the map shown in the game from the rooms visited.
 - **Dressed** by the side map's paint, cake and vista, a place a ring.
-- **Several boxes** joined as castle wings round a keep: the megaworld at the next scale.
+- **Several boxes** joined as castle wings round a keep: the megaworld at the next scale. The shapes are its first half
+  (the bell tower passes through, the courtyard joins, the keep is the destination); ports on a box's sides and the
+  connectors between boxes (a bridge, a gatehouse) are the next.
+- **A courtyard open to the sky.** The hub is dressed as its region's look, the halls; a hub's own look would open it.

@@ -10,7 +10,11 @@
  * (megaworld.js) folded into one continuous map, so every ring lies against the one outside it: that is what a power
  * found inside spends, opening SHORTCUTS back out and POCKETS in rooms already walked.
  *
- *   metroidvania: { premise?, box: [cols, rows], turn?, theme?, powers, rings: [RING, …, CORE] }
+ *   metroidvania: { premise?, box: [cols, rows], shape?, turn?, theme?, powers, rings: [RING, …, CORE] }
+ *     shape     how its walk fills it (shapes.js): `spiral` (unsaid: below), `serpentine` (row by row, climbing a row a
+ *               turn: its rings bands of rows, lowest first), `hub` (a centre column, an approach climbed to it, wings out
+ *               and back from it: its rings the approach, the hub, then its wings); the words below are a spiral's, and
+ *               every shape's region takes a ring's words
  *     box       [cols, rows] in screens; each ring takes a cell off every side, so a ring needs three each way
  *     turn      'ccw' (along the floor first) | 'cw' (up the near side first)
  *     theme     what it is made of and how it is lit, ring by ring (themes.js: `castle`); unsaid, greybox
@@ -41,6 +45,7 @@
  */
 import { GATES, GATE_IDS } from './gates.js';
 import { BOX_THEMES, BOX_THEME_IDS } from './themes.js';
+import { SHAPES, SHAPE_IDS, shapeRects, laySerpentine, layHub } from './shapes.js';
 
 export const TURNS = Object.freeze({ ccw: 'along the floor first, up the far side, back along the top, down the near side', cw: 'up the near side first, along the top, down the far side, back along the floor' });
 /** the most cells a corridor runs, and a shaft climbs, before it is two rooms */
@@ -53,7 +58,7 @@ const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const word = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 80;
 const fail = (m) => { throw new Error(`metroidvania: ${m}`); };
-const BOX_KEYS = ['premise', 'box', 'turn', 'theme', 'powers', 'rings'];
+const BOX_KEYS = ['premise', 'box', 'shape', 'turn', 'theme', 'powers', 'rings'];
 const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets'];
 const CORE_KEYS = ['id', 'place', 'boss'];
 
@@ -67,6 +72,10 @@ export function readBox(v) {
   const [cols, rows] = v.box;
   out.box = [cols, rows];
   if (v.theme !== undefined) { if (!BOX_THEMES[v.theme]) fail(`theme is ${BOX_THEME_IDS.join(' | ')} (what the box is made of and how it is lit: themes.js)`); out.theme = v.theme; }
+  // (its SHAPE, shapes.js: how its walk fills it; a spiral unsaid)
+  out.shape = v.shape ?? 'spiral';
+  if (!SHAPES[out.shape]) fail(`shape is ${SHAPE_IDS.map((k) => `${k} (${SHAPES[k].read})`).join('; ')}`);
+  if (v.turn !== undefined && out.shape !== 'spiral') fail(`turn is a spiral's word (which way its rings are walked); a ${out.shape} turns as its shape does`);
   out.turn = v.turn ?? 'ccw';
   if (!TURNS[out.turn]) fail(`turn is ${Object.entries(TURNS).map(([k, s]) => `${k} (${s})`).join('; ')}`);
   // the powers: each opens one gate kind that a power opens
@@ -82,9 +91,10 @@ export function readBox(v) {
   }
   const opened = new Set(Object.values(out.powers).map((p) => p.opens));
   // the rings: as many as the box has depth for, the last the core
-  if (!(Array.isArray(v.rings) && v.rings.length >= 2)) fail('rings is a list, outermost first, the last the core: at least a ring and its core');
+  if (!(Array.isArray(v.rings) && v.rings.length >= 2)) fail(`rings is a list of its regions in walk order (a ${out.shape}'s: ${SHAPES[out.shape].regions}): at least two, the last the core`);
   const K = v.rings.length - 1;
-  if (cols - 2 * (K - 1) < 3 || rows - 2 * (K - 1) < 3) fail(`rings: a ${cols} × ${rows} box holds ${Math.max(0, Math.min(Math.floor((cols - 3) / 2), Math.floor((rows - 3) / 2)) + 1)} rings round a core, not ${K} (each takes a cell off every side and needs three each way)`);
+  if (out.shape !== 'spiral') shapeRects(out.shape, out.box, v.rings.length);
+  else if (cols - 2 * (K - 1) < 3 || rows - 2 * (K - 1) < 3) fail(`rings: a ${cols} × ${rows} box holds ${Math.max(0, Math.min(Math.floor((cols - 3) / 2), Math.floor((rows - 3) / 2)) + 1)} rings round a core, not ${K} (each takes a cell off every side and needs three each way)`);
   const ids = new Set(), found = new Map();
   out.rings = v.rings.map((R, i) => {
     const at = `rings[${i}]`, core = i === K;
@@ -95,7 +105,7 @@ export function readBox(v) {
     ids.add(R.id);
     if (!word(R.place)) fail(`${at}.place is the place it is, a word (the outer wall, the great halls)`);
     const r = { i, id: R.id, place: R.place.trim(), rect: [i, cols - 1 - i, i, rows - 1 - i], ...(core ? { core: true } : {}) };
-    if (R.boss !== undefined) { if (!word(R.boss)) fail(`${at}.boss is the boss's name`); r.boss = R.boss.trim(); }
+    if (R.boss !== undefined) { if (!word(R.boss)) fail(`${at}.boss is the boss's name`); if (out.shape === 'hub' && i === 1) fail(`${at}.boss: the hub is walked through to every wing, never fought in (a wing holds a boss)`); r.boss = R.boss.trim(); }
     if (core) return r;
     if (R.finds !== undefined) {
       if (!out.powers[R.finds]) fail(`${at}.finds is a power's id (${Object.keys(out.powers).join(', ') || 'none: say them in powers'})`);
@@ -104,10 +114,13 @@ export function readBox(v) {
       r.finds = R.finds;
     }
     if (R.key !== undefined) { if (R.key !== true) fail(`${at}.key is true: a key in the ring, its lock on its top leg`); r.key = true; }
+    // (a hub's own region may leave its first wing open: the hub is where the walk chooses)
+    if (!(out.shape === 'hub' && i === 1 && R.inward === undefined)) {
     if (!(GATES[R.inward] && R.inward !== 'boss')) fail(`${at}.inward is the gate on the step into the ring inside: ${GATE_IDS.filter((g) => g !== 'boss').join(' | ')} (a boss seals its own room)`);
     if (GATES[R.inward].by === 'power' && !opened.has(R.inward)) fail(`${at}.inward '${R.inward}' is opened by no power (say one in powers)`);
     if (R.inward === 'key' && !r.key) fail(`${at}.inward is a key's: say key: true, so the ring holds one`);
     r.inward = R.inward;
+    }
     if (R.pockets !== undefined) {
       if (!Array.isArray(R.pockets)) fail(`${at}.pockets is [{ gate, holds }]`);
       r.pockets = R.pockets.map((p, k) => {
@@ -164,6 +177,7 @@ export function layBox(v) {
     return R;
   };
 
+  if (M.shape !== 'spiral') return layShaped(M, { rooms, doors, walk, door, room });
   for (let k = 0; k <= K; k++) {
     const R = M.rings[k], ring = { i: k, id: R.id, place: R.place, rect: R.rect, ...(R.core ? { core: true } : {}) };
     rings.push(ring);
@@ -248,7 +262,41 @@ export function layBox(v) {
   const entry = { cell: [0, 0], side: 'left', room: rooms[0].id };
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {
-    box: M.box, turn: M.turn, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry,
+    box: M.box, shape: M.shape, turn: M.turn, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry,
     rings, rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
+  };
+}
+
+/**
+ * A box of another shape (shapes.js lays its rooms and doors), FURNISHED as every region is: a save room at its first room
+ * and its middle, its key early and its lock halfway, its boss (and its prize) or its relic near its end where the shape
+ * puts its end (a wing's dead end, a band's last turn), its pockets spread along its corridors, the throne its last room.
+ */
+function layShaped(M, ctx) {
+  const L = M.shape === 'serpentine' ? laySerpentine(M, ctx) : layHub(M, ctx), { rooms, doors, walk } = ctx, K = M.rings.length - 1;
+  for (let k = 0; k <= K; k++) {
+    const R = M.rings[k], rs = rooms.filter((x) => x.ring === k), n = rs.length;
+    rs[0].role = k === 0 ? 'gate' : rs[0].role; rs[0].save = true;
+    if (n >= 6) rs[Math.floor(n / 2)].save = true;
+    // (its end: a hub's wing ends where it turns back to the hub, a dead end; any other region's just before it steps on)
+    const endAt = M.shape === 'hub' && k >= 2 ? n - 1 : Math.max(0, n - 2), end = rs[endAt];
+    if (R.core) { rs.at(-1).role = 'throne'; if (R.boss) rs.at(-1).boss = R.boss; continue; }
+    if (R.boss) { end.role = 'boss'; end.boss = R.boss; if (R.finds) end.finds = R.finds; }
+    else if (R.finds) { end.role = 'relic'; end.finds = R.finds; }
+    if (R.key) {
+      const keyAt = rs[Math.max(1, Math.floor(n / 4))], lockAt = rs[Math.max(2, Math.floor(n / 2))];
+      keyAt.key = true;
+      const d = doors.find((x) => x.kind === 'path' && x.b === lockAt.id && !x.gate);
+      if (d) { d.gate = 'key'; lockAt.lock = true; }
+    }
+    // (a boss's room sealed on its way on: the door out of it the walk takes, or a wing's return to the hub)
+    if (R.boss) { const d = doors.find((x) => x.a === end.id && (x.kind === 'path' || x.kind === 'return') && !x.gate); if (d) d.gate = 'boss'; }
+    const corridors = rs.filter((x) => x.kind === 'corridor' && x !== end);
+    (R.pockets ?? []).forEach((p, j) => { const at = corridors[Math.floor(((j + 0.5) * corridors.length) / R.pockets.length)]; if (at) at.pockets.push({ ...p }); });
+  }
+  const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
+  return {
+    box: M.box, shape: M.shape, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry: L.entry, ...(L.exit ? { exit: L.exit } : {}),
+    rings: L.rings, rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
   };
 }

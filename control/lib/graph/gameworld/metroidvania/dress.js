@@ -20,7 +20,8 @@
  *   the DUST       hanging in the closed rooms, lit where the lamps are (MOTES: the page's motes)
  *
  *   dressBox(B, theme) → { faces, lamps: [{ at: [x, s, z], colour, kind, room, reach }], plan: { <room>: { order, focals,
- *                  near, through, open } }, motes?, glow }   B: scene.js boxOf's (layout, greybox)
+ *                  near, through, open } }, sizes: { <part>: [least, most] }, motes?, glow }   B: scene.js boxOf's
+ *                  (layout, greybox); sizes the drawn parts' measures (backdrop.js SCALE)
  *   COURSE, JOINT, LAMP_REACH, ASHLAR, WAINSCOT, MOTES, GLOW
  *
  * Pure: the same box and theme make the same faces.
@@ -28,11 +29,11 @@
 import { r5, hexRgb, rgbHex } from '../../era/geom.js';
 import { BOX_THEMES, lookOf } from './themes.js';
 import { FLOOR, CEIL, boxCameraOf } from './rooms.js';
-import { composeRoom, drawPiece, diceOf } from './backdrop.js';
+import { composeRoom, drawPiece, diceOf, measure } from './backdrop.js';
 
 export const COURSE = 0.8, JOINT = 1.6, LAMP_REACH = 8;
 /** a back wall's ashlar block, [wide, high] (m): small enough that a lamp's pool is drawn on it, block by block */
-export const ASHLAR = Object.freeze([2.4, 1.2]);
+export const ASHLAR = Object.freeze([1.6, 0.8]);
 /** a wainscot's panel along the floor (m): wide, so the band behind the play stays calm (backdrop.js calm-play) */
 export const WAINSCOT = 4.8;
 /** the dust in the closed rooms (the page's motes) and the flames' halos (the page's glow sprites) */
@@ -105,7 +106,8 @@ export function dressBox(B, theme) {
     }
   }
   // THE BACKS, a room at a time, a cell at a time (backdrop.js: the backdrop's craft)
-  const plan = {};
+  const plan = {}, sizes = {};
+  measure(sizes, 'block.w', ASHLAR[0] - 0.05); measure(sizes, 'block.h', ASHLAR[1] - 0.05);
   for (const r of L.rooms) {
     const Lk = look(r.ring), [c, rr, w, h] = r.rect, C = composeRoom(r, Lk), dice = diceOf(r.id);
     const P = plan[r.id] = { order: C.order, focals: 0, near: false, through: !!Lk.open, open: !!Lk.open };
@@ -117,7 +119,7 @@ export function dressBox(B, theme) {
           face(faces, PARAPET_X, s0, s1, z0, floor + 1.3, Lk.stone, 'box:parapet');
           face(faces, PARAPET_X + 0.01, s0, s1, floor + 1.15, floor + 1.3, Lk.top, 'box:parapet');
           for (let s = s0 + 0.6; s < s1 - 1; s += 2.2) face(faces, PARAPET_X, s, s + 1.2, floor + 1.3, floor + 2.2, Lk.stone, 'box:dress');
-          if (i === C.focal.cell) { drawPiece(faces, Lk.focal, { s: s0 + W * (C.focal.bay ? 0.75 : 0.25), floor, top, x: PARAPET_X + 0.02 }, Lk, dice); P.focals++; }
+          if (i === C.focal.cell) { drawPiece(faces, Lk.focal, { s: s0 + W * (C.focal.bay ? 0.75 : 0.25), floor, top, x: PARAPET_X + 0.02, focal: true }, Lk, dice, sizes); P.focals++; }
         }
       } else {
         // (1) THE WALL: ashlar in courses, each block its own stone, its joints breaking bond course to course
@@ -153,11 +155,11 @@ export function dressBox(B, theme) {
         // (4) THE BAYS by the wall's rhythm, the focal piece in its bay
         for (const b of [0, 1]) {
           const at = { s: s0 + W * (b ? 0.75 : 0.25), floor, top, x: BACK + 0.04 }, letter = C.order[(i * 2 + b) % C.order.length];
-          if (j === 0 && i === C.focal.cell && b === C.focal.bay && P.focals === 0) { drawPiece(faces, Lk.focal, { ...at, scale: 1.8 }, Lk, dice); P.focals++; }
-          else drawPiece(faces, Lk.bays[letter === 'B' ? 1 : 0], at, Lk, dice);
+          if (j === 0 && i === C.focal.cell && b === C.focal.bay && P.focals === 0) { drawPiece(faces, Lk.focal, { ...at, focal: true }, Lk, dice, sizes); P.focals++; }
+          else drawPiece(faces, Lk.bays[letter === 'B' ? 1 : 0], at, Lk, dice, sizes);
           if ((letter === 'A' ? Lk.bays[0] : Lk.bays[1]) === 'arch') P.through = true;
           // (a lancet: a slit of moonlit glass high over the bay's piece, where the wall has no window)
-          if (Lk.lancets) { const ls = at.s, l1 = top - 1.0, l0 = l1 - 2.2; face(faces, BACK + 0.03, ls - 0.45, ls + 0.45, l0 - 0.15, l1, Lk.trim, 'box:dress'); poly(faces, BACK + 0.04, [[ls - 0.3, l0], [ls + 0.3, l0], [ls + 0.3, l1 - 0.5], [ls, l1 - 0.1], [ls - 0.3, l1 - 0.5]], '#5a6f9e', 'box:glass'); P.through = true; }
+          if (Lk.lancets && !(j === 0 && i === C.focal.cell && b === C.focal.bay)) { const ls = at.s, l1 = top - 1.0, l0 = l1 - 2.2; face(faces, BACK + 0.03, ls - 0.45, ls + 0.45, l0 - 0.15, l1, Lk.trim, 'box:dress'); poly(faces, BACK + 0.04, [[ls - 0.3, l0], [ls + 0.3, l0], [ls + 0.3, l1 - 0.5], [ls, l1 - 0.1], [ls - 0.3, l1 - 0.5]], '#5a6f9e', 'box:glass'); P.through = true; }
         }
         // (5) THE NEAR LAYER: between the lane and the wall, at the bays' meeting
         if (Lk.near === 'column') {
@@ -183,9 +185,9 @@ export function dressBox(B, theme) {
         lamps.push({ at: [lx, ls, lz], colour: Lk.lamp.colour, kind, room: r.id, reach: Lk.lamp.reach });
         const glow = { glow: `0 0 6px 2px ${Lk.lamp.colour}` };
         if (kind === 'torch') { face(faces, lx, ls - 0.12, ls + 0.12, lz - 1.1, lz - 0.1, '#2a2420', 'box:lamp'); flame(flames, lx + 0.02, ls, 0.22, lz - 0.1, lz + 0.6, Lk.lamp.colour, glow); }
-        if (kind === 'candles') { face(faces, lx, ls - 0.07, ls + 0.07, lz - 1.2, lz - 0.25, Lk.trim, 'box:lamp'); face(faces, lx, ls - 0.6, ls + 0.6, lz - 0.3, lz - 0.22, Lk.trim, 'box:lamp'); for (const d of [-0.5, 0, 0.5]) { face(faces, lx + 0.01, ls + d - 0.06, ls + d + 0.06, lz - 0.22, lz + (d ? 0.05 : 0.15), '#e8dcc0', 'box:lamp'); flame(flames, lx + 0.02, ls + d, 0.07, lz + (d ? 0.05 : 0.15), lz + (d ? 0.3 : 0.42), Lk.lamp.colour, d ? {} : glow); } }
+        if (kind === 'candles') { face(faces, lx, ls - 0.04, ls + 0.04, lz - 0.6, lz - 0.2, Lk.trim, 'box:lamp'); face(faces, lx, ls - 0.32, ls + 0.32, lz - 0.24, lz - 0.18, Lk.trim, 'box:lamp'); measure(sizes, 'candle.h', 0.24); for (const d of [-0.26, 0, 0.26]) { face(faces, lx + 0.01, ls + d - 0.035, ls + d + 0.035, lz - 0.18, lz + (d ? 0.0 : 0.06), '#e8dcc0', 'box:lamp'); flame(flames, lx + 0.02, ls + d, 0.045, lz + (d ? 0.0 : 0.06), lz + (d ? 0.16 : 0.24), Lk.lamp.colour, d ? {} : glow); } }
         if (kind === 'ghost') { face(faces, lx, ls - 0.35, ls + 0.35, lz - 0.45, lz + 0.35, shade(Lk.trim, 0.8), 'box:lamp'); face(flames, lx + 0.02, ls - 0.22, ls + 0.22, lz - 0.3, lz + 0.2, Lk.lamp.colour, 'box:flame', glow); }
-        if (kind === 'brazier') { const bx = NEAR_X + 0.1; face(faces, bx, ls - 0.15, ls + 0.15, floor, lz - 0.3, '#2a2022', 'box:lamp'); face(faces, bx, ls - 0.6, ls + 0.6, lz - 0.4, lz, '#3a2a26', 'box:lamp'); flame(flames, bx + 0.02, ls, 0.5, lz, lz + 1.0, Lk.lamp.colour, glow); }
+        if (kind === 'brazier') { const bx = NEAR_X + 0.1; face(faces, bx, ls - 0.1, ls + 0.1, floor, lz - 0.3, '#2a2022', 'box:lamp'); face(faces, bx, ls - 0.42, ls + 0.42, lz - 0.38, lz, '#3a2a26', 'box:lamp'); flame(flames, bx + 0.02, ls, 0.32, lz, lz + 0.65, Lk.lamp.colour, glow); }
       }
     }
   }
@@ -232,5 +234,5 @@ export function dressBox(B, theme) {
   const closed = L.rooms.filter((r) => !look(r.ring).open);
   const motes = closed.length ? { count: MOTES.count, boxes: closed.map((r) => [-2.9, r.rect[0] * W, r.rect[1] * H + FLOOR, 1.2, (r.rect[0] + r.rect[2]) * W, (r.rect[1] + r.rect[3]) * H - CEIL].map(r5)),
     lights: lamps.filter((l) => !look(ringOf.get(l.room)).open).map((l) => [l.at[0], l.at[1], l.at[2], (l.reach || LAMP_REACH) * 0.8].map(r5)), color: MOTES.color, size: MOTES.size, drift: MOTES.drift } : null;
-  return { faces: [...night, ...faces.map(lit), ...flames], lamps, plan, ...(motes ? { motes } : {}), glow: GLOW };
+  return { faces: [...night, ...faces.map(lit), ...flames], lamps, plan, sizes, ...(motes ? { motes } : {}), glow: GLOW };
 }

@@ -24,12 +24,21 @@
  *   8  the lane reads                the tops she stands on are lighter than the wall behind them
  *   9  a kit, a composition          a ring's rooms draw on one kit (its look's bays, ceiling, near layer, focal piece);
  *                                    each room composed by a seeded hand from its own id, so neighbours differ
+ *  10  she is the measure            a wall is read against the body on the lane: what a hand holds or a body uses keeps
+ *                                    its true size (a book, a sword, a shield, a candle, a ladder's rung, a stone block),
+ *                                    a figure is life-size to heroic and never colossal, and furniture stands on its
+ *                                    floor; only the architecture (a window, a vault, a column, a banner's cloth) is as
+ *                                    big as the hall. A tall hall is filled with more things at their size, never with
+ *                                    the same things blown up, and a focal piece is made by its place, frame and light.
+ *                                    SCALE says each part's sizes for a body of REF_STATURE, held to hers
  *
- *   EYE, DETAIL, POOLS, BAY_PIECES, FOCAL_PIECES, DETAIL_GROUPS, BACKDROP_LAWS
+ *   EYE, DETAIL, POOLS, SCALE, REF_STATURE, BAY_PIECES, FOCAL_PIECES, DETAIL_GROUPS, BACKDROP_LAWS
+ *   measure(sizes, part, v)            notes a drawn part's size ('book.h': its height) in a dress's sizes
  *   composeRoom(room, look, { cellsAcross }) → { order: 'ABBA…', focal: { cell, bay } }   the room's bays by the wall's rhythm
  *                                    (seeded by its id), and where its focal piece stands
- *   drawPiece(out, id, at, look, dice)   a piece on the back at a bay: `at` { s, floor, top, x, scale? } (the bay's middle,
- *                                    the storey's floor and the underside of its ceiling, the wall's plane, its size)
+ *   drawPiece(out, id, at, look, dice, sizes?)   a piece on the back at a bay: `at` { s, floor, top, x, focal? } (the
+ *                                    bay's middle, the storey's floor and the underside of its ceiling, the wall's plane,
+ *                                    whether it is the room's focal piece), its parts' sizes noted in `sizes`
  *   backdropLaws(B, D, theme) → [{ id, holds, says, rooms? }]   measured on the box (B: scene.js boxOf's) and its dress
  *                                    (D: dress.js dressBox's faces and plan)
  *
@@ -50,7 +59,7 @@ export const POOLS = Object.freeze({ lit: Object.freeze([0.15, 0.7]), contrast: 
 export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame']);
 export const BAY_PIECES = Object.freeze({
   arch: 'a pointed window of moonlit glass, its frame and its mullion',
-  shelf: 'a shelf of books in a frame, three boards of spines',
+  shelf: 'a library case standing on its floor: a cupboard base, boards of books at their size, a ladder',
   niche: 'a recessed arch and the statue standing in it',
   banner: 'a hanging banner on its rod, edged and striped in its trim',
   arms: 'a coat of arms: a shield and two blades crossed behind it',
@@ -60,10 +69,21 @@ export const BAY_PIECES = Object.freeze({
 export const FOCAL_PIECES = Object.freeze({
   portrait: 'a great portrait in a gilt frame: the lord of the castle, looking down',
   statue: 'a broken statue on its plinth, its rubble at its foot',
-  arms: 'the house\'s arms, twice a bay\'s size, over the room',
+  arms: 'the house\'s arms on a carved cartouche over the room, its blades still a sword\'s length',
   gargoyle: 'a gargoyle crouched on the parapet against the sky',
 });
-export const BACKDROP_LAWS = Object.freeze(['eye-detail', 'calm-play', 'bay-rhythm', 'focal', 'depths', 'pools', 'lane-reads']);
+export const BACKDROP_LAWS = Object.freeze(['eye-detail', 'calm-play', 'bay-rhythm', 'focal', 'depths', 'pools', 'lane-reads', 'scale']);
+/** the body SCALE's sizes are said for, in metres; a smaller or larger hero scales them */
+export const REF_STATURE = 1.7;
+/** (10) what keeps its true size, each part's measure [least, most] in metres for a body of REF_STATURE */
+export const SCALE = Object.freeze({
+  'book.h': Object.freeze([0.18, 0.45]), 'board.pitch': Object.freeze([0.3, 0.55]), 'case.lift': Object.freeze([0, 0.05]), 'case.h': Object.freeze([1.8, 4.2]),
+  'rung.pitch': Object.freeze([0.25, 0.4]), 'sword.l': Object.freeze([0.8, 1.6]), 'shield.h': Object.freeze([0.5, 1.4]), 'face.w': Object.freeze([0.12, 0.4]),
+  'figure.h': Object.freeze([1.5, 3.2]), 'gargoyle.h': Object.freeze([0.5, 1.8]), 'candle.h': Object.freeze([0.1, 0.45]), 'block.w': Object.freeze([0.5, 1.8]),
+  'block.h': Object.freeze([0.3, 0.9]),
+});
+/** note a drawn part's size: the least and the most of each kept */
+export const measure = (sizes, part, v) => { if (!sizes) return; const o = sizes[part]; sizes[part] = o ? [Math.min(o[0], v), Math.max(o[1], v)] : [v, v]; };
 
 const N = Object.freeze({ px: [1, 0, 0] });
 const poly = (out, x, pts, fill, group = 'box:dress', extra) => out.push({ corners: pts.map(([s, z]) => [x, s, z].map(r5)), normal: N.px, fill, group, ...(extra || {}) });
@@ -85,8 +105,8 @@ export function composeRoom(room, look, { cellsAcross = room.rect[2] } = {}) {
   return { order: Array.isArray(order) ? order.join('') : String(order), focal: { cell, bay }, cells };
 }
 
-/** A piece on the back at a bay. */
-export function drawPiece(out, id, { s, floor, top, x, scale = 1 }, L, dice) {
+/** A piece on the back at a bay, at its true size (10). */
+export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice, sizes) {
   const trim = L.trim, dark = shade(L.back, 0.55), mid = (floor + top) / 2;
   if (id === 'arch') {
     const aw = 3.2, a0 = floor + 2.6, a1 = Math.min(top - aw * 0.85 - 0.9, floor + 8.5);
@@ -96,29 +116,34 @@ export function drawPiece(out, id, { s, floor, top, x, scale = 1 }, L, dice) {
     rect(out, x + 0.02, s - aw / 2, s + aw / 2, (a0 + a1) / 2 - 0.05, (a0 + a1) / 2 + 0.05, trim);   // (its transom)
     rect(out, x + 0.02, s - aw / 2 - 0.5, s + aw / 2 + 0.5, a0 - 0.55, a0 - 0.3, shade(L.top, 0.8));   // (its sill)
   } else if (id === 'shelf') {
-    const w = 4.2, z0 = floor + 2.2, z1 = Math.min(top - 1.2, z0 + 4.2), boards = 3, dz = (z1 - z0) / boards;
-    rect(out, x, s - w / 2 - 0.2, s + w / 2 + 0.2, z0 - 0.2, z1 + 0.25, trim);
-    rect(out, x + 0.01, s - w / 2, s + w / 2, z0, z1, dark);
-    const spines = ['#5a1c22', '#2f3f2a', '#4a3520', '#262c46', '#6b4e2a', '#3a2433'];
-    for (let k = 0; k < boards; k++) {
-      const zb = z0 + k * dz;
-      rect(out, x + 0.02, s - w / 2, s + w / 2, zb, zb + 0.1, trim);
-      for (let t = s - w / 2 + 0.1; t < s + w / 2 - 0.3;) {
-        const bw = 0.16 + dice() * 0.18, bh = dz * (0.55 + dice() * 0.35);
-        if (dice() < 0.12) { t += bw; continue; }   // (a gap where a book was taken)
-        rect(out, x + 0.03, t, t + bw - 0.03, zb + 0.1, zb + 0.1 + bh, spines[Math.floor(dice() * spines.length)]);
-        t += bw;
-      }
+    // (a library wall at the size of its books: a case on the floor, twice her height, a cupboard base under boards a
+    // book's height apart; in a hall tall enough, a gallery over it and a second case on the gallery; a ladder between)
+    const w = 2.2, z0 = floor, spines = ['#5a1c22', '#2f3f2a', '#4a3520', '#262c46', '#6b4e2a', '#3a2433'];
+    const lower = caseOf(out, x, s, w, z0, Math.min(top - 1.2, z0 + 3.45), 1.05, trim, dark, spines, dice, sizes, true);
+    let l1 = lower - 0.1;
+    if (top - z0 > 8.2) {
+      // (the gallery: its floor on brackets, its rail, the upper case standing on it)
+      const gz = z0 + 4.0, gw = w / 2 + 0.7;
+      rect(out, x + 0.07, s - gw, s + gw, gz - 0.2, gz, shade(trim, 0.9));
+      for (const d of [-gw + 0.2, gw - 0.2]) poly(out, x + 0.07, [[s + d - 0.15, gz - 0.2], [s + d + 0.15, gz - 0.2], [s + d, gz - 0.75]], shade(trim, 0.75));
+      caseOf(out, x, s, w, gz, Math.min(top - 1.0, gz + 3.0), 0, trim, dark, spines, dice, sizes, false);
+      rect(out, x + 0.08, s - gw, s + gw, gz + 0.95, gz + 1.02, shade(trim, 0.85));   // (its rail)
+      for (let b = s - gw + 0.1; b <= s + gw - 0.05; b += 0.6) rect(out, x + 0.08, b - 0.025, b + 0.025, gz, gz + 0.95, shade(trim, 0.8));
+      l1 = gz + 0.95;
     }
+    // (the ladder, its rungs a step apart, from the floor to the gallery's rail or the case's top)
+    const ls = s + w / 2 - 0.45, rung = 0.32;
+    for (const d of [-0.2, 0.2]) bar(out, x + 0.09, [ls + d - 0.12, z0], [ls + d, l1], 0.05, shade(trim, 0.7));
+    for (let z = z0 + rung; z < l1 - 0.1; z += rung) { const k = (z - z0) / (l1 - z0); rect(out, x + 0.1, ls - 0.32 + k * 0.12, ls + 0.08 + k * 0.12, z - 0.02, z + 0.02, shade(trim, 0.7)); }
+    measure(sizes, 'rung.pitch', rung);
   } else if (id === 'niche') {
-    const w = 2.8, z0 = floor + 1.4, z1 = Math.min(top - 1.6, floor + 7.4);
-    poly(out, x, [[s - w / 2 - 0.3, z0 - 0.3], [s + w / 2 + 0.3, z0 - 0.3], [s + w / 2 + 0.3, z1], [s, z1 + w * 0.6 + 0.3], [s - w / 2 - 0.3, z1]], trim);
+    // (a statue in a niche at life and a little more, high in the wall over her head, on its corbelled ledge)
+    const fig = 2.1, w = 1.5, z0 = floor + 2.9, z1 = z0 + fig + 0.35;
+    poly(out, x, [[s - w / 2 - 0.25, z0 - 0.3], [s + w / 2 + 0.25, z0 - 0.3], [s + w / 2 + 0.25, z1], [s, z1 + w * 0.6 + 0.25], [s - w / 2 - 0.25, z1]], trim);
     poly(out, x + 0.01, [[s - w / 2, z0], [s + w / 2, z0], [s + w / 2, z1], [s, z1 + w * 0.6], [s - w / 2, z1]], shade(L.back, 0.4));
-    const stone = mix(L.stone, '#d8d2c4', 0.35), h = (z1 - z0) * 0.86;
-    rect(out, x + 0.02, s - 0.8, s + 0.8, z0, z0 + 0.6, shade(stone, 0.8));
-    poly(out, x + 0.02, [[s - 0.55, z0 + 0.6], [s + 0.55, z0 + 0.6], [s + 0.42, z0 + h * 0.78], [s - 0.42, z0 + h * 0.78]], stone);
-    rect(out, x + 0.03, s - 0.24, s + 0.24, z0 + h * 0.8, z0 + h * 0.97, stone);
-    bar(out, x + 0.03, [s - 0.42, z0 + h * 0.72], [s - 0.7, z0 + h * 0.45], 0.2, shade(stone, 0.92));
+    rect(out, x + 0.01, s - w / 2 - 0.35, s + w / 2 + 0.35, z0 - 0.42, z0 - 0.3, shade(L.top, 0.85));   // (its ledge)
+    poly(out, x + 0.01, [[s - 0.4, z0 - 0.42], [s + 0.4, z0 - 0.42], [s, z0 - 1.0]], shade(L.top, 0.75));   // (its corbel)
+    figure(out, x + 0.02, s, z0, fig, mix(L.stone, '#d8d2c4', 0.35), sizes);
   } else if (id === 'banner') {
     const b1 = top - 0.9, b0 = Math.max(floor + 3, b1 - 6.4), c = L.carpet || '#6a1420';
     rect(out, x, s - 1.4, s + 1.4, b1, b1 + 0.15, trim);
@@ -127,12 +152,24 @@ export function drawPiece(out, id, { s, floor, top, x, scale = 1 }, L, dice) {
     rect(out, x + 0.02, s - 0.12, s + 0.12, b0 + 0.8, b1 - 0.6, trim);
     rect(out, x + 0.02, s - 0.6, s + 0.6, (b0 + b1) / 2 - 0.06, (b0 + b1) / 2 + 0.06, trim);
   } else if (id === 'arms') {
-    const k = scale, cz = mid + 0.6, w = 1.6 * k, h = 2 * k;
-    bar(out, x, [s - 1.9 * k, cz - 1.7 * k], [s + 1.9 * k, cz + 1.7 * k], 0.22 * k, shade(L.top, 1.05));
-    bar(out, x, [s + 1.9 * k, cz - 1.7 * k], [s - 1.9 * k, cz + 1.7 * k], 0.22 * k, shade(L.top, 1.05));
-    poly(out, x + 0.01, [[s - w / 2, cz + h / 2], [s + w / 2, cz + h / 2], [s + w / 2, cz - h * 0.1], [s, cz - h / 2 - 0.4 * k], [s - w / 2, cz - h * 0.1]], trim);
-    poly(out, x + 0.02, [[s - w / 2 + 0.15, cz + h / 2 - 0.15], [s + w / 2 - 0.15, cz + h / 2 - 0.15], [s + w / 2 - 0.15, cz - h * 0.1], [s, cz - h / 2 - 0.2 * k], [s - w / 2 + 0.15, cz - h * 0.1]], L.carpet || '#6a1420');
-    rect(out, x + 0.03, s - 0.1, s + 0.1, cz - h * 0.35, cz + h * 0.4, trim);
+    // (a shield at a shield's size, two swords at a sword's crossed behind it; the focal arms on a carved cartouche)
+    const cz = mid + 0.8, sh = focal ? 1.25 : 1.0, sw = sh * 0.8, blade = 1.25;
+    if (focal) {
+      const cw = 3.2, ch = 3.4;
+      poly(out, x - 0.01, [[s - cw / 2, cz - ch * 0.42], [s + cw / 2, cz - ch * 0.42], [s + cw / 2 + 0.3, cz + ch * 0.3], [s, cz + ch * 0.58], [s - cw / 2 - 0.3, cz + ch * 0.3]], shade(L.stone, 0.9));
+      poly(out, x - 0.005, [[s - cw / 2 + 0.25, cz - ch * 0.36], [s + cw / 2 - 0.25, cz - ch * 0.36], [s + cw / 2, cz + ch * 0.27], [s, cz + ch * 0.5], [s - cw / 2, cz + ch * 0.27]], L.carpet || '#6a1420');
+    }
+    const d = blade / 2 / Math.SQRT2;
+    for (const k of [-1, 1]) {
+      bar(out, x, [s - k * d, cz - d], [s + k * d, cz + d], 0.07, shade(L.top, 1.1));
+      bar(out, x + 0.005, [s - k * d - k * 0.12, cz - d - 0.12], [s - k * d, cz - d], 0.05, '#3a2a1e');   // (its grip)
+      bar(out, x + 0.005, [s - k * d - 0.12, cz - d + k * 0.12], [s - k * d + 0.12, cz - d - k * 0.12], 0.04, trim);   // (its guard)
+    }
+    measure(sizes, 'sword.l', blade + 0.17);
+    poly(out, x + 0.01, [[s - sw / 2, cz + sh / 2], [s + sw / 2, cz + sh / 2], [s + sw / 2, cz - sh * 0.1], [s, cz - sh / 2], [s - sw / 2, cz - sh * 0.1]], trim);
+    poly(out, x + 0.02, [[s - sw / 2 + 0.08, cz + sh / 2 - 0.08], [s + sw / 2 - 0.08, cz + sh / 2 - 0.08], [s + sw / 2 - 0.08, cz - sh * 0.1], [s, cz - sh / 2 + 0.1], [s - sw / 2 + 0.08, cz - sh * 0.1]], L.carpet || '#6a1420');
+    rect(out, x + 0.03, s - 0.05, s + 0.05, cz - sh * 0.35, cz + sh * 0.4, trim);
+    measure(sizes, 'shield.h', sh);
   } else if (id === 'ivy') {
     const leaf = ['#2f4a2a', '#3c5a32', '#26402a'];
     let p = [s - 1.6 + dice() * 0.8, top - 0.8];
@@ -142,33 +179,84 @@ export function drawPiece(out, id, { s, floor, top, x, scale = 1 }, L, dice) {
       poly(out, x + 0.02, [[ls - r, lz], [ls, lz + r], [ls + r, lz], [ls, lz - r]], leaf[Math.floor(dice() * leaf.length)]);
     }
   } else if (id === 'portrait') {
-    const w = 3.6, z0 = floor + 3, z1 = Math.min(top - 0.9, z0 + 5);
-    rect(out, x, s - w / 2 - 0.4, s + w / 2 + 0.4, z0 - 0.4, z1 + 0.4, '#b08a3e');
+    // (the lord painted to the waist at a little over life, hung over her head: his face a face's size, his frame gilt)
+    const w = 2.0, z0 = floor + 3.1, z1 = Math.min(top - 0.9, z0 + 2.7), f = 1.3, fc = (z0 + z1) / 2 + 0.35;
+    rect(out, x, s - w / 2 - 0.28, s + w / 2 + 0.28, z0 - 0.28, z1 + 0.28, '#b08a3e');
     rect(out, x + 0.01, s - w / 2, s + w / 2, z0, z1, '#1c1418');
-    rect(out, x + 0.02, s - w / 2 + 0.2, s + w / 2 - 0.2, z0 + 0.2, z1 - 0.2, '#2d1e26');
-    poly(out, x + 0.03, [[s - 1.3, z0 + 0.2], [s + 1.3, z0 + 0.2], [s + 0.8, z0 + (z1 - z0) * 0.48], [s - 0.8, z0 + (z1 - z0) * 0.48]], '#3a1420');
-    // (the lord: his dark hair falling round a pale face, two dark eyes)
-    const zf = (k) => z0 + (z1 - z0) * k;
-    poly(out, x + 0.03, [[s - 0.7, zf(0.42)], [s + 0.7, zf(0.42)], [s + 0.6, zf(0.82)], [s, zf(0.9)], [s - 0.6, zf(0.82)]], '#1a1014');
-    poly(out, x + 0.04, [[s - 0.36, zf(0.52)], [s + 0.36, zf(0.52)], [s + 0.38, zf(0.74)], [s, zf(0.8)], [s - 0.38, zf(0.74)]], '#d8c4b6');
-    for (const e of [-0.15, 0.15]) rect(out, x + 0.05, s + e - 0.07, s + e + 0.07, zf(0.66), zf(0.685), '#2a0a10');
-    rect(out, x + 0.04, s - 0.5, s + 0.5, z0 - 0.75, z0 - 0.5, '#b08a3e');   // (its name, a gilt plate)
+    rect(out, x + 0.02, s - w / 2 + 0.12, s + w / 2 - 0.12, z0 + 0.12, z1 - 0.12, '#2d1e26');
+    // (his coat from the frame's foot to his collar, his hair round his face, his eyes)
+    poly(out, x + 0.03, [[s - 0.62 * f, z0 + 0.12], [s + 0.62 * f, z0 + 0.12], [s + 0.5 * f, fc - 0.32 * f], [s + 0.12, fc - 0.2 * f], [s - 0.12, fc - 0.2 * f], [s - 0.5 * f, fc - 0.32 * f]], '#3a1420');
+    poly(out, x + 0.035, [[s - 0.09, fc - 0.24 * f], [s + 0.09, fc - 0.24 * f], [s, fc - 0.05 * f]], '#cdbfae');   // (his stock)
+    poly(out, x + 0.03, [[s - 0.17 * f, fc - 0.22 * f], [s + 0.17 * f, fc - 0.22 * f], [s + 0.15 * f, fc + 0.13 * f], [s, fc + 0.2 * f], [s - 0.15 * f, fc + 0.13 * f]], '#1a1014');
+    poly(out, x + 0.04, [[s - 0.09 * f, fc - 0.12 * f], [s + 0.09 * f, fc - 0.12 * f], [s + 0.1 * f, fc + 0.06 * f], [s, fc + 0.12 * f], [s - 0.1 * f, fc + 0.06 * f]], '#d8c4b6');
+    for (const e of [-0.04, 0.04]) rect(out, x + 0.05, s + e * f - 0.018, s + e * f + 0.018, fc + 0.02 * f, fc + 0.04 * f, '#2a0a10');
+    measure(sizes, 'face.w', 0.2 * f);
+    rect(out, x + 0.04, s - 0.3, s + 0.3, z0 - 0.24, z0 - 0.08, '#d0a95a');   // (its name, a plate on the frame)
   } else if (id === 'statue') {
-    const stone = mix(L.stone, '#cfcac0', 0.22);
-    rect(out, x, s - 1.3, s + 1.3, floor, floor + 1.1, shade(stone, 0.75));
-    rect(out, x + 0.01, s - 1.5, s + 1.5, floor + 1.1, floor + 1.3, shade(stone, 0.9));
-    poly(out, x + 0.02, [[s - 0.7, floor + 1.3], [s + 0.7, floor + 1.3], [s + 0.55, floor + 3.8], [s - 0.55, floor + 3.8]], stone);
-    poly(out, x + 0.02, [[s - 0.85, floor + 3.8], [s + 0.85, floor + 3.8], [s + 0.6, floor + 5.6], [s - 0.75, floor + 5.3]], stone);
-    bar(out, x + 0.03, [s + 0.6, floor + 5.4], [s + 1.5, floor + 6.6], 0.35, shade(stone, 0.95));   // (an arm raised, its hand gone)
-    for (const [ds, w] of [[-2.1, 0.6], [1.9, 0.45], [2.4, 0.3]]) poly(out, x + 0.03, [[s + ds - w, floor], [s + ds + w, floor], [s + ds + w * 0.4, floor + w * 0.9]], shade(stone, 0.85));
+    // (a broken statue at heroic size on its plinth, its rubble at its foot)
+    const stone = mix(L.stone, '#cfcac0', 0.22), p = 1.0;
+    rect(out, x, s - 0.9, s + 0.9, floor, floor + p - 0.15, shade(stone, 0.75));
+    rect(out, x + 0.01, s - 1.05, s + 1.05, floor + p - 0.15, floor + p, shade(stone, 0.9));
+    figure(out, x + 0.02, s, floor + p, 2.6, stone, sizes, true);
+    for (const [ds, w] of [[-1.5, 0.35], [1.3, 0.28], [1.7, 0.18]]) poly(out, x + 0.03, [[s + ds - w, floor], [s + ds + w, floor], [s + ds + w * 0.4, floor + w * 0.9]], shade(stone, 0.85));
   } else if (id === 'gargoyle') {
-    const g = shade(L.stone, 0.7), b = floor + 2.2;
-    poly(out, x, [[s - 0.9, b], [s + 0.9, b], [s + 0.7, b + 1.2], [s - 0.6, b + 1.3]], g);
-    poly(out, x, [[s - 0.6, b + 1.1], [s - 2.2, b + 2.4], [s - 0.4, b + 1.9]], g);
-    poly(out, x, [[s + 0.5, b + 1.1], [s + 2, b + 2.3], [s + 0.3, b + 1.9]], g);
-    poly(out, x + 0.01, [[s + 0.4, b + 1.2], [s + 1.1, b + 1.4], [s + 1.2, b + 1.9], [s + 0.5, b + 1.9]], g);
-    poly(out, x + 0.01, [[s + 0.6, b + 1.9], [s + 0.75, b + 2.35], [s + 0.9, b + 1.9]], g);
+    // (a gargoyle a crouching beast's size on the parapet's coping)
+    const g = shade(L.stone, 0.7), b = floor + 2.2, k = 0.5;
+    poly(out, x, [[s - 0.9 * k, b], [s + 0.9 * k, b], [s + 0.7 * k, b + 1.2 * k], [s - 0.6 * k, b + 1.3 * k]], g);
+    poly(out, x, [[s - 0.6 * k, b + 1.1 * k], [s - 2.2 * k, b + 2.4 * k], [s - 0.4 * k, b + 1.9 * k]], g);
+    poly(out, x, [[s + 0.5 * k, b + 1.1 * k], [s + 2 * k, b + 2.3 * k], [s + 0.3 * k, b + 1.9 * k]], g);
+    poly(out, x + 0.01, [[s + 0.4 * k, b + 1.2 * k], [s + 1.1 * k, b + 1.4 * k], [s + 1.2 * k, b + 1.9 * k], [s + 0.5 * k, b + 1.9 * k]], g);
+    poly(out, x + 0.01, [[s + 0.6 * k, b + 1.9 * k], [s + 0.75 * k, b + 2.35 * k], [s + 0.9 * k, b + 1.9 * k]], g);
+    measure(sizes, 'gargoyle.h', 2.4 * k);
   }
+}
+
+/** a case of books from `z0` to `z1`, its `base` a cupboard; the books in runs of their spines, a set bound alike to a
+ * board when `sets` (calm: one tone a run, long runs), else volumes of every binding; returns its top */
+function caseOf(out, x, s, w, z0, z1, base, trim, dark, spines, dice, sizes, sets) {
+  const pitch = 0.4, half = [[s - w / 2, s - 0.04], [s + 0.04, s + w / 2]];
+  rect(out, x, s - w / 2 - 0.1, s + w / 2 + 0.1, z0, z1 + 0.12, trim);
+  rect(out, x + 0.01, s - w / 2 - 0.22, s + w / 2 + 0.22, z1 + 0.12, z1 + 0.3, shade(trim, 1.12));   // (its cornice)
+  rect(out, x + 0.01, s - w / 2, s + w / 2, z0 + base, z1, dark);
+  if (base) {
+    rect(out, x + 0.01, s - w / 2, s + w / 2, z0 + 0.08, z0 + base - 0.06, shade(trim, 0.78));   // (its cupboard)
+    rect(out, x + 0.02, s - 0.025, s + 0.025, z0 + 0.14, z0 + base - 0.12, shade(trim, 0.55));
+  }
+  rect(out, x + 0.02, s - 0.04, s + 0.04, z0 + base, z1, trim);   // (its middle stile)
+  measure(sizes, 'case.lift', 0); measure(sizes, 'case.h', z1 + 0.3 - z0); measure(sizes, 'board.pitch', pitch);
+  for (let zb = z0 + base + 0.04; zb + pitch <= z1 + 1e-6; zb += pitch) {
+    rect(out, x + 0.02, s - w / 2, s + w / 2, zb - 0.04, zb, trim);
+    for (const [a, b] of half) {
+      const set = spines[Math.floor(dice() * spines.length)];
+      for (let t = a + 0.03; t < b - 0.12;) {
+        const rw = Math.min(b - 0.03 - t, sets ? 0.4 + dice() * 0.4 : 0.16 + dice() * 0.3), bh = sets ? 0.27 : 0.2 + dice() * 0.13;
+        if (!sets && dice() < 0.14) {   // (a gap where books were taken, one leaning into it)
+          const gw = 0.12 + dice() * 0.12;
+          bar(out, x + 0.03, [t + 0.03, zb + 0.01], [t + gw - 0.02, zb + bh * 0.92], 0.05, spines[Math.floor(dice() * spines.length)]);
+          measure(sizes, 'book.h', Math.hypot(gw - 0.05, bh * 0.92));
+          t += gw; continue;
+        }
+        rect(out, x + 0.03, t, t + rw - 0.02, zb, zb + bh, sets ? shade(set, 0.9 + dice() * 0.2) : spines[Math.floor(dice() * spines.length)]);
+        measure(sizes, 'book.h', bh);
+        t += rw;
+      }
+    }
+  }
+  return z1;
+}
+
+/** a standing figure in stone, `h` tall from its feet at (s, z): legs in its robe, its body, its head; broken, its
+ * raised arm's hand gone */
+function figure(out, x, s, z, h, stone, sizes, broken = false) {
+  const u = h / 8;   // (a head: eight heads a figure)
+  poly(out, x, [[s - 1.1 * u, z], [s + 1.1 * u, z], [s + 0.9 * u, z + 4.4 * u], [s - 0.9 * u, z + 4.4 * u]], shade(stone, 0.92));   // (its robe)
+  poly(out, x, [[s - 1.1 * u, z + 4.4 * u], [s + 1.1 * u, z + 4.4 * u], [s + 1.2 * u, z + 6.6 * u], [s - 1.2 * u, z + 6.6 * u]], stone);   // (its body)
+  rect(out, x + 0.005, s - 0.3 * u, s + 0.3 * u, z + 6.6 * u, z + 7.0 * u, shade(stone, 0.85));
+  poly(out, x + 0.01, [[s - 0.45 * u, z + 7.0 * u], [s + 0.45 * u, z + 7.0 * u], [s + 0.45 * u, z + 7.7 * u], [s, z + 8 * u], [s - 0.45 * u, z + 7.7 * u]], stone);
+  bar(out, x + 0.01, [s - 1.1 * u, z + 6.3 * u], [s - 1.4 * u, z + 4.2 * u], 0.5 * u, shade(stone, 0.95));
+  if (broken) bar(out, x + 0.01, [s + 1.1 * u, z + 6.3 * u], [s + 2 * u, z + 7.6 * u], 0.5 * u, shade(stone, 0.95));
+  else bar(out, x + 0.01, [s + 1.1 * u, z + 6.3 * u], [s + 1.3 * u, z + 4.3 * u], 0.5 * u, shade(stone, 0.95));
+  measure(sizes, 'figure.h', h);
 }
 
 const lum = (hex) => { const c = hexRgb(hex).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
@@ -241,5 +329,12 @@ export function backdropLaws(B, D) {
     if (t <= k) sunk.push(r.id);
   }
   law('lane-reads', !sunk.length, sunk.length ? `the tops sink into the wall behind them in ${sunk.join(', ')}` : 'in every closed room the tops she stands on are lighter than the wall behind them', sunk);
+  // (10) she is the measure: every part that keeps its size within SCALE's, at her stature
+  const k = (G.hero?.stature ?? REF_STATURE) / REF_STATURE, off = [];
+  for (const [part, [lo, hi]] of Object.entries(D.sizes ?? {})) {
+    const want = SCALE[part];
+    if (want && (lo < want[0] * k - 1e-3 || hi > want[1] * k + 1e-3)) off.push(`a ${part.replace('.', "'s ")} of ${Math.round((hi > want[1] * k ? hi : lo) * 100) / 100} m (${Math.round(want[0] * k * 100) / 100}–${Math.round(want[1] * k * 100) / 100})`);
+  }
+  law('scale', D.sizes && !off.length, !D.sizes ? 'no part measured' : off.length ? `out of her scale: ${off.join('; ')}` : `${Object.keys(D.sizes).length} kinds of part at their true size against a body of ${Math.round(k * REF_STATURE * 100) / 100} m`);
   return out;
 }

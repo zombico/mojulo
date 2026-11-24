@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { rhythmFaults } from '../../era/wall-rhythm.js';
 import { boxOf } from './scene.js';
-import { composeRoom, backdropLaws, BACKDROP_LAWS, DETAIL_GROUPS, EYE } from './backdrop.js';
+import { composeRoom, backdropLaws, BACKDROP_LAWS, DETAIL_GROUPS, EYE, SCALE } from './backdrop.js';
 import { BOX_THEMES } from './themes.js';
 import { vampireSonata } from './vampire-sonata.js';
 
@@ -47,5 +47,16 @@ describe('the backdrop\'s craft', () => {
     expect(lost({ ...B.dress, faces: flat })).toContain('pools');
     const sunk = B.dress.faces.map((f) => ((f.group === 'box:stone' || f.group === 'box:ledge') && f.normal[2] > 0.5 ? { ...f, fill: '#050505' } : f));
     expect(lost({ ...B.dress, faces: sunk })).toContain('lane-reads');
+  });
+
+  it('draws what a hand holds at its size against her, and says a piece blown up to fill the wall', () => {
+    const k = 1.63 / 1.7;
+    for (const part of ['book.h', 'sword.l', 'figure.h', 'face.w', 'block.w', 'case.h']) {
+      const [lo, hi] = B.dress.sizes[part];
+      expect(lo).toBeGreaterThanOrEqual(SCALE[part][0] * k - 1e-3);
+      expect(hi).toBeLessThanOrEqual(SCALE[part][1] * k + 1e-3);
+    }
+    // (the library's books a metre tall, as a shelf drawn to its bay's size would have them)
+    expect(lost({ ...B.dress, sizes: { ...B.dress.sizes, 'book.h': [0.2, 1.1] } })).toEqual(['scale']);
   });
 });

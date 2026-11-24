@@ -37,7 +37,7 @@ export function drawBox({ layout: L, greybox: G, laws = [], solved }, { width = 
   o.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${Wpx}" height="${Hpx}" viewBox="0 0 ${Wpx} ${Hpx}" font-family="Inter, Helvetica, Arial, sans-serif">`);
   o.push(`<rect width="${Wpx}" height="${Hpx}" fill="#0b0c0f"/>`);
   o.push(`<text x="${left}" y="28" fill="#eee" font-size="18" font-weight="600">${esc(L.premise ?? 'A metroidvania box')}</text>`);
-  o.push(`<text x="${left}" y="48" fill="#9aa" font-size="12">${cols} × ${rows} screens (a screen ${r1(W)} × ${r1(H)} m), walked ${L.turn}; ${L.rooms.length} rooms in ${L.rings.length - 1} rings round a core; greybox</text>`);
+  o.push(`<text x="${left}" y="48" fill="#9aa" font-size="12">${cols} × ${rows} screens (a screen ${r1(W)} × ${r1(H)} m), ${(L.shape ?? 'spiral') === 'spiral' ? `walked ${L.turn}; ${L.rooms.length} rooms in ${L.rings.length - 1} rings round a core` : `a ${L.shape}; ${L.rooms.length} rooms in ${L.rings.length} regions`}; greybox</text>`);
 
   // the voids, by ring
   for (const r of L.rooms) { const [c, rr, w, h] = r.rect; o.push(rect(c * W, (c + w) * W, rr * H, (rr + h) * H, `fill="${RING_SHADE[r.ring % RING_SHADE.length]}"`)); }
@@ -77,8 +77,15 @@ export function drawBox({ layout: L, greybox: G, laws = [], solved }, { width = 
   }
 
   // the way back: shortcuts and loops
-  for (const d of L.doors.filter((x) => x.kind === 'shortcut' || x.kind === 'loop')) {
-    const [p, q] = d.cells, hole = G.holes.find((h) => h.door === d.id), s = hole ? (hole.s0 + hole.s1) / 2 : Math.max(p[0], q[0]) * W;
+  for (const d of L.doors.filter((x) => x.kind === 'shortcut' || x.kind === 'loop' || x.kind === 'return')) {
+    const [p, q] = d.cells;
+    if (p[1] === q[1]) {
+      // (across: a wing's return to its hub, an arrow over the wall it opens)
+      const s = Math.max(p[0], q[0]) * W, z = (p[1] + 0.78) * H, dir = q[0] > p[0] ? 1 : -1, C = d.gate ? GATES[d.gate].colour : '#9ad';
+      o.push(`<line x1="${r1(X(s) - dir * 18)}" y1="${Y(z)}" x2="${r1(X(s) + dir * 18)}" y2="${Y(z)}" stroke="${C}" stroke-width="1.6" stroke-dasharray="5 4"/><path d="M${r1(X(s) + dir * 10)} ${r1(Y(z) - 5)}L${r1(X(s) + dir * 18)} ${Y(z)}L${r1(X(s) + dir * 10)} ${r1(Y(z) + 5)}" fill="none" stroke="${C}" stroke-width="1.8"/>`);
+      continue;
+    }
+    const hole = G.holes.find((h) => h.door === d.id), s = hole ? (hole.s0 + hole.s1) / 2 : Math.max(p[0], q[0]) * W;
     const za = (p[1] + 0.5) * H, zb = (q[1] + 0.5) * H;
     const C = d.gate ? GATES[d.gate].colour : '#9ad';
     o.push(`<line x1="${X(s)}" y1="${Y(za)}" x2="${X(s)}" y2="${Y(zb)}" stroke="${C}" stroke-width="1.6" stroke-dasharray="5 4"/>`);
@@ -88,7 +95,9 @@ export function drawBox({ layout: L, greybox: G, laws = [], solved }, { width = 
   const pts = L.walk.map((id) => centre(room.get(id)));
   for (let j = 1; j < pts.length; j++) {
     const ring = room.get(L.walk[j]).ring, C = RING_LINE[ring % RING_LINE.length];
-    o.push(`<line x1="${X(pts[j - 1][0])}" y1="${Y(pts[j - 1][1])}" x2="${X(pts[j][0])}" y2="${Y(pts[j][1])}" stroke="${C}" stroke-width="2.4" stroke-opacity="0.85"/>`);
+    // (a walk that goes on through rooms already walked, as a hub's does to its next wing, drawn faint)
+    const joined = L.doors.some((d) => (d.a === L.walk[j - 1] && d.b === L.walk[j]) || (d.b === L.walk[j - 1] && d.a === L.walk[j]));
+    o.push(`<line x1="${X(pts[j - 1][0])}" y1="${Y(pts[j - 1][1])}" x2="${X(pts[j][0])}" y2="${Y(pts[j][1])}" stroke="${C}" stroke-width="${joined ? 2.4 : 1.2}" stroke-opacity="${joined ? 0.85 : 0.45}"${joined ? '' : ' stroke-dasharray="2 5"'}/>`);
   }
   L.walk.forEach((id, j) => {
     const [s, z] = pts[j], C = RING_LINE[room.get(id).ring % RING_LINE.length];

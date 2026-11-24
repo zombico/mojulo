@@ -37,3 +37,14 @@
   house's arms, a gargoyle. Columns and chains stand between the lane and the wall. The mood is dark: light falls in
   pools from candles, braziers and cold lamps whose flames glow, and dust hangs in their light. Each principle is
   measured.
+- A box can take other shapes besides the spiral. A **serpentine** is climbed row by row, each row run back the other way.
+  Its regions are bands of rows, and a chute down its middle drops back to the bottom: a bell tower walked through from
+  its foot to its spire. A **hub** is a centre column reached up an approach. Its wings are walked out from it and back,
+  each wing's prize opening the next, and a wing's boss sealing its way back: a courtyard. Each region is given its save
+  rooms, key, boss and pockets the same way whatever its shape. Both are held to the box's laws, each to its own form, and
+  Vampire Sonata has a bell tower and a courtyard drawn and played beside its spiral castle.
+- The castle's rooms are drawn to Erina's scale. Books, swords, shields, candles, ladders and the wall's stones keep their
+  true size against her, statues and portraits are life-size to heroic, and furniture stands on its floor. A tall hall is
+  filled with more things at their size rather than the same things blown up. The library is now a case twice her height
+  with a gallery and a second tier above it and a ladder between, in place of a shelf of metre-tall books. Each piece's
+  size is measured against hers.

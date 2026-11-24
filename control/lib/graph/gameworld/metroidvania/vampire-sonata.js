@@ -25,6 +25,7 @@
  * saber's light (`blade.steel`: no strand over it, her cut's slash in steel).
  *
  *   vampireSonata({ box?, turn? }) → the map's words (box.js readBox's), the castle at 12 × 8 screens unless said
+ *   bellTower({ box? }) · courtyard({ box? })   → the castle's other boxes: a serpentine and a hub (shapes.js)
  *   erinaHero()          → the character door's words for her (create_character { as: 'hero', spec, toon })
  *   vampireSonataGame({ heroRef?, id?, name? }) → a designed game's words: the feel, the side camera, her book (adopted
  *                        by `heroRef`, the row erinaHero mints), the castle one level
@@ -53,6 +54,37 @@ export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
       { id: 'great-halls', place: 'the great halls', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
       { id: 'inner-ward', place: 'the inner ward', boss: 'the Bellkeeper', finds: 'mist-veil', inward: 'form' },
       { id: 'keep', place: 'the keep', boss: 'the Lord of the Keep' },
+    ],
+  };
+}
+
+/**
+ * The castle's other boxes, each a shape (shapes.js) of its own: the BELL TOWER a serpentine climbed row by row from its
+ * foot to its spire (a pass-through: in at the bottom left, out at the top), and the COURTYARD a hub, its approach up the
+ * barbican to the court and three wings walked out and back from it (the chapel, the armoury, the crypt).
+ */
+export function bellTower({ box = [8, 6] } = {}) {
+  return {
+    premise: 'The bell tower climbed from its foot to its spire, a floor a turn', box: [...box], shape: 'serpentine', theme: 'castle',
+    powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
+    rings: [
+      { id: 'foot', place: 'the tower foot', key: true, boss: 'the Bell Ringer', finds: 'second-leap', inward: 'double-jump',
+        pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }, { gate: 'wall-break', holds: 'a relic' }] },
+      { id: 'belfry', place: 'the belfry', finds: 'ram-strike', inward: 'wall-break' },
+      { id: 'spire', place: 'the spire', boss: 'the Great Bell' },
+    ],
+  };
+}
+export function courtyard({ box = [7, 8] } = {}) {
+  return {
+    premise: 'The courtyard reached up the barbican, its chapel, armoury and crypt walked out from it and back', box: [...box], shape: 'hub', theme: 'castle',
+    powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
+    rings: [
+      { id: 'barbican', place: 'the barbican', key: true, inward: 'key' },
+      { id: 'court', place: 'the courtyard' },
+      { id: 'chapel', place: 'the chapel', boss: 'the Warden', finds: 'second-leap', inward: 'double-jump' },
+      { id: 'armoury', place: 'the armoury', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }] },
+      { id: 'crypt', place: 'the crypt', boss: 'the Crypt Lord' },
     ],
   };
 }
