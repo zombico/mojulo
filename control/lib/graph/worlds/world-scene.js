@@ -1748,6 +1748,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = workbotFigure(rawSpec.workbot);
           continue;
         }
+        // GROUND FORCE bodies (groundforce/): a figures-map entry may be a sci-fi ground unit (`unit`: { kind }: a gun
+        // emplacement, a hover tank, a personnel walker), what an arcade stage's ground targets write; its rig, one bone.
+        // Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.unit && typeof rawSpec.unit === 'object') {
+          const { unitFigure } = await import('@/lib/graph/groundforce/index.js');
+          payload.figures[name] = unitFigure(rawSpec.unit.kind);
+          continue;
+        }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
         // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose?, addons? }, what a parked cycle writes), at
         // its class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel

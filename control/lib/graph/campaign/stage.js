@@ -46,7 +46,8 @@
  * Pure: the same design, the same stage.
  */
 import { readPlace, placeParts as stationParts, orrery, roman, STAR_KINDS } from './theatre.js';
-import { craftMini, capitalMini } from './holo-minis.js';
+import { craftMini, capitalMini, groundMini } from './holo-minis.js';
+import { GROUND_UNITS, GROUND_UNIT_IDS } from '../groundforce/index.js';
 import { CAPITAL_CLASSES } from '../fleet/classes.js';
 import { PLANET_KINDS } from '../skyscape/planet-gen.js';
 import { readSkyAsk } from '../skyscape/sky.js';
@@ -58,7 +59,12 @@ export const FORMATIONS = Object.freeze(['line', 'vee', 'echelon', 'swarm']);
 /** How thick a stage's hazards stand: seconds of the way between them (none: never). */
 export const HAZARDS = Object.freeze({ none: 0, few: 7, some: 4, many: 2.5 });
 /** The points: a fighter, a boss's gun, its core; the medals' shares of all a stage holds. */
-export const SCORE = Object.freeze({ fighter: 100, gun: 250, core: 1000, medals: Object.freeze([0.85, 0.65, 0.4]) });
+export const SCORE = Object.freeze({ fighter: 100, gun: 250, core: 1000, medals: Object.freeze([0.85, 0.65, 0.4]),
+  // (a ground unit by its kind: groundforce/'s own)
+  ground: Object.freeze(Object.fromEntries(GROUND_UNIT_IDS.map((k) => [k, GROUND_UNITS[k].points]))) });
+/** The ships a wave may fly (the craft shelf's space fighters), and each formation's when the design names none. */
+export const FOE_CRAFT = Object.freeze(['daggerInterceptor', 'arrowInterceptor', 'facetRaider', 'twinPanel', 'triPanelDefender', 'advancedPanel']);
+export const FORMATION_CRAFT = Object.freeze({ line: 'daggerInterceptor', vee: 'arrowInterceptor', echelon: 'facetRaider', swarm: 'twinPanel' });
 // (each ground's map, as the rail stage lays it: a canyon's corridor, a field of rocks in space)
 const GROUND = Object.freeze({
   canyon: Object.freeze({ map: Object.freeze({ form: 'canyon', craft: 'multirole' }), speed: 120 }),
@@ -91,7 +97,7 @@ const ID = /^[a-z][a-z0-9-]*$/;
 export function readStage(v) {
   const fail = (m) => { throw new Error(`campaign: stage${m}`); };
   if (!isObj(v)) fail(' is { id, name, place, route, waves, boss, steps, medals?, status? }');
-  for (const k of Object.keys(v)) if (!['id', 'name', 'status', 'place', 'route', 'waves', 'boss', 'medals', 'steps'].includes(k)) fail(`.${k} is not part of a stage's design (id, name, status, place, route, waves, boss, medals, steps)`);
+  for (const k of Object.keys(v)) if (!['id', 'name', 'status', 'place', 'route', 'waves', 'ground', 'boss', 'medals', 'steps'].includes(k)) fail(`.${k} is not part of a stage's design (id, name, status, place, route, waves, ground, boss, medals, steps)`);
   if (typeof v.id !== 'string' || !ID.test(v.id)) fail('.id is a short name (stage-1)');
   if (typeof v.name !== 'string' || !v.name) fail('.name is the stage\'s name');
   if (v.status !== undefined && !['draft', 'approved'].includes(v.status)) fail('.status is draft (the default) or approved (the person approved its briefing)');
@@ -123,15 +129,35 @@ export function readStage(v) {
   const waves = v.waves.map((w, i) => {
     const at = `.waves[${i}]`;
     if (!isObj(w)) fail(`${at} is { id, name, count, at, formation?, say? }`);
-    for (const k of Object.keys(w)) if (!['id', 'name', 'count', 'at', 'formation', 'say'].includes(k)) fail(`${at}.${k} is not a wave's (id, name, count, at, formation, say)`);
+    for (const k of Object.keys(w)) if (!['id', 'name', 'count', 'at', 'formation', 'craft', 'say'].includes(k)) fail(`${at}.${k} is not a wave's (id, name, count, at, formation, craft, say)`);
+    if (w.craft !== undefined && !FOE_CRAFT.includes(w.craft)) fail(`${at}.craft is the ship its fighters fly: ${FOE_CRAFT.join(', ')}`);
     if (typeof w.id !== 'string' || !ID.test(w.id)) fail(`${at}.id is a short name`);
     if (seen.has(w.id)) fail(`${at}.id '${w.id}' is taken`);
     seen.add(w.id);
     if (!(Number.isInteger(w.count) && w.count >= 1 && w.count <= 6)) fail(`${at}.count is 1 to 6 fighters`);
     if (!(Number.isFinite(w.at) && w.at >= 0.05 && w.at <= 0.85)) fail(`${at}.at is its mark, a share of the way, 0.05–0.85 (the last stretch is the boss's)`);
     if (w.formation !== undefined && !FORMATIONS.includes(w.formation)) fail(`${at}.formation is ${FORMATIONS.join(', ')}`);
-    return { id: w.id, name: typeof w.name === 'string' && w.name ? w.name : w.id, count: w.count, at: w.at, formation: w.formation ?? 'line', ...(typeof w.say === 'string' ? { say: w.say } : {}) };
+    const formation = w.formation ?? 'line';
+    return { id: w.id, name: typeof w.name === 'string' && w.name ? w.name : w.id, count: w.count, at: w.at, formation, craft: w.craft ?? FORMATION_CRAFT[formation], ...(typeof w.say === 'string' ? { say: w.say } : {}) };
   });
+  // (the ground force's units beside a ground way: each group from its mark on, groundforce/)
+  let ground = [];
+  if (v.ground !== undefined) {
+    if (R.ground !== 'canyon') fail('.ground is a ground route\'s (ground: canyon): units stand on a moon, not in space');
+    if (!Array.isArray(v.ground) || v.ground.length > 8) fail('.ground is up to 8 groups { id, name, kind, count, at, say? }');
+    ground = v.ground.map((g, i) => {
+      const at = `.ground[${i}]`;
+      if (!isObj(g)) fail(`${at} is { id, name, kind, count, at, say? }`);
+      for (const k of Object.keys(g)) if (!['id', 'name', 'kind', 'count', 'at', 'say'].includes(k)) fail(`${at}.${k} is not a ground group's (id, name, kind, count, at, say)`);
+      if (typeof g.id !== 'string' || !ID.test(g.id)) fail(`${at}.id is a short name`);
+      if (seen.has(g.id)) fail(`${at}.id '${g.id}' is taken`);
+      seen.add(g.id);
+      if (!GROUND_UNIT_IDS.includes(g.kind)) fail(`${at}.kind is ${GROUND_UNIT_IDS.join(', ')}`);
+      if (!(Number.isInteger(g.count) && g.count >= 1 && g.count <= 6)) fail(`${at}.count is 1 to 6 units`);
+      if (!(Number.isFinite(g.at) && g.at >= 0.05 && g.at <= 0.85)) fail(`${at}.at is its mark, a share of the way, 0.05–0.85`);
+      return { id: g.id, name: typeof g.name === 'string' && g.name ? g.name : g.id, kind: g.kind, count: g.count, at: g.at, ...(typeof g.say === 'string' ? { say: g.say } : {}) };
+    });
+  }
   for (let i = 1; i < waves.length; i++) if (waves[i].at <= waves[i - 1].at) fail(`.waves[${i}].at comes after the wave before it (${waves[i - 1].at}): waves are written in the order they come`);
   const B = v.boss;
   if (!isObj(B) || typeof B.name !== 'string' || !B.name) fail('.boss is { name, guns?, armour?, hull?, say? }');
@@ -140,7 +166,7 @@ export function readStage(v) {
   if (B.armour !== undefined && !['light', 'heavy'].includes(B.armour)) fail('.boss.armour is light or heavy');
   if (B.hull !== undefined && !CAPITAL_CLASSES[B.hull]) fail(`.boss.hull is a capital ship's class (${Object.keys(CAPITAL_CLASSES).join(', ')}): its miniature on the table`);
   const boss = { name: B.name, guns: B.guns ?? 2, armour: B.armour ?? 'light', hull: B.hull ?? 'corvette', ...(typeof B.say === 'string' ? { say: B.say } : {}) };
-  const S0 = { waves, boss };
+  const S0 = { waves, ground, boss };
   if (v.medals !== undefined) {
     const M = v.medals;
     if (!(isObj(M) && ['gold', 'silver', 'bronze'].every((k) => Number.isFinite(M[k]) && M[k] > 0) && M.gold >= M.silver && M.silver >= M.bronze)) fail('.medals is { gold, silver, bronze }, points, gold the most');
@@ -157,19 +183,19 @@ export function readStage(v) {
     if (!Array.isArray(routes) || !routes.every((r) => Array.isArray(r) && r.length === 2 && r.every((id) => seen.has(id) && id !== 'route'))) fail(`${at}.routes are [[from, to]…], each one of the stage's (squad, boss, start, end, the waves)`);
     return { title: s.title, say: s.say, show: s.show.slice(), routes: routes.map((r) => r.slice()) };
   });
-  return { id: v.id, name: v.name, status: v.status ?? 'draft', place, route, waves, boss, medals, steps };
+  return { id: v.id, name: v.name, status: v.status ?? 'draft', place, route, waves, ...(ground.length ? { ground } : {}), boss, medals, steps };
 }
 
 /** The most a stage holds: every fighter, every gun, the core. */
 export function stagePoints(S) {
-  return S.waves.reduce((s, w) => s + w.count * SCORE.fighter, 0) + S.boss.guns * SCORE.gun + SCORE.core;
+  return S.waves.reduce((s, w) => s + w.count * SCORE.fighter, 0) + (S.ground ?? []).reduce((s, g) => s + g.count * SCORE.ground[g.kind], 0) + S.boss.guns * SCORE.gun + SCORE.core;
 }
 
 /** The stage's machine gate: advisory, each law with what it found. */
 export function stageLaws(S) {
   const shown = new Set(S.steps.flatMap((s) => s.show)), laws = [];
-  const unshown = S.waves.filter((w) => !shown.has(w.id)).map((w) => w.name);
-  laws.push({ law: 'every-wave-shown', ok: !unshown.length, says: unshown.length ? `never shown on the table: ${unshown.join(', ')}` : 'every wave is shown before launch' });
+  const unshown = [...S.waves, ...(S.ground ?? [])].filter((w) => !shown.has(w.id)).map((w) => w.name);
+  laws.push({ law: 'every-wave-shown', ok: !unshown.length, says: unshown.length ? `never shown on the table: ${unshown.join(', ')}` : 'every wave and ground group is shown before launch' });
   laws.push({ law: 'boss-shown', ok: shown.has('boss'), says: shown.has('boss') ? `the ${S.boss.name} is shown before launch` : `the ${S.boss.name} is never shown: a pilot meets it cold` });
   const tight = S.waves.slice(1).filter((w, i) => w.at - S.waves[i].at < 0.06).map((w) => w.name);
   laws.push({ law: 'waves-spaced', ok: !tight.length, says: tight.length ? `on the heels of the wave before: ${tight.join(', ')} (keep 0.06 of the way between)` : 'each wave has its own stretch of the way' });
@@ -184,10 +210,11 @@ export function stageLaws(S) {
 export function compileStage(S, { airframe = 'strikeFoil', design = null } = {}) {
   const G = GROUND[S.route.ground], space = S.route.ground === 'space';
   const plan = {
-    waves: S.waves.map((w) => ({ at: w.at, count: w.count, formation: w.formation })),
+    waves: S.waves.map((w) => ({ at: w.at, count: w.count, formation: w.formation, craft: w.craft })),
+    ...(S.ground ? { ground: S.ground.map((g) => ({ kind: g.kind, count: g.count, at: g.at })) } : {}),
     hazards: HAZARDS[S.route.hazards],
     boss: { guns: S.boss.guns, armour: S.boss.armour },
-    score: { fighter: SCORE.fighter, gun: SCORE.gun, core: SCORE.core, medals: [S.medals.gold, S.medals.silver, S.medals.bronze] },
+    score: { fighter: SCORE.fighter, gun: SCORE.gun, core: SCORE.core, ...(S.ground ? { ground: Object.fromEntries([...new Set(S.ground.map((g) => g.kind))].map((k) => [k, SCORE.ground[k]])) } : {}), medals: [S.medals.gold, S.medals.silver, S.medals.bronze] },
   };
   const laid = S.route.segments ? routeGround(S) : null;
   const airspace = {
@@ -202,7 +229,8 @@ export function compileStage(S, { airframe = 'strikeFoil', design = null } = {})
   const build = [
     laid ? `a route down ${placeParts(S.place)[3].name}, ${Math.round(laid.map.field[0] / 100) / 10} km at ${S.route.speed} m/s: ${S.route.segments.map((g) => `${g.kind} ${g.seconds} s`).join(', ')}; its hazards ${S.route.hazards}`
       : `a ${space ? 'field of rocks over' : 'canyon on'} ${placeParts(S.place)[3].name} at ${S.route.speed} m/s, its hazards ${S.route.hazards}`,
-    ...S.waves.map((w) => `${w.name}: ${w.count} in a ${w.formation} at ${Math.round(w.at * 100)}% of the way`),
+    ...S.waves.map((w) => `${w.name}: ${w.count} ${w.craft} in a ${w.formation} at ${Math.round(w.at * 100)}% of the way`),
+    ...(S.ground ?? []).map((g) => `${g.name}: ${g.count} ${GROUND_UNITS[g.kind].label}${g.count === 1 ? '' : 's'} on the ground from ${Math.round(g.at * 100)}% of the way`),
     `the ${S.boss.name}: a core and ${S.boss.guns} gun${S.boss.guns === 1 ? '' : 's'}, ${S.boss.armour} armour`,
     `medals at ${S.medals.gold} · ${S.medals.silver} · ${S.medals.bronze} of ${stagePoints(S)} points`,
   ];
@@ -248,7 +276,9 @@ export function stageBriefingData(S, { ground = null } = {}) {
   const O = orrery(S.place, { moonKind: S.route.world });
   const things = [
     { id: 'squad', name: 'Wolf Squadron', side: 'friend', kind: 'group', label: 'Strike foil', at: along(0), heading: 0, count: 1, pilot: true, mini: craftMini('strikeFoil') },
-    ...S.waves.map((x, i) => ({ id: x.id, name: x.name, side: 'foe', kind: 'group', label: `${x.count} ${FORM_WORDS[x.formation]}`, at: G && G.waves[i] ? G.waves[i] : along(x.at), heading: 180, count: x.count, arrives: true, mini: craftMini('twinPanel') })),
+    ...S.waves.map((x, i) => ({ id: x.id, name: x.name, side: 'foe', kind: 'group', label: `${x.count} ${FORM_WORDS[x.formation]}`, at: G && G.waves[i] ? G.waves[i] : along(x.at), heading: 180, count: x.count, arrives: true, mini: craftMini(x.craft) })),
+    // (the ground force on the ground, where its units stand)
+    ...(S.ground ?? []).map((g, i) => { const p = G && G.ground && G.ground[i] ? G.ground[i] : along(g.at); return { id: g.id, name: g.name, side: 'foe', kind: 'group', label: `${g.count} ${GROUND_UNITS[g.kind].label}${g.count === 1 ? '' : 's'}`, at: G ? p : [p[0], p[1], 0], heading: 180, count: g.count, mini: groundMini(g.kind) }; }),
     { id: 'boss', name: S.boss.name, side: 'foe', kind: 'capital', label: `a core and ${S.boss.guns} gun${S.boss.guns === 1 ? '' : 's'}`, at: G ? G.boss : along(1.15), heading: 180, mini: capitalMini(S.boss.hull) },
   ];
   // (the hazards on the table: rocks crowding the way in space, pillars standing in it in a canyon)
@@ -274,8 +304,9 @@ export function stageBriefingData(S, { ground = null } = {}) {
     steps,
     roster: [{ id: 'squad', name: 'Wolf Squadron', craft: 'Strike foil', count: 1, side: 'friend' },
       ...S.waves.map((x) => ({ id: x.id, name: x.name, craft: 'Fighter', count: x.count, side: 'foe' })),
+      ...(S.ground ?? []).map((g) => ({ id: g.id, name: g.name, craft: GROUND_UNITS[g.kind].label.replace(/^\w/, (c) => c.toUpperCase()), count: g.count, side: 'foe' })),
       { id: 'boss', name: S.boss.name, craft: 'Boss', count: 1, side: 'foe' }],
-    goals: [{ text: `Destroy the ${S.boss.name}` }, { text: `Every fighter ${SCORE.fighter}, a gun ${SCORE.gun}, the core ${SCORE.core}` },
+    goals: [{ text: `Destroy the ${S.boss.name}` }, { text: `Every fighter ${SCORE.fighter}${S.ground ? `, ${[...new Set(S.ground.map((g) => g.kind))].map((k) => `a ${GROUND_UNITS[k].label} ${SCORE.ground[k]}`).join(', ')}` : ''}, a gun ${SCORE.gun}, the core ${SCORE.core}` },
       { text: `Gold ${S.medals.gold} · silver ${S.medals.silver} · bronze ${S.medals.bronze}` }],
   };
 }

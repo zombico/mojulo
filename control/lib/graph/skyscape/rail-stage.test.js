@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { planRailStage, railPathFrame, RAIL } from './rail-stage.js';
 import { airspaceOf, validateAirspace } from './airspace.js';
 import { airspaceEnds } from '../gameworld/levels.js';
-import { flightGoalMechanics } from '../gameworld/flight-goal.js';
+import { flightGoalMechanics, flightGoalCast } from '../gameworld/flight-goal.js';
 import { composeMechanics } from '../game/mechanics.js';
 
 const CANYON = { kind: 'airspace', map: { form: 'canyon', craft: 'multirole' }, rail: { speed: 120, waves: 3 }, seed: 4 };
@@ -81,6 +81,29 @@ describe('the rail stage', () => {
     // (a stage without a plan is scored as before: not at all)
     expect(flightGoalMechanics({ kind: 'stage' }, airspaceEnds(CANYON)).some((m) => m.kind === 'score')).toBe(false);
     expect(validateAirspace({ ...CANYON, rail: { plan: { waves: [{ at: 0.5, count: 9 }] } } }).join(' ')).toMatch(/plan\.waves/);
+  });
+
+  it('stands a design\'s ground units beside the way, never on its line; casts them and its fighters as figures, each scored', () => {
+    const plan = { waves: [{ at: 0.3, count: 2, formation: 'vee', craft: 'twinPanel' }], ground: [{ kind: 'turret', count: 2, at: 0.2 }, { kind: 'walker', count: 3, at: 0.5 }], hazards: 0,
+      score: { fighter: 100, gun: 250, core: 1000, ground: { turret: 150, walker: 150 }, medals: [1500, 1000, 500] } };
+    const M = { ...CANYON, rail: { speed: 120, plan } }, { S, field } = stageOf(M);
+    expect(validateAirspace(M)).toEqual([]);
+    expect(S.units.map((u) => u.id)).toEqual(['turret-1', 'turret-2', 'walker-1', 'walker-2', 'walker-3']);
+    for (const u of S.units) {
+      expect(Math.abs(u.at[1] - field.gorge.line(u.at[0]))).toBeGreaterThan(RAIL.box.hx * RAIL.unitAcross[0] - 1);
+      expect(u.at[2]).toBeCloseTo(field.groundAt(u.at[0], u.at[1]), 0);
+    }
+    // (alternate sides of the way)
+    const side = (u) => Math.sign(u.at[1] - field.gorge.line(u.at[0]));
+    expect(side(S.units[0])).not.toBe(side(S.units[1]));
+    const ends = airspaceEnds(M), X = flightGoalCast({ kind: 'stage' }, ends);
+    expect(X.figures['craft-twinPanel']).toEqual({ craft: { archetype: 'twinPanel', flying: true, gear: 'up' } });
+    expect(X.figures['unit-walker']).toEqual({ unit: { kind: 'walker' } });
+    expect(X.entities.filter((e) => /^foe-/.test(e.id)).every((e) => e.body.type === 'figure-rig' && e.body.figure === 'craft-twinPanel')).toBe(true);
+    expect(X.entities.find((e) => e.id === 'turret-1')).toMatchObject({ team: 'foes', rule: { type: 'ai', speed: 0 }, body: { figure: 'unit-turret', hittable: true } });
+    const pts = flightGoalMechanics({ kind: 'stage' }, ends).find((m) => m.kind === 'score').points;
+    expect(pts.filter((p) => /^(turret|walker)-/.test(p.match.entity)).map((p) => [p.match.entity, p.by])).toEqual([['turret-*', 150], ['walker-*', 150]]);
+    expect(validateAirspace({ ...CANYON, rail: { plan: { ground: [{ kind: 'mech', count: 1, at: 0.4 }] } } }).join(' ')).toMatch(/plan\.ground/);
   });
 
   it('refuses a stage it cannot lay, teaching', () => {

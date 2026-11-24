@@ -15,6 +15,7 @@
  *   MINI_FAMILIES             family → { parts, size: 'fighter' | 'bomber' | 'transport' | 'probe' }
  *   miniFamily(archetype)     → the family a craft of the shelf stands as
  *   craftMini(archetype)      → { family, size, parts }
+ *   groundMini(kind)          → { family: 'ground', size, parts }   a ground force unit (groundforce/)
  *   capitalMini(cls, seed?)   → { kind: 'capital', label, length, parts: [{ box, role }] }   (bow along +y)
  *   stationMini(kind, seed?)  → { kind: 'station', label, length, parts }
  *
@@ -75,6 +76,19 @@ export function craftMini(archetype) {
 const turn = (P) => ({ box: [r2((P.min[1] + P.max[1]) / -2), r2((P.min[0] + P.max[0]) / 2), r2((P.min[2] + P.max[2]) / 2), r2(P.max[1] - P.min[1]), r2(P.max[0] - P.min[0]), r2(P.max[2] - P.min[2])], role: P.role });
 const plain = (P) => ({ box: [r2((P.min[0] + P.max[0]) / 2), r2((P.min[1] + P.max[1]) / 2), r2((P.min[2] + P.max[2]) / 2), r2(P.max[0] - P.min[0]), r2(P.max[1] - P.min[1]), r2(P.max[2] - P.min[2])], role: P.role });
 const extent = (parts) => Math.max(...parts.flatMap((p) => [Math.abs(p.box[0]) + p.box[3] / 2, Math.abs(p.box[1]) + p.box[4] / 2]));
+
+/** The ground force's units on the table (groundforce/): a gun emplacement's ring and dome and barrels, a hover tank's
+ *  wedge and turret, a walker's cab on two legs; drawn at the small craft's size. */
+export const GROUND_MINIS = Object.freeze({
+  turret: S({ size: 'probe', parts: [{ box: [0, 0, 0.6, 6.8, 6.8, 1.2] }, { ball: [0, 0, 1.7, 2.1] }, { box: [0, 1.0, 2.5, 2.0, 2.2, 1.1] }, { tube: [-0.5, 4.3, 2.45, 0.22, 4.6] }, { tube: [0.5, 4.3, 2.45, 0.22, 4.6] }] }),
+  tank: S({ size: 'probe', parts: [{ box: [0, 0, 1.0, 4.6, 8.2, 1.0] }, { box: [0, 3.9, 1.15, 3.0, 1.4, 0.7] }, { box: [0, -0.7, 2.5, 2.7, 3.3, 0.86] }, { tube: [-0.35, 3.0, 2.55, 0.16, 4.8] }, { tube: [0.35, 3.0, 2.55, 0.16, 4.8] }] }),
+  walker: S({ size: 'probe', parts: [{ box: [0, 0.25, 3.95, 1.9, 2.3, 1.3] }, { box: [-0.9, -0.15, 1.6, 0.4, 0.4, 3.0] }, { box: [0.9, -0.15, 1.6, 0.4, 0.4, 3.0] }, { box: [-0.95, 0.35, 0.16, 0.95, 1.7, 0.32] }, { box: [0.95, 0.35, 0.16, 0.95, 1.7, 0.32] }, { tube: [0, 1.7, 3.42, 0.12, 1.4] }] }),
+});
+export function groundMini(kind) {
+  const M = GROUND_MINIS[kind];
+  if (!M) throw new Error(`campaign: '${kind}' is not a ground unit (${Object.keys(GROUND_MINIS).join(', ')})`);
+  return { family: 'ground', size: M.size, parts: M.parts };
+}
 
 /** A capital ship as the fleet builds it: its pieces as boxes, the bow along +y. */
 export function capitalMini(cls, seed = 1) {

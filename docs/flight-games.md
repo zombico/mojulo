@@ -465,6 +465,21 @@ waits, and the colony's masses.
 The flight sky's clouds and the aerial country are the live page's: the dashboard's `/world` route builds them, and a
 game exported to files (`export_game`) ships its airspace levels the same way, every byte inline.
 
+## An arcade stage's foes
+
+An arcade stage's fighters fly ships off the craft shelf, as a sortie's do. A design's wave names its ship, or flies its
+formation's (`control/lib/graph/campaign/stage.js` `FOE_CRAFT`, `FORMATION_CRAFT`).
+
+A ground stage also meets the ground force (`control/lib/graph/groundforce/`): a sci-fi army's units as cards of a few
+big shapes, drawn larger than life so they read from a fighter going past:
+- a gun emplacement;
+- a hover tank;
+- a personnel walker.
+
+A design's `ground` groups each name a unit, a count and a mark. The rail stands them beside the way from that mark,
+on alternate sides, on the ground or a colony's roofs. Each turns to the craft and fires up at it while it is in reach,
+and is scored by its kind. A new unit is a card.
+
 ## What comes next
 
 The shelf is the asset layer. In order, the moves that turn it into flight games:

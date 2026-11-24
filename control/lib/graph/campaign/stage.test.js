@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { readStage, stageLaws, stagePoints, compileStage, stagePlace, stageBriefingData, routeGround, worldGeocube, SCORE, HAZARDS, FORMATIONS, SEGMENTS } from './stage.js';
+import { readStage, stageLaws, stagePoints, compileStage, stagePlace, stageBriefingData, routeGround, worldGeocube, SCORE, HAZARDS, FORMATIONS, SEGMENTS, FOE_CRAFT, FORMATION_CRAFT } from './stage.js';
 import { stageGround, TABLE_GROUND } from './stage-ground.js';
 import { designKind, missionsReadout, withMissions, applyMissionEdit } from './designer.js';
 import { readRailPlan } from '../skyscape/rail-stage.js';
@@ -32,7 +32,7 @@ describe('an arcade stage\'s design', () => {
 
   it('holds every fighter, gun and core as points, the medals its shares when unsaid; its laws advise', () => {
     const S = readStage(canyon), most = stagePoints(S);
-    expect(most).toBe(S.waves.reduce((s, w) => s + w.count, 0) * SCORE.fighter + S.boss.guns * SCORE.gun + SCORE.core);
+    expect(most).toBe(S.waves.reduce((s, w) => s + w.count, 0) * SCORE.fighter + (S.ground ?? []).reduce((s, g) => s + g.count * SCORE.ground[g.kind], 0) + S.boss.guns * SCORE.gun + SCORE.core);
     expect(S.medals.gold).toBeLessThanOrEqual(most);
     expect(S.medals.gold).toBeGreaterThan(S.medals.silver);
     expect(stageLaws(S).every((L) => L.ok)).toBe(true);
@@ -50,7 +50,9 @@ describe('an arcade stage\'s design', () => {
       expect(level.goal).toEqual({ flight: 'stage' });
       const A = level.airspace, P = A.rail.plan;
       expect(readRailPlan(P)).toEqual([]);
-      expect(P.waves).toEqual(S.waves.map((w) => ({ at: w.at, count: w.count, formation: w.formation })));
+      expect(P.waves).toEqual(S.waves.map((w) => ({ at: w.at, count: w.count, formation: w.formation, craft: w.craft })));
+      // (each wave flies a ship: the design's, else its formation's)
+      expect(S.waves.every((w) => FOE_CRAFT.includes(w.craft))).toBe(true);
       expect(P.hazards).toBe(HAZARDS[S.route.hazards]);
       expect(P.boss).toEqual({ guns: S.boss.guns, armour: S.boss.armour });
       expect(P.score.medals).toEqual([S.medals.gold, S.medals.silver, S.medals.bronze]);
@@ -119,7 +121,7 @@ describe('a ground stage in segments, told over its ground', () => {
     expect(B.theatre.vertical).toBe(TABLE_GROUND.vertical);
     expect(B.theatre.masses.length).toBeGreaterThan(0);
     // (the way runs up the table: its start low on y, the boss past its end; the waves in their order along it)
-    const ys = B.things.filter((t) => t.kind === 'group' && t.side === 'foe').map((t) => t.at[1]);
+    const waveIds = new Set(S.waves.map((w) => w.id)), ys = B.things.filter((t) => waveIds.has(t.id)).map((t) => t.at[1]);
     expect(ys).toEqual([...ys].sort((a, b) => a - b));
     expect(B.things.find((t) => t.id === 'squad').at[1]).toBeLessThan(ys[0]);
     expect(B.things.find((t) => t.id === 'boss').at[1]).toBeGreaterThan(ys.at(-1));
@@ -127,6 +129,35 @@ describe('a ground stage in segments, told over its ground', () => {
     // (a space stage has no ground under its table; the same level, the same table)
     expect(stageGround(compileStage(readStage(space)).level.airspace)).toBeNull();
     expect(JSON.stringify(stageGround(level.airspace, { seed: 7 }))).toBe(JSON.stringify(Gr));
+  });
+});
+
+describe('a ground stage\'s force: real ships in its waves, units on the ground', () => {
+  const D = Object.values(STAGE_DESIGNS).find((x) => x.ground), S = readStage(D);
+  it('reads its ground groups and its waves\' ships, teaching each fault', () => {
+    expect(S.ground.map((g) => g.kind)).toEqual(D.ground.map((g) => g.kind));
+    expect(S.waves.map((w) => w.craft)).toEqual(D.waves.map((w) => w.craft ?? FORMATION_CRAFT[w.formation ?? 'line']));
+    const bad = (patch, m) => expect(() => readStage({ ...D, ...patch })).toThrow(m);
+    bad({ ground: [{ id: 'x', name: 'X', kind: 'battleship', count: 1, at: 0.3 }] }, /turret, tank, walker/);
+    bad({ ground: [{ id: 'x', name: 'X', kind: 'tank', count: 9, at: 0.3 }] }, /1 to 6/);
+    bad({ ground: [{ id: 'scouts', name: 'X', kind: 'tank', count: 1, at: 0.3 }] }, /taken/);
+    bad({ waves: [{ ...D.waves[0], craft: 'jumbo' }] }, /ship its fighters fly/);
+    expect(() => readStage({ ...space, ground: [{ id: 'x', name: 'X', kind: 'tank', count: 1, at: 0.3 }] })).toThrow(/ground route/);
+    // (a group never shown before launch is said by the laws)
+    const T = readStage({ ...D, steps: D.steps.map((st) => ({ ...st, show: st.show.filter((id) => id !== S.ground[0].id) })) });
+    expect(stageLaws(T).find((L) => L.law === 'every-wave-shown')).toMatchObject({ ok: false, says: expect.stringContaining(S.ground[0].name) });
+  });
+
+  it('is laid by the rail beside the way, cast as figures, scored by kind, and told on the table', () => {
+    const { level } = compileStage(S);
+    expect(level.airspace.rail.plan.ground).toEqual(S.ground.map((g) => ({ kind: g.kind, count: g.count, at: g.at })));
+    const G = stageGround(level.airspace, { seed: 5 }), B = stageBriefingData(S, { ground: G });
+    for (const g of S.ground) {
+      const t = B.things.find((x) => x.id === g.id);
+      expect(t).toMatchObject({ side: 'foe', kind: 'group', count: g.count, mini: { family: 'ground' } });
+    }
+    expect(B.roster.filter((r) => S.ground.some((g) => g.id === r.id)).length).toBe(S.ground.length);
+    expect(stagePoints(S)).toBeGreaterThan(stagePoints({ ...S, ground: [] }));
   });
 });
 

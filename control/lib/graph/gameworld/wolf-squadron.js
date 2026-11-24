@@ -52,14 +52,22 @@ export const STAGE_DESIGNS = Object.freeze({
       { id: 'hunters', name: 'Hunters', count: 3, at: 0.48, formation: 'echelon' },
       { id: 'swarm', name: 'Swarm', count: 6, at: 0.72, formation: 'swarm' },
     ],
+    // (the ground force: gun emplacements dug in on the flats, hover tanks at the colony's edge, walkers in its streets,
+    // more guns down the canyon)
+    ground: [
+      { id: 'flats-guns', name: 'Flats guns', kind: 'turret', count: 2, at: 0.2 },
+      { id: 'armour', name: 'Armour', kind: 'tank', count: 3, at: 0.36 },
+      { id: 'walkers', name: 'Walkers', kind: 'walker', count: 4, at: 0.45 },
+      { id: 'canyon-guns', name: 'Canyon guns', kind: 'turret', count: 2, at: 0.62 },
+    ],
     boss: { name: 'Gunship', guns: 2, armour: 'light', hull: 'corvette' },
     steps: [
       { title: 'Red Canyon', say: 'In low over the dust flats, through the colony, then down Red Canyon to its mouth.', show: ['squad', 'route', 'start', 'end'] },
-      { title: 'First contact', say: 'Scouts on the flats, three abreast. Raiders meet you at the colony\'s edge, four in a vee.', show: ['scouts', 'raiders'] },
-      { title: 'Through the colony', say: 'Hunters come stepped across the colony\'s towers. Mind the spires; the walls of the canyon are next.', show: ['hunters'] },
-      { title: 'Into the canyon', say: 'In the canyon a swarm: roll through it, guns hot. The pillars in the way are rock.', show: ['swarm'] },
+      { title: 'First contact', say: 'Scouts on the flats, three abreast, and gun emplacements dug in under them. Raiders meet you at the colony\'s edge, four in a vee.', show: ['scouts', 'flats-guns', 'raiders'] },
+      { title: 'Through the colony', say: 'Hover tanks hold the colony\'s edge; walkers in its streets. Hunters come stepped across the towers: mind the spires.', show: ['armour', 'walkers', 'hunters'] },
+      { title: 'Into the canyon', say: 'In the canyon more guns on the floor, then a swarm: roll through it, guns hot. The pillars in the way are rock.', show: ['canyon-guns', 'swarm'] },
       { title: 'The gunship', say: 'A gunship holds the canyon\'s mouth. Its two guns first, then its core.', show: ['boss'], routes: [['squad', 'boss']] },
-      { title: 'Wolves, go', say: 'Every fighter a hundred, a gun two fifty, the core a thousand. Bring home gold.', show: ['squad', 'boss'] },
+      { title: 'Wolves, go', say: 'Every fighter a hundred, every gun and tank on the ground more, the core a thousand. Bring home gold.', show: ['squad', 'boss'] },
     ],
   }),
   'stage-2': Object.freeze({

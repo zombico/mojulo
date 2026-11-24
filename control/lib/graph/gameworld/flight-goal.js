@@ -42,6 +42,7 @@ import { dogfightCast, waveIds, WING, wingFighter, armedPilot, guns } from '../s
 import { BAND_FACTS } from '../game/objectives.js';
 import { readSortie, sortieMechanics, sortieCast } from './flight-sortie.js';
 import { cockpitOf } from '../skyscape/cockpits.js';
+import { GROUND_UNITS, unitRadius } from '../groundforce/index.js';
 
 /** A fight in the air's costs: the craft's hp, what a hit on it takes, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hp: 100, hit: 4, crash: 25 });
@@ -52,6 +53,9 @@ export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'stag
 export const STAGE = Object.freeze({
   hit: 2, hazard: 20,
   wing: Object.freeze({ burst: 0.3, pause: 3.2, rof: 2 }), boss: Object.freeze({ burst: 0.5, pause: 1.8 }),
+  // (a ground unit: short bursts up at the craft, long pauses, only while it is in reach; its fighters' ship when the
+  // design names none: the arcade wing's interceptor)
+  ground: Object.freeze({ burst: 0.4, pause: 2.6, arc: 16 }), craft: 'daggerInterceptor',
   // (the craft's guns on a stage: an arcade's sights, wider than a dogfight's)
   sights: Object.freeze({ coreAngle: 4, assistAngle: 12 }),
   round: Object.freeze({ fireClass: 'lob', lobAngle: 0, projectileSpeed: 170, projectileGravity: 0, projRadius: 2, splashRadius: 0, fuse: 4, noGround: true, passTeam: true, smokeTrail: false, fxColor: 0xff5a3c, fxScale: 2 }),
@@ -180,7 +184,9 @@ export function flightGoalMechanics(goal, ends) {
       // (a designed stage's score, campaign/stage.js: every fighter, gun and core down its points; its medal read off
       // the score as the boss goes down)
       ...(S.score ? [
-        { kind: 'score', var: 'score', label: 'Score', points: [{ on: 'down', match: { entity: 'foe-*' }, by: S.score.fighter }, { on: 'down', match: { entity: 'boss-gun-*' }, by: S.score.gun }, { on: 'down', match: { entity: 'boss-core' }, by: S.score.core }] },
+        { kind: 'score', var: 'score', label: 'Score', points: [{ on: 'down', match: { entity: 'foe-*' }, by: S.score.fighter }, { on: 'down', match: { entity: 'boss-gun-*' }, by: S.score.gun }, { on: 'down', match: { entity: 'boss-core' }, by: S.score.core },
+          // (each ground unit the stage stands, by its kind's points)
+          ...[...new Set((S.units ?? []).map((u) => u.kind))].filter((k) => S.score.ground?.[k]).map((k) => ({ on: 'down', match: { entity: `${k}-*` }, by: S.score.ground[k] }))] },
         // (the score keeps itself for the result; the grade's criterion reads it, unlabelled, so it is kept once)
         { kind: 'grade', on: 'all:defeated', criteria: [{ var: 'score', best: 'high', gold: S.score.medals[0], silver: S.score.medals[1], bronze: S.score.medals[2] }] },
       ] : []),
@@ -277,13 +283,29 @@ function castOf(goal, ends) {
   if (goal.kind === 'stage' && ends.rail) {
     // the stage's fighters at their posts, asleep until their marks; its boss's parts, static minds with guns; the craft
     // armed (its cannon and missiles). Its hazards are the airspace's own to draw (rocks: airspace.js), the mechanic's to hurt
-    const S = ends.rail, c = map.craft, size = Math.round(Math.max(4, c.max / 25) * 100) / 100, entities = [];
+    const S = ends.rail, c = map.craft, size = Math.round(Math.max(4, c.max / 25) * 100) / 100, entities = [], figures = {};
     const toward = (at) => { const e = S.path[0]; return Math.atan2(e[1] - at[1], e[0] - at[0]); };
     // (an arcade wing: the dogfight's fighter without its missiles, firing in short bursts, on station ahead of the craft
-    // once woken: rules-rail.js)
+    // once woken: rules-rail.js; each a ship off the craft shelf, its wave's, flying)
     for (const f of S.foes) {
       const w = wingFighter(map, f.id, f.at, toward(f.at), { dormant: true }), { missiles: _m, ...rule } = w.rule;
-      entities.push({ ...w, rule: { ...rule, burst: STAGE.wing.burst, pause: STAGE.wing.pause, station: { of: 'player', ...f.station } }, weapon: { ...w.weapon, ...STAGE.round, rof: STAGE.wing.rof } });
+      const craft = f.craft ?? STAGE.craft, fig = `craft-${craft}`;
+      figures[fig] = { craft: { archetype: craft, flying: true, gear: 'up' } };
+      const { shape: _s, size: _z, color: _c, type: _t, ...hit } = w.body;
+      entities.push({ ...w, body: { type: 'figure-rig', figure: fig, ...hit }, rule: { ...rule, burst: STAGE.wing.burst, pause: STAGE.wing.pause, station: { of: 'player', ...f.station } }, weapon: { ...w.weapon, ...STAGE.round, rof: STAGE.wing.rof } });
+    }
+    // (its ground units, groundforce/: each standing where the rail put it, turning to the craft and firing up at it in
+    // short bursts while it is in reach)
+    for (const u of S.units ?? []) {
+      const U = GROUND_UNITS[u.kind], fig = `unit-${u.kind}`, R = unitRadius(u.kind);
+      figures[fig] = { unit: { kind: u.kind } };
+      entities.push({
+        id: u.id, team: 'foes',
+        rule: { type: 'ai', space: true, speed: 0, turn: 1.6, standoff: 0, fireArc: STAGE.ground.arc, burst: STAGE.ground.burst, pause: STAGE.ground.pause, sightRange: U.range, eye: 0 },
+        weapon: { ...guns(c), ...STAGE.round, rof: U.rof, range: U.range, assistAngle: 3 },
+        body: { type: 'figure-rig', figure: fig, hittable: true, hp: U.hp, poise: 99, radius: R, egg: { a: R, c: Math.round(R * 60) / 100, cz: Math.round(R * 40) / 100 } },
+        transform: { pos: u.at, heading: u.heading, pitch: 0 },
+      });
     }
     for (const p of S.boss.parts) entities.push({
       id: p.id, team: 'foes',
@@ -293,7 +315,7 @@ function castOf(goal, ends) {
       transform: { pos: p.at, heading: toward(p.at), pitch: 0 },
     });
     const A = armedPilot(c, size);
-    return { entities, pilot: { weapon: { ...A.weapon, ...STAGE.sights }, rule: { missiles: A.rule.missiles }, body: A.body } };
+    return { entities, figures, pilot: { weapon: { ...A.weapon, ...STAGE.sights }, rule: { missiles: A.rule.missiles }, body: A.body } };
   }
   if (goal.kind === 'dogfight' || goal.kind === 'trench') return dogfightCast(map, field, seat, { foes: goal.foes, waves: goal.waves });
   if (goal.kind !== 'tasks') return null;

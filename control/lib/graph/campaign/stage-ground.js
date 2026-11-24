@@ -4,7 +4,7 @@
  * table draws as terrain; the way as it is flown; each wave where it is posted; the boss where it waits; the pillars in
  * the way; the colony's taller masses where they stand.
  *
- *   stageGround(airspace, { seed }) → { field, vertical, terrain, path, waves, boss, start, end, rocks, masses } | null
+ *   stageGround(airspace, { seed }) → { field, vertical, terrain, path, waves, ground?, boss, start, end, rocks, masses } | null
  *     airspace   the level's (a gameworld level's `airspace`, or a built level's manifest: map, ground, rail…)
  *     null for a space stage (no ground) or a route that does not lay
  *
@@ -42,12 +42,14 @@ export function stageGround(airspace, { seed = 1 } = {}) {
   const at3 = (p) => { const [tx, ty] = toT(p[0], p[1]); return [r1(tx), r1(ty), r1(p[2] - floor)]; };
   // (each wave where its fighters are posted: their middle)
   const waves = R.waves.map((w) => { const F = R.foes.filter((f) => w.foes.includes(f.id)), n = F.length || 1; return at3([0, 1, 2].map((k) => F.reduce((s, f) => s + f.at[k], 0) / n)); });
+  // (each ground group where its units stand: their middle)
+  const ground = [...new Set((R.units ?? []).map((u) => u.group))].sort((a, b) => a - b).map((g) => { const U = R.units.filter((u) => u.group === g), n = U.length; return at3([0, 1, 2].map((k) => U.reduce((s, u) => s + u.at[k], 0) / n)); });
   // (the colony's masses that read from the table: its blocks and spires, not its habs; the tallest first)
   const A = field.aerial, masses = A ? A.boxes.filter((q) => q[5] >= TABLE_GROUND.tall).sort((p, q) => q[5] - p[5]).slice(0, TABLE_GROUND.masses).map((q) => { const [tx, ty] = toT(q[0], q[1]); return [r1(tx), r1(ty), r1(q[2] - floor), r1(q[3]), r1(q[4]), r1(q[5])]; }) : [];
   return {
     field: Math.round(Math.max(L, W) * 1.04), vertical: TABLE_GROUND.vertical,
     terrain: { x0: r1(x0), y0: r1(y0), dx: r1(dx), nx: gx, ny: gy, z },
-    path: P.map(at3), waves, boss: at3(R.boss.at), start: at3(a), end: at3(b),
+    path: P.map(at3), waves, ...(ground.length ? { ground } : {}), boss: at3(R.boss.at), start: at3(a), end: at3(b),
     rocks: R.hazards.map((h) => { const p = at3(h.at); return [p[0], p[1], h.size ? r1(h.base - floor + h.size[2] / 2) : p[2], r1(h.radius)]; }),
     masses,
   };

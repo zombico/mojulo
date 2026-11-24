@@ -149,6 +149,11 @@ describe('design_game: designed flight levels', () => {
       expect(M.game.mechanics.find((m) => m.kind === 'defeat-all')).toMatchObject({ who: 'boss-*', count: D.boss.guns + 1 });
       // (arcade: every fighter, gun and core scored, its medal the score's)
       expect(kinds).toEqual(expect.arrayContaining(['score', 'grade']));
+      // (its fighters ships off the craft shelf; a ground stage's force on the ground, each unit a figure, scored)
+      expect(foes.every((e) => e.body.type === 'figure-rig' && M.figures[e.body.figure]?.craft?.flying)).toBe(true);
+      const units = M.entities.filter((e) => /^(turret|tank|walker)-/.test(e.id));
+      expect(units.length).toBe((D.ground ?? []).reduce((n, g) => n + g.count, 0));
+      expect(units.every((e) => M.figures[e.body.figure]?.unit)).toBe(true);
       expect(M.game.mechanics.find((m) => m.kind === 'hazard-damage').hazards.every((h) => h.planar === false)).toBe(true);
       // its fighters on station ahead of the craft once woken, firing rounds that travel (dodged, rolled through)
       expect(foes.every((e) => e.rule.station?.of === 'player' && e.rule.station.lead >= 250 && !e.rule.missiles)).toBe(true);

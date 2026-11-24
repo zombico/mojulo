@@ -430,6 +430,9 @@ Pointers only; each target carries its own design notes.
   measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
   and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
   mines, `mines.js`), seen by `scene/channels/controllable/boss-view.js`: [docs/boss-fights.md](docs/boss-fights.md).
+- The ground force: [groundforce/](control/lib/graph/groundforce/) (a sci-fi army's ground units, a gun emplacement, a
+  hover tank, a personnel walker, as cards of a few big shapes, the workbots' primitives in a military register, drawn
+  larger than life; stood by a figures-map `unit`; an arcade stage's `ground` groups; a new unit is a card).
 - Worker bots: [workbots/](control/lib/graph/workbots/) (a toy world's worker bots in their own low-poly language: a
   few big primitives in toy colours by role, a face of two lit eyes and a mouth; a bot is a card, stood as a rig figure
   by a figures-map `workbot`; level 0's boss Bulwark is one).
