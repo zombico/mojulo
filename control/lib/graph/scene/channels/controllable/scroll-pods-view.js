@@ -1,7 +1,7 @@
 // In-page script: BLAZE GUNNER'S STRIKES DRAWN (worlds/controllable/scroll-pods.js plays them): each pod's hurtbox drawn
 // as light in the pod's hue, the shot's look (gameworld/feel/round-look.js): a white-hot core, the hue round it, additive,
 // so what the ship fires reads against space and against a hull. Appended after the controllable channel's own script
-// (it wraps stepControllable) on a scroll stage's page whose ship carries an arsenal only, so every other page keeps
+// (it wraps stepControllable) on a scroll stage's page whose ship carries an arsenal, or that has foes, only, so every other page keeps
 // every byte. A first pass: phase 8's effects pass raises it to the round look's full layers.
 //
 //   a SHOT, a BOMB   a core and its halo, camera-facing, sized to what it hits (a bomb pulsing, a pod's colour)
@@ -10,6 +10,8 @@
 //   the BEAM         a core and a halo from the muzzle along its length, its width what it burns
 //   the ORBIT        the ball and its chain to the ship
 //   a DROP           a pod where its carrier fell, pulsing in its hue: what an open slot catches
+//   a FOE'S BULLET   a white core in a ring of the foes' one hue (worlds/controllable/scroll-foes.js); a foe's TELL a glow
+//                    growing at it before it fires
 //
 // `window.__mojCtrl.podsDrawn()` says how many of each were drawn this frame (a page's check).
 export function scrollPodsScript() {
@@ -42,7 +44,7 @@ const __SPV = (() => {
     m.material.color.set(color); m.material.opacity = alpha;
   };
   const W = (B, u, v) => [B.along[0] * u + B.across[0] * v, B.along[1] * u + B.across[1] * v, B.along[2] * u + B.across[2] * v];
-  const seen = { shot: 0, ring: 0, sweep: 0, beam: 0, orbit: 0, bomb: 0, drop: 0 };
+  const seen = { shot: 0, ring: 0, sweep: 0, beam: 0, orbit: 0, bomb: 0, drop: 0, foeShot: 0, tell: 0 };
   function draw() {
     const w = __world, cam = w && w.camera;
     for (const p of Object.values(P)) { p.n = 0; for (const s of p.list) s.visible = false; }
@@ -67,6 +69,10 @@ const __SPV = (() => {
       if (e.beam && e.beam.w0) { quad(B, e.beam.w0, e.beam.w1, e.beam.width * 4, e.beam.hue, 0.45); quad(B, e.beam.w0, e.beam.w1, e.beam.width * 1.2, 0xffffff, 0.95); seen.beam++; }
       if (e.orbit && e.orbit.w) { quad(B, e.orbit.wAt, e.orbit.w, 0.12, e.orbit.hue, 0.5); sprite(P.halo, e.orbit.w, e.orbit.r * 4, e.orbit.hue, 0.7); sprite(P.core, e.orbit.w, e.orbit.r * 1.8, 0xffffff, 0.9); seen.orbit++; }
     }
+    // the FOES' FIRE: a white core inside a ring in the foes' one hue, read against stars and a hull alike; a foe's TELL a
+    // glow in that hue growing at it before it fires
+    for (const b of w.foeShots || []) { if (!b.w) continue; sprite(P.halo, b.w, b.r * 4.2, b.hue, 0.5); sprite(P.ring, b.w, b.r * 2.6, b.hue, 1); sprite(P.core, b.w, b.r * 1.7, 0xffffff, 1); seen.foeShot++; }
+    for (const e of w.entities) if (e.tellNow > 0 && !e.gone && e.rule && e.rule.hue) { const k = e.tellNow, R = ((e.body && e.body.radius) || 2); sprite(P.halo, e.transform.pos, R * (0.6 + 1.2 * k), e.rule.hue, 0.25 + 0.6 * k); seen.tell++; }
     for (const d of w.podDrops || []) { if (!d.w) continue; const pulse = 0.8 + 0.2 * Math.sin(t * 6 + d.id); sprite(P.ring, d.w, 3.6 * pulse, d.hue, 0.9); sprite(P.halo, d.w, 2.6, d.hue, 0.6); sprite(P.core, d.w, 1.1, 0xffffff, 0.85); seen.drop++; }
   }
   return { draw, seen };

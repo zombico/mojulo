@@ -24,7 +24,8 @@
  *                and, while FIRE is held, the live pod's BEAM (from the muzzle ahead, `length` × `width`, its damage a
  *                second) and ORBIT (a ball `radius` round the ship at `rate` turns a second, a foe hit once each `every`)
  *   a HIT        a foe (an entity of team 'foes', not down) within reach: its body's hp less the damage, flashed
- *                (`hitFlash`), and at 0 down and gone (`downed`, `gone`, `deadAt`), its pod dropped
+ *                (`hitFlash`), and at 0 down (`downed`, `deadAt`), its pod dropped; a body with a `blast` is blown apart by the
+ *                death burst (combat-match.js) and gone after it, one without gone at once
  *
  *   ship rule: { type: 'scroll-ship', arsenal: { base, pods, slots, eject, bomb }, keys?: { fire, slot, eject } (the
  *                input's fields: 'fire', 'slot', 'missile') }
@@ -50,7 +51,7 @@ export function buildScrollPods(E) {
   function foesOf(state, B) {
     const out = [];
     for (const b of state.entities) {
-      if (b.team !== 'foes' || b.downed || b.gone || b.isCamera) continue;
+      if (b.team !== 'foes' || b.downed || b.gone || b.waiting || b.isCamera) continue;   // (waiting: off the screen's edge, not in yet)
       const q = S(B, b.transform.pos);
       out.push({ b, u: q[0], v: q[1], r: radiusOf(b) });
     }
@@ -62,7 +63,9 @@ export function buildScrollPods(E) {
     if (!Number.isFinite(b.body.hp)) b.body.hp = 1;
     b.body.hp -= dmg; b.hitFlash = state.time; b.lastHitBy = ship.id; b.hits = (b.hits || 0) + 1;
     if (b.body.hp <= 0 && !b.downed) {
-      b.downed = true; b.gone = true; b.deadAt = state.time;
+      // (down, not gone: the death burst blows it apart the next frame, combat-match.js explodeUnit, a craft's blast where
+      // its body says, `body.blast`, and only then is it gone)
+      b.downed = true; b.deadAt = state.time; if (!(b.body.blast > 0)) b.gone = true;
       const pod = b.rule && b.rule.carries;
       if (pod && ship.rule.arsenal.pods[pod]) {
         const D = state.podDrops || (state.podDrops = []);

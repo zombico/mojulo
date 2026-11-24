@@ -133,6 +133,17 @@ describe('the arsenal', () => {
     expect(st.camera._sc[0]).toBeGreaterThan(20);
   });
 
+  it('a foe with a blast is blown apart as a craft by the death burst, and gone after it; one without is gone at once', () => {
+    const st = world({ foes: [{ at: [30, 0], hp: 0.5 }, { at: [30, 20], hp: 0.5 }] });
+    st.byId['foe-0'].body.blast = 6; st.byId['foe-0'].body.egg = { a: 1.5, c: 1.5, cz: 0 };
+    step(st, { fire: 1 }, 60);
+    const B = st.bursts.find((x) => x.craft);
+    expect(st.byId['foe-0'].gone).toBe(true);
+    expect(B).toBeTruthy();
+    expect(B.fxRadius).toBe(6);
+    expect(B.pos[2]).toBeCloseTo(st.byId['foe-0'].transform.pos[2], 6);     // at its centre on the plane, not over it
+  });
+
   it('a page without the arsenal keeps every byte', () => {
     expect(emissionSource({ scroll: true })).not.toContain('scroll-pods');
     expect(emissionSource({ scroll: true, scrollPods: true })).toContain('scroll-pods');

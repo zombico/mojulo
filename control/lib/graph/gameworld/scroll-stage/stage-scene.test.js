@@ -3,7 +3,7 @@
 // the play plane holds the ship alone (every layer and hull stands off it); a level flies the ship's airframe, a bare
 // page a slab; the airspace hands a scroll stage its own reader and builder, and refuses its words teaching.
 import { describe, it, expect } from 'vitest';
-import { readScrollStage, scrollStageOf, scrollStagePlay, assembleScrollStage, SCROLL_PACE, HULL_DEPTH, TARGET_HP } from './stage-scene.js';
+import { readScrollStage, scrollStageOf, scrollStagePlay, assembleScrollStage, SCROLL_PACE, HULL_DEPTH, TARGET_HP, SHIP_HP } from './stage-scene.js';
 import { POD_IDS, PODS } from './pods.js';
 import { SCROLL_FRAME, toScreen } from './frame.js';
 import { validateAirspace, assembleAirspace } from '../../skyscape/airspace.js';
@@ -35,16 +35,19 @@ describe('the scroll stage', () => {
     const P = assembleScrollStage(stage({ layers: ['dust', 'near'], hulls: [{ capital: small, at: 1 }] }));
     expect(P.faces.length).toBeGreaterThan(0);
     for (const f of P.faces) for (const p of f.corners) expect(Math.abs(toScreen('side', p)[2])).toBeGreaterThan(1);
-    const hull = P.faces.filter((f) => f.group.startsWith('fleet:'));
+    const hull = P.faces.filter((f) => f.group.startsWith('break:'));
     expect(hull.length).toBeGreaterThan(0);
     const d = hull.flatMap((f) => f.corners.map((p) => toScreen('side', p)[2]));
     expect(Math.max(...d)).toBeLessThan(0);
     expect((Math.min(...d) + Math.max(...d)) / 2).toBeCloseTo(HULL_DEPTH * P.camera.dist, -1);
+    // (plated as Rebel Storm's fleet is: each block's kibble for the page's hull kibble; the bloom on)
+    expect(Object.keys(P.kibble.blocks).every((id) => id.startsWith('hull-0/'))).toBe(true);
+    expect(P.finish.bloom).toBeTruthy();
   });
 
   it('a level flies the ship\'s airframe; a bare page a slab', () => {
     const play = scrollStagePlay(stage()), P = assembleScrollStage(stage());
-    expect(play.entities[0].body).toEqual({ type: 'figure-rig', figure: 'craft' });
+    expect(play.entities[0].body).toMatchObject({ type: 'figure-rig', figure: 'craft', hp: SHIP_HP });
     expect(play.figures.craft.craft.archetype).toBe(scrollStageOf(stage()).ship.craft);
     expect(P.entities[0].body.type).toBe('mesh');
     expect(P.figures).toBeUndefined();
@@ -60,6 +63,20 @@ describe('the scroll stage', () => {
     expect(a).toMatchObject({ team: 'foes', rule: { carries: p0 }, body: { hp: TARGET_HP, color: PODS[p0].hue } });
     expect(b.body.hp).toBe(9);
     expect(Math.abs(toScreen('side', a.transform.pos)[2])).toBeLessThan(1e-9);
+  });
+
+  it('a wave comes in as its foes, each waiting at its place in the formation, flying its craft, the last bringing its pod', () => {
+    const play = scrollStagePlay(stage({ waves: [{ at: 1, foe: 'drone', count: 3, formation: 'column', carries: POD_IDS[0] }] }));
+    const foes = play.entities.filter((e) => e.rule.type === 'scroll-foe'), A = scrollStageOf(stage()).cam.screen.along;
+    expect(foes.length).toBe(3);
+    for (const f of foes) expect(f.rule.enter).toBeCloseTo(A, 1);                            // a column comes in together
+    expect(new Set(foes.map((f) => f.rule.v)).size).toBe(3);                                  // side by side across
+    expect(foes.map((f) => f.rule.carries ?? null)).toEqual([null, null, POD_IDS[0]]);
+    expect(play.figures['foe-drone'].craft.archetype).toBeTruthy();
+    expect(foes[0].body).toMatchObject({ type: 'figure-rig', figure: 'foe-drone' });
+    expect(foes[0].team).toBe('foes');
+    expect(play.entities[0].rule.hitbox.r).toBeLessThan(play.entities[0].rule.size[0] / 8);  // a core, far smaller than the ship
+    expect(readScrollStage({ waves: [{ at: 1, foe: 'kraken' }] }).join(' ')).toMatch(/is a foe/);
   });
 
   it('the airspace hands a scroll stage its own reader and builder', () => {
