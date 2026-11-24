@@ -589,7 +589,8 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   // the bushes: each thicket kind its habit at its middle height; the shrubs the dome, in their season
   for (const b of plants.bushes) {
     const K = readBush(bushKinds[b.kind]), aim = Math.round(((K.height[0] + K.height[1]) / 2) * 10) / 10;
-    push(bushTemplate(bushKinds[b.kind], aim, null, `bush:${K.form}`, !!flock), b, b.h, K, !!b.soft);
+    // (a bush its scene turns, `yaw`: a hedge's segment along its line; any other turned by where it stands)
+    push(bushTemplate(bushKinds[b.kind], aim, null, `bush:${K.form}`, !!flock), b, b.h, K, !!b.soft, Number.isFinite(b.yaw) ? b.yaw : null);
   }
   for (const s of plants.shrubs) {
     const adorn = s.state === 'bloom' || s.state === 'fruit' ? s.state : null;

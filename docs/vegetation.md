@@ -402,6 +402,13 @@ stage says `crowns: { form: 'realistic', flock: false }`.
 - **A residential mix.** A geotown's residential pattern (`bay-and-gable`) and a geocity's outskirts plant maples, flowering
   cherries and birches; on valley-morning's town, maples at 11–14 m, cherries at about 9 m, birches at 12–14 m and
   the shade beeches at about 17 m.
+- **Hedges and gardens.** A clipped hedge is a habit no leaf form names (form/bush-form.js `BUSH_HABITS.hedge`): a
+  segment of a box its height long, flat on top and straight-sided, its flock's puffs runs filling it, the upper row
+  bridging the seam to the next segment. A geotown lays its hedges (a front line's, a hedge fence's) as these segments end
+  to end, each turned along its line (a bush's own `yaw`). Its gardens are filled with small plants (`houseplants.edging`
+  in geotown/pattern.js): a row along a house's front between its foundation shrubs, and companions beside each bed's
+  plant; box balls, heathers, hostas and little flowering shrubs in bloom. On valley-morning's town: 25 hedge segments,
+  40 flowering shrubs. These are the form render's only; the painted gardens are as they were.
 - **Absent, nothing.** A page without flock crowns carries none of its code (`form-flock.test.js`).
 - **Known limits:**
   - the occlusion prepass and the exports (GLB, USD, engines) see the puffs whole;

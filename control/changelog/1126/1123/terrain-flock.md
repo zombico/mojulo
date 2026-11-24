@@ -16,3 +16,6 @@
 - Geotowns and geocities take the same trees: their street trees and their gardens' bushes read as realistic flock
   when the scene asks for realistic crowns. Street trees grow away from the houses, over the street, so a town keeps its
   trees; and a residential street is a mix of maples, flowering cherries and birches at a street's sizes, not a forest.
+- A town's hedges are clipped hedges, flat on top and straight along their line, and its gardens are filled with small
+  plants: a bed along each house's front and companions round each bed's plant, box balls, heathers, hostas and little
+  flowering shrubs.

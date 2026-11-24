@@ -227,13 +227,18 @@ const BAY_AND_GABLE = {
     // between them; a bus shelter on each block face of a major street
     furniture: { bins: 32, rings: 18, shelter: true },
     // THE HOUSEPLANTS, read by the seventh generation (form/bush-form.js habits through the form's plants, in the painted
-    // boxes' place): each `kinds` a bush of the library (a leaf form's habit, its heights m); what grows in a yard's
-    // `beds` and its `planters`, by weight; the `hedge`'s bush and its stride (m); and the FOUNDATION plantings by a
-    // house's front, the `share` of front yards with them, their kinds, and the share that are a flowering shrub in bloom
+    // boxes' place): each `kinds` a bush of the library (a leaf form's habit, or the clipped hedge's, its heights m); what
+    // grows in a yard's `beds` and its `planters`, by weight; the `hedge`'s kind and its stride (m); the FOUNDATION
+    // plantings by a house's front, the `share` of front yards with them, their kinds, and the share that are a flowering
+    // shrub in bloom; and the small plants a garden is filled with (`edging`)
     houseplants: {
-      kinds: { box: { form: 'spray', height: [0.9, 1.5] }, hosta: { form: 'whorl', height: [0.3, 0.6] }, fern: { form: 'whorl', height: [0.45, 0.8] }, heather: { form: 'tuft', height: [0.35, 0.7] }, forsythia: { form: 'weep', height: [1, 1.6] }, juniper: { form: 'plate', height: [0.4, 0.7] } },
-      beds: { hosta: 2, fern: 1, heather: 1 }, planters: { box: 1, heather: 1 },
-      hedge: 'box', stride: 0.75,
+      kinds: { box: { form: 'spray', height: [0.9, 1.5] }, hedge: { form: 'hedge', height: [1.1, 1.5] }, boxball: { form: 'spray', height: [0.35, 0.6] }, hosta: { form: 'whorl', height: [0.3, 0.6] }, fern: { form: 'whorl', height: [0.45, 0.8] }, heather: { form: 'tuft', height: [0.35, 0.7] }, forsythia: { form: 'weep', height: [1, 1.6] }, juniper: { form: 'plate', height: [0.4, 0.7] } },
+      beds: { hosta: 2, fern: 1, heather: 1, boxball: 1 }, planters: { box: 1, heather: 1, boxball: 1 },
+      // (its hedge a clipped hedge's segments, laid along its line; `stride` the bushes' where its kind is a bush's)
+      hedge: 'hedge', stride: 0.75,
+      // (the SMALL PLANTS: a foundation bed's row along a house's front, one every `edge` m, and `companions` beside each
+      // bed's plant; each from `edging` by weight, `bloom` a little flowering shrub of `bloomH` m)
+      edging: { boxball: 2, heather: 1, hosta: 1, bloom: 2 }, edge: 0.7, companions: [1, 2], bloomH: [0.35, 0.6],
       foundation: { share: 0.55, kinds: { forsythia: 1, juniper: 1, box: 1 }, bloom: 0.4 },
     },
     // THE STREETSCAPES: how close the neighbourhood is to the city, read from its sidewalk (the first the default). Each

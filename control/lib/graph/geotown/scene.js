@@ -51,6 +51,7 @@ import { layLeaf, leafPage } from '../era/shutter-leaves.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
 import { treeSizes, readCrowns } from '../form/flora-read.js';
+import { BUSH_HABITS } from '../form/bush-form.js';
 import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
@@ -308,10 +309,18 @@ export function assembleGeotownScene(m, ctx = {}) {
   const form = !!ctx.form, claims = [], bushes = [], shrubs = [];
   // (the houseplants, pattern.houseplants: each a bush of the library at a kind's index, its ground claimed from the grass)
   const HP = P.houseplants, HPK = HP ? Object.keys(HP.kinds) : [];
-  const bush = (x, y, z, h, kind) => { bushes.push({ x: r5(x), y: r5(y), z: r5(z), h: r5(h), kind: HPK.indexOf(kind) }); claims.push([r5(x), r5(y), r5(h * 0.45 + 0.2)]); };
+  // (`yaw`: a bush its line turns, a hedge's segment; else turned by where it stands)
+  const bush = (x, y, z, h, kind, yaw = null) => { bushes.push({ x: r5(x), y: r5(y), z: r5(z), h: r5(h), kind: HPK.indexOf(kind), ...(yaw !== null ? { yaw: r5(yaw) } : {}) }); claims.push([r5(x), r5(y), r5(h * 0.45 + 0.2)]); };
+  // (a small plant of the garden's, HP.edging: a little flowering shrub in bloom, or a small bush of its kinds)
+  const small = (x, y, z, R) => { const k = pickOf(HP.edging, R); if (k === 'bloom') { const h = HP.bloomH[0] + (HP.bloomH[1] - HP.bloomH[0]) * R(); shrubs.push({ x: r5(x), y: r5(y), z: r5(z), h: r5(h), state: 'bloom' }); claims.push([r5(x), r5(y), r5(h * 0.45 + 0.2)]); } else { const K = HP.kinds[k]; bush(x, y, z, K.height[0] + (K.height[1] - K.height[0]) * R(), k); } };
   const pickOf = (table, R) => { const ks = Object.keys(table), sum = ks.reduce((a, k) => a + table[k], 0); let t = R() * sum; for (const k of ks) { t -= table[k]; if (t <= 0) return k; } return ks[ks.length - 1]; };
   // (a row of the hedge's bush along a line, from p to q (world, metres) standing on z(t), t 0..1 along it)
-  const hedgeRow = (p, q, z, h) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]), n = Math.max(1, Math.round(L / HP.stride)); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; bush(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z(t), h, HP.hedge); } };
+  // (a clipped hedge's kind, form/bush-form.js BUSH_HABITS.hedge: its segments end to end, each its length × its height
+  // long, turned along the line, a little overlapping so no seam opens)
+  const hedgeSeg = HP && HP.kinds[HP.hedge]?.form === 'hedge' ? BUSH_HABITS.hedge.length : 0;
+  const hedgeRow = (p, q, z, h) => { const L = Math.hypot(q[0] - p[0], q[1] - p[1]);
+    if (hedgeSeg) { const n = Math.max(1, Math.ceil(L / (hedgeSeg * h) - 1e-9)), yaw = Math.atan2(q[1] - p[1], q[0] - p[0]); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; bush(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z(t), h, HP.hedge, yaw); } return; }
+    const n = Math.max(1, Math.round(L / HP.stride)); for (let k = 0; k < n; k++) { const t = (k + 0.5) / n; bush(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, z(t), h, HP.hedge); } };
   const claim = (cs, role, o) => {
     if (!form || !CLAIMED.has(role) || o[2] < 0.5) return;
     const xs = cs.map((c) => c[0]), ys = cs.map((c) => c[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), w = x1 - x0, h = y1 - y0, s = Math.min(w, h);
@@ -512,6 +521,11 @@ export function assembleGeotownScene(m, ctx = {}) {
           if (Rf() < HP.foundation.bloom) { shrubs.push({ x: r5(x), y: r5(y), z: r5(zAt(u)), h: r5(0.8 + 0.5 * Rf()), state: 'bloom' }); claims.push([r5(x), r5(y), 0.8]); }
           else { const k = pickOf(HP.foundation.kinds, Rf), K = HP.kinds[k]; bush(x, y, zAt(u), K.height[0] + (K.height[1] - K.height[0]) * Rf(), k); }
         }
+        // (its bed between them along the house's front, filled with small plants, clear of the path and what opens)
+        if (HP.edging) for (let u = env[0] + 1.6; u < env[2] - 1.6; u += HP.edge * (0.85 + 0.3 * Rf())) {
+          if (Math.abs(u - pu) < pw / 2 + 0.5 || opens.some((o) => u > o[0] - 0.4 && u < o[1] + 0.4)) continue;
+          const [x, y] = W(pl, u, v + 0.1, 0); small(x, y, zAt(u), Rf);
+        }
       }
     }
     // a parking pad's car, now and then, nose to the house on the pad's gentle slope
@@ -612,7 +626,9 @@ export function assembleGeotownScene(m, ctx = {}) {
           const ua = Mu?.side === 'L' ? Math.max(ua0, (Mu.garage ? Math.max(Mu.strip[1], Mu.garage[2]) : Mu.strip[1]) + 0.3) : ua0, ub = Mu?.side === 'R' ? Math.min(ub0, (Mu.garage ? Math.min(Mu.strip[0], Mu.garage[0]) : Mu.strip[0]) - 0.3) : ub0;
           const Y = yardOf(want, { w: ub - ua, v0, v1: pl.laneGarage ? pl.laneGarage[1] - 0.6 : Al ? Al.garage[1] - 0.6 : dep, R: Ry }), shedHex = SHEDS[Math.floor(Ry() * SHEDS.length)];
           // (read by the seventh generation: its beds' and planters' plants the library's, in their painted leaves' place)
-          if (form && HP) { const Rp = streamOf(seed, 'houseplants', `yard:${pl.id}`); for (const q of Y.plants) { const [x, y] = W(pl, q.u + ua, q.v, 0); bush(x, y, pad + q.z, Math.max(0.3, q.h + 0.15), pickOf(q.in === 'planter' ? HP.planters : HP.beds, Rp)); } }
+          if (form && HP) { const Rp = streamOf(seed, 'houseplants', `yard:${pl.id}`); for (const q of Y.plants) { const [x, y] = W(pl, q.u + ua, q.v, 0); bush(x, y, pad + q.z, Math.max(0.3, q.h + 0.15), pickOf(q.in === 'planter' ? HP.planters : HP.beds, Rp));
+            // (a bed's plant its small companions beside it, HP.companions: the bed filled, not a plant a box)
+            if (q.in === 'bed' && HP.edging) { const nc = HP.companions[0] + Math.floor(Rp() * (HP.companions[1] - HP.companions[0] + 1)); for (let c = 0; c < nc; c++) { const du = (c % 2 ? 1 : -1) * (0.28 + 0.12 * Rp()), dv = (Rp() - 0.5) * 0.3, [cx, cy] = W(pl, q.u + ua + du, q.v + dv, 0); small(cx, cy, pad + q.z - 0.05, Rp); } } } }
           if (!Mn) yardPrev.set(key, Y.plan);
           const drawn = ZONES.map((z) => Y.plan[z]).filter((x) => x !== 'lawn');
           for (const x of drawn) yardsOf[x] = (yardsOf[x] ?? 0) + 1;

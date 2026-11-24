@@ -21,6 +21,9 @@ import { SPECIES } from '../vegetation/species.js';
 import { GRASSES } from '../vegetation/grass.js';
 import { WILDFLOWERS, WEEDS } from '../vegetation/wildflowers.js';
 import { BUSH_HABITS } from '../form/bush-form.js';
+import { LEAF_FORMS } from '../era/leaf-forms.js';
+// (the bushes a scene orders, flora.bushes.kinds: a leaf form's habit; the clipped hedge is a geotown's to lay, no kind's)
+const BUSH_KINDS = Object.freeze(Object.keys(BUSH_HABITS).filter((k) => LEAF_FORMS[k]));
 import { FLORA_SPECIES, FLORA_DEFAULT, FLORA_BAMBOO, AUTUMN, REALISTIC_KINDS } from '../form/flora-read.js';
 import { FLOWER_COLOURS } from '../form/grass-drifts.js';
 import { GRASS_TIERS } from '../scene/channels/form-grass.js';
@@ -135,7 +138,7 @@ export const ASSET_CARDS = fz({
 /** The families: where each one's ids come from (its registry), and the words its cards may use. */
 export const ASSET_FAMILIES = fz({
   species: fz({ source: () => Object.keys(SPECIES), vocab: fz({ canopy: CANOPY, stands: STANDS }) }),
-  bush: fz({ source: () => Object.keys(BUSH_HABITS), vocab: fz({ canopy: CANOPY, stands: STANDS }) }),
+  bush: fz({ source: () => BUSH_KINDS, vocab: fz({ canopy: CANOPY, stands: STANDS }) }),
   sward: fz({ source: () => GRASS_TIERS.map((t) => t.sward), vocab: fz({ stands: STANDS }) }),
   grass: fz({ source: () => Object.keys(GRASSES), vocab: fz({ stands: STANDS }) }),
   flower: fz({ source: () => Object.keys(WILDFLOWERS), vocab: fz({ stands: STANDS }) }),
@@ -168,7 +171,7 @@ export function reachOf(family, id) {
       if (REALISTIC_KINDS.includes(id)) return { via: 'flora.trees.kinds', species: id };
       if (id === FLORA_BAMBOO) return { via: 'bamboo card' };
       return null;
-    case 'bush': return BUSH_HABITS[id] ? { via: 'flora.bushes.kinds', form: id } : null;
+    case 'bush': return BUSH_KINDS.includes(id) ? { via: 'flora.bushes.kinds', form: id } : null;
     case 'sward': return { via: 'flora.grass.sward', id };
     case 'grass': return GRASSES[id] ? { via: 'flora.grass.drifts', id } : null;
     case 'flower': return WILDFLOWERS[id] ? (WEEDS.includes(id) ? { via: 'weeds', also: 'flora.flowers.mix' } : { via: 'flora.flowers.mix', id }) : null;
