@@ -69,3 +69,12 @@
   metres below it (off a roof, into a gap, from a face), the hero is put back there, still the line's, and the bus hears
   `chase:<id>:fell`. Before, a missed gap left the hero on the street, the level's own fall put them back on it, and the
   line ran on in plan under the roofs to its end, so the level counted as won.
+- **The track camera keeps a clear view** (`chase-line.js`): it never stands inside the level's blocks, and never with
+  one between it and the hero. A place that is either swings round the hero (holding the swing it took last), then
+  rises; none clear, it comes in short of the block. An ease that would pass through a block cuts instead. The page's
+  follow-camera pull-in no longer acts on it (it cast against every mesh and pulled the camera into the hero's face).
+  The `low` frame stands further out beside the hero, `over` looks lower down the way, the climb's profile stands out
+  from the face.
+- **The framing gate** (`set-piece-framing.test.js`): each kind's level run on the bus by a bot, every directed frame
+  held to it: the camera outside every block, nothing between it and the hero, the hero in frame and neither in the lens
+  nor lost in the distance.

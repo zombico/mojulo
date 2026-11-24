@@ -3079,7 +3079,7 @@ function __driveCameraBy(dt) {
   let look = c.lookAt;
   if (!look) { const h = c.transform.heading, pi = c.transform.pitch || 0; look = [p[0] + Math.cos(pi) * Math.cos(h), p[1] + Math.cos(pi) * Math.sin(h), p[2] + Math.sin(pi)]; }
   let px = p[0], py = p[1], pz = p[2];
-  if (c.rule && ${trackOn ? "(c.rule.type === 'follow' || c.rule.type === 'track')" : "c.rule.type === 'follow'"}) {
+  if (c.rule && c.rule.type === 'follow') {   // (the track camera keeps its own clear view: chase-line.js)
     const dx = p[0] - look[0], dy = p[1] - look[1], dz = p[2] - look[2];
     const full = Math.hypot(dx, dy, dz);
     if (full > 1e-3) {

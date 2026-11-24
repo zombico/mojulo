@@ -102,7 +102,8 @@ function climb(W) {
   const top = H + face;
   const setPiece = {
     id: W.id, line: [[0, 0], [56, 0]], half: 1.4, z: H,
-    cams: [{ at: 0, frame: 'chase' }, { at: 16, frame: 'profile', up: 2.5, ahead: 1 }, { at: 21, frame: 'over', cut: true }, { at: 30, frame: 'lead', fov: 66 }, { at: 39, frame: 'low', cut: true }, { at: 46, frame: 'chase' }],
+    // (the face seen from out beside it, the camera rising with him; over his shoulder once he is over its top)
+    cams: [{ at: 0, frame: 'chase' }, { at: 16, frame: 'profile', side: 9, up: 3, ahead: 1.5 }, { at: 25, frame: 'over', cut: true }, { at: 31, frame: 'lead', fov: 66 }, { at: 39, frame: 'low', cut: true }, { at: 46, frame: 'chase' }],
     beats: [{ at: 33, id: 'gives', do: [{ shake: 0.6 }, { puff: { at: [33, 0, top], is: 'dust' } }] }],
     prompts: [{ at: 40, id: `${W.id}-reach`, says: 'Reach', slow: 0.3 }],
   };

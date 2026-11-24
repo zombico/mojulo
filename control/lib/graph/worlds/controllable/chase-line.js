@@ -286,12 +286,30 @@ export function buildChaseLine(E) {
     chase: { back: 4.2, side: 0.6, up: 0.9, ahead: 7, lookUp: 1.5 },      // low behind, the hero and what they run at
     profile: { back: 0.5, side: 6, up: 1.4, ahead: 1.5, lookUp: 1.2 },    // beside, tracking with them
     wide: { back: 10, side: 7, up: 6, ahead: 5, lookUp: 1 },              // far and high: the place and the hero in it
-    low: { back: -1, side: 3.2, up: 0.3, ahead: 0.5, lookUp: 1.7 },       // under them, looking up as they go over
-    over: { back: 3, side: 0.7, up: 2, ahead: 10, lookUp: 1.5 },          // over the shoulder down the way
+    low: { back: 1.5, side: 4.5, up: 0.4, ahead: 2.5, lookUp: 1.4 },      // low beside them, looking up and on as they go over
+    over: { back: 3.5, side: 0.8, up: 2.2, ahead: 6, lookUp: 1.1 },       // over the shoulder down the way
     overhead: { back: 1.5, side: 0, up: 13, ahead: 1, lookUp: 0 },        // straight down on them
     close: { back: -1.8, side: 0.6, up: 1.6, ahead: 0, lookUp: 1.55 },    // the face, from in front
   };
   const DIALS = ['back', 'side', 'up', 'ahead', 'lookUp'];
+  // the clear view's search (radians round the hero, metres up) and its margin off a block
+  const SWINGS = [0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6, 2.2, -2.2, Math.PI], RISES = [0, 2, 4], CLEAR = 0.3;
+  const inBox = (c, b, m) => c[0] > b.min[0] - m && c[0] < b.max[0] + m && c[1] > b.min[1] - m && c[1] < b.max[1] + m && c[2] > b.min[2] - m && c[2] < b.max[2] + m;
+  // where along a to b (0 … 1) the ray first meets the box, or null (the slab test)
+  function firstHit(a, b, box) {
+    let t0 = 0, t1 = 1;
+    for (let i = 0; i < 3; i++) {
+      const d = b[i] - a[i];
+      if (Math.abs(d) < 1e-9) { if (a[i] < box.min[i] || a[i] > box.max[i]) return null; continue; }
+      let u = (box.min[i] - a[i]) / d, v = (box.max[i] - a[i]) / d;
+      if (u > v) { const w = u; u = v; v = w; }
+      if (u > t0) t0 = u; if (v < t1) t1 = v;
+      if (t0 > t1) return null;
+    }
+    return t0;
+  }
+  // a block between the camera and the hero (the ends trimmed: the hero's own footing and the camera's margin)
+  const crosses = (c, chest, b) => { const L = Math.hypot(chest[0] - c[0], chest[1] - c[1], chest[2] - c[2]); if (L < 0.8) return false; const f = firstHit(c, chest, b); return f != null && f > 0.3 / L && f < 1 - 0.4 / L; };
   const smooth01 = (u) => u * u * (3 - 2 * u);
   const dialsOf = (k) => { const f = FR[k.frame] || FR.chase, o = {}; for (const d of DIALS) o[d] = typeof k[d] === 'number' ? k[d] : f[d]; return o; };
   function track(e, input, dt, world) {
@@ -326,12 +344,39 @@ export function buildChaseLine(E) {
     if (T.yaw == null || cut) T.yaw = yl;
     else T.yaw += wrap(yl - T.yaw) * (1 - Math.exp(-(typeof r.turn === 'number' ? r.turn : 3) * (dt || 0)));
     const yaw = T.yaw, tx = Math.cos(yaw), ty = Math.sin(yaw), nx = -ty, ny = tx;
-    const want = [p[0] - tx * D.back + nx * D.side, p[1] - ty * D.back + ny * D.side, p[2] + D.up];
-    const look = [p[0] + tx * D.ahead, p[1] + ty * D.ahead, p[2] + D.lookUp];
-    const snap = cut || !e._trPlaced;
-    const k = snap ? 1 : 1 - Math.exp(-(typeof r.lerp === 'number' ? r.lerp : 6) * (dt || 0));
+    let want = [p[0] - tx * D.back + nx * D.side, p[1] - ty * D.back + ny * D.side, p[2] + D.up];
+    let look = [p[0] + tx * D.ahead, p[1] + ty * D.ahead, p[2] + D.lookUp];
+    // THE CLEAR VIEW: never inside the level's blocks, never one between the camera and the hero. A place that is either
+    // swings round the hero (the swing it took last first, so it holds), then rises; none clear, it comes in toward the
+    // hero short of the block. A swung camera looks at the hero
+    const boxes = world && world.colliders, chest = [p[0], p[1], p[2] + 1.2];
+    const clearOf = (c) => !boxes || !boxes.some((b) => inBox(c, b, CLEAR) || crosses(c, chest, b));
+    if (!clearOf(want)) {
+      const r0 = Math.max(2, Math.hypot(D.back, D.side)), a0 = Math.atan2(D.side, -D.back);
+      const at = (da, du) => { const a = a0 + da; return [p[0] + (tx * Math.cos(a) + nx * Math.sin(a)) * r0, p[1] + (ty * Math.cos(a) + ny * Math.sin(a)) * r0, p[2] + D.up + du]; };
+      let got = null;
+      for (const da of (T.dodge ? [T.dodge.da] : []).concat(SWINGS)) {
+        for (const du of RISES) { const c = at(da, du); if (clearOf(c)) { got = { da, du, c }; break; } }
+        if (got) break;
+      }
+      if (got) { want = got.c; T.dodge = got; }
+      else {
+        // (in toward the hero, short of the first block on the way)
+        let u = 1;
+        for (const b of boxes) { const f = firstHit(chest, want, b); if (f != null) u = Math.min(u, f); }
+        const f = Math.max(0.15, u - 0.12);
+        want = [chest[0] + (want[0] - chest[0]) * f, chest[1] + (want[1] - chest[1]) * f, chest[2] + (want[2] - chest[2]) * f];
+        T.dodge = null;
+      }
+      look = [chest[0] + tx, chest[1] + ty, chest[2]];
+    } else T.dodge = null;
     const cp = e.transform.pos;
-    e.transform.pos = [cp[0] + (want[0] - cp[0]) * k, cp[1] + (want[1] - cp[1]) * k, cp[2] + (want[2] - cp[2]) * k];
+    let snap = cut || !e._trPlaced;
+    const k = snap ? 1 : 1 - Math.exp(-(typeof r.lerp === 'number' ? r.lerp : 6) * (dt || 0));
+    let next = [cp[0] + (want[0] - cp[0]) * k, cp[1] + (want[1] - cp[1]) * k, cp[2] + (want[2] - cp[2]) * k];
+    // (an ease that would carry it through a block, or behind one, cuts to the clear place instead)
+    if (!snap && !clearOf(next)) { next = want; snap = true; }
+    e.transform.pos = next;
     e._trPlaced = true;
     e.lookAt = look;
     e.transform.heading = Math.atan2(look[1] - e.transform.pos[1], look[0] - e.transform.pos[0]);
