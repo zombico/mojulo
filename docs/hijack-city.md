@@ -47,8 +47,9 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
 
 - **name**: the game's own title (the rail's name is ours; the game's is theirs).
 - **characters**: the hero (create_character words: body, clothes, how it moves).
-- **levels**: its suburbs' register (`geocity.outskirts`: `west-coast` by default, `tropical`, `bay-and-gable`,
-  `old-town`; `hijackCityWorld({ register })`), another metro (`geocity.metro.from`), its size, its water, a second
+- **levels**: its suburbs' register (`geocity.outskirts`: `west-coast` by default, `tropical`, `san-francisco`,
+  `sunset`, `bay-and-gable`, `old-town`; `hijackCityWorld({ register })`, the two San Francisco ones laying a hill
+  city's district, `bayside`, in its fog), another metro (`geocity.metro.from`), its size, its water, a second
   district beside the first.
 - **errands**: the story (the contact, the missions and their heat, clocks and the end), the side work.
 - **factions**: the crews, their turf and colours, their boards of work.

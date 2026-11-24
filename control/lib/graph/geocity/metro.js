@@ -173,6 +173,34 @@ export const METROS = Object.freeze({
     grammar: 'mediterranean',
     outskirts: 'bay-and-gable',
   }),
+  // (a West Coast hill city: geotown/pattern.js san-francisco its outskirts, sunset another; its streetcar lines its cable
+  // cars, the metro's own streetcar on its steepest streets)
+  bayside: Object.freeze({
+    read: 'a hilly peninsula metro (a San Francisco): its core on the bay at the north-east corner, water on three sides, steep hills its grid is laid straight over, cable cars up its streets, Victorian neighbourhoods painted their colours',
+    extent: [4000, 3600],
+    water: { sides: ['n', 'e', 'w'], depth: 320 },
+    core: [0.78, 0.82],
+    fall: { drop: 20, toward: 'e' },
+    hills: { height: 70, from: SWELL },
+    arterials: { core: [220, 300], outer: [640, 860], reach: 1700 },
+    rings: { core: 560, frame: 1300 },
+    heights: {
+      core: { rail: [6, 60], median: [10, 30] },
+      frame: { rail: [3, 8], median: [3, 5] },
+      outskirts: { rail: [2, 3], median: [2, 3] },
+      corridor: { spine: 6, arterial: 4, depth: 32 },
+      nodes: { every: 2, reach: 280 },
+    },
+    green: { share: 0.14, parks: 2, most: 0.35, weights: { core: 0.3, frame: 1, outskirts: 1.3 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 3500, aspect: 2 } },
+    streets: { collector: 520, civic: 6, school: 8000 },
+    roads: { lane: 3.2, parking: 2.3, bike: 1.5, lanes: 4, median: { share: 0.15, w: 3 }, oneway: { pairs: 1, lanes: 3 }, streetcar: { spine: true, share: 0.3, gauge: 1.067, row: 7 } },
+    segments: { core: { tower: 3, podium: 2 }, frame: { midrise: 3, slab: 1 }, outskirts: { houses: 8, apartments: 1, lowrise: 0 } },
+    lively: { core: { construction: 0.05, parking: 0.04, vacant: 0.01 }, frame: { construction: 0.04, parking: 0.04, vacant: 0.02 }, outskirts: { construction: 0.02, parking: 0.01, vacant: 0.02 } },
+    industry: { share: 0.1, segments: { works: 2, warehouse: 3, storage: 1.5, tanks: 1 }, block: [120, 180] },
+    grade: 0.12,
+    grammar: 'north-american',
+    outskirts: 'san-francisco',
+  }),
 });
 export const METRO_IDS = Object.freeze(Object.keys(METROS));
 export const EVOKES = Object.freeze({

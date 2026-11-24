@@ -6,7 +6,7 @@ import { STYLE_STARTERS } from '../era/arch-style.js';
 // the old town (pattern.js old-town): a European old town's core, the suburb's where it does not differ
 describe('the old town', () => {
   it('is a pattern of its own beside the suburb, which stays the default, in a style of its own', () => {
-    expect(PATTERN_IDS).toEqual(['bay-and-gable', 'old-town', 'west-coast', 'tropical']);
+    expect(PATTERN_IDS).toEqual(['bay-and-gable', 'old-town', 'west-coast', 'tropical', 'san-francisco', 'sunset']);
     expect(DEFAULT_PATTERN).toBe('bay-and-gable');
     expect(STYLE_STARTERS[PATTERNS['old-town'].style]).toBeTruthy();
   });

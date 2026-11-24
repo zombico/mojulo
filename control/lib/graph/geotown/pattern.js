@@ -540,7 +540,160 @@ const TROPICAL = {
   },
 };
 
-export const PATTERNS = Object.freeze({ 'bay-and-gable': BAY_AND_GABLE, 'old-town': OLD_TOWN, 'west-coast': WEST_COAST, tropical: TROPICAL });
+
+// (a San Francisco Victorian painted its three colours: its siding the timber surface's, its trim the stone's, a Queen
+// Anne's upper storey the shell's; `from` the starter it is a type of)
+const PAINTED = (from, timber, stone, shell = null) => ({ from, palette: { timber, stone, ...(shell ? { shell } : {}) } });
+
+const SAN_FRANCISCO = {
+  ...BG,
+  read: 'a San Francisco Victorian neighbourhood (a Haight, a Noe Valley): narrow wooden houses touching side to side up its steep streets, Italianates and Stick houses under flat false fronts and cornices, Queen Annes under gables, bays up their fronts, stoops up to their doors, each painted its own three colours',
+  style: 'italianate',
+  // narrow streets: a lane each way and a parked side each, a narrow strip of pits by the kerb, a walk to the stoops
+  street: { lanes: 2, lane: 3, park: 2.3, kerb: 0.15, edge: 'verge', verge: 0.8, walk: 2.4 },
+  main: { lanes: 2, lane: 3.4, park: 2.4, kerb: 0.15, edge: 'furnish', verge: 1, walk: 3 },
+  major: { lanes: 4, lane: 3.2, park: 2.4, kerb: 0.15, edge: 'furnish', verge: 1, walk: 2.6, trees: { stride: 14, share: 0.4 } },
+  bikes: { w: 1.5, street: 0.2, main: 0.3, major: 0.4 },
+  lane: { ...BG.lane, garages: 0 },
+  // (no drives: a Victorian lot is its house wall to wall, its car at the kerb)
+  access: { ...BG.access, lane: 0, mutual: 0, compact: 0, alley: 0, drives: 0, garages: 0 },
+  finishes: { ...BG.finishes, walk: 'pavement', furnish: 'pavement', path: 'pavement', step: 'pavement', kerb: 'concrete', side: 'pavement' },
+  block: { long: [130, 170], depth: [30, 36] },
+  // (the 25-foot lot, its houses touching: a pair two of them mirrored, a detached one its own, no side yard either way)
+  plot: { semi: [7.4, 7.8], detached: [7.6, 8.4], mansion: [15, 18], corner: 0.6 },
+  mix: { semi: 0.5, detached: 0.5 },
+  duplex: { share: 0.3, read: 'a Victorian split into flats: two doors side by side at the top of its stoop' },
+  setback: [0.6, 1.6],
+  house: { depth: [12.5, 15], storeys: [2, 3], side: [0, 0.15] },
+  back: 6,
+  coverage: [0.3, 0.7],
+  // (its streets laid straight over the hills: steeper than a streetcar suburb's, its main street and its arterials gentler)
+  grade: 0.18,
+  grades: { main: 0.12, major: 0.1 },
+  // (a stoop: the front door well over the walk, up its steps)
+  pad: { least: 0.9, most: 2.7, riser: 0.18, step: 1.4 },
+  green: 0.15,
+  grow: { stride: 11, back: [0, 1], front: 0, park: 40, street: ['maple', 'cherry'], trees: ['cherry', 'acacia', 'birch'], shade: 'oak', parkTrees: ['pine', 'oak', 'birch'] },
+  types: {
+    'italianate-ochre': { read: 'an Italianate in ochre, cream trim, a canted bay up both storeys', weight: 2, style: PAINTED('italianate', '#d8b46a', '#f4efe4'), front: { bay: 'canted', bayStoreys: 2 } },
+    'italianate-blue': { read: 'an Italianate in powder blue, white trim, a canted bay up both storeys', weight: 2, style: PAINTED('italianate', '#8fb0c8', '#f6f3ec'), front: { bay: 'canted', bayStoreys: 2 } },
+    'stick-sage': { read: 'a Stick house in sage, cream trim, square bays up both storeys', weight: 2, style: PAINTED('stick', '#9fb08a', '#f2ecde'), front: { bay: 'square', bayStoreys: 2 } },
+    'stick-slate': { read: 'a Stick house in slate blue, white trim, square bays', weight: 1, style: PAINTED('stick', '#6f879a', '#f6f3ec'), front: { bay: 'square', bayStoreys: 2 } },
+    'queen-anne-rose': { read: 'a Queen Anne in dusty rose, butter in its upper storey, a square bay and a porch at its door', weight: 2, style: PAINTED('queen-anne', '#c99090', '#f4efe4', '#ecd59a'), front: { bay: 'square', bayStoreys: 1, porch: 'door' } },
+    'queen-anne-teal': { read: 'a Queen Anne in teal, ochre in its upper storey, a square bay', weight: 1, style: PAINTED('queen-anne', '#5d9696', '#f2ead8', '#d6a95e'), front: { bay: 'square', bayStoreys: 1, porch: 'door' } },
+    edwardian: { read: 'Edwardian flats: three storeys in cream, square bays stacked up its front', weight: 2, storeys: [3, 3], style: PAINTED('stick', '#e8dfc8', '#f6f3ec'), front: { bay: 'square', bayStoreys: 'upper' } },
+  },
+  yards: { near: { patio: 2, deck: 2 }, mid: { garden: 2, lawn: 1, play: 1 }, back: { tree: 2, beds: 1, shed: 1 }, balcony: 0.3 },
+  fences: { board: 4, lattice: 2, iron: 1 },
+  rows: {
+    ...BG.rows,
+    // (its corner stores and its shops: an Italianate with a shopfront, flats over it, the row's trim its palettes)
+    shops: { ...BG.rows.shops, read: 'corner stores and shops built to the walk, two and three storeys of painted Italianates, flats over them', storeys: [2, 3], style: 'italianate', palettes: ['#f4efe4', '#f6f3ec', '#efe6d2', '#e8dfc8'] },
+    apartments: { ...BG.rows.apartments, read: 'an Edwardian apartment house: three storeys of painted siding, square bays stacked up its front', storeys: [3, 3], style: 'stick' },
+  },
+  evoke: { ...BG.evoke, houses: [5, 6], mansions: [0, 0] },
+  streetscapes: {
+    leafy: { read: 'a Noe Valley street: young trees in pits by the kerb, stoops up to painted Victorians, cars both sides',
+      trees: { stride: 11, share: 0.6 }, parking: { sides: 'both', lane: 2.3, share: 0.8, pads: 0, least: 0.5 }, gates: { share: 0.3, kinds: { iron: 3, picket: 1 } },
+      traffic: { lights: 30, signals: 2, stops: 1 } },
+    snug: { read: 'a Mission street: a tree here and there, the Victorians at the walk, cars nose to tail',
+      street: { verge: 0.6, walk: 2.6 }, plot: { semi: [7, 7.6], detached: [7.4, 8], corner: 0.5 }, setback: [0.4, 1], evoke: { houses: [6, 6], mansions: [0, 0] },
+      trees: { stride: 14, share: 0.35 }, parking: { sides: 'both', lane: 2.2, share: 0.9, pads: 0, least: 0.5 }, gates: { share: 0.6, kinds: { iron: 3, picket: 1 } },
+      traffic: { lights: 28, signals: 2, stops: 1 } },
+    urban: { read: 'a Lower Haight street: no trees, three-storey Victorians and flats at the walk, iron gates at the stoops',
+      street: { verge: 0, walk: 3 }, setback: [0.3, 0.6], house: { storeys: [3, 3] }, evoke: { houses: [6, 7], mansions: [0, 0] },
+      trees: { stride: 12, share: 0.15 }, parking: { sides: 'both', lane: 2.2, share: 0.9, pads: 0, least: 0.5 }, gates: { share: 0.9, kinds: { iron: 4 } },
+      traffic: { lights: 26, signals: 1, stops: 1 } },
+  },
+  neighbourhoods: {
+    'hill-streets': { read: 'Victorian streets up a hill, a park on its crest', layout: ['HHH', 'HPH', 'HHH'], main: [] },
+    'corner-stores': { read: 'Victorian streets round a shopping street, its corner stores and flats', layout: ['HHH', 'MMM', 'HHH'], main: ['ew-1'] },
+    'quiet-streets': BG.neighbourhoods['quiet-streets'],
+    'school-and-field': BG.neighbourhoods['school-and-field'],
+  },
+  // AS MASSING (geocity/register.js): narrow flat-fronted houses touching up its streets, painted; its trees few
+  metro: {
+    house: { form: 'flat', pitch: 0, most: 3, pair: 7.6, gap: 0, far: 9 },
+    walls: ['#d8b46a', '#8fb0c8', '#9fb08a', '#c99090', '#e8dfc8', '#6f879a', '#f4efe4'],
+    roofs: ['#5a5550', '#6a625a', '#8a8680', '#4f4b47'],
+    shops: ['#f4efe4', '#e8dfc8', '#d8b46a', '#8fb0c8'],
+    flats: ['#e8dfc8', '#f4efe4', '#c9c2b2'],
+    trees: { dense: ['maple', 'pine'], low: ['maple', 'cherry'] },
+    finishes: { 'geocity:house': 'clapboard', 'geocity:shops': 'clapboard', 'geocity:walkup': 'clapboard', 'geocity:low': 'clapboard' },
+  },
+};
+
+
+// (a Sunset row house in its pastel, white trim, its garage under its oriel)
+const SUNSET_HOUSE = (plaster, read, weight = 1) => ({ read, weight, style: { palette: { plaster, stone: '#f6f3ec' } }, front: { bay: 'square', bayStoreys: 'upper', garage: true } });
+
+const SUNSET = {
+  ...SAN_FRANCISCO,
+  read: 'a San Francisco Avenues neighbourhood (a Sunset, a Richmond): long straight rows of two-storey stucco houses touching side to side, each over its garage, a picture window over the street, pastel after pastel, few trees, the fog off the ocean',
+  style: 'sunset-row',
+  street: { lanes: 2, lane: 3.2, park: 2.4, kerb: 0.15, edge: 'verge', verge: 1.2, walk: 2.2 },
+  block: { long: [180, 240], depth: [30, 36] },
+  plot: { semi: [7.4, 7.8], detached: [7.6, 8.2], mansion: [15, 18], corner: 0.6 },
+  mix: { semi: 0.5, detached: 0.5 },
+  duplex: { share: 0, read: BG.duplex.read },
+  // (a front yard deep enough for a car on its apron before the garage, a strip of lawn beside it)
+  setback: [5.5, 6.5],
+  house: { depth: [11, 13], storeys: [2, 2], side: [0, 0.1] },
+  back: 7,
+  coverage: [0.25, 0.6],
+  // (the Avenues run down to the ocean on a gentle fall)
+  grade: 0.1,
+  grades: { main: 0.08, major: 0.06 },
+  pad: { least: 0.3, most: 1.2, riser: 0.18, step: 0.9 },
+  green: 0.15,
+  grow: { stride: 14, back: [0, 1], front: 0.1, park: 30, street: ['pine'], trees: ['pine', 'acacia'], shade: 'pine', parkTrees: ['pine', 'oak'] },
+  types: {
+    mint: SUNSET_HOUSE('#bfdcc6', 'a mint-green row house over its garage, white trim', 2),
+    peach: SUNSET_HOUSE('#efc6a8', 'a peach row house over its garage, white trim', 2),
+    sky: SUNSET_HOUSE('#b8d2e4', 'a sky-blue row house over its garage, white trim', 2),
+    lemon: SUNSET_HOUSE('#f0e2a0', 'a lemon row house over its garage, white trim', 1),
+    white: SUNSET_HOUSE('#f2efe6', 'a white row house over its garage, its trim cream', 2),
+    salmon: SUNSET_HOUSE('#e8b0a0', 'a salmon row house over its garage, white trim', 1),
+    sand: SUNSET_HOUSE('#e2d2b2', 'a sand row house over its garage, white trim', 1),
+  },
+  yards: { near: { patio: 3 }, mid: { lawn: 2, garden: 1 }, back: { tree: 1, shed: 1, beds: 1 }, balcony: 0 },
+  fences: { board: 4, lattice: 1 },
+  rows: {
+    ...SAN_FRANCISCO.rows,
+    shops: { ...WEST_COAST.rows.shops, read: 'a shopping street of the Avenues: two-storey stucco shops, flats over them', style: 'strip-mall', palettes: ['#f2efe6', '#e2d2b2', '#bfdcc6', '#b8d2e4', '#efc6a8'] },
+    apartments: { ...BG.rows.apartments, read: 'a stucco apartment house of three storeys, bays up its front', storeys: [3, 3], style: 'sunset-row' },
+  },
+  evoke: { ...BG.evoke, houses: [6, 7], mansions: [0, 0] },
+  streetscapes: {
+    leafy: { read: 'an Outer Sunset street: a strip of lawn by the kerb, a car on each apron before its garage, a stunted pine here and there',
+      trees: { stride: 18, share: 0.25 }, parking: { sides: 'both', lane: 2.4, share: 0.5, pads: 0.9, least: 1 }, gates: { share: 0, kinds: { iron: 1 } },
+      traffic: { lights: 34, signals: 2, stops: 1 } },
+    snug: { read: 'an Inner Sunset street: no lawn, the aprons paved to the kerb, cars both sides',
+      street: { verge: 0.4, walk: 2.4 }, setback: [5.2, 5.8], evoke: { houses: [7, 7], mansions: [0, 0] },
+      trees: { stride: 20, share: 0.15 }, parking: { sides: 'both', lane: 2.3, share: 0.8, pads: 0.95, least: 1 }, gates: { share: 0.1, kinds: { iron: 1 } },
+      traffic: { lights: 30, signals: 2, stops: 1 } },
+    urban: { read: 'by its shopping street: three-storey stucco flats over their garages, no trees',
+      street: { verge: 0, walk: 2.8 }, setback: [5.2, 5.6], house: { storeys: [2, 3] }, evoke: { houses: [7, 7], mansions: [0, 0] },
+      trees: { stride: 20, share: 0 }, parking: { sides: 'both', lane: 2.3, share: 0.9, pads: 0.95, least: 1 }, gates: { share: 0.2, kinds: { iron: 1 } },
+      traffic: { lights: 28, signals: 1, stops: 1 } },
+  },
+  neighbourhoods: {
+    avenues: { read: 'the Avenues: long rows of stucco houses over their garages, a shopping street to the south', layout: ['HHH', 'HHH', 'MMM'], main: ['ew-0'] },
+    'quiet-streets': BG.neighbourhoods['quiet-streets'],
+    'school-and-field': BG.neighbourhoods['school-and-field'],
+  },
+  metro: {
+    house: { form: 'flat', pitch: 0, most: 2, pair: 7.6, gap: 0, far: 7 },
+    walls: ['#bfdcc6', '#efc6a8', '#b8d2e4', '#f0e2a0', '#f2efe6', '#e8b0a0', '#e2d2b2'],
+    roofs: ['#9a958c', '#8a8680', '#b0aba2', '#7a766f'],
+    shops: ['#f2efe6', '#e2d2b2', '#bfdcc6', '#b8d2e4'],
+    flats: ['#f2efe6', '#e2d2b2', '#efc6a8'],
+    trees: { dense: ['pine'], low: ['pine', 'acacia'] },
+    finishes: { 'geocity:house': 'painted-stucco', 'geocity:shops': 'painted-stucco', 'geocity:avenue': 'painted-stucco', 'geocity:lowrise': 'painted-stucco', 'geocity:walkup': 'painted-stucco', 'geocity:low': 'painted-stucco' },
+  },
+};
+
+export const PATTERNS = Object.freeze({ 'bay-and-gable': BAY_AND_GABLE, 'old-town': OLD_TOWN, 'west-coast': WEST_COAST, tropical: TROPICAL, 'san-francisco': SAN_FRANCISCO, sunset: SUNSET });
 export const PATTERN_IDS = Object.freeze(Object.keys(PATTERNS));
 export const STREETSCAPE_SETTINGS = Object.freeze(['setback', 'gates', 'parking', 'trees', 'lights', 'signals', 'stops']);
 export const GATE_SHARES = Object.freeze({ none: 0, some: 0.35, most: 0.7, all: 1 });

@@ -58,4 +58,14 @@ describe('Hijack City', () => {
     expect(() => readGameworld(W)).not.toThrow();
     expect(() => readGameworld(hijackCityWorld({ register: 'prairie' }))).toThrow(/outskirts/);
   });
+
+  it('a San Francisco register lays a hill city\'s district in its fog; the default is the West Coast\'s lakeshore district', () => {
+    for (const register of ['san-francisco', 'sunset']) {
+      const W = hijackCityWorld({ register }), g = Object.values(W.levels)[0].geocity;
+      expect(g).toMatchObject({ outskirts: register, metro: { from: 'bayside' } });
+      expect(W.style.air).toMatchObject({ kind: 'mist' });
+      expect(() => readGameworld(W)).not.toThrow();
+    }
+    expect(Object.values(hijackCityWorld().levels)[0].geocity.metro.from).toBe('lakeshore');
+  });
 });

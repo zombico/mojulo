@@ -1082,7 +1082,7 @@ function hijackCityCard() {
     '  ui.theme, sound, music  the look (theme cards), the car\'s sounds, the score (walk, chase, tension)',
     '',
     'GROW IT: rename it; the hero (create_character words); its suburbs (`geocity.outskirts`: west-coast, tropical,',
-    '  bay-and-gable); another metro (`geocity.metro.from`); the story (missions); the',
+    '  san-francisco, sunset, bay-and-gable); another metro (`geocity.metro.from`: bayside a hill city); the story (missions); the',
     '  crews; the law\'s numbers; the shops\' prices; a theme card. Era: gen-7 by default (the sun\'s shadows, the actors\'',
     '  and the buildings\' light), `style.geocube.era: \'gen-6\'` for a lighter page.',
   );

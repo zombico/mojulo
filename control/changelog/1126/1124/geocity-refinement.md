@@ -13,5 +13,10 @@
 - Their shopping streets are a Rodeo: two-storey boutiques of cream and white stucco over limestone, tall display
   glass in black frames, crisp canopies and gold lettering, under palms. The tropical coast's are the same in pastel.
   The strip malls stay on the boulevards.
-- Hijack City's suburbs are the West Coast's now; one word makes them a tropical coast or the northeastern suburb they
-  were.
+- San Francisco, in two neighbourhoods. A Victorian one: narrow wooden houses touching up steep streets, each painted
+  its own three colours (Italianates and Stick houses under flat false fronts and cornices, Queen Annes under gables,
+  bays up their fronts, stoops to their doors, Edwardian flats among them, corner stores). And the Avenues: rows of
+  two-storey pastel stucco houses each over its own garage, a picture window above it, a car on every apron, few
+  trees. A hill city to set them in, on a peninsula with water on three sides and cable cars up its streets.
+- Hijack City's suburbs are the West Coast's now; one word makes them a tropical coast, the northeastern suburb they
+  were, or a San Francisco district in its fog.

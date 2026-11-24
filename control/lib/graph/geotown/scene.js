@@ -1057,9 +1057,10 @@ export function assembleGeotownScene(m, ctx = {}) {
   const cameras = [];
   if (H0) {
     cameras.push(along(H0, 'street', 20));
-    // a house from its walk, a few metres along it (between its street's trees and its front yard)
+    // a house from its walk, a few metres along it (between its street's trees and its front yard; never out in a lane its
+    // street parks cars in)
     // (a split pair's when the row has one; from the walk, or out at the kerb where the house stands close to it)
-    const q = d.plots.find((pl) => pl.duplex && pl.half === 'L' && pl.built) ?? H0.rp[Math.floor(H0.rp.length / 2)], Sq = lineOf(d, d.blocks.find((b) => b.id === q.block), q.side).S, ws = Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)), e = [q.A[0] - q.ey[0] * ws - q.ex[0] * 4, q.A[1] - q.ey[1] * ws - q.ex[1] * 4], t = W(q, q.w / 2, q.setback + 2, 0);
+    const q = d.plots.find((pl) => pl.duplex && pl.half === 'L' && pl.built) ?? H0.rp[Math.floor(H0.rp.length / 2)], Sq = lineOf(d, d.blocks.find((b) => b.id === q.block), q.side).S, ws = Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)) > Sq.walk + Sq.verge && Sq.park > 0 && d.streetscape?.parking?.sides !== 'none' ? Sq.walk + Sq.verge - 0.3 : Math.min(Sq.walk + Sq.verge + 1, Math.max(Sq.walk / 2, 7 - q.setback)), e = [q.A[0] - q.ey[0] * ws - q.ex[0] * 4, q.A[1] - q.ey[1] * ws - q.ex[1] * 4], t = W(q, q.w / 2, q.setback + 2, 0);
     cameras.push(cam('house', [...e, wk(...e) + 1.6], [t[0], t[1], q.pad + 3.5], 66));
   }
   if (S0) cameras.push(along(S0, 'main', 26));

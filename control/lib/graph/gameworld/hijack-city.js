@@ -36,6 +36,16 @@ export const HIJACK_DISTRICT = Object.freeze({
   // metro's own)
   outskirts: 'west-coast',
 });
+/** A hill city's district, for a San Francisco register (geocity/metro.js `bayside`): a neighbourhood of its outskirts
+ *  beside the frame, its core on the bay at the north-east, water north and east; its own fog (HIJACK_AIR). */
+export const HIJACK_HILL_DISTRICT = Object.freeze({
+  metro: Object.freeze({ from: 'bayside', rings: Object.freeze({ core: 350, frame: 700 }) }),
+  extent: Object.freeze([2200, 1800]), water: Object.freeze({ sides: Object.freeze(['n', 'e']), depth: 220 }), core: Object.freeze([0.8, 0.8]),
+  evoke: 'neighbourhood', at: 'B3', shops: true, outskirts: 'san-francisco',
+});
+/** The registers that lay the hill city's district, and the air each is seen through (the fog off the ocean). */
+export const HIJACK_HILL_REGISTERS = Object.freeze(['san-francisco', 'sunset']);
+const HILL_AIR = Object.freeze({ kind: 'mist' });
 
 // the contact's jobs, told as missions: a first errand, one with heat, one against the clock, the end
 const MISSIONS = Object.freeze([
@@ -49,7 +59,7 @@ const MISSIONS = Object.freeze([
 export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
-  levels: 'the district: its outskirts\' register (`geocity.outskirts`: west-coast, tropical, bay-and-gable, old-town), another metro (`geocity.metro.from`), its size, its water, another district beside it',
+  levels: 'the district: its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, bayside), its size, its water, another district beside it',
   errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
@@ -60,15 +70,17 @@ export const HIJACK_GROWS = Object.freeze({
 
 export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, register = null } = {}) {
   // (`register`: its outskirts' pattern, geotown/pattern.js PATTERNS: 'tropical' for a coast, 'bay-and-gable' for a
-  // northeastern streetcar suburb; the West Coast tract unless named)
-  const district = { ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), ...(register ? { outskirts: register } : {}) };
+  // northeastern streetcar suburb, 'san-francisco' or 'sunset' a hill city's district in its fog; the West Coast tract
+  // unless named)
+  const hill = HIJACK_HILL_REGISTERS.includes(register);
+  const district = { ...JSON.parse(JSON.stringify(hill ? HIJACK_HILL_DISTRICT : HIJACK_DISTRICT)), ...(register ? { outskirts: register } : {}) };
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair
     // sky, a haze thick enough that the far blocks pale a kilometre off, the finish over the bake (one tone curve, the
     // sky in the glass, the lamps' bloom) and the view cone, so the street's kit, its trees and its traffic are drawn as
     // far as they read)
-    style: { kit: 'trail-valley', geocube: { from: 'valley-morning', era: 'gen-7' }, clouds: 'fair', air: { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
+    style: { kit: 'trail-valley', geocube: { from: 'valley-morning', era: 'gen-7' }, clouds: 'fair', air: hill ? { ...HILL_AIR } : { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
     characters: {
       direction: { tradition: 'western' },
       hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold', 'athletic'] }, actions: { idiom: 'city-stalker-like' } },
