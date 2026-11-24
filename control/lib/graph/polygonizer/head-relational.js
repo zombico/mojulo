@@ -1375,7 +1375,10 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // (the two shortenings joined by a smooth maximum, a p-norm, never a hard one nor one capped by it: a hard maximum kinks
     // the wavelength where the mouth's falloff equals the jaw's, and the chin's corner took flat facets along that line)
     const rF = (1 - rel.featureWave) * fall;
-    const k = kw * (1 - (rB > 0 ? (rF ** 4 + rB ** 4) ** 0.25 : rF));
+    // (in exact arithmetic, squares and square roots: a power through the engine's pow differs in its last bit between
+    // CPUs, and the skin netted on it moved a sample on arm64)
+    const rF2 = rF * rF, rB2 = rB * rB;
+    const k = kw * (1 - (rB > 0 ? Math.sqrt(Math.sqrt(rF2 * rF2 + rB2 * rB2)) : rF));
     let sum = 0;
     for (const v of es) sum += SM.exp(-(v - lo) / k);
     let d = lo - k * SM.log(sum);

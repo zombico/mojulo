@@ -49,6 +49,9 @@
  *   behind the lips an open cup and in it the teeth and the tongue (hero-one-skin.js `teeth`), and the lips' corners
  *   bound half to the jaw, so the mouth opens as an almond, not a box (`lens`). The seated head is pinned
  *   under laws 11 as it was, byte for byte, and under laws 12 beside it, its mouth's parts with it.
+ * - 2026-11-24, the skin's wavelength in portable arithmetic (CI on arm64 hashed the seated female apart): the p-norm
+ *   joining the feature and bone shortenings is squares and square roots, where `**` reached the engine's pow, whose last
+ *   bit differs between CPUs. On x64 the male under laws 2 and 9 moved by that bit; every other pin as it was.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -59,9 +62,9 @@ const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR
 const PINS = { male: 'edf76b45c95740b4', female: 'bb8b978f82e7afab' };
 // the ONE SKIN (realistic laws 2, hero-one-skin.js): the skin, the mouth, the globes in place of the pieces
 const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
-const ONE_PINS = { male: '95c0375648d6347a', female: '783ac6a7920b1412' };
+const ONE_PINS = { male: '6de7a7f8426e33da', female: '783ac6a7920b1412' };
 // the CERVICAL NECK (realistic laws 3, body-relational-builds.js CERVICAL_NECK): the one skin on the leaning neck
-const NECK_PINS = { male: '781d41d978a14259', female: '72a2bf7ac7e8e8d1' };
+const NECK_PINS = { male: 'e927a98a8ef21651', female: '72a2bf7ac7e8e8d1' };
 // the EAR RAISED to the canon (realistic laws 10, head-relational.js EAR_RAISE): its top at the brow line, the lobule at
 // the nose's base (the one skin's ear and the skin it welds to move with it)
 const EAR_PINS = { male: '04502770f8ac86b6', female: 'c85a724faa87c63f' };
