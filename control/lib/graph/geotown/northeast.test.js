@@ -4,7 +4,7 @@ import { PATTERNS, DEFAULT_PATTERN, SEGMENT_LETTERS } from './pattern.js';
 import { STYLE_STARTERS, MATERIAL_WORDS } from '../era/arch-style.js';
 import { dressedTile } from '../matte-paint/dressed.js';
 
-// the Northeast suburb (pattern.js northeast): colonials and Capes detached on wide lots behind deep lawns, a drive to
+// the Northeast suburb (pattern.js northeast): colonials and Capes detached on wide lots behind short lawns, a drive to
 // each garage, no kerb parking, garden apartments by the avenue; the streetcar suburb's where it does not differ
 describe('the Northeast suburb', () => {
   const P = PATTERNS.northeast;
@@ -17,7 +17,8 @@ describe('the Northeast suburb', () => {
     expect(P.mix.semi).toBe(0);
     expect(P.duplex.share).toBe(0);
     expect(P.plot.detached[0]).toBeGreaterThan(PATTERNS['bay-and-gable'].plot.detached[1]);
-    expect(P.setback[0]).toBeGreaterThan(PATTERNS['bay-and-gable'].setback[1]);
+    // (a short lawn before each house: no deeper than the streetcar suburb's)
+    expect(P.setback[1]).toBeLessThanOrEqual(PATTERNS['bay-and-gable'].setback[1]);
     expect(SEGMENT_LETTERS.G).toBe('garden');
   });
 

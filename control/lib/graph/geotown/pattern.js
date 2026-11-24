@@ -177,7 +177,7 @@ const BAY_AND_GABLE = {
         style: { from: 'walk-up', read: 'a collegiate brick school: three storeys of tall lights between stone bands, a deep cornice', language: { elements: { lights: { w: 1.4, h: 2, bay: 3.2 } }, compose: { mass: { w: 44, d: 16 } } }, palette: { stone: '#9a4f3a' } } },
       apartments: { read: 'a brick walk-up, four storeys, its entrance under a canopy, a lawn before it and a lot behind', use: 'dwelling', frontage: [24, 34], corner: 2, depth: [36, 42], building: [12, 15], setback: [5, 7], side: [3, 5], storeys: [4, 4], style: 'walk-up', rear: 'service', front: { canopy: true }, pad: { least: 0.45, most: 1.8 } },
       // a GARDEN APARTMENT, post-war: a long brick walk-up of two or three storeys set back on its lawn, its garden behind
-      garden: { read: 'a post-war garden apartment: a long brick walk-up of two or three storeys set back on its lawn, its garden behind', use: 'dwelling', frontage: [40, 56], corner: 3, depth: [44, 52], building: [11, 13], setback: [9, 13], side: [6, 9], storeys: [2, 3], rear: 'back', front: { canopy: true }, pad: { least: 0.3, most: 1.2 },
+      garden: { read: 'a post-war garden apartment: a long brick walk-up of two or three storeys set back on its lawn, its garden behind', use: 'dwelling', frontage: [40, 56], corner: 3, depth: [44, 52], building: [11, 13], setback: [4.5, 6.5], side: [6, 9], storeys: [2, 3], rear: 'back', front: { canopy: true }, pad: { least: 0.3, most: 1.2 },
         style: { from: 'walk-up', read: 'a post-war walk-up: brick in two or three storeys, paired lights, a flat roof behind a plain parapet', language: { compose: { mass: { w: 36, d: 12 } } } }, palettes: ['#a3563f', '#c9a57a', '#8c5a44', '#b9875e'] },
     },
     // AN EVOCATION's counts: houses a row, shops a row, walk-ups a row; a segment's rows recut when what it is composed
@@ -399,7 +399,7 @@ const NORTHEAST = {
   plot: { semi: [8, 9], detached: [16, 22], mansion: [26, 32], corner: 2.5 },
   mix: { semi: 0, detached: 1 },
   duplex: { share: 0, read: BG.duplex.read },
-  setback: [7, 9.5],
+  setback: [4.5, 6.5],
   house: { depth: [10, 12], storeys: [2, 2], side: [2.4, 3.6] },
   back: 10,
   path: 1.1,
@@ -424,9 +424,12 @@ const NORTHEAST = {
   fences: { board: 3, picket: 2, chainlink: 2, hedge: 2, lattice: 1 },
   rows: {
     ...BG.rows,
+    // (its low-rises and walk-ups a short lawn from the walk)
+    lowrise: { ...BG.rows.lowrise, setback: [3.5, 5] },
+    apartments: { ...BG.rows.apartments, setback: [3.5, 5] },
     // a GARDEN APARTMENT: two or three storeys of brick flats set back on their lawn, entries under white porticos, a
     // garden behind (the colonial revival of the forties: brick, a low hip, sash lights); its residents park on the avenue
-    garden: { read: 'a garden apartment: two or three storeys of brick flats set back on their lawn, entries under white porticos, its garden behind', use: 'dwelling', frontage: [40, 56], corner: 3, depth: [44, 52], building: [11, 13], setback: [9, 13], side: [6, 9], storeys: [2, 3], rear: 'back', front: { canopy: true }, pad: { least: 0.3, most: 1.2 },
+    garden: { read: 'a garden apartment: two or three storeys of brick flats set back on their lawn, entries under white porticos, its garden behind', use: 'dwelling', frontage: [40, 56], corner: 3, depth: [44, 52], building: [11, 13], setback: [4.5, 6.5], side: [6, 9], storeys: [2, 3], rear: 'back', front: { canopy: true }, pad: { least: 0.3, most: 1.2 },
       style: { from: 'colonial', read: 'a colonial-revival garden apartment: red brick in two or three storeys, white sash lights, a low hip', language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.5, bond: 'brick' }, { group: 'str:stone', value: 0.52, bond: 'brick' }] }, roof: { form: 'hip', pitch: 24 }, shutters: null }, compose: { mass: { w: 36, d: 12 } } }, palette: { stone: '#9c5440' } },
       palettes: ['#9c5440', '#a3563f', '#8c5a44', '#b5654a', '#c9a57a'] },
   },

@@ -115,7 +115,10 @@ const CELL = 40, KERB = 0.15, WALK = 2.4, STEP = 1.2;
 // a neighbourhood's walks: an outskirts one's wide enough for its sidewalk trees' boxes (TREE.walk), the city's else
 const walkOf = (r) => (r.builds === 'outskirts' ? TREE.walk : WALK);
 // an outskirts house: a semi pair's frontage, the gap between pairs, its depth, its front yard; a storey; a shop's depth
-const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
+// (SETBACK a house's front yard, m; FRONTS the yards the outskirts' flats keep before their walks: a low-rise's and a
+// walk-up's, a short lawn and the building on its street, its lot behind)
+const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 3.5, STOREY = 3, SHOP_D = 14;
+const FRONTS = Object.freeze({ lowrise: 4, apartments: 4 });
 // (a house is a house: a semi pair stands this many storeys at most, whatever its corridor lifts the block's others to)
 const HOUSE_MOST = 3;
 // the skyline's ground cells (m); what it draws of a neighbourhood (its tall buildings); what a block at detail wears
@@ -210,7 +213,7 @@ const TREE = Object.freeze({ pit: 12, verge: 11, kerb: 0.9, corner: 5, walk: 3.2
   young: Object.freeze({ share: 0.35, height: Object.freeze([5, 8]) }) });
 // a garden-apartment block's bars (m): their least length along a side, the gap between them, their depth, their setback
 // behind their lawn, the block's ends kept clear, their storeys (two or three)
-const GARDEN_APT = Object.freeze({ long: 40, gap: 9, depth: 12, setback: 10, end: 6, storeys: Object.freeze([2, 3]) });
+const GARDEN_APT = Object.freeze({ long: 40, gap: 9, depth: 12, setback: 4.5, end: 6, storeys: Object.freeze([2, 3]) });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -1546,10 +1549,11 @@ export function assembleGeocityScene(m, ctx = {}) {
     } else if (b.kind === 'lowrise') {
       const n = Math.max(1, Math.floor(L / 40));
       for (let k = 0; k < n; k++) {
-        const u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, deep / 2 - 7.5, deep / 2 + 7.5), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
+        // (on its street behind a short lawn, FRONTS.lowrise; its lot behind it, to its other street)
+        const v0 = Math.min(FRONTS.lowrise, Math.max(0, deep / 2 - 7.5)), u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, v0, v0 + 15), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
         box(q[0], q[1], q[2], q[3], z0, z1, famOf(brick, `${b.id}:${k}`)[0], ROOFS[2], 'geocity:lowrise');
         // (its residents' lot between its other street and its wall, backs.js)
-        if (BACKS_ON && deep / 2 - 7.5 - 2 >= 7) rows.push({ s: sides[1], kind: 'lot', v0: 1, v1: deep / 2 - 7.5 - 1, plots: [[u - 14, u + 14]] });
+        if (BACKS_ON && deep - v0 - 15 - 2 >= 7) rows.push({ s: sides[1], kind: 'lot', v0: 1, v1: deep - v0 - 15 - 1, plots: [[u - 14, u + 14]] });
         lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
         frontOf(b, q, z0, 4, STOREY, 'residential');
       }
@@ -1571,7 +1575,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (their shared garden, the block's middle: its trees seeded on its lawn)
       if (BACKS_ON && deep - 2 * (G.setback + dpt) >= 10) { const Fr = backFrame(at(sides[0], 0, 0), sides[0]), v0 = G.setback + dpt + 2, v1 = deep - G.setback - dpt - 2; growBack(Fr, volunteers([G.end, v0, L - G.end, v1], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', `${b.id}:garden`) }).trees, `${b.id}:garden`); }
     } else if (b.kind === 'apartments') {
-      const q = rectOf(sides[0], 4, 34, 6, 20), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
+      const q = rectOf(sides[0], 4, 34, FRONTS.apartments, FRONTS.apartments + 14), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
       box(q[0], q[1], q[2], q[3], z0, z0 + 4 * STOREY, famOf(brick, b.id)[0], ROOFS[2], 'geocity:walkup');
       frontOf(b, q, z0, 4, STOREY, 'residential');
       houses(sides[0], 40, L - 2); houses(sides[1], 2, L - 2);
