@@ -34,7 +34,7 @@ export const OUTSKIRTS_LOOK = Object.freeze({
   roofs: Object.freeze(['#4a4f55', '#5b4a3f', '#3f4448', '#6a5a4c']),
   shops: Object.freeze(['#8a3a2e', '#3e5e3a', '#24405e', '#6e5a3a', '#7a2e4a']),
   flats: null,
-  trees: Object.freeze({ dense: Object.freeze(['maple', 'beech']), low: Object.freeze(['maple', 'cherry']) }),
+  trees: Object.freeze({ dense: Object.freeze(['maple', 'beech']), low: Object.freeze(['maple', 'maple', 'cherry', 'birch']) }),
   finishes: Object.freeze({}),
 });
 export const HOUSE_FORMS = Object.freeze(['gable', 'hip', 'flat']);

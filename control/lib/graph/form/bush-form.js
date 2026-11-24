@@ -38,6 +38,7 @@ const TAU = 2 * Math.PI;
  *   upright  a vase of upright stems, brushes at their tips (broom, heather)
  *   rosette  long leaves in rings from the ground (hosta, fern)
  *   cone     a small cone (a dwarf conifer)
+ *   hedge    a segment of a clipped hedge, a box along +x (a scene lays it end to end, turned along its line)
  * `flock` (a leafy habit that reads as clump foliage: the dome, the fountain): its PUFFS when its stage's realistic crowns
  * are flock (form/flora-read.js FLOCK), each `size` × its height, set `sink` × that in from its outline, `apart` × that
  * from each other, shaped `puff` (form/flora-read.js PUFF's keys), its sponge's grain `grain` × a tree's (its leaves are
@@ -54,6 +55,11 @@ export const BUSH_HABITS = Object.freeze({
     flock: Object.freeze({ along: 0.4, size: 0.2, apart: 1.45, taper: 0.65, lift: 0.3, grain: 0.45, detail: 0, puff: Object.freeze({ wide: 0.85, long: 1.5, top: 0.75, bottom: 0.45 }) }) }),
   tuft: Object.freeze({ shape: 'upright', radius: 0.8, fill: 1.1, dense: 1.3, reach: 0.55, leaf: Object.freeze({ needle: 'pine', scale: 0.45 }), reads: 'a vase of upright stems, brushes at their tips: broom, heather' }),
   whorl: Object.freeze({ shape: 'rosette', radius: 1.2, fill: 1, dense: 1, leaf: Object.freeze({ leafSize: 0.12, outline: 'broad', phyllo: 'spiral' }), reads: 'long leaves in rings from the ground: hosta, fern' }),
+  // (a CLIPPED HEDGE, no leaf form's: a segment of it, a box `length` × its height long along +x, `radius` × its height
+  // each side of its line, laid end to end and turned along the hedge's line by its scene; its flock's puffs filling the
+  // box in runs, `rows` up it, long along it and flat on top)
+  hedge: Object.freeze({ shape: 'hedge', radius: 0.32, length: 1, fill: 1.6, dense: 0.65, leaf: Object.freeze({ leafSize: 0.03, outline: 'ovate', phyllo: 'distichous' }), reads: 'a clipped hedge: privet, box, yew',
+    flock: Object.freeze({ box: true, size: 0.36, rows: 2, apart: 0.8, grain: 0.35, puff: Object.freeze({ wide: 0.95, long: 1.5, top: 0.6, bottom: 0.8 }) }) }),
   spire: Object.freeze({ shape: 'cone', radius: 0.6, fill: 1.2, dense: 1.6, leaf: Object.freeze({ needle: 'spruce', scale: 0.3 }), reads: 'a small cone: a dwarf conifer' }),
 });
 /** What a bush wears in its season (`adorn`): its BLOOM, small blossoms on its outer leaves (each a ring of petals round
@@ -117,6 +123,20 @@ export function bushForm(kind, { seed = 1, height = null, adorn = null } = {}) {
       for (let q = 0; q < n; q++) {
         const t = 0.4 + (0.6 * (q + 0.5)) / n, p = at(t), tan = sub(at(Math.min(1, t + 0.02)), at(Math.max(0, t - 0.02)));
         clump(add(p, [0, 0, span * 0.15]), add(ax, [0, 0, 0.9]), tan, 0.55 + 0.45 * t, 0.85 + 0.3 * dice(13, a * 31 + q));
+      }
+    }
+  } else if (H.shape === 'hedge') {
+    // A CLIPPED HEDGE's segment: a box `length` × h long (x), its sides `radius` × h out (y): clumps on its top facing the
+    // sky and on its long faces facing out, a layer inside; a few short stems from its foot (its ends are its neighbours')
+    const L = H.length * h, D = H.radius * h, z0 = h * 0.06, nx = Math.max(2, Math.round(L / gap)), nzs = Math.max(2, Math.round((h - z0) / gap)), ny = Math.max(1, Math.round((2 * D) / gap));
+    for (let k = 0; k < Math.max(2, ns); k++) { const x = -L / 2 + (L * (k + 0.5)) / Math.max(2, ns); pushTube(W, [[x, 0, 0], [x, 0, h * 0.5], [x + (dice(30, k) - 0.5) * L * 0.2, 0, h * 0.82]], [girth, girth * 0.8, girth * 0.5], BUSH_FORM.sides, true); }
+    for (let i = 0; i < nx; i++) {
+      const x = -L / 2 + (L * (i + 0.5)) / nx;
+      for (let j = 0; j < ny; j++) { const y = -D + (2 * D * (j + 0.5)) / ny; clump([x, y, h], [0, 0, 1], [1, 0, 0], 1, 0.9 + 0.2 * dice(21, i * 7 + j)); }
+      for (const sd of [-1, 1]) for (let k = 0; k < nzs; k++) {
+        const z = z0 + ((h - z0) * (k + 0.5)) / nzs;
+        clump([x, sd * D, z], [0, sd, 0.15], [1, 0, 0], 0.5 + 0.5 * (z / h), 0.85 + 0.25 * dice(22 + k, i * 3 + (sd > 0 ? 1 : 0)));
+        if (dice(23 + k, i * 5 + sd) < BUSH_FORM.inner[1]) clump([x, sd * D * BUSH_FORM.inner[0], z], [0, sd, 0.15], [1, 0, 0], 0.2, 0.7);
       }
     }
   } else if (H.shape === 'rosette') {
@@ -223,6 +243,7 @@ export function bushBerries(look, n, seed = 1) {
 export function bushPuffs(form, F) {
   if (!F) return [];
   if (F.along !== undefined && form.arches) return archPuffs(form, F);
+  if (F.box) return boxPuffs(form, F);
   const s0 = F.size * form.height, out = [];
   const byRank = [...form.clumps].sort((a, b) => a.r - b.r || a.p[0] - b.p[0] || a.p[1] - b.p[1] || a.p[2] - b.p[2]);
   for (const c of byRank) {
@@ -248,4 +269,20 @@ function archPuffs(form, F) {
     }
   });
   return out.map((q, i) => ({ ...q, r: r4(hashN(i * 31 + 3)) }));
+}
+
+// a clipped hedge's puffs (BUSH_HABITS.hedge `flock.box`): runs filling its box, `rows` up it, a puff every `apart` × its
+// size along it, set in from its faces by their own size so its outline is the box's
+function boxPuffs(form, F) {
+  const H = BUSH_HABITS.hedge, h = form.height, L = H.length * h, s = F.size * h, out = [];
+  const nx = Math.max(2, Math.round(L / (s * F.apart * (F.puff.long ?? 1)))), rows = F.rows;
+  for (let k = 0; k < rows; k++) {
+    const z = h * 0.12 + ((h * 0.88 - s * (F.puff.top ?? 1)) * (k + 0.5)) / rows + (k === rows - 1 ? s * 0.15 : 0);
+    for (let i = 0; i < nx; i++) {
+      // (an odd row staggered half a puff, its first at the segment's end: it bridges the seam with the next segment)
+      const x = -L / 2 + (L * (i + (k % 2 ? 0 : 0.5))) / nx;
+      out.push({ p: [r4(x), 0, r4(z)], o: [1, 0, 0], d: [1, 0, 0], s: r4(s * (0.92 + 0.16 * hashN(k * 131 + i * 7 + 3))), e: r4(0.5 + 0.5 * (z / h)) });
+    }
+  }
+  return out.map((q, i) => ({ ...q, r: r4(hashN(i * 29 + 11)) }));
 }

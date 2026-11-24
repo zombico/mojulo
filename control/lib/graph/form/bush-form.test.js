@@ -8,8 +8,9 @@ const byShape = (shape) => Object.keys(BUSH_HABITS).find((f) => BUSH_HABITS[f].s
 const CASES = ['dome', 'fountain', 'rosette'].map(byShape);
 
 describe('a bush read as form', () => {
-  it('has a habit for every leaf form a bush kind names', () => {
-    expect(Object.keys(BUSH_HABITS).sort()).toEqual([...LEAF_FORM_IDS].sort());
+  it('has a habit for every leaf form a bush kind names, and the clipped hedge a scene lays', () => {
+    for (const f of LEAF_FORM_IDS) expect(BUSH_HABITS[f]).toBeTruthy();
+    expect(Object.keys(BUSH_HABITS).filter((k) => !LEAF_FORM_IDS.includes(k))).toEqual(['hedge']);
   });
 
   it('is deterministic from its seed, and another seed another bush', () => {
@@ -145,3 +146,19 @@ describe('a bush as flock (a realistic stage\'s, its `flock` row)', () => {
     }
   });
 });
+
+describe('a clipped hedge (BUSH_HABITS.hedge)', () => {
+  it('is a box along its line, flat on top, its flock\'s puffs runs filling it and bridging the seam with the next', () => {
+    const h = 1.2, B = bushForm('hedge', { seed: 1, height: h }), H = BUSH_HABITS.hedge, L = H.length * h, D = H.radius * h;
+    // (its clumps within its box: along x its length, across y its depth, its top level)
+    for (const c of B.clumps) { expect(Math.abs(c.p[0])).toBeLessThanOrEqual(L / 2 + 1e-6); expect(Math.abs(c.p[1])).toBeLessThanOrEqual(D + 1e-6); expect(c.p[2]).toBeLessThanOrEqual(h + 1e-6); }
+    expect(B.clumps.filter((c) => c.o[2] === 1).length).toBeGreaterThan(2);
+    const P = bushPuffs(B, H.flock);
+    expect(new Set(P.map((q) => q.p.join(','))).size).toBe(P.length);
+    // (each puff long along the line; one at the segment's end, so the next segment's runs join it)
+    for (const q of P) expect(q.o).toEqual([1, 0, 0]);
+    expect(P.some((q) => Math.abs(q.p[0] + L / 2) < 1e-6)).toBe(true);
+    expect(Math.max(...P.map((q) => q.p[2] + q.s * H.flock.puff.top))).toBeGreaterThan(h * 0.85);
+  });
+});
+

@@ -9,7 +9,8 @@
  * (era/flora-colours.js) solved the same way (its colour over the cube's foliage, times the foliage's base).
  *
  *   floraRead(plants, { kinds, bushKinds, colours, bases, autumn? }) → { templates, barks, trees, n, lod, leafRef, autumn? } | null
- *   treeSizes(plants) → [{ h, r }] each tree's height and crown reach as the form grows it
+ *   treeSizes(plants) → [{ h, r, back?, front? }] each tree's height and crown reach as the form grows it (a tree grown one
+ *     way, its scene's `toward`, its reach behind its stem and ahead of it too)
  *     (leafRef: the leaf colour a geometry's tone factors are over, linear: a blossom's or a berry's own colour back)
  *     plants: plantItems' { form, trees, bushes, shrubs, skirt? } (a bamboo or a blossom card: null, its own look stays)
  *     kinds: the card's `trees.leafKinds`; bushKinds: `thickets.kinds`; colours: the cube's (#rrggbb: foliage, grass,
@@ -130,7 +131,11 @@ export const REALISTIC = Object.freeze({ older: 1.25,
   cloud: Object.freeze({ k: Object.freeze([6, 8]), sep: 1.45, joined: false }),
   // (each mass OFF the trunk's axis: moved out, away from it, by `off` × its radius: none sits centred over the stem,
   // each out on the branch that carries it, tree-form.js EVOKE)
-  off: 0.4, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }) });
+  off: 0.4, far: Object.freeze({ shade: 0.8, rim: 0.6, leaf: 0.5, squash: 0.85, discs: false }),
+  // (a tree that GROWS ONE WAY, its scene's `toward` (a street tree, away from the houses): grown lopsided toward +x, its
+  // masses behind its stem drawn in to 1 − `back` of their reach and all moved `front` × the crown's reach forward, its
+  // limbs grown to them, so its crown reaches over the street and keeps off the house; turned on the page to face its way)
+  lean: Object.freeze({ back: 0.6, front: 0.2 }) });
 /**
  * A REALISTIC TREE'S HABIT, by its species (a species with no row takes `default`'s): what makes a kind of tree read
  * as itself on the one primitive (tree-form.js limbTree):
@@ -279,12 +284,12 @@ const SKELETON = new WeakMap();
 /** A realistic template's parts: { chains: [{ pts, rs, order }], puffs: [{ p, o, s }], puff } in the template's own
  *  frame (its foot at the origin, its height the template's), or null for a template drawn plain. */
 export const realisticParts = (T) => SKELETON.get(T) ?? null;
-function treeTemplate(species, height, crowns = null) {
+function treeTemplate(species, height, crowns = null, lean = false) {
   // (`crowns`: 'hybrid', a broadleaf's bundles each with a blob in it, vegetation/twigs.js CORE; 'masses', its bundles
   // gathered round a few big blobs, the leaf mass round its branches, and moved onto their surfaces, form/tree-form.js
   // massCrown: the crown's volume for the triangles it had; a needled crown is as it was)
   const core = crowns === 'hybrid', masses = crowns === 'masses', tips = crowns === 'blobs', real = crowns === 'realistic';
-  const key = `tree:${species}:${height}${crowns ? `:${crowns}` : ''}`;
+  const key = `tree:${species}:${height}${crowns ? `:${crowns}` : ''}${lean && real ? ':lean' : ''}`;
   if (!CACHE.has(key)) {
     // (a broadleaf's crown as CROSSES, vegetation/twigs.js: its wood drawn to the twig, a bundle of small crossed leaves
     // of its own outline along each drawn shoot, no sprays; far off, its card, baked from these same leaves
@@ -312,6 +317,9 @@ function treeTemplate(species, height, crowns = null) {
         const HB = habitOf(species), CR = HB.crown || {}, zTop = M0 && R ? Math.max(...M0.blobs.map((b) => b.p[2])) : 0;
         if (R) M0.blobs = M0.blobs.map((b) => { const h = Math.hypot(b.p[0], b.p[1]), a = h > 1e-3 ? Math.atan2(b.p[1], b.p[0]) : b.r * 2 * Math.PI, H = (h + REALISTIC.off * b.s) * (CR.wide ?? 1);
           return { ...b, p: [r4(H * Math.cos(a)), r4(H * Math.sin(a)), r4(b.p[2] + (zTop - b.p[2]) * (CR.flat ?? 0))], o: [r4(Math.cos(a)), r4(Math.sin(a)), 0] }; });
+        // ('realistic', grown one way, REALISTIC.lean: its masses behind its stem drawn in, all moved forward, toward +x)
+        if (R && lean) { const L = REALISTIC.lean, Rc = Math.max(0.5, ...M0.blobs.map((b) => Math.hypot(b.p[0], b.p[1])));
+          M0.blobs = M0.blobs.map((b) => { const x = (b.p[0] < 0 ? b.p[0] * (1 - L.back) : b.p[0]) + L.front * Rc, y = b.p[1], l = Math.hypot(x, y) || 1; return { ...b, p: [r4(x), r4(y), b.p[2]], o: [r4(x / l), r4(y / l), 0] }; }); }
         // (each blob held to the wood that is drawn: none floats over a twig the cut left out)
         // ('realistic': grown again with its wood EVOKED by its balls, tree-form.js EVOKE: a limb only where it carries
         // one, no hair-thin twig; and its leaves only on its balls)
@@ -356,6 +364,8 @@ function treeTemplate(species, height, crowns = null) {
           // (its lowest limb or leaf: the limbs' lowest start, its clouds' puffs' undersides, its bundles kept)
           const pl = (b) => b.p[2] - b.s * PUFF.bottom * (1 + PUFF.amp);
           T.clear = r4(Math.min(W.limbLow ?? Infinity, ...M.blobs.map(pl), ...Q.clumps.map((c) => c.p[2] - c.s * 0.5)));
+          // (grown one way: its reach ahead and behind its stem, along +x)
+          if (lean) { T.lean = true; T.reach = { front: r4(Math.max(0.5, ...M.blobs.map((b) => b.p[0] + b.s))), back: r4(Math.max(0.5, ...M.blobs.map((b) => b.s - b.p[0]))) }; }
         }
         // (far off the same wood as near: no limb drops and the trunk holds as the tree switches level)
         const TT = { ...T, cross: true, woodFar: T.wood,
@@ -420,7 +430,7 @@ export function treeSizes(plants) {
   if (!plants || plants.form === 'bamboo' || plants.form === 'blossom' || !plants.trees.length) return [];
   const kindAt = (t) => (t.kind >= 0 && plants.kinds ? readKind(plants.kinds[t.kind]) : null), at = new Map(plants.trees.map((t, i) => [t, i])), out = [];
   // (a scene that plants its own room, `apart: false`, reads a realistic tree raised to its headroom, as it will stand)
-  for (const { t, T, h: h0 } of treePlan(plants, kindAt)) { const h = plants.crowns && plants.apart === false ? tallest(T, h0) : h0; out[at.get(t)] = { h, r: r4((T.crownR ?? T.radius) * (h / T.height)) }; }
+  for (const { t, T, h: h0 } of treePlan(plants, kindAt)) { const h = plants.crowns && plants.apart === false ? tallest(T, h0) : h0; out[at.get(t)] = { h, r: r4((T.crownR ?? T.radius) * (h / T.height)), ...(T.lean ? { back: r4(T.reach.back * (h / T.height)), front: r4(T.reach.front * (h / T.height)) } : {}) }; }
   return out;
 }
 
@@ -428,15 +438,21 @@ export function treeSizes(plants) {
 // drawn (by species, each species' trees as placed)
 function treePlan(plants, kindAt) {
   const groups = new Map(), plan = [];
-  for (const t of plants.form === 'bamboo' ? [] : plants.trees) { const K = kindAt(t), sp = speciesFor(t, K); if (!groups.has(sp)) groups.set(sp, []); groups.get(sp).push([t, K]); }
+  // (a tree its scene gives a way, `toward`, grows one way: its own group, its template REALISTIC.lean's)
+  // (a YOUNG tree its scene plants, `young`: the plain crown, airy as a sapling's, though the scene's crowns are read
+  // otherwise; never grown one way)
+  const leans = (t) => plants.crowns === 'realistic' && Number.isFinite(t.toward) && !t.young;
+  for (const t of plants.form === 'bamboo' ? [] : plants.trees) { const K = kindAt(t), sp = speciesFor(t, K), g = t.young && plants.crowns ? `${sp}\u0000young` : leans(t) ? `${sp}\u0000lean` : sp; if (!groups.has(g)) groups.set(g, []); groups.get(g).push([t, K]); }
   // (a crossed broadleaf TO SCALE: grown at its species' own heights, each tree where it ranks among the level's, so its
   // crown stands over a walker's head as a grown tree's does; any other at the level's own)
   const lv = plants.trees.map((t) => t.h), lo = Math.min(...lv), hi = Math.max(...lv);
-  const scaled = (sp, h) => { const S = SPECIES[sp]; if (!S || S.kind !== 'tree' || needleHabit(sp) || !S.heights) return h; const k = hi > lo ? (h - lo) / (hi - lo) : 0.5; return r4((S.heights[0] + (S.heights[1] - S.heights[0]) * k) * FLORA_TALL); };
-  for (const [sp, list] of groups) {
-    const hOf = ([t, K]) => scaled(sp, t.h) * (K?.scale ?? 1);
+  // (a scene that plants its own trees, `apart: false`, at its own heights: a geotown's street tree as it was planted)
+  const own = plants.crowns && plants.apart === false;
+  const scaled = (sp, h) => { const S = SPECIES[sp]; if (own || !S || S.kind !== 'tree' || needleHabit(sp) || !S.heights) return h; const k = hi > lo ? (h - lo) / (hi - lo) : 0.5; return r4((S.heights[0] + (S.heights[1] - S.heights[0]) * k) * FLORA_TALL); };
+  for (const [g, list] of groups) {
+    const [sp, way] = g.split('\u0000'), hOf = ([t, K]) => scaled(sp, t.h) * (K?.scale ?? 1);
     const hs = list.map(hOf).sort((a, b) => a - b), aim = Math.max(HEIGHT_STEP, Math.round(hs[Math.floor(hs.length / 2)] / HEIGHT_STEP) * HEIGHT_STEP);
-    const T = treeTemplate(sp, aim, plants.crowns ?? null);
+    const T = treeTemplate(sp, aim, way === 'young' ? null : plants.crowns ?? null, way === 'lean');
     for (const e of list) plan.push({ t: e[0], K: e[1], T, h: hOf(e) });
   }
   return plan;
@@ -562,7 +578,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   // (a street's or a yard's, `apart: false`: each where it was planted, its scene having found it room; a realistic one
   // still raised to its headroom)
   const P0 = treePlan(plants, kindAt), P1 = plants.crowns ? (plants.apart === false ? P0.map((e) => ({ ...e, h: tallest(e.T, e.h) })) : apart(P0)) : P0;
-  for (const { t, K, T, h } of P1) { bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K); }
+  for (const { t, K, T, h } of P1) { if (!T.lean) bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K, false, T.lean ? t.toward : null); }
   // the SKIRT's trees (era/isekai.js plantItems `skirt`), the stage's far clumps grown as the level's own: each its kind's
   // species, the template its trees near the trail grow from (else the species' own middle height), as wide as the
   // painted crown it stands for; past the walk, so no litter and never brushed (SKIRT_FLAG). No bubble of foliage left
@@ -575,7 +591,8 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   // the bushes: each thicket kind its habit at its middle height; the shrubs the dome, in their season
   for (const b of plants.bushes) {
     const K = readBush(bushKinds[b.kind]), aim = Math.round(((K.height[0] + K.height[1]) / 2) * 10) / 10;
-    push(bushTemplate(bushKinds[b.kind], aim, null, `bush:${K.form}`, !!flock), b, b.h, K, !!b.soft);
+    // (a bush its scene turns, `yaw`: a hedge's segment along its line; any other turned by where it stands)
+    push(bushTemplate(bushKinds[b.kind], aim, null, `bush:${K.form}`, !!flock), b, b.h, K, !!b.soft, Number.isFinite(b.yaw) ? b.yaw : null);
   }
   for (const s of plants.shrubs) {
     const adorn = s.state === 'bloom' || s.state === 'fruit' ? s.state : null;

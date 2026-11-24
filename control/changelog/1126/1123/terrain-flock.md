@@ -14,4 +14,10 @@
 - In the fall, the trees shed as they turn: each its own way, its crown opening onto its limbs from the top and the
   outside in, its last leaves catching the sun, more light reaching the ground, a wood never one density.
 - Geotowns and geocities take the same trees: their street trees and their gardens' bushes read as realistic flock
-  when the scene asks for realistic crowns. A realistic crown is wider, so a town finds room for fewer street trees.
+  when the scene asks for realistic crowns. Street trees grow away from the houses, over the street, so a town keeps its
+  trees; and a residential street is a mix of maples, flowering cherries and birches at a street's sizes, not a forest.
+- A town's hedges are clipped hedges, flat on top and straight along their line, and its gardens are filled with small
+  plants: a bed along each house's front and companions round each bed's plant, box balls, heathers, hostas and little
+  flowering shrubs.
+- A city's streets and parks look planted over the years: about a third of its trees are young, short and airy, among
+  the grown ones; a vacant lot's self-sown trees are all young.

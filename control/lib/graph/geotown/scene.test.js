@@ -301,11 +301,17 @@ describe('a geotown\'s crowns (form/flora-read.js readCrowns)', () => {
     const plain = assembleGeotownScene(E, { form: true }).plants, real = assembleGeotownScene({ ...E, crowns: 'realistic' }, { form: true }).plants;
     expect(real).toMatchObject({ crowns: 'realistic', flock: readFlock(), apart: false });
     expect(plain.crowns).toBeUndefined();
-    // (its realistic crowns wider than its plain ones: fewer of them find room, none planted without it)
+    // (a tree near a house grows away from it, its crown over the street or the yard: its way points from the house)
     expect(real.trees.length).toBeGreaterThan(0);
-    expect(real.trees.length).toBeLessThanOrEqual(plain.trees.length);
-    const rP = treeSizes(plain), rR = treeSizes(real);
-    expect(Math.max(...rR.map((s) => s.r))).toBeGreaterThan(Math.max(...rP.map((s) => s.r)) * 0.9);
+    const leaning = real.trees.filter((t) => Number.isFinite(t.toward));
+    expect(leaning.length).toBeGreaterThan(0);
+    // (at its scene's heights: no tree a forest giant over a house)
+    const rR = treeSizes(real);
+    for (const z of rR) expect(z.h).toBeLessThan(20);
+    // (each one-way tree's room taken behind it: its back reach under its whole reach)
+    for (const [i, t] of real.trees.entries()) if (Number.isFinite(t.toward)) expect(rR[i].back).toBeLessThan(rR[i].r);
+    // (and the residential mix: more than one species on its streets and yards)
+    expect(new Set(real.trees.map((t) => t.species)).size).toBeGreaterThan(2);
     expect(() => assembleGeotownScene({ ...E, crowns: 'fluffy' }, { form: true })).toThrow(/crowns is/);
   }, 300000);
 });
