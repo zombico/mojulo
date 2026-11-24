@@ -126,3 +126,26 @@ describe('the cockpit HUD\'s readings', () => {
     expect(leadPoint([0, 0, 0], [300, 0, 0], [0, 0, 0], 500)).toEqual([300, 0, 0]);
   });
 });
+
+describe('a sortie\'s beacons', () => {
+  const S1 = { groups: [{ id: 'red', side: 'friend' }, { id: 'raider', side: 'foe', arrive: { reach: 'nav', after: 2 } }],
+    beacons: [{ id: 'nav', at: { ahead: 1000 } }, { id: 'jump', name: 'Jump point', at: { ahead: 2000, side: 500 }, lit: { down: 'raider' } }],
+    goals: [{ destroy: 'raider' }, { reach: 'jump' }] };
+  it('is read teaching: a place, its reach, what lights it; a goal and an arrival on it', () => {
+    const S = readSortie(S1);
+    expect(S.beacons.map((b) => [b.id, b.name, b.radius])).toEqual([['nav', 'Nav', SORTIE.beacon], ['jump', 'Jump point', SORTIE.beacon]]);
+    expect(() => readSortie({ ...S1, goals: [{ reach: 'nowhere' }] })).toThrow(/no beacon of the sortie/);
+    expect(() => readSortie({ ...S1, beacons: [{ id: 'a', at: {}, lit: { reach: 'b' } }, { id: 'b', at: {}, lit: { reach: 'a' } }], goals: [{ destroy: 'raider' }], groups: [S1.groups[0], { id: 'raider', side: 'foe' }] })).toThrow(/comes back on itself/);
+    expect(() => readSortie({ ...S1, beacons: [{ id: 'red', at: {} }] })).toThrow(/once/);
+  });
+  it('lowers each beacon where the start puts it, its marker the mission\'s, asleep until it lights', () => {
+    const S = readSortie(S1), mech = sortieMechanics(S, ends)[1];
+    expect(mech.beacons.map((b) => [b.id, b.at, b.entity])).toEqual([['nav', [1000, 0, 0], 'beacon-nav'], ['jump', [2000, -500, 0], 'beacon-jump']]);
+    expect(mech.beacons[1].lit).toEqual({ down: ['raider-1', 'raider-2', 'raider-3'] });
+    expect(mech.arrivals[0]).toMatchObject({ reach: 'nav', after: 2 });
+    const C = sortieCast(S, ends), B = C.entities.filter((e) => e.body.beacon);
+    expect(B.map((e) => [e.id, !!e.dormant, e.body.goal, e.body.hittable])).toEqual([['beacon-nav', false, true, undefined], ['beacon-jump', true, true, undefined]]);
+    // (read without its map, a sortie lays no beacons)
+    expect(sortieMechanics(S)[1].beacons).toBeUndefined();
+  });
+});

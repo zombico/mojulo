@@ -590,6 +590,10 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 
 `idioms-live.js` covers what shows during play in each kind of game:
 
+- `idioms-campaign.js` — an action campaign of missions: the place banner (a mission's place widest first: "Kessa
+  System | Varn Cluster | Vigil Station | Moon IV"), the flight roster, the briefing told one step at a time over a map
+  the game draws behind it (`briefing-steps`), the tour of duty and the debrief. Its first client is the holo briefing
+  (`control/lib/graph/campaign/briefing-page.js`).
 - a fight: mirrored bars with the chip of the last hit, rounds, the clock; super meters; a combo count
 - a race: place, lap and times; a speedometer
 - a firefight: where harm came from, what is off screen, lock-on brackets, the ability bar; a shooter's own readouts

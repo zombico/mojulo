@@ -1956,6 +1956,17 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
     return mesh;
   }
   if (b.type !== 'mesh') return null;
+  // a mission's BEACON (gameworld/flight-sortie.js): a place in space to fly to, lit: a bright core in rings of light
+  // that turn on three axes, seen from far off (unlit, additive, never shaded by the star)
+  if (b.beacon) {
+    const g = new THREE.Group(), r = b.radius || 10, col = new THREE.Color(b.color != null ? b.color : 0xffc23a);
+    const glow = (o) => new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.22, 16, 12), glow(1)), new THREE.Mesh(new THREE.SphereGeometry(r * 0.5, 16, 12), glow(0.18)));
+    for (let k = 0; k < 3; k++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r * (0.75 + 0.18 * k), r * 0.035, 8, 64), glow(0.75)); ring.rotation.set(k === 1 ? Math.PI / 2 : 0, k === 2 ? Math.PI / 2 : 0, 0); g.add(ring); }
+    g.userData.beacon = true;
+    scene.add(g);
+    return g;
+  }
   const geo = b.shape === 'box' ? new THREE.BoxGeometry((b.size||[1,1,1])[0], (b.size||[1,1,1])[1], (b.size||[1,1,1])[2]) : new THREE.SphereGeometry(b.radius || 0.5, 24, 16);
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(b.color != null ? b.color : 0xff7a59) }));${castHook}
   if (b.marker !== false) {   // a dark nub on local +X so heading/yaw is visible
@@ -3021,6 +3032,12 @@ function __syncEntity(e, dt) {
     const lit = e.hitFlash >= 0 && (__world.time - e.hitFlash) < 0.15;
     if (lit && !m.__flashed) { m.material.color.set(0xffffff); m.__flashed = true; }
     else if (!lit && m.__flashed) { m.material.color.set(e.body.color != null ? e.body.color : 0xff7a59); m.__flashed = false; }
+  }
+  // a BEACON's rings turn, each on its own axis, and its halo breathes (on the world's clock)
+  if (m.userData && m.userData.beacon) {
+    const t = __world.time || 0, k = m.children;
+    if (k[2]) k[2].rotation.z = t * 0.9; if (k[3]) k[3].rotation.y = t * 0.7; if (k[4]) k[4].rotation.x = t * 0.5;
+    if (k[1]) k[1].scale.setScalar(1 + 0.25 * Math.sin(t * 3));
   }
   // POLYGOMER body (platformer.plan.md P2): a rig-less baked mesh. Face it along heading (its authored
   // front is +y, so yaw −90° maps +y → forward) and give it its only animation — SQUASH & STRETCH,

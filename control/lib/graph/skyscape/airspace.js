@@ -38,6 +38,7 @@ import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace, SPACE_STAR } from './space.js';
 import { planBackdrop } from './backdrop.js';
+import { fleetWorld, layFleet, toward } from './space-fleet.js';
 import { trenchField } from './trench.js';
 import { railPath, railKeep, planRailStage } from './rail-stage.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
@@ -106,7 +107,9 @@ export function airspaceOf(manifest) {
     const course = planCourse(map, spaceField(map, { asteroids: 'none' }), { ...(manifest.course && manifest.course !== true ? manifest.course : {}), seed });
     // (a rail stage's way laid first too, and its rocks kept off it: rail-stage.js, the stage's own laid on this field)
     const rail = manifest.rail ? railKeep(railPath(map, null, { seed, ...(manifest.rail.speed ? { speed: manifest.rail.speed } : {}) })) : [];
-    const field = spaceField(map, { asteroids: manifest.space?.asteroids ?? 'field', seed, keep: [...courseTubes(map, course, spaceSeat(map, course)), ...rail] });
+    // (and its capital ships and stations, space-fleet.js: the rocks keep clear of each)
+    const fleet = manifest.space?.fleet ? fleetWorld(manifest.space.fleet, spaceSeat(map, course)).map((f) => [f.center, f.center, f.radius]) : [];
+    const field = spaceField(map, { asteroids: manifest.space?.asteroids ?? 'field', seed, keep: [...courseTubes(map, course, spaceSeat(map, course)), ...rail, ...fleet] });
     field.loop = course;   // the lanes kept open: a level with no course still starts on its run-in (craft.js)
     return { map, field };
   }
@@ -186,12 +189,14 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
 }
 
 /** A space map's backdrop (backdrop.js): its nebula, planets and far sun, seeded by the map (its own `backdrop.seed`,
- *  else the map's); `space.backdrop: false` a sky of stars alone. */
-function backdropOf(manifest) {
+ *  else the map's); `space.backdrop: false` a sky of stars alone; `space.backdrop.toward` { bearing, elevation } the large
+ *  world's place from the pilot's start. */
+function backdropOf(manifest, seat) {
   const B = manifest.space && manifest.space.backdrop;
   if (B === false) return {};
   const o = B && typeof B === 'object' ? B : {};
-  return { backdrop: planBackdrop({ star: SPACE_STAR.dir, seed: o.seed ?? manifest.seed ?? 1, ...(o.planets !== undefined ? { planets: o.planets } : {}), ...(o.nebula !== undefined ? { nebula: o.nebula } : {}), ...(o.suns !== undefined ? { suns: o.suns } : {}), ...(Array.isArray(o.worlds) ? { worlds: o.worlds } : {}), ...(o.proximity ? { proximity: o.proximity } : {}) }) };
+  // (the large world where a mission set it: a bearing and an elevation from the start, space-fleet.js toward)
+  return { backdrop: planBackdrop({ star: SPACE_STAR.dir, seed: o.seed ?? manifest.seed ?? 1, ...(o.toward && seat ? { toward: toward(seat, o.toward) } : {}), ...(o.planets !== undefined ? { planets: o.planets } : {}), ...(o.nebula !== undefined ? { nebula: o.nebula } : {}), ...(o.suns !== undefined ? { suns: o.suns } : {}), ...(Array.isArray(o.worlds) ? { worlds: o.worlds } : {}), ...(o.proximity ? { proximity: o.proximity } : {}) }) };
 }
 
 /** The space map on the World page (space.js): stars all round, the rocks instanced, the course's gates, no ground. */
@@ -206,11 +211,15 @@ function assembleSpace(manifest, { title }) {
     { name: 'field', worldFraming: { cameraPosition: [-R.hx, -R.hy, R.hz], lookAt: [0, 0, 0], horizontalFov: 60 } },
   ];
   const laws = [...spaceLaws(map, field, course, seat.transform), ...(course ? course.laws : [])];
+  // capital ships and stations (space-fleet.js): their faces under the star, their hulls colliders, a bookmark on each
+  const fleet = manifest.space?.fleet ? layFleet(manifest.space.fleet, seat.transform, { sun: SPACE_STAR.dir }) : null;
+  if (fleet) cameras.push(...fleet.cameras);
   return {
-    faces: [...(field.faces || []), ...(course ? course.faces : [])], repeats: [...field.repeats, ...railHazardRepeats(manifest, map, field, { light: makeLight({ direction: [-0.45, 0.35, -0.82], ambient: 0.32, diffuse: 0.78 }), tone: '#7d756c' })], cameras, title,
+    faces: [...(field.faces || []), ...(course ? course.faces : []), ...(fleet ? fleet.faces : [])],
+    ...(fleet ? { colliders: fleet.colliders } : {}), repeats: [...field.repeats, ...railHazardRepeats(manifest, map, field, { light: makeLight({ direction: [-0.45, 0.35, -0.82], ambient: 0.32, diffuse: 0.78 }), tone: '#7d756c' })], cameras, title,
     // (the star the craft are lit by, where the rocks' light comes from: space.js SPACE_STAR; the sky at infinity, flown
     // through and never past)
-    sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: [...SPACE_STAR.dir], size: SPACE_STAR.size, glow: SPACE_STAR.glow }, ...backdropOf(manifest) }, bg: '#03040a',
+    sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: [...SPACE_STAR.dir], size: SPACE_STAR.size, glow: SPACE_STAR.glow }, ...backdropOf(manifest, seat.transform) }, bg: '#03040a',
     ...(pilot ? {} : { walk: { speed: 20, spawn: p, radius: 0.4, minEye: 1.7, gravity: 0, jump: 0 } }),
     // (a fleet's ships and stations, fleet/: their blocks to the world's build, destructible under physical)
     ...(Array.isArray(manifest.fleet) && manifest.fleet.length ? { physicalFleet: manifest.fleet } : {}),
@@ -218,7 +227,7 @@ function assembleSpace(manifest, { title }) {
     ...(pilot || {}),
     meta: {
       map: { form: 'void', craft: map.craft.key, rings: map.rings },
-      laws, space: field.report, ...(field.trench ? { trench: { ...field.trench, port: field.port, turrets: field.turrets.length } } : {}),
+      laws, space: field.report, ...(fleet ? { fleet: fleet.report } : {}), ...(field.trench ? { trench: { ...field.trench, port: field.port, turrets: field.turrets.length } } : {}),
       ...(course ? { course: { gates: course.gates, finish: null, laps: course.laps, laws: course.laws } } : {}),
     },
   };

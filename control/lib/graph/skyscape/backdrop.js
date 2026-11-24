@@ -15,10 +15,11 @@
  *   craft are lit by is always seen.
  *   A FAR SUN: a small second star, red or blue-white by its temperature, far from the near one; it lights nothing.
  *
- *   planBackdrop({ star, seed?, planets?, worlds?, proximity?, nebula?, suns? }) → { nebula, planets, suns, planetshine?,
+ *   planBackdrop({ star, seed?, planets?, worlds?, proximity?, nebula?, suns?, toward? }) → { nebula, planets, suns, planetshine?,
  *     proximity? }   (star: the direction toward the map's star, unit; planets 0..3 (2); worlds: the kinds asked, the
  *     first the large one ('random' a slot left to the dice); proximity: how close the large world is, PROXIMITY
- *     (distant, near, high-orbit, low-orbit); nebula true | false; suns 0..1 (1)); planetshine: a close world's light
+ *     (distant, near, high-orbit, low-orbit); nebula true | false; suns 0..1 (1); toward: the large world's direction, a
+ *     unit vector, moved straight off the star where it crowds it); planetshine: a close world's light
  *     on the craft from below { color, k }
  *   PROXIMITY             how close: the large world's angular radius and where it stands, drawn live when close
  *   BACKDROP              the numbers: the planets' sizes (angular radius, °), the clearances
@@ -77,7 +78,7 @@ export function validateBackdrop(v) {
   if (v === undefined || v === true || v === false) return [];
   if (!v || typeof v !== 'object' || Array.isArray(v)) return ['space.backdrop is true, false or { planets?, worlds?, proximity?, nebula?, suns?, seed? }'];
   const e = [];
-  for (const k of Object.keys(v)) if (!['planets', 'nebula', 'suns', 'seed', 'worlds', 'proximity'].includes(k)) e.push(`space.backdrop.${k} is not a backdrop's word (planets, worlds, proximity, nebula, suns, seed)`);
+  for (const k of Object.keys(v)) if (!['planets', 'nebula', 'suns', 'seed', 'worlds', 'proximity', 'toward'].includes(k)) e.push(`space.backdrop.${k} is not a backdrop's word (planets, worlds, proximity, nebula, suns, seed, toward)`);
   if (v.proximity !== undefined && !PROXIMITY[v.proximity]) e.push(`space.backdrop.proximity is how close the large world is: ${Object.keys(PROXIMITY).join(' | ')}`);
   if (v.worlds !== undefined) {
     if (!Array.isArray(v.worlds) || v.worlds.length > 3) e.push('space.backdrop.worlds is a list of up to 3 kinds of world (the first the large one)');
@@ -87,10 +88,11 @@ export function validateBackdrop(v) {
   if (v.suns !== undefined && !(Number.isInteger(v.suns) && v.suns >= 0 && v.suns <= 1)) e.push('space.backdrop.suns is 0 or 1');
   if (v.nebula !== undefined && typeof v.nebula !== 'boolean') e.push('space.backdrop.nebula is true or false');
   if (v.seed !== undefined && !Number.isFinite(v.seed)) e.push('space.backdrop.seed is a number');
+  if (v.toward !== undefined && !(v.toward && typeof v.toward === 'object' && Number.isFinite(v.toward.bearing) && Math.abs(v.toward.bearing) <= 180 && Number.isFinite(v.toward.elevation) && Math.abs(v.toward.elevation) <= 89)) e.push('space.backdrop.toward is { bearing, elevation }: where the large world stands, in degrees from the start\'s heading (clockwise) and up');
   return e;
 }
 
-export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebula = true, suns = 1, proximity = 'distant' } = {}) {
+export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebula = true, suns = 1, proximity = 'distant', toward = null } = {}) {
   const S = unit(star || [0, 0, 1]), rnd = mulberry32(strHash(`backdrop|${seed}`)), pick = (a) => a[Math.floor(rnd() * a.length) % a.length];
   const span = ([lo, hi]) => lo + rnd() * (hi - lo);
   const placed = [{ dir: S, r: 1 + BACKDROP.clear }];
@@ -107,6 +109,14 @@ export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebul
     const r = P ? span(P.r) / (world.blackHole ? 4 : 1) : world.blackHole ? span(BLACK_HOLE.r) : span(primary ? BACKDROP.primary : BACKDROP.small);
     const reach = world.blackHole ? r * world.disk[1] * 1.15 : world.rings ? r * world.rings.outer : r;
     let dir = null;
+    // (the large world where a mission set it, `toward`, while it is clear of the star; else where the dice put it)
+    // (one that crowds the star is moved straight off it, just clear, so its bearing reads as the mission set it)
+    if (primary && toward && !(P && P.nadir)) {
+      let d = unit(toward);
+      const need = (1 + BACKDROP.clear + reach + 1) * DEG, c = dot(d, S);
+      if (Math.acos(Math.max(-1, Math.min(1, c))) < need) { const u = unit([0, 1, 2].map((k) => d[k] - c * S[k])); d = unit([0, 1, 2].map((k) => Math.cos(need) * S[k] + Math.sin(need) * u[k])); }
+      if (free(d, reach, 0)) dir = d;
+    }
     for (let t = 0; t < 60 && !dir; t++) {
       // (in orbit: below the fight, its centre a little off straight down; else from the side of the star)
       const d = P && P.nadir ? around([0, 0, -1], span(P.nadir), rnd() * 2 * Math.PI) : primary ? around(S, span(world.blackHole ? [70, 140] : BACKDROP.phase), rnd() * 2 * Math.PI) : unit([rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1]);

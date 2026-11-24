@@ -1155,3 +1155,15 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // mission). Its kernel gains the `power` component (a generator and its feeds) and its sheet that component's rules
 // and beats; the shield plan's spent-side and low-hull rules now name its own parts. No fixture draws either, so what
 // each shows is as it was.
+// Pinned 2026-11-23 (1122-sim-fixing-mana-ui: the holo briefing): the `briefing` fixture joins the matrix (a space
+// mission's briefing over its level: campaign/briefing-page.js's block in a scope of its own, the table's client, mana-ui
+// and the controls host, the mission held on the pause sidecar until Launch). Every other page is byte-identical, and a
+// page without a `briefing` key emits no block.
+// Re-pinned 2026-11-23 (1122-sim-fixing-mana-ui: beacons): the fixtures that embed the controllable runtime, and
+// `briefing`. A mission's beacon (gameworld/flight-sortie.js) is a mesh body the page draws as a lit core in turning
+// rings (its own branch of the body builder and of the entity sync), and the starfighter's targeting computer holds one
+// as a goal, never a hostile. No fixture carries a beacon, so what each shows is as it was. The briefing's labels size to
+// their words.
+// Re-pinned 2026-11-23 (1122-sim-fixing-mana-ui: the mission designer): `briefing` only. The table's client gives the
+// editor its handle (a place moved with its name, post and ring; everything shown; the camera's turn held); the page over
+// a level carries no editor, so what it shows is as it was.
