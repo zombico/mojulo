@@ -286,8 +286,10 @@ const LEGS = f({
   medium: f({ hw: 0.74, ha: 0.58, t: 1, foot: [0.62, 1.45], fw: 0.92, toes: 2, pod: true }),
   heavy: f({ hw: 0.92, ha: 0.7, t: 1.28, foot: [0.78, 1.68], fw: 1.22, toes: 3, pod: false }),
   // (reverse-joint legs: the ankle a raised heel over a short metatarsal, three toes splayed from its ball, a spur behind;
-  // the knee bent back, the shin the longer bone)
-  reverse: f({ hw: 0.8, ha: 0.95, t: 1.04, foot: [0.7, 1.45], fw: 1.1, toes: 3, pod: true, bend: -1, rake: 28, split: 0.42 }),
+  // the knee bent back, the shin the longer bone. A crouched, forward-raked bird's stance: the bones their own lengths
+  // (`bones`, thigh and shin), the ankle set `fore` ahead of the hip and the metatarsal raked forward (`meta`, its length
+  // and its angle off the vertical), so the hip stands as low as the legs' height says)
+  reverse: f({ hw: 0.8, ha: 0.81, t: 1.04, foot: [0.7, 1.45], fw: 1.1, toes: 3, pod: true, bend: -1, bones: f([2.21, 3.05]), fore: 0.5, meta: f([0.9, 52]) }),
 });
 const ARMS = f({ light: f({ a: 0.78, up: 1.5, fo: 1.3 }), medium: f({ a: 1, up: 1.6, fo: 1.4 }), heavy: f({ a: 1.28, up: 1.66, fo: 1.46 }) });
 const CORE_CH = f({ light: 1.75, medium: 1.85, heavy: 1.9, prow: 1.5 });
@@ -300,7 +302,7 @@ function skeleton(B) {
   const s = P.core.size, Lg = legsLook(P.legs), A = ARMS[P.arms.class];
   // (the legs' two bones over the hip-to-ankle drop: a biped's knee bent forward a little, a reverse joint's back far)
   const H = P.legs.height, D = H - Lg.ha, reach = D / Math.cos((Lg.rake ?? 14) * DEG), bend = Lg.bend ?? 1;
-  const L1 = reach * (Lg.split ?? 0.47), L2 = reach - L1;
+  const L1 = Lg.bones ? Lg.bones[0] : reach * (Lg.split ?? 0.47), L2 = Lg.bones ? Lg.bones[1] : reach - L1;
   const zc0 = H + 0.72, zc1 = zc0 + CORE_CH[P.core.headless ? 'prow' : P.core.class] * s;
   const halfW = 1.18 * s, shoulderX = halfW + 0.36 * A.a;
   const sk = { s, H, L1, L2, Lg, A, zc0, zc1, halfW, depth: 0.95 * s, bend, joint: bend < 0 ? 'reverse' : 'biped', headless: !!P.core.headless };
@@ -316,7 +318,7 @@ function skeleton(B) {
   sk.grip = add(sk.wrist, [0, 0.2 * A.a, -0.04]);
   sk.mount = [0.7 * s + 0.16, -0.62 * s, zc1 - 0.3];
   sk.hip = [Lg.hw, 0, H];
-  sk.ankle = [Lg.hw + 0.06, bend < 0 ? 0.1 : 0.02, Lg.ha];
+  sk.ankle = [Lg.hw + 0.06, Lg.fore ?? 0.02, Lg.ha];
   sk.knee = legKnee(sk.hip, sk.ankle, L1, L2, [1, 0, 0], bend);
   return sk;
 }
@@ -1092,7 +1094,8 @@ function reverseLeg(K, sk, sg) {
     // ── the foot: the metatarsal down to its ball, three toes splayed from it, a spur behind (world axes at the ankle)
     K.bone(`foot${side}`);
     K.in(at(ankle), () => {
-      const ha = Lg.ha, [heel, toe] = Lg.foot, ball = [0, 0.42, -ha + 0.26];
+      // (the ball under the metatarsal's raked end, on its pad above the ground)
+      const ha = Lg.ha, [heel, toe] = Lg.foot, [ml, mr] = Lg.meta ?? [0.85, 30], ball = [0, ml * Math.sin(mr * DEG), -ha + 0.26];
       K.in(segFrame([0, 0, 0], ball, [0, 1, 0]), () => {
         const Lm = len(ball);
         K.box([0, 0, -0.5 * Lm], [0.36 * t, 0.36 * t, Lm + 0.1], 'gunmetal', { ch: 0.05 });

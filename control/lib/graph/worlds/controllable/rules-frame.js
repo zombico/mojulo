@@ -28,7 +28,8 @@
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
  *
- * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch,
+ * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch, thrust (the
+ * burn the page's thrusters draw, 0..1),
  * slotState { <slot>: { ammo, mag, reloading, cd, charge } }, locomotion (the body's clip: idle, forward, boost,
  * boost_left, boost_right, boost_back, hover, fall, land), gaitPhase, moving.
  *
@@ -208,6 +209,8 @@ export function buildRulesFrame(E) {
       : e.airborne ? (e.ascending || e.v[2] > 0.5 || e.boosting || inQb ? (inQb || e.boosting ? way === 'boost' ? 'hover' : way : 'hover') : 'fall')
       : (e.boosting || inQb) ? way : hs > 0.8 ? 'forward' : 'idle';
     e.gaitPhase = (e.gaitPhase || 0) + (e.locomotion === 'forward' ? hs / (r.stride ?? 9) : e.boosting ? 1.2 * dt : 0.4 * dt);
+    // (the burn the page's thrusters draw: full in a quick boost, hard climbing, then boosting in the air and on the ground; off)
+    e.thrust = inQb ? 1 : e.ascending ? 0.85 : e.boosting ? (e.airborne ? 0.75 : 0.6) : 0;
   }
 
   // ── the weapons: four triggers, four guns, after the rule (the aim settled) ──

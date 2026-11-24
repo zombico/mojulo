@@ -13,8 +13,8 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - The pilot's Vanguard is headless on reverse-joint legs. Its core is a forward fuselage (`cr-prow`): a long
     armoured prow ahead of the shoulders, the cockpit under a narrow canopy, the optics in a chin turret, a chrome
     sensor cone at the nose, so the head slot is empty and the core's sensors lengthen the lock. Its legs
-    (`lg-reverse`) bend the knee back as a bird's, a long shin forward to a splayed three-toed foot with a spur: they
-    jump highest and land lightest. The Raptor and the Citadel keep their heads and biped legs.
+    (`lg-reverse`) bend the knee back as a bird's, the shin and the foot raked forward to a splayed three-toed foot
+    with a spur, a crouched stance with its hips at 4.2 m (the frame 7.5 m tall): they jump highest and land lightest. The Raptor and the Citadel keep their heads and biped legs.
   - A new part is a row. The assembly (`assemble.js`) reads a build into the frame's weight, armour, movement, energy and
     lock. It holds the build to laws: within the legs' load, the booster carrying its mass, the generator good for three
     quick boosts. The laws advise and never refuse: an overweight frame is slower, not forbidden.
@@ -26,6 +26,11 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - Its clips (`clips.js`, its own forward kinematics and a two-bone leg): idle, a heavy walk, the boost's skate and
     its leans left, right and back, the hover with the knees tucked, the fall reaching down, the landing's crouch.
   - Its figure (`figure.js`) is in the form render: chrome drawn as polished metal, the paint as satin plate.
+  - Its thrust is layered fire (`scene/channels/controllable/frame-flame.js`, thrusters of kind `flame`, opt-in): each
+    mouth three nested cones, each its own scrolling-noise fire shader burning in its own stretch of the plume. A
+    white-hot core with shock diamonds at the mouth, a sheath of the exhaust's blue, an amber tail going red, and a
+    flare on the bell. The burn follows the frame: full in a quick boost, hard climbing, then boosting; off on its feet.
+    It writes its depth for a page with a logarithmic depth buffer, as a flight's is.
   - Its review sheets: `node scripts/render-frame.mjs`.
 - **The frame rule** (`worlds/controllable/rules-frame.js`, opt-in `frame`).
   - The mouse turns the frame and aims it. W, A, S and D walk it.

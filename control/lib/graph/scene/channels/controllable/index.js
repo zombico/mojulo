@@ -43,6 +43,7 @@ import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
 import { cockpitHudScript } from '../cockpit-hud.js';
 import { frameHudScript } from './frame-hud.js';
+import { frameFlameScript } from './frame-flame.js';
 import { keyClock } from '../../../worlds/controllable/keying.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
@@ -951,6 +952,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // (a craft's drives on its figure, craft-form.js: thrusters of kind `drive`, their plume and their mouth's flare burning
   // by how hard the craft is driven, e.thrust)
   const figDrives = Object.values(figures || {}).some((f) => f && Array.isArray(f.thrusters) && f.thrusters.some((t) => t && t.kind === 'drive'));
+  // (an assault frame's thrust, assault-frame/figure.js: thrusters of kind `flame`, layered fire, frame-flame.js)
+  const figFlames = Object.values(figures || {}).some((f) => f && Array.isArray(f.thrusters) && f.thrusters.some((t) => t && t.kind === 'flame'));
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
@@ -1727,7 +1730,7 @@ function __castMR(fig, c, n) {
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figFlames ? frameFlameScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
 // over the nozzle that swells and brightens as the craft is driven harder, and its plume, a cone of its glow trailing a
 // few mouths aft with a white-hot core, long at full throttle and short at idle; flattened to a slit's mouth
 let __driveTex = null;
@@ -1870,7 +1873,8 @@ ${figSkinParts ? `  // (one skin: every bone posed, a part's or none, and the sk
       holder.visible = false;
       loc.add(holder);
       const len = th.len || th.size * 4, rad = th.size;${figDrives ? `
-      if (th.kind === 'drive') { jets.push(__driveJet(th, holder, len, rad)); continue; }` : ''}
+      if (th.kind === 'drive') { jets.push(__driveJet(th, holder, len, rad)); continue; }` : ''}${figFlames ? `
+      if (th.kind === 'flame') { jets.push(__flameJet(th, holder, len, rad)); continue; }` : ''}
       const coneG = new THREE.ConeGeometry(rad, len, 10, 1, true);
       coneG.translate(0, len / 2, 0);
       const core = new THREE.Mesh(coneG, new THREE.MeshBasicMaterial({ color: new THREE.Color(0x8fd0ff), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -5495,8 +5499,9 @@ function __updateThrusters(dt) {
     const jyaw = Math.atan2(rf.jetVY, rf.jetVX);
     for (let i = 0; i < rf.jets.length; i++) {
       const j = rf.jets[i];
-      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false;${figDrives ? ' if (j.flare) j.flare.visible = false;' : ''} continue; }
-      j.holder.visible = true;${figDrives ? `
+      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false;${figDrives || figFlames ? ' if (j.flare) j.flare.visible = false;' : ''} continue; }
+      j.holder.visible = true;${figFlames ? `
+      if (j.kind === 'flame') { __flameStep(j, amt, i); continue; }` : ''}${figDrives ? `
       if (j.kind === 'drive') {
         // (a drive: its plume long and bright as it is driven, a pilot flame at idle; its mouth's flare swelling with it)
         const fd = 0.92 + 0.08 * Math.sin(__world.time * 37 + i * 1.3), L = (0.25 + 0.75 * amt) * fd;

@@ -59,7 +59,7 @@ export const PARTS = f({
     'lg-medium': row({ name: 'Biped M', class: 'medium', ap: 9800, weight: 19500, load: 64000, walk: 11, jump: 13, land: 0.35, height: 5.2, about: 'medium biped legs: the thighs armoured, the shins carrying their own thrusters' }),
     'lg-light': row({ name: 'Biped L', class: 'light', ap: 6900, weight: 14200, load: 41000, walk: 13, jump: 16, land: 0.22, height: 5.0, about: 'light biped legs: long and lean, a jump that carries' }),
     // (reverse-joint legs: the knee bent back as a bird's, a long shin down to a splayed foot; they jump and land lightest)
-    'lg-reverse': row({ name: 'Reverse M', class: 'medium', joint: 'reverse', ap: 9200, weight: 18200, load: 63000, walk: 12, jump: 19, land: 0.26, height: 5.6, about: 'reverse-joint legs: thighs slung back from the hips, the knee bent back like a bird\'s, a long shin forward to a splayed three-toed foot with a spur behind; a jump that carries far' }),
+    'lg-reverse': row({ name: 'Reverse M', class: 'medium', joint: 'reverse', ap: 9200, weight: 18200, load: 63000, walk: 12, jump: 19, land: 0.26, height: 4.2, about: 'reverse-joint legs: thighs slung back from the hips, the knee bent back like a bird\'s, a long shin forward to a splayed three-toed foot with a spur behind; a jump that carries far' }),
     'lg-heavy': row({ name: 'Biped H', class: 'heavy', ap: 13800, weight: 27800, load: 84000, walk: 8.5, jump: 10, land: 0.55, height: 5.4, about: 'heavy biped legs: wide plated thighs, broad feet, a landing that shakes' }),
   }),
   booster: f({

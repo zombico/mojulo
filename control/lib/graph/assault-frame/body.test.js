@@ -22,10 +22,11 @@ const kneeAhead = (hip, knee, ankle) => {
 };
 
 describe('the assault frame\'s body', () => {
-  it('stands on its soles at z = 0, a frame of nine metres or so, its hips the legs\' height', () => {
+  it('stands on its soles at z = 0, a frame of seven to ten metres, its hips the legs\' height', () => {
     const zs = corners(medium).map((c) => c[2]);
     expect(Math.min(...zs)).toBeCloseTo(0, 3);
-    expect(medium.height).toBeGreaterThan(8);
+    // (a crouched reverse-joint frame stands lowest)
+    expect(medium.height).toBeGreaterThan(7);
     expect(medium.height).toBeLessThan(12);
     expect(medium.hips).toBe(partOf('legs', medium.build.legs).height);
     expect(medium.bones.find((b) => b.id === 'root').head[2]).toBeCloseTo(medium.hips, 6);
@@ -83,6 +84,9 @@ describe('the assault frame\'s body', () => {
   it('bends a reverse joint\'s knee back behind the hip-to-ankle line, a biped\'s ahead of it', () => {
     const L = (b) => b.rig.legs;
     expect(L(reverse).joint).toBe('reverse');
+    // (its crouched stance: the rest hip where the legs' row says it stands, the ankle raked ahead of it)
+    expect(Math.abs(L(reverse).hip[2] - partOf('legs', reverse.build.legs).height)).toBeLessThan(0.2);
+    expect(L(reverse).ankle[1]).toBeGreaterThan(L(reverse).hip[1] + 0.2);
     expect(kneeAhead(L(reverse).hip, L(reverse).knee, L(reverse).ankle)).toBeLessThan(-0.5);
     expect(kneeAhead(L(biped).hip, L(biped).knee, L(biped).ankle)).toBeGreaterThan(0.2);
   });
@@ -161,7 +165,8 @@ describe('the assault frame\'s figure', () => {
     expect(a.parts.every((p) => p && p.form)).toBe(true);
     expect(a.form.materials.chrome).toMatchObject({ metalness: 1 });
     expect(a.form.materials.glow.emissive).toMatch(/^#[0-9a-f]{6}$/);
-    expect(a.thrusters.every((t) => t.kind === 'drive' && a.bones.some((bn) => bn.id === t.bone))).toBe(true);
+    // (each a burning mouth on a bone it has: the page's drive or the frame's own layered flame)
+    expect(a.thrusters.every((t) => ['drive', 'flame'].includes(t.kind) && a.bones.some((bn) => bn.id === t.bone))).toBe(true);
     expect(a.frame).toMatchObject({ hips: partOf('legs', STOCK[spec.build].legs).height, palette: 'mars', wear: 'battered' });
     expect(Object.keys(a.clips)).toContain('hover');
   });

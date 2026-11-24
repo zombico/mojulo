@@ -138,6 +138,10 @@ const reachOf = (body) => body.rig.legs.L1 + body.rig.legs.L2;
 /** The frame's clips (see the head of this file). */
 export function frameClips(body) {
   const reach = reachOf(body), S = 0.17 * reach;
+  // (the airborne poses read off the rest stance: how far the ankle stands below the hip and ahead of it, so a
+  // crouched reverse-joint stance tucks and reaches from where it stands)
+  const Lr = body.rig.legs, drop = Lr.hip[2] - Lr.ankle[2], fore = Lr.ankle[1] - Lr.hip[1];
+  const stretch = Math.min(0.95 * reach, 1.15 * drop);
   const arms = (up = 0, low = 0) => ({ R: { up, low }, L: { up, low } });
   const clips = {};
   clips.idle = pack(body, [{ root: { off: [0, 0, -0.08], pitch: -2 * DEG }, core: { pitch: -1 * DEG }, arms: arms(), feet: { R: { at: [0.04, 0.1, 0] }, L: { at: [0.04, -0.12, 0] } } }]);
@@ -187,11 +191,11 @@ export function frameClips(body) {
   // airborne: the legs tucked under, the feet trailing toes down; coming down, the legs reaching for the ground
   clips.hover = pack(body, [0, 1].map((k) => ({
     root: { off: [0, 0, 0.04 * k], pitch: -7 * DEG }, core: { pitch: -2 * DEG }, arms: arms(),
-    feet: { R: { rel: [0.02, -0.45 - 0.05 * k, -0.74 * reach], pitch: -42 * DEG, air: true }, L: { rel: [0.02, -0.95 + 0.05 * k, -0.68 * reach], pitch: -48 * DEG, air: true } },
+    feet: { R: { rel: [0.02, fore - 0.45 - 0.05 * k, -0.76 * drop], pitch: -42 * DEG, air: true }, L: { rel: [0.02, fore - 0.95 + 0.05 * k, -0.7 * drop], pitch: -48 * DEG, air: true } },
   })));
   clips.fall = pack(body, [0, 1].map((k) => ({
     root: { off: [0, 0, 0.03 * k], pitch: 4 * DEG }, core: { pitch: 2 * DEG }, arms: arms(-0.06, 0),
-    feet: { R: { rel: [0.04, 0.3, -0.955 * reach], pitch: -14 * DEG, air: true }, L: { rel: [0.04, -0.15 + 0.04 * k, -0.93 * reach], pitch: -18 * DEG, air: true } },
+    feet: { R: { rel: [0.04, fore + 0.3, -stretch], pitch: -14 * DEG, air: true }, L: { rel: [0.04, fore - 0.15 + 0.04 * k, -0.975 * stretch], pitch: -18 * DEG, air: true } },
   })));
 
   // the landing: down into a deep crouch, the core pitching over the knees, and back up

@@ -7,7 +7,7 @@
  *                                    FRAME_PALETTES; a wear of FRAME_WEARS) → the rig figure (vehicle-rig.js
  *                                    packVehicleFigure): one bone per body bone, each in the form render; `clips` the
  *                                    frame's (idle, forward, boost, boost_left, boost_right, boost_back, hover, fall,
- *                                    land); `thrusters` [{ bone, local, dir, size, half, len, kind: 'drive', color }]
+ *                                    land); `thrusters` [{ bone, local, dir, size, half, len, kind: 'flame', color, role }] (layered fire, scene/channels/controllable/frame-flame.js)
  *                                    (craft-form.js's drives: a bell's mouth, its plume aft in the exhaust's colour);
  *                                    `form` its light (form-light.js: the world's sky, or noon, or a star's in space);
  *                                    `frame` { build, height, hips, mounts, palette, wear, faces }
@@ -25,8 +25,9 @@ import { formLight, skyMood } from '../car-designer/form-light.js';
 const f = Object.freeze;
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-// (a drive's plume this many of its mouth's half-widths long: craft-form.js DRIVE_PLUME's, not imported for one number)
-const DRIVE_PLUME = 7;
+// (a booster's plume this many of its mouth's half-widths long at full burn, a vernier's less: long enough that its
+// layers read, the core, the sheath and the tail, frame-flame.js)
+const PLUME = Object.freeze({ main: 30, vernier: 14 });
 
 /** The slots, as the page's physical material takes them: the paint satin with a thin clear coat (a hull's paint made
  *  for vacuum), the chrome a mirror, the structure's dark metal brushed, the seal rubber, the lens deep glass, the glow
@@ -69,7 +70,7 @@ export function frameFigure(spec, { setting = null } = {}) {
   // (a bell's exhaust: its mouth, its plume aft along its axis, the main bells long and the verniers short)
   const thrusters = body.thrusters.map((t) => {
     const size = r4(Math.max(...t.half));
-    return { bone: t.bone, local: t.at, dir: t.dir, size, half: [size, size], len: r4(size * (t.kind === 'main' ? DRIVE_PLUME : DRIVE_PLUME * 0.6)), kind: 'drive', color: C.exhaust, role: t.kind };
+    return { bone: t.bone, local: t.at, dir: t.dir, size, half: [size, size], len: r4(size * (PLUME[t.kind] ?? PLUME.vernier)), kind: 'flame', color: C.exhaust, role: t.kind };
   });
   return {
     ...fig,
