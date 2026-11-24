@@ -53,6 +53,7 @@ import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
 import { sideMapLevelOrder } from './side-map/level.js';
+import { boxLevelOrder } from './metroidvania/level.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
@@ -214,6 +215,8 @@ export function gameStages(world) {
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
     // a side map level is one stage: the map on its cube (side-map/scene.js), laid for the hero its level order makes
     if (R.sidemap) { out.push({ level, node: 'map', section: 'sidemap', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'sidemap', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, sidemap: R.sidemap } }); continue; }
+    // a metroidvania level is one stage: its box built for the hero its level order makes (metroidvania/scene.js)
+    if (R.metroidvania) { out.push({ level, node: 'box', section: 'metroidvania', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'metroidvania', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, metroidvania: R.metroidvania } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
     if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
@@ -902,6 +905,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
+  if (stage.section === 'metroidvania') return boxLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, title, mechanics, audio });
   if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, costar, heroGaits, heroStature, pilot, title, mechanics, extra, audio, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
   if (stage.section === 'kitchen') { const KL = kitchenLevel(G, { ref, heroRef, spec: stage.kitchen ?? {}, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: KL.manifest.title, manifest: KL.manifest }, laws: KL.laws }; }

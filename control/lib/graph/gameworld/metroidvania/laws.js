@@ -20,22 +20,26 @@
  *   pockets          every pocket is opened by the time the box is done
  *   no-kick          every rise on a climb is a single jump's at most; a double-jump gate's last rise is over a jump and
  *                    under a double jump; nothing asks a wall kick or a stomp
+ *   sill-holds       a double-jump sill is a gate: nothing to stand on in its room within a single jump under its top and
+ *                    within SILL_CLEAR jumps of it across (a stair's ledge would let one jump over it)
  *   saves            no more than SAVE_EVERY rooms walked between save rooms
  *   boss-at-core     the core's last hall holds a boss
  *
  *   boxLaws(L, { solved?, greybox? }) → [{ id, holds, says, rooms? }]   (rooms: where a law is lost)
- *   BOX_LAWS, FILL, AXES, BACK, SAVE_EVERY
+ *   BOX_LAWS, FILL, AXES, BACK, SAVE_EVERY, SILL_CLEAR
  *
  * Pure.
  */
 import { solveBox } from './solve.js';
 import { greyboxOf } from './rooms.js';
 
-export const BOX_LAWS = Object.freeze(['entered-left', 'fills-the-box', 'spirals-in', 'both-axes', 'gated-in', 'one-new-thing', 'found-before', 'solvable', 'shortcuts', 'revisits', 'pockets', 'no-kick', 'saves', 'boss-at-core']);
+export const BOX_LAWS = Object.freeze(['entered-left', 'fills-the-box', 'spirals-in', 'both-axes', 'gated-in', 'one-new-thing', 'found-before', 'solvable', 'shortcuts', 'revisits', 'pockets', 'no-kick', 'sill-holds', 'saves', 'boss-at-core']);
 export const FILL = 0.8;
 export const AXES = Object.freeze([0.2, 0.6]);
 export const BACK = 0.5;
 export const SAVE_EVERY = 10;
+/** how far across from a sill, in jumps, nothing may stand within a jump under its top (a running jump's length and more) */
+export const SILL_CLEAR = 4;
 const EPS = 1e-3;
 const pct = (v) => `${Math.round(v * 100)}%`;
 const CCW = ['corner', 'right', 'corner', 'up', 'corner', 'left', 'corner', 'down'], CW = ['corner', 'up', 'corner', 'right', 'corner', 'down', 'corner', 'left'];
@@ -115,6 +119,14 @@ export function boxLaws(L, { solved, greybox } = {}) {
   const sills = G.gates.filter((g) => g.kind === 'double-jump' && g.door).map((g) => Math.round((g.z1 - g.z0) * 1000) / 1000).filter((h) => !(h > J + EPS && h <= D + EPS));
   law('no-kick', !tall.length && !sills.length, tall.length || sills.length ? [...tall, ...sills.map((h) => `a sill of ${h} m`)].join('; ') : `every climb a stair of ledges at most ${G.step} m apart (a jump is ${J} m); every double-jump gate over a jump, under ${D} m; no chimney, no stomp`, [...new Set(tall.map((t) => t.split(' ')[0]))]);
 
+  // the sills hold: nothing stood on within a jump under a sill's top and within SILL_CLEAR jumps of it
+  const leaks = [];
+  for (const q of G.sills ?? []) {
+    const near = G.solids.filter((x) => x.room === q.room && (x.role === 'ledge' || x.role === 'lip') && x.z1 >= q.z - J - EPS && x.z1 < q.z - EPS)
+      .filter((x) => (q.side > 0 ? q.s - x.s1 : x.s0 - q.s) < SILL_CLEAR * J);
+    if (near.length) leaks.push(`${q.room}: a ledge ${Math.round(Math.min(...near.map((x) => Math.abs(q.side > 0 ? q.s - x.s1 : x.s0 - q.s))) * 10) / 10} m from its sill puts it in one jump`);
+  }
+  law('sill-holds', !leaks.length, leaks.length ? leaks.join('; ') : `every double-jump sill stands clear: nothing to stand on within a jump under it and ${SILL_CLEAR} jumps across`, [...new Set(leaks.map((t) => t.split(':')[0]))]);
   // saves
   let since = 0, most = 0;
   for (const id of L.walk) { since = room.get(id).save ? 0 : since + 1; most = Math.max(most, since); }

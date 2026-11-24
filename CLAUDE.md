@@ -363,7 +363,10 @@ Pointers only; each target carries its own design notes.
   [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
 - The metroidvania map (the spiralling box: one box of screens entered from the left, its walk spiralling ring by ring
   to a core, every ring a region against the last so a power found inside opens shortcuts out and pockets behind; its
-  gates rows of `gates.js`; Vampire Sonata its template, no stomp and no wall kick; greybox today):
+  gates rows of `gates.js`; Vampire Sonata its template and Erina its hero, no stomp and no wall kick; a box's look a
+  theme, ring by ring, `themes.js` (the castle) laid by `dress.js`; a world's
+  `levels.<id>.metroidvania`, built as the geocube's `show: 'metroidvania'` and played in greybox on the side map's
+  runtime, its gates held shut until the hero holds what opens them, `worlds/controllable/held-gates.js`):
   [gameworld/metroidvania/](control/lib/graph/gameworld/metroidvania/), [docs/metroidvania-map.md](docs/metroidvania-map.md).
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a

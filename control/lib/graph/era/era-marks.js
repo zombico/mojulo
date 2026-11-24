@@ -47,8 +47,9 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'mission', 'damageRing', 'cone', 'formSky', 'air', 'sea', 'marine', 'soften',
   'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs',
   // (tall grass's sight, the pixel budget's cap, the radar's map, a building's stairs for the follow camera; glass and
-  // mesh a body is held out of and a gaze goes through, worlds/controllable/barrier.js)
-  'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi',
+  // mesh a body is held out of and a gaze goes through, worlds/controllable/barrier.js; a metroidvania's gates held shut
+  // until what opens them is held, worlds/controllable/held-gates.js)
+  'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi', 'heldGates',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

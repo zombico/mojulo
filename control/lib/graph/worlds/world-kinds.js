@@ -29,6 +29,7 @@ import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
 import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
 import { assembleSideMap, SIDE_MAP_SCENE_KEYS } from '@/lib/graph/gameworld/side-map/scene';
+import { assembleBox, BOX_SCENE_KEYS } from '@/lib/graph/gameworld/metroidvania/scene';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene, GEOCITY_KEYS } from '@/lib/graph/geocity/scene';
@@ -624,6 +625,9 @@ export const WORLD_KINDS = {
       // reach, dressed and built where the camera sees, lit by the cube
       // (played, a level's: its pilot, camera and game layered over it by the page, the scene reading its own words only)
       if (m.show === 'sidemap') return assembleSideMap(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k))), { title: ctx.title });
+      // a metroidvania's box (gameworld/metroidvania/scene.js): its rooms built in greybox for the hero's stature and jump,
+      // its gates held until the hero holds what opens them (played, a level's pilot, camera and game layered over it)
+      if (m.show === 'metroidvania') return assembleBox(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k))), { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no

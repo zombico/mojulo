@@ -45,9 +45,9 @@ const B = buildBus();
 export function rollOf(roll, seed = 1) { E ??= composeLive(); return E.rollOf(roll, seed); }
 
 // the world's own options the page hands its runtime beside the entities (channels/controllable createWorld): the lock,
-// the minds' tuning, a match, the seats, the tempo, the knock, the style meter. (rupa's ground and the vayo air need more than the world:
+// the minds' tuning, a match, the seats, the tempo, the knock, the style meter, a metroidvania's held gates. (rupa's ground and the vayo air need more than the world:
 // not carried.)
-export const WORLD_OPTIONS = Object.freeze(['pilot', 'spectate', 'seats', 'ai', 'breakables', 'match', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'runner', 'tempo', 'knock', 'styleMeter']);
+export const WORLD_OPTIONS = Object.freeze(['pilot', 'spectate', 'seats', 'ai', 'breakables', 'match', 'wreckExplodes', 'tutorial', 'aiDifficulty', 'lock', 'runner', 'tempo', 'knock', 'styleMeter', 'heldGates']);
 
 export function simLevel({ entities = [], events = {}, colliders, camera, roll, world: options = null } = {}, { ground = () => 0, surface = null, beat = null, powers = null, seed = 1 } = {}) {
   E ??= composeLive();

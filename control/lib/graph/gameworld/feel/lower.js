@@ -203,7 +203,8 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
     half('moves.string', `the contact window's place in the swing (${m.startup} of ${total} frames to the first active); its frames are the swing clip's until the clips are fitted to the card${S.length > 2 ? `; a string of ${S.length} plays as the runtime's two-hit combo` : ''}`);
   }
   // the SABER (a card's `blade: { kit: 'saber' }`, saber.js): its string on the fire press, in place, on the buster's scale
-  if (C.blade?.kit === 'saber') { Object.assign(rule, saberRule()); carried.push('blade'); }
+  // (`steel: true`: a sword of steel plays the string: no strand of light over it, its slash in steel)
+  if (C.blade?.kit === 'saber') { Object.assign(rule, saberRule(C.blade)); carried.push('blade'); }
   // THE PAD (a card's `pad`: { <action>: [control, control] }, the controls schemes.js names): the pad's faces as the
   // card's game lays them, over the scheme's own (controls-kernel.js resolve's override; the legend relabels itself)
   if (C.pad && typeof C.pad === 'object') { rule.controls = { gamepad: Object.fromEntries(Object.entries(C.pad).map(([k, v]) => [k, [...v]])) }; carried.push('pad'); }

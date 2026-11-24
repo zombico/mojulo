@@ -17,14 +17,22 @@
  *              each rise between them, its last rise (a gate's sill where it is one)
  *     pockets: [{ room, gate, holds, at: [s, z] }],  marks: [{ room, kind, at: [s, z], label? }]
  *   }
- *   FLOOR, CEIL, WALL, HOLE, LEDGE
+ *   sills:   [{ door, room, s, z, side }]   each double-jump sill's top at its room's side, what `sill-holds` measures
+ *   FLOOR, CEIL, WALL, HOLE, LEDGE, BOX_FRAME, boxCameraOf(stature)
  *
- * The frame is the side map's: `s` along the box (+ right), `z` up, a cell [c, r] spanning s c·W…(c+1)·W, z r·H…(r+1)·H.
+ * The frame is the side map's: `s` along the box (+ right), `z` up, a cell [c, r] spanning s c·W…(c+1)·W, z r·H…(r+1)·H, a screen in the
+ * box's frame (BOX_FRAME: the hero 0.15 of its height).
  * Pure and deterministic.
  */
-import { sideMapCamera } from '../side-map/screen.js';
+import { sideMapCamera, SIDE_MAP_FRAME } from '../side-map/screen.js';
 import { GATES, readHero, gateSill, LEDGE_SHARE, SLIT_SHARE } from './gates.js';
 
+/** THE BOX'S FRAME: the side map's (screen.js SIDE_MAP_FRAME), the hero a fifth larger in it, 0.15 of the frame's height
+ * against the run and gun's eighth: a metroidvania is close on its hero, a room a little smaller round her. A screen is a
+ * cell, so the whole box is laid in it. */
+export const BOX_FRAME = Object.freeze({ ...SIDE_MAP_FRAME, heroShare: 0.15 });
+/** The box's camera for a hero of `stature` metres: the side map's, in the box's frame. */
+export const boxCameraOf = (stature) => sideMapCamera(stature, BOX_FRAME);
 export const FLOOR = 1, CEIL = 0.6, WALL = 0.6, HOLE = 4, LEDGE = 2.5, TH = 0.4;
 /** how far a stair's ledges step aside from each other, so the one above is never over the head of the one below */
 const ASIDE = 5;
@@ -42,14 +50,26 @@ const cut = (r, o) => {
 
 /** The box in metres. */
 export function greyboxOf(L, { hero } = {}) {
-  const Hh = readHero(hero), J = Hh.jump, cam = sideMapCamera(Hh.stature), W = cam.screen.width, H = cam.screen.height;
+  const Hh = readHero(hero), J = Hh.jump, cam = boxCameraOf(Hh.stature), W = cam.screen.width, H = cam.screen.height;
   const DOOR = r3(Hh.stature + J + 0.4), STEP = r3(LEDGE_SHARE * J);
   const solids = [], gates = [], doorways = [], holes = [], chains = [], pockets = [], marks = [], openings = [];
   const R = new Map(L.rooms.map((r) => [r.id, r]));
   const box = (s0, s1, z0, z1, extra) => ({ s0: r3(s0), s1: r3(s1), z0: r3(z0), z1: r3(z1), ...extra });
   const floorAt = (row) => row * H + FLOOR;
   const span = (r) => { const [c, rr, w, h] = r.rect; return { s0: c * W, s1: (c + w) * W, zb: rr * H, zt: (rr + h) * H, floor: floorAt(rr) }; };
-  const holeAt = (d) => { const [c] = d.cells[0], mid = c * W + W / 2; return d.kind === 'loop' || (d.kind === 'shortcut' && d.oneWay) ? mid + DROP_ASIDE * W : mid; };
+  // (a room left through a double-jump SILL keeps its stair and its drops on the far side from it, so nothing to stand
+  // on puts the sill in one jump's reach: its side, +1 its right wall, -1 its left, 0 none)
+  const sillSide = new Map();
+  for (const d of L.doors) if (d.gate === 'double-jump' && d.axis === 'h') for (const [mine, other] of [[d.cells[0], d.cells[1]], [d.cells[1], d.cells[0]]]) {
+    const r = L.rooms.find((x) => x.cells.some((c) => c[0] === mine[0] && c[1] === mine[1]));
+    if (r) sillSide.set(r.id, Math.sign(other[0] - mine[0]));
+  }
+  const roomOfCell = (c) => L.rooms.find((x) => x.cells.some((q) => q[0] === c[0] && q[1] === c[1]));
+  const holeAt = (d) => {
+    const [c] = d.cells[0], mid = c * W + W / 2, side = sillSide.get(roomOfCell(d.cells[0])?.id) || sillSide.get(roomOfCell(d.cells[1])?.id) || 0;
+    if (side) return mid - side * DROP_ASIDE * W;
+    return d.kind === 'loop' || (d.kind === 'shortcut' && d.oneWay) ? mid + DROP_ASIDE * W : mid;
+  };
 
   // THE SHELLS: each room's floor, ceiling and walls
   for (const r of L.rooms) {
@@ -109,7 +129,7 @@ export function greyboxOf(L, { hero } = {}) {
         if (other[1] < mine[1]) continue;   // a hole in its floor: dropped through, climbed from the room below
         if (d.oneWay && d.a !== r.id) continue;   // a drop into this room: never climbed back up
         target = Math.max(mine[1], other[1]) * H + FLOOR;
-        top = holeAt(d); toward = top > (S.s0 + S.s1) / 2 ? -1 : 1;
+        top = holeAt(d); toward = sillSide.get(r.id) ? -sillSide.get(r.id) : top > (S.s0 + S.s1) / 2 ? -1 : 1;
         if (d.gate === 'double-jump') { last = gateSill('double-jump', Hh); gate = 'double-jump'; }
       }
       // the stands: the floor, the ledges, the door's own height; the last rise the gate's where it is one
@@ -156,5 +176,9 @@ export function greyboxOf(L, { hero } = {}) {
   // the doors cut through the shells (a ledge never cut: it stands in the open)
   let cutSolids = solids;
   for (const o of openings) cutSolids = cutSolids.flatMap((x) => (x.role === 'ledge' || x.role === 'lip' || x.role === 'niche' ? [x] : cut(x, o)));
-  return { screen: cam.screen, hero: Hh, door: DOOR, step: STEP, solids: cutSolids, gates, doorways, holes, chains, pockets, marks };
+  const sills = gates.filter((g) => g.kind === 'double-jump' && g.door).map((g) => {
+    const d = L.doors.find((x) => x.id === g.door), r = [...sillSide.keys()].find((id) => d.a === id || d.b === id);
+    return { door: g.door, room: r, s: r3(sillSide.get(r) > 0 ? g.s0 : g.s1), z: g.z1, side: sillSide.get(r) };
+  });
+  return { screen: cam.screen, hero: Hh, door: DOOR, step: STEP, solids: cutSolids, gates, doorways, holes, chains, pockets, marks, sills };
 }

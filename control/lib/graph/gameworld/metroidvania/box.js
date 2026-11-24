@@ -10,9 +10,10 @@
  * (megaworld.js) folded into one continuous map, so every ring lies against the one outside it: that is what a power
  * found inside spends, opening SHORTCUTS back out and POCKETS in rooms already walked.
  *
- *   metroidvania: { premise?, box: [cols, rows], turn?, powers, rings: [RING, …, CORE] }
+ *   metroidvania: { premise?, box: [cols, rows], turn?, theme?, powers, rings: [RING, …, CORE] }
  *     box       [cols, rows] in screens; each ring takes a cell off every side, so a ring needs three each way
  *     turn      'ccw' (along the floor first) | 'cw' (up the near side first)
+ *     theme     what it is made of and how it is lit, ring by ring (themes.js: `castle`); unsaid, greybox
  *     powers    { <id>: { opens: <gate>, name? } }: what the box hands the hero, each opening one gate kind (gates.js)
  *     RING      { id, place, finds?, boss?, key?, inward, pockets? }   outermost first
  *       finds   a power's id: its boss's prize where it has one, else a relic room in its far top corner
@@ -39,6 +40,7 @@
  * Pure, no dice: the box is laid from its words alone.
  */
 import { GATES, GATE_IDS } from './gates.js';
+import { BOX_THEMES, BOX_THEME_IDS } from './themes.js';
 
 export const TURNS = Object.freeze({ ccw: 'along the floor first, up the far side, back along the top, down the near side', cw: 'up the near side first, along the top, down the far side, back along the floor' });
 /** the most cells a corridor runs, and a shaft climbs, before it is two rooms */
@@ -51,7 +53,7 @@ const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const word = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 80;
 const fail = (m) => { throw new Error(`metroidvania: ${m}`); };
-const BOX_KEYS = ['premise', 'box', 'turn', 'powers', 'rings'];
+const BOX_KEYS = ['premise', 'box', 'turn', 'theme', 'powers', 'rings'];
 const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets'];
 const CORE_KEYS = ['id', 'place', 'boss'];
 
@@ -64,6 +66,7 @@ export function readBox(v) {
   if (!(Array.isArray(v.box) && v.box.length === 2 && v.box.every((n) => Number.isInteger(n) && n >= 3))) fail('box is [cols, rows] in screens, each a whole number, three or more (a ring needs a middle)');
   const [cols, rows] = v.box;
   out.box = [cols, rows];
+  if (v.theme !== undefined) { if (!BOX_THEMES[v.theme]) fail(`theme is ${BOX_THEME_IDS.join(' | ')} (what the box is made of and how it is lit: themes.js)`); out.theme = v.theme; }
   out.turn = v.turn ?? 'ccw';
   if (!TURNS[out.turn]) fail(`turn is ${Object.entries(TURNS).map(([k, s]) => `${k} (${s})`).join('; ')}`);
   // the powers: each opens one gate kind that a power opens
@@ -245,7 +248,7 @@ export function layBox(v) {
   const entry = { cell: [0, 0], side: 'left', room: rooms[0].id };
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {
-    box: M.box, turn: M.turn, ...(M.premise ? { premise: M.premise } : {}), powers: M.powers, entry,
+    box: M.box, turn: M.turn, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry,
     rings, rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
   };
 }
