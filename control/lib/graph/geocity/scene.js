@@ -175,6 +175,9 @@ const FRONT_PAINT = Object.freeze({
 });
 // the furniture's strides (m): a hydrant, a bench and its bike rings, a residential street's hydro poles
 const HYDRANT = 90, BENCH = 70, HYDRO = 38;
+// a DOWNTOWN street's dress (downtownStreet): its centre line's stride (a 3 m dash in it), a parking bay's length and how
+// far in from the kerb a car stands, the share of bays taken, how far clear of a crossing it parks, its trees' stride
+const DOWNTOWN = Object.freeze({ dash: 9, bay: 6.4, park: 1.15, parked: 0.72, clear: 11, tree: 13 });
 // the ground and the masses in their material words (era/arch-style.js MATERIAL_WORDS), laid as tiles (texel × light):
 // a floor's on a face that lies flat, a wall's on an upright one; each word's seed its own
 const FINISHES = Object.freeze({
@@ -225,10 +228,10 @@ const GARDEN_APT = Object.freeze({ long: 40, gap: 9, depth: 12, setback: 4.5, en
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 // THE PLACES A CITY KEEPS (segments.js `worship`, `cemetery`; a whole neighbourhood's park): a faith's building at a
 // neighbourhood's size (its footprint, m: `long` from its front, `wide` across; its massing's walls and roof seen from
-// afar), a cemetery's measures (its sections between cross walks, its rows and a grave's stride along one, m; the share
+// afar; `steps` the forecourt an inner city's lot keeps at its walk, m), a cemetery's measures (its sections between cross walks, its rows and a grave's stride along one, m; the share
 // of plots empty, crosses, ledgers; its chapel's footprint, across and along), a city park's (its promenades' width,
 // its round's half, its obelisk's height, m)
-const WORSHIP = Object.freeze({ church: Object.freeze({ long: 34, wide: 17, walls: '#cdbfa6', roof: '#5d5f63' }), mosque: Object.freeze({ long: 26, wide: 26, walls: '#e8e0cf', roof: '#9fb3b0' }), temple: Object.freeze({ long: 20, wide: 20, walls: '#b8443a', roof: '#3d4a44' }) });
+const WORSHIP = Object.freeze({ steps: 4, church: Object.freeze({ long: 34, wide: 17, walls: '#cdbfa6', roof: '#5d5f63' }), mosque: Object.freeze({ long: 26, wide: 26, walls: '#e8e0cf', roof: '#9fb3b0' }), temple: Object.freeze({ long: 20, wide: 20, walls: '#b8443a', roof: '#3d4a44' }) });
 const CEMETERY = Object.freeze({ section: 28, row: 2.7, grave: 1.4, gap: 0.12, cross: 0.12, ledger: 0.14, chapel: Object.freeze([8, 12]) });
 const CITY_PARK = Object.freeze({ promenade: 6, round: 11, obelisk: 16 });
 // (a place's front: the side it faces its arterial on, else its street, else its south; each side's walk-ward way)
@@ -744,7 +747,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       ts = cuts(span[0], span[1], (span[1] - span[0]) / n).slice(0, -1).map((a, k, arr) => [a, k + 1 < arr.length ? arr[k + 1] : span[1]]);
       const terraces = ts.map(([a, c]) => { const q = piece(a, c); return { q, z: Math.max(...[[q[0], q[1]], [q[2], q[1]], [q[2], q[3]], [q[0], q[3]]].map(([x, yy]) => S(x, yy))) + KERB }; });
       const zAt = (x, yy) => { const t = terraces.find((tt) => (longY ? yy <= tt.q[3] + 1e-6 : x <= tt.q[2] + 1e-6)) ?? terraces[terraces.length - 1]; return t.z; };
-      const padHex = b.kind === 'park' ? col.park : ['tower', 'podium', 'square', 'midrise'].includes(b.kind) ? col.plaza : b.kind === 'construction' ? col.site : b.kind === 'parking' ? col.lot : b.kind === 'vacant' ? col.scrub : col.lawn;
+      const padHex = b.kind === 'park' ? col.park : ['tower', 'podium', 'square', 'midrise'].includes(b.kind) || (b.kind === 'worship' && b.urban) ? col.plaza : b.kind === 'construction' ? col.site : b.kind === 'parking' ? col.lot : b.kind === 'vacant' ? col.scrub : col.lawn;
       const padGroup = IND_GROUND[b.kind]?.[0] ?? (padHex === col.plaza ? 'geocity:paving' : { construction: 'geocity:site', parking: 'geocity:lot', vacant: 'geocity:scrub' }[b.kind] ?? 'geocity:pad');
       // (a block given to the geotown: its block built by the town, the green round it; no pad of the metro's)
       if (b.geotown) { blockTown(b, false); continue; }
@@ -766,7 +769,8 @@ export function assembleGeocityScene(m, ctx = {}) {
         }
       });
       // (played: a block people walk round, its walk's ring: THE PEOPLE below)
-      if (PLAY && detail.has(b.id)) walked.push({ id: b.id, rect: [x0, y0, x1, y1] });
+      // (a block split for a place's lot, blocks.js `party`: one ring round the whole of it, from its built rest)
+      if (PLAY && detail.has(b.id) && !b.urban) { const sib = r.blocks.find((o) => o.urban && o.id.startsWith(`${b.id}.`)); walked.push({ id: b.id, rect: sib ? [Math.min(x0, sib.rect[0]), Math.min(y0, sib.rect[1]), Math.max(x1, sib.rect[2]), Math.max(y1, sib.rect[3])] : [x0, y0, x1, y1] }); }
       // (a block's park laid as the geotown lays one, backs.js: its paths, its playground, its pavilion, its benches, its trees)
       if (b.kind === 'park' && BACKS_ON) {
         const Fr = backFrame([x0, y0], null), K = blockPark(x1 - x0, y1 - y0, { zAt: (u, v) => zAt(...Fr.xy(u, v)), P: townP, R: streamOf(seed, 'backs', b.id) });
@@ -925,6 +929,7 @@ export function assembleGeocityScene(m, ctx = {}) {
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
             for (const s0 of [a + 6, b - 6]) { const [x, yy] = pt(1, s0, kerbOff + 0.8); stamp('bin', [x, yy, S(x, yy) + KERB], 0); }
+            downtownStreet(r, st, a, b, { WALK, pt, face, ns });
           }
         }
       }
@@ -937,6 +942,48 @@ export function assembleGeocityScene(m, ctx = {}) {
         for (const [cx, cy] of [[x0 + 2, y0 + 2], [x1 - 2, y0 + 2], [x1 - 2, y1 - 2], [x0 + 2, y1 - 2]]) stamp('bin', [cx, cy, z], 0);
         for (let x = x0 + 2; x <= x1 - 2; x += 4) for (const yy of [y0 + 0.5, y1 - 0.5]) stamp('bollard', [x, yy, z], 0);
       }
+    }
+  }
+  /** A DOWNTOWN STREET (the core's and the frame's own streets, near: DOWNTOWN): its centre line dashed; a zebra at
+   *  each crossing of another of its neighbourhood's streets and where it meets an arterial; cars parked along both
+   *  kerbs, a meter every second bay, clear of its crossings and its hydrants; its trees in their pits along both walks,
+   *  between its lamps; a hydrant and a rack of newspaper boxes by its corners. */
+  function downtownStreet(r, st, a, b, { WALK, pt, face, ns }) {
+    const half = st.w / 2 - WALK, D = DOWNTOWN, R = streamOf(seed, 'downtown', `${st.id}:${Math.round(a)}`), lift = 0.03;
+    const crosses = r.streets.filter((o) => o !== st && o.axis !== st.axis).map((o) => [o.at - o.w / 2, o.at + o.w / 2]).filter(([p, q]) => q > a && p < b);
+    const near = (s0, m) => s0 < a + m || s0 > b - m || crosses.some(([p, q]) => s0 > p - m && s0 < q + m);
+    const rot = ns ? Math.PI / 2 : 0;
+    // its centre line
+    for (let s0 = a + 4; s0 + 3 <= b - 4; s0 += D.dash) if (!near(s0, 1) && !near(s0 + 3, 1)) { const [x, y] = pt(1, s0, 0); stamp('dash', [x, y, S(x, y) + lift], rot); }
+    // its zebras: before and after each crossing, and at each end where it meets an arterial
+    const zebra = (s0) => { for (let o = -half + 0.6; o <= half - 0.6 + 1e-6; o += 1.2) { const [x, y] = pt(1, s0, o); stamp('bar', [x, y, S(x, y) + lift], rot); } };
+    for (const [p, q] of crosses) { if (p - 3.6 > a + 1) zebra(p - 3.6); if (q + 3.6 < b - 1) zebra(q + 0.6); }
+    zebra(a + 0.6); zebra(b - 3.6);
+    // its cars along both kerbs, a meter every second bay
+    for (const sd of [-1, 1]) {
+      const o = half - D.park, nose = ns ? [0, sd] : [-sd, 0];
+      let k = 0;
+      for (let s0 = a + D.clear; s0 <= b - D.clear; s0 += D.bay) {
+        if (near(s0, D.clear)) continue;
+        if (k++ % 2 === 0) { const [mx, my] = pt(sd, s0, half + 0.35); stamp('meter', [mx, my, S(mx, my) + KERB], 0); }
+        if (R() > D.parked) continue;
+        const [x, y] = pt(sd, s0, o);
+        vehicleAt('civilian', x, y, S(x, y), nose, `curb:${st.id}:${sd}:${Math.round(s0)}`);
+      }
+    }
+    // its trees in their pits along both walks, between its lamps
+    for (const sd of [-1, 1]) for (let s0 = a + 14 + (sd > 0 ? D.tree / 2 : 0); s0 <= b - 10; s0 += D.tree) {
+      if (near(s0, TREE.corner + 4)) continue;
+      const lampAt = (s0 - (a + 8 + (sd > 0 ? LAMP / 2 : 0))) % LAMP;
+      if (Math.min(Math.abs(lampAt), LAMP - Math.abs(lampAt)) < 3) continue;
+      const [x, y] = pt(sd, s0, half + TREE.kerb), [cx, cy] = pt(sd, s0, 0);
+      plant('sidewalk', x, y, S(x, y) + KERB, `downtown:${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - y, cx - x));
+      stamp('soil', [x, y, S(x, y) + KERB], rot);
+    }
+    // a hydrant and a rack of newspaper boxes by its corners
+    for (const [s0, sd] of [[a + 9, 1], [b - 9, -1]]) {
+      const [hx, hy] = pt(sd, s0, half + 0.5); stamp('hydrant', [hx, hy, S(hx, hy) + KERB], 0);
+      const [px, py] = pt(-sd, s0 + (s0 < (a + b) / 2 ? 3 : -3), half + 0.6); stamp(`papers:${face(-sd)}`, [px, py, S(px, py) + KERB], 0);
     }
   }
   /** The way a kerb piece on `side` of a line reaches (toward its road: −side). */
@@ -1197,15 +1244,17 @@ export function assembleGeocityScene(m, ctx = {}) {
    *  at its streets with a gate onto its forecourt. */
   function worship(b, { x0, y0, x1, y1, zAt, far }) {
     const fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n', W = x1 - x0, H = y1 - y0;
-    const F = WORSHIP[b.faith] ?? WORSHIP.church, deep = along ? H : W, wide = along ? W : H;
-    const court = Math.min(16, deep * 0.3), back = deep - court - 3;
+    const F = WORSHIP[b.faith] ?? WORSHIP.church, deep = along ? H : W, wide = along ? W : H, U0 = b.urban, LOT = U0 && b.id.endsWith('.p');
+    // (on its own block a forecourt and a lawn; a lot in the inner city built near its walk, a few steps up from it)
+    const court = LOT ? WORSHIP.steps : Math.min(U0 ? 10 : 16, deep * (U0 ? 0.2 : 0.3)), back = deep - court - 3;
     // (its footprint: the faith's, held inside what the forecourt leaves, its long side away from its front)
-    const fl = Math.min(F.long, back - 2), fw = Math.min(F.wide, wide - 8), mid = along ? (x0 + x1) / 2 : (y0 + y1) / 2;
-    const d0 = court + 1.5 + (back - fl) / 2, d1 = d0 + fl;
+    const fl = Math.min(F.long, back - 2), fw = Math.min(F.wide, wide - (U0 ? 3 : 8)), mid = along ? (x0 + x1) / 2 : (y0 + y1) / 2;
+    const d0 = court + 1.5 + (LOT ? 0 : (back - fl) / 2), d1 = d0 + fl;
     const R = fs === 's' ? [mid - fw / 2, y0 + d0, mid + fw / 2, y0 + d1] : fs === 'n' ? [mid - fw / 2, y1 - d1, mid + fw / 2, y1 - d0] : fs === 'w' ? [x0 + d0, mid - fw / 2, x0 + d1, mid + fw / 2] : [x1 - d1, mid - fw / 2, x1 - d0, mid + fw / 2];
     const zc = Math.max(zAt(R[0], R[1]), zAt(R[2], R[1]), zAt(R[2], R[3]), zAt(R[0], R[3]));
     // its forecourt, paved from its street to its door
-    const C = fs === 's' ? [mid - fw / 2 - 3, y0 + 0.8, mid + fw / 2 + 3, y0 + d0 + 0.5] : fs === 'n' ? [mid - fw / 2 - 3, y1 - d0 - 0.5, mid + fw / 2 + 3, y1 - 0.8] : fs === 'w' ? [x0 + 0.8, mid - fw / 2 - 3, x0 + d0 + 0.5, mid + fw / 2 + 3] : [x1 - d0 - 0.5, mid - fw / 2 - 3, x1 - 0.8, mid + fw / 2 + 3];
+    const C0 = fs === 's' ? [mid - fw / 2 - 3, y0 + 0.8, mid + fw / 2 + 3, y0 + d0 + 0.5] : fs === 'n' ? [mid - fw / 2 - 3, y1 - d0 - 0.5, mid + fw / 2 + 3, y1 - 0.8] : fs === 'w' ? [x0 + 0.8, mid - fw / 2 - 3, x0 + d0 + 0.5, mid + fw / 2 + 3] : [x1 - d0 - 0.5, mid - fw / 2 - 3, x1 - 0.8, mid + fw / 2 + 3];
+    const C = [Math.max(C0[0], x0 + 0.3), Math.max(C0[1], y0 + 0.3), Math.min(C0[2], x1 - 0.3), Math.min(C0[3], y1 - 0.3)];
     if (!far) put([[C[0], C[1], zAt(C[0], C[1]) + 0.03], [C[2], C[1], zAt(C[2], C[1]) + 0.03], [C[2], C[3], zAt(C[2], C[3]) + 0.03], [C[0], C[3], zAt(C[0], C[3]) + 0.03]], 'geocity:paving', col.plaza);
     // (and a path on from it to its door, half its depth in: the building the library draws sits inside its footprint)
     const Pq = fs === 's' ? [mid - 2, C[3], mid + 2, (R[1] + R[3]) / 2] : fs === 'n' ? [mid - 2, (R[1] + R[3]) / 2, mid + 2, C[1]] : fs === 'w' ? [C[2], mid - 2, (R[0] + R[2]) / 2, mid + 2] : [(R[0] + R[2]) / 2, mid - 2, C[0], mid + 2];
@@ -1239,6 +1288,14 @@ export function assembleGeocityScene(m, ctx = {}) {
       colliders.push({ min: P3([R[0], R[1], zc]), max: P3([R[2], R[3], zc + Math.min(m.h, 14)]), of: b.id });
     }
     if (far) return;
+    if (U0) {
+      // (a lot among its neighbours, or a downtown block taken whole: bollards along its front, no railing; a lot a tree
+      // or two in its yard behind, a whole block its trees round its plaza as a churchyard's)
+      for (let t = -fw / 2; t <= fw / 2 + 1e-6; t += 2.4) { const x = along ? mid + t : fs === 'w' ? x0 + 0.6 : x1 - 0.6, y = along ? (fs === 's' ? y0 + 0.6 : y1 - 0.6) : mid + t; stamp('bollard', [x, y, zAt(x, y)], 0); }
+      let k = 0;
+      if (LOT) for (const o of [-1, 1]) { const dd = d1 + (deep - d1) / 2, x = along ? mid + o * (fw / 3) : fs === 'w' ? x0 + dd : x1 - dd, y = along ? (fs === 's' ? y0 + dd : y1 - dd) : mid + o * (fw / 3); if (deep - d1 > 7) plant('dense', x, y, zAt(x, y), `worship:${b.id}:${k++}`, 9); }
+      if (LOT) { counts.worship = (counts.worship ?? 0) + 1; return; }
+    }
     // its trees along its sides and its back, clear of its forecourt and its walls
     let k = 0;
     for (const [px, py] of [...(along ? [[x0 + 3, null], [x1 - 3, null]] : [[null, y0 + 3], [null, y1 - 3]])]) {
@@ -1249,7 +1306,7 @@ export function assembleGeocityScene(m, ctx = {}) {
         plant('dense', x, y, zAt(x, y), `worship:${b.id}:${k++}`, 11);
       }
     }
-    bordered(b, { x0, y0, x1, y1 }, zAt, { gates: { [fs]: [mid] } });
+    if (!U0) bordered(b, { x0, y0, x1, y1 }, zAt, { gates: { [fs]: [mid] } });
     counts.worship = (counts.worship ?? 0) + 1;
   }
 
@@ -2413,7 +2470,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   // as on a painted page, its kind the pool's: vegetation/pool.js)
   const formGrown = (sp) => SPECIES[sp].kind === 'tree' || SPECIES[sp].kind === 'conifer';
   const pooledTrees = form ? new Map([...trees].filter(([sp]) => !formGrown(sp))) : trees;
-  if (form && E?.evoke !== 'skyline') plants = { ...metroPlants(new Map([...trees].filter(([sp]) => formGrown(sp))), townPlants, backClaims), ...(CR ? { ...CR, apart: false } : {}) };
+  // (none where the form grows none: a district whose trees are all pooled, a palm city's downtown)
+  if (form && E?.evoke !== 'skyline') { const grown = metroPlants(new Map([...trees].filter(([sp]) => formGrown(sp))), townPlants, backClaims); plants = grown ? { ...grown, ...(CR ? { ...CR, apart: false } : {}) } : null; }
   if (E?.evoke !== 'skyline' && pooledTrees.size) {
     const eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: 1280 / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
     for (const sp of [...pooledTrees.keys()].sort()) {

@@ -18,7 +18,8 @@
  *     can hung on one (facing its lamp's way, hung off the other side); a site's and a lot's:
  *     `scaffold` a bay against a wall (facing out of it), `fence` a temporary panel, `hoarding` a plywood one, `barrier`,
  *     `cone`, `car` (facing: its length along x for e/w, y for n/s; its body pale for an instance's tint), `stall`;
- *     a cemetery's: `headstone`, `cross`, `ledger` (facing: the way its face looks, toward the walk it is read from)
+ *     a cemetery's: `headstone`, `cross`, `ledger` (facing: the way its face looks, toward the walk it is read from);
+ *     a downtown kerb's `meter`
  *
  * Pure; no dice.
  */
@@ -142,6 +143,12 @@ const ledger = ([dx, dy], L) => realize([
   { kind: 'grave', ...(dx ? { x: -1.1, y: -0.45, w: 2.0, d: 0.9 } : { x: -0.45, y: -1.1, w: 0.9, d: 2.0 }), z0: 0, z1: 0.3, tint: '#9a978f' },
   { kind: 'grave', ...markerBox([dx, dy], 0.16, 0.86, 0.3, 0.8, '#b4b1aa', -0.95) },
 ], L);
+/** A PARKING METER at the kerb: its grey post and its head, a window on its street side. */
+const meter = (L) => realize([
+  { kind: 'parking-meter', x: -0.04, y: -0.04, w: 0.08, d: 0.08, z0: 0, z1: 1.05, tint: '#5b6168' },
+  { kind: 'parking-meter', x: -0.11, y: -0.09, w: 0.22, d: 0.18, z0: 1.05, z1: 1.42, tint: '#3e4349' },
+  { kind: 'parking-meter', x: -0.08, y: -0.1, w: 0.16, d: 0.02, z0: 1.18, z1: 1.32, tint: '#c9d2d6' },
+], L);
 /** A stainless bollard (the metro's drop-off bollard). */
 const bollard = (L) => realize([{ kind: 'drop-off-bollard', x: -0.11, y: -0.11, w: 0.22, d: 0.22, z0: 0, z1: 0.95, tint: '#9aa0a6' }], L);
 /** A wooden hydro pole (fractal-city.js's power pole at its size), its crossarm across the street it serves, and a lamp
@@ -239,7 +246,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     bench: four((v) => bench(v, L)),
     can: four((v) => can(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L), railing: railing(L), gate: gate(L),
-    headstone: four((v) => headstone(v, L)), cross: four((v) => crossMarker(v, L)), ledger: four((v) => ledger(v, L)),
+    meter: meter(L), headstone: four((v) => headstone(v, L)), cross: four((v) => crossMarker(v, L)), ledger: four((v) => ledger(v, L)),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a
     // parked car (along x for 'e'/'w', y for 'n'/'s'), a stall's line

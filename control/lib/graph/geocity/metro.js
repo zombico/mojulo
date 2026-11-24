@@ -52,7 +52,9 @@
  *                   block: [least, most] } or false: THE PLACES a city keeps (blocks.js): the share of a ring's
  *                   neighbourhoods that give one calm block to a place of worship (its faith by the weights, its
  *                   building the city library's church, mosque or temple, segments.js `worship`) and to a cemetery (its
- *                   largest block, `cemetery`), on their own dice; a block's area held inside `block` (m²)
+ *                   largest block, `cemetery`), on their own dice; a block's area held inside `block` (m²); in the core
+ *                   and the frame a place of worship takes a LOT in a built block, a slice `lot` m wide (least, most) at
+ *                   its end on a street corner, built to its walk among its neighbours
  *     industry      { share, segments: { works, warehouse, storage, tanks }, block: [least, most] } or false: the share
  *                   of the outskirts' neighbourhoods built as industry (design.js; its edge's and its shore's first),
  *                   their blocks' segments by weight (segments.js), a substation in each, the length of a block's side
@@ -354,13 +356,14 @@ export function readGeocity(spec = {}) {
   if (!isObj(M.lively) || !RING_IDS.every((r) => isObj(M.lively[r]) && ['construction', 'parking', 'vacant'].every((k) => num(M.lively[r][k] ?? 0, 0, 0.5)) && Object.keys(M.lively[r]).every((k) => ['construction', 'parking', 'vacant'].includes(k)))) no('lively is { core, frame, outskirts }, each { construction, parking, vacant } shares 0–0.5');
   // (its places, blocks.js: `false` none; else the share of each ring's neighbourhoods with a place of worship and with a
   // cemetery, the faiths by weight, the blocks' area they take)
-  const CIV = { worship: { core: 0.3, frame: 0.45, outskirts: 0.4 }, cemetery: { core: 0, frame: 0.1, outskirts: 0.2 }, faiths: { church: 0.75, mosque: 0.15, temple: 0.1 }, block: [1200, 26000] };
+  const CIV = { worship: { core: 0.6, frame: 0.5, outskirts: 0.4 }, cemetery: { core: 0, frame: 0.1, outskirts: 0.2 }, faiths: { church: 0.75, mosque: 0.15, temple: 0.1 }, block: [1200, 26000], lot: [24, 36] };
   M.civic = M.civic === false ? { ...CIV, worship: { core: 0, frame: 0, outskirts: 0 }, cemetery: { core: 0, frame: 0, outskirts: 0 } } : merge(CIV, M.civic ?? {});
   const Cv = M.civic, FAITHS = ['church', 'mosque', 'temple'];
   if (!isObj(Cv) || Object.keys(Cv).some((k) => !Object.keys(CIV).includes(k)) || !['worship', 'cemetery'].every((k) => isObj(Cv[k]) && RING_IDS.every((r) => num(Cv[k][r] ?? 0, 0, 1)) && Object.keys(Cv[k]).every((r) => RING_IDS.includes(r)))
     || !isObj(Cv.faiths) || Object.keys(Cv.faiths).some((k) => !FAITHS.includes(k)) || !Object.values(Cv.faiths).every((v) => num(v, 0, 100)) || !Object.values(Cv.faiths).some((v) => v > 0)
-    || !(Array.isArray(Cv.block) && Cv.block.length === 2 && num(Cv.block[0], 200, 1e5) && num(Cv.block[1], Cv.block[0], 1e6)))
-    no(`civic is false or { worship: { core, frame, outskirts } 0–1, cemetery: the same, faiths: weights over ${FAITHS.join(', ')}, block: [least, most] m² }`);
+    || !(Array.isArray(Cv.block) && Cv.block.length === 2 && num(Cv.block[0], 200, 1e5) && num(Cv.block[1], Cv.block[0], 1e6))
+    || !(Array.isArray(Cv.lot) && Cv.lot.length === 2 && num(Cv.lot[0], 12, 80) && num(Cv.lot[1], Cv.lot[0], 120)))
+    no(`civic is false or { worship: { core, frame, outskirts } 0–1, cemetery: the same, faiths: weights over ${FAITHS.join(', ')}, block: [least, most] m², lot: [least, most] m }`);
   // (its industry, industry.js: `false` none; else the share of its outskirts' neighbourhoods given to it, its blocks'
   // segments by weight, the length of a side its blocks are laid at)
   const IND = { share: 0.2, segments: { works: 3, warehouse: 3, storage: 1.5, tanks: 1.5 }, block: [120, 190] };

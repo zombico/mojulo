@@ -23,6 +23,21 @@ describe('the places a city keeps', () => {
     expect(only.every((b) => b.faith === 'mosque')).toBe(true);
   }, 60_000);
 
+  it('in the inner city builds it into a block: a lot at a built block\'s street end, its rest the block it was, a party wall between', () => {
+    const lots = [...on.values()].filter((b) => b.kind === 'worship' && b.urban && b.id.endsWith('.p'));
+    expect(lots.length).toBeGreaterThan(0);
+    for (const lot of lots) {
+      const rest = on.get(lot.id.slice(0, -2));
+      expect(rest.kind).toBe(off.get(rest.id).kind);
+      expect(Object.values(lot.sides).filter((v) => v.kind === 'party')).toHaveLength(1);
+      expect(Object.values(rest.sides).filter((v) => v.kind === 'party')).toHaveLength(1);
+      // (the two together the block it was)
+      expect(lot.area + rest.area).toBeCloseTo(off.get(rest.id).area, 1);
+    }
+    // (in the outskirts a block of its own, on its lawn)
+    expect([...on.values()].filter((b) => b.kind === 'worship' && b.ring === 'outskirts').every((b) => !b.urban)).toBe(true);
+  }, 60_000);
+
   it('takes its blocks on its own dice: every other block is the block it was', () => {
     for (const [id, b] of on) if (!CIVIC_SEGMENTS.includes(b.kind)) expect(off.get(id)?.kind, id).toBe(b.kind);
   }, 60_000);

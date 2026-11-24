@@ -86,12 +86,17 @@ building stands on air: a wall over ground that falls away from it is carried do
 Its highways are laid in corridors: an arterial that carries one is laid to the deck's width and 3 m of clearance each
 side before its blocks are cut (`geocity/highways.js` `highwayPlan`, `corridorHalf`; each highway's `corridor`), so no
 building stands under or against a deck, and nothing taller than the deck's underside stands in the corridor (the
-`highway-corridor` law). The city keeps its places (the metro's `civic`, `geocity/blocks.js`): some neighbourhoods give
-a calm block to a church, a mosque or a temple (the city library's own buildings, their faith by the metro's weights:
+`highway-corridor` law). The city keeps its places (the metro's `civic`, `geocity/blocks.js`): in the core and the frame a church, a mosque or a
+temple is built into the city, a lot at a built block's street end among its neighbours (`civic.lot`, its width) or a
+small downtown block taken whole, on paving at its walk with bollards and no railing; in the outskirts some
+neighbourhoods give a calm block to one (the city library's own buildings, their faith by the metro's weights:
 `civic: { faiths: { church, mosque, temple } }`) on a forecourt and a lawn behind a railing, and their largest to a
 cemetery (rows of headstones, crosses and ledgers, gravel walks, a chapel by its gate); a whole neighbourhood's park is
 laid with promenades crossing at an obelisk, a playground and a pavilion in each quarter, and railed at its streets; a
-park block is railed and a car park's streets are lined with bollards. `civic: false` keeps none of the places.
+park block is railed and a car park's streets are lined with bollards. A downtown street (the core's and the frame's own
+streets) is dressed as one: its centre line dashed, a zebra at each crossing and where it meets an arterial, cars parked
+along both kerbs with a meter every second bay, its trees in their pits between its lamps, a hydrant and newspaper boxes
+by its corners (`geocity/scene.js` `DOWNTOWN`). `civic: false` keeps none of the places.
 
 ## Locales
 

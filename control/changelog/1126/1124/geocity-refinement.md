@@ -49,3 +49,8 @@
 - Big city parks are no longer bare lawn: promenades cross at an obelisk, each quarter has a playground, a pavilion,
   benches and trees, and the park is railed along its streets. Park blocks are railed too, and car parks are lined with
   bollards along their streets.
+- Places of worship are part of the city downtown too: in the core and the inner city a church, mosque or temple is
+  built into a block on a street corner among its neighbours, or fills a small downtown block of its own on a paved
+  plaza, instead of standing on a lawn behind a railing (that churchyard form stays for the suburbs).
+- Downtown streets are dressed: dashed centre lines, zebra crossings at every junction, cars parked along both kerbs
+  with parking meters, trees in their pits between the lamps, hydrants and newspaper boxes at the corners.
