@@ -71,10 +71,10 @@ describe('design_game: designed flight levels', () => {
 
   it('Pilot School: a locked pitch lays its first lessons; built, each is graded and said against its airfield', async () => {
     const out = await designGameHandler({ title: 'School', world: { id: 'school', name: 'School', rail: { from: 'pilot-school', locked: true } } });
-    expect(out.pitch).toMatchObject({ stored: true, by: 'pilot-school', levels: ['lesson-1', 'lesson-2', 'lesson-3'] });
+    expect(out.pitch).toMatchObject({ stored: true, by: 'pilot-school', levels: ['lesson-1', 'lesson-2', 'lesson-3', 'lesson-4'] });
     const ref = out.ref;
     const run = await designGameHandler({ ref, run: true });
-    expect(run.ran.filter((r) => r.action === 'make').map((r) => r.key)).toEqual(expect.arrayContaining(['level-lesson-1-0', 'level-lesson-2-0', 'level-lesson-3-0', 'game']));
+    expect(run.ran.filter((r) => r.action === 'make').map((r) => r.key)).toEqual(expect.arrayContaining(['level-lesson-1-0', 'level-lesson-2-0', 'level-lesson-3-0', 'level-lesson-4-0', 'game']));
     const M = (id) => SketchRepository.getByRef(`${ref}-level-${id}-0`).manifest;
     const L1 = M('lesson-1'), O1 = L1.game.mechanics.find((m) => m.kind === 'objectives');
     expect(O1.tasks.map((t) => t.kind)).toEqual(['band', 'gates', 'band']);
@@ -93,12 +93,26 @@ describe('design_game: designed flight levels', () => {
     expect(G.criteria.map((c) => c.var)).toEqual(['__obj_time', '__obj_slip']);
     // the run's readout says each lesson flown (the machine gate), with its medal
     expect(run.flight_proof.gate).toBe('machine');
-    expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.grade])).toEqual([['lesson-1', true, 'gold'], ['lesson-2', true, 'gold'], ['lesson-3', true, 'gold']]);
+    expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.grade])).toEqual([['lesson-1', true, 'gold'], ['lesson-2', true, 'gold'], ['lesson-3', true, 'gold'], ['lesson-4', true, 'gold']]);
     // each lesson passed by the student on the fly rule, judged on the bus by its own mechanics, with a medal
-    const flown = ['lesson-1', 'lesson-2', 'lesson-3'].map((id) => ({ id, ...flyTasks(M(id)) }));
+    const flown = ['lesson-1', 'lesson-2', 'lesson-3', 'lesson-4'].map((id) => ({ id, ...flyTasks(M(id)) }));
     expect(flown.map((f) => [f.id, f.result, f.reason, f.time, f.grade, f.kept])).toEqual(flown.map((f) => [f.id, 'success', null, f.time, f.grade, f.kept]));
-    expect(flown.map((f) => f.grade), JSON.stringify(flown.map((x) => [x.id, x.time, x.grade, x.kept]))).toEqual(['gold', 'gold', 'gold']);
+    expect(flown.map((f) => f.grade), JSON.stringify(flown.map((x) => [x.id, x.time, x.grade, x.kept]))).toEqual(['gold', 'gold', 'gold', 'gold']);
     // and a careless flight (its height and heading drifting) is told apart: a lesser medal, or none
+    // the night circuit: flown after dark, a left-hand circuit ending in a landing, its touchdown kept and graded by its
+    // sink; its page lit for the night (the runway's lights, the town's)
+    const L4 = M('lesson-4'), O4 = L4.game.mechanics.find((m) => m.kind === 'objectives');
+    expect(O4.tasks.map((t) => t.kind)).toEqual(['band', 'band', 'band', 'band', 'band', 'band', 'land']);
+    expect(L4.sky).toMatchObject({ kind: 'clear', hour: 21.5 });
+    expect(M('lesson-1').sky).toMatchObject({ kind: 'fair', hour: 9.5 });
+    expect(L4.game.mechanics.find((m) => m.kind === 'grade').criteria.map((c) => c.var)).toContain('__obj_sink');
+    expect(flown[3].kept.Touchdown).toBeLessThan(1.2);
+    // and the PAPI agrees with its glide path: down the last kilometre of the final, two red and two white
+    const { papiOf } = await import('@/lib/graph/skyscape/night-lights.js'), { airspaceOf } = await import('@/lib/graph/skyscape/airspace.js');
+    const P4 = papiOf(airspaceOf(L4).field.pads[0]), T4 = flown[3].track, end = T4[T4.length - 1], back = T4[T4.length - 6];
+    const lamps = P4.filter((l) => l[4] * (end[0] - back[0]) + l[5] * (end[1] - back[1]) < 0);
+    const reads = T4.slice(-22, -4).map((q) => lamps.map(([x, y, z, a]) => (Math.atan2(q[2] - z, Math.hypot(q[0] - x, q[1] - y)) * 180 / Math.PI > a ? 'W' : 'R')).join(''));
+    expect(reads.filter((r) => r === 'RRWW').length, reads.join(' ')).toBeGreaterThan(reads.length / 2);
     const sloppy = flyTasks(M('lesson-2'), { wobble: 1 });
     expect(['silver', 'bronze', 'no medal', undefined], JSON.stringify([sloppy.result, sloppy.grade, sloppy.kept])).toContain(sloppy.grade);
   }, 400000);

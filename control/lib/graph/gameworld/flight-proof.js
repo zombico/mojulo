@@ -4,8 +4,8 @@
  * bus by its own mechanics, and its medal said; each rail stage is flown by the stage pilot (skyscape/stage-pilot.js) on
  * the runtime the page runs, and by a still one that holds no input (a stage it wins has no game in it); each cockpit
  * sortie by the sortie pilot (skyscape/sortie-pilot.js) and a still one the same way. A course is the
- * autopilot's to prove (an airspace's `flown` law), a fight the dogfight's; a task the student does not fly (a landing, a
- * fight) is said, never guessed.
+ * autopilot's to prove (an airspace's `flown` law), a fight the dogfight's; a task the student does not fly (a fight) is
+ * said, never guessed. A landing it flies (lesson-pilot.js: onto the centreline, down the glide path, the flare).
  *
  *   flightStageManifests(steps) → { <level id>: manifest }   the first stage of each level whose page flies a task list
  *                                                            or a rail stage

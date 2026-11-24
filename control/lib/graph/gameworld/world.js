@@ -324,8 +324,9 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // ground, heights and marks; read by the miniature, not yet by the build)
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
 const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways', 'hats'];
-// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing'];
+// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them; its sky
+// (skyscape/sky.js: the weather it is flown in)
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing', 'sky'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -1117,8 +1118,8 @@ export function resolveLevel(world, id) {
     // (a rail stage has its path and no course; its airframe, and its rail, ride as written)
     // (a cockpit's sortie has its flight groups and no gates, as a rail stage has its path)
     // (a cockpit mission's briefing, its design, rides as written: scene/channels/briefing.js tells it as the level loads)
-    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe, briefing } = L.airspace, inSpace = isSpace(L.airspace);
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}), ...(briefing ? { briefing } : {}) } };
+    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe, briefing, sky } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}), ...(briefing ? { briefing } : {}), ...(sky !== undefined && !inSpace ? { sky } : {}) } };
   }
   // a glyph-map level: the map's level as the map kind takes it (level/grid-scene.js), its seed the level's
   if (L.glyphs) {

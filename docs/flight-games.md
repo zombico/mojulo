@@ -249,6 +249,178 @@ masses, the dogfight's foes, the space map's rocks and trench, and the craft's l
 the shelf's paint, trim and light roles (`resolveCraftPalette`). There is no cloud layer yet, so the palette's
 `cloud` role is unused here.
 
+## The ground from the air: a pilot's country
+
+A flight level's land was the terrain kernel's ramp, coloured per vertex: from altitude, flat paint over rolling
+hills. `ground.country` lays settled country on it (`control/lib/graph/skyscape/country.js`), and the page draws it at
+a pilot's grain (`control/lib/graph/scene/channels/aerial.js`). What reads from the air is drawn. What only a walker
+sees is not: no street kit, no people, no shop fronts.
+
+```js
+{ kind: 'airspace', map: { craft: 'trainer', field: 12000 },
+  ground: { pads: [{ kind: 'runway', at: [0.5, 0.25] }], country: { metro: true, towns: 2, villages: 3 } }, fly: true }
+```
+
+`country: true` lays a town and two villages. Otherwise the object takes `metro` (true, or a geocity recipe such as
+`{ metro: 'harbour-island' }`), `towns`, `villages`, or an explicit `settlements: [{ kind, at?, geocity? }]`. It also
+takes `roads`, `power` and `landmarks` (each on by default).
+
+**One generator at every grain.** Every settlement is a geocity design (`geocity/design.js`) laid on the map's own
+natural ground, at a card by its size (`SETTLEMENTS`):
+
+- A **metro** is a geocity metro card at its own extent. It is sited on the coast when the sea allows. Its water side
+  is turned to the sea, so its shore expressway and waterfront face real water, and its harbour band is dredged under
+  the sea.
+- A **town** is the same generator at a market town's card: a low core round its crossing, mid-rise round that,
+  houses outward, a works at its edge.
+- A **village** is a crossroads of houses and a main street, three storeys at most.
+
+Each settlement is graded onto its streets' ground with a kernel `grade` layer, as a pad is. The ground under its
+buildings is the ground its design stood them on.
+
+**The network.** A minimum spanning tree joins the settlements and the airfield. Each road is routed across the land
+on the map's grid: grade is a cost, the sea and the pads are walls. A metro's link to a town is a highway, a village's
+link is a lane, and a road carries the country on past the field. A pylon line runs from the metro's substation (else a
+town's) out to the reach, away from the airfield. A water tower stands on each town's and village's high edge, and a
+mast on the field's highest ground with its tip lit. The roofs, the towers and the mast join the craft's ground
+(`roofs`), so a craft can hit them.
+
+**The cover.** `skyscape/cover-kernel.js` reads the land's use off the land: woods on slopes too steep to plough, on
+high ground and in scattered woodlots, cleared round the settlements; heath on the most exposed ground; sand by the
+sea; crops on the flat low ground near the settlements; pasture elsewhere. It is self-contained, like the terrain
+kernel. The page inlines it and bakes it to a texture over the map's grid.
+
+**The page.** The ground's own shader draws the cover per pixel, not per vertex:
+
+- field systems turned with the land, their parcels hedged, furrowed, cropped or grazed;
+- woods as a canopy, heath, and beaches;
+- the settlements' ground plans and the roads, painted from a canvas;
+- every pattern fading to its mean once it falls under a pixel.
+
+The cover is lit by each vertex's light relative to flat ground. Rock, the sea and the pads keep the kernel's colour.
+Every building is one instance of a unit box under a facade shader, with windows a storey and a bay by what the
+building is: a curtain wall, an office, a flat, a hall's ribbon, a house. The glass catches the sky as the eye grazes
+it. Houses and halls have gables. Tanks, spheres, stacks and water towers are rounds, and the highways run on decks
+over their piers. Pylons are lattices of lines, and their conductors sag span to span.
+
+**Exports** carry the buildings as faces. The cover is the page's: an export's ground keeps the kernel's colours.
+
+**Pilot School** flies over this country: its island airfield has a market town, two villages, the lanes between them
+and the field, a line of pylons and a mast.
+
+## The sky a pilot flies in
+
+A pilot spends most of a flight looking at the sky. An airspace's `sky` is its weather, in the geocube's own words:
+`clear`, `fair`, `high`, `haze`, `overcast` or `storm`. It takes the kind alone, or
+`{ kind, cover?, hour?, wind?: { from?, speed? }, base?, seed? }` (`control/lib/graph/skyscape/sky.js`). Absent, the
+sky is fair at mid afternoon, with the sun where the map always lit its ground from. A gameworld level takes it as
+`levels.<id>.airspace.sky`.
+
+A walker's sky is a band painted round the dome. A pilot climbs through cloud, flies over its tops and looks down
+through its gaps, so each weather is made of layers at their heights:
+
+- **Cumulus** are heaped clouds over a flat base, placed in streets along the wind. A storm's cumulonimbus climb
+  kilometres, spread an anvil downwind, and drop rain shafts to the sea.
+- **Decks** are sheets between a base and a top: stratus (the overcast's lid), stratocumulus (the storm's broken
+  shelf) and altocumulus (mid-level ripples). `cover` is the share of the sky a deck closes.
+- **Cirrus** is a thin high veil of streaks along the wind.
+
+The weather also sets the light:
+
+- The sun stands at its hour: east in the morning, south at noon, low and warm late in the day. The ground's light
+  follows it, so its direction and tint reach the terrain kernel's ramps and every country shader.
+- An overcast's light is flat.
+- Haze is thicker in haze and storm, and never thinner than the map planned (`map.js` keeps its edge unseen).
+- The wind drifts the clouds, and raises the sea as a fully developed one (Pierson-Moskowitz: the sea's height and its
+  peak wave's length from the wind's speed).
+
+`meta.sky` briefs the pilot: the kind, the hour, a METAR's wind, visibility and cloud groups (`25012KT 5700 FEW036`),
+and the sea's height.
+
+**On the page** (`control/lib/graph/scene/channels/flight-sky.js`):
+
+- **The sky** is shaded as air: the haze's colour at the horizon rising to the zenith's, a glow round the sun, and its
+  disc, lost under an overcast.
+- **Cumulus** are clusters of camera-facing puffs in one instanced draw, re-sorted far to near as the eye moves. A puff
+  is cut off at its cloud's base, so every cumulus has a flat bottom. Puffs are lit by the sun through the cloud, so
+  the top is bright and the belly takes the sky's shade, and a cloud between the eye and the sun glows through.
+  Clouds wrap round the eye as they drift, so the pilot is always under a sky.
+- **Decks** show their dark bellies from below. From above, the sky clears to the hour's and the deck is a sunlit
+  floor, with the air over it thinner. A thunderhead's crown, risen over its shelf, is sunlit too.
+- **Inside a cloud** the eye sees the cloud's grey all round (whiteout), clearing as it flies out.
+- **Cloud shadows** are the cumulus' footprints cast along the sun onto the ground, drifting with them.
+
+**The sea** (`control/lib/graph/scene/channels/ocean.js`) replaces the flat sheet round an island:
+
+- **The sheet** is rings round the eye, scaled by its height over the water.
+- **The waves** are the wind sea's trains and a long swell, summed as deep-water Gerstner waves. Each train shapes the
+  light per pixel and fades as it falls under a pixel.
+- **The light** comes from the aqua look: fine ripples, the sky by Fresnel, the sun's glint, foam as bubble lace.
+- **Whitecaps** break, torn along the wind, once the wind passes a moderate breeze.
+- **At the shore**, the water's depth over the land is baked from the terrain kernel. The waves shoal, the water turns
+  turquoise over the shallows, and surf runs in bands to the beach.
+
+**Pilot School** flies its lessons under their own skies: a still, nearly clear morning for the first flight, fair
+weather for turns, and an afternoon under altocumulus for climbs. The fourth lesson, the **night circuit**, is flown
+after dark under a bright moon: a left-hand circuit at 280 m over the runway (upwind, crosswind, downwind, base, final)
+and a landing on the runway lights, its touchdown graded by its sink. The flight proof's student lands it: onto the
+centreline first, down a 3° glide path at 1.35 times the stall, a flare that eases the sink with height while the
+power holds it over the stall, and the brakes once down (`control/lib/graph/skyscape/lesson-pilot.js`).
+
+Exports carry neither the clouds nor the ocean nor the night's lights. They are the live page's.
+
+## Night, city lights and lightning
+
+`sky.hour` runs 0–24. Past sunset the day's colours fade through the twilight, with its afterglow on the horizon,
+into the night's. A sky may name the moon's lit share (`moon: 0–1`); absent, the dice choose it.
+
+- **The night sky** (`flight-sky.js`) has its stars, the moon's disc lit to its phase, and its halo. The towns' light
+  is thrown up into the air over them: an orange glow on the horizon toward each, and on the bellies of the clouds
+  above them.
+- **The ground** is lit by the moon. Its tint is dark and blue in the terrain kernel's ramps and in the country's cover,
+  walls and roofs. The pads' asphalt and marks darken too, so a runway is dark but for its lights.
+- **The towns light themselves** (`aerial.js`):
+  - their streets glow lamp-lit in sodium orange, with a halo;
+  - their plazas, lots and yards are dimmer;
+  - the highways are white LED;
+  - some of every building's windows are lit, warm or cool, each its own (an office fewer than a flat), fading to
+    their mean far off.
+- **The night's lights** (`control/lib/graph/skyscape/night-lights.js`, the page's `night-lights.js`), from the dusk on:
+  - the runway's edge lights, green thresholds and white approach bars;
+  - red beacons flashing on the mast and on every building over 45 m;
+  - the traffic, on every country road but a lane, the settlements' arterials and the highways' decks. Each car is a
+    pair of lamps, white to an eye it drives toward and red to one it drives away from.
+
+  Each light keeps a pixel or two however far off it is.
+
+**The airfield.** A runway has a taxiway (`TAXIWAY` in `control/lib/graph/skyscape/ground.js`): a parallel one 85 m
+off its centreline on the side toward the field's middle, joined to it by a connector at each end and one at its
+middle. Both lie on the runway's graded ground, with the grass between them kept grass. They are painted asphalt with a
+yellow centre line, and at night their edges are blue and the connectors' centre lines green.
+
+A runway is sited for its approach as well as its departure. It is landed the way it is taken off, so the ground
+beyond its other end must stay under a 2° surface (`APPROACH`), and a 3° glide path clears it with room.
+
+Each runway end has a **PAPI** (`papiOf` in `night-lights.js`) beside the touchdown aim, 150 m past the threshold
+(`RUNWAY_AIM`), on the left as the runway is landed on. It is four lamps in a row out from the edge. Each shows white
+seen from above its angle and red from under it (3.5°, 3.17°, 2.83°, 2.5°, the nearest the runway steepest), so:
+
+- on the 3° path, two white and two red;
+- too high, more white;
+- too low, more red.
+
+The page colours each lamp by the eye's elevation from it, only toward its approach, by day as well as by night. The
+lesson pilot aims at the same point, and the flight proof checks that its final reads two red and two white.
+
+**Lightning** (`lightning: true`, a storm's by default) strikes in the thunderheads near the eye, in seeded slots of
+the page's clock:
+
+- a stroke's return strokes flicker over half a second;
+- the cloud lights through and through, and the air, the haze and the ground under it flare;
+- most strokes are a jagged, branching bolt to the land or the sea, drawn as a core and a glow.
+
+A captured frame at a pinned clock sees the same stroke.
+
 ## What comes next
 
 The shelf is the asset layer. In order, the moves that turn it into flight games:

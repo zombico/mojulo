@@ -15,6 +15,11 @@
  *              world), flat to the datum under the wheels whatever the detail around them, painted with their marks
  *   cities     fractal cities (city.js, terrain-city.js's): sited clear of the pads' climb-outs, graded, seated as
  *              plain metro masses; their roofs are obstacles (`topAt`)
+ *   country    the settled land (country.js): geocities at a metro's, a town's and a village's card, sited (a metro on
+ *              the coast, its water the sea), graded onto their streets' ground, joined by roads to each other and the
+ *              airfield, a power line out to the reach, water towers and a mast; seated at flight detail (`aerial`:
+ *              boxes a facade shader draws, gables, rounds, decks and piers, pylons and wires, the ground plan), their
+ *              roofs obstacles too. Absent, the ground is as it was
  *   gorge      a gorge cut through the field along x (`gorge: true | { width?, depth? }`, the floor's width and the walls'
  *              height in m): the land beside a weaving centreline raised into walls, its floor kept low; `field.gorge`
  *              carries its line (x → y), so a way laid down it (rail-stage.js) runs its floor. Absent: no gorge
@@ -37,7 +42,9 @@ import { landformGrid, gridX, gridY, hashSeed, gnoise } from '../polygonizer/lan
 import { LANDS, SHAPES } from '../roads/surrounds.js';
 import { terrainKernel } from '../terrain/terrain-kernel.js';
 import * as dmath from '../../util/dmath.js';
-import { readCityAsk, prepareCities, seatCities } from './city.js';
+import { readCityAsk, prepareCities, seatCities, packRoofs } from './city.js';
+import { readCountryAsk, planCountry, seatCountry } from './country.js';
+import { coverPalette } from './aerial.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { terrainRamps, atlasGround } from '../color-theorist/ground.js';
 
@@ -50,6 +57,9 @@ export const PAD_KINDS = Object.freeze({
   runway: { size: [900, 30], falloff: 80, label: 'a paved strip to take off from and land on' },
   pad: { size: [60, 60], falloff: 40, label: 'a level square to set down on' },
 });
+/** A runway's taxiway: parallel to it on the side toward the field's middle, `offset` m from its centreline to the
+ *  taxiway's, `width` m wide, joined to it by a connector at each end and one at its middle (`ends` m in from them). */
+export const TAXIWAY = Object.freeze({ offset: 85, width: 18, ends: 40 });
 /** The sky a map is painted under when no palette is given: a clear day. */
 const DAY_SKY = Object.freeze({ zenith: [96, 146, 206], horizon: [196, 214, 226], day: 1 });
 /** The geocube a map is painted with when none is named: a daytime one. */
@@ -66,10 +76,19 @@ const rampOfHex = (hexes) => ({ stops: hexes.map(rgbOf), pos: [0, 1 / 3, 2 / 3, 
 const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 
+/** The ground's ramps under a light's tint (a low sun's warmth, an overcast's grey): each stop multiplied by it; none,
+ *  the ramps as they are. */
+function tintRamps(R, tint) {
+  if (!tint || tint.every((v) => Math.abs(v - 1) < 1e-4)) return R;
+  const t = (r) => ({ ...r, stops: r.stops.map((c) => c.map((v, i) => Math.round(v * tint[i] * 100) / 100)) });
+  return { soil: t(R.soil), stone: t(R.stone), scree: t(R.scree), beds: R.beds.map(t) };
+}
+
 /** Errors (strings) for a ground ask; [] when it lays. */
 export function readGroundAsk(ask = {}) {
   const e = [];
-  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, geocube?, gorge?, seed? }'];
+  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, country?, geocube?, gorge?, seed? }'];
+  e.push(...readCountryAsk(ask.country));
   if (ask.gorge !== undefined && typeof ask.gorge !== 'boolean' && !(ask.gorge && typeof ask.gorge === 'object' && ['width', 'depth'].every((k) => ask.gorge[k] === undefined || (Number.isFinite(ask.gorge[k]) && ask.gorge[k] >= 40 && ask.gorge[k] <= 2000)))) e.push('ground.gorge must be true, false or { width?, depth? } in metres, each 40–2000');
   e.push(...readCityAsk(ask.cities));
   if (ask.land !== undefined && !LANDS[ask.land]) e.push(`ground.land must be one of ${Object.keys(LANDS).join(', ')}`);
@@ -178,19 +197,41 @@ function placePads(map, pads) {
 /** A pad's half-extents along x and y, laid along an axis. */
 const halfOf = (p, along) => (along === 'x' ? [p.length / 2, p.width / 2] : [p.width / 2, p.length / 2]);
 
-/** A runway's marks on a MARK_CELL grid (premultiplied rgba): threshold bars at both ends, a dashed centre line, edge
- *  lines. Drawn a cell wide or more, bolder than a real runway's (0.9 m lines): under the eye spot a mark never reads. */
-function runwayPaint(p) {
-  const along = p.along, L = p.length, W = p.width, nx = Math.round((p.x1 - p.x0) / MARK_CELL) + 1, ny = Math.round((p.y1 - p.y0) / MARK_CELL) + 1;
-  const pc = new Uint8Array(nx * ny * 4);
+/** A runway's taxiway (TAXIWAY), sited: the side it lies on (+1 or −1 across the runway), and its rects, the parallel
+ *  first and then the connectors, each [x0, y0, x1, y1] (m) with its axis ('x' or 'y'). */
+export function taxiwayOf(p) {
+  const T = TAXIWAY, ax = p.along === 'x', c = ax ? p.center[1] : p.center[0], side = c > 0 ? -1 : 1;
+  const [a0, a1] = ax ? [p.x0, p.x1] : [p.y0, p.y1], rect = (u0, u1, v0, v1) => (ax ? [r2(u0), r2(Math.min(v0, v1)), r2(u1), r2(Math.max(v0, v1))] : [r2(Math.min(v0, v1)), r2(u0), r2(Math.max(v0, v1)), r2(u1)]);
+  const far = c + side * (T.offset + T.width / 2), near = c + side * (T.offset - T.width / 2), edge = c + side * p.width / 2;
+  const rects = [{ rect: rect(a0, a1, near, far), axis: ax ? 'x' : 'y' }];
+  for (const u of [a0 + T.ends, (a0 + a1) / 2, a1 - T.ends]) rects.push({ rect: rect(u - T.width / 2, u + T.width / 2, edge, near), axis: ax ? 'y' : 'x' });
+  return { side, rects };
+}
+
+/** A runway's ground painted on a MARK_CELL grid (premultiplied rgba) over it and its taxiway: the runway's marks
+ *  (threshold bars at both ends, a dashed centre line, edge lines: a cell wide or more, bolder than a real runway's 0.9 m
+ *  lines, as under the eye a mark never reads), the taxiway's yellow centre lines (half laid over the asphalt: a thin line, under the eye as thin as a cell allows), and the grass (`grass`, rgb) between
+ *  them, so the strip between the runway and its taxiway is the field's and not asphalt. */
+function runwayPaint(p, grass) {
+  const along = p.along, L = p.length, W = p.width, rects = [[p.x0, p.y0, p.x1, p.y1], ...(p.taxiway?.rects ?? []).map((q) => q.rect)];
+  const bx0 = Math.min(...rects.map((q) => q[0])), by0 = Math.min(...rects.map((q) => q[1])), bx1 = Math.max(...rects.map((q) => q[2])), by1 = Math.max(...rects.map((q) => q[3]));
+  const nx = Math.round((bx1 - bx0) / MARK_CELL) + 1, ny = Math.round((by1 - by0) / MARK_CELL) + 1, pc = new Uint8Array(nx * ny * 4);
+  const put = (k, c) => { pc[k] = c[0]; pc[k + 1] = c[1]; pc[k + 2] = c[2]; pc[k + 3] = 255; };
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    const s = along === 'x' ? i * MARK_CELL : j * MARK_CELL, t = along === 'x' ? j * MARK_CELL - W / 2 : i * MARK_CELL - W / 2;
-    const edge = Math.abs(t) > W / 2 - MARK_CELL;
-    const threshold = (s < 30 || s > L - 30) && s > 6 && s < L - 6 && Math.abs(t) < W / 2 - 2 * MARK_CELL && Math.floor((t + W / 2) / MARK_CELL) % 2 === 0;
-    const centre = Math.abs(t) <= MARK_CELL / 2 && s > 40 && s < L - 40 && Math.floor(s / 15) % 2 === 0;
-    if (edge || threshold || centre) { const k = (j * nx + i) * 4; pc[k] = pc[k + 1] = pc[k + 2] = 235; pc[k + 3] = 255; }
+    const X = bx0 + i * MARK_CELL, Y = by0 + j * MARK_CELL, k = (j * nx + i) * 4;
+    if (X >= p.x0 && X <= p.x1 && Y >= p.y0 && Y <= p.y1) {
+      const s = along === 'x' ? X - p.x0 : Y - p.y0, t = along === 'x' ? Y - p.y0 - W / 2 : X - p.x0 - W / 2;
+      const edge = Math.abs(t) > W / 2 - MARK_CELL;
+      const threshold = (s < 30 || s > L - 30) && s > 6 && s < L - 6 && Math.abs(t) < W / 2 - 2 * MARK_CELL && Math.floor((t + W / 2) / MARK_CELL) % 2 === 0;
+      const centre = Math.abs(t) <= MARK_CELL / 2 && s > 40 && s < L - 40 && Math.floor(s / 15) % 2 === 0;
+      if (edge || threshold || centre) put(k, [235, 235, 235]);
+      continue;
+    }
+    const tw = (p.taxiway?.rects ?? []).find((q) => X >= q.rect[0] && X <= q.rect[2] && Y >= q.rect[1] && Y <= q.rect[3]);
+    if (tw) { const mid = tw.axis === 'x' ? (tw.rect[1] + tw.rect[3]) / 2 : (tw.rect[0] + tw.rect[2]) / 2, off = tw.axis === 'x' ? Y - mid : X - mid; if (Math.abs(off) <= MARK_CELL / 2) { const a = 150; pc[k] = Math.round(222 * a / 255); pc[k + 1] = Math.round(184 * a / 255); pc[k + 2] = Math.round(52 * a / 255); pc[k + 3] = a; } continue; }
+    if (grass) put(k, grass);
   }
-  return { x0: p.x0, y0: p.y0, dx: MARK_CELL, nx, ny, pc };
+  return { x0: bx0, y0: by0, dx: MARK_CELL, nx, ny, pc };
 }
 
 /** How far (m) a pad may be moved from where it was asked for, as a share of the field's smaller half-side. */
@@ -199,6 +240,13 @@ const SITE_REACH = 0.35, SITE_STEP = 50, SAMPLE = 20;
  *  clearance surface: a light craft climbs at ~10%, so half that leaves room), how far ahead it is read (m), and from
  *  how far past the end (the climb-out begins there). A pad's departure is the end whose ground ahead rises least. */
 export const DEPARTURE = Object.freeze({ gradient: 0.05, run: 3000, from: 150 });
+/** An approach: the steepest the ground under a runway's approach may rise, read out from the threshold it is landed
+ *  over (the end its departure leaves from: a runway is landed on the way it is taken off, into the wind), so a 3° glide
+ *  path (the PAPI's, night-lights.js) clears it with room. A craft with no engine is launched aloft and lands from
+ *  whichever way its course brings it in: its runway is not held to an approach. */
+export const APPROACH = Object.freeze({ gradient: 0.03 });
+/** The deepest cut or fill (m) a pad is sited to before its earthwork costs steeply (its walls are obstacles). */
+const CUT = 15;
 
 /** The pad at (cx, cy): its datum (the ground's mean, above the sea) and its earthwork (m), or null if it cannot stand. */
 function padAt(p, cx, cy, along, { nat, sea, field, taken }) {
@@ -214,7 +262,8 @@ function padAt(p, cx, cy, along, { nat, sea, field, taken }) {
   const ax = along === 'x' ? [1, 0] : [0, 1], half = p.length / 2;
   const ahead = (dir) => { let g = -Infinity; for (let s = DEPARTURE.from; s <= DEPARTURE.run; s += 50) { const x = cx + ax[0] * dir * (half + s), y = cy + ax[1] * dir * (half + s); g = Math.max(g, (nat(x, y) - datum) / s); } return g; };
   const up = ahead(1), down = ahead(-1), depart = up <= down ? 1 : -1;
-  return { datum, earthwork, depart, gradient: Math.min(up, down) };
+  // (the approach: over the other end, landed the way it departs)
+  return { datum, earthwork, depart, gradient: Math.min(up, down), approach: Math.max(up, down) };
 }
 
 /** A pad sited: searched outward from where it was asked for, in SITE_STEP rings, the least earthwork winning (the
@@ -227,36 +276,43 @@ function sitePad(p, ctx) {
     const d = dmath.hypot(dx, dy); if (d > R + 1e-6) continue;
     const at = padAt(p, ax + dx, ay + dy, along, ctx); if (!at) continue;
     // a blocked departure costs far more than earthwork: a runway that cannot be flown out of is no runway
-    const score = at.earthwork + 0.002 * d + (p.kind === 'runway' ? 2000 * Math.max(0, at.gradient - DEPARTURE.gradient) : 0);
+    // (a blocked departure costs far more than earthwork; a blocked approach costs too, but only where the departure is
+    // clear: a runway that cannot be flown out of is no runway, one that is steep to land on still is one)
+    const depEx = Math.max(0, at.gradient - DEPARTURE.gradient), apEx = Math.max(0, at.approach - APPROACH.gradient);
+    // (and earthwork past CUT m is a cutting's wall or an embankment's drop beside the runway: an obstacle of its own)
+    const score = at.earthwork + 25 * Math.max(0, at.earthwork - CUT) + 0.002 * d + (p.kind === 'runway' ? (depEx > 0 ? 1e4 + 2000 * depEx : 0) + (ctx.powered ? 1500 * apEx : 0) : 0);
     if (!best || score < best.score - 1e-9) best = { score, cx: ax + dx, cy: ay + dy, d, along, ...at };
   }
   if (!best) { const along = axes[0], at = padAt(p, ax, ay, along, { ...ctx, taken: [], sea: null }) ?? { datum: 0, earthwork: Infinity, depart: 1, gradient: Infinity }; best = { cx: ax, cy: ay, d: 0, along, ...at }; }
   const [hx, hy] = halfOf(p, best.along);
   return { ...p, along: best.along, x0: r2(best.cx - hx), x1: r2(best.cx + hx), y0: r2(best.cy - hy), y1: r2(best.cy + hy), center: [r2(best.cx), r2(best.cy)],
     datum: r2(ctx.sea === null ? best.datum : Math.max(ctx.sea + 2, best.datum)), earthwork: r2(best.earthwork), moved: r2(best.d),
-    ...(p.kind === 'runway' ? { depart: best.depart, gradient: r2(best.gradient) } : {}) };
+    ...(p.kind === 'runway' ? { depart: best.depart, gradient: r2(best.gradient), approach: r2(best.approach ?? best.gradient) } : {}) };
 }
 
-/** A pad's graded layer: its datum flat inside, blending into the natural ground over its falloff. */
-function padLayer(p, datum) {
-  const m = p.falloff, x0 = p.x0 - m, y0 = p.y0 - m, nx = Math.ceil((p.x1 - p.x0 + 2 * m) / PAD_CELL) + 1, ny = Math.ceil((p.y1 - p.y0 + 2 * m) / PAD_CELL) + 1, N = nx * ny;
+/** A pad's graded layer: its datum flat inside (a runway's and its taxiway's, and the grass between them), blending into
+ *  the natural ground over its falloff. */
+function padLayer(p, datum, grass) {
+  const rects = [[p.x0, p.y0, p.x1, p.y1], ...(p.taxiway?.rects ?? []).map((q) => q.rect)];
+  const bx0 = Math.min(...rects.map((q) => q[0])), by0 = Math.min(...rects.map((q) => q[1])), bx1 = Math.max(...rects.map((q) => q[2])), by1 = Math.max(...rects.map((q) => q[3]));
+  const m = p.falloff, x0 = bx0 - m, y0 = by0 - m, nx = Math.ceil((bx1 - bx0 + 2 * m) / PAD_CELL) + 1, ny = Math.ceil((by1 - by0 + 2 * m) / PAD_CELL) + 1, N = nx * ny;
   const dq = new Uint16Array(N), w = new Uint8Array(N);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const X = x0 + i * PAD_CELL, Y = y0 + j * PAD_CELL;
-    const d = Math.max(p.x0 - X, X - p.x1, p.y0 - Y, Y - p.y1, 0);   // metres outside the pad
+    const d = Math.max(bx0 - X, X - bx1, by0 - Y, Y - by1, 0);   // metres outside the airfield's paved box
     w[j * nx + i] = Math.round(255 * (1 - smooth(0, m, d)));
   }
-  return { x0, y0, dx: PAD_CELL, nx, ny, dMin: datum, dStep: 1e-9, dq, w, ramp: ASPHALT, ...(p.kind === 'runway' ? { paint: runwayPaint(p) } : {}) };
+  return { x0, y0, dx: PAD_CELL, nx, ny, dMin: datum, dStep: 1e-9, dq, w, ramp: ASPHALT, ...(p.kind === 'runway' ? { paint: runwayPaint(p, grass) } : {}) };
 }
 
 /**
- * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, cities?, geocube?, seed? }. `palette`: a palette spec
+ * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, cities?, country?, geocube?, seed? }. `palette`: a palette spec
  * (color-theorist/solve.js) that colours the ground, the sky and the sea in place of the geocube and the day sky (the
  * relief, the pads and the cities are the same with or without it). → a terrain field (K, kernel, heightAt, groundAt,
  * normalAt, colorAt, bounds, meta, pageConfig) plus `pads` (each with its datum), a `report`, and `water` (the sea's
  * colour, a palette's only).
  */
-export function mapGround(map, ask = {}, { palette } = {}) {
+export function mapGround(map, ask = {}, { palette, sky: flight = null } = {}) {
   const errs = readGroundAsk(ask); if (errs.length) throw new Error(`ground: ${errs.join('; ')}`);
   const land = LANDS[ask.land ?? (map.form === 'basin' ? 'mountains' : map.form === 'canyon' ? 'mesas' : 'hills')];
   const seed = hashSeed(ask.seed ?? map.seed ?? 'skyscape') % 100003;
@@ -303,37 +359,60 @@ export function mapGround(map, ask = {}, { palette } = {}) {
     horizon: { mode: B.sea ? 'sea' : 'plain', fall: B.fall / s, amp: B.amp / zs, base: (map.form === 'basin' ? B.wall : B.base) / zs },
     sea: sea === null ? null : sea / zs, beds: null,
     detail: { octaves, norm: octaves.reduce((a, o) => a + o[1], 0) || 1, rock: 0.06 * L0, soil: 0.012 * L0, seed },
-    light: LIGHT.dir, lambert: { ambient: LIGHT.ambient, gain: LIGHT.gain },
-    ramps: painted ? { ...painted.ramps, beds: [painted.ramps.stone] } : { soil: rampOfHex(R4.grass), stone: rampOfHex(R4.stone), scree: rampOfHex(R4.sand ?? R4.floor), beds: [rampOfHex(R4.stone)] },
+    // (the flight sky, sky.js: the sun at its hour and the weather's light; absent, the map's afternoon as ever)
+    light: flight ? flight.light.dir : LIGHT.dir, lambert: flight ? { ambient: flight.light.ambient, gain: flight.light.gain } : { ambient: LIGHT.ambient, gain: LIGHT.gain },
+    ramps: tintRamps(painted ? { ...painted.ramps, beds: [painted.ramps.stone] } : { soil: rampOfHex(R4.grass), stone: rampOfHex(R4.stone), scree: rampOfHex(R4.sand ?? R4.floor), beds: [rampOfHex(R4.stone)] }, flight ? flight.light.tint : null),
   };
   // the pads: each sited near where it was asked for, where it needs the least earthwork (the most the natural ground
   // stands off its datum over the footprint), dry, inside the field and clear of the pads before it; graded flat
   const natural = terrainKernel(K), nat = (x, y) => natural.macroZ(x / s, y / s) * zs;
   const taken = [];
   const pads = placePads(map, ask.pads ?? []).map((p) => {
-    const site = sitePad(p, { nat, sea, field: F, taken });
+    const site = sitePad(p, { nat, sea, field: F, taken, powered: map.craft?.engine !== false });
+    if (site.kind === 'runway') site.taxiway = taxiwayOf(site);
     taken.push(site);
     return site;
   });
   // the cities (city.js): sited on the natural ground clear of the pads and their climb-outs, graded beside them
   const bounds = { x: [g.x0, g.x0 + (g.nx - 1) * g.dx], y: [g.y0, g.y0 + (g.ny - 1) * g.dx], z: [lo, hi], cell: cellM };
   const preps = prepareCities(map, { K, kernel: natural, heightAt: natural.heightAt, groundAt: natural.groundAt, bounds }, ask.cities, pads);
-  const layers = [...pads.map((p) => padLayer(p, p.datum)), ...preps.map((p) => p.grade.layer)];
+  // the country (country.js): its settlements sited clear of the pads, their climb-outs and the fractal cities
+  const country = ask.country ? planCountry(map, { nat, sea, pads, taken: preps.map((p) => [p.center[0], p.center[1], p.rect.w, p.rect.d]), seed }, ask.country) : null;
+  // (the grass between a runway and its taxiway: the cover's pasture, the field it is cut from; a palette's soil at its
+  // middle tone. Untinted: the weather's light tints the paint below, once)
+  const grassRgb = painted ? painted.ramps.soil.stops[2].map((v) => Math.round(v)) : [1, 3, 5].map((k) => parseInt(coverPalette(cube).pasture.slice(k, k + 2), 16));
+  const layers = [...pads.map((p) => padLayer(p, p.datum, grassRgb)), ...preps.map((p) => p.grade.layer), ...(country ? country.layers.map((L) => ({ ...L, ramp: K.ramps.soil })) : [])];
+  // (the pads' and the cities' own ground, their asphalt and their painted marks, under the weather's light too: a
+  // runway is dark at night but for its lights)
+  const tint = flight ? flight.light.tint : null;
+  if (tint && !tint.every((v) => Math.abs(v - 1) < 1e-4)) for (const L of layers) {
+    if (L.ramp) L.ramp = tintRamps({ soil: L.ramp, stone: L.ramp, scree: L.ramp, beds: [] }, tint).soil;
+    if (L.paint) { const pc = new Uint8Array(L.paint.pc); for (let k = 0; k < pc.length; k += 4) for (let c = 0; c < 3; c++) pc[k + c] = Math.round(pc[k + c] * tint[c]); L.paint = { ...L.paint, pc }; }
+  }
   if (layers.length) K.grade = layers;
   const kernel = layers.length ? terrainKernel(K) : natural;
   const town = seatCities(preps, { K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, bounds });
-  const sky = painted ? painted.atlas.sky : { ...DAY_SKY };
+  const aerial = country ? { ...seatCountry(country, kernel.heightAt, cube), cover: coverPalette(cube) } : null;
+  // (the country's roofs join the cities': each a grid of its tallest tops, the ground under the rest)
+  const topAt = aerial ? (x, y) => {
+    let z = town.topAt(x, y);
+    for (const r of aerial.roofs) { const i = Math.floor((x - r.x0) / 10), j = Math.floor((y - r.y0) / 10); if (i >= 0 && j >= 0 && i < r.nx && j < r.ny) { const t = r.top[j * r.nx + i]; if (t > z) z = t; } }
+    return z;
+  } : town.topAt;
+  const sky = painted ? painted.atlas.sky : flight ? { zenith: flight.colours.zenith, horizon: flight.colours.horizon, day: 1 } : { ...DAY_SKY };
   return {
     K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     // the highest surface: the ground, or a city's roof over it (what a course and a pilot keep clear of)
-    topAt: town.topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [], roofs: town.roofs ?? [],
+    topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [], roofs: [...(town.roofs ?? []), ...(aerial ? aerial.roofs.map(packRoofs) : [])],
+    ...(aerial ? { aerial, country } : {}),
     bounds,
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,
     ...(gorge ? { gorge } : {}),
+    ...(flight ? { sky: flight } : {}),
     // the sea's colour: the palette's water ramp at its middle (no palette: the page's own, from the sky)
     ...(painted && sea !== null ? { water: rgbHex(painted.atlas.ramps.water.stops[2]) } : {}),
-    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), ...(P ? { palette: P.id } : { geocube: cube.id }), scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}) },
+    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), ...(P ? { palette: P.id } : { geocube: cube.id }), scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}), ...(country ? { country: { ...country.report, masses: aerial.report } } : {}) },
     pageConfig() {
       const { hq: q, hard: h, apron: a, grade, ...rest } = K;
       return { ...rest, grids: { hq: b64(q), hard: b64(h), apron: b64(a) }, ...(grade ? { grade: grade.map((L) => ({ ...L, dq: b64(L.dq), w: b64(L.w), ...(L.paint ? { paint: { ...L.paint, pc: b64(L.paint.pc) } } : {}) })) } : {}) };
