@@ -674,7 +674,8 @@ export function readGameworld(W) {
       if (quickGame) throw new Error(`gameworld: ${at}.foes: a quick game's foes are its goal's (quick.foe)`);
       // (a glyph map's: on its walk's beats, or where its approved sketch marks its fights: gameworld/foes.js)
       // (and on a side map's spawners and runs: side-map/cast.js)
-      if (L.walk === undefined && L.glyphs === undefined && L.sidemap === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map, a side map or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
+      // (and in a metroidvania's rooms, region by region: metroidvania/cast.js)
+      if (L.walk === undefined && L.glyphs === undefined && L.sidemap === undefined && L.metroidvania === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map, a side map, a metroidvania's rooms or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
       readLevelFoes(L.foes, foes, at);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one

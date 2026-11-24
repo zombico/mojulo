@@ -30,7 +30,7 @@
  *   erinaHero()          → the character door's words for her (create_character { as: 'hero', spec, toon })
  *   vampireSonataGame({ heroRef?, id?, name?, castle? }) → a designed game's words: the feel, the side camera, her book (adopted
  *                        by `heroRef`, the row erinaHero mints), the castle one level
- *   VAMPIRE_SONATA_PREMISE, VAMPIRE_SONATA_POWERS, VAMPIRE_SONATA_FEEL, VAMPIRE_SONATA_TREES, ERINA
+ *   VAMPIRE_SONATA_PREMISE, VAMPIRE_SONATA_POWERS, VAMPIRE_SONATA_FEEL, VAMPIRE_SONATA_TREES, VAMPIRE_SONATA_FOES, ERINA
  *
  * Pure: words in, words out.
  */
@@ -51,11 +51,11 @@ export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
     maps: true,
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     rings: [
-      { id: 'outer-wall', place: 'the outer wall', key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
+      { id: 'outer-wall', place: 'the outer wall', foes: ['rat', 'crow'], key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
         pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }, { gate: 'wall-break', holds: 'a relic' }, { gate: 'form', holds: 'a heart vessel' }] },
-      { id: 'great-halls', place: 'the great halls', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
-      { id: 'inner-ward', place: 'the inner ward', boss: 'the Bellkeeper', finds: 'mist-veil', inward: 'form' },
-      { id: 'keep', place: 'the keep', boss: 'the Lord of the Keep' },
+      { id: 'great-halls', place: 'the great halls', foes: ['ghoul', 'rat'], finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
+      { id: 'inner-ward', place: 'the inner ward', foes: ['wolf', 'crow'], boss: 'the Bellkeeper', finds: 'mist-veil', inward: 'form' },
+      { id: 'keep', place: 'the keep', foes: ['armor'], boss: 'the Lord of the Keep' },
     ],
   };
 }
@@ -103,21 +103,21 @@ export function vampireSonataCastle() {
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     boxes: [
       { id: 'tower', box: [8, 5], shape: 'serpentine', rings: [
-        { id: 'foot', place: 'the tower foot', look: 1, boss: 'the Bell Ringer', finds: 'second-leap', inward: 'double-jump', pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }] },
-        { id: 'belfry', place: 'the belfry', look: 2, key: true, inward: 'key', pockets: [{ gate: 'wall-break', holds: 'a relic' }] },
-        { id: 'spire', place: 'the spire', look: 0, boss: 'the Great Bell' },
+        { id: 'foot', place: 'the tower foot', look: 1, foes: ['rat', 'ghoul'], boss: 'the Bell Ringer', finds: 'second-leap', inward: 'double-jump', pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }] },
+        { id: 'belfry', place: 'the belfry', look: 2, foes: ['crow', 'ghoul'], key: true, inward: 'key', pockets: [{ gate: 'wall-break', holds: 'a relic' }] },
+        { id: 'spire', place: 'the spire', look: 0, foes: ['crow', 'ghoul'], boss: 'the Great Bell' },
       ] },
       { id: 'court', box: [7, 8], shape: 'hub', rings: [
-        { id: 'barbican', place: 'the barbican', look: 3, key: true, inward: 'key' },
-        { id: 'yard', place: 'the courtyard', look: 0 },
-        { id: 'chapel', place: 'the chapel', look: 1, boss: 'the Warden', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
-        { id: 'armoury', place: 'the armoury', look: 3, finds: 'mist-veil', inward: 'form' },
-        { id: 'crypt', place: 'the crypt', look: 2, boss: 'the Crypt Lord' },
+        { id: 'barbican', place: 'the barbican', look: 3, foes: ['crow'], key: true, inward: 'key' },
+        { id: 'yard', place: 'the courtyard', look: 0, foes: ['crow'] },
+        { id: 'chapel', place: 'the chapel', look: 1, foes: ['ghoul'], boss: 'the Warden', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
+        { id: 'armoury', place: 'the armoury', look: 3, foes: ['armor', 'ghoul'], finds: 'mist-veil', inward: 'form' },
+        { id: 'crypt', place: 'the crypt', look: 2, foes: ['armor', 'ghoul', 'wolf'], boss: 'the Crypt Lord' },
       ] },
       { id: 'keep', box: [8, 6], rings: [
-        { id: 'lower', place: 'the lower keep', look: 1, key: true, inward: 'double-jump' },
-        { id: 'upper', place: 'the upper keep', look: 2, inward: 'form' },
-        { id: 'throne', place: 'the throne room', look: 3, boss: 'the Lord of the Keep' },
+        { id: 'lower', place: 'the lower keep', look: 1, foes: ['armor', 'wolf'], key: true, inward: 'double-jump' },
+        { id: 'upper', place: 'the upper keep', look: 2, foes: ['armor', 'crow'], inward: 'form' },
+        { id: 'throne', place: 'the throne room', look: 3, foes: ['armor'], boss: 'the Lord of the Keep' },
       ] },
     ],
     joins: [
@@ -126,6 +126,19 @@ export function vampireSonataCastle() {
     ],
   };
 }
+
+/**
+ * THE CASTLE'S BESTIARY (gameworld/foes.js: a class at a rank on a skin): the vermin of its cellars, the crows of its
+ * walls, the dead that walk its halls, the wolves of its ward and the armour that keeps its keep. Each region names who
+ * haunts it (a ring's `foes`, cast.js).
+ */
+export const VAMPIRE_SONATA_FOES = Object.freeze({
+  rat: Object.freeze({ class: 'walker', skin: Object.freeze({ species: 'rat' }) }),
+  crow: Object.freeze({ class: 'swooper', skin: Object.freeze({ species: 'crow' }) }),
+  ghoul: Object.freeze({ class: 'walker', skin: Object.freeze({ people: 'undead' }) }),
+  wolf: Object.freeze({ class: 'charger', skin: Object.freeze({ species: 'wolf' }) }),
+  armor: Object.freeze({ class: 'guard', rank: 'elite', skin: Object.freeze({ people: 'undead' }) }),
+});
 
 /**
  * ERINA'S TREES (trees/tree.js), one purse for both: a point for each boss felled and each pocket's prize.
@@ -138,6 +151,8 @@ export function vampireSonataCastle() {
  */
 export const VAMPIRE_SONATA_TREES = Object.freeze({
   points: Object.freeze({ boss: 1, prize: 1 }),
+  // (and the fight: a soul a vermin or a ghoul felled, four an armour, a point every twelve)
+  souls: Object.freeze({ minion: 1, elite: 4, per: 12 }),
   movement: Object.freeze({ name: 'Skills', nodes: Object.freeze([
     Object.freeze({ move: 'double-jump', name: 'Second leap', found: 'second-leap' }),
     Object.freeze({ move: 'triple-jump', name: 'Third leap', requires: Object.freeze(['double-jump']), cost: 2 }),
@@ -181,8 +196,10 @@ export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vamp
     // (no lives: an action RPG's vitals, health and MP, her death a waking in the last save room: metroidvania/level.js;
     // her growth her trees, learned with the points the castle gives)
     trees: structuredClone(VAMPIRE_SONATA_TREES),
+    // (its bestiary, the castle's haunting every level: cast.js stands them region by region)
+    foes: structuredClone(VAMPIRE_SONATA_FOES),
     characters: { direction: { tradition: 'anime', body: { rail: 'realistic', style: 'anime' } }, ...(heroRef ? { hero: { ref: heroRef } } : {}) },
     // (the castle one box, or, `castle`, the castle of boxes: the tower, the courtyard and the keep joined, castle.js)
-    levels: { castle: { name: 'The castle', metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },
+    levels: { castle: { name: 'The castle', foes: true, metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },
   };
 }

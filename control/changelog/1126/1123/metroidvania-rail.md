@@ -78,3 +78,9 @@
   in its own colour, ringed once she holds what opens it, so a power found tells her where to go back. The map also
   shows how much of the castle and each region she has walked. A minimap stays at the top right, and M opens the
   whole map.
+- The castle is haunted. Each region names its foes from the game's bestiary: rats and crows on the walls, ghouls in the
+  halls, wolves in the ward, undead armour in the keep. Walkers spread along corridor floors and flyers hold the shafts.
+  The fight thickens toward the core, and the rooms where she rests, reads a map or meets a boss stay empty. Felled foes
+  give souls, and souls become points to spend on her trees. Until their figures are made, the foes stand as blocks of
+  their size and class. The castle checks that the foes stand clear of doorways and holes, and that between two save
+  rooms she meets no more than her health can bear.

@@ -5,6 +5,8 @@
  *
  *   spec.trees: { target, points: { boss?, power?, key?, prize? }, trees: [{ id, name }], nodes: [NODE] }
  *     NODE = { id, tree, name, about, requires: [id], cost, found?: token, patch?: { <path>: value }, combos?: [id] }
+ *     SOULS     each foe's fall (`team: 'foes'`, downed) its rank's souls (`souls`: { minion, elite, per }), a point for
+ *               every `per` of them
  *     POINTS    each held token of a kind (the held gates' `held`: `boss:` a boss felled, `gate:` a power found, `key:`,
  *               `prize:` a pocket's prize) gives its kind's points; spent points are gone
  *     LEARNED   a node whose requirements are learned, bought with its cost (`learn(id)`), or, `found`, given the moment
@@ -35,6 +37,9 @@ export function buildTrees(E) {
     const P = s.trees.spec.points || {}, held = (s.heldGates && s.heldGates.held) || {};
     let n = 0;
     for (const k in held) for (const kind in P) if (PREFIX[kind] && k.indexOf(PREFIX[kind]) === 0) n += P[kind];
+    // (and each foe's fall, its souls by its rank, a point for every `per` of them: counted as it falls)
+    const S = s.trees.spec.souls;
+    if (S) n += Math.floor(s.trees.souls / S.per);
     return n + (s.trees.granted || 0);
   }
   function apply(s, N) {
@@ -94,7 +99,7 @@ export function buildTrees(E) {
   E.createWorld = function createWithTrees(spec) {
     const s = make(spec), T = spec && spec.trees;
     if (!T || typeof T !== 'object') return s;
-    s.trees = { spec: T, learned: {}, spent: 0, granted: 0, log: [], open: {} };
+    s.trees = { spec: T, learned: {}, spent: 0, granted: 0, log: [], open: {}, souls: 0, fallen: {} };
     // (the target's moveset in full, its shut strings cut from what it plays)
     const H = target(s);
     if (H && H.rule && H.rule.moveset && H.rule.moveset.gated) { s.trees.full = H.rule.moveset; cut(s); }
@@ -111,6 +116,12 @@ export function buildTrees(E) {
     if (!Tr) return out;
     // (a found node given the moment its power is held, once its requirements are)
     const held = (state.heldGates && state.heldGates.held) || {};
+    // (the foes fallen since: each its souls, once)
+    if (Tr.spec.souls) for (const e of state.entities || []) {
+      if (e.team !== 'foes' || !e.downed || Tr.fallen[e.id]) continue;
+      Tr.fallen[e.id] = state.time || 0;
+      Tr.souls += Tr.spec.souls[(e.rule && e.rule.mind && e.rule.mind.rank) === 'elite' ? 'elite' : 'minion'] || 0;
+    }
     for (const N of Tr.spec.nodes) if (N.found && Tr.learned[N.id] == null && held[N.found] != null && N.requires.every((r) => Tr.learned[r] != null)) give(state, N, 'found');
     return out;
   };

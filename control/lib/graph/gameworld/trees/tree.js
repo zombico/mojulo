@@ -10,6 +10,8 @@
  *   trees: {
  *     points?:  { boss?, power?, key?, prize? }   what each thing held gives to spend (absent: a point a boss felled),
  *                                                 one purse for both trees
+ *     souls?:   { minion?, elite?, per }          what each foe's fall gives by its rank, a point for every `per` of
+ *                                                 them: the purse filled by the fight as well as by what is found
  *     movement?: { name?, nodes: [NODE] },   techs?: { name?, nodes: [NODE] } }
  *   NODE = { id?, move | tech, name?, requires?: [<node id>], cost?, found? }
  *     move / tech   its row (the node's id where it gives none)
@@ -50,10 +52,16 @@ const ROW = { movement: ['move', MOVE_SKILLS, 'a way to move'], techs: ['tech', 
 /** The trees read. */
 export function readTrees(v) {
   if (!isObj(v)) fail('trees is { points?, movement?: { nodes }, techs?: { nodes } }');
-  for (const k of Object.keys(v)) if (!['points', ...TREE_IDS].includes(k)) fail(`${k} is not a tree's word (points, ${TREE_IDS.join(', ')})`);
+  for (const k of Object.keys(v)) if (!['points', 'souls', ...TREE_IDS].includes(k)) fail(`${k} is not a tree's word (points, souls, ${TREE_IDS.join(', ')})`);
   if (!TREE_IDS.some((t) => v[t] !== undefined)) fail('trees holds a tree at least: movement (a skill tree on how the hero moves) or techs (a tech tree on its spells and attacks)');
   const points = v.points ?? { boss: 1 };
   if (!isObj(points) || Object.entries(points).some(([k, n]) => !POINTS_BY[k] || !(Number.isInteger(n) && n >= 0 && n <= 9))) fail(`points is { ${Object.keys(POINTS_BY).join('?, ')}? }: what each thing held gives to spend, 0 to 9`);
+  let souls = null;
+  if (v.souls !== undefined) {
+    const S = v.souls, ok = (n) => Number.isInteger(n) && n >= 0 && n <= 99;
+    if (!isObj(S) || Object.keys(S).some((k) => !['minion', 'elite', 'per'].includes(k)) || !(Number.isInteger(S.per) && S.per >= 1 && S.per <= 999) || [S.minion, S.elite].some((n) => n !== undefined && !ok(n))) fail('souls is { minion?, elite?, per }: what a foe\'s fall gives by its rank, a point for every `per` of them');
+    souls = { minion: S.minion ?? 1, elite: S.elite ?? 3, per: S.per };
+  }
   const ids = new Set(), trees = [];
   for (const t of TREE_IDS) {
     if (v[t] === undefined) continue;
@@ -79,7 +87,7 @@ export function readTrees(v) {
     for (const N of nodes) for (const r of N.requires) if (!nodes.some((x) => x.id === r)) fail(`${t}: ${N.id} requires '${r}', no node of its tree`);
     trees.push({ id: t, name: (T.name ?? (t === 'movement' ? 'Skills' : 'Techs')).trim(), nodes });
   }
-  return { points: { ...points }, trees };
+  return { points: { ...points }, ...(souls ? { souls } : {}), trees };
 }
 
 /** Each node's cheapest way to it: its own cost and its requirements' ways, once each. */
@@ -134,7 +142,7 @@ export function lowerTrees(R, { rule, combos = null, powers = {} } = {}) {
       ...(n.found ? { found: P ? `gate:${P.opens}` : `power:${n.found}` } : {}),
       ...(t.id === 'movement' ? { patch: moveSkillPatch(n.row, rule) } : { combos: [comboOf[n.row]], kind: TECHS[n.row].kind }) });
   }
-  const spec = { target: 'hero', points: { ...R.points }, trees: R.trees.map((t) => ({ id: t.id, name: t.name })), nodes };
+  const spec = { target: 'hero', points: { ...R.points }, ...(R.souls ? { souls: { ...R.souls } } : {}), trees: R.trees.map((t) => ({ id: t.id, name: t.name })), nodes };
   return { spec, ...(T ? { moveset: { ...lowerCombos(T.manifest), gated: Object.fromEntries(Object.keys(T.gated).map((c) => [c, true])) } } : {}) };
 }
 

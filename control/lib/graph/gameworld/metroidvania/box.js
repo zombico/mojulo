@@ -61,8 +61,8 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const word = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 80;
 const fail = (m) => { throw new Error(`metroidvania: ${m}`); };
 const BOX_KEYS = ['premise', 'box', 'shape', 'turn', 'theme', 'maps', 'powers', 'rings'];
-const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets', 'look'];
-const CORE_KEYS = ['id', 'place', 'boss', 'look'];
+const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets', 'look', 'foes'];
+const CORE_KEYS = ['id', 'place', 'boss', 'look', 'foes'];
 
 /** The words as read: throws, teaching, on any it does not know. */
 export function readBox(v) {
@@ -115,6 +115,11 @@ export function readBox(v) {
       const n = out.theme ? BOX_THEMES[out.theme].looks.length : 0;
       if (!(Number.isInteger(R.look) && R.look >= 0 && (!n || R.look < n))) fail(`${at}.look is a look of the theme's, by its place (0 to ${n ? n - 1 : 'its last'}${out.theme ? `: ${BOX_THEMES[out.theme].looks.map((x) => x.place).join(', ')}` : ''})`);
       r.look = R.look;
+    }
+    // (who HAUNTS it, `foes`: the level's bestiary ids its rooms stand, cast.js; read against the bestiary by the level)
+    if (R.foes !== undefined) {
+      if (!(Array.isArray(R.foes) && R.foes.length && R.foes.every((f) => typeof f === 'string' && f))) fail(`${at}.foes is a list of the bestiary's ids: who haunts its rooms`);
+      r.foes = [...R.foes];
     }
     if (core) return r;
     if (R.finds !== undefined) {
@@ -177,7 +182,7 @@ function placeMaps(M, rooms) {
   }
 }
 /** a laid box's rings, each with the look its words name */
-const withLooks = (rings, M) => rings.map((r, k) => (M.rings[k].look !== undefined ? { ...r, look: M.rings[k].look } : r));
+const withLooks = (rings, M) => rings.map((r, k) => ({ ...r, ...(M.rings[k].look !== undefined ? { look: M.rings[k].look } : {}), ...(M.rings[k].foes ? { foes: [...M.rings[k].foes] } : {}) }));
 
 /** The box laid: rings, rooms, doors and the walk. */
 export function layBox(v) {

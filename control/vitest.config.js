@@ -15,7 +15,7 @@ export const E2E = [
   // a side map level resolved as its page resolves it and played to its goal by the side map's bot (gameworld/side-map/)
   'lib/graph/gameworld/side-map/level.e2e.test.js',
   // a metroidvania's box resolved as its page resolves it and played on the side map's runtime (gameworld/metroidvania/)
-  'lib/graph/gameworld/metroidvania/level.e2e.test.js', 'lib/graph/gameworld/metroidvania/castle.e2e.test.js',
+  'lib/graph/gameworld/metroidvania/level.e2e.test.js', 'lib/graph/gameworld/metroidvania/castle.e2e.test.js', 'lib/graph/gameworld/metroidvania/foes.e2e.test.js',
   'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
   // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed

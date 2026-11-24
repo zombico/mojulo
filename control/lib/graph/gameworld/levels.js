@@ -905,7 +905,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
-  if (stage.section === 'metroidvania') return boxLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, title, mechanics, audio });
+  if (stage.section === 'metroidvania') return boxLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, title, mechanics, audio, extra, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, costar, heroGaits, heroStature, pilot, title, mechanics, extra, audio, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
   if (stage.section === 'kitchen') { const KL = kitchenLevel(G, { ref, heroRef, spec: stage.kitchen ?? {}, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: KL.manifest.title, manifest: KL.manifest }, laws: KL.laws }; }

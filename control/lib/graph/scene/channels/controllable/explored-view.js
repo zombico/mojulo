@@ -26,6 +26,8 @@ __xmCap.style.cssText = 'position:fixed;right:16px;top:' + (18 + __XMM.tile * __
 const __xmFull = document.createElement('div');
 __xmFull.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,5,10,.9);z-index:35';
 document.body.appendChild(__xmMini); document.body.appendChild(__xmCap); document.body.appendChild(__xmFull);
+// (the minimap is this page's map round her: the page's own radar, drawn for any world with foes, put away by its id)
+{ const __r = document.getElementById('__radar'); if (__r) __r.style.display = 'none'; }
 function __xmSeen() {
   const X = __world.explored, G = __world.heldGates || {};
   return { visited: Object.keys(X.visited), known: Object.keys(X.known), at: X.at, held: Object.keys(G.held || {}), taken: Object.keys(G.taken || {}),

@@ -254,6 +254,36 @@ not the saber's light: the feel's `blade: { steel: true }` draws no strand of li
 cold steel (`feel/saber.js` `STEEL_SLASH`). `vampireSonataGame()`
 is the designed game's words: her feel, her book and the castle as its one level.
 
+## Foes
+
+The castle is haunted by the game's own bestiary ([cast.js](../control/lib/graph/gameworld/metroidvania/cast.js) and
+[foes.js](../control/lib/graph/gameworld/foes.js), the foe shelf), not a second foe system. Each foe is a class at a
+rank on a skin, stood on the lane's rail with its class's mind.
+
+- **Who:** a region names who haunts it (a ring's `foes`), else the level's `foes.from`. A corridor's and a hall's foes
+  are its region's walkers. A shaft gets one flyer in its middle storey, or, in a region with none to fly, one walker at
+  its foot.
+- **How many:** a foe every `FOE_EVERY` metres of floor in the first region, rising to twice that by the last (`RISE`,
+  measured by the walk's depth whatever the number of regions).
+- **Where:** spread along the floor, never within `CLEAR` metres of a doorway nor over a hole, `APART` from each other,
+  facing the way in.
+- **None in** the gate room, a save room, a map room, a boss's room (its boss alone) or the throne: where she rests,
+  reads, or fights the one she came for.
+- **Until their figures are made,** they stand as greybox blocks of their size in their class's shade (`STAND_IN`).
+- **A fall gives souls** by rank. The game's trees take `souls: { minion, elite, per }`: a point for every `per` souls,
+  so the fight fills the same purse the bosses and prizes do.
+
+Erina's castle fields rats and crows on the outer wall, ghouls in the halls, wolves in the ward, and undead armour in
+the keep (an elite).
+
+The cast's laws (`CAST_LAWS`, `foes:<id>`):
+- `quiet-rooms`: none where she rests or reads.
+- `stand-clear`: none at a doorway or over a hole.
+- `on-their-feet`: a shaft's foes fly (or one walks at its foot); a corridor's walk.
+- `rising`: each region's threat a screen (an elite counts `THREAT` minions) is never below `EASE` of the mean of the
+  regions before it in its box.
+- `between-saves`: no more foes between two save rooms than `SURVIVE` times the hits her health takes.
+
 ## The explored map
 
 The castle as the hunter has walked it, drawn the way the idiom draws it, a **tile a screen**
