@@ -110,10 +110,19 @@ describe('the JRPG starter\'s town on the page', () => {
         await useAt(priest.when.use.at, `cue-${priest.id}`, pid);
         await withinFrames(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, 60);
         const t = await page.evaluate(() => window.__mojTalk.state.talk.text);
+        // (the shop that opens, seen on its own frame: the rite opens on the frame the talk ends, and on a slow runner the
+        // Escape held to skip the talk is still down the frame after, which closes it before a later look would see it)
+        await page.evaluate(() => {
+          window.__sawShop = null;
+          if (window.__shopWatch) return;
+          window.__shopWatch = true;
+          const look = () => { const st = window.__mojRpg.state(); if (st.mode === 'shop' && !window.__sawShop) window.__sawShop = st.shop.id; requestAnimationFrame(look); };
+          requestAnimationFrame(look);
+        });
         await pressUntil('Escape', () => !window.__mojScenes.on());
         // (the priest keeps the temple: their page said, its rite opens as the talk ends; closed again)
-        await withinFrames(() => window.__mojRpg.state().mode === 'shop', 60);
-        expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('temple');
+        await withinFrames(() => !!window.__sawShop, 60);
+        expect(await page.evaluate(() => window.__sawShop)).toBe('temple');
         await pressUntil('Escape', () => !window.__mojRpg.state().mode);
         return t;
       };
