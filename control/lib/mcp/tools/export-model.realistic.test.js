@@ -44,8 +44,12 @@ describe('the realistic hero, minted and exported', () => {
     expect(out.ok).toBe(true);
     const doc = await new NodeIO().readBinary(new Uint8Array(readFileSync(out.path)));
     const root = doc.getRoot(), skinned = root.listMeshes().flatMap((m) => m.listPrimitives()).filter((p) => p.getAttribute('JOINTS_0'));
-    expect(skinned).toHaveLength(1);
-    const prim = skinned[0];
+    // (one skinned mesh: the body drawn opaque, and beside it at most one primitive of alpha cards, the lashes and the
+    // strand cards, in a masked material over the body's own vertices: scene-gltf.js `alphaBox`)
+    expect(new Set(skinned.map((p) => root.listMeshes().find((m) => m.listPrimitives().includes(p)))).size).toBe(1);
+    const prim = skinned.find((p) => p.getMaterial()?.getAlphaMode() !== 'MASK'), cards = skinned.filter((p) => p !== prim);
+    expect(prim).toBeTruthy(); expect(cards.length).toBeLessThanOrEqual(1);
+    for (const c of cards) { expect(c.getMaterial().getAlphaMode()).toBe('MASK'); expect(c.getAttribute('POSITION')).toBe(prim.getAttribute('POSITION')); }
     for (const a of ['POSITION', 'NORMAL', 'JOINTS_0', 'WEIGHTS_0']) expect(prim.getAttribute(a), a).toBeTruthy();
     expect(root.listSkins()[0].listJoints().length).toBeGreaterThan(40);
     expect(root.listAnimations().map((a) => a.getName())).toEqual(expect.arrayContaining(['body:idle', 'body:walk', 'body:wave']));
