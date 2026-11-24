@@ -197,3 +197,24 @@ describe('the pursuers on a line', () => {
     expect(w.chase.on).toBe('roofs');   // still the line's: run at it again
   });
 });
+
+// THE FALL: a line is never run from the street under its course
+describe('a fall from the line\'s course', () => {
+  // a roof 6 m up for 20 m, then nothing: the street at 0
+  const ROOF = { ground: (p) => (p[0] < 20 ? 6 : 0) };
+  it('puts the pilot back where it last stood on the course, and the bus hears it', () => {
+    const w = CW.createWorld({ entities: [{ id: 'h', pilotable: true, rule: { type: 'platform', eye: 0, speed: 6 }, transform: { pos: [1, 0, 6], heading: 0 } }], camera: { rule: 'follow', target: 'h' }, chase: { lines: [{ id: 'roofs', path: [[0, 0], [60, 0]] }] } });
+    w.pilotId = 'h';
+    const events = [];
+    let prev = null, lowest = 6;
+    for (let i = 0; i < 400; i++) {
+      CW.stepWorld(w, { forward: 1, strafe: 0 }, DT, ROOF);
+      const f = CW.castFacts(w, prev); prev = f.prev; events.push(...f.events.filter((x) => x.type === 'chase:roofs:fell').map((x) => x.type));
+      lowest = Math.min(lowest, w.byId.h.transform.pos[2]);
+    }
+    expect(events.length).toBeGreaterThan(0);
+    expect(lowest).toBeGreaterThan(6 - 3.5);            // never down on the street
+    expect(w.chase.done).toEqual([]);                    // the line not run to its end from below
+    expect(w.chase.s).toBeLessThan(21);
+  });
+});

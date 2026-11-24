@@ -43,7 +43,7 @@ async function play(late) {
         if (out.prompts[out.prompts.length - 1] !== U.id) out.prompts.push(U.id);
         const mid = U.opens + (U.closes - U.opens) / 2 + late;
         if (U.kind === 'press') want = U.t >= mid && U.t < mid + 0.1;
-        if (U.kind === 'mash') want = U.t >= U.opens && n % 6 < 3;
+        if (U.kind === 'mash') want = U.t >= U.opens && !actDown;   // (pressed and let go every other frame: as fast as a frame rate allows)
       }
       if (want !== actDown) { key('act', want); actDown = want; }
       if (W.camera.track && W.camera.track.key !== lastKey) { lastKey = W.camera.track.key; out.keys.push(lastKey); }

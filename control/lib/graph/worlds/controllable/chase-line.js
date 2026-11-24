@@ -28,7 +28,8 @@
  * the line holds it; its own given back as it ends). A camera rule that reads `camYaw` follows the line too; one that
  * places itself (a set piece's `track`) does not read it. The line ends as the pilot reaches its end, or by name.
  *
- * The bus hears it (castFacts, wrapped): `chase:<id>:start`, `chase:<id>:end`, `chase:<id>:<mark>`, `chase:<id>:caught`.
+ * The bus hears it (castFacts, wrapped): `chase:<id>:start`, `chase:<id>:end`, `chase:<id>:<mark>`, `chase:<id>:caught`,
+ * `chase:<id>:fell` (the pilot dropped three metres below where it last stood on the line, put back there).
  *
  *   readChase(raw)  → the spec, read (throws naming what it takes); outside the builder, never emitted
  *
@@ -93,7 +94,7 @@ export function readTrackKeys(raw, at = 'keys') {
 }
 
 export function buildChaseLine(E) {
-  const HALF = 2.5, JOINT = 2;
+  const HALF = 2.5, JOINT = 2, DROP = 3;
   const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
   // a line compiled: its segments, their headings and the distance along at each point
@@ -149,7 +150,7 @@ export function buildChaseLine(E) {
     const K = spec && spec.chase;
     const lines = (K && Array.isArray(K.lines) ? K.lines : []).filter((L) => L && L.id && Array.isArray(L.path) && L.path.length >= 2).map(compile).filter((C) => C.len > 0);
     if (!lines.length) return;
-    state.chase = { lines, on: null, s: 0, offset: 0, u: 0, done: [], rule: null, cam: null, mk: 0, pur: null, ps: null, ev: [] };
+    state.chase = { lines, on: null, s: 0, offset: 0, u: 0, done: [], rule: null, cam: null, mk: 0, pur: null, ps: null, safe: null, ev: [] };
   });
 
   const lineOf = (K, id) => K.lines.find((C) => C.id === id) || null;
@@ -165,7 +166,7 @@ export function buildChaseLine(E) {
     if (C.cams && cam) { K.cam = cam.rule; cam.rule = { type: 'track', target: p.id, path: C.path, keys: C.cams }; cam._tr = null; }
     K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= K.s) K.mk++;
     K.pur = {}; for (const q of C.pursuers) K.pur[q.id] = { s: K.s - (q.gap || 7), off: 0 };
-    K.ps = K.s;
+    K.ps = K.s; K.safe = null;
     K.ev.push('chase:' + C.id + ':start'); if (K.ev.length > 16) K.ev.shift();   // (read by the bus; a page without one drops the oldest)
     return true;
   }
@@ -248,6 +249,18 @@ export function buildChaseLine(E) {
           K.s = back; K.ps = back; K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= back) K.mk++;
           return out;
         }
+      }
+      // THE FALL: the last place the pilot stood on the line's course kept; dropped `DROP` metres below it (off a roof, into
+      // a gap, from a face), it is put back there, still the line's, and the bus hears `chase:<id>:fell`. A line is never
+      // run from the street under its course
+      if (p.grounded !== false && (!K.safe || pos[2] > K.safe[2] - DROP)) K.safe = [pos[0], pos[1], pos[2], at.s];
+      else if (K.safe && pos[2] < K.safe[2] - DROP) {
+        pos[0] = K.safe[0]; pos[1] = K.safe[1]; pos[2] = K.safe[2];
+        if (p.vel) { p.vel[0] = 0; p.vel[1] = 0; p.vel[2] = 0; }
+        K.s = K.safe[3]; K.ps = K.s; K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= K.s) K.mk++;
+        for (const q of C.pursuers) if (K.pur[q.id]) { K.pur[q.id].s = K.s - (q.gap || 7); K.pur[q.id].off = 0; }
+        K.ev.push('chase:' + C.id + ':fell'); if (K.ev.length > 16) K.ev.shift();
+        return out;
       }
       K.ps = at.s;
       if (at.s >= C.len - 1e-3) end(state, C.id);

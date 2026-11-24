@@ -65,3 +65,7 @@
   set-piece levels in order (the souk rooftops, the fall of the tower, the cliffs), Tariq its hero, his looks the hero
   page's fragments composing into his spec. Played end to end in headless Chrome by a bot: each level ordered from the
   template, run to its end, every prompt answered, won.
+- **A fall from the line's course** (`chase-line.js`): the last place the hero stood on the course is kept; dropped three
+  metres below it (off a roof, into a gap, from a face), the hero is put back there, still the line's, and the bus hears
+  `chase:<id>:fell`. Before, a missed gap left the hero on the street, the level's own fall put them back on it, and the
+  line ran on in plan under the roofs to its end, so the level counted as won.

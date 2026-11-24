@@ -32,22 +32,23 @@ async function playLevel(manifest, ref, jumps) {
     const C = window.__mojCtrl, W = C.world, h = W.byId[W.pilotId];
     const code = { forward: 'KeyW', boost: 'KeyF', jump: 'Space', act: 'KeyE' };
     const key = (k, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code: code[k], key: code[k], bubbles: true }));
-    const out = window.__bot = { done: false };
+    const out = window.__bot = { done: false, z0: h.transform.pos[2], minZ: h.transform.pos[2] };
     let n = 0, jumpN = 0, actDown = false, mash = 0;
     key('forward', true); key('boost', true);
     (function frame() {
       n++;
+      out.minZ = Math.min(out.minZ, h.transform.pos[2]);
       if (W.chase.done.length || n > 60 * 70) { key('forward', false); key('boost', false); setTimeout(() => { out.done = true; }, 400); return; }
       requestAnimationFrame(frame);
       if (W.chase.on && jumps.some((j) => W.chase.s > j - 0.6 && W.chase.s < j + 0.3) && !jumpN && h.grounded !== false) { key('jump', true); jumpN = n; }
       if (jumpN && n - jumpN > 3) { key('jump', false); if (n - jumpN > 30) jumpN = 0; }
       const U = W.prompt && W.prompt.up, mid = U ? U.opens + (U.closes - U.opens) / 2 : 0;
-      const want = !!U && (U.kind === 'mash' ? U.t >= U.opens && (mash++ % 6) < 3 : U.t >= mid && U.t < mid + 0.1);
+      const want = !!U && (U.kind === 'mash' ? U.t >= U.opens && !actDown : U.t >= mid && U.t < mid + 0.1);
       if (want !== actDown) { key('act', want); actDown = want; }
     })();
   }, jumps);
   await page.waitForFunction(() => window.__bot && window.__bot.done, { timeout: 160000 }).catch(() => {});
-  const got = await page.evaluate((v) => ({ results: window.__mojCtrl.world.prompt.results, chaseDone: window.__mojCtrl.world.chase.done.slice(), won: window.__mojBus.state.vars[v] }), PIECE_DONE);
+  const got = await page.evaluate((v) => ({ z0: window.__bot.z0, minZ: window.__bot.minZ, results: window.__mojCtrl.world.prompt.results, chaseDone: window.__mojCtrl.world.chase.done.slice(), won: window.__mojBus.state.vars[v] }), PIECE_DONE);
   await page.close();
   return { got, errors };
 }
@@ -67,6 +68,7 @@ describe('the template movie, played', () => {
       expect(Object.values(got.results).every((r) => r === 'hit'), JSON.stringify(got.results)).toBe(true);
       expect(got.chaseDone).toEqual([st.level]);
       expect(got.won).toBe(1);
+      expect(got.minZ, 'never run from the street under the course').toBeGreaterThan(got.z0 - 3.5);
     }, 240000);
   }
 });
