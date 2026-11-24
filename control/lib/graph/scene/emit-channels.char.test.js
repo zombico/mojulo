@@ -1177,3 +1177,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-24 (1122-sim-fixing: Wolf Squadron's ground stages): the holo table's client draws a ground stage's
 // land (theatre.terrain, its heights stretched by theatre.vertical, the colony's masses); a mission's table, with neither,
 // draws as it did. Every other page is byte-identical.
+// Pinned 2026-11-24 (1122-sim-fixing: the speed's look): the `speedfx` fixture joins the matrix (a flown craft's speed in
+// the world round it, channels/speed-fx.js: the air's speed lines, space's dust, driven by its pilot's speed). Every other
+// page is byte-identical, and a page without a `speedfx` key emits no block.

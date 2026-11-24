@@ -2438,6 +2438,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { lessonBriefData } = await import('@/lib/graph/gameworld/lesson-brief.js');
     payload.lesson = { data: lessonBriefData(sketch.manifest.lesson) };
   }
+  // a flown craft's speed in the world round it (scene/channels/speed-fx.js): speed lines in the air, dust in space, from
+  // its pilot's rule (a rail stage's, a cockpit's); a level nothing flies in carries none
+  if (payload && sketch.manifest.kind === 'airspace' && Array.isArray(sketch.manifest.entities)) {
+    const [{ speedFxConfig }, { isSpace }] = await Promise.all([import('@/lib/graph/scene/channels/speed-fx.js'), import('@/lib/graph/skyscape/airspace.js')]);
+    const fx = speedFxConfig(sketch.manifest, { space: isSpace(sketch.manifest) });
+    if (fx) payload.speedfx = fx;
+  }
 
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.

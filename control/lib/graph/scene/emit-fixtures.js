@@ -308,6 +308,9 @@ export const EMIT_FIXTURES = [
   // lesson (a flying lesson's brief over its level: gameworld/lesson-brief.js): its block alone, mana-ui and the controls
   // host in a scope of its own, the lesson held behind it until Start; the smallest graded lesson (two tasks)
   ['lesson', { faces: [floor()], lesson: { data: lessonBriefData({ n: 1, of: 2, name: 'Fixture', brief: 'Fly it.', sky: 'fair', tasks: ['Take off', 'Level off'], grade: { time: [60, 90, 120] } }) } }],
+  // speedfx (a flown craft's speed in the world round it: channels/speed-fx.js): its block alone, the air's speed lines
+  // (the space's dust is the same block's other branch)
+  ['speedfx', { faces: [floor()], speedfx: { mode: 'air', base: 120, turbo: 204 } }],
   // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
   ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned

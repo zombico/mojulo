@@ -480,6 +480,16 @@ A design's `ground` groups each name a unit, a count and a mark. The rail stands
 on alternate sides, on the ground or a colony's roofs. Each turns to the craft and fires up at it while it is in reach,
 and is scored by its kind. A new unit is a card.
 
+## The speed's look
+
+A flown level's speed reads off the world round its craft (`control/lib/graph/scene/channels/speed-fx.js`, the page's
+`speedfx`, set from its pilot's rule).
+- **In the air:** speed lines rush past the camera, faint at cruise, longer, more and brighter as a boost comes on.
+- **In space:** dust motes stand still round the camera, each streaked along the way it is passed, as long as the
+  speed. Space has no wind, so it is the dust going by, and how fast, that says the speed and the turn.
+
+The cue is read off the craft's motion, so the rail's boost and a cockpit's throttle drive the same effect.
+
 ## What comes next
 
 The shelf is the asset layer. In order, the moves that turn it into flight games:

@@ -150,6 +150,8 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > specular emits byte-identically 1`] = `"04ae68d33eacec77e81a768b053e199199cc38f484cb3c398f11c4a449e1ff8d"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > speedfx emits byte-identically 1`] = `"3db2f3c683a225802b55573bf9a46d2aab33860aa0645fe120c247d75a776ce5"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > sprite-sfx emits byte-identically 1`] = `"2f92dc87279a83f432fbf02d1be24b5ea3994e012d42691d02c69913ce1d3c0b"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > star-surface emits byte-identically 1`] = `"49f5efc18cf247cb312401fab67705ced670fafa5b79d1a62979ff9cfcbef584"`;
