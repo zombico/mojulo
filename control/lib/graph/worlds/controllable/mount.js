@@ -189,8 +189,8 @@ export function buildMount(E) {
     const C = state.camera && state.camera.rule;
     if (!C || C.target !== from) return;
     C.target = to;
-    if (cam) { state.mountCam = { dist: C.dist, height: C.height, lookH: C.lookH }; Object.assign(C, cam); }
-    else if (state.mountCam) { for (const k of ['dist', 'height', 'lookH']) { if (state.mountCam[k] === undefined) delete C[k]; else C[k] = state.mountCam[k]; } state.mountCam = null; }
+    if (cam) { state.mountCam = { dist: C.dist, height: C.height, lookH: C.lookH, pullIn: C.pullIn }; Object.assign(C, cam); }
+    else if (state.mountCam) { for (const k of ['dist', 'height', 'lookH', 'pullIn']) { if (state.mountCam[k] === undefined) delete C[k]; else C[k] = state.mountCam[k]; } state.mountCam = null; }
   }
   function carry(p, h) { p.transform.pos[0] = h.transform.pos[0]; p.transform.pos[1] = h.transform.pos[1]; p.transform.pos[2] = h.transform.pos[2] + ((p.riderRule && p.riderRule.eye) || 0); p.transform.heading = h.transform.heading; p.moving = true; p.vel = [0, 0, 0]; }
   function event(state, ev) { (state.mountEvents || (state.mountEvents = [])).push(ev); }

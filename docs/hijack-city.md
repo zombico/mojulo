@@ -71,6 +71,16 @@ the glass, the lamps' bloom) and the view `cone`. Under the cone the street's ki
 traffic past 110 m is drawn as each vehicle's outline, cut on the page from its own model
 (`scene/channels/flow.js`, `FLOW_LOD`).
 
+## The driving view
+
+The camera behind a car the hero drives is framed by the vehicle's size (`scene/channels/cab-pool.js` `cabView`): a car
+keeps the chase it always had (`gameworld/cars.js` `CAB.camera`); a bigger vehicle is seen from further back, its rear
+`back` metres off the lens, and from higher, so the eye's line over its roof's back edge lands on the road `see` metres
+past its bumper, looking at a point over it in proportion to its height (`CAB_VIEW`). A parked cab is framed by its
+model when the level makes it, a vehicle taken from the traffic by its own template when it is taken. The chase keeps
+`CAB.pullIn` metres off a wall between it and the car (`rules-basic.js` `pullIn`), so a rig's long chase does not stand
+inside the building behind it.
+
 ## What it does not do yet
 
 One district is one level; a city of several districts is several levels joined by their portals. Online play is out

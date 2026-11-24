@@ -7,7 +7,8 @@
  * body stands (its `driven`). Nothing is asked for and nothing is minted: a level on a town or a district has them.
  *
  *   CAB                      a cab's numbers: its reach, its door, how long getting in and out take, how slow it lets
- *                            its driver out, the camera behind it, its box, how many cars and how far from the start
+ *                            its driver out, the camera behind a car (a bigger vehicle's framed by its size,
+ *                            cab-pool.js cabView), its box, how many cars and how far from the start
  *   levelCars(ends)          → [{ at, heading, model, paint }]: the parked cars (`ends.parked`, levels.js) a level's hero
  *                            may get into, nearest its spawn first
  *   carsExtra()              → (ends) → { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
@@ -24,6 +25,7 @@
 import { CAR_CARDS } from '../car-shelf/car-library.js';
 import { carModel } from '../geotown/cars.js';
 import { vehicleRule } from '../roads/vehicles.js';
+import { cabView, CAB_VIEW } from '../scene/channels/cab-pool.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -35,6 +37,8 @@ export const CAB = Object.freeze({
   door: 0.5,
   in: 0.35, out: 0.35, slow: 1.5,
   camera: Object.freeze({ dist: 8.5, height: 3.2, lookH: 1.1 }),
+  // (the chase kept this far off a wall that stands between it and its car: worlds/controllable/rules-basic.js `pullIn`)
+  pullIn: 0.6,
   // its box against a wall: half its width, its height; a kerb it climbs
   radius: 1, height: 1.5, step: 0.3,
   // how many of a level's parked cars are bodies, and how far from its start one may stand (m)
@@ -56,7 +60,8 @@ export function levelCars(ends) {
   return parked.map((c, i) => ({ c, i, d: d(c) })).filter((x) => x.d <= CAB.far).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, CAB.most).map((x) => x.c);
 }
 
-const cab = (hull) => ({ cab: true, hull, reach: Math.max(CAB.reach, hull[0] + 2), stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...CAB.camera } });
+// (its camera framed by its size, scene/channels/cab-pool.js cabView: a car's the CAB's, a truck's further back and higher)
+const cab = (hull, height = null) => ({ cab: true, hull, reach: Math.max(CAB.reach, hull[0] + 2), stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...(height === null ? CAB.camera : cabView({ length: 2 * hull[1], height }, CAB.camera, CAB_VIEW)), pullIn: CAB.pullIn } });
 const box = (rule) => ({ ...rule, eye: 0, collideRadius: CAB.radius, collideHeight: CAB.height, step: CAB.step });
 
 export function carsExtra() {
@@ -70,7 +75,7 @@ export function carsExtra() {
       const M = carModel(c.model), hull = [r3(M.W / 2), r3(M.L / 2)];
       part.entities.push({
         id: `car-${i + 1}`, pilotable: false, rule: box(ruleOf(c.model)),
-        mount: { ...cab(hull), pool: { model: c.model, tint: lin(c.paint) } },
+        mount: { ...cab(hull, M.H), pool: { model: c.model, tint: lin(c.paint) } },
         body: { type: 'none' },
         transform: { pos: [r3(c.at[0]), r3(c.at[1]), r3(c.at[2])], heading: r3(c.heading) },
       });

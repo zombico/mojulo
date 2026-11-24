@@ -4,6 +4,9 @@
   clouds, haze or mist lying over the streets, the far blocks softened in it, and a finish (one tone curve, the sky
   reflected in glass, light that blooms). It can also ask for the view cone, which draws the street's kit and trees
   only as far as they read. Hijack City asks for all of them.
+- The camera behind a vehicle you drive is framed by its size: a car is seen as before, a van, a box truck or a rig
+  from further back and higher, so the road ahead shows over its roof; and the camera comes in front of a wall rather
+  than standing inside the building behind you. A vehicle taken from the traffic is framed by its own size too.
 - Suburbs can be a West Coast tract or a tropical coast, not only a northeastern streetcar suburb or a European old
   town. A West Coast street is one-storey stucco ranches and Spanish revival bungalows on wide lots, each with its own
   drive and garage, palms along a grass parkway, pools out back, and stucco shops behind their parking on the boulevard.

@@ -200,6 +200,14 @@ export function buildRulesBasic(E) {
     const vT = r.vista && Array.isArray(r.vista.at) ? r.vista.secs ?? 6 : 0, vq = vT && world.time < vT ? 1 - Math.max(0, (world.time - vT * 2 / 3) / (vT / 3)) : 0, vs = vq * vq * (3 - 2 * vq);
     if (vs) want[2] += (r.vista.rise ?? 16) * vs;
     if (tlMix && want[2] > tlCeil) want[2] = Math.max(tz + 1, tlCeil);
+    // PULLED IN (opt-in `pullIn`: metres kept off a wall, a cab's, gameworld/cars.js): where a wall stands between the
+    // target's look point and where the chase would stand, it stands in front of the wall, `pullIn` short of it, never
+    // nearer than a quarter of its distance; a big vehicle's long chase is not stood inside the building behind it.
+    // Absent, the chase as it was
+    if (r.pullIn > 0 && world && world.colliders && E.nearestWallT) {
+      const from = [tgt.transform.pos[0], tgt.transform.pos[1], tz + lookH], wt = E.nearestWallT(from, want, world.colliders);
+      if (wt != null) { const len = Math.hypot(want[0] - from[0], want[1] - from[1], want[2] - from[2]) || 1, t = Math.max(0.25, wt - r.pullIn / len); for (let i = 0; i < 3; i++) want[i] = from[i] + (want[i] - from[i]) * t; }
+    }
     const k = smooth(lerp, dt);
     e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), k));
     e.lookAt = [

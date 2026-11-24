@@ -14,14 +14,31 @@
 // while). Absent, not one byte.
 // THE LAW'S CARS (`patrol`: entities with a `carBody`, gameworld/cars.js patrolCar): drawn the same way from the pooled
 // templates, in their livery, a light bar on the roof flashing red and blue. Absent, not one byte.
+// THE VIEW FROM BEHIND IT (`cabView`): a cab's follow camera framed by its size, so a big vehicle never hides the road
+// it is driven down. Back far enough that its length sits in the frame (`back` metres behind its rear), high enough that
+// the eye's line over its roof's back edge, `clear` above it, lands on the road `see` metres ahead of its bumper, and
+// looking at a point over it in proportion to its height. A car under `base`'s numbers keeps them, so a hatchback is
+// framed as it always was and a box truck or a rig from further back and higher. A parked cab is given its view where
+// the level makes it (gameworld/cars.js); one taken from the traffic here, measured from its own template.
 // Emitted only when an entity's mount carries `pool` or `spare`; absent, not one byte.
+export const CAB_VIEW = Object.freeze({ see: 25, clear: 0.35, back: 3.5, look: 0.6 });
+/** A cab's follow camera by its size ({ length, height }, m) over a base ({ dist, height, lookH }): the base's numbers
+ *  where they already frame it. Pure and import-free (the page runs its source). */
+export function cabView(size, base, V = { see: 25, clear: 0.35, back: 3.5, look: 0.6 }) {
+  const L = size.length, H = size.height, r3 = (v) => Math.round(v * 1000) / 1000;
+  const dist = Math.max(base.dist, L / 2 + V.back + L / 2), g = L / 2 + V.see;
+  const height = Math.max(base.height, ((H + V.clear) * (g + dist)) / (g + L / 2));
+  return { dist: r3(dist), height: r3(height), lookH: r3(Math.max(base.lookH, H * V.look)) };
+}
 export function cabPoolScript({ mayhem = false, patrol = false } = {}) {
   return `
 // --- the city's cars as bodies: drawn from the pooled templates; one taken from the traffic ---
 (function () {
   if (typeof __POOLS === 'undefined') return;
   const TRIM = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), made = new Map();
-  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90;${mayhem ? `
+  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90;
+  ${cabView.toString()}
+  const CAB_VIEW = ${JSON.stringify(CAB_VIEW)};${mayhem ? `
   const CRASH = { speed: 7, every: 2500 };` : ''}
   function bodyOf(e) {
     const P = e.mount.pool; let b = made.get(e.id);
@@ -110,6 +127,10 @@ ${patrol ? `    // the law's cars: placed, turned, their lamps flashing turn abo
       const x = offer.x;
       (window.__mojTaken = window.__mojTaken || {})[x.id] = 1;
       spare.mount.pool = { model: x.model, tint: x.tint }; spare.mount.hull = [x.hull[0], x.hull[1]]; spare.mount.stand = [-(x.hull[0] + 0.5), 0.25];
+      // (its view framed by its size: its length its hull's, its height its own template's)
+      const tp = __POOLS[x.model + '|paint']; if (tp && !tp.boundingBox) tp.computeBoundingBox();
+      // (from the spare's own first view, kept: a spare a rig took before frames a hatchback as a hatchback)
+      if (spare.mount.camera) { spare.mount.base = spare.mount.base || { ...spare.mount.camera }; spare.mount.camera = Object.assign({}, spare.mount.base, cabView({ length: 2 * x.hull[1], height: tp && tp.boundingBox ? tp.boundingBox.max.z : 1.5 }, spare.mount.base, CAB_VIEW)); }
       spare.transform.pos[0] = x.p[0]; spare.transform.pos[1] = x.p[1]; spare.transform.pos[2] = x.p[2]; spare.transform.heading = x.heading;
       spare.speed = 0; spare.gone = false; spare.riderId = null;
       W.mountPress = 1;${mayhem ? `
