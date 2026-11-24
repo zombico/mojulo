@@ -3,7 +3,8 @@
  * played before there are levels. The hero runs the roofs east on a chase line, jumps a gap onto a roof whose edge gives
  * (a slowed Grab), is shaken by a blast as it runs on, turns north, drops onto a lower roof and climbs its lip (a mashed
  * Climb), while the camera is directed along the way: low behind, then ahead looking back, a low cut for the jump, wide
- * for the blast, beside, over the shoulder. Built from the world alone: the run's hero where made, else a stand-in.
+ * for the blast, beside, over the shoulder. Built from the world alone: the run's hero where made, else the template's
+ * star, Tariq (lost-nomad.js).
  *
  *   stuntRoom(G, { refs?, cast? }) → { manifest, setPiece, laws, roofs, hero: 'own' | 'stand-in' }
  *     setPiece  the set piece it lays (its line, cams, beats and prompts), said on the page
@@ -18,6 +19,7 @@ import { feelRule } from './feel/lower.js';
 import { floorOf } from './practice-room.js';
 import { playerWorld } from '../playscape/player.js';
 import { lowerSetPiece, setPieceLaws } from './set-piece.js';
+import { TARIQ } from './lost-nomad.js';
 
 const ROOF = '#b49a7c', LOW = '#9c8468', LIP = '#8a6f55';
 const H = 6;   // the roofs' height (m)
@@ -60,7 +62,8 @@ export function stuntRoom(G, { refs = {}, cast = 'male' } = {}) {
   const rule = { ...(G.feel != null ? feelRule(G.feel) : {}), move: 'camera' };
   const P = playerWorld({ heroRef: own ? refs.hero : 'stand-in', id: 'hero', title: 'stunt room', controls: STUNT_LEGEND, rule });
   const { heroRef: _r, ...lib } = P.figures.hero;
-  const figures = { hero: own ? { ...lib, heroRef: refs.hero } : { ...lib, hero: { cast } } };
+  // (the star: the world's own hero where made, else Lost Nomad's, Tariq; `cast: 'stand-in'` a plain stand-in for a quick page)
+  const figures = { hero: own ? { ...lib, heroRef: refs.hero } : { ...lib, hero: cast === 'stand-in' ? { cast: 'male' } : TARIQ } };
   const e0 = P.entities[0];
   const hero = { ...e0, body: { ...e0.body, hittable: true, hp: 100 }, transform: { pos: [1, 0, H], heading: 0 } };
   const { faces, colliders } = floorOf({ half: 45, blocks: ROOFS.map(([, [x0, y0, x1, y1, h], fill], k) => ({ id: `roof-${k + 1}`, x: [x0, x1], y: [y0, y1], h, fill, group: 'room:roofs' })) });

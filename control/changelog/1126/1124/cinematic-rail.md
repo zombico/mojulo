@@ -48,3 +48,7 @@
   shoulder.
 - **The registry**: the track camera (`space.camera=track`), the set piece (`space.levelDesign=set-piece`) and the
   prompt (`power.mechanics=prompt`) are built; the cinematic action probe asks for the set piece and the prompt.
+- **Tariq, the template's star** (`gameworld/lost-nomad.js` `TARIQ`, in the hero door's words): a Levantine man in his
+  thirties on the realistic body (the face's Levantine ancestry, a strong chin and stubble), in the basic adventurer's
+  clothes: a henley with its sleeves pushed up, straight jeans, work boots, a belt and a pouch on the thigh for the
+  holster; the free runner's motion. The stunt room stands him where the world has no hero of its own.

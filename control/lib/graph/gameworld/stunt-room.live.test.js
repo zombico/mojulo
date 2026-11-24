@@ -18,7 +18,8 @@ afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 // Space at the first roof's edge, each prompt's button pressed `late` seconds past its window's middle (a mash: pressed
 // and let go every few frames once it opens). The keys are the controls layer's for each action.
 async function play(late) {
-  const { html } = await practiceHtml({ id: 'lost-nomad-test', name: 'Lost Nomad', feel: 'lost-nomad' }, 'stunt', { cast: 'male' });
+  // (on the plain stand-in: the mechanics are proved, not the star, whose body slows a headless page to a few frames)
+  const { html } = await practiceHtml({ id: 'lost-nomad-test', name: 'Lost Nomad', feel: 'lost-nomad' }, 'stunt', { cast: 'stand-in' });
   const page = await browser.newPage(), errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.setContent(html, { waitUntil: 'domcontentloaded' });
