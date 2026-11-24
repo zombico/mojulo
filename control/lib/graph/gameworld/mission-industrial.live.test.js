@@ -58,5 +58,6 @@ describe('an industrial level, on its page', () => {
     const [X] = proveMissions(W, { yard: O.args.manifest }, { payloads: { yard: Pg } });
     expect(X).toMatchObject({ level: 'yard', proved: true });
     expect(X.play).toMatch(/^gunner: /);
-  }, 900000);
+    // (the place built whole and played in Chrome: some 550 to 710 s on a quiet machine, past 900 s on a loaded runner)
+  }, 1800000);
 });
