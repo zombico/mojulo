@@ -40,6 +40,7 @@ import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND 
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
+import { keyClock } from '../../../worlds/controllable/keying.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -816,7 +817,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, keying = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -5812,7 +5813,7 @@ ${hangarHook}  __msHookParams();
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
     if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
-    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${driveSurface && driveSurface.items ? `
+    ${keying ? `__keySync(dt, ${tempo ? 'wdt' : 'dt'});   // (keyed: each animated body posed on its layer's key, keying.js)` : `for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});`}${driveSurface && driveSurface.items ? `
     __kiTick(dt);` : ''}${place ? '\n    __placeStep(dt);' : ''}${seats ? `
     __seatRings();
     __seatStrip();
@@ -5936,6 +5937,24 @@ __wings.add(__wingR, __wingL); __wings.visible = false;
 })();
 ` : ''}${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
 window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
+` : ''}${keying ? `// KEYING IN PLAY (worlds/controllable/keying.js): each animated body (a rig, a baked figure) posed on its layer's key
+// (the hero the player pilots, the cast every other) and held between keys, its clips handed the time it held; the
+// world, ${keying.root === 'held' ? 'the camera and every other body on ones (a held body\'s place stepped with its pose)' : 'a body\'s place and heading, the camera and every other body on ones'}
+const __kyClock = (${keyClock.toString()})(${safeJson(keying)}), __kyW = { hero: 0, cast: 0 }, __kySeen = {};
+function __keySync(dt, wdt) {
+  const due = __kyClock.step(dt);
+  __kyW.hero += wdt; __kyW.cast += wdt;
+  for (const e of __world.entities) {
+    const m = __bodies[e.id], L = e.id === __world.pilotId ? 'hero' : 'cast';
+    const keyed = !!(m && m.userData && (m.userData.rigFig || m.userData.fig) && !m.userData.polygomer);
+    if (!keyed || due[L] || !__kySeen[e.id] || e.gone${boardOn ? ' || e.aboard' : ''}) { __syncEntity(e, keyed ? __kyW[L] : wdt); if (keyed) __kySeen[e.id] = true; continue; }
+${keying.root === 'held' ? '' : `    if (!m.visible || (e.tumble && e.tumble.angle)) continue;   // (a tumble is held whole)
+    m.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
+    if (!e.tilt) { const r = m.userData.rigFig, f = m.userData.fig; m.rotation.z = e.transform.heading + (r ? r.yaw : f.yaw); }
+`}  }
+  if (due.hero) __kyW.hero = 0;
+  if (due.cast) __kyW.cast = 0;
+}
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
 // into a texture, stood as a full-frame quad behind the arena's camera (the same pose shifted by \`shift\`), so the arena
 // reads as the place the fight was met; the world itself stays where it is, out of the arena camera's sight
