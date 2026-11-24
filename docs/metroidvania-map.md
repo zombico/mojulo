@@ -464,7 +464,10 @@ Its boulders and crystals are mojulo's own materials, not drawings:
   and never into the lane. A heap's big boulder carries its fractures' detail; the small ones are the fractured block
   alone.
 - **Crystals** are real stones of the look's `gem` (`polygonizer/crystal-faces.js`): each its lattice's own faces, a
-  druse grown out of the rock, many small and a few long, glowing. The page's crystal channel shades them live. Grown
+  druse grown out of the rock: a few long stones standing up off a wide bed, hardly buried (`CRYSTAL_DRUSE`), since at
+  play distance a druse of many small stones reads as a lump. A squat habit, corundum's hexagonal barrel (ruby,
+  sapphire), grows more stones and shorter (`SQUAT_DRUSE`), a cluster of barrels rather than a heap of boulders. They
+  glow, and the page's crystal channel shades them live, coloured for a path in centimetres as the land's are. Grown
   out of a wall, they throw no print (`print: false`); a print needs a floor under the stone.
 
 A piece drawn in many faces, a boulder or a druse, counts as one piece of detail in the backdrop's laws.

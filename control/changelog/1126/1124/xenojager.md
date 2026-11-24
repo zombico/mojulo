@@ -17,7 +17,9 @@
   - **Boulders** are real rocks, fractured and grained by their minerals, of each look's rock (basalt, slate, marble,
     granite).
   - **Crystals** are real stones of each look's gem (amethyst, sapphire, tourmaline, ruby, quartz), shaded live by the
-    page. Grown out of a wall, they throw no print onto the room below.
+    page. Each cluster is a few long stones standing up off the rock, so it reads at play distance; a ruby or a sapphire,
+    whose real habit is a short barrel, grows as a cluster of smaller barrels. Grown out of a wall, they throw no print
+    onto the room below.
   - A boulder or a druse counts as one piece of detail in the backdrop's laws, however many faces it has.
 - The fabric builds a rock look's closed parts as rock, where the castle builds masonry: stairs and landings as
   boulders, doorways as cave mouths, a tower's wall cracked through each storey, metal ladders, and the crust's crags

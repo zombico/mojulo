@@ -127,7 +127,7 @@ export const SCALE = Object.freeze({
   'block.h': Object.freeze([0.3, 0.9]),
   'bar.pitch': Object.freeze([0.18, 0.4]), 'cell.h': Object.freeze([2.4, 3.6]), 'mirror.h': Object.freeze([2.0, 3.6]), 'hearth.h': Object.freeze([2.2, 3.4]),
   // (a planet's: a boulder she could hide behind, a crystal her arm's length to her height, a fungus over her head)
-  'boulder.r': Object.freeze([0.9, 2.2]), 'crystal.l': Object.freeze([0.8, 2.6]), 'fungus.h': Object.freeze([1.4, 5.0]), 'pillar.h': Object.freeze([2.5, 6.0]),
+  'boulder.r': Object.freeze([0.9, 2.2]), 'crystal.l': Object.freeze([0.8, 3.2]), 'fungus.h': Object.freeze([1.4, 5.0]), 'pillar.h': Object.freeze([2.5, 6.0]),
 });
 /** note a drawn part's size: the least and the most of each kept */
 export const measure = (sizes, part, v) => { if (!sizes) return; const o = sizes[part]; sizes[part] = o ? [Math.min(o[0], v), Math.max(o[1], v)] : [v, v]; };
@@ -578,13 +578,15 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     // black))
     const z0 = Math.min(top - 4, floor + 3.8 + dice() * 3), seed = Math.floor(dice() * 1e6);
     poly(out, x, [[s - 1.2, z0 - 0.4], [s + 1.3, z0 - 0.5], [s + 0.9, z0 + 0.4], [s - 1.0, z0 + 0.3]], shade(L.stone, 0.6), 'box:dress', { pillow: 0.5 });
-    const stones = crystalTermFaces({ id: 'box:crystal', op: 'add', shape: { kind: 'crystal', gem: L.gem || 'quartz', center: [x + 0.1, s, z0], size: 2.4, unit: 'cm', glow: L.glow ?? 0.8,
-      cluster: { count: 7, seed, on: { disc: { center: [x + 0.05, s, z0], radius: 0.9, normal: [1, 0, 0.55] } }, lengths: [0.7, 2.4], tilt: 32, bury: 0.25 } } });
+    // (a few long stones standing up off a wide bed, hardly buried, rather than many small ones: at play distance a druse
+    // of small stones reads as a lump; CRYSTAL_DRUSE)
+    const D = SQUAT_GEMS.includes(L.gem) ? SQUAT_DRUSE : CRYSTAL_DRUSE, stones = crystalTermFaces({ id: 'box:crystal', op: 'add', shape: { kind: 'crystal', gem: L.gem || 'quartz', center: [x + 0.1, s, z0], size: D.lengths[1], unit: 'cm', glow: L.glow ?? D.glow,
+      cluster: { count: D.count, seed, on: { disc: { center: [x + 0.05, s, z0], radius: D.bed, normal: [1, 0, D.lift] } }, lengths: [...D.lengths], tilt: D.tilt, bury: D.bury } } });
     const piece = `crystals:${Math.round(s * 100)}:${Math.round(z0 * 100)}`;
     // (grown out of the wall, it has no floor under it to throw its print on: scene/crystal-prints.js `print: false`)
     for (const f of stones) out.push({ ...f, crystal: { ...f.crystal, print: false }, normal: f.outNormal, piece });
-    measure(sizes, 'crystal.l', 2.4);
-    proud(s - 1.2, s + 1.4, z0 - 0.4, z0 + 2.4, 0.5);
+    measure(sizes, 'crystal.l', D.lengths[1]);
+    proud(s - 1.2, s + 1.4, z0 - 0.4, z0 + D.lengths[1], 0.5);
   } else if (id === 'fungus') {
     // (a stand of giant fungi: three stalks of a body's height and over, their caps' gills lit from under)
     const g = L.glass || '#7affa8';
@@ -747,6 +749,15 @@ function boulder(out, L, { at, size, k, piece, detail = BOULDER.detail }) {
   // (half as deep as it is wide, its back sunk in the wall: it stands proud of the wall and never into the lane)
   for (const f of faces) out.push({ corners: f.corners.map((p) => [at[0] + p[0] * size * BOULDER.depth, at[1] + p[1] * size, at[2] + p[2] * size].map(r5)), normal: f.outNormal, fill: shade(mix(f.fill, L.top, BOULDER.tone), BOULDER.lift), group: 'box:rock', piece });
 }
+
+/** a druse in a planet's wall: its stones, the least and the most a stone's length (m; many near the least, a few long),
+ * its bed's radius, how far its bed faces up off the wall, how far a stone leans off it (degrees), how much of each is
+ * buried, and its glow unless its look says */
+export const CRYSTAL_DRUSE = Object.freeze({ count: 6, lengths: Object.freeze([1.4, 3.0]), bed: 1.2, lift: 1.2, tilt: 20, bury: 0.12, glow: 0.95 });
+/** a druse of a squat habit (corundum's hexagonal barrel, a ruby or a sapphire, polygonizer/crystal-optics.js): more
+ * stones and shorter, so it reads as a cluster of barrels and never as a heap of boulders */
+export const SQUAT_DRUSE = Object.freeze({ ...CRYSTAL_DRUSE, count: 12, lengths: Object.freeze([0.8, 1.8]), bed: 1.2, tilt: 30 });
+const SQUAT_GEMS = Object.freeze(['ruby', 'sapphire']);
 
 /** a disc of `n` sides */
 function ring(out, x, s, z, r, n, fill, group = 'box:dress') { poly(out, x, Array.from({ length: n }, (_, k) => { const a = (k / n) * 2 * Math.PI; return [s + r * Math.cos(a), z + r * Math.sin(a)]; }), fill, group); }
