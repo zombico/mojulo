@@ -96,6 +96,37 @@ export const OUTFIT_KINDS = Object.freeze({
     const z0 = B.top.z - 0.03 * B.k, rise = (p.rise ?? 0.16) * B.k, z1 = (B.neckTop ?? B.top.z) + rise, th = 0.01 * B.k;
     const pts = [[ny - 0.01 * B.k, z0, nr * 1.5], [ny - 0.03 * B.k, z0 + 0.45 * (z1 - z0), nr * 1.9], [ny - 0.06 * B.k, z1, nr * (p.flare ?? 2.5)]];
     return { segments: [boardOf(p.id ?? 'collar', pts, th, G(p), { bone: 'torso', blend: { st2: { torso: 0.7, neck: 0.3 }, tip: { torso: 0.7, neck: 0.3 } } })] }; } },
+  // L3: WINGS, a pair of membrane wings off the shoulder blades, held half raised behind the body (a dragon's, a demon's):
+  // each a board of its own cloth seen in level slices as it rises, each slice further out and wider (narrow at the root,
+  // widest at the wrist, a point at its tip), so the wing sweeps up and out; a SPAR of bone up its leading edge to a claw
+  // at the tip. `span` each wing's reach out from the spine (m, 1), `rise` its tip over the shoulders' top (m, 0.9);
+  // `sweep` 0 … 1 spread out from the spine or swept back along the body (a side view's: the wing seen whole); the
+  // membrane the piece's colour, the arm, its claw and two fingers `spar`'s (bone). They ride the trunk
+  wings: { layer: 3, cls: 'stiff', colour: 'secondary', compile: (p, B, G) => {
+    const k = B.k, span = (p.span ?? 1) * k, rise = (p.rise ?? 0.9) * k, sw = Math.max(0, Math.min(1, p.sweep ?? 0));
+    // (rooted on the back's own line at the shoulder blades, every body's: bodyMap `back`)
+    const z0 = B.top.z - 0.28 * k, z1 = B.top.z + rise, th = 0.012 * k, y0 = B.back(z0, B.top.z) - 0.05 * k;
+    // (the slices: t up the wing, its centre out from the spine and its half width, each a share of the span; SWEPT back
+    // (`sweep` toward 1) the centre goes back along the body instead of out from it and the slice lies along it, so a
+    // side view sees the wing whole)
+    const T = [0, 0.2, 0.45, 0.7, 0.88, 1], CX = [0.15, 0.35, 0.6, 0.8, 0.9, 0.95], W = [0.06, 0.22, 0.35, 0.3, 0.15, 0.02];
+    const along = sw >= 0.5, spar = G({ colour: p.spar ?? 'bone' }), bind = { bone: 'torso' }, out = [];
+    const ctr = (sx, i, t) => [r3(sx * (0.12 * k + CX[i] * span * (1 - 0.75 * sw))), r3(y0 - 0.04 * k * t - CX[i] * span * sw), r3(z0 + (z1 - z0) * t)];
+    // (a point on the wing's edge: `e` +1 the leading edge (out, or forward when swept), −1 the trailing)
+    const edge = (sx, i, t, e) => { const c = ctr(sx, i, t), d = W[i] * span * e; return along ? [c[0], r3(c[1] + d), c[2]] : [r3(c[0] + sx * d), c[1], c[2]]; };
+    const bone = (name, pts, r0, r1) => { const st = pts.map((q, i) => ({ at: q, r: [r3(r0 + (r1 - r0) * (i / Math.max(1, pts.length - 1))), r3(r0 + (r1 - r0) * (i / Math.max(1, pts.length - 1)))] }));
+      return { name, kind: 'loft', stations: st, slots: 'ring8', caps: { back: st[0].at, tip: st[st.length - 1].at }, group: spar, bind }; };
+    for (const [S, sx] of [['R', 1], ['L', -1]]) {
+      const st = T.map((t, i) => ({ at: ctr(sx, i, t), r: along ? [r3(th), r3(W[i] * span)] : [r3(W[i] * span), r3(th)] }));
+      out.push({ name: `${p.id ?? 'wing'}${S}`, kind: 'loft', stations: st, slots: 'ring12', caps: { back: st[0].at, tip: st[st.length - 1].at }, group: G(p), bind });
+      // (the arm: a spar up the leading edge to a claw past the tip; and two FINGERS from the wrist across the membrane to
+      // its trailing edge, so it reads as a wing of skin on bone, never a leaf)
+      const lead = T.map((t, i) => edge(sx, i, t, 1)), tip = ctr(sx, 5, 1);
+      out.push(bone(`${p.id ?? 'wing'}Spar${S}`, [...lead, [tip[0], r3(tip[1] - (along ? 0.03 * k : 0)), r3(z1 + 0.14 * k)]], 0.024 * k, 0.006 * k));
+      const wrist = edge(sx, 3, T[3], 1);
+      [[1, T[1]], [2, T[2]]].forEach(([i, t], f) => out.push(bone(`${p.id ?? 'wing'}Finger${f}${S}`, [wrist, edge(sx, i, t, -1)], 0.016 * k, 0.008 * k)));
+    }
+    return { segments: out }; } },
   // L3: a MANTLE over the shoulders: a short cape from the neck's root over the shoulders and the arms' tops, closed at the
   // throat by a clasp (outfit laws 2: mantleOf); laws 1 drew it as a band round the upper chest with a buckle on its
   // front (`shoulder`: a shoulder piece, which the trunk plates' cut leaves whole: tiered-form.js), kept for the rows
@@ -703,7 +734,7 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
 
 // ─── the laws of visual interest (the Dressing Bible's), advisory ───
 /** how much of the outfit's area a kind covers, roughly (a skirt and bodice far more than a buckle) */
-const AREA = { rags: 0.5, charms: 0.3, feathers: 0.4, streamers: 0.4, warpaint: 0.3, prayerBand: 0.3, toolRoll: 0.5, trophy: 0.4, bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, crest: 0.3, bands: 0.4, midriff: 1.5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, thighPouch: 0.8, pack: 2, quiver: 1 };
+const AREA = { wings: 6, rags: 0.5, charms: 0.3, feathers: 0.4, streamers: 0.4, warpaint: 0.3, prayerBand: 0.3, toolRoll: 0.5, trophy: 0.4, bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, crest: 0.3, bands: 0.4, midriff: 1.5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, thighPouch: 0.8, pack: 2, quiver: 1 };
 export const ARCHETYPE_SHAPES = { ruler: ['bell', 'column'], hero: ['wedge'], outlaw: ['wedge', 'needle'], caregiver: ['bell', 'barrel'], sage: ['bell', 'column'], magician: ['bell', 'needle'], explorer: ['wedge', 'column'], innocent: ['bell', 'barrel'], everyman: ['column', 'barrel'], jester: ['needle', 'wedge'], lover: ['needle', 'bell'], creator: ['column', 'barrel'] };
 
 /** the cut's cloth as the laws count it: each layer a piece of its area in its colour role (a coat over a shirt shows

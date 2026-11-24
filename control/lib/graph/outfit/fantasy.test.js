@@ -145,3 +145,26 @@ describe('rags hung off what is worn', () => {
     expect(plan({ cast: 'male', register: 'round', adorn: { type: 'armor', style: 'knight', without: ['pauldron'] }, outfit: { type: 'outfit', style } }).plan).toEqual(P);
   });
 });
+
+// WINGS (outfit-plan.js `wings`): a pair of membrane wings off the shoulder blades, each a board of level slices sweeping
+// up and out, an arm of bone up its leading edge and two fingers across it; swept back, they lie along the body
+describe('wings', () => {
+  const style = (sweep) => ({ id: 'wings-only', dials: { stylize: 0.4, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces: [{ kind: 'wings', span: 1, rise: 0.9, sweep }] });
+  const wingsOf = (sweep, more = {}) => (plan({ cast: 'male', register: 'round', ...more, outfit: { type: 'outfit', style: style(sweep) } }).plan.segments || []).filter((g) => /^wing/.test(g.name));
+  it('a pair, each its membrane, its arm and two fingers; swept back, its slices lie along the body', () => {
+    const spread = wingsOf(0), swept = wingsOf(0.8);
+    expect(spread.map((g) => g.name).sort()).toEqual(['wingFinger0L', 'wingFinger0R', 'wingFinger1L', 'wingFinger1R', 'wingL', 'wingR', 'wingSparL', 'wingSparR']);
+    const R = (W) => W.find((g) => g.name === 'wingR'), top = (g) => g.stations[g.stations.length - 1];
+    // (the wing rises over the shoulders, and its right one on the right)
+    expect(top(R(spread)).at[2]).toBeGreaterThan(R(spread).stations[0].at[2] + 0.5);
+    expect(top(R(spread)).at[0]).toBeGreaterThan(0.5);
+    // (spread: wide across, thin along; swept: thin across, wide along, and back along the body)
+    const mid = (g) => g.stations[2].r;
+    expect(mid(R(spread))[0]).toBeGreaterThan(mid(R(spread))[1]);
+    expect(mid(R(swept))[1]).toBeGreaterThan(mid(R(swept))[0]);
+    expect(top(R(swept)).at[1]).toBeLessThan(top(R(spread)).at[1] - 0.3);
+    expect(top(R(swept)).at[0]).toBeLessThan(top(R(spread)).at[0]);
+    // (on a beast's body as on a person's: a dragon on two legs)
+    expect(wingsOf(0.8, { head: 'none', beast: { kin: 'draconic', legs: 'digitigrade', head: 'dragon', tail: 'thick' } })).toHaveLength(8);
+  });
+});

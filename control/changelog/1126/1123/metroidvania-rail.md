@@ -133,9 +133,11 @@
   whatever is worn there.
 - The Lord of the Keep is a woman now, androgynous: a slim body squared at the shoulder, a sharp, cool face and short
   swept-back silver hair, in the same crimson coat, high collar and torn crimson-lined cape.
-- The Lord of the Keep has a second form. Cut down, she does not fall: she becomes the Lord Unbound, a towering black
-  predator on two legs with tyrant jaws, a tail as long again and a violet line down its spine. Its health bar fills
-  again under its own name, and it fights with its own moves: a snap of its jaws, a charge, a roar that splits the dark
-  into bats. Only its fall opens her seal; lose to it and she is back in her first form when Erina returns.
+- The Lord of the Keep has a second form. Cut down, she does not fall: she becomes the Lord Unbound, a black dragon on two
+  legs, 2.5 times Erina's height, horned and spined, with crimson wings on bone swept back along it and gold at its throat
+  and arms. Its health bar fills again under its own name, and it fights with its own moves: it rears with its wings
+  flung wide, charges low, beats its wings into a storm of bats, and roars. Only its fall opens her seal; lose to it and she is back in her first form when Erina returns.
 - A boss can be built with a second form (`second` on its row): a foe mode of its own figure, health, fight and size; a
   mode may stand at a height of its own (`body.fit` on the mode).
+- Characters can wear wings: an outfit piece, `wings`, a pair of membrane wings on bone off the back, spread out or swept
+  back along the body (`sweep`) so a side view sees them whole.

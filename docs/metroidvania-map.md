@@ -375,11 +375,14 @@ but reels and rises as the second, its own figure (warm on the page: `rule.boss.
 bar names it and fills again), its own director's rule (its moves and phases, its looks, the same room) and its own size
 (its collider and its hit egg: a mode's `body`); only the second falls, and only then is its seal broken. A fight lost
 against it puts it back into its first form, whole. A form of another size says its height (a mode's `body.fit`): the
-page stands its figure at that height by its own bounds and builds it at its own scale. The Lord of the Keep's is THE
-LORD UNBOUND, no person at all but a predator on two legs, the animal door's tyrant lizard grown `dire` and `shadow`
-(black, a violet line down its spine, pale violet eyes), at 2.4 times Erina's height: draconic and grounded, never a
-fantasy's wings and runes nor a person's arms. It winds up on its own strike (a crouch, head down, then a spring) and its
-flinch (rearing), snaps its jaws, charges with its tail stiff behind it, roars the dark into bats.
+page stands its figure at that height by its own bounds and builds it at its own scale (a row's `over`: its figure's
+height over its body's, a winged form's wings raised over its head). The Lord of the Keep's is THE LORD UNBOUND, a
+DRAGON ON TWO LEGS at 2.5 times Erina's height: the draconic kin at its least human (digitigrade legs, a dragon's head,
+horns, a thick spined tail, long claws, a deep hunch), WINGS of crimson skin on bone swept back along it (the outfit's
+`wings`: a membrane in level slices off the back, an arm up its leading edge, two fingers across it; `sweep` toward 1 lays
+them along the body, so a side view sees them whole), gold at its throat, shoulders and arms, skulls at its hips, the
+shreds of her cape at its shoulders. On a person's skeleton, it winds up as the castle's people do: it rears with its
+wings flung wide, drops low with them folded back, beats them into bats, throws its horned head back.
 
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.

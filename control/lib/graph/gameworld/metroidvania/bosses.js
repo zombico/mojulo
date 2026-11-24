@@ -72,9 +72,10 @@ export const CASTLE_BOSSES = Object.freeze({
     phases: Object.freeze([ph({ 'cape-sweep': 2, 'bat-swarm': 2 }, 2.2), ph({ 'cape-sweep': 2, 'bat-swarm': 1, 'blood-wave': 2 }, 1.8, { below: 0.66, temper: 'opportunist' }), ph({ 'blood-wave': 2, 'shadow-lunge': 2, 'bat-swarm': 1, 'cape-sweep': 1 }, 1.3, { below: 0.33, temper: 'relentless' })]),
     // (her SECOND FORM: cut down, she does not fall but tears out of her finery as the beast she is: a mode of her own,
     // its health its blows, taller by its tier, its fight quicker and closer)
-    second: Object.freeze({ title: 'The Lord Unbound', tier: 2.4, blows: 24, reads: 'her true shape: a black predator on two legs, its jaws a tyrant\'s and its tail as long again, a violet line down its spine',
-      moves: Object.freeze({ 'jaw-snap': { pattern: 'cleave', says: 'rears its head back, jaws wide' }, 'tail-charge': { pattern: 'lunge', says: 'lowers its head, its tail stiff behind it' }, 'bat-storm': { pattern: 'toss', says: 'roars; the dark above it splits into bats', look: { tell: { falling: 'swarm' } } }, 'shadow-roar': { pattern: 'toll', says: 'throws its head back and draws breath' } }),
-      phases: Object.freeze([ph({ 'jaw-snap': 2, 'tail-charge': 2, 'bat-storm': 1, 'shadow-roar': 1 }, 1.4, { temper: 'relentless' })]) }) }),
+    // (`over`: its figure's height over its body's, the wings raised above its head: the fit stands the BODY at the tier)
+    second: Object.freeze({ title: 'The Lord Unbound', tier: 2.5, over: 1.45, blows: 24, reads: 'her true shape: a dragon on two legs, horned and spined, its wings crimson skin on bone, gold at its shoulders and arms',
+      moves: Object.freeze({ 'wing-rake': { pattern: 'cleave', says: 'rears up, its wings flung wide' }, 'tail-charge': { pattern: 'lunge', says: 'drops low, its wings folded back along it' }, 'bat-storm': { pattern: 'toss', says: 'beats its wings; the dark above it splits into bats', look: { tell: { falling: 'swarm' } } }, 'shadow-roar': { pattern: 'toll', says: 'throws its horned head back, its wings spread' } }),
+      phases: Object.freeze([ph({ 'wing-rake': 2, 'tail-charge': 2, 'bat-storm': 1, 'shadow-roar': 1 }, 1.4, { temper: 'relentless' })]) }) }),
 });
 export const BOSS_DEFAULT = 'gate-warden';
 
@@ -129,11 +130,15 @@ export const CASTLE_FIGURES = Object.freeze({
     outfit: { type: 'outfit', style: withPieces('noble', [{ kind: 'collar', rise: 0.24, flare: 3 }, cloak('ankle', 0.8, 'base', { depth: 0.16, tongues: 7 })], { drop: ['mantle'] }) },
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
     stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } },
-    // (her second form's: no person at all but a PREDATOR on two legs, the animal door's: a tyrant lizard grown dire and
-    // shadowed (black, a violet line down its spine, pale violet eyes): draconic and grounded, never a fantasy's wings and
-    // runes nor a person's arms; it winds up on its own strike (a crouch, head down, then a spring) and its flinch)
-    second: { animal: { species: 'tRex', ooze: ['dire', 'shadow'], strike: { startup: 30, active: 8, recovery: 22 } },
-      wind: { cleave: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, lunge: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, toss: { wind: ['stagger', 0, 0.5], strike: ['stagger', 0.5, 1] }, toll: { wind: ['stagger', 0, 0.5], strike: ['stagger', 0.5, 1] } } } }),
+    // (her second form's: a DRAGON ON TWO LEGS, the draconic kin at its least human: digitigrade legs, a dragon's head,
+    // horns, a thick spined tail, long claws, a deep hunch; WINGS of crimson skin on bone swept back along it (a side view
+    // sees them whole: the outfit's `wings`), gold at its throat, shoulders and arms, skulls at its hips, the shreds of her
+    // cape at its shoulders. A body on a person's skeleton, so it winds up as the castle's people do)
+    second: { hero: { name: 'The Lord Unbound', cast: { pole: 'female', build: 'lithe' }, head: 'none', tune: { stature: 1.15 },
+      beast: { kin: 'draconic', legs: 'digitigrade', head: 'dragon', tail: 'thick', claws: 'long', ridge: 'spines', hunch: 30, mass: { trunk: 1.2, upperArm: 1.2, foreArm: 1.3, hand: 1.5, thigh: 1.4, shank: 1.2 } },
+      outfit: shroud('unbound-wyrm', [{ kind: 'wings', span: 1.1, rise: 1.0, sweep: 0.75 }, { kind: 'torc' }, { kind: 'armRings' }, { kind: 'harness' }, { kind: 'trophy' }, { kind: 'rags', count: 4, len: 0.45, shoulders: true, colour: '#4a0c16' }],
+        { OutfitSecond: '#3a0e18', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Leather: '#1a1014', OutfitBone: '#e8dcc0', OutfitMetal: '#c9a75a' }),
+      palette: { Skin: '#2a2230', Claws: '#efe4cc', Top: '#2a2230', Bottom: '#221a28', Shoes: '#1a1420' } } } }),
 });
 /** A castle boss's figure as its door is asked for it: a person's with its moves' wind-up and strike clips (boss/looks.js
  * ATTACK_POSES, played by the page as it winds up and strikes); a beast's as it is (its own gaits). */
@@ -181,7 +186,7 @@ function modesOf(G, b, row, { stature, figure, fig2, k, wind = null }) {
   const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...(b.room ? { room: [...b.room] } : {}), ...(wind ? { wind: structuredClone(wind) } : {}) }, S2);
   return [{ figure, hp: row.blows * HERO.blow, title: b.title ?? castleBoss(row.id).name },
     // (its own size: a figure of its own stood at its tier's height by its own bounds, the page's mode fit)
-    { figure: fig2 ?? figure, hp: S2.blows * HERO.blow, title: S2.title, rule: { collideHeight: H2, collideRadius: R2, boss: boss2 }, body: { radius: R2, egg: { a: r3(0.42 * S2.tier), c: r3(H2 / 2), cz: r3(H2 / 2) }, ...(fig2 ? { fit: { least: H2 } } : {}) } }];
+    { figure: fig2 ?? figure, hp: S2.blows * HERO.blow, title: S2.title, rule: { collideHeight: H2, collideRadius: R2, boss: boss2 }, body: { radius: R2, egg: { a: r3(0.42 * S2.tier), c: r3(H2 / 2), cz: r3(H2 / 2) }, ...(fig2 ? { fit: { least: r3(H2 * (S2.over ?? 1)) } } : {}) } }];
 }
 
 /** The box's bosses stood in their rooms. */
