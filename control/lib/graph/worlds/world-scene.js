@@ -2502,6 +2502,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const fx = speedFxConfig(sketch.manifest, { space: isSpace(sketch.manifest) });
     if (fx) payload.speedfx = fx;
   }
+  // a flown craft's sounds (scene/channels/flight-audio.js: the kit by its pilot's rule, sfx-shelf/flight-sounds.js): its
+  // engine, the air, its guns, its hits, its kills, the stall, the landing, the lock; the level's own audio over them (its
+  // cues win), none where it says `audio: false`; a level nothing flies in carries none
+  if (payload && sketch.manifest.kind === 'airspace' && Array.isArray(payload.entities) && !(payload.audio && payload.audio.flight)) {
+    const { flightAudio } = await import('@/lib/graph/scene/channels/flight-audio.js');
+    const fa = flightAudio(payload, sketch.manifest);
+    if (fa) {
+      const A = resolveWorldAudio(fa.spec, { time, ref: sketch.ref });
+      const mix = { ...(payload.audio?.mix ?? A.mix ?? {}), reach: Math.max(payload.audio?.mix?.reach ?? 0, fa.reach) };
+      payload.audio = payload.audio ? { ...payload.audio, flight: A.flight, cues: { ...(A.cues ?? {}), ...(payload.audio.cues ?? {}) }, mix: { distance: true, ...mix } } : { ...A, mix };
+    }
+  }
 
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.

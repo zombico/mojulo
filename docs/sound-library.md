@@ -71,6 +71,12 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   pace, a neigh as the hero is up, a snort at the gallop), and a biocube's field and herds (crows over the site, gnats
   at their clouds, ducks on the stream, mice and roaches by the walls, each herd calling from its ground). Tags:
   `animal`, the class, the call.
+- **A flight's kit** (`sfx-shelf/flight-sounds.js`, recorded from `cards/flight.js`): the trainer's air, wheels, stall
+  warning, touchdowns, crash and ring chime (its engine is the prop's loops above), the arcade fighter's engine at
+  cruise and on boost and its lasers, boost, brake, roll, shield hit and blasts, and the cockpit starfighter's engines
+  at three throttles, its cannon, its shields and its hull hit, the targeting computer's seek and lock, a torpedo, the
+  incoming warning, flares, a fighter past, its blasts and a scrape. Not a flavor: a kit is chosen by how a level is
+  flown, so every flight game hears it. Tag: `flight`.
 - **Vehicles** (`sfx-shelf/vehicle-sounds.js`): each vehicle in the registry
   ([vehicles.md](vehicles.md)) sounds as its kind (realm and role: a road hauler is a diesel with air brakes and a
   reverse beeper) unless it is named for its own (a muscle car's V8, a tram's bell, a bicycle's freewheel): its
