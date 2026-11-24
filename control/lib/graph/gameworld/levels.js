@@ -151,6 +151,7 @@ import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
 import { keyingOfGame } from './keying.js';
+import { lowerSetPiece } from './set-piece.js';
 import { styleMeterOfGame, levelRankOf, vitalsOf, STYLISH } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
@@ -166,6 +167,16 @@ const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxSty
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
 // its keying (keying.js): its bodies drawn on twos or threes in play, on every level; none written, nothing laid
 const keyingOf = (G) => { const K = keyingOfGame(G); return K ? { keying: K.keying } : {}; };
+// A SET PIECE (set-piece.js): a level's run directed in play, laid on its first stage: its chase line and the camera along
+// it, its prompts, the world clock's moments its slowed prompts ask for, its beats as the level's cues. None, the level
+const withSetPiece = (G, stage, M) => {
+  const sp = (stage.index ?? 0) === 0 ? G.levels?.[stage.level]?.setPiece : null;
+  if (!sp) return M;
+  const L = lowerSetPiece(sp);
+  return { ...M, chase: L.chase, prompts: L.prompts, ...(L.tempo ? { tempo: { moments: [...(M.tempo?.moments ?? []), ...L.tempo.moments] } } : {}),
+    ...(L.entities ? { entities: [...(M.entities ?? []), ...L.entities], figures: { ...(M.figures ?? {}), ...(L.figures ?? {}) } } : {}),
+    play: { ...(M.play ?? {}), cues: [...(M.play?.cues ?? []), ...L.cues] } };
+};
 // the style meter (style-meter.js): how well the hero fights, on every level it strikes on; none written, nothing laid
 // the way on (game/hud-mana.js `ways`): a gauntlet whose arenas are walked into (a level's tasks, tasks.js) names the
 // one waiting in its arm var (game/wave-gauntlet.js); the arrow points to its ring
@@ -1258,6 +1269,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
   let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  manifest = withSetPiece(G, stage, manifest);
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js), and
   // a mission's is its own channel's (mission-mana.js)

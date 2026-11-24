@@ -45,6 +45,8 @@ export const STUNT_SET_PIECE = Object.freeze({
     { at: 21.5, id: 'edge', do: [{ shake: 0.5 }, { puff: { at: [21.5, 0, H], is: 'dust' } }] },
     { at: 31, id: 'blast', do: [{ explode: { at: [36, -6, H] } }, { shake: 0.9 }] },
   ],
+  // (two of them behind the hero down the way: the lead frame shows them over its shoulder)
+  pursuers: [{ id: 'pursuer-1', gap: 7 }, { id: 'pursuer-2', gap: 9 }],
   prompts: [
     { at: 22.5, id: 'grab', says: 'Grab', slow: 0.3, then: { say: 'Hold on', as: 'toast' } },
     { at: 62, id: 'climb', kind: 'mash', count: 5, window: 1.2, says: 'Climb' },
@@ -64,7 +66,7 @@ export function stuntRoom(G, { refs = {}, cast = 'male' } = {}) {
   const { faces, colliders } = floorOf({ half: 45, blocks: ROOFS.map(([, [x0, y0, x1, y1, h], fill], k) => ({ id: `roof-${k + 1}`, x: [x0, x1], y: [y0, y1], h, fill, group: 'room:roofs' })) });
   const sp = STUNT_SET_PIECE, L = lowerSetPiece(sp);
   const manifest = {
-    kind: 'controllable', title: `Stunt room · ${G.name ?? G.id ?? 'game'}`, bg: '#1c1a18', faces, colliders, figures, entities: [hero],
+    kind: 'controllable', title: `Stunt room · ${G.name ?? G.id ?? 'game'}`, bg: '#1c1a18', faces, colliders, figures: { ...figures, ...(L.figures ?? {}) }, entities: [hero, ...(L.entities ?? [])],
     camera: { ...P.camera, steer: 'orbit', mouseLook: true }, events: { ...(P.events ?? {}) },
     chase: L.chase, prompts: L.prompts, ...(L.tempo ? { tempo: L.tempo } : {}), play: { cues: L.cues },
   };

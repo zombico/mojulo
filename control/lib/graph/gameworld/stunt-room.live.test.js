@@ -27,7 +27,7 @@ async function play(late) {
     const C = window.__mojCtrl, W = C.world, h = W.byId[W.pilotId];
     const code = { forward: 'KeyW', boost: 'KeyF', jump: 'Space', act: 'KeyE' };
     const key = (k, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code: code[k], key: code[k], bubbles: true }));
-    const out = window.__bot = { keys: [], prompts: [], backs: 0, done: false };
+    const out = window.__bot = { keys: [], prompts: [], backs: 0, done: false, leadSeen: 0, leadFrames: 0 };
     let lastKey = -1, jumpT = 0, actDown = false, n = 0, lastS = 0;
     key('forward', true); key('boost', true);
     (function frame() {
@@ -46,6 +46,13 @@ async function play(late) {
       }
       if (want !== actDown) { key('act', want); actDown = want; }
       if (W.camera.track && W.camera.track.key !== lastKey) { lastKey = W.camera.track.key; out.keys.push(lastKey); }
+      // on the lead key: is the first pursuer behind the hero and inside the frame (35° of the look)
+      const q = W.byId['pursuer-1'];
+      if (q && W.camera.track && W.camera.track.key === 1 && W.chase.s > 10) {
+        const c = W.camera.transform.pos, L = W.camera.lookAt, lv = [L[0] - c[0], L[1] - c[1], L[2] - c[2]], pv = [q.transform.pos[0] - c[0], q.transform.pos[1] - c[1], q.transform.pos[2] + 1 - c[2]];
+        const cos = (lv[0] * pv[0] + lv[1] * pv[1] + lv[2] * pv[2]) / (Math.hypot(...lv) * Math.hypot(...pv));
+        out.leadFrames++; if (cos > Math.cos(35 * Math.PI / 180) && q.transform.pos[0] < h.transform.pos[0]) out.leadSeen++;
+      }
       if (W.chase.on && W.chase.s < lastS - 3) out.backs++;
       if (W.chase.on) lastS = W.chase.s;
     })();
@@ -64,6 +71,8 @@ describe('the stunt room, played', () => {
     expect(got.results).toEqual({ grab: 'hit', climb: 'hit' });
     expect(got.chaseDone).toEqual(['rooftops']);
     expect(got.keys.length).toBeGreaterThanOrEqual(5);   // directed: chase, lead, the low cut, wide, profile, over
+    expect(got.leadFrames).toBeGreaterThan(0);
+    expect(got.leadSeen / got.leadFrames).toBeGreaterThan(0.8);   // the lead frame shows who chases them
   }, 240000);
 
   it('pressed late, Grab is missed and the hero put back before it', async () => {

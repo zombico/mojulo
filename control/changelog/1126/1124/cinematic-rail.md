@@ -38,7 +38,13 @@
   piece on greybox rooftops. A run east under a camera that goes from low behind to ahead looking back, a gap jumped on
   a low cut onto a roof whose edge gives (a slowed Grab), a blast and a shake on a wide frame, a turn north beside the
   hero, a drop onto a lower roof and its lip climbed (a mashed Climb). Played in headless Chrome by a bot: cleared on the
-  windows' middles, put back by a late press. Not yet: a designed game's level does not take a set piece, a collapse
-  needs breakable blocks the room does not lay, and nothing chases the hero yet.
+  windows' middles, put back by a late press. Not yet: a collapse in the room (it lays no breakable things).
+- **A designed game's level takes a set piece** (`levels.<id>.setPiece`, read with the world): laid on its first
+  stage, its line, camera, prompts, moments, pursuers and cues added to the level and the rest of it byte for byte as it
+  was.
+- **Pursuers on the line** (a line's or a set piece's `pursuers`): bodies that run the line behind the hero, held at
+  their gap behind a hero who runs faster than their pace and closing on one who slows; within reach the hero is caught
+  and put back down the line (`chase:<id>:caught`). The stunt room's two show in its lead frame, over the hero's
+  shoulder.
 - **The registry**: the track camera (`space.camera=track`), the set piece (`space.levelDesign=set-piece`) and the
   prompt (`power.mechanics=prompt`) are built; the cinematic action probe asks for the set piece and the prompt.

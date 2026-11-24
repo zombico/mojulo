@@ -171,3 +171,29 @@ describe('a line with its own camera and its marks', () => {
     expect(() => readChase({ lines: [{ ...L, marks: [{ at: -1, id: 'x' }] }] })).toThrow(/marks/);
   });
 });
+
+// THE PURSUERS: bodies run along the line behind the hero, keeping their gap while it runs, catching it when it stops
+describe('the pursuers on a line', () => {
+  const chaser = { id: 'thug', rule: { type: 'static' }, transform: { pos: [-10, 0, 0], heading: 0 }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } };
+  const mk = () => {
+    const w = CW.createWorld({ entities: [{ id: 'h', pilotable: true, rule: { type: 'platform', eye: 0, speed: 6 }, transform: { pos: [0.5, 0, 0], heading: 0 } }, chaser], camera: { rule: 'follow', target: 'h' }, chase: { lines: [{ ...L, path: [[0, 0], [80, 0]], pursuers: [{ id: 'thug', gap: 6, catch: 1.2, back: 10 }] }] } });
+    w.pilotId = 'h';
+    return w;
+  };
+  it('keeps its gap behind a hero who runs, facing down the line', () => {
+    const w = run(mk(), { forward: 1, strafe: 0 }, 240);
+    const gap = w.byId.h.transform.pos[0] - w.byId.thug.transform.pos[0];
+    expect(gap).toBeGreaterThan(4);
+    expect(gap).toBeLessThan(8);
+    expect(Math.cos(w.byId.thug.transform.heading)).toBeGreaterThan(0.99);
+    expect(w.byId.thug.moving).toBe(true);
+  });
+  it('catches a hero who stops: the bus hears it and the hero is put back down the line', () => {
+    const w = run(mk(), { forward: 1, strafe: 0 }, 240), s0 = w.chase.s, events = [];
+    let prev = null;
+    for (let i = 0; i < 180; i++) { CW.stepWorld(w, { forward: 0, strafe: 0 }, DT, FLAT); const f = CW.castFacts(w, prev); prev = f.prev; events.push(...f.events.filter((x) => x.type.startsWith('chase:')).map((x) => x.type)); }
+    expect(events).toContain('chase:roofs:caught');
+    expect(w.chase.s).toBeLessThan(s0 - 5);
+    expect(w.chase.on).toBe('roofs');   // still the line's: run at it again
+  });
+});

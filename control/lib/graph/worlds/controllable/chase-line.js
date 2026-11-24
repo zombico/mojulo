@@ -4,13 +4,17 @@
  * looking back at them, beside them, low behind), so a directed camera can turn round without the controls turning with
  * it. The body is kept inside the line's corridor by a soft wall; it is free across it, and may go back along it.
  *
- *   spec.chase: { lines: [{ id, path: [[x, y], …], half?, when?, marks?, cams? }] }
+ *   spec.chase: { lines: [{ id, path: [[x, y], …], half?, when?, marks?, cams?, pursuers? }] }
  *     path    the way, a polyline on the ground plane (2 to 64 points, metres)
  *     half    the corridor's half width (metres, 2.5): the body is held within it while the line holds it
  *     when    'enter' (the default): the line takes the pilot as it stands inside the corridor, past its start;
  *             'cue': only `chaseStart(state, id)` starts it (a set piece's beat, the bus, the page)
  *     marks   [{ at, id }]: metres along it where the bus hears `chase:<line>:<mark>` as the pilot passes (a set piece's
  *             beats wait on them); passed again after the pilot is put back behind one
+ *     pursuers [{ id, gap?, catch?, pace?, speed?, back? }]: bodies of the level run along the line behind the pilot while it
+ *             holds it, `gap` metres back (7) behind a pilot who runs faster than their `pace` (4.5 m/s), closing on one who
+ *             does not (no faster than `speed`, 9 m/s); within `catch` (1.2) the pilot is caught: the bus hears `chase:<line>:caught` and the pilot is put
+ *             back `back` metres (12) down the line, the pursuers their gap behind it
  *     cams    the track camera's keys [{ s, frame, … }] (below): the camera is directed along the line while it holds the
  *             pilot, and the level's own camera given back, looking down the line, as it ends
  *
@@ -24,7 +28,7 @@
  * the line holds it; its own given back as it ends). A camera rule that reads `camYaw` follows the line too; one that
  * places itself (a set piece's `track`) does not read it. The line ends as the pilot reaches its end, or by name.
  *
- * The bus hears it (castFacts, wrapped): `chase:<id>:start`, `chase:<id>:end`, `chase:<id>:<mark>`.
+ * The bus hears it (castFacts, wrapped): `chase:<id>:start`, `chase:<id>:end`, `chase:<id>:<mark>`, `chase:<id>:caught`.
  *
  *   readChase(raw)  → the spec, read (throws naming what it takes); outside the builder, never emitted
  *
@@ -55,8 +59,15 @@ export function readChase(raw) {
       const marks = L.marks == null ? null : Array.isArray(L.marks) ? L.marks : 'bad';
       if (marks === 'bad' || (marks && !marks.every((m) => m && typeof m.id === 'string' && m.id && Number.isFinite(m.at) && m.at >= 0))) throw new Error(`${at}: marks are [{ at: metres along, id }]`);
       const cams = L.cams == null ? null : readTrackKeys(L.cams, `${at}.cams`);
+      const pursuers = L.pursuers == null ? null : Array.isArray(L.pursuers) ? L.pursuers.map((q, j) => {
+        const w = `${at}.pursuers[${j}]`;
+        if (!q || typeof q.id !== 'string' || !q.id) throw new Error(`${w}: the id of a body the level stands`);
+        for (const [k, lo, hi] of [['gap', 1, 60], ['catch', 0.2, 10], ['pace', 0.5, 30], ['speed', 1, 40], ['back', 0, 200]]) if (q[k] != null && !(Number.isFinite(q[k]) && q[k] >= lo && q[k] <= hi)) throw new Error(`${w}: ${k} is ${lo}–${hi}`);
+        return { id: q.id, ...['gap', 'catch', 'pace', 'speed', 'back'].reduce((o, k) => (q[k] != null ? { ...o, [k]: q[k] } : o), {}) };
+      }) : 'bad';
+      if (pursuers === 'bad') throw new Error(`${at}: pursuers are [{ id, gap?, catch?, pace?, speed?, back? }]`);
       return { id: L.id, path: L.path.map((p) => [p[0], p[1]]), ...(L.half != null ? { half: L.half } : {}), ...(L.when === 'cue' ? { when: 'cue' } : {}),
-        ...(marks && marks.length ? { marks: marks.map((m) => ({ at: m.at, id: m.id })).sort((a, b) => a.at - b.at) } : {}), ...(cams ? { cams } : {}) };
+        ...(marks && marks.length ? { marks: marks.map((m) => ({ at: m.at, id: m.id })).sort((a, b) => a.at - b.at) } : {}), ...(cams ? { cams } : {}), ...(pursuers && pursuers.length ? { pursuers } : {}) };
     }),
   };
 }
@@ -95,7 +106,7 @@ export function buildChaseLine(E) {
       segs.push({ ax, ay, dx, dy, len, s0: s, yaw: Math.atan2(dy, dx) });
       s += len;
     }
-    return { id: L.id, half: L.half || HALF, cue: L.when === 'cue', segs, len: s, marks: Array.isArray(L.marks) ? L.marks : [], cams: Array.isArray(L.cams) && L.cams.length ? L.cams : null, path: L.path };
+    return { id: L.id, half: L.half || HALF, cue: L.when === 'cue', segs, len: s, marks: Array.isArray(L.marks) ? L.marks : [], cams: Array.isArray(L.cams) && L.cams.length ? L.cams : null, path: L.path, pursuers: Array.isArray(L.pursuers) ? L.pursuers : [] };
   }
 
   // where a point stands on a line: metres along, metres across (+ left), the nearest segment; `near` the s the body
@@ -110,6 +121,16 @@ export function buildChaseLine(E) {
       if (!best || cost < best.cost - 1e-9) best = { cost, d, s, i, off: (g.dx * (y - g.ay) - g.dy * (x - g.ax)) / g.len };
     }
     return best;
+  }
+
+  // the point s metres along a line, `off` to its left
+  function pointAt(C, s, off) {
+    const S = C.segs;
+    let i = 0;
+    while (i + 1 < S.length && S[i + 1].s0 <= s) i++;
+    const g = S[i], u = Math.max(0, Math.min(g.len, s - g.s0)) + (s < 0 && i === 0 ? s : 0) + (s > C.len && i === S.length - 1 ? s - C.len : 0);
+    const tx = g.dx / g.len, ty = g.dy / g.len;
+    return [g.ax + tx * u - ty * off, g.ay + ty * u + tx * off];
   }
 
   // the line's heading at s, eased from one segment's to the next over JOINT metres either side of a joint
@@ -128,7 +149,7 @@ export function buildChaseLine(E) {
     const K = spec && spec.chase;
     const lines = (K && Array.isArray(K.lines) ? K.lines : []).filter((L) => L && L.id && Array.isArray(L.path) && L.path.length >= 2).map(compile).filter((C) => C.len > 0);
     if (!lines.length) return;
-    state.chase = { lines, on: null, s: 0, offset: 0, u: 0, done: [], rule: null, cam: null, mk: 0, ev: [] };
+    state.chase = { lines, on: null, s: 0, offset: 0, u: 0, done: [], rule: null, cam: null, mk: 0, pur: null, ps: null, ev: [] };
   });
 
   const lineOf = (K, id) => K.lines.find((C) => C.id === id) || null;
@@ -143,6 +164,8 @@ export function buildChaseLine(E) {
     const cam = state.camera;
     if (C.cams && cam) { K.cam = cam.rule; cam.rule = { type: 'track', target: p.id, path: C.path, keys: C.cams }; cam._tr = null; }
     K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= K.s) K.mk++;
+    K.pur = {}; for (const q of C.pursuers) K.pur[q.id] = { s: K.s - (q.gap || 7), off: 0 };
+    K.ps = K.s;
     K.ev.push('chase:' + C.id + ':start'); if (K.ev.length > 16) K.ev.shift();   // (read by the bus; a page without one drops the oldest)
     return true;
   }
@@ -187,6 +210,7 @@ export function buildChaseLine(E) {
     if (C && state.camera) state.camera.camYaw = yawAt(C, K.s);
     const out = step(state, input, dt, hooks);
     if (C && K.on === C.id) {
+      const pos = p.transform.pos;   // (read again: a rule may have stood the body somewhere new)
       const at = project(C, pos[0], pos[1], K.s);
       // the soft wall: past the corridor's edge, the body is set back on it and its way out of it stopped
       if (Math.abs(at.off) > C.half) {
@@ -199,6 +223,33 @@ export function buildChaseLine(E) {
       while (K.mk > 0 && C.marks[K.mk - 1].at > at.s + 0.5) K.mk--;
       while (K.mk < C.marks.length && C.marks[K.mk].at <= at.s) { K.ev.push('chase:' + C.id + ':' + C.marks[K.mk].id); if (K.ev.length > 16) K.ev.shift(); K.mk++; }
       K.s = at.s; K.offset = at.off; K.u = C.len > 0 ? at.s / C.len : 0;
+      // THE PURSUERS: each runs along the line its gap behind, closing when the pilot slows; within its catch, caught
+      if (C.pursuers.length && dt > 0) {
+        const vh = Math.max(0, (at.s - (K.ps != null ? K.ps : at.s)) / dt);
+        let caught = false;
+        for (const q of C.pursuers) {
+          const e = state.byId[q.id], P = K.pur && K.pur[q.id];
+          if (!e || !P || e.downed || e.gone) continue;
+          // (never slower than its own pace: held to its gap behind a pilot who runs faster, closing on one who does not)
+          const v = Math.min(q.speed || 9, Math.max(q.pace != null ? q.pace : 4.5, vh + 1.6 * (at.s - (q.gap || 7) - P.s)));
+          P.s += v * dt; P.off += (at.off - P.off) * Math.min(1, dt * 2);
+          const xy = pointAt(C, P.s, P.off), z0 = e.transform.pos[2], gz = hooks && hooks.ground ? hooks.ground([xy[0], xy[1], pos[2] + 2]) : null;
+          e.transform.pos = [xy[0], xy[1], gz != null ? gz + ((e.rule && e.rule.eye) || 0) : z0];
+          e.transform.heading = yawAt(C, Math.max(0, P.s));
+          e.moving = v > 0.3; e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + (v * dt) / 2.4;
+          if (at.s - P.s < (q.catch || 1.2)) caught = q;
+        }
+        if (caught) {
+          K.ev.push('chase:' + C.id + ':caught'); if (K.ev.length > 16) K.ev.shift();
+          const back = Math.max(0, at.s - (caught.back != null ? caught.back : 12)), xy = pointAt(C, back, 0);
+          pos[0] = xy[0]; pos[1] = xy[1];
+          if (p.vel) { p.vel[0] = 0; p.vel[1] = 0; }
+          for (const q of C.pursuers) if (K.pur[q.id]) { K.pur[q.id].s = back - (q.gap || 7); K.pur[q.id].off = 0; }
+          K.s = back; K.ps = back; K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= back) K.mk++;
+          return out;
+        }
+      }
+      K.ps = at.s;
       if (at.s >= C.len - 1e-3) end(state, C.id);
     }
     return out;

@@ -11,10 +11,13 @@
  *     prompts: [{ at, id?, kind?, button?, says?, lead?, window?, count?, hold?, dir?, slow?, miss?, hurt?, then? }]
  *              a prompt brought up as the hero passes `at`; `then` the effects of a hit; a miss puts the hero back
  *              `back` metres before it (6), on the line, to run at it again
+ *     pursuers: [{ id?, figure?, gap?, catch?, pace?, speed?, back? }]   who chases the hero down the line (chase-line.js):
+ *              stood behind its start, each the level's figure it names or a stand-in; caught, the hero is put back
  *   }
  *
- *   lowerSetPiece(sp) → { chase, prompts, cues, tempo? }   the level's keys: its chase line (with its marks and its
- *                        camera), its prompts, its cues, and the world clock's moments its slowed prompts ask for
+ *   lowerSetPiece(sp) → { chase, prompts, cues, tempo?, entities?, figures? }   the level's keys: its chase line (with
+ *                        its marks, its camera and its pursuers), its prompts, its cues, the world clock's moments its
+ *                        slowed prompts ask for, and the pursuers' bodies to stand (a stand-in's figure where none is named)
  *   setPieceLaws(sp)  → [{ law, ok, says }]               advice, never a refusal (docs/set-pieces.md):
  *     on the line   every key, beat and prompt stands on it
  *     directed      the camera keyed from the start, in more than one frame
@@ -26,6 +29,7 @@
  */
 import { readChase, readTrackKeys } from '../worlds/controllable/chase-line.js';
 import { readPrompts } from '../worlds/controllable/prompt.js';
+import { dummyFigure } from './practice-room.js';
 
 export const SET_PIECE = Object.freeze({ few: 15, breath: 3, back: 6, pace: 7.2 });
 
@@ -74,7 +78,9 @@ export function lowerSetPiece(raw) {
   const beats = (sp.beats ?? []).map((b, i) => ({ ...b, mark: b.id ?? `beat-${i + 1}` }));
   const prompts = (sp.prompts ?? []).map((p, i) => ({ ...p, pid: promptId(sp, p, i) }));
   const marks = [...beats.map((b) => ({ at: b.at, id: b.mark })), ...prompts.map((p) => ({ at: p.at, id: `prompt-${p.pid}` }))];
-  const line = { id: sp.id, path: sp.line, ...(sp.half != null ? { half: sp.half } : {}), marks, cams: sp.cams.map(({ at, ...k }) => ({ s: at, ...k })) };
+  const chasers = (sp.pursuers ?? []).map((q, i) => ({ ...q, id: q.id ?? `${sp.id}-pursuer-${i + 1}` }));
+  const line = { id: sp.id, path: sp.line, ...(sp.half != null ? { half: sp.half } : {}), marks, cams: sp.cams.map(({ at, ...k }) => ({ s: at, ...k })),
+    ...(chasers.length ? { pursuers: chasers.map(({ figure: _f, ...q }) => q) } : {}) };
   const chase = readChase({ lines: [line] });
   const P = readPrompts(prompts.map((p, i) => {
     const own = promptOf(sp, p, i);
@@ -89,8 +95,17 @@ export function lowerSetPiece(raw) {
     ...prompts.filter((p) => p.then).map((p) => ({ id: `${sp.id}-hit-${p.pid}`, when: { on: `prompt:${p.pid}:hit` }, then: p.then })),
   ];
   const slowed = P.filter((p) => p.slow != null);
+  // the pursuers' bodies, stood behind the line's start, facing down it; a stand-in figure where the set piece names none
+  const y0 = Math.atan2(sp.line[1][1] - sp.line[0][1], sp.line[1][0] - sp.line[0][0]);
+  const entities = chasers.map((q, i) => {
+    const back = (q.gap ?? 7) + i * 1.5, side = (i % 2 ? -1 : 1) * 0.8;
+    return { id: q.id, rule: { type: 'static', eye: 0 }, body: { type: 'figure-rig', figure: q.figure ?? 'set-piece-pursuer', hittable: false },
+      transform: { pos: [r2(sp.line[0][0] - Math.cos(y0) * back - Math.sin(y0) * side), r2(sp.line[0][1] - Math.sin(y0) * back + Math.cos(y0) * side), z], heading: y0 } };
+  });
+  if (chasers.length) cues.push({ id: `${sp.id}-caught`, when: { on: `chase:${sp.id}:caught` }, then: { say: 'Caught', as: 'toast' } });
   return {
     chase, prompts: P, cues,
+    ...(entities.length ? { entities, ...(chasers.some((q) => !q.figure) ? { figures: { 'set-piece-pursuer': dummyFigure('female') } } : {}) } : {}),
     ...(slowed.length ? { tempo: { moments: slowed.map((p) => ({ on: `prompt:${p.id}`, scale: p.slow, hold: r2(p.lead + p.window + 0.4), ramp: 0.12 })) } } : {}),
   };
 }

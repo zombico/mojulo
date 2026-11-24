@@ -47,3 +47,25 @@ describe('a set piece', () => {
     expect(() => lowerSetPiece({ ...roofs, prompts: [{ at: 10, window: 0.2 }] })).toThrow(/fair/);
   });
 });
+
+// A DESIGNED GAME'S LEVEL takes a set piece: laid on its first stage, the rest of the level as it was
+describe('a set piece on a designed game\'s level', () => {
+  it('lays its line, its camera, its prompts, its moments and its cues; a level without one is every byte the same', async () => {
+    const { readGameworld, MEADOWMARK } = await import('./index.js');
+    const { gameStages, stageLevelOrder } = await import('./levels.js');
+    const order = (W) => { const G = readGameworld(W), st = gameStages(W)[0]; return stageLevelOrder(G, st, { ref: 'lv_0', heroRef: 'gw-hero' }).args.manifest; };
+    const first = gameStages(MEADOWMARK)[0].level;
+    const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, [first]: { ...MEADOWMARK.levels[first], setPiece: roofs } } };
+    const plain = order(MEADOWMARK), set = order(W);
+    expect(set.chase.lines[0].id).toBe('roofs');
+    expect(set.prompts.map((p) => p.id)).toEqual(['grab', 'climb']);
+    expect(set.play.cues.slice(-4).map((c) => c.when.on)).toEqual(['chase:roofs:bridge', 'chase:roofs:prompt-grab', 'chase:roofs:prompt-climb', 'prompt:grab:hit']);
+    expect(set.tempo.moments.map((m) => m.on)).toContain('prompt:grab');
+    const { chase: _c, prompts: _p, tempo: _t, play: { cues: _q, ...playRest }, ...rest } = set;
+    const { tempo: _t0, play: { cues: q0 = [], ...playRest0 } = {}, ...rest0 } = plain;
+    expect(JSON.stringify(rest)).toBe(JSON.stringify(rest0));
+    expect(JSON.stringify(playRest)).toBe(JSON.stringify(playRest0));
+    expect(set.play.cues.slice(0, q0.length)).toEqual(q0);
+    expect(() => readGameworld({ ...W, levels: { ...W.levels, [first]: { ...W.levels[first], setPiece: { ...roofs, cams: [] } } } })).toThrow(/levels\..*setPiece: cams/);
+  });
+});
