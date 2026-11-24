@@ -181,9 +181,8 @@ describe('design_game: designed flight levels', () => {
       expect(P.weapon).toMatchObject({ fireClass: 'lob', projectileGravity: 0 });
       expect(M.camera).toMatchObject({ rule: 'cockpit', target: 'player', hideTarget: true, chase: { rule: 'follow' } });
       expect(M.figures.craft.craft.archetype).toBe('strikeFoil');
-      // (flown in, its gear up, followed by the arcade's close chase, rail-stage.js RAIL.camera)
+      // (flown in, its gear up; seen from its cockpit, above, not the arcade's chase)
       expect(M.figures.craft.craft.gear).toBe('up');
-      expect(M.camera).toMatchObject({ rule: 'follow', target: 'player', ...RAIL.camera });
       // its mission: the sortie over its flight groups, the hull its body's; no gates
       expect(kinds).toEqual(['fail-on-death', 'sortie']);
       expect(M.game.mechanics[0]).toEqual({ kind: 'fail-on-death', of: 'body' });
