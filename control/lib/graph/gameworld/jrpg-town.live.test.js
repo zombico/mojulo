@@ -72,10 +72,13 @@ describe('the JRPG starter\'s town on the page', () => {
       const spot = spots.find(clear) ?? spots[0];
       await page.evaluate((a, w) => { const W = window.__mojCtrl.world, me = W.byId[W.pilotId], f = w && W.byId[w]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; if (f) { me.transform.pos[2] = f.transform.pos[2] + 0.4; if (me.vel) me.vel[2] = 0; } }, spot, who ?? null);
       await withinFrames((z) => window.__mojReach === z, 60, id);
-      // (E held until the bus says the cue fired: the runtime reads it once a frame, and software GL under a heavy town
-      // draws a frame a second or slower, so a fixed hold can fall between two frames)
+      // (E held until the bus says the cue fired THIS time: the runtime reads it once a frame, and software GL under a heavy
+      // town draws a frame a second or slower, so a fixed hold can fall between two frames; the log keeps every cue since
+      // the page loaded, so a second use of the same person counts past the first, or E is let go before a frame reads it)
+      const type = id.replace(/^cue-/, 'cue:'), fired = (t) => (window.__mojBus.state.log || []).filter((x) => x && x.type === t).length;
+      const before = await page.evaluate(`(${fired})(${JSON.stringify(type)})`);
       await page.keyboard.down('KeyE');
-      try { await withinFrames((t) => (window.__mojBus.state.log || []).some((x) => x && x.type === t), 60, id.replace(/^cue-/, 'cue:')); }
+      try { await withinFrames((a) => (window.__mojBus.state.log || []).filter((x) => x && x.type === a[0]).length > a[1], 60, [type, before]); }
       finally { await page.keyboard.up('KeyE'); }
     };
     try {
