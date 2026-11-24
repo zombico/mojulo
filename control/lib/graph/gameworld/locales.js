@@ -24,7 +24,11 @@ export const LOCALES = Object.freeze({
     // low city of stucco and concrete, cream and sand and salmon, awnings on its shops, palms along its streets)
     city: Object.freeze({
       hills: Object.freeze({ height: 6 }), fall: Object.freeze({ drop: 12, toward: 's' }),
-      heights: Object.freeze({ frame: Object.freeze({ rail: [2, 6], median: [2, 4] }), outskirts: Object.freeze({ rail: [1, 2], median: [1, 1.5] }) }),
+      // (its downtown a handful of towers among podiums and parking, lower than a lakeshore core's; its frame and
+      // outskirts low and wide)
+      heights: Object.freeze({ core: Object.freeze({ rail: [4, 55], median: [6, 18] }), frame: Object.freeze({ rail: [2, 6], median: [2, 4] }), outskirts: Object.freeze({ rail: [1, 2], median: [1, 1.5] }) }),
+      segments: Object.freeze({ core: Object.freeze({ tower: 1, podium: 4 }) }),
+      lively: Object.freeze({ core: Object.freeze({ parking: 0.12 }) }),
       grammar: Object.freeze({
         from: 'north-american', label: 'Los Angeles',
         skin: { mix: { glass: [0.05, 1, 0], stone: [0.7, 0.3, 0.4], brick: [0, 0, 0.1] },
@@ -80,6 +84,9 @@ export const LOCALES = Object.freeze({
     // and limestone downtown, a few towers; its land in low hills, its drumlins)
     city: Object.freeze({
       hills: Object.freeze({ height: 30 }),
+      // (its downtown a cluster of moderate towers over a low brick city)
+      heights: Object.freeze({ core: Object.freeze({ rail: [5, 45], median: [8, 20] }) }),
+      segments: Object.freeze({ core: Object.freeze({ tower: 2, podium: 3 }) }),
       grammar: Object.freeze({
         from: 'new-york', label: 'Boston',
         facade: { fireEscape: 0.1, kit: [], awning: { p: 0.2, tints: ['#2f4a3a', '#6a2c2c', '#2c3a4c'] }, storefront: 0.5 },

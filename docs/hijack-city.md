@@ -94,14 +94,14 @@ Each row may also carry its CITY (`city`): the district's own geocity settings o
 city's theming brought in. Its `grammar` is a document over one of the legacy metro's Earth flavours
 (`city/city-flavors.js`): the masses' cladding mix and palettes, the towers' share and shapes, the facades'
 affectations (awnings, balconies, fire escapes, rooftop tanks) and the green. Its `hills` and `fall` are the land, and
-its `heights` the storeys by ring.
+its `heights` the storeys by ring, its `segments` its core's towers against its podiums, its `lively` its parking.
 
 | Locale | Its grammar | Its land and heights |
 | --- | --- | --- |
-| `los-angeles` | North American: stucco in cream, sand and salmon, few towers, awnings, fan palms | a basin, nearly flat to its shore; a low frame and outskirts |
+| `los-angeles` | North American: stucco in cream, sand and salmon, awnings, fan palms | a basin, nearly flat to its shore; a downtown of a few towers among podiums and parking, a low frame and outskirts |
 | `miami` | the Gulf's: white render and blue-green glass, slender towers, stacked balconies, coconut palms | flat to the water; a tall core |
 | `san-francisco` | North American: white and grey stone and glass, French balconies | the hill city's own, steep |
-| `boston` | New York's brick and brownstone, without its fire escapes and water tanks; fewer towers | low hills, drumlins |
+| `boston` | New York's brick and brownstone, without its fire escapes and water tanks | low hills, drumlins; a cluster of moderate towers |
 | `toronto` | the metro's own | the metro's own |
 
 A new locale is a row. Night locales wait on the night pass (lamps that light, headlights, bloom at night).
