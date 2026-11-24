@@ -77,7 +77,9 @@ export function landForm(faces, colour, { seed = 1, wetBand = WET_BAND } = {}) {
   const waterZ = water.length ? water[water.length >> 1] : null;
   const tone = toneField(seed), deep = hexToRgb(colour.water).map((v) => byte(v * DEEP_TONE));
   // (the floor's own depth: how far the sand falls under the line, over which it is lost in deep water)
-  const floorZ = waterZ === null ? 0 : Math.min(waterZ, ...faces.filter((f) => clsOf(f.group) === 'sand').flatMap((f) => f.corners.map((c) => c[2])));
+  // (by a loop: a spread of every sand corner overflows the stack on a large land)
+  let floorZ = waterZ === null ? 0 : waterZ;
+  if (waterZ !== null) for (const f of faces) if (clsOf(f.group) === 'sand') for (const c of f.corners) if (c[2] < floorZ) floorZ = c[2];
   const fade = waterZ === null ? DEEP_FADE : Math.max(DEEP_FADE, waterZ - floorZ);
   let unread = 0;
   const out = faces.map((f) => {

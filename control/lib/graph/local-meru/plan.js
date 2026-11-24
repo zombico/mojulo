@@ -88,6 +88,8 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *           as it always was; coarser for a big island, its detail left to the material
  *   scale   the metres the island's shape holds fixed (the high side's rise, the cliff's run, the apron, the beach's sand
  *           height) scaled with an island drawn larger: 1 as it always was
+ *   open    true (opt-in, walk 'none' only): no level apron on the side a trail would land on, the plain's relief and
+ *           its ground all the way round (an assault frame's field: assault-frame/field.js); left out, as it always was
  *   cover   'grass' (the ground as it always was) or 'soil' (geo only: the ground bare soil, `isekai:soil`, and where it
  *           slopes near the angle of repose under raised land, scree, `isekai:scree`)
  */
@@ -155,7 +157,8 @@ function readIsland(v) {
   if (v === undefined || v === false || v === null) return null;
   if (v !== true && (typeof v !== 'object' || Array.isArray(v))) throw new Error('local-meru: island is true or { shore, beach, sea, depth, high }');
   const o = v === true ? {} : v, hi = o.high || {};
-  for (const k of Object.keys(o)) if (!(k in ISLAND)) throw new Error(`local-meru: island.${k} is not a setting (island: ${Object.keys(ISLAND).join(', ')})`);
+  // (`open`, opt-in and never a default, so an island that does not name it reads as it always did)
+  for (const k of Object.keys(o)) if (!(k in ISLAND) && k !== 'open') throw new Error(`local-meru: island.${k} is not a setting (island: ${Object.keys(ISLAND).join(', ')}, open)`);
   for (const k of Object.keys(hi)) if (!(k in ISLAND.high)) throw new Error(`local-meru: island.high.${k} is not a setting (high: ${Object.keys(ISLAND.high).join(', ')})`);
   const I = { ...ISLAND, ...o, high: { ...ISLAND.high, ...hi } };
   const pos = (x, k) => { if (!(typeof x === 'number' && x > 0)) throw new Error(`local-meru: island.${k} must be metres above 0`); };
@@ -170,6 +173,8 @@ function readIsland(v) {
   if (!(typeof I.scale === 'number' && I.scale >= 0.5 && I.scale <= 6)) throw new Error('local-meru: island.scale is how much larger the island is drawn, 0.5 to 6 (its fixed metres scale with it)');
   if (!['grass', 'soil'].includes(I.cover)) throw new Error("local-meru: island.cover is 'grass' (as it always was) or 'soil' (geo only: bare soil, scree on the slopes under raised land)");
   if (!['grid', 'merged'].includes(I.seabed)) throw new Error("local-meru: island.seabed is 'grid' (half-metre quads to the edge) or 'merged' (the flat seabed in large quads)");
+  if (I.open !== undefined && I.open !== true) throw new Error("local-meru: island.open is true (no level apron where a trail would land: the relief all the way round) or left out");
+  if (I.open && I.walk !== 'none') throw new Error("local-meru: island.open is an island nobody walks onto: walk 'none'");
   return I;
 }
 

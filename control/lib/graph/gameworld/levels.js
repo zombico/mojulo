@@ -28,6 +28,7 @@
 import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
 import { frameEntity, frameMounts, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
+import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/field.js';
 import { OPERATION_LEGEND } from './frame-goal.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
@@ -259,6 +260,9 @@ export function gameStages(world) {
     // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's, titled by
     // the level's name (a lesson's, a stage's)
     // manifest, coloured by the level's palette (the world's, or the world's moved by its script) where it has one
+    // (an assault frame's level is fought on a geocube's own land, assault-frame/field.js: pure terrain in the seventh
+    // generation's form render, no trail and no map of the flight's; the frame and its form ride on the stage)
+    if (R.airspace?.frame) { out.push({ level, node: 'field', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, frame: R.airspace.frame, manifest: frameFieldManifest(FRAME_FIELDS[R.airspace.map?.form] ? R.airspace.map.form : 'plain', { world: ((g) => (typeof g === 'string' ? g : g?.from ?? g?.id ?? 'mars'))(R.airspace.ground?.geocube) }) }); continue; }
     if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
     const laid = layLevel(R.level);
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
@@ -427,15 +431,25 @@ export function airspaceEnds(manifest) {
   // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
   const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(rail ? rail.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
     .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
-  // AN ASSAULT FRAME (airspace.frame, assault-frame/): stood on the ground at the south of its field facing north, the
-  // field its bound; the frame's own gravity; its operation's groups placed by shares of the field (frame-goal.js)
-  const frameAt = manifest.frame ? (() => {
-    const h = Math.min(map.rings.field.hx, map.rings.field.hy), half = Math.round(h * 0.82), x = 0, y = -Math.round(half * 0.55);
-    return { half, spawn: [x, y, field.groundAt(x, y)], heading: Math.PI / 2, bound: [-half, -half, half, half], gravity: FRAME_WORLD.gravity, build: manifest.frame.build ?? 'vanguard', palette: manifest.frame.palette ?? 'federation' };
-  })() : null;
-  if (frameAt) { out.spawn = frameAt.spawn.slice(); out.heading = frameAt.heading; out.exit = [0, frameAt.half * 0.8, field.groundAt(0, frameAt.half * 0.8)]; out.exitFrom = 'the field\'s far side'; }
-  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, cockpit: manifest.cockpit === true, frame: frameAt, airframe: manifest.airframe ?? null, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, cockpit: manifest.cockpit === true, airframe: manifest.airframe ?? null, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);
+  return out;
+}
+
+/** A frame's field's anchors (assault-frame/field.js): the frame stood south of the field's middle facing north on the
+ * land's own ground, the field its bound, its exit the far side; the field's height its ground (as the page lays it).
+ * Drawn once per manifest. */
+const FIELD_ENDS = new Map();
+export function frameFieldEnds(stage) {
+  const key = JSON.stringify([stage.manifest, stage.frame]);
+  if (FIELD_ENDS.has(key)) return FIELD_ENDS.get(key);
+  if (FIELD_ENDS.size > 8) FIELD_ENDS.clear();
+  const F = frameField(stage.manifest.cube), [cx, cy] = F.centre, half = F.half, g = (x, y) => r3(F.heightAt(x, y));
+  const x = cx, y = r3(cy - half * 0.55), ex = cx, ey = r3(cy + half * 0.8);
+  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation' };
+  const out = { spawn: frame.spawn.slice(), heading: frame.heading, exit: [ex, ey, g(ex, ey)], exitFrom: 'the field\'s far side', planar: false, beats: [], hazards: [] };
+  for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  FIELD_ENDS.set(key, out);
   return out;
 }
 
@@ -939,7 +953,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   }
   if (stage.section === 'building' && stage.mission) return buildingMissionOrder(G, stage, { ref, heroRef, heroGaits, pilot, title, gunnerRef });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, heroStature, pilot, mechanics, title, sheathRef, heldRefs, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, legend, story, carryFrom, party, castFigures, audio: stage.section === 'interior' ? null : audio });
-  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
+  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? (stage.frame && stage.manifest.kind === 'geocube' ? frameFieldEnds(stage) : airspaceEnds(stage.manifest)) : stage.section === 'runner' ? runnerEnds() : stage.section === 'obstacles' ? obstacleEnds(stage.manifest) : stage.section === 'mission' ? missionEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
   const concerns = concernIds(cubeOfWorld(G).cube);
@@ -1021,7 +1035,19 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // moments it is kept at; the game's shell holds it and hands it back on a continue
   if (ways?.save) game.save = ways.save;
   let pilotPart, seatable = false;
-  if (stage.section === 'airspace') {
+  if (stage.section === 'airspace' && !ends.airMap) {
+    // AN ASSAULT FRAME (airspace.frame, assault-frame/, the frame rule) on its field (a geocube's land,
+    // assault-frame/field.js): not a craft at all but a mech stood on the ground: the mouse turns and aims it, it walks,
+    // boosts, quick-boosts and climbs on its thrusters, its four guns on their own triggers; followed from behind and over
+    // its shoulder, the chase pitched with its aim
+    const F = ends.frame, fig = `frame-${typeof F.build === 'string' ? F.build : 'own'}`;
+    const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build) });
+    pilotPart = {
+      figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0],
+      camera: { rule: 'follow', target: 'player', ...FRAME_CAMERA },
+      events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
+    };
+  } else if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
     // gives, the map's reach its bound, seated on the departure threshold (a craft with no engine launched aloft, high
     // enough to glide to the first gate), followed from behind by a chase camera that banks with it
@@ -1045,18 +1071,6 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       const frame = pilotPart.figures?.craft?.craft?.archetype, e0 = starfighterPilot(ends.airMap, pilotPart.entities[0], { airframe: frame });
       pilotPart = { ...pilotPart, entities: [e0, ...pilotPart.entities.slice(1)], camera: cockpitCamera(e0, pilotPart.camera, frame) };
       pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `mouse  fly · A / D  roll · W / S  throttle · click  lasers · Space  warhead · R  nearest foe · T  next target · C  cockpit / chase${legend ? ` · ${legend}` : ''}` }).events || {};
-    }
-    // AN ASSAULT FRAME (airspace.frame, assault-frame/, the frame rule): not a craft at all but a mech stood on the ground:
-    // the mouse turns and aims it, it walks, boosts, quick-boosts and climbs on its thrusters, its four guns on their own
-    // triggers; followed from behind and over its shoulder, the chase pitched with its aim
-    if (ends.frame) {
-      const F = ends.frame, fig = `frame-${typeof F.build === 'string' ? F.build : 'own'}`;
-      const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build) });
-      pilotPart = {
-        figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0],
-        camera: { rule: 'follow', target: 'player', ...FRAME_CAMERA },
-        events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
-      };
     }
     if (ride?.transformer) {
       // A FLIER THAT TRANSFORMS (quick.transformer): seated as the craft is, in its vehicle form on the seat's rule, its

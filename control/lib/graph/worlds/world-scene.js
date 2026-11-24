@@ -1106,7 +1106,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
     // (the flight sky's cumulus over the land on a clear, fair or hazy day, skyscape/sky.js groundCumulus: its weather's,
     // else the one the sky reads, fair where the stage painted clouds and clear where it painted none; channels/sky-cumulus.js)
-    if (read && payload.form.land.sky) {
+    // (none under a sky of its own heavens, a Sol world's, sol/geocubes.js: an airless one, or Mars's thin air, grows no
+    // heaped water cloud)
+    if (read && payload.form.land.sky && !cube.light?.heavens) {
       const { groundCumulus } = await import('@/lib/graph/skyscape/sky.js');
       const painted = Array.isArray(payload.faces) && payload.faces.some((f) => f && f.group === 'isekai:cloud');
       const cu = groundCumulus(payload.form.land.clouds ?? { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 });

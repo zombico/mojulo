@@ -47,14 +47,30 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     the way as it is hit, climbs and fires while it holds its lock.
   - Its scheme is `frame` (`controls/schemes.js`). Its HUD (`scene/channels/controllable/frame-hud.js`) shows the
     reticle and the lock box, EN, AP and speed, and the four weapons where they sit on the frame.
-- **The frame level** (an airspace level's `frame`, `gameworld/frame-goal.js`). The frame is stood at the south of a
-  field on Mars's ground, the Sol shelf's `mars` geocube. The level is fought for its operation:
+- **The frame level** (an airspace level's `frame`, `gameworld/frame-goal.js`). The frame is stood at the south of its
+  field facing north. The level is fought for its operation:
   - groups of the ground force's turrets, tanks and walkers at a frame's scale, and enemy frames;
   - tasks on the objectives mechanic: a group destroyed, a waypoint reached, a hold.
   - The frame's armour is its life.
+- **The field** (`assault-frame/field.js`). A frame's level is fought on the Sol shelf's `mars` geocube's own land, drawn
+  in the seventh generation's form render: pure terrain, with no trail (the frame has its radar) and no blocking.
+  - It is the geocube's island specimen widened to a mech's field: its shore some 600 m out with the rim raised all the
+    way round, a mesa and a rise for its tiers, a painted landscape for its ground, a craggy or eroded relief, the
+    geology's rock and scree on everything raised. An operation's map names its form: `plain` (broad country round a
+    mesa) or `basin` (a crater's floor under a high rim).
+  - Its height is read without building a face (`local-meru/scene.js` `localMeruHeight`). The frame, every foe and
+    every waypoint stand on it, and the frame keeps to a square inside the shore.
+  - It is drawn under the cube's own heavens and its air thinned for a field a kilometre wide.
+  - An island's new opt-in `open` (walk `'none'` only) drops the level apron where a trail would land, so the relief
+    runs all the way round. An island that does not name it reads as it always did.
+  - A played geocube land takes only its own words from the page (`era/geocube.js` `GEOCUBE_KEYS`), as the geotown
+    and the side map do.
+  - Fixed on the way: a land as wide as a field overflowed the stack reading its lowest sand (`form/land-form.js`,
+    `form/land-read.js`); the walked land's ground cumulus is left out under a Sol world's heavens.
 - **Mars's sky** (`sol/skies.js` `THIN_SKIES`, an airspace's `sky: { world: 'mars' }`): a world with ground and a
   little air under its own weather: a butterscotch sky paling to a dusty horizon, a small dim sun, thin ice cloud
-  high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck.
+  high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck: a flight over
+  Mars, where a frame's field is under its cube's heavens.
 - **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is three operations:
   - Landfall at Tharsis: a gun line, then a tank column;
   - Red Dust: a pass held by walkers, then a guard frame;

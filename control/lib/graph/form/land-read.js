@@ -180,7 +180,10 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // the sand under the line, corner by corner, as form/land-form.js fades it into the deep water's colour: every sand
   // face, the ones the line crosses too, so the sand meets its shallows without a step at a face's edge
   const sandZ = P.faces.flatMap((f, i) => (L.faces[i].cls === 'sand' ? f.corners.map((c) => c[2]) : []));
-  const FADE = L.waterZ === null ? DEEP_FADE : Math.max(DEEP_FADE, L.waterZ - Math.min(L.waterZ, ...sandZ)), sandBase = hexRgb(bases.sand);
+  // (the sand's lowest by a loop: a spread of a large land's sand overflows the stack)
+  let sandLow = L.waterZ;
+  if (L.waterZ !== null) for (const z of sandZ) if (z < sandLow) sandLow = z;
+  const FADE = L.waterZ === null ? DEEP_FADE : Math.max(DEEP_FADE, L.waterZ - sandLow), sandBase = hexRgb(bases.sand);
   const underAt = (z) => { const lost = Math.min(1, Math.max(0, (L.waterZ - z) / FADE)) ** 2; return sandBase.map((v, c) => Math.round(v * UNDER_TONE * (1 - lost) + L.deep[c] * lost)); };
 
   // faces ordered by their material (a class, wet or dry), triangulated as fans, each corner carrying both halves' colours

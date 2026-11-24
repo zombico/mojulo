@@ -78,9 +78,10 @@ export function readOperation(v, at = 'goal.operation') {
   return { groups, tasks, ...(v.time ? { time: v.time } : {}) };
 }
 
-// the field's half-size, and a share of it as a place on the ground
+// the field's half-size, and a share of it as a place on the ground (round the field's middle: a geocube's land is
+// not laid about the origin, assault-frame/field.js)
 const halfOf = (ends) => ends.frame?.half ?? 600;
-const placeOf = (ends, s) => { const h = halfOf(ends); return [r2(s[0] * h), r2(s[1] * h)]; };
+const placeOf = (ends, s) => { const h = halfOf(ends), [cx, cy] = ends.frame?.centre ?? [0, 0]; return [r2(cx + s[0] * h), r2(cy + s[1] * h)]; };
 // a group's members: spread round its place by the field's dice, seeded by its id
 function membersOf(g, ends) {
   let seed = 2166136261;

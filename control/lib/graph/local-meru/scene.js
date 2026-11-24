@@ -119,13 +119,15 @@ function groundOf(p, seed, bare = false) {
   const lump = (x, y) => 0.35 * (vnoise(x * 0.09, y * 0.09, seed + 311) - 0.5);
   const R = p.recipe.relief, relief = R ? reliefOn(p, R, seed) : null;
   const terrain = p.recipe.ground && !bare ? groundOn(p, seed) : null;
+  // (an open island, island.open: no trail lands on it, so no level apron where one would: the relief all the way round)
+  const open = p.recipe.island?.open === true && !site;
   return (x, y) => {
     const along = (x - p.join.at[0]) * N[0] + (y - p.join.at[1]) * N[1];
     if (along < -0.01 && site) return site.ground(x, D);
     const plain = relief ? lump(x, y) + relief.plain(x, y) : lump(x, y);
-    const level = z0 + (terrain ? plain + terrain(x, y) : plain) * smooth(0, SEAM, y - D);
-    let h = site ? site.ground(x, D) + (level - site.ground(x, D)) * smooth(0, SEAM, y - D) : level;
-    if (relief?.flank) { const f = relief.flank(x, y) * smooth(0, SEAM, y - D); for (const t of mounds) h = Math.max(h, moundAt(t, x, y) + f); }
+    const seam = open ? 1 : smooth(0, SEAM, y - D), level = z0 + (terrain ? plain + terrain(x, y) : plain) * seam;
+    let h = site ? site.ground(x, D) + (level - site.ground(x, D)) * seam : level;
+    if (relief?.flank) { const f = relief.flank(x, y) * seam; for (const t of mounds) h = Math.max(h, moundAt(t, x, y) + f); }
     else for (const t of mounds) h = Math.max(h, moundAt(t, x, y));
     for (const L of stairs) { const z = stairAt(L, x, y); if (z !== null && z < h) h = Math.max(z - 0.02, p.tiers.find((t) => t.id === L.tier).base); }
     return h;
@@ -391,6 +393,21 @@ function groundRoute(route, heightAt) {
 export const SPAWN_CLEAR = 0.1;
 /** How broken a gen-7 island's rock is when its style says nothing grittier (the grit the broken land reads). */
 export const FORM_GRIT = 0.6;
+
+/** The island's ground height alone, as assembleLocalMeruScene lays it (its plan, its island, its geology), with none of its
+ *  faces built: (x, y) → z in metres, and the island's middle and its shore's reach. A level that places things on an
+ *  island's land (gameworld/frame-goal.js) reads its heights here without building the land. Null without an island. */
+export function localMeruHeight(manifest = {}) {
+  const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;
+  if (!st) throw new Error(`stage: meru: unknown isekai style '${manifest.style}'`);
+  const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1, M = manifest.meru === true ? {} : manifest.meru;
+  const after = M.after ? { kit: st.id, seed, ...M.after } : null, p = planLocalMeru({ ...M, after });
+  const S = p.recipe.island ? islandOf(p, p.recipe.island, Math.atan2(-p.join.N[0], p.join.N[1])) : null;
+  if (!S) return null;
+  const shore = islandGround(groundOf(p, seed), S);
+  if (S.geology) S.geo = islandGeology(st, S, shore, seed, p.recipe.ground ? islandGround(groundOf(p, seed, true), S) : shore);
+  return { heightAt: S.geo ? S.geo.ground : shore, centre: p.tiers[0].centre.slice(0, 2), island: S };
+}
 
 export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const st = ISEKAI_STYLES[manifest.style || 'isekai-meadow'] ?? lookOf(manifest.style)?.card;

@@ -481,6 +481,8 @@ const no = (msg) => { throw new Error(`geocube: ${msg}`); };
 // (and `figureGrade`: the grade its bodies are baked at, figures/figure-grades.js: a level played on the place asks for
 // the play grade, as every other level does; and `farFigures`: its bodies drawn coarse far off, worlds/world-scene.js)
 const LEVEL_KEYS = Object.freeze(['events', 'audio', 'mission', 'game', 'parked', 'figureGrade', 'screen', 'radar', 'farFigures']);
+/** The geocube kind's own words (its specimens' and a level's on them); a played land (world-kinds.js) is handed only these. */
+export const GEOCUBE_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', 'grade', 'crowns', 'grass', 'hats', ...LEVEL_KEYS]);
 const pageCamera = (c) => !!c && typeof c === 'object' && typeof c.rule === 'string';
 // a relief checked where the cube names it: its own words, said as the cube's
 const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
@@ -1470,7 +1472,7 @@ function withTownCameras(payload, site) {
     cam('trail', [te[0], te[1], gz(te) + 1.7], [tk[0], tk[1], gz(tk) + 0.4], 75), ...payload.cameras];
 }
 export function assembleGeocubeScene(manifest, ctx, assemble) {
-  for (const k of Object.keys(manifest)) if (!['kind', 'cube', 'show', 'title', 'walk', 'hour', 'clouds', 'weather', 'seed', 'domain', 'style', 'biocube', 'path', 'trail', 'camera', 'cone', 'air', 'sea', 'words', 'brief', 'shadows', 'occlusion', 'light', 'solid', 'hall', 'buildings', 'wet', 'figures', 'entities', 'skandart', 'fxStyle', 'tallGrass', 'parallax', 'density', 'farGrass', 'floods', 'grade', 'crowns', 'grass', 'hats', ...LEVEL_KEYS].includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid; the frame's grade); build a level on a cube with a stage recipe's geocube`);
+  for (const k of Object.keys(manifest)) if (!GEOCUBE_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind (cube, show, hour, clouds, weather, seed, domain, style, biocube, path, trail, camera, cone, air, sea, words, hall, skandart, tallGrass; the page's live light: shadows, occlusion, light; its ground's parallax; its pixel density; solid; the frame's grade); build a level on a cube with a stage recipe's geocube`);
   // (a stealth land's tall grass, form/tall-grass.js: patches, each a middle and a radius)
   // (its floodlights, a gen-7 land's: scene/channels/form-floods.js)
   if (manifest.floods !== undefined) { try { readFloods(manifest.floods); } catch (e) { no(e.message.replace(/^floods: /, 'floods: ')); } }

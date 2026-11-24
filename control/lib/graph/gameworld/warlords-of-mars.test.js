@@ -5,6 +5,7 @@ import { readGameworld } from './world.js';
 import { runSteps } from './runner.js';
 import { composeGameworld } from './compose.js';
 import { pitchStart } from './pitch-start.js';
+import { frameField } from '../assault-frame/field.js';
 import { nearestRails } from './rails.js';
 
 // WARLORDS OF MARS (warlords-of-mars.js): an assault frame's operations on Mars, on the level path Wolf Squadron and Rebel
@@ -36,6 +37,16 @@ describe('Warlords of Mars', () => {
     expect(foes.length).toBe(op.groups.reduce((a, g) => a + g.count, 0));
     expect(foes.filter((e) => e.dormant).length).toBe(op.groups.filter((g) => op.tasks.slice(1).some((t) => t.down?.includes(g.id))).reduce((a, g) => a + g.count, 0));
     expect(m.game.mechanics.map((x) => x.kind)).toEqual(expect.arrayContaining(['objectives', 'fail-on-death']));
+    // (fought on Mars's own land in the seventh generation, assault-frame/field.js: pure terrain, no trail, no flight map;
+    // the frame and every foe stood on the land's height, inside the field's bound)
+    expect(m).toMatchObject({ kind: 'geocube', show: 'land', cube: { from: 'mars', era: 'gen-7', outside: { island: { walk: 'none', open: true } } } });
+    expect(m.map).toBeUndefined();
+    const F = frameField(m.cube), [x0, y0, x1, y1] = P.rule.bound;
+    for (const e of [P, ...foes]) {
+      const [x, y, z] = e.transform.pos;
+      expect(Math.abs(z - F.heightAt(x, y))).toBeLessThan(0.01);
+      expect(x >= x0 && x <= x1 && y >= y0 && y <= y1).toBe(true);
+    }
   });
 
   it('an operation\'s tasks lower onto the objectives: its downs as clears of their groups, a reach on the ground', () => {
