@@ -241,7 +241,7 @@ A cube that names no domains offers one per terrain and one per interior.
   crown reaches a building (`room`); its border is bare. Read in the seventh generation its lawns grow the form's mown
   grass, its trees grow as form (their litter round their feet), its hedges, beds, planters and foundation plantings
   are the plant library's bushes and shrubs (`pattern.houseplants`), no trail's rubble or patches. `pattern` a block pattern (`bay-and-gable`, a
-  Toronto Annex; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `profile` its streets
+  Toronto Annex; `old-town`; `west-coast`, stucco ranches under palms; `tropical`, a pastel coast; `{ from, …changes }`), `hills` the land (`{ height, span }` or false), `profile` its streets
   laid as a hill town lays them (`true` or `{ walkable, curve }`: its crossings level, each block graded on one ramp, a
   stretch past `walkable` said too steep to walk by the `walkable` law; a street's stairs are its buildings' front steps), `slope` THIS CLIMBS (`{ toward: n | e | s | w, grade }` the land
   rising toward a side over its hills, the houses' pads with it; `streets: { 'ns-1': 0.12 }` each named street, one
@@ -266,8 +266,8 @@ A cube that names no domains offers one per terrain and one per interior.
   cars in its car parks; its parking blocks each a yard (`yards`: a bus depot, a works yard with
   its garbage trucks and works pickups, an emergency station with its fire engines, ambulances and police cars, the rest
   car parks); a vacant block by its construction sites their contractor's yard of mixers, tippers and loaders. `geocity: { metro?, extent?, water?, core?, fall?, hills?, heights?, green?,
-  streets?, segments?, roads?, grammar?, outskirts?, industry?, highways?, waterfront?, evoke?, at?, along?, play?, profile?, slope? }`: `industry` its
-  industrial neighbourhoods (`false` none, or `{ share, segments: { works, warehouse, storage, tanks }, block: [least,
+  streets?, segments?, roads?, grammar?, outskirts?, industry?, highways?, waterfront?, evoke?, at?, along?, play?, profile?, slope? }`: `outskirts` the
+  pattern its suburbs are in, out to its edge (`west-coast`, `tropical`); `industry` its industrial neighbourhoods (`false` none, or `{ share, segments: { works, warehouse, storage, tanks }, block: [least,
   most] }`: a share of the outskirts' neighbourhoods, its land's edge and its shore first; big blocks: a works' corrugated
   hall and its stack, a clad warehouse's docks and trucks, container stacks and silos, a tank farm's tanks, gas spheres or
   a gasholder, and in each a substation of outdoor transformers, gantries and breakers, fed by a line on lattice pylons

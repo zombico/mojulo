@@ -179,6 +179,10 @@ const EYE_FALLBACK = 1.7;
 const HERO_EYE = 1.6;
 // the ¾ overhead camera: north up the screen, 60° below the horizon, far enough back to read a trail's next turn
 // the flags slice a world's breaks are kept in (the aftermath mechanic)
+// (a town's or a district's sky words, carried from its style onto its geocube: world.js skyOfStyle; its hour first, as
+// it always was, so a level that names no other word is the manifest it was)
+const skyWords = (R) => { const { spec, cube, enter, ...sky } = R; return sky; };
+
 export const AFTERMATH_SLICE = 'aftermath';
 const OVERHEAD = Object.freeze({ yaw: Math.PI / 2, tilt: Math.PI / 3, dist: 14, lookH: 1 });
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -215,10 +219,10 @@ export function gameStages(world) {
     // a side map level is one stage: the map on its cube (side-map/scene.js), laid for the hero its level order makes
     if (R.sidemap) { out.push({ level, node: 'map', section: 'sidemap', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'sidemap', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, sidemap: R.sidemap } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
-    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
+    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...skyWords(R.geocity) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
-      out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...(R.geotown.hour !== undefined ? { hour: R.geotown.hour } : {}), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
+      out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...skyWords(R.geotown), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
       // (its houses entered at their doors, each a level of its own after the town, linked by its door)
       const st = out[out.length - 1];
       (stageEnds(st.manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `town-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'town', index: 0, door: d.id }, building: { use: d.inside.use }, manifest: inPalette(interiorStage(d.inside), R.style?.palette ?? G.style?.palette, `${level}/town-${d.id}`) }));

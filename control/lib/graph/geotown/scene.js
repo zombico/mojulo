@@ -1094,8 +1094,11 @@ export function assembleGeotownScene(m, ctx = {}) {
   // (read by the seventh generation: the trees the form grows, form/flora-read.js, each its species at the form's own
   // height for it, its first limbs past two people's heights; held to its room by the form's own crown, a tree without
   // room not planted, again until every crown has its room)
+  // (the form grows the trees and the conifers; a palm or a culm, a west coast's or a tropical pattern's, is pooled as on
+  // a painted page, below)
+  const formGrown = (sp) => SPECIES[sp].kind === 'tree' || SPECIES[sp].kind === 'conifer';
   if (form) {
-    let all = Object.keys(items).sort().flatMap((sp) => items[sp].map((it) => ({ sp, it })));
+    let all = Object.keys(items).filter(formGrown).sort().flatMap((sp) => items[sp].map((it) => ({ sp, it })));
     const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => ({ x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp })), bushes: [], shrubs: [], ...(CR ? { ...CR, apart: false } : {}) });
     for (let pass = 0; pass < 5; pass++) {
       const sizes = treeSizes(plantsOf(all)), keep = all.filter((e, i) => roomAt(e.it.x, e.it.y) - TREE_GAP >= sizes[i].r);
@@ -1108,7 +1111,7 @@ export function assembleGeotownScene(m, ctx = {}) {
     // (the ground the trunks and the yard's things claim: no grass there)
     plants.clear = [...plants.trees.map((t) => [t.x, t.y, 0.6]), ...claims];
   }
-  for (const sp of form ? [] : Object.keys(items).sort()) {
+  for (const sp of Object.keys(items).filter((sp) => !form || !formGrown(sp)).sort()) {
     const pool = plantPool({ species: sp, variants: 2, seed: `geotown::${sp}`, light: LIGHT, maxLevel: 'L2', group: `geotown:tree-${sp}`, clear: TREE_RAISE });
     const reach = Math.max(...pool.variants.map((v) => { const T = v.levels?.L1 ?? []; let r = 0, h = 0; for (const f of T) for (const c of f.corners) { r = Math.max(r, Math.hypot(c[0], c[1])); h = Math.max(h, c[2]); } return h > 0 ? r / h : 0.5; }));
     pools[sp] = pool;
@@ -1126,7 +1129,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   for (const sp of Object.keys(kept).sort()) {
     if (!kept[sp].length) continue;
     for (const it of kept[sp]) growth[it.on] = (growth[it.on] ?? 0) + 1;
-    if (form) continue;
+    if (form && formGrown(sp)) continue;
     const pool = pools[sp];
     const placed = plantRepeats(pool, kept[sp].map(({ on, ...it }) => it), { eyes, level: 'L2', budget: Math.round((TREE_FACES * kept[sp].length) / all), sink: 0.05 });
     treeFaces += placed.stats.drawnFaces;

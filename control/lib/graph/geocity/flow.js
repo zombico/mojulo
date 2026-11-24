@@ -18,6 +18,10 @@
  *                 coordinate ascending), `kinds` each { model, extra?, len, wid }, `cars` each [lane, kind, tint,
  *                 startFrac]; the streetcars' lanes kept to them
  *   flowLaws(F)   → [{ law, ok, value }]: every lane holds its vehicles, the clearance covers the widest box
+ *   FLOW_LOD      (a geocity under the view cone, scene.js) how far a vehicle is drawn as its model (`full`, m); past it
+ *                 to the flow's reach, as its OUTLINE: its model's own heights in `bins` along its length (a bonnet, a
+ *                 cabin, a boot; a cab and its box), its glass the top `glass` of each bin its trim has windows in, its
+ *                 tyres a band under its body (scene/channels/flow.js, built on the page from the pooled template itself)
  *
  * Metres, the design's frame. Pure; seeded dice only.
  */
@@ -27,6 +31,7 @@ import { carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf } from './fleets.js';
 import { HIGHWAY } from './highways.js';
 
+export const FLOW_LOD = Object.freeze({ full: 110, bins: 5, glass: 0.4 });
 const r2 = (v) => Math.round(v * 100) / 100 + 0, r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
 export const FLOW = Object.freeze({
   // the model's numbers in metres (traffic-model.js TRAFFIC is in the old city's units): a green long enough for a

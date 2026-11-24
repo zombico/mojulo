@@ -3,7 +3,9 @@
 import { execFileSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
 import { emitThreeWorld } from '../scene-three.js';
-import { readFlow, flowChannelScript, laneBlocks, stepFlowYielding } from './flow.js';
+import { readFlow, flowChannelScript, laneBlocks, stepFlowYielding, outlineOf, outlineFaces } from './flow.js';
+import { FLOW_LOD } from '../../geocity/flow.js';
+import { carModel } from '../../geotown/cars.js';
 import { TRAFFIC, buildSignals, pairLanes, createTrafficModel, stepTraffic, trafficTick } from './traffic-model.js';
 
 const quad = (z, hex, s = 1) => ({ corners: [[-s, -s, z], [s, -s, z], [s, s, z], [-s, s, z]], normal: [0, 0, 1], fill: hex });
@@ -41,6 +43,42 @@ describe('the flow channel', () => {
     expect(bare).not.toContain('stepFlow');
     expect(bare).not.toContain('__POOLS');
     expect(emitThreeWorld({ faces: [floor], flow })).not.toContain('stepFlow');
+  });
+});
+
+describe('the flow far off (lod: a vehicle past its full reach drawn as its outline)', () => {
+  // a model's corners as the page's pooled template holds them, flat [x, y, z, …] (each face a fan)
+  const flat = (faces) => faces.flatMap((f) => f.corners.flat());
+  it('cuts a car\'s outline from its own heights, its glass where its model has windows', () => {
+    const M = carModel('familySedan'), O = outlineOf(flat(M.paint), flat(M.trim), FLOW_LOD), n = FLOW_LOD.bins, mid = n >> 1;
+    expect(O.heights).toHaveLength(n);
+    // (the roof over the bonnet and the boot, the cabin glazed and the bonnet not)
+    expect(O.heights[mid]).toBeGreaterThan(O.heights[0] + 0.25);
+    expect(O.heights[mid]).toBeGreaterThan(O.heights[n - 1] + 0.25);
+    expect(O.glass[mid]).toBe(true);
+    expect(O.glass[n - 1]).toBe(false);
+    expect(O.y1 - O.y0).toBeCloseTo(M.L, 0);
+    // (with no trim to say where its windows are, the nose's bin alone)
+    const box = [[-1, -2, 0.4], [1, 2, 0.4], [-1, -2, 2], [1, 2, 2]].flat();
+    expect(outlineOf(box, null, FLOW_LOD).glass.map((g, j) => (g ? j : -1)).filter((j) => j >= 0)).toEqual([n - 1]);
+  });
+
+  it('is a few dozen triangles where the model has hundreds, toned as the model\'s faces are', () => {
+    const M = carModel('familySedan'), [pos, col] = outlineFaces(outlineOf(flat(M.paint), flat(M.trim), FLOW_LOD), FLOW_LOD);
+    const tris = pos.length / 9;
+    expect(tris).toBeLessThanOrEqual(120);
+    expect(tris * 10).toBeLessThan(M.paint.length + M.trim.length);
+    expect(col.length).toBe(pos.length);
+    expect(Math.max(...col)).toBeLessThanOrEqual(1);
+  });
+
+  it('adds not one byte without lod; with it the page carries the outlines and parses', () => {
+    expect(flowChannelScript({ ...flow, lod: undefined })).toBe(flowChannelScript(flow));
+    const src = flowChannelScript({ ...flow, lod: FLOW_LOD });
+    for (const s of ['__flOutline', 'function outlineOf', 'function outlineFaces', '__flFull2']) expect(src).toContain(s);
+    expect(flowChannelScript(flow)).not.toContain('__flOutline');
+    const html = emitThreeWorld({ faces: [floor], repeats: pools, flow: { ...flow, lod: FLOW_LOD }, capture: true });
+    expect(parses(html)).toBe(null);
   });
 });
 

@@ -6,6 +6,7 @@ import { pitchStart } from './pitch-start.js';
 import { readGameworld } from './world.js';
 import { nearestRails, railOf, railSheet, laidGenre } from './rails.js';
 import { suggestGenres } from './intent.js';
+import { gameStages } from './levels.js';
 
 describe('Hijack City', () => {
   it('its starter is a gameworld the book reads: a district, a contact\'s missions, the law and the shops', () => {
@@ -35,5 +36,26 @@ describe('Hijack City', () => {
     expect(railOf('hijack-city').name).toBe(HIJACK_CITY);
     expect(laidGenre('open-city-crime')).toBe(true);
     expect(railSheet('hijack-city').starts).toBe('open-city-crime');
+  });
+
+  it('asks its district for its sky, its air, its finish and its view cone, carried as its hour is; a style that names none adds nothing', () => {
+    const W = hijackCityWorld(), m = gameStages(readGameworld(W))[0].manifest;
+    expect(m).toMatchObject({ kind: 'geocube', show: 'geocity', clouds: W.style.clouds, air: W.style.air, cone: W.style.cone, light: { finish: W.style.finish } });
+    const { clouds: _c, air: _a, finish: _f, cone: _k, ...bare } = W.style;
+    const m0 = gameStages(readGameworld({ ...W, style: { ...bare, hour: 'dusk' } }))[0].manifest;
+    for (const k of ['clouds', 'air', 'cone', 'light']) expect(m0[k], k).toBeUndefined();
+    expect(Object.keys(m0).slice(-1)).toEqual(['hour']);
+    // (each word read by its own reader: a bad one refused, named)
+    expect(() => readGameworld({ ...W, style: { ...W.style, clouds: 'drizzly' } })).toThrow(/style\.clouds/);
+    expect(() => readGameworld({ ...W, style: { ...W.style, air: 'smog' } })).toThrow(/style\.air/);
+    expect(() => readGameworld({ ...W, style: { ...W.style, finish: { glow: 1 } } })).toThrow(/style\.finish/);
+  });
+
+  it('its district\'s outskirts read in a register a person names: the West Coast\'s unless named, a tropical coast\'s by one word', () => {
+    expect(Object.values(hijackCityWorld().levels)[0].geocity.outskirts).toBe('west-coast');
+    const W = hijackCityWorld({ register: 'tropical' });
+    expect(Object.values(W.levels)[0].geocity.outskirts).toBe('tropical');
+    expect(() => readGameworld(W)).not.toThrow();
+    expect(() => readGameworld(hijackCityWorld({ register: 'prairie' }))).toThrow(/outskirts/);
   });
 });

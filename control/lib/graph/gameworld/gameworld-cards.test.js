@@ -71,6 +71,8 @@ describe('the rail\'s cards', () => {
     // (2026-11-09: gameworld-world 5248 → 5376: a glyph map's water and its ways' ranks, and its style's geocube, two lines)
     // (2026-11-15, 1115-geocity-refinements: gameworld-world 5376 → 5760: a level that is a district of a metro, the
     // geocity level, two lines; the card stood a few bytes under its ceiling before)
+    // (2026-11-24, 1124-geocity-refinement: gameworld-world 5760 → 6016: a town's or a district's sky words in the style,
+    // clouds, air, finish and cone, carried as its hour is, four short entries; 5888 bytes with them)
     // the feel card too (2026-11-09, 1109-gen-bodywork merging 1108-practice-room: the two lines' feel words met, 4157
     // bytes)
     // and again (2026-11-10, 1110-practice-room-slice: the arsenal, its kits and its edits, three lines; 4082
@@ -103,7 +105,7 @@ describe('the rail\'s cards', () => {
     // gameworld-next 5504 → 5632, the `front` move, one line; 5417 bytes before, 5540 with it; gameworld-interface
     // 4736 → 4864 the same day: the start screen's ground graphic, a picture the creator brings its `background`, one
     // line, the character or the picture, never both: 4838 bytes)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 5888, 'gameworld-next': 5632, 'gameworld-interface': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 6016, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 5888, 'gameworld-next': 5632, 'gameworld-interface': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

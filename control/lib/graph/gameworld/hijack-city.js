@@ -12,9 +12,10 @@
  *
  *   HIJACK_CITY            the rail's name and the starter's title (a person's game takes its own)
  *   HIJACK_DISTRICT        the district's geocity: the metro it is cut from, its rings, its water, where it stands
- *   hijackCityWorld({ name?, seed? }) → the starter gameworld: a hero, the district, four story missions for one
- *                          contact (the last the end), a repeated fare, two crews, the law, the shops, the look, sound
- *                          and music. A plain value: the same words give the same world
+ *   hijackCityWorld({ name?, seed?, register? }) → the starter gameworld: a hero, the district (its outskirts'
+ *                          pattern `register`'s, the West Coast's unless named), four story missions for one contact
+ *                          (the last the end), a repeated fare, two crews, the law, the shops, the look, sound and
+ *                          music. A plain value: the same words give the same world
  *   hijackCityStart(world) → null | { world, says }: a locked pitch from the rail with no level yet, laid with the
  *                          starter under it; every key the creator wrote wins (gameworld/pitch-start.js)
  *   HIJACK_GROWS           the words the starter is grown by, each a key of the gameworld: what a person changes first
@@ -25,11 +26,15 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export const HIJACK_CITY = 'Hijack City';
 
-/** The district a Hijack City is played in: a neighbourhood near a lakeshore metro's core, water on its south. */
+/** The district a Hijack City is played in: a neighbourhood near a lakeshore metro's core, water on its south, its
+ *  outskirts a West Coast tract. */
 export const HIJACK_DISTRICT = Object.freeze({
   metro: Object.freeze({ from: 'lakeshore', rings: Object.freeze({ core: 350, frame: 700 }) }),
   extent: Object.freeze([1800, 1500]), water: Object.freeze({ sides: Object.freeze(['s']), depth: 200 }), core: Object.freeze([0.5, 0.2]),
   evoke: 'neighbourhood', at: 'B4', shops: true,
+  // (its outskirts' register: a West Coast tract of stucco ranches under palms, geotown/pattern.js; the downtown the
+  // metro's own)
+  outskirts: 'west-coast',
 });
 
 // the contact's jobs, told as missions: a first errand, one with heat, one against the clock, the end
@@ -44,7 +49,7 @@ const MISSIONS = Object.freeze([
 export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
-  levels: 'the district: another metro (`geocity.metro.from`), its size, its water, another district beside it',
+  levels: 'the district: its outskirts\' register (`geocity.outskirts`: west-coast, tropical, bay-and-gable, old-town), another metro (`geocity.metro.from`), its size, its water, another district beside it',
   errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
@@ -53,12 +58,17 @@ export const HIJACK_GROWS = Object.freeze({
   music: 'the score: walking, the chase, the tension',
 });
 
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2 } = {}) {
-  const district = JSON.parse(JSON.stringify(HIJACK_DISTRICT));
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, register = null } = {}) {
+  // (`register`: its outskirts' pattern, geotown/pattern.js PATTERNS: 'tropical' for a coast, 'bay-and-gable' for a
+  // northeastern streetcar suburb; the West Coast tract unless named)
+  const district = { ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), ...(register ? { outskirts: register } : {}) };
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
-    // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page)
-    style: { kit: 'trail-valley', geocube: { from: 'valley-morning', era: 'gen-7' } },
+    // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair
+    // sky, a haze thick enough that the far blocks pale a kilometre off, the finish over the bake (one tone curve, the
+    // sky in the glass, the lamps' bloom) and the view cone, so the street's kit, its trees and its traffic are drawn as
+    // far as they read)
+    style: { kit: 'trail-valley', geocube: { from: 'valley-morning', era: 'gen-7' }, clouds: 'fair', air: { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
     characters: {
       direction: { tradition: 'western' },
       hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold', 'athletic'] }, actions: { idiom: 'city-stalker-like' } },

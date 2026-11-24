@@ -27,7 +27,7 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 
 | The word | What it makes | Where it lives |
 | --- | --- | --- |
-| `levels.<id>.geocity` | a district of a metro: streets, traffic, parked cars to take, passers-by who flee and fall | [geocity/](../control/lib/graph/geocity/) |
+| `levels.<id>.geocity` | a district of a metro: streets, traffic, parked cars to take, passers-by who flee and fall; its suburbs a West Coast tract (`outskirts`) | [geocity/](../control/lib/graph/geocity/) |
 | `errands[].mission` | a contact's jobs told as missions: `heat` (stars as the goods are had), `clean` (lose them first), `time`, `final` (the end) | [mission-mechanics.js](../control/lib/graph/game/mission-mechanics.js) |
 | `law` | the wanted level: mayhem raises stars, police on foot and in cars, armed from a star, busted and fined | [law.js](../control/lib/graph/gameworld/law.js), [law-mechanics.js](../control/lib/graph/game/law-mechanics.js) |
 | (laid with the law) | the street's health, wasted and the bill | [vitals-mechanics.js](../control/lib/graph/game/vitals-mechanics.js) |
@@ -47,7 +47,9 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
 
 - **name**: the game's own title (the rail's name is ours; the game's is theirs).
 - **characters**: the hero (create_character words: body, clothes, how it moves).
-- **levels**: another metro (`geocity.metro.from`), its size, its water, a second district beside the first.
+- **levels**: its suburbs' register (`geocity.outskirts`: `west-coast` by default, `tropical`, `bay-and-gable`,
+  `old-town`; `hijackCityWorld({ register })`), another metro (`geocity.metro.from`), its size, its water, a second
+  district beside the first.
 - **errands**: the story (the contact, the missions and their heat, clocks and the end), the side work.
 - **factions**: the crews, their turf and colours, their boards of work.
 - **law**: how many stars, police per star, cars, the star they come armed from, the fine.
@@ -61,6 +63,12 @@ Hijack City is built in the seventh generation by default (`style.geocube.era: '
 land, the actors' live shadows, the buildings' baked light and relief near the eye, tone mapping and contact occlusion.
 Its frame is held to what it shows: passers-by drawn where they are seen and one draw each, the occlusion's prepass to
 its reach, a town's lawn blades near the eye only, one reading of each dressed tile. `gen-6` is the lighter page.
+
+Its style asks the district for its sky as it asks for its hour (`world.js` `skyOfStyle`, carried onto the geocube):
+`clouds: 'fair'`, an `air` of haze that pales the far blocks a kilometre off, the `finish` (one tone curve, the sky in
+the glass, the lamps' bloom) and the view `cone`. Under the cone the street's kit is drawn as far as it reads, and
+traffic past 110 m is drawn as each vehicle's outline, cut on the page from its own model
+(`scene/channels/flow.js`, `FLOW_LOD`).
 
 ## What it does not do yet
 

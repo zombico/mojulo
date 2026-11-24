@@ -207,6 +207,10 @@ import { CAMERAS } from './cameras.js';
 import { readMechanics } from './mechanics.js';
 import { readWeather } from '../weather/weather.js';
 import { readHour } from '../era/geocube-hours.js';
+import { readClouds } from '../matte-paint/sky.js';
+import { readAtmosphere } from '../scene/channels/atmosphere.js';
+import { readCone } from '../scene/channels/view-cone.js';
+import { readFinish } from '../scene/page-light.js';
 import { readGeocube, cubeStreetLook } from '../era/geocube.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
@@ -258,6 +262,11 @@ export const WORLD_STYLE = Object.freeze({
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
   domain: 'or one of the cube\'s levels (its domains)',
   hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
+  // (a town's and a district's: the geocube's own words for its sky, its air, its finish and its view cone, carried as its hour is)
+  clouds: 'a town\'s or a district\'s clouds: fair, overcast, storm…',
+  air: 'its air: haze, mist, fog',
+  finish: 'its finish: true (tone, sky in glass, bloom)',
+  cone: 'its view cone: true or a reach (m)',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
@@ -348,6 +357,14 @@ const group = (k, v, at) => {
   for (const g of Object.keys(v)) if (!GROUPS[k].includes(g)) throw new Error(`gameworld: ${at}.${g} is not a ${k} setting a world hands down (${GROUPS[k].join(', ')})`);
   return { ...v };
 };
+// the words a town's or a district's geocube takes from its level's style: its hour, its clouds, its air, its finish (the
+// manifest's `light.finish`) and its view cone; a word the style leaves out is not carried (an absent one adds nothing)
+export function skyOfStyle(style) {
+  const out = {};
+  for (const k of ['hour', 'clouds', 'air', 'cone']) if (style[k] !== undefined) out[k] = style[k];
+  if (style.finish !== undefined) out.light = { finish: style.finish };
+  return out;
+}
 // a style (the world's or a level's)
 function readStyle(s, at) {
   if (s === undefined) return {};
@@ -365,6 +382,10 @@ function readStyle(s, at) {
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
     else if (k === 'hour') { try { readHour(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } out.hour = v; }
+    else if (k === 'clouds' || k === 'air' || k === 'finish' || k === 'cone') {
+      try { k === 'clouds' ? readClouds(v) : k === 'air' ? readAtmosphere(v) : k === 'finish' ? readFinish({ finish: v }) : readCone(v); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^(light\.finish|clouds|air|cone)\b:?\s*/, `${k}: `)}`); }
+      out[k] = v;
+    }
     else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
@@ -1108,14 +1129,14 @@ export function resolveLevel(world, id) {
   // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
   if (L.geocity) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geocity: { spec: { ...L.geocity }, cube, ...skyOfStyle(style) } };
   }
   // a geotown level: the town on the level's geocube (a morning valley unless the style names one), read in the seventh
   // generation unless the cube names its era (a town walked is drawn as form); the style's hour its light
   if (L.geotown) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
     const { enter = GEOTOWN_ENTER, ...spec } = L.geotown;
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...(style.hour !== undefined ? { hour: style.hour } : {}) } };
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, geotown: { spec, cube, enter, ...skyOfStyle(style) } };
   }
   // an industrial level: its yard's words and its mission's, its seed the level's unless the mission names one
   if (L.industrial !== undefined) { const spec = readMission(L.mission ?? true, 'mission'); return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, industrial: { I: readIndustrial(L.industrial, `levels.${id}.industrial`), spec, seed: spec.seed ?? (seed >>> 0) } }; }

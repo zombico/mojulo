@@ -66,7 +66,7 @@ import { frontageTemplates, frontsOf, wallsOf, shopBays, shopRise, FRONTAGE, FAC
 import { SLOT, slotOf, storeSlot, tenantOf } from '../retail/store-slot.js';
 import { parkCar, carRepeats, carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf, YARDS } from './fleets.js';
-import { flowOf, flowLaws } from './flow.js';
+import { flowOf, flowLaws, FLOW_LOD } from './flow.js';
 import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISHES, finishOf } from './industry.js';
 import { INDUSTRY_SEGMENTS } from './segments.js';
 import { HIGHWAY, deckAt } from './highways.js';
@@ -75,6 +75,8 @@ import { rooftopTemplates, rooftopPlan, beaconsOf, BEACON } from './rooftop.js';
 import { assembleGeotownScene, coloursOf as townColoursOf } from '../geotown/scene.js';
 import { readCrowns } from '../form/flora-read.js';
 import { PATTERNS } from '../geotown/pattern.js';
+import { outskirtsLook, OUTSKIRTS_LOOK } from './register.js';
+import { SPECIES } from '../vegetation/species.js';
 import { rowYards, shopYards, residentsLot, blockPark, schoolPitch, volunteers } from './backs.js';
 import { drawnGround, settleStamps, settleTrees, SETTLE } from './settle.js';
 import { materialContext, wordTile, MATERIAL_WORD_IDS } from '../era/arch-style.js';
@@ -112,10 +114,10 @@ const SECTION = readSection('passage');
 // the cells streets and grounds are draped on the land in (m), a kerb's height, a sidewalk round a block, a terrace's
 // most step to the next
 const CELL = 40, KERB = 0.15, WALK = 2.4, STEP = 1.2;
-// an outskirts house: a semi pair's frontage, the gap between pairs, its depth, its front yard; a storey; a shop's depth
-const PAIR = 13.6, GAP = 1.4, HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
-// (a house is a house: a semi pair stands this many storeys at most, whatever its corridor lifts the block's others to)
-const HOUSE_MOST = 3;
+// an outskirts house: its depth, its front yard; a storey; a shop's depth (a house's frontage, the gap between houses and
+// the most storeys it stands are its register's, register.js: a house is a house, whatever its corridor lifts the
+// block's others to)
+const HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
 // the skyline's ground cells (m); what it draws of a neighbourhood (its tall buildings); what a block at detail wears
 // facades on (the core's and the frame's: an outskirts block keeps its massing until it is a geotown's)
 // the street's kit: drawn within NEAR metres of the camera (the page's near repeats), a lamp every LAMP metres along a
@@ -195,9 +197,9 @@ const FINISHES = Object.freeze({
 const IND_GROUND = Object.freeze({ works: ['geocity:yard', '#a29f97'], warehouse: ['geocity:yard', '#a29f97'], storage: ['geocity:yard', '#a29f97'], tanks: ['geocity:bund', '#938e82'], substation: ['geocity:switchyard', '#8f8a7f'] });
 // a glass tower's sheen: the specular channel's strength and power (scene/channels/specular.js)
 const GLASS_SPEC = Object.freeze([0.55, 48]);
-// street trees: a pit's stride along a close-built arterial, a verge's along an outskirts street, their species, the
-// height they are grown to (m), the detail their template keeps and its faces' budget
-const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'cherry'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
+// street trees: a pit's stride along a close-built arterial, a verge's along an outskirts street (their species the
+// register's, register.js), the height they are grown to (m), the detail their template keeps and its faces' budget
+const TREE = Object.freeze({ pit: 12, verge: 11, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -218,9 +220,9 @@ const cuts = (a, b, step) => { const n = Math.max(1, Math.ceil((b - a) / step - 
 // a parked car's paint as an instance's tint (linear rgb over its pale body): geotown/yards.js CAR_PAINTS
 const linC = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 16) / 255; return Math.round((c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
 const CAR_TINTS = Object.freeze(['#8a2a2a', '#2a3f6a', '#d8d6d0', '#3a3d42', '#6a6f75', '#2f5a3a', '#c9b48a'].map(linC));
-const HOUSE_BRICK = Object.freeze(['#a3563f', '#b5654a', '#9c4b36', '#c9a57a', '#d2c3a8', '#8c5a44']);
-const SHOP_FRONT = Object.freeze(['#8a3a2e', '#3e5e3a', '#24405e', '#6e5a3a', '#7a2e4a']);
-const ROOFS = Object.freeze(['#4a4f55', '#5b4a3f', '#3f4448', '#6a5a4c']);
+// (the streetcar suburb's: register.js OUTSKIRTS_LOOK; a metro's outskirts read by its own register, OUT, the frame's
+// mid-rises and a yard's station by these)
+const HOUSE_BRICK = OUTSKIRTS_LOOK.walls, ROOFS = OUTSKIRTS_LOOK.roofs;
 
 // A SITE's machines off the construction shelf (construction-shelf/), lowered under the city's light once a process for
 // each light: the tower crane at a height (its mast's sections), an excavator digging, a tipper waiting. Their recipes
@@ -272,13 +274,18 @@ export function assembleGeocityScene(m, ctx = {}) {
   if (m.flow !== undefined && typeof m.flow !== 'boolean') no('flow is true or false: the traffic on its arterials (on unless false)');
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
   const cube = readGeocube(m.cube), seed = m.seed ?? 1, d = designGeocity(m.geocity ?? {}, { seed }), G = d.grammar, S = d.land.S;
+  // (its outskirts' REGISTER, register.js: how its outskirts pattern's neighbourhoods read as massing, their houses'
+  // form, their walls, roofs and shopfronts, their street trees and the words they are finished in; a card that says
+  // none reads as the streetcar suburb always has)
+  const OUT = outskirtsLook(PATTERNS[d.metro.outskirts] ?? PATTERNS['bay-and-gable']);
+  const FINISHED = Object.keys(OUT.finishes).length ? { ...FINISHES, ...Object.fromEntries(Object.entries(OUT.finishes).map(([g, w]) => [g, [w, 'wall']])) } : FINISHES;
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
   const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air, night = lit.night;
   // (the finishes in the cube's material context, each a tile; geotown/scene.js finishesOf)
   const MX = materialContext(cube), FIN = {};
   // (one tile a word, seeded by the word: every group that wears a brick wears the same brick, drawn and shipped once)
-  Object.entries(FINISHES).forEach(([group, [word, as]]) => { const T = wordTile(word, MX, 211 + 17 * MATERIAL_WORD_IDS.indexOf(word)); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
+  Object.entries(FINISHED).forEach(([group, [word, as]]) => { const T = wordTile(word, MX, 211 + 17 * MATERIAL_WORD_IDS.indexOf(word)); if (T) FIN[group] = { spec: T.spec, metres: T.metres, ...(as === 'floor' ? { floor: true } : {}) }; });
   const col = coloursOf(cube), faces = [], counts = { towers: 0, buildings: 0, houses: 0, panes: 0, detailed: 0 };
   // the analytic hull (worlds/controllable/core.js resolveBlocking, an engine's static boxes, the route audit): a box
   // round every mass a walker can reach, `of` its block and its group; `holder` the block being built at block scale
@@ -336,7 +343,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
   const trees = new Map();
   const plant = (where, x, y, z, key, h = null) => {
-    const R = streamOf(seed, 'trees', key), list = TREE.species[where], sp = list[Math.floor(R() * list.length)];
+    const R = streamOf(seed, 'trees', key), list = OUT.trees[where], sp = list[Math.floor(R() * list.length)];
     if (!trees.has(sp)) trees.set(sp, []);
     const height = TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R();
     trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(h ?? height) });
@@ -527,6 +534,25 @@ export function assembleGeocityScene(m, ctx = {}) {
       put([[x0, y0, z0], [x0, y1, z0], [x0, y1, ze], [x0, y0, ze]], group, wall, [-1, 0, 0]); put([[x0, y0, ze], [x0, y1, ze], [x0, ym, zr]], group, wall, [-1, 0, 0]);
       put([[x1, y0, z0], [x1, y1, z0], [x1, y1, ze], [x1, y0, ze]], group, wall, [1, 0, 0]); put([[x1, y0, ze], [x1, y1, ze], [x1, ym, zr]], group, wall, [1, 0, 0]);
       put([[x0, y0, ze], [x1, y0, ze], [x1, ym, zr], [x0, ym, zr]], `${group}:roof`, roof); put([[x0, y1, ze], [x1, y1, ze], [x1, ym, zr], [x0, ym, zr]], `${group}:roof`, roof);
+    }
+    counts.buildings++;
+  };
+  // a mass under a low HIP (the outskirts' register's, register.js): its walls to the eave all round, its roof four
+  // slopes to a ridge along its longer side, a hip at each end
+  const hip = (x0, y0, x1, y1, z0, ze, zr, wall, roof, group) => {
+    shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, ze, zr, group);
+    hold(x0, y0, x1, y1, z0, zr, `${holder}:${group.slice(8)}`);
+    put([[x0, y0, z0], [x1, y0, z0], [x1, y0, ze], [x0, y0, ze]], group, wall, [0, -1, 0]); put([[x1, y0, z0], [x1, y1, z0], [x1, y1, ze], [x1, y0, ze]], group, wall, [1, 0, 0]);
+    put([[x1, y1, z0], [x0, y1, z0], [x0, y1, ze], [x1, y1, ze]], group, wall, [0, 1, 0]); put([[x0, y1, z0], [x0, y0, z0], [x0, y0, ze], [x0, y1, ze]], group, wall, [-1, 0, 0]);
+    const R = `${group}:roof`, xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
+    if (Math.abs(x1 - x0) >= Math.abs(y1 - y0)) {
+      const r = Math.abs(y1 - y0) / 2, a = Math.min(x0, x1) + r, b = Math.max(x0, x1) - r;
+      put([[x0, y0, ze], [x1, y0, ze], [b, ym, zr], [a, ym, zr]], R, roof); put([[x1, y1, ze], [x0, y1, ze], [a, ym, zr], [b, ym, zr]], R, roof);
+      put([[x0, y1, ze], [x0, y0, ze], [a, ym, zr]], R, roof); put([[x1, y0, ze], [x1, y1, ze], [b, ym, zr]], R, roof);
+    } else {
+      const r = Math.abs(x1 - x0) / 2, a = Math.min(y0, y1) + r, b = Math.max(y0, y1) - r;
+      put([[x0, y0, ze], [x0, y1, ze], [xm, b, zr], [xm, a, zr]], R, roof); put([[x1, y1, ze], [x1, y0, ze], [xm, a, zr], [xm, b, zr]], R, roof);
+      put([[x0, y0, ze], [x1, y0, ze], [xm, a, zr]], R, roof); put([[x1, y1, ze], [x0, y1, ze], [xm, b, zr]], R, roof);
     }
     counts.buildings++;
   };
@@ -834,7 +860,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       const pads = new Map(T.design.plots.map((pl) => [pl.id, pl.pad]));
       for (const sf of T.design.surfaces.filter((x) => x.cls === 'house' && x.plot)) {
         const q = sf.rect, z = (pads.get(sf.plot) ?? T.field((q[0] + q[2]) / 2, (q[1] + q[3]) / 2));
-        box(ox + q[0], oy + q[1], ox + q[2], oy + q[3], z, z + 8, HOUSE_BRICK[strHash(sf.plot) % HOUSE_BRICK.length], ROOFS[0], 'geocity:low');
+        box(ox + q[0], oy + q[1], ox + q[2], oy + q[3], z, z + OUT.house.far, OUT.walls[strHash(sf.plot) % OUT.walls.length], OUT.roofs[0], 'geocity:low');
       }
       return;
     }
@@ -861,7 +887,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       const pads = new Map(T.design.plots.map((pl) => [pl.id, pl.pad]));
       for (const sf of T.design.surfaces.filter((x) => x.cls === 'house' && x.plot && x.block === T.block)) {
         const r0 = sf.rect, z = pads.get(sf.plot) ?? T.field((r0[0] + r0[2]) / 2, (r0[1] + r0[3]) / 2);
-        box(r0[0] + dx, r0[1] + dy, r0[2] + dx, r0[3] + dy, z, z + 8, HOUSE_BRICK[strHash(sf.plot) % HOUSE_BRICK.length], ROOFS[0], 'geocity:low');
+        box(r0[0] + dx, r0[1] + dy, r0[2] + dx, r0[3] + dy, z, z + OUT.house.far, OUT.walls[strHash(sf.plot) % OUT.walls.length], OUT.roofs[0], 'geocity:low');
       }
       return;
     }
@@ -899,7 +925,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       if (TALL.includes(b.kind) || b.kind === 'construction' || INDUSTRY_SEGMENTS.includes(b.kind)) { building(b, { x0, y0, x1, y1, longY, zAt: () => z, Rb: streamOf(seed, 'scene', b.id), far: true }); continue; }
       if (b.kind === 'parking' || b.kind === 'vacant') continue;
       // the low fabric as the skyline sees it: a flat mass along each long side, at the block's storeys
-      const dp = Math.min(HOUSE_D + SETBACK, (longY ? x1 - x0 : y1 - y0) / 2 - 3), zt = z + Math.max(1, b.storeys.median) * STOREY + 1.5, hex = mix(HOUSE_BRICK[strHash(b.id) % HOUSE_BRICK.length], col.road, 0.25);
+      const dp = Math.min(HOUSE_D + SETBACK, (longY ? x1 - x0 : y1 - y0) / 2 - 3), zt = z + Math.max(1, b.storeys.median) * STOREY + 1.5, hex = mix(OUT.walls[strHash(b.id) % OUT.walls.length], col.road, 0.25);
       if (dp < 6) continue;
       for (const q of longY ? [[x0 + SETBACK, y0 + 2, x0 + dp, y1 - 2], [x1 - dp, y0 + 2, x1 - SETBACK, y1 - 2]] : [[x0 + 2, y0 + SETBACK, x1 - 2, y0 + dp], [x0 + 2, y1 - dp, x1 - 2, y1 - SETBACK]]) box(q[0], q[1], q[2], q[3], z, zt, hex, ROOFS[0], 'geocity:low');
     }
@@ -1481,7 +1507,7 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   /** An outskirts block: two rows along its long sides, each the row its segment puts on that side. */
   function outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps = [] }) {
-    const sides = longY ? ['w', 'e'] : ['s', 'n'], med = Math.max(1, Math.round(b.storeys.median)), brickOf = () => HOUSE_BRICK[Math.floor(Rb() * HOUSE_BRICK.length)];
+    const sides = longY ? ['w', 'e'] : ['s', 'n'], med = Math.max(1, Math.round(b.storeys.median)), brickOf = () => OUT.walls[Math.floor(Rb() * OUT.walls.length)];
     const along = longY ? [y0, y1] : [x0, x1], deep = longY ? x1 - x0 : y1 - y0;
     // a row's frame: `u` along the block from its start, `v` into it from its side's edge
     const at = (s, u, v) => (s === 'w' ? [x0 + v, along[0] + u] : s === 'e' ? [x1 - v, along[0] + u] : s === 's' ? [along[0] + u, y0 + v] : [along[0] + u, y1 - v]);
@@ -1490,15 +1516,18 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (what each row leaves behind it, for the back lands: a row of houses' plots and back wall, a row of shops' bays)
     const rows = [];
     const houses = (s, u0, u1) => {
-      const len = u1 - u0, n = Math.max(1, Math.floor((len + GAP) / (PAIR + GAP))), f = (len - (n - 1) * GAP) / n, dpt = Math.min(HOUSE_D, deep / 2 - SETBACK - 4);
+      const PAIR = OUT.house.pair, GAP = OUT.house.gap, len = u1 - u0, n = Math.max(1, Math.floor((len + GAP) / (PAIR + GAP))), f = (len - (n - 1) * GAP) / n, dpt = Math.min(HOUSE_D, deep / 2 - SETBACK - 4);
       if (dpt < 6) return;
       // (each house of a pair its own plot, half the pair and half the gap beside it)
       rows.push({ s, kind: 'houses', v0: SETBACK + dpt, plots: Array.from({ length: n }, (_, k) => { const a = u0 + k * (f + GAP), m = a + f / 2; return [[k ? a - GAP / 2 : u0, m], [m, k + 1 < n ? a + f + GAP / 2 : u1]]; }).flat() });
       for (let k = 0; k < n; k++) {
         const u = u0 + k * (f + GAP), q = rectOf(s, u, u + f, SETBACK, SETBACK + dpt), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
-        const st = Math.max(1, Math.min(b.storeys.rail[1], HOUSE_MOST, med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0))), ze = z0 + st * STOREY, zr = ze + Math.min(4.5, 0.32 * f);
-        // the gable to the street: its ridge runs into the block
-        gable(q[0], q[1], q[2], q[3], z0, ze, zr, longY ? 'x' : 'y', brickOf(), ROOFS[Math.floor(Rb() * ROOFS.length)], 'geocity:house');
+        const st = Math.max(1, Math.min(b.storeys.rail[1], OUT.house.most, med + (Rb() < 0.3 ? 1 : 0) - (Rb() < 0.2 ? 1 : 0))), ze = z0 + st * STOREY, zr = ze + Math.min(4.5, OUT.house.pitch * f);
+        // the gable to the street, its ridge into the block; or the register's low hip, or its flat roof behind a parapet
+        const wallHex = brickOf(), roofHex = OUT.roofs[Math.floor(Rb() * OUT.roofs.length)];
+        if (OUT.house.form === 'gable') gable(q[0], q[1], q[2], q[3], z0, ze, zr, longY ? 'x' : 'y', wallHex, roofHex, 'geocity:house');
+        else if (OUT.house.form === 'hip') hip(q[0], q[1], q[2], q[3], z0, ze, zr, wallHex, roofHex, 'geocity:house');
+        else box(q[0], q[1], q[2], q[3], z0, ze + 0.5, wallHex, roofHex, 'geocity:house');
         // (its windows each storey, its door to its street)
         frontOf(b, q, z0, st, STOREY, 'residential', { house: s });
         counts.houses += 2;
@@ -1509,7 +1538,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       rows.push({ s, kind: 'shops', v0: Math.min(SHOP_D, deep / 2 - 2), plots: Array.from({ length: n }, (_, k) => [k * f + 0.4, (k + 1) * f - 0.4]) });
       for (let k = 0; k < n; k++) {
         const q = rectOf(s, k * f + 0.4, (k + 1) * f - 0.4, 0, Math.min(SHOP_D, deep / 2 - 2)), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), st = storeys + (Rb() < 0.3 ? 1 : 0);
-        box(q[0], q[1], q[2], q[3], z0, z0 + st * STOREY + 0.6, SHOP_FRONT[Math.floor(Rb() * SHOP_FRONT.length)], ROOFS[2], group);
+        box(q[0], q[1], q[2], q[3], z0, z0 + st * STOREY + 0.6, OUT.shops[Math.floor(Rb() * OUT.shops.length)], OUT.roofs[2], group);
         // (its shops on its street, flats or offices over them)
         // (walked into, `shops`: its bays opened, those its walk can step up to; its front lays them open)
         frontOf(b, q, z0, st, STOREY, group === 'geocity:avenue' ? 'office' : 'residential', { only: [s], ...(ENTER ? openShops(b, s, q, z0, z0 + st * STOREY + 0.6) : {}) });
@@ -1524,7 +1553,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       const n = Math.max(1, Math.floor(L / 40));
       for (let k = 0; k < n; k++) {
         const u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, deep / 2 - 7.5, deep / 2 + 7.5), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
-        box(q[0], q[1], q[2], q[3], z0, z1, famOf(brick, `${b.id}:${k}`)[0], ROOFS[2], 'geocity:lowrise');
+        box(q[0], q[1], q[2], q[3], z0, z1, OUT.flats ? OUT.flats[strHash(`${b.id}:${k}`) % OUT.flats.length] : famOf(brick, `${b.id}:${k}`)[0], OUT.roofs[2], 'geocity:lowrise');
         // (its residents' lot between its other street and its wall, backs.js)
         if (BACKS_ON && deep / 2 - 7.5 - 2 >= 7) rows.push({ s: sides[1], kind: 'lot', v0: 1, v1: deep / 2 - 7.5 - 1, plots: [[u - 14, u + 14]] });
         lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
@@ -1532,12 +1561,12 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
     } else if (b.kind === 'apartments') {
       const q = rectOf(sides[0], 4, 34, 6, 20), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
-      box(q[0], q[1], q[2], q[3], z0, z0 + 4 * STOREY, famOf(brick, b.id)[0], ROOFS[2], 'geocity:walkup');
+      box(q[0], q[1], q[2], q[3], z0, z0 + 4 * STOREY, OUT.flats ? OUT.flats[strHash(b.id) % OUT.flats.length] : famOf(brick, b.id)[0], OUT.roofs[2], 'geocity:walkup');
       frontOf(b, q, z0, 4, STOREY, 'residential');
       houses(sides[0], 40, L - 2); houses(sides[1], 2, L - 2);
     } else if (b.kind === 'school') {
       const q = rectOf(sides[0], L / 2 - 30, L / 2 + 30, 6, 22), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
-      box(q[0], q[1], q[2], q[3], z0, z0 + 3 * 4, '#9a4f3c', ROOFS[2], 'geocity:school');
+      box(q[0], q[1], q[2], q[3], z0, z0 + 3 * 4, OUT.flats ? OUT.flats[0] : '#9a4f3c', OUT.roofs[2], 'geocity:school');
       const fq = rectOf(sides[1], L * 0.15, L * 0.85, 6, Math.max(8, deep / 2 - 4));
       put([[fq[0], fq[1], zAt(fq[0], fq[1]) + 0.03], [fq[2], fq[1], zAt(fq[0], fq[1]) + 0.03], [fq[2], fq[3], zAt(fq[0], fq[1]) + 0.03], [fq[0], fq[3], zAt(fq[0], fq[1]) + 0.03]], 'geocity:field', col.field);
       // (its pitch on its field, backs.js: on the field's own level)
@@ -2041,24 +2070,28 @@ export function assembleGeocityScene(m, ctx = {}) {
   // their crowns raised over the walk, drawn near the camera only like the kit
   // (read by the seventh generation: the street trees the form grows, each its species at its height, form/flora-read.js)
   let plants = null;
-  if (form && E?.evoke !== 'skyline') plants = { ...metroPlants(trees, townPlants, backClaims), ...(CR ? { ...CR, apart: false } : {}) };
-  if (!form && E?.evoke !== 'skyline' && trees.size) {
+  // (the form grows the trees and the conifers; a palm or a culm, a west coast's or a tropical register's, is pooled
+  // as on a painted page, its kind the pool's: vegetation/pool.js)
+  const formGrown = (sp) => SPECIES[sp].kind === 'tree' || SPECIES[sp].kind === 'conifer';
+  const pooledTrees = form ? new Map([...trees].filter(([sp]) => !formGrown(sp))) : trees;
+  if (form && E?.evoke !== 'skyline') plants = { ...metroPlants(new Map([...trees].filter(([sp]) => formGrown(sp))), townPlants, backClaims), ...(CR ? { ...CR, apart: false } : {}) };
+  if (E?.evoke !== 'skyline' && pooledTrees.size) {
     const eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: 1280 / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
-    for (const sp of [...trees.keys()].sort()) {
+    for (const sp of [...pooledTrees.keys()].sort()) {
       const pool = plantPool({ species: sp, variants: 2, seed: `geocity::${sp}`, light: LIGHT, maxLevel: TREE.level, group: `geocity:tree-${sp}`, clear: TREE.raise });
       if (coned) {
         // (on the cone every tree twice, on one grid of tiles: its near level inside the reach, its far one past it to
         // the ring, the page choosing by the live eye rather than the scene's bookmarks)
         for (const [level, side] of [[TREE.level, 'in'], ['L0', 'out']]) {
-          const placed = plantRepeats(pool, trees.get(sp), { level, sink: 0.05 });
+          const placed = plantRepeats(pool, pooledTrees.get(sp), { level, sink: 0.05 });
           repeats.push(...placed.repeats.map((r) => ({ ...r, group: `geocity:tree-${r.group}`, near: NEAR, cone: side })));
         }
       } else {
-        const placed = plantRepeats(pool, trees.get(sp), { eyes, level: TREE.level, budget: Math.round(TREE.budget / trees.size), sink: 0.05 });
+        const placed = plantRepeats(pool, pooledTrees.get(sp), { eyes, level: TREE.level, budget: Math.round(TREE.budget / pooledTrees.size), sink: 0.05 });
         repeats.push(...placed.repeats.map((r) => ({ ...r, group: `geocity:tree-${r.group}`, near: NEAR })));
       }
       if (pool.textures) textures = { ...(textures || {}), ...pool.textures };
-      counts.trees = (counts.trees ?? 0) + trees.get(sp).length;
+      counts.trees = (counts.trees ?? 0) + pooledTrees.get(sp).length;
     }
   }
   // (the massing baked for the form render: each corner its base and the day's light on it; a town composed in comes
@@ -2139,7 +2172,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     plan = { box: [0, 0, r5(d.frame.W), r5(d.frame.D)], shapes, places: entered.map((e) => ({ at: [r5(e.door[0]), r5(e.door[1])], kind: 'shop', card: e.S.card })) };
   }
   return {
-    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: F } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: coned ? { ...F, lod: FLOW_LOD } : F } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
@@ -2154,8 +2187,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (a physical city: its nearest buildings to the walk's start, each as a shell for rupa/shell-blocks.js, with its
     // finish's material word; absent otherwise)
     ...(m.destruction === 'physical' ? { physicalRing: shells.map((b) => ({ ...b, d: Math.hypot(Math.max(b.min[0] - eye[0], 0, eye[0] - b.max[0]), Math.max(b.min[1] - eye[1], 0, eye[1] - b.max[1])) }))
-      .filter((b) => b.d <= RING && b.max[2] - b.min[2] > 1 && (FINISHES[b.group] || RING_WORD[b.group])).sort((a, b) => a.d - b.d || (a.id < b.id ? -1 : 1)).slice(0, RING_MAX)
-      .map(({ d: _d, ...b }) => ({ ...b, min: P3(b.min), max: P3(b.max), eave: r5(b.eave), word: FINISHES[b.group] ? FINISHES[b.group][0] : RING_WORD[b.group] })) } : {}),
+      .filter((b) => b.d <= RING && b.max[2] - b.min[2] > 1 && (FINISHED[b.group] || RING_WORD[b.group])).sort((a, b) => a.d - b.d || (a.id < b.id ? -1 : 1)).slice(0, RING_MAX)
+      .map(({ d: _d, ...b }) => ({ ...b, min: P3(b.min), max: P3(b.max), eave: r5(b.eave), word: FINISHED[b.group] ? FINISHED[b.group][0] : RING_WORD[b.group] })) } : {}),
     route,
     geocube: geocubeReadout(cube, 'geocity', null, m),
     geocity: {
