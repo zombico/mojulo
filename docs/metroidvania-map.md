@@ -382,7 +382,16 @@ horns, a thick spined tail, long claws, a deep hunch), WINGS of crimson skin on 
 `wings`: a membrane in level slices off the back, an arm up its leading edge, two fingers across it; `sweep` toward 1 lays
 them along the body, so a side view sees them whole), gold at its throat, shoulders and arms, skulls at its hips, the
 shreds of her cape at its shoulders. On a person's skeleton, it winds up as the castle's people do: it rears with its
-wings flung wide, drops low with them folded back, beats them into bats, throws its horned head back.
+wings flung wide, drops low with them folded back, beats them into bats, throws its horned head back. Its WINGS BEAT as
+it attacks: each wing is on a bone of its own riding the trunk, turned by its channel (`wingR`, `wingL`: the piece's own
+clip words, outfit-plan.js `OUTFIT_CHANNELS`, − raised high and forward, + beaten down and back), and its wind-ups are
+minted flapping (`boss/looks.js` `windClips(patterns, { wings })`: rest, then the wound body as the wings beat up, down, up,
+down and settle at the move's wound, `WING_BEATS`; six keys on the bake's twelve samples, and the strike beats them to its
+struck), the page playing the six through the tell (`rule.boss.wind`, `flapWind`). And it TAKES TO THE AIR: its
+`sky-rake` beats up off the floor and hangs over the room, then dives and rakes the floor past Erina (the `swoop`:
+jumped), its `wyrm-fall` rises over her and hangs there, its shadow on the floor under her, then drops onto it (the
+`dive`: out from under it, then jump the front). It flies in its SKY, the air that keeps its head in the frame
+(`FRAME_TOP` of the frame's height over the floor, less its own).
 
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.

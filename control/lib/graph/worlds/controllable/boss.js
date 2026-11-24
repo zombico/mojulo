@@ -7,7 +7,9 @@
  *   a human boss  (rule.boss.kind 'human', its mind a boss's: rank and phases, mind.js) fights as its mind fights between
  *                 its moves; every `tempo` seconds of its phase it takes one of the phase's moves by weight, and while the
  *                 move's tell and hazards run it is planted, facing the aim (its rule held for the step), a charge carried
- *                 down its lane; in the move's OPENING it stands winded and takes half again what lands on it. Crossing a
+ *                 down its lane, a FLIGHT (a pattern's `flies`) flown along its path off the floor and down again, under
+ *                 its room's ceiling and its `sky` (metres of air over its floor: a side view's frame) (e.aloft its height
+ *                 over its floor while it flies); in the move's OPENING it stands winded and takes half again what lands on it. Crossing a
  *                 phase (the mind's own crossing, `mindPhase`) runs the phase's arena EVENT: `burn` (fires along the
  *                 arena's rim), `relocate` (to the next of its `perches`), `tear` (a piece of cover gone: of its `cover`
  *                 ([{ id, min, max }]) the one nearest the pilot, its collider and its body), `live` (the floor's grid fired on its own between its moves), `adds`
@@ -78,7 +80,27 @@ export function buildBoss(E) {
     H.forEach((h, k) => state.bossHazards.push({ ...h, z: h.rise != null ? zb : z, id: `${e.id}:${S.count}:${k}`, by: e.id, move: id, k, ...(look.hazard ? { colour: look.hazard } : {}), ...(look.tell ? { tellColour: look.tell } : {}) }));
     const end = Math.max(...H.map((h) => h.t1)) - t;
     // (when it lands, its first hazard's landing, and its pattern: the page's wind-up and strike, boss-view)
-    S.cur = { id, t0: t, land: Math.min(...H.map((h) => h.t0)), pattern: P.pattern || null, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' || P.carries ? H[0] : null, vent: !!P.vent, scope: !!P.scope };
+    S.cur = { id, t0: t, land: Math.min(...H.map((h) => h.t0)), pattern: P.pattern || null, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: !P.flies && (P.pattern === 'charge' || P.carries) ? H[0] : null, vent: !!P.vent, scope: !!P.scope, fly: P.flies ? flight(e, P.flies, target) : null };
+  }
+
+  // A FLIGHT (a pattern's `flies`: [[s, x, z], …], boss/patterns.js): its path laid in the move's frame, from where the boss
+  // stands down the aim, over its floor; held under its room's ceiling (`room`'s top, the boss's height under it) and in
+  // its SKY (`sky`: the metres of air over its floor it may fly in, a side view's frame) by lowering the whole path, never
+  // cutting it
+  function flight(e, keys, target) {
+    const p = e.transform.pos, B = e.rule.boss, dx = target[0] - p[0], dy = target[1] - p[1], d = Math.hypot(dx, dy) || 1;
+    const z0 = p[2] - ((e.rule && e.rule.eye) || 0), H = (e.rule && e.rule.collideHeight) || 2, top = Math.max(...keys.map((q) => q[2]));
+    const room = Math.min(B.room ? Math.max(0, B.room[3] - z0 - H - 0.2) : Infinity, Number.isFinite(B.sky) ? Math.max(0, B.sky) : Infinity), k = top > room ? room / top : 1;
+    return { o: [p[0], p[1]], f: [dx / d, dy / d], z0, eye: p[2] - z0, top: top * k, keys: keys.map((q) => [q[0], q[1], q[2] * k]) };
+  }
+  // where a flight has the boss at u seconds into its move: a Catmull-Rom through its keys, never under its floor nor over
+  // its path's top (the curve's overshoot)
+  function flownAt(F, u) {
+    const K = F.keys; if (u >= K[K.length - 1][0]) return [K[K.length - 1][1], K[K.length - 1][2]];
+    let i = 0; while (i < K.length - 2 && u > K[i + 1][0]) i++;
+    const P0 = K[Math.max(0, i - 1)], P1 = K[i], P2 = K[i + 1], P3 = K[Math.min(K.length - 1, i + 2)], s = Math.max(0, Math.min(1, (u - P1[0]) / (P2[0] - P1[0] || 1)));
+    const cr = (j) => 0.5 * (2 * P1[j] + (-P0[j] + P2[j]) * s + (2 * P0[j] - 5 * P1[j] + 4 * P2[j] - P3[j]) * s * s + (-P0[j] + 3 * P1[j] - 3 * P2[j] + P3[j]) * s * s * s);
+    return [cr(1), Math.max(0, Math.min(F.top, cr(2)))];
   }
 
   // a phase's arena event, as the crossing runs it
@@ -547,6 +569,13 @@ export function buildBoss(E) {
           const h = S.cur.charge, u = Math.max(0, Math.min(1, (t - h.t0) / (h.t1 - h.t0)));
           if (t >= h.t0) { e.transform.pos[0] = h.a[0] + (h.b[0] - h.a[0]) * u; e.transform.pos[1] = h.a[1] + (h.b[1] - h.a[1]) * u; }
         }
+        if (S.cur && S.cur.fly) {
+          // (a flight flies it along its path through the move, its fall held off while it is aloft; `aloft` its height over its floor)
+          const F = S.cur.fly, [x, z] = flownAt(F, t - S.cur.t0);
+          e.transform.pos[0] = F.o[0] + F.f[0] * x; e.transform.pos[1] = F.o[1] + F.f[1] * x; e.transform.pos[2] = F.z0 + F.eye + z;
+          if (e.vel) e.vel[2] = 0;
+          e.aloft = z > 0.05 ? Math.round(z * 1000) / 1000 : 0;
+        } else if (e.aloft) e.aloft = 0;
       } else {
         // VEHICLE: what hit it, judged by part (its health given back first); the mines under it
         if (e.body.hp < H0) {

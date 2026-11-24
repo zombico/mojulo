@@ -14,7 +14,9 @@
  * fits any build.
  *
  *   compileOutfit(plan)        the plan with its outfit compiled in layer order into `garments`, `adorn` and segments,
- *                              and the palette's roles as groups; no `outfit` ⇒ the plan itself
+ *                              the palette's roles as groups, and a piece's own joints, bones and channels in its rig
+ *                              (the wings'); no `outfit` ⇒ the plan itself
+ *   pieceChannels(pieces)      the clip words the pieces add (OUTFIT_CHANNELS: the wings' `wingR`, `wingL`)
  *   outfitLaws(outfit, ctx)    the VISUAL-INTEREST laws (the Dressing Bible's), advisory: [{ law, ok, why }]
  *     ctx: { order?: 0 bound … 1 free, mustSee?: [families], height?: m, record? }
  */
@@ -101,7 +103,8 @@ export const OUTFIT_KINDS = Object.freeze({
   // widest at the wrist, a point at its tip), so the wing sweeps up and out; a SPAR of bone up its leading edge to a claw
   // at the tip. `span` each wing's reach out from the spine (m, 1), `rise` its tip over the shoulders' top (m, 0.9);
   // `sweep` 0 … 1 spread out from the spine or swept back along the body (a side view's: the wing seen whole); the
-  // membrane the piece's colour, the arm, its claw and two fingers `spar`'s (bone). They ride the trunk
+  // membrane the piece's colour, the arm, its claw and two fingers `spar`'s (bone). Each wing on a BONE of its own riding
+  // the trunk, beaten by its channel (`wingR`, `wingL`; OUTFIT_CHANNELS): a clip's key flaps it
   wings: { layer: 3, cls: 'stiff', colour: 'secondary', compile: (p, B, G) => {
     const k = B.k, span = (p.span ?? 1) * k, rise = (p.rise ?? 0.9) * k, sw = Math.max(0, Math.min(1, p.sweep ?? 0));
     // (rooted on the back's own line at the shoulder blades, every body's: bodyMap `back`)
@@ -110,23 +113,30 @@ export const OUTFIT_KINDS = Object.freeze({
     // (`sweep` toward 1) the centre goes back along the body instead of out from it and the slice lies along it, so a
     // side view sees the wing whole)
     const T = [0, 0.2, 0.45, 0.7, 0.88, 1], CX = [0.15, 0.35, 0.6, 0.8, 0.9, 0.95], W = [0.06, 0.22, 0.35, 0.3, 0.15, 0.02];
-    const along = sw >= 0.5, spar = G({ colour: p.spar ?? 'bone' }), bind = { bone: 'torso' }, out = [];
+    const along = sw >= 0.5, spar = G({ colour: p.spar ?? 'bone' }), out = [], rig = { joints: {}, bones: [], chains: {} };
     const ctr = (sx, i, t) => [r3(sx * (0.12 * k + CX[i] * span * (1 - 0.75 * sw))), r3(y0 - 0.04 * k * t - CX[i] * span * sw), r3(z0 + (z1 - z0) * t)];
     // (a point on the wing's edge: `e` +1 the leading edge (out, or forward when swept), −1 the trailing)
     const edge = (sx, i, t, e) => { const c = ctr(sx, i, t), d = W[i] * span * e; return along ? [c[0], r3(c[1] + d), c[2]] : [r3(c[0] + sx * d), c[1], c[2]]; };
-    const bone = (name, pts, r0, r1) => { const st = pts.map((q, i) => ({ at: q, r: [r3(r0 + (r1 - r0) * (i / Math.max(1, pts.length - 1))), r3(r0 + (r1 - r0) * (i / Math.max(1, pts.length - 1)))] }));
+    const bone = (name, pts, r0, r1, bind) => { const st = pts.map((q, i) => ({ at: q, r: [r3(r0 + (r1 - r0) * (i / Math.max(1, pts.length - 1))), r3(r0 + (r1 - r0) * (i / Math.max(1, pts.length - 1)))] }));
       return { name, kind: 'loft', stations: st, slots: 'ring8', caps: { back: st[0].at, tip: st[st.length - 1].at }, group: spar, bind }; };
     for (const [S, sx] of [['R', 1], ['L', -1]]) {
+      // (each wing on a BONE of its own, its root at the shoulder blade and its tip at the wing's top, both riding the
+      // trunk; its CHANNEL `wing<S>` turns the tip about the root (degrees, + the wing beating down and forward), so a
+      // clip's key flaps it: `{ wingR: 40, wingL: 40 }`)
+      const root = `${p.id ?? 'wing'}Root${S}`, tipJ = `${p.id ?? 'wing'}Tip${S}`, boneId = `${p.id ?? 'wing'}Bone${S}`, bind = { bone: boneId };
+      rig.joints[root] = { at: ctr(sx, 0, 0), rides: 'torso' }; rig.joints[tipJ] = { at: ctr(sx, 5, 1), rides: 'torso' };
+      rig.bones.push({ id: boneId, head: root, tail: tipJ });
+      rig.chains[`${p.id ?? 'wing'}${S}`] = { axis: 'x', sign: 1, links: [{ pivot: root, joints: [tipJ] }] };
       const st = T.map((t, i) => ({ at: ctr(sx, i, t), r: along ? [r3(th), r3(W[i] * span)] : [r3(W[i] * span), r3(th)] }));
       out.push({ name: `${p.id ?? 'wing'}${S}`, kind: 'loft', stations: st, slots: 'ring12', caps: { back: st[0].at, tip: st[st.length - 1].at }, group: G(p), bind });
       // (the arm: a spar up the leading edge to a claw past the tip; and two FINGERS from the wrist across the membrane to
       // its trailing edge, so it reads as a wing of skin on bone, never a leaf)
       const lead = T.map((t, i) => edge(sx, i, t, 1)), tip = ctr(sx, 5, 1);
-      out.push(bone(`${p.id ?? 'wing'}Spar${S}`, [...lead, [tip[0], r3(tip[1] - (along ? 0.03 * k : 0)), r3(z1 + 0.14 * k)]], 0.024 * k, 0.006 * k));
+      out.push(bone(`${p.id ?? 'wing'}Spar${S}`, [...lead, [tip[0], r3(tip[1] - (along ? 0.03 * k : 0)), r3(z1 + 0.14 * k)]], 0.024 * k, 0.006 * k, bind));
       const wrist = edge(sx, 3, T[3], 1);
-      [[1, T[1]], [2, T[2]]].forEach(([i, t], f) => out.push(bone(`${p.id ?? 'wing'}Finger${f}${S}`, [wrist, edge(sx, i, t, -1)], 0.016 * k, 0.008 * k)));
+      [[1, T[1]], [2, T[2]]].forEach(([i, t], f) => out.push(bone(`${p.id ?? 'wing'}Finger${f}${S}`, [wrist, edge(sx, i, t, -1)], 0.016 * k, 0.008 * k, bind)));
     }
-    return { segments: out }; } },
+    return { segments: out, rig }; } },
   // L3: a MANTLE over the shoulders: a short cape from the neck's root over the shoulders and the arms' tops, closed at the
   // throat by a clasp (outfit laws 2: mantleOf); laws 1 drew it as a band round the upper chest with a buckle on its
   // front (`shoulder`: a shoulder piece, which the trunk plates' cut leaves whole: tiered-form.js), kept for the rows
@@ -376,6 +386,10 @@ export const OUTFIT_KINDS = Object.freeze({
   quiver: { layer: 6, cls: 'stiff', colour: 'leather', compile: (p, B, G) => ({ adorn: [{ id: p.id ?? 'quiver', mode: 'shell', part: 'torso', s: [1.6, 2.6], t: [3.2, 4], nt: 4, ns: 2, mugen: r3(0.03 * B.k), thick: r3(0.01 * B.k), group: G({ colour: 'leather' }), signature: { kind: 'pack', w: r3(0.12 * B.k), h: r3(0.45 * B.k), d: r3(0.1 * B.k), lift: 0, chamfer: r3(0.03 * B.k), soft: true, round: 2.4, sag: 0, flap: false, group: G(p) } }] }) },
 });
 export const OUTFIT_KIND_NAMES = Object.freeze(Object.keys(OUTFIT_KINDS));
+/** the rig's CHANNELS a piece adds (its own joints' words, a clip's key turns them): the wings', `<id>R` and `<id>L`
+ * (degrees: − raised high and forward, + beaten down and back); none for the rest */
+export const OUTFIT_CHANNELS = Object.freeze({ wings: (p) => [`${p.id ?? 'wing'}R`, `${p.id ?? 'wing'}L`] });
+export const pieceChannels = (pieces) => (pieces || []).flatMap((p) => OUTFIT_CHANNELS[p?.kind]?.(p) ?? []);
 
 /** a NECKLACE (a medallion's, a chain of office's): a beaded chain HUNG FROM THE NAPE. A chain on a neck hangs as one loop
  * in a tilted plane: highest behind the neck, falling steadily down both sides to its lowest point on the front of the
@@ -687,13 +701,16 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
   const G = (p) => { const role = p.colour ?? OUTFIT_KINDS[p.kind]?.colour ?? 'base'; return /^#/.test(role) ? role : COLOUR_GROUPS[role] ?? COLOUR_GROUPS.base; };
   const pieces = [...O.pieces].map((p, i) => ({ p, i, layer: OUTFIT_KINDS[p.kind]?.layer ?? 9 })).sort((a, b) => a.layer - b.layer || a.i - b.i);
   const garments = [...(plan.garments || [])], adorn = [...(plan.adorn || [])], segments = [...plan.segments], piecePaint = [];
+  // (a piece with joints of its own, `rig`: its joints, bones and channels added to the body's rig; the wings' bones)
+  let rig = plan.rig;
   // (what is already worn, as each piece is compiled: a necklace reads the close cloth on the chest it hangs over)
   if (B.laws >= 2) B.worn = garments;
   // (outfit laws 2: whether a belt or a sash is worn at the natural waist, which a bodice is taken in under: gownOf)
   if (B.laws >= 2) B.belted = O.pieces.some((p) => (p.kind === 'belt' && p.at === 'waist') || p.kind === 'sash');
   for (const { p } of pieces) { const K = OUTFIT_KINDS[p.kind]; if (!K) throw new Error(`outfit: '${p.kind}' is not a piece kind (have ${OUTFIT_KIND_NAMES.join(', ')})`);
     // a designed piece is worn ON TOP of the frame: it clears the fur, locks and scales pinned to its carrier
-    const out = K.compile(p, B, G, I); garments.push(...(out.garments || [])); if (out.paint) piecePaint.push(...out.paint); adorn.push(...(out.adorn || []).map((A) => ({ ...distorted(A, p, I.distort), onTop: true }))); segments.push(...(out.segments || [])); }
+    const out = K.compile(p, B, G, I); garments.push(...(out.garments || []));
+    if (out.rig && rig) rig = { ...rig, joints: { ...rig.joints, ...out.rig.joints }, bones: [...(rig.bones || []), ...out.rig.bones], chains: { ...(rig.chains || {}), ...out.rig.chains } }; if (out.paint) piecePaint.push(...out.paint); adorn.push(...(out.adorn || []).map((A) => ({ ...distorted(A, p, I.distort), onTop: true }))); segments.push(...(out.segments || [])); }
   let palette = { ...(plan.palette || {}), ...Object.fromEntries(Object.entries(COLOUR_GROUPS).filter(([role]) => pal[role]).map(([role, g]) => [g, pal[role]])) };
   // the cut first (the cloth, L1–L3), then the worn pieces over it in their layers
   let paint = plan.paint, body = plan.body;
@@ -729,7 +746,7 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
   if (used.has(COLOUR_GROUPS.paint) && !palette[COLOUR_GROUPS.paint]) palette[COLOUR_GROUPS.paint] = paintOn(plan.palette?.Torso ?? plan.palette?.Skin);
   for (const g of used) if (/^#[0-9a-f]{6}$/i.test(g) && !palette[g]) palette[g] = g;
   const { outfit: _o, ...rest } = plan;
-  return { ...rest, segments, ...(garments.length ? { garments } : {}), adorn, palette, ...(paint ? { paint } : {}), ...(body ? { body } : {}), outfitCompiled: true };
+  return { ...rest, ...(rig ? { rig } : {}), segments, ...(garments.length ? { garments } : {}), adorn, palette, ...(paint ? { paint } : {}), ...(body ? { body } : {}), outfitCompiled: true };
 }
 
 // ─── the laws of visual interest (the Dressing Bible's), advisory ───

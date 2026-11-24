@@ -20,6 +20,10 @@
  *                                                            metres through its time (a gunship's rockets)
  *   A `lock` (on a line or a strafe, `track: s`) follows the body until `track` seconds and is fixed there: its end, or the
  *   strafe's line, laid through where the body stood then.
+ *   A FLIGHT (`flies`: [[s, x, z], …], a winged boss's) is the path the boss flies through the move, key by key: `s` seconds
+ *   from its start, `x` metres down the aim from where it stood, `z` metres over its floor; the first key [0, 0, 0] and the
+ *   last on the floor (z 0) by its opening. The director flies it along the path (worlds/controllable/boss.js), held
+ *   under its room's ceiling, and its hazards land as the path brings it down.
  *
  *   PATTERNS                    the shelf (a new attack is a row)
  *   readPattern(p)              → the pattern checked (throws naming the fault)
@@ -106,6 +110,20 @@ export const PATTERNS = Object.freeze({
   toll: { reach: 5, tell: { for: 1.2, says: 'swings back; the air rings before the toll' },
     hazards: [{ shape: 'ring', from: 1, to: 14, band: 1.2, rise: 1.1, at: 1.2, for: 1.4, harm: 0.16 }],
     open: { at: 2.8, for: 1.6 }, reads: 'a toll rolling out across the room: jump it as it passes' },
+  // THE AIR'S (a winged boss's, `flies`): it takes off, and what lands comes down out of the air
+  // up off the floor and back, hanging on its wings over the room, then down in a dive that skims the floor through where
+  // the body stood: jumped as it rakes past
+  swoop: { reach: 6, tell: { for: 1.4, says: 'beats up off the floor and hangs over the room; it folds its wings to dive' },
+    flies: [[0, 0, 0], [0.55, -1.2, 2.6], [1.15, -0.8, 3.2], [1.45, 2.5, 0.8], [1.7, 7, 0.3], [2.05, 10.5, 0.4], [2.4, 11.5, 0]],
+    hazards: [{ shape: 'line', from: [1.5, 0], to: [11.5, 0], width: 1.6, rise: 1.2, at: 1.45, for: 0.45, harm: 0.18, says: 'its talons along the floor' }],
+    open: { at: 2.4, for: 1.8 }, reads: 'a dive out of the air skimming the floor: jump it as it rakes past' },
+  // up over where the body stood, hanging there on its wings, then dropped straight down onto it, the floor's front rolling
+  // out from where it lands: out from under its shadow, then jump the front
+  dive: { reach: 5, tell: { for: 1.7, says: 'rises on its wings and hangs over the body; its shadow darkens the floor under it' },
+    flies: [[0, 0, 0], [0.5, 1.2, 2.4], [1.05, 5, 3.6], [1.4, 5, 3.7], [1.7, 5, 0], [2.6, 5, 0]],
+    hazards: [{ shape: 'disc', origin: 'target', c: [0, 0], r: 1.6, mark: 0.6, at: 1.7, for: 0.3, harm: 0.18, says: 'its weight, dropped' },
+      { shape: 'ring', origin: 'target', from: 1.2, to: 8, band: 0.9, rise: 0.7, at: 1.75, for: 0.9, harm: 0.12, says: 'the floor\'s front' }],
+    open: { at: 2.65, for: 2 }, reads: 'a plunge out of the air onto where the body stood: out from under its shadow, then jump the front' },
   // a low spring down the lane at the body: jumped over as it comes, or out past its end
   lunge: { reach: 5, carries: true, tell: { for: 1, says: 'crouches low, its weight on its back foot' },
     hazards: [{ shape: 'line', from: [0, 0], to: [9, 0], width: 1.6, rise: 1.3, at: 1, for: 0.25, harm: 0.2 }],
@@ -120,6 +138,13 @@ export function readPattern(p, where = 'pattern') {
   if (!isNum(p.reach) || p.reach <= 0) no(`${where}: reach is the metres the body stands down the aim`);
   if (!p.tell || !isNum(p.tell.for) || p.tell.for < 0) no(`${where}: tell.for is its wind-up's seconds`);
   if (!p.open || !isNum(p.open.at) || !isNum(p.open.for)) no(`${where}: open is its recovery, { at, for } seconds`);
+  if (p.flies !== undefined) {
+    const F = p.flies, ok = Array.isArray(F) && F.length >= 2 && F.every((q) => Array.isArray(q) && q.length === 3 && q.every(isNum) && q[2] >= 0);
+    if (!ok) no(`${where}: flies is its path, [[s, x, z], …] (seconds, metres down the aim, metres up), two keys or more`);
+    if (F[0][0] !== 0 || F[0][1] !== 0 || F[0][2] !== 0) no(`${where}: flies starts where it stands, [0, 0, 0]`);
+    if (F.some((q, i) => i && q[0] <= F[i - 1][0])) no(`${where}: flies' keys go forward in time`);
+    if (F[F.length - 1][2] !== 0 || F[F.length - 1][0] > p.open.at + 1e-9) no(`${where}: flies ends on its floor (z 0) by its opening (${p.open.at} s)`);
+  }
   p.hazards.forEach((h, k) => {
     const S = SHAPES[h.shape];
     if (!S) no(`${where}.hazards[${k}]: shape is one of ${Object.keys(SHAPES).join(', ')}`);

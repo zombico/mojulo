@@ -210,10 +210,11 @@ function __bvFxStep(X, h, t, by) {
   const shown = t >= h.tm, lands = t >= h.t0 && t <= h.t1 + 0.35, u = h.t0 > h.tm ? Math.min(1, Math.max(0, (t - h.tm) / (h.t0 - h.tm))) : 1;
   const k = h.t1 > h.t0 ? Math.min(1, Math.max(0, (t - h.t0) / (h.t1 - h.t0))) : 1, fade = t > h.t1 ? Math.max(0, 1 - (t - h.t1) / 0.35) : 1;
   X.g.visible = shown;
-  const T = X.tell, by0 = by && by.transform ? by.transform.pos : [0, X.y0, 0], yb = by0[1];
+  // (a boss in the air, a flight's: its glint and its afterimages up with it, its 'aloft' its height over its floor)
+  const T = X.tell, by0 = by && by.transform ? by.transform.pos : [0, X.y0, 0], yb = by0[1], air = (by && by.aloft) || 0;
   // TELLS: brightening to the landing, gone as it lands
   const telling = shown && t < h.t0;
-  if (T.glint) { T.glint.visible = telling; T.glint.position.set(0.05, yb + X.dir * 0.45, T.glintZ); T.glint.scale.setScalar(0.3 + 1.3 * u * u); T.glint.material.rotation = t * 3; T.glint.material.opacity = 0.4 + 0.6 * u; }
+  if (T.glint) { T.glint.visible = telling; T.glint.position.set(0.05, yb + X.dir * 0.45, T.glintZ + air); T.glint.scale.setScalar(0.3 + 1.3 * u * u); T.glint.material.rotation = t * 3; T.glint.material.opacity = 0.4 + 0.6 * u; }
   if (T.cracks) { const o = telling ? (0.25 + 0.75 * u) * (0.75 + 0.25 * Math.sin(t * 25)) : lands ? 0.5 * fade : 0; T.cracks.material.opacity = o; for (const q of T.crackGlow) q.material.opacity = o * 0.55; }
   if (T.rings) T.rings.forEach((m, i) => { const q = ((t * 1.6 + i / 3) % 1), r = 0.4 + (1 - q) * 3.2; m.visible = telling; m.scale.setScalar(r); m.position.y = yb; m.material.opacity = (0.15 + 0.5 * u) * q; });
   if (T.thing) { const fall = telling ? Math.max(0, (t - h.tm) / (h.t0 - h.tm)) : 1; T.thing.visible = telling; T.thing.position.set(0, h.c[1], 0.5 + 9 * (1 - fall * fall)); if (T.thingKind === 'swarm') T.thing.children.forEach((b, i) => { b.rotation.x = Math.sin(t * 22 + i) * 0.8; }); else T.thing.rotation.x = t * 4; }
@@ -235,13 +236,15 @@ function __bvFxStep(X, h, t, by) {
   }
   if (Hh.star) {
     const age = t - h.t0, on = age >= 0 && age < 0.6;
-    Hh.star.visible = on; Hh.star.position.set(0.05, h.c[1], 0.5); Hh.star.scale.setScalar(on ? 3.2 * (1 - age / 0.6) + 0.3 : 0.1); Hh.star.material.opacity = on ? 1 - age / 0.6 : 0; Hh.star.material.rotation = age * 2;
-    for (const p of Hh.puffs) { const a = Math.max(0, age), on2 = age >= 0 && age < 1; p.q.visible = on2; p.q.position.set(0, h.c[1] + p.side * p.v * Math.sqrt(a), p.z + a * 0.6); p.q.scale.setScalar(0.4 + a * 1.4); p.q.material.opacity = on2 ? 0.7 * (1 - a) : 0; }
+    // (where it lands: a disc's centre, a front's origin; a move of both draws its star at each)
+    const cy = (h.c || h.o || [0, yb])[1];
+    Hh.star.visible = on; Hh.star.position.set(0.05, cy, 0.5); Hh.star.scale.setScalar(on ? 3.2 * (1 - age / 0.6) + 0.3 : 0.1); Hh.star.material.opacity = on ? 1 - age / 0.6 : 0; Hh.star.material.rotation = age * 2;
+    for (const p of Hh.puffs) { const a = Math.max(0, age), on2 = age >= 0 && age < 1; p.q.visible = on2; p.q.position.set(0, cy + p.side * p.v * Math.sqrt(a), p.z + a * 0.6); p.q.scale.setScalar(0.4 + a * 1.4); p.q.material.opacity = on2 ? 0.7 * (1 - a) : 0; }
   }
-  if (Hh.lines) {
+  if (Hh.lines && h.a && h.b) {
     const a = h.a, b = h.b, y1 = a[1] + (b[1] - a[1]) * k, ya = a[1];
     Hh.lines.forEach((q) => { q.visible = lands; const len = Math.max(0.05, Math.abs(y1 - ya) - q.userData.lag); q.scale.y = len; q.position.y = y1 - X.dir * (len / 2 + q.userData.lag); q.material.opacity = (q.userData.op ?? (q.userData.op = q.material.opacity)) * fade; });
-    Hh.ghosts.forEach((q, i) => { q.visible = lands && k > 0.1; q.position.y = yb - X.dir * (0.7 + i * 0.7); q.material.opacity = (0.3 - i * 0.08) * fade; });
+    Hh.ghosts.forEach((q, i) => { q.visible = lands && k > 0.1; q.position.y = yb - X.dir * (0.7 + i * 0.7); q.position.z = X.H * 0.45 + air; q.material.opacity = (0.3 - i * 0.08) * fade; });
   }
 }
 function __bvSideMark(h) {

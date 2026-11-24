@@ -141,3 +141,10 @@
   mode may stand at a height of its own (`body.fit` on the mode).
 - Characters can wear wings: an outfit piece, `wings`, a pair of membrane wings on bone off the back, spread out or swept
   back along the body (`sweep`) so a side view sees them whole.
+- The Lord Unbound's wings beat as it attacks, up and down through every wind-up and down with every blow, and it takes
+  to the air: it dives out of the room's height to rake the floor (jump it), or rises over Erina and drops onto her (get
+  out from under its shadow, then jump the shockwave). It flies only as high as keeps its head on the screen.
+- Wings flap: each wing rides a bone of its own, beaten by its own clip word (`wingR`, `wingL`), which a character's clips
+  can key.
+- A boss's attack can fly (`flies` on a pattern: a path of keys through the move), lowered under its room's ceiling and
+  the air the screen gives it (`sky`); two new attack patterns, `swoop` and `dive`.

@@ -122,7 +122,9 @@ export function moveOf(boss, id) {
   const P = readPattern(m.pattern), T = m.tune || {};
   return { ...P, id, says: m.says, ...(m.vent ? { vent: m.vent } : {}), ...(m.scope ? { scope: m.scope } : {}), ...(T.reach ? { reach: T.reach } : {}), tell: { ...P.tell, says: m.says },
     hazards: P.hazards.map((h) => ({ ...h, ...(T.harm ? { harm: T.harm } : {}), ...(T.at ? { at: h.at + T.at } : {}) })),
-    open: { ...P.open, ...(T.at ? { at: P.open.at + T.at } : {}) } };
+    open: { ...P.open, ...(T.at ? { at: P.open.at + T.at } : {}) },
+    // (a flight's path waits with its hazards: its take-off kept, every later key `at` later)
+    ...(P.flies ? { flies: P.flies.map((q, i) => (i && T.at ? [q[0] + T.at, q[1], q[2]] : [...q])) } : {}) };
 }
 
 /** Read a boss (a row of BOSSES, or one of the same shape); → the boss (throws naming the fault). */

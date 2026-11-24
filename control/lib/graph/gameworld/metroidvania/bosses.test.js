@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { boxOf } from './scene.js';
-import { CASTLE_BOSSES, BOSS_DEFAULT, BOSS_LAWS, FIGHT_ROOM, CASTLE_FIGURES, bossRow, bossLaws, figuredBosses, standBosses, castleFigure } from './bosses.js';
+import { CASTLE_BOSSES, BOSS_DEFAULT, BOSS_LAWS, FIGHT_ROOM, CASTLE_FIGURES, bossRow, bossLaws, figuredBosses, standBosses, castleFigure, FRAME_TOP } from './bosses.js';
 import { readGameworld } from '../world.js';
 import { runSteps } from '../runner.js';
 import { vampireSonataGame } from './vampire-sonata.js';
@@ -122,10 +122,23 @@ describe('the castle\'s bosses', () => {
     // (its second form's fight held to the director's laws too: the castle's fights law names it)
     expect(bossLaws(S).find((l) => l.id === 'fights').holds).toBe(true);
     const R = runSteps(vampireSonataGame({ heroRef: 'erina-ref' }), { ref: 'vs' }), steps = R.steps ?? R;
-    // (its second form a person's skeleton: its figure carries the wind-ups of its own moves)
+    // (its second form a person's skeleton: its figure carries the wind-ups of its own moves, its WINGS beating through
+    // each tell (up, down, up, down, settled at the move's wound: six keys) and down through its strike, the page playing
+    // the stretch of each the mode's rule names)
     const F2 = steps.find((x) => x.key === `boss-${id}-second`).order.spec;
-    for (const m of Object.values(row.second.moves)) expect(F2.clips[`wind_${m.pattern}`]).toHaveLength(2);
     expect(F2.outfit.style.pieces.map((q) => q.kind)).toContain('wings');
+    for (const m of Object.values(row.second.moves)) {
+      const W = F2.clips[`wind_${m.pattern}`];
+      expect(W).toHaveLength(6);
+      expect(W[1].wingR).toBeLessThan(0); expect(W[2].wingR).toBeGreaterThan(0); expect(W[0].wingR).toBeUndefined();
+      expect(M2.rule.boss.wind[m.pattern]).toEqual({ wind: [`wind_${m.pattern}`, 0, 5 / 6], strike: [`strike_${m.pattern}`, 0, 0.5] });
+    }
+    // (and it takes to the air: a move of its own that flies, in a sky that keeps its head in the frame; the first form,
+    // which never flies, has none)
+    expect(Object.values(M2.rule.boss.moves).some((x) => Array.isArray(x.flies))).toBe(true);
+    expect(M2.rule.boss.sky).toBeGreaterThan(1);
+    expect(M2.rule.boss.sky + M2.rule.collideHeight).toBeLessThan(FRAME_TOP * S.greybox.screen.height);
+    expect(e.rule.boss.sky).toBeUndefined();
     // (and the level draws the figure it becomes)
     const lv = steps.find((x) => x.key.startsWith('level-'));
     expect(lv.order.manifest.figures[lv.order.manifest.entities.find((x) => x.id === b.id).body.modes[1].figure]).toBeDefined();

@@ -156,7 +156,7 @@ import { lookReadout } from '../../graph/era/looks.js';
 import { noseDialErrors, NOSE_DEFAULTS } from '../../graph/polygonizer/anime-nose.js';
 import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, tieredGarments, tieredKit, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
 import { drawnPlan } from '../../graph/polygonizer/creature-drawn.js';
-import { compileOutfit, OUTFIT_KIND_NAMES, uOfStation } from '../../graph/polygonizer/outfit-plan.js';
+import { compileOutfit, OUTFIT_KIND_NAMES, uOfStation, pieceChannels } from '../../graph/polygonizer/outfit-plan.js';
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 import { stampHero, withDefaultWalk, withDefaultForm } from '../../graph/polygonizer/motion-stamp.js';
@@ -1216,7 +1216,8 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   // their channels, western-face-rig.js; the relational face weighs the same, relational-face-rig.js); a clip's
   // `seconds` only on the anime head
   const landmark = spec.head === undefined || spec.head === 'landmark', relational = spec.head === 'relational' || (spec.form === 'realistic' && spec.head === undefined);
-  errs.push(...validateHeroClips(spec.clips, { jaw: jawedHead(spec), face: spec.head === 'anime', western: landmark || relational, expression: landmark, hands }));
+  // (and the channels its worn pieces add: the wings' beat, outfit-plan.js pieceChannels)
+  errs.push(...validateHeroClips(spec.clips, { jaw: jawedHead(spec), face: spec.head === 'anime', western: landmark || relational, expression: landmark, hands, channels: isOutfitBuild(spec.outfit) ? pieceChannels(outfitPieces(spec.outfit)) : [] }));
   if (spec.blink !== undefined && spec.blink !== null) {
     if (spec.head !== 'anime' && !landmark) errs.push(`blink: the ambient blink is the anime or the landmark head's (head: 'anime' | 'landmark')`);
     else if (typeof spec.blink !== 'boolean') errs.push('blink: false turns the hero\'s ambient blink off (true is the default and not stored)');

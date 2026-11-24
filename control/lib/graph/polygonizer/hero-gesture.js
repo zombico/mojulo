@@ -228,15 +228,19 @@ const CLIP_SECONDS = [0.25, 60];
 /** Error strings for a hero's `clips` (empty = valid): `{ <name>: [keys] | { seconds, keys } | false }`, each key an
  * object of pose words (CLIP_KEYS; `jaw` only when the head has a jaw bone); on the anime head (`face`) a key may carry
  * `face` and a clip its `seconds`, elsewhere both refuse by name (`expression`: the head takes /hero/expression, which the
- * refusal points at). `gesture` is the stand's and refuses here. Another head's refusals read as before the anime forms:
+ * refusal points at). A channel a worn piece adds (`channels`: the wings') takes its degrees. `gesture` is the stand's and
+ * refuses here. Another head's refusals read as before the anime forms:
  * an object that names neither `keys` nor `seconds` is refused as a list. */
-export function validateHeroClips(clips, { jaw = false, face = false, western = false, expression = false, hands = false } = {}, label = 'clips') {
+export function validateHeroClips(clips, { jaw = false, face = false, western = false, expression = false, hands = false, channels = [] } = {}, label = 'clips') {
   if (clips === undefined || clips === null) return [];
   if (!isObj(clips)) return [`${label}: { <name>: [keys]${face ? ' | { seconds, keys }' : ''} | false } — each key an object of pose words (${CLIP_KEYS.join(', ')})`];
   const errs = [];
   const keyErrors = (keys, at, name, form) => {
     if (!Array.isArray(keys) || !keys.length) return [form ? `${at}: a list of keys, each an object of pose words` : `${at}: a list of keys, each an object of pose words — or false to remove the hero's own clip of that name (remove /hero/clips/${name} drops a door clip)`];
-    return keys.flatMap((k, i) => (isObj(k) ? gestureObjectErrors(k, `${at}[${i}]`, { jaw, face, western, expression }, hands) : [`${at}[${i}]: a key is an object of pose words (${CLIP_KEYS.join(', ')})`]));
+    // (a channel a worn piece adds, `channels` (outfit-plan.js pieceChannels: the wings'), its degrees, the rest the pose's words)
+    const own = (k, at) => Object.entries(k).filter(([n]) => channels.includes(n)).flatMap(([n, v]) => (Number.isFinite(v) && Math.abs(v) <= 180 ? [] : [`${at}.${n}: the degrees the piece's channel turns, −180 … 180`]));
+    const bare = (k) => (channels.length ? Object.fromEntries(Object.entries(k).filter(([n]) => !channels.includes(n))) : k);
+    return keys.flatMap((k, i) => (isObj(k) ? [...own(k, `${at}[${i}]`), ...gestureObjectErrors(bare(k), `${at}[${i}]`, { jaw, face, western, expression }, hands)] : [`${at}[${i}]: a key is an object of pose words (${CLIP_KEYS.join(', ')})`]));
   };
   for (const [name, keys] of Object.entries(clips)) {
     const at = `${label}.${name}`;

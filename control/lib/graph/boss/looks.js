@@ -26,9 +26,18 @@
  *                           right hand: WOUND at the end of the tell (the look's glint where its weapon is), STRUCK as
  *                           the blow lands
  *   POSE_REST               the stand it winds up from
- *   windClips(patterns)     → { wind_<p>: [rest, wound], strike_<p>: [wound, struck] } for a figure's door spec (`clips`):
+ *   WING_BEATS              { <pattern>: { wound, struck, reads } }   what a WINGED body's wings do through it, in degrees
+ *                           on their channels (outfit-plan.js `wings`: `wingR`, `wingL`, 0 their rest swept back, − raised
+ *                           high and forward, + beaten down and back); WING_FLAP the beat's raised and beaten angles
+ *   windClips(patterns, { wings? })
+ *                           → { wind_<p>: [rest, wound], strike_<p>: [wound, struck] } for a figure's door spec (`clips`):
  *                           two-key clips the page plays over their first half (boss-view's wind-up: rest to wound
- *                           through the tell, held; wound to struck through the blow)
+ *                           through the tell, held; wound to struck through the blow). With `wings` (its channels'
+ *                           names) the wind-up FLAPS: rest, then the wound body as the wings beat up, down, up, down and
+ *                           settle at the pattern's wound, six keys on the bake's twelve samples, and the strike beats
+ *                           them to its struck
+ *   flapWind(patterns)      → { <p>: { wind: [clip, 0, 5/6], strike: [clip, 0, 0.5] } } the stretch of those clips the
+ *                           page plays (a boss's `rule.boss.wind`)
  *   ATTACK_TELLS, ATTACK_HITS  the kinds
  *   readAttackLook(v)       → a look checked (a pattern's name, or one of the same shape); throws naming the fault
  *   lookOfMove(move)        → the look a boss's move wears (its pattern's), or null
@@ -48,6 +57,9 @@ export const ATTACK_LOOKS = Object.freeze({
   toll: Object.freeze({ tell: Object.freeze({ shimmer: true }), hit: 'sound', reads: 'the air shimmering round it, then a wall of ripples rolling out as high as it reaches' }),
   toss: Object.freeze({ tell: Object.freeze({ falling: 'weight' }), hit: 'impact', reads: 'the thing thrown coming down on its mark, then a star, a dust ring and chips' }),
   lunge: Object.freeze({ tell: Object.freeze({ glint: 'feet' }), hit: 'streak', reads: 'a glow at its feet as it crouches, then streaks and afterimages along the low stretch' }),
+  // (the air's: its eyes catching the light as it hangs over the room, then what comes down)
+  swoop: Object.freeze({ tell: Object.freeze({ glint: 'eyes' }), hit: 'streak', reads: 'its eyes glinting as it hangs over the room, then streaks and afterimages as it rakes along the floor' }),
+  dive: Object.freeze({ tell: Object.freeze({ glint: 'eyes', cracks: true }), hit: 'impact', reads: 'its eyes glinting over its shadow, the floor\'s cracks lit under it, then a star, a dust ring and chips where it lands' }),
 });
 // THE BODY'S: arms as directions (+y ahead, +x its right, +z up), elbows and knees in degrees
 const up = (x, y = 0) => ({ x, y, z: 0.95 }), A = (x, y, z) => ({ x, y, z });
@@ -70,21 +82,50 @@ export const ATTACK_POSES = Object.freeze({
     struck: { crouch: 0.14, spine: { lean: ['forward', 0.3] }, armR: A(0.22, 0.96, 0.1), elbowR: 5, armL: A(-0.22, 0.96, 0.1), elbowL: 5, head: { pitch: 4 } },
     reads: 'arms spread wide and the head thrown back, then thrust out ahead' }),
   // sunk low on bent knees, leaning in, the arms swept back; then sprung out flat along the lane, the weapon ahead
+  // (the air's: aloft its legs tucked under it; hanging back on its wings with its arms flung back, then thrown forward
+  // into the dive, its claws reaching ahead along the floor)
+  swoop: Object.freeze({ wound: { crouch: 0.05, spine: { arch: 0.22 }, armR: A(0.7, -0.55, 0.45), elbowR: 30, armL: A(-0.7, -0.55, 0.45), elbowL: 30, kneeL: 75, kneeR: 75, head: { pitch: -8 } },
+    struck: { crouch: 0.12, spine: { lean: ['forward', 0.6] }, armR: A(0.25, 0.9, -0.36), elbowR: 15, armL: A(-0.25, 0.9, -0.36), elbowL: 15, kneeL: 45, kneeR: 45, head: { pitch: -18 } },
+    reads: 'hanging back on its wings, arms flung back, then thrown forward into the dive, claws reaching along the floor' }),
+  // (hanging over the body with its arms spread and its head down at it; then landing in a crouch, both hands driven down)
+  dive: Object.freeze({ wound: { crouch: 0.05, spine: { arch: 0.1 }, armR: A(0.85, 0.1, 0.5), elbowR: 25, armL: A(-0.85, 0.1, 0.5), elbowL: 25, kneeL: 60, kneeR: 60, head: { pitch: 24 } },
+    struck: { crouch: 0.42, spine: { lean: ['forward', 0.35] }, armR: A(0.15, 0.5, -0.85), elbowR: 10, armL: A(-0.15, 0.5, -0.85), elbowL: 10, kneeL: 70, kneeR: 70, head: { pitch: 12 } },
+    reads: 'hanging over the body, arms spread and head down at it, then landing in a crouch, both hands driven down' }),
   lunge: Object.freeze({ wound: { crouch: 0.45, spine: { lean: ['forward', 0.5] }, armR: A(0.3, -0.7, -0.64), elbowR: 25, armL: A(-0.3, -0.7, -0.64), elbowL: 25, kneeL: 85, kneeR: 85, head: { pitch: -10 } },
     struck: { crouch: 0.18, spine: { lean: ['forward', 0.65] }, armR: A(0.08, 0.99, 0.05), elbowR: 0, armL: A(-0.4, -0.5, -0.75), elbowL: 20, kneeL: 55, kneeR: 15, head: { pitch: -18 } },
     reads: 'sunk low and leaning in, then sprung out flat along the lane' }),
 });
 
-/** The wind-up and strike clips of each pattern given that has a pose (see the header). */
-export function windClips(patterns) {
-  const out = {};
+// THE WINGS' (degrees on their channels: − raised high and forward, + beaten down and back)
+export const WING_FLAP = Object.freeze({ up: -42, down: 48 });
+export const WING_BEATS = Object.freeze({
+  cleave: Object.freeze({ wound: -45, struck: 55, reads: 'flung up high behind the blade, then beaten down with it' }),
+  quake: Object.freeze({ wound: -40, struck: 50, reads: 'raised with the hands, then beaten down as they drive into the floor' }),
+  toss: Object.freeze({ wound: -35, struck: 50, reads: 'raised as the arm draws back, then beaten down as it throws' }),
+  toll: Object.freeze({ wound: -30, struck: -12, reads: 'spread wide and high, held open through the cry' }),
+  lunge: Object.freeze({ wound: 30, struck: 40, reads: 'folded back along it, flattened as it springs' }),
+  swoop: Object.freeze({ wound: -40, struck: 45, reads: 'beating it up off the floor and holding it there, then folded back into the dive' }),
+  dive: Object.freeze({ wound: -38, struck: 55, reads: 'beating it up over the body and holding it there, then beaten down as it drops' }),
+});
+
+/** The wind-up and strike clips of each pattern given that has a pose; a winged body's wings beating through them (see
+ * the header). */
+export function windClips(patterns, { wings = null } = {}) {
+  const out = {}, W = (v) => (wings ? Object.fromEntries(wings.map((c) => [c, v])) : {});
   for (const p of new Set(patterns)) {
     const P = ATTACK_POSES[p];
     if (!P) continue;
-    out[`wind_${p}`] = [structuredClone(POSE_REST), structuredClone(P.wound)];
-    out[`strike_${p}`] = [structuredClone(P.wound), structuredClone(P.struck)];
+    const B = WING_BEATS[p] ?? { wound: 0, struck: 0 }, wound = () => structuredClone(P.wound);
+    out[`wind_${p}`] = wings ? [structuredClone(POSE_REST), { ...wound(), ...W(WING_FLAP.up) }, { ...wound(), ...W(WING_FLAP.down) }, { ...wound(), ...W(WING_FLAP.up) }, { ...wound(), ...W(WING_FLAP.down) }, { ...wound(), ...W(B.wound) }]
+      : [structuredClone(POSE_REST), wound()];
+    out[`strike_${p}`] = [{ ...wound(), ...W(B.wound) }, { ...structuredClone(P.struck), ...W(B.struck) }];
   }
   return out;
+}
+/** The stretch of a flapping body's clips the page plays: the wind-up's six keys through the tell, the strike's two through
+ * the blow (see the header). */
+export function flapWind(patterns) {
+  return Object.fromEntries([...new Set(patterns)].filter((p) => ATTACK_POSES[p]).map((p) => [p, { wind: [`wind_${p}`, 0, 5 / 6], strike: [`strike_${p}`, 0, 0.5] }]));
 }
 
 /** the white-hot core every hit burns to, and the dust a floor throws up */

@@ -19,11 +19,15 @@
  *   BOSS_DEFAULT         the row a boss the shelf does not know stands as
  *   CASTLE_FIGURES       { <id>: { hero } | { animal } | { bell } }   (a bell a card built on the page, bell.js)   each boss's figure in the door's words (the runner makes it,
  *                        `boss-<id>`); figuredBosses(names) → the ids a box's boss names have figures for
+ *   castleFigure(id, { second? }) → the figure's door words with its wind-up clips (a winged body's flapping: its wings'
+ *                        channels, boss/looks.js windClips); castleWind(id, { second? }) → the stretch of them the page plays
+ *                        (`rule.boss.wind`: a beast's own, a winged body's flapWind), or null
  *   standBosses(G, B, { stature, refs? }) → { figures, entities }   (`refs` { <row id>: its figure's sketch }: stood as
  *                        it, fitted to its tier's height; without one, a stand-in)   each of the box's bosses (scene.js boxOf `bosses`, laid
  *                        `bosses: 'stood'`) stood by the foe shelf where its room says, at its tier's height, its health its
  *                        blows, on its room's own stretch of the lane (it never follows her out of its room), its bar the
- *                        castle's (held-gates-view.js), never one over its head
+ *                        castle's (held-gates-view.js), never one over its head; a form that flies its SKY (`rule.boss.sky`:
+ *                        the air over its floor that keeps its head in the frame, FRAME_TOP of the frame's height)
  *   BOSS_LAWS, bossLaws(B, { body? }) → [{ id, holds, says }]   known (each boss a row of the shelf, not the default it
  *                        falls back to), fights (each boss's fight held to the director's laws for a body on the lane,
  *                        its jump among its escapes: every move told, escapable, survivable, opened after; three moves
@@ -40,7 +44,8 @@ import { sideFoe } from '../side-map/cast.js';
 import { HERO } from '../../foes/vocab.js';
 import { bossRule, bossMind } from '../../boss/stand.js';
 import { bossLaws as directorLaws } from '../../boss/bosses.js';
-import { lookOfMove, windClips } from '../../boss/looks.js';
+import { lookOfMove, windClips, flapWind } from '../../boss/looks.js';
+import { PATTERNS } from '../../boss/patterns.js';
 import { SEEDED_OUTFITS } from '../../outfit/styles.js';
 // (its FIGHT: the director's words for a human boss, boss/bosses.js: its moves over the side view's patterns,
 // boss/patterns.js, said in its own words, and its phases, quicker as its health falls)
@@ -73,9 +78,12 @@ export const CASTLE_BOSSES = Object.freeze({
     // (her SECOND FORM: cut down, she does not fall but tears out of her finery as the beast she is: a mode of her own,
     // its health its blows, taller by its tier, its fight quicker and closer)
     // (`over`: its figure's height over its body's, the wings raised above its head: the fit stands the BODY at the tier)
-    second: Object.freeze({ title: 'The Lord Unbound', tier: 2.5, over: 1.45, blows: 24, reads: 'her true shape: a dragon on two legs, horned and spined, its wings crimson skin on bone, gold at its shoulders and arms',
-      moves: Object.freeze({ 'wing-rake': { pattern: 'cleave', says: 'rears up, its wings flung wide' }, 'tail-charge': { pattern: 'lunge', says: 'drops low, its wings folded back along it' }, 'bat-storm': { pattern: 'toss', says: 'beats its wings; the dark above it splits into bats', look: { tell: { falling: 'swarm' } } }, 'shadow-roar': { pattern: 'toll', says: 'throws its horned head back, its wings spread' } }),
-      phases: Object.freeze([ph({ 'wing-rake': 2, 'tail-charge': 2, 'bat-storm': 1, 'shadow-roar': 1 }, 1.4, { temper: 'relentless' })]) }) }),
+    second: Object.freeze({ title: 'The Lord Unbound', tier: 2.5, over: 1.45, blows: 24, reads: 'her true shape: a dragon on two legs, horned and spined, its wings crimson skin on bone that beat as it strikes and carry it into the air, gold at its shoulders and arms',
+      moves: Object.freeze({ 'wing-rake': { pattern: 'cleave', says: 'rears up, its wings flung wide' }, 'tail-charge': { pattern: 'lunge', says: 'drops low, its wings folded back along it' }, 'bat-storm': { pattern: 'toss', says: 'beats its wings; the dark above it splits into bats', look: { tell: { falling: 'swarm' } } }, 'shadow-roar': { pattern: 'toll', says: 'throws its horned head back, its wings spread' },
+        // (the air's: it takes off, beating up over the room, and comes down out of it)
+        'sky-rake': { pattern: 'swoop', says: 'beats up off the floor and hangs over the room, then folds its wings and dives' },
+        'wyrm-fall': { pattern: 'dive', says: 'rises on its wings over the body and hangs there; its shadow darkens the floor' } }),
+      phases: Object.freeze([ph({ 'wing-rake': 2, 'tail-charge': 2, 'bat-storm': 1, 'shadow-roar': 1, 'sky-rake': 2, 'wyrm-fall': 2 }, 1.4, { temper: 'relentless' })]) }) }),
 });
 export const BOSS_DEFAULT = 'gate-warden';
 
@@ -145,8 +153,21 @@ export const CASTLE_FIGURES = Object.freeze({
 export function castleFigure(id, { second = false } = {}) {
   const F0 = CASTLE_FIGURES[id], F = second ? F0?.second : F0, R = second ? CASTLE_BOSSES[id]?.second : CASTLE_BOSSES[id];
   if (!F || F.animal || F.bell) return F ?? null;
-  const pats = Object.values(R.moves).map((m) => m.pattern);
-  return { hero: { ...F.hero, clips: { ...windClips(pats), ...(F.hero.clips ?? {}) } } };
+  const pats = Object.values(R.moves).map((m) => m.pattern), wings = wingsOf(F.hero);
+  return { hero: { ...F.hero, clips: { ...windClips(pats, { wings }), ...(F.hero.clips ?? {}) } } };
+}
+/** the channels a figure's WINGS beat on (its outfit's `wings`, outfit-plan.js: `<id>R`, `<id>L`), or null */
+function wingsOf(hero) {
+  const W = (hero?.outfit?.style?.pieces ?? []).find((p) => p.kind === 'wings');
+  return W ? [`${W.id ?? 'wing'}R`, `${W.id ?? 'wing'}L`] : null;
+}
+/** The stretch of its clips a castle boss's page plays as it winds up and strikes (its `rule.boss.wind`): a beast's its
+ * own door's, a winged body's its flapping wind-ups' (boss/looks.js flapWind); else none (each clip over its first half). */
+export function castleWind(id, { second = false } = {}) {
+  const F0 = CASTLE_FIGURES[id], F = second ? F0?.second : F0, R = second ? CASTLE_BOSSES[id]?.second : CASTLE_BOSSES[id];
+  if (!F) return null;
+  if (F.wind) return F.wind;
+  return F.hero && wingsOf(F.hero) ? flapWind(Object.values(R.moves).map((m) => m.pattern)) : null;
 }
 
 /** The castle bosses a box's words name that have a figure to make (minted by the runner: a card built on the page, the
@@ -181,9 +202,12 @@ const withLooks = (R, row) => ({ ...R, moves: Object.fromEntries(Object.entries(
 /** A boss's MODES (its first form, then its second, a row's `second`): each its figure and health and title; the second
  * its own director's rule (bossRule over its moves and phases, its looks, kept to the same room), its height and its hit
  * egg at its own tier. */
-function modesOf(G, b, row, { stature, figure, fig2, k, wind = null }) {
+function modesOf(G, b, row, { stature, figure, fig2, k, wind = null, frame = null }) {
   const S2 = row.second, H2 = r3(stature * S2.tier), R2 = r3(0.3 * S2.tier);
-  const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...(b.room ? { room: [...b.room] } : {}), ...(wind ? { wind: structuredClone(wind) } : {}) }, S2);
+  // (a form that flies flies in its SKY: the air over its floor that keeps its head in the side view's frame, the frame's
+  // top FRAME_TOP of its height over the floor the hero stands on)
+  const flies = Object.values(S2.moves).some((m) => PATTERNS[m.pattern]?.flies), sky = flies && frame ? { sky: r3(Math.max(0, FRAME_TOP * frame - H2 - 0.3)) } : {};
+  const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...(b.room ? { room: [...b.room] } : {}), ...(wind ? { wind: structuredClone(wind) } : {}), ...sky }, S2);
   return [{ figure, hp: row.blows * HERO.blow, title: b.title ?? castleBoss(row.id).name },
     // (its own size: a figure of its own stood at its tier's height by its own bounds, the page's mode fit)
     { figure: fig2 ?? figure, hp: S2.blows * HERO.blow, title: S2.title, rule: { collideHeight: H2, collideRadius: R2, boss: boss2 }, body: { radius: R2, egg: { a: r3(0.42 * S2.tier), c: r3(H2 / 2), cz: r3(H2 / 2) }, ...(fig2 ? { fit: { least: r3(H2 * (S2.over ?? 1)) } } : {}) } }];
@@ -214,17 +238,20 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
     part.entities.push({
       ...e,
       body: { ...body, ...fit, hp: row.blows * HERO.blow, hpBar: 'none', radius: R, egg: { a: r3(0.42 * row.tier), c: r3(H / 2), cz: r3(H / 2) },
-        ...(S2 ? { modes: modesOf(G, b, row, { stature, figure: body.figure, fig2, k, wind: fig2 ? F2?.wind : null }) } : {}) },
+        ...(S2 ? { modes: modesOf(G, b, row, { stature, figure: body.figure, fig2, k, wind: fig2 ? castleWind(row.id, { second: true }) : null, frame: B.greybox?.screen?.height ?? null }) } : {}) },
       // (on its room's own stretch of the lane, between its walls and short of its doorways)
       // (its FIGHT the director's, boss/stand.js: its moves laid at its tempo, planted through each, its mind crossing its
       // phases; between its moves it fights as its class does)
       rule: { ...e.rule, collideHeight: H, collideRadius: R, rail: { a: [0, P.span[0]], b: [0, P.span[1]], join: P.at, heading: P.heading },
-        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && F.wind ? { wind: structuredClone(F.wind) } : {}), ...(fig2 ? { figures: [fig2] } : {}) }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
+        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && castleWind(row.id) ? { wind: structuredClone(castleWind(row.id)) } : {}), ...(fig2 ? { figures: [fig2] } : {}) }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
     });
   }
   return part;
 }
 
+/** where the side view's frame tops out over the floor the hero stands on, a share of the frame's height (the floor sits in
+ * its bottom fifth) */
+export const FRAME_TOP = 0.8;
 export const BOSS_LAWS = Object.freeze(['known', 'fights', 'room-to-fight', 'rising']);
 /** a boss's stretch of the lane at least this long, and none along the walk under this share of the hardest before it */
 export const FIGHT_ROOM = 8, BOSS_EASE = 0.8;

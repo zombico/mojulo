@@ -30,9 +30,16 @@ attacks (the aim), and the body stands `reach` metres down the aim. A pattern ha
 
   A hazard with `track` follows the body until that moment, then holds. A `low` one passes over a crouch. A `cover` one
   is stopped by a box between its origin and the body.
+- **flight** (`flies`, optional): the path a winged boss flies through the move, key by key: `[s, x, z]`, seconds from
+  its start, metres down the aim from where it stood, metres over its floor. It starts where it stands (`[0, 0, 0]`) and
+  ends on its floor by its opening; its hazards land as the path brings it down.
 - **opening**: the recovery after it. In its opening a human boss stands winded and takes half again.
 
-The shelf is `PATTERNS`: sweep, fan, charge, ring, rain, lock, strafe, grid and scythe. A new attack is a row.
+The shelf is `PATTERNS`: a new attack is a row. The side view's rows (a castle's lane) say how high each hazard reaches
+(`rise`), where a jump is its escape; the air's rows fly: `swoop` (up off the floor and back, hanging over the room, then
+a dive that skims the floor through where the body stood, jumped as it rakes past) and `dive` (up over where the body
+stood, hanging there, then dropped straight onto it, a front rolling out from where it lands: out from under its shadow,
+then jump the front).
 
 ### The laws
 
@@ -156,7 +163,10 @@ shelf: `bossRule`, `bossMind`, `vehicleEntity`.
 
 - **A human boss** fights with its mind between moves. Every `tempo` it takes a move by weight. Through the tell and the
   hazards it is planted, facing the aim: its rule is held for the step, the way invisible mode borrows a rule, so the
-  pipeline is untouched. A charge carries it down its lane.
+  pipeline is untouched. A charge carries it down its lane. A flight flies it along its path, off the floor and down
+  again, its whole path lowered (never cut) under its room's ceiling and its `sky` (the metres of air over its floor it
+  may fly in: a side view's frame, so its head stays on the screen); `aloft` is its height over its floor while it
+  flies. The page's tells and hits rise with it.
 - **A vehicle** is driven by its state. Each hit on it is judged by part after the step: its health is given back, then
   taken again as each hit counts, by where the round or burst landed in its own frame. A smaller part beats the hull on
   a tie. `E.bossHit` judges a hit another module lands.

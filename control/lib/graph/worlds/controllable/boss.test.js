@@ -52,6 +52,25 @@ describe('a human boss', () => {
     expect(t.byId.p.body.hp).toBe(100);
   });
 
+  it('a move that FLIES takes it off its floor along its path and down again by its landing, under its room\'s ceiling', () => {
+    // (a boss of the air's swoop: up off the floor, hanging over the room, a dive raking the floor)
+    const row = { ...BOSSES[id], moves: { ...BOSSES[id].moves, rake: { pattern: 'swoop', says: 'dives' } } };
+    const R = bossRule(row, { first: 0.5 }), rule = { ...R, phases: R.phases.map((p) => ({ ...p, moves: { rake: 1 } })) };
+    const fly = (room) => { const s = world([pilot([6, 0]), human(room ? { ...rule, room } : rule)]); let top = 0, x = 0; const track = [];
+      run(s, 3.2, {}, (w) => { const b = w.byId.b; top = Math.max(top, b.transform.pos[2]); x = Math.max(x, b.transform.pos[0]); if (w.bosses.b && b.bossS.cur) track.push([w.time - b.bossS.cur.t0, b.transform.pos[2], b.aloft]); });
+      return { s, top, x, track }; };
+    const A = fly(null);
+    expect(A.top).toBeGreaterThan(3);                                      // (its path's height, 3.2 m)
+    expect(A.x).toBeGreaterThan(10);                                       // (carried on past where the body stood)
+    expect(A.track.some(([, , a]) => a > 3)).toBe(true);
+    expect(A.s.byId.b.transform.pos[2]).toBeCloseTo(0, 3);                  // (on its floor again)
+    expect(A.s.byId.p.body.hp).toBeLessThan(100);                          // (the rake lands on a body standing in it)
+    // (a room 5 m high for a boss 2 m tall: the whole path lowered under its ceiling, never cut)
+    const B = fly([-20, 20, 0, 5]);
+    expect(B.top).toBeLessThanOrEqual(5 - 2 - 0.2 + 1e-6);
+    expect(B.top).toBeGreaterThan(2);
+  });
+
   it('a boss kept to its room takes no move while the body is out of it', () => {
     const rule = { ...oneMove(id, charge), room: [-5, 5, -1, 4] };
     const s = world([pilot([0, 12]), human(rule)]);

@@ -11,7 +11,8 @@ import { validateOutfitBuild } from './expand.js';
 import { OUTFIT_LAWS_VERSION } from './principles.js';
 import { MATERIAL_NAMES } from '../polygonizer/cloth-law.js';
 import { HOOD_WORDS } from '../polygonizer/body-garment.js';
-import { OUTFIT_KINDS, bodyMap } from '../polygonizer/outfit-plan.js';
+import { OUTFIT_KINDS, bodyMap, pieceChannels } from '../polygonizer/outfit-plan.js';
+import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { HERO_LAWS_VERSION } from '../polygonizer/hero-form.js';
 import { heroRecord, heroPlanOf, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
@@ -166,5 +167,17 @@ describe('wings', () => {
     expect(top(R(swept)).at[0]).toBeLessThan(top(R(spread)).at[0]);
     // (on a beast's body as on a person's: a dragon on two legs)
     expect(wingsOf(0.8, { head: 'none', beast: { kin: 'draconic', legs: 'digitigrade', head: 'dragon', tail: 'thick' } })).toHaveLength(8);
+  });
+  it('each wing on a bone of its own riding the trunk, beaten by its channel: raised high, beaten down and back', () => {
+    const { hero } = plan({ cast: 'male', register: 'round', outfit: { type: 'outfit', style: style(0.8) } }), R = validateRig(expandLayeredManifest({ hero }).recipe.rig);
+    for (const g of wingsOf(0.8)) expect(g.bind.bone).toBe(`wingBone${g.name.slice(-1)}`);
+    expect(pieceChannels(style(0.8).pieces)).toEqual(['wingR', 'wingL']);
+    expect(Object.keys(R.chains)).toEqual(expect.arrayContaining(['wingR', 'wingL']));
+    const tip = (pose) => rigNodesAt(R, pose).nodes.wingTipR, rest = tip({}), up = tip({ wingR: -40 }), down = tip({ wingR: 45 });
+    // (raised: the tip over the shoulder, higher and forward; beaten: low behind; the root where it was, the other wing still)
+    expect(up[2]).toBeGreaterThan(rest[2] - 0.05); expect(up[1]).toBeGreaterThan(rest[1] + 0.3);
+    expect(down[2]).toBeLessThan(rest[2] - 0.5); expect(down[1]).toBeLessThan(rest[1]);
+    expect(rigNodesAt(R, { wingR: 45 }).nodes.wingRootR).toEqual(rigNodesAt(R, {}).nodes.wingRootR);
+    expect(rigNodesAt(R, { wingR: 45 }).nodes.wingTipL).toEqual(rigNodesAt(R, {}).nodes.wingTipL);
   });
 });
