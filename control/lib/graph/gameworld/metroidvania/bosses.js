@@ -16,7 +16,7 @@
  *                        `reach` a feel's measured reach (feel/reach.js), else the castle's hero's numbers
  *   bossRow(name)        → { id, known, ...row }   the row a boss's name reads as (lower-cased, `the` off, hyphened)
  *   BOSS_DEFAULT         the row a boss the shelf does not know stands as
- *   CASTLE_FIGURES       { <id>: { hero } | { animal } }   each boss's figure in the door's words (the runner makes it,
+ *   CASTLE_FIGURES       { <id>: { hero } | { animal } | { bell } }   (a bell a card built on the page, bell.js)   each boss's figure in the door's words (the runner makes it,
  *                        `boss-<id>`); figuredBosses(names) → the ids a box's boss names have figures for
  *   standBosses(G, B, { stature, refs? }) → { figures, entities }   (`refs` { <row id>: its figure's sketch }: stood as
  *                        it, fitted to its tier's height; without one, a stand-in)   each of the box's bosses (scene.js boxOf `bosses`, laid
@@ -76,16 +76,17 @@ export const BOSS_DEFAULT = 'gate-warden';
 // bone and bronze; each its idea read at a glance from the side. Found by minting: the undead's zombie does not yet wear
 // the knight's sabatons nor the cleric's robe (the door refuses both), so the Gate Warden and the Bellkeeper are dead
 // by their colours and their theme, not the undead word; and the cleric's robe under a `monk` silhouette is two bodices
-// (refused), so the Bellkeeper's outline is the bell's
+// (refused), so the Bellkeeper's outline is the bell's; the `knight` silhouette lays garment pauldrons over the armour's
+// own (a grey roof over the shoulders), so the knights' outline is the plain wedge
 const MYTH = Object.freeze({ genre: 'fantasy', register: 'mythic', canon: 'western' });
 export const CASTLE_FIGURES = Object.freeze({
   'gate-warden': Object.freeze({ hero: { name: 'The Gate Warden', cast: { pole: 'male', build: 'brute' }, head: 'landmark',
     adorn: { type: 'armor', style: 'knight', theme: 'death-knight', language: { pauldron: 'bell' }, dials: { mass: 0.7, ornament: 1 } },
-    palette: { Skin: '#9a9a86' }, gear: { right: { item: 'staff', style: 'grave', parts: { head: 'halberd' } } }, stylism: { ...MYTH, silhouette: 'knight' } } }),
+    palette: { Skin: '#9a9a86' }, gear: { right: { item: 'staff', style: 'grave', parts: { head: 'halberd' }, dials: { mass: 1.6 } } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
   gatekeeper: Object.freeze({ hero: { name: 'The Gatekeeper', cast: { pole: 'male', build: 'brute' }, head: 'landmark',
     adorn: { type: 'armor', style: 'knight', language: { pauldron: 'bell' }, dials: { mass: 0.7, ornament: 1 } }, headgear: 'skullKnight',
     palette: { Skin: '#7a2a22', Plate: '#3a1a1a', Iron: '#2a1a1a', Bronze: '#9a6a32', Helm: '#2a1414', Trim: '#9a6a32', Rivet: '#c9a75a', Accent: '#8a1a1a', Leather: '#1e1212', Top: '#2a1416', Bottom: '#1a0e10', Shoes: '#120a0a' },
-    gear: { right: { item: 'greatsword', style: 'brutal' } }, stylism: { ...MYTH, silhouette: 'knight' } } }),
+    gear: { right: { item: 'greatsword', style: 'brutal', dials: { mass: 1.3 } } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
   'bell-ringer': Object.freeze({ hero: { name: 'The Bell Ringer', cast: { pole: 'male', build: 'stout' }, head: 'landmark',
     undead: { form: 'zombie' }, outfit: { type: 'outfit', style: 'mage' },
     palette: { Skin: '#8a9a7a', OutfitBase: '#4a3a2a', OutfitSecond: '#2e241a', OutfitTrim: '#8a6a32', OutfitAccent: '#c9a75a', Outer: '#2e241a', Top: '#4a3a2a', Bottom: '#3a2e22', Shoes: '#221a14' },
@@ -98,7 +99,12 @@ export const CASTLE_FIGURES = Object.freeze({
     beast: { kin: 'draconic', tail: 'thin', claws: 'long' }, headgear: 'pointedCowl',
     palette: { Skin: '#8a2a2a', Outer: '#120a0e', Panel: '#4a0e18', OutfitBase: '#4a0e18', OutfitSecond: '#120a0e', Leather: '#120a0e', Collar: '#120a0e', Wrap: '#120a0e', Trim: '#c9a75a', Top: '#2a0e14', Bottom: '#1e0a10', Shoes: '#140c0e', Claws: '#e8dcc0' },
     stylism: { ...MYTH, silhouette: 'monk' } } }),
-  'crypt-lord': Object.freeze({ animal: { species: 'wolf', ooze: ['dire', 'shadow'] } }),
+  // (its wind-ups its own door's: a beast's STRIKE crouches, head down, then springs, and its FLINCH drops it low with
+  // its head thrown up; played through the tell and the blow by the page's wind-up, `wind`, by the pattern each move draws)
+  'crypt-lord': Object.freeze({ animal: { species: 'wolf', ooze: ['dire', 'shadow'], strike: { startup: 30, active: 8, recovery: 22 } },
+    wind: Object.freeze({ lunge: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, cleave: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, toll: { wind: ['stagger', 0, 0.5], strike: ['stagger', 0.5, 1] } }) }),
+  // (the great bell: no door makes a bell, so it is a card of its own, bell.js, built on the page with its swings)
+  'great-bell': Object.freeze({ bell: { card: 'great-bell' } }),
   'lord-of-the-keep': Object.freeze({ hero: { name: 'The Lord of the Keep', cast: 'male', head: 'anime', animeStyle: 'shonen-high', animeBody: 'toji',
     look: 'rival', hair: ['swept-back'], expression: 'deadpan', outfit: { type: 'outfit', style: 'noble' },
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
@@ -108,14 +114,15 @@ export const CASTLE_FIGURES = Object.freeze({
  * ATTACK_POSES, played by the page as it winds up and strikes); a beast's as it is (its own gaits). */
 export function castleFigure(id) {
   const F = CASTLE_FIGURES[id];
-  if (!F || F.animal) return F ?? null;
+  if (!F || F.animal || F.bell) return F ?? null;
   const pats = Object.values(CASTLE_BOSSES[id].moves).map((m) => m.pattern);
   return { hero: { ...F.hero, clips: { ...windClips(pats), ...(F.hero.clips ?? {}) } } };
 }
 
-/** The castle bosses a box's words name that have a figure to make: their row ids. */
+/** The castle bosses a box's words name that have a figure to make (minted by the runner: a card built on the page, the
+ * bell's, is not): their row ids. */
 export function figuredBosses(names) {
-  return [...new Set(names.map((n) => bossRow(n)).filter((r) => r.known && CASTLE_FIGURES[r.id]).map((r) => r.id))];
+  return [...new Set(names.map((n) => bossRow(n)).filter((r) => r.known && CASTLE_FIGURES[r.id] && !CASTLE_FIGURES[r.id].bell).map((r) => r.id))];
 }
 
 
@@ -148,7 +155,7 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
     const P = b.place, row = bossRow(b.name);
     // (its FIGURE where the runner made one, `refs[<row id>]`: the character door's on the library's clips, the animal
     // door's on its own gaits; else a stand-in of its class, level.js)
-    const F = CASTLE_FIGURES[row.id], ref = refs[row.id], figure = ref && F ? (F.animal ? foeFigure(ref, { species: F.animal.species }) : libraryFigure(ref)) : null;
+    const F = CASTLE_FIGURES[row.id], ref = refs[row.id], figure = F?.bell ? { bell: { ...F.bell } } : ref && F ? (F.animal ? foeFigure(ref, { species: F.animal.species, ...(F.animal.strike ? { strike: F.animal.strike } : {}) }) : libraryFigure(ref)) : null;
     const e0 = standFoe(G, part, { id: b.id, entry: { class: row.class, rank: 'boss', skin: row.skin }, at: P.at, heading: P.heading }, figure ? { figure } : {});
     part.entities.pop();
     // (its size the tier's: as tall as the hero times its tier, its collider and its hit egg with it; its rounds the side
@@ -157,7 +164,7 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
     // (a figure grown to its tier: a door's body, a person's height, by its tier, as the side map's bosses are (its
     // bounds would count the halberd held over its head); a beast by its own bounds to the tier's height, the page's fit
     // (its skeleton shorter than its flesh))
-    const { scale: _s, fit: _f, ...body } = e.body, fit = !figure ? {} : F.animal ? { fit: { least: H, from: 1 } } : { scale: row.tier };
+    const { scale: _s, fit: _f, ...body } = e.body, fit = !figure || F.bell ? {} : F.animal ? { fit: { least: H, from: 1 } } : { scale: row.tier };
     part.entities.push({
       ...e,
       body: { ...body, ...fit, hp: row.blows * HERO.blow, hpBar: 'none', radius: R, egg: { a: r3(0.42 * row.tier), c: r3(H / 2), cz: r3(H / 2) } },
@@ -165,7 +172,7 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
       // (its FIGHT the director's, boss/stand.js: its moves laid at its tempo, planted through each, its mind crossing its
       // phases; between its moves it fights as its class does)
       rule: { ...e.rule, collideHeight: H, collideRadius: R, rail: { a: [0, P.span[0]], b: [0, P.span[1]], join: P.at, heading: P.heading },
-        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}) }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
+        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && F.wind ? { wind: structuredClone(F.wind) } : {}) }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
     });
   }
   return part;

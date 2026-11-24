@@ -2621,11 +2621,17 @@ function __sidearmProps(e, m, rig, fig, AL) {
   }
 }
 ` : ''}${bossOn ? `const __BOSS_STRIKE = 0.35;
+// (a boss may name, by pattern, the clip and the stretch of it each plays: rule.boss.wind[p] { wind: [clip, from, to],
+// strike: [clip, from, to] }, a beast's one strike its crouch and then its spring; else its own wind_<p> and strike_<p>,
+// each over its first half)
 function __bossWind(e, fig) {
   const C = e.bossS && e.bossS.cur, p = C && C.pattern, t = __world.time || 0;
-  if (!p || e.downed || !fig.clips || !fig.clips['wind_' + p]) return null;
-  if (t < C.land) return { mode: 'wind_' + p, phase: Math.min(0.5, 0.5 * Math.max(0, t - C.t0) / Math.max(0.05, C.land - C.t0)) };
-  if (t < C.land + __BOSS_STRIKE && fig.clips['strike_' + p]) return { mode: 'strike_' + p, phase: Math.min(0.5, 0.5 * (t - C.land) / __BOSS_STRIKE) };
+  if (!p || e.downed || !fig.clips) return null;
+  const W = e.rule.boss.wind && e.rule.boss.wind[p], wn = W ? W.wind : ['wind_' + p, 0, 0.5], st = W ? W.strike : ['strike_' + p, 0, 0.5];
+  if (!__clipLookup(fig.clips, wn[0])) return null;
+  const at = (x, u) => x[1] + (x[2] - x[1]) * Math.max(0, Math.min(1, u));
+  if (t < C.land) return { mode: wn[0], phase: at(wn, (t - C.t0) / Math.max(0.05, C.land - C.t0)) };
+  if (t < C.land + __BOSS_STRIKE && __clipLookup(fig.clips, st[0])) return { mode: st[0], phase: at(st, (t - C.land) / __BOSS_STRIKE) };
   return null;
 }
 ` : ''}function __syncRigEntity(e, m, rig, dt) {

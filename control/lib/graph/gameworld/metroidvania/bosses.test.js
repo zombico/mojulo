@@ -5,6 +5,7 @@ import { readGameworld } from '../world.js';
 import { runSteps } from '../runner.js';
 import { vampireSonataGame } from './vampire-sonata.js';
 import { vampireSonata, vampireSonataCastle } from './vampire-sonata.js';
+const castleBox = () => boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonataCastle(), stature: 1.63, bosses: 'stood' });
 
 let B, S;
 beforeAll(() => {
@@ -76,4 +77,20 @@ describe('the castle\'s bosses', () => {
     const beast = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].animal);
     expect(castleFigure(beast)).toEqual(CASTLE_FIGURES[beast]);
   });
+
+  it('a bell no door makes stands as its card; a beast is minted with its strike and winds up on it', () => {
+    const C = castleBox(), G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref', castle: true }));
+    const bellId = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].bell), beastId = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].animal);
+    // (the bell: no mint, stood as its card; the beast: minted, and on its ref its wind-ups its own clips)
+    expect(figuredBosses(C.bosses.map((b) => b.name))).not.toContain(bellId);
+    const P = standBosses(G, C, { stature: 1.63, refs: { [beastId]: 'ref-beast' } }), id = (r) => C.bosses.find((b) => bossRow(b.name).id === r).id;
+    const bell = P.entities.find((e) => e.id === id(bellId)), beast = P.entities.find((e) => e.id === id(beastId));
+    expect(P.figures[bell.body.figure].bell).toEqual(CASTLE_FIGURES[bellId].bell);
+    expect(bell.body.scale).toBeUndefined();
+    expect(beast.rule.boss.wind).toEqual(CASTLE_FIGURES[beastId].wind);
+    expect(beast.body.fit.least).toBeGreaterThan(2);
+    const R = runSteps(vampireSonataGame({ heroRef: 'erina-ref', castle: true }), { ref: 'vs' }), steps = R.steps ?? R;
+    expect(steps.find((x) => x.key === `boss-${beastId}`).order.animal.motion.strike).toBeDefined();
+    expect(steps.find((x) => x.key === `boss-${bellId}`)).toBeUndefined();
+  }, 120000);
 });

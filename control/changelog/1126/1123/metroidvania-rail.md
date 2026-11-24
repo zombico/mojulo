@@ -115,3 +115,8 @@
   a slam, it raises both hands high; before a throw, it draws its arm back low; before a toll, it spreads its arms and
   throws its head back; before a lunge, it sinks low on bent knees. As the attack lands it strikes through, then eases
   back to its stand. The great wolf does not wind up yet.
+- The Great Bell is a bell now: bronze gone green at its waist with a gilded lip, hung from a timber yoke on chains. It
+  swings back before it tolls and swings through as the toll rolls out, its clapper lagging behind.
+- The Crypt Lord winds up like a wolf: it crouches with its head down before it pounces or mauls, then springs, and
+  drops low with its head thrown up before it howls.
+- The two knights lose the extra shoulder cape that sat over their armour like a roof, and carry heavier weapons.

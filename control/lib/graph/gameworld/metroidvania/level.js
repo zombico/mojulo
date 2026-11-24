@@ -61,7 +61,7 @@ function treesOfBox(G, L, rule, { placed = [] } = {}) {
 export const STAND_IN = Object.freeze({ walker: '#8c9c7a', swooper: '#4a4a5e', charger: '#8a6e9c', guard: '#b4b6c4', hopper: '#7a9c9c', lurker: '#5e7a5e', turret: '#9c7a5e', lobber: '#9c8a5e', pursuer: '#9c4a5e', stalker: '#6e5e9c' });
 function standIn(e, figures, bestiary, cls0 = null) {
   const F = figures[e.body?.figure];
-  if (!F || F.heroRef || F.ref || F.workbot) return e;
+  if (!F || F.heroRef || F.ref || F.workbot || F.bell) return e;
   const cls = cls0 ?? bestiary[String(e.body.figure).replace(/^foe-/, '')]?.class ?? null, h = e.rule?.collideHeight ?? 1, r = e.rule?.collideRadius ?? 0.4, flies = cls === 'swooper';
   const { figure: _f, scale: _s, fit: _fit, ...body } = e.body;
   // (a walker's block twice its height, centred on its feet: the floor's slab hides the half under it; a flyer's its own size)

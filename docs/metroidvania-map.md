@@ -343,8 +343,11 @@ under a horned skull helm with a brutal greatsword; the Bell Ringer a dead monk 
 grave-grey robe in a bell's outline; the Warden a horned, tailed, clawed devil in a crimson robe and black cloak; the
 Lord of the Keep a pale, silver-haired vampire noble in the anime register, as Erina is), the animal door's for the Crypt
 Lord (a wolf grown `dire` and `shadow`). The runner makes each one a box names (`boss-<id>`) and the level stands it on
-its ref, a door's body grown by its tier, a beast fitted to its tier's height. The Great Bell has no figure yet (no door
-makes a bell): it stands as a block.
+its ref, a door's body grown by its tier, a beast fitted to its tier's height. The Great Bell no door makes: it is a card
+of its own ([bell.js](../control/lib/graph/gameworld/metroidvania/bell.js)), built on the page as a rig (a figures-map
+`bell: { card }`, as a worker bot is): bronze gone green at its waist and gilded at its lip, on a timber yoke hung from
+chains, the bell on its axle and the clapper on its own bone, its moves its swings. The knights' outline is the plain
+`wedge`: the `knight` silhouette lays garment pauldrons over the armour's own.
 
 Its BODY tells the move too: each person boss's figure is minted with a wind-up and a strike for each pattern its moves
 use (`boss/looks.js` `ATTACK_POSES`, in the rig's pose words, its weapon in its right hand: the cleave's blade drawn back
@@ -352,7 +355,9 @@ over its shoulder then swept down; the quake's hands raised high then driven int
 low then flung out; the toll's arms spread wide and the head thrown back, then thrust ahead; the lunge sunk low on bent
 knees, then sprung out flat). The page plays `wind_<pattern>` through the tell, held wound at its landing, and
 `strike_<pattern>` through the blow, then eases back to its stand (`__bossWind`, emitted only where a director's boss
-stands). The great wolf has none yet: its door is the animal door, its clips its species' gaits.
+stands). A boss may name the clip and the stretch of it each pattern plays (`rule.boss.wind`): the great wolf is minted
+with its species' STRIKE (a crouch, head down, then a spring) and winds up on its first part and springs on the rest, its
+howl on its FLINCH (dropped low, the head thrown up). The bell's swings are its card's own clips, by the same names.
 
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.
@@ -503,9 +508,10 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
-- **The bosses' bodies, further.** The great wolf's wind-ups (a crouch and a spring of its own species' clips). A
-  wind-up turned to the camera where a profile hides it (a twist read side on).
-  The Great Bell made (a card: a bell on its beam, its clapper on a bone). The undead word under the knight's sabatons and
+- **The bosses' bodies, further.** A wind-up turned to the camera where a profile hides it (a twist read side on). The
+  knights' pauldrons read grey on top (their tops face the sky light); the halberd's head is small for a boss's weapon.
+  The wolf's howl its own (a head thrown back), not a flinch.
+  The undead word under the knight's sabatons and
   the cleric's robe (the door refuses both today). The knight's pauldrons, grey and large on a brute. A boss's look
   changed by its phase. The fight's length is the
   shelf's `blows`, not yet measured: a bot that fights as a player does (reads the marks, jumps the low ones, backs out

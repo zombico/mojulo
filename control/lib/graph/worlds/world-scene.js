@@ -1731,6 +1731,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = workbotFigure(rawSpec.workbot);
           continue;
         }
+        // A CASTLE'S BELL (gameworld/metroidvania/bell.js: a boss no door makes): a figures-map entry `bell: { card }`,
+        // delivered as its rig (its chains the root, the bell on its axle, the clapper), its moves its clips. Absent ⇒ none
+        if (rawSpec.bell && typeof rawSpec.bell === 'object') {
+          const { bellFigure } = await import('@/lib/graph/gameworld/metroidvania/bell.js');
+          payload.figures[name] = bellFigure(rawSpec.bell);
+          continue;
+        }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
         // entry may be a cycle shelf machine (`cycle`: { archetype, look?, pose?, addons? }, what a parked cycle writes), at
         // its class's true numbers in metres, parked on its stand, delivered as its rig (the machine the root, each wheel
