@@ -35,7 +35,7 @@
  *                input's fields: 'fire', 'slot', 'missile') }
  *
  * Field ownership: the ship's e.slots, e.live, e.strikes, e.beam, e.orbit, e._fireT, e._slotPrev, e._ejectT, e._orbitHit,
- * e.lastFire; the world's state.podDrops, state._podSeq; a foe's body.hp, hitFlash, lastHitBy, downed, gone, deadAt.
+ * e.lastFire; the world's state.podDrops, state._podSeq, state.podHits (the last 0.4 s of hits: the page's impact flashes); a foe's body.hp, hitFlash, lastHitBy, downed, gone, deadAt.
  *
  * Import-free (the page runs this source, compose.js), composed with scroll.js on a scroll stage's page only.
  */
@@ -62,8 +62,10 @@ export function buildScrollPods(E) {
     }
     return out;
   }
-  function hurt(state, ship, F, dmg) {
+  function hurt(state, ship, F, dmg, hue) {
     const b = F.b;
+    // (where it struck, for the page's impact flash: the round's hue, heavier the more it took)
+    (state.podHits || (state.podHits = [])).push({ w: b.transform.pos.slice(), hue: hue || '#ffffff', t: state.time, big: dmg >= 3 });
     if (!b.body) b.body = { type: 'none' };
     if (!Number.isFinite(b.body.hp)) b.body.hp = 1;
     b.body.hp -= dmg; b.hitFlash = state.time; b.lastHitBy = ship.id; b.hits = (b.hits || 0) + 1;
@@ -99,6 +101,7 @@ export function buildScrollPods(E) {
     const cam = state.camera;
     if (!cam || !cam.rule || cam.rule.type !== 'scroll' || !cam._sc) return;
     const B = VIEWS[cam.rule.view === 'top' ? 'top' : 'side'], sc = cam.scrollVel || [0, 0], now = state.time;
+    if (state.podHits) state.podHits = state.podHits.filter((h) => now - h.t < 0.4);
     for (const ship of state.entities) {
       const r = ship.rule, A = r && r.type === 'scroll-ship' && r.arsenal;
       if (!A || ship.gone || !ship.screenAt) continue;
@@ -132,13 +135,13 @@ export function buildScrollPods(E) {
       }
       if (firing && F.kind === 'beam') {
         ship.beam = { u0: muzzle[0], u1: muzzle[0] + F.length, v: muzzle[1], width: F.width, hue: L.hue };
-        for (const f of foes) if (f.u + f.r >= ship.beam.u0 && f.u - f.r <= ship.beam.u1 && Math.abs(f.v - muzzle[1]) <= F.width / 2 + f.r) hurt(state, ship, f, F.dps * dt);
+        for (const f of foes) if (f.u + f.r >= ship.beam.u0 && f.u - f.r <= ship.beam.u1 && Math.abs(f.v - muzzle[1]) <= F.width / 2 + f.r) hurt(state, ship, f, F.dps * dt, L.hue);
         spend(dt);
       }
       if (firing && F.kind === 'orbit') {
         const a = 2 * Math.PI * F.rate * now, ou = at[0] + Math.cos(a) * F.radius, ov = at[1] + Math.sin(a) * F.radius;
         ship.orbit = { u: ou, v: ov, r: F.r, hue: L.hue, at: [at[0], at[1]] };
-        for (const f of foes) if (Math.hypot(f.u - ou, f.v - ov) <= F.r + f.r && !((ship._orbitHit[f.b.id] ?? -1e9) > now - F.every)) { ship._orbitHit[f.b.id] = now; hurt(state, ship, f, F.dmg); }
+        for (const f of foes) if (Math.hypot(f.u - ou, f.v - ov) <= F.r + f.r && !((ship._orbitHit[f.b.id] ?? -1e9) > now - F.every)) { ship._orbitHit[f.b.id] = now; hurt(state, ship, f, F.dmg, L.hue); }
         spend(dt);
       }
       // ── the STRIKES in flight ──
@@ -166,14 +169,14 @@ export function buildScrollPods(E) {
             if (ended || s.hit[f.b.id] || f.b.downed) continue;
             if (Math.hypot(f.u - s.u, f.v - s.v) > s.r + f.r) continue;
             s.hit[f.b.id] = true;
-            if (s.dmg > 0) hurt(state, ship, f, s.dmg);
+            if (s.dmg > 0) hurt(state, ship, f, s.dmg, s.hue);
             if (!(s.pierce > 0)) ended = true; else s.pierce -= 1;
           }
           if (ended) { if (s.burst) next.push(ring(s.u, s.v, s.burst.r, s.burst.dmg, s.burst.time, s.hue)); continue; }
           next.push(s);
         } else if (s.k === 'ring') {
           s.r = s.r1 * Math.min(1, s.t / s.life);
-          for (const f of foes) if (!s.hit[f.b.id] && !f.b.downed && Math.hypot(f.u - s.u, f.v - s.v) <= s.r + f.r) { s.hit[f.b.id] = true; hurt(state, ship, f, s.dmg); }
+          for (const f of foes) if (!s.hit[f.b.id] && !f.b.downed && Math.hypot(f.u - s.u, f.v - s.v) <= s.r + f.r) { s.hit[f.b.id] = true; hurt(state, ship, f, s.dmg, s.hue); }
           if (s.t < s.life) next.push(s);
         } else if (s.k === 'sweep') {
           const k = Math.min(1, s.t / s.life), a = (s.from + (s.to - s.from) * k) * DEG;
@@ -184,7 +187,7 @@ export function buildScrollPods(E) {
             if (d > s.reach + f.r) continue;
             // (the arc swept so far, from `from` to where the blade is now: a foe within its reach inside it is cut)
             const fa = Math.atan2(dv, du), swept = s.from > s.to ? fa <= s.from * DEG && fa >= a : fa >= s.from * DEG && fa <= a;
-            if (swept || d <= f.r) { s.hit[f.b.id] = true; hurt(state, ship, f, s.dmg); }
+            if (swept || d <= f.r) { s.hit[f.b.id] = true; hurt(state, ship, f, s.dmg, s.hue); }
           }
           if (s.t < s.life) next.push(s);
         }
