@@ -99,7 +99,8 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   // the district's own unless named)
   const hill = HIJACK_HILL_REGISTERS.includes(register);
   const base = hill ? (word === 'downtown' ? HIJACK_HILL_DISTRICT : { ...HIJACK_HILL_DISTRICT, at: word === 'inner-city' ? 'frame' : 'outskirts' }) : HIJACK_DISTRICTS[word];
-  const district = { ...JSON.parse(JSON.stringify(base)), ...(register ? { outskirts: register } : {}) };
+  // (a locale's city, its grammar, its land and its heights by ring, over the district's metro: gameworld/locales.js)
+  const district = { ...JSON.parse(JSON.stringify(base)), ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}) };
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair

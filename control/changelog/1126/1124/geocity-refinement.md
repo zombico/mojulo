@@ -26,5 +26,9 @@
   morning fog under a grey sky, cool), Boston (a brick inner city on an overcast afternoon, filmic) and Toronto (its
   streetcar suburbs on a fair morning). Each is one word that sets the suburbs, the part of town, the light, the sky,
   the air and the colour grade together; any of them can still be named over it.
+- Each locale builds its city its own way, from the old metro city's flavours: Los Angeles low and wide in cream and
+  sand stucco with few towers on a nearly flat basin; Miami's slender white and glass condo towers with stacked
+  balconies on flat land by the water; San Francisco's pale stone and glass on its steep hills; Boston's brick and
+  brownstone without New York's fire escapes and water tanks, on low hills.
 - Hijack City's suburbs are the West Coast's now; one word makes them a tropical coast, the northeastern suburb they
   were, or a San Francisco district in its fog.

@@ -99,6 +99,10 @@ describe('Hijack City', () => {
     expect(W.grade).toBe(L.grade);
     expect(g.outskirts).toBe(L.register);
     expect(() => readGameworld(W)).not.toThrow();
+    // (its city over the district's metro: its grammar, the old fractal city's flavour it is a document over, its land,
+    // its heights; the metro reads it as its own)
+    expect(g).toMatchObject({ grammar: { from: L.city.grammar.from, label: L.city.grammar.label }, hills: L.city.hills, fall: L.city.fall, heights: L.city.heights });
+    expect(designGeocity(g, { seed: W.seed }).grammar.label).toBe(L.city.grammar.label);
     // (a locale's own part of town, and the hill city for San Francisco's register)
     expect(Object.values(hijackCityWorld({ locale: 'boston' }).levels)[0].geocity).toMatchObject({ metro: { from: 'northeast' }, at: 'frame' });
     expect(Object.values(hijackCityWorld({ locale: 'san-francisco' }).levels)[0].geocity.metro.from).toBe('bayside');
