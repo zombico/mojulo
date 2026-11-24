@@ -17,6 +17,7 @@
  *              'pilot-school' (Pilot School's: its first lessons on one airfield, each graded, pilot-school.js) or
  *              'wolf-squadron' (Wolf Squadron's: its stages down a path, on a planet and in space, wolf-squadron.js),
  *              'rebel-storm' (Rebel Storm's: its missions flown from the cockpit, rebel-storm.js) or
+ *              'warlords-of-mars' (Warlords of Mars's: its operations on Mars in an assault frame, warlords-of-mars.js) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level; a rail's own
  *              starter words where it has them: the party RPG's round, its levels)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
@@ -30,6 +31,7 @@ import { hijackCityStart } from './hijack-city.js';
 import { pilotSchoolStart } from './pilot-school.js';
 import { wolfSquadronStart } from './wolf-squadron.js';
 import { rebelStormStart } from './rebel-storm.js';
+import { warlordsOfMarsStart } from './warlords-of-mars.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
@@ -74,6 +76,11 @@ export function pitchStart(world, { title } = {}) {
   if (R.id === 'rebel-storm') {
     const RS = rebelStormStart({ ...withFeel, ...named });
     return { world: RS.world, laid: { by: 'rebel-storm', levels: Object.keys(RS.world.levels), says: SAYS } };
+  }
+  // Warlords of Mars's rail: its operations on Mars, each a field fought for in an assault frame (warlords-of-mars.js)
+  if (R.id === 'warlords-of-mars') {
+    const WM = warlordsOfMarsStart({ ...withFeel, ...named });
+    return { world: WM.world, laid: { by: 'warlords-of-mars', levels: Object.keys(WM.world.levels), says: SAYS } };
   }
   // Hijack City's rail: its own starter, the district, the story, the law and the shops (hijack-city.js)
   if (R.id === 'hijack-city') {

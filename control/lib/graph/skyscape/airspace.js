@@ -68,6 +68,9 @@ const CITY_PIN = 8;
 const COUNTRY_PIN = 16, COUNTRY_SPLIT = 10;
 
 /** Errors (strings) for an airspace manifest; [] when it builds. */
+// (an assault frame's build, read as its pilot reads it)
+import { readBuild } from '../assault-frame/assemble.js';
+
 export function validateAirspace(m) {
   if (!m || typeof m !== 'object') return ['airspace must be an object { kind: \'airspace\', map?, ground?, seed?, spawn? }'];
   const e = [];
@@ -96,6 +99,16 @@ export function validateAirspace(m) {
     if (!isSpace(m) && (m.map?.form ?? 'island') !== 'canyon') e.push("airspace.rail: a ground stage runs down a canyon (map.form: 'canyon'); a space stage needs a space craft or map.form 'void'");
     if (m.course) e.push('airspace.rail: a rail stage has its path, not a course');
     if (m.space?.trench) e.push('airspace.rail: a trench is its own run (space.trench), not a rail stage');
+  }
+  // an assault frame (assault-frame/, the frame rule): stood on the ground and fought on it, not flown
+  if (m.frame !== undefined) {
+    if (!m.frame || typeof m.frame !== 'object' || Array.isArray(m.frame)) e.push('airspace.frame is { build?, palette? }: an assault frame stood on the ground');
+    else {
+      for (const k of Object.keys(m.frame)) if (!['build', 'palette'].includes(k)) e.push(`airspace.frame.${k} is not a frame's setting (build, palette)`);
+      if (m.frame.build !== undefined) { try { readBuild(m.frame.build, 'airspace.frame.build'); } catch (err) { e.push(err.message); } }
+      if (isSpace(m)) e.push('airspace.frame: a frame fights on a ground (no space map)');
+      if (m.rail || m.cockpit || m.course) e.push('airspace.frame: a frame is fought on its feet, not flown down a rail, from a cockpit or round a course');
+    }
   }
   // a cockpit (starfighter.js): the craft flown from its seat in the 90s space-combat register, in space
   if (m.cockpit !== undefined) {

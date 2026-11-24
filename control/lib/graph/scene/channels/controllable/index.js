@@ -42,6 +42,7 @@ import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
 import { cockpitHudScript } from '../cockpit-hud.js';
+import { frameHudScript } from './frame-hud.js';
 import { keyClock } from '../../../worlds/controllable/keying.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
@@ -902,6 +903,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // a starfighter flown from its cockpit, or a body with a ship's systems (worlds/controllable/rules-starfighter.js)
   const sfOn = entities.some((e) => e && ((e.rule && e.rule.type === 'starfighter') || (e.body && e.body.ship)));
   const sfPilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'starfighter');
+  // (an assault frame: worlds/controllable/rules-frame.js, composed in where one stands; its pilot reads the frame's scheme)
+  const frameOn = entities.some((e) => e && e.rule && e.rule.type === 'frame');
+  const framePilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'frame');
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
   // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
@@ -1426,13 +1430,13 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}), ...(routeFind ? { routeFind: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(frameOn ? { frame: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}), ...(routeFind ? { routeFind: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''} });${hasLooks ? `
 // (what a member wears, seen: its looks by armour, kept on its entity for its body's variants and the RPG channel's dress)
 for (const __l of ${safeJson((entities || []).filter((e) => e && e.looks && e.looks.by).map((e) => [e.id, e.looks]))}) if (__world.byId[__l[0]]) __world.byId[__l[0]].looks = __l[1];` : ''}
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
-` : ''}${commanderBlock}${flyHudBlock}${sfPilot ? cockpitHudScript({ cockpit: camera && camera.cockpit }) : ''}${(() => {
+` : ''}${commanderBlock}${flyHudBlock}${sfPilot ? cockpitHudScript({ cockpit: camera && camera.cockpit }) : ''}${framePilot ? frameHudScript() : ''}${(() => {
     const { figs, same } = PAGE;
     // (clips on 16 bits: decoded once, after the bank and its pool, before any consumer reads a frame)
     const q16 = Object.values(figs).some((f) => f && ['clips', 'acts'].some((k) => f[k] && Object.values(f[k]).some((c) => c && c.b && c.b.q16 !== undefined)));
@@ -3306,7 +3310,7 @@ const __avHides = (e) => { const r = __world.camera && __world.camera.rule; retu
 const __frTop = (x, y, feet) => { const C = __world.colliders; if (!C) return null; let top = null, grew = true; while (grew) { grew = false; for (const b of C) { if (x < b.min[0] - 0.08 || x > b.max[0] + 0.08 || y < b.min[1] - 0.08 || y > b.max[1] + 0.08 || b.max[2] <= (top ?? feet) + 1e-6 || b.min[2] > (top ?? feet + 0.35) + 0.05) continue; top = b.max[2]; grew = true; } } return top; };
 const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; const feet = (p.fr ? p.fr.from[2] : p.transform.pos[2] - (p.rule.eye || 0)), top = __frTop(hit.point.x, hit.point.y, feet); return top != null && top <= feet + Math.max(F.vault ?? 1.15, Math.min(F.climb ?? 2.2, F.grab ?? 2.15)) + 0.1; };
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
-const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : sfPilot ? SCHEMES.cockpit : SCHEMES.pilot)};
+const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : sfPilot ? SCHEMES.cockpit : framePilot ? SCHEMES.frame : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
 ${padOver ? `const __OVER = ${safeJson(padOver)};
 ` : ''}let __BIND = __CTL.resolve(__SCHEME, __DEV${padOver ? ', __OVER' : ''});
@@ -3326,7 +3330,11 @@ window.addEventListener('keydown', (e) => { if (e.code === 'KeyJ') __fireDown = 
 window.addEventListener('keyup', (e) => { if (e.code === 'KeyJ') __fireDown = false; });
 ` : ''}const __canvas = renderer.domElement;
 const __MOUSELOOK = ${!!(camera && (camera.turnMode === 'look' || camera.mouseLook))};   // FPS look camera?
-if (__MOUSELOOK) {
+${framePilot ? `// (an assault frame's left hand on the right mouse, once the pointer is captured: rules-frame.js armL)
+__canvas.addEventListener('mousedown', (e) => { if (e.button === 2 && document.pointerLockElement === __canvas) window.__mojFrameAlt = true; });
+window.addEventListener('mouseup', (e) => { if (e.button === 2) window.__mojFrameAlt = false; });
+__canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+` : ''}if (__MOUSELOOK) {
   // pointer-lock FPS look: click once to capture the mouse, then RAW moves steer (no drag to hold).
   // both axes NEGATED so the view AGREES with the hand: swipe left looks left, push up looks up.
   __canvas.addEventListener('click', () => { if (document.pointerLockElement !== __canvas) __canvas.requestPointerLock(); });
@@ -3672,7 +3680,10 @@ function __readInput() {
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
     vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}${sprint ? `
     sprint: __kbRead('ShiftLeft') || __kbRead('ShiftRight') ? 1 : 0,   // a person's sprint, held (rules-platform.js sprintSpeed)` : ''}
-${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
+${framePilot ? `    // the frame's own (rules-frame.js; controls/schemes.js FRAME): the quick boost, the left hand on the right mouse, the
+    // shoulders' weapons on their keys
+    qb: __k('quickBoost') ? 1 : 0, alt: window.__mojFrameAlt || __k('fireLeft') ? 1 : 0, backR: __k('fireBackRight') ? 1 : 0, backL: __k('fireBackLeft') ? 1 : 0,
+` : ''}${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
     // throttle, pick the target, link the cannons and move the power; the mouse, captured, flies right and nose-up
     // as it moves right and down (a stick pulled back)
     pitch: __kx('pitchUp', 'pitchDown'), yaw: __kx('yawRight', 'yawLeft'), roll: __kx('turnRight', 'turnLeft'),

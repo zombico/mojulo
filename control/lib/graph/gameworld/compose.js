@@ -44,6 +44,7 @@ import { RAILS } from './rails.js';
 import { pilotSchoolStart } from './pilot-school.js';
 import { wolfSquadronStart } from './wolf-squadron.js';
 import { rebelStormStart } from './rebel-storm.js';
+import { warlordsOfMarsStart } from './warlords-of-mars.js';
 import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
 import { gmnOfWords, resolveGmn, stampGameBrief, MOTIVATIONS } from './gmn.js';
@@ -339,20 +340,21 @@ export function technologyOfWords(prompt) {
   return { ...(technology ? { technology } : {}), tunnels };
 }
 
-// THE FLIGHT RAILS' STARTERS: the rails whose first reading is their own starter (each a game of levels laid whole, its
-// lessons, stages or missions), with the count a sentence's `levels` asks of it. A rail is named by its own words; the
+// THE RAILS' OWN STARTERS: the rails whose first reading is their own starter (each a game of levels laid whole, its
+// lessons, stages, missions or operations), with the count a sentence's `levels` asks of it. A rail is named by its own words; the
 // words alone too common to name it (a cockpit is a car's too) name it only beside its genre
 const RAIL_STARTS = Object.freeze({
   'pilot-school': (w, n) => pilotSchoolStart(w, n ? { lessons: n } : {}),
   'wolf-squadron': (w, n) => wolfSquadronStart(w, n ? { stages: n } : {}),
   'rebel-storm': (w, n) => rebelStormStart(w, n ? { missions: n } : {}),
+  'warlords-of-mars': (w, n) => warlordsOfMarsStart(w, n ? { operations: n } : {}),
 });
 const RAIL_WEAK = new Set(['cockpit', 'starfighter', 'barrel roll', 'realistic flight']);
-const FLIGHT_GENRES = new Set(['flight-sim', 'air-combat', 'space-shooter', 'space-sim']);
-/** The flight rail a sentence is laid as, or null: { id, matched } (the rail's own words it used; none where the
- * genre read is one no other form lays). Only beside no genre or a flight genre. */
+const STARTER_GENRES = new Set(['flight-sim', 'air-combat', 'space-shooter', 'space-sim', 'mech-action']);
+/** The rail a sentence is laid as by its own starter, or null: { id, matched } (the rail's own words it used; none where
+ * the genre read is one no other form lays). Only beside no genre or one of those rails' genres. */
 export function starterRailOf(prompt, genreId = null) {
-  if (genreId && !FLIGHT_GENRES.has(genreId)) return null;
+  if (genreId && !STARTER_GENRES.has(genreId)) return null;
   const t = ` ${String(prompt ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, ' ')} `;
   const named = Object.keys(RAIL_STARTS)
     .map((id) => ({ id, matched: RAILS[id].words.filter((w) => t.includes(` ${w} `)) }))
@@ -363,7 +365,7 @@ export function starterRailOf(prompt, genreId = null) {
   const own = genreId && !GENRE_FORMS[genreId] ? Object.keys(RAIL_STARTS).find((id) => RAILS[id].handles.genres[0] === genreId) : null;
   return own ? { id: own, matched: [] } : null;
 }
-/** The composed world laid as a flight rail's starter: its name, its brief and its seed the sentence's, the rest the
+/** The composed world laid as a rail's own starter: its name, its brief and its seed the sentence's, the rest the
  * rail's (its levels, its intent, its look), its pitch written. */
 function railStarterWorld(world, { id, matched }, levels) {
   const R = RAILS[id], says = `rail.from=${id}`;
@@ -489,9 +491,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
     if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
   }
-  // A FLIGHT RAIL'S OWN GAME (rails.js): a sentence that names Pilot School, Wolf Squadron or Rebel Storm in their own
-  // words (flight school, a star fox style rail shooter, x-wing), or names the genre only that rail lays (a space combat
-  // sim), is laid as the rail's starter, its pitch written unlocked (the producer says it back and locks it)
+  // A RAIL'S OWN GAME (rails.js): a sentence that names Pilot School, Wolf Squadron, Rebel Storm or Warlords of Mars in
+  // their own words (flight school, a star fox style rail shooter, x-wing, armored core), or names the genre only that rail
+  // lays (a space combat sim, a mech game), is laid as the rail's starter, its pitch written unlocked (the producer says it
+  // back and locks it)
   const railStart = starterRailOf(prompt, genre?.id ?? null);
   if (railStart) return railStarterWorld(world, railStart, levels);
   // (and the words that make a beat-em-up a superhero one decide its streets' tuning)

@@ -1772,6 +1772,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = frameBase(rawSpec.frame).figure;
           continue;
         }
+        // AN ASSAULT FRAME (assault-frame/: a mech of parts, its core, head, arms, legs, booster and four weapons, in the
+        // realistic military register, chrome and painted plate): a figures-map entry may be a frame's build (`assault`: {
+        // build, palette? }), drawn in the form render under the world's sky, its boosters' exhaust on it. Absent ⇒ none
+        // is resolved, byte-identical.
+        if (rawSpec.assault && typeof rawSpec.assault === 'object') {
+          const { frameFigure } = await import('@/lib/graph/assault-frame/figure.js');
+          payload.figures[name] = await atRigFidelity(frameFigure(rawSpec.assault, { setting: { sky: payload.sky ?? null } }));
+          continue;
+        }
         // WORKER BOTS (workbots/: a toy world's worker bots, their own low-poly language, a face on each): a figures-map
         // entry may be a worker bot's card (`workbot`: { card, palette? }), delivered as its rig (a bone a part, its light
         // baked in its own cel). Absent ⇒ none is resolved, byte-identical.

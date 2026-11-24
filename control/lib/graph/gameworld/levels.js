@@ -27,6 +27,8 @@
  */
 import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
+import { frameEntity, frameMounts, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
+import { OPERATION_LEGEND } from './frame-goal.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
 import { facilityBuilding } from '../era/facilities.js';
@@ -425,7 +427,14 @@ export function airspaceEnds(manifest) {
   // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
   const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(rail ? rail.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
     .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
-  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, cockpit: manifest.cockpit === true, airframe: manifest.airframe ?? null, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  // AN ASSAULT FRAME (airspace.frame, assault-frame/): stood on the ground at the south of its field facing north, the
+  // field its bound; the frame's own gravity; its operation's groups placed by shares of the field (frame-goal.js)
+  const frameAt = manifest.frame ? (() => {
+    const h = Math.min(map.rings.field.hx, map.rings.field.hy), half = Math.round(h * 0.82), x = 0, y = -Math.round(half * 0.55);
+    return { half, spawn: [x, y, field.groundAt(x, y)], heading: Math.PI / 2, bound: [-half, -half, half, half], gravity: FRAME_WORLD.gravity, build: manifest.frame.build ?? 'vanguard', palette: manifest.frame.palette ?? 'federation' };
+  })() : null;
+  if (frameAt) { out.spawn = frameAt.spawn.slice(); out.heading = frameAt.heading; out.exit = [0, frameAt.half * 0.8, field.groundAt(0, frameAt.half * 0.8)]; out.exitFrom = 'the field\'s far side'; }
+  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, cockpit: manifest.cockpit === true, frame: frameAt, airframe: manifest.airframe ?? null, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);
   return out;
 }
@@ -1036,6 +1045,18 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       const frame = pilotPart.figures?.craft?.craft?.archetype, e0 = starfighterPilot(ends.airMap, pilotPart.entities[0], { airframe: frame });
       pilotPart = { ...pilotPart, entities: [e0, ...pilotPart.entities.slice(1)], camera: cockpitCamera(e0, pilotPart.camera, frame) };
       pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `mouse  fly · A / D  roll · W / S  throttle · click  lasers · Space  warhead · R  nearest foe · T  next target · C  cockpit / chase${legend ? ` · ${legend}` : ''}` }).events || {};
+    }
+    // AN ASSAULT FRAME (airspace.frame, assault-frame/, the frame rule): not a craft at all but a mech stood on the ground:
+    // the mouse turns and aims it, it walks, boosts, quick-boosts and climbs on its thrusters, its four guns on their own
+    // triggers; followed from behind and over its shoulder, the chase pitched with its aim
+    if (ends.frame) {
+      const F = ends.frame, fig = `frame-${typeof F.build === 'string' ? F.build : 'own'}`;
+      const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build) });
+      pilotPart = {
+        figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0],
+        camera: { rule: 'follow', target: 'player', ...FRAME_CAMERA },
+        events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
+      };
     }
     if (ride?.transformer) {
       // A FLIER THAT TRANSFORMS (quick.transformer): seated as the craft is, in its vehicle form on the seat's rule, its
