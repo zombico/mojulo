@@ -29,7 +29,7 @@ beforeAll(async () => {
   S = runSteps(W, { ref: 'js' });
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS, protocolTimeout: 900000 });
 }, 900000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
@@ -40,7 +40,9 @@ async function open(html) {
   await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojTalk && window.__mojScenes, { timeout: 180000 });
   return page;
 }
-const talking = (page) => page.waitForFunction(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, { timeout: 60000 }).then(() => page.evaluate(() => ({ text: window.__mojTalk.state.talk.text, name: document.querySelector('#moj-mana-talk .mana-heading')?.textContent ?? null })));
+// (the line it waits for, where it says which: a line just skipped can still be in the box on a slow runner, so the
+// next is the one whose words the box has begun, not whatever it shows first)
+const talking = (page, say = null) => page.waitForFunction((s) => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0 && (!s || s.startsWith(window.__mojTalk.state.talk.text)), { timeout: 60000 }, say).then(() => page.evaluate(() => ({ text: window.__mojTalk.state.talk.text, name: document.querySelector('#moj-mana-talk .mana-heading')?.textContent ?? null })));
 const skip = async (page) => { await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape'); await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 20000 }); };
 const stage = (page, scene) => page.evaluate((s) => { window.__mojStage = { scene: s, skip: true, t: 0, on: false, asked: 0 }; }, scene);
 
@@ -65,7 +67,7 @@ describe('the JRPG starter\'s story on the page', () => {
       // (and the hero called by the name the player gave: the game channel puts a named roster's names here)
       await page.evaluate(() => { window.__mojNames = { hero: 'Ada' }; });
       await page.evaluate((a) => { const C = window.__mojCtrl.world, me = C.byId[C.pilotId]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; }, sc.when.enter.at);
-      expect((await talking(page)).name).toBe('Ada');
+      expect((await talking(page, W.story.find((m) => m.id === 'gate-words').beats[0].line.say)).name).toBe('Ada');
       await nap(2500);
       expect(await page.evaluate(() => !!(window.__mojGame && window.__mojGame.envelope))).toBe(false);
       await skip(page);
@@ -81,7 +83,7 @@ describe('the JRPG starter\'s story on the page', () => {
       expect(W.story.find((m) => m.id === 'round-core').beats[0].line.say.startsWith(begun.text)).toBe(true);
       await skip(page);
       await stage(page, 'round-ending');
-      const ended = await talking(page);
+      const ended = await talking(page, W.story.find((m) => m.id === 'round-ending').beats[0].line.say);
       expect(W.story.find((m) => m.id === 'round-ending').beats[0].line.say.startsWith(ended.text)).toBe(true);
     } finally { await page.close(); }
   }, 900000);
