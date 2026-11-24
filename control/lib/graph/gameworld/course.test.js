@@ -59,6 +59,20 @@ describe('the plan', () => {
   });
 });
 
+describe('coming down', () => {
+  it('a course that ends high comes down to its ground across terraces, each a share of the jump and a landing long', () => {
+    const H = RF.moves.run.height, P = coursePlan(RF, { teach: 'advanced', verticality: 'climbing', length: 160, lift: 0, end: 3, floor: 0, down: true });
+    const T = P.floors.filter((f) => f.terrace), last = P.floors.at(-1);
+    expect(T.length).toBeGreaterThan(1);
+    expect(last.z).toBe(0);
+    for (const g of P.gaps.filter((g) => g.kind === 'terrace')) { expect(g.dz).toBeLessThan(0); expect(-g.dz).toBeLessThanOrEqual(0.9 * H + 1e-6); expect(reachAt(RF.moves.run, -g.dz)).not.toBeNull(); }
+    expect(T.every((f) => f.s1 - f.s0 >= 4 - 1e-6)).toBe(true);
+    // (without `down`, or low, none)
+    expect(coursePlan(RF, { teach: 'advanced', verticality: 'climbing', length: 160, lift: 0, end: 3, floor: 0 }).floors.some((f) => f.terrace)).toBe(false);
+    expect(coursePlan(RF, { teach: 'basic', verticality: 'flat', length: 80, lift: 0, end: 3, floor: 0, down: true }).floors.some((f) => f.terrace)).toBe(false);
+  });
+});
+
 describe('the lowering, played', () => {
   const lowered = (P) => { const L = lowerCourse(P, LINE), S = standBlocks(L.blocks); return { L, S, ground: groundOf(S.colliders, 0) }; };
 

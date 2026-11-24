@@ -87,6 +87,15 @@ The general principles are in [side-scroll-backgrounds.md](side-scroll-backgroun
 - **The clouds sit on a shaded underside and drift.** The blossom stirs, each crown after the one beside it (the
   page's ambient channel).
 
+## Going up and coming down
+
+The strip's climbs are built, never bare blocks. A face climbed by kicks (a course's wall) is a **tower** of the place:
+quoins down its ends, a string course every few metres, round windows set in their frames under its cornice
+(`era/geocube-side.js`, a built run taller than a step). A segment that ends high comes back down to the strip's ground
+across **terraces** (`course.js` `TERRACE`, a course's `down`): each a share of the jump down and a landing long, so
+going down is going across and each can be climbed back up by a jump, never a cliff dropped off. Jumping Giuseppe's
+climb ends on its tower and comes down the hill by its terraces.
+
 ## Sceneries
 
 A scooped strip's land behind the lane may be one of several SCENERIES (`SCENERIES` in `era/geocube-side.js`), laid

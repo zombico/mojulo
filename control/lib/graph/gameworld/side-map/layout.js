@@ -38,8 +38,11 @@ import { FPS } from '../feel/cards.js';
 import { sideMapCamera } from './screen.js';
 import { readSideMap } from './zones.js';
 import { shapeRun } from './path.js';
+import { fitStructure, STRUCT } from '../metroidvania/climbs.js';
 
 const HALF = 1.5, TH = 0.4, PAD = 1.5, LAND = 4, LEDGE = 1.2, LADDER_SHAFT = 2.4, WALL = 0.6;
+/** a storey's floor across a climb more than a screen tall: as thick as a building's (the castle's floor and ceiling) */
+export const SLAB = 1.6;
 /** the rising frame's share of the bot's pace up its climb (the frame takes this much longer than the bot: a margin) */
 export const RISE_SHARE = 0.7;
 /** a ladder climbed hand over hand, metres a second (the runtime's ladder, phase 8, climbs at it) */
@@ -54,6 +57,12 @@ const PAUSE = 0.5, FRAME = 1 / FPS;
 export function climbTime({ climb, from, to, rests = [], width = 0 }, reach) {
   const run = reach.moves.run, A = run.arc, apex = A.reduce((i, p, k) => (p[1] > A[i][1] ? k : i), 0) * FRAME, L = to - from;
   if (climb === 'ladder') return L / LADDER_RATE;
+  // (a structure: each stand walked (a step), leapt (a jump and a breath) or laddered (at its rate), and the bays crossed)
+  if (climb === 'tower' || climb === 'atrium') {
+    let t = 0, prev = { s0: 0, s1: 0, z: from };
+    for (const p of rests) { const gap = Math.abs((p.s0 + p.s1) / 2 - (prev.s0 + prev.s1) / 2); t += p.way === 'ladder' ? (p.z - prev.z) / LADDER_RATE + gap / (reach.speed ?? 5) : p.way === 'jump' ? 2 * apex + PAUSE / 2 + gap / (reach.speed ?? 5) : gap / (reach.speed ?? 5) + 0.02; prev = p; }
+    return t;
+  }
   const zs = [from, ...rests.map((r) => r.z), to];
   if (climb === 'chimney') {
     // (each kick its measured cycle, kick to kick, where the reach measured one: a stronger kick flies further off the
@@ -85,6 +94,50 @@ export function layoutSideMap(map, { reach, stature }) {
   const solid = (s0, s1, z0, z1, zone, role) => rect(out.solids, s0, s1, z0, z1, zone, role);
   const band = (z) => [z - H / 3, z + (2 * H) / 3];
   const advise = (zone, says) => out.advice.push({ zone, says });
+
+  // A SHAFT CLIMBED BY ITS STRUCTURE (the castle's, metroidvania/climbs.js layStructure): a tower a screen wide, an
+  // atrium two round a core; stairs walked across it, landings on its walls and its core, a ladder at each turn, the
+  // lowest flight built up from its floor; the way out its far wall's top. Each piece a closed part (a stair's step a
+  // `step`, a landing a `rest`, the core `core`); its ladders the runtime's; its stands, in the order climbed, rests with
+  // the way each is got onto (`way`, `order`)
+  const storeys = (T, { c, w, z, top, J }) => {
+    const out2 = [], clear = J + stature + 0.2, keep = [];
+    T.stands.forEach((p) => keep.push([p.s0 - 0.4, p.s1 + 0.4, p.z - 0.2, p.z + clear]));
+    for (const p of T.pieces) keep.push([p.s0 - 0.3, p.s1 + 0.3, p.z0 - 0.3, p.z1 + 0.3]);
+    for (const l of T.ladders) keep.push([l.s - 1.2, l.s + 1.2, l.z0 - 0.2, l.z1 + stature + 0.6]);
+    // (the way in kept: the floor's first screen of headroom from the doorway, and the way out over the far wall's top)
+    keep.push([c - 1, c + 4, z, z + door + 1], [c + w - 4, c + w + 1, top - clear, top + clear]);
+    for (let h = z + H; h < top - 0.6 * H; h += H) {
+      const z0 = h - SLAB, z1 = h, cuts = keep.filter((k) => k[2] < z1 && k[3] > z0).map((k) => [Math.max(c, k[0]), Math.min(c + w, k[1])]).filter((k) => k[1] > k[0]).sort((a, b) => a[0] - b[0]);
+      let at = c;
+      for (const [a, b] of [...cuts, [c + w, c + w]]) { if (a - at >= LAND) out2.push({ s0: r3(at), s1: r3(a), z0: r3(z0), z1: r3(z1) }); at = Math.max(at, b); }
+    }
+    return out2;
+  };
+  const built = (Z, i, s, z) => {
+    const L = Z.screens * H, two = Z.climb === 'atrium', w = r3(two ? 2 * W - 2 * WALL : W - 2 * WALL - 2.2), top = z + L, side = two ? WALL : r3((W - w) / 2), c = s + side;
+    solid(s, c + w, band(z)[0], z, i, 'floor');
+    solid(c - side, c, z + door, top + (2 * H) / 3, i, 'wall');
+    solid(c + w, c + w + side, band(z)[0], top, i, 'wall');
+    rect(out.open, c, c + w, z, top + (2 * H) / 3, i);
+    rect(out.open, s, c, z, z + door, i);
+    const ctx = { a: c, b: c + w, ...(two ? { pier: [r3(c + w / 2 - STRUCT.pier / 2), r3(c + w / 2 + STRUCT.pier / 2)] } : {}), floor: z, top, exit: { bay: two ? 1 : 0, end: 'hi' }, hero: { stature, jump: J }, door, ceiling: top, floorDoors: [c], entries: [c], lip: true, existing: [] };
+    const T = fitStructure(['stair-tower', 'great-stair'], ctx);
+    if (!T) { advise(i, `a ${Z.climb} ${r3(L)} m tall holds no structure: give it more screens or another climb`); return LAY.up({ ...Z, climb: 'switchback' }, i, s, z); }
+    for (const p of T.pieces) solid(p.s0, p.s1, p.z0, p.z1, i, p.kind === 'pier' ? 'core' : p.kind === 'landing' ? 'rest' : 'step');
+    // THE STOREYS: a climb of more than a screen is a building's, so a thick floor spans it at every storey (SLAB), and
+    // its CHUTES are the openings left where the way up rises through it: the space over every stand a jump and a body
+    // high, every piece of the climb, every ladder's column. What is left of each floor, a landing long or more, stands
+    for (const sl of storeys(T, { c, w, z, top, J })) solid(sl.s0, sl.s1, sl.z0, sl.z1, i, 'slab');
+    T.stands.forEach((p, k) => out.rests.push({ zone: i, s0: p.s0, s1: p.s1, z: p.z, side: 'stand', way: p.way, order: k }));
+    // (a ladder's top at the edge of the landing it is stepped off onto, that landing's side of it)
+    for (const l of T.ladders) { const head = T.pieces.find((p) => p.kind === 'landing' && Math.abs(p.z1 - l.z1) < 1e-3 && Math.abs((p.s0 + p.s1) / 2 - l.off[0]) < 1e-3); const edge = head ? (Math.abs(head.s0 - l.s) < Math.abs(head.s1 - l.s) ? head.s0 : head.s1) : l.s; out.ladders.push({ zone: i, foot: [l.s, l.z0], lip: [r3(edge), l.z1], off: l.off, face: 'camera' }); }
+    if (Z.rises) { const t = climbTime({ climb: Z.climb, from: z, to: top, rests: T.stands, width: w }, reach); out.rises.push({ zone: i, from: r3(z), to: r3(top), pace: r3((RISE_SHARE * L) / t) }); }
+    const sw = [c - side, c + w + side];
+    rect(out.swept, sw[0], sw[1], band(z)[0], top + (2 * H) / 3, i);
+    out.checkpoints.push({ zone: i, at: [r3(c + 1.2), r3(z)] });
+    return { rect: [sw[0], sw[1], band(z)[0], top + (2 * H) / 3], exit: [c + w, top], lock: two ? null : 's' };
+  };
 
   const LAY = {
     across(Z, i, s, z) {
@@ -135,6 +188,7 @@ export function layoutSideMap(map, { reach, stature }) {
     },
     up(Z, i, s, z) {
       const L = Z.screens * H, form = Z.climb;
+      if (form === 'tower' || form === 'atrium') return built(Z, i, s, z);
       if (form === 'chimney' && !kick) advise(i, 'the hero kicks off no wall (its feel has no cling): a chimney cannot be climbed; climb it by ledges');
       const w = r3(form === 'chimney' ? Math.min(Math.max(0.9 * LJ, 2.4), 0.4 * W) : form === 'ladder' ? LADDER_SHAFT : Math.min(Math.max(3 * LJ, 8), 0.45 * W));
       // (the shaft stands a wall's thickness on from where the walk came in: its near wall rises from a doorway at its foot,

@@ -64,4 +64,27 @@ describe('the side map\'s layout', () => {
     const Z = [{ run: 'across', screens: 2, teach: 'gauntlet', spawners: 2 }, { run: 'up', screens: 1, climb: 'switchback' }, { room: [2, 1] }];
     expect(JSON.stringify(lay(Z))).toBe(JSON.stringify(lay(Z)));
   });
+  it('a tower and an atrium are climbed by their structure; a climb of more than a screen has its storeys, open where the way rises', () => {
+    const T = lay([{ run: 'across', screens: 1 }, { run: 'up', screens: 1, climb: 'tower' }, { run: 'across', screens: 1 }]);
+    const shaft = T.open.find((r) => r.zone === 1);
+    expect(shaft.s1 - shaft.s0).toBeLessThan(T.screen.width - 2);
+    expect(T.zones[1].lock).toBe('s');
+    const A = lay([{ run: 'across', screens: 1 }, { run: 'up', screens: 3, climb: 'atrium' }, { run: 'across', screens: 1 }]), H = A.screen.height;
+    expect(A.zones[1].lock).toBeNull();
+    expect(wide(A.zones[1].rect)).toBeGreaterThan(A.screen.width * 1.9);
+    const st = A.rests.filter((r) => r.zone === 1 && r.order !== undefined).sort((a, b) => a.order - b.order);
+    expect(new Set(st.map((r) => r.way))).toContain('walk');
+    // (the core up its middle; the way on both sides of it)
+    const core = A.solids.filter((r) => r.zone === 1 && r.role === 'core'), mid = (A.zones[1].rect[0] + A.zones[1].rect[1]) / 2;
+    expect(core.length).toBeGreaterThan(0);
+    expect(st.some((r) => r.s1 < mid) && st.some((r) => r.s0 > mid)).toBe(true);
+    // (a thick floor a storey: never over a stand within a jump and a body, a chute where the way rises through)
+    const slabs = A.solids.filter((r) => r.zone === 1 && r.role === 'slab');
+    expect(new Set(slabs.map((r) => r.z1)).size).toBe(2);
+    expect(slabs.every((r) => r.z1 - r.z0 >= 1.5 && r.s1 - r.s0 >= 4)).toBe(true);
+    for (const sl of slabs) for (const r of st) if (Math.min(sl.s1, r.s1) - Math.max(sl.s0, r.s0) > 0 && sl.z0 > r.z) expect(sl.z0 - r.z).toBeGreaterThan(reach.moves.run.height + STATURE);
+    for (const z1 of new Set(slabs.map((r) => r.z1))) expect(slabs.filter((r) => r.z1 === z1).reduce((a, r) => a + r.s1 - r.s0, 0)).toBeLessThan(wide(A.zones[1].rect) - 3);
+    expect(A.advice).toEqual([]);
+    void H;
+  });
 });

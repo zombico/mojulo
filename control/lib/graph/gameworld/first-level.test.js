@@ -85,7 +85,10 @@ describe('the first level from the side: one strip, its trails the segments of o
     expect(seg.map((x) => x.node)).toEqual(FIRST_LEVEL_SEGMENTS.filter((n) => n !== 'boss'));
     seg.forEach((x, k) => { expect(x.length).toBeGreaterThan(12); if (k) expect(x.s0).toBeCloseTo(seg[k - 1].s0 + seg[k - 1].length, 2); });
     // (a side-scroller's pace: the whole run far shorter than its trails walked, the floors near their least)
-    expect(S.manifest.side.length).toBeLessThan(220);
+    // (and the terraces a high trail comes down by, course.js `down`, are going across, laid on top of that pace)
+    const down = O.course.floors.filter((f) => f.terrace).reduce((a, f) => a + f.s1 - f.s0, 0);
+    expect(down).toBeGreaterThan(0);
+    expect(S.manifest.side.length - down).toBeLessThan(220);
     expect(Math.max(...O.course.floors.map((f) => f.s1 - f.s0))).toBeLessThan(16);
     expect(S.manifest.side.length).toBeCloseTo(seg.at(-1).s0 + seg.at(-1).length, 2);
     expect(new Set(stageLane(S).line.map(([x]) => x))).toEqual(new Set([0]));

@@ -1475,7 +1475,7 @@ function sideSegments(G, level, stages) {
   const segments = stages.map((s) => {
     const C = courseAt(spec, s.node);
     let D = 12;
-    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END, floor: 0 }); break; } catch { D += 1; } }
+    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END, floor: 0, down: true }); break; } catch { D += 1; } }
     D = Math.ceil(D * STRIP_SLACK);
     const seg = { node: s.node, s0: r3(at), length: r3(D) };
     at += D;
@@ -1500,7 +1500,7 @@ function stripCourse(G, stage) {
     if (!C) continue;
     // (on a strip the course stands on the ground: no stairs up to it, the hero on its first floor at once)
     // (a floor never stands under the strip's ground, `floor: 0`: a rolling trail rolls, it does not sink)
-    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END, floor: 0 });
+    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END, floor: 0, down: true });
     const line = Array.from({ length: Math.floor(seg.length) + 1 }, (_, k) => [0, r3(seg.s0 + k)]);
     const L = lowerCourse(plan, { line, ground: () => 0 }), B = L.blocks[0].blocks;
     B.forEach((b, k) => { const p = L.parts[k]; blocks.push(b); parts.push({ ...p, role: p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall') ? 'built' : 'terrain', node: seg.node }); });

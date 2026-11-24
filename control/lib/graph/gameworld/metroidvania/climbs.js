@@ -55,8 +55,9 @@ const piece = (s0, s1, z, kind) => ({ s0: r3(s0), s1: r3(s1), z: r3(z), kind });
 /** What makes a figure unplayable (see the header). */
 export function climbFaults(stands, { hero, existing = [], floor }) {
   const out = [], clear = hero.stature + CLIMB.th + CLIMB.head, all = [...existing, ...stands];
-  for (const p of stands) for (const q of all) {
-    if (q === p || q.z <= p.z) continue;
+  // (each pair one of which is new: a new stand under what stands already, or over it)
+  for (const p of all) for (const q of all) {
+    if (q === p || q.z <= p.z || (!stands.includes(p) && !stands.includes(q))) continue;
     const over = Math.min(p.s1, q.s1) - Math.max(p.s0, q.s0);
     if (over > 0.2 && q.z - p.z < clear) out.push(`a ${q.kind ?? 'ledge'} ${r3(q.z - p.z)} m over a ${p.kind} at ${p.s0}–${p.s1}`);
   }
@@ -142,7 +143,11 @@ export function layClimb(figure, ctx) {
  *   STRUCT                     the pieces' measures (m)
  *   layStructure(figure, ctx)  → { pieces, stands, openings, ladders } or null where it does not fit or fails its checks
  *     ctx  { a, b, pier?: [p0, p1], floor, top, exit: { bay, end: 'lo' | 'hi' }, phase?: 'F' | 'L', hero, door,
- *          ceiling, floorHoles, floorDoors, existing, terrain? }   phase: the exit reached by a flight (unsaid) or by its
+ *          ceiling, floorHoles, floorDoors, entries, existing, terrain?, long?, ladder?, going?, gallery?, turn?, lip?, why? }   turn: a lowest flight that would wall the way in
+ *          off from its foot a ladder instead; gallery: metres the exit's landing runs on along its wall;   lip: the exit a way out at its wall (a doorway, a wall's top);   ladder, going: a ladder's
+ *          rise and a flight's most going other than STRUCT's (tried in turn, so the turns fall clear of the floor's ways);   entries: where the room is come into along its floor (kept open to the climb's foot);   long: a ladder
+ *          whose foot landing would stand low taken on down to the floor; why: an array the faults of a
+ *          structure not laid are said into; phase: the exit reached by a flight (unsaid) or by its
  *          ladder; floorDoors the doorways at its floor and what stands on it (a
  *          save, a relic, a key: kept clear)   a, b the room's inner reach; pier a tower's (its bays either side of it); top the exit's
  *          stand; exit where it is (the wall end of a bay under the door's hole, or the lip at its doorway); door a
@@ -186,7 +191,9 @@ export function structFaults(pieces, { hero, floor, floorHoles = [], floorDoors 
 /** A room climbed by its structure (see the header), or null. */
 export function layStructure(figure, ctx) {
   if (!STRUCTURES[figure]) return null;
-  const { a, b, pier = null, floor, top, exit, hero, door, ceiling, floorHoles = [], existing = [], terrain = false } = ctx, S = STRUCT;
+  const { a, b, pier = null, floor, top, exit, hero, door, ceiling, floorHoles = [], existing = [], terrain = false } = ctx;
+  // (a ladder's rise and a flight's going may be dealt other than their measures: how the turns fall against the floor)
+  const S = { ...STRUCT, ...(ctx.ladder ? { ladder: Math.max(STRUCT.ladder, ctx.ladder) } : {}), ...(ctx.going ? { going: [STRUCT.going[0], Math.max(STRUCT.going[0], Math.min(STRUCT.going[1], ctx.going))] } : {}) };
   const bays = pier ? [[a, pier[0]], [pier[1], b]] : [[a, b]], two = bays.length === 2;
   // (the way up, a cycle: a flight across a bay, through the pier to the other bay, a flight across it, a ladder where
   // it doubles back; in one bay, a flight and a ladder at each wall)
@@ -197,12 +204,14 @@ export function layStructure(figure, ctx) {
   // (a landing at a bay's end: a ladder's foot the length of its turn, a ladder's head clear of the ladder's slot, the
   // pier's, the exit's)
   const landing = (k, end, kind, z) => {
-    const [p, q] = bays[k], len = kind === 'pier' ? S.landing : S.foot, lo = kind === 'head' ? S.slot : 0;
+    const [p, q] = bays[k], len = (kind === 'pier' ? S.landing : S.foot) + (kind === 'exit' ? ctx.gallery ?? 0 : 0), lo = kind === 'head' ? S.slot : 0;
     const [s0, s1] = end === 'lo' ? [p + lo, p + len] : [q - len, q - lo];
     return { kind: 'landing', s0, s1, z0: Math.max(floor, z - S.depth), z1: z, end, bay: k, role: kind };
   };
   const inner = (L) => (L.end === 'lo' ? L.s1 : L.s0);
   // (the move that arrives at the exit: the flight that ends at its end, or, a phase on, the ladder up to it)
+  // (a lip, a way out over a wall's top or through a doorway, is never a ladder's head: its slot would part it from the wall)
+  if (ctx.phase === 'L' && ctx.lip) return null;
   const byLadder = ctx.phase === 'L', top0 = landing(exit.bay, exit.end, byLadder ? 'head' : 'exit', top), down = [{ piece: top0, way: null }];
   const pieces = [top0], ladders = [], openings = [];
   let i = moves.findIndex((m) => (byLadder ? m[0] === 'L' && m[2] === exit.end : m[0] === 'F' && other(m[2]) === exit.end) && m[1] === exit.bay), cur = top0, z = top, flights = 0;
@@ -217,6 +226,13 @@ export function layStructure(figure, ctx) {
       const rise1 = great ? S.great.rise : S.riser, go = great ? [S.great.going, S.great.going] : S.going;
       let n = Math.floor(run / go[1]);
       const toFloor = z - floor <= n * rise1 + 1e-6 || z - floor <= Math.floor(run / go[0]) * rise1;
+      // (`turn`: the lowest flight rising toward the way in would wall it off from its own foot; a ladder stands
+      // instead beside the landing it would have reached, from the floor up)
+      if (toFloor && ctx.turn && (ctx.entries ?? []).length && (ctx.entries ?? []).every((e) => Math.abs(e - e1) < Math.abs(e - e0))) {
+        ladders.push({ s: r3(e1 - dir * 0.6), z0: r3(floor), z1: r3(z), off: [r3((cur.s0 + cur.s1) / 2), r3(z)] });
+        down.at(-1).way = 'ladder';
+        break;
+      }
       if (toFloor) n = Math.ceil((z - floor) / rise1 - 1e-6);
       if (n < 1) return null;
       const g = toFloor ? Math.min(go[1], run / n) : run / n;
@@ -236,7 +252,10 @@ export function layStructure(figure, ctx) {
       cur = landing(k, from, below, z); pieces.push(cur); down.push({ piece: cur, way: null });
     } else if (kind === 'L') {
       // (a ladder from the landing at its foot up to the head over it; from the floor where it is under its rise)
-      const [, , end] = moves[i], p = bays[k], ws = end === 'lo' ? p[0] + 0.5 : p[1] - 0.5, z0 = Math.max(floor, z - S.ladder);
+      // (`long`: a ladder's foot landing too low to walk under is no landing, the ladder going on down to the floor)
+      const [, , end] = moves[i], p = bays[k], ws = end === 'lo' ? p[0] + 0.5 : p[1] - 0.5, z0 = ctx.long && z - S.ladder - floor < hero.jump + hero.stature + 0.2 + S.depth ? floor : Math.max(floor, z - S.ladder);
+      // (a head a leap over the floor is leapt onto: no ladder for less than a jump)
+      if (z0 <= floor + 1e-6 && z - floor <= hero.jump * 0.85) { z = floor; break; }
       ladders.push({ s: r3(ws), z0: r3(z0), z1: r3(z), off: [r3((cur.s0 + cur.s1) / 2), r3(z)] });
       down.at(-1).way = 'ladder';
       if (z0 <= floor + 1e-6) { z = floor; break; }
@@ -271,10 +290,32 @@ export function layStructure(figure, ctx) {
   // (and where the room stands on the rock, what rises from its floor is the rock)
   const out = pieces.map((p) => ({ ...p, s0: r3(p.s0), s1: r3(p.s1), z0: r3(p.z0), z1: r3(p.z1), ...(terrain && p.z0 <= floor + 1e-6 && p.kind !== 'pier' ? { terrain: true } : {}) }));
   const faults = structFaults(out, { hero, floor, floorHoles, floorDoors: ctx.floorDoors ?? [], existing });
+  // (the way in: from each way into the room along its floor to the first stand, nothing built up from the floor stands
+  // across the way higher than a step: a flight built from the floor turns its foot to the way in)
+  // (and nothing hung over that way lower than she stands: a ladder's foot is walked to under what is over it)
+  const first = stands[0], foot = first?.way === 'ladder' ? ladders.at(-1).s : null;
+  for (const e of ctx.entries ?? []) {
+    if (!first) break;
+    const to = foot ?? (e < first.s0 ? first.s0 : e > first.s1 ? first.s1 : e), lo = Math.min(e, to) - (foot ? 0.4 : 0), hi = Math.max(e, to) + (foot ? 0.4 : 0);
+    const across = (p) => Math.min(p.s1, hi) - Math.max(p.s0, lo) > 0.05 && !(Math.abs(p.z1 - first.z) < 1e-3 && p.s0 === first.s0);
+    const wall = out.find((p) => p.kind !== 'pier' && across(p) && ((p.z0 <= floor + 0.3 && p.z1 > floor + S.riser + 0.06) || (p.z0 > floor + 0.3 && p.z0 < floor + hero.stature + 0.2)));
+    if (wall) faults.push(`a ${wall.kind} walls the way in at ${r3(e)} off from the climb's foot`);
+  }
   // (each rise a jump at most but a ladder's; each gap within reach)
   for (let k = 1; k < stands.length; k++) {
     const p = stands[k], q = stands[k - 1], gap = Math.max(0, p.s0 - q.s1, q.s0 - p.s1);
     if (p.way !== 'ladder' && (p.z - q.z > hero.jump + 1e-6 || gap > CLIMB.reach * hero.jump)) faults.push(`a ${p.way} of ${r3(p.z - q.z)} m up and ${r3(gap)} m across`);
   }
+  if (faults.length && Array.isArray(ctx.why)) ctx.why.push(...faults);
   return faults.length ? null : { pieces: out, stands, ladders, openings };
+}
+
+/** The first structure that fits a room, its figures tried in `order`, each in its phases, its ladders' rises and its
+ * flights' goings in turn (long ladders, then a longer gallery at the exit, last): what rooms.js and the side map lay. */
+export function fitStructure(order, ctx) {
+  for (const turn of [false, true]) for (const gallery of [0, 3, 6]) for (const long of [false, true]) for (const ladder of [STRUCT.ladder, 6, 7.2]) for (const going of [STRUCT.going[1], 0.46, STRUCT.going[0]]) for (const f of order) for (const phase of ['F', 'L']) {
+    const T = layStructure(f, { ...ctx, phase, long, ladder, going, gallery, turn });
+    if (T) return { figure: f, ...T };
+  }
+  return null;
 }

@@ -33,7 +33,7 @@
  */
 import { sideMapCamera, SIDE_MAP_FRAME } from '../side-map/screen.js';
 import { GATES, readHero, gateSill, LEDGE_SHARE, SLIT_SHARE } from './gates.js';
-import { layClimb, climbDeal, layStructure, STRUCT, STRUCT_DEAL } from './climbs.js';
+import { layClimb, climbDeal, fitStructure, STRUCT, STRUCT_DEAL, CLIMB } from './climbs.js';
 
 /** THE BOX'S FRAME: the side map's (screen.js SIDE_MAP_FRAME), the hero a fifth larger in it, 0.15 of the frame's height
  * against the run and gun's eighth: a metroidvania is close on its hero, a room a little smaller round her. A screen is a
@@ -164,26 +164,30 @@ export function greyboxOf(L, { hero } = {}) {
       let figure = 'zigzag', laid = null, ways = null;
       if (built(r) && !structure.has(r.id)) {
         const bays = baysOf(r, mine[0]), wall = d.axis === 'h' ? (other[0] > mine[0] ? { bay: bays.length - 1, end: 'hi' } : { bay: 0, end: 'lo' }) : exitOf(r, mine[0]);
-        const ctx = { a: bays[0][0], b: bays.at(-1)[1], ...(bays.length === 2 ? { pier: [bays[0][1], bays[1][0]] } : {}), floor: S.floor, top: highest, exit: wall, hero: Hh, door: DOOR, ceiling: S.zt - CEIL,
-          floorHoles: holes.filter((h) => Math.abs(h.z - S.zb) < 1e-3 && h.s1 > S.s0 && h.s0 < S.s1).map((h) => [h.s0, h.s1]), floorDoors: [...doorways.filter((w) => Math.abs(w.z0 - S.floor) < 1e-3 && w.s >= S.s0 - 1e-3 && w.s <= S.s1 + 1e-3).map((w) => w.s), ...(L.entry.room === r.id ? [S.s0] : []), ...(r.save || r.boss || r.finds || r.key || r.lock ? [(S.s0 + S.s1) / 2] : [])], existing: mineLedges.map((x) => ({ kind: 'ledge', s0: x.s0, s1: x.s1, z0: x.z - TH, z1: x.z })), terrain: r.rect[1] === 0 };
-        for (const [f, phase] of STRUCT_DEAL[(structTurn++) % STRUCT_DEAL.length].flatMap((x) => [[x, 'F'], [x, 'L']])) {
-          const T = layStructure(f, { ...ctx, phase });
-          if (!T) continue;
+        const ctx = { a: bays[0][0], b: bays.at(-1)[1], ...(bays.length === 2 ? { pier: [bays[0][1], bays[1][0]] } : {}), floor: S.floor, top: highest, exit: wall, ...(d.axis === 'h' ? { lip: true } : {}), hero: Hh, door: DOOR, ceiling: S.zt - CEIL,
+          floorHoles: holes.filter((h) => Math.abs(h.z - S.zb) < 1e-3 && h.s1 > S.s0 && h.s0 < S.s1).map((h) => [h.s0, h.s1]), floorDoors: [...doorways.filter((w) => Math.abs(w.z0 - S.floor) < 1e-3 && w.s >= S.s0 - 1e-3 && w.s <= S.s1 + 1e-3).map((w) => w.s), ...(L.entry.room === r.id ? [S.s0] : []), ...(r.save || r.boss || r.finds || r.key || r.lock ? [(S.s0 + S.s1) / 2] : [])],
+          entries: [...doorways.filter((w) => Math.abs(w.z0 - S.floor) < 1e-3 && w.s >= S.s0 - 1e-3 && w.s <= S.s1 + 1e-3).map((w) => w.s), ...(L.entry.room === r.id ? [S.s0] : []), ...holes.filter((h) => Math.abs(h.z - S.zb) < 1e-3 && h.s1 > S.s0 && h.s0 < S.s1).map((h) => (h.s0 + h.s1) / 2)], existing: mineLedges.map((x) => ({ kind: 'ledge', s0: x.s0, s1: x.s1, z0: x.z - TH, z1: x.z })), terrain: r.rect[1] === 0 };
+        {
+          const T = fitStructure(STRUCT_DEAL[(structTurn++) % STRUCT_DEAL.length], ctx), f = T?.figure;
+          if (T) {
           figure = f; laid = T.stands.map((p) => ({ s0: p.s0, s1: p.s1, z: p.z, kind: p.way })); ways = T.stands.map((p) => p.way);
           // (one structure a room: a second door climbed in it is climbed by ledges round it)
           structure.set(r.id, T.pieces);
           for (const p of T.pieces) solids.push(box(p.s0, p.s1, p.z0, p.z1, { room: r.id, role: p.kind === 'great' ? 'stair' : p.kind, door: d.id, figure, ...(p.kind === 'great' ? { piece: 'great' } : p.role ? { piece: p.role } : {}), ...(p.terrain ? { terrain: true } : {}) }));
           for (const l of T.ladders) climbables.push({ room: r.id, door: d.id, ...l });
           if (bays.length === 2 && T.openings.length) for (const o of [{ z0: S.floor, z1: S.floor + DOOR }, ...T.openings]) arches.push({ room: r.id, s: r3((bays[0][1] + bays[1][0]) / 2), a: r3((bays[1][0] - bays[0][1]) / 2), z0: r3(o.z0), z1: r3(o.z1) });
-          break;
+          }
         }
       }
       if (!laid) {
         const ctx = { a: S.s0 + WALL + 0.2, b: S.s1 - WALL - 0.2, floor: S.floor, rise, n, top, hero: Hh, ledge: LEDGE, existing: [...mineLedges, ...(structure.get(r.id) ?? []).filter((p) => p.kind !== 'pier').map((p) => ({ s0: p.s0, s1: p.s1, z: p.z1, kind: p.kind }))] };
-        for (const f of climbDeal(as, turn)) { if (f === 'zigzag') break; laid = layClimb(f, ctx); if (laid) { figure = f; break; } }
+        // (a room already climbed by its structure is climbed again by a zigzag round it, never a second figure across it)
+        for (const f of structure.has(r.id) ? [] : climbDeal(as, turn)) { if (f === 'zigzag') break; laid = layClimb(f, ctx); if (laid) { figure = f; break; } }
         // (the zigzag: aside of the top by ASIDE, toward the room where the wall would fold it back over the one below)
         const zig = Math.abs(inside(S, top + toward * ASIDE) - inside(S, top)) < LEDGE + 0.6 ? -toward : toward;
-        if (!laid) laid = Array.from({ length: n }, (_, j) => { const k = j + 1, s = inside(S, top + zig * ((n - k) % 2) * ASIDE); return { s0: s - LEDGE / 2, s1: s + LEDGE / 2, z: S.floor + (rise * k) / n, kind: 'ledge' }; });
+        // (aside either way and a little further, the first that stands clear of what the room holds already)
+        const zz = (dir, aside) => Array.from({ length: n }, (_, j) => { const k = j + 1, s = inside(S, top + dir * ((n - k) % 2) * aside); return { s0: s - LEDGE / 2, s1: s + LEDGE / 2, z: S.floor + (rise * k) / n, kind: 'ledge' }; });
+        if (!laid) laid = [[zig, ASIDE], [-zig, ASIDE], [zig, ASIDE * 1.5], [-zig, ASIDE * 1.5]].map(([dir, aside]) => zz(dir, aside)).find((Z) => { const all = [...ctx.existing, ...Z], clear = Hh.stature + CLIMB.th + CLIMB.head; return !Z.some((p) => all.some((q) => q !== p && Math.min(p.s1, q.s1) - Math.max(p.s0, q.s0) > 0.2 && Math.abs(q.z - p.z) > 1e-3 && Math.abs(q.z - p.z) < clear)); }) ?? zz(zig, ASIDE);
         laid.forEach((p, j) => {
           const k = j + 1, z = p.z, ledge = box(p.s0, p.s1, z - TH, z, { room: r.id, role: d.axis === 'h' && k === laid.length ? 'lip' : 'ledge', door: d.id, ...(figure !== 'zigzag' ? { figure, piece: p.kind } : {}) });
           if (!ledges.some((x) => Math.abs(x.s0 - ledge.s0) < 0.5 && Math.abs(x.z1 - ledge.z1) < 0.5)) { ledges.push(ledge); solids.push(ledge); }

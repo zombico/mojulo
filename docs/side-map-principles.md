@@ -75,7 +75,19 @@ that holds a hero of a given stature at the frame's share, the lane at its place
 | a chimney | a shaft between two walls, climbed by kicks, with rests | the wall kick, sustained |
 | a stair | a short flight of ledges inside | a breather between climbs |
 | a ladder | climbed hand over hand | the free way up, or the way back |
+| a tower | a screen wide, climbed by its structure: stairs walked across it, landings on its walls, a ladder at each turn | going up is going across: a climb walked, not only jumped |
+| an atrium | two screens wide round a core, climbed by its structure, the way woven through the core from screen to screen | a climb that crosses screens; the frame follows it both ways |
 | pillars over a gap | tops of unlike heights, a jump apart | the risky crossing before a climb |
+
+A tower and an atrium are the castle's climbs ([metroidvania-map.md](metroidvania-map.md) "Climbs", `layStructure`)
+built in the plant: every piece a solid, the lowest flight built up from the floor and turned to the way in (or a
+ladder stands where it would wall the way off), nothing within a jump and a body over her head, the way out over the
+far wall's top. A climb of more than a screen is a building's: a **storey's floor** spans it at every screen of height,
+as thick as a building's (`SLAB`), so a long climb has its middle floors and never hangs as one run of stairs in a
+void. Each floor is open where the way rises through it (the space over every stand, every piece, every ladder's
+column): those openings are its **chutes**, seen down through and dropped down. What is left of a floor stands if it is
+a landing long or more. Galaxy Boy's first level climbs an atrium after its gauntlet, the plant's heart, before the
+chute down to the boss.
 
 14. **A long climb is short climbs and rests.** A ledge or a girder comes every few kicks, on alternating sides, and a
     pickup stands on it. No more than three kicks between rests.

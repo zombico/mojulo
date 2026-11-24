@@ -111,6 +111,18 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
         if (!ok) lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb}: a stand ${r2(dz)} m up and ${r2(h)} m across (the running jump rises ${run.height} m)` });
       }
     }
+    // (a tower's, an atrium's: each stand walked, leapt or laddered from the one before it)
+    for (const Z of ups.filter((Z) => Z.climb === 'tower' || Z.climb === 'atrium')) {
+      const st = byZone(L.rests, Z.i).filter((r) => r.order !== undefined).sort((a, b) => a.order - b.order);
+      if (!st.length) { lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb} holds no structure` }); continue; }
+      let prev = { s0: -Infinity, s1: Infinity, z: entry(Z.i)[1] };
+      for (const B of st) {
+        const dz = B.z - prev.z, h = Math.max(0, B.s0 - prev.s1, prev.s0 - B.s1);
+        const ok = B.way === 'ladder' || (h <= EPS ? dz <= run.height + EPS : (reachAt(run, dz) ?? -1) >= h + MARGIN);
+        if (!ok) lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb}: a stand ${r2(dz)} m up and ${r2(h)} m across` });
+        prev = B;
+      }
+    }
     // (and every step up the path a hop the running jump clears with room, path.js)
     for (const st of L.steps ?? []) if (st.dz > 0) { const at = reachAt(run, st.dz); if (!(at !== null && at >= MARGIN)) lost.push({ zone: st.zone, says: `a step ${r2(st.dz)} m up in zone ${st.zone}: the running jump rises ${run.height} m` }); }
     // (and room to stand on every stand up a climb: nothing over it closer than the hero is tall)

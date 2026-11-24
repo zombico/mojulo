@@ -16,7 +16,8 @@
  *     room      [wide, tall] in screens (each at least one): a room that scrolls both ways
  *     teach     what it teaches (the first level's words, course.js TEACH): basic | meet | advanced | gauntlet | boss
  *     beat      or a beat that teaches nothing new: rest | reveal | landing | commit
- *     climb     an up run's form: ledges | switchback | chimney | stair | ladder (CLIMBS; a chimney unsaid)
+ *     climb     an up run's form: ledges | switchback | chimney | stair | ladder | tower | atrium (CLIMBS; a chimney
+ *               unsaid)
  *     rises     an up run's frame rises on its own: the screen from below
  *     drop      a down run's form: cascade (steps, free) | chute (one-way: a commit)
  *     place     the place it is (a word: the gate, the factory floor), and `fill` its closed parts' own
@@ -49,6 +50,8 @@ export const CLIMBS = Object.freeze({
   chimney: 'a shaft between two walls climbed by kicks, with rests: the wall kick, sustained',
   stair: 'a short flight of ledges inside: a breather between climbs',
   ladder: 'climbed hand over hand: the free way up, or the way back',
+  tower: 'a screen wide, climbed by its structure: stairs walked across it, landings on its walls, a ladder at each turn',
+  atrium: 'two screens wide round a core, climbed by its structure, the way woven through the core from screen to screen',
 });
 export const DROPS = Object.freeze({ cascade: 'steps down: going down is free', chute: 'a one-way drop: a commit' });
 

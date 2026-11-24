@@ -278,6 +278,24 @@ function skinRun(out, look, run, runs, { seed, beds, bottom }) {
   const { at, lit } = look, { x0, x1, y0, y1, top } = run;
   quad(out, [[x0, y0, top], [x1, y0, top], [x1, y1, top], [x0, y1, top]], FACE.top, lit(run.role === 'built' ? at('trim', 0.62) : at('grass', 0.55), FACE.top), run.role === 'built' ? 'side:top-built' : 'side:top');
   skinFront(out, look, run, { x: x1, y0, y1, top, bottom, n: FACE.px, seed, beds });
+  // (a BUILT run taller than a step is a TOWER of the place, never a bare block: a string course, round windows under its
+  // cornice set in their frames, its quoins down its ends, so the face a hero climbs reads as the building it is)
+  const tall = top - Math.max(...runs.filter((r) => r !== run && r.y1 >= y0 - 0.05 && r.y0 <= y1 + 0.05 && r.top < top - 1).map((r) => r.top), bottom);
+  if (run.role === 'built' && look.shapes === 'scoops' && tall > 2.5) {
+    const xw = x1 + 0.015, stone = at('stone', 0.42), trim = at('trim', 0.72);
+    for (let z = top - 2.6; z > top - Math.min(tall, SIDE.dressed) + 0.6; z -= 2.6) quad(out, [[xw, y0, z - 0.12], [xw, y1, z - 0.12], [xw, y1, z], [xw, y0, z]], FACE.px, lit(trim, FACE.px, 0.92), 'side:trim');
+    for (let y = y0 + 1.6, k = 0; y < y1 - 1.2; y += 3.1, k++) {
+      const zc = top - 1.35 - (k % 2) * 0.12;
+      disc(out, xw + 0.004, y, zc, 0.62, lit(trim, FACE.px, 0.95), 'side:trim');
+      disc(out, xw + 0.008, y, zc, 0.44, lit(at('stone', 0.12), FACE.px, 0.7), 'side:window');
+      quad(out, [[xw + 0.01, y - 0.5, zc - 0.62], [xw + 0.01, y + 0.5, zc - 0.62], [xw + 0.01, y + 0.5, zc - 0.5], [xw + 0.01, y - 0.5, zc - 0.5]], FACE.px, lit(trim, FACE.top), 'side:trim');
+    }
+    const quoin = lit(stone.map((v, i) => v + (trim[i] - v) * 0.35), FACE.px);
+    for (const [ye, dir] of [[y0, 1], [y1, -1]]) for (let z = top - SIDE.cornice, k = 0; z > top - Math.min(tall, SIDE.dressed); z -= 0.6, k++) {
+      const w = k % 2 ? 0.5 : 0.8, a = dir > 0 ? ye : ye - w, b = dir > 0 ? ye + w : ye;
+      quad(out, [[xw + 0.006, a, z - 0.56], [xw + 0.006, b, z - 0.56], [xw + 0.006, b, z], [xw + 0.006, a, z]], FACE.px, quoin, 'side:stone');
+    }
+  }
   // an end shows where its neighbour stands lower (or none does): from the neighbour's top up
   for (const [y, n, side] of [[y0, FACE.ny, -1], [y1, FACE.py, 1]]) {
     const next = runs.filter((r) => r !== run && (side < 0 ? Math.abs(r.y1 - y) < 0.05 : Math.abs(r.y0 - y) < 0.05) && r.x0 <= x0 + 1e-3 && r.x1 >= x1 - 1e-3);

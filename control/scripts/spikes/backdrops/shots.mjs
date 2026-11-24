@@ -70,8 +70,10 @@ if (!only || only === 'galaxy') {
   if (opt('--premise')) m.sidemap = { ...m.sidemap, premise: opt('--premise') };
   const L = sideMapOf(m).layout, C = L.camera, W = L.screen.width;
   await shoot('galaxy', m, (zonesAsked ? L.zones.filter((Z, i) => zonesAsked.includes(i)) : L.zones.filter((Z, i) => i % 2 === 0 || Z.run !== 'across').slice(0, 8)).map((Z) => {
-    const [s, z] = Z.run === 'across' ? [Z.rect[0] + W / 2, (Z.i ? L.zones[Z.i - 1].exit : [0, 0])[1]] : [(Z.rect[0] + Z.rect[1]) / 2, Z.exit[1] - 4], look = z + C.lookH;
-    return { cameraPosition: [C.dist, s, look + C.dist * C.tilt], lookAt: [0, s, look] };
+    // (--tall: an up run seen whole, from further off)
+    const whole = process.argv.includes('--tall') && Z.run === 'up', far = whole ? Math.max((Z.rect[1] - Z.rect[0]) / W, (Z.rect[3] - Z.rect[2]) / L.screen.height) : 1;
+    const [s, z] = Z.run === 'across' ? [Z.rect[0] + W / 2, (Z.i ? L.zones[Z.i - 1].exit : [0, 0])[1]] : whole ? [(Z.rect[0] + Z.rect[1]) / 2, (Z.rect[2] + Z.rect[3]) / 2 - C.lookH] : [(Z.rect[0] + Z.rect[1]) / 2, Z.exit[1] - 4], look = z + C.lookH;
+    return { cameraPosition: [C.dist * far, s, look + C.dist * far * C.tilt], lookAt: [0, s, look] };
   }));
 }
 if (!only || only === 'vampire') {
