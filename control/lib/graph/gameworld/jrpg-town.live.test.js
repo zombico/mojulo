@@ -14,7 +14,6 @@ import { emitThreeWorld } from '../scene/scene-three.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
 let browser = null, html = '', M = null, doors = [];
-const nap = (ms) => new Promise((r) => setTimeout(r, ms));
 beforeAll(async () => {
   const W = composeGameworld({ prompt: 'a medieval fantasy jrpg: a fortified town with a castle, a field with monsters, a dungeon with a boss' });
   // (a townsfolk each lot's first, so the shop, the inn and the temple are kept: the priest who follows the story with them)
@@ -87,12 +86,14 @@ describe('the JRPG starter\'s town on the page', () => {
       const say = zones().find((c) => /^folk-say:/.test(c.then?.emit ?? '') && !c.if && !paged(c.then.emit)), who = say.then.emit.slice('folk-say:'.length);
       const scene = M.play.scenes.find((x) => x.when.on === say.then.emit);
       await useAt(say.when.use.at, `cue-${say.id}`, say.id.replace(/-talk$/, ''));
-      await page.waitForFunction(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, { timeout: 20000 });
+      await withinFrames(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, 60);
+      // (the box's heading is drawn the frame after its state)
+      await withinFrames(() => !!document.querySelector('#moj-mana-talk .mana-heading')?.textContent, 60);
       const line = await page.evaluate(() => ({ name: document.querySelector('#moj-mana-talk .mana-heading')?.textContent, state: window.__mojTalk.state.talk }));
       expect(line.name).toBe(scene.names[who]);
       expect(scene.beats[0].line.say.startsWith(line.state.text)).toBe(true);
       // their face: their own figure drawn live in the box
-      await page.waitForFunction(() => window.__mojTalk.face && window.__mojTalk.face.drawn() > 2, { timeout: 15000 });
+      await withinFrames(() => window.__mojTalk.face && window.__mojTalk.face.drawn() > 2, 60);
       expect(await page.evaluate(() => getComputedStyle(window.__mojTalk.face.canvas).display)).toBe('block');
       // (JRPG_SHOT=<png>: the town's talk, for the eyes)
       if (process.env.JRPG_SHOT) await page.screenshot({ path: process.env.JRPG_SHOT });
@@ -130,9 +131,8 @@ describe('the JRPG starter\'s town on the page', () => {
       const spAt = M.game.mechanics.find((x) => x.exit === 'save').at;
       await page.evaluate((z) => { const W = window.__mojCtrl.world, me = W.byId[W.pilotId]; me.transform.pos[2] = z + 0.4; if (me.vel) me.vel[2] = 0; }, spAt[2]);
       await useAt(sp.when.use.at, 'cue-save-point', null);
-      await page.waitForFunction(() => window.__mojBus.state.vars['ui-menu-save-point'] === 1, { timeout: 15000 });
-      await page.keyboard.down('Enter'); await nap(300); await page.keyboard.up('Enter');
-      await page.waitForFunction(() => (window.__mojBus.state.log || []).some((x) => x && x.type === 'goal:reached:save'), { timeout: 15000 });
+      await withinFrames(() => window.__mojBus.state.vars['ui-menu-save-point'] === 1, 60);
+      await pressUntil('Enter', () => (window.__mojBus.state.log || []).some((x) => x && x.type === 'goal:reached:save'));
     } finally { await page.close(); }
   }, 600000);
 });
