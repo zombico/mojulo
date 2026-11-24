@@ -3,8 +3,9 @@
  * The Claude plugin's start skills, generated from the routing cards (lib/mcp/routing-cards/), so a skill and the
  * server's own routing say the same thing.
  *
- * A start is a way in that a person names before they know any tool: the four `initialize` offers to an operator with
- * no ask (a character, a game, an object, a 3D exhibit) and the two building rails (a building, a room's interior).
+ * A start is a way in that a person names before they know any tool: the five `initialize` offers to an operator with
+ * no ask (a character, a game, an object, a 3D exhibit, a home or a room), the last as two skills (a building, a
+ * room's interior).
  * Each skill's description carries the card's recognizer quotes, so Claude Code loads it on the person's own words; its
  * body is the start's steps (written here) and the cards it routes to (copied from the card files), plus the entry tool
  * to load, since Claude Code defers MCP tool schemas.
@@ -31,7 +32,8 @@ export const STARTS_END = '<!-- starts:end -->';
 export const DESCRIPTION_BUDGET = 700;
 
 /**
- * The starts, in the order the `initialize` preamble offers them, then the building rails.
+ * The starts, in the order the `initialize` preamble offers them; its home or room is two skills, the building and
+ * the interior.
  * `cards`: the routing cards whose bodies the skill carries (the first names the entry tool).
  * `lead`: the description's first sentence, the use case first. `steps`: how the start runs, in the producer's order.
  */
@@ -87,12 +89,13 @@ export const STARTS = Object.freeze([
   },
   {
     name: 'design-building',
-    title: 'Design a building',
-    lead: 'Design a walkable building with mojulo: a house, an apartment, a store, a restaurant, a mall or a school, with its plan, drawings, schedules and a model to walk through or export.',
-    cards: ['house'],
+    title: 'Design a home or a building',
+    lead: 'Design a home or a building with mojulo: someone\'s own home (a room to redo, the plan they moved into, a house to build) produced with them, or a house, store, restaurant, mall or school with its plan, drawings, schedules and a model to walk through or export.',
+    cards: ['home-producer', 'house'],
     steps: [
-      'Ask what it is and how it is lived in or used: storeys, rooms, the site.',
-      'Mint it with `mint_building({ title, manifest })`. Its page is its structure book; ask the questions its outcome cards ask (concept, layout, drawings, build) and follow `next`.',
+      'For their own home, call `mint_building({ start: {} })` first and produce it: it builds nothing and answers the one question to ask (`producer.ask`). One question a turn; a plan, a photo or measurements they send are read, never asked for.',
+      'Say back the rail and what it lacks, and make it only on their yes, by `make.steps`.',
+      'A building asked for outright (a two-storey house, a corner store) is made at once with `mint_building({ title, manifest })`: its page is its structure book; follow `next`.',
       'Change it in place with `update_sketch`. To fit out one room, use the design-interior skill (`design_interior`).',
       'Export with `export_model`: sheets, schedules, IFC or GLB.',
     ],
@@ -173,8 +176,8 @@ export function startSkill(start) {
 export function startsBlock() {
   return [
     STARTS_BEGIN,
-    "**Starts.** With no ask yet, offer the four starts: a character, a game, an object, a 3D exhibit. Each start, and",
-    'each building rail, has its own skill that knows its steps:',
+    '**Starts.** With no ask yet, offer the five starts: a character, a game, an object, a 3D exhibit, a home or a room.',
+    'Each has its own skill that knows its steps (a home or a room is two: the building and the interior):',
     '',
     ...STARTS.map((s) => `- ${s.title}: the \`${s.name}\` skill (\`${readCard(s.cards[0]).entry}\`).`),
     STARTS_END,

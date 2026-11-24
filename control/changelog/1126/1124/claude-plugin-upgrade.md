@@ -12,10 +12,10 @@ directory reads.
   (better-sqlite3 and sharp arrive prebuilt), and the lockfile is refused when one does.
 - **The plugin declares the host it reaches** (`network.hosts`: registry.npmjs.org, for `check_for_updates` and the
   dashboard) and passes `claude plugin validate --strict` with nothing to report.
-- **A skill for each way in.** `make-character`, `design-game`, `design-object`, `make-exhibit` (the four starts the
-  `initialize` preamble offers) and `design-building`, `design-interior` (the building rails), each loaded on the
-  person's own words and carrying its start's steps, the routing cards it goes to and the entry tool to load (Claude
-  Code defers MCP tool schemas). They are generated from the routing cards (`scripts/plugin-skills.mjs`, written by
+- **A skill for each way in.** `make-character`, `design-game`, `design-object`, `make-exhibit` and, for a home or a
+  room, `design-building` (the home producer first, `mint_building({ start })`) and `design-interior`: the five starts
+  the `initialize` preamble offers, each loaded on the person's own words and carrying its start's steps, the routing
+  cards it goes to and the entry tool to load (Claude Code defers MCP tool schemas). They are generated from the routing cards (`scripts/plugin-skills.mjs`, written by
   `node scripts/plugin-agents.mjs` with the subagents), so a skill and the server's routing say the same thing; the
   main `mojulo` skill names them.
 - **The checks follow.** `plugin-lock.mjs` writes the plugin's root package; `check-plugin-version.mjs` holds the
