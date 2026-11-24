@@ -146,6 +146,9 @@ export const FIXTURE = [
   // a commercial program on the same rail: its drawing set and its fit-out schedule
   ['floor plans and an FF&E schedule for a corner café', 'mint_building'],
   ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
+  // someone's own home, produced before it is made (the home's producer): nothing built, the one question to ask
+  ['we just got the keys to our flat and I have the plan from the estate agent, can you help us figure out how to live in it', 'mint_building', 'start'],
+  ['I keep wanting to redo our spare room but honestly have no idea where to begin', 'mint_building', 'start'],
   // a building as a game level: designed as a building, played as a level
   ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
   // a GENRE level set in a building: design_game's quick level, the building laid from its use (era/programs.js) on a bay kit

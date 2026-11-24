@@ -41,8 +41,8 @@ that links to the next level. The first session's goalposts ([goalposts.js](cont
 are that path, and `design_game`'s readout says which is next. Level 1 is proved by the machine gate and approved by
 the person, who plays it: it is the game they want to play. The level played as a turn (set-up, load, play, pause,
 results: `game/turn.js`, mana-ui drawing it) is most games and the default to build toward; an open world (the quest
-open world, a world map) is a different paradigm and is said to be. A new operator with no ask is offered four starts
-(a character, a game, an object, a 3D exhibit) by the `initialize` preamble; for a game the agent expects
+open world, a world map) is a different paradigm and is said to be. A new operator with no ask is offered five starts
+(a character, a game, an object, a 3D exhibit, a home or a room) by the `initialize` preamble; for a game the agent expects
 attachments (drawings, plans, docs) and knows what to do with each, where it would otherwise guess from the start;
 the loop runs on what is missing. That step is the producer's ([intake.js](control/lib/graph/gameworld/intake.js), the
 `gameworld-producer` card: the seat that faces the person and hands the director the work, one agent in both; the
@@ -358,6 +358,9 @@ Pointers only; each target carries its own design notes.
   locked pitch stored on its rail's starter level by [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js),
   and the first unit proposed to the director by [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js):
   [docs/zero-to-level-one.md](docs/zero-to-level-one.md).
+- The home producer (someone's own room, home, house, plans or shop, before it is made): [home/producer.js](control/lib/graph/home/producer.js)
+  (`mint_building({ start })`), its rails [home/rails.js](control/lib/graph/home/rails.js) and what they bring
+  [home/intake.js](control/lib/graph/home/intake.js); the steps are the `home-producer` routing card's.
 - The exhibit producer: [exhibit/producer.js](control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
   [exhibit/scales.js](control/lib/graph/exhibit/scales.js), [exhibit/fit.js](control/lib/graph/exhibit/fit.js),
   [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
