@@ -29,6 +29,25 @@ describe('the genre\'s form', () => {
     expect(composeGameworld({ prompt: 'a flight sim: take off and fly through the rings', seed: 1 })).toEqual(W);
   });
 
+  it('a flight rail named in its own words is laid as its starter, its pitch written unlocked; a plain flight sim is not', () => {
+    // (one case per way a rail is named: its own words beside its genre, and a genre only that rail lays)
+    const W = composeGameworld({ prompt: 'a star fox style rail shooter', seed: 1 });
+    expect(W.rail).toEqual({ from: 'wolf-squadron', size: 'designed' });
+    expect(W.intent).toEqual({ from: 'space-shooter' });
+    expect(W.brief.rail.from).toBe('wolf-squadron');
+    expect([...W.brief.rail.by].sort()).toEqual(['rail shooter', 'star fox']);
+    expect(W.brief.read.find((r) => r.word === 'star fox').decides).toContain('rail.from=wolf-squadron');
+    expect(Object.values(W.levels).every((L) => L.airspace)).toBe(true);
+    expect(composeGameworld({ prompt: 'a star fox style rail shooter', seed: 1 })).toEqual(W);
+    const S = composeGameworld({ prompt: 'a space combat sim with shields and power', levels: 1, seed: 1 });
+    expect(S.rail.from).toBe('rebel-storm');
+    expect(S.intent).toEqual({ from: 'space-sim' });
+    expect(Object.keys(S.levels)).toHaveLength(1);
+    // (a plain flight sim keeps its courses; a cockpit alone, a car's too, names no rail)
+    expect(composeGameworld({ prompt: 'a flight sim over the mountains', seed: 1 }).rail).toBeUndefined();
+    expect(composeGameworld({ prompt: 'a cockpit', seed: 1 }).rail).toBeUndefined();
+  });
+
   it('a genre another door makes is said, naming the door, and nothing is laid', () => {
     expect(() => composeGameworld({ prompt: 'a match-3 puzzle saga', seed: 1 })).toThrow(/create_pixelizer_game\(\{ reducer: 'stone-saga' \}\)/);
   });

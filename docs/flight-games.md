@@ -40,15 +40,12 @@ What each place on the line needs:
   The `laps` mechanic with `planar: false` is a 3-D checkpoint sphere, which is an invisible flight ring. The
   science views (`physics/airplane.js`, `physics/rocket.js`) model real four-forces and rocket flight, scripted
   and 2-D. The transport hub draws an airport.
-- **The gaps:**
-  - No aircraft or starship as a game asset. The aircraft that exist are airport-scenery fuselage nets.
-  - The cosmos registry has no aircraft hero, no flight camera, and no flight or dogfight fixture, so the
-    hill-climb never sees flight.
-  - No flight HUD reads the `fly` facts.
-  - No AI flies the `fly` rule.
-  - No six-degree-of-freedom ship rule.
-  - No airspace, runway or carrier deck as level content.
-  - No export of `fly` to the engines.
+- **The gaps then, and what is built since:** a craft is now the `fly` rule's body in an airspace level, and the
+  airspace is a level form with runways, rings and a pilot's country. The cosmos cube has the aircraft hero, the
+  flight fixtures (flight sim, air combat, space shooter, space combat sim) and the flown rules (`power.rules=rail`,
+  `power.rules=starfighter`), so the hill-climb sweeps flight. Three rails make flight games (below). Still missing:
+  - No AI flies the `fly` rule. The rail stage's waves and the sortie's flight groups fly their own.
+  - No flight HUD on mana-ui reads the `fly` facts.
 
 ## The craft shelf: an ODM inventory of flight parts
 
@@ -490,19 +487,32 @@ A flown level's speed reads off the world round its craft (`control/lib/graph/sc
 
 The cue is read off the craft's motion, so the rail's boost and a cockpit's throttle drive the same effect.
 
+## Made from words: the three rails
+
+A person asks for a flight game in their own words. Two doors read those words, and both land on the same three
+rails (`control/lib/graph/gameworld/rails.js`):
+
+| Rail | Words that name it | Its starter |
+| --- | --- | --- |
+| Pilot School | flight school, pilot school, learn to fly, flying lessons, pilotwings | lessons on one airfield, each graded |
+| Wolf Squadron | rail shooter, on-rails shooter, star fox, arcade space shooter | stages down a path, on a planet and in space |
+| Rebel Storm | space combat sim, x-wing, tie fighter, wing commander, space dogfight | missions flown from the cockpit |
+
+- **The producer's rail step** (`design_game`'s readout, `gameworld/goalposts.js`): `nearestRails` names the rails the
+  brief's words point at. The pitch is written as `rail: { from, size }`, and once the person agrees, `rail.locked`
+  lays the rail's starter (`gameworld/pitch-start.js`).
+- **The sentence door** (`design_game({ compose: { prompt } })`, `gameworld/compose.js`): a sentence that names one
+  of these rails in its own words is laid as that rail's starter. So is a sentence that names a genre only that rail
+  lays (a space combat sim). The pitch is written unlocked, so the producer still says it back. A word too common to
+  name a rail alone (a cockpit is a car's too) names it only beside its genre. A plain flight sim or dogfight keeps
+  the airspace courses of its genre's form.
+- **The proof**: the door probes (`gameworld/door-probes.js`) hold the sentence door to a rail stage and a cockpit
+  sortie, and the hillclimb page's "from a sentence" column reads them.
+
 ## What comes next
 
-The shelf is the asset layer. In order, the moves that turn it into flight games:
-
-1. **A craft as the `fly` rule's body.** The world binds an assembled craft the way a car binds a veh-* build:
-   the gear contacts become the taxi points and the propeller spins on the rule's `gaitPhase`. Drive and mass
-   come from the parts (`thrust`, `power`, `partsMass`), the way `deriveDrivetrain` reads horsepower.
-2. **A flight camera and HUD.** A chase camera that rolls with the bank, a cockpit seat at the canopy, and a
-   HUD that reads the facts the rule already emits.
-3. **A six-degree-of-freedom ship rule** for the space realm, with flight assist on and off, and the roll the
-   suit's space mode lacks.
-4. **The cosmos words.** An aircraft hero, flight cameras, and the dogfight, space-shooter and carrier
-   fixtures, so the hill-climb sweeps flight.
-5. **Levels.** Visible rings on the `laps` spheres, an airspace level form, runways and carrier decks as
-   places to launch from and land on.
-6. **Pilots.** An AI that flies the rule: wingmen, bandits, lead pursuit.
+1. **Pilots on the `fly` rule:** foes and wingmen that fly it, with lead pursuit.
+2. **Comms and the flight HUD on mana-ui**, and a flight sound sheet.
+3. **Rebel Storm's other side:** Rise of Empire's campaign, and debriefs between missions.
+4. **Wolf Squadron's squad:** its calls, the rival squad, and the all-range arena.
+5. **Pilot School's later lessons:** the stall, the cross-country, the crosswind and the check ride.

@@ -357,7 +357,7 @@ export const FIXTURES = Object.freeze([
     cube: {
       reality: { medium: '3d' },
       space: { camera: 'first-person', topology: 'linear', levelForm: 'airspace' },
-      power: { rules: ['fly', 'follow', 'ai'], combat: ['ranged'], mechanics: ['sortie', 'fail-on-death'] },
+      power: { rules: ['starfighter', 'ai'], combat: ['ranged'], mechanics: ['sortie', 'fail-on-death'] },
       soul: { hero: 'aircraft' },
       time: { progression: 'linear' },
     },
