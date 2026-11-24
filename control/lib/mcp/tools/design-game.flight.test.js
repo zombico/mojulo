@@ -8,6 +8,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { flyTasks } from '@/lib/graph/skyscape/lesson-pilot.js';
 import { STAGE_DESIGNS } from '@/lib/graph/gameworld/wolf-squadron.js';
+import { RAIL } from '@/lib/graph/skyscape/rail-stage.js';
 
 // DESIGNED FLIGHT LEVELS (the e2e tier: it makes a whole game through the real doors). An airspace level of a designed
 // game is flown for its flight goal (gameworld/flight-goal.js), the one a quick flight reads: a lesson's tasks (the
@@ -135,6 +136,9 @@ describe('design_game: designed flight levels', () => {
       expect(Number.isFinite(P.rule.floor)).toBe(ground);
       expect(P.weapon).toBeTruthy();
       expect(M.figures.craft.craft.archetype).toBe('strikeFoil');
+      // (flown in, its gear up, followed by the arcade's close chase, rail-stage.js RAIL.camera)
+      expect(M.figures.craft.craft.gear).toBe('up');
+      expect(M.camera).toMatchObject({ rule: 'follow', target: 'player', ...RAIL.camera });
       // its shield, its waves woken by the way's marks, its hazards met where they stand, its boss to shoot down
       expect(kinds).toEqual(expect.arrayContaining(['fail-on-death', 'wake', 'hazard-damage', 'defeat-all']));
       expect(kinds).not.toContain('reach-exit');
@@ -177,6 +181,9 @@ describe('design_game: designed flight levels', () => {
       expect(P.weapon).toMatchObject({ fireClass: 'lob', projectileGravity: 0 });
       expect(M.camera).toMatchObject({ rule: 'cockpit', target: 'player', hideTarget: true, chase: { rule: 'follow' } });
       expect(M.figures.craft.craft.archetype).toBe('strikeFoil');
+      // (flown in, its gear up, followed by the arcade's close chase, rail-stage.js RAIL.camera)
+      expect(M.figures.craft.craft.gear).toBe('up');
+      expect(M.camera).toMatchObject({ rule: 'follow', target: 'player', ...RAIL.camera });
       // its mission: the sortie over its flight groups, the hull its body's; no gates
       expect(kinds).toEqual(['fail-on-death', 'sortie']);
       expect(M.game.mechanics[0]).toEqual({ kind: 'fail-on-death', of: 'body' });

@@ -64,6 +64,9 @@ export const RAIL = Object.freeze({
   // (the ground force's units a design stands beside a ground way: groundforce/; this far apart along it (s of the way),
   // this share of the box across it, never on its line)
   units: Object.freeze(['turret', 'tank', 'walker']), unitS: 1.1, unitAcross: Object.freeze([0.35, 0.8]),
+  // (an arcade chase: close behind and a little above the craft, looking well down the way, so the craft is large in the
+  // frame and what comes at it is seen: the follow rule's dist, height, lead and lookH, metres)
+  camera: Object.freeze({ dist: 30, height: 7, lead: 60, lookH: 2 }),
 });
 
 function rng(seed) {

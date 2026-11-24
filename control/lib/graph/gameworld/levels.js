@@ -25,7 +25,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
-import { planRailStage } from '../skyscape/rail-stage.js';
+import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
@@ -1015,8 +1015,11 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // facing along it; the stick steers it about the way, W boosts and S brakes, Q / E roll, and the ground is a floor
     if (ends.rail) {
       const e0 = pilotPart.entities[0], S = ends.rail, [a, b] = S.path;
-      pilotPart = { ...pilotPart, entities: [{ ...e0, rule: { ...S.rule, eye: e0.rule.eye ?? 0 }, transform: { pos: a.slice(), heading: Math.atan2(b[1] - a[1], b[0] - a[0]), pitch: 0 } }, ...pilotPart.entities.slice(1)], camera: { ...pilotPart.camera, rollFollow: 0.35 } };
+      // (followed by the arcade's close chase, rail-stage.js RAIL.camera, not the free flier's long one)
+      pilotPart = { ...pilotPart, entities: [{ ...e0, rule: { ...S.rule, eye: e0.rule.eye ?? 0 }, transform: { pos: a.slice(), heading: Math.atan2(b[1] - a[1], b[0] - a[0]), pitch: 0 } }, ...pilotPart.entities.slice(1)], camera: { ...pilotPart.camera, ...RAIL.camera, rollFollow: 0.35 } };
       pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `A / D  steer · Space / Shift  up / down · W  boost · S  brake · Q / E  roll${legend ? ` · ${legend}` : ''}` }).events || {};
+      // (flown in, never off a runway: its gear up)
+      if (pilotPart.figures?.craft?.craft) pilotPart.figures = { ...pilotPart.figures, craft: { craft: { ...pilotPart.figures.craft.craft, gear: 'up' } } };
     }
     // A COCKPIT (airspace.cockpit, skyscape/starfighter.js): the craft flown from its seat on the starfighter rule, the
     // 90s space-combat sims' craft: the mouse flies it, the throttle a setting, its shields, power and cannons its own;
