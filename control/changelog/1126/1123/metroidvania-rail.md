@@ -30,3 +30,10 @@
 - The castle plays as an action RPG, with no lives. Erina has health and MP, shown as bars. Walking into a save room
   refills both and makes it where she wakes. When her health runs out she wakes in the last save room she visited, full,
   keeping everything she has found and opened.
+- Each castle room is dressed by principles of its own, the craft a dungeon's walls have in 3D carried to a side view's
+  back wall. The wall is ashlar, block by block, with a plinth or wainscot, pillars, and a vault or beams under the
+  ceiling. Every glance at the wall finds some detail, and the band behind the play stays calmer than the wall above it.
+  Bays alternate by the wall's rhythm, and each room has one focal piece: the lord's portrait, a broken statue, the
+  house's arms, a gargoyle. Columns and chains stand between the lane and the wall. The mood is dark: light falls in
+  pools from candles, braziers and cold lamps whose flames glow, and dust hangs in their light. Each principle is
+  measured.

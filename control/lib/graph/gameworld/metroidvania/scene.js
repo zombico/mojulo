@@ -37,6 +37,7 @@ import { boxLaws } from './laws.js';
 import { GATES, readHero } from './gates.js';
 import { BOX_THEMES, themeLaws } from './themes.js';
 import { dressBox } from './dress.js';
+import { backdropLaws } from './backdrop.js';
 
 export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox']);
 /** a boss stand-in's blows to fall */
@@ -118,7 +119,10 @@ export function boxOf(m) {
   // (its save rooms: walked into, the hero is full and wakes there; the gate room first, where she wakes before any)
   const saves = layout.rooms.filter((r) => r.save).sort((a, b) => a.walk - b.walk).map((r) => ({ id: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], at: [r3(midOf(r)), r3(floorOf(r))] }));
   const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })), saves };
-  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses };
+  // DRESSED in its theme where its words name one (dress.js), and held to the backdrop's craft (backdrop.js)
+  const B0 = { layout, greybox, stature: R.hero.stature }, dress = layout.theme ? dressBox(B0, BOX_THEMES[layout.theme]) : null;
+  if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })));
+  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, ...(dress ? { dress } : {}) };
 }
 
 /** The `geocube` kind's `show: 'metroidvania'`. */
@@ -126,7 +130,7 @@ export function assembleBox(m, ctx = {}) {
   const B = boxOf(m), { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height, faces = [];
   // DRESSED in its theme where its words name one (dress.js: its rings' stone, backs, lamps and light, the night over its
   // open rings); else the greybox, each room's back in its ring's shade
-  const T = L.theme ? BOX_THEMES[L.theme] : null, D = T ? dressBox(B, T) : null;
+  const T = L.theme ? BOX_THEMES[L.theme] : null, D = T ? B.dress : null;
   if (D) faces.push(...D.faces);
   for (const r of T ? [] : L.rooms) {
     const [c, rr, w, h] = r.rect, base = RING_BACK[r.ring % RING_BACK.length];
@@ -155,6 +159,8 @@ export function assembleBox(m, ctx = {}) {
   const colliders = [...G.solids.filter((s) => s.role !== 'ledge' && s.role !== 'lip'), ...sills].map((s) => ({ min: [-HALF, s.s0, s.z0], max: [HALF, s.s1, s.z1] }));
   const payload = {
     faces, lights: [], colliders, breakables: B.breakables, heldGates: B.held,
+    // (dressed: its flames haloed and dust hanging in their light, the page's glow sprites and motes)
+    ...(D ? { glow: D.glow, ...(D.motes ? { motes: D.motes } : {}) } : {}),
     cameras: [{ name: 'metroidvania', worldFraming: { cameraPosition: [r5(C.dist), r5(s0), r5(look + C.dist * C.tilt)], lookAt: [0, r5(s0), r5(look)], horizontalFov: r5(hfov) } }],
     viewBox: m.viewBox || { width: 1280, height: 720 },
     title: ctx.title || m.title || 'mojulo geocube · metroidvania',

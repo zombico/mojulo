@@ -180,24 +180,52 @@ made of and how it is lit, laid over the greybox ring by ring
 is a collider. A floor's runner is cut round every hole in it, so a drop is never carpeted over. Unsaid, the box is
 greybox. Vampire Sonata names `castle`: the vampire lord's castle, stormed by night.
 
-| Ring | Its look | Its back | Its light |
-|---|---|---|---|
-| the ramparts | weathered grey ashlar, open to the sky | the night: the moon, a far skyline of spires, a parapet's merlons behind the walk | torches |
-| the great halls | warm stone, a crimson runner | pointed windows of moonlit glass between pillars | candelabra |
-| the inner ward | cold mossy stone | pointed windows of pale glass | cold ghost-lamps |
-| the keep | dark stone trimmed in gold, a crimson carpet | hanging crimson banners edged in gold | braziers |
+A ring's look is a KIT: the two pieces its wall alternates bay by bay, what hangs under its ceiling, what stands between
+the lane and the wall, its dado, the one piece a room is remembered by, how dark its shadow falls, and its lamp.
 
-- **Every ring is unlike the one outside it**, in its back and its stone, as the walled-core dungeon's layers are. The
-  law `theme:rings-distinct` measures it.
-- **Every closed part is masonry.** A wall's face is coursed, a floor's is jointed so its courses break bond, and every
-  top is coped.
-- **The light is baked.** Every face falls into its ring's shadow and is warmed by each lamp near it, in the lamp's
-  colour.
-- **The gates keep their own colours.** They are the play's, so they read against the place: the law `theme:gates-read`
-  holds each gate's colour to a contrast with its room's back.
-- **The night is laid in bands by height**, one colour at one height across every room, so open rooms meet without a seam.
-  The moon stands in the box's top far corner, placed by its parallax so the camera there sees it.
-- **A new theme is a row of `BOX_THEMES`; a new place is a look.**
+| Ring | Bays (A, B) | Ceiling, near, dado | Focal piece | Light |
+|---|---|---|---|---|
+| the ramparts (open to the night) | merlons against the sky | none | a gargoyle on the parapet | torches |
+| the great halls | an arched window, a shelf of books | a vault, columns, a panelled wainscot | the lord's portrait in a gilt frame | sconces of candles |
+| the inner ward | an arched window, ivy over cracked stone | beams, hanging chains, a plinth | a broken statue and its rubble | cold ghost-lamps |
+| the keep | a banner, a niche and its statue (lancets over both) | a vault, columns, a plinth | the house's arms, crossed blades behind it | braziers below, torches above |
+
+The night over an open ring is laid in bands by height, one colour at one height across every room, so open rooms meet
+without a seam. The moon stands in the box's top far corner, placed by its parallax so the camera there sees it. A new
+theme is a row of `BOX_THEMES`; a new place is a look.
+
+## The backdrop's craft
+
+In a side view the back wall does the work a dungeon's walls do in 3D. These are the principles a room's back is built
+by ([backdrop.js](../control/lib/graph/gameworld/metroidvania/backdrop.js)). Each is measured as a law over the dressed
+box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-distinct`, `theme:gates-read`).
+
+1. **The back is the wall.** A closed room's back is built, never painted flat: ashlar in courses, each block its own
+   stone, a plinth or a wainscot along the floor, a pillar between cells, a vault or beams under the ceiling, a string
+   course where a storey meets the one above it, cobwebs in its top corners.
+2. **Detail by the eye segment.** A screen is `EYE.across` × `EYE.up` eye segments, a glance's worth of wall each.
+   Every segment of a closed room holds some detail and not too much (`DETAIL`): no glance finds a bare wall, and none
+   finds noise. A piece counts in every segment it covers, so a plinth along a cell is seen in every glance along it.
+   Law: `eye-detail`.
+3. **Calm behind the play.** The band the hero moves in, the lowest of a storey's, holds less detail than the bands
+   above it, so she and what she fights read against it. A hall's wainscot is panelled wide for that reason. Law:
+   `calm-play`.
+4. **Structure, dressing, story.** The bays are dressed by the wall's rhythm (A and B, never three alike, never a pair
+   repeated: `era/wall-rhythm.js`), and each room has ONE focal piece, larger than a bay's, that the room is
+   remembered by. Laws: `bay-rhythm`, `focal`.
+5. **Three depths.** The near layer between the lane and the wall (a column, a hanging chain), the wall, and something
+   seen through it (a window's moonlit glass, a lancet, the night over an open ring). The near layer stands between the
+   lane and the light, so it is half a silhouette and never brighter than the lane. Law: `depths`.
+6. **Light is pools in the dark.** It is a dark mood: where no lamp reaches, the wall falls to its ring's `dark`. Light
+   comes only from sources the eye can see (a sconce, a brazier, a cold lamp, a torch), each a pool that falls off within
+   its `reach`. The back is laid in blocks so a pool lands on it block by block. A storey's wall is lit in part
+   (`POOLS.lit`), and a pool's heart stands well above the dark between (`POOLS.contrast`). A tall room is lit on every
+   storey. Law: `pools`.
+7. **Every flame glows.** A flame is haloed (the page's glow sprites), and dust hangs in the closed rooms, lit only where
+   a lamp is near (the page's motes).
+8. **The lane reads.** The tops she stands on are lighter than the wall behind them. Law: `lane-reads`.
+9. **A kit, a composition.** A ring's rooms draw on one kit; each room is composed by a seeded hand from its own id
+   (`composeRoom`: its bays' order and its focal piece), so neighbours differ and the same recipe makes the same room.
 
 ## Not yet
 
@@ -205,7 +233,8 @@ greybox. Vampire Sonata names `castle`: the vampire lord's castle, stormed by ni
   give her a back-dash and a heavier cut. The small form's power would make her small and pass grates rather than opening
   them.
 - **The castle dressed further:** the gates in the castle's own make (a portcullis, an iron-bound door), the side map's
-  paint and relief on the stone, moving lights.
+  relief on the stone, flames that flicker (the page's flicker answers a few dying tubes, not a castle of candles), and
+  the foreground: things passing in front of the lane in silhouette.
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant, MP spells and real bosses in place of
