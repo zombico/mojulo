@@ -1067,7 +1067,7 @@ export function packLayeredRig(mesh, skin, R, { marks = null, clips = {}, acts =
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
     parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, ...(P.tm && P.tm.some((c) => c) ? { hc: b64u8(P.tm.flatMap((c) => [c, c, c])) } : {}), jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}), ...(P.cph?.length ? { corrective: packMorph(P.cph) } : {}), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}), ...(P.tan ? { tan: b64f32(P.tan) } : {}) } : null)),
     clips: packedClips, ...(Object.keys(packedActs).length ? { acts: packedActs } : {}), figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
-    ...(paint ? { paintTex: { ...paint.atlas, white: paint.white, ...(paint.alphaMask ? { alphaMask: true } : {}) } } : {}),
+    ...(paint ? { paintTex: { ...paint.atlas, white: paint.white, ...(paint.alphaMask ? { alphaMask: true } : {}), ...(paint.alphaBox ? { alphaBox: paint.alphaBox } : {}) } } : {}),
     ...(corr ? { correctives: corr.meta } : {}),
     ...(carryT && !carryC && relief.atlas ? { normalTex: relief.atlas } : {}),
     ...(carryT && !carryC && relief.orm ? { ormTex: relief.orm } : {}),

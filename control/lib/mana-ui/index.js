@@ -22,7 +22,7 @@ import { manaUi, manaUiSource } from './kernel.js';
 import { manaCss } from './css.js';
 import { themeCss, readTheme } from './theme.js';
 import { withIdioms } from './idioms.js';
-import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey } from './board.js';
+import { PREVIEW_KEYS, AUDIO_SCRIPT, previewKey, samplesScript } from './board.js';
 
 export { manaUi, manaUiSource, buildManaUi } from './kernel.js';
 export { manaCss, lensCss, lettersCss, FRAME_CSS, GREYBOX_VARS } from './css.js';
@@ -51,7 +51,7 @@ ${themeCss(theme)}
 const manaUi = ${manaUiSource()};
 const STATE = window.__manaState = ${json(state)}, LOG = window.__manaLog = [];
 ${audio ? AUDIO_SCRIPT : ''}
-const SOUNDS = window.__manaSounds = ${soundsOf(audio, readTheme(theme).sounds)};
+const SOUNDS = window.__manaSounds = ${soundsOf(audio, readTheme(theme).sounds)};${samplesScript(audio)}
 const host = {
   read: (p) => manaUi.readPath(STATE, p),
   // the game's clock (a preview's is the page's; a game hands its own, held while it is)

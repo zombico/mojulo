@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFlow, defaultFlow, startInPlay, stepFlow, walkFlow, flowStart, FLOW_SPECIALS, SCREEN_EVENTS } from './flow.js';
+import { readFlow, defaultFlow, startInPlay, withNaming, stepFlow, walkFlow, flowStart, FLOW_SPECIALS, SCREEN_EVENTS } from './flow.js';
 import { validateGameManifest } from './game-manifest.js';
 
 // A GAME'S FLOW: what plays when, from the first screen to the credits, as data. The reader teaches every fault; a game
@@ -237,5 +237,29 @@ describe('the flow is stepped, and walked headless', () => {
     const fr = startInPlay(defaultFlow({ ...shapes.fronted, cinematics: { ...shapes.fronted.cinematics, opening: { scene: 'o', stage: 'vale' } } }));
     expect(fr.steps.title.on.play).toBe('$first');
     expect(Object.values(fr.steps).some((s) => s.idle?.go === 'opening')).toBe(false);
+  });
+
+  it('a name asked as a game begins: the name screen before the first level, from the title or a start-in-play opening', () => {
+    const titled = { levels: LEVELS, front: { end: { text: 'done' } }, cinematics: { prologue: { scene: 'p', stage: 'vale' } } };
+    // the title's new game: the name, then where it went (the prologue); back to the title
+    const T = withNaming(defaultFlow(titled));
+    expect(readFlow(T, { levels: LEVELS, scenes: ['p'] })).toEqual([]);
+    expect(T.steps.title.on.play).toBe('naming');
+    expect(T.steps.naming).toEqual({ kind: 'screen', screen: 'name', on: { done: 'prologue', back: 'title' } });
+    const t = shell(LEVELS);
+    expect(walk(T, t.ctx, t.S, ['play', 'back', 'play', 'done'])).toEqual(['title', 'naming', 'title', 'naming', 'prologue']);
+    // a game that starts in play: a first boot is asked, a save goes on to where it was left
+    const P = withNaming(startInPlay(defaultFlow({ levels: LEVELS })));
+    expect(readFlow(P, { levels: LEVELS })).toEqual([]);
+    expect(P.steps.opening.next).toEqual(['$continue', 'naming']);
+    const fresh = shell(LEVELS), saved = shell(LEVELS); saved.S.cleared.add('vale');
+    // (a first boot has no save to continue: the shell's $continue is nothing then)
+    const R0 = fresh.ctx.resolve; fresh.ctx.resolve = (sp, c) => (sp === '$continue' ? null : R0(sp, c));
+    expect(walk(P, fresh.ctx, fresh.S, ['next', 'done'])).toEqual(['opening', 'naming', 'play(vale)']);
+    expect(walk(P, saved.ctx, saved.S, ['next'])).toEqual(['opening', 'play(gate)']);
+    // once is enough: a flow with a name screen, or no way a game begins, as it was
+    expect(withNaming(T)).toBe(T);
+    const none = { start: 'levels', steps: { levels: { kind: 'screen', screen: 'levels', on: { pick: '$picked' } }, play: { kind: 'level', level: '$any', on: { won: 'levels' } } } };
+    expect(withNaming(none)).toBe(none);
   });
 });

@@ -27,9 +27,8 @@ export const PACKAGES = Object.freeze({
   brawler: { name: 'The brawler from a gameworld: a world that says it is a beat-em-up or a run & gun laid down a belt, its crowd, waves and boss', effort: 'M' },
   // the scrolling screen (11-10): built in the brawler's belt, waiting on the shared camera every group level plays under
   scroll: { name: 'The scrolling screen: the belt\'s camera (on with the players, never back, held at a gate) for every level a group plays', effort: 'M' },
-  // sound (11-10): a quick game says its music and effects, and the SFX shelf is read by the rooms; (11-13) a gameworld's
-  // `sound` lays the sound sheet on every level, the shelf read by word; a designed gameworld's score has no word yet
-  sound: { name: 'Sound from a gameworld: a world says its score and its effects, a level reads the SFX shelf by word, the mixer placing each cue', effort: 'M' },
+  // (sound: built 11-13, the sound sheet on every level and the score by request; 11-16 a played city's: its package is
+  // gone)
   // the game UI (11-10): the shell, the RPG, the brawler and the fighter run on mana-ui; a level's own HUD does not
   // (11-14: a level's HUD rows, its pause button and its touch pad are mana-ui's on a world that says `ui`; what is left is smaller)
   'game-ui': { name: 'The rest of play on mana-ui: a level\'s talk menus and quest log as compositions of the one runtime, and the HUD host on a world that says no `ui`, so a theme, a language and a headset reach every screen', effort: 'M' },
@@ -42,7 +41,7 @@ export const PACKAGES = Object.freeze({
   // level keys of a designed game that carry them
   condition: { name: 'A room\'s condition from a gameworld: the level keys that carry a place\'s state of repair, its debris, its wetness and its daylight onto a designed game\'s levels', effort: 'M' },
   replay: { name: 'Replay in play: a recorded world clock, a moment shown again slowed and from another camera (the kill cam\'s replay)', effort: 'M' },
-  keying: { name: 'Keying: a body\'s clips stepped on twos or threes in play, each layer its own grain (characters on twos, the camera on ones)', effort: 'M' },
+  // (keying: built 11-23, a level's bodies on twos or threes, each layer its own grain: its package is gone)
   // the main quest (11-04): what a long game's spine still waits on, priced so the sweep ranks it
   'quest-turns': { name: 'Quest turns: a main quest\'s chapter lowered to its world overlay, the world turned as the chapter opens', effort: 'M' },
   'side-quests': { name: 'Side quests by the main quest: hung on its beats, near its path or anywhere, as loose as it says', effort: 'M' },

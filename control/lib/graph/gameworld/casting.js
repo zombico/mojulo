@@ -25,7 +25,7 @@
  *
  *   castingRequest(G)    → { request, scale, from }     the rollCast request (the game's setting in it) and why that scale
  *   castingOf(G)         → { request, scale, from, sheet, anchor, members } or null (no casting page); a member is
- *                          { id, path, of, name, relation, bond?, body, cls?, joins?, field }: `field` its figure on
+ *                          { id, path, of, name, relation, bond?, body, cls?, joins?, gear?, field }: `field` its figure on
  *                          the level map (`fieldOf`)
  *   castingIds(casting)  → [{ id, key, bond }]          the member ids a page makes, without rolling
  *   laidCasting(G)       → G with the rolled members in characters.cast, as { name, joins? } (their ids in characters.rolled)
@@ -39,7 +39,7 @@
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
 import { settingOfGame } from './cast-setting.js';
-import { moveSetOf, fieldStatesOf, creatureMovesOf, beastFieldOf } from '../egocube/moves.js';
+import { moveSetOf, fieldStatesOf, creatureMovesOf, beastFieldOf, battleMovesOf, foeBattleMovesOf, weaponOfClass, classOfFacets } from '../egocube/moves.js';
 import { beastOnTiered } from '../egocube/plan.js';
 import { cubeOfWorld } from './intent.js';
 
@@ -138,14 +138,7 @@ export function castingIds(c, prompt) {
 }
 
 /** The class a member's mind reads as, among the presets (fighter, knight, mage, cleric, rogue, monk). */
-export function classOf(m) {
-  const f = m.temperament ?? m.sheet.facets;
-  if (f.role === 'frontline') return f.order < 1 / 3 || ['hero', 'ruler', 'caregiver'].includes(f.archetype) ? 'knight' : 'fighter';
-  if (f.role === 'flanker') return f.order < 1 / 3 ? 'monk' : 'rogue';
-  if (f.role === 'caster' || f.role === 'controller') return 'mage';
-  if (f.role === 'ranged') return 'rogue';
-  return 'cleric';
-}
+export const classOf = (m) => classOfFacets(m.temperament ?? m.sheet.facets);
 /** The roles the presets have no class of their own for: the class stands in, and the readout says so. */
 export const CLASS_GAPS = Object.freeze({ ranged: 'no archer class: a rogue stands in', controller: 'no summoner class: a mage stands in' });
 
@@ -157,10 +150,17 @@ export const CLASS_GAPS = Object.freeze({ ranged: 'no archer class: a rogue stan
  * operator's own composed from its notes) stands on the tiered body (egocube/plan.js beastOnTiered) and plays a person's.
  * Null for a beast whose species the fauna does not know (no gait to rig).
  */
-export function fieldOf(m) {
+export function fieldOf(m, { armed = false, win = null } = {}) {
   if (m.body === 'beast') { try { return beastFieldOf(m.beast.species); } catch { return null; } }
   if (m.body === 'mascot') return { own: { forward: 'run', idle: 'idle', turn: 'walk', strafe: 'run' }, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } };
-  if (m.sheet.ancestry?.door === 'hero' || beastOnTiered(m.sheet)) return { moves: fieldStatesOf(moveSetOf(m.sheet.facets).moves) };
+  // (one who fights in the party plays a party battle's repertoire beside: moves.js battleMovesOf, minted with it, kind.js)
+  if (m.sheet.ancestry?.door === 'hero' || beastOnTiered(m.sheet)) {
+    // (a party battle's foe, `battle`, a foe's: foeBattleMovesOf, minted with it by the egocube's moves: 'battle')
+    const F = m.sheet.facets, fights = F.role !== 'non-combatant';
+    // (its victory pose its class's, or the world's own for its class: `win`, battles.wins)
+    const B = m.bond === 'party' && fights ? battleMovesOf(F.role, { archetype: F.archetype, armed, cls: classOfFacets(F), win }) : m.battle && fights ? foeBattleMovesOf(F.role, { archetype: F.archetype, armed }) : null;
+    return { moves: { ...fieldStatesOf(moveSetOf(m.sheet.facets).moves), ...(B ? B.states : {}) } };
+  }
   return { own: { forward: 'jog', idle: 'idle', turn: 'walk', strafe: 'jog' }, moves: fieldStatesOf(creatureMovesOf(m.sheet.facets).moves) };
 }
 
@@ -191,7 +191,11 @@ export function castingOf(G) {
   const members = sheet.order.slice(1).map((path) => {
     // (an id a written member holds, from a scale the prompt chose, takes '-cast': the written member is the book's)
     const m = sheet.members[path], id = written(G).has(castIdOf(path)) ? `${castIdOf(path)}-cast` : castIdOf(path), key0 = path.split('/').slice(1).join('/'), book = own[key0] ?? {};
-    return { id, path, of: m.of, name: book.name ?? nameOf(m), relation: m.relation, ...(m.bond ? { bond: m.bond } : {}), body: m.body, ...(m.bond ? { cls: classOf(m) } : {}), ...(book.joins ? { joins: book.joins } : {}), field: fieldOf(m) };
+    // (in a world of battles, a party member who is a person holds its class's weapon: moves.js WEAPON_OF_CLASS)
+    const gear = G.battles && m.bond === 'party' && m.body === 'person' && m.sheet?.facets?.role !== 'non-combatant' ? weaponOfClass(classOf(m)) : null;
+    // (and strikes the world's own victory pose for its class, battles.wins, where it names one)
+    const win = G.battles && m.bond === 'party' && m.body === 'person' ? G.battles.wins?.[classOf(m)] ?? null : null;
+    return { id, path, of: m.of, name: book.name ?? nameOf(m), relation: m.relation, ...(m.bond ? { bond: m.bond } : {}), body: m.body, ...(m.bond ? { cls: classOf(m) } : {}), ...(book.joins ? { joins: book.joins } : {}), ...(gear ? { gear } : {}), ...(win ? { win } : {}), field: fieldOf(m, { armed: !!gear, win }) };
   });
   return { ...Q, sheet, anchor: { cls: classOf(sheet.members[sheet.anchor]) }, members };
 }

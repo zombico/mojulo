@@ -77,6 +77,17 @@ describe('create_action_world mint', () => {
     expect(mintActionWorld({ idioms: [{ kind: 'scoreCounter' }], walk: false }).recipe.walk).toBeUndefined();
   });
 
+  it('keeps a raw block\'s program (events.program) in the recipe, and it runs as the world resolves', async () => {
+    const program = { source: 'const r = []; for (let k = 0; k < params.n; k++) r.push({ on: "t" + k, do: "inc", var: "t", by: 1 }); return { vars: { t: 0 }, reactions: r };', params: { n: 3 } };
+    const out = mintActionWorld({ title: 'ring', entities: [{ id: 'lamp', on: false }], events: { program } });
+    const stored = SketchRepository.getByRef(out.ref).manifest;
+    expect(stored.events.program).toEqual(program);
+    const { payload } = await resolveWorldScene({ ref: out.ref, title: 'ring', manifest: stored });
+    expect(payload.events.reactions.filter((r) => r.var === 't')).toHaveLength(3);
+    expect(payload.events.program).toBeUndefined();
+    expect(() => mintActionWorld({ title: 'bad', entities: [{ id: 'lamp' }], events: { program: { source: 42 } } })).toThrow(/events\.program/);
+  });
+
   it('rejects a world with no rules, props, or events', () => {
     expect(() => mintActionWorld({})).toThrow(/requires/);
     expect(() => mintActionWorld({ idioms: [], entities: [] })).toThrow(/requires/);

@@ -108,7 +108,7 @@ mode, its foes and its shots make one game), and one sentence changes the game w
 
 Then one plain line on what the studio does not have, so the word "studio" does not overpromise: painted concept art is
 handed to image tools you bring; voices need an optional local speech worker; multiplayer is local, not online; no
-engine runs a game's rules (the web build is the game; an engine gets its levels and assets); whether it looks good is the director's call, not a gate.
+outside engine runs a game's rules (the web build, on mojulo's own runtime, is the game; an engine gets its levels and assets); whether it looks good is the director's call, not a gate.
 
 `[verify]` boss phases: the foe roles, tiers and attack timing (wind-up, strike, recovery) are built; a boss that
 changes phase mid-fight is not, so the README says "a boss", not "boss phases", until it is.

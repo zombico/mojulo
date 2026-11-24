@@ -37,9 +37,12 @@ const PROCEDURES = {
   'wings on the arms': [() => sheetFor('avian', 0.3, has('wingPrim1R')), ['designed']],
   'a second pair of arms': [() => sheetFor('insectoid', 0.2, has('upperArm2R')), ['designed']],
 };
+// (2026-11-22: the designed digitigrade and plantigrade re-pinned: the body is as it was; its default dress moved, the
+// archetype's focal piece no longer a medallion for most archetypes (outfit.js FOCAL: a belt, a satchel, a collar …),
+// so a crowd is not all pendants. Rows already minted keep the plan they stored)
 const PINS = {
-  'digitigrade, a tail': { designed: ['20a6f5de4a0d286d', '99e8d5877b8911a6', 'b41701b916dac0bb'], kit: ['bea7c4d8e3855d07', '4e39d328e1b5a977', '34f1e4bb65e779c4'] },
-  plantigrade: { designed: ['556cebec30fa232f', '2adc6a51a6c62b3c', 'ea9aac942b8c2ca0'] },
+  'digitigrade, a tail': { designed: ['a7b20a019c83ae9c', 'a558bcb92305d11a', '7b4b792863f0a615'], kit: ['bea7c4d8e3855d07', '4e39d328e1b5a977', '34f1e4bb65e779c4'] },
+  plantigrade: { designed: ['9079adbcef71e359', '7278c680ea7536ee', 'fd122fdf68827456'] },
   'wings on the arms': { designed: ['9596941b3963a994', 'f6fb68201d3d5dbf', 'fa4f34c869a0a87d'] },
   'a second pair of arms': { designed: ['6d8a30e5bcfe9620', '47aaa2f33c9533d0', '3acde3244e18ea58'] },
 };

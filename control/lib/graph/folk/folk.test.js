@@ -66,8 +66,8 @@ describe('folk: a town grown from its lots', () => {
     expect(inn).toMatchObject({ role: 'innkeeper', service: 'innkeep', room: 'taproom', use: 'shop' });
     expect(temple).toMatchObject({ role: 'priest', service: 'shrine', room: 'sanctuary' });
     for (const p of T.people.filter((x) => x.trade && x.room)) expect(PROGRAMS[TOWN_TRADES[p.trade].inside].rooms.map((r) => r.role)).toContain(p.room);
-    // (the priest's rite is a gap the sheet says, never faked)
-    expect(T.gaps.find((g) => g.service === 'shrine')).toBeTruthy();
+    // (the priest's rite is built: the temple's shop raises the fallen, services.js)
+    expect(T.gaps.find((g) => g.service === 'shrine')).toBeUndefined();
   });
 
   it('dresses a service\'s people as one when the service is a uniform', () => {

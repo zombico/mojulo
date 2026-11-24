@@ -42,6 +42,32 @@ describe('the play shell\'s screens in mana-ui', () => {
     expect(shellManaSpec().hud.use).toBe('hud');
   });
 
+  it('a game over in mana-ui: its screen drawn only for a game that has one, continue and quit to title', () => {
+    const S = shellManaSpec({ theme: 'grim' }, { gameOver: true });
+    expect(S.screens.gameover).toBeTruthy();
+    expect(JSON.stringify(S.screens.gameover)).toContain('"emit":"continue"');
+    expect(JSON.stringify(S.screens.gameover)).toContain('"emit":"home"');
+    expect(shellManaSpec({ theme: 'grim' }).screens.gameover).toBeUndefined();
+  });
+
+  it('a name asked as a game begins: the keyboard on its own screen, typed in, kept in the save by rename, then the level', async () => {
+    const store = { slices: [{ name: 'campaign', kind: 'progression' }, { name: 'hero', kind: 'character' }] };
+    expect(validateGameManifest(game({ front: {}, store, naming: { slice: 'hero', label: 'Your name' } })).errors).toEqual([]);
+    const bad = validateGameManifest(game({ front: {}, store, naming: { slice: 'campaign', max: 40, colour: 1 } })).errors.join('\n');
+    for (const m of [/naming.colour: naming takes/, /naming.slice is a character or party slice/, /naming.max is 1 to 24/]) expect(bad).toMatch(m);
+    // (no ui said: the greybox draws it, so a pad can type)
+    const P = await page({ front: {}, store, naming: { slice: 'hero', label: 'Your name' } });
+    await P.key('Enter');
+    expect([P.screen(), P.level()]).toEqual(['name', null]);
+    expect(P.text()).toMatch(/Your name.*ABC.*abc.*Space.*Delete.*Done/);
+    for (const k of 'Ada') { P.w.dispatchEvent(new P.w.KeyboardEvent('keydown', { code: 'Key' + k.toUpperCase(), key: k, bubbles: true })); await wait(10); }
+    await P.key('Enter');
+    expect(P.level()).toBe('vale');
+    const save = JSON.parse(P.w.localStorage.getItem('moj-play:Lantern Keep'));
+    expect(JSON.stringify(save)).toContain('"name":"Ada","named":true');
+    P.close();
+  });
+
   it('the title\'s menu starts the first level over a loading screen that goes once the level is drawn; its result says what next', async () => {
     const P = await page({ front: {}, ui: { theme: 'grim' } });
     expect(P.screen()).toBe('title');
@@ -135,5 +161,26 @@ describe('the play shell\'s screens in mana-ui', () => {
     expect(P.w.__mojManaState.ui.result.rank).toBe('clear');
     P.close();
   });
-});
 
+  it('save slots: the title\'s start asks which save, each said by where it stands; a slot keeps its own store', async () => {
+    expect(validateGameManifest(game({ front: {}, ui: { theme: 'grim' }, slots: 3 })).errors).toEqual([]);
+    expect(validateGameManifest(game({ front: {}, ui: { theme: 'grim' }, slots: 9 })).errors.join('\n')).toMatch(/slots is how many saves/);
+    const P = await page({ front: {}, ui: { theme: 'grim' }, slots: 3 });
+    expect(P.screen()).toBe('title');
+    // start: which slot to begin in, slot 1 marked as the one in use; the second taken
+    await P.key('Enter');
+    expect(P.screen()).toBe('pick');
+    expect(P.text()).toMatch(/Begin in which slot\?.*Slot 1.*empty.*Slot 2.*empty.*Slot 3.*empty/);
+    await P.key('ArrowDown');
+    await P.key('Enter');
+    expect(P.level()).toBe('vale');
+    P.say({ moj: MSG_SHOWN });
+    P.say({ moj: MSG_OUTCOME, envelope: { contractVersion: CONTRACT_VERSION, levelRef: 'vale', result: 'success', events: [] } });
+    await wait(60);
+    // (the second slot's store written, the first's untouched; the slot in use kept)
+    expect(P.w.localStorage.getItem('moj-play:Lantern Keep:slot2')).toBeTruthy();
+    expect(P.w.localStorage.getItem('moj-play:Lantern Keep')).toBeNull();
+    expect(P.w.localStorage.getItem('moj-play:Lantern Keep:slot')).toBe('2');
+    P.close();
+  });
+});

@@ -479,10 +479,40 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'linear' },
     },
   },
-  // the time map (11-02): a game whose moments are shown on a clock of their own, the probe the world clock is priced by
+  // the cinematic action game (11-17): one core, a hero over the shoulder through a linear run of set pieces, cutscenes
+  // cut into play; Steel Serpents its stealth template, the climbing adventure its other pole (below)
   {
     id: 'cinematic-action',
     name: 'Cinematic action',
+    anchor: false,
+    why: 'a hero seen over the shoulder works through a linear run of set pieces: a gun aimed off the eye and a knife, objectives laid as a mission, getting over and onto things, cutscenes cut into play (Steel Serpents)',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'mission', traversal: 'wall' },
+      power: { combat: ['melee', 'ranged'], gunplay: 'realistic', mechanics: ['hp-pool', 'objectives'] },
+      soul: { hero: 'hero' },
+      time: { progression: 'linear', sequence: ['cutscene', 'in-play'] },
+    },
+  },
+  // the same core as an adventure: climbing between gunfights behind breaking cover, a vehicle chase for a set piece,
+  // the story in acts and two who talk on the way; what the core still waits on to make one
+  {
+    id: 'cinematic-adventure',
+    name: 'Cinematic action adventure',
+    anchor: false,
+    why: 'the cinematic action core as an adventure: a treasure hunter climbs walls and ledges between gunfights behind cover that breaks, a chase in a vehicle for a set piece, the story told in acts with banter on the way',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', traversal: 'wall' },
+      power: { combat: ['melee', 'ranged'], gunplay: 'realistic', destruction: 'cover', mechanics: ['hp-pool', 'defeat-all'] },
+      soul: { hero: 'hero', mount: 'vehicle' },
+      time: { progression: 'linear', arc: 'acts', sequence: ['cutscene', 'in-play'], shots: ['banter'] },
+    },
+  },
+  // the time map (11-02): a game whose moments are shown on a clock of their own, the probe the world clock is priced by
+  {
+    id: 'bullet-time-action',
+    name: 'Bullet-time action',
     anchor: false,
     why: 'a hero fights through set pieces in third person; time slows on a dodge and holds on the big blow, the camera moving free while the world crawls, and the finisher shown again',
     cube: {

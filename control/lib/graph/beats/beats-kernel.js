@@ -21,7 +21,9 @@
  *     seeded PRNG, never sampled), a lookahead transport, gestures, and wind. Only
  *     touches AudioContext APIs at call time, so importing the kernel in Node is safe.
  *
- * Doctrine (beats.plan.md): synthesized, never sampled — no media bytes, no network.
+ * Doctrine: synthesized by default — no media bytes, no network. The one exception is opt-in: the sampler slice
+ * plays the recorded sound library's bytes that a page or a render hands it (it never fetches them), and every
+ * recorded piece names the synthesized piece it falls back to, so a machine without the library still plays.
  * Audio is presentation, not simulation: nothing here feeds state back into a world.
  */
 
@@ -90,6 +92,11 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //           pitch path (its period jittered, a doubled period under it, a
 //           rattle on it) and a breath of noise through the bird's moving
 //           resonances. A tonal call a trace would turn to sandpaper.
+// The sound library added one more:
+//   sampler a `voice: 'sample'` patch (a recorded piece): engine.loadSamples
+//           decodes the library's bytes once, a hit plays its card's variant
+//           chosen by the note's key, to its end (a choke still cuts it), at
+//           playbackRate root→note; unloaded, the piece's `fallback` plays.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -99,8 +106,8 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx'];
-export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'], trace: ['sfx'], syrinx: ['sfx'] };
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx', 'sampler'];
+export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'], sfxmix: ['sfx', 'mix'], sustain: ['sfxmix', 'sfx', 'mix'], trace: ['sfx'], syrinx: ['sfx'], sampler: ['voice'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
 export function sliceKernelText(text, keep) {
@@ -1154,6 +1161,17 @@ export function buildBeatsKernel() {
     const ops = [];
 /*@sfx{*/
     (gestures || []).forEach(function (g, gi) {
+/*@sampler{*/
+      // a recorded sound (the sound library's): one op, its variant picked by the hit (the plain path the first take),
+      // with the synthesized gestures it stands in for planned beside it, for a moment (or a machine) without the
+      // recording. Its extent is the longest variant's (`dur`), so a cue's end and the voice cap read it.
+      if (g && g.type === 'sample') {
+        const op = { at: g.at || 0, kind: 'sample', library: g.library, pick: variant >>> 0, len: g.dur || 0, vol: g.vol == null ? 1 : g.vol, rate: g.rate || 1, alt: cuePlan(g.fallback || [], variant) };
+        if (g.chain || g.pan != null || g.send != null) op.layer = gi;
+        ops.push(op); return;
+      }
+/*|
+@*/
 /*@sfxmix{*/
       // a gesture with its own chain / pan / send is a layer: its ops carry its
       // index, so the mixer routes them together. A plain gesture's ops carry none.
@@ -1257,6 +1275,68 @@ export function buildBeatsKernel() {
       return src;
     }
     function unit(k) { return mulberry32(k)(); }
+/*|
+@*/
+/*@sampler{*/
+    // recorded samples (opt-in, the sound library's): loadSamples({ cards: { <card>: [id…] }, bytes: { <id>: an
+    // ArrayBuffer of a WAV } }) decodes each once for this engine; a `voice: 'sample'` patch names its card
+    // (`library`), whose ids are its variants, one chosen per hit by the note's key, so a hit replays identically.
+    // an INSTRUMENT's takes carry their measured `roots` ({ <id>: MIDI }) and a held one's `loops` ({ <id>: [start, end]
+    // s }): a `zones` patch plays each note on the take whose root is nearest, bent the rest of the way.
+    const sampleCards = {}, sampleBufs = new Map(), sampleMeta = new Map();
+    function loadSamples(slice) {
+      if (!slice) return Promise.resolve();
+      Object.assign(sampleCards, slice.cards || {});
+      for (const [id, r] of Object.entries(slice.roots || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { root: r }));
+      for (const [id, l] of Object.entries(slice.loops || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { loop: l }));
+      for (const [id, v] of Object.entries(slice.vels || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { vel: v }));
+      for (const [id, v] of Object.entries(slice.keyAt || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { keyAt: v }));
+      for (const [id, v] of Object.entries(slice.keyRoot || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { keyRoot: v }));
+      const bytes = slice.bytes || {};
+      return Promise.all(Object.keys(bytes).map((id) => (sampleBufs.has(id) ? null
+        : Promise.resolve(ctx.decodeAudioData(bytes[id])).then((b) => { sampleBufs.set(id, b); }))));
+    }
+    function sampleBuf(patch, k) {
+      const ids = sampleCards[patch.library] || [];
+      return ids.length ? sampleBufs.get(ids[(k >>> 0) % ids.length]) || null : null;
+    }
+    // the zone a note is played from: of the instrument's decoded takes with a root, those nearest the note (within a
+    // quarter tone of the nearest), one of them by the note's key; { buf, root, loop } or null. A velocity layer's takes
+    // (a `vel` each) are near by strength too: three semitones a whole velocity, so a soft note plays a soft take a
+    // semitone off before a medium one on the note, and an instrument with no layers is chosen by pitch alone.
+    function sampleZone(patch, k, hz, vel) {
+      const m = 69 + 12 * Math.log2(hz / 440), v = vel == null ? 0.8 : vel;
+      const cost = (id) => { const M = sampleMeta.get(id); return Math.abs(M.root - m) + (Number.isFinite(M.vel) ? 3 * Math.abs(M.vel - v) : 0); };
+      let near = Infinity;
+      const ids = (sampleCards[patch.library] || []).filter((id) => sampleBufs.has(id) && sampleMeta.has(id) && Number.isFinite(sampleMeta.get(id).root));
+      for (const id of ids) near = Math.min(near, cost(id));
+      const zone = ids.filter((id) => cost(id) <= near + 0.25);
+      if (!zone.length) return null;
+      const id = zone[(k >>> 0) % zone.length], M = sampleMeta.get(id);
+      return { buf: sampleBufs.get(id), root: M.root, loop: M.loop || null };
+    }
+    // an instrument's KEY-OFF (its release sound, `<library>~release`): of its decoded takes, those for the register
+    // nearest the note (`keyAt`), one by the note's key; { buf, root: the pitch it carries, if any } or null
+    function sampleKeyOff(patch, k, hz) {
+      const m = 69 + 12 * Math.log2(hz / 440);
+      const ids = (sampleCards[patch.library + '~release'] || []).filter((id) => sampleBufs.has(id) && sampleMeta.has(id) && Number.isFinite(sampleMeta.get(id).keyAt));
+      let near = Infinity;
+      for (const id of ids) near = Math.min(near, Math.abs(sampleMeta.get(id).keyAt - m));
+      const zone = ids.filter((id) => Math.abs(sampleMeta.get(id).keyAt - m) <= near + 0.5);
+      if (!zone.length) return null;
+      const id = zone[(k >>> 0) % zone.length];
+      return { buf: sampleBufs.get(id), root: sampleMeta.get(id).keyRoot };
+    }
+    // a cue's recorded gestures that are not loaded here (no library on the page, or not decoded yet) give way to the
+    // synthesized gestures they stand in for, in their place, before the cue is planned: the cue is then exactly the
+    // one it would have been without the library, its layers routed as theirs are.
+    function heard(gestures) {
+      const off = (g) => g && g.type === 'sample' && !(sampleCards[g.library] || []).some((id) => sampleBufs.has(id));
+      if (!Array.isArray(gestures) || !gestures.some(off)) return gestures;
+      const out = [];
+      for (const g of gestures) { if (off(g)) for (const f of g.fallback || []) out.push(f); else out.push(g); }
+      return out;
+    }
 /*|
 @*/
     // Karplus-Strong plucked string — computed, never sampled (the guitar voice).
@@ -2353,6 +2433,23 @@ export function buildBeatsKernel() {
       }
 /*|
 @*/
+/*@sampler{*/
+      // a sample voice plays its recorded variant to its end (a one-shot rings out past a short note); unloaded (no
+      // library on this machine, or not decoded yet) it plays the synthesized piece it stands in for, `fallback`.
+      // (an instrument, `zones`: the note on its nearest take, bent from that take's root; a held one, `loop`, holds on its
+      // take's loop for as long as the note lasts, never rung out to the take's end)
+      let sbuf = null, srate = 1, sloop = null;
+      if (voice === 'sample') {
+        const Z = patch.zones ? sampleZone(patch, nk, hz, vel) : null;
+        sbuf = Z ? Z.buf : patch.zones ? null : sampleBuf(patch, nk);
+        if (!sbuf) return patch.fallback ? playVoice(patch.fallback, hz, t, dur, vel, dest, key) : undefined;
+        const root = Z ? Z.root : patch.root;
+        srate = root ? hz / (440 * Math.pow(2, (root - 69) / 12)) : 1;
+        sloop = patch.loop && Z && Z.loop ? Z.loop : null;
+        if (patch.oneShot !== false && !sloop) dur = Math.max(dur, sbuf.duration / srate - (patch.release == null ? 0.05 : patch.release));
+      }
+/*|
+@*/
       const { node: env, end } = envGain(t, dur, patch, vel);
 /*@anthem{*/
       const pmod = patch.pitchLane || patch.vib ? pitchMod(patch, t, end) : null;
@@ -2493,6 +2590,54 @@ export function buildBeatsKernel() {
         nz.start(t); nz.stop(t + adec + 0.02);
 @*/
       }
+/*@sampler{*/
+      if (sbuf) {
+        // (the synth's modulators carried to the take: `unison` copies spread over `detune` cents, its pitch lanes and
+        // vibrato, `pitchLane`/`vib`, and an lfo aimed at pitch on each copy's detune; its filter, envelope, tremolo and
+        // amp lfo already sit after it)
+        // (and the synth's moves of its frequency, as ratios of its rate: a glide in from the row's previous note
+        // (`glideFrom`), a bend or a portamento (`bend` [from, to, startS, endS]), a legato run (`path` [[s, ratio]…]),
+        // each the same ramp the oscillator's frequency would take, on the take's playback rate)
+        const rideRate = (P) => {
+          if (patch.glideFrom) { P.setValueAtTime(srate * patch.glideFrom / hz, t); P.exponentialRampToValueAtTime(srate, t + (patch.glide || 0.08)); } else P.value = srate;
+          if (patch.bend) { const b = patch.bend; P.setValueAtTime(srate * b[0], t + b[2]); P.exponentialRampToValueAtTime(srate * b[1], t + Math.max(b[2] + 0.005, b[3])); }
+          if (patch.path) {
+            let r = 1;
+            for (const [dt, q] of patch.path) {
+              if (!dt) continue;
+              const g = Math.min(patch.pathGlide || 0.06, dt * 0.5);
+              P.setValueAtTime(srate * r, t + dt - g); P.exponentialRampToValueAtTime(srate * q, t + dt); r = q;
+            }
+          }
+        };
+        const n = Math.max(1, patch.unison | 0), ug = n > 1 ? ctx.createGain() : null;
+        if (ug) { ug.gain.value = 1 / Math.sqrt(n); ug.connect(env); }
+        for (let u = 0; u < n; u++) {
+          const src = ctx.createBufferSource(); src.buffer = sbuf; rideRate(src.playbackRate);
+          if (n > 1) src.detune.value = (u / (n - 1) - 0.5) * (patch.detune || 0);
+          if (sloop) { src.loop = true; src.loopStart = sloop[0]; src.loopEnd = sloop[1]; }
+          if (typeof pmod !== 'undefined' && pmod) pmod.connect(src.detune);
+          if (typeof lfoTo !== 'undefined' && lfoTo) lfoTo(src.detune, 'pitch');
+          src.connect(ug || env); src.start(t); src.stop(end);
+        }
+        // (the KEY-OFF: when the key is let go, the instrument's release sound for the note's register, `keyOff` dB under
+        // the note's own level (`volume`) and softer the softer the note was played; outside the note's envelope, which
+        // is releasing then)
+        if (patch.keyOff != null) {
+          const K = sampleKeyOff(patch, nk, hz), R = K && K.buf;
+          if (R) {
+            const ks = ctx.createBufferSource(), kg = ctx.createGain();
+            // (a release with a pitch of its own, a tick or a buzz, tuned to the note let go where the patch asks,
+            // `keyOffTuned`, within two octaves either way; one with none, a thump, plays as recorded)
+            const kr = patch.keyOffTuned && Number.isFinite(K.root) ? Math.max(0.25, Math.min(4, hz / (440 * Math.pow(2, (K.root - 69) / 12)))) : 1;
+            ks.playbackRate.value = kr;
+            ks.buffer = R; kg.gain.value = dbGain((patch.volume || 0) + patch.keyOff) * (0.4 + 0.6 * (vel == null ? 0.8 : vel));
+            ks.connect(kg); kg.connect(dest || master); ks.start(t + dur); ks.stop(t + dur + R.duration / kr + 0.05);
+          }
+        }
+      } else
+/*|
+@*/
       if (voice === 'noise') {
 /*@voice{*/
         const src = noiseSrc(t, vu);
@@ -3036,6 +3181,19 @@ export function buildBeatsKernel() {
         }
 /*|
 @*/
+/*@sampler{*/
+        else if (op.kind === 'sample') {
+          // a recorded variant, played whole; not loaded (yet), the synthesized ops it stands in for
+          const ids = sampleCards[op.library] || [], b = ids.length ? sampleBufs.get(ids[op.pick % ids.length]) || null : null;
+          if (!b) playOps(op.alt || [], t, out, vs);
+          else {
+            const src = ctx.createBufferSource(); src.buffer = b; src.playbackRate.value = op.rate;
+            const g = ctx.createGain(); g.gain.value = op.vol * vs;
+            src.connect(g); g.connect(out); src.start(t);
+          }
+        }
+/*|
+@*/
       }
     }
 
@@ -3100,7 +3258,7 @@ export function buildBeatsKernel() {
     function sfxCue(gestures, ops, t, dest, vs, place) {
       const list = gestures || [];
       for (const op of ops) if (op.kind === 'duck') duck(t + op.at, op.depth, op.hold, op.release);
-      if (!sfx && !(place && place.far > 0) && !list.some((g) => g && (g.chain || g.pan != null || g.send != null))) { playOps(ops, t, dest, vs); return; }
+      if (!sfx && !(place && (place.far > 0 || place.pan)) && !list.some((g) => g && (g.chain || g.pan != null || g.send != null))) { playOps(ops, t, dest, vs); return; }
       const v = vs == null ? 1 : vs;
       let end = t;
       for (const op of ops) end = Math.max(end, t + op.at + (op.decay || op.dur || op.len || 0) + (op.release || 0) + 0.05);
@@ -3122,6 +3280,9 @@ export function buildBeatsKernel() {
         lp.frequency.value = 16000 * Math.pow(1 - far, 2) + 900;
         fader.connect(lp); head = lp;
       }
+      // (placed to a side, `place.pan` in [-1, 1]: left to right of the listener; absent, centred as it always was)
+      const side = place && place.pan ? Math.max(-1, Math.min(1, place.pan)) : 0;
+      if (side && ctx.createStereoPanner) { const pn = ctx.createStereoPanner(); pn.pan.value = side; head.connect(pn); head = pn; }
       head.connect(dest && dest !== master ? dest : sfx ? sfx.bus : master);
       let wet = null;
       const wetGain = 1 + 2 * far;
@@ -3160,17 +3321,39 @@ export function buildBeatsKernel() {
     // rising, `release` falling) on ramps the voice plans itself; stop(t?) fades
     // it out and frees it. It plays on the SFX bus when there is one.
     function sustain(spec, dest) {
+/*@sampler{*/
+      // a held voice of recordings (the sound library's loops) not loaded here plays the synthesized voice it stands in for
+      if (spec && spec.fallback && (spec.layers || []).some((L) => L && L.kind === 'sample' && !(sampleCards[L.library] || []).some((id) => sampleBufs.has(id)))) return sustain(spec.fallback, dest);
+/*|
+@*/
       const S = spec || {}, t0 = ctx.currentTime, out = ctx.createGain();
       out.gain.setValueAtTime(S.level == null ? 1 : S.level, t0);
       out.connect(dest && dest !== master ? dest : sfx ? sfx.bus : master);
       const snd = S.send == null ? (sfx ? sfx.send : 0) : S.send;
       if (sfx && sfx.space && snd > 0) { const sg = ctx.createGain(); sg.gain.value = snd; out.connect(sg); sg.connect(sfx.space); }
       const lanes = [], srcs = [];
+/*@sampler{*/
+      // (a lane may carry its own curve over x, `fn`: a recording's window)
+      const valOf = (p, v) => (p.fn ? p.fn(v) : p.geo ? p.r[0] * Math.pow(p.r[1] / p.r[0], v) : p.r[0] + (p.r[1] - p.r[0]) * v);
+/*|
       const valOf = (p, v) => (p.geo ? p.r[0] * Math.pow(p.r[1] / p.r[0], v) : p.r[0] + (p.r[1] - p.r[0]) * v);
+@*/
       const valAt = (p, t) => (t >= p.b ? p.to : t <= p.a ? p.from : p.from + (p.to - p.from) * (t - p.a) / (p.b - p.a));
       const lane = (param, r, geo) => { const p = { param, r, geo, a: t0, b: t0 }; p.from = p.to = valOf(p, 0); param.setValueAtTime(p.from, t0); lanes.push(p); };
       (S.layers || []).forEach(function (L, i) {
         let src;
+/*@sampler{*/
+        // a recording (the sound library's loop, `library`, its `take`), looped from a seeded place, its playback rate a
+        // lane over x (`rate`: an engine's revs over the revs it was recorded at)
+        if (L.kind === 'sample') {
+          src = ctx.createBufferSource(); src.loop = true;
+          const ids = sampleCards[L.library] || [];
+          src.buffer = sampleBufs.get(ids[(L.take || 0) % Math.max(1, ids.length)]) || null;
+          lane(src.playbackRate, L.rate || [1, 1], false);
+          src.start(t0, src.buffer ? unit(hashSeed(0x5A59, i)) * src.buffer.duration : 0);
+        } else
+/*|
+@*/
         if (L.kind === 'osc') { src = ctx.createOscillator(); src.type = L.wave || 'sine'; lane(src.frequency, L.pitch || [220, 220], true); src.start(t0); }
         else src = noiseSrc(t0, unit(hashSeed(0x5A57, i)));
         srcs.push(src);
@@ -3181,6 +3364,16 @@ export function buildBeatsKernel() {
         let cut = null;
         if (L.cutoff) { cut = ctx.createBiquadFilter(); cut.type = 'lowpass'; cut.Q.value = L.q == null ? 0.7 : L.q; lane(cut.frequency, L.cutoff, true); head.connect(cut); head = cut; }
         const g = ctx.createGain(); lane(g.gain, L.gain || [0, 1], false); head.connect(g);
+/*@sampler{*/
+        // `window` [lo, at, hi] on x (a recording's place among its neighbours): it rises from lo to at and falls to hi on
+        // equal-power curves, silent outside (lo = at: full below; at = hi: full above), times its `gain` lane's level
+        if (L.window) {
+          const [wl, wa, wh] = L.window, top = (L.gain || [1, 1])[1];
+          const fn = (v) => top * (v < wa ? (wa > wl ? (v <= wl ? 0 : Math.sin(Math.PI / 2 * (v - wl) / (wa - wl))) : 1) : (wh > wa ? (v >= wh ? 0 : Math.cos(Math.PI / 2 * (v - wa) / (wh - wa))) : 1));
+          const p = lanes.pop(); p.fn = fn; p.from = p.to = fn(0); g.gain.setValueAtTime(p.from, t0); lanes.push(p);
+        }
+/*|
+@*/
         let tail = g;
         if (L.lfo) {
           const o = ctx.createOscillator(); o.type = L.lfo.wave || 'sine'; lane(o.frequency, L.lfo.rate || [4, 4], true); o.start(t0); srcs.push(o);
@@ -3689,6 +3882,10 @@ export function buildBeatsKernel() {
 /*|
 @*/
       playVoice,
+/*@sampler{*/
+      loadSamples,
+/*|
+@*/
 /*@strings{*/
       stringBuffer,
 /*|
@@ -3711,6 +3908,15 @@ export function buildBeatsKernel() {
 @*/
 /*@sustain{*/
       sustain,
+/*|
+@*/
+/*@sampler{*/
+      // (the later key wins: playCue with the recorded gestures resolved first, otherwise as above)
+      playCue(gestures, when, dest, velScale, variant, place) {
+        const gs = heard(gestures), t = when == null ? ctx.currentTime : when;
+        if (typeof sfxCue === 'function') sfxCue(gs, cuePlan(gs, variant), t, dest, velScale, place);
+        else playOps(cuePlan(gs, variant), t, dest, velScale);
+      },
 /*|
 @*/
       startAmbient(recipe, patches) { startTransport(recipe, patches, 'ambient'); },

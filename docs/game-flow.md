@@ -165,6 +165,18 @@ Three things, in this order, each in its own place:
 The sentence door lays this as a world map's OPENING: its first block alone, a page of its own and no bigger than
 those tasks (`gameworld/world-map.js`). The first zone after it tests what was taught and teaches nothing new.
 
+## A name asked
+
+A game that asks the player a name says whose (`naming: { slice, id?, label?, max?, min? }` on its manifest: a
+character slice's, or a party slice's member). The shell stands a `name` screen before the first level wherever a new
+game begins (`withNaming`): the title's play (before the first level, a run or the prologue; back returns to the title),
+or a game started in play, after its opening on a first boot (a save goes on to where it was left). A flow that has a
+name screen of its own keeps it. The screen is mana-ui's keyboard (a pad types from its grid, a computer keyboard
+straight in; the greybox draws it in a game with no `ui`), and done keeps the name in the store with `rename`, marked
+`named`. A level reads it from its slice; a level with a party hands the page the names given (`window.__mojNames`), so
+the story's lines and the RPG's menus say them. A party RPG asks the hero's name unless `battles.naming: false`
+(`gameworld/battles.js` `battleNaming`); its party menu renames any member later (Status, Rename).
+
 ## The default, and the story's cinematics
 
 A game that says no flow has the one its front, levels, run, map and final level have always made (`defaultFlow`), so

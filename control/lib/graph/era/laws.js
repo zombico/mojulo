@@ -30,6 +30,7 @@ import { AIRLESS_PLAIN } from './style/airless-plain.js';
 import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
+import { DEEP_FORGE, FUNGAL_GROTTO, DROWNED_SHRINE, ARCANE_VAULT } from './style/dungeon-kits.js';
 
 export const LAYERS = Object.freeze(['look', 'surface', 'composition', 'dressing']);
 
@@ -37,6 +38,8 @@ export const LAWS = Object.freeze({
   // look
   'value-order': { layer: 'look', law: 'A stated value order, brightest first, kept as baked colour × tile mean.' },
   'shade-is-colour': { layer: 'look', law: 'Shade is a colour, cool and pale, never black.' },
+  // (the RPG dungeons', era/dungeon.js: measured by sourceless)
+  'light-has-a-source': { layer: 'look', law: 'Every light is a thing in the place that gives it; none hangs from nowhere.' },
   'baked-light': { layer: 'look', era: true, law: 'World light is baked into the vertices: one key, a fill, cast shadows, placed lights as pools.' },
   'light-through': { layer: 'look', law: 'Light comes through things (windows, canopy, leaves) and lands as pools and dapples.' },
   'locked-palette': { layer: 'look', law: 'A limited palette and one small accent; a grade holds it.' },
@@ -118,6 +121,11 @@ export const PRINCIPLE_LAWS = Object.freeze({
   'alien-night': [['locked-palette', 'shade-is-colour'], ['baked-light', 'focus'], ['big-shapes'], ['depth-by-air', 'value-order'], ['sky-is-a-place'], ['value-order', 'focus']],
   'airless-plain': [['depth-by-air'], ['sky-is-a-place', 'value-order'], ['baked-light', 'shade-is-colour'], ['big-shapes'], ['locked-palette', 'value-order']],
   'isekai-garden': [['clusters', 'by-cause'], ['layered-depth', 'distinct-radius'], ['subject-line', 'focus'], ['repeat-adjacent', 'accent-wall'], ['corner-things']],
+  // (the RPG dungeons, style/dungeon-kits.js: each built by its own cause, lit by what is in it)
+  'deep-forge': [['pillars-are-worked', 'big-shapes', 'by-cause'], ['light-has-a-source', 'focus', 'subject-line', 'dark-is-a-place'], ['kit-dressing', 'by-cause', 'corner-things', 'air-is-furnished']],
+  'fungal-grotto': [['big-shapes', 'by-cause'], ['light-has-a-source', 'live-emitters', 'dark-is-a-place'], ['focus', 'kit-dressing', 'clusters', 'air-is-furnished', 'by-cause']],
+  'drowned-shrine': [['by-cause', 'blend-by-cause', 'corner-things'], ['focus', 'kit-dressing'], ['light-has-a-source', 'air-is-furnished', 'locked-palette']],
+  'arcane-vault': [['focus', 'kit-dressing'], ['light-has-a-source', 'live-emitters', 'air-is-furnished'], ['repeat-adjacent', 'corner-things', 'by-cause']],
   // (the crypt in the form render's register, style/crypt.js CRYPT_SOBER.form: the seventh generation's principles)
   'crypt/form': [['built-scale'], ['relief-is-material', 'detail-in-tile'], ['value-by-light', 'value-order'], ['true-curves', 'arches-and-rounds'], ['dark-is-a-place', 'dare-height'], ['live-emitters'], ['built-scale', 'materials-by-layer'], ['motif-small', 'relief-is-material'],
     ['no-voxel-first'], ['pillars-are-worked', 'arches-and-rounds'], ['layers-stand-proud', 'blend-by-cause'], ['wall-rhythm', 'distinct-radius'], ['wall-rhythm', 'repeat-adjacent'], ['wall-has-storeys', 'wall-rhythm'], ['layers-stand-proud', 'by-cause'], ['air-is-furnished', 'light-through', 'focus'], ['openings-have-depth'], ['wet-hugs-the-surface', 'blend-by-cause'], ['floor-is-laid', 'subject-line', 'wall-rhythm']],
@@ -126,7 +134,7 @@ export const PRINCIPLE_LAWS = Object.freeze({
 /** Every principle a style card states, keyed as PRINCIPLE_LAWS keys them: the card's own, its night's, its decay's. */
 export function statedPrinciples() {
   const out = {};
-  for (const S of [CRYPT, CATACOMB, DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN]) {
+  for (const S of [CRYPT, CATACOMB, DEEP_FORGE, FUNGAL_GROTTO, DROWNED_SHRINE, ARCANE_VAULT, DELFINO_PLAZA, GOTHIC_NAVE, RESEARCH_LAB, NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN]) {
     out[S.id] = S.principles;
     if (S.night?.principles) out[`${S.id}/night`] = S.night.principles;
     if (S.decay?.principles) out[`${S.id}/decay`] = S.decay.principles;

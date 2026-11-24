@@ -352,7 +352,9 @@ describe('a run and gun\'s own voices (its buster, its hero, its robot foes, a r
   it('a run and gun hears every event; a hero with no buster keeps the rest; a boss on treads its treads; another game none', async () => {
     const { RUN_SOUNDS, RUN_HELD } = await import('./sound-sheet.js');
     const { RUN_EVENTS, RUN_HELD: HELD } = await import('../beats/beats-world.js');
-    expect(Object.keys(RUN_SOUNDS)).toEqual(RUN_EVENTS);
+    // (the page's events: the run and gun's, then a platformer's own beyond them, the double jump)
+    const { PLATFORM_RUN } = await import('./sound-sheet.js');
+    expect([...new Set([...Object.keys(RUN_SOUNDS), ...Object.keys(PLATFORM_RUN)])]).toEqual(RUN_EVENTS);
     expect([...RUN_HELD]).toEqual([...HELD]);
     expect(soundSheet(RUN).run).toEqual({ ...RUN_SOUNDS });
     for (const [ev, w] of Object.entries(RUN_SOUNDS)) expect(RUN_HELD.includes(ev) ? sfxSound(w)?.sustain : SOUNDS[w], ev).toBeDefined();

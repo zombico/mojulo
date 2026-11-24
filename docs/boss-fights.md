@@ -120,22 +120,33 @@ A new boss is a row.
   - how many `hits` break it;
   - what it stands `behind` (not there to hit until that part is broken);
   - whether it is `weak` (its hits come off the vehicle's health `mult` times);
-  - the state it is `shown` in.
+  - the state it is `shown` in, or a list of them;
+  - where it is reached `from`: `behind` the vehicle, or its own `side`, within an `arc` (a reloader on its back).
 - **States** drive it. Each has its moves, its tempo, whether it follows its `route` or flies its `runs`, its altitude,
-  and its ways on (`to`): parts broken (`broken`, all of them or `any`), a run flown (`flown`), or seconds out (`after`).
+  and its ways on (`to`): parts broken (`broken`, all of them or `any`), a run flown (`flown`), or seconds out (`after`,
+  `slower` for each of some parts broken: a reload, for each reloader shot down). A `window` state (a reload, a walk, a
+  fold) lays no move: it is the fight's breath.
+- **A mecha** (a row with a `frame`: a word of the mecha shelf) is drawn as its own figure, not as boxes
+  (`gameworld/combat/boss-figures.js`): each state says what its body does (`form`: its tank form; `clip`: a clip played
+  through the state, `loops` times), its walk and its drive by the ground they cover (`stride`); a part shot off hides its
+  `bones`. A round on it is judged along the shot's line through its parts' boxes.
+- **A carrier** (a row's `carrier`) fights through what it carries: gunners on it, drones from its bays, and a package a
+  hacked drone carries home (below).
 
 | vehicle | how it is won |
 |---|---|
 | tank | mines laid on its route break its tracks; with both broken it is stranded, and launcher rounds go into its engine grille |
 | gunship | its attack runs walk rockets down a line through the body (hard cover, or off the line); launcher rounds go into its rotor hub while it hovers to turn |
 | walker | launcher rounds strip a leg's plating (three to a leg), rounds break the bared knee, and with both knees broken it kneels and its cockpit is in reach |
+| siege walker | standing, its barrage is marked as it is fired (a wall between you and the gun); mines on its round break a leg (two under one foot) and it folds onto its wheels; its reloaders, shot from behind, slow its reload. Folded it is the tank (its states, moves and parts the tank's: its wheels mined, its engine from behind once stranded), and its hips, bare between its folded legs, are hit from its sides |
+| brood walker | a carrier: its gunners (its roof, its two hangar doors) put down from outside their arcs; a courier drone hacked with the RF gun fetches a package and carries it home into a door whose gunner is down, where it goes off in its hangar; from the second delivery its drones chase the hacked one (shoot them off it); three deliveries |
 
 The laws (`vehicleLaws`) hold:
 
 - winnable with the arms in hand: a weak spot reached, everything in front of it breakable by what the level gives, and
   the state it shows in reachable. There is no tank without mines and no walker without a launcher.
 - its moves hold;
-- every state attacks;
+- every state attacks (a window, and a carrier's states, are not asked);
 - enough mines for the parts a mine breaks.
 
 ## Played
@@ -152,6 +163,16 @@ shelf: `bossRule`, `bossMind`, `vehicleEntity`.
 - **Hazards** land once on each body of another team inside them, unless that body is invincible (a dive through), is
   crouched or lying under a `low` one, or is behind cover from a `cover` one's origin. Invisible mode starts no move.
 
+**A carrier** (`boss/stand.js` `carrierEntities` stands its gunners and drones):
+
+- its GUNNERS ride it, each laying a burst on the pilot in its arc and in sight (cover as a burst's), or on a hacked drone
+  near it; a gunner is a person, killed by rounds or knocked out by the dart, and stays down;
+- its DRONES are endless, launched from its bays and reprinted when shot down: a hunter patrols and drops a grenade on a
+  pilot it sees (a disc marked from the drone, a roof is cover); a courier laps round it;
+- the RF gun (a slot whose weapon says `jam`) held on a courier hacks it: it fetches the nearest package, carries it home
+  into a door whose gunner is down and goes off there, an explosive hit on its hangar. From the second, its hunters chase
+  the hacked courier; shot down, the package is lost and comes back to its pallet.
+
 **Land mines** (`worlds/controllable/mines.js`, the kit's `mine`) are laid at the feet on the trigger:
 
 - armed after a moment;
@@ -167,7 +188,10 @@ shelf: `bossRule`, `bossMind`, `vehicleEntity`.
   head while a flash has it blind;
 - a human boss's counter prop on its torso bone (Cinder's tank and its hose to his right hand): glowing while it is bare,
   white for a moment as each hit lands, a burst of fire when it breaks;
-- a vehicle's dress and parts: a weak spot red and beating while it can be hit, a broken track wrecked.
+- a vehicle's dress and parts: a weak spot red and beating while it can be hit, a broken track wrecked; a mecha's parts
+  as marks on its figure, each only while it can be hit, dim where the pilot stands out of its reach;
+- a carrier's gunners' guns and their tracers, its drones and a mark over each (a courier green, a hacked one blue with its
+  health, a chaser red), its packages, the RF gun's beam and the hack's ring; its gunners and deliveries under the bar.
 
 The HUD draws the boss across the top: its name, its title, and its health with a tick between phases.
 
@@ -194,7 +218,9 @@ is near 19 MB: `node scripts/pack-page.mjs <page> --parts --text` splits it unde
   `flash` counters are built; Breaker's charge into a wall is still to come.
 - A realistic hero remade in place (`update_character`) came back without its head's skin in the database it was read
   from, so its headwear had nothing to pin to; mint the look anew (`create_character`) until that is understood.
-- A vehicle is boxes. Its turret does not turn apart from its hull, and the walker does not stride.
+- A vehicle off the shelf's boxes is boxes. Its turret does not turn apart from its hull, and the walker does not
+  stride. The mecha (the siege walker, the brood walker) are their own figures, but their guns do not turn on their
+  mounts yet, and the brood walker's eggs do not open as a drone launches.
 - A boss is not yet named by a level: a `design_game` world's `goal.boss` still stands a foe of the boss rank. The
   casting call does not propose a gimmick, and the game book has no boss sheet.
 - The radar does not show a vehicle's weak spot. The arena laws (that cover stands where a `cover` hazard needs it)

@@ -2,7 +2,8 @@
  * adaptive-music — music that follows play: a tension meter fed by the level's own events, and a two-state score
  * (explore, combat) that changes on the bar line with hysteresis, so it never flaps.
  *
- *   audio: { soundtrack: 'field:forest', combat: 'field:battle', tension?: { on?, enter?, exit?, hold?, decay? } }
+ *   audio: { soundtrack: 'field:forest', combat: 'field:battle', tension?: { on?, enter?, exit?, hold?, decay?, held? } }
+ *   (held: a bus var that pins the meter full while it is set, a party battle's rpg.battle)
  *
  * SINGLE SOURCE: the logic is one self-contained closure, `buildAdaptive()`, run in Node by the tests and emitted
  * into the World page with `.toString()` (the event-bus pattern), so the laws the tests hold are the page's.
@@ -58,8 +59,11 @@ export function buildAdaptive() {
 export function resolveTension(spec, mechanics = []) {
   const t = spec === undefined || spec === true ? {} : spec;
   if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('audio.tension is { on?: { <event glob>: weight 0..1 }, enter?, exit?, hold? (bars), decay? (seconds) }');
-  for (const k of Object.keys(t)) if (!['on', 'enter', 'exit', 'hold', 'decay'].includes(k)) throw new Error(`audio.tension.${k} is not a tension setting (on, enter, exit, hold, decay)`);
+  for (const k of Object.keys(t)) if (!['on', 'enter', 'exit', 'hold', 'decay', 'held'].includes(k)) throw new Error(`audio.tension.${k} is not a tension setting (on, enter, exit, hold, decay, held)`);
   const cfg = { ...TENSION_DEFAULTS };
+  // (held: a bus var that pins the meter full while it is set: a party battle's rpg.battle, the fight's score for as long
+  // as the fight is up, however long its picks take)
+  if (t.held !== undefined) { if (!(typeof t.held === 'string' && t.held)) throw new Error('audio.tension.held is a bus var: the meter full while it is set'); cfg.held = t.held; }
   for (const k of ['enter', 'exit']) if (t[k] !== undefined) { if (!(Number.isFinite(t[k]) && t[k] >= 0 && t[k] <= 1)) throw new Error(`audio.tension.${k} is 0..1`); cfg[k] = t[k]; }
   for (const k of ['hold', 'decay']) if (t[k] !== undefined) { if (!(Number.isFinite(t[k]) && t[k] > 0)) throw new Error(`audio.tension.${k} is a positive number`); cfg[k] = t[k]; }
   if (cfg.exit >= cfg.enter) throw new Error(`audio.tension.exit (${cfg.exit}) must sit under enter (${cfg.enter}): the gap is what keeps the score from flapping`);

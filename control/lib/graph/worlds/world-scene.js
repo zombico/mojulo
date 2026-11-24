@@ -22,6 +22,7 @@ import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen'
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readRoll, rolledIds, pickupsOf } from '@/lib/graph/game/roll';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
+import { readKeying } from '@/lib/graph/worlds/controllable/keying';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { skandartLoose, landLoose } from '@/lib/graph/era/skandart';
@@ -57,6 +58,7 @@ import { resolveFaceMaterials, weatherRigParts } from '@/lib/graph/materials/pro
 import { FLAT_LIGHT, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { resolveLookSpec, applyLook } from '@/lib/graph/era/look';
 import { synthesizeLevel, mergeEventManifests, deriveLevelPlayer } from '@/lib/graph/game/level-synth';
+import { lowerEventsProgram } from '@/lib/graph/game/events-program.js';
 import { lowerPlay } from '@/lib/graph/playscape/ui/direction';
 import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
@@ -158,6 +160,11 @@ export function stateFace(face, own, clips) {
 /** a body destroyed when it goes down (its `vanish.die` a dismantle, a cleave or a destroy: gameworld/vanish.js), or one
  * that sheds a mode (its `modes`): the page's wreck plays both */
 // (a body destroyed in its going, a body with modes, or a summons whose strings may be cut: worlds/controllable/summon.js)
+// the battle acts a figure's `moves` may name (egocube/moves.js battleMovesOf, a foe's foeBattleMovesOf, a beast's
+// beastMovesOf), kept as names for the page's acts
+const BATTLE_ACT_STATES = new Set(['strike', 'strike2', 'strike3', 'channel', 'cast', 'use', 'hurt', 'hurt2', 'hurt3', 'ready', 'win', 'roar']);
+// (the blow's window a battle's held swing is baked to land in, a share of its length)
+const BATTLE_SWING_CONTACT = Object.freeze([0.45, 0.6]);
 const wrecks = (e) => !!(e && e.body && ((e.body.vanish && ['dismantle', 'cleave', 'destroy'].includes(e.body.vanish.die)) || (Array.isArray(e.body.modes) && e.body.modes.length > 1) || (e.rule && e.rule.summoned && e.rule.summoned.bound)));
 
 /** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
@@ -346,7 +353,14 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   }
   // its OWN MOVES (`moves`: state → a clip of its own, egocube/moves.js `fieldStatesOf`): a state plays the hero's own
   // clip when it has it, over the library's; one it lacks keeps what the state played (absent ⇒ the same figure)
-  for (const [state, clip] of Object.entries(spec.moves || {})) if (pack.clips[clip]) clips[state] = pack.clips[clip];
+  // (a party battle's repertoire, egocube/moves.js battleMovesOf: its acts by name, `battle`, played by the page's battle
+  // acts, never copied into the clips under a second name)
+  let battle = null;
+  for (const [state, clip] of Object.entries(spec.moves || {})) {
+    if (!pack.clips[clip]) continue;
+    if (BATTLE_ACT_STATES.has(state)) (battle ??= {})[state] = clip;
+    else clips[state] = pack.clips[clip];
+  }
   // (its FACE, the realistic hero's: each state's facial track the clip's it plays, the ambient blink over a state its
   // clip let it play over; a library's clip has no track and takes the ambient blink)
   const face = pack.face?.tracks ? stateFace(pack.face, pack.clips, clips) : null;
@@ -359,7 +373,7 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   const H = manifest?.hero, skinParts = !!(H && H.form === 'realistic' && ((H.physique && typeof H.physique === 'object' ? H.physique.laws : undefined) ?? 1) >= SKIN_PARTS_LAWS && pack.parts?.some((q) => q && q.jnt !== undefined && q.wgt !== undefined));
   // (marked for the halo: its hair's own colour, so the page tells a head's painted hair from its skin by it)
   const haloHair = marks && typeof manifest?.recipe?.palette?.Hair === 'string' ? manifest.recipe.palette.Hair : null;
-  const out = { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}), ...(skinParts ? { skinParts: true } : {}), ...(haloHair ? { haloHair } : {}) };
+  const out = { ...pack, clips, ...(held ? { held } : {}), ...(face ? { face } : {}), ...(response && response.length ? { response } : {}), ...(battle ? { battle } : {}), ...(skinParts ? { skinParts: true } : {}), ...(haloHair ? { haloHair } : {}) };
   // (its palette, held for the cast rig's value and separation reads, color-theorist/cast-rig.js; never on the page)
   if (manifest && manifest.recipe && manifest.recipe.palette) Object.defineProperty(out, 'palette', { value: manifest.recipe.palette, enumerable: false });
   return out;
@@ -1566,7 +1580,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
           const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
           const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name)) || (e.rule && e.rule.boss && Array.isArray(e.rule.boss.figures) && e.rule.boss.figures.includes(name))));
-          const fig = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(piloted && sketch.manifest.styleMeter && typeof sketch.manifest.styleMeter === 'object' && sketch.manifest.styleMeter.halo ? { marks: HALO_MARKS } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
+          // (a party battle's fighter holding a weapon, its moves naming the held swings, egocube/moves.js ARMED_ATTACKS: the
+          // swings baked on its own rig at a blow's window, no rule armed with them)
+          const battleSwings = !(wielder || mover) && rawSpec.moves && typeof rawSpec.moves === 'object' && Object.values(rawSpec.moves).some((c) => typeof c === 'string' && c.startsWith('swing_')) ? { swings: { contact: BATTLE_SWING_CONTACT } } : {};
+          const fig = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(piloted && sketch.manifest.styleMeter && typeof sketch.manifest.styleMeter === 'object' && sketch.manifest.styleMeter.halo ? { marks: HALO_MARKS } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...battleSwings, ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
           const { held, ...figure } = fig;
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
@@ -1627,7 +1644,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
           if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
-            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(piloted ? { pilot: true } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(piloted ? { pilot: true } : {}), ...battleSwings, ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
             if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = figure.cast ? { ...pose, cast: figure.cast } : pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }
@@ -2114,7 +2131,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // and sequences beside it. Absent `play` ⇒ not a byte changes.
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
   const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, speakers: _playSpeakers, quests: _playQuests, library: _playLibrary, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
-  let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
+  // A PROGRAM FOR PLAY (opt-in `events.program`, game/events-program.js): run in the code realm here, its bus data joined
+  // to the level's own rows; the program itself never reaches the page. Absent ⇒ the events block as it was.
+  const ownEv = payload && sketch.manifest.events && sketch.manifest.events.program !== undefined
+    ? lowerEventsProgram(sketch.manifest.events, { anchors: payload.anchors, entities: Array.isArray(sketch.manifest.entities) ? sketch.manifest.entities.map((e) => e && e.id).filter(Boolean) : [] })
+    : sketch.manifest.events;
+  let ev = payload && mergeEventManifests(mergeEventManifests(ownEv, Object.keys(playBus).length ? playBus : null), mechEvents);
   // (a level whose play is a library alone has no bus of its own yet: the shelf still needs the page's)
   if (!ev && payload && playEv && playEv.library) ev = {};
   if (ev && playEv) {
@@ -2139,6 +2161,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // legend) would otherwise lose it
     if (playEv.stats) ev = { ...ev, stats: playEv.stats };
     if (playEv.rpg) ev = { ...ev, rpg: playEv.rpg };   // the battle kernel's cfg (playscape/rpg), the same way
+    // (a battle whose play names no UI guide wears the level's own look, its HUD's (a gameworld's `ui`, interface-look.js):
+    // the battle, the talk box and the HUD one game's windows; with neither, the console RPG's as before)
+    if (playEv.rpg && playEv.rpg.theme === undefined && sketch.manifest.manaHud?.theme !== undefined) ev = { ...ev, rpg: { ...playEv.rpg, theme: sketch.manifest.manaHud.theme } };
     if (playEv.minigames) ev = { ...ev, minigames: playEv.minigames };   // the games inside the game (playscape/ui/minigames.js)
   }
   // a mechanic that moves the cast (waves: spawn and walk on the ctrl verb) reaches the characters as a play's cues do
@@ -2330,6 +2355,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
   if (payload && sketch.manifest.tempo != null && sketch.manifest.tempo !== false) { const T = readTempo(sketch.manifest.tempo); if (T) payload.tempo = T; }
+  // KEYING (worlds/controllable/keying.js): the animated bodies posed on twos or threes, each layer its own grain, the
+  // world and the camera on ones; the page carries the key clock only then. Absent: every byte as it was.
+  if (payload && sketch.manifest.keying != null && sketch.manifest.keying !== false) { const K = readKeying(sketch.manifest.keying); if (K) payload.keying = K; }
   // (and a scene's own moments, its script's slow motion and freezes, playscape/ui/scenes.js sceneMoments: the clock
   // composed for them, beside the world's own; none ⇒ as it was)
   if (payload && playEv?.scenes) {
@@ -2356,8 +2384,22 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // `soundtrack: 'default'` is its culture's period music); a kind without one reads the manifest's as written.
   if (payload && sketch.manifest.audio && typeof sketch.manifest.audio === 'object') {
     const mechanics = Array.isArray(sketch.manifest.game?.mechanics) ? sketch.manifest.game.mechanics.map((m) => m && m.kind).filter(Boolean) : [];
-    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics });
+    // (the sounds its play names by word, a cue's `sound`: voiced by its sound sheet)
+    const sounds = playEv ? [...new Set((playEv.reactions ?? []).filter((r) => r && r.do === 'emit' && typeof r.type === 'string' && r.type.startsWith('sfx:')).map((r) => r.type.slice(4)))].sort() : [];
+    // (and the music its play changes to by word, a cue's `music`: a piece each mood)
+    const music = playEv ? [...new Set((playEv.reactions ?? []).filter((r) => r && r.do === 'emit' && typeof r.type === 'string' && r.type.startsWith('music:')).map((r) => r.type.slice(6)))].sort() : [];
+    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics, ...(sounds.length ? { sounds } : {}), ...(music.length ? { music } : {}) });
     if (resolvedAudio) payload.audio = resolvedAudio;
+  }
+  // a biocube's FAUNA heard (era/fauna-audio.js): the field's kinds and its herds calling from where they live, as place
+  // sounds joining the level's audio (its own cues win), only where the sound library records their voices. None ⇒ nothing.
+  if (payload && (payload.fauna || (payload.entities || []).some((e) => e && e.fauna))) {
+    const { faunaAudio } = await import('@/lib/graph/era/fauna-audio.js');
+    const fa = faunaAudio({ fauna: payload.fauna ?? null, entities: payload.entities ?? [] });
+    if (fa) {
+      const A = resolveWorldAudio(fa, { time, ref: sketch.ref });
+      payload.audio = payload.audio ? { ...payload.audio, cues: { ...A.cues, ...(payload.audio.cues ?? {}) }, emitters: [...(payload.audio.emitters ?? []), ...A.emitters].slice(0, 32) } : A;
+    }
   }
 
   // generic, opt-in GAME channel: the level contract. A manifest may

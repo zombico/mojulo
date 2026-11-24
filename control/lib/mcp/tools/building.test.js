@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketches';
-import { mintBuilding } from '@/lib/mcp/tools/building';
+import { mintBuilding, mintBuildingHandler } from '@/lib/mcp/tools/building';
 import { mintSchoolComplex } from '@/lib/mcp/tools/scene-school';
 import { buildingNext, OUTCOME_CARDS } from '@/lib/mcp/tools/building-next';
 
@@ -29,6 +29,19 @@ const HOUSES = {
   storeys: { kind: 'floorplan', title: 'h', seed: 5, storeys: 2 },
   framed: { kind: 'floorplan', title: 'h', seed: 5, framing: { system: 'platform', stage: 'rough-in' }, roof: { covering: { type: 'slate' } }, drainage: true },
 };
+
+describe('mint_building — the home\'s start', () => {
+  it('is asked alone, builds and stores nothing, and answers the one question to ask', async () => {
+    const before = SketchRepository.list().length;
+    const out = await mintBuildingHandler({ start: {} });
+    expect(out).toMatchObject({ ok: true, readout: 'start', built: false, producer: { step: 'what' } });
+    const made = await mintBuildingHandler({ start: { what: 'move-in', place: 'plan', living: { rooms: ['lounge'] }, look: 'warm', brought: 'none' } });
+    expect(made.next.map((x) => x.step)).toEqual(['make']);
+    expect(made.ref).toBeUndefined();
+    expect(SketchRepository.list().length).toBe(before);
+    await expect(mintBuildingHandler({ start: {}, title: 'x' })).rejects.toThrow(/asked alone/);
+  });
+});
 
 describe('mint_building — the door', () => {
   for (const [name, manifest] of Object.entries(HOUSES)) {

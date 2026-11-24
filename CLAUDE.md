@@ -41,8 +41,8 @@ that links to the next level. The first session's goalposts ([goalposts.js](cont
 are that path, and `design_game`'s readout says which is next. Level 1 is proved by the machine gate and approved by
 the person, who plays it: it is the game they want to play. The level played as a turn (set-up, load, play, pause,
 results: `game/turn.js`, mana-ui drawing it) is most games and the default to build toward; an open world (the quest
-open world, a world map) is a different paradigm and is said to be. A new operator with no ask is offered four starts
-(a character, a game, an object, a 3D exhibit) by the `initialize` preamble; for a game the agent expects
+open world, a world map) is a different paradigm and is said to be. A new operator with no ask is offered five starts
+(a character, a game, an object, a 3D exhibit, a home or a room) by the `initialize` preamble; for a game the agent expects
 attachments (drawings, plans, docs) and knows what to do with each, where it would otherwise guess from the start;
 the loop runs on what is missing. That step is the producer's ([intake.js](control/lib/graph/gameworld/intake.js), the
 `gameworld-producer` card: the seat that faces the person and hands the director the work, one agent in both; the
@@ -239,8 +239,13 @@ Pointers only; each target carries its own design notes.
   `scene/engines/`. The visual gate (`scene/visual-gate.js`, `scripts/visual-gate.mjs`) renders a level's cameras on the
   page and in each engine installed and scores each shot. Gates are advisory and need `MOJULO_GODOT` / `MOJULO_BLENDER` /
   `MOJULO_UNREAL` / `MOJULO_UNITY`; CI's `godot` job runs Godot's legs (the handoff, a humanoid's import, the visual
-  gate's) on a pinned Godot; the others run locally. No engine runs a game: the game runtimes (Godot's, Roblox's,
-  Unity's) are retired, and the web build is the game.
+  gate's) on a pinned Godot; the others run locally. No outside engine runs a game: the game runtimes (Godot's,
+  Roblox's, Unity's) are retired, and the web build, on mojulo's own runtime, is the game.
+- The play runtime (mojulo's own engine, every game's: the world step and collision, the character controllers and the
+  one jump every feel template tunes, the event bus the mechanics lower onto, navigation, mana-ui, three.js drawing; one
+  source for Node and the page, `worlds/controllable/compose.js`), what sits on top, where an agent extends it and its
+  gaps today: [docs/runtime.md](docs/runtime.md). "Mojulo ships a lightweight game engine": unnamed on purpose (a part
+  is named by what it is; the whole is mojulo), not a fidelity rival and not general-purpose.
 - The realistic hero body (`form: 'realistic'`, the form field's slice): [docs/realistic-body.md](docs/realistic-body.md).
   Its garments: the construction in [body-relational-tailor.js](control/lib/graph/polygonizer/body-relational-tailor.js), the
   principles a silhouette is read by in [docs/garment-principles.md](docs/garment-principles.md); skill: `/garment-design`.
@@ -353,6 +358,9 @@ Pointers only; each target carries its own design notes.
   locked pitch stored on its rail's starter level by [gameworld/pitch-start.js](control/lib/graph/gameworld/pitch-start.js),
   and the first unit proposed to the director by [gameworld/hand-off.js](control/lib/graph/gameworld/hand-off.js):
   [docs/zero-to-level-one.md](docs/zero-to-level-one.md).
+- The home producer (someone's own room, home, house, plans or shop, before it is made): [home/producer.js](control/lib/graph/home/producer.js)
+  (`mint_building({ start })`), its rails [home/rails.js](control/lib/graph/home/rails.js) and what they bring
+  [home/intake.js](control/lib/graph/home/intake.js); the steps are the `home-producer` routing card's.
 - The exhibit producer: [exhibit/producer.js](control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
   [exhibit/scales.js](control/lib/graph/exhibit/scales.js), [exhibit/fit.js](control/lib/graph/exhibit/fit.js),
   [exhibit/intake.js](control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
@@ -487,7 +495,14 @@ Pointers only; each target carries its own design notes.
 - Game sounds: [sfx-shelf/](control/lib/graph/sfx-shelf/) (the SFX library: one row per sound under the words people
   say, voiced by style, the palettes frozen behind it; recipes, never samples: cues, held voices, and families that
   build them from dials, a variation a dial point; measured on `measure.js`'s yardstick and held to `register.js`; a new
-  sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md).
+  sound is a row first, a new variation a dial value): [docs/sfx-shelf.md](docs/sfx-shelf.md). The one opt-in exception:
+  the recorded sound library ([sound-library/](control/lib/graph/sound-library/), installed per machine, never in the
+  package) voices the realistic one-shots it records, each falling back to its synthesized voice:
+  [docs/sound-library.md](docs/sound-library.md). Kits pick a thing's sounds by its axes (a new value is a row): a mobile
+  suit's (`sfx-shelf/suit-sounds.js`: weight, drive, loadout) and magic's (`sfx-shelf/magic-sounds.js`: each element by
+  phase and tier, statuses, spells, a battle's moments, the world's effects) and the animals' (`sfx-shelf/animal-sounds.js`:
+  each species to a voice class by its family, order or name, each class's call, alert, hurt and death), their variants
+  recorded rows heard as a `standIn` (or silent) without the library.
 - Underwater: [scene/channels/sea.js](control/lib/graph/scene/channels/sea.js) (a geocube's `sea`: its land put under
   water by light alone on a gen-7 page, the air's sibling on three's fog chunk; waters and depth zones are rows, a zone
   says what the read stands on; lamps where the sun does not reach) and what grows on the bed,

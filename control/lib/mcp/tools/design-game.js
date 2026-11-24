@@ -153,7 +153,7 @@ function withPin(world, pin) {
  * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
 // (a battle foe kind's figure, `foe-<kind>` (gameworld/battles.js FOE_LOOKS: a person), is made as a hero is)
 // (a town's folk, gameworld/folk-cast.js: each body a step minted through the hero door as a guard is)
-const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
+const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|hero-look-[a-z0-9-]+|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped', 'hero-sheathed': 'the hero, its blade sheathed' };
 
 /** Make or remake one step; → the record to keep. */
@@ -168,10 +168,10 @@ async function realize(step, action) {
   if (key.startsWith('cast-') && order.egocube) {
     // a rolled cast member: the character its cast makes by path (create_character { egocube, member }); remade beside
     // and moved into its own row, as a fighter is, so the ref and its history stay
-    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref });
+    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ...(order.spec ? { spec: order.spec } : {}), ref });
     else {
       const beside = childRef(ref, 'remake');
-      await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref: beside });
+      await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ...(order.spec ? { spec: order.spec } : {}), ref: beside });
       try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: a cast member remade from its cast' }); }
       finally { SketchRepository.deleteByRef(beside); }
     }
@@ -190,7 +190,8 @@ async function realize(step, action) {
     return {};
   }
   // (a bestiary person dressed as a crew's, gameworld/foes.js isDressed: the hero door's grunt, made as a guard is)
-  if ((HERO_STEP.test(key) && !(key.startsWith('foe-') && !order.mint)) || (key.startsWith('foes-') && order.mint)) {
+  // (a people standing for every pack, `foe` made from its sheet, is the egocube's below, never the hero door's)
+  if ((HERO_STEP.test(key) && !(key === 'foe' && order.egocube) && !(key.startsWith('foe-') && !order.mint)) || (key.startsWith('foes-') && order.mint)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
     // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
     else if (order.mascot) await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/plan', value: order.mint.spec.plan }], note: 'design_game: the mascot hero' });
@@ -223,14 +224,14 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (/^(fighter|foes?)-.+-sheet$/.test(key)) {
+  if (/^(fighter|foes?)-.+-sheet$/.test(key) || key === 'foe-sheet') {
     // a fighter's sheet, or a bestiary people's (an egocube): rolled where it is written; a changed roll rolls it anew in
     // place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (key.startsWith('fighter-') || (/^foes?-/.test(key) && order.egocube)) {
+  if (key.startsWith('fighter-') || ((/^foes?-/.test(key) || key === 'foe') && order.egocube)) {
     // a fighter, or a bestiary people (gameworld/foes.js): the character its sheet makes (create_character { egocube }),
     // a people with its moves on it. Remade (its sheet rolled anew, the
     // character not edited by hand since): made beside it from the sheet as it is now and moved into its own row, so

@@ -5,6 +5,7 @@
  * giver's lines, a scene's, anything that moves the game on, stay slots (`placeholderLine`, Time's) for the operator.
  *
  *   linesFor(person, folk, { say? })   → { speaker, lines: [text, …] } the person's talk, seeded by their path
+ *                                      (with `pages` too where their say is paged, folk/pages.js: `lines` the default page)
  *     say   the operator's words, by a person's path or a role: they replace the book's
  *   speakerOf(person)                  → the name the talk box shows (a recurring person's name, 'Keeper', 'Villager', 'Child')
  *   LINE_BOOK                          the book: greetings by temperament, a word on their work by role, on their house
@@ -15,6 +16,7 @@
  * catalogs (a gap, said on the sheet).
  */
 import { mulberry32 } from '../vegetation/grow.js';
+import { isPaged, readPages, defaultLines } from './pages.js';
 
 const hash = (text) => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; };
 const F = (o) => Object.freeze(o);
@@ -85,6 +87,8 @@ const temperOf = (p) => (p.sheet.facets.age === 'child' ? 'child' : p.sheet.read
 export function linesFor(person, folk, { say } = {}) {
   const speaker = speakerOf(person);
   const own = say?.[person.path] ?? say?.[person.role];
+  // (their pages, pages.js: the lines a page says when its if holds; `lines` the default page's, where no if is read)
+  if (isPaged(own)) { const pages = readPages(own, `.${person.path}`); return { speaker, lines: defaultLines(pages), pages, said: true }; }
   if (own !== undefined) return { speaker, lines: [].concat(own), said: true };
   const rand = mulberry32(hash(`${folk.seed}::lines::${person.path}`));
   const temper = temperOf(person), child = temper === 'child';

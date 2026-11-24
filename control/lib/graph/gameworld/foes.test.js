@@ -15,11 +15,14 @@ import { composeMechanics } from '../game/mechanics.js';
 import { readCues } from '../playscape/ui/cues.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { MOVES } from '../foes/vocab.js';
+import { SIGHTS } from '../mind/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { strikeWindow } from '../fauna/behavior/strike.js';
 import { peopleRollOf } from './foes.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { PEOPLE } from '../foes/people.js';
+import { beastOnTiered } from '../egocube/plan.js';
+const PEOPLE_IDS = Array.isArray(PEOPLE) ? PEOPLE.map((p) => p.id ?? p) : Object.keys(PEOPLE);
 import { PACK_STYLES, PACK_STYLE_IDS, WILD_SIZES, WILD_SIZE_IDS, kinWords } from '../foes/packs.js';
 
 const CLASSES = Object.values(FOE_CLASSES);
@@ -60,6 +63,17 @@ describe('a stage\'s foes', () => {
     const P = foePlacements(G, 'one', ENDS);
     expect(P.map((p) => [p.eid, p.at[0]])).toEqual([['a', 10], ['b', 20]]);
     expect(foePlacements(G, 'one', { ...ENDS, beats: [BEATS[0], BEATS[3]] })).toEqual([]);
+  });
+  it('on a sneak\'s stage none stands on a guard\'s post, nor where its sight reaches the spawn: nobody sees the hero first', () => {
+    // (a class that sees, the farthest-seeing of them, chosen from the catalog: its sight's reach decides the near beats)
+    const seer = CLASSES.filter((c) => !MOVES[c.move].group && SIGHTS[c.mind?.sight]).sort((a, b) => SIGHTS[b.mind.sight].knobs.sightRange - SIGHTS[a.mind.sight].knobs.sightRange)[0];
+    const reach = SIGHTS[seer.mind.sight].knobs.sightRange;
+    const beats = [{ beat: 'trailhead', at: [0, 0, 0] }, { beat: 'near', at: [reach - 1, 0, 0] }, { beat: 'post', at: [reach + 10, 0, 0] }, { beat: 'far', at: [reach + 20, 0, 0] }, { beat: 'exit', at: [reach + 30, 0, 0] }];
+    const G = world({ a: { class: seer.id } }, true), E = { spawn: [0, 0, 0], exit: beats[4].at, beats };
+    // (anywhere else, every free beat, the near one facing the spawn)
+    expect(foePlacements(G, 'one', E).map((p) => p.at[0])).toEqual([reach - 1, reach + 10, reach + 20]);
+    // (a sneak's: the near beat left empty, the guard's post left to the guard)
+    expect(foePlacements(G, 'one', { ...E, sneak: { posts: [[reach + 10, 0.5, 0]] } }).map((p) => p.at[0])).toEqual([reach + 20]);
   });
   it('a building stands a few through its rooms, spread from the way in to the goal; a count stands that many', () => {
     const rooms = Array.from({ length: ROOM_FOES * 4 }, (_, k) => ({ beat: `room-${k}`, at: [k * 5, 0, 0] }));
@@ -160,6 +174,17 @@ describe('the run', () => {
     const W = heroWith({ a: { class: SOLO.id } });
     expect(fieldedIds(readGameworld(W))).toEqual([]);
     expect(prints(runSteps(W, { ref: 'gw' }))).toEqual(prints(runSteps(MEADOWMARK_HERO, { ref: 'gw' })));
+  });
+  it('a book\'s henchman body is laid over a person, never over a kin drawn on the beast\'s tiered body', () => {
+    // (a kin the cube draws on the tiered body, chosen from the peoples in code: its own skull, never the tradition's head)
+    const kin = PEOPLE_IDS.find((p) => p !== 'human' && beastOnTiered(rollEgocube(peopleRollOf(readGameworld(heroWith({ a: { class: SOLO.id, skin: { people: p } } }, true)), 'a', { class: SOLO.id, skin: { people: p } }))));
+    expect(kin).toBeTruthy();
+    // (an anime book whose genre names the henchman's body: a stealth game's, as a sentence composed it)
+    const anime = (people) => ({ ...heroWith({ a: { class: SOLO.id, skin: { people } } }, true), intent: { ...MEADOWMARK_HERO.intent, from: 'stealth' }, characters: { ...MEADOWMARK_HERO.characters, direction: { tradition: 'anime', body: 'game' } } });
+    const orderOf = (people) => runSteps(anime(people), { ref: 'gw' }).find((s) => s.key === 'foes-a').order;
+    const henchman = Object.keys(orderOf('human').spec ?? {});
+    expect(henchman.length).toBeGreaterThan(0);
+    for (const k of henchman) expect(orderOf(kin).spec?.[k], k).toBeUndefined();
   });
   it('a level that stands foes mints one beast per entry, grown by its skin, and its stages stand them', () => {
     const skin = { species: SOLO.standIn, ooze: 'dire' };

@@ -154,7 +154,7 @@ export function buildManaUi() {
     cost: 'Cost', levelUp: 'Level up', level: 'Level', weight: 'Weight', kg: 'kg', slots: 'Slots', swapFor: 'Swap for', nothingFits: 'Nothing fits this slot',
     gold: 'Gold', goldMark: 'G', held: 'Held', buy: 'Buy', sell: 'Sell', nothingToSell: 'Nothing to sell', quests: 'Quests', steps: 'Steps',
     ammo: 'Ammo', reload: 'Reload', noAmmo: 'No ammo', reloading: 'Reloading', lowAmmo: 'Low ammo', time: 'Time', score: 'Score', lv: 'Lv', range: 'Range', super: 'Super', hits: 'hits', pos: 'Pos', lap: 'Lap', best: 'Best',
-    move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', headToHead: 'Head to head',
+    move: 'Move', atk: 'Atk', rng: 'Rng', forecast: 'Forecast', wave: 'Wave', lives: 'Lives', seen: 'Seen', map: 'Map', cancel: 'Cancel', space: 'Space', page: 'Page', headToHead: 'Head to head',
     turnOrder: 'Turn order', foes: 'Foes', command: 'Command', act: 'Act', close: 'Close', queue: 'Queue', orders: 'Orders',
     // a table's (idioms-table.js) and a skirmish's (idioms-live.js)
     log: 'Log', give: 'Give', get: 'Get', offer: 'Offer', you: 'You', them: 'Them', selected: 'Selected', setUp: 'Set up the match', figures: 'Figures', overTime: 'Over the match',
@@ -249,7 +249,7 @@ export function buildManaUi() {
     keybind: { group: 'input', about: 'an action and what it is bound to; accept asks the host to capture a new one; `conflict` when another action in the same context shares a control', props: { label: [T, '', true], keys: [L, []], conflict: [B, false] }, verbs: ['accept'] },
     field: { group: 'input', about: 'an input chosen by data (an options row): kind toggle | cycler | slider | keybind', props: { kind: [['toggle', 'cycler', 'slider', 'keybind'], undefined, true], label: [T, '', true], value: [A], options: [L, []], min: [N, 0], max: [N, 10], step: [N, 1], keys: [L, []] }, verbs: ['change', 'accept'] },
     allocator: { group: 'input', about: 'points spent across rows (level up): a draft until confirm, never past the points or a row\'s max', props: { rows: [L, [], true], points: [N, 0, true] }, verbs: ['confirm', 'change'] },
-    textentry: { group: 'input', about: 'a name typed from a grid of letters (a pad can type): a draft until done', props: { label: [T], value: [T, ''], max: [N, 12], charset: [['letters', 'alnum'], 'letters'] }, verbs: ['done'] },
+    textentry: { group: 'input', about: 'a name typed from a keyboard on the screen (a pad types from its grid, a keyboard straight in): a draft until done; `name` its pages of capitals, small letters and marks (the shoulders turn them), `min` the fewest a name takes, a `cancel` verb a key that leaves it unchanged', props: { label: [T], value: [T, ''], max: [N, 12], min: [N, 0], charset: [['letters', 'alnum', 'name'], 'letters'] }, verbs: ['done', 'cancel'] },
   };
   const COMPONENT_IDS = Object.keys(COMPONENTS);
   const BINDS = ['bind', 'item', 'pick', 'format', 'input', 'seat', 'param', 'word', 'frame'];
@@ -259,6 +259,12 @@ export function buildManaUi() {
   const frameOf = (f) => { const w = Number(f && f.w) > 0 ? Number(f.w) : 1920, h = Number(f && f.h) > 0 ? Number(f.h) : 1080; return { w, h, portrait: h > w, landscape: h <= w, narrow: w < 640, short: h < 420, hand: !!(f && f.hand) }; };
   const isBinding = (v) => isObj(v) && Object.keys(v).length === 1 && BINDS.includes(Object.keys(v)[0]);
   const CHARSETS = { letters: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ ', alnum: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ' };
+  // a NAME's keyboard: pages of one size (the cursor stays on its key as a page turns), each under its tab; space,
+  // delete, done (and cancel) under them. Typed from a keyboard, any page's character goes in, its case kept
+  const PAGES = { name: [['ABC', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ-\'.&'], ['abc', 'abcdefghijklmnopqrstuvwxyz-\'.&'], ['#?!', '0123456789!?.,-\'&+:/()#*~@%=;$']] };
+  CHARSETS.name = PAGES.name.map((x) => x[1]).join('') + ' ';
+  // (an entry's keys are one kind's: the characters, its pages, delete, done, cancel)
+  const ENTRY = ['char', 'char-page', 'char-del', 'char-done', 'char-cancel'];
 
   // ── reading: shapes checked, defs expanded, errors that teach ─────────────────────────────────────────────────────
   const subst = (v, args) => {
@@ -675,6 +681,10 @@ export function buildManaUi() {
         if (F.some((f) => !CHANGERS.includes(f.kind))) out.push({ action: 'accept', label: p.press === 'any' ? W('start') : W('select') });
         if (F.some((f) => CHANGERS.includes(f.kind))) out.push({ actions: ['left', 'right'], label: W('change') });
         if (ctx.tabs.length) out.push({ actions: ['tabPrev', 'tabNext'], label: W('tabs') });
+        // (a keyboard on the screen: its shoulders turn its pages, a pad's back erases what is being typed)
+        const E = F.find((f) => f.kind === 'char');
+        if (E && E.pages > 1 && !ctx.tabs.length) out.push({ actions: ['tabPrev', 'tabNext'], label: W('page') });
+        if (E && S.input === 'pad' && E.key in U.vals && E.draft) { out.push({ action: 'back', label: W('delete') }); return out; }
         if (ctx.loader && ctx.loader.tips > 1) out.push({ actions: ['left', 'right'], label: W('tips') });
         if ((p.layer === 'modal' || S.stack.length > 1 || (n.on && n.on.back)) && !(n.on && n.on.back && !effectsOf(n.on.back, {}, ctx).length)) out.push({ action: 'back', label: W('back') });
         return out;
@@ -1065,14 +1075,27 @@ export function buildManaUi() {
               ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(conf, 'shown', spent === 0) }, W('confirm')], ['div', { class: 'mana-button', ...mark(reset, 'shown', spent === 0) }, W('reset')]]];
           }
           case 'textentry': {
-            const draft = key in U.vals ? U.vals[key] : words(p.value).slice(0, p.max), chars = [...CHARSETS[p.charset]], cols = 10;
-            // every focusable of the entry carries what typing into it needs (the charset, the max, the draft)
-            const T = { n, key, max: Math.floor(p.max), set: CHARSETS[p.charset], draft, scope };
+            const draft = key in U.vals ? U.vals[key] : words(p.value).slice(0, p.max), paged = PAGES[p.charset], cols = 10;
+            const page = paged ? clamp(U.vals[`$page:${key}`] || 0, 0, paged.length - 1) : 0, chars = [...(paged ? paged[page][1] : CHARSETS[p.charset])];
+            // every focusable of the entry carries what typing into it needs (the charset, the max, the draft, its pages)
+            const T = { n, key, max: Math.floor(p.max), set: CHARSETS[p.charset], draft, scope, pages: paged ? paged.length : 0, page };
             const cells = chars.map((ch, i) => { const fi = focusable({ ...T, kind: 'char', ch, g: { key, r: Math.floor(i / cols), c: i % cols } }); return ['span', { class: 'mana-cell', ...mark(fi, 'shown') }, ch === ' ' ? '␣' : ch]; });
-            const row = Math.ceil(chars.length / cols);
-            const del = focusable({ ...T, kind: 'char-del', g: { key, r: row, c: 0 } }), done = focusable({ ...T, kind: 'char-done', src: src.value, g: { key, r: row, c: 1 } });
-            return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['div', { class: 'mana-draft' }, draft, ['span', { class: 'mana-caret' }, draft.length < p.max ? '_' : '']],
-              ['div', { class: 'mana-grid', style: `--cols:${cols}` }, ...cells], ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, ['div', { class: 'mana-button', ...mark(del, 'shown') }, W('delete')], ['div', { class: 'mana-button', ...mark(done, 'shown') }, W('done')]]];
+            const row = Math.ceil(chars.length / cols), short = draft.trim().length < p.min, cancels = !!(n.on && n.on.cancel);
+            const btn = (fi, word, st, off) => ['div', { class: 'mana-button', ...mark(fi, st || 'shown', off) }, word];
+            if (!paged) {
+              const del = focusable({ ...T, kind: 'char-del', g: { key, r: row, c: 0 } }), done = focusable({ ...T, kind: 'char-done', src: src.value, off: short, g: { key, r: row, c: 1 } });
+              const cancel = cancels ? focusable({ ...T, kind: 'char-cancel', g: { key, r: row, c: 2 } }) : -1;
+              return ['div', { class: cls }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['div', { class: 'mana-draft' }, draft, ['span', { class: 'mana-caret' }, draft.length < p.max ? '_' : '']],
+                ['div', { class: 'mana-grid', style: `--cols:${cols}` }, ...cells], ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, btn(del, W('delete')), btn(done, W('done'), 'shown', short), cancels ? btn(cancel, W('cancel')) : null]];
+            }
+            // a paged keyboard: its tabs over the grid, its keys under it
+            const tabs = paged.map(([label], i) => btn(focusable({ ...T, kind: 'char-page', to: i, g: { key, r: -1, c: i } }), label, i === page ? 'active' : 'shown'));
+            const space = focusable({ ...T, kind: 'char', ch: ' ', g: { key, r: row, c: 0 } }), del = focusable({ ...T, kind: 'char-del', g: { key, r: row, c: 1 } });
+            const done = focusable({ ...T, kind: 'char-done', src: src.value, off: short, g: { key, r: row, c: 2 } }), cancel = cancels ? focusable({ ...T, kind: 'char-cancel', g: { key, r: row, c: 3 } }) : -1;
+            return ['div', { class: cls, 'data-charset': p.charset }, p.label ? ['span', { class: 'mana-label' }, p.label] : null, ['div', { class: 'mana-draft' }, draft, ['span', { class: 'mana-caret' }, draft.length < p.max ? '_' : '']],
+              ['div', { class: 'mana-stack mana-pages', 'data-dir': 'row', 'data-gap': 'tight' }, ...tabs],
+              ['div', { class: 'mana-grid', style: `--cols:${cols}` }, ...cells],
+              ['div', { class: 'mana-stack', 'data-dir': 'row', 'data-gap': 'normal' }, btn(space, W('space')), btn(del, W('delete')), btn(done, W('done'), 'shown', short), cancels ? btn(cancel, W('cancel')) : null]];
           }
         }
         return null;
@@ -1235,10 +1258,12 @@ export function buildManaUi() {
         case 'alloc-reset': delete U.vals[f.key]; return;
         case 'char': if (f.draft.length < f.max) U.vals[f.key] = f.draft + f.ch; return;
         case 'char-del': U.vals[f.key] = f.draft.slice(0, -1); return;
+        case 'char-page': U.vals[`$page:${f.key}`] = f.to; return;
+        case 'char-cancel': delete U.vals[f.key]; delete U.vals[`$page:${f.key}`]; if (on.cancel) run(effectsOf(on.cancel, scopeOf(f, seat), last), f, 'cancel', seat); return;
         case 'char-done': {
           const v = f.draft.trim();
           if (f.src && H.act) H.act({ set: f.src, to: v }, from(f, 'done', seat));
-          delete U.vals[f.key];
+          delete U.vals[f.key]; delete U.vals[`$page:${f.key}`];
           if (on.done) run(effectsOf(on.done, scopeOf(f, seat, { input: v }), last), f, 'done', seat);
           return;
         }
@@ -1268,6 +1293,10 @@ export function buildManaUi() {
         // the way the cursor went: the item it lands on snaps in from that side (the root's data-nav)
         if (`${U.at[seat] || 0}|${JSON.stringify(U.sel)}` !== was) { S.nav = action; cue('move', seat, { way: action }); }
       }
+      // a name being typed on a pad: back erases what this visit typed (a keyboard has Backspace: its Esc still leaves),
+      // the shoulders turn the keyboard's pages
+      else if (action === 'back' && f && ENTRY.includes(f.kind) && S.input === 'pad' && f.key in U.vals && f.draft) { U.vals[f.key] = f.draft.slice(0, -1); cue('back', seat); }
+      else if ((action === 'tabNext' || action === 'tabPrev') && f && ENTRY.includes(f.kind) && f.pages > 1) { U.vals[`$page:${f.key}`] = (f.page + (action === 'tabNext' ? 1 : -1) + f.pages) % f.pages; cue('tab', seat); }
       else if (action === 'tabNext' || action === 'tabPrev') { const Tb = last.tabs[0]; if (Tb && Tb.n) { U.tabs[Tb.key] = ((U.tabs[Tb.key] || 0) + (action === 'tabNext' ? 1 : -1) + Tb.n) % Tb.n; cue('tab', seat); } }
       else if (action === 'accept') { if (f) accept(f, seat); }
       else if (action === 'back') {
@@ -1286,7 +1315,7 @@ export function buildManaUi() {
       if (!top()) return null;
       if (!last || last.screen !== top()) render();
       const f = last.focus[uiOf(top()).at[seat] || 0];
-      return f && (f.kind === 'char' || f.kind === 'char-del' || f.kind === 'char-done') ? f : null;
+      return f && ENTRY.includes(f.kind) ? f : null;
     };
     function typing(seat = 0) { return !!entryOf(seat); }
     function type(text, seat = 0) {
