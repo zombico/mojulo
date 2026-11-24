@@ -54,7 +54,7 @@ export const CHAPTERS = Object.freeze([
   C('direction', 'characters', 'The direction', { paths: ['/characters/direction'], parts: ['characters:direction'], cards: ['gameworld-direction'], reads: ['intent', 'world'], outcome: 'characters' }),
   // (and its co-star, characters.costar: a second hero the player may play, adopted as the hero is)
   C('hero', 'characters', 'The hero', { paths: ['/characters/hero', '/characters/costar'], parts: ['hero:body', 'hero:head', 'hero:hair', 'hero:colour', 'hero:base'], steps: ['hero', 'costar'], cards: ['gameworld-looks'], reads: ['direction'], outcome: 'characters' }),
-  C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
+  C('motion', 'play', 'The motion', { paths: ['/characters/hero/motion', '/moves', '/keying'], parts: ['hero:motion'], cards: ['gameworld-motion'], reads: ['hero'], outcome: 'characters' }),
   C('feel', 'play', 'The feel and the juice', { paths: ['/feel', '/arsenal', '/juice', '/tempo', '/fights', '/loadout', '/styleMeter'], cards: ['gameworld-feel', 'gameworld-juice'], reads: ['intent', 'motion'] }),
   C('actions', 'play', 'The actions', { paths: ['/characters/hero/actions'], parts: ['hero:actions'], cards: ['gameworld-actions', 'gameworld-heroes'], reads: ['intent', 'hero', 'main-quest'], outcome: 'characters' }),
   C('adornment', 'characters', 'The adornment', { paths: ['/characters/hero/adornment'], parts: ['hero:adornment'], steps: ['hero-equipped', 'hero-sheathed'], cards: ['gameworld-adornment'], reads: ['hero', 'actions'], outcome: 'characters' }),

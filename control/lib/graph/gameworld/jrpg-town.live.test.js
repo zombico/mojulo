@@ -1,7 +1,9 @@
 // THE JRPG STARTER'S TOWN on the World page (a real browser, skipped when none is installed): a party RPG composed from
 // words (compose.js) lays its town at the centre, and the town's level plays. Walked up to and talked to, a townsperson
 // says their lines in the talk box (folk-cast.js, `talk: 'box'`): their name over it, their own body drawn live in its
-// face. The innkeeper (the inn's trade, era/town-trades.js) opens the inn. The bodies are inline here (no run makes
+// face. The innkeeper (the inn's trade, era/town-trades.js) opens the inn. The priest follows the story (folk/pages.js):
+// before the core's key is held they say where it is kept, with it that the way is open. The town's save point asks, and
+// yes takes its way out to the town itself. The bodies are inline here (no run makes
 // them), so the town is the composer's and the steps', and nothing else.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
@@ -15,8 +17,8 @@ let browser = null, html = '', M = null, doors = [];
 const nap = (ms) => new Promise((r) => setTimeout(r, ms));
 beforeAll(async () => {
   const W = composeGameworld({ prompt: 'a medieval fantasy jrpg: a fortified town with a castle, a field with monsters, a dungeon with a boss' });
-  // (a few townsfolk: the keepers among them, so the shop and the inn are kept)
-  W.characters = { ...W.characters, folk: { cap: 4 } };
+  // (a townsfolk each lot's first, so the shop, the inn and the temple are kept: the priest who follows the story with them)
+  W.characters = { ...W.characters, folk: { ...W.characters.folk, cap: 8 } };
   const town = runSteps(W, { ref: 'gj' }).find((s) => s.key === `level-${W.hub}-0`);
   M = structuredClone(town.order.manifest);
   // (each body inline: the run's minted bodies stood in for, alternately cast, on the library's clips)
@@ -59,6 +61,8 @@ describe('the JRPG starter\'s town on the page', () => {
       const tick = () => { let v = false; try { v = f(a); } catch { /* not yet */ } if (v) ok(true); else if (++i > k) no(new Error(`not within ${k} frames`)); else requestAnimationFrame(tick); };
       tick();
     }), fn.toString(), n, arg);
+    // (a key held until the page has seen what it does, as E is held below: a fixed hold can fall between two frames)
+    const pressUntil = async (key, fn) => { await page.keyboard.down(key); try { await withinFrames(fn, 60); } finally { await page.keyboard.up(key); } };
     const useAt = async (at, id, who) => {
       // (a spot in its reach and clear of every door's zone, with room to spare: standing on one walks in through it)
       const clear = ([x, y]) => doors.every((d) => Math.abs(x - d.at[0]) > d.half[0] + 1 || Math.abs(y - d.at[1]) > d.half[1] + 1);
@@ -76,7 +80,9 @@ describe('the JRPG starter\'s town on the page', () => {
     try {
       await page.setContent(html, { waitUntil: 'load' });
       await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojTalk && window.__mojRpg, { timeout: 120000 });
-      const say = zones().find((c) => /^folk-say:/.test(c.then?.emit ?? '') && !c.if), who = say.then.emit.slice('folk-say:'.length);
+      // (one with one page of talk: the priest's pages are their own step, below)
+      const paged = (e) => M.play.scenes.some((x) => x.when.on === e && /-p\d$/.test(x.id));
+      const say = zones().find((c) => /^folk-say:/.test(c.then?.emit ?? '') && !c.if && !paged(c.then.emit)), who = say.then.emit.slice('folk-say:'.length);
       const scene = M.play.scenes.find((x) => x.when.on === say.then.emit);
       await useAt(say.when.use.at, `cue-${say.id}`, say.id.replace(/-talk$/, ''));
       await page.waitForFunction(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, { timeout: 20000 });
@@ -89,12 +95,42 @@ describe('the JRPG starter\'s town on the page', () => {
       // (JRPG_SHOT=<png>: the town's talk, for the eyes)
       if (process.env.JRPG_SHOT) await page.screenshot({ path: process.env.JRPG_SHOT });
       // skipped to its end, the box goes; the innkeeper's use opens the inn (the shop's Stay)
-      await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape');
-      await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 15000 });
+      await pressUntil('Escape', () => !window.__mojScenes.on());
       const inn = zones().find((c) => c.then?.emit === 'rpg-shop:innkeeper');
       await useAt(inn.when.use.at, `cue-${inn.id}`, inn.id.replace(/-talk$/, ''));
-      await page.waitForFunction(() => window.__mojRpg.state().mode === 'shop', { timeout: 15000 });
+      await withinFrames(() => window.__mojRpg.state().mode === 'shop', 60);
       expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('innkeeper');
+      // THE PRIEST FOLLOWS THE STORY (folk/pages.js): spoken to before the core's key is held, they say where it is kept;
+      // with it in the bag, that the way is open (a page each, the first whose if holds)
+      await pressUntil('Escape', () => !window.__mojRpg.state().mode);
+      const pages = M.play.scenes.filter((x) => /-p\d$/.test(x.id)), on = pages[0].when.on, pid = on.slice('folk-say:'.length);
+      const priest = (M.play.cues ?? []).filter((c) => c.when?.use && c.then?.emit === on).sort((a, b) => !!a.if - !!b.if)[0];
+      const said = async () => {
+        await useAt(priest.when.use.at, `cue-${priest.id}`, pid);
+        await withinFrames(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, 60);
+        const t = await page.evaluate(() => window.__mojTalk.state.talk.text);
+        await pressUntil('Escape', () => !window.__mojScenes.on());
+        // (the priest keeps the temple: their page said, its rite opens as the talk ends; closed again)
+        await withinFrames(() => window.__mojRpg.state().mode === 'shop', 60);
+        expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('temple');
+        await pressUntil('Escape', () => !window.__mojRpg.state().mode);
+        return t;
+      };
+      const sealed = pages.find((x) => x.if.some((c) => c.ne === 1)).beats[0].line.say, open = pages.find((x) => x.if.some((c) => c.has)).beats[0].line.say;
+      expect(sealed.startsWith(await said())).toBe(true);
+      await page.evaluate((k) => { window.__mojBus.state.vars[k] = 1; }, `has-${pages.find((x) => x.if.some((c) => c.has)).if[0].has}`);
+      expect(open.startsWith(await said())).toBe(true);
+      // THE SAVE POINT (a megaworld's saves, levels.js stageWays `savePoint`): pressed, it asks; yes takes the save way,
+      // the session stepping out to this same map (the shell writes the store and loads it again, arrived at beside it)
+      const sp = M.play.cues.find((c) => c.id === 'save-point');
+      expect(M.game.mechanics).toContainEqual(expect.objectContaining({ kind: 'reach-exit', exit: 'save', by: 'save-here' }));
+      // (stood at the save point's own height, a little over it, and let fall: it stands where the party comes in)
+      const spAt = M.game.mechanics.find((x) => x.exit === 'save').at;
+      await page.evaluate((z) => { const W = window.__mojCtrl.world, me = W.byId[W.pilotId]; me.transform.pos[2] = z + 0.4; if (me.vel) me.vel[2] = 0; }, spAt[2]);
+      await useAt(sp.when.use.at, 'cue-save-point', null);
+      await page.waitForFunction(() => window.__mojBus.state.vars['ui-menu-save-point'] === 1, { timeout: 15000 });
+      await page.keyboard.down('Enter'); await nap(300); await page.keyboard.up('Enter');
+      await page.waitForFunction(() => (window.__mojBus.state.log || []).some((x) => x && x.type === 'goal:reached:save'), { timeout: 15000 });
     } finally { await page.close(); }
   }, 600000);
 });

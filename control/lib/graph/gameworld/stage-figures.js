@@ -9,7 +9,7 @@
  *                                    own moves over them where it has them
  *   fieldFigure(ref, field)          a cast member's (casting.js `field`): on the library, or a body the library does not
  *                                    fit (a beast, a mascot, a beast-kin) on its OWN clips, a `walker` (it never pilots)
- *   foeFigure(ref, look)             a foe's: a beast on its own gaits and reactions when its look names a `species`
+ *   foeFigure(ref, look, { battle? }) a foe's: a beast on its own gaits and reactions when its look names a `species`
  *                                    (a wolf pack, a giant spider), its swing on its strike clip when the look carries
  *                                    one (`strike`, a fielded foe's blow), else a person on the library
  *   modelFigure(ref, height)         a model made elsewhere (foes/model.js), worn as a person on the library: its figure
@@ -44,7 +44,8 @@ export const fieldFigure = (ref, field) => (field?.own
   : libraryFigure(ref, { moves: field?.moves }));
 
 export const beastLook = (look) => (look && typeof look === 'object' && typeof look.species === 'string' ? look.species : null);
-export const foeFigure = (ref, look) => (beastLook(look) ? fieldFigure(ref, beastFieldOf(beastLook(look), { strike: look.strike })) : libraryFigure(ref));
+// (`battle`: a party battle's foe, a beast with its other ways at a foe as its acts: egocube/moves.js beastMovesOf)
+export const foeFigure = (ref, look, { battle = false } = {}) => (beastLook(look) ? fieldFigure(ref, beastFieldOf(beastLook(look), { strike: look.strike, ...(battle ? { battle } : {}) })) : libraryFigure(ref));
 
 // a beast foe's look: its species, and what grows it (mutagen: the animal door's `ooze` and `stylism`)
 const BEAST_LOOK_KEYS = ['species', 'ooze', 'stylism'];

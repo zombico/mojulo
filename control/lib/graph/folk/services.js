@@ -26,14 +26,14 @@ export const SERVICES = Object.freeze({
     lowers: { menu: 'shop' }, status: 'built',
   }),
   shrine: R({
-    reads: 'tends the temple: a blessing for the road, the fallen raised',
+    reads: 'tends the temple: a blessing for the road, the fallen raised for a price (play.rpg\'s shop `raise`)',
     uniform: true, room: 'sanctuary', slots: ['the temple'],
-    lowers: null, status: 'gap', missing: 'no rite raises the fallen or lifts a curse yet (playscape/rpg: the inn\'s rest raises them): the priest stands at the sanctuary and talks',
+    lowers: { menu: 'shop' }, status: 'built',
   }),
   smith: R({
     reads: 'works metal for the player: mends and betters their gear',
     uniform: true, room: 'workfloor', slots: ['the work'],
-    lowers: null, status: 'gap', missing: 'no menu mends or betters a held item yet (playscape/ui/menus.js): the smith stands at the work floor and talks',
+    lowers: null, status: 'gap', missing: 'no menu mends or betters a held item yet (playscape/ui/menus.js): the smith stands at the work floor and talks, and in a party RPG\'s town sells the arms and armour among its wares',
   }),
   counsel: R({
     reads: 'the hall\'s voice: talk, and the quest giver\'s slot when a quest names them (Time\'s)',

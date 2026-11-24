@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readRpg } from './rpg.js';
-import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, buildRpg } from './kernel.js';
+import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, rpgFieldUse, rpgSwap, rpgRename, rpgPartyOf, rpgRaise, buildRpg } from './kernel.js';
 
 const trio = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'bram', class: 'mage' }, { id: 'cass', class: 'cleric' }], ...extra } });
 
@@ -292,5 +292,712 @@ describe('a familiar: a party member that picks for itself (auto)', () => {
     expect(() => readRpg({ rpg: { party: [{ id: 'kit', class: 'mage', auto: true }] } })).toThrow(/someone takes the player's commands/);
     expect(() => pair('mage').party && readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'kit', class: 'mage', auto: { keeper: 'zed' } }] } })).toThrow(/keeper 'zed' is not in the party/);
     expect(trio().party.every((p) => !('auto' in p))).toBe(true);   // absent, the cfg is as it was
+  });
+});
+
+// A FOE'S ACTION PATTERN (foes.<id>.pattern): on its turn a row whose `when` holds and that it can pay for, by weight;
+// none, the rule every foe keeps. The concept on one foe: a row by its turn, by every nth, by its HP; and a foe without
+// one carries nothing of it
+describe('a foe\'s action pattern', () => {
+  const warden = { name: 'Warden', hp: 400, mp: 99, atk: 6, def: 30, mag: 8, spd: 1, xp: 1, gold: 1, boss: true,
+    pattern: [{ use: 'guard', when: { turn: 1 } }, { use: 'fire', when: { every: 2 } }, { use: 'heal', when: { hpBelow: 0.5 }, weight: 9 }] };
+  const cfg = trio({ foes: { warden, slime: true }, encounters: [{ id: 'keep', foes: ['warden'] }, { id: 'pack', foes: ['slime'] }] });
+  const said = (beats) => beats.filter((x) => x.who === 'f0').map((x) => x.text);
+
+  it('is read whole and taught; a foe without one carries none of it', () => {
+    expect(cfg.foes.warden.pattern).toEqual([{ use: 'guard', when: { turn: 1 }, weight: 5 }, { use: 'fire', when: { every: 2 }, weight: 5 }, { use: 'heal', when: { hpBelow: 0.5 }, weight: 9 }]);
+    expect(cfg.skills.heal).toBeTruthy();
+    expect('pattern' in cfg.foes.slime).toBe(false);
+    expect(() => trio({ foes: { warden: { ...warden, pattern: [{ use: 'fire', when: { hpBelow: 2 } }] } } })).toThrow(/a share of its HP/);
+    expect(() => trio({ foes: { warden: { ...warden, pattern: [{ use: 'fire', weight: 12 }] } } })).toThrow(/1 to 9/);
+  });
+
+  it('does what its rows say when they hold: guards its first turn, casts every second, mends when low', () => {
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'keep', v);
+    // (the party guards each round: no picks)
+    expect(said(rpgRound(cfg, R, {}, v))).toEqual(['Warden guards.']);
+    expect(said(rpgRound(cfg, R, {}, v))[0]).toBe('Warden uses Fire!');
+    // (its third turn, low: only the mend holds)
+    R.b.foes[0].hp = 120;
+    expect(said(rpgRound(cfg, R, {}, v))[0]).toBe('Warden uses Heal!');
+    // (its fifth, full again and no row holding: the rule every foe keeps, a skill by chance or an attack)
+    R.b.foes[0].hp = 400;
+    rpgRound(cfg, R, {}, v);
+    expect(said(rpgRound(cfg, R, {}, v))[0]).toMatch(/^Warden (attacks!|uses (Fire|Heal)!)$/);
+  });
+});
+
+// TRAITS (rpg.js readTraits): a member's rates (hit, eva, crit) from its class, its gear and the states it is in, a foe's
+// its own; a plain blow carrying its weapon's element and the status it leaves where it lands; a skill granted while
+// the gear is worn. The concept on the rates' ends (a share of 1 always or never), so no die decides the test
+describe('traits', () => {
+  const dummy = { name: 'Dummy', hp: 999, mp: 0, atk: 30, def: 0, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['fire'] };
+  const one = (gear, foes = {}, extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 5, gear }], foes: { dummy, ...foes }, gear: { 'bronze-sword': true, 'leather-armor': true, 'flame-sword': true, 'ember-ring': true,
+    'sure-blade': { slot: 'weapon', atk: 4, hit: 1, crit: 1, inflict: { is: 'poison', chance: 1 } }, 'ghost-veil': { slot: 'armor', eva: 1 }, pricker: { slot: 'weapon', atk: 4, inflict: { is: 'poison', chance: 1 } } }, encounters: [{ id: 'yard', foes: ['dummy'] }], ...extra } });
+  const round = (cfg, R, v, pick) => rpgRound(cfg, R, { ayla: pick }, v);
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); return [R, v]; };
+
+  it('a rate of one is always: a sure blow lands critical and leaves its poison; a veil of evasion is never struck', () => {
+    const cfg = one({ weapon: 'sure-blade', armor: 'ghost-veil' }), [R, v] = begin(cfg);
+    for (let k = 0; k < 4; k++) {
+      const out = round(cfg, R, v, { act: 'attack', target: 'f0' });
+      expect(out.find((x) => x.kind === 'hurt' && x.target === 'f0')).toMatchObject({ crit: true });
+      expect(out.some((x) => x.kind === 'hurt' && x.target === 'ayla')).toBe(false);
+    }
+    expect(R.b.foes[0].st.poison).toBeTruthy();
+  });
+
+  it('a blow\'s status is left only where it lands: a foe that evades it keeps clear', () => {
+    // (a blade that only carries the poison: a sure one's hit would cancel the evasion, as the rates sum)
+    const cfg = one({ weapon: 'pricker' }, { dummy: { ...dummy, eva: 1 } }), [R, v] = begin(cfg);
+    for (let k = 0; k < 3; k++) expect(round(cfg, R, v, { act: 'attack', target: 'f0' }).some((x) => x.kind === 'hurt' && x.target === 'f0')).toBe(false);
+    expect(R.b.foes[0].st.poison).toBeFalsy();
+  });
+
+  it('a weapon\'s element is its plain blow\'s: the flame sword strikes the fire a foe is weak to', () => {
+    const cfg = one({ weapon: 'flame-sword' }), [R, v] = begin(cfg);
+    let hit;
+    for (let k = 0; k < 6 && !hit; k++) hit = round(cfg, R, v, { act: 'attack', target: 'f0' }).find((x) => x.kind === 'hurt' && x.target === 'f0');
+    expect(hit).toMatchObject({ element: 'fire', mul: 2 });
+  });
+
+  it('a skill granted while the gear is worn, and not once it is off', () => {
+    const cfg = one({ weapon: 'bronze-sword', accessory: 'ember-ring' }), R = rpgInit(cfg);
+    expect(rpgUsable(cfg, R, 'ayla')).toContain('fire');
+    const bare = one({ weapon: 'bronze-sword' });
+    expect(rpgUsable(bare, rpgInit(bare), 'ayla')).not.toContain('fire');
+  });
+
+  it('a state carries rates too; each is read and taught', () => {
+    const cfg = one({ weapon: 'bronze-sword' }, {}, { states: { haze: { said: 'hazed', eva: 1, rounds: 9 } }, skills: { mist: { mp: 0, target: 'self', status: { is: 'haze', chance: 1 } } }, classes: { fighter: { skills: [{ skill: 'mist' }] } } });
+    const [R, v] = begin(cfg);
+    round(cfg, R, v, { act: 'skill', skill: 'mist', target: 'ayla' });
+    for (let k = 0; k < 3; k++) expect(round(cfg, R, v, { act: 'guard' }).some((x) => x.kind === 'hurt' && x.target === 'ayla')).toBe(false);
+    expect(() => one({}, {}, { gear: { bad: { slot: 'accessory', crit: 2 } } })).toThrow(/crit is how much more often/);
+    expect(() => one({}, {}, { gear: { bad: { slot: 'weapon', inflict: { is: 'gloom' } } } })).toThrow(/inflict is \{ is:/);
+    expect(cfg.gear['flame-sword'].traits).toEqual({ element: 'fire' });
+  });
+});
+
+// EFFECTS (rpg.js readSkill, readItem): a blow that strikes more than once, damage in another form (a share of the HP
+// as it stands, an exact sum, through the guard, from the MP), a drain back to the striker, a theft into the bag; an
+// item that leaves a status or gives a buff. A sure hand (hit 1) so no swing goes wide; a dummy that stands
+describe('effects', () => {
+  const dummy = { name: 'Dummy', hp: 400, mp: 40, atk: 1, def: 60, mag: 40, spd: 1, xp: 1, gold: 1, drops: [{ item: 'ether', chance: 0.1 }] };
+  const learned = ['twin-cut', 'armor-pierce', 'power-strike', 'gravity', 'drain', 'osmose', 'steal'].map((skill) => ({ skill }));
+  const cfgOf = (foes = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 9, gear: { weapon: 'sure' } }], classes: { fighter: { skills: learned } }, foes: { dummy, ...foes },
+    gear: { sure: { slot: 'weapon', atk: 6, hit: 1 } }, encounters: [{ id: 'yard', foes: [Object.keys(foes)[0] ?? 'dummy'] }] } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); R.m.ayla.mp = 99; return [R, v]; };
+  const use = (cfg, R, v, skill) => rpgRound(cfg, R, { ayla: { act: 'skill', skill, target: 'f0' } }, v).filter((x) => x.by === 'ayla' || x.target === 'ayla');
+
+  it('strikes as many times as it says; a blow through armour lands harder on the armoured than the same blow against it', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    expect(use(cfg, R, v, 'twin-cut').filter((x) => x.kind === 'hurt' && x.target === 'f0')).toHaveLength(2);
+    const pierce = use(cfg, R, v, 'armor-pierce').find((x) => x.kind === 'hurt').amount, plain = use(cfg, R, v, 'power-strike').find((x) => x.kind === 'hurt').amount;
+    expect(pierce).toBeGreaterThan(plain);
+  });
+
+  it('gravity takes a share of the HP as it stands, never a boss\'s; drain gives back a share; osmose takes MP, not HP', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg), f = R.b.foes[0];
+    f.hp = 200;
+    expect(use(cfg, R, v, 'gravity').find((x) => x.kind === 'hurt').amount).toBe(50);
+    R.m.ayla.hp = 10;
+    const d = use(cfg, R, v, 'drain');
+    expect(d.find((x) => x.drain)).toMatchObject({ kind: 'heal', target: 'ayla' });
+    const hp = f.hp, o = use(cfg, R, v, 'osmose').find((x) => x.kind === 'hurt');
+    expect(o).toMatchObject({ pool: 'mp' });
+    expect(f.hp).toBe(hp);
+    expect(f.mp).toBeLessThan(40);
+    const boss = cfgOf({ drake: true }), [RB, vB] = begin(boss);
+    expect(use(boss, RB, vB, 'gravity').find((x) => x.target === 'f0')).toMatchObject({ kind: 'miss' });
+  });
+
+  it('a theft takes the foe\'s first drop into the bag, once a foe', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    let took;
+    for (let k = 0; k < 6 && !took; k++) took = use(cfg, R, v, 'steal').find((x) => x.kind === 'steal');
+    expect(took).toMatchObject({ item: 'ether' });
+    expect(v['held:bag:ether']).toBe(1);
+    expect(use(cfg, R, v, 'steal').find((x) => x.target === 'f0').text).toMatch(/nothing to steal/);
+  });
+
+  it('an item may leave a status on the foes or give an ally a buff; each is read and taught', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    v['held:bag:power-tonic'] = 1;
+    rpgRound(cfg, R, { ayla: { act: 'item', item: 'power-tonic', target: 'ayla' } }, v);
+    expect(R.b.side.ayla.buffs).toEqual([expect.objectContaining({ stat: 'atk', pct: 0.3 })]);
+    expect(cfg.items['sleep-powder']).toMatchObject({ target: 'foes', status: { is: 'sleep' } });
+    const bad = (skills) => () => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }], skills } });
+    expect(bad({ x: { mp: 1, power: 2, hits: 12 } })).toThrow(/2 to 8/);
+    expect(bad({ x: { mp: 1, power: 3, damage: 'gravity' } })).toThrow(/share of the target's HP/);
+    expect(bad({ x: { mp: 1, heal: true, power: 3, drain: 0.5 } })).toThrow(/shape a harmful skill/);
+  });
+});
+
+// WHAT A STATE DOES (rpg.js readState): its bearer's numbers scaled (haste), the damage it takes scaled (a ward), a
+// frenzy past commanding, a spell at it turned back, the foes' blows drawn to it, a countdown that fells it, and what a
+// second cast does (keep). The state casts opted into on a class's tree; a world naming none carries no states table
+describe('what a state does', () => {
+  const mage = { name: 'Mage', hp: 999, mp: 99, atk: 30, def: 0, mag: 40, spd: 10, xp: 1, gold: 1, skills: ['fire'], pattern: [{ use: 'fire' }] };
+  const brute = { name: 'Brute', hp: 999, mp: 0, atk: 30, def: 0, mag: 1, spd: 10, xp: 1, gold: 1 };
+  const casts = ['haste', 'slow', 'frenzy', 'reflect', 'provoke', 'doom', 'ward'].map((skill) => ({ skill }));
+  const cfgOf = (foe, states = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 30 }, { id: 'bram', class: 'knight', level: 30 }],
+    classes: { knight: { skills: casts } }, skills: { ward: { mp: 0, target: 'ally', status: { is: 'aegis' } } }, states: { aegis: { said: 'warded', takes: { blow: 0, spell: 0 }, rounds: 9 }, ...states },
+    foes: { foe: foe }, encounters: [{ id: 'yard', foes: ['foe'] }] } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); R.m.ayla.mp = R.m.bram.mp = 999; return [R, v]; };
+  const cast = (cfg, R, v, skill, target, other = { act: 'guard' }) => rpgRound(cfg, R, { ayla: { act: 'skill', skill, target }, bram: other }, v);
+
+  it('scales its bearer\'s numbers: a haste quickens, a slow slows', () => {
+    const cfg = cfgOf(brute), [R, v] = begin(cfg), spd = rpgStatsOf(cfg, R, 'bram').spd;
+    cast(cfg, R, v, 'haste', 'bram');
+    expect(rpgStatsOf(cfg, R, 'bram').spd).toBe(Math.round(spd * 1.5));
+    expect(R.b.side.bram.st.haste).toBeGreaterThan(0);
+  });
+
+  it('scales the damage it takes, and a blow drawn to a taunter falls on it alone', () => {
+    const cfg = cfgOf(brute), [R, v] = begin(cfg);
+    cast(cfg, R, v, 'ward', 'ayla');
+    cast(cfg, R, v, 'provoke', 'ayla');
+    for (let k = 0; k < 4; k++) {
+      const hits = cast(cfg, R, v, 'provoke', 'ayla').filter((x) => x.kind === 'hurt' && x.by === 'f0');
+      for (const h of hits) { expect(h.target).toBe('ayla'); expect(h.amount).toBe(1); }
+    }
+  });
+
+  it('a spell at one who reflects turns back on its caster', () => {
+    const cfg = cfgOf(mage), [R, v] = begin(cfg);
+    cast(cfg, R, v, 'reflect', 'ayla', { act: 'skill', skill: 'reflect', target: 'bram' });
+    let back = [];
+    for (let k = 0; k < 3 && !back.length; k++) back = cast(cfg, R, v, 'provoke', 'ayla').filter((x) => x.kind === 'hurt' && x.by === 'f0' && x.target === 'f0');
+    expect(back.length).toBeGreaterThan(0);
+  });
+
+  it('a frenzy strikes past what was picked; a doom fells as it runs out, and a second keeps the first', () => {
+    const cfg = cfgOf(brute), [R, v] = begin(cfg);
+    cast(cfg, R, v, 'frenzy', 'bram');
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' }, bram: { act: 'guard' } }, v).some((x) => /frenzy/.test(x.text ?? ''))).toBe(true);
+    const D = cfgOf(brute), [RD, vD] = begin(D);
+    let doomed = false;
+    for (let k = 0; k < 6 && !doomed; k++) { cast(D, RD, vD, 'doom', 'f0'); doomed = RD.b.foes[0].st.doom > 0; }
+    expect(doomed).toBe(true);
+    expect(cast(D, RD, vD, 'doom', 'f0').some((x) => /already doomed/.test(x.text ?? ''))).toBe(true);
+    let fell = false;
+    for (let k = 0; k < 8 && !fell; k++) { if (RD.b.phase !== 'command') break; fell = rpgRound(D, RD, { ayla: { act: 'guard' }, bram: { act: 'guard' } }, vD).some((x) => x.doom); }
+    expect(fell).toBe(true);
+  });
+
+  it('is read and taught; a world that names none of them carries no states', () => {
+    expect(() => cfgOf(brute, { bad: { said: 'x', stats: { spd: 1 } } })).toThrow(/a multiple, 0.25 to 4/);
+    expect(() => cfgOf(brute, { bad: { said: 'x', taunt: true, stack: 'pile' } })).toThrow(/stack is refresh/);
+    expect('states' in trio({})).toBe(false);
+  });
+});
+
+// REACTIONS (rpg.js readReacts): what a fighter does on another's turn: a strike back at a blow aimed at it alone (never
+// a counter countered), a step before a badly hurt ally, a rise from a fall once a fight (a state's spent as it is used)
+describe('reactions', () => {
+  const brute = { name: 'Brute', hp: 999, mp: 0, atk: 40, def: 0, mag: 1, spd: 30, xp: 1, gold: 1 };
+  const gear = { spikes: { slot: 'accessory', counter: 1 }, crest: { slot: 'accessory', cover: true }, phoenix: { slot: 'accessory', revive: 0.5 } };
+  const cfgOf = (a = {}, b = {}, foe = brute, extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 20, gear: a }, { id: 'bram', class: 'knight', level: 20, gear: b }],
+    gear, foes: { foe }, encounters: [{ id: 'yard', foes: ['foe'] }], ...extra } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); return [R, v]; };
+  const guard = { ayla: { act: 'guard' }, bram: { act: 'guard' } };
+
+  it('strikes back at a blow aimed at it alone, and a counter is never countered', () => {
+    const cfg = cfgOf({ accessory: 'spikes' }, { accessory: 'spikes' }, { ...brute, counter: 1 }), [R, v] = begin(cfg);
+    let seen = 0;
+    for (let k = 0; k < 4; k++) {
+      const out = rpgRound(cfg, R, guard, v), foeBlows = out.filter((x) => x.kind === 'hurt' && x.by === 'f0' && x.target !== 'f0').length;
+      const counters = out.filter((x) => x.kind === 'counter');
+      // (each of the foe's blows that landed or not: one counter from the member it was aimed at, none back from the foe)
+      expect(counters.every((x) => x.who !== 'f0')).toBe(true);
+      seen += counters.length;
+      if (foeBlows) expect(out.some((x) => x.kind === 'hurt' && x.target === 'f0')).toBe(true);
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+
+  it('steps before a badly hurt ally a foe\'s blow is aimed at', () => {
+    const cfg = cfgOf({}, { accessory: 'crest' }), [R, v] = begin(cfg);
+    R.m.ayla.hp = 5;
+    let covered = false;
+    for (let k = 0; k < 4; k++) {
+      const out = rpgRound(cfg, R, guard, v);
+      expect(out.some((x) => x.kind === 'hurt' && x.target === 'ayla' && x.by === 'f0')).toBe(false);
+      covered = covered || out.some((x) => x.kind === 'cover' && x.who === 'bram' && x.target === 'ayla');
+    }
+    expect(covered).toBe(true);
+  });
+
+  it('rises once a fight as it falls; a state\'s second life is spent with it; a foe may rise too', () => {
+    const cfg = cfgOf({ accessory: 'phoenix' }), [R, v] = begin(cfg);
+    R.m.ayla.hp = 1; R.m.bram.hp = 999;
+    let rose;
+    for (let k = 0; k < 6 && !rose; k++) rose = rpgRound(cfg, R, guard, v).find((x) => x.kind === 'rise');
+    expect(rose).toMatchObject({ target: 'ayla', hp: Math.round(rpgStatsOf(cfg, R, 'ayla').hp * 0.5) });
+    R.m.ayla.hp = 1;
+    let again = false, fell = false;
+    for (let k = 0; k < 6 && !fell; k++) { const out = rpgRound(cfg, R, guard, v); again = again || out.some((x) => x.kind === 'rise'); fell = R.m.ayla.hp <= 0; }
+    expect(fell).toBe(true);
+    expect(again).toBe(false);
+    const F = cfgOf({}, {}, { ...brute, atk: 1, revive: 0.5 }), [RF, vF] = begin(F);
+    RF.b.foes[0].hp = 1;
+    RF.m.ayla.mp = 99;
+    let ko = [];
+    for (let k = 0; k < 6 && !ko.some((x) => x.kind === 'ko' && x.target === 'f0'); k++) ko = rpgRound(F, RF, { ayla: { act: 'attack', target: 'f0' }, bram: { act: 'guard' } }, vF);
+    expect(ko.some((x) => x.kind === 'ko' && x.target === 'f0')).toBe(true);
+    expect(ko.some((x) => x.kind === 'rise' && x.target === 'f0')).toBe(true);
+  });
+
+  it('is read and taught', () => {
+    expect(() => cfgOf({}, {}, brute, { gear: { ...gear, bad: { slot: 'accessory', counter: 2 } } })).toThrow(/counter is the chance/);
+    expect(() => cfgOf({}, {}, brute, { gear: { ...gear, bad: { slot: 'accessory', cover: 'yes' } } })).toThrow(/cover is true/);
+    expect(() => cfgOf({}, {}, { ...brute, cover: true })).toThrow(/not part of|cover/);
+    expect(readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }] } }).gear['phoenix-charm'].traits).toEqual({ revive: 0.25 });
+  });
+});
+
+// COSTS (rpg.js readSkill): HP paid as a skill is used (more than it costs needed), a limit break a full gauge lets go
+// (the gauge filled by the blows taken; a world with none carries none), a rest of turns after; a foe pays as a member
+describe('costs', () => {
+  const dummy = { name: 'Dummy', hp: 9999, mp: 99, atk: 40, def: 0, mag: 30, spd: 1, xp: 1, gold: 1, skills: ['meteor'], pattern: [{ use: 'meteor' }, { use: 'attack', weight: 1 }] };
+  const cfgOf = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 20 }], classes: { fighter: { skills: ['blood-blade', 'meteor', 'braver'].map((skill) => ({ skill })) } },
+    foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }], ...extra } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); R.m.ayla.mp = 999; return [R, v]; };
+  const opt = (cfg, R, v, k) => rpgOptions(cfg, R, 'ayla', v).skills.find((x) => x.id === k);
+
+  it('pays its HP as it is used, and is barred to a user with no more than it costs', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg), was = R.m.ayla.hp;
+    const out = rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'blood-blade', target: 'f0' } }, v);
+    expect(out.find((x) => x.text === 'Ayla pays 12 HP.')).toBeTruthy();
+    expect(R.m.ayla.hp).toBeLessThanOrEqual(was - 12);
+    R.m.ayla.hp = 12;
+    expect(opt(cfg, R, v, 'blood-blade')).toMatchObject({ ok: false, why: 'hp', hp: 12 });
+  });
+
+  it('rests its turns after use, and so does a foe\'s', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    R.m.ayla.hp = 9999;
+    rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'meteor', target: 'f0' } }, v);
+    for (const left of [3, 2, 1]) { expect(opt(cfg, R, v, 'meteor')).toMatchObject({ ok: false, why: 'cooldown', wait: left }); rpgRound(cfg, R, { ayla: { act: 'guard' } }, v); }
+    expect(opt(cfg, R, v, 'meteor').ok).toBe(true);
+    // (the foe's meteor, its pattern's first row: once, then three turns of something else)
+    const F = cfgOf(), [RF, vF] = begin(F);
+    RF.m.ayla.hp = 9999;
+    const used = [0, 1, 2, 3].map(() => rpgRound(F, RF, { ayla: { act: 'guard' } }, vF).some((x) => x.kind === 'cast' && x.who === 'f0' && x.skill === 'meteor'));
+    expect(used).toEqual([true, false, false, false]);
+  });
+
+  it('a limit break waits for a full gauge, which the blows taken fill, and empties it; a world with none keeps no gauge', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    R.m.ayla.hp = 9999;
+    expect(cfg.limits).toBe(true);
+    expect(opt(cfg, R, v, 'braver')).toMatchObject({ ok: false, why: 'limit', limit: 0 });
+    for (let k = 0; k < 3; k++) rpgRound(cfg, R, { ayla: { act: 'guard' } }, v);
+    expect(v['rpg.ayla.limit']).toBeGreaterThan(0);
+    R.b.side.ayla.limit = 100;
+    expect(opt(cfg, R, v, 'braver').ok).toBe(true);
+    rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'braver', target: 'f0' } }, v);
+    expect(R.b.side.ayla.limit).toBeLessThan(100);
+    const plain = readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }] } });
+    expect('limits' in plain).toBe(false);
+    expect(() => cfgOf({ skills: { x: { mp: 0, power: 2, cooldown: 12 } } })).toThrow(/1 to 9/);
+    expect(() => cfgOf({ skills: { x: { mp: 0, power: 2, hpCost: 0 } } })).toThrow(/HP it costs/);
+  });
+});
+
+// ROWS (rules.rows) and SCAN: a member in the back row deals and takes half from blows (never from a spell or a ranged
+// blow), the Row command moving it, kept in a save; a world without rows has no Row and no halving. A scan says a foe's
+// HP and what it is weak to and guards against
+describe('rows and scan', () => {
+  const dummy = { name: 'Dummy', hp: 9999, mp: 0, atk: 40, def: 0, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['fire'], immune: ['sleep'] };
+  const cfgOf = (rules = { rows: true }, party = [{ id: 'ayla', class: 'fighter', level: 20, gear: { weapon: 'blade' } }]) => readRpg({ rpg: { party, rules,
+    gear: { blade: { slot: 'weapon', atk: 10, hit: 1 }, bow: { slot: 'weapon', atk: 10, hit: 1, ranged: true } }, foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }] } });
+  // (the mean of a blow over many seeds: its dice the same in either row)
+  const meanHit = (cfg, row, who = 'ayla') => {
+    let sum = 0, n = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const C = { ...cfg, seed }, R = rpgInit(C), v = {};
+      if (row) R.m[who].row = row;
+      rpgStart(C, R, 'yard', v);
+      const h = rpgRound(C, R, { ayla: { act: 'attack', target: 'f0' } }, v).find((x) => x.kind === 'hurt' && x.target === 'f0');
+      if (h && !h.crit) { sum += h.amount; n++; }
+    }
+    return sum / n;
+  };
+
+  it('a blow from the back row lands at half; a ranged one does not; a world without rows halves nothing', () => {
+    const cfg = cfgOf(), front = meanHit(cfg, 'front'), back = meanHit(cfg, 'back');
+    expect(back / front).toBeCloseTo(0.5, 1);
+    const bow = cfgOf({ rows: true }, [{ id: 'ayla', class: 'fighter', level: 20, gear: { weapon: 'bow' } }]);
+    expect(meanHit(bow, 'back') / meanHit(bow, 'front')).toBeCloseTo(1, 5);
+    const plain = cfgOf({});
+    expect(meanHit(plain, 'back')).toBeCloseTo(meanHit(plain, 'front'), 5);
+    expect(rpgOptions(plain, rpgInit(plain), 'ayla', {}).commands.map((c) => c.id)).not.toContain('row');
+  });
+
+  it('the Row command moves a member, its turn spent, and a save keeps it', () => {
+    const cfg = cfgOf(), R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'yard', v);
+    expect(rpgOptions(cfg, R, 'ayla', v).commands.map((c) => c.id)).toContain('row');
+    expect(rpgRound(cfg, R, { ayla: { act: 'row' } }, v).find((x) => x.who === 'ayla' && x.row)).toMatchObject({ row: 'back' });
+    const R2 = rpgInit(cfg);
+    rpgLoad(cfg, R2, Object.fromEntries(Object.entries(rpgSave(cfg, R)).map(([k, s]) => [k, { stats: s }])));
+    expect(R2.m.ayla.row).toBe('back');
+    expect(() => cfgOf({ rows: 'yes' })).toThrow(/rules.rows is true/);
+  });
+
+  it('a scan says a foe\'s HP, what it is weak to and what it shrugs off', () => {
+    const cfg = readRpg({ rpg: { party: [{ id: 'ayla', class: 'mage' }], foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }] } }), R = rpgInit(cfg), v = { 'held:bag:scan-lens': 1 };
+    rpgStart(cfg, R, 'yard', v);
+    const s = rpgRound(cfg, R, { ayla: { act: 'item', item: 'scan-lens', target: 'f0' } }, v).find((x) => x.kind === 'scan');
+    expect(s).toMatchObject({ target: 'f0', weak: ['fire'], immune: ['sleep'], max: 9999 });
+    expect(s.text).toMatch(/^Dummy: HP \d+\/9999\. Weak: fire\. Immune: sleep\.$/);
+  });
+});
+
+// OPENINGS (rules.openings, an encounter's opening): a fight that opens with the party striking first (the foes sit out
+// the first round; on the timeline the party's gauges start full), or ambushed (the reverse, the rows turned about); a
+// die each fight where the world asks, never at a fight with no escape; a world that asks none opens every fight alike
+describe('openings', () => {
+  const brute = { name: 'Brute', hp: 999, mp: 0, atk: 10, def: 0, mag: 1, spd: 5, xp: 1, gold: 1 };
+  const cfgOf = (rules = {}, opening) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 10 }], rules, foes: { brute },
+    encounters: [{ id: 'yard', foes: ['brute'], ...(opening ? { opening } : {}) }, { id: 'lair', foes: ['brute'], flee: false }] } });
+  const foeActs = (out) => out.some((x) => x.who === 'f0' || x.by === 'f0');
+  const memberActs = (out) => out.some((x) => x.who === 'ayla' || x.by === 'ayla');
+  const attack = { ayla: { act: 'attack', target: 'f0' } };
+
+  it('opens with the party striking first: the foes sit out the first round; or ambushed: the party does', () => {
+    for (const [opening, party, foes] of [['first', true, false], ['ambush', false, true]]) {
+      const cfg = cfgOf({}, opening), R = rpgInit(cfg), v = {};
+      expect(rpgStart(cfg, R, 'yard', v).find((x) => x.opening)).toMatchObject({ kind: 'start', opening });
+      const one = rpgRound(cfg, R, attack, v);
+      expect([memberActs(one), foeActs(one)], opening).toEqual([party, foes]);
+      const two = rpgRound(cfg, R, attack, v);
+      expect([memberActs(two), foeActs(two)], opening).toEqual([true, true]);
+    }
+  });
+
+  it('on the timeline the side that strikes first starts with its gauges full', () => {
+    const first = cfgOf({ turns: 'timeline' }, 'first'), R = rpgInit(first), v = {};
+    expect(foeActs(rpgStart(first, R, 'yard', v))).toBe(false);
+    expect(R.b.turn).toBe('ayla');
+    const amb = cfgOf({ turns: 'timeline', rows: true }, 'ambush'), RA = rpgInit(amb), vA = {};
+    expect(foeActs(rpgStart(amb, RA, 'yard', vA))).toBe(true);
+    expect(RA.b.flip).toBe(1);
+  });
+
+  it('a die each fight where the world asks, both ways, never at a boss\'s; a world that asks none opens alike', () => {
+    const cfg = cfgOf({ openings: { first: 0.4, ambush: 0.4 } }), seen = new Set();
+    for (let seed = 1; seed <= 16; seed++) { const C = { ...cfg, seed }, R = rpgInit(C); rpgStart(C, R, 'yard', {}); seen.add(R.b.opening ?? 'normal'); const RB = rpgInit(C); rpgStart(C, RB, 'lair', {}); expect(RB.b.opening).toBeUndefined(); }
+    expect([...seen].sort()).toEqual(['ambush', 'first', 'normal']);
+    const plain = cfgOf(), R = rpgInit(plain);
+    expect(rpgStart(plain, R, 'yard', {}).some((x) => x.opening)).toBe(false);
+    expect(() => cfgOf({ openings: { first: 0.9 } })).toThrow(/0 to 0.5/);
+  });
+});
+
+// JOINT TECHS (play.rpg.techs): a skill two or three members make together, each knowing one of its needs: listed with
+// whom it is made, each maker paying its part, the partners' turns spent on it, its stat their sum; never by a familiar,
+// never without a free partner; a world asking none lists none
+describe('joint techs', () => {
+  const dummy = { name: 'Dummy', hp: 9999, mp: 0, atk: 1, def: 0, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['fire'] };
+  const cfgOf = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter', level: 8 }, { id: 'bram', class: 'mage', level: 8 }], foes: { dummy }, encounters: [{ id: 'yard', foes: ['dummy'] }], techs: true, ...extra } });
+  const begin = (cfg) => { const R = rpgInit(cfg), v = {}; rpgStart(cfg, R, 'yard', v); return [R, v]; };
+  const tech = (cfg, R, v, k) => rpgOptions(cfg, R, 'ayla', v).skills.find((x) => x.id === k);
+
+  it('is listed with whom it is made, or why not; a world asking none lists none', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg);
+    expect(tech(cfg, R, v, 'fire-strike')).toMatchObject({ ok: true, joint: ['Bram'] });
+    // (a tech it could make a part of, its other makers missing: listed, never usable)
+    expect(tech(cfg, R, v, 'trinity')).toMatchObject({ ok: false, why: 'partner' });
+    R.b.side.bram.st.sleep = 2;
+    expect(tech(cfg, R, v, 'fire-strike')).toMatchObject({ ok: false, why: 'partner' });
+    const plain = cfgOf({ techs: undefined }), [RP, vP] = begin(plain);
+    expect(rpgOptions(plain, RP, 'ayla', vP).skills.some((x) => x.joint)).toBe(false);
+    expect('joints' in plain).toBe(false);
+  });
+
+  it('is made together: each pays its part, the partner\'s turn spent, the blow their sum', () => {
+    const cfg = cfgOf(), [R, v] = begin(cfg), mp = R.m.bram.mp;
+    const out = rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'fire-strike', target: 'f0' }, bram: { act: 'attack', target: 'f0' } }, v);
+    expect(out.find((x) => x.joint)).toMatchObject({ text: 'Ayla and Bram: Fire Strike!', who: 'ayla', joint: ['bram'] });
+    expect(out.some((x) => x.kind === 'joined' && x.who === 'bram')).toBe(true);
+    expect(R.m.bram.mp).toBe(mp - cfg.skills.fire.mp);
+    // (the partner's own pick this round never made: its turn went to the tech)
+    expect(out.some((x) => x.who === 'bram' && x.kind !== 'joined')).toBe(false);
+    expect(out.find((x) => x.kind === 'hurt' && x.target === 'f0')).toMatchObject({ element: 'fire', mul: 2 });
+    // (its next round its own again)
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' }, bram: { act: 'attack', target: 'f0' } }, v).some((x) => x.who === 'bram' || x.by === 'bram')).toBe(true);
+  });
+
+  it('on the timeline the partner\'s gauge is emptied; a familiar never starts one; each read and taught', () => {
+    const cfg = cfgOf({ rules: { turns: 'timeline' } }), [R, v] = begin(cfg);
+    while (R.b.turn !== 'ayla') rpgRound(cfg, R, { [R.b.turn]: { act: 'guard' } }, v);
+    rpgRound(cfg, R, { ayla: { act: 'skill', skill: 'fire-strike', target: 'f0' } }, v);
+    expect(R.b.turn).not.toBe('bram');
+    expect(() => cfgOf({ techs: { solo: { needs: ['fire'], target: 'foe', power: 3 } } })).toThrow(/two or three different skills/);
+    expect(() => cfgOf({ techs: { odd: { needs: ['fire', 'nope'], target: 'foe', power: 3 } } })).toThrow(/no preset skill|no skill of the world's/);
+  });
+});
+
+// A CHARGED BLOW (a pattern row's `charge`): the foe's turn spent gathering, said, so the party can brace; its next turn
+// the blow let go at twice its power; a guard takes half of it like any blow
+describe('a charged blow', () => {
+  const ogre = { name: 'Ogre', hp: 999, mp: 0, atk: 20, def: 1, mag: 1, spd: 1, xp: 1, gold: 1,
+    pattern: [{ use: 'attack', when: { turn: 1 }, charge: '{name} winds up…' }, { use: 'attack', when: { after: 2 } }] };
+  const lone = () => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 9 }], foes: { ogre }, encounters: [{ id: 'den', foes: ['ogre'] }] } });
+  const taken = (beats) => beats.filter((x) => x.kind === 'hurt' && x.target === 'ayla').reduce((a, x) => a + x.amount, 0);
+  const play = (brace) => {
+    const cfg = lone(), R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'den', v);
+    const hit = { ayla: { act: 'attack', target: 'f0' } };
+    return [rpgRound(cfg, R, hit, v), rpgRound(cfg, R, brace ? { ayla: { act: 'guard' } } : hit, v), rpgRound(cfg, R, hit, v)];
+  };
+
+  it('is said as it gathers, then let go at twice a blow\'s power; braced for, half of it', () => {
+    const [one, two, three] = play(false);
+    expect(one.find((x) => x.kind === 'charge')).toMatchObject({ text: 'Ogre winds up…', who: 'f0' });
+    expect(taken(one)).toBe(0);
+    expect(two.find((x) => x.charged)).toMatchObject({ text: 'Ogre unleashes its full strength!' });
+    expect(taken(two)).toBeGreaterThan(1.5 * taken(three));
+    expect(taken(play(true)[1])).toBeLessThan(0.6 * taken(two));
+  });
+
+  it('is read and taught: a line or true, never on a guard', () => {
+    expect(lone().foes.ogre.pattern[0]).toEqual({ use: 'attack', when: { turn: 1 }, weight: 5, charge: '{name} winds up…' });
+    expect(() => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }], foes: { ogre: { ...ogre, pattern: [{ use: 'guard', charge: true }] } } } })).toThrow(/a guard has nothing to gather/);
+    expect(() => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }], foes: { ogre: { ...ogre, pattern: [{ use: 'attack', charge: 3 }] } } } })).toThrow(/charge is true or the line/);
+  });
+});
+
+// A FOE'S PHASES (foes.<id>.phases): the first time its HP falls under each phase's share, in order, it takes that form,
+// what the phase names replacing its own on its own copy, said as it comes (a beat of kind 'phase')
+describe('a foe\'s phases', () => {
+  const hydra = { name: 'Hydra', hp: 100, mp: 0, atk: 5, def: 1, mag: 1, spd: 1, xp: 1, gold: 1, weak: ['ice'],
+    phases: [{ below: 0.6, say: '{name} grows a second head!', weak: ['thunder'], absorb: ['ice'], atk: 9 }, { below: 0.3, pattern: [{ use: 'guard' }] }] };
+  const cfg = readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight', level: 9 }], foes: { hydra }, encounters: [{ id: 'lake', foes: ['hydra'] }] } });
+
+  it('takes each form once, in order, on its own copy; a hit past two shares brings both', () => {
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'lake', v);
+    const f = R.b.foes[0];
+    f.hp = 59;
+    const one = rpgRound(cfg, R, { ayla: { act: 'guard' } }, v).filter((x) => x.kind === 'phase');
+    expect(one).toEqual([{ text: 'Hydra grows a second head!', kind: 'phase', who: 'f0', phase: 1 }]);
+    expect(f.F).toMatchObject({ weak: ['thunder'], absorb: ['ice'] });
+    expect(f.F.base.atk).toBe(9);
+    expect(cfg.foes.hydra.weak).toEqual(['ice']);
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' } }, v).some((x) => x.kind === 'phase')).toBe(false);
+    f.hp = 10;
+    expect(rpgRound(cfg, R, { ayla: { act: 'guard' } }, v).filter((x) => x.kind === 'phase')).toEqual([{ text: 'Hydra changes!', kind: 'phase', who: 'f0', phase: 2 }]);
+    // (a fresh fight starts it in its first form; a hit through both shares at once brings both, in order)
+    const R2 = rpgInit(cfg);
+    rpgStart(cfg, R2, 'lake', v);
+    R2.b.foes[0].hp = 5;
+    expect(rpgRound(cfg, R2, { ayla: { act: 'guard' } }, v).filter((x) => x.kind === 'phase').map((x) => x.phase)).toEqual([1, 2]);
+  });
+
+  it('is read and taught: each under the one before, and changing something', () => {
+    expect(cfg.foes.hydra.phases[1]).toEqual({ below: 0.3, pattern: [{ use: 'guard', weight: 5 }] });
+    const bad = (phases) => () => readRpg({ rpg: { party: [{ id: 'ayla', class: 'knight' }], foes: { hydra: { ...hydra, phases } } } });
+    expect(bad([{ below: 0.3, atk: 1 }, { below: 0.6, atk: 2 }])).toThrow(/under the one before/);
+    expect(bad([{ below: 0.5 }])).toThrow(/changes nothing/);
+  });
+});
+
+// A FIGHT'S OWN PAGES (encounters[].pages): each said once, the first time its moment holds (begun, a foe under a share
+// of its HP, its nth round), a beat of kind 'page' carrying its flag
+describe('a fight\'s own pages', () => {
+  const warden = { name: 'Warden', hp: 400, mp: 0, atk: 1, def: 30, mag: 1, spd: 1, xp: 1, gold: 1, boss: true };
+  const cfg = trio({ foes: { warden }, encounters: [{ id: 'keep', foes: ['warden'], pages: [
+    { when: { start: true }, who: 'Warden', say: 'None pass the crypt.' },
+    { when: { foe: 'warden', hpBelow: 0.5 }, who: 'Warden', say: ['You are stronger than they said.', 'Then come.'], sets: 'warden-halved' },
+    { when: { round: 3 }, say: 'The torches gutter.' },
+  ] }] });
+  const pagesOf = (beats) => beats.filter((x) => x.kind === 'page');
+
+  it('is read and taught: a moment named, a foe of the fight\'s', () => {
+    expect(cfg.encounters.keep.pages).toHaveLength(3);
+    expect(() => trio({ foes: { warden }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: { foe: 'slime', hpBelow: 0.5 }, say: 'x' }] }] })).toThrow(/one of the fight's foes/);
+    expect(() => trio({ foes: { warden }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: {}, say: 'x' }] }] })).toThrow(/names its moment/);
+  });
+
+  it('says each page once, when its moment first holds, the halfway one with its flag', () => {
+    const R = rpgInit(cfg), v = {};
+    expect(pagesOf(rpgStart(cfg, R, 'keep', v)).map((x) => x.text)).toEqual(['Warden: None pass the crypt.']);
+    expect(pagesOf(rpgRound(cfg, R, {}, v))).toEqual([]);
+    R.b.foes[0].hp = 150;
+    const half = pagesOf(rpgRound(cfg, R, {}, v));
+    expect(half.map((x) => x.text)).toEqual(['Warden: You are stronger than they said.', 'Warden: Then come.']);
+    expect(half.map((x) => x.sets ?? null)).toEqual([null, 'warden-halved']);
+    expect(half[0].who).toBe('f0');
+    // (round three: the torches; then nothing again)
+    expect(pagesOf(rpgRound(cfg, R, {}, v)).map((x) => x.text)).toEqual(['The torches gutter.']);
+    expect(pagesOf(rpgRound(cfg, R, {}, v))).toEqual([]);
+  });
+});
+
+// A PAGE THAT ACTS (a page's summon and heal): the foe it names given back a share of its HP; foes called in after the
+// fight's own, fought and counted in the spoils like them; six fight at most
+describe('a fight\'s page that acts', () => {
+  const warden = { name: 'Warden', hp: 400, mp: 0, atk: 1, def: 30, mag: 1, spd: 1, xp: 10, gold: 1, boss: true }, slime = { name: 'Slime', hp: 14, atk: 1, def: 3, mag: 1, spd: 1, xp: 4, gold: 3 };
+  const cfg = trio({ foes: { warden, slime }, encounters: [{ id: 'keep', foes: ['warden'], at: [0, 0], who: ['warden-fig', 'slime-fig', 'slime-fig2'], pages: [
+    { when: { foe: 'warden', hpBelow: 0.5 }, who: 'Warden', say: 'Rise, my wards!', heal: 0.25, summon: ['slime', 'slime'] },
+  ] }] });
+
+  it('is read and taught: foes of the book, a share, six at most, a figure each at most', () => {
+    expect(cfg.encounters.keep.pages[0]).toMatchObject({ heal: 0.25, summon: ['slime', 'slime'] });
+    const one = (p, extra = {}) => () => trio({ foes: { warden, slime }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: { round: 2 }, say: 'x', ...p }], ...extra }] });
+    expect(one({ summon: ['dragonx'] })).toThrow(/summon is a list of foes/);
+    expect(one({ heal: 2 })).toThrow(/heal is a share/);
+    expect(one({ summon: ['slime', 'slime', 'slime', 'slime', 'slime', 'slime'] })).toThrow(/six fight at most/);
+    expect(one({ summon: ['slime'] }, { at: [0, 0], who: ['a', 'b', 'c'] })).toThrow(/who is the entity/);
+  });
+
+  it('gives back the share to the foe its moment names, and calls the foes in: fought, and counted in the spoils', () => {
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'keep', v);
+    R.b.foes[0].hp = 150;
+    const beats = rpgRound(cfg, R, {}, v), heal = beats.find((x) => x.kind === 'heal' && x.target === 'f0');
+    expect(heal.amount).toBe(100);
+    expect(beats.filter((x) => x.kind === 'summon').map((x) => [x.who, x.text])).toEqual([['f1', 'Slime A appears!'], ['f2', 'Slime B appears!']]);
+    expect(R.b.foes.map((f) => f.kind)).toEqual(['warden', 'slime', 'slime']);
+    // (the warden's fall leaves the fight on while the called foes stand)
+    R.b.foes[0].hp = 0;
+    rpgRound(cfg, R, {}, v);
+    expect(R.b.phase).toBe('command');
+    for (const f of R.b.foes) f.hp = 0;
+    rpgRound(cfg, R, {}, v);
+    expect(R.b.phase).toBe('won');
+  });
+
+  it('a fight whose pages only speak calls no one', () => {
+    const quiet = trio({ foes: { warden, slime }, encounters: [{ id: 'keep', foes: ['warden'], pages: [{ when: { start: true }, say: 'x' }] }] });
+    const R = rpgInit(quiet), v = {};
+    expect(rpgStart(quiet, R, 'keep', v).some((x) => x.kind === 'summon' || x.kind === 'heal')).toBe(false);
+    expect(R.b.foes).toHaveLength(1);
+  });
+});
+
+// THE WORLD'S OWN STATES (play.rpg.states, presets.js STATE_PRESETS): each by what it does. The concept on one of each
+// kind of effect; and a fight that meets none carries none of it
+describe('the world\'s own states', () => {
+  const base = { foes: { dummy: { name: 'Dummy', hp: 999, mp: 99, atk: 1, def: 1, mag: 1, spd: 1, xp: 1, gold: 1 } }, encounters: [{ id: 'yard', foes: ['dummy'] }] };
+  const skills = { zap: { mp: 1, target: 'foe', power: 1, status: { is: 'paralysis' } }, mend: { mp: 1, target: 'ally', heal: true, cure: ['paralysis', 'burn'] } };
+
+  it('is read: the world\'s own and the presets a skill names; a fight with none has no table', () => {
+    const cfg = trio({ ...base, skills, states: { bog: { said: 'bogged', noCast: true, rounds: 2 } } });
+    expect(Object.keys(cfg.states)).toEqual(['bog', 'burn', 'paralysis']);
+    expect(cfg.states.paralysis).toMatchObject({ said: 'paralysed', rounds: 2, skip: true });
+    expect(cfg.skills.zap.status).toMatchObject({ is: 'paralysis', rounds: 2 });
+    expect('states' in trio(base)).toBe(false);
+    expect(() => trio({ ...base, states: { sleep: { said: 'x', skip: true } } })).toThrow(/the kernel's own status/);
+    expect(() => trio({ ...base, states: { nap: { said: 'napping' } } })).toThrow(/does nothing/);
+    expect(() => trio({ ...base, skills: { x: { mp: 1, target: 'foe', status: { is: 'gloom' } } } })).toThrow(/is not|status is/);
+  });
+
+  it('does what it says: a held turn, no casting, blows wide, at anyone, HP each turn, a blow ending it, worn off', () => {
+    const states = { paralysis: true, bog: { said: 'bogged', noCast: true, rounds: 5 }, blind: { said: 'blinded', miss: 0.99, rounds: 5 }, burn: true, confusion: true };
+    const cfg = trio({ ...base, skills: { ...skills, fire: true }, states });
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'yard', v);
+    const st = R.b.side.ayla.st, said = (beats, who = 'ayla') => beats.filter((x) => x.who === who || x.target === who || x.by === who).map((x) => x.text);
+    // paralysed: the turn held (its picks unread), worn off in two
+    st.paralysis = 2;
+    expect(said(rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v))).toContain('Ayla is paralysed.');
+    // bogged: no MP skill (Bram, the mage)
+    R.b.side.bram.st.bog = 3;
+    expect(said(rpgRound(cfg, R, { bram: { act: 'skill', skill: 'fire', target: 'f0' } }, v), 'bram')).toContain('Bram cannot cast.');
+    // blinded: its blows go wide
+    st.paralysis = 0; st.blind = 3;
+    expect(said(rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v))).toContain('Ayla misses Dummy.');
+    // burning: HP each turn, and worn off in its rounds
+    st.blind = 0; st.burn = 1;
+    const burnt = said(rpgRound(cfg, R, {}, v));
+    expect(burnt.some((t) => /takes \d+ damage from being burning/.test(t))).toBe(true);
+    expect(burnt).toContain('Ayla is no longer burning.');
+    // confused: a blow at anyone at all; a blow on it ends it
+    st.confusion = 3;
+    expect(said(rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v))).toContain('Ayla lashes out wildly!');
+  });
+});
+
+// THE PARTY MENU'S ITEM AND FORMATION: a battle item used outside a fight (on a member, or all of an allies item's
+// party), and two members trading places in the order fought in, carried by the save
+describe('the party menu\'s item and formation', () => {
+  it('an item out of a fight mends who it is used on, spends one from the bag, and does nothing it cannot', () => {
+    const cfg = trio(), R = rpgInit(cfg), v = { 'held:bag:potion': 2 };
+    expect(rpgFieldUse(cfg, R, 'potion', 'ayla', v)).toBe('useless');
+    expect(v['held:bag:potion']).toBe(2);
+    R.m.ayla.hp = 5;
+    expect(rpgFieldUse(cfg, R, 'potion', 'ayla', v)).toBe('');
+    expect(R.m.ayla.hp).toBeGreaterThan(5);
+    expect(v['held:bag:potion']).toBe(1);
+    expect(rpgFieldUse(cfg, R, 'ether', 'ayla', v)).toBe('none');
+  });
+
+  it('two members trade places: the order fought in, who of it fights, carried through a save', () => {
+    const cfg = trio({ rules: { size: 2 } }), R = rpgInit(cfg);
+    expect(rpgPartyOf(cfg, R, {})).toEqual(['ayla', 'bram']);
+    expect(rpgSwap(cfg, R, 'ayla', 'cass')).toBe('');
+    expect(rpgPartyOf(cfg, R, {})).toEqual(['cass', 'bram']);
+    const roster = Object.fromEntries(Object.entries(rpgSave(cfg, R)).map(([id, stats]) => [id, { stats }]));
+    const R2 = rpgInit(cfg);
+    rpgLoad(cfg, R2, roster);
+    expect(rpgPartyOf(cfg, R2, {})).toEqual(['cass', 'bram']);
+    // (a save that never set one carries no place)
+    expect('ord' in rpgSave(cfg, rpgInit(cfg)).ayla).toBe(false);
+  });
+  it('a member named again: its name in every line said after; an empty or long name refused', () => {
+    const cfg = trio(), R = rpgInit(cfg);
+    expect([rpgRename(cfg, R, 'nobody', 'X'), rpgRename(cfg, R, 'ayla', '   '), rpgRename(cfg, R, 'ayla', 'A'.repeat(13))]).toEqual(['none', 'name', 'name']);
+    expect(rpgRename(cfg, R, 'ayla', ' Ayla Rose ')).toBe('');
+    expect(cfg.party.find((p) => p.id === 'ayla').name).toBe('Ayla Rose');
+  });
+});
+
+// TRAITS (a class's or a piece of gear's resist, immune, ward): the elements its wearer takes half of or none of, the
+// states it wards off; gathered from its class and what it wears
+describe('traits on gear and classes', () => {
+  const caster = { name: 'Caster', hp: 999, mp: 999, atk: 1, def: 1, mag: 40, spd: 1, xp: 1, gold: 1, skills: ['fire', 'sleep'], pattern: [{ use: 'fire', when: { every: 2 } }, { use: 'sleep', when: { turn: 1 } }] };
+  const base = { foes: { caster }, encounters: [{ id: 'yard', foes: ['caster'] }], party: [{ id: 'ayla', class: 'fighter', gear: { accessory: 'ember-ring' } }] };
+  const gear = { 'ember-ring': { slot: 'accessory', resist: ['fire'], ward: ['sleep'] }, 'bronze-sword': true, 'leather-armor': true };
+
+  it('are read on gear and on classes; one that names none carries none', () => {
+    const cfg = readRpg({ rpg: { ...base, gear } });
+    expect(cfg.gear['ember-ring'].traits).toEqual({ resist: ['fire'], ward: ['sleep'] });
+    expect('traits' in cfg.gear['bronze-sword']).toBe(false);
+    const c2 = readRpg({ rpg: { ...base, gear, classes: { fighter: { base: { hp: 40, mp: 0, atk: 10, def: 8, mag: 2, spd: 6 }, growth: { hp: 8, mp: 0, atk: 2, def: 2, mag: 0, spd: 1 }, immune: ['fire'] } } } });
+    expect(c2.classes.fighter.traits).toEqual({ immune: ['fire'] });
+  });
+
+  it('ward a state off and halve an element\'s blow; worn off with the gear', () => {
+    const cfg = readRpg({ rpg: { ...base, gear } }), R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'yard', v);
+    const first = rpgRound(cfg, R, {}, v);
+    expect(first.some((x) => x.text === 'Ayla is unaffected.')).toBe(true);
+    const warded = rpgRound(cfg, R, {}, v).find((x) => x.kind === 'hurt' && x.target === 'ayla').amount;
+    // (the ring taken off: the same caster's fire, at full)
+    const bare = readRpg({ rpg: { ...base, gear, party: [{ id: 'ayla', class: 'fighter' }] } }), R2 = rpgInit(bare), v2 = {};
+    rpgStart(bare, R2, 'yard', v2); rpgRound(bare, R2, {}, v2);
+    const full = rpgRound(bare, R2, {}, v2).find((x) => x.kind === 'hurt' && x.target === 'ayla').amount;
+    expect(warded).toBeLessThan(full);
+  });
+});
+
+// THE TEMPLE (a shop's raise): every fallen member raised, healed and cured, for its gold each
+describe('a temple\'s rite', () => {
+  it('raises the fallen for their gold; says why not when none has fallen or the gold is short', () => {
+    const cfg = trio({ shops: { temple: { raise: 20 } } }), R = rpgInit(cfg), v = { gold: 30 };
+    expect(cfg.shops.temple).toMatchObject({ name: 'Temple', raise: 20 });
+    expect(rpgRaise(cfg, R, 'temple', v)).toBe('fine');
+    R.m.bram.hp = 0; R.m.cass.hp = 0;
+    expect(rpgRaise(cfg, R, 'temple', v)).toBe('gold');
+    v.gold = 50;
+    expect(rpgRaise(cfg, R, 'temple', v)).toBe('');
+    expect(v.gold).toBe(10);
+    expect(R.m.bram.hp).toBe(rpgStatsOf(cfg, R, 'bram').hp);
   });
 });

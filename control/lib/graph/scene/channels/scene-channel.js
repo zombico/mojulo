@@ -51,6 +51,8 @@ export function sceneScript({ takes = false, tempo = false, voices = false } = {
 // SCENES: the runner (playscape/ui/scene-runner.js), the bars, the box, the keys
 const __SCN = (${buildSceneRunner.toString()})();
 const __scn = __SCN.create(EVENTS.scenes);
+// (a line's speaker called by the name the player gave them, where the page was told one: window.__mojNames)
+const __scnView = () => { const v = __SCN.view(__scn), N = window.__mojNames; if (v.line && N && typeof N[v.line.who] === 'string') v.line = Object.assign({}, v.line, { name: N[v.line.who] }); return v; };
 const __scnSt = document.createElement('style'); __scnSt.textContent = ${JSON.stringify(SCENE_CSS)}; document.head.appendChild(__scnSt);
 const __scnTop = document.createElement('div'); __scnTop.className = 'moj-scene-bar top'; document.body.appendChild(__scnTop);
 const __scnBot = document.createElement('div'); __scnBot.className = 'moj-scene-bar bottom'; document.body.appendChild(__scnBot);
@@ -132,7 +134,7 @@ function __stepScenes(dtSec) {
   // the world clock (worlds/controllable/world-clock.js): a scene's moments fired, or ended early (a page without a clock
   // has none to fire)
   if (o.tempo.length && window.__mojTempo) for (const x of o.tempo) { if (x.end) window.__mojTempo.end(x.on); else window.__mojTempo.fire(x.on); }` : ''}
-  const v = __SCN.view(__scn), bar = (v.bars * 11).toFixed(2) + 'vh';${voices ? `
+  const v = __scnView(), bar = (v.bars * 11).toFixed(2) + 'vh';${voices ? `
   __voxStep(v);` : ''}${takes ? `
   // THE TAKES (scene-takes.js): while a script's line plays, its cast plays the script's clip at the line's phase; held
   // (played out, waiting on the press) or between lines, each goes back to its own clips, the idle's breath and blink
@@ -162,5 +164,5 @@ function __stepScenes(dtSec) {
   if (!v.on) __scnHeld = false;
   __scnHolding = v.on;
 }
-window.__mojScenes = { on: () => __SCN.view(__scn).on, view: () => __SCN.view(__scn), next: () => { __scnNext = true; }, skip: () => { __scnSkip = true; }, pick: (k) => { __scnPick = k; } };`;
+window.__mojScenes = { on: () => __SCN.view(__scn).on, view: () => __scnView(), next: () => { __scnNext = true; }, skip: () => { __scnSkip = true; }, pick: (k) => { __scnPick = k; } };`;
 }

@@ -60,7 +60,8 @@ const TIME_MAP = 'lib/graph/shoot/time.js';
 const WORLD_CLOCK = 'lib/graph/worlds/controllable/world-clock.js';
 const CLOCK = { status: 'built', since: '2026-11-02', lowers: WORLD_CLOCK };
 const REPLAY = { status: 'partial', effort: 'M', pkg: 'replay', lowers: TIME_MAP };
-const KEYED = { status: 'partial', effort: 'M', pkg: 'keying', lowers: TIME_MAP };
+// keying in play (11-23): a level's bodies posed on their layer's key, the world and the camera on ones
+const KEYED = { status: 'built', since: '2026-11-23', lowers: 'lib/graph/worlds/controllable/keying.js' };
 // the main quest (11-04): a chapter's turn waits on its overlay; side quests placed by the quest wait on their package
 const MAIN_QUEST = 'lib/graph/gameworld/main-quest-lay.js';
 const QUEST_TURNS = { status: 'partial', effort: 'M', pkg: 'quest-turns' };
@@ -222,9 +223,9 @@ export const TIME = Object.freeze({
     grain: {
       values: {
         ones: { status: 'built', note: 'the world on every frame' },
-        twos: { ...KEYED, note: 'the world shown on twos, the camera on ones (a shot\'s grain); a rendered film and an actor scene; in play a body\'s clips run continuous (the face reads on twos, anime-read.js)' },
-        threes: { ...KEYED, note: 'the world on threes, the camera on ones; as twos' },
-        mixed: { status: 'absent', effort: 'M', pkg: 'keying', note: 'characters on twos, the camera and the ground on ones, each layer its own grain: the map steps the whole world' },
+        twos: { ...KEYED, note: 'the world shown on twos, the camera on ones: offline a shot\'s grain (a rendered film, an actor scene); in play a level\'s keying, each animated body posed twelve times a second and held between, its place on ones (a world\'s `keying`, \'auto\' on the cel look)' },
+        threes: { ...KEYED, note: 'the world on threes, the camera on ones; as twos, eight poses a second' },
+        mixed: { ...KEYED, note: 'each layer its own grain: in play a level\'s keying by layer ({ hero, cast }: the hero on ones and the cast on twos, or both on threes), the camera, the ground and the effects on ones' },
       },
     },
     framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, status: 'built', note: 'the shot rule frames its subjects by these words' } },

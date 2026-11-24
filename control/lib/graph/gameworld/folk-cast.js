@@ -28,7 +28,9 @@
  * WHAT THEY SAY. A talk menu each (playscape/ui/menus.js), opened by using them (a `use` cue, the interact key): the
  * line book's chitchat and service talk (folk/lines.js), or the operator's `folk.say`. Never the plot. With `talk: 'box'`
  * (a world whose levels carry the game's UI on mana-ui, `ui`) the same lines are a scene each, said by them in the talk
- * box (playscape/ui/talk-box.js): their name over it, their own body drawn live in its portrait, played each time.
+ * box (playscape/ui/talk-box.js): their name over it, their own body drawn live in its portrait, played each time. One
+ * whose `say` is paged (folk/pages.js) is a scene a page, the first page whose `if` holds said; in a talk menu, the
+ * default page.
  *
  * Pure.
  */
@@ -37,6 +39,7 @@ import { withGeocube } from '../era/geocube.js';
 import { folkOfTown, lotKey } from '../folk/folk.js';
 import { folkBodies } from '../folk/bodies.js';
 import { linesFor, speakerOf } from '../folk/lines.js';
+import { pageConds } from '../folk/pages.js';
 import { sidequestsOn, lowerSidequests, dispatchCues, whoOf } from '../folk/sidequests.js';
 import { settingOfGame } from './cast-setting.js';
 import { libraryFigure, stand, standRule } from './stage-figures.js';
@@ -118,6 +121,9 @@ export function folkExtra(plan, refOf, { shops = null, talk = 'menu' } = {}) {
   const keeps = !shops ? new Map() : new Map([
     ...(shops.merchant && sellers[0] ? [[sellers[0].path, shops.merchant]] : []),
     ...(shops.inn ? (() => { const w = heads.find((p) => p.service === 'innkeep') ?? sellers[1] ?? heads.find((p) => useOf(p) === 'dwelling'); return w ? [[w.path, shops.inn]] : []; })() : []),
+    // (the temple kept by its priest, the smithy by its smith: era/town-trades.js)
+    ...(shops.temple ? (() => { const w = heads.find((p) => p.service === 'shrine'); return w ? [[w.path, shops.temple]] : []; })() : []),
+    ...(shops.smith ? (() => { const w = heads.find((p) => p.service === 'smith'); return w ? [[w.path, shops.smith]] : []; })() : []),
   ]);
   return (ends) => {
     const doors = new Map((ends.townDoors ?? []).map((d) => [d.id, d]));
@@ -190,11 +196,14 @@ export function folkExtra(plan, refOf, { shops = null, talk = 'menu' } = {}) {
     for (const p of plan.folk.people) {
       const S = stood.get(p.path);
       if (!S) continue;
-      const { id, at } = S, chat = `talk-${id}`, { speaker, lines } = linesFor(p, plan.folk, { say: plan.say });
+      const { id, at } = S, chat = `talk-${id}`, { speaker, lines, pages } = linesFor(p, plan.folk, { say: plan.say });
       // (said in the talk box, `talk: 'box'`: a scene of their lines, said by them, their face in the box, played each
       // time they are spoken to; one in a sidequest's chain keeps its menus, which its dispatch opens)
       const boxed = talk === 'box' && !SQ?.talks[id];
-      if (boxed) scenes.push({ id: chat, when: { on: `folk-say:${id}` }, once: false, names: { [id]: speaker }, beats: lines.map((say) => ({ line: { who: id, say } })) });
+      // (their PAGES, folk/pages.js: a scene a page on the same talk, each held to its own if and to every page above it
+      // failing, so the one page whose time it is is said; a branch a scene where a page above had conditions)
+      if (boxed && pages) pageConds(pages).forEach((branches, k) => branches.forEach((cond, j) => scenes.push({ id: `${chat}-p${k + 1}${branches.length > 1 ? `-${j + 1}` : ''}`, when: { on: `folk-say:${id}` }, ...(cond.length ? { if: cond } : {}), once: false, names: { [id]: speaker }, beats: pages[k].lines.map((say) => ({ line: { who: id, say } })) })));
+      else if (boxed) scenes.push({ id: chat, when: { on: `folk-say:${id}` }, once: false, names: { [id]: speaker }, beats: lines.map((say) => ({ line: { who: id, say } })) });
       else menus.push({ id: chat, kind: 'talk', who: speaker, lines });
       const open = boxed ? { emit: `folk-say:${id}` } : { open: chat };
       const P = potter[id];
@@ -227,6 +236,12 @@ export function folkExtra(plan, refOf, { shops = null, talk = 'menu' } = {}) {
       const own = SQ?.talks[id];
       // (a keeper of the world's shops: using them opens the shop, or the inn)
       const sh = keeps.get(p.path);
+      // (a keeper who follows the story, their say paged: their page said first, their shop opened as the talk ends)
+      if (sh && !own && boxed && pages) {
+        cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: sh.prompt }, then: open });
+        scenes.filter((x) => x.when.on === `folk-say:${id}`).forEach((x, k) => cues.push({ id: `${id}-shop-${k + 1}`, when: { on: `scene-end:${x.id}` }, then: { emit: `rpg-shop:${sh.id}` } }));
+        continue;
+      }
       if (sh && !own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: sh.prompt }, then: { emit: `rpg-shop:${sh.id}` } }); continue; }
       if (!own) { cues.push({ id: `${id}-talk`, when: { use: { at: [at[0], at[1]], r: REACH }, prompt: 'Talk' }, then: open }); continue; }
       // (its use cue opens nothing itself: its `cue:<id>` event is the press the dispatch reads)

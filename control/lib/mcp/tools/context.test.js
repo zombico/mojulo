@@ -807,7 +807,10 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // Grown 2026-11-17 (9_060 -> 9_100; measured 9,085 widest cell, studio+plain+pedagogical): the WORLD row's exhibit
   // says its `start` (someone fitting an exhibit to their own people and time is produced first: nothing built, the one
   // question to ask), which had no route in: the row sent every exhibit ask straight to the making.
-  const MODE_CEILINGS = { studio: 9_100 };
+  // Grown 2026-11-24 (9_100 -> 9_160; measured 9,136 widest cell, studio+mojulo+pedagogical): the fifth start, a home
+  // or a room, on the Guards line for a visitor with no ask, and the HOUSE row's interior sending someone's own home to
+  // mint_building's `start` first (the home's producer: nothing built, the one question to ask), which had no route in.
+  const MODE_CEILINGS = { studio: 9_160 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

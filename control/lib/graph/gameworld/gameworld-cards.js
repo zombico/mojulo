@@ -15,6 +15,7 @@
  */
 import { FACILITY_IDS } from '../era/facilities.js';
 import { LAYOUT_IDS } from '../era/room-layouts.js';
+import { ROUND_BOSS_IDS } from './round-bosses.js';
 import { MOTIVATIONS, LABOURS, WORLD_SHAPES, ORDER_KINDS, SIDE_SHARE } from './gmn.js';
 import { RAIL_IDS, SIZES, OWN, seenSays, railOf, railShapes, railSheet, variantOf } from './rails.js';
 import { levelKindLine } from './level-kinds.js';
@@ -26,6 +27,7 @@ import { ELEMENT_WORDS } from './element-words.js';
 import { UNDERLAYERS } from './hero-looks.js';
 import { AXES, VIBES } from './hero-vibe.js';
 import { POLES, POLE_IDS, variantsOf } from './feel/cards.js';
+import { WIN_OF_CLASS } from '../egocube/moves.js';
 import { feelCard as feelCardOf, lowerFeel } from './feel/lower.js';
 import { TEMPLATE_ARSENALS, KNOCK_WORDS } from './combos.js';
 import { STYLISH, VITALS_LOOKS } from './style-meter.js';
@@ -447,13 +449,14 @@ function worldCard() {
     '    or planned: { plan: { size, rows, route, key }, segments? } for rows: segments walked in turn, each written apart, its gates the plan\'s.',
     'megaworld: { shape: mandala | chain | hub | open, rings: [[zones]], gates?: { <zone>: { key, keyAt } | { needs } } }: maps joined as a topology, the links',
     '  laid from it; the loaded map the current map (kept in the save; leaving by a way completes nothing; a mandala\'s core its end).',
+    '  saves: [zones] (save points); crossings: [{ from, to, by: ship|airship, needs? }]',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'front: the game\'s title, start menu and credits (card front).',
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '  in a map, a link may take key: \'<item>\', keyAt: \'<level>\': the item there opens it (a trail, or a city roof in reach);',
     '  a hero\'s power as the key also gives the hero its move.',
-    '  needs: \'<flag>\' (a quest\'s): the way shut till the story sets it (no dungeon before its quest).',
+    '  needs: \'<flag>\' (a quest\'s, battles.sets): the way shut till the story sets it.',
     `screen: ${Object.keys(SCREENS).join(' | ')} | { aspect } (a new game: ${NEW_GAME_SCREEN ?? 'none, it fills its window'}).`,
     '',
     'ANSWER FROM: the brief\'s places and moods. One level that promises the rest beats many; the world bible draws each.',
@@ -990,8 +993,8 @@ const quickShared = () => [
 
 function battlesCard() {
   return lines(
-    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, foe?, looks?,',
-    '  shops?, rest?, random?, classes?, skills?, foes?, items?, rules?, manual?, tree? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
+    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { on?, board?, party?, packs?, per?, boss?, bossPages?, foe?, looks?,',
+    '  heights?, shops?, rest?, random?, classes?, skills?, foes?, items?, states?, rules?, manual?, tree?, wins?, chests? }. The book\'s battles page reads them back. Absent: no battles (a turn-based cube asks for them: the',
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
@@ -1003,10 +1006,12 @@ function battlesCard() {
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
     '        last (a building\'s: its goal room), with no escape; sets: the story flag its fall sets (a quest\'s last step).',
-    '        foe: { <hero-door words> } how a foe stands on the map, or { species, ooze?, stylism? }:',
-    '        a beast on its own gaits (a wolf pack, dire wolves); walk up to one to fight.',
+    '        foe: one look for every foe (hero-door words, or a beast { species, ooze?, stylism? }); walk up to fight.',
     'looks   each foe its own: { <foe id>: { species, ooze?, stylism? } a beast | { people, facets?, dress? } a people (a',
-    '        lineage, the beast-kin: lupine, feline …, the undead: skeleton, zombie) | hero-door words }; the presets\' own.',
+    '        lineage, the beast-kin, the undead) | hero-door words }; heights: { <foe id>: metres } a beast\'s.',
+    `boss    composed: its story's (${ROUND_BOSS_IDS.join(', ')}), written to edit.`,
+    `wins    { <class>: <pose> } a class's victory pose (starters: ${Object.values(WIN_OF_CLASS).join(', ')}).`,
+    'chests  n (0-4) a fighting stage (E opens one), or { n, locked?, mimics? }.',
     'shops   a merchant (wares by how far on, bought back at half) and an inn (a night: HP, MP, cured) beside each fighting',
     '        stage\'s start: shops: false | { wares?: [ids], inn?: gold | false }. Where an inn stands it is the rest.',
     'hub     the world\'s hub: \'<level>\' (topology interconnected): the town every way leads back to, no fights in it,',
@@ -1015,8 +1020,8 @@ function battlesCard() {
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
     '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
-    'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss? } }: a row',
-    '        REPLACES its preset whole, its skills and drops too: name them again.',
+    'foes    { <id>: { hp, mp?, atk, def, mag, spd, xp, gold, skills?, drops?: [{ item, chance }], weak?, boss?, pattern?, phases? } }: a row',
+    '        REPLACES its preset whole. pattern, phases, bossPages, states: play.rpg (PARTY BATTLES).',
     'manual  a setting\'s creatures, fielded: { polarity, creatures: [{ id, element, role }], affinity?, levels? } (a',
     '        lorecube manual at any depth): its foes, their skills and looks, a ladder of packs by role and level, its boss;',
     '        the page\'s own foes, looks, packs and boss win. What it lacks is derived and said (`lore`): write it to own it.',
@@ -1451,10 +1456,11 @@ function storyCard() {
     'A CUTSCENE TO ORDER from the animation studio: hand it this game\'s characters, places and what happens,',
     '  forge_motion({ film: { order: { from: <this ref>, for, cast, places, events: [{ id, notes }] } } }); it hands',
     '  the cutscene back ({ film: { ordered_by: <this ref> } } finds it). get_motion_vocab({ id: \'film-studio\' }).',
-    'quests: [{ id, name?, starts?: flag, steps: [{ log?, done: flag, moments?: [moment id] }] }]: every level keeps',
+    'quests: [{ id, name?, starts?: flag, steps: [{ log?, done: flag, moments?: [moment id], on?, at? }] }]: every level keeps',
     '  the journal (J), its flags carried level to level. A moment in step n waits until step n - 1 is done (in step 1,',
     '  until the quest begins); its own if holds too. A step\'s flag is set by a moment\'s sets, an answer, or a cue',
-    '  (emit \'flag:<name>\'); one nothing in the story sets is listed in the readout\'s story.unset.',
+    '  (emit \'flag:<name>\'), or on: an event (\'pickup:<item>\') or \'start\' on level at;',
+    '  one nothing sets is listed in the readout\'s story.unset.',
     'A COMPANION: characters.cast.<id>.joins: \'<flag>\'. Once the flag is set (an answer: { say: \'Come with me.\', sets:',
     '  [\'joined-teodor\'] }) they follow the hero, there and in every level after (the escort behaviour: they keep near',
     '  and fight what is hittable and not their own). Before it they stand where the story puts them, or are not there.',
@@ -1480,7 +1486,9 @@ function folkCard() {
     '           children, \'D + C1\' single, one parent (or { shape, children? }). Unasked, the dweller\'s age rolls it.',
     'WHAT THEY SAY: chitchat and a service\'s talk are written for them from a seeded line book, by their role, age,',
     '  temper, house and town, the town\'s open needs said aloud (no counter: "Folk trade over the fence."). The plot is',
-    '  never written. say: { <role | person path>: text | [text] } gives your words in place of the book\'s.',
+    '  never written. say: { <role | person path>: text | [text] } gives your words in place of the book\'s, or PAGES that',
+    '  follow the story: [{ if?: { flag | not | has | done | chapter | var }, say }], the first whose if holds said (the event',
+    '  pages: the priest says where the key is kept until it is held, then that the way is open).',
     'SIDEQUESTS: sidequests: [{ id, giver, steps: [{ talk: who, say? } | { reach: \'town-<use>-<n>\' }], name?, ask?,',
     '  thanks?, after?, back? }]. who: a role (\'keeper\', the first), a role and its count (\'townie-3\'), a recurring id.',
     '  The giver offers it; taken, the steps are a checklist in the journal (J), in order; done, back to the giver.',

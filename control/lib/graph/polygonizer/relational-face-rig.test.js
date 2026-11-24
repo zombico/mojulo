@@ -84,16 +84,22 @@ describe('the squint\'s squeeze', () => {
 
 describe('the realistic face rig', () => {
   let m, mesh, F, W;
-  const move = (t, re) => { const ti = F.targets.indexOf(t); let mx = 0; mesh.vertices.forEach((_, i) => { const k = F.sub[i]; if (k < 0 || !re.test(mesh.provenance[i].part)) return; const o = k * W + 3 + ti * 3; mx = Math.max(mx, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); }); return mx; };
+  // (the BROW, realistic laws 14: painted on the skin, dermal-brow.js, so it moves as the skin under it moves: the face's
+  // skin over each eye, 16 to 30 mm above its centre and within its span; a predicate where `move` takes a part's name)
+  let brow;
+  const move = (t, re) => { const ti = F.targets.indexOf(t); let mx = 0; mesh.vertices.forEach((_, i) => { const k = F.sub[i]; if (k < 0 || !(typeof re === 'function' ? re(i) : re.test(mesh.provenance[i].part))) return; const o = k * W + 3 + ti * 3; mx = Math.max(mx, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); }); return mx; };
   beforeAll(() => {
     const hero = heroRecord({ form: 'realistic', cast: 'female', face: { seed: 10, ethnicity: 'western' } });
     m = { ...expandLayeredManifest({ kind: 'layered', hero }), hero }; mesh = compileLayered(m.recipe);
     F = relationalFaceRig(m, mesh); W = (1 + F.targets.length) * 3;
+    const eyes = ['globeR', 'globeL'].map((g) => { const ps = Object.values(m.recipe.parts[g].mesh.points); return [0, 1, 2].map((a) => ps.reduce((t, q) => t + q[a], 0) / ps.length); });
+    const on = new Set(mesh.vertices.map((v, i) => i).filter((i) => { const v = mesh.vertices[i]; return mesh.provenance[i].part === 'headSkin' && eyes.some((e) => v[2] - e[2] > 0.016 && v[2] - e[2] < 0.03 && Math.abs(v[0] - e[0]) < 0.022 && v[1] > e[1] - 0.012); }));
+    brow = (i) => on.has(i);
   }, 600_000);
   it('squeezes the squint under realistic laws 15: the brows\' hairs ride the mass slid down over the eyes, the lashes as the lids draw them', () => {
     expect(m.recipe.headFit.relations?.squeeze).toBe(1);
     const ti = F.targets.indexOf('eyeSquint'); let down = 0;
-    mesh.vertices.forEach((_, i) => { const k = F.sub[i]; if (k >= 0 && /^hairBrows/.test(mesh.provenance[i].part)) down = Math.min(down, F.rows[k * W + 3 + ti * 3 + 2]); });
+    mesh.vertices.forEach((_, i) => { const k = F.sub[i]; if (k >= 0 && brow(i)) down = Math.min(down, F.rows[k * W + 3 + ti * 3 + 2]); });
     expect(down).toBeLessThan(0.75 * SQUINT_SQUEEZE.slide[2]);
     // (a row stamped before laws 15 keeps the squint it had: no squeeze in its head's relations)
     const old = heroRecord({ form: 'realistic', cast: 'female', face: { seed: 10, ethnicity: 'western' }, physique: { from: 'athletic', laws: 14 } });
@@ -128,7 +134,9 @@ describe('the realistic face rig', () => {
     // (realistic laws 10: the brow a band lying on the skin, riding it as the skin under it moves, ~2 mm; the blades' tips
     // stood off it and swung further; seated, laws 11, the brows hang lower on the fold, where the raise reaches a little
     // less)
-    expect(move('browRaise', /^hairBrows$/)).toBeGreaterThan(0.0015);
+    // (painted, laws 14: the skin it lies on, as the band rode it)
+    expect(m.recipe.parts.hairBrows).toBeUndefined(); expect(m.recipe.faceHairPaint).toBeTruthy();
+    expect(move('browRaise', brow)).toBeGreaterThan(0.0015);
     // (the scalp's hair stays, but for the fringe lying on the forehead's skin, which the frontalis lifts)
     const ti2 = F.targets.indexOf('browRaise'); let hair = 0, moved = 0;
     mesh.vertices.forEach((_, i) => { if (mesh.provenance[i].part !== 'hair') return; hair++; const k = F.sub[i]; if (k < 0) return; const o = k * W + 3 + ti2 * 3; if (Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2]) > 5e-4) moved++; });
@@ -143,7 +151,7 @@ describe('the realistic face rig', () => {
     expect(rightF).toBeLessThan(1e-4);
     // (its inner ends most of the way the raise lifts them, the tail kept: each brow's inner third and its outer, by the
     // brow's own span across the face; on this hero 0.65 of the raise's, the raise the stronger since the globe was covered)
-    const browHair = mesh.vertices.map((_, i) => i).filter((i) => /^hairBrows$/.test(mesh.provenance[i].part) && mesh.vertices[i][0] > 0), bx = browHair.map((i) => mesh.vertices[i][0]);
+    const browHair = mesh.vertices.map((_, i) => i).filter((i) => brow(i) && mesh.vertices[i][0] > 0), bx = browHair.map((i) => mesh.vertices[i][0]);
     const [bx0, bx1] = [Math.min(...bx), Math.max(...bx)], third = (t, lo, hi) => { const ti = F.targets.indexOf(t); let mx = 0; for (const i of browHair) { const u = (mesh.vertices[i][0] - bx0) / (bx1 - bx0), k = F.sub[i]; if (u < lo || u > hi || k < 0) continue; const o = k * W + 3 + ti * 3; mx = Math.max(mx, Math.hypot(F.rows[o], F.rows[o + 1], F.rows[o + 2])); } return mx; };
     expect(third('browWorried', 0, 1 / 3)).toBeGreaterThan(0.6 * third('browRaise', 0, 1 / 3));
     expect(third('browWorried', 2 / 3, 1)).toBeLessThan(0.3 * third('browRaise', 2 / 3, 1));
@@ -163,7 +171,7 @@ describe('the realistic face rig', () => {
     expect(mean(dz.up)).toBeGreaterThan(0.0008); expect(mean(dz.low)).toBeLessThan(-0.0008);
     // (the jaw: the lower face, the mouth's bag with it, by the bone; the eyes and the brows still)
     expect(move('jawOpen', /^headSkin$/)).toBeGreaterThan(0.01); expect(move('jawOpen', /^mouth$/)).toBeGreaterThan(0.005);
-    expect(move('jawOpen', /^(globe[RL]|hairBrows|hairLashes)$/)).toBeLessThan(1e-6);
+    expect(move('jawOpen', /^(globe[RL]|hairLashes)$/)).toBeLessThan(1e-6); expect(move('jawOpen', brow)).toBeLessThan(1e-6);
     for (const t of ['pucker', 'funnel', 'rollLower', 'rollUpper']) { expect(move(t, /^headSkin$/)).toBeGreaterThan(0.002); expect(move(t, /^(globe[RL]|hairLashes)$/)).toBeLessThan(1e-6); }
   });
   it('turns the lashes with their lids: an upper lash points up at rest and down when the lid is shut', () => {

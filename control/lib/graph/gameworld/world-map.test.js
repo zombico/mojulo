@@ -3,14 +3,14 @@
 // way out), its first zone after it, a zone a block after that, travelled zone to zone. The concept on two cases, one
 // per path: the smallest world (its last block the goal) and one with zones after its first.
 import { describe, it, expect } from 'vitest';
-import { worldMapLevel, WORLD_MAP, PLACE_LIGHT } from './world-map.js';
+import { worldMapLevel, wildsLevel, WILDS, WORLD_MAP, PLACE_LIGHT } from './world-map.js';
 import { composeGameworld, MAP_FLORA } from './compose.js';
 import { readGeocube } from '../era/geocube.js';
 import { castingCall } from './foe-casting.js';
 import { gameworldBibleHtml, readMade } from './index.js';
 import { readGrid } from '../level/grid.js';
 import { readSketch, sketchLaws, levelGrid } from '../level/map-sketch.js';
-import { mapWay } from '../level/map-items.js';
+import { mapWay, mapItems } from '../level/map-items.js';
 import { walkFrom } from '../level/grid.js';
 import { FOE_CLASSES } from '../foes/index.js';
 import { SIGHTS } from '../mind/vocab.js';
@@ -228,3 +228,27 @@ describe('the world map', () => {
     expect(() => readMade({ hero: { ...rec, play: { stored: print, pass: true, says: [] } } })).toThrow(/play is not part/);
   });
 });
+
+// A PARTY RPG'S WILDS (wildsLevel): the world map's blocks walked out from the town, one page; a pack on each block's way
+// past the first, none where the town opens on them, and no boss (the round's core holds it)
+describe('a party RPG\'s wilds', () => {
+  it('a stretch of the world map\'s blocks, each by its template, a pack on every way but the first block\'s', () => {
+    const { glyphs } = wildsLevel({ landscape: 'pine' }), P = glyphs.plan, G = readGrid({ tile: glyphs.tile, plan: P }, 'grid');
+    expect(P.route).toHaveLength(WILDS.length);
+    expect(P.size).toBe(WORLD_MAP.size);
+    // (a block a page, as the world map's zones after its first)
+    expect(glyphs.zoned).toEqual([]);
+    expect(P.route.map((S) => P.key[S].fill)).toEqual(WILDS.map((b) => b.fill));
+    expect(P.key[P.route[0]].name).toBe('the pine road');
+    // (the arrival from the town, then passages: the far block's way goes on to the next ring)
+    expect(Object.values(G.plan.segments).map((x) => x.role)).toEqual(['arrival', 'passage', 'passage']);
+    const items = mapItems(G);
+    expect(items.filter((x) => x.kind === 'pack').map((x) => x.segment)).toEqual(P.route.slice(1));
+    expect(items.some((x) => x.kind === 'boss')).toBe(false);
+    // (a second stretch reads as its own place: other names on the same blocks)
+    const next = wildsLevel({ landscape: 'pine', at: 1 }).glyphs.plan;
+    expect(next.route.map((S) => next.key[S].name)).not.toEqual(P.route.map((S) => P.key[S].name));
+    expect(next.route.map((S) => next.key[S].fill)).toEqual(P.route.map((S) => P.key[S].fill));
+  });
+});
+

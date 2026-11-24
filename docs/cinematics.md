@@ -218,6 +218,21 @@ It takes three things at once, on one envelope: the clock, the camera and the lo
 - **Cut to the impact cam on the event.** A live shoot plan's shot waiting on `tempo:<what fired>` cuts in as the
   moment fires.
 
+## Keying in play
+
+A shot's `grain` steps a rendered film on twos. In a level the same limited animation is the world's `keying`
+(`worlds/controllable/keying.js`): each animated body is posed on its key and holds that pose between keys, at a
+grain of 24 drawings a second. On twos that is 12 poses a second, on threes 8.
+
+- **Characters on twos, the camera on ones.** Only the poses are keyed. The world steps, the camera turns and the
+  effects play on every frame, so the hold reads as drawn rather than as a stutter.
+- **Each layer its own grain.** `{ hero, cast }` keys the hero the player pilots apart from everyone else, for
+  example the hero on ones for control and the cast on twos.
+- **The place on ones, or held with the pose.** By default a body slides through the level smoothly while its pose
+  holds. `root: 'held'` steps its place with its pose, the old cartoon's stride.
+- **Say it once for a game.** A gameworld's `keying` is laid on every level. `'auto'` follows the juice: the cel
+  look, whose effects are already drawn on twos, keys its bodies on twos too.
+
 ## Compositing
 
 The World page's grade (`scene/channels/grade.js`) is its compositing stage, the last thing laid over the frame, on the

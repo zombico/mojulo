@@ -229,3 +229,63 @@ describe('a stinger is not a soundtrack', () => {
     expect(resolveWorldAudio({ soundtrack: 'field:battle' }, { ref: 'lv' }).soundtrack).toMatchObject({ kind: 'beats-composition', loop: true });
   });
 });
+
+// A CUE'S SOUND (playscape/ui/cues.js `sound`): the words a level's play names, each voiced by its sound sheet as a cue
+// on `sfx:<word>`; a level that names none carries none
+describe('the sounds a level\'s play names', () => {
+  it('each word a cue of the sheet on its own event', () => {
+    const A = resolveWorldAudio({ sfx: { sheet: {} } }, { sounds: ['chime', 'door'] });
+    expect(A.on).toMatchObject({ 'sfx:chime': 'sfx-chime', 'sfx:door': 'sfx-door' });
+    expect(A.cues['sfx-chime']).toBeTruthy();
+    expect(Object.keys(resolveWorldAudio({ sfx: { sheet: {} } }).on ?? {}).some((k) => k.startsWith('sfx:'))).toBe(false);
+    expect(() => resolveWorldAudio({ sfx: { sheet: {} } }, { sounds: ['no-such-sound'] })).toThrow(/not a sound on the SFX shelf/);
+  });
+});
+
+// THE MUSIC AN EVENT CHANGES TO (a cue's `music`, playscape/ui/cues.js): each mood a level's play names a piece in the
+// soundtrack's identity; on the page, `music:<mood>` fades the place's score out and the piece in, `music:place` back.
+// A level that names none carries none of it
+describe('the music an event changes to', () => {
+  it('each mood a piece in the place\'s identity; stop and place none; named by none, not a byte', () => {
+    const A = resolveWorldAudio({ soundtrack: 'field:forest' }, { ref: 'lv', music: ['place', 'sorrow', 'stop'] });
+    expect(Object.keys(A.pieces)).toEqual(['sorrow']);
+    expect(A.pieces.sorrow).toMatchObject({ loop: true });
+    const plain = resolveWorldAudio({ soundtrack: 'field:forest' }, { ref: 'lv' });
+    expect(plain.pieces).toBeUndefined();
+    expect(audioChannelScript(plain)).not.toContain('__musicTo');
+  });
+
+  it('on the page: the piece faded in on its own engine as the score stops, and the place\'s score back', () => {
+    vi.useFakeTimers();
+    try {
+      const audio = resolveWorldAudio({ soundtrack: 'field:forest' }, { ref: 'lv', music: ['sorrow', 'place'] });
+      const script = audioChannelScript(audio);
+      const block = script.slice(script.indexOf('let __piece = null'), script.indexOf('window.__mojMusicTo'));
+      const ctx = { currentTime: 1 };
+      const engine = () => {
+        const gain = { value: 0.9, ramps: [], cancelScheduledValues() {}, setValueAtTime(v) { this.value = v; }, linearRampToValueAtTime(v) { this.ramps.push(v); this.value = v; } };
+        return { started: 0, stopped: 0, master: { gain }, startComposition() { this.started++; }, startPattern() { this.started++; }, startAmbient() { this.started++; }, stop() { this.stopped++; } };
+      };
+      const made = [], eng = engine(), bus = buildBus();
+      const run = new Function('__AUDIO', '__BUS', '__beatsCtx', '__beatsEng', '__beatsMuted', '__beatsVol', '__BEATS', '__BEATS_PATCHES',
+        `${block}; return { get piece() { return __piece; }, get eng() { return __pieceEng; } };`);
+      const env = run(audio, bus, ctx, eng, false, 1, { createEngine: () => { const e = engine(); made.push(e); return e; } }, {});
+      const state = bus.createBusState({ reactions: [] }, []);
+      bus.processEvents(state, [{ type: 'music:sorrow' }]);
+      expect(env.piece).toBe('sorrow');
+      expect(eng.stopped).toBe(1);
+      expect(made).toHaveLength(1);
+      expect(made[0].started).toBe(1);
+      expect(made[0].master.gain.ramps.at(-1)).toBeCloseTo(0.9, 6);
+      // (the same mood again: nothing)
+      bus.processEvents(state, [{ type: 'music:sorrow' }]);
+      expect(made).toHaveLength(1);
+      bus.processEvents(state, [{ type: 'music:place' }]);
+      expect(env.piece).toBe(null);
+      expect(made[0].master.gain.ramps.at(-1)).toBe(0);
+      vi.advanceTimersByTime(2000);
+      expect(made[0].stopped).toBe(1);
+      expect(eng.started).toBe(1);
+    } finally { vi.useRealTimers(); }
+  });
+});

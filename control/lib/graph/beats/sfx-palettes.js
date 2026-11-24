@@ -178,6 +178,7 @@ export const MECHANIC_SFX = {
   board: { 'board-won': 'goal', 'board-lost': 'lose', 'board-draw': 'lose' },
   map: { 'map-go:*': 'door' },
   runner: { 'run-won': 'goal', 'runner:crash': 'death' },
+  lock: { 'lock:open:*': 'checkpoint', 'lock:shut:*': 'thud' },
   'escape-room': { 'key:*': 'pickup', 'lock:locked': 'thud', 'lock:opened': 'checkpoint', 'escape:open:*': 'chime', 'escape:sealed:*': 'thud', 'escape:out:*': 'goal' },
 };
 

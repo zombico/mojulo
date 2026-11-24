@@ -118,12 +118,26 @@ function page(play, vars = {}, game = null, more = {}) {
   const api = new Function('document', 'window', '__busState', '__inputQueue', 'cfg', 'K', 'ctl', 'M', `return (${rpgPage.toString()})(cfg, K, ctl, ${juiceKeys.toString()}, M);`)(document, window, bus, queue, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl, M);
   let t = 0;
   const frames = (n = 1) => { for (let i = 0; i < n; i++) { t += 100; api.step(t); } };
-  const press = (code) => window.dispatchEvent(new window.KeyboardEvent('keydown', { code, bubbles: true, cancelable: true }));
+  const press = (code, key) => window.dispatchEvent(new window.KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true }));
   // what the page said on the bus, less the juice's happenings (rpg-on:<key>)
   const said = () => queue.filter((e) => !e.type.startsWith('rpg-on:'));
   const root = document.querySelector('.moj-rpg');
   return { api, bus, queue, said, frames, press, window, document, root };
 }
+
+describe('the page: a fight\'s own pages', () => {
+  it('a page is said in the message line as its moment comes, on the bus with the flag it sets', () => {
+    const play = { rpg: { party: PARTY, encounters: [{ id: 'drake', foes: ['drake'], pages: [{ when: { start: true }, who: 'Ember Drake', say: 'None leave.', sets: 'drake-woke' }] }] } };
+    const P = page(play);
+    processEvents(P.bus, [{ type: 'rpg-battle:drake' }]);
+    // (the appearing first, then the page: what the message line said, frame by frame)
+    const msgs = [];
+    P.frames();
+    for (let k = 0; k < 20 && P.api.state().phase === 'intro'; k++) { msgs.push(P.api.state().msg); P.api.advance(); P.frames(); }
+    expect([...new Set(msgs.filter(Boolean))]).toEqual(expect.arrayContaining(['Ember Drake appears!', 'Ember Drake: None leave.']));
+    expect(P.said().map((e) => e.type)).toEqual(expect.arrayContaining(['rpg-page:drake:0', 'flag:drake-woke']));
+  });
+});
 
 describe('the page: the battle window and the party menu', () => {
   it('a cue\'s rpg-battle opens the fight and holds the world; picks then a played-back round; the close says how it went', () => {
@@ -163,6 +177,30 @@ describe('the page: the battle window and the party menu', () => {
     expect(said[1].type).toBe(said[0].type.split(':')[0]);
   });
 
+  it('a fight won: its results, what it paid and what each member came away with, a level gained and what it raised; continue closes it', () => {
+    const foes = { slime: { name: 'Slime', hp: 1, atk: 0, def: 0, mag: 0, spd: 1, xp: 400, gold: 25 } };
+    const P = page({ rpg: { party: PARTY, foes, encounters: [{ id: 'slimes', foes: ['slime'] }] } });
+    processEvents(P.bus, [{ type: 'rpg-battle:slimes' }]);
+    P.frames();
+    for (let r = 0; r < 60 && P.api.state().screen !== 'rpg-spoils' && P.api.state().mode; r++) {
+      P.frames(10);
+      if (P.api.state().phase === 'command') { P.press('Enter'); P.press('Enter'); }
+    }
+    const S = P.api.state();
+    expect(S.screen).toBe('rpg-spoils');
+    expect(S.spoils).toMatchObject({ title: 'Victory!', xp: 400, gold: 25 });
+    const ayla = S.spoils.members.find((m) => m.id === 'ayla');
+    expect(ayla.up).toBe(true);
+    expect(ayla.level).toBeGreaterThan(1);
+    expect(ayla.stats.find((x) => x.label === 'HP').value).toMatch(/^\d+ → \d+$/);
+    expect(ayla.xp).toBeLessThanOrEqual(ayla.xpMax);
+    expect(P.document.querySelector('.moj-rpg').textContent).toContain('Level up!');
+    // (continue closes the fight, the win said)
+    P.press('Enter');
+    expect(P.api.state().mode).toBeNull();
+    expect(P.said().map((e) => e.type)).toContain('rpg-won:slimes');
+  });
+
   it('a join and a fight that arrive together: the one who joins fights', () => {
     const P = page({ rpg: { party: [...PARTY, { id: 'mira', class: 'cleric', joins: 'met-mira' }], encounters: PLAY.rpg.encounters } });
     processEvents(P.bus, [{ type: 'rpg-join:mira' }, { type: 'rpg-battle:wolves' }]);
@@ -173,7 +211,8 @@ describe('the page: the battle window and the party menu', () => {
   it('on the timeline the window asks only the one whose turn it is, and shows who comes next', () => {
     const P = page({ rpg: { ...PLAY.rpg, rules: { turns: 'timeline' } } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
-    P.frames(12);
+    // (the opening plays its beats, the foes who act before the first pick among them, then the window asks)
+    for (let k = 0; k < 400 && P.api.state().phase !== 'command'; k++) P.frames();
     const s = P.api.state();
     expect(s.phase).toBe('command');
     expect(s.member).toBe(P.api.R.b.turn);
@@ -204,6 +243,28 @@ describe('the page: the battle window and the party menu', () => {
     P.frames();
     P.press('KeyP');
     expect(P.api.state().mode).toBe('battle');
+  });
+
+  it('the party menu\'s Item and Formation: a potion used on the member in focus, two members trading places', () => {
+    const P = page(PLAY, { 'held:bag:potion': 1 });
+    P.api.R.m.ayla.hp = 3;
+    P.press('KeyP');
+    P.frames();
+    // (Status, Class, Equip, Skills, then Item)
+    for (let k = 0; k < 4; k++) P.press('BracketRight');
+    P.frames();
+    expect(P.root.textContent).toContain('Potion');
+    P.press('ArrowRight'); P.press('Enter');
+    expect(P.api.R.m.ayla.hp).toBeGreaterThan(3);
+    expect(P.bus.vars['held:bag:potion']).toBe(0);
+    P.frames();
+    expect(P.root.textContent).toContain('Potion for Ayla.');
+    // (Formation: Ayla in focus, traded with the second in the order)
+    P.press('ArrowLeft'); P.press('BracketRight'); P.frames();
+    const order0 = P.api.R.order ?? null;
+    P.press('ArrowRight'); P.press('ArrowDown'); P.press('Enter');
+    expect(order0).toBeNull();
+    expect(P.api.R.order.slice(0, 2)).toEqual(['bram', 'ayla']);
   });
 
   it('a pad: its select opens the party menu, its confirm (wherever its layout prints it) acts in it', () => {
@@ -331,6 +392,31 @@ describe('the party menu: Equip', () => {
   });
 });
 
+describe('the party menu: a member named again', () => {
+  it('Rename opens the keyboard: typed from the keys (P a letter there), done names them, said, and carried on the store', () => {
+    const out = [], g = { contract: { party: { slice: 'party' } }, onStart: (cb) => cb({}, 1), emit: (e) => out.push(e) };
+    const P = page(PLAY, {}, g);
+    P.frames();
+    P.press('KeyP');
+    P.press('ArrowRight'); P.press('Enter');   // Status: its Rename
+    expect(P.api.state().screen).toBe('rpg-name');
+    for (let i = 0; i < 6; i++) P.press('Backspace', 'Backspace');
+    for (const k of 'Pia') P.press('Key' + k.toUpperCase(), k);
+    expect(P.api.state().screen).toBe('rpg-name');   // the P typed, the menu kept open
+    P.press('Enter', 'Enter');
+    expect(P.api.state().screen).toBe('rpg-party');
+    expect(P.root.textContent).toContain('Pia');
+    expect(out.filter((e) => e.type === 'rename')).toEqual([{ type: 'rename', slice: 'party', id: 'ayla', name: 'Pia' }]);
+  });
+  it('a name carried in on the roster is the member\'s in the next level', () => {
+    const g = { contract: { party: { slice: 'party' } }, onStart: (cb) => cb({ party: { roster: { ayla: { name: 'Pia', stats: { lv: 2 } } } } }, 1), emit: () => {} };
+    const P = page(PLAY, {}, g);
+    P.frames();
+    P.press('KeyP');
+    expect(P.root.textContent).toContain('Pia');
+  });
+});
+
 describe('the party carried between levels (the party mechanic)', () => {
   const S = buildGameStoreKernel();
   // a game channel just big enough: the contract's party slice, the params it starts with, what is emitted
@@ -352,10 +438,10 @@ describe('the party carried between levels (the party mechanic)', () => {
     expect(R2.m.ayla.cl.fighter.lv).toBe(3);
   });
 
-  it('the mechanic: consumes the party slice, produces setStat into it, names it for the page', () => {
+  it('the mechanic: consumes the party slice, produces setStat and rename into it, names it for the page', () => {
     const schema = { slices: [{ name: 'party', kind: 'party' }, { name: 'campaign', kind: 'progression' }] };
     const c = composeMechanics([{ kind: 'reach-exit', at: [1, 0, 0] }, { kind: 'party' }], { storeSchema: schema });
-    expect(c).toMatchObject({ party: { slice: 'party' }, consumes: [{ slice: 'party' }], produces: [{ type: 'setStat', slice: 'party' }] });
+    expect(c).toMatchObject({ party: { slice: 'party' }, consumes: [{ slice: 'party' }], produces: [{ type: 'setStat', slice: 'party' }, { type: 'rename', slice: 'party' }] });
     expect(() => composeMechanics([{ kind: 'reach-exit', at: [1, 0, 0] }, { kind: 'party' }], { storeSchema: { slices: [{ name: 'campaign', kind: 'progression' }] } })).toThrow(/party/);
   });
 
@@ -445,7 +531,7 @@ describe('the bars over the fighters\' heads', () => {
   };
   // (the scene's projection: a plain one, the field seen from the side)
   const project = (x, y, z) => [400 + 30 * x, 500 - 30 * z, 0.5];
-  it('each member a bar over its head, no name; the one picking marked; the target in focus marked; a status said; the window steps aside as a round plays', () => {
+  it('the one picking a bar over its head, no name, marked; aiming, only the target in focus its bar, marked; a status said; the window and the bars without news step aside as a round plays', () => {
     const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0, project } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames(); P.api.advance(); P.frames();
@@ -453,12 +539,19 @@ describe('the bars over the fighters\' heads', () => {
     expect(head('ayla').querySelector('.mana-badge[data-turn]')).not.toBeNull();
     expect(head('ayla').querySelector('.mana-bar[data-variant=hp]')).not.toBeNull();
     expect(head('ayla').textContent).not.toContain('Ayla');
-    // (the one picking is Ayla; aiming an attack, the pack's figure is marked where it stands)
+    // (on the player's turn only the one picking: no foe's bar, no other member's, so the rest of the cast is seen)
+    const foes = P.api.R.b.foes.map((x) => x.uid), shows = (id) => !!(head(id) && head(id).querySelector('.mana-bar'));
+    for (const f of foes) expect(shows(f)).toBe(false);
+    for (const m of P.api.R.b.ids.filter((x) => x !== 'ayla')) expect(shows(m)).toBe(false);
+    // (aiming an attack: the target in focus its bar, marked over its head; the others none; moved on, the next one's)
     P.press('Enter');
     expect(P.api.state().level).toBe('target');
-    expect(head('fig-wolf-1').querySelector('.mana-badge[data-variant=strong]')).not.toBeNull();
+    expect(foes.filter(shows).length).toBe(1);
+    const first = foes.find(shows);
+    expect(head(first).querySelector('.mana-badge[data-variant=strong]')).not.toBeNull();
+    if (foes.length > 1) { P.press('ArrowDown'); P.frames(); expect(foes.filter(shows).length).toBe(1); expect(foes.find(shows)).not.toBe(first); }
     P.press('Escape');
-    expect(head('fig-wolf-1')).toBeNull();
+    for (const f of foes) expect(shows(f)).toBe(false);
     // (a member poisoned: its head says so)
     P.api.R.m.ayla.poison = true; P.frames();
     expect(head('ayla').querySelector('.mana-status[title=poison]')).not.toBeNull();
@@ -467,13 +560,17 @@ describe('the bars over the fighters\' heads', () => {
     expect(H.state().mode).toBe('battle');
     for (let k = 0; k < 400 && H.state().mode === 'battle'; k++) { H.act('accept'); P.frames(); if (H.state().acting) break; }
     expect(H.state().acting).toBe(true);
-    expect(P.root.querySelector('.mana-anchors:not([data-pass])')).toBeNull();
+    // (no window up while it plays, and of the bars only those whose numbers just moved)
+    expect(P.root.querySelector('.mana-screen:not([data-leaving]) .mana-window')).toBeNull();
+    const all = P.api.R.b.ids.length + foes.length;
+    expect(P.root.querySelectorAll('.mana-hud .mana-anchors:not([data-pass]) .mana-anchor, .mana-anchors:not([data-pass]) .mana-anchor').length).toBeLessThan(all);
   });
-  it('a blow\'s number rises over whoever it lands on, each its own; the foes\' box keeps the foes\' health a bar', () => {
+  it('a blow\'s number rises over whoever it lands on, each its own; no foes\' box, a foe\'s health its bar\'s, never its numbers', () => {
     const P = page(PLAY, {}, null, { __mojCtrl: { world: world(), cast() {}, ground: () => 0, project } });
     processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
     P.frames(); P.api.advance(); P.frames();
-    expect(P.root.querySelector('.mana-place[data-at=bottom-right] .mana-bar .mana-num')).toBeNull();
+    expect(P.root.querySelector('.mana-place[data-at=bottom-right] .mana-window')).toBeNull();
+    for (const x of P.api.R.b.foes) expect(P.root.querySelector(`.mana-anchor[data-key="a${x.uid}"] .mana-num`)).toBeNull();
     const keys = new Set();
     for (let k = 0; k < 200 && P.api.state().mode === 'battle'; k++) {
       if (P.api.state().phase === 'command') P.press('Enter');

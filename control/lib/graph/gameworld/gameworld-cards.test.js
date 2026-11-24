@@ -103,7 +103,12 @@ describe('the rail\'s cards', () => {
     // gameworld-next 5504 → 5632, the `front` move, one line; 5417 bytes before, 5540 with it; gameworld-interface
     // 4736 → 4864 the same day: the start screen's ground graphic, a picture the creator brings its `background`, one
     // line, the character or the picture, never both: 4838 bytes)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 5888, 'gameworld-next': 5632, 'gameworld-interface': 4864, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // (2026-11-24, 1123-keying-fixes: gameworld-interface 4864 → 4992, the intent looks' two new genres, the cinematic
+    // action adventure and bullet-time action, each on the core's register: 4838 bytes before, 4891 with them)
+    // (2026-11-21: gameworld-battles 5888 → 6144: `wins`, the victory pose each class strikes and its starters, one line)
+    // (2026-11-24, 1119-jrpg-starter-cont merged with 1116-rc: gameworld-interface 4864 → 4992: the candidate's start
+    // screen and the branch's lines read together, 4880 bytes)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6144, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

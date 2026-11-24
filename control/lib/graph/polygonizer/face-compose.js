@@ -88,9 +88,11 @@ export const FACE_SHAPES = Object.freeze({
 });
 export const FACE_FEATURES = Object.freeze(Object.keys(FACE_SHAPES));
 /** the sex's own weights over the shapes (× the bucket's; absent × 1): on a man the plucked and the refined shapes rarer
- * (a thin or a high-arched brow, large eyes, a heart's chin and outline), never gone */
+ * (a thin or a high-arched brow, large eyes, a heart's chin and outline), never gone; on a woman the heavy and the level
+ * brow rarer, the arched likelier (a woman's brow is finer and arches higher: the painted brow, dermal-brow.js) */
 export const FACE_SEX_WEIGHTS = Object.freeze({
   male: { brows: { thin: 0.15, arched: 0.25 }, eyes: { large: 0.35 }, chin: { heart: 0.35, pointed: 0.6 }, outline: { heart: 0.35 } },
+  female: { brows: { thick: 0.3, straight: 0.5, arched: 1.6 } },
 });
 /**
  * THE PROPORTIONS — what differs person to person whatever the character: the skull's length and breadth, the vault's
@@ -113,8 +115,11 @@ export const FACE_GROOMS = Object.freeze({
   lashes: { density: [0.7, 1.4], length: [0.85, 1.2] },
 });
 /** the sex's own weight over the rolled grooms (× the rolled share; absent × 1): a man's brows taller and fuller (the male
- * pole's, 2026-10-22, the operator's eyes) */
-export const FACE_GROOM_SEX = Object.freeze({ male: { brows: { thickness: 1.6, density: 1.4 }, lashes: { length: 0.85 } } });
+ * pole's, 2026-10-22, the operator's eyes); a woman's a little finer */
+export const FACE_GROOM_SEX = Object.freeze({ male: { brows: { thickness: 1.6, density: 1.4 }, lashes: { length: 0.85 } }, female: { brows: { thickness: 0.85 } } });
+/** the brow's arch by sex (epidermis.js BROW_SHAPES `arch`, 0 level … 1 high): a share of the way toward high (+) or
+ * toward level (−) over the shape word's; a woman's brow arches higher than a man's, whatever its word */
+export const FACE_BROW_ARCH = Object.freeze({ female: 0.3, male: -0.15 });
 /**
  * THE NOSE'S AXIS — one roll per face, −1 … 1, from a SHORT, FLAT nose (less projected, shorter, its parts smaller, its
  * root lower, its base wider, its bridge broader) to a LONG, POINTED one (more projected, longer, a finer bridge and a
@@ -328,43 +333,63 @@ const ACCENT = Object.freeze({ chance: 0.35, far: 1 });
  *                `mixed: { of, with, share }`)
  * A lid roll may name `none`: the rig's own lid (a crease and a lid space, no cover).
  */
+/** the East and North Asian eye, read as a game's character reads it: WIDER and LESS TALL than the pole's (the fissure
+ * ~1.5 mm lower, the eye ~1.5 mm longer), never slanted (the tilt stays the rolls'). The height comes off the LOWER lid,
+ * `lidSplit` raised so the upper margin stays where the pole holds it over the iris and the lower rises to the iris's
+ * edge (lowered from above, the white showed under the iris: a tired eye). The tilt turns about the pupil (`tiltPivot`),
+ * so a lifted outer corner no longer lifts the whole opening off the iris (the upper lid clear of it, the lower over a
+ * third of it). The globe set toward the inner corner (`globeShift`), as the fold covering the inner corner reads and
+ * the references show: the white runs long to the temple, the opening reaching OUT, not leaning in to the nose; the
+ * inner canthi wider apart by as much (`set`, the intercanthal's offset), so the pupils stay where they were (their
+ * spacing to the fissure's length ~1.4, after the anthropometry: ~36 mm to ~26). The flesh TENTED from the low root
+ * over the inner corner (`tent`: the fold is that skin, never a roll on the lid; the lids and their lashes ending where
+ * it takes the corner over, `innerClose`), and the outer corner's lids meeting at a point just past the globe
+ * (`outerClose`), as the inner's do, where a pale wall had stood at the opening's end. The
+ * eye's setting brought forward against the nose's root and the brow (`root`, the radix's offset: the nasion ~7 mm
+ * ahead of the cornea where the pole's is ~11, as a low root measures; `brow`, the brow's projection's, ~1.5 mm back),
+ * so no pocket stands between the bridge and the inner corner from the side. The `large` shape (a taller, rounder eye)
+ * rolled rarely */
+export const EAST_ASIAN_EYE = Object.freeze({ fifths: 0.012, fissure: -0.006, lidSplit: 0.06, tiltPivot: 0.5, globeShift: 0.035, set: 0.07, tent: 1, innerClose: 0.006, outerClose: 0.011, root: -0.018, brow: -0.006, large: 0.25 });
+const EAST_ASIAN_EYE_BASE = Object.freeze({ fifths: EAST_ASIAN_EYE.fifths, fissure: EAST_ASIAN_EYE.fissure, lidSplit: EAST_ASIAN_EYE.lidSplit, tiltPivot: EAST_ASIAN_EYE.tiltPivot, globeShift: EAST_ASIAN_EYE.globeShift, tent: EAST_ASIAN_EYE.tent, innerClose: EAST_ASIAN_EYE.innerClose, outerClose: EAST_ASIAN_EYE.outerClose });
 export const FACE_BUCKETS = Object.freeze({
   western: { note: 'European ancestry (western and northern Europe, the Nordic): the canon as built', ancestry: ['european'], weights: {}, nose: { mean: 0.15, spread: 0.7 }, bald: 1 },
   'north-asian': {
     note: 'Northeast Asian ancestry: Mongolia, Korea, northern China, the Siberian peoples (the asiatic look\'s centre)',
     hairMale: 'east-asian', beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
     ancestry: ['east-asian'],
-    // a broad, round, short vault; a broad face with high, forward, flat cheekbones and a fuller jaw; the inner canthi
+    // a broad, round, short vault; a broad face with high, forward, flat cheekbones and a fuller jaw; the eye wider and
+    // less tall (`EAST_ASIAN_EYE`); the inner canthi
     // wide apart under a low, flat root (a broad bridge, the nose leaning short and flat); a light brow ridge over a flat
     // brow; thinner lips. The lid most often a monolid or an in-fold, the epicanthic fold common
     base: {
-      cephalic: 0.03, headLength: -0.015, faceWidth: 0.02, jaw: 0.02, malarDepth: -0.006, intercanthal: 0.14, nasalIndex: 0.08, radix: -0.012,
-      nasionDepth: -0.004, dorsum: 0.15, browProjection: -0.005, brow: -0.08, forehead: 0.004, lipFullness: -0.05, upperVermilion: -0.002,
+      cephalic: 0.03, headLength: -0.015, faceWidth: 0.02, jaw: 0.02, malarDepth: -0.006, intercanthal: 0.1 + EAST_ASIAN_EYE.set, nasalIndex: 0.08, radix: EAST_ASIAN_EYE.root,
+      ...EAST_ASIAN_EYE_BASE,
+      nasionDepth: -0.004, dorsum: 0.15, browProjection: -0.005 + EAST_ASIAN_EYE.brow, brow: -0.08, forehead: 0.004, lipFullness: -0.05, upperVermilion: -0.002,
     },
     nose: { mean: -0.35, spread: 0.55 },
     lids: { monolid: 2, 'inner-fold': 2, hooded: 1, parallel: 0.5 },
     bald: 0.5,
-    weights: { eyes: { deep: 0, hooded: 0, large: 0.6 }, nose: { classical: 0.4, soft: 1.4 }, cheeks: { sculpted: 1.3 }, lips: { fine: 1.3 }, brows: { straight: 1.6 } },
+    weights: { eyes: { deep: 0, hooded: 0, large: EAST_ASIAN_EYE.large }, nose: { classical: 0.4, soft: 1.4 }, cheeks: { sculpted: 1.3 }, lips: { fine: 1.3 }, brows: { straight: 1.6 } },
   },
   'east-asian': {
     note: 'East Asian ancestry, China\'s centre and south and Japan (the base after East Asian anthropometry, e.g. Farkas et al. 2005)',
     ancestry: ['east-asian'],
     hairMale: 'east-asian', beard: { styles: { clean: 6, stubble: 2, goatee: 1, moustache: 0.8, 'short-boxed': 0.5, full: 0.15, 'van-dyke': 0.3, 'chin-strap': 0.3 }, fullness: [0.35, 0.75] },
-    // a rounder, shorter vault; the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
+    // a rounder, shorter vault; the eye wider and less tall (`EAST_ASIAN_EYE`); the inner canthi wider apart; the nose's base wider, its root lower and flatter, its tip
     // a little less projected, its bridge broader; a lighter brow ridge and a rounder forehead; the cheekbones further
     // forward; the lips a little more forward. Measured against what the POLE already does, not the male canon: the
     // female pole's refined nose already projects ~15–16 mm (sn-prn), about the population's mean, so the tip moves
     // little (a −0.04 here, the canon's difference, counted it twice: ~12 mm, below the population and the head's floor)
     // (the nose's length and projection are its axis's: `nose`, the people leaning short and flat)
     base: {
-      cephalic: 0.02, headLength: -0.01, intercanthal: 0.12, nasalIndex: 0.1,
-      nasionDepth: -0.002, dorsum: 0.15, browProjection: -0.004, brow: -0.05, forehead: 0.005, malarDepth: -0.004, lipProjection: 0.003,
+      cephalic: 0.02, headLength: -0.01, intercanthal: 0.08 + EAST_ASIAN_EYE.set, nasalIndex: 0.1, ...EAST_ASIAN_EYE_BASE,
+      nasionDepth: -0.002, dorsum: 0.15, browProjection: -0.004 + EAST_ASIAN_EYE.brow, brow: -0.05, radix: EAST_ASIAN_EYE.root, forehead: 0.005, malarDepth: -0.004, lipProjection: 0.003,
     },
     nose: { mean: -0.4, spread: 0.6 },
     // (the egocube's East Asian lid derive's own weights: the in-fold the likeliest)
     lids: { 'inner-fold': 2, monolid: 1, parallel: 1, hooded: 1 },
     bald: 0.55,
-    weights: { eyes: { deep: 0, hooded: 0 }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
+    weights: { eyes: { deep: 0, hooded: 0, large: EAST_ASIAN_EYE.large }, nose: { classical: 0.5, soft: 1.5 }, brows: { straight: 1.5 } },
   },
   // SOUTH ASIA is a cline from the north-west to the south: its two ends as buckets, `south-asian` the faces along it
   'indo-aryan': {
@@ -524,7 +549,7 @@ export const FACE_LIMITS = Object.freeze({ noseProjection: [0.2, Infinity], ceph
  */
 export const HYBRID_TRAITS = Object.freeze({
   skull: ['cephalic', 'headLength', 'faceWidth', 'jaw', 'forehead'],
-  eyes: ['intercanthal', 'fissure', 'browProjection', 'brow'],
+  eyes: ['intercanthal', 'fifths', 'fissure', 'lidSplit', 'tiltPivot', 'globeShift', 'tent', 'innerClose', 'outerClose', 'browProjection', 'brow'],
   nose: ['nasalIndex', 'dorsum', 'radix', 'nasionDepth', 'noseProjection'],
   cheeks: ['malarDepth'],
   lips: ['lipFullness', 'upperVermilion', 'lowerVermilion', 'lipProjection', 'mouthWidth'],
@@ -661,6 +686,10 @@ export function composeFace({ sex = 'female', bucket = 'western', seed = 1, char
     grooms[g][k] = Math.round(groomShape[g][k] * share * bySex * 1000) / 1000;
     proportions[`${g}.${k}`] = Math.round(share * 100) / 100;
   }
+  // (the brow's ARCH by sex, `FACE_BROW_ARCH`: drawn toward high on a woman, toward level on a man, by a share of the way;
+  // no die, so a seed keeps its face)
+  const arch = FACE_BROW_ARCH[sex];
+  if (arch) { const a0 = groomShape.brows.arch; grooms.brows.arch = Math.round((arch > 0 ? a0 + (1 - a0) * arch : a0 * (1 + arch)) * 1000) / 1000; }
   // the tone, where the bucket holds its own range (rolled before the nose, after the rest)
   const tone = B.tones ? B.tones[0] + Math.floor(d() * (B.tones[1] - B.tones[0] + 1)) : null;
   // the nose's axis, last (a seed keeps the rest of its face)

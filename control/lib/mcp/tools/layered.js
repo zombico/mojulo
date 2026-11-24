@@ -64,6 +64,8 @@ import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, outfitPieces
 import { headOf as helmetOf } from '@/lib/graph/headgear/helmets';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet, libraryHands } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
+/** the designed outfit pieces an armour build takes the place of (designedPieces) */
+const ARMOUR_TAKES = Object.freeze(['pauldron', 'chestPlate', 'bracers', 'wraps', 'mantle']);
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered';
 import { heroSkeleton } from '@/lib/graph/undead/hero-bones';
@@ -404,7 +406,8 @@ function relationalHeadWorn(S, hero) {
   const level = heroHairLevel(hero);
   // (under laws 7 its blades as ALPHA CARDS on the strand texture, hair-depict.js stripMesh `card`: the grass hat before)
   // (under laws 10 the hair as LOCKS, one colour, its register the face's `stylize`: hair-locks.js; the blades before)
-  const scalpHair = scalp ? (laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize, laws >= 14) : hairOf(H, dermis, scalp, level, one, laws >= 7)) : null;
+  // (the seated head, laws 14, one skin: the locks drawn with the lock page's hair, hair-strands.js lockPage)
+  const scalpHair = scalp ? (laws >= 10 ? lockHairOf(H, dermis, scalp, level, hero.face?.stylize, laws >= 14, one && laws >= 14) : hairOf(H, dermis, scalp, level, one, laws >= 7)) : null;
   if (scalpHair) wear(scalpHair);
   // (realistic laws 10: hair a clipper took under its shell, the scalp's and a stubble's, is the skin's paint, its shadow
   // by its length: dermal-texture.js `clip`; the recipe carries where, the hero's skin paint reads it)
@@ -413,7 +416,12 @@ function relationalHeadWorn(S, hero) {
   // lashes by the ancestry's grooms with the composed face's over them
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
-  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}) }));
+  // (the seated head, laws 14: the brows the skin's PAINT, each hair a stroke, dermal-brow.js; the recipe carries the groom,
+  // the hero's skin paint reads it, as it reads `hairClip`; the lock's mass before, a band that read as a plank. The lashes
+  // a ribbon of alpha cards, their line the same paint: hero-head-layers.js lashRibbon)
+  const faceHairPaint = one && laws >= 14;
+  if (faceHairPaint) out = { ...out, faceHairPaint: { epidermis, lashLine: true, beard: true, scalp: true } };
+  wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}), ...(faceHairPaint ? { faceHairPaint: true, lashCards: true, beardCoat: true } : {}) }));
   return out;
 }
 /** THE DOOR'S HAIR ON THE REALISTIC FACE: a landmark style (the word a cast or a crew writes, egocube/plan.js) read as the
@@ -464,10 +472,10 @@ function hairOf(S, dermis, scalp, level, budget = false, cards = false) {
   return H;
 }
 /** a head's lock hair (realistic laws 10; sealed against the neck and the body under laws 14), kept as its blades are */
-function lockHairOf(S, dermis, scalp, level, stylize, seal = false) {
-  const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null, ...(seal ? ['seal'] : [])]);
+function lockHairOf(S, dermis, scalp, level, stylize, seal = false, textured = false) {
+  const key = JSON.stringify(['locks', wornHead(S), dermis, scalp, level, stylize ?? null, ...(seal ? ['seal'] : []), ...(textured ? ['textured'] : [])]);
   let H = HAIRS.get(key);
-  if (!H) { H = keptOnDisk('hair', key, () => heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal })); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
+  if (!H) { H = keptOnDisk('hair', key, () => heroLockHair(S, dermis, scalp, { level, budget: true, stylize, seal, textured })); HAIRS.set(key, H); if (HAIRS.size > 16) HAIRS.delete(HAIRS.keys().next().value); }
   return H;
 }
 /** THE HAIR'S RUNG (dermal-hair.js HAIR_LADDER, the grass's ladder): by the head's height on screen under the hero's
@@ -1581,7 +1589,10 @@ export function heroPlanOf(hero) {
  * the intent's palette roles; before the target, so a tiered kit tiers them. No pieces ⇒ the plan as it was. */
 function designedPieces(plan, hero) {
   // (the card's own gear first, a team's kit, then the build's: outfit/expand.js outfitPieces)
-  const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
+  // (armour worn over the outfit takes the place of its own armour pieces, which would hide or double it: ARMOUR_TAKES;
+  // the hardsuit's ensembles compose their own)
+  const fam = isArmorBuild(hero.adorn) ? armorFamily(hero.adorn) : null, takes = fam && fam !== 'hardsuit' ? ARMOUR_TAKES : [];
+  const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit).filter((p) => !takes.includes(p?.kind)) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
   if (!O) return plan;
   const { worn } = sortPieces(plan, O, { once: true });
   // (under the outfit laws the build was stamped with: outfit/principles.js, the pieces' own laws)

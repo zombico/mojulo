@@ -55,6 +55,7 @@ const { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered } = await 
 const { layeredShadingNormals } = await import('@/lib/graph/polygonizer/station-loft-shade.js');
 const { heroShade } = await import('@/lib/graph/polygonizer/tiered-form.js');
 const { standPose } = await import('@/lib/graph/polygonizer/hero-gesture.js');
+const { heroAura } = await import('@/lib/graph/polygonizer/hero-aura.js');
 const { outlineMeasures, outlineCritic } = await import('@/lib/graph/polygonizer/dress-outline.js');
 const { gaitPose } = await import('@/lib/graph/polygonizer/hero-stretch.js');
 const { formSlice, physique, correctiveRest } = await import('@/lib/graph/polygonizer/body-relational.js');
@@ -208,6 +209,8 @@ function rowNodes(cast, H, row) {
   if (row.vitruvian) { if (!VITRUVIAN[row.vitruvian]) throw new Error(`body-study: vitruvian is ${Object.keys(VITRUVIAN).join(' or ')}`); return { nodes: rigNodesAt(H.R, VITRUVIAN[row.vitruvian](H.R)).nodes, label: `vitruvian ${row.vitruvian}` }; }
   if (row.gait) { const ph = row.phase ?? 0; return { nodes: rigNodesAt(H.R, gaitPose(H.R, row.gait)(ph)).nodes, label: `${row.gait} ${ph}` }; }
   if (row.gesture) { const g = hero(cast, { gesture: row.gesture }); const pose = standPose(g.m.recipe, g.R); return { nodes: rigNodesAt(H.R, pose || {}).nodes, label: `gesture ${row.gesture}` }; }
+  // (a showcase pose at a phase of its performance, hero-aura.js: { aura: 'channel', phase: 0 … 1 }, the hit at 1)
+  if (row.aura) { const ph = row.phase ?? 1, A = heroAura(row.aura, H.R); return { nodes: rigNodesAt(H.R, A.clip.fn(ph)).nodes, label: `aura ${row.aura} ${ph}` }; }
   if (row.pose) return { nodes: rigNodesAt(H.R, row.pose).nodes, label: `pose ${JSON.stringify(row.pose)}` };
   // (a rig with a stance, heeled shoes', stands the bind in it: lib/graph/polygonizer/station-loft-rig.js)
   return H.R.stance ? { nodes: rigNodesAt(H.R, {}).nodes, label: 'bind, in the stance' } : { nodes: H.R.joints, label: 'bind' };

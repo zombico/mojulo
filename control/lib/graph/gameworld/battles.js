@@ -15,17 +15,21 @@
  *                          the last again (default PACKS)
  *     per?: n,             packs on each trail stage (2), on its beats; on a glyph map, in each region past its first
  *     boss?: [foe ids],    the last trail stage's last pack, no escape from it
+ *     bossPages?: [page],  the boss fight's own pages (play.rpg encounters' `pages`: a line as it begins, at half its
+ *                          HP, at its nth round; each said once)
  *     foe?: <hero-door spec>,   how every foe on the map looks (each its own, FOE_LOOKS, by default)
  *     looks?: { <foe id>: beast | people | person },   each foe's own look in a character door's words (FOE_LOOKS):
  *                          { species, ooze?, stylism? } a beast; { people, facets?, dress? } a people (a lineage, the
  *                          beast-kin, the undead: skeleton, zombie, ragged, rotting…); a person through the hero door
+ *     heights?: { <foe id>: metres },   how tall a beast foe stands in a fight (FOE_HEIGHT by default; a foe with none
+ *                          stands at its species' own size)
  *     rest?: false,        no rest at each stage's start (default: E there restores HP and MP; where an inn stands, it is
  *                          the rest)
  *     shops?: false | { wares?, inn? },   a merchant and an innkeeper beside each fighting stage's start (default on):
  *                          the merchant's wares by how far on (SHOP_WARES) or the book's own, bought back at half; a
  *                          night at the inn for INN_PRICE gold, more further on, or the book's price (inn: false, none)
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
- *     classes?, skills?, foes?, items?, gear?, juice?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
+ *     classes?, skills?, foes?, items?, gear?, juice?, states?, techs?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
  *     manual?: <a lorecube manual, at any depth>,   a setting's creatures fielded (battles-manual.js): its foes and their
  *                          skills, its packs by role and level and its boss, each under the page's own word for it
  *     tree?: <a lorecube skill tree, at any depth> | [trees],   a school the party can be in (battles-tree.js): a class
@@ -41,7 +45,7 @@
  */
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { withBoardBook } from '../board/board-battle.js';
-import { CLASS_PRESETS, FOE_PRESETS, ITEM_PRESETS } from '../playscape/rpg/presets.js';
+import { CLASS_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { cubeOfWorld } from './intent.js';
 import { castingOf, castingIds } from './casting.js';
@@ -58,6 +62,11 @@ import { readGrid } from '../level/grid.js';
 import { mapItems } from '../level/map-items.js';
 import { manualBattles } from './battles-manual.js';
 import { treesBattles } from './battles-tree.js';
+import { ARMORY_ARMS } from '../equipment/armory.js';
+import { chestCast, chestsPer, chestKinds, readChests, CHEST_SLICE } from './chests.js';
+import { readWardrobe } from './wardrobe.js';
+import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
+import { WIN_OF_CLASS } from '../egocube/moves.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -68,11 +77,14 @@ export const PACKS = Object.freeze([
 // iron and silver, then the dearer cures), and buys back at half; the inn's night (full HP and MP, cured) costs more
 // the further on (INN_PRICE + INN_STEP a tier). The inn is the stage's rest: no free one beside it.
 export const SHOP_WARES = Object.freeze([
-  Object.freeze(['potion', 'antidote', 'bronze-sword', 'oak-staff', 'cestus', 'leather-armor', 'robe']),
-  Object.freeze(['potion', 'antidote', 'ether', 'firebomb', 'iron-sword', 'silver-staff', 'gi', 'chain-mail', 'swift-ring']),
-  Object.freeze(['hi-potion', 'ether', 'remedy', 'feather', 'firebomb', 'iron-sword', 'silver-staff', 'chain-mail', 'mana-charm', 'swift-ring']),
+  Object.freeze(['potion', 'antidote', 'bronze-sword', 'oak-staff', 'cestus', 'leather-armor', 'robe', 'power-tonic', 'scan-lens']),
+  Object.freeze(['potion', 'antidote', 'ether', 'firebomb', 'iron-sword', 'silver-staff', 'gi', 'chain-mail', 'swift-ring', 'venom-dagger', 'hunter-charm', 'shadow-cloak', 'hunting-bow', 'sleep-powder', 'smoke-bomb', 'riposte-ring', 'guardian-crest']),
+  Object.freeze(['hi-potion', 'ether', 'remedy', 'feather', 'firebomb', 'iron-sword', 'silver-staff', 'chain-mail', 'mana-charm', 'swift-ring', 'flame-sword', 'ember-ring', 'phoenix-charm']),
 ]);
 export const INN_PRICE = 6, INN_STEP = 6;
+// the temple's rite (a town's priest, era/town-trades.js): the gold to raise one fallen member, healed and cured
+export const RAISE_PRICE = 20;
+// what a smithy's master sells (a town's smith): the gear of the hub's wares, arms and armour, beside the merchant's
 export const SHOP_KEEPER = Object.freeze({ cast: 'male', palette: { Top: '#7a5a2a' } });
 // (the tier a stage's shop is at: the packs met before it, two a tier)
 export const tierOf = (from) => Math.min(SHOP_WARES.length - 1, Math.floor(from / 2));
@@ -95,6 +107,14 @@ export const FOE_LOOKS = Object.freeze({
   wisp: { species: 'greatHornedOwl', ooze: 'shadow' },
   golem: { species: 'brownBear', ooze: 'crystal' },
   drake: { species: 'velociraptor', ooze: 'fire' },
+  // (the story's bosses, round-bosses.js)
+  leviathan: { species: 'seaSerpent', ooze: 'frost' },
+  roc: { species: 'baldEagle', ooze: 'storm' },
+  colossus: { species: 'mammoth', ooze: 'crystal' },
+  // (a boss's people are named whole, never rolled to a child or an elder: the champion a hero in its prime, the warlord
+  // a seasoned outlaw of brute build, who took what it rules)
+  champion: { people: 'human', facets: { age: 'adult', build: 'heroic', archetype: 'hero' } },
+  warlord: { people: 'orcish', facets: { age: 'seasoned', build: 'brute', archetype: 'outlaw' } },
   goblin: { people: 'orcish' },
   shaman: { people: 'orcish' },
   bandit: BATTLE_FOE,
@@ -102,6 +122,29 @@ export const FOE_LOOKS = Object.freeze({
   zombie: { people: 'zombie' },
 });
 const isPeopleLook = (look) => !!look && typeof look === 'object' && look.people !== undefined;
+// THE BATTLE FOES' ARMS: what each people foe of the presets holds, by its kind (equipment/armory.js rows): the goblin
+// its lineage's rank-and-file cudgel (foe-casting.js PEOPLE_ARMS), the shaman a bone club for its fetish staff, the
+// skeleton a rusted sword and a cracked round shield; the zombie claws, bare. A person's are its spec's (the bandit's
+// dagger). A look that writes its own `gear` holds that; one written for every foe (`battles.foe`) holds only its own. A
+// foe held so fights with the swings the page bakes on its rig (egocube/moves.js ARMED_ATTACKS). A new kind's arms is a
+// row.
+export const FOE_ARMS = Object.freeze({
+  goblin: Object.freeze({ right: 'cudgel' }),
+  shaman: Object.freeze({ right: 'bone-club' }),
+  skeleton: Object.freeze({ right: 'rusted-sword', left: 'cracked-round' }),
+  // (the story's bosses: the champion's longsword and kite shield, the warlord's great axe)
+  champion: Object.freeze({ right: 'old-longsword', left: 'old-kite' }),
+  warlord: Object.freeze({ right: 'grave-axe' }),
+});
+/** A battle foe's gear as the hero door takes it (laws-2 builds), or null: its look's own, else its kind's row (`key` the
+ * foe kind, or 'foe' for the one look every foe stands in). */
+export function foeGearOf(look, key) {
+  if (isObj(look) && isObj(look.gear)) return structuredClone(look.gear);
+  // (a kind's arms go with its own look, written out or not: one the world dresses its own way, an era's, holds only
+  // what that look says)
+  const row = key !== 'foe' && isPeopleLook(look) && FOE_LOOKS[key] && JSON.stringify(look) === JSON.stringify(FOE_LOOKS[key]) ? FOE_ARMS[key] : null;
+  return row ? Object.fromEntries(Object.entries(row).map(([slot, name]) => [slot, { type: 'equipment', ...structuredClone(ARMORY_ARMS[name]), laws: 2, armory: name }])) : null;
+}
 // a battle people's sheet: its skin rolled in the game's setting as a caster where its foe fights by magic, else as a
 // frontline fighter (foes/people.js peopleRole), its seed the world's moved by the foe's kind (one sheet per kind)
 export function battlePeopleRoll(G, kind, look) {
@@ -110,15 +153,69 @@ export function battlePeopleRoll(G, kind, look) {
 }
 // the height a beast foe stands at in a fight (metres), whatever its species' own: a monster's presence, not the animal's
 // (a slime grown from a frog stands knee-high, a golem from a bear over a person); a foe not here stands at its own size
-export const FOE_HEIGHT = Object.freeze({ slime: 0.7, bat: 0.9, spider: 0.8, shroom: 0.9, wisp: 1.2, golem: 2.3, drake: 2.6 });
+export const FOE_HEIGHT = Object.freeze({ slime: 0.7, bat: 0.9, spider: 0.8, shroom: 0.9, wisp: 1.2, golem: 2.3, drake: 2.6, leviathan: 3, roc: 2.4, colossus: 3.4 });
+// (the book's own, battles.heights, over these)
+const heightOf = (G, kind) => G.battles?.heights?.[kind] ?? FOE_HEIGHT[kind];
 // how far a foe kind reaches round its middle as it stands (metres): a beast at its fight height by its species' build
 const reachOf = (G, kind) => {
   const look = foeLookOf(G, kind);
   if (isPeopleLook(look)) return 0.35;
-  if (!beastLook(look) || !FOE_HEIGHT[kind] || G.battles?.foe) return 0.3;
+  if (!beastLook(look) || !heightOf(G, kind) || G.battles?.foe) return 0.3;
   const m = bodyOf(look.species, { ooze: look.ooze });
-  return Math.min(2.5, Math.max(0.15, m.extent * (FOE_HEIGHT[kind] / Math.max(0.05, m.height)) * 0.5));
+  return Math.min(2.5, Math.max(0.15, m.extent * (heightOf(G, kind) / Math.max(0.05, m.height)) * 0.5));
 };
+/**
+ * THE CITADEL'S LOCKS, met in play: a walled core's gated doors (wcd/wcd.js, a door with a `gate`) between spaces this
+ * building stands for are LOCKS across its route (game/mechanics.js `lock`), each after one of its packs in the order the
+ * route meets them: each on the last doorway between its guard and what lies past it (the next pack, or the boss), its
+ * key, named for the space it opens (the Vault Key), carried by that guard and given as its fight is won (kept: the party
+ * menu's Key tab). A door with no doorway between a guard and what follows is not laid: never a lock whose key lies past
+ * it. → { mechanics, cues, items } or null (no walled core here, no route, no pack to carry a key)
+ */
+export function citadelLocks(G, stage, ends, encounters) {
+  const W = G.wcd, via = ends?.via;
+  if (!W || stage.section !== 'building' || !Array.isArray(via) || via.length < 3) return null;
+  const here = (sp) => W.spaces?.[sp]?.level === stage.level;
+  const doors = (W.doors ?? []).filter((d) => d.gate && here(d.from) && here(d.to));
+  const guards = encounters.filter((e) => e.flee !== false && /^pack-/.test(e.id)), boss = encounters.find((e) => e.flee === false);
+  if (!doors.length || !guards.length) return null;
+  // (at the walker's eye, as an escape room's locks are: escape.js; the goal room's floor's)
+  const z = ends.exit?.[2] ?? ends.spawn?.[2] ?? 0, pt = (p) => [p[0], p[1], z];
+  // (how far along the route a point lies: its projection on the route's nearest leg, as a distance from the way in)
+  const legs = via.slice(1).map((b, k) => { const a = via[k]; return { a, b, from: 0, len: Math.hypot(b[0] - a[0], b[1] - a[1]) }; });
+  legs.reduce((acc, L) => { L.from = acc; return acc + L.len; }, 0);
+  const along = (q) => {
+    let best = Infinity, s = 0;
+    for (const L of legs) {
+      const dx = L.b[0] - L.a[0], dy = L.b[1] - L.a[1], t = L.len ? Math.max(0, Math.min(1, ((q[0] - L.a[0]) * dx + (q[1] - L.a[1]) * dy) / (L.len * L.len))) : 0;
+      const d = Math.hypot(L.a[0] + dx * t - q[0], L.a[1] + dy * t - q[1]);
+      if (d < best) { best = d; s = L.from + L.len * t; }
+    }
+    return s;
+  };
+  // (the doorways the route passes, its waypoints between the way in and the goal; the guards and the boss along it)
+  const ways = via.slice(1, -1).map((p, k) => ({ p, prev: via[k], s: along(p) }));
+  const order = guards.map((e) => ({ e, s: along(e.at) })).sort((a, b) => a.s - b.s);
+  const end = boss ? along(boss.at) : along(via.at(-1));
+  const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1), mechanics = [], cues = [], items = {};
+  // (each door after a guard, on the last doorway before what lies past it, the next guard or the boss; a door with no
+  // doorway there is not laid, never one its key lies beyond)
+  let g = 0;
+  for (const D of doors) {
+    for (; g < order.length; g++) {
+      const lo = order[g].s, hi = g + 1 < order.length ? order[g + 1].s : end, way = ways.filter((w) => w.s > lo + 0.5 && w.s < hi - 0.5).at(-1);
+      if (!way) continue;
+      const key = `${D.to}-key`, name = `${cap(D.to)} Key`;
+      mechanics.push({ kind: 'lock', id: `${D.to}`.slice(0, 32), key, name, at: pt(way.p), back: pt(way.prev), radius: 1.2, planar: false });
+      items[key] = { name, kind: 'key' };
+      cues.push({ id: `${key}-won`, when: { on: `rpg-won:${order[g].e.id}` }, once: true, then: [{ give: key }, { say: `Found the ${name}!`, as: 'toast' }] });
+      g++;
+      break;
+    }
+  }
+  return mechanics.length ? { mechanics, cues, items } : null;
+}
+
 /** The look a foe stands in: the world's one foe look where it writes it, else the foe's own, else the plain one. */
 export const foeLookOf = (G, id) => G.battles?.foe ?? G.battles?.looks?.[id] ?? FOE_LOOKS[id] ?? BATTLE_FOE;
 export { isPeopleLook };
@@ -132,8 +229,12 @@ export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats), or a building level's rooms on the way to its goal
 // room (a dungeon: its boss in the goal room, levels.js buildingEnds); a building made by ref, a building's inside
 // entered by its door (a town's house), a city and a roadway have none
+/** A stage that is a settlement whole (a whole town, a street): no pack is laid in it; on a stage a settlement stands
+ * beside its trail (its level's places), no pack stands within SETTLED_CLEAR m of what is built there (battleCast). */
+export const SETTLED = (G, s) => ['geotown', 'street'].includes(s.section);
+export const SETTLED_CLEAR = 30;
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'sets', 'foe', 'looks', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules', 'manual', 'tree'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests', 'techs', 'wardrobe', 'naming'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -182,12 +283,32 @@ export function readBattles(v, characters = null, ids = null) {
   // classic party RPG's; a member who joins on a story flag still stands where the story puts it)
   if (v.followers !== undefined && typeof v.followers !== 'boolean') throw err('.followers is true (the party walks the map behind the hero, the default) or false (the hero walks alone; the party still fights)');
   const boss = v.boss === undefined ? null : packOf(v.boss, '.boss');
+  // (chests: the treasure each fighting stage keeps off its path, chests.js)
+  readChests(v.chests, err);
+  // (wins: the victory pose each class strikes when a fight is won, over its starter (egocube/moves.js WIN_OF_CLASS): any
+  // of the hero door's motion words, a showcase pose or a victory)
+  if (v.wins !== undefined) {
+    const classes = [...new Set([...Object.keys(CLASS_PRESETS), ...(isObj(v.classes) ? Object.keys(v.classes) : [])])];
+    if (!isObj(v.wins)) throw err(`.wins is { <class>: <pose> }: the victory pose each class strikes (its starter: ${Object.entries(WIN_OF_CLASS).map(([c, w]) => `${c} ${w}`).join(', ')})`);
+    for (const [c, w] of Object.entries(v.wins)) {
+      if (!classes.includes(c)) throw err(`.wins.${c}: no class '${c}' (the classes: ${classes.join(', ')})`);
+      if (typeof w !== 'string' || !['move', 'rest'].includes(MOTION_GAITS[w]?.motion)) throw err(`.wins.${c} is a pose the hero door strikes (a showcase or a victory: ${Object.keys(MOTION_GAITS).filter((k) => /^victory/.test(k)).join(', ')}, fistToSky, peaceWink…), not '${w}'`);
+    }
+  }
   // (sets: the story flag the boss's fall sets, carried on as every flag is: a quest's last step done by it, a moment after)
   if (v.sets !== undefined && !(typeof v.sets === 'string' && /^[a-z][a-z0-9-]*$/.test(v.sets))) throw err('.sets is the flag the boss\'s fall sets (a story flag: lowercase words joined by hyphens)');
   if (v.sets !== undefined && v.boss === undefined) throw err('.sets is set by the boss\'s fall: name the boss pack (boss)');
+  // (bossPages: the boss fight's own pages, play.rpg encounters' `pages`, read with it where it is laid)
+  if (v.bossPages !== undefined && (v.boss === undefined || !Array.isArray(v.bossPages))) throw err('.bossPages is the boss fight\'s own pages, [{ when, say, who?, sets? }] (playscape/rpg/rpg.js): name the boss pack (boss)');
   if (v.foe !== undefined && !isObj(v.foe)) throw err('.foe is a hero-door spec (how a foe on the map looks), { species, ooze?, stylism? } for a beast, or { people, facets?, dress? } for a people');
   if (beastLook(v.foe)) readBeastFoe(v.foe, null, '.foe', err);
   else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
+  // (what each member looks like in the armour it wears: wardrobe.js)
+  readWardrobe(v.wardrobe, err);
+  // (whether a new game asks the hero's name: game-manifest.js naming, the play shell's name screen; asked unless false)
+  if (v.naming !== undefined && typeof v.naming !== 'boolean') throw err('.naming is true or false: whether a new game asks the player the hero\'s name (asked unless false)');
+  // (how tall each beast foe stands in a fight)
+  if (v.heights !== undefined && !(isObj(v.heights) && Object.values(v.heights).every((h) => typeof h === 'number' && h >= 0.3 && h <= 12))) throw err('.heights is { <foe id>: metres, 0.3 to 12 }: how tall a beast foe stands in a fight');
   // (each foe's own look, in a character door's words: a beast, a people, or a person's spec)
   if (v.looks !== undefined) {
     if (!isObj(v.looks)) throw err('.looks is { <foe id>: a beast { species, ooze?, stylism? } | a people { people, facets?, dress? } | a person (the hero door\'s spec) }');
@@ -272,10 +393,11 @@ export function battleParty(G) {
 /** The play.rpg every stage shares, less its encounters. */
 export function battleBase(G) {
   const B = G.battles ?? {};
-  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'techs'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   // gold is the bag's (held:bag:gold), so it is carried as every item is
   // a book fighting on boards has the board's own book besides (the summoner and its summons), when it uses it
-  const base = { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
+  // (fought on the level's own battle scene, its most open place, every fight there, rpg-channel.js; a board's are its own)
+  const base = { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.on === 'board' ? {} : { stage: 'scene' }), ...(B.rules ?? {}) } };
   return B.on === 'board' ? withBoardBook(base) : base;
 }
 
@@ -318,13 +440,14 @@ export const roomOf = (ends) => freeBeats(ends).length;
 export function battlePlan(G, stages, room = () => Infinity, lair = () => false) {
   const B = G.battles ?? {}, packs = B.packs ?? PACKS, per = B.per ?? 2, plan = {};
   let k = 0;
-  // (none in the hub: the town is where the party comes back to)
+  // (none in the hub: the town is where the party comes back to; and none in a whole town or a street, SETTLED: fights
+  // are the wilds' and the dungeons')
   // (walked in the order the main quest plays its levels, act by act, beat by beat: the plains before the woods before
   // the dungeon, whatever order the world writes its levels in; a level no beat plays after them, in the stages' order)
   const parts = G.mainQuest ? G.mainQuest[G.mainQuest.shape ?? 'acts'] : null;
   const order = Array.isArray(parts) ? [...new Set(parts.flatMap((A) => (A.beats ?? []).map((b) => (b?.as?.kind === 'level' ? b.as.at : b?.as?.level))).filter(Boolean))] : [];
   const rank = (i) => { const r = order.indexOf(stages[i].level); return r < 0 ? order.length : r; };
-  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub)).map(([, i]) => i).sort((a, b) => rank(a) - rank(b) || a - b);
+  const fought = stages.map((s, i) => [s, i]).filter(([s]) => FOUGHT(s) && !(G.hub && s.level === G.hub) && !SETTLED(G, s)).map(([, i]) => i).sort((a, b) => rank(a) - rank(b) || a - b);
   const last = B.boss ? [...fought].reverse().find((i) => lair(i) || Math.min(per || 1, room(i)) > 0) : undefined;
   // (a glyph map's stage is the whole chapter: `per` in each of its regions past the first, the town it sets out from)
   // (its regions as the map reads them, level/grid.js: a planned map's segments, each its region, stitched)
@@ -350,7 +473,10 @@ export function battlePlan(G, stages, room = () => Infinity, lair = () => false)
  */
 export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, packs = [], from = 0, seed = 1 } = {}) {
   const B = G.battles ?? {}, base = battleBase(G);
-  const along = freeBeats(ends);
+  // (a beat by what is built on the stage, a town's or a castle's, holds no pack: fights are the wilds' and the
+  // dungeons', never in a settlement's streets)
+  const built = (ends.places ?? []).map((p) => p.at).filter(Boolean);
+  const along = freeBeats(ends).filter((b) => !built.some((q) => Math.hypot(b.at[0] - q[0], b.at[1] - q[1]) < SETTLED_CLEAR));
   // (a building's boss stands in its goal room, `bossAt`, the packs before it in the rooms on the way; on a trail it is
   // the last pack along the way)
   const lair = !!(B.boss && ends.bossAt && packs.at(-1) === B.boss);
@@ -371,17 +497,21 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
       if (isPeopleLook(look)) {
         // (a people from its sheet, as a bestiary people stands: a person or a beast-kin on its own moves, at its stature)
         const sheet = rollEgocube(battlePeopleRoll(G, G.battles?.foe !== undefined ? 'foe' : kind, look));
-        stand({ figures, entities }, fid, fieldFigure(fref, fieldOf({ body: 'person', sheet })), at, h);
+        // (made for party battles: its strikes in turn, its recoils, its roar, egocube/moves.js foeBattleMovesOf; held,
+        // its kind's arms swung: FOE_ARMS)
+        const key = G.battles?.foe !== undefined ? 'foe' : kind;
+        stand({ figures, entities }, fid, fieldFigure(fref, fieldOf({ body: 'person', sheet, battle: true }, { armed: !!foeGearOf(look, key)?.right })), at, h);
         const e = entities.at(-1);
         e.rule = { ...e.rule, collideHeight: r3(statureOf({ body: 'person', sheet })) };
         return fid;
       }
-      stand({ figures, entities }, fid, foeFigure(fref, look), at, h);
+      // (a beast with its other ways at a foe as its acts: a snap, a maul, its roar; egocube/moves.js beastMovesOf)
+      stand({ figures, entities }, fid, foeFigure(fref, look, { battle: true }), at, h);
       // (a beast drawn at its foe's height: its body scaled, what it collides with and where it is hit with it)
-      if (beastLook(look) && FOE_HEIGHT[kind] && !G.battles?.foe) {
-        const m = bodyOf(look.species, { ooze: look.ooze }), k = FOE_HEIGHT[kind] / Math.max(0.05, m.height), x = m.extent * k, e = entities.at(-1);
-        e.body = { ...e.body, scale: r3(k), egg: { a: r3(Math.max(0.2, x * 0.3)), c: r3(FOE_HEIGHT[kind] / 2), cz: r3(FOE_HEIGHT[kind] / 2) } };
-        e.rule = { ...e.rule, collideHeight: FOE_HEIGHT[kind], collideRadius: r3(Math.min(2.5, Math.max(0.15, x * 0.25))) };
+      if (beastLook(look) && heightOf(G, kind) && !G.battles?.foe) {
+        const H = heightOf(G, kind), m = bodyOf(look.species, { ooze: look.ooze }), k = H / Math.max(0.05, m.height), x = m.extent * k, e = entities.at(-1);
+        e.body = { ...e.body, scale: r3(k), egg: { a: r3(Math.max(0.2, x * 0.3)), c: r3(H / 2), cz: r3(H / 2) } };
+        e.rule = { ...e.rule, collideHeight: H, collideRadius: r3(Math.min(2.5, Math.max(0.15, x * 0.25))) };
       }
       return fid;
     });
@@ -389,8 +519,25 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
     // (met before the goal room's exit is reached: its zone is smaller than the fight's)
     // (in a building, the room it is met in: an arena stage holds the fight to it)
     const room = ends.rooms?.find((r) => b.at[0] >= r.x && b.at[0] <= r.x + r.w && b.at[1] >= r.y && b.at[1] <= r.y + r.d);
-    encounters.push({ id: `pack-${from + k + 1}`, foes: [...met[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}), ...(boss && lair ? { near: 3 } : {}), ...(room ? { room: [room.x, room.y, r3(room.x + room.w), r3(room.y + room.d), room.z] } : {}) });
+    encounters.push({ id: `pack-${from + k + 1}`, foes: [...met[k]], at: [b.at[0], b.at[1]], who: who.length > 1 ? who : id, ...(boss ? { flee: false } : {}), ...(boss && B.bossPages ? { pages: B.bossPages.map((p) => ({ ...p })) } : {}), ...(boss && lair ? { near: 3 } : {}), ...(room ? { room: [room.x, room.y, r3(room.x + room.w), r3(room.y + room.d), room.z] } : {}) });
   });
+  // THE CHESTS (chests.js): on the beats the packs leave free, spread along the way, each a step aside from it
+  // (a glyph map's packs stand on its own pack marks: its chests on the beats along its way, but its home's)
+  const same = (a, b) => Math.abs(a.at[0] - b.at[0]) < 0.5 && Math.abs(a.at[1] - b.at[1]) < 0.5;
+  const pool = ends?.map ? (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead' && !(ends.home && b.region === ends.home)) : along;
+  const nChests = chestsPer(G), freeLeft = nChests ? pool.filter((b) => !picks.some((p) => same(p, b))) : [];
+  const chestSpots = Array.from({ length: Math.min(nChests, freeLeft.length) }, (_, k) => {
+    const i = Math.min(freeLeft.length - 1, Math.floor(((k + 0.5) * freeLeft.length) / Math.min(nChests, freeLeft.length))), b = freeLeft[i], next = along[along.indexOf(b) + 1] ?? { at: ends.exit ?? ends.spawn };
+    return { at: b.at, toward: next.at && (next.at[0] !== b.at[0] || next.at[1] !== b.at[1]) ? next.at : ends.spawn };
+  });
+  // (what each is called where the world names it: an era's med-kits, chests.js names the find by them)
+  const named = (id) => (isObj(B.items) && B.items[id]?.name) || (isObj(B.gear) && B.gear[id]?.name) || null;
+  // (locked chests' keys won from the stage's packs, never its boss; a mimic's fight beside the packs')
+  const chests = chestSpots.length ? chestCast(chestSpots, { tier: tierOf(from), from: 0, seed: seed + from, named, packs: encounters.filter((e) => e.flee !== false).map((e) => e.id), ...chestKinds(G) }) : null;
+  if (chests) entities.push(...chests.entities);
+  if (chests?.encounters) encounters.push(...chests.encounters);
+  // (a walled core's gated doors on this building, met in play: citadelLocks below)
+  const locks = citadelLocks(G, stage, ends, encounters);
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   // the merchant and the innkeeper, beside where the party comes in (none where the book says no shops, or none stands)
   // (in a hub world they stand in the hub instead, hubCast)
@@ -403,8 +550,12 @@ export function battleCast(G, stage, ends, { ref, refs = null, keeper = null, pa
   const bossEnc = B.sets ? encounters.find((e) => e.flee === false && B.boss && e.foes.join('|') === B.boss.join('|')) : null;
   if (bossEnc) rest.push({ id: 'rpg-boss-sets', when: { on: `rpg-won:${bossEnc.id}` }, then: { emit: `flag:${B.sets}` } });
   // the party and the bag carried (the party and bag mechanics); a wiped party fails the level under defeat: 'fail'
-  const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
-  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}) }, mechanics };
+  // (a stage with chests keeps what each still holds in the store: the bag's holders, so an opened chest stays open)
+  const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE, ...(chestsPer(G) ? { holders: CHEST_SLICE } : {}) }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
+  if (chests) rest.push(...chests.play.cues);
+  if (locks) { rest.push(...locks.cues); mechanics.push(...locks.mechanics); }
+  const items = { ...(chests?.play.items ?? {}), ...(locks?.items ?? {}) };
+  return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}), ...(chests ? { menus: chests.play.menus } : {}), ...(Object.keys(items).length ? { items } : {}) }, mechanics };
 }
 
 // the wares the world can sell: the tier's (or the book's own), less what the world's items and gear leave out
@@ -444,13 +595,24 @@ function shopsAt(G, ends, figures, entities, keeper, wares, inn) {
   return Object.keys(shops).length ? { shops, cues, inn: stood } : null;
 }
 
-// the shops a town's folk keep (no figure, no cue: the folk's own use opens them, folk-cast.js folkExtra)
-const folkShops = (wares, inn) => {
-  const shops = { ...(wares.length ? { merchant: { name: 'Merchant', wares } } : {}), ...(inn != null ? { innkeeper: { name: 'Inn', inn } } : {}) };
+// the shops a town's folk keep (no figure, no cue: the folk's own use opens them, folk-cast.js folkExtra); its temple
+// where its priest raises the fallen, its smithy where its smith sells the arms and armour among the wares
+const folkShops = (wares, inn, G, ends) => {
+  const smithy = wares.filter((w) => GEAR_PRESETS[w] || G?.battles?.gear?.[w]);
+  // (a trade's shop only where its lot's door is laid on the stage, so its keeper stands to keep it: a small town's
+  // street may leave a lot on its square with no frontage)
+  const laid = (t) => (ends?.townDoors ?? []).some((d) => d.id.startsWith(`town-${t}-`));
+  const shops = { ...(wares.length ? { merchant: { name: 'Merchant', wares } } : {}), ...(inn != null ? { innkeeper: { name: 'Inn', inn } } : {}),
+    ...(templeOf(G) && laid('temple') ? { temple: { name: 'Temple', raise: RAISE_PRICE } } : {}), ...(smithyOf(G) && laid('smithy') && smithy.length ? { smith: { name: 'Smithy', wares: smithy } } : {}) };
   return Object.keys(shops).length ? { shops, cues: [], inn: inn != null } : null;
 };
-/** The shops a hub's folk keep, as folk-cast.js folkExtra takes them: { merchant?, inn?: { id, prompt } }. */
-export const hubFolkShops = (G) => (shopsOn(G) && G.hub ? { ...(waresFor(G, 0, HUB_WARES).length ? { merchant: { id: 'merchant', prompt: 'Shop' } } : {}), ...(innOf(G, 0) != null ? { inn: { id: 'innkeeper', prompt: 'Inn' } } : {}) } : null);
+// (a town whose street keeps a temple or a smithy, era/town-trades.js: the hub's level's `enter` names the trade)
+const enters = (G) => [].concat(G?.levels?.[G.hub]?.places?.street?.enter ?? []);
+const templeOf = (G) => enters(G).includes('temple');
+const smithyOf = (G) => enters(G).includes('smithy');
+/** The shops a hub's folk keep, as folk-cast.js folkExtra takes them: { merchant?, inn?, temple?, smith?: { id, prompt } }. */
+export const hubFolkShops = (G) => (shopsOn(G) && G.hub ? { ...(waresFor(G, 0, HUB_WARES).length ? { merchant: { id: 'merchant', prompt: 'Shop' } } : {}), ...(innOf(G, 0) != null ? { inn: { id: 'innkeeper', prompt: 'Inn' } } : {}),
+  ...(templeOf(G) ? { temple: { id: 'temple', prompt: 'Temple' } } : {}), ...(smithyOf(G) ? { smith: { id: 'smith', prompt: 'Smithy' } } : {}) } : null);
 // the hub's merchant sells the first two tiers' wares at once (the gold says what the party can have yet)
 export const HUB_WARES = Object.freeze([...new Set([...SHOP_WARES[0], ...SHOP_WARES[1]])]);
 /**
@@ -463,11 +625,18 @@ export function hubCast(G, stage, ends, { keeper, folk = false } = {}) {
   const wares = waresFor(G, 0, HUB_WARES), inn = innOf(G, 0);
   // (a town with folk keeps them itself: its shopkeeper and an innkeeper among its people, folk-cast.js; no keeper
   // stands of its own)
-  const figures = {}, entities = [], shop = folk ? folkShops(wares, inn) : shopsAt(G, ends, figures, entities, keeper, wares, inn);
+  const figures = {}, entities = [], shop = folk ? folkShops(wares, inn, G, ends) : shopsAt(G, ends, figures, entities, keeper, wares, inn);
   if (!shop) return null;
   const base = battleBase(G);
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }];
   return { figures, entities, play: { rpg: { ...base, shops: shop.shops }, cues: shop.cues }, mechanics };
+}
+
+/** The name a new game asks of the player (game-manifest.js naming): the hero's, in the party slice; none where the
+ *  world says naming: false. */
+export function battleNaming(G) {
+  if (!G?.battles || G.battles.naming === false) return null;
+  return { slice: PARTY_SLICE, id: 'hero', label: 'Name your hero', max: 12, min: 1 };
 }
 
 /** The party slice's roster as the game starts: each member as the battle kernel saves it (numbers only). */

@@ -11,6 +11,9 @@
  *   - one-shots and instrument pieces: leading silence trimmed (below -60 dBFS), peak-normalized to -1 dBFS;
  *   - beds and loops: never trimmed (the seam is the loop's), loudness-normalized (beds -24 LUFS, a vehicle's loops -14), the
  *     seam measured: the jump from the last sample to the first against the bed's median sample-to-sample step;
+ *   - a pitched take (an instrument's note, `pitched`): its ROOT measured, the note it really is (pitch.js), and a held
+ *     one's (`sustain`) loop, a whole number of its periods: the variant's `root` (MIDI, to the cent) and `loopAt`; and
+ *     the strength it was asked at (a card's `vel`, a velocity layer's), its `vel`;
  *   - named by its bytes: <out>/masters/<sha16>.wav, with <sha16>.mp3 beside it (160 kbps, the form a page inlines:
  *     about a tenth of the WAV; an offline render reads the WAV).
  * Writes <out>/library.json: { version, cards: { <card>: { shelf | band, role, loop, prompt, variants: [ { id,
@@ -23,6 +26,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadCards } from './cards/index.js';
+import { steadyPitch, loopPoints } from './pitch.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const RATE = 44100;
@@ -72,6 +76,13 @@ function readWav(bytes) {
   }
   if (!fmt || !data) throw new Error('condition: a master with no fmt or data chunk');
   return { ...fmt, frames: Math.floor(data.size / (2 * fmt.channels)), at: data.at };
+}
+
+/** a master's frames as one mono Float32 channel */
+function mono(bytes, w) {
+  const out = new Float32Array(w.frames);
+  for (let f = 0; f < w.frames; f++) { let v = 0; for (let c = 0; c < w.channels; c++) v += bytes.readInt16LE(w.at + (f * w.channels + c) * 2); out[f] = v / (32768 * w.channels); }
+  return out;
 }
 
 /** the loop seam: the jump from the last frame to the first, over the median frame-to-frame step (1 ≈ seamless) */
@@ -127,14 +138,31 @@ async function main() {
       const mp3 = path.join(masters, `${id}.mp3`);
       if (!existsSync(mp3)) run(ff, ['-y', '-i', at, '-codec:a', 'libmp3lame', '-b:a', '160k', '-map_metadata', '-1', '-id3v2_version', '0', '-fflags', '+bitexact', '-flags:a', '+bitexact', mp3]);
       const w = readWav(bytes), lv = levels(ff, at), led = ledger.find((e) => e.card === c.id && e.take === t);
+      // (a pitched take's ROOT, measured: the note it really is, which an instrument is zoned by; a held one's LOOP, a
+      // whole number of its periods inside its sustain; pitch.js. A take with no clear pitch is left out of its instrument)
+      let tone = null;
+      // (a key-off, an instrument's release sound, has no pitch to measure: it carries its register, `keyAt`)
+      // (and, where it carries a pitch of its own, a tick or a string's buzz, that pitch: `keyRoot`, so a patch can tune it
+      // to the note let go, `keyOffTuned`)
+      if (c.keyOff) { const F = steadyPitch(mono(bytes, w), w.rate); tone = { keyAt: c.at, ...(F ? { keyRoot: F.midi } : {}) }; }
+      else if (c.instrument) {
+        // (searched round the note asked, its band's `<instrument>:<note>`: an octave and a half either side, since the
+        // generator lands the letter but not always the octave)
+        const asked = /:([A-G]#?)(-?\d)$/.exec(c.band || ''), L = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const hz = asked ? 440 * Math.pow(2, (L.indexOf(asked[1]) + 12 * (Number(asked[2]) + 1) - 69) / 12) : null;
+        const X = mono(bytes, w), F = steadyPitch(X, w.rate, hz ? { lo: Math.max(30, hz / 2.83), hi: Math.min(4400, hz * 2.83) } : {});
+        if (!F) { console.log(`condition: ${c.id} #${t} holds no steady pitch; left out of its instrument`); continue; }
+        tone = { root: F.midi, ...(c.sustain ? { loopAt: loopPoints(X, w.rate, F.hz) } : {}), ...(Number.isFinite(c.vel) ? { vel: c.vel } : {}) };
+      }
       variants.push({
         id, take: t, seconds: +(w.frames / w.rate).toFixed(3), rate: w.rate, channels: w.channels, peakDb: lv.peakDb, lufs: lv.lufs,
         ...(c.role === 'bed' || c.role === 'loop' ? { seam: seam(bytes, w) } : {}),
+        ...(tone ?? {}),
         source: { sha256: led?.sha256 ?? createHash('sha256').update(readFileSync(src)).digest('hex'), request: led?.request ?? null },
       });
       n++;
     }
-    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), ...(c.engine ? { engine: c.engine, rpm: c.rpm } : {}), ...(c.flavor ? { flavor: c.flavor } : {}), ...(c.also ? { also: c.also } : {}), ...(c.ui ? { ui: c.ui, uiSets: c.uiSets || [] } : {}), ...(c.tags ? { tags: c.tags } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
+    cards[c.id] = { ...(c.shelf ? { shelf: c.shelf } : {}), ...(c.band ? { band: c.band } : {}), ...(c.engine ? { engine: c.engine, rpm: c.rpm } : {}), ...(c.flavor ? { flavor: c.flavor } : {}), ...(c.also ? { also: c.also } : {}), ...(c.ui ? { ui: c.ui, uiSets: c.uiSets || [] } : {}), ...(c.tags ? { tags: c.tags } : {}), ...(c.instrument ? { instrument: c.instrument, ...(c.keyOff ? { keyOff: true } : { pitched: true }), ...(c.sustain ? { sustain: true } : {}) } : {}), role: c.role, loop: !!c.loop, prompt: c.prompt, variants };
   }
   const index = { version: 1, set: a.cards, rate: RATE, levels: { oneShotPeakDb: PEAK_DB, bedLufs: BED_LUFS, loopLufs: LOOP_LUFS }, cards };
   writeFileSync(path.join(a.out, 'library.json'), `${JSON.stringify(index, null, 1)}\n`);
