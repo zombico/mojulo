@@ -153,8 +153,9 @@ Each starter fills the same slots. A variation changes what fills them, never th
 2. A new piece is a branch in `drawPiece`, at its true size, with what stands out of the wall noted (`proud`) for its
    shadow.
 3. A turning piece is a `box:turn:<id>` group with its spin. Glass lit from behind is `box:stained`.
-4. A new masonry is a row of `WALLS`.
-5. Run `backdropLaws`.
+4. A new masonry is a row of `WALLS`; what its floors and ledges are built of is its `path` and `ledge` (rows of
+   `PATHS` and `LEDGES` in `fabric.js`, docs/metroidvania-map.md "The castle's fabric").
+5. Run `backdropLaws` and `fabricLaws`.
 
 **A re-key only:** change a place's tone, a locale's `back`, `trim` and lamp, or a level's cube. Then check the laws
 and the contact sheet. No code.

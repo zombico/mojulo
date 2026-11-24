@@ -10,8 +10,9 @@
  *                  own stone, so a lamp's pool lands on it), a wainscot and its rail, a pillar between cells, its ceiling's
  *                  vault or beams, cobwebs in its top corners, its bays by the wall's rhythm and one focal piece a room,
  *                  the near layer (a column, a chain) between the lane and the wall
- *   the STONE      every closed part in its ring's stone, its top coped in `top`; a wall's face coursed (its mortar every
- *                  COURSE up), a floor's and a ceiling's jointed (every JOINT across, the courses breaking bond)
+ *   the FABRIC     every closed part built as what it is (fabric.js): a floor's path in its material, a ceiling's
+ *                  cornice, a wall quoined, a doorway arched, a hole framed, a ledge in its material, a tower slit, the
+ *                  box crowned and founded
  *   the RUNNER     a carpet down a ring's floors where its look has one, cut round the holes and the gates in them
  *   the LAMPS      one a bay, on its back (a torch, a sconce of candles, a cold lamp) or on its floor (a brazier), drawn
  *                  lit, each flame haloed (GLOW: the page's glow sprites)
@@ -27,9 +28,9 @@
  *   the DUST       hanging in the closed rooms, lit where the lamps are (MOTES: the page's motes)
  *
  *   dressBox(B, theme) → { faces, lamps: [{ at: [x, s, z], colour, kind, room, reach }], plan: { <room>: { order, focals,
- *                  near, through, open } }, sizes: { <part>: [least, most] }, motes?, glow }   B: scene.js boxOf's
+ *                  near, through, open } }, sizes: { <part>: [least, most] }, fabric (fabric.js buildFabric's), motes?, glow }   B: scene.js boxOf's
  *                  (layout, greybox); sizes the drawn parts' measures (backdrop.js SCALE)
- *   COURSE, JOINT, LAMP_REACH, ASHLAR, RELIEF, WAINSCOT, MOTES, GLOW
+ *   LAMP_REACH, ASHLAR, RELIEF, WAINSCOT, MOTES, GLOW
  *
  * Pure: the same box and theme make the same faces.
  */
@@ -37,8 +38,9 @@ import { r5, hexRgb, rgbHex } from '../../era/geom.js';
 import { BOX_THEMES, lookOf, roomLook } from './themes.js';
 import { FLOOR, CEIL, boxCameraOf } from './rooms.js';
 import { composeRoom, drawPiece, diceOf, measure, archOf } from './backdrop.js';
+import { buildFabric } from './fabric.js';
 
-export const COURSE = 0.8, JOINT = 1.6, LAMP_REACH = 8;
+export const LAMP_REACH = 8;
 /** a back wall's ashlar: its blocks' lengths and its courses' heights (m), each course its own height and each block its
  * own length (seeded), so the wall is laid stone, never a grid; each block lit domed (its lamp side light, its far side
  * dark: PILLOW) */
@@ -78,7 +80,7 @@ export const MOTION = Object.freeze({
   'box:ghost': Object.freeze({ depth: 0.3, beat: 2.7, spread: 0.6 }),
   'box:brew': Object.freeze({ amp: [0, 0, 0.03], period: 1.4, spread: 3.1, depth: 0.35, beat: 1.8 }),
 });
-const HALF = 1.5, BACK = -3, NEAR_X = -2.3, NEAR_SHADE = 0.55, LIT = 0.14, SKY_X = -14, TOWER_X = -12, MOON_X = -10, PARAPET_X = -2.2, SKY_BAND = 4;
+const HALF = 1.5, BACK = -3, NEAR_X = -2.3, NEAR_SHADE = 0.55, SKY_X = -14, TOWER_X = -12, MOON_X = -10, PARAPET_X = -2.2, SKY_BAND = 4;
 const STAR_X = SKY_X + 0.6, MOUNT_X = SKY_X + 1.0, CLOUD_X = SKY_X + 1.4, RIDGE_X = TOWER_X + 0.6, BEAM_X = BACK + 0.55;
 const SHADOW = 0.62, WARM = 1.5;
 /** a wall shaft's corbel, over her head (m above its floor) */
@@ -101,26 +103,6 @@ const poly = (out, x, pts, fill, group, extra) => out.push({ corners: pts.map(([
 const bar = (out, x, a, b, w, fill, group = 'box:dress', extra) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = (-dz / l) * (w / 2), nz = (dx / l) * (w / 2); poly(out, x, [[a[0] + nx, a[1] + nz], [b[0] + nx, b[1] + nz], [b[0] - nx, b[1] - nz], [a[0] - nx, a[1] - nz]], fill, group, extra); };
 const mix = (a, b, k) => rgbHex(hexRgb(a).map((v, i) => v + (hexRgb(b)[i] - v) * k));
 const shade = (hex, k) => rgbHex(hexRgb(hex).map((v) => Math.min(1, v * k)));
-function block(out, s0, s1, z0, z1, L, group) {
-  face(out, HALF, s0, s1, z0, Math.max(z0, z1 - LIT), L.stone, group);
-  face(out, HALF, s0, s1, Math.max(z0, z1 - LIT), z1, L.top, group);
-  quad(out, [[-HALF, s0, z1], [HALF, s0, z1], [HALF, s1, z1], [-HALF, s1, z1]], N.top, L.top, group);
-  for (const [s, n] of [[s0, N.ny], [s1, N.py]]) quad(out, [[-HALF, s, z0], [HALF, s, z0], [HALF, s, z1], [-HALF, s, z1]], n, shade(L.stone, 0.78), group);
-}
-// a solid's face coursed: its mortar every COURSE up a tall face; a low one (a floor, a ceiling, a ledge) jointed across,
-// each course's joints half a block on from the last's
-function masonry(out, s0, s1, z0, z1, L, group) {
-  const x = HALF + 0.01, h = z1 - z0 - LIT;
-  if (h <= 0.3) return;
-  if (h > 1.6) { for (let z = z0 + COURSE; z < z0 + h - 0.1; z += COURSE) face(out, x, s0, s1, z - 0.03, z + 0.03, L.mortar, group); return; }
-  const rows = Math.max(1, Math.round(h / COURSE)), dz = h / rows;
-  for (let k = 0; k < rows; k++) {
-    const za = z0 + k * dz, zb = za + dz;
-    if (k) face(out, x, s0, s1, za - 0.03, za + 0.03, L.mortar, group);
-    for (let s = s0 + (k % 2 ? JOINT / 2 : JOINT); s < s1 - 0.2; s += JOINT) face(out, x, s - 0.03, s + 0.03, za, zb, L.mortar, group);
-  }
-}
-
 /** a shaft drawn round: `n` strips across [s - r, s + r], each turned to its side, so a lamp lights its near side and
  * leaves its far side in shadow */
 function roundShaft(out, x, s, r, z0, z1, fill, pc, n = 5) {
@@ -343,15 +325,9 @@ export function dressBox(B, theme) {
       }
     }
   }
-  // THE STONE: every closed part in its ring's stone, coped, coursed or jointed
-  for (const s of G.solids) {
-    const Lk = look(ringOf.get(s.room) ?? 0), low = s.role === 'ledge' || s.role === 'lip';
-    const own = low ? { ...Lk, stone: mix(Lk.stone, Lk.top, 0.35) } : Lk;
-    block(faces, s.s0, s.s1, s.z0, s.z1, own, low ? 'box:ledge' : 'box:stone');
-    if (!low) masonry(faces, s.s0, s.s1, s.z0, s.z1, own, 'box:stone');
-    // (a trim band under every floor's lip toward the room)
-    if (s.role === 'floor' && s.z1 - s.z0 > 0.5) face(faces, HALF + 0.015, s.s0, s.s1, s.z1 - LIT - 0.18, s.z1 - LIT, Lk.trim, 'box:stone');
-  }
+  // THE FABRIC: every closed part built as what it is (fabric.js): its paths, its walls quoined, its doorways arched,
+  // its ledges in their material, its towers slit, the box crowned and founded
+  const fabric = buildFabric(faces, { greybox: G, layout: L, theme: T, lookRoom, cols, rows, sizes });
   // THE RUNNER: down the floors of a ring whose look has one, cut round every hole and every gate in them
   // (a gate in a floor stands in its hole: the holes are every cut)
   const cuts = G.holes.map((h) => ({ s0: h.s0 - 0.2, s1: h.s1 + 0.2, z: h.z }));
@@ -362,7 +338,7 @@ export function dressBox(B, theme) {
     const here = cuts.filter((q) => Math.abs(q.z - rr * H) < 1e-3 && q.s1 > s0 && q.s0 < s1).sort((a, b) => a.s0 - b.s0);
     let at = s0;
     for (const q of [...here, { s0: s1, s1 }]) {
-      if (q.s0 - at > 0.5) quad(faces, [[-0.9, at, z + 0.02], [0.9, at, z + 0.02], [0.9, q.s0, z + 0.02], [-0.9, q.s0, z + 0.02]], N.top, Lk.carpet, 'box:runner');
+      if (q.s0 - at > 0.5) quad(faces, [[-0.9, at, z + 0.025], [0.9, at, z + 0.025], [0.9, q.s0, z + 0.025], [-0.9, q.s0, z + 0.025]], N.top, Lk.carpet, 'box:runner');
       at = Math.max(at, q.s1);
     }
   }
@@ -430,5 +406,5 @@ export function dressBox(B, theme) {
   const all = [...night, ...faces.map(lit), ...flames, ...beams], groups = new Set(all.map((f) => f.group));
   // (and the gears turn, the clocks' hands go round, the orreries' arms: each its own group about its own hub)
   const ambient = { groups: { ...Object.fromEntries(Object.entries(MOTION).filter(([g]) => groups.has(g))), ...Object.fromEntries(Object.entries(spins).filter(([g]) => groups.has(g))) } };
-  return { faces: all, lamps, plan, sizes, ...(motes ? { motes } : {}), glow: GLOW, ...(live.length ? { live } : {}), ...(Object.keys(ambient.groups).length ? { ambient } : {}) };
+  return { faces: all, lamps, plan, sizes, fabric, ...(motes ? { motes } : {}), glow: GLOW, ...(live.length ? { live } : {}), ...(Object.keys(ambient.groups).length ? { ambient } : {}) };
 }

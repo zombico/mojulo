@@ -26,12 +26,14 @@
  *              lamp), `brazier` (a bowl of fire on the floor); its colour and its `reach` (m) baked into what stands
  *              near it, its flames haloed, dust hanging in its light
  *     wall     the back's masonry (WALLS in dress.js): `ashlar` (unsaid), `brick`, `rock` (a cave's rough beds), `plaster`
+ *     path     what its floors are laid in (fabric.js PATHS): `flags` (unsaid), `boards`, `tiles`, `rock`
+ *     ledge    what its stairs' ledges are built of (fabric.js LEDGES): `stone` (unsaid), `timber`, `iron`
  *   the NIGHT { zenith, horizon, moon: { colour, r }, towers }   the sky an open ring stands under
  *   the LOCALES  a room its own place inside its ring (docs/metroidvania-map.md "Locales"): a locale is a look's words laid
  *              over its ring's look for one room, by what the room is: a save room is a chapel, a ring's `shaft` its
  *              shafts, its `boss` its boss's room, its `hall` its halls, its `alt` every other of its corridors. A closed ring's rooms are then
  *              not one hall all through: the halls have their library stacks, the ward its clock tower and catacombs, the
- *              keep its throne room. Its closed parts (the floors she stands on) stay the ring's.
+ *              keep its throne room. Its closed parts keep their ring's stone, laid in the locale's path and ledge.
  *
  *   BOX_THEMES, BOX_THEME_IDS, LAMP_KINDS (the castle and its seeded re-keys, castle-frost and castle-blood)
  *   rekey(base, { name?, night?, looks?, locales?, lamp? }) → a theme: the base's rings and locales in other colours
@@ -52,29 +54,29 @@ const CASTLE = Object.freeze({
   night: Object.freeze({ zenith: '#0b0d1f', horizon: '#2a2550', moon: Object.freeze({ colour: '#f1ecd6', r: 1.3 }), towers: '#17162e' }),
   looks: Object.freeze([
     Object.freeze({ place: 'the ramparts', open: true, back: '#1b1f38', stone: '#6c6875', mortar: '#3d3a46', top: '#a6a2ad', trim: '#4f4b58',
-      bays: Object.freeze(['merlons', 'merlons']), focal: 'gargoyle', dark: 0.5, lamp: Object.freeze({ kind: 'torch', colour: '#ffad55', reach: 6 }) }),
-    Object.freeze({ place: 'the great halls', back: '#3b2a2c', stone: '#8c8179', mortar: '#55493f', top: '#c4b8a6', trim: '#8a6a3e', glass: '#5d7cb4', carpet: '#7a1a26',
+      path: 'flags', ledge: 'stone', bays: Object.freeze(['merlons', 'merlons']), focal: 'gargoyle', dark: 0.5, lamp: Object.freeze({ kind: 'torch', colour: '#ffad55', reach: 6 }) }),
+    Object.freeze({ place: 'the great halls', back: '#3b2a2c', stone: '#8c8179', mortar: '#55493f', top: '#c4b8a6', trim: '#8a6a3e', glass: '#5d7cb4', carpet: '#7a1a26', path: 'flags', ledge: 'timber',
       bays: Object.freeze(['arch', 'shelf']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'portrait', dark: 0.36, lamp: Object.freeze({ kind: 'candles', colour: '#ffcc80', reach: 5.5 }), shaft: 'library', alt: 'alchemy' }),
-    Object.freeze({ place: 'the inner ward', back: '#1f2c2a', stone: '#5a6658', mortar: '#2f3a30', top: '#8d9a86', trim: '#3f4a3c', glass: '#7fa6a0',
+    Object.freeze({ place: 'the inner ward', back: '#1f2c2a', stone: '#5a6658', mortar: '#2f3a30', top: '#8d9a86', trim: '#3f4a3c', glass: '#7fa6a0', path: 'flags', ledge: 'timber',
       bays: Object.freeze(['arch', 'ivy']), ceiling: 'beams', pier: 'square', near: 'chain', focal: 'statue', dark: 0.34, lamp: Object.freeze({ kind: 'ghost', colour: '#9fe0ff', reach: 5 }), shaft: 'clocktower', boss: 'clocktower', alt: 'catacombs' }),
-    Object.freeze({ place: 'the keep', back: '#2a0f16', stone: '#4c3b40', mortar: '#2a1e22', top: '#8a7466', trim: '#c9a24a', carpet: '#8c1020',
+    Object.freeze({ place: 'the keep', back: '#2a0f16', stone: '#4c3b40', mortar: '#2a1e22', top: '#8a7466', trim: '#c9a24a', carpet: '#8c1020', path: 'tiles', ledge: 'stone',
       bays: Object.freeze(['banner', 'niche']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', lancets: true, focal: 'arms', dark: 0.32, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }), boss: 'throne', hall: 'armoury' }),
   ]),
   locales: Object.freeze({
     // (a save room: whitewashed plaster, lancets of coloured glass, a rose window, candles; her light coloured by it)
-    chapel: Object.freeze({ place: 'the chapel', wall: 'plaster', back: '#5e5868', trim: '#b49a5a', carpet: '#3c2c66', bays: Object.freeze(['stained', 'stained']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'rose', dark: 0.42, lamp: Object.freeze({ kind: 'candles', colour: '#ffdca8', reach: 5.5 }) }),
+    chapel: Object.freeze({ place: 'the chapel', wall: 'plaster', back: '#5e5868', trim: '#b49a5a', carpet: '#3c2c66', path: 'tiles', bays: Object.freeze(['stained', 'stained']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'rose', dark: 0.42, lamp: Object.freeze({ kind: 'candles', colour: '#ffdca8', reach: 5.5 }) }),
     // (the great halls' tall stacks: cases two storeys high under their galleries, an orrery turning under the roof)
-    library: Object.freeze({ place: 'the library', calm: true, back: '#3c2a1e', trim: '#8a6436', bays: Object.freeze(['shelf', 'shelf']), ceiling: 'beams', pier: 'square', near: 'column', lancets: true, focal: 'orrery', dark: 0.34, lamp: Object.freeze({ kind: 'candles', colour: '#ffc880', reach: 5.5 }) }),
+    library: Object.freeze({ place: 'the library', calm: true, back: '#3c2a1e', trim: '#8a6436', path: 'boards', ledge: 'timber', bays: Object.freeze(['shelf', 'shelf']), ceiling: 'beams', pier: 'square', near: 'column', lancets: true, focal: 'orrery', dark: 0.34, lamp: Object.freeze({ kind: 'candles', colour: '#ffc880', reach: 5.5 }) }),
     // (the inner ward's clock tower: brick, gears turning in the wall, the great clock's face, its hands going round)
-    clocktower: Object.freeze({ place: 'the clock tower', wall: 'brick', back: '#56302a', trim: '#9a7a44', bays: Object.freeze(['gears', 'gears']), ceiling: 'beams', pier: 'square', near: 'chain', lancets: true, focal: 'clockface', dark: 0.34, lamp: Object.freeze({ kind: 'torch', colour: '#ffa050', reach: 6 }) }),
+    clocktower: Object.freeze({ place: 'the clock tower', wall: 'brick', back: '#56302a', trim: '#9a7a44', path: 'boards', ledge: 'iron', bays: Object.freeze(['gears', 'gears']), ceiling: 'beams', pier: 'square', near: 'chain', lancets: true, focal: 'clockface', dark: 0.34, lamp: Object.freeze({ kind: 'torch', colour: '#ffa050', reach: 6 }) }),
     // (the catacombs under the ward: rough rock, skulls stacked in their niches, a sarcophagus, candles)
-    catacombs: Object.freeze({ place: 'the catacombs', wall: 'rock', back: '#3a332c', trim: '#5a5046', bays: Object.freeze(['skulls', 'niche']), near: 'chain', lancets: true, focal: 'sarcophagus', dark: 0.28, lamp: Object.freeze({ kind: 'candles', colour: '#ffb468', reach: 4.8 }) }),
+    catacombs: Object.freeze({ place: 'the catacombs', wall: 'rock', back: '#3a332c', trim: '#5a5046', path: 'rock', ledge: 'stone', bays: Object.freeze(['skulls', 'niche']), near: 'chain', lancets: true, focal: 'sarcophagus', dark: 0.28, lamp: Object.freeze({ kind: 'candles', colour: '#ffb468', reach: 4.8 }) }),
     // (the keep's heart: the lord's throne on its dais under a canopy, banners and tall windows, braziers)
     // (SEEDED locales) the great halls' alchemy: shelves of potions glowing in their bottles, a cauldron bubbling on its fire
-    alchemy: Object.freeze({ place: 'the alchemist\'s laboratory', wall: 'brick', back: '#2e3a2c', trim: '#7a6a3a', bays: Object.freeze(['flasks', 'shelf']), ceiling: 'beams', pier: 'square', near: 'chain', lancets: true, focal: 'cauldron', dark: 0.32, calm: true, lamp: Object.freeze({ kind: 'candles', colour: '#d8ffb0', reach: 5 }) }),
+    alchemy: Object.freeze({ place: 'the alchemist\'s laboratory', wall: 'brick', back: '#2e3a2c', trim: '#7a6a3a', path: 'tiles', ledge: 'timber', bays: Object.freeze(['flasks', 'shelf']), ceiling: 'beams', pier: 'square', near: 'chain', lancets: true, focal: 'cauldron', dark: 0.32, calm: true, lamp: Object.freeze({ kind: 'candles', colour: '#d8ffb0', reach: 5 }) }),
     // the keep's armoury: racks of spears and swords, a suit of armour standing guard
-    armoury: Object.freeze({ place: 'the armoury', back: '#2a2a30', trim: '#8a7a5a', carpet: '#3a2a20', bays: Object.freeze(['rack', 'arms']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', lancets: true, focal: 'armour', dark: 0.32, lamp: Object.freeze({ kind: 'torch', colour: '#ffa050', reach: 6 }) }),
-    throne: Object.freeze({ place: 'the throne room', back: '#3e0e1a', trim: '#d0a84a', carpet: '#9a1222', glass: '#6c64a8', bays: Object.freeze(['banner', 'arch']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', focal: 'throne', dark: 0.3, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }) }),
+    armoury: Object.freeze({ place: 'the armoury', back: '#2a2a30', trim: '#8a7a5a', carpet: '#3a2a20', path: 'flags', ledge: 'iron', bays: Object.freeze(['rack', 'arms']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', lancets: true, focal: 'armour', dark: 0.32, lamp: Object.freeze({ kind: 'torch', colour: '#ffa050', reach: 6 }) }),
+    throne: Object.freeze({ place: 'the throne room', back: '#3e0e1a', trim: '#d0a84a', carpet: '#9a1222', glass: '#6c64a8', path: 'tiles', bays: Object.freeze(['banner', 'arch']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', focal: 'throne', dark: 0.3, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }) }),
   }),
 });
 

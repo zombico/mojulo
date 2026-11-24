@@ -229,7 +229,8 @@ theme is a row of `BOX_THEMES`; a new place is a look.
 A ring is a region, but a region is not one hall all through. A LOCALE is a look's words laid over its ring's look
 for one room, chosen by what the room is ([themes.js](../control/lib/graph/gameworld/metroidvania/themes.js)
 `localeOf`, `roomLook`): a save room is a chapel; a ring's `shaft` dresses its shafts, its `boss` its boss's room and
-its `alt` every other corridor. The open ring's rooms stay its ramparts, and the floors she stands on stay the ring's.
+its `alt` every other corridor. The open ring's rooms stay its ramparts. The closed parts keep their ring's stone, laid
+in the locale's path and ledge ("The castle's fabric", below).
 
 | Locale | Its wall | Its bays | Its focal piece | What moves |
 |---|---|---|---|---|
@@ -315,6 +316,66 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
    corbel, and the lord's portrait hangs over her head. Every part's size is noted as it is drawn and held to `SCALE`,
    said for a body of `REF_STATURE` and scaled to hers. Law: `scale`.
 
+## The castle's fabric
+
+The backdrop's craft dresses what is behind the play. The FABRIC builds what the play stands on, runs into and passes
+through ([fabric.js](../control/lib/graph/gameworld/metroidvania/fabric.js)): the greybox's floors, ceilings, walls,
+ledges and niches, each built as what it is. The play's camera frames one cell, so every screen has a floor along its
+foot, a ceiling along its head, a wall at each side and the ledges between: the fabric is seen on every screen, more
+than any piece on the back. These are the principles it is built by. Each is measured as a law (`fabric:<id>`), beside
+the backdrop's and the theme's.
+
+1. **Every solid is built as its role.** Nothing is left as a grey block. A floor is a path, a ceiling a cornice, a wall
+   quoined, a ledge in its material. Law: `built`.
+2. **The path reads first.** A floor's top is laid in its room's material (`path`, the rows of `PATHS`): flagstones in
+   two rows across the walk, boards along it, a checker of tiles, the rock's own beds. Each stone or board has its own
+   length and shade, over the mortar between them. Its front is a lit tread, then a string course (a board floor's beam,
+   strapped in iron), then coursed stone. The path is lighter than the slab's face, so the line she walks on is the first
+   thing read. Law: `paths-read`.
+3. **A slab is an entablature.** A floor and the ceiling under it make one slab between storeys. The ceiling's foot is
+   a cornice: a moulding and a corbel table hanging under it. Out under the sky the ceiling is a hoarding instead (the
+   timber roof of a covered wall-walk), and at the box's top it is machicolations, the crown's parapet on deep corbels.
+4. **A wall is quoined.** Each course is one stone or two, alternately, at her scale. A wall has a plinth at its foot,
+   an impost under the ceiling and a string course at every storey it rises through, so a shaft's walls read as a
+   tower's.
+5. **Openings are made, never cut.** A doorway has a segmental arch in its head (voussoirs, a proud keystone, the
+   spandrels filling its corners), a threshold across its foot, and the passage's far reveal seen through it in shadow,
+   so a gap in a wall reads as a way through a thick one. The box's entry is made the same. A hole through a floor is
+   framed by rim stones either side, with the slab's far reveal seen through the cut. Laws: `doorways-made`,
+   `holes-framed`.
+6. **Ledges by the room's material.** A stair's ledges are what the room's look names (`ledge`, the rows of `LEDGES`):
+   a slab of two stones chamfered underneath; a timber platform of boards on a beam, strapped in iron and hung on two
+   rods from what is over it (the rods stand behind the lane, so nothing hangs in front of her); or an iron catwalk,
+   grated, its rail riveted, on a truss. The halls and the ward stand on timber, the clock tower and the armoury on iron,
+   the ramparts, the keep and the catacombs on stone.
+7. **Towers.** A shaft on the box's edge is a tower: an arrow slit in its outer wall each storey, with a sliver of the
+   night in it. Law: `towers-slit`.
+8. **Weathered outside, clean inside.** Out under the sky, moss grows along the treads and damp streaks down from them.
+   Inside, the stone is clean.
+9. **The castle stands on something and ends in something.** Along the box's top run a parapet and its merlons, a
+   bartizan every third screen and a tower under a conical roof over each top corner. Under the box are a battered plinth
+   and a crag of boulders, their tops lit by the moon. The play's frame never shows these: they are the castle's whole
+   view (`shots.mjs vampire --whole`). Law: `crowned`.
+10. **She is the measure here too.** Every course and block is noted and held to the backdrop's `SCALE`. A quoin's
+    course is about half her height, and no stone is a wall's height.
+
+A room's look says its `path` and its `ledge`; a locale's words override its ring's.
+
+| Look | Path | Ledges |
+|---|---|---|
+| the ramparts | flagstones, mossy | stone |
+| the great halls, the inner ward | flagstones | timber |
+| the keep | tiles | stone |
+| the chapel, the throne room | tiles | the ring's |
+| the alchemist's laboratory | tiles | timber |
+| the library | boards | timber |
+| the clock tower | boards | iron |
+| the catacombs | rock | stone |
+| the armoury | flagstones | iron |
+
+A new path or ledge is a row of `PATHS` or `LEDGES` and a branch where it is laid. The fabric draws faces only: the
+colliders stay the greybox's.
+
 ## Not yet
 
 - **The castle's own feel.** Erina plays Galaxy Boy's run and gun with Zero Boy's saber string. A feel of her own would
@@ -323,7 +384,8 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **The castle dressed further:** the gates in the castle's own make (a portcullis, an iron-bound door), the side map's
   relief on the stone, the lamps' pools flickering with their flames (the page's flicker answers a few dying tubes, not a
   castle of candles), bats and lightning over the ramparts, and the foreground: things passing in front of the lane in
-  silhouette.
+  silhouette. In the fabric: a door's leaf standing open in its doorway, stairs drawn as steps where a stair of ledges
+  climbs against a wall, and the crown's turrets seen from the play (today only the castle's whole view shows them).
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant, MP spells and real bosses in place of

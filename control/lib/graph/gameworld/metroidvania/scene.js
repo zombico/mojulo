@@ -38,6 +38,7 @@ import { GATES, readHero } from './gates.js';
 import { BOX_THEMES, themeLaws } from './themes.js';
 import { dressBox } from './dress.js';
 import { backdropLaws } from './backdrop.js';
+import { fabricLaws } from './fabric.js';
 
 export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox']);
 /** a boss stand-in's blows to fall */
@@ -121,7 +122,7 @@ export function boxOf(m) {
   const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })), saves };
   // DRESSED in its theme where its words name one (dress.js), and held to the backdrop's craft (backdrop.js)
   const B0 = { layout, greybox, stature: R.hero.stature }, dress = layout.theme ? dressBox(B0, BOX_THEMES[layout.theme]) : null;
-  if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })));
+  if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })), ...fabricLaws(B0, dress.fabric).map((l) => ({ ...l, id: `fabric:${l.id}` })));
   return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, ...(dress ? { dress } : {}) };
 }
 

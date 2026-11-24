@@ -52,4 +52,15 @@
   own; two locales from new pieces, the alchemist's laboratory (potions glowing on their shelves, a cauldron bubbling
   under its hood) in every other corridor of the halls, and the armoury (weapon racks, a suit of armour) in the keep's
   other hall. Every law holds in every theme.
-
+- The castle's fabric (`docs/metroidvania-map.md` "The castle's fabric"): the parts Vampire Sonata's hero stands on, runs
+  into and passes through are built as what they are, where they were grey blocks. A floor is a path in its room's
+  material (flagstones, boards, a checker of tiles, the rock's own beds) over a string course and coursed stone; a
+  ceiling a cornice on a corbel table, a timber hoarding over the walks outside, machicolations at the top; a wall
+  quoined, with a plinth, an impost and a string course at each storey. Every doorway has an arched head, a threshold
+  and the passage's far reveal seen through it; every hole through a floor is framed. A stair's ledges are stone slabs,
+  timber platforms hung on rods from what is over them, or iron catwalks on a truss, by the room. The towers on the
+  box's edge have an arrow slit each storey; moss and damp weather the stone outside. The box has a crown (a parapet,
+  bartizans, corner towers under conical roofs) and stands on a crag. Each is a law (`fabric:*`), and every law holds
+  in every theme.
+- The backdrop shots frame a castle room as the play does (a cell, the zone holding the frame), and `--whole` shows the
+  castle entire.
