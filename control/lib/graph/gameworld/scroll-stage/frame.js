@@ -48,8 +48,9 @@ export const SCROLL_VIEWS = Object.freeze({
 });
 export const SCROLL_VIEW_IDS = Object.freeze(Object.keys(SCROLL_VIEWS));
 
-/** The frame: the side map's lens, the ship's length a ninth of the frame across, a thirtieth of it kept at each edge. */
-export const SCROLL_FRAME = Object.freeze({ vfov: SIDE_MAP_FRAME.vfov, shipShare: 1 / 9, margin: 1 / 30 });
+/** The frame: the side map's lens, the ship's length an eighth of the frame across (a ninth read small for a slim hero
+ * ship), a thirtieth of it kept at each edge. */
+export const SCROLL_FRAME = Object.freeze({ vfov: SIDE_MAP_FRAME.vfov, shipShare: 1 / 8, margin: 1 / 30 });
 
 const DEG = Math.PI / 180;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -100,7 +101,9 @@ export function playBox(cam, { length = 0, breadth = 0, margin = SCROLL_FRAME.ma
   const S = cam.screen, edge = margin * S.across;
   const hu = S.along / 2 - edge - length / 2, hv = S.across / 2 - edge - breadth / 2;
   if (!(hu > 0 && hv > 0)) no('the ship is too big for its screen: nothing is left to move in');
-  return { u: [r3(-hu), r3(hu)], v: [r3(-hv), r3(hv)] };
+  // (rounded once and mirrored: the box is symmetric to the millimetre)
+  const U = r3(hu), W = r3(hv);
+  return { u: [-U, U], v: [-W, W] };
 }
 
 /** How much bigger a thing at depth d (negative: behind the plane) is drawn to fill the share it would fill on the plane. */

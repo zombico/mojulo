@@ -43,9 +43,9 @@ import { SPACE_LAYER_IDS, SPACE_VOID, layScrollSpace, hazeHulls } from './space-
 export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'hulls', 'backdrop', 'seed']);
 /** A leg's pace where it names none: a tenth of a screen a second (an arcade scroll's unhurried crawl). */
 export const SCROLL_PACE = 0.1;
-/** The ship a stage flies where it names none: the craft shelf's arrowhead interceptor (a classic heroic profile: a long
- * nose, a raised fin, a hot drive), until Blaze Gunner's own. */
-export const SCROLL_CRAFT = 'arrowInterceptor';
+/** The ship a stage flies where it names none: the craft shelf's hero gunship (craft-shelf/hero-gunship.js), Blaze
+ * Gunner's own: a classic hero fighter in profile, its keel blade and its gun rail. */
+export const SCROLL_CRAFT = 'heroGunship';
 /** How far behind the play a hull stands where it names no depth (camera distances): back enough that a capital ship
  * reads whole and quiet behind the fight. */
 export const HULL_DEPTH = -4;

@@ -76,6 +76,8 @@ export const CRAFT_PALETTES = {
   scoutIvory: { paint: '#d9d4c7', trim: '#a8473a', glass: '#2b3a44', rubber: '#3b3d40', chrome: '#8d9196', light: '#ff7a4a' },
   interceptorSlate: { paint: '#6f767e', trim: '#2d3238', glass: '#1d2a33', rubber: '#24272b', chrome: '#9aa1a8', light: '#7fd3ff' },
   colonialSteel: { paint: '#b7bbbd', trim: '#7d2a26', glass: '#2a3540', rubber: '#2a2c2f', chrome: '#8f9498', light: '#ffb347' },
+  // the hero gunship's (hero-gunship.js): white, a hero's blue trim, a hot drive
+  heroWhite: { paint: '#e6e9ee', trim: '#2457c5', glass: '#1d2a3a', rubber: '#2a2c30', chrome: '#9aa3ad', light: '#ffa040' },
   carrierBlue: { paint: '#56616f', trim: '#c9a64a', glass: '#1f2b36', rubber: '#26292d', chrome: '#a3a9b0', light: '#8fd0ff' },
 };
 

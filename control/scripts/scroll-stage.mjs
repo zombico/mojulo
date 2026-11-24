@@ -4,7 +4,7 @@
  * its page from its own scroll camera at a few places down its track (the page's runtime places the camera: each shot is
  * the stage started there).
  *
- *   node scripts/scroll-stage.mjs [manifest.json] [--out dir] [--at 0,1.5,4] [--view side|top]
+ *   node scripts/scroll-stage.mjs [manifest.json] [--out dir] [--at 0,1.5,4] [--view side|top] [--scale 2]
  *
  * --at: the shots, in screens along the stage (default 0, the stage's middle and its end). With no manifest, a stage of
  * twelve screens with a cruiser going by behind the fight. Prints what was laid.
@@ -17,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const control = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 register(pathToFileURL(path.join(control, 'scripts/mcp-stdio-loader.mjs')).href);
 const args = process.argv.slice(2), opt = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : undefined; };
-const file = args.find((a, i) => !a.startsWith('--') && !['--out', '--at', '--view'].includes(args[i - 1]));
+const file = args.find((a, i) => !a.startsWith('--') && !['--out', '--at', '--view', '--scale'].includes(args[i - 1]));
 const out = path.resolve(opt('--out') ?? 'scroll-stage-out');
 const DEFAULT = { kind: 'airspace', scroll: { track: [{ by: [12, 0] }], hulls: [{ capital: 'cruiser', at: 1.4, v: 0.1 }, { capital: 'frigate', at: 6, v: -0.25, depth: -5, heading: 180 }] } };
 const m = file ? JSON.parse(readFileSync(file, 'utf8')) : DEFAULT;
@@ -38,7 +38,7 @@ for (const a of at) {
   if (a === at[0]) console.log('laid:', JSON.stringify(payload.meta.scroll.layers), (payload.meta.scroll.hulls || []).map((h) => `${h.label} at ${h.at}`).join('; '));
   const html = emitThreeWorld({ ...payload, inline: true, hud: false });
   const W = 1280, H = Math.round(W / G.cam.aspect);
-  writeFileSync(path.join(out, `at-${a}.png`), await renderWorldToPng(html, { width: W, height: H, deviceScaleFactor: 1 }));
+  writeFileSync(path.join(out, `at-${a}.png`), await renderWorldToPng(html, { width: W, height: H, deviceScaleFactor: Number(opt('--scale') ?? 1) }));
   if (a === at[0]) writeFileSync(path.join(out, 'stage.html'), html);
   console.log(`  shot at ${a} screens: ${path.join(out, `at-${a}.png`)}`);
 }
