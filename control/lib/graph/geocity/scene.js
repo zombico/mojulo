@@ -130,7 +130,7 @@ export const FORM_GROUND = Object.freeze(['geocity:park', 'geocity:median', 'geo
  *  bushes' kinds merged into one list), with the ground every trunk and claim takes from the grass. */
 function metroPlants(trees, towns, own = []) {
   const T = [], B = [], Sh = [], clear = [], kinds = [], kindKey = new Map();
-  for (const sp of [...trees.keys()].sort()) for (const t of trees.get(sp)) T.push({ x: t.x, y: t.y, z: r5(t.z0 - 0.15), h: t.height, kind: -1, cluster: T.length, species: sp });
+  for (const sp of [...trees.keys()].sort()) for (const t of trees.get(sp)) T.push({ x: t.x, y: t.y, z: r5(t.z0 - 0.15), h: t.height, kind: -1, cluster: T.length, species: sp, ...(t.toward !== undefined ? { toward: t.toward } : {}) });
   // (the street trees' trunks claim their ground; a town's claims come with it)
   const street = T.map((t) => [t.x, t.y, 0.6]);
   for (const { p, at, keep } of towns) {
@@ -197,7 +197,8 @@ const IND_GROUND = Object.freeze({ works: ['geocity:yard', '#a29f97'], warehouse
 const GLASS_SPEC = Object.freeze([0.55, 48]);
 // street trees: a pit's stride along a close-built arterial, a verge's along an outskirts street, their species, the
 // height they are grown to (m), the detail their template keeps and its faces' budget
-const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'cherry'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
+// (an outskirts' residential street a mix: maples the most, flowering cherries and slender birches among them)
+const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42 });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -335,11 +336,13 @@ export function assembleGeocityScene(m, ctx = {}) {
   };
   // the street trees, by species, grown after the cameras (their detail is what the cameras see)
   const trees = new Map();
-  const plant = (where, x, y, z, key, h = null) => {
+  // (`toward`: the way to its street's middle, a street tree's: a realistic one grows that way, over the street and off
+  // the buildings behind it, form/flora-read.js REALISTIC.lean)
+  const plant = (where, x, y, z, key, h = null, toward = null) => {
     const R = streamOf(seed, 'trees', key), list = TREE.species[where], sp = list[Math.floor(R() * list.length)];
     if (!trees.has(sp)) trees.set(sp, []);
     const height = TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R();
-    trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(h ?? height) });
+    trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(h ?? height), ...(toward !== null ? { toward: r5(toward) } : {}) });
   };
   // a pane no light shades (a lit room at night)
   const pane = (corners, n, hex) => { faces.push({ corners: corners.map(P3), normal: P3(n), outNormal: P3(n), group: 'geocity:night-window', fill: hex, cornerFills: corners.map(() => hex) }); counts.panes++; };
@@ -728,8 +731,8 @@ export function assembleGeocityScene(m, ctx = {}) {
           const lampAt = (s0 - (p + 8 + (side > 0 ? LAMP / 2 : 0))) % LAMP;
           if (!dense(s0) || lampAt < 2 || lampAt > LAMP - 2) continue;
           kerb(side, 1.3, s0, 'pit');
-          const [x, yy] = at(l, side * (l.road / 2 + 1.3), s0);
-          plant('dense', x, yy, S(x, yy) + KERB, `${l.id}:${side}:${Math.round(s0)}`);
+          const [x, yy] = at(l, side * (l.road / 2 + 1.3), s0), [cx, cy] = at(l, 0, s0);
+          plant('dense', x, yy, S(x, yy) + KERB, `${l.id}:${side}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
         }
       }
     }
@@ -800,8 +803,8 @@ export function assembleGeocityScene(m, ctx = {}) {
               if (sd === side && Math.abs(((s0 - a - 6) % HYDRO + HYDRO) % HYDRO) < 2.5) continue;
               // (played, a tree stands on the walk by the kerb: the verge it stands on otherwise is drawn as the road's
               // own edge, where a car parks and drives)
-              const [x, yy] = pt(sd, s0, PLAY ? st.w / 2 - WALK + 0.9 : st.w / 2 - WALK - 1.0);
-              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + (PLAY ? KERB : 0), `${st.id}:${sd}:${Math.round(s0)}`);
+              const [x, yy] = pt(sd, s0, PLAY ? st.w / 2 - WALK + 0.9 : st.w / 2 - WALK - 1.0), [cx, cy] = pt(sd, s0, 0);
+              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + (PLAY ? KERB : 0), `${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
             }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }

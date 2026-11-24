@@ -118,6 +118,8 @@ const STEP_RISE = 0.18, NO_STEPS = 0.25, HEDGE = { h: 0.85, d: 0.55, in: 0.25 };
 // trunk over that share; its crown's reach this far short of any building at the least
 export const TREE_CLEAR = 2 * WALK.body, TREE_RAISE = 0.42;
 const TREE_LEAST = TREE_CLEAR / TREE_RAISE, TREE_GAP = 0.6;
+// (a realistic tree within this of a house (m) grows away from it, form/flora-read.js REALISTIC.lean)
+const LEAN_NEAR = 12;
 // a bike lane's marks: the metres between them
 const BIKE_MARK = 26;
 // a wooden hydro pole: its height, its crossarm's width, the longest span its wires take and their sag (m)
@@ -1096,15 +1098,28 @@ export function assembleGeotownScene(m, ctx = {}) {
   // room not planted, again until every crown has its room)
   if (form) {
     let all = Object.keys(items).sort().flatMap((sp) => items[sp].map((it) => ({ sp, it })));
-    const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => ({ x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp })), bushes: [], shrubs: [], ...(CR ? { ...CR, apart: false } : {}) });
+    // (a realistic tree GROWS ONE WAY, `toward`, form/flora-read.js REALISTIC.lean: away from the houses within its reach,
+    // LEAN_NEAR, each house's pull its nearest point's, the nearer the stronger; one with none near grows round)
+    const towardOf = (x, y) => {
+      let vx = 0, vy = 0, near = false;
+      for (const [x0, y0, x1, y1] of footprints) {
+        const dx = x - Math.max(x0, Math.min(x1, x)), dy = y - Math.max(y0, Math.min(y1, y)), dd = Math.hypot(dx, dy);
+        if (dd > LEAN_NEAR || dd < 1e-6) continue;
+        near = true; const w = 1 / Math.max(0.5, dd) ** 3; vx += dx * w; vy += dy * w;
+      }
+      return near && Math.hypot(vx, vy) > 1e-9 ? r5(Math.atan2(vy, vx)) : null;
+    };
+    const lean = CR?.crowns === 'realistic';
+    const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => { const tw = lean ? towardOf(it.x, it.y) : null; return { x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp, ...(tw !== null ? { toward: tw } : {}) }; }), bushes: [], shrubs: [], ...(CR ? { ...CR, apart: false } : {}) });
     for (let pass = 0; pass < 5; pass++) {
-      const sizes = treeSizes(plantsOf(all)), keep = all.filter((e, i) => roomAt(e.it.x, e.it.y) - TREE_GAP >= sizes[i].r);
+      // (a tree grown one way needs its room behind it, toward the house; ahead of it is the street's)
+      const sizes = treeSizes(plantsOf(all)), keep = all.filter((e, i) => roomAt(e.it.x, e.it.y) - TREE_GAP >= (sizes[i].back ?? sizes[i].r));
       if (keep.length === all.length) break;
       crowded += all.length - keep.length; all = keep;
     }
     plants = { ...plantsOf(all), ...(HP ? { bushKinds: HPK.map((k) => HP.kinds[k]), bushes, shrubs } : {}) };
     const sizes = treeSizes(plants);
-    all.forEach(({ sp, it }, i) => { (kept[sp] ||= []).push({ ...it, height: sizes[i].h }); nearest = Math.min(nearest, roomAt(it.x, it.y) - sizes[i].r); });
+    all.forEach(({ sp, it }, i) => { (kept[sp] ||= []).push({ ...it, height: sizes[i].h }); nearest = Math.min(nearest, roomAt(it.x, it.y) - (sizes[i].back ?? sizes[i].r)); });
     // (the ground the trunks and the yard's things claim: no grass there)
     plants.clear = [...plants.trees.map((t) => [t.x, t.y, 0.6]), ...claims];
   }

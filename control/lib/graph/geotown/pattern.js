@@ -128,7 +128,9 @@ const BAY_AND_GABLE = {
     green: 0.35,
     // what grows: street trees at their stride (m), trees per back yard, the share of front yards with a shrub at the
     // line, park trees per hectare; the species each draws from (vegetation/species.js)
-    grow: { stride: 9, back: [0, 2], front: 0.4, park: 60, street: ['maple'], trees: ['maple', 'cherry'], shade: 'beech', parkTrees: ['maple', 'beech'] },
+    // (a residential street a mix, not a forest: maples the most, flowering cherries and slender birches among them; its
+    // back yards the same, smaller first; a list's repeats its weights)
+    grow: { stride: 9, back: [0, 2], front: 0.4, park: 60, street: ['maple', 'maple', 'cherry', 'birch'], trees: ['cherry', 'cherry', 'maple', 'birch'], shade: 'beech', parkTrees: ['maple', 'beech'] },
     // AN EVOCATION's houses, each designed on its own (no two neighbours of a type; a semi pair one building, mirrored
     // about its party wall): each TYPE a change to the pattern's style (era/arch-style.js { from, … }: its language's
     // elements, its material words, its palette), its storeys, and its FRONT (fronts.js: a bay, `canted` or `square`,

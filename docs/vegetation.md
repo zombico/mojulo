@@ -391,8 +391,17 @@ stage says `crowns: { form: 'realistic', flock: false }`.
   its `geotown` and its `geocity` (their street trees, a geocity's composed towns too). A geotown or a geocity plants its
   own trees where it found them room, `plants.apart: false`: none moved or shrunk by the stage's trees-apart rule, a
   realistic one still raised to its headroom, and a geotown's room is measured by the realistic crown's own reach. A
-  realistic crown reaches about 1.4× a plain one's at its height, so fewer of a geotown's trees find room between its
-  houses (on valley-morning's town, 10 of 22).
+  realistic tree stands at its scene's own height (no re-ranking into its species' range), so a residential street is
+  not a forest.
+- **Grown one way** (form/flora-read.js `REALISTIC.lean`). A tree its scene gives a way (`toward`) is grown lopsided: its
+  masses behind its stem drawn in, all moved forward, its limbs grown to them, and its copy turned to face its way. Its
+  room is measured behind it only (`treeSizes`' `back`), so it fits between the street and a house. A geotown gives each
+  realistic tree within 12 m of a house the way away from them (its street, or the far side of its yard); a geocity
+  gives its street trees the way to their street's middle. On valley-morning's town: 27 trees (21 plain), 19 grown one
+  way.
+- **A residential mix.** A geotown's residential pattern (`bay-and-gable`) and a geocity's outskirts plant maples, flowering
+  cherries and birches; on valley-morning's town, maples at 11–14 m, cherries at about 9 m, birches at 12–14 m and
+  the shade beeches at about 17 m.
 - **Absent, nothing.** A page without flock crowns carries none of its code (`form-flock.test.js`).
 - **Known limits:**
   - the occlusion prepass and the exports (GLB, USD, engines) see the puffs whole;

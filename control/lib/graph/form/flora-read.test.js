@@ -268,4 +268,22 @@ describe('a realistic crown as flock (`crowns: realistic`, its `flock`)', () => 
     expect(floraRead(grove, { kinds: grove.kinds, colours, bases }).bare).toBeUndefined();
     expect(floraRead({ ...grove, flock: undefined }, { kinds: grove.kinds, colours, bases, autumn: 0.9 }).bare).toBeUndefined();
   }, 300000);
+
+  it('grows a tree its scene gives a way one way: its reach ahead past its reach behind, turned to face it, at its scene\'s height', () => {
+    const sp = 'cherry', at = (x, y, h, toward) => ({ x, y, z: 0, h, kind: -1, cluster: 0, species: sp, ...(toward !== undefined ? { toward } : {}) });
+    const street = { form: 'blob', kinds: null, bushKinds: null, trees: [at(0, 0, 9, 1.2), at(30, 0, 9)], bushes: [], shrubs: [], crowns: 'realistic', apart: false };
+    const F = floraRead(street, { colours, bases }), P = unpack(F.trees), Ts = [0, 1].map((i) => F.templates[P[i * FLORA_STRIDE + 11]]);
+    expect(Ts[0].lean).toBe(true);
+    expect(Ts[0].reach.front).toBeGreaterThan(Ts[0].reach.back);
+    expect(Ts[1].lean).toBeUndefined();
+    // (turned to face its way: the template's +x along `toward`)
+    expect(P[4]).toBeCloseTo(1.2, 4);
+    // (the scene's own height, raised only to its headroom; its room behind it, less than its crown's reach)
+    const Z = treeSizes(street);
+    expect(Z[0].back).toBeLessThan(Z[0].r);
+    expect(Z[1].back).toBeUndefined();
+    for (const [i, t] of street.trees.entries()) expect(Z[i].h).toBeGreaterThanOrEqual(t.h - 1e-6);
+    // (no realistic crowns: no way grown, the way ignored)
+    expect(floraRead({ ...street, crowns: undefined, apart: undefined }, { colours, bases }).templates.some((t) => t.lean)).toBe(false);
+  }, 300000);
 });
