@@ -18,8 +18,11 @@
  *                                    and through it (a window's moonlit glass, the night over an open ring)
  *   6  light is pools in the dark    a dark mood: where no lamp reaches the wall falls to its ring's `dark`; light only
  *                                    from sources seen (a sconce, a brazier, a cold lamp, a torch), each a pool that
- *                                    falls off within its `reach`; measured, the share of a storey's wall lit above its
- *                                    dark is POOLS.lit, and a pool's heart stands POOLS.contrast times the dark between
+ *                                    falls off within its `reach`, its relief drawn by the light (a column lit round on
+ *                                    its lamp's side, a block domed, what stands out casting its shadow across the wall
+ *                                    and the dark gathered round it); measured, the share of a storey's wall lit above
+ *                                    its dark (the wall's darker tenth) is POOLS.lit, and a pool's heart stands
+ *                                    POOLS.contrast times that dark
  *   7  every flame glows             a flame is haloed (the page's glow sprites) and dust hangs in its light (motes)
  *   8  the lane reads                the tops she stands on are lighter than the wall behind them
  *   9  a kit, a composition          a ring's rooms draw on one kit (its look's bays, ceiling, near layer, focal piece);
@@ -36,9 +39,10 @@
  *   measure(sizes, part, v)            notes a drawn part's size ('book.h': its height) in a dress's sizes
  *   composeRoom(room, look, { cellsAcross }) → { order: 'ABBA…', focal: { cell, bay } }   the room's bays by the wall's rhythm
  *                                    (seeded by its id), and where its focal piece stands
- *   drawPiece(out, id, at, look, dice, sizes?)   a piece on the back at a bay: `at` { s, floor, top, x, focal? } (the
- *                                    bay's middle, the storey's floor and the underside of its ceiling, the wall's plane,
- *                                    whether it is the room's focal piece), its parts' sizes noted in `sizes`
+ *   drawPiece(out, id, at, look, dice, sizes?, occ?)   a piece on the back at a bay: `at` { s, floor, top, x, focal? }
+ *                                    (the bay's middle, the storey's floor and the underside of its ceiling, the wall's
+ *                                    plane, whether it is the room's focal piece), its parts' sizes noted in `sizes`, what
+ *                                    of it stands out of the wall in `occ` ({ s0, s1, z0, z1, d }: d metres out)
  *   backdropLaws(B, D, theme) → [{ id, holds, says, rooms? }]   measured on the box (B: scene.js boxOf's) and its dress
  *                                    (D: dress.js dressBox's faces and plan)
  *
@@ -106,8 +110,10 @@ export function composeRoom(room, look, { cellsAcross = room.rect[2] } = {}) {
 }
 
 /** A piece on the back at a bay, at its true size (10). */
-export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice, sizes) {
+export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice, sizes, occ) {
   const trim = L.trim, dark = shade(L.back, 0.55), mid = (floor + top) / 2;
+  // (what stands out of the wall, `d` metres: it casts its shadow from each lamp, dress.js)
+  const proud = (s0, s1, z0, z1, d) => { if (occ) occ.push({ s0, s1, z0, z1, d }); };
   if (id === 'arch') {
     const aw = 3.2, a0 = floor + 2.6, a1 = Math.min(top - aw * 0.85 - 0.9, floor + 8.5);
     poly(out, x, [[s - aw / 2 - 0.35, a0 - 0.35], [s + aw / 2 + 0.35, a0 - 0.35], [s + aw / 2 + 0.35, a1], [s, a1 + aw * 0.85 + 0.45], [s - aw / 2 - 0.35, a1]], trim);
@@ -115,18 +121,21 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     rect(out, x + 0.02, s - 0.06, s + 0.06, a0, a1 + aw * 0.8, trim);
     rect(out, x + 0.02, s - aw / 2, s + aw / 2, (a0 + a1) / 2 - 0.05, (a0 + a1) / 2 + 0.05, trim);   // (its transom)
     rect(out, x + 0.02, s - aw / 2 - 0.5, s + aw / 2 + 0.5, a0 - 0.55, a0 - 0.3, shade(L.top, 0.8));   // (its sill)
+    proud(s - aw / 2 - 0.5, s + aw / 2 + 0.5, a0 - 0.55, a0 - 0.3, 0.25);
   } else if (id === 'shelf') {
     // (a library wall at the size of its books: a case on the floor, twice her height, a cupboard base under boards a
     // book's height apart; in a hall tall enough, a gallery over it and a second case on the gallery; a ladder between)
     const w = 2.2, z0 = floor, spines = ['#5a1c22', '#2f3f2a', '#4a3520', '#262c46', '#6b4e2a', '#3a2433'];
     const lower = caseOf(out, x, s, w, z0, Math.min(top - 1.2, z0 + 3.45), 1.05, trim, dark, spines, dice, sizes, true);
+    proud(s - w / 2 - 0.22, s + w / 2 + 0.22, z0, lower + 0.3, 0.45);
     let l1 = lower - 0.1;
     if (top - z0 > 8.2) {
       // (the gallery: its floor on brackets, its rail, the upper case standing on it)
       const gz = z0 + 4.0, gw = w / 2 + 0.7;
       rect(out, x + 0.07, s - gw, s + gw, gz - 0.2, gz, shade(trim, 0.9));
       for (const d of [-gw + 0.2, gw - 0.2]) poly(out, x + 0.07, [[s + d - 0.15, gz - 0.2], [s + d + 0.15, gz - 0.2], [s + d, gz - 0.75]], shade(trim, 0.75));
-      caseOf(out, x, s, w, gz, Math.min(top - 1.0, gz + 3.0), 0, trim, dark, spines, dice, sizes, false);
+      const upper = caseOf(out, x, s, w, gz, Math.min(top - 1.0, gz + 3.0), 0, trim, dark, spines, dice, sizes, false);
+      proud(s - gw, s + gw, gz - 0.2, gz, 1.0); proud(s - w / 2 - 0.22, s + w / 2 + 0.22, gz, upper + 0.3, 0.45);
       rect(out, x + 0.08, s - gw, s + gw, gz + 0.95, gz + 1.02, shade(trim, 0.85));   // (its rail)
       for (let b = s - gw + 0.1; b <= s + gw - 0.05; b += 0.6) rect(out, x + 0.08, b - 0.025, b + 0.025, gz, gz + 0.95, shade(trim, 0.8));
       l1 = gz + 0.95;
@@ -144,6 +153,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     rect(out, x + 0.01, s - w / 2 - 0.35, s + w / 2 + 0.35, z0 - 0.42, z0 - 0.3, shade(L.top, 0.85));   // (its ledge)
     poly(out, x + 0.01, [[s - 0.4, z0 - 0.42], [s + 0.4, z0 - 0.42], [s, z0 - 1.0]], shade(L.top, 0.75));   // (its corbel)
     figure(out, x + 0.02, s, z0, fig, mix(L.stone, '#d8d2c4', 0.35), sizes);
+    proud(s - 0.4, s + 0.4, z0, z0 + fig, 0.3); proud(s - w / 2 - 0.35, s + w / 2 + 0.35, z0 - 0.42, z0 - 0.3, 0.3);
   } else if (id === 'banner') {
     const b1 = top - 0.9, b0 = Math.max(floor + 3, b1 - 6.4), c = L.carpet || '#6a1420';
     rect(out, x, s - 1.4, s + 1.4, b1, b1 + 0.15, trim);
@@ -151,6 +161,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     rect(out, x + 0.02, s - 1, s + 1, b1 - 0.2, b1, trim);
     rect(out, x + 0.02, s - 0.12, s + 0.12, b0 + 0.8, b1 - 0.6, trim);
     rect(out, x + 0.02, s - 0.6, s + 0.6, (b0 + b1) / 2 - 0.06, (b0 + b1) / 2 + 0.06, trim);
+    proud(s - 1, s + 1, b0, b1, 0.06);
   } else if (id === 'arms') {
     // (a shield at a shield's size, two swords at a sword's crossed behind it; the focal arms on a carved cartouche)
     const cz = mid + 0.8, sh = focal ? 1.25 : 1.0, sw = sh * 0.8, blade = 1.25;
@@ -170,6 +181,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     poly(out, x + 0.02, [[s - sw / 2 + 0.08, cz + sh / 2 - 0.08], [s + sw / 2 - 0.08, cz + sh / 2 - 0.08], [s + sw / 2 - 0.08, cz - sh * 0.1], [s, cz - sh / 2 + 0.1], [s - sw / 2 + 0.08, cz - sh * 0.1]], L.carpet || '#6a1420');
     rect(out, x + 0.03, s - 0.05, s + 0.05, cz - sh * 0.35, cz + sh * 0.4, trim);
     measure(sizes, 'shield.h', sh);
+    proud(s - sw / 2, s + sw / 2, cz - sh / 2, cz + sh / 2, 0.15);
   } else if (id === 'ivy') {
     const leaf = ['#2f4a2a', '#3c5a32', '#26402a'];
     let p = [s - 1.6 + dice() * 0.8, top - 0.8];
@@ -191,6 +203,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     poly(out, x + 0.04, [[s - 0.09 * f, fc - 0.12 * f], [s + 0.09 * f, fc - 0.12 * f], [s + 0.1 * f, fc + 0.06 * f], [s, fc + 0.12 * f], [s - 0.1 * f, fc + 0.06 * f]], '#d8c4b6');
     for (const e of [-0.04, 0.04]) rect(out, x + 0.05, s + e * f - 0.018, s + e * f + 0.018, fc + 0.02 * f, fc + 0.04 * f, '#2a0a10');
     measure(sizes, 'face.w', 0.2 * f);
+    proud(s - w / 2 - 0.28, s + w / 2 + 0.28, z0 - 0.28, z1 + 0.28, 0.12);
     rect(out, x + 0.04, s - 0.3, s + 0.3, z0 - 0.24, z0 - 0.08, '#d0a95a');   // (its name, a plate on the frame)
   } else if (id === 'statue') {
     // (a broken statue at heroic size on its plinth, its rubble at its foot)
@@ -198,6 +211,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     rect(out, x, s - 0.9, s + 0.9, floor, floor + p - 0.15, shade(stone, 0.75));
     rect(out, x + 0.01, s - 1.05, s + 1.05, floor + p - 0.15, floor + p, shade(stone, 0.9));
     figure(out, x + 0.02, s, floor + p, 2.6, stone, sizes, true);
+    proud(s - 1.05, s + 1.05, floor, floor + p, 0.6); proud(s - 0.45, s + 0.45, floor + p, floor + p + 2.6, 0.5);
     for (const [ds, w] of [[-1.5, 0.35], [1.3, 0.28], [1.7, 0.18]]) poly(out, x + 0.03, [[s + ds - w, floor], [s + ds + w, floor], [s + ds + w * 0.4, floor + w * 0.9]], shade(stone, 0.85));
   } else if (id === 'gargoyle') {
     // (a gargoyle a crouching beast's size on the parapet's coping)
@@ -313,7 +327,8 @@ export function backdropLaws(B, D) {
   for (const r of closed) for (const c of r.cells) {
     const mine = backs.filter((f) => { const p = centre(f); return Math.floor(p[1] / W) === c[0] && Math.floor(p[2] / H) === c[1]; });
     if (!mine.length) continue;
-    const ls = mine.map((f) => lum(f.fill)), lo = Math.min(...ls), hi = Math.max(...ls), share = ls.filter((v) => v > lo * 1.6).length / ls.length;
+    // (its dark the wall's darker tenth: the corners the dark gathers in, under a ceiling and round a pier, fall below it)
+    const ls = mine.map((f) => lum(f.fill)).sort((a, b) => a - b), lo = ls[Math.floor(0.1 * (ls.length - 1))], hi = ls.at(-1), share = ls.filter((v) => v > lo * 1.6).length / ls.length;
     if (hi < lo * POOLS.contrast) flat.push(r.id);
     else if (share < POOLS.lit[0] || share > POOLS.lit[1]) washed.push(r.id);
   }

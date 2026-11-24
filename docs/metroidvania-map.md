@@ -230,9 +230,13 @@ In a side view the back wall does the work a dungeon's walls do in 3D. These are
 by ([backdrop.js](../control/lib/graph/gameworld/metroidvania/backdrop.js)). Each is measured as a law over the dressed
 box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-distinct`, `theme:gates-read`).
 
-1. **The back is the wall.** A closed room's back is built, never painted flat: ashlar in courses, each block its own
-   stone, a plinth or a wainscot along the floor, a pillar between cells, a vault or beams under the ceiling, a string
-   course where a storey meets the one above it, cobwebs in its top corners.
+1. **The back is the wall.** A closed room's back is built, never painted flat. It is ashlar laid as stone, never a grid:
+   each course has its own height, the same all along its row, and each block has its own length and stone. A plinth or
+   a wainscot runs along the floor. Each cell's edge has a pier standing out of the wall: a half-column on its base under
+   a capital the vault's ribs spring from, or a chamfered pier. In a vaulted hall, slender shafts flank each bay's piece.
+   They spring from carved corbels over her head, so the band she moves in stays calm, and rise to the ribs. There is a
+   vault or beams under the ceiling, its ribs moulded, with a string course where a storey meets the one above it and
+   cobwebs in its top corners.
 2. **Detail by the eye segment.** A screen is `EYE.across` × `EYE.up` eye segments, a glance's worth of wall each.
    Every segment of a closed room holds some detail and not too much (`DETAIL`): no glance finds a bare wall, and none
    finds noise. A piece counts in every segment it covers, so a plinth along a cell is seen in every glance along it.
@@ -248,9 +252,18 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
    lane and the light, so it is half a silhouette and never brighter than the lane. Law: `depths`.
 6. **Light is pools in the dark.** It is a dark mood: where no lamp reaches, the wall falls to its ring's `dark`. Light
    comes only from sources the eye can see (a sconce, a brazier, a cold lamp, a torch), each a pool that falls off within
-   its `reach`. The back is laid in blocks so a pool lands on it block by block. A storey's wall is lit in part
-   (`POOLS.lit`), and a pool's heart stands well above the dark between (`POOLS.contrast`). A tall room is lit on every
-   storey. Law: `pools`.
+   its `reach`. The light is baked at every corner of every face, so it falls off across a block rather than stepping
+   block by block. **The light draws the relief:**
+   - A face turned toward a lamp takes more of its light and one turned away less (`RELIEF.turn`). So a column is lit
+     round on its lamp's side with its far side in shadow, each block is lit domed, and tops and capitals catch the light
+     while soffits and corbels sit in shade.
+   - What stands out of the wall (a pier, a shaft, a case, its gallery, a statue, a frame, a sill) casts its shadow from
+     each lamp (`RELIEF.shadow`), raking across the wall from a sconce on its bracket (`RELIEF.flame` out from the wall).
+   - The dark gathers on the wall close round what stands out, and under its ceiling.
+
+   A storey's wall is lit in part (`POOLS.lit`), measured above its dark (the wall's darker tenth, since the corners the
+   dark gathers in fall below it). A pool's heart stands well above that dark (`POOLS.contrast`). A tall room is lit on
+   every storey. Law: `pools`.
 7. **Every flame glows.** A flame is haloed (the page's glow sprites), and dust hangs in the closed rooms, lit only where
    a lamp is near (the page's motes).
 8. **The lane reads.** The tops she stands on are lighter than the wall behind them. Law: `lane-reads`.

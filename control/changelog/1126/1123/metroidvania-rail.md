@@ -48,3 +48,9 @@
   filled with more things at their size rather than the same things blown up. The library is now a case twice her height
   with a gallery and a second tier above it and a ladder between, in place of a shelf of metre-tall books. Each piece's
   size is measured against hers.
+- The castle's walls are drawn with depth. They are laid stone rather than a grid of blocks, each course its own height
+  and each block its own length. Piers stand at every bay with a base and a capital that the vault's ribs spring from. In
+  the vaulted halls, slender shafts rise from carved corbels over the hero's head to the ribs, and the columns in front
+  of the lane are round. The light is baked smoothly across every surface and shows the relief: columns are lit round on
+  the side of their lamp, each stone is lit domed, and what stands out of the wall casts a shadow across it from each
+  candle, torch and brazier, with the dark gathering around it and under the ceiling.

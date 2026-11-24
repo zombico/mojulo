@@ -15,14 +15,21 @@
  *   the RUNNER     a carpet down a ring's floors where its look has one, cut round the holes and the gates in them
  *   the LAMPS      one a bay, on its back (a torch, a sconce of candles, a cold lamp) or on its floor (a brazier), drawn
  *                  lit, each flame haloed (GLOW: the page's glow sprites)
- *   the LIGHT      baked: every face but the night's and the flames' darkened to its ring's `dark`, and warmed by each
- *                  lamp within its `reach` in the lamp's colour, falling off with distance: pools in the dark
+ *   the PIERS      at each cell's edge a pier standing out of the wall (a half-column on its base under a capital the
+ *                  vault's ribs spring from, or a chamfered pier), slender shafts flanking each bay's piece up to the ribs,
+ *                  and the near layer's columns drawn round
+ *   the LIGHT      baked at every corner of every face (a gradient across it, never one tone a block): darkened to its
+ *                  ring's `dark`, and warmed by each lamp within its `reach` in the lamp's colour, falling off with
+ *                  distance; a face turned toward a lamp (a column's near side, a block's domed edge, a top) takes more
+ *                  of it and one turned away less; what stands out of the wall (a pier, a case, a statue, a gallery)
+ *                  casts its shadow from each lamp, raking across the wall, and darkens the wall close round it; the
+ *                  wall darkens under its ceiling: pools in the dark, the relief drawn by the light
  *   the DUST       hanging in the closed rooms, lit where the lamps are (MOTES: the page's motes)
  *
  *   dressBox(B, theme) → { faces, lamps: [{ at: [x, s, z], colour, kind, room, reach }], plan: { <room>: { order, focals,
  *                  near, through, open } }, sizes: { <part>: [least, most] }, motes?, glow }   B: scene.js boxOf's
  *                  (layout, greybox); sizes the drawn parts' measures (backdrop.js SCALE)
- *   COURSE, JOINT, LAMP_REACH, ASHLAR, WAINSCOT, MOTES, GLOW
+ *   COURSE, JOINT, LAMP_REACH, ASHLAR, RELIEF, WAINSCOT, MOTES, GLOW
  *
  * Pure: the same box and theme make the same faces.
  */
@@ -32,8 +39,13 @@ import { FLOOR, CEIL, boxCameraOf } from './rooms.js';
 import { composeRoom, drawPiece, diceOf, measure } from './backdrop.js';
 
 export const COURSE = 0.8, JOINT = 1.6, LAMP_REACH = 8;
-/** a back wall's ashlar block, [wide, high] (m): small enough that a lamp's pool is drawn on it, block by block */
-export const ASHLAR = Object.freeze([1.6, 0.8]);
+/** a back wall's ashlar: its blocks' lengths and its courses' heights (m), each course its own height and each block its
+ * own length (seeded), so the wall is laid stone, never a grid; each block lit domed (its lamp side light, its far side
+ * dark: PILLOW) */
+export const ASHLAR = Object.freeze({ long: Object.freeze([0.9, 1.7]), courses: Object.freeze([0.55, 0.7, 0.85]) });
+/** THE LIGHT'S RELIEF: how domed a block is lit, how far a turned face takes a lamp's light toward it or from it, how
+ * much of a lamp a shadow lets through, and how far out from the wall a lamp's flame stands (m) */
+export const RELIEF = Object.freeze({ pillow: 0.5, turn: 1.5, shadow: 0.1, flame: 0.5 });
 /** a wainscot's panel along the floor (m): wide, so the band behind the play stays calm (backdrop.js calm-play) */
 export const WAINSCOT = 4.8;
 /** the dust in the closed rooms (the page's motes) and the flames' halos (the page's glow sprites) */
@@ -41,6 +53,8 @@ export const MOTES = Object.freeze({ count: 2400, color: Object.freeze([1, 0.84,
 export const GLOW = Object.freeze({ scale: 0.3, opacity: 0.8 });
 const HALF = 1.5, BACK = -3, NEAR_X = -2.3, NEAR_SHADE = 0.55, LIT = 0.14, SKY_X = -14, TOWER_X = -12, MOON_X = -10, PARAPET_X = -2.2, SKY_BAND = 4;
 const SHADOW = 0.62, WARM = 1.5;
+/** a wall shaft's corbel, over her head (m above its floor) */
+const SHAFT_FOOT = 2.75;
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const N = { px: [1, 0, 0], top: [0, 0, 1], ny: [0, -1, 0], py: [0, 1, 0] };
 const quad = (out, corners, n, fill, group, extra) => {
@@ -52,7 +66,7 @@ const face = (out, x, s0, s1, z0, z1, fill, group, extra) => { if (s1 - s0 > 1e-
 // a flame: pointed, its tip up (the page halos one with a glow marker: its first four corners its middle)
 const flame = (out, x, s, w, z0, z1, fill, extra) => out.push({ corners: [[s - w, z0], [s + w, z0], [s + w, z0 + (z1 - z0) * 0.55], [s, z1], [s - w, z0 + (z1 - z0) * 0.55]].map(([a, b]) => [x, a, b].map(r5)), normal: N.px, fill, group: 'box:flame', ...(extra || {}) });
 const poly = (out, x, pts, fill, group, extra) => out.push({ corners: pts.map(([s, z]) => [x, s, z].map(r5)), normal: N.px, fill, group, ...(extra || {}) });
-const bar = (out, x, a, b, w, fill, group = 'box:dress') => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = (-dz / l) * (w / 2), nz = (dx / l) * (w / 2); poly(out, x, [[a[0] + nx, a[1] + nz], [b[0] + nx, b[1] + nz], [b[0] - nx, b[1] - nz], [a[0] - nx, a[1] - nz]], fill, group); };
+const bar = (out, x, a, b, w, fill, group = 'box:dress', extra) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = (-dz / l) * (w / 2), nz = (dx / l) * (w / 2); poly(out, x, [[a[0] + nx, a[1] + nz], [b[0] + nx, b[1] + nz], [b[0] - nx, b[1] - nz], [a[0] - nx, a[1] - nz]], fill, group, extra); };
 const mix = (a, b, k) => rgbHex(hexRgb(a).map((v, i) => v + (hexRgb(b)[i] - v) * k));
 const shade = (hex, k) => rgbHex(hexRgb(hex).map((v) => Math.min(1, v * k)));
 function block(out, s0, s1, z0, z1, L, group) {
@@ -73,6 +87,33 @@ function masonry(out, s0, s1, z0, z1, L, group) {
     if (k) face(out, x, s0, s1, za - 0.03, za + 0.03, L.mortar, group);
     for (let s = s0 + (k % 2 ? JOINT / 2 : JOINT); s < s1 - 0.2; s += JOINT) face(out, x, s - 0.03, s + 0.03, za, zb, L.mortar, group);
   }
+}
+
+/** a shaft drawn round: `n` strips across [s - r, s + r], each turned to its side, so a lamp lights its near side and
+ * leaves its far side in shadow */
+function roundShaft(out, x, s, r, z0, z1, fill, pc, n = 5) {
+  for (let k = 0; k < n; k++) {
+    const a = -Math.PI / 2 + (k * Math.PI) / n, b = a + Math.PI / n;
+    // (its middle strip the shaft's detail, the rest its light: a column is one thing to the eye, however it is shaded)
+    face(out, x, s + r * Math.sin(a), s + r * Math.sin(b), z0, z1, fill, k === Math.floor(n / 2) ? 'box:dress' : 'box:relief', { tilt: [r5(Math.sin((a + b) / 2)), 0], pc });
+  }
+}
+/** a pier at `c` from its floor to the top of its storey: its base, its shaft (a half-column or a chamfered pier), its
+ * capital at `cap` (where the vault's ribs spring) and its respond above to the ceiling; its block in the light `occ` */
+function pier(out, occ, c, floor, cap, z1, kind, L, pc) {
+  const x = BACK + 0.05, r = 0.42, st = mix(L.stone, L.back, 0.25);
+  face(out, x, c - r * 1.35, c + r * 1.35, floor, floor + 0.75, shade(st, 0.85), 'box:dress', { pillow: RELIEF.pillow, pc });
+  face(out, x + 0.005, c - r * 1.2, c + r * 1.2, floor + 0.75, floor + 0.95, shade(st, 0.95), 'box:dress', { tilt: [0, 0.6], pc });
+  if (kind === 'round') roundShaft(out, x, c, r, floor + 0.95, cap, st, pc);
+  else {
+    face(out, x, c - r, c - r * 0.6, floor + 0.95, cap, st, 'box:relief', { tilt: [-0.7, 0], pc });
+    face(out, x, c - r * 0.6, c + r * 0.6, floor + 0.95, cap, st, 'box:dress', { pillow: 0.25, pc });
+    face(out, x, c + r * 0.6, c + r, floor + 0.95, cap, st, 'box:relief', { tilt: [0.7, 0], pc });
+  }
+  poly(out, x + 0.005, [[c - r, cap], [c + r, cap], [c + r * 1.5, cap + 0.4], [c - r * 1.5, cap + 0.4]], shade(st, 0.95), 'box:dress', { tilt: [0, -0.45], pc });
+  face(out, x + 0.01, c - r * 1.7, c + r * 1.7, cap + 0.4, cap + 0.6, shade(L.top, 0.85), 'box:dress', { tilt: [0, 0.6], pc });
+  if (z1 > cap + 0.6) face(out, x, c - r * 0.8, c + r * 0.8, cap + 0.6, z1, shade(st, 0.85), 'box:dress', { pillow: 0.3, pc });
+  occ.push({ pc, x0: BACK, x1: BACK + 0.45, s0: c - r * 1.2, s1: c + r * 1.2, z0: floor, z1 });
 }
 
 /** The box dressed in its theme. */
@@ -106,8 +147,9 @@ export function dressBox(B, theme) {
     }
   }
   // THE BACKS, a room at a time, a cell at a time (backdrop.js: the backdrop's craft)
-  const plan = {}, sizes = {};
-  measure(sizes, 'block.w', ASHLAR[0] - 0.05); measure(sizes, 'block.h', ASHLAR[1] - 0.05);
+  const plan = {}, sizes = {}, occ = [];
+  measure(sizes, 'block.w', ASHLAR.long[0] - 0.05); measure(sizes, 'block.w', ASHLAR.long[1] - 0.05);
+  for (const h of ASHLAR.courses) measure(sizes, 'block.h', h - 0.05);
   for (const r of L.rooms) {
     const Lk = look(r.ring), [c, rr, w, h] = r.rect, C = composeRoom(r, Lk), dice = diceOf(r.id);
     const P = plan[r.id] = { order: C.order, focals: 0, near: false, through: !!Lk.open, open: !!Lk.open };
@@ -122,16 +164,22 @@ export function dressBox(B, theme) {
           if (i === C.focal.cell) { drawPiece(faces, Lk.focal, { s: s0 + W * (C.focal.bay ? 0.75 : 0.25), floor, top, x: PARAPET_X + 0.02, focal: true }, Lk, dice, sizes); P.focals++; }
         }
       } else {
-        // (1) THE WALL: ashlar in courses, each block its own stone, its joints breaking bond course to course
-        for (let k = 0, z = z0; z < z1 - 1e-3; k++, z += ASHLAR[1]) {
-          for (let s = s0 - (k % 2 ? ASHLAR[0] / 2 : 0); s < s1 - 1e-3; s += ASHLAR[0]) {
-            const a = Math.max(s0, s), b = Math.min(s1, s + ASHLAR[0]);
-            face(faces, BACK, a, b - 0.05, z, Math.min(z1, z + ASHLAR[1]) - 0.05, shade(Lk.back, 0.94 + dice() * 0.12), 'box:back');
+        // (1) THE WALL: ashlar in courses, each course its own height (the same along the row, seeded by its height in
+        // the box) and each block its own length and stone, lit domed; its joints breaking bond course to course
+        for (let z = z0; z < z1 - 1e-3;) {
+          const n = Math.round(z / 0.05), ch = ASHLAR.courses[Math.floor(diceOf(`course:${n}`)() * ASHLAR.courses.length)];
+          const zt = Math.min(z1, z + ch);
+          for (let s = s0 - dice() * ASHLAR.long[0]; s < s1 - 1e-3;) {
+            const len = ASHLAR.long[0] + dice() * (ASHLAR.long[1] - ASHLAR.long[0]), a = Math.max(s0, s), b = Math.min(s1, s + len);
+            if (b - a > 0.1) face(faces, BACK, a, b - 0.05, z, zt - 0.05, shade(Lk.back, 0.9 + dice() * 0.2), 'box:back', { pillow: RELIEF.pillow });
+            s += len;
           }
+          z = zt;
         }
-        face(faces, BACK - 0.01, s0, s1, z0, z1, shade(Lk.back, 0.6), 'box:joint');   // (the mortar behind the blocks)
-        // (structure: a pillar at the cell's edge, a plinth or a wainscot along its floor, cobwebs in its top corners)
-        face(faces, BACK + 0.01, s0, s0 + 0.9, z0, z1, shade(Lk.back, 0.72), 'box:dress');
+        face(faces, BACK - 0.01, s0, s1, z0, z1, shade(Lk.back, 0.55), 'box:joint');   // (the mortar behind the blocks)
+        // (structure: a pier at the cell's edge, a plinth or a wainscot along its floor, cobwebs in its top corners)
+        if (Lk.pier) pier(faces, occ, s0 + 0.45, floor, top - 2.9, z1, Lk.pier, Lk, `pier:${c + i},${rr + j}`);
+        else face(faces, BACK + 0.01, s0, s0 + 0.9, z0, z1, shade(Lk.back, 0.72), 'box:dress');
         // (its floor's dado on the room's floor alone; a storey over it marked by a string course at its line)
         if (j > 0) face(faces, BACK + 0.015, s0 + 0.9, s1, z0 + 0.2, z0 + 0.5, shade(Lk.stone, 0.7), 'box:dress');
         else if (Lk.dado === 'wainscot') {
@@ -144,9 +192,10 @@ export function dressBox(B, theme) {
           const a = s0 + b * W / 2, z = top;
           if (Lk.ceiling === 'vault') {
             const boss = [a + W / 4, z - 0.2];
-            bar(faces, BACK + 0.02, [a + 0.5, z - 2.6], boss, 0.22, shade(Lk.top, 0.75)); bar(faces, BACK + 0.02, [a + W / 2 - 0.5, z - 2.6], boss, 0.22, shade(Lk.top, 0.75));
+            // (a rib drawn moulded: its upper edge catching the light, its soffit under it in shade)
+            for (const sp of [a + 0.5, a + W / 2 - 0.5]) { bar(faces, BACK + 0.02, [sp, z - 2.6], boss, 0.24, shade(Lk.top, 0.62), 'box:relief', { tilt: [0, -0.5] }); bar(faces, BACK + 0.025, [sp, z - 2.6 + 0.09], [boss[0], boss[1] + 0.09], 0.1, shade(Lk.top, 0.85), 'box:dress', { tilt: [0, 0.6] }); }
             face(faces, BACK + 0.03, boss[0] - 0.25, boss[0] + 0.25, z - 0.5, z - 0.05, Lk.trim, 'box:dress');
-            face(faces, BACK + 0.02, a + 0.2, a + 0.9, z - 2.9, z - 2.4, shade(Lk.top, 0.7), 'box:dress');   // (a corbel)
+            if (!(Lk.pier && b === 0)) face(faces, BACK + 0.02, a + 0.2, a + 0.9, z - 2.9, z - 2.4, shade(Lk.top, 0.7), 'box:dress', { tilt: [0, -0.4] });   // (a corbel)
           } else if (Lk.ceiling === 'beams') {
             face(faces, BACK + 0.02, a, a + W / 2, z - 0.7, z - 0.1, '#3a2a1e', 'box:dress');
             bar(faces, BACK + 0.03, [a + 0.6, z - 2.2], [a + 1.8, z - 0.7], 0.2, '#33251a');
@@ -155,8 +204,20 @@ export function dressBox(B, theme) {
         // (4) THE BAYS by the wall's rhythm, the focal piece in its bay
         for (const b of [0, 1]) {
           const at = { s: s0 + W * (b ? 0.75 : 0.25), floor, top, x: BACK + 0.04 }, letter = C.order[(i * 2 + b) % C.order.length];
-          if (j === 0 && i === C.focal.cell && b === C.focal.bay && P.focals === 0) { drawPiece(faces, Lk.focal, { ...at, focal: true }, Lk, dice, sizes); P.focals++; }
-          else drawPiece(faces, Lk.bays[letter === 'B' ? 1 : 0], at, Lk, dice, sizes);
+          const f0 = faces.length, o0 = occ.length, pc = `piece:${c + i},${rr + j},${b}`;
+          if (j === 0 && i === C.focal.cell && b === C.focal.bay && P.focals === 0) { drawPiece(faces, Lk.focal, { ...at, focal: true }, Lk, dice, sizes, occ); P.focals++; }
+          else drawPiece(faces, Lk.bays[letter === 'B' ? 1 : 0], at, Lk, dice, sizes, occ);
+          for (let k = f0; k < faces.length; k++) faces[k].pc = pc;
+          for (let k = o0; k < occ.length; k++) occ[k] = { ...occ[k], pc, x0: BACK, x1: BACK + occ[k].d };
+          // (the bay's shafts: slender, either side of its piece, springing from carved corbels over her head (the band
+          // she moves in kept calm) and rising to the vault's ribs)
+          if (Lk.shafts && Lk.ceiling === 'vault') for (const d of [-2.45, 2.45]) {
+            const ss = at.s + d, rib = top - 2.6 + 2.4 * (1 - Math.abs(d) / (W / 4 - 0.5)) - 0.15, spc = `shaft:${c + i},${rr + j},${b},${d}`, st = mix(Lk.stone, Lk.back, 0.25), cb = floor + SHAFT_FOOT;
+            poly(faces, BACK + 0.05, [[ss - 0.3, cb + 0.35], [ss + 0.3, cb + 0.35], [ss + 0.12, cb - 0.25], [ss - 0.12, cb - 0.25]], shade(st, 0.85), 'box:dress', { tilt: [0, -0.5], pc: spc });
+            roundShaft(faces, BACK + 0.05, ss, 0.16, cb + 0.35, rib - 0.3, st, spc, 3);
+            poly(faces, BACK + 0.055, [[ss - 0.16, rib - 0.3], [ss + 0.16, rib - 0.3], [ss + 0.3, rib], [ss - 0.3, rib]], shade(Lk.top, 0.8), 'box:dress', { tilt: [0, -0.4], pc: spc });
+            occ.push({ pc: spc, x0: BACK, x1: BACK + 0.2, s0: ss - 0.16, s1: ss + 0.16, z0: cb - 0.25, z1: rib });
+          }
           if ((letter === 'A' ? Lk.bays[0] : Lk.bays[1]) === 'arch') P.through = true;
           // (a lancet: a slit of moonlit glass high over the bay's piece, where the wall has no window)
           if (Lk.lancets && !(j === 0 && i === C.focal.cell && b === C.focal.bay)) { const ls = at.s, l1 = top - 1.0, l0 = l1 - 2.2; face(faces, BACK + 0.03, ls - 0.45, ls + 0.45, l0 - 0.15, l1, Lk.trim, 'box:dress'); poly(faces, BACK + 0.04, [[ls - 0.3, l0], [ls + 0.3, l0], [ls + 0.3, l1 - 0.5], [ls, l1 - 0.1], [ls - 0.3, l1 - 0.5]], '#5a6f9e', 'box:glass'); P.through = true; }
@@ -165,10 +226,12 @@ export function dressBox(B, theme) {
         if (Lk.near === 'column') {
           const x = NEAR_X, cs = mid;
           // (the near layer stands between the lane and the light: half a silhouette, never brighter than the lane)
-          const st = shade(Lk.stone, NEAR_SHADE);
-          face(faces, x, cs - 0.75, cs + 0.75, floor, floor + 0.6, shade(st, 0.85), 'box:dress');
-          face(faces, x, cs - 0.5, cs + 0.5, floor + 0.6, top - 0.8, st, 'box:dress');
-          face(faces, x, cs - 0.8, cs + 0.8, top - 0.8, top, shade(Lk.top, NEAR_SHADE), 'box:dress');
+          const st = shade(Lk.stone, NEAR_SHADE), npc = `near:${c + i},${rr + j}`;
+          face(faces, x, cs - 0.75, cs + 0.75, floor, floor + 0.6, shade(st, 0.85), 'box:dress', { pillow: RELIEF.pillow, pc: npc });
+          face(faces, x + 0.005, cs - 0.62, cs + 0.62, floor + 0.6, floor + 0.8, shade(st, 0.95), 'box:dress', { tilt: [0, 0.6], pc: npc });
+          roundShaft(faces, x, cs, 0.5, floor + 0.8, top - 1.2, st, npc, 7);
+          poly(faces, x + 0.005, [[cs - 0.5, top - 1.2], [cs + 0.5, top - 1.2], [cs + 0.8, top - 0.8], [cs - 0.8, top - 0.8]], shade(st, 0.95), 'box:dress', { tilt: [0, -0.45], pc: npc });
+          face(faces, x, cs - 0.85, cs + 0.85, top - 0.8, top, shade(Lk.top, NEAR_SHADE), 'box:dress', { tilt: [0, 0.3], pc: npc });
           P.near = true;
         } else if (Lk.near === 'chain') {
           for (let z = top, k = 0; z > top - 4.2; z -= 0.45, k++) face(faces, NEAR_X, mid - (k % 2 ? 0.06 : 0.14), mid + (k % 2 ? 0.06 : 0.14), z - 0.4, z, '#3e3b3a', 'box:dress');
@@ -182,7 +245,8 @@ export function dressBox(B, theme) {
         const kind = Lk.lamp.kind === 'brazier' && j > 0 ? 'torch' : Lk.lamp.kind, ls = Lk.open ? mid : s0 + W * (b ? 0.75 : 0.25) - 3.4, lz = kind === 'brazier' ? floor + 1.1 : floor + 3.6;
         const lx = Lk.open ? PARAPET_X + 0.05 : BACK + 0.06;
         if (Lk.open && j !== 0) continue;
-        lamps.push({ at: [lx, ls, lz], colour: Lk.lamp.colour, kind, room: r.id, reach: Lk.lamp.reach });
+        // (its light where its flame stands, out from the wall on its bracket)
+        lamps.push({ at: [kind === 'brazier' ? NEAR_X + 0.1 : Lk.open ? lx : BACK + RELIEF.flame, ls, lz], colour: Lk.lamp.colour, kind, room: r.id, reach: Lk.lamp.reach });
         const glow = { glow: `0 0 6px 2px ${Lk.lamp.colour}` };
         if (kind === 'torch') { face(faces, lx, ls - 0.12, ls + 0.12, lz - 1.1, lz - 0.1, '#2a2420', 'box:lamp'); flame(flames, lx + 0.02, ls, 0.22, lz - 0.1, lz + 0.6, Lk.lamp.colour, glow); }
         if (kind === 'candles') { face(faces, lx, ls - 0.04, ls + 0.04, lz - 0.6, lz - 0.2, Lk.trim, 'box:lamp'); face(faces, lx, ls - 0.32, ls + 0.32, lz - 0.24, lz - 0.18, Lk.trim, 'box:lamp'); measure(sizes, 'candle.h', 0.24); for (const d of [-0.26, 0, 0.26]) { face(faces, lx + 0.01, ls + d - 0.035, ls + d + 0.035, lz - 0.18, lz + (d ? 0.0 : 0.06), '#e8dcc0', 'box:lamp'); flame(flames, lx + 0.02, ls + d, 0.045, lz + (d ? 0.0 : 0.06), lz + (d ? 0.16 : 0.24), Lk.lamp.colour, d ? {} : glow); } }
@@ -214,21 +278,56 @@ export function dressBox(B, theme) {
       at = Math.max(at, q.s1);
     }
   }
-  // THE LIGHT, baked: each face into its ring's shadow, then warmed by the lamps near it
-  const byCell = new Map();
+  // THE LIGHT, baked at every corner: each into its ring's shadow, then warmed by the lamps near it, turned faces taking
+  // more or less, what stands out of the wall casting its shadow and darkening the wall close round it
+  const byCell = new Map(), occCell = new Map();
   for (const l of lamps) { const k = `${Math.floor(l.at[1] / W)},${Math.floor(l.at[2] / H)}`; (byCell.get(k) ?? byCell.set(k, []).get(k)).push(l); }
-  const lit = (f) => {
-    const n = f.corners.length, cx = f.corners.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + p[2] / n], [0, 0, 0]);
-    const cs = Math.floor(cx[1] / W), cz = Math.floor(cx[2] / H), add = [0, 0, 0];
-    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const l of byCell.get(`${cs + i},${cz + j}`) ?? []) {
-      const d = Math.hypot(cx[1] - l.at[1], cx[2] - l.at[2], (cx[0] - l.at[0]) * 0.5), R = l.reach || LAMP_REACH;
+  for (const o of occ) for (let a = Math.floor(o.s0 / W); a <= Math.floor(o.s1 / W); a++) for (let b = Math.floor(o.z0 / H); b <= Math.floor(o.z1 / H); b++) { const k = `${a},${b}`; (occCell.get(k) ?? occCell.set(k, []).get(k)).push(o); }
+  const around = (m, cs, cz) => { const o = []; for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (const v of m.get(`${cs + i},${cz + j}`) ?? []) o.push(v); return o; };
+  // (a lamp hidden from a point by a block standing out of the wall: the segment between them through the block)
+  const hides = (p, l, o) => {
+    let t0 = 0, t1 = 1;
+    for (const [a, b, lo, hi] of [[p[0], l[0], o.x0, o.x1], [p[1], l[1], o.s0, o.s1], [p[2], l[2], o.z0, o.z1]]) {
+      const d = b - a;
+      if (Math.abs(d) < 1e-9) { if (a < lo || a > hi) return false; continue; }
+      let u = (lo - a) / d, v = (hi - a) / d;
+      if (u > v) [u, v] = [v, u];
+      t0 = Math.max(t0, u); t1 = Math.min(t1, v);
+      if (t0 > t1) return false;
+    }
+    return t1 > 1e-3 && t0 < 1 - 1e-3;
+  };
+  const shine = (p, f, tilt, base, ls, os) => {
+    const cz = Math.floor(p[2] / H), top = cz * H + H - CEIL, Lk = look(ringAt(p[1], p[2]));
+    // (close round what stands out of the wall the dark gathers; and under the ceiling)
+    let ao = 1;
+    for (const o of os) {
+      if (o.pc === f.pc || o.x1 <= p[0] + 0.02) continue;
+      const dist = Math.hypot(Math.max(o.s0 - p[1], 0, p[1] - o.s1), Math.max(o.z0 - p[2], 0, p[2] - o.z1)), R = Math.min(1.1, 0.3 + (o.x1 - p[0]) * 1.2);
+      if (dist < R) ao = Math.min(ao, 0.5 + 0.5 * (dist / R));
+    }
+    if (f.group === 'box:back' || f.group === 'box:joint') ao *= 0.68 + 0.32 * Math.min(1, Math.max(0, (top - p[2]) / 2.2));
+    const tz = tilt ? tilt[1] : f.normal[2] > 0.5 ? 0.4 : 0, amb = (Lk.dark ?? SHADOW) * (1 + 0.3 * tz) * ao, add = [0, 0, 0];
+    for (const l of ls) {
+      const d = Math.hypot(p[1] - l.at[1], p[2] - l.at[2], (p[0] - l.at[0]) * 0.5), R = l.reach || LAMP_REACH;
       if (d >= R) continue;
-      const k = (1 - d / R) ** 2 * WARM, c = hexRgb(l.colour);
+      let k = (1 - d / R) ** 2 * WARM * Math.sqrt(ao);
+      if (tilt) { const vs = l.at[1] - p[1], vz = l.at[2] - p[2], vl = Math.hypot(vs, vz) || 1; k *= Math.min(2.5, Math.max(0.08, 1 + RELIEF.turn * (tilt[0] * vs + tilt[1] * vz) / vl)); }
+      if (os.some((o) => o.pc !== f.pc && hides(p, l.at, o))) k *= RELIEF.shadow;
+      const c = hexRgb(l.colour);
       for (let q = 0; q < 3; q++) add[q] += k * c[q];
     }
-    // (6) its ring's dark where no lamp reaches: the room's own look (a cell is a ring's), the tops a little above it
-    const Lk = look(ringAt(cx[1], cx[2])), base = hexRgb(f.fill), top = f.normal[2] > 0.5 ? 1.12 : 1;
-    return { ...f, fill: rgbHex(base.map((v, q) => Math.min(1, v * ((Lk.dark ?? SHADOW) * top + add[q])))) };
+    return base.map((v, q) => Math.min(1, v * (amb + add[q])));
+  };
+  const lit = (f) => {
+    const n = f.corners.length, cx = f.corners.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + p[2] / n], [0, 0, 0]);
+    const cs = Math.floor(cx[1] / W), cz = Math.floor(cx[2] / H), ls = around(byCell, cs, cz), os = around(occCell, cs, cz), base = hexRgb(f.fill);
+    const { tilt, pillow, pc, ...rest } = f;
+    let hs = 0, hz = 0;
+    if (pillow) for (const p of f.corners) { hs = Math.max(hs, Math.abs(p[1] - cx[1])); hz = Math.max(hz, Math.abs(p[2] - cx[2])); }
+    const cols = f.corners.map((p) => shine(p, f, tilt ?? (pillow ? [pillow * (p[1] - cx[1]) / (hs || 1), pillow * (p[2] - cx[2]) / (hz || 1)] : null), base, ls, os));
+    const mean = [0, 1, 2].map((q) => cols.reduce((a, c) => a + c[q], 0) / n);
+    return { ...rest, fill: rgbHex(mean), cornerFills: cols.map(rgbHex) };
   };
   // (7) DUST hanging in the light of the closed rooms (the page's motes), lit by every lamp near it
   const closed = L.rooms.filter((r) => !look(r.ring).open);

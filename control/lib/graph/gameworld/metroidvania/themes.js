@@ -3,7 +3,8 @@
  * ring by ring. A theme names a LOOK for each ring, outermost first and the core last (a box with more rings than a theme
  * has looks repeats its middle ones), and the night it stands under. A new theme is a row; a new place a look.
  *
- *   a LOOK  { place, open?, back, stone, mortar, top, trim, glass?, carpet?, bays, ceiling?, near?, focal, dark, lamp }
+ *   a LOOK  { place, open?, back, stone, mortar, top, trim, glass?, carpet?, bays, ceiling?, pier?, shafts?, near?, focal,
+ *             dark, lamp }
  *     open     the ring is out under the sky: its back the night (the sky, the moon, the castle's far towers), a parapet's
  *              merlons standing behind its walk; else its back is a wall of ashlar in `back`
  *     stone    the closed parts' face, `mortar` its coursed joints, `top` its coping (every top a lit edge), `trim` the
@@ -12,6 +13,9 @@
  *              `glass`, a niche and its statue, a banner, a coat of arms, a shelf of books, a portrait, ivy over cracked
  *              stone, a parapet's merlons), ordered by the wall's rhythm (era/wall-rhythm.js)
  *     ceiling  what hangs under its ceiling: `vault` (ribs to a boss a bay), `beams` (a timber and its brackets), none
+ *     pier     the pier at each cell's edge, standing out of the wall: `round` (a half-column, its base and capital, the
+ *              vault's ribs springing from it), `square` (a chamfered pier), none
+ *     shafts   slender wall shafts flanking each bay's piece, rising to the vault's ribs
  *     near     what stands between the lane and the wall, at the cells' edges: `column`, `chain`, none
  *     dado     along its floor: `wainscot` (panels and a rail, a hall's), else a plain plinth (calm behind the play)
  *     lancets  a slit of moonlit glass high in each bay, over its piece: what is seen through a wall with no windows
@@ -42,11 +46,11 @@ export const BOX_THEMES = Object.freeze({
       Object.freeze({ place: 'the ramparts', open: true, back: '#1b1f38', stone: '#6c6875', mortar: '#3d3a46', top: '#a6a2ad', trim: '#4f4b58',
         bays: Object.freeze(['merlons', 'merlons']), focal: 'gargoyle', dark: 0.5, lamp: Object.freeze({ kind: 'torch', colour: '#ffad55', reach: 6 }) }),
       Object.freeze({ place: 'the great halls', back: '#3b2a2c', stone: '#8c8179', mortar: '#55493f', top: '#c4b8a6', trim: '#8a6a3e', glass: '#5d7cb4', carpet: '#7a1a26',
-        bays: Object.freeze(['arch', 'shelf']), ceiling: 'vault', near: 'column', dado: 'wainscot', focal: 'portrait', dark: 0.36, lamp: Object.freeze({ kind: 'candles', colour: '#ffcc80', reach: 5.5 }) }),
+        bays: Object.freeze(['arch', 'shelf']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', dado: 'wainscot', focal: 'portrait', dark: 0.36, lamp: Object.freeze({ kind: 'candles', colour: '#ffcc80', reach: 5.5 }) }),
       Object.freeze({ place: 'the inner ward', back: '#1f2c2a', stone: '#5a6658', mortar: '#2f3a30', top: '#8d9a86', trim: '#3f4a3c', glass: '#7fa6a0',
-        bays: Object.freeze(['arch', 'ivy']), ceiling: 'beams', near: 'chain', focal: 'statue', dark: 0.34, lamp: Object.freeze({ kind: 'ghost', colour: '#9fe0ff', reach: 5 }) }),
+        bays: Object.freeze(['arch', 'ivy']), ceiling: 'beams', pier: 'square', near: 'chain', focal: 'statue', dark: 0.34, lamp: Object.freeze({ kind: 'ghost', colour: '#9fe0ff', reach: 5 }) }),
       Object.freeze({ place: 'the keep', back: '#2a0f16', stone: '#4c3b40', mortar: '#2a1e22', top: '#8a7466', trim: '#c9a24a', carpet: '#8c1020',
-        bays: Object.freeze(['banner', 'niche']), ceiling: 'vault', near: 'column', lancets: true, focal: 'arms', dark: 0.32, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }) }),
+        bays: Object.freeze(['banner', 'niche']), ceiling: 'vault', pier: 'round', shafts: true, near: 'column', lancets: true, focal: 'arms', dark: 0.32, lamp: Object.freeze({ kind: 'brazier', colour: '#ff7a3a', reach: 6.5 }) }),
     ]),
   }),
 });
