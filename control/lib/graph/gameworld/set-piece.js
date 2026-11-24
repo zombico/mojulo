@@ -29,7 +29,10 @@
  */
 import { readChase, readTrackKeys } from '../worlds/controllable/chase-line.js';
 import { readPrompts } from '../worlds/controllable/prompt.js';
-import { dummyFigure } from './practice-room.js';
+// (the stand-in's parts straight from their homes: practice-room.js would loop back through the levels that import this)
+import { FIGURE_LIBRARY } from './stage-figures.js';
+import { playerStates } from '../playscape/player.js';
+const standIn = () => ({ hero: { cast: 'female' }, library: FIGURE_LIBRARY, clips: { ...playerStates([], FIGURE_LIBRARY), forward: 'Walk_Loop' } });
 
 export const SET_PIECE = Object.freeze({ few: 15, breath: 3, back: 6, pace: 7.2 });
 
@@ -105,7 +108,7 @@ export function lowerSetPiece(raw) {
   if (chasers.length) cues.push({ id: `${sp.id}-caught`, when: { on: `chase:${sp.id}:caught` }, then: { say: 'Caught', as: 'toast' } });
   return {
     chase, prompts: P, cues,
-    ...(entities.length ? { entities, ...(chasers.some((q) => !q.figure) ? { figures: { 'set-piece-pursuer': dummyFigure('female') } } : {}) } : {}),
+    ...(entities.length ? { entities, ...(chasers.some((q) => !q.figure) ? { figures: { 'set-piece-pursuer': standIn() } } : {}) } : {}),
     ...(slowed.length ? { tempo: { moments: slowed.map((p) => ({ on: `prompt:${p.id}`, scale: p.slow, hold: r2(p.lead + p.window + 0.4), ramp: 0.12 })) } } : {}),
   };
 }
