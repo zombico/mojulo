@@ -374,10 +374,12 @@ the first's). It is stood in two MODES (`body.modes`, worlds/controllable/vanish
 but reels and rises as the second, its own figure (warm on the page: `rule.boss.figures`), its own health (the castle's
 bar names it and fills again), its own director's rule (its moves and phases, its looks, the same room) and its own size
 (its collider and its hit egg: a mode's `body`); only the second falls, and only then is its seal broken. A fight lost
-against it puts it back into its first form, whole. The Lord of the Keep's is THE LORD UNBOUND: her finery torn away, a
-hunched, gaunt-headed thing of the draconic kin, long-clawed, spined down its back and its thin tail, a dark ruff, its
-skin corpse violet, the shreds of her cape hanging off it; it rears back with its claws spread, drops to all fours to
-leap, screams the dark into bats and opens its jaw wider than a jaw can open.
+against it puts it back into its first form, whole. A form of another size says its height (a mode's `body.fit`): the
+page stands its figure at that height by its own bounds and builds it at its own scale. The Lord of the Keep's is THE
+LORD UNBOUND, no person at all but a predator on two legs, the animal door's tyrant lizard grown `dire` and `shadow`
+(black, a violet line down its spine, pale violet eyes), at 2.4 times Erina's height: draconic and grounded, never a
+fantasy's wings and runes nor a person's arms. It winds up on its own strike (a crouch, head down, then a spring) and its
+flinch (rearing), snaps its jaws, charges with its tail stiff behind it, roars the dark into bats.
 
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.

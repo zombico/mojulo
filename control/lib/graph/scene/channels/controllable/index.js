@@ -1857,7 +1857,9 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
     const variants = {};
     const buildVariant = (fname) => {
       if (!fname || variants[fname] || !(__FIG[fname] && __FIG[fname].rig)) return;
-      const g = __makeRigGroup(__FIG[fname], b);
+      ${hasModes ? `// (a mode of its own size, its body's scale: vanish.js, world-scene.js's mode fit)
+      const Mv = Array.isArray(b.modes) ? b.modes.find((x) => x && x.figure === fname && x.figure !== b.figure && x.body && x.body.scale) : null;
+      const g = __makeRigGroup(__FIG[fname], Mv ? { ...b, scale: Mv.body.scale } : b);` : 'const g = __makeRigGroup(__FIG[fname], b);'}
       for (const bm of g.userData.rigFig.boneMeshes) { if (bm) bm.raycast = function () {}; }
       g.visible = fname === b.figure;
       g.userData.loadout = { variants: null, figName: fname };

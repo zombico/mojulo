@@ -31,7 +31,19 @@ describe('the cel body', () => {
     expect(up.body.fit).toBeUndefined();
     expect(held.body.scale).toBeCloseTo(0.2, 6);
   }, 120000);
-  // (a boss's SIGNAL, its eyes and its glow: a fourth bake marks its corners, `sigM`, the page lighting them by its tell;
+  // (a MODE's own size, `body.modes[k].body.fit`: the form it becomes stood at that height by its own figure's bounds,
+  // grown or shrunk, its scale its own; the word gone from the page)
+  it('a mode fit to a height: its own figure\'s bounds set its own scale, the body it starts in untouched', async () => {
+    const { payload } = await resolveWorldScene({ manifest: { kind: 'controllable', faces: [{ corners: [[-2, -2, 0], [2, -2, 0], [2, 2, 0], [-2, 2, 0]], normal: [0, 0, 1], fill: '#888888' }], figures: { h: { hero: HERO }, g: { hero: HERO } },
+      entities: [{ id: 'f', team: 'foes', transform: { pos: [0, 0, 0], heading: 0 }, rule: { type: 'static' }, body: { type: 'figure-rig', figure: 'h', scale: 1.6, modes: [{ figure: 'h', hp: 10 }, { figure: 'g', hp: 10, body: { radius: 0.5, fit: { least: 0.9 } } }] } }] } });
+    const e = payload.entities.find((x) => x.id === 'f'), [M1, M2] = e.body.modes;
+    expect(e.body.scale).toBe(1.6);
+    expect(M1.body).toBeUndefined();
+    expect(M2.body.fit).toBeUndefined();
+    expect(M2.body.radius).toBe(0.5);
+    expect(M2.body.scale).toBeGreaterThan(0.2); expect(M2.body.scale).toBeLessThan(1);
+  }, 120000);
+    // (a boss's SIGNAL, its eyes and its glow: a fourth bake marks its corners, `sigM`, the page lighting them by its tell;
   // a body with no signal marks none)
   it('a boss\'s signal marked on its corners; the hero, with none, none', async () => {
     const [boss, hero] = await Promise.all([heroFigure('b', { hero: bossSpec('crucible') }, { cel: true }), heroFigure('hero', { hero: HERO }, { cel: true })]);

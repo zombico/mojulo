@@ -72,9 +72,9 @@ export const CASTLE_BOSSES = Object.freeze({
     phases: Object.freeze([ph({ 'cape-sweep': 2, 'bat-swarm': 2 }, 2.2), ph({ 'cape-sweep': 2, 'bat-swarm': 1, 'blood-wave': 2 }, 1.8, { below: 0.66, temper: 'opportunist' }), ph({ 'blood-wave': 2, 'shadow-lunge': 2, 'bat-swarm': 1, 'cape-sweep': 1 }, 1.3, { below: 0.33, temper: 'relentless' })]),
     // (her SECOND FORM: cut down, she does not fall but tears out of her finery as the beast she is: a mode of her own,
     // its health its blows, taller by its tier, its fight quicker and closer)
-    second: Object.freeze({ title: 'The Lord Unbound', tier: 2.1, blows: 24, reads: 'her true shape: a hunched, gaunt-headed thing, long-clawed and spined, the shreds of her finery hanging off it',
-      moves: Object.freeze({ 'night-claws': { pattern: 'cleave', says: 'rears back, claws spread wide' }, 'carrion-leap': { pattern: 'lunge', says: 'drops to all fours, its spines raised' }, 'bat-storm': { pattern: 'toss', says: 'screams; the dark above it splits into bats', look: { tell: { falling: 'swarm' } } }, 'blood-scream': { pattern: 'toll', says: 'opens its jaw wider than a jaw can open' } }),
-      phases: Object.freeze([ph({ 'night-claws': 2, 'carrion-leap': 2, 'bat-storm': 1, 'blood-scream': 1 }, 1.4, { temper: 'relentless' })]) }) }),
+    second: Object.freeze({ title: 'The Lord Unbound', tier: 2.4, blows: 24, reads: 'her true shape: a black predator on two legs, its jaws a tyrant\'s and its tail as long again, a violet line down its spine',
+      moves: Object.freeze({ 'jaw-snap': { pattern: 'cleave', says: 'rears its head back, jaws wide' }, 'tail-charge': { pattern: 'lunge', says: 'lowers its head, its tail stiff behind it' }, 'bat-storm': { pattern: 'toss', says: 'roars; the dark above it splits into bats', look: { tell: { falling: 'swarm' } } }, 'shadow-roar': { pattern: 'toll', says: 'throws its head back and draws breath' } }),
+      phases: Object.freeze([ph({ 'jaw-snap': 2, 'tail-charge': 2, 'bat-storm': 1, 'shadow-roar': 1 }, 1.4, { temper: 'relentless' })]) }) }),
 });
 export const BOSS_DEFAULT = 'gate-warden';
 
@@ -129,13 +129,11 @@ export const CASTLE_FIGURES = Object.freeze({
     outfit: { type: 'outfit', style: withPieces('noble', [{ kind: 'collar', rise: 0.24, flare: 3 }, cloak('ankle', 0.8, 'base', { depth: 0.16, tongues: 7 })], { drop: ['mantle'] }) },
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
     stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } },
-    // (her second form's: a hunched brute of the draconic kin with a gaunt head, long claws, spines and a thin tail, a
-    // dark ruff; its skin a corpse violet head to foot, its finery torn to shreds at its shoulders and hips. Her cloak
-    // shed: a cloak's body hides a monster's)
-    second: { hero: { name: 'The Lord Unbound', cast: { pole: 'female', build: 'brute' }, head: 'none', tune: { stature: 1.15 },
-      beast: { kin: 'draconic', head: 'gaunt', claws: 'long', tail: 'thin', ridge: 'spines', ruff: 'ruff', hunch: 24, mass: { trunk: 1.35, upperArm: 1.5, foreArm: 1.5, hand: 1.6, thigh: 1.25, shank: 1.1 } },
-      outfit: shroud('unbound-shreds', [{ kind: 'rags', count: 8, len: 0.55, shoulders: true, colour: '#3a0a16' }], { OutfitSecond: '#3a0a16' }),
-      palette: { Skin: '#8a7a92', Claws: '#efe4cc', Top: '#6a5a72', Bottom: '#5a4a62', Shoes: '#4a3a52' } } } }),
+    // (her second form's: no person at all but a PREDATOR on two legs, the animal door's: a tyrant lizard grown dire and
+    // shadowed (black, a violet line down its spine, pale violet eyes): draconic and grounded, never a fantasy's wings and
+    // runes nor a person's arms; it winds up on its own strike (a crouch, head down, then a spring) and its flinch)
+    second: { animal: { species: 'tRex', ooze: ['dire', 'shadow'], strike: { startup: 30, active: 8, recovery: 22 } },
+      wind: { cleave: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, lunge: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, toss: { wind: ['stagger', 0, 0.5], strike: ['stagger', 0.5, 1] }, toll: { wind: ['stagger', 0, 0.5], strike: ['stagger', 0.5, 1] } } } }),
 });
 /** A castle boss's figure as its door is asked for it: a person's with its moves' wind-up and strike clips (boss/looks.js
  * ATTACK_POSES, played by the page as it winds up and strikes); a beast's as it is (its own gaits). */
@@ -178,11 +176,12 @@ const withLooks = (R, row) => ({ ...R, moves: Object.fromEntries(Object.entries(
 /** A boss's MODES (its first form, then its second, a row's `second`): each its figure and health and title; the second
  * its own director's rule (bossRule over its moves and phases, its looks, kept to the same room), its height and its hit
  * egg at its own tier. */
-function modesOf(G, b, row, { stature, figure, fig2, k }) {
+function modesOf(G, b, row, { stature, figure, fig2, k, wind = null }) {
   const S2 = row.second, H2 = r3(stature * S2.tier), R2 = r3(0.3 * S2.tier);
-  const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...(b.room ? { room: [...b.room] } : {}) }, S2);
+  const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...(b.room ? { room: [...b.room] } : {}), ...(wind ? { wind: structuredClone(wind) } : {}) }, S2);
   return [{ figure, hp: row.blows * HERO.blow, title: b.title ?? castleBoss(row.id).name },
-    { figure: fig2 ?? figure, hp: S2.blows * HERO.blow, title: S2.title, rule: { collideHeight: H2, collideRadius: R2, boss: boss2 }, body: { radius: R2, egg: { a: r3(0.42 * S2.tier), c: r3(H2 / 2), cz: r3(H2 / 2) } } }];
+    // (its own size: a figure of its own stood at its tier's height by its own bounds, the page's mode fit)
+    { figure: fig2 ?? figure, hp: S2.blows * HERO.blow, title: S2.title, rule: { collideHeight: H2, collideRadius: R2, boss: boss2 }, body: { radius: R2, egg: { a: r3(0.42 * S2.tier), c: r3(H2 / 2), cz: r3(H2 / 2) }, ...(fig2 ? { fit: { least: H2 } } : {}) } }];
 }
 
 /** The box's bosses stood in their rooms. */
@@ -201,8 +200,8 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
     // (a SECOND FORM, the row's `second`: a mode of its own (worlds/controllable/vanish.js): cut down, it reels and rises
     // as its second figure with its own health, its director's rule (its moves, its phases, its looks), its height and
     // its hit egg; only the second dies. Its figure the runner's `<id>:second`, else the first's)
-    const S2 = row.second, ref2 = S2 && refs[`${row.id}:second`], fig2 = ref2 ? `${b.id}-unbound` : null;
-    if (fig2) part.figures[fig2] = libraryFigure(ref2);
+    const S2 = row.second, F2 = F?.second, ref2 = S2 && refs[`${row.id}:second`], fig2 = ref2 ? `${b.id}-unbound` : null;
+    if (fig2) part.figures[fig2] = F2?.animal ? foeFigure(ref2, { species: F2.animal.species, ...(F2.animal.strike ? { strike: F2.animal.strike } : {}) }) : libraryFigure(ref2);
     // (a figure grown to its tier: a door's body, a person's height, by its tier, as the side map's bosses are (its
     // bounds would count the halberd held over its head); a beast by its own bounds to the tier's height, the page's fit
     // (its skeleton shorter than its flesh))
@@ -210,7 +209,7 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
     part.entities.push({
       ...e,
       body: { ...body, ...fit, hp: row.blows * HERO.blow, hpBar: 'none', radius: R, egg: { a: r3(0.42 * row.tier), c: r3(H / 2), cz: r3(H / 2) },
-        ...(S2 ? { modes: modesOf(G, b, row, { stature, figure: body.figure, fig2, k }) } : {}) },
+        ...(S2 ? { modes: modesOf(G, b, row, { stature, figure: body.figure, fig2, k, wind: fig2 ? F2?.wind : null }) } : {}) },
       // (on its room's own stretch of the lane, between its walls and short of its doorways)
       // (its FIGHT the director's, boss/stand.js: its moves laid at its tempo, planted through each, its mind crossing its
       // phases; between its moves it fights as its class does)

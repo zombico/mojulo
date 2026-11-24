@@ -2003,6 +2003,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // FIT (a body's `fit: { least, from? }`, a side map's foes, gameworld/side-map/cast.js): a body drawn at least `least` m tall
       // by its figure's own bounds, its scale, hit egg and collider grown together; a figure the order could not see (a
       // beast's skeleton is shorter than its flesh and its head). None ⇒ the bodies as they were
+      // (a MODE's own size, `modes[k].body.fit`: the form it becomes stood at `least` m by its own figure's bounds, its
+      // scale its own (grown or shrunk), the page building that form at it: a boss's second form of another size)
+      for (const e of payload.entities || []) for (const M of (e && e.body && Array.isArray(e.body.modes) ? e.body.modes : [])) {
+        const F = M && M.body && M.body.fit && payload.figures[M.figure], b = F ? rigBounds(F) : null;
+        if (!M || !M.body || !M.body.fit) continue;
+        const { fit, ...mb } = M.body;
+        M.body = b && b.h > 0 ? { ...mb, scale: Math.round((fit.least / b.h) * 1000) / 1000 } : mb;
+      }
       const fitted = (payload.entities || []).filter((e) => e && e.body && e.body.fit && payload.figures[e.body.figure]);
       for (const e of fitted) {
         const b = rigBounds(payload.figures[e.body.figure]), { fit, ...body } = e.body;
