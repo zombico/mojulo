@@ -109,13 +109,17 @@ export function composeRoom(room, look, { cellsAcross = room.rect[2] } = {}) {
   return { order: Array.isArray(order) ? order.join('') : String(order), focal: { cell, bay }, cells };
 }
 
+/** An arched window's measures at a bay: its width, its sill's line and where its arch springs (the pointed head rises
+ * `aw * 0.85` over it). */
+export const archOf = ({ floor, top }) => { const aw = 3.2; return { aw, a0: floor + 2.6, a1: Math.min(top - aw * 0.85 - 0.9, floor + 8.5) }; };
+
 /** A piece on the back at a bay, at its true size (10). */
 export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice, sizes, occ) {
   const trim = L.trim, dark = shade(L.back, 0.55), mid = (floor + top) / 2;
   // (what stands out of the wall, `d` metres: it casts its shadow from each lamp, dress.js)
   const proud = (s0, s1, z0, z1, d) => { if (occ) occ.push({ s0, s1, z0, z1, d }); };
   if (id === 'arch') {
-    const aw = 3.2, a0 = floor + 2.6, a1 = Math.min(top - aw * 0.85 - 0.9, floor + 8.5);
+    const { aw, a0, a1 } = archOf({ floor, top });
     poly(out, x, [[s - aw / 2 - 0.35, a0 - 0.35], [s + aw / 2 + 0.35, a0 - 0.35], [s + aw / 2 + 0.35, a1], [s, a1 + aw * 0.85 + 0.45], [s - aw / 2 - 0.35, a1]], trim);
     poly(out, x + 0.01, [[s - aw / 2, a0], [s + aw / 2, a0], [s + aw / 2, a1], [s, a1 + aw * 0.85], [s - aw / 2, a1]], L.glass || '#4b5f86', 'box:glass');
     rect(out, x + 0.02, s - 0.06, s + 0.06, a0, a1 + aw * 0.8, trim);

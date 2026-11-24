@@ -59,8 +59,26 @@ describe('the side map\'s vistas', () => {
   it('further back is further into the air', () => {
     const { L, D } = laid(chain('skyline')), [V] = vistaOf(L, D, { seed: 3, horizon: '#ffffff' });
     const at = (x) => V.boxes.filter((b) => b.x1 === x && !b.lit).map((b) => lum(b.fill));
-    const xs = [...new Set(V.boxes.map((b) => b.x1))].sort((a, b) => a - b), far = at(xs[0]), near = at(xs[xs.length - 1]);
+    const xs = [...new Set(V.boxes.filter((b) => !b.lit).map((b) => b.x1))].sort((a, b) => a - b), far = at(xs[0]), near = at(xs[xs.length - 1]);
     expect(Math.min(...far)).toBeGreaterThan(Math.max(...near));
+  });
+
+  // (docs/side-scroll-backgrounds.md) a vista is a place still running, on dice of its own so its layers stand where they stood
+  it('stands a sky vista against a dusk in bands, blinks its beacons, steams its stacks and lights a hall\'s clerestory', () => {
+    const sky = laid(chain('skyline')), [V] = vistaOf(sky.L, sky.D, { seed: 3 });
+    const glow = V.boxes.filter((b) => b.group === 'sidemap:vista-glow');
+    expect(glow.length).toBeGreaterThan(2);
+    // (behind every layer, and lighter than the far layer it stands behind: the silhouettes read dark against it)
+    expect(Math.max(...glow.map((b) => b.x1))).toBeLessThan(Math.min(...V.boxes.filter((b) => !b.group).map((b) => b.x0)));
+    expect(V.boxes.some((b) => b.group === 'sidemap:vista-beacon')).toBe(true);
+    const yard = laid(chain('yard')), [Y] = vistaOf(yard.L, yard.D, { seed: 3 });
+    expect(Y.boxes.some((b) => b.group === 'sidemap:vista-steam')).toBe(true);
+    const hall = laid(chain('hall')), [Hl] = vistaOf(hall.L, hall.D, { seed: 3 });
+    expect(Hl.boxes.filter((b) => b.lit && b.x0 === Hl.far.x1).length).toBeGreaterThan(1);
+    expect(Hl.boxes.some((b) => b.group === 'sidemap:vista-glow')).toBe(false);
+    // (the page moves them)
+    const page = assembleSideMap(M('skyline'));
+    expect(Object.keys(page.ambient.groups)).toContain('sidemap:vista-beacon');
   });
 
   it('the same seed, the same vista', () => {

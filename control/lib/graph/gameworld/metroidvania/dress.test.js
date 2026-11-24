@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { assembleBox, boxOf } from './scene.js';
-import { dressBox } from './dress.js';
+import { dressBox, LIVE, MOTION } from './dress.js';
 import { BOX_THEMES, lookOf, themeLaws } from './themes.js';
 import { vampireSonata } from './vampire-sonata.js';
 import { readBox } from './box.js';
@@ -42,5 +42,26 @@ describe('a box dressed in its theme', () => {
     }
     // (a lamp a cell, lit faces near each)
     expect(D.lamps.length).toBeGreaterThanOrEqual(B.layout.rooms.length);
+  });
+
+  // (docs/side-scroll-backgrounds.md) the night seen in depth, the moon's light in the rooms, the flames alive, the backdrop moving
+  it('lays the night in depth, lets the moonlight in, burns every flame live and moves what stands behind the play', () => {
+    const B = boxOf(M(vampireSonata())), D = B.dress, P = assembleBox(M(vampireSonata()));
+    const night = D.faces.filter((f) => f.group === 'box:night'), xs = (g) => D.faces.filter((f) => f.group === g).map((f) => f.corners[0][0]);
+    // (the sky's bands meet edge to edge: a lapped band is lifted a step toward the eye by the page, and a stack of them climbs)
+    const bands = night.filter((f) => f.corners.every((c) => c[0] === Math.min(...night.map((n) => n.corners[0][0])))).map((f) => [Math.min(...f.corners.map((c) => c[2])), Math.max(...f.corners.map((c) => c[2]))]).sort((a, b) => a[0] - b[0]);
+    for (let i = 1; i < bands.length; i++) expect(bands[i][0]).toBeGreaterThanOrEqual(bands[i - 1][1] - 1e-6);
+    // (stars and cloud over the sky, behind the far towers; a moonbeam from every arched window; its glass the night)
+    expect(Math.max(...xs('box:stars'))).toBeLessThan(Math.min(...night.filter((f) => f.corners.length === 5).map((f) => f.corners[0][0])));
+    expect(xs('box:clouds').length).toBeGreaterThan(0);
+    const beams = D.faces.filter((f) => f.group === 'box:beam');
+    expect(beams.length).toBeGreaterThan(0);
+    expect(beams.every((f) => f.alpha > 0 && f.alpha < 0.2)).toBe(true);
+    expect(D.faces.filter((f) => f.group === 'box:glass').every((f) => new Set(f.cornerFills).size > 1)).toBe(true);
+    // (a live flame for every painted flame but the cold lamps', the painted one kept as its ember)
+    expect(D.live.length).toBe(D.faces.filter((f) => f.group === 'box:flame' && f.corners.length === 5).length);
+    expect(P.flames).toEqual(D.live);
+    expect(LIVE.grow).toBeGreaterThan(1);
+    expect(Object.keys(P.ambient.groups).sort()).toEqual(Object.keys(MOTION).sort());
   });
 });

@@ -375,7 +375,9 @@ Pointers only; each target carries its own design notes.
   [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card. A course in
   the round is skinned by [gameworld/course-skin.js](control/lib/graph/gameworld/course-skin.js) (floors the land's turf,
   dirt and rock; stairs and walls a geocube's stone and trim, the cube read from the level, the world or the kit). The
-  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](docs/side-strip-principles.md).
+  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](docs/side-strip-principles.md). What makes any
+  side-scroller's background good to look at (contrast, colour, composition, light, motion; the page's `ambient` channel):
+  [docs/side-scroll-backgrounds.md](docs/side-scroll-backgrounds.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);

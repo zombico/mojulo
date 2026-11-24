@@ -65,10 +65,12 @@ export const sideCameraWords = (cube, own) => (sideShapes(cube, own) ? { tilt: S
 // the scoops' measures: three rows of domes (their depth, widths and heights over the land's base, how far each is
 // taken into the air), the crowns, the clouds, the scallops under a floor's turf
 const SCOOPS = Object.freeze({
+  // (a STAIR of silhouettes, docs/side-scroll-backgrounds.md: each nearer row's crests stand under the farther row's in
+  // the frame, so every row shows its own edge against the one behind it and the sky keeps a quarter of the picture)
   rows: Object.freeze([
-    { x: -115, w: [48, 80], h: [15, 25], lap: 0.74, ramp: 'far', t: 0.55, haze: 0.5, group: 'side:range' },
-    { x: -44, w: [22, 36], h: [8, 12.5], lap: 0.78, ramp: 'grass', t: 0.74, haze: 0.34, group: 'side:hills' },
-    { x: -22, w: [11, 19], h: [3.6, 5.8], lap: 0.8, ramp: 'grass', t: 0.62, haze: 0.16, group: 'side:hills' },
+    { x: -115, w: [60, 104], h: [9, 15], lap: 0.7, ramp: 'far', t: 0.55, haze: 0.55, group: 'side:range' },
+    { x: -44, w: [24, 40], h: [4.5, 7.5], lap: 0.76, ramp: 'grass', t: 0.74, haze: 0.34, group: 'side:hills' },
+    { x: -22, w: [12, 20], h: [2.4, 4.2], lap: 0.8, ramp: 'grass', t: 0.62, haze: 0.16, group: 'side:hills' },
   ]),
   // THE LIGHT, as shapes (the seventh generation's principles turned into silhouettes: one key every shape agrees on,
   // the air between the rows, contact where things meet). The key comes from up the lane (+y) and above: each dome
@@ -76,7 +78,10 @@ const SCOOPS = Object.freeze({
   // lays a soft shadow down the lane from the light; the turf's lip shades the dirt under it; a floor's edge catches
   // the light
   light: Object.freeze({ side: 1, cap: 0.62, capLift: 0.3, gain: 0.55, mist: 0.32, mistH: 0.34, shadow: 0.2, lip: 0.14, rim: 0.05 }),
-  crown: Object.freeze({ r: [0.5, 1.05] }), cloud: Object.freeze({ every: [24, 46], x: -150, z: [15, 25], w: [9, 17] }),
+  // (the clouds high in the sky the rows leave, each a few puffs on a flat base that is a step into the shade)
+  crown: Object.freeze({ r: [0.5, 1.05] }), cloud: Object.freeze({ every: [26, 50], x: -150, z: [17, 30], w: [12, 24] }),
+  // (THE MOTION, channels/ambient.js: the clouds drift a few metres over a minute and more; the blossom breathes in the breeze)
+  motion: Object.freeze({ 'side:clouds': Object.freeze({ amp: [0, 7, 0.4], period: 84, spread: 0.02 }), 'side:blossom': Object.freeze({ amp: [0, 0.05, 0.035], period: 3.6, spread: 0.9 }) }),
   scallop: 0.27, bud: [0.1, 0.2],
 });
 
@@ -106,6 +111,8 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const lerp = (a, b, t) => a + (b - a) * t;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const no = (m) => { throw new Error(`geocube side: ${m}`); };
+// how far a shaped strip's terrace is taken into the air (toward the sky's own colour)
+const TERRACE_AIR = 0.24;
 
 /** The ground past the lane's ends: from the first step's foot back `pad` metres, from the last step's foot on. */
 export function sidePads(boxes, length) {
@@ -246,17 +253,18 @@ const topNear = (runs, y, w) => { let t = Infinity; for (const r of runs) if (r.
 const arcPts = (x, y, z, r, a0, a1, n, ry = r) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + ((a1 - a0) * i) / n; return [x, y + r * Math.cos(a), z + ry * Math.sin(a)]; });
 const disc = (out, x, y, z, r, fill, group) => out.push({ corners: arcPts(x, y, z, r, 0, 2 * Math.PI * (11 / 12), 11).map((p) => p.map(r5)), normal: FACE.px, fill, group });
 // a dome of half-width r and height h standing on z, drawn down to `foot` (its base a rectangle under it)
-const dome = (out, x, y, z, r, h, foot, fill, group) => out.push({ corners: [...arcPts(x, y, z, r, 0, Math.PI, 10, h), [x, y - r, foot], [x, y + r, foot]].map((p) => p.map(r5)), normal: FACE.px, fill, group });
+// (a big dome is cut finer: its arc never shows a facet at the size it is seen)
+const dome = (out, x, y, z, r, h, foot, fill, group) => out.push({ corners: [...arcPts(x, y, z, r, 0, Math.PI, Math.max(10, Math.min(28, Math.round(Math.max(r, h) * 0.6))), h), [x, y - r, foot], [x, y + r, foot]].map((p) => p.map(r5)), normal: FACE.px, fill, group });
 const scallop = (out, x, y, z, r, fill, group) => out.push({ corners: arcPts(x, y, z, r, Math.PI, 2 * Math.PI, 6).map((p) => p.map(r5)), normal: FACE.px, fill, group });
 // a scoop tree: a trunk under three discs (the crown and a smaller one each side), a paler disc for its light
-function scoopTree(out, look, { x, y, z, r, trunk, tone = 0, haze = 0, group }) {
+function scoopTree(out, look, { x, y, z, r, trunk, tone = 0, haze = 0, group, crown = group }) {
   const { at, lit } = look, veil = (hex) => (haze ? look.hazed(hex, haze) : hex), tw = Math.max(0.1, r * 0.12), cz = z + trunk + r * 0.8;
   quad(out, [[x, y - tw, z - 0.3], [x, y + tw, z - 0.3], [x, y + tw, cz], [x, y - tw, cz]], FACE.px, veil(lit(at('soil', 0.3), FACE.px)), group);
   const body = veil(lit(at('foliage', 0.44 + tone), FACE.top)), light = veil(lit(at('foliage', 0.58 + tone), FACE.top));
-  disc(out, x + 0.02, y - r * 0.62, cz - r * 0.28, r * 0.62, body, group);
-  disc(out, x + 0.02, y + r * 0.66, cz - r * 0.34, r * 0.56, body, group);
-  disc(out, x + 0.04, y, cz, r, body, group);
-  disc(out, x + 0.06, y + SCOOPS.light.side * r * 0.28, cz + r * 0.3, r * 0.42, look.sunlit ? look.sunlit(light, SCOOPS.light.gain * 0.5) : light, group);
+  disc(out, x + 0.02, y - r * 0.62, cz - r * 0.28, r * 0.62, body, crown);
+  disc(out, x + 0.02, y + r * 0.66, cz - r * 0.34, r * 0.56, body, crown);
+  disc(out, x + 0.04, y, cz, r, body, crown);
+  disc(out, x + 0.06, y + SCOOPS.light.side * r * 0.28, cz + r * 0.3, r * 0.42, look.sunlit ? look.sunlit(light, SCOOPS.light.gain * 0.5) : light, crown);
 }
 // a soft shadow on the ground under a thing, laid down the lane from the light: a flat ellipse, a step darker than the land
 function contact(out, look, x, y, z, r) {
@@ -314,13 +322,15 @@ export function assembleSideStrip(m, ctx = {}) {
   const y0 = -SIDE.pad, y1 = S.length + SIDE.pad;
 
   // the TERRACE behind the lane: a little below the floors near it, its top turf, its face toward the camera dirt and rock
-  const T = SIDE.terrace, terrace = [];
+  // (a shaped strip's terrace is a step into the air: cooler and quieter than the lane, so the floor the hero runs on is
+  // the clearest land on the screen and never one field with the land behind it)
+  const T = SIDE.terrace, terrace = [], veil = (hex) => (scoops ? look.aired(hex, TERRACE_AIR) : hex);
   for (let y = y0 - 10; y < y1 + 10 - 1e-6; y += T.step) {
     const h = (yy) => topNear(runs, yy, 3) - T.drop + 0.35 * (vnoise(yy * 0.09, 0.5, seed + 41) - 0.5);
     const ha = h(y), hb = h(y + T.step), yb = y + T.step;
     terrace.push({ y, h: ha });
-    quad(faces, [[T.back, y, ha], [T.front, y, ha], [T.front, yb, hb], [T.back, yb, hb]], FACE.top, lit(at('grass', 0.55), FACE.top), 'side:terrace');
-    const band = (za, zb, zc, zd, rgb, g) => quad(faces, [[T.front, y, za], [T.front, yb, zc], [T.front, yb, zd], [T.front, y, zb]], FACE.px, lit(rgb, FACE.px), g);
+    quad(faces, [[T.back, y, ha], [T.front, y, ha], [T.front, yb, hb], [T.back, yb, hb]], FACE.top, veil(lit(at('grass', scoops ? 0.5 : 0.55), FACE.top)), 'side:terrace');
+    const band = (za, zb, zc, zd, rgb, g) => quad(faces, [[T.front, y, za], [T.front, yb, zc], [T.front, yb, zd], [T.front, y, zb]], FACE.px, veil(lit(rgb, FACE.px)), g);
     band(ha - SIDE.cap, ha, hb - SIDE.cap, hb, at('grass', 0.45), 'side:terrace');
     band(ha - 1.2, ha - SIDE.cap, hb - 1.2, hb - SIDE.cap, at('soil', 0.42), 'side:terrace');
     band(bottom, ha - 1.2, bottom, hb - 1.2, at('rock', 0.36), 'side:terrace');
@@ -340,7 +350,7 @@ export function assembleSideStrip(m, ctx = {}) {
       for (let i = 0; i < n; i++) {
         const u = (i + 0.5 + 0.5 * (rnd(10 + i) - 0.5)) / n, y = ya + (0.12 + 0.76 * u) * cellLen, x = T.back + lerp(Dr.tree.back[0], Dr.tree.back[1], rnd(20 + i)), k = i === big ? 1 : 0.35 + 0.4 * rnd(30 + i);
         if (scoops) contact(faces, look, x, y, landAt(y), lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k));
-        if (scoops) scoopTree(faces, look, { x, y, z: landAt(y), r: lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.06 + 0.16 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove' });
+        if (scoops) scoopTree(faces, look, { x, y, z: landAt(y), r: lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.06 + 0.16 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove', crown: 'side:blossom' });
         else tree(faces, look, { x, y, z: landAt(y), r: lerp(Dr.tree.r[0], Dr.tree.r[1], k), h: lerp(Dr.tree.h[0], Dr.tree.h[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.08 + 0.14 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove' });
       }
       const yb = ya + (0.2 + 0.6 * rnd(3)) * cellLen, ys = ya + (0.15 + 0.7 * rnd(4)) * cellLen;
@@ -377,7 +387,8 @@ export function assembleSideStrip(m, ctx = {}) {
     const ramp = (name, t) => { const r = st.palette[name] ?? st.palette.sky, u = Math.max(0, Math.min(1, t)) * (r.length - 1), i = Math.min(r.length - 2, Math.floor(u)); return r[i].map((c, k) => lerp(c, r[i + 1][k], u - i)); };
     SCOOPS.rows.forEach((R, ri) => {
       const Lg = SCOOPS.light, body = lit(ramp(R.ramp, R.t), FACE.top), reach = (Math.abs(R.x) + cam.dist) * 0.62, fill = look.aired(body, R.haze);
-      const capFill = look.aired(look.sunlit(body, Lg.gain), R.haze * 0.85), mistFill = look.aired(body, Math.min(0.9, R.haze + Lg.mist));
+      // (the lit cap fades with the row's distance: a far row is quieter than a near one, never busier)
+      const capFill = look.aired(look.sunlit(body, Lg.gain * (1 - R.haze)), R.haze), mistFill = look.aired(body, Math.min(0.9, R.haze + Lg.mist));
       for (let y = y0 - reach, k = 0; y < y1 + reach; k++) {
         const w = lerp(R.w[0], R.w[1], hash3(k, 31 + ri, seed + 61)), h = lerp(R.h[0], R.h[1], hash3(k, 41 + ri, seed + 61));
         // (each dome a hair nearer than the last, so where two lap neither flickers)
@@ -389,10 +400,12 @@ export function assembleSideStrip(m, ctx = {}) {
         y += w * R.lap;
       }
     });
-    const Cs = SCOOPS.cloud, reachC = (Math.abs(Cs.x) + cam.dist) * 0.62, cr = st.palette.cloud ?? st.palette.sky, white = look.hazed(rgbHex(cr[cr.length - 1].map((v) => v / 255)), 0.12);
+    const Cs = SCOOPS.cloud, reachC = (Math.abs(Cs.x) + cam.dist) * 0.62, cr = st.palette.cloud ?? st.palette.sky, white = look.hazed(rgbHex(cr[cr.length - 1].map((v) => v / 255)), 0.12), shadeC = look.hazed(rgbHex(cr[cr.length - 2].map((v) => v / 255)), 0.12);
     for (let y = y0 - reachC, k = 0; y < y1 + reachC; k++) {
       y += lerp(Cs.every[0], Cs.every[1], hash3(k, 25, seed + 87));
       const w = lerp(Cs.w[0], Cs.w[1], hash3(k, 26, seed + 87)), z = base0 + lerp(Cs.z[0], Cs.z[1], hash3(k, 28, seed + 87));
+      // (its underside a step into the shade: each puff over a twin of itself in the cloud's mid tone, a little lower)
+      for (const [dy, dz, r] of [[0, 0, 0.22], [0.3, 0.1, 0.3], [0.62, 0, 0.2]]) disc(faces, Cs.x - 0.1, y + w * dy, z + w * (dz - 0.06), w * r, shadeC, 'side:clouds');
       disc(faces, Cs.x, y, z, w * 0.22, white, 'side:clouds'); disc(faces, Cs.x + 0.05, y + w * 0.3, z + w * 0.1, w * 0.3, white, 'side:clouds'); disc(faces, Cs.x, y + w * 0.62, z, w * 0.2, white, 'side:clouds');
     }
   }
@@ -456,6 +469,8 @@ export function assembleSideStrip(m, ctx = {}) {
     haze: { color: st.air.fog.color, density: st.air.fog.density },
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: look.sun.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
     pack: true,
+    // (a shaped strip's backdrop moves: its clouds drift, its blossom breathes; channels/ambient.js)
+    ...(scoops ? { ambient: { groups: SCOOPS.motion } } : {}),
   };
   Object.defineProperty(payload, 'side', { value: { runs, terrace, fore, bottom, cube: look.cube.id, cells, order, tower: twr, shapes }, enumerable: false });
   return payload;
@@ -479,10 +494,10 @@ export function sideLaws(m, payload, { budget = 12000 } = {}) {
     { id: 'foreground', holds: under, says: `every foreground shape stands under the hero's feet in the frame (${P.fore.length})` },
     // (the dress, docs/side-strip-principles.md: its slices in the walls' order; the land behind standing clear of the lane)
     { id: 'rhythm', holds: P.cells.length < 3 || (rhythmFaults(P.order).length === 0 && new Set(P.order).size > 1), says: `the land behind the lane in slices, never three alike and never a pair repeated (${P.order})` },
-    { id: 'behind', holds: faces.every((f) => !/^side:(grove|open|tufts|crowns|clouds|tower)$/.test(f.group ?? '') || f.corners.every((c) => c[0] <= SIDE.terrace.front + 0.05)), says: 'everything that dresses the land stands behind the lane: nothing of it is met, nothing covers the hero' },
+    { id: 'behind', holds: faces.every((f) => !/^side:(grove|blossom|open|tufts|crowns|clouds|tower)$/.test(f.group ?? '') || f.corners.every((c) => c[0] <= SIDE.terrace.front + 0.05)), says: 'everything that dresses the land stands behind the lane: nothing of it is met, nothing covers the hero' },
     ...(P.shapes === 'scoops' ? [{ id: 'one-family', holds: !faces.some((f) => /^side:(hills|range|clouds)$/.test(f.group ?? '') && f.corners.length < 8), says: 'the land beyond the terrace is one family of shapes: every hill and cloud a dome or a disc, none a slope or a bar' }] : []),
     ...(P.shapes === 'scoops' ? [{ id: 'one-light', holds: faces.some((f) => f.group === 'side:contact') && faces.some((f) => f.group === 'side:rim') && faces.some((f) => f.group === 'side:lip'), says: 'one key every shape agrees on: lit caps toward it, shadows laid away from it, the lip\'s shade and the edge\'s light' }] : []),
-    { id: 'quiet', holds: faces.filter((f) => f.group === 'side:grove').every((f) => f.corners.every((c) => c[0] <= SIDE.terrace.back + SIDE.dress.tree.back[1] + SIDE.dress.tree.r[1] + 0.05 || c[2] <= Math.max(...P.terrace.map((t) => t.h)) + SIDE.dress.bush[1] + 0.2)), says: 'a grove stands at the back of the terrace and only low things at its front: the band the hero runs in is the hero\'s' },
+    { id: 'quiet', holds: faces.filter((f) => f.group === 'side:grove' || f.group === 'side:blossom').every((f) => f.corners.every((c) => c[0] <= SIDE.terrace.back + SIDE.dress.tree.back[1] + SIDE.dress.tree.r[1] + 0.05 || c[2] <= Math.max(...P.terrace.map((t) => t.h)) + SIDE.dress.bush[1] + 0.2)), says: 'a grove stands at the back of the terrace and only low things at its front: the band the hero runs in is the hero\'s' },
     { id: 'budget', holds: faces.length <= budget, says: `${faces.length} faces, ${budget} at most` },
   ];
 }

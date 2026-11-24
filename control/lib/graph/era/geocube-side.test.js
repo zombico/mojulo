@@ -104,6 +104,23 @@ describe('the land behind the lane', () => {
       expect(sideLaws({ ...M, cube }, Q).map((l) => l.id)).toContain('one-family');
     });
 
+    // (docs/side-scroll-backgrounds.md) the rows a stair under a quarter of sky; the terrace a step into the air; the backdrop moving
+    it('stands its rows in a stair under the sky\'s share, takes the terrace into the air, and moves its clouds and blossom', () => {
+      const C = SHAPED_CAMERA, top = 2.2, eye = top + C.lookH + C.dist * Math.sin(C.tilt), deg = 180 / Math.PI;
+      const crest = (pred) => Math.max(...Q.faces.filter(pred).flatMap((f) => f.corners.map((c) => Math.atan2(c[2] - eye, C.dist - c[0]) * deg)));
+      const far = crest((f) => f.group === 'side:range'), mid = crest((f) => f.group === 'side:hills' && f.corners[0][0] < -30), near = crest((f) => f.group === 'side:hills' && f.corners[0][0] > -30);
+      expect(far).toBeGreaterThan(mid);
+      expect(mid).toBeGreaterThan(near);
+      const frameTop = C.vfov / 2 - Math.atan2(eye - (top + C.lookH), C.dist) * deg;
+      expect((frameTop - far) / C.vfov).toBeGreaterThan(0.2);
+      // (cooler than the lane it stands behind: further into the air)
+      const cool = (g) => { const fs = Q.faces.filter((f) => f.group === g && f.normal[2] > 0.5), rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return fs.reduce((a, f) => { const [r, , b] = rgb(f.fill); return a + b - r; }, 0) / fs.length; };
+      expect(cool('side:terrace')).toBeGreaterThan(cool('side:top'));
+      expect(Object.keys(Q.ambient.groups).sort()).toEqual(['side:blossom', 'side:clouds']);
+      for (const g of Object.keys(Q.ambient.groups)) expect(groups(Q).has(g)).toBe(true);
+      expect(P.ambient).toBeUndefined();
+    });
+
     it('is framed nearly level, so the sky is in the frame; and is the same every time', () => {
       expect(sideCameraWords(cube)).toEqual({ tilt: SHAPED_CAMERA.tilt, lookH: SHAPED_CAMERA.lookH });
       expect(SHAPED_CAMERA.tilt).toBeLessThan(SIDE_CAMERA.tilt);

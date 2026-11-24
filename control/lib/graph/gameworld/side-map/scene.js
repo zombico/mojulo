@@ -42,7 +42,7 @@ import { layoutSideMap } from './layout.js';
 import { dressSideMap } from './dress.js';
 import { sideMapLaws } from './laws.js';
 import { paintSideMap, backdropOf } from './paint.js';
-import { vistaOf } from './vista.js';
+import { vistaOf, VISTA_MOTION } from './vista.js';
 import { lightSideMap, sideMapTextures } from './light.js';
 import { doodadsOf } from './doodads.js';
 import { shadowCasters } from './shadow.js';
@@ -144,7 +144,7 @@ export function assembleSideMap(m, ctx = {}) {
       for (const [sv, n] of [[F.s0, FACE.py], [F.s1, FACE.ny]]) quad(faces, [[F.x1, sv, F.z0], [BACK, sv, F.z0], [BACK, sv, F.z1], [F.x1, sv, F.z1]], n, side, 'sidemap:vista-far');
     }
     for (const b of V.boxes) {
-      const g = b.lit ? 'sidemap:vista-light' : 'sidemap:vista';
+      const g = b.group ?? (b.lit ? 'sidemap:vista-light' : 'sidemap:vista');
       face(faces, b.x1, b.s0, b.s1, b.z0, b.z1, b.fill, g);
       if (b.lit) continue;
       quad(faces, [[b.x0, b.s0, b.z1], [b.x1, b.s0, b.z1], [b.x1, b.s1, b.z1], [b.x0, b.s1, b.z1]], FACE.top, mixHex(b.fill, '#ffffff', 0.08), g);
@@ -243,6 +243,9 @@ export function assembleSideMap(m, ctx = {}) {
     pack: true,
     ...(L.crates?.length ? { anchors: L.crates.map((c) => ({ id: c.id, kind: 'crate' })) } : {}),
   };
+  // (the vistas' life moves: beacons blink, steam drifts; channels/ambient.js)
+  const moving = Object.fromEntries(Object.entries(VISTA_MOTION).filter(([g]) => litFaces.some((f) => f.group === g)));
+  if (Object.keys(moving).length) payload.ambient = { groups: moving };
   Object.defineProperty(payload, 'sidemap', { value: { layout: L, dress: D, paint: D0.paint, laws: D0.laws, cube: D0.cube.id, stature: D0.stature }, enumerable: false });
   return payload;
 }

@@ -264,12 +264,19 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
    A storey's wall is lit in part (`POOLS.lit`), measured above its dark (the wall's darker tenth, since the corners the
    dark gathers in fall below it). A pool's heart stands well above that dark (`POOLS.contrast`). A tall room is lit on
    every storey. Law: `pools`.
-7. **Every flame glows.** A flame is haloed (the page's glow sprites), and dust hangs in the closed rooms, lit only where
-   a lamp is near (the page's motes).
+7. **Every flame glows and burns.** A flame is haloed (the page's glow sprites) and burns live on the page's flames
+   channel, its painted shape kept as its ember. Dust hangs in the closed rooms, lit only where a lamp is near (the
+   page's motes). The cold lamps pulse.
 8. **The lane reads.** The tops she stands on are lighter than the wall behind them. Law: `lane-reads`.
 9. **A kit, a composition.** A ring's rooms draw on one kit; each room is composed by a seeded hand from its own id
    (`composeRoom`: its bays' order and its focal piece), so neighbours differ and the same recipe makes the same room.
-10. **She is the measure.** A wall is read against the body on the lane, so a piece is drawn at its size to hers, never
+10. **The night and the moon are seen.** Over the open ring the night has stars that twinkle, cloud wisps that drift,
+   a haloed moon, far mountains and a forest ridge before the towers' feet, each a step darker toward the eye. The
+   night's bands meet edge to edge, because the page lifts a lapped face a step toward the eye. Every window's glass
+   shows the night (pale on its foot, dark at its head), and a moonbeam falls from it to the floor away from the moon,
+   breathing as cloud passes (`NIGHT`, `MOONBEAM`, `MOTION` in dress.js; the general principles:
+   [side-scroll-backgrounds.md](side-scroll-backgrounds.md)).
+11. **She is the measure.** A wall is read against the body on the lane, so a piece is drawn at its size to hers, never
    at its bay's. What a hand holds or a body uses keeps its true size: a book, a sword, a shield, a candle, a ladder's
    rung, a block of stone. A figure, painted or carved, is life-size to heroic and never colossal. Furniture stands on its
    floor. Only the architecture (a window, a vault, a column, a banner's cloth) is as big as the hall. A tall hall is
@@ -285,8 +292,9 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
   give her a back-dash and a heavier cut. The small form's power would make her small and pass grates rather than opening
   them.
 - **The castle dressed further:** the gates in the castle's own make (a portcullis, an iron-bound door), the side map's
-  relief on the stone, flames that flicker (the page's flicker answers a few dying tubes, not a castle of candles), and
-  the foreground: things passing in front of the lane in silhouette.
+  relief on the stone, the lamps' pools flickering with their flames (the page's flicker answers a few dying tubes, not a
+  castle of candles), bats and lightning over the ramparts, and the foreground: things passing in front of the lane in
+  silhouette.
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant, MP spells and real bosses in place of

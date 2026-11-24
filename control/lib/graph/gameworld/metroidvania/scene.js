@@ -160,7 +160,8 @@ export function assembleBox(m, ctx = {}) {
   const payload = {
     faces, lights: [], colliders, breakables: B.breakables, heldGates: B.held,
     // (dressed: its flames haloed and dust hanging in their light, the page's glow sprites and motes)
-    ...(D ? { glow: D.glow, ...(D.motes ? { motes: D.motes } : {}) } : {}),
+    // (its flames alive and its backdrop moving: the page's flames and ambient channels)
+    ...(D ? { glow: D.glow, ...(D.motes ? { motes: D.motes } : {}), ...(D.live ? { flames: D.live } : {}), ...(D.ambient ? { ambient: D.ambient } : {}) } : {}),
     cameras: [{ name: 'metroidvania', worldFraming: { cameraPosition: [r5(C.dist), r5(s0), r5(look + C.dist * C.tilt)], lookAt: [0, r5(s0), r5(look)], horizontalFov: r5(hfov) } }],
     viewBox: m.viewBox || { width: 1280, height: 720 },
     title: ctx.title || m.title || 'mojulo geocube · metroidvania',

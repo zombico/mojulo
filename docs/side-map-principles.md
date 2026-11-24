@@ -184,6 +184,9 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     vista (`dress.js` SETTINGS), a zone's own `vista` overrides it (`wall` the plain wall). A vista with a far wall is a
     room, kept to its zone and closed at its ends so a neighbour's opening never sees into it; one under the sky widens
     to fill the frame from anywhere along the zone (`control/lib/graph/gameworld/side-map/vista.js`, a new vista a row).
+    A vista is a place still running: under the sky it stands against a dusk glow in bands; its tall things carry
+    beacons that blink; its stacks steam; a hall's far wall has a lit clerestory (`VISTA_LIFE`, `VISTA_MOTION`;
+    [side-scroll-backgrounds.md](side-scroll-backgrounds.md)).
 37. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark. A step past its doorway it shuts behind the hero: a shutter comes down
     and the room is walled up (a camera zone's `shut`, `side-map/play.js`). An intro stage's boss (level 0's) is a

@@ -76,6 +76,17 @@ far) are turned into silhouettes of their own.
 - **An edge catches the light.** A floor's top edge is a thin lit line, so a platform reads against what is behind it.
 - **The frame is graded.** A mascot platformer is saturated (`grade: 'vivid'`, the rail's word).
 
+## The stair, the air and the motion
+
+The general principles are in [side-scroll-backgrounds.md](side-scroll-backgrounds.md). In a scooped strip:
+
+- **The rows stand in a stair.** Each nearer row's crests stand under the farther row's in the frame, so every row
+  shows its own edge and the sky keeps a quarter to a third of the picture.
+- **A far row is quieter.** Its lit cap fades with its distance, never brighter than a near row's.
+- **The terrace is a step into the air,** so the lane is the clearest land on the screen and never one field with it.
+- **The clouds sit on a shaded underside and drift.** The blossom stirs, each crown after the one beside it (the
+  page's ambient channel).
+
 ## What holds it
 
 `sideLaws` measures these on a built strip: `rhythm` (the slices keep the walls' rule), `behind` (the dress stands
