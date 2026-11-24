@@ -433,6 +433,44 @@ A room's look says its `path` and its `ledge`; a locale's words override its rin
 A new path or ledge is a row of `PATHS` or `LEDGES` and a branch where it is laid. The fabric draws faces only: the
 colliders stay the greybox's.
 
+## XenoJager: the planet
+
+The box's other pole. The castle is stormed by a hunter; a dangerous planet is gone down into by an explorer. Its idioms
+are the castle's: one box of screens entered from the left, its walk spiralling ring by ring to a core, its gates,
+pockets and shortcuts, its climbs (`climbs.js`) and its two-screen towers. Only the visual library is new, so a planet
+is a theme (`themes.js` `xeno`) and a set of map words (`xeno-jager.js` `xenoJager()`), never a second map.
+
+| Ring | Look | Bays | Focal | Hazard |
+|---|---|---|---|---|
+| the crust | open under a ringed planet, a second moon and spires of rock; a crag behind the walk | boulders | a monolith, the lander in the room she enters by (`first`) | |
+| the fungal caverns | a cave: stalactites, a stalagmite near the lane, glowing crevices | fungi, tendrils | a bloom | |
+| the flooded depths | the same, in blue | waterfalls, crystals | a fossil | water |
+| the magma core | the same, in red | lava falls, boulders | a lava fall; the nest | lava |
+
+Its locales are the save `station` (the explorer's beacon), the crust's `chasm` shafts, the `grotto` of crystals, the
+`boulderfield`, the sunken `ruins` and the core's `nest`. Its lamps are `glow` pods, breathing. Its water, lava,
+glowing life and swaying tendrils move on the page's ambient channel (`MOTION`).
+
+The fabric reads the look's `fabric: 'rock'` and builds each closed part as rock rather than masonry. Floors, walls and
+roofs are the rock's own beds, the roofs hung with drips. Stairs and landings are boulders, and doorways are cave
+mouths. A tower's wall is cracked through each storey where a castle's has its slit. Ladders are metal. The crown
+along the top is the crust's skyline of crags.
+
+Every law the castle holds, the planet holds (`xeno-jager.test.js`).
+
+**The handle.** There is no XenoJager game yet. `XENOJAGER_HANDLE` says what the next builder wires, each piece marked
+`wired: false`:
+
+- **The hero.** An explorer in a sealed suit, her arm a cannon.
+- **The feel.** The run and gun's body, keeping its wall cling and kick. A planet's shafts are climbed off their walls;
+  the castle refuses that, and the box itself still lays no chimney.
+- **The hazards.** The looks' `hazard` is recorded in each room's dress plan (`plan[room].hazard`). Today it is drawn
+  and harmless. A suit's power would let her through, with a gate kind for a pool or a lava floor as a new row of
+  `gates.js`.
+
+Its HUD is the one part already wired: the box's HUD wears `nocturne-xeno` by its theme (`hud.js` `BOX_LOOKS`).
+Review it with `node scripts/spikes/backdrops/shots.mjs <dir> vampire --xeno [--whole]`.
+
 ## Not yet
 
 - **The castle's own feel.** Erina plays Galaxy Boy's run and gun with Zero Boy's saber string. A feel of her own would

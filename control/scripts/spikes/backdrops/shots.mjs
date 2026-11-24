@@ -4,7 +4,7 @@
  * its page would be, its play left out (no hero, no foes, no events: the backdrop alone), shot from the game's own side
  * camera at a few places along it, and laid on a contact sheet a game.
  *
- *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9 | --rooms id,id | --at 6,47] [--scenery a,b] [--theme id] [--premise 'words'] [--whole] [--tall]   (galaxy: those zones; vampire: those rooms, that theme, each whole with --tall, or the castle whole; giuseppe: there along the lane, those sceneries)
+ *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9 | --rooms id,id | --at 6,47] [--scenery a,b] [--theme id] [--xeno] [--premise 'words'] [--whole] [--tall]   (galaxy: those zones; vampire: those rooms, that theme, each whole with --tall, or the castle whole; giuseppe: there along the lane, those sceneries)
  *
  *   giuseppe   Jumping Giuseppe's strip (the side strip in scoops), framed by SHAPED_CAMERA along the lane
  *   galaxy     Galaxy Boy's plant (the side map), a shot a zone
@@ -23,6 +23,7 @@ register(pathToFileURL(path.join(control, 'scripts/mcp-stdio-loader.mjs')).href)
 const lib = (p) => import(pathToFileURL(path.join(control, 'lib/graph', p)).href);
 const { platformerGame } = await lib('gameworld/platformer-game.js');
 const { vampireSonataGame } = await lib('gameworld/metroidvania/vampire-sonata.js');
+const { xenoJager } = await lib('gameworld/metroidvania/xeno-jager.js');
 const { gameStages, stageLevelOrder } = await lib('gameworld/levels.js');
 const { readGameworld } = await lib('gameworld/world.js');
 const { resolveWorldScene } = await lib('worlds/world-scene.js');
@@ -80,6 +81,8 @@ if (!only || only === 'vampire') {
   const m = backdropOf(readGameworld(vampireSonataGame({ heroRef: 'hero-ref' })), 1.69);
   // (another theme: the castle re-keyed, metroidvania/themes.js)
   if (opt('--theme')) m.metroidvania = { ...m.metroidvania, theme: opt('--theme') };
+  // (--xeno: XenoJager's planet, its own words in its own library, metroidvania/xeno-jager.js)
+  if (process.argv.includes('--xeno')) m.metroidvania = xenoJager();
   const B = boxOf(m), W = B.greybox.screen.width, H = B.greybox.screen.height, C = boxCameraOf(B.stature);
   const rings = new Map();
   for (const r of [...B.layout.rooms].sort((a, b) => b.rect[1] - a.rect[1])) if ((rings.get(r.ring) ?? []).length < 2) rings.set(r.ring, [...(rings.get(r.ring) ?? []), r]);

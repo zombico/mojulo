@@ -63,7 +63,8 @@ describe('a box dressed in its theme', () => {
     expect(D.live.length).toBeGreaterThanOrEqual(D.faces.filter((f) => f.group === 'box:flame' && f.corners.length === 5).length);
     expect(P.flames).toEqual(D.live);
     expect(LIVE.grow).toBeGreaterThan(1);
-    expect(Object.keys(P.ambient.groups)).toEqual(expect.arrayContaining(Object.keys(MOTION)));
+    // (every group that moves in the castle moves; a planet's own, its lava, water and glowing life, in xeno-jager.test.js)
+    expect(Object.keys(P.ambient.groups)).toEqual(expect.arrayContaining(Object.keys(MOTION).filter((g) => !['box:glowpod', 'box:lava', 'box:water', 'box:sway'].includes(g))));
   });
 
   // (docs/metroidvania-map.md "Locales") a room its own place inside its ring
@@ -99,7 +100,7 @@ describe('a box dressed in its theme', () => {
   // (docs/backdrop-variations.md) seeded: re-keys of the castle with no drawing of their own, and locales from new pieces
   it('seeds the castle: its re-keys keep its rings and locales in other colours, every law holding', () => {
     const plain = boxOf(M(vampireSonata()));
-    for (const id of BOX_THEME_IDS.filter((t) => t !== 'castle')) {
+    for (const id of BOX_THEME_IDS.filter((t) => t.startsWith('castle-'))) {
       const T = BOX_THEMES[id], B = boxOf(M({ ...vampireSonata(), theme: id }));
       expect(T.looks.map((L) => L.bays)).toEqual(BOX_THEMES.castle.looks.map((L) => L.bays));
       expect(Object.keys(T.locales)).toEqual(Object.keys(BOX_THEMES.castle.locales));

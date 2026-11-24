@@ -33,7 +33,7 @@
  */
 export const BOX_MENU_KEY = 'Enter';
 /** The card a box theme's HUD wears: the castle's nocturne, its re-keys' own. */
-export const BOX_LOOKS = Object.freeze({ castle: 'nocturne', 'castle-frost': 'nocturne-frost', 'castle-blood': 'nocturne-blood' });
+export const BOX_LOOKS = Object.freeze({ castle: 'nocturne', 'castle-frost': 'nocturne-frost', 'castle-blood': 'nocturne-blood', xeno: 'nocturne-xeno' });
 
 const B = (p) => ({ bind: `bx.${p}` });
 const I = (p) => ({ item: p });

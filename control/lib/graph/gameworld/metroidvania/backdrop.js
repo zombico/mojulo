@@ -60,7 +60,7 @@ export const DETAIL = Object.freeze({ min: 1, max: 60 });
 /** the pools of light: the share of a storey's wall lit above its dark, and a pool's heart against the dark between */
 export const POOLS = Object.freeze({ lit: Object.freeze([0.15, 0.7]), contrast: 2.5 });
 /** what counts as detail: the dress's own faces, not the wall's blocks nor the closed parts */
-export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame', 'box:stained', 'box:brew']);
+export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame', 'box:stained', 'box:brew', 'box:lava', 'box:water', 'box:sway', 'box:glowpod']);
 // (a piece that turns is its own group, `box:turn:<id>`, so the page spins it about its hub; it is detail all the same)
 const isDetail = (g) => DETAIL_GROUPS.includes(g) || (typeof g === 'string' && g.startsWith('box:turn:'));
 export const BAY_PIECES = Object.freeze({
@@ -81,6 +81,15 @@ export const BAY_PIECES = Object.freeze({
   mirror: 'a tall mirror in a gilt frame, the hall\'s candlelight caught in its glass',
   antlers: 'a stag\'s antlers on their shield, mounted high',
   chart: 'a chart of the stars on its roundel, its constellations joined',
+  // (a planet's, XenoJager's: the same bays, its rock and its life)
+  boulders: 'boulders fallen against the cave wall, heaped as they came to rest, the smaller on the larger',
+  crystals: 'a cluster of crystals grown out of the rock, each glowing in its own colour',
+  fungus: 'a stand of giant fungi on their stalks, their caps\' gills lit from under',
+  tendrils: 'tendrils of the planet\'s growing hung from a crack high in the rock, swaying, their tips lit',
+  waterfall: 'water falling from a crack in the rock into its pool, its spray at the foot',
+  lavafall: 'lava pouring from a vent high in the rock, glowing, its crust cooling at the edges',
+  ruin: 'a carved pillar of a people before, broken and leaning, its glyphs worn',
+  pods: 'a cluster of egg pods stuck to the rock in their slime, each pulsing',
 });
 export const FOCAL_PIECES = Object.freeze({
   portrait: 'a great portrait in a gilt frame: the lord of the castle, looking down',
@@ -98,6 +107,12 @@ export const FOCAL_PIECES = Object.freeze({
   chandelier: 'a great chandelier hung from the roof, tier on tier of candles burning',
   hearth: 'a great hearth, its stone hood and mantel, logs burning in it, the house\'s crest over it',
   telescope: 'a brass telescope on its mount, aimed up at a window of night',
+  lander: 'the explorer\'s lander on its legs on the rim, its hatch open, its beacon blinking',
+  bloom: 'a great bloom of the planet, a flower the size of a house, its petals lit and breathing',
+  fossil: 'the fossil of something vast set in the rock: its spine, its ribs and its skull',
+  monolith: 'a monolith of the people before, carved and glowing in its seams',
+  beacon: 'the station\'s beacon: a mast of the explorer\'s own, its lamp lit, its panel showing',
+  nest: 'the nest of the thing below: a mound of rock and slime, its pods round it, its heart glowing',
 });
 export const BACKDROP_LAWS = Object.freeze(['eye-detail', 'calm-play', 'bay-rhythm', 'focal', 'depths', 'pools', 'lane-reads', 'scale']);
 /** the body SCALE's sizes are said for, in metres; a smaller or larger hero scales them */
@@ -109,6 +124,8 @@ export const SCALE = Object.freeze({
   'figure.h': Object.freeze([1.5, 3.2]), 'gargoyle.h': Object.freeze([0.5, 1.8]), 'candle.h': Object.freeze([0.1, 0.45]), 'block.w': Object.freeze([0.5, 1.8]),
   'block.h': Object.freeze([0.3, 0.9]),
   'bar.pitch': Object.freeze([0.18, 0.4]), 'cell.h': Object.freeze([2.4, 3.6]), 'mirror.h': Object.freeze([2.0, 3.6]), 'hearth.h': Object.freeze([2.2, 3.4]),
+  // (a planet's: a boulder she could hide behind, a crystal her arm's length to her height, a fungus over her head)
+  'boulder.r': Object.freeze([0.9, 2.2]), 'crystal.l': Object.freeze([0.8, 2.6]), 'fungus.h': Object.freeze([1.4, 5.0]), 'pillar.h': Object.freeze([2.5, 6.0]),
 });
 /** note a drawn part's size: the least and the most of each kept */
 export const measure = (sizes, part, v) => { if (!sizes) return; const o = sizes[part]; sizes[part] = o ? [Math.min(o[0], v), Math.max(o[1], v)] : [v, v]; };
@@ -503,6 +520,146 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     for (let k = 0; k < 5; k++) ring(out, x, ws - 0.5 + ((k * 37) % 10) / 10, wz - 0.4 + ((k * 53) % 8) / 10, 0.04, 4, '#f0ecd8', 'box:glass');
     measure(sizes, 'figure.h', 1.5);
     proud(s - 1.2, s + 1.6, floor, tip[1], 0.5);
+  } else if (id === 'boulders') {
+    // (boulders heaped against the wall as they came to rest: a big one on the floor, smaller ones on and beside it)
+    const rock = (cs, cz, r, k) => poly(out, x + 0.002 * k, Array.from({ length: 7 }, (_, q) => { const a = (q / 7) * 2 * Math.PI, w = 0.8 + dice() * 0.35; return [cs + r * w * Math.cos(a), Math.max(floor, cz + r * w * 0.82 * Math.sin(a))]; }), shade(L.stone, 0.72 + dice() * 0.3), 'box:dress', { pillow: 0.6 });
+    const R = 1.3 + dice() * 0.6;
+    rock(s, floor + R * 0.7, R, 0); rock(s - R * 1.3, floor + 0.55, 0.65, 1); rock(s + R * 0.35, floor + R * 1.5, R * 0.5, 2);
+    measure(sizes, 'boulder.r', R);
+    proud(s - R * 1.8, s + R * 1.6, floor, floor + R * 2, 0.8);
+  } else if (id === 'crystals') {
+    // (a cluster of crystals out of the rock, each a long hexagon's face, lit in the cave's glass)
+    const g = L.glass || '#8affe0', z0 = Math.min(top - 4, floor + 3.8 + dice() * 3);
+    poly(out, x, [[s - 1.2, z0 - 0.3], [s + 1.3, z0 - 0.4], [s + 0.9, z0 + 0.4], [s - 1.0, z0 + 0.3]], shade(L.stone, 0.6), 'box:dress', { pillow: 0.5 });
+    for (const [d, len, tilt] of [[0, 2.4, 0.05], [-0.6, 1.5, -0.45], [0.55, 1.8, 0.4], [-0.25, 1.0, -0.2], [0.95, 1.0, 0.75]]) {
+      const w = 0.16 + len * 0.06, ax = Math.sin(tilt), az = Math.cos(tilt), b = [s + d, z0], t = [b[0] + ax * len, b[1] + az * len];
+      poly(out, x + 0.006, [[b[0] - w * az, b[1] + w * ax], [b[0] + w * az, b[1] - w * ax], [t[0] + w * az - ax * 0.3, t[1] - w * ax - az * 0.3], t, [t[0] - w * az - ax * 0.3, t[1] + w * ax - az * 0.3]], mix(g, '#ffffff', 0.1 * (d > 0)), 'box:glowpod');
+      measure(sizes, 'crystal.l', len);
+    }
+    proud(s - 1.2, s + 1.4, z0 - 0.4, z0 + 2.4, 0.5);
+  } else if (id === 'fungus') {
+    // (a stand of giant fungi: three stalks of a body's height and over, their caps' gills lit from under)
+    const g = L.glass || '#7affa8';
+    for (const [d, h, r] of [[0, Math.min(top - floor - 2.4, 3.0 + dice() * 0.6), 1.1], [-1.2, 1.6 + dice() * 0.5, 0.65]]) {
+      // (a stalk thick as a trunk, swelling at its foot; a cap domed over its lit gills)
+      const sw = 0.22 + r * 0.22, tip = s + d + (dice() - 0.5) * 0.3, stalk = shade(mix(L.stone, '#d8d0b0', 0.55), 0.85);
+      poly(out, x + 0.002, [[s + d - sw * 1.6, floor], [s + d + sw * 1.6, floor], [tip + sw * 0.8, floor + h], [tip - sw * 0.8, floor + h]], stalk, 'box:dress', { pillow: 0.4 });
+      poly(out, x + 0.006, [[tip - r * 1.1, floor + h], [tip + r * 1.1, floor + h], [tip + r * 0.95, floor + h + r * 0.4], [tip + r * 0.55, floor + h + r * 0.8], [tip, floor + h + r * 0.92], [tip - r * 0.55, floor + h + r * 0.8], [tip - r * 0.95, floor + h + r * 0.4]], shade(mix(L.stone, '#8a4a7a', 0.6), 1.2), 'box:dress', { pillow: 0.5 });
+      // (the tall one's gills lit; the small one's dark under its cap, so the band she runs in stays calm)
+      if (d === 0) poly(out, x + 0.008, [[tip - r, floor + h + 0.02], [tip + r, floor + h + 0.02], [tip + sw, floor + h - 0.22], [tip - sw, floor + h - 0.22]], g, 'box:glowpod');
+      measure(sizes, 'fungus.h', h + r * 0.92);
+    }
+    proud(s - 1.8, s + 1.6, floor + 1, floor + 4, 0.6);
+  } else if (id === 'tendrils') {
+    // (tendrils hung from a crack high in the rock, swaying, each lit at its tip)
+    const z = Math.min(top - 0.6, floor + 8.5), g = L.glass || '#7affa8';
+    poly(out, x, [[s - 1.0, z], [s + 1.1, z + 0.1], [s + 0.6, z + 0.4], [s - 0.7, z + 0.35]], shade(L.back, 0.4), 'box:dress');
+    for (let k = 0; k < 5; k++) {
+      const d = -0.8 + k * 0.4 + (dice() - 0.5) * 0.2, len = 2.2 + dice() * 3.2;
+      let a = [s + d, z];
+      for (let q = 1; q <= 4; q++) { const b = [s + d + Math.sin(q * 1.3 + k) * 0.25, z - (len * q) / 4]; bar(out, x + 0.005, a, b, 0.09 - q * 0.012, shade(mix(L.stone, '#3a6a4a', 0.6), 0.9), 'box:sway'); a = b; }
+      ring(out, x + 0.01, a[0], a[1], 0.1, 6, g, 'box:glowpod');
+    }
+    proud(s - 1, s + 1.1, z - 4, z, 0.2);
+  } else if (id === 'waterfall' || id === 'lavafall') {
+    // (water or lava falling from a crack high in the rock to its pool on the floor; the lava glows and crusts at its edges,
+    // the water sprays)
+    const lava = id === 'lavafall', z1 = Math.min(top - 0.8, floor + (focal ? 9.5 : 7.5)), w = focal ? 1.6 : 1.0;
+    const flow = lava ? '#ff7a2a' : (L.glass ? mix(L.glass, '#ffffff', 0.25) : '#9ad8ff'), edge = lava ? '#5a1a10' : shade(flow, 0.7);
+    const g = lava ? 'box:lava' : 'box:water';
+    // (the crack it pours from: a dark mouth in a lip of rock jutting from the wall)
+    poly(out, x, [[s - w - 0.9, z1 - 0.1], [s + w + 0.8, z1 - 0.2], [s + w * 0.9, z1 + 0.7], [s - w * 0.3, z1 + 0.9], [s - w - 0.6, z1 + 0.5]], shade(L.stone, 0.75), 'box:dress', { pillow: 0.5 });
+    poly(out, x + 0.002, [[s - w * 0.6, z1 - 0.1], [s + w * 0.6, z1 - 0.1], [s + w * 0.4, z1 + 0.25], [s - w * 0.4, z1 + 0.25]], shade(L.back, 0.25), 'box:dress');
+    // (its sheet narrow at the lip, fanning as it falls, its edges wavering: a band at a time down to its pool)
+    const n = 6, half = (k) => (w / 2) * (0.6 + 0.5 * (k / n)) * (1 + 0.12 * Math.sin(k * 2.1 + s));
+    for (let k = 0; k < n; k++) {
+      const za = z1 - ((z1 - floor - 0.3) * k) / n, zb = z1 - ((z1 - floor - 0.3) * (k + 1)) / n, ha = half(k), hb = half(k + 1);
+      poly(out, x + 0.004, [[s - ha, za], [s + ha, za], [s + hb, zb], [s - hb, zb]], flow, g);
+      for (const d of [-1, 1]) poly(out, x + 0.006, [[s + d * ha, za], [s + d * (ha - 0.1), za], [s + d * (hb - 0.1), zb], [s + d * hb, zb]], edge, g);
+      bar(out, x + 0.007, [s - ha * 0.3 + 0.1 * Math.sin(k), za], [s - hb * 0.25 + 0.1 * Math.sin(k + 1), zb], 0.07, mix(flow, '#ffffff', 0.45), g);
+      bar(out, x + 0.007, [s + ha * 0.4, za], [s + hb * 0.45, zb], 0.05, mix(flow, '#ffffff', 0.3), g);
+    }
+    poly(out, x + 0.005, [[s - w * 1.8, floor], [s + w * 1.8, floor], [s + w * 1.3, floor + 0.35], [s - w * 1.3, floor + 0.35]], flow, g);
+    if (lava) for (const d of [-1, 1]) poly(out, x + 0.008, [[s + d * w * 1.8, floor], [s + d * w * 1.1, floor], [s + d * w * 1.2, floor + 0.3]], '#2a100c', 'box:dress');
+    else for (const d of [-0.9, 0.9]) ring(out, x + 0.008, s + d * w, floor + 0.55, 0.22, 6, mix(flow, '#ffffff', 0.5), g);
+    proud(s - w, s + w, floor, z1, 0.15);
+  } else if (id === 'ruin') {
+    // (a carved pillar of a people before, broken and leaning, its glyphs worn, its capital fallen at its foot)
+    const h = Math.min(top - floor - 1.5, 4.2 + dice() * 1.1), w = 0.9, lean = 0.12, g = L.glass || '#6affd0';
+    const at0 = (z) => s + (z - floor) * lean;
+    poly(out, x, [[s - w / 2, floor], [s + w / 2, floor], [at0(floor + h) + w / 2, floor + h - 0.3], [at0(floor + h) - w / 2, floor + h]], shade(L.trim, 0.9), 'box:dress', { pillow: 0.4 });
+    for (let k = 1; k < 5; k++) { const z = floor + (h * k) / 5; rect(out, x + 0.005, at0(z) - 0.18, at0(z) + 0.18, z - 0.14, z + 0.14, shade(g, 0.55), 'box:glowpod'); }
+    poly(out, x + 0.004, [[s + 0.9, floor], [s + 2.0, floor], [s + 2.1, floor + 0.55], [s + 0.8, floor + 0.65]], shade(L.trim, 0.75), 'box:dress');
+    measure(sizes, 'pillar.h', h);
+    proud(s - w / 2, at0(floor + h) + w / 2, floor, floor + h, 0.4);
+  } else if (id === 'pods') {
+    // (egg pods stuck to the rock in their slime, each pulsing)
+    const z = Math.min(top - 2.4, floor + 4.6 + dice() * 2), g = L.lamp?.colour || '#ff6a8a';
+    poly(out, x, [[s - 1.5, z - 1.0], [s + 1.4, z - 1.1], [s + 1.6, z + 0.9], [s - 1.3, z + 1.1]], shade(mix(L.back, '#4a2a3a', 0.5), 0.9), 'box:dress', { pillow: 0.4 });
+    for (const [d, dz, r] of [[0, 0, 0.5], [-0.85, -0.35, 0.36], [0.8, -0.4, 0.4], [-0.4, 0.7, 0.3], [0.55, 0.62, 0.28]]) {
+      ring(out, x + 0.005, s + d, z + dz, r, 9, shade(mix(L.stone, '#7a4a5a', 0.5), 1.05));
+      ring(out, x + 0.008, s + d, z + dz, r * 0.6, 7, mix(g, '#000000', 0.25), 'box:glowpod');
+    }
+    proud(s - 1.5, s + 1.6, z - 1.1, z + 1.1, 0.4);
+  } else if (id === 'lander') {
+    // (the explorer's lander on the rim: a hull on three legs, its hatch lit, a ramp down, its beacon blinking)
+    const hull = '#c8ccd4', z0 = floor + 1.4, w = 3.4, h = 2.2;
+    for (const d of [-1, 0, 1]) bar(out, x, [s + d * w * 0.4, z0 + 0.2], [s + d * w * 0.62, floor], 0.12, shade(hull, 0.55));
+    poly(out, x + 0.004, [[s - w / 2, z0], [s + w / 2, z0], [s + w * 0.36, z0 + h], [s - w * 0.36, z0 + h]], hull, 'box:dress');
+    poly(out, x + 0.006, [[s - w * 0.36, z0 + h], [s + w * 0.36, z0 + h], [s + w * 0.12, z0 + h + 0.8], [s - w * 0.12, z0 + h + 0.8]], shade(hull, 0.85), 'box:dress');
+    rect(out, x + 0.008, s - w / 2, s + w / 2, z0 + 0.5, z0 + 0.65, '#d86a2a');
+    rect(out, x + 0.009, s - 0.4, s + 0.4, z0 + 0.15, z0 + 1.35, '#ffe0a0', 'box:glowpod');
+    poly(out, x + 0.01, [[s - 0.4, z0 + 0.15], [s + 0.4, z0 + 0.15], [s + 1.0, floor], [s + 0.2, floor]], shade(hull, 0.7), 'box:dress');
+    ring(out, x + 0.012, s, z0 + h + 1.0, 0.16, 6, '#ff4040', 'box:glowpod');
+    bar(out, x + 0.009, [s, z0 + h + 0.8], [s, z0 + h + 0.9], 0.05, shade(hull, 0.5));
+    measure(sizes, 'figure.h', 1.7);
+    proud(s - w / 2, s + w / 2, z0, z0 + h, 1.0);
+  } else if (id === 'bloom') {
+    // (a great bloom of the planet on its stalk, the size of a house, its petals lit and breathing)
+    const cz = Math.min(top - 3, floor + 5.6), g = L.glass || '#3affa0', r = 2.4;
+    bar(out, x, [s - 0.5, floor], [s, cz], 0.35, shade(mix(L.stone, '#3a6a4a', 0.6), 0.9));
+    for (const [d, side] of [[0.4, -1], [0.55, 1]]) poly(out, x + 0.002, [[s + side * 0.1, floor + (cz - floor) * d], [s + side * 1.6, floor + (cz - floor) * d + 0.6], [s + side * 0.9, floor + (cz - floor) * d + 0.2]], shade(mix(L.stone, '#3a6a4a', 0.7), 1), 'box:sway');
+    for (let k = 0; k < 7; k++) { const a = (k / 7) * 2 * Math.PI; poly(out, x + 0.005, [[s, cz], [s + r * Math.cos(a - 0.28), cz + r * Math.sin(a - 0.28)], [s + r * 1.1 * Math.cos(a), cz + r * 1.1 * Math.sin(a)], [s + r * Math.cos(a + 0.28), cz + r * Math.sin(a + 0.28)]], mix('#c84a8a', g, k % 2 ? 0.2 : 0), 'box:dress'); }
+    ring(out, x + 0.01, s, cz, 0.7, 10, g, 'box:glowpod');
+    proud(s - r * 0.4, s + r * 0.4, cz - r * 0.4, cz + r * 0.4, 0.4);
+  } else if (id === 'fossil') {
+    // (the fossil of something vast set in the rock: its spine in an arc, its ribs off it, its skull at one end)
+    const bone = mix(L.top, '#e8dcc0', 0.4), cz = Math.min(top - 3, floor + 4.5), R = 4.0;
+    poly(out, x - 0.004, [[s - R - 0.6, cz - 1.8], [s + R + 0.6, cz - 1.6], [s + R + 0.4, cz + 2.2], [s - R - 0.4, cz + 2.0]], shade(L.back, 0.75), 'box:dress', { pillow: 0.3 });
+    let a = null;
+    for (let k = 0; k <= 10; k++) { const t = -1 + k / 5, p = [s + t * R, cz + Math.cos(t * 1.2) * 1.2]; if (a) bar(out, x, a, p, 0.22, bone); if (k > 1 && k < 9) bar(out, x + 0.002, p, [p[0] + 0.15, p[1] - 1.1 - Math.cos(t) * 0.4], 0.09, shade(bone, 0.85)); a = p; }
+    poly(out, x + 0.004, [[s + R, cz + 0.2], [s + R + 1.4, cz + 0.6], [s + R + 1.2, cz + 1.3], [s + R - 0.2, cz + 1.0]], bone, 'box:dress');
+    ring(out, x + 0.006, s + R + 0.6, cz + 0.85, 0.16, 6, shade(L.back, 0.4));
+    measure(sizes, 'figure.h', 3.0);
+    proud(s - R, s + R + 1.4, cz - 1.5, cz + 1.4, 0.15);
+  } else if (id === 'monolith') {
+    // (a monolith of the people before: a slab twice her height, carved, glowing in its seams)
+    const g = L.glass || '#c08aff', h = Math.min(top - floor - 1.5, 4.6), w = 1.6;
+    poly(out, x, [[s - w / 2, floor], [s + w / 2, floor], [s + w * 0.42, floor + h], [s, floor + h + 0.4], [s - w * 0.42, floor + h]], shade(L.trim, 0.8), 'box:dress', { pillow: 0.3 });
+    // (its seams carved in its upper half, over her head, the glyphs a people read standing)
+    for (let k = 0; k < 3; k++) { const z = floor + h * 0.5 + k * (h * 0.4) / 3; rect(out, x + 0.004, s - w * 0.3, s + w * 0.3, z, z + 0.07, g, 'box:glowpod'); rect(out, x + 0.004, s - 0.04, s + 0.04, z, z + (h * 0.4) / 3 - 0.15, shade(g, 0.7), 'box:glowpod'); }
+    ring(out, x + 0.006, s, floor + h - 0.4, 0.22, 8, g, 'box:glowpod');
+    measure(sizes, 'pillar.h', h);
+    proud(s - w / 2, s + w / 2, floor, floor + h, 0.4);
+  } else if (id === 'beacon') {
+    // (the station: a mast of the explorer's own on a pad, its lamp lit, its panel showing; the save is kept here)
+    const metal = '#8a94a4', h = 4.2;
+    rect(out, x, s - 1.6, s + 1.6, floor, floor + 0.3, shade(metal, 0.7));
+    bar(out, x + 0.004, [s, floor + 0.3], [s, floor + h], 0.24, metal);
+    for (const d of [-1, 1]) bar(out, x + 0.003, [s + d * 1.2, floor + 0.3], [s, floor + h * 0.6], 0.07, shade(metal, 0.8));
+    rect(out, x + 0.006, s + 0.4, s + 1.4, floor + 1.0, floor + 1.8, '#1a2a3a');
+    rect(out, x + 0.008, s + 0.5, s + 1.3, floor + 1.1, floor + 1.7, L.lamp?.colour || '#a0e8ff', 'box:glowpod');
+    ring(out, x + 0.01, s, floor + h + 0.2, 0.3, 10, L.lamp?.colour || '#a0e8ff', 'box:glowpod');
+    measure(sizes, 'figure.h', 1.7);
+    proud(s - 1.6, s + 1.6, floor, floor + 0.3, 0.6);
+  } else if (id === 'nest') {
+    // (the nest of the thing below: a mound of rock and slime, its pods round it, its heart glowing)
+    const g = L.lamp?.colour || '#ff6a8a', h = Math.min(top - floor - 2, 5.5), w = 4.4;
+    poly(out, x, [[s - w / 2, floor], [s + w / 2, floor], [s + w * 0.3, floor + h * 0.8], [s, floor + h], [s - w * 0.35, floor + h * 0.75]], shade(mix(L.stone, '#4a2a3a', 0.5), 0.85), 'box:dress', { pillow: 0.5 });
+    ring(out, x + 0.005, s, floor + h * 0.62, 0.8, 10, shade(g, 0.6), 'box:glowpod');
+    ring(out, x + 0.008, s, floor + h * 0.62, 0.45, 8, g, 'box:glowpod');
+    for (const [d, z, r] of [[-1.6, 0.4, 0.4], [1.5, 0.35, 0.42], [-0.7, h * 0.78, 0.32], [0.8, h * 0.84, 0.3]]) { ring(out, x + 0.01, s + d, floor + z, r, 8, shade(mix(L.stone, '#7a4a5a', 0.5), 1.05)); ring(out, x + 0.012, s + d, floor + z, r * 0.55, 6, mix(g, '#000000', 0.3), 'box:glowpod'); }
+    proud(s - w / 2, s + w / 2, floor, floor + h, 0.9);
   } else if (id === 'orrery') {
     // (an orrery hung from the roof: a golden sun, three worlds each on its arm turning round it at its own pace)
     const cz = Math.min(top - 3.6, floor + 6.8), gold = '#e0b040';

@@ -64,7 +64,7 @@ it holds to.
 | `cosy` | made by hand: paper or wool, soft corners, warm ink, nothing in a hurry, pattern in place of shine | picnic, knit |
 | `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit, pit-wall |
 | `dread` | restraint: near black, one bad colour, texture over everything, nothing that moves fast | dread, static |
-| `grave` | dark fantasy's restraint: a serif, aged metal on black, a cresting, nothing that slams; the castle's show | ink-and-gold, nocturne (a metroidvania's castle) and its re-keys nocturne-frost and nocturne-blood |
+| `grave` | dark fantasy's restraint: a serif, aged metal on black, a cresting, nothing that slams; the castle's show | ink-and-gold, nocturne (a metroidvania's castle) and its re-keys nocturne-frost, nocturne-blood and nocturne-xeno (XenoJager's planet) |
 | `machine`, `fight`, `brawl`, `table` | (see their cards) | blueprint, departure-board, galaxy and its re-keys galaxy-neon and galaxy-orbit, … |
 
 A RE-KEY is a child card that changes only its tokens: the same frame, motion and sounds in another place's colours

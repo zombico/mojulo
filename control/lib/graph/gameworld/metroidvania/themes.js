@@ -28,14 +28,23 @@
  *     wall     the back's masonry (WALLS in dress.js): `ashlar` (unsaid), `brick`, `rock` (a cave's rough beds), `plaster`
  *     path     what its floors are laid in (fabric.js PATHS): `flags` (unsaid), `boards`, `tiles`, `rock`
  *     ledge    what its stairs' ledges are built of (fabric.js LEDGES): `stone` (unsaid), `timber`, `iron`
- *   the NIGHT { zenith, horizon, moon: { colour, r }, towers }   the sky an open ring stands under
+ *     first    the focal piece of the room the box is entered by, where the rest of the ring shows `focal`
+ *   a planet's look (XenoJager's, xeno-jager.js) says, besides:
+ *     cave     its back the rock's (each chunk knocked, strata wandering across it, a rib of rock at a cell's edge where a
+ *              castle has its pier; no plinth and no cobwebs)
+ *     fabric   `rock`: its closed parts built as rock (fabric.js), its doorways cave mouths
+ *     parapet  `crag`: behind an open ring's walk, a crag of rock where a castle has its merlons
+ *     ceiling `stalactites` · near `stalagmite` · crevices (a glowing slit of a deeper cavern high in each bay) · lamp
+ *              `glow` (pods on a stalk) · hazard (`water` | `lava`: recorded in the dress plan for the game to come)
+ *   the NIGHT { zenith, horizon, moon: { colour, r }, towers, skyline?, planet?, moon2? }   the sky an open ring stands
+ *              under (a planet's: `skyline: 'spires'`, a ringed `planet` { colour, ring, r } and a second moon)
  *   the LOCALES  a room its own place inside its ring (docs/metroidvania-map.md "Locales"): a locale is a look's words laid
  *              over its ring's look for one room, by what the room is: a save room is a chapel, a ring's `shaft` its
  *              shafts, its `boss` its boss's room, its `hall` its halls, its `alt` every other of its corridors. A closed ring's rooms are then
  *              not one hall all through: the halls have their library stacks, the ward its clock tower and catacombs, the
  *              keep its throne room. Its closed parts keep their ring's stone, laid in the locale's path and ledge.
  *
- *   BOX_THEMES, BOX_THEME_IDS, LAMP_KINDS (the castle and its seeded re-keys, castle-frost and castle-blood)
+ *   BOX_THEMES, BOX_THEME_IDS, LAMP_KINDS (the castle and its seeded re-keys, castle-frost and castle-blood; XenoJager's planet, xeno)
  *   rekey(base, { name?, night?, looks?, locales?, lamp? }) → a theme: the base's rings and locales in other colours
  *   lookOf(theme, ring, rings) → the ring's look (`rings` the box's ring count, the core counted)
  *   localeOf(theme, room, rings, corridorIndex?) → the locale's id a room is dressed as, or null (its ring's look)
@@ -45,7 +54,7 @@
  *
  * Pure.
  */
-export const LAMP_KINDS = Object.freeze({ torch: 'a bracket and a flame', candles: 'a sconce of three candles', ghost: 'a cold lamp', brazier: 'a bowl of fire' });
+export const LAMP_KINDS = Object.freeze({ torch: 'a bracket and a flame', candles: 'a sconce of three candles', ghost: 'a cold lamp', brazier: 'a bowl of fire', glow: 'a cluster of glowing pods, the life\'s own light' });
 
 // the vampire lord's castle, stormed by night: its walls out under the moon, its halls warm with candles, its ward cold
 // and mossy, its keep dark stone and gold, crimson at its heart
@@ -104,8 +113,45 @@ export function rekey(base, { name, night, looks = [], locales = {}, lamp } = {}
   });
 }
 
+// XENOJAGER'S PLANET (xeno-jager.js): a dangerous world explored down through its crust, the same box, rings and idioms
+// as the castle in another visual library (docs/metroidvania-map.md "XenoJager"): the surface under an alien sky (two
+// moons, a ringed planet, rock spires), then rock all the way down, its fabric the rock's own (`fabric: 'rock'`: no
+// quoins, no arches, cave mouths and rock ledges, every climb the rock breaking through); its lamps the life's own glow
+// (`glow`: bioluminescent pods); stalactites under its ceilings, stalagmites before its walls, crevices showing the
+// glow of deeper caverns where a castle has windows; its places a ring each: the fungal caverns, the flooded depths,
+// the magma core. A look's `hazard` (water, lava) is said for the play to come (a handle, not yet played)
+const XENO = Object.freeze({
+  name: 'a dangerous planet explored down through its crust',
+  night: Object.freeze({ zenith: '#0a0618', horizon: '#3a1a3a', moon: Object.freeze({ colour: '#d8f0c8', r: 1.0 }), towers: '#1a0e1e', skyline: 'spires', planet: Object.freeze({ colour: '#c87a4a', ring: '#e8c890', r: 5.5 }), moon2: Object.freeze({ colour: '#9ab8ff', r: 0.55 }) }),
+  looks: Object.freeze([
+    Object.freeze({ place: 'the crust', open: true, cave: true, fabric: 'rock', parapet: 'crag', back: '#1a1220', stone: '#6a4a44', mortar: '#3a2826', top: '#b08a70', trim: '#5a4040',
+      path: 'rock', ledge: 'stone', bays: Object.freeze(['boulders', 'boulders']), focal: 'monolith', first: 'lander', dark: 0.5, lamp: Object.freeze({ kind: 'glow', colour: '#7affd0', reach: 6 }), shaft: 'chasm' }),
+    Object.freeze({ place: 'the fungal caverns', cave: true, fabric: 'rock', wall: 'rock', back: '#1e2a22', stone: '#4c5c48', mortar: '#263022', top: '#8aa07a', trim: '#3a4a34', glass: '#3affa0',
+      path: 'rock', ledge: 'stone', bays: Object.freeze(['fungus', 'tendrils']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'bloom', dark: 0.36, lamp: Object.freeze({ kind: 'glow', colour: '#7affa8', reach: 4.4 }), shaft: 'grotto', alt: 'boulderfield', save: 'station' }),
+    Object.freeze({ place: 'the flooded depths', cave: true, fabric: 'rock', wall: 'rock', back: '#142236', stone: '#3c4c5e', mortar: '#1c2634', top: '#7a96b4', trim: '#2c3c50', glass: '#4ad0ff', hazard: 'water',
+      path: 'rock', ledge: 'stone', bays: Object.freeze(['waterfall', 'crystals']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'fossil', dark: 0.3, lamp: Object.freeze({ kind: 'glow', colour: '#6ad8ff', reach: 5.5 }), shaft: 'grotto', alt: 'ruins', boss: 'ruins', save: 'station' }),
+    Object.freeze({ place: 'the magma core', cave: true, fabric: 'rock', wall: 'rock', back: '#2a1010', stone: '#4e3430', mortar: '#2a1614', top: '#a07060', trim: '#5a2a20', glass: '#ff8a3a', hazard: 'lava',
+      path: 'rock', ledge: 'stone', bays: Object.freeze(['lavafall', 'boulders']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'lavafall', dark: 0.3, lamp: Object.freeze({ kind: 'glow', colour: '#ff9a4a', reach: 5.4 }), boss: 'nest', hall: 'nest', save: 'station' }),
+  ]),
+  locales: Object.freeze({
+    // (a save room: a station of the explorer's own, its beacon lit, cold light)
+    station: Object.freeze({ place: 'the save station', cave: true, back: '#1c2430', trim: '#8aa0c0', bays: Object.freeze(['crystals', 'crystals']), focal: 'beacon', dark: 0.36, lamp: Object.freeze({ kind: 'glow', colour: '#a0e8ff', reach: 5.5 }) }),
+    // (the crust's shafts: a chasm closed in rock, crystals in its walls)
+    chasm: Object.freeze({ place: 'the chasm', open: false, cave: true, wall: 'rock', back: '#22161e', bays: Object.freeze(['crystals', 'boulders']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'monolith', dark: 0.34, lamp: Object.freeze({ kind: 'glow', colour: '#c88aff', reach: 5.0 }) }),
+    // (a grotto of crystals, their light their own)
+    grotto: Object.freeze({ place: 'the crystal grotto', back: '#1e1a34', glass: '#c08aff', bays: Object.freeze(['crystals', 'tendrils']), focal: 'monolith', dark: 0.32, lamp: Object.freeze({ kind: 'glow', colour: '#c88aff', reach: 5.0 }) }),
+    // (a field of fallen boulders)
+    boulderfield: Object.freeze({ place: 'the boulder field', back: '#2a2622', bays: Object.freeze(['boulders', 'fungus']), focal: 'fossil', dark: 0.3 }),
+    // (the ruins of a people before, sunk in the depths: carved monoliths, water over them)
+    ruins: Object.freeze({ place: 'the sunken ruins', back: '#1a2a2e', trim: '#6a8a7a', bays: Object.freeze(['ruin', 'waterfall']), focal: 'monolith', dark: 0.3 }),
+    // (the core's nest: pods pulsing in the rock, the thing that laid them)
+    nest: Object.freeze({ place: 'the nest', back: '#2a1418', bays: Object.freeze(['pods', 'lavafall']), focal: 'nest', dark: 0.28, lamp: Object.freeze({ kind: 'glow', colour: '#ff6a8a', reach: 5.0 }) }),
+  }),
+});
+
 export const BOX_THEMES = Object.freeze({
   castle: CASTLE,
+  xeno: XENO,
   // (SEEDED re-keys of the castle) under a FROST: an ice-blue night and a pale moon, the halls cold stone, the lamps' fire
   // gone blue; the keep's crimson turned a deep sapphire
   'castle-frost': rekey(CASTLE, {
@@ -147,7 +193,7 @@ export function localeOf(theme, room, rings, corridorIndex = 0) {
   const pick = (v, k) => (Array.isArray(v) ? v[((k % v.length) + v.length) % v.length] : v);
   // (an open ring's rooms are under the sky, but its towers, where its look names a locale for its shafts)
   if (L.open && !(room.kind === 'shaft' && L.shaft && X[pick(L.shaft, corridorIndex)])) return null;
-  const want = room.save ? 'chapel' : room.boss ? L.boss : room.kind === 'shaft' ? pick(L.shaft, corridorIndex) : room.kind === 'hall' ? pick(L.hall, corridorIndex) : room.kind === 'corridor' && corridorIndex % 2 === 1 ? pick(L.alt, (corridorIndex - 1) / 2) : null;
+  const want = room.save ? (L.save ?? 'chapel') : room.boss ? L.boss : room.kind === 'shaft' ? pick(L.shaft, corridorIndex) : room.kind === 'hall' ? pick(L.hall, corridorIndex) : room.kind === 'corridor' && corridorIndex % 2 === 1 ? pick(L.alt, (corridorIndex - 1) / 2) : null;
   return want && X[want] ? want : null;
 }
 /** The look a room is dressed in: its locale's words over its ring's look. */

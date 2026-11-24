@@ -101,6 +101,21 @@ function stones(out, x, s0, s1, z0, z1, { course, long, fill, under, vary = 0.14
     }
   }
 }
+/** ROCK laid on a face (a planet's, a look's `fabric: 'rock'`): the rock's own beds, each chunk its own length and height
+ * and shade, its corners knocked so no two meet square, the dark of the crack `under` them */
+function rockFace(out, x, s0, s1, z0, z1, { fill, under, d, group = 'box:stone', bed = [0.6, 1.3], long = [0.9, 2.6], vary = 0.3 }) {
+  if (s1 - s0 < 0.05 || z1 - z0 < 0.05) return;
+  face(out, x - 0.004, s0, s1, z0, z1, under, 'box:mortar');
+  for (let za = z0, k = 0; za < z1 - 1e-3; k++) {
+    const zb = Math.min(z1, za + bed[0] + d() * (bed[1] - bed[0])), top = z1 - zb < bed[0] * 0.5 ? z1 : zb, g = 0.05;
+    for (let a = s0 - d() * long[0]; a < s1 - 1e-3;) {
+      const b = a + long[0] + d() * (long[1] - long[0]), aa = Math.max(s0, a) + (a > s0 ? g : 0), bb = Math.min(s1, b) - (b < s1 ? g : 0);
+      if (bb - aa > 0.12) { const j = Math.min(0.22, (bb - aa) * 0.2, (top - za) * 0.25); poly(out, x, [[aa + j * d(), za + g], [bb - j * d(), za + g], [bb, za + (top - za) * 0.5], [bb - j * d(), top - g], [aa + j * d(), top - g], [aa, za + (top - za) * 0.45]], shade(fill, 1 - vary / 2 + d() * vary), group, { pillow: 0.5 }); }
+      a = b;
+    }
+    za = top;
+  }
+}
 /** a solid's ends, turned to either side */
 function ends(out, s0, s1, z0, z1, fill) {
   for (const [s, n] of [[s0, N.ny], [s1, N.py]]) quad(out, [[-HALF, s, z0], [HALF, s, z0], [HALF, s, z1], [-HALF, s, z1]], n, shade(fill, 0.78), 'box:stone');
@@ -156,6 +171,15 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
         for (let a = s.s0 + 1.2 + d() * 1.2; a < s.s1 - 0.4; a += 2.4) face(out, F2, a, a + 0.12, z - 0.3, z, IRON.dark);
         z -= 0.3;
       }
+      if (Lk.fabric === 'rock') {
+        // (a planet's floor: no course laid, the rock's own beds under its worn top, a drip of the cave here and there)
+        rockFace(out, F, s.s0, s.s1, s.z0, z, { fill: st, under, d });
+        for (let a = s.s0 + 1 + d() * 3; a < s.s1 - 0.5; a += 3 + d() * 5) poly(out, F2, [[a - 0.25, z], [a + 0.25, z], [a + 0.02, z - 0.5 - d() * 0.6]], shade(st, 0.7), 'box:stone');
+        ends(out, s.s0, s.s1, s.z0, s.z1, st);
+        paths.push({ room: s.room, path: Lk.path ?? 'flags', top: pathTop, face: st });
+        built.push({ i: s.i, as: `path:${Lk.path ?? 'flags'}` });
+        continue;
+      }
       face(out, F2, s.s0, s.s1, z - FABRIC.string, z, Lk.trim, 'box:stone', { tilt: [0, 0.5] });
       face(out, F, s.s0, s.s1, z - FABRIC.string - 0.05, z - FABRIC.string, shade(st, 0.45));
       z -= FABRIC.string + 0.05;
@@ -166,7 +190,13 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
       built.push({ i: s.i, as: `path:${Lk.path ?? 'flags'}` });
     } else if (s.role === 'ceiling') {
       const inner = [Math.max(s.s0, rs0 + WALL), Math.min(s.s1, rs1 - WALL)];
-      if (open && !near(s.z1, boxTop)) {
+      if (Lk.fabric === 'rock') {
+        // A ROOF OF ROCK: the beds over her, stalactites hung from their foot in unlike lengths (the crust's, at the box's
+        // top, under the planet's sky)
+        rockFace(out, F, s.s0, s.s1, s.z0, s.z1, { fill: st, under, d, bed: [0.3, 0.6] });
+        for (let a = inner[0] + 0.3 + d(); a < inner[1] - 0.3; a += 0.7 + d() * 1.6) { const len = 0.2 + d() * d() * 1.1, w = 0.12 + len * 0.15; poly(out, F2, [[a - w, s.z0 + 0.02], [a + w, s.z0 + 0.02], [a + 0.02, s.z0 - len]], shade(st, 0.78 + d() * 0.2), 'box:stone', { tilt: [0, -0.6] }); }
+        built.push({ i: s.i, as: open && near(s.z1, boxTop) ? 'crust' : 'rock-roof' });
+      } else if (open && !near(s.z1, boxTop)) {
         // A HOARDING: the covered wall-walk's timber, its boards standing, a beam along their foot, rafters' ends over it
         face(out, F - 0.004, s.s0, s.s1, s.z0, s.z1, WOOD.beam, 'box:mortar');
         for (let a = s.s0, k = 0; a < s.s1 - 1e-3; k++) { const b = Math.min(s.s1, a + 0.5); face(out, F, a + 0.02, b - 0.02, s.z0 + 0.16, s.z1, shade(WOOD.face, k % 2 ? 0.92 : 1.06 + d() * 0.08), 'box:stone', { pillow: 0.2 }); a = b; }
@@ -188,6 +218,21 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
       }
       ends(out, s.s0, s.s1, s.z0, s.z1, st);
     } else if (s.role === 'wall' || s.role === 'pier' || (s.role === 'niche' && tall > 1)) {
+      if (Lk.fabric === 'rock') {
+        // A WALL OF ROCK: its beds stacked, no course and no plinth; on the box's edge a shaft's wall cracked through each
+        // storey, a fissure of the deeper glow where a castle's tower has its slit
+        const mid = (s.s0 + s.s1) / 2;
+        rockFace(out, F, s.s0, s.s1, s.z0, s.z1, { fill: st, under, d, long: [Math.min(0.9, s.s1 - s.s0), Math.max(1.2, s.s1 - s.s0)] });
+        if (r.kind === 'shaft' && (near(s.s0, 0) || near(s.s1, boxEnd))) for (let k = r.rect[1]; k < r.rect[1] + r.rect[3]; k++) {
+          const zc = k * H + FLOOR + FABRIC.slit.at, S = FABRIC.slit;
+          if (zc - S.h / 2 < s.z0 + 0.3 || zc + S.h / 2 > s.z1 - 0.3) continue;
+          poly(out, F3, [[mid - 0.06, zc - S.h / 2], [mid + 0.1, zc - S.h * 0.15], [mid + 0.03, zc + S.h / 2], [mid - 0.1, zc + S.h * 0.1]], Lk.glass ?? nightIn, 'box:slit');
+          slits[r.id] = (slits[r.id] ?? 0) + 1;
+        }
+        ends(out, s.s0, s.s1, s.z0, s.z1, st);
+        built.push({ i: s.i, as: s.role === 'pier' ? 'pier' : r.kind === 'shaft' ? 'rock-wall' : 'rock' });
+        continue;
+      }
       // A WALL quoined: each course one stone or two, a plinth at its foot, an impost under the ceiling, a string course
       // at every storey it rises through
       face(out, F - 0.004, s.s0, s.s1, s.z0, s.z1, under, 'box:mortar');
@@ -225,7 +270,7 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
       // A CLIMB'S STRUCTURE (climbs.js): a walked step, its tread lit and its nosing proud; a great step, two courses of
       // stone coped; a landing coped, on a corbel out of the wall or the pier it is built from; where the room stands on
       // the castle's rock, what rises from its floor is the rock, its top facets lit
-      const rock = s.terrain, body = rock ? mix(mix(st, '#4a4038', 0.55), T.night.towers, 0.15) : mix(st, Lk.top, 0.18), cap = rock ? mix(body, Lk.top, 0.35) : Lk.top;
+      const rock = s.terrain || Lk.fabric === 'rock', body = rock ? mix(mix(st, '#4a4038', 0.55), T.night.towers, 0.15) : mix(st, Lk.top, 0.18), cap = rock ? mix(body, Lk.top, 0.35) : Lk.top;
       const great = s.piece === 'great', step = s.role === 'stair' && !great;
       top(out, s.z1, -HALF, HALF, s.s0, s.s1, step && Lk.path === 'boards' ? mix(WOOD.top, Lk.top, 0.6) : cap, 'box:ledge');
       face(out, F - 0.004, s.s0, s.s1, s.z0, s.z1, under, 'box:mortar');
@@ -297,6 +342,13 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
         }
         face(out, F, s.s0 + 0.1, s.s1 - 0.1, s.z0 - 0.38, s.z0 - 0.32, IRON.dark, 'box:ledge');
         built.push({ i: s.i, as: 'ledge:iron' });
+      } else if (Lk.fabric === 'rock') {
+        // (a shelf of rock out of the cave: its top lit, its face in chunks, tapering under to a point it grew from)
+        top(out, s.z1, -HALF, HALF, s.s0, s.s1, Lk.top, 'box:ledge');
+        face(out, F, s.s0, s.s1, s.z1 - FABRIC.tread, s.z1, Lk.top, 'box:ledge', { tilt: [0, 0.4] });
+        const k = Math.max(1, Math.round((s.s1 - s.s0) / 1.4)), w = (s.s1 - s.s0) / k;
+        for (let q = 0; q < k; q++) { const a = s.s0 + q * w; poly(out, F, [[a, s.z1 - FABRIC.tread], [a + w, s.z1 - FABRIC.tread], [a + w * (0.75 + d() * 0.2), s.z0 - 0.15 - d() * 0.3], [a + w * (0.1 + d() * 0.2), s.z0 + 0.05]], shade(mix(st, Lk.top, 0.3), 0.85 + d() * 0.25), 'box:ledge', { pillow: 0.5 }); }
+        built.push({ i: s.i, as: s.role === 'niche' ? 'niche' : 'ledge:stone' });
       } else {
         // (a slab of two stones, coped, chamfered under)
         const stl = mix(st, Lk.top, 0.35), nst = Math.max(2, Math.round((s.s1 - s.s0) / 1.4)), cuts = Array.from({ length: nst - 1 }, (_, q) => s.s0 + ((q + 1) * (s.s1 - s.s0)) / nst + (d() - 0.5) * 0.3);
@@ -320,7 +372,17 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
     ...(G.arches ?? []).map((w, k) => ({ id: `arch:${w.room}:${k}`, s: w.s, a: w.a, z0: w.z0, z1: w.z1, room: w.room }))];
   const lookAt = (s, z) => { const r = L.rooms.find((q) => s >= q.rect[0] * W - 1e-3 && s <= (q.rect[0] + q.rect[2]) * W + 1e-3 && z >= q.rect[1] * H && z <= (q.rect[1] + q.rect[3]) * H); return lookRoom.get((r ?? L.rooms[0]).id); };
   for (const w of ways) {
-    const Lk = lookAt(w.s - 0.01, w.z0 + 1), st = Lk.stone, rise = Math.min(A.rise, w.a), R = (w.a * w.a + rise * rise) / (2 * rise), cz = w.z1 - R, p0 = Math.asin(Math.min(1, w.a / R));
+    const Lk0 = lookAt(w.s - 0.01, w.z0 + 1);
+    if (Lk0.fabric === 'rock') {
+      // (a CAVE MOUTH: rough rocks round its head where a castle springs its arch, the far rock's dark seen through it)
+      const st = Lk0.stone, dd = diceOf(`mouth:${w.id}`);
+      for (let q = 0; q < 5; q++) { const a = w.s - w.a - 0.35 + (q * (2 * w.a + 0.7)) / 5, b = a + (2 * w.a + 0.7) / 5 + 0.06, hz = w.z1 - 0.15 - (q === 0 || q === 4 ? 0.5 : q === 2 ? -0.1 : 0.15) - dd() * 0.2; poly(out, F3, [[a, hz], [b, hz + 0.05], [b - 0.05, w.z1 + 0.3 + dd() * 0.25], [a + 0.08, w.z1 + 0.35]], shade(mix(st, Lk0.top, 0.25), 0.85 + dd() * 0.2), 'box:stone', { pillow: 0.5 }); }
+      top(out, w.z0 + 0.014, -HALF, HALF, w.s - w.a, w.s + w.a, mix(Lk0.top, st, 0.4));
+      face(out, -HALF - 0.02, w.s - w.a - 0.2, w.s + w.a + 0.2, w.z0, w.z1 + 0.4, shade(st, 0.35), 'box:mortar');
+      doorways.push({ id: w.id, arch: true, reveal: true, mouth: true });
+      continue;
+    }
+    const Lk = Lk0, st = Lk.stone, rise = Math.min(A.rise, w.a), R = (w.a * w.a + rise * rise) / (2 * rise), cz = w.z1 - R, p0 = Math.asin(Math.min(1, w.a / R));
     const arc = (rad, n) => Array.from({ length: n + 1 }, (_, q) => { const p = -p0 + (2 * p0 * q) / n; return [w.s + rad * Math.sin(p), cz + rad * Math.cos(p)]; });
     // (its spandrels: the head's corners filled in fans from each top corner to the crown, each part convex)
     const sp = arc(R, 10);
@@ -339,7 +401,8 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
   }
   // LADDERS (climbs.js): two rails and their rungs, behind her on the lane, from the landing at the foot up past the head
   for (const l of G.ladders ?? []) {
-    const x = -0.45, wood = shade(WOOD.face, 1.25), rails = [l.s - 0.32, l.s + 0.32];
+    // (on a planet, the explorer's own: a ladder of metal bolted to the rock)
+    const metal = lookAt(l.s, l.z0 + 0.5).fabric === 'rock', x = -0.45, wood = metal ? IRON.light : shade(WOOD.face, 1.25), rails = [l.s - 0.32, l.s + 0.32];
     for (const rs of rails) face(out, x, rs - 0.05, rs + 0.05, l.z0, l.z1 + 1.1, wood, 'box:ledge', { pillow: 0.3 });
     for (let z = l.z0 + 0.3; z < l.z1 + 1.0; z += 0.3) face(out, x + 0.006, rails[0], rails[1], z - 0.035, z + 0.035, shade(wood, 0.9), 'box:ledge');
   }
@@ -357,6 +420,13 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
 
   // THE CROWN along the box's top: a parapet and its merlons, a bartizan every third screen, a tower over each top corner
   const L0 = lookRoom.get(L.rooms.find((r) => r.ring === 0)?.id) ?? lookRoom.values().next().value, cst = L0.stone, roof = mix(T.night.towers, '#6a7090', 0.35);
+  if (L0.fabric === 'rock') {
+    // (a planet's crust: no crown but the ground's own skyline, crags and spires of rock along the top, a boulder here and
+    // there, the same crag under the box)
+    const dk = diceOf('crust');
+    rockFace(out, F, -0.6, boxEnd + 0.6, boxTop, boxTop + 0.9, { fill: cst, under: shade(cst, 0.5), d: dk, bed: [0.9, 0.9] });
+    for (let a = -0.6; a < boxEnd + 0.6;) { const w = 1.5 + dk() * 4, h = 0.6 + dk() * dk() * 4.5, pk = a + w * (0.3 + dk() * 0.4); poly(out, F2, [[a, boxTop + 0.85], [a + w, boxTop + 0.85], [a + w * 0.8, boxTop + 0.85 + h * 0.5], [pk, boxTop + 0.85 + h], [a + w * 0.15, boxTop + 0.85 + h * 0.4]], shade(mix(cst, T.night.towers, 0.3), 0.8 + dk() * 0.3), 'box:stone', { pillow: 0.5 }); a += w * 0.75; }
+  } else {
   stones(out, F, -0.6, boxEnd + 0.6, boxTop, boxTop + 1.2, { course: 0.6, long: [0.9, 1.7], fill: cst, under: shade(cst, 0.5), d: diceOf('crown'), sizes });
   for (let a = 0.4; a < boxEnd - 1; a += 2.4) { face(out, F, a, a + 1.3, boxTop + 1.2, boxTop + 2.3, shade(cst, 0.95)); face(out, F2, a, a + 1.3, boxTop + 2.2, boxTop + 2.3, L0.top); }
   const turret = (c, w, z0, h, rh) => {
@@ -367,6 +437,7 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
   };
   for (let k = 1; k < cols - 1; k += 3) turret((k + 0.5) * W, 2.6, boxTop + 1.2, 3.4, 3.6);
   for (const c of [W * 0.5, boxEnd - W * 0.5]) turret(c, 8, boxTop, 9, 9);
+  }
   // THE FOUNDATION: a battered plinth on a crag of rock
   poly(out, F, [[-0.9, -1.6], [boxEnd + 0.9, -1.6], [boxEnd, 0], [0, 0]], shade(cst, 0.8), 'box:stone', { tilt: [0, 0.4] });
   // (the crag: boulders a step behind the plinth, each dark in its body, its top facet lit by the moon, jagged and unlike)
