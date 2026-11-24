@@ -91,3 +91,6 @@
   is in its room. Cut down, it gives what its room gives: its seal breaks and its power is hers. Until its figure is
   made, it stands as a tall block. The castle checks that every boss is on the shelf, has room to fight, and that the
   bosses never get easier going in.
+- A boss's room shuts behind Erina once she is inside: an iron portcullis drops across each doorway and a grate covers
+  each hole, until the boss falls. If she dies in the fight, she wakes at her last save, the room opens, and the boss is
+  back where it stood at full health, so the fight starts over when she returns.

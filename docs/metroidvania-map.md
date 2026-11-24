@@ -300,6 +300,12 @@ robots) where its room says: toward the room's far side from the way in, facing 
 the castle's bar across the bottom, its name over it, shown while she stands in its room and it stands; never a bar over
 its head. Until its figure is made, it stands as a block of its tier's height in its class's shade.
 
+Its room shuts behind her. Once she is `IN` metres inside it, clear of its openings, and its boss stands, the held gates
+lay a bar across each doorway and a grate over each hole in its floor and ceiling (the box's `shut` for the boss, walls
+while the fight lasts; the page drops a portcullis across each). They lift as the boss falls. A fight lost (her health
+spent in it) opens the room as she wakes at her save, and the boss is back where it first stood, whole: the fight from
+its start when she comes back.
+
 Erina's castle: the Gate Warden (a dead halberdier, a guard), the Bellkeeper and the Bell Ringer (lobbers throwing their
 bells), the Great Bell (a turret tolling rounds across the spire), the Warden (a quick devil, a stalker), the Crypt Lord
 (a great wolf that waits and springs), the Gatekeeper (a horned guard) and the Lord of the Keep (a pursuer).
@@ -451,9 +457,8 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
 - **The bosses' fights.** Each boss is a foe class at the boss's rank today. Telegraphed patterns from the boss director
-  (`boss/`) need a jump rule first: its hazards lie on the ground plane, and a side view escapes them by jumping. Also
-  still to come: a boss's room shut behind her as a side map's is, its health back to full when she wakes at a save, and
-  its figure made.
+  (`boss/`) need a jump rule first: its hazards lie on the ground plane, and a side view escapes them by jumping. Its
+  figure is still to be made.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
 - **The rail**, once a first box plays.
 - **The explored map's next affordances:** the player's own pins, a warp room's network drawn on it, a region's map

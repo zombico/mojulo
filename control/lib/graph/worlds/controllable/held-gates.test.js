@@ -84,6 +84,42 @@ describe('held gates', () => {
     expect(w.heldGates.held['key:0']).toBeDefined();
   });
 
+  it('shut a boss\'s room behind the body while its boss stands, open it as it falls, and put a lost fight back whole', () => {
+    const saves = [{ id: 'gate', name: 'the gate', rect: [-2, 2, -1, 5], at: [0, 0] }];
+    const shut = [{ min: [-1.5, 6, 0], max: [1.5, 6.5, 3], is: 'bar' }, { min: [-1.5, 15.5, 0], max: [1.5, 16, 3], is: 'bar' }];
+    const w = E.createWorld({ heldGates: { target: 'hero', saves, bosses: [{ id: 'boss-r', entity: 'boss-r', gives: ['boss:r'], name: 'the warden falls', title: 'The warden', room: [6, 16, -1, 5], shut }] },
+      entities: [{ id: 'hero', pilotable: true, hpMax: 50, rule: { type: 'platform', speed: 5.8, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'mesh', hittable: true, hp: 50 }, transform: { pos: [0, 3, 0], heading: Math.PI / 2 } },
+        { id: 'boss-r', team: 'foes', body: { type: 'mesh', hittable: true, hp: 40 }, transform: { pos: [0, 14, 0], heading: -Math.PI / 2 } }] });
+    const H = w.byId.hero, boss = w.byId['boss-r'], G = w.heldGates, walls = () => w.colliders.filter((c) => c.of === 'boss-shut:boss-r').length;
+    run(w, { forward: 1 }, 20);
+    expect(G.fight).toBe(null);   // (in its doorway, not yet in)
+    run(w, { forward: 1 }, 40);
+    expect(G.fight).toBe('boss-r');
+    expect(walls()).toBe(2);
+    // (shut in: on along the lane she is held at the far bar)
+    run(w, { forward: 1 }, 180);
+    expect(H.transform.pos[1]).toBeLessThan(15.5);
+    // (a fight lost: the room opens, she wakes at the save, and the boss is back where it stood, whole)
+    boss.body.hp = 7; boss.transform.pos = [0, 9, 0];
+    H.body.hp = 0;
+    run(w, {}, 2);
+    expect(G.fight).toBe(null);
+    expect(walls()).toBe(0);
+    expect(boss.body.hp).toBe(40);
+    expect(boss.transform.pos[1]).toBe(14);
+    // (back in, and the boss felled: the bars lifted, what it gives given)
+    run(w, { forward: 1 }, 100);
+    expect(G.fight).toBe('boss-r');
+    boss.downed = true;
+    run(w, {}, 2);
+    expect(G.fight).toBe(null);
+    expect(walls()).toBe(0);
+    expect(G.held['boss:r']).toBeDefined();
+    // (felled, it never shuts its room again)
+    run(w, { forward: 1 }, 60);
+    expect(G.fight).toBe(null);
+  });
+
   it('a page without held gates carries none of it', () => {
     expect(emissionSource({})).not.toContain('stepWithHeldGates');
     expect(emissionSource({ heldGates: true })).toContain('stepWithHeldGates');

@@ -52,6 +52,8 @@ export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'me
 export const BOSS_HP = 6;
 /** a stood boss keeps this far from its room's walls (its doorways): it never follows her out */
 const CLEAR_WALL = 2.5;
+/** a boss room's bar, how deep into the room from its doorway */
+const SHUT_DEEP = 0.5;
 const HALF = 1.5, BACK = -3, LIT = 0.14, RELIC = 0.5;
 const SOLID = '#8d8a84', EDGE = '#d9d5cb', LEDGE = '#c4c0b6', BOSS = '#b0353a', KEY = '#e8c547', PRIZE = '#f3efe6';
 const RING_BACK = ['#3a4150', '#3d3650', '#4a3540', '#552c30', '#4a2638'];
@@ -109,6 +111,16 @@ export function boxOf(m) {
     breakables.push({ id, min: [-HALF, g.s0, g.z0], max: [HALF, g.s1, g.z1] });
     gates.push({ id, kind: g.kind, opens: door ? tokenOf(g.kind, door) : `gate:${g.kind}`, ...(g.kind === 'wall-break' ? { hp: 2 } : {}) });
   }
+  // (a stood boss's room SHUT behind her while it stands: a bar across each of its doorways, a grate over each hole in
+  // its floor and its ceiling; held-gates.js lays them as she comes in and lifts them as it falls)
+  const shutOf = (r) => {
+    const s0 = r.rect[0] * W, s1 = (r.rect[0] + r.rect[2]) * W, z0 = r.rect[1] * H, z1 = (r.rect[1] + r.rect[3]) * H;
+    const ways = greybox.doorways.filter((d) => d.s >= s0 - 0.5 && d.s <= s1 + 0.5 && d.z0 >= z0 - 0.5 && d.z0 <= z1)
+      .map((d) => { const k = d.s < (s0 + s1) / 2 ? 1 : -1; return { min: [-HALF, r3(Math.min(d.s, d.s + k * SHUT_DEEP)), r3(d.z0)], max: [HALF, r3(Math.max(d.s, d.s + k * SHUT_DEEP)), r3(d.z1)], is: 'bar' }; });
+    const holes = greybox.holes.filter((q) => q.s1 > s0 && q.s0 < s1 && (Math.abs(q.z - z0) < 1e-3 || Math.abs(q.z - z1) < 1e-3))
+      .map((q) => ({ min: [-HALF, r3(q.s0), r3(q.z)], max: [HALF, r3(q.s1), r3(q.z + FLOOR)], is: 'grate' }));
+    return [...ways, ...holes];
+  };
   const rule = (power) => (power && layout.powers[power] && GATES[layout.powers[power].opens].move ? TRAVERSAL_MOVES[GATES[layout.powers[power].opens].move].rule() : null);
   for (const r of layout.rooms) {
     const z = floorOf(r), s = midOf(r);
@@ -122,7 +134,7 @@ export function boxOf(m) {
       const R0 = rule(r.finds), span = [r3(r.rect[0] * W + CLEAR_WALL), r3((r.rect[0] + r.rect[2]) * W - CLEAR_WALL)];
       if (!stood) breakables.push({ id, min: [-0.9, r3(at - 1), r3(z)], max: [0.9, r3(at + 1), r3(z + 3.2)], hp: BOSS_HP });
       bosses.push({ id, name: r.boss, gives: [`boss:${r.id}`, ...(r.finds ? [`gate:${layout.powers[r.finds].opens}`] : [])], ...(R0 ? { rule: R0 } : {}), ...(r.finds ? { power: layout.powers[r.finds].name ?? r.finds } : {}),
-        ...(stood ? { entity: id, title: r.boss.replace(/^the\s+/i, (t) => t[0].toUpperCase() + t.slice(1)), room: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)] } : {}),
+        ...(stood ? { entity: id, title: r.boss.replace(/^the\s+/i, (t) => t[0].toUpperCase() + t.slice(1)), room: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], shut: shutOf(r) } : {}),
         place: { room: r.id, at: [0, r3(at), r3(z)], heading: r3(fromRight ? Math.PI / 2 : -Math.PI / 2), span } });
     } else if (r.finds) {
       const R0 = rule(r.finds);

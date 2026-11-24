@@ -52,7 +52,7 @@ describe('the castle\'s foes, played', () => {
     expect(w.trees.souls).toBe(souls0 + 1);
   });
 
-  it('stands each boss in its room as a body of the world, kept to its room, and the Gate Warden cut down gives the second leap', () => {
+  it('stands each boss in its room, shuts the room behind her, puts a lost fight back whole, and the Gate Warden cut down gives the second leap', () => {
     const bosses = payload.entities.filter((e) => e.id.startsWith('boss-'));
     expect(bosses.length).toBe(B.bosses.length);
     expect(payload.breakables.some((b) => b.id.startsWith('boss-'))).toBe(false);
@@ -72,11 +72,29 @@ describe('the castle\'s foes, played', () => {
     // (her health held full: the cut is what is measured here, not the fight's toll)
     const floor = r.rect[1] * B.greybox.screen.height + FLOOR;
     const mid = (r.rect[0] + r.rect[2] / 2) * B.greybox.screen.width;
-    H.transform.pos = [0, warden.transform.pos[1] + Math.sign(mid - warden.transform.pos[1]) * 2.4, floor + (H.rule.eye || 0) + 0.05]; H.vel = [0, 0, 0];
-    step({}, 10);
+    const placeIn = () => { H.transform.pos = [0, warden.transform.pos[1] + Math.sign(mid - warden.transform.pos[1]) * 2.4, floor + (H.rule.eye || 0) + 0.05]; H.vel = [0, 0, 0]; step({}, 10); };
+    placeIn();
+    // (in, the room is shut behind her while it stands: run at its way out and she is held inside)
+    const G = w.heldGates, walls = () => w.colliders.filter((c) => c.of === `boss-shut:boss-${r.id}`).length;
+    expect(G.fight).toBe(`boss-${r.id}`);
+    expect(walls()).toBe(payload.heldGates.bosses.find((b) => b.id === `boss-${r.id}`).shut.length);
+    const way = B.greybox.doorways.find((d) => d.s > r.rect[0] * B.greybox.screen.width - 0.5 && d.s < (r.rect[0] + r.rect[2]) * B.greybox.screen.width + 0.5 && Math.abs(d.z0 - floor) < 0.5);
+    for (let k = 0; k < 12; k++) { H.body.hp = H.hpMax; step({ strafe: Math.sign(way.s - H.transform.pos[1]) }, 15); }
+    expect(Math.abs(H.transform.pos[1] - way.s)).toBeGreaterThan(0.3);
+    expect(Math.sign(H.transform.pos[1] - way.s)).toBe(Math.sign(mid - way.s));
+    // (a fight lost: she wakes at her save, the room opens, and the Warden is back where it stood, whole)
+    const hp0 = warden.body.hp, at0 = payload.entities.find((e) => e.id === warden.id).transform.pos;
+    warden.body.hp = 40; H.body.hp = 0;
+    step({}, 3);
+    expect(G.fight).toBe(null);
+    expect(walls()).toBe(0);
+    expect(warden.body.hp).toBe(hp0);
+    expect(warden.transform.pos).toEqual(at0);
+    expect(G.deaths).toBe(1);
+    placeIn();
+    expect(G.fight).toBe(`boss-${r.id}`);
     // (closed in to a cut's reach, turned to it, the string pressed; followed as each blow knocks it back. Her cuts land
     // on it; brought to its last blow (the fight's length is the shelf's `blows`, not what is measured here), it is cut down)
-    const hp0 = warden.body.hp;
     for (let k = 0; k < 400 && !warden.downed; k++) {
       H.body.hp = H.hpMax;
       const d = warden.transform.pos[1] - H.transform.pos[1];
@@ -92,5 +110,8 @@ describe('the castle\'s foes, played', () => {
     expect(H.rule.airJumps).toBe(1);
     step({}, 10);
     expect(seal.broken).toBeTruthy();
+    // (felled, its room is open for good)
+    expect(G.fight).toBe(null);
+    expect(walls()).toBe(0);
   });
 });
