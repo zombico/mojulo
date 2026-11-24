@@ -25,6 +25,8 @@ describe('the backdrop\'s ambient motion', () => {
     expect(R.sway.a).toEqual([0, AMBIENT.maxAmp, 0.5, AMBIENT.minPeriod]);
     expect(R.twinkle.b).toEqual([0, 1, 3, 0]);
     expect(R.blink.b).toEqual([0, 0.8, 1.5, 0.4]);
+    // (a wheel turns about its pivot, no faster than its measure)
+    expect(readAmbient({ groups: { wheel: { spin: { at: [10, 4], rate: -9 } } } }).wheel.s).toEqual([0, 10, 4, -AMBIENT.maxRate]);
   });
 
   it('patches the groups it names, on the page\'s pinned clock', () => {

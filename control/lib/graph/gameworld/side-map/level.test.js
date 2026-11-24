@@ -4,7 +4,7 @@
 // the side map's camera, its ladders, colliders and the catch zone its falls are counted in, the game's own fall policy
 // off, the goal at the far side of the last zone, and the map's laws all held.
 import { describe, it, expect } from 'vitest';
-import { platformerGame } from '../platformer-game.js';
+import { platformerGame, SIDE_MAP_CUBE, PLATFORMER_CUBE } from '../platformer-game.js';
 import { gameStages, stageLevelOrder } from '../levels.js';
 import { readGameworld } from '../world.js';
 import { SIDE_FALL, SIDE_DOWN } from './play.js';
@@ -14,7 +14,10 @@ const galaxy = () => ({ id: 'gb', name: 'Galaxy Boy', ...platformerGame({ pole: 
 
 describe('a side map level', () => {
   it('the rail writes the run and gun\'s first level as a side map, the mascot platformer\'s as its strip', () => {
-    expect(Object.keys(galaxy().levels.first)).toEqual(['name', 'sidemap', 'foes']);
+    expect(Object.keys(galaxy().levels.first)).toEqual(['name', 'style', 'sidemap', 'foes']);
+    // (drawn in its own cube, a city by night, never the mascot platformer's orchard)
+    expect(galaxy().levels.first.style.geocube).toBe(SIDE_MAP_CUBE);
+    expect(galaxy().style.geocube).toBe(PLATFORMER_CUBE);
     expect(galaxy().levels.first.name).toBe('Level 0');
     expect(platformerGame({ pole: 'jumping-giuseppe' }).words.levels.first.course).toBeDefined();
   });

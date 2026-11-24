@@ -39,13 +39,18 @@ import { materialOf } from './cake.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // (a place: its name, its fill's family, whether it is inside, and its VISTA, what the camera sees behind it: vista.js, a
-// vista from the library or 'wall', the plain back wall; unsaid, a wall inside and the cube's sky and hills outside)
-const P = (name, family, indoor = true, vista = null) => Object.freeze({ name, family, indoor, ...(vista ? { vista } : {}) });
+// vista from the library or 'wall', the plain back wall; unsaid, a wall inside and the cube's sky and hills outside; and
+// its TONE, [hue° off the place's, saturation, lightness]: a place its own colour, so a stage is not one hue all through
+// (docs/side-scroll-backgrounds.md); its hue kept within PLACE_SWING of the place's, so play and the boss stay apart)
+const P = (name, family, indoor = true, vista = null, tone = null) => Object.freeze({ name, family, indoor, ...(vista ? { vista } : {}), ...(tone ? { tone: Object.freeze(tone) } : {}) });
+/** how far a place's tone may swing its hue off the setting's place hue: toward play no nearer than 120° (laws
+ * play-against-place), toward the boss no nearer than 30° (boss-colour) */
+export const PLACE_SWING = Object.freeze([-30, 56]);
 /** The settings: the places a stage of each is made of, by the zone's role (across, up, down, room). */
 export const SETTINGS = Object.freeze({
   plant: Object.freeze({ words: ['plant', 'factory', 'foundry', 'works', 'mill', 'refinery', 'reactor'], threads: 'pipes', subject: 'the machine it makes',
-    play: 'warm', places: { across: [P('the gate tunnel', 'rock', true, 'wall'), P('the factory floor', 'machine', true, 'hall'), P('the loading dock', 'built', true, 'yard'), P('the assembly line', 'machine', true, 'hall'), P('the gallery', 'machine', true, 'skyline')],
-      up: [P('the freight shaft', 'padded'), P('the service chimney', 'machine', true, 'hall')], down: [P('the stairwell', 'built'), P('the drop chute', 'machine')], room: [P('the core', 'machine', true, 'hall')] } }),
+    play: 'warm', places: { across: [P('the gate tunnel', 'rock', true, 'wall', [-22, 0.3, 0.44]), P('the factory floor', 'machine', true, 'hall', [8, 0.5, 0.56]), P('the loading dock', 'built', true, 'yard', [-28, 0.48, 0.5]), P('the assembly line', 'machine', true, 'hall', [50, 0.46, 0.55]), P('the reactor gallery', 'machine', true, 'reactor', [30, 0.55, 0.6]), P('the sky bridge', 'machine', true, 'future', [-12, 0.6, 0.62])],
+      up: [P('the freight shaft', 'padded', true, null, [20, 0.4, 0.52]), P('the service chimney', 'machine', true, 'hall', [-16, 0.45, 0.5])], down: [P('the stairwell', 'built', true, null, [40, 0.38, 0.5]), P('the drop chute', 'machine', true, null, [-26, 0.5, 0.46])], room: [P('the core', 'machine', true, 'reactor', [54, 0.5, 0.5])] } }),
   mountain: Object.freeze({ words: ['mountain', 'volcano', 'cliff', 'peak', 'canyon', 'cave', 'crag'], threads: 'roots', subject: 'what sleeps in the mountain',
     play: 'cool', places: { across: [P('the cliff path', 'rock', false, 'peaks'), P('the caldera rim', 'rock', false, 'peaks'), P('the plateau', 'rock', false, 'peaks'), P('the works in the rock', 'machine', true, 'hall')],
       up: [P('the chimney', 'rock'), P('the crevice', 'rock')], down: [P('the scree', 'rock', false, 'peaks'), P('the lava tube', 'rock')], room: [P('the summit chamber', 'built')] } }),
@@ -91,9 +96,10 @@ export function dressSideMap(layout, map, { seed = 1, cube } = {}) {
     const place = Z.place ?? dealt.name, family = Z.fill ?? M.fill ?? dealt.family, indoor = Z.place ? true : dealt.indoor;
     // (its vista: the zone's own word, else its place's; a place the map names itself is inside, a wall behind it)
     const vista = Z.vista ?? (Z.place ? null : dealt.vista ?? null);
-    const h = (placeHue + SPREAD[i % SPREAD.length] + (d() - 0.5) * 6 + 360) % 360;
+    const tn = Z.place ? null : dealt.tone, swing = tn ? Math.max(PLACE_SWING[0], Math.min(PLACE_SWING[1], tn[0])) : null;
+    const h = (placeHue + (tn ? swing : SPREAD[i % SPREAD.length]) + (d() - 0.5) * 6 + 360) % 360, sat = tn ? tn[1] : 0.45, light = tn ? tn[2] : 0.58;
     const boss = bossAt < 0 ? 0 : i === bossAt ? 1 : i > bossAt - 3 && i < bossAt ? r3((3 - (bossAt - i)) / 3) : 0;
-    const LZ = layout.zones[i], [s0, s1, z0, z1] = LZ.rect, out = { zone: i, place, family, indoor, key: hex(h, 0.45, 0.58), edge: hex(h, 0.4, 0.78), void: hex(h, 0.28, 0.1), boss, wear: r3(0.2 + 0.5 * d()), ...(vista && vista !== 'wall' ? { vista } : {}) };
+    const LZ = layout.zones[i], [s0, s1, z0, z1] = LZ.rect, out = { zone: i, place, family, indoor, key: hex(h, sat, light), edge: hex(h, sat * 0.9, Math.min(0.9, light + 0.2)), void: hex(h, 0.28, 0.1), boss, wear: r3(0.2 + 0.5 * d()), ...(vista && vista !== 'wall' ? { vista } : {}) };
     if (role === 'across') {
       // the back wall in bays, a screen and a quarter each, by the walls' rule; a pillar between, a lamp an A bay
       // (the bay grid the path's steps stand on too, path.js bayGrid: the floor keeps the walls' rhythm)

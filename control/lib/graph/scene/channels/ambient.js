@@ -6,16 +6,17 @@ import { safeJson } from '../emit-util.js';
 // spread along the place by where the vertex stands (`spread` radians a metre), so a row of clouds drifts as a row and a
 // row of crowns bobs one after another rather than together. A group may also breathe in brightness (`depth` of its
 // colour over `beat` seconds): a smooth twinkle (stars, a lamp's breath), or, with a `duty`, a blink (a beacon on a mast,
-// lit for that share of its beat). The baked light does not move with it. The clock is window.__mojClock when a capture
+// lit for that share of its beat), or turn about a pivot in the picture's plane (`spin`: a wheel, a gear, a fan; its
+// `at` the pivot [y, z] and its `rate` radians a second, the sign its sense). The baked light does not move with it. The clock is window.__mojClock when a capture
 // pins it, so a baked frame is reproducible.
 // Absent `ambient` (or no groups) ⇒ NOT emitted.
-// `cfg`: { groups: { [group]: { amp?: [x, y, z], period?, spread?, depth?, beat?, duty? } } }
+// `cfg`: { groups: { [group]: { amp?: [x, y, z], period?, spread?, depth?, beat?, duty?, spin?: { at: [y, z], rate } } } }
 
 /** The channel's measures: the slowest and fastest a backdrop may move (seconds a cycle) and the most it may travel. */
-export const AMBIENT = Object.freeze({ minPeriod: 1.2, maxAmp: 40 });
+export const AMBIENT = Object.freeze({ minPeriod: 1.2, maxAmp: 40, maxRate: 3 });
 
 const GLSL = `
-uniform float uAmbT; uniform vec4 uAmbA; uniform vec4 uAmbB;
+uniform float uAmbT; uniform vec4 uAmbA; uniform vec4 uAmbB; uniform vec4 uAmbS;
 varying float vAmbP;
 `;
 const FRAG_PARS = `
@@ -25,6 +26,7 @@ varying float vAmbP;
 // the vertex: its phase from where it stands, its offset a sine of the clock
 const BEGIN = `#include <begin_vertex>
 vAmbP = dot( position, vec3( 0.37, 1.0, 0.61 ) ) * uAmbB.x;
+if ( uAmbS.w != 0.0 ) { vec2 d = transformed.yz - uAmbS.yz; float a = uAmbS.w * uAmbT, c = cos( a ), s = sin( a ); transformed.yz = uAmbS.yz + vec2( c * d.x - s * d.y, s * d.x + c * d.y ); }
 if ( uAmbA.w > 0.0 ) transformed += vec3( uAmbA.xyz ) * sin( 6.2831853 * uAmbT / uAmbA.w + vAmbP );
 `;
 // the colour: a twinkle (duty 0) or a blink (lit for `duty` of its beat), `depth` of it at most
@@ -46,7 +48,8 @@ export function readAmbient(cfg) {
     const depth = Number.isFinite(G.depth) ? Math.max(0, Math.min(1, G.depth)) : 0, beat = Number.isFinite(G.beat) ? Math.max(0.2, G.beat) : 0;
     const duty = Number.isFinite(G.duty) ? Math.max(0, Math.min(1, G.duty)) : 0, spread = Number.isFinite(G.spread) ? G.spread : 0;
     const moves = period > 0 && amp.some((v) => v !== 0), breathes = depth > 0 && beat > 0;
-    if (moves || breathes) out[g] = { a: [...amp, moves ? period : 0], b: [spread, breathes ? depth : 0, breathes ? beat : 0, duty] };
+    const sp = G.spin && Array.isArray(G.spin.at) && G.spin.at.length === 2 && Number.isFinite(G.spin.rate) && G.spin.rate !== 0 ? [0, +G.spin.at[0], +G.spin.at[1], Math.max(-AMBIENT.maxRate, Math.min(AMBIENT.maxRate, G.spin.rate))] : null;
+    if (moves || breathes || sp) out[g] = { a: [...amp, moves ? period : 0], b: [spread, breathes ? depth : 0, breathes ? beat : 0, duty], ...(sp ? { s: sp } : {}) };
   }
   return out;
 }
@@ -63,7 +66,7 @@ export function ambientScript(cfg) {
   scene.traverse((o) => {
     const G = o.isMesh && AMB[o.userData.g]; if (!G || !o.material) return;
     const mat = o.material, prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey;
-    const own = { uAmbT: T, uAmbA: { value: new THREE.Vector4(G.a[0], G.a[1], G.a[2], G.a[3]) }, uAmbB: { value: new THREE.Vector4(G.b[0], G.b[1], G.b[2], G.b[3]) } };
+    const own = { uAmbT: T, uAmbA: { value: new THREE.Vector4(G.a[0], G.a[1], G.a[2], G.a[3]) }, uAmbB: { value: new THREE.Vector4(G.b[0], G.b[1], G.b[2], G.b[3]) }, uAmbS: { value: new THREE.Vector4(...(G.s || [0, 0, 0, 0])) } };
     mat.onBeforeCompile = function (sh, r) {
       if (prev) prev.call(this, sh, r);
       Object.assign(sh.uniforms, own);

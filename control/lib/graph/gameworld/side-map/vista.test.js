@@ -81,6 +81,26 @@ describe('the side map\'s vistas', () => {
     expect(Object.keys(page.ambient.groups)).toContain('sidemap:vista-beacon');
   });
 
+  it('lays the future\'s domed arcologies and its traffic, and turns the reactor\'s wheel and ring about its hub, opposite ways', () => {
+    const fut = laid(chain('future')), [F] = vistaOf(fut.L, fut.D, { seed: 3 });
+    // (domes drawn as shapes, lit glass inside them; a skyway's train and craft that the page moves)
+    expect(F.boxes.filter((b) => b.poly && b.group === 'sidemap:vista-dome').length).toBeGreaterThan(2);
+    for (const g of ['sidemap:vista-train', 'sidemap:vista-traffic']) expect(F.boxes.some((b) => b.group === g), g).toBe(true);
+    const re = laid(chain('reactor')), [R] = vistaOf(re.L, re.D, { seed: 3 }), Z = re.L.zones[0];
+    const spins = Object.values(R.motion).map((m) => m.spin);
+    expect(spins).toHaveLength(2);
+    expect(Math.sign(spins[0].rate)).toBe(-Math.sign(spins[1].rate));
+    // (its hub the zone's middle, the wheel inside the zone)
+    for (const sp of spins) expect(sp.at[0]).toBeCloseTo((Z.rect[0] + Z.rect[1]) / 2, 3);
+    const wheel = R.boxes.filter((b) => b.group === Object.keys(R.motion)[0]);
+    expect(Math.min(...wheel.map((b) => b.s0))).toBeGreaterThanOrEqual(Z.rect[0] - 1e-3);
+    expect(Math.max(...wheel.map((b) => b.s1))).toBeLessThanOrEqual(Z.rect[1] + 1e-3);
+    // (the page spins them)
+    const page = assembleSideMap(M('reactor'));
+    expect(Object.values(page.ambient.groups).filter((g) => g.spin).length % 2).toBe(0);
+    expect(Object.values(page.ambient.groups).filter((g) => g.spin).length).toBeGreaterThanOrEqual(2);
+  });
+
   it('the same seed, the same vista', () => {
     const a = laid(chain('hall')), b = laid(chain('hall'));
     expect(JSON.stringify(vistaOf(a.L, a.D, { seed: 5 }))).toBe(JSON.stringify(vistaOf(b.L, b.D, { seed: 5 })));

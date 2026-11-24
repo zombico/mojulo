@@ -13,7 +13,14 @@
  *                share of the frame), wide enough to fill the frame wherever along the zone the camera stands
  *   the KINDS    tower (a block, its windows lit), stack (a chimney, its lip), tank (a drum and its cap), gantry (two legs
  *                and a beam), pipe (an upright run and its collars), peak (a mountain's face), column (a shaft, its base
- *                and its capital), arch (two columns and a lintel)
+ *                and its capital), arch (two columns and a lintel); and THE FUTURE'S: arcology (a tower under a dome, its
+ *                window bands lit, a ring round its waist, a mast), dome (a glass dome on its podium, lit from inside),
+ *                needle (a stalk under a saucer deck and its dome), piston (a cylinder whose rod pumps). A layer may carry
+ *                `neon` (a sign down a building's side), `skyway` (a rail across the layer on pylons, a train running on
+ *                it); a vista its `traffic` (lit craft drifting between the layers)
+ *   the SET      (`set`) one giant thing a vista is built round, laid once at its zone's middle and animated: the
+ *                `reactor`, the machine the plant makes, a wheel of spokes and a rim of lights turning about a core that
+ *                pulses, an inner ring turning the other way (the page's ambient channel spins each about its hub)
  *   the BACK     `sky` the cube's sky behind it all (outdoor vistas, seen through an open back); `far` a lit far wall at its
  *                depth (a hall's), its `tone` off the zone's hue: a ROOM, its things kept to the zone's length and its ends
  *                closed by side walls (scene.js), so a neighbour's opening never sees into it
@@ -35,6 +42,8 @@
 import { streamOf } from '../../city/plan/dice.js';
 
 const L = (x, kind, every, w, h, tone, more = {}) => Object.freeze({ x, kind, every: Object.freeze(every), w: Object.freeze(w), h: Object.freeze(h), tone, ...more });
+/** the future's lit colours: its neon, its windows' glow, its domes' glass */
+export const NEON = Object.freeze(['#ff3d9a', '#3df2ff', '#ffb43d', '#a46bff', '#5dff9a']);
 export const VISTAS = Object.freeze({
   // the plain back wall (scene.js), none of this
   wall: null,
@@ -61,6 +70,19 @@ export const VISTAS = Object.freeze({
     L(-120, 'peak', [10, 18], [14, 22], [0.45, 0.7], 0.55),
     L(-60, 'peak', [12, 20], [10, 16], [0.3, 0.48], 0.65),
   ]) }),
+  // THE FUTURE: a city of domed arcologies and needle towers under the night, a skyway and its train across the nearest
+  // layer, craft drifting between, neon down the near buildings
+  future: Object.freeze({ sky: true, haze: 0.72, traffic: 9, layers: Object.freeze([
+    L(-100, 'arcology', [8, 14], [5, 9], [0.5, 0.88], 0.42),
+    L(-62, 'needle', [16, 26], [6, 9], [0.45, 0.72], 0.52),
+    L(-36, 'dome', [18, 28], [10, 15], [0.24, 0.4], 0.6),
+    L(-24, 'arcology', [11, 17], [4, 6.5], [0.3, 0.56], 0.68, { windows: true, neon: true, skyway: true }),
+  ]) }),
+  // THE REACTOR: the machine the plant makes, a wheel taller than the frame turning in its hall, its core pulsing,
+  // pistons pumping before it
+  reactor: Object.freeze({ far: Object.freeze({ x: -30, tone: 0.34 }), haze: 0.45, set: Object.freeze({ kind: 'reactor', x: -21, h: 0.92 }), layers: Object.freeze([
+    L(-12, 'piston', [8, 12], [1.5, 2.2], [0.45, 0.7], 0.72),
+  ]) }),
   // a colonnade's columns and arches before a far wall
   colonnade: Object.freeze({ far: Object.freeze({ x: -24, tone: 0.38 }), haze: 0.5, layers: Object.freeze([
     L(-18, 'arch', [12, 16], [6, 8], [0.62, 0.75], 0.6),
@@ -84,11 +106,22 @@ export const VISTA_LIFE = Object.freeze({
   steam: Object.freeze({ puffs: 4, colour: '#f2f4f7' }),
   clerestory: Object.freeze({ at: 0.72, h: 0.07, pitch: 3.2 }),
 });
-/** How the life moves on the page (channels/ambient.js): beacons blink, steam drifts and rises. */
+/** How the life moves on the page (channels/ambient.js): beacons blink, steam drifts and rises, neon breathes, craft and
+ * a skyway's train cross, a dome glows, a piston pumps, a reactor's core pulses (its wheels' spins are each vista's own:
+ * a pivot a wheel, the vista's `motion`). */
 export const VISTA_MOTION = Object.freeze({
   'sidemap:vista-beacon': Object.freeze({ depth: 0.85, beat: 1.7, duty: 0.4, spread: 2.3 }),
   'sidemap:vista-steam': Object.freeze({ amp: [0, 1.4, 0.9], period: 6.5, spread: 0.5, depth: 0.25, beat: 9 }),
+  'sidemap:vista-neon': Object.freeze({ depth: 0.55, beat: 3.1, spread: 0.9 }),
+  'sidemap:vista-traffic': Object.freeze({ amp: [0, 24, 0.8], period: 22, spread: 0.13 }),
+  'sidemap:vista-train': Object.freeze({ amp: [0, 34, 0], period: 19 }),
+  'sidemap:vista-dome': Object.freeze({ depth: 0.3, beat: 6, spread: 0.2 }),
+  'sidemap:vista-piston': Object.freeze({ amp: [0, 0, 1.6], period: 2.4, spread: 1.4 }),
+  'sidemap:vista-core': Object.freeze({ depth: 0.45, beat: 2.2, spread: 0 }),
 });
+/** THE REACTOR's measures: its rim (a share of its radius) cut in segments and lit at `lights`; its spokes; its inner
+ * ring; its core; how fast its wheel and its ring turn (radians a second, the ring the other way) */
+export const REACTOR = Object.freeze({ rim: 0.84, segments: 28, lights: 14, spokes: 8, ring: Object.freeze([0.38, 0.5]), core: 0.24, turn: 0.2, counter: -0.34, glow: '#6ff7ff' });
 
 /** Each zone's vista, as boxes at their depths. */
 export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
@@ -107,6 +140,12 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
     const at = (x, v) => zc + (lane + v * H - zc) * view(x), foot = (x) => at(x, -0.05);
     const haze = (x) => Math.min(0.92, (V.haze ?? 0.6) * (1 - Math.exp(x / 40)));
     const fillAt = (x, k) => mix(tone(z.key, k), into, haze(x));
+    // (a shape drawn flat at its depth: a dome, a disc, a ring's segment, a spoke; its bounds kept for what reads a box)
+    const motion = {};
+    const shape = (x, pts, fill, { lit = false, group } = {}) => { const ss = pts.map((q) => q[0]), zz = pts.map((q) => q[1]); boxes.push({ x0: r3(x), x1: r3(x), s0: r3(Math.min(...ss)), s1: r3(Math.max(...ss)), z0: r3(Math.min(...zz)), z1: r3(Math.max(...zz)), poly: pts.map(([a, b]) => [r3(a), r3(b)]), fill, ...(lit ? { lit: true } : {}), ...(group ? { group } : {}) }); };
+    const arc = (cs, cz, r, h, a0, a1, n) => Array.from({ length: n + 1 }, (_, k) => { const a = a0 + ((a1 - a0) * k) / n; return [cs + r * Math.cos(a), cz + h * Math.sin(a)]; });
+    const domeAt = (x, cs, cz, r, h, fill, opts) => shape(x, [...arc(cs, cz, r, h, 0, Math.PI, 14)], fill, opts);
+    const discAt = (x, cs, cz, r, fill, opts) => shape(x, arc(cs, cz, r, r, 0, 2 * Math.PI * (17 / 18), 17), fill, opts);
     let far = null;
     if (V.far) {
       const [s0, s1] = span(V.far.x), f = view(V.far.x);
@@ -141,6 +180,41 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
           if (!Ly.windows && !nearest && live() < 0.5) { const ww = 0.35 * f, wh = 0.5 * f, gap = 1.6 * f; for (let wz = z0 + gap * 2; wz < top - gap; wz += gap) for (let ws = a + gap * 0.5; ws < b - gap * 0.5; ws += gap) if (live() < 0.22) boxes.push({ x0: r3(Ly.x), x1: r3(Ly.x + 0.03), s0: r3(ws), s1: r3(ws + ww), z0: r3(wz), z1: r3(wz + wh), fill: mix(WINDOW.warm, into, haze(Ly.x) * 0.75), lit: true }); }
           if (Ly.windows) { const ww = 0.35 * f, wh = 0.5 * f, gap = 1.1 * f, c = d() < 0.5 ? WINDOW.warm : WINDOW.cool;
             for (let wz = z0 + gap * 2; wz < top - gap; wz += gap) for (let ws = a + gap * 0.6; ws < b - gap * 0.6; ws += gap) if (d() < 0.55) boxes.push({ x0: r3(Ly.x), x1: r3(Ly.x + 0.03), s0: r3(ws), s1: r3(ws + ww), z0: r3(wz), z1: r3(wz + wh), fill: mix(c, into, haze(Ly.x) * 0.5), lit: true }); }
+        } else if (Ly.kind === 'arcology') {
+          // (a tower under a dome: its body, its dome and the dome's lit glass, a ring round its waist, its window bands, a
+          // mast and its beacon)
+          const r = w / 2, dh = Math.min(r * 0.9, (top - z0) * 0.22), body = top - dh, glow = mix(NEON[Math.floor(live() * NEON.length)], into, haze(Ly.x) * 0.55);
+          box(a, b, z0, body);
+          domeAt(Ly.x, s, body, r, dh, fill);
+          domeAt(Ly.x + 0.02, s, body, r * 0.7, dh * 0.7, glow, { lit: true, group: 'sidemap:vista-dome' });
+          const rz = z0 + (body - z0) * (0.5 + 0.2 * live());
+          box(a - w * 0.14, b + w * 0.14, rz, rz + 0.35 * f, dark);
+          const band = mix(live() < 0.5 ? WINDOW.cool : WINDOW.warm, into, haze(Ly.x) * 0.55);
+          for (let wz = z0 + 1.4 * f; wz < body - 1.2 * f; wz += 1.35 * f) if (live() < (Ly.windows ? 0.6 : 0.35)) boxes.push({ x0: r3(Ly.x), x1: r3(Ly.x + 0.03), s0: r3(a + w * 0.12), s1: r3(b - w * 0.12), z0: r3(wz), z1: r3(wz + 0.22 * f), fill: band, lit: true });
+          if (Ly.neon && live() < 0.6) { const ns = live() < 0.5 ? a + w * 0.06 : b - w * 0.16; boxes.push({ x0: r3(Ly.x + 0.03), x1: r3(Ly.x + 0.06), s0: r3(ns), s1: r3(ns + w * 0.1), z0: r3(z0 + (body - z0) * 0.25), z1: r3(z0 + (body - z0) * (0.55 + 0.2 * live())), fill: NEON[Math.floor(live() * NEON.length)], lit: true, group: 'sidemap:vista-neon' }); }
+          beacon(s, top, Bc.red, live() < 0.6 ? dh * 0.8 : 0);
+        } else if (Ly.kind === 'dome') {
+          // (a glass dome on its podium, lit from inside, a spire on its crown)
+          const pod = z0 + (top - z0) * 0.22, r = w / 2, glass = mix(NEON[1 + Math.floor(live() * 3)], into, haze(Ly.x) * 0.5);
+          box(a - w * 0.05, b + w * 0.05, z0, pod, dark);
+          domeAt(Ly.x, s, pod, r, top - pod, fill);
+          domeAt(Ly.x + 0.02, s, pod, r * 0.88, (top - pod) * 0.86, glass, { lit: true, group: 'sidemap:vista-dome' });
+          for (const k of [-0.5, 0, 0.5]) shape(Ly.x + 0.04, [[s + k * r * 0.88 - 0.08 * f, pod], [s + k * r * 0.88 + 0.08 * f, pod], [s + k * r * 0.3 + 0.05 * f, pod + (top - pod) * (0.95 - 0.35 * Math.abs(k))], [s + k * r * 0.3 - 0.05 * f, pod + (top - pod) * (0.95 - 0.35 * Math.abs(k))]], dark);
+          beacon(s, top, Bc.red, (top - z0) * 0.12);
+        } else if (Ly.kind === 'needle') {
+          // (a stalk under a saucer deck, a dome on the deck, its rim lit)
+          const st = Math.max(0.5 * f, w * 0.1), deck = top - (top - z0) * 0.16, dw = w / 2;
+          box(s - st / 2, s + st / 2, z0, deck);
+          shape(Ly.x, [[s - st, deck - (top - z0) * 0.05], [s + st, deck - (top - z0) * 0.05], [s + dw, deck], [s + dw * 0.9, deck + (top - deck) * 0.25], [s - dw * 0.9, deck + (top - deck) * 0.25], [s - dw, deck]], fill);
+          boxes.push({ x0: r3(Ly.x + 0.02), x1: r3(Ly.x + 0.05), s0: r3(s - dw * 0.92), s1: r3(s + dw * 0.92), z0: r3(deck + 0.02 * f), z1: r3(deck + 0.12 * f), fill: mix(NEON[Math.floor(live() * NEON.length)], into, haze(Ly.x) * 0.4), lit: true, group: 'sidemap:vista-neon' });
+          domeAt(Ly.x, s, deck + (top - deck) * 0.25, dw * 0.45, (top - deck) * 0.75, dark);
+          beacon(s, top, Bc.red, (top - z0) * 0.06);
+        } else if (Ly.kind === 'piston') {
+          // (a cylinder whose rod pumps: its body standing, its rod and head a group the page moves)
+          const body = z0 + (top - z0) * 0.55;
+          box(a, b, z0, body, dark); box(a - w * 0.12, b + w * 0.12, body - 0.25 * f, body);
+          boxes.push({ x0: r3(Ly.x - 0.2), x1: r3(Ly.x - 0.1), s0: r3(s - w * 0.14), s1: r3(s + w * 0.14), z0: r3(body), z1: r3(top), fill, group: 'sidemap:vista-piston' });
+          boxes.push({ x0: r3(Ly.x - 0.1), x1: r3(Ly.x), s0: r3(a - w * 0.2), s1: r3(b + w * 0.2), z0: r3(top - 0.5 * f), z1: r3(top), fill: dark, group: 'sidemap:vista-piston' });
         } else if (Ly.kind === 'stack') {
           box(a, b, z0, top); box(a - w * 0.15, b + w * 0.15, top - w * 0.4, top, dark);
           // (its steam: puffs rising and widening off the lip, drifting; a beacon on every other one)
@@ -155,8 +229,53 @@ export function vistaOf(layout, dress, { seed = 1, horizon = '#9ab8d8' } = {}) {
         else if (Ly.kind === 'column') { box(a, b, z0, top); box(a - w * 0.25, b + w * 0.25, z0, z0 + w * 0.5, dark); box(a - w * 0.3, b + w * 0.3, top - w * 0.5, top, dark); }
         else if (Ly.kind === 'arch') { const leg = w * 0.16; box(a, a + leg, z0, top); box(b - leg, b, z0, top); box(a, b, top - leg * 1.3, top, dark); }
       }
+      // (a SKYWAY across the layer on its pylons, a train of lit cars running on it)
+      if (Ly.skyway) {
+        const kz = at(Ly.x, 0.42), th = 0.5 * f;
+        boxes.push({ x0: r3(Ly.x + 0.3), x1: r3(Ly.x + 0.6), s0: r3(s0), s1: r3(s1), z0: r3(kz - th), z1: r3(kz), fill: dark });
+        for (let ps = s0 + 9 * f * live(); ps < s1; ps += 14 * f) boxes.push({ x0: r3(Ly.x + 0.3), x1: r3(Ly.x + 0.55), s0: r3(ps), s1: r3(ps + 0.6 * f), z0: r3(foot(Ly.x)), z1: r3(kz - th), fill: dark });
+        const mid = (s0 + s1) / 2, car = 3.2 * f;
+        for (let k = 0; k < 4; k++) {
+          const c0 = mid - 2 * car + k * (car + 0.25 * f);
+          boxes.push({ x0: r3(Ly.x + 0.6), x1: r3(Ly.x + 0.8), s0: r3(c0), s1: r3(c0 + car), z0: r3(kz), z1: r3(kz + 1.1 * f), fill: tone(z.key, 1.15), group: 'sidemap:vista-train' });
+          boxes.push({ x0: r3(Ly.x + 0.8), x1: r3(Ly.x + 0.83), s0: r3(c0 + car * 0.1), s1: r3(c0 + car * 0.9), z0: r3(kz + 0.5 * f), z1: r3(kz + 0.8 * f), fill: WINDOW.warm, lit: true, group: 'sidemap:vista-train' });
+        }
+      }
     }
-    out.push({ zone: z.zone, ...(V.sky ? { sky: true } : {}), ...(far ? { far } : {}), boxes });
+    // (THE SET: one giant thing at the zone's middle, animated; the reactor a wheel turning about its core)
+    if (V.set?.kind === 'reactor') {
+      // (centred on the zone's opening as the camera sees it at the set's depth, a little larger than the opening shows: it
+      // fills the frame and runs past it, the way a thing too big for the room does)
+      const X = V.set.x, f = view(X), op = (LY.open ?? []).filter((o) => o.zone === z.zone), lo = op.length ? Math.min(...op.map((o) => o.z0)) : lane, hi = op.length ? Math.max(...op.map((o) => o.z1)) : lane + H;
+      const cz = zc + ((lo + hi) / 2 - zc) * f, R = Math.min(((hi - lo) / 2) * f * V.set.h * 1.25, ((Z.rect[1] - Z.rect[0]) / 2) * 0.95), cs = (Z.rect[0] + Z.rect[1]) / 2, Rr = REACTOR;
+      const metal = fillAt(X, 0.62), deepM = fillAt(X, 0.42), lamp = mix(Rr.glow, into, haze(X) * 0.3), wheel = `sidemap:vista-reactor-${z.zone}`, ring = `${wheel}-ring`;
+      // (its housing behind it, a cradle under it)
+      boxes.push({ x0: r3(X - 1.2), x1: r3(X - 0.6), s0: r3(cs - R * 1.12), s1: r3(cs + R * 1.12), z0: r3(cz - R * 1.12), z1: r3(cz + R * 1.12), fill: deepM });
+      discAt(X - 0.3, cs, cz, R * 1.04, mix(deepM, '#000000', 0.35));
+      boxes.push({ x0: r3(X - 0.5), x1: r3(X + 0.4), s0: r3(cs - R * 0.5), s1: r3(cs + R * 0.5), z0: r3(foot(X)), z1: r3(cz - R * 0.75), fill: deepM });
+      // (the rim in segments, every other a shade darker, its lights; the spokes; all one wheel)
+      for (let k = 0; k < Rr.segments; k++) {
+        const a0 = (k / Rr.segments) * 2 * Math.PI, a1 = ((k + 1) / Rr.segments) * 2 * Math.PI, ri = R * Rr.rim;
+        shape(X, [[cs + ri * Math.cos(a0), cz + ri * Math.sin(a0)], [cs + R * Math.cos(a0), cz + R * Math.sin(a0)], [cs + R * Math.cos(a1), cz + R * Math.sin(a1)], [cs + ri * Math.cos(a1), cz + ri * Math.sin(a1)]], k % 7 ? metal : mix(metal, '#ffffff', 0.18), { group: wheel });
+      }
+      for (let k = 0; k < Rr.lights; k++) { const a = (k / Rr.lights) * 2 * Math.PI, rl = R * (1 + Rr.rim) / 2, q = R * 0.028; shape(X + 0.03, [[cs + rl * Math.cos(a) - q, cz + rl * Math.sin(a) - q], [cs + rl * Math.cos(a) + q, cz + rl * Math.sin(a) - q], [cs + rl * Math.cos(a) + q, cz + rl * Math.sin(a) + q], [cs + rl * Math.cos(a) - q, cz + rl * Math.sin(a) + q]], lamp, { lit: true, group: wheel }); }
+      for (let k = 0; k < Rr.spokes; k++) { const a = (k / Rr.spokes) * 2 * Math.PI, n = [-Math.sin(a), Math.cos(a)], hw = R * 0.055, r0 = R * Rr.ring[1], r1 = R * Rr.rim; shape(X - 0.05, [[cs + r0 * Math.cos(a) + n[0] * hw, cz + r0 * Math.sin(a) + n[1] * hw], [cs + r1 * Math.cos(a) + n[0] * hw, cz + r1 * Math.sin(a) + n[1] * hw], [cs + r1 * Math.cos(a) - n[0] * hw, cz + r1 * Math.sin(a) - n[1] * hw], [cs + r0 * Math.cos(a) - n[0] * hw, cz + r0 * Math.sin(a) - n[1] * hw]], metal, { group: wheel }); }
+      // (the inner ring turning the other way, and the core that pulses)
+      for (let k = 0; k < 12; k++) { const a0 = (k / 12) * 2 * Math.PI, a1 = a0 + (Math.PI / 12) * 1.6, [r0, r1] = Rr.ring.map((v) => v * R); shape(X + 0.05, [[cs + r0 * Math.cos(a0), cz + r0 * Math.sin(a0)], [cs + r1 * Math.cos(a0), cz + r1 * Math.sin(a0)], [cs + r1 * Math.cos(a1), cz + r1 * Math.sin(a1)], [cs + r0 * Math.cos(a1), cz + r0 * Math.sin(a1)]], k % 3 ? metal : lamp, { lit: k % 3 === 0, group: ring }); }
+      discAt(X + 0.08, cs, cz, R * Rr.core, lamp, { lit: true, group: 'sidemap:vista-core' });
+      discAt(X + 0.1, cs, cz, R * Rr.core * 0.55, mix(lamp, '#ffffff', 0.6), { lit: true, group: 'sidemap:vista-core' });
+      motion[wheel] = { spin: { at: [r3(cs), r3(cz)], rate: Rr.turn } };
+      motion[ring] = { spin: { at: [r3(cs), r3(cz)], rate: Rr.counter } };
+    }
+    // (craft drifting between the layers, their lights lit)
+    if (V.traffic) {
+      const xs = V.layers.map((Ly) => Ly.x).sort((a, b) => a - b);
+      for (let k = 0; k < V.traffic; k++) {
+        const x = xs[0] + (xs[xs.length - 1] - xs[0]) * live(), f = view(x), [t0, t1] = span(x), cs = t0 + (t1 - t0) * live(), cz = at(x, 0.45 + 0.4 * live()), w = 0.9 * f;
+        boxes.push({ x0: r3(x), x1: r3(x + 0.05), s0: r3(cs - w / 2), s1: r3(cs + w / 2), z0: r3(cz), z1: r3(cz + 0.3 * f), fill: mix(live() < 0.5 ? '#fff4d8' : '#ff5a4a', into, haze(x) * 0.3), lit: true, group: 'sidemap:vista-traffic' });
+      }
+    }
+    out.push({ zone: z.zone, ...(V.sky ? { sky: true } : {}), ...(far ? { far } : {}), boxes, ...(Object.keys(motion).length ? { motion } : {}) });
   }
   return out;
 }

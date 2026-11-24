@@ -4,7 +4,7 @@
  * its page would be, its play left out (no hero, no foes, no events: the backdrop alone), shot from the game's own side
  * camera at a few places along it, and laid on a contact sheet a game.
  *
- *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire]
+ *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9]   (galaxy: those zones only)
  *
  *   giuseppe   Jumping Giuseppe's strip (the side strip in scoops), framed by SHAPED_CAMERA along the lane
  *   galaxy     Galaxy Boy's plant (the side map), a shot a zone
@@ -34,7 +34,7 @@ const { sideMapOf } = await lib('gameworld/side-map/scene.js');
 const { SHAPED_CAMERA } = await lib('era/geocube-side.js');
 const { loadSharp } = await import(pathToFileURL(path.join(control, 'lib/sharp-lazy.js')).href);
 
-const out = path.resolve(process.argv[2] ?? 'backdrop-shots'), only = process.argv[3];
+const out = path.resolve(process.argv[2] ?? 'backdrop-shots'), only = process.argv[3], zi = process.argv.indexOf('--zones'), zonesAsked = zi > 0 ? process.argv[zi + 1].split(',').map(Number) : null;
 mkdirSync(out, { recursive: true });
 const hfovOf = (vfov, aspect) => (2 * Math.atan(Math.tan((vfov * Math.PI) / 360) * aspect) * 180) / Math.PI;
 // (the level's manifest, its play left out: the backdrop alone)
@@ -65,7 +65,7 @@ if (!only || only === 'giuseppe') {
 }
 if (!only || only === 'galaxy') {
   const m = backdropOf(readGameworld({ id: 'gb', name: 'Galaxy Boy', ...platformerGame({ pole: 'galaxy-boy' }).words }), 1.67), L = sideMapOf(m).layout, C = L.camera, W = L.screen.width;
-  await shoot('galaxy', m, L.zones.filter((Z, i) => i % 2 === 0 || Z.run !== 'across').slice(0, 8).map((Z) => {
+  await shoot('galaxy', m, (zonesAsked ? L.zones.filter((Z, i) => zonesAsked.includes(i)) : L.zones.filter((Z, i) => i % 2 === 0 || Z.run !== 'across').slice(0, 8)).map((Z) => {
     const [s, z] = Z.run === 'across' ? [Z.rect[0] + W / 2, (Z.i ? L.zones[Z.i - 1].exit : [0, 0])[1]] : [(Z.rect[0] + Z.rect[1]) / 2, Z.exit[1] - 4], look = z + C.lookH;
     return { cameraPosition: [C.dist, s, look + C.dist * C.tilt], lookAt: [0, s, look] };
   }));

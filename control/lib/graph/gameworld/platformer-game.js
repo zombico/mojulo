@@ -113,6 +113,10 @@ export const PLATFORMER_CUBE = 'sherbet-orchard';
 
 /** The theme card both dimensions are drawn in (playscape/ui/theme-cards/). */
 export const PLATFORMER_LOOK = 'hilltop';
+/** The geocube a side map's level is drawn in (its level's `style.geocube`): a robot breaks into a plant by night, so a
+ * city's concrete and neon under a glowing night sky, never the orchard's pastels (docs/side-scroll-backgrounds.md: a
+ * place a hue, the plant's lit things in their own colours). The rest of the game keeps the platformer's cube. */
+export const SIDE_MAP_CUBE = 'city-night';
 /** The look a side map's robot hero is drawn in (`ui.theme`): the 8-bit action platformer's, theme-cards/galaxy.json. */
 export const SIDE_MAP_LOOK = 'galaxy';
 
@@ -206,7 +210,7 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     mechanics: { lives: 3, coins: true, legend: 'menu' },
     // (the run and gun's first level is a SIDE MAP, side-map/first.js: its zones, climbs and boss's room seen from the
     // side; the mascot platformer's the strip of trails it always was)
-    levels: { [level]: sideMap ? { name: name ?? 'Level 0', ...(seed !== undefined ? { seed } : {}), sidemap: firstSideMap({ boss: 'bulwark' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
+    levels: { [level]: sideMap ? { name: name ?? 'Level 0', ...(seed !== undefined ? { seed } : {}), style: { geocube: SIDE_MAP_CUBE }, sidemap: firstSideMap({ boss: 'bulwark' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
     // (a side map's foes: the side scroller's bestiary)
     ...(sideMap ? { foes: structuredClone({ ...SIDE_MAP_FOES }) } : {}),
     // (its SOUND and its MUSIC: the sound sheet solved from what it is, the run and gun's own voices among them, and the

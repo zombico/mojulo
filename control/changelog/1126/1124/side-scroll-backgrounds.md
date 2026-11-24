@@ -17,3 +17,12 @@
 - Galaxy Boy's and Astro Girl's plant: a vista under the sky stands against a dusk glow drawn in bands, so its towers
   and stacks read as silhouettes. Towers carry blinking beacons and masts, and the middle skyline has lit windows.
   Stacks steam and gantries carry amber lamps. A hall's far wall has a row of lit clerestory windows.
+- Galaxy Boy's level is drawn in a city by night of its own instead of the mascot platformer's orchard, and each of the
+  plant's places has its own colour (teal, azure, indigo, violet), so the stage is no longer one brown all through.
+  Two new places, the reactor gallery and the sky bridge, keep the gauntlet from repeating the gate tunnel.
+- A future city in the plant's vistas: domed arcologies with lit window bands, glass domes lit from inside, needle
+  towers under saucer decks, neon down the near buildings, a skyway whose train runs and craft drifting between the
+  layers.
+- A giant set piece: the reactor, the machine the plant makes, a wheel larger than the window turning slowly about a
+  pulsing core, an inner ring turning the other way, pistons pumping before it. It is seen in the reactor gallery and
+  again in the core. The page's ambient channel learned to spin a group about its hub.
