@@ -108,15 +108,19 @@ describe('the JRPG starter\'s town on the page', () => {
       await pressUntil('Escape', () => !window.__mojRpg.state().mode);
       const pages = M.play.scenes.filter((x) => /-p\d$/.test(x.id)), on = pages[0].when.on, pid = on.slice('folk-say:'.length);
       const priest = (M.play.cues ?? []).filter((c) => c.when?.use && c.then?.emit === on).sort((a, b) => !!a.if - !!b.if)[0];
+      // (what the rite's screen was each frame, kept by the page: E is held until the cue fires, and on a runner drawing a
+      // frame every few seconds it is still down as the talk begins, where holding it skips the one-line page; the rite
+      // then opens before this side asks, and an Escape sent to skip the talk would close it unseen)
+      await page.evaluate(() => { const f = () => { const s = window.__mojRpg.state(); if (s.mode === 'shop') window.__mojSeenShop = s.shop.id; requestAnimationFrame(f); }; f(); });
       const said = async () => {
+        await page.evaluate(() => { window.__mojSeenShop = null; });
         await useAt(priest.when.use.at, `cue-${priest.id}`, pid);
         await withinFrames(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, 60);
         const t = await page.evaluate(() => window.__mojTalk.state.talk.text);
-        await pressUntil('Escape', () => !window.__mojScenes.on());
+        if (await page.evaluate(() => window.__mojScenes.on())) await pressUntil('Escape', () => !window.__mojScenes.on());
         // (the priest keeps the temple: their page said, its rite opens as the talk ends; closed again)
-        await withinFrames(() => window.__mojRpg.state().mode === 'shop', 60);
-        expect(await page.evaluate(() => window.__mojRpg.state().shop.id)).toBe('temple');
-        await pressUntil('Escape', () => !window.__mojRpg.state().mode);
+        await withinFrames(() => window.__mojSeenShop === 'temple', 60);
+        if (await page.evaluate(() => !!window.__mojRpg.state().mode)) await pressUntil('Escape', () => !window.__mojRpg.state().mode);
         return t;
       };
       const sealed = pages.find((x) => x.if.some((c) => c.ne === 1)).beats[0].line.say, open = pages.find((x) => x.if.some((c) => c.has)).beats[0].line.say;
