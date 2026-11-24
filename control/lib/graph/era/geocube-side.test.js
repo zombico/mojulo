@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assembleSideStrip, sideRuns, sidePads, sideLaws, foreTop, SIDE, SIDE_CAMERA, sideShapes, sideCameraWords, SIDE_SHAPES, SHAPE_FAMILIES, SHAPED_CAMERA, sliceOrder } from './geocube-side.js';
+import { assembleSideStrip, sideRuns, sidePads, sideLaws, foreTop, SIDE, SIDE_CAMERA, sideShapes, sideCameraWords, SIDE_SHAPES, SHAPE_FAMILIES, SHAPED_CAMERA, sliceOrder, SCENE_KEYS } from './geocube-side.js';
 
 // THE SIDE STRIP (geocube-side.js): a course (the shape course.js lays on a straight lane) skinned in the cube's layers,
 // the land behind it, the hills and the range at their depths, a low foreground. One small course: two floors with a gap,
@@ -141,6 +141,13 @@ describe('the land behind the lane', () => {
       expect(Object.keys(lake.ambient.groups)).toContain('side:shimmer');
       expect(Object.keys(forest.ambient.groups)).toContain('side:canopy');
       expect(() => assembleSideStrip({ ...M, cube, side: { ...M.side, scenery: 'desert' } })).toThrow(/orchard, lake, forest, coast/);
+      // (a RE-KEY: the same rows and pieces in other colours, no new drawing; its laws hold)
+      for (const sc of Object.keys(SCENE_KEYS).filter((k) => SCENE_KEYS[k].land)) {
+        const R = assembleSideStrip({ ...M, cube, side: { ...M.side, scenery: sc } }), fills = (P2) => new Set(P2.faces.filter((f) => f.group === 'side:hills').map((f) => f.fill));
+        expect(R.faces.filter((f) => f.group === 'side:hills').length, sc).toBe(Q.faces.filter((f) => f.group === 'side:hills').length);
+        expect([...fills(R)].some((c) => fills(Q).has(c)), sc).toBe(false);
+        expect(sideLaws({ ...M, cube }, R).filter((l) => !l.holds), sc).toEqual([]);
+      }
     });
 
     it('is framed nearly level, so the sky is in the frame; and is the same every time', () => {

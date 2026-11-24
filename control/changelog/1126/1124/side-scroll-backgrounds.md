@@ -42,4 +42,6 @@
   keying (the cube keys the light, the place its hue within a band set apart from play, the lit things the accent),
   light and motion that let a variation be new words; the pitfalls the page taught; and how to add a scenery, a place,
   a vista or a locale.
+- Seeded variations, Giuseppe's: dunes (warm sand hills, a beach, teal cacti in the groves) and a snowfield (the hills
+  under snow, a snow terrace, frosted crowns), each a re-key of the orchard's rows with no drawing of its own.
 

@@ -59,15 +59,30 @@ export const SHAPE_FAMILIES = Object.freeze({ scoops: 'every shape a dome or a c
  *   forest   a forest's edge: its canopy in two rows of round crowns, mint behind blossom, swaying; the terrace's groves
  *            thicker
  *   coast    the sea to the horizon, islands on it, light on the waves; the terrace a beach of sand
+ *   dunes    (a re-key: no new drawing) the orchard's three rows in sand, the terrace a beach, cacti for groves
+ *   snowfield (a re-key) the three rows under snow, the terrace snow, the groves' crowns frosted
+ * A RE-KEY is a row of SCENE_KEYS: what its rows' land is (`land`: sand or snow over the cube's own), its terrace's turf
+ * and its groves (`grove`: blossom, cactus, frost); docs/backdrop-variations.md "Re-key a row".
  */
 export const SCENERIES = Object.freeze({
   orchard: 'domed hills in three rows, groves of blossom on the terrace',
   lake: 'a lake before the far hills, glinting, a boat drifting on it',
   forest: 'a forest\'s edge, its canopy in two rows of round crowns swaying',
   coast: 'the sea to the horizon, islands on it, a beach of sand',
+  dunes: 'the hills in sand, a beach, cacti for groves',
+  snowfield: 'the hills under snow, the terrace snow, the groves frosted',
 });
 // (which of the scoops' rows each scenery keeps: 0 the range, 1 the far hills, 2 the near hills)
-const SCENE_ROWS = Object.freeze({ orchard: [0, 1, 2], lake: [0, 1], forest: [0, 1], coast: [] });
+const SCENE_ROWS = Object.freeze({ orchard: [0, 1, 2], lake: [0, 1], forest: [0, 1], coast: [], dunes: [0, 1, 2], snowfield: [0, 1, 2] });
+/** THE RE-KEYS: a scenery's colours over the cube's own (`land` its rows' hills, `turf` its terrace, `grove` what stands
+ * in its groves); unsaid, the cube's grass and blossom */
+export const SCENE_KEYS = Object.freeze({
+  coast: Object.freeze({ turf: 'sand' }),
+  dunes: Object.freeze({ land: 'sand', turf: 'sand', grove: 'cactus' }),
+  snowfield: Object.freeze({ land: 'snow', turf: 'snow', grove: 'frost' }),
+});
+// (snow: the land's own colour taken most of the way to a cool white)
+const SNOW_RGB = Object.freeze([246, 248, 255]);
 /** The family each cube's side strip is drawn in. */
 export const SIDE_SHAPES = Object.freeze({ 'sherbet-orchard': 'scoops' });
 const cubeIdOf = (c) => (typeof c === 'string' ? c : isObj(c) ? c.from ?? c.id ?? null : null);
@@ -282,14 +297,22 @@ const disc = (out, x, y, z, r, fill, group) => out.push({ corners: arcPts(x, y, 
 const dome = (out, x, y, z, r, h, foot, fill, group) => out.push({ corners: [...arcPts(x, y, z, r, 0, Math.PI, Math.max(10, Math.min(28, Math.round(Math.max(r, h) * 0.6))), h), [x, y - r, foot], [x, y + r, foot]].map((p) => p.map(r5)), normal: FACE.px, fill, group });
 const scallop = (out, x, y, z, r, fill, group) => out.push({ corners: arcPts(x, y, z, r, Math.PI, 2 * Math.PI, 6).map((p) => p.map(r5)), normal: FACE.px, fill, group });
 // a scoop tree: a trunk under three discs (the crown and a smaller one each side), a paler disc for its light
-function scoopTree(out, look, { x, y, z, r, trunk, tone = 0, haze = 0, group, crown = group }) {
-  const { at, lit } = look, veil = (hex) => (haze ? look.hazed(hex, haze) : hex), tw = Math.max(0.1, r * 0.12), cz = z + trunk + r * 0.8;
+function scoopTree(out, look, { x, y, z, r, trunk, tone = 0, haze = 0, group, crown = group, frost = false }) {
+  const { lit } = look, at = frost ? (n, t) => (n === 'foliage' ? look.at(n, t).map((v, i) => lerp(v, SNOW_RGB[i], 0.72)) : look.at(n, t)) : look.at, veil = (hex) => (haze ? look.hazed(hex, haze) : hex), tw = Math.max(0.1, r * 0.12), cz = z + trunk + r * 0.8;
   quad(out, [[x, y - tw, z - 0.3], [x, y + tw, z - 0.3], [x, y + tw, cz], [x, y - tw, cz]], FACE.px, veil(lit(at('soil', 0.3), FACE.px)), group);
   const body = veil(lit(at('foliage', 0.44 + tone), FACE.top)), light = veil(lit(at('foliage', 0.58 + tone), FACE.top));
   disc(out, x + 0.02, y - r * 0.62, cz - r * 0.28, r * 0.62, body, crown);
   disc(out, x + 0.02, y + r * 0.66, cz - r * 0.34, r * 0.56, body, crown);
   disc(out, x + 0.04, y, cz, r, body, crown);
   disc(out, x + 0.06, y + SCOOPS.light.side * r * 0.28, cz + r * 0.3, r * 0.42, look.sunlit ? look.sunlit(light, SCOOPS.light.gain * 0.5) : light, crown);
+}
+// a cactus in the scoops' family: a capsule of a trunk and two arms, each a body under a round cap, in the cube's accent
+function cactus(out, look, { x, y, z, h, group }) {
+  const { at, lit } = look, w = 0.24 + h * 0.06, body = lit(at('accent', 0.42), FACE.px), lightC = lit(at('accent', 0.6), FACE.px);
+  const capsule = (cy, z0, z1, r) => { quad(out, [[x, cy - r, z0], [x, cy + r, z0], [x, cy + r, z1], [x, cy - r, z1]], FACE.px, body, group); disc(out, x + 0.01, cy, z1, r, body, group); quad(out, [[x + 0.02, cy + r * 0.15, z0 + 0.1], [x + 0.02, cy + r * 0.55, z0 + 0.1], [x + 0.02, cy + r * 0.55, z1], [x + 0.02, cy + r * 0.15, z1]], FACE.px, lightC, group); };
+  capsule(y, z - 0.3, z + h, w);
+  capsule(y - w * 2.1, z + h * 0.42, z + h * 0.72, w * 0.62); quad(out, [[x - 0.01, y - w * 2.1, z + h * 0.36], [x - 0.01, y, z + h * 0.36], [x - 0.01, y, z + h * 0.48], [x - 0.01, y - w * 2.1, z + h * 0.48]], FACE.px, body, group);
+  capsule(y + w * 2.0, z + h * 0.55, z + h * 0.85, w * 0.55); quad(out, [[x - 0.01, y, z + h * 0.5], [x - 0.01, y + w * 2.0, z + h * 0.5], [x - 0.01, y + w * 2.0, z + h * 0.6], [x - 0.01, y, z + h * 0.6]], FACE.px, body, group);
 }
 // a soft shadow on the ground under a thing, laid down the lane from the light: a flat ellipse, a step darker than the land
 function contact(out, look, x, y, z, r) {
@@ -354,14 +377,16 @@ export function assembleSideStrip(m, ctx = {}) {
   // (a shaped strip's terrace is a step into the air: cooler and quieter than the lane, so the floor the hero runs on is
   // the clearest land on the screen and never one field with the land behind it)
   const T = SIDE.terrace, terrace = [], veil = (hex) => (scoops ? look.aired(hex, TERRACE_AIR) : hex);
+  // (a turf or a land by its key's name: the cube's ramps, or snow over its grass)
+  const land = (name, t) => (name === 'snow' ? at('grass', t).map((v, i) => lerp(v, SNOW_RGB[i], 0.84)) : at(name, t));
   for (let y = y0 - 10; y < y1 + 10 - 1e-6; y += T.step) {
     const h = (yy) => topNear(runs, yy, 3) - T.drop + 0.35 * (vnoise(yy * 0.09, 0.5, seed + 41) - 0.5);
     const ha = h(y), hb = h(y + T.step), yb = y + T.step;
     terrace.push({ y, h: ha });
-    const beach = scoops && sceneryAt(y + T.step / 2) === 'coast', turf = beach ? 'sand' : 'grass';
-    quad(faces, [[T.back, y, ha], [T.front, y, ha], [T.front, yb, hb], [T.back, yb, hb]], FACE.top, veil(lit(at(turf, scoops ? 0.5 : 0.55), FACE.top)), 'side:terrace');
+    const turf = scoops ? SCENE_KEYS[sceneryAt(y + T.step / 2)]?.turf ?? 'grass' : 'grass';
+    quad(faces, [[T.back, y, ha], [T.front, y, ha], [T.front, yb, hb], [T.back, yb, hb]], FACE.top, veil(lit(land(turf, scoops ? 0.5 : 0.55), FACE.top)), 'side:terrace');
     const band = (za, zb, zc, zd, rgb, g) => quad(faces, [[T.front, y, za], [T.front, yb, zc], [T.front, yb, zd], [T.front, y, zb]], FACE.px, veil(lit(rgb, FACE.px)), g);
-    band(ha - SIDE.cap, ha, hb - SIDE.cap, hb, at(turf, 0.45), 'side:terrace');
+    band(ha - SIDE.cap, ha, hb - SIDE.cap, hb, land(turf, 0.45), 'side:terrace');
     band(ha - 1.2, ha - SIDE.cap, hb - 1.2, hb - SIDE.cap, at('soil', 0.42), 'side:terrace');
     band(bottom, ha - 1.2, bottom, hb - 1.2, at('rock', 0.36), 'side:terrace');
   }
@@ -380,7 +405,9 @@ export function assembleSideStrip(m, ctx = {}) {
       for (let i = 0; i < n; i++) {
         const u = (i + 0.5 + 0.5 * (rnd(10 + i) - 0.5)) / n, y = ya + (0.12 + 0.76 * u) * cellLen, x = T.back + lerp(Dr.tree.back[0], Dr.tree.back[1], rnd(20 + i)), k = i === big ? 1 : 0.35 + 0.4 * rnd(30 + i);
         if (scoops) contact(faces, look, x, y, landAt(y), lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k));
-        if (scoops) scoopTree(faces, look, { x, y, z: landAt(y), r: lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.06 + 0.16 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove', crown: 'side:blossom' });
+        const grove = scoops ? SCENE_KEYS[sceneryAt(y)]?.grove ?? 'blossom' : null;
+        if (grove === 'cactus') cactus(faces, look, { x, y, z: landAt(y), h: lerp(1.2, 2.6, k), group: 'side:grove' });
+        else if (scoops) scoopTree(faces, look, { x, y, z: landAt(y), r: lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.06 + 0.16 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove', crown: 'side:blossom', frost: grove === 'frost' });
         else tree(faces, look, { x, y, z: landAt(y), r: lerp(Dr.tree.r[0], Dr.tree.r[1], k), h: lerp(Dr.tree.h[0], Dr.tree.h[1], k), trunk: lerp(Dr.tree.trunk[0], Dr.tree.trunk[1], rnd(40 + i)), tone: 0.08 + 0.14 * (rnd(50 + i) - 0.5), haze: Dr.tree.haze, group: 'side:grove' });
       }
       const yb = ya + (0.2 + 0.6 * rnd(3)) * cellLen, ys = ya + (0.15 + 0.7 * rnd(4)) * cellLen;
@@ -406,7 +433,7 @@ export function assembleSideStrip(m, ctx = {}) {
   for (let y = y0, k = 0; y < y1; k++) {
     y += lerp(Dr.tuft.every[0], Dr.tuft.every[1], hash3(k, 21, seed + 85));
     const u = hash3(k, 24, seed + 85), x = lerp(T.front - 0.5, T.back + 1, u * u), h = lerp(Dr.tuft.h[0], Dr.tuft.h[1], hash3(k, 22, seed + 85)), z = landAt(y), lean = Dr.tuft.w * (hash3(k, 23, seed + 85) - 0.5);
-    if (scoops) { const rb = lerp(SCOOPS.bud[0], SCOOPS.bud[1], hash3(k, 22, seed + 85)); dome(faces, x, y, z - 0.02, rb, rb, z - 0.1, lit(at('grass', hash3(k, 29, seed + 85) < 0.5 ? 0.64 : 0.52), FACE.top), 'side:tufts'); continue; }
+    if (scoops) { const rb = lerp(SCOOPS.bud[0], SCOOPS.bud[1], hash3(k, 22, seed + 85)); dome(faces, x, y, z - 0.02, rb, rb, z - 0.1, lit(land(SCENE_KEYS[sceneryAt(y)]?.turf ?? 'grass', hash3(k, 29, seed + 85) < 0.5 ? 0.64 : 0.52), FACE.top), 'side:tufts'); continue; }
     for (const d of [-1, 1]) quad(faces, [[x, y + d * Dr.tuft.w * 0.2, z], [x, y + d * Dr.tuft.w, z], [x, y + d * Dr.tuft.w * 0.8 + lean, z + h * 0.7], [x, y + d * Dr.tuft.w * 0.25 + lean, z + h]], FACE.px, lit(at('grass', hash3(k, 29, seed + 85) < 0.5 ? 0.66 : 0.44), FACE.top), 'side:tufts');   // (lit as the ground is: a blade a stop lighter or darker than the land it stands on, never grey)
   }
 
@@ -419,24 +446,39 @@ export function assembleSideStrip(m, ctx = {}) {
       const Lg = SCOOPS.light, body = lit(ramp(R.ramp, R.t), FACE.top), reach = (Math.abs(R.x) + cam.dist) * 0.62, fill = look.aired(body, R.haze);
       // (the lit cap fades with the row's distance: a far row is quieter than a near one, never busier)
       const capFill = look.aired(look.sunlit(body, Lg.gain * (1 - R.haze)), R.haze), mistFill = look.aired(body, Math.min(0.9, R.haze + Lg.mist));
+      // (a re-keyed scenery's hills in its own land: sand, or snow over the cube's; the far range snowed lightly, a desert's
+      // range its own)
+      const keyedFills = new Map(), keyed = (sc) => {
+        const K = SCENE_KEYS[sc]?.land;
+        if (!K) return { fill, capFill, mistFill };
+        if (!keyedFills.has(sc)) {
+          const base = ramp(R.ramp, R.t), own = K === 'snow' ? base.map((v, i) => lerp(v, SNOW_RGB[i], ri ? 0.8 : 0.45)) : ri ? look.at('sand', ri === 2 ? 0.36 : 0.47) : base;
+          const b2 = lit(own, FACE.top);
+          keyedFills.set(sc, { fill: look.aired(b2, R.haze), capFill: look.aired(look.sunlit(b2, Lg.gain * (1 - R.haze)), R.haze), mistFill: look.aired(b2, Math.min(0.9, R.haze + Lg.mist)) });
+        }
+        return keyedFills.get(sc);
+      };
       for (let y = y0 - reach, k = 0; y < y1 + reach; k++) {
         const w = lerp(R.w[0], R.w[1], hash3(k, 31 + ri, seed + 61)), h = lerp(R.h[0], R.h[1], hash3(k, 41 + ri, seed + 61));
         // (each dome a hair nearer than the last, so where two lap neither flickers)
         const xk = R.x + 0.02 * (k % 7), cy = y + w / 2;
-        if (!SCENE_ROWS[sceneryAt(cy)].includes(ri)) { y += w * R.lap; continue; }
-        dome(faces, xk, cy, base0, w / 2, h, base0 - 14, fill, R.group);
+        const sc = sceneryAt(cy);
+        if (!SCENE_ROWS[sc].includes(ri)) { y += w * R.lap; continue; }
+        const F = keyed(sc);
+        dome(faces, xk, cy, base0, w / 2, h, base0 - 14, F.fill, R.group);
         // (its lit cap: a smaller dome inside it toward the key, risen off its foot; and the mist at its foot)
-        dome(faces, xk + 0.004, cy + Lg.side * w * 0.11, base0 + h * Lg.capLift, (w / 2) * Lg.cap, h * (1 - Lg.capLift) * 0.86, base0 + h * Lg.capLift - 0.01, capFill, R.group);
-        dome(faces, xk + 0.008, cy, base0, w / 2, h * Lg.mistH, base0 - 14, mistFill, R.group);
+        dome(faces, xk + 0.004, cy + Lg.side * w * 0.11, base0 + h * Lg.capLift, (w / 2) * Lg.cap, h * (1 - Lg.capLift) * 0.86, base0 + h * Lg.capLift - 0.01, F.capFill, R.group);
+        dome(faces, xk + 0.008, cy, base0, w / 2, h * Lg.mistH, base0 - 14, F.mistFill, R.group);
         y += w * R.lap;
       }
       // (a HEADLAND on the row where the scenery changes: a cape passed, never a seam; drawn a step nearer than the row)
       stretches.slice(1).forEach((st2, q) => {
         if (st2.scene === stretches[q].scene) return;
         const hw = R.w[1] * 0.62, hh = R.h[1] * 1.05;
-        dome(faces, R.x + 0.2, st2.y0, base0, hw, hh, base0 - 14, fill, R.group);
-        dome(faces, R.x + 0.204, st2.y0 + Lg.side * hw * 0.22, base0 + hh * Lg.capLift, hw * Lg.cap, hh * (1 - Lg.capLift) * 0.86, base0 + hh * Lg.capLift - 0.01, capFill, R.group);
-        dome(faces, R.x + 0.208, st2.y0, base0, hw, hh * Lg.mistH, base0 - 14, mistFill, R.group);
+        const F = keyed(SCENE_ROWS[st2.scene].includes(ri) ? st2.scene : stretches[q].scene);
+        dome(faces, R.x + 0.2, st2.y0, base0, hw, hh, base0 - 14, F.fill, R.group);
+        dome(faces, R.x + 0.204, st2.y0 + Lg.side * hw * 0.22, base0 + hh * Lg.capLift, hw * Lg.cap, hh * (1 - Lg.capLift) * 0.86, base0 + hh * Lg.capLift - 0.01, F.capFill, R.group);
+        dome(faces, R.x + 0.208, st2.y0, base0, hw, hh * Lg.mistH, base0 - 14, F.mistFill, R.group);
       });
     });
     sceneryFaces(faces, look, { stretches, base0, lo, seed, ramp, span: [y0 - 110, y1 + 110] });

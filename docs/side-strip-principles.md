@@ -99,6 +99,11 @@ level writes as its `style.scenery`. Each is the same family of shapes under the
 | lake | the far hills over a lake in bands, deep near and pale far, the hills' reflection at its far shore | light glinting on the water, a sailing boat drifting |
 | forest | a forest's edge: a far canopy in mint, a near one in blossom; the groves thicker | the canopy swaying |
 | coast | the sea to the horizon, islands on it; the terrace a beach of sand | light on the waves |
+| dunes (a re-key) | the three rows in warm sand, a beach, cacti for groves | the clouds |
+| snowfield (a re-key) | the three rows under snow, the terrace snow, the groves' crowns frosted | the clouds, the frosted crowns |
+
+A RE-KEY (`SCENE_KEYS`) is a scenery with no drawing of its own: the same rows and pieces with its land (`sand`,
+`snow`), its terrace's turf and its groves (`blossom`, `cactus`, `frost`) named.
 
 Where the scenery changes a HEADLAND stands on each row, a cape passed and never a seam, and a forest thins toward its
 ends. Jumping Giuseppe's first level runs through all four, a trail each (`PLATFORMER_SCENERY`). A new scenery is a row

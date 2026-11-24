@@ -4,7 +4,7 @@
  * its page would be, its play left out (no hero, no foes, no events: the backdrop alone), shot from the game's own side
  * camera at a few places along it, and laid on a contact sheet a game.
  *
- *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9 | --rooms id,id | --at 6,47]   (galaxy: those zones; vampire: those rooms; giuseppe: there along the lane)
+ *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9 | --rooms id,id | --at 6,47] [--scenery a,b] [--theme id]   (galaxy: those zones; vampire: those rooms, that theme; giuseppe: there along the lane, those sceneries)
  *
  *   giuseppe   Jumping Giuseppe's strip (the side strip in scoops), framed by SHAPED_CAMERA along the lane
  *   galaxy     Galaxy Boy's plant (the side map), a shot a zone
@@ -34,7 +34,7 @@ const { sideMapOf } = await lib('gameworld/side-map/scene.js');
 const { SHAPED_CAMERA } = await lib('era/geocube-side.js');
 const { loadSharp } = await import(pathToFileURL(path.join(control, 'lib/sharp-lazy.js')).href);
 
-const out = path.resolve(process.argv[2] ?? 'backdrop-shots'), only = process.argv[3], zi = process.argv.indexOf('--zones'), zonesAsked = zi > 0 ? process.argv[zi + 1].split(',').map(Number) : null, ri = process.argv.indexOf('--rooms'), roomsAsked = ri > 0 ? process.argv[ri + 1].split(',') : null, ai = process.argv.indexOf('--at'), atAsked = ai > 0 ? process.argv[ai + 1].split(',').map(Number) : null;
+const out = path.resolve(process.argv[2] ?? 'backdrop-shots'), only = process.argv[3], zi = process.argv.indexOf('--zones'), zonesAsked = zi > 0 ? process.argv[zi + 1].split(',').map(Number) : null, ri = process.argv.indexOf('--rooms'), roomsAsked = ri > 0 ? process.argv[ri + 1].split(',') : null, ai = process.argv.indexOf('--at'), atAsked = ai > 0 ? process.argv[ai + 1].split(',').map(Number) : null, opt = (f) => { const i = process.argv.indexOf(f); return i > 0 ? process.argv[i + 1] : null; };
 mkdirSync(out, { recursive: true });
 const hfovOf = (vfov, aspect) => (2 * Math.atan(Math.tan((vfov * Math.PI) / 360) * aspect) * 180) / Math.PI;
 // (the level's manifest, its play left out: the backdrop alone)
@@ -60,6 +60,7 @@ async function shoot(name, m, poses) {
 
 if (!only || only === 'giuseppe') {
   const m = backdropOf(readGameworld({ id: 'jg', name: 'Jumping Giuseppe', ...platformerGame({}).words }), 1.0), C = SHAPED_CAMERA;
+  if (opt('--scenery')) m.side = { ...m.side, scenery: opt('--scenery').split(',') };
   const topAt = (s) => Math.max(0, ...m.side.boxes.filter((b) => b.min[1] <= s && b.max[1] >= s).map((b) => b.max[2]));
   await shoot('giuseppe', m, (atAsked ?? [6, 30, 62, 95, 130]).map((s) => { const look = topAt(s) + C.lookH; return { cameraPosition: [C.dist, s, look + C.dist * Math.sin(C.tilt)], lookAt: [0, s, look], horizontalFov: hfovOf(C.vfov, 16 / 9) }; }));
 }
