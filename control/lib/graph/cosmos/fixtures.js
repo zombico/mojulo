@@ -467,12 +467,12 @@ export const FIXTURES = Object.freeze([
     },
   },
   // the cinematic action game (11-17): one core, a hero over the shoulder through a linear run of set pieces, cutscenes
-  // cut into play; Steel Serpents its stealth template, the climbing adventure its other pole (below)
+  // cut into play; Lost Nomad its template, the climbing adventure its other pole (below)
   {
     id: 'cinematic-action',
     name: 'Cinematic action',
     anchor: false,
-    why: 'a hero seen over the shoulder works through a linear run of set pieces: a gun aimed off the eye and a knife, objectives laid as a mission, getting over and onto things, cutscenes cut into play (Steel Serpents)',
+    why: 'a hero seen over the shoulder works through a linear run of set pieces: a gun aimed off the eye and a knife, objectives laid as a mission, getting over and onto things, cutscenes cut into play (Lost Nomad)',
     cube: {
       reality: { medium: '3d' },
       space: { camera: 'third-person', topology: 'linear', levelForm: 'mission', traversal: 'wall' },

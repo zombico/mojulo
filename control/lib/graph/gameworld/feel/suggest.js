@@ -27,6 +27,7 @@ export const FEEL_WORDS = Object.freeze({
   'infinity-crisis': ['hero shooter', 'overwatch', 'movement shooter', 'apex legends', 'titanfall'],
   conscription: ['call of duty', 'battlefield', 'military shooter', 'realistic shooter', 'tactical shooter', 'modern warfare'],
   'steel-serpents': ['metal gear', 'stealth action', 'tactical espionage'],
+  'lost-nomad': ['uncharted', 'nathan drake', 'treasure hunter', 'cinematic action', 'set pieces', 'set-pieces'],
   'vigilante-justice': ['batman', 'arkham', 'superhero', 'spider-man', 'spiderman', 'free-flow', 'free flow'],
   'mech-battle-kai': ['mech', 'mechs', 'mecha', 'gundam', 'armored core', 'mobile suit', 'giant robot'],
   'jumping-giuseppe': ['mario', 'mascot platformer', '3d platformer', 'ground pound', 'stomp on enemies'],
@@ -47,6 +48,8 @@ export const GENRE_FEEL = Object.freeze({
   'top-down-adventure': { pole: 'fable-of-artesia', why: 'an adventure is the sword and shield\'s: a ready run, a modest jump, a three-cut string, the lock-on' },
   'dungeon-crawler': { pole: 'ebon-spirits', why: 'a dungeon crawl is deliberate: a slow committed jump, a heavier run' },
   stealth: { pole: 'steel-serpents', why: 'stealth moves carefully: a slow walk, a low jump' },
+  'cinematic-action': { pole: 'lost-nomad', why: 'cinematic action runs and climbs through set pieces: a run that carries, a long jump reached for' },
+  'cinematic-adventure': { pole: 'lost-nomad', why: 'the cinematic adventure is the same core between its climbs: a run that carries, a long jump reached for' },
   jrpg: { pole: 'isekai-party', why: 'a party RPG resolves what lands: an even walk and a small jump' },
   'versus-fighter': { pole: 'mojulo-fighter', why: 'a versus fighter is versus\'s loop (a quick fight); as a hero\'s feel, its walk and its fixed jump arc' },
 });

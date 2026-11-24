@@ -147,7 +147,12 @@ export const RAILS = Object.freeze({
   'steel-serpents': row({ name: 'Steel Serpents', like: 'stealth action: guards who see what is in front of them, slipped past or taken down',
     // (seen in the third person, the operator's word: the template's lab view is from overhead and the espionage cube's
     // from above, neither the game's camera)
-    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage', 'cinematic-action']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
+    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
+    seen: list(['free']) }),
+  'lost-nomad': row({ name: 'Lost Nomad', like: 'cinematic action: a hero over the shoulder through set pieces, climbing and running while the camera is directed like a film',
+    // (a realistic Silk Road adventure: Tariq, raised between the region and London, follows a family member's final
+    // request through a fictional Levantine country, caught between a rogue Taliban cell and ex-Russian special forces)
+    handles: row({ pole: 'lost-nomad', genres: list(['cinematic-action', 'cinematic-adventure']) }), sizes: list(['designed']), level1: 'a level: a run, a climb and a chase that ends at the edge',
     seen: list(['free']) }),
   'vigilante-justice': row({ name: 'Vigilante Justice', like: 'a hero over a city: rooftops, a glide or a swing, a crowd fought with counters',
     handles: row({ pole: 'vigilante-justice', genres: list(['city-stalker']) }), sizes: list(['designed']), level1: 'a district crossed by its rooftops' }),
