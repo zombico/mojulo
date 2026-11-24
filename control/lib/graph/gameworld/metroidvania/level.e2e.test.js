@@ -11,12 +11,19 @@ import { gameStages, stageLevelOrder } from '../levels.js';
 import { resolveWorldScene } from '../../worlds/world-scene.js';
 import { simLevel } from '../../game/level-sim.js';
 import { faceGround, pageGroundFaces, SIM_DT } from '../../game/level-equivalence.js';
-import { vampireSonataGame } from './vampire-sonata.js';
+import { vampireSonataGame, bellTower } from './vampire-sonata.js';
 import { boxOf } from './scene.js';
 import { FLOOR } from './rooms.js';
 
 const ZERO = { forward: 0, strafe: 0, turn: 0, jump: 0, jumpHeld: 0, boost: 0, fire: 0 };
 let payload, B;
+// (a box's level as its page resolves it, the hero's body left out)
+async function levelOf(words) {
+  const W = readGameworld({ ...vampireSonataGame({ heroRef: 'erina-ref' }), levels: { castle: { name: 'The box', metroidvania: words } } }), [stage] = gameStages(W);
+  const m = stageLevelOrder(W, stage, { heroRef: 'erina-ref', heroStature: 1.69, ref: 'lvl' }).args.manifest;
+  m.figures = {}; m.entities = m.entities.map((e) => ({ ...e, body: { ...e.body, type: 'none', figure: undefined } }));
+  return { payload: (await resolveWorldScene({ manifest: m })).payload, B: boxOf(m) };
+}
 beforeAll(async () => {
   const W = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' })), [stage] = gameStages(W);
   const m = stageLevelOrder(W, stage, { heroRef: 'erina-ref', heroStature: 1.69, ref: 'lvl' }).args.manifest;
@@ -25,7 +32,8 @@ beforeAll(async () => {
   B = boxOf(m);
 }, 120000);
 
-function play() {
+function play() { return playIn(payload, B); }
+function playIn(payload, B) {
   const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders, camera: payload.camera, world: payload }, { ground: faceGround(pageGroundFaces(payload.faces)) });
   const hero = sim.world.byId.hero, W = B.greybox.screen.width, H = B.greybox.screen.height;
   const step = (inp = {}, n = 1) => { for (let i = 0; i < n; i++) { Object.assign(sim.input, ZERO, inp); sim.frame(SIM_DT); } };
@@ -139,4 +147,48 @@ describe('a metroidvania level, played as its page resolves it', () => {
     P.cut(1, 8);
     expect(g.broken).toBeTruthy();
   });
+
+  // THE CLIMBS (climbs.js): a bot climbs every room it can open, stand by stand, on a single jump (a stair walked), and
+  // out through its door above: going up is going across
+  it('climbs every switchback, flight and zigzag in the castle on one jump, crossing the screen as it rises', () => {
+    expect([...new Set(B.greybox.chains.map((c) => c.figure))]).toEqual(expect.arrayContaining(['switchback', 'flights', 'zigzag']));
+    climbAll(play, B);
+  });
+
+  it('walks the bell tower\'s stairs up without a jump', async () => {
+    const T = await levelOf({ ...bellTower() }), stairs = T.B.greybox.chains.filter((c) => c.figure === 'stair');
+    expect(stairs.length).toBeGreaterThan(0);
+    climbAll(() => playIn(T.payload, T.B), T.B, (c) => c.figure === 'stair');
+  });
 });
+
+// (a bot up each climb: stood under the first stand, then each in turn: run to it, jump at the edge of the one she is on
+// or under it (a stair's step walked, never jumped), steer to its middle in the air; and out over the floor above)
+function climbAll(open, Bx, pick = () => true) {
+  for (const c of Bx.greybox.chains.filter((x) => pick(x) && !Bx.layout.doors.find((d) => d.id === x.door).gate)) {
+    const f = c.figure, P = open(), H = P.hero, eye = H.rule.eye || 0, feet = () => H.transform.pos[2] - eye, spans = c.spans.map(([s0, s1], k) => ({ s0, s1, z: c.stands[k + 1] }));
+    P.place(c.room, (spans[0].s0 + spans[0].s1) / 2 / P.W - P.room(c.room).rect[0]);
+    let on = { s0: -1e9, s1: 1e9, z: c.from }, reached = 0, crossed = 0, last = P.s(), jumps = 0;
+    const hole = Bx.greybox.holes.find((h) => h.door === c.door), mid = (spans.at(-1).s0 + spans.at(-1).s1) / 2;
+    const out = hole ? (mid - hole.s0 < hole.s1 - mid ? { s0: hole.s0 - 2, s1: hole.s0 - 0.6, z: c.to } : { s0: hole.s1 + 0.6, s1: hole.s1 + 2, z: c.to }) : null;
+    for (const p of [...spans, ...(out ? [out] : [])]) {
+      const aim = (p.s0 + p.s1) / 2, walk = p.z - on.z < 0.34;
+      let ok = false;
+      for (let f2 = 0; f2 < 600; f2++) {
+        // (out in the room above, she may stand on its own climb's first step: the runtime lifts a body onto a ledge
+        // within its height as it lands)
+        ok = H.grounded && (p === out ? feet() > p.z - 0.2 : Math.abs(feet() - p.z) < 0.2 && P.s() > p.s0 - 0.6 && P.s() < p.s1 + 0.6);
+        if (ok) break;
+        const s = P.s(), dir = Math.sign(aim - s), under = s > p.s0 - 0.2 && s < p.s1 + 0.2, atEdge = dir > 0 ? on.s1 - s < 0.45 : s - on.s0 < 0.45;
+        const press = !walk && H.grounded && (under || atEdge);
+        if (press) jumps++;
+        P.step({ strafe: Math.abs(aim - s) > 0.1 ? dir : 0, jump: press ? 1 : 0, jumpHeld: 1 });
+      }
+      if (!ok) break;
+      reached++; crossed += Math.abs(P.s() - last); last = P.s(); on = p;
+    }
+    expect(reached, `${f} in ${c.room}`).toBe(spans.length + (out ? 1 : 0));
+    if (f !== 'zigzag') expect(crossed, `${f} in ${c.room} crosses`).toBeGreaterThan(c.to - c.from);
+    if (f === 'stair') expect(jumps, `the stair in ${c.room} walked`).toBeLessThanOrEqual(2);
+  }
+}

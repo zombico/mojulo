@@ -4,7 +4,7 @@
  * its page would be, its play left out (no hero, no foes, no events: the backdrop alone), shot from the game's own side
  * camera at a few places along it, and laid on a contact sheet a game.
  *
- *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9 | --rooms id,id | --at 6,47] [--scenery a,b] [--theme id] [--premise 'words'] [--whole]   (galaxy: those zones; vampire: those rooms, that theme, or the castle whole; giuseppe: there along the lane, those sceneries)
+ *   node scripts/spikes/backdrops/shots.mjs [out-dir] [giuseppe|galaxy|vampire] [--zones 6,7,9 | --rooms id,id | --at 6,47] [--scenery a,b] [--theme id] [--premise 'words'] [--whole] [--tall]   (galaxy: those zones; vampire: those rooms, that theme, each whole with --tall, or the castle whole; giuseppe: there along the lane, those sceneries)
  *
  *   giuseppe   Jumping Giuseppe's strip (the side strip in scoops), framed by SHAPED_CAMERA along the lane
  *   galaxy     Galaxy Boy's plant (the side map), a shot a zone
@@ -84,5 +84,5 @@ if (!only || only === 'vampire') {
   // (--whole: the castle entire and its corners, from far off: the crown and the foundation the play's frame never shows)
   const [cols, rows] = B.layout.box, whole = (s, z, d) => ({ cameraPosition: [d, s, z + d * 0.04], lookAt: [0, s, z], horizontalFov: hfovOf(C.vfov, W / H) });
   if (process.argv.includes('--whole')) { await shoot('vampire', m, [whole(cols * W / 2, rows * H / 2 - H * 0.4, C.dist * 13.5), whole(W * 1.2, rows * H - H * 0.4, C.dist * 2.6), whole(cols * W - W * 1.2, H * 0.3, C.dist * 2.6)]); process.exit(0); }
-  await shoot('vampire', m, (roomsAsked ? B.layout.rooms.filter((r) => roomsAsked.includes(r.id)) : [...rings.values()].flat()).map((r) => { const s = (r.rect[0] + 0.5) * W, look = r.rect[1] * H + H / 2; /* (as the play frames it: a cell, its zone holding the frame) */ return { cameraPosition: [C.dist, s, look + C.dist * C.tilt], lookAt: [0, s, look], horizontalFov: hfovOf(C.vfov, W / H) }; }));
+  await shoot('vampire', m, (roomsAsked ? B.layout.rooms.filter((r) => roomsAsked.includes(r.id)) : [...rings.values()].flat()).map((r) => { const tall = process.argv.includes('--tall') ? Math.max(r.rect[2], r.rect[3]) : 1, s = (r.rect[0] + r.rect[2] / 2 * (tall > 1 ? 1 : 0) + (tall > 1 ? 0 : 0.5)) * W, look = tall > 1 ? (r.rect[1] + r.rect[3] / 2) * H : r.rect[1] * H + H / 2; /* (as the play frames it: a cell, its zone holding the frame; --tall: the room whole) */ return { cameraPosition: [C.dist * tall, s, look + C.dist * tall * C.tilt], lookAt: [0, s, look], horizontalFov: hfovOf(C.vfov, W / H) }; }));
 }

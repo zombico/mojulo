@@ -63,10 +63,9 @@ what it asks from across the room. A new gate is a row.
 ## The greybox
 
 The box built in metres before any dress ([rooms.js](../control/lib/graph/gameworld/metroidvania/rooms.js)): each room's
-floor, ceiling and walls; its doors cut through them, a doorway in a wall or a hole through a floor; ledges that zigzag
-up to every door a room is left by upward, none over the head of the one below; each gate's block in its door; each
-pocket's alcove. Drops are holes set aside of the line a climb comes up, so a fall down a shaft does not drop through
-them.
+floor, ceiling and walls; its doors cut through them, a doorway in a wall or a hole through a floor; a CLIMB up to
+every door a room is left by upward (below); each gate's block in its door; each pocket's alcove. Drops are holes set
+aside of the line a climb comes up, so a fall down a shaft does not drop through them.
 
 It is drawn as an elevation ([drawing.js](../control/lib/graph/gameworld/metroidvania/drawing.js)): each ring's voids in
 its shade, the walk numbered room by room, the gates in their colours and shapes, the shortcuts dashed, saves, bosses,
@@ -75,6 +74,35 @@ powers and pockets marked, and the laws under it.
 ```bash
 node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 12x8]
 ```
+
+## Climbs: going up is going across
+
+A shaft climbed as a hop straight up a column is a lift, not a place. Each climb is a FIGURE laid across the screen
+([climbs.js](../control/lib/graph/gameworld/metroidvania/climbs.js)), so the hero turns left and right as she rises and
+the room is played through:
+
+| Figure | What it is | Where it is dealt |
+|---|---|---|
+| switchback | galleries across the screen, one over another two rises apart, joined at their ends by a step at the wall on its corbel: each storey climbed is a gallery run | shafts, alternately |
+| flights | treads a jump apart rising diagonally across the screen, a landing at the wall, the next flight back over it (the flights stacked in a V, the tread over hers always two rises up) | shafts, alternately; a storey's climb |
+| stair | steps walked up without a jump, one flight across the screen toward the door, its top a hop | a storey's climb, where it fits one flight |
+| zigzag | ledges a jump apart, each aside of the one below | a room left through a double jump's sill (its stair kept clear of the sill); any room no other figure fits |
+
+A room's figures are dealt by what it is (`CLIMB_DEAL`): a shaft takes switchback and flights in turn, so no two shafts
+climbed one after another are alike; a room climbed a storey tries a stair first. Each is tried in turn until one fits,
+the zigzag last. A figure fits when it holds:
+
+1. **A jump at a time.** No rise past a jump, and no gap between edges past `CLIMB.reach` jumps on a rise.
+2. **Nothing over her head.** No stand within a body (her stature, a ledge's thickness and `CLIMB.head`) of what is
+   stood on under it. The runtime lifts a falling body onto a ledge within its height, so a ledge low over another is
+   a trap as well as an eyesore. A gallery low over the floor is cut to its end at the step above it.
+3. **Across the screen.** Its stands spread over at least `ACROSS` of a screen's width.
+
+The double jump, once found, skips a switchback's galleries straight up: a power that changes how a room is crossed.
+A climb's stands are its chain's `spans`, so a bot can play it: the level's e2e climbs every room that is not gated, a
+jump at a time (a stair walked), and out through its door. Laws: `climbs-across`, `headroom`. The fabric builds each
+piece in its room's material: a stair's steps a stone mass, a gallery's planks hung on rods from the one above, a
+step at the wall on a corbel.
 
 ## The shapes: a spiral and its siblings
 
@@ -136,8 +164,8 @@ entered from the left, the box filled, the walk keeping its shape to the core (a
 serpentine never dropping a row, a hub's every wing walked out from it and back), both axes travelled within its shape's
 band, every step in gated and asking something new, every gate's opener found before it, the box finished with no one-way trap, shortcuts
 out and a short way back, every power opening something behind it, every pocket opened, no rise past a jump but a
-double-jump gate's, every double-jump sill clear of a stand that brings it in one jump, save rooms close together, a
-boss at the core.
+double-jump gate's, every double-jump sill clear of a stand that brings it in one jump, the climbs crossing their
+screens with nothing over a head, save rooms close together, a boss at the core.
 
 The eyes gate is the operator's: the greybox read as a drawing, and later the box played.
 

@@ -17,8 +17,10 @@
  *                   its corners), a threshold across its foot, and the passage's far reveal seen through it; the box's
  *                   entry the same, its gate
  *   a HOLE          framed: rim stones either side of it through the slab, the slab's far reveal seen through the cut
- *   a LEDGE         by the room's look (`ledge`: LEDGES): a slab of two stones chamfered under, a timber platform of boards
- *                   on a beam strapped in iron and hung on rods from what is over it, an iron catwalk grated on a truss
+ *   a LEDGE         by the room's look (`ledge`: LEDGES): a slab of stones chamfered under, a timber platform of boards
+ *                   on a beam strapped in iron and hung on rods from what is over it, an iron catwalk grated on a truss; a
+ *                   climb's piece against a wall (a switchback's step, a flight's landing) on a corbel out of it; a
+ *                   stair's step a stone block reaching past the step below, the flight one mass (climbs.js)
  *   the WEATHER     out under the sky the stone wears: moss along its treads and down its joints, damp streaking its
  *                   face; inside it is clean
  *   the CROWN       along the box's top: a parapet and its merlons, a bartizan every few screens, a tower over each top
@@ -222,16 +224,34 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
     } else {
       // A LEDGE by its look's material (a niche's shelf is stone)
       const kind = s.role === 'niche' ? 'stone' : LEDGES[Lk.ledge] ? Lk.ledge : 'stone';
+      // (wall-side pieces of a climb, a switchback's step or a flight's landing, stand on a corbel out of the wall)
+      const wallSide = s.piece === 'step' || s.piece === 'landing' ? (s.s1 > rs1 - WALL - 0.4 ? 1 : s.s0 < rs0 + WALL + 0.4 ? -1 : 0) : 0;
+      if (wallSide && kind !== 'iron') {
+        const w = wallSide > 0 ? rs1 - WALL : rs0 + WALL, c = wallSide > 0 ? w - 0.7 : w + 0.7;
+        poly(out, F, [[Math.min(w, c), s.z0], [Math.max(w, c), s.z0], [w, s.z0 - 0.9]], shade(st, 0.8), 'box:ledge', { tilt: [0, -0.6] });
+      }
+      if (s.piece === 'stair') {
+        // A STAIR's step: a stone block from its tread down past the step below, so the flight reads as one mass, its
+        // tread lit and its nosing proud
+        const deep = 0.75;
+        top(out, s.z1, -HALF, HALF, s.s0, s.s1, Lk.top, 'box:ledge');
+        face(out, F, s.s0, s.s1, s.z1 - deep, s.z1 - 0.08, shade(mix(st, Lk.top, 0.25), 0.88 + d() * 0.16), 'box:ledge', { pillow: 0.2 });
+        face(out, F2, s.s0 - 0.03, s.s1, s.z1 - 0.08, s.z1, Lk.top, 'box:ledge', { tilt: [0, 0.5] });
+        built.push({ i: s.i, as: 'ledge:stair' });
+        continue;
+      }
       if (kind === 'timber') {
         const beamTop = s.z1 - 0.1;
         top(out, s.z1, -HALF, HALF, s.s0, s.s1, WOOD.beam, 'box:mortar');
         for (let k = 0; k < 5; k++) top(out, s.z1 + 0.006, -HALF + k * 0.6 + 0.02, -HALF + (k + 1) * 0.6 - 0.02, s.s0, s.s1, shade(mix(WOOD.top, Lk.top, 0.15), 0.9 + d() * 0.2), 'box:ledge');
         face(out, F, s.s0, s.s1, beamTop, s.z1, mix(WOOD.top, Lk.top, 0.1), 'box:ledge', { tilt: [0, 0.4] });
         face(out, F, s.s0, s.s1, s.z0, beamTop, WOOD.face, 'box:ledge', { pillow: 0.25 });
-        for (const a of [s.s0 + 0.35, s.s1 - 0.47]) { face(out, F2, a, a + 0.12, s.z0, s.z1, IRON.dark, 'box:ledge'); face(out, F3, a + 0.03, a + 0.09, s.z0 + 0.12, s.z0 + 0.18, IRON.light, 'box:ledge'); }
+        const ns = Math.max(2, Math.round((s.s1 - s.s0) / 2.2) + 1);
+        for (let q = 0; q < ns; q++) { const a = s.s0 + 0.35 + (q * (s.s1 - s.s0 - 0.82)) / (ns - 1); face(out, F2, a, a + 0.12, s.z0, s.z1, IRON.dark, 'box:ledge'); face(out, F3, a + 0.03, a + 0.09, s.z0 + 0.12, s.z0 + 0.18, IRON.light, 'box:ledge'); }
         // (hung on two rods behind the lane, from what is over it)
         const up = over(s, s.z1);
-        for (const a of [s.s0 + 0.4, s.s1 - 0.4]) face(out, -HALF - 0.12, a - 0.03, a + 0.03, s.z1, up, IRON.dark, 'box:ledge');
+        const nr = Math.max(2, Math.round((s.s1 - s.s0) / 4) + 1);
+        for (let q = 0; q < nr; q++) { const a = s.s0 + 0.4 + (q * (s.s1 - s.s0 - 0.8)) / (nr - 1); face(out, -HALF - 0.12, a - 0.03, a + 0.03, s.z1, up, IRON.dark, 'box:ledge'); }
         built.push({ i: s.i, as: 'ledge:timber' });
       } else if (kind === 'iron') {
         top(out, s.z1, -HALF, HALF, s.s0, s.s1, IRON.dark, 'box:mortar');
@@ -248,11 +268,11 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
         built.push({ i: s.i, as: 'ledge:iron' });
       } else {
         // (a slab of two stones, coped, chamfered under)
-        const stl = mix(st, Lk.top, 0.35), cut = (s.s0 + s.s1) / 2 + (d() - 0.5) * 0.6;
+        const stl = mix(st, Lk.top, 0.35), nst = Math.max(2, Math.round((s.s1 - s.s0) / 1.4)), cuts = Array.from({ length: nst - 1 }, (_, q) => s.s0 + ((q + 1) * (s.s1 - s.s0)) / nst + (d() - 0.5) * 0.3);
         top(out, s.z1, -HALF, HALF, s.s0, s.s1, Lk.top, 'box:ledge');
         face(out, F - 0.004, s.s0, s.s1, s.z0, s.z1, under, 'box:mortar');
         face(out, F, s.s0, s.s1, s.z1 - FABRIC.tread, s.z1, Lk.top, 'box:ledge', { tilt: [0, 0.4] });
-        for (const [a, b] of [[s.s0, cut - 0.02], [cut + 0.02, s.s1]]) face(out, F, a, b, s.z0 + 0.08, s.z1 - FABRIC.tread, shade(stl, 0.9 + d() * 0.18), 'box:ledge', { pillow: 0.35 });
+        for (const [a, b] of [s.s0, ...cuts].map((x, q, all) => [q ? x + 0.02 : x, q < all.length - 1 ? all[q + 1] - 0.02 : s.s1])) face(out, F, a, b, s.z0 + 0.08, s.z1 - FABRIC.tread, shade(stl, 0.9 + d() * 0.18), 'box:ledge', { pillow: 0.35 });
         poly(out, F, [[s.s0, s.z0 + 0.08], [s.s1, s.z0 + 0.08], [s.s1 - 0.08, s.z0], [s.s0 + 0.08, s.z0]], shade(stl, 0.6), 'box:ledge', { tilt: [0, -0.8] });
         if (open && d() < 0.6) weather(s.s0, s.s1, s.z1 - FABRIC.tread, Lk, d, 0.2);
         built.push({ i: s.i, as: s.role === 'niche' ? 'niche' : 'ledge:stone' });

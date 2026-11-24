@@ -5,7 +5,8 @@
  * hole, each pocket's alcove. A cell is one SCREEN (the side map's, side-map/screen.js, for the hero's stature), so the
  * greybox is seen at the size it is played.
  *
- * No climb asks a wall kick: every rise is a ledge LEDGE_SHARE of a jump up, a stair zigzagging up to its door; a
+ * No climb asks a wall kick: every rise is a ledge LEDGE_SHARE of a jump up (a stair's step walked), laid as a FIGURE
+ * across the screen (climbs.js: a switchback, flights, a stair; a zigzag where none fits or a sill must stand clear); a
  * double-jump gate's last rise is its sill (gates.js SILL_SHARE: more than a jump, less than a double jump).
  *
  *   greyboxOf(L, { hero? }) → {
@@ -13,8 +14,9 @@
  *     solids:  [{ s0, s1, z0, z1, room, role }]   role floor | ceiling | wall | ledge | lip | niche  (the closed parts)
  *     gates:   [{ door?, pocket?, kind, shape, s0, s1, z0, z1 }]   what stands shut until it opens (not in solids)
  *     doorways [{ door, s, z0, z1 }]  a wall's opening;  holes: [{ door, s0, s1, z }]  a floor's
- *     chains:  [{ room, door, from, to, stands: [z], rises: [m], last }]   each climb to a door: the heights stood on,
- *              each rise between them, its last rise (a gate's sill where it is one)
+ *     chains:  [{ room, door, figure, from, to, stands: [z], spans: [[s0, s1]], rises: [m], last }]   each climb to a
+ *              door: its figure, the heights stood on and where each stand above the floor spans, each rise between them,
+ *              its last rise (a gate's sill where it is one)
  *     pockets: [{ room, gate, holds, at: [s, z] }],  marks: [{ room, kind, at: [s, z], label? }]
  *   }
  *   sills:   [{ door, room, s, z, side }]   each double-jump sill's top at its room's side, what `sill-holds` measures
@@ -26,6 +28,7 @@
  */
 import { sideMapCamera, SIDE_MAP_FRAME } from '../side-map/screen.js';
 import { GATES, readHero, gateSill, LEDGE_SHARE, SLIT_SHARE } from './gates.js';
+import { layClimb, climbDeal } from './climbs.js';
 
 /** THE BOX'S FRAME: the side map's (screen.js SIDE_MAP_FRAME), the hero a fifth larger in it, 0.15 of the frame's height
  * against the run and gun's eighth: a metroidvania is close on its hero, a room a little smaller round her. A screen is a
@@ -111,6 +114,7 @@ export function greyboxOf(L, { hero } = {}) {
   // THE CLIMBS: a stair of ledges up to every door a room is left by upward (a doorway above its floor, a hole in its
   // ceiling), each a single jump's share up, zigzagging so none is over the head of the one below
   const ledges = [];
+  let shaftTurn = 0, storeyTurn = 0;
   const inside = (S, s) => Math.min(S.s1 - WALL - LEDGE / 2 - 0.2, Math.max(S.s0 + WALL + LEDGE / 2 + 0.2, s));
   for (const r of L.rooms) {
     const S = span(r);
@@ -132,18 +136,26 @@ export function greyboxOf(L, { hero } = {}) {
         top = holeAt(d); toward = sillSide.get(r.id) ? -sillSide.get(r.id) : top > (S.s0 + S.s1) / 2 ? -1 : 1;
         if (d.gate === 'double-jump') { last = gateSill('double-jump', Hh); gate = 'double-jump'; }
       }
-      // the stands: the floor, the ledges, the door's own height; the last rise the gate's where it is one
+      // the stands: the floor, the room's FIGURE (climbs.js: dealt by the room, tried in turn, the zigzag last), the
+      // door's own height; the last rise the gate's where it is one
       const highest = d.axis === 'h' ? target : target - last, rise = highest - S.floor, n = Math.max(1, Math.ceil(rise / STEP - 1e-9));
-      const stands = [r3(S.floor)];
-      for (let k = 1; k <= n; k++) {
-        const z = S.floor + (rise * k) / n, s = inside(S, top + toward * ((n - k) % 2) * ASIDE);
-        const ledge = box(s - LEDGE / 2, s + LEDGE / 2, z - TH, z, { room: r.id, role: d.axis === 'h' && k === n ? 'lip' : 'ledge', door: d.id });
+      const stands = [r3(S.floor)], mineLedges = ledges.filter((x) => x.room === r.id).map((x) => ({ s0: x.s0, s1: x.s1, z: x.z1, kind: x.role }));
+      const as = sillSide.get(r.id) ? 'sill' : r.kind === 'shaft' ? 'shaft' : 'storey', turn = as === 'shaft' ? shaftTurn++ : storeyTurn++;
+      const ctx = { a: S.s0 + WALL + 0.2, b: S.s1 - WALL - 0.2, floor: S.floor, rise, n, top, hero: Hh, ledge: LEDGE, existing: mineLedges };
+      let figure = 'zigzag', laid = null;
+      for (const f of climbDeal(as, turn)) { if (f === 'zigzag') break; laid = layClimb(f, ctx); if (laid) { figure = f; break; } }
+      // (the zigzag: aside of the top by ASIDE, toward the room where the wall would fold it back over the one below)
+      const zig = Math.abs(inside(S, top + toward * ASIDE) - inside(S, top)) < LEDGE + 0.6 ? -toward : toward;
+      if (!laid) laid = Array.from({ length: n }, (_, j) => { const k = j + 1, s = inside(S, top + zig * ((n - k) % 2) * ASIDE); return { s0: s - LEDGE / 2, s1: s + LEDGE / 2, z: S.floor + (rise * k) / n, kind: 'ledge' }; });
+      const spans = [];
+      laid.forEach((p, j) => {
+        const k = j + 1, z = p.z, ledge = box(p.s0, p.s1, z - TH, z, { room: r.id, role: d.axis === 'h' && k === laid.length ? 'lip' : 'ledge', door: d.id, ...(figure !== 'zigzag' ? { figure, piece: p.kind } : {}) });
         if (!ledges.some((x) => Math.abs(x.s0 - ledge.s0) < 0.5 && Math.abs(x.z1 - ledge.z1) < 0.5)) { ledges.push(ledge); solids.push(ledge); }
-        stands.push(r3(z));
-      }
+        stands.push(r3(z)); spans.push([r3(p.s0), r3(p.s1)]);
+      });
       if (d.axis === 'v') stands.push(r3(target));
       const rises = stands.slice(1).map((z, k) => r3(z - stands[k]));
-      chains.push({ room: r.id, door: d.id, from: r3(S.floor), to: r3(target), stands, rises, last: rises.at(-1), ...(gate ? { gate } : {}) });
+      chains.push({ room: r.id, door: d.id, figure, from: r3(S.floor), to: r3(target), stands, spans, rises, last: rises.at(-1), ...(gate ? { gate } : {}) });
     }
   }
 
