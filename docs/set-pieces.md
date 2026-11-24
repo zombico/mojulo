@@ -56,11 +56,32 @@ The laws (`setPieceLaws`) are advice, never a refusal: on the line, directed, fe
   put back by a late press (`stunt-room.live.test.js`).
 - **Eyes:** whether the camera reads as directed and each prompt feels earned is the person's to play.
 
+## Kinds: a set piece said in words
+
+A kind (`gameworld/set-piece-kinds.js`) lays its own site and its set piece from a few words, so a level names a set
+piece instead of drawing one:
+
+| kind | what happens | words |
+|---|---|---|
+| `rooftop-run` | across the roofs: a gap, an edge that gives, a blast beside the run, a drop and a lip to climb | `height`, `pursuers`, `blast` |
+| `collapse` | down a roof street while the tower beside it comes down a course at a time, a last jump caught | `height`, `courses`, `pursuers` |
+| `climb` | up a sheer face, over its top onto a ledge that gives, a reach across to the next roof | `height`, `face` |
+
+A kind's site may carry breakable blocks (`breaks: true`): their faces are their own and the world holds them solid until
+a beat brings them down. A new kind is a row.
+
+## The template movie
+
+Lost Nomad's starter (`gameworld/lost-nomad.js`) is an action movie of set-piece levels in order: the souk rooftops,
+the fall of the tower, the cliffs. Each is a designed level's `stunt: { kind, …words }`, won as its line ends; Tariq is
+the hero. A person's movie changes the kinds, their words and their order.
+
 ## Where it is laid
 
 - **A designed game's level**: `levels.<id>.setPiece`, laid on the level's first stage (its chase line, camera,
   prompts, the world clock's moments, its pursuers' bodies and its beats as the level's cues); a level without one is
   byte for byte the level it was.
+- **A level that is a set piece**: `levels.<id>.stunt: { kind, …words }`, its kind on its own site, won as its line ends.
 - **The stunt room**: the practice door's, for a world on Lost Nomad's feel.
 
 ## Pursuers
@@ -72,7 +93,4 @@ should be seen: it stands ahead of the hero looking back, so they are in it.
 
 ## Not yet
 
-- A collapse in the stunt room: a `collapse` beat breaks a level's breakable things (a stage's buildings, its walls
-  and set-piece things under a `destruction` degree), and a practice room lays none; its beats are shakes, dust and an
-  explosion.
 - A vehicle chase (the `crewed` package): the line is what a vehicle would drive.

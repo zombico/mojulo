@@ -1412,6 +1412,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
       if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}), ...(treeSet ? { trees: treeSet.trees.length } : {}) };
     }
+    // a level's OWN breakable blocks (a set piece's site, gameworld/set-piece-kinds.js: a bridge that goes, a ledge that
+    // gives): { id, min, max, hp } each, its faces grouped `break:<id>` and named by `node`, held solid by the world
+    // until it breaks (the trigger's collapse, a blow); the page cuts their pieces. Absent: every byte as it was.
+    if (Array.isArray(sketch.manifest.breakables) && sketch.manifest.breakables.length) {
+      const own = sketch.manifest.breakables.filter((b) => b && typeof b.id === 'string' && Array.isArray(b.min) && Array.isArray(b.max));
+      payload.breakables = [...(payload.breakables || []), ...own];
+      payload.breakPieces = { ...(payload.breakPieces || {}), ...piecesOf(own, payload.faces) };
+    }
     // (the loose things' pieces, pre-cut as a block's are, in their own colour: what the page scatters as one dissipates)
     if (payload.loose) payload.breakPieces = { ...(payload.breakPieces || {}), ...piecesOf(payload.loose, payload.faces) };
     // destructible physics (rupa/, `destruction: 'physical'`): the blocks carry their matter (breakablesOf), and the

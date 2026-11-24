@@ -52,3 +52,16 @@
   thirties on the realistic body (the face's Levantine ancestry, a strong chin and stubble), in the basic adventurer's
   clothes: a henley with its sleeves pushed up, straight jeans, work boots, a belt and a pouch on the thigh for the
   holster; the free runner's motion. The stunt room stands him where the world has no hero of its own.
+- **Set pieces said in words** (`gameworld/set-piece-kinds.js`): a kind is a card that lays its own site (greybox blocks
+  at any height, some of them breakable) and its set piece from a few words. `rooftop-run` (the stunt room's, now laid
+  from it), `collapse` (down a roof street while the tower beside it comes down a course at a time, a last jump caught)
+  and `climb` (up a sheer face on the wall crawl, over its top onto a ledge that gives, a reach across). A new kind is a
+  row.
+- **A level's own breakable blocks** (`world-scene.js`, a manifest's `breakables`): a set piece's site carries the
+  blocks a beat brings down, their pieces cut by the page. Absent, every byte as it was.
+- **A level that is a set piece** (a designed level's `stunt: { kind, …words }`, `stunt-room.js` `stuntLevel`): staged
+  and ordered as the kitchen level is, its kind on its own site, the star on it, the level won as its line ends.
+- **The template movie** (`lost-nomad.js` `lostNomadWorld`, laid by a locked pitch on the rail, `pitch-start.js`): three
+  set-piece levels in order (the souk rooftops, the fall of the tower, the cliffs), Tariq its hero, his looks the hero
+  page's fragments composing into his spec. Played end to end in headless Chrome by a bot: each level ordered from the
+  template, run to its end, every prompt answered, won.

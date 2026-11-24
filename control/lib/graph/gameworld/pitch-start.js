@@ -14,6 +14,7 @@
  *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
+ *              'lost-nomad' (Lost Nomad's: the template movie, three set pieces with Tariq its star, lost-nomad.js) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
  *              answered and not stored
@@ -23,6 +24,7 @@
 import { readRail, railOf, railSheet, variantOf } from './rails.js';
 import { platformerStart } from './platformer-game.js';
 import { hijackCityStart } from './hijack-city.js';
+import { lostNomadStart } from './lost-nomad.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
@@ -52,6 +54,11 @@ export function pitchStart(world, { title } = {}) {
   if (plat) {
     const W = { ...plat.world, ...withFeel, ...named };
     return { world: W, laid: { by: 'platformer', dimension: plat.dimension, levels: Object.keys(W.levels), says: SAYS } };
+  }
+  // Lost Nomad's rail: its own starter, the template movie, three set pieces with Tariq its star (lost-nomad.js)
+  if (R.id === 'lost-nomad') {
+    const N = lostNomadStart({ ...withFeel, ...named });
+    if (N) return { world: N.world, laid: { by: 'lost-nomad', levels: Object.keys(N.world.levels), says: SAYS } };
   }
   // Hijack City's rail: its own starter, the district, the story, the law and the shops (hijack-city.js)
   if (R.id === 'hijack-city') {

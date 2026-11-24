@@ -104,6 +104,10 @@ export const E2E = [
   'lib/graph/scene/channels/controllable/prompt.chrome.test.js',
   // the stunt room played in headless Chrome: a bot clears its set piece, and is put back by a late press
   'lib/graph/gameworld/stunt-room.live.test.js',
+  // set-piece kinds played in headless Chrome: the collapse's tower down, the climb climbed
+  'lib/graph/gameworld/set-piece-kinds.live.test.js',
+  // Lost Nomad's template movie played end to end in headless Chrome: each set-piece level ordered and won
+  'lib/graph/gameworld/lost-nomad.live.test.js',
   // the ray budget: a walker on a gen-7 land in headless Chrome, no ray testing a big mesh triangle by triangle
   'lib/graph/scene/channels/controllable/ray-budget.chrome.test.js',
   // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts

@@ -48,7 +48,7 @@ async function play(late) {
       if (want !== actDown) { key('act', want); actDown = want; }
       if (W.camera.track && W.camera.track.key !== lastKey) { lastKey = W.camera.track.key; out.keys.push(lastKey); }
       // on the lead key: is the first pursuer behind the hero and inside the frame (35° of the look)
-      const q = W.byId['pursuer-1'];
+      const q = W.byId['rooftops-pursuer-1'];
       if (q && W.camera.track && W.camera.track.key === 1 && W.chase.s > 10) {
         const c = W.camera.transform.pos, L = W.camera.lookAt, lv = [L[0] - c[0], L[1] - c[1], L[2] - c[2]], pv = [q.transform.pos[0] - c[0], q.transform.pos[1] - c[1], q.transform.pos[2] + 1 - c[2]];
         const cos = (lv[0] * pv[0] + lv[1] * pv[1] + lv[2] * pv[2]) / (Math.hypot(...lv) * Math.hypot(...pv));
@@ -69,7 +69,7 @@ describe('the stunt room, played', () => {
     if (!browser) return;
     const { got, errors } = await play(0);
     expect(errors).toEqual([]);
-    expect(got.results).toEqual({ grab: 'hit', climb: 'hit' });
+    expect(got.results).toEqual({ 'rooftops-grab': 'hit', 'rooftops-climb': 'hit' });
     expect(got.chaseDone).toEqual(['rooftops']);
     expect(got.keys.length).toBeGreaterThanOrEqual(5);   // directed: chase, lead, the low cut, wide, profile, over
     expect(got.leadFrames).toBeGreaterThan(0);
@@ -80,7 +80,7 @@ describe('the stunt room, played', () => {
     if (!browser) return;
     const { got, errors } = await play(0.6);
     expect(errors).toEqual([]);
-    expect(got.results.grab).toBe('miss');
+    expect(got.results['rooftops-grab']).toBe('miss');
     expect(got.backs).toBeGreaterThanOrEqual(1);
   }, 240000);
 });

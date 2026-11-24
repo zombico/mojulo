@@ -197,6 +197,7 @@ import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
 import { readGameKeying } from './keying.js';
 import { readSetPiece } from './set-piece.js';
+import { readKindWords, SET_PIECE_KIND_IDS } from './set-piece-kinds.js';
 import { readGameArsenal, arsenalOfGame } from './arsenal.js';
 import { readFights } from './fights.js';
 import { readTasks } from './task-read.js';
@@ -311,7 +312,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'setPiece'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'setPiece', 'stunt'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -687,7 +688,14 @@ export function readGameworld(W) {
     }
     // a set piece (set-piece.js): a run the camera directs, laid on the level's first stage
     if (L.setPiece !== undefined) { try { readSetPiece(L.setPiece); } catch (e) { throw new Error(`gameworld: ${at}.${e.message}`); } }
-    if (L.kitchen !== undefined) {
+    if (L.stunt !== undefined) {
+      // a set-piece level (stunt-room.js stuntLevel): a set piece's kind laid on its own site, the level won as its line
+      // ends; the kind's words its own (set-piece-kinds.js)
+      const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'places', 'ground', 'arena', 'course', 'foes', 'sidemap', 'setPiece'].filter((k) => L[k] !== undefined);
+      if (beside.length) throw new Error(`gameworld: ${at}: a set-piece level is its set piece alone: no ${beside.join(', ')} beside it`);
+      if (!L.stunt || typeof L.stunt !== 'object' || Array.isArray(L.stunt)) throw new Error(`gameworld: ${at}.stunt is { kind, …its words } (${SET_PIECE_KIND_IDS.join(', ')})`);
+      try { readKindWords(L.stunt.kind, L.stunt); } catch (e) { throw new Error(`gameworld: ${at}.stunt: ${e.message}`); }
+    } else if (L.kitchen !== undefined) {
       // a kitchen level (gameworld/kitchen-shifts.js, laid by kitchen-level.js): its own room, its layout, its menu, its
       // challenge and its map's variations; the work goal's places its own
       const beside = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'obstacles', 'street', 'mission', 'industrial', 'places', 'ground', 'arena', 'course', 'foes', 'sidemap'].filter((k) => L[k] !== undefined);
@@ -1094,6 +1102,8 @@ export function resolveLevel(world, id) {
   const ledger = differences(G.style, L.style, 'level', id);
 
   // a kitchen level (kitchen-shifts.js, laid by kitchen-level.js): its own room, its shift read as written
+  // a set-piece level: its kind on its own site (stunt-room.js), nothing of the world's land laid under it
+  if (L.stunt) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, stunt: { ...L.stunt } };
   if (L.kitchen) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, kitchen: { ...L.kitchen } };
   // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
   if (L.airspace) {

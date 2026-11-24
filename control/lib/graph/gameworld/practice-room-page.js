@@ -27,7 +27,7 @@
  */
 import { practiceRoom } from './practice-room.js';
 import { platformRoom, COURSE } from './platform-room.js';
-import { stuntRoom } from './stunt-room.js';
+import { stuntRoom, stuntLevel } from './stunt-room.js';
 import { mountLane, FENCES } from './mount-lane.js';
 import { rollRoom, rollRoomMeasured, FORMS } from './roll-room.js';
 import { feelReport, readFeel } from './feel/lower.js';
@@ -185,6 +185,18 @@ export async function stuntRoomHtml(G, { refs = {}, cast = 'male', cdn = false }
 <div id="st"><b>Stunt room</b> · ${esc(room.setPiece.id)}<div>${esc('the camera directed along the way; the stick runs down it')}</div>${laws}</div>`;
   html = html.replace('</body>', `${HUD}</body>`);
   return { html, room };
+}
+
+/** A level's manifest on the World page (a level order's, as a run would mint it): resolved and emitted, as the rooms are. */
+export async function levelManifestHtml(manifest, ref, { cdn = false } = {}) {
+  return emitted(await resolved(manifest, ref), cdn);
+}
+
+/** A set-piece level's page (stunt-room.js stuntLevel): the level a designed game's `stunt` makes, on the World page. */
+export async function stuntLevelHtml(G, spec, { heroRef = null, cast = null, cdn = false } = {}) {
+  const level = stuntLevel(G, { ref: spec?.id ?? spec?.kind, heroRef, spec, cast });
+  const payload = await resolved(level.manifest, `${G.id ?? 'game'}-${spec?.id ?? spec?.kind}`);
+  return { html: await emitted(payload, cdn), level };
 }
 
 /** The platform room's page (see the header). */
