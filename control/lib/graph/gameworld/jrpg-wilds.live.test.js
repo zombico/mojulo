@@ -28,7 +28,9 @@ beforeAll(async () => {
   html = emitThreeWorld({ ...payload, inline: true, hud: false });
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+  // (one page call may wait out many frames: a runner drawing this page in software under load draws one a second or
+  // slower, past puppeteer's 180 s for a call; the waits are bounded in frames and by the test's own timeout)
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS, protocolTimeout: 600000 });
 }, 900000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
@@ -52,7 +54,18 @@ describe('the JRPG starter\'s wilds on the page', () => {
       await page.waitForFunction(() => window.__mojRpg.state().mode === 'battle', { timeout: 30000 });
       // the member whose turn it is picks with the window beside their own bar, held inside the screen
       await page.waitForFunction(() => window.__mojRpg.state().phase === 'command' && document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]'), { timeout: 60000 });
-      await nap(300);
+      // (measured once its place holds from one frame to the next: its first frame is placed by a guessed size, the next
+      // by its size as drawn (rpg-channel.js besideAt), and a runner drawing a frame a second is read between them after a
+      // nap in seconds)
+      await page.evaluate(() => new Promise((ok) => {
+        let last = null, i = 0;
+        const f = () => {
+          const e = document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]'), r = e && e.getBoundingClientRect();
+          const k = r ? [r.left, r.top, r.right, r.bottom].map(Math.round).join() : null;
+          if ((k && k === last) || ++i > 60) ok(); else { last = k; requestAnimationFrame(f); }
+        };
+        requestAnimationFrame(f);
+      }));
       const at = await page.evaluate(() => {
         const m = window.__mojRpg.state().member, box = (q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; };
         return { m, bar: box('.moj-rpg .mana-anchor[data-key="a' + m + '"]'), win: box('.moj-rpg .mana-anchor[data-key="acmd"]'), H: innerHeight, W: innerWidth, dev: getComputedStyle(document.querySelector('.hud')).display };

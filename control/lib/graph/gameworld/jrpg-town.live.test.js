@@ -30,7 +30,9 @@ beforeAll(async () => {
   html = emitThreeWorld({ ...payload, inline: true });
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+  // (one page call may wait out many frames: a runner drawing this page in software under load draws one a second or
+  // slower, past puppeteer's 180 s for a call; the waits are bounded in frames and by the test's own timeout)
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS, protocolTimeout: 600000 });
 }, 900000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 

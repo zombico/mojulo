@@ -29,7 +29,9 @@ beforeAll(async () => {
   S = runSteps(W, { ref: 'js' });
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+  // (one page call may wait out many frames: a runner drawing this page in software under load draws one a second or
+  // slower, past puppeteer's 180 s for a call; the waits are bounded in frames and by the test's own timeout)
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS, protocolTimeout: 600000 });
 }, 900000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
@@ -40,8 +42,17 @@ async function open(html) {
   await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojTalk && window.__mojScenes, { timeout: 180000 });
   return page;
 }
-const talking = (page) => page.waitForFunction(() => window.__mojTalk.state.talk.show && window.__mojTalk.state.talk.text.length > 0, { timeout: 60000 }).then(() => page.evaluate(() => ({ text: window.__mojTalk.state.talk.text, name: document.querySelector('#moj-mana-talk .mana-heading')?.textContent ?? null })));
-const skip = async (page) => { await page.keyboard.down('Escape'); await nap(400); await page.keyboard.up('Escape'); await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 20000 }); };
+// (a wait in the page's frames: a runner drawing a frame a second or slower is read between them after a wait in seconds)
+const frames = (page, n) => page.evaluate((k) => new Promise((ok) => { let i = 0; const f = () => (++i >= k ? ok() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
+// (the line asked for, waited for by what it says: just after a skip a slow runner still shows the last line; its name is
+// read a frame on, the box's heading drawn the frame after its state)
+const talking = async (page, line) => {
+  await page.waitForFunction((l) => { const t = window.__mojTalk.state.talk; return t.show && t.text.length > 0 && l.startsWith(t.text); }, { timeout: 120000 }, line);
+  await frames(page, 2);
+  return page.evaluate(() => ({ text: window.__mojTalk.state.talk.text, name: document.querySelector('#moj-mana-talk .mana-heading')?.textContent ?? null }));
+};
+// (Escape held until the page has seen it: a fixed hold can fall between two frames)
+const skip = async (page) => { await page.keyboard.down('Escape'); try { await page.waitForFunction(() => !window.__mojScenes.on(), { timeout: 120000 }); } finally { await page.keyboard.up('Escape'); } };
 const stage = (page, scene) => page.evaluate((s) => { window.__mojStage = { scene: s, skip: true, t: 0, on: false, asked: 0 }; }, scene);
 
 describe('the JRPG starter\'s story on the page', () => {
@@ -56,7 +67,7 @@ describe('the JRPG starter\'s story on the page', () => {
     const { M, html } = await pageOf(`level-${W.hub}-0`), page = await open(html);
     try {
       await stage(page, 'round-opening');
-      const said = await talking(page), first = W.story[0].beats[0].line.say;
+      const first = W.story[0].beats[0].line.say, said = await talking(page, first);
       expect(said.name).toBe('Hero');
       expect(first.startsWith(said.text)).toBe(true);
       await skip(page);
@@ -65,7 +76,7 @@ describe('the JRPG starter\'s story on the page', () => {
       // (and the hero called by the name the player gave: the game channel puts a named roster's names here)
       await page.evaluate(() => { window.__mojNames = { hero: 'Ada' }; });
       await page.evaluate((a) => { const C = window.__mojCtrl.world, me = C.byId[C.pilotId]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; }, sc.when.enter.at);
-      expect((await talking(page)).name).toBe('Ada');
+      expect((await talking(page, sc.beats[0].line.say)).name).toBe('Ada');
       await nap(2500);
       expect(await page.evaluate(() => !!(window.__mojGame && window.__mojGame.envelope))).toBe(false);
       await skip(page);
@@ -77,12 +88,12 @@ describe('the JRPG starter\'s story on the page', () => {
     if (!browser) return;
     const core = W.megaworld.rings.at(-1)[0], { html } = await pageOf(`level-${core}-0`), page = await open(html);
     try {
-      const begun = await talking(page);
-      expect(W.story.find((m) => m.id === 'round-core').beats[0].line.say.startsWith(begun.text)).toBe(true);
+      const coreLine = W.story.find((m) => m.id === 'round-core').beats[0].line.say, begun = await talking(page, coreLine);
+      expect(coreLine.startsWith(begun.text)).toBe(true);
       await skip(page);
       await stage(page, 'round-ending');
-      const ended = await talking(page);
-      expect(W.story.find((m) => m.id === 'round-ending').beats[0].line.say.startsWith(ended.text)).toBe(true);
+      const endLine = W.story.find((m) => m.id === 'round-ending').beats[0].line.say, ended = await talking(page, endLine);
+      expect(endLine.startsWith(ended.text)).toBe(true);
     } finally { await page.close(); }
   }, 900000);
 });
