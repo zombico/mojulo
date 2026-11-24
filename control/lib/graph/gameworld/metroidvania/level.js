@@ -24,7 +24,8 @@
  *                attacks, lowered on her rule and her own strings, learned as she plays (worlds/controllable/trees.js) with
  *                the points what she holds gives; their laws beside the box's, each `trees:<id>`
  *
- *   boxLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, audio? })
+ *   boxLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, audio?, extra?, foeFrom?,
+ *                 bossRefs? })   (`bossRefs` { <castle boss id>: its figure's sketch }, the runner's `boss-<id>` steps)
  *     → { tool: 'create_sketch', args: { title, manifest }, laws }   laws: the box's own (laws.js), each `metroidvania:<id>`
  *
  * Pure.
@@ -84,7 +85,7 @@ export function boxCamera(B, { target = 'hero' } = {}) {
 }
 
 /** A metroidvania level's order: the stage's box built for the world's hero and played by it. */
-export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, audio = null, extra = null, foeFrom = [] } = {}) {
+export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, audio = null, extra = null, foeFrom = [], bossRefs = {} } = {}) {
   if (!heroRef) throw new Error('levels: a metroidvania is played by a hero seen from the side; give the world a hero (its characters)');
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
   // (its BOSSES stood as bodies of the world once its foes have joined, bosses.js: the stand-in blocks left off the box)
@@ -120,7 +121,7 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   // a block of its size in its class's shade, its figure left off the page)
   const foes0 = (X?.entities ?? []).map((e) => (e.team === 'foes' ? standIn(sideFoe(e, stature), figures, bestiaryOf(G)) : e));
   // (its BOSSES, each in its room at its tier, a stand-in of its class until its figure is made: bosses.js)
-  const Bs = stood ? standBosses(G, B, { stature }) : null;
+  const Bs = stood ? standBosses(G, B, { stature, refs: bossRefs }) : null;
   Object.assign(figures, Bs?.figures ?? {});
   const foes = [...foes0, ...(Bs?.entities ?? []).map((e) => standIn(e, figures, {}, bossRow(B.bosses.find((b) => b.id === e.id).name).class))];
   const drawnFigures = Object.fromEntries(Object.entries(figures).filter(([k]) => !((k.startsWith('foe-') || k.startsWith('boss-')) && foes.every((e) => e.body?.figure !== k))));

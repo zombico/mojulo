@@ -328,6 +328,24 @@ feel's measured reach). On the page each hazard is drawn upright along the lane,
 stretch it will cross, faint and filling, with a bright edge at the height to clear; while it lands, the stretch it is on
 now, bright.
 
+Its ATTACKS have looks ([boss/looks.js](../control/lib/graph/boss/looks.js), a row a pattern, in the gothic anime
+register: a white-hot core into the boss's own colours, gold tells and crimson blows), drawn over the read every attack
+already has (the upright band, kept faint under a look). A look is told, then lands: the cleave a glint on the blade,
+then a crimson crescent swept down through its reach with a white-hot edge and sparks; the quake gold cracks branching
+out from under it, then walls of dust rolling out both ways as high as the front reaches, chips thrown ahead; the toll
+the air shimmering in rings round the boss, then a wall of ripples; the toss the thing thrown coming down on its mark (a
+weight, a cracked bell, a swarm of bats: the move's own `look`), then a star and dust; the lunge a glow at its feet,
+then speed streaks and afterimages along the low stretch.
+
+Its FIGURE is its own ([bosses.js](../control/lib/graph/gameworld/metroidvania/bosses.js) `CASTLE_FIGURES`): the
+character door's words for each humanoid (the Gate Warden a death knight with a halberd; the Gatekeeper crimson plate
+under a horned skull helm with a brutal greatsword; the Bell Ringer a dead monk in a brown habit; the Bellkeeper a
+grave-grey robe in a bell's outline; the Warden a horned, tailed, clawed devil in a crimson robe and black cloak; the
+Lord of the Keep a pale, silver-haired vampire noble in the anime register, as Erina is), the animal door's for the Crypt
+Lord (a wolf grown `dire` and `shadow`). The runner makes each one a box names (`boss-<id>`) and the level stands it on
+its ref, a door's body grown by its tier, a beast fitted to its tier's height. The Great Bell has no figure yet (no door
+makes a bell): it stands as a block.
+
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.
 - `fights`: each boss's fight held to the director's laws for her on the lane, her jump among her escapes: every move
@@ -477,7 +495,10 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
-- **The bosses' figures**, and their moves seen in them (a wind-up a pose, not only a mark). The fight's length is the
+- **The bosses' bodies, further.** Their moves seen in their figures (a wind-up a pose of its clips, not only a mark).
+  The Great Bell made (a card: a bell on its beam, its clapper on a bone). The undead word under the knight's sabatons and
+  the cleric's robe (the door refuses both today). The knight's pauldrons, grey and large on a brute. A boss's look
+  changed by its phase. The fight's length is the
   shelf's `blows`, not yet measured: a bot that fights as a player does (reads the marks, jumps the low ones, backs out
   of the tall ones, cuts in the openings) would measure it. A boss's look changed by its phase.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.

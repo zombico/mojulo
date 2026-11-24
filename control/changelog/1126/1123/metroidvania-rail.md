@@ -103,3 +103,11 @@
   coming, escaped along the floor or jumped, survived and answered, measured with Erina's own run and jump.
 - The boss pattern shelf learns the side view: a hazard can say how high it reaches, a jump clears it, and the pattern
   laws measure a body that can move only along a lane, with a jump among its escapes.
+- The castle's bosses have their own figures, made through the character door like Erina: the Gate Warden as a death
+  knight with a halberd, the Gatekeeper in crimson plate under a horned skull helm, the Bell Ringer and the Bellkeeper
+  as dead monks, the Warden as a horned, tailed devil in a crimson robe, and the Lord of the Keep as a pale, silver-haired
+  vampire noble. The Crypt Lord is a great shadow wolf from the animal door. Each stands in its room, grown taller than
+  Erina. The Great Bell stays a block until a bell can be made.
+- Their attacks have their own looks: a glint on the blade and a crimson crescent for a swing, glowing cracks and rolling
+  dust walls for a slam, rings of shimmering air and a wall of ripples for a toll, a falling bell or a swarm of bats for
+  a throw, and speed streaks for a lunge.

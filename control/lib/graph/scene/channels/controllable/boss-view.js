@@ -23,7 +23,10 @@
 //   SEEN FROM THE SIDE (a side map's page: a castle's boss on its lane) a hazard is drawn upright along the lane where it
 //                     touches it, as high as it reaches (its `rise`, else a body's height): its mark the whole stretch it
 //                     will cross, faint and filling; while it lands, the stretch it is on now, bright. A low band is
-//                     jumped, a tall one left
+//                     jumped, a tall one left. Over it, the move's LOOK where its boss's move carries one (boss/looks.js,
+//                     `fx`): its tell on the boss and the floor as it winds up (a glint, glowing cracks, shimmering air,
+//                     the thing thrown coming down) and its hit as it lands (a crescent, a wall of dust, a wall of
+//                     ripples, an impact, streaks and afterimages), in the boss's colours over a white-hot core
 // Emitted only into a page whose world has a boss or a placed weapon, so every other page keeps every byte. Needs THREE,
 // scene and __world in scope.
 export function bossViewScript() {
@@ -117,12 +120,137 @@ function __bvBands(spans, h, hex, op) {
   }
   return g;
 }
+// THE LOOKS (boss/looks.js), on a side page: drawn in the lane's plane (y along it, z up) just in front of the bodies
+const __BVX = 0.85;
+const __bvYZ = (g) => { g.rotateX(Math.PI / 2); g.rotateZ(Math.PI / 2); return g; };
+const __bvAdd = (hex, op) => new THREE.MeshBasicMaterial({ color: new THREE.Color(hex), transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+const __bvFlat = (hex, op) => new THREE.MeshBasicMaterial({ color: new THREE.Color(hex), transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide });
+const __bvSoft = (hex, op) => { const x = new THREE.Sprite(new THREE.SpriteMaterial({ map: __bvGlowTex, color: new THREE.Color(hex), transparent: true, opacity: op, depthWrite: false })); return x; };
+// (a seeded dice a hazard's own, so its cracks and chips are the same every time it is drawn)
+const __bvDice = (seed) => { let a = seed | 0; return () => { a = (a + 0x6d2b79f5) | 0; let q = Math.imul(a ^ (a >>> 15), 1 | a); q = (q + Math.imul(q ^ (q >>> 7), 61 | q)) ^ q; return ((q ^ (q >>> 14)) >>> 0) / 4294967296; }; };
+function __bvFx(h, by) {
+  const B = by && by.rule && by.rule.boss, mv = B && B.moves && B.moves[h.move], L = mv && mv.fx;
+  if (!L) return null;
+  const look = B.look || {}, tell = look.tell || '#e8c77a', hot = look.hazard || '#d0463c', core = '#fff4e0', dust = '#8a7a66';
+  const g = new THREE.Group(); g.position.set(__BVX, 0, h.z || 0); scene.add(g);
+  const P = by.transform.pos, H = (by.rule && by.rule.collideHeight) || 2.4, y0 = P[1];
+  const dir = h.a && h.b ? Math.sign(h.b[1] - h.a[1]) || 1 : Math.sign(((h.c || h.o || [0, y0])[1]) - y0) || (Math.cos(by.transform.heading || 0) >= 0 ? 1 : -1);
+  const rnd = __bvDice(String(h.id).split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 7));
+  const X = { g, L, tell: {}, hit: {}, y0, H, dir, rnd, hex: { tell, hot, core, dust } };
+  // TELLS
+  if (L.tell.glint) { const s = __bvSprite(tell, 1); s.material.depthTest = true; g.add(s); s.visible = true; X.tell.glint = s; X.tell.glintZ = L.tell.glint === 'eyes' ? H * 0.92 : L.tell.glint === 'feet' ? 0.15 : H * 0.72; }
+  if (L.tell.cracks) {
+    // (cracks running out from under it both ways, a few metres, jagged and branching; the floor's face, just over it)
+    const pos = [], reach = 3.4;
+    for (const side of [-1, 1]) for (const lane of [0, 1]) {
+      let y = y0 + side * 0.3, z = 0.04 + lane * 0.12;
+      while (Math.abs(y - y0) < reach * (lane ? 0.6 : 1)) { const y2 = y + side * (0.18 + rnd() * 0.3), z2 = Math.max(0.01, z + (rnd() - 0.5) * 0.16); pos.push(0, y, z, 0, y2, z2); if (rnd() < 0.3) pos.push(0, y2, z2, 0, y2 + side * 0.25, z2 + 0.15 + rnd() * 0.2); y = y2; z = z2; }
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const ln = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: new THREE.Color(core), transparent: true, opacity: 0 })); g.add(ln); X.tell.cracks = ln;
+    X.tell.crackGlow = [-1, 1].map((side) => { const q = __bvSoft(tell, 0); q.scale.set(reach * 1.4, 0.7, 1); q.position.set(0, y0 + side * reach * 0.5, 0.15); g.add(q); return q; });
+  }
+  if (L.tell.shimmer) { X.tell.rings = [0, 1, 2].map(() => { const m = new THREE.Mesh(__bvYZ(new THREE.RingGeometry(0.94, 1, 48)), __bvAdd(tell, 0)); m.position.set(0, y0, H * 0.55); g.add(m); return m; }); }
+  if (L.tell.falling && h.c) {
+    const o = new THREE.Group(), thing = L.tell.falling;
+    if (thing === 'bell') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.55, 0.8, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0x8a6a32, side: THREE.DoubleSide })); b.rotation.x = Math.PI / 2; o.add(b); const lip = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.05, 6, 18), new THREE.MeshBasicMaterial({ color: 0xc9a75a })); lip.position.z = -0.4; o.add(lip); }
+    else if (thing === 'swarm') { for (let k = 0; k < 14; k++) { const b = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 3), new THREE.MeshBasicMaterial({ color: 0x1a1018 })); b.position.set(0, (rnd() - 0.5) * 1.6, (rnd() - 0.5) * 1.2); b.rotation.z = rnd() * 6; o.add(b); } }
+    else { o.add(new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 8), new THREE.MeshBasicMaterial({ color: 0x2a2624 }))); const band = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.04, 6, 16), new THREE.MeshBasicMaterial({ color: 0x6a5a48 })); o.add(band); }
+    o.visible = false; g.add(o); X.tell.thing = o; X.tell.thingKind = thing;
+  }
+  // HITS
+  const kind = L.hit;
+  if (kind === 'crescent') {
+    const R = Math.min(4.2, h.a && h.b ? Math.hypot(h.b[0] - h.a[0], h.b[1] - h.a[1]) + 0.4 : 3.2);
+    const vm = (blend) => new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, opacity: 1, depthWrite: false, side: THREE.DoubleSide, ...(blend ? { blending: THREE.AdditiveBlending } : {}) });
+    X.hit.arc = { R, outer: new THREE.Mesh(new THREE.PlaneGeometry(0.01, 0.01), vm(false)), inner: new THREE.Mesh(new THREE.PlaneGeometry(0.01, 0.01), vm(true)) };
+    X.hit.arc.outer.visible = X.hit.arc.inner.visible = false;
+    g.add(X.hit.arc.outer); g.add(X.hit.arc.inner);
+    X.hit.sparks = Array.from({ length: 8 }, () => { const s = __bvSoft(core, 0); s.scale.setScalar(0.18); g.add(s); return { s, a: rnd(), v: 2 + rnd() * 3 }; });
+  } else if (kind === 'dust' || kind === 'sound') {
+    const rise = h.rise != null ? h.rise : 1;
+    X.hit.fronts = [-1, 1].map(() => {
+      const f = new THREE.Group(); g.add(f);
+      if (kind === 'dust') {
+        // (a curling wall: puffs packed to its height, the front ones lighter, a trail of thinner ones behind it)
+        for (let k = 0; k < 14; k++) { const back = k >= 9, s = __bvSoft(k % 3 ? dust : '#c8b49a', back ? 0.45 : 0.95); s.scale.setScalar((back ? 0.9 : 0.7) + rnd() * 0.7); s.position.set(rnd() * 0.3, back ? -0.6 - rnd() * 1.2 : (rnd() - 0.6) * 0.5, back ? rise * rnd() * 0.6 : rise * (0.1 + 1.0 * ((k % 9) / 8))); f.add(s); }
+        const edge = new THREE.Mesh(__bvYZ(new THREE.PlaneGeometry(0.9, 0.14)), __bvAdd(hot, 0.95)); edge.position.set(0.05, -0.2, 0.07); f.add(edge);
+        const glow = __bvSoft(hot, 0.6); glow.scale.set(1.6, 0.6, 1); glow.position.set(0.1, 0, 0.12); f.add(glow);
+        f.userData.chips = Array.from({ length: 5 }, () => { const c = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshBasicMaterial({ color: 0x4a3f34 })); g.add(c); return { c, v: 2 + rnd() * 2.5, off: rnd() }; });
+      } else {
+        for (let k = 0; k < 4; k++) { const q = new THREE.Mesh(__bvYZ(new THREE.PlaneGeometry(0.07, rise)), __bvAdd(k ? hot : core, k ? 0.7 - k * 0.15 : 0.95)); q.position.set(0, -k * 0.28, rise / 2); f.add(q); }
+        const cap = new THREE.Mesh(__bvYZ(new THREE.PlaneGeometry(1, 0.05)), __bvAdd(core, 0.8)); cap.position.set(0, -0.4, rise); f.add(cap);
+      }
+      return f;
+    });
+  } else if (kind === 'impact') {
+    const s = __bvSoft(core, 0); s.scale.setScalar(0.1); g.add(s); X.hit.star = s;
+    X.hit.puffs = Array.from({ length: 8 }, (_, k) => { const q = __bvSoft(dust, 0); g.add(q); return { q, side: k % 2 ? 1 : -1, v: 1.5 + rnd() * 2, z: 0.1 + rnd() * 0.5 }; });
+  } else if (kind === 'streak') {
+    const rise = h.rise != null ? h.rise : 1.2;
+    X.hit.lines = [0.12, 0.3, 0.5, 0.7, 0.88].map((f, k) => { const q = new THREE.Mesh(__bvYZ(new THREE.PlaneGeometry(1, k === 2 ? 0.16 : 0.08)), k === 2 ? __bvAdd(core, 0.95) : __bvFlat(hot, 0.8)); q.position.z = rise * f; q.userData.lag = [0.6, 0.2, 0, 0.35, 0.8][k]; g.add(q); return q; });
+    X.hit.ghosts = [0, 1, 2].map((k) => { const q = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, H * 0.9), __bvFlat(hot, 0.4 - k * 0.11)); q.position.z = H * 0.45; q.visible = false; g.add(q); return q; });
+  }
+  return X;
+}
+// (a crescent's sector in the lane's plane: from up-and-behind to the angle it has come down to, facing its dir)
+function __bvSector(mesh, r0, r1, a0, a1, dir, cy, cz, hex) {
+  // (its alpha falling off toward its start, the trail behind the edge; the inner side thinner than the outer: a crescent)
+  const n = 28, pos = [], col = [], idx = [], c0 = new THREE.Color(hex || '#ffffff');
+  for (let k = 0; k <= n; k++) {
+    const f = k / n, a = a0 + (a1 - a0) * f, c = Math.cos(a) * dir, s = Math.sin(a), ri = r1 - (r1 - r0) * Math.sin(Math.PI * Math.min(1, f * 1.1)) ;
+    pos.push(0, cy + c * ri, cz + s * ri, 0, cy + c * r1, cz + s * r1);
+    const al = Math.pow(f, 1.6);
+    col.push(c0.r, c0.g, c0.b, al, c0.r, c0.g, c0.b, al);
+    if (k) { const i = k * 2; idx.push(i - 2, i - 1, i, i - 1, i + 1, i); }
+  }
+  mesh.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); g.setIndex(idx); mesh.geometry = g;
+}
+function __bvFxStep(X, h, t, by) {
+  const shown = t >= h.tm, lands = t >= h.t0 && t <= h.t1 + 0.35, u = h.t0 > h.tm ? Math.min(1, Math.max(0, (t - h.tm) / (h.t0 - h.tm))) : 1;
+  const k = h.t1 > h.t0 ? Math.min(1, Math.max(0, (t - h.t0) / (h.t1 - h.t0))) : 1, fade = t > h.t1 ? Math.max(0, 1 - (t - h.t1) / 0.35) : 1;
+  X.g.visible = shown;
+  const T = X.tell, by0 = by && by.transform ? by.transform.pos : [0, X.y0, 0], yb = by0[1];
+  // TELLS: brightening to the landing, gone as it lands
+  const telling = shown && t < h.t0;
+  if (T.glint) { T.glint.visible = telling; T.glint.position.set(0.05, yb + X.dir * 0.45, T.glintZ); T.glint.scale.setScalar(0.3 + 1.3 * u * u); T.glint.material.rotation = t * 3; T.glint.material.opacity = 0.4 + 0.6 * u; }
+  if (T.cracks) { const o = telling ? (0.25 + 0.75 * u) * (0.75 + 0.25 * Math.sin(t * 25)) : lands ? 0.5 * fade : 0; T.cracks.material.opacity = o; for (const q of T.crackGlow) q.material.opacity = o * 0.55; }
+  if (T.rings) T.rings.forEach((m, i) => { const q = ((t * 1.6 + i / 3) % 1), r = 0.4 + (1 - q) * 3.2; m.visible = telling; m.scale.setScalar(r); m.position.y = yb; m.material.opacity = (0.15 + 0.5 * u) * q; });
+  if (T.thing) { const fall = telling ? Math.max(0, (t - h.tm) / (h.t0 - h.tm)) : 1; T.thing.visible = telling; T.thing.position.set(0, h.c[1], 0.5 + 9 * (1 - fall * fall)); if (T.thingKind === 'swarm') T.thing.children.forEach((b, i) => { b.rotation.x = Math.sin(t * 22 + i) * 0.8; }); else T.thing.rotation.x = t * 4; }
+  // HITS: drawn while it lands, fading after
+  const Hh = X.hit;
+  if (Hh.arc) {
+    const on = lands, A = Hh.arc, a0 = 1.9, a1 = a0 - (1.9 + 1.05) * Math.min(1, k * 1.4), cz = X.H * 0.62;
+    A.outer.visible = A.inner.visible = on;
+    if (on) { const from = Math.min(a0, a1 + 1.6); __bvSector(A.outer, A.R * 0.45, A.R, from, a1, X.dir, yb, cz, X.hex.hot); __bvSector(A.inner, A.R * 0.9, A.R * 1.02, from, a1, X.dir, yb, cz, X.hex.core); A.outer.material.opacity = 0.95 * fade; A.inner.material.opacity = fade; }
+    Hh.sparks.forEach((p, i) => { const age = Math.max(0, t - h.t0 - i * 0.02); p.s.material.opacity = on && age < 0.5 ? 1 - age / 0.5 : 0; const a = a1 + p.a * 0.6; p.s.position.set(0.05, yb + X.dir * (Math.cos(a) * A.R + p.v * age * 0.6), cz + Math.sin(a) * A.R + p.v * age * 0.4 - 4.9 * age * age); });
+  }
+  if (Hh.fronts) {
+    const r = h.r0 + (h.r1 - h.r0) * k, o = h.o || [0, yb];
+    Hh.fronts.forEach((f, i) => {
+      const side = i ? 1 : -1; f.visible = lands; f.position.set(0, o[1] + side * r, 0); f.scale.y = side;
+      f.children.forEach((c) => { if (c.material) c.material.opacity = (c.userData.op ?? (c.userData.op = c.material.opacity)) * fade; });
+      for (const C of f.userData.chips || []) { const q = ((t - h.t0) * 2 + C.off) % 1; C.c.visible = lands; C.c.position.set(0, o[1] + side * (r + 0.3 + q * 0.8), C.v * q - 6 * q * q + 0.05); C.c.rotation.set(q * 9, q * 7, 0); }
+    });
+  }
+  if (Hh.star) {
+    const age = t - h.t0, on = age >= 0 && age < 0.6;
+    Hh.star.visible = on; Hh.star.position.set(0.05, h.c[1], 0.5); Hh.star.scale.setScalar(on ? 3.2 * (1 - age / 0.6) + 0.3 : 0.1); Hh.star.material.opacity = on ? 1 - age / 0.6 : 0; Hh.star.material.rotation = age * 2;
+    for (const p of Hh.puffs) { const a = Math.max(0, age), on2 = age >= 0 && age < 1; p.q.visible = on2; p.q.position.set(0, h.c[1] + p.side * p.v * Math.sqrt(a), p.z + a * 0.6); p.q.scale.setScalar(0.4 + a * 1.4); p.q.material.opacity = on2 ? 0.7 * (1 - a) : 0; }
+  }
+  if (Hh.lines) {
+    const a = h.a, b = h.b, y1 = a[1] + (b[1] - a[1]) * k, ya = a[1];
+    Hh.lines.forEach((q) => { q.visible = lands; const len = Math.max(0.05, Math.abs(y1 - ya) - q.userData.lag); q.scale.y = len; q.position.y = y1 - X.dir * (len / 2 + q.userData.lag); q.material.opacity = (q.userData.op ?? (q.userData.op = q.material.opacity)) * fade; });
+    Hh.ghosts.forEach((q, i) => { q.visible = lands && k > 0.1; q.position.y = yb - X.dir * (0.7 + i * 0.7); q.material.opacity = (0.3 - i * 0.08) * fade; });
+  }
+}
 function __bvSideMark(h) {
   const grp = new THREE.Group(), tell = h.tellColour || '#ffd27a', hot = h.colour || '#ff5a3a';
   grp.position.z = h.z || 0;
   const T = __bvBands(__bvLane(h, null), h, tell, 0.18); grp.add(T);
   scene.add(grp);
-  return { grp, side: true, tell: T.children.filter((x, i) => i % 2 === 0), edge: T.children.filter((x, i) => i % 2 === 1), hot: null, hotT: -1, h, hex: hot };
+  const fx = __bvFx(h, __world.byId[h.by]);
+  return { grp, side: true, fx, tell: T.children.filter((x, i) => i % 2 === 0), edge: T.children.filter((x, i) => i % 2 === 1), hot: null, hotT: -1, h, hex: hot };
 }
 function __bvMark(h) {
   const grp = new THREE.Group(), z = (h.z || 0) + 0.06, tell = h.tellColour || '#ffd27a', hot = h.colour || '#ff5a3a';
@@ -228,11 +356,14 @@ function __bvFrame() {
     const shown = t >= h.tm, lands = t >= h.t0 && t <= h.t1, u = h.t0 > h.tm ? Math.min(1, Math.max(0, (t - h.tm) / (h.t0 - h.tm))) : 1;
     m.grp.visible = shown;
     if (m.side) {
-      // (from the side: its mark filling to its landing; while it lands, the stretch it is on now, bright)
-      for (const x of m.tell) x.material.opacity = lands ? 0.08 : 0.1 + 0.3 * u + 0.08 * Math.sin(t * (6 + 10 * u));
+      // (from the side: its mark filling to its landing; while it lands, the stretch it is on now, bright; a move with a
+      // LOOK keeps its mark faint under it, the look the show and the mark the read)
+      if (m.fx) __bvFxStep(m.fx, h, t, W.byId[h.by]);
+      const dim = m.fx ? 0.45 : 1;
+      for (const x of m.tell) x.material.opacity = dim * (lands ? 0.08 : 0.1 + 0.3 * u + 0.08 * Math.sin(t * (6 + 10 * u)));
       for (const x of m.edge) x.material.opacity = lands ? 0.2 : 0.4 + 0.5 * u;
       if (m.hot) { m.grp.remove(m.hot); m.hot.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); m.hot = null; }
-      if (lands) { m.hot = __bvBands(__bvLane(h, t), h, m.hex, 0.75); m.grp.add(m.hot); }
+      if (lands) { m.hot = __bvBands(__bvLane(h, t), h, m.hex, m.fx ? 0.3 : 0.75); m.grp.add(m.hot); }
       continue;
     }
     const beat = 0.5 + 0.5 * Math.sin(t * (6 + 10 * u));
@@ -243,7 +374,7 @@ function __bvFrame() {
     else if (h.shape === 'strafe') { const n = m.hot.length - 1, dt = (h.t1 - h.t0) / Math.max(1, n); m.hot.forEach((y, i) => { const tk = h.t0 + i * dt; y.visible = t >= tk && t <= tk + 0.5; }); }
     else m.hot.visible = lands;
   }
-  for (const [id, m] of __BV.marks) if (!seen.has(id)) { scene.remove(m.grp); __BV.marks.delete(id); }
+  for (const [id, m] of __BV.marks) if (!seen.has(id)) { scene.remove(m.grp); if (m.fx) scene.remove(m.fx.g); __BV.marks.delete(id); }
   // MINES: amber while they arm, red once armed
   const ms = new Set();
   for (const q of W.mines || []) {

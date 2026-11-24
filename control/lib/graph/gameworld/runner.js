@@ -101,6 +101,9 @@ import { BOSSES } from './bosses.js';
 import { bossSpec } from './boss-spec.js';
 import { sideMapOf } from './side-map/scene.js';
 import { sideMapBossCast } from './side-map/boss-cast.js';
+import { CASTLE_FIGURES, figuredBosses } from './metroidvania/bosses.js';
+import { isCastle, layCastle } from './metroidvania/castle.js';
+import { layBox } from './metroidvania/box.js';
 import { stagedFront } from './front-stage.js';
 
 const REF_MAX = 64;
@@ -403,6 +406,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
   // the side maps' bosses (bosses.js): one figure each, minted through the hero door at `<ref>-foe-<id>`
   steps.push(...sideMapBossSteps(G, ref, { ready: true }));
   const bossRefs = sideMapBossRefs(G, ref);
+  // (a metroidvania's castle bosses, each its own figure: metroidvania/bosses.js)
+  steps.push(...castleBossSteps(G, ref));
+  const castleRefs = castleBossRefs(G, ref);
   // the minigames' keepers (minigames.js): one figure, minted as a hero is, standing at every stall
   // (and the shops' merchant and innkeeper on the battle stages, battles.js: the same figure where the minigames stand
   // one, else the shopkeeper's)
@@ -560,7 +566,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit
     const sl = walkedSlots(st, endOf[i], s);
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(costar ? { costar } : {}), ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(steps.some((x) => x.key.startsWith('hero-held-')) ? { heldRefs: Object.fromEntries(steps.filter((x) => x.key.startsWith('hero-held-')).map((x) => [x.key.slice(10), x.ref])) } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(costar ? { costar } : {}), ...(s.section === 'street' || G.factions || G.law ? { foeRefs } : {}), ...(steps.some((x) => x.key === 'hero-sheathed') ? { sheathRef: childRef(ref, 'hero-sheathed') } : {}), ...(steps.some((x) => x.key.startsWith('hero-held-')) ? { heldRefs: Object.fromEntries(steps.filter((x) => x.key.startsWith('hero-held-')).map((x) => [x.key.slice(10), x.ref])) } : {}), ...(ownMoves ? { moves: ownMoves } : {}), ...GA, ...(heroGaits ? { heroGaits } : {}), ...(heroStature ? { heroStature } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(sl ? { story: sl } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights, ...sheetOf(G, s, runScore), ...gunnerRefOf(G, ref), ...(s.section === 'metroidvania' && Object.keys(castleRefs).length ? { castleBossRefs: castleRefs } : {}) });
     // (a party RPG marks no way out: no flag over its exits, the road or the door itself the way on)
     if (G.battles && G.battles.on !== 'board') L.args = unmarked(L.args);
     // on an epoch's map, a level won goes back to the map
@@ -749,6 +755,16 @@ const levelPrint = (G, args, hostile) => (hostile ? fingerprint({ args, foes: be
 // (a worker bot, a roster boss with a `workbot` body, is stood as its card's rig: nothing to mint)
 const sideMapBossIds = (G) => [...new Set(G.ids.map((id) => G.levels[id].sidemap?.boss).filter((id) => id && !BOSSES[id]?.workbot))];
 const sideMapBossRefs = (G, ref) => Object.fromEntries(sideMapBossIds(G).map((id) => [id, childRef(ref, `foe-${id}`)]));
+// a metroidvania's castle bosses (metroidvania/bosses.js CASTLE_FIGURES): each the box names, made by its door as
+// `boss-<id>`, the level standing it in its room once its foes join
+const castleBossIds = (G) => figuredBosses(G.ids.flatMap((id) => { const w = G.levels[id].metroidvania; if (!w) return []; const L = isCastle(w) ? layCastle(w) : layBox(w); return L.rooms.filter((r) => r.boss).map((r) => r.boss); }));
+const castleBossRefs = (G, ref) => Object.fromEntries(castleBossIds(G).map((id) => [id, childRef(ref, `boss-${id}`)]));
+const castleBossSteps = (G, ref) => castleBossIds(G).map((id) => {
+  const F = CASTLE_FIGURES[id], key = `boss-${id}`, title = `${G.name ?? G.id} ${id.replace(/-/g, ' ')}`;
+  if (F.animal) return beastStep(key, childRef(ref, key), F.animal, title);
+  const mint = { kind: 'layered', via: 'hero', title, spec: F.hero };
+  return { key, ref: childRef(ref, key), ready: true, order: { spec: F.hero, mint, motion: null }, print: fingerprint({ spec: F.hero }) };
+});
 // (its identity hue the one its level's map holds back for its boss: the dress's, side-map/dress.js; the law that keeps it
 // its own reads the map's zones, so the boss stands out of every one of them)
 const sideMapBossHue = (G, id) => { const lv = G.ids.find((k) => G.levels[k].sidemap?.boss === id), s = gameStages(G).find((x) => x.level === lv && x.section === 'sidemap'); return s ? sideMapOf({ ...s.manifest, ...(G.feel ? { feel: G.feel } : {}) }).dress.palette.boss : null; };

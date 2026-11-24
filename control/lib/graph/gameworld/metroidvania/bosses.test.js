@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { boxOf } from './scene.js';
-import { CASTLE_BOSSES, BOSS_DEFAULT, BOSS_LAWS, FIGHT_ROOM, bossRow, bossLaws } from './bosses.js';
+import { CASTLE_BOSSES, BOSS_DEFAULT, BOSS_LAWS, FIGHT_ROOM, CASTLE_FIGURES, bossRow, bossLaws, figuredBosses, standBosses } from './bosses.js';
+import { readGameworld } from '../world.js';
+import { runSteps } from '../runner.js';
+import { vampireSonataGame } from './vampire-sonata.js';
 import { vampireSonata, vampireSonataCastle } from './vampire-sonata.js';
 
 let B, S;
@@ -51,4 +54,19 @@ describe('the castle\'s bosses', () => {
     expect(C.bosses.map((b) => bossRow(b.name).known)).not.toContain(false);
     expect(bossLaws(C).filter((l) => !l.holds)).toEqual([]);
   });
+
+  it('each boss with a figure is made by the runner and stood as it, grown to its tier; one with none stands as a block', () => {
+    const names = S.bosses.map((b) => b.name), ids = figuredBosses(names);
+    expect(ids.length).toBeGreaterThan(0);
+    const R = runSteps(vampireSonataGame({ heroRef: 'erina-ref' }), { ref: 'vs' }), steps = R.steps ?? R;
+    for (const id of ids) expect(steps.find((x) => x.key === `boss-${id}`)).toBeDefined();
+    // (stood: a door's body on its ref, at its tier; a beast fitted to its tier's height; no ref, no figure)
+    const G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' })), refs = Object.fromEntries(ids.map((id) => [id, `ref-${id}`]));
+    const P = standBosses(G, S, { stature: 1.63, refs }), e = P.entities[0], row = bossRow(S.bosses[0].name);
+    expect(P.figures[e.body.figure].heroRef).toBe(`ref-${row.id}`);
+    expect(e.body.scale).toBe(CASTLE_FIGURES[row.id].hero ? row.tier : undefined);
+    const bare = standBosses(G, S, { stature: 1.63 });
+    expect(bare.figures[bare.entities[0].body.figure].heroRef ?? null).toBe(null);
+    expect(figuredBosses(['the Great Bell', 'a stranger'])).toEqual([]);
+  }, 120000);
 });

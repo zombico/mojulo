@@ -3,6 +3,7 @@ import { PATTERNS, PATTERN_IDS, readPattern, layPattern, hazardHit } from './pat
 import { patternLaws, hazardReads, BODY } from './laws.js';
 import { BOSSES, BOSS_IDS, readBoss, moveOf, mindPhases, bossLaws } from './bosses.js';
 import { VEHICLES, VEHICLE_IDS, readVehicle, partHit, vehicleLaws } from './vehicles.js';
+import { ATTACK_LOOKS, readAttackLook, lookOfMove } from './looks.js';
 
 // BOSS FIGHTS (lib/graph/boss/): attack patterns as timelines held to the laws a body needs of them, human bosses as
 // gimmicks over those patterns in phases, vehicle bosses as parts and states won by mechanics.
@@ -70,6 +71,20 @@ describe('a side view\'s patterns', () => {
     // (on open ground the same front is left sideways)
     expect(readPattern(id).hazards.length).toBeGreaterThan(0);
     expect(lawsOf(patternLaws('cleave')).escapable).toBe(true);
+  });
+});
+
+describe('attack looks', () => {
+  it('a look is told and then lands: each draws a pattern of the shelf, a move wearing its pattern\'s or its own thing', () => {
+    for (const id of Object.keys(ATTACK_LOOKS)) expect(PATTERNS[id]).toBeDefined();
+    const id = Object.keys(ATTACK_LOOKS).find((k) => ATTACK_LOOKS[k].tell.falling);
+    expect(lookOfMove({ id: 'm', pattern: id })).toEqual({ tell: { ...ATTACK_LOOKS[id].tell }, hit: ATTACK_LOOKS[id].hit });
+    expect(lookOfMove({ id: 'm', pattern: id, look: { tell: { falling: 'bell' } } }).tell.falling).toBe('bell');
+    // (a move whose pattern has no look wears none; a look of a word the shelf lacks is refused)
+    expect(lookOfMove({ id: 'm', pattern: PATTERN_IDS.find((k) => !ATTACK_LOOKS[k]) })).toBe(null);
+    expect(() => readAttackLook({ tell: { smoke: true }, hit: 'crescent' })).toThrow(/tell/);
+    expect(() => readAttackLook({ tell: { glint: 'tail' }, hit: 'crescent' })).toThrow(/glint/);
+    expect(() => readAttackLook({ tell: {}, hit: 'boom' })).toThrow(/hit/);
   });
 });
 
