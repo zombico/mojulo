@@ -5,7 +5,7 @@
  *
  *   readBuild(build, at?)        → the build, its stock's parts under the ones it names; throws, teaching
  *                                  build: a STOCK name, or { from?: <stock>, head?, core?, …, armR?, armL?, backR?, backL? }
- *                                  (a weapon slot null: none in it)
+ *                                  (a weapon slot null: none in it; the head null where the core carries its own sensors)
  *   assembleFrame(build)         → { build, parts, weight, ap, load, over, move, en, fcs, weapons, laws }
  *     weight    kg, every part and weapon
  *     over      how far over the legs' load (0 within it; 0.2 a fifth over)
@@ -34,17 +34,19 @@ export function readBuild(build, at = 'frame.build') {
   const from = build.from ?? 'vanguard';
   if (!STOCK[from]) throw new Error(`${at}.from is a stock frame (${Object.keys(STOCK).join(', ')})`);
   const B = { ...STOCK[from] };
-  for (const s of SLOTS) if (build[s] !== undefined) { partOf(s, build[s]); B[s] = build[s]; }
+  for (const s of SLOTS) if (build[s] !== undefined) { if (!(s === 'head' && build[s] === null)) partOf(s, build[s]); B[s] = build[s]; }
+  // (a headless core takes no head; a head on it is left off, said by its law)
+  if (partOf('core', B.core).headless) B.head = null;
   for (const s of WEAPON_SLOTS) if (build[s] !== undefined) { if (build[s] !== null) partOf(s, build[s]); B[s] = build[s]; }
   return B;
 }
 
 export function assembleFrame(build) {
   const B = readBuild(build);
-  const parts = Object.fromEntries(SLOTS.map((s) => [s, partOf(s, B[s])]));
+  const parts = Object.fromEntries(SLOTS.filter((s) => B[s] !== null).map((s) => [s, partOf(s, B[s])]));
   const weapons = Object.fromEntries(WEAPON_SLOTS.filter((s) => B[s]).map((s) => [s, partOf(s, B[s])]));
   const weight = [...Object.values(parts), ...Object.values(weapons)].reduce((a, p) => a + p.weight, 0);
-  const ap = ['head', 'core', 'arms', 'legs'].reduce((a, s) => a + parts[s].ap, 0);
+  const ap = ['head', 'core', 'arms', 'legs'].reduce((a, s) => a + (parts[s]?.ap ?? 0), 0);
   const L = parts.legs, Bs = parts.booster, G = parts.generator, F = parts.fcs;
   // carried above the legs: everything but the legs themselves
   const carried = weight - L.weight, over = Math.max(0, r2(carried / L.load - 1));
@@ -58,7 +60,7 @@ export function assembleFrame(build) {
     jump: r2(L.jump * slow), lift: r2(Bs.lift * Math.min(1.1, massK) * slow), land: r2(L.land * (1 + over)), height: L.height,
   };
   const en = { max: G.en, regen: G.regen, delay: G.delay, out: G.out, cost: { ...Bs.cost } };
-  const fcs = { lock: F.lock, range: F.range + (parts.head.sensor || 0), cone: F.cone, locks: F.locks };
+  const fcs = { lock: F.lock, range: F.range + ((parts.head ?? parts.core).sensor || 0), cone: F.cone, locks: F.locks };
   const energyShot = Math.max(0, ...Object.values(weapons).map((w) => w.energy || 0));
   const laws = [
     { law: 'load', ok: over === 0, says: over === 0 ? `within the legs' load (${Math.round(carried / 1000)} of ${Math.round(L.load / 1000)} t)` : `${Math.round(over * 100)}% over the legs' load: slower on its feet and its boost` },

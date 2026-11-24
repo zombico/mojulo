@@ -8,10 +8,11 @@
  * A part is a row. A new part is a row: its slot, its class, its numbers. Units: kg, metres, seconds, m/s; EN is the
  * generator's energy, in points.
  *
- *   head       ap, weight; sensor (m: the lock's reach is the FCS's, a head lengthens it by this)
- *   core       ap, weight; size the body's girth (1 a medium core)
+ *   head       ap, weight; sensor (m: the lock's reach is the FCS's, a head lengthens it by this). A core that is
+ *              `headless` (its cockpit and sensors in a forward fuselage) takes none: the slot null, its `sensor` the core's
+ *   core       ap, weight; size the body's girth (1 a medium core); headless (a forward fuselage: no head), sensor
  *   arms       ap, weight; aim (rad/s: how fast the arms come round onto a lock), recoil (a heavy arm steadies a gun: 0..1)
- *   legs       ap, weight; load (kg the legs carry before they are overweight), walk (m/s), jump (m/s up off the
+ *   legs       ap, weight; joint 'reverse' (the knee bent back) or a biped's; load (kg the legs carry before they are overweight), walk (m/s), jump (m/s up off the
  *              ground), land (s the legs take a hard landing in), height (m of the hips over the ground)
  *   booster    weight; boost (m/s, a skate's speed at its rated mass), rated (kg), qb (m/s of a quick boost), qbTime (s),
  *              qbCool (s), lift (m/s² up while ascending, over the world's gravity), cost { boost, qb, ascend } (EN a
@@ -45,6 +46,8 @@ export const PARTS = f({
   core: f({
     'cr-vanguard': row({ name: 'Vanguard', class: 'medium', ap: 9500, weight: 15500, size: 1, about: 'a medium core: a chest of layered plate over the cockpit block, intakes at the sides' }),
     'cr-raptor': row({ name: 'Raptor', class: 'light', ap: 6800, weight: 11000, size: 0.86, about: 'a slim core, its chest cut back for the arms\' reach' }),
+    // (a forward fuselage: the cockpit and its sensors carried in a prow ahead of the shoulders, so the frame wears no head)
+    'cr-prow': row({ name: 'Prow', class: 'medium', ap: 10400, weight: 16800, size: 1, headless: true, sensor: 60, about: 'a forward fuselage: a long armoured prow ahead of the shoulders carrying the cockpit under a narrow canopy, its optics in a chin turret beneath it; no head' }),
     'cr-citadel': row({ name: 'Citadel', class: 'heavy', ap: 13200, weight: 21500, size: 1.16, about: 'a broad heavy core, its chest a slab of armour, its collar high round the head' }),
   }),
   arms: f({
@@ -55,6 +58,8 @@ export const PARTS = f({
   legs: f({
     'lg-medium': row({ name: 'Biped M', class: 'medium', ap: 9800, weight: 19500, load: 64000, walk: 11, jump: 13, land: 0.35, height: 5.2, about: 'medium biped legs: the thighs armoured, the shins carrying their own thrusters' }),
     'lg-light': row({ name: 'Biped L', class: 'light', ap: 6900, weight: 14200, load: 41000, walk: 13, jump: 16, land: 0.22, height: 5.0, about: 'light biped legs: long and lean, a jump that carries' }),
+    // (reverse-joint legs: the knee bent back as a bird's, a long shin down to a splayed foot; they jump and land lightest)
+    'lg-reverse': row({ name: 'Reverse M', class: 'medium', joint: 'reverse', ap: 9200, weight: 18200, load: 63000, walk: 12, jump: 19, land: 0.26, height: 5.6, about: 'reverse-joint legs: thighs slung back from the hips, the knee bent back like a bird\'s, a long shin forward to a splayed three-toed foot with a spur behind; a jump that carries far' }),
     'lg-heavy': row({ name: 'Biped H', class: 'heavy', ap: 13800, weight: 27800, load: 84000, walk: 8.5, jump: 10, land: 0.55, height: 5.4, about: 'heavy biped legs: wide plated thighs, broad feet, a landing that shakes' }),
   }),
   booster: f({
@@ -103,7 +108,8 @@ export function partOf(slot, id) {
 /** The stock frames: a build each (a part in every slot, a weapon in each of the four or none). */
 export const STOCK = f({
   // the pilot's first: a medium all-rounder, rifle and bazooka in the hands, missiles and a mortar on the shoulders
-  vanguard: f({ head: 'hd-sentinel', core: 'cr-vanguard', arms: 'ar-standard', legs: 'lg-medium', booster: 'bs-kestrel', generator: 'gn-standard', fcs: 'fc-standard',
+  // (its fuselage forward and no head, on reverse-joint legs)
+  vanguard: f({ head: null, core: 'cr-prow', arms: 'ar-standard', legs: 'lg-reverse', booster: 'bs-kestrel', generator: 'gn-standard', fcs: 'fc-standard',
     armR: 'rf-carbine', armL: 'bz-breaker', backR: 'ms-hornet', backL: 'gc-mortar' }),
   // a light striker: shotgun and laser, quick boosts, a missile pod
   raptor: f({ head: 'hd-lancet', core: 'cr-raptor', arms: 'ar-light', legs: 'lg-light', booster: 'bs-falcon', generator: 'gn-quick', fcs: 'fc-close',
