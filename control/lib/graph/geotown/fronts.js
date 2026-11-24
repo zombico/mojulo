@@ -31,8 +31,9 @@ export const FRONT = Object.freeze({
   balcony: Object.freeze({ stride: 6.5, w: 3, d: 1.3, rail: 1, edge: 1.5 }),
   bay: Object.freeze({ proj: 0.85, most: 3, least: 1.8, clear: 1.2, edge: 0.35, fascia: 0.25, glass: Object.freeze({ w: 0.62, h: 0.56, sill: 0.8, frame: 0.07, bar: 0.05 }) }),
   // a garage under the house (the Avenues'): its door's width at most and least, its height, its frame, how proud of the
-  // wall it stands
-  garage: Object.freeze({ w: 2.6, least: 2.2, h: 2.2, frame: 0.12, proud: 0.04 }),
+  // wall it stands, how far it keeps from the house's door (its frame a hand from the door's), its door's paint (a
+  // roll-up door painted pale, never the house door's colour)
+  garage: Object.freeze({ w: 2.6, least: 2.2, h: 2.2, frame: 0.12, proud: 0.04, clear: 0.3, paint: '#e6e1d6' }),
 });
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
@@ -54,6 +55,13 @@ function baySpan({ W, doorX, doorW }) {
   const B = FRONT.bay, right = doorX < W / 2, lo = right ? doorX + doorW / 2 + B.clear : B.edge, hi = right ? W - B.edge : doorX - doorW / 2 - B.clear;
   const w = Math.min(B.most, hi - lo);
   return w >= B.least ? { c: (lo + hi) / 2, w } : null;
+}
+
+/** Where a garage stands: the side of the front away from the door, kept a hand from it (a narrow house's door near its
+ *  middle leaves a car's width beside it, where a bay's span would not). */
+function garageSpan({ W, doorX, doorW }) {
+  const G = FRONT.garage, B = FRONT.bay, right = doorX < W / 2, lo = right ? doorX + doorW / 2 + G.clear + G.frame : B.edge, hi = right ? W - B.edge : doorX - doorW / 2 - G.clear - G.frame;
+  return { c: (lo + hi) / 2, w: hi - lo };
 }
 
 /** The front an evoked house wears: its porch, then its bay. */
@@ -130,14 +138,14 @@ export function frontOf(front = {}, house) {
     out.push({ corners: [P(L[0], L[1], z1), P(R[0], R[1], z1), P(FR[0], FR[1], z1), P(FL[0], FL[1], z1)], out: [0, 0, 1], role: 'roof' });
     if (upper) out.push({ corners: [P(L[0], L[1], z0), P(FL[0], FL[1], z0), P(FR[0], FR[1], z0), P(R[0], R[1], z0)], out: [0, 0, -1], role: 'trim' });
   }
-  // ── a garage under the house: its door in the ground storey where a bay would stand (the side away from the house's
-  // door), in a frame a hand proud of the wall, a lintel over it; none where the side is too narrow for a car ──
+  // ── a garage under the house: its door in the ground storey on the side away from the house's door, in a frame a
+  // hand proud of the wall; none where the side is too narrow for a car ──
   if (front.garage) {
-    const G = FRONT.garage, span = baySpan(house), w = span ? Math.min(G.w, span.w) : 0;
-    if (span && w >= G.least) {
+    const G = FRONT.garage, span = garageSpan(house), w = Math.min(G.w, span.w);
+    if (w >= G.least) {
       const x0 = span.c - w / 2, x1 = span.c + w / 2, y = -G.proud, f = G.frame;
       out.push(...box(x0 - f, y - 0.02, x1 + f, 0, 0, G.h + f, 'trim'));
-      out.push({ corners: [P(x0, y - 0.03, 0), P(x1, y - 0.03, 0), P(x1, y - 0.03, G.h), P(x0, y - 0.03, G.h)], out: [0, -1, 0], role: 'door', storey: 0 });
+      out.push({ corners: [P(x0, y - 0.03, 0), P(x1, y - 0.03, 0), P(x1, y - 0.03, G.h), P(x0, y - 0.03, G.h)], out: [0, -1, 0], role: 'door', storey: 0, hex: G.paint });
       // (its panels' joints across it, four of them)
       for (let k = 1; k < 4; k++) { const z = (G.h * k) / 4; out.push({ corners: [P(x0, y - 0.035, z - 0.02), P(x1, y - 0.035, z - 0.02), P(x1, y - 0.035, z + 0.02), P(x0, y - 0.035, z + 0.02)], out: [0, -1, 0], role: 'trim' }); }
     }
