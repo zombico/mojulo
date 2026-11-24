@@ -167,6 +167,9 @@ export const INSTRUMENTS = {
   'tubular-bells': { patch: 'tubularBells', chain: [{ type: 'reverb', wet: 0.36, decay: 3.6 }], feel: 'robotic' },
   timpani: { patch: 'timpani', chain: [{ type: 'reverb', wet: 0.3, decay: 3 }], feel: { jitterTime: 0.005, jitterVel: 0.08 } },
 };
+// the saxophones: a horn's body (its two formants, lower for the bigger horn) and a room
+const SAX_BODY = { soprano: [1700, 3400], alto: [1400, 2900], tenor: [1100, 2400], baritone: [800, 1900] };
+for (const [voice, [f1, f2]] of Object.entries(SAX_BODY)) INSTRUMENTS[`${voice}-sax`] = { patch: `sax${voice[0].toUpperCase()}${voice.slice(1)}`, chain: [{ type: 'body', mix: 0.2, resonances: [{ freq: f1, q: 2.5, gain: 0.7 }, { freq: f2, q: 3, gain: 0.35 }] }, { type: 'reverb', wet: 0.22, decay: 2.2 }], feel: { jitterTime: 0.008, jitterVel: 0.12 } };
 for (const w of ['flute', 'clarinet', 'oboe', 'bassoon']) INSTRUMENTS[w + '-2'] = { ...INSTRUMENTS[w], patch: w + '2', feel: 'ensemble' };
 // `-3` (audio improvements) = the solo player whose tone follows force (harmonicsLoud).
 for (const w of ['flute', 'clarinet', 'oboe', 'bassoon']) INSTRUMENTS[w + '-3'] = { ...INSTRUMENTS[w], patch: w + '3' };
@@ -266,6 +269,7 @@ const RANGE = {
   'tubular-bells': ['C4', 'F5'], timpani: ['D2', 'C4'], crotales: ['C6', 'C8'],
   'drop-guitar': ['B1', 'E6'], 'picked-bass': ['B0', 'G4'], 'slap-bass': ['B0', 'G4'],
   'twang-guitar': ['E2', 'E6'], 'crunch-guitar': ['E2', 'E6'], 'pedal-steel': ['E2', 'E6'], banjo: ['C3', 'D6'],
+  'soprano-sax': ['G#3', 'D#6'], 'alto-sax': ['C#3', 'G#5'], 'tenor-sax': ['G#2', 'E5'], 'baritone-sax': ['C#2', 'G#4'],
   harmonica: ['C4', 'C7'], 'upright-bass': ['E1', 'G4'], fiddle: ['G3', 'E7'], 'classical-guitar': ['E2', 'B5'],
   'flamenco-guitar': ['E2', 'B5'], 'gypsy-jazz-guitar': ['E2', 'C6'],
 };
