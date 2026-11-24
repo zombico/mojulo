@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { boxOf } from './scene.js';
 import { readBox } from './box.js';
 import { BOX_THEMES } from './themes.js';
-import { BAY_PIECES, FOCAL_PIECES, DETAIL_GROUPS } from './backdrop.js';
+import { BAY_PIECES, FOCAL_PIECES, DETAIL_GROUPS, rockCells } from './backdrop.js';
 import { MOTION } from './dress.js';
 import { GATES } from './gates.js';
 import { BOX_LOOKS } from './hud.js';
@@ -40,6 +40,15 @@ describe('XenoJager: a dangerous planet explored down through its crust', () => 
     for (const id of named) expect(BAY_PIECES[id] ?? FOCAL_PIECES[id], id).toBeTruthy();
     const groups = new Set(B.dress.faces.map((f) => f.group));
     for (const g of ['box:lava', 'box:water', 'box:glowpod', 'box:sway']) { expect(groups, g).toContain(g); expect(DETAIL_GROUPS).toContain(g); expect(B.dress.ambient.groups[g], g).toEqual(MOTION[g]); }
+    // (its boulders are real rocks of the look's rock, its crystals real stones of its gem, shaded live and throwing no
+    // print, grown as they are out of a wall; the wall itself fractured rock, never coursed)
+    const rocks = B.dress.faces.filter((f) => f.group === 'box:rock'), gems = B.dress.faces.filter((f) => f.crystal);
+    expect(rocks.length).toBeGreaterThan(0);
+    expect(new Set(rocks.map((f) => f.piece)).size).toBeLessThan(rocks.length / 10);
+    expect(gems.length).toBeGreaterThan(0);
+    expect(new Set(gems.map((f) => f.crystal.gem)).size).toBeGreaterThan(1);
+    expect(gems.every((f) => f.crystal.print === false && f.group === 'box:crystal')).toBe(true);
+    expect(rocks.every((f) => f.corners.every((p) => p[0] < -1.6))).toBe(true);
     // (the sky over the crust is a planet's: a ringed world and a second moon over spires of rock)
     expect(T.night.planet && T.night.moon2 && T.night.skyline).toBeTruthy();
   });
@@ -54,6 +63,19 @@ describe('XenoJager: a dangerous planet explored down through its crust', () => 
     // (its feel the run and gun's own, its wall kept: the lowered rule clings)
     const R = feelRule({ pole: XENOJAGER_HANDLE.feel.pole, takes: true });
     expect(R).toBeTruthy();
+  });
+
+  it('breaks rock as rock breaks: boulders of every shape, never in courses, the same either side of a cut', () => {
+    const C = rockCells(0, 20, 0, 11, { size: [2.1, 1.7], seed: 'test' });
+    expect(C.length).toBeGreaterThan(30);
+    expect(C.every((c) => c.pts.every(([a, z]) => a >= -1e-6 && a <= 20 + 1e-6 && z >= -1e-6 && z <= 11 + 1e-6))).toBe(true);
+    // (no courses: the boulders' centres share no row)
+    expect(new Set(C.map((c) => Math.round(c.c[1] * 100))).size).toBeGreaterThan(C.length * 0.9);
+    expect(rockCells(0, 20, 0, 11, { size: [2.1, 1.7], seed: 'test' })).toEqual(C);
+    // (a face cut in two breaks the same: a boulder wholly in the left half is the same boulder)
+    const L = rockCells(0, 10, 0, 11, { size: [2.1, 1.7], seed: 'test' }), inL = (c) => c.pts.every(([a]) => a < 9.5);
+    const at = (cs) => cs.filter(inL).map((c) => c.c.map((v) => v.toFixed(6)).join(',')).sort();
+    expect(at(L)).toEqual(at(C));
   });
 
   it('is pure: the same words build the same planet', () => {

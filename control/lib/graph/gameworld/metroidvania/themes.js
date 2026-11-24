@@ -36,6 +36,10 @@
  *     parapet  `crag`: behind an open ring's walk, a crag of rock where a castle has its merlons
  *     ceiling `stalactites` · near `stalagmite` · crevices (a glowing slit of a deeper cavern high in each bay) · lamp
  *              `glow` (pods on a stalk) · hazard (`water` | `lava`: recorded in the dress plan for the game to come)
+ *     rock     what its boulders are (polygonizer/rock-minerals.js ROCK_PRESETS: granite unsaid, basalt, slate, marble,
+ *              quartzite): real rocks, fractured and grained
+ *     gem      what its crystals are (polygonizer/crystal-optics.js: quartz unsaid, amethyst, sapphire, ruby, tourmaline,
+ *              …): real stones the page shades live
  *   the NIGHT { zenith, horizon, moon: { colour, r }, towers, skyline?, planet?, moon2? }   the sky an open ring stands
  *              under (a planet's: `skyline: 'spires'`, a ringed `planet` { colour, ring, r } and a second moon)
  *   the LOCALES  a room its own place inside its ring (docs/metroidvania-map.md "Locales"): a locale is a look's words laid
@@ -124,24 +128,24 @@ const XENO = Object.freeze({
   name: 'a dangerous planet explored down through its crust',
   night: Object.freeze({ zenith: '#0a0618', horizon: '#3a1a3a', moon: Object.freeze({ colour: '#d8f0c8', r: 1.0 }), towers: '#1a0e1e', skyline: 'spires', planet: Object.freeze({ colour: '#c87a4a', ring: '#e8c890', r: 5.5 }), moon2: Object.freeze({ colour: '#9ab8ff', r: 0.55 }) }),
   looks: Object.freeze([
-    Object.freeze({ place: 'the crust', open: true, cave: true, fabric: 'rock', parapet: 'crag', back: '#1a1220', stone: '#6a4a44', mortar: '#3a2826', top: '#b08a70', trim: '#5a4040',
+    Object.freeze({ place: 'the crust', open: true, cave: true, rock: 'basalt', gem: 'quartz', fabric: 'rock', parapet: 'crag', back: '#1a1220', stone: '#6a4a44', mortar: '#3a2826', top: '#b08a70', trim: '#5a4040',
       path: 'rock', ledge: 'stone', bays: Object.freeze(['boulders', 'boulders']), focal: 'monolith', first: 'lander', dark: 0.5, lamp: Object.freeze({ kind: 'glow', colour: '#7affd0', reach: 6 }), shaft: 'chasm' }),
-    Object.freeze({ place: 'the fungal caverns', cave: true, fabric: 'rock', wall: 'rock', back: '#1e2a22', stone: '#4c5c48', mortar: '#263022', top: '#8aa07a', trim: '#3a4a34', glass: '#3affa0',
+    Object.freeze({ place: 'the fungal caverns', cave: true, rock: 'slate', gem: 'tourmaline', fabric: 'rock', wall: 'rock', back: '#1e2a22', stone: '#4c5c48', mortar: '#263022', top: '#8aa07a', trim: '#3a4a34', glass: '#3affa0',
       path: 'rock', ledge: 'stone', bays: Object.freeze(['fungus', 'tendrils']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'bloom', dark: 0.36, lamp: Object.freeze({ kind: 'glow', colour: '#7affa8', reach: 4.4 }), shaft: 'grotto', alt: 'boulderfield', save: 'station' }),
-    Object.freeze({ place: 'the flooded depths', cave: true, fabric: 'rock', wall: 'rock', back: '#142236', stone: '#3c4c5e', mortar: '#1c2634', top: '#7a96b4', trim: '#2c3c50', glass: '#4ad0ff', hazard: 'water',
+    Object.freeze({ place: 'the flooded depths', cave: true, rock: 'marble', gem: 'sapphire', fabric: 'rock', wall: 'rock', back: '#142236', stone: '#3c4c5e', mortar: '#1c2634', top: '#7a96b4', trim: '#2c3c50', glass: '#4ad0ff', hazard: 'water',
       path: 'rock', ledge: 'stone', bays: Object.freeze(['waterfall', 'crystals']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'fossil', dark: 0.3, lamp: Object.freeze({ kind: 'glow', colour: '#6ad8ff', reach: 5.5 }), shaft: 'grotto', alt: 'ruins', boss: 'ruins', save: 'station' }),
-    Object.freeze({ place: 'the magma core', cave: true, fabric: 'rock', wall: 'rock', back: '#2a1010', stone: '#4e3430', mortar: '#2a1614', top: '#a07060', trim: '#5a2a20', glass: '#ff8a3a', hazard: 'lava',
+    Object.freeze({ place: 'the magma core', cave: true, rock: 'basalt', gem: 'ruby', fabric: 'rock', wall: 'rock', back: '#2a1010', stone: '#4e3430', mortar: '#2a1614', top: '#a07060', trim: '#5a2a20', glass: '#ff8a3a', hazard: 'lava',
       path: 'rock', ledge: 'stone', bays: Object.freeze(['lavafall', 'boulders']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'lavafall', dark: 0.3, lamp: Object.freeze({ kind: 'glow', colour: '#ff9a4a', reach: 5.4 }), boss: 'nest', hall: 'nest', save: 'station' }),
   ]),
   locales: Object.freeze({
     // (a save room: a station of the explorer's own, its beacon lit, cold light)
-    station: Object.freeze({ place: 'the save station', cave: true, back: '#1c2430', trim: '#8aa0c0', bays: Object.freeze(['crystals', 'crystals']), focal: 'beacon', dark: 0.36, lamp: Object.freeze({ kind: 'glow', colour: '#a0e8ff', reach: 5.5 }) }),
+    station: Object.freeze({ place: 'the save station', cave: true, gem: 'quartz', back: '#1c2430', trim: '#8aa0c0', bays: Object.freeze(['crystals', 'crystals']), focal: 'beacon', dark: 0.36, lamp: Object.freeze({ kind: 'glow', colour: '#a0e8ff', reach: 5.5 }) }),
     // (the crust's shafts: a chasm closed in rock, crystals in its walls)
-    chasm: Object.freeze({ place: 'the chasm', open: false, cave: true, wall: 'rock', back: '#22161e', bays: Object.freeze(['crystals', 'boulders']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'monolith', dark: 0.34, lamp: Object.freeze({ kind: 'glow', colour: '#c88aff', reach: 5.0 }) }),
+    chasm: Object.freeze({ place: 'the chasm', open: false, cave: true, gem: 'amethyst', wall: 'rock', back: '#22161e', bays: Object.freeze(['crystals', 'boulders']), ceiling: 'stalactites', near: 'stalagmite', crevices: true, focal: 'monolith', dark: 0.34, lamp: Object.freeze({ kind: 'glow', colour: '#c88aff', reach: 5.0 }) }),
     // (a grotto of crystals, their light their own)
-    grotto: Object.freeze({ place: 'the crystal grotto', back: '#1e1a34', glass: '#c08aff', bays: Object.freeze(['crystals', 'tendrils']), focal: 'monolith', dark: 0.32, lamp: Object.freeze({ kind: 'glow', colour: '#c88aff', reach: 5.0 }) }),
+    grotto: Object.freeze({ place: 'the crystal grotto', gem: 'amethyst', back: '#1e1a34', glass: '#c08aff', bays: Object.freeze(['crystals', 'tendrils']), focal: 'monolith', dark: 0.32, lamp: Object.freeze({ kind: 'glow', colour: '#c88aff', reach: 5.0 }) }),
     // (a field of fallen boulders)
-    boulderfield: Object.freeze({ place: 'the boulder field', back: '#2a2622', bays: Object.freeze(['boulders', 'fungus']), focal: 'fossil', dark: 0.3 }),
+    boulderfield: Object.freeze({ place: 'the boulder field', rock: 'granite', back: '#2a2622', bays: Object.freeze(['boulders', 'fungus']), focal: 'fossil', dark: 0.3 }),
     // (the ruins of a people before, sunk in the depths: carved monoliths, water over them)
     ruins: Object.freeze({ place: 'the sunken ruins', back: '#1a2a2e', trim: '#6a8a7a', bays: Object.freeze(['ruin', 'waterfall']), focal: 'monolith', dark: 0.3 }),
     // (the core's nest: pods pulsing in the rock, the thing that laid them)

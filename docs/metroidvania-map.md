@@ -451,10 +451,28 @@ Its locales are the save `station` (the explorer's beacon), the crust's `chasm` 
 `boulderfield`, the sunken `ruins` and the core's `nest`. Its lamps are `glow` pods, breathing. Its water, lava,
 glowing life and swaying tendrils move on the page's ambient channel (`MOTION`).
 
+Nothing on the planet is laid in courses. Its rock is broken as rock breaks (`backdrop.js` `rockCells`): boulders of
+every shape, each a cell of a jittered grid's point, their corners rounded, the dark of the cracks between them. The
+grid is fixed in the box's metres, so a face cut by a room's edge breaks the same on either side. The cave's wall is
+built this way. So are the fabric's floors, walls and roofs, and the walk's top, in slabs split across it.
+
+Its boulders and crystals are mojulo's own materials, not drawings:
+
+- **Boulders** are real rocks (`polygonizer/rock-pool.js`): fractured along their minerals' cleavage and grained by
+  their modal mix, of the look's `rock` (basalt, slate, marble, granite). A few variants are made once per rock and kept.
+  Only the faces turned from the wall are drawn, half as deep as they are wide, so a boulder stands proud of the wall
+  and never into the lane. A heap's big boulder carries its fractures' detail; the small ones are the fractured block
+  alone.
+- **Crystals** are real stones of the look's `gem` (`polygonizer/crystal-faces.js`): each its lattice's own faces, a
+  druse grown out of the rock, many small and a few long, glowing. The page's crystal channel shades them live. Grown
+  out of a wall, they throw no print (`print: false`); a print needs a floor under the stone.
+
+A piece drawn in many faces, a boulder or a druse, counts as one piece of detail in the backdrop's laws.
+
 The fabric reads the look's `fabric: 'rock'` and builds each closed part as rock rather than masonry. Floors, walls and
-roofs are the rock's own beds, the roofs hung with drips. Stairs and landings are boulders, and doorways are cave
-mouths. A tower's wall is cracked through each storey where a castle's has its slit. Ladders are metal. The crown
-along the top is the crust's skyline of crags.
+roofs are fractured rock, the roofs hung with drips. Stairs and landings are boulders, and doorways are cave mouths. A
+tower's wall is cracked through each storey where a castle's has its slit. Ladders are metal. The crown along the top
+is the crust's skyline of crags.
 
 Every law the castle holds, the planet holds (`xeno-jager.test.js`).
 

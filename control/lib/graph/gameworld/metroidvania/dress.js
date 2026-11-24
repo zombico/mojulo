@@ -37,7 +37,7 @@
 import { r5, hexRgb, rgbHex } from '../../era/geom.js';
 import { BOX_THEMES, lookOf, roomLook } from './themes.js';
 import { FLOOR, CEIL, boxCameraOf } from './rooms.js';
-import { composeRoom, drawPiece, diceOf, measure, archOf } from './backdrop.js';
+import { composeRoom, drawPiece, diceOf, measure, archOf, rockCells, EYE } from './backdrop.js';
 import { buildFabric } from './fabric.js';
 
 export const LAMP_REACH = 8;
@@ -252,14 +252,15 @@ export function dressBox(B, theme) {
         // (1) THE WALL: laid in its WALLS' masonry (ashlar unsaid; a chapel's plaster, a clock tower's brick, the
         // catacombs' rock) in courses, each course its own height (the same along the row, seeded by its height in the
         // box) and each block its own length and stone, lit domed; its joints breaking bond course to course
-        for (let z = z0; z < z1 - 1e-3;) {
+        // (a cave's wall is no masonry: its rock fractured into boulders heaped and split, each lit domed, the dark of
+        // the cracks between them; backdrop.js rockCells)
+        if (Lk.cave) for (const R of rockCells(s0, s1, z0, z1, { size: [2.1, 1.7], seed: 'cave', gap: 0.12 })) poly(faces, BACK, R.pts, shade(Lk.back, 1 - Wl.vary / 2 + R.k * Wl.vary), 'box:back', { pillow: RELIEF.pillow });
+        for (let z = Lk.cave ? z1 : z0; z < z1 - 1e-3;) {
           const n = Math.round(z / 0.05), ch = Wl.courses[Math.floor(diceOf(`course:${n}`)() * Wl.courses.length)];
           const zt = Math.min(z1, z + ch);
           for (let s = s0 - dice() * Wl.long[0]; s < s1 - 1e-3;) {
             const len = Wl.long[0] + dice() * (Wl.long[1] - Wl.long[0]), a = Math.max(s0, s), b = Math.min(s1, s + len);
-            // (a cave's rock: each bed's chunk its corners knocked, so the wall reads as the rock it is, never laid)
-            if (b - a > 0.1 && Lk.cave) { const bb = b - Wl.gap, tt = zt - Wl.gap, j = Math.min(0.3, (bb - a) * 0.22, (tt - z) * 0.3), m = z + (tt - z) * (0.35 + dice() * 0.3); poly(faces, BACK, [[a + j * dice(), z], [bb - j * dice(), z], [bb, m], [bb - j * dice(), tt], [a + j * dice(), tt], [a, m + (dice() - 0.5) * 0.2]], shade(Lk.back, 1 - Wl.vary / 2 + dice() * Wl.vary), 'box:back', { pillow: RELIEF.pillow }); }
-            else if (b - a > 0.1) face(faces, BACK, a, b - Wl.gap, z, zt - Wl.gap, shade(Lk.back, 1 - Wl.vary / 2 + dice() * Wl.vary), 'box:back', { pillow: Wl.gap ? RELIEF.pillow : 0.15 });
+            if (b - a > 0.1) face(faces, BACK, a, b - Wl.gap, z, zt - Wl.gap, shade(Lk.back, 1 - Wl.vary / 2 + dice() * Wl.vary), 'box:back', { pillow: Wl.gap ? RELIEF.pillow : 0.15 });
             s += len;
           }
           z = zt;
@@ -272,12 +273,15 @@ export function dressBox(B, theme) {
           // (a CAVE's wall: a rib of rock at the cell's edge, never a pier; a stratum where a storey would have its string
           // course; rubble along its foot, low and sparse so the band she moves in stays calm)
           poly(faces, BACK + 0.01, [[s0, z0], [s0 + 1.3, z0], [s0 + 0.9 + dice() * 0.5, (z0 + z1) / 2], [s0 + 1.2, z1], [s0, z1]], shade(Lk.back, 0.7), 'box:dress', { pillow: 0.4 });
-          // (the rock's beds: a stratum low along the wall where a castle lays its plinth, and two more up it, each a band
-          // the eye runs along, calm behind her)
-          // (each a seam that wanders, thick and thin, in the rock's own colour a shade off the wall's)
-          for (const [zz, k] of [[floor + 0.7, 0.9], [z0 + H * 0.45, 1.0], [z0 + H * 0.78, 0.95]]) {
-            const n = 6, xs = Array.from({ length: n + 1 }, (_, q) => s0 + 1.2 + ((s1 - s0 - 1.2) * q) / n), lo = xs.map(() => zz + (dice() - 0.5) * 0.7), th = xs.map(() => 0.06 + dice() * 0.24);
-            poly(faces, BACK + 0.015, [...xs.map((x, q) => [x, lo[q]]), ...xs.map((x, q) => [x, lo[q] + th[q]]).reverse()], shade(mix(Lk.back, Lk.stone, 0.5), k), 'box:dress');
+          // (the rock's own marks, one to each glance across it (backdrop.js EYE): a crack between its boulders, a patch
+          // of lichen, a vein of mineral catching the light; even over the wall, so the band she runs in is no busier)
+          // (one in each glance of the band she runs in, two in each over it: the eye's interest above her, as the castle's)
+          for (let gi = 0; gi < EYE.across; gi++) for (let gj = 0; gj < EYE.up; gj++) for (let m = 0; m < (gj ? 2 : 1); m++) {
+            const a0 = s0 + (gi * W) / EYE.across, b0 = a0 + W / EYE.across, c0 = z0 + (gj * H) / EYE.up, e0 = c0 + H / EYE.up;
+            const ms = Math.max(s0 + 1.6, a0 + 0.6 + dice() * (b0 - a0 - 1.2)), mz = Math.max(floor + 0.3, c0 + 0.5 + dice() * (e0 - c0 - 1.0)), kind = dice();
+            if (kind < 0.45) { let p = [ms, mz + 0.6]; for (let q = 0; q < 3; q++) { const nx = [p[0] + (dice() - 0.5) * 0.8, p[1] - 0.35 - dice() * 0.4]; bar(faces, BACK + 0.012, p, nx, 0.05, shade(Lk.back, 0.4), 'box:dress'); p = nx; } }
+            else if (kind < 0.8) poly(faces, BACK + 0.012, Array.from({ length: 6 }, (_, q) => { const t = (q / 6) * 2 * Math.PI, r = 0.25 + dice() * 0.3; return [ms + r * 1.4 * Math.cos(t), mz + r * Math.sin(t)]; }), mix(Lk.back, Lk.glass ?? '#7a9a6a', 0.3), 'box:dress');
+            else bar(faces, BACK + 0.012, [ms - 0.4, mz - 0.15], [ms + 0.45, mz + 0.2], 0.06, mix(Lk.top, Lk.glass ?? '#ffffff', 0.4), 'box:dress');
           }
           if (Lk.crevices) for (const b of [0, 1]) {
             // (a crevice high in each bay: the glow of a deeper cavern seen through the rock, as a castle's lancet shows the
@@ -452,6 +456,8 @@ export function dressBox(B, theme) {
     return base.map((v, q) => Math.min(1, v * (amb + add[q])));
   };
   const lit = (f) => {
+    // (a crystal is shaded live by the page's crystal channel: its light is its own)
+    if (f.crystal) return f;
     const n = f.corners.length, cx = f.corners.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + p[2] / n], [0, 0, 0]);
     const cs = Math.floor(cx[1] / W), cz = Math.floor(cx[2] / H), ls = around(byCell, cs, cz), os = around(occCell, cs, cz), base = hexRgb(f.fill);
     const { tilt, pillow, pc, sky, ...rest } = f;

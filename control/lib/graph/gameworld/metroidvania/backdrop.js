@@ -51,6 +51,8 @@
 import { rhythmFaults, wallRhythm } from '../../era/wall-rhythm.js';
 import { r5, hexRgb, rgbHex } from '../../era/geom.js';
 import { mulberry32 } from '../../city/plan/dice.js';
+import { rockPool } from '../../polygonizer/rock-pool.js';
+import { crystalTermFaces } from '../../polygonizer/crystal-faces.js';
 
 /** a screen in eye segments: four across, three up (a glance's worth of wall: about two of her heights each way) */
 export const EYE = Object.freeze({ across: 4, up: 3 });
@@ -60,7 +62,7 @@ export const DETAIL = Object.freeze({ min: 1, max: 60 });
 /** the pools of light: the share of a storey's wall lit above its dark, and a pool's heart against the dark between */
 export const POOLS = Object.freeze({ lit: Object.freeze([0.15, 0.7]), contrast: 2.5 });
 /** what counts as detail: the dress's own faces, not the wall's blocks nor the closed parts */
-export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame', 'box:stained', 'box:brew', 'box:lava', 'box:water', 'box:sway', 'box:glowpod']);
+export const DETAIL_GROUPS = Object.freeze(['box:dress', 'box:glass', 'box:lamp', 'box:flame', 'box:stained', 'box:brew', 'box:lava', 'box:water', 'box:sway', 'box:glowpod', 'box:rock', 'box:crystal']);
 // (a piece that turns is its own group, `box:turn:<id>`, so the page spins it about its hub; it is detail all the same)
 const isDetail = (g) => DETAIL_GROUPS.includes(g) || (typeof g === 'string' && g.startsWith('box:turn:'));
 export const BAY_PIECES = Object.freeze({
@@ -141,6 +143,46 @@ const shade = (hex, k) => rgbHex(hexRgb(hex).map((v) => Math.min(1, v * k)));
 const mix = (a, b, k) => rgbHex(hexRgb(a).map((v, i) => v + (hexRgb(b)[i] - v) * k));
 const seedOf = (id) => { let h = 2166136261; for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619); return h >>> 0; };
 export const diceOf = (id) => mulberry32(seedOf(String(id)));
+
+/**
+ * ROCK as it fractures (a cave's wall, a planet's fabric): the rect [s0, s1] × [z0, z1] broken into boulders, each the
+ * cell of a jittered grid's point nearer to it than to any other (no course, no bond, no two alike), drawn `gap` apart
+ * and its corners rounded, so the face reads as rock heaped and split, never laid. The grid is fixed in the box's own
+ * metres (`seed` naming the face), so a face cut in two by a room's edge breaks the same either side.
+ *   rockCells(s0, s1, z0, z1, { size: [w, h], seed, jitter?, gap? }) → [{ pts: [[s, z], …], c: [s, z], k }]   (k ∈ [0, 1), its own die)
+ */
+export function rockCells(s0, s1, z0, z1, { size = [2.2, 1.8], seed = 'rock', jitter = 0.4, gap = 0.08 } = {}) {
+  const [cw, ch] = size, out = [], P = new Map();
+  const pt = (i, j) => { const key = `${i},${j}`; if (!P.has(key)) { const d = diceOf(`${seed}:${key}`); P.set(key, [(i + 0.5 + (d() - 0.5) * 2 * jitter) * cw, (j + 0.5 + (d() - 0.5) * 2 * jitter) * ch, d()]); } return P.get(key); };
+  // (one half-plane clip: keep what lies on `p`'s side of the line `n · x = c`)
+  const clip = (poly, n, c) => {
+    const res = [];
+    for (let q = 0; q < poly.length; q++) {
+      const a = poly[q], b = poly[(q + 1) % poly.length], da = n[0] * a[0] + n[1] * a[1] - c, db = n[0] * b[0] + n[1] * b[1] - c;
+      if (da <= 0) res.push(a);
+      if ((da < 0 && db > 0) || (da > 0 && db < 0)) { const t = da / (da - db); res.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+    }
+    return res;
+  };
+  for (let i = Math.floor(s0 / cw) - 1; i <= Math.ceil(s1 / cw); i++) for (let j = Math.floor(z0 / ch) - 1; j <= Math.ceil(z1 / ch); j++) {
+    const p = pt(i, j);
+    if (p[0] < s0 - cw * 1.2 || p[0] > s1 + cw * 1.2 || p[1] < z0 - ch * 1.2 || p[1] > z1 + ch * 1.2) continue;
+    let poly = [[s0, z0], [s1, z0], [s1, z1], [s0, z1]];
+    for (let a = -2; a <= 2 && poly.length > 2; a++) for (let b = -2; b <= 2 && poly.length > 2; b++) {
+      if (!a && !b) continue;
+      const q = pt(i + a, j + b), n = [q[0] - p[0], q[1] - p[1]], l = Math.hypot(n[0], n[1]) || 1, u = [n[0] / l, n[1] / l];
+      poly = clip(poly, u, u[0] * (p[0] + q[0]) / 2 + u[1] * (p[1] + q[1]) / 2 - gap / 2);
+    }
+    if (poly.length < 3) continue;
+    const area = Math.abs(poly.reduce((acc, a, q) => { const b = poly[(q + 1) % poly.length]; return acc + a[0] * b[1] - b[0] * a[1]; }, 0)) / 2;
+    if (area < 0.02) continue;
+    // (its corners rounded: each edge cut a quarter in from either end, a boulder's outline, not a shard's)
+    const round = poly.length > 8 ? poly : poly.flatMap((a, q) => { const b = poly[(q + 1) % poly.length]; return [[a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]]; });
+    const c = round.reduce((acc, a) => [acc[0] + a[0] / round.length, acc[1] + a[1] / round.length], [0, 0]);
+    out.push({ pts: round, c, k: p[2] });
+  }
+  return out;
+}
 
 /** A room's composition: its bays by the wall's rhythm, seeded by its id, and the cell and bay its focal piece takes. */
 export function composeRoom(room, look, { cellsAcross = room.rect[2] } = {}) {
@@ -521,21 +563,25 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     measure(sizes, 'figure.h', 1.5);
     proud(s - 1.2, s + 1.6, floor, tip[1], 0.5);
   } else if (id === 'boulders') {
-    // (boulders heaped against the wall as they came to rest: a big one on the floor, smaller ones on and beside it)
-    const rock = (cs, cz, r, k) => poly(out, x + 0.002 * k, Array.from({ length: 7 }, (_, q) => { const a = (q / 7) * 2 * Math.PI, w = 0.8 + dice() * 0.35; return [cs + r * w * Math.cos(a), Math.max(floor, cz + r * w * 0.82 * Math.sin(a))]; }), shade(L.stone, 0.72 + dice() * 0.3), 'box:dress', { pillow: 0.6 });
-    const R = 1.3 + dice() * 0.6;
-    rock(s, floor + R * 0.7, R, 0); rock(s - R * 1.3, floor + 0.55, 0.65, 1); rock(s + R * 0.35, floor + R * 1.5, R * 0.5, 2);
+    // (boulders heaped against the wall as they came to rest, each a real rock (polygonizer/rock-fracture.js: the look's
+    // `rock`, its grains and its fractures) seated on the floor, a big one and smaller ones beside and on it)
+    const R = 1.3 + dice() * 0.6, key = `boulders:${Math.round(s * 100)}:${Math.round(floor * 100)}`;
+    boulder(out, L, { at: [x + 0.1, s, floor - 0.15], size: R * 2, k: dice(), piece: `${key}:0` });
+    boulder(out, L, { at: [x + 0.4, s - R * 1.3, floor - 0.1], size: 1.3, k: dice(), piece: `${key}:1`, detail: 0 });
+    boulder(out, L, { at: [x + 0.1, s + R * 0.4, floor + R * 0.55], size: R, k: dice(), piece: `${key}:2`, detail: 0 });
     measure(sizes, 'boulder.r', R);
     proud(s - R * 1.8, s + R * 1.6, floor, floor + R * 2, 0.8);
   } else if (id === 'crystals') {
-    // (a cluster of crystals out of the rock, each a long hexagon's face, lit in the cave's glass)
-    const g = L.glass || '#8affe0', z0 = Math.min(top - 4, floor + 3.8 + dice() * 3);
-    poly(out, x, [[s - 1.2, z0 - 0.3], [s + 1.3, z0 - 0.4], [s + 0.9, z0 + 0.4], [s - 1.0, z0 + 0.3]], shade(L.stone, 0.6), 'box:dress', { pillow: 0.5 });
-    for (const [d, len, tilt] of [[0, 2.4, 0.05], [-0.6, 1.5, -0.45], [0.55, 1.8, 0.4], [-0.25, 1.0, -0.2], [0.95, 1.0, 0.75]]) {
-      const w = 0.16 + len * 0.06, ax = Math.sin(tilt), az = Math.cos(tilt), b = [s + d, z0], t = [b[0] + ax * len, b[1] + az * len];
-      poly(out, x + 0.006, [[b[0] - w * az, b[1] + w * ax], [b[0] + w * az, b[1] - w * ax], [t[0] + w * az - ax * 0.3, t[1] - w * ax - az * 0.3], t, [t[0] - w * az - ax * 0.3, t[1] + w * ax - az * 0.3]], mix(g, '#ffffff', 0.1 * (d > 0)), 'box:glowpod');
-      measure(sizes, 'crystal.l', len);
-    }
+    // (a druse of crystals grown out of the rock: real stones of the look's `gem` (polygonizer/crystal-faces.js), each its
+    // lattice's own faces, many small and a few long, glowing in their own colour and shaded live by the page)
+    const z0 = Math.min(top - 4, floor + 3.8 + dice() * 3), seed = Math.floor(dice() * 1e6);
+    poly(out, x, [[s - 1.2, z0 - 0.4], [s + 1.3, z0 - 0.5], [s + 0.9, z0 + 0.4], [s - 1.0, z0 + 0.3]], shade(L.stone, 0.6), 'box:dress', { pillow: 0.5 });
+    const stones = crystalTermFaces({ id: 'box:crystal', op: 'add', shape: { kind: 'crystal', gem: L.gem || 'quartz', center: [x + 0.1, s, z0], size: 2.4, unit: 'm', glow: 0.8,
+      cluster: { count: 7, seed, on: { disc: { center: [x + 0.05, s, z0], radius: 0.9, normal: [1, 0, 0.55] } }, lengths: [0.7, 2.4], tilt: 32, bury: 0.25 } } });
+    const piece = `crystals:${Math.round(s * 100)}:${Math.round(z0 * 100)}`;
+    // (grown out of the wall, it has no floor under it to throw its print on: scene/crystal-prints.js `print: false`)
+    for (const f of stones) out.push({ ...f, crystal: { ...f.crystal, print: false }, normal: f.outNormal, piece });
+    measure(sizes, 'crystal.l', 2.4);
     proud(s - 1.2, s + 1.4, z0 - 0.4, z0 + 2.4, 0.5);
   } else if (id === 'fungus') {
     // (a stand of giant fungi: three stalks of a body's height and over, their caps' gills lit from under)
@@ -568,8 +614,8 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     const flow = lava ? '#ff7a2a' : (L.glass ? mix(L.glass, '#ffffff', 0.25) : '#9ad8ff'), edge = lava ? '#5a1a10' : shade(flow, 0.7);
     const g = lava ? 'box:lava' : 'box:water';
     // (the crack it pours from: a dark mouth in a lip of rock jutting from the wall)
-    poly(out, x, [[s - w - 0.9, z1 - 0.1], [s + w + 0.8, z1 - 0.2], [s + w * 0.9, z1 + 0.7], [s - w * 0.3, z1 + 0.9], [s - w - 0.6, z1 + 0.5]], shade(L.stone, 0.75), 'box:dress', { pillow: 0.5 });
-    poly(out, x + 0.002, [[s - w * 0.6, z1 - 0.1], [s + w * 0.6, z1 - 0.1], [s + w * 0.4, z1 + 0.25], [s - w * 0.4, z1 + 0.25]], shade(L.back, 0.25), 'box:dress');
+    poly(out, x, [[s - w * 0.9, z1 + 0.1], [s - w * 0.3, z1 - 0.25], [s + w * 0.4, z1 - 0.2], [s + w + 0.2, z1 + 0.15], [s + w * 0.6, z1 + 1.1], [s - w * 0.5, z1 + 1.0]], mix(L.stone, L.top, 0.25), 'box:dress', { pillow: 0.6 });
+    poly(out, x + 0.002, [[s - w * 0.45, z1 - 0.05], [s + w * 0.45, z1 - 0.05], [s + w * 0.3, z1 + 0.3], [s - w * 0.3, z1 + 0.3]], shade(L.back, 0.3), 'box:dress');
     // (its sheet narrow at the lip, fanning as it falls, its edges wavering: a band at a time down to its pool)
     const n = 6, half = (k) => (w / 2) * (0.6 + 0.5 * (k / n)) * (1 + 0.12 * Math.sin(k * 2.1 + s));
     for (let k = 0; k < n; k++) {
@@ -624,7 +670,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     proud(s - r * 0.4, s + r * 0.4, cz - r * 0.4, cz + r * 0.4, 0.4);
   } else if (id === 'fossil') {
     // (the fossil of something vast set in the rock: its spine in an arc, its ribs off it, its skull at one end)
-    const bone = mix(L.top, '#e8dcc0', 0.4), cz = Math.min(top - 3, floor + 4.5), R = 4.0;
+    const bone = mix(L.top, '#e8dcc0', 0.4), cz = Math.min(top - 2.6, floor + 5.6), R = 4.0;
     poly(out, x - 0.004, [[s - R - 0.6, cz - 1.8], [s + R + 0.6, cz - 1.6], [s + R + 0.4, cz + 2.2], [s - R - 0.4, cz + 2.0]], shade(L.back, 0.75), 'box:dress', { pillow: 0.3 });
     let a = null;
     for (let k = 0; k <= 10; k++) { const t = -1 + k / 5, p = [s + t * R, cz + Math.cos(t * 1.2) * 1.2]; if (a) bar(out, x, a, p, 0.22, bone); if (k > 1 && k < 9) bar(out, x + 0.002, p, [p[0] + 0.15, p[1] - 1.1 - Math.cos(t) * 0.4], 0.09, shade(bone, 0.85)); a = p; }
@@ -673,6 +719,31 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     });
     proud(s - 0.45, s + 0.45, cz - 0.45, cz + 0.45, 0.4);
   }
+}
+
+/** THE ROCKS a planet's boulders are drawn from: a few real rocks of each kind (polygonizer/rock-pool.js), fractured and
+ * grained once and kept, their faces turned from the wall only (the wall hides the rest). Pure: the same rock, the same
+ * faces. */
+const ROCKS = new Map();
+/** a boulder's pool: its variants, its fractures' detail, how far its grain is toned toward the look's lit `top`, how much
+ * lighter than its grain it is drawn (proud of the wall, it catches more of the light), and its depth to its width */
+export const BOULDER = Object.freeze({ variants: 4, detail: 1, tone: 0.3, lift: 1.5, depth: 0.5 });
+function rocksOf(rock, detail = BOULDER.detail) {
+  const key = `${rock}:${detail}`;
+  // (each template scaled to a unit across its widest, so a boulder's `size` is its metres across)
+  if (!ROCKS.has(key)) ROCKS.set(key, rockPool({ rock, variants: BOULDER.variants, detail, seed: `box:${rock}`, group: 'box:rock' }).map((p) => {
+    const ps = p.faces.flatMap((f) => f.corners), w = Math.max(...[0, 1].map((k) => Math.max(...ps.map((q) => q[k])) - Math.min(...ps.map((q) => q[k])))) || 1;
+    return p.faces.filter((f) => f.outNormal[0] > -0.25).map((f) => ({ ...f, corners: f.corners.map((q) => q.map((v) => v / w)) }));
+  }));
+  return ROCKS.get(key);
+}
+/** one boulder: a rock of the look's `rock` (granite unsaid), `size` metres across, its base at `at`, its grain's colour
+ * toned a share toward the look's stone so it sits in its cave's light; one piece of detail, however many faces (a small
+ * one its fractured block alone, `detail` 0: a dozen faces) */
+function boulder(out, L, { at, size, k, piece, detail = BOULDER.detail }) {
+  const P = rocksOf(L.rock || 'granite', detail), faces = P[Math.floor(k * P.length) % P.length];
+  // (half as deep as it is wide, its back sunk in the wall: it stands proud of the wall and never into the lane)
+  for (const f of faces) out.push({ corners: f.corners.map((p) => [at[0] + p[0] * size * BOULDER.depth, at[1] + p[1] * size, at[2] + p[2] * size].map(r5)), normal: f.outNormal, fill: shade(mix(f.fill, L.top, BOULDER.tone), BOULDER.lift), group: 'box:rock', piece });
 }
 
 /** a disc of `n` sides */
@@ -748,12 +819,15 @@ export function backdropLaws(B, D) {
   const seg = new Map(), cellOf = (s, z) => `${Math.floor(s / W)},${Math.floor(z / H)}`;
   // (a piece counts in every eye segment it covers: a plinth along a whole cell is seen in every glance along it)
   const sw = W / EYE.across, sh = H / EYE.up;
+  // (a piece drawn in many faces, a real rock or a druse, is one piece of detail: counted once in each segment it covers)
+  const counted = new Set();
   for (const f of D.faces) {
     if (!isDetail(f.group)) continue;
     const ss = f.corners.map((p) => p[1]), zs = f.corners.map((p) => p[2]);
     const i0 = Math.floor(Math.min(...ss) / sw + 1e-6), i1 = Math.floor(Math.max(...ss) / sw - 1e-6), j0 = Math.floor(Math.min(...zs) / sh + 1e-6), j1 = Math.floor(Math.max(...zs) / sh - 1e-6);
     for (let gi = i0; gi <= Math.max(i0, i1); gi++) for (let gj = j0; gj <= Math.max(j0, j1); gj++) {
       const cs = Math.floor(gi / EYE.across), cz = Math.floor(gj / EYE.up), k = `${cs},${cz}`;
+      if (f.piece) { const once = `${f.piece}|${gi},${gj}`; if (counted.has(once)) continue; counted.add(once); }
       const a = seg.get(k) ?? seg.set(k, Array.from({ length: EYE.up }, () => Array(EYE.across).fill(0))).get(k);
       a[gj - cz * EYE.up][gi - cs * EYE.across]++;
     }

@@ -38,7 +38,7 @@
  * Pure: the same box and theme make the same faces. Nothing here is a collider: what is stood on is the greybox's.
  */
 import { r5, hexRgb, rgbHex } from '../../era/geom.js';
-import { diceOf, measure } from './backdrop.js';
+import { diceOf, measure, rockCells } from './backdrop.js';
 import { FLOOR, CEIL, WALL } from './rooms.js';
 
 /** THE PATHS a floor is laid in (a look's `path`): its pieces' lengths along the walk, its rows across it, how far a
@@ -47,7 +47,7 @@ export const PATHS = Object.freeze({
   flags: Object.freeze({ says: 'flagstones in two rows across the walk, each its own length and stone', long: Object.freeze([0.9, 1.7]), rows: 2, vary: 0.16 }),
   boards: Object.freeze({ says: 'boards along the walk on a beam, their butts staggered', long: Object.freeze([1.8, 3.4]), rows: 6, vary: 0.2, wood: true }),
   tiles: Object.freeze({ says: 'tiles in a checker of two tones', long: Object.freeze([0.75, 0.75]), rows: 4, vary: 0.04, checker: true }),
-  rock: Object.freeze({ says: "the rock's own beds, worn smooth where she walks", long: Object.freeze([0.7, 2.4]), rows: 3, vary: 0.32 }),
+  rock: Object.freeze({ says: "the rock's own floor, slabs split aslant across the walk, worn smooth where she walks", long: Object.freeze([1.4, 3.6]), rows: 1, vary: 0.3 }),
 });
 /** THE LEDGES a room's stair is built of (a look's `ledge`) */
 export const LEDGES = Object.freeze({
@@ -101,20 +101,12 @@ function stones(out, x, s0, s1, z0, z1, { course, long, fill, under, vary = 0.14
     }
   }
 }
-/** ROCK laid on a face (a planet's, a look's `fabric: 'rock'`): the rock's own beds, each chunk its own length and height
- * and shade, its corners knocked so no two meet square, the dark of the crack `under` them */
-function rockFace(out, x, s0, s1, z0, z1, { fill, under, d, group = 'box:stone', bed = [0.6, 1.3], long = [0.9, 2.6], vary = 0.3 }) {
+/** ROCK on a face (a planet's, a look's `fabric: 'rock'`): boulders fractured out of it (backdrop.js rockCells), each its
+ * own shade of `fill` and lit domed, the dark of the cracks `under` them; `size` a boulder's measure across and up */
+function rockFace(out, x, s0, s1, z0, z1, { fill, under, group = 'box:stone', size = [1.1, 0.8], seed = 'fabric', vary = 0.34 }) {
   if (s1 - s0 < 0.05 || z1 - z0 < 0.05) return;
   face(out, x - 0.004, s0, s1, z0, z1, under, 'box:mortar');
-  for (let za = z0, k = 0; za < z1 - 1e-3; k++) {
-    const zb = Math.min(z1, za + bed[0] + d() * (bed[1] - bed[0])), top = z1 - zb < bed[0] * 0.5 ? z1 : zb, g = 0.05;
-    for (let a = s0 - d() * long[0]; a < s1 - 1e-3;) {
-      const b = a + long[0] + d() * (long[1] - long[0]), aa = Math.max(s0, a) + (a > s0 ? g : 0), bb = Math.min(s1, b) - (b < s1 ? g : 0);
-      if (bb - aa > 0.12) { const j = Math.min(0.22, (bb - aa) * 0.2, (top - za) * 0.25); poly(out, x, [[aa + j * d(), za + g], [bb - j * d(), za + g], [bb, za + (top - za) * 0.5], [bb - j * d(), top - g], [aa + j * d(), top - g], [aa, za + (top - za) * 0.45]], shade(fill, 1 - vary / 2 + d() * vary), group, { pillow: 0.5 }); }
-      a = b;
-    }
-    za = top;
-  }
+  for (const R of rockCells(s0, s1, z0, z1, { size, seed, gap: 0.06 })) poly(out, x, R.pts, shade(fill, 1 - vary / 2 + R.k * vary), group, { pillow: 0.55 });
 }
 /** a solid's ends, turned to either side */
 function ends(out, s0, s1, z0, z1, fill) {
@@ -154,7 +146,11 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
       const tone2 = P.checker ? shade(mix(Lk.top, Lk.trim, 0.35), 0.74) : null;
       top(out, s.z1, -HALF, HALF, s.s0, s.s1, wood ? WOOD.beam : under, 'box:mortar');
       const rowW = (2 * HALF) / P.rows;
-      for (let k = 0; k < P.rows; k++) {
+      if (Lk.path === 'rock') {
+        // (the rock's own floor: the walk's top fractured as the wall is, slabs of every shape across it, never rows,
+        // each its own shade, worn smooth)
+        for (const R of rockCells(s.s0, s.s1, -HALF, HALF, { size: [2.4, 1.7], seed: 'path', gap: 0.05 })) quad(out, R.pts.map(([a, x]) => [x, a, s.z1 + 0.006]), N.top, shade(pathTop, 1 - P.vary / 2 + R.k * P.vary), 'box:stone');
+      } else for (let k = 0; k < P.rows; k++) {
         const x0 = -HALF + k * rowW, x1 = x0 + rowW;
         for (let a = s.s0 - d() * P.long[0] * (P.checker ? 0 : 1), n = 0; a < s.s1 - 1e-3; n++) {
           const len = P.checker ? P.long[0] : P.long[0] + d() * (P.long[1] - P.long[0]), b = a + len, aa = Math.max(s.s0, a), bb = Math.min(s.s1, b);
@@ -173,7 +169,7 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
       }
       if (Lk.fabric === 'rock') {
         // (a planet's floor: no course laid, the rock's own beds under its worn top, a drip of the cave here and there)
-        rockFace(out, F, s.s0, s.s1, s.z0, z, { fill: st, under, d });
+        rockFace(out, F, s.s0, s.s1, s.z0, z, { fill: st, under, seed: 'floor' });
         for (let a = s.s0 + 1 + d() * 3; a < s.s1 - 0.5; a += 3 + d() * 5) poly(out, F2, [[a - 0.25, z], [a + 0.25, z], [a + 0.02, z - 0.5 - d() * 0.6]], shade(st, 0.7), 'box:stone');
         ends(out, s.s0, s.s1, s.z0, s.z1, st);
         paths.push({ room: s.room, path: Lk.path ?? 'flags', top: pathTop, face: st });
@@ -193,7 +189,7 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
       if (Lk.fabric === 'rock') {
         // A ROOF OF ROCK: the beds over her, stalactites hung from their foot in unlike lengths (the crust's, at the box's
         // top, under the planet's sky)
-        rockFace(out, F, s.s0, s.s1, s.z0, s.z1, { fill: st, under, d, bed: [0.3, 0.6] });
+        rockFace(out, F, s.s0, s.s1, s.z0, s.z1, { fill: st, under, seed: 'roof', size: [0.9, 0.5] });
         for (let a = inner[0] + 0.3 + d(); a < inner[1] - 0.3; a += 0.7 + d() * 1.6) { const len = 0.2 + d() * d() * 1.1, w = 0.12 + len * 0.15; poly(out, F2, [[a - w, s.z0 + 0.02], [a + w, s.z0 + 0.02], [a + 0.02, s.z0 - len]], shade(st, 0.78 + d() * 0.2), 'box:stone', { tilt: [0, -0.6] }); }
         built.push({ i: s.i, as: open && near(s.z1, boxTop) ? 'crust' : 'rock-roof' });
       } else if (open && !near(s.z1, boxTop)) {
@@ -222,7 +218,7 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
         // A WALL OF ROCK: its beds stacked, no course and no plinth; on the box's edge a shaft's wall cracked through each
         // storey, a fissure of the deeper glow where a castle's tower has its slit
         const mid = (s.s0 + s.s1) / 2;
-        rockFace(out, F, s.s0, s.s1, s.z0, s.z1, { fill: st, under, d, long: [Math.min(0.9, s.s1 - s.s0), Math.max(1.2, s.s1 - s.s0)] });
+        rockFace(out, F, s.s0, s.s1, s.z0, s.z1, { fill: st, under, seed: 'wall', size: [Math.max(0.6, (s.s1 - s.s0) * 0.9), 1.1] });
         if (r.kind === 'shaft' && (near(s.s0, 0) || near(s.s1, boxEnd))) for (let k = r.rect[1]; k < r.rect[1] + r.rect[3]; k++) {
           const zc = k * H + FLOOR + FABRIC.slit.at, S = FABRIC.slit;
           if (zc - S.h / 2 < s.z0 + 0.3 || zc + S.h / 2 > s.z1 - 0.3) continue;
@@ -424,7 +420,7 @@ export function buildFabric(out, { greybox: G, layout: L, theme: T, lookRoom, co
     // (a planet's crust: no crown but the ground's own skyline, crags and spires of rock along the top, a boulder here and
     // there, the same crag under the box)
     const dk = diceOf('crust');
-    rockFace(out, F, -0.6, boxEnd + 0.6, boxTop, boxTop + 0.9, { fill: cst, under: shade(cst, 0.5), d: dk, bed: [0.9, 0.9] });
+    rockFace(out, F, -0.6, boxEnd + 0.6, boxTop, boxTop + 0.9, { fill: cst, under: shade(cst, 0.5), seed: 'crust', size: [1.4, 0.9] });
     for (let a = -0.6; a < boxEnd + 0.6;) { const w = 1.5 + dk() * 4, h = 0.6 + dk() * dk() * 4.5, pk = a + w * (0.3 + dk() * 0.4); poly(out, F2, [[a, boxTop + 0.85], [a + w, boxTop + 0.85], [a + w * 0.8, boxTop + 0.85 + h * 0.5], [pk, boxTop + 0.85 + h], [a + w * 0.15, boxTop + 0.85 + h * 0.4]], shade(mix(cst, T.night.towers, 0.3), 0.8 + dk() * 0.3), 'box:stone', { pillow: 0.5 }); a += w * 0.75; }
   } else {
   stones(out, F, -0.6, boxEnd + 0.6, boxTop, boxTop + 1.2, { course: 0.6, long: [0.9, 1.7], fill: cst, under: shade(cst, 0.5), d: diceOf('crown'), sizes });

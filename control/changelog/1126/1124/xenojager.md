@@ -11,9 +11,17 @@
     people before, a fossil, a great bloom, egg pods and the nest at the core.
   - **Its light.** Lamps are glowing pods. The water, the lava, the glowing life and the tendrils move on the page's
     ambient channel.
-- The fabric builds a rock look's closed parts as rock, where the castle builds masonry: floors, walls and roofs in the
-  rock's beds; stairs and landings as boulders; doorways as cave mouths; a tower's wall cracked through each storey; metal
-  ladders; the crust's crags along the top.
+- Nothing on the planet is laid in courses. Its rock breaks as rock does: boulders of every shape with dark cracks
+  between them, on the cave's wall, the fabric's floors, walls and roofs, and the walk's top.
+- Its boulders and crystals are mojulo's own materials:
+  - **Boulders** are real rocks, fractured and grained by their minerals, of each look's rock (basalt, slate, marble,
+    granite).
+  - **Crystals** are real stones of each look's gem (amethyst, sapphire, tourmaline, ruby, quartz), shaded live by the
+    page. Grown out of a wall, they throw no print onto the room below.
+  - A boulder or a druse counts as one piece of detail in the backdrop's laws, however many faces it has.
+- The fabric builds a rock look's closed parts as rock, where the castle builds masonry: stairs and landings as
+  boulders, doorways as cave mouths, a tower's wall cracked through each storey, metal ladders, and the crust's crags
+  along the top.
 - `xenoJager()` gives the planet's map words: the crust, the fungal caverns, the flooded depths and the magma core, with
   three powers opening the castle's three gates. Every law the castle holds, the planet holds.
 - There is no XenoJager game yet. `XENOJAGER_HANDLE` says what the next builder wires: the hero (an explorer in a suit,
