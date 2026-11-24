@@ -17,6 +17,8 @@
  *                in, keeping everything (held-gates.js)
  *   a FALL       out of the frame's bottom (none is laid: every room has its floor), counted as the side map counts it
  *   the GOAL     the throne's far side, behind the core's boss
+ *   the HUD      where the game has a `ui`: her vitals, what is found, the boss's bar and the pause's map on mana-ui
+ *                (hud.js), in the game's look re-keyed with the box's theme (BOX_LOOKS), heard in its UI sounds
  *
  *   boxLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, audio? })
  *     → { tool: 'create_sketch', args: { title, manifest }, laws }   laws: the box's own (laws.js), each `metroidvania:<id>`
@@ -27,8 +29,12 @@ import { playerWorld } from '../../playscape/player.js';
 import { feelRule, readFeel, feelCard, takesOfCard } from '../feel/lower.js';
 import { SIDE_MAP_STATURE } from '../side-map/scene.js';
 import { SIDE_FALL, LIMBO } from '../side-map/play.js';
-import { boxOf } from './scene.js';
+import { boxOf, BOSS_HP } from './scene.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
+import { boxHud, BOX_LOOKS, BOX_MENU_KEY } from './hud.js';
+import { BOX_THEMES } from './themes.js';
+import { interfaceLook } from '../../playscape/ui/interface-look.js';
+import { hudSounds } from '../../scene/channels/mana-hud-sounds.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 /** A box's hero's VITALS: her health and her MP (levels and their growth are the stats' to come) */
@@ -45,6 +51,16 @@ export function boxCamera(B, { target = 'hero' } = {}) {
     return { rect: [r3(s0), r3((c + w) * W), r3(z0), r3((rr + h) * H)], lock: r.kind === 'corridor' ? 'z' : r.kind === 'shaft' ? 's' : null, checkpoint: [r3(s0 + IN), r3(z0 + FLOOR)] };
   });
   return { rule: 'side-map', target, screen: [W, H], dist: C.dist, tilt: C.tilt, lookH: C.lookH, stature: B.stature, limbo: LIMBO, zones };
+}
+
+/** The box's HUD in the game's look: a castle's card re-keyed with its theme (a frost castle's frost card), its sounds
+ *  the look's own set. */
+function boxHudOf(G, B) {
+  const { layout: L, greybox: Gb } = B, keyed = G.ui?.theme === BOX_LOOKS.castle && L.theme && BOX_LOOKS[L.theme] ? BOX_LOOKS[L.theme] : null;
+  const look = interfaceLook(keyed ? { ...G, ui: { ...G.ui, theme: keyed } } : G).theme;
+  // (each room's place as it is dressed: its locale's, else its ring's)
+  const X = L.theme ? BOX_THEMES[L.theme].locales ?? {} : {}, looks = B.dress ? Object.fromEntries(Object.entries(B.dress.plan).filter(([, p]) => p.locale && X[p.locale]).map(([id, p]) => [id, { place: X[p.locale].place }])) : {};
+  return boxHud({ theme: look, layout: L, screen: Gb.screen, held: B.held, looks, bossHp: BOSS_HP, sounds: hudSounds(look) });
 }
 
 /** A metroidvania level's order: the stage's box built for the world's hero and played by it. */
@@ -80,6 +96,7 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
     game: { levelRef: ref, mechanics: [reach, ...lives], fall: 'none' },
     ...(mechanics?.play ? { play: mechanics.play } : {}),
     ...(audio ? { audio } : {}),
+    ...(G.ui !== undefined ? { manaHud: boxHudOf(G, B) } : {}),
   };
   return { tool: 'create_sketch', args: { title: name, manifest }, laws: B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })) };
 }

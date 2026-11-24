@@ -1,0 +1,21 @@
+{
+  "id": "nocturne-frost",
+  "name": "Nocturne under Frost",
+  "about": "Nocturne re-keyed for a castle under frost: silver for gold, ice-blue lines on a deep night blue, health still in crimson so it reads.",
+  "family": "grave",
+  "tags": ["metroidvania", "gothic", "winter", "castle"],
+  "author": "mojulo",
+  "from": "nocturne",
+  "tokens": {
+    "ink": "#e8f2fa",
+    "panel": "#081422",
+    "line": "#5c7c9e",
+    "accent": "#bcd8f0",
+    "accent2": "#8ac8ff",
+    "paper": "#0e1c2e",
+    "hp": "#d0384a",
+    "mp": "#7ab8ff",
+    "boss": "#3a6ab0",
+    "harm": "#ff7080"
+  }
+}

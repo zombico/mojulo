@@ -1,0 +1,21 @@
+{
+  "id": "galaxy-orbit",
+  "name": "Galaxy in Orbit",
+  "about": "Galaxy re-keyed for a station in orbit: deep space plates, mint for energy and amber for weapons, a boss in red. The same square edge, ticks and shutter as Galaxy.",
+  "family": "machine",
+  "tags": ["side-scroller", "action platformer", "robot", "8-bit", "space", "station"],
+  "author": "mojulo",
+  "from": "galaxy",
+  "tokens": {
+    "ink": "#eefcff",
+    "panel": "#040c18",
+    "line": "#eefcff",
+    "accent": "#5dffb0",
+    "accent2": "#ffc84a",
+    "paper": "#0a1828",
+    "hp": "#5dffb0",
+    "xp": "#ffc84a",
+    "boss": "#ff4a5a",
+    "harm": "#ff4a5a"
+  }
+}
