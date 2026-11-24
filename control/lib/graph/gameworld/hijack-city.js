@@ -16,8 +16,9 @@
  *                          (a Northeast metro's frame: brick walk-ups, low-rises and main streets among its midrises),
  *                          `suburbs` (its outskirts: colonials, garden apartments, walk-ups); each a geocity whose
  *                          evocation stands `at` its ring (geocity/design.js: the ring's most lived-in neighbourhood)
- *   hijackCityWorld({ name?, seed?, district?, register? }) → the starter gameworld (`district` a HIJACK_DISTRICTS word,
- *                          downtown by default; `register` its outskirts' pattern, geotown/pattern.js, the district's
+ *   hijackCityWorld({ name?, seed?, locale?, district?, register? }) → the starter gameworld (`locale` where it is,
+ *                          gameworld/locales.js: its register, district, light, sky, air and grade, each word named
+ *                          over it winning; `district` a HIJACK_DISTRICTS word, downtown by default; `register` its outskirts' pattern, geotown/pattern.js, the district's
  *                          own unless named, a San Francisco one laying it on the hill city in its fog): a hero, the
  *                          district, four story missions for one contact (the last the end), a repeated fare, two
  *                          crews, the law, the shops, the look, sound and music. A plain value: the same words give
@@ -26,8 +27,10 @@
  *                          starter under it; every key the creator wrote wins (gameworld/pitch-start.js)
  *   HIJACK_GROWS           the words the starter is grown by, each a key of the gameworld: what a person changes first
  *
- * Pure: no dice, no imports beyond the reader of a world's own keys.
+ * Pure: no dice; its locales' table (gameworld/locales.js) its one import.
  */
+import { localeOf } from './locales.js';
+
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export const HIJACK_CITY = 'Hijack City';
@@ -76,6 +79,7 @@ const MISSIONS = Object.freeze([
 export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
+  style: 'where it is, by a locale (`hijackCityWorld({ locale })`, gameworld/locales.js: los-angeles, miami, san-francisco, boston, toronto: its suburbs, light, sky, air and grade together), or its own `geocube`, `hour`, `clouds`, `air`',
   levels: 'the district: one of HIJACK_DISTRICTS (downtown, the inner city\'s walk-ups and main streets, the suburbs), its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, northeast, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, northeast, bayside), where in it (`geocity.at`: a neighbourhood or a ring), its size, its water, another district beside it',
   errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work',
   factions: 'the crews: their turf, their colours, their boards of work',
@@ -85,7 +89,10 @@ export const HIJACK_GROWS = Object.freeze({
   music: 'the score: walking, the chase, the tension',
 });
 
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, district: word = 'downtown', register = null } = {}) {
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null } = {}) {
+  // (`locale`: where it is, gameworld/locales.js: its suburbs' register, the part of town it stands in, its light, sky,
+  // air and grade; every word the person names over it wins. None: the starter as it always was)
+  const L = locale === null ? null : localeOf(locale), word = named ?? L?.district ?? 'downtown', register = own ?? L?.register ?? null;
   if (!HIJACK_DISTRICTS[word]) throw new Error(`hijack city: district is ${Object.keys(HIJACK_DISTRICTS).join(', ')}`);
   // (`register`: its outskirts' pattern, geotown/pattern.js PATTERNS: 'tropical' for a coast, 'bay-and-gable' for a
   // streetcar suburb, 'san-francisco' or 'sunset' the district laid on the hill city at its word's ring, in its fog;
@@ -99,7 +106,9 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, district: word =
     // sky, a haze thick enough that the far blocks pale a kilometre off, the finish over the bake (one tone curve, the
     // sky in the glass, the lamps' bloom) and the view cone, so the street's kit, its trees and its traffic are drawn as
     // far as they read)
-    style: { kit: 'trail-valley', geocube: { from: 'valley-morning', era: 'gen-7' }, clouds: 'fair', air: hill ? { ...HILL_AIR } : { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
+    style: { kit: 'trail-valley', geocube: { from: L ? L.cube : 'valley-morning', era: 'gen-7' }, ...(L?.hour ? { hour: L.hour } : {}), clouds: L?.clouds ?? 'fair', air: L?.air ? JSON.parse(JSON.stringify(L.air)) : hill ? { ...HILL_AIR } : { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
+    // (a locale's colour grade over every frame, grade.js)
+    ...(L?.grade ? { grade: L.grade } : {}),
     characters: {
       direction: { tradition: 'western' },
       hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold', 'athletic'] }, actions: { idiom: 'city-stalker-like' } },

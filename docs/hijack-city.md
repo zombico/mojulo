@@ -75,6 +75,23 @@ the glass, the lamps' bloom) and the view `cone`. Under the cone the street's ki
 traffic past 110 m is drawn as each vehicle's outline, cut on the page from its own model
 (`scene/channels/flow.js`, `FLOW_LOD`).
 
+## Locales
+
+`hijackCityWorld({ locale })` stands the game in a place (`gameworld/locales.js` `LOCALES`, one row each): its suburbs'
+register, the part of town it stands in unless one is named, the geocube it is lit by and its hour, its clouds, its air
+(a haze or a mist, its colour, how far it sees) and the world's colour `grade`. Every word a person names over a locale
+wins (`register`, `district`, or the style's own words). With no locale the starter is as it always was.
+
+| Locale | Suburbs | Light | Sky and air | Grade |
+| --- | --- | --- | --- | --- |
+| `los-angeles` | `west-coast` | the valley cube at the golden hour | clear; a warm smog, 2.6 km | `warm` |
+| `miami` | `tropical` | the island cube at noon | fair cumulus; a bright sea haze, 4.2 km | `vivid` |
+| `san-francisco` | `san-francisco`, on `bayside` | the valley cube in the morning | overcast; the mist lying low | `cold` |
+| `boston` | `northeast`, its inner city | the upland cube in the afternoon | overcast; a soft haze, 3 km | `film` |
+| `toronto` | `bay-and-gable` | the valley cube, its own hour | fair; a light haze, 3.5 km | none |
+
+A new locale is a row. Night locales wait on the night pass (lamps that light, headlights, bloom at night).
+
 ## The driving view
 
 The camera behind a car the hero drives is framed by the vehicle's size (`scene/channels/cab-pool.js` `cabView`): a car

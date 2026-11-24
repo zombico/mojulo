@@ -21,5 +21,10 @@
   bays up their fronts, stoops to their doors, Edwardian flats among them, corner stores). And the Avenues: rows of
   two-storey pastel stucco houses each over its own garage, a picture window above it, a car on every apron, few
   trees. A hill city to set them in, on a peninsula with water on three sides and cable cars up its streets.
+- Hijack City by locale: Los Angeles (ranches and palms in a low gold sun and a warm smog), Miami (pastel houses
+  and coconut palms under a high noon sun, a bright sea haze, vivid colour), San Francisco (the hill city in its
+  morning fog under a grey sky, cool), Boston (a brick inner city on an overcast afternoon, filmic) and Toronto (its
+  streetcar suburbs on a fair morning). Each is one word that sets the suburbs, the part of town, the light, the sky,
+  the air and the colour grade together; any of them can still be named over it.
 - Hijack City's suburbs are the West Coast's now; one word makes them a tropical coast, the northeastern suburb they
   were, or a San Francisco district in its fog.

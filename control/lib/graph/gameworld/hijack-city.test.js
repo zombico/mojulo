@@ -8,6 +8,7 @@ import { readGameworld } from './world.js';
 import { nearestRails, railOf, railSheet, laidGenre } from './rails.js';
 import { suggestGenres } from './intent.js';
 import { gameStages } from './levels.js';
+import { LOCALES, LOCALE_IDS } from './locales.js';
 
 describe('Hijack City', () => {
   it('its starter is a gameworld the book reads: a district, a contact\'s missions, the law and the shops', () => {
@@ -89,5 +90,22 @@ describe('Hijack City', () => {
     }
     expect(Object.keys(HIJACK_DISTRICTS)).toEqual(['downtown', 'inner-city', 'suburbs']);
   });
-});
 
+  it('stands in a locale by its word: its suburbs, its light, its sky, its air and its grade; the person\'s own words win; none is the starter as it was', () => {
+    expect(hijackCityWorld({ locale: null })).toEqual(hijackCityWorld());
+    expect(() => hijackCityWorld({ locale: 'atlantis' })).toThrow(/locale is/);
+    const L = LOCALES['los-angeles'], W = hijackCityWorld({ locale: 'los-angeles' }), g = Object.values(W.levels)[0].geocity;
+    expect(W.style).toMatchObject({ geocube: { from: L.cube }, hour: L.hour, clouds: L.clouds, air: L.air });
+    expect(W.grade).toBe(L.grade);
+    expect(g.outskirts).toBe(L.register);
+    expect(() => readGameworld(W)).not.toThrow();
+    // (a locale's own part of town, and the hill city for San Francisco's register)
+    expect(Object.values(hijackCityWorld({ locale: 'boston' }).levels)[0].geocity).toMatchObject({ metro: { from: 'northeast' }, at: 'frame' });
+    expect(Object.values(hijackCityWorld({ locale: 'san-francisco' }).levels)[0].geocity.metro.from).toBe('bayside');
+    // (the person's words over it)
+    expect(Object.values(hijackCityWorld({ locale: 'los-angeles', register: 'tropical', district: 'suburbs' }).levels)[0].geocity).toMatchObject({ outskirts: 'tropical', at: 'outskirts' });
+    // (a row on each of its paths reads as a world: the lakeshore city's above, the Northeast's district and the hill city's)
+    for (const id of ['boston', 'san-francisco']) expect(() => readGameworld(hijackCityWorld({ locale: id })), id).not.toThrow();
+    expect(LOCALE_IDS).toContain('los-angeles');
+  });
+});
