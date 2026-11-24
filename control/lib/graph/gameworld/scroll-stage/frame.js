@@ -34,6 +34,8 @@
  *   layerGrowth(cam, d)            → how much bigger a thing at depth d is drawn to fill the share of the frame it would
  *                                    fill on the plane ((dist − d) / dist: the side map's vista rule)
  *   layerPace(cam, d)              → how fast a layer at depth d slides across the frame, the play plane's pace being 1
+ *   trackExtent(track, start?)     → { u: [lo, hi], v: [lo, hi] }: the centres a track's legs pass (metres; the runtime's
+ *                                    legs, worlds/controllable/scroll.js), from `start` ([0, 0])
  *
  * Pure: numbers in, numbers out.
  */
@@ -110,3 +112,14 @@ export const layerGrowth = (cam, d) => {
 /** How fast a layer at depth d slides across the frame as the camera scrolls, the play plane's pace 1: behind slower,
  * in front faster. */
 export const layerPace = (cam, d) => 1 / layerGrowth(cam, d);
+
+/** The centres a track's legs pass, from `start`: what the camera sweeps (a hold moves nothing). */
+export function trackExtent(track, start = [0, 0]) {
+  const at = [start[0], start[1]], u = [at[0], at[0]], v = [at[1], at[1]];
+  for (const L of Array.isArray(track) ? track : []) {
+    if (!L || !Array.isArray(L.by)) continue;
+    at[0] += L.by[0]; at[1] += L.by[1];
+    u[0] = Math.min(u[0], at[0]); u[1] = Math.max(u[1], at[0]); v[0] = Math.min(v[0], at[1]); v[1] = Math.max(v[1], at[1]);
+  }
+  return { u, v };
+}
