@@ -79,7 +79,7 @@ export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vamp
     id, name,
     feel: structuredClone(VAMPIRE_SONATA_FEEL),
     camera: 'side',
-    mechanics: { lives: 3 },
+    // (no lives: an action RPG's vitals, health and MP, her death a waking in the last save room: metroidvania/level.js)
     characters: { direction: { tradition: 'anime', body: { rail: 'realistic', style: 'anime' } }, ...(heroRef ? { hero: { ref: heroRef } } : {}) },
     levels: { castle: { name: 'The castle', metroidvania: vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },
   };

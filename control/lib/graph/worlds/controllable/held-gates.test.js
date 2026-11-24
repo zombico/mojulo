@@ -60,6 +60,30 @@ describe('held gates', () => {
     expect(w.byId.hero.transform.pos[2]).toBeLessThan(-2.5);
   });
 
+  it('fill the body in a save room and wake it there, full and keeping all it holds, when its health is spent', () => {
+    const saves = [{ id: 'gate', name: 'the gate', rect: [-2, 2, -1, 5], at: [0, 0] }, { id: 'hall', name: 'the hall', rect: [6, 10, -1, 5], at: [8, 0] }];
+    const w = E.createWorld({ heldGates: { target: 'hero', saves, relics: [{ id: 'key', at: [0, 4, 1], gives: 'key:0', name: 'the key' }] },
+      // (walking the box's way: along its lane, +y, as a box's hero runs)
+      entities: [{ id: 'hero', pilotable: true, hpMax: 50, rule: { type: 'platform', speed: 5.8, eye: 0, collideRadius: 0.3, collideHeight: 1.7, moveset: { moves: {}, mp: { max: 20, regen: 0 } } }, body: { type: 'mesh', hittable: true, hp: 50 }, transform: { pos: [0, 0, 0], heading: Math.PI / 2 } }] });
+    const H = w.byId.hero;
+    // (it wakes in the first save room before it has stood in any)
+    expect(w.heldGates.save).toBe('gate');
+    H.body.hp = 12; H.mp = 3;
+    run(w, { forward: 1 }, 150);   // past the key, into the hall
+    expect(w.heldGates.held['key:0']).toBeDefined();
+    expect(w.heldGates.save).toBe('hall');
+    expect(H.body.hp).toBe(50); expect(H.mp).toBe(20);
+    expect(w.heldGates.got.some((g) => g.kind === 'save')).toBe(true);
+    // (spent: it wakes in the hall, full, the key still held: no life lost, nothing taken back)
+    run(w, { forward: 1 }, 60);
+    H.body.hp = 0; H.mp = 0;
+    run(w, {}, 2);
+    expect(H.transform.pos[1]).toBeCloseTo(8, 0);
+    expect(H.body.hp).toBe(50); expect(H.mp).toBe(20); expect(H.downed).toBe(false);
+    expect(w.heldGates.deaths).toBe(1);
+    expect(w.heldGates.held['key:0']).toBeDefined();
+  });
+
   it('a page without held gates carries none of it', () => {
     expect(emissionSource({})).not.toContain('stepWithHeldGates');
     expect(emissionSource({ heldGates: true })).toContain('stepWithHeldGates');

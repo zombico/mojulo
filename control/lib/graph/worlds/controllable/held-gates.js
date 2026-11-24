@@ -5,7 +5,7 @@
  * on and under as any wall does, and a blow strikes them; this builder decides when each may go.
  *
  *   spec.heldGates: { target, gates: [{ id, opens, kind, near?, hp? }], relics: [{ id, at, r?, gives, name?, rule? }],
- *                     bosses: [{ id, gives: [token], name?, rule? }] }
+ *                     bosses: [{ id, gives: [token], name?, rule? }], saves?: [SAVE] }
  *     a GATE      its breakable `id`, shut until `opens` (a token) is held: a `wall-break` is then struck down (its hp
  *                 `hp`, the swing's or a shot's blows; before, no blow tells), any other breaks as the target comes within
  *                 `near` metres of it (a grate the small form slips, a lock its key turns); a `boss` seal breaks wherever
@@ -15,8 +15,13 @@
  *                 `break:<id>` hidden as it is taken
  *     a BOSS      a breakable struck down by the hero (a stand-in until the foes join): its fall gives its tokens and its
  *                 `rule`
- *   state.heldGates: { held: { <token>: time }, got: [{ id, name, t }], open: { <gate id>: time } }   what the page
- *                 reads (the got list its toasts)
+ *     a SAVE      a save room, `{ id, name, rect: [s0, s1, z0, z1], at: [s, z] }`: walked into, it fills the target's
+ *                 health (its body's `hpMax`) and its MP (its moveset's `mp.max`, the arsenal's pool) and becomes where it
+ *                 wakes; the first named is where it wakes before it has stood in any
+ *     DEATH       the target's health spent (its body's hp at 0, or downed): it wakes in the last save room it stood in,
+ *                 full, KEEPING everything held and taken (an action RPG's death, never a life lost); `deaths` counts them
+ *   state.heldGates: { held: { <token>: time }, got: [{ id, name, t }], open: { <gate id>: time }, save, deaths }   what
+ *                 the page reads (the got list its toasts, the target's hp and mp its bars)
  *
  * Nothing in a box falls: a gate in a floor's hole stands where it is built (the world's `breakFloor` lifted). What is
  * gone is no ground: the ground probe looks on down past a gate opened, a boss felled and a relic taken.
@@ -34,7 +39,7 @@ export function buildHeldGates(E) {
   E.createWorld = function createWithHeldGates(spec) {
     const s = make(spec), H = spec && spec.heldGates;
     if (!H || typeof H !== 'object') return s;
-    s.heldGates = { spec: H, held: {}, got: [], open: {}, taken: {}, felled: {}, armed: {} };
+    s.heldGates = { spec: H, held: {}, got: [], open: {}, taken: {}, felled: {}, armed: {}, save: (H.saves && H.saves[0] && H.saves[0].id) || null, inSave: null, deaths: 0 };
     // (nothing in a box falls: its gates stand in the holes they are built in)
     s.breakFloor = Infinity;
     if (!s.breaks) { s.breaks = []; s.breakSeq = 0; }
@@ -72,6 +77,31 @@ export function buildHeldGates(E) {
     const H = G.spec, T = state.byId ? state.byId[H.target || 'hero'] : null, p0 = T && T.transform ? T.transform.pos : null;
     // (the body's middle: its feet, the eye under the pos, and most of a stride up)
     const p = p0 ? [p0[0], p0[1], p0[2] - ((T.rule && T.rule.eye) || 0) + 0.9] : null;
+    const full = () => {
+      if (T.body && Number.isFinite(T.hpMax || T.body.hpMax)) T.body.hp = T.hpMax || T.body.hpMax;
+      const mp = T.rule && T.rule.moveset && T.rule.moveset.mp;
+      if (mp) T.mp = mp.max;
+    };
+    // SAVE ROOMS: walked into, the target is full and wakes here from now on
+    if (p && T) {
+      const foot = p0[2] - ((T.rule && T.rule.eye) || 0), S = (H.saves || []).find((q) => p[1] >= q.rect[0] && p[1] <= q.rect[1] && foot >= q.rect[2] && foot <= q.rect[3]);
+      if (S && G.inSave !== S.id) { G.inSave = S.id; G.save = S.id; full(); G.got.push({ id: 'save:' + S.id, name: 'Saved · ' + (S.name || S.id), t: state.time, kind: 'save' }); }
+      if (!S) G.inSave = null;
+    }
+    // DEATH: health spent, it wakes in its last save room, full, keeping all it holds
+    if (T && T.body && (T.downed || (Number.isFinite(T.body.hp) && T.body.hp <= 0))) {
+      const S = (H.saves || []).find((q) => q.id === G.save) || (H.saves || [])[0];
+      if (S) {
+        const eye = (T.rule && T.rule.eye) || 0;
+        T.transform.pos = [0, S.at[0], S.at[1] + eye + 0.05];
+        T.vel = [0, 0, 0]; T.dashVel = null; T.climbing = null; T.grounded = false;
+        T.downed = false; T.deadAt = null; T.dropping = false; T.deathBurstDone = false; T.staggerT = 0; T.hits = 0; T.downPauseT = 0;
+        full();
+        G.deaths++; G.inSave = S.id;
+        G.got.push({ id: 'wake:' + G.deaths, name: 'Woken in ' + (S.name || S.id), t: state.time, kind: 'wake' });
+        if (state.camera) { state.camera._cut = true; state.camera._zoneAt = null; state.camera._fell = null; }
+      }
+    }
     const blk = (id) => (state.breakables || []).find((b) => b.id === id);
     // RELICS: picked up where the target comes near
     if (p) for (const R of H.relics || []) {

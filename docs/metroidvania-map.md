@@ -142,6 +142,20 @@ A world's level `levels.<id>.metroidvania` (the box's words) is one stage, built
 - **A double-jump sill holds.** Its room keeps its stair and its drops on the far side from it, and the law `sill-holds`
   measures that nothing to stand on brings it within one jump.
 
+## The hunt: an action RPG's vitals
+
+The castle is played as an action RPG, never a run and gun: there are no lives.
+
+- **Her vitals are health and MP.** Health is on her body (`metroidvania/level.js` `BOX_VITALS`), struck down by what she
+  meets. MP is her moveset's own pool, the arsenal's (`combat-melee.js` `mp`). It never refills on its own.
+- **A save room fills her.** Walked into, it refills both and is where she wakes from then on
+  ([held-gates.js](../control/lib/graph/worlds/controllable/held-gates.js) `saves`). The gate room is where she wakes
+  before she has stood in any. The box's law `saves` already keeps them close together.
+- **Her death is a waking.** Her health spent, she wakes in the last save room she stood in, full, keeping everything she
+  holds: her powers, her keys, the gates opened and the bosses felled. Nothing is reloaded and nothing is taken back.
+- **The page shows her vitals** as an HP bar and an MP bar at the top left. "Saved" and a waking are said across the
+  top as a pickup is.
+
 ## Erina
 
 Vampire Sonata's hero, a monster hunter ([vampire-sonata.js](../control/lib/graph/gameworld/metroidvania/vampire-sonata.js)
@@ -192,6 +206,10 @@ greybox. Vampire Sonata names `castle`: the vampire lord's castle, stormed by ni
   them.
 - **The castle dressed further:** the gates in the castle's own make (a portcullis, an iron-bound door), the side map's
   paint and relief on the stone, moving lights.
+- **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
+  growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
+  one menu (status, equipment, items, the map of rooms visited). Then the merchant, MP spells and real bosses in place of
+  the stand-ins.
 - **Foes and real bosses** on the side map's foe shelf and the boss director, in place of the stand-ins. A boss's
   room shut behind her as a side map's is.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.

@@ -20,7 +20,7 @@ let payload, B;
 beforeAll(async () => {
   const W = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' })), [stage] = gameStages(W);
   const m = stageLevelOrder(W, stage, { heroRef: 'erina-ref', heroStature: 1.69, ref: 'lvl' }).args.manifest;
-  m.figures = {}; m.entities = m.entities.map((e) => ({ ...e, body: { type: 'none' } }));
+  m.figures = {}; m.entities = m.entities.map((e) => ({ ...e, body: { ...e.body, type: 'none', figure: undefined } }));
   ({ payload } = await resolveWorldScene({ manifest: m }));
   B = boxOf(m);
 }, 120000);
@@ -48,6 +48,27 @@ describe('a metroidvania level, played as its page resolves it', () => {
     expect(payload.breakables.length).toBe(payload.heldGates.gates.length + payload.heldGates.bosses.length);
     expect(payload.entities[0].rule.strike).toBe('melee');
     expect(payload.entities[0].rule.cling).toBeUndefined();
+  });
+
+  it('plays an action RPG\'s vitals, never lives: health and MP, a save room fills her, her death a waking there', () => {
+    expect(payload.game.mechanics.some((m) => m.kind === 'lives')).toBe(false);
+    const P = play(), H = P.hero, hall = B.layout.rooms.find((r) => r.save && r.ring === 1);
+    expect(H.body.hp).toBeGreaterThan(0); expect(H.hpMax).toBe(H.body.hp);
+    expect(H.rule.moveset.mp.max).toBeGreaterThan(0);
+    // (stood in the halls' save room: she is full, and wakes there from now on)
+    H.body.hp = 5;
+    P.place(hall.id, 0.5);
+    expect(P.sim.world.heldGates.save).toBe(hall.id);
+    expect(H.body.hp).toBe(H.hpMax);
+    // (elsewhere, holding a key, her health spent: she wakes in the halls' save room, full, the key still hers)
+    P.held['key:0'] = P.sim.world.time;
+    P.place(B.layout.rooms.find((r) => r.ring === 0 && r.kind === 'corridor').id, 0.5);
+    H.body.hp = 0;
+    P.step({}, 30);
+    expect(P.room(hall.id).rect[0] * P.W <= P.s() && P.s() <= (P.room(hall.id).rect[0] + 1) * P.W).toBe(true);
+    expect(H.body.hp).toBe(H.hpMax);
+    expect(P.sim.world.heldGates.deaths).toBe(1);
+    expect(P.held['key:0']).toBeDefined();
   });
 
   it('walks the castle\'s floor room to room under the side map\'s camera to the outer wall\'s key', () => {

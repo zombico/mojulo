@@ -12,6 +12,9 @@
  *   the GATES    the box's held gates (worlds/controllable/held-gates.js): each shut until what opens it is held, the
  *                double jump's sill a closed part the second jump clears; what is picked up gives what it gives (the
  *                double jump its move), a boss's stand-in struck down gives its power and breaks its seal
+ *   the VITALS   health on her body and MP on her moveset (BOX_VITALS): no
+ *                lives. A save room fills both and is where she wakes; her health spent, she wakes in the last she stood
+ *                in, keeping everything (held-gates.js)
  *   a FALL       out of the frame's bottom (none is laid: every room has its floor), counted as the side map counts it
  *   the GOAL     the throne's far side, behind the core's boss
  *
@@ -28,6 +31,8 @@ import { boxOf } from './scene.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
+/** A box's hero's VITALS: her health and her MP (levels and their growth are the stats' to come) */
+export const BOX_VITALS = Object.freeze({ hp: 100, mp: 40 });
 /** where the hero stands in a room as it comes back to it: a little in from its near wall, on its floor */
 const IN = 2.5;
 
@@ -56,7 +61,11 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
   const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule, ...(takes ? { takes } : {}) });
-  const hero = { ...W0.entities[0], transform: { pos: spawn, heading: Math.PI / 2 } };
+  // (her VITALS, an action RPG's and never a run and gun's lives: health on her body, struck by what she meets; MP the
+  // moveset's own pool, the arsenal's (combat-melee.js `mp`), filled at a save room and never on its own)
+  const V = BOX_VITALS, E0 = W0.entities[0];
+  const hero = { ...E0, transform: { pos: spawn, heading: Math.PI / 2 }, hpMax: V.hp, body: { ...E0.body, hittable: true, hp: V.hp },
+    rule: { ...E0.rule, ...(E0.rule.moveset ? { moveset: { ...E0.rule.moveset, mp: { max: V.mp, regen: 0 } } } : {}) } };
   // its bodies as their rows draw them: the anime hero's own look and light, never the run and gun's cel (whose feel it
   // borrows: a metroidvania's hero is drawn as mojulo draws its anime heroes)
   const figures = W0.figures ?? {};

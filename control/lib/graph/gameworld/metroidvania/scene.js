@@ -14,6 +14,7 @@
  *                      prize; the double jump's taken gives its move (actions.js TRAVERSAL_MOVES)
  *   the THEME          where its words name one (themes.js), the box dressed in it (dress.js): its rings' stone and backs,
  *                      their lamps and baked light, the night over its open rings; the gates keep their colours (the play's)
+ *   the SAVE ROOMS     each walked into fills the hero and is where she wakes from then on (held-gates.js)
  *   the BOSSES         a stand-in in each boss room until the foes join: a tall block in the boss's colour, struck down
  *                      by the hero's blows (BOSS_HP of them); its fall gives what the boss gives and breaks its seal
  *
@@ -114,7 +115,9 @@ export function boxOf(m) {
     relics.push({ id: `prize-${p.room}-${k}`, at: [0, r3(p.at[0] + (p.gate === 'double-jump' ? 0 : 0.3)), r3(p.at[1] + 0.9)], gives: `prize:${p.room}:${k}`, name: p.holds, colour: PRIZE });
   });
   // (a boss's fall is its seal's opener; and its stand-in's id the seal's boss)
-  const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })) };
+  // (its save rooms: walked into, the hero is full and wakes there; the gate room first, where she wakes before any)
+  const saves = layout.rooms.filter((r) => r.save).sort((a, b) => a.walk - b.walk).map((r) => ({ id: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], at: [r3(midOf(r)), r3(floorOf(r))] }));
+  const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })), saves };
   return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses };
 }
 

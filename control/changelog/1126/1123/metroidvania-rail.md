@@ -27,3 +27,6 @@
 - The castle is closer on its hero: Erina stands a fifth larger on screen than a side-scroller's hero, and the box is laid
   round her at that scale. She is drawn in mojulo's own anime look (her own face, shading and light), not the
   side-scroller's cel bands and outline.
+- The castle plays as an action RPG, with no lives. Erina has health and MP, shown as bars. Walking into a save room
+  refills both and makes it where she wakes. When her health runs out she wakes in the last save room she visited, full,
+  keeping everything she has found and opened.
