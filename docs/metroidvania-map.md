@@ -523,6 +523,24 @@ A geocube's `box` (`era/geocube.js`) is `{ library, tint?, rock? }`. The `librar
 Rupa's matter cannot choose the fabric, since it names `stone` for both masonry and natural rock. The library says
 which (the castle's masonry, the planet's `fabric: 'rock'`).
 
+## In the book
+
+A box level has its page in its world's gameworld bible (`/bible`, its `#boxes` section, `book.js`). The page is read
+off the box as its level builds it: on the level's or the world's geocube, for the side map's hero. The book and the
+game therefore never disagree.
+
+- **The plan.** The box's screens, each room in its ring's colour (its look's stone, a locale's own where it has one).
+  It shows the closed parts the hero stands on, the ledges and ladders, the doorways and holes cut through, each gate in
+  its colour, the pockets, the saves (S), the bosses (B), the keys (K), the powers found (◆) and the way in. The level's
+  own page carries the same plan small.
+- **A card a ring:** its rooms, its look and colours, its locales, what it is built of (fabric, rock, gem), its hazard,
+  its light, its climbs, what it holds and the gate on inward.
+- **The powers:** each one, what it opens and where it is found.
+- **The laws:** every law the box is held to and what each says. This is the machine gate, measured on the box as
+  built; the eyes gate is the person's, who plays it.
+
+The page also says what dresses the box: its words' theme, its geocube, or neither (the greybox).
+
 ## Not yet
 
 - **The castle's own feel.** Erina plays Galaxy Boy's run and gun with Zero Boy's saber string. A feel of her own would

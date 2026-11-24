@@ -70,7 +70,11 @@ export function gameworldGraph(world) {
             : R.geocity ? { ids: ['district'], root: 'district', edges: [], nodes: { district: { section: 'geocity', seed: R.seed, kit: R.style.kit } } }
             : R.geotown ? { ids: ['town'], root: 'town', edges: [], nodes: { town: { section: 'geotown', seed: R.seed, kit: R.style.kit } } }
               // a glyph-map level: one section, the map (its tiles are the grid's own, level/grid.js)
-              : R.glyphs ? { ids: ['map'], root: 'map', edges: [], nodes: { map: { section: 'map', seed: R.seed, kit: R.glyphs.kit ?? R.style.kit } } } : readLevel(R.level);
+              : R.glyphs ? { ids: ['map'], root: 'map', edges: [], nodes: { map: { section: 'map', seed: R.seed, kit: R.glyphs.kit ?? R.style.kit } } }
+                // a metroidvania level: one section, the box (its rooms are the box's own page, metroidvania/book.js); a
+                // side map's: one section, the map
+                : R.metroidvania ? { ids: ['box'], root: 'box', edges: [], nodes: { box: { section: 'metroidvania', seed: R.seed, kit: R.style.kit } } }
+                  : R.sidemap ? { ids: ['map'], root: 'map', edges: [], nodes: { map: { section: 'sidemap', seed: R.seed, kit: R.style.kit } } } : readLevel(R.level);
     node(lv, 'level', R.name, { seed: R.seed, kit: R.style.kit, start: id === G.start });
     edge('world', lv, 'contains');
     edge(lv, kitN(R.style.kit), 'drawn-in');
