@@ -136,8 +136,9 @@ export function dressBox(B, theme) {
   const rings = L.rings.length, [cols, rows] = L.box, faces = [], lamps = [], night = [], flames = [], live = [], beams = [];
   const look = (ring) => lookOf(T, ring, rings), ringOf = new Map(L.rooms.map((r) => [r.id, r.ring]));
   // (a room's own look: its LOCALE over its ring's, themes.js roomLook; its corridors counted in its ring's walk order)
+  // (each room's order among its ring's rooms of its kind, in the walk: the turn a look's list of locales is dealt by)
   const corridorAt = new Map(), seenCorr = new Map();
-  for (const r of [...L.rooms].sort((a, b) => a.walk - b.walk)) if (r.kind === 'corridor') { const k = seenCorr.get(r.ring) ?? 0; corridorAt.set(r.id, k); seenCorr.set(r.ring, k + 1); }
+  for (const r of [...L.rooms].sort((a, b) => a.walk - b.walk)) { const key = `${r.ring}:${r.kind}`, k = seenCorr.get(key) ?? 0; corridorAt.set(r.id, k); seenCorr.set(key, k + 1); }
   const lookRoom = new Map(L.rooms.map((r) => [r.id, roomLook(T, r, rings, corridorAt.get(r.id) ?? 0)]));
   const cellRoom = new Map(L.rooms.flatMap((r) => r.cells.map((c) => [`${c[0]},${c[1]}`, r.id])));
   const lookAt = (s, z) => lookRoom.get(cellRoom.get(`${Math.floor(s / W)},${Math.floor(z / H)}`)) ?? look(0), spins = {};

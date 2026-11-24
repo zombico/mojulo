@@ -64,3 +64,9 @@
   in every theme.
 - The backdrop shots frame a castle room as the play does (a cell, the zone holding the frame), and `--whole` shows the
   castle entire.
+- Four more of the castle's locales, each from new pieces: the observatory at the top of the outer wall's towers (charts
+  of the stars, a brass telescope aimed at a round of night), the ballroom (tall gilt mirrors, a great chandelier of
+  live candles), the banquet hall (a stag's antlers, a great hearth burning live under the house's crest) and the
+  dungeon (barred cells, chains from the roof, manacles, an iron gibbet). A look may name a list of locales for a kind
+  of room, dealt room by room in turn, so the halls' other corridors are the laboratory, the ballroom and the banquet
+  hall, the ward's the catacombs and the dungeon. Every law holds in every theme.

@@ -76,6 +76,11 @@ export const BAY_PIECES = Object.freeze({
   skulls: 'a niche of skulls stacked in their rows, the catacombs\' dead',
   flasks: 'a shelf of potions, each glowing in its bottle',
   rack: 'a rack of spears and swords, a shield hung on it',
+  cell: 'a prison cell let into the wall, its iron bars before the dark, straw on its floor',
+  shackles: 'manacles on their chains, hung from rings in the wall at a body\'s reach',
+  mirror: 'a tall mirror in a gilt frame, the hall\'s candlelight caught in its glass',
+  antlers: 'a stag\'s antlers on their shield, mounted high',
+  chart: 'a chart of the stars on its roundel, its constellations joined',
 });
 export const FOCAL_PIECES = Object.freeze({
   portrait: 'a great portrait in a gilt frame: the lord of the castle, looking down',
@@ -89,6 +94,10 @@ export const FOCAL_PIECES = Object.freeze({
   orrery: 'an orrery hung under the roof, its worlds turning round a golden sun',
   cauldron: 'the alchemist\'s cauldron on its fire, its brew glowing and bubbling',
   armour: 'a suit of armour on its stand, a halberd in its hand',
+  gibbet: 'an iron cage hung on its chain from the roof, its bars and its bones',
+  chandelier: 'a great chandelier hung from the roof, tier on tier of candles burning',
+  hearth: 'a great hearth, its stone hood and mantel, logs burning in it, the house\'s crest over it',
+  telescope: 'a brass telescope on its mount, aimed up at a window of night',
 });
 export const BACKDROP_LAWS = Object.freeze(['eye-detail', 'calm-play', 'bay-rhythm', 'focal', 'depths', 'pools', 'lane-reads', 'scale']);
 /** the body SCALE's sizes are said for, in metres; a smaller or larger hero scales them */
@@ -99,6 +108,7 @@ export const SCALE = Object.freeze({
   'rung.pitch': Object.freeze([0.25, 0.4]), 'sword.l': Object.freeze([0.8, 1.6]), 'shield.h': Object.freeze([0.5, 1.4]), 'face.w': Object.freeze([0.12, 0.4]),
   'figure.h': Object.freeze([1.5, 3.2]), 'gargoyle.h': Object.freeze([0.5, 1.8]), 'candle.h': Object.freeze([0.1, 0.45]), 'block.w': Object.freeze([0.5, 1.8]),
   'block.h': Object.freeze([0.3, 0.9]),
+  'bar.pitch': Object.freeze([0.18, 0.4]), 'cell.h': Object.freeze([2.4, 3.6]), 'mirror.h': Object.freeze([2.0, 3.6]), 'hearth.h': Object.freeze([2.2, 3.4]),
 });
 /** note a drawn part's size: the least and the most of each kept */
 export const measure = (sizes, part, v) => { if (!sizes) return; const o = sizes[part]; sizes[part] = o ? [Math.min(o[0], v), Math.max(o[1], v)] : [v, v]; };
@@ -383,6 +393,116 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     poly(out, x + 0.035, [[s + 0.62, b + 8.2 * u], [s + 0.95, b + 8.5 * u], [s + 0.95, b + 9.0 * u], [s + 0.62, b + 9.2 * u]], st);
     measure(sizes, 'figure.h', 8 * u);
     proud(s - 0.5, s + 0.5, b, b + 7.4 * u, 0.4);
+  } else if (id === 'cell') {
+    // (a cell at a body's size let into the wall: its arch over the dark inside, iron bars a hand apart, a crossbar, its
+    // hinges, straw on its floor; the bars few, so the band she moves in stays calm)
+    const w = 2.4, h = 3.0, z0 = floor, z1 = z0 + h, iron = '#2a2a30';
+    poly(out, x, [[s - w / 2 - 0.3, z0], [s + w / 2 + 0.3, z0], [s + w / 2 + 0.3, z1], [s, z1 + 0.9], [s - w / 2 - 0.3, z1]], shade(L.stone, 0.7));
+    poly(out, x + 0.005, [[s - w / 2, z0], [s + w / 2, z0], [s + w / 2, z1 - 0.1], [s, z1 + 0.55], [s - w / 2, z1 - 0.1]], '#0e0b0d');
+    rect(out, x + 0.008, s - w / 2, s + w / 2, z0, z0 + 0.3, '#5a4a2a');   // (straw)
+    const pitch = w / 7;
+    for (let k = 1; k < 7; k++) rect(out, x + 0.012, s - w / 2 + k * pitch - 0.035, s - w / 2 + k * pitch + 0.035, z0, z1, iron);
+    // (and over it, chains hung from the roof on their hooks: the dungeon's dark gathered high, its floor quiet)
+    for (const d of [-1.6, 1.4]) { for (let z = top, k = 0; z > top - 2.8; z -= 0.35, k++) rect(out, x + 0.004, s + d - (k % 2 ? 0.035 : 0.08), s + d + (k % 2 ? 0.035 : 0.08), z - 0.32, z, iron); poly(out, x + 0.005, [[s + d - 0.12, top - 2.85], [s + d + 0.12, top - 2.85], [s + d, top - 3.15]], iron); }
+    rect(out, x + 0.014, s - w / 2, s + w / 2, z0 + h * 0.62, z0 + h * 0.62 + 0.08, iron);
+    for (const zh of [z0 + 0.5, z1 - 0.6]) rect(out, x + 0.016, s - w / 2 - 0.08, s - w / 2 + 0.18, zh, zh + 0.16, '#4a4a50');
+    measure(sizes, 'bar.pitch', pitch); measure(sizes, 'cell.h', h);
+    proud(s - w / 2, s + w / 2, z0, z1, 0.15);
+  } else if (id === 'shackles') {
+    // (two manacles on their chains from rings in the wall, at a hanging body's reach over her head)
+    const rz = floor + 3.4, iron = '#3a3a40';
+    for (const d of [-0.7, 0.7]) {
+      ring(out, x, s + d, rz, 0.14, 8, iron);
+      for (let k = 0; k < 5; k++) rect(out, x + 0.005, s + d - (k % 2 ? 0.04 : 0.07), s + d + (k % 2 ? 0.04 : 0.07), rz - 0.2 - k * 0.18, rz - 0.06 - k * 0.18, iron);
+      ring(out, x + 0.01, s + d, rz - 1.2, 0.16, 8, '#4a4a52'); ring(out, x + 0.012, s + d, rz - 1.2, 0.09, 8, shade(L.back, 0.6));
+    }
+    rect(out, x + 0.004, s - 0.9, s + 0.9, rz + 0.25, rz + 0.33, shade(L.stone, 0.85));
+    proud(s - 0.9, s + 0.9, rz - 1.4, rz + 0.2, 0.1);
+  } else if (id === 'mirror') {
+    // (a tall mirror in a gilt frame, a man's height and more, the candlelight a sheen across its glass, hung over the
+    // band she moves in)
+    const w = 1.5, z0 = floor + 2.6, h = Math.min(3.2, top - z0 - 1.0), z1 = z0 + h, gilt = '#c8a050';
+    poly(out, x, [[s - w / 2 - 0.22, z0 - 0.22], [s + w / 2 + 0.22, z0 - 0.22], [s + w / 2 + 0.22, z1], [s, z1 + 0.6], [s - w / 2 - 0.22, z1]], gilt);
+    poly(out, x + 0.01, [[s - w / 2, z0], [s + w / 2, z0], [s + w / 2, z1 - 0.05], [s, z1 + 0.35], [s - w / 2, z1 - 0.05]], mix(L.glass || '#8aa0c0', '#d8e0f0', 0.35), 'box:glass', { sky: [z0, z1] });
+    bar(out, x + 0.02, [s - w / 2 + 0.2, z0 + 0.4], [s + w / 2 - 0.3, z0 + h * 0.75], 0.14, mix('#ffffff', L.glass || '#8aa0c0', 0.3));
+    ring(out, x + 0.02, s, z1 + 0.62, 0.2, 8, gilt);
+    measure(sizes, 'mirror.h', h);
+    proud(s - w / 2 - 0.22, s + w / 2 + 0.22, z0 - 0.22, z1 + 0.6, 0.1);
+  } else if (id === 'antlers') {
+    // (a stag's antlers on their shield, high on the wall)
+    const z = Math.min(top - 1.6, floor + 5.6), bone = '#d8c8a8';
+    poly(out, x, [[s - 0.35, z - 0.5], [s + 0.35, z - 0.5], [s + 0.35, z + 0.1], [s, z + 0.35], [s - 0.35, z + 0.1]], trim);
+    for (const d of [-1, 1]) {
+      bar(out, x + 0.01, [s + d * 0.15, z], [s + d * 1.0, z + 0.9], 0.08, bone);
+      for (const t of [0.35, 0.6, 0.85]) bar(out, x + 0.012, [s + d * (0.15 + 0.85 * t), z + 0.9 * t], [s + d * (0.15 + 0.85 * t - 0.1), z + 0.9 * t + 0.4], 0.06, bone);
+    }
+    proud(s - 1.0, s + 1.0, z - 0.5, z + 1.3, 0.2);
+  } else if (id === 'chart') {
+    // (a chart of the stars on its roundel: its rim, its stars and the lines between them)
+    const z = Math.min(top - 2.2, floor + 5.2), r = 1.1, ink = '#1a2040', star = '#f0e6c0';
+    ring(out, x, s, z, r + 0.12, 16, trim); ring(out, x + 0.005, s, z, r, 16, ink);
+    const d = diceOf(`chart:${Math.round(s * 10)}`), pts = Array.from({ length: 7 }, () => { const a = d() * 2 * Math.PI, q = 0.25 + d() * 0.6; return [s + r * q * Math.cos(a), z + r * q * Math.sin(a)]; });
+    for (let k = 1; k < 5; k++) bar(out, x + 0.01, pts[k - 1], pts[k], 0.025, shade(star, 0.6));
+    for (const p of pts) ring(out, x + 0.015, p[0], p[1], 0.06, 5, star);
+    proud(s - r, s + r, z - r, z + r, 0.08);
+  } else if (id === 'gibbet') {
+    // (an iron cage hung on its chain from the roof, a body's size, its bars round its bones, swinging a little)
+    const cz = Math.max(floor + 4.0, Math.min(top - 3.5, floor + 6.0)), w = 1.1, h = 2.0, iron = '#2e2c30';
+    for (let z = top, k = 0; z > cz + h / 2 + 0.6; z -= 0.4, k++) rect(out, x, s - (k % 2 ? 0.05 : 0.11), s + (k % 2 ? 0.05 : 0.11), z - 0.36, z, iron);
+    poly(out, x + 0.005, [[s - w / 2, cz + h / 2], [s + w / 2, cz + h / 2], [s + 0.12, cz + h / 2 + 0.6], [s - 0.12, cz + h / 2 + 0.6]], iron);
+    rect(out, x + 0.004, s - w / 2, s + w / 2, cz - h / 2, cz + h / 2, shade(L.back, 0.45));
+    for (const d of [-0.25, 0.25]) { ring(out, x + 0.006, s + d * 0.4, cz + 0.55, 0.16, 8, '#cfc3a8'); }
+    bar(out, x + 0.007, [s, cz + 0.4], [s, cz - 0.6], 0.12, '#cfc3a8');
+    for (let k = 0; k <= 4; k++) rect(out, x + 0.01, s - w / 2 + (k * w) / 4 - 0.03, s - w / 2 + (k * w) / 4 + 0.03, cz - h / 2, cz + h / 2, iron);
+    for (const zz of [cz - h / 2, cz, cz + h / 2 - 0.06]) rect(out, x + 0.012, s - w / 2, s + w / 2, zz, zz + 0.07, iron);
+    measure(sizes, 'figure.h', 1.7);
+    proud(s - w / 2, s + w / 2, cz - h / 2, cz + h / 2, 0.6);
+  } else if (id === 'chandelier') {
+    // (a great chandelier hung on its chain from the roof: a gilt ring of arms, a tier over it, a candle on each arm
+    // burning live)
+    const cz = Math.max(floor + 5.0, Math.min(top - 2.4, floor + 7.0)), gilt = '#d0a850', r = 2.0;
+    bar(out, x, [s, top], [s, cz + 1.1], 0.07, shade(gilt, 0.7));
+    rect(out, x + 0.005, s - r, s + r, cz - 0.12, cz + 0.06, gilt);
+    rect(out, x + 0.006, s - r * 0.55, s + r * 0.55, cz + 0.75, cz + 0.88, gilt);
+    poly(out, x + 0.004, [[s - 0.3, cz - 0.12], [s + 0.3, cz - 0.12], [s, cz - 0.7]], gilt);
+    bar(out, x + 0.005, [s, cz], [s, cz + 1.1], 0.12, gilt);
+    for (const [arm, zz] of [[[-r, -r * 0.5, 0, r * 0.5, r], cz + 0.06], [[-r * 0.55, 0, r * 0.55], cz + 0.88]]) for (const d of arm) {
+      rect(out, x + 0.01, s + d - 0.045, s + d + 0.045, zz, zz + 0.24, '#efe4cc');
+      measure(sizes, 'candle.h', 0.24);
+      if (at.live) at.live.push({ at: [x + 0.06, s + d, zz + 0.24].map((v) => Math.round(v * 1e5) / 1e5), w: 0.12, h: 0.26, color: [1, 0.8, 0.5] });
+      else poly(out, x + 0.02, [[s + d - 0.05, zz + 0.24], [s + d + 0.05, zz + 0.24], [s + d, zz + 0.45]], '#ffd890', 'box:flame');
+    }
+    proud(s - r, s + r, cz - 0.7, cz + 1.1, 1.2);
+  } else if (id === 'hearth') {
+    // (a great hearth a body and a half high: its jambs and its stone hood, the mantel over it, logs burning in it (live
+    // fire), the house's crest over the mantel)
+    const w = 3.6, h = 2.8, z0 = floor, z1 = z0 + h, st = shade(L.stone, 0.95);
+    for (const d of [-1, 1]) rect(out, x, s + d * (w / 2) - (d > 0 ? 0.5 : 0), s + d * (w / 2) + (d > 0 ? 0 : 0.5), z0, z1, st);
+    rect(out, x + 0.002, s - w / 2 + 0.5, s + w / 2 - 0.5, z0, z1 - 0.2, '#120a08');
+    rect(out, x, s - w / 2 - 0.35, s + w / 2 + 0.35, z1, z1 + 0.25, trim);   // (the mantel)
+    poly(out, x - 0.004, [[s - w / 2, z1 + 0.25], [s + w / 2, z1 + 0.25], [s + 0.9, z1 + 2.4], [s - 0.9, z1 + 2.4]], shade(st, 0.88));
+    rect(out, x - 0.006, s - 0.9, s + 0.9, z1 + 2.4, Math.max(z1 + 3, top - 0.2), shade(st, 0.82));
+    for (const d of [-0.5, 0.1, 0.55]) bar(out, x + 0.006, [s + d - 0.4, z0 + 0.2], [s + d + 0.4, z0 + 0.35], 0.18, '#4a2e1e');
+    if (at.live) at.live.push({ at: [x + 0.08, s, z0 + 0.3].map((v) => Math.round(v * 1e5) / 1e5), w: 1.8, h: 1.0, color: [1, 0.55, 0.2] });
+    else poly(out, x + 0.01, [[s - 0.8, z0 + 0.3], [s + 0.8, z0 + 0.3], [s, z0 + 1.4]], '#ff8a3a', 'box:flame');
+    poly(out, x + 0.01, [[s - 0.5, z1 + 0.6], [s + 0.5, z1 + 0.6], [s + 0.5, z1 + 1.4], [s, z1 + 1.7], [s - 0.5, z1 + 1.4]], L.carpet || '#7a1a26');
+    rect(out, x + 0.012, s - 0.06, s + 0.06, z1 + 0.7, z1 + 1.5, trim);
+    measure(sizes, 'hearth.h', h);
+    proud(s - w / 2 - 0.35, s + w / 2 + 0.35, z1, z1 + 0.25, 0.4);
+  } else if (id === 'telescope') {
+    // (a brass telescope on its mount, its tube a man's height and more, aimed up at a window of night over it)
+    const brass = '#c8a050', mz = floor + 1.5, len = 3.4, ang = 0.85, tip = [s + len * Math.cos(ang) * 0.5, mz + len * Math.sin(ang)];
+    for (const d of [-0.6, 0.6]) bar(out, x, [s + d, floor], [s, mz], 0.08, shade(trim, 0.8));
+    bar(out, x + 0.01, [s - len * Math.cos(ang) * 0.5, mz - 0.2], tip, 0.34, brass);
+    bar(out, x + 0.012, [s - len * Math.cos(ang) * 0.5, mz - 0.2], [s - len * Math.cos(ang) * 0.5 + 0.4 * Math.cos(ang), mz - 0.2 + 0.4 * Math.sin(ang)], 0.4, shade(brass, 0.8));
+    ring(out, x + 0.015, s, mz, 0.16, 8, shade(brass, 0.7));
+    // (its window: a round of night it is aimed at, high over it)
+    const wz = Math.min(top - 1.4, tip[1] + 1.6), ws = tip[0] + 0.6;
+    ring(out, x - 0.01, ws, wz, 1.05, 14, trim);
+    ring(out, x - 0.005, ws, wz, 0.9, 14, '#1c2448', 'box:glass');
+    for (let k = 0; k < 5; k++) ring(out, x, ws - 0.5 + ((k * 37) % 10) / 10, wz - 0.4 + ((k * 53) % 8) / 10, 0.04, 4, '#f0ecd8', 'box:glass');
+    measure(sizes, 'figure.h', 1.5);
+    proud(s - 1.2, s + 1.6, floor, tip[1], 0.5);
   } else if (id === 'orrery') {
     // (an orrery hung from the roof: a golden sun, three worlds each on its arm turning round it at its own pace)
     const cz = Math.min(top - 3.6, floor + 6.8), gold = '#e0b040';

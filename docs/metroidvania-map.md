@@ -289,6 +289,15 @@ in the locale's path and ledge ("The castle's fabric", below).
 | the throne room (the keep's boss's room) | ashlar in crimson | banners, tall windows | the lord's throne on its dais under a canopy and his crest | the braziers |
 | the alchemist's laboratory (every other corridor of the halls) | brick | shelves of glowing potions, a library case | the cauldron on its fire under a hood, an alembic, herbs drying | the cauldron's fire, its brew bubbling |
 | the armoury (the keep's other hall) | ashlar | racks of spears and swords, the house's arms | a suit of armour on its stand, a halberd in its hand | the torches |
+| the towers (the outer wall's shafts, in turn) | ashlar | banners, the house's arms, arrow-slit lancets | a broken statue | the torches |
+| the observatory (the outer wall's shafts, in turn) | brick | charts of the stars on their roundels, arched windows | a brass telescope aimed at a round of night | the cold candles |
+| the ballroom (the halls' other corridors, in turn) | plaster | tall mirrors in gilt frames, arched windows | a great chandelier, its candles burning live | the candles |
+| the banquet hall (the halls' other corridors, in turn) | brick | a stag's antlers on their shield, banners | a great hearth, its logs burning live, the house's crest over it | the torches |
+| the dungeon (the ward's other corridors, in turn) | brick | barred cells, chains hung from the roof, manacles on their rings | an iron gibbet hung on its chain | the torches |
+
+A look may name a LIST of locales for its shafts, its halls or its other corridors (`alt`): each room of that kind takes
+the next in turn, counted in its ring's walk, so the great halls' other corridors are the laboratory, the ballroom and
+the banquet hall, the ward's the catacombs and the dungeon, and the outer wall's towers alternate with its observatory.
 
 A theme may be a RE-KEY of another (`rekey` in themes.js): the same rings, locales and pieces with its night, each
 ring's colours, each locale's colours and its lamps' colour laid over the base's. The castle has two:

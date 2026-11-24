@@ -72,12 +72,18 @@ describe('a box dressed in its theme', () => {
     // (every save room in a closed ring is a chapel; an open ring's rooms are its ramparts, none a locale)
     for (const r of B.layout.rooms) {
       // (an open ring's rooms stand under the sky, but its shafts: its towers, closed against the night)
-      if (lookOf(T, r.ring, rings).open) expect(D.plan[r.id].locale).toBe(r.kind === 'shaft' ? lookOf(T, r.ring, rings).shaft : undefined);
+      if (lookOf(T, r.ring, rings).open) { if (r.kind === 'shaft') expect([lookOf(T, r.ring, rings).shaft].flat()).toContain(D.plan[r.id].locale); else expect(D.plan[r.id].locale).toBeUndefined(); }
       else if (r.save) expect(D.plan[r.id].locale).toBe('chapel');
     }
     expect(localeOf(T, { ring: 1, kind: 'shaft' }, rings)).toBe(lookOf(T, 1, rings).shaft);
     expect(roomLook(T, { ring: 1, kind: 'shaft' }, rings).focal).toBe(T.locales[lookOf(T, 1, rings).shaft].focal);
     expect(roomLook(T, { ring: 1, kind: 'corridor' }, rings)).toBe(lookOf(T, 1, rings));
+    // (a look's list of locales dealt room by room in turn: the halls' other corridors each its own, the towers in turn)
+    const alt = lookOf(T, 1, rings).alt;
+    expect(Array.isArray(alt)).toBe(true);
+    expect(alt.map((_, k) => localeOf(T, { ring: 1, kind: 'corridor' }, rings, 2 * k + 1))).toEqual(alt);
+    const dealt = new Set(Object.values(D.plan).map((p) => p.locale).filter(Boolean));
+    for (const id of [...alt, ...lookOf(T, 0, rings).shaft]) expect(dealt).toContain(id);
     // (stained glass keeps its colours, lit from behind; each gear and each clock hand turns about its own hub)
     const stained = D.faces.filter((f) => f.group === 'box:stained');
     expect(stained.length).toBeGreaterThan(0);
