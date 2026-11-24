@@ -3,7 +3,9 @@
 - **Cinematic action is the core Steel Serpents is made on** (cosmos/fixtures.js `cinematic-action`): a hero seen over
   the shoulder works through a linear run of set pieces, with a gun aimed off the eye and a knife, objectives laid as a
   mission, getting over and onto things, and cutscenes cut into play. The probe was the world clock's (11-02) and
-  waited on a replay. It is now makeable, and Steel Serpents' rail names it among its genres.
+  waited on a replay. It is now makeable. Steel Serpents' rail names it among its genres and is still a stealth game first: its own
+  cube, which its tunings are read from, is `stealth`, the espionage and cinematic action cubes near it (as Artesia is an
+  action RPG near the top-down and open adventures).
 - **The same core as an adventure** (`cinematic-adventure`, "Cinematic action adventure"): a treasure hunter climbing
   between gunfights behind cover that breaks, a vehicle chase for a set piece, the story told in acts with banter on
   the way. It is the direction the core grows toward, and the probe says what that waits on: the hero getting into a
