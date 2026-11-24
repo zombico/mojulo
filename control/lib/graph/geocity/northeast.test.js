@@ -34,7 +34,7 @@ describe('a northeast metro', () => {
     expect(kinds(d, 'outskirts')).not.toContain('garden');
   });
 
-  it('plants its street trees on their walks, small, each in its box of soil: none on a carriageway, none in a crossing', () => {
+  it('plants its street trees on their walks, small, each in its box of soil; fences its complexes, a path and a gate to each door', () => {
     const geocity = { metro: { from: 'northeast', rings: { core: 350, frame: 900 } }, extent: [3000, 2400], water: { sides: ['e'], depth: 200 }, core: [0.85, 0.5], evoke: 'neighbourhood', at: 'outskirts' };
     const P = assembleGeocityScene({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity });
     const L = P.geocity.laws.find((l) => l.law === 'trees-clear');
@@ -46,6 +46,12 @@ describe('a northeast metro', () => {
     expect(side.length).toBeGreaterThan(0);
     expect(Math.max(...side.map((t) => t.h))).toBeLessThanOrEqual(10);
     expect(F.repeats.filter((r) => /soil/.test(r.group)).reduce((n, r) => n + r.transforms.length, 0)).toBeGreaterThan(0);
+    // (its complexes fenced along their streets, a path from each door to a gate in the fence)
+    const n = (re) => F.repeats.filter((r) => re.test(r.group)).reduce((k, r) => k + r.transforms.length, 0);
+    expect(F.geocity.counts.paths).toBeGreaterThan(0);
+    expect(F.geocity.counts.gates).toBe(F.geocity.counts.paths);
+    expect(n(/railing/)).toBeGreaterThan(F.geocity.counts.gates);
+    expect(F.geocity.laws.find((l) => l.law === 'walk-clear')).toMatchObject({ ok: true });
   }, 300000);
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { frontageTemplates, frontsOf, wallsOf, FACINGS, FRONTAGE } from './frontage.js';
+import { frontageTemplates, frontsOf, wallsOf, entriesOf, FACINGS, FRONTAGE } from './frontage.js';
 import { mulberry32 } from '../city/plan/dice.js';
 
 const L = { toLight: [0.4, -0.5, 0.75], ambient: 0.4, diffuse: 0.6 };
@@ -53,3 +53,14 @@ describe('the metro\'s frontage: windows, storefronts, entries, lobbies, balconi
     expect(wallsOf([0, 0, 10, 4])).toEqual({ s: { a: [0, 0], L: 10 }, n: { a: [10, 4], L: 10 }, e: { a: [10, 0], L: 4 }, w: { a: [0, 4], L: 4 } });
   });
 });
+
+describe('a wall\'s entries (entriesOf)', () => {
+  it('are where its front puts its doors: one every FRONTAGE.entry.every metres, inside the wall', () => {
+    const wall = { facing: 's', a: [0, 0], L: 40, z0: 0 };
+    const doors = frontsOf(wall, { storeys: 3, floorH: 3, use: 'residential', ground: 'entries', palette: { frame: ['#000'], door: ['#000'], rail: ['#000'] }, frames: [] }, () => 0.5).filter((p) => p.key.startsWith('entry-'));
+    const E = entriesOf(40, 'residential');
+    expect(E.length).toBe(Math.round(40 / FRONTAGE.entry.every));
+    for (const { u } of E) { expect(u).toBeGreaterThan(0); expect(u).toBeLessThan(40); expect(doors.some((p) => Math.abs(p.pos[0] - u) <= 0.006)).toBe(true); }
+  });
+});
+

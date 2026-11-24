@@ -18,4 +18,6 @@
 - The outskirts' buildings stand closer to their walks: houses a short front yard back, low-rises and walk-ups on their
   street with their lots behind (no longer in the middle of their blocks), garden apartments a few metres back; less
   grass between the walk and the wall.
+- Apartment complexes (low-rises, walk-ups, garden apartments) are fenced along their streets with a low black iron
+  fence, a paved path from each front door across the lawn to a gate in it.
 

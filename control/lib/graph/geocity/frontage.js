@@ -159,6 +159,13 @@ export function wallsOf([x0, y0, x1, y1]) {
   return { s: { a: [x0, y0], L: x1 - x0 }, n: { a: [x1, y1], L: x1 - x0 }, e: { a: [x1, y0], L: y1 - y0 }, w: { a: [x0, y1], L: y1 - y0 } };
 }
 
+/** A wall's apartment ENTRIES, where its front puts them: one every FRONTAGE.entry.every m, each in the middle of its
+ *  bay → [{ k: its bay, u: metres along the wall from its start }]. A scene that leads a path to a door reads it here. */
+export function entriesOf(L, use) {
+  const bay = FRONTAGE.bay[use] ?? 3.4, nb = Math.max(1, Math.floor(L / bay)), step = L / nb, ne = Math.max(1, Math.round(L / FRONTAGE.entry.every)), out = [];
+  for (let i = 0; i < ne; i++) { const k = Math.min(nb - 1, Math.floor(((i + 0.5) * nb) / ne)); out.push({ k, u: (k + 0.5) * step }); }
+  return out;
+}
 /** A storefront's stretch in height at a storey. */
 export const shopRise = (floorH) => Math.min(1.1, floorH / FRONTAGE.shop.h);
 /** A wall's shops: its lobby, if its ground is one and it has the room, and its bays ({ u: its middle along the wall,
@@ -210,8 +217,7 @@ export function frontsOf(wall, spec, R) {
     put('band', 0, z0 + floorH - 0.18, { band: pick(P.shop) }, sc(L, 0.5));
     for (let k = 0; k < nb; k++) taken.add(k);
   } else if (spec.ground === 'entries') {
-    const ne = Math.max(1, Math.round(L / FRONTAGE.entry.every));
-    for (let i = 0; i < ne; i++) { const k = Math.min(nb - 1, Math.floor(((i + 0.5) * nb) / ne)); taken.add(k); put('entry', (k + 0.5) * step, z0, { door: pick(P.door), canopy: pick(P.rail) }); }
+    for (const { k, u } of entriesOf(L, spec.use)) { taken.add(k); put('entry', u, z0, { door: pick(P.door), canopy: pick(P.rail) }); }
   } else if (spec.ground === 'none') for (let k = 0; k < nb; k++) taken.add(k);
   // its windows, storey by storey (its ground's where nothing else is), and its balconies
   const balc = spec.use === 'residential' && spec.balconies !== false && R() < FRONTAGE.balcony.share, frame = pick(P.frame), rail = pick(P.rail);

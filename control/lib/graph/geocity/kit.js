@@ -118,6 +118,20 @@ const ring = (L) => realize([
   { kind: 'street-sign', x: -0.04, y: -0.04, w: 0.08, d: 0.08, z0: 0, z1: 0.95, tint: '#6b7176' },
   { kind: 'tram-bracket', x: -0.3, y: -0.02, w: 0.6, d: 0.04, z0: 0.72, z1: 0.76, tint: '#6b7176' },
 ], L);
+/** A COMPLEX'S FENCE: a low iron fence's run (2.5 m along x, 1.1 m high): its posts, its top and bottom rails, its
+ *  pickets between them, painted black. */
+const RAIL_LEN = 2.5, RAIL_H = 1.1;
+const railing = (L) => realize([
+  ...[-RAIL_LEN / 2, RAIL_LEN / 2 - 0.06].map((x) => ({ kind: 'tram-bracket', x, y: -0.03, w: 0.06, d: 0.06, z0: 0, z1: RAIL_H + 0.08, tint: '#26282a' })),
+  ...[0.12, RAIL_H - 0.04].map((z) => ({ kind: 'tram-bracket', x: -RAIL_LEN / 2, y: -0.015, w: RAIL_LEN, d: 0.03, z0: z, z1: z + 0.04, tint: '#26282a' })),
+  ...Array.from({ length: 11 }, (_, k) => ({ kind: 'tram-bracket', x: -RAIL_LEN / 2 + 0.14 + k * 0.21, y: -0.01, w: 0.02, d: 0.02, z0: 0.12, z1: RAIL_H, tint: '#26282a' })),
+], L);
+/** Its GATE (1.6 m along x): two stout posts with ball caps, a leaf of rails and pickets between them, painted black. */
+const gate = (L) => realize([
+  ...[-0.86, 0.78].map((x) => ({ kind: 'tram-bracket', x, y: -0.05, w: 0.1, d: 0.1, z0: 0, z1: RAIL_H + 0.25, tint: '#1f2123' })),
+  ...[0.14, RAIL_H - 0.08].map((z) => ({ kind: 'tram-bracket', x: -0.76, y: -0.015, w: 1.54, d: 0.03, z0: z, z1: z + 0.05, tint: '#1f2123' })),
+  ...Array.from({ length: 8 }, (_, k) => ({ kind: 'tram-bracket', x: -0.68 + k * 0.19, y: -0.01, w: 0.02, d: 0.02, z0: 0.14, z1: RAIL_H - 0.04, tint: '#1f2123' })),
+], L);
 /** A stainless bollard (the metro's drop-off bollard). */
 const bollard = (L) => realize([{ kind: 'drop-off-bollard', x: -0.11, y: -0.11, w: 0.22, d: 0.22, z0: 0, z1: 0.95, tint: '#9aa0a6' }], L);
 /** A wooden hydro pole (fractal-city.js's power pole at its size), its crossarm across the street it serves, and a lamp
@@ -214,7 +228,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
       ...[[-0.7, -0.7, 0.7, -0.6], [-0.7, 0.6, 0.7, 0.7], [-0.7, -0.6, -0.6, 0.6], [0.6, -0.6, 0.7, 0.6]].map(([a, b, c, d]) => quad([[a, b, 0.06], [c, b, 0.06], [c, d, 0.06], [a, d, 0.06]], [0, 0, 1], '#9a958a', L))],
     bench: four((v) => bench(v, L)),
     can: four((v) => can(v, L)),
-    bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L),
+    bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L), railing: railing(L), gate: gate(L),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a
     // parked car (along x for 'e'/'w', y for 'n'/'s'), a stall's line
