@@ -573,10 +573,12 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false, spins, liv
     proud(s - R * 1.8, s + R * 1.6, floor, floor + R * 2, 0.8);
   } else if (id === 'crystals') {
     // (a druse of crystals grown out of the rock: real stones of the look's `gem` (polygonizer/crystal-faces.js), each its
-    // lattice's own faces, many small and a few long, glowing in their own colour and shaded live by the page)
+    // lattice's own faces, many small and a few long, glowing in their own colour (the look's `glow`) and shaded live by
+    // the page; coloured for a path in centimetres, as the land's are (local-meru/crystals.js: a metre of sapphire reads
+    // black))
     const z0 = Math.min(top - 4, floor + 3.8 + dice() * 3), seed = Math.floor(dice() * 1e6);
     poly(out, x, [[s - 1.2, z0 - 0.4], [s + 1.3, z0 - 0.5], [s + 0.9, z0 + 0.4], [s - 1.0, z0 + 0.3]], shade(L.stone, 0.6), 'box:dress', { pillow: 0.5 });
-    const stones = crystalTermFaces({ id: 'box:crystal', op: 'add', shape: { kind: 'crystal', gem: L.gem || 'quartz', center: [x + 0.1, s, z0], size: 2.4, unit: 'm', glow: 0.8,
+    const stones = crystalTermFaces({ id: 'box:crystal', op: 'add', shape: { kind: 'crystal', gem: L.gem || 'quartz', center: [x + 0.1, s, z0], size: 2.4, unit: 'cm', glow: L.glow ?? 0.8,
       cluster: { count: 7, seed, on: { disc: { center: [x + 0.05, s, z0], radius: 0.9, normal: [1, 0, 0.55] } }, lengths: [0.7, 2.4], tilt: 32, bury: 0.25 } } });
     const piece = `crystals:${Math.round(s * 100)}:${Math.round(z0 * 100)}`;
     // (grown out of the wall, it has no floor under it to throw its print on: scene/crystal-prints.js `print: false`)

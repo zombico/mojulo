@@ -35,7 +35,8 @@ import { greyboxOf, FLOOR, boxCameraOf } from './rooms.js';
 import { solveBox } from './solve.js';
 import { boxLaws } from './laws.js';
 import { GATES, readHero } from './gates.js';
-import { BOX_THEMES, themeLaws } from './themes.js';
+import { boxLookOf } from './cube.js';
+import { themeLaws } from './themes.js';
 import { dressBox } from './dress.js';
 import { backdropLaws } from './backdrop.js';
 import { fabricLaws } from './fabric.js';
@@ -82,9 +83,11 @@ function readBoxScene(m) {
 export function boxOf(m) {
   const R = readBoxScene(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k))));
   const layout = layBox(R.words), greybox = greyboxOf(layout, { hero: R.hero }), solved = solveBox(layout);
+  // (its LOOK: its words' theme, else its cube's box, else the greybox: cube.js)
+  const look = boxLookOf(layout, m.cube);
   // (and, dressed, its theme's: each ring unlike the last, every gate standing out from its room)
   const gateRings = (d) => [...new Set([d.a, d.b].map((id) => layout.rooms.find((r) => r.id === id).ring))];
-  const laws = [...boxLaws(layout, { solved, greybox }), ...(layout.theme ? themeLaws(layout.theme, layout.rings.length, layout.doors.filter((d) => d.gate && d.gate !== 'double-jump').map((d) => ({ kind: d.gate, colour: GATES[d.gate].colour, rings: gateRings(d) }))).map((l) => ({ ...l, id: `theme:${l.id}` })) : [])];
+  const laws = [...boxLaws(layout, { solved, greybox }), ...(look ? themeLaws(look.theme, layout.rings.length, layout.doors.filter((d) => d.gate && d.gate !== 'double-jump').map((d) => ({ kind: d.gate, colour: GATES[d.gate].colour, rings: gateRings(d) }))).map((l) => ({ ...l, id: `theme:${l.id}` })) : [])];
   const W = greybox.screen.width, H = greybox.screen.height, room = new Map(layout.rooms.map((r) => [r.id, r]));
   const floorOf = (r) => r.rect[1] * H + FLOOR, midOf = (r) => (r.rect[0] + r.rect[2] / 2) * W;
   const tokenOf = (kind, door) => (kind === 'key' ? `key:${room.get(door.a).ring}` : kind === 'boss' ? `boss:${door.a}` : `gate:${kind}`);
@@ -121,9 +124,9 @@ export function boxOf(m) {
   const saves = layout.rooms.filter((r) => r.save).sort((a, b) => a.walk - b.walk).map((r) => ({ id: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], at: [r3(midOf(r)), r3(floorOf(r))] }));
   const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })), saves };
   // DRESSED in its theme where its words name one (dress.js), and held to the backdrop's craft (backdrop.js)
-  const B0 = { layout, greybox, stature: R.hero.stature }, dress = layout.theme ? dressBox(B0, BOX_THEMES[layout.theme]) : null;
+  const B0 = { layout, greybox, stature: R.hero.stature }, dress = look ? dressBox(B0, look.theme) : null;
   if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })), ...fabricLaws(B0, dress.fabric).map((l) => ({ ...l, id: `fabric:${l.id}` })));
-  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, ...(dress ? { dress } : {}) };
+  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, ...(look ? { look } : {}), ...(dress ? { dress } : {}) };
 }
 
 /** The `geocube` kind's `show: 'metroidvania'`. */
@@ -131,7 +134,7 @@ export function assembleBox(m, ctx = {}) {
   const B = boxOf(m), { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height, faces = [];
   // DRESSED in its theme where its words name one (dress.js: its rings' stone, backs, lamps and light, the night over its
   // open rings); else the greybox, each room's back in its ring's shade
-  const T = L.theme ? BOX_THEMES[L.theme] : null, D = T ? B.dress : null;
+  const T = B.look ? B.look.theme : null, D = T ? B.dress : null;
   if (D) faces.push(...D.faces);
   for (const r of T ? [] : L.rooms) {
     const [c, rr, w, h] = r.rect, base = RING_BACK[r.ring % RING_BACK.length];

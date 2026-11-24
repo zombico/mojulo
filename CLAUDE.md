@@ -364,7 +364,7 @@ Pointers only; each target carries its own design notes.
 - The metroidvania map (the spiralling box: one box of screens entered from the left, its walk spiralling ring by ring
   to a core, every ring a region against the last so a power found inside opens shortcuts out and pockets behind; its
   gates rows of `gates.js`; Vampire Sonata its template and Erina its hero, no stomp and no wall kick; a box's look a
-  theme, ring by ring, `themes.js` (the castle; XenoJager's planet, `xeno-jager.js`: the same idioms in rock, lava, water and strange life, a game's handle left for the next builder) laid by `dress.js`, its closed parts built as what they are by `fabric.js`, its climbs figures laid across the screen by `climbs.js`; a world's
+  theme, ring by ring, `themes.js` (the castle; XenoJager's planet, `xeno-jager.js`: the same idioms in rock, lava, water and strange life, a game's handle left for the next builder), named by its words or by its level's geocube's `box` (`cube.js`: the cube's library in the cube's colour, gem and rock), laid by `dress.js`, its closed parts built as what they are by `fabric.js`, its climbs figures laid across the screen by `climbs.js`; a world's
   `levels.<id>.metroidvania`, built as the geocube's `show: 'metroidvania'` and played in greybox on the side map's
   runtime, its gates held shut until the hero holds what opens them, `worlds/controllable/held-gates.js`):
   [gameworld/metroidvania/](control/lib/graph/gameworld/metroidvania/), [docs/metroidvania-map.md](docs/metroidvania-map.md).

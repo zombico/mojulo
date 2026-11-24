@@ -33,7 +33,6 @@ import { LADDER_RATE } from '../side-map/layout.js';
 import { boxOf, BOSS_HP } from './scene.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
 import { boxHud, BOX_LOOKS, BOX_MENU_KEY } from './hud.js';
-import { BOX_THEMES } from './themes.js';
 import { interfaceLook } from '../../playscape/ui/interface-look.js';
 import { hudSounds } from '../../scene/channels/mana-hud-sounds.js';
 
@@ -66,10 +65,10 @@ export function boxCamera(B, { target = 'hero' } = {}) {
 /** The box's HUD in the game's look: a castle's card re-keyed with its theme (a frost castle's frost card), its sounds
  *  the look's own set. */
 function boxHudOf(G, B) {
-  const { layout: L, greybox: Gb } = B, keyed = G.ui?.theme === BOX_LOOKS.castle && L.theme && BOX_LOOKS[L.theme] ? BOX_LOOKS[L.theme] : null;
+  const { layout: L, greybox: Gb } = B, id = B.look?.id, keyed = G.ui?.theme === BOX_LOOKS.castle && id && BOX_LOOKS[id] ? BOX_LOOKS[id] : null;
   const look = interfaceLook(keyed ? { ...G, ui: { ...G.ui, theme: keyed } } : G).theme;
   // (each room's place as it is dressed: its locale's, else its ring's)
-  const X = L.theme ? BOX_THEMES[L.theme].locales ?? {} : {}, looks = B.dress ? Object.fromEntries(Object.entries(B.dress.plan).filter(([, p]) => p.locale && X[p.locale]).map(([id, p]) => [id, { place: X[p.locale].place }])) : {};
+  const X = B.look ? B.look.theme.locales ?? {} : {}, looks = B.dress ? Object.fromEntries(Object.entries(B.dress.plan).filter(([, p]) => p.locale && X[p.locale]).map(([id, p]) => [id, { place: X[p.locale].place }])) : {};
   return boxHud({ theme: look, layout: L, screen: Gb.screen, held: B.held, looks, bossHp: BOSS_HP, sounds: hudSounds(look) });
 }
 

@@ -17,11 +17,29 @@
  * castle is not), and the hazards its looks already name (`hazard: 'water' | 'lava'`, read into the dress plan) that a
  * suit's power would let her through, a gate kind gates.js does not yet have.
  *
- *   xenoJager({ box?, turn? }) → the map's words (box.js readBox's), the planet at 14 × 8 screens unless said
- *   XENOJAGER_PREMISE, XENOJAGER_POWERS, XENOJAGER_HANDLE
+ *   xenoJager({ box?, turn?, theme? }) → the map's words (box.js readBox's), the planet at 14 × 8 screens unless said;
+ *                        `theme: null` leaves the look to the level's geocube (XENOJAGER_CUBE: cube.js)
+ *   XENOJAGER_PREMISE, XENOJAGER_POWERS, XENOJAGER_HANDLE, XENOJAGER_CUBE
  *
  * Pure: words in, words out.
  */
+/**
+ * XenoJager's GEOCUBE: the planet as a style (era/geocube.js), a document over the gothic night: its box the planet's
+ * library in the planet's own colours (tint 0), its stone and floor a cave's, its accent the crystals' violet. A world
+ * whose `style.geocube` is this cube dresses any box level that names no theme as the planet (cube.js), and its other
+ * levels on the same stone. A document until the planet earns a preset.
+ */
+export const XENOJAGER_CUBE = Object.freeze({
+  from: 'gothic-night', id: 'xenojager', title: 'XenoJager\'s planet', reads: 'A dangerous planet\'s caves: rock, strange life, water and lava, lit by what grows there',
+  colour: Object.freeze({ stone: '#4e4250', floor: '#6a5c58', trim: '#5a4a52', accent: '#a07ad8', grass: '#2e5a48', foliage: '#2a4a3a', water: '#1e3a5a', sand: '#5a4c44' }),
+  box: Object.freeze({ library: 'xeno', tint: 0 }),
+  why: Object.freeze([
+    'Rock is never laid: it breaks as rock does, boulders of every shape, the dark of the cracks between them.',
+    'The only light is what grows and burns there: glowing pods, crystals, lava; the sky only over the crust.',
+    'Each depth its own water: green life, blue water, red heat, the rings unlike one another.',
+    'What stands in the rock is real: its boulders fractured and grained, its crystals their lattice\'s own faces.',
+  ]),
+});
 export const XENOJAGER_PREMISE = 'An explorer goes down through a dangerous planet\'s crust, cavern by cavern, to the nest at its core';
 export const XENOJAGER_POWERS = Object.freeze({
   'thruster-leap': Object.freeze({ opens: 'double-jump', name: 'the thruster leap' }),
@@ -30,12 +48,12 @@ export const XENOJAGER_POWERS = Object.freeze({
 });
 
 /** The planet as the map's words. */
-export function xenoJager({ box = [14, 8], turn = 'ccw' } = {}) {
+export function xenoJager({ box = [14, 8], turn = 'ccw', theme = 'xeno' } = {}) {
   return {
     premise: XENOJAGER_PREMISE,
     box: [...box],
     turn,
-    theme: 'xeno',
+    ...(theme ? { theme } : {}),
     powers: structuredClone({ ...XENOJAGER_POWERS }),
     rings: [
       { id: 'crust', place: 'the crust', towers: true, key: true, boss: 'the Crust Warden', finds: 'thruster-leap', inward: 'double-jump',
@@ -66,4 +84,6 @@ export const XENOJAGER_HANDLE = Object.freeze({
     lava: Object.freeze({ in: 'the magma core', suit: 'the heat shell', does: 'burns her until the suit is found', wired: false }),
   }),
   ui: Object.freeze({ theme: 'nocturne-xeno', wired: true }),
+  // (wired: a world whose style names this cube dresses its box levels as the planet, cube.js)
+  cube: Object.freeze({ geocube: XENOJAGER_CUBE, wired: true }),
 });

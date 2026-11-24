@@ -486,8 +486,39 @@ Every law the castle holds, the planet holds (`xeno-jager.test.js`).
   and harmless. A suit's power would let her through, with a gate kind for a pool or a lava floor as a new row of
   `gates.js`.
 
-Its HUD is the one part already wired: the box's HUD wears `nocturne-xeno` by its theme (`hud.js` `BOX_LOOKS`).
+Two parts are already wired. Its HUD wears `nocturne-xeno` by its theme (`hud.js` `BOX_LOOKS`). Its geocube is
+`XENOJAGER_CUBE`: a world whose `style.geocube` it is dresses any box level that names no theme as the planet
+(`xenoJager({ theme: null })`; "The box on its geocube").
 Review it with `node scripts/spikes/backdrops/shots.mjs <dir> vampire --xeno [--whole]`.
+
+## The box on its geocube
+
+A box is drawn in a look, and the look is read in one order (`cube.js` `boxLookOf`):
+
+1. **Its words' `theme`.** As written, drawn exactly as it always was: Vampire Sonata's `castle`.
+2. **Its level's geocube's `box`.** A box level's stage carries its level's or its world's `style.geocube`
+   (`levels.js`), so a game says one style and its box agrees with it.
+3. **Neither:** the greybox.
+
+A geocube's `box` (`era/geocube.js`) is `{ library, tint?, rock? }`. The `library` is a box library of `themes.js`
+(the castle's, the planet's): its places, pieces, locales and night, ring by ring. The cube supplies the rest:
+
+- **Colour.** Each ring's colours are tinted toward the cube's by role: back, stone and mortar toward its stone, the
+  tops toward its floor, the trim toward its trim, a carpet toward its accent. `tint` moves their hue and saturation
+  (0 is the library's own, 0.5 unsaid, 1 the cube's hue). Each colour keeps its own lightness, so the light still pools,
+  the walk still reads and the rings still stand apart as the library laid them.
+- **Crystals.** Where the cube grows crystals (`outside.crystals`), their gem and glow are every druse's.
+- **Rock.** `rock` is what every boulder is.
+
+| Cube | Box |
+|---|---|
+| `gothic-night` | the castle in its own colours (`tint: 0`): Vampire Sonata's castle, face for face |
+| `XENOJAGER_CUBE` (`xeno-jager.js`, a document over the gothic night) | the planet in its own colours |
+| `{ from: 'limestone-crags', box: { library: 'castle' } }` | the castle in pale limestone, every law holding |
+| any cube without a `box` | the greybox |
+
+Rupa's matter cannot choose the fabric, since it names `stone` for both masonry and natural rock. The library says
+which (the castle's masonry, the planet's `fabric: 'rock'`).
 
 ## Not yet
 
