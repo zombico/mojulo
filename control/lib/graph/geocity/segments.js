@@ -83,7 +83,7 @@ export const CARDS = Object.freeze({
 export const INDUSTRY_SEGMENTS = Object.freeze(['works', 'warehouse', 'storage', 'tanks', 'substation']);
 export const LIVELY = Object.freeze(['construction', 'parking', 'vacant']);
 export const CARD_IDS = Object.freeze(Object.keys(CARDS));
-export const OUTSKIRTS_SEGMENTS = Object.freeze(['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school']);
+export const OUTSKIRTS_SEGMENTS = Object.freeze(['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', 'garden']);
 // a geotown segment's streets (its block's ground is the rest)
 const STREET_SURFACES = new Set(['road', 'verge', 'walk', 'furnish', 'parking']);
 

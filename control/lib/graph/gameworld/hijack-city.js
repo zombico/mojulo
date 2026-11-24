@@ -12,7 +12,12 @@
  *
  *   HIJACK_CITY            the rail's name and the starter's title (a person's game takes its own)
  *   HIJACK_DISTRICT        the district's geocity: the metro it is cut from, its rings, its water, where it stands
- *   hijackCityWorld({ name?, seed? }) → the starter gameworld: a hero, the district, four story missions for one
+ *   HIJACK_DISTRICTS       the districts a starter may stand in, by a word: `downtown` (HIJACK_DISTRICT), `inner-city`
+ *                          (a Northeast metro's frame: brick walk-ups, low-rises and main streets among its midrises),
+ *                          `suburbs` (its outskirts: colonials, garden apartments, walk-ups); each a geocity whose
+ *                          evocation stands `at` its ring (geocity/design.js: the ring's most lived-in neighbourhood)
+ *   hijackCityWorld({ name?, seed?, district? }) → the starter gameworld (`district` a HIJACK_DISTRICTS word, downtown by
+ *                          default): a hero, the district, four story missions for one
  *                          contact (the last the end), a repeated fare, two crews, the law, the shops, the look, sound
  *                          and music. A plain value: the same words give the same world
  *   hijackCityStart(world) → null | { world, says }: a locked pitch from the rail with no level yet, laid with the
@@ -32,6 +37,17 @@ export const HIJACK_DISTRICT = Object.freeze({
   evoke: 'neighbourhood', at: 'B4', shops: true,
 });
 
+// (a Northeast metro cut small for a district: its harbour east, its core by it, its frame and outskirts inland; it
+// holds every law of the metro's at its game scale, evoked at either ring)
+const NORTHEAST_CUT = Object.freeze({ metro: Object.freeze({ from: 'northeast', rings: Object.freeze({ core: 350, frame: 900 }) }), extent: Object.freeze([3000, 2400]),
+  water: Object.freeze({ sides: Object.freeze(['e']), depth: 200 }), core: Object.freeze([0.85, 0.5]), evoke: 'neighbourhood', shops: true });
+/** The districts a Hijack City may stand in, by a word: its streets, its buildings and its traffic each its ring's. */
+export const HIJACK_DISTRICTS = Object.freeze({
+  downtown: HIJACK_DISTRICT,
+  'inner-city': Object.freeze({ ...NORTHEAST_CUT, at: 'frame' }),
+  suburbs: Object.freeze({ ...NORTHEAST_CUT, at: 'outskirts' }),
+});
+
 // the contact's jobs, told as missions: a first errand, one with heat, one against the clock, the end
 const MISSIONS = Object.freeze([
   { id: 'pickup', name: 'The pick-up', reward: 60, item: 'package', offer: 'New in town? I\'ve got work. A package across the district, back to me. Don\'t open it.', mission: {} },
@@ -44,7 +60,7 @@ const MISSIONS = Object.freeze([
 export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
-  levels: 'the district: another metro (`geocity.metro.from`), its size, its water, another district beside it',
+  levels: 'the district: one of HIJACK_DISTRICTS (downtown, the inner city\'s walk-ups and main streets, the suburbs), another metro (`geocity.metro.from`), where in it (`geocity.at`: a neighbourhood or a ring), its size, its water, another district beside it',
   errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
@@ -53,8 +69,9 @@ export const HIJACK_GROWS = Object.freeze({
   music: 'the score: walking, the chase, the tension',
 });
 
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2 } = {}) {
-  const district = JSON.parse(JSON.stringify(HIJACK_DISTRICT));
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, district: word = 'downtown' } = {}) {
+  if (!HIJACK_DISTRICTS[word]) throw new Error(`hijack city: district is ${Object.keys(HIJACK_DISTRICTS).join(', ')}`);
+  const district = JSON.parse(JSON.stringify(HIJACK_DISTRICTS[word]));
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page)

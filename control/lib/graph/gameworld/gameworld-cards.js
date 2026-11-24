@@ -1075,6 +1075,8 @@ function hijackCityCard() {
     '',
     'WHAT IS IN IT, each a word of the world:',
     '  levels.<id>.geocity   the district of a metro (its cars parked to take; traffic; passers-by who flee and fall)',
+    '                        a district by ring: HIJACK_DISTRICTS downtown | inner-city (walk-ups, low-rises, main streets) |',
+    '                        suburbs (colonials, garden apartments); any metro\'s `geocity.at` a ring: core, frame, outskirts',
     '  errands[].mission     { heat?: stars, clean?: lose them first, time?: seconds, final?: the end } on a contact\'s job',
     '  law: true | { stars, per, cars, armed, calm, busted, fine }   mayhem raises stars; police on foot and in cars',
     '  shops: { respray, guns }   repaint and lose the police; rounds for the sidearm (Q fires, R holsters it)',

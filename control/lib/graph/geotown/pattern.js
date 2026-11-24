@@ -176,6 +176,9 @@ const BAY_AND_GABLE = {
       school: { read: 'a three-storey brick school, tall lights in long rows, a canopy over its doors', use: 'dwelling', frontage: [36, 95], corner: 0, depth: [30, 48], building: [13, 18], setback: [5, 9], side: [4, 12], storeys: [3, 3], rear: 'court', front: { canopy: true }, pad: { least: 0.3, most: 1.8 },
         style: { from: 'walk-up', read: 'a collegiate brick school: three storeys of tall lights between stone bands, a deep cornice', language: { elements: { lights: { w: 1.4, h: 2, bay: 3.2 } }, compose: { mass: { w: 44, d: 16 } } }, palette: { stone: '#9a4f3a' } } },
       apartments: { read: 'a brick walk-up, four storeys, its entrance under a canopy, a lawn before it and a lot behind', use: 'dwelling', frontage: [24, 34], corner: 2, depth: [36, 42], building: [12, 15], setback: [5, 7], side: [3, 5], storeys: [4, 4], style: 'walk-up', rear: 'service', front: { canopy: true }, pad: { least: 0.45, most: 1.8 } },
+      // a GARDEN APARTMENT, post-war: a long brick walk-up of two or three storeys set back on its lawn, its garden behind
+      garden: { read: 'a post-war garden apartment: a long brick walk-up of two or three storeys set back on its lawn, its garden behind', use: 'dwelling', frontage: [40, 56], corner: 3, depth: [44, 52], building: [11, 13], setback: [9, 13], side: [6, 9], storeys: [2, 3], rear: 'back', front: { canopy: true }, pad: { least: 0.3, most: 1.2 },
+        style: { from: 'walk-up', read: 'a post-war walk-up: brick in two or three storeys, paired lights, a flat roof behind a plain parapet', language: { compose: { mass: { w: 36, d: 12 } } } }, palettes: ['#a3563f', '#c9a57a', '#8c5a44', '#b9875e'] },
     },
     // AN EVOCATION's counts: houses a row, shops a row, walk-ups a row; a segment's rows recut when what it is composed
     // with stretches them past `stretch`
@@ -390,13 +393,15 @@ const NORTHEAST = {
   style: 'colonial',
   // a local street two lanes and no parking lane (cars in the drives), a grass verge and a walk each side
   street: { lanes: 2, lane: 3.3, park: 0, kerb: 0.15, edge: 'verge', verge: 2.2, walk: 1.5 },
-  block: { long: [190, 260], depth: [46, 58] },
+  // (its lots deep enough for a lawn, the house and a back yard, and no deeper: a neighbourhood between a metro's
+  // arterials, at its game scale, holds two blocks of them back to back; geocity/laws.js geotownLeast)
+  block: { long: [190, 260], depth: [33, 50] },
   plot: { semi: [8, 9], detached: [16, 22], mansion: [26, 32], corner: 2.5 },
   mix: { semi: 0, detached: 1 },
   duplex: { share: 0, read: BG.duplex.read },
-  setback: [7.5, 11],
+  setback: [7, 9.5],
   house: { depth: [10, 12], storeys: [2, 2], side: [2.4, 3.6] },
-  back: 12,
+  back: 10,
   path: 1.1,
   coverage: [0.08, 0.3],
   green: 0.45,

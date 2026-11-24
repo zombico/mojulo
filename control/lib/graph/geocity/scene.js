@@ -202,6 +202,9 @@ const GLASS_SPEC = Object.freeze([0.55, 48]);
 // `height` m, airy as a sapling's; a vacant lot's self-sown trees all young)
 const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
   young: Object.freeze({ share: 0.35, height: Object.freeze([5, 8]) }) });
+// a garden-apartment block's bars (m): their least length along a side, the gap between them, their depth, their setback
+// behind their lawn, the block's ends kept clear, their storeys (two or three)
+const GARDEN_APT = Object.freeze({ long: 40, gap: 9, depth: 12, setback: 10, end: 6, storeys: Object.freeze([2, 3]) });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -1538,6 +1541,23 @@ export function assembleGeocityScene(m, ctx = {}) {
         lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
         frontOf(b, q, z0, 4, STOREY, 'residential');
       }
+    } else if (b.kind === 'garden') {
+      // GARDEN APARTMENTS: each long side a row of brick bars of two or three storeys, GARDEN_APT, set back on their lawn,
+      // a gap between them; the block's middle their shared garden (its lawn, its trees: backs.js volunteers)
+      const G = GARDEN_APT, dpt = Math.min(G.depth, deep / 2 - G.setback - 3);
+      if (dpt >= 8) for (const s of sides) {
+        const n = Math.max(1, Math.floor((L - 2 * G.end + G.gap) / (G.long + G.gap))), f = (L - 2 * G.end - (n - 1) * G.gap) / n;
+        for (let k = 0; k < n; k++) {
+          const u = G.end + k * (f + G.gap), q = rectOf(s, u, u + f, G.setback, G.setback + dpt), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
+          const st = G.storeys[0] + (Rb() < 0.5 ? 1 : 0), z1 = z0 + st * STOREY;
+          box(q[0], q[1], q[2], q[3], z0, z1 + 0.5, famOf(brick, `${b.id}:${s}:${k}`)[0], ROOFS[2], 'geocity:lowrise');
+          lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
+          frontOf(b, q, z0, st, STOREY, 'residential', { only: [s] });
+          counts.gardens = (counts.gardens ?? 0) + 1;
+        }
+      }
+      // (their shared garden, the block's middle: its trees seeded on its lawn)
+      if (BACKS_ON && deep - 2 * (G.setback + dpt) >= 10) { const Fr = backFrame(at(sides[0], 0, 0), sides[0]), v0 = G.setback + dpt + 2, v1 = deep - G.setback - dpt - 2; growBack(Fr, volunteers([G.end, v0, L - G.end, v1], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', `${b.id}:garden`) }).trees, `${b.id}:garden`); }
     } else if (b.kind === 'apartments') {
       const q = rectOf(sides[0], 4, 34, 6, 20), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
       box(q[0], q[1], q[2], q[3], z0, z0 + 4 * STOREY, famOf(brick, b.id)[0], ROOFS[2], 'geocity:walkup');

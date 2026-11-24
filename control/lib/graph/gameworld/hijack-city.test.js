@@ -1,7 +1,8 @@
 // Hijack City (hijack-city.js): the open city's crime game as a rail and its starter. One case per concept: the starter
 // is a world the book reads, a locked pitch lays it and the creator's words win, a brief's words find it.
 import { describe, it, expect } from 'vitest';
-import { hijackCityWorld, hijackCityStart, HIJACK_CITY, HIJACK_GROWS } from './hijack-city.js';
+import { hijackCityWorld, hijackCityStart, HIJACK_CITY, HIJACK_GROWS, HIJACK_DISTRICTS, HIJACK_DISTRICT } from './hijack-city.js';
+import { designGeocity } from '../geocity/design.js';
 import { pitchStart } from './pitch-start.js';
 import { readGameworld } from './world.js';
 import { nearestRails, railOf, railSheet, laidGenre } from './rails.js';
@@ -36,4 +37,23 @@ describe('Hijack City', () => {
     expect(laidGenre('open-city-crime')).toBe(true);
     expect(railSheet('hijack-city').starts).toBe('open-city-crime');
   });
+
+  it('stands in a district by its word: downtown as it was, the inner city\'s low-rise or the suburbs, each its ring\'s', () => {
+    expect(hijackCityWorld({ district: 'downtown' })).toEqual(hijackCityWorld());
+    expect(hijackCityWorld().levels.district.geocity).toEqual(JSON.parse(JSON.stringify(HIJACK_DISTRICT)));
+    expect(() => hijackCityWorld({ district: 'uptown' })).toThrow(/district is/);
+    // (each district's neighbourhood its ring's, and lived in: the inner city's walk-ups and low-rises among its
+    // midrises, the suburbs' houses and garden apartments)
+    const want = { 'inner-city': ['frame', ['lowrise', 'apartments', 'main-street']], suburbs: ['outskirts', ['houses', 'garden', 'apartments', 'lowrise']] };
+    for (const [word, [ring, homes]] of Object.entries(want)) {
+      const W = hijackCityWorld({ district: word });
+      expect(() => readGameworld(W)).not.toThrow();
+      const d = designGeocity(W.levels.district.geocity, { seed: W.seed }), r = d.regions.find((x) => x.id === d.evoked.at);
+      expect(r.builds ?? r.ring, word).toBe(ring);
+      expect(r.blocks.some((b) => homes.includes(b.kind)), word).toBe(true);
+      expect(d.laws.filter((l) => !l.ok).map((l) => l.law), word).toEqual([]);
+    }
+    expect(Object.keys(HIJACK_DISTRICTS)).toEqual(['downtown', 'inner-city', 'suburbs']);
+  });
 });
+

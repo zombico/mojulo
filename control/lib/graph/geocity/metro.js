@@ -38,7 +38,8 @@
  *     streets       { collector, civic, school }: a neighbourhood wider than `collector` metres gets a collector across it
  *                   that way; one of `civic` blocks or more gets its civic block (the core's square, the outskirts'
  *                   school), a school's block at least `school` m²
- *     segments      { core: { tower, podium }, frame: { midrise, slab }, outskirts: { houses, apartments, lowrise } }:
+ *     segments      { core: { tower, podium }, frame: { midrise, slab, lowrise, apartments, main-street }, outskirts: { houses,
+ *                   apartments, lowrise, garden } }:
  *                   the weights a block off its arterials and collectors is given to each segment by (blocks.js)
  *     roads         each arterial's cross-section (roads.js): { lane, parking, bike, lanes, median: { share, w },
  *                   oneway: { pairs, lanes }, streetcar: { spine, share, gauge, row } }: four lanes a major street,
@@ -173,6 +174,37 @@ export const METROS = Object.freeze({
     grammar: 'mediterranean',
     outskirts: 'bay-and-gable',
   }),
+  // A NORTHEAST METRO (a Boston, a Providence): its core on a harbour to the east, an inner city of brick walk-ups,
+  // four-storey low-rises and main streets among its midrises; its outskirts the Northeast suburb (geotown/pattern.js
+  // northeast): colonials and Capes, garden apartments, walk-ups
+  northeast: Object.freeze({
+    read: 'a Northeastern US metro (a Boston): its core on a harbour to the east, an inner city of brick walk-ups and main streets, its suburbs of colonials and garden apartments inland',
+    extent: [4200, 3600],
+    water: { sides: ['e'], depth: 360 },
+    core: [0.86, 0.5],
+    fall: { drop: 35, toward: 'e' },
+    hills: { height: 22, from: SWELL },
+    arterials: { core: [240, 340], outer: [760, 960], reach: 1900 },
+    rings: { core: 560, frame: 1450 },
+    heights: {
+      core: { rail: [6, 60], median: [10, 30] },
+      frame: { rail: [3, 10], median: [4, 6] },
+      outskirts: { rail: [1, 3], median: [2, 2.5] },
+      corridor: { spine: 6, arterial: 4, depth: 34 },
+      nodes: { every: 2, reach: 300 },
+    },
+    green: { share: 0.14, parks: 1, most: 0.3, weights: { core: 0.4, frame: 1, outskirts: 1.3 }, park: { share: { core: 0.35, frame: 0.5, outskirts: 0.6 }, least: 4000, aspect: 2 } },
+    streets: { collector: 560, civic: 6, school: 9000 },
+    roads: { lane: 3.3, parking: 2.4, bike: 1.6, lanes: 4, median: { share: 0.2, w: 4 }, oneway: { pairs: 1, lanes: 3 }, streetcar: { spine: true, share: 0.2, gauge: 1.435, row: 7.5 } },
+    // (its inner city mostly LOW-RISE: walk-ups, low-rises and main streets among fewer midrises; its outskirts houses,
+    // garden apartments and walk-ups)
+    segments: { core: { tower: 2, podium: 3 }, frame: { midrise: 2, slab: 1, lowrise: 3, apartments: 2, 'main-street': 1 }, outskirts: { houses: 6, garden: 2, apartments: 1, lowrise: 1 } },
+    lively: { core: { construction: 0.06, parking: 0.05, vacant: 0.01 }, frame: { construction: 0.04, parking: 0.06, vacant: 0.04 }, outskirts: { construction: 0.02, parking: 0.02, vacant: 0.02 } },
+    industry: { share: 0.18, segments: { works: 3, warehouse: 3, storage: 1.5, tanks: 1.5 }, block: [120, 190] },
+    grade: 0.07,
+    grammar: 'north-american',
+    outskirts: 'northeast',
+  }),
 });
 export const METRO_IDS = Object.freeze(Object.keys(METROS));
 export const EVOKES = Object.freeze({
@@ -230,7 +262,8 @@ export function readGeocity(spec = {}) {
   if (!(play in PLAY)) no(`play is ${Object.keys(PLAY).join(' or ')}`);
   if (spec.at !== undefined && !['neighbourhood', 'segment'].includes(evoke)) no('at is what a neighbourhood or a segment evocation centres on');
   if (spec.along !== undefined && evoke !== 'corridor') no('along is the arterial a corridor evocation runs along');
-  if (spec.at !== undefined && typeof spec.at !== 'string') no('at is a neighbourhood\'s id (\'D3\') or a block\'s (\'D3.2.1\')');
+  if (spec.at !== undefined && typeof spec.at !== 'string') no('at is a neighbourhood\'s id (\'D3\'), a ring\'s (core, frame, outskirts: its neighbourhood nearest the seat) or a block\'s (\'D3.2.1\')');
+  if (['core', 'frame', 'outskirts'].includes(spec.at) && evoke !== 'neighbourhood') no('at as a ring (core, frame, outskirts) is a neighbourhood evocation\'s');
   if (spec.along !== undefined && typeof spec.along !== 'string') no('along is an arterial\'s id (\'ns-3\')');
   // the geotowns it composes: a neighbourhood by its id, laid by the geotown (true: fitted by its ring, or its recipe)
   const geotowns = spec.geotowns ?? {};
@@ -272,7 +305,9 @@ export function readGeocity(spec = {}) {
   if (!isObj(Pk) || !isObj(Pk.share) || !RING_IDS.every((r) => num(Pk.share[r], 0, 1)) || !num(Pk.least, 0, 1e6) || !num(Pk.aspect, 1, 6)) no('green.park is { share: { core, frame, outskirts } 0–1, least: m², aspect: 1–6 }');
   const St = M.streets;
   if (!isObj(St) || !num(St.collector, 100, 12000) || !(Number.isInteger(St.civic) && St.civic >= 1) || !num(St.school, 0, 1e6)) no('streets is { collector: metres, civic: blocks (a whole number), school: m² }');
-  const SEG = { core: ['tower', 'podium'], frame: ['midrise', 'slab'], outskirts: ['houses', 'apartments', 'lowrise'] };
+  // (the inner city, the frame: its midrises and slabs, and its LOW-RISE fabric: four-storey walk-ups, a walk-up among
+  // houses, a main street of shops; the outskirts: its houses, its walk-ups and its garden apartments)
+  const SEG = { core: ['tower', 'podium'], frame: ['midrise', 'slab', 'lowrise', 'apartments', 'main-street'], outskirts: ['houses', 'apartments', 'lowrise', 'garden'] };
   if (!isObj(M.segments)) no('segments is { core, frame, outskirts }, each its segments\' weights');
   for (const [ring, ids] of Object.entries(SEG)) {
     const w = M.segments[ring];

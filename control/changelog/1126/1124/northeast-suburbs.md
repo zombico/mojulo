@@ -6,3 +6,9 @@
   Cape Cods under their steep roofs, each detached on a wide lot behind a deep lawn with its own driveway and garage,
   no cars on the street; and garden apartments, long brick blocks of flats on their lawns along the avenue.
 - Clapboard: painted lap siding, each board lapping over the one below, for any style's walls.
+- A city's inner ring can be low-rise: brick walk-ups, four-storey low-rises and main streets of shops among its
+  midrises, and its outskirts can hold garden apartments round their shared gardens. A new Northeast metro (a Boston)
+  is built that way.
+- Hijack City can be played in the inner city or the suburbs, not only downtown: a district is chosen by a word, and any
+  city's district can be asked for by its ring.
+
