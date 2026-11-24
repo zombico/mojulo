@@ -543,7 +543,34 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (C) for (const r of held) colliders.push({ ...C, min: P3([r[0], r[1], C.min[2] - deepest]), max: P3([r[2], r[3], C.max[2]]) });
     return { open: opened, signs, ...(Object.keys(sinks).length ? { sinks } : {}) };
   };
+  // a mass's PLINTH: where the land under its footprint falls more than PLINTH below its floor (a slope, a terrace's
+  // step, the fall to the shore), its walls carried on down to the land in their own cladding, so no mass stands on air;
+  // on level ground, nothing
+  const PLINTH = 0.3;
+  // (`under`: the ground the mass stands over where it is not the land's, a block's terraces: its lowest under the footprint)
+  let under = null;
+  const plinth = (x0, y0, x1, y1, z0, wall, group) => {
+    const a = Math.min(x0, x1), b = Math.min(y0, y1), c = Math.max(x0, x1), e = Math.max(y0, y1), xm = (a + c) / 2, ym = (b + e) / 2;
+    // (each wall its own: the ground along it, at its ends and its middle and a hand out past it (a slot between two
+    // masses, a yard or a lane a step down behind it); only a wall whose ground falls away is carried down, so a door
+    // that stands level with its plaza keeps its threshold)
+    const low = (ps) => Math.min(...ps.map(([x, y]) => S(x, y)), ...(under ? ps.map(([x, y]) => under(x, y)) : []));
+    const sides = [
+      [[a, b], [c, b], [[a, b], [xm, b], [c, b], [xm, b - 0.6]], [0, -1, 0]],
+      [[c, b], [c, e], [[c, b], [c, ym], [c, e], [c + 0.6, ym]], [1, 0, 0]],
+      [[c, e], [a, e], [[c, e], [xm, e], [a, e], [xm, e + 0.6]], [0, 1, 0]],
+      [[a, e], [a, b], [[a, e], [a, ym], [a, b], [a - 0.6, ym]], [-1, 0, 0]],
+    ];
+    for (const [p, q, ps, n] of sides) {
+      const foot = low(ps);
+      if (z0 - foot <= PLINTH) continue;
+      const f = foot - 0.1;
+      put([[p[0], p[1], f], [q[0], q[1], f], [q[0], q[1], z0], [p[0], p[1], z0]], group, wall, n);
+    }
+  };
+
   const box = (x0, y0, x1, y1, z0, z1, wall, roof, group) => {
+    plinth(x0, y0, x1, y1, z0, wall, group);
     shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, z1 - Math.min(0.3, (z1 - z0) / 4), z1, group, true);
     hold(x0, y0, x1, y1, z0, z1, `${holder}:${group.slice(8)}`);
     put([[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]], `${group}:roof`, roof);
@@ -555,6 +582,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   };
   // a mass under a gable, its ridge along `axis` ('x' or 'y')
   const gable = (x0, y0, x1, y1, z0, ze, zr, axis, wall, roof, group) => {
+    plinth(x0, y0, x1, y1, z0, wall, group);
     shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, ze, zr, group);
     hold(x0, y0, x1, y1, z0, zr, `${holder}:${group.slice(8)}`);
     if (axis === 'y') {
@@ -575,6 +603,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // a mass under a low HIP (the outskirts' register's, register.js): its walls to the eave all round, its roof four
   // slopes to a ridge along its longer side, a hip at each end
   const hip = (x0, y0, x1, y1, z0, ze, zr, wall, roof, group) => {
+    plinth(x0, y0, x1, y1, z0, wall, group);
     shell(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), z0, ze, zr, group);
     hold(x0, y0, x1, y1, z0, zr, `${holder}:${group.slice(8)}`);
     put([[x0, y0, z0], [x1, y0, z0], [x1, y0, ze], [x0, y0, ze]], group, wall, [0, -1, 0]); put([[x1, y0, z0], [x1, y1, z0], [x1, y1, ze], [x1, y0, ze]], group, wall, [1, 0, 0]);
@@ -981,7 +1010,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     const fs = ['s', 'n', 'w', 'e'].find((k) => b.sides[k]?.kind === 'arterial') ?? 's', front = { n: '+y', s: '-y', e: '+x', w: '-x' }[fs];
     // (a lot's ground floor the frontage's, its storefronts, lobby or entries; its storeys over it the facade's; a tower's
     // shaft its lobby among shops where it meets the walk)
-    const lot = (id, [a0, b0, a1, b1], z0, floors, floorH, skin, use, { skip = [], ...extra } = {}) => { lots.push({ id, x0: a0, y0: b0, x1: a1, y1: b1, z0, h: floors * floorH, floors, floorH, skin, use, front, shopfront: use !== 'residential', ...extra }); frontOf(b, [a0, b0, a1, b1], z0, floors, floorH, use === 'office' ? 'office' : use === 'mixed' ? 'mixed' : 'residential', { ground: true, skip }); };
+    // (a lot at a building's detail stands on a stone plinth where the land falls away under it, as its massing does)
+    const lot = (id, [a0, b0, a1, b1], z0, floors, floorH, skin, use, { skip = [], ...extra } = {}) => { plinth(a0, b0, a1, b1, z0, G.skin.stone[0][1], 'geocity:podium'); lots.push({ id, x0: a0, y0: b0, x1: a1, y1: b1, z0, h: floors * floorH, floors, floorH, skin, use, front, shopfront: use !== 'residential', ...extra }); frontOf(b, [a0, b0, a1, b1], z0, floors, floorH, use === 'office' ? 'office' : use === 'mixed' ? 'mixed' : 'residential', { ground: true, skip }); };
     if (b.kind === 'tower') {
       lot(`${b.id}:podium`, inset(0.62), zc, b.podium, office, 'stone', 'mixed');
       b.towers.forEach((t, k) => {
@@ -1224,6 +1254,10 @@ export function assembleGeocityScene(m, ctx = {}) {
         const Sh = (a) => shoreAt(g, a), teA = (a) => Sh(a) - PROM, natural = !!g.shore;
         const zAt = (a, t) => { const tE = natural ? teA(a) : te; return t <= t0c ? zl(a) + KERB : t >= tE ? zq(a) : zl(a) + KERB + ((zq(a) - zl(a) - KERB) * (t - t0c)) / (tE - t0c); };
         const at = (a, t, dz = 0) => [...P(a, t), zAt(a, t) + dz];
+        // (its masses' plinths down to its ground where it falls toward the quay under them: a hill city's shore falls
+        // tens of metres across its strip; the frame's inverse, a point to its `a` along the shore and `t` out from it)
+        { const o = P(0, 0), ua = P(1, 0), ut = P(0, 1), da = [ua[0] - o[0], ua[1] - o[1]], dt = [ut[0] - o[0], ut[1] - o[1]], la = da[0] * da[0] + da[1] * da[1] || 1, lt = dt[0] * dt[0] + dt[1] * dt[1] || 1;
+          under = (x, y) => { const v = [x - o[0], y - o[1]]; return zAt((v[0] * da[0] + v[1] * da[1]) / la, (v[0] * dt[0] + v[1] * dt[1]) / lt) - 0.2; }; }
         const soft = g.kind === 'park' || g.kind === 'steps' || g.kind === 'beach';
         // its ground: paved (a quay's granite) or a lawn, falling to its promenade; its promenade along its edge
         // (a natural shore's ground in narrow strips along its line; the rest in cells)
@@ -1372,6 +1406,7 @@ export function assembleGeocityScene(m, ctx = {}) {
         holder = null;
         counts.waterfront = { ...(counts.waterfront ?? {}), [g.kind]: (counts.waterfront?.[g.kind] ?? 0) + 1 };
       });
+      under = null;
       put([[...P(W.a0, 0), zw - 1.5], [...P(W.a0, W.segments[0].depth), zw - 1.5], [...P(W.a0, W.segments[0].depth), zq(W.a0)], [...P(W.a0, 0), zl(W.a0)]], 'geocity:quay-wall', col2.wall, alongV.map((v) => -v));
     }
     function wfsKit(key, pos, rotZ) { stamp(key, pos, rotZ); }
@@ -1548,6 +1583,11 @@ export function assembleGeocityScene(m, ctx = {}) {
 
   /** An outskirts block: two rows along its long sides, each the row its segment puts on that side. */
   function outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps = [] }) {
+    // (its masses' plinths down to its terraces, a step under the footprint and its service yards' level, as well as to the land)
+    under = (x, y) => zAt(x, y) - 0.2;
+    try { outskirtsOf(b, { x0, y0, x1, y1, longY, zAt, Rb, steps }); } finally { under = null; }
+  }
+  function outskirtsOf(b, { x0, y0, x1, y1, longY, zAt, Rb, steps = [] }) {
     const sides = longY ? ['w', 'e'] : ['s', 'n'], med = Math.max(1, Math.round(b.storeys.median)), brickOf = () => OUT.walls[Math.floor(Rb() * OUT.walls.length)];
     const along = longY ? [y0, y1] : [x0, x1], deep = longY ? x1 - x0 : y1 - y0;
     // a row's frame: `u` along the block from its start, `v` into it from its side's edge

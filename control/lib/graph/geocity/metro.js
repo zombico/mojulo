@@ -13,6 +13,8 @@
  *                   island), `depth` metres out from the land
  *     core          [u, v]: the core's SEAT, shares of the land west to east and south to north (the spine crosses there)
  *     fall          { drop, toward }: the land falls `drop` metres across it toward a side (the shore); 0 level
+ *     shore         (opt-in) metres: within them of a side its water lies along, the land eased down to the water's
+ *                   edge (a hill city's waterfront at the water, its hills inland); none, the land as it falls
  *     hills         false | { height, span?, from }: the hills over the fall, metres lowest to highest, read from a
  *                   painted landscape (`span` the metres its painting spans, the map's longer side by default)
  *     arterials     { core: [lo, hi], outer: [lo, hi], reach }: metres between arterials at the seat and at `reach`
@@ -180,6 +182,8 @@ export const METROS = Object.freeze({
     read: 'a hilly peninsula metro (a San Francisco): its core on the bay at the north-east corner, water on three sides, steep hills its grid is laid straight over, cable cars up its streets, Victorian neighbourhoods painted their colours',
     extent: [4000, 3600],
     water: { sides: ['n', 'e', 'w'], depth: 320 },
+    // (its waterfront at the water, its hills rising inland from it)
+    shore: 380,
     core: [0.78, 0.82],
     fall: { drop: 20, toward: 'e' },
     hills: { height: 70, from: SWELL },
@@ -248,7 +252,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -299,6 +303,7 @@ export function readGeocity(spec = {}) {
 
   if (!pair(M.extent, 600, 12000)) no('extent is [W, D], metres east and north, each 600 to 12000');
   const [W, D] = M.extent;
+  if (M.shore !== undefined && !num(M.shore, 0, 2000)) no('shore is metres, 0–2000: how far from its water the land eases down to it');
   if (!isObj(M.water) || !Array.isArray(M.water.sides) || !M.water.sides.every((s) => SIDES.includes(s)) || new Set(M.water.sides).size !== M.water.sides.length) no(`water.sides is the sides with water, of ${SIDES.join(', ')}`);
   if (!num(M.water.depth, 0, Math.min(W, D) / 4)) no(`water.depth is the metres of water out from the land, 0 to a quarter of the shorter side (${Math.min(W, D) / 4})`);
   if (!(Array.isArray(M.core) && M.core.length === 2 && M.core.every((v) => num(v, 0, 1)))) no('core is [u, v], the seat\'s shares of the land west to east and south to north, each 0 to 1');

@@ -32,3 +32,6 @@
   brownstone without New York's fire escapes and water tanks, on low hills.
 - Hijack City's suburbs are the West Coast's now; one word makes them a tropical coast, the northeastern suburb they
   were, or a San Francisco district in its fog.
+- No building floats off its ground any more: where the land falls away under a wall (a slope, a terrace, a
+  waterfront ramp), that wall is carried down to the ground on a plinth, and a door level with its plaza keeps its
+  threshold. The hill city's land eases down to its water instead of standing on a cliff over it.

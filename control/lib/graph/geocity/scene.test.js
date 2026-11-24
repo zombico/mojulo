@@ -17,7 +17,10 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     expect(P.faces.length).toBeLessThanOrEqual(GEOCITY_FACES);
     const towers = D.regions.flatMap((r) => r.blocks).flatMap((b) => b.towers ?? []);
     expect(P.geocity.counts.towers).toBe(towers.length);
-    expect(group('geocity:tower').length).toBe(4 * towers.length);
+    // (each tower its four walls, and a wall over ground that falls away from it carried down to that ground: a plinth)
+    const T = group('geocity:tower').length;
+    expect(T).toBeGreaterThanOrEqual(4 * towers.length);
+    expect(T).toBeLessThanOrEqual(8 * towers.length);
     expect(group('geocity:house').length).toBeGreaterThan(0);
     expect(group('geocity:water').length).toBe(1);
   });

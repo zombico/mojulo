@@ -99,6 +99,13 @@ export function geocityLand(T, land, seed = 1, field = null) {
       hills = (x, y) => (raw(x, y) - lo) * k;
     }
     N = (x, y) => fall(x, y) + hills(x, y);
+    // (THE SHORE, opt-in `shore` metres, a hill city's: within it of a side its water lies along, the land eased down to
+    // the water's edge, so its waterfront stands at the water and its hills rise inland, never a cliff into the sea)
+    const ease = T.metro.shore, wet = T.metro.water?.sides ?? [];
+    if (ease > 0 && wet.length) {
+      const N0 = N, edge = { w: (x) => x - x0, e: (x) => x1 - x, s: (x, y) => y - y0, n: (x, y) => y1 - y };
+      N = (x, y) => { const d = Math.min(...wet.map((w) => edge[w](x, y))), t = Math.max(0, Math.min(1, d / ease)); return N0(x, y) * t * t * (3 - 2 * t); };
+    }
   }
   // S: N on the grid, box-blurred twice each way (near a gaussian of S_BLUR), clamped at the edges, read bilinearly
   const nx = Math.ceil(W / S_CELL) + 1, ny = Math.ceil(D / S_CELL) + 1;
