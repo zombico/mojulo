@@ -163,6 +163,9 @@ describe('world-scene kinds — per-arm characterization', () => {
   // portable BETWEEN environments. This pin stays a local transcription-error guard (dropped spread /
   // title typo / mis-dispatch); the emitted-output char-net (emit-channels.char et al.) is the
   // portable guard on the actual geometry.
+  // re-pinned 2026-11-24 (1122-sim-fixing merging 1124-sol-geocubes): 'saturn-view' — the planet study's payload carries
+  // the children of Sol (the Moon and Pluto, the close and ring passes behind a uniform its globe views never set, and a
+  // raymarched study's own `minDistance`); every other arm unchanged.
   it.skipIf(process.env.CI)('every dispatch arm resolves its fixture to a stable { title, hash } snapshot', async () => {
     const rows = {};
     for (const [kind, manifest] of Object.entries(FIXTURES)) {
