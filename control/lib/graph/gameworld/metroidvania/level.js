@@ -124,7 +124,9 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const Bs = stood ? standBosses(G, B, { stature, refs: bossRefs }) : null;
   Object.assign(figures, Bs?.figures ?? {});
   const foes = [...foes0, ...(Bs?.entities ?? []).map((e) => standIn(e, figures, {}, bossRow(B.bosses.find((b) => b.id === e.id).name).class))];
-  const drawnFigures = Object.fromEntries(Object.entries(figures).filter(([k]) => !((k.startsWith('foe-') || k.startsWith('boss-')) && foes.every((e) => e.body?.figure !== k))));
+  // (a figure is drawn when a body stands as it, or will: a mode it becomes, a boss's second form)
+  const used = (e, k) => e.body?.figure === k || (e.body?.modes ?? []).some((M) => M.figure === k);
+  const drawnFigures = Object.fromEntries(Object.entries(figures).filter(([k]) => !((k.startsWith('foe-') || k.startsWith('boss-')) && foes.every((e) => !used(e, k)))));
   // the goal: the throne's far side, behind its boss
   const throne = L.rooms.filter((r) => L.rings[r.ring].core).at(-1), [tc, tr, tw] = throne.rect;
   const reach = { kind: 'reach-exit', at: [0, r3((tc + tw) * W - 2.5), r3(tr * H + FLOOR + 1)], radius: 2.5, planar: false };

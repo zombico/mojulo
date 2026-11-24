@@ -105,4 +105,25 @@ describe('the castle\'s bosses', () => {
       expect(H.stylism.silhouette).not.toBe('knight');
     }
   });
+
+  it('a boss of a second form is stood in two modes, the second its own figure, fight and size, and the runner makes both', () => {
+    const id = Object.keys(CASTLE_BOSSES).find((k) => CASTLE_BOSSES[k].second), b = S.bosses.find((x) => bossRow(x.name).id === id), row = CASTLE_BOSSES[id];
+    const G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' }));
+    const P = standBosses(G, S, { stature: 1.63, refs: { [id]: 'ref-1', [`${id}:second`]: 'ref-2' } }), e = P.entities.find((x) => x.id === b.id);
+    const [M1, M2] = e.body.modes;
+    expect(M1).toMatchObject({ figure: e.body.figure, hp: row.blows * 20 });
+    expect(M2).toMatchObject({ hp: row.second.blows * 20, title: row.second.title });
+    expect(P.figures[M2.figure].heroRef).toBe('ref-2');
+    expect(e.rule.boss.figures).toEqual([M2.figure]);
+    expect(Object.keys(M2.rule.boss.moves)).toEqual(Object.keys(row.second.moves));
+    expect(M2.rule.collideHeight).toBeCloseTo(1.63 * row.second.tier, 2);
+    expect(M2.rule.boss.room).toEqual(e.rule.boss.room);
+    // (its second form's fight held to the director's laws too: the castle's fights law names it)
+    expect(bossLaws(S).find((l) => l.id === 'fights').holds).toBe(true);
+    const R = runSteps(vampireSonataGame({ heroRef: 'erina-ref' }), { ref: 'vs' }), steps = R.steps ?? R;
+    expect(steps.find((x) => x.key === `boss-${id}-second`).order.spec.beast).toBeDefined();
+    // (and the level draws the figure it becomes)
+    const lv = steps.find((x) => x.key.startsWith('level-'));
+    expect(lv.order.manifest.figures[lv.order.manifest.entities.find((x) => x.id === b.id).body.modes[1].figure]).toBeDefined();
+  }, 120000);
 });

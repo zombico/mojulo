@@ -82,7 +82,9 @@ function __hgFrame() {
     if (!e.downed && !e.gone && G.felled[B.id] == null && p[1] >= q[0] && p[1] <= q[1] && p[2] >= q[2] && p[2] <= q[3]) { __b = { B, e }; break; }
   }
   __hgB.style.display = __b ? 'block' : 'none';
-  if (__b) { __hgBName.textContent = __b.B.title || __b.B.id; __hgBHp.style.width = (Math.max(0, __b.e.body.hp / (__hgBMax[__b.B.id] || 1)) * 100).toFixed(1) + '%'; }
+  // (a boss of more than one form: the bar its form's, its full health and its name the mode's own)
+  if (__b) { const Md = __b.e.body.modes && __b.e.body.modes[__b.e.modeIdx || 0], mx = Md && Md.hp ? Md.hp : (__hgBMax[__b.B.id] || 1);
+    __hgBName.textContent = (Md && Md.title) || __b.B.title || __b.B.id; __hgBHp.style.width = (Math.max(0, __b.e.body.hp / mx) * 100).toFixed(1) + '%'; }
   if (G.got.length > __hgSeen) {
     const g = G.got[G.got.length - 1]; __hgSeen = G.got.length; __hgAt = __world.time;
     __hgEl.textContent = g.name;

@@ -133,3 +133,8 @@
   whatever is worn there.
 - The Lord of the Keep is a woman now, androgynous: a slim body squared at the shoulder, a sharp, cool face and short
   swept-back silver hair, in the same crimson coat, high collar and torn crimson-lined cape.
+- The Lord of the Keep has a second form. Cut down, she does not fall: she tears out of her finery as the Lord Unbound,
+  a hunched, gaunt-headed thing with long claws, a spined back and tail, the shreds of her cape hanging off it. Its health
+  bar fills again under its own name, and it fights with its own moves: claws spread wide, a leap from all fours, a storm
+  of bats, a scream. Only its fall opens her seal; lose to it and she is back in her first form when Erina returns.
+- A boss can be built with a second form (`second` on its row): a foe mode of its own figure, health, fight and size.

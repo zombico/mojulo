@@ -120,6 +120,29 @@ describe('held gates', () => {
     expect(G.fight).toBe(null);
   });
 
+  it('a fight lost against a boss of two forms puts it back into its first, whole', () => {
+    const saves = [{ id: 'gate', name: 'the gate', rect: [-2, 2, -1, 5], at: [0, 0] }];
+    const w = E.createWorld({ heldGates: { target: 'hero', saves, bosses: [{ id: 'boss-r', entity: 'boss-r', gives: ['boss:r'], room: [6, 16, -1, 5], shut: [{ min: [-1.5, 6, 0], max: [1.5, 6.5, 3], is: 'bar' }] }] },
+      entities: [{ id: 'hero', pilotable: true, hpMax: 50, rule: { type: 'platform', speed: 5.8, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'mesh', hittable: true, hp: 50 }, transform: { pos: [0, 3, 0], heading: Math.PI / 2 } },
+        { id: 'boss-r', team: 'foes', rule: { type: 'static', collideHeight: 2.6 }, body: { type: 'figure-rig', figure: 'woman', hittable: true, hp: 40, egg: { a: 0.6, c: 1.3, cz: 1.3 }, radius: 0.5,
+          modes: [{ figure: 'woman', hp: 40 }, { figure: 'beast', hp: 60, body: { egg: { a: 0.9, c: 1.8, cz: 1.8 }, radius: 0.7 }, rule: { collideHeight: 3.6 } }] }, transform: { pos: [0, 14, 0], heading: -Math.PI / 2 } }] });
+    const H = w.byId.hero, boss = w.byId['boss-r'], G = w.heldGates;
+    run(w, { forward: 1 }, 60);
+    expect(G.fight).toBe('boss-r');
+    // (cut down into its second form)
+    boss.downed = true; boss.body.hp = 0;
+    run(w, {}, 2);
+    expect(boss.body.figure).toBe('beast'); expect(boss.rule.collideHeight).toBe(3.6);
+    expect(G.held['boss:r']).toBeUndefined();   // (its first form cut down is not its fall)
+    // (the fight lost: back in its first, its rule, its size, its health)
+    H.body.hp = 0;
+    run(w, {}, 2);
+    expect(G.fight).toBe(null);
+    expect(boss.body.figure).toBe('woman'); expect(boss.modeIdx).toBe(0);
+    expect(boss.rule.collideHeight).toBe(2.6); expect(boss.body.egg).toEqual({ a: 0.6, c: 1.3, cz: 1.3 });
+    expect(boss.body.hp).toBe(40); expect(boss.hpMax).toBe(40);
+  });
+
   it('a page without held gates carries none of it', () => {
     expect(emissionSource({})).not.toContain('stepWithHeldGates');
     expect(emissionSource({ heldGates: true })).toContain('stepWithHeldGates');

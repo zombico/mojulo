@@ -19,7 +19,7 @@
  *                 each doorway and a grate over each hole) once the target is IN metres inside it while it stands: walls
  *                 (colliders, `of` boss-shut:<id>) until it falls; `fight` the boss being fought
  *     a FIGHT     lost (the target's health spent in it): the room opens, and the boss is back where it first stood,
- *                 whole: the fight from its start when she comes back
+ *                 whole (a boss of more than one form, `body.modes`, back in its first): the fight from its start
  *     a SAVE      a save room, `{ id, name, rect: [s0, s1, z0, z1], at: [s, z] }`: walked into, it fills the target's
  *                 health (its body's `hpMax`) and its MP (its moveset's `mp.max`, the arsenal's pool) and becomes where it
  *                 wakes; the first named is where it wakes before it has stood in any
@@ -51,7 +51,9 @@ export function buildHeldGates(E) {
     // (each boss that is a body of the world as it first stands: where a fight lost puts it back, whole)
     for (const B of H.bosses || []) {
       const e = B.entity && s.byId ? s.byId[B.entity] : null;
-      if (e && e.transform) s.heldGates.whole[B.id] = { pos: e.transform.pos.slice(), heading: e.transform.heading, hp: e.body && Number.isFinite(e.body.hp) ? e.body.hp : null };
+      if (e && e.transform) s.heldGates.whole[B.id] = { pos: e.transform.pos.slice(), heading: e.transform.heading, hp: e.body && Number.isFinite(e.body.hp) ? e.body.hp : null,
+        // (a boss of more than one form, `body.modes`: its first form as it stood, to be put back into)
+        ...(e.body && Array.isArray(e.body.modes) ? { figure: e.body.figure, rule: JSON.parse(JSON.stringify(e.rule)), egg: e.body.egg, radius: e.body.radius } : {}) };
     }
     // (every gate and boss stand-in unbreakable until what opens it is held)
     for (const b of s.breakables || []) if ((H.gates || []).some((g) => g.id === b.id)) b.hp = Infinity;
@@ -94,6 +96,8 @@ export function buildHeldGates(E) {
     if (lost && e && o && !e.gone) {
       e.transform.pos = o.pos.slice(); e.transform.heading = o.heading; if (e.body && o.hp != null) e.body.hp = o.hp;
       e.vel = [0, 0, 0]; e.downed = false; e.foeRock = null; e.foeRockT = 0; e.foeT = 0; e.hits = 0; e.staggerT = 0;
+      // (a boss of more than one form back in its first: its figure, its rule, its size; its fight begun afresh)
+      if (o.rule) { e.body.figure = o.figure; e.rule = JSON.parse(JSON.stringify(o.rule)); e.body.egg = o.egg; e.body.radius = o.radius; e.modeIdx = 0; e.hpMax = o.hp; e.bossS = null; e.noDestroy = true; }
     }
     G.fight = null;
   }
@@ -115,12 +119,14 @@ export function buildHeldGates(E) {
       if (S && G.inSave !== S.id) { G.inSave = S.id; G.save = S.id; full(); G.got.push({ id: 'save:' + S.id, name: 'Saved · ' + (S.name || S.id), t: state.time, kind: 'save' }); }
       if (!S) G.inSave = null;
     }
+    let woke = false;
     // DEATH: health spent, it wakes in its last save room, full, keeping all it holds
     if (T && T.body && (T.downed || (Number.isFinite(T.body.hp) && T.body.hp <= 0))) {
       const S = (H.saves || []).find((q) => q.id === G.save) || (H.saves || [])[0];
       if (S) {
         // (a fight lost: its room opens and its boss is back as it stood)
         if (G.fight) open(state, G, true);
+        woke = true;
         const eye = (T.rule && T.rule.eye) || 0;
         T.transform.pos = [0, S.at[0], S.at[1] + eye + 0.05];
         T.vel = [0, 0, 0]; T.dashVel = null; T.climbing = null; T.grounded = false;
@@ -145,14 +151,16 @@ export function buildHeldGates(E) {
     for (const B of H.bosses || []) {
       // (a stand-in block struck down, or a boss that is a body of the world, `entity`, felled)
       const b = B.entity ? null : blk(B.id), e = B.entity && state.byId ? state.byId[B.entity] : null;
-      if (B.entity ? !(e && (e.downed || e.gone)) : !(b && b.broken)) continue;
+      // (a boss of more than one form, `body.modes`, falls only in its last)
+      const moreForms = e && e.body && Array.isArray(e.body.modes) && (e.modeIdx || 0) < e.body.modes.length - 1;
+      if (B.entity ? !(e && (e.downed || e.gone)) || moreForms : !(b && b.broken)) continue;
       if (G.felled[B.id] != null) continue;
       G.felled[B.id] = state.time;
       if (G.fight === B.id) open(state, G, false);
       give(state, G, T, B.gives || [], B.rule, B.id, B.name);
     }
     // a BOSS'S ROOM shut behind the target once it is IN metres inside, while its boss stands
-    if (p && T && !G.fight) for (const B of H.bosses || []) {
+    if (p && T && !G.fight && !woke) for (const B of H.bosses || []) {
       const q = B.room, e = B.entity && state.byId ? state.byId[B.entity] : null;
       if (!q || !e || !(B.shut && B.shut.length) || e.downed || e.gone || G.felled[B.id] != null) continue;
       const foot = p0[2] - ((T.rule && T.rule.eye) || 0), st = (T.rule && T.rule.collideHeight) || 1.7;

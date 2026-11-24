@@ -10,7 +10,8 @@
  *                        health in the hero's blows (foes/vocab.js HERO.blow), rising as the castle goes in; `moves` and
  *                        `phases` its FIGHT, a human boss's words for the boss director (boss/bosses.js: each move a side
  *                        view's pattern in its own words, boss/patterns.js; its phases quicker as its health falls)
- *   castleBoss(id)       → the row as the director's boss (boss/bosses.js readBoss reads it); a move's `look` names what
+ *   castleBoss(id, { second? }) → the row as the director's boss (`second`: its second form's, a row's `second`: a boss
+ *                        defeated into a form of its own, its own title, tier, blows, moves and phases) (boss/bosses.js readBoss reads it); a move's `look` names what
  *                        its attack looks like where its pattern's own does not say (boss/looks.js: a toss's thing)
  *   SIDE_BODY, sideBody(reach) → the body a side view's fight is measured for (boss/laws.js: on a lane, with its jump);
  *                        `reach` a feel's measured reach (feel/reach.js), else the castle's hero's numbers
@@ -68,7 +69,12 @@ export const CASTLE_BOSSES = Object.freeze({
     phases: Object.freeze([ph({ pounce: 2, maul: 2 }, 2.2), ph({ pounce: 2, maul: 1, howl: 2 }, 1.8, { below: 0.6 }), ph({ pounce: 3, maul: 1, howl: 1 }, 1.4, { below: 0.3, temper: 'relentless' })]) }),
   'lord-of-the-keep': Object.freeze({ class: 'pursuer', skin: Object.freeze({ people: 'infernal' }), tier: 1.6, blows: 34, reads: 'the vampire lord herself, cool and sharp: she follows Erina across her throne room and strikes',
     moves: Object.freeze({ 'cape-sweep': { pattern: 'cleave', says: 'gathers her cape and sweeps it round' }, 'bat-swarm': { pattern: 'toss', says: 'opens her cape; bats pour out where Erina stood', look: { tell: { falling: 'swarm' } } }, 'blood-wave': { pattern: 'toll', says: 'raises both hands; the throne room\'s air turns red' }, 'shadow-lunge': { pattern: 'lunge', says: 'sinks into her own shadow' } }),
-    phases: Object.freeze([ph({ 'cape-sweep': 2, 'bat-swarm': 2 }, 2.2), ph({ 'cape-sweep': 2, 'bat-swarm': 1, 'blood-wave': 2 }, 1.8, { below: 0.66, temper: 'opportunist' }), ph({ 'blood-wave': 2, 'shadow-lunge': 2, 'bat-swarm': 1, 'cape-sweep': 1 }, 1.3, { below: 0.33, temper: 'relentless' })]) }),
+    phases: Object.freeze([ph({ 'cape-sweep': 2, 'bat-swarm': 2 }, 2.2), ph({ 'cape-sweep': 2, 'bat-swarm': 1, 'blood-wave': 2 }, 1.8, { below: 0.66, temper: 'opportunist' }), ph({ 'blood-wave': 2, 'shadow-lunge': 2, 'bat-swarm': 1, 'cape-sweep': 1 }, 1.3, { below: 0.33, temper: 'relentless' })]),
+    // (her SECOND FORM: cut down, she does not fall but tears out of her finery as the beast she is: a mode of her own,
+    // its health its blows, taller by its tier, its fight quicker and closer)
+    second: Object.freeze({ title: 'The Lord Unbound', tier: 2.1, blows: 24, reads: 'her true shape: a hunched, gaunt-headed thing, long-clawed and spined, the shreds of her finery hanging off it',
+      moves: Object.freeze({ 'night-claws': { pattern: 'cleave', says: 'rears back, claws spread wide' }, 'carrion-leap': { pattern: 'lunge', says: 'drops to all fours, its spines raised' }, 'bat-storm': { pattern: 'toss', says: 'screams; the dark above it splits into bats', look: { tell: { falling: 'swarm' } } }, 'blood-scream': { pattern: 'toll', says: 'opens its jaw wider than a jaw can open' } }),
+      phases: Object.freeze([ph({ 'night-claws': 2, 'carrion-leap': 2, 'bat-storm': 1, 'blood-scream': 1 }, 1.4, { temper: 'relentless' })]) }) }),
 });
 export const BOSS_DEFAULT = 'gate-warden';
 
@@ -122,14 +128,21 @@ export const CASTLE_FIGURES = Object.freeze({
     look: ['rival', 'sharp', 'narrow-eyes', 'mature'], hair: ['swept-back'], expression: 'deadpan',
     outfit: { type: 'outfit', style: withPieces('noble', [{ kind: 'collar', rise: 0.24, flare: 3 }, cloak('ankle', 0.8, 'base', { depth: 0.16, tongues: 7 })], { drop: ['mantle'] }) },
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
-    stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } } }),
+    stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } },
+    // (her second form's: a hunched brute of the draconic kin with a gaunt head, long claws, spines and a thin tail, a
+    // dark ruff; its skin a corpse violet head to foot, its finery torn to shreds at its shoulders and hips. Her cloak
+    // shed: a cloak's body hides a monster's)
+    second: { hero: { name: 'The Lord Unbound', cast: { pole: 'female', build: 'brute' }, head: 'none', tune: { stature: 1.15 },
+      beast: { kin: 'draconic', head: 'gaunt', claws: 'long', tail: 'thin', ridge: 'spines', ruff: 'ruff', hunch: 24, mass: { trunk: 1.35, upperArm: 1.5, foreArm: 1.5, hand: 1.6, thigh: 1.25, shank: 1.1 } },
+      outfit: shroud('unbound-shreds', [{ kind: 'rags', count: 8, len: 0.55, shoulders: true, colour: '#3a0a16' }], { OutfitSecond: '#3a0a16' }),
+      palette: { Skin: '#8a7a92', Claws: '#efe4cc', Top: '#6a5a72', Bottom: '#5a4a62', Shoes: '#4a3a52' } } } }),
 });
 /** A castle boss's figure as its door is asked for it: a person's with its moves' wind-up and strike clips (boss/looks.js
  * ATTACK_POSES, played by the page as it winds up and strikes); a beast's as it is (its own gaits). */
-export function castleFigure(id) {
-  const F = CASTLE_FIGURES[id];
+export function castleFigure(id, { second = false } = {}) {
+  const F0 = CASTLE_FIGURES[id], F = second ? F0?.second : F0, R = second ? CASTLE_BOSSES[id]?.second : CASTLE_BOSSES[id];
   if (!F || F.animal || F.bell) return F ?? null;
-  const pats = Object.values(CASTLE_BOSSES[id].moves).map((m) => m.pattern);
+  const pats = Object.values(R.moves).map((m) => m.pattern);
   return { hero: { ...F.hero, clips: { ...windClips(pats), ...(F.hero.clips ?? {}) } } };
 }
 
@@ -149,9 +162,9 @@ export function bossRow(name) {
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /** A castle boss as the director's boss: its name, its idea, its tells in the castle's gold, its moves and phases. */
-export function castleBoss(id) {
-  const R = CASTLE_BOSSES[id] ?? CASTLE_BOSSES[BOSS_DEFAULT], name = id.split('-').map((w) => (w === 'of' || w === 'the' ? w : w[0].toUpperCase() + w.slice(1))).join(' ');
-  return { name: `The ${name}`, title: R.reads.split(':')[0], reads: R.reads, look: { tell: '#e8c77a', hazard: '#d0463c' }, moves: JSON.parse(JSON.stringify(R.moves)), phases: JSON.parse(JSON.stringify(R.phases)) };
+export function castleBoss(id, { second = false } = {}) {
+  const R0 = CASTLE_BOSSES[id] ?? CASTLE_BOSSES[BOSS_DEFAULT], R = second && R0.second ? R0.second : R0, name = id.split('-').map((w) => (w === 'of' || w === 'the' ? w : w[0].toUpperCase() + w.slice(1))).join(' ');
+  return { name: second && R0.second ? R0.second.title : `The ${name}`, title: R.reads.split(':')[0], reads: R.reads, look: { tell: '#e8c77a', hazard: '#d0463c' }, moves: JSON.parse(JSON.stringify(R.moves)), phases: JSON.parse(JSON.stringify(R.phases)) };
 }
 
 /** the body a side view's fight is measured for: on the lane, no dive, its jump (Erina's measured numbers) */
@@ -161,6 +174,16 @@ export const sideBody = (reach) => (reach?.moves?.run ? { ...SIDE_BODY, speed: r
 /** a castle boss's rule with each move's LOOK (boss/looks.js) carried for the page: its tell and its hit, by its pattern
  * and its own words (the thing a toss throws) */
 const withLooks = (R, row) => ({ ...R, moves: Object.fromEntries(Object.entries(R.moves).map(([m, x]) => [m, { ...x, fx: lookOfMove({ id: m, ...row.moves[m] }) }])) });
+
+/** A boss's MODES (its first form, then its second, a row's `second`): each its figure and health and title; the second
+ * its own director's rule (bossRule over its moves and phases, its looks, kept to the same room), its height and its hit
+ * egg at its own tier. */
+function modesOf(G, b, row, { stature, figure, fig2, k }) {
+  const S2 = row.second, H2 = r3(stature * S2.tier), R2 = r3(0.3 * S2.tier);
+  const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...(b.room ? { room: [...b.room] } : {}) }, S2);
+  return [{ figure, hp: row.blows * HERO.blow, title: b.title ?? castleBoss(row.id).name },
+    { figure: fig2 ?? figure, hp: S2.blows * HERO.blow, title: S2.title, rule: { collideHeight: H2, collideRadius: R2, boss: boss2 }, body: { radius: R2, egg: { a: r3(0.42 * S2.tier), c: r3(H2 / 2), cz: r3(H2 / 2) } } }];
+}
 
 /** The box's bosses stood in their rooms. */
 export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
@@ -175,18 +198,24 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
     // (its size the tier's: as tall as the hero times its tier, its collider and its hit egg with it; its rounds the side
     // map's, travelling, seen crossing the room and jumped)
     const H = r3(stature * row.tier), R = r3(0.3 * row.tier), e = sideFoe({ ...e0, rule: { ...e0.rule, collideHeight: H, collideRadius: R } }, stature);
+    // (a SECOND FORM, the row's `second`: a mode of its own (worlds/controllable/vanish.js): cut down, it reels and rises
+    // as its second figure with its own health, its director's rule (its moves, its phases, its looks), its height and
+    // its hit egg; only the second dies. Its figure the runner's `<id>:second`, else the first's)
+    const S2 = row.second, ref2 = S2 && refs[`${row.id}:second`], fig2 = ref2 ? `${b.id}-unbound` : null;
+    if (fig2) part.figures[fig2] = libraryFigure(ref2);
     // (a figure grown to its tier: a door's body, a person's height, by its tier, as the side map's bosses are (its
     // bounds would count the halberd held over its head); a beast by its own bounds to the tier's height, the page's fit
     // (its skeleton shorter than its flesh))
     const { scale: _s, fit: _f, ...body } = e.body, fit = !figure || F.bell ? {} : F.animal ? { fit: { least: H, from: 1 } } : { scale: row.tier };
     part.entities.push({
       ...e,
-      body: { ...body, ...fit, hp: row.blows * HERO.blow, hpBar: 'none', radius: R, egg: { a: r3(0.42 * row.tier), c: r3(H / 2), cz: r3(H / 2) } },
+      body: { ...body, ...fit, hp: row.blows * HERO.blow, hpBar: 'none', radius: R, egg: { a: r3(0.42 * row.tier), c: r3(H / 2), cz: r3(H / 2) },
+        ...(S2 ? { modes: modesOf(G, b, row, { stature, figure: body.figure, fig2, k }) } : {}) },
       // (on its room's own stretch of the lane, between its walls and short of its doorways)
       // (its FIGHT the director's, boss/stand.js: its moves laid at its tempo, planted through each, its mind crossing its
       // phases; between its moves it fights as its class does)
       rule: { ...e.rule, collideHeight: H, collideRadius: R, rail: { a: [0, P.span[0]], b: [0, P.span[1]], join: P.at, heading: P.heading },
-        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && F.wind ? { wind: structuredClone(F.wind) } : {}) }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
+        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && F.wind ? { wind: structuredClone(F.wind) } : {}), ...(fig2 ? { figures: [fig2] } : {}) }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
     });
   }
   return part;
@@ -203,7 +232,8 @@ export function bossLaws(B, { body = SIDE_BODY } = {}) {
   const Bs = [...(B.bosses ?? [])].sort((a, b) => walkAt.get(a.place.room) - walkAt.get(b.place.room));
   const unknown = Bs.filter((b) => !bossRow(b.name).known).map((b) => b.name);
   law('known', !unknown.length, unknown.length ? `not on the shelf, stood as the ${BOSS_DEFAULT}: ${unknown.join(', ')}` : `every boss a row of the shelf (${Bs.length})`);
-  const ids = [...new Set(Bs.map((b) => bossRow(b.name).id))], broke = ids.flatMap((id) => directorLaws(castleBoss(id), body).filter((l) => !l.holds).map((l) => `${id}: ${l.law} (${l.says})`));
+  const ids = [...new Set(Bs.map((b) => bossRow(b.name).id))], forms = ids.flatMap((id) => [[id, castleBoss(id)], ...(CASTLE_BOSSES[id]?.second ? [[`${id} (second form)`, castleBoss(id, { second: true })]] : [])]);
+  const broke = forms.flatMap(([id, B]) => directorLaws(B, body).filter((l) => !l.holds && !(B.phases.length === 1 && l.law === 'falling')).map((l) => `${id}: ${l.law} (${l.says})`));
   law('fights', !broke.length, broke.length ? `fights that break the director's laws on the lane: ${broke.join('; ')}` : `every boss's fight told, escaped along the lane or over, survivable and opened after, in phases that quicken (${ids.length})`);
   const tight = Bs.filter((b) => b.place.span[1] - b.place.span[0] < FIGHT_ROOM - 1e-9).map((b) => b.name);
   law('room-to-fight', !tight.length, tight.length ? `too little room to fight: ${tight.join(', ')}` : `every boss on ${FIGHT_ROOM} m of lane and more`);

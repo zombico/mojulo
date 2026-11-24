@@ -758,12 +758,16 @@ const sideMapBossRefs = (G, ref) => Object.fromEntries(sideMapBossIds(G).map((id
 // a metroidvania's castle bosses (metroidvania/bosses.js CASTLE_FIGURES): each the box names, made by its door as
 // `boss-<id>`, the level standing it in its room once its foes join
 const castleBossIds = (G) => figuredBosses(G.ids.flatMap((id) => { const w = G.levels[id].metroidvania; if (!w) return []; const L = isCastle(w) ? layCastle(w) : layBox(w); return L.rooms.filter((r) => r.boss).map((r) => r.boss); }));
-const castleBossRefs = (G, ref) => Object.fromEntries(castleBossIds(G).map((id) => [id, childRef(ref, `boss-${id}`)]));
-const castleBossSteps = (G, ref) => castleBossIds(G).map((id) => {
-  const F = castleFigure(id), key = `boss-${id}`, title = `${G.name ?? G.id} ${id.replace(/-/g, ' ')}`;
+// (a boss of a second form, its row's `second`: that form's figure made beside it, `boss-<id>-second`, its ref `<id>:second`)
+const castleBossRefs = (G, ref) => Object.fromEntries(castleBossIds(G).flatMap((id) => [[id, childRef(ref, `boss-${id}`)], ...(castleFigure(id, { second: true }) ? [[`${id}:second`, childRef(ref, `boss-${id}-second`)]] : [])]));
+const castleBossStep = (key, ref, F, title) => {
   if (F.animal) return beastStep(key, childRef(ref, key), F.animal, title);
   const mint = { kind: 'layered', via: 'hero', title, spec: F.hero };
   return { key, ref: childRef(ref, key), ready: true, order: { spec: F.hero, mint, motion: null }, print: fingerprint({ spec: F.hero }) };
+};
+const castleBossSteps = (G, ref) => castleBossIds(G).flatMap((id) => {
+  const title = `${G.name ?? G.id} ${id.replace(/-/g, ' ')}`, F2 = castleFigure(id, { second: true });
+  return [castleBossStep(`boss-${id}`, ref, castleFigure(id), title), ...(F2 ? [castleBossStep(`boss-${id}-second`, ref, F2, `${title} unbound`)] : [])];
 });
 // (its identity hue the one its level's map holds back for its boss: the dress's, side-map/dress.js; the law that keeps it
 // its own reads the map's zones, so the boss stands out of every one of them)

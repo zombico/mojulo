@@ -369,9 +369,19 @@ stands). A boss may name the clip and the stretch of it each pattern plays (`rul
 with its species' STRIKE (a crouch, head down, then a spring) and winds up on its first part and springs on the rest, its
 howl on its FLINCH (dropped low, the head thrown up). The bell's swings are its card's own clips, by the same names.
 
+A boss may have a SECOND FORM (a row's `second`: its title, tier, blows, moves and phases, and its figure's words beside
+the first's). It is stood in two MODES (`body.modes`, worlds/controllable/vanish.js): cut down, the first does not fall
+but reels and rises as the second, its own figure (warm on the page: `rule.boss.figures`), its own health (the castle's
+bar names it and fills again), its own director's rule (its moves and phases, its looks, the same room) and its own size
+(its collider and its hit egg: a mode's `body`); only the second falls, and only then is its seal broken. A fight lost
+against it puts it back into its first form, whole. The Lord of the Keep's is THE LORD UNBOUND: her finery torn away, a
+hunched, gaunt-headed thing of the draconic kin, long-clawed, spined down its back and its thin tail, a dark ruff, its
+skin corpse violet, the shreds of her cape hanging off it; it rears back with its claws spread, drops to all fours to
+leap, screams the dark into bats and opens its jaw wider than a jaw can open.
+
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.
-- `fights`: each boss's fight held to the director's laws for her on the lane, her jump among her escapes: every move
+- `fights`: each boss's fight (and its second form's) held to the director's laws for her on the lane, her jump among her escapes: every move
   told, escapable, survivable and opened after; three moves or more, two or more a phase; its phases falling and
   quickening.
 - `room-to-fight`: each boss on at least `FIGHT_ROOM` metres of lane.
