@@ -33,4 +33,8 @@
   a throne room. The backs are laid in their own walls (ashlar, brick, rock, plaster), and every backdrop law still
   holds.
 - The night's clouds are banks you can see, puffed and lit on the moon's side, and one crosses the moon.
+- Jumping Giuseppe's strip runs through sceneries, a trail each: the orchard it starts in, a lake (water in bands,
+  the far hills reflected, light glinting, a sailing boat drifting), a forest's edge (a mint canopy behind a blossom
+  one, swaying) and the coast (the sea to the horizon, islands, a sand beach). A headland stands where the scenery
+  changes. A level names them as its `style.scenery`.
 

@@ -121,6 +121,28 @@ describe('the land behind the lane', () => {
       expect(P.ambient).toBeUndefined();
     });
 
+    // (docs/side-strip-principles.md "Sceneries") the same family, another place, segment by segment
+    it('lays a scenery a segment, a headland where it changes, and refuses one it does not know', () => {
+      const segs = [{ node: 'a', s0: 0, length: 17 }, { node: 'b', s0: 17, length: 17 }];
+      const lake = assembleSideStrip({ ...M, cube, side: { ...M.side, segments: segs, scenery: ['orchard', 'lake'] } }), forest = assembleSideStrip({ ...M, cube, side: { ...M.side, segments: segs, scenery: 'forest' } });
+      const coast = assembleSideStrip({ ...M, cube, side: { ...M.side, scenery: 'coast' } });
+      expect(groups(lake).has('side:water')).toBe(true);
+      expect(groups(Q).has('side:water')).toBe(false);
+      // (the lake lies on its own segment's stretch, never on the orchard's)
+      expect(lake.faces.filter((f) => f.group === 'side:water').every((f) => f.corners.every((c) => c[1] >= 17 - 1e-6))).toBe(true);
+      // (a forest's canopy where the near hills were; the coast's sea, its islands and no hills at all)
+      expect(groups(forest).has('side:canopy')).toBe(true);
+      expect(groups(coast).has('side:islands')).toBe(true);
+      expect(coast.faces.some((f) => /^side:(hills|range)$/.test(f.group))).toBe(false);
+      // (where it changes, a headland on each row; and the laws hold through every scenery)
+      expect(lake.faces.filter((f) => f.group === 'side:range').length).toBeGreaterThan(Q.faces.filter((f) => f.group === 'side:range').length - 6);
+      for (const P2 of [lake, forest, coast]) expect(sideLaws({ ...M, cube }, P2).filter((l) => !l.holds)).toEqual([]);
+      // (its water glints and its canopy sways on the page)
+      expect(Object.keys(lake.ambient.groups)).toContain('side:shimmer');
+      expect(Object.keys(forest.ambient.groups)).toContain('side:canopy');
+      expect(() => assembleSideStrip({ ...M, cube, side: { ...M.side, scenery: 'desert' } })).toThrow(/orchard, lake, forest, coast/);
+    });
+
     it('is framed nearly level, so the sky is in the frame; and is the same every time', () => {
       expect(sideCameraWords(cube)).toEqual({ tilt: SHAPED_CAMERA.tilt, lookH: SHAPED_CAMERA.lookH });
       expect(SHAPED_CAMERA.tilt).toBeLessThan(SIDE_CAMERA.tilt);

@@ -255,7 +255,7 @@ export function gameStages(world) {
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
     // along one straight lane, each its own length and its own course (sideSegments, stripCourse), played on one page
     if (laid.stages.length > 1 && laid.stages.every((s) => sideCourse(G, level, s))) {
-      const s0 = laid.stages[0], { seed } = outTrailStyle(s0.manifest), side = sideSegments(G, level, laid.stages);
+      const s0 = laid.stages[0], { seed } = outTrailStyle(s0.manifest), scenery = R.style?.scenery ?? G.style?.scenery, side = { ...sideSegments(G, level, laid.stages), ...(scenery !== undefined ? { scenery } : {}) };
       out.push({ level, node: s0.node, section: s0.section, index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'side', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed, side } });
       continue;
     }

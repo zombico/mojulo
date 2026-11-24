@@ -48,6 +48,26 @@ export const SIDE_CAMERA = Object.freeze({ dist: 11, tilt: 0.2, lookH: 1.2, vfov
  * A cube names its family (SIDE_SHAPES), a strip's `side.shapes` says its own, and one with neither is drawn as it was.
  */
 export const SHAPE_FAMILIES = Object.freeze({ scoops: 'every shape a dome or a circle: scooped hills, round crowns, puffed clouds, a domed tower, scalloped turf' });
+/**
+ * THE SCENERIES a shaped strip's land behind the lane may be (docs/side-strip-principles.md "Sceneries"), segment by
+ * segment along the lane (`side.scenery`: one, or a list laid on the strip's segments in turn, a level's
+ * `style.scenery`): the same family of shapes, the same light, another place. Where the scenery changes a headland
+ * stands on each row, so the change is a cape passed and never a seam. A new scenery is a row and its drawing.
+ *   orchard  the domed hills in three rows, groves of blossom on the terrace (the scoops as they always were)
+ *   lake     a lake before the far hills: its water in bands, deep near and pale far, the far hills' reflection at its
+ *            far shore, light glinting on it, a sailing boat drifting; the near row gone under it
+ *   forest   a forest's edge: its canopy in two rows of round crowns, mint behind blossom, swaying; the terrace's groves
+ *            thicker
+ *   coast    the sea to the horizon, islands on it, light on the waves; the terrace a beach of sand
+ */
+export const SCENERIES = Object.freeze({
+  orchard: 'domed hills in three rows, groves of blossom on the terrace',
+  lake: 'a lake before the far hills, glinting, a boat drifting on it',
+  forest: 'a forest\'s edge, its canopy in two rows of round crowns swaying',
+  coast: 'the sea to the horizon, islands on it, a beach of sand',
+});
+// (which of the scoops' rows each scenery keeps: 0 the range, 1 the far hills, 2 the near hills)
+const SCENE_ROWS = Object.freeze({ orchard: [0, 1, 2], lake: [0, 1], forest: [0, 1], coast: [] });
 /** The family each cube's side strip is drawn in. */
 export const SIDE_SHAPES = Object.freeze({ 'sherbet-orchard': 'scoops' });
 const cubeIdOf = (c) => (typeof c === 'string' ? c : isObj(c) ? c.from ?? c.id ?? null : null);
@@ -81,7 +101,11 @@ const SCOOPS = Object.freeze({
   // (the clouds high in the sky the rows leave, each a few puffs on a flat base that is a step into the shade)
   crown: Object.freeze({ r: [0.5, 1.05] }), cloud: Object.freeze({ every: [26, 50], x: -150, z: [17, 30], w: [12, 24] }),
   // (THE MOTION, channels/ambient.js: the clouds drift a few metres over a minute and more; the blossom breathes in the breeze)
-  motion: Object.freeze({ 'side:clouds': Object.freeze({ amp: [0, 7, 0.4], period: 84, spread: 0.02 }), 'side:blossom': Object.freeze({ amp: [0, 0.05, 0.035], period: 3.6, spread: 0.9 }) }),
+  motion: Object.freeze({ 'side:clouds': Object.freeze({ amp: [0, 7, 0.4], period: 84, spread: 0.02 }), 'side:blossom': Object.freeze({ amp: [0, 0.05, 0.035], period: 3.6, spread: 0.9 }),
+    'side:canopy': Object.freeze({ amp: [0, 0.09, 0.05], period: 4.8, spread: 0.45 }), 'side:shimmer': Object.freeze({ amp: [0, 0.5, 0], period: 5.5, spread: 0.8, depth: 0.8, beat: 2.6 }),
+    'side:boat': Object.freeze({ amp: [0, 6, 0.06], period: 38, spread: 0 }) }),
+  // (the water's bands, near to far: [x, its tone toward the sky's pale end]; the sea's to the horizon; a glint's size)
+  water: Object.freeze({ lake: Object.freeze([[-9, 0.25], [-15, 0.42], [-23, 0.58], [-33, 0.7], [-41, 0.8]]), sea: Object.freeze([[-9, 0.2], [-16, 0.34], [-30, 0.5], [-60, 0.66], [-110, 0.8], [-175, 0.9]]), drop: 1.6, glint: Object.freeze([0.8, 2.6]) }),
   scallop: 0.27, bud: [0.1, 0.2],
 });
 
@@ -141,6 +165,7 @@ function readSide(m) {
   if (!isObj(S)) no('side is { length, boxes: [{ min, max, role? }] }: the course a side camera plays, on a lane along +y');
   if (!(Number.isFinite(S.length) && S.length > 0)) no('side.length is the lane\'s metres');
   if (!Array.isArray(S.boxes) || !S.boxes.length) no('side.boxes are the course\'s boxes');
+  if (S.scenery !== undefined) for (const v of [S.scenery].flat()) if (!SCENERIES[v]) no(`side.scenery is one of ${Object.keys(SCENERIES).join(', ')}, or a list of them laid on the strip's segments`);
   for (const b of S.boxes) if (!Array.isArray(b.min) || !Array.isArray(b.max) || b.min.length !== 3 || b.max.length !== 3) no('a side box is { min: [x, y, z], max: [x, y, z], role? }');
   return S;
 }
@@ -152,7 +177,7 @@ function lookOf(m) {
   const L = ((v) => { const l = Math.hypot(...v); return v.map((x) => x / l); })(SIDE.key), amb = hexRgb(Lt.ambient).map((v) => v * (Lt.fill ?? 0.6)), key = hexRgb(Lt.key.color).map((v) => v * (Lt.sunGain ?? 1));
   const expose = 1.05 / ((amb[0] + amb[1] + amb[2]) / 3 + 0.8 * (key[0] + key[1] + key[2]) / 3);
   const hexes = (h) => h.map((x) => hexRgb(x).map((v) => v * 255));
-  const ramps = { grass: st.palette.grass, soil: st.palette.soil, rock: st.palette.rock, foliage: st.palette.foliage, far: st.palette.far, sky: st.palette.sky,
+  const ramps = { grass: st.palette.grass, soil: st.palette.soil, rock: st.palette.rock, foliage: st.palette.foliage, far: st.palette.far, sky: st.palette.sky, sand: st.palette.sand ?? st.palette.soil,
     stone: hexes(R.stone), trim: hexes(R.trim), accent: hexes(R.accent) };
   // a ramp at t (0 its dark end, 1 its light)
   const at = (name, t) => { const r = ramps[name], u = Math.max(0, Math.min(1, t)) * (r.length - 1), i = Math.min(r.length - 2, Math.floor(u)); return r[i].map((c, k) => lerp(c, r[i + 1][k], u - i)); };
@@ -320,6 +345,10 @@ export function assembleSideStrip(m, ctx = {}) {
   const beds = bedsOf(seed, hi, bottom);
   for (const r of runs) skinRun(faces, look, r, runs, { seed, beds, bottom });
   const y0 = -SIDE.pad, y1 = S.length + SIDE.pad;
+  // (the scenery along the lane: a shaped strip's segments each their own, in turn; the ground past its ends its ends')
+  const scenes = scoops && S.scenery !== undefined ? [S.scenery].flat() : ['orchard'], segs = S.segments?.length ? S.segments : [{ s0: 0, length: S.length }];
+  const sceneOf = (k) => scenes[k % scenes.length], sceneryAt = (y) => { let k = segs.findIndex((g) => y < g.s0 + g.length); if (k < 0) k = segs.length - 1; return sceneOf(Math.max(0, k)); };
+  const stretches = segs.map((g, k) => ({ y0: k ? g.s0 : -Infinity, y1: k === segs.length - 1 ? Infinity : g.s0 + g.length, scene: sceneOf(k) }));
 
   // the TERRACE behind the lane: a little below the floors near it, its top turf, its face toward the camera dirt and rock
   // (a shaped strip's terrace is a step into the air: cooler and quieter than the lane, so the floor the hero runs on is
@@ -329,9 +358,10 @@ export function assembleSideStrip(m, ctx = {}) {
     const h = (yy) => topNear(runs, yy, 3) - T.drop + 0.35 * (vnoise(yy * 0.09, 0.5, seed + 41) - 0.5);
     const ha = h(y), hb = h(y + T.step), yb = y + T.step;
     terrace.push({ y, h: ha });
-    quad(faces, [[T.back, y, ha], [T.front, y, ha], [T.front, yb, hb], [T.back, yb, hb]], FACE.top, veil(lit(at('grass', scoops ? 0.5 : 0.55), FACE.top)), 'side:terrace');
+    const beach = scoops && sceneryAt(y + T.step / 2) === 'coast', turf = beach ? 'sand' : 'grass';
+    quad(faces, [[T.back, y, ha], [T.front, y, ha], [T.front, yb, hb], [T.back, yb, hb]], FACE.top, veil(lit(at(turf, scoops ? 0.5 : 0.55), FACE.top)), 'side:terrace');
     const band = (za, zb, zc, zd, rgb, g) => quad(faces, [[T.front, y, za], [T.front, yb, zc], [T.front, yb, zd], [T.front, y, zb]], FACE.px, veil(lit(rgb, FACE.px)), g);
-    band(ha - SIDE.cap, ha, hb - SIDE.cap, hb, at('grass', 0.45), 'side:terrace');
+    band(ha - SIDE.cap, ha, hb - SIDE.cap, hb, at(turf, 0.45), 'side:terrace');
     band(ha - 1.2, ha - SIDE.cap, hb - 1.2, hb - SIDE.cap, at('soil', 0.42), 'side:terrace');
     band(bottom, ha - 1.2, bottom, hb - 1.2, at('rock', 0.36), 'side:terrace');
   }
@@ -346,7 +376,7 @@ export function assembleSideStrip(m, ctx = {}) {
     cells.push({ y0: r5(ya), y1: r5(ya + cellLen), kind });
     if (kind === 'A') {
       // a GROVE: two or three trees of unlike sizes, the tallest off the middle, each at its own depth on the terrace
-      const n = rnd(1) < 0.5 ? Dr.trees[0] : Dr.trees[1], big = Math.floor(rnd(2) * n);
+      const n = (rnd(1) < 0.5 ? Dr.trees[0] : Dr.trees[1]) + (scoops && sceneryAt(ya + cellLen / 2) === 'forest' ? 1 : 0), big = Math.floor(rnd(2) * n);
       for (let i = 0; i < n; i++) {
         const u = (i + 0.5 + 0.5 * (rnd(10 + i) - 0.5)) / n, y = ya + (0.12 + 0.76 * u) * cellLen, x = T.back + lerp(Dr.tree.back[0], Dr.tree.back[1], rnd(20 + i)), k = i === big ? 1 : 0.35 + 0.4 * rnd(30 + i);
         if (scoops) contact(faces, look, x, y, landAt(y), lerp(SCOOPS.crown.r[0], SCOOPS.crown.r[1], k));
@@ -393,13 +423,23 @@ export function assembleSideStrip(m, ctx = {}) {
         const w = lerp(R.w[0], R.w[1], hash3(k, 31 + ri, seed + 61)), h = lerp(R.h[0], R.h[1], hash3(k, 41 + ri, seed + 61));
         // (each dome a hair nearer than the last, so where two lap neither flickers)
         const xk = R.x + 0.02 * (k % 7), cy = y + w / 2;
+        if (!SCENE_ROWS[sceneryAt(cy)].includes(ri)) { y += w * R.lap; continue; }
         dome(faces, xk, cy, base0, w / 2, h, base0 - 14, fill, R.group);
         // (its lit cap: a smaller dome inside it toward the key, risen off its foot; and the mist at its foot)
         dome(faces, xk + 0.004, cy + Lg.side * w * 0.11, base0 + h * Lg.capLift, (w / 2) * Lg.cap, h * (1 - Lg.capLift) * 0.86, base0 + h * Lg.capLift - 0.01, capFill, R.group);
         dome(faces, xk + 0.008, cy, base0, w / 2, h * Lg.mistH, base0 - 14, mistFill, R.group);
         y += w * R.lap;
       }
+      // (a HEADLAND on the row where the scenery changes: a cape passed, never a seam; drawn a step nearer than the row)
+      stretches.slice(1).forEach((st2, q) => {
+        if (st2.scene === stretches[q].scene) return;
+        const hw = R.w[1] * 0.62, hh = R.h[1] * 1.05;
+        dome(faces, R.x + 0.2, st2.y0, base0, hw, hh, base0 - 14, fill, R.group);
+        dome(faces, R.x + 0.204, st2.y0 + Lg.side * hw * 0.22, base0 + hh * Lg.capLift, hw * Lg.cap, hh * (1 - Lg.capLift) * 0.86, base0 + hh * Lg.capLift - 0.01, capFill, R.group);
+        dome(faces, R.x + 0.208, st2.y0, base0, hw, hh * Lg.mistH, base0 - 14, mistFill, R.group);
+      });
     });
+    sceneryFaces(faces, look, { stretches, base0, lo, seed, ramp, span: [y0 - 110, y1 + 110] });
     const Cs = SCOOPS.cloud, reachC = (Math.abs(Cs.x) + cam.dist) * 0.62, cr = st.palette.cloud ?? st.palette.sky, white = look.hazed(rgbHex(cr[cr.length - 1].map((v) => v / 255)), 0.12), shadeC = look.hazed(rgbHex(cr[cr.length - 2].map((v) => v / 255)), 0.12);
     for (let y = y0 - reachC, k = 0; y < y1 + reachC; k++) {
       y += lerp(Cs.every[0], Cs.every[1], hash3(k, 25, seed + 87));
@@ -470,10 +510,72 @@ export function assembleSideStrip(m, ctx = {}) {
     sky: { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: look.sun.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) },
     pack: true,
     // (a shaped strip's backdrop moves: its clouds drift, its blossom breathes; channels/ambient.js)
-    ...(scoops ? { ambient: { groups: SCOOPS.motion } } : {}),
+    ...(scoops ? { ambient: { groups: Object.fromEntries(Object.entries(SCOOPS.motion).filter(([g]) => faces.some((f) => f.group === g))) } } : {}),
   };
   Object.defineProperty(payload, 'side', { value: { runs, terrace, fore, bottom, cube: look.cube.id, cells, order, tower: twr, shapes }, enumerable: false });
   return payload;
+}
+
+/** THE SCENERIES' own drawing (SCENERIES): each stretch's lake, forest or sea, in the family's shapes under its light. */
+function sceneryFaces(faces, look, { stretches, base0, lo, seed, ramp: palRamp, span }) {
+  // (the cube's own ramps for its built colours and its accent, the palette's for its land and sky)
+  const ramp = (n, t) => (['stone', 'trim', 'accent', 'sand'].includes(n) ? look.at(n, t) : palRamp(n, t));
+  const { lit, aired } = look, Wt = SCOOPS.water, wz = lo - Wt.drop, skyHex = (t) => rgbHex(ramp('sky', t).map((v) => v / 255));
+  // (a sheet of water in bands along x, each a step paler toward the far shore: deep near, the sky's own colour far)
+  const sheet = (ya, yb, bands, group) => {
+    for (let k = 0; k < bands.length - 1; k++) {
+      const [xa, ta] = bands[k], [xb] = bands[k + 1];
+      quad(faces, [[xb, ya, wz], [xa, ya, wz], [xa, yb, wz], [xb, yb, wz]], FACE.top, aired(lit(ramp('sky', ta * 0.85), FACE.top), ta * 0.55), group);
+    }
+  };
+  const glints = (ya, yb, xa, xb, every, k0) => {
+    for (let y = ya, k = k0; y < yb; k++) {
+      y += every * (0.5 + hash3(k, 61, seed + 91));
+      const x = lerp(xa, xb, hash3(k, 62, seed + 91)), l = lerp(Wt.glint[0], Wt.glint[1], hash3(k, 63, seed + 91)) * (1 + (-x) / 40), w = 0.08 + (-x) / 200;
+      if (y + l < yb) quad(faces, [[x - w, y, wz + 0.01], [x + w, y, wz + 0.01], [x + w, y + l, wz + 0.01], [x - w, y + l, wz + 0.01]], FACE.top, '#ffffff', 'side:shimmer');
+    }
+  };
+  stretches.forEach((st, q) => {
+    const ya = Math.max(st.y0, span[0]), yb = Math.min(st.y1, span[1]);
+    if (!Number.isFinite(yb - ya) || yb <= ya) return;
+    if (st.scene === 'lake') {
+      sheet(ya, yb, Wt.lake, 'side:water');
+      // (the far hills' reflection along the far shore: a band of their colour laid on the water)
+      const hill = aired(lit(ramp('grass', 0.74), FACE.top), 0.4);
+      quad(faces, [[-43, ya, wz + 0.005], [-36, ya, wz + 0.005], [-36, yb, wz + 0.005], [-43, yb, wz + 0.005]], FACE.top, rgbHex(hexRgb(hill).map((v, i) => lerp(v, hexRgb(skyHex(0.6))[i], 0.45))), 'side:water');
+      glints(ya, yb, -12, -38, 3.2, q * 1000);
+      // (a sailing boat on it, drifting: a hull and its sail, one family's shapes)
+      const by = (ya + Math.min(yb, ya + 60)) / 2, bx = -26, hull = aired(lit(ramp('trim', 0.6), FACE.px), 0.25), sail = aired('#fffaf2', 0.2);
+      faces.push({ corners: [[bx, by - 1.6, wz + 0.5], [bx, by + 1.6, wz + 0.5], [bx, by + 1.0, wz - 0.05], [bx, by - 1.0, wz - 0.05]].map((p) => p.map(r5)), normal: FACE.px, fill: hull, group: 'side:boat' });
+      faces.push({ corners: [[bx + 0.01, by - 0.1, wz + 0.55], [bx + 0.01, by + 1.2, wz + 0.55], [bx + 0.01, by - 0.1, wz + 2.6]].map((p) => p.map(r5)), normal: FACE.px, fill: sail, group: 'side:boat' });
+    } else if (st.scene === 'coast') {
+      sheet(ya, yb, Wt.sea, 'side:water');
+      glints(ya, yb, -11, -70, 2.4, q * 1000 + 500);
+      // (islands on the sea: low domes of the far land, a lit cap on each)
+      for (let y = ya, k = 0; y < yb; k++) {
+        y += lerp(30, 60, hash3(k, 71, seed + 93));
+        if (y >= yb) break;
+        const x = lerp(-60, -110, hash3(k, 72, seed + 93)), w = lerp(12, 28, hash3(k, 73, seed + 93)), h = lerp(2.5, 6, hash3(k, 74, seed + 93)), body = aired(lit(ramp('grass', 0.7), FACE.top), 0.38);
+        dome(faces, x, y, wz, w / 2, h, wz - 0.4, body, 'side:islands');
+        dome(faces, x + 0.01, y + w * 0.1, wz + h * 0.3, w * 0.3, h * 0.6, wz + h * 0.3 - 0.01, aired(look.sunlit(body, 0.4), 0.4), 'side:islands');
+      }
+    } else if (st.scene === 'forest') {
+      // (the forest's edge: a far canopy in mint, a near one in blossom, each a row of round crowns on a body down out of
+      // the frame, a lit cap on each crown toward the key)
+      [[-30, 'accent', 0.48, 0.32, [2.6, 3.6], [1.6, 3.4]], [-19, 'foliage', 0.46, 0.14, [1.8, 2.7], [0.4, 2.2]]].forEach(([x, rp, t, hz, rr, zz], row) => {
+        const body = aired(lit(ramp(rp, t), FACE.top), hz), cap = aired(look.sunlit(lit(ramp(rp, t + 0.14), FACE.top), 0.5), hz);
+        for (let y = ya, k = 0; y < yb; k++) {
+          // (the forest thins toward its ends: its edge crowns smaller and lower, its body under the crowns only)
+          const edge = Math.min(1, (y - ya) / 9, (yb - y) / 9), taper = 0.45 + 0.55 * Math.max(0, edge);
+          const r = lerp(rr[0], rr[1], hash3(k, 81 + row, seed + 95)) * taper, cz = lo + lerp(zz[0], zz[1], hash3(k, 83 + row, seed + 95)) - (1 - taper) * 2.2, xk = x + 0.02 * (k % 5);
+          disc(faces, xk, y, cz, r, body, 'side:canopy');
+          faces.push({ corners: [[xk, y - r * 0.72, cz], [xk, y + r * 0.72, cz], [xk, y + r * 0.72, base0 - 14], [xk, y - r * 0.72, base0 - 14]].map((p) => p.map(r5)), normal: FACE.px, fill: body, group: 'side:canopy' });
+          disc(faces, xk + 0.01, y + SCOOPS.light.side * r * 0.28, cz + r * 0.32, r * 0.42, cap, 'side:canopy');
+          y += r * 1.25;
+        }
+      });
+    }
+  });
 }
 
 /** The highest a foreground shape at `x` may stand over a floor at `top`: under the hero's feet line in the side frame,

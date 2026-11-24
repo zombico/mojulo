@@ -82,6 +82,11 @@ phase spread by where each vertex stands. It may also twinkle in brightness, or 
 not move with it, the clock is the page's pinned clock when a capture pins it, and a page without `ambient` carries no
 bytes of it.
 
+Each game also varies its place along the way, so a level is never one picture repeated: Giuseppe's strip runs through
+sceneries (an orchard, a lake, a forest's edge, the coast), the plant's places each have their own colour and vista (a
+future city, the reactor), and the castle's rooms are dressed as locales (a chapel, a library, a clock tower, the
+catacombs, a throne room).
+
 | | Jumping Giuseppe (the side strip, `scoops`) | Galaxy Boy and Astro Girl (the side map) | Vampire Sonata (the castle) |
 |---|---|---|---|
 | contrast | the terrace a step into the air behind the lane | silhouettes dark against a dusk glow | the lane's tops lighter than the wall (`lane-reads`) |
@@ -99,6 +104,7 @@ good.
 - A law that measures a frame's value bands on the page (the play holding the extremes, the background within its
   band), as the side map's benchmark measures roles.
 - Weather in the backdrop: rain over the ramparts, lightning that lights the castle's skyline for a beat.
-- Things that cross the sky (a bird, a bat, an airship) on loops of their own, which a sway cannot draw.
+- Things that cross the sky (a bird, a bat, an airship) on loops of their own, which a sway cannot draw (a spin can
+  turn a wheel, a gear or a clock's hands; a crossing needs a path).
 - Giuseppe's sun in the frame. The gen-7 sky draws the sun's glare from the light's own direction, so a sun put in
   view washes the upper sky. It needs a disc of its own, painted, with its glow kept small.

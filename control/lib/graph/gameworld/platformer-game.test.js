@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { platformerGame, platformerBody, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK, PLATFORMER_BODY, PLATFORMER_CUBE } from './platformer-game.js';
+import { platformerGame, platformerBody, platformerFlow, platformerSuggestion, platformerPole, dimensionOf, PLATFORMER_DIMENSIONS, PLATFORMER_TURN, PLATFORMER_LOOK, PLATFORMER_BODY, PLATFORMER_CUBE, PLATFORMER_SCENERY } from './platformer-game.js';
 import { gameBody } from './game-bodies.js';
 import { THEME_CARDS, cardTheme } from '../playscape/ui/theme-cards/loader.js';
 import { readTheme, themeAdvice } from '../../mana-ui/theme.js';
@@ -24,7 +24,9 @@ describe('the rail, as words', () => {
     const G = platformerGame();
     expect(G.dimension).toBe('2d');
     expect(G.words.camera).toBe('side');
-    expect(G.words.levels).toEqual({ first: firstLevel() });
+    // (laid as firstLevel lays it, and run through the side-scroller's sceneries, a trail each: era/geocube-side.js)
+    expect(G.words.levels).toEqual({ first: { ...firstLevel(), style: { scenery: [...PLATFORMER_SCENERY] } } });
+    expect(platformerGame({ dimension: '3d' }).words.levels.hill.style).toBeUndefined();
     expect(G.words.flow).toMatchObject({ start: 'title', home: 'title', steps: { level: { kind: 'level', on: { left: 'title' } } } });
     expect(readFlow(G.words.flow, { levels: ['first'] })).toEqual([]);
     expect(G.words.feel).toEqual({ pole: 'jumping-giuseppe', takes: true });

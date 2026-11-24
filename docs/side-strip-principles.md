@@ -87,6 +87,23 @@ The general principles are in [side-scroll-backgrounds.md](side-scroll-backgroun
 - **The clouds sit on a shaded underside and drift.** The blossom stirs, each crown after the one beside it (the
   page's ambient channel).
 
+## Sceneries
+
+A scooped strip's land behind the lane may be one of several SCENERIES (`SCENERIES` in `era/geocube-side.js`), laid
+segment by segment along the lane: a strip's `side.scenery` (one, or a list taken in turn by its segments), which a
+level writes as its `style.scenery`. Each is the same family of shapes under the same light, and another place.
+
+| Scenery | What stands behind the terrace | What moves |
+|---|---|---|
+| orchard | the domed hills in three rows, groves of blossom | the clouds, the blossom |
+| lake | the far hills over a lake in bands, deep near and pale far, the hills' reflection at its far shore | light glinting on the water, a sailing boat drifting |
+| forest | a forest's edge: a far canopy in mint, a near one in blossom; the groves thicker | the canopy swaying |
+| coast | the sea to the horizon, islands on it; the terrace a beach of sand | light on the waves |
+
+Where the scenery changes a HEADLAND stands on each row, a cape passed and never a seam, and a forest thins toward its
+ends. Jumping Giuseppe's first level runs through all four, a trail each (`PLATFORMER_SCENERY`). A new scenery is a row
+and its drawing.
+
 ## What holds it
 
 `sideLaws` measures these on a built strip: `rhythm` (the slices keep the walls' rule), `behind` (the dress stands

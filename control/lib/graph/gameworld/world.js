@@ -261,6 +261,7 @@ export const WORLD_STYLE = Object.freeze({
   hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
+  scenery: 'what a side strip\'s land behind the lane is, segment by segment: one of era/geocube-side.js SCENERIES (orchard, lake, forest, coast) or a list laid on the strip\'s segments in turn',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
   palette: 'pick_palette\'s spec, or false',
 });

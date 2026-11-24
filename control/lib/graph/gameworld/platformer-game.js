@@ -111,6 +111,10 @@ export const platformerBody = (pole) => railOfGame({ feel: pole })?.rail ?? PLAT
  * greens under a clear sky). The side strip is drawn in it and a course in the round is skinned from it. */
 export const PLATFORMER_CUBE = 'sherbet-orchard';
 
+/** The sceneries the side-scroller's first level runs through, a trail each (era/geocube-side.js SCENERIES): the
+ * orchard it starts in, a lake, a forest's edge, the coast; the level's `style.scenery`. */
+export const PLATFORMER_SCENERY = Object.freeze(['orchard', 'lake', 'forest', 'coast']);
+
 /** The theme card both dimensions are drawn in (playscape/ui/theme-cards/). */
 export const PLATFORMER_LOOK = 'hilltop';
 /** The geocube a side map's level is drawn in (its level's `style.geocube`): a robot breaks into a plant by night, so a
@@ -210,7 +214,7 @@ export function platformerGame({ dimension = '2d', pole = 'jumping-giuseppe', id
     mechanics: { lives: 3, coins: true, legend: 'menu' },
     // (the run and gun's first level is a SIDE MAP, side-map/first.js: its zones, climbs and boss's room seen from the
     // side; the mascot platformer's the strip of trails it always was)
-    levels: { [level]: sideMap ? { name: name ?? 'Level 0', ...(seed !== undefined ? { seed } : {}), style: { geocube: SIDE_MAP_CUBE }, sidemap: firstSideMap({ boss: 'bulwark' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : firstLevel({ name, seed, kit, boss, dimension }) },
+    levels: { [level]: sideMap ? { name: name ?? 'Level 0', ...(seed !== undefined ? { seed } : {}), style: { geocube: SIDE_MAP_CUBE }, sidemap: firstSideMap({ boss: 'bulwark' }), foes: { from: [...SIDE_MAP_FIRST_FOES] } } : { ...firstLevel({ name, seed, kit, boss, dimension }), ...(dimension === '2d' ? { style: { scenery: [...PLATFORMER_SCENERY] } } : {}) } },
     // (a side map's foes: the side scroller's bestiary)
     ...(sideMap ? { foes: structuredClone({ ...SIDE_MAP_FOES }) } : {}),
     // (its SOUND and its MUSIC: the sound sheet solved from what it is, the run and gun's own voices among them, and the
