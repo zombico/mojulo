@@ -20,6 +20,10 @@
 //                   hacked one's blue with its health, a chaser's red); its packages on their pallets and under the drone
 //                   that carries one; the RF gun's beam on what it is held on and the hack's ring filling; under the boss
 //                   bar its gunners and its deliveries, and what it last said
+//   SEEN FROM THE SIDE (a side map's page: a castle's boss on its lane) a hazard is drawn upright along the lane where it
+//                     touches it, as high as it reaches (its `rise`, else a body's height): its mark the whole stretch it
+//                     will cross, faint and filling; while it lands, the stretch it is on now, bright. A low band is
+//                     jumped, a tall one left
 // Emitted only into a page whose world has a boss or a placed weapon, so every other page keeps every byte. Needs THREE,
 // scene and __world in scope.
 export function bossViewScript() {
@@ -89,6 +93,37 @@ const __bvGeo = (h) => {
   if (S === 'strafe') { const L = Math.hypot(h.b[0] - h.a[0], h.b[1] - h.a[1]), n = Math.max(1, Math.floor(L / h.step)), gs = []; for (let k = 0; k <= n; k++) { const g = new THREE.CircleGeometry(h.r, 20); g.translate(h.a[0] + ((h.b[0] - h.a[0]) * k) / n, h.a[1] + ((h.b[1] - h.a[1]) * k) / n, 0); gs.push(g); } return gs; }
   return null;
 };
+// (the side view's: the lane's stretches a hazard touches, at a moment or over its whole time; an upright band a stretch)
+const __BV_TALL = 2.6, __BV_STEP = 0.25;
+function __bvLane(h, t) {
+  const H = __CW.hazardHit, out = [], ts = t == null ? Array.from({ length: 17 }, (_, k) => h.t0 + ((h.t1 - h.t0) * k) / 16) : [t];
+  const lo = (h.o || h.c || h.a || [0, 0])[1] - 40, hi = lo + 80;
+  let a = null;
+  for (let y = lo; y <= hi; y += __BV_STEP) {
+    const on = ts.some((q) => H(h, 0, y, Math.min(h.t1, Math.max(h.t0, q))));
+    if (on && a == null) a = y; else if (!on && a != null) { out.push([a, y]); a = null; }
+  }
+  if (a != null) out.push([a, hi]);
+  return out;
+}
+function __bvBands(spans, h, hex, op) {
+  const g = new THREE.Group(), tall = h.rise != null ? h.rise : __BV_TALL;
+  for (const [a, b] of spans) {
+    const q = new THREE.PlaneGeometry(b - a, tall); q.rotateX(Math.PI / 2); q.rotateZ(Math.PI / 2);
+    const m = new THREE.Mesh(q, __bvMat(hex, op)); m.position.set(0.7, (a + b) / 2, tall / 2); g.add(m);
+    // (its top a bright edge: the height a jump must clear)
+    const e = new THREE.PlaneGeometry(b - a, 0.06); e.rotateX(Math.PI / 2); e.rotateZ(Math.PI / 2);
+    const k = new THREE.Mesh(e, __bvMat(hex, Math.min(1, op * 2.5))); k.position.set(0.71, (a + b) / 2, tall - 0.03); g.add(k);
+  }
+  return g;
+}
+function __bvSideMark(h) {
+  const grp = new THREE.Group(), tell = h.tellColour || '#ffd27a', hot = h.colour || '#ff5a3a';
+  grp.position.z = h.z || 0;
+  const T = __bvBands(__bvLane(h, null), h, tell, 0.18); grp.add(T);
+  scene.add(grp);
+  return { grp, side: true, tell: T.children.filter((x, i) => i % 2 === 0), edge: T.children.filter((x, i) => i % 2 === 1), hot: null, hotT: -1, h, hex: hot };
+}
 function __bvMark(h) {
   const grp = new THREE.Group(), z = (h.z || 0) + 0.06, tell = h.tellColour || '#ffd27a', hot = h.colour || '#ff5a3a';
   grp.position.z = z;
@@ -181,17 +216,25 @@ function __bvCarrier(W, e, B, S, t) {
   if (t - __BVC.sayT > 3.2) __BVC.say.style.opacity = '0';
 }
 function __bvFrame() {
-  const W = __world, t = W.time || 0;
+  const W = __world, t = W.time || 0, __bvSide = !!(W.camera && W.camera.rule && W.camera.rule.type === 'side-map');
   // MARKS: one a hazard, shown from its mark, filling to its landing, bright while it lands
   const seen = new Set();
   for (const h of W.bossHazards || []) {
     seen.add(h.id);
     let m = __BV.marks.get(h.id);
     if (h.track != null && t < h.track && m) { scene.remove(m.grp); m = null; }
-    if (!m) { m = __bvMark(h); __BV.marks.set(h.id, m); }
+    if (!m) { m = __bvSide ? __bvSideMark(h) : __bvMark(h); __BV.marks.set(h.id, m); }
     m.h = h;
     const shown = t >= h.tm, lands = t >= h.t0 && t <= h.t1, u = h.t0 > h.tm ? Math.min(1, Math.max(0, (t - h.tm) / (h.t0 - h.tm))) : 1;
     m.grp.visible = shown;
+    if (m.side) {
+      // (from the side: its mark filling to its landing; while it lands, the stretch it is on now, bright)
+      for (const x of m.tell) x.material.opacity = lands ? 0.08 : 0.1 + 0.3 * u + 0.08 * Math.sin(t * (6 + 10 * u));
+      for (const x of m.edge) x.material.opacity = lands ? 0.2 : 0.4 + 0.5 * u;
+      if (m.hot) { m.grp.remove(m.hot); m.hot.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); m.hot = null; }
+      if (lands) { m.hot = __bvBands(__bvLane(h, t), h, m.hex, 0.75); m.grp.add(m.hot); }
+      continue;
+    }
     const beat = 0.5 + 0.5 * Math.sin(t * (6 + 10 * u));
     for (const x of m.tell) x.material.opacity = lands ? 0.12 : 0.12 + 0.32 * u + 0.1 * beat;
     const k = h.t1 > h.t0 ? Math.min(1, Math.max(0, (t - h.t0) / (h.t1 - h.t0))) : 1;

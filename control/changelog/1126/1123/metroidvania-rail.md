@@ -94,3 +94,12 @@
 - A boss's room shuts behind Erina once she is inside: an iron portcullis drops across each doorway and a grate covers
   each hole, until the boss falls. If she dies in the fight, she wakes at her last save, the room opens, and the boss is
   back where it stood at full health, so the fight starts over when she returns.
+- The castle's bosses fight with telegraphed attacks. Each boss has three or four moves in its own words (the Gate
+  Warden's halberd cleave, haft slam and thrust; the Bellkeeper's cracked bells; the Crypt Lord's pounce and howl; the
+  Lord of the Keep's bat swarm and blood wave), in phases that come quicker as its health falls. Each attack is marked
+  before it lands, and a pause follows it. Seen from the side, an attack is drawn upright along the floor as high as it
+  reaches. A low one, like a front rolling along the floor or a low spring, can be jumped; a tall swing must be backed
+  away from. A boss attacks only while Erina is in its room. The castle checks that every boss's attacks can be seen
+  coming, escaped along the floor or jumped, survived and answered, measured with Erina's own run and jump.
+- The boss pattern shelf learns the side view: a hazard can say how high it reaches, a jump clears it, and the pattern
+  laws measure a body that can move only along a lane, with a jump among its escapes.

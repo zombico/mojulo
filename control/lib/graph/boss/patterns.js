@@ -7,7 +7,8 @@
  *
  *   hazard shapes (each { shape, at: s when it lands, for: s it lasts, harm: share of a body's health, mark?: s it is
  *   shown from (0), low?: true (a crouch is under it), cover?: true (a box between its origin and a body stops it),
- *   origin?: 'boss' | 'target' } and its own words):
+ *   rise?: metres (how high over its ground it reaches: a body whose feet are higher is over it, a jump clears it; without
+ *   it, as high as anything stands), origin?: 'boss' | 'target' } and its own words):
  *     line    { from: [x, y], to: [x, y], width }            a beam, a charge's lane, a lock's shot
  *     cone    { half, reach }                                a volley's fan down the aim
  *     sweep   { from, to, beam, reach }                      a beam turned across an arc, from angle to angle (radians
@@ -36,10 +37,11 @@ const SHAPES = Object.freeze({
   line: ['from', 'to', 'width'], cone: ['half', 'reach'], sweep: ['from', 'to', 'beam', 'reach'], ring: ['from', 'to', 'band'],
   disc: ['c', 'r'], square: ['c', 'side'], strafe: ['from', 'to', 'r', 'step'],
 });
-const COMMON = ['shape', 'at', 'for', 'harm', 'mark', 'low', 'cover', 'origin', 'track', 'says'];
+const COMMON = ['shape', 'at', 'for', 'harm', 'mark', 'low', 'cover', 'rise', 'origin', 'track', 'says'];
 
 /** the patterns on the shelf. `reach` the distance the pattern is thrown at (the body that far down the aim), `tell` what
- *  the boss does before it, `open` its recovery, `reads` what a body does about it */
+ *  the boss does before it, `open` its recovery, `reads` what a body does about it; `carries` the boss down its first
+ *  hazard's line as a charge does (worlds/controllable/boss.js) */
 export const PATTERNS = Object.freeze({
   // a beam turned across the arc in front: fire from a nozzle, a cutting laser; behind cover, out of its reach, or a dive
   // through it as it passes
@@ -86,6 +88,28 @@ export const PATTERNS = Object.freeze({
   scythe: { reach: 6, tell: { for: 1, says: 'draws back at waist height; the arc glows at the chest' },
     hazards: [{ shape: 'sweep', from: 1.2, to: -1.2, beam: 0.2, reach: 9, at: 1, for: 0.9, harm: 0.22, low: true, cover: true }],
     open: { at: 2.1, for: 1.6 }, reads: 'a cut at chest height: down under it, behind cover, or out of its reach' },
+  // THE SIDE VIEW'S (a castle's bosses on a lane, gameworld/metroidvania/bosses.js): seen from the side a body leaves a
+  // hazard only along the lane or over it, so each says how high it reaches (`rise`) where a jump is its escape
+  // a front rolling along the floor both ways from a blow struck down: jumped as it comes, or out of its reach
+  quake: { reach: 4, tell: { for: 1, says: 'raises its weapon high; the floor shudders under it' },
+    hazards: [{ shape: 'ring', from: 0.8, to: 9, band: 0.9, rise: 0.7, at: 1, for: 1.1, harm: 0.14 }],
+    open: { at: 2.3, for: 1.8 }, reads: 'a front rolling along the floor from a blow: jump it as it comes, or be past its reach' },
+  // a swing at full height in front of it: back out of its reach before it falls
+  cleave: { reach: 2.4, tell: { for: 1.2, says: 'draws its blade back over its shoulder' },
+    hazards: [{ shape: 'line', from: [0, 0], to: [3.6, 0], width: 2, at: 1.2, for: 0.3, harm: 0.16 }],
+    open: { at: 1.7, for: 1.4 }, reads: 'a swing at full height in front of it: back out of its reach, or behind it' },
+  // something heavy thrown where the body stood, falling: out from under where it lands
+  toss: { reach: 6, tell: { for: 0.8, says: 'hefts it and throws; where it falls is marked' },
+    hazards: [{ shape: 'disc', origin: 'target', c: [0, 0], r: 1.3, mark: 0.2, at: 1.3, for: 0.5, harm: 0.15 }],
+    open: { at: 2, for: 1.4 }, reads: 'a weight thrown where the body stood: out from under its mark' },
+  // a wave of sound rolling out across the whole room: jumped as it passes
+  toll: { reach: 5, tell: { for: 1.2, says: 'swings back; the air rings before the toll' },
+    hazards: [{ shape: 'ring', from: 1, to: 14, band: 1.2, rise: 1.1, at: 1.2, for: 1.4, harm: 0.16 }],
+    open: { at: 2.8, for: 1.6 }, reads: 'a toll rolling out across the room: jump it as it passes' },
+  // a low spring down the lane at the body: jumped over as it comes, or out past its end
+  lunge: { reach: 5, carries: true, tell: { for: 1, says: 'crouches low, its weight on its back foot' },
+    hazards: [{ shape: 'line', from: [0, 0], to: [9, 0], width: 1.6, rise: 1.3, at: 1, for: 0.25, harm: 0.2 }],
+    open: { at: 1.6, for: 1.8 }, reads: 'a low spring down the lane: jump over it as it comes' },
 });
 export const PATTERN_IDS = Object.keys(PATTERNS);
 
@@ -103,6 +127,7 @@ export function readPattern(p, where = 'pattern') {
     for (const key of S) if (h[key] === undefined) no(`${where}.hazards[${k}]: a ${h.shape} has its ${key}`);
     if (!isNum(h.at) || !isNum(h.for) || h.for <= 0) no(`${where}.hazards[${k}]: at and for are seconds`);
     if (!isNum(h.harm) || h.harm <= 0 || h.harm > 1) no(`${where}.hazards[${k}]: harm is a share of a body's health, over 0 to 1`);
+    if (h.rise !== undefined && !(isNum(h.rise) && h.rise > 0)) no(`${where}.hazards[${k}]: rise is the metres over its ground it reaches`);
   });
   return p;
 }
@@ -113,7 +138,7 @@ export function layPattern(p, boss, target, t0) {
   const W = (q, o) => [o[0] + fx * q[0] - fy * q[1], o[1] + fy * q[0] + fx * q[1]];
   const out = [];
   for (const h of p.hazards) {
-    const o = h.origin === 'target' ? target : boss, base = { shape: h.shape, harm: h.harm, t0: t0 + h.at, t1: t0 + h.at + h.for, tm: t0 + (h.mark || 0), ...(h.low ? { low: true } : {}), ...(h.cover ? { cover: true, o: [boss[0], boss[1]] } : {}), ...(h.track != null ? { track: t0 + h.track } : {}) };
+    const o = h.origin === 'target' ? target : boss, base = { shape: h.shape, harm: h.harm, t0: t0 + h.at, t1: t0 + h.at + h.for, tm: t0 + (h.mark || 0), ...(h.low ? { low: true } : {}), ...(h.rise != null ? { rise: h.rise } : {}), ...(h.cover ? { cover: true, o: [boss[0], boss[1]] } : {}), ...(h.track != null ? { track: t0 + h.track } : {}) };
     if (h.shape === 'line') out.push({ ...base, a: W(h.from, o), b: W(h.to, o), w: h.width });
     else if (h.shape === 'cone') out.push({ ...base, o: [o[0], o[1]], dir: aim, half: h.half, reach: h.reach });
     else if (h.shape === 'sweep') out.push({ ...base, o: [o[0], o[1]], a0: aim + h.from, a1: aim + h.to, beam: h.beam, reach: h.reach });

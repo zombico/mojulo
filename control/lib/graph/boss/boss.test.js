@@ -49,6 +49,30 @@ describe('attack patterns', () => {
   });
 });
 
+describe('a side view\'s patterns', () => {
+  // (a body on a lane, as a castle's hero is: a run, a reaction, no dive, a jump to 2.24 m under a gravity of 20)
+  const SIDE = { speed: 5.5, reaction: 0.6, dive: { dist: 0, dur: 0, iframes: 0 }, lane: true, jump: { height: 2.24, gravity: 20 } };
+  const reads = (id, body = SIDE) => { const P = readPattern(id); return hazardReads(layPattern(P, [0, 0], [P.reach, 0], 0)[0], body); };
+  const sides = PATTERN_IDS.filter((id) => PATTERNS[id].hazards.some((h) => h.rise != null));
+
+  it('a hazard that says how high it reaches is jumped by a lane\'s body, and every side pattern holds its laws', () => {
+    expect(sides.some((id) => reads(id).shares.over > 0)).toBe(true);
+    // (the side patterns, each laid down the lane: told, escaped along it or over, survivable, opened after)
+    for (const id of [...sides, 'cleave', 'toss']) expect(patternLaws(id, SIDE).filter((l) => !l.holds).map((l) => `${id}:${l.law}`)).toEqual([]);
+  });
+
+  it('on a lane there is no stepping aside: without its jump a body is caught by a front it cannot outrun', () => {
+    const id = sides.find((x) => reads(x, { ...SIDE, jump: undefined }).shares.none > 0);
+    expect(id).toBeDefined();
+    expect(lawsOf(patternLaws(id, { ...SIDE, jump: undefined })).escapable).toBe(false);
+    // (and a hazard as high as anything stands is never jumped)
+    expect(reads('cleave').shares.over).toBe(0);
+    // (on open ground the same front is left sideways)
+    expect(readPattern(id).hazards.length).toBeGreaterThan(0);
+    expect(lawsOf(patternLaws('cleave')).escapable).toBe(true);
+  });
+});
+
 describe('human bosses', () => {
   const id = BOSS_IDS[0], B = BOSSES[id];
   it('a boss is a gimmick: moves of its own over the shelf\'s patterns, said in its words, in phases that quicken', () => {

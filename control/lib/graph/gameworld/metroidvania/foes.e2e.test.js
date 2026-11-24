@@ -74,6 +74,15 @@ describe('the castle\'s foes, played', () => {
     const mid = (r.rect[0] + r.rect[2] / 2) * B.greybox.screen.width;
     const placeIn = () => { H.transform.pos = [0, warden.transform.pos[1] + Math.sign(mid - warden.transform.pos[1]) * 2.4, floor + (H.rule.eye || 0) + 0.05]; H.vel = [0, 0, 0]; step({}, 10); };
     placeIn();
+    // (its fight the director's: left standing, she is struck by its moves, each marked before it lands)
+    // (and only the boss whose room she is in: every other keeps to its own)
+    const laid = new Set(), others = new Set();
+    for (let k = 0; k < 100; k++) { step({}, 1); for (const h of w.bossHazards ?? []) (h.by === warden.id ? laid : others).add(h.move); }
+    expect([...laid].length).toBeGreaterThan(0);
+    expect([...others]).toEqual([]);
+    expect(w.bosses[warden.id].name).toBe('The Gate Warden');
+    expect(H.body.hp).toBeLessThan(H.hpMax);
+    H.body.hp = H.hpMax;
     // (in, the room is shut behind her while it stands: run at its way out and she is held inside)
     const G = w.heldGates, walls = () => w.colliders.filter((c) => c.of === `boss-shut:boss-${r.id}`).length;
     expect(G.fight).toBe(`boss-${r.id}`);

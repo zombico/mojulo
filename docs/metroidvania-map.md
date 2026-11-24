@@ -310,8 +310,29 @@ Erina's castle: the Gate Warden (a dead halberdier, a guard), the Bellkeeper and
 bells), the Great Bell (a turret tolling rounds across the spire), the Warden (a quick devil, a stalker), the Crypt Lord
 (a great wolf that waits and springs), the Gatekeeper (a horned guard) and the Lord of the Keep (a pursuer).
 
+Its FIGHT is the boss director's ([boss/](../control/lib/graph/boss/), [boss.js](../control/lib/graph/worlds/controllable/boss.js)),
+the same that runs a human boss anywhere: each castle row carries `moves` (each a pattern from the shelf in the boss's own
+words) and `phases` (from full health and at each threshold under it, the moves it reaches for and how often, quicker as it
+falls). Each move is told before it lands (its mark), lands, and leaves an opening. Between its moves it fights as its
+class does. It takes no move while she is out of its room (`rule.boss.room`): every other boss of the castle keeps to its
+own.
+
+Seen from the side, she leaves a hazard only along the lane or over it. So the shelf has the side view's patterns, each
+saying how high it reaches where a jump is the escape (`rise`): `quake` (a front rolling along the floor both ways,
+knee high), `cleave` (a swing at full height in front: back out of reach), `toss` (a weight thrown where she stood),
+`toll` (a wave rolling across the room, waist high) and `lunge` (a low spring down the lane, carrying the boss). The
+director misses a body whose feet are over a hazard's rise, a rise measured from the boss's own floor. The pattern laws
+measure a body on a lane (`lane: true`: it leaves a cell only along the aim's line) and a fifth escape, `over`: a jump
+whose feet stay over the rise for all the time the hazard stays on that cell, from the body's jump apex and gravity (her
+feel's measured reach). On the page each hazard is drawn upright along the lane, as high as it reaches: its mark the
+stretch it will cross, faint and filling, with a bright edge at the height to clear; while it lands, the stretch it is on
+now, bright.
+
 The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
 - `known`: each boss a row of the shelf.
+- `fights`: each boss's fight held to the director's laws for her on the lane, her jump among her escapes: every move
+  told, escapable, survivable and opened after; three moves or more, two or more a phase; its phases falling and
+  quickening.
 - `room-to-fight`: each boss on at least `FIGHT_ROOM` metres of lane.
 - `rising`: no boss along the walk under `BOSS_EASE` of the hardest before it.
 
@@ -456,9 +477,9 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
-- **The bosses' fights.** Each boss is a foe class at the boss's rank today. Telegraphed patterns from the boss director
-  (`boss/`) need a jump rule first: its hazards lie on the ground plane, and a side view escapes them by jumping. Its
-  figure is still to be made.
+- **The bosses' figures**, and their moves seen in them (a wind-up a pose, not only a mark). The fight's length is the
+  shelf's `blows`, not yet measured: a bot that fights as a player does (reads the marks, jumps the low ones, backs out
+  of the tall ones, cuts in the openings) would measure it. A boss's look changed by its phase.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
 - **The rail**, once a first box plays.
 - **The explored map's next affordances:** the player's own pins, a warp room's network drawn on it, a region's map

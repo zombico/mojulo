@@ -40,7 +40,8 @@ import { HERO } from '../../foes/vocab.js';
 import { sideFoe } from '../side-map/cast.js';
 import { bestiaryOf } from '../foes.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
-import { standBosses, bossRow, bossLaws } from './bosses.js';
+import { standBosses, bossRow, bossLaws, sideBody } from './bosses.js';
+import { reachOf } from '../feel/reach.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 /** The world's trees lowered on a box's hero: the runtime's spec, her moveset with the techs' strings in it, and the
@@ -136,5 +137,5 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
     ...(audio ? { audio } : {}),
   };
   const cast = foeFrom.length ? castLaws(L, Gb, boxPlaced(L, Gb, foeFrom, { bestiary: bestiaryOf(G) }), { bestiary: bestiaryOf(G), hp: V.hp, hit: HERO.hit }) : [];
-  return { tool: 'create_sketch', args: { title: name, manifest }, laws: [...B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })), ...(T ? T.laws.map((l) => ({ ...l, id: `trees:${l.id}` })) : []), ...cast.map((l) => ({ ...l, id: `foes:${l.id}` })), ...(stood ? bossLaws(B).map((l) => ({ ...l, id: `bosses:${l.id}` })) : [])] };
+  return { tool: 'create_sketch', args: { title: name, manifest }, laws: [...B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })), ...(T ? T.laws.map((l) => ({ ...l, id: `trees:${l.id}` })) : []), ...cast.map((l) => ({ ...l, id: `foes:${l.id}` })), ...(stood ? bossLaws(B, { body: sideBody(G.feel ? reachOf(readFeel(typeof G.feel === 'string' ? { pole: G.feel, takes: true } : G.feel)) : null) }).map((l) => ({ ...l, id: `bosses:${l.id}` })) : [])] };
 }

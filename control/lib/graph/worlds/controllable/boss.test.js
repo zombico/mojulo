@@ -40,7 +40,29 @@ describe('a human boss', () => {
     expect(t.byId.p.body.hp).toBe(100);
   });
 
-  it('a cover hazard is stopped by a box between its origin and the body', () => {
+  it('a hazard that says how high it reaches misses a body whose feet are over it: a jump clears it', () => {
+    // (a boss of the side view's spring, `lunge`: a low line down the aim)
+    const row = { ...BOSSES[id], moves: { ...BOSSES[id].moves, spring: { pattern: 'lunge', says: 'springs low' } } };
+    const R = bossRule(row, { first: 0.5 }), rule = { ...R, phases: R.phases.map((p) => ({ ...p, moves: { spring: 1 } })) };
+    const s = world([pilot([4, 0]), human(rule)]);
+    run(s, 3);
+    expect(s.byId.p.body.hp).toBeLessThan(100);
+    const t = world([pilot([4, 0]), human(rule)]);
+    run(t, 3, {}, (w) => { w.byId.p.transform.pos[2] = 1.6; w.byId.p.vel = [0, 0, 0]; });
+    expect(t.byId.p.body.hp).toBe(100);
+  });
+
+  it('a boss kept to its room takes no move while the body is out of it', () => {
+    const rule = { ...oneMove(id, charge), room: [-5, 5, -1, 4] };
+    const s = world([pilot([0, 12]), human(rule)]);
+    run(s, 4);
+    expect(s.bossHazards.length).toBe(0);
+    s.byId.p.transform.pos = [0, 3, 0];
+    run(s, 3);
+    expect(s.byId.p.body.hp).toBeLessThan(100);
+  });
+
+    it('a cover hazard is stopped by a box between its origin and the body', () => {
     const lockMove = Object.keys(BOSSES.glint.moves).find((m) => BOSSES.glint.moves[m].pattern === 'lock');
     const open = world([pilot([12, 0]), human(oneMove('glint', lockMove))]);
     run(open, 4);
