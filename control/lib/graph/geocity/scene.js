@@ -62,7 +62,7 @@ import { nightFaces } from '../city/plan/night.js';
 import { ORGANIC_SHAPES } from '../city/plan/organic.js';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { kitTemplates } from './kit.js';
-import { frontageTemplates, frontsOf, wallsOf, shopBays, shopRise, FRONTAGE, FACINGS } from './frontage.js';
+import { frontageTemplates, frontsOf, wallsOf, shopBays, shopRise, entriesOf, FRONTAGE, FACINGS } from './frontage.js';
 import { SLOT, slotOf, storeSlot, tenantOf } from '../retail/store-slot.js';
 import { parkCar, carRepeats, carModel } from '../geotown/cars.js';
 import { fleetOf, pickOf, YARDS } from './fleets.js';
@@ -114,10 +114,15 @@ const SECTION = readSection('passage');
 // the cells streets and grounds are draped on the land in (m), a kerb's height, a sidewalk round a block, a terrace's
 // most step to the next
 const CELL = 40, KERB = 0.15, WALK = 2.4, STEP = 1.2;
+// a neighbourhood's walks: an outskirts one's wide enough for its sidewalk trees' boxes (TREE.walk), the city's else
+const walkOf = (r) => (r.builds === 'outskirts' ? TREE.walk : WALK);
 // an outskirts house: its depth, its front yard; a storey; a shop's depth (a house's frontage, the gap between houses and
 // the most storeys it stands are its register's, register.js: a house is a house, whatever its corridor lifts the
 // block's others to)
-const HOUSE_D = 12, SETBACK = 5, STOREY = 3, SHOP_D = 14;
+// (SETBACK a house's front yard, m; FRONTS the yards the outskirts' flats keep before their walks: a low-rise's and a
+// walk-up's, a short lawn and the building on its street, its lot behind)
+const HOUSE_D = 12, SETBACK = 3.5, STOREY = 3, SHOP_D = 14;
+const FRONTS = Object.freeze({ lowrise: 4, apartments: 4 });
 // the skyline's ground cells (m); what it draws of a neighbourhood (its tall buildings); what a block at detail wears
 // facades on (the core's and the frame's: an outskirts block keeps its massing until it is a geotown's)
 // the street's kit: drawn within NEAR metres of the camera (the page's near repeats), a lamp every LAMP metres along a
@@ -202,8 +207,19 @@ const GLASS_SPEC = Object.freeze([0.55, 48]);
 // slender birches among them), the height they are grown to (m), the detail their template keeps and its faces' budget
 // (`young`: with realistic crowns, the share of its street and park trees recently planted, drawn in the plain crown at
 // `height` m, airy as a sapling's; a vacant lot's self-sown trees all young)
-const TREE = Object.freeze({ pit: 12, verge: 11, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
+// (`kerb`: how far behind the kerb, on the walk, an outskirts street's tree stands, m; `corner`: how far past a crossing
+// street's walks it keeps, for the corner's sight lines, m; `sidewalk`: a SIDEWALK TREE's, one on a walk or in a pit:
+// a small street tree, flowering cherries, birches and maples at `height` m, never a park's or a yard's giant; `walk`:
+// an outskirts street's walk, wider than the city's (WALK) to hold its trees' boxes and a clear way past them)
+// (the street trees' species, and a sidewalk tree's, its outskirts' register's: register.js OUTSKIRTS_LOOK.trees)
+const TREE = Object.freeze({ pit: 12, verge: 11, kerb: 0.9, corner: 5, walk: 3.2, sidewalk: Object.freeze({ species: ['cherry', 'cherry', 'birch', 'maple'], height: Object.freeze([6, 10]) }), height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
   young: Object.freeze({ share: 0.35, height: Object.freeze([5, 8]) }) });
+// a garden-apartment block's bars (m): their least length along a side, the gap between them, their depth, their setback
+// behind their lawn, the block's ends kept clear, their storeys (two or three)
+// a complex's front (a low-rise's, a walk-up's, a garden block's): its paths' width and their lift over the lawn, the
+// fence's sections and how far inside the block's edge it stands, its ends kept clear, a gate's width, the least run
+const COMPLEX_FENCE = Object.freeze({ path: 1.5, lift: 0.04, run: 2.5, in: 0.3, end: 1.5, gate: 1.6, least: 0.8 });
+const GARDEN_APT = Object.freeze({ long: 40, gap: 9, depth: 12, setback: 4.5, end: 6, storeys: Object.freeze([2, 3]) });
 const FAR_CELL = 160, TALL = Object.freeze(['tower', 'podium', 'midrise', 'slab']), DETAILED = Object.freeze(['tower', 'podium', 'midrise', 'slab']);
 
 const r5 = (v) => Math.round(v * 1e5) / 1e5 + 0;
@@ -350,9 +366,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   // the buildings behind it, form/flora-read.js REALISTIC.lean)
   // (`young`: with realistic crowns, a recently planted tree, TREE.young: its share by the tree's own dice, or always)
   const plant = (where, x, y, z, key, h = null, toward = null, young = null) => {
-    const R = streamOf(seed, 'trees', key), list = OUT.trees[where], sp = list[Math.floor(R() * list.length)];
+    const R = streamOf(seed, 'trees', key), list = where === 'sidewalk' ? OUT.trees.sidewalk : OUT.trees[where], sp = list[Math.floor(R() * list.length)];
     if (!trees.has(sp)) trees.set(sp, []);
-    const height = TREE.height[0] + (TREE.height[1] - TREE.height[0]) * R();
+    const Hr = where === 'sidewalk' ? TREE.sidewalk.height : TREE.height, height = Hr[0] + (Hr[1] - Hr[0]) * R();
     const yg = CR?.crowns === 'realistic' && (young ?? R() < TREE.young.share), hy = yg ? Math.min(h ?? Infinity, TREE.young.height[0] + (TREE.young.height[1] - TREE.young.height[0]) * R()) : null;
     trees.get(sp).push({ x: r5(x), y: r5(y), z0: r5(z), height: r5(hy ?? h ?? height), ...(toward !== null ? { toward: r5(toward) } : {}), ...(yg ? { young: true } : {}) });
   };
@@ -649,6 +665,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (massed && !massed.has(r.id)) { backdrop(r); continue; }
     if (r.park) { drape(r.rect, 'geocity:park', col.park); continue; }
     drape(r.rect, 'geocity:road', col.road);
+    const WALK = walkOf(r);
     for (const b of r.blocks) {
       const [x0, y0, x1, y1] = b.rect, Rb = streamOf(seed, 'scene', b.id), longY = y1 - y0 >= x1 - x0;
       // the walk round it (into the street, at a kerb over it), where the street is the neighbourhood's
@@ -763,7 +780,7 @@ export function assembleGeocityScene(m, ctx = {}) {
           if (!dense(s0) || lampAt < 2 || lampAt > LAMP - 2) continue;
           kerb(side, 1.3, s0, 'pit');
           const [x, yy] = at(l, side * (l.road / 2 + 1.3), s0), [cx, cy] = at(l, 0, s0);
-          plant('dense', x, yy, S(x, yy) + KERB, `${l.id}:${side}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
+          plant('sidewalk', x, yy, S(x, yy) + KERB, `${l.id}:${side}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
         }
       }
     }
@@ -808,7 +825,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   function streetsNear() {
     for (const r of d.regions) {
       if (r.park || (massed && !massed.has(r.id))) continue;
-      const low = r.builds === 'outskirts';
+      const low = r.builds === 'outskirts', WALK = walkOf(r);
       for (const st of r.streets) {
         const ns = st.axis === 'ns', kerbOff = st.w / 2 - WALK + 0.4, pt = (side, s0, o = kerbOff) => (ns ? [st.at + side * o, s0] : [s0, st.at + side * o]);
         const side = streamOf(seed, 'scene', `hydro:${st.id}`)() < 0.5 ? -1 : 1;
@@ -832,10 +849,15 @@ export function assembleGeocityScene(m, ctx = {}) {
             // its trees on the verge each side (a streetcar suburb's boulevard), clear of its poles
             for (const sd of [-1, 1]) for (let s0 = a + 9 + (sd > 0 ? TREE.verge / 2 : 0); s0 <= b - 9; s0 += TREE.verge) {
               if (sd === side && Math.abs(((s0 - a - 6) % HYDRO + HYDRO) % HYDRO) < 2.5) continue;
-              // (played, a tree stands on the walk by the kerb: the verge it stands on otherwise is drawn as the road's
-              // own edge, where a car parks and drives)
-              const [x, yy] = pt(sd, s0, PLAY ? st.w / 2 - WALK + 0.9 : st.w / 2 - WALK - 1.0), [cx, cy] = pt(sd, s0, 0);
-              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + (PLAY ? KERB : 0), `${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
+              // (a tree stands on the walk, TREE.kerb behind the kerb: the street's ground is its carriageway and its walks,
+              // no verge between them, so a tree before the kerb would stand where a car parks and drives)
+              const [x, yy] = pt(sd, s0, st.w / 2 - WALK + TREE.kerb), [cx, cy] = pt(sd, s0, 0);
+              // (and clear of every crossing: none in a street that crosses its own, nor in the corner's sight lines, TREE.corner
+              // past that street's walks)
+              if (r.streets.some((o) => o !== st && o.axis !== st.axis && Math.abs((o.axis === 'ns' ? x : yy) - o.at) < o.w / 2 + TREE.corner)) continue;
+              // (a sidewalk tree: small, in its box of soil in the walk)
+              plant('sidewalk', x, yy, S(x, yy) + KERB, `${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
+              stamp('soil', [x, yy, S(x, yy) + KERB], ns ? Math.PI / 2 : 0);
             }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
@@ -1521,6 +1543,44 @@ export function assembleGeocityScene(m, ctx = {}) {
     const at = (s, u, v) => (s === 'w' ? [x0 + v, along[0] + u] : s === 'e' ? [x1 - v, along[0] + u] : s === 's' ? [along[0] + u, y0 + v] : [along[0] + u, y1 - v]);
     const rectOf = (s, u0, u1, v0, v1) => { const p = at(s, u0, v0), q = at(s, u1, v1); return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]; };
     const L = along[1] - along[0];
+    // A COMPLEX'S FRONT (a low-rise's, a walk-up's, a garden block's) on its street side `s`: from each entry its front
+    // dresses (frontage.js entriesOf) a PATH across its lawn to the walk; along the block's edge on that side a low iron
+    // FENCE, COMPLEX_FENCE, a GATE where each path meets the walk. `bs` its buildings' rects on that side; `span` [lo, hi]
+    // along that side the fence keeps to (a walk-up's own lot among houses), the block's side else
+    const complexFront = (s, bs, span = null) => {
+      const side = b.sides?.[s];
+      // (its doors on its street only where its front is entries: a residential front off an arterial and a collector,
+      // or anywhere in the outskirts; frontage groundOf)
+      if (!side || !((side.kind !== 'arterial' && side.rank !== 'collector') || b.ring === 'outskirts')) return;
+      const n = FACINGS[s], t = [-n[1], n[0]], gates = [], CF = COMPLEX_FENCE;
+      for (const q of bs) {
+        const W = wallsOf(q)[s];
+        for (const { u } of entriesOf(W.L, 'residential')) {
+          const d = [W.a[0] + t[0] * u, W.a[1] + t[1] * u], h = CF.path / 2;
+          const r = s === 's' ? [d[0] - h, y0, d[0] + h, q[1]] : s === 'n' ? [d[0] - h, q[3], d[0] + h, y1] : s === 'w' ? [x0, d[1] - h, q[0], d[1] + h] : [q[2], d[1] - h, x1, d[1] + h];
+          if (r[2] - r[0] > 0.2 && r[3] - r[1] > 0.2) {
+            // (on the block's pad, its terrace at the path's middle: the lawn it crosses is level across the block)
+            const zp = zAt((r[0] + r[2]) / 2, (r[1] + r[3]) / 2) + CF.lift;
+            put([[r[0], r[1], zp], [r[2], r[1], zp], [r[2], r[3], zp], [r[0], r[3], zp]], 'geocity:walk', col.walk, [0, 0, 1]); counts.paths = (counts.paths ?? 0) + 1;
+            // (its ground claimed from the lawn's grass: circles along it, as a yard's things claim theirs)
+            if (BACKS_ON) { const w = r[2] - r[0], hh = r[3] - r[1], m = Math.min(w, hh), k = Math.max(1, Math.ceil(Math.max(w, hh) / Math.max(0.5, m))); for (let j = 0; j < k; j++) { const f = (j + 0.5) / k; backClaims.push(w >= hh ? [r5(r[0] + w * f), r5((r[1] + r[3]) / 2), r5(m * 0.6 + 0.15)] : [r5((r[0] + r[2]) / 2), r5(r[1] + hh * f), r5(m * 0.6 + 0.15)]); } }
+          }
+          gates.push(s === 's' || s === 'n' ? d[0] : d[1]);
+        }
+      }
+      // (the fence along the block's edge on that side, CF.in inside it, its runs between the gates tiled by its sections)
+      const ns = s === 's' || s === 'n', lo = Math.max((ns ? x0 : y0) + CF.end, span ? span[0] : -Infinity), hi = Math.min((ns ? x1 : y1) - CF.end, span ? span[1] : Infinity), at0 = s === 's' ? y0 + CF.in : s === 'n' ? y1 - CF.in : s === 'w' ? x0 + CF.in : x1 - CF.in;
+      const P = (c) => (ns ? [c, at0] : [at0, c]), rot = ns ? 0 : Math.PI / 2;
+      const gs = gates.filter((g) => g > lo + CF.gate && g < hi - CF.gate).sort((p, q) => p - q);
+      for (const g of gs) { const [x, y] = P(g); stamp('gate', [x, y, zAt(x, y)], rot); counts.gates = (counts.gates ?? 0) + 1; }
+      const cuts = [lo, ...gs.flatMap((g) => [g - CF.gate / 2, g + CF.gate / 2]), hi];
+      for (let i = 0; i + 1 < cuts.length; i += 2) {
+        const a = cuts[i], c = cuts[i + 1], len = c - a;
+        if (len < CF.least) continue;
+        const k = Math.max(1, Math.ceil(len / CF.run - 1e-9)), step = k > 1 ? (len - CF.run) / (k - 1) : 0;
+        for (let j = 0; j < k; j++) { const m = k > 1 ? a + CF.run / 2 + j * step : (a + c) / 2, [x, y] = P(m); stamp('railing', [x, y, zAt(x, y)], rot); }
+      }
+    };
     // (what each row leaves behind it, for the back lands: a row of houses' plots and back wall, a row of shops' bays)
     const rows = [];
     const houses = (s, u0, u1) => {
@@ -1558,19 +1618,41 @@ export function assembleGeocityScene(m, ctx = {}) {
       shops(s, b.kind === 'edge' ? 2 : 3, b.kind === 'edge' ? 'geocity:avenue' : 'geocity:shops');
       houses(other, 2, L - 2);
     } else if (b.kind === 'lowrise') {
-      const n = Math.max(1, Math.floor(L / 40));
+      const n = Math.max(1, Math.floor(L / 40)), lows = [];
       for (let k = 0; k < n; k++) {
-        const u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, deep / 2 - 7.5, deep / 2 + 7.5), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
+        // (on its street behind a short lawn, FRONTS.lowrise; its lot behind it, to its other street)
+        const v0 = Math.min(FRONTS.lowrise, Math.max(0, deep / 2 - 7.5)), u = (k + 0.5) * (L / n), q = rectOf(sides[0], u - 14, u + 14, v0, v0 + 15), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2), z1 = z0 + 4 * STOREY;
         box(q[0], q[1], q[2], q[3], z0, z1, OUT.flats ? OUT.flats[strHash(`${b.id}:${k}`) % OUT.flats.length] : famOf(brick, `${b.id}:${k}`)[0], OUT.roofs[2], 'geocity:lowrise');
         // (its residents' lot between its other street and its wall, backs.js)
-        if (BACKS_ON && deep / 2 - 7.5 - 2 >= 7) rows.push({ s: sides[1], kind: 'lot', v0: 1, v1: deep / 2 - 7.5 - 1, plots: [[u - 14, u + 14]] });
+        if (BACKS_ON && deep - v0 - 15 - 2 >= 7) rows.push({ s: sides[1], kind: 'lot', v0: 1, v1: deep - v0 - 15 - 1, plots: [[u - 14, u + 14]] });
         lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
         frontOf(b, q, z0, 4, STOREY, 'residential');
+        lows.push(q);
       }
+      complexFront(sides[0], lows);
+    } else if (b.kind === 'garden') {
+      // GARDEN APARTMENTS: each long side a row of brick bars of two or three storeys, GARDEN_APT, set back on their lawn,
+      // a gap between them; the block's middle their shared garden (its lawn, its trees: backs.js volunteers)
+      const G = GARDEN_APT, dpt = Math.min(G.depth, deep / 2 - G.setback - 3);
+      if (dpt >= 8) for (const s of sides) {
+        const n = Math.max(1, Math.floor((L - 2 * G.end + G.gap) / (G.long + G.gap))), f = (L - 2 * G.end - (n - 1) * G.gap) / n, bars = [];
+        for (let k = 0; k < n; k++) {
+          const u = G.end + k * (f + G.gap), q = rectOf(s, u, u + f, G.setback, G.setback + dpt), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
+          const st = G.storeys[0] + (Rb() < 0.5 ? 1 : 0), z1 = z0 + st * STOREY;
+          box(q[0], q[1], q[2], q[3], z0, z1 + 0.5, OUT.flats ? OUT.flats[strHash(`${b.id}:${s}:${k}`) % OUT.flats.length] : famOf(brick, `${b.id}:${s}:${k}`)[0], OUT.roofs[2], 'geocity:lowrise');
+          lights(q[0], q[1], q[2], q[3], z0, z1, STOREY, Rb);
+          frontOf(b, q, z0, st, STOREY, 'residential', { only: [s] });
+          counts.gardens = (counts.gardens ?? 0) + 1; bars.push(q);
+        }
+        complexFront(s, bars);
+      }
+      // (their shared garden, the block's middle: its trees seeded on its lawn)
+      if (BACKS_ON && deep - 2 * (G.setback + dpt) >= 10) { const Fr = backFrame(at(sides[0], 0, 0), sides[0]), v0 = G.setback + dpt + 2, v1 = deep - G.setback - dpt - 2; growBack(Fr, volunteers([G.end, v0, L - G.end, v1], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', `${b.id}:garden`) }).trees, `${b.id}:garden`); }
     } else if (b.kind === 'apartments') {
-      const q = rectOf(sides[0], 4, 34, 6, 20), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
+      const q = rectOf(sides[0], 4, 34, FRONTS.apartments, FRONTS.apartments + 14), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
       box(q[0], q[1], q[2], q[3], z0, z0 + 4 * STOREY, OUT.flats ? OUT.flats[strHash(b.id) % OUT.flats.length] : famOf(brick, b.id)[0], OUT.roofs[2], 'geocity:walkup');
       frontOf(b, q, z0, 4, STOREY, 'residential');
+      complexFront(sides[0], [q], sides[0] === 's' || sides[0] === 'n' ? [q[0] - 3, q[2] + 3] : [q[1] - 3, q[3] + 3]);
       houses(sides[0], 40, L - 2); houses(sides[1], 2, L - 2);
     } else if (b.kind === 'school') {
       const q = rectOf(sides[0], L / 2 - 30, L / 2 + 30, 6, 22), z0 = zAt((q[0] + q[2]) / 2, (q[1] + q[3]) / 2);
@@ -1903,6 +1985,15 @@ export function assembleGeocityScene(m, ctx = {}) {
     const inBox = (p) => colliders.some((c) => within(p, c));
     const shut = entered.filter((e) => [e.out, e.door, e.in].some((p) => inBox([p[0], p[1], e.door[2] + 1]))).length, heavy = entered.filter((e) => e.S.faceCount > SLOT.faces).length;
     laws.push({ law: 'entered', ok: entered.length > 0 && shut === 0 && heavy === 0, value: `${entered.length} shops walked into on ${cityStores.size} templates; ${shut} with a box in the door's way; ${heavy} over ${SLOT.faces} faces; ${entered.filter((e) => e.sink > 0).length} sunk under their pads, the deepest ${Math.max(0, ...entered.map((e) => e.sink))} m; ${tight.n} bays too small for a store${tight.n ? ` (the last ${tight.last})` : ''}; ${steep.n} kept shut, their pads over ${r5(STOOP.most + STOOP.sunk)} m above their walks; the highest stoop ${Math.max(0, ...entered.map((e) => e.rise))} m`, want: 'every shop of a row of shops is walked into through its own door, stepped up to from its walk, its inside drawn near the camera only and under its faces' });
+  }
+  // the STREET TREES' rule: no trunk on a carriageway, an arterial's (its road, l.road, about its line) or a local
+  // street's (its width less its walks, WALK, along its runs)
+  {
+    const onRoad = (x, y) => d.lines.some((l) => Math.abs((l.axis === 'ns' ? x : y) - l.at) < l.road / 2 && x >= l.rect[0] && x <= l.rect[2] && y >= l.rect[1] && y <= l.rect[3])
+      || d.regions.some((r) => x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3] && (r.streets ?? []).some((st) => { const ns = st.axis === 'ns', o = Math.abs((ns ? x : y) - st.at), u = ns ? y : x;
+        return o < st.w / 2 - walkOf(r) && (st.runs ?? []).some(([a, b]) => u >= a && u <= b); }));
+    let n = 0, on = 0; for (const list of trees.values()) for (const t of list) { n++; if (onRoad(t.x, t.y)) on++; }
+    laws.push({ law: 'trees-clear', ok: on === 0, value: on ? `${on} of ${n} trees on a carriageway` : `${n} trees, none on a carriageway`, want: 'every street tree on its walk, its verge or in its pit; none where a car drives or parks' });
   }
   laws.push({ law: 'walk-clear', ok: blocked === 0, value: blocked ? `${blocked} of the walk's points inside a building's box` : `the walk clear of ${colliders.length} boxes`, want: 'the route round the seat\'s block and the spawn outside every box' });
   // the TOWNS' SEAMS (towns.js: a composed town on the metro's own streets' ground): along each town's outline, its own

@@ -20,7 +20,8 @@
  *   roofs        the roofs' colours (three at least), the third the flat roofs' (a shop's, a low-rise's)
  *   shops        a shop row's fronts
  *   flats        a walk-up's and a low-rise's walls (null: the grammar's brick, as before)
- *   trees        the street trees' species, `dense` along a close-built arterial, `low` along an outskirts street
+ *   trees        the street trees' species, `dense` along a close-built arterial, `low` along an outskirts street,
+ *                `sidewalk` a small one in its box on an outskirts walk
  *   finishes     a group's material word over the metro's own (`geocity:house` its stucco)
  *
  * Pure: data and a reader.
@@ -34,7 +35,7 @@ export const OUTSKIRTS_LOOK = Object.freeze({
   roofs: Object.freeze(['#4a4f55', '#5b4a3f', '#3f4448', '#6a5a4c']),
   shops: Object.freeze(['#8a3a2e', '#3e5e3a', '#24405e', '#6e5a3a', '#7a2e4a']),
   flats: null,
-  trees: Object.freeze({ dense: Object.freeze(['maple', 'beech']), low: Object.freeze(['maple', 'maple', 'cherry', 'birch']) }),
+  trees: Object.freeze({ dense: Object.freeze(['maple', 'beech']), low: Object.freeze(['maple', 'maple', 'cherry', 'birch']), sidewalk: Object.freeze(['cherry', 'cherry', 'birch', 'maple']) }),
   finishes: Object.freeze({}),
 });
 export const HOUSE_FORMS = Object.freeze(['gable', 'hip', 'flat']);
@@ -52,14 +53,14 @@ export function outskirtsLook(P) {
   if (!HOUSE_FORMS.includes(house.form)) throw new Error(`outskirts look: house.form is ${HOUSE_FORMS.join(', ')}`);
   if (!(house.pitch >= 0 && house.pitch <= 0.6) || !(Number.isInteger(house.most) && house.most >= 1 && house.most <= 3) || !(house.pair >= 6 && house.pair <= 30) || !(house.gap >= 0 && house.gap <= 12) || !(house.far >= 3 && house.far <= 12)) throw new Error('outskirts look: house is { form, pitch: 0–0.6, most: 1–3 storeys, pair: 6–30 m, gap: 0–12 m, far: 3–12 m }');
   const trees = { ...L.trees, ...(M.trees ?? {}) };
-  for (const k of ['dense', 'low']) if (!Array.isArray(trees[k]) || !trees[k].length || !trees[k].every((s) => SPECIES[s])) throw new Error(`outskirts look: trees.${k} is a list of species (vegetation/species.js)`);
+  for (const k of ['dense', 'low', 'sidewalk']) if (!Array.isArray(trees[k]) || !trees[k].length || !trees[k].every((s) => SPECIES[s])) throw new Error(`outskirts look: trees.${k} is a list of species (vegetation/species.js)`);
   const finishes = M.finishes ?? {};
   for (const [g, w] of Object.entries(finishes)) if (!REGISTER_GROUPS.includes(g) || !MATERIAL_WORDS[w]) throw new Error(`outskirts look: finishes.${g} is a material word on one of ${REGISTER_GROUPS.join(', ')}`);
   return Object.freeze({
     house: Object.freeze(house),
     walls: M.walls ? hexes(M.walls, 'walls') : L.walls, roofs: M.roofs ? hexes(M.roofs, 'roofs', 3) : L.roofs,
     shops: M.shops ? hexes(M.shops, 'shops') : L.shops, flats: M.flats ? hexes(M.flats, 'flats') : null,
-    trees: Object.freeze({ dense: Object.freeze([...trees.dense]), low: Object.freeze([...trees.low]) }),
+    trees: Object.freeze({ dense: Object.freeze([...trees.dense]), low: Object.freeze([...trees.low]), sidewalk: Object.freeze([...trees.sidewalk]) }),
     finishes: Object.freeze({ ...finishes }),
   });
 }

@@ -47,10 +47,14 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
 
 - **name**: the game's own title (the rail's name is ours; the game's is theirs).
 - **characters**: the hero (create_character words: body, clothes, how it moves).
-- **levels**: its suburbs' register (`geocity.outskirts`: `west-coast` by default, `tropical`, `san-francisco`,
-  `sunset`, `bay-and-gable`, `old-town`; `hijackCityWorld({ register })`, the two San Francisco ones laying a hill
-  city's district, `bayside`, in its fog), another metro (`geocity.metro.from`), its size, its water, a second
-  district beside the first.
+- **levels**: the district by a word, `HIJACK_DISTRICTS` (`hijackCityWorld({ district })`): `downtown` (the starter's
+  own), `inner-city` (a Northeast metro's frame: brick walk-ups, four-storey low-rises and main streets among its
+  midrises) or `suburbs` (its outskirts: colonials, garden apartments, walk-ups); its suburbs' register
+  (`hijackCityWorld({ register })`, `geocity.outskirts`: `west-coast` downtown's, `northeast` the inner city's and the
+  suburbs', `tropical`, `san-francisco`, `sunset`, `bay-and-gable`, `old-town`; the two San Francisco ones laying the
+  district on the hill city, `bayside`, at its word's ring, in its fog); or another metro (`geocity.metro.from`), where
+  in it (`geocity.at`: a neighbourhood's id, or a ring, core, frame or outskirts, its most lived-in neighbourhood), its
+  size, its water, a second district beside the first.
 - **errands**: the story (the contact, the missions and their heat, clocks and the end), the side work.
 - **factions**: the crews, their turf and colours, their boards of work.
 - **law**: how many stars, police per star, cars, the star they come armed from, the fine.

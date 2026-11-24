@@ -17,7 +17,7 @@ describe('the outskirts\' register', () => {
     expect(L.house).toEqual({ ...OUTSKIRTS_LOOK.house, form: 'hip', pitch: 0.12, most: 1 });
     expect(L.walls).toEqual(['#eeeeee']);
     expect(L.roofs).toBe(OUTSKIRTS_LOOK.roofs);
-    expect(L.trees).toEqual({ dense: OUTSKIRTS_LOOK.trees.dense, low: ['washingtonia'] });
+    expect(L.trees).toEqual({ dense: OUTSKIRTS_LOOK.trees.dense, low: ['washingtonia'], sidewalk: OUTSKIRTS_LOOK.trees.sidewalk });
     expect(L.finishes).toEqual({ 'geocity:house': 'stucco' });
   });
 

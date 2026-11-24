@@ -140,7 +140,9 @@ export function blocksOf(d) {
         // (industry: a warehouse's long side on an arterial, its docks off it; the rest by the metro's weights)
         : ind ? (onLong(c, 'arterial') && (mix.warehouse ?? 0) > 0 && Rs() < 0.45 ? 'warehouse' : pick(Rs, mix))
         : ring === 'core' ? pick(Rs, mix)
-          : ring === 'frame' ? (onLong(c, 'arterial') ? 'midrise' : pick(Rs, mix))
+          // (the frame's arterial frontage a midrise, or a main street where its mix names one, by their weights: dice only
+          // then, so a mix without main streets draws as it did)
+          : ring === 'frame' ? (onLong(c, 'arterial') ? ((mix['main-street'] ?? 0) > 0 && Rs() < mix['main-street'] / (mix['main-street'] + (mix.midrise ?? 0)) ? 'main-street' : 'midrise') : pick(Rs, mix))
             : onLong(c, 'arterial') ? 'edge' : onLong(c, 'collector') ? 'main-street' : pick(Rs, mix);
       // the city changing: a share of the blocks (off the civic one) a site, a lot, a vacant lot, on its own dice
       const Rl = streamOf(d.seed, 'blocks', `${r.id}.${c.i}.${c.j}:lively`), u = Rl(), L = M.lively[ring];

@@ -185,7 +185,7 @@ export function geocityLaws(d) {
   const indus = new Set(built.filter((r) => r.industrial).map((r) => r.id)), isInd = (b) => indus.has(b.id.split('.')[0]);
   const offPitch = lots.filter((b) => { const [rx, ry] = isInd(b) ? [M.industry.block, M.industry.block] : rail(b.ring), w = b.rect[2] - b.rect[0], h = b.rect[3] - b.rect[1]; return w < 0.5 * rx[0] || w > 1.5 * rx[1] || h < 0.5 * ry[0] || h > 1.5 * ry[1]; });
   out.push({ law: 'pitch', ok: offPitch.length <= 0.1 * lots.length, value: `${offPitch.length} of ${lots.length} off their ring's length`, want: '≤ 10%' });
-  const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'school', ...ANY] };
+  const ANY = ['construction', 'parking', 'vacant', 'geotown'], OF = { core: ['tower', 'podium', 'square', ...ANY], frame: ['midrise', 'slab', 'lowrise', 'apartments', 'main-street', ...ANY], outskirts: ['houses', 'main-street', 'edge', 'lowrise', 'apartments', 'garden', 'school', ...ANY] };
   OF.industry = ['works', 'warehouse', 'storage', 'tanks', 'substation', ...ANY];
   const wrong = lots.filter((b) => !OF[isInd(b) ? 'industry' : b.ring].includes(b.kind));
   // (an industrial neighbourhood's civic block its substation, every one of them)

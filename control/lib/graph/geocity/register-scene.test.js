@@ -13,7 +13,7 @@ const treeSpecies = (P) => new Set((P.repeats ?? []).map((r) => r.group).filter(
 describe('a metro\'s outskirts in their register', () => {
   it('its streets are planted with its register\'s trees: a West Coast\'s palms, the streetcar suburb\'s maples', () => {
     const suburb = treeSpecies(city()), west = treeSpecies(city('west-coast')), L = outskirtsLook(PATTERNS['west-coast']);
-    expect([...west].every((sp) => [...L.trees.dense, ...L.trees.low].includes(sp))).toBe(true);
+    expect([...west].every((sp) => [...L.trees.dense, ...L.trees.low, ...L.trees.sidewalk].includes(sp))).toBe(true);
     expect(west.has('washingtonia')).toBe(true);
     expect(suburb.has('washingtonia')).toBe(false);
     expect([...suburb].some((sp) => ['maple', 'beech', 'cherry'].includes(sp))).toBe(true);

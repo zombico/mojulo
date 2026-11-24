@@ -12,10 +12,16 @@
  *
  *   HIJACK_CITY            the rail's name and the starter's title (a person's game takes its own)
  *   HIJACK_DISTRICT        the district's geocity: the metro it is cut from, its rings, its water, where it stands
- *   hijackCityWorld({ name?, seed?, register? }) → the starter gameworld: a hero, the district (its outskirts'
- *                          pattern `register`'s, the West Coast's unless named), four story missions for one contact
- *                          (the last the end), a repeated fare, two crews, the law, the shops, the look, sound and
- *                          music. A plain value: the same words give the same world
+ *   HIJACK_DISTRICTS       the districts a starter may stand in, by a word: `downtown` (HIJACK_DISTRICT), `inner-city`
+ *                          (a Northeast metro's frame: brick walk-ups, low-rises and main streets among its midrises),
+ *                          `suburbs` (its outskirts: colonials, garden apartments, walk-ups); each a geocity whose
+ *                          evocation stands `at` its ring (geocity/design.js: the ring's most lived-in neighbourhood)
+ *   hijackCityWorld({ name?, seed?, district?, register? }) → the starter gameworld (`district` a HIJACK_DISTRICTS word,
+ *                          downtown by default; `register` its outskirts' pattern, geotown/pattern.js, the district's
+ *                          own unless named, a San Francisco one laying it on the hill city in its fog): a hero, the
+ *                          district, four story missions for one contact (the last the end), a repeated fare, two
+ *                          crews, the law, the shops, the look, sound and music. A plain value: the same words give
+ *                          the same world
  *   hijackCityStart(world) → null | { world, says }: a locked pitch from the rail with no level yet, laid with the
  *                          starter under it; every key the creator wrote wins (gameworld/pitch-start.js)
  *   HIJACK_GROWS           the words the starter is grown by, each a key of the gameworld: what a person changes first
@@ -47,6 +53,17 @@ export const HIJACK_HILL_DISTRICT = Object.freeze({
 export const HIJACK_HILL_REGISTERS = Object.freeze(['san-francisco', 'sunset']);
 const HILL_AIR = Object.freeze({ kind: 'mist' });
 
+// (a Northeast metro cut small for a district: its harbour east, its core by it, its frame and outskirts inland; it
+// holds every law of the metro's at its game scale, evoked at either ring)
+const NORTHEAST_CUT = Object.freeze({ metro: Object.freeze({ from: 'northeast', rings: Object.freeze({ core: 350, frame: 900 }) }), extent: Object.freeze([3000, 2400]),
+  water: Object.freeze({ sides: Object.freeze(['e']), depth: 200 }), core: Object.freeze([0.85, 0.5]), evoke: 'neighbourhood', shops: true });
+/** The districts a Hijack City may stand in, by a word: its streets, its buildings and its traffic each its ring's. */
+export const HIJACK_DISTRICTS = Object.freeze({
+  downtown: HIJACK_DISTRICT,
+  'inner-city': Object.freeze({ ...NORTHEAST_CUT, at: 'frame' }),
+  suburbs: Object.freeze({ ...NORTHEAST_CUT, at: 'outskirts' }),
+});
+
 // the contact's jobs, told as missions: a first errand, one with heat, one against the clock, the end
 const MISSIONS = Object.freeze([
   { id: 'pickup', name: 'The pick-up', reward: 60, item: 'package', offer: 'New in town? I\'ve got work. A package across the district, back to me. Don\'t open it.', mission: {} },
@@ -59,7 +76,7 @@ const MISSIONS = Object.freeze([
 export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
-  levels: 'the district: its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, bayside), its size, its water, another district beside it',
+  levels: 'the district: one of HIJACK_DISTRICTS (downtown, the inner city\'s walk-ups and main streets, the suburbs), its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, northeast, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, northeast, bayside), where in it (`geocity.at`: a neighbourhood or a ring), its size, its water, another district beside it',
   errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
@@ -68,12 +85,14 @@ export const HIJACK_GROWS = Object.freeze({
   music: 'the score: walking, the chase, the tension',
 });
 
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, register = null } = {}) {
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, district: word = 'downtown', register = null } = {}) {
+  if (!HIJACK_DISTRICTS[word]) throw new Error(`hijack city: district is ${Object.keys(HIJACK_DISTRICTS).join(', ')}`);
   // (`register`: its outskirts' pattern, geotown/pattern.js PATTERNS: 'tropical' for a coast, 'bay-and-gable' for a
-  // northeastern streetcar suburb, 'san-francisco' or 'sunset' a hill city's district in its fog; the West Coast tract
-  // unless named)
+  // streetcar suburb, 'san-francisco' or 'sunset' the district laid on the hill city at its word's ring, in its fog;
+  // the district's own unless named)
   const hill = HIJACK_HILL_REGISTERS.includes(register);
-  const district = { ...JSON.parse(JSON.stringify(hill ? HIJACK_HILL_DISTRICT : HIJACK_DISTRICT)), ...(register ? { outskirts: register } : {}) };
+  const base = hill ? (word === 'downtown' ? HIJACK_HILL_DISTRICT : { ...HIJACK_HILL_DISTRICT, at: word === 'inner-city' ? 'frame' : 'outskirts' }) : HIJACK_DISTRICTS[word];
+  const district = { ...JSON.parse(JSON.stringify(base)), ...(register ? { outskirts: register } : {}) };
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair

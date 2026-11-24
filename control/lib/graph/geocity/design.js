@@ -342,6 +342,8 @@ export function industryOf(regions, M, seed) {
   return out.sort();
 }
 
+// a neighbourhood's lived-in fabric, its blocks of homes (an evocation `at` a ring picks the neighbourhood with the most)
+const FABRIC = new Set(['houses', 'apartments', 'lowrise', 'garden', 'midrise', 'slab']);
 /** What an evocation centres on, the blocks it draws at a building's detail and the neighbourhoods round them it draws
  *  as massing (the rest of the metro is its skyline). */
 function evokedOf(d, T) {
@@ -352,7 +354,13 @@ function evokedOf(d, T) {
   const out = { evoke: T.evoke, play: T.play };
   if (T.evoke === 'skyline') return { ...out, blocks: [], regions: [] };
   if (T.evoke === 'neighbourhood') {
-    const at = T.at ?? built.filter((r) => r.builds === 'core').sort((p, q) => near(p.mid) - near(q.mid))[0]?.id ?? built[0].id;
+    // (`at` a neighbourhood's id, or a RING's word: the neighbourhood that builds as it nearest the seat, none industrial;
+    // the core's by default)
+    // (the frame's or the outskirts': the one with the most of its ring's lived-in FABRIC, its blocks of homes, nearest
+    // the seat among equals; never a strip of shops along an arterial)
+    const ring = !T.at ? 'core' : ['core', 'frame', 'outskirts'].includes(T.at) ? T.at : null;
+    const fabric = (r) => (ring === 'core' ? 0 : r.blocks.filter((b) => FABRIC.has(b.kind)).length);
+    const at = ring ? (built.filter((r) => (r.builds ?? r.ring) === ring && !r.industrial).sort((p, q) => fabric(q) - fabric(p) || near(p.mid) - near(q.mid))[0]?.id ?? no(`at '${ring}': this metro has no neighbourhood that builds as its ${ring}`)) : T.at;
     const r = byId.get(at) ?? no(`at '${at}' is not a neighbourhood (${d.regions.map((x) => x.id).join(', ')})`);
     return { ...out, at, blocks: r.blocks.map((b) => b.id), regions: round([r]) };
   }
