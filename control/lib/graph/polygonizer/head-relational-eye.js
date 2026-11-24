@@ -25,6 +25,7 @@
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { SM } from '../../util/math-scope.js';
 import { hash3 } from '../era/dirt.js';
+import * as DM from '../../util/dmath.js';
 
 /** the globe (V): 24 mm across, its sclera's front `back` behind the eye point, the cornea proud of it to the point */
 export const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034, iris: 0.0255, pupil: 0.0085 });
@@ -139,7 +140,7 @@ export function eyeSpecErrors(spec, at = 'eyes') {
  */
 export function lookAngles(from, to) {
   const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
-  return { gazeYaw: (Math.atan2(dx, dy) * 180) / Math.PI, gazePitch: (Math.atan2(dz, Math.hypot(dx, dy)) * 180) / Math.PI };
+  return { gazeYaw: (DM.atan2(dx, dy) * 180) / Math.PI, gazePitch: (DM.atan2(dz, Math.hypot(dx, dy)) * 180) / Math.PI };
 }
 
 /**
@@ -149,7 +150,7 @@ export function lookAngles(from, to) {
 function bump(t, a, shape) {
   if (t <= 0 || t >= 1) return 0;
   const s = t < a ? 0.5 * (t / a) : 0.5 + 0.5 * ((t - a) / (1 - a));
-  return Math.pow(SM.sin(Math.PI * s), 0.75 * Math.pow(2, 1.3 * shape));
+  return DM.pow(DM.sin(Math.PI * s), 0.75 * DM.pow(2, 1.3 * shape));
 }
 
 /**
@@ -209,7 +210,7 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   const gc = { x: e.x, y: e.y - GLOBE.back, z: e.z };
   // THE GAZE: the axis the cornea, iris and pupil turn to (+yaw toward the figure's right, +pitch up)
   const yaw = (c.gazeYaw * Math.PI) / 180, pitch = (c.gazePitch * Math.PI) / 180;
-  const d = { x: SM.sin(yaw) * SM.cos(pitch), y: SM.cos(yaw) * SM.cos(pitch), z: SM.sin(pitch) };
+  const d = { x: DM.sin(yaw) * DM.cos(pitch), y: DM.cos(yaw) * DM.cos(pitch), z: DM.sin(pitch) };
   const cc = { x: gc.x + d.x * (GLOBE.back - GLOBE.cornea), y: gc.y + d.y * (GLOBE.back - GLOBE.cornea), z: gc.z + d.z * (GLOBE.back - GLOBE.cornea) };
   const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z);
   const globe = (p) => smin(dist(p, gc) - GLOBE.r, dist(p, cc) - GLOBE.cornea, 0.006);
@@ -222,7 +223,7 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   // THE MARGINS: heights over the chord between the canthi. The upper's rest height is `split` of the fissure over the
   // pupil (the head's `lidSplit`), the lower's the rest under it; the upper closes onto the lower; the lids follow the
   // gaze's pitch.
-  const follow = SM.sin(pitch) * GLOBE.r;
+  const follow = DM.sin(pitch) * GLOBE.r;
   const huRest = split * fissure, hlRest = (1 - split) * fissure;
   const hl = hlRest * (1 - 0.85 * c.lower) - 0.3 * follow;
   const huOpen = c.open <= 1 ? -0.92 * hl + (huRest + 0.92 * hl) * c.open : huRest * c.open;
@@ -245,7 +246,7 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   // the curves as bead chains (ONE min each, so they do not bead): the margins on the ride, the upper thickest at
   // the lash line's middle; the pretarsal roll under the lower
   const N = 12, ts = Array.from({ length: N + 1 }, (_, i) => i / N);
-  const taper = (t) => SM.sin(Math.PI * t) ** 0.6;
+  const taper = (t) => DM.pow(DM.sin(Math.PI * t), 0.6);
   const pt = (t, z, lift, fwd) => ({ x: xAt(t), y: rideY(xAt(t), z) + fwd, z: z + lift });
   const chainF = (beads) => (p) => {
     let m = Infinity;
@@ -427,10 +428,10 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
     if (along <= 0) return 1;
     const px = q.x - d.x * along, py = q.y - d.y * along, pz = q.z - d.z * along, rad = Math.hypot(px, py, pz);
     if (rad < pupilR || rad >= irisR) return 1;
-    const u = (rad - pupilR) / (irisR - pupilR), a = Math.atan2(px * e2.x + py * e2.y + pz * e2.z, px * e1.x + py * e1.y + pz * e1.z);
+    const u = (rad - pupilR) / (irisR - pupilR), a = DM.atan2(px * e2.x + py * e2.y + pz * e2.z, px * e1.x + py * e1.y + pz * e1.z);
     const fibres = 0.75 * ring(a, u * 3, 56, 1) + 0.25 * ring(a, u * 9, 140, 2);
-    const uc = 0.34 + 0.05 * Math.sin(7 * a + seed) + 0.06 * (ring(a, 0, 12, 3) - 0.5);
-    const collarette = Math.exp(-(((u - uc) / 0.045) ** 2));
+    const uc = 0.34 + 0.05 * DM.sin(7 * a + seed) + 0.06 * (ring(a, 0, 12, 3) - 0.5);
+    const collarette = DM.exp(-(((u - uc) / 0.045) ** 2));
     const crypt = u > uc + 0.06 && u < 0.86 ? Math.max(0, (ring(a, u * 4, 22, 4) - 0.72) / 0.28) : 0;
     const limbal = u > 0.84 ? (u - 0.84) / 0.16 : 0, ruff = u < 0.05 ? 1 - u / 0.05 : 0;
     return (u < uc ? 1.14 : 1) * (0.72 + 0.5 * fibres) * (1 + 0.22 * collarette) * (1 - 0.45 * crypt) * (1 - 0.5 * limbal * limbal) * (1 - 0.35 * ruff);
@@ -444,10 +445,10 @@ export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s], split = 0.
   // inner corner cut to the globe's side, a slit to it beside the nose's bridge, where the caruncle fills it)
   // (fuller under the eye's outer corner, `COVER_RIM`: the cheekbone's top and the lateral orbital rim, the profile's >,
   // stand forward over the globe's lower outer side, so the seam where the lower lid meets the globe there is hidden)
-  const sgx = Math.sign(ex.x - en.x) || 1, rimD = (() => { const [a, b, c] = COVER_RIM.toward, l = Math.hypot(a, b, c); return [sgx * a / l, b / l, c / l]; })(), rimC = Math.cos((COVER_RIM.spread * Math.PI) / 180);
+  const sgx = Math.sign(ex.x - en.x) || 1, rimD = (() => { const [a, b, c] = COVER_RIM.toward, l = Math.hypot(a, b, c); return [sgx * a / l, b / l, c / l]; })(), rimC = DM.cos((COVER_RIM.spread * Math.PI) / 180);
   const rimW = (p, r) => { const t = Math.min(1, Math.max(0, (((p.x - gc.x) * rimD[0] + (p.y - gc.y) * rimD[1] + (p.z - gc.z) * rimD[2]) / (r || 1e-9) - rimC) / (1 - rimC))); return t * t * (3 - 2 * t); };
   const rim = (p, r) => COVER_RIM.lift * rimW(p, r);
-  const cover = seat === 2 ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z); return r - lidR - rim(p, r); } : null, cd = Math.cos((COVER_DEEP * Math.PI) / 180);
+  const cover = seat === 2 ? (p) => { const r = Math.hypot(p.x - gc.x, p.y - gc.y, p.z - gc.z); return r - lidR - rim(p, r); } : null, cd = DM.cos((COVER_DEEP * Math.PI) / 180);
   // (and out to the canthi, `COVER_CORNER`: the fissure is wider than the globe, so each corner lies past its limb; the
   // fill, a sphere about the globe, ended short of the canthus there and left a slot between the globe's flank and the lids'
   // meeting, dark from the front. Past the limb it stretches sideways till its front reaches the canthi's depth)

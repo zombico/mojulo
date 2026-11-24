@@ -29,6 +29,7 @@ import { mixW, four } from './body-relational-resample.js';
 import { r6 } from './body-relational-vec.js';
 import { smin } from './vajra.js';
 import { HEAD_V } from './head-relational.js';
+import * as DM from '../../util/dmath.js';
 
 /** the one skin's density: the net's `cell` (m), how near two rim points on the seam ring are welded (`weld` m), the
  * faces it is simplified to, how much more the features keep (`feature` × the planes' weight within `reach` m of an eye,
@@ -70,13 +71,13 @@ const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 
 const rp = (p) => p.map(r6);
 const mean = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
 const P3 = (q) => ({ x: q[0], y: q[1], z: q[2] });
-const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+const wrap = (a) => DM.atan2(DM.sin(a), DM.cos(a));
 const n4 = (v) => v.map((x) => Math.round(x * 1e4) / 1e4);
 
 /** The seam ring read by azimuth about its middle: its height there, a point on its edges, the blend there (lerped
  * between the two seam points about it). `pts` in slot order, `W` their blends. */
 function seamRing(pts, W) {
-  const c = mean(pts), az = (q) => Math.atan2(q[0] - c[0], q[1] - c[1]);
+  const c = mean(pts), az = (q) => DM.atan2(q[0] - c[0], q[1] - c[1]);
   const order = pts.map((p, j) => ({ a: az(p), j })).sort((x, y) => x.a - y.a || x.j - y.j), n = order.length;
   // the two seam points about azimuth `a` (cyclic), and how far along from the first
   const about = (a) => {
@@ -97,7 +98,7 @@ function globePart(g, { toHero, inHead, S2, k }, C) {
   let e1 = [e1n[0] - D[0] * dot, e1n[1] - D[1] * dot, e1n[2] - D[2] * dot]; const l1 = Math.hypot(...e1); e1 = e1.map((x) => x / l1);
   const e2 = [D[1] * e1[2] - D[2] * e1[1], D[2] * e1[0] - D[0] * e1[2], D[0] * e1[1] - D[1] * e1[0]];
   const fG = inHead(g.field), R = 0.03 * k;
-  const dir = (ph, th) => [0, 1, 2].map((a) => Math.cos(ph) * D[a] + Math.sin(ph) * (Math.cos(th) * e1[a] + Math.sin(th) * e2[a]));
+  const dir = (ph, th) => [0, 1, 2].map((a) => DM.cos(ph) * D[a] + DM.sin(ph) * (DM.cos(th) * e1[a] + DM.sin(th) * e2[a]));
   const cast = (ph, th) => { const u = dir(ph, th); let lo = 0, hi = R; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (fG(c.map((x, a) => x + u[a] * m)) <= 0) lo = m; else hi = m; } const t = (lo + hi) / 2; return c.map((x, a) => x + u[a] * t); };
   const paint = (q) => g.paint(S2(q)) ?? 'sclera';
   // the edges along one meridian: where the paint turns from the pupil to the iris, and from the iris to the sclera
@@ -105,7 +106,7 @@ function globePart(g, { toHero, inHead, S2, k }, C) {
   const ringsOf = (phP, phI) => { const Rg = C.globeRings; return [
     ...Array.from({ length: Rg.pupil }, (_, i) => (phP * (i + 1)) / Rg.pupil),
     ...Array.from({ length: Rg.iris }, (_, i) => phP + ((phI - phP) * (i + 1)) / Rg.iris),
-    ...Array.from({ length: Rg.sclera }, (_, i) => phI + ((Math.PI * 0.97 - phI) * (i + 1) ** 1.3) / Rg.sclera ** 1.3),
+    ...Array.from({ length: Rg.sclera }, (_, i) => phI + ((Math.PI * 0.97 - phI) * DM.pow(i + 1, 1.3)) / DM.pow(Rg.sclera, 1.3)),
   ]; };
   const N = C.globeSlots, points = { front: rp(cast(0, 0)), back: rp(cast(Math.PI, 0)) }, faces = {}, groups = {};
   // (the edges found along one meridian and kept round the globe, a round pupil's; or, `globeEdges: 'slot'`, along each
@@ -246,7 +247,7 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
   const L = (n) => toHero(head.points[n]), centres = [
     ...['eyeR', 'eyeL'].map((n) => [L(n), C.reach.eye]), ...['prn', 'alR', 'alL'].map((n) => [L(n), C.reach.nose]), [sto, C.reach.mouth], [ch, C.reach.mouth], [[-ch[0], ch[1], ch[2]], C.reach.mouth],
   ];
-  const weight = (p) => { let m = 0; for (const [q, r] of centres) m = Math.max(m, Math.exp(-((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2) / (r * r))); return 1 + C.feature * m; };
+  const weight = (p) => { let m = 0; for (const [q, r] of centres) m = Math.max(m, DM.exp(-((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2) / (r * r))); return 1 + C.feature * m; };
   const locked = new Uint8Array(V.length); for (const v of rim) locked[v] = 1; for (const v of cut) { locked[v] = 1; locked[lower.get(v)] = 1; }
   // (a point near the cut never collapses across the lips' line from its own side: shut, the lips hide it; parted, it
   // stands in the mouth as a spike)
@@ -317,7 +318,7 @@ export function oneSkinHead({ head, k, toHero, inHead, S2, fN, join, seamPts, se
   }
   // THE MOUTH: a closed bag behind the lips, its upper half the head's and its lower the jaw's
   const B = C.bag, cx = chx + B.wide, cy = sto[1] - C.lipDepth - B.gap - B.depth / 2, mp = {}, mf = {}, mb = {}, mn = {};
-  const bagAt = (u, th) => { const s = Math.sin(u), c2 = Math.cos(u); return [cx * s * Math.sin(th), cy + (B.depth / 2) * s * Math.cos(th), sto[2] + (B.height / 2) * c2]; };
+  const bagAt = (u, th) => { const s = DM.sin(u), c2 = DM.cos(u); return [cx * s * DM.sin(th), cy + (B.depth / 2) * s * DM.cos(th), sto[2] + (B.height / 2) * c2]; };
   mp.top = rp(bagAt(0, 0)); mp.bot = rp(bagAt(Math.PI, 0));
   for (let i = 1; i < B.rings; i++) for (let j = 0; j < B.slots; j++) mp[`r${i}s${j}`] = rp(bagAt((Math.PI * i) / B.rings, (2 * Math.PI * j) / B.slots));
   const mid = (i, j) => `r${i}s${((j % B.slots) + B.slots) % B.slots}`;
@@ -352,7 +353,7 @@ function tubeAlong([a, c, b], [ra, rc, rb], { slots, cap, flat = 1, wide = 1, n 
   // (the tips: the caps' poles)
   pts.push(a.map((x, i) => x - d0[i] * ra * cap)); nrm.push(d0.map((x) => -x));
   along.forEach(([p, r], k) => { for (let j = 0; j < slots; j++) {
-    const th = (2 * Math.PI * j) / slots, cs = Math.cos(th), sn = Math.sin(th), wd = W[k], fl = Fl[k];
+    const th = (2 * Math.PI * j) / slots, cs = DM.cos(th), sn = DM.sin(th), wd = W[k], fl = Fl[k];
     pts.push([0, 1, 2].map((i) => p[i] + r * (wd * cs * side[i] + fl * sn * deep[i]))); nrm.push(unit([0, 1, 2].map((i) => (cs / wd) * side[i] + (sn / fl) * deep[i])));
   } });
   pts.push(b.map((x, i) => x + d0[i] * rb * cap)); nrm.push(d0);
@@ -380,7 +381,7 @@ function mouthParts(head, { toHero, k, sto, chx, C }) {
   // the teeth behind the lips are seen through it; the rest lies inside the face, as the bag did (a cup rimmed at the
   // bag's front, as wide as it, stood out through the cheeks beside the corners)
   const mp = {}, mf = {}, mb = {}, mn = {}, hd = B.depth / 2, cy = yF - hd;
-  const bagAt = (u, th) => { const s2 = Math.sin(u), c2 = Math.cos(u); return [cx * s2 * Math.sin(th), cy + hd * s2 * Math.cos(th), zc + hz * c2]; };
+  const bagAt = (u, th) => { const s2 = DM.sin(u), c2 = DM.cos(u); return [cx * s2 * DM.sin(th), cy + hd * s2 * DM.cos(th), zc + hz * c2]; };
   const all = { top: bagAt(0, 0), bot: bagAt(Math.PI, 0) };
   for (let i = 1; i < B.rings; i++) for (let j = 0; j < B.slots; j++) all[`r${i}s${j}`] = bagAt((Math.PI * i) / B.rings, (2 * Math.PI * j) / B.slots);
   const id = (i, j) => `r${i}s${((j % B.slots) + B.slots) % B.slots}`, faces0 = [];

@@ -52,6 +52,9 @@
  * - 2026-11-24, the skin's wavelength in portable arithmetic (CI on arm64 hashed the seated female apart): the p-norm
  *   joining the feature and bone shortenings is squares and square roots, where `**` reached the engine's pow, whose last
  *   bit differs between CPUs. On x64 the male under laws 2 and 9 moved by that bit; every other pin as it was.
+ * - 2026-11-24, the head on dmath (arm64 still hashed the seated female apart): the relational head's modules take
+ *   their transcendentals from util/dmath.js, the same bits on every CPU, where the engine's Math rounds differently
+ *   on arm64. dmath equals Math on x64 bit for bit, so every pin is as it was.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';

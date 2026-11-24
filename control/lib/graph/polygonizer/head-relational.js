@@ -34,6 +34,7 @@ import { headMeasures, rayIn } from './head-field-view.js';
 import { EAR_OUTLINE, EAR_HINGE } from './head-ear.js';
 import { GLOBE, SEAT, eyeRig, resolveEye, lookAngles, browBridge } from './head-relational-eye.js';
 import { SM } from '../../util/math-scope.js';
+import * as DM from '../../util/dmath.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
 export const HEAD_V = 0.23 / 1.8;
@@ -933,7 +934,7 @@ export const ACTION_NAMES = Object.freeze(Object.keys(ACTIONS));
 const JOINT = Object.freeze({ eminenceDeg: 35, glideFrom: 0.3, maxDeg: 35 });
 const rotX = (p, o, deg) => {
   if (!deg) return p;
-  const th = (deg * Math.PI) / 180, c = SM.cos(th), s = SM.sin(th), y = p.y - o.y, z = p.z - o.z;
+  const th = (deg * Math.PI) / 180, c = DM.cos(th), s = DM.sin(th), y = p.y - o.y, z = p.z - o.z;
   return { x: p.x, y: o.y + y * c + z * s, z: o.z - y * s + z * c };
 };
 
@@ -947,7 +948,7 @@ export function jawPose(P, rel = RELATIONS, act = 1) {
   const R = { ...RELATIONS, ...rel };
   const a = Math.max(0, Math.min(1, Number(act) || 0));
   const hinge = { x: 0, y: (P.condyleL.y + P.condyleR.y) / 2, z: (P.condyleL.z + P.condyleR.z) / 2 };
-  const e = (JOINT.eminenceDeg * Math.PI) / 180, dir = { x: 0, y: SM.cos(e), z: -SM.sin(e) };
+  const e = (JOINT.eminenceDeg * Math.PI) / 180, dir = { x: 0, y: DM.cos(e), z: -DM.sin(e) };
   const glideAt = (x) => { const u = Math.max(0, Math.min(1, (x - JOINT.glideFrom) / (1 - JOINT.glideFrom))); return R.condyleGlide * u * u * (3 - 2 * u); };
   const move = (deg, g) => (p) => { const q = rotX(p, hinge, deg); return { x: q.x, y: q.y + dir.y * g, z: q.z + dir.z * g }; };
   const incisor = P.inc;
@@ -1072,7 +1073,7 @@ export function earPart(P, rel, s, baseX) {
   const R = { ...RELATIONS, ...rel };
   const sg = s === 'L' ? -1 : 1;
   const zEye = P[`eye${s}`].z, zSa = zEye + R.earTop * (P.g.z - zEye), zSba = P.sn.z + R.earBottom;
-  const t = (R.earTilt * Math.PI) / 180, ct = Math.cos(t), st = Math.sin(t);
+  const t = (R.earTilt * Math.PI) / 180, ct = DM.cos(t), st = DM.sin(t);
   const Hear = (zSa - zSba) / ct;                                   // the outline's unit height, along the leaning axis
   // THE EAR'S THREE PIECES, each a flat frame, meeting along shared lines: the CONCHA lies on the head (the bowl's
   // back is on the skin); the OUTER ear — the helix and the scapha behind the antihelix — folds off the head at the
@@ -1094,8 +1095,8 @@ export function earPart(P, rel, s, baseX) {
   // the concha stands up off the head about the hinge (the cephaloconchal angle); the outer ear folds further at the
   // antihelix; the lobule hangs from the concha's seam, tilted off it when free and into the head when attached
   const ga = (EAR_CONCHA_TILT * Math.PI) / 180;
-  const Bcon = comb(Bk, Math.cos(ga), Xs, Math.sin(ga)), Bout = comb(Bk, Math.cos(ga + al), Xs, Math.sin(ga + al));
-  const Dlobe = comb(U, -Math.cos(be), outward(U, Bcon), Math.sin(be));
+  const Bcon = comb(Bk, DM.cos(ga), Xs, DM.sin(ga)), Bout = comb(Bk, DM.cos(ga + al), Xs, DM.sin(ga + al));
+  const Dlobe = comb(U, -DM.cos(be), outward(U, Bcon), DM.sin(be));
   const conchaF = frame(H0, U, Bcon, EAR_HINGE, 0);
   const FR = {
     concha: conchaF,
@@ -1163,7 +1164,7 @@ export function earPart(P, rel, s, baseX) {
   // (the concha's piece is filled behind down to the skin — the conchal eminence: the bowl's back is on the head, so
   // its slab reaches back as far as the tilt has lifted it, plus a weld)
   const PIECES = [
-    [FR.concha, (u, v, n) => Math.max(EAR_FOLD - SEAM - u, EAR_LOBE - SEAM - v, -n - ((EAR_HINGE - u) * W * Math.sin(ga) + EAR_WELD))],
+    [FR.concha, (u, v, n) => Math.max(EAR_FOLD - SEAM - u, EAR_LOBE - SEAM - v, -n - ((EAR_HINGE - u) * W * DM.sin(ga) + EAR_WELD))],
     [FR.outer, (u) => u - EAR_FOLD - SEAM],
     [FR.lobule, (u, v) => Math.max(EAR_FOLD - SEAM - u, v - EAR_LOBE - SEAM)],
   ];
@@ -1369,9 +1370,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     }
     // the wavelength at p: the skin's, shortened toward the features (Gaussian falloffs about the mouth and the eyes)
     let fall = 0;
-    for (const f of featureFoci) { const q = ((p.x - f.c.x) ** 2 + (p.y - f.c.y) ** 2 + (p.z - f.c.z) ** 2) / f.s2; if (q < 9) fall = Math.max(fall, SM.exp(-q)); }
+    for (const f of featureFoci) { const q = ((p.x - f.c.x) ** 2 + (p.y - f.c.y) ** 2 + (p.z - f.c.z) ** 2) / f.s2; if (q < 9) fall = Math.max(fall, DM.exp(-q)); }
     let rB = 0;
-    for (const f of boneFoci) { const q = segQ(p, f.a, f.b, f.s2); if (q < 9) rB = Math.max(rB, f.cut * SM.exp(-q)); }
+    for (const f of boneFoci) { const q = segQ(p, f.a, f.b, f.s2); if (q < 9) rB = Math.max(rB, f.cut * DM.exp(-q)); }
     // (the two shortenings joined by a smooth maximum, a p-norm, never a hard one nor one capped by it: a hard maximum kinks
     // the wavelength where the mouth's falloff equals the jaw's, and the chin's corner took flat facets along that line)
     const rF = (1 - rel.featureWave) * fall;
@@ -1380,8 +1381,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const rF2 = rF * rF, rB2 = rB * rB;
     const k = kw * (1 - (rB > 0 ? Math.sqrt(Math.sqrt(rF2 * rF2 + rB2 * rB2)) : rF));
     let sum = 0;
-    for (const v of es) sum += SM.exp(-(v - lo) / k);
-    let d = lo - k * SM.log(sum);
+    for (const v of es) sum += DM.exp(-(v - lo) / k);
+    let d = lo - k * DM.log(sum);
     // (BARE: the skin wave alone, no feature joined and nothing cut: what the face's parts lie over)
     if (bare) return d;
     for (const k of ['nose', 'lipBody', 'lips', 'cheekbone', 'temporalLine']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
@@ -1461,9 +1462,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     for (let k = 0; k < 3; k++) {
       const z0 = P.g.z * sc + (13 + 8 * k) * mm, depth = rel.furrows * (k === 1 ? 0.8 : 0.6) * mm, pts = [];
       for (let i = 0; i <= 10; i++) {
-        const x = -half + (2 * half * i) / 10, z = z0 + 1.4 * mm * Math.sin(Math.abs(x) / (9 * mm) + k * 1.7), hit = rayIn(skinField, { x, y: P.g.y * sc - 0.08 * sc, z }, [0, 1, 0]);
+        const x = -half + (2 * half * i) / 10, z = z0 + 1.4 * mm * DM.sin(Math.abs(x) / (9 * mm) + k * 1.7), hit = rayIn(skinField, { x, y: P.g.y * sc - 0.08 * sc, z }, [0, 1, 0]);
         if (!hit) continue;
-        const t = Math.sin(Math.PI * (i / 10)) ** 0.7;
+        const t = DM.pow(DM.sin(Math.PI * (i / 10)), 0.7);
         // (sunk along the skin's own normal there: a forehead slopes back, and a tube set straight forward cut above its line)
         const e = 0.2 * mm, gn = ['x', 'y', 'z'].map((k) => skinField({ ...hit, [k]: hit[k] + e }) - skinField({ ...hit, [k]: hit[k] - e })), gl = Math.hypot(...gn) || 1, o = R - depth * t;
         pts.push({ x: hit.x + (gn[0] / gl) * o, y: hit.y + (gn[1] / gl) * o, z: hit.z + (gn[2] / gl) * o });
@@ -1549,7 +1550,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const jp = actions?.jaw ? jawPose(Pt, rel, actions.jaw) : null;
   const jaw = jp ? { deg: Math.round(jp.deg * 10) / 10, glide: Math.round(jp.glide * 2300) / 10, opening: Math.round(jp.opening * 2300) / 10, limit: Math.round(rel.jawOpen * 2300) / 10 } : null;
   // the eyes' gaze, and their vergence (the angle between the two lines of sight; 0 parallel, larger the nearer)
-  const vergence = eyeRigs.length === 2 ? Math.round((Math.acos(Math.max(-1, Math.min(1, eyeRigs[0].gaze.x * eyeRigs[1].gaze.x + eyeRigs[0].gaze.y * eyeRigs[1].gaze.y + eyeRigs[0].gaze.z * eyeRigs[1].gaze.z))) * 1800) / Math.PI) / 10 : null;
+  const vergence = eyeRigs.length === 2 ? Math.round((DM.acos(Math.max(-1, Math.min(1, eyeRigs[0].gaze.x * eyeRigs[1].gaze.x + eyeRigs[0].gaze.y * eyeRigs[1].gaze.y + eyeRigs[0].gaze.z * eyeRigs[1].gaze.z))) * 1800) / Math.PI) / 10 : null;
   // (`relational` hands what grows on the head its relations in head heights: the tuned points, the vajras at rest and
   // as the actions moved them, and the eyes' lash lines — the epidermis lays its hair by them)
   const relational = {
