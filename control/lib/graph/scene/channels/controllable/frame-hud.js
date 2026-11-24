@@ -21,15 +21,15 @@ export function frameHudScript() {
     + '.fh .dot{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;background:#dff8ff;border-radius:50%}'
     + '.fh .box{position:absolute;border:1.5px solid #ffd060;display:none}.fh .box.on{border-color:#ff5a4a;border-width:2px}'
     + '.fh .tap{position:absolute;font-size:11px;color:#ffd060;display:none;white-space:nowrap}'
-    + '.fh .en{position:absolute;left:50%;bottom:34px;width:440px;margin-left:-220px;height:8px;border:1px solid rgba(160,230,255,.5)}'
+    + '.fh .en{position:absolute;left:50%;bottom:78px;width:440px;margin-left:-220px;height:8px;border:1px solid rgba(160,230,255,.5)}'
     + '.fh .en i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#3ec6ff,#bff0ff)}.fh .en.out i{background:#ff4a3a}'
-    + '.fh .enl{position:absolute;left:50%;bottom:46px;width:440px;margin-left:-220px;display:flex;justify-content:space-between}'
-    + '.fh .ap{position:absolute;left:50%;bottom:62px;width:440px;margin-left:-220px;display:flex;justify-content:space-between;font-size:15px}'
-    + '.fh .apb{position:absolute;left:50%;bottom:58px;width:440px;margin-left:-220px;height:3px;background:rgba(160,230,255,.18)}.fh .apb i{position:absolute;left:0;top:0;bottom:0;background:#dff8ff}'
+    + '.fh .enl{position:absolute;left:50%;bottom:90px;width:440px;margin-left:-220px;display:flex;justify-content:space-between}'
+    + '.fh .ap{position:absolute;left:50%;bottom:106px;width:440px;margin-left:-220px;display:flex;justify-content:space-between;font-size:15px}'
+    + '.fh .apb{position:absolute;left:50%;bottom:102px;width:440px;margin-left:-220px;height:3px;background:rgba(160,230,255,.18)}.fh .apb i{position:absolute;left:0;top:0;bottom:0;background:#dff8ff}'
     + '.fh .w{position:absolute;width:190px}.fh .w b{display:block;font-size:11px;opacity:.75;letter-spacing:.08em}.fh .w span{font-size:20px}'
     + '.fh .w .bar{height:3px;background:rgba(160,230,255,.18);margin-top:3px}.fh .w .bar i{display:block;height:100%;background:#ffd060;width:0}'
-    + '.fh .armR{right:calc(50% - 330px);bottom:96px;text-align:right}.fh .armL{left:calc(50% - 330px);bottom:96px}'
-    + '.fh .backR{right:calc(50% - 330px);bottom:156px;text-align:right}.fh .backL{left:calc(50% - 330px);bottom:156px}';
+    + '.fh .armR{right:calc(50% - 330px);bottom:140px;text-align:right}.fh .armL{left:calc(50% - 330px);bottom:140px}'
+    + '.fh .backR{right:calc(50% - 330px);bottom:200px;text-align:right}.fh .backL{left:calc(50% - 330px);bottom:200px}';
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'fh';
   root.innerHTML = '<div class="ret"></div><div class="dot"></div><div class="box"></div><div class="tap"></div>'

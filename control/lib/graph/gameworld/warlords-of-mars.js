@@ -14,7 +14,7 @@
  * Pure: the same pitch, the same starter.
  */
 
-export const WARLORDS_OF_MARS = Object.freeze({ frame: 'vanguard', palette: 'federation', field: 1400, geocube: 'mars', foePalette: 'ash' });
+export const WARLORDS_OF_MARS = Object.freeze({ frame: 'vanguard', palette: 'federation', field: 1400, geocube: 'mars', sky: 'mars', foePalette: 'ash' });
 export const WARLORDS_LOOK = 'squadron';
 
 const f = Object.freeze;
@@ -56,7 +56,7 @@ export function operationLevel(op) {
   const W = WARLORDS_OF_MARS;
   return {
     name: op.name,
-    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, frame: { build: W.frame, palette: W.palette } },
+    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette } },
     goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks) } },
   };
 }

@@ -44,5 +44,20 @@ export const GIANT_SKIES = Object.freeze({
 });
 export const GIANT_IDS = Object.freeze(Object.keys(GIANT_SKIES));
 
+/** THE THIN SKIES: a world with ground and a little air, its own weather over a field a game stands on (an airspace's
+ *  `sky: { world }` where its ground is the world's geocube): no deck, its colours in place of an Earth sky's.
+ *  Mars: a butterscotch sky paling to a dusty horizon, the sun small and dim (Mars at half again the Earth's distance), a
+ *  haze of fine dust, thin water-ice cloud high over it. */
+export const THIN_SKIES = Object.freeze({
+  mars: G({ read: 'over Mars: a butterscotch sky paling to a dusty horizon, the sun small and dim, thin ice cloud high over a haze of dust',
+    base: 'clear', layers: [{ type: 'cirrus', base: 9000, cover: 0.22 }],
+    light: { ambient: 0.62, gain: 0.5 }, haze: 0.55, wind: 9,
+    colours: G({ zenith: [176, 132, 92], horizon: [214, 178, 140], cloudLit: [236, 222, 204], cloudShade: [170, 136, 112] }) }),
+});
+/** Every world a sky may be: the giants flown over their cloud tops, the thin skies stood under. */
+export const WORLD_SKIES = Object.freeze({ ...GIANT_SKIES, ...THIN_SKIES });
+export const WORLD_SKY_IDS = Object.freeze(Object.keys(WORLD_SKIES));
+
 /** The geocube a giant's map is painted with under its deck (skyscape/airspace.js, when the level names none). */
-export const giantGround = (id) => ({ from: 'island-noon', colour: { ...GIANT_SKIES[id].ground } });
+// (a thin sky's world has ground of its own: its geocube, the Sol shelf's, sol/geocubes.js)
+export const giantGround = (id) => (GIANT_SKIES[id] ? { from: 'island-noon', colour: { ...GIANT_SKIES[id].ground } } : id);

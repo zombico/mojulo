@@ -15,6 +15,7 @@
  * Pure: the same build, the same entity.
  */
 import { assembleFrame } from './assemble.js';
+import { frameBody } from './body.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -54,8 +55,14 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
   };
 }
 
-/** Its guns' muzzles as its body places them (frame space: +y forward, +x right, +z up), or null (the stock places). */
+/** Its guns' muzzles as its body places them (frame space: +x right, +y forward, +z up; body.js mounts), each slot's
+ *  place at rest. Kept per build: the body is built once to read them. */
+const MOUNTS = new Map();
 export function frameMounts(build) {
-  void build;
-  return null;
+  const key = JSON.stringify(build ?? null);
+  if (MOUNTS.has(key)) return MOUNTS.get(key);
+  if (MOUNTS.size > 16) MOUNTS.clear();
+  const M = Object.fromEntries(Object.entries(frameBody(build).mounts).map(([s, m]) => [s, m.at.map(r2)]));
+  MOUNTS.set(key, M);
+  return M;
 }

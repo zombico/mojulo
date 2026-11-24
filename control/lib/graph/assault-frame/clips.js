@@ -106,8 +106,10 @@ function pose(body, P) {
     const ca = Math.max(-1, Math.min(1, (L.L1 ** 2 + D ** 2 - L.L2 ** 2) / (2 * L.L1 * D))), al = Math.acos(ca);
     const knee = add(hip, add(mul(u, L.L1 * Math.cos(al)), mul(w, L.L1 * Math.sin(al))));
     const foot = add(hip, mul(u, D));
-    const q1 = qFrames(unit(sub(kneeR, hipR)), [1, 0, 0], unit(sub(knee, hip)), n);
-    const q2 = qFrames(unit(sub(ankleR, kneeR)), [1, 0, 0], unit(sub(foot, knee)), n);
+    // (the rest leg's own plane: +x drawn square to the hip-to-ankle line, as the body solved its knee)
+    const ur = unit(sub(ankleR, hipR)), nr = unit(sub([1, 0, 0], mul(ur, ur[0])));
+    const q1 = qFrames(unit(sub(kneeR, hipR)), nr, unit(sub(knee, hip)), n);
+    const q2 = qFrames(unit(sub(ankleR, kneeR)), nr, unit(sub(foot, knee)), n);
     out.set(`thigh${s}`, { q: q1, head: hip });
     out.set(`shin${s}`, { q: q2, head: knee });
     const qf = F.air ? qMul(qAxis(n, F.pitch ?? 0), qEuler(0, R.roll ?? 0, R.yaw ?? 0)) : qMul(qAxis(n, F.pitch ?? 0), qAxis([0, 0, 1], R.yaw ?? 0));
@@ -162,15 +164,19 @@ export function frameClips(body) {
     skate(-12 * DEG, 0, { R: { at: [0.05, 0.42, 0] }, L: { at: [-0.05, -0.72, 0.12], pitch: -14 * DEG } }, 0.06),
   ]);
   // (sliding sideways: leaning into the slide, the legs braced out against it on the far side)
-  const slide = (sg) => [0, 1].map((k) => ({
-    root: { off: [sg * 0.25, 0, -0.48 + 0.05 * k], pitch: -4 * DEG, roll: sg * 11 * DEG },
-    core: { roll: sg * 3 * DEG, yaw: -sg * 4 * DEG },
-    arms: arms(),
-    feet: { R: { at: [-sg * 0.45 + 0.1, 0.2, sg > 0 ? 0.12 : 0], pitch: 0 }, L: { at: [sg * 0.45 + 0.1, -0.2, sg < 0 ? 0.12 : 0], pitch: 0 } },
-  }));
-  // (a foot's `at` is in its own side's terms, mirrored for the left: out is +x for both)
-  clips.boost_right = pack(body, slide(1).map((P) => ({ ...P, feet: { R: { at: [-0.4, 0.2, 0] }, L: { at: [0.5, -0.2, 0.14] } } })));
-  clips.boost_left = pack(body, slide(-1).map((P) => ({ ...P, feet: { R: { at: [0.5, -0.2, 0.14] }, L: { at: [-0.4, 0.2, 0] } } })));
+  // (a foot's `at` is in its own side's terms, mirrored for the left: out is +x for both; sliding right, both feet are
+  // braced off to the left, the near one drawn in under the body, the far one pushed out and its heel raised)
+  const slide = (sg) => {
+    const near = { at: [-0.4, 0.2, 0] }, far = { at: [0.5, -0.2, 0.14] };
+    return [0, 1].map((k) => ({
+      root: { off: [sg * 0.25, 0, -0.48 + 0.05 * k], pitch: -4 * DEG, roll: sg * 11 * DEG },
+      core: { roll: sg * 3 * DEG, yaw: -sg * 4 * DEG },
+      arms: arms(),
+      feet: sg > 0 ? { R: near, L: far } : { R: far, L: near },
+    }));
+  };
+  clips.boost_right = pack(body, slide(1));
+  clips.boost_left = pack(body, slide(-1));
   clips.boost_back = pack(body, [0, 1].map((k) => ({
     root: { off: [0, 0, -0.45 + 0.05 * k], pitch: 9 * DEG }, core: { pitch: 3 * DEG }, arms: arms(-0.1, 0),
     feet: { R: { at: [0.05, 0.65, 0], pitch: 10 * DEG }, L: { at: [0.05, 0.25, 0], pitch: 8 * DEG } },

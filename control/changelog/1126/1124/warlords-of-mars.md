@@ -13,8 +13,15 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - A new part is a row. The assembly (`assemble.js`) reads a build into the frame's weight, armour, movement, energy and
     lock. It holds the build to laws: within the legs' load, the booster carrying its mass, the generator good for three
     quick boosts. The laws advise and never refuse: an overweight frame is slower, not forbidden.
-  - Its body, rig and clips, in the realistic military register a century and a half on, chrome and painted plate:
-    `body.js`, `figure.js`.
+  - Its body (`body.js`): each part its own look by class, layered armour plate with chamfered edges, panel lines,
+    vents and intakes, chrome rams and piston rods at the knees, elbows and hips, joint collars, cable runs, glowing
+    optics and stencils. A gun is held forward in each hand and a launcher rides each shoulder; the booster's bells
+    and verniers on the shins, shoulders and core are its thrusters, burning as the frame is driven. A medium frame
+    is about 9 m tall and 7,000 faces. Palettes: federation (the default), mars, ash; wear: factory, used, battered.
+  - Its clips (`clips.js`, its own forward kinematics and a two-bone leg): idle, a heavy walk, the boost's skate and
+    its leans left, right and back, the hover with the knees tucked, the fall reaching down, the landing's crouch.
+  - Its figure (`figure.js`) is in the form render: chrome drawn as polished metal, the paint as satin plate.
+  - Its review sheets: `node scripts/render-frame.mjs`.
 - **The frame rule** (`worlds/controllable/rules-frame.js`, opt-in `frame`).
   - The mouse turns the frame and aims it. W, A, S and D walk it.
   - Shift held skates on the booster; C quick-boosts a burst toward the keys (back when none); Space jumps and, held,
@@ -35,6 +42,9 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - groups of the ground force's turrets, tanks and walkers at a frame's scale, and enemy frames;
   - tasks on the objectives mechanic: a group destroyed, a waypoint reached, a hold.
   - The frame's armour is its life.
+- **Mars's sky** (`sol/skies.js` `THIN_SKIES`, an airspace's `sky: { world: 'mars' }`): a world with ground and a
+  little air under its own weather: a butterscotch sky paling to a dusty horizon, a small dim sun, thin ice cloud
+  high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck.
 - **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is three operations:
   - Landfall at Tharsis: a gun line, then a tank column;
   - Red Dust: a pass held by walkers, then a guard frame;

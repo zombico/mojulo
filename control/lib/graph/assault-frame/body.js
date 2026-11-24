@@ -409,7 +409,7 @@ function vanguardChest(K, sk) {
           K.rect(-0.42 * s, 0.19 * ch, 0.38 * s, 0.23 * ch, 'trim');
           K.seam(0.3 * s, -0.27 * ch, 0.3 * s, 0.17 * ch); K.seam(-0.46 * s, -0.05 * ch, -0.32 * s, -0.05 * ch);
           K.edge(-0.44 * s, 0.44 * s, -0.255 * ch, 0.045);
-          if (sg > 0) K.digits('07', -0.05 * s, -0.04 * ch, 0.17 * s);
+          if (sg > 0) K.in(at([0, 0, 0.06]), () => K.digits('07', -0.05 * s, -0.04 * ch, 0.17 * s));
           for (const u of [-0.42 * s, 0.4 * s]) for (const v of [-0.2 * ch, 0.12 * ch]) K.bolt(u, v, 0.03);
         });
       });
@@ -483,7 +483,14 @@ function citadelChest(K, sk) {
     K.on(c, sz, '+y', () => {
       K.panel(-0.85 * s, -0.3 * ch, 0.85 * s, 0.22 * ch, 'paint2', 0.08);
       K.hazard(-1.05 * s, 0.28 * ch, 1.05 * s, 0.36 * ch, 9);
-      K.digits('12', -0.55 * s, -0.04 * ch, 0.24 * s);
+      // (the inset's own panels: a seam down it and across, the number on its upper left, a row of bolts)
+      K.in(at([0, 0, 0.08]), () => {
+        K.digits('12', -0.5 * s, 0.08 * ch, 0.22 * s);
+        K.seam(0.1 * s, -0.28 * ch, 0.1 * s, 0.2 * ch); K.seam(-0.83 * s, -0.08 * ch, 0.83 * s, -0.08 * ch);
+        K.panel(0.25 * s, -0.24 * ch, 0.7 * s, -0.12 * ch, 'paint', 0.03);
+        for (const u of [-0.7 * s, -0.35 * s, 0.35 * s, 0.7 * s]) K.bolt(u, -0.25 * ch, 0.03);
+        K.edge(-0.83 * s, 0.83 * s, -0.31 * ch, 0.045);
+      });
       for (const u of [-1.02 * s, -0.34 * s, 0.34 * s, 1.02 * s]) for (const v of [-0.36 * ch, 0.24 * ch]) K.bolt(u, v, 0.04);
     });
   });

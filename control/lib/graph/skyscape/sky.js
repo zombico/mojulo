@@ -39,7 +39,7 @@
  */
 import * as dmath from '../../util/dmath.js';
 import { streamOf } from '../city/plan/dice.js';
-import { GIANT_SKIES, GIANT_IDS } from '../sol/skies.js';
+import { WORLD_SKIES, WORLD_SKY_IDS } from '../sol/skies.js';
 
 /** Each weather: its cloud layers (base and top in m, cover 0…1, a cumulus's size [min, max] m across), its light
  *  (ambient and gain: the kernel's lambert), its haze over the map's, its wind's default speed (m/s), its sea's colour. */
@@ -71,8 +71,8 @@ export function readSkyAsk(ask, at = 'airspace.sky') {
   if (!isObj(ask)) return [`${at} must be a weather (${FLIGHT_SKY_IDS.join(', ')}) or { kind?, cover?, hour?, wind?, base?, seed? }`];
   const e = [];
   for (const k of Object.keys(ask)) if (!['kind', 'world', 'cover', 'hour', 'wind', 'base', 'seed', 'lightning', 'moon'].includes(k)) e.push(`${at}.${k} is not a setting (kind, world, cover, hour, wind, base, seed, lightning, moon)`);
-  if (ask.world !== undefined && !GIANT_SKIES[ask.world]) e.push(`${at}.world is a giant flown over its cloud tops: ${GIANT_IDS.join(', ')}`);
-  if (ask.world !== undefined && ask.kind !== undefined) e.push(`${at}: a giant's world is its own weather; say world or kind, not both`);
+  if (ask.world !== undefined && !WORLD_SKIES[ask.world]) e.push(`${at}.world is a world of the Sol shelf's skies (a giant flown over its cloud tops, a thin sky stood under): ${WORLD_SKY_IDS.join(', ')}`);
+  if (ask.world !== undefined && ask.kind !== undefined) e.push(`${at}: a world's sky is its own weather; say world or kind, not both`);
   if (ask.lightning !== undefined && typeof ask.lightning !== 'boolean') e.push(`${at}.lightning is true or false (a storm's is on)`);
   if (ask.moon !== undefined && !(Number.isFinite(ask.moon) && ask.moon >= 0 && ask.moon <= 1)) e.push(`${at}.moon is the moon's lit share, 0 (new) to 1 (full)`);
   if (ask.kind !== undefined && !FLIGHT_SKIES[ask.kind]) e.push(`${at}.kind must be one of ${FLIGHT_SKY_IDS.join(', ')}`);
@@ -216,8 +216,8 @@ function giantColours(Gw, sun) {
 /** The sky for an airspace map. */
 export function flightSky(ask, { map, seed = 1 } = {}) {
   const errs = readSkyAsk(ask); if (errs.length) throw new Error(`sky: ${errs.join('; ')}`);
-  const A = typeof ask === 'string' ? { kind: ask } : ask || {}, Gw = A.world ? GIANT_SKIES[A.world] : null, sd = A.seed ?? seed;
-  // (a giant's weather rides its base kind's machinery, its layers, light, haze and wind its own: sol/skies.js)
+  const A = typeof ask === 'string' ? { kind: ask } : ask || {}, Gw = A.world ? WORLD_SKIES[A.world] : null, sd = A.seed ?? seed;
+  // (a world's weather, a giant's or a thin sky's, rides its base kind's machinery, its layers, light, haze and wind its own: sol/skies.js)
   const kind = Gw ? Gw.base : A.kind ?? 'fair', W = Gw ? { ...FLIGHT_SKIES[kind], read: Gw.read, layers: Gw.layers, light: Gw.light, haze: Gw.haze, wind: Gw.wind } : FLIGHT_SKIES[kind];
   const hour = A.hour ?? DEFAULT_HOUR, sun = sunAt(hour), night = nightOf(sun.elev);
   // the moon at night: high in the south-east of the sun's night, its lit share the ask's or the dice's
