@@ -477,7 +477,12 @@ const DESCRIPTION_ALLOWLIST = {
 // with a concept to display has said so far, answered with the one question to ask and the fit; it builds nothing)
 // and `contact` (a made exhibit's tour laid out a row a stop, what is looked at before it is shown). Their steps are
 // the `exhibit-producer` routing card's; each description is one line.
-const PAYLOAD_CEILING = 180_800;
+// Raised 2026-11-24 on 1123-mcp-house-interior (180_800 -> 181_100; measured 181,002) for the home's producer: one
+// argument of mint_building, the door that owns the house intent (a room is a section of a house), rather than a new
+// tool: `start` (what a person with a home of their own has said so far, answered with the one question to ask, the
+// rail it starts from and the steps that make it; it builds nothing), a clause in its description, and `required`
+// emptied so `start` may be asked alone. Its steps are the `home-producer` routing card's.
+const PAYLOAD_CEILING = 181_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
