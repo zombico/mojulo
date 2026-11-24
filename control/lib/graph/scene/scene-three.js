@@ -140,7 +140,7 @@ export function verticalFov(hFovDeg, aspect) {
 // rendered on a screen quad, with the orbit camera's position + basis fed in as uniforms each frame so
 // the shader casts rays from wherever the user has dragged the camera. A separate, minimal emitter —
 // the mesh pipeline (groups, picks, channels) is irrelevant here. Reuses the importmap + .moj-readout.
-export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}, cameraStart = [0, 3, 17], target = [0, 0, 0], fov = 46, readout = [], steps = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#01010a', inline = false, cdn = false, pixelRatioCap = 1.5 } = {}) {
+export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}, cameraStart = [0, 3, 17], target = [0, 0, 0], fov = 46, readout = [], steps = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#01010a', inline = false, cdn = false, pixelRatioCap = 1.5, minDistance = 3 } = {}) {
   const W = viewBox.width, H = viewBox.height;
   const importmap = cdn ? CDN_IMPORTMAP : inline ? inlineImportmap() : VENDOR_IMPORTMAP;
   const cu = Object.entries(customUniforms).map(([k, v]) => `${k}:{value:${Array.isArray(v) ? `new THREE.Vector3(${v.join(',')})` : (+v)}}`).join(',');
@@ -184,7 +184,7 @@ const cam = new THREE.PerspectiveCamera(${fov}, ${W / H}, 0.1, 2000);
 cam.position.set(${cameraStart[0]}, ${cameraStart[1]}, ${cameraStart[2]});
 const controls = new OrbitControls(cam, canvas);
 controls.target.set(${target[0]}, ${target[1]}, ${target[2]});
-controls.enableDamping = true; controls.minDistance = 3; controls.maxDistance = 120; controls.update();
+controls.enableDamping = true; controls.minDistance = ${minDistance}; controls.maxDistance = 120; controls.update();
 const uniforms = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:${fov} * Math.PI / 180}, ${extras} };
 const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: ${safeJson(VERT)}, fragmentShader: ${safeJson(frag)} });
 scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));

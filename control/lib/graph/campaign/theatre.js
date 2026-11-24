@@ -94,7 +94,8 @@ export function orrery(P, { moonKind = 'barren' } = {}) {
   const rnd = mulberry32(strHash(`orrery|${P.system}|${P.seed}`));
   const starKind = P.star ?? Object.keys(STAR_KINDS)[Math.floor(rnd() * 4)];
   const n = 4 + Math.floor(rnd() * 4), home = 1 + Math.floor(rnd() * (n - 2));
-  const kinds = Object.keys(PLANET_KINDS).filter((k) => k !== 'molten');
+  // (an invented system's worlds: never a child of Sol, sol/worlds.js)
+  const kinds = Object.keys(PLANET_KINDS).filter((k) => k !== 'molten' && !PLANET_KINDS[k].sol);
   const planets = [];
   for (let i = 0; i < n; i++) {
     const r = r3(0.22 + (0.78 * (i + 0.5)) / n + (rnd() - 0.5) * 0.04);

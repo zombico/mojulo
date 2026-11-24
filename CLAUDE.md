@@ -471,6 +471,10 @@ Pointers only; each target carries its own design notes.
   their own `table` furniture by `broadcast-dom.js`; a contest's or a tabletop's `broadcast` key):
   [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails. It owns a sport's coverage;
   the menus around it are mana-ui's, in its look (`broadcast-mana.js`), the results read by `contest/contest-results.js`.
+- The children of Sol: [sol/](control/lib/graph/sol/) (one row per body, Mercury to Pluto and the Moon, in `roster.js`,
+  its handles into the planet study `saturn-view`, a space level's worlds `planet-gen.js`, a geocube for each body with
+  ground and its `light.heavens` (`era/heavens.js`), and a giant's flight over its cloud tops, an airspace's
+  `sky: { world }`): [docs/sol.md](docs/sol.md).
 - Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
   law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
   picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).

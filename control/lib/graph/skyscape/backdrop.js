@@ -126,6 +126,8 @@ export function planBackdrop({ star, seed = 1, planets = 2, worlds = null, nebul
     // (its axis: a far world tilted a little, any way; in orbit, the point under the fight at a middle latitude, so a
     // giant's bands cross the view and a world's caps stand off at its horizon)
     const axis = P && P.nadir ? [r3(55 + rnd() * 20), r3(rnd() * 360)] : [r3(rnd() * 30), r3(rnd() * 360)];
+    // (a child of Sol far off lies at its own tilt: Uranus on its side; held in orbit, the view's framing stands)
+    if (world.sol && !(P && P.nadir)) axis[0] = r3(world.tilt % 180);
     out.push({ dir: dir.map(r3), r: r3(r), ...world, axis, ...(P && P.live ? { live: true } : {}) });
     placed.push({ dir, r: reach });
   }
