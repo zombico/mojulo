@@ -32,7 +32,7 @@ export function buildGameStoreKernel() {
   // reducer registry — extending the vocabulary means a new entry here plus a slice card,
   // never user code.
   const EVENTS_BY_KIND = {
-    character: ['setStat', 'levelUp'],
+    character: ['setStat', 'levelUp', 'rename'],
     inventory: ['grant', 'consume'],
     party: ['recruit', 'dismiss', 'setStat', 'levelUp', 'rename'],
     progression: ['promote'],
@@ -85,6 +85,13 @@ export function buildGameStoreKernel() {
 
   // ── reducers — each returns an error string, or null and fills `next` ────────
   function applyToMember(target, ev, where, errors) {
+    // a name given in play (a name typed on the keyboard): words, never empty, never long; a character slice holds one
+    // only once it is given
+    if (ev.type === 'rename') {
+      const nm = typeof ev.name === 'string' ? ev.name.trim() : '';
+      if (!nm || nm.length > 24) { errors.push(where + ': rename needs a name of 1 to 24 characters'); return; }
+      target.name = nm; target.named = true;   // (named: the player gave it, and a page's lines say it)
+    }
     if (ev.type === 'setStat') {
       if (!ev.stat || typeof ev.stat !== 'string') { errors.push(where + ': setStat needs a stat name'); return; }
       const cur = target.stats[ev.stat] || 0;
@@ -141,12 +148,6 @@ export function buildGameStoreKernel() {
         } else if (ev.type === 'dismiss') {
           if (!ev.id || !s.roster[ev.id]) { errors.push(where + ': dismiss — no member "' + ev.id + '" in the roster'); return; }
           delete s.roster[ev.id];
-        } else if (ev.type === 'rename') {
-          // a member named again in play (a name typed on the keyboard): words, never empty, never long
-          if (!ev.id || !s.roster[ev.id]) { errors.push(where + ': rename — no member "' + ev.id + '" in the roster'); return; }
-          const nm = typeof ev.name === 'string' ? ev.name.trim() : '';
-          if (!nm || nm.length > 24) { errors.push(where + ': rename needs a name of 1 to 24 characters'); return; }
-          s.roster[ev.id].name = nm;
         } else {
           if (!ev.id || !s.roster[ev.id]) { errors.push(where + ': ' + ev.type + ' on a party needs id of a roster member (no "' + ev.id + '")'); return; }
           applyToMember(s.roster[ev.id], ev, where, errors);

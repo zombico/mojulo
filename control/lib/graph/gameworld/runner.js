@@ -47,7 +47,7 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { wardrobeLooks, lookKey, wearLooks } from './wardrobe.js';
 import { readRpg } from '../playscape/rpg/rpg.js';
-import { battleBase } from './battles.js';
+import { battleBase, battleNaming } from './battles.js';
 import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE, foeKindsOf, foeLookOf, foeGearOf, isPeopleLook, battlePeopleRoll, shopsOn, SHOP_KEEPER, hubCast, hubFolkShops } from './battles.js';
 import { minigamePlan, minigameCast, MINIGAME_KEEPER } from './minigames.js';
 import { composeExtras } from './stage-figures.js';
@@ -598,7 +598,7 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     // (a world with a STORY told in missions, errand.js `mission`, and no front of its own: a title in the lower third,
     // continue (the level's own save), a new game, options and the credits, the last mission's win the end card)
     const front = G.front ?? (G.errands?.some((E) => E.mission) ? STORY_FRONT : null);
-    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(atlas ? { atlas } : {}), ...(slots ? { slots } : {}), ...(gameOver ? { gameOver: true } : {}), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
+    const game0 = { title: G.name ?? G.id, store: gameStore(world, B), levels: onBoard ? epochLevels(stages, levelRefs, maps, G) : gameLevels(C.stages, C.refs, C.map), ...(atlas ? { atlas } : {}), ...(slots ? { slots } : {}), ...(gameOver ? { gameOver: true } : {}), ...(battleNaming(G) ? { naming: battleNaming(G) } : {}), ...(final ? { final } : {}), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...shellUi(G), ...(G.screen ? { screen: G.screen } : {}), ...(front ? { front } : {}), ...(G.hud ? { hud: G.hud } : {}) };
     // THE GAME'S FLOW (game-flow.js): the world's own, its levels the refs of their first stages and a story moment's
     // cinematic on the stage the moment is bound to; else the flow the game has always had, with the story's opening,
     // prologue and ending placed in it (story.js GAME_SLOTS; the main quest's ending, played as a moment, when the story

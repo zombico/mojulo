@@ -14,7 +14,7 @@
 | `promote` | progression | `ref`, `result?` (default success) |
 | `recruit` | party | `member: { id, name?, level?, stats?, tags? }` |
 | `dismiss` | party | `id` |
-| `rename` | party | `id`, `name` (1 to 24 characters: a member named again in play) |
+| `rename` | character, party | `name` (1 to 24 characters: a name given in play, the game's name screen or a menu's); party needs `id` |
 
 Every event carries `slice` (the declared slice NAME, not kind).
 

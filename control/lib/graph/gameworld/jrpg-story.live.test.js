@@ -62,8 +62,10 @@ describe('the JRPG starter\'s story on the page', () => {
       await skip(page);
       // (stood at the way out: the moment's line comes up, and the level does not end under it)
       const sc = M.play.scenes.find((x) => x.id === 'gate-words');
+      // (and the hero called by the name the player gave: the game channel puts a named roster's names here)
+      await page.evaluate(() => { window.__mojNames = { hero: 'Ada' }; });
       await page.evaluate((a) => { const C = window.__mojCtrl.world, me = C.byId[C.pilotId]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; }, sc.when.enter.at);
-      await talking(page);
+      expect((await talking(page)).name).toBe('Ada');
       await nap(2500);
       expect(await page.evaluate(() => !!(window.__mojGame && window.__mojGame.envelope))).toBe(false);
       await skip(page);

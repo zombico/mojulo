@@ -159,7 +159,8 @@ widgets under a pointer (only the view knows where they are).
   what this visit typed (with nothing typed it backs out as ever); a keyboard keeps Esc for leaving and types any page's
   character in its own case. `min` holds Done back (a denied press) until the name is that long. The legend says the
   pages and the erase. The RPG's party menu names a member with it (Status, Rename: `rpg-name`), and the store's
-  `rename` event carries the name to the next level.
+  `rename` event carries the name to the next level. A game's own name screen, asked as a new game begins, is the play
+  shell's (`naming`, docs/game-flow.md).
 - **The glyphs out.**
   - `manaGlyphs()` gives each action's control per family and layout. A `prompt` and a `legend` print the one in hand
     ("Enter", "A", "✕"), switching as the player picks up another device; a touch screen draws no legend.

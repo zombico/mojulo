@@ -417,3 +417,9 @@
   uses it: Status, Rename opens `rpg-name`, the kernel's `rename` names the member in every line after, and the store's
   new `rename` event (a party slice's, produced by the party mechanic) carries the name into the next level. The page's
   P key no longer closes the menu while a name is being typed.
+- **A name asked as a game begins.** Any play-shell game may ask the player a name (`naming: { slice, id?, label?,
+  max?, min? }`, a character slice's or a party member's): the flow gains a `name` screen (`withNaming`) before the
+  first level wherever a new game begins, from the title's play or, for a game started in play, after its opening on a
+  first boot. It is mana-ui's keyboard (the greybox where the game says no `ui`), and done keeps the name in the store
+  (`rename` on a character slice too, marked `named`). A level with a party hands its page the names given
+  (`window.__mojNames`), so story lines say them. The party RPG asks the hero's name unless `battles.naming: false`.

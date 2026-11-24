@@ -928,6 +928,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       said(why === 'name' ? 'A name takes 1 to 12 characters.' : why, was === memberName(fname) ? '' : was + ' is now ' + memberName(fname) + '.');
       const G = window.__mojGame;
       if (!why && carry.slice && G) G.emit({ type: 'rename', slice: carry.slice, id: fname, name: memberName(fname) });
+      if (!why) (window.__mojNames = window.__mojNames || {})[fname] = memberName(fname);
       fname = null;
     }
     else if (e.emit === 'learn') { const why = K.buy(cfg, R, e.member, e.skill); said(why, memberName(e.member) + ' learned ' + cfg.skills[e.skill].name + '.'); if (!why) keep(); }

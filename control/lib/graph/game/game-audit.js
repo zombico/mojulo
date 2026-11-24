@@ -73,7 +73,7 @@ export function dryRunContract(store, contract) {
       else if (e.type === 'levelUp') synth.push({ type: 'levelUp', slice: e.slice, id: kind === 'party' ? '__target__' : undefined, by: 1 });
       else if (e.type === 'setFlag') synth.push({ type: 'setFlag', slice: e.slice, key: 'dryrun', value: true });
       else if (e.type === 'promote') synth.push({ type: 'promote', slice: e.slice, ref: contract.levelRef, result: 'success' });
-      else if (e.type === 'rename') synth.push({ type: 'rename', slice: e.slice, id: '__target__', name: 'Dry Run' });
+      else if (e.type === 'rename') synth.push({ type: 'rename', slice: e.slice, id: kind === 'party' ? '__target__' : undefined, name: 'Dry Run' });
       else if (e.type === 'recruit') synth.push({ type: 'recruit', slice: e.slice, member: { id: 'recruit' + i, name: 'Recruit' } });
       else if (e.type === 'dismiss') { if (i === 0) synth.push({ type: 'dismiss', slice: e.slice, id: '__dryrun__' }); }
     }

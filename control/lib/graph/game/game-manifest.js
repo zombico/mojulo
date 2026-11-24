@@ -37,6 +37,10 @@
  *     gameOver?: true,                     // A GAME OVER (the play shell): a level lost ends in the game over screen, the
  *                                          // defeat never kept, continue taking the journey up where it was last kept (a
  *                                          // party RPG's: its last way taken or save point), or the title
+ *     naming?: { slice, id?, label?, max?, min? },   // A NAME ASKED (the play shell): a new game asks the player a name
+ *                                          // before its first level (flow.js withNaming: the `name` screen, mana-ui's
+ *                                          // keyboard), kept in the store by `rename`: a character slice's, or a party
+ *                                          // slice's member `id`; the level reads it from its slice
  *     final?: <level ref>,                 // THE END (the play shell): that level's first win completes the game (the
  *                                          // front's end plays; a map game does not travel on from it), cleared alone
  *     flow?: { start, steps },             // THE FLOW (flow.js): what plays when, screens, cinematics, levels and holds;
@@ -204,6 +208,20 @@ export function validateGameManifest(manifest) {
     if (manifest.gameOver !== true) errors.push('gameOver is true: a level lost is a game over, continued from the journey as it was last kept');
     if (manifest.shell !== 'play') errors.push("gameOver plays in the light shell: add shell: 'play'");
     if (manifest.run) errors.push('gameOver is a journey\'s: a run ends on a fall already (run)');
+  }
+  // A NAME ASKED (flow.js withNaming): whose it is, a character's or a party member's, and how it is asked
+  if (manifest.naming !== undefined) {
+    const N = manifest.naming, slice = (manifest.store?.slices ?? []).find((x) => x.name === N?.slice);
+    if (!N || typeof N !== 'object' || Array.isArray(N)) errors.push('naming is { slice, id?, label?, max?, min? }: the name a new game asks of the player');
+    else {
+      for (const k of Object.keys(N)) if (!['slice', 'id', 'label', 'max', 'min'].includes(k)) errors.push(`naming.${k}: naming takes slice, id, label, max, min`);
+      if (!slice || (slice.kind !== 'character' && slice.kind !== 'party')) errors.push(`naming.slice is a character or party slice of the store (${N.slice})`);
+      else if (slice.kind === 'party' && !(typeof N.id === 'string' && slice.init?.roster?.[N.id])) errors.push(`naming.id is the party member named (${Object.keys(slice.init?.roster ?? {}).join(', ') || 'the roster is empty'})`);
+      if (N.label !== undefined && typeof N.label !== 'string') errors.push('naming.label is the words the name screen asks with');
+      const max = N.max ?? 12, min = N.min ?? 1;
+      if (!(Number.isInteger(max) && max >= 1 && max <= 24) || !(Number.isInteger(min) && min >= 1 && min <= max)) errors.push('naming.max is 1 to 24 characters and naming.min 1 to max');
+    }
+    if (manifest.shell !== 'play') errors.push("naming plays in the light shell: add shell: 'play'");
   }
   if (manifest.final !== undefined) {
     const refs = Array.isArray(manifest.levels) ? manifest.levels.map((l) => l && l.ref) : [];

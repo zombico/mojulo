@@ -234,7 +234,7 @@ export const BAG_START = Object.freeze({ potion: 2 });
 export const SETTLED = (G, s) => ['geotown', 'street'].includes(s.section);
 export const SETTLED_CLEAR = 30;
 export const FOUGHT = (s) => !['interior', 'city', 'roadway'].includes(s.section) && !(s.section === 'building' && s.building?.ref);
-const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests', 'techs', 'wardrobe'];
+const KEYS = ['on', 'board', 'party', 'followers', 'packs', 'per', 'boss', 'bossPages', 'sets', 'foe', 'looks', 'heights', 'rest', 'shops', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'states', 'rules', 'manual', 'tree', 'wins', 'chests', 'techs', 'wardrobe', 'naming'];
 const BOARD_KEYS = ['cols', 'rows', 'cap', 'rules', 'skirmish', 'epochs', 'talk'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -305,6 +305,8 @@ export function readBattles(v, characters = null, ids = null) {
   else if (isPeopleLook(v.foe)) { try { readPeopleSkin(v.foe, 'battles.foe'); } catch (e) { throw err(`.foe: ${e.message.replace(/^[^:]*: /, '')}`); } }
   // (what each member looks like in the armour it wears: wardrobe.js)
   readWardrobe(v.wardrobe, err);
+  // (whether a new game asks the hero's name: game-manifest.js naming, the play shell's name screen; asked unless false)
+  if (v.naming !== undefined && typeof v.naming !== 'boolean') throw err('.naming is true or false: whether a new game asks the player the hero\'s name (asked unless false)');
   // (how tall each beast foe stands in a fight)
   if (v.heights !== undefined && !(isObj(v.heights) && Object.values(v.heights).every((h) => typeof h === 'number' && h >= 0.3 && h <= 12))) throw err('.heights is { <foe id>: metres, 0.3 to 12 }: how tall a beast foe stands in a fight');
   // (each foe's own look, in a character door's words: a beast, a people, or a person's spec)
@@ -628,6 +630,13 @@ export function hubCast(G, stage, ends, { keeper, folk = false } = {}) {
   const base = battleBase(G);
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }];
   return { figures, entities, play: { rpg: { ...base, shops: shop.shops }, cues: shop.cues }, mechanics };
+}
+
+/** The name a new game asks of the player (game-manifest.js naming): the hero's, in the party slice; none where the
+ *  world says naming: false. */
+export function battleNaming(G) {
+  if (!G?.battles || G.battles.naming === false) return null;
+  return { slice: PARTY_SLICE, id: 'hero', label: 'Name your hero', max: 12, min: 1 };
 }
 
 /** The party slice's roster as the game starts: each member as the battle kernel saves it (numbers only). */

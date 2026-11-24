@@ -125,7 +125,13 @@ const __GAME = ${safeJson(game)};
     }
     return st.envelope;
   }
-${game.save ? `  // THE SAVE (game.save: { vars: [prefixes], on: [event prefixes] }, a level that keeps its own progress: the open city).
+${game.party && game.party.slice ? `  // THE NAMES THE PLAYER GAVE (the party mechanic's roster, a member renamed: the store's rename, named): the page's
+  // lines say them (window.__mojNames, read by the scene channel), and the RPG's menus (its own copy of the roster)
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.party.slice], r = (s && s.roster) || {}, N = window.__mojNames = window.__mojNames || {};
+    for (const id in r) if (r[id] && r[id].named === true && typeof r[id].name === 'string') N[id] = r[id].name;
+  });
+` : ''}${game.save ? `  // THE SAVE (game.save: { vars: [prefixes], on: [event prefixes] }, a level that keeps its own progress: the open city).
   // As an event it names passes, what the bus keeps under its prefixes (numbers, none of them nought) goes to the shell;
   // a continue hands it back (params.__resume): set on the bus as the level starts, then 'resumed' raised so what was
   // under way picks up. Standalone, nothing is sent and nothing comes back

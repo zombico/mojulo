@@ -50,6 +50,24 @@ describe('the play shell\'s screens in mana-ui', () => {
     expect(shellManaSpec({ theme: 'classic-rpg' }).screens.gameover).toBeUndefined();
   });
 
+  it('a name asked as a game begins: the keyboard on its own screen, typed in, kept in the save by rename, then the level', async () => {
+    const store = { slices: [{ name: 'campaign', kind: 'progression' }, { name: 'hero', kind: 'character' }] };
+    expect(validateGameManifest(game({ front: {}, store, naming: { slice: 'hero', label: 'Your name' } })).errors).toEqual([]);
+    const bad = validateGameManifest(game({ front: {}, store, naming: { slice: 'campaign', max: 40, colour: 1 } })).errors.join('\n');
+    for (const m of [/naming.colour: naming takes/, /naming.slice is a character or party slice/, /naming.max is 1 to 24/]) expect(bad).toMatch(m);
+    // (no ui said: the greybox draws it, so a pad can type)
+    const P = await page({ front: {}, store, naming: { slice: 'hero', label: 'Your name' } });
+    await P.key('Enter');
+    expect([P.screen(), P.level()]).toEqual(['name', null]);
+    expect(P.text()).toMatch(/Your name.*ABC.*abc.*Space.*Delete.*Done/);
+    for (const k of 'Ada') { P.w.dispatchEvent(new P.w.KeyboardEvent('keydown', { code: 'Key' + k.toUpperCase(), key: k, bubbles: true })); await wait(10); }
+    await P.key('Enter');
+    expect(P.level()).toBe('vale');
+    const save = JSON.parse(P.w.localStorage.getItem('moj-play:Lantern Keep'));
+    expect(JSON.stringify(save)).toContain('"name":"Ada","named":true');
+    P.close();
+  });
+
   it('the title\'s menu starts the first level over a loading screen that goes once the level is drawn; its result says what next', async () => {
     const P = await page({ front: {}, ui: { theme: 'grim' } });
     expect(P.screen()).toBe('title');

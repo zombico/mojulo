@@ -40,7 +40,7 @@ import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
 import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 import { readScreen, screenPayload } from './screen.js';
-import { buildFlowKernel, defaultFlow, readFlow } from './flow.js';
+import { buildFlowKernel, defaultFlow, readFlow, withNaming } from './flow.js';
 import { buildTurnKernel, turnOf, TURN_KEYS } from './turn.js';
 import { playCineRuntime } from './play-cine.js';
 import { shellManaConfig, shellManaCss, shellManaScript } from './play-shell-mana.js';
@@ -111,7 +111,9 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ? manifest.links.reduce((m, lk) => { (m[lk.from.ref] ||= {})[lk.from.door] = lk.to; (m[lk.to.ref] ||= {})[lk.to.door] = lk.from; return m; }, {})
     : null;
   // THE FLOW (flow.js): what plays when, the game's own, else the one its front, levels and run make
-  const flow = manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front, ...(manifest.gameOver === true ? { gameOver: true } : {}) });
+  // (A NAME ASKED, game-manifest.js naming: the name screen before the first level, where the flow has none of its own)
+  const flow0 = manifest.flow || defaultFlow({ levels: levelTable, links: manifest.links, run: manifest.run, final: manifest.final, front: manifest.front, ...(manifest.gameOver === true ? { gameOver: true } : {}) });
+  const flow = manifest.naming ? withNaming(flow0) : flow0;
   // THE TURNS (turn.js): a level step that says picks or a trigger is run as a turn; a game whose steps say none
   // carries no key and none of the kernel. Picks are drawn by mana-ui: with no ui said, in the greybox
   const turns = {};
@@ -121,7 +123,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     const errs = readFlow(flow, { levels: levelTable.map((l) => l.ref), consumes: Object.fromEntries(levelTable.map((l) => [l.ref, (l.contract.consumes || []).map((c) => c.slice)])) });
     if (errs.length) throw new Error(`emitPlayShell: ${errs.join('; ')}`);
   }
-  const ui = manifest.ui || (hasPicks ? {} : null);
+  // (a name asked is typed on mana-ui's keyboard, so a pad can type it: in the greybox too where the game says no ui)
+  const ui = manifest.ui || (hasPicks || manifest.naming ? {} : null);
   const cfg = {
     manifest,
     levels: levelTable,
@@ -143,7 +146,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     // THE SCREENS IN MANA-UI (play-shell-mana.js): the game's ui, its look resolved; absent, no key and none of it inlined
     // (the pick screen too where the turns ask for picks, or the title asks which save: `slots`)
     // (and the game over's screen, a game's with gameOver)
-    ...(ui ? { mana: shellManaConfig(ui, { ...(hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? { picks: true } : {}), ...(manifest.gameOver === true ? { gameOver: true } : {}) }) } : {}),
+    ...(ui ? { mana: shellManaConfig(ui, { ...(hasPicks || (Number.isInteger(manifest.slots) && manifest.slots > 1) ? { picks: true } : {}), ...(manifest.gameOver === true ? { gameOver: true } : {}), ...(manifest.naming ? { naming: manifest.naming } : {}) }) } : {}),
   };
   // (with mana-ui the front's words are drawn by it: the front's own sheet and code stay out)
   const mana = !!cfg.mana, front = !!cfg.front && !mana;
@@ -358,6 +361,20 @@ export function playShellRuntime(cfg, K) {
   }
   loadSlot(slot);
   const persist = () => { try { storage.setItem(SAVE_KEY, K.makeSave(state, runLog)); } catch (e) { /* session only */ } };
+  // A NAME ASKED (M.naming): the name as the store holds it, and the one typed, kept by rename (a game whose level keeps
+  // its own save forgets it first, as its new game would, so the name is not lost with it)
+  const NAMING = M.naming || null;
+  function namingInfo() {
+    const N = NAMING, sl = state[N.slice] || {}, who = N.id ? (sl.roster || {})[N.id] : sl;
+    return { label: N.label || 'Your name', value: (who && who.name) || '', max: N.max || 12, min: N.min || 1, back: !!onOf('back') };
+  }
+  function named(name) {
+    if (W.save && progress.__last) resetStore();
+    const r = K.applyEvents(SCHEMA, state, [Object.assign({ type: 'rename', slice: NAMING.slice, name: String(name || '') }, NAMING.id ? { id: NAMING.id } : {})]);
+    if (!r.ok) return false;
+    state = r.state; persist();
+    return go('done');
+  }
 
   const progression = (SCHEMA.slices.filter((s) => s.kind === 'progression')[0] || {}).name;
   const cleared = (ref) => !!(progression && state[progression].completed[ref]);
@@ -956,6 +973,7 @@ export function playShellRuntime(cfg, K) {
   }
   const MANA = cfg.mana && typeof __mojMana === 'function' ? __mojMana(cfg, {
     go, onOf, show, app, continueTo, saveSettings, pushPrefs, title: M.title, front: cfg.front || null,
+    ...(NAMING ? { naming: namingInfo, named } : {}),
     progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
     settings: () => settings,
     reset: () => { resetStore(); persist(); },
@@ -1226,6 +1244,8 @@ export function playShellRuntime(cfg, K) {
     if (name === 'result') return lastOutcome ? renderResult(lastOutcome.lv, lastOutcome.env, lastOutcome.ok, lastOutcome.fin) : home();
     if (name === 'run-result') return renderRunResult();
     if (name === 'gameover') return renderGameOver();
+    // (a name asked is mana-ui's to draw: a game that asks one always has it, play-shell-mana.js)
+    if (name === 'name') return go('done');
   }
   // THE GAME OVER (M.gameOver): the journey went no further; continue from where it was last kept, or the title
   function renderGameOver() {
