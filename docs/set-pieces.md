@@ -33,6 +33,10 @@ Nomad's feel, so the set piece is played before there are levels.
   controls do not turn with it: up always runs down the line. Never ask a player to steer toward the camera.
 - **The camera swings round the hero, never through them.** Between two keys it orbits the hero at their distance;
   going from behind to ahead it passes beside them. A `cut` is a cut and holds the line of action.
+- **The hero stays near the middle of the frame.** A frame's look may lead the hero (the way ahead, what chases them),
+  but the camera keeps their chest within `frameMax` degrees of its axis (15: half way to the frame's top at a 60° field
+  of view). Past it, the look turns toward them, so a lagging camera on a jump or a far look never leaves the hero at
+  the frame's edge. Lead room is for the frame's dials to ask; the cap holds it.
 - **Key it from the start, in more than one frame.** A set piece is directed: `lead` to show what is behind, `low` to
   make a jump tall, `wide` to make a blast big, `profile` to show speed. One frame all the way is a corridor.
 - **Every beat lands in frame.** Put the camera key that shows a beat a little before it, so the frame has settled when
@@ -51,7 +55,9 @@ The laws (`setPieceLaws`) are advice, never a refusal: on the line, directed, fe
 ## Gates
 
 - **Machine:** the stick runs the same way under any camera (`chase-line.test.js`); the track camera keeps the hero in
-  frame at every step and cuts only on a cut key; a prompt hits on its window's middle and misses a frame after it
+  frame at every step, holds them within its cap and cuts only on a cut key; the framing gate runs each kind on the bus
+  and holds every directed frame to it (`set-piece-framing.test.js`: outside every block, nothing between camera and
+  hero, within 15° of the look, neither in the lens nor lost); a prompt hits on its window's middle and misses a frame after it
   closes (`prompt.test.js`); the stunt room is played in headless Chrome, a bot clearing it on the windows' middles and
   put back by a late press (`stunt-room.live.test.js`).
 - **Eyes:** whether the camera reads as directed and each prompt feels earned is the person's to play.

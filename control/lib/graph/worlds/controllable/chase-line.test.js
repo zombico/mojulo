@@ -114,6 +114,22 @@ describe('the track camera', () => {
     expect(seenLead).toBe(true);
   });
 
+  it('keeps the hero near the frame\'s middle: a look asked far off them is turned to within frameMax of them', () => {
+    // (a profile looking 12 m on down the line: 60° off the hero, asked; within the cap, held)
+    const far = { rule: 'track', target: 'h', path: L.path, keys: [{ s: 0, frame: 'profile', ahead: 12 }] };
+    const off = (w) => {
+      const c = w.camera, p = w.byId.h.transform.pos, cp = c.transform.pos, l = c.lookAt;
+      const a = [l[0] - cp[0], l[1] - cp[1], l[2] - cp[2]], b = [p[0] - cp[0], p[1] - cp[1], p[2] + 1.2 - cp[2]];
+      return (Math.acos((a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) / (Math.hypot(...a) * Math.hypot(...b))) * 180) / Math.PI;
+    };
+    const capped = run(world(far), { forward: 1, strafe: 0 }, 60), loose = run(world({ ...far, frameMax: 90 }), { forward: 1, strafe: 0 }, 60);
+    expect(off(capped)).toBeCloseTo(15, 3);
+    expect(off(loose)).toBeGreaterThan(50);
+    // (a look already within the cap is left where the frame asks it)
+    const near = run(world({ ...far, keys: [{ s: 0, frame: 'profile' }] }), { forward: 1, strafe: 0 }, 60);
+    expect(off(near)).toBeLessThan(15);
+  });
+
   it('cuts on a cut key, eases otherwise', () => {
     const w = world(cam);
     let prev = null, jumpAtCut = 0, jumpElse = 0;

@@ -2,7 +2,8 @@
 // site's blocks as the colliders and the ground, a bot that runs the line, jumps its gaps and its face, and taps jump on
 // a hold to go up), and each frame the track
 // camera holds the hero it is asked: is the camera outside every block, is there no block between it and the hero's
-// chest, is the hero inside the frame (30° of the look), and is it neither in the lens (1.6 m) nor lost (18 m). The
+// chest, is the hero near the frame's middle (within the track camera's 15° of the look: at a 60° field of view,
+// half way to the frame's top), and is it neither in the lens (1.6 m) nor lost (18 m). The
 // machine gate's: the eyes gate is the operator's.
 import { describe, it, expect } from 'vitest';
 import { composeLive } from '../worlds/controllable/compose.js';
@@ -53,7 +54,7 @@ export function framingOf(kind) {
     const cp = C.transform.pos, chest = [h.transform.pos[0], h.transform.pos[1], h.transform.pos[2] + 1.2];
     const look = C.lookAt, lv = [look[0] - cp[0], look[1] - cp[1], look[2] - cp[2]], hv = [chest[0] - cp[0], chest[1] - cp[1], chest[2] - cp[2]];
     const cos = (lv[0] * hv[0] + lv[1] * hv[1] + lv[2] * hv[2]) / (Math.hypot(...lv) * Math.hypot(...hv));
-    const a = boxes.some((b) => inside(cp, b)), bl = !a && boxes.some((b) => blocks(cp, chest, b)), off = cos < Math.cos((30 * Math.PI) / 180);
+    const a = boxes.some((b) => inside(cp, b)), bl = !a && boxes.some((b) => blocks(cp, chest, b)), off = cos < Math.cos((15.5 * Math.PI) / 180);
     const dist = Math.hypot(...hv), near = dist < 1.6, far = dist > 18;
     if (a) out.insideBlock++; if (bl) out.blocked++; if (off) out.outOfFrame++; if (near) out.tooClose++; if (far) out.tooFar++;
     if ((a || bl || off || near || far) && out.worst.length < 6) out.worst.push({ s: +w.chase.s.toFixed(1), key: C.track.key, inside: a, blocked: bl, off, dist: +dist.toFixed(1) });

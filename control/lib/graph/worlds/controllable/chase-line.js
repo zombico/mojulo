@@ -268,7 +268,7 @@ export function buildChaseLine(E) {
     return out;
   };
 
-  // THE TRACK CAMERA (a camera rule: { type: 'track', target, path, keys, lerp?, turn? }): the camera directed by where the
+  // THE TRACK CAMERA (a camera rule: { type: 'track', target, path, keys, lerp?, turn?, frameMax? }): the camera directed by where the
   // target is along a line, while the player keeps the stick. `path` is the line's own (a set piece hands it the chase
   // line's); `keys` [{ s, frame, …dials, cut?, blend?, fov?, shake? }] in metres along it, each frame a place round the
   // target in the line's own frame (along it, across it to the left, up), and a look point ahead of it:
@@ -279,14 +279,17 @@ export function buildChaseLine(E) {
   //   lookUp    the look point's height over the feet
   // A frame word gives the dials (TRACK_FRAMES); a key's own dials override them. Between keys the dials run from one to
   // the next over the `blend` metres (4) before the next key's s; a `cut` key cuts there. The place is eased at `lerp`
-  // (6/s) and snapped on a cut. The camera does not set `camYaw`: the stick is the chase line's. It publishes `track`:
+  // (6/s) and snapped on a cut. THE HERO IN FRAME: whatever a frame's look asks, and however far the eased place lags a hero
+  // running or jumping, the hero's chest stays within `frameMax` degrees (15) of the view's axis: past it the look turns
+  // toward them just that far (the lead room a frame asks, capped; at a 60° field of view, 15° is half way to the frame's
+  // top and a quarter of the way to its side). The camera does not set `camYaw`: the stick is the chase line's. It publishes `track`:
   // { key, fov?, shake? } for the page (a key's field of view in degrees, its shake 0 … 1).
   const FR = {
     lead: { back: -6.5, side: 0.8, up: 1.7, ahead: -3, lookUp: 1.3 },     // ahead of the hero, looking back at them and what is behind
     chase: { back: 4.2, side: 0.6, up: 0.9, ahead: 7, lookUp: 1.5 },      // low behind, the hero and what they run at
     profile: { back: 0.5, side: 6, up: 1.4, ahead: 1.5, lookUp: 1.2 },    // beside, tracking with them
     wide: { back: 10, side: 7, up: 6, ahead: 5, lookUp: 1 },              // far and high: the place and the hero in it
-    low: { back: 1.5, side: 4.5, up: 0.4, ahead: 2.5, lookUp: 1.4 },      // low beside them, looking up and on as they go over
+    low: { back: 1.5, side: 4.5, up: 0.4, ahead: 1, lookUp: 1.4 },        // low beside them, looking up and on as they go over
     over: { back: 3.5, side: 0.8, up: 2.2, ahead: 6, lookUp: 1.1 },       // over the shoulder down the way
     overhead: { back: 1.5, side: 0, up: 13, ahead: 1, lookUp: 0 },        // straight down on them
     close: { back: -1.8, side: 0.6, up: 1.6, ahead: 0, lookUp: 1.55 },    // the face, from in front
@@ -378,6 +381,22 @@ export function buildChaseLine(E) {
     if (!snap && !clearOf(next)) { next = want; snap = true; }
     e.transform.pos = next;
     e._trPlaced = true;
+    // THE HERO IN FRAME (see the header): the look turned toward the chest, along the great circle, just past the cap
+    {
+      const cap = ((typeof r.frameMax === 'number' ? r.frameMax : 15) * Math.PI) / 180;
+      const lv = [look[0] - next[0], look[1] - next[1], look[2] - next[2]], hv = [chest[0] - next[0], chest[1] - next[1], chest[2] - next[2]];
+      const ll = Math.hypot(lv[0], lv[1], lv[2]), hl = Math.hypot(hv[0], hv[1], hv[2]);
+      if (ll > 1e-6 && hl > 1e-6) {
+        const a = [lv[0] / ll, lv[1] / ll, lv[2] / ll], b = [hv[0] / hl, hv[1] / hl, hv[2] / hl];
+        const th = Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
+        if (th > cap && th < Math.PI - 1e-3) {
+          const sa = Math.sin(cap) / Math.sin(th), sb = Math.sin(th - cap) / Math.sin(th);
+          // (a turned by th − cap toward b: the slerp from a to b at that angle)
+          const u = [a[0] * sa + b[0] * sb, a[1] * sa + b[1] * sb, a[2] * sa + b[2] * sb];
+          look = [next[0] + u[0] * ll, next[1] + u[1] * ll, next[2] + u[2] * ll];
+        }
+      }
+    }
     e.lookAt = look;
     e.transform.heading = Math.atan2(look[1] - e.transform.pos[1], look[0] - e.transform.pos[0]);
     e.track = { key: i, ...(typeof K0.fov === 'number' ? { fov: K0.fov } : {}), ...(typeof K0.shake === 'number' ? { shake: K0.shake } : {}) };

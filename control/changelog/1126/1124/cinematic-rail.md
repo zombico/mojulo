@@ -92,3 +92,9 @@
   on its jump's flight and pulls up on its wind-up. Before, a held hang played the idle (the page plays a body's own
   clip only while it moves), so the hero stood upright against the face. The climb's first stone is raised (4.6 m over
   the approach's top, 2.6), so the feet leave the ground on the first hold.
+- **The hero near the frame's middle** (`chase-line.js` track, `frameMax`): whatever a frame's look asks, and however far
+  the eased camera lags a hero running or jumping, the hero's chest stays within 15° of the view's axis; past it the look
+  turns toward them just that far. Before, the `low` frame looked 2.5 m on past the hero and the camera's ease on a jump
+  added to it, so the grab and reach prompts showed the hero at the frame's edge. The `low` frame looks 1 m on. The
+  framing gate holds every directed frame to 15° (it allowed 30°: at a 60° field of view, the frame's top edge); without
+  the cap, each kind leaves it on dozens of frames.
