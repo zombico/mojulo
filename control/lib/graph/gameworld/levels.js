@@ -151,6 +151,7 @@ import { readCourse, courseAt, coursePlan, courseLaws, joinLaw, lowerCourse, sla
 import { courseCube, courseColours, skinCourse } from './course-skin.js';
 import { juiceOfGame } from './juice.js';
 import { tempoOfGame } from './tempo.js';
+import { keyingOfGame } from './keying.js';
 import { styleMeterOfGame, levelRankOf, vitalsOf, STYLISH } from './style-meter.js';
 import { gradeOfGame } from './grade.js';
 import { readBuildingParked, parkIn, paintOfDress } from '../vehicle-registry/parked.js';
@@ -165,6 +166,8 @@ import { isPaged } from '../folk/pages.js';
 const juiceOf = (G) => { const J = juiceOfGame(G); return J ? { fxStyle: J.fxStyle } : {}; };
 // the world's clock (tempo.js): the moments that slow or hold its live levels, on every level; none written, nothing laid
 const tempoOf = (G) => { const T = tempoOfGame(G); return T ? { tempo: T.tempo } : {}; };
+// its keying (keying.js): its bodies drawn on twos or threes in play, on every level; none written, nothing laid
+const keyingOf = (G) => { const K = keyingOfGame(G); return K ? { keying: K.keying } : {}; };
 // the style meter (style-meter.js): how well the hero fights, on every level it strikes on; none written, nothing laid
 // the way on (game/hud-mana.js `ways`): a gauntlet whose arenas are walked into (a level's tasks, tasks.js) names the
 // one waiting in its arm var (game/wave-gauntlet.js); the arrow points to its ring
@@ -1257,7 +1260,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // THE DAMAGE RING (damage-ring.js): a quick shooter's level on foot and a deathmatch say where each hit came from, round
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
-  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js), and
   // a mission's is its own channel's (mission-mana.js)
@@ -2158,7 +2161,7 @@ function buildingMissionOrder(G, stage, { ref, heroRef, heroGaits = null, pilot 
     const camera = A.camera ?? PW.camera;
     pilotPart = { figures: { ...PW.figures, ...MX.figures }, entities: [me, ...MX.entities], camera: MX.camera && camera ? { ...camera, ...MX.camera } : camera, events: PW.events || {} };
   }
-  const manifest = armLevel(G, { ...base, ...pilotPart, ...juiceOf(G), ...tempoOf(G), ...gradeOf(G), ...figuresOf() });
+  const manifest = armLevel(G, { ...base, ...pilotPart, ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...gradeOf(G), ...figuresOf() });
   const laws = P.laws.map((l) => ({ concern: 'mission', law: l.law, holds: l.holds, says: l.says }));
   // (its ends the building's own, read with its goal room: what a story or a link reads of a building level)
   return { tool: 'create_sketch', args: { title: name, manifest }, ends: buildingEnds(stage), ...(laws.length ? { laws } : {}) };
@@ -2331,7 +2334,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStat
   if (!heroRef) {
     if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [piloted(walker), ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
-    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() } }, ends };
+    return { tool: 'create_sketch', args: { title: name, manifest: { ...base, ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() } }, ends };
   }
   // a hero with the wall or the line (actions.moves) plays it under its rooms' ceilings, laid as colliders (era/anchors.js)
   const moves = heroMoves(G);
@@ -2357,7 +2360,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStat
   const pilot0 = { figures: X?.figures ? { ...figs0, ...X.figures } : figs0, entities: [piloted(fighter ? fighter.entity : A.entity), ...(X?.entities ?? [])], camera, events, ...(actionOrbit ? { lock: true } : {}) };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
-  let manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
+  let manifest = armLevel(G, { ...base, ...pilotPart, ...(play !== play0 ? { play: withBookUi(G, play) } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf() });
   // (and is ranked on its results, game/rank.js: its par counted from its tasks; a building's game is made from its
   // `level` as the page is resolved, so the rank is said there)
   if (manifest.styleMeter && manifest.level) manifest = { ...manifest, level: { ...manifest.level, rank: levelRankOf(G, stage.level) ?? {} } };

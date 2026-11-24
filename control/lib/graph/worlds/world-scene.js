@@ -22,6 +22,7 @@ import { readScreen, screenPayload, screenFrame } from '@/lib/graph/game/screen'
 import { readRunner } from '@/lib/graph/worlds/controllable/runner';
 import { readRoll, rolledIds, pickupsOf } from '@/lib/graph/game/roll';
 import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
+import { readKeying } from '@/lib/graph/worlds/controllable/keying';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { skandartLoose, landLoose } from '@/lib/graph/era/skandart';
@@ -2328,6 +2329,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the WORLD CLOCK (worlds/controllable/world-clock.js): moments that slow or hold a live world on what happens in it, the
   // camera keeping real time; the page composes the clock only then. Absent: every byte as it was.
   if (payload && sketch.manifest.tempo != null && sketch.manifest.tempo !== false) { const T = readTempo(sketch.manifest.tempo); if (T) payload.tempo = T; }
+  // KEYING (worlds/controllable/keying.js): the animated bodies posed on twos or threes, each layer its own grain, the
+  // world and the camera on ones; the page carries the key clock only then. Absent: every byte as it was.
+  if (payload && sketch.manifest.keying != null && sketch.manifest.keying !== false) { const K = readKeying(sketch.manifest.keying); if (K) payload.keying = K; }
   // (and a scene's own moments, its script's slow motion and freezes, playscape/ui/scenes.js sceneMoments: the clock
   // composed for them, beside the world's own; none ⇒ as it was)
   if (payload && playEv?.scenes) {

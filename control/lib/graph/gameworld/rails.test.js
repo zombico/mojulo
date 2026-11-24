@@ -62,6 +62,17 @@ describe('the rail roster names into the tables that measure', () => {
     for (const [p, id] of claims('pole')) expect(railOfPole(p).id).toBe(id);
   });
 
+  it('is its first genre, the rest the cubes near it: a template of several genres stays the one it is', () => {
+    for (const id of RAIL_IDS) {
+      const G = RAILS[id].handles?.genres;
+      if (G?.length) expect(railSheet(id).from, id).toBe(G[0]);
+    }
+    // (Steel Serpents is a stealth game that the cinematic action core is made on, as Artesia is an action RPG near the
+    // top-down and open adventures)
+    expect(RAILS['steel-serpents'].handles.genres[0]).toBe('stealth');
+    expect(railOfGenre('cinematic-action').id).toBe('steel-serpents');
+  });
+
   it('says of its sizes what the tables say, least first', () => {
     for (const id of RAIL_IDS) {
       const R = RAILS[id], H = R.handles;
