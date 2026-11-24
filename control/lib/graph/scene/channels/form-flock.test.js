@@ -81,4 +81,30 @@ describe('a realistic crown as flock', () => {
     expect(src).toContain("spGrain(FLOCK.glsl, flock.grain)");
     expect(src).toContain("'-flock' + (flock.grain && flock.grain !== 1 ? '-' + flock.grain : '')");
   });
+
+  it('hands the page whole GLSL: no placeholder left unfilled', () => {
+    for (const g of [flockGlsl(), flockGlsl({ leaves: true }), flockFragment(), flockFragment({ leaves: true }), flockLight()]) expect(g).not.toMatch(/\$\{/);
+  });
+
+  it('sheds in the fall: the more a tree has let go, the more of its puff the light passes through', () => {
+    const C = [2, -1, 8], R = 0.7, cover = (bare) => { let hit = 0, n = 0;
+      for (let i = 0; i < 40; i++) for (let j = 0; j < 40; j++) {
+        const u = ((i + 0.5) / 40 * 2 - 1) * R, v = ((j + 0.5) / 40 * 2 - 1) * R; if (u * u + v * v > R * R) continue; n++;
+        if (flockMarch([C[0] + u, C[1] - Math.sqrt(R * R - u * u - v * v), C[2] + v], [0, 1, 0], C, R, FLOCK_LOOK.sponge, FLOCK_LOOK.shade.cell, bare, FLOCK_LOOK.fall)) hit++;
+      }
+      return hit / n; };
+    const green = cover(0), half = cover(0.4), bare = cover(0.85);
+    expect(half).toBeLessThan(green);
+    expect(bare).toBeLessThan(half);
+    expect(green - bare).toBeGreaterThan(0.3);
+    // (no shed, as without the fall)
+    expect(cover(0)).toBe(green);
+    // (the page: each copy its plant's shed, thinning its sponge, its leaves and its top first; its card at the mean)
+    const src = formFloraScript(flora({ leaves: true, shadow: 'sponge' }));
+    expect(src).toContain('const BARE = FL.bare ? f32(FL.bare) : null;');
+    expect(src).toContain("parts.crown.im.geometry.setAttribute('aBare'");
+    expect(flockFragment({ leaves: true })).toContain('spongeBare( vBare, vPosT.z )');
+    expect(flockFragment({ leaves: true })).toContain(`( 1.0 - ${FLOCK_LOOK.fall.leaves.toFixed(3)} * spB )`);
+    expect(FLOCK_LOOK.fall.skin).toBeGreaterThan(FLOCK_LOOK.fall.core);
+  });
 });

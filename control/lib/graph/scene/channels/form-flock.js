@@ -24,6 +24,13 @@
  * where it is nearer than the sponge, lit by its face to the sun (`lit`, either side), toned its own (`tone`). Seen
  * small, leaves thin out by the share their size in pixels allows (`px`: none under the first, all past the second), so
  * far off the crown is its sponge alone.
+ * IN THE FALL (`FLOCK_LOOK.fall`): a tree sheds as it turns (its share, `aBare`, form/flora-read.js FLOCK.shed), and its
+ * sponge thins from the outside in: the threshold raised by the share, `skin` at the skin and `core` at the core, so the
+ * crown opens and its limbs show through; its leaves at the ends thin by `leaves` of it, the last few hanging on; its top
+ * sheds before its foot (the share × 1 − `top` at its foot to 1 + `top` at its top: the wind strips the crown's head).
+ * What is left is shaded from its new skin, not the old (its depth counted from `inward` × the share in), so it reads as
+ * the tree's turned leaves and the sun comes through them, not as the dark heart of a full crown.
+ * Its shadow and its far card thin by the same field (the card at its template's mean share).
  * Its SHADOW (form/flora-read.js FLOCK.shadow): 'sponge' the same field in the crown's depth pass (light through its
  * thin parts; its leaves cast none of their own), 'solid' the puffs whole, 'none' no crown shadow.
  *
@@ -37,6 +44,7 @@ export const FLOCK_LOOK = Object.freeze({
   shade: Object.freeze({ skin: 1.12, core: 0.38, deep: 0.6, cell: 0.2, vary: Object.freeze([0.85, 1.15]) }),
   glow: Object.freeze({ k: 0.9, power: 3, thin: 0.45 }),
   leaf: Object.freeze({ cell: 1.25, on: 0.42, lean: 0.9, droop: 0.25, steps: 6, px: Object.freeze([1.5, 4]), lit: Object.freeze([0.85, 1.35]), tone: Object.freeze([0.88, 1.15]) }),
+  fall: Object.freeze({ skin: 0.3, core: 0.22, leaves: 0.9, top: 0.45, inward: 0.6 }),
 });
 const f = (v) => v.toFixed(3);
 
@@ -49,17 +57,20 @@ float spN( vec3 p ) { vec3 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2
   return mix( mix( mix( spH( i ), spH( i + vec3( 1, 0, 0 ) ), f.x ), mix( spH( i + vec3( 0, 1, 0 ) ), spH( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
               mix( mix( spH( i + vec3( 0, 0, 1 ) ), spH( i + vec3( 1, 0, 1 ) ), f.x ), mix( spH( i + vec3( 0, 1, 1 ) ), spH( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z ); }
 float sponge( vec3 q ) { /*grain*/return 0.65 * spN( q / ${f(S.grain)} ) + 0.35 * spN( q / ${f(S.fine)} + 11.0 ); }
-float spongeMarchT( vec3 P, vec3 D, vec3 C, float R, out float tHit ) {
+float spongeMarchT( vec3 P, vec3 D, vec3 C, float R, float bare, out float tHit ) {
   float span = ${f(S.span)} * R; tHit = 1e9;
   for ( int i = 0; i < ${S.steps}; i++ ) {
     float t = ( float( i ) + 0.25 ) / ${S.steps.toFixed(1)} * span; vec3 Q = P + D * t; float r = length( Q - C );
     if ( r > R * 1.03 && i > 0 ) break;
-    float dn = clamp( 1.0 - r / R, 0.0, 1.0 ), th = mix( ${f(S.skin)}, ${f(S.core)}, smoothstep( 0.0, ${f(S.close)}, dn ) );
+    float dn = clamp( 1.0 - r / R, 0.0, 1.0 ), th = mix( ${f(S.skin)} + bare * ${f(FLOCK_LOOK.fall.skin)}, ${f(S.core)} + bare * ${f(FLOCK_LOOK.fall.core)}, smoothstep( 0.0, ${f(S.close)}, dn ) );
     if ( sponge( Q ) > th ) { tHit = t; return dn; }
   }
   return -1.0;
 }
-float spongeMarch( vec3 P, vec3 D, vec3 C, float R ) { float t; return spongeMarchT( P, D, C, R, t ); }
+float spongeMarch( vec3 P, vec3 D, vec3 C, float R, float bare ) { float t; return spongeMarchT( P, D, C, R, bare, t ); }
+// (a fragment's own shed: its plant's share, more at its crown's top; uTop its template's height)
+uniform float uTop;
+float spongeBare( float bare, float z ) { return clamp( bare * ( ${f(1 - FLOCK_LOOK.fall.top)} + ${f(2 * FLOCK_LOOK.fall.top)} * clamp( z / max( uTop, 1e-3 ), 0.0, 1.0 ) ), 0.0, 1.0 ); }
 ${leaves ? `uniform float uLeafL; uniform float uLeafW[ ${FLOCK_TABLE} ];
 float leafW( float u ) { float x = clamp( u, 0.0, 1.0 ) * ${(FLOCK_TABLE - 1).toFixed(1)}; int i = int( floor( x ) ); return mix( uLeafW[ i ], uLeafW[ min( i + 1, ${FLOCK_TABLE - 1} ) ], x - float( i ) ); }
 float leafMarch( vec3 P, vec3 D, vec3 C, vec3 S, float share, out float lit, out float tone ) {
@@ -85,15 +96,15 @@ float leafMarch( vec3 P, vec3 D, vec3 C, vec3 S, float share, out float lit, out
 }
 /** The varyings both passes share (declared in each stage), and the vertex statements that fill them (after
  *  `aSite`, `uSunW` and the instance matrix are in scope). */
-export const FLOCK_VARYINGS = 'varying vec3 vPosT;\nvarying vec3 vCenT;\nvarying float vRadT;\nvarying vec3 vCamT;\nvarying vec3 vSunT;\n';
-export const FLOCK_VERTEX = '  vPosT = position; vCenT = aSite; vRadT = length( position - aSite ); vCamT = ( inverse( modelMatrix * instanceMatrix ) * vec4( cameraPosition, 1.0 ) ).xyz; vSunT = normalize( inverse( mat3( modelMatrix * instanceMatrix ) ) * uSunW );';
+export const FLOCK_VARYINGS = 'varying vec3 vPosT;\nvarying vec3 vCenT;\nvarying float vRadT;\nvarying vec3 vCamT;\nvarying vec3 vSunT;\nvarying float vBare;\n';
+export const FLOCK_VERTEX = '  vPosT = position; vCenT = aSite; vRadT = length( position - aSite ); vCamT = ( inverse( modelMatrix * instanceMatrix ) * vec4( cameraPosition, 1.0 ) ).xyz; vSunT = normalize( inverse( mat3( modelMatrix * instanceMatrix ) ) * uSunW ); vBare = aBare;';
 /** The colour pass's puff (in place of form-flora.js MASS_CELLS; `spThin` and `spMpp` declared at the top of main). */
 export function flockFragment({ leaves = false } = {}) {
   const H = FLOCK_LOOK.shade, G = FLOCK_LOOK.glow, L = FLOCK_LOOK.leaf;
   const sponge = `if ( spHit < 0.0 ) discard; spThin = 1.0 - smoothstep( 0.0, ${f(G.thin)}, spHit ); diffuseColor.rgb *= mix( ${f(H.skin)}, ${f(H.core)}, smoothstep( 0.0, ${f(H.deep)}, spHit ) ) * mix( ${f(H.vary[0])}, ${f(H.vary[1])}, spH( floor( vPosT / ${f(H.cell)} ) ) );`;
-  const head = ' if ( vMass > 0.5 ) { vec3 spD = normalize( vPosT - vCamT ); float spTs; float spHit = spongeMarchT( vPosT, spD, vCenT, vRadT, spTs );';
+  const head = ` if ( vMass > 0.5 ) { vec3 spD = normalize( vPosT - vCamT ); float spTs, spB = spongeBare( vBare, vPosT.z ); float spHit = spongeMarchT( vPosT, spD, vCenT, vRadT, spB, spTs ); if ( spHit > 0.0 ) spHit = max( 0.0, spHit - spB * ${f(FLOCK_LOOK.fall.inward)} ) / ( 1.0 - spB * ${f(FLOCK_LOOK.fall.inward)} );`;
   if (!leaves) return `${head} ${sponge} }`;
-  return `${head} float spShare = smoothstep( ${f(L.px[0])}, ${f(L.px[1])}, uLeafL / max( spMpp, 1e-5 ) ), spLit, spTone, spTl = spShare > 0.0 && uLeafL > 0.0 ? leafMarch( vPosT, spD, vCenT, vSunT, spShare, spLit, spTone ) : 1e9;`
+  return `${head} float spShare = smoothstep( ${f(L.px[0])}, ${f(L.px[1])}, uLeafL / max( spMpp, 1e-5 ) ) * ( 1.0 - ${f(FLOCK_LOOK.fall.leaves)} * spB ), spLit, spTone, spTl = spShare > 0.0 && uLeafL > 0.0 ? leafMarch( vPosT, spD, vCenT, vSunT, spShare, spLit, spTone ) : 1e9;`
     + ` if ( spTl < 1e8 && ( spHit < 0.0 || spTl < spTs ) ) { spThin = 1.0; diffuseColor.rgb *= mix( ${f(L.lit[0])}, ${f(L.lit[1])}, spLit ) * mix( ${f(L.tone[0])}, ${f(L.tone[1])}, spTone ); } else { ${sponge} } }`;
 }
 /** The colour pass's light through the thin parts, seen against the sun (after the lights). */
@@ -106,9 +117,10 @@ export function flockLight() {
  * GLSL runs, its field and its thresholds the same (the page inlines this function by its source, so the tests run what
  * the page runs). From a point P on a puff (centre C, radius R) along D → [depth 0 at the skin … 1 at the core, the
  * distance in, the entry's leaf-cluster cell's hash] or null where the ray goes out through the holes. `S` the sponge's
- * numbers (FLOCK_LOOK.sponge), `cell` the shade's cell (FLOCK_LOOK.shade.cell). Self-contained.
+ * numbers (FLOCK_LOOK.sponge), `cell` the shade's cell (FLOCK_LOOK.shade.cell), `bare` the shed there and `F` its numbers
+ * (FLOCK_LOOK.fall; none, no shed). Self-contained.
  */
-export function flockMarch(P, D, C, R, S, cell) {
+export function flockMarch(P, D, C, R, S, cell, bare = 0, F = null) {
   const fract = (x) => x - Math.floor(x), sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const h = (x, y, z) => fract(Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453);
   const n = (x, y, z) => {
@@ -121,7 +133,7 @@ export function flockMarch(P, D, C, R, S, cell) {
   for (let i = 0; i < S.steps; i++) {
     const t = ((i + 0.25) / S.steps) * span, x = P[0] + D[0] * t, y = P[1] + D[1] * t, z = P[2] + D[2] * t, r = Math.hypot(x - C[0], y - C[1], z - C[2]);
     if (r > R * 1.03 && i > 0) break;
-    const dn = Math.min(1, Math.max(0, 1 - r / R)), th = S.skin + (S.core - S.skin) * sm(0, S.close, dn);
+    const dn = Math.min(1, Math.max(0, 1 - r / R)), sk = S.skin + (F ? bare * F.skin : 0), co = S.core + (F ? bare * F.core : 0), th = sk + (co - sk) * sm(0, S.close, dn);
     if (field(x, y, z) > th) return [dn, t, h(Math.floor(P[0] / cell), Math.floor(P[1] / cell), Math.floor(P[2] / cell))];
   }
   return null;

@@ -370,6 +370,14 @@ stage says `crowns: { form: 'realistic', flock: false }`.
   its puff's own round there, and a thin hit is marked so the card also takes the sun through it. Seen side-on, a puff
   covers about 85% of its outline. The bake adds about half a second to a stand's load (measured with everything flock
   adds, in software GL).
+- **In the fall, it sheds.** A deciduous flock tree already turns its own share of the level's `autumn`
+  (form/flora-read.js `AUTUMN`); it sheds by the same share × `FLOCK.shed`, so a wood in the fall is never one density as
+  it is never one colour (the page's `FL.bare`, one a plant, carried only on a flock page in the fall). Its sponge thins
+  from the outside in (`FLOCK_LOOK.fall`: the threshold raised more at the skin than the core), so the crown opens on its
+  limbs; its leaves at the ends thin with it, the last few hanging on; its top sheds before its foot. What is left is
+  shaded from its new skin, so it reads as the tree's turned leaves with the sun through them, not as the dark heart of a
+  full crown. Its shadow lets more sun to the ground, and its far card is baked at its template's mean shed. On the
+  island path at `autumn: 0.9` its trees shed 27–85% (60% on average).
 - **Bushes too.** On a stage whose realistic crowns are flock, a leafy bush that reads as clump foliage (a habit with a
   `flock` row in form/bush-form.js `BUSH_HABITS`: the dome, box and laurel; the fountain, forsythia) stands its mass as
   puffs (`bushPuffs`): one where a clump stands, by the clumps' rank, set in from the outline and kept apart, so they

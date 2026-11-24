@@ -243,9 +243,9 @@ ${FK ? `    // (\`flock\`: a realistic template's flock, its leaf or none: its p
       const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
       const U = { uEye: eye, uDetail: { value: new THREE.Vector2(detail[0], detail[1]) }${snow ? ', ...LEAF_SNOW' : ''} };
 ${FK ? `      if (flock) Object.assign(U, { uSunW: { value: sunLight.position.clone().sub(sunLight.target.position).normalize() }, uSunC: { value: sunLight.color.clone().multiplyScalar(sunLight.intensity) },
-        uLeafL: { value: flock.leaf ? flock.leaf.length : 0 }, uLeafW: { value: flock.leaf ? flock.leaf.w : new Array(FLOCK.table).fill(0) } });
+        uTop: { value: flock.top || 1 }, uLeafL: { value: flock.leaf ? flock.leaf.length : 0 }, uLeafW: { value: flock.leaf ? flock.leaf.w : new Array(FLOCK.table).fill(0) } });
       m.userData.flockU = flock ? U : null;
-` : ''}      const HEAD = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\nvarying float vMass;\\nvarying vec3 vCell;\\n'${FK ? " + (flock ? 'uniform vec3 uSunW;\\n' + FLOCK.vary : '')" : ''};
+` : ''}      const HEAD = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uEye;\\nuniform vec2 uDetail;\\nvarying float vMass;\\nvarying vec3 vCell;\\n'${FK ? " + (flock ? 'uniform vec3 uSunW;\\nattribute float aBare;\\n' + FLOCK.vary : '')" : ''};
       const grows = (vs) => vs.replace('#include <begin_vertex>', spray ? [
         'vec3 ipos = ( modelMatrix * instanceMatrix * vec4( aSite, 1.0 ) ).xyz;',
         'float nearF = 1.0 - smoothstep( uDetail.x, uDetail.y, distance( ipos, uEye ) );',
@@ -366,9 +366,9 @@ ${FK ? `    // (a flock crown's shadow, FLOCK.shadow 'sponge': its depth pass th
     function flockDepth(U, grain) {
       const dm = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
       dm.onBeforeCompile = (sh) => {
-        sh.uniforms.uSunW = U.uSunW;
-        sh.vertexShader = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nuniform vec3 uSunW;\\nvarying float vMass;\\n' + FLOCK.vary + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vMass = step( 1.5, length( aOut ) );\\n' + FLOCK.vertex);
-        sh.fragmentShader = 'varying float vMass;\\n' + FLOCK.vary + spGrain(FLOCK.depthGlsl, grain) + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if ( vMass > 0.5 && spongeMarch( vPosT, normalize( vPosT - vCamT ), vCenT, vRadT ) < 0.0 ) discard;');
+        sh.uniforms.uSunW = U.uSunW; sh.uniforms.uTop = U.uTop;
+        sh.vertexShader = 'attribute vec3 aOut;\\nattribute vec3 aSite;\\nattribute float aBare;\\nuniform vec3 uSunW;\\nvarying float vMass;\\n' + FLOCK.vary + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\\n  vMass = step( 1.5, length( aOut ) );\\n' + FLOCK.vertex);
+        sh.fragmentShader = 'varying float vMass;\\n' + FLOCK.vary + spGrain(FLOCK.depthGlsl, grain) + sh.fragmentShader.replace('void main() {', 'void main() {\\n  if ( vMass > 0.5 && spongeMarch( vPosT, normalize( vPosT - vCamT ), vCenT, vRadT, spongeBare( vBare, vPosT.z ) ) < 0.0 ) discard;');
       };
       dm.customProgramCacheKey = () => 'form-flock-depth' + (grain && grain !== 1 ? '-' + grain : '');
       return dm;
@@ -401,7 +401,9 @@ ${FK ? `    // (a flock crown's shadow, FLOCK.shadow 'sponge': its depth pass th
     }
     // the plants, each a copy of its template: its matrix and its colours
     const P = f32(FL.trees), N = FL.n, by = FL.templates.map(() => []);
-    for (let i = 0; i < N; i++) by[P[i * STRIDE + 11]].push(i);
+${FK ? `    // (a flock tree's shed in the fall, one a plant, form/flora-read.js FLOCK.shed; none outside the fall)
+    const BARE = FL.bare ? f32(FL.bare) : null;
+` : ''}    for (let i = 0; i < N; i++) by[P[i * STRIDE + 11]].push(i);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), pv = new THREE.Vector3(), sv = new THREE.Vector3(), cv = new THREE.Color();
     const T = FL.templates.map((t, ti) => {
       const cg = variants(t.clumpGeo), sg = variants(t.sprayGeo), detail = t.detail || LOD.detail, n = by[ti].length;
@@ -411,7 +413,7 @@ ${FK ? `    // (a flock crown's shadow, FLOCK.shadow 'sponge': its depth pass th
         const im = new THREE.InstancedMesh(geo.g, mat, Math.max(1, n)); im.count = 0; im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = false; scene.add(im);
         return { im, tris: geo.tris, slot: new Int32Array(Math.max(1, n)).fill(-1) };
       };
-      const phi = t.culm ? FW.culmPhi : t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi${FK ? ', t.flock || null' : ''}), wood = t.culm ? culmMat(phi) : barkFor(t.bark, phi);
+      const phi = t.culm ? FW.culmPhi : t.kind === 'tree' ? FW.phi : FW.bushPhi, leaf = leafMat(false, detail, phi${FK ? ', t.flock ? { ...t.flock, top: t.height } : null' : ''}), wood = t.culm ? culmMat(phi) : barkFor(t.bark, phi);
       // (a needled crown: its sleeves near and far, the needles drawn in them; no crown of clumps, no sprays)
       if (t.sleeve) {
         const sl = sleeveGeo(t.sleeve), nm = needleMat(phi);
@@ -427,6 +429,7 @@ ${FK ? `    // (a flock crown's shadow, FLOCK.shadow 'sponge': its depth pass th
         sprays: mk(merged(t.sites, t.nSites, sg, 'spray', false, () => true), leafMat(true, detail, phi), false, true),
       };
 ${FK ? `      // (a flock crown's shadow: the sponge's holes in it, its puffs whole, or none)
+      if (t.flock && parts.crown) parts.crown.im.geometry.setAttribute('aBare', new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n)), 1));
       if (t.flock && parts.crown) { if (FLOCK.shadow === 'none') parts.crown.im.castShadow = false; else if (FLOCK.shadow === 'sponge') parts.crown.im.customDepthMaterial = flockDepth(leaf.userData.flockU, t.flock.grain); }
 ` : ''}      // (a shrub's season: its blossoms facing out, its berries hanging, with its near crown)
       if (t.adorn) {
@@ -505,6 +508,8 @@ ${FK ? `      // (a flock crown's shadow: the sponge's holes in it, its puffs wh
 ${FK ? `        // (a flock crown's puff, channels/form-flock.js: a texel its puff covers marched into it along the card's view, as
         // the near crown's pixel is; a miss left empty (the sky through), a hit at its depth, shaded by it, its facing the
         // sponge's own round there; a thin one marked (216) for the light through it)
+        // (the card at its template's mean shed in the fall, its top shedding first)
+        const MB = BARE ? T[ti].list.reduce((a, i) => a + BARE[i], 0) / Math.max(1, T[ti].list.length) : 0, shedAt = (z) => (MB ? Math.min(1, MB * (1 - FLOCK.look.fall.top + 2 * FLOCK.look.fall.top * Math.min(1, Math.max(0, z / t.height)))) : 0);
         const spongeTri = (a0, a1, a2, C, tone) => {
           const V = [a0, a1, a2].map((a) => [(a[0] * rx + a[1] * ry + R) / du0, a[2] / dv0, a[0] * tx + a[1] * ty]);
           const area = (V[1][0] - V[0][0]) * (V[2][1] - V[0][1]) - (V[2][0] - V[0][0]) * (V[1][1] - V[0][1]); if (Math.abs(area) < 1e-9) return;
@@ -516,7 +521,8 @@ ${FK ? `        // (a flock crown's puff, channels/form-flock.js: a texel its pu
               if (w0 < 0 || w1 < 0 || w2 < 0) continue;
               const f = w0 * V[0][2] + w1 * V[1][2] + w2 * V[2][2]; if (f <= depth[iv * IW + iu]) continue;
               const P = [0, 1, 2].map((c) => w0 * a0[c] + w1 * a1[c] + w2 * a2[c]), Rp = Math.hypot(P[0] - C[0], P[1] - C[1], P[2] - C[2]);
-              const hit = flockMarch(P, D, C, Rp, SK, LK.shade.cell); if (!hit) continue;
+              const sb = shedAt(P[2]), hit = flockMarch(P, D, C, Rp, SK, LK.shade.cell, sb, LK.fall); if (!hit) continue;
+              if (sb > 0) hit[0] = Math.max(0, hit[0] - sb * LK.fall.inward) / (1 - sb * LK.fall.inward);
               const Q = P.map((v, c) => v + D[c] * hit[1]), nq = Q.map((v, c) => v - C[c]), nl = Math.hypot(...nq) || 1;
               const sh = (LK.shade.skin + (LK.shade.core - LK.shade.skin) * sm(hit[0])) * (LK.shade.vary[0] + (LK.shade.vary[1] - LK.shade.vary[0]) * hit[2]);
               put(iu, iv, f - hit[1], (nq[0] * rx + nq[1] * ry) / nl, nq[2] / nl, tone * sh, hit[0] < LK.glow.thin ? 216 : 255);
@@ -603,7 +609,7 @@ ${FK ? `    // (a flock crown's thin texel, 216: the sun through it, seen agains
           if (sprayed.has(i)) { put('sprays', leafC); sprays++; }
         }
         for (const [k, X] of Object.entries(parts)) { X.im.count = c[k]; X.im.instanceMatrix.needsUpdate = true; if (X.im.instanceColor) X.im.instanceColor.needsUpdate = true; tris += c[k] * X.tris; }
-      }
+${FK ? "        // (each flock copy its plant's shed)\n        if (BARE && t.flock && parts.crown) { const A = parts.crown.im.geometry.getAttribute('aBare'); for (let k = 0; k < c.crown; k++) A.array[k] = BARE[parts.crown.slot[k]]; A.needsUpdate = true; }\n" : ''}      }
       ig.instanceCount = imps; for (const k of ['aPos', 'aTR', 'aLeaf', 'aBark']) ig.getAttribute(k).needsUpdate = true; tris += imps * 2;
       stat = { templates: T.length, plants: N, near, far, impressions: imps, sprays, triangles: tris, taken, wind: !!(window.__mojTerrain && window.__mojTerrain.wind),
         // (the trunks stand: each template's share of its wood held still, and of its leaves at full sway)

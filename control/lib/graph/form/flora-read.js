@@ -170,7 +170,10 @@ export const habitOf = (species) => REALISTIC_HABITS[species] ?? REALISTIC_HABIT
  * (channels/form-flock.js draws it). `leaves` whether its skin carries them; `shadow` its crown's shadow: 'sponge' (the
  * sponge's holes in it), 'solid' (the puffs whole), 'none'.
  */
-export const FLOCK = Object.freeze({ leaves: true, shadow: 'sponge', shadows: Object.freeze(['sponge', 'solid', 'none']) });
+export const FLOCK = Object.freeze({ leaves: true, shadow: 'sponge', shadows: Object.freeze(['sponge', 'solid', 'none']),
+  // (in the FALL, a flock tree sheds as it turns: its share of the level's `autumn`, AUTUMN, × `shed`, how much of its
+  // leaves a fully turned tree has let go; the page thins its sponge and its leaves by it, channels/form-flock.js fall)
+  shed: 0.85 });
 /** A stage's `flock` word (`true` | `false` | { leaves?, shadow? }) → its settings, or null for none. */
 export function readFlock(v = true) {
   if (v === false) return null;
@@ -511,15 +514,19 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   // culm, no bark, a green stem: its colour CULM_TO_LEAF of the way to the level's foliage, so it reads as this world's)
   const tint = (T, target) => { if (T.culm) { const m = T.culmMean; return [0, 1, 2].map((k) => r4(1 - CULM_TO_LEAF + (CULM_TO_LEAF * leafBase[k]) / Math.max(1e-4, m[k]))); } if (!T.bark) return [1, 1, 1]; const m = barks[T.bark].mean; return [0, 1, 2].map((k) => r4(0.5 + (0.5 * target[k]) / Math.max(1e-4, m[k]))); };
   // (a deciduous tree in the fall: its leaves its own way toward its species' colour, some way to the yellow)
+  const turnOf = (T, p) => { const fall = autumn > 0 && T.kind === 'tree' && AUTUMN.colours[T.name]; if (!fall) return 0; const d = hashN(Math.round(p.x * 100) * 31 + Math.round(p.y * 100) * 17); return Math.min(1, autumn * (AUTUMN.spread[0] + (AUTUMN.spread[1] - AUTUMN.spread[0]) * d)); };
   const turned = (T, p, leaf) => {
     const fall = autumn > 0 && T.kind === 'tree' && AUTUMN.colours[T.name]; if (!fall) return leaf;
-    const d = hashN(Math.round(p.x * 100) * 31 + Math.round(p.y * 100) * 17), e = hashN(Math.round(p.x * 100) * 11 + Math.round(p.y * 100) * 43 + 5);
-    const t = Math.min(1, autumn * (AUTUMN.spread[0] + (AUTUMN.spread[1] - AUTUMN.spread[0]) * d)), y = AUTUMN.toward * e;
+    const e = hashN(Math.round(p.x * 100) * 11 + Math.round(p.y * 100) * 43 + 5);
+    const t = turnOf(T, p), y = AUTUMN.toward * e;
     return leaf.map((v, k) => r4(v + (fall[k] + (AUTUMN.yellow[k] - fall[k]) * y - v) * t));
   };
+  // (a flock tree's shed in the fall: its own turn × FLOCK.shed, one a plant, for the page; none outside the fall)
+  const bare = [];
   const push = (T, p, h, K, soft = false, yaw0 = null) => {
     const ti = use(T), yaw = yaw0 ?? treeYaw(p.x, p.y);
     out.push(p.x, p.y, p.z, r4(h / T.height), r4(yaw), ...turned(T, p, leafOf(K)), ...tint(T, barkTarget(K)), ti, typeof soft === 'number' ? soft : soft ? 1 : 0);
+    if (flock && autumn > 0) bare.push(T.far && T.nBlobs > 0 ? r4(FLOCK.shed * turnOf(T, p)) : 0);
   };
   // the trees: each kind's species at the kind's middle height (a level's heights to the nearest HEIGHT_STEP)
   const kindAt = (t) => (t.kind >= 0 && kinds ? readKind(kinds[t.kind]) : null);
@@ -557,7 +564,7 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   }
   // (each flock template its leaf, a tree's its species', a bush's its habit's; the page the setting)
   const T = flock ? templates.map((t) => { if (!(t.far && t.nBlobs > 0)) return t; const { flockLeaf: own, flockGrain: grain, ...rest } = t; return { ...rest, flock: { leaf: flock.leaves ? (own !== undefined ? own : flockLeaf(t.name)) : null, ...(grain !== undefined ? { grain } : {}) } }; }) : templates;
-  return { templates: T, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4), ...(autumn > 0 ? { autumn } : {}), ...(flock && T.some((t) => t.flock) ? { flock } : {}) };
+  return { templates: T, barks: Object.fromEntries(Object.entries(barks).map(([k, v]) => [k, v])), trees: b64(Float32Array.from(out)), n: out.length / FLORA_STRIDE, lod: FLORA_LOD, leafRef: LEAF_REF.map(r4), ...(autumn > 0 ? { autumn } : {}), ...(flock && T.some((t) => t.flock) ? { flock, ...(bare.some((v) => v > 0) ? { bare: b64(Float32Array.from(bare)) } : {}) } : {}) };
 }
 
 /**

@@ -258,4 +258,14 @@ describe('a realistic crown as flock (`crowns: realistic`, its `flock`)', () => 
     expect(off.templates[0].nBlobs).toBeUndefined();
     expect(off.templates[0].nClumps).toBeGreaterThan(0);
   });
+
+  it('sheds each flock tree in the fall by its own turn, never past FLOCK.shed; none outside the fall', () => {
+    const grove = { form: 'blob', kinds: [{ form: 'spray' }], bushKinds: null, trees: [tree(0, 0, 9, 0), tree(20, 3, 9, 0), tree(7, 31, 9, 0), tree(33, 27, 9, 0)], bushes: [], shrubs: [], crowns: 'realistic', flock: readFlock() };
+    const F = floraRead(grove, { kinds: grove.kinds, colours, bases, autumn: 0.9 }), B = unpack(F.bare);
+    expect(B.length).toBe(F.n);
+    for (const v of B) { expect(v).toBeGreaterThan(0); expect(v).toBeLessThanOrEqual(FLOCK.shed + 1e-6); }
+    expect(new Set([...B].map((v) => v.toFixed(3))).size).toBeGreaterThan(1);
+    expect(floraRead(grove, { kinds: grove.kinds, colours, bases }).bare).toBeUndefined();
+    expect(floraRead({ ...grove, flock: undefined }, { kinds: grove.kinds, colours, bases, autumn: 0.9 }).bare).toBeUndefined();
+  }, 300000);
 });

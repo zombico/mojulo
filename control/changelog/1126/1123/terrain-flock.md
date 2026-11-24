@@ -11,3 +11,5 @@
   bushes keep their own look.
 - A spike compares the crown as it was with the sponge and the sponge with leaves from the same cameras
   (`scripts/spikes/flock`).
+- In the fall, the trees shed as they turn: each its own way, its crown opening onto its limbs from the top and the
+  outside in, its last leaves catching the sun, more light reaching the ground, a wood never one density.
