@@ -42,6 +42,8 @@ audio: { soundtrack: { score: { mood: 'expedition', game: 4410,
   `fm-brass` (80s, bright, stabby).
 - **Woodwinds** (sustain; pastoral, airy, intimate): `flute` `flute-2` `flute-3` `clarinet` `clarinet-2`
   `clarinet-3` `oboe` `oboe-2` `oboe-3` `bassoon` `bassoon-2` `bassoon-3`; `harmonica` (lonesome, the road).
+- **Saxophones** (sustain; smoky, late night, soulful, a city after dark): `soprano-sax` `alto-sax` `tenor-sax`
+  `baritone-sax` (the baritone a honking low end).
 - **Plucked** (folk, intimate, travelling): `acoustic-guitar` `acoustic-guitar-2` `nylon-guitar` `nylon-guitar-2`
   `classical-guitar` `classical-guitar-2` `flamenco-guitar` `flamenco-guitar-2` `gypsy-jazz-guitar`
   `gypsy-jazz-guitar-2` `banjo`; `shamisen` (sharp, Japanese); `harp` `harp-2` (glistening, mythic, a memory).
@@ -71,6 +73,8 @@ The mood already sets the mode, tempo and density; the cast sets the colour. Rul
   no kit or `orchestral-perc`.
 - **Heroic, martial**: `french-horn-3` and `trumpet-3` leads, a `tuba-3` ground, `timpani`, `orchestral-perc`.
 - **Intimate, nostalgic**: a guitar or `grand-piano` colour, `clarinet-3` lead, `poly-strings` or `viola-3` pad.
+- **Smoky, noir, late night**: `tenor-sax` or `alto-sax` lead, `rhodes` or `vibraphone` colour, `upright-bass`
+  ground, `brush-kit`.
 - **Magical, childlike**: `celesta`, `music-box`, `glockenspiel` colour; `flute-3` lead; `harp-2`.
 - **Sacred**: `organ` pad, `tubular-bells` colour, `french-horn-3` lead.
 - **A place**: East Asia `erhu`, `shamisen`; Spain `flamenco-guitar`, `palmas`; the frontier `harmonica`, `banjo`,

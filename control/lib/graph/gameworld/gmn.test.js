@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readGameBrief, resolveGmn, layOrders, stampGameBrief, MOTIVATIONS, LABOURS, SIDE_SHARE } from './gmn.js';
+import { readGameBrief, resolveGmn, layOrders, stampGameBrief, MOTIVATIONS, LABOURS, SIDE_SHARE, GMN_WORDS, gmnOfWords } from './gmn.js';
 import { readGameworld } from './world.js';
 import { reviewParts } from './review.js';
 import { intentReport } from './intent.js';
@@ -75,5 +75,25 @@ describe('the Game Brief', () => {
     expect(I.gameBrief.orders[0]).toMatch(/^lv0: map, arrival: /);
     // (a written intent holds: nothing suggested over it)
     expect(intentReport({ ...W, intent: { from: 'jrpg' } }).suggest).toBeUndefined();
+  });
+});
+
+// THE WORDS PEOPLE SAY (GMN_WORDS): a prompt read as a mix, the first-named trope the lead; every row's words its own
+// (no word names two of a list); none named, the defaults stand
+describe('a brief read from words', () => {
+  it('reads each trope its words name, first-named the lead; none, the defaults; every word one trope', () => {
+    const R = gmnOfWords(['save', 'the', 'princess', 'from', 'the', 'citadel']);
+    expect(R.gmn).toEqual({ motivations: { 'save-the-princess': 1 }, labours: { 'storm-the-citadel': 1 } });
+    expect(R.read.map((r) => r.word)).toEqual(['princess', 'citadel']);
+    const two = gmnOfWords(['treasure', 'and', 'my', 'sister']).gmn.motivations;
+    expect(two).toEqual({ 'find-the-treasure': 0.6, 'reunite-with-family': 0.4 });
+    expect(() => readGameBrief({ gmn: gmnOfWords(['mystery', 'plague', 'treasure', 'sister', 'world']).gmn })).not.toThrow();
+    expect(gmnOfWords(['hello']).gmn).toBeNull();
+    expect(gmnOfWords(['hello'], { defaults: { labours: { 'be-the-best': 1 } } }).gmn).toEqual({ labours: { 'be-the-best': 1 } });
+    for (const list of ['motivations', 'labours']) {
+      const all = Object.values(GMN_WORDS[list]).flat();
+      expect(new Set(all).size, list).toBe(all.length);
+      expect(Object.keys(GMN_WORDS[list]).sort()).toEqual(Object.keys(list === 'motivations' ? MOTIVATIONS : LABOURS).sort());
+    }
   });
 });

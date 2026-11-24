@@ -82,6 +82,8 @@ function addGestures(set, list) {
   if (Array.isArray(list) && list.some((g) => g && PRODUCTION.has(g.type))) set.add('anthem');
   if (Array.isArray(list) && list.some((g) => g && g.type === 'trace')) set.add('trace');
   if (Array.isArray(list) && list.some((g) => g && g.type === 'syrinx')) set.add('syrinx');
+  // a recorded sound (the sound library's): the sampler (its cue path rides the sfx one), and what its fallback needs
+  if (Array.isArray(list)) for (const g of list) if (g && g.type === 'sample') { set.add('sampler'); set.add('sfx'); addGestures(set, g.fallback); }
 }
 
 // the kernel's `scored` test, mirrored: a composition that uses the score
@@ -141,18 +143,26 @@ function collect(m, set) {
     for (const name of patchNamesOf(row)) {
       const p = row.patchParams ? { ...PATCHES[name], ...row.patchParams } : PATCHES[name];
       if (!LEGACY.has(name) || voiceNeeds(p)) set.add('voice');
-      if (p && (p.harmonics || p.tremolo || p.pedal || p.players)) set.add('orch');
-      if (p && (p.velMap || p.claps || p.drive || p.excite === 'noise' || p.chokes || (p.partials || []).some((q) => q && q.rise))) set.add('perc');
-      if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
-      if (p && p.bend) set.add('orch');
-      if (p && (p.harmonicsLoud || p.life || p.damper || p.ringExact)) set.add('timbre');
-      if (p && p.unisonSpread) { set.add('timbre'); set.add('anthem'); } // the second string's ring sits in the anthem string clause
-      if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
+      // a recorded piece (the sound library's): the sampler, and whatever the synthesized piece it falls back to needs
+      if (p && p.voice === 'sample') { set.add('sampler'); if (p.fallback) patchFeatures(p.fallback, set); }
+      patchFeatures(p, set);
     }
   }
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
   if (m.kind === 'beats-sfx' && m.mix) set.add('sfxmix');
   if (m.kind === 'beats-sfx' && m.sustains) addSustains(set, Object.values(m.sustains));
+}
+
+// the features one patch's own keys need (a row's patch, a kit's piece, a recorded piece's fallback)
+function patchFeatures(p, set) {
+  if (voiceNeeds(p)) set.add('voice');
+  if (p && (p.harmonics || p.tremolo || p.pedal || p.players)) set.add('orch');
+  if (p && (p.velMap || p.claps || p.drive || p.excite === 'noise' || p.chokes || (p.partials || []).some((q) => q && q.rise))) set.add('perc');
+  if (p && (p.wave === 'pulse' || p.wave === 'supersaw' || p.sub || p.noise || p.lfo || p.voice === 'fm4' || (p.filter && p.filter.slope) || (p.filterEnv && (p.filterEnv.amount != null || p.filterEnv.velAmount)))) set.add('va');
+  if (p && p.bend) set.add('orch');
+  if (p && (p.harmonicsLoud || p.life || p.damper || p.ringExact)) set.add('timbre');
+  if (p && p.unisonSpread) { set.add('timbre'); set.add('anthem'); } // the second string's ring sits in the anthem string clause
+  if (p && STRING_KEYS.some((k) => p[k] != null && p[k] !== false)) set.add('strings');
 }
 
 // a held voice (sustain): the feature, and what its layers' chains need
@@ -161,10 +171,12 @@ function addSustains(set, specs) {
     if (!sp || typeof sp !== 'object') continue;
     set.add('sustain');
     for (const L of sp.layers || []) if (L && L.chain) layerChainFeatures(L.chain, set);
+    // a held voice of recordings: the sampler, and what the synthesized voice it stands in for needs
+    if ((sp.layers || []).some((L) => L && L.kind === 'sample')) { set.add('sampler'); if (sp.fallback) addSustains(set, [sp.fallback]); }
   }
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop', 'sfxmix', 'sustain', 'trace', 'syrinx', 'sampler'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));
@@ -184,12 +196,14 @@ export function audioFeatures(audio) {
   collect(expandBeatsManifest(audio.soundtrack), set);
   if (audio.combat) collect(expandBeatsManifest(audio.combat), set);
   if (audio.boss) collect(expandBeatsManifest(audio.boss), set);
+  for (const r of Object.values(audio.pieces || {})) collect(expandBeatsManifest(r), set);
   if (audio.bed) collect(expandBeatsManifest(audio.bed), set);
   for (const list of Object.values(audio.cues || {})) addGestures(set, list);
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);
   addGestures(set, audio.jump && audio.jump.land);
   addGestures(set, audio.dodge);
   addGestures(set, audio.burst);
+  if (audio.mount) for (const k of ['mounted', 'gallop']) addGestures(set, audio.mount[k]);
   for (const k of ['weapon', 'strike']) for (const list of Object.values(audio[k] || {})) addGestures(set, list);
   // (a run and gun's voices, `run`: its cues, and its held `charge` and `treads` below)
   for (const [k, v] of Object.entries(audio.run || {})) if (Array.isArray(v)) addGestures(set, v);
@@ -197,9 +211,39 @@ export function audioFeatures(audio) {
   if (audio.vary || audio.weather) set.add('sfx');
   if (audio.mix) set.add('sfxmix');
   // (a world's own held voices, `sustains` (opt-in): a base's engine and its hydraulics on the artillery range)
-  addSustains(set, [audio.thruster && audio.thruster.voice, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values(audio.sustains || {}), ...(audio.run ? [audio.run.charge, audio.run.treads, audio.run.steam] : [])]);
+  addSustains(set, [audio.thruster && audio.thruster.voice, audio.mount && audio.mount.hooves, audio.jump && audio.jump.charge && audio.jump.charge.voice, audio.engine && audio.engine.voice, ...Object.values((audio.engine && audio.engine.voices) || {}), ...Object.values(audio.sustains || {}), ...(audio.run ? [audio.run.charge, audio.run.treads, audio.run.steam] : [])]);
   if (audio.wind && audio.wind.vary) set.add('x');
   return sorted(set);
+}
+
+/**
+ * The sound library's cards a beats manifest plays (its recorded pieces, kit pieces included, and its recorded
+ * gestures), sorted; [] for none.
+ */
+export function sampleCards(...manifests) {
+  const out = new Set();
+  for (const m of manifests) {
+    for (const row of rowsOf(expandBeatsManifest(m))) if (row) for (const n of patchNamesOf(row)) {
+      const p = PATCHES[n];
+      if (p && p.voice === 'sample' && p.library) out.add(p.library);
+    }
+    for (const c of gestureSampleCards(m)) out.add(c);
+  }
+  return [...out].sort();
+}
+
+/** Every card a recorded gesture (`type: 'sample'`) or a held voice's recorded layer (`kind: 'sample'`) names anywhere
+ * in a value (a manifest, a world's audio), sorted. */
+export function gestureSampleCards(value) {
+  const out = new Set();
+  const walk = (x) => {
+    if (!x || typeof x !== 'object') return;
+    if (Array.isArray(x)) { for (const y of x) walk(y); return; }
+    if ((x.type === 'sample' || x.kind === 'sample') && typeof x.library === 'string') out.add(x.library);
+    for (const k in x) walk(x[k]);
+  };
+  walk(value);
+  return [...out].sort();
 }
 
 /**

@@ -39,6 +39,20 @@ export const circlePts = (r, n) => Array.from({ length: n }, (_, k) => {
 // `tint` recolors the form's PRIMARY material; structural accents (flag pole,
 // skull eye sockets) keep their fixed colors so the silhouette stays legible.
 
+// a TREASURE CHEST (the chest and chest-open forms): a box of wood, its lid a half-round barrel along its width, two gold
+// bands round both and a gold lock on its front (+y, the figure's forward); open, the lid stands back on its hinge and
+// the inside shows dark
+const CHEST = Object.freeze({ w: 0.9, d: 0.6, h: 0.42, r: 0.3, band: 0.07, gold: '#e8b730', dark: '#2e1d10' });
+function chestFaces(tint, open) {
+  const { w, d, h, r, band, gold, dark } = CHEST;
+  const slab = (sw, sh, sd, z, c) => extrudeToFaces({ profile: { rect: { w: sw, h: sh } }, axisFrom: { x: 0, y: -sd / 2, z }, axisTo: { x: 0, y: sd / 2, z } }, { tint: c });
+  const barrel = (x0, x1, rad, c) => latheToFaces({ axisFrom: { x: x0, y: 0, z: h }, axisTo: { x: x1, y: 0, z: h }, profile: [{ t: 0, radius: rad }, { t: 1, radius: rad }], crossSections: 16, samples: 2 }, { tint: c });
+  const body = [...slab(w, h, d, h / 2, tint), ...[-0.3, 0.3].flatMap((x) => shift(slab(band, h + 0.01, d + 0.02, (h + 0.01) / 2, gold), [x, 0, 0]))];
+  if (!open) return [...body, ...barrel(-w / 2, w / 2, r, tint), ...[-0.3, 0.3].flatMap((x) => barrel(x - band / 2, x + band / 2, r + 0.012, gold)), ...shift(slab(0.12, 0.14, 0.04, h + 0.02, gold), [0, d / 2 + 0.01, 0])];
+  // (open: the inside a dark slab under the rim, the lid stood back on its hinge behind)
+  return [...body, ...slab(w - 0.06, 0.02, d - 0.06, h + 0.005, dark), ...shift(slab(w, 2 * r, 0.08, h + r, tint), [0, -d / 2 - 0.04, 0]), ...[-0.3, 0.3].flatMap((x) => shift(slab(band, 2 * r + 0.01, 0.1, h + r, gold), [x, -d / 2 - 0.04, 0]))];
+}
+
 export const GLYPH_FORMS = {
   gem: {
     name: 'Gem',
@@ -135,6 +149,26 @@ export const GLYPH_FORMS = {
     },
   },
 
+  chest: {
+    name: 'Treasure chest',
+    summary: 'A wooden chest with a rounded lid, bound in gold bands, a lock on its front — shut, something inside.',
+    when: 'treasure found off the path in a party RPG or an adventure: walk up and open it (a chest menu, loot: all)',
+    tint: '#8b5a2b',
+    symmetry: 'bilateral',
+    idle: 'bob',
+    fit: { height: 0.74, cz: 0.4 },
+    build: ({ tint }) => chestFaces(tint, false),
+  },
+  'chest-open': {
+    name: 'Open chest',
+    summary: 'The same chest with its lid thrown back on its hinge, its inside dark — emptied, found.',
+    when: 'a chest already opened: what stands where a treasure chest was looted',
+    tint: '#8b5a2b',
+    symmetry: 'bilateral',
+    idle: 'bob',
+    fit: { height: 0.98, cz: 0.4 },
+    build: ({ tint }) => chestFaces(tint, true),
+  },
   'ammo-crate': {
     name: 'Ammo crate',
     summary: 'A drab steel ammunition box, a stencil band across it — rounds, a resupply.',

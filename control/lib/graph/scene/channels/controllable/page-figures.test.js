@@ -91,8 +91,8 @@ describe('the encounter\'s backdrop', () => {
   });
 });
 
-describe('the arena\'s clearing', () => {
-  it('is on a page whose fights are solved onto the map, and only there', async () => {
+describe('the fight\'s clearing', () => {
+  it('is on a page with party battles, whatever their stage, and only there', async () => {
     const { emitThreeWorld } = await import('../../scene-three.js');
     const ENT = [{ id: 'hero', body: { type: 'box' }, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }];
     const page = (stage) => emitThreeWorld({ faces: [], entities: ENT, events: { reactions: [{ on: 'rpg-won', do: 'emit', type: 'cheer' }], rpg: { party: [{ id: 'hero', class: 'fighter' }], rules: { stage } } } });
@@ -102,7 +102,9 @@ describe('the arena\'s clearing', () => {
     const html = page('arena'), mod = html.slice(html.indexOf('<script type="module">') + 22, html.lastIndexOf('</script>'));
     const check = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: mod, encoding: 'utf8' });
     expect(check.stderr).toBe('');
-    expect(page('live')).not.toContain('window.__mojClip = {');
+    // (a fight on the map where it was met keeps its shot clear too, rpg-channel.js stage; a page with no fights has none)
+    expect(page('live')).toContain('window.__mojClip = {');
+    expect(emitThreeWorld({ faces: [], entities: ENT, events: { reactions: [{ on: 'go', do: 'emit', type: 'cheer' }] } })).not.toContain('window.__mojClip = {');
   });
 
   // A PART WITH ITS PAINT, ITS NORMALS AND ITS FACE (a realistic hero's): welded and on a grid as a plain part is, its

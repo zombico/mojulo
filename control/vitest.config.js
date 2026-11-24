@@ -18,6 +18,9 @@ export const E2E = [
   'lib/graph/gameworld/door-probes.e2e.test.js',
   // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed
   'lib/mcp/tools/shoot-contact.e2e.test.js',
+  // the default heroes minted and exported as an engine takes them, held under their game budget (triangles, vertices,
+  // the atlas, the body opaque)
+  'lib/mcp/tools/hero-budget.e2e.test.js',
   // the exhibit starters made through create_exhibit: Pompeii resolves a whole historic town and its people
   'lib/graph/exhibit/starters.e2e.test.js',
   // a glyph map built whole through the kit's builder, tile by tile, and its laws measured (level/grid-scene.js)
@@ -76,6 +79,8 @@ export const E2E = [
   'lib/graph/gameworld/worldmap-bed.live.test.js',
   // the JRPG starter's town played: a townsperson's talk in the talk box, the innkeeper's inn
   'lib/graph/gameworld/jrpg-town.live.test.js',
+  'lib/graph/gameworld/jrpg-story.live.test.js', 'lib/graph/gameworld/wardrobe.live.test.js', 'lib/graph/gameworld/fight-clear.live.test.js',
+  'lib/graph/gameworld/jrpg-wilds.live.test.js',
   // the hover bot over a little world in headless Chromium: its ground cast, its teleport, its flight's step and hole
   'lib/graph/scene/hover-bot.live.test.js',
   'lib/graph/game/pause-owner.live.test.js',
@@ -95,6 +100,8 @@ export const E2E = [
   'lib/graph/scene/live-light.chrome.test.js',
   'lib/mana-ui/snapshot.chrome.test.js',
   'lib/graph/scene/channels/controllable/armed-body.chrome.test.js',
+  // keying in play: a walking body on twos in headless Chrome, its pose on the key and its place on every frame
+  'lib/graph/scene/channels/controllable/keying.chrome.test.js',
   // the ray budget: a walker on a gen-7 land in headless Chrome, no ray testing a big mesh triangle by triangle
   'lib/graph/scene/channels/controllable/ray-budget.chrome.test.js',
   // big grounds: a flight's land and a race's backdrop loaded in headless Chrome, their heap held under a ceiling

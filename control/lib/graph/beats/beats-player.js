@@ -25,8 +25,25 @@
  */
 
 import { emitBeatsKernel } from './beats-kernel.js';
-import { beatsFeatures, pagePatches } from './beats-features.js';
+import { beatsFeatures, pagePatches, sampleCards } from './beats-features.js';
+import { sampleSliceBase64 } from '../sound-library/library.js';
 import { expandBeatsManifest } from './beats-authoring.js';
+
+// The recorded pieces' samples (the sound library's), inlined when the recipe plays any and this machine holds them:
+// each engine decodes them before its transport starts, so the first hit is already the recording. A recipe without
+// recorded pieces, or a machine without the library, adds nothing here (its pieces play their synthesized stand-ins).
+function samplerScript(manifest) {
+  const cards = sampleCards(manifest);
+  const slice = cards.length ? sampleSliceBase64(cards) : null;
+  if (!slice) return '';
+  return `const SAMPLES = ${JSON.stringify(slice)};
+{ const make = KERNEL.createEngine; KERNEL.createEngine = (c, o) => { const e = make(c, o);
+  const bytes = Object.fromEntries(Object.entries(SAMPLES.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (ch) => ch.charCodeAt(0)).buffer]));
+  const ready = e.loadSamples({ cards: SAMPLES.cards, bytes, roots: SAMPLES.roots, loops: SAMPLES.loops, vels: SAMPLES.vels, keyAt: SAMPLES.keyAt, keyRoot: SAMPLES.keyRoot });
+  for (const k of ['startAmbient', 'startComposition', 'startPattern']) { const f = e[k]; e[k] = (r, p) => { ready.then(() => f(r, p)); }; }
+  return e; }; }
+`;
+}
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -187,7 +204,7 @@ const MANIFEST = ${JSON.stringify(manifest)};
 const META = ${JSON.stringify({ ref: opts.ref || null, rev: opts.rev || null })};
 const PATCHES = ${JSON.stringify(pagePatches(manifest))};
 const KERNEL = (${emitBeatsKernel(beatsFeatures(manifest))})();
-let ctx = null, engine = null, analyser = null, playing = false, playT0 = null;
+${samplerScript(manifest)}let ctx = null, engine = null, analyser = null, playing = false, playT0 = null;
 
 function ensureEngine() {
   if (engine) { if (ctx.state === 'suspended') ctx.resume(); return engine; }

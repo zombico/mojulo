@@ -7,7 +7,9 @@ sounds belong to the interface. The code is [control/lib/graph/sfx-shelf/](../co
 ## How a sound is stored
 
 Nothing on the shelf is stored as audio. Every sound is a small recipe of numbers, synthesized whenever it is played
-or exported, the same way in a game page and in a WAV. There are three kinds of recipe:
+or exported, the same way in a game page and in a WAV. The one addition is opt-in and lives outside the shelf: where
+the recorded sound library is installed, a row it records plays its recording ([Recorded voices](#recorded-voices),
+below). There are three kinds of recipe:
 
 - **A cue** (a one-shot) is a list of gestures, each a simple way to make sound:
 
@@ -293,10 +295,99 @@ its own reload time (`mag out`, `mag in`, `rack`), its hit (`flesh impact`), its
 `blade swing` and `blade hit`, a rocket's `explosion`, footsteps on `step concrete`, on a mix in the open. A game
 names its own word for any of them.
 
+## Recorded voices
+
+Where the recorded sound library is installed on this machine ([sound-library.md](sound-library.md)), a row the library
+records is voiced by its recording in the `realistic` style: `sfxSound(word)` answers one `sample` gesture naming the
+library's card, with the row's synthesized gestures as its `fallback`, and `recorded` on the result says which card.
+Each hit plays one of the card's takes, chosen by the hit's variant, so a footstep or a gunshot never repeats itself.
+A row `realistic` does not voice at all (a creature only the mouth style voices) is given one by its recording.
+
+It stays synthesized wherever the library does not answer: another style, a row asked for at its own dials (an
+explosion at `size: 'huge'` is a design point, not the recording), or a machine without the library, where every
+answer is byte for byte what it was. A held voice is recorded only where `sfx-shelf/recorded-held.js` tunes it (the
+engines, the tyres, the road): the engine's loops crossfaded by the row's own rev range, the synthesized spec the
+fallback ([sound-library.md](sound-library.md)). On a page the samples are inlined (as
+MP3) only when its cues play them; a cue whose recording is not decoded yet plays its fallback, exactly as it would
+have sounded without the library.
+
+A recorded VARIANT is a row of its own the library records (`recorded: true`), heard as its `standIn`, the nearest row
+the shelf voices, until the library is installed: a light suit's footstep (`mech-step-light`) is `mech-step` until its
+recording arrives, so a page that names it sounds as it did. A variant with no stand-in (a rocket's boost) is silent
+without the library.
+
+## A mobile suit's kit
+
+`sfx-shelf/suit-sounds.js` hears a mobile suit by three axes, so several suits can be designed and each sounds as
+itself: its WEIGHT (`SUIT_WEIGHTS`: light, medium, heavy; its footfall, its landing, its servos), its DRIVE
+(`SUIT_DRIVES`: rocket, jet, ion; its booster held by the thrust, the boost's ignition, the quick boost) and its
+LOADOUT (`SUIT_ARMS`: each weapon's shot, hit, charge or swing), and what every suit shares (`SUIT_SHARED`: the roll,
+the jump and its gathering, the overheat and its vent, the transform both ways, the lock-on, the power-up).
+`suitSounds({ weight | mass, drive?, arms? })` answers the shelf words; a weight is read from a frame's mass (under 6 t
+light, under 12 t medium) or a feel's mech weight (0 swift to 1 heavy), and a suit that names no drive takes its
+weight's. A new value on an axis is a row of its table.
+
+Its clients: a game's sheet (`sound.suit`, the suit it designs, heard as written; a feel with a mech, Mech Battle Kai's,
+heard as its weight implies only where the library records it), and the firing range's walking frames (their
+footfalls and servos by their mass). Mech Battle Kai's recordings voice every row of the kit
+([sound-library.md](sound-library.md)).
+
+## Magic as a kit
+
+`sfx-shelf/magic-sounds.js` hears magic by what it is. Each ELEMENT (`ELEMENTS`: fire, ice, thunder, water, wind,
+earth, light, dark, poison, nature, arcane; the words games use for them, `ELEMENT_WORDS`: lightning is thunder, holy
+is light, shadow is dark) has its phases and tiers: the cast gathering (`<el>-cast`), then the blow as a bolt (minor),
+a burst (major) or a cataclysm (ultimate). Then the STATUSES taken (`status-<s>`: poison, burn, freeze, paralysis,
+sleep, silence, confusion, blindness, stun, petrify, doom, regen, haste, slow, berserk, barrier) and what every status
+shares (a stat up or down, a cure, a status wearing off, poison's tick); the SPELLS that are no element's blow (a great
+heal, a revive, a drain, mana, a dispel, time stopped, the shelf's heal, buff, curse, teleport and summon); a BATTLE's
+moments (its start, a boss appearing, a critical hit, a weakness struck, a blow resisted, a foe dissolving, a level
+gained, a skill learned); and the WORLD (a quake, the ground cracking, stone rising and sinking, lava erupting, a flood,
+ice spreading, vines growing, a portal opening and closing, a ward, the sky darkening, dawn breaking; held: lava, a
+portal's hum, an arcane aura, a poison bog). Every word is a row (`MAGIC_ROWS`, laid by the roster), recorded and heard
+as its stand-in until the library records it. A new element, status or world effect is a row of its table.
+
+`skillSounds(skill)` hears an RPG skill (playscape/rpg's shape) as cast and as landed: its element at its tier (a skill
+on every foe, or a blow of power 10 and more, is major), a heal (great by its reach), a revive, a stat raised or
+lowered; a blow with no magic casts nothing. `battleSounds(skills)` turns a battle's happenings (the RPG's `juiceKeys`,
+on the bus as `rpg-on:<key>`) into two lanes, the act (a status, a heal, a blow by its skill then its element, a cast)
+and its end (a foe dissolving, a member falling, a level, the fight's start), and the accents (a crit, a weakness): of
+the happenings a frame carries, the page plays the first of each lane and the accents over them (`audio.battle`, the
+audio channel's). A game that lays battles (`gameworld/battles.js`, Isekai Party's) is heard this way where the library
+records the kit; `sound: { battle: false }` turns it off.
+
+## The animals
+
+`sfx-shelf/animal-voices.js` hears the animals by VOICE CLASS: a class is a way an animal is heard (a big cat, a
+canine, a bird of prey, a buzzing insect, a crawler, a whale, a dragon, a slime, a golem, the undead), and every class
+has the same four calls (`ANIMAL_CALLS`): its `call` at rest, its `alert` (a threat, an attack), its `hurt` and its
+`death`; with what moves without a voice (`MOVES`: small wings, great wings, a slither, a fish's splash, a whale's
+breach, a swarm held). Each is a recorded row, silent until the library records it. `sfx-shelf/animal-sounds.js` says
+which animal is which class from the catalogs the animals are made from: the fauna roster by its family
+(`FAMILY_VOICE`), the insects by their order (`ORDER_VOICE`), a species heard its own way (`SPECIES_VOICE`: a fox
+screams, a hyena laughs, a donkey brays), a foe class by the species it stands on, the RPG's bestiary and a game's
+words by `MONSTER_VOICE`. A fish, a shark or a cephalopod has no voice: its moves only. A new family, order or monster is
+a row of its table; a test holds the tables to every family and order the catalogs have.
+
+Its clients: the mount lane's horse (`gameworld/mount-lane.js`: its hooves held by its pace while ridden, the equine's
+call as the hero settles in the saddle, its alert as it is urged to the gallop; the audio channel's `audio.mount`), a
+biocube's fauna (`era/fauna-audio.js`: each field kind's sound settings, `FIELD_SOUNDS`, which call, how often, how far
+and how loud, a firefly's and a butterfly's none; each herd from its ground by its voice's weight, `HERD_SOUND`; laid as
+the page's place sounds, `audio.emitters`), a game's foes in an action level (`sound-sheet.js` foeSoundsOf: a beast's attack, hurt and fall in its
+class's voice, by its species or its class's stand-in, so an unskinned brute is a bear) and a party battle's foes (each
+foe's fall, `ko:<foe>`, in its own voice ahead of the magic kit's dissolve), both only where the library records the
+class.
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
 (`gameworld/practice-room.js`) name their sounds by word and wire them to a moveset's events (`audio.moves`, the
 world-audio card); made levels do not yet. To come: wiring weapon roles, explosion presets, body sizes,
 surfaces and vehicles to their sounds by word, a level's held voices on its `hold` slot (an engine on a vehicle's
-throttle), and WAVs in the engine handoff.
+throttle), a suit's boost, quick boost, overheat and transform on a level; magic on the action games (Fable of Artesia's
+spells, the cast op's statuses: `worlds/controllable/cast.js` emits no event when a status is taken), the RPG's
+statuses wearing off and poison's tick (its kernel names neither), the world's effects and terrain on the events that
+could carry them (a rupa break by how it broke, a hazard by its kind); the animals beyond the foes and the field: a herd
+answering when petted or struck (`petted`, its hits), the sea's walkers (no events), a game's own mounts beyond the
+lane's (the level runtime does not carry the mech's
+boost yet: `feel/lower.js` LOST), recorded beds (the library's ambience loops), and WAVs in the engine handoff.

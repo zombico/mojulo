@@ -18,6 +18,8 @@ Three segments, a page each, joined by doors that carry what is held and the bod
 | level 1, the perimeter | `level-1-perimeter.html` | the yard: the hangar's door, and on past it the barracks, the hangar's key down its corridor past a sentry | `level1.json` | `yard.mjs` |
 | level 1, the hangar | `level-1-hangar.html` | the briefed intel, three clues, a lift down to what was not in the briefing, the stairwell out | `level1.json` | `hangar.mjs` |
 | the holding block | `holding-block.html` | a level of the `holding` kind: captured, the kit taken; out of a cell block by the turnkey's round, the kit back on the way, the front door | `holding.json` | `holding.mjs` (`--plan`: its laws) |
+| level 1, the siege walker | `boss-siege-walker.html` | the boss, out the hangar hall's back doors once the walker's proof is held: standing, it lays a barrage (every landing marked: a wall between you and the gun), reloads with its tails and walks its round; mines on its round break its legs, its reloaders shot from behind slow its reload. Folded onto its wheels it is fought as the tank is, its hips open from its sides | `lib/graph/boss/vehicles.js` `siege-walker` | `boss.mjs --boss siege-walker` (`--tank`: start it folded; `--plan`: its laws) |
+| the brood walker | `boss-brood-walker.html` | a boss beaten with its own drones: its gunners (roof, two hangar doors) put down from outside their arcs, a courier (the green mark) hacked with the RF gun held on it, the package it fetches carried home into an open door; from the second delivery its drones chase it (shoot them off it); three deliveries | `lib/graph/boss/vehicles.js` `brood-walker` | `boss.mjs --boss brood-walker` |
 | the facilities | `<id>.html` | a facility (era/facilities.js: depot, power-plant, motor-pool, research-wing, field-hq) built as a building level, its rooms laid in figures, a guard walking its hall | `lib/graph/era/facilities.js` | `facilities.mjs` (`--plan`: each room's laws and the hall crossed bare and laid; `--svg`: plans) |
 
 Level 1 is a walled-core dungeon in miniature (`docs/walled-core-dungeon.md`): each layer a segment, each door gated by
@@ -48,6 +50,9 @@ something found in the layer before. `plan.mjs` reads it dry and holds it to the
 | what the level sounds like | `level0.json` `audio` (the geocube's) | `soundtrack` and `combat` (a field mood each: `field:tension`, `field:battle`), `tension.on` (which events raise the score: the alarm's `alarm:found`, `alarm:sweep`, `alarm:call`, `alarm:detected`, a guard's `seen`), `wind`, `bed`, `sfx.sheet` (`slots`: the steps' and the shot's shelf words; `events`: any event to a shelf word) |
 | the trail's rocks | `level0.json` `path` (the geocube's) | `rubble`: `'parallax'` (fewer, drawn in the ground's shader, none stood up: the cheap road), `true` (stones stood up), `false` (none) |
 | how much the page costs a frame | `level0.json` `performance` | `light` (`off` / `half` / `full`), `occlusion`, `cone` (real grass's reach), `bodies` (`blob`: no body drawn into the live shadow map, a pool at the feet; `live` for real shadows). The play grade (`figureGrade: 'play'`) also draws each body in one call, not one a part |
+| the siege walker | `boss/vehicles.js` `siege-walker`; its arena in `boss.mjs` `ARENAS` | its parts (`hits`, `from`, `shown`), its states (the barrage's `tempo`, the reload's `after` and how much `slower` each reloader shot down makes it, the walk's, the fold's), its `speed`; the apron's `cover` and `route`; the kit's mines (`reserve`) |
+| the brood walker | `boss/vehicles.js` `brood-walker` `carrier`; its arena in `boss.mjs` `ARENAS` | `crew` (where each gunner stands, its `face` and `arc`), `fire` (`lay`, `every`, `burst`, `harm`, `range`), `drones` (`reprint`, `hunter.drop`, `courier.every`, `chase`: `after`, `most`, `hurt`), `hack`, `delivery.harm`; the yard's `cover`, `shelters` (a roof is cover from a drop) and `packages`; the boss's health |
+| how any tank is fought | `boss/vehicles.js` `tank` | its states, its moves and its parts: the siege walker's folded form takes them as they are |
 | the lift's scene | `hangar.mjs` `shoot` | a shoot plan's keys and a cue (`/direct`, `docs/cinematics.md`) |
 
 ## Change, then prove
@@ -74,6 +79,8 @@ Then build the pages (each a few minutes; `--hero` and `--guard` need the databa
 node scripts/spikes/mission/level0.mjs --out /abs/dir --hero <ref> --guard <ref>
 node scripts/spikes/mission/yard.mjs   --out /abs/dir --hero <ref> --guard <ref>
 node scripts/spikes/mission/hangar.mjs --out /abs/dir --hero <ref> --guard <ref>
+node scripts/spikes/mission/boss.mjs   --boss siege-walker --out /abs/dir --hero <ref>
+node scripts/spikes/mission/boss.mjs   --boss brood-walker --out /abs/dir --hero <ref> --guard <ref>
 ```
 
 Keep the three pages in one folder under their names: a door goes to the next page by its file name.

@@ -1,3 +1,7 @@
+// Re-pinned 2026-11-23 (the jump's missing moves): every fixture that embeds the controllable runtime. The platform rule
+// gained `hang`, `landLag` and `pound` (rules-platform.js: the apex held, the landing's lag, the stomp attack), each
+// taken only by a rule that names it (no fixture's does). Checked: each moved hash is the old emission with only the
+// platform builder's source swapped; their worlds step as before.
 // Re-pinned 2026-11-18 (the open city's shops and guns): every fixture that embeds the controllable runtime. A weapon
 // may start with fewer rounds than it holds (combat-ranged.js `loaded`), the cast gains `repaint` (a respray), and a
 // moveset's hero may carry its sidearm in a holster (combat-melee.js `holster`, its trigger in combat-ranged.js). Each
@@ -35,6 +39,13 @@ import { emitThreeWorld } from './scene-three.js';
 // The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
 // whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
 //
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont merged with 1116-rc): `game`, `kitchen-sink`, `kitchen-sink-capture`,
+// `brawl`, `holo` and `mission`, each pinned anew on both sides since they parted: the candidate's emission and the
+// branch's (the party RPG's channel and its fight shot, the wardrobe's looks, the music an event changes to, a walk that
+// finds its way, mana-ui's name keyboard) read together. Every other page is the candidate's, byte for byte.
+// Re-pinned 2026-11-24 (1119-jrpg-starter-cont: a name typed in game): `brawl`, `mission` and `holo`, the pages that
+// embed the game UI runtime whole. Its text entry grows a name's keyboard (`charset: 'name'`: pages, Space, Cancel, `min`),
+// a pad's back erasing a draft and its shoulders turning the pages, and two words (Space, Page). Nothing else moved.
 // Re-pinned 2026-11-20 (start screens, mana-ui's letters): `brawl`, `mission` and `holo`, the pages that embed the game UI
 // runtime: its text takes `letters` (a display entering letter by letter) and its kernel source carries the split. No
 // page here draws letters (their sheet, lettersCss, is laid only by the play shell's title and the board); they draw as before.
@@ -1180,3 +1191,7 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Pinned 2026-11-24 (1122-sim-fixing: the speed's look): the `speedfx` fixture joins the matrix (a flown craft's speed in
 // the world round it, channels/speed-fx.js: the air's speed lines, space's dust, driven by its pilot's speed). Every other
 // page is byte-identical, and a page without a `speedfx` key emits no block.
+// Re-pinned 2026-11-24 (1122-sim-fixing merged with 1116-rc): the pages of the controllable channel carry both
+// branches' emission (this branch's rail and starfighter rules and the cockpit's HUD; 1116-rc's keying clock, route
+// finding and a member's looks), so the pins both had moved are pinned again over the merged emission. Each moved pin
+// was one this branch had re-pinned for its own channels; every other page is byte-identical to 1116-rc.

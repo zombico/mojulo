@@ -69,7 +69,10 @@ describe('the megaworld', () => {
     const c = stages.findIndex((s) => s.level === 'citadel'), core = stageLevelOrder(G, stages[c], { ref: refs[c], heroRef: null, map: plan[c] }).args.manifest.game.mechanics.filter((x) => x.kind === 'reach-exit');
     expect(core.map((x) => x.exit ?? null).sort()).toEqual(['back', null]);
     expect(coreOf(G.megaworld, stages, refs)).toBe('ref-citadel');
-    expect(coreOf({ shape: 'chain', rings: [['town'], ['woods']] }, stages, refs)).toBeNull();
+    // (a chain ends at its last zone; a hub or an open world at its `end`, else nowhere)
+    expect(coreOf({ shape: 'chain', rings: [['town'], ['woods']] }, stages, refs)).toBe('ref-woods');
+    expect(coreOf({ shape: 'hub', rings: [['town'], ['woods']] }, stages, refs)).toBeNull();
+    expect(coreOf({ shape: 'hub', rings: [['town'], ['woods']], end: 'woods' }, stages, refs)).toBe('ref-woods');
     // (the store: the atlas slice, and the story flags a won pack is kept in)
     const store = gameStore(world, null);
     expect(store.slices.find((s) => s.name === ATLAS_SLICE)).toEqual({ name: ATLAS_SLICE, kind: 'flags' });
@@ -80,4 +83,18 @@ describe('the megaworld', () => {
     expect(validateGameManifest(game).errors.filter((e) => /atlas/.test(e))).toEqual([]);
     expect(validateGameManifest({ ...game, atlas: { ...atlas, slice: 'hero' } }).errors.join(' ')).toMatch(/atlas\.slice is a flags slice/);
   });
+
+  it('takes crossings aboard: a way beside the rings\' own, its vessel on the link, shut until its flag', () => {
+    const C = { ...M, crossings: [{ from: 'town', to: 'meadows', by: 'ship' }, { from: 'woods', to: 'citadel', by: 'airship', needs: 'airship-won' }] };
+    const L = megaworldLinks(readMegaworld(C, levels));
+    expect(L.slice(-2)).toEqual([{ from: 'town', to: 'meadows', kind: 'gate', by: 'ship' }, { from: 'woods', to: 'citadel', kind: 'gate', by: 'airship', needs: 'airship-won' }]);
+    expect(() => readMegaworld({ ...M, crossings: [{ from: 'town', to: 'meadows', by: 'balloon' }] }, levels)).toThrow(/ship or airship/);
+    expect(() => readMegaworld({ ...M, crossings: [{ from: 'town', to: 'nowhere', by: 'ship' }] }, levels)).toThrow(/no level/);
+    // (the way aboard rides to the game's exits: out and back)
+    const W2 = stampMegaworld({ id: 'w', levels, megaworld: { ...M, crossings: [{ from: 'town', to: 'meadows', by: 'ship' }] } });
+    const stages = gameStages(W2), refs = stages.map((s) => `ref-${s.level}`), plan = mapPlan(readGameworld(W2), stages, refs), Lv = gameLevels(stages, refs, plan);
+    expect(Lv.find((l) => l.ref === 'ref-town').exits.filter((x) => x.crossing)).toEqual([expect.objectContaining({ to: 'ref-meadows', crossing: { by: 'ship' } })]);
+    expect(Lv.find((l) => l.ref === 'ref-meadows').exits.filter((x) => x.crossing)).toEqual([expect.objectContaining({ to: 'ref-town', crossing: { by: 'ship' } })]);
+  });
 });
+

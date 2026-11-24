@@ -237,9 +237,16 @@ for (const [name, base, extra] of [
 const round3 = (x) => Math.round(x * 1000) / 1000;
 const pulse = (d, n) => Array.from({ length: n }, (_, i) => round3(Math.abs(Math.sin(Math.PI * (i + 1) * d)) / (i + 1) / Math.sin(Math.PI * d)));
 const REED = { drift: 2, curve: 'exp', keyTrack: 0.4 };
+const SAX = [1, 0.7, 0.52, 0.38, 0.3, 0.22, 0.16, 0.11, 0.08, 0.05, 0.035, 0.02];
 Object.assign(PATCHES, {
   flute: { voice: 'osc', harmonics: [1, 0.12, 0.05, 0.02, 0.01], attack: 0.06, decay: 0.12, sustain: 0.88, release: 0.22, volume: -15, curve: 'exp', vibrato: { rate: 5.2, depth: 11, delay: 0.35 }, breath: { level: -26, tone: 2600, q: 0.9 }, attackNoise: { level: -22, decay: 0.03, tone: 3200, q: 0.8 }, filter: { mode: 'lowpass', freq: 5200, q: 0.5 }, keyTrack: 0.3 },
   clarinet: { voice: 'osc', harmonics: [1, 0.03, 0.62, 0.03, 0.38, 0.02, 0.24, 0.02, 0.14, 0.01, 0.08, 0.01, 0.05], attack: 0.035, decay: 0.1, sustain: 0.9, release: 0.16, volume: -15, ...REED, keyTrack: 0.6, breath: { level: -34, tone: 1800, q: 0.8 }, filter: { mode: 'lowpass', freq: 2600, q: 0.6 } },
+  // the saxophones: a conical bore, so every harmonic sounds, falling off gently (the clarinet's cylinder keeps the odd
+  // ones), a reed's drift, its breath, a singer's vibrato; darker and breathier the bigger the horn
+  saxSoprano: { voice: 'osc', harmonics: SAX, attack: 0.04, decay: 0.12, sustain: 0.88, release: 0.16, volume: -16, ...REED, keyTrack: 0.5, vibrato: { rate: 5.6, depth: 12, delay: 0.3 }, breath: { level: -28, tone: 3000, q: 0.8 }, filter: { mode: 'lowpass', freq: 4600, q: 0.7 } },
+  saxAlto: { voice: 'osc', harmonics: SAX, attack: 0.04, decay: 0.12, sustain: 0.88, release: 0.17, volume: -16, ...REED, keyTrack: 0.5, vibrato: { rate: 5.4, depth: 14, delay: 0.32 }, breath: { level: -27, tone: 2600, q: 0.8 }, filter: { mode: 'lowpass', freq: 3800, q: 0.7 } },
+  saxTenor: { voice: 'osc', harmonics: SAX, attack: 0.045, decay: 0.14, sustain: 0.88, release: 0.18, volume: -15, ...REED, keyTrack: 0.5, vibrato: { rate: 5.2, depth: 16, delay: 0.35 }, breath: { level: -26, tone: 2200, q: 0.8 }, filter: { mode: 'lowpass', freq: 3000, q: 0.7 } },
+  saxBaritone: { voice: 'osc', harmonics: SAX, attack: 0.05, decay: 0.15, sustain: 0.9, release: 0.2, volume: -14, ...REED, keyTrack: 0.5, vibrato: { rate: 4.8, depth: 12, delay: 0.4 }, breath: { level: -26, tone: 1600, q: 0.8 }, filter: { mode: 'lowpass', freq: 2200, q: 0.7 } },
   oboe: { voice: 'osc', harmonics: pulse(0.14, 16), attack: 0.03, decay: 0.08, sustain: 0.9, release: 0.14, volume: -19, ...REED, vibrato: { rate: 5.4, depth: 9, delay: 0.3 }, breath: { level: -36, tone: 2200, q: 0.8 }, filter: { mode: 'lowpass', freq: 4600, q: 0.7 } },
   bassoon: { voice: 'osc', harmonics: pulse(0.2, 14), attack: 0.04, decay: 0.1, sustain: 0.88, release: 0.18, volume: -15, ...REED, vibrato: { rate: 4.8, depth: 7, delay: 0.4 }, breath: { level: -36, tone: 900, q: 0.8 }, filter: { mode: 'lowpass', freq: 1900, q: 0.8 } },
   // concert harp: a tuned string, soft finger (pick), long bass ring, rings on after the note.
@@ -483,3 +490,134 @@ for (const g of ['guitarClean', 'guitarNylon', 'guitarClassical', 'guitarFlamenc
 // thud at key-off, a longer release toward the bass, no damper above E6;
 // `ringExact`: the treble rings its ringT60 instead of dying in the loop filter. New name.
 PATCHES.pianoGrand3 = { ...PATCHES.pianoGrand, unisonSpread: 0.6, life: true, ringExact: true, damper: { above: 88, bass: 2, thud: -34, tone: 260, ring: 2.5 } };
+
+// The recorded rock kit (the sound library's): each piece a `voice: 'sample'` naming its library card, its variants
+// one per hit by the note's key, played to its end; on a machine without the library (or before its samples are
+// decoded) each piece plays the arena kit's synthesized piece it stands in for (`fallback`). The kit keeps the arena
+// kit's map, the pieces the library does not hold (rim, ride, china, bell, splash) still synthesized. New names.
+// Not on the instrument shelf: heard beside the synthesized 90s kit in the robot rock band, the synthesized kit won
+// (operator, by ear, 2026-11-22). Kept as the sampler's proving patch, reachable only by naming `recRockKit`.
+const rec = (library, fallback, volume) => ({ voice: 'sample', library, fallback: PATCHES[fallback], attack: 0.001, decay: 0, sustain: 1, release: 0.05, volume });
+Object.assign(PATCHES, {
+  recKick: rec('kick', 'kickAcoustic', -3),
+  recSnare: rec('snare', 'snareArena', -4),
+  recHatClosed: rec('hat-closed', 'hatAcoustic', -11),
+  recHatOpen: rec('hat-open', 'hatAcousticOpen', -12),
+  recTomLow: rec('tom-low', 'tomArenaFloor', -5),
+  recTomHigh: rec('tom-high', 'tomArenaMid', -5),
+  recCrash: rec('crash', 'crashArena', -11),
+});
+PATCHES.recRockKit = { kit: { ...PATCHES.rockKit90s.kit, 35: 'recKick', 36: 'recKick', 38: 'recSnare', 41: 'recTomLow', 43: 'recTomLow', 45: 'recTomLow', 47: 'recTomHigh', 48: 'recTomHigh', 50: 'recTomHigh', 42: 'recHatClosed', 44: 'recHatClosed', 46: 'recHatOpen', 49: 'recCrash', 57: 'recCrash' }, chokes: PATCHES.rockKit90s.chokes };
+// The recorded ORGAN (the sound library's instrument `organ`: an electric drawbar organ's held notes, each take zoned by
+// its measured root and held on its loop, scripts/sound-library/cards/organ.js): each note on its nearest take, bent the
+// rest of the way, its two copies spread a few cents as the synthesized organ's unison is; on a machine without the
+// library (or before its takes are decoded) the synthesized organ it stands in for. A part plays it as
+// `{ instrument: 'organ', patch: 'organRec' }` (the organ's chain kept). Not on the instrument shelf until heard.
+PATCHES.organRec = { voice: 'sample', library: 'organ', zones: true, loop: true, oneShot: false, attack: 0.012, decay: 0.04, sustain: 1, release: 0.12, volume: -12, unison: 2, detune: 4, keyOff: -20, fallback: PATCHES.organ };
+// The recorded PIANO (the sound library's instrument `piano`: a grand's notes struck once and left to ring, each zoned
+// by its measured root, scripts/sound-library/cards/piano.js): each note on its nearest take, bent the rest of the way,
+// ringing as its take does and damped when the key is let go (no loop: a struck string dies away); on a machine without
+// the library the tuned grand it stands in for. Played as `{ instrument: 'grand-piano-3', patch: 'pianoRec' }`.
+PATCHES.pianoRec = { voice: 'sample', library: 'piano', zones: true, oneShot: false, attack: 0.002, decay: 0, sustain: 1, release: 0.3, volume: -18, keyOff: -14, fallback: PATCHES.pianoGrand3 };
+// The robot band's colour instruments and its bass recorded (scripts/sound-library/cards/band.js), struck once and left
+// to ring, each on its nearest measured take and damped when the note ends; each falls back to the synthesized patch it
+// stands in for. The vibraphone was recorded with its motor off: the synthesized one's tremolo is laid over its takes.
+const recStruck = (library, synth, release, volume, extra = {}) => ({ voice: 'sample', library, zones: true, oneShot: false, attack: 0.001, decay: 0, sustain: 1, release, volume, ...extra, fallback: PATCHES[synth] });
+Object.assign(PATCHES, {
+  celestaRec: recStruck('celesta', 'celesta', 0.5, -9),
+  vibraphoneRec: recStruck('vibraphone', 'vibraphone', 0.4, -7, { tremolo: PATCHES.vibraphone.tremolo }),
+  steelpanRec: recStruck('steelpan', 'steelpan', 0.3, -3.5),
+  bassPickRec: recStruck('bass', 'bassPick', 0.12, -7.3),
+  // the rest of the band: one clean guitar under both guitars (the amp and the room are their chains'), the rhythm's
+  // pick detune as two copies a few cents apart, the lead's resonant lowpass kept; the brass and the strings held on
+  // their loops, the brass brighter the harder it is played (a lowpass opened by velocity, for its operators'), the
+  // strings with the string machine's swell, its release and its vibrato; the slap bass struck. A guitar's level is its
+// amp's makeup (`ampTrim`, dB, laid on the instrument's amp as the part expands: beats-manifest.js), a saturating amp's
+// output following its makeup, not its input
+  guitarRec: recStruck('guitar', 'guitarAmp', 0.22, -14, { unison: 2, detune: 9, ampTrim: 3.7 }),
+  guitarLeadRec: recStruck('guitar', 'guitarLead', 0.2, -13, { filter: { ...PATCHES.guitarLead.filter }, ampTrim: -4.3 }),
+  brassRec: recStruck('brass', 'fmBrass', 0.25, -6.4, { loop: true, attack: 0.02, filter: { mode: 'lowpass', freq: 5200, q: 0.6 }, velToFilter: 1.2 }),
+  stringsRec: recStruck('strings', 'stringMachine', 0.9, -16.8, { loop: true, attack: 0.25, decay: 0.3, sustain: 0.9, unison: 2, detune: 7, lfo: PATCHES.stringMachine.lfo.map((l) => ({ ...l })) }),
+  bassSlapRec: recStruck('slap-bass', 'bassSlap', 0.1, -0.1),
+});
+// More of the shelf (scripts/sound-library/cards/instruments.js): each a twin of the synthesized patch it stands in
+// for. Struck and plucked ones ring as their takes do; bowed and blown ones (recorded with no vibrato) hold on their
+// loops with the synthesized patch's swell, release and filter, its `vibrato` carried as a pitch lfo (the sample voice
+// has no oscillator vibrato) and its unison as copies a few cents apart. The electric guitar plays the band's clean guitar.
+const vibLfo = (v) => (v ? [{ rate: v.rate, target: 'pitch', depth: v.depth, ...(v.delay ? { delay: v.delay } : {}) }] : undefined);
+const recHeld = (library, synth, volume) => {
+  const P = PATCHES[synth];
+  return { voice: 'sample', library, zones: true, loop: true, oneShot: false, attack: P.attack, decay: P.decay ?? 0.1, sustain: P.sustain ?? 1, release: P.release, volume,
+    ...(P.filter ? { filter: { ...P.filter } } : {}), ...(P.unison > 1 ? { unison: 2, detune: P.detune || 0 } : {}), ...(P.vibrato ? { lfo: vibLfo(P.vibrato) } : {}), fallback: P };
+};
+Object.assign(PATCHES, {
+  guitarElectricRec: recStruck('guitar', 'guitarElectric', 0.18, -13.1),
+  guitarCleanRec: recStruck('acoustic-guitar', 'guitarClean', 0.14, -15.3),
+  guitarNylonRec: recStruck('nylon-guitar', 'guitarNylon', 0.16, -15.6),
+  guitarClassicalRec: recStruck('nylon-guitar', 'guitarClassical', 0.22, -14.0),
+  // (its key-off carries a tick at one pitch, about F#3, so it is tuned to the note let go: keyOffTuned)
+  rhodesRec: recStruck('rhodes', 'rhodes', 0.9, -9.7, { keyOff: -14, keyOffTuned: true }),
+  harpRec: recStruck('harp', 'harp', 1.4, -16.8),
+  marimbaRec: recStruck('marimba', 'marimba', 0.3, -7.7),
+  xylophoneRec: recStruck('xylophone', 'xylophone', 0.2, -12.4),
+  glockenspielRec: recStruck('glockenspiel', 'glockenspiel', 0.6, -9.7),
+  bassUprightRec: recStruck('upright-bass', 'bassUpright', 0.12, -5.8),
+  violinRec: recHeld('violin', 'violin', -6.3),
+  celloRec: recHeld('cello', 'cello', -6.5),
+  fluteRec: recHeld('flute', 'flute', -7.6),
+  trumpetRec: recHeld('trumpet', 'trumpet', -9.0),
+  // the rest of the orchestra (scripts/sound-library/cards/orchestra.js): the horns, the low brass, the viola and the
+  // bowed contrabass, the woodwinds held; the timpani and the tubular bells struck
+  frenchHornRec: recHeld('french-horn', 'frenchHorn', -7.4),
+  tromboneRec: recHeld('trombone', 'trombone', -8.0),
+  tubaRec: recHeld('tuba', 'tuba', -4.8),
+  violaRec: recHeld('viola', 'viola', -2.0),
+  contrabassRec: recHeld('contrabass', 'contrabass', -5.3),
+  clarinetRec: recHeld('clarinet', 'clarinet', -9.7),
+  oboeRec: recHeld('oboe', 'oboe', -13.8),
+  bassoonRec: recHeld('bassoon', 'bassoon', -13.0),
+  timpaniRec: recStruck('timpani', 'timpani', 1.2, -2.3),
+  tubularBellsRec: recStruck('tubular-bells', 'tubularBells', 2, -4.2),
+  // the setting colours (scripts/sound-library/cards/colours.js): a court's harpsichord, a title's music box, the
+  // frontier's banjo and harmonica, East Asia's shamisen, the country road's pedal steel
+  // (no key-off: its recorded releases came back with a string buzz at one fixed pitch, near E3, whatever the note)
+  harpsichordRec: recStruck('harpsichord', 'harpsichord', 0.1, -14),
+  musicBoxRec: recStruck('music-box', 'musicBox', 0.8, -16),
+  banjoRec: recStruck('banjo', 'banjo', 0.06, -12),
+  harmonicaRec: recHeld('harmonica', 'harmonica', -9.2),
+  shamisenRec: recStruck('shamisen', 'shamisen', 0.08, -9.0),
+  // (no erhu: its takes came back as a drone, reading D#4 or D#5 whatever note was asked; it stays synthesized)
+  pedalSteelRec: recStruck('pedal-steel', 'pedalSteel', 0.45, -13, { attack: 0.18 }),
+  // the saxophones (scripts/sound-library/cards/saxes.js), held: their vibrato laid over the take
+  saxSopranoRec: recHeld('soprano-sax', 'saxSoprano', -10),
+  saxAltoRec: recHeld('alto-sax', 'saxAlto', -11.3),
+  saxTenorRec: recHeld('tenor-sax', 'saxTenor', -10.5),
+  saxBaritoneRec: recHeld('baritone-sax', 'saxBaritone', -9.1),
+});
+// the orchestra's second and third tiers (violin2, frenchHorn3…: the same instrument, voiced again): each heard on its
+// first tier's recording, at its first tier's twin's level moved as far as the tier's own patch moves from its first's
+const TIER_BASES = ['violin', 'viola', 'cello', 'contrabass', 'trumpet', 'frenchHorn', 'trombone', 'tuba', 'flute', 'clarinet', 'oboe', 'bassoon'];
+// (each tier matched to its own synthesized patch's loudness, measured: a tier's filters and voicing move it as well as
+// its volume does)
+const TIER_TRIM = Object.freeze({
+  violin2: -3.7, violin3: -5.1, viola2: -3.9, viola3: -3.9, cello2: -3.4, cello3: -3.2, contrabass2: -3.4,
+  contrabass3: -3.6, trumpet2: -0.4, trumpet3: -2.7, frenchHorn2: -0.5, frenchHorn3: -1.6, trombone2: -0.3,
+  trombone3: -2.5, tuba2: -0.6, tuba3: -2.4, flute2: -3.0, flute3: 0.5, clarinet2: -3.5, clarinet3: 4.4, oboe2: -2.8,
+  oboe3: 8.9, bassoon2: -2.9, bassoon3: 6.2,
+});
+const TIER_TWINS = {};
+for (const base of TIER_BASES) for (const n of [2, 3]) {
+  const synth = `${base}${n}`, twin = `${base}Rec`;
+  if (!PATCHES[synth] || !PATCHES[twin]) continue;
+  PATCHES[`${synth}Rec`] = recHeld(PATCHES[twin].library, synth, Math.round((PATCHES[twin].volume + ((PATCHES[synth].volume ?? 0) - (PATCHES[base].volume ?? 0)) + (TIER_TRIM[synth] ?? 0)) * 10) / 10);
+  TIER_TWINS[synth] = `${synth}Rec`;
+}
+// each synthesized patch's recorded twin (the sound library's instruments), so a band can be heard recorded where the
+// library is installed: a part names the twin as its patch, keeping its instrument's chain
+export const RECORDED_TWINS = Object.freeze({ organ: 'organRec', pianoGrand3: 'pianoRec', celesta: 'celestaRec', vibraphone: 'vibraphoneRec', steelpan: 'steelpanRec', bassPick: 'bassPickRec',
+  guitarAmp: 'guitarRec', guitarLead: 'guitarLeadRec', fmBrass: 'brassRec', stringMachine: 'stringsRec', bassSlap: 'bassSlapRec',
+  guitarElectric: 'guitarElectricRec', guitarClean: 'guitarCleanRec', guitarNylon: 'guitarNylonRec', guitarClassical: 'guitarClassicalRec', rhodes: 'rhodesRec', harp: 'harpRec',
+  marimba: 'marimbaRec', xylophone: 'xylophoneRec', glockenspiel: 'glockenspielRec', bassUpright: 'bassUprightRec', violin: 'violinRec', cello: 'celloRec', flute: 'fluteRec', trumpet: 'trumpetRec',
+  frenchHorn: 'frenchHornRec', trombone: 'tromboneRec', tuba: 'tubaRec', viola: 'violaRec', contrabass: 'contrabassRec', clarinet: 'clarinetRec', oboe: 'oboeRec', bassoon: 'bassoonRec',
+  timpani: 'timpaniRec', tubularBells: 'tubularBellsRec', harpsichord: 'harpsichordRec', musicBox: 'musicBoxRec', banjo: 'banjoRec', harmonica: 'harmonicaRec',
+  shamisen: 'shamisenRec', pedalSteel: 'pedalSteelRec', saxSoprano: 'saxSopranoRec', saxAlto: 'saxAltoRec', saxTenor: 'saxTenorRec', saxBaritone: 'saxBaritoneRec', ...TIER_TWINS });

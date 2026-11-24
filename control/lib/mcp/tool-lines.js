@@ -64,7 +64,7 @@ export const TOOL_LINES = {
   verify_machina: L('observe', 'A checked feasibility verdict for a materials-handling problem: can this mechanism move this load within these limits?'),
   get_solid_vocab: L('orient', 'A `mint_solid` kind or `edit_solid` op manual (long ones open to `sections`). Omit `id` to list; find one with `semantic_search` kind solid_vocab.'),
   design_interior: L('create', 'One room of a house fitted out: its jobs solved into furniture at true size, a named style, clearances kept; pieces by id. Revise: `design_interior` with `ref`.'),
-  mint_building: L('create', 'A walkable house, apartment, room, store, restaurant, mall, office or school with its structure book, or as a game level; `next` names what is open by outcome and its card. Revise: `update_sketch`.'),
+  mint_building: L('create', 'A walkable house, apartment, room, store, restaurant, mall, office or school with its structure book, or a game level; `next` names what is open. Someone\'s own home: `start`. Revise: `update_sketch`.'),
 
   // ── worlds ────────────────────────────────────────────────────────────────
   compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual and themes: `get_view_vocab`.'),

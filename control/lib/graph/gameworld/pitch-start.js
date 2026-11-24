@@ -17,7 +17,8 @@
  *              'pilot-school' (Pilot School's: its first lessons on one airfield, each graded, pilot-school.js) or
  *              'wolf-squadron' (Wolf Squadron's: its stages down a path, on a planet and in space, wolf-squadron.js),
  *              'rebel-storm' (Rebel Storm's: its missions flown from the cockpit, rebel-storm.js) or
- *              'compose' (a first reading of the genre the rail starts from, compose.js, one level)
+ *              'compose' (a first reading of the genre the rail starts from, compose.js, one level; a rail's own
+ *              starter words where it has them: the party RPG's round, its levels)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
  *              answered and not stored
  *
@@ -79,10 +80,11 @@ export function pitchStart(world, { title } = {}) {
     const H = hijackCityStart({ ...withFeel, ...named });
     if (H) return { world: { ...H.world, ...(world.intent === undefined ? { intent: { from: 'open-city-crime' } } : {}) }, laid: { by: 'hijack-city', levels: Object.keys(H.world.levels), says: SAYS } };
   }
-  const prompt = S.starts ? genrePrompt(S.starts) : null;
+  // (a rail's own starter words where its genre's one level would not be its game: the party RPG's round, rails.js)
+  const prompt = R.starter?.prompt ?? (S.starts ? genrePrompt(S.starts) : null);
   if (!prompt) return { unlaid: `${R.name} has no starter the book lays from its cube yet: write its first level (gameworld-guide), and the pitch is kept with it` };
   const name = world.name ?? title;
-  const C = composeGameworld({ prompt, levels: 1, ...(typeof name === 'string' && name.trim() ? { name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
+  const C = composeGameworld({ prompt, levels: R.starter?.levels ?? 1, ...(typeof name === 'string' && name.trim() ? { name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
   const starter = Object.fromEntries(Object.entries(C).filter(([k]) => !NOT_THE_STARTERS.includes(k)));
   const intent = world.intent === undefined ? { intent: C.intent ?? { from: S.starts } } : {};
   // a STYLISH rail: its genre's reading, its level a plan fought room by room, its kit, its meter, its look; the

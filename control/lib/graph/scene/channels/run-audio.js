@@ -27,7 +27,8 @@
 // RUN_STEAM how hard a body's steam vents while it stands (its control; up to 1 as it moves at its speed)
 export const RUN_EDGE = 1.2, RUN_HUM = 0.12, RUN_STEAM = 0.4;
 
-export function runAudioScript() {
+// `air` (opt-in, a platformer's: audio.run.air) a jump in the air (e.airJumpsUsed up), the double jump; absent, not a byte
+export function runAudioScript({ air = false } = {}) {
   return `
 // A RUN AND GUN'S VOICES (run-audio.js): the buster, the hero, its foes, a rock, the shutter, a boss's treads
 (function () {
@@ -75,14 +76,15 @@ export function runAudioScript() {
     rounds = now;
     // (the hero: a dash, a wall kick, on a wall, a blow taken; the charge held while it builds)
     if (P) {
-      const l = L[P.id] || (L[P.id] = { dash: P.dashT > 0, kick: P.kickT > 0, cling: !!P.cling, hp: hpOf(P) });
+      const l = L[P.id] || (L[P.id] = { dash: P.dashT > 0, kick: P.kickT > 0, cling: !!P.cling, hp: hpOf(P)${air ? ', air: P.airJumpsUsed || 0' : ''} });
       if (!first) {
         if (P.dashT > 0 && !l.dash) play(R.dash);
         if (P.kickT > 0 && !l.kick) play(R.kick);
         if (P.cling && !l.cling) play(R.cling);
-        if (l.hp != null && hpOf(P) != null && hpOf(P) < l.hp) play(R.hurt);
+        if (l.hp != null && hpOf(P) != null && hpOf(P) < l.hp) play(R.hurt);${air ? `
+        if ((P.airJumpsUsed || 0) > l.air) play(R.air);` : ''}
       }
-      l.dash = P.dashT > 0; l.kick = P.kickT > 0; l.cling = !!P.cling; l.hp = hpOf(P);
+      l.dash = P.dashT > 0; l.kick = P.kickT > 0; l.cling = !!P.cling; l.hp = hpOf(P);${air ? ' l.air = P.airJumpsUsed || 0;' : ''}
       if (chg && !__beatsMuted) chg.set(P.charging && !P.downed && (P.chargeFrac || 0) >= RUN_HUM ? Math.min(1, P.chargeFrac) : 0);
     }
     // (its foes: struck, down, a rock heaved; a boss that paces, its treads)

@@ -22,3 +22,7 @@ process.env.MOJULO_GAME_BROWSER ||= 'off';
 // A design_game run stops at its budget and leaves the rest pending (design-game.js RUN_BUDGET_MS): unbounded under test,
 // so a suite's run makes every ready step in one call however slow the machine; a suite that tests the budget sets it.
 process.env.MOJULO_RUN_BUDGET_MS ||= '0';
+// The recorded sound library (lib/graph/sound-library/library.js) is never the developer's under test: a machine that
+// installed it would otherwise resolve the shelf's realistic one-shots to their recordings and move every pin that
+// reads them. A suite that tests the library builds its own and points MOJULO_SOUNDS_DIR there per case.
+process.env.MOJULO_SOUNDS_DIR ||= '/nonexistent/mojulo-sound-library-under-test';

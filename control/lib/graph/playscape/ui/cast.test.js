@@ -49,6 +49,7 @@ describe('reading the cast', () => {
     expect(bad({ hurt: { who: 'guard' } })).toThrow(/by is how much/);
     expect(bad({ walk: { who: 'guard' } })).toThrow(/to is a place/);
     expect(bad({ walk: { who: 'guard', to: 'post', then: 'run' } })).toThrow(/stay, loop, back/);
+    expect(bad({ walk: { who: 'guard', to: 'post', find: 'yes' } })).toThrow(/find is true/);
     expect(bad({ kill: 3 })).toThrow(/character's id/);
     expect(() => readSpots({ spots: [{ id: 'a', at: [0, 0], pose: 'dance' }] })).toThrow(/pose is one of/);
   });
@@ -57,6 +58,9 @@ describe('reading the cast', () => {
     const { ev } = level([{ id: 'go', when: { start: true }, then: { walk: { who: 'guard', to: ['well-side', 'post'] } } }]);
     expect(ev.cast).toBe(true);
     expect(ev.reactions).toContainEqual({ on: 'cue:go', do: 'ctrl', op: 'walk', who: 'guard', points: [[2, -3], [4, 2]], names: ['well-side', 'post'], face: 90, pose: 'stand' });
+    // (a walk that finds its way carries it to the page)
+    const found = level([{ id: 'go', when: { start: true }, then: { walk: { who: 'guard', to: 'post', find: true } } }]);
+    expect(found.ev.reactions.find((r) => r.op === 'walk')).toMatchObject({ find: true });
     // a place nobody carries drops the effect (the laws name it)
     const lost = level([{ id: 'go', when: { start: true }, then: { walk: { who: 'guard', to: 'nowhere' } } }]);
     expect((lost.ev.reactions || []).some((r) => r.do === 'ctrl')).toBe(false);

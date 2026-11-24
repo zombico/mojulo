@@ -218,6 +218,10 @@ export function skull(out, c, N, r, tint, group = 'stage:prop') {
 }
 
 /** Where things gather in a room stage: corners (clusters), then wall bases between pilasters (singles). */
+/** The places a room's things stand (see the header): each corner's two, then the wall bases between pilasters, never a
+ * door, the walking line or what is kept clear → [{ corner, room, items: [{ p, N, U }] }]. Shared by the dungeon kits'
+ * dressing (dungeon.js). */
+export function wallSpots(plan, pilasters, keepClear = []) { return spots(plan, pilasters, keepClear); }
 function spots(plan, pilasters, keepClear) {
   const out = [], off = (plan.kit.plinth?.out ?? 0.2) + 0.12, walk = walkLine(plan);
   const toWalk = (x, y) => { let best = Infinity; for (let i = 0; i + 1 < walk.length; i++) { const [ax, ay] = walk[i], [bx, by] = walk[i + 1], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)); best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy)); } return best; };

@@ -75,12 +75,14 @@ describe('the lowering, played', () => {
     expect(Math.min(...S.colliders.map((c) => c.max[2]))).toBeLessThan(0.3);   // the first stair is a step off the ground
   });
 
+  // (the running jump held through its flight, as the reach that sized the gap holds it: a card's hang at the apex is the
+  // held jump's, rules-platform.js `hang`)
   it('the hero on the shipped rule crosses a basic gap with a running jump, and falls into it without one', () => {
     const P = coursePlan(RF, { teach: 'basic', verticality: 'flat', length: 120 }), { L, S, ground } = lowered(P), g = P.gaps[1];
     const play = (jumpAt) => {
       const w = createWorld({ colliders: S.colliders, entities: [{ id: 'hero', rule: { ...RF.rule, eye: 0 }, transform: { pos: [P.floors[1].s0 + 0.5, 0, L.base], heading: 0 } }] }), e = w.byId.hero;
       let jumped = false;
-      for (let f = 0; f < 240; f++) { const x = e.transform.pos[0], press = jumpAt !== null && !jumped && x >= jumpAt; if (press) jumped = true; stepWorld(w, { forward: 1, jump: press, jumpHeld: press || (jumped && e.vel[2] > 0) }, DT, { ground }); if (e.grounded && x > g.s1 + 1) break; }
+      for (let f = 0; f < 240; f++) { const x = e.transform.pos[0], press = jumpAt !== null && !jumped && x >= jumpAt; if (press) jumped = true; stepWorld(w, { forward: 1, jump: press, jumpHeld: press || (jumped && !e.grounded) }, DT, { ground }); if (e.grounded && x > g.s1 + 1) break; }
       return e.transform.pos;
     };
     const made = play(g.s0 - 0.4);

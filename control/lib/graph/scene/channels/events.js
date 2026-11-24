@@ -25,6 +25,7 @@ import { juiceFloor } from '../juice-style.js';
 import { listensForHits } from '../../playscape/ui/cast.js';
 import { buildStats } from '../../playscape/stats/kernel.js';
 import { gameHudCss } from '../../../mana-ui/theme.js';
+import { screenFxOn, screenFxScript } from './screen-fx.js';
 
 export { MENU_CSS };   // the menus' sheet lives with their runtime (interact-channel.js); the board's specimens read it here
 
@@ -226,6 +227,8 @@ export function eventsChannelScript(events0, { fxDay = null, rollItems = false, 
   const fxs = events0 && events0.fxStyle;
   const floor = fxs && typeof fxs === 'object' ? juiceFloor(fxs) : null;
   const events = fxs === true ? styleEvents(events0) : floor ? styleEvents(events0, floor) : events0;
+  // (a cue's screen effects, playscape/ui/cues.js: the page's screen layer, only where its vars are)
+  const screenFx = screenFxOn(events);
   // on the flow (rupa-vayo, a composed floor's `flow`): the world's bursts go off as the flow's blast, its air the world's wind
   const flowBlast = floor && floor.flow ? styleExplosion(EXPLOSIONS.blast, 'blast', floor) : null;
   const { widgets } = normalizeHud(events.hud, { register: events.register });   // the title rows dressed by the play direction's register
@@ -461,11 +464,11 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
 ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
-  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${rimOn ? ' __stepRim();' : ''}${trailOn ? ' __stepSwing();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${library ? ' __stepLibrary(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
+  __syncBus(); __syncHud(t, incoming);${screenFx ? ' __stepScreen();' : ''}${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${rimOn ? ' __stepRim();' : ''}${trailOn ? ' __stepSwing();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${library ? ' __stepLibrary(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''}${minigames ? ' __stepMinigames(t);' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${widgets.some((w) => w.kind === 'button' && w.press) || (events.reactions || []).some((r) => r && typeof r.on === 'string' && (r.on.startsWith('app:') || r.on.startsWith('mayhem:'))) ? `
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${screenFx ? screenFxScript() : ''}${widgets.some((w) => w.kind === 'button' && w.press) || (events.reactions || []).some((r) => r && typeof r.on === 'string' && (r.on.startsWith('app:') || r.on.startsWith('mayhem:'))) ? `
 // a HUD button pressed (a level's button row, drawn here or by the mana-ui HUD): its event on the bus this frame
 window.__mojBus.press = function (type) { __inputQueue.push({ type: String(type) }); };` : ''}${scenes ? sceneScript({ takes: sceneTakesOn(events.scenes), tempo: sceneTempoOn(events.scenes), voices: sceneVoicesOn(events) }) : ''}${quests ? questScript(questMana ? { mana: questMana, ...(manaShared ? { shared: manaShared } : {}) } : {}) : ''}${library ? libraryScript() : ''}${minigames ? minigameScript(events.minigames) : ''}${rpg ? rpgScript(events.rpg) : ''}`;
 }

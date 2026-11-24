@@ -6,7 +6,7 @@
  * this: no kernel, no sheet, no theme, no host.
  *
  *   readShellUi(ui, where?)      → errors[] (teaching): the theme mana-ui reads, the game's languages
- *   shellManaSpec(ui, { picks }) → (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
+ *   shellManaSpec(ui, { picks, gameOver, naming }) → (naming: the game's, a `name` screen on mana-ui's keyboard) (picks: the game's turns ask for picks, turn.js: a `pick` screen too) the spec: the screens (attract, title, levels, options, credits, end, result,
  *                                  pause, controls, loading) and a HUD of passing moments as idioms over the shell's UI state (`ui.*` bindings), each pick an effect
  *                                  { emit: <the flow's event> }; the defs only of the idioms it uses
  *   shellManaCss(ui)             → the sheet and the theme, scoped to the mana root
@@ -19,6 +19,7 @@
  *                                  quit, sound, rows(), owner(), homeWord(), open }, playing() }
  */
 import { manaUi, manaUiSource, withIdioms, manaCss, lettersCss, themeCss, readTheme, titleLetters } from '../../mana-ui/index.js';
+import { uiSoundAudio, UI_SOUND_SET_IDS } from '../beats/ui-sounds.js';
 import { immersiveCss } from './immersive-ui.js';
 import { manaControls, manaGlyphs, manaHostSource, padLayoutSource } from '../controls/mana-controls.js';
 
@@ -31,7 +32,8 @@ const B = (p) => ({ bind: `ui.${p}` });
 export function readShellUi(ui, where = 'ui') {
   if (!isObj(ui)) return [`${where} is { theme, languages?, language? }: the look the game's screens are drawn in by mana-ui`];
   const errors = [];
-  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language', 'immersive'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language, immersive)`);
+  for (const k of Object.keys(ui)) if (!['theme', 'languages', 'language', 'immersive', 'sounds'].includes(k)) errors.push(`${where}.${k}: not part of a game's ui (theme, languages, language, immersive, sounds)`);
+  if (ui.sounds !== undefined && !(isObj(ui.sounds) && UI_SOUND_SET_IDS.includes(ui.sounds.set))) errors.push(`${where}.sounds: { set } a UI sound set its menus play (${UI_SOUND_SET_IDS.join(', ')})`);
   if (ui.immersive !== undefined && typeof ui.immersive !== 'boolean') errors.push(`${where}.immersive: true where the screens draw no box (a stylish action game's, immersive-ui.js)`);
   try { readTheme(ui.theme === undefined ? 'greybox' : ui.theme); } catch (e) { errors.push(`${where}.theme: ${e.message}`); }
   if (ui.languages !== undefined || ui.language !== undefined) {
@@ -41,7 +43,7 @@ export function readShellUi(ui, where = 'ui') {
 }
 
 /** The shell's screens as mana-ui draws them. */
-export function shellManaSpec(ui = {}, { picks = false, staged = false } = {}) {
+export function shellManaSpec(ui = {}, { picks = false, staged = false, gameOver = false, naming = null } = {}) {
   const button = (word, emit) => ({ use: 'button', props: { label: { word } }, on: { accept: { emit } } });
   // the name enters letter by letter in its look's way (theme.js titleLetters; a look that says still: at once); on a
   // staged start screen the stage draws the name, and the menu is words with no window behind (front-stage-page.js)
@@ -78,6 +80,19 @@ export function shellManaSpec(ui = {}, { picks = false, staged = false } = {}) {
   };
   // UNTAP (turn.js): one pick of a level's turn, the pick-screen idiom over what the shell says of it (the store's
   // rows, what was chosen before, why the game sent the player back); back unwinds one pick, the stack closing
+  // THE GAME OVER (a game's gameOver, game-manifest.js): the words, the title under them, continue or the title
+  if (gameOver) screens.gameover = { use: 'screen', props: { place: 'center' }, children: [{ use: 'stack', props: { align: 'center', gap: 'loose' }, children: [
+    { use: 'text', props: { value: B('overMark'), role: 'display' } },
+    { use: 'text', props: { value: B('overText') } },
+    { use: 'text', props: { value: B('title'), role: 'caption' } },
+    button('continue', 'continue'),
+    button('quitToTitle', 'home'),
+  ] }] };
+  // A NAME ASKED (game-manifest.js naming): mana-ui's keyboard (a pad types from its grid, a keyboard straight in), the
+  // name the store holds as its draft; done keeps it (the shell's rename) and goes on, cancel and back leave it unnamed
+  if (naming) screens.name = { use: 'screen', props: { title: B('name.label'), place: 'center' }, children: [{ use: 'window', children: [
+    { use: 'textentry', props: { value: B('name.value'), max: Math.min(24, naming.max || 12), min: Math.max(1, naming.min || 1), charset: 'name' }, on: { done: { emit: 'name:done', name: { input: true } }, cancel: { emit: 'name:back' } } },
+  ] }] };
   if (picks) screens.pick = { use: PICK, props: { ...Object.fromEntries(['title', 'ask', 'hint', 'step', 'steps', 'chosen', 'rows', 'faces', 'many', 'short', 'shortWhy', 'why'].map((k) => [k, B(`pick.${k}`)])), confirm: { emit: 'turn:confirm' } } };
   // what passes over the play: a moment, one at a time (a run's map cleared)
   // and the way into the pause while a level is the player's: a button in the corner, tapped or clicked (it takes no
@@ -99,12 +114,39 @@ export function shellManaSpec(ui = {}, { picks = false, staged = false } = {}) {
 export const shellManaCss = (ui = {}) => `${manaCss()}\n${lettersCss()}\n${themeCss(ui.theme === undefined ? 'greybox' : ui.theme)}\n#pauseBtn{visibility:hidden!important}\n#mana .mana-image:not([data-ratio=backdrop]){display:none}#mana .mana-image .mana-caption{display:none}#mana .mana-image[data-ratio=backdrop]{background-image:none!important}${ui.immersive === true ? immersiveCss('#mana') : ''}`;
 export function shellManaConfig(ui = {}, opts = {}) {
   const C = manaControls();
-  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad } };
+  // (its menus' sounds, `ui.sounds`: the set, the recorded library's over it; none recorded here, none at all)
+  const A = ui.sounds ? uiSoundAudio([ui.sounds.set]) : null, sounds = A && A.samples ? { set: ui.sounds.set, cues: A.sets[ui.sounds.set], samples: A.samples } : null;
+  return { spec: shellManaSpec(ui, opts), glyphs: manaGlyphs(), controls: { keys: C.keys, pad: C.pad }, ...(sounds ? { sounds, soundsK: A.source, soundsOf: A.of } : {}) };
 }
-export const shellManaScript = () => `const __manaUi = ${manaUiSource()};
+/** The page's code; `mana` (cfg.mana) with `sounds` also plays the menus' sounds: the beats kernel the set needs, the cue
+ *  picker, and the runtime's host wrapped so its sound effects (cues 'full') are heard, not passed on; the recordings
+ *  decoded before the first. Muted with the game's sound (the shell's ui.settings.sound). Without, not a byte of it.
+ *  (shellManaConfig's `sounds`, `soundsK` and `soundsOf` are this script's: the page's cfg.mana leaves them out) */
+export const shellManaScript = (mana = null) => `const __manaUi = ${manaUiSource()};
 const __manaHostK = ${manaHostSource()};
 const __manaPadLayout = (${padLayoutSource()});
-const __mojMana = (${playShellManaRuntime.toString()});`;
+const __mojMana = (${playShellManaRuntime.toString()});${mana && mana.sounds ? `
+// THE MENUS' SOUNDS (play-shell-mana.js shellManaConfig: the set, the recorded library's over it)
+(function () {
+  const S = { K: (${mana.soundsK})(), of: (${mana.soundsOf}), n: 0 };
+  const M0 = ${JSON.stringify(mana.sounds).replace(/</g, '\\u003c')}, cfgOf = () => M0;
+  const ready = () => {
+    if (S.engine) return S.engine;
+    try { const C = window.AudioContext || window.webkitAudioContext; S.ctx = new C(); S.engine = S.K.createEngine(S.ctx); const M = cfgOf();
+      S.engine.loadSamples({ cards: M.samples.cards, bytes: Object.fromEntries(Object.entries(M.samples.bytes).map(([id, b]) => [id, Uint8Array.from(atob(b), (c) => c.charCodeAt(0)).buffer])) }); } catch (err) { S.engine = null; }
+    return S.engine;
+  };
+  const hear = (e) => {
+    const M = cfgOf(), st = window.__mojManaState;
+    if (!M || (st && st.ui && st.ui.settings && st.ui.settings.sound === 0)) return;
+    const g = M.cues[S.of(e)] || M.cues[e.sound], E = g && ready();
+    if (!E) return;
+    if (S.ctx.state === 'suspended') S.ctx.resume();
+    E.playCue(g, null, null, 1, ++S.n);
+  };
+  const run = __manaUi.runtime;
+  __manaUi.runtime = (spec, host) => run(spec, Object.assign({}, host, { cues: 'full', act: (e, from) => { if (e && typeof e.sound === 'string') hear(e); else host.act(e, from); } }));
+})();` : ''}`;
 
 /**
  * The page's code (inlined with toString(), references nothing outside itself but the kernel, the host and the pad
@@ -132,7 +174,7 @@ export function playShellManaRuntime(cfg, api) {
     if (e.emit === 'mana:closed') {
       if (quiet) return;
       // (a pick left by its back: the turn unwinds one pick, or is left)
-      if (up === 'pick') { up = null; api.turn.back(); return; }
+      if (up === 'pick') { up = null; if (api.slot && api.slot.asking()) { api.slot.back(); draw('title'); return; } api.turn.back(); return; }
       // (the pause left by its back: the game resumes)
       if (up === 'pause' || up === 'controls') { up = null; api.pause.resume(); return; }
       // a back that emptied the stack: the step's back, else the screen it left drawn again
@@ -141,7 +183,10 @@ export function playShellManaRuntime(cfg, api) {
       if (!(api.onOf('back') && api.go('back'))) draw(was);
       return;
     }
+    if (e.emit === 'name:done') { if (!api.named(e.name)) draw('name'); return; }
+    if (e.emit === 'name:back') { if (!api.go('back')) draw('name'); return; }
     if (e.emit === 'turn:pick') { api.turn.pick(e.id); return; }
+    if (e.emit === 'slot:pick') { api.slot.pick(e.id); return; }
     if (e.emit === 'turn:confirm') { api.turn.confirm(); return; }
     if (e.emit === 'pause:open') { api.pause.open(); return; }
     if (e.emit === 'pause:resume') { api.pause.resume(); return; }
@@ -189,6 +234,8 @@ export function playShellManaRuntime(cfg, api) {
     if (name === 'options') u.optionsTitle = 'options';
     if (name === 'credits') u.credits = ((F.credits && F.credits.roll) || []).map((r) => ({ role: r.role, names: r.names.join(' · ') })).concat(F.credits && F.credits.attribution === false ? [] : [{ role: '', names: 'made with mojulo · github.com/zombico/mojulo' }]);
     if (name === 'end') { u.endMark = 'game complete'; u.endText = (F.end && F.end.text) || 'The end'; }
+    if (name === 'name') u.name = api.naming();
+    if (name === 'gameover') { u.overMark = 'Game Over'; u.overText = 'Your journey went no further. Continue from where it was last kept.'; }
     if (name === 'result' || name === 'run-result') { u.result = name === 'result' ? api.result() : api.run(); u.result.bare = !((u.result.stats || []).length || u.result.rank); }
   }
   function draw(name) {
