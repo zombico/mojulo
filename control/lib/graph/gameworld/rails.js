@@ -147,7 +147,7 @@ export const RAILS = Object.freeze({
   'steel-serpents': row({ name: 'Steel Serpents', like: 'stealth action: guards who see what is in front of them, slipped past or taken down',
     // (seen in the third person, the operator's word: the template's lab view is from overhead and the espionage cube's
     // from above, neither the game's camera)
-    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
+    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage', 'cinematic-action']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
     seen: list(['free']) }),
   'vigilante-justice': row({ name: 'Vigilante Justice', like: 'a hero over a city: rooftops, a glide or a swing, a crowd fought with counters',
     handles: row({ pole: 'vigilante-justice', genres: list(['city-stalker']) }), sizes: list(['designed']), level1: 'a district crossed by its rooftops' }),
