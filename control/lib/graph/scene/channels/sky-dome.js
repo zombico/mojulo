@@ -103,7 +103,19 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     x.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false);                       // lit right limb (semicircle)
     // terminator: bulge LEFT (gibbous, tw>0) or RIGHT (crescent, tw<0) of the lit half
     x.ellipse(cx, cy, Math.abs(tw), r, 0, Math.PI / 2, -Math.PI / 2, tw < 0);
-    x.fill();
+    x.fill();${d.moon && Array.isArray(d.moon.spots) && d.moon.spots.length ? `
+    // (a world's face: its land and its clouds blotted over the lit part, era/heavens.js companion spots)
+    {
+      x.save(); x.clip();
+      let q = (SKY.seed >>> 0) + 7 || 7; const rn = () => ((q = (Math.imul(q, 1664525) + 1013904223) >>> 0) / 4294967296);
+      const SP = ${safeJson(d.moon.spots)};
+      for (let k = 0; k < 34; k++) {
+        const c = SP[k % SP.length], a = rn() * Math.PI * 2, d0 = Math.sqrt(rn()) * r, br = 1.5 + rn() * 5;
+        x.fillStyle = 'rgba(' + c.join(',') + ',' + (0.55 + 0.4 * rn()).toFixed(2) + ')';
+        x.beginPath(); x.ellipse(cx + Math.cos(a) * d0, cy + Math.sin(a) * d0, br * (1 + rn()), br, rn() * Math.PI, 0, Math.PI * 2); x.fill();
+      }
+      x.restore();
+    }` : ''}
     const msp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false }));
     const sz = R * 0.05 * (M.size || 1);
     msp.position.set(SKY.center[0] + dir[0] * rr, SKY.center[1] + dir[1] * rr, SKY.center[2] + dir[2] * rr);
@@ -149,3 +161,4 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
   }
 }${d.space && d.backdrop ? spaceBackdropScript(d.backdrop) : ''}`;
 }
+

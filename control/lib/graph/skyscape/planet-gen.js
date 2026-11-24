@@ -9,7 +9,9 @@
  *                    a row. `size` 'large' | 'small' | 'any' where the sky may use it; `weight` how often a random world is it
  *   generatePlanet(kind, rnd) → the world: { kind, gas, ocean, … } every knob a number or a colour (hex), its palette's
  *                    hues turned a little by the dice so no two are alike (and never into the cockpit's target magenta)
- *   pickKind(rnd, size) → a kind by weight among those the slot takes
+ *                    A child of Sol (`sol`, sol/worlds.js: mercury … pluto) is the real body: its knobs fixed, no hue
+ *                    turned, its axial tilt (`tilt`) and its rings its own
+ *   pickKind(rnd, size) → a kind by weight among those the slot takes (never a child of Sol: weight 0)
  *   BLACK_HOLE       the black hole's numbers (it is no planet: a shadow, a photon ring, a disk, its lensing)
  *
  * Every knob 0..1 unless said: ocean (sea level: 0 none, 1 all), veg, ice (how far the caps reach), cloud, craters,
@@ -17,6 +19,8 @@
  * glow (the night side's own heat); a giant's bands (three colours), freq (bands round it), turb, storm.
  * Pure: the same dice, the same world.
  */
+
+import { SOL_WORLDS } from '../sol/worlds.js';
 
 // (a row's palette: each a hex; `ranges` [lo, hi] each knob)
 const K = (o) => Object.freeze(o);
@@ -54,6 +58,8 @@ export const PLANET_KINDS = Object.freeze({
   saturnian: K({ label: 'a ringed giant', size: 'large', weight: 2, gas: 1, rings: 1, ranges: { freq: [8, 12], turb: [0.6, 1.1], storm: [0, 0.2], atmo: [0.5, 0.7] },
     colors: { band0: '#e3cf9c', band1: '#c9ad74', band2: '#f1e6c4', stormC: '#a88a5a', atmoC: '#f0dcae', ringC: '#d8c8a0' } }),
   'black-hole': K({ label: 'a black hole', size: 'large', weight: 1, blackHole: 1, ranges: {}, colors: {} }),
+  // the children of Sol (sol/worlds.js): the real bodies, their knobs fixed, never drawn by the dice (weight 0)
+  ...SOL_WORLDS,
 });
 
 /** The black hole: its shadow's angular radius (°) in the sky, the disk's inner and outer edges and the Einstein
@@ -82,7 +88,7 @@ function turn(hex, rnd, dh = 12) {
 }
 
 export function pickKind(rnd, size = 'any') {
-  const ok = Object.entries(PLANET_KINDS).filter(([, k]) => size === 'any' || k.size === 'any' || k.size === size);
+  const ok = Object.entries(PLANET_KINDS).filter(([, k]) => k.weight > 0 && (size === 'any' || k.size === 'any' || k.size === size));
   const sum = ok.reduce((s, [, k]) => s + k.weight, 0);
   let x = rnd() * sum;
   for (const [id, k] of ok) { x -= k.weight; if (x <= 0) return id; }
@@ -98,6 +104,12 @@ export function generatePlanet(kind, rnd) {
   }
   const w = { kind, gas: R.gas ? 1 : 0 };
   for (const k of KNOBS) { const r = R.ranges[k]; w[k] = r ? r3(r[0] + rnd() * (r[1] - r[0])) : 0; }
+  // (a child of Sol: the real body's colours, its tilt and its rings, nothing turned by the dice)
+  if (R.sol) {
+    for (const [k, c] of Object.entries(R.colors)) w[k] = c;
+    if (R.rings) w.rings = { inner: R.rings.inner, outer: R.rings.outer, tilt: 20, color: R.rings.color };
+    return { ...w, sol: true, tilt: R.tilt, seed: Math.floor(rnd() * 1e6) };
+  }
   for (const [k, c] of Object.entries(R.colors)) w[k] = turn(c, rnd, k === 'sea' || k === 'iceC' || k === 'cloudC' ? 6 : 12);
   if (R.rings || (R.gas && rnd() < 0.3)) w.rings = { inner: r3(1.35 + rnd() * 0.2), outer: r3(2 + rnd() * 0.5), tilt: r3(10 + rnd() * 25), color: turn(R.colors.ringC || R.colors.band2 || '#d8c8a0', rnd, 8) };
   w.seed = Math.floor(rnd() * 1e6);

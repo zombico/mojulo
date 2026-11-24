@@ -19,7 +19,7 @@
  * made colour is locked to the kit's made ramps (era/style/swatches.js). The bake and the lock are the isekai builder's.
  */
 import { lookOf } from '../era/style/looks.js';
-import { ISEKAI_STYLES, isekaiKeyOf, boulderFaces, nightSky } from '../era/isekai.js';
+import { ISEKAI_STYLES, isekaiKeyOf, boulderFaces, nightSky, voidSky, companionAt } from '../era/isekai.js';
 import { cloudBand } from '../matte-paint/sky.js';
 import { bakeStageLight } from '../era/stage.js';
 import { makeSunShadow, makeSoftSunShadow, sunDir } from '../era/sun.js';
@@ -447,10 +447,11 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     for (const f of [...ground.faces, ...walk.wall]) if (f.cel === 'cliff') draw(f, 'cliff', lit(mean(f.corners), f.celN));
     for (const b of rocks) { for (const f of b.sides) draw(f, 'rock', lit(mean(f.corners), f.normal)); for (const f of b.cap) draw(f, 'hat', lit(mean(f.corners), f.normal)); }
   }
-  // grass: crossed blade cards on the level ground, the band by the shadow at the root
-  const G = st.grass.cards;
+  // grass: crossed blade cards on the level ground, the band by the shadow at the root (none on a card that grows
+  // none: an airless world's, style/airless-plain.js)
+  const G = st.grass?.cards;
   ground.faces.forEach((f, i) => {
-    if (SH || f.cel || f.group !== 'isekai:ground' || f.flat < 0.9 || hash3(i, 11, seed + 421) > 0.3) return;
+    if (!G || SH || f.cel || f.group !== 'isekai:ground' || f.flat < 0.9 || hash3(i, 11, seed + 421) > 0.3) return;
     const q = mean(f.corners), h = G.height * (0.6 + 0.6 * hash3(i, 13, seed + 423)), raw = [], lt = shadow([q[0], q[1], q[2] + 0.3], [0, 0, 1]) > 0;
     crossed(raw, [q[0], q[1], q[2] - 0.03], Math.PI * hash3(i, 17, seed + 427), h * G.width, h, isekaiKeyOf(st, 'blades', lt), [1, 1, 1], 'isekai:grass', 2);
     for (const { tint, textureLit, ...g } of raw) cel.push({ ...g, fill: stopFill(st, 'blades', lt) });
@@ -515,7 +516,9 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     })() } : {}),
     // (a cube's outside at a moonlit hour, geocube-hours.js, draws its card's night: the moon where the key is, the stars)
     // (and under a cube's weather, matte-paint/sky.js, its clouds painted round the dome)
-    sky: { ...(st.night && st.hour !== undefined ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}) }),
+    // (and an airless card's void, its stars by day and the world hanging in it; a cube's heavens' companion,
+    // era/heavens.js, as a trail draws them)
+    sky: { ...(st.night && st.hour !== undefined ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: companionAt(st.companion) } : {}) }),
       ...(st.cloudBand ? { clouds: cloudBand(st.cloudBand) } : {}) },
     pack: true,
     // the walk, and the climbs the walker can take: each climb anchor's foot, lip and way in (channels/walk.js CLIMB)

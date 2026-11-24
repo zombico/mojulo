@@ -78,8 +78,8 @@ describe('saturn-view — raymarch emit + registration', () => {
     expect(classifyBucket(m)).toBe('object');
   });
 
-  it('exposes the three looks', () => {
-    expect(SATURN_SCENARIOS).toEqual(['classic', 'backlit', 'polar']);
+  it('exposes the three looks and the two close passes', () => {
+    expect(SATURN_SCENARIOS).toEqual(['classic', 'backlit', 'polar', 'close', 'rings']);
   });
 });
 
@@ -87,7 +87,7 @@ describe('saturn-view — the giant-planet lineup (Jupiter / Saturn / Neptune / 
   it('exposes all eight planets in solar order and defaults to Saturn', () => {
     expect(SATURN_PLANETS).toEqual(['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']);
     expect(planSaturnScene({ kind: 'saturn-view' }).stats.planet).toBe('saturn');
-    expect(planSaturnScene({ kind: 'saturn-view', planet: 'pluto' }).stats.planet).toBe('saturn');   // fallback
+    expect(planSaturnScene({ kind: 'saturn-view', planet: 'vulcan' }).stats.planet).toBe('saturn');   // fallback (Pluto and the Moon are drawn: sol/roster.js)
   });
 
   it('each planet selects its own ring system (uRingMode 1..4)', () => {

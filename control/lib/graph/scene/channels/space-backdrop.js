@@ -197,6 +197,30 @@ void main() {
   gl_FragColor = vec4(uBase * (0.55 + 0.45 * abs(dot(normalize(cross(dFdx(vW), dFdy(vW))), uSun))) * sh, a);
 }`;
 
+// A CLOSE WORLD'S RINGS (live, a ringed child of Sol held near: skyscape/backdrop.js PROXIMITY): its plane the world's
+// equator, its density Saturn's (the C ring faint, the B ring dense and bright, the Cassini Division, the A ring and the
+// Encke gap), its ringlets fine; hidden where the world stands in front of it, the world's shadow across it; drawn into
+// the screen, encoded as the world under it is
+const RING_LIVE_FRAG = `${NOISE}
+uniform vec3 uSun, uBase, uCenter; uniform float uIn, uOut, uR, uSeed; varying vec3 vW;
+void main() {
+  vec3 p = vW - uCenter, eye = vW - cameraPosition, dir = normalize(eye), C = uCenter - cameraPosition;
+  float tc = dot(C, dir), h2 = dot(C, C) - tc * tc;
+  if (h2 < uR * uR && tc - sqrt(uR * uR - h2) < length(eye)) discard;
+  float t = (length(p) - uIn) / (uOut - uIn);
+  float d = 0.3 * smoothstep(0.0, 0.07, t) * (1.0 - smoothstep(0.2, 0.28, t))
+          + 0.95 * smoothstep(0.26, 0.31, t) * (1.0 - smoothstep(0.66, 0.69, t))
+          + 0.62 * smoothstep(0.75, 0.78, t) * (1.0 - smoothstep(0.97, 1.0, t));
+  d *= 1.0 - 0.85 * smoothstep(0.88, 0.89, t) * (1.0 - smoothstep(0.9, 0.91, t));
+  // (ringlets: faded as they near a pixel across, so they never beat into moiré)
+  float fw = clamp(fwidth(t) * 160.0, 0.0, 1.0);
+  d *= mix(0.74 + 0.26 * (0.5 + 0.5 * sin(t * 160.0 + 2.0 * sin(t * 23.0))) * (0.8 + 0.2 * bdNoise(vec3(t * 90.0, uSeed * 0.001, 0.0))), 0.87, fw);
+  vec3 alb = uBase * mix(0.6, 1.08, smoothstep(0.25, 0.6, t));
+  float b = dot(p, uSun), sh = b < 0.0 && length(p - b * uSun) < uR ? 0.1 : 1.0;
+  vec3 col = alb * (0.18 + 0.9 * abs(dot(normalize(cross(dFdx(vW), dFdy(vW))), uSun))) * sh;
+  gl_FragColor = vec4(pow(max(col, 0.0), vec3(1.0 / 2.2)), clamp(d, 0.0, 1.0));
+}`;
+
 const GLOW_FRAG = `uniform vec3 uCol; uniform float uCore, uK; varying vec2 vUv;
 void main() {
   float r = length(vUv - 0.5) * 2.0, g = exp(-r * r * 6.0) * uK;
@@ -226,7 +250,7 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
 // --- the space backdrop (skyscape/backdrop.js; channels/space-backdrop.js): baked once into the sky at infinity ---
 (function () {
   const BD = ${safeJson(D)}, SUN = (SKY.sun && SKY.sun.dir) || [0, 0, 1];
-  const NEB = ${JSON.stringify(NEBULA_FRAG)}, PLA = ${JSON.stringify(PLANET_FRAG)}, AIR = ${JSON.stringify(AIR_FRAG)}, RING = ${JSON.stringify(RING_FRAG)}, GLOW = ${JSON.stringify(GLOW_FRAG)}, HALO = ${JSON.stringify(HALO_FRAG)}${D.holes.length ? `, HOLE = ${JSON.stringify(HOLE_FRAG)}` : ''};
+  const NEB = ${JSON.stringify(NEBULA_FRAG)}, PLA = ${JSON.stringify(PLANET_FRAG)}, AIR = ${JSON.stringify(AIR_FRAG)}, RING = ${JSON.stringify(RING_FRAG)}, GLOW = ${JSON.stringify(GLOW_FRAG)}, HALO = ${JSON.stringify(HALO_FRAG)}${D.live.some((P) => P.rings) ? `, RINGL = ${JSON.stringify(RING_LIVE_FRAG)}` : ''}${D.holes.length ? `, HOLE = ${JSON.stringify(HOLE_FRAG)}` : ''};
   const v3 = (a) => new THREE.Vector3(a[0], a[1], a[2]), sunV = v3(SUN).normalize();
   // (a world's axis: tilted about x by its tilt, turned about its axis by its turn, as a 3×3 for its shader)
   const spinOf = (sp) => new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationZ(sp[1] * Math.PI / 180).multiply(new THREE.Matrix4().makeRotationX(sp[0] * Math.PI / 180)));
@@ -308,7 +332,16 @@ export function spaceBackdropScript(B, { size = BACKDROP_FACE } = {}) {
     const air = new THREE.Mesh(new THREE.SphereGeometry(Rs, 192, 96), new THREE.ShaderMaterial({ depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending, vertexShader: VERT_W, fragmentShader: AIR,
       uniforms: { uC: { value: new THREE.Vector3() }, uAtmo: { value: v3(P.u.uAtmo) }, uSun: { value: sunV }, uR: { value: R }, uRs: { value: Rs }, uK: { value: 0.35 + 0.9 * P.u.uAtmoK } } }));
     air.renderOrder = -9; air.frustumCulled = false; air.onBeforeRender = (r, sc, cam) => { at(air, cam); air.material.uniforms.uC.value.copy(air.position); };
-    scene.add(ground, air);
+    scene.add(ground, air);${D.live.some((P) => P.rings) ? `
+    if (P.rings) {
+      // (its rings in its equator's plane: the world's pole, the sky's z turned back through its spin)
+      const pole = new THREE.Vector3(0, 0, 1).applyMatrix3(spinOf(P.spin).transpose()).normalize();
+      const ring = new THREE.Mesh(new THREE.RingGeometry(R * P.rings.inner, R * P.rings.outer, 512, 1), new THREE.ShaderMaterial({ side: THREE.DoubleSide, transparent: true, depthTest: false, depthWrite: false, vertexShader: VERT_W, fragmentShader: RINGL, extensions: { derivatives: true },
+        uniforms: { uSun: { value: sunV }, uBase: { value: v3(P.rings.color) }, uCenter: { value: new THREE.Vector3() }, uIn: { value: R * P.rings.inner }, uOut: { value: R * P.rings.outer }, uR: { value: R }, uSeed: { value: P.u.uSeed } } }));
+      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), pole);
+      ring.renderOrder = -9.5; ring.frustumCulled = false; ring.onBeforeRender = (r, sc, cam) => { at(ring, cam); ring.material.uniforms.uCenter.value.copy(ring.position); };
+      scene.add(ring);
+    }` : ''}
   }` : ''}
 })();
 `;

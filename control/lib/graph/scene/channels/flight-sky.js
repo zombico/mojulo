@@ -307,7 +307,7 @@ ${SHADOW_PATCH}
   // once, sees what a flown one does)
   skyBall.onBeforeRender = (r, sc, cam) => { skyBall.position.copy(cam.position); skyBall.updateMatrixWorld(); update(cam); };
   scene.add(skyBall);
-  // THE CUMULUS: each cloud's puffs, laid by its own dice
+${cfg && cfg.rings ? RINGS_SKY : ''}  // THE CUMULUS: each cloud's puffs, laid by its own dice
   const C = K.clouds.n ? dec(K.clouds.data, Float32Array) : new Float32Array(0), half = K.domain;
   const { P, I } = (${cumulusPuffs.toString()})(C, K.clouds.n, K.wind, sun);
   const NP = P.length / 4; out.puffs = NP;
@@ -466,3 +466,31 @@ ${SHADOW_PATCH}
 })();
 `;
 }
+
+// A RINGED GIANT'S RINGS over its cloud tops (sol/skies.js `rings`): the pilot on the world at a latitude, the rings an
+// annulus in its equator, so they stand over the deck as an arch toward the equator; each direction met with the ring
+// plane (the world of radius one under the eye, angles being ratios), hidden under the horizon, the world's shadow across
+// them away from the sun, the face the sun is not on dim. A second sphere round the eye, over the sky and under the clouds;
+// emitted only for a sky with rings
+const RINGS_SKY = `
+  {
+    const G = K.rings, la = G.tilt * Math.PI / 180, pole = new THREE.Vector3(0, Math.cos(la), Math.sin(la));
+    const lit = sun.dot(pole) > 0 ? 1.0 : 0.32;
+    const ringMat = new THREE.ShaderMaterial({ side: THREE.BackSide, transparent: true, depthWrite: false, depthTest: false, fog: false,
+      uniforms: { uPole: { value: pole }, uSun: { value: sun }, uCol: { value: lin3(G.color) }, uIn: { value: G.inner }, uOut: { value: G.outer }, uK: { value: G.opacity * lit }, uThin: { value: G.profile === 'thin' ? 1 : 0 } },
+      vertexShader: 'varying vec3 vD; void main(){ vD = (modelMatrix * vec4(position, 1.0)).xyz - cameraPosition; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 uPole, uSun, uCol; uniform float uIn, uOut, uK, uThin; varying vec3 vD;\\n' +
+        'void main(){ vec3 d = normalize(vD); if (d.z < 0.0) discard; vec3 C = vec3(0.0, 0.0, -1.0); float dn = dot(d, uPole); if (abs(dn) < 1e-4) discard;\\n' +
+        ' float t = dot(C, uPole) / dn; if (t <= 0.0) discard; vec3 P = d * t; float u = (length(P - C) - uIn) / (uOut - uIn); if (u < 0.0 || u > 1.0) discard; float k;\\n' +
+        ' if (uThin > 0.5) k = 0.5 * smoothstep(0.55, 0.57, u) * (1.0 - smoothstep(0.6, 0.62, u)) + 0.4 * smoothstep(0.72, 0.74, u) * (1.0 - smoothstep(0.76, 0.78, u)) + 0.8 * smoothstep(0.9, 0.93, u) * (1.0 - smoothstep(0.96, 0.99, u));\\n' +
+        ' else { k = 0.3 * smoothstep(0.0, 0.07, u) * (1.0 - smoothstep(0.2, 0.28, u)) + 0.95 * smoothstep(0.26, 0.31, u) * (1.0 - smoothstep(0.66, 0.69, u)) + 0.62 * smoothstep(0.75, 0.78, u) * (1.0 - smoothstep(0.97, 1.0, u));\\n' +
+        '   k *= 1.0 - 0.85 * smoothstep(0.88, 0.89, u) * (1.0 - smoothstep(0.9, 0.91, u)); k *= 0.8 + 0.2 * sin(u * 140.0); }\\n' +
+        ' vec3 q = P - C; float b = dot(q, uSun), h = b * b - dot(q, q) + 1.0; float sh = (b < 0.0 && h > 0.0) ? 0.12 : 1.0;\\n' +
+        ' gl_FragColor = vec4(uCol * mix(0.72, 1.06, smoothstep(0.25, 0.6, u)) * sh, clamp(k, 0.0, 1.0) * uK * smoothstep(0.0, 0.03, d.z));\\n' +
+        ' #include <tonemapping_fragment>\\n #include <colorspace_fragment>\\n}' });
+    const ringBall = new THREE.Mesh(new THREE.SphereGeometry(990, 96, 48), ringMat);
+    ringBall.renderOrder = -0.9; ringBall.frustumCulled = false; ringBall.raycast = () => {};
+    ringBall.onBeforeRender = (r, sc, cam) => { ringBall.position.copy(cam.position); ringBall.updateMatrixWorld(); };
+    scene.add(ringBall);
+  }
+`;

@@ -48,6 +48,7 @@ import { makeLight } from '../polygonizer/vexar.js';
 import { readPaletteSpec } from '../color-theorist/solve.js';
 import { aerialPageConfig } from './aerial.js';
 import { readSkyAsk, flightSky } from './sky.js';
+import { giantGround } from '../sol/skies.js';
 import { nightLightsConfig } from './night-lights.js';
 import { AQUA_PRESETS } from '../materials/aqua-look.js';
 import { countryFaces } from './country.js';
@@ -130,7 +131,9 @@ export function airspaceOf(manifest) {
   const gorge = manifest.rail && map.form === 'canyon' && manifest.ground?.gorge === undefined ? { gorge: true } : {};
   // the weather (sky.js): its sun and light the ground's, its clouds and sea the page's
   const sky = flightSky(manifest.sky, { map, seed });
-  const field = mapGround(map, { seed: manifest.seed, ...gorge, ...(manifest.ground || {}) }, { palette: manifest.palette || undefined, sky });
+  // (a giant flown over its cloud tops, sol/skies.js: the ground under its deck painted as its deeper cloud unless named)
+  const deep = manifest.sky?.world && manifest.ground?.geocube === undefined ? { geocube: giantGround(manifest.sky.world) } : {};
+  const field = mapGround(map, { seed: manifest.seed, ...gorge, ...deep, ...(manifest.ground || {}) }, { palette: manifest.palette || undefined, sky });
   return { map, field };
 }
 
@@ -155,7 +158,7 @@ function skyPageConfig(S, field) {
   const strength = { metro: 1, town: 0.45, village: 0.15 };
   const glows = (field.report.country?.settlements || []).map((c) => [c.center[0], c.center[1], r2(Math.max(...c.size) * 0.6), strength[c.kind] ?? 0.2]);
   return { sun: S.sun.dir, sunCol: S.sun.color, zenith: S.colours.zenith, horizon: S.colours.horizon, cloudLit: S.colours.cloudLit, cloudShade: S.colours.cloudShade,
-    aloft: S.aloft,
+    aloft: S.aloft, ...(S.rings ? { rings: S.rings } : {}),
     clear: S.light.gain > 0.3 ? 1 : 0.15, wind: S.wind.dir, windSpeed: S.wind.speed, layers: S.layers.map((L) => ({ type: L.type, form: L.form ?? null, base: L.base, depth: Array.isArray(L.depth) ? L.depth[1] : L.depth ?? 0, cover: L.cover })),
     clouds: { n: S.clouds.length, data: Buffer.from(F.buffer).toString('base64') }, domain: S.domain, shadow: true,
     night: S.night, moon: { dir: S.moon.dir, color: S.moon.color, phase: S.moon.phase }, lightning: S.lightning, glows, glowCol: '#ffb062' };

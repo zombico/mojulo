@@ -22,7 +22,11 @@
  *     layers, clouds: [[x, y, base, radius, height, seed]…], domain, sea: { height, waves: [[dirx, diry, length, amp, phase]…] }, aloft,
  *     metar }
  *
- * `ask`: a kind ('fair') or { kind?, cover?, hour?, wind?: { from?, speed? }, base?, seed?, lightning?, moon? }. Absent:
+ * A GIANT (`world`: jupiter | saturn | uranus | neptune, sol/skies.js) is flown over its cloud tops: its own weather in
+ * place of the kind's (a deck that closes the sky under the pilot, its towers and its haze) and its colours in place of
+ * an Earth sky's, over the deck and under it.
+ *
+ * `ask`: a kind ('fair') or { kind?, world?, cover?, hour?, wind?: { from?, speed? }, base?, seed?, lightning?, moon? }. Absent:
  * fair at mid afternoon, the sun where the map always lit its ground from. Metres, degrees for bearings (from north,
  * clockwise, the way a pilot reads them), hours 0–24.
  *
@@ -35,6 +39,7 @@
  */
 import * as dmath from '../../util/dmath.js';
 import { streamOf } from '../city/plan/dice.js';
+import { GIANT_SKIES, GIANT_IDS } from '../sol/skies.js';
 
 /** Each weather: its cloud layers (base and top in m, cover 0…1, a cumulus's size [min, max] m across), its light
  *  (ambient and gain: the kernel's lambert), its haze over the map's, its wind's default speed (m/s), its sea's colour. */
@@ -65,7 +70,9 @@ export function readSkyAsk(ask, at = 'airspace.sky') {
   if (typeof ask === 'string') return FLIGHT_SKIES[ask] ? [] : [`${at} must be one of ${FLIGHT_SKY_IDS.join(', ')}, or { kind?, cover?, hour?, wind?, base?, seed? }`];
   if (!isObj(ask)) return [`${at} must be a weather (${FLIGHT_SKY_IDS.join(', ')}) or { kind?, cover?, hour?, wind?, base?, seed? }`];
   const e = [];
-  for (const k of Object.keys(ask)) if (!['kind', 'cover', 'hour', 'wind', 'base', 'seed', 'lightning', 'moon'].includes(k)) e.push(`${at}.${k} is not a setting (kind, cover, hour, wind, base, seed, lightning, moon)`);
+  for (const k of Object.keys(ask)) if (!['kind', 'world', 'cover', 'hour', 'wind', 'base', 'seed', 'lightning', 'moon'].includes(k)) e.push(`${at}.${k} is not a setting (kind, world, cover, hour, wind, base, seed, lightning, moon)`);
+  if (ask.world !== undefined && !GIANT_SKIES[ask.world]) e.push(`${at}.world is a giant flown over its cloud tops: ${GIANT_IDS.join(', ')}`);
+  if (ask.world !== undefined && ask.kind !== undefined) e.push(`${at}: a giant's world is its own weather; say world or kind, not both`);
   if (ask.lightning !== undefined && typeof ask.lightning !== 'boolean') e.push(`${at}.lightning is true or false (a storm's is on)`);
   if (ask.moon !== undefined && !(Number.isFinite(ask.moon) && ask.moon >= 0 && ask.moon <= 1)) e.push(`${at}.moon is the moon's lit share, 0 (new) to 1 (full)`);
   if (ask.kind !== undefined && !FLIGHT_SKIES[ask.kind]) e.push(`${at}.kind must be one of ${FLIGHT_SKY_IDS.join(', ')}`);
@@ -197,10 +204,21 @@ function skyColours(kind, sun, W) {
   return { zenith, horizon, sunCol, tint, cloudLit, cloudShade };
 }
 
+/** A giant's colours at the sun's height (sol/skies.js): its own sky over its deck and its bands' lit and shaded sides,
+ *  dimmed as the sun sinks; the sun's small far light on the tops. */
+function giantColours(Gw, sun) {
+  const K = Gw.colours, low = 1 - smooth(4, 28, sun.elev), dim = smooth(0, 14, sun.elev), level = 0.55 + 0.45 * dim;
+  const sunCol = mix([255, 248, 236], [255, 190, 130], low);
+  return { zenith: K.zenith.map((v) => v * level), horizon: K.horizon.map((v) => v * (0.6 + 0.4 * dim)), sunCol, tint: [1, 1, 1].map((v) => v * (0.7 + 0.3 * dim)),
+    cloudLit: mix(K.cloudLit, sunCol, 0.15 * low).map((v) => v * (0.65 + 0.35 * dim)), cloudShade: K.cloudShade.map((v) => v * (0.75 + 0.25 * dim)) };
+}
+
 /** The sky for an airspace map. */
 export function flightSky(ask, { map, seed = 1 } = {}) {
   const errs = readSkyAsk(ask); if (errs.length) throw new Error(`sky: ${errs.join('; ')}`);
-  const A = typeof ask === 'string' ? { kind: ask } : ask || {}, kind = A.kind ?? 'fair', W = FLIGHT_SKIES[kind], sd = A.seed ?? seed;
+  const A = typeof ask === 'string' ? { kind: ask } : ask || {}, Gw = A.world ? GIANT_SKIES[A.world] : null, sd = A.seed ?? seed;
+  // (a giant's weather rides its base kind's machinery, its layers, light, haze and wind its own: sol/skies.js)
+  const kind = Gw ? Gw.base : A.kind ?? 'fair', W = Gw ? { ...FLIGHT_SKIES[kind], read: Gw.read, layers: Gw.layers, light: Gw.light, haze: Gw.haze, wind: Gw.wind } : FLIGHT_SKIES[kind];
   const hour = A.hour ?? DEFAULT_HOUR, sun = sunAt(hour), night = nightOf(sun.elev);
   // the moon at night: high in the south-east of the sun's night, its lit share the ask's or the dice's
   const phase = A.moon ?? r2(0.45 + 0.55 * streamOf(sd, 'sky', 'moon')()), moonAz = (sun.az + 205) % 360, moon = { elev: 38, az: r2(moonAz), dir: dirOf(38, moonAz), phase };
@@ -213,7 +231,7 @@ export function flightSky(ask, { map, seed = 1 } = {}) {
   const up = { ...sun, elev: Math.max(0.3, sun.elev) }, Nc = nightColours(kind, phase, W), Na = nightColours('clear', phase, FLIGHT_SKIES.clear);
   const fade = (D, N) => ({ zenith: mix(D.zenith, N.zenith, night), horizon: mix(D.horizon, N.horizon, night), sunCol: D.sunCol, tint: mix(D.tint, N.tint, night),
     cloudLit: mix(D.cloudLit, N.cloudLit, night), cloudShade: mix(D.cloudShade, N.cloudShade, night) });
-  const C = fade(skyColours(kind, up, W), Nc), A0 = fade(skyColours('clear', up, FLIGHT_SKIES.clear), Na);
+  const C = fade(Gw ? giantColours(Gw, up) : skyColours(kind, up, W), Nc), A0 = Gw ? C : fade(skyColours('clear', up, FLIGHT_SKIES.clear), Na);
   const { zenith, horizon, sunCol, tint, cloudLit, cloudShade } = C;
   const sea = mix(mix(rgb(W.sea), horizon, 0.08 + 0.12 * low), Nc.sea, night);
   // the layers, the main one taking the ask's cover and base
@@ -224,7 +242,7 @@ export function flightSky(ask, { map, seed = 1 } = {}) {
   layers.forEach((L) => { if (L.type === 'cumulus') for (const c of placeCumulus(L, L.cover, half, wind, sd)) clouds.push(c); });
   const metar = metarOf(kind, layers, wind, map);
   return {
-    kind, read: W.read, hour, night: r4(night), sun: { ...sun, color: hex(sunCol) }, moon: { ...moon, color: hex(Nc.sunCol) },
+    kind, ...(Gw ? { world: A.world, ...(Gw.rings ? { rings: Gw.rings } : {}) } : {}), read: W.read, hour, night: r4(night), sun: { ...sun, color: hex(sunCol) }, moon: { ...moon, color: hex(Nc.sunCol) },
     // the ground's light: the sun's by day, the moon's by night (its direction; how dark is the tint's)
     light: { dir: night > 0.5 ? moon.dir : dirOf(Math.max(2, sun.elev), sun.az), ambient: r4(W.light.ambient + (0.3 - W.light.ambient) * night), gain: r4(W.light.gain * (0.55 + 0.45 * Math.max(dim, night))), tint: tint.map(r4) },
     lightning: A.lightning ?? kind === 'storm',

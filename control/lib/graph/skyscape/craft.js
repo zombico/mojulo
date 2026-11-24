@@ -74,11 +74,14 @@ export function seatCraft(map, field, course = null, { assist = null } = {}) {
     const g0 = course?.gates?.[0]?.at;
     z = Math.max(gz + 4 * c.lowPass, g0 ? g0[2] + 1.2 * Math.hypot(g0[0] - sx, g0[1] - sy) / c.glide : -Infinity);
   }
+  // (a giant flown over its cloud tops, sol/skies.js: nothing to take off from, so every craft starts aloft over its deck)
+  const deck = field.sky?.world ? Math.max(...field.sky.layers.filter((L) => L.type === 'deck').map((L) => L.base + (L.depth ?? 0))) : null;
+  if (deck !== null) z = Math.max(z, gz + deck + 600);
   // the course as the page's guidance reads it: each gate [x, y, z, radius, heading], and the landing's approach (the aim
   // point, the landing heading and the slope) for the glide-slope lights
   const fin = course?.finish ? field.pads.find((q) => q.id === course.finish.pad) ?? pad : null, app = fin ? approachTo(map, fin) : null;
   const guide = course ? { gates: course.gates.map((g) => [...g.at, g.radius, g.heading]), ...(app ? { land: { aim: app.aim.map(r2), heading: r2(app.heading), glide: GLIDE } } : {}) } : null;
-  const rule = { ...base, ...(aloft ? { launchSpeed: c.cruise } : {}), ...(field.roofs && field.roofs.length ? { roofs: field.roofs } : {}), ...(guide ? { course: guide } : {}) };
+  const rule = { ...base, ...(aloft || deck !== null ? { launchSpeed: c.cruise } : {}), ...(field.roofs && field.roofs.length ? { roofs: field.roofs } : {}), ...(guide ? { course: guide } : {}) };
   return { rule, transform: { pos: [sx, sy, Math.round(z * 100) / 100], heading, pitch: 0 }, ground: gz, end: [end[0], end[1], pad ? pad.datum : field.groundAt(end[0], end[1])] };
 }
 
