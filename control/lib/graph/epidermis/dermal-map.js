@@ -364,7 +364,9 @@ const pwl = (pts, x) => { if (x <= pts[0][0]) return pts[0][1]; for (let i = 0; 
  */
 /** how far over the ear's top (mm) the hairline over the ear stays at least */
 const EAR_CLEAR = 12;
-function relationalHeadRegions(A, D, put, R) {
+/** THE HAIRLINE at a head address: its height there (mm up the chart, the wander a hairline has along it in), and the
+ * marks it is laid from (see relationalHeadRegions); the painted face's FRINGE reads how far under it a texel lies */
+export function headHairline(A, D) {
   const M = A.marks.points, q = headXY(A), x = Math.abs(q.X), male = D.sex === 'male';
   const side = q.X >= 0 ? 'R' : 'L', P = (k) => M[k + side] || M[k];
   const back = Math.PI * A.marks.r0, por = P('porion'), fz = P('fz'), tr = M.trichion;
@@ -386,6 +388,10 @@ function relationalHeadRegions(A, D, put, R) {
   const pk = D.peak ? D.peak * (1 - smooth(0.25, 0.55, mBald)) : 0, hl = pk ? hl0 - pk * Math.max(0, 1 - x / 12) ** 2 : hl0;
   // the edge broken as a hairline is (no hairline is a drawn line): a few millimetres of wander along it, soft over 5 mm
   const wander = 4 * (vnoise(q.X / 7, 0.5, D.seed + 41) - 0.5) + 2 * (vnoise(q.X / 2.2, 3.5, D.seed + 43) - 0.5);
+  return { M, q, x, male, side, P, back, por, fz, tr, Ht, sideX, bald, mBald, front, rnd, tmp, sb, nape, Hf, earTop, overEar, hl0, pk, hl, wander };
+}
+function relationalHeadRegions(A, D, put, R) {
+  const { M, q, x, male, side, P, back, por, fz, tr, Ht, sideX, bald, mBald, front, rnd, tmp, sb, nape, Hf, earTop, overEar, hl0, pk, hl, wander } = headHairline(A, D);
   let scalp = smooth(hl + wander - 5, hl + wander + 3, q.Y);
   // HAIR LOSS on the crown, as an angle on the head's sphere from a centre (the chart's X loses its meaning up there):
   // a man's from the back of the crown, growing and riding up toward the vertex until it meets the receding front (the

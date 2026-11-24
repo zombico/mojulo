@@ -49,6 +49,12 @@
  *   behind the lips an open cup and in it the teeth and the tongue (hero-one-skin.js `teeth`), and the lips' corners
  *   bound half to the jaw, so the mouth opens as an almond, not a box (`lens`). The seated head is pinned
  *   under laws 11 as it was, byte for byte, and under laws 12 beside it, its mouth's parts with it.
+ * - 2026-11-24, the skin's wavelength in portable arithmetic (CI on arm64 hashed the seated female apart): the p-norm
+ *   joining the feature and bone shortenings is squares and square roots, where `**` reached the engine's pow, whose last
+ *   bit differs between CPUs. On x64 the male under laws 2 and 9 moved by that bit; every other pin as it was.
+ * - 2026-11-24, the head on dmath (arm64 still hashed the seated female apart): the relational head's modules take
+ *   their transcendentals from util/dmath.js, the same bits on every CPU, where the engine's Math rounds differently
+ *   on arm64. dmath equals Math on x64 bit for bit, so every pin is as it was.
  */
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -56,22 +62,22 @@ import { createHash } from 'node:crypto';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PARTS = ['neck', 'cranium', 'jaw', 'visage', 'nose', 'eyeR', 'eyeL', 'earR', 'earL'];
-const PINS = { male: '4169440b02426371', female: '99a2ed29cbc62a38' };
+const PINS = { male: 'edf76b45c95740b4', female: 'bb8b978f82e7afab' };
 // the ONE SKIN (realistic laws 2, hero-one-skin.js): the skin, the mouth, the globes in place of the pieces
 const ONE_PARTS = ['neck', 'headSkin', 'mouth', 'globeR', 'globeL', 'earR', 'earL'];
-const ONE_PINS = { male: 'd141a71485ddcf02', female: '54cd21f82280678f' };
+const ONE_PINS = { male: '6de7a7f8426e33da', female: '783ac6a7920b1412' };
 // the CERVICAL NECK (realistic laws 3, body-relational-builds.js CERVICAL_NECK): the one skin on the leaning neck
-const NECK_PINS = { male: '459d30a9fc5f3008', female: '23a186409b0578cd' };
+const NECK_PINS = { male: 'e927a98a8ef21651', female: '72a2bf7ac7e8e8d1' };
 // the EAR RAISED to the canon (realistic laws 10, head-relational.js EAR_RAISE): its top at the brow line, the lobule at
 // the nose's base (the one skin's ear and the skin it welds to move with it)
-const EAR_PINS = { male: '0f388164cbe3cf89', female: '4f512d419c09c8d3' };
+const EAR_PINS = { male: '04502770f8ac86b6', female: 'c85a724faa87c63f' };
 // the lids SEATED (realistic laws 11, head-relational-eye.js SEAT: the brow's arc and ties lower, the fold a pad, a deep-set
 // eye forward), over the ear raised; re-pinned when the seat (laws 10 on 1027-hero-pack-v2) came after the raised ear
-const SEATED_PINS = { male: '8433041062f5791b', female: '62a42715c85075d3' };
+const SEATED_PINS = { male: 'b4c1cfb0252a5bad', female: '7076e07f58f7761d' };
 // the MOUTH WITH TEETH (realistic laws 12, hero-one-skin.js `teeth`): the cup, the teeth and the tongue, the corners'
 // lens, over the seat
 const TEETH_PARTS = [...ONE_PARTS, 'teethUpper', 'teethLower', 'tongue'];
-const TEETH_PINS = { male: '9c503eb36cfbad15', female: 'db664f3b88638229' };
+const TEETH_PINS = { male: '706cc2dc37fb713e', female: '016f62dc6d9c1005' };
 const pinOf = (r, parts) => createHash('sha256').update(JSON.stringify({ parts: Object.fromEntries(parts.map((k) => [k, r.parts[k]])), jaw: [r.rig.joints.jawHinge, r.rig.joints.jawTip] })).digest('hex').slice(0, 16);
 
 describe('the relational head, pinned', () => {
