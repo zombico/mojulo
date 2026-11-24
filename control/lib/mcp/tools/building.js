@@ -15,6 +15,7 @@ import { registerTool } from '@/lib/mcp/server';
 import { mintSketch } from '@/lib/mcp/tools/sketch-mint';
 import { BUILDING_KINDS, buildingRead, buildingNext, buildingSays } from '@/lib/mcp/tools/building-next';
 import { mintSchoolComplex } from '@/lib/mcp/tools/scene-school';
+import { homeStart } from '@/lib/graph/home/producer';
 
 export function mintBuilding({ title, manifest, ref, folderRef } = {}) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
@@ -45,8 +46,17 @@ export function mintBuilding({ title, manifest, ref, folderRef } = {}) {
   return mintSketch({ title, manifest: m, ref, folderRef });
 }
 
-async function mintBuildingHandler(input) {
-  if (!input || typeof input !== 'object') throw new Error('mint_building requires { title, manifest }');
+export async function mintBuildingHandler(input) {
+  if (!input || typeof input !== 'object') throw new Error('mint_building requires { title, manifest }, or { start } for someone\'s own home');
+  // THE START (home/producer.js): a person with a home of their own (a room to redo, a plan they just moved into, a house
+  // they would build), before anything is made. It builds nothing: the producer's one question, the rail it starts from,
+  // what it lacks, and once answered the steps that make it. On this door because a house is its intent, and a room is a
+  // section of a house (as create_exhibit's and design_game's first calls build nothing and say what to ask)
+  if (input.start !== undefined) {
+    const others = Object.keys(input).filter((k) => k !== 'start' && input[k] !== undefined);
+    if (others.length) throw new Error(`mint_building: \`start\` is asked alone: what the person has said so far (not with ${others.join(', ')})`);
+    return homeStart(input.start);
+  }
   const { title, manifest, ref, folder_ref: folderRef } = input;
   return mintBuilding({ title, manifest, ref, folderRef });
 }
@@ -55,7 +65,7 @@ export function registerBuildingTools() {
   registerTool({
     name: 'mint_building',
     description:
-      "Mint a walkable building with its structure book (plans, sections, schedules; a house's frame) → { ok, ref, url, design, next }. A house, apartment or one furnished room: a floorplan from a `seed` (width / height in feet) or `rooms[]` { x, y, w, h, glyph }; `view`: 'exterior' | 'cutaway' | 'interior'. A shop: kind 'store' { card }; 'restaurant' { seed }; 'mall' { levels: 1 | 2, cards }. 'office' { storeys }. 'school-complex' { seed, pattern }. Any as a game level: `level: { goal }`, then create_game. `next` names what is open by outcome (concept, layout, drawings, build) and its card (get_sketch_vocab). Iterate with update_sketch.",
+      "Mint a walkable building with its structure book (plans, sections, schedules; a house's frame) → { ok, ref, url, design, next }. A house, apartment or one furnished room: a floorplan from a `seed` (width / height in feet) or `rooms[]` { x, y, w, h, glyph }; `view`: 'exterior' | 'cutaway' | 'interior'. A shop: kind 'store' { card }; 'restaurant' { seed }; 'mall' { levels: 1 | 2, cards }. 'office' { storeys }. 'school-complex' { seed, pattern }. Any as a game level: `level: { goal }`, then create_game. `next` names what is open by outcome (concept, layout, drawings, build) and its card (get_sketch_vocab). Iterate with update_sketch. Someone's own home: `start` first, builds nothing.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -67,8 +77,9 @@ export function registerBuildingTools() {
         },
         ref: { type: 'string', description: 'Optional stable ref (1-64 chars of [A-Za-z0-9_-]); default `sk_<10-char>`. Errors if taken.' },
         folder_ref: { type: 'string', description: 'Optional `fld_<…>` folder to drop the house into.' },
+        start: { type: 'object', description: "Someone's own home before it is made: { what?, place?, living?, look?, brought? } → the one question to ask, the rail, the steps. Builds nothing." },
       },
-      required: ['title', 'manifest'],
+      required: [],
     },
     handler: mintBuildingHandler,
   });
