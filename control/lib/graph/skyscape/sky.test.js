@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { flightSky, readSkyAsk, sunAt, seaOf, FLIGHT_SKIES, FLIGHT_SKY_IDS, DEFAULT_HOUR } from './sky.js';
+import { flightSky, groundCumulus, GROUND_SKY, readSkyAsk, sunAt, seaOf, FLIGHT_SKIES, FLIGHT_SKY_IDS, DEFAULT_HOUR } from './sky.js';
 import { planMap } from './map.js';
 import { assembleAirspace, airspaceOf, validateAirspace } from './airspace.js';
 import { terrainChannelScript } from '../scene/channels/terrain-lod.js';
@@ -150,5 +150,18 @@ describe('the airfield: its taxiway and its PAPI', () => {
     expect(Math.abs(P[0][ax] - (end + RUNWAY_AIM))).toBeLessThan(0.5);
     // the first end's lamps face back down its approach (toward the low end)
     expect(P[0][4 + ax]).toBe(-1);
+  });
+
+  it('lays a ground world\'s cumulus from its weather: a few on a clear day, more on a fair one, none under a lid', () => {
+    const clear = groundCumulus({ kind: 'clear' }), fair = groundCumulus({ kind: 'fair' }), thick = groundCumulus({ kind: 'fair', cover: 1 });
+    expect(clear.n).toBeGreaterThan(0);
+    expect(fair.n).toBeGreaterThan(clear.n);
+    expect(thick.n).toBeGreaterThan(fair.n);
+    expect(fair.data.length).toBe(fair.n * 6);
+    expect(Math.hypot(...fair.wind)).toBeCloseTo(1, 3);
+    expect(fair.half).toBe(GROUND_SKY.half);
+    for (const k of ['overcast', 'storm', 'high']) expect(groundCumulus({ kind: k })).toBeNull();
+    expect(JSON.stringify(groundCumulus({ kind: 'fair', seed: 4 }))).toBe(JSON.stringify(groundCumulus({ kind: 'fair', seed: 4 })));
+    expect(groundCumulus({ kind: 'fair', seed: 4 }).wind).not.toEqual(fair.wind);
   });
 });

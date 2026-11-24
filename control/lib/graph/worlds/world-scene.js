@@ -1090,6 +1090,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (buildings under a wet weather and no clouds named: the weather's own sky, era/geocube.js)
     if (read && M.clouds === undefined && M.buildings !== undefined && CLOUDS_OF_WEATHER[M.weather] === 'storm' || read && M.clouds === undefined && M.buildings !== undefined && M.weather === 'drizzle') payload.form.land.clouds = { kind: CLOUDS_OF_WEATHER[M.weather], cover: 0.5, seed: 1 };
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
+    // (the flight sky's cumulus over the land on a clear, fair or hazy day, skyscape/sky.js groundCumulus: its weather's,
+    // else the one the sky reads, fair where the stage painted clouds and clear where it painted none; channels/sky-cumulus.js)
+    if (read && payload.form.land.sky) {
+      const { groundCumulus } = await import('@/lib/graph/skyscape/sky.js');
+      const painted = Array.isArray(payload.faces) && payload.faces.some((f) => f && f.group === 'isekai:cloud');
+      const cu = groundCumulus(payload.form.land.clouds ?? { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 });
+      if (cu && cu.n) payload.form.land.cumulus = cu;
+    }
     // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
     // (rain on the land: where it is raining, the land wears the film its buildings' walls and slabs do, era/wetness.js;
     // by the recipe's `wet`, or its weather's where it has buildings, as the buildings read it)
@@ -1170,6 +1178,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const Mc = sketch.manifest.clouds;
     payload.formSky = { sun: payload.sky.sun.dir, zenith: payload.sky.zenith, horizon: payload.sky.horizon,
       ...(Mc !== undefined ? { clouds: Mc === 'weather' ? { kind: CLOUDS_OF_WEATHER[sketch.manifest.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(Mc) } : {}) };
+    // (its cumulus as a form land's, the flight sky's on a clear, fair or hazy day)
+    {
+      const { groundCumulus } = await import('@/lib/graph/skyscape/sky.js');
+      const painted = Array.isArray(payload.faces) && payload.faces.some((f) => f && f.group === 'isekai:cloud');
+      const cu = groundCumulus(payload.formSky.clouds ?? { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 });
+      if (cu && cu.n) payload.formSky.cumulus = cu;
+    }
   }
   // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
   if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);

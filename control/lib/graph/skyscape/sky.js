@@ -156,6 +156,25 @@ function placeCumulus(L, cover, half, wind, seed) {
   return out;
 }
 
+/** A ground world's cumulus (form-sky.js, sky-cumulus.js): the flight sky's own cumulus, laid round a walker's eye from
+ *  its weather's words (a geocube's or a stage's `clouds`: clear, fair, haze; an overcast's, a storm's and a high day's
+ *  keep their sheet), over a square GROUND_SKY.half m about the world, the wind a direction from its seed.
+ *  → { n, data: [x, y, base, radius, height, seed]…, wind: [x, y], half } | null */
+export const GROUND_SKY = Object.freeze({
+  half: 12000,
+  // (each weather's cumulus: the flight sky's layer it lays, and its cover from the recipe's own cover 0…1)
+  kinds: Object.freeze({ clear: Object.freeze({ from: 'fair', cover: [0.03, 0.07] }), fair: Object.freeze({ from: 'fair', cover: [0.1, 0.34] }), haze: Object.freeze({ from: 'haze', cover: [0.05, 0.12] }) }),
+});
+export function groundCumulus({ kind = 'clear', cover = 0.5, seed = 1 } = {}) {
+  const G = GROUND_SKY.kinds[kind];
+  if (!G) return null;
+  const L = FLIGHT_SKIES[G.from].layers.find((l) => l.type === 'cumulus'), sd = Math.abs(Math.round(seed)) || 1;
+  const a = (sd * 2.39996323) % (2 * Math.PI), dir = [Math.round(Math.cos(a) * 1e4) / 1e4, Math.round(Math.sin(a) * 1e4) / 1e4];
+  const c = Math.max(0, Math.min(1, cover));
+  const clouds = placeCumulus(L, G.cover[0] + (G.cover[1] - G.cover[0]) * c, GROUND_SKY.half, { dir }, sd);
+  return { n: clouds.length, data: clouds.flat(), wind: dir, half: GROUND_SKY.half };
+}
+
 /** A weather's colours at the sun's height: its zenith and horizon, the sun's colour, the ground's tint, the clouds' lit
  *  side and shade (0–255 lists, the tint 0–1). */
 function skyColours(kind, sun, W) {

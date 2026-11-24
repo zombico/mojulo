@@ -826,7 +826,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
   const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture }) : '';
   // (a page without the form render: the view cone and its far structures when the world asks, channels/far-structures.js)
-  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture })}})();\n` : '';
+  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture, cumulus: !!(formSky.cumulus && formSky.cumulus.n) })}})();\n` : '';
   // (the form render's sky and plants are clocked: a capture's frame() pins their clock as an overlay's, so a still is
   // the same however long it took to draw; the page's own clock otherwise, its bytes as they were)
   const formClocked = !!(formLandBlock || skyBlock2);
