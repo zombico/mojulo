@@ -44,7 +44,7 @@ import { makeSunShadow, makeSoftSunShadow, sunDir } from './sun.js';
 import { bakeStageLight } from './stage.js';
 import { natureSite, trailFaces, trailRims, rockItems, treeItems, grassTufts, tube } from './nature.js';
 import { blobTris } from '../vegetation/tree-mesh.js';
-import { realisticPlan, realisticParts, treeYaw, readFlock } from '../form/flora-read.js';
+import { realisticPlan, realisticParts, treeYaw, readCrowns, crownsForm, CROWNS } from '../form/flora-read.js';
 import { lockFaces } from './palette.js';
 import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
@@ -1354,21 +1354,8 @@ function grittyGrass(LG, grit, st) {
 // a stage's `crowns`, how its broadleaves' crowns are read in the form render (form/flora-read.js treeTemplate): 'hybrid'
 // (each leaf bundle round a blob), 'masses' (big blobs round the branches, the bundles on their surfaces) or 'blobs' (a
 // blob at each branch end, the leaves set aside: the crown's form studied alone)
-export const CROWNS = Object.freeze(['hybrid', 'masses', 'blobs', 'realistic']);
-/** A stage's `crowns` word's reading by name (the word itself, or its `form`). */
-const crownsForm = (c) => (c && typeof c === 'object' && !Array.isArray(c) ? c.form : c);
-/** A stage's `crowns` word → the plants' `crowns` and, for realistic crowns, their `flock` (form/flora-read.js FLOCK: on
- *  unless `flock: false`): a reading by name, or `{ form, flock? }` (`flock` only on 'realistic'). */
-export const readCrowns = (c) => {
-  const form = crownsForm(c);
-  if (!CROWNS.includes(form)) throw new Error(`isekai: crowns is ${CROWNS.join(' or ')}, or { form, flock? } (how the form render reads its broadleaves' crowns)`);
-  if (form !== c) {
-    for (const k of Object.keys(c)) if (!['form', 'flock'].includes(k)) throw new Error(`isekai: crowns.${k} is not a setting (form, flock)`);
-    if (c.flock !== undefined && form !== 'realistic') throw new Error('isekai: crowns.flock is a realistic crown\'s setting');
-  }
-  const flock = form === 'realistic' ? readFlock(form === c ? true : c.flock) : null;
-  return { crowns: form, ...(flock ? { flock } : {}) };
-};
+// (a stage's `crowns` word: form/flora-read.js readCrowns, the form render's reading, shared with geotown and geocity)
+export { CROWNS, readCrowns };
 const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers', 'far', 'sway', 'form'];
 // (a grass that says only HOW it is drawn, `{ form: true }`, asks for no grass of its own: it draws whatever grass the
 // stage grows, over the defaults that grass would take)

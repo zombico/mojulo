@@ -387,6 +387,12 @@ stage says `crowns: { form: 'realistic', flock: false }`.
   size (a box's 4.5 cm ovate), the light through, its far card baked from the sponge. Its sponge is finer than a
   tree's (`grain`, written into its material's source, so a tree's source is as it was), and none of its leaf-card
   clumps are kept. The rosette (hosta, fern) and the needled habits keep their own look.
+- **Where it is drawn.** `crowns` is read by form/flora-read.js `readCrowns` for a geocube's path and town (their stage),
+  its `geotown` and its `geocity` (their street trees, a geocity's composed towns too). A geotown or a geocity plants its
+  own trees where it found them room, `plants.apart: false`: none moved or shrunk by the stage's trees-apart rule, a
+  realistic one still raised to its headroom, and a geotown's room is measured by the realistic crown's own reach. A
+  realistic crown reaches about 1.4× a plain one's at its height, so fewer of a geotown's trees find room between its
+  houses (on valley-morning's town, 10 of 22).
 - **Absent, nothing.** A page without flock crowns carries none of its code (`form-flock.test.js`).
 - **Known limits:**
   - the occlusion prepass and the exports (GLB, USD, engines) see the puffs whole;

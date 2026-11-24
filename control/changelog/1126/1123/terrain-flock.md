@@ -13,3 +13,5 @@
   (`scripts/spikes/flock`).
 - In the fall, the trees shed as they turn: each its own way, its crown opening onto its limbs from the top and the
   outside in, its last leaves catching the sun, more light reaching the ground, a wood never one density.
+- Geotowns and geocities take the same trees: their street trees and their gardens' bushes read as realistic flock
+  when the scene asks for realistic crowns. A realistic crown is wider, so a town finds room for fewer street trees.

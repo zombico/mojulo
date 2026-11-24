@@ -73,6 +73,7 @@ import { HIGHWAY, deckAt } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates, shoreAt } from './waterfront.js';
 import { rooftopTemplates, rooftopPlan, beaconsOf, BEACON } from './rooftop.js';
 import { assembleGeotownScene, coloursOf as townColoursOf } from '../geotown/scene.js';
+import { readCrowns } from '../form/flora-read.js';
 import { PATTERNS } from '../geotown/pattern.js';
 import { rowYards, shopYards, residentsLot, blockPark, schoolPitch, volunteers } from './backs.js';
 import { drawnGround, settleStamps, settleTrees, SETTLE } from './settle.js';
@@ -99,7 +100,7 @@ export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'see
   // (what plays in it: the world reads these, worlds/world-scene.js; a city with nobody in it reads none)
   'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind',
   // (its traffic: on unless `flow: false`, flow.js)
-  'flow']);
+  'flow', 'crowns']);
 // destructible physics (`destruction: 'physical'`, rupa/): the buildings within RING metres of where the walk starts, the
 // nearest RING_MAX of them, are handed over as blocks (rupa/shell-blocks.js: walls and a roof); the rest stay massing
 export const RING = 100, RING_MAX = 24;
@@ -261,7 +262,10 @@ const BACK_CLAIMED = new Set(['paving', 'deck', 'shed', 'roof', 'garage', 'grave
 /** A level face wider than this (m) is ground, and shades nothing; the sun test's grid for a city (m). */
 const FORM_SPAN = 30, FORM_CELL = 3;
 export function assembleGeocityScene(m, ctx = {}) {
-  for (const k of Object.keys(m)) if (!GEOCITY_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geocity (cube, seed, hour, clouds, geocity, cone, air)`);
+  for (const k of Object.keys(m)) if (!GEOCITY_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geocity (cube, seed, hour, clouds, geocity, cone, air, crowns)`);
+  // (`crowns`: how the form render reads its broadleaves, its street trees' and its towns', form/flora-read.js readCrowns;
+  // each stands where it was planted, `apart: false`)
+  const CR = m.crowns !== undefined ? readCrowns(m.crowns) : null;
   // (`cone`: gameplay's view cone, its far structures past it: scene/channels/view-cone.js, far-structures.js)
   if (m.cone !== undefined) readCone(m.cone);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
@@ -834,7 +838,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       return;
     }
-    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.shops === undefined ? { ...T.spec, shops: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.crowns !== undefined ? { crowns: m.crowns } : {}), ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.shops === undefined ? { ...T.spec, shops: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
     const mv = (p) => [r5(p[0] + ox), r5(p[1] + oy), p[2]], at0 = faces.length;
     for (const f of P.faces) faces.push({ ...f, corners: f.corners.map(mv) });
     seamsOf.push({ id: r.id, rect: [ox, oy, ox + W, oy + D], from: at0, to: faces.length });
@@ -861,7 +865,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       return;
     }
-    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.shops === undefined ? { ...T.spec, shops: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
+    const P = assembleGeotownScene({ kind: 'geocube', cube: m.cube, show: 'geotown', seed: T.seed, ...(m.crowns !== undefined ? { crowns: m.crowns } : {}), ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}), geotown: ENTER && T.spec.shops === undefined ? { ...T.spec, shops: ENTER } : T.spec, walk: false }, { field: T.field, ...(T.streets ? { streets: T.streets } : {}), ...(form ? { form: true, ...(formB ? { formBuildings: true } : {}) } : {}) });
     const mv = (p) => [r5(p[0] + dx), r5(p[1] + dy), p[2]], at0 = faces.length;
     for (const f of P.faces) {
       const c = f.corners, cx = c.reduce((a, p) => a + p[0], 0) / c.length, cy = c.reduce((a, p) => a + p[1], 0) / c.length;
@@ -2037,7 +2041,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // their crowns raised over the walk, drawn near the camera only like the kit
   // (read by the seventh generation: the street trees the form grows, each its species at its height, form/flora-read.js)
   let plants = null;
-  if (form && E?.evoke !== 'skyline') plants = metroPlants(trees, townPlants, backClaims);
+  if (form && E?.evoke !== 'skyline') plants = { ...metroPlants(trees, townPlants, backClaims), ...(CR ? { ...CR, apart: false } : {}) };
   if (!form && E?.evoke !== 'skyline' && trees.size) {
     const eyes = cameras.map(({ worldFraming: wf }) => ({ pos: wf.cameraPosition, focalPx: 1280 / (2 * Math.tan((wf.horizontalFov * Math.PI) / 360)) }));
     for (const sp of [...trees.keys()].sort()) {

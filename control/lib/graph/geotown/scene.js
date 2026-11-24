@@ -50,7 +50,7 @@ import { townDressOf, dressTownFace } from '../era/town-dress.js';
 import { layLeaf, leafPage } from '../era/shutter-leaves.js';
 import { styleTownDress, styleReadout } from '../era/arch-style.js';
 import { plantPool, plantRepeats } from '../vegetation/pool.js';
-import { treeSizes } from '../form/flora-read.js';
+import { treeSizes, readCrowns } from '../form/flora-read.js';
 import { SPECIES } from '../vegetation/species.js';
 import { streamOf } from '../city/plan/dice.js';
 import { buildingKits } from './houses.js';
@@ -68,7 +68,7 @@ import { makeSunShadow } from '../era/sun.js';
 import { readHour } from '../era/geocube-hours.js';
 import { unlift } from '../matte-paint/detail.js';
 
-export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'sea', 'cone']);
+export const GEOTOWN_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'style', 'geotown', 'walk', 'shadows', 'occlusion', 'light', 'air', 'sea', 'cone', 'crowns']);
 // the faces a geotown draws at most (its trees are repeats, budgeted apart): a law, advice. The town to scale's is one
 // budget; an evocation spends its own on each segment's buildings, so its budget is a segment's times its segments,
 // or a building's times its buildings where a dense streetscape stands more
@@ -237,8 +237,11 @@ const lineOf = (d, B, side) => (side === 'w' ? { id: `ns-${B.i}`, S: d.sections.
 
 /** The geocube kind's geotown: the town's map stood on the cube's land at its hour. */
 export function assembleGeotownScene(m, ctx = {}) {
-  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air, cone)`);
+  for (const k of Object.keys(m)) if (!GEOTOWN_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geotown (cube, seed, hour, clouds, style, geotown, air, cone, crowns)`);
   if (m.seed !== undefined && !Number.isInteger(m.seed)) no('seed is an integer');
+  // (`crowns`: how the form render reads its broadleaves, form/flora-read.js readCrowns; a realistic crown flock unless it
+  // says not. Its trees stand where they were planted, `apart: false`, each held to its room by its own crown)
+  const CR = m.crowns !== undefined ? readCrowns(m.crowns) : null;
   if (m.cube === undefined || m.cube === null) no('cube is a preset id or a document');
   // (a geotown composed into a geocity's neighbourhood stands on the metro's land: ctx.field, its natural ground in the
   // town's frame, geocity/scene.js; absent, the town's own hills)
@@ -1093,7 +1096,7 @@ export function assembleGeotownScene(m, ctx = {}) {
   // room not planted, again until every crown has its room)
   if (form) {
     let all = Object.keys(items).sort().flatMap((sp) => items[sp].map((it) => ({ sp, it })));
-    const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => ({ x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp })), bushes: [], shrubs: [] });
+    const plantsOf = (L) => ({ form: 'blob', kinds: null, bushKinds: null, trees: L.map(({ sp, it }, i) => ({ x: it.x, y: it.y, z: r5(it.z0 - 0.15), h: it.height, kind: -1, cluster: i, species: sp })), bushes: [], shrubs: [], ...(CR ? { ...CR, apart: false } : {}) });
     for (let pass = 0; pass < 5; pass++) {
       const sizes = treeSizes(plantsOf(all)), keep = all.filter((e, i) => roomAt(e.it.x, e.it.y) - TREE_GAP >= sizes[i].r);
       if (keep.length === all.length) break;

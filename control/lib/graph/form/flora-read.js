@@ -184,6 +184,22 @@ export function readFlock(v = true) {
   if (v.shadow !== undefined && !FLOCK.shadows.includes(v.shadow)) throw new Error(`flock.shadow is ${FLOCK.shadows.join(', ')}`);
   return { leaves: v.leaves ?? FLOCK.leaves, shadow: v.shadow ?? FLOCK.shadow };
 }
+/** THE CROWNS a scene's broadleaves are read as (a stage's, a geotown's or a geocity's `crowns` word): by name, or
+ *  `{ form, flock? }` (`flock` a realistic crown's alone: FLOCK, on unless `flock: false`) → the plants' `crowns` and their
+ *  `flock`. */
+export const CROWNS = Object.freeze(['hybrid', 'masses', 'blobs', 'realistic']);
+/** A `crowns` word's reading by name (the word itself, or its `form`). */
+export const crownsForm = (c) => (c && typeof c === 'object' && !Array.isArray(c) ? c.form : c);
+export function readCrowns(c) {
+  const form = crownsForm(c);
+  if (!CROWNS.includes(form)) throw new Error(`crowns is ${CROWNS.join(' or ')}, or { form, flock? } (how the form render reads its broadleaves' crowns)`);
+  if (form !== c) {
+    for (const k of Object.keys(c)) if (!['form', 'flock'].includes(k)) throw new Error(`crowns.${k} is not a setting (form, flock)`);
+    if (c.flock !== undefined && form !== 'realistic') throw new Error('crowns.flock is a realistic crown\'s setting');
+  }
+  const flock = form === 'realistic' ? readFlock(form === c ? true : c.flock) : null;
+  return { crowns: form, ...(flock ? { flock } : {}) };
+}
 /** A species' leaf as the flock's skin carries it: the grower's own leaf length (m: its architecture's, never the
  *  species' stylized `leafScale`) and its outline's half-width along the midrib (× the length, FLOCK_TABLE entries from
  *  the petiole to the tip; vegetation/twigs.js LEAF_SHAPES). null for a needled tree or one without a leaf. */
@@ -403,7 +419,8 @@ export const speciesFor = (t, K) => t.species ?? K?.species ?? (K ? FLORA_SPECIE
 export function treeSizes(plants) {
   if (!plants || plants.form === 'bamboo' || plants.form === 'blossom' || !plants.trees.length) return [];
   const kindAt = (t) => (t.kind >= 0 && plants.kinds ? readKind(plants.kinds[t.kind]) : null), at = new Map(plants.trees.map((t, i) => [t, i])), out = [];
-  for (const { t, T, h } of treePlan(plants, kindAt)) out[at.get(t)] = { h, r: r4(T.radius * (h / T.height)) };
+  // (a scene that plants its own room, `apart: false`, reads a realistic tree raised to its headroom, as it will stand)
+  for (const { t, T, h: h0 } of treePlan(plants, kindAt)) { const h = plants.crowns && plants.apart === false ? tallest(T, h0) : h0; out[at.get(t)] = { h, r: r4((T.crownR ?? T.radius) * (h / T.height)) }; }
   return out;
 }
 
@@ -542,7 +559,9 @@ export function floraRead(plants, { kinds = null, bushKinds = null, colours, bas
   }
   const bySpecies = new Map();
   // (a crown a stage's `crowns` reads stands APART: each tree reads on its own, its crown never joining a neighbour's)
-  const P0 = treePlan(plants, kindAt), P1 = plants.crowns ? apart(P0) : P0;
+  // (a street's or a yard's, `apart: false`: each where it was planted, its scene having found it room; a realistic one
+  // still raised to its headroom)
+  const P0 = treePlan(plants, kindAt), P1 = plants.crowns ? (plants.apart === false ? P0.map((e) => ({ ...e, h: tallest(e.T, e.h) })) : apart(P0)) : P0;
   for (const { t, K, T, h } of P1) { bySpecies.set(T.name, T); if (!t.held) push(T, t, h, K); }
   // the SKIRT's trees (era/isekai.js plantItems `skirt`), the stage's far clumps grown as the level's own: each its kind's
   // species, the template its trees near the trail grow from (else the species' own middle height), as wide as the

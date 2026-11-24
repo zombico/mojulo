@@ -76,6 +76,9 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     expect(() => assembleGeocityScene({ ...M, domain: 'x' })).toThrow(/'domain' is not a setting of the geocube kind's geocity/);
     // (its view cone, asked: the screen's reach, or metres in range)
     expect(() => assembleGeocityScene({ ...M, cone: 'far' })).toThrow(/cone is the view cone/);
+    // (its crowns, the form render's reading of its street trees and its towns': a word it does not know refused)
+    expect(() => assembleGeocityScene({ ...M, crowns: 'fluffy' })).toThrow(/crowns is/);
+    expect(() => assembleGeocityScene({ ...M, crowns: { form: 'hybrid', flock: true } })).toThrow(/realistic crown's setting/);
   });
 });
 

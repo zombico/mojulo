@@ -4,6 +4,7 @@ import { mulberry32 } from '../city/plan/dice.js';
 import { designGeotown } from './design.js';
 import { SURFACES, PATTERNS, DEFAULT_PATTERN } from './pattern.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
+import { readFlock, treeSizes } from '../form/flora-read.js';
 
 // the smallest town that still levels: one block on a little hill, a narrow margin
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 4, geotown: { evoke: 'metro', grid: [1, 1], hills: { height: 6 }, margin: 12 } };
@@ -293,3 +294,19 @@ describe('the geotown built: its map stood on the cube\'s land, levelled', () =>
     for (const g of ['geotown:streetbin', 'geotown:postbox', 'geotown:steel']) expect(M.has(g)).toBe(true);
   });
 });
+
+describe('a geotown\'s crowns (form/flora-read.js readCrowns)', () => {
+  it('reads its broadleaves as the stage does: realistic and flock, each tree where it was planted and held to its room', () => {
+    const E = { kind: 'geocube', cube: 'valley-morning', show: 'geotown', seed: 3, geotown: { hills: { height: 6 } } };
+    const plain = assembleGeotownScene(E, { form: true }).plants, real = assembleGeotownScene({ ...E, crowns: 'realistic' }, { form: true }).plants;
+    expect(real).toMatchObject({ crowns: 'realistic', flock: readFlock(), apart: false });
+    expect(plain.crowns).toBeUndefined();
+    // (its realistic crowns wider than its plain ones: fewer of them find room, none planted without it)
+    expect(real.trees.length).toBeGreaterThan(0);
+    expect(real.trees.length).toBeLessThanOrEqual(plain.trees.length);
+    const rP = treeSizes(plain), rR = treeSizes(real);
+    expect(Math.max(...rR.map((s) => s.r))).toBeGreaterThan(Math.max(...rP.map((s) => s.r)) * 0.9);
+    expect(() => assembleGeotownScene({ ...E, crowns: 'fluffy' }, { form: true })).toThrow(/crowns is/);
+  }, 300000);
+});
+
