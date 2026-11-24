@@ -513,6 +513,8 @@ window.heroLive = {
   // (a hold replaces every weight: the morphs it names at theirs, every other at 0, never what an earlier hold left)
   hold: (weights) => { $('hold').checked = true; $('hold').dispatchEvent(new Event('change')); for (const k of Object.keys(S.holdW)) S.holdW[k] = 0; Object.assign(S.holdW, weights); },
   release: () => { if ($('hold').checked) { $('hold').checked = false; $('hold').dispatchEvent(new Event('change')); } },
+  // (the BIND pose: every action stopped, each skin's skeleton at its bind, no morph: the mesh as the GLB stores it)
+  rest: () => { const L = cur(); if (!L) return; L.mixer.stopAllAction(); S.under = null; S.layers = []; L.root.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.pose(); if (o.morphTargetInfluences) o.morphTargetInfluences.fill(0); }); L.root.updateMatrixWorld(true); },
   set: (opts) => { for (const [k, v] of Object.entries(opts)) { const el = $(k); if (el && el.type === 'checkbox' && el.checked !== v) el.click(); } },
   // (the relief's strength on the figure's material, for an eye to read a normal map: 1 as the GLB ships it, 0 none)
   relief: (k = 1) => { const L = cur(); for (const m of [L?.body?.material].flat().filter(Boolean)) if (m.normalScale) m.normalScale.set(k, k); },
