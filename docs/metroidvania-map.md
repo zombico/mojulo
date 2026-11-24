@@ -254,6 +254,42 @@ not the saber's light: the feel's `blade: { steel: true }` draws no strand of li
 cold steel (`feel/saber.js` `STEEL_SLASH`). `vampireSonataGame()`
 is the designed game's words: her feel, her book and the castle as its one level.
 
+## The explored map
+
+The castle as the hunter has walked it, drawn the way the idiom draws it, a **tile a screen**
+([explored.js](../control/lib/graph/gameworld/metroidvania/explored.js)). It is built from the laid box itself (the same
+rooms the play runs on, a castle's included), so the map never lies. Each principle is an affordance, something the
+map lets the player know without being told:
+
+1. **A screen is a tile.** The map's unit is the screen the camera holds, so a room is its tiles, outlined, its walls on
+   the tiles' edges and its doors as gaps in them.
+2. **Walked, a tile fills.** A tile is drawn the moment she stands in it, never the whole room ahead of her, in her
+   region's colour.
+3. **Known is not walked.** A **map room** (a lectern with an open book glowing, the box's `maps: true`: one in each
+   region but a core, the first room past its gate holding nothing else) shows its region's tiles as outlines. It says
+   where to go, never that she has gone.
+4. **You are here.** The tile she stands in is marked, north up, the box as drawn.
+5. **Rooms with a purpose.** The map marks save rooms, map rooms and a boss's room (crossed once felled). It also marks
+   what is to be picked up: a power, a key, a pocket's prize, each shown while it is there and gone when taken.
+6. **The frontier.** A doorway from a walked tile into one not walked is drawn open, a stub into the dark.
+7. **Gates remembered.** A gate seen is drawn at its doorway in its own colour. It is shut while what opens it is not
+   held, and ringed open-able the moment it is: the power found sends her back, and the map says where.
+8. **One way, said.** A drop or a door that goes one way is drawn with its arrow.
+9. **How much.** The share of tiles walked is shown for the castle and for each region.
+
+Played, the record is the explored map's builder ([explore.js](../control/lib/graph/worlds/controllable/explore.js)):
+the tiles walked and the map rooms found. The page draws two reads of it
+([explored-view.js](../control/lib/graph/scene/channels/controllable/explored-view.js)):
+- **The minimap,** top right: a window on the tiles round her, with the share walked under it and a map room found said
+  a moment.
+- **The whole map,** on M, over the held world.
+
+The map's laws (`MAP_LAWS`, `map:<id>`) are measured on the map drawn at the walk's start and at its end:
+- `maps-placed`: a map room in every region but a core.
+- `way-on`: from the gate, the map already shows a way on into the dark.
+- `sides-agree`: a door is the same door from both its tiles.
+- `walked-whole`: walked to its end, every tile is filled, no frontier is left and no gate is shut.
+
 ## Her trees
 
 Erina grows as she hunts, by two trees (`VAMPIRE_SONATA_TREES`, the game's `trees`: [trees.md](trees.md)). One purse
@@ -363,7 +399,10 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
 - **Foes and real bosses** on the side map's foe shelf and the boss director, in place of the stand-ins. A boss's
   room shut behind her as a side map's is.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
-- **The rail**, once a first box plays; the map shown in the game from the rooms visited.
+- **The rail**, once a first box plays.
+- **The explored map's next affordances:** the player's own pins, a warp room's network drawn on it, a region's map
+  bought from a merchant, the map on mana-ui (its `map` component drawing tiles and doors), and the gate-ringing said as a
+  toast when a power is found ("the map shows where").
 - **Dressed** by the side map's paint, cake and vista, a place a ring.
 - **More of the castle's joins.** Ports on a box's top and bottom, so a castle climbs and descends as well as runs
   rightward. A hub with more than one way out, joining more than two boxes. Connectors that climb: a stair, a lift.

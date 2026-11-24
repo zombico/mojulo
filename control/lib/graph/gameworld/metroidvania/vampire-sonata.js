@@ -48,6 +48,7 @@ export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
     box: [...box],
     turn,
     theme: 'castle',
+    maps: true,
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     rings: [
       { id: 'outer-wall', place: 'the outer wall', key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
@@ -66,7 +67,7 @@ export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
  */
 export function bellTower({ box = [8, 6] } = {}) {
   return {
-    premise: 'The bell tower climbed from its foot to its spire, a floor a turn', box: [...box], shape: 'serpentine', theme: 'castle',
+    premise: 'The bell tower climbed from its foot to its spire, a floor a turn', box: [...box], shape: 'serpentine', theme: 'castle', maps: true,
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     rings: [
       { id: 'foot', place: 'the tower foot', key: true, boss: 'the Bell Ringer', finds: 'second-leap', inward: 'double-jump',
@@ -78,7 +79,7 @@ export function bellTower({ box = [8, 6] } = {}) {
 }
 export function courtyard({ box = [7, 8] } = {}) {
   return {
-    premise: 'The courtyard reached up the barbican, its chapel, armoury and crypt walked out from it and back', box: [...box], shape: 'hub', theme: 'castle',
+    premise: 'The courtyard reached up the barbican, its chapel, armoury and crypt walked out from it and back', box: [...box], shape: 'hub', theme: 'castle', maps: true,
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     rings: [
       { id: 'barbican', place: 'the barbican', key: true, inward: 'key' },
@@ -98,7 +99,7 @@ export function courtyard({ box = [7, 8] } = {}) {
  */
 export function vampireSonataCastle() {
   return {
-    premise: 'A hunter climbs the bell tower, crosses to the courtyard and storms the keep', theme: 'castle',
+    premise: 'A hunter climbs the bell tower, crosses to the courtyard and storms the keep', theme: 'castle', maps: true,
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     boxes: [
       { id: 'tower', box: [8, 5], shape: 'serpentine', rings: [

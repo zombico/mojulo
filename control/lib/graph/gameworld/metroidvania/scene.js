@@ -15,6 +15,8 @@
  *   the THEME          where its words name one (themes.js), the box dressed in it (dress.js): its rings' stone and backs,
  *                      their lamps and baked light, the night over its open rings; the gates keep their colours (the play's)
  *   the SAVE ROOMS     each walked into fills the hero and is where she wakes from then on (held-gates.js)
+ *   the EXPLORED MAP   the tiles she walks recorded as she stands in them, a map room's lectern showing its region's
+ *                      (worlds/controllable/explore.js), drawn as a minimap and, on M, the whole map (explored.js)
  *   the BOSSES         a stand-in in each boss room until the foes join: a tall block in the boss's colour, struck down
  *                      by the hero's blows (BOSS_HP of them); its fall gives what the boss gives and breaks its seal
  *
@@ -40,6 +42,7 @@ import { boxLaws } from './laws.js';
 import { GATES, readHero } from './gates.js';
 import { BOX_THEMES, themeLaws, lookOf } from './themes.js';
 import { dressBox } from './dress.js';
+import { mapOf, mapLaws } from './explored.js';
 import { backdropLaws } from './backdrop.js';
 
 export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees']);
@@ -128,7 +131,14 @@ export function boxOf(m) {
   // DRESSED in its theme where its words name one (dress.js), and held to the backdrop's craft (backdrop.js)
   const B0 = { layout, greybox, stature: R.hero.stature }, dress = layout.theme ? dressBox(B0, BOX_THEMES[layout.theme]) : null;
   if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })));
-  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, ...(dress ? { dress } : {}) };
+  // THE EXPLORED MAP (explored.js): the tiles walked as she stands in them (worlds/controllable/explore.js), each map room's
+  // lectern showing its region's tiles, the map's own data for the page's minimap and its map (explored-view.js)
+  const tilesOf = (k) => layout.rooms.filter((r) => r.ring === k).flatMap((r) => r.cells.map((q) => `${q[0]},${q[1]}`));
+  laws.push(...mapLaws(layout).map((l) => ({ ...l, id: `map:${l.id}` })));
+  const explored = { target: 'hero', tile: [r3(W), r3(H)], tiles: layout.rooms.flatMap((r) => r.cells.map((q) => `${q[0]},${q[1]}`)),
+    maps: layout.rooms.filter((r) => r.mapRoom).map((r) => ({ room: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], reveals: tilesOf(r.ring) })),
+    map: mapOf(layout) };
+  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, explored, ...(dress ? { dress } : {}) };
 }
 
 /** The `geocube` kind's `show: 'metroidvania'`. */
@@ -138,6 +148,17 @@ export function assembleBox(m, ctx = {}) {
   // open rings); else the greybox, each room's back in its ring's shade
   const T = L.theme ? BOX_THEMES[L.theme] : null, D = T ? B.dress : null;
   if (D) faces.push(...D.faces);
+  // (each MAP ROOM's lectern: a stand and an open book glowing, behind the lane in its room's middle, its region's tiles
+  // shown as she walks in: explore.js)
+  const glowFaces = [];
+  for (const r of L.rooms.filter((x) => x.mapRoom)) {
+    const s = (r.rect[0] + r.rect[2] / 2) * W + 2.2, z = r.rect[1] * H + FLOOR, x = -1.2;
+    face(faces, x, s - 0.08, s + 0.08, z, z + 0.95, '#4a3a2c', 'box:lectern');
+    face(faces, x, s - 0.32, s + 0.32, z, z + 0.08, '#3a2c22', 'box:lectern');
+    face(faces, x + 0.01, s - 0.42, s + 0.42, z + 0.95, z + 1.12, '#6a5238', 'box:lectern');
+    face(glowFaces, x + 0.02, s - 0.36, s + 0.36, z + 1.08, z + 1.2, '#9fe8e0', 'box:flame');
+  }
+  if (glowFaces.length) faces.push(...glowFaces.map((f) => ({ ...f, glow: '0 0 6px 2px #7fe0d8' })));
   for (const r of T ? [] : L.rooms) {
     const [c, rr, w, h] = r.rect, base = RING_BACK[r.ring % RING_BACK.length];
     face(faces, BACK, c * W, (c + w) * W, rr * H, (rr + h) * H, base, 'box:back');
@@ -164,7 +185,7 @@ export function assembleBox(m, ctx = {}) {
   // (a stair's ledges and lips are stood on, never walked into: faces with no collider, jumped up through from under them)
   const colliders = [...G.solids.filter((s) => s.role !== 'ledge' && s.role !== 'lip'), ...sills].map((s) => ({ min: [-HALF, s.s0, s.z0], max: [HALF, s.s1, s.z1] }));
   const payload = {
-    faces, lights: [], colliders, breakables: B.breakables, heldGates: B.held, ...(m.trees ? { trees: m.trees } : {}),
+    faces, lights: [], colliders, breakables: B.breakables, heldGates: B.held, explored: B.explored, ...(m.trees ? { trees: m.trees } : {}),
     // (dressed: its flames haloed and dust hanging in their light, the page's glow sprites and motes)
     ...(D ? { glow: D.glow, ...(D.motes ? { motes: D.motes } : {}) } : {}),
     cameras: [{ name: 'metroidvania', worldFraming: { cameraPosition: [r5(C.dist), r5(s0), r5(look + C.dist * C.tilt)], lookAt: [0, r5(s0), r5(look)], horizontalFov: r5(hfov) } }],

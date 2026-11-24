@@ -11,6 +11,8 @@
  * found inside spends, opening SHORTCUTS back out and POCKETS in rooms already walked.
  *
  *   metroidvania: { premise?, box: [cols, rows], shape?, turn?, theme?, powers, rings: [RING, …, CORE] }
+ *     maps      true: a map room in each region but the core (the first room past its gate holding nothing else), a
+ *               lectern showing the region's tiles on the explored map (explored.js)
  *     shape     how its walk fills it (shapes.js): `spiral` (unsaid: below), `serpentine` (row by row, climbing a row a
  *               turn: its rings bands of rows, lowest first), `hub` (a centre column, an approach climbed to it, wings out
  *               and back from it: its rings the approach, the hub, then its wings); the words below are a spiral's, and
@@ -58,7 +60,7 @@ const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const word = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 80;
 const fail = (m) => { throw new Error(`metroidvania: ${m}`); };
-const BOX_KEYS = ['premise', 'box', 'shape', 'turn', 'theme', 'powers', 'rings'];
+const BOX_KEYS = ['premise', 'box', 'shape', 'turn', 'theme', 'maps', 'powers', 'rings'];
 const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets', 'look'];
 const CORE_KEYS = ['id', 'place', 'boss', 'look'];
 
@@ -71,6 +73,8 @@ export function readBox(v) {
   if (!(Array.isArray(v.box) && v.box.length === 2 && v.box.every((n) => Number.isInteger(n) && n >= 3))) fail('box is [cols, rows] in screens, each a whole number, three or more (a ring needs a middle)');
   const [cols, rows] = v.box;
   out.box = [cols, rows];
+  // (its MAP ROOMS, `maps: true`: a lectern in each region showing its tiles on the explored map, explored.js)
+  if (v.maps !== undefined) { if (typeof v.maps !== 'boolean') fail('maps is true (a map room in each region: its tiles shown on the explored map) or false'); out.maps = v.maps; }
   if (v.theme !== undefined) { if (!BOX_THEMES[v.theme]) fail(`theme is ${BOX_THEME_IDS.join(' | ')} (what the box is made of and how it is lit: themes.js)`); out.theme = v.theme; }
   // (its SHAPE, shapes.js: how its walk fills it; a spiral unsaid)
   out.shape = v.shape ?? 'spiral';
@@ -163,6 +167,15 @@ const rectOf = (cells) => {
 };
 const touches = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
 
+/** the MAP ROOMS: in each region but the core, the first room past its gate that holds nothing else (no save, key, boss
+ * or find), a lectern in it showing the region's tiles */
+function placeMaps(M, rooms) {
+  for (let k = 0; k < M.rings.length; k++) {
+    if (M.rings[k].core) continue;
+    const at = rooms.filter((r) => r.ring === k).slice(1).find((r) => !r.save && !r.key && !r.boss && !r.finds && !r.lock && r.role !== 'throne');
+    if (at) at.mapRoom = true;
+  }
+}
 /** a laid box's rings, each with the look its words name */
 const withLooks = (rings, M) => rings.map((r, k) => (M.rings[k].look !== undefined ? { ...r, look: M.rings[k].look } : r));
 
@@ -270,9 +283,10 @@ export function layBox(v) {
   }
   // the ENTRY: the first room's near wall, on the box's left side
   const entry = { cell: [0, 0], side: 'left', room: rooms[0].id };
+  if (M.maps) placeMaps(M, rooms);
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {
-    box: M.box, shape: M.shape, turn: M.turn, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry,
+    box: M.box, shape: M.shape, turn: M.turn, ...(M.maps ? { maps: true } : {}), ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry,
     rings: withLooks(rings, M), rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
   };
 }
@@ -304,9 +318,10 @@ function layShaped(M, ctx) {
     const corridors = rs.filter((x) => x.kind === 'corridor' && x !== end);
     (R.pockets ?? []).forEach((p, j) => { const at = corridors[Math.floor(((j + 0.5) * corridors.length) / R.pockets.length)]; if (!at) throw new Error(`metroidvania: ${R.id}.pockets: no corridor to hold ${p.holds} (a pocket is an alcove off a corridor)`); at.pockets.push({ ...p }); });
   }
+  if (M.maps) placeMaps(M, rooms);
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {
-    box: M.box, shape: M.shape, ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry: L.entry, ...(L.exit ? { exit: L.exit } : {}),
+    box: M.box, shape: M.shape, ...(M.maps ? { maps: true } : {}), ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry: L.entry, ...(L.exit ? { exit: L.exit } : {}),
     rings: withLooks(L.rings, M), rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
   };
 }

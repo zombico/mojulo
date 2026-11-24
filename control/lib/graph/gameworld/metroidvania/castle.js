@@ -17,7 +17,7 @@
  *                  the last's out, `length` screens on; the walk the boxes' walks one after another through their
  *                  connectors; the castle's core the last box's
  *
- *   castle: { premise?, theme?, powers, boxes: [{ id, ...a box's words (no powers, no theme) }], joins: [{ from, to, by,
+ *   castle: { premise?, theme?, maps?, powers, boxes: [{ id, ...a box's words (no powers, no theme) }], joins: [{ from, to, by,
  *             length?, gate?, boss?, place? }] }
  *
  *   CONNECTORS, CASTLE_LAWS, BOX_SHARE
@@ -48,7 +48,7 @@ export const CONNECTOR_IDS = Object.freeze(Object.keys(CONNECTORS));
 export const BOX_SHARE = Object.freeze(['entered-left', 'fills-the-box', 'shape', 'both-axes', 'gated-in', 'one-new-thing', 'saves', 'boss-at-core']);
 /** the laws the castle is held to, walked whole */
 export const CASTLE_LAWS = Object.freeze(['joined', 'roles', 'connectors', 'found-before', 'solvable', 'revisits', 'pockets', 'way-back', 'no-kick', 'sill-holds', 'saves']);
-const CASTLE_KEYS = ['premise', 'theme', 'powers', 'boxes', 'joins'];
+const CASTLE_KEYS = ['premise', 'theme', 'maps', 'powers', 'boxes', 'joins'];
 const JOIN_KEYS = ['from', 'to', 'by', 'length', 'gate', 'boss', 'place'];
 const ID = /^[a-z][a-z0-9-]{0,23}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -84,11 +84,11 @@ export function readCastle(v) {
     if (!ID.test(id ?? '')) fail(`boxes[${i}].id is a short lower-case name`);
     if (ids.has(id)) fail(`boxes[${i}].id '${id}' is used twice`);
     ids.add(id);
-    for (const k of ['powers', 'theme']) if (words[k] !== undefined) fail(`boxes[${i}].${k}: a castle's boxes share its ${k}; say it once on the castle`);
+    for (const k of ['powers', 'theme', 'maps']) if (words[k] !== undefined) fail(`boxes[${i}].${k}: a castle's boxes share its ${k}; say it once on the castle`);
     let M;
-    try { M = readBox({ ...words, powers: v.powers, ...(v.theme ? { theme: v.theme } : {}) }); } catch (e) { fail(`boxes[${i}] (${id}): ${e.message.replace(/^metroidvania:\s*/, '')}`); }
+    try { M = readBox({ ...words, powers: v.powers, ...(v.theme ? { theme: v.theme } : {}), ...(v.maps ? { maps: true } : {}) }); } catch (e) { fail(`boxes[${i}] (${id}): ${e.message.replace(/^metroidvania:\s*/, '')}`); }
     for (const R of M.rings) if (R.finds) { if (found.has(R.finds)) fail(`${id}'s ${R.id} finds '${R.finds}', found in ${found.get(R.finds)} already: a power is found once in a castle`); found.set(R.finds, `${id}'s ${R.id}`); }
-    return { id, words: { ...words, powers: v.powers, ...(v.theme ? { theme: v.theme } : {}) }, shape: M.shape };
+    return { id, words: { ...words, powers: v.powers, ...(v.theme ? { theme: v.theme } : {}), ...(v.maps ? { maps: true } : {}) }, shape: M.shape };
   });
   if (!Array.isArray(v.joins) || v.joins.length !== boxes.length - 1) fail(`joins is a list of ${boxes.length - 1}: each box past the first joined from one before it, in the walk's order`);
   const placed = new Set([boxes[0].id]);
@@ -113,7 +113,8 @@ export function readCastle(v) {
     if (J.place !== undefined && !word(J.place)) fail(`${at}.place is the place it is, a word`);
     return { id: `${J.by}-${i}`, from: J.from, to: J.to, by: J.by, length, ...(J.gate ? { gate: J.gate } : {}), ...(J.boss ? { boss: J.boss.trim() } : {}), place: (J.place ?? C.place).trim() };
   });
-  return { ...(v.premise ? { premise: v.premise.trim() } : {}), ...(v.theme ? { theme: v.theme } : {}), powers: v.powers, boxes, joins };
+  if (v.maps !== undefined && typeof v.maps !== 'boolean') fail('maps is true (a map room in each region of each box) or false');
+  return { ...(v.premise ? { premise: v.premise.trim() } : {}), ...(v.theme ? { theme: v.theme } : {}), ...(v.maps ? { maps: true } : {}), powers: v.powers, boxes, joins };
 }
 
 const touches = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
@@ -175,7 +176,7 @@ export function layCastle(v) {
   for (const d of doors) if (!touches(...d.cells)) fail(`${d.a} and ${d.b} do not meet (a castle's door is between rooms side by side)`);
   const first = boxes[0], entry = { cell: [...first.in.cell], side: 'left', room: first.in.room };
   return {
-    box: [cols, rows], shape: 'castle', ...(C.premise ? { premise: C.premise } : {}), ...(C.theme ? { theme: C.theme } : {}), powers: C.powers, entry,
+    box: [cols, rows], shape: 'castle', ...(C.maps ? { maps: true } : {}), ...(C.premise ? { premise: C.premise } : {}), ...(C.theme ? { theme: C.theme } : {}), powers: C.powers, entry,
     rings, rooms, doors, walk, cells: rooms.reduce((n, r) => n + r.cells.length, 0),
     castle: { boxes, joins, laid: Object.fromEntries(laid) },
   };

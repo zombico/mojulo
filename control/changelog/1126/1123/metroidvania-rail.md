@@ -72,3 +72,9 @@
   bosses and prizes give, after the nodes it builds on, or is given when a power is found. Pressing T opens both trees as
   one screen to learn them in play. Erina's trees hold more than the castle's points buy, so she grows one way or
   another.
+- The castle has an explored map, a tile for every screen, revealed tile by tile as Erina walks it. A map room's lectern
+  shows its region's tiles before she has walked them. The map marks save rooms, map rooms and bosses (crossed out once
+  felled), along with what is left to pick up. It draws an unexplored doorway as an opening into the dark. A gate shows
+  in its own colour, ringed once she holds what opens it, so a power found tells her where to go back. The map also
+  shows how much of the castle and each region she has walked. A minimap stays at the top right, and M opens the
+  whole map.
