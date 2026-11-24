@@ -9,9 +9,10 @@
  *                                    segment of a closed room holds DETAIL.min to DETAIL.max pieces of detail (faces of
  *                                    dress, each counted in every segment it covers), so none reads as a void and none
  *                                    as noise; what is one thing to the eye counts once: a column's shading strips are
- *                                    its light (`box:relief`), a board's books its texture (`box:texture`)
- *   3  calm behind the play          the band the hero moves in (the lowest of a storey's segments) holds less detail
- *                                    than the bands above it: what she fights reads against it
+ *                                    its light (`box:relief`), a board's books and a ladder's rungs their texture (`box:texture`)
+ *   3  calm behind the play          the band the hero moves in (the lowest of a storey's segments) holds no more
+ *                                    detail than the wall over her head (the band above it): what she fights reads
+ *                                    against it
  *   4  structure, dressing, story    bays dressed by the wall's rhythm (A and B, never three alike, never a pair
  *                                    repeated: era/wall-rhythm.js), and ONE focal piece a room, larger than a bay's,
  *                                    the thing the room is remembered by (a portrait, a statue, a coat of arms)
@@ -103,11 +104,13 @@ export const diceOf = (id) => mulberry32(seedOf(String(id)));
 /** A room's composition: its bays by the wall's rhythm, seeded by its id, and the cell and bay its focal piece takes. */
 export function composeRoom(room, look, { cellsAcross = room.rect[2] } = {}) {
   const dice = diceOf(room.id), n = cellsAcross * 2;
-  const order = wallRhythm(n, { kinds: look.bays[0] === look.bays[1] ? 1 : 2, pick: dice() });
+  const kinds = look.bays[0] === look.bays[1] ? 1 : 2, raw = wallRhythm(n, { kinds, pick: dice() });
+  // (a room of two bays takes both of its look's pieces: one screen wide, it is never two of a kind)
+  const flat = Array.isArray(raw) ? raw.join('') : String(raw), order = kinds === 2 && n === 2 && flat[0] === flat[1] ? flat[0] + (flat[0] === 'A' ? 'B' : 'A') : flat;
   const cells = room.rect[2] * room.rect[3];
   // (the focal piece: off the middle, at a third of the room, in its lowest storey)
   const cell = Math.min(room.rect[2] - 1, Math.floor(room.rect[2] / 3)), bay = room.rect[2] === 1 ? Math.floor(dice() * 2) : (dice() < 0.5 ? 0 : 1);
-  return { order: Array.isArray(order) ? order.join('') : String(order), focal: { cell, bay }, cells };
+  return { order, focal: { cell, bay }, cells };
 }
 
 /** A piece on the back at a bay, at its true size (10). */
@@ -116,7 +119,8 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
   // (what stands out of the wall, `d` metres: it casts its shadow from each lamp, dress.js)
   const proud = (s0, s1, z0, z1, d) => { if (occ) occ.push({ s0, s1, z0, z1, d }); };
   if (id === 'arch') {
-    const aw = 3.2, a0 = floor + 2.6, a1 = Math.min(top - aw * 0.85 - 0.9, floor + 8.5);
+    // (as wide as the storey lets it stand under its vault: its sill over her head, its point under the vault's boss)
+    const a0 = floor + 2.2, aw = Math.max(1.6, Math.min(3.2, (top - 0.9 - a0 - 0.8 - 0.45) / 0.85)), a1 = Math.min(top - aw * 0.85 - 0.9 - 0.45, floor + 8.5);
     poly(out, x, [[s - aw / 2 - 0.35, a0 - 0.35], [s + aw / 2 + 0.35, a0 - 0.35], [s + aw / 2 + 0.35, a1], [s, a1 + aw * 0.85 + 0.45], [s - aw / 2 - 0.35, a1]], trim);
     poly(out, x + 0.01, [[s - aw / 2, a0], [s + aw / 2, a0], [s + aw / 2, a1], [s, a1 + aw * 0.85], [s - aw / 2, a1]], L.glass || '#4b5f86', 'box:glass');
     rect(out, x + 0.02, s - 0.06, s + 0.06, a0, a1 + aw * 0.8, trim);
@@ -127,7 +131,7 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     // (a library wall at the size of its books: a case on the floor, twice her height, a cupboard base under boards a
     // book's height apart; in a hall tall enough, a gallery over it and a second case on the gallery; a ladder between)
     const w = 2.2, z0 = floor, spines = ['#5a1c22', '#2f3f2a', '#4a3520', '#262c46', '#6b4e2a', '#3a2433'];
-    const lower = caseOf(out, x, s, w, z0, Math.min(top - 1.2, z0 + 3.45), 1.05, trim, dark, spines, dice, sizes, true);
+    const lower = caseOf(out, x, s, w, z0, Math.min(top - 1.2, z0 + 3.45), 1.3, trim, dark, spines, dice, sizes, true);
     proud(s - w / 2 - 0.22, s + w / 2 + 0.22, z0, lower + 0.3, 0.45);
     let l1 = lower - 0.1;
     if (top - z0 > 8.2) {
@@ -144,15 +148,17 @@ export function drawPiece(out, id, { s, floor, top, x, focal = false }, L, dice,
     // (the ladder, its rungs a step apart, from the floor to the gallery's rail or the case's top)
     const ls = s + w / 2 - 0.45, rung = 0.32;
     for (const d of [-0.2, 0.2]) bar(out, x + 0.09, [ls + d - 0.12, z0], [ls + d, l1], 0.05, shade(trim, 0.7));
-    for (let z = z0 + rung; z < l1 - 0.1; z += rung) { const k = (z - z0) / (l1 - z0); rect(out, x + 0.1, ls - 0.32 + k * 0.12, ls + 0.08 + k * 0.12, z - 0.02, z + 0.02, shade(trim, 0.7)); }
+    // (its rungs its texture, the ladder the detail)
+    for (let z = z0 + rung; z < l1 - 0.1; z += rung) { const k = (z - z0) / (l1 - z0); rect(out, x + 0.1, ls - 0.32 + k * 0.12, ls + 0.08 + k * 0.12, z - 0.02, z + 0.02, shade(trim, 0.7), 'box:texture'); }
     measure(sizes, 'rung.pitch', rung);
   } else if (id === 'niche') {
-    // (a statue in a niche at life and a little more, high in the wall over her head, on its corbelled ledge)
-    const fig = 2.1, w = 1.5, z0 = floor + 2.9, z1 = z0 + fig + 0.35;
+    // (a statue in a niche at life and a little more, high in the wall over her head, on its corbelled ledge; as tall as
+    // the storey lets it stand, never under life)
+    const z0 = floor + Math.min(2.9, Math.max(2.15, 0.42 * (top - floor))), fig = Math.max(1.5, Math.min(2.1, (top - 0.3 - z0 - 0.35) / 1.43)), w = fig * 0.7, z1 = z0 + fig + 0.35;
     poly(out, x, [[s - w / 2 - 0.25, z0 - 0.3], [s + w / 2 + 0.25, z0 - 0.3], [s + w / 2 + 0.25, z1], [s, z1 + w * 0.6 + 0.25], [s - w / 2 - 0.25, z1]], trim);
     poly(out, x + 0.01, [[s - w / 2, z0], [s + w / 2, z0], [s + w / 2, z1], [s, z1 + w * 0.6], [s - w / 2, z1]], shade(L.back, 0.4));
     rect(out, x + 0.01, s - w / 2 - 0.35, s + w / 2 + 0.35, z0 - 0.42, z0 - 0.3, shade(L.top, 0.85));   // (its ledge)
-    poly(out, x + 0.01, [[s - 0.4, z0 - 0.42], [s + 0.4, z0 - 0.42], [s, z0 - 1.0]], shade(L.top, 0.75));   // (its corbel)
+    poly(out, x + 0.01, [[s - 0.4, z0 - 0.42], [s + 0.4, z0 - 0.42], [s, z0 - 0.9]], shade(L.top, 0.75));   // (its corbel)
     figure(out, x + 0.02, s, z0, fig, mix(L.stone, '#d8d2c4', 0.35), sizes);
     proud(s - 0.4, s + 0.4, z0, z0 + fig, 0.3); proud(s - w / 2 - 0.35, s + w / 2 + 0.35, z0 - 0.42, z0 - 0.3, 0.3);
   } else if (id === 'banner') {
@@ -311,7 +317,8 @@ export function backdropLaws(B, D) {
   for (const r of closed) for (const c of r.cells) {
     const a = seg.get(`${c[0]},${c[1]}`);
     if (!a) continue;
-    const low = a[0].reduce((x, y) => x + y, 0), above = a.slice(1).flat().reduce((x, y) => x + y, 0) / (EYE.up - 1);
+    // (against the wall over her head, the band above hers: the vault's band is its own, calm by its nature)
+    const low = a[0].reduce((x, y) => x + y, 0), above = a[1].reduce((x, y) => x + y, 0);
     if (low > above) loud.push(r.id);
   }
   law('calm-play', !loud.length, loud.length ? `the play band busier than the wall above it in ${[...new Set(loud)].join(', ')}` : 'behind the play the wall is calmer than above it in every closed room', loud);

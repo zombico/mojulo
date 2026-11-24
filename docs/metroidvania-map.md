@@ -193,9 +193,16 @@ A world's level `levels.<id>.metroidvania` (the box's words) is one stage, built
 
 - **The box is built for the hero.** Its screens come from the hero's stature, and its ledges and sills from the jump
   the hero's feel measures (`feel/reach.js`), so the laws, the greybox and the play agree.
-- **The hero is close.** A box's frame is the side map's with the hero a fifth larger in it, 0.15 of the frame's height
-  against the run and gun's eighth (`rooms.js` `BOX_FRAME`). A cell is a screen, so the whole box is laid smaller round
-  her, and a room is a little tighter on its hero.
+- **The hero is close, at the idiom's standard.** The castle-crawler's hunter stands about 48 of a 224-line screen's
+  lines, a fifth of its height. A box's frame is the side map's with the hero at that share, 0.21 of the frame's height,
+  against the run and gun's eighth (`rooms.js` `BOX_FRAME`). A cell is a screen, so the whole box is laid round her at
+  that scale: a screen is about 13.8 × 7.8 m for Erina, a storey a little over six metres floor to ceiling.
+- **What a closer screen asks of the rest.**
+  - A drop's hole stands a fifth of the screen aside of its middle (`DROP_ASIDE`), so there is floor enough by the wall
+    to stand at a door there.
+  - The backdrop fits its storey: the vault springs at a share of the storey's height, and the window and the niche are
+    sized to stand under it.
+  - There is one lamp to a screen (see "The backdrop's craft").
 - **The hero is drawn as mojulo draws its anime heroes.** She keeps her row's own look and light (the anime head's
   drawn face, its toon light), never the cel bands and ink of the run and gun whose feel she borrows.
 - **A room is a camera zone.** The side map's camera (`worlds/controllable/sidemap.js`) holds each room in the order the
@@ -214,7 +221,8 @@ A world's level `levels.<id>.metroidvania` (the box's words) is one stage, built
 - **The bosses are stand-ins until the foes join.** Each is a tall block struck down by the hero's blows. Its fall gives
   what the boss gives and breaks its seal.
 - **A double-jump sill holds.** Its room keeps its stair and its drops on the far side from it, and the law `sill-holds`
-  measures that nothing to stand on brings it within one jump.
+  measures that nothing to stand on brings it within one jump: nothing within a jump under its top, across the castle's
+  longest leap (`SILL_CLEAR`, three jumps' height, the dash jump measured on its feel).
 
 ## The hunt: an action RPG's vitals
 
@@ -296,8 +304,11 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
    lane and the light, so it is half a silhouette and never brighter than the lane. Law: `depths`.
 6. **Light is pools in the dark.** It is a dark mood: where no lamp reaches, the wall falls to its ring's `dark`. Light
    comes only from sources the eye can see (a sconce, a brazier, a cold lamp, a torch), each a pool that falls off within
-   its `reach`. The light is baked at every corner of every face, so it falls off across a block rather than stepping
-   block by block. **The light draws the relief:**
+   its `reach`. There is one lamp to a screen, mounted on a bay's shaft. The bay changes screen to screen, so neighbours
+   never light alike, and a shaft is lit up one side, the other left to the dark. A torch standing in for a brazier
+   (on an upper storey, or in a shaft) is a smaller fire. A lamp lights its own room only: the floors, ceilings and walls
+   are stone, and its light reaches another room only through a doorway or a drop. The light is baked at every corner of
+   every face, so it falls off across a block rather than stepping block by block. **The light draws the relief:**
    - A face turned toward a lamp takes more of its light and one turned away less (`RELIEF.turn`). So a column is lit
      round on its lamp's side with its far side in shadow, each block is lit domed, and tops and capitals catch the light
      while soffits and corbels sit in shade.

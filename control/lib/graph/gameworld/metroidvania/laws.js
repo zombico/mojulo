@@ -42,8 +42,9 @@ export const FILL = 0.8;
 export const AXES = SHAPES.spiral.axes;
 export const BACK = 0.5;
 export const SAVE_EVERY = 10;
-/** how far across from a sill, in jumps, nothing may stand within a jump under its top (a running jump's length and more) */
-export const SILL_CLEAR = 4;
+/** how far across from a sill, in jumps, nothing may stand within a jump under its top: three jumps' height across is
+ * the castle's longest leap, the dash jump (6.7 m measured on its feel, feel/reach.js, against a jump of 2.24 m) */
+export const SILL_CLEAR = 3;
 const EPS = 1e-3;
 const pct = (v) => `${Math.round(v * 100)}%`;
 const CCW = ['corner', 'right', 'corner', 'up', 'corner', 'left', 'corner', 'down'], CW = ['corner', 'up', 'corner', 'right', 'corner', 'down', 'corner', 'left'];

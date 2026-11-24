@@ -61,3 +61,7 @@
   is checked against its own shape, and the castle as one walk through all of it. Vampire Sonata's castle climbs its bell
   tower, crosses the bell bridge to an open courtyard, and passes the Gatekeeper into the keep. It is drawn as one
   elevation and played as one level.
+- The castle is seen as closely as the castle-crawler holds its hero: Erina stands a fifth of the screen's height, about
+  as Alucard does, and every room is laid round her at that scale. With smaller screens there is one candle, torch or
+  brazier to a screen. A lamp lights its own room only, not the room beside it through the wall. A double-jump sill's
+  clearance is now her measured longest leap, and a gated door always has floor enough beside it to stand and strike.

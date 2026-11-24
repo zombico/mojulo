@@ -21,23 +21,25 @@
  *   FLOOR, CEIL, WALL, HOLE, LEDGE, BOX_FRAME, boxCameraOf(stature)
  *
  * The frame is the side map's: `s` along the box (+ right), `z` up, a cell [c, r] spanning s c·W…(c+1)·W, z r·H…(r+1)·H, a screen in the
- * box's frame (BOX_FRAME: the hero 0.15 of its height).
+ * box's frame (BOX_FRAME: the hero 0.21 of its height).
  * Pure and deterministic.
  */
 import { sideMapCamera, SIDE_MAP_FRAME } from '../side-map/screen.js';
 import { GATES, readHero, gateSill, LEDGE_SHARE, SLIT_SHARE } from './gates.js';
 
-/** THE BOX'S FRAME: the side map's (screen.js SIDE_MAP_FRAME), the hero a fifth larger in it, 0.15 of the frame's height
- * against the run and gun's eighth: a metroidvania is close on its hero, a room a little smaller round her. A screen is a
- * cell, so the whole box is laid in it. */
-export const BOX_FRAME = Object.freeze({ ...SIDE_MAP_FRAME, heroShare: 0.15 });
+/** THE BOX'S FRAME: the side map's (screen.js SIDE_MAP_FRAME), the hero as close as the idiom's standard holds its hero:
+ * a fifth of the frame's height (the castle-crawler's hunter stands about 48 of a 224-line screen's lines), against the
+ * run and gun's eighth. A metroidvania is close on its hero, its room a screen round her. A screen is a cell, so the whole
+ * box is laid in it. */
+export const BOX_FRAME = Object.freeze({ ...SIDE_MAP_FRAME, heroShare: 0.21 });
 /** The box's camera for a hero of `stature` metres: the side map's, in the box's frame. */
 export const boxCameraOf = (stature) => sideMapCamera(stature, BOX_FRAME);
 export const FLOOR = 1, CEIL = 0.6, WALL = 0.6, HOLE = 4, LEDGE = 2.5, TH = 0.4;
 /** how far a stair's ledges step aside from each other, so the one above is never over the head of the one below */
 const ASIDE = 5;
-/** a drop's hole stands aside of its cell's middle, off the line a climb comes up */
-const DROP_ASIDE = 0.3;
+/** a drop's hole stands aside of its cell's middle, off the line a climb comes up, leaving floor enough by the wall to
+ * stand and swing at a door there (a screen is two hero-heights of floor or more beside it) */
+const DROP_ASIDE = 0.2;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 const cut = (r, o) => {
