@@ -62,10 +62,11 @@ export const SEGMENTS = Object.freeze({
   square: Object.freeze({ read: 'a square: a paved piazza, its church at its far side facing it, cafe tables and a fountain on it', axis: 'y', rows: Object.freeze([]), site: 'square', wide: true, span: 1 }),
   edge: Object.freeze({ read: 'a neighbourhood\'s edge: two-storey shops and offices facing its major street, a lane behind them, houses behind the lane facing their quiet street', axis: 'x', rows: Object.freeze(['avenue', 'houses']), major: true, lane: true }),
   sports: Object.freeze({ read: 'a local sports field: a ball diamond, a pitch under its lights, tennis courts, a field house and its lot', axis: 'y', rows: Object.freeze([]), site: 'sports', wide: true, span: 2 }),
+  garden: Object.freeze({ read: 'garden apartments: brick blocks of flats set back on their lawns along both streets, their gardens meeting behind', axis: 'y', rows: Object.freeze(['garden', 'garden']) }),
 });
 export const SEGMENT_IDS = Object.freeze(Object.keys(SEGMENTS));
 // a neighbourhood's layout words: a letter a segment
-export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park', S: 'school', F: 'sports', E: 'edge', L: 'lowrise', Q: 'square' });
+export const SEGMENT_LETTERS = Object.freeze({ H: 'houses', M: 'main-street', A: 'apartments', P: 'park', S: 'school', F: 'sports', E: 'edge', L: 'lowrise', Q: 'square', G: 'garden' });
 
 const BAY_AND_GABLE = {
     read: 'a Victorian and Edwardian streetcar suburb (a Toronto Annex): long blocks of brick semis and detached houses, two and a half storeys with their gables to the street, each behind a front yard and a boulevard of maples, a deep back yard behind',
@@ -379,7 +380,70 @@ const OLD_TOWN = {
   },
 };
 
-export const PATTERNS = Object.freeze({ 'bay-and-gable': BAY_AND_GABLE, 'old-town': OLD_TOWN });
+// THE NORTHEAST SUBURB: a Northeastern US suburb of the twenties to the sixties, its own where it differs from the
+// streetcar suburb (its houses detached on wide lots behind deep lawns, a drive and a garage each, no kerb parking; its
+// colonials and Capes; its garden apartments) and the streetcar suburb's where it does not (its sites, its furniture,
+// its avenue)
+const NORTHEAST = {
+  ...BG,
+  read: 'a Northeastern US suburb: colonials and Cape Cods on wide lots behind deep lawns, a drive to each garage, a verge of maples and oaks, foundation shrubs under the windows, garden apartments on their lawns near the avenue',
+  style: 'colonial',
+  // a local street two lanes and no parking lane (cars in the drives), a grass verge and a walk each side
+  street: { lanes: 2, lane: 3.3, park: 0, kerb: 0.15, edge: 'verge', verge: 2.2, walk: 1.5 },
+  block: { long: [190, 260], depth: [46, 58] },
+  plot: { semi: [8, 9], detached: [16, 22], mansion: [26, 32], corner: 2.5 },
+  mix: { semi: 0, detached: 1 },
+  duplex: { share: 0, read: BG.duplex.read },
+  setback: [7.5, 11],
+  house: { depth: [10, 12], storeys: [2, 2], side: [2.4, 3.6] },
+  back: 12,
+  path: 1.1,
+  coverage: [0.08, 0.3],
+  green: 0.45,
+  // (each house its own drive from the street to its one-car garage beside it, a car on most)
+  access: { ...BG.access, lane: 0, mutual: 0, compact: 1, alley: 0, drives: 1, single: { w: 3.5, d: 6.6, set: 1.8 }, parked: 0.7 },
+  grow: { stride: 11, back: [1, 2], front: 0.3, park: 55, street: ['maple', 'maple', 'oak', 'cherry'], trees: ['maple', 'birch', 'cherry', 'oak'], shade: 'oak', parkTrees: ['oak', 'maple'] },
+  // (its houses, each its own: a type a change to the colonial style, its storeys and its front)
+  types: {
+    colonial: { read: 'a centre-hall colonial: white clapboard, black shutters, a portico over its door', weight: 3, front: { porch: 'door' } },
+    cape: { read: 'a Cape Cod: one and a half storeys of grey shingle under a steep side gable, its door central between two lights each side', weight: 3, storeys: [1, 1],
+      style: { language: { elements: { roof: { form: 'gable', pitch: 52 }, lights: { w: 0.85, h: 1.4 } }, compose: { mass: { w: 10, d: 8 } } }, palette: { timber: '#9aa0a2' } }, front: {} },
+    brick: { read: 'a brick colonial: red brick in two storeys, white sash lights between dark shutters, a pilastered door', weight: 2,
+      style: { language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.5, bond: 'brick' }, { group: 'str:stone', value: 0.52, bond: 'brick' }] } } }, palette: { stone: '#9c5440' } }, front: { porch: 'door' } },
+    painted: { read: 'a colonial in a painted clapboard: pale yellow, sage or blue-grey, white trim', weight: 2, style: { palette: { timber: '#e3d49a' } }, front: { porch: 'door' } },
+    sage: { read: 'a colonial in sage clapboard, white trim, a full porch', weight: 1, style: { palette: { timber: '#a9b59a' } }, front: { porch: 'full' } },
+  },
+  // (its back yards: a deck or a patio by the back door, a lawn with a swing set, a shed at the back; stockade and
+  // picket fences, a hedge here and there)
+  yards: { near: { deck: 3, patio: 2 }, mid: { lawn: 3, play: 2, trampoline: 1 }, back: { shed: 2, tree: 2, lawn: 1, beds: 1 }, balcony: 0 },
+  fences: { board: 3, picket: 2, chainlink: 2, hedge: 2, lattice: 1 },
+  rows: {
+    ...BG.rows,
+    // a GARDEN APARTMENT: two or three storeys of brick flats set back on their lawn, entries under white porticos, a
+    // garden behind (the colonial revival of the forties: brick, a low hip, sash lights); its residents park on the avenue
+    garden: { read: 'a garden apartment: two or three storeys of brick flats set back on their lawn, entries under white porticos, its garden behind', use: 'dwelling', frontage: [40, 56], corner: 3, depth: [44, 52], building: [11, 13], setback: [9, 13], side: [6, 9], storeys: [2, 3], rear: 'back', front: { canopy: true }, pad: { least: 0.3, most: 1.2 },
+      style: { from: 'colonial', read: 'a colonial-revival garden apartment: red brick in two or three storeys, white sash lights, a low hip', language: { elements: { wall: { storeys: [{ group: 'str:stone', value: 0.5, bond: 'brick' }, { group: 'str:stone', value: 0.52, bond: 'brick' }] }, roof: { form: 'hip', pitch: 24 }, shutters: null }, compose: { mass: { w: 36, d: 12 } } }, palette: { stone: '#9c5440' } },
+      palettes: ['#9c5440', '#a3563f', '#8c5a44', '#b5654a', '#c9a57a'] },
+  },
+  evoke: { ...BG.evoke, houses: [3, 4], mansions: [0, 0], garden: [1, 2] },
+  houseplants: { ...BG.houseplants, foundation: { share: 0.85, kinds: { box: 2, juniper: 2, forsythia: 1 }, bloom: 0.35 } },
+  streetscapes: {
+    suburb: { read: 'a Northeastern suburb: deep lawns, a drive to every garage, no cars on the street, a verge of maples and oaks, now and then a picket fence',
+      trees: { stride: 11, share: 0.85 }, parking: { sides: 'none', lane: 2.2, share: 0, pads: 0, least: 0 }, gates: { share: 0.05, kinds: { picket: 1 } },
+      traffic: { lights: 48, signals: 3, stops: 0.6 } },
+    'inner-ring': { read: 'an inner-ring suburb: narrower lots closer to the walk, a car parked on one side, the trees closer',
+      plot: { semi: [8, 9], detached: [12, 16], corner: 2 }, setback: [5, 7], back: 9,
+      trees: { stride: 9, share: 0.9 }, parking: { sides: 'one', lane: 2.2, share: 0.45, pads: 0, least: 0.3 }, gates: { share: 0.1, kinds: { picket: 2, wall: 1 } },
+      traffic: { lights: 40, signals: 2, stops: 0.7 } },
+  },
+  neighbourhoods: {
+    suburb: { read: 'streets of colonials and Capes, a park among them, garden apartments by the avenue to the south', layout: ['HHH', 'HPH', 'GGG'], main: [], major: ['ew-0'] },
+    'garden-court': { read: 'garden apartments facing each other across their streets round a park, houses beyond', layout: ['HHH', 'GPG', 'GGG'], main: [], major: ['ew-0'] },
+    'school-and-field': { read: 'a school on the avenue, its field behind it, colonials round a park', layout: ['HHH', 'HPH', 'SSG'], main: [], major: ['ew-0'] },
+  },
+};
+
+export const PATTERNS = Object.freeze({ 'bay-and-gable': BAY_AND_GABLE, 'old-town': OLD_TOWN, northeast: NORTHEAST });
 export const PATTERN_IDS = Object.freeze(Object.keys(PATTERNS));
 export const STREETSCAPE_SETTINGS = Object.freeze(['setback', 'gates', 'parking', 'trees', 'lights', 'signals', 'stops']);
 export const GATE_SHARES = Object.freeze({ none: 0, some: 0.35, most: 0.7, all: 1 });

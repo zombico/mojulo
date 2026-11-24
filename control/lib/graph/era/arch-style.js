@@ -70,6 +70,8 @@ export const MATERIAL_WORDS = Object.freeze({
     (X) => ({ params: { cut: 'render', stone: [150, 112, 80], mortar: [120, 90, 64], render: [180, 138, 99], rows: 8, cols: 3, ...X.wear, loss: r2(X.loss * 0.25) }, metres: 3 })),
   boards: W('ancient', 'wall', null, 'upright boards, gapped, cupped and weathered',
     (X) => ({ params: { cut: 'boards', stone: X.trim, mortar: X.mortar, cols: 9, ...X.wear }, metres: 2 })),
+  clapboard: W('modern', 'wall', '#f1eee6', 'painted lap siding: narrow boards across the wall, each lapping over the one below',
+    (X) => ({ params: { cut: 'clapboard', stone: X.trim, mortar: X.mortar, rows: 14, vary: 12, ...X.wear }, metres: 1.5 })),
   'clay-tile': W('either', 'roof', '#a55a40', 'clay tiles in lapped courses',
     (X) => ({ params: { cut: 'tile', stone: [165, 90, 64], mortar: X.mortar, rows: 10, cols: 8, ...X.wear }, metres: 2 })),
   slate: W('either', 'roof', '#4f555e', 'thin slates, half-bonded, each a little askew',
@@ -394,6 +396,23 @@ export const STYLE_STARTERS = Object.freeze({
     }, compose: { mass: { w: 26, d: 14 }, annex: null } },
     materials: { stone: 'wire-brick', plaster: 'sawn-stone', plinth: 'sawn-stone', punched: 'wire-brick', pier: 'sawn-stone', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
     palette: { stone: '#b9875e', paint: '#e6decb' },
+    city: { grain: 'north-american' },
+  },
+  // (a geotown's Northeast suburb builds its houses in it: geotown/pattern.js `northeast`)
+  colonial: {
+    read: 'a New England colonial: two storeys of white clapboard under a side gable, sash lights between black shutters, a panelled door under its fanlight, a brick chimney at the gable end',
+    class: 'modern',
+    language: { from: 'timber-hall', read: 'a broad clapboard house, its ridge along its street', elements: {
+      wall: { storeys: [{ group: 'str:timber', value: 0.9, bond: 'none' }, { group: 'str:timber', value: 0.9, bond: 'none' }] },
+      roof: { form: 'gable', pitch: 40, eave: 0.35, group: 'str:slate', value: 0.3 },
+      lights: { w: 0.9, h: 1.55, bay: 2.3, sill: 0.8, frame: 0.07, glazing: 'sash', trim: 'str:paint', trimValue: 0.95 },
+      door: { w: 1, h: 2.2, leaf: 'panels', surround: 'pilasters', fanlight: 'rect', steps: 2 },
+      shutters: { share: 0.9, form: 'boards' },
+      socle: { h: 0.45, group: 'str:plaster', value: 0.62 }, sills: null, lintels: null,
+      quoins: null, frame: null, cornice: null, pickets: null,
+    }, compose: { mass: { w: 12, d: 8.5 }, annex: null } },
+    materials: { timber: 'clapboard', stone: 'wire-brick', plaster: 'concrete', roof: 'slate', plinth: 'concrete', punched: 'wire-brick', pier: 'sawn-stone', banded: 'stucco', road: 'asphalt', walk: 'pavement' },
+    palette: { timber: '#f1eee6', paint: '#f4f1ea' },
     city: { grain: 'north-american' },
   },
 });
