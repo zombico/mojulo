@@ -1069,7 +1069,9 @@ export function assembleGeotownScene(m, ctx = {}) {
   // a controlled crossing (a signal's, else a stop's) from its corner's walk, back along one street, across the other
   const Xq = (d.traffic?.crossings ?? []).find((c) => c.control === 'signal' && c.arms.length === 4) ?? (d.traffic?.crossings ?? []).find((c) => c.control === 'stop' && c.arms.length === 4);
   if (Xq) {
-    const [k, j] = Xq.id.split(':').map(Number), Sx = d.sections.x[k], Sy = d.sections.y[j], [cx, cy] = Xq.at, e = [cx + Sx.half + 2, cy - Sy.half - 9];
+    const [k, j] = Xq.id.split(':').map(Number), Sx = d.sections.x[k], Sy = d.sections.y[j], [cx, cy] = Xq.at, e0 = [cx + Sx.half + 2, cy - Sy.half - 9];
+    // (past the walk, on its corner's lot; where a building stands there, built to its walk, the walk's own middle)
+    const within = (p) => colliders.some((c) => p[0] > c.min[0] && p[0] < c.max[0] && p[1] > c.min[1] && p[1] < c.max[1]), e = within(e0) ? [cx + Sx.half - Sx.walk / 2, e0[1]] : e0;
     cameras.push(cam('crossing', [e[0], e[1], wk(e[0], e[1]) + 1.7], [cx - 2, cy + 4, wk(cx, cy) + 2.4], 72));
   }
   // a school from the walk across its street, its doors before it; a site's fields from beyond its corner, over its trees

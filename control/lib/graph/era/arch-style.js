@@ -155,7 +155,8 @@ export const MATERIAL_WORDS = Object.freeze({
   // houseDress), a warm white where none is given, rather than the cube's own stone: a West Coast ranch, a tropical
   // block house)
   'painted-stucco': W('modern', 'wall', null, 'a floated stucco coat painted its own colour, a control joint, hairline cracks',
-    (X) => { const c = X.paint ?? [236, 230, 218]; return { params: { cut: 'stucco', stone: c, mortar: c.map((v) => Math.round(v * 0.78)), render: c.map((v) => Math.min(255, Math.round(v * 1.04 + 4))), ...X.machine }, metres: 3 }; }),
+    // (its control joints faint and far apart: a smooth coat, never a panel's seams)
+    (X) => { const c = X.paint ?? [236, 230, 218]; return { params: { cut: 'stucco', stone: c, mortar: c.map((v) => Math.round(v * 0.93)), render: c.map((v) => Math.min(255, Math.round(v * 1.02 + 2))), ...X.machine }, metres: 6 }; }),
 });
 export const MATERIAL_WORD_IDS = Object.freeze(Object.keys(MATERIAL_WORDS));
 const wordsFor = (on) => MATERIAL_WORD_IDS.filter((w) => MATERIAL_WORDS[w].on === on);
@@ -458,16 +459,17 @@ export const STYLE_STARTERS = Object.freeze({
     class: 'modern',
     language: { from: 'timber-hall', read: 'a two-storey boutique built to its walk, tall display glass under a string course, a cornice over a flat roof', elements: {
       wall: { storeys: [st('str:stone', 0.9), st('str:stone', 0.9)] },
-      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.5 },
-      lights: { w: 1.4, h: 2, bay: 2.6, sill: 0.6, frame: 0.07, glazing: 'plate', trim: 'str:paint', trimValue: 0.12 },
+      roof: { kind: 'cap', form: 'flat', eave: 0.2, group: 'str:stone', value: 0.78 },
+      lights: { w: 1.4, h: 2, bay: 2.6, sill: 0.6, frame: 0.07, glazing: 'plate', trim: 'str:timber', trimValue: 0.12 },
       door: { w: 1.4, h: 2.5, leaf: 'glazed', surround: 'pilasters', steps: 0 },
       bands: { kind: 'band', w: 0.22, group: 'str:plaster', value: 0.94 },
       cornice: { kind: 'cornice', h: 0.45, proud: 0.3, group: 'str:plaster', value: 0.94 },
       socle: { h: 0.6, group: 'str:plaster', value: 0.82 }, sills: null, lintels: null,
       quoins: null, stack: null, frame: null, shutters: null, pickets: null,
     }, compose: { mass: { w: 10, d: 16 }, annex: null } },
-    materials: { stone: 'painted-stucco', plaster: 'sawn-stone', plinth: 'sawn-stone', punched: 'stucco', pier: 'sawn-stone', banded: 'sawn-stone', road: 'asphalt', walk: 'pavement' },
-    palette: { stone: '#efe8da', plaster: '#e4dac6', paint: '#141414' },
+    // (its frames on the timber surface, painted black: a colour alone leans a face's hue and keeps its light)
+    materials: { stone: 'painted-stucco', timber: 'painted-stucco', plaster: 'sawn-stone', plinth: 'sawn-stone', punched: 'stucco', pier: 'sawn-stone', banded: 'sawn-stone', road: 'asphalt', walk: 'pavement' },
+    palette: { stone: '#efe8da', plaster: '#e4dac6', timber: '#161616' },
     city: { grain: 'north-american' },
   },
   // (a geotown's tropical coast: geotown/pattern.js tropical; each house its own pastel)
