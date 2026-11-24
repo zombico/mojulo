@@ -1,11 +1,10 @@
 ### Flight on rails: flight levels flown for a goal, and the ground under three flight templates
 
-In progress. The aim is three flight rails, each a template a person's own flight game starts from and each a game of
-several levels:
+Three flight rails, each a template a person's own flight game starts from and each a game of several levels:
 
 - **Pilot School**: a licence earned lesson by lesson.
 - **Wolf Squadron**: arcade stages down a path, on planets and in space.
-- **Star Privateer**: a space campaign ending in a fleet battle and a run on a battle station.
+- **Rebel Storm / Rise of Empire**: a space combat sim flown from the cockpit, mission by mission.
 
 They share one foundation, built first, and these themes record it as it lands.
 
@@ -110,9 +109,8 @@ They share one foundation, built first, and these themes record it as it lands.
   the runtime the page runs by an attentive player (hazards taken wide, the nearest fighter in range brought onto the
   guns, rounds rolled through) and by a still one. A stage is proved when the first wins and the second does not.
   Both Wolf stages are.
-- **Two space sims on one cockpit core.** The space rails were re-scoped. **Rebel Storm / Rise of Empire** is the 90s
-  cockpit combat sim: linear campaigns, combat first, from either side of one war. **Star Privateer** becomes the
-  open-world one (planets flown down to and explored) and is to come.
+- **The space sim on a cockpit core.** The space rail was re-scoped. **Rebel Storm / Rise of Empire** is the 90s
+  cockpit combat sim: linear campaigns, combat first, from either side of one war.
 - **The starfighter** (`worlds/controllable/rules-starfighter.js`, opt-in). A craft flown from its cockpit:
   - **Attitude:** a true one (a forward and an up vector turned in the craft's own frame), so it loops and rolls; the
     page's angles are derived from it, and it draws any attitude unchanged. The mouse pitches and yaws, A / D roll.
