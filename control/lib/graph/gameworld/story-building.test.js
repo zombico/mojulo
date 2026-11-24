@@ -26,5 +26,6 @@ describe('a story in a building', () => {
     expect(M.play.scenes.find((x) => x.id === 'first-room').when.enter).toMatchObject({ r: 3 });
     const end = Object.values(game.flow.steps).find((s) => s.scene === 'ending');
     expect(end).toMatchObject({ stage: `sb-level-${core}-0` });
-  });
+    // (a whole game run, its levels laid: past the default 30 s on a slow runner, as round-story's is)
+  }, 300000);
 });
