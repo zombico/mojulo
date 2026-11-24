@@ -51,6 +51,8 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi',
   // (a fleet's hull kibble, its plating's detail drawn by the shader on each block, the same procedure in any era)
   'kibble',
+  // (a flying lesson's brief, told on mana-ui before the lesson is flown)
+  'lesson',
 ]);
 
 /** The form render's own inputs: what it draws as material in the place of paint (only a 'form' era's read carries one):

@@ -1167,3 +1167,10 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // Re-pinned 2026-11-23 (1122-sim-fixing-mana-ui: the mission designer): `briefing` only. The table's client gives the
 // editor its handle (a place moved with its name, post and ring; everything shown; the camera's turn held); the page over
 // a level carries no editor, so what it shows is as it was.
+// Pinned 2026-11-24 (1122-sim-fixing: Pilot School on mana-ui): the `lesson` fixture joins the matrix (a flying lesson's
+// brief over its level: gameworld/lesson-brief.js's words, scene/channels/lesson-brief.js's block in a scope of its own,
+// mana-ui and the controls host, the lesson held on the pause sidecar until Start). Every other page is byte-identical,
+// and a page without a `lesson` key emits no block.
+// Re-pinned 2026-11-24 (1122-sim-fixing: Wolf Squadron's stages): the `briefing` fixture's level page takes the keys
+// as its briefing mounts (window.focus), so a pilot steps the table from the game's shell without clicking into it.
+// Every other page is byte-identical.

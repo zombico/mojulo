@@ -16,14 +16,24 @@
  * begins. The rest of the syllabus (the stall, the cross-country, the crosswind, the check ride and the licence) is laid by
  * later lessons on the same words.
  *
+ * Its game runs on mana-ui, as Rebel Storm's does: its title, its lessons, its pause and each lesson's graded result in
+ * the logbook's look (the shell remembers each lesson's best medal), and each lesson opens with the instructor's brief over
+ * its field as it loads (gameworld/lesson-brief.js: where it stands in the syllabus, its sky, its tasks, what earns each
+ * medal), the lesson held until Start, so the clock its grade reads starts with the student.
+ *
  *   PILOT_SCHOOL                    the school's craft, assist and airfield
+ *   PILOT_SCHOOL_LOOK               the look mana-ui draws it in: the `logbook` theme card
  *   LESSONS                         the lessons, in order: { id, name, brief, sky, tasks, grade } (sky: the lesson's
  *                                   weather, skyscape/sky.js)
- *   lessonLevel(lesson)             → a gameworld level: its airspace and its flight goal
+ *   lessonLevel(lesson, { n, of }?) → a gameworld level: its airspace (its brief as `lesson`) and its flight goal
  *   pilotSchoolStart(world)         → { world }: the rail's starter, its lessons under what the creator wrote
  *
  * Pure: the same school lays the same lessons.
  */
+
+// (a training logbook on a sectional chart: the theme card mana-ui draws its menus, its pause, its results and the
+// lesson briefs in; nothing drawn across the view out of the canopy)
+export const PILOT_SCHOOL_LOOK = 'logbook';
 
 export const PILOT_SCHOOL = Object.freeze({
   craft: 'trainer', assist: 'sim',
@@ -90,20 +100,24 @@ export const LESSONS = Object.freeze([
 
 /** A lesson as a gameworld level: the school's airfield, its craft on the sim assist, its sky, the course its rings are
  *  (only a lesson that flies rings lays them), and its tasks graded. */
-export function lessonLevel(lesson) {
+export function lessonLevel(lesson, { n = LESSONS.indexOf(lesson) + 1 || 1, of = LESSONS.length } = {}) {
+  // (its brief, the instructor's before it is flown: where it stands in the syllabus, its sky, its tasks' words, its medals)
+  const brief = { n, of, name: lesson.name, ...(lesson.brief ? { brief: lesson.brief } : {}), ...(lesson.sky ? { sky: JSON.parse(JSON.stringify(lesson.sky)) } : {}), tasks: lesson.tasks.map((t) => t.text), ...(lesson.grade ? { grade: JSON.parse(JSON.stringify(lesson.grade)) } : {}) };
   return {
     name: lesson.name,
-    airspace: { map: { craft: PILOT_SCHOOL.craft }, ...(lesson.sky ? { sky: JSON.parse(JSON.stringify(lesson.sky)) } : {}), ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })), country: { ...PILOT_SCHOOL.airfield.country } }, course: lesson.tasks.some((t) => t.gates !== undefined), assist: PILOT_SCHOOL.assist },
+    airspace: { map: { craft: PILOT_SCHOOL.craft }, ...(lesson.sky ? { sky: JSON.parse(JSON.stringify(lesson.sky)) } : {}), ground: { pads: PILOT_SCHOOL.airfield.pads.map((p) => ({ kind: p.kind, at: [...p.at] })), country: { ...PILOT_SCHOOL.airfield.country } }, course: lesson.tasks.some((t) => t.gates !== undefined), assist: PILOT_SCHOOL.assist, lesson: brief },
     goal: { flight: { tasks: lesson.tasks.map((t) => JSON.parse(JSON.stringify(t))), crash: 'fail', grade: JSON.parse(JSON.stringify(lesson.grade)) } },
   };
 }
 
 /** The rail's starter: the first lessons, under what the creator wrote (every key they wrote wins). */
 export function pilotSchoolStart(world, { lessons = LESSONS.length } = {}) {
-  const levels = Object.fromEntries(LESSONS.slice(0, lessons).map((L) => [L.id, lessonLevel(L)]));
+  const levels = Object.fromEntries(LESSONS.slice(0, lessons).map((L, i) => [L.id, lessonLevel(L, { n: i + 1, of: LESSONS.length })]));
+  // (its title, its lessons, its pause and each lesson's graded result drawn by mana-ui in the logbook's look; each lesson
+  // briefed by the instructor as it loads; the creator's own `ui` wins)
   return {
     world: {
-      mode: 'autonomous', style: { kit: 'trail-valley' }, intent: { from: 'flight-sim' }, start: LESSONS[0].id,
+      mode: 'autonomous', style: { kit: 'trail-valley' }, intent: { from: 'flight-sim' }, ui: { theme: PILOT_SCHOOL_LOOK }, start: LESSONS[0].id,
       ...world, levels,
     },
   };

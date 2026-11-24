@@ -7,6 +7,7 @@ import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { flyTasks } from '@/lib/graph/skyscape/lesson-pilot.js';
+import { STAGE_DESIGNS } from '@/lib/graph/gameworld/wolf-squadron.js';
 
 // DESIGNED FLIGHT LEVELS (the e2e tier: it makes a whole game through the real doors). An airspace level of a designed
 // game is flown for its flight goal (gameworld/flight-goal.js), the one a quick flight reads: a lesson's tasks (the
@@ -81,6 +82,9 @@ describe('design_game: designed flight levels', () => {
     expect(L1.game.mechanics.map((m) => m.kind)).toEqual(expect.arrayContaining(['grade', 'crash']));
     expect(L1.entities.find((e) => e.pilotable).rule.assist).toBe('sim');
     expect(L1.figures.craft.craft).toMatchObject({ archetype: 'lightSingle', gear: 'down' });
+    // each lesson briefed by the instructor as it loads (gameworld/lesson-brief.js), the game on mana-ui in the logbook's look
+    expect(L1.lesson).toMatchObject({ n: 1, of: 4, name: 'First flight' });
+    expect(L1.lesson.tasks).toHaveLength(O1.tasks.length);
     // a height over the runway laid as the altitude over its datum; a turn from its heading laid as a compass heading
     const datum = L1.meta?.pads?.[0]?.datum ?? null, O2 = M('lesson-2').game.mechanics.find((m) => m.kind === 'objectives');
     const hold = O2.tasks[1].band, right = O2.tasks[2].band;
@@ -117,7 +121,7 @@ describe('design_game: designed flight levels', () => {
     expect(['silver', 'bronze', 'no medal', undefined], JSON.stringify([sloppy.result, sloppy.grade, sloppy.kept])).toContain(sloppy.grade);
   }, 400000);
 
-  it('Wolf Squadron: a locked pitch lays a planet stage and a space stage; built, each flown down its rail to a boss', async () => {
+  it('Wolf Squadron: a locked pitch lays its designed stages, a planet\'s and a space one; built, each flown down its rail to a boss, scored', async () => {
     const out = await designGameHandler({ title: 'Wolves', world: { id: 'wolves', name: 'Wolves', rail: { from: 'wolf-squadron', locked: true } } });
     expect(out.pitch).toMatchObject({ stored: true, by: 'wolf-squadron', levels: ['stage-1', 'stage-2'] });
     const ref = out.ref, run = await designGameHandler({ ref, run: true });
@@ -134,14 +138,17 @@ describe('design_game: designed flight levels', () => {
       // its shield, its waves woken by the way's marks, its hazards met where they stand, its boss to shoot down
       expect(kinds).toEqual(expect.arrayContaining(['fail-on-death', 'wake', 'hazard-damage', 'defeat-all']));
       expect(kinds).not.toContain('reach-exit');
-      const wake = M.game.mechanics.find((m) => m.kind === 'wake');
-      expect(wake.marks).toHaveLength(3);
-      expect(wake.marks.every((k) => k.fact === 'along' && k.foes.length === 3)).toBe(true);
+      // (laid from its design, campaign/stage.js: its waves at their marks with their counts, its boss's guns)
+      const D = STAGE_DESIGNS[id], wake = M.game.mechanics.find((m) => m.kind === 'wake');
+      expect(wake.marks.map((k) => k.foes.length)).toEqual(D.waves.map((w) => w.count));
+      expect(wake.marks.every((k) => k.fact === 'along')).toBe(true);
       const foes = M.entities.filter((e) => /^foe-/.test(e.id));
-      expect(foes.length).toBe(9);
+      expect(foes.length).toBe(D.waves.reduce((n, w) => n + w.count, 0));
       expect(foes.every((e) => e.dormant)).toBe(true);
-      expect(M.entities.filter((e) => /^boss-/.test(e.id)).map((e) => e.id)).toEqual(['boss-core', 'boss-gun-1', 'boss-gun-2']);
-      expect(M.game.mechanics.find((m) => m.kind === 'defeat-all')).toMatchObject({ who: 'boss-*', count: 3 });
+      expect(M.entities.filter((e) => /^boss-/.test(e.id)).map((e) => e.id)).toEqual(['boss-core', ...Array.from({ length: D.boss.guns }, (_, i) => `boss-gun-${i + 1}`)]);
+      expect(M.game.mechanics.find((m) => m.kind === 'defeat-all')).toMatchObject({ who: 'boss-*', count: D.boss.guns + 1 });
+      // (arcade: every fighter, gun and core scored, its medal the score's)
+      expect(kinds).toEqual(expect.arrayContaining(['score', 'grade']));
       expect(M.game.mechanics.find((m) => m.kind === 'hazard-damage').hazards.every((h) => h.planar === false)).toBe(true);
       // its fighters on station ahead of the craft once woken, firing rounds that travel (dodged, rolled through)
       expect(foes.every((e) => e.rule.station?.of === 'player' && e.rule.station.lead >= 250 && !e.rule.missiles)).toBe(true);

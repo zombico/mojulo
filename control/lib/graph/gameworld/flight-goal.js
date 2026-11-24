@@ -177,6 +177,13 @@ export function flightGoalMechanics(goal, ends) {
       ...(S.waves.length ? [{ kind: 'wake', marks: S.waves.map((w) => ({ fact: 'along', min: w.along, foes: w.foes })) }] : []),
       ...(S.hazards.length ? [{ kind: 'hazard-damage', hazards: S.hazards.map((h) => (h.size ? { at: [h.at[0], h.at[1], h.base + h.size[2] / 2], half: [h.radius, h.radius, h.size[2] / 2], damage: STAGE.hazard, planar: false } : { at: h.at, radius: h.radius, damage: STAGE.hazard, planar: false })) }] : []),
       { kind: 'defeat-all', who: 'boss-*', count: S.boss.parts.length, label: 'Boss' },
+      // (a designed stage's score, campaign/stage.js: every fighter, gun and core down its points; its medal read off
+      // the score as the boss goes down)
+      ...(S.score ? [
+        { kind: 'score', var: 'score', label: 'Score', points: [{ on: 'down', match: { entity: 'foe-*' }, by: S.score.fighter }, { on: 'down', match: { entity: 'boss-gun-*' }, by: S.score.gun }, { on: 'down', match: { entity: 'boss-core' }, by: S.score.core }] },
+        // (the score keeps itself for the result; the grade's criterion reads it, unlabelled, so it is kept once)
+        { kind: 'grade', on: 'all:defeated', criteria: [{ var: 'score', best: 'high', gold: S.score.medals[0], silver: S.score.medals[1], bronze: S.score.medals[2] }] },
+      ] : []),
     ];
   }
   // a sortie (flight-sortie.js): a cockpit's mission, its flight groups and its goals together

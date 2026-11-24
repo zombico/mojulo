@@ -166,8 +166,17 @@ export async function GET(request, { params }) {
         if (!D) return NextResponse.json({ error: `mission is one of the game's missions (${Object.keys(world.missions ?? {}).join(', ') || 'none yet: design_game writes them to /missions/<id>'})` }, { status: 404 });
         const { readMission } = await import('@/lib/graph/campaign/mission');
         const { briefingPage } = await import('@/lib/graph/campaign/briefing-page');
-        const edit = request.nextUrl.searchParams.get('edit') === '1';
-        html = briefingPage(readMission({ ...D, id }), { editor: { ref, mission: id, design: { ...D, id }, edit, post: `/api/sketches/${encodeURIComponent(ref)}/missions`, at: `/api/sketches/${encodeURIComponent(ref)}/bible?book=briefing&mission=${encodeURIComponent(id)}` } });
+        const { designKind } = await import('@/lib/graph/campaign/designer');
+        const post = `/api/sketches/${encodeURIComponent(ref)}/missions`, at = `/api/sketches/${encodeURIComponent(ref)}/bible?book=briefing&mission=${encodeURIComponent(id)}`;
+        if (designKind(D) === 'stage') {
+          // (an arcade stage's: its table drawn from its route and its waves, approved from its briefing, never moved about)
+          const { readStage, stageBriefingData } = await import('@/lib/graph/campaign/stage');
+          const S = readStage({ ...D, id });
+          html = briefingPage(null, { data: stageBriefingData(S), editor: { ref, mission: id, design: { ...D, id }, edit: false, fixed: true, post, at } });
+        } else {
+          const edit = request.nextUrl.searchParams.get('edit') === '1';
+          html = briefingPage(readMission({ ...D, id }), { editor: { ref, mission: id, design: { ...D, id }, edit, post, at } });
+        }
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${id}-briefing`;
       } else if (book === 'combat') {
         const view = request.nextUrl.searchParams.get('view') ?? 'own';

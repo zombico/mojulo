@@ -10,7 +10,9 @@
  *   space    a field of rocks (space.js): the path woven through it, the rocks kept off its line (`keep`) and crowding
  *            round it; a few let into the box as the hazards to dodge
  *
- *   planRailStage(map, field, { seed?, speed?, waves?, per? }) → {
+ *   planRailStage(map, field, { seed?, speed?, waves?, per?, plan? }) → {   (`plan`: a stage designed whole,
+ *                                campaign/stage.js: its waves at their marks in their formations, its hazards' spacing,
+ *                                its boss's guns and armour, its score; readRailPlan says each fault)
  *     path       [[x, y, z], …]  the way, from its start to the boss's arena
  *     length     metres
  *     rule       the rail rule's settings (worlds/controllable/rules-rail.js): path, speed, box, floor?, sway, boost, roll
@@ -20,6 +22,7 @@
  *                                               and its station once woken (rules-rail.js): held ahead of the craft at its
  *                                               place in the box, weaving, until it peels off
  *     boss       { at, parts: [{ id, at, size, hp }] }   at the path's end: a core and its guns, every part shot down wins
+ *     score?     a design's points and medals (its plan's), carried to the stage's goal (flight-goal.js)
  *     laws       [{ law, ok, note }]           the path clears the ground by its floor; the hazards leave a way past each;
  *                                               down a gorge (ground.js), its walls stand over the way
  *   }
@@ -51,6 +54,9 @@ export const RAIL = Object.freeze({
   arenaS: 6,                 // the path's last stretch, the boss's arena, this many seconds long
   minS: 70,                  // the shortest stage (s at its speed)
   bossHp: Object.freeze({ core: 24, gun: 8 }),
+  // (a design's plan: its formations, and a heavy boss's armour over a light one's)
+  formations: Object.freeze(['line', 'vee', 'echelon', 'swarm']),
+  heavy: 1.6,
 });
 
 function rng(seed) {
@@ -97,7 +103,22 @@ export function railPath(map, ground, { seed = 1, speed, line = null } = {}) {
 /** The tubes a space stage's rocks are kept out of: its way's legs, the box's breadth about them (space.js `keep`). */
 export const railKeep = (path) => path.slice(1).map((b, i) => [path[i], b, RAIL.box.hx]);
 
-export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wavesAsk, per = 3 } = {}) {
+/** A stage's design as its rail lays it (`rail.plan`, campaign/stage.js compileStage): errors[] (teaching).
+ *   plan = { waves?: [{ at: share of the way, count: 1–6, formation?: line | vee | echelon | swarm }], hazards?: s between
+ *            (0: none), boss?: { guns?: 1–6, armour?: light | heavy }, score?: { fighter, gun, core, medals: [g, s, b] } } */
+export function readRailPlan(P, at = 'airspace.rail.plan') {
+  const e = [], isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  if (!isObj(P)) return [`${at} is { waves?, hazards?, boss?, score? }: a stage's design as its rail lays it`];
+  for (const k of Object.keys(P)) if (!['waves', 'hazards', 'boss', 'score'].includes(k)) e.push(`${at}.${k} is not a stage plan's (waves, hazards, boss, score)`);
+  if (P.waves !== undefined && !(Array.isArray(P.waves) && P.waves.length <= 8 && P.waves.every((w, i) => isObj(w) && Number.isFinite(w.at) && w.at > 0 && w.at < 1 && Number.isInteger(w.count) && w.count >= 1 && w.count <= 6
+    && (w.formation === undefined || RAIL.formations.includes(w.formation)) && (i === 0 || w.at > P.waves[i - 1].at)))) e.push(`${at}.waves are up to 8 { at: 0–1, count: 1–6, formation?: ${RAIL.formations.join(' | ')} }, in the order they come`);
+  if (P.hazards !== undefined && !(Number.isFinite(P.hazards) && P.hazards >= 0 && P.hazards <= 20)) e.push(`${at}.hazards is the seconds of the way between hazards (0: none)`);
+  if (P.boss !== undefined && !(isObj(P.boss) && (P.boss.guns === undefined || (Number.isInteger(P.boss.guns) && P.boss.guns >= 1 && P.boss.guns <= 6)) && (P.boss.armour === undefined || ['light', 'heavy'].includes(P.boss.armour)))) e.push(`${at}.boss is { guns?: 1–6, armour?: light | heavy }`);
+  if (P.score !== undefined && !(isObj(P.score) && ['fighter', 'gun', 'core'].every((k) => Number.isFinite(P.score[k]) && P.score[k] > 0) && Array.isArray(P.score.medals) && P.score.medals.length === 3 && P.score.medals.every(Number.isFinite) && P.score.medals[0] >= P.score.medals[1] && P.score.medals[1] >= P.score.medals[2])) e.push(`${at}.score is { fighter, gun, core, medals: [gold, silver, bronze] } (points; gold the most)`);
+  return e;
+}
+
+export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wavesAsk, per = 3, plan = null } = {}) {
   const c = map.craft, space = map.form === 'void', R = rng(`${seed}::stage`);
   if (!space && map.form !== 'canyon') throw new Error(`rail stage: a ground stage runs down a canyon (map.form 'canyon'), not ${map.form}; a space stage on a void map`);
   const speed = r2(speedAsk ?? c.cruise * RAIL.speedOfCruise), step = speed * RAIL.stepS, ground = (x, y) => (field.topAt ?? field.groundAt)(x, y);
@@ -108,9 +129,12 @@ export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wa
   // ── its waves: a mark every waveS s from a breath in to the arena, each wing posted ahead of its mark ──
   const arena = length - speed * RAIL.arenaS, marks = [];
   for (let s = speed * 5; s < arena - speed * RAIL.waveS * 0.5; s += speed * RAIL.waveS) marks.push(s);
-  const W = Math.min(marks.length, wavesAsk ?? marks.length), waves = [], foes = [];
+  // (a design's plan says its own waves: each at its share of the way, its count, its formation; else a mark every waveS s)
+  if (plan && plan.waves) { marks.length = 0; for (const pw of plan.waves) marks.push(Math.max(speed * 5, Math.min(arena - speed * 2, pw.at * length))); }
+  const W = plan && plan.waves ? plan.waves.length : Math.min(marks.length, wavesAsk ?? marks.length), waves = [], foes = [];
   let k = 0;
   for (let w = 0; w < W; w++) {
+    if (plan && plan.waves) { k = planWave(plan.waves[w], w, marks[w], { path, arena, speed, space, R, waves, foes, k }); continue; }
     const along = marks[w], ahead = railPathFrame(path, Math.min(arena, along + speed * RAIL.leadS)), ids = [];
     const hl = Math.hypot(ahead.t[0], ahead.t[1]) || 1, rx = ahead.t[1] / hl, ry = -ahead.t[0] / hl;
     for (let j = 0; j < per; j++) {
@@ -125,7 +149,8 @@ export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wa
   // ── its hazards: between the waves, each a pillar (ground) or a rock let into the box (space), off the line by a
   // seeded share of the box, so there is always a way past it ──
   const hazards = [];
-  for (let s = speed * 8, h = 0; s < arena - speed * 2; s += speed * RAIL.hazardS) {
+  const hzS = plan && plan.hazards !== undefined ? plan.hazards : RAIL.hazardS;
+  for (let s = speed * 8, h = 0; hzS > 0 && s < arena - speed * 2; s += speed * hzS) {
     if (marks.some((m) => Math.abs(m - s) < speed * 1.5)) continue;
     const F2 = railPathFrame(path, s), hl = Math.hypot(F2.t[0], F2.t[1]) || 1, rx = F2.t[1] / hl, ry = -F2.t[0] / hl;
     const side = (R() < 0.5 ? -1 : 1) * (0.2 + 0.5 * R()) * RAIL.box.hx, radius = space ? r2(14 + 10 * R()) : r2(10 + 6 * R());
@@ -136,7 +161,7 @@ export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wa
   // ── its boss: at the path's end, ahead of where the frame stops: a core and two guns ──
   const end = path[path.length - 1], last = railPathFrame(path, length), hl = Math.hypot(last.t[0], last.t[1]) || 1, ax = last.t[0] / hl, ay = last.t[1] / hl;
   const bAt = [r2(end[0] + ax * speed * 3), r2(end[1] + ay * speed * 3), r2(end[2] + (space ? 0 : 15))];
-  const boss = {
+  const boss = plan && plan.boss ? planBoss(plan.boss, bAt, ax, ay) : {
     at: bAt,
     parts: [
       { id: 'boss-core', at: bAt, size: 26, hp: RAIL.bossHp.core },
@@ -164,5 +189,37 @@ export function planRailStage(map, field, { seed = 1, speed: speedAsk, waves: wa
     laws.push({ law: 'walled', ok: worst > 0, note: worst > 0 ? `the gorge's walls stand at least ${Math.round(worst)} m over the way on both sides` : `a wall falls ${Math.round(-worst)} m under the way: the gorge is too shallow for its floor` });
   }
   laws.push({ law: 'length', ok: seconds >= RAIL.minS, note: `${Math.round(seconds)} s at ${Math.round(speed)} m/s, ${waves.length} waves, ${hazards.length} hazards` });
-  return { path, length: r2(length), seconds: r2(seconds), rule, hazards, waves, foes, boss, laws };
+  return { path, length: r2(length), seconds: r2(seconds), rule, hazards, waves, foes, boss, laws, ...(plan && plan.score ? { score: plan.score } : {}) };
+}
+
+// a design's wave (its plan's): its fighters posted ahead of its mark in its formation, each held on station there once
+// woken: abreast (line), trailing back from its leader (vee), stepped back and up across the way (echelon), or loose and
+// weaving wide (swarm). → the next fighter's number
+function planWave(pw, w, along, { path, arena, speed, space, R, waves, foes, k }) {
+  const ahead = railPathFrame(path, Math.min(arena, along + speed * RAIL.leadS)), ids = [];
+  const hl = Math.hypot(ahead.t[0], ahead.t[1]) || 1, rx = ahead.t[1] / hl, ry = -ahead.t[0] / hl;
+  const n = pw.count, f = pw.formation ?? 'line', mid = (n - 1) / 2, spread = n > 1 ? (RAIL.box.hx * 1.3) / (n - 1) : 0;
+  const lead = Math.max(RAIL.stationMin, speed * RAIL.stationS);
+  for (let j = 0; j < n; j++) {
+    let across = (j - mid) * spread, up = (j % 2 ? 1 : -0.5) * RAIL.box.hz * 0.4, back = 0, wide = 0.25, phase = n ? j / n : 0;
+    if (f === 'vee') { back = Math.abs(j - mid) * 45; up = RAIL.box.hz * 0.15; }
+    else if (f === 'echelon') { back = j * 40; up = n > 1 ? (j / (n - 1) - 0.5) * RAIL.box.hz * 0.6 : 0; }
+    else if (f === 'swarm') { across = (R() * 2 - 1) * RAIL.box.hx * 0.65; up = (R() * 2 - 1) * RAIL.box.hz * 0.45; back = R() * 80; wide = 0.4; phase = R(); }
+    const id = `foe-${++k}`, z = up + (space ? 0 : 10);
+    ids.push(id);
+    foes.push({ id, at: [r2(ahead.p[0] + rx * across), r2(ahead.p[1] + ry * across), r2(ahead.p[2] + z)], wave: w,
+      station: { lead: r2(lead + back), at: [r2(across), r2(z)], weave: [r2(RAIL.box.hx * wide), r2(RAIL.box.hz * 0.3), 5], phase: r2(phase), stay: RAIL.stayS } });
+  }
+  waves.push({ along: r2(along), foes: ids });
+  return k;
+}
+
+// a design's boss (its plan's): its core, and its guns on a ring round it across the way; heavy armour takes more
+function planBoss(B, at, ax, ay) {
+  const n = B.guns ?? 2, mul = B.armour === 'heavy' ? RAIL.heavy : 1, parts = [{ id: 'boss-core', at, size: 26, hp: Math.round(RAIL.bossHp.core * mul) }];
+  for (let i = 0; i < n; i++) {
+    const th = (2 * Math.PI * i) / n, side = Math.cos(th) * 40, up = Math.sin(th) * 24;
+    parts.push({ id: `boss-gun-${i + 1}`, at: [r2(at[0] - ay * side), r2(at[1] + ax * side), r2(at[2] + up)], size: 12, hp: Math.round(RAIL.bossHp.gun * mul) });
+  }
+  return { at, parts };
 }

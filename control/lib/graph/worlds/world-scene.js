@@ -2415,8 +2415,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.briefing && typeof sketch.manifest.briefing === 'object') {
     const { readMission } = await import('@/lib/graph/campaign/mission.js');
     const { briefingData } = await import('@/lib/graph/campaign/briefing.js');
-    payload.briefing = { data: briefingData(readMission(sketch.manifest.briefing)) };
+    // (an arcade stage's design, one that names its route, told on the same table: campaign/stage.js)
+    if (sketch.manifest.briefing.route !== undefined) { const { readStage, stageBriefingData } = await import('@/lib/graph/campaign/stage.js'); payload.briefing = { data: stageBriefingData(readStage(sketch.manifest.briefing)) }; }
+    else payload.briefing = { data: briefingData(readMission(sketch.manifest.briefing)) };
   }
+  // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
+  // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
+  if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {
+    const { lessonBriefData } = await import('@/lib/graph/gameworld/lesson-brief.js');
+    payload.lesson = { data: lessonBriefData(sketch.manifest.lesson) };
+  }
+
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).

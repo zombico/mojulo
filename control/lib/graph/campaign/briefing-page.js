@@ -6,7 +6,8 @@
  *
  *   briefingSpec()                       → the mana-ui spec (its defs only the idioms it uses)
  *   briefingState(B)                     → the words' state at the first step
- *   briefingPage(M, { theme?, cdn?, editor? }) → the page (html), for a mission read by readMission (mission.js); with
+ *   briefingPage(M, { theme?, cdn?, editor?, data? }) → the page (html), for a mission read by readMission (mission.js), or
+ *                                        any design's table data (`data`: an arcade stage's, stage.js); with
  *                                        `editor`, the mission designer's (designer.js): its state, Approve, the table
  *                                        it is edited on
  *   briefingScript(D, { theme?, level? }) → the code both run (after `import * as THREE`)
@@ -140,15 +141,18 @@ rt.glyphs(${json(manaGlyphs())});
 mview = __manaUi.mount(__bfMana, rt, { auto: true });
 __manaHostK.connect(rt, mview, { keys: ${json(C.keys)}, pad: ${json(C.pad)}, padLayout: __manaPadLayout });
 stepWords(STATE, BRIEF, 0);
-mview.paint();
+mview.paint();${level ? `
+// (a level's frame is inside the game's shell: take the keys, so the pilot steps the table without clicking into it)
+try { window.focus(); } catch (e) {}` : ''}
 window.${level ? '__mojBriefing' : '__manaUi'} = ${level ? '{ rt, get up() { return !launched; }, launch: () => act({ emit: \'brief:launch\' }) }' : 'rt'};`;
 }
 
 /** The page for a mission read by readMission. `editor` ({ ref, mission, design, edit, post, at }): served as a game's
  *  book, the bar over it (its state, the table, Approve) and, with `edit`, the table to edit it on
  *  (briefing-editor.client.js). */
-export function briefingPage(M, { theme = null, cdn = false, editor = null } = {}) {
-  const D = briefingData(M), T = themeOf(theme);
+export function briefingPage(M, { theme = null, cdn = false, editor = null, data = null } = {}) {
+  // (`data`: a table drawn from another design's data, an arcade stage's: stage.js stageBriefingData)
+  const D = data ?? briefingData(M), T = themeOf(theme);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(D.name)} · briefing</title>
 <script type="importmap">${cdn ? CDN_IMPORTMAP : inlineImportmap()}</script>

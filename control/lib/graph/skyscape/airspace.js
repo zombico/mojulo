@@ -42,7 +42,7 @@ import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace
 import { planBackdrop } from './backdrop.js';
 import { fleetWorld, layFleet, toward } from './space-fleet.js';
 import { trenchField } from './trench.js';
-import { railPath, railKeep, planRailStage } from './rail-stage.js';
+import { railPath, railKeep, planRailStage, readRailPlan } from './rail-stage.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { readPaletteSpec } from '../color-theorist/solve.js';
@@ -90,7 +90,8 @@ export function validateAirspace(m) {
   if (m.airframe !== undefined && m.airframe !== false) { try { airframeOf({ key: null }, m.airframe); } catch (err) { e.push(err.message); } }
   // a rail stage (rail-stage.js): down a canyon's floor, or through a field of rocks in space
   if (m.rail !== undefined) {
-    if (m.rail !== true && !(m.rail && typeof m.rail === 'object' && Object.keys(m.rail).every((k) => ['speed', 'waves', 'per'].includes(k)))) e.push('airspace.rail is true or { speed?, waves?, per? }: a stage flown down a path');
+    if (m.rail !== true && !(m.rail && typeof m.rail === 'object' && Object.keys(m.rail).every((k) => ['speed', 'waves', 'per', 'plan'].includes(k)))) e.push('airspace.rail is true or { speed?, waves?, per?, plan? }: a stage flown down a path');
+    if (m.rail && typeof m.rail === 'object' && m.rail.plan !== undefined) e.push(...readRailPlan(m.rail.plan));
     if (!isSpace(m) && (m.map?.form ?? 'island') !== 'canyon') e.push("airspace.rail: a ground stage runs down a canyon (map.form: 'canyon'); a space stage needs a space craft or map.form 'void'");
     if (m.course) e.push('airspace.rail: a rail stage has its path, not a course');
     if (m.space?.trench) e.push('airspace.rail: a trench is its own run (space.trench), not a rail stage');

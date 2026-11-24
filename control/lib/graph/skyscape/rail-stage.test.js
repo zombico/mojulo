@@ -6,6 +6,9 @@ import { describe, expect, it } from 'vitest';
 
 import { planRailStage, railPathFrame, RAIL } from './rail-stage.js';
 import { airspaceOf, validateAirspace } from './airspace.js';
+import { airspaceEnds } from '../gameworld/levels.js';
+import { flightGoalMechanics } from '../gameworld/flight-goal.js';
+import { composeMechanics } from '../game/mechanics.js';
 
 const CANYON = { kind: 'airspace', map: { form: 'canyon', craft: 'multirole' }, rail: { speed: 120, waves: 3 }, seed: 4 };
 const VOID = { kind: 'airspace', map: { craft: 'fighter', field: 6000 }, space: { asteroids: 'field' }, rail: { speed: 60 }, seed: 4 };
@@ -53,9 +56,36 @@ describe('the rail stage', () => {
     expect(JSON.stringify(stageOf(CANYON).S)).toBe(JSON.stringify(S));
   });
 
+  it('a stage designed whole (`plan`): its waves at their marks in their formations, its hazards, its boss\'s guns and armour, its score', () => {
+    const plan = { waves: [{ at: 0.2, count: 2, formation: 'line' }, { at: 0.45, count: 5, formation: 'vee' }, { at: 0.7, count: 4, formation: 'swarm' }],
+      hazards: 0, boss: { guns: 4, armour: 'heavy' }, score: { fighter: 100, gun: 250, core: 1000, medals: [2000, 1500, 900] } };
+    const { S } = stageOf({ ...CANYON, rail: { speed: 120, plan } });
+    expect(validateAirspace({ ...CANYON, rail: { speed: 120, plan } })).toEqual([]);
+    expect(S.waves.map((w) => w.foes.length)).toEqual([2, 5, 4]);
+    // (each wave's mark its share of the way; no hazards when the plan says none)
+    S.waves.forEach((w, i) => expect(w.along).toBeCloseTo(plan.waves[i].at * S.length, 0));
+    expect(S.hazards).toEqual([]);
+    // (a vee trails back from its leader: its wings posted further ahead than its point)
+    const vee = S.foes.filter((f) => f.wave === 1).map((f) => f.station.lead);
+    expect(vee[0]).toBeGreaterThan(vee[2]);
+    expect(S.boss.parts.map((p) => p.id)).toEqual(['boss-core', 'boss-gun-1', 'boss-gun-2', 'boss-gun-3', 'boss-gun-4']);
+    expect(S.boss.parts[0].hp).toBe(Math.round(RAIL.bossHp.core * RAIL.heavy));
+    expect(S.score).toEqual(plan.score);
+    expect(JSON.stringify(stageOf({ ...CANYON, rail: { speed: 120, plan } }).S)).toBe(JSON.stringify(S));
+    // (scored: every fighter, gun and core down its points, the medal read off the score as the boss goes down)
+    const M = flightGoalMechanics({ kind: 'stage' }, airspaceEnds({ ...CANYON, rail: { speed: 120, plan } }));
+    expect(M.find((m) => m.kind === 'score').points.map((p) => p.by)).toEqual([100, 250, 1000]);
+    expect(M.find((m) => m.kind === 'grade').criteria[0]).toMatchObject({ var: 'score', best: 'high', gold: 2000, silver: 1500, bronze: 900 });
+    // (they compose: the score kept once, for the result, beside the medal)
+    expect(() => composeMechanics(M)).not.toThrow();
+    // (a stage without a plan is scored as before: not at all)
+    expect(flightGoalMechanics({ kind: 'stage' }, airspaceEnds(CANYON)).some((m) => m.kind === 'score')).toBe(false);
+    expect(validateAirspace({ ...CANYON, rail: { plan: { waves: [{ at: 0.5, count: 9 }] } } }).join(' ')).toMatch(/plan\.waves/);
+  });
+
   it('refuses a stage it cannot lay, teaching', () => {
     expect(validateAirspace({ kind: 'airspace', map: { form: 'island' }, rail: true }).join(' ')).toMatch(/a ground stage runs down a canyon/);
-    expect(validateAirspace({ kind: 'airspace', map: { form: 'canyon' }, rail: { lanes: 3 } }).join(' ')).toMatch(/rail is true or \{ speed\?, waves\?, per\? \}/);
+    expect(validateAirspace({ kind: 'airspace', map: { form: 'canyon' }, rail: { lanes: 3 } }).join(' ')).toMatch(/rail is true or \{ speed\?, waves\?, per\?, plan\? \}/);
     expect(validateAirspace({ kind: 'airspace', map: { form: 'canyon' }, rail: true, course: true }).join(' ')).toMatch(/a rail stage has its path, not a course/);
     expect(() => stageOf({ ...CANYON, rail: { speed: 400 } })).toThrow(/under the 70 s a stage needs/);
   });

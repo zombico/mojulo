@@ -58,7 +58,7 @@
   }
   bar.append(state);
   if (E.edit) bar.append(el('a', { href: E.at, text: 'Preview the briefing' }), el('button', { text: 'Save draft', on: { click: () => send(false) } }));
-  else bar.append(el('a', { href: `${E.at}&edit=1`, text: 'Edit on the table' }));
+  else if (!E.fixed) bar.append(el('a', { href: `${E.at}&edit=1`, text: 'Edit on the table' }));   // (a stage's table follows from its route: approved, not moved)
   bar.append(el('button', { class: 'go', text: 'Approve', on: { click: () => send(true) } }));
   document.body.append(bar, say);
   if (!E.edit) return;

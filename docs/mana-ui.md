@@ -1046,6 +1046,43 @@ mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by 
   takes the same look (`playCss`): the HUD's counters and its hint line as tickets, the use prompt with its key as a cap,
   and the page's margin in the plate's colour. Only the HUD's own hooks are styled (its classes and `--moj-*` tokens).
 
+### A flying lesson's brief
+
+Pilot School's game runs on mana-ui as Rebel Storm's does. Its rail dresses it in the `logbook` theme card (a training
+logbook on a sectional chart), so its title, its lessons, its pause and each lesson's graded result are mana-ui's, the
+shell remembering each lesson's best medal. Each lesson opens with the instructor's brief over its field as it loads
+(`gameworld/lesson-brief.js` its words, `scene/channels/lesson-brief.js` its page: an airspace level's `lesson` key):
+
+- **What it says:** the lesson's place in the syllabus, what it teaches, the sky it is flown in (the hour, the weather,
+  the wind in knots, the moon at night), its tasks in the instructor's words in the order they come, and what earns
+  gold, silver and bronze by every criterion it is graded on.
+- **It holds the lesson** on the shell's pause sidecar (`MSG_PAUSE`) until Start, so the clock its grade reads starts
+  with the student. It takes the keyboard as it opens, so Enter starts it from inside the shell. Start takes it away.
+- A page without a `lesson` key emits none of it.
+
+### An arcade stage's briefing
+
+Wolf Squadron's game runs on mana-ui too, in the `squadron` theme card (night-blue plates cut at the corner, cyan and
+amber, menus that slam in on chevrons), and each of its stages is designed whole the way a Rebel Storm mission is
+(`campaign/stage.js`):
+
+- **What a stage's design says:**
+  - its place;
+  - its route (a canyon on a moon or rocks over it, its speed, how thick its hazards stand);
+  - its waves, each at its share of the way, in a line, a vee, an echelon or a swarm;
+  - its boss (its guns round a core, light or heavy armour);
+  - its medals in points;
+  - the steps it is told in.
+- **The designer** (`campaign/designer.js`) knows a stage by its `route`: the same `missions` on the world, drafted and
+  approved the same way, its laws said in `design_game`'s readout. An approved stage's level is compiled onto the rail
+  stage's `plan` (`skyscape/rail-stage.js`): its waves at their marks in their formations, its hazards, its boss.
+- **It is told on the same holo table** as a mission, as the level loads. The route is drawn as a ribbon, each wave
+  sits at its mark, the boss is past the route's end, and the orders give the points and the medals. It is held until
+  Launch and takes the keyboard as it opens, so Enter steps it from inside the game's shell. A stage's table follows
+  from its route and its waves, so it is approved from its briefing rather than moved about on the table.
+- **Arcade, not a sim:** every fighter, gun and core down scores its points (the `score` mechanic, on the HUD), the boss
+  down wins the stage, and its medal is its score's (the `grade` mechanic), the shell remembering the best.
+
 ### The first mission
 
 A shooter's first level ([missions.md](missions.md)) is on mana-ui whole, from one spec
