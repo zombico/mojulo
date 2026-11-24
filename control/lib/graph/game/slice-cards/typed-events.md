@@ -1,5 +1,5 @@
 ---
-{ "id": "typed-events", "name": "Typed events (the whole mutation vocabulary)", "summary": "The eight typed events — grant, consume, setStat, levelUp, setFlag, promote, recruit, dismiss — are the ONLY way store state changes. Reducers are generated from the schema at build time; there is no user reducer code, ever.", "when": "how game state changes, outcome envelope events, what a level is allowed to write back, store mutations, reducers" }
+{ "id": "typed-events", "name": "Typed events (the whole mutation vocabulary)", "summary": "The nine typed events — grant, consume, setStat, levelUp, setFlag, promote, recruit, dismiss, rename — are the ONLY way store state changes. Reducers are generated from the schema at build time; there is no user reducer code, ever.", "when": "how game state changes, outcome envelope events, what a level is allowed to write back, store mutations, reducers" }
 ---
 
 ## The vocabulary
@@ -14,6 +14,7 @@
 | `promote` | progression | `ref`, `result?` (default success) |
 | `recruit` | party | `member: { id, name?, level?, stats?, tags? }` |
 | `dismiss` | party | `id` |
+| `rename` | character, party | `name` (1 to 24 characters: a name given in play, the game's name screen or a menu's); party needs `id` |
 
 Every event carries `slice` (the declared slice NAME, not kind).
 

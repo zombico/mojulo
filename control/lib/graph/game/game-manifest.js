@@ -32,6 +32,15 @@
  *                                          // than its pool (one level that rolls, game/roll.js, is a run of its maps)
  *     atlas?: { slice, shape?, rings },    // A MEGAWORLD (the play shell): the current map kept in a flags slice, leaving by an exit never
  *                                          // completes a level, Continue resumes where the player is, the travel screen a mandala
+ *     slots?: 2..4,                        // SAVE SLOTS (the play shell, its mana-ui front): the title's play or continue asks
+ *                                          // which save; each slot its own store, slot 1 the game's own keys
+ *     gameOver?: true,                     // A GAME OVER (the play shell): a level lost ends in the game over screen, the
+ *                                          // defeat never kept, continue taking the journey up where it was last kept (a
+ *                                          // party RPG's: its last way taken or save point), or the title
+ *     naming?: { slice, id?, label?, max?, min? },   // A NAME ASKED (the play shell): a new game asks the player a name
+ *                                          // before its first level (flow.js withNaming: the `name` screen, mana-ui's
+ *                                          // keyboard), kept in the store by `rename`: a character slice's, or a party
+ *                                          // slice's member `id`; the level reads it from its slice
  *     final?: <level ref>,                 // THE END (the play shell): that level's first win completes the game (the
  *                                          // front's end plays; a map game does not travel on from it), cleared alone
  *     flow?: { start, steps },             // THE FLOW (flow.js): what plays when, screens, cinematics, levels and holds;
@@ -192,6 +201,29 @@ export function validateGameManifest(manifest) {
     if (!A || typeof A !== 'object' || !Array.isArray(A.rings) || A.rings.some((r) => !Array.isArray(r) || r.some((x) => !known.includes(x)))) errors.push('atlas is { slice, rings: [[level ref]] }: the zones in their rings');
     else if (slice?.kind !== 'flags') errors.push(`atlas.slice is a flags slice of the store (${A.slice})`);
     if (manifest.shell !== 'play') errors.push("atlas plays in the light shell: add shell: 'play'");
+  }
+  if (manifest.slots !== undefined) {
+    if (!(Number.isInteger(manifest.slots) && manifest.slots >= 2 && manifest.slots <= 4)) errors.push('slots is how many saves the title offers, 2 to 4');
+    if (manifest.shell !== 'play') errors.push("slots play in the light shell: add shell: 'play'");
+  }
+  if (manifest.gameOver !== undefined) {
+    if (manifest.gameOver !== true) errors.push('gameOver is true: a level lost is a game over, continued from the journey as it was last kept');
+    if (manifest.shell !== 'play') errors.push("gameOver plays in the light shell: add shell: 'play'");
+    if (manifest.run) errors.push('gameOver is a journey\'s: a run ends on a fall already (run)');
+  }
+  // A NAME ASKED (flow.js withNaming): whose it is, a character's or a party member's, and how it is asked
+  if (manifest.naming !== undefined) {
+    const N = manifest.naming, slice = (manifest.store?.slices ?? []).find((x) => x.name === N?.slice);
+    if (!N || typeof N !== 'object' || Array.isArray(N)) errors.push('naming is { slice, id?, label?, max?, min? }: the name a new game asks of the player');
+    else {
+      for (const k of Object.keys(N)) if (!['slice', 'id', 'label', 'max', 'min'].includes(k)) errors.push(`naming.${k}: naming takes slice, id, label, max, min`);
+      if (!slice || (slice.kind !== 'character' && slice.kind !== 'party')) errors.push(`naming.slice is a character or party slice of the store (${N.slice})`);
+      else if (slice.kind === 'party' && !(typeof N.id === 'string' && slice.init?.roster?.[N.id])) errors.push(`naming.id is the party member named (${Object.keys(slice.init?.roster ?? {}).join(', ') || 'the roster is empty'})`);
+      if (N.label !== undefined && typeof N.label !== 'string') errors.push('naming.label is the words the name screen asks with');
+      const max = N.max ?? 12, min = N.min ?? 1;
+      if (!(Number.isInteger(max) && max >= 1 && max <= 24) || !(Number.isInteger(min) && min >= 1 && min <= max)) errors.push('naming.max is 1 to 24 characters and naming.min 1 to max');
+    }
+    if (manifest.shell !== 'play') errors.push("naming plays in the light shell: add shell: 'play'");
   }
   if (manifest.final !== undefined) {
     const refs = Array.isArray(manifest.levels) ? manifest.levels.map((l) => l && l.ref) : [];

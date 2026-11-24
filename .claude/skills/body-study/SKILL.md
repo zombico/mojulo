@@ -30,6 +30,8 @@ node .claude/skills/body-study/body.mjs female \
   the door stamps it);
 - `{ "gesture": "relaxed" | "guard" | "hand-on-hip" … }` a stand as the door mints it on that cast;
 - `{ "pose": { … } }` a rig pose as `rigNodesAt` takes it (`{ "elbowR": 110 }`, `{ "support": "L", "kneeR": 90 }`).
+- `{ "aura": "channel", "phase": 0 … 1 }` a showcase pose (`hero-aura.js` `AURAS`, `<name>Left` its mirror) at a phase
+  of its performance, the hit held at 1 (the default).
 
 Any entry may carry its own `"crop"`.
 

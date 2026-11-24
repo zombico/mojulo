@@ -15,7 +15,8 @@
  * the kit's card (its trees, grass, water, sky, light, air). The style and color key lays out every kit's ramps and
  * what each one paints. Every plate is drawn by its builder.
  *
- * `gameworldBibleHtml(world, { foePortraits? })` is pure (the same world, the same page); `foePortraits` the made foes'
+ * `gameworldBibleHtml(world, { foePortraits?, lookPortraits? })` is pure (the same world, the same page); `lookPortraits`
+ * the wardrobe's photographs (battles-page.js `looks`); `foePortraits` the made foes'
  * photographs its Foes section shows (foe-cast-html.js foeBiblePart), each foe its silhouette without one. Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
@@ -338,7 +339,7 @@ function feelHtml(world) {
 ${R.lost.length ? `<p class="muted">not carried yet: ${R.lost.map((x) => esc(x.field)).join(', ')}</p>` : ''}</details>`;
 }
 
-export function gameworldBibleHtml(world, { foePortraits = {} } = {}) {
+export function gameworldBibleHtml(world, { foePortraits = {}, lookPortraits = {} } = {}) {
   resetTownIds();
   const G = readGameworld(world), order = playOrder(G), graph = gameworldGraph(G), guide = styleGuide(G);
   // (the world's book skin, book-skin.js: absent, the book's own look)
@@ -427,7 +428,7 @@ export function gameworldBibleHtml(world, { foePortraits = {} } = {}) {
   const anchorOf = (id) => (id === 'intent' ? '#intent' : id === 'world' ? '#map' : id === 'nature' ? '#nature' : id === 'civilizations' ? '#civilizations' : id === 'key' ? '#key' : id.startsWith('tech:') ? `#tech-${id.slice(5)}` : `#level-${id.slice(6)}`);
   const stamp = (id) => { const x = stampOf(id); return x ? `<span class="stamp st-${x.status}" title="${esc(STAMPS[x.status])}">${esc(x.status)}</span>` : ''; };
   // the party battles (battles-page.js): the party, the road, the foes, the shops and the hub; none, nothing
-  const BX = battlesPage(G, { esc, stamp });
+  const BX = battlesPage(G, { esc, stamp, looks: lookPortraits });
   const civCards = civHtml.replace(/<!--stamp:([^>]*)-->/g, (_, id) => stamp(id));
   const mode = world.mode ?? 'gated', waiting = stamps.filter((x) => ['changed', 'revise', 'proposed'].includes(x.status));
   const gateHtml = `<div class="gate" id="gate"><div class="gate-h"><span class="eyebrow">The gate</span><span class="mode mode-${esc(mode)}">${esc(mode)}</span><p class="muted">${esc(MODES[mode])}.</p></div>

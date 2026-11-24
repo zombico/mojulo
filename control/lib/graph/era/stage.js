@@ -44,6 +44,8 @@ const JAMB_COURSE = 0.6, JAMB_JOINT = 0.02;
 import { GOTHIC_NAVE } from './style/gothic-nave.js';
 import { naveDress } from './nave.js';
 import { cryptDress, tombSite } from './crypt.js';
+import { dungeonDress } from './dungeon.js';
+import { DEEP_FORGE, FUNGAL_GROTTO, DROWNED_SHRINE, ARCANE_VAULT } from './style/dungeon-kits.js';
 import { carveFaces } from './carve.js';
 import { CRYPT, CRYPT_SOBER } from './style/crypt.js';
 import { CATACOMB } from './style/catacomb.js';
@@ -373,6 +375,92 @@ STAGE_KITS.catacomb = Object.freeze({
   arch: ARCHED,
   motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'scallop', ground: [118, 100, 80], figure: [178, 158, 128], relief: 0.55 }), on: 'cornice', tint: [1, 1, 1] },
   dress: CATACOMB,
+});
+// THE RPG DUNGEON KITS (style/dungeon-kits.js, dressed by era/dungeon.js): a chamber and its halls, each a dungeon no
+// masonry kit is. Shaped by their causes: the forge CUT (square piers, flat beams, no arch), the grotto GROWN (no plinth,
+// cornice or pier to speak of, a domed vault of raw rock), the shrine DROWNED (rubble masonry gone green, a scallop
+// frieze), the vault MADE EXACT (slender worked piers, indigo stone, a gold rosette frieze). Their light is mostly
+// their doodads' own glow; each kit's lamps are few and low, in the glow's colour.
+const ROCK = (style, base, seed, amp = 50, extra = {}) => tileFamilyOf({ gen: 'rock', style, base, amp, crackFreq: 7, crackWidth: 0.03, crackDepth: 0.4, speckle: 0.1, seed, ...extra });
+STAGE_KITS['deep-forge'] = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  bay: 5,
+  plinth: { h: 1.0, out: 0.22 },
+  cornice: { h: 0.7, out: 0.45 },
+  pilaster: { w: 1.3, out: 0.55, bands: { base: { h: 0.5, out: 0.1 }, cap: { h: 0.4, out: 0.12 } } },
+  rib: { w: 1.0, drop: 0.7 },
+  door: { width: 3, height: 3.6, frame: 0.5, out: 0.2 },
+  tiles: {
+    wall: { family: tileFamilyOf({ gen: 'stone-brick', stone: [62, 58, 60], mortar: [28, 26, 28], bond: 'ashlar', rows: 3, cols: 2, radius: 0.05, shadow: 0.6, mortarThick: 0.06, vary: 14, grain: 6, bevel: 0.05, jointDepth: 0.7, chips: 0.2, seed: 611 }), scale: 3 },
+    floor: { family: tileFamilyOf({ gen: 'stone-brick', stone: [72, 68, 66], mortar: [34, 30, 30], bond: 'hex', rows: 4, cols: 4, radius: 0.08, shadow: 0.5, mortarThick: 0.08, vary: 18, grain: 8, bevel: 0.1, jointDepth: 0.5, chips: 0.3, seed: 613 }), perBay: true },
+    ceiling: { family: ROCK('slate', [40, 38, 40], 617, 40), scale: 3 },
+    trim: { family: ROCK('slate', [86, 80, 76], 619, 30), scale: 1.6 },
+    gutter: { key: 'soil-mud', scale: 1.2 },
+  },
+  tint: { wall: [0.8, 0.78, 0.78], floor: [0.72, 0.68, 0.66], ceiling: [0.4, 0.38, 0.38], trim: [0.86, 0.82, 0.78], gutter: [0.6, 0.56, 0.54] },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, tone: '#4a4644', perMetre: 0.3 },
+  torch: { ...GOTHIC_STONE_BASE.torch, every: 2, z: 3.2, color: '#ff9a40', intensity: 1.6, radius: 8, form: 'lamp' },
+  motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'chevron', ground: [60, 50, 40], figure: [190, 140, 70], relief: 0.7 }), on: 'cornice', tint: [1, 1, 1] },
+  dress: DEEP_FORGE,
+});
+STAGE_KITS['fungal-grotto'] = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  plinth: { h: 0.05, out: 0.02 },
+  cornice: { h: 0.05, out: 0.02 },
+  pilaster: { w: 0.25, out: 0.03 },
+  rib: { w: 0.15, drop: 0.05 },
+  door: { width: 2.6, height: 3.2, frame: 0.05, out: 0.02 },
+  tiles: {
+    wall: { family: ROCK('cave', [86, 66, 82], 621, 70, { bands: 3, bandAmp: 12 }), scale: 2.6 },
+    floor: { family: ROCK('granite', [52, 58, 50], 623, 45), scale: 2.2 },
+    ceiling: { family: ROCK('cave', [54, 42, 56], 627, 60), scale: 3 },
+    trim: { family: ROCK('cave', [70, 56, 68], 629, 50), scale: 2 },
+    gutter: { key: 'soil-mud', scale: 1.2 },
+  },
+  tint: { wall: [0.78, 0.74, 0.8], floor: [0.6, 0.64, 0.6], ceiling: [0.42, 0.4, 0.46], trim: [0.74, 0.7, 0.76], gutter: [0.55, 0.55, 0.55] },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, tone: '#5a4a5a', perMetre: 0.9, size: [0.3, 0.9] },
+  torch: { ...GOTHIC_STONE_BASE.torch, none: true },
+  arch: Object.freeze({ door: { seg: 8 }, vault: { rise: 0.9, maxRise: 4, seg: 12 } }),
+  dress: FUNGAL_GROTTO,
+});
+STAGE_KITS['drowned-shrine'] = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  plinth: { h: 0.5, out: 0.12 },
+  cornice: { h: 0.35, out: 0.2 },
+  pilaster: { w: 0.6, out: 0.2, bands: { base: { h: 0.3, out: 0.05 }, cap: { h: 0.25, out: 0.06 } } },
+  tiles: {
+    wall: { family: tileFamilyOf({ gen: 'stone-brick', stone: [96, 118, 110], mortar: [52, 70, 62], bond: 'rubble', rows: 6, cols: 5, radius: 0.3, shadow: 0.5, mortarThick: 0.1, vary: 30, grain: 12, bevel: 0.25, jointDepth: 0.6, grime: 0.8, chips: 0.6, seed: 631 }), scale: 2 },
+    floor: { family: tileFamilyOf({ gen: 'flagstone', stone: [84, 106, 96], mortar: [40, 58, 50], gravel: [60, 80, 70], cells: 4, mortarThick: 0.06, wobble: 2, vary: 24, grain: 12, lost: 0.12, cracked: 0.35, seed: 633 }), perBay: true },
+    ceiling: { family: ROCK('cave', [62, 82, 80], 637, 40), scale: 2.6 },
+    trim: { family: ROCK('slate', [120, 134, 124], 639, 30), scale: 1.6 },
+    gutter: { key: 'soil-mud', scale: 1.2 },
+  },
+  tint: { wall: [0.74, 0.84, 0.82], floor: [0.6, 0.7, 0.68], ceiling: [0.4, 0.5, 0.52], trim: [0.82, 0.9, 0.88], gutter: [0.5, 0.6, 0.6] },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, tone: '#5a706a', perMetre: 0.6 },
+  torch: { ...GOTHIC_STONE_BASE.torch, every: 3, z: 2.4, color: '#6fe8ff', intensity: 0.6, radius: 5.5, form: 'lamp' },
+  arch: ARCHED,
+  motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'scallop', ground: [70, 94, 88], figure: [196, 214, 200], relief: 0.6 }), on: 'cornice', tint: [1, 1, 1] },
+  dress: DROWNED_SHRINE,
+});
+STAGE_KITS['arcane-vault'] = Object.freeze({
+  ...GOTHIC_STONE_BASE,
+  plinth: { h: 0.4, out: 0.1 },
+  cornice: { h: 0.4, out: 0.25 },
+  pilaster: { w: 0.45, out: 0.25, bands: { base: { h: 0.22, out: 0.05 }, cap: { h: 0.22, out: 0.06 }, ring: { h: 0.06, out: 0.03, below: 0.14 } } },
+  rib: { w: 0.32, drop: 0.3 },
+  tiles: {
+    wall: { family: tileFamilyOf({ gen: 'stone-brick', stone: [62, 60, 100], mortar: [30, 28, 54], bond: 'stack', rows: 5, cols: 3, radius: 0.04, shadow: 0.4, mortarThick: 0.05, vary: 10, grain: 4, bevel: 0.08, jointDepth: 0.4, chips: 0.05, seed: 641 }), scale: 2 },
+    floor: { family: tileFamilyOf({ gen: 'flagstone', stone: [46, 46, 62], mortar: [150, 128, 70], gravel: [40, 40, 52], cells: 3, mortarThick: 0.03, wobble: 0, vary: 8, grain: 4, lost: 0, cracked: 0.05, seed: 643 }), perBay: true },
+    ceiling: { family: ROCK('slate', [44, 42, 72], 647, 25), scale: 3 },
+    trim: { family: ROCK('granite', [150, 140, 170], 649, 20), scale: 1.4 },
+    gutter: { key: 'slate', scale: 1.2 },
+  },
+  tint: { wall: [0.8, 0.8, 0.9], floor: [0.62, 0.62, 0.7], ceiling: [0.36, 0.36, 0.46], trim: [0.9, 0.88, 0.94], gutter: [0.5, 0.5, 0.58] },
+  rubble: { ...GOTHIC_STONE_BASE.rubble, perMetre: 0.05 },
+  torch: { ...GOTHIC_STONE_BASE.torch, every: 2, z: 2.6, color: '#b98cff', intensity: 0.8, radius: 6, form: 'lamp' },
+  arch: ARCHED,
+  motif: { family: tileFamilyOf({ gen: 'frieze', pattern: 'rosette', ground: [44, 40, 80], figure: [200, 168, 80], relief: 0.65 }), on: 'cornice', tint: [1, 1, 1] },
+  dress: ARCANE_VAULT,
 });
 // The TRAIL-VALLEY kit: no architecture — a trail, a cliff and trees built to a style card (nature.js).
 STAGE_KITS['trail-valley'] = Object.freeze({ shell: 'nature', style: 'nature-trail' });
@@ -1079,7 +1167,8 @@ export function buildStageGeometry(plan) {
           if (Bd.ring) band(top - (Bd.cap ? Bd.cap.h : 0) - Bd.ring.below - Bd.ring.h, Bd.ring.h, Bd.ring.out);
         }
         pilasters.push({ F, u, k, room: r.id, top: h - kit.cornice.h });
-        if (k > 0 && k < nBays && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
+        // (a kit no hand lit, torch.none: no lamp on its walls, its light its dressing's own: the fungal grotto)
+        if (k > 0 && k < nBays && !kit.torch.none && (k - 1) % kit.torch.every === 0) seats.push({ at: P(add(add(F.o, mul(F.U, u)), add(mul(F.N, kit.pilaster.out + kit.torch.out), [0, 0, kit.torch.z]))), n: F.N });
       }
     });
     // ribs across the short span at each bay (a nave's ribs ride its vault)
@@ -1692,7 +1781,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // the ends by which this map links to others, and the things a walker can take (doors.js): resolved first, since a
   // dressing reads the way in from them
   const ends = manifest.doors ? stageDoors(plan, geom, manifest.doors) : [], taken = manifest.items ? stageItems(plan, manifest.items) : null;
-  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water, works: waterWorks(manifest.water) }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' || plan.kit.dress.id === 'catacomb' ? cryptDress(plan, geom) : naveDress(plan, geom);
+  const dress = !plan.kit.dress ? null : plan.kit.dress.id === 'delfino-plaza' ? plazaDress(plan, { ...geom, ends, water: !!manifest.water, works: waterWorks(manifest.water) }) : plan.kit.dress.id === 'research-lab' ? labDress(plan, { ...geom, ends, water: !!manifest.water }) : plan.kit.dress.id === 'crypt' || plan.kit.dress.id === 'catacomb' ? cryptDress(plan, geom) : plan.kit.dress.dressing === 'dungeon' ? dungeonDress(plan, geom) : naveDress(plan, geom);
   // live wind (`manifest.wind`): the dressing's hung cloth swings in the gust field on the page; its cards are cut into
   // a grid first, so they bend down their length and the bake lights each cell
   const Sw = manifest.wind && plan.kit.dress && plan.kit.dress.sway, windSpec = Sw ? resolveTerrainWind(manifest.wind) : null;

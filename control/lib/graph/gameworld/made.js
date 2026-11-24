@@ -3,7 +3,7 @@
  * a later run knows what is there and whether the creator changed it since:
  *
  *   made?: { <key>: { ref, order, stored, frame? } }
- *     key     'hero', 'hero-equipped', 'guard' (a quick sneak's), 'ride' (a quick game's vehicle), 'foe' and 'tower' (a quick defence's figures), 'farmhand' (a quick farm's), 'keeper' (the minigames' stall keeper), 'athlete' (a quick sport's), each of those a pool ('guard-2' …), 'systems', 'gear-<class>', 'stock-<id>' (a starter item the world's gear populates), 'level-<level>-<n>' (a stage), 'audit-level-<level>-<n>' (its walk, the audit's), 'map-<n>' (a tactics book's epoch maps), 'foes-<id>' (a bestiary entry's beast: foes.js), or 'game'
+ *     key     'hero', 'hero-equipped', 'hero-look-<armour>' and 'cast-<id>-look-<armour>' (wardrobe.js), 'guard' (a quick sneak's), 'ride' (a quick game's vehicle), 'foe' and 'tower' (a quick defence's figures), 'farmhand' (a quick farm's), 'keeper' (the minigames' stall keeper), 'athlete' (a quick sport's), each of those a pool ('guard-2' …), 'systems', 'gear-<class>', 'stock-<id>' (a starter item the world's gear populates), 'level-<level>-<n>' (a stage), 'audit-level-<level>-<n>' (its walk, the audit's), 'map-<n>' (a tactics book's epoch maps), 'foes-<id>' (a bestiary entry's beast: foes.js), or 'game'
  *     ref     the sketch it made
  *     order   the print of the order it made it from (a later run remakes it when the book's order moves)
  *     stored  the print of the manifest it left there (a manifest that no longer prints so was edited by hand, and a
@@ -18,7 +18,7 @@
  *
  * Pure: the shape only. The runner (runner.js) writes it; nothing here reads the database.
  */
-export const MADE_KEY = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|(guard|foe|tower|farmhand|keeper|athlete)(-\d+)?|ride|cast-[a-z][a-z0-9-]*|casting|systems|gear-[a-z]+|stock-[a-z0-9-]+|level-[a-z0-9-]+|audit-level-[a-z0-9-]+|map-\d+|game|fighter-[a-z0-9-]+|foes-[a-z][a-z0-9-]*|foe-[a-z][a-z0-9-]*|folk-[a-z0-9-]+|cue-[a-z][a-z0-9-]*)$/;
+export const MADE_KEY = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|hero-look-[a-z0-9-]+|(guard|foe|tower|farmhand|keeper|athlete)(-\d+)?|ride|cast-[a-z][a-z0-9-]*|casting|systems|gear-[a-z]+|stock-[a-z0-9-]+|level-[a-z0-9-]+|audit-level-[a-z0-9-]+|map-\d+|game|fighter-[a-z0-9-]+|foes-[a-z][a-z0-9-]*|foe-[a-z][a-z0-9-]*|folk-[a-z0-9-]+|cue-[a-z][a-z0-9-]*)$/;
 const PRINT = /^[0-9a-f]{8}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 

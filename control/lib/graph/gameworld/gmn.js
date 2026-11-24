@@ -27,6 +27,7 @@
  * `orders: 'reroll'` lays them again.
  *
  *   MOTIVATIONS, LABOURS, ORDER_KINDS, WORLD_SHAPES      the rows (a new trope is a row first)
+ *   GMN_WORDS, gmnOfWords(words, { defaults })   the words people say for each, and a prompt's read as a mix
  *   readGameBrief(v)        → v, read; throws, teaching
  *   resolveGmn(gmn)         → the decisions
  *   layOrders(resolved)     → the orders
@@ -67,6 +68,46 @@ export const LABOURS = Object.freeze({
   'cross-the-great-sea': row({ name: 'cross the great sea', shape: 'chain', climax: { kind: 'map', words: 'the far shore no one has come back from' }, beats: 'level', side: 'a crew gathered island by island', genres: ['long-rpg', 'jrpg', 'story-adventure'] }),
   'campbellian-journey': row({ name: 'the Campbellian journey', shape: 'chain', climax: { kind: 'citadel', words: 'the ordeal: the innermost cave, and the way back out of it' }, beats: 'level', side: 'mentors and threshold guardians along the road', genres: ['jrpg', 'story-adventure', 'long-rpg'] }),
 });
+
+// THE WORDS PEOPLE SAY for each motivation and labour (a prompt's, compose.js): a row's words, single words as a
+// prompt is split. A new trope's words are a row beside it
+export const GMN_WORDS = Object.freeze({
+  motivations: Object.freeze({
+    'save-the-princess': Object.freeze(['princess', 'prince', 'rescue', 'kidnapped', 'captive', 'abducted']),
+    'save-the-world': Object.freeze(['world', 'kingdom', 'apocalypse', 'doom', 'cataclysm', 'darkness']),
+    'reunite-with-family': Object.freeze(['family', 'brother', 'sister', 'mother', 'father', 'siblings', 'reunite']),
+    'solve-the-mystery': Object.freeze(['mystery', 'murder', 'detective', 'clue', 'clues', 'secret', 'truth']),
+    'find-the-treasure': Object.freeze(['treasure', 'fortune', 'riches', 'hoard', 'relic']),
+    'stop-the-virus': Object.freeze(['virus', 'plague', 'outbreak', 'infection', 'pandemic', 'cure']),
+  }),
+  labours: Object.freeze({
+    'storm-the-citadel': Object.freeze(['citadel', 'fortress', 'stronghold', 'lair']),
+    'conquer-the-map': Object.freeze(['conquer', 'liberate', 'territory', 'territories', 'regions']),
+    'hundred-percent': Object.freeze(['completionist', 'everything']),
+    'be-the-best': Object.freeze(['champion', 'tournament', 'league', 'best', 'rival', 'rivals']),
+    'catch-them-all': Object.freeze(['catch', 'tame', 'befriend']),
+    'cross-the-great-sea': Object.freeze(['sea', 'ocean', 'voyage', 'islands', 'archipelago', 'sail']),
+    'campbellian-journey': Object.freeze(['journey', 'destiny', 'pilgrimage', 'chosen']),
+  }),
+});
+// (a mix from the words in the order they were said: the first-named the lead, the rest at their sides)
+const SHARES = [[1], [0.6, 0.4], [0.5, 0.3, 0.2], [0.4, 0.3, 0.2, 0.1]];
+const mixOf = (ids) => (ids.length ? Object.fromEntries(ids.slice(0, 4).map((id, i) => [id, SHARES[Math.min(ids.length, 4) - 1][i]])) : null);
+/**
+ * A prompt's words read as a GMN: each motivation and labour its words name, in the order said, a mix of them
+ * (`defaults` where the words name none of a list: the genre's own). → { gmn, read: [{ word, decides }] }, gmn null when
+ * nothing named either list and no defaults stand for it.
+ */
+export function gmnOfWords(words, { defaults = {} } = {}) {
+  const found = { motivations: [], labours: [] }, read = [];
+  for (const w of words) for (const list of ['motivations', 'labours']) for (const [id, ws] of Object.entries(GMN_WORDS[list])) {
+    if (!ws.includes(w)) continue;
+    if (!found[list].includes(id)) found[list].push(id);
+    read.push({ word: w, decides: [`gameBrief.gmn.${list}.${id}`] });
+  }
+  const motivations = mixOf(found.motivations) ?? defaults.motivations ?? null, labours = mixOf(found.labours) ?? defaults.labours ?? null;
+  return { gmn: motivations || labours ? { ...(motivations ? { motivations } : {}), ...(labours ? { labours } : {}) } : null, read };
+}
 
 export const ORDER_KINDS = Object.freeze({ map: 'a planned map, walked (level/plan.js)', 'set-piece': 'a place built to be looked at: an interior composed or a building', citadel: 'the walled core: a WCD over its spaces', hub: 'the home every way returns to' });
 export const SIDE_SHARE = 0.1;

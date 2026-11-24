@@ -64,6 +64,8 @@ import { isOutfitBuild, outfitReadout, outfitTones, outfitLanguage, outfitPieces
 import { headOf as helmetOf } from '@/lib/graph/headgear/helmets';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext, libraryFeet, libraryHands } from '@/lib/graph/polygonizer/hero-dress';
 import { isArmorBuild, armorReadout, armorFamily, armorMaterials, armorLanguage, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
+/** the designed outfit pieces an armour build takes the place of (designedPieces) */
+const ARMOUR_TAKES = Object.freeze(['pauldron', 'chestPlate', 'bracers', 'wraps', 'mantle']);
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { undeadWords, undeadFlesh, undeadCard } from '@/lib/graph/undead/tiered';
 import { heroSkeleton } from '@/lib/graph/undead/hero-bones';
@@ -1587,7 +1589,10 @@ export function heroPlanOf(hero) {
  * the intent's palette roles; before the target, so a tiered kit tiers them. No pieces ⇒ the plan as it was. */
 function designedPieces(plan, hero) {
   // (the card's own gear first, a team's kit, then the build's: outfit/expand.js outfitPieces)
-  const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
+  // (armour worn over the outfit takes the place of its own armour pieces, which would hide or double it: ARMOUR_TAKES;
+  // the hardsuit's ensembles compose their own)
+  const fam = isArmorBuild(hero.adorn) ? armorFamily(hero.adorn) : null, takes = fam && fam !== 'hardsuit' ? ARMOUR_TAKES : [];
+  const pieces = isOutfitBuild(hero.outfit) ? outfitPieces(hero.outfit).filter((p) => !takes.includes(p?.kind)) : [], O = pieces.length ? { ...hero.outfit, pieces } : null;
   if (!O) return plan;
   const { worn } = sortPieces(plan, O, { once: true });
   // (under the outfit laws the build was stamped with: outfit/principles.js, the pieces' own laws)

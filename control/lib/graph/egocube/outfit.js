@@ -33,7 +33,8 @@
  *   ROLE_GEAR  what the role needs, no more: a frontline's armour, a ranger's quiver and bracer, a support's one
  *              satchel, a caster's focus
  *   FOCAL      the archetype's one focal piece: a ruler's chain of office, a sage's or magician's medallion, a hero's
- *              pauldron when armoured, an outlaw's baldric
+ *              pauldron when armoured (else its belt), an outlaw's baldric, a jester's collar, an explorer's satchel, a
+ *              creator's pouches; a necklace only where the archetype keeps one
  *   OFFICE     the archetypes whose station shows on the shoulders (a mantle) and the waist (a sash)
  *   HUES       the archetype's garment hue and value, darker and duller on the shadow reading; the secondary a clear
  *              step from it; the trim a metal by motivation (gold above the middle, silver below); the accent the trim
@@ -59,7 +60,13 @@ export const ROLE_GEAR = Object.freeze({
   caster: [{ kind: 'wraps', why: 'the caster binds the hands that cast', colour: 'secondary' }],
   'non-combatant': [],
 });
-export const FOCAL = Object.freeze({ ruler: 'chain', sage: 'medallion', magician: 'medallion', hero: 'pauldron', outlaw: 'baldric', caregiver: 'sash', innocent: 'medallion', lover: 'medallion', explorer: 'medallion', everyman: 'medallion', jester: 'medallion', creator: 'medallion' });
+// (a necklace is the emblem of those who keep one: the ruler's chain of office, the sage's and the magician's amulet;
+// every other archetype is told by a piece of its own, so a crowd is not all pendants)
+export const FOCAL = Object.freeze({ ruler: 'chain', sage: 'medallion', magician: 'medallion', hero: 'pauldron', outlaw: 'baldric', caregiver: 'sash', innocent: 'sash', lover: 'armRings', explorer: 'satchel', everyman: 'belt', jester: 'collar', creator: 'pouches' });
+// the focal pieces worn near the face (the rest are told by where they sit), and those that wear the accent as the focal
+const NEAR_FACE = new Set(['chain', 'medallion', 'torc', 'collar']), FOCAL_ACCENT = new Set(['collar', 'armRings']);
+// (a focal belt is told by its buckle, in the accent)
+const focalDress = (kind) => (FOCAL_ACCENT.has(kind) ? { colour: 'accent' } : kind === 'belt' ? { buckleColour: 'accent' } : {});
 export const OFFICE = Object.freeze({ mantle: ['ruler', 'sage', 'magician', 'hero'], sash: ['ruler', 'caregiver', 'innocent', 'lover', 'sage'] });
 /**
  * THE ERA'S KIT (the setting's era, setting.js): what a modern or a future world's people carry for their role, in place
@@ -349,10 +356,14 @@ export function outfitFromSheet(sheet, { coat, garment = null } = {}) {
   // what the role needs
   for (const g of roleGear) if (!pieces.some((p) => p.kind === g.kind)) pieces.push({ ...g });
   // the one focal piece: the archetype's, unless it is gear (armour, a vest) and the role brought none
-  const focalKind = ['pauldron', 'vest'].includes(focalOf[a]) && !pieces.some((p) => p.kind === focalOf[a]) ? 'medallion' : focalOf[a];
+  // (a hero with no armour or vest is told by its belt, a buckle at the waist, never a pendant in its place)
+  // (where the cut draws its own belt, outfit/expand.js `focal`, a belt worn over it would be a second: its wrists then)
+  const cutBelt = (cut.language.focal ?? (cut.language.top?.family === 'woven' ? 'placket' : 'belt')) === 'belt';
+  const want = ['pauldron', 'vest'].includes(focalOf[a]) && !pieces.some((p) => p.kind === focalOf[a]) ? 'belt' : focalOf[a];
+  const focalKind = want === 'belt' && cutBelt ? 'bracers' : want;
   const own = pieces.find((p) => p.kind === focalKind);
-  if (own) Object.assign(own, { role: 'focal', ...(focalKind === 'pauldron' || focalKind === 'baldric' ? { colour: own.colour ?? 'secondary' } : {}) });
-  else pieces.push({ kind: focalKind, role: 'focal', why: focalKind === 'chain' ? 'the chain of office, near the face' : `the ${a}'s emblem, near the face` });
+  if (own) Object.assign(own, { role: 'focal', ...(focalKind === 'pauldron' || focalKind === 'baldric' ? { colour: own.colour ?? 'secondary' } : {}), ...focalDress(focalKind) });
+  else pieces.push({ kind: focalKind, role: 'focal', ...focalDress(focalKind), why: focalKind === 'chain' ? 'the chain of office, near the face' : `the ${a}'s emblem${NEAR_FACE.has(focalKind) ? ', near the face' : ''}` });
   if (hasDerive(sheet, 'armor.ornament +')) for (const p of pieces) if (p.kind === 'pauldron' && p.role === 'focal') p.colour = 'secondary';
   // a look with no accent worn (a uniform's focal is its carrier, in its gear colour) wears an ID band on the arm in it:
   // the accent a crowd of one colour is told apart by
@@ -371,11 +382,13 @@ export function outfitFromSheet(sheet, { coat, garment = null } = {}) {
   const room = 5 - (cut.language.outer ? 1 : 0);   // the cloth (its base and its outer layer) counts toward the whole's six
   if (pieces.length > room) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, room)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
   // repetition: the trim on two pieces at least (the mantle's clasp takes it when only one wears it)
-  const trims = () => pieces.filter((p) => (p.colour ?? defaultColour(p.kind)) === 'trim').length + pieces.filter((p) => (p.kind === 'mantle' && p.clasp !== false) || (p.kind === 'sash' && (p.knotColour ?? 'trim') === 'trim')).length;   // a sash's buckle is the trim's metal
+  const trims = () => pieces.filter((p) => (p.colour ?? defaultColour(p.kind)) === 'trim').length + pieces.filter((p) => (p.kind === 'mantle' && p.clasp !== false) || (p.kind === 'sash' && (p.knotColour ?? 'trim') === 'trim') || (p.kind === 'belt' && p.buckleColour === 'trim')).length;   // a sash's buckle, or a belt's, is the trim's metal
   if (trims() < 2) { const m = pieces.find((p) => p.kind === 'mantle'); if (m) Object.assign(m, { clasp: true, claspColour: 'trim' }); }
   if (trims() < 2) { const m = pieces.find((p) => ['medallion', 'chain'].includes(p.kind)); if (m) m.cordColour = 'trim'; }
   // a focal sash is its cloth in the accent; its buckle can still be the trim's metal
   if (trims() < 2) { const k = pieces.find((p) => p.kind === 'sash' && p.knotColour === 'accent'); if (k) k.knotColour = 'trim'; }
+  // (and a belt's buckle, the focal's accent given up to tie the outfit, as the sash's knot)
+  if (trims() < 2) { const b = pieces.find((p) => p.kind === 'belt' && p.buckleColour !== 'trim'); if (b) b.buckleColour = 'trim'; }
   if (trims() < 2) { const w = pieces.find((p) => p.kind === 'wraps'); if (w) w.colour = 'trim';
     else if (pieces.length < room) pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' });
     // no room for one more: a piece already worn takes the trim

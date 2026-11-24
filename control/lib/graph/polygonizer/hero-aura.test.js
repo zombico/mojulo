@@ -67,13 +67,26 @@ describe('hero-aura', () => {
     }
   }, 90000);
 
+  it('the channel cups a gathering power before the chest: both hands forward, level, a hand\'s breadth apart, palms to each other', () => {
+    for (const cast of ['female', 'male']) {
+      const A = aura('channel', cast), n = rigNodesAt(HEROES[cast].R, A.clip.fn(1)).nodes;
+      lawsHold(A.checks);
+      expect(n.wristR[1], cast).toBeGreaterThan(0.25);   // before the body
+      expect(Math.abs(n.wristR[1] - n.wristL[1])).toBeLessThan(0.02);
+      expect(Math.abs(n.wristR[2] - n.wristL[2])).toBeLessThan(0.02);
+      const gap = Math.abs(n.wristR[0] - n.wristL[0]);
+      expect(gap).toBeGreaterThan(0.1); expect(gap).toBeLessThan(0.35);
+      expect(n.wristR[2]).toBeLessThan(n.neckHub[2]); expect(n.wristR[2]).toBeGreaterThan(n.navel[2] - 0.05);   // at the chest
+    }
+  }, 300000);
+
   it('is deterministic', () => {
     const { R, body } = HEROES.female; expect(JSON.stringify(heroAura('hairToss', R, { body }).keys)).toBe(JSON.stringify(heroAura('hairToss', R, { body }).keys));
   }, 90000);
 
   it('names its poses, shapes and footings; refuses unknown words by name', () => {
     expect(AURA_NAMES).toEqual(Object.keys(AURAS).flatMap((n) => [n, `${n}Left`]));
-    for (const P of Object.values(AURAS)) { expect(['aura', 'jojo', 'squad', 'meme']).toContain(P.family); expect(P.after).toBeTruthy(); }
+    for (const P of Object.values(AURAS)) { expect(['aura', 'jojo', 'squad', 'spell', 'victory', 'meme']).toContain(P.family); expect(P.after).toBeTruthy(); }
     expect(SHAPES.vee.index).toBeLessThan(0); expect(Object.keys(FOOTINGS)).toContain('crane');
     const { R } = HEROES.male;
     expect(() => heroAura('moonwalk', R)).toThrow(/no pose/);

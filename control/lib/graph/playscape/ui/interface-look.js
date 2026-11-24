@@ -44,7 +44,8 @@ const KEYS = ['theme', 'colour', 'languages', 'language', 'radar', 'map', 'inven
 export const INTENT_LOOKS = Object.freeze({
   'dungeon-crawler': 'grim', 'survival-horror': 'grim', roguelike: 'grim',
   tactics: 'tactician', rts: 'tactician', 'tower-defense': 'tactician',
-  jrpg: 'rebel', 'long-rpg': 'rebel', 'story-adventure': 'rebel', 'cinematic-action': 'rebel', 'cinematic-adventure': 'rebel', 'bullet-time-action': 'rebel',
+  // (a party RPG wears the console RPG's plain windows, the classic-rpg card: a party game's layers are a party game's)
+  jrpg: 'classic-rpg', 'long-rpg': 'rebel', 'story-adventure': 'rebel', 'cinematic-action': 'rebel', 'cinematic-adventure': 'rebel', 'bullet-time-action': 'rebel',
   'arena-brawler': 'arcade', 'versus-fighter': 'arcade', 'arena-shooter': 'arcade', 'space-shooter': 'arcade', 'pixel-puzzle': 'arcade', 'block-puzzle': 'arcade', 'endless-runner': 'arcade', rhythm: 'arcade',
   'co-op-brawler': 'street', 'co-op-scroller': 'street',
   // (a look may be a card: a city's open world at night, theme-cards/downtown.json)

@@ -287,6 +287,8 @@ export const TOPOLOGIES = Object.freeze({
   linear: 'a line: each level opens when the one before it is beaten, picked from the list',
   interconnected: 'a map: every link runs both ways, a level is left by one of its exits and the game travels on; a link can be locked by a key found in another level',
 });
+// how a crossing is made (a link's `by`): what carries the party, and what the trip shows (game/play-shell.js)
+export const CROSSINGS = Object.freeze({ ship: 'by sea, aboard a ship', airship: 'by air, aboard an airship' });
 export const LINK_KINDS = Object.freeze({ road: 'the walk goes on: the next level starts where this one leaves', gate: 'a door between them: a portal, a stair down, a boat' });
 /** Not on the ground and not built yet: named so a world can say it, left open (none today). */
 export const RESERVED = Object.freeze([]);
@@ -925,7 +927,9 @@ export function readGameworld(W) {
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
-    for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'key', 'keyAt', 'needs'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind, key, keyAt, needs)`);
+    for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'key', 'keyAt', 'needs', 'by'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind, key, keyAt, needs, by)`);
+    // BY: a crossing (a megaworld's `crossings`): the way is taken aboard, its trip shown while the next map is built
+    if (e.by !== undefined && !CROSSINGS[e.by]) throw new Error(`gameworld: links[${i}].by is how the way is crossed: ${Object.keys(CROSSINGS).join(', ')}`);
     for (const k of ['from', 'to']) if (!levels[e[k]]) throw new Error(`gameworld: links[${i}].${k} '${e[k]}' is not a level (levels: ${ids.join(', ')})`);
     if (e.from === e.to) throw new Error(`gameworld: links[${i}] leads '${e.from}' to itself`);
     const kind = e.kind ?? 'road';
@@ -943,10 +947,11 @@ export function readGameworld(W) {
     // before its quest is given); the flag one a quest starts or completes on, so every level's journal carries it
     if (e.needs !== undefined) {
       if (W.topology !== 'interconnected') throw new Error(`gameworld: links[${i}].needs shuts a way in a map world: set topology: 'interconnected', or leave it out`);
-      const QF = new Set((Array.isArray(W.quests) ? W.quests : []).flatMap((q) => [q?.starts, ...(Array.isArray(q?.steps) ? q.steps.map((st) => st?.done) : [])]).filter((f) => typeof f === 'string'));
+      // (and the flag the boss's fall sets, battles.sets: a story flag as a quest's is)
+      const QF = new Set([...(Array.isArray(W.quests) ? W.quests : []).flatMap((q) => [q?.starts, ...(Array.isArray(q?.steps) ? q.steps.map((st) => st?.done) : [])]), W.battles?.sets].filter((f) => typeof f === 'string'));
       if (typeof e.needs !== 'string' || !QF.has(e.needs)) throw new Error(`gameworld: links[${i}].needs is a quest's flag, one a quest starts or a step is done on (${[...QF].join(', ') || 'the world has no quests'}): the way opens with the story`);
     }
-    return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}), ...(e.needs ? { needs: e.needs } : {}) };
+    return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}), ...(e.needs ? { needs: e.needs } : {}), ...(e.by ? { by: e.by } : {}) };
   });
   const start = W.start ?? ids[0];
   // the hub: a level of the world, in a map (where every way runs both ways, so each way out of it leads back)

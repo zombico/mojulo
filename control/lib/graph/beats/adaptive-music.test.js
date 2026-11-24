@@ -172,3 +172,18 @@ describe('the suggestion plays it', () => {
     }
   });
 });
+
+// HELD (audio.tension.held): a bus var that pins the meter full while it is set (a party battle's rpg.battle), so the
+// fight's score holds however long the picks take
+describe('a held meter', () => {
+  it('is read, and the page pins the meter while its var is set', async () => {
+    const { resolveTension } = await import('./adaptive-music.js');
+    expect(resolveTension({ held: 'rpg.battle' }).held).toBe('rpg.battle');
+    expect(() => resolveTension({ held: 3 })).toThrow(/a bus var/);
+    const { resolveWorldAudio } = await import('./beats-world.js'), { emitThreeWorld } = await import('../scene/scene-three.js');
+    const audio = resolveWorldAudio({ soundtrack: 'field:forest', combat: 'field:battle', tension: { held: 'rpg.battle' } });
+    expect(audio.tension.held).toBe('rpg.battle');
+    const html = emitThreeWorld({ faces: [], audio, inline: true });
+    expect(html).toContain('__busState.vars["rpg.battle"]) __tension = 1');
+  });
+});

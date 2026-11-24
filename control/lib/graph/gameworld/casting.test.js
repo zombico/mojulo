@@ -3,6 +3,7 @@ import { runSteps, readGameworld, MEADOWMARK_HERO, characterParts, approveCharac
 import { scaleOfWords, castingOf, laidCasting, classOf, castingIds } from './casting.js';
 import { battleParty } from './battles.js';
 import { CAST_PART } from './characters.js';
+import { weaponOfClass, ARMED_ATTACKS } from '../egocube/moves.js';
 
 const W = (casting, more = {}) => ({ ...MEADOWMARK_HERO, characters: { ...MEADOWMARK_HERO.characters, casting }, battles: {}, ...more });
 const levels = (S) => S.filter((s) => s.key.startsWith('level-'));
@@ -28,6 +29,26 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     // one a level by default (casting.js laidJoins): each member its flag, set as its level starts
     expect(party.filter((p) => p.id !== 'hero').map((p) => [p.id, p.joins])).toEqual(C.members.map((M) => [M.id, `join-${M.id}`]));
     expect(classOf(C.sheet.members['hero/party-1'])).toBe(C.members[0].cls);
+  });
+
+  it('in a world of battles each member who is a person is made holding its class\'s weapon, and strikes with it', () => {
+    const world = W({ scale: 'party', n: 2 });
+    const S = runSteps(world, { ref: 'gw' }), C = castingOf(readGameworld(world));
+    // (a person holds its class's weapon, the monk its fists; a member of another body fights as its body does)
+    for (const M of C.members) {
+      const step = S.find((s) => s.key === `cast-${M.id}`);
+      expect(M.gear ?? null, M.id).toEqual(M.body === 'person' ? weaponOfClass(M.cls) : null);
+      if (!M.gear) { expect(step.order.spec).toBeUndefined(); expect(M.field?.moves?.strike ?? '').not.toMatch(/^swing_/); continue; }
+      // (its mint holds it; its figure's three attacks are the held swings the page bakes)
+      expect(step.order.spec).toEqual({ gear: M.gear });
+      expect([M.field.moves.strike, M.field.moves.strike2, M.field.moves.strike3]).toEqual(ARMED_ATTACKS);
+    }
+    expect(C.members.some((M) => M.gear)).toBe(true);
+    // (the hero holds its class's too, through its own spec)
+    const hero = S.find((s) => s.key === 'hero').order.spec, hw = weaponOfClass(C.anchor.cls);
+    if (hw) expect(hero.gear).toEqual(hw); else expect(hero.gear).toBeUndefined();
+    // (without battles, nobody is armed by the casting)
+    expect(castingOf(readGameworld({ ...W({ scale: 'party', n: 2 }), battles: undefined }))?.members.every((M) => !M.gear) ?? true).toBe(true);
   });
 
   it('a familiar of the hero fights beside it in the battle party, picking for itself, and takes no place of its own', () => {
