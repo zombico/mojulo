@@ -1,5 +1,6 @@
 // THE FRAMING GATE: every frame a set piece's camera directs, the hero is seen. Each kind's level is run on the bus (its
-// site's blocks as the colliders and the ground, a bot that runs the line and jumps its gaps), and each frame the track
+// site's blocks as the colliders and the ground, a bot that runs the line, jumps its gaps and its face, and taps jump on
+// a hold to go up), and each frame the track
 // camera holds the hero it is asked: is the camera outside every block, is there no block between it and the hero's
 // chest, is the hero inside the frame (30° of the look), and is it neither in the lens (1.6 m) nor lost (18 m). The
 // machine gate's: the eyes gate is the operator's.
@@ -10,7 +11,7 @@ import { SET_PIECE_KIND_IDS } from './set-piece-kinds.js';
 
 const CW = composeLive();
 const DT = 1 / 60;
-const GAPS = { 'rooftop-run': [17], collapse: [45.2], climb: [39.4] };
+export const GAPS = { 'rooftop-run': [17], collapse: [45.2], climb: [19.2, 39.4] };
 
 // the ray from a to b meets the box (the slab test), its ends trimmed by `trim` metres
 function blocks(a, b, box, trim = 0.25) {
@@ -35,12 +36,17 @@ export function framingOf(kind) {
   const ground = (p) => { let z = 0; for (const b of tops) if (p[0] >= b.min[0] && p[0] <= b.max[0] && p[1] >= b.min[1] && p[1] <= b.max[1] && b.max[2] <= p[2] + 0.6 && b.max[2] > z) z = b.max[2]; return z; };
   const w = CW.createWorld({ entities: M.entities.filter((e) => e.pilotable), camera: M.camera, colliders: boxes, chase: M.chase });
   w.pilotId = 'hero';
-  const h = w.byId.hero, jumps = GAPS[kind], out = { frames: 0, insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [] };
+  const h = w.byId.hero, jumps = GAPS[kind], out = { frames: 0, insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [], catches: 0, leaps: 0, maxZ: h.transform.pos[2] };
   let jumpT = -1;
   for (let i = 0; i < 60 * 60 && !w.chase.done.length; i++) {
-    const jump = w.chase.on && jumps.some((j) => w.chase.s > j - 0.6 && w.chase.s < j + 0.3) && h.grounded !== false && i - jumpT > 30;
+    const jump = w.chase.on && i - jumpT > 30 && (h.ledge ? !h.ledge.leap && !h.ledge.pull : jumps.some((j) => w.chase.s > j - 0.6 && w.chase.s < j + 0.3) && h.grounded !== false);
     if (jump) jumpT = i;
+    const held = !!h.ledge;
     CW.stepWorld(w, { forward: 1, strafe: 0, boost: 1, jump: jump ? 1 : 0, jumpHeld: i - jumpT < 8 ? 1 : 0 }, DT, { ground });
+    if (!held && h.ledge) out.catches++;
+    if (h.ledge && h.ledge.leap && !out._leap) out.leaps++;
+    out._leap = !!(h.ledge && h.ledge.leap);
+    out.maxZ = Math.max(out.maxZ, h.transform.pos[2]);
     const C = w.camera;
     if (!w.chase.on || !C.track || i < 30) continue;
     out.frames++;
@@ -53,6 +59,7 @@ export function framingOf(kind) {
     if ((a || bl || off || near || far) && out.worst.length < 6) out.worst.push({ s: +w.chase.s.toFixed(1), key: C.track.key, inside: a, blocked: bl, off, dist: +dist.toFixed(1) });
   }
   out.done = w.chase.done.slice();
+  delete out._leap;
   return out;
 }
 
@@ -61,7 +68,14 @@ describe('a set piece\'s camera sees its hero', () => {
     it(`${kind}: never inside a block, never behind one, the hero in frame, neither in the lens nor lost`, () => {
       const F = framingOf(kind);
       expect(F.frames, kind).toBeGreaterThan(200);
+      expect(F.done, kind).toEqual([kind]);
       expect({ insideBlock: F.insideBlock, blocked: F.blocked, outOfFrame: F.outOfFrame, tooClose: F.tooClose, tooFar: F.tooFar, worst: F.worst }).toEqual({ insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [] });
     });
   }
+  it('climb: its face climbed by hand, a catch on the first stone and a leap to each hold above, over the lip', () => {
+    const F = framingOf('climb');
+    expect(F.catches).toBe(1);
+    expect(F.leaps).toBe(3);                                   // (stone to stone, the last to the lip)
+    expect(F.maxZ).toBeGreaterThan(11);
+  });
 });

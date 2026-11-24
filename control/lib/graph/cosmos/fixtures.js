@@ -490,7 +490,7 @@ export const FIXTURES = Object.freeze([
     why: 'the cinematic action core as an adventure: a treasure hunter climbs walls and ledges between gunfights behind cover that breaks, a chase in a vehicle for a set piece, the story told in acts with banter on the way',
     cube: {
       reality: { medium: '3d' },
-      space: { camera: 'third-person', topology: 'linear', traversal: 'wall' },
+      space: { camera: 'third-person', topology: 'linear', traversal: 'ledge' },
       power: { combat: ['melee', 'ranged'], gunplay: 'realistic', destruction: 'cover', mechanics: ['hp-pool', 'defeat-all'] },
       soul: { hero: 'hero', mount: 'vehicle' },
       time: { progression: 'linear', arc: 'acts', sequence: ['cutscene', 'in-play'], shots: ['banter'] },

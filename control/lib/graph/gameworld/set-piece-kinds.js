@@ -8,11 +8,12 @@
  *                   a turn, a drop onto a lower roof and its lip climbed (a mashed Climb); pursuers behind
  *     collapse      down a roof street while the tower beside it comes down block by block: wide on the fall, ahead of
  *                   the hero as the dust comes over, a last jump to the far roof caught (a slowed Grab)
- *     climb         a run to a sheer face, up it (the wall crawl), over its top onto a ledge that gives (a shake, dust),
- *                   a reach across to the next (a Grab), the camera beside him on the face and over his shoulder above it
+ *     climb         a run to a sheer face, up it hold by hand (a jump to the first stone, a leap to each above, the lip
+ *                   pulled over: the ledge), along its top onto a ledge that gives (a shake, dust), a reach across to
+ *                   the next roof (a slowed Reach), the camera out beside him on the face, over his shoulder above it
  *
  *   readKindWords(kind, words) → the kind's words, its defaults filled (throws naming what it takes)
- *   layKind(kind, words?)      → { blocks, setPiece, start, heading, rule? } (`rule`: what the hero's rule needs, a climb's wall)
+ *   layKind(kind, words?)      → { blocks, setPiece, start, heading, rule? } (`rule`: anything more the hero's rule needs)
  *   siteOf(blocks)             → { faces, colliders, breakables } the blocks as the World page takes them: a breakable
  *                                block's faces grouped `break:<id>` and named by `node`, kept out of the colliders (the
  *                                world holds it solid until it breaks: a beat's collapse or break)
@@ -90,16 +91,21 @@ function collapse(W) {
   return { blocks, setPiece, start: [1, 0, H], heading: 0 };
 }
 
-// CLIMB: a run to a sheer face, up it, a ledge along its top that gives, a reach to the next roof
+// CLIMB: a run to a sheer face, up it by its stones (each a hold, 1.6 m over the last, the first a jump from the
+// approach, the face's own lip the last), a ledge along its top that gives, a reach to the next roof
+export const CLIMB_STEP = 1.6;
 function climb(W) {
-  const H = W.height, face = W.face;
+  const H = W.height, face = W.face, top = H + face;
+  const stones = [];
+  for (let z = H + 2.2; z < top - 0.5; z += CLIMB_STEP) stones.push(z);
+  // (the last stone sits a step under the lip, or less: the lip is reached from it)
   const blocks = [
     { id: 'approach', x: [-3, 20], y: [-4, 4], z: [0, H], fill: STONE },
-    { id: 'face', x: [20, 24], y: [-6, 6], z: [0, H + face], fill: FACE },
+    { id: 'face', x: [20, 24], y: [-6, 6], z: [0, top], fill: FACE },
+    ...stones.map((z, k) => ({ id: `stone-${k + 1}`, x: [19.7, 20], y: [-1.5, 1.5], z: [z - 0.3, z], fill: LIP })),
     { id: 'ledge', x: [24, 40], y: [-1.5, 1.5], z: [0, H + face], fill: LEDGE },
     { id: 'next-roof', x: [43, 58], y: [-5, 5], z: [0, H + face - 1], fill: ROOF },
   ];
-  const top = H + face;
   const setPiece = {
     id: W.id, line: [[0, 0], [56, 0]], half: 1.4, z: H,
     // (the face seen from out beside it, the camera rising with him; over his shoulder once he is over its top)
@@ -107,13 +113,13 @@ function climb(W) {
     beats: [{ at: 33, id: 'gives', do: [{ shake: 0.6 }, { puff: { at: [33, 0, top], is: 'dust' } }] }],
     prompts: [{ at: 40, id: `${W.id}-reach`, says: 'Reach', slow: 0.3 }],
   };
-  return { blocks, setPiece, start: [1, 0, H], heading: 0, rule: { wall: true } };
+  return { blocks, setPiece, start: [1, 0, H], heading: 0 };
 }
 
 export const SET_PIECE_KINDS = Object.freeze({
   'rooftop-run': { name: 'Rooftop run', about: 'across the roofs: a gap, an edge that gives, a blast beside the run, a drop and a lip to climb', words: { height: 6, pursuers: 2, blast: true }, lay: rooftopRun },
   collapse: { name: 'Collapse', about: 'down a roof street while the tower beside it comes down a course at a time, a last jump caught', words: { height: 6, courses: 5, pursuers: 0 }, lay: collapse },
-  climb: { name: 'Climb', about: 'up a sheer face, over its top onto a ledge that gives, a reach across to the next roof', words: { height: 4, face: 7 }, lay: climb },
+  climb: { name: 'Climb', about: 'up a sheer face hold by hand, over its lip onto a ledge that gives, a reach across to the next roof', words: { height: 4, face: 7 }, lay: climb },
 });
 export const SET_PIECE_KIND_IDS = Object.freeze(Object.keys(SET_PIECE_KINDS));
 

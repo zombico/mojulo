@@ -1,7 +1,7 @@
 // Set-piece kinds played (the e2e tier: it launches a browser, and passes saying nothing when none is installed). A bot on
 // the page's own frames sprints down the line, jumps at the kind's gap and answers each prompt on its window's middle: the
-// collapse's tower comes down as the hero passes and the line runs to its end; the climb is climbed (up the face, over its
-// top) and run to its end. On the plain stand-in; no page error. The machine gate's: whether it reads as a film is the
+// collapse's tower comes down as the hero passes and the line runs to its end; the climb is climbed (a jump at the face to its
+// first stone, jump tapped on each hold to leap to the next, over its lip) and run to its end. On the plain stand-in; no page error. The machine gate's: whether it reads as a film is the
 // operator's to play.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { stuntLevelHtml } from './practice-room-page.js';
@@ -30,11 +30,12 @@ async function play(kind, jumps) {
     key('forward', true); key('boost', true);
     (function frame() {
       n++;
+      if (h.ledge) out.held = (out.held || 0) + 1;
       out.s = Math.max(out.s, W.chase.s); out.maxZ = Math.max(out.maxZ, h.transform.pos[2]);
       out.broken = (W.breakables || []).filter((b) => b.broken || b.gone || b.hp <= 0).length;
       if (W.chase.done.length || n > 60 * 60) { key('forward', false); key('boost', false); out.done = true; return; }
       requestAnimationFrame(frame);
-      if (W.chase.on && jumps.some((j) => W.chase.s > j - 0.6 && W.chase.s < j + 0.3) && !jumpN && h.grounded !== false) { key('jump', true); jumpN = n; }
+      if (W.chase.on && !jumpN && (h.ledge ? !h.ledge.leap && !h.ledge.pull : jumps.some((j) => W.chase.s > j - 0.6 && W.chase.s < j + 0.3) && h.grounded !== false)) { key('jump', true); jumpN = n; }
       if (jumpN && n - jumpN > 3) { key('jump', false); if (n - jumpN > 30) jumpN = 0; }
       const U = W.prompt && W.prompt.up;
       const want = !!U && U.t >= U.opens + (U.closes - U.opens) / 2 && U.t < U.opens + (U.closes - U.opens) / 2 + 0.1;
@@ -58,10 +59,11 @@ describe('set-piece kinds, played', () => {
     expect(got.chaseDone).toEqual(['collapse']);
   }, 240000);
 
-  it('the climb: up the face and over its top, the reach across, the line run to its end', async () => {
+  it('the climb: up the face by its holds and over its lip, the reach across, the line run to its end', async () => {
     if (!browser) return;
-    const { got, errors } = await play('climb', [39.4]);
+    const { got, errors } = await play('climb', [19.2, 39.4]);
     expect(errors).toEqual([]);
+    expect(got.held).toBeGreaterThan(30);     // (hung from the holds, not walked up)
     expect(got.maxZ).toBeGreaterThan(10.5);   // over the face's top (11 m)
     expect(got.results['climb-reach']).toBe('hit');
     expect(got.chaseDone).toEqual(['climb']);

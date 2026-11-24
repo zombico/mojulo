@@ -35,8 +35,13 @@ describe('a level that is a set piece', () => {
       expect(() => readCues(S.manifest.play), kind).not.toThrow();
     }
   });
-  it('a climb gives the hero the wall; a collapse carries its tower as breakable blocks', () => {
-    expect(stuntLevel({ id: 'g', feel: 'lost-nomad' }, { spec: { kind: 'climb' } }).manifest.entities[0].rule.wall).toBe(true);
+  it('the hero takes lips by hand, a climb\'s face laid as holds; a collapse carries its tower as breakable blocks', () => {
+    const K = stuntLevel({ id: 'g', feel: 'lost-nomad' }, { spec: { kind: 'climb' } }).manifest;
+    expect(K.entities[0].rule.ledge).toBe(true);
+    expect(K.entities[0].rule.wall).toBeUndefined();
+    // (a stone each 1.6 m up the face, the lip a reach above the last)
+    const stones = K.colliders.filter((c) => c.min[0] === 19.7).map((c) => c.max[2]);
+    expect(stones).toEqual([6.2, 7.8, 9.4]);
     const C = stuntLevel({ id: 'g', feel: 'lost-nomad' }, { spec: { kind: 'collapse', courses: 4 } }).manifest;
     expect(C.breakables.map((b) => b.id)).toEqual(['tower:1', 'tower:2', 'tower:3', 'tower:4']);
     expect(C.faces.filter((f) => f.group === 'break:tower:1').every((f) => f.node === 'tower:1')).toBe(true);

@@ -30,7 +30,8 @@ export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, 
   const { kind, ...words } = spec ?? {};
   const K = layKind(kind, words), sp = K.setPiece, L = lowerSetPiece(sp);
   const own = typeof heroRef === 'string';
-  const rule = { ...(G.feel != null ? feelRule(G.feel) : {}), move: 'camera', ...(K.rule ?? {}) };
+  // (the hands take a lip in reach: a short jump caught on the far roof's edge, a face climbed by its holds)
+  const rule = { ...(G.feel != null ? feelRule(G.feel) : {}), move: 'camera', ledge: true, ...(K.rule ?? {}) };
   const P = playerWorld({ heroRef: own ? heroRef : 'stand-in', id: 'hero', title: title ?? 'stunt', controls: STUNT_LEGEND, rule });
   const { heroRef: _r, ...lib } = P.figures.hero;
   const standIn = cast === 'stand-in';

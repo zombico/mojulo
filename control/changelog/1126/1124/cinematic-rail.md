@@ -55,7 +55,7 @@
 - **Set pieces said in words** (`gameworld/set-piece-kinds.js`): a kind is a card that lays its own site (greybox blocks
   at any height, some of them breakable) and its set piece from a few words. `rooftop-run` (the stunt room's, now laid
   from it), `collapse` (down a roof street while the tower beside it comes down a course at a time, a last jump caught)
-  and `climb` (up a sheer face on the wall crawl, over its top onto a ledge that gives, a reach across). A new kind is a
+  and `climb` (up a sheer face by its stones, over its lip onto a ledge that gives, a reach across). A new kind is a
   row.
 - **A level's own breakable blocks** (`world-scene.js`, a manifest's `breakables`): a set piece's site carries the
   blocks a beat brings down, their pieces cut by the page. Absent, every byte as it was.
@@ -78,3 +78,11 @@
 - **The framing gate** (`set-piece-framing.test.js`): each kind's level run on the bus by a bot, every directed frame
   held to it: the camera outside every block, nothing between it and the hero, the hero in frame and neither in the lens
   nor lost in the distance.
+- **The ledge** (`worlds/controllable/ledge.js`, a rule's `ledge`; `space.traversal=ledge` built, the cinematic adventure
+  probe asks for it): the climber's hold. A body in the air at hand height near a lip (any block's top edge, unless a box
+  stands on it or it is `hold: false`, or a hold a level lays on a face, `ledges`) catches it and hangs. The stick, read
+  as the camera reads it, shimmies along it; jump leaps to the next hold up or along, else pulls up over the lip; held
+  away it drops, away and jump kicks off. The bus hears `ledge:catch | pull | leap | drop`. Absent, the page emits none
+  of it. A stunt level's hero has it: a short jump at the far roof is caught on its edge, and the climb's face is now
+  stones a hand-hold apart, caught from a jump and leapt up, where it was the wall crawl. The framing gate and the
+  played levels climb it so.

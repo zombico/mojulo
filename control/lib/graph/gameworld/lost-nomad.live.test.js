@@ -20,7 +20,7 @@ beforeAll(async () => {
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
 // where each kind's line meets its gap (metres along it): the bot's jump
-const GAPS = { 'rooftop-run': [17], collapse: [45.2], climb: [39.4] };
+const GAPS = { 'rooftop-run': [17], collapse: [45.2], climb: [19.2, 39.4] };
 
 async function playLevel(manifest, ref, jumps) {
   const html = await levelManifestHtml(manifest, ref);
@@ -40,7 +40,7 @@ async function playLevel(manifest, ref, jumps) {
       out.minZ = Math.min(out.minZ, h.transform.pos[2]);
       if (W.chase.done.length || n > 60 * 70) { key('forward', false); key('boost', false); setTimeout(() => { out.done = true; }, 400); return; }
       requestAnimationFrame(frame);
-      if (W.chase.on && jumps.some((j) => W.chase.s > j - 0.6 && W.chase.s < j + 0.3) && !jumpN && h.grounded !== false) { key('jump', true); jumpN = n; }
+      if (W.chase.on && !jumpN && (h.ledge ? !h.ledge.leap && !h.ledge.pull : jumps.some((j) => W.chase.s > j - 0.6 && W.chase.s < j + 0.3) && h.grounded !== false)) { key('jump', true); jumpN = n; }
       if (jumpN && n - jumpN > 3) { key('jump', false); if (n - jumpN > 30) jumpN = 0; }
       const U = W.prompt && W.prompt.up, mid = U ? U.opens + (U.closes - U.opens) / 2 : 0;
       const want = !!U && (U.kind === 'mash' ? U.t >= U.opens && !actDown : U.t >= mid && U.t < mid + 0.1);

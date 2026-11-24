@@ -65,7 +65,16 @@ piece instead of drawing one:
 |---|---|---|
 | `rooftop-run` | across the roofs: a gap, an edge that gives, a blast beside the run, a drop and a lip to climb | `height`, `pursuers`, `blast` |
 | `collapse` | down a roof street while the tower beside it comes down a course at a time, a last jump caught | `height`, `courses`, `pursuers` |
-| `climb` | up a sheer face, over its top onto a ledge that gives, a reach across to the next roof | `height`, `face` |
+| `climb` | up a sheer face by its stones (each a hold 1.6 m over the last), over its lip onto a ledge that gives, a reach across to the next roof | `height`, `face` |
+
+## The ledge
+
+A set piece's hero takes a lip by hand (`worlds/controllable/ledge.js`, the rule's `ledge`; the stunt level's hero has
+it). In the air at hand height near any block's top edge, or a hold a level lays on a face (`ledges`), the hands catch
+it. Hung there, the stick (read along the line, as the camera reads it) shimmies along the hold; jump leaps to a hold in
+reach above or along, else pulls up over the lip onto its top; held away it drops, away and jump kicks off the face. A
+short jump at a roof is caught on its edge rather than missed, and a climb's face is climbed stone by stone. A box
+marked `hold: false` gives none. The bus hears `ledge:catch | pull | leap | drop`.
 
 A kind's site may carry breakable blocks (`breaks: true`): their faces are their own and the world holds them solid until
 a beat brings them down. A new kind is a row.
