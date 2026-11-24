@@ -40,7 +40,7 @@ import { streamOf } from '../city/plan/dice.js';
  *  (ambient and gain: the kernel's lambert), its haze over the map's, its wind's default speed (m/s), its sea's colour. */
 export const FLIGHT_SKIES = Object.freeze({
   clear: Object.freeze({ read: 'clear: a deep sky, a few streaks of cirrus, the sun hard', layers: [{ type: 'cirrus', base: 8500, cover: 0.18 }], light: { ambient: 0.4, gain: 0.66 }, haze: 1, wind: 4, sea: '#123c5c' }),
-  fair: Object.freeze({ read: 'fair: fair-weather cumulus in streets along the wind, cirrus high over them', layers: [{ type: 'cumulus', base: 1100, depth: [450, 1100], cover: 0.22, size: [900, 2200] }, { type: 'cirrus', base: 8000, cover: 0.22 }], light: { ambient: 0.42, gain: 0.62 }, haze: 1, wind: 6, sea: '#163f5c' }),
+  fair: Object.freeze({ read: 'fair: fair-weather cumulus in streets along the wind, flat and wide, domed and the odd one climbing, a few patches of altocumulus at mid level, cirrus high over them', layers: [{ type: 'cumulus', base: 1100, depth: [450, 1100], cover: 0.22, size: [900, 2200] }, { type: 'deck', form: 'altocumulus', base: 4200, depth: 180, cover: 0.32 }, { type: 'cirrus', base: 8000, cover: 0.22 }], light: { ambient: 0.42, gain: 0.62 }, haze: 1, wind: 6, sea: '#163f5c' }),
   high: Object.freeze({ read: 'high: altocumulus ripples at mid level, a cirrus veil, the sun through them', layers: [{ type: 'deck', form: 'altocumulus', base: 3600, depth: 250, cover: 0.45 }, { type: 'cirrus', base: 7500, cover: 0.6 }], light: { ambient: 0.46, gain: 0.56 }, haze: 1, wind: 8, sea: '#1d4660' }),
   haze: Object.freeze({ read: 'haze: a milky summer haze, a few small cumulus in it, the far land gone pale', layers: [{ type: 'cumulus', base: 1500, depth: [250, 550], cover: 0.08, size: [600, 1300] }], light: { ambient: 0.5, gain: 0.48 }, haze: 2.2, wind: 3, sea: '#2a5566' }),
   overcast: Object.freeze({ read: 'overcast: a lid of stratus, its base dark and its top a sunlit floor; flat light under it', layers: [{ type: 'deck', form: 'stratus', base: 750, depth: 450, cover: 1 }], light: { ambient: 0.62, gain: 0.22 }, haze: 1.25, wind: 9, sea: '#2c4a52' }),
@@ -119,6 +119,18 @@ export function seaOf(windDir, speed, seed) {
 
 /** The cumulus of a layer over a square of `half` m about the map's middle: [x, y, base, radius, height, seed], placed on
  *  a jittered grid kept where a slow noise and the wind's streets allow, until the layer's cover is reached. */
+/** The kinds a layer's cumulus come in, each by its share and how it scales the layer's size and depth: flat wide
+ *  humilis, domed mediocris, the odd tall congestus (kept under a thunderhead's height for its width), small ragged
+ *  fractus. A towering layer's (a storm's) are all its own. */
+export const CUMULUS_KINDS = Object.freeze({
+  humilis: Object.freeze({ share: 0.34, size: 1.15, depth: 0.45 }),
+  mediocris: Object.freeze({ share: 0.44, size: 1, depth: 1 }),
+  congestus: Object.freeze({ share: 0.1, size: 0.85, depth: 1.8 }),
+  fractus: Object.freeze({ share: 0.12, size: 0.35, depth: 0.3 }),
+});
+const KIND_ORDER = Object.keys(CUMULUS_KINDS);
+const kindOf = (u) => { let a = 0; for (const k of KIND_ORDER) { a += CUMULUS_KINDS[k].share; if (u < a) return CUMULUS_KINDS[k]; } return CUMULUS_KINDS.mediocris; };
+
 function placeCumulus(L, cover, half, wind, seed) {
   const R = streamOf(seed, 'sky', `cumulus:${L.base}`), [s0, s1] = L.size, mean = (s0 + s1) / 2, step = mean * 1.1;
   const n = Math.ceil((2 * half) / step), out = [], area = (2 * half) ** 2;
@@ -128,13 +140,16 @@ function placeCumulus(L, cover, half, wind, seed) {
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     const x = -half + (i + R()) * step, y = -half + (j + R()) * step, across = -x * wy + y * wx;
     const street = 0.5 + 0.5 * dmath.cos(across / gap * 6.283 + ph), patch = R();
-    cand.push({ x, y, score: 0.55 * street + 0.45 * patch, r: R(), h: R(), sd: Math.floor(R() * 1e6) });
+    cand.push({ x, y, score: 0.55 * street + 0.45 * patch, r: R(), h: R(), sd: Math.floor(R() * 1e6), k: R() });
   }
   cand.sort((a, b) => b.score - a.score);
   let covered = 0;
   for (const c of cand) {
     if (covered >= cover * area) break;
-    const dia = s0 + (s1 - s0) * c.r ** 1.6, rad = dia / 2, depth = L.depth[0] + (L.depth[1] - L.depth[0]) * (L.towering ? c.h : c.h * (dia - s0) / Math.max(1, s1 - s0));
+    // (its kind, by its own dice: a fair sky's cumulus are mixed, flat and wide, domed, the odd one climbing, ragged bits)
+    const K = L.towering ? CUMULUS_KINDS.mediocris : kindOf(c.k);
+    const dia = (s0 + (s1 - s0) * c.r ** 1.6) * K.size, rad = dia / 2, d0 = (L.depth[0] + (L.depth[1] - L.depth[0]) * (L.towering ? c.h : c.h * Math.min(1, (dia - s0 * K.size) / Math.max(1, (s1 - s0) * K.size)))) * K.depth;
+    const depth = L.towering ? d0 : Math.min(d0, 1.4 * rad);
     out.push([r2(c.x), r2(c.y), r2(L.base + (c.h - 0.5) * 60), r2(rad), r2(depth), c.sd]);
     covered += Math.PI * rad * rad * 0.75;
   }

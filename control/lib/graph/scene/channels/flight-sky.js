@@ -251,7 +251,9 @@ void main() {
   bool below = cameraPosition.z < vWP.z;
   vec3 c;
   if (uForm > 2.5) c = uLit;
-  else if (below) c = mix(uShade * 0.8, uShade * 1.15, n) * mix(1.0, 0.75, a);            // its belly, darker where thick
+  // its belly: a thick deck's darker where thick; altocumulus' a thin sheet of small cells, pale with the sun through it,
+  // each cell's middle a little darker
+  else if (below) c = uForm > 1.5 ? mix(uShade, uLit, 0.6 + 0.3 * n) * mix(1.0, 0.86, a) : mix(uShade * 0.8, uShade * 1.15, n) * mix(1.0, 0.75, a);
   else { vec2 g = vec2(skF((vWP.xy - uDrift) / (uScale * 0.6) + vec2(4.25, 4.2)) - n, skF((vWP.xy - uDrift) / (uScale * 0.6) + vec2(4.2, 4.25)) - n);
     float lit = clamp(0.8 + 9.0 * dot(-g, normalize(uSun.xy)) * (1.0 - uSun.z * 0.5), 0.55, 1.2); c = mix(uLit, uLitA, uAbove) * lit * (0.88 + 0.18 * n); }  // its top, lumps lit by the sun over it
   if (below && uForm < 2.5) c += uGlowCol * cityUnder(vWP.xy) * uNight * 0.035;
@@ -373,12 +375,14 @@ ${SHADOW_PATCH}
     m.onBeforeRender = () => { mat.uniforms.uTime.value = clock(); };
     scene.add(m); out.shafts = towers.length;
   }
-  // THE DECKS: a sheet at the base (and one at the top) round the eye, out to the haze
+  // THE DECKS: a sheet at the base (and one at the top of a thick one) round the eye, out to the haze
   const decks = [], EDGE = 60000;
   for (const L of K.layers) {
     if (L.type === 'cumulus') continue;
     const form = L.type === 'cirrus' ? 3 : L.form === 'altocumulus' ? 2 : L.form === 'stratocumulus' ? 1 : 0, scale = form === 3 ? 2600 : form === 2 ? 1400 : form === 1 ? 900 : 2200;
-    for (const z of form === 3 || !L.depth ? [L.base] : [L.base, L.base + L.depth]) {
+    // (a thick deck a sheet at its base and one at its top; a thin one, altocumulus' cells or cirrus, one sheet: two sheets
+    // a few hundred metres apart show its pattern twice from under it)
+    for (const z of form === 3 || !L.depth ? [L.base] : form === 2 ? [L.base + L.depth / 2] : [L.base, L.base + L.depth]) {
       const m = new THREE.ShaderMaterial({ vertexShader: ${JSON.stringify(DECK_VERT)}, fragmentShader: ${JSON.stringify(DECK_FRAG)}, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: true,
         uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uSun: { value: sun }, uLit: { value: lit }, uLitA: { value: col(K.aloft.cloudLit) }, uAbove: { value: 0 }, uShade: { value: shade }, uDrift: { value: drift }, uCover: { value: L.cover }, uScale: { value: scale }, uForm: { value: form }, uTop: { value: z > L.base ? 1 : 0 }, uEdge: { value: EDGE }, uWind: { value: new THREE.Vector2(K.wind[0], K.wind[1]) } }]) });
       m.uniforms.uDrift.value = drift; withFX(m);

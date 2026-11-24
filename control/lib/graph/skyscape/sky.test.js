@@ -35,7 +35,12 @@ describe('the flight sky', () => {
     expect(over.light.gain).toBeLessThan(fair.light.gain);
     expect(storm.clouds.some((c) => c[4] > 2000)).toBe(true);
     expect(storm.sea.height).toBeGreaterThan(4 * fair.sea.height);
-    expect(fair.metar).toMatch(/^\d{3}\d{2}KT \d{4} FEW\d{3}$/);
+    // (its cumulus mixed: flat and wide ones and the odd one climbing, sky.js CUMULUS_KINDS; never a thunderhead's tower)
+    expect(fair.clouds.some(([, , , r, h]) => h < 0.6 * r)).toBe(true);
+    expect(fair.clouds.some(([, , , r, h]) => h > 1.1 * r)).toBe(true);
+    expect(fair.clouds.every(([, , , r, h]) => h <= 1.4 * r + 0.02)).toBe(true);
+    // (a few cumulus under scattered altocumulus at mid level)
+    expect(fair.metar).toMatch(/^\d{3}\d{2}KT \d{4} FEW\d{3} SCT1\d{2}$/);
     expect(over.metar).toMatch(/OVC0\d\d/);
   });
 
