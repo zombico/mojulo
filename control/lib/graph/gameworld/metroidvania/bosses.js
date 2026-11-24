@@ -66,8 +66,8 @@ export const CASTLE_BOSSES = Object.freeze({
   'crypt-lord': Object.freeze({ class: 'lurker', skin: Object.freeze({ species: 'wolf' }), tier: 1.8, blows: 26, reads: 'a great wolf of the crypt: it waits in the dark and springs',
     moves: Object.freeze({ pounce: { pattern: 'lunge', says: 'flattens to the floor, hackles up' }, maul: { pattern: 'cleave', says: 'rears with its jaws wide' }, howl: { pattern: 'toll', says: 'throws its head back; the crypt goes still' } }),
     phases: Object.freeze([ph({ pounce: 2, maul: 2 }, 2.2), ph({ pounce: 2, maul: 1, howl: 2 }, 1.8, { below: 0.6 }), ph({ pounce: 3, maul: 1, howl: 1 }, 1.4, { below: 0.3, temper: 'relentless' })]) }),
-  'lord-of-the-keep': Object.freeze({ class: 'pursuer', skin: Object.freeze({ people: 'infernal' }), tier: 1.6, blows: 34, reads: 'the vampire lord himself: he follows her across his throne room and strikes',
-    moves: Object.freeze({ 'cape-sweep': { pattern: 'cleave', says: 'gathers his cape and sweeps it round' }, 'bat-swarm': { pattern: 'toss', says: 'opens his cape; bats pour out where she stood', look: { tell: { falling: 'swarm' } } }, 'blood-wave': { pattern: 'toll', says: 'raises both hands; the throne room\'s air turns red' }, 'shadow-lunge': { pattern: 'lunge', says: 'sinks into his own shadow' } }),
+  'lord-of-the-keep': Object.freeze({ class: 'pursuer', skin: Object.freeze({ people: 'infernal' }), tier: 1.6, blows: 34, reads: 'the vampire lord herself, cool and sharp: she follows Erina across her throne room and strikes',
+    moves: Object.freeze({ 'cape-sweep': { pattern: 'cleave', says: 'gathers her cape and sweeps it round' }, 'bat-swarm': { pattern: 'toss', says: 'opens her cape; bats pour out where Erina stood', look: { tell: { falling: 'swarm' } } }, 'blood-wave': { pattern: 'toll', says: 'raises both hands; the throne room\'s air turns red' }, 'shadow-lunge': { pattern: 'lunge', says: 'sinks into her own shadow' } }),
     phases: Object.freeze([ph({ 'cape-sweep': 2, 'bat-swarm': 2 }, 2.2), ph({ 'cape-sweep': 2, 'bat-swarm': 1, 'blood-wave': 2 }, 1.8, { below: 0.66, temper: 'opportunist' }), ph({ 'blood-wave': 2, 'shadow-lunge': 2, 'bat-swarm': 1, 'cape-sweep': 1 }, 1.3, { below: 0.33, temper: 'relentless' })]) }),
 });
 export const BOSS_DEFAULT = 'gate-warden';
@@ -115,8 +115,11 @@ export const CASTLE_FIGURES = Object.freeze({
     wind: Object.freeze({ lunge: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, cleave: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, toll: { wind: ['stagger', 0, 0.5], strike: ['stagger', 0.5, 1] } }) }),
   // (the great bell: no door makes a bell, so it is a card of its own, bell.js, built on the page with its swings)
   'great-bell': Object.freeze({ bell: { card: 'great-bell' } }),
-  'lord-of-the-keep': Object.freeze({ hero: { name: 'The Lord of the Keep', cast: 'male', head: 'anime', animeStyle: 'shonen-high', animeBody: 'toji',
-    look: 'rival', hair: ['swept-back'], expression: 'deadpan',
+  // (the vampire lord a woman, androgynous: the slim female body squared at the shoulder and straightened at the hip, a
+  // sharp, cool face, the hair swept back short; the noble's dress kept)
+  'lord-of-the-keep': Object.freeze({ hero: { name: 'The Lord of the Keep', cast: 'female', head: 'anime', animeStyle: 'shonen-high', animeBody: 'maki',
+    tune: { shoulders: 1.08, hips: 0.92, waist: 1.06 },
+    look: ['rival', 'sharp', 'narrow-eyes', 'mature'], hair: ['swept-back'], expression: 'deadpan',
     outfit: { type: 'outfit', style: withPieces('noble', [{ kind: 'collar', rise: 0.24, flare: 3 }, cloak('ankle', 0.8, 'base', { depth: 0.16, tongues: 7 })], { drop: ['mantle'] }) },
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
     stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } } }),

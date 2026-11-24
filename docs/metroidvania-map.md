@@ -341,7 +341,8 @@ Its FIGURE is its own ([bosses.js](../control/lib/graph/gameworld/metroidvania/b
 character door's words for each humanoid (the Gate Warden a death knight with a halberd; the Gatekeeper crimson plate
 under a horned skull helm with a brutal greatsword; the Bell Ringer a dead monk in a brown habit; the Bellkeeper a
 grave-grey robe in a bell's outline; the Warden a horned, tailed, clawed devil in a crimson robe and black cloak; the
-Lord of the Keep a pale, silver-haired vampire noble in the anime register, as Erina is), the animal door's for the Crypt
+Lord of the Keep a pale, silver-haired vampire noble in the anime register, as Erina is: a woman, androgynous, the slim
+female body squared at the shoulder and straightened at the hip, a sharp, cool face, the hair swept back short), the animal door's for the Crypt
 Lord (a wolf grown `dire` and `shadow`). The runner makes each one a box names (`boss-<id>`) and the level stands it on
 its ref, a door's body grown by its tier, a beast fitted to its tier's height. The Great Bell no door makes: it is a card
 of its own ([bell.js](../control/lib/graph/gameworld/metroidvania/bell.js)), built on the page as a rig (a figures-map
@@ -354,7 +355,7 @@ an outfit card of the outfit's own pieces alone (no top, no bottom: the armour's
 ankle lined in dried blood, its hem TORN into tongues (a cloak's `torn`, the cape garment's `torn: { depth, count }`),
 RAGS of grave-cloth hung off its plate at the hips and the shoulders (the outfit's `rags` piece: ribbons draped over what
 they hang on, each its own length and torn end), a standing collar, a chain and a skull trophy at its hip; the Gatekeeper
-a torn cloak to the calf, rust-red rags, bone charms and trophies. The bell ringers carry bells and chains on their habits; the Lord of the Keep wears his
+a torn cloak to the calf, rust-red rags, bone charms and trophies. The bell ringers carry bells and chains on their habits; the Lord of the Keep wears her
 coat without its fur mantle, a high collar and a cloak to the floor lined in crimson, lightly torn at its hem. Their outline is the plain `wedge`:
 the `knight` silhouette lays garment pauldrons over the armour's own.
 

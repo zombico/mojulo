@@ -131,3 +131,5 @@
 - A cloak can be torn (`{ kind: 'cloak', torn, tongues }`): its hem cut into tongues, the gaps torn up, the same cloak
   torn the same way every time. A new outfit piece, `rags`, hangs torn strips from the hips and the shoulders, draped over
   whatever is worn there.
+- The Lord of the Keep is a woman now, androgynous: a slim body squared at the shoulder, a sharp, cool face and short
+  swept-back silver hair, in the same crimson coat, high collar and torn crimson-lined cape.
