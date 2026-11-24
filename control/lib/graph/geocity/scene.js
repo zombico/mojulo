@@ -313,6 +313,17 @@ export function assembleGeocityScene(m, ctx = {}) {
   const colliders = [];
   let holder = null;
   const hold = (x0, y0, x1, y1, z0, z1, of) => { if (holder !== null) colliders.push({ min: P3([x0, y0, z0]), max: P3([x1, y1, z1]), of }); };
+  // a camera's height clear of a highway's deck: one that would stand in its slab or just under it (its underside
+  // filling the frame) is lifted over its top; one with clear air under the deck, or none over it, stands where it was
+  const overDeck = (p, z) => {
+    for (const h of d.highways ?? []) {
+      const ax = h.axis === 'x', u = ax ? p[0] : p[1], off = (ax ? p[1] : p[0]) - h.at;
+      if (Math.abs(off) > h.w / 2 + 2 || u < h.lo || u > h.hi) continue;
+      const top = deckAt(h, u);
+      if (z < top + 1 && z > top - HIGHWAY.depth - 1.5) return top + 5;
+    }
+    return z;
+  };
   // THE FORM RENDER'S BUILDINGS (ctx.formBuildings, a page read in gen-7 by day: form/sun-light.js): a face carries its
   // paint as it shows lit, never darkened by its turn to the sun, and is baked below with its colour and its light
   // apart, the sun's shadow tested. Absent, and at night: the paint, its light in its colour, as it always was
@@ -1930,7 +1941,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       { name: 'evoked', worldFraming: { cameraPosition: P3([mid[0] + span * 0.75, mid[1] - span * 0.95, zm + Math.max(span * 0.55 + tall * 0.6, top * 1.1)]), lookAt: P3([mid[0], mid[1], zm + tall * 0.25]), horizontalFov: 55 } },
       { name: 'street', worldFraming: { cameraPosition: P3(eye), lookAt: P3([look[0], look[1], eye[2] + 10]), horizontalFov: 75 } },
       // the arterial crossing nearest its street, from over one of its arms a little up: its signals, crosswalks and stops
-      ...(() => { const c = d.crossings.slice().sort((p, q) => Math.hypot(p.at[0] - st[0], p.at[1] - st[1]) - Math.hypot(q.at[0] - st[0], q.at[1] - st[1]))[0]; const cp = [c.at[0] + 3, c.at[1] - 45]; return c ? [{ name: 'crossing', worldFraming: { cameraPosition: P3([cp[0], cp[1], S(cp[0], cp[1]) + 9]), lookAt: P3([c.at[0], c.at[1], c.z + 2]), horizontalFov: 70 } }] : []; })(),
+      ...(() => { const c = d.crossings.slice().sort((p, q) => Math.hypot(p.at[0] - st[0], p.at[1] - st[1]) - Math.hypot(q.at[0] - st[0], q.at[1] - st[1]))[0]; const cp = [c.at[0] + 3, c.at[1] - 45]; return c ? [{ name: 'crossing', worldFraming: { cameraPosition: P3([cp[0], cp[1], overDeck(cp, S(cp[0], cp[1]) + 9)]), lookAt: P3([c.at[0], c.at[1], c.z + 2]), horizontalFov: 70 } }] : []; })(),
       ...cameras.filter((c) => c.name === 'skyline' || c.name === 'over'),
     ];
   } else if (E) cameras = cameras.filter((c) => c.name === 'skyline' || c.name === 'over');
