@@ -44,7 +44,7 @@ describe('the door', () => {
   it('a room the world does not have is refused, in words', () => {
     expect(() => practiceRoomOf({ feel: FIGHTER }, 'mount')).toThrow(/this world has no mount lane \(it has practice, room\)/);
     expect(() => practiceRoomOf({ feel: FIGHTER }, 'yard')).toThrow(`room is ${Object.keys(PRACTICE_ROOMS).join(', ')}`);   // (the rooms by name, as the table lists them)
-    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'mount', 'range', 'mission', 'artillery', 'roll', 'room', 'work']);
+    expect(Object.keys(PRACTICE_ROOMS)).toEqual(['practice', 'platform', 'stunt', 'mount', 'range', 'mission', 'artillery', 'roll', 'room', 'work']);
   });
 });
 
