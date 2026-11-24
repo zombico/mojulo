@@ -11,4 +11,6 @@
   is built that way.
 - Hijack City can be played in the inner city or the suburbs, not only downtown: a district is chosen by a word, and any
   city's district can be asked for by its ring.
+- A city's street trees stand on the walk, behind the kerb and clear of every crossing, in a game or out of one; none
+  were left standing in the road where it is shown rather than played.
 

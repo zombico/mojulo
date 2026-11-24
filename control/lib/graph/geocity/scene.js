@@ -200,7 +200,9 @@ const GLASS_SPEC = Object.freeze([0.55, 48]);
 // (an outskirts' residential street a mix: maples the most, flowering cherries and slender birches among them)
 // (`young`: with realistic crowns, the share of its street and park trees recently planted, drawn in the plain crown at
 // `height` m, airy as a sapling's; a vacant lot's self-sown trees all young)
-const TREE = Object.freeze({ pit: 12, verge: 11, species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
+// (`kerb`: how far behind the kerb, on the walk, an outskirts street's tree stands, m; `corner`: how far past a crossing
+// street's walks it keeps, for the corner's sight lines, m)
+const TREE = Object.freeze({ pit: 12, verge: 11, kerb: 0.9, corner: 5, species: { dense: ['maple', 'beech'], low: ['maple', 'maple', 'cherry', 'birch'] }, height: [12, 17], level: 'L1', budget: 400000, raise: 0.42,
   young: Object.freeze({ share: 0.35, height: Object.freeze([5, 8]) }) });
 // a garden-apartment block's bars (m): their least length along a side, the gap between them, their depth, their setback
 // behind their lawn, the block's ends kept clear, their storeys (two or three)
@@ -809,10 +811,13 @@ export function assembleGeocityScene(m, ctx = {}) {
             // its trees on the verge each side (a streetcar suburb's boulevard), clear of its poles
             for (const sd of [-1, 1]) for (let s0 = a + 9 + (sd > 0 ? TREE.verge / 2 : 0); s0 <= b - 9; s0 += TREE.verge) {
               if (sd === side && Math.abs(((s0 - a - 6) % HYDRO + HYDRO) % HYDRO) < 2.5) continue;
-              // (played, a tree stands on the walk by the kerb: the verge it stands on otherwise is drawn as the road's
-              // own edge, where a car parks and drives)
-              const [x, yy] = pt(sd, s0, PLAY ? st.w / 2 - WALK + 0.9 : st.w / 2 - WALK - 1.0), [cx, cy] = pt(sd, s0, 0);
-              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + (PLAY ? KERB : 0), `${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
+              // (a tree stands on the walk, TREE.kerb behind the kerb: the street's ground is its carriageway and its walks,
+              // no verge between them, so a tree before the kerb would stand where a car parks and drives)
+              const [x, yy] = pt(sd, s0, st.w / 2 - WALK + TREE.kerb), [cx, cy] = pt(sd, s0, 0);
+              // (and clear of every crossing: none in a street that crosses its own, nor in the corner's sight lines, TREE.corner
+              // past that street's walks)
+              if (r.streets.some((o) => o !== st && o.axis !== st.axis && Math.abs((o.axis === 'ns' ? x : yy) - o.at) < o.w / 2 + TREE.corner)) continue;
+              plant(r.industrial ? 'dense' : 'low', x, yy, S(x, yy) + KERB, `${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - yy, cx - x));
             }
           } else {
             for (const sd of [-1, 1]) for (let s0 = a + 8 + (sd > 0 ? LAMP / 2 : 0); s0 <= b - 8; s0 += LAMP) { const [x, yy] = pt(sd, s0); stamp(`lamp:${face(sd)}`, [x, yy, S(x, yy) + KERB], 0); }
@@ -1894,6 +1899,15 @@ export function assembleGeocityScene(m, ctx = {}) {
     const inBox = (p) => colliders.some((c) => within(p, c));
     const shut = entered.filter((e) => [e.out, e.door, e.in].some((p) => inBox([p[0], p[1], e.door[2] + 1]))).length, heavy = entered.filter((e) => e.S.faceCount > SLOT.faces).length;
     laws.push({ law: 'entered', ok: entered.length > 0 && shut === 0 && heavy === 0, value: `${entered.length} shops walked into on ${cityStores.size} templates; ${shut} with a box in the door's way; ${heavy} over ${SLOT.faces} faces; ${entered.filter((e) => e.sink > 0).length} sunk under their pads, the deepest ${Math.max(0, ...entered.map((e) => e.sink))} m; ${tight.n} bays too small for a store${tight.n ? ` (the last ${tight.last})` : ''}; ${steep.n} kept shut, their pads over ${r5(STOOP.most + STOOP.sunk)} m above their walks; the highest stoop ${Math.max(0, ...entered.map((e) => e.rise))} m`, want: 'every shop of a row of shops is walked into through its own door, stepped up to from its walk, its inside drawn near the camera only and under its faces' });
+  }
+  // the STREET TREES' rule: no trunk on a carriageway, an arterial's (its road, l.road, about its line) or a local
+  // street's (its width less its walks, WALK, along its runs)
+  {
+    const onRoad = (x, y) => d.lines.some((l) => Math.abs((l.axis === 'ns' ? x : y) - l.at) < l.road / 2 && x >= l.rect[0] && x <= l.rect[2] && y >= l.rect[1] && y <= l.rect[3])
+      || d.regions.some((r) => x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3] && (r.streets ?? []).some((st) => { const ns = st.axis === 'ns', o = Math.abs((ns ? x : y) - st.at), u = ns ? y : x;
+        return o < st.w / 2 - WALK && (st.runs ?? []).some(([a, b]) => u >= a && u <= b); }));
+    let n = 0, on = 0; for (const list of trees.values()) for (const t of list) { n++; if (onRoad(t.x, t.y)) on++; }
+    laws.push({ law: 'trees-clear', ok: on === 0, value: on ? `${on} of ${n} trees on a carriageway` : `${n} trees, none on a carriageway`, want: 'every street tree on its walk, its verge or in its pit; none where a car drives or parks' });
   }
   laws.push({ law: 'walk-clear', ok: blocked === 0, value: blocked ? `${blocked} of the walk's points inside a building's box` : `the walk clear of ${colliders.length} boxes`, want: 'the route round the seat\'s block and the spawn outside every box' });
   // the TOWNS' SEAMS (towns.js: a composed town on the metro's own streets' ground): along each town's outline, its own

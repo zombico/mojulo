@@ -236,6 +236,8 @@ describe('the geocity read in the form render', () => {
     expect(F.faces.some((f) => FORM_GROUND.includes(f.group))).toBe(false);
     expect(F.plants.trees.length).toBeGreaterThan(0);
     expect(F.plants.clear.length).toBeGreaterThanOrEqual(F.plants.trees.length);
+    // (every street tree on its walk or in its pit: none on a carriageway, none in a crossing)
+    expect(F.geocity.laws.find((l) => l.law === 'trees-clear')).toMatchObject({ ok: true });
     // (no street tree drawn as paint where the form grows it)
     expect((F.repeats ?? []).some((rp) => String(rp.group).startsWith('geocity:tree-'))).toBe(false);
     expect(P.plants).toBeUndefined();

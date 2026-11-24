@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { designGeocity } from './design.js';
 import { METROS } from './metro.js';
+import { assembleGeocityScene } from './scene.js';
 
 const kinds = (d, ring) => d.regions.filter((r) => (r.builds ?? r.ring) === ring && !r.industrial).flatMap((r) => r.blocks.map((b) => b.kind));
 describe('a northeast metro', () => {
@@ -32,4 +33,13 @@ describe('a northeast metro', () => {
     expect(kinds(d, 'frame').filter((k) => !['midrise', 'slab', 'construction', 'parking', 'vacant', 'park', 'geotown'].includes(k))).toEqual([]);
     expect(kinds(d, 'outskirts')).not.toContain('garden');
   });
+
+  it('plants its street trees on their walks: none on a carriageway, none in a crossing, played or not', () => {
+    const geocity = { metro: { from: 'northeast', rings: { core: 350, frame: 900 } }, extent: [3000, 2400], water: { sides: ['e'], depth: 200 }, core: [0.85, 0.5], evoke: 'neighbourhood', at: 'outskirts' };
+    const P = assembleGeocityScene({ kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, geocity });
+    const L = P.geocity.laws.find((l) => l.law === 'trees-clear');
+    expect(L.ok, L.value).toBe(true);
+    expect(L.value).toMatch(/[1-9]\d* trees, none on a carriageway/);
+  }, 300000);
 });
+
