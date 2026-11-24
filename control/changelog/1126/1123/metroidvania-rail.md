@@ -126,3 +126,8 @@
   floor-length cloak lined in crimson.
 - Armour can leave pieces off: `adorn: { type: 'armor', without: ['pauldron'] }` wears a plate suit with its shoulders
   bare, so a cape can hang from them.
+- The knights' cloaks are torn at the hem into ragged tongues, and rags hang off their plate at the hips and the
+  shoulders: grave-cloth grey on the Gate Warden, rust red on the Gatekeeper. The Lord of the Keep's cape is lightly torn.
+- A cloak can be torn (`{ kind: 'cloak', torn, tongues }`): its hem cut into tongues, the gaps torn up, the same cloak
+  torn the same way every time. A new outfit piece, `rags`, hangs torn strips from the hips and the shoulders, draped over
+  whatever is worn there.

@@ -351,9 +351,11 @@ chains, the bell on its axle and the clapper on its own bone, its moves its swin
 Their dress is the castle's: capes and grim things, never mega pauldrons (they take a side view's whole room). The
 knights wear their plate `without: ['pauldron']` (the armour build's word: the plate pieces left off) and a SHROUD over it,
 an outfit card of the outfit's own pieces alone (no top, no bottom: the armour's): the Gate Warden a black cloak to the
-ankle lined in dried blood, a standing collar, a chain and a skull trophy at its hip; the Gatekeeper a ragged cloak to the
-calf with bone charms and trophies. The bell ringers carry bells and chains on their habits; the Lord of the Keep wears his
-coat without its fur mantle, a high collar and a cloak to the floor lined in crimson. Their outline is the plain `wedge`:
+ankle lined in dried blood, its hem TORN into tongues (a cloak's `torn`, the cape garment's `torn: { depth, count }`),
+RAGS of grave-cloth hung off its plate at the hips and the shoulders (the outfit's `rags` piece: ribbons draped over what
+they hang on, each its own length and torn end), a standing collar, a chain and a skull trophy at its hip; the Gatekeeper
+a torn cloak to the calf, rust-red rags, bone charms and trophies. The bell ringers carry bells and chains on their habits; the Lord of the Keep wears his
+coat without its fur mantle, a high collar and a cloak to the floor lined in crimson, lightly torn at its hem. Their outline is the plain `wedge`:
 the `knight` silhouette lays garment pauldrons over the armour's own.
 
 Its BODY tells the move too: each person boss's figure is minted with a wind-up and a strike for each pattern its moves
@@ -516,7 +518,7 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
 - **The bosses' bodies, further.** A wind-up turned to the camera where a profile hides it (a twist read side on). The
-  The halberd's head is small for a boss's weapon. Torn hems (a cloak's edge ragged) and rags hung from the plate.
+  The halberd's head is small for a boss's weapon.
   The wolf's howl its own (a head thrown back), not a flinch.
   The undead word under the knight's sabatons and
   the cleric's robe (the door refuses both today). The knight's pauldrons, grey and large on a brute. A boss's look

@@ -128,3 +128,20 @@ describe('the fantasy headgear', () => {
     expect(heroPlanOf(heroRecord({ ...spec, headgear: hat })).adorn.some((A) => A.id === 'helmet')).toBe(true);
   });
 });
+
+// RAGS (outfit-plan.js `rags`): torn strips draped from the hips, and with `shoulders` from the arms' tops, each a ribbon
+// laid over what lies beneath, no two alike, torn at its end
+describe('rags hung off what is worn', () => {
+  it('drapes its strips from the hips and the shoulders, each its own length, width and torn end', () => {
+    const style = { id: 'rags-only', dials: { stylize: 0.4, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces: [{ kind: 'rags', count: 6, len: 0.5, shoulders: true }] };
+    const { plan: P } = plan({ cast: 'male', register: 'round', adorn: { type: 'armor', style: 'knight', without: ['pauldron'] }, outfit: { type: 'outfit', style } });
+    const rags = (P.adorn || []).filter((A) => /^rag/.test(A.id));
+    expect(rags.filter((A) => A.part === 'pelvis')).toHaveLength(6);
+    expect(rags.filter((A) => /^upperArm/.test(A.part))).toHaveLength(2);
+    for (const A of rags) { expect(A.signature.kind).toBe('ribbon'); expect(A.signature.drape.len).toBeGreaterThan(0); }
+    const S = rags.map((A) => A.signature);
+    expect(new Set(S.map((x) => x.drape.len)).size).toBeGreaterThan(2);
+    expect(new Set(S.map((x) => x.tip))).toEqual(new Set(['point', 'swallow']));
+    expect(plan({ cast: 'male', register: 'round', adorn: { type: 'armor', style: 'knight', without: ['pauldron'] }, outfit: { type: 'outfit', style } }).plan).toEqual(P);
+  });
+});

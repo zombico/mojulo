@@ -220,6 +220,19 @@ export const OUTFIT_KINDS = Object.freeze({
   streamers: { layer: 7, cls: 'loose', colour: 'secondary', compile: (p, B, G, I) => { const tail = p.on === 'tail', sides = tail ? [''] : p.pair ? ['R', 'L'] : [p.side ?? I.side ?? 'R'];
     return { adorn: sides.map((S) => ({ id: `${p.id ?? 'streamers'}${S}`, mode: 'band', part: tail ? B.tailPart : `upperArm${S}`, share: true, s: tail ? [0.2, 0.3] : [0.7, 0.78], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.005 * B.k), group: G({ colour: 'trim' }),
       signature: { kind: 'ribbon', k: tail ? 5 : 2, j: 2, spread: [-1, 1], spine: [[0, 0, 0], [0.012, -0.025, -0.09], [0.018, -0.045, -0.2], [0.014, -0.06, -0.32]].map((q) => q.map((v) => r3(v * B.k))), width: r3(0.034 * B.k), thick: r3(0.002 * B.k), tip: 'swallow', group: G(p) } })) }; } },
+  // RAGS: torn strips of cloth hung from the hips over whatever is worn there (a plate's fauld and tassets), and with
+  // `shoulders` from the tops of the arms: each a ribbon DRAPED over what lies beneath (station-loft-adorn.js), no two the
+  // same length or width (seeded by its place), its end torn to a point or a swallow's V. `count` strips round the hips
+  // (2–12, 7), `len` their length (m, 0.45)
+  rags: { layer: 7, cls: 'loose', colour: 'secondary', compile: (p, B, G) => {
+    const n = Math.max(2, Math.min(12, p.count ?? 7)), len = (p.len ?? 0.45) * B.k, out = [];
+    const rag = (i, base) => { const v = ((i * 7919 + 3) % 11) / 10;
+      return { kind: 'ribbon', k: 1, j: 1, drape: { len: r3(base * (0.7 + 0.5 * v)), links: 6, clear: r3(0.02 * B.k) }, width: r3((0.06 + 0.04 * v) * B.k), thick: r3(0.002 * B.k), taper: 0.45, tip: i % 3 ? 'point' : 'swallow', notch: 0.3, twist: r3((v - 0.5) * 50), group: G(p) }; };
+    for (let i = 0; i < n; i++) { const S = i % 2 ? 'L' : 'R', q = Math.floor(i / 2), t0 = r3(0.2 + ((q * 0.41) % 1.4));
+      out.push({ id: `${p.id ?? 'rag'}${i}`, mode: 'shell', part: 'pelvis', side: S, s: [1.5, 1.62], t: [t0, r3(t0 + 0.1)], nt: 4, ns: 2, mugen: r3(0.03 * B.k), thick: r3(0.003 * B.k), group: G(p), signature: rag(i, len) }); }
+    if (p.shoulders) ['R', 'L'].forEach((S, k) => out.push({ id: `${p.id ?? 'rag'}Sh${S}`, mode: 'band', part: `upperArm${S}`, share: true, s: [0.04, 0.1], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.012 * B.k), thick: r3(0.003 * B.k), group: G(p),
+      signature: { ...rag(n + k, len * 0.7), k: 3, j: 2, spread: [-1, 1], drape: { len: r3(len * 0.7), links: 5, clear: r3(0.02 * B.k), apart: r3(0.035 * B.k) } } }));
+    return { adorn: out }; } },
   // RITUAL: WARPAINT, painted bands on the forearms (and a stroke on the upper arm), the body's own faces, no geometry;
   // a PRAYER BAND, a cord band on the forearm carved with its runes
   warpaint: { layer: 0, cls: 'soft', colour: 'paint', compile: (p, B, G) => ({ paint: [{ part: 'foreArm', run: [0.22, 0.3], t: 'wrap', group: G(p) }, { part: 'foreArm', run: [0.4, 0.46], t: 'wrap', group: G(p) }, { part: 'upperArm', run: [0.3, 0.4], t: [0, 0.5], group: G(p) }] }) },
@@ -571,7 +584,9 @@ function cloakOf(p, B, G) {
   const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3(((p.ease ?? 0.02) + (B.round ?? 0)) * B.k), thick = r3(0.006 * B.k);
   return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), ...(p.rigidity !== undefined || p.material === undefined ? { rigidity: p.rigidity ?? 'soft' } : {}), material: p.material ?? 'wool',
     // (`lining`: the cloak's inside in a colour of its own, the same cloth's inner face: body-garment.js `insideGroup`; `arms: false`: off the arms)
-    ...(p.lining ? { insideGroup: G({ colour: p.lining }) } : {}), ...(p.arms === false ? { arms: false } : {}) },
+    ...(p.lining ? { insideGroup: G({ colour: p.lining }) } : {}), ...(p.arms === false ? { arms: false } : {}),
+    // (`torn`: its hem torn into tongues, the gaps torn up by that share of a metre (true: a fifth), `tongues` of them)
+    ...(p.torn ? { torn: { depth: r3((p.torn === true ? 0.2 : p.torn) * B.k), count: p.tongues ?? 5 } } : {}) },
     ...hoodOf(p, B, G, id, around, r3(ease * 1.2), 'wool')], ...trimOf(p, B, G, { hem: `${id}_cape` }) };
 }
 
@@ -688,7 +703,7 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
 
 // ─── the laws of visual interest (the Dressing Bible's), advisory ───
 /** how much of the outfit's area a kind covers, roughly (a skirt and bodice far more than a buckle) */
-const AREA = { charms: 0.3, feathers: 0.4, streamers: 0.4, warpaint: 0.3, prayerBand: 0.3, toolRoll: 0.5, trophy: 0.4, bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, crest: 0.3, bands: 0.4, midriff: 1.5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, thighPouch: 0.8, pack: 2, quiver: 1 };
+const AREA = { rags: 0.5, charms: 0.3, feathers: 0.4, streamers: 0.4, warpaint: 0.3, prayerBand: 0.3, toolRoll: 0.5, trophy: 0.4, bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, crest: 0.3, bands: 0.4, midriff: 1.5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, thighPouch: 0.8, pack: 2, quiver: 1 };
 export const ARCHETYPE_SHAPES = { ruler: ['bell', 'column'], hero: ['wedge'], outlaw: ['wedge', 'needle'], caregiver: ['bell', 'barrel'], sage: ['bell', 'column'], magician: ['bell', 'needle'], explorer: ['wedge', 'column'], innocent: ['bell', 'barrel'], everyman: ['column', 'barrel'], jester: ['needle', 'wedge'], lover: ['needle', 'bell'], creator: ['column', 'barrel'] };
 
 /** the cut's cloth as the laws count it: each layer a piece of its area in its colour role (a coat over a shirt shows

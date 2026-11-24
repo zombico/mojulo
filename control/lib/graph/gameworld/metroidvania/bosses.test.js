@@ -94,13 +94,14 @@ describe('the castle\'s bosses', () => {
     expect(steps.find((x) => x.key === `boss-${bellId}`)).toBeUndefined();
   }, 120000);
 
-  it('the knights wear no pauldrons but a cloak over their plate, and grim things at the hip', () => {
+  it('the knights wear no pauldrons but a torn cloak over their plate, rags hung off it, and grim things at the hip', () => {
     const knights = Object.keys(CASTLE_FIGURES).filter((k) => CASTLE_FIGURES[k].hero?.adorn?.style === 'knight');
     expect(knights.length).toBeGreaterThan(0);
     for (const k of knights) {
       const H = castleFigure(k).hero;
       expect(H.adorn.without).toContain('pauldron');
-      expect(H.outfit.style.pieces.map((p) => p.kind)).toEqual(expect.arrayContaining(['cloak', 'trophy']));
+      expect(H.outfit.style.pieces.map((p) => p.kind)).toEqual(expect.arrayContaining(['cloak', 'trophy', 'rags']));
+      expect(H.outfit.style.pieces.find((p) => p.kind === 'cloak').torn).toBeGreaterThan(0);
       expect(H.stylism.silhouette).not.toBe('knight');
     }
   });

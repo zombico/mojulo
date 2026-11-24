@@ -80,20 +80,21 @@ export const BOSS_DEFAULT = 'gate-warden';
 // (refused), so the Bellkeeper's outline is the bell's; the `knight` silhouette lays garment pauldrons over the armour's
 // own (a grey roof over the shoulders), so the knights' outline is the plain wedge
 const MYTH = Object.freeze({ genre: 'fantasy', register: 'mythic', canon: 'western' });
-// (the castle's creepy dress, the outfit's own pieces: a CLOAK to its length, wrapped round, lined in a colour of its own;
+// (the castle's creepy dress, the outfit's own pieces: a CLOAK to its length, wrapped round, lined in a colour of its own,
+// its hem TORN into tongues; RAGS of its cloth hung off the plate at the hips and the shoulders;
 // a SHROUD a dress of those pieces alone, worn over the plate (no top, no bottom: the armour's); a seeded card with
 // pieces added, and some dropped)
-const cloak = (hem, wrap, lining) => ({ kind: 'cloak', hem, wrap, material: 'wool', lining, hood: { worn: 'down', point: 'none' } });
+const cloak = (hem, wrap, lining, torn = null) => ({ kind: 'cloak', hem, wrap, material: 'wool', lining, hood: { worn: 'down', point: 'none' }, ...(torn ? { torn: torn.depth, tongues: torn.tongues } : {}) });
 const shroud = (id, pieces, tones) => ({ type: 'outfit', style: { id, dials: { stylize: 0.45, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces, tones } });
 const withPieces = (style, add, { drop = [] } = {}) => { const C = SEEDED_OUTFITS[style]; return { ...structuredClone(C), id: `${style}-castle`, pieces: [...C.pieces.filter((p) => !drop.includes(p.kind)), ...add] }; };
 export const CASTLE_FIGURES = Object.freeze({
   'gate-warden': Object.freeze({ hero: { name: 'The Gate Warden', cast: { pole: 'male', build: 'brute' }, head: 'landmark',
     adorn: { type: 'armor', style: 'knight', theme: 'death-knight', without: ['pauldron'], dials: { mass: 0.7, ornament: 1 } },
-    outfit: shroud('grave-shroud', [cloak('ankle', 0.75, 'accent'), { kind: 'collar', rise: 0.2 }, { kind: 'chain' }, { kind: 'trophy' }], { OutfitSecond: '#100c0c', OutfitAccent: '#4a0c10', OutfitTrim: '#6a6a60' }),
+    outfit: shroud('grave-shroud', [cloak('ankle', 0.75, 'accent', { depth: 0.26, tongues: 6 }), { kind: 'rags', count: 8, len: 0.55, shoulders: true, colour: '#6a6256' }, { kind: 'collar', rise: 0.2 }, { kind: 'chain' }, { kind: 'trophy' }], { OutfitSecond: '#100c0c', OutfitAccent: '#4a0c10', OutfitTrim: '#6a6a60' }),
     palette: { Skin: '#9a9a86' }, gear: { right: { item: 'staff', style: 'grave', parts: { head: 'halberd' }, dials: { mass: 1.6 } } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
   gatekeeper: Object.freeze({ hero: { name: 'The Gatekeeper', cast: { pole: 'male', build: 'brute' }, head: 'landmark',
     adorn: { type: 'armor', style: 'knight', without: ['pauldron'], dials: { mass: 0.7, ornament: 1 } }, headgear: 'skullKnight',
-    outfit: shroud('gate-rags', [cloak('calf', 0.65, 'accent'), { kind: 'charms', charm: 'bone' }, { kind: 'trophy' }, { kind: 'chain' }], { OutfitSecond: '#1a0c0c', OutfitAccent: '#5a1410', OutfitTrim: '#9a6a32' }),
+    outfit: shroud('gate-rags', [cloak('calf', 0.65, 'accent', { depth: 0.3, tongues: 5 }), { kind: 'rags', count: 6, len: 0.45, shoulders: true, colour: '#6a2a1e' }, { kind: 'charms', charm: 'bone' }, { kind: 'trophy' }, { kind: 'chain' }], { OutfitSecond: '#1a0c0c', OutfitAccent: '#5a1410', OutfitTrim: '#9a6a32' }),
     palette: { Skin: '#7a2a22', Plate: '#3a1a1a', Iron: '#2a1a1a', Bronze: '#9a6a32', Helm: '#2a1414', Trim: '#9a6a32', Rivet: '#c9a75a', Accent: '#8a1a1a', Leather: '#1e1212', Top: '#2a1416', Bottom: '#1a0e10', Shoes: '#120a0a' },
     gear: { right: { item: 'greatsword', style: 'brutal', dials: { mass: 1.3 } } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
   'bell-ringer': Object.freeze({ hero: { name: 'The Bell Ringer', cast: { pole: 'male', build: 'stout' }, head: 'landmark',
@@ -116,7 +117,7 @@ export const CASTLE_FIGURES = Object.freeze({
   'great-bell': Object.freeze({ bell: { card: 'great-bell' } }),
   'lord-of-the-keep': Object.freeze({ hero: { name: 'The Lord of the Keep', cast: 'male', head: 'anime', animeStyle: 'shonen-high', animeBody: 'toji',
     look: 'rival', hair: ['swept-back'], expression: 'deadpan',
-    outfit: { type: 'outfit', style: withPieces('noble', [{ kind: 'collar', rise: 0.24, flare: 3 }, cloak('ankle', 0.8, 'base')], { drop: ['mantle'] }) },
+    outfit: { type: 'outfit', style: withPieces('noble', [{ kind: 'collar', rise: 0.24, flare: 3 }, cloak('ankle', 0.8, 'base', { depth: 0.16, tongues: 7 })], { drop: ['mantle'] }) },
     palette: { Skin: '#ece4ea', Hair: '#d9d6e0', Outer: '#0e0a10', OutfitBase: '#4a0a1a', OutfitSecond: '#1a0a12', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a', Top: '#3a0a18', Bottom: '#140a10', Shoes: '#0e0a0c' },
     stylism: { ...MYTH, canon: 'anime', silhouette: 'balance' } } }),
 });
