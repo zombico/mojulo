@@ -48,6 +48,7 @@ import { ensureBookLoaded } from '@/lib/graph/views/recipe-book/loader';
 import { collectFaceTextures } from '@/lib/graph/landscape/surface-textures';
 import { formRoomMaps, ROOM_MAPS } from '@/lib/graph/form/room-form';
 import { readFinish } from '@/lib/graph/scene/page-light';
+import { townReflect } from '@/lib/graph/form/town-gloss';
 import { solveHydraulics, mistAir, hydraulicsFaces } from '@/lib/graph/materials/hydraulics';
 import { normalizeJets } from '@/lib/graph/materials/jet';
 import { resamplePlans, firstReading } from '@/lib/graph/matte-paint/detail';
@@ -1018,7 +1019,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // says otherwise, and a page that is paint is as it was)
   { const L = sketch.manifest.light, said = L && typeof L === 'object' && L.finish !== undefined;
     const fin = payload && !unshaded ? (said ? readFinish(L) : payload.form && (payload.form.land || payload.form.room) ? readFinish({ finish: true }) : null) : null;
-    if (fin) payload.finish = fin; }
+    if (fin) payload.finish = fin;
+    // (a town's glass, form/town-gloss.js: given back the sky it stands under where its finish asks to reflect; on any
+    // other page its gloss is dropped and the glass is the wall it was baked as)
+    const T = payload && payload.form && payload.form.town;
+    if (T && T.gloss) { const { gloss, ...rest } = T, R = fin && fin.reflect ? townReflect(payload.sky, gloss) : null; payload.form = { ...payload.form, town: R ? { ...rest, reflect: R } : rest }; } }
   // (a read in another era than its cube's says so where the cube's look is read back)
   if (payload && payload.geocube && viewOpts.era !== undefined && payload.geocube.era !== era) payload.geocube = { ...payload.geocube, era };
   // THE WATER, LIVE (era/water-live.js): a 'form' era's read on the page draws a trail's river and falls as they move,

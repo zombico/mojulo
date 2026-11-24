@@ -75,6 +75,14 @@ the glass, the lamps' bloom) and the view `cone`. Under the cone the street's ki
 traffic past 110 m is drawn as each vehicle's outline, cut on the page from its own model
 (`scene/channels/flow.js`, `FLOW_LOD`).
 
+What its surfaces give back, where the finish asks to reflect: the glass (a window's pane, a shop's glazing, a glass
+tower's curtain wall) is baked as its walls are and drawn as a surface that mirrors the sky by Fresnel with the sun's
+highlight (`form/town-gloss.js`, the form render's `reflect`); a parked car's paint and trim under a clear coat the same
+way; the traffic and the car the player takes under the same coat on their own pooled bodies
+(`scene/channels/car-paint.js`). A road, a walk and a deck's underside are solved on a face turned as they lie
+(`form/sun-light.js` `level`), so a low sun leaves them their own paint, and a deck's underside wears its concrete. No
+building stands on air: a wall over ground that falls away from it is carried down to it on a plinth.
+
 ## Locales
 
 `hijackCityWorld({ locale })` stands the game in a place (`gameworld/locales.js` `LOCALES`, one row each): its suburbs'

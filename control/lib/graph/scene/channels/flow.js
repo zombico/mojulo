@@ -137,7 +137,7 @@ export function readFlow(flow) {
 }
 
 /** The page's script: `stepFlow(t)` (t in ms, the world clock), `window.__mojFlow` its probe. */
-export function flowChannelScript(flow, { play = false } = {}) {
+export function flowChannelScript(flow, { play = false, coat = false } = {}) {
   const F = { T: flow.T, signals: flow.signals, near: flow.near ?? 320, kinds: flow.kinds.map((k) => ({ model: k.model, ...(k.extra ? { extra: k.extra } : {}), len: k.len, ...(play ? { wid: k.wid ?? 1.9 } : {}) })), tints: flow.tints, lanes: flow.lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, ground: L.ground })), cars: flow.cars, ...(flow.lod ? { lod: flow.lod } : {}) };
   return `
 // ---- flow channel (a metro's traffic: lanes stepped and vehicles drawn near the camera only) ----
@@ -148,11 +148,13 @@ ${TRAFFIC_MODEL_SOURCE}
 const __flCycle = FLOW.signals[0].cycle;
 // each kind's parts: instanced meshes on the pooled templates, sized to its vehicles, drawn as many as are near
 const __flMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-const __flN = FLOW.kinds.map(() => 0); for (const c of FLOW.cars) __flN[c[1]]++;
+${coat ? `// (the near bodies under a clear coat, channels/car-paint.js: the paint's and the trim's, each its own; the far ones plain)
+const __flCoat = { paint: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'paint'), trim: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'trim') };
+` : ''}const __flN = FLOW.kinds.map(() => 0); for (const c of FLOW.cars) __flN[c[1]]++;
 const __flParts = FLOW.kinds.map((k, i) => ['paint', 'trim', k.extra || null].filter(Boolean).map((part) => {
   const geo = typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|' + part] : null;
   if (!geo || !__flN[i]) return null;
-  const im = new THREE.InstancedMesh(geo, __flMat, __flN[i]);
+  const im = new THREE.InstancedMesh(geo, ${coat ? '__flCoat[part] || __flMat' : '__flMat'}, __flN[i]);
   im.count = 0; im.frustumCulled = false; im.userData.g = 'flow:' + k.model;
   if (part === 'paint') im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(__flN[i] * 3), 3);
   scene.add(im);

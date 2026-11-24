@@ -35,3 +35,8 @@
 - No building floats off its ground any more: where the land falls away under a wall (a slope, a terrace, a
   waterfront ramp), that wall is carried down to the ground on a plinth, and a door level with its plaza keeps its
   threshold. The hill city's land eases down to its water instead of standing on a cliff over it.
+- The city's glass gives back the sky: windows, shop fronts and glass towers mirror it by angle and catch the sun's
+  highlight, where before they were painted flat and dark. Parked cars wear a clear coat; the traffic and the car you
+  drive gleam the same way, the sky in their roofs and doors and the sun glinting off their panels.
+- Roads, walks and plazas keep their own colour under a low sun instead of turning navy, and a highway's underside is
+  textured concrete instead of a dark flat slab.

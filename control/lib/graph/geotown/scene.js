@@ -63,6 +63,7 @@ import { pitchOf, trackOf, diamondOf, courtsOf, hoopsOf, lotOf, fieldhouseOf, bl
 import { backTouch } from './laws.js';
 import { materialContext, wordTile } from '../era/arch-style.js';
 import { WALK } from '../era/out-ikebana.js';
+import { TOWN_GLOSS, glazed } from '../form/town-gloss.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { cubeLight } from '../era/cube-light.js';
 import { makeSunShadow } from '../era/sun.js';
@@ -89,7 +90,9 @@ const UPRIGHT = new Set(['kerb', 'fence-board', 'fence-brick', 'fence-stone']);
 const FINISH_SEEDS = { 'fence-board': 163, 'fence-brick': 165, 'fence-stone': 167, road: 151, walk: 141, furnish: 143, path: 145, side: 147, service: 149, 'park-path': 153, step: 155, kerb: 157, drive: 161 };
 // a building's kit family: a mansion's its own
 /** The groups the form render's bake leaves as painted: glass (the page's own), a sign and a canvas (their colour their own). */
-const FORM_KEEP = new Set(['geotown:glass', 'geotown:sign', 'geotown:canvas']);
+const FORM_KEEP = new Set(['geotown:sign', 'geotown:canvas']);
+// (its glass baked as its walls are and drawn as a surface that gives back the sky: form/town-gloss.js)
+const GLAZED = Object.freeze({ 'geotown:glass': TOWN_GLOSS.window });
 /** How far off a wall its sun test starts (m): clear of the courses, surrounds, panels and frames laid over it. */
 const FORM_LIFT = 0.3;
 // a dressed face's paint, its detail's lift taken back out (matte-paint/detail.js): the colour its base is solved from
@@ -1211,14 +1214,17 @@ export function assembleGeotownScene(m, ctx = {}) {
   if (formB) {
     const CL = cubeLight(cube, m.hour !== undefined ? { hour: readHour(m.hour) } : {}), light = { sun: CL.sun.linear, ambient: CL.ambient.linear, dir: CL.sun.dir };
     const built = (f) => typeof f.group === 'string' && (f.group.startsWith('town:') || f.group.startsWith('geotown:')) && !FORM_KEEP.has(f.group) && !f.group.startsWith('geotown:tree');
+    for (let i = 0; i < faces.length; i++) if (GLAZED[faces[i].group]) faces[i] = glazed(faces[i], GLAZED);
     const idx = faces.map((f, i) => (built(f) ? i : -1)).filter((i) => i >= 0), mine = idx.map((i) => (faces[i].textureLit ? unlifted(faces[i]) : faces[i]));
     // (a building's dress lies in thin layers over its walls: the test starts clear of them, FORM_LIFT)
     // (what the town's ground throws back onto a wall and under an eave: its paving's, the cube's stone as solved)
     const ground = CL.linearBases.stone ?? CL.linearBases.floor ?? null;
-    const B = sunLitFaces(mine, light, { shadow: makeSunShadow(mine, light.dir), lift: FORM_LIFT, ...(ground ? { ground } : {}) });
+    // (a road, a walk, a yard: its base solved on a face turned up, so a low sun leaves it its own paint)
+    const B = sunLitFaces(mine, light, { shadow: makeSunShadow(mine, light.dir), lift: FORM_LIFT, level: true, ...(ground ? { ground } : {}) });
     idx.forEach((i, k) => { faces[i] = B.faces[k]; });
     const far = [light.dir[0] * 1e6, light.dir[1] * 1e6, light.dir[2] * 1e6].map(r5);
-    formTown = { lights: [{ at: far, key: light.sun, radius: 1e9, live: true }], ambient: light.ambient, fall: 2, sun: { ground: skyAt([0, 0, -1], light, ground).map(r5) }, keep: [...FORM_KEEP], panes: [], ...(B.unreached.length ? { unreached: B.unreached } : {}) };
+    const present = new Set(faces.map((f) => f.group)), gloss = Object.fromEntries(Object.entries(GLAZED).filter(([g]) => present.has(g)));
+    formTown = { lights: [{ at: far, key: light.sun, radius: 1e9, live: true }], ambient: light.ambient, fall: 2, sun: { ground: skyAt([0, 0, -1], light, ground).map(r5) }, keep: [...FORM_KEEP], panes: [], ...(B.unreached.length ? { unreached: B.unreached } : {}), ...(Object.keys(gloss).length ? { gloss } : {}) };
   }
   // (the shutters' leaves, marched near the eye: channels/leaf-relief.js; a town with none carries no key)
   const leaves = leafPage(new Set(faces.map((f) => f.texture)));

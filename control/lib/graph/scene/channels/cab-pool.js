@@ -30,12 +30,12 @@ export function cabView(size, base, V = { see: 25, clear: 0.35, back: 3.5, look:
   const height = Math.max(base.height, ((H + V.clear) * (g + dist)) / (g + L / 2));
   return { dist: r3(dist), height: r3(height), lookH: r3(Math.max(base.lookH, H * V.look)) };
 }
-export function cabPoolScript({ mayhem = false, patrol = false } = {}) {
+export function cabPoolScript({ mayhem = false, patrol = false, coat = false } = {}) {
   return `
 // --- the city's cars as bodies: drawn from the pooled templates; one taken from the traffic ---
 (function () {
   if (typeof __POOLS === 'undefined') return;
-  const TRIM = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), made = new Map();
+  const TRIM = ${coat ? '__carCoat(' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })${coat ? ", 'trim')" : ''}, made = new Map();
   const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90;
   ${cabView.toString()}
   const CAB_VIEW = ${JSON.stringify(CAB_VIEW)};${mayhem ? `
@@ -45,7 +45,7 @@ export function cabPoolScript({ mayhem = false, patrol = false } = {}) {
     if (b && b.model === P.model && b.tint === P.tint) return b;
     if (b) scene.remove(b.g);
     const g = new THREE.Group(), paint = __POOLS[P.model + '|paint'], trim = __POOLS[P.model + '|trim'];
-    if (paint) g.add(new THREE.Mesh(paint, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, color: new THREE.Color(P.tint[0], P.tint[1], P.tint[2]) })));
+    if (paint) g.add(new THREE.Mesh(paint, ${coat ? '__carCoat(' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, color: new THREE.Color(P.tint[0], P.tint[1], P.tint[2]) })${coat ? ", 'paint')" : ''}));
     if (trim) g.add(new THREE.Mesh(trim, TRIM));
     // (never footing: the ground probe is a ray down through the scene's meshes, and a car that found its own roof
     // under its nose would lie to that, and again the next frame: it wobbles)
@@ -59,7 +59,7 @@ ${patrol ? `  // a police car: its model's body in its livery, a light bar over 
     let b = patrols.get(e.id);
     if (b) return b;
     const P = e.carBody.pool, g = new THREE.Group(), paint = __POOLS[P.model + '|paint'], trim = __POOLS[P.model + '|trim'];
-    if (paint) g.add(new THREE.Mesh(paint, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, color: new THREE.Color(P.tint[0], P.tint[1], P.tint[2]) })));
+    if (paint) g.add(new THREE.Mesh(paint, ${coat ? '__carCoat(' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, color: new THREE.Color(P.tint[0], P.tint[1], P.tint[2]) })${coat ? ", 'paint')" : ''}));
     if (trim) g.add(new THREE.Mesh(trim, TRIM));
     if (paint && !paint.boundingBox) paint.computeBoundingBox();
     const bb = paint && paint.boundingBox, top = bb ? bb.max.z : 1.45, mid = bb ? (bb.min.y + bb.max.y) / 2 - 0.15 : 0;

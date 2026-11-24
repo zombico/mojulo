@@ -19,7 +19,8 @@
  *                                  storeys, floorH, use: 'residential' | 'office' | 'mixed', ground: 'shops' | 'entries'
  *                                  | 'lobby' | 'windows' | 'none', windows?: false (its ground only), balconies?: true,
  *                                  palette: { frame, shop, sign, awning, door, rail } (lists of hex), frames? (the
- *                                  windows' baked paints: a window its frame's variant), open?: true | [a bay's
+ *                                  windows' baked paints: a window its frame's variant), panes?: true (a window's glass
+ *                                  its own stamp, `win-pane…`: the form render's), open?: true | [a bay's
  *                                  place along it…] (its shops OPEN, each or those named walked into: wider bays, no
  *                                  leaf in an open one's door), signs?, sinks? ({ <bay>: … }: an open shop's sign's
  *                                  colour, and how far its front stands under the wall's foot) }; R its dice
@@ -121,11 +122,12 @@ const PART_OF_PIECE = { win: { glass: 'unit', frame: 'unit', stone: 'unit' }, sh
 const TINTED = new Set(Object.values(PART_OF_PIECE).flatMap((m) => Object.entries(m).filter(([part]) => TINTS.has(part)).map(([, g]) => g)));
 
 /** Every piece's parts each way, lit: { '<piece>-<part>:<facing>': faces }; `flat`, each face its paint under no light
- *  (the form render's, which bakes the day's light beside it: geocity/scene.js). */
+ *  (the form render's, which bakes the day's light beside it: geocity/scene.js); `panes`, a window's glass its own
+ *  template (`win-pane…`), its frame and sill the unit's. */
 const MEMO = new Map();
-export function frontageTemplates(L, { frames = [], flat = false } = {}) {
+export function frontageTemplates(L, { frames = [], flat = false, panes = false } = {}) {
   // (once a light and a set of paints: a scene asks them every build)
-  const memo = JSON.stringify(flat ? [L, frames, 'flat'] : [L, frames]);
+  const memo = JSON.stringify(flat ? [L, frames, 'flat', ...(panes ? ['panes'] : [])] : [L, frames]);
   if (MEMO.has(memo)) return MEMO.get(memo);
   const out = {};
   for (const [f, n] of Object.entries(FACINGS)) {
@@ -138,7 +140,9 @@ export function frontageTemplates(L, { frames = [], flat = false } = {}) {
       // (a block's windows each its bay and storey over: the template's nominal bay and storey, stretched to the wall's)
       const items = V.cols * V.rows === 1 ? items0 : Array.from({ length: V.cols * V.rows }, (_, i) => { const du = (i % V.cols - (V.cols - 1) / 2) * WIN_BAY, dz = Math.floor(i / V.cols) * FRONTAGE.window.h; return items0.map((it) => (it.quad ? { ...it, quad: it.quad.map(([u, v, z]) => [u + du, v, z + dz]) } : { ...it, box: [it.box[0] + du, it.box[1] + du, it.box[2], it.box[3], it.box[4] + dz, it.box[5] + dz] })); }).flat();
       for (const it of items) {
-      const group = PART_OF_PIECE[piece][it.part] + V.tag, key = `${piece}-${group}:${f}`, hex = TINTS.has(it.part) ? V.frame ?? '#ffffff' : PART_HEX[it.part] ?? GLASS;
+      // (`panes`: a window's glass its own template, one a block's size, so the form render can give it back the sky)
+      const pane = panes && piece === 'win' && it.part === 'glass';
+      const group = pane ? `pane${V.tag ? V.tag.slice(V.tag.indexOf('x')) : ''}` : PART_OF_PIECE[piece][it.part] + V.tag, key = `${piece}-${group}:${f}`, hex = TINTS.has(it.part) ? V.frame ?? '#ffffff' : PART_HEX[it.part] ?? GLASS;
       const list = out[key] ?? (out[key] = []);
       if (it.quad) { list.push(face(it.quad, it.n, hex)); continue; }
       const [u0, u1, v0, v1, z0, z1] = it.box;
@@ -193,7 +197,12 @@ export function frontsOf(wall, spec, R) {
   const put = (piece, u, z, tint, scale = null) => {
     const pos = [r2(a[0] + t[0] * u), r2(a[1] + t[1] * u), r2(z)];
     // (a window of a baked frame, or a block of them: its variant, untinted)
-    if (piece === 'win' && spec.frames?.length) { out.push({ key: `win-unit${Math.max(0, spec.frames.indexOf(tint.all))}x${tint.block ?? '11'}:${facing}`, pos, ...(scale ? { scale } : {}) }); return; }
+    if (piece === 'win' && spec.frames?.length) {
+      out.push({ key: `win-unit${Math.max(0, spec.frames.indexOf(tint.all))}x${tint.block ?? '11'}:${facing}`, pos, ...(scale ? { scale } : {}) });
+      if (spec.panes) out.push({ key: `win-panex${tint.block ?? '11'}:${facing}`, pos, ...(scale ? { scale } : {}) });
+      return;
+    }
+    if (piece === 'win' && spec.panes) out.push({ key: `win-pane:${facing}`, pos, ...(scale ? { scale } : {}) });
     for (const { g, tinted } of partsOf(piece)) out.push({ key: `${piece}-${g}:${facing}`, pos, ...(scale ? { scale } : {}), ...(tinted && tint ? { tint: TINT(tint[g] ?? tint.all) } : {}) });
   };
   if (L < 3 || storeys < 1) return out;

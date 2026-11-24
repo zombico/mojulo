@@ -93,6 +93,7 @@ import { subwayUnder, subwayPlan, withGeocitySubwayLevel } from './subway.js';
 import { registerLevelKind } from '../structure/level.js';
 import { streetcarFaces, STREETCAR } from './streetcar.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
+import { TOWN_GLOSS, glazed } from '../form/town-gloss.js';
 import { cubeLight } from '../era/cube-light.js';
 import { makeSunShadow } from '../era/sun.js';
 import { readHour } from '../era/geocube-hours.js';
@@ -276,9 +277,16 @@ function coloursOf(cube) {
   };
 }
 
-/** The groups the form render's bake leaves as painted (glass, a lit window, a detail lot's skin), and how far off a
- *  wall its sun test starts (m): as a town's (geotown/scene.js). */
-const FORM_KEEP = new Set(['geocity:glass', 'geocity:night-window', 'geocity:facade']), FORM_LIFT = 0.3;
+/** The groups the form render's bake leaves as painted (a lit window, a detail lot's skin), and how far off a wall its
+ *  sun test starts (m): as a town's (geotown/scene.js). Its glass is baked and gives back the sky (form/town-gloss.js):
+ *  each glazed group's gloss, a window's, a glass tower's curtain wall's, a composed town's windows, a parked car's paint and trim. */
+const FORM_KEEP = new Set(['geocity:night-window', 'geocity:facade']), FORM_LIFT = 0.3;
+const GLAZED = Object.freeze({ 'geocity:glass': TOWN_GLOSS.window, 'geocity:curtain': TOWN_GLOSS.curtain, 'geotown:glass': TOWN_GLOSS.window,
+  // (the frontage's: a window's pane, one and a block's, frontage.js `panes`; a shop's, a lobby's glazing)
+  'geocity:front-win-pane': TOWN_GLOSS.window, 'geocity:front-win-panex11': TOWN_GLOSS.window, 'geocity:front-win-panex42': TOWN_GLOSS.window,
+  'geocity:front-shop-glass': TOWN_GLOSS.shop, 'geocity:front-shopopen-glass': TOWN_GLOSS.shop, 'geocity:front-lobby-glass': TOWN_GLOSS.shop,
+  // (a parked car's paint under its clear coat, its trim; the traffic's, channels/car-paint.js)
+  'geocity:vehicle-paint': TOWN_GLOSS.paint, 'geocity:vehicle-trim': TOWN_GLOSS.trim });
 /** A back land's roles whose ground no grass grows through (geotown/scene.js's CLAIMED, and a lane's paving). */
 const BACK_CLAIMED = new Set(['paving', 'deck', 'shed', 'roof', 'garage', 'gravel', 'soil', 'sand', 'water', 'coping', 'timber', 'chips', 'mulch', 'compost', 'steel', 'dirt', 'court', 'track', 'drive', 'car', 'lane', 'park-path', 'step', 'bin', 'line']);
 /** A level face wider than this (m) is ground, and shades nothing; the sun test's grid for a city (m). */
@@ -336,7 +344,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (want && n[0] * want[0] + n[1] * want[1] + n[2] * want[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
     if (!want && n[2] < 0) { c = c.slice().reverse(); n = n.map((x) => -x); }
     const fill = formB ? hex : shadeHex(hex, n, LIGHT), F0 = { corners: c.map(P3), normal: P3(n), outNormal: P3(n), group, fill, cornerFills: c.map(() => fill) }, E = FIN[group];
-    faces.push(E && (E.floor ? Math.abs(n[2]) > 0.7 : Math.abs(n[2]) < 0.3) ? dressTownFace(F0, group, FIN) : F0);
+    // (a wall's finish on its face turned down too, a deck's underside, a cap beam's: its tile laid flat, never bare)
+    faces.push(E && (E.floor ? Math.abs(n[2]) > 0.7 : Math.abs(n[2]) < 0.3) ? dressTownFace(F0, group, FIN) : E && !E.floor && !E.roof && n[2] < -0.7 ? dressTownFace(F0, group, { [group]: { ...E, floor: true } }) : F0);
   };
   // the street's kit stamped where it stands: each template's transforms, drawn near the camera only
   const KIT = kitTemplates(LIGHT, { gauge: d.metro.roads.streetcar.gauge }), stamps = new Map();
@@ -2106,7 +2115,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (a house its door on its street, windows round it)
       // (a row of shops walked into: its ground its shops, each open)
       const side = F.b.sides?.[f], ground = F.open ? 'shops' : F.house ? (f === F.house ? 'entries' : 'windows') : groundOf(F.use, side, F.b);
-      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
+      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, ...(formB ? { panes: true } : {}), frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
         (frontStamps.get(p.key) ?? frontStamps.set(p.key, []).get(p.key)).push({ pos: P3(p.pos), ...(p.scale ? { scale: p.scale } : {}), ...(p.tint ? { tint: p.tint } : {}) });
       }
       counts.fronts = (counts.fronts ?? 0) + 1;
@@ -2213,8 +2222,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (in the form render a piece carries its paint under no light and the day's light beside it, form/sun-light.js: a
     // template is one a facing and never turned, so the sky and the sun by its facing ride its own corners; the sun's
     // shadow is the page's, the hour's map)
-    const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame, ...(formB ? { flat: true } : {}) }), frontLit = formB ? formFront() : null;
-    for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { repeats.push({ group: `geocity:front-${key.split(':')[0]}`, template: frontLit ? frontLit(FT[key]) : FT[key], transforms, near: NEAR, occlude: false, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
+    const FT = frontageTemplates(LIGHT, { frames: FRONT_PAINT.frame, ...(formB ? { flat: true, panes: true } : {}) }), frontLit = formB ? formFront() : null;
+    for (const [key, transforms] of [...frontStamps].sort(([a], [b]) => a.localeCompare(b))) { const fg = `geocity:front-${key.split(':')[0]}`; repeats.push({ group: fg, template: frontLit ? frontLit(FT[key].map((f) => glazed(f, GLAZED, fg))) : FT[key], transforms, near: NEAR, occlude: false, ...kit }); counts.frontPieces = (counts.frontPieces ?? 0) + transforms.length; }
   }
   // the street trees grown (vegetation/pool.js): a few variants a species, each at the detail the cameras see it at,
   // their crowns raised over the walk, drawn near the camera only like the kit
@@ -2251,16 +2260,26 @@ export function assembleGeocityScene(m, ctx = {}) {
   let formTown = null;
   if (formB) {
     const { CL, light, ground } = formDay();
+    // (its glass gives back the sky, form/town-gloss.js: a window and a glass tower's walls, its curtain wall, baked as
+    // the walls are and drawn as a surface that mirrors, the specular channel's painted sheen given over to it)
+    for (let i = 0; i < faces.length; i++) {
+      const f = faces[i];
+      if (f.spec !== GLASS_SPEC || (f.group !== 'geocity:glass' && f.group !== 'geocity:tower')) continue;
+      const { spec: _s, ...rest } = f;
+      faces[i] = glazed({ ...rest, group: f.group === 'geocity:tower' ? 'geocity:curtain' : f.group }, GLAZED);
+    }
     const built = (f) => typeof f.group === 'string' && f.group.startsWith('geocity:') && f.cornerLight === undefined && !FORM_KEEP.has(f.group) && !FORM_GROUND.includes(f.group) && !inFaces.has(f);
     const idx = faces.map((f, i) => (built(f) ? i : -1)).filter((i) => i >= 0), mine = idx.map((i) => (faces[i].textureLit ? { ...faces[i], fill: unlift(faces[i].fill) } : faces[i]));
     // (what shades in a bake: the massing, not the ground it stands on: a level face wider than FORM_SPAN is a road, a
     // walk or a deck, which shades nothing above it; the test's grid a city's, FORM_CELL)
     const wide = (f) => { let lo = [Infinity, Infinity], hi = [-Infinity, -Infinity]; for (const c of f.corners) for (let k = 0; k < 2; k++) { lo[k] = Math.min(lo[k], c[k]); hi[k] = Math.max(hi[k], c[k]); } return Math.max(hi[0] - lo[0], hi[1] - lo[1]) > FORM_SPAN; };
     const shadow = ctx.liveSun ? null : makeSunShadow(mine.filter((f) => !(Array.isArray(f.normal) && f.normal[2] > 0.9 && wide(f))), light.dir, { cell: FORM_CELL });
-    const B = sunLitFaces(mine, light, { ...(shadow ? { shadow } : {}), lift: FORM_LIFT, ...(ground ? { ground } : {}) });
+    // (a road, a walk, a plaza: its base solved on a face turned up, so a low sun leaves it its own paint)
+    const B = sunLitFaces(mine, light, { ...(shadow ? { shadow } : {}), lift: FORM_LIFT, level: true, ...(ground ? { ground } : {}) });
     idx.forEach((i, k) => { faces[i] = B.faces[k]; });
     const far = [light.dir[0] * 1e6, light.dir[1] * 1e6, light.dir[2] * 1e6].map(r5);
-    formTown = { lights: [{ at: far, key: light.sun, radius: 1e9, live: true }], ambient: light.ambient, fall: 2, sun: { ground: skyAt([0, 0, -1], light, ground).map(r5) }, keep: [...FORM_KEEP], panes: [], ...(B.unreached.length ? { unreached: B.unreached } : {}) };
+    const present = new Set([...faces.map((f) => f.group), ...repeats.map((r) => r.group)]), gloss = Object.fromEntries(Object.entries(GLAZED).filter(([g]) => present.has(g)));
+    formTown = { lights: [{ at: far, key: light.sun, radius: 1e9, live: true }], ambient: light.ambient, fall: 2, sun: { ground: skyAt([0, 0, -1], light, ground).map(r5) }, keep: [...FORM_KEEP], panes: [], ...(B.unreached.length ? { unreached: B.unreached } : {}), ...(Object.keys(gloss).length ? { gloss } : {}) };
   }
   // the live light's SUN SHARE (ctx.liveSun: a page taking live shadows, scene/live-light.js): each face's key part of
   // its light by its normal (city/plan/scene.js keyShare), so a shadow takes the sun away and leaves the sky; a lit

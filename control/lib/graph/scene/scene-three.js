@@ -87,6 +87,7 @@ import { faunaScript } from './channels/fauna.js';
 import { faunaPetScript } from './channels/fauna-pet.js';
 import { mountRideScript } from './channels/mount-ride.js';
 import { cabPoolScript } from './channels/cab-pool.js';
+import { carPaintScript } from './channels/car-paint.js';
 import { mapScript } from './channels/map-channel.js';
 import { bagScript } from './channels/bag-channel.js';
 import { phoneScript } from './channels/phone-channel.js';
@@ -1119,8 +1120,12 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // the hero's phone (channels/phone-channel.js): the givers met and their threads on P, on mana-ui in the HUD's look; none ⇒ ''
   const phoneBlock = phoneUi && manaHud && !capture ? phoneScript(phoneUi, manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : '';
   // the city's cars as bodies (channels/cab-pool.js): a cab drawn from the pooled templates, one taken from the traffic; none ⇒ ''
-  const cabPoolBlock = hasPool && entityList.some((e) => e.mount && e.mount.cab && (e.mount.pool || e.mount.spare)) ? cabPoolScript({ mayhem: hasEvents && events.reactions.some((r) => r && typeof r.on === 'string' && r.on.startsWith('mayhem:')), patrol: entityList.some((e) => e.carBody) }) : '';
-  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab) }) : '';
+  // (their paint under a clear coat, channels/car-paint.js: the sky by Fresnel and the sun's glint, on a page out of doors
+  // whose finish asks to reflect; any other page draws them as it did)
+  const coatEnv = hasPool && (flow || entityList.some((e) => e.mount && e.mount.cab)) && finish && finish.reflect && !PL.indoor ? skyEnv(PL.sky) : null;
+  const carPaintBlock = coatEnv ? carPaintScript(coatEnv, PL.toLight) : '', coat = !!carPaintBlock;
+  const cabPoolBlock = hasPool && entityList.some((e) => e.mount && e.mount.cab && (e.mount.pool || e.mount.spare)) ? cabPoolScript({ ...(coat ? { coat } : {}), mayhem: hasEvents && events.reactions.some((r) => r && typeof r.on === 'string' && r.on.startsWith('mayhem:')), patrol: entityList.some((e) => e.carBody) }) : '';
+  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab), ...(coat ? { coat } : {}) }) : '';
   // a city's aviation lights (channels/beacons.js): blinking over its tallest on the world clock; none ⇒ ''
   const beaconsSpec = readBeacons(beacons), beaconsBlock = beaconsSpec ? beaconsChannelScript(beaconsSpec) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
@@ -1758,7 +1763,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${Array.isArray(flames) && flames.length ? flamesScript(flames, { hot: !!bloomOn }) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${phoneBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${seaBlock}${marineBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${carPaintBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${phoneBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${seaBlock}${marineBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
