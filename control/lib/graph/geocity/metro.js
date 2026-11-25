@@ -125,7 +125,7 @@ import { readEnter } from '../retail/store-enter.js';
 import { resolveGrammar } from '../city/plan/grammars.js';
 import { grammarAtPlay } from '../city/plan/grammar.js';
 import { PATTERNS, PATTERN_IDS } from '../geotown/pattern.js';
-import { CROWD_WORDS } from './crowd.js';
+import { CROWD_WORDS, PEOPLE_WORDS } from './crowd.js';
 
 export const SIDES = Object.freeze(['n', 'e', 's', 'w']);
 export const RINGS = Object.freeze({
@@ -266,7 +266,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -373,6 +373,8 @@ export function readGeocity(spec = {}) {
     no(`civic is false or { worship: { core, frame, outskirts } 0–1, cemetery: the same, faiths: weights over ${FAITHS.join(', ')}, block: [least, most] m², lot: [least, most] m }`);
   // (its played pavements' crowd, crowd.js: quiet, busy or packed, in sixes)
   if (M.crowd !== undefined && !CROWD_WORDS.includes(M.crowd)) no(`crowd is ${CROWD_WORDS.join(', ')}: how many sixes of people walk its played pavements`);
+  if (M.people !== undefined && !PEOPLE_WORDS.includes(M.people)) no(`people is ${PEOPLE_WORDS.join(', ')}: who walks its played pavements`);
+  if (M.mix !== undefined && typeof M.mix !== 'string') no('mix is a locale (gameworld/street-cast.js STREET_MIX): whose faces its people are drawn from');
   // (its street lamps' light at night, geocity/scene.js NIGHT_CITY: a colour, sodium's amber to an LED's white)
   if (M.lamps !== undefined && !(typeof M.lamps === 'string' && /^#[0-9a-f]{6}$/i.test(M.lamps))) no('lamps is a colour, "#rrggbb": its street lamps\' light at night');
   // (its alleys, blocks.js: `false` none; else the share of each ring's built blocks cut by one, its width and the least

@@ -1524,6 +1524,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // meshRef entries were consumed by the bind-back block above (static
         // scenery lowered into payload.faces — not an entity body).
         if (typeof rawSpec.meshRef === 'string') continue;
+        // (a realistic person already made from these words, figures/crowd-kept.js: its two crowd figures off the disk,
+        // never baked again)
+        if (rawSpec.crowd === 'real') { const { realCrowdRead } = await import('@/lib/graph/figures/crowd-kept.js'); const kept = realCrowdRead(name, rawSpec); if (kept) { Object.assign(payload.figures, kept); continue; } }
         // HERO bodies (playscape/player.js): a figures-map entry may be a HERO, inline (`hero`: the hero door's spec, as
         // mint_solid({ kind: 'layered', via: 'hero', spec }) takes it) or STORED (`heroRef`: a layered hero sketch). It
         // resolves through the layered kind and hands over the packed rig the World page already plays as a
@@ -1595,6 +1598,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           const moves = swing ? (await import('@/lib/graph/gameworld/feel/hero-juice.js')).heroJuice(swing, figure) : null;
           // THE CROWD GRADE (figures/crowd-figure.js, a figure's `crowd: true`): a made character sampled again to a
           // crowd's budget, the walkers' own format: a street's people, each the hero door's person. Absent: as it was
+          // (a REALISTIC person, `crowd: 'real'` (gameworld/people.js, a level's realistic people): baked once, drawn at
+          // the realistic crowd grade twice, its far figure under its own name and its near one as `<name>:near` (the
+          // walkers draw it within their near reach), kept on disk by what it was made from (realCrowdKept))
+          if (rawSpec.crowd === 'real') { const { realCrowdKept } = await import('@/lib/graph/figures/crowd-kept.js'); Object.assign(payload.figures, await realCrowdKept(name, rawSpec, figure)); continue; }
           if (rawSpec.crowd === true) { const { crowdFigure } = await import('@/lib/graph/figures/crowd-figure.js'); payload.figures[name] = crowdFigure(figure, { ...(Number.isFinite(rawSpec.budget) ? { budget: rawSpec.budget } : {}), ...(rawSpec.stand === true ? { stand: true } : {}) }); continue; }
           payload.figures[name] = moves ? await atRigFidelity({ ...figure, juice: moves }) : figure;
           // THE PLAY GRADE HELD (figures/figure-lod.js): a play-grade world's figure that bakes over its budget (a hero on a

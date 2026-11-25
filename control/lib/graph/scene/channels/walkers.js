@@ -102,6 +102,10 @@ export function walkerSkinStretch(fig, { clips = null } = {}) {
 /** How far a passer-by is drawn, in its own heights (a 1.8 m figure: 144 m): `far` in the camera's view, `near` all
  *  round (its shadow may fall into the view). Past them it walks on, unposed and undrawn. A capture draws them all. */
 export const WALKER_DRAW = Object.freeze({ far: 80, near: 12 });
+/** A passer-by with a NEAR figure (`near`, a figure's name: figures/crowd-figure.js realCrowdFigure at a near walker's
+ *  budget) is drawn as it within `WALKER_DETAIL.near` of its heights of the camera, and as its own figure past it (the far
+ *  one); its near rig built the first time it comes so close. No walker naming one ⇒ not a byte of it. */
+export const WALKER_DETAIL = Object.freeze({ near: 8 });
 export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false, react = false } = {}) {
   const held = walkers.some((w) => Array.isArray(w.holds));
   const skinOf = (f) => !!f && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt);
@@ -109,6 +113,7 @@ export function walkersChannelScript(walkers, bank, { cast = false, signals = nu
   const packedIn = Object.values(bank || {}).some((f) => f && Array.isArray(f.parts) && f.parts.some((p) => p && p.idx));
   const blend = walkers.some((w) => w.blend && skinOf(bank[w.figure]));
   const bones = blend ? Math.max(...walkers.filter((w) => w.blend && skinOf(bank[w.figure])).map((w) => bank[w.figure].bones.length)) : 0;
+  const lod = walkers.some((w) => typeof w.near === 'string' && bank[w.near]);
   const follow = !capture && walkers.some((w) => w.follow);
   return `
 // ---- walkers channel (ambient rig figures on looped paths) ----
@@ -221,7 +226,9 @@ function __walkerBone(fig, clip, p, bi, outQ, outP) {
 }
 const __walkerRigs = WALKERS.map((w) => {
   const fig = WBANK[w.figure];
-  const rig = ${blend ? '(w.blend && __wCanBlend(fig)) ? __buildWalkerSkin(fig) : ' : ''}__buildWalkerRig(fig);
+  const rig = ${blend ? '(w.blend && __wCanBlend(fig)) ? __buildWalkerSkin(fig) : ' : ''}__buildWalkerRig(fig);${lod ? `
+  // (a walker with a near figure: its far rig now, its near one the first time it comes close, __wTier)
+  if (WBANK[w.near]) rig.group.userData.tier = 'far';` : ''}
   const at = __arcTable(w.path);
   const clip = fig.clips.forward || fig.clips[Object.keys(fig.clips)[0]];
   // scale the whole rig group (a world-scaled bake dropped into a differently-scaled world — e.g. a
@@ -285,11 +292,31 @@ const __wSeen = (p, h) => {
   const d = __wSph.center.distanceTo(camera.position);
   return d < __wDraw.near * h || (d < __wDraw.far * h && __wFr.intersectsSphere(__wSph));
 };`}
-stepWalkers = (t) => {
+${lod ? `// THE NEAR FIGURE (WALKER_DETAIL): within its near reach a walker is drawn as its near figure, past it as its own; the
+// tier chosen on where it stood the frame before, its near rig built the first time it is wanted and kept
+const __wNear = ${WALKER_DETAIL.near};
+function __wTier(r) {
+  const w = r.w; if (!WBANK[w.near]) return;
+  const gp = r.rig.group.position, h = (r.rig.fig.figH || 1.8) * r.scale;
+  const want = gp.distanceTo(camera.position) < __wNear * h ? 'near' : 'far';
+  if ((r.rig.group.userData.tier || 'far') === want) return;
+  r.rigs = r.rigs || { far: r.rig, near: null };
+  if (want === 'near' && !r.rigs.near) {
+    const nf = WBANK[w.near];
+    r.rigs.near = ${blend ? '(w.blend && __wCanBlend(nf)) ? __buildWalkerSkin(nf) : ' : ''}__buildWalkerRig(nf);
+    r.rigs.near.group.scale.setScalar(r.scale); r.rigs.near.group.userData.tier = 'near';
+  }
+  const next = r.rigs[want];
+  next.group.position.copy(gp); next.group.rotation.copy(r.rig.group.rotation);
+  r.rig.group.visible = false; next.group.visible = true;
+  r.rig = next;
+}
+` : ''}stepWalkers = (t) => {
   const sec = t / 1000;${capture ? '' : `
   camera.updateMatrixWorld(); __wFr.setFromProjectionMatrix(__wPM.multiplyMatrices(camera.projectionMatrix, __wIV.copy(camera.matrixWorld).invert()));`}${react ? `
   const __wS = __wStreet(sec);` : ''}
-  for (let wi = 0; wi < __walkerRigs.length; wi++) {
+  for (let wi = 0; wi < __walkerRigs.length; wi++) {${lod ? `
+    __wTier(__walkerRigs[wi]);` : ''}
     const r = __walkerRigs[wi], w = r.w, fig = r.rig.fig, g = r.rig.group;
     // ground distance travelled. loop (bumble) wraps the arc length; open (pacman) clamps at the end
     // until it laps, at which point the wrap relands it at the far edge.

@@ -1017,6 +1017,8 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
     && Array.isArray(w.path) && w.path.length > 2);
   const walkerBank = {};
   for (const w of walkerList) walkerBank[w.figure] = packedFigures[w.figure];
+  // (a walker's near figure, channels/walkers.js WALKER_DETAIL: in the bank beside its own; none named ⇒ as it was)
+  for (const w of walkerList) if (typeof w.near === 'string' && packedFigures[w.near]) walkerBank[w.near] = packedFigures[w.near];
   // cast shadows (opt-in `shadows.cast`): the scene-level shadow-map channel — every opaque mass
   // and figure casts its real silhouette (channels/cast-shadows.js). Derived here because the
   // baked light and the walker/controllable integrations meet at the emit site: the light

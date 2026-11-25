@@ -14,6 +14,9 @@
  *   crowdOf(spec)     → the district's crowd word: its own (`crowd`), else a busy one in the core and the frame, a quiet
  *                       one in the outskirts
  *   crowdSets(spec)   → the sixes of people its level rolls
+ *   PEOPLE_WORDS, peopleOf(spec) → who its people are: 'quick' (the hero door's quick figures, the crowd grade) or
+ *                       'realistic' (gameworld/street-cast.js streetSix: the realistic body and face, the realistic crowd
+ *                       grade, a near figure and a far one); its own (`people`), else 'quick'
  *   sixesOf(areas, { crowd, seed, rand }) → [{ area, set, members: [{ person, reverse, speed, start }] }]: each area
  *                       { id, length, kind, rank (nearest first) } asked its sixes; `person` an index into the rolled
  *                       people (set × 6 + its place in the six)
@@ -36,6 +39,8 @@ export function crowdOf(spec = {}) {
   return spec.at === 'outskirts' ? 'quiet' : 'busy';
 }
 export const crowdSets = (spec = {}) => CROWDS[crowdOf(spec)].sets;
+export const PEOPLE_WORDS = Object.freeze(['quick', 'realistic']);
+export const peopleOf = (spec = {}) => spec.people ?? 'quick';
 
 export function sixesOf(areas, { crowd = 'busy', rand }) {
   const C = CROWDS[crowd], out = [];

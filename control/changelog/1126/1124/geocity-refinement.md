@@ -109,3 +109,7 @@
 - Realistic people's heads and necks are their own: head size varies a little person to person (it was one size for
   every woman and every man of a height), neck length varies, and the neck's width follows the head on it. Heavyset
   necks are thick but no longer wider than the head. New heroes only; existing ones keep their bodies.
+- Hijack City can be walked by realistic people (`people: 'realistic'`, opt-in): the street's cast of realistic men and
+  women in everyday clothes, their ancestries drawn from the city's own mix. Each person is drawn in full detail near the
+  camera (their face kept) and simplified further away, and a level's people are baked once and kept on disk, so a
+  level opens quickly after the first time.

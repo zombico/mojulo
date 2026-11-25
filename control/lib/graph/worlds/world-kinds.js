@@ -314,7 +314,7 @@ function walkerRigVariants() {
   }
   return _walkerRigs;
 }
-async function attachCityWalkers(scene, people = null) {
+async function attachCityWalkers(scene, people = null, nearOf = null) {
   const loops = scene && scene.walkerLoops;
   if (!Array.isArray(loops) || !loops.length) return scene;
   // (a played district's people, gameworld/people.js: the level's own rolled persons, `people` their figure names. Each
@@ -322,7 +322,9 @@ async function attachCityWalkers(scene, people = null) {
   if (Array.isArray(people) && people.length) {
     const tall = (i) => 1 + ((((i * 2654435761) >>> 0) % 1000) / 1000 - 0.5) * 0.12;
     // (a walker of a six wears its six's person, geocity/crowd.js `person`; any other the people in turn)
-    scene.walkers = loops.map((L, i) => ({ figure: people[(Number.isInteger(L.person) ? L.person : i) % people.length], blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
+    // (a realistic person's near figure, worlds/world-scene.js: drawn within its near reach, scene/channels/walkers.js)
+    const who = (L, i) => people[(Number.isInteger(L.person) ? L.person : i) % people.length], near = (n) => (nearOf ? nearOf(n) : null);
+    scene.walkers = loops.map((L, i) => ({ figure: who(L, i), ...(near(who(L, i)) ? { near: near(who(L, i)) } : {}), blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
     delete scene.walkerLoops;
     return scene;
   }
@@ -630,7 +632,7 @@ export const WORLD_KINDS = {
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
       // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
-      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k))).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null; return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k)), (k) => (m.figures?.[k]?.crowd === 'real' ? `${k}:near` : null)).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null; return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

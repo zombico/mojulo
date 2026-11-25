@@ -141,6 +141,26 @@ people a level rolls follow its crowd (gameworld/runner.js `crowdSets`), and eve
 roll, so no two in a six are alike. The scene's readout says what it laid (`counts.crowd`: the word, the sixes, the
 rolls).
 
+### Realistic people
+
+A district's `people: 'realistic'` (`hijackCityWorld({ people: 'realistic' })`; `geocity/crowd.js` `PEOPLE_WORDS`,
+`quick` the default) walks its pavements with the street's cast instead of the quick figures: each six is
+`gameworld/street-cast.js` `streetSix`, six realistic heroes (three men and three women, six ages, slight to heavy
+builds, everyday outfit cards in colours of their own), their ancestries drawn from the locale's mix (`mix`, set from
+the level's locale) with no more than two of one in a six. Each is drawn at the realistic CROWD GRADE
+(`figures/crowd-figure.js` `realCrowdFigure`, `REAL_CROWD`), two figures from one bake:
+
+- a NEAR figure (about 16k triangles): the face texture baked into the vertex colours, skin under the clothes taken out
+  before the mesh is simplified (so it never pokes through), the head kept at a third of the budget so the face holds,
+  the hair cards and the face's morph-pinned parts kept whole;
+- a FAR figure (about 3k triangles): the near figure sampled again on the crowd's grid.
+
+A walker is drawn as its near figure within `WALKER_DETAIL.near` of its own heights of the camera and as its far figure
+past it (`scene/channels/walkers.js`, the near rig built the first time it is wanted); a page with no near figure is the
+channel as it was. A realistic person takes a minute or so to bake, so a level's people are baked once and kept
+(`figures/crowd-kept.js`, under `MOJULO_CROWD_DIR`, else `~/.mojulo/cache/crowd`), keyed by the person, the grade and
+the realistic laws: a level's second read takes them from disk.
+
 ## Locales
 
 `hijackCityWorld({ locale })` stands the game in a place (`gameworld/locales.js` `LOCALES`, one row each): its suburbs'

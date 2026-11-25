@@ -1,7 +1,7 @@
 // A DISTRICT'S CROWD IN SIXES (crowd.js): six different people a six; an area asks for sixes by its walk and its kind;
 // sixes stacked where asked, nearest first, to the crowd's most; a played district's walkers in whole sixes.
 import { describe, it, expect } from 'vitest';
-import { sixesOf, crowdOf, crowdSets, CROWDS, SIX } from './crowd.js';
+import { PEOPLE_WORDS, peopleOf, sixesOf, crowdOf, crowdSets, CROWDS, SIX } from './crowd.js';
 import { streamOf } from '../city/plan/dice.js';
 import { assembleGeocityScene } from './scene.js';
 
@@ -49,4 +49,9 @@ describe('a crowd in sixes', () => {
     expect(L.every((w) => w.person >= 0 && w.person < CROWDS.busy.sets * SIX)).toBe(true);
     expect(P.geocity.counts.crowd).toMatchObject({ word: 'busy', sixes: L.length / SIX });
   }, 120_000);
+  it('names who walks: the quick figures unless a level says realistic people', () => {
+    expect(PEOPLE_WORDS).toEqual(['quick', 'realistic']);
+    expect(peopleOf({})).toBe('quick');
+    expect(peopleOf({ people: 'realistic' })).toBe('realistic');
+  });
 });

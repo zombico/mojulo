@@ -16,7 +16,7 @@
  *                          (a Northeast metro's frame: brick walk-ups, low-rises and main streets among its midrises),
  *                          `suburbs` (its outskirts: colonials, garden apartments, walk-ups); each a geocity whose
  *                          evocation stands `at` its ring (geocity/design.js: the ring's most lived-in neighbourhood)
- *   hijackCityWorld({ name?, seed?, locale?, district?, register? }) → the starter gameworld (`locale` where it is,
+ *   hijackCityWorld({ name?, seed?, locale?, district?, register?, hour?, people? }) → the starter gameworld (`locale` where it is,
  *                          gameworld/locales.js: its register, district, light, sky, air and grade, each word named
  *                          over it winning; `district` a HIJACK_DISTRICTS word, downtown by default; `register` its outskirts' pattern, geotown/pattern.js, the district's
  *                          own unless named, a San Francisco one laying it on the hill city in its fog): a hero, the
@@ -95,7 +95,7 @@ export const HIJACK_GROWS = Object.freeze({
 export const HIJACK_NIGHT = Object.freeze({ lamps: '#ffd08a', air: Object.freeze({ kind: 'haze', visibility: 2600, colour: '#252a35' }), grade: 'night' });
 const NIGHT_HOURS = Object.freeze(['dusk', 'night']);
 const isNight = (h) => (typeof h === 'number' ? h >= 19.5 || h < 5.5 : NIGHT_HOURS.includes(h));
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null } = {}) {
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null, people = null } = {}) {
   // (`locale`: where it is, gameworld/locales.js: its suburbs' register, the part of town it stands in, its light, sky,
   // air and grade; every word the person names over it wins. None: the starter as it always was)
   const L = locale === null ? null : localeOf(locale), word = named ?? L?.district ?? 'downtown', register = own ?? L?.register ?? null;
@@ -109,7 +109,7 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
   // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
   const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
-  const district = { ...JSON.parse(JSON.stringify(base)), ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}) };
+  const district = { ...JSON.parse(JSON.stringify(base)), ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}) };
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair
