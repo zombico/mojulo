@@ -46,6 +46,8 @@ export const FIELD_OUTSIDE = (massif, rock = FIELD_ROCK[massif] ?? FIELD_ROCK.wa
   ground: f({ from: f({ heartbeat: 'gentle-pulse', splatch: 'bone-trio', seed }), span: 1800, height: 7 }),
   // (the floor's dunes long and low at a frame's scale: a skate over them, never a climb)
   relief: f({ from: 'dune', height: 2.5, scale: 90, finest: 8 }), massif, rock,
+  // (a kilometre of the same rock and sand: its tiles never repeating in a grid)
+  tiling: 'stochastic',
 });
 
 // (no inside of its own worth naming: an outpost's research rooms and its panelled walls, Sol's)

@@ -11,7 +11,8 @@
  *                                rock(x, y) → metres of rock over the floor (0 off it), water(x, y) → true where a hollow or a
  *                                river is carved, boulders: [{ x, y, size }], partings(lo, hi) → the thin beds' partings and
  *                                middles between two heights (the levels a wall is cut at), warp(x, y, z) → [dx, dy]: how
- *                                far a wall's corner is pushed (along the wall, out of the rock; 0 off a wall) }
+ *                                far a wall's corner is pushed (along the wall, out of the rock; 0 off a wall), inside(x, y) →
+ *                                true on the rock itself (in a block's outline, off a cut's floor and the aprons) }
  *   massifLaws(M, heightAt, square) → the ledger: [{ law, want, why, ok, value }]
  *
  * One wall profile reads both sides of the rock: a block's inward distance from its outline and a cut's distance past
@@ -348,7 +349,16 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     const d = (bulge - under + grain) * w, ox = -gx / g, oy = -gy / g;
     return [r3(ox * d), r3(oy * d)];
   };
-  return { at, rock, water: (x, y) => sink(x, y)[0] > 0, boulders, partings, warp };
+  // (on the rock itself: inside a block's outline, not down a cut's floor or its aprons)
+  const inside = (x, y) => {
+    const [wx, wy] = M.warp.strength ? warp2(x, y, warpW) : [x, y];
+    let e = -Infinity;
+    for (const b of blocks) if (Math.abs(x - b.c[0]) <= b.reach && Math.abs(y - b.c[1]) <= b.reach) e = Math.max(e, into(b, x, y, wx, wy));
+    if (e <= 1) return false;
+    for (const c of cuts) { const [d, along] = toPath(c.path, wx, wy), w = c.width * (1 + 0.25 * wn(along, 0, 160, 601)) * (c.cleft ? 1 - 0.7 * smoothstep(0, c.length, along) : 1); if (d + flute(x, y) * 0.6 - w / 2 < 1) return false; }
+    return true;
+  };
+  return { at, rock, water: (x, y) => sink(x, y)[0] > 0, boulders, partings, warp, inside };
 }
 
 /**

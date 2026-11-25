@@ -236,7 +236,23 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       for ( int k = 0; k < 8; k++ ) { if ( l4 >= h4 ) break; rkUV -= dR; h4 = 1.0 - textureGrad( tOrm, vec3( rkUV, 0.0 ), gx4, gy4 ).b; l4 += 0.125; }
     }
     for ( int i = 0; i < 7; i++ ) {
-      vec3 a = vec3( i == 0 ? rkUV : i == 1 ? scUV : i == 5 ? clUV : i == 6 ? ugUV : uvW / uTile[ i ], float( i ) );
+      vec3 a = vec3( i == 0 ? rkUV : i == 1 ? scUV : i == 5 ? clUV : i == 6 ? ugUV : uvW / uTile[ i ], float( i ) );${form.tiling === 'stochastic' ? `
+      // (STOCHASTIC TILING, the cube's outside.tiling: the natural layers' tiles never repeat in a grid. A slow noise over
+      // the tile picks one of eight offsets and the next, each sampled with the tile's own derivatives (no mip seam), and
+      // blended across the noise by the two samples' own difference, so the join wanders with the texture's own shapes)
+      if ( i < 4 ) {
+        vec2 gxS = dFdx( a.xy ), gyS = dFdy( a.xy );
+        float kS = vn( a.xy * 0.31 + float( i ) * 7.3 ) * 8.0, fS = fract( kS ), iS = floor( kS );
+        vec2 oA = sin( vec2( 3.0, 7.0 ) * iS ), oB = sin( vec2( 3.0, 7.0 ) * ( iS + 1.0 ) );
+        vec3 aA = vec3( a.xy + oA, a.z ), aB = vec3( a.xy + oB, a.z );
+        vec3 bA = textureGrad( tBase, aA, gxS, gyS ).rgb, bB = textureGrad( tBase, aB, gxS, gyS ).rgb;
+        float wS = smoothstep( 0.2, 0.8, fS - 0.1 * dot( bA - bB, vec3( 1.0 ) ) );
+        vec4 o = mix( textureGrad( tOrm, aA, gxS, gyS ), textureGrad( tOrm, aB, gxS, gyS ), wS );
+        hgt[ i ] = o.b; rs[ i ] = o.rg;
+        bs[ i ] = mix( bA, bB, wS ) / uMean[ i ];
+        ns[ i ] = mix( textureGrad( tNorm, aA, gxS, gyS ).xyz, textureGrad( tNorm, aB, gxS, gyS ).xyz, wS ) * 2.0 - 1.0;
+        continue;
+      }` : ''}
       vec4 o = texture( tOrm, a );
       hgt[ i ] = o.b; rs[ i ] = o.rg;
       bs[ i ] = texture( tBase, a ).rgb / uMean[ i ];

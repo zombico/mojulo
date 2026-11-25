@@ -44,6 +44,14 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     Absent, the land's colours are as they were.
   - Each battlefield cube names its column: a dark plinth, the massive red wall, a lighter band, and pale upper beds
     weathered toward its trim (Wadi Rum's Disi over its Umm Ishrin).
+- **Stochastic tiling** (a geocube's `outside.tiling: 'stochastic'`, opt-in; `scene/channels/form-land.js`). The form
+  render's natural layers (rock, scree, soil, sand) never repeat in a grid.
+  - A slow noise over each tile picks one of eight offsets and the next. Both are sampled with the tile's own
+    derivatives, so there is no mip seam, and blended across the noise by their own difference, so the join wanders
+    with the texture's shapes.
+  - Absent, the page's shader is as it was. The battlefield cubes take it.
+- **A massif's rock is bare** (`local-meru/scene.js`, `massif.js` `inside`): anything on the rock itself steeper than a
+  near-level bench or top is rock, so its domes and shoulders never wear an apron's soil and scree.
 - **The battlefield cubes** (`assault-frame/geocubes.js`, in `GEOCUBE_PRESETS` with their palettes and outposts).
   - `sandstone-wadi`, `sandstone-gorge`, `scree-scarp` and `wadi-oasis`, sized for a frame 7.5 to 9 m tall: walls 40
     to 120 m, gorges 25 to 200 m, talus 10 to 40 m out, blocks 3 to 7 m.

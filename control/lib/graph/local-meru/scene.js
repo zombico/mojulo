@@ -245,6 +245,8 @@ function newell(cs, toward) {
 /** A face cut at every `step` metres of height (levels fixed in the world, so two faces sharing an edge cut it at the same
  *  points): its bands, lowest first. */
 const WALL_BAND = 6;
+// a massif's rock steeper than this (a face's up, its normal's z: about 14°) is bare rock, whatever soil would lie on it
+const MASSIF_BARE = 0.97;
 function bandFace(f, step, levelsOf = null) {
   const zs = f.corners.map((c) => c[2]), lo = Math.min(...zs), hi = Math.max(...zs);
   const levels = levelsOf ? levelsOf(lo, hi).filter((l) => l > lo + 1e-6 && l < hi - 1e-6) : null;
@@ -274,7 +276,10 @@ function groundFaces(st, p, heightAt, S = null, seed = 1) {
   const at = (i, j) => [gridX(g, i), gridY(g, j), z[j * g.nx + i]], sc = st.tiles.cliff.scale, out = [];
   // the cliff rule: steeper than the card's slope.rock is cliff; on a geology island, so is every face of the raised
   // land that is not a flat bench or top, so a mountain reads as rock, never as a turned (lathed) mound
-  const isCliff = (cs, n) => n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1]));
+  // (and on a massif's rock itself, anything but a near-level bench or top: its domes and shoulders bare rock, never the
+  // soil and scree an apron wears; massif.js inside)
+  const MR = p.recipe.massif ? massifOf(p, seed) : null;
+  const isCliff = (cs, n) => n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1])) || (MR && n[2] < MASSIF_BARE && MR.inside(mean(cs)[0], mean(cs)[1]));
   // the ground: grass as it always was, or on a geo island (`cover: 'soil'`) bare soil, and scree where it slopes
   const soil = S && S.cover === 'soil', coverOf = (n) => (!soil ? 'isekai:ground' : n[2] < SCREE_N ? 'isekai:scree' : 'isekai:soil');
   const F = p.recipe.shading ? p.recipe.shading.facet : 0, gritty = p.recipe.shading?.grit !== undefined && p.recipe.shading.grit >= GRIT_PIXELS;

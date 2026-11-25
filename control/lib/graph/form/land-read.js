@@ -414,6 +414,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   return { P, L, own, light, sun, view, sees, water, bases, LAYERS, GREEN, LY, TEX, A, means, png, dicePng, SD_IN, PM, pathTex, roleBase, FADE, underAt,
     ranges, pos, c7, spl, nrm, faceOf, cornerOf, land, sea, seaX, seaY, box, isle, wetMids, hasSea, shoreAt, DEPTH_CELL, DEPTH_MAX, depthMap,
     tones, dirtBase, STONES, stonePack, stoneBase, GCELL, grassMap, driftKinds, weedKinds, ROW, SEG, brush, dress, moss,
+    // (the layers' tiling, a cube's `outside.tiling`: 'stochastic', each tile sampled at offsets a slow noise picks)
+    tiling: C.outside?.tiling === 'stochastic' ? 'stochastic' : null,
     // the rock's relief (form/rock-relief.js): the cliff's ledges and cracks as a map the page displaces its faces by
     relief: relief ? reliefMap(readRelief(relief), { seed: reliefSeed }) : null };
 }
@@ -440,7 +442,7 @@ export function formPayload(R) {
     layers: { base: png(A.base), normal: png(A.normal), orm: png(A.orm), mean: means, tile: LAYERS.map((Ly) => Ly.metres), keys: Object.keys(LAYER_OF),
       pathBase: dress.surface === 'sand' ? light.linearBases.sand : dirtBase.powder, clayBase: dirtBase.clay, underBase: light.linearBases.grass.map((v) => r4(v * 0.82)),
       green: GREEN, stoneBase: light.linearBases.stone, dice: dicePng, size: TEX, ...(moss ? { moss } : {}) },
-    path: pathTex, depth: depthMap,
+    path: pathTex, depth: depthMap, ...(R.tiling ? { tiling: R.tiling } : {}),
     // (the grass's ground map: its height and where grass grows, at GCELL; channels/form-grass.js draws the grass from it)
     grass: grassMap && { origin: grassMap.origin, cell: grassMap.cell, size: grassMap.size, z: grassMap.z, px: grassMap.px, base: light.linearBases.grass,
       // (the drifts: their map, a channel each, and their plants)
