@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { WALKER_DETAIL, walkersChannelScript } from './walkers.js';
+import { WALKER_DETAIL, WALKER_LIT, walkersChannelScript } from './walkers.js';
 
 const f32 = (a) => Buffer.from(new Float32Array(a).buffer).toString('base64'), u8 = (a) => Buffer.from(Uint8Array.from(a)).toString('base64');
 const fig = (n) => ({ rig: true, figH: 1.8, bones: [{ id: 'a', head: [0, 0, 0] }], parts: [{ pos: f32(Array(9 * n).fill(0).map((_, i) => i % 3 === 2 ? 1 : 0.1 * i)), col: u8(Array(9 * n).fill(200)), faces: n }], clips: { forward: { k: 1, b: [0, 0, 0, 1, 0, 0, 0] } } });
@@ -26,5 +26,18 @@ describe('the walkers\' near figure', () => {
     expect(src).toContain('"p:near"');
     // (built lazily: the walker's far rig up front, its near rig inside the tier's choice)
     expect(src.indexOf('r.rigs.near = ')).toBeGreaterThan(src.indexOf('function __wTier'));
+  });
+  it('a lit walker (a realistic person): the scene\'s light on its colours, its floor where none reaches; none lit, not a byte', () => {
+    const bank = { p: fig(2) };
+    expect(walkersChannelScript([walker()], bank)).not.toContain('MeshLambertMaterial');
+    const src = walkersChannelScript([walker({ lit: true })], bank);
+    expect(src).toContain('MeshLambertMaterial');
+    expect(src).toContain(`totalEmissiveRadiance += diffuseColor.rgb * ${WALKER_LIT.floor};`);
+  });
+  it('a looped walker\'s head start (startFrac): its place on the loop at clock zero; a held one already has it, none adds nothing', () => {
+    const bank = { p: fig(2) };
+    expect(walkersChannelScript([walker()], bank)).not.toContain('w.startFrac || 0)) % 1)');
+    expect(walkersChannelScript([walker({ startFrac: 0.25 })], bank)).toContain('((sec / r.period + (w.startFrac || 0)) % 1) * r.total');
+    expect(walkersChannelScript([walker({ startFrac: 0.25, holds: [] })], bank)).not.toContain('((sec / r.period + (w.startFrac || 0)) % 1)');
   });
 });

@@ -106,6 +106,10 @@ export const WALKER_DRAW = Object.freeze({ far: 80, near: 12 });
  *  budget) is drawn as it within `WALKER_DETAIL.near` of its heights of the camera, and as its own figure past it (the far
  *  one); its near rig built the first time it comes so close. No walker naming one ⇒ not a byte of it. */
 export const WALKER_DETAIL = Object.freeze({ near: 8 });
+/** A LIT walker (`lit`, a realistic person: its colours its skin and cloth, not light baked in) is drawn in the scene's
+ *  light, its normals turned with its bones; `floor` the share of its own colours it shows where no light reaches it (a
+ *  street's lamp pools are painted on the ground and light no one). No lit walker ⇒ not a byte of it. */
+export const WALKER_LIT = Object.freeze({ floor: 0.16 });
 export function walkersChannelScript(walkers, bank, { cast = false, signals = null, capture = false, react = false } = {}) {
   const held = walkers.some((w) => Array.isArray(w.holds));
   const skinOf = (f) => !!f && Array.isArray(f.parts) && f.parts.some((p) => p && p.jnt && p.wgt);
@@ -114,6 +118,14 @@ export function walkersChannelScript(walkers, bank, { cast = false, signals = nu
   const blend = walkers.some((w) => w.blend && skinOf(bank[w.figure]));
   const bones = blend ? Math.max(...walkers.filter((w) => w.blend && skinOf(bank[w.figure])).map((w) => bank[w.figure].bones.length)) : 0;
   const lod = walkers.some((w) => typeof w.near === 'string' && bank[w.near]);
+  // (a looped walker's own place on its loop at clock zero, `startFrac`: a six's groups a quarter of the loop apart and
+  // its pairs a step apart, never one on top of another; a held walker starts there already; none ⇒ not a byte)
+  // (a LIT walker, `lit`: one whose colours are what it is made of (a realistic person's, its skin and cloth painted on),
+  // not light baked in, so the scene's light falls on it, the sun by day and the lamps by night; none ⇒ not a byte)
+  // (and never darker than WALKER_LIT.floor of its own colours, so between a street's lamps, whose pools are painted on the
+  // ground and light no one, a passer-by is a person in the half-light and not a hole)
+  const lit = walkers.some((w) => w.lit);
+  const starts = walkers.some((w) => !Array.isArray(w.holds) && w.loop !== false && Number.isFinite(w.startFrac) && w.startFrac % 1);
   const follow = !capture && walkers.some((w) => w.follow);
   return `
 // ---- walkers channel (ambient rig figures on looped paths) ----
@@ -130,7 +142,9 @@ ${packedIn ? `// a packed part's index (a crowd figure's, figures/crowd-figure.j
 const __wIdx = (part) => { const b = decodeU8(part.idx).slice(); return part.n > 65535 ? new Uint32Array(b.buffer) : new Uint16Array(b.buffer); };
 ` : ''}// build one rig group per walker from its referenced bake — a compact __makeRigGroup (bone meshes
 // only; no muzzle / thruster / weapon locators, since ambient walkers never fight).
-function __buildWalkerRig(fig) {
+${lit ? `// (a lit walker's material: the scene's light on its colours, and its floor where none reaches)
+const __wFloor = (m) => { m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\\n  totalEmissiveRadiance += diffuseColor.rgb * ${WALKER_LIT.floor};'); }; m.customProgramCacheKey = () => 'walker-lit'; return m; };
+` : ''}function __buildWalkerRig(fig${lit ? ', lit' : ''}) {
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
@@ -138,8 +152,9 @@ function __buildWalkerRig(fig) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
-${packedIn ? '    if (part.idx) geo.setIndex(new THREE.BufferAttribute(__wIdx(part), 1));\n' : ''}    geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${cast ? '\n    mesh.castShadow = true;' : ''}
+${packedIn ? '    if (part.idx) geo.setIndex(new THREE.BufferAttribute(__wIdx(part), 1));\n' : ''}    geo.computeBoundingSphere();${lit ? `
+    if (lit) geo.computeVertexNormals();` : ''}
+    const mesh = new THREE.Mesh(geo, ${lit ? 'lit ? __wFloor(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })) : ' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${cast ? '\n    mesh.castShadow = true;' : ''}
     mesh.matrixAutoUpdate = false;   // one composed matrix per bone per frame
     mesh.frustumCulled = false;      // matrices mutate every frame
     group.add(mesh);
@@ -152,12 +167,15 @@ ${packedIn ? '    if (part.idx) geo.setIndex(new THREE.BufferAttribute(__wIdx(pa
 // and their weights; the bones' transforms are the material's (one array a walker, written each frame), so a corner
 // between two bones is placed between them and no part's edge opens.
 const __wSkinPars = 'attribute vec4 aWJ;\\nattribute vec4 aWW;\\nuniform mat4 uWB[ ${bones} ];\\n';
-const __wSkinMove = '#include <begin_vertex>\\n  { vec4 wp = vec4( position, 1.0 ); float ws = aWW.x + aWW.y + aWW.z + aWW.w;\\n    if ( ws > 1e-4 ) transformed = ( aWW.x * ( uWB[ int( aWJ.x ) ] * wp ).xyz + aWW.y * ( uWB[ int( aWJ.y ) ] * wp ).xyz + aWW.z * ( uWB[ int( aWJ.z ) ] * wp ).xyz + aWW.w * ( uWB[ int( aWJ.w ) ] * wp ).xyz ) / ws; }';
-function __buildWalkerSkin(fig) {
+const __wSkinMove = '#include <begin_vertex>\\n  { vec4 wp = vec4( position, 1.0 ); float ws = aWW.x + aWW.y + aWW.z + aWW.w;\\n    if ( ws > 1e-4 ) transformed = ( aWW.x * ( uWB[ int( aWJ.x ) ] * wp ).xyz + aWW.y * ( uWB[ int( aWJ.y ) ] * wp ).xyz + aWW.z * ( uWB[ int( aWJ.z ) ] * wp ).xyz + aWW.w * ( uWB[ int( aWJ.w ) ] * wp ).xyz ) / ws; }';${lit ? `
+// (a lit walker's normals turned with its bones as its corners are, so the light reads its pose)
+const __wSkinNormal = '#include <beginnormal_vertex>\\n  { float ns = aWW.x + aWW.y + aWW.z + aWW.w;\\n    if ( ns > 1e-4 ) objectNormal = normalize( aWW.x * mat3( uWB[ int( aWJ.x ) ] ) * objectNormal + aWW.y * mat3( uWB[ int( aWJ.y ) ] ) * objectNormal + aWW.z * mat3( uWB[ int( aWJ.z ) ] ) * objectNormal + aWW.w * mat3( uWB[ int( aWJ.w ) ] ) * objectNormal ); }';` : ''}
+function __buildWalkerSkin(fig${lit ? ', lit' : ''}) {
   const group = new THREE.Group(), B = Array.from({ length: ${bones} }, () => new THREE.Matrix4()), U = { value: B };
-  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
-  mat.onBeforeCompile = (sh) => { sh.uniforms.uWB = U; sh.vertexShader = __wSkinPars + sh.vertexShader.replace('#include <begin_vertex>', __wSkinMove); };
-  mat.customProgramCacheKey = () => 'walker-skin';
+  const mat = ${lit ? 'lit ? new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }) : ' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  mat.onBeforeCompile = (sh) => { sh.uniforms.uWB = U; sh.vertexShader = __wSkinPars + sh.vertexShader.replace('#include <begin_vertex>', __wSkinMove)${lit ? `.replace('#include <beginnormal_vertex>', lit ? __wSkinNormal : '#include <beginnormal_vertex>');
+    if (lit) sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\\n  totalEmissiveRadiance += diffuseColor.rgb * ${WALKER_LIT.floor};')` : ''}; };
+  mat.customProgramCacheKey = () => ${lit ? "lit ? 'walker-skin-lit' : " : ''}'walker-skin';
   mat.userData.prepass = (vs) => ({ vertexShader: __wSkinPars + vs.replace('#include <begin_vertex>', __wSkinMove), uniforms: { uWB: U } });
   // (its parts one mesh: one skin, one material, the bones the material's, so a passer-by is one draw and one shadow)
   const P = [], C = [], JJ = [], WW = [], I = [];
@@ -176,7 +194,8 @@ function __buildWalkerSkin(fig) {
   geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(Uint8Array.from(C), 3, true));
   geo.setAttribute('aWJ', new THREE.BufferAttribute(Float32Array.from(JJ), 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(Float32Array.from(WW), 4));
-  geo.setIndex(new THREE.BufferAttribute(base > 65535 ? Uint32Array.from(I) : Uint16Array.from(I), 1));
+  geo.setIndex(new THREE.BufferAttribute(base > 65535 ? Uint32Array.from(I) : Uint16Array.from(I), 1));${lit ? `
+  if (lit) geo.computeVertexNormals();` : ''}
   const mesh = new THREE.Mesh(geo, mat);${cast ? '\n  mesh.castShadow = true;' : ''}
   mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
   group.add(mesh);
@@ -226,7 +245,7 @@ function __walkerBone(fig, clip, p, bi, outQ, outP) {
 }
 const __walkerRigs = WALKERS.map((w) => {
   const fig = WBANK[w.figure];
-  const rig = ${blend ? '(w.blend && __wCanBlend(fig)) ? __buildWalkerSkin(fig) : ' : ''}__buildWalkerRig(fig);${lod ? `
+  const rig = ${blend ? `(w.blend && __wCanBlend(fig)) ? __buildWalkerSkin(fig${lit ? ', w.lit' : ''}) : ` : ''}__buildWalkerRig(fig${lit ? ', w.lit' : ''});${lod ? `
   // (a walker with a near figure: its far rig now, its near one the first time it comes close, __wTier)
   if (WBANK[w.near]) rig.group.userData.tier = 'far';` : ''}
   const at = __arcTable(w.path);
@@ -303,7 +322,7 @@ function __wTier(r) {
   r.rigs = r.rigs || { far: r.rig, near: null };
   if (want === 'near' && !r.rigs.near) {
     const nf = WBANK[w.near];
-    r.rigs.near = ${blend ? '(w.blend && __wCanBlend(nf)) ? __buildWalkerSkin(nf) : ' : ''}__buildWalkerRig(nf);
+    r.rigs.near = ${blend ? `(w.blend && __wCanBlend(nf)) ? __buildWalkerSkin(nf${lit ? ', w.lit' : ''}) : ` : ''}__buildWalkerRig(nf${lit ? ', w.lit' : ''});
     r.rigs.near.group.scale.setScalar(r.scale); r.rigs.near.group.userData.tier = 'near';
   }
   const next = r.rigs[want];
@@ -322,7 +341,7 @@ function __wTier(r) {
     // until it laps, at which point the wrap relands it at the far edge.
     const ${react ? 's0' : 's'} = ${held ? 'r.held ? __wStep(r, sec) : ' : ''}w.loop === false
       ? Math.min(r.total, (sec / r.period) * r.total)
-      : ((sec / r.period) % 1) * r.total;
+      : ${starts ? '((sec / r.period + (w.startFrac || 0)) % 1)' : '((sec / r.period) % 1)'} * r.total;
 ${react ? `    // (a passer-by who reacts: off its own walk's clock by what it has run, frozen while it lies, running away)
     const R = r.react || (r.react = { ds: 0, ph: 0, prev0: null, prevS: null, flee: 0, dir: 1, down: 0, from: null });
     let d0 = R.prev0 === null ? 0 : s0 - R.prev0; if (d0 < -r.total / 2) d0 += r.total; R.prev0 = s0;

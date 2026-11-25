@@ -113,3 +113,8 @@
   women in everyday clothes, their ancestries drawn from the city's own mix. Each person is drawn in full detail near the
   camera (their face kept) and simplified further away, and a level's people are baked once and kept on disk, so a
   level opens quickly after the first time.
+- Realistic pedestrians are lit by the city: shaded by the sun by day, brighter under street lamps and dimmer between
+  them by night (they used to glow at night and look flat by day).
+- Pedestrians in a group no longer walk inside each other: partners walk side by side and the groups along a block
+  are spread out. Before, each pair was drawn on one spot, so two people's clothes showed through each other in
+  patches.

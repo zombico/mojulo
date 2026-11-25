@@ -324,7 +324,7 @@ async function attachCityWalkers(scene, people = null, nearOf = null) {
     // (a walker of a six wears its six's person, geocity/crowd.js `person`; any other the people in turn)
     // (a realistic person's near figure, worlds/world-scene.js: drawn within its near reach, scene/channels/walkers.js)
     const who = (L, i) => people[(Number.isInteger(L.person) ? L.person : i) % people.length], near = (n) => (nearOf ? nearOf(n) : null);
-    scene.walkers = loops.map((L, i) => ({ figure: who(L, i), ...(near(who(L, i)) ? { near: near(who(L, i)) } : {}), blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
+    scene.walkers = loops.map((L, i) => ({ figure: who(L, i), ...(near(who(L, i)) ? { near: near(who(L, i)), lit: true } : {}), blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
     delete scene.walkerLoops;
     return scene;
   }

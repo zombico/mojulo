@@ -157,7 +157,11 @@ the level's locale) with no more than two of one in a six. Each is drawn at the 
 
 A walker is drawn as its near figure within `WALKER_DETAIL.near` of its own heights of the camera and as its far figure
 past it (`scene/channels/walkers.js`, the near rig built the first time it is wanted); a page with no near figure is the
-channel as it was. A realistic person takes a minute or so to bake, so a level's people are baked once and kept
+channel as it was. A realistic person is LIT (`lit`): its colours are its painted skin and cloth, so it is drawn in the
+scene's light (the sun by day, the lamps by night), never darker than `WALKER_LIT.floor` of its own colours, since a
+street's lamp pools are painted on the ground and light no one. A quick figure's colours carry their light and stay unlit.
+A six's people keep their places on their walk (`startFrac`: its groups a quarter of the loop apart, its pairs a step
+apart), so no two are drawn on one spot. A realistic person takes a minute or so to bake, so a level's people are baked once and kept
 (`figures/crowd-kept.js`, under `MOJULO_CROWD_DIR`, else `~/.mojulo/cache/crowd`), keyed by the person, the grade and
 the realistic laws: a level's second read takes them from disk.
 
