@@ -360,6 +360,21 @@ its own round. What is off the screen is silent, as it is unseen. Under it, an e
 fight piece the tension crosses into, the boss's own piece once his room shuts, a stinger as the level is won or lost. The words and how a game changes them are in
 `docs/game-audio.md`.
 
+## In the book
+
+A side map level has its page in its world's gameworld bible (`/bible`, its `#sidemaps` section, `side-map/book.js`).
+The page is read off the map as its level builds it: on the level's or the world's geocube, for the side map's hero, in
+the world's feel. The book and the game therefore never disagree.
+
+- **The elevation**, as the side map draws it (`drawing.js`): its zones numbered, its rulers, the bot's line through it,
+  its checkpoints, doors, ladders and pickups, where the dress places its things, and its laws.
+- **A row a zone:** its place (indoors or out, its material, its key), its run (across, up, down, a room), its size in
+  screens, what it is for (what it teaches, its beat, its climb, its drop), and its spawners, pickups and crates.
+- **The laws:** every law the map is held to and what each says. This is the machine gate, measured on the map as
+  built; the eyes gate is the person's, who plays it.
+
+The level's own page carries a small plan of its zones in their places' keys.
+
 ## Not yet
 
 Things that move beside the way (the benchmark says them missing), the boss's second form, the weapon its fall gives the hero, the boss's fight in
