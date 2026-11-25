@@ -218,6 +218,18 @@ describe('the assault frame', () => {
     expect(low).toBeGreaterThanOrEqual(10 - 1e-6);
   });
 
+  it('a launcher\'s homing missiles chip a frame\'s bar by their impact, not break it outright', () => {
+    const hammer = { id: 'h', team: 'foes', rule: { type: 'ai', space: true, speed: 0, turn: 2, standoff: 400, sightRange: 700, missiles: { count: 4, lockTime: 0.3, cone: 60, range: 600, speed: 120, turn: 2, damage: 300, splash: 9, prox: 4, cooldown: 3, impact: 0.12 } }, body: { type: 'box', size: [4, 8, 3], hittable: true, hp: 3000, radius: 5 }, transform: { pos: [200, 0, 2], heading: Math.PI, pitch: 0 } };
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), hammer], pilot: 'p' }), P = st.byId.p;
+    const hp0 = P.body.hp;
+    let n = 0;
+    while (P.body.hp === hp0 && n++ < 60 * 8) run(st, {}, 1);
+    expect(P.body.hp).toBeLessThan(hp0);
+    run(st, {}, 2);
+    expect(P.stagger ?? 0).toBe(0);
+    expect(P.poise).toBeLessThan(P.poiseMax);
+  });
+
   it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {
     // (a heavy frame ahead with its mind off: the pilot's bazooka, the left hand, the weapon its stagger is read from)
     const foe = frameEntity('citadel', { id: 'f', at: [140, 0, 0], team: 'foes', mind: {} });

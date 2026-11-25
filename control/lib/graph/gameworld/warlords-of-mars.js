@@ -38,6 +38,16 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: 'screen', text: 'Clear the drone screen' }), f({ down: 'guns', text: 'Silence the emplacements' })]),
   }),
+  // (rung two: homing salvos from far back, a quick boost to slip them and an assault boost to close)
+  f({
+    id: 'long-guns', name: 'Long Guns', map: 'plain',
+    brief: 'Missile carriers hang back behind a line of tanks, their salvos homing on anything that stands still. Quick-boost out from under each salvo, then charge through the tanks on an assault boost and break the carriers.',
+    groups: f([
+      f({ id: 'carriers', kind: 'hammer', count: 3, at: f([0, 0.7]), spread: 130 }),
+      f({ id: 'screen', kind: 'tank', count: 3, at: f([0, 0.2]), spread: 100 }),
+    ]),
+    tasks: f([f({ down: 'carriers', text: 'Destroy the missile carriers' }), f({ reach: f([0, 0.85]), text: 'Take the ridge' })]),
+  }),
   f({
     id: 'red-dust', name: 'Red Dust', map: 'basin',
     brief: 'A pass through the crater rim, held by walkers and emplacements. A frame of the warlord\'s guard is on its way to reinforce it.',

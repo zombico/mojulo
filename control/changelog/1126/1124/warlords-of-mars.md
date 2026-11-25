@@ -89,6 +89,12 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     amber, a red eye and a chin gun, some 5 m across. It flies on the AI rule in the air, quick and close, weaving round
     the frame, held at least 10 m over the land (a flier's `floor`, the frame levels' `frame-fliers` pass). Its operation,
     the Gnat Screen, puts eight of them over the road before two emplacements: shooting on the move, holding a lock.
+  - The Hammer carrier (`groundforce/` `hammer`): a six-wheeled truck braced on outriggers, a rack of eight missile
+    tubes raised over its bed. No gun: the engine's AI launcher (`rule.missiles`) locks and streams homing missiles from
+    its standoff far back. Each missile carries its launcher's impact into its burst (the frame levels' `frame-missiles`
+    pass), so it chips a frame's bar rather than breaking it as an impact-less burst would; its splash reaches past its
+    proximity fuse, so one that bursts passing still lands. Its operation, Long Guns, puts three behind a screen of
+    tanks: quick-boost out from under each salvo, charge through on an assault boost.
   - The ground force's sheets: `node scripts/render-groundforce.mjs --units gnat,walker` draws each card from three sides
     beside a frame's height.
 - **Aces: the frame a path ladders up to** (`assault-frame/aces.js`, a frame group's `ace`, a group's `reserve`).
@@ -128,9 +134,10 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   little air under its own weather: a butterscotch sky paling to a dusty horizon, a small dim sun, thin ice cloud
   high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck: a flight over
   Mars, where a frame's field is under its cube's heavens.
-- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is five operations:
+- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is six operations:
   - Landfall at Tharsis: a gun line, then a tank column;
   - Gnat Screen: a drone swarm, then its emplacements;
+  - Long Guns: missile carriers behind a line of tanks, then the ridge;
   - Red Dust: a pass held by walkers, then a guard frame;
   - Vermilion: the warlord's ace, alone, its pickets held back;
   - The Warlord: an escort of two, then the warlord's heavy frame.

@@ -64,6 +64,16 @@ describe('Warlords of Mars', () => {
     expect(m.figures['unit-gnat']).toEqual({ unit: { kind: 'gnat' } });
   });
 
+  it('Long Guns stands its carriers with a launcher and no gun, hanging back behind the tanks', () => {
+    const id = 'long-guns', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
+    const m = steps.find((s) => s.key.startsWith('level-')).order.manifest;
+    const H = m.entities.filter((e) => e.id.startsWith('carriers-')), T = m.entities.filter((e) => e.id.startsWith('screen-'));
+    expect(H.length).toBe(3);
+    for (const h of H) { expect(h.rule.missiles).toMatchObject({ impact: OPERATION.units.hammer.missiles.impact }); expect(h.weapon).toBeUndefined(); }
+    const mid = (L) => L.reduce((a, e) => a + e.transform.pos[1], 0) / L.length;
+    expect(mid(H)).toBeGreaterThan(mid(T) + 80);
+  });
+
   it('the path ladders up to an ace: its own build and paint, more armour, its phases on its mind, its reserve held back', () => {
     const id = 'vermilion', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
     const m = steps.find((s) => s.key.startsWith('level-')).order.manifest;

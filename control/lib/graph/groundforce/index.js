@@ -37,6 +37,9 @@ const KEY = Object.freeze({ dir: [-0.42, -0.36, 0.83], ambient: 0.46, gain: 0.62
 
 const twin = (y0, y1, z, apart, r) => [-1, 1].flatMap((s) => P.pipe([s * apart / 2, y0, z], [s * apart / 2, y1, z], r, 'dark', 8));
 
+// (a part's faces turned about an axis through `at`, parallel to x: a rack raised, a barrel laid)
+const tiltX = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const y = c[1] - at[1], z = c[2] - at[2]; return [c[0], at[1] + y * Math.cos(a) - z * Math.sin(a), at[2] + y * Math.sin(a) + z * Math.cos(a)]; }) }));
+
 /** The units, by kind. */
 export const GROUND_UNITS = Object.freeze({
   // dug in, a ring of armour round a domed turret, its twin guns long: it turns to the craft and fires up at it
@@ -93,6 +96,32 @@ export const GROUND_UNITS = Object.freeze({
       ...P.pipe(S([0, 0.7, 0.22]), S([0, 1.75, 0.22]), 0.08 * k, 'dark', 6),
       ...P.box(S([0, 0.55, 0.28]), S([0.3, 0.5, 0.2]), 'dark', { ch: 0.05 * k }),
     ]; },
+  }),
+  // an artillery truck: six wheels under a long bed, a cab forward, outriggers braced on the ground, and on the bed a
+  // launcher rack raised toward the sky, eight tubes with their missiles' noses showing; it hangs back and lobs homing salvos
+  hammer: Object.freeze({
+    label: 'hammer carrier', reads: 'a six-wheeled truck, outriggers braced, a raised rack of eight missile tubes over the bed',
+    size: 4.2, hp: 7, rof: 0.8, range: 1600, points: 220,
+    parts: () => {
+      const rackAt = [0, -1.6, 2.2], rack = [
+        ...P.box([0, -1.6, 2.9], [2.9, 3.6, 1.5], 'hull', { ch: 0.25 }),
+        ...P.box([1.47, -1.6, 2.9], [0.05, 3.0, 0.22], 'accent'),
+        ...[-1, 1].flatMap((sx) => [-0.55, 0.55].flatMap((dz) => [-0.62, -0.2, 0.2, 0.62].slice(0, 2).flatMap((xi, i) => {
+          const x = sx * (0.42 + i * 0.68), z = 2.9 + dz;
+          return [...P.prism([x, 0.2, z], 0.26, 0.26, 0, 0, 'dark', 8).slice(0, 0), ...P.box([x, 0.25, z], [0.5, 0.08, 0.5], 'dark'), ...P.box([x, 0.27, z], [0.22, 0.06, 0.22], 'drive')];
+        }))),
+      ];
+      return [
+        ...P.box([0, 0, 1.15], [3.2, 8.4, 0.7], 'dark', { ch: 0.2 }),
+        ...P.box([0, 3.05, 2.0], [3.0, 2.3, 1.9], 'hull2', { ch: 0.55 }),
+        ...P.box([0, 4.22, 2.35], [2.1, 0.08, 0.32], 'sensor'),
+        ...P.box([0, 2.9, 3.05], [2.3, 1.5, 0.22], 'hull', { ch: 0.3 }),
+        ...[-1, 1].flatMap((s2) => [2.7, 0.2, -2.6].flatMap((y) => P.wheel([s2 * 1.55, y, 0.62], 0.62, 0.55, 'dark', 12))),
+        ...[-1, 1].flatMap((s2) => [1.0, -3.4].flatMap((y) => [...P.pipe([s2 * 1.6, y, 1.2], [s2 * 2.6, y, 0.15], 0.11, 'hull2', 6), ...P.box([s2 * 2.7, y, 0.07], [0.6, 0.6, 0.14], 'dark')])),
+        ...P.box([0, -1.6, 1.75], [1.4, 1.6, 0.5], 'hull2', { ch: 0.15 }),
+        ...tiltX(rack, rackAt, 0.62),
+      ];
+    },
   }),
   // two backward-kneed legs under an enclosed cab, a red visor, twin chin guns, an antenna: it stands its ground
   walker: Object.freeze({

@@ -508,6 +508,19 @@ export function buildRulesFrame(E) {
     }
     e.slotState = st;
   }, 12);
+  // ── a launcher's missiles on a frame's field (an ai's `rule.missiles` with an `impact`, a Hammer's): each launched round
+  // carries its launcher's impact before any burst is judged, so it chips a frame's bar as a round does; the engine's
+  // launcher fires them with none, and a burst with none breaks a bar outright (combat-ranged.js burstProjectile) ──
+  E.registerWorldPass('frame-missiles', (state) => {
+    const ps = state.projectiles;
+    if (!ps || !ps.length) return;
+    for (const p of ps) {
+      if (!p.missile || p.frameImpact) continue;
+      p.frameImpact = true;
+      const o = state.byId && state.byId[p.owner], m = o && o.rule && o.rule.missiles;
+      if (m && m.impact > 0 && !(p.impact > 0)) p.impact = m.impact;
+    }
+  }, 20);
   // ── a flier over a frame's field (an ai in the air with a `floor`, a Gnat's): held that many metres over the land under
   // it, so a swarm closing on a frame on its feet weaves over it and never through a hill ──
   E.registerWorldPass('frame-fliers', (state, input, dt, world) => {
