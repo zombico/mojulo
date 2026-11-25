@@ -60,6 +60,8 @@ function __hgFrame() {
   if (!G) return;
   // (one set of vitals: the page's own health panel, drawn and shown for any body with an hpMax, gives way to the castle's)
   if (typeof __hp !== 'undefined' && __hp && __hp.wrap && __hp.wrap.style.display !== 'none') __hp.wrap.style.display = 'none';
+  // (a game with a look draws these on mana-ui, gameworld/metroidvania/hud.js: this page's own band and bars give way)
+  if (window.__mojHud && window.__mojHud.state && window.__mojHud.state.bx) { if (__hgV.parentNode) { __hgEl.remove(); __hgHeld.remove(); __hgV.remove(); } return; }
   const T = __world.byId[G.spec.target || 'hero'];
   if (T) {
     const hp = T.body && Number.isFinite(T.body.hp) && T.hpMax ? Math.max(0, T.body.hp / T.hpMax) : 1, M = T.rule && T.rule.moveset && T.rule.moveset.mp;

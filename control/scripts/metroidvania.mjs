@@ -4,7 +4,7 @@
  * built in greybox (rooms.js), solved (solve.js), held to its laws (laws.js) and written as its elevation (drawing.js):
  * box.svg, a PNG of it where sharp is installed, and box.json (the layout, the solution and the laws).
  *
- *   node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 12x8] [--shape serpentine|hub] [--castle]
+ *   node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 14x8] [--shape serpentine|hub] [--castle]
  *
  * With no words, Vampire Sonata (vampire-sonata.js), the castle stormed; `--shape` its bell tower (a serpentine) or its
  * courtyard (a hub); `--castle` the castle of boxes (castle.js: the tower, a bridge, the courtyard, a gatehouse, the keep). Prints the laws and the order it is solved in.

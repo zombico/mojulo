@@ -24,12 +24,13 @@
  * null`, the dash never off a wall), no stomp (the card's `pound` is null), no buster; her sword is steel, not the
  * saber's light (`blade.steel`: no strand over it, her cut's slash in steel).
  *
- *   vampireSonata({ box?, turn? }) → the map's words (box.js readBox's), the castle at 12 × 8 screens unless said
+ *   vampireSonata({ box?, turn? }) → the map's words (box.js readBox's), the castle at 14 × 8 screens unless said (its outer wall's towers two screens wide)
  *   bellTower({ box? }) · courtyard({ box? })   → the castle's other boxes: a serpentine and a hub (shapes.js)
  *   vampireSonataCastle() → a castle of boxes (castle.js): the tower, a bridge, the courtyard, a gatehouse, the keep
  *   erinaHero()          → the character door's words for her (create_character { as: 'hero', spec, toon })
  *   vampireSonataGame({ heroRef?, id?, name?, castle? }) → a designed game's words: the feel, the side camera, her book (adopted
  *                        by `heroRef`, the row erinaHero mints), the castle one level
+ *   vampireSonataStart() → the same as a starter: the box's look left to the world's geocube (gothic-night)
  *   VAMPIRE_SONATA_PREMISE, VAMPIRE_SONATA_POWERS, VAMPIRE_SONATA_FEEL, VAMPIRE_SONATA_TREES, VAMPIRE_SONATA_FOES, ERINA
  *
  * Pure: words in, words out.
@@ -42,7 +43,7 @@ export const VAMPIRE_SONATA_POWERS = Object.freeze({
 });
 
 /** The castle as the map's words. */
-export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
+export function vampireSonata({ box = [14, 8], turn = 'ccw' } = {}) {
   return {
     premise: VAMPIRE_SONATA_PREMISE,
     box: [...box],
@@ -51,9 +52,9 @@ export function vampireSonata({ box = [12, 8], turn = 'ccw' } = {}) {
     maps: true,
     powers: structuredClone({ ...VAMPIRE_SONATA_POWERS }),
     rings: [
-      { id: 'outer-wall', place: 'the outer wall', foes: ['rat', 'crow'], key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
+      { id: 'outer-wall', place: 'the outer wall', foes: ['rat', 'crow'], towers: true, key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
         pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }, { gate: 'wall-break', holds: 'a relic' }, { gate: 'form', holds: 'a heart vessel' }] },
-      { id: 'great-halls', place: 'the great halls', foes: ['ghoul', 'rat'], finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
+      { id: 'great-halls', place: 'the great halls', foes: ['ghoul', 'rat'], finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }, { gate: 'secret', holds: 'a relic' }] },
       { id: 'inner-ward', place: 'the inner ward', foes: ['wolf', 'crow'], boss: 'the Bellkeeper', finds: 'mist-veil', inward: 'form' },
       { id: 'keep', place: 'the keep', foes: ['armor'], boss: 'the Lord of the Keep' },
     ],
@@ -187,6 +188,14 @@ export const ERINA = Object.freeze({
 /** The character door's words for Erina. */
 export const erinaHero = () => ({ as: 'hero', toon: { light: true }, spec: structuredClone({ ...ERINA }) });
 
+/** The castle as a STARTER (the galaxy-boy rail's `vampire-sonata` variant, pitch-start.js): Vampire Sonata's game words
+ * with its box's look left to the world's geocube, the gothic night's castle (cube.js), so a person's game starts from
+ * the cube and the words and changes either. */
+export function vampireSonataStart() {
+  const G = vampireSonataGame(), { theme: _theme, ...words } = G.levels.castle.metroidvania;
+  return { ...G, style: { geocube: 'gothic-night' }, levels: { castle: { ...G.levels.castle, metroidvania: words } } };
+}
+
 /** Vampire Sonata as a designed game's words: Erina's feel and book, the castle its one level. */
 export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vampire Sonata', box, turn, castle = false } = {}) {
   return {
@@ -201,5 +210,7 @@ export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vamp
     characters: { direction: { tradition: 'anime', body: { rail: 'realistic', style: 'anime' } }, ...(heroRef ? { hero: { ref: heroRef } } : {}) },
     // (the castle one box, or, `castle`, the castle of boxes: the tower, the courtyard and the keep joined, castle.js)
     levels: { castle: { name: 'The castle', foes: true, metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },
+    // (its HUD, its menus and their sounds in the castle's look, the nocturne card: metroidvania/hud.js)
+    ui: { theme: 'nocturne' },
   };
 }

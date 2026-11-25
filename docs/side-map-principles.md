@@ -75,7 +75,19 @@ that holds a hero of a given stature at the frame's share, the lane at its place
 | a chimney | a shaft between two walls, climbed by kicks, with rests | the wall kick, sustained |
 | a stair | a short flight of ledges inside | a breather between climbs |
 | a ladder | climbed hand over hand | the free way up, or the way back |
+| a tower | a screen wide in thick storeys, each risen by a chimney at one end and the next at the other | a long climb kicked, crossed between kicks |
+| an atrium | two screens wide in thick storeys, risen by chimneys at its ends and a ladder in the open at its middle | a climb that crosses screens; the frame follows it both ways |
 | pillars over a gap | tops of unlike heights, a jump apart | the risky crossing before a climb |
+
+A tower and an atrium are climbed as a wall-climbing hero climbs, never by stairs (the castle's walked flights are its
+hero's, who kicks off no wall). They are built in STOREYS: a thick floor at every screen of height (`SLAB`, as thick as a
+building's floor), so a long climb has its middle floors and never hangs as one shaft in a void. Each storey is risen
+through a CHUTE, an opening in the floor over it: a chimney of two walls (the shaft's own wall and an inner one), its
+rests within three kicks as a chimney's, entered under its inner wall, left over it onto the floor above, the last over
+the far wall's top. The chutes stand at the two ends in turn, so every storey is crossed between kicks. A LADDER stands
+only where a wall kick has nothing to kick off: an atrium's middle storey is risen through a chute in the open, in the
+middle of its floor, by a ladder; a hero that kicks off no wall climbs every storey by ladders. Galaxy Boy's first level
+climbs an atrium after its gauntlet, the plant's heart, before the chute down to the boss.
 
 14. **A long climb is short climbs and rests.** A ledge or a girder comes every few kicks, on alternating sides, and a
     pickup stands on it. No more than three kicks between rests.
@@ -184,7 +196,24 @@ The cake is `control/lib/graph/gameworld/side-map/cake.js` (the materials), `tex
     vista (`dress.js` SETTINGS), a zone's own `vista` overrides it (`wall` the plain wall). A vista with a far wall is a
     room, kept to its zone and closed at its ends so a neighbour's opening never sees into it; one under the sky widens
     to fill the frame from anywhere along the zone (`control/lib/graph/gameworld/side-map/vista.js`, a new vista a row).
-37. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
+    A vista is a place still running: under the sky it stands against a dusk glow in bands; its tall things carry
+    beacons that blink; its stacks steam; a hall's far wall has a lit clerestory (`VISTA_LIFE`, `VISTA_MOTION`;
+    [side-scroll-backgrounds.md](side-scroll-backgrounds.md)). The `future` vista is a city of domed arcologies,
+    glass domes lit from inside and needle towers, neon down the near buildings, a skyway with its train and craft
+    drifting between the layers. A vista may be built round one giant SET: the `reactor`, the machine the plant makes,
+    a wheel bigger than the window turning about a pulsing core with an inner ring turning the other way and pistons
+    pumping before it, centred on the zone's opening (the page's ambient channel spins it). Seeded from these rows
+    (docs/backdrop-variations.md): `market` (towers crowded close, neon billboards on their faces, craft thick between),
+    `orbit` (no dusk but stars, a planet rising under the window with its air and its ring, a station's needles) and
+    `greenhouse` (glass domes under a far wall, gardens growing in them).
+37. **A place its own colour.** A setting's place may carry a TONE (a hue off the setting's place hue, a saturation, a
+    lightness), so a stage runs through its places in their own colours and is never one hue all through. The hue
+    swings only within `PLACE_SWING`, so play stays across the wheel and the boss's colour stays its own. The plant's
+    places are tuned this way, and a run and gun's side map is drawn in its own cube, a city by night
+    (`SIDE_MAP_CUBE`), never the mascot platformer's orchard. Every setting's places carry a tone, and two settings are
+    seeded from the rows: `city` (rooftops, a neon market, the metro, the highway, a plaza, the penthouse) and
+    `orbital` (a docking ring, a hydroponics bay, a market deck, an observation deck, a reactor ring, the bridge).
+38. **The boss owns its room.** Its colour is used nowhere before it; its room is one screen, its walls the frame's
     edges, and its back wall carries its mark. A step past its doorway it shuts behind the hero: a shutter comes down
     and the room is walled up (a camera zone's `shut`, `side-map/play.js`). An intro stage's boss (level 0's) is a
     giant worker bot, not one of the roster's rivals, with one simple pattern: Bulwark, an engine bot on tank treads,
@@ -330,6 +359,21 @@ the frame, the frog croaks, a hopper springs, a charger revs and slams, a flier 
 its own round. What is off the screen is silent, as it is unseen. Under it, an electronic score: the level's piece, a
 fight piece the tension crosses into, the boss's own piece once his room shuts, a stinger as the level is won or lost. The words and how a game changes them are in
 `docs/game-audio.md`.
+
+## In the book
+
+A side map level has its page in its world's gameworld bible (`/bible`, its `#sidemaps` section, `side-map/book.js`).
+The page is read off the map as its level builds it: on the level's or the world's geocube, for the side map's hero, in
+the world's feel. The book and the game therefore never disagree.
+
+- **The elevation**, as the side map draws it (`drawing.js`): its zones numbered, its rulers, the bot's line through it,
+  its checkpoints, doors, ladders and pickups, where the dress places its things, and its laws.
+- **A row a zone:** its place (indoors or out, its material, its key), its run (across, up, down, a room), its size in
+  screens, what it is for (what it teaches, its beat, its climb, its drop), and its spawners, pickups and crates.
+- **The laws:** every law the map is held to and what each says. This is the machine gate, measured on the map as
+  built; the eyes gate is the person's, who plays it.
+
+The level's own page carries a small plan of its zones in their places' keys.
 
 ## Not yet
 

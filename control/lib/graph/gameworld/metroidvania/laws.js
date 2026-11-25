@@ -25,26 +25,33 @@
  *                    under a double jump; nothing asks a wall kick or a stomp
  *   sill-holds       a double-jump sill is a gate: nothing to stand on in its room within a single jump under its top and
  *                    within SILL_CLEAR jumps of it across (a stair's ledge would let one jump over it)
+ *   climbs-across    going up is going across: a climb of more than a storey spreads its stands over ACROSS of a
+ *                    screen's width, for ACROSS_SHARE
+ *                    of the climbs (climbs.js: a switchback's galleries, a flight's treads, a stair's steps)
+ *   headroom         nothing stood on within a body (and a ledge, and CLIMB.head) of what is stood on under it; no
+ *                    solid of a room's structure within a jump and a body over what is stood on under it
  *   saves            no more than SAVE_EVERY rooms walked between save rooms
  *   boss-at-core     the core's last hall holds a boss
  *
  *   boxLaws(L, { solved?, greybox? }) → [{ id, holds, says, rooms? }]   (rooms: where a law is lost)
- *   BOX_LAWS, FILL, AXES, BACK, SAVE_EVERY, SILL_CLEAR
+ *   BOX_LAWS, FILL, AXES, BACK, SAVE_EVERY, SILL_CLEAR, ACROSS, ACROSS_SHARE
  *
  * Pure.
  */
 import { solveBox } from './solve.js';
-import { greyboxOf } from './rooms.js';
+import { greyboxOf, FLOOR } from './rooms.js';
 import { SHAPES } from './shapes.js';
+import { CLIMB, structFaults } from './climbs.js';
 
-export const BOX_LAWS = Object.freeze(['entered-left', 'fills-the-box', 'shape', 'both-axes', 'gated-in', 'one-new-thing', 'found-before', 'solvable', 'shortcuts', 'revisits', 'pockets', 'no-kick', 'sill-holds', 'saves', 'boss-at-core']);
+export const BOX_LAWS = Object.freeze(['entered-left', 'fills-the-box', 'shape', 'both-axes', 'gated-in', 'one-new-thing', 'found-before', 'solvable', 'shortcuts', 'revisits', 'pockets', 'no-kick', 'sill-holds', 'climbs-across', 'headroom', 'saves', 'boss-at-core']);
 export const FILL = 0.8;
 export const AXES = SHAPES.spiral.axes;
 export const BACK = 0.5;
 export const SAVE_EVERY = 10;
-/** how far across from a sill, in jumps, nothing may stand within a jump under its top: three jumps' height across is
- * the castle's longest leap, the dash jump (6.7 m measured on its feel, feel/reach.js, against a jump of 2.24 m) */
-export const SILL_CLEAR = 3;
+/** how far across from a sill, in jumps, nothing may stand within a jump under its top (a running jump's length and more) */
+export const SILL_CLEAR = 4;
+/** a climb crosses when its stands spread over ACROSS of a screen's width; ACROSS_SHARE of climbs must */
+export const ACROSS = 0.3, ACROSS_SHARE = 0.8;
 const EPS = 1e-3;
 const pct = (v) => `${Math.round(v * 100)}%`;
 const CCW = ['corner', 'right', 'corner', 'up', 'corner', 'left', 'corner', 'down'], CW = ['corner', 'up', 'corner', 'right', 'corner', 'down', 'corner', 'left'];
@@ -155,11 +162,12 @@ export function boxLaws(L, { solved, greybox } = {}) {
   // no kick: every rise a jump's at most, a double-jump gate's between a jump and a double jump
   const J = G.hero.jump, D = G.hero.double, tall = [];
   for (const c of G.chains) c.rises.forEach((r, k) => {
+    if (c.ways?.[k] === 'ladder') return;   // (a ladder climbs it: no jump asked)
     const isGate = c.gate === 'double-jump' && k === c.rises.length - 1;
     if (isGate ? !(r > J + EPS && r <= D + EPS) : r > J + EPS) tall.push(`${c.room} rises ${r} m${isGate ? ' at its gate' : ''}`);
   });
   const sills = G.gates.filter((g) => g.kind === 'double-jump' && g.door).map((g) => Math.round((g.z1 - g.z0) * 1000) / 1000).filter((h) => !(h > J + EPS && h <= D + EPS));
-  law('no-kick', !tall.length && !sills.length, tall.length || sills.length ? [...tall, ...sills.map((h) => `a sill of ${h} m`)].join('; ') : `every climb a stair of ledges at most ${G.step} m apart (a jump is ${J} m); every double-jump gate over a jump, under ${D} m; no chimney, no stomp`, [...new Set(tall.map((t) => t.split(' ')[0]))]);
+  law('no-kick', !tall.length && !sills.length, tall.length || sills.length ? [...tall, ...sills.map((h) => `a sill of ${h} m`)].join('; ') : `every climb's rise at most ${G.step} m but a ladder's (a jump is ${J} m); every double-jump gate over a jump, under ${D} m; no chimney, no stomp`, [...new Set(tall.map((t) => t.split(' ')[0]))]);
 
   // the sills hold: nothing stood on within a jump under a sill's top and within SILL_CLEAR jumps of it
   const leaks = [];
@@ -169,6 +177,24 @@ export function boxLaws(L, { solved, greybox } = {}) {
     if (near.length) leaks.push(`${q.room}: a ledge ${Math.round(Math.min(...near.map((x) => Math.abs(q.side > 0 ? q.s - x.s1 : x.s0 - q.s))) * 10) / 10} m from its sill puts it in one jump`);
   }
   law('sill-holds', !leaks.length, leaks.length ? leaks.join('; ') : `every double-jump sill stands clear: nothing to stand on within a jump under it and ${SILL_CLEAR} jumps across`, [...new Set(leaks.map((t) => t.split(':')[0]))]);
+  // the climbs cross: going up is going across (climbs.js), each climb of more than a storey spreading its stands over
+  // ACROSS of a screen's width,
+  // all but a share (a room keeping a sill keeps its zigzag, and a room climbed twice may have no room for two figures)
+  const W0 = G.screen.width, sillRooms = new Set((G.sills ?? []).map((q) => q.room)), climbs = G.chains.filter((c) => c.spans && !sillRooms.has(c.room) && c.to - c.from > G.screen.height + 1e-3);
+  const narrow = climbs.filter((c) => { const cs = c.spans.map(([a, b]) => (a + b) / 2); return Math.max(...cs) - Math.min(...cs) < ACROSS * W0; });
+  const crossing = climbs.length ? 1 - narrow.length / climbs.length : 1;
+  law('climbs-across', crossing >= ACROSS_SHARE - EPS, `${Math.round(crossing * 100)}% of ${climbs.length} climbs of more than a storey cross their room (at least ${ACROSS * 100}% of a screen; at least ${ACROSS_SHARE * 100}% of climbs)${narrow.length ? `; straight up: ${narrow.map((c) => c.room).join(', ')}` : ''}`, crossing >= ACROSS_SHARE - EPS ? [] : narrow.map((c) => c.room));
+  // headroom: nothing stood on within a body of what is stood on under it (climbs.js climbFaults), room by room
+  const cramped = [];
+  for (const r of L.rooms) {
+    const mine = G.solids.filter((x) => x.room === r.id && (x.role === 'ledge' || x.role === 'lip')).map((x) => ({ s0: x.s0, s1: x.s1, z: x.z1, kind: x.piece ?? x.role }));
+    const over = [];
+    for (const p of mine) for (const q of mine) { const o = Math.min(p.s1, q.s1) - Math.max(p.s0, q.s0); if (q.z > p.z + EPS && o > 0.2 && q.z - p.z < G.hero.stature + CLIMB.th + CLIMB.head) over.push(q); }
+    // (a room's structure: no solid within a jump and a body over what is stood on under it, nor over a hole come up)
+    const built = G.solids.filter((x) => x.room === r.id && ['stair', 'landing'].includes(x.role)).map((x) => ({ kind: x.role, s0: x.s0, s1: x.s1, z0: x.z0, z1: x.z1 }));
+    if (over.length || (built.length && structFaults(built, { hero: G.hero, floor: r.rect[1] * G.screen.height + FLOOR }).length)) cramped.push(r.id);
+  }
+  law('headroom', !cramped.length, cramped.length ? `a ledge over a head in ${cramped.join(', ')}` : `nothing stood on is within a body of what stands under it (${Math.round((G.hero.stature + CLIMB.th + CLIMB.head) * 100) / 100} m)`, cramped);
   // saves
   let since = 0, most = 0;
   for (const id of L.walk) { since = room.get(id).save ? 0 : since + 1; most = Math.max(most, since); }

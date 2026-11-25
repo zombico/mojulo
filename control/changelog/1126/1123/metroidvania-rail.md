@@ -61,10 +61,6 @@
   is checked against its own shape, and the castle as one walk through all of it. Vampire Sonata's castle climbs its bell
   tower, crosses the bell bridge to an open courtyard, and passes the Gatekeeper into the keep. It is drawn as one
   elevation and played as one level.
-- The castle is seen as closely as the castle-crawler holds its hero: Erina stands a fifth of the screen's height, about
-  as Alucard does, and every room is laid round her at that scale. With smaller screens there is one candle, torch or
-  brazier to a screen. A lamp lights its own room only, not the room beside it through the wall. A double-jump sill's
-  clearance is now her measured longest leap, and a gated door always has floor enough beside it to stand and strike.
 - A game can have trees: a skill tree on how its hero moves and a tech tree on its spells and attacks. Movement skills
   turn the hero's own numbers: a second and a third jump, a higher jump, a glide, a faster run, a longer dash, an air
   dash more. Techs add to the hero's own strings: a lunging thrust, a cleave forked off its string, a launcher, a

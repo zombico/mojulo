@@ -20,7 +20,8 @@
  *             reads or fights the one she came for), stand-clear (none over a hole nor at a doorway), on-their-feet (a
  *             shaft's foes fly, a corridor's walk), rising (the fight never eases going in: each region's threat a screen,
  *             a foe by its rank and an elite THREAT minions, at least EASE of the mean of the regions before it in its box), between-saves (no more foes between two
- *             save rooms than SURVIVE times the hits her health takes: `hp` over `hit`)
+ *             save rooms than SURVIVE times the hits her health takes: `hp` over `hit`; boxPlaced leaves a stretch's last
+ *             foes out past it)
  *   FOE_EVERY, RISE, CLEAR, QUIET
  *
  * Pure: a box and its bestiary make the same foes.
@@ -48,7 +49,7 @@ const FLYING = new Set(['swooper']);
 const quiet = (r, L) => r.id === L.entry.room || r.save || r.mapRoom || r.boss || r.role === 'throne' || r.role === 'gatehouse' || r.role === 'portcullis';
 
 /** Who stands where in the box. */
-export function boxPlaced(L, G, from, { bestiary = {} } = {}) {
+export function boxPlaced(L, G, from, { bestiary = {}, hp = 100, hit = 10 } = {}) {
   if (!from?.length) return [];
   const W = G.screen.width, H = G.screen.height, out = [], walkAt = new Map(L.walk.map((id, k) => [id, k]));
   const flies = (id) => FLYING.has(bestiary[id]?.class);
@@ -86,7 +87,17 @@ export function boxPlaced(L, G, from, { bestiary = {} } = {}) {
     }
     at.sort((a, b) => a - b).forEach((s, q) => out.push({ id: `${r.id}-w${q + 1}`, eid: walkers[(q + r.ring + Math.round(depth * 2)) % walkers.length], at: [0, s, r3(floor)], heading, room: r.id }));
   }
-  return out;
+  // (and no more between two saves than her health takes, castLaws' between-saves: walked in order from each save, a
+  // room's last foes past it are left out)
+  const most0 = Math.floor((SURVIVE * hp) / hit), drop = new Set(), byId = new Map(L.rooms.map((r) => [r.id, r]));
+  let since = 0;
+  for (const id of L.walk) {
+    if (byId.get(id)?.save) since = 0;
+    const mine = out.filter((p) => p.room === id), room = Math.max(0, most0 - since);
+    for (const p of mine.slice(room)) drop.add(p.id);
+    since += Math.min(mine.length, room);
+  }
+  return drop.size ? out.filter((p) => !drop.has(p.id)) : out;
 }
 
 /** What the foe cast reads of a box. */

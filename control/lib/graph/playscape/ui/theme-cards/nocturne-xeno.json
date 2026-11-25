@@ -1,0 +1,21 @@
+{
+  "id": "nocturne-xeno",
+  "name": "Nocturne under Rock",
+  "about": "Nocturne re-keyed for XenoJager's dangerous planet: a cave's glow for gold, bioluminescent green lines on near black, health still in crimson so it reads, energy in the crystals' cyan, a boss in lava's orange.",
+  "family": "grave",
+  "tags": ["metroidvania", "exploration", "planet", "cave"],
+  "author": "mojulo",
+  "from": "nocturne",
+  "tokens": {
+    "ink": "#e4f6ec",
+    "panel": "#070c0c",
+    "line": "#3a8a6a",
+    "accent": "#7affc8",
+    "accent2": "#6ad8ff",
+    "paper": "#0c1614",
+    "hp": "#d0384a",
+    "mp": "#4ac8ff",
+    "boss": "#e0602a",
+    "harm": "#ff8a4a"
+  }
+}

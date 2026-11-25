@@ -51,6 +51,26 @@ what it asks from across the room. A new gate is a row.
 | wall-break | a cracked wall across the way | a power: the special strike | a cracked block |
 | key | a locked door | the key found earlier in the same ring | a door with a keyhole |
 | boss | the boss room's way on | the boss felled | a seal |
+| secret | a pocket's wall like the walls round it | blows: no power asked | a block of the wall's own stone |
+
+### Secret walls: destructible terrain
+
+A pocket may be a secret (`pockets: [{ gate: 'secret', holds }]`). Its wall is the one gate no power opens and nothing
+marks: it is found by striking the walls. It is never the step into a ring (`inward`), and the solve opens it with
+nothing held.
+
+- **It looks like the wall.** In a dressed box it is the alcove's own back wall copied across its mouth (`scene.js`):
+  the same blocks, mortar and baked light. Only the blow tells it.
+- **No gate holds it.** It is a breakable outside the held gates, broken in `SECRET.blows` blows (`gates.js`).
+- **The map keeps its prize off** until the wall is down (`boxMapView`'s `broken`).
+- **Destructible terrain where the game asks for it.** Under the game's `mechanics.destruction: 'physical'`, the level
+  is physical (`level.js`). The secret wall is then its room's wall matter, the geocube's (`cubeMatter`), a facing just
+  thin enough to fall on its last blow at the box's power (`SECRET.power`, heroic, unless the level's `matter` says
+  its own). Rupa breaks it: its joules spent swing by swing, its pieces thrown as its stone (`docs/rupa.md`). The law
+  `secrets` says each falls on its last blow. Without a degree, it falls to counted blows.
+
+Vampire Sonata hides a relic in the great halls; XenoJager hides a missile pack in the crust and an energy tank in the
+fungal caverns.
 
 9. **Every step in is a gate**, and each asks something no step before it asked.
 10. **What opens a gate is found before the gate is met** on the walk: a key before its lock, a power before its gate.
@@ -63,18 +83,66 @@ what it asks from across the room. A new gate is a row.
 ## The greybox
 
 The box built in metres before any dress ([rooms.js](../control/lib/graph/gameworld/metroidvania/rooms.js)): each room's
-floor, ceiling and walls; its doors cut through them, a doorway in a wall or a hole through a floor; ledges that zigzag
-up to every door a room is left by upward, none over the head of the one below; each gate's block in its door; each
-pocket's alcove. Drops are holes set aside of the line a climb comes up, so a fall down a shaft does not drop through
-them.
+floor, ceiling and walls; its doors cut through them, a doorway in a wall or a hole through a floor; a CLIMB up to
+every door a room is left by upward (below); each gate's block in its door; each pocket's alcove. Drops are holes set
+aside of the line a climb comes up, so a fall down a shaft does not drop through them.
 
 It is drawn as an elevation ([drawing.js](../control/lib/graph/gameworld/metroidvania/drawing.js)): each ring's voids in
 its shade, the walk numbered room by room, the gates in their colours and shapes, the shortcuts dashed, saves, bosses,
 powers and pockets marked, and the laws under it.
 
 ```bash
-node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 12x8]
+node scripts/metroidvania.mjs [words.json] [--out dir] [--turn ccw|cw] [--box 14x8]
 ```
+
+## Climbs: going up is going across
+
+A shaft climbed as a hop straight up a column is a lift, not a place, and a run of floating steps makes a castle a
+platform game. A room is climbed by its STRUCTURE ([climbs.js](../control/lib/graph/gameworld/metroidvania/climbs.js),
+`layStructure`): every piece is built onto the castle and stands solid, a closed part she stands on and never jumps up
+through. Going up is going across: the way turns left and right as it rises, and a tower's way weaves from one screen to
+the other.
+
+| Piece | What it is | How she gets on it |
+|---|---|---|
+| a flight | steps a riser under the runtime's step apart, rising across a bay, a stringer under them; the flight that rises from the floor is built up from it, one stepped mass | walked |
+| great steps | blocks a leap apart rising across a bay, each reaching well under the one before it, so the flight is one stepped mass | leapt |
+| a landing | a block at the end of a flight, built out from a wall or the tower's pier on its corbel | walked or leapt onto |
+| a ladder | at a turn, where the way doubles back above itself: set in a slot at the wall beside the landing over it, from the landing at its foot to the one at its head | held up (W), stepped off at its head |
+| the pier | a tower's middle, from its floor to its ceiling, an archway at its foot and one at each landing the way crosses it by | walked through |
+| the rock | in the rooms on the box's bottom row, what rises from the floor is the castle's own rock breaking through | as the piece it is |
+
+Two structures are dealt room by room in turn (`STRUCT_DEAL`): the **stair tower** (every flight walked) and the **great
+stair** (every other flight leapt). Each is laid from the door it climbs to downward: the landing under the door's hole (or
+at its doorway), then the way back down a cycle (a flight across a bay, through the pier, a flight across the other bay,
+a ladder at its wall where the way doubles back, a flight back, through the pier, ...), until the lowest flight reaches
+the floor and is built up from it. A door a room is climbed to stands over the end of a bay (the hole near a wall, a
+tower's outer wall) so the way ends at a landing built onto the castle.
+
+A structure fits when it holds:
+
+1. **A jump at a time.** No rise past a jump but a ladder's, no gap past `CLIMB.reach` jumps.
+2. **Clear over her head.** No solid closer than a jump and a body over what is stood on under it: she would strike it
+   rising. So a ladder rises `STRUCT.ladder`, the landing at its head clear of the one at its foot.
+3. **Clear of the way in.** Nothing over a hole in the floor she comes up through, and no mass before a doorway at the
+   floor or over what stands on it (a save, a relic, a key).
+
+A room no structure fits, or one left through a double jump's sill, is climbed by the older figures of ledges
+(`CLIMB_DEAL`: switchback, flights, stair, the zigzag last), held to the same jump and to a body's headroom.
+
+**Towers.** A ring's words may say `towers: true` (box.js): its legs up and down are two screens wide, its corners as
+wide, the rings inside it a column further in. Vampire Sonata's outer wall has them, so its box is 14 × 8. A tower is
+closed against the night (the outer wall's `shaft` locale, `tower` in themes.js: banners, arrow-slit lancets, torches),
+its way woven through its pier from screen to screen; the side map's camera follows across both its screens.
+
+A climb's stands are its chain's `spans`, and how each is got onto its `ways` (walk, jump, ladder), so a bot can play
+it: the level's e2e climbs every room of the castle that is not gated, stairs walked, great steps leapt, ladders held,
+and out through its door. The double jump, once found, reaches a landing two leaps up: a power that changes how a room is
+climbed. Laws: `climbs-across` (a climb of more than a storey spreads across its screen), `headroom` (ledges a body
+clear, a structure a jump and a body clear), `no-kick` (a ladder's rise excepted). The fabric builds each piece in the
+room's stone: a flight one coursed mass, its tread lit and its nosing proud; a great step in courses, coped; a landing on
+its corbel; the pier quoined, its archways made as a doorway is; the ladder's rails and rungs behind her on the lane; the
+rock in boulders, their tops lit.
 
 ## The shapes: a spiral and its siblings
 
@@ -180,8 +248,8 @@ entered from the left, the box filled, the walk keeping its shape to the core (a
 serpentine never dropping a row, a hub's every wing walked out from it and back), both axes travelled within its shape's
 band, every step in gated and asking something new, every gate's opener found before it, the box finished with no one-way trap, shortcuts
 out and a short way back, every power opening something behind it, every pocket opened, no rise past a jump but a
-double-jump gate's, every double-jump sill clear of a stand that brings it in one jump, save rooms close together, a
-boss at the core.
+double-jump gate's, every double-jump sill clear of a stand that brings it in one jump, the climbs crossing their
+screens with nothing over a head, save rooms close together, a boss at the core.
 
 The eyes gate is the operator's: the greybox read as a drawing, and later the box played.
 
@@ -193,16 +261,9 @@ A world's level `levels.<id>.metroidvania` (the box's words) is one stage, built
 
 - **The box is built for the hero.** Its screens come from the hero's stature, and its ledges and sills from the jump
   the hero's feel measures (`feel/reach.js`), so the laws, the greybox and the play agree.
-- **The hero is close, at the idiom's standard.** The castle-crawler's hunter stands about 48 of a 224-line screen's
-  lines, a fifth of its height. A box's frame is the side map's with the hero at that share, 0.21 of the frame's height,
-  against the run and gun's eighth (`rooms.js` `BOX_FRAME`). A cell is a screen, so the whole box is laid round her at
-  that scale: a screen is about 13.8 × 7.8 m for Erina, a storey a little over six metres floor to ceiling.
-- **What a closer screen asks of the rest.**
-  - A drop's hole stands a fifth of the screen aside of its middle (`DROP_ASIDE`), so there is floor enough by the wall
-    to stand at a door there.
-  - The backdrop fits its storey: the vault springs at a share of the storey's height, and the window and the niche are
-    sized to stand under it.
-  - There is one lamp to a screen (see "The backdrop's craft").
+- **The hero is close.** A box's frame is the side map's with the hero a fifth larger in it, 0.15 of the frame's height
+  against the run and gun's eighth (`rooms.js` `BOX_FRAME`). A cell is a screen, so the whole box is laid smaller round
+  her, and a room is a little tighter on its hero.
 - **The hero is drawn as mojulo draws its anime heroes.** She keeps her row's own look and light (the anime head's
   drawn face, its toon light), never the cel bands and ink of the run and gun whose feel she borrows.
 - **A room is a camera zone.** The side map's camera (`worlds/controllable/sidemap.js`) holds each room in the order the
@@ -221,8 +282,7 @@ A world's level `levels.<id>.metroidvania` (the box's words) is one stage, built
 - **The bosses are stand-ins until the foes join.** Each is a tall block struck down by the hero's blows. Its fall gives
   what the boss gives and breaks its seal.
 - **A double-jump sill holds.** Its room keeps its stair and its drops on the far side from it, and the law `sill-holds`
-  measures that nothing to stand on brings it within one jump: nothing within a jump under its top, across the castle's
-  longest leap (`SILL_CLEAR`, three jumps' height, the dash jump measured on its feel).
+  measures that nothing to stand on brings it within one jump.
 
 ## The hunt: an action RPG's vitals
 
@@ -486,6 +546,44 @@ The night over an open ring is laid in bands by height, one colour at one height
 without a seam. The moon stands in the box's top far corner, placed by its parallax so the camera there sees it. A new
 theme is a row of `BOX_THEMES`; a new place is a look.
 
+## Locales
+
+A ring is a region, but a region is not one hall all through. A LOCALE is a look's words laid over its ring's look
+for one room, chosen by what the room is ([themes.js](../control/lib/graph/gameworld/metroidvania/themes.js)
+`localeOf`, `roomLook`): a save room is a chapel; a ring's `shaft` dresses its shafts, its `boss` its boss's room and
+its `alt` every other corridor. The open ring's rooms stay its ramparts. The closed parts keep their ring's stone, laid
+in the locale's path and ledge ("The castle's fabric", below).
+
+| Locale | Its wall | Its bays | Its focal piece | What moves |
+|---|---|---|---|---|
+| the chapel (every save room) | plaster, cracked | lancets of stained glass | a rose window over an altar | the moonbeams, coloured by the glass |
+| the library (the halls' shafts) | ashlar | cases under their galleries, bound in calm sets | an orrery under the roof | its worlds, each on its arm |
+| the clock tower (the ward's shafts and the Bellkeeper's room) | brick | gears meshed in the wall | the great clock's face | the gears, each the other way from the one it drives, and the clock's hands |
+| the catacombs (every other corridor of the ward) | rough rock | niches of skulls, a statue's niche | a sarcophagus, its lord carved on the lid | the candles |
+| the throne room (the keep's boss's room) | ashlar in crimson | banners, tall windows | the lord's throne on its dais under a canopy and his crest | the braziers |
+| the alchemist's laboratory (every other corridor of the halls) | brick | shelves of glowing potions, a library case | the cauldron on its fire under a hood, an alembic, herbs drying | the cauldron's fire, its brew bubbling |
+| the armoury (the keep's other hall) | ashlar | racks of spears and swords, the house's arms | a suit of armour on its stand, a halberd in its hand | the torches |
+| the towers (the outer wall's shafts, in turn) | ashlar | banners, the house's arms, arrow-slit lancets | a broken statue | the torches |
+| the observatory (the outer wall's shafts, in turn) | brick | charts of the stars on their roundels, arched windows | a brass telescope aimed at a round of night | the cold candles |
+| the ballroom (the halls' other corridors, in turn) | plaster | tall mirrors in gilt frames, arched windows | a great chandelier, its candles burning live | the candles |
+| the banquet hall (the halls' other corridors, in turn) | brick | a stag's antlers on their shield, banners | a great hearth, its logs burning live, the house's crest over it | the torches |
+| the dungeon (the ward's other corridors, in turn) | brick | barred cells, chains hung from the roof, manacles on their rings | an iron gibbet hung on its chain | the torches |
+
+A look may name a LIST of locales for its shafts, its halls or its other corridors (`alt`): each room of that kind takes
+the next in turn, counted in its ring's walk, so the great halls' other corridors are the laboratory, the ballroom and
+the banquet hall, the ward's the catacombs and the dungeon, and the outer wall's towers alternate with its observatory.
+
+A theme may be a RE-KEY of another (`rekey` in themes.js): the same rings, locales and pieces with its night, each
+ring's colours, each locale's colours and its lamps' colour laid over the base's. The castle has two:
+`castle-frost` (an ice-blue night under a pale moon, cold stone, lamps gone blue, the keep in sapphire) and
+`castle-blood` (a blood moon on a crimson night, the halls in deep reds, every flame hotter). A box's words name one
+as their `theme`. The rings-distinct law caught a first frost whose ramparts and halls were too alike.
+
+A back's masonry is a row of `WALLS` (dress.js): ashlar, brick, rock and plaster, each with its blocks, its courses, how
+far a stone strays from the next and the joint between them. A piece that turns is its own group (`box:turn:<id>`),
+and the page's ambient channel spins it about its hub. Stained glass is lit from behind and keeps its colours. Every
+backdrop law holds over the locales.
+
 ## The backdrop's craft
 
 In a side view the back wall does the work a dungeon's walls do in 3D. These are the principles a room's back is built
@@ -514,11 +612,8 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
    lane and the light, so it is half a silhouette and never brighter than the lane. Law: `depths`.
 6. **Light is pools in the dark.** It is a dark mood: where no lamp reaches, the wall falls to its ring's `dark`. Light
    comes only from sources the eye can see (a sconce, a brazier, a cold lamp, a torch), each a pool that falls off within
-   its `reach`. There is one lamp to a screen, mounted on a bay's shaft. The bay changes screen to screen, so neighbours
-   never light alike, and a shaft is lit up one side, the other left to the dark. A torch standing in for a brazier
-   (on an upper storey, or in a shaft) is a smaller fire. A lamp lights its own room only: the floors, ceilings and walls
-   are stone, and its light reaches another room only through a doorway or a drop. The light is baked at every corner of
-   every face, so it falls off across a block rather than stepping block by block. **The light draws the relief:**
+   its `reach`. The light is baked at every corner of every face, so it falls off across a block rather than stepping
+   block by block. **The light draws the relief:**
    - A face turned toward a lamp takes more of its light and one turned away less (`RELIEF.turn`). So a column is lit
      round on its lamp's side with its far side in shadow, each block is lit domed, and tops and capitals catch the light
      while soffits and corbels sit in shade.
@@ -529,12 +624,20 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
    A storey's wall is lit in part (`POOLS.lit`), measured above its dark (the wall's darker tenth, since the corners the
    dark gathers in fall below it). A pool's heart stands well above that dark (`POOLS.contrast`). A tall room is lit on
    every storey. Law: `pools`.
-7. **Every flame glows.** A flame is haloed (the page's glow sprites), and dust hangs in the closed rooms, lit only where
-   a lamp is near (the page's motes).
+7. **Every flame glows and burns.** A flame is haloed (the page's glow sprites) and burns live on the page's flames
+   channel, its painted shape kept as its ember. Dust hangs in the closed rooms, lit only where a lamp is near (the
+   page's motes). The cold lamps pulse.
 8. **The lane reads.** The tops she stands on are lighter than the wall behind them. Law: `lane-reads`.
 9. **A kit, a composition.** A ring's rooms draw on one kit; each room is composed by a seeded hand from its own id
    (`composeRoom`: its bays' order and its focal piece), so neighbours differ and the same recipe makes the same room.
-10. **She is the measure.** A wall is read against the body on the lane, so a piece is drawn at its size to hers, never
+10. **The night and the moon are seen.** Over the open ring the night has stars that twinkle, clouds that drift (banks
+   with puffed tops lit on the moon's side, one crossing the moon itself),
+   a haloed moon, far mountains and a forest ridge before the towers' feet, each a step darker toward the eye. The
+   night's bands meet edge to edge, because the page lifts a lapped face a step toward the eye. Every window's glass
+   shows the night (pale on its foot, dark at its head), and a moonbeam falls from it to the floor away from the moon,
+   breathing as cloud passes (`NIGHT`, `MOONBEAM`, `MOTION` in dress.js; the general principles:
+   [side-scroll-backgrounds.md](side-scroll-backgrounds.md)).
+11. **She is the measure.** A wall is read against the body on the lane, so a piece is drawn at its size to hers, never
    at its bay's. What a hand holds or a body uses keeps its true size: a book, a sword, a shield, a candle, a ladder's
    rung, a block of stone. A figure, painted or carved, is life-size to heroic and never colossal. Furniture stands on its
    floor. Only the architecture (a window, a vault, a column, a banner's cloth) is as big as the hall. A tall hall is
@@ -544,14 +647,201 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
    corbel, and the lord's portrait hangs over her head. Every part's size is noted as it is drawn and held to `SCALE`,
    said for a body of `REF_STATURE` and scaled to hers. Law: `scale`.
 
+## The castle's fabric
+
+The backdrop's craft dresses what is behind the play. The FABRIC builds what the play stands on, runs into and passes
+through ([fabric.js](../control/lib/graph/gameworld/metroidvania/fabric.js)): the greybox's floors, ceilings, walls,
+ledges and niches, each built as what it is. The play's camera frames one cell, so every screen has a floor along its
+foot, a ceiling along its head, a wall at each side and the ledges between: the fabric is seen on every screen, more
+than any piece on the back. These are the principles it is built by. Each is measured as a law (`fabric:<id>`), beside
+the backdrop's and the theme's.
+
+1. **Every solid is built as its role.** Nothing is left as a grey block. A floor is a path, a ceiling a cornice, a wall
+   quoined, a ledge in its material. Law: `built`.
+2. **The path reads first.** A floor's top is laid in its room's material (`path`, the rows of `PATHS`): flagstones in
+   two rows across the walk, boards along it, a checker of tiles, the rock's own beds. Each stone or board has its own
+   length and shade, over the mortar between them. Its front is a lit tread, then a string course (a board floor's beam,
+   strapped in iron), then coursed stone. The path is lighter than the slab's face, so the line she walks on is the first
+   thing read. Law: `paths-read`.
+3. **A slab is an entablature.** A floor and the ceiling under it make one slab between storeys. The ceiling's foot is
+   a cornice: a moulding and a corbel table hanging under it. Out under the sky the ceiling is a hoarding instead (the
+   timber roof of a covered wall-walk), and at the box's top it is machicolations, the crown's parapet on deep corbels.
+4. **A wall is quoined.** Each course is one stone or two, alternately, at her scale. A wall has a plinth at its foot,
+   an impost under the ceiling and a string course at every storey it rises through, so a shaft's walls read as a
+   tower's.
+5. **Openings are made, never cut.** A doorway has a segmental arch in its head (voussoirs, a proud keystone, the
+   spandrels filling its corners), a threshold across its foot, and the passage's far reveal seen through it in shadow,
+   so a gap in a wall reads as a way through a thick one. The box's entry is made the same. A hole through a floor is
+   framed by rim stones either side, with the slab's far reveal seen through the cut. Laws: `doorways-made`,
+   `holes-framed`.
+6. **Ledges by the room's material.** A stair's ledges are what the room's look names (`ledge`, the rows of `LEDGES`):
+   a slab of two stones chamfered underneath; a timber platform of boards on a beam, strapped in iron and hung on two
+   rods from what is over it (the rods stand behind the lane, so nothing hangs in front of her); or an iron catwalk,
+   grated, its rail riveted, on a truss. The halls and the ward stand on timber, the clock tower and the armoury on iron,
+   the ramparts, the keep and the catacombs on stone.
+7. **Towers.** A shaft on the box's edge is a tower: an arrow slit in its outer wall each storey, with a sliver of the
+   night in it. Law: `towers-slit`.
+8. **Weathered outside, clean inside.** Out under the sky, moss grows along the treads and damp streaks down from them.
+   Inside, the stone is clean.
+9. **The castle stands on something and ends in something.** Along the box's top run a parapet and its merlons, a
+   bartizan every third screen and a tower under a conical roof over each top corner. Under the box are a battered plinth
+   and a crag of boulders, their tops lit by the moon. The play's frame never shows these: they are the castle's whole
+   view (`shots.mjs vampire --whole`). Law: `crowned`.
+10. **She is the measure here too.** Every course and block is noted and held to the backdrop's `SCALE`. A quoin's
+    course is about half her height, and no stone is a wall's height.
+
+A room's look says its `path` and its `ledge`; a locale's words override its ring's.
+
+| Look | Path | Ledges |
+|---|---|---|
+| the ramparts | flagstones, mossy | stone |
+| the great halls, the inner ward | flagstones | timber |
+| the keep | tiles | stone |
+| the chapel, the throne room | tiles | the ring's |
+| the alchemist's laboratory | tiles | timber |
+| the library | boards | timber |
+| the clock tower | boards | iron |
+| the catacombs | rock | stone |
+| the armoury | flagstones | iron |
+
+A new path or ledge is a row of `PATHS` or `LEDGES` and a branch where it is laid. The fabric draws faces only: the
+colliders stay the greybox's.
+
+## XenoJager: the planet
+
+The box's other pole. The castle is stormed by a hunter; a dangerous planet is gone down into by an explorer. Its idioms
+are the castle's: one box of screens entered from the left, its walk spiralling ring by ring to a core, its gates,
+pockets and shortcuts, its climbs (`climbs.js`) and its two-screen towers. Only the visual library is new, so a planet
+is a theme (`themes.js` `xeno`) and a set of map words (`xeno-jager.js` `xenoJager()`), never a second map.
+
+| Ring | Look | Bays | Focal | Hazard |
+|---|---|---|---|---|
+| the crust | open under a ringed planet, a second moon and spires of rock; a crag behind the walk | boulders | a monolith, the lander in the room she enters by (`first`) | |
+| the fungal caverns | a cave: stalactites, a stalagmite near the lane, glowing crevices | fungi, tendrils | a bloom | |
+| the flooded depths | the same, in blue | waterfalls, crystals | a fossil | water |
+| the magma core | the same, in red | lava falls, boulders | a lava fall; the nest | lava |
+
+Its locales are the save `station` (the explorer's beacon), the crust's `chasm` shafts, the `grotto` of crystals, the
+`boulderfield`, the sunken `ruins` and the core's `nest`. Its lamps are `glow` pods, breathing. Its water, lava,
+glowing life and swaying tendrils move on the page's ambient channel (`MOTION`).
+
+Nothing on the planet is laid in courses. Its rock is broken as rock breaks (`backdrop.js` `rockCells`): boulders of
+every shape, each a cell of a jittered grid's point, their corners rounded, the dark of the cracks between them. The
+grid is fixed in the box's metres, so a face cut by a room's edge breaks the same on either side. The cave's wall is
+built this way. So are the fabric's floors, walls and roofs, and the walk's top, in slabs split across it.
+
+Its boulders and crystals are mojulo's own materials, not drawings:
+
+- **Boulders** are real rocks (`polygonizer/rock-pool.js`): fractured along their minerals' cleavage and grained by
+  their modal mix, of the look's `rock` (basalt, slate, marble, granite). A few variants are made once per rock and kept.
+  Only the faces turned from the wall are drawn, half as deep as they are wide, so a boulder stands proud of the wall
+  and never into the lane. A heap's big boulder carries its fractures' detail; the small ones are the fractured block
+  alone.
+- **Crystals** are real stones of the look's `gem` (`polygonizer/crystal-faces.js`): each its lattice's own faces, a
+  druse grown out of the rock: a few long stones standing up off a wide bed, hardly buried (`CRYSTAL_DRUSE`), since at
+  play distance a druse of many small stones reads as a lump. A squat habit, corundum's hexagonal barrel (ruby,
+  sapphire), grows more stones and shorter (`SQUAT_DRUSE`), a cluster of barrels rather than a heap of boulders. They
+  glow, and the page's crystal channel shades them live, coloured for a path in centimetres as the land's are. Grown
+  out of a wall, they throw no print (`print: false`); a print needs a floor under the stone.
+
+A piece drawn in many faces, a boulder or a druse, counts as one piece of detail in the backdrop's laws.
+
+The fabric reads the look's `fabric: 'rock'` and builds each closed part as rock rather than masonry. Floors, walls and
+roofs are fractured rock, the roofs hung with drips. Stairs and landings are boulders, and doorways are cave mouths. A
+tower's wall is cracked through each storey where a castle's has its slit. Ladders are metal. The crown along the top
+is the crust's skyline of crags.
+
+Every law the castle holds, the planet holds (`xeno-jager.test.js`).
+
+**The handle.** There is no XenoJager game yet. `XENOJAGER_HANDLE` says what the next builder wires, each piece marked
+`wired: false`:
+
+- **The hero.** An explorer in a sealed suit, her arm a cannon.
+- **The feel.** The run and gun's body, keeping its wall cling and kick. A planet's shafts are climbed off their walls;
+  the castle refuses that, and the box itself still lays no chimney.
+- **The hazards.** The looks' `hazard` is recorded in each room's dress plan (`plan[room].hazard`). Today it is drawn
+  and harmless. A suit's power would let her through, with a gate kind for a pool or a lava floor as a new row of
+  `gates.js`.
+
+Two parts are already wired. Its HUD wears `nocturne-xeno` by its theme (`hud.js` `BOX_LOOKS`). Its geocube is
+`XENOJAGER_CUBE`: a world whose `style.geocube` it is dresses any box level that names no theme as the planet
+(`xenoJager({ theme: null })`; "The box on its geocube").
+Review it with `node scripts/spikes/backdrops/shots.mjs <dir> vampire --xeno [--whole]`.
+
+## The box on its geocube
+
+A box is drawn in a look, and the look is read in one order (`cube.js` `boxLookOf`):
+
+1. **Its words' `theme`.** As written, drawn exactly as it always was: Vampire Sonata's `castle`.
+2. **Its level's geocube's `box`.** A box level's stage carries its level's or its world's `style.geocube`
+   (`levels.js`), so a game says one style and its box agrees with it.
+3. **Neither:** the greybox.
+
+A geocube's `box` (`era/geocube.js`) is `{ library, tint?, rock? }`. The `library` is a box library of `themes.js`
+(the castle's, the planet's): its places, pieces, locales and night, ring by ring. The cube supplies the rest:
+
+- **Colour.** Each ring's colours are tinted toward the cube's by role: back, stone and mortar toward its stone, the
+  tops toward its floor, the trim toward its trim, a carpet toward its accent. `tint` moves their hue and saturation
+  (0 is the library's own, 0.5 unsaid, 1 the cube's hue). Each colour keeps its own lightness, so the light still pools,
+  the walk still reads and the rings still stand apart as the library laid them.
+- **Crystals.** Where the cube grows crystals (`outside.crystals`), their gem and glow are every druse's.
+- **Rock.** `rock` is what every boulder is.
+
+| Cube | Box |
+|---|---|
+| `gothic-night` | the castle in its own colours (`tint: 0`): Vampire Sonata's castle, face for face |
+| `XENOJAGER_CUBE` (`xeno-jager.js`, a document over the gothic night) | the planet in its own colours |
+| `{ from: 'limestone-crags', box: { library: 'castle' } }` | the castle in pale limestone, every law holding |
+| any cube without a `box` | the greybox |
+
+Rupa's matter cannot choose the fabric, since it names `stone` for both masonry and natural rock. The library says
+which (the castle's masonry, the planet's `fabric: 'rock'`).
+
+## In the book
+
+A box level has its page in its world's gameworld bible (`/bible`, its `#boxes` section, `book.js`). The page is read
+off the box as its level builds it: on the level's or the world's geocube, for the side map's hero. The book and the
+game therefore never disagree.
+
+- **The plan.** The box's screens, each room in its ring's colour (its look's stone, a locale's own where it has one).
+  It shows the closed parts the hero stands on, the ledges and ladders, the doorways and holes cut through, each gate in
+  its colour, the pockets, the saves (S), the bosses (B), the keys (K), the powers found (◆) and the way in. The level's
+  own page carries the same plan small.
+- **A card a ring:** its rooms, its look and colours, its locales, what it is built of (fabric, rock, gem), its hazard,
+  its light, its climbs, what it holds and the gate on inward.
+- **The powers:** each one, what it opens and where it is found.
+- **The laws:** every law the box is held to and what each says. This is the machine gate, measured on the box as
+  built; the eyes gate is the person's, who plays it.
+
+The page also says what dresses the box: its words' theme, its geocube, or neither (the greybox).
+
+## The rail
+
+A box game is started from a template, as every game type is (`gameworld/rails.js`). The box games are variants of
+Galaxy Boy's rail, which owns the side-on run and gun and the metroidvania genre:
+
+| Variant | Starts from | Its cube |
+|---|---|---|
+| `vampire-sonata` | the castle: outer wall, great halls, inner ward, keep | `gothic-night` |
+| `xenojager` | the planet: crust, fungal caverns, flooded depths, magma core | XenoJager's (`XENOJAGER_CUBE`) |
+
+`design_game({ name, rail: { from: 'galaxy-boy', variant, locked: true } })` lays the starter (`pitch-start.js`): the
+template's game words with its box naming no theme, and the world's `style.geocube` the variant's cube, so the box is
+dressed by the cube (`vampireSonataStart`, `xenoJagerStart`). Every key the person wrote wins. The variant's sheet and
+the readout's pitch report say the box and its cube (`box: { game, cube, library }`), as does its rail card. Each
+variant asks first for the person's box and its cube (the `gameworld-box` card). A sentence finds the variant by its
+own words ("a metroidvania castle", "a metroid-like planet"); "a metroidvania" alone is the plain rail.
+
 ## Not yet
 
 - **The castle's own feel.** Erina plays Galaxy Boy's run and gun with Zero Boy's saber string. A feel of her own would
   give her a back-dash and a heavier cut. The small form's power would make her small and pass grates rather than opening
   them.
 - **The castle dressed further:** the gates in the castle's own make (a portcullis, an iron-bound door), the side map's
-  relief on the stone, flames that flicker (the page's flicker answers a few dying tubes, not a castle of candles), and
-  the foreground: things passing in front of the lane in silhouette.
+  relief on the stone, the lamps' pools flickering with their flames (the page's flicker answers a few dying tubes, not a
+  castle of candles), bats and lightning over the ramparts, and the foreground: things passing in front of the lane in
+  silhouette. In the fabric: a door's leaf standing open in its doorway, stairs drawn as steps where a stair of ledges
+  climbs against a wall, and the crown's turrets seen from the play (today only the castle's whole view shows them).
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
   one menu (status, equipment, items, the map of rooms visited). Then the merchant and MP spells.
@@ -563,8 +853,14 @@ box (`backdrop:<id>`), and the theme's own laws stand beside them (`theme:rings-
   changed by its phase. The fight's length is the
   shelf's `blows`, not yet measured: a bot that fights as a player does (reads the marks, jumps the low ones, backs out
   of the tall ones, cuts in the openings) would measure it. A boss's look changed by its phase.
+- **The castle of boxes under the side-scroll backgrounds' dress.** The dress was built and held to its laws on the one
+  box; in a castle of boxes a few rooms break two of its composition laws (`eye-detail`: a glance crowded by a bay's
+  bookcases, or a corridor's door end left bare; `calm-play`: a boss room dressed as its boss locale busier behind the
+  play than above it). The fix is composing each room under those laws (re-dealing its bays until its glances hold).
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
 - **The rail**, once a first box plays.
+- **A map found whole** (a castle's map room) and the map kept across a reload. The map walked, revealed a screen at a
+  time, is the HUD's ([mana-ui.md](mana-ui.md) "The metroidvania's HUD").
 - **The explored map's next affordances:** the player's own pins, a warp room's network drawn on it, a region's map
   bought from a merchant, the map on mana-ui (its `map` component drawing tiles and doors), and the gate-ringing said as a
   toast when a power is found ("the map shows where").

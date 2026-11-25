@@ -63,14 +63,18 @@ describe('the backdrop\'s craft', () => {
   it('draws the relief by the light: every face lit corner by corner, a block domed toward its lamp, a column lit round', () => {
     const W = B.greybox.screen.width, H = B.greybox.screen.height, lum = (h) => { const n = parseInt(h.slice(1), 16); return (n >> 16) + ((n >> 8) & 255) + (n & 255); };
     expect(B.dress.faces.filter((f) => f.group === 'box:back').every((f) => f.cornerFills?.length === f.corners.length)).toBe(true);
-    // (a wall lamp of the halls, and a block a little way from it: its corner nearest the lamp the lightest)
-    const lamp = B.dress.lamps.find((l) => l.kind === 'candles'), [ls, lz] = [lamp.at[1], lamp.at[2]];
-    const block = B.dress.faces.find((f) => f.group === 'box:back' && (() => { const p = centre(f); return Math.hypot(p[1] - ls, p[2] - lz) > 1.5 && Math.hypot(p[1] - ls, p[2] - lz) < 2.5; })());
-    const d = block.corners.map((p) => Math.hypot(p[1] - ls, p[2] - lz)), near = d.indexOf(Math.min(...d)), far = d.indexOf(Math.max(...d));
-    expect(lum(block.cornerFills[near])).toBeGreaterThan(lum(block.cornerFills[far]));
-    // (the near column in the middle of a hall's screen lit by a lamp that reaches it: its strips lit toward the lamp's side)
-    const reach = B.dress.lamps.find((l) => l.kind === 'candles' && Math.abs(l.at[1] - (Math.floor(l.at[1] / W) + 0.5) * W) < 2), cs = Math.floor(reach.at[1] / W), cz = Math.floor(reach.at[2] / H), mid = (cs + 0.5) * W, right = reach.at[1] > mid;
-    const strips = B.dress.faces.filter((f) => f.corners.every((p) => Math.abs(p[0] + 2.3) < 0.01 && Math.abs(p[1] - mid) <= 0.51) && centre(f)[2] > cz * H + 2.5 && centre(f)[2] < cz * H + 4.5).sort((a, b) => centre(a)[1] - centre(b)[1]);
+    // (a wall lamp of the halls, and the blocks a little way from it: most with their corner nearest the lamp the
+    // lightest, the rest in a shadow something standing out of the wall casts)
+    // (in ashlar: a chapel's plaster is lit smooth, never domed block by block)
+    const lamp = B.dress.lamps.find((l) => l.kind === 'candles' && !B.dress.plan[l.room].locale), [ls, lz] = [lamp.at[1], lamp.at[2]];
+    const blocks = B.dress.faces.filter((f) => f.group === 'box:back' && (() => { const p = centre(f); return Math.hypot(p[1] - ls, p[2] - lz) > 1.5 && Math.hypot(p[1] - ls, p[2] - lz) < 2.5; })());
+    const toward = blocks.map((block) => { const d = block.corners.map((p) => Math.hypot(p[1] - ls, p[2] - lz)), near = d.indexOf(Math.min(...d)), far = d.indexOf(Math.max(...d)); return lum(block.cornerFills[near]) - lum(block.cornerFills[far]); });
+    expect(blocks.length).toBeGreaterThan(3);
+    expect(toward.reduce((a, v) => a + v, 0) / toward.length).toBeGreaterThan(0);
+    // (the near column standing between two lamps of a hall's cell: its strips lit toward the nearer lamp)
+    const cs = Math.floor(ls / W), cz = Math.floor(lz / H), mid = (cs + 0.5) * W;
+    const strips = B.dress.faces.filter((f) => f.corners.every((p) => Math.abs(p[0] + 2.3) < 0.01 && Math.abs(p[1] - mid) <= 0.51) && centre(f)[2] > cz * H + 3 && centre(f)[2] < cz * H + 6).sort((a, b) => centre(a)[1] - centre(b)[1]);
+    const right = B.dress.lamps.some((l) => Math.floor(l.at[2] / H) === cz && l.at[1] > mid && l.at[1] - mid < Math.min(...B.dress.lamps.filter((q) => Math.floor(q.at[2] / H) === cz && q.at[1] < mid).map((q) => mid - q.at[1]), Infinity));
     expect(strips.length).toBeGreaterThanOrEqual(5);
     const [a, b] = [lum(strips[0].fill), lum(strips.at(-1).fill)];
     expect(right ? b > a : a > b).toBe(true);

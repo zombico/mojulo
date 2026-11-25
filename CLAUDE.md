@@ -367,7 +367,7 @@ Pointers only; each target carries its own design notes.
 - The metroidvania map (the spiralling box: one box of screens entered from the left, its walk spiralling ring by ring
   to a core, every ring a region against the last so a power found inside opens shortcuts out and pockets behind; its
   gates rows of `gates.js`; Vampire Sonata its template and Erina its hero, no stomp and no wall kick; a box's look a
-  theme, ring by ring, `themes.js` (the castle) laid by `dress.js`; a world's
+  theme, ring by ring, `themes.js` (the castle; XenoJager's planet, `xeno-jager.js`: the same idioms in rock, lava, water and strange life, a game's handle left for the next builder), named by its words or by its level's geocube's `box` (`cube.js`: the cube's library in the cube's colour, gem and rock; its page in the game book, `book.js`; its templates the galaxy-boy rail's box variants, each laid on its cube), laid by `dress.js`, its closed parts built as what they are by `fabric.js`, its climbs figures laid across the screen by `climbs.js`; its secret walls a gate no power opens, struck down, rupa's matter where the game is physical; a world's
   `levels.<id>.metroidvania`, built as the geocube's `show: 'metroidvania'` and played in greybox on the side map's
   runtime, its gates held shut until the hero holds what opens them, `worlds/controllable/held-gates.js`; boxes of
   other shapes, `shapes.js`, joined port to port by connectors into a castle laid as one map, `castle.js`):
@@ -379,7 +379,10 @@ Pointers only; each target carries its own design notes.
   [gameworld/first-level.js](control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card. A course in
   the round is skinned by [gameworld/course-skin.js](control/lib/graph/gameworld/course-skin.js) (floors the land's turf,
   dirt and rock; stairs and walls a geocube's stone and trim, the cube read from the level, the world or the kit). The
-  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](docs/side-strip-principles.md).
+  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](docs/side-strip-principles.md). What makes any
+  side-scroller's background good to look at (contrast, colour, composition, light, motion; the page's `ambient` channel):
+  [docs/side-scroll-backgrounds.md](docs/side-scroll-backgrounds.md); making a variation of one (a scenery, a place, a
+  vista, a locale, a colour key): [docs/backdrop-variations.md](docs/backdrop-variations.md).
 - Title cards: [game/title-carve.js](control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);

@@ -56,10 +56,11 @@ describe('the box\'s laws', () => {
 });
 
 describe('the box in greybox', () => {
-  it('climbs every door by ledges a jump apart, a double-jump gate by more than a jump and less than a double', () => {
+  it('climbs every door a jump at a time (or by a ladder), a double-jump gate by more than a jump and less than a double', () => {
     const L = layBox(vampireSonata()), G = greyboxOf(L);
     expect(G.chains.length).toBeGreaterThan(0);
     for (const c of G.chains) c.rises.forEach((r, k) => {
+      if (c.ways?.[k] === 'ladder') { expect(G.ladders.some((l) => l.room === c.room && Math.abs(l.z1 - c.stands[k + 1]) < 1e-3)).toBe(true); return; }   // (a ladder climbs it)
       if (c.gate === 'double-jump' && k === c.rises.length - 1) { expect(r).toBeGreaterThan(G.hero.jump); expect(r).toBeLessThanOrEqual(G.hero.double); }
       else expect(r).toBeLessThanOrEqual(G.hero.jump);
     });

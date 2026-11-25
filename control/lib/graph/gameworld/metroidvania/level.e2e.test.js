@@ -25,7 +25,8 @@ beforeAll(async () => {
   B = boxOf(m);
 }, 120000);
 
-function play() {
+function play() { return playIn(payload, B); }
+function playIn(payload, B) {
   const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: payload.colliders, camera: payload.camera, world: payload }, { ground: faceGround(pageGroundFaces(payload.faces)) });
   const hero = sim.world.byId.hero, W = B.greybox.screen.width, H = B.greybox.screen.height;
   const step = (inp = {}, n = 1) => { for (let i = 0; i < n; i++) { Object.assign(sim.input, ZERO, inp); sim.frame(SIM_DT); } };
@@ -45,7 +46,8 @@ describe('a metroidvania level, played as its page resolves it', () => {
     expect(payload.camera.rule).toBe('side-map');
     expect(payload.camera.zones.length).toBe(B.layout.rooms.length);
     expect(payload.heldGates.gates.map((g) => g.kind).sort()).toEqual(expect.arrayContaining(['boss', 'form', 'key', 'wall-break']));
-    expect(payload.breakables.length).toBe(payload.heldGates.gates.length + payload.heldGates.bosses.length);
+    // (the breakables: the held gates, the bosses, and the secret walls, which no gate holds: blows find them)
+    expect(payload.breakables.length).toBe(payload.heldGates.gates.length + payload.heldGates.bosses.length + B.secrets.length);
     expect(payload.entities[0].rule.strike).toBe('melee');
     expect(payload.entities[0].rule.cling).toBeUndefined();
   });
@@ -97,8 +99,8 @@ describe('a metroidvania level, played as its page resolves it', () => {
     const boss = P.sim.world.breakables.find((b) => b.id === `boss-${r.id}`);
     expect(P.hero.rule.airJumps ?? 0).toBe(0);
     P.place(r.id, 0.5);
-    const dir = Math.sign((boss.min[1] + boss.max[1]) / 2 - P.s());
-    P.step({ strafe: dir }, 40);
+    const at = (boss.min[1] + boss.max[1]) / 2, dir = Math.sign(at - P.s());
+    for (let f = 0; f < 600 && Math.abs(at - P.s()) > 2.2; f++) P.step({ strafe: dir });
     P.cut(dir, 12);
     expect(boss.broken).toBeTruthy();
     expect(P.held[`boss:${r.id}`]).toBeDefined();
@@ -161,4 +163,97 @@ describe('a metroidvania level, played as its page resolves it', () => {
     expect(w.trees.learn('swift').ok).toBe(true);
     expect(H.rule.speed).toBeCloseTo(run0 * 7 / 6, 3);
   });
+
+  // THE SECRET WALLS: a wall like the others, struck down; counted blows, or, the game physical, its stone by its matter
+  const secretWall = (P, Bx) => {
+    const sec = Bx.secrets[0], b = P.sim.world.breakables.find((x) => x.id === sec.id), r = P.room(sec.room), W = P.W;
+    P.place(sec.room, (b.min[1] - 1.1 - r.rect[0] * W) / (r.rect[2] * W));
+    return b;
+  };
+  it('hides a secret wall that stands a cut and falls to the string, its prize then on the map', () => {
+    const P = play(), b = secretWall(P, B);
+    expect(B.secrets.length).toBeGreaterThan(0);
+    expect(payload.heldGates.gates.some((g) => g.id === b.id)).toBe(false);
+    P.cut(1, 1);
+    expect(b.broken).toBeFalsy();
+    P.cut(1, 8);
+    expect(b.broken).toBeTruthy();
+  });
+
+  it('breaks a secret wall by its matter where the game is physical: its stone, its joules spent by blows, its debris', async () => {
+    const G = vampireSonataGame({ heroRef: 'erina-ref' }); G.mechanics = { ...(G.mechanics ?? {}), destruction: 'physical' };
+    const W = readGameworld(G), [stage] = gameStages(W), m = stageLevelOrder(W, stage, { heroRef: 'erina-ref', heroStature: 1.69, ref: 'lvl' }).args.manifest;
+    m.figures = {}; m.entities = m.entities.map((e) => ({ ...e, body: { ...e.body, type: 'none', figure: undefined } }));
+    expect(m.destruction).toBe('physical');
+    const { payload: Pp } = await resolveWorldScene({ manifest: m }), Bp = boxOf(m);
+    expect(Pp.rupa).toBeTruthy();
+    const P = playIn(Pp, Bp), b = secretWall(P, Bp);
+    expect(Pp.breakables.find((x) => x.id === b.id)).toMatchObject({ matter: 'stone' });
+    // (the page hands its world the payload's rupa, controllable/index.js; the sim harness carries no rupa, level-sim.js
+    // WORLD_OPTIONS: its blows set to the payload's power, as the page's are)
+    P.sim.world.rupa.power = Pp.rupa.power;
+    P.cut(1, 1);
+    expect(b.broken).toBeFalsy();
+    P.cut(1, 10);
+    expect(b.broken).toBeTruthy();
+    const hits = P.sim.world.rupa.hits.filter((h) => h.id === b.id);
+    expect(hits.every((h) => h.how === 'swing')).toBe(true);
+    // (its joules its blows': 3 swings at the box's power, then it broke as stone, its debris on the break)
+    expect(hits.length).toBe(3);
+    const br = P.sim.world.breaks.find((x) => x.id === b.id);
+    expect(br.debris?.pieces?.length ?? br.debris?.length ?? 0).toBeGreaterThan(0);
+  }, 120000);
+
+  // THE CLIMBS (climbs.js): a bot climbs every room it can open, stand by stand, on a single jump (a stair walked), and
+  // out through its door above: going up is going across
+  it('climbs every room of the castle by its structure: stairs walked, great steps leapt, ladders held, the towers woven', () => {
+    expect([...new Set(B.greybox.chains.map((c) => c.figure))]).toEqual(expect.arrayContaining(['stair-tower', 'great-stair']));
+    climbedBy.length = 0;
+    climbAll(play, B);
+    expect(new Set(climbedBy)).toEqual(new Set(['walk', 'jump', 'ladder']));
+    // (a tower's climb weaves: it stands on both its screens, either side of its pier)
+    const W = B.greybox.screen.width, towers = B.greybox.chains.filter((c) => { const r = B.layout.rooms.find((x) => x.id === c.room); return r.kind === 'shaft' && r.rect[2] === 2 && c.ways; });
+    expect(towers.length).toBeGreaterThan(0);
+    for (const c of towers) { const r = B.layout.rooms.find((x) => x.id === c.room), mid = (r.rect[0] + 1) * W; expect(c.spans.some(([a, b]) => b < mid) && c.spans.some(([a]) => a > mid), c.room).toBe(true); }
+  });
 });
+
+// (a bot up each climb: stood under the first stand, then each in turn: run to it, jump at the edge of the one she is on
+// or under it (a stair's step walked, never jumped), steer to its middle in the air; and out over the floor above)
+const climbedBy = [];
+function climbAll(open, Bx, pick = () => true) {
+  for (const c of Bx.greybox.chains.filter((x) => pick(x) && !Bx.layout.doors.find((d) => d.id === x.door).gate)) {
+    const f = c.figure, P = open(), H = P.hero, eye = H.rule.eye || 0, feet = () => H.transform.pos[2] - eye, spans = c.spans.map(([s0, s1], k) => ({ s0, s1, z: c.stands[k + 1] }));
+    // (on the floor beside the first stand, on its far side from the second: a flight built up from the floor is solid)
+    const s1st = spans[1] && (spans[1].s0 + spans[1].s1) / 2 > (spans[0].s0 + spans[0].s1) / 2 ? spans[0].s0 - 0.6 : spans[0].s1 + 0.6, rr = P.room(c.room);
+    P.place(c.room, (Math.min((rr.rect[0] + rr.rect[2]) * P.W - 1, Math.max(rr.rect[0] * P.W + 1, s1st)) - rr.rect[0] * P.W) / (rr.rect[2] * P.W));
+    let on = { s0: -1e9, s1: 1e9, z: c.from }, reached = 0, crossed = 0, last = P.s(), jumps = 0;
+    const hole = Bx.greybox.holes.find((h) => h.door === c.door), mid = (spans.at(-1).s0 + spans.at(-1).s1) / 2;
+    // (out over the floor above on the hole's side toward the room's middle: its other side is the wall)
+    const rm = P.room(c.room), centre = (rm.rect[0] + rm.rect[2] / 2) * P.W;
+    const out = hole ? ((hole.s0 + hole.s1) / 2 > centre ? { s0: hole.s0 - 2, s1: hole.s0 - 0.6, z: c.to } : { s0: hole.s1 + 0.6, s1: hole.s1 + 2, z: c.to }) : null;
+    for (const [k, p] of [...spans, ...(out ? [out] : [])].entries()) {
+      // (a ladder: walked to its foot, then held up to its head)
+      const lad = c.ways?.[k] === 'ladder' ? Bx.greybox.ladders.find((l) => l.room === c.room && Math.abs(l.z1 - p.z) < 0.05) : null;
+      const aim = lad ? lad.s : (p.s0 + p.s1) / 2, walk = !lad && p.z - on.z < 0.34;
+      let ok = false;
+      for (let f2 = 0; f2 < 600; f2++) {
+        // (out in the room above, she may stand on its own climb's first step: the runtime lifts a body onto a ledge
+        // within its height as it lands)
+        ok = H.grounded && (p === out ? feet() > p.z - 0.2 : Math.abs(feet() - p.z) < 0.2 && P.s() > p.s0 - 0.6 && P.s() < p.s1 + 0.6);
+        if (ok) break;
+        const s = P.s(), dir = Math.sign(aim - s), under = s > p.s0 - 0.2 && s < p.s1 + 0.2, atEdge = dir > 0 ? on.s1 - s < 0.45 : s - on.s0 < 0.45;
+        if (lad) { P.step(H.climbing || Math.abs(aim - s) < 0.3 ? { forward: 1 } : { strafe: dir }); continue; }
+        const press = !walk && H.grounded && (under || atEdge);
+        if (press) jumps++;
+        P.step({ strafe: Math.abs(aim - s) > 0.1 ? dir : 0, jump: press ? 1 : 0, jumpHeld: 1 });
+      }
+      if (!ok) break;
+      reached++; crossed += Math.abs(P.s() - last); last = P.s(); on = p;
+    }
+    expect(reached, `${f} in ${c.room}`).toBe(spans.length + (out ? 1 : 0));
+    if (f !== 'zigzag') expect(crossed, `${f} in ${c.room} crosses`).toBeGreaterThan(c.to - c.from);
+    if (f === 'stair') expect(jumps, `the stair in ${c.room} walked`).toBeLessThanOrEqual(2);
+    if (c.ways) climbedBy.push(...c.ways);
+  }
+}

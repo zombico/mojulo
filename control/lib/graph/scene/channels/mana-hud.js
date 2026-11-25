@@ -53,6 +53,7 @@ import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 import { manaControls, manaHostSource } from '../../controls/mana-controls.js';
 import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan, planFloors, floorPlanSvg } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
+import { boxMapView } from '../../gameworld/metroidvania/hud.js';
 import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
 import { faceFrame, buildTalkFace } from './talk-face.js';
 
@@ -207,6 +208,9 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const faces = !!(talk && talk.faces), speakers = (talk && talk.speakers) || {};
   // (a HUD of the level's own making may bring its parts' look over the theme: a side map's, gameworld/side-map/hud.js)
   const sheetCss = hud.css ? `${css}\n${hud.css}` : css, SM = hud.feed && hud.feed.sidemap ? hud.feed.sidemap : null;
+  // (a BOX's vitals, moments, boss and pause, gameworld/metroidvania/hud.js; and the HUD's SOUNDS where its look is heard,
+  // mana-hud-sounds.js: its cues played by the beats kernel the set needs. Either absent, not a byte of it)
+  const BX = hud.feed && hud.feed.box ? hud.feed.box : null, HS = hud.sounds && hud.sounds.sounds ? hud.sounds : null;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
@@ -277,7 +281,50 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
     if (e.emit === 'sm:equip') { smEquip(e.i); smClose(); return; }
   }
 ` : ''}
-  let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
+${HS ? `  // THE HUD'S SOUNDS (mana-hud-sounds.js): the look's set, its cues heard as the runtime emits them, muted with the game's
+  // sound; the recordings decoded before the first where the library voices the set
+  const HSC = { K: (${HS.K})(), of: (${HS.of}), n: 0, cues: ${json(HS.sounds)}${HS.samples ? `, samples: ${json(HS.samples)}` : ''} };
+  function hsReady() {
+    if (HSC.engine !== undefined) return HSC.engine;
+    try { const C = window.AudioContext || window.webkitAudioContext; HSC.ctx = new C(); HSC.engine = HSC.K.createEngine(HSC.ctx);
+      if (HSC.samples) HSC.engine.loadSamples({ cards: HSC.samples.cards, bytes: Object.fromEntries(Object.entries(HSC.samples.bytes).map(function (kv) { return [kv[0], Uint8Array.from(atob(kv[1]), function (c) { return c.charCodeAt(0); }).buffer]; })) }); } catch (err) { HSC.engine = null; }
+    return HSC.engine;
+  }
+  function hsHear(e) {
+    const ms = window.__mojManaState; if (ms && ms.ui && ms.ui.settings && ms.ui.settings.sound === 0) return;
+    if (window.__mojMuted) return;
+    const g = HSC.cues[HSC.of(e)] || HSC.cues[e.sound], E = g && hsReady();
+    if (!E) return;
+    if (HSC.ctx.state === 'suspended') HSC.ctx.resume();
+    E.playCue(g, null, null, 1, ++HSC.n);
+  }
+  window.__mojHudSounds = { set: ${json(HS.set)}, heard: function () { return HSC.n; } };
+` : ''}${BX ? `  // A BOX's vitals, moments, boss and pause (gameworld/metroidvania/hud.js): the room she stands in read off her place in
+  // the box's cells; what is found said as it is taken; the pause's map of the rooms walked
+  const BXF = F.box;
+  st.bx = { place: '', hp: 1, hpMax: 1, mp: 0, mpMax: 1, moments: [], bossOn: false, bossName: '', boss: 0, bossMax: BXF.bossHp || 1, heldWord: '', hasHeld: false, shapes: [], markers: [], focus: { x: 0.5, y: 0.5 }, zoom: BXF.map ? BXF.map.zoom : 1, relics: [], roomsWord: '0', wakeWord: '0' };
+  let bxUp = null, bxQuiet = false, bxSeen = 0, bxSeenMap = 0, bxBrokeN = 0, bxRoom = -1, bxRing = -1, bxN = 0, bxHeld = '', bxCell = -1;
+  // (the screens walked, revealed one at a time as she enters each: the map's view, gameworld/metroidvania/hud.js)
+  const bxCells = {}, bxBossSaid = new Set(), __bxView = ${boxMapView.toString()};
+  const bxHoldEl = document.createElement('div'); bxHoldEl.className = 'moj-menu-hud'; bxHoldEl.style.display = 'none'; document.body.appendChild(bxHoldEl);
+  function bxOpen(id) { bxQuiet = true; try { rt.close(); rt.open(id); } finally { bxQuiet = false; } bxUp = id; window.__mojMenuOpen = true; window.__mojFreeze = true; bxHoldEl.textContent = id; view.paint(); }
+  function bxShut() { window.__mojMenuOpen = false; window.__mojFreeze = false; setTimeout(function () { if (!bxUp) bxHoldEl.textContent = ''; }, 0); }
+  function bxMoment(m) { st.bx.moments = st.bx.moments.concat([Object.assign({ id: 'bx' + (++bxN) }, m)]).slice(-8); }
+  // (the map: the screens walked, the one she stands in marked, a room's screens joined and the doors between rooms; a
+  // gate until she holds its opener, a relic until taken; the save rooms found; the bosses still standing. The minimap
+  // the same on her, the pause's the whole box)
+  function bxMap() {
+    const G = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.heldGates;
+    const WB = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.breakables, broken = {};
+    if (WB) WB.forEach(function (b) { if (b.broken) broken[b.id] = 1; });
+    const V = __bxView(BXF.map, { seen: bxCells, here: bxCell, held: G && G.held, taken: G && G.taken, felled: G && G.felled, broken: broken });
+    st.bx.shapes = V.shapes; st.bx.markers = V.markers; st.bx.focus = V.focus; st.bx.roomsWord = V.rooms + ' of ' + BXF.rooms.length;
+    st.bx.relics = BXF.relics.map(function (x) { const got = !!(G && G.taken && G.taken[x.id] != null); return { name: got ? x.name : '— — —', icon: got ? (x.kind === 'key' ? 'key' : x.kind === 'power' ? 'star' : 'gem') : 'lock' }; });
+  }
+  function bxAct(e) {
+    if (e.emit === 'mana:closed') { if (bxQuiet || !bxUp) return; bxUp = null; bxShut(); }
+  }
+` : ''}  let hooked = false, clock = 0, cue = null, hintUntil = -1, last = performance.now();
 ${race ? `  // A RACE's (gameworld/race-hud.js): the lights, then the laps, the place and the times off the laps mechanic's vars
   const RACE = F.kind === 'race' ? { m: F.mech || 0, lights: null, done: 0, lapStart: 0, best: 0, over: false } : null;
   if (RACE) { st.race = { place: 1, of: F.racers, placeSays: '1st', field: '/ ' + F.racers, lap: 1, laps: F.laps, lapSays: '1/' + F.laps, time: 0, best: 0, hasBest: false, speed: 0, speedMax: F.speedMax, markers: [], solo: F.racers < 2, hasItem: false, itemSays: '—', itemIcon: '' }; st.fx = { finish: 0, best: 0 }; st.start = { lit: 0, of: F.lights.count, lights: '', sub: F.words.ready }; }
@@ -317,11 +364,11 @@ ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js 
 ` : ''}  // a HUD part pressed (a level's button row): its event raised on the level's bus, as a key bound to it would
   // (a keyed one, game/screen-keys.js: that key pressed, heard by whatever listens for it)
   function press(e) {
-    ${SM ? "if (e && typeof e.emit === 'string' && (e.emit.indexOf('sm:') === 0 || e.emit === 'mana:closed')) { smAct(e); return; }" : ''}
+    ${SM ? "if (e && typeof e.emit === 'string' && (e.emit.indexOf('sm:') === 0 || e.emit === 'mana:closed')) { smAct(e); return; }" : ''}${BX ? "if (e && e.emit === 'mana:closed') { bxAct(e); return; }" : ''}
     if (e && typeof e.key === 'string') { for (const t of ['keydown', 'keyup']) window.dispatchEvent(new KeyboardEvent(t, { key: e.key, code: e.code || e.key, bubbles: true, cancelable: true })); return; }
     if (e && typeof e.emit === 'string' && window.__mojBus && window.__mojBus.press) window.__mojBus.press(e.emit);
   }
-  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: press, now: function () { return clock; } });
+  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: ${HS ? "function (e, from) { if (e && typeof e.sound === 'string') { hsHear(e); return; } press(e, from); }" : 'press'}, now: function () { return clock; }${HS ? `, cues: ${json(HS.cues)}` : ''} });
   rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
   // (the device in hand: a touch screen, or the page told to be one, as the touch layer reads it)
   const __tq = new URLSearchParams(location.search).get('touch');
@@ -371,6 +418,13 @@ ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js 
   window.addEventListener('keydown', function (e) {
     if (e.key !== SMF.menuKey || e.repeat || smUp || window.__mojMenuOpen || st.sm.lives <= 0) return;
     smWeapons(); smOpen('menu'); e.preventDefault();
+  });` : ''}${BX ? `
+  // the keys and the pad drive the pause while it is up; the menu key opens it over play
+  const __bxHost = ${manaHostSource()};
+  __bxHost.connect(rt, view, { keys: ${json(manaControls().keys)}, pad: ${json(manaControls().pad)} });
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== BXF.menuKey || e.repeat || bxUp || window.__mojMenuOpen) return;
+    bxMap(); bxOpen('pause'); e.preventDefault();
   });` : ''}
   // the level has started (the shell's params are in): its place in the run, and the start cue
   function begin(params) {
@@ -583,6 +637,53 @@ ${race ? `    if (RACE) {
       if (!smOn && Bo && me && !Bo.dormant && Math.hypot(Bo.transform.pos[0] - me.transform.pos[0], Bo.transform.pos[1] - me.transform.pos[1]) < 24) { smOn = true; st.sm.moments = st.sm.moments.concat([{ id: 'boss', text: F.sidemap.boss.name, weight: 'decisive' }]); }
       if (smOn && st.sm.boss <= 0 && smOff < 0) smOff = clock + 1.5;
       st.sm.bossOn = smOn && (smOff < 0 || clock < smOff);
+    }` : ''}
+    ${BX ? `// (the box's: her vitals; what is found said as it is taken; the room she stands in, a new region named as she crosses
+    // into it and a boss as she comes into its room; the boss's bar while it stands; what she holds)
+    if (me && me.body) { st.bx.hpMax = me.hpMax || 1; st.bx.hp = Math.max(0, Number.isFinite(me.body.hp) ? me.body.hp : st.bx.hpMax); const MP = me.rule && me.rule.moveset && me.rule.moveset.mp; st.bx.mpMax = MP ? MP.max : 1; st.bx.mp = MP ? Math.max(0, me.mp == null ? MP.max : me.mp) : 0; }
+    const BG = W && W.heldGates;
+    if (BG) {
+      while (bxSeen < BG.got.length) {
+        const g = BG.got[bxSeen++], R0 = BXF.relics.find(function (x) { return x.id === g.id; }), Bo = BXF.bosses.find(function (x) { return x.id === g.id; });
+        if (g.kind === 'save') bxMoment({ text: 'Saved', sub: st.bx.place, weight: 'normal', icon: 'star' });
+        else if (g.kind === 'wake') bxMoment({ text: 'You wake', sub: g.name.replace(/^Woken in /, ''), weight: 'major' });
+        else if (Bo) bxMoment({ text: Bo.name + ' falls', sub: g.name.indexOf(' · ') > 0 ? g.name.split(' · ').pop() : '', weight: 'decisive', tier: 'rare' });
+        else if (R0 && R0.kind === 'power') bxMoment({ text: R0.name, sub: 'A power', weight: 'major', tier: 'rare', icon: 'star' });
+        else if (R0 && R0.kind === 'key') bxMoment({ text: R0.name, sub: 'A key', weight: 'normal', icon: 'key' });
+        else if (R0) bxMoment({ text: R0.name, sub: 'Found', weight: 'minor', icon: 'gem' });
+      }
+      // (redrawn on anything got, and on a wall broken: a secret's prize comes onto the map)
+      const nb = W.breakables ? W.breakables.reduce(function (n, b) { return n + (b.broken ? 1 : 0); }, 0) : 0;
+      if (bxSeen !== bxSeenMap || nb !== bxBrokeN) { bxSeenMap = bxSeen; bxBrokeN = nb; bxMap(); }
+      st.bx.wakeWord = String(BG.deaths || 0);
+      const hw = BXF.relics.filter(function (x) { return x.kind !== 'prize' && BG.taken[x.id] != null; }).map(function (x) { return x.name; }).join(' · ');
+      if (hw !== bxHeld) { bxHeld = hw; st.bx.heldWord = hw; st.bx.hasHeld = !!hw; }
+    }
+    if (me && me.transform) {
+      const ps = me.transform.pos, ft = ps[2] - ((me.rule && me.rule.eye) || 0), c = Math.floor(ps[1] / BXF.screen[0]), r = Math.floor(ft / BXF.screen[1]);
+      const k = c >= 0 && r >= 0 && c < BXF.cols && r < BXF.rows ? BXF.cells[r * BXF.cols + c] : -1;
+      const ci = k >= 0 ? r * BXF.cols + c : -1;
+      if (ci >= 0 && ci !== bxCell) { bxCell = ci; bxCells[ci] = 1; bxMap(); }
+      if (k >= 0 && k !== bxRoom) {
+        bxRoom = k; const R = BXF.rooms[k]; st.bx.place = R.place;
+        if (R.ring !== bxRing) { if (bxRing >= 0) bxMoment({ text: BXF.rings[R.ring], weight: 'major' }); bxRing = R.ring; }
+        if (R.boss && !bxBossSaid.has(k) && !(BG && BG.felled['boss-' + R.id] != null)) { bxBossSaid.add(k); bxMoment({ text: R.boss, sub: 'Boss', weight: 'decisive' }); }
+      }
+      const R = bxRoom >= 0 ? BXF.rooms[bxRoom] : null, bb = R && R.boss && W.breakables ? W.breakables.find(function (b) { return b.id === 'boss-' + R.id; }) : null;
+      st.bx.bossOn = !!(bb && !bb.broken && Number.isFinite(bb.hp)); if (st.bx.bossOn) { st.bx.bossName = R.boss; st.bx.boss = Math.max(0, bb.hp); st.bx.bossMax = BXF.bossHp || 1; }
+      else if (BG && BG.spec && BG.spec.bosses) {
+        // (a boss STOOD as a body of the world (gameworld/metroidvania/bosses.js): the one whose room she stands in, standing;
+        // its bar its health against its form's (a boss of two forms fills again as its second, named as it), else its own)
+        const p = me.transform.pos;
+        for (const Bd of BG.spec.bosses) {
+          const e = Bd.entity && W.byId[Bd.entity], q = Bd.room;
+          if (!e || !q || !e.body || e.downed || e.gone || BG.felled[Bd.id] != null || !(p[1] >= q[0] && p[1] <= q[1] && p[2] >= q[2] && p[2] <= q[3])) continue;
+          if (e.hudMax == null) e.hudMax = e.body.hp;
+          const Md = e.body.modes && e.body.modes[e.modeIdx || 0];
+          st.bx.bossOn = true; st.bx.bossName = (Md && Md.title) || Bd.title || Bd.id; st.bx.boss = Math.max(0, e.body.hp); st.bx.bossMax = (Md && Md.hp) || e.hudMax || 1;
+          break;
+        }
+      }
     }` : ''}
     // (the touch layer's word for its pad, when the page has one)
     // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)

@@ -41,13 +41,19 @@ import { isCastle, layCastle, castleLaws } from './castle.js';
 import { greyboxOf, FLOOR, boxCameraOf } from './rooms.js';
 import { solveBox } from './solve.js';
 import { boxLaws } from './laws.js';
-import { GATES, readHero } from './gates.js';
-import { BOX_THEMES, themeLaws, lookOf } from './themes.js';
+import { GATES, SECRET, readHero } from './gates.js';
+import { boxLookOf } from './cube.js';
+import { themeLaws, lookOf } from './themes.js';
+import { readGeocube, cubeMatter } from '../../era/geocube.js';
+import { readMatterSpec } from '../../rupa/index.js';
+import { blockMatter, resolveMatter, cutOfMatter } from '../../rupa/matter.js';
 import { dressBox } from './dress.js';
+import { piecesOf } from '../../playscape/destruct/breakability.js';
 import { mapOf, mapLaws } from './explored.js';
 import { backdropLaws } from './backdrop.js';
+import { fabricLaws } from './fabric.js';
 
-export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees', 'bosses']);
+export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees', 'bosses', 'destruction', 'matter']);
 /** a boss stand-in's blows to fall */
 export const BOSS_HP = 6;
 /** a stood boss keeps this far from its room's walls (its doorways): it never follows her out */
@@ -90,24 +96,51 @@ function readBoxScene(m) {
   return { words: m.metroidvania, stood: m.bosses === 'stood', hero: readHero({ ...(m.stature !== undefined ? { stature: m.stature } : {}), ...(jump ? { jump } : {}) }) };
 }
 
+/** What a box's secret walls are under destructible physics: its cube's wall matter (cubeMatter, stone where it says
+ * none), and the world's blows (its level's `matter`: a swing's joules and the power, SECRET.power unsaid). */
+export function secretMatterOf(m) {
+  const wall = (() => { try { return m.cube !== undefined ? cubeMatter(readGeocube(m.cube)).wall?.matter : null; } catch { return null; } })() || 'stone';
+  const spec = readMatterSpec(m.matter ?? { power: SECRET.power }, 'matter');
+  return { matter: wall, swing: spec.swing ?? 300, power: spec.power ?? 1 };
+}
+/** A secret wall's matter: its stone, as thin a facing over its hollow as breaks in SECRET.blows at the world's power. */
+export function secretMatter(b, W) {
+  // (a hair under its blows, so the last one always takes it: a fill is rounded where it is minted)
+  const want = SECRET.blows * W.swing * W.power * 0.97, whole = blockMatter(b, { matter: W.matter, fill: 1 }, 'secret.matter');
+  const fill = Math.min(1, want / whole.joules);
+  return { ...blockMatter(b, { matter: W.matter, fill }, 'secret.matter'), cut: cutOfMatter(resolveMatter(W.matter)) };
+}
+
 /** The box as data: laid, built, solved, held to its laws, and what its world holds shut. */
 export function boxOf(m) {
   const R = readBoxScene(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k)))), stood = R.stood;
   // (a box, or a castle of boxes joined by their connectors: castle.js, laid as one map)
   const castle = isCastle(R.words), layout = castle ? layCastle(R.words) : layBox(R.words), greybox = greyboxOf(layout, { hero: R.hero }), solved = solveBox(layout);
-  // (and, dressed, its theme's: each ring unlike the last of its box, every gate standing out from its room)
+  // (its LOOK: its words' theme, else its cube's box, else the greybox: cube.js)
+  const look = boxLookOf(layout, m.cube), T = look?.theme ?? null;
+  // (and, dressed, its theme's: each ring unlike the last of its box, every gate standing out from its room; a ring's look
+  // its words name, a castle's, else its place among the box's rings)
   const gateRings = (d) => [...new Set([d.a, d.b].map((id) => layout.rooms.find((r) => r.id === id).ring))];
-  const T = layout.theme ? BOX_THEMES[layout.theme] : null, looks = T ? layout.rings.map((r, k) => (r.look !== undefined ? T.looks[r.look] : lookOf(T, k, layout.rings.length))) : null;
+  const looks = T ? layout.rings.map((r, k) => (r.look !== undefined ? T.looks[r.look] : lookOf(T, k, layout.rings.length))) : null;
   const breaks = new Set(layout.rings.filter((r, k) => k && (r.connector || layout.rings[k - 1].connector || r.box !== layout.rings[k - 1].box)).map((r) => r.i));
-  const laws = [...(castle ? castleLaws(layout, { solved, greybox }) : boxLaws(layout, { solved, greybox })), ...(T ? themeLaws(layout.theme, looks, layout.doors.filter((d) => d.gate && d.gate !== 'double-jump').map((d) => ({ kind: d.gate, colour: GATES[d.gate].colour, rings: gateRings(d) })), { breaks }).map((l) => ({ ...l, id: `theme:${l.id}` })) : [])];
+  const laws = [...(castle ? castleLaws(layout, { solved, greybox }) : boxLaws(layout, { solved, greybox })), ...(T ? themeLaws(T, looks, layout.doors.filter((d) => d.gate && d.gate !== 'double-jump').map((d) => ({ kind: d.gate, colour: GATES[d.gate].colour, rings: gateRings(d) })), { breaks }).map((l) => ({ ...l, id: `theme:${l.id}` })) : [])];
   const W = greybox.screen.width, H = greybox.screen.height, room = new Map(layout.rooms.map((r) => [r.id, r]));
   const floorOf = (r) => r.rect[1] * H + FLOOR, midOf = (r) => (r.rect[0] + r.rect[2] / 2) * W;
   const tokenOf = (kind, door) => (kind === 'key' ? `key:${room.get(door.a).ring}` : kind === 'boss' ? `boss:${door.a}` : `gate:${kind}`);
   const breakables = [], gates = [], relics = [], bosses = [];
   // the gates that open (a sill never does: it stays a closed part)
+  // (a SECRET wall: a breakable none of the held gates holds, found by blows; under destructible physics its room's own
+  // wall matter, its fill set so its joules are its blows at the world's power: secretMatter)
+  const secrets = [], physical = m.destruction === 'physical', wallMatter = physical ? secretMatterOf(m) : null;
   for (const g of greybox.gates) {
     if (g.shape === 'sill') continue;
     const door = g.door ? layout.doors.find((d) => d.id === g.door) : null, id = g.door ? `gate-${g.door}` : `pocket-${g.pocket.replace('#', '-')}`;
+    if (GATES[g.kind].by === 'blows') {
+      const b = { id, min: [-HALF, g.s0, g.z0], max: [HALF, g.s1, g.z1], hp: SECRET.blows };
+      breakables.push(wallMatter ? { ...b, ...secretMatter(b, wallMatter) } : b);
+      secrets.push({ id, room: g.pocket.split('#')[0] });
+      continue;
+    }
     breakables.push({ id, min: [-HALF, g.s0, g.z0], max: [HALF, g.s1, g.z1] });
     gates.push({ id, kind: g.kind, opens: door ? tokenOf(g.kind, door) : `gate:${g.kind}`, ...(g.kind === 'wall-break' ? { hp: 2 } : {}) });
   }
@@ -150,8 +183,14 @@ export function boxOf(m) {
   const saves = layout.rooms.filter((r) => r.save).sort((a, b) => a.walk - b.walk).map((r) => ({ id: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], at: [r3(midOf(r)), r3(floorOf(r))] }));
   const held = { target: 'hero', gates, relics: relics.map(({ colour, ...x }) => x), bosses: bosses.map(({ power, place: _p, ...b }) => (power ? { ...b, name: `${b.name} falls · ${power}` } : { ...b, name: `${b.name} falls` })), saves };
   // DRESSED in its theme where its words name one (dress.js), and held to the backdrop's craft (backdrop.js)
-  const B0 = { layout, greybox, stature: R.hero.stature }, dress = layout.theme ? dressBox(B0, BOX_THEMES[layout.theme]) : null;
-  if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })));
+  const B0 = { layout, greybox, stature: R.hero.stature }, dress = look ? dressBox(B0, look.theme) : null;
+  if (dress) laws.push(...backdropLaws(B0, dress).map((l) => ({ ...l, id: `backdrop:${l.id}` })), ...fabricLaws(B0, dress.fabric).map((l) => ({ ...l, id: `fabric:${l.id}` })));
+  // (its secret walls: each breaks in its blows, counted, or by its joules at the world's power under physics)
+  if (secrets.length) {
+    // (by its matter, it falls on exactly its last blow: more than the blows before it hold, no more than all of them)
+    const off = breakables.filter((b) => secrets.some((x) => x.id === b.id)).filter((b) => { if (!b.joules) return b.hp !== SECRET.blows; const n = b.joules / (wallMatter.swing * wallMatter.power); return !(n > SECRET.blows - 1 && n <= SECRET.blows); });
+    laws.push({ id: 'secrets', holds: !off.length, says: off.length ? `secret walls off their ${SECRET.blows} blows: ${off.map((b) => b.id).join(', ')}` : `${secrets.length} secret wall${secrets.length === 1 ? '' : 's'}, each broken in ${SECRET.blows} blows${wallMatter ? ` as ${wallMatter.matter}, by its matter` : ', counted'}` });
+  }
   // THE EXPLORED MAP (explored.js): the tiles walked as she stands in them (worlds/controllable/explore.js), each map room's
   // lectern showing its region's tiles, the map's own data for the page's minimap and its map (explored-view.js)
   const tilesOf = (k) => layout.rooms.filter((r) => r.ring === k).flatMap((r) => r.cells.map((q) => `${q[0]},${q[1]}`));
@@ -159,7 +198,7 @@ export function boxOf(m) {
   const explored = { target: 'hero', tile: [r3(W), r3(H)], tiles: layout.rooms.flatMap((r) => r.cells.map((q) => `${q[0]},${q[1]}`)),
     maps: layout.rooms.filter((r) => r.mapRoom).map((r) => ({ room: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], reveals: tilesOf(r.ring) })),
     map: mapOf(layout) };
-  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, explored, ...(dress ? { dress } : {}) };
+  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, secrets, explored, ...(physical ? { physical: true } : {}), ...(look ? { look } : {}), ...(dress ? { dress } : {}) };
 }
 
 /** The `geocube` kind's `show: 'metroidvania'`. */
@@ -167,7 +206,7 @@ export function assembleBox(m, ctx = {}) {
   const B = boxOf(m), { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height, faces = [];
   // DRESSED in its theme where its words name one (dress.js: its rings' stone, backs, lamps and light, the night over its
   // open rings); else the greybox, each room's back in its ring's shade
-  const T = L.theme ? BOX_THEMES[L.theme] : null, D = T ? B.dress : null;
+  const T = B.look ? B.look.theme : null, D = T ? B.dress : null;
   if (D) faces.push(...D.faces);
   // (each MAP ROOM's lectern: a stand and an open book glowing, behind the lane in its room's middle, its region's tiles
   // shown as she walks in: explore.js)
@@ -191,6 +230,23 @@ export function assembleBox(m, ctx = {}) {
   for (const g of sills) block(faces, HALF, g.s0, g.s1, g.z0, g.z1, GATES[g.kind].colour, shade(GATES[g.kind].colour, 1.2), 'box:sill');
   // the gates that open, each its own group
   for (const b of B.breakables) {
+    // (a secret wall drawn as its room's wall: its stone, a course or two, one crack only the eye that looks will see)
+    const sec = B.secrets.find((x) => x.id === b.id);
+    if (sec) {
+      // (in a dressed box, the alcove's own back wall copied across to stand in its mouth: the same blocks, mortar and
+      // baked light, so nothing tells it from the wall but the blow; the band above it, by the alcove's roof, the wall's
+      // own colour; in the greybox, a solid's block)
+      const g = `break:${b.id}`, mine = [], back = D ? G.solids.find((x) => x.room === sec.room && x.role === 'niche' && x.z0 <= b.min[2] + 1e-3 && x.s0 > b.max[1] + 2) : null;
+      const twin = back ? D.faces.filter((f) => (f.group === 'box:stone' || f.group === 'box:mortar') && f.corners.every((q) => q[1] >= back.s0 - 0.02 && q[1] <= back.s1 + 0.02 && q[2] >= back.z0 - 0.02 && q[2] <= back.z1 + 0.02)) : [];
+      if (twin.length) {
+        const ds = b.min[1] - back.s0;
+        for (const f of twin) mine.push({ ...f, corners: f.corners.map((q) => [q[0], r5(q[1] + ds), q[2]]), group: g, node: b.id });
+        const avg = rgbHex([0, 1, 2].map((k) => twin.reduce((a, f) => a + hexRgb(f.fill)[k], 0) / twin.length));
+        if (b.max[2] > back.z1 + 1e-3) face(mine, HALF + 0.008, b.min[1], b.max[1], back.z1, b.max[2], avg, g);
+      } else block(mine, b.max[0], b.min[1], b.max[1], b.min[2], b.max[2], SOLID, EDGE, g);
+      for (const f of mine) faces.push({ ...f, node: b.id });
+      continue;
+    }
     const g = B.held.gates.find((x) => x.id === b.id), boss = !g;
     const fill = boss ? BOSS : GATES[g.kind].colour;
     block(faces, b.max[0], b.min[1], b.max[1], b.min[2], b.max[2], fill, shade(fill, 1.25), `break:${b.id}`);
@@ -207,8 +263,11 @@ export function assembleBox(m, ctx = {}) {
   const colliders = [...G.solids.filter((s) => s.role !== 'ledge' && s.role !== 'lip'), ...sills].map((s) => ({ min: [-HALF, s.s0, s.z0], max: [HALF, s.s1, s.z1] }));
   const payload = {
     faces, lights: [], colliders, breakables: B.breakables, heldGates: B.held, explored: B.explored, ...(m.trees ? { trees: m.trees } : {}),
+    // (a secret wall pre-cut as a block is, so the page throws its pieces as it breaks: its stone, its colour)
+    ...(B.secrets.length ? { breakPieces: piecesOf(B.breakables.filter((b) => B.secrets.some((x) => x.id === b.id)), faces) } : {}),
     // (dressed: its flames haloed and dust hanging in their light, the page's glow sprites and motes)
-    ...(D ? { glow: D.glow, ...(D.motes ? { motes: D.motes } : {}) } : {}),
+    // (its flames alive and its backdrop moving: the page's flames and ambient channels)
+    ...(D ? { glow: D.glow, ...(D.motes ? { motes: D.motes } : {}), ...(D.live ? { flames: D.live } : {}), ...(D.ambient ? { ambient: D.ambient } : {}) } : {}),
     cameras: [{ name: 'metroidvania', worldFraming: { cameraPosition: [r5(C.dist), r5(s0), r5(look + C.dist * C.tilt)], lookAt: [0, r5(s0), r5(look)], horizontalFov: r5(hfov) } }],
     viewBox: m.viewBox || { width: 1280, height: 720 },
     title: ctx.title || m.title || 'mojulo geocube · metroidvania',

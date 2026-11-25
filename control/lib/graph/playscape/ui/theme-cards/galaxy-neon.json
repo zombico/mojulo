@@ -1,0 +1,21 @@
+{
+  "id": "galaxy-neon",
+  "name": "Galaxy Neon",
+  "about": "Galaxy re-keyed for a neon city by night: black plates, magenta for energy and cyan for weapons, a boss in hot orange. The same square edge, ticks and shutter as Galaxy.",
+  "family": "machine",
+  "tags": ["side-scroller", "action platformer", "robot", "8-bit", "city", "neon"],
+  "author": "mojulo",
+  "from": "galaxy",
+  "tokens": {
+    "ink": "#fdf2ff",
+    "panel": "#0c0616",
+    "line": "#fdf2ff",
+    "accent": "#ff3d9a",
+    "accent2": "#3df2ff",
+    "paper": "#1a0c2a",
+    "hp": "#ff3d9a",
+    "xp": "#3df2ff",
+    "boss": "#ffb43d",
+    "harm": "#ffb43d"
+  }
+}

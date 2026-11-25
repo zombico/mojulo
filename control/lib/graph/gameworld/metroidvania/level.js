@@ -23,6 +23,8 @@
  *   the TREES    the world's `trees` (trees/tree.js): the skill tree on how she moves, the tech tree on her spells and
  *                attacks, lowered on her rule and her own strings, learned as she plays (worlds/controllable/trees.js) with
  *                the points what she holds gives; their laws beside the box's, each `trees:<id>`
+ *   the HUD      where the game has a `ui`: her vitals, what is found, the boss's bar and the pause's map on mana-ui
+ *                (hud.js), in the game's look re-keyed with the box's theme (BOX_LOOKS), heard in its UI sounds
  *
  *   boxLevelOrder(G, stage, { ref, heroRef, heroGaits?, heroStature?, pilot?, title?, mechanics?, audio?, extra?, foeFrom?,
  *                 bossRefs? })   (`bossRefs` { <castle boss id>: its figure's sketch }, the runner's `boss-<id>` steps)
@@ -35,7 +37,8 @@ import { feelRule, readFeel, feelCard, takesOfCard, feelCombos } from '../feel/l
 import { readTrees, lowerTrees, treeLaws } from '../trees/tree.js';
 import { SIDE_MAP_STATURE } from '../side-map/scene.js';
 import { SIDE_FALL, LIMBO } from '../side-map/play.js';
-import { boxOf } from './scene.js';
+import { LADDER_RATE } from '../side-map/layout.js';
+import { boxOf, BOSS_HP } from './scene.js';
 import { boxEnds, boxPlaced, castLaws } from './cast.js';
 import { HERO } from '../../foes/vocab.js';
 import { sideFoe } from '../side-map/cast.js';
@@ -43,6 +46,10 @@ import { bestiaryOf } from '../foes.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
 import { standBosses, bossRow, bossLaws, sideBody } from './bosses.js';
 import { reachOf } from '../feel/reach.js';
+import { GATES, SECRET } from './gates.js';
+import { boxHud, BOX_LOOKS, BOX_MENU_KEY } from './hud.js';
+import { interfaceLook } from '../../playscape/ui/interface-look.js';
+import { hudSounds } from '../../scene/channels/mana-hud-sounds.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 /** The world's trees lowered on a box's hero: the runtime's spec, her moveset with the techs' strings in it, and the
@@ -73,15 +80,34 @@ export const BOX_VITALS = Object.freeze({ hp: 100, mp: 40 });
 /** where the hero stands in a room as it comes back to it: a little in from its near wall, on its floor */
 const IN = 2.5;
 
+/** The box's LADDERS (rooms.js greybox `ladders`, climbs.js): each a climbable as the side map's runtime takes it (UP at its
+ * foot, the climb owning the body to its head, stepped off onto the landing beside it), at LADDER_RATE. */
+export function boxLadders(B) {
+  return (B.greybox.ladders ?? []).map((l, i) => {
+    const base = [0, l.s, l.z0], length = r3(l.z1 - l.z0);
+    return { id: `box-ladder-${i}`, rule: { type: 'climbable', form: 'ladder', base, axis: [0, 0, 1], length, N: [1, 0, 0], Nh: [1, 0, 0], U: [0, 1, 0], half: 0, speed: LADDER_RATE, standoff: 0.35, pitch: 0.3, top: [0, l.off[0], l.off[1]] }, body: { type: 'none' }, transform: { pos: base, heading: Math.PI } };
+  });
+}
+
 /** The box's rooms as the side map's camera zones, in the order the spiral walks them. */
 export function boxCamera(B, { target = 'hero' } = {}) {
   const { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height, C = boxCameraOf(B.stature);
   const room = new Map(L.rooms.map((r) => [r.id, r]));
   const zones = L.walk.map((id) => {
     const r = room.get(id), [c, rr, w, h] = r.rect, s0 = c * W, z0 = rr * H;
-    return { rect: [r3(s0), r3((c + w) * W), r3(z0), r3((rr + h) * H)], lock: r.kind === 'corridor' ? 'z' : r.kind === 'shaft' ? 's' : null, checkpoint: [r3(s0 + IN), r3(z0 + FLOOR)] };
+    return { rect: [r3(s0), r3((c + w) * W), r3(z0), r3((rr + h) * H)], lock: r.kind === 'corridor' ? 'z' : r.kind === 'shaft' && w === 1 ? 's' : null, checkpoint: [r3(s0 + IN), r3(z0 + FLOOR)] };
   });
   return { rule: 'side-map', target, screen: [W, H], dist: C.dist, tilt: C.tilt, lookH: C.lookH, stature: B.stature, limbo: LIMBO, zones };
+}
+
+/** The box's HUD in the game's look: a castle's card re-keyed with its theme (a frost castle's frost card), its sounds
+ *  the look's own set. */
+function boxHudOf(G, B) {
+  const { layout: L, greybox: Gb } = B, id = B.look?.id, keyed = G.ui?.theme === BOX_LOOKS.castle && id && BOX_LOOKS[id] ? BOX_LOOKS[id] : null;
+  const look = interfaceLook(keyed ? { ...G, ui: { ...G.ui, theme: keyed } } : G).theme;
+  // (each room's place as it is dressed: its locale's, else its ring's)
+  const X = B.look ? B.look.theme.locales ?? {} : {}, looks = B.dress ? Object.fromEntries(Object.entries(B.dress.plan).filter(([, p]) => p.locale && X[p.locale]).map(([id, p]) => [id, { place: X[p.locale].place }])) : {};
+  return boxHud({ theme: look, layout: L, screen: Gb.screen, held: B.held, looks, bossHp: BOSS_HP, sounds: hudSounds(look) });
 }
 
 /** A metroidvania level's order: the stage's box built for the world's hero and played by it. */
@@ -90,7 +116,12 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
   // (its BOSSES stood as bodies of the world once its foes have joined, bosses.js: the stand-in blocks left off the box)
   const stood = !!(extra && foeFrom.length);
-  const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature, ...(stood ? { bosses: 'stood' } : {}) };
+  // (its SECRET walls break: the game's own degree where it says one (`physical` breaks them by their matter, rupa, at the
+  // box's blows unless the level says its own), else by counted blows with no degree said)
+  const secretive = (stage.manifest.metroidvania?.rings ?? []).some((r) => (r.pockets ?? []).some((p) => GATES[p.gate]?.by === 'blows'));
+  const degree = secretive && !stage.manifest.destruction ? (mechanics?.destruction ?? G.mechanics?.destruction ?? null) : null;
+  const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature, ...(stood ? { bosses: 'stood' } : {}), ...(degree ? { destruction: degree } : {}),
+    ...(degree === 'physical' && stage.manifest.matter === undefined ? { matter: { power: SECRET.power } } : {}) };
   const B = boxOf(manifest0), { layout: L, greybox: Gb } = B, W = Gb.screen.width, H = Gb.screen.height;
   const camera = boxCamera(B), spawn = [0, ...camera.zones[0].checkpoint];
   spawn[2] = r3(spawn[2] + 0.05);
@@ -100,7 +131,8 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   // (her TREES, the world's: the skill tree on how she moves and the tech tree on her spells and attacks, learned as she
   // plays: trees/tree.js lowered on her rule and her own strings, the techs' strings in her moveset held shut until learned)
   const T = G.trees ? treesOfBox(G, L, rule0, { placed: foeFrom.length ? boxPlaced(L, Gb, foeFrom, { bestiary: bestiaryOf(G) }) : [] }) : null, rule = T?.moveset ? { ...rule0, moveset: T.moveset } : rule0;
-  const controls = `A / D  run · Space  jump${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${T ? ' · T  skills and techs' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  const ladders = boxLadders(B);
+  const controls = `A / D  run · Space  jump${ladders.length ? ' · W / S  climb' : ''}${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${T ? ' · T  skills and techs' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
   const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule, ...(takes ? { takes } : {}) });
   // (her VITALS, an action RPG's and never a run and gun's lives: health on her body, struck by what she meets; MP the
@@ -134,10 +166,11 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const ev = W0.events ?? {};
   const events = { ...ev, sources: [...(ev.sources ?? []), { type: 'zone', zone: SIDE_FALL, at: [0, 0, LIMBO], half: [1e6, 1e6, 200], watch: 'hero' }] };
   const manifest = {
-    ...manifest0, ...(T ? { trees: T.spec } : {}), title: name, figures: drawnFigures, entities: [hero1, ...foes], camera, events,
+    ...manifest0, ...(T ? { trees: T.spec } : {}), title: name, figures: drawnFigures, entities: [hero1, ...foes, ...ladders], camera, events,
     game: { levelRef: ref, mechanics: [reach, ...lives], fall: 'none' },
     ...(mechanics?.play || X?.play ? { play: { ...(mechanics?.play ?? {}), ...(X?.play ?? {}) } } : {}),
     ...(audio ? { audio } : {}),
+    ...(G.ui !== undefined ? { manaHud: boxHudOf(G, B) } : {}),
   };
   const cast = foeFrom.length ? castLaws(L, Gb, boxPlaced(L, Gb, foeFrom, { bestiary: bestiaryOf(G) }), { bestiary: bestiaryOf(G), hp: V.hp, hit: HERO.hit }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, laws: [...B.laws.map((l) => ({ ...l, id: `metroidvania:${l.id}` })), ...(T ? T.laws.map((l) => ({ ...l, id: `trees:${l.id}` })) : []), ...cast.map((l) => ({ ...l, id: `foes:${l.id}` })), ...(stood ? bossLaws(B, { body: sideBody(G.feel ? reachOf(readFeel(typeof G.feel === 'string' ? { pole: G.feel, takes: true } : G.feel)) : null) }).map((l) => ({ ...l, id: `bosses:${l.id}` })) : [])] };
