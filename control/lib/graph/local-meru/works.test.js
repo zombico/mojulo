@@ -40,4 +40,23 @@ describe('the works', () => {
     expect(has(D.at[0], D.at[1], D.height - 1)).toBe(true);
     expect(has(D.at[0], D.at[1], 5)).toBe(false);   // (walked under)
   });
+
+  it('stacks a superstructure: a process frame\'s levels decks over its stopping columns, a column ringed, walkways between', () => {
+    const W = readWorks({ frames: [{ at: [0, 0], bays: [2, 2], levels: [12, 24], ramp: 's' }], vessels: [{ at: [80, 0], radius: 6, height: 60, rings: [24] }],
+      spheres: [{ at: [-80, 0], radius: 10 }], racks: [{ path: [[0, 60], [100, 60]], tiers: [10] }], bridges: [{ from: [12, 0], to: [74, 0], z: [24, 24] }] });
+    const R = worksFaces(W, [0, 0]);
+    const has = (x, y, z) => R.colliders.some((c) => x >= c.min[0] && x <= c.max[0] && y >= c.min[1] && y <= c.max[1] && z >= c.min[2] && z <= c.max[2]);
+    // (each level a deck at its height, the bridge one at its; walked under, a bay's middle open, its corner column stopping)
+    for (const z of [12, 24]) expect(R.decks.some((d) => d[5] === z && d[0] === -12)).toBe(true);
+    expect(R.decks.some((d) => d[0] <= 40 && d[3] >= 40 && d[5] === 24)).toBe(true);
+    expect(has(6, 6, 5)).toBe(false);
+    expect(has(-12, -12, 5)).toBe(true);
+    // (the column and the sphere stop a body; the rack's bents are walked between)
+    expect(has(80, 0, 30)).toBe(true);
+    expect(has(-80, 0, 10)).toBe(true);
+    // (a lamp under each level's corners and a ring's)
+    expect(R.lamps.filter((q) => q.at[2] < 24).length).toBeGreaterThanOrEqual(2);
+    expect(() => readWorks({ frames: [{ at: [0, 0], bays: [2, 2], levels: [24, 12] }] })).toThrow(/rising/);
+    expect(() => readWorks({ bridges: [{ from: [0, 0], to: [1, 1] }] })).toThrow(/bridges\[0\]\.z/);
+  });
 });

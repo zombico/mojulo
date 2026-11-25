@@ -32,7 +32,7 @@ const f = Object.freeze;
 // (the island a field is grown from: its land 4 m quads, broad, a narrow strand, its rim raised the whole way round so
 // the field reads as a bowl of country and its sea is never seen; open, its ground rolling right round, no trail's apron)
 // (the massif fields' forms and the battlefield cube each is cut from)
-export const MASSIF_FORMS = f({ wadi: 'sandstone-wadi', gorge: 'sandstone-gorge', scree: 'scree-scarp', craters: 'crater-plain', oasis: 'wadi-oasis', smelter: 'smelter-hall' });
+export const MASSIF_FORMS = f({ wadi: 'sandstone-wadi', gorge: 'sandstone-gorge', scree: 'scree-scarp', craters: 'crater-plain', oasis: 'wadi-oasis', smelter: 'smelter-hall', refinery: 'refinery-works' });
 const ISLAND = f({ geology: true, walk: 'none', open: true, seabed: 'merged', cell: 4, scale: 3, cover: 'soil', beach: 10, sea: 2.1, depth: 9, shore: 560 });
 export const FRAME_FIELDS = f({
   plain: f({

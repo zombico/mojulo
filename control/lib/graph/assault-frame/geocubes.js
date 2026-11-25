@@ -87,7 +87,7 @@ export const WORKS_OUTSIDE = (works, massif = works, materials = 'foundry', rock
 });
 // (the steel blackened low by the soot of the floor's traffic, panels of their own tone, rust run down from the seams)
 const SOOT = f({ beds: f([f({ to: 5, value: -0.3 }), f({ to: 14, value: -0.12 }), f({ to: 2000 })]), blend: 3, thin: false, wear: f({ edge: 0.25, crease: 0.35, reach: 1 }), sections: f({ size: 14, value: 0.1, hue: 0.12, toward: 'sand' }), varnish: f({ strength: 0.6, width: 8, mask: 90 }) });
-const HALL_LIGHT = (lamps, glow, haze) => f({ reference: 'island-noon', outsideFog: 0.3, sun: f({ color: lamps }), sky: DESERT_SKY,
+const HALL_LIGHT = (lamps, glow, haze, sky = DESERT_SKY) => f({ reference: 'island-noon', outsideFog: 0.3, sun: f({ color: lamps }), sky,
   interior: f({ void: '#0b0908', haze: f({ colour: haze, density: 0.0016 }), lamps: f({ colour: lamps, power: 1.2, spacing: 88, height: 70 }), glow: f({ colour: glow, power: 1.5 }) }) });
 
 export const FIELD_GEOCUBES = f({
@@ -126,6 +126,19 @@ export const FIELD_GEOCUBES = f({
       'A frame fights across its floor and up its decks, under the crane, between the furnaces.',
     ]),
   }),
+  'refinery-works': f({
+    id: 'refinery-works', title: 'Refinery works', reads: 'A refinery\'s superstructure under one enclosure: process frames level on level, distillation columns, spheres, pipe racks and the walkways between',
+    // (the hall's fill as sodium as its lamps: no cool sky to shade the floor blue)
+    light: HALL_LIGHT('#ffb35c', '#ff5a10', '#2e2a24', f({ zenith: '#5a4a38', horizon: '#7a6448', fog: '#4a3c2e' })),
+    colour: f({ stone: '#5a5e60', floor: '#6e6a62', trim: '#3a3632', accent: '#ffb000', grass: '#55524c', foliage: '#4e4b46', water: '#20262c', sand: '#3a352f', shade: 30 }),
+    register: f({ steps: 0, key: 0.45 }), surfaces: SURFACES, inside: INSIDE,
+    outside: WORKS_OUTSIDE('refinery', 'refinery', 'refinery'), wind: f({ speed: 1, dir: 0 }),
+    why: f([
+      'A place built up, not out: the fight climbs the process frames a level at a time, crosses on the walkways and drops through the grating.',
+      'Sodium lamps under every level and the fired heaters\' glow; the columns and spheres catch them as steel, the floor\'s gravel drinks them.',
+      'Every level is seen through: a frame on the grating is a target from below, and the columns, the spheres and the racks are the cover.',
+    ]),
+  }),
   'wadi-oasis': f({
     id: 'wadi-oasis', title: 'Wadi oasis', reads: 'A lake on a wadi\'s floor among sheer sandstone jebels, a pool beside it',
     light: DESERT(0.26), colour: f({ ...SANDSTONE, water: '#2f8aa0' }), register: f({ steps: 0, key: 0.55 }), surfaces: SURFACES, inside: INSIDE,
@@ -140,6 +153,7 @@ export const FIELD_GEOCUBE_PALETTES = f({
   'scree-scarp': f({ intent: 'a brown scarp over pale scree fans in a hard dry light', key: 'mid', heat: 0.45, weight: 0.2, activity: -0.1, scheme: 'analogous', hue: '#8e5a40', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
   'crater-plain': f({ intent: 'a stony desert plain struck by meteorites under a deep sky', key: 'mid', heat: 0.5, weight: 0.2, activity: 0.1, scheme: 'analogous', hue: '#86503a', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
   'smelter-hall': f({ intent: 'a steelworks melt shop: dark steel and concrete in smoke, lit by lamps and molten metal', key: 'low', heat: 0.4, weight: 0.5, activity: 0.2, scheme: 'mono-accent', hues: f({ rock: 210 }), lock: f({ accent: '#ff7a1a' }) }),
+  'refinery-works': f({ intent: 'a refinery under its enclosure: grey steel and gravel in sodium light, heaters glowing', key: 'low', heat: 0.5, weight: 0.5, activity: 0.3, scheme: 'mono-accent', hues: f({ rock: 205 }), lock: f({ accent: '#ffb000' }) }),
   'wadi-oasis': f({ intent: 'red sandstone round a blue lake on an orange floor', key: 'high', heat: 0.55, weight: 0.1, activity: 0.1, scheme: 'complementary', hues: f({ sky: 212, rock: 18, soil: 26, ground: 30, foliage: 70, accent: '#2f8aa0' }) }),
 });
 

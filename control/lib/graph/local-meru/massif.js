@@ -163,6 +163,16 @@ export const MASSIF_CARDS = f({
     pools: f([f({ at: f([-150, -110]), radius: 18, depth: 5 }), f({ at: f([60, 120]), radius: 16, depth: 5 }), f({ at: f([150, -110]), radius: 16, depth: 4 })]),
     strew: f({ count: 50, size: f([1, 3]) }), scatter: f({ clusters: 10, per: f([2, 5]), spread: 14, size: f([1, 3]) }),
     face: f({ beds: f([5, 10]), bulge: 0, undercut: 0, grain: 0 }) }),
+  // a refinery's floor (under its superstructure): gravel ballast between concrete pads, low bunds round the storage, oily
+  // sumps by the frames; flatter than a smelter's, its spoil kept low
+  refinery: f({ ...CARD, id: 'refinery', reads: 'A refinery\'s floor: gravel between concrete pads, bunds round the storage, oily sumps',
+    beds: f([f({ top: 0.6, bench: 0 }), f({ top: 400, bench: 0 })]), slope: 0, bench: 0, warp: f({ strength: 0, scale: 50 }), flute: f({ depth: 0, scale: 10 }),
+    cap: f({ form: 'dome', height: 2, run: 14 }), talus: f({ share: 0.3, angle: 30, fan: 0.2 }), clefts: f({ per: 0, width: f([10, 20]), reach: 0.5 }),
+    blocks: f([B([-380, 330], [36, 18], 0, 5, 2), B([380, -350], [40, 20], 90, 5, 2), B([380, 330], [30, 16], 0, 6, 2)]),
+    outcrops: f({ count: 14, height: f([0.8, 1.6]), size: f([14, 30]), within: 380 }),
+    pools: f([f({ at: f([-210, 120]), radius: 12, depth: 3 }), f({ at: f([110, 60]), radius: 10, depth: 3 })]),
+    strew: f({ count: 40, size: f([1, 2.5]) }), scatter: f({ clusters: 8, per: f([2, 4]), spread: 12, size: f([1, 2.5]) }),
+    face: f({ beds: f([5, 10]), bulge: 0, undercut: 0, grain: 0 }) }),
   // an oasis: a lake on the floor of a wadi among jebels, a pool beside it
   oasis: f({ ...CARD, id: 'oasis', reads: 'A lake on a wadi\'s floor among sheer jebels, a pool beside it',
     blocks: f([

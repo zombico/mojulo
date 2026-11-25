@@ -47,3 +47,17 @@ so everything the land does (bands, wear, sections, stochastic tiling, rubble) w
     works' walls, columns, furnaces, tanks and ladles, and the decks' slabs, walked under and stood on.
   - The level carries the works' colliders (`frameField` `indoor`, `colliders`).
   - A frame that names no body moves as it always did.
+- **A refinery superstructure** (`assault-frame/geocubes.js` `refinery-works`, the field's form `refinery`). A place
+  built up, not out, under a 140 m enclosure on deep trusses, its new works words:
+  - **process frames** (`frames`): heavy steel in 12 m bays, a grating floor at each level a frame's height apart,
+    girders, braces, a ramp to the first; lamps hung under each level's corners; the columns stop a body, and every
+    level is a deck walked under and stood on;
+  - **columns** (`vessels`): distillation columns and reactors on concrete footings, a platform ringing each at each
+    height a frame can stand on, its rail and a lamp;
+  - **spheres** on their legs, **pipe racks** (`racks`, a bent every 12 m and four pipes on each tier) carrying the
+    spine between the units, **walkways** (`bridges`) of grating from a frame's level to another or to a column's ring,
+    and fired heaters glowing at the edges.
+  - Scaffolds and process frames share one tower builder: a scaffold is the light one.
+  - The `refinery` massif card is its floor: gravel between low concrete pads, bunds round the storage, oily sumps.
+  - The refinery's materials, sodium lamps, and a fill as warm as its lamps (`HALL_LIGHT` takes a sky), so the floor
+    is never shaded blue.
