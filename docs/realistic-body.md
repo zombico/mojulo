@@ -65,6 +65,26 @@ kit and the cloth are made by the rules in [garment-principles.md](garment-princ
   At most four influences a vertex, as everywhere.
 - **Dials:** the authored dials' station blends extended to the new stations by `u`.
 
+## A face of its own (realistic laws 19)
+
+A hero minted under realistic laws 19 wears its face's own colours and a woman's face reads as a woman's:
+
+- **Its colours dressed.** A dressed hero's palette is rebuilt from its plan's, which carried the default hair; the colours
+  the face's layers wear (the hair, the brows, the lashes, a beard: `faceTones`) are laid back over it, the operator's own
+  palette over all. Before, every hero in an outfit had the same dark brown hair and brows.
+- **Its eyes.** The iris is its ancestry's: a colour word off the ancestry's eye list (`egocube/ancestry.js` `eyes`, on a
+  stream of its own: `epidermis/dermal-looks.js` `ancestryIris`, `IRIS_HEX`), where every realistic face had one blue-grey.
+- **Its skin's seams joined.** A face of the head's skin across two islands of its atlas (the lips' cut, the nostrils'),
+  or with a corner the chart has no sample for, is painted as the skin beside it (`dermal-texture.js` `faceUVs` `joined`,
+  the recipe's `hairClip.seams`), where it took the page's white texel. The head's `hairClip` now reaches a dressed hero
+  too. (A grey stipple under the lower lip, which reads as stubble on a woman, is NOT this: it is neither the skin's paint
+  nor the mouth's cup, and is still open.)
+- **A woman's face.** `face-compose.js` `POLE_19`: the female pole's eyes larger (wider; their opening kept, a taller one stretched the blink), the nose smaller and finer,
+  the jaw narrower with its corner higher, the chin smaller and softer, the lower face shorter, the brow ridge flatter, the
+  lips fuller; `FACE_SEX_WEIGHTS_19`, her bold shapes rarer (a square outline, a strong chin, deep-set eyes, a heavy brow, a
+  classical nose) and her refined ones likelier; `FACE_SEX_LEAN`, her character rolled leaning soft and delicate, the
+  whole plane still reached. `composeFace({ laws })` reads them; a hero minted before composes as it did.
+
 ## The correctives
 
 `recipe.correctives`: a list of `{ id, driver: { joint, to, from, full }, d }`.

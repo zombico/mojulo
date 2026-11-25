@@ -123,8 +123,8 @@ import { ONE_SKIN_RUNGS } from '@/lib/graph/polygonizer/hero-one-skin';
 import { heroJewellery, heroHair, heroLockHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
 import { readScalp, hairLevel } from '@/lib/graph/epidermis/dermal-hair';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
-import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE } from '@/lib/graph/polygonizer/face-compose';
-import { readAncestry } from '@/lib/graph/epidermis/dermal-looks';
+import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE, POLE_19_TUNE } from '@/lib/graph/polygonizer/face-compose';
+import { readAncestry, ancestryIris } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
 import { keptOnDisk } from '@/lib/util/kept';
 import { solveTune, raisedEar, evenFace } from '@/lib/graph/polygonizer/head-relational';
@@ -312,7 +312,7 @@ function withLoftedHead(recipe, hero) {
   // (the head's skin is joined to the neck's column, read off its rings: the lofted neck's dozen slots stood as a
   // faceted post under the head, so the neck is densified first on its smooth cage, at the muscle shirt's grain, as the
   // realistic body's slice is dense)
-  const N = recipe.parts.neck, R = relationalHeadWorn(N?.stations ? { ...recipe, parts: { ...recipe.parts, neck: densify(N, { ...grainOf(N, LOFTED_NECK_GRAIN), grain: LOFTED_NECK_GRAIN }) } } : recipe, hero);
+  const N = recipe.parts.neck, { faceTones: _ft, ...R } = relationalHeadWorn(N?.stations ? { ...recipe, parts: { ...recipe.parts, neck: densify(N, { ...grainOf(N, LOFTED_NECK_GRAIN), grain: LOFTED_NECK_GRAIN }) } } : recipe, hero);
   const { spec, base } = heroDermisSpec(faceSkin(hero));
   return { ...R, dermis: spec, palette: { ...(R.palette || {}), Skin: base } };
 }
@@ -398,7 +398,10 @@ function relationalHeadWorn(S, hero) {
   if (!face || !H.headFit) return H;
   let out = H;
   // (each layer's colours over the plan's defaults, under the operator's own palette)
-  const own = hero.palette || {}, wear = (L) => { out = { ...out, parts: { ...out.parts, ...structuredClone(L.parts) }, palette: { ...(out.palette || {}), ...L.palette, ...own } }; };
+  // (realistic laws 19: the colours the face's layers wear kept as they are worn, `faceTones`, so a dressed hero's palette,
+  // rebuilt from its plan's, takes them back: realisticExpand; and the iris its ancestry's, dermal-looks.js ancestryIris)
+  let worn = {};
+  const own = hero.palette || {}, wear = (L) => { worn = { ...worn, ...L.palette }; out = { ...out, parts: { ...out.parts, ...structuredClone(L.parts) }, palette: { ...(out.palette || {}), ...L.palette, ...own } }; };
   if (face.piercings?.length) wear(jewelleryOf(H, face.piercings));
   // THE SCALP on its head (hero-head-layers.js heroHair): the composed face's cut over its ancestry's, its cards
   const scalp = faceScalp(hero, face), dermis = heroDermisSpec(faceSkin(hero)).spec;
@@ -416,6 +419,11 @@ function relationalHeadWorn(S, hero) {
   const A = readAncestry({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 });
   const epidermis = { from: 'default', hair: { ...(A.epidermis?.hair || {}), ...(face.epidermis?.hair || {}) } };
   wear(faceHairOf(H, dermis, { type: scalp ? readScalp(scalp).type : 'straight', epidermis, level, ...(one ? { budget: true } : {}), ...(laws >= 10 ? { locks: { stylize: hero.face?.stylize ?? null } } : laws >= 7 ? { cards: true } : {}) }));
+  if (laws >= 19) {
+    wear({ parts: {}, palette: { Iris: ancestryIris({ id: face.ancestry, sex: femaleOf(hero) ? 'female' : 'male', seed: hero.face.seed ?? 1 }).hex } });
+    // (and the skin's islands joined at their seams, the lips' cut and the nostrils', dermal-texture.js faceUVs `joined`)
+    out = { ...out, faceTones: worn, hairClip: { ...out.hairClip, seams: 'joined' } };
+  }
   return out;
 }
 /** THE DOOR'S HAIR ON THE REALISTIC FACE: a landmark style (the word a cast or a crew writes, egocube/plan.js) read as the
@@ -590,7 +598,8 @@ const SUITED = /^(torso|pelvis|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL])$/;
 function realisticExpand(plan, hero) {
   const has = (v) => v !== undefined && v !== null && !(Array.isArray(v) && !v.length);
   const bare = Object.fromEntries(Object.entries(plan).filter(([k]) => !DRESS_KEYS.includes(k)));
-  const S = realisticRecipe(expandPlan(bare), hero);
+  // (realistic laws 19: the face's tones, `faceTones`, read off the head and laid back over a dressed hero's palette below)
+  const { faceTones = null, ...S } = realisticRecipe(expandPlan(bare), hero);
   // THE FIELD GARMENTS: an outfit word with a body-part version (body-relational-garment.js FIELD_GARMENTS) is made on
   // the body's parts, one cloth field across its segments, in place of its segment pieces (`<word>`, `<word>Sleeve` …)
   const words = Array.isArray(hero.outfit) ? hero.outfit : typeof hero.outfit === 'string' ? [hero.outfit] : [];
@@ -724,6 +733,11 @@ function realisticExpand(plan, hero) {
     }
     R.palette = { ...wear.tones, ...(R.palette || {}) };
   }
+  // (realistic laws 19: the face's own hair, brows, lashes, beard and iris over the plan's defaults, the operator's palette
+  // over all; before, a dressed hero's palette was its plan's, and every head wore the default hair and eye)
+  if (faceTones) R.palette = { ...(R.palette || {}), ...faceTones, ...(hero.palette || {}) };
+  // (and the head's clipped hair and seams, which a dressed hero's recipe, rebuilt from its plan, left behind)
+  if (faceTones && S.hairClip) R.hairClip = S.hairClip;
   // (the trousers first, a jacket over them: its belt theirs, their sash left off, its skirt clear of them)
   const topWorn = looseWords.some((w) => LOOSE_TOPS[w]);
   for (const w of [...looseWords.filter((x) => LOOSE_GARMENTS[x]), ...looseWords.filter((x) => LOOSE_TOPS[x])]) {
@@ -1032,8 +1046,12 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * globe's side show bare from 3/4 and the side;
  * 18: the HAND SIZED TO THE BODY (body-relational-builds.js HAND_SIZE: the authored hand scaled about the wrist to the
  * stature's share, its length and its breadth each by its own factor, body-relational.js `handsTo`), where laws 1 to 17
- * kept the authored hand at about 0.087 of the form field's stature, a fifth short of an adult's 0.11, and narrow */
-export const REALISTIC_LAWS_VERSION = 18;
+ * kept the authored hand at about 0.087 of the form field's stature, a fifth short of an adult's 0.11, and narrow;
+ * 19: the face's OWN COLOURS on a dressed hero (its hair, brows, lashes and beard, `faceTones`, laid over the plan's palette,
+ * the operator's over all) and an IRIS of its ancestry's (dermal-looks.js ancestryIris: the ancestry's eye colours,
+ * IRIS_HEX), where laws 1 to 18 gave a hero in an outfit the plan's default hair and every realistic face one blue-grey
+ * eye */
+export const REALISTIC_LAWS_VERSION = 19;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies', 'stocking'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are
@@ -1359,13 +1377,15 @@ const FACES = new Map();
 /** The realistic hero's composed face (composeFace's: relations, eyes, dermis, picks …), or null when it wears none. */
 export function realisticFaceOf(hero) {
   if (hero?.head !== 'relational' || !hero.face || typeof hero.face !== 'object') return null;
-  const f = hero.face, sex = femaleOf(hero) ? 'female' : 'male', key = JSON.stringify([sex, f]);
+  const f = hero.face, sex = femaleOf(hero) ? 'female' : 'male', laws = realisticLawsOf(hero), key = JSON.stringify([sex, f, laws >= 19 ? 19 : 0]);
   if (FACES.has(key)) return FACES.get(key);
   const e = f.ethnicity ?? 'western';
   const C = composeFace({ sex, seed: f.seed ?? 1, ...(Array.isArray(e) ? { parents: Object.fromEntries(e.map((x) => [x, 1])) } : { bucket: e }), beauty: f.beauty ?? HERO_FACE.beauty,
-    ...(f.age !== undefined ? { age: f.age } : {}), ...(f.character ? { character: f.character } : {}), ...(f.accent !== undefined ? { accent: f.accent } : {}), ...(f.nose !== undefined ? { nose: f.nose } : {}), ...(f.want ? { want: f.want } : {}) });
+    ...(f.age !== undefined ? { age: f.age } : {}), ...(f.character ? { character: f.character } : {}), ...(f.accent !== undefined ? { accent: f.accent } : {}), ...(f.nose !== undefined ? { nose: f.nose } : {}), ...(f.want ? { want: f.want } : {}) , ...(laws >= 19 ? { laws } : {}) });
   // (its own fit when the stamp is for these relations)
   if (f.fit?.tune && f.fit.of === relationsPrint(C.relations)) C.tune = f.fit.tune;
+  // (a laws-19 face with no fit of its own wears its new pole's tune, face-compose.js POLE_19_TUNE, not the old pole's)
+  else if (laws >= 19 && POLE_19_TUNE[sex]) C.tune = { ...POLE_19_TUNE[sex] };
   FACES.set(key, C); if (FACES.size > 64) FACES.delete(FACES.keys().next().value);
   return C;
 }
@@ -1396,7 +1416,9 @@ export function withRolledFace(spec, was = null) {
  * stamp it carries is already for them; any other spec as it is. Only the mint calls this, after withRolledFace. */
 export function withFaceFit(spec) {
   if (!realisticFaced(spec) || !spec.face || typeof spec.face !== 'object' || Array.isArray(spec.face)) return spec;
-  const { fit, ...words } = spec.face, C = realisticFaceOf({ ...spec, form: 'realistic', head: 'relational', face: words });
+  // (the face composed under the laws the hero is minted under: its own stamp, else this kernel's, as heroRecord stamps it)
+  const laws = (spec.physique && typeof spec.physique === 'object' ? spec.physique.laws : undefined) ?? spec.headLaws ?? REALISTIC_LAWS_VERSION;
+  const { fit, ...words } = spec.face, C = realisticFaceOf({ ...spec, form: 'realistic', head: 'relational', face: words, physique: { ...(typeof spec.physique === 'object' ? spec.physique : {}), laws } });
   if (!C || fit?.of === relationsPrint(C.relations)) return spec;
   const { tune } = solveTune({ sex: femaleOf(spec) ? 'female' : 'male', relations: C.relations });
   return { ...spec, face: { ...words, fit: { tune: Object.fromEntries(Object.entries(tune).map(([k, v]) => [k, Math.round(v * 1e6) / 1e6])), of: relationsPrint(C.relations) } } };

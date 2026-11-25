@@ -4,12 +4,14 @@
 // it stretches past twice and tears into a sawtooth, and the inner corner is not swung through its ill-posed turn; the
 // brow's section cuts no crease, where the seat of laws 11 to 13 still does.
 import { describe, it, expect } from 'vitest';
-import { expandLayeredManifest, heroRecord } from '../../mcp/tools/layered.js';
+import { expandLayeredManifest, heroRecord, withFaceFit } from '../../mcp/tools/layered.js';
 import { oneSkinFollow } from './hero-relational-head.js';
 import { relationalHead } from './head-relational.js';
 import { eyeRig, browBridge } from './head-relational-eye.js';
 
-const SPEC = { cast: 'female', form: 'realistic', face: { seed: 11, ethnicity: 'western' } };
+// (the roll's hero under the laws it was written for, 18: under laws 19 a woman's pole moved, and a face carrying no fit of
+// its own wears that pole's tune; the hero as it is minted, its own fit stamped, is held to the same lines below)
+const SPEC = { cast: 'female', form: 'realistic', physique: { from: 'athletic', laws: 18 }, face: { seed: 11, ethnicity: 'western' } };
 
 /** each edge of the right eye's skin a blink moves (at least 0.2 mm long: the shelf's edge nets slivers): its length shut over open */
 function stretch(recipe) {
@@ -36,6 +38,11 @@ describe('the realistic lid rolls shut over a brow of one section (laws 14)', ()
     expect(S.filter((x) => x > 2).length).toBeLessThan(100);
     expect(Math.max(...S)).toBeLessThan(4);
   });
+  it('a woman minted now (realistic laws 19, her own fit stamped) rolls shut within the same lines', () => {
+    const S = stretch(expandLayeredManifest({ kind: 'layered', hero: heroRecord(withFaceFit({ cast: 'female', form: 'realistic', face: { seed: 11, ethnicity: 'western' } })) }).recipe);
+    expect(S.filter((x) => x > 2).length).toBeLessThan(100);
+    expect(Math.max(...S)).toBeLessThan(4);
+  }, 240000);
   it('cuts no crease under the brow at seat 2; the seat of laws 11 to 13 keeps its crease', () => {
     const H = relationalHead({ sex: 'female', seat: true }), P = H.relational.points, arcs = browBridge(P, {}, { seat: true }).arcs;
     const at = (seat) => H.relational.eyeRigs.map((e) => eyeRig(P, e.side, e.channels, H.relations.fissure, arcs[e.side], H.relations.lidSplit, { seat }).crease);

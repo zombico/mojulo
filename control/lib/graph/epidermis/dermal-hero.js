@@ -193,7 +193,7 @@ function headSkin(mesh, recipe, D, page) {
   const moved = shut ? src.map((v, i) => { const q = shut[pointOf(mesh, v)]; if (!q) return vertices[i]; const s = stand(q); return [s.x * STAND_M, s.y * STAND_M, s.z * STAND_M]; }) : null;
   const chart = headChartOf(H, { vertices, faces, normals }, (vi) => skin[vi], undefined, { shownAt: (vi) => shown[vi], ...(earPart ? { earAt: (vi) => earPart[vi] } : {}), ...(moved ? { moved } : {}) });
   const fiOf = [...local.keys()], skinFace = faces.map((t, l) => t.every((vi) => skin[vi]) && (!one || mesh.groups[fiOf[l]] === 'Skin'));
-  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, recipe.hairClip ? { clip: recipe.hairClip } : {});
+  const layout = layoutDermis(chart, { page }), maps = paintDermis(chart, D, layout, recipe.hairClip ? { clip: recipe.hairClip, ...(recipe.hairClip.seams === 'joined' ? { joined: true } : {}) } : {});
   return { chart, layout, maps, local, skinFace };
 }
 

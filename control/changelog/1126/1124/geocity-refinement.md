@@ -94,3 +94,12 @@
   (a zipped track jacket with ribbed cuffs and waist over a tee, tapered joggers), `studio` (a zip-up left open over a
   crop and leggings), `tennis` (a collared knit top and a crisp short skirt) and `lounge` (a loose cropped sweatshirt and
   wide sweatpants). Street people wear them now and then.
+- Realistic faces look more like their own people (new heroes; existing ones are unchanged):
+  - Eye colour now comes from ancestry: mostly brown, with blue, green, grey and hazel mainly for European ancestry.
+    Every face used to have the same blue-grey eyes.
+  - A hero in clothes keeps their own hair, brow and lash colour. Dressing used to turn everyone's hair the same dark
+    brown.
+  - Women's faces read as women's: larger eyes, a smaller and finer nose, a narrower jaw, a softer, smaller
+    chin, a flatter brow ridge and fuller lips. Bold features (a square jaw, a strong chin, heavy brows) are rarer, and a
+    woman's overall character leans soft and delicate while still reaching the full range.
+- Street people mix ancestries (no more than two of one in a six) and their faces vary more than a hero's do.

@@ -2,7 +2,8 @@
  * THE STREET'S CAST, A SIX AT A TIME — who walks a city's pavements, made as the hero door's realistic people (the form
  * field's body, the relational head and its rolled face, `form: 'realistic'`), dressed for an ordinary day. A SIX is six
  * different people: three men and three women, of six ages spread from the young to the old, of builds from slight to
- * heavy, each a face of their own ancestry (drawn from the place's mix where it names one), and no two in the same
+ * heavy, each a face of their own ancestry (drawn from the place's mix where it names one, no more than two of a six of
+ * one) at a crowd's spread (STREET_BEAUTY), and no two in the same
  * clothes: each an everyday outfit card (outfit/styles.js) in colours of their own off the street's palette.
  *
  *   STREET_WARDROBE   { male, female }: the outfit cards a person on the street wears, each with the ages it suits
@@ -28,6 +29,9 @@ export const STREET_WARDROBE = Object.freeze({
     yoga: [16, 55, 0.6], jogger: [16, 60, 0.5], bikeShorts: [16, 45, 0.5], tracksuit: [16, 70, 0.6], studio: [18, 50, 0.6], tennis: [16, 60, 0.4], lounge: [16, 60, 0.5],
   }),
 });
+/** how near a street face is drawn to its population's mean (layered.js `beauty`): a crowd's faces each its own, where a
+ * hero's are drawn toward the harmonious mean (HERO_FACE 0.75) */
+export const STREET_BEAUTY = 0.35;
 export const STREET_MIX = Object.freeze({
   'los-angeles': { latin: 4.5, western: 3, 'east-asian': 1.5, african: 1, 'southeast-asian': 1, levantine: 0.5, 'indo-aryan': 0.5 },
   miami: { latin: 6, western: 2, african: 2, 'south-mediterranean': 0.5 },
@@ -65,7 +69,10 @@ export function streetSix(seed, { locale = null, set = 0 } = {}) {
   const people = [];
   for (let i = 0; i < 6; i++) {
     const cast = casts[i], [lo, hi] = ages[i], age = Math.min(FACE_AGE.range[1], Math.round(lo + R() * (hi - lo)));
-    const ethnicity = weighted(R, mix);
+    // (no more than two of a six of one ancestry, so a six is a mix wherever it walks)
+    const seen = people.reduce((m, q) => ({ ...m, [q.reads.ethnicity]: (m[q.reads.ethnicity] ?? 0) + 1 }), {});
+    const open = Object.fromEntries(Object.entries(mix).filter(([k]) => (seen[k] ?? 0) < 2));
+    const ethnicity = weighted(R, Object.keys(open).length ? open : mix);
     // (the clothes: a card this person's age wears that no one else in the six has on, in colours of their own)
     const fits = Object.fromEntries(Object.entries(STREET_WARDROBE[cast]).filter(([id, [a, b]]) => age >= a && age <= b && !worn.has(id)).map(([id, [, , w = 1]]) => [id, w]));
     const style = Object.keys(fits).length ? weighted(R, fits) : 'casual'; worn.add(style);
@@ -73,7 +80,7 @@ export function streetSix(seed, { locale = null, set = 0 } = {}) {
     const B = builds[i], physique = Object.fromEntries(Object.entries(B).map(([k, v]) => [k, typeof v === 'number' ? round(v) : v]));
     const spec = {
       form: 'realistic', cast, physique,
-      face: { seed: Math.floor(R() * 1e6), ethnicity, age },
+      face: { seed: Math.floor(R() * 1e6), ethnicity, age, beauty: STREET_BEAUTY },
       outfit: { type: 'outfit', style, dials: { ornament: 1 } },
       stylism: { genre: 'modern', register: 'grounded', canon: 'western', detail: 'plain' },
       palette,
