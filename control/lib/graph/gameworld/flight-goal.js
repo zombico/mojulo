@@ -45,6 +45,7 @@ import { BAND_FACTS } from '../game/objectives.js';
 import { readSortie, sortieMechanics, sortieCast } from './flight-sortie.js';
 import { cockpitOf } from '../skyscape/cockpits.js';
 import { GROUND_UNITS, unitRadius } from '../groundforce/index.js';
+import { SCROLL_KEYS } from './scroll-stage/hud.js';
 
 /** A fight in the air's costs: the craft's hp, what a hit on it takes, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hp: 100, hit: 4, crash: 25 });
@@ -70,8 +71,8 @@ export const BAND_WORDS = Object.freeze([...BAND_FACTS, 'height', 'turn']);
 export const GRADE_BY = Object.freeze(['time', 'slip', 'sink']);
 /** The legend a fight in the air adds: the craft's guns and missiles, its flares, boost and roll. */
 export const FIGHT_LEGEND = 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll';
-/** A scroll stage's keys (worlds/controllable/scroll.js, scroll-pods.js): the d-pad on the arrows or WASD. */
-export const SCROLL_LEGEND = 'J or click  fire · R  speed · 1 / 2  pods · hold F  eject';
+/** A scroll stage's keys (scroll-stage/hud.js SCROLL_KEYS): the d-pad on the arrows or WASD besides. */
+export const SCROLL_LEGEND = SCROLL_KEYS;
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);

@@ -32,7 +32,8 @@
  *   SCROLL_STAGE_KEYS, SCROLL_PACE, SCROLL_CRAFT, HULL_DEPTH, TARGET_HP, SHIP_HP, SHIP_LIVES, FORMATIONS
  *   readScrollStage(v)                → errors (strings); [] when it builds
  *   scrollStageOf(manifest)           → { cam, ship, track, start, extent }: the stage as numbers, no faces
- *   scrollStagePlay(manifest, { airframe? }) → { entities, camera, figures? }: the ship and the scroll camera, as a level
+ *   scrollStagePlay(manifest, { airframe? }) → { entities, camera, figures?, manaHud? }: the ship and the scroll camera (and
+ *                                       its HUD on mana-ui, scroll-stage/hud.js), as a level
  *                                       puts them on its manifest (a page resolves a figure from the manifest only: the
  *                                       ship flies its airframe there; `airframe: false` the slab)
  *   assembleScrollStage(manifest, { title? }) → the World payload: faces (the layers, the hulls), sky, bg, cameras (a
@@ -51,6 +52,7 @@ import { SPACE_STAR } from '../../skyscape/space.js';
 import { SCROLL_VIEWS, SCROLL_VIEW_IDS, scrollCamera, toWorld, trackExtent } from './frame.js';
 import { SPACE_LAYER_IDS, SPACE_VOID, layScrollSpace, hazeHulls } from './space-layers.js';
 import { POD_IDS, lowerArsenal } from './pods.js';
+import { scrollHud, SCROLL_KEYS } from './hud.js';
 import { FOES, FOE_IDS, lowerFoes, HITBOX } from './patterns.js';
 import { streamOf } from '../../city/plan/dice.js';
 
@@ -253,8 +255,16 @@ function playOf(G, { airframe = true } = {}) {
     camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track },
     // (a hull on the play plane breaks as Rebel Storm's fleet does: destructible matter, weightless, gameworld/levels.js)
     ...(plane.length && airframe ? { destruction: 'physical', matter: { g: 0, power: 1e3 } } : {}),
+    // (its HUD on mana-ui, scroll-stage/hud.js: a level's and a World page's, the page's HUD host reading the world)
+    ...(airframe ? { manaHud: scrollHud({ hp, lives, keys: `arrows / WASD  fly · ${SCROLL_KEYS}`, boss: bossHud(G) }) } : {}),
     ...(airframe ? { figures: { craft: { craft: { archetype: ship.craft, flying: true, gear: 'up' } }, ...Object.fromEntries(Object.keys(foeSet.foes).map((k) => [`foe-${k}`, { craft: { archetype: foeSet.foes[k].craft, flying: true, gear: 'up' } }])) } } : {}),
   };
+}
+
+// the boss the track holds for, as the HUD names it: its hull's class (a corvette's 'Corvette') and its systems
+function bossHud(G) {
+  const id = [...G.track].reverse().find((L) => L && L.hold === true && L.until)?.until, H = id && G.plane.find((h) => h.id === id);
+  return H ? { id, name: String(H.P.label || H.H.capital).replace(/^an? /, '').replace(/^./, (c) => c.toUpperCase()), systems: H.P.systems.length } : null;
 }
 
 /** The ship and the scroll camera, as a level puts them on its manifest. */

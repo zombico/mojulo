@@ -57,6 +57,7 @@ import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
 import { sideMapLevelOrder } from './side-map/level.js';
+import { keyRowsOf } from './side-map/hud.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
@@ -1025,9 +1026,12 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   let pilotPart, seatable = false;
   if (stage.section === 'airspace' && ends.scroll) {
     // A SCROLL STAGE (scroll-stage/stage-scene.js scrollStagePlay): its ship on the d-pad, the scroll camera, its foes, a
-    // hull on the play plane and the physics that breaks it; the keys its legend says
-    const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `arrows / WASD  fly${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
-    pilotPart = { ...ends.scrollPlay, events: P.events || {} };
+    // hull on the play plane and the physics that breaks it; the keys its legend says, on its HUD in the game's look
+    // (scroll-stage/hud.js) where the stage's play carries one, else as the level's line
+    const controls = `arrows / WASD  fly${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`, H = ends.scrollPlay.manaHud;
+    pilotPart = H
+      ? { ...ends.scrollPlay, manaHud: { ...H, theme: interfaceLook(G).theme, feed: { ...H.feed, scroll: { ...H.feed.scroll, keys: keyRowsOf(controls) } } }, events: {} }
+      : { ...ends.scrollPlay, events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls }).events || {} };
   } else if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
     // gives, the map's reach its bound, seated on the departure threshold (a craft with no engine launched aloft, high

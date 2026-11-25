@@ -9,6 +9,7 @@ import { designGameHandler } from './design-game.js';
 import { flyTasks } from '@/lib/graph/skyscape/lesson-pilot.js';
 import { STAGE_DESIGNS } from '@/lib/graph/gameworld/wolf-squadron.js';
 import { RAIL } from '@/lib/graph/skyscape/rail-stage.js';
+import { readTheme } from '@/lib/mana-ui/theme.js';
 
 // DESIGNED FLIGHT LEVELS (the e2e tier: it makes a whole game through the real doors). An airspace level of a designed
 // game is flown for its flight goal (gameworld/flight-goal.js), the one a quick flight reads: a lesson's tasks (the
@@ -216,7 +217,12 @@ describe('design_game: designed flight levels', () => {
     // lost when the ship is down, won when the boss its track holds for is
     expect(kinds).toEqual(['fail-on-death', 'defeat-all']);
     expect(M.game.mechanics.find((m) => m.kind === 'defeat-all').who).toBe(M.camera.track.find((L) => L.until).until);
-    expect(JSON.stringify(M.events)).toContain('hold F  eject');
+    // its HUD on mana-ui (scroll-stage/hud.js), in the game's own look, its boss the hull the track holds for; the keys
+    // its legend, said once
+    expect(JSON.stringify(M.manaHud.feed.scroll.keys)).toContain('eject (hold)');
+    expect(M.events?.hud ?? []).toEqual([]);
+    expect(M.manaHud.feed.scroll.boss.id).toBe(M.camera.track.find((L) => L.until).until);
+    expect(() => readTheme(M.manaHud.theme)).not.toThrow();
   }, 400000);
 
   it('beacons: the pilot sent to places, a group brought in by one, the next lit by a group down; proved', async () => {

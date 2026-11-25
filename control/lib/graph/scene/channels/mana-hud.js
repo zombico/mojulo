@@ -206,7 +206,7 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const H = !!(hud.feed && hud.feed.hero);
   const faces = !!(talk && talk.faces), speakers = (talk && talk.speakers) || {};
   // (a HUD of the level's own making may bring its parts' look over the theme: a side map's, gameworld/side-map/hud.js)
-  const sheetCss = hud.css ? `${css}\n${hud.css}` : css, SM = hud.feed && hud.feed.sidemap ? hud.feed.sidemap : null;
+  const sheetCss = hud.css ? `${css}\n${hud.css}` : css, SM = hud.feed && hud.feed.sidemap ? hud.feed.sidemap : null, SG = hud.feed && hud.feed.scroll ? hud.feed.scroll : null;
   return `
 // THE HUD on mana-ui (channels/mana-hud.js): the level's own spec over a state this page feeds
 (function () {
@@ -227,7 +227,14 @@ export function manaHudScript(hud, { game = false, rows = null, register = null,
   const root = document.createElement('div'); root.id = 'moj-mana-hud'; (document.getElementById('wrap') || document.body).appendChild(root);
   const F = CFG.feed, of = Math.max(1, Math.round((F.to || 0) - (F.from || 0)));
   const st = { touch: { on: false, lane: false, held: null, down: [], buttons: [], hint: '' }, course: { metres: 0, of: of, left: of, says: of + ' ' + (F.left || 'm'), short: of + ' ' + (F.leftShort || 'm') }, run: { show: false, at: 1, of: 1 }, gun: { on: false }, focus: { on: false }, radar: { on: false, marks: [], north: 0 }, ring: { on: false, hits: [] }, wheel: { open: false, slots: [], title: '' }, top: {}, hero: { stamina: 1, staminaMax: 1, sprints: !!F.stamina, hp: 1, hpMax: 1, hasHp: false }, coins: { count: 0 }, start: { count: '', sub: '' }, hint: { show: false }, moments: [], v: {}, on: {}, lines: {}${hud.feed && hud.feed.style ? ", style: { on: false, name: '', combo: 0 }" : ''}${vit ? ", halo: { on: false, fill: 0, stocks: 1 }, vit: { hp: 0, max: 1, has: false, ghost: 0 }" : ''} };
-  ${SM ? `// A SIDE MAP's columns and screens (gameworld/side-map/hud.js): the energy, the boss's while it fights, READY and the
+  ${SG ? `// A SCROLL STAGE's corners (gameworld/scroll-stage/hud.js): the score and the lives, the hull's hp, the pods and the
+  // gear, the boss's systems while it is on the screen, READY, the end; read off the world each frame
+  const SGF = F.scroll;
+  st.sg = { score: 0, scoreWord: '', lives: SGF.lives, livesWord: '×' + SGF.lives, hp: SGF.hp, slots: [], gear: '', bossOn: false, boss: SGF.boss ? SGF.boss.systems : 0, ready: true, end: false, endWord: '', keysOn: true, keys: SGF.keys, moments: [] };
+  let sgLives = -1, sgReady = 2.4, sgKeys = 8, sgOn = false, sgOff = -1, sgTint = '';
+  // (a pod's hue on the HUD's own root, by slot: the list draws its rows afresh, so a row keeps no style of its own)
+  function sgTints() { st.sg.slots.forEach(function (x, i) { if (x.hue) root.style.setProperty('--sg-tint-' + i, x.hue); else root.style.removeProperty('--sg-tint-' + i); }); }
+` : ''}  ${SM ? `// A SIDE MAP's columns and screens (gameworld/side-map/hud.js): the energy, the boss's while it fights, READY and the
   // lives under it, the keys at first; the intro card, the start menu and GAME OVER over the held level
   const SMF = F.sidemap, SMK = ${json({ keys: manaControls().keys, pad: manaControls().pad })};
   st.sm = { lives: SMF.lives, livesWord: '×' + SMF.lives, energy: SMF.energy || 0, weaponOn: false, weapon: 0, weaponMax: 1, bossOn: false, boss: SMF.boss ? SMF.boss.hp : 0, ready: !SMF.intro, keysOn: true, keys: SMF.keys, moments: [], weapons: [], gate: '', keep: 'Weapons' };
@@ -584,7 +591,33 @@ ${race ? `    if (RACE) {
       if (smOn && st.sm.boss <= 0 && smOff < 0) smOff = clock + 1.5;
       st.sm.bossOn = smOn && (smOff < 0 || clock < smOff);
     }` : ''}
-    // (the touch layer's word for its pad, when the page has one)
+${SG ? `    // (the scroll stage's: its ship's lives, hp, pods and gear; the score; READY at the start and after a life lost; the
+    // boss's systems once its hull is on the screen, its name said as it comes in, gone a moment after it falls; the end)
+    if (me && me.rule && me.rule.type === 'scroll-ship') {
+      const lv = me.livesLeft != null ? me.livesLeft : SGF.lives;
+      if (sgLives >= 0 && lv < sgLives) sgReady = clock + 2.2;
+      sgLives = lv; st.sg.lives = lv; st.sg.livesWord = '×' + lv;
+      st.sg.hp = me.downed ? 0 : Math.max(0, me.body && Number.isFinite(me.body.hp) ? me.body.hp : SGF.hp);
+      const A = me.rule.arsenal, S = me.slots || [null, null], live = me.live || 0;
+      st.sg.slots = S.map(function (x, k) { const P = x && A && A.pods ? A.pods[x.id] : null; return { mark: k === live ? '▶' : '', name: x ? String(x.id).toUpperCase() : k === live ? 'TWIN' : '—', ammo: x ? Math.max(0, Math.round(x.ammo)) : 0, max: P ? P.ammo : 1, bar: !!x, hue: P ? P.hue : '' }; });
+      const tk = st.sg.slots.map(function (x) { return x.hue; }).join(); if (tk !== sgTint) { sgTint = tk; sgTints(); }
+      const N = (me.rule.gears || [0.45, 0.65, 0.9]).length, g = me.gear || 0; st.sg.gear = '▮'.repeat(g + 1) + '▯'.repeat(Math.max(0, N - g - 1));
+    }
+    if (W) {
+      st.sg.score = W.scrollScore || 0;
+      const cam = W.camera, Bo = SGF.boss && W.byId ? W.byId[SGF.boss.id] : null;
+      if (Bo && Bo.structure) {
+        st.sg.boss = Bo.structure.systems.filter(function (id) { const y = W.byId[id]; return y && !y.downed && !y.gone; }).length;
+        const near = cam && cam._sc && cam.rule && Math.abs(Bo.transform.pos[1] - cam._sc[0]) < cam.rule.screen[0] * 0.6;
+        if (!sgOn && near) { sgOn = true; st.sg.moments = st.sg.moments.concat([{ id: 'boss', text: SGF.boss.name, weight: 'decisive' }]); }
+        if (sgOn && (Bo.downed || st.sg.boss <= 0) && sgOff < 0) sgOff = clock + 1.5;
+        st.sg.bossOn = sgOn && (sgOff < 0 || clock < sgOff);
+      }
+      const over = !!W.scrollOver, clear = !!(cam && cam.scrollEnd && (!Bo || Bo.downed) && !(me && me.downed));
+      st.sg.end = over || clear; st.sg.endWord = over ? 'Game over' : clear ? 'Stage clear' : ''; st.sg.scoreWord = 'Score ' + st.sg.score;
+    }
+    st.sg.ready = !st.sg.end && clock < sgReady; st.sg.keysOn = clock < sgKeys;
+` : ''}    // (the touch layer's word for its pad, when the page has one)
     // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)
     const TT = window.__mojTouch; if (TT) { if (TT.view) st.touch = TT.view(); else st.touch.on = !!TT.on() && !window.__mojMenuOpen; }
   })();

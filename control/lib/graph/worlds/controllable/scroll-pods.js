@@ -37,7 +37,7 @@
  *                F or the left trigger held ejects) }
  *
  * Field ownership: the ship's e.slots, e.live, e.strikes, e.beam, e.orbit, e._fireT, e._slotPrev, e._ejectT, e._orbitHit,
- * e.lastFire; the world's state.podDrops, state._podSeq, state.podHits (the last 0.4 s of hits: the page's impact flashes); a foe's body.hp, hitFlash, lastHitBy, downed, gone, deadAt.
+ * e.lastFire; the world's state.podDrops, state._podSeq, state.podHits (the last 0.4 s of hits: the page's impact flashes), state.scrollScore (each foe down its points); a foe's body.hp, hitFlash, lastHitBy, downed, gone, deadAt.
  *
  * Import-free (the page runs this source, compose.js), composed with scroll.js on a scroll stage's page only.
  */
@@ -75,6 +75,8 @@ export function buildScrollPods(E) {
       // (down, not gone: the death burst blows it apart the next frame, combat-match.js explodeUnit, a craft's blast where
       // its body says, `body.blast`, and only then is it gone)
       b.downed = true; b.deadAt = state.time; if (!(b.body.blast > 0)) b.gone = true;
+      // (its points to the stage's score: a foe's, a gun's, a hull's system's, scroll-stage/patterns.js)
+      state.scrollScore = (state.scrollScore || 0) + ((b.rule && b.rule.score) || 0);
       const pod = b.rule && b.rule.carries;
       if (pod && ship.rule.arsenal.pods[pod]) {
         const D = state.podDrops || (state.podDrops = []);

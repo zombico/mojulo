@@ -27,6 +27,16 @@ starter lays the first stage as a designed game's level. A "side-scrolling shoot
   the side map's shot light with an opt-in hook. Rounds are drawn in the shot look, and muzzle flashes, impacts and a
   guard ring show.
 
+**The HUD.** The stage's HUD runs on mana-ui, in the game's own look for a designed level. It leaves the play clear
+between its corners:
+- the score, the lives, the hull as ticks and the speed's gear at the top left;
+- the two pods at the bottom left, each with its ammo in its own hue and the live one marked;
+- the boss's systems at the top right while its hull is on the screen, its name said as it comes in;
+- READY at the start and after a life is lost, then GAME OVER or STAGE CLEAR with the score;
+- the keys as key caps for the first seconds.
+
+A pod scores its kills.
+
 **Laws.** The arsenal and the bullet patterns are held to laws:
 - no pod is better on every measure, and every pod is worth taking over the base gun;
 - a bullet is seen coming, a volley always leaves a way through, and every volley is told;
