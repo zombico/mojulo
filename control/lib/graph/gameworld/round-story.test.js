@@ -20,5 +20,5 @@ describe('the round\'s story', () => {
     const core = W.megaworld.rings.at(-1)[0], flow = runSteps(W, { ref: 'rs' }).find((s) => s.key === 'game').order.flow.steps;
     expect(Object.values(flow).find((s) => s.scene === 'round-opening')).toMatchObject({ kind: 'cutscene', stage: `rs-level-${W.hub}-0` });
     expect(Object.values(flow).find((s) => s.scene === 'round-ending')).toMatchObject({ stage: `rs-level-${core}-0` });
-  });
+  }, 120_000); // a whole round composed and its steps run: about 16 s alone, past the 30 s default on a busy CI shard
 });

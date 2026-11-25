@@ -24,9 +24,21 @@ beforeAll(async () => {
   levels = runSteps(W, { ref: 'fc' }).filter((s) => s.key.startsWith('level-') && s.order.manifest?.play?.rpg?.encounters?.length).slice(0, 3);
   let exe;
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
-  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS });
+  // (one page call may wait out many frames: a runner drawing these levels in software under load draws one every few
+  // seconds, past puppeteer's 180 s for a call; the waits are bounded in frames and by the test's own timeout)
+  browser = await launchChromium({ executablePath: exe, headless: true, args: CHROMIUM_WEBGL_ARGS, protocolTimeout: 600000 });
 }, 900000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
+
+// (waits in the page's frames, beside a floor in seconds: the runtime steps once a frame, and a runner drawing a frame every
+// few seconds is read between them after a wait in seconds alone)
+const frames = (page, n) => page.evaluate((k) => new Promise((ok) => { let i = 0; const f = () => (++i >= k ? ok() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
+const withinFrames = (page, fn, n) => page.evaluate((src, k) => new Promise((ok, no) => {
+  const f = new Function(`return (${src})`)(); let i = 0;
+  const tick = () => { let v = false; try { v = f(); } catch { /* not yet */ } if (v) ok(true); else if (++i > k) no(new Error(`not within ${k} frames`)); else requestAnimationFrame(tick); };
+  tick();
+}), fn.toString(), n);
+const settle = async (page, ms, n) => { await nap(ms); await frames(page, n); };
 
 async function fightOn(L) {
   const M = structuredClone(L.order.manifest);
@@ -43,10 +55,10 @@ async function fightOn(L) {
   await page.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.world && window.__mojRpg && window.__fcScene && window.__fcCam, { timeout: 300000 });
   const PM = Array.isArray(M.play?.party) ? M.play.party : [];
   await page.evaluate((js, ids) => { const B = window.__mojBus, ev = []; for (const j of js) { B.state.vars[`flag-${j}`] = 1; ev.push({ type: `flag-carried:${j}` }); } for (const id of ids) ev.push({ type: `rpg-join:${id}` }); B.bus.processEvents(B.state, ev); }, PM.map((m) => m.joins).filter(Boolean), PM.map((m) => m.who));
-  await nap(1500);
+  await settle(page, 1500, 5);
   await page.evaluate((a) => { const w = window.__mojCtrl.world, me = w.byId[w.pilotId]; me.transform.pos[0] = a[0]; me.transform.pos[1] = a[1]; me.transform.pos[2] += 2; if (me.vel) me.vel[2] = 0; }, M.play.rpg.encounters[0].at);
-  await page.waitForFunction(() => window.__mojRpg.state().mode === 'battle', { timeout: 30000 });
-  await nap(2500);
+  await withinFrames(page, () => window.__mojRpg.state().mode === 'battle', 120);
+  await settle(page, 2500, 10);
   const seen = await page.evaluate(() => {
     const T = window.__fcTHREE, sc = window.__fcScene, C = window.__fcCam, w = window.__mojCtrl.world, R = window.__mojRpg.R, cp = w.camera.transform.pos;
     const meshes = []; sc.traverse((o) => { if (o.isMesh && o.visible) meshes.push(o); });
@@ -62,8 +74,19 @@ async function fightOn(L) {
     return { covered: (100 * covered) / (GX * GY), boxes: CB.length, fighters: fighters.length };
   });
   // THE COMMAND WINDOW beside the acting member's bar, its figure (head to feet) uncovered
-  await page.waitForFunction(() => window.__mojRpg.state().phase === 'command' && document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]'), { timeout: 60000 });
-  await nap(1500);
+  await withinFrames(page, () => window.__mojRpg.state().phase === 'command' && document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]'), 240);
+  // (measured once its place holds from one frame to the next: its first frame is placed by a guessed size, rpg-channel.js
+  // besideAt)
+  await settle(page, 1500, 2);
+  await page.evaluate(() => new Promise((ok) => {
+    let last = null, i = 0;
+    const f = () => {
+      const e = document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]'), r = e && e.getBoundingClientRect();
+      const k = r ? [r.left, r.top, r.right, r.bottom].map(Math.round).join() : null;
+      if ((k && k === last) || ++i > 60) ok(); else { last = k; requestAnimationFrame(f); }
+    };
+    requestAnimationFrame(f);
+  }));
   seen.window = await page.evaluate(() => {
     const m = window.__mojRpg.state().member, w = window.__mojCtrl.world, P = window.__mojCtrl.project, q = document.querySelector('.moj-rpg .mana-anchor[data-key="acmd"]').getBoundingClientRect();
     // (each member's share of its figure, head to feet, under the window)

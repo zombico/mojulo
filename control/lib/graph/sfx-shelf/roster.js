@@ -33,6 +33,7 @@
  */
 import { MAGIC_ROWS } from './magic-sounds.js';
 import { ANIMAL_ROWS } from './animal-voices.js';
+import { FLIGHT_ROWS } from './flight-sounds.js';
 
 /** Where a sound sits. A category with no row yet is a gap the shelf owes (sfxGaps). */
 export const CATEGORIES = Object.freeze({
@@ -506,6 +507,9 @@ const ROWS = {
   // ── the animals by their voice classes (sfx-shelf/animal-voices.js: each class's call, alert, hurt and death) and what
   //    moves without a voice; each `recorded`, silent until the library records it (which species is which: animal-sounds.js) ──
   ...Object.fromEntries(ANIMAL_ROWS.map((r) => [r.id, recorded(r.category, null, r.slot, r.label, r.aliases, { matter: r.matter, weight: r.weight })])),
+  // ── a flown level's kit by how it is flown (sfx-shelf/flight-sounds.js: the trainer, the arcade fighter, the cockpit):
+  //    each `recorded`, heard as its stand-in until the library records it ──
+  ...Object.fromEntries(FLIGHT_ROWS.map((r) => [r.id, recorded(r.category, r.family, r.slot, r.label, r.aliases, { matter: r.matter, ...(r.standIn ? { standIn: r.standIn } : {}) })])),
   // ── the audio channel's own synth slots (scene/channels/audio.js): its code plays them, unless the level gives the
   //    slot the row's voice (a port of that code, range for range) ──
   'thruster-roar': { ...made('machinery', null, 'thruster', 'a thruster held: a jet whine that swells with the thrust', ['thruster', 'boost', 'booster'], 'booster', { kind: 'jet' }), channel: 'thruster' },

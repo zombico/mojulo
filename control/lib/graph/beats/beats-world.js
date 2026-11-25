@@ -73,6 +73,7 @@ export const RUN_FOE_MOVES = Object.freeze(['wake', 'hop', 'brace', 'stun', 'div
 import { bedManifest, resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { resolveTension } from './adaptive-music.js';
 import { SURFACES } from '../weather/weather.js';
+import { FLIGHT_EVENTS, FLIGHT_HELD } from '../sfx-shelf/flight-sounds.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
 const DEFAULT_FOOTSTEPS = {
@@ -582,6 +583,20 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       rOut[ev] = v;
     }
     if (Object.keys(rOut).length) out.run = rOut;
+  }
+  // a flown level's sounds (`flight`, scene/channels/flight-audio.js: the kit by its pilot's rule, sfx-shelf/flight-sounds.js):
+  // each event a gesture list (a cue), the engine, the air and the wheels held voices; checked
+  if (audioSpec.flight !== undefined) {
+    const Fl = audioSpec.flight, fOut = {};
+    if (!Fl || typeof Fl !== 'object' || Array.isArray(Fl)) throw new Error(`audio.flight is { <event>: <a gesture list> | <a held voice> } (${FLIGHT_EVENTS.join(', ')})`);
+    for (const [ev, v] of Object.entries(Fl)) {
+      if (!FLIGHT_EVENTS.includes(ev)) throw new Error(`audio.flight.${ev} is not a flight's event (${FLIGHT_EVENTS.join(', ')})`);
+      if (FLIGHT_HELD.includes(ev)) { fOut[ev] = heldVoice(v, `audio.flight.${ev}`); continue; }
+      const check = validateBeatsManifest({ kind: 'beats-sfx', title: `flight ${ev}`, cues: { [ev]: v } });
+      if (!check.ok) throw new Error(`audio.flight.${ev}: invalid cue:\n - ${check.errors.join('\n - ')}`);
+      fOut[ev] = v;
+    }
+    if (Object.keys(fOut).length) out.flight = fOut;
   }
   if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
   // an RPG battle's sounds (`battle`: { order, ends: [[<happening>, <cue id>]…], also: { crit?, weak? } }): of the

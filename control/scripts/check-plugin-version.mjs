@@ -3,10 +3,11 @@
  * Checks that the manifests published outside control/ run the version control/package.json carries.
  *
  * Three files outside the npm package start or advertise it, and each names a version by hand:
- *   - plugins/mojulo/.claude-plugin/plugin.json — the Claude plugin runs `node ${CLAUDE_PLUGIN_ROOT}/server/launch.mjs`,
- *     which installs mojulo from the lockfile beside it (the plugin directory holds a plugin that runs an npm package
- *     without one): server/package.json must depend on exactly the version, and server/package-lock.json must lock
- *     it, every package hashed and from registry.npmjs.org (control/scripts/plugin-lock.mjs writes both);
+ *   - plugins/mojulo/.claude-plugin/plugin.json — the Claude plugin runs
+ *     `node ${CLAUDE_PLUGIN_ROOT}/node_modules/mojulo/scripts/mcp-stdio.mjs`, the package Claude Code installs itself
+ *     from the plugin's root lockfile: package.json there must depend on exactly the version and nothing else, and
+ *     package-lock.json must lock it, every package hashed, from registry.npmjs.org and working without its install
+ *     script (control/scripts/plugin-lock.mjs writes both). No launcher of ours installs anything;
  *   - glama.json — the same launcher, for the Glama listing;
  *   - server.json — the MCP registry entry, `version` and the npm package's `version`.
  * Each must name exactly control/package.json's version. The marketplace entry carries no version of
@@ -19,6 +20,9 @@
  * anyone who already installed it. Compared against the merge base of <ref> and HEAD.
  * `--expect <version>` also requires package.json to be that version (the release workflow passes
  * the tag).
+ *
+ * The plugin folder stays inside what the plugin directory reads: under 512 files, each under 256 KiB (past either
+ * a version is held for a reviewer), and no `server/` launcher left from 3.1.
  *
  * It also refuses an unfilled `<measured>` placeholder in the published prose (the READMEs npm, GitHub
  * and the plugin directory render, and docs/): a renderer drops it as an unknown HTML tag, so
@@ -33,7 +37,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LAUNCHER_DIR, lockProblems } from './plugin-lock.mjs';
+import { PLUGIN_PACKAGE_DIR, lockProblems } from './plugin-lock.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -62,32 +66,48 @@ function launcherProblems(file, servers, version) {
   return problems;
 }
 
-// The plugin's one server: node on the launcher, the distribution flag, and a launcher package that locks the version
-const LAUNCH_ARG = '${CLAUDE_PLUGIN_ROOT}/server/launch.mjs';
-function pluginLauncherProblems(root, plugin, version) {
+// The plugin's one server: node on the package Claude Code installs from the plugin's root lockfile, the distribution
+// flag, and that package.json and lockfile naming exactly the version
+export const SERVER_ARG = '${CLAUDE_PLUGIN_ROOT}/node_modules/mojulo/scripts/mcp-stdio.mjs';
+// What the plugin directory reads without holding a version for a reviewer (claude.com/docs/plugins/pre-submission-checklist)
+export const DIRECTORY_MAX_FILES = 512;
+export const DIRECTORY_MAX_FILE_BYTES = 256 * 1024;
+function pluginServerProblems(root, plugin, version) {
   const problems = [];
   const entries = Object.entries(plugin.mcpServers || {});
   if (entries.length !== 1) problems.push(`${PLUGIN_MANIFEST}: expected one mcpServers entry, found ${entries.length}`);
   for (const [name, server] of entries) {
-    if (server.command !== 'node' || JSON.stringify(server.args) !== JSON.stringify([LAUNCH_ARG])) {
-      problems.push(`${PLUGIN_MANIFEST}: mcpServers.${name} should run node ${LAUNCH_ARG}, found ${server.command} ${JSON.stringify(server.args)}`);
+    if (server.command !== 'node' || JSON.stringify(server.args) !== JSON.stringify([SERVER_ARG])) {
+      problems.push(`${PLUGIN_MANIFEST}: mcpServers.${name} should run node ${SERVER_ARG}, found ${server.command} ${JSON.stringify(server.args)}`);
     }
     if (server.env?.MOJULO_DISTRIBUTION !== 'claude-plugin') problems.push(`${PLUGIN_MANIFEST}: mcpServers.${name} should set MOJULO_DISTRIBUTION=claude-plugin`);
   }
   const read = (file) => {
-    try { return JSON.parse(readFileSync(path.join(root, LAUNCHER_DIR, file), 'utf8')); } catch { problems.push(`${LAUNCHER_DIR}/${file} is missing or not JSON`); return null; }
+    try { return JSON.parse(readFileSync(path.join(root, PLUGIN_PACKAGE_DIR, file), 'utf8')); } catch { problems.push(`${PLUGIN_PACKAGE_DIR}/${file} is missing or not JSON`); return null; }
   };
-  if (!existsSync(path.join(root, LAUNCHER_DIR, 'launch.mjs'))) problems.push(`${LAUNCHER_DIR}/launch.mjs is missing`);
   const pkg = read('package.json');
-  if (pkg && pkg.dependencies?.mojulo !== version) problems.push(`${LAUNCHER_DIR}/package.json depends on mojulo ${pkg.dependencies?.mojulo}, expected ${version}`);
+  if (pkg) {
+    const deps = Object.keys(pkg.dependencies || {});
+    if (pkg.dependencies?.mojulo !== version) problems.push(`${PLUGIN_PACKAGE_DIR}/package.json depends on mojulo ${pkg.dependencies?.mojulo}, expected ${version}`);
+    if (deps.some((d) => d !== 'mojulo')) problems.push(`${PLUGIN_PACKAGE_DIR}/package.json depends on more than mojulo`);
+    if (pkg.overrides) problems.push(`${PLUGIN_PACKAGE_DIR}/package.json sets overrides, which Claude Code's plugin install refuses`);
+  }
   const lock = read('package-lock.json');
-  if (lock) problems.push(...lockProblems(lock, version).map((p) => `${LAUNCHER_DIR}/package-lock.json: ${p} (node control/scripts/plugin-lock.mjs, after npm publish)`));
+  if (lock) problems.push(...lockProblems(lock, version).map((p) => `${PLUGIN_PACKAGE_DIR}/package-lock.json: ${p} (node control/scripts/plugin-lock.mjs, after npm publish)`));
+  if (existsSync(path.join(root, PLUGIN_DIR, 'server'))) problems.push(`${PLUGIN_DIR}/server/ is the 3.1 launcher; the plugin runs the package Claude Code installs`);
+  const files = listFiles(root, PLUGIN_DIR);
+  if (files.length >= DIRECTORY_MAX_FILES) problems.push(`${PLUGIN_DIR} holds ${files.length} files; the plugin directory holds a version of ${DIRECTORY_MAX_FILES} or more for a reviewer`);
+  for (const rel of files) {
+    const size = statSync(path.join(root, rel)).size;
+    if (size > DIRECTORY_MAX_FILE_BYTES) problems.push(`${rel} is ${Math.ceil(size / 1024)} KiB; the plugin directory holds a file over 256 KiB for a reviewer`);
+  }
   return problems;
 }
 
 function listFiles(root, rel) {
   const out = [];
   for (const entry of readdirSync(path.join(root, rel))) {
+    if (entry === 'node_modules') continue; // a local install, never committed (.gitignore)
     const child = `${rel}/${entry}`;
     if (statSync(path.join(root, child)).isDirectory()) out.push(...listFiles(root, child));
     else out.push(child);
@@ -111,7 +131,7 @@ export function checkManifestVersions({ root = REPO_ROOT, expect = null } = {}) 
   if (!SEMVER.test(String(plugin.version || ''))) {
     problems.push(`${PLUGIN_MANIFEST}: version ${JSON.stringify(plugin.version)} is not a semver string`);
   }
-  problems.push(...pluginLauncherProblems(root, plugin, version));
+  problems.push(...pluginServerProblems(root, plugin, version));
   problems.push(...launcherProblems('glama.json', read('glama.json').mcpServers, version));
 
   const server = read('server.json');

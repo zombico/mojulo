@@ -22,6 +22,7 @@ import { TILE_RAILS, PROPORTION_RAILS } from './tile-specs.js';
 import { ROOM_CRAFT, readRoomCraft } from './room-craft.js';
 import { generatedSpecOf } from '../landscape/surface-textures.js';
 import { GEOCUBE_PRESETS } from './geocube.js';
+import { SOL_GEOCUBES } from '../sol/geocubes.js';
 import { HEARTBEAT_PRESETS } from './heartbeat.js';
 import { GROUND_EDITS } from './out-ground.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
@@ -327,7 +328,9 @@ export function geocubeCard() {
     '  outside   { base (an isekai card), tiers, island, land (LAND RULES), relief? rolling | craggy | eroded | terraced | dune | { from, … }, ground? { from: <painted-landscape: heartbeat, splatch, seed>, span (m; 40–60 reads at a level\'s scale), height (m) }, crystals? <gem> | { gem, where: crags | hollows, count, size (m), glow }, terrain?, terrains? }',
      'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
     'LAND RULES polygon only, from the land\'s shape: crevice darkens what is concave toward the cube\'s shade colour (never black); ridge lifts a convex lip; blend carries a neighbouring surface\'s colour over a seam. Rock takes no pixels. Opt-in: mix (m) surfaces mixed per corner, facet (m) rock in planes, valley (0..1) hollows darken.', '',
-    'PRESETS', ...Object.values(P).map((c) => `  - ${c.id}: ${c.reads}; ${c.light.reference} light, ${c.inside.bones} bones, ${c.outside.base} land`), '',
+    // (the Sol shelf's worlds named on one line: their ground is the real bodies', sol/geocubes.js, a row each there)
+    'PRESETS', ...Object.values(P).filter((c) => !SOL_GEOCUBES[c.id]).map((c) => `  - ${c.id}: ${c.reads}; ${c.light.reference} light, ${c.inside.bones} bones, ${c.outside.base} land`),
+    `  - the children of Sol, the real bodies' ground (sol/geocubes.js, docs/sol.md): ${Object.keys(SOL_GEOCUBES).filter((id) => P[id]).join(', ')}`, '',
     'PAINT A LEVEL a level\'s geocube (a gameworld level\'s style.geocube) paints every section once, trails and climbs, on one terrain: the level\'s terrain if it names one, else its heartbeat\'s if the cube has it, else the cube\'s own. Each stage answers `painted` (the terrain, from whom, what was offered). A section\'s own kit wins: a start, not a lock.',
     'THE LAND\'S FLOW is not the cube\'s: how the ground climbs, dips and breaks is a heartbeat (card heartbeat), a greybox the cube paints.',
   ];
