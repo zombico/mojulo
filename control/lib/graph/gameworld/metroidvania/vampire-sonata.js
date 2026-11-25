@@ -197,6 +197,9 @@ export function vampireSonataStart() {
 }
 
 /** Vampire Sonata as a designed game's words: Erina's feel and book, the castle its one level. */
+/** the castle's maps, a box each, in the order she crosses them (castle: 'segments') */
+const SEGMENT_NAMES = Object.freeze([['tower', 'The bell tower'], ['court', 'The courtyard'], ['keep', 'The keep']]);
+
 export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vampire Sonata', box, turn, castle = false } = {}) {
   return {
     id, name,
@@ -208,8 +211,12 @@ export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vamp
     // (its bestiary, the castle's haunting every level: cast.js stands them region by region)
     foes: structuredClone(VAMPIRE_SONATA_FOES),
     characters: { direction: { tradition: 'anime', body: { rail: 'realistic', style: 'anime' } }, ...(heroRef ? { hero: { ref: heroRef } } : {}) },
-    // (the castle one box, or, `castle`, the castle of boxes: the tower, the courtyard and the keep joined, castle.js)
-    levels: { castle: { name: 'The castle', foes: true, metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } },
+    // (the castle one box, or, `castle`, the castle of boxes: the tower, the courtyard and the keep joined, castle.js;
+    // `castle: 'segments'`, the same castle a map a box, each its own level, joined by the megaworld's chain: segmentsOf)
+    ...(castle === 'segments'
+      ? { levels: Object.fromEntries(SEGMENT_NAMES.map(([id, name]) => [id, { name, foes: true, metroidvania: vampireSonataCastle(), segment: id }])),
+        megaworld: { shape: 'chain', rings: SEGMENT_NAMES.map(([id]) => [id]) } }
+      : { levels: { castle: { name: 'The castle', foes: true, metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } } }),
     // (its HUD, its menus and their sounds in the castle's look, the nocturne card: metroidvania/hud.js)
     ui: { theme: 'nocturne' },
   };

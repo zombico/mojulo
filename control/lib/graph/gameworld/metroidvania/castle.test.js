@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { layBox } from './box.js';
-import { isCastle, readCastle, layCastle, castleLaws, portsOf, CONNECTOR_IDS, CASTLE_LAWS, BOX_SHARE } from './castle.js';
+import { isCastle, readCastle, layCastle, castleLaws, portsOf, segmentsOf, CONNECTOR_IDS, CASTLE_LAWS, BOX_SHARE } from './castle.js';
 import { solveBox } from './solve.js';
 import { bellTower, courtyard, vampireSonataCastle } from './vampire-sonata.js';
 
@@ -61,5 +61,17 @@ describe('a castle of boxes', () => {
     const late = words(); late.boxes[0].rings[0].finds = undefined; late.boxes[2].rings[1].finds = 'second-leap';
     delete late.boxes[0].rings[0].finds;
     expect(lost(layCastle(late))).toEqual(expect.arrayContaining(['found-before', 'solvable']));
+  });
+  it('cuts the castle into segments, a box each with the connector out of it: their columns side by side, a door each join', () => {
+    const C = layCastle(words()), segs = segmentsOf(C);
+    expect(segs.map((g) => g.id)).toEqual(C.castle.boxes.map((b) => b.id));
+    // (every room in one segment, and the segments' columns end to end)
+    expect(segs.flatMap((g) => g.rooms).sort()).toEqual(C.rooms.map((r) => r.id).sort());
+    for (let k = 1; k < segs.length; k++) expect(segs[k].cols[0]).toBe(segs[k - 1].cols[1] + 1);
+    // (the castle's gate in the first; each pair of neighbours joined by one door, an exit on one side an arrival on the other)
+    expect(segs.map((g) => !!g.entry)).toEqual([true, false, false]);
+    expect(segs[0].exits.map((x) => x.to)).toEqual(['court']);
+    expect(segs[1].exits.map((x) => x.to).sort()).toEqual(['keep', 'tower']);
+    expect(segs[1].arrivals.find((a) => a.from === 'tower').door).toBe(segs[0].exits[0].door);
   });
 });

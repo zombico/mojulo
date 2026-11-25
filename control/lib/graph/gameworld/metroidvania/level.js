@@ -93,11 +93,43 @@ export function boxLadders(B) {
 export function boxCamera(B, { target = 'hero' } = {}) {
   const { layout: L, greybox: G } = B, W = G.screen.width, H = G.screen.height, C = boxCameraOf(B.stature);
   const room = new Map(L.rooms.map((r) => [r.id, r]));
-  const zones = L.walk.map((id) => {
+  // (a castle's segment: its own rooms' zones alone, castle.js segmentsOf)
+  const mine = B.segment ? new Set(B.segment.rooms) : null;
+  const zones = L.walk.filter((id) => !mine || mine.has(id)).map((id) => {
     const r = room.get(id), [c, rr, w, h] = r.rect, s0 = c * W, z0 = rr * H;
     return { rect: [r3(s0), r3((c + w) * W), r3(z0), r3((rr + h) * H)], lock: r.kind === 'corridor' ? 'z' : r.kind === 'shaft' && w === 1 ? 's' : null, checkpoint: [r3(s0 + IN), r3(z0 + FLOOR)] };
   });
   return { rule: 'side-map', target, screen: [W, H], dist: C.dist, tilt: C.tilt, lookH: C.lookH, stature: B.stature, limbo: LIMBO, zones };
+}
+
+/** Where she stands on coming into a segment through a door (castle.js segmentsOf `arrivals`): inside the door, on the
+ * floor of its room on this side, IN metres in from it → [s, z] */
+export function arrivalAt(B, arrival) {
+  const W = B.greybox.screen.width, H = B.greybox.screen.height, mine = new Set(B.segment.rooms), rooms = B.layout.rooms;
+  const inSeg = (c) => rooms.some((r) => mine.has(r.id) && r.cells.some((x) => x[0] === c[0] && x[1] === c[1]));
+  const c = arrival.cells.find(inSeg), o = arrival.cells.find((x) => x !== c), right = o[0] > c[0];
+  return [r3(right ? (c[0] + 1) * W - IN : c[0] * W + IN), r3(c[1] * H + FLOOR)];
+}
+// (the s of a segment's door, its edge on the next segment, castle.js segmentsOf: where the way out is taken)
+const doorEdge = (B, X) => { const c = Math.min(...X.cells.map((q) => q[0])); return r3((c + 1) * B.greybox.screen.width); };
+
+/** The flags slice a castle's segments carry the hero's gains in (game/mechanics.js `journey`). */
+export const JOURNEY_SLICE = 'journey';
+
+/** A castle segment's WAYS (castle.js segmentsOf over the megaworld's map, levels.js mapPlan; each way names the
+ * segment it leads to): an exit at the door it crosses by, as she reaches the door's edge, and where she stands
+ * coming in by it, IN metres inside the door on its floor.
+ *   → { exits: [reach-exit], arrive: [{ from: ref, at: [0, s, z] }] } */
+export function segmentWays(B, map) {
+  const seg = B.segment, exits = [], arrive = [];
+  for (const w of [...(map.on ?? []), ...(map.back ?? [])]) {
+    const X = w.segment != null ? seg.exits.find((x) => x.to === w.segment) : null;
+    if (!X) continue;
+    const [s, z] = arrivalAt(B, X), edge = doorEdge(B, X), inward = Math.sign(s - edge);
+    exits.push({ kind: 'reach-exit', exit: w.id, at: [0, r3(edge + 0.4 * inward), r3(z + 1)], radius: 1.2, planar: false, ...(w.needs ? { needs: w.needs } : {}) });
+    arrive.push({ from: w.to, at: [0, s, r3(z + 0.05)] });
+  }
+  return { exits, arrive };
 }
 
 /** The box's HUD in the game's look: a castle's card re-keyed with its theme (a frost castle's frost card), its sounds
@@ -111,7 +143,7 @@ function boxHudOf(G, B) {
 }
 
 /** A metroidvania level's order: the stage's box built for the world's hero and played by it. */
-export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, audio = null, extra = null, foeFrom = [], bossRefs = {} } = {}) {
+export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, audio = null, extra = null, foeFrom = [], bossRefs = {}, map = null } = {}) {
   if (!heroRef) throw new Error('levels: a metroidvania is played by a hero seen from the side; give the world a hero (its characters)');
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
   // (its BOSSES stood as bodies of the world once its foes have joined, bosses.js: the stand-in blocks left off the box)
@@ -123,7 +155,11 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature, ...(stood ? { bosses: 'stood' } : {}), ...(degree ? { destruction: degree } : {}),
     ...(degree === 'physical' && stage.manifest.matter === undefined ? { matter: { power: SECRET.power } } : {}) };
   const B = boxOf(manifest0), { layout: L, greybox: Gb } = B, W = Gb.screen.width, H = Gb.screen.height;
-  const camera = boxCamera(B), spawn = [0, ...camera.zones[0].checkpoint];
+  // (a castle's SEGMENT, its manifest's `segment`: one map of the castle, castle.js segmentsOf; she starts at the castle's
+  // gate where the segment holds it, else at the first door she can come in by; the shell's arrival moves her to the
+  // door she came through, `ways`)
+  const seg = B.segment ?? null, span = seg ? [seg.cols[0] * W, (seg.cols[1] + 1) * W] : null, inSpan = (s) => !span || (s >= span[0] - 1e-6 && s <= span[1] + 1e-6);
+  const camera = boxCamera(B), spawn = [0, ...(seg && !seg.entry ? arrivalAt(B, seg.arrivals[0]) : camera.zones[0].checkpoint)];
   spawn[2] = r3(spawn[2] + 0.05);
   // the hero: the feel's rule on the lane, as tall as it stands
   const written = G.feel ? feelRule(G.feel) : null;
@@ -131,7 +167,7 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   // (her TREES, the world's: the skill tree on how she moves and the tech tree on her spells and attacks, learned as she
   // plays: trees/tree.js lowered on her rule and her own strings, the techs' strings in her moveset held shut until learned)
   const T = G.trees ? treesOfBox(G, L, rule0, { placed: foeFrom.length ? boxPlaced(L, Gb, foeFrom, { bestiary: bestiaryOf(G) }) : [] }) : null, rule = T?.moveset ? { ...rule0, moveset: T.moveset } : rule0;
-  const ladders = boxLadders(B);
+  const ladders = boxLadders(B).filter((l) => inSpan(l.rule.base[1]));
   const controls = `A / D  run · Space  jump${ladders.length ? ' · W / S  climb' : ''}${written?.dash ? ' · F  dash' : ''}${written?.buster ? ' · J  fire (hold: charge)' : ''}${written?.moveset && written?.strike === 'melee' ? ' · J  cut (press again: the string)' : ''}${T ? ' · T  skills and techs' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const takes = G.feel && readFeel(G.feel).takes ? takesOfCard(feelCard(G.feel)) : null;
   const W0 = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), walk: false, id: 'hero', title: name, controls, rule, ...(takes ? { takes } : {}) });
@@ -151,23 +187,30 @@ export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroSt
   const figures = { ...(W0.figures ?? {}), ...(X?.figures ?? {}) };
   // (each foe at the side map's game scale, sideFoe; one whose figure is not made yet, a greybox's, stood as a STAND-IN:
   // a block of its size in its class's shade, its figure left off the page)
-  const foes0 = (X?.entities ?? []).map((e) => (e.team === 'foes' ? standIn(sideFoe(e, stature), figures, bestiaryOf(G)) : e));
+  const foes0 = (X?.entities ?? []).filter((e) => e.team !== 'foes' || inSpan(e.transform.pos[1])).map((e) => (e.team === 'foes' ? standIn(sideFoe(e, stature), figures, bestiaryOf(G)) : e));
   // (its BOSSES, each in its room at its tier, a stand-in of its class until its figure is made: bosses.js)
   const Bs = stood ? standBosses(G, B, { stature, refs: bossRefs }) : null;
   Object.assign(figures, Bs?.figures ?? {});
-  const foes = [...foes0, ...(Bs?.entities ?? []).map((e) => standIn(e, figures, {}, bossRow(B.bosses.find((b) => b.id === e.id).name).class))];
+  const bossIn = (e) => !seg || seg.rooms.includes(B.bosses.find((b) => b.id === e.id)?.place.room);
+  const foes = [...foes0, ...(Bs?.entities ?? []).filter(bossIn).map((e) => standIn(e, figures, {}, bossRow(B.bosses.find((b) => b.id === e.id).name).class))];
   // (a figure is drawn when a body stands as it, or will: a mode it becomes, a boss's second form)
   const used = (e, k) => e.body?.figure === k || (e.body?.modes ?? []).some((M) => M.figure === k);
   const drawnFigures = Object.fromEntries(Object.entries(figures).filter(([k]) => !((k.startsWith('foe-') || k.startsWith('boss-')) && foes.every((e) => !used(e, k)))));
   // the goal: the throne's far side, behind its boss
   const throne = L.rooms.filter((r) => L.rings[r.ring].core).at(-1), [tc, tr, tw] = throne.rect;
-  const reach = { kind: 'reach-exit', at: [0, r3((tc + tw) * W - 2.5), r3(tr * H + FLOOR + 1)], radius: 2.5, planar: false };
+  const reach = !seg || seg.rooms.includes(throne.id) ? { kind: 'reach-exit', at: [0, r3((tc + tw) * W - 2.5), r3(tr * H + FLOOR + 1)], radius: 2.5, planar: false } : null;
   const lives = G.mechanics?.lives ? [{ kind: 'lives', start: G.mechanics.lives, falls: [SIDE_FALL] }] : [];
+  // (a segment's WAYS, the megaworld's map over the castle, levels.js mapPlan: each way out an exit at the door it
+  // crosses into the next segment by, and coming in by it she stands inside that door; what she gains goes with her,
+  // the journey)
+  const ways = seg && map ? segmentWays(B, map) : null;
   const ev = W0.events ?? {};
-  const events = { ...ev, sources: [...(ev.sources ?? []), { type: 'zone', zone: SIDE_FALL, at: [0, 0, LIMBO], half: [1e6, 1e6, 200], watch: 'hero' }] };
+  const events = { ...ev, sources: [...(ev.sources ?? []), { type: 'zone', zone: SIDE_FALL, at: [0, 0, LIMBO], half: [1e6, 1e6, 200], watch: 'hero' }],
+    ...(ways?.arrive.length ? { reactions: [...(ev.reactions ?? []), ...ways.arrive.map((a) => ({ on: `arrive:${a.from}`, do: 'move', target: 'hero', to: a.at }))] } : {}) };
   const manifest = {
     ...manifest0, ...(T ? { trees: T.spec } : {}), title: name, figures: drawnFigures, entities: [hero1, ...foes, ...ladders], camera, events,
-    game: { levelRef: ref, mechanics: [reach, ...lives], fall: 'none' },
+    game: { levelRef: ref, mechanics: [...(reach ? [reach] : []), ...(ways?.exits ?? []), ...lives, ...(ways ? [{ kind: 'journey', slice: JOURNEY_SLICE }] : [])], fall: 'none',
+      ...(ways?.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) },
     ...(mechanics?.play || X?.play ? { play: { ...(mechanics?.play ?? {}), ...(X?.play ?? {}) } } : {}),
     ...(audio ? { audio } : {}),
     ...(G.ui !== undefined ? { manaHud: boxHudOf(G, B) } : {}),

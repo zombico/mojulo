@@ -222,6 +222,33 @@ Vampire Sonata's castle (`vampireSonataCastle()`; `vampireSonataGame({ castle: t
 
 `node scripts/metroidvania.mjs --castle` draws it as one elevation, each box outlined.
 
+### A segment a map: the castle on the megaworld
+
+A castle can be played one map or a segment a map (`segmentsOf` in castle.js). As segments, each box is its own level:
+the box and the connector out of it. A level names its box with `segment` beside its `metroidvania`, and the megaworld
+joins the levels. `vampireSonataGame({ castle: 'segments' })` lays the tower, the courtyard and the keep on a chain.
+
+- **The cut.** The castle is laid whole, then each page keeps its own columns
+  ([scene.js](../control/lib/graph/gameworld/metroidvania/scene.js) `cutToSegment`): its faces and solids, its gates,
+  relics, saves and bosses, its flames and motes. The camera keeps only its own rooms. The explored map stays the
+  castle's whole, so the pause map shows every segment.
+- **The ways.** Each way of the megaworld's map names the segment it leads to (levels.js `mapPlan`). On this page it is
+  an exit at the door that crosses into that segment, taken as she reaches the door's edge
+  ([level.js](../control/lib/graph/gameworld/metroidvania/level.js) `segmentWays`). Coming in by a way, she stands just
+  inside that door, on its floor. The first segment starts at the castle's gate; any other starts at its first door in.
+  The goal is the throne, on the keep's page.
+- **The journey.** What she gains goes on with her into the next segment, kept in the game's `journey` flags slice by
+  the `journey` mechanic (game/mechanics.js). The runtime raises each gain as `journey:<what>:<id>`
+  ([held-gates.js](../control/lib/graph/worlds/controllable/held-gates.js)):
+  - a relic taken, a boss felled, a gate opened;
+  - a tile walked;
+  - a node learned;
+  - a foe's souls.
+
+  On entry the page puts each back as it stood (`carryIn`), without a toast. What she holds opens its gates. A power's
+  move is laid on her again, because the gains found beyond a page are named in its `elsewhere`. A boss felled stays
+  gone. The map shows what she walked. A learned node is learned again and paid for again.
+
 ## The words
 
 ```js
@@ -870,6 +897,9 @@ own words ("a metroidvania castle", "a metroid-like planet"); "a metroidvania" a
   bought from a merchant, the map on mana-ui (its `map` component drawing tiles and doors), and the gate-ringing said as a
   toast when a power is found ("the map shows where").
 - **Dressed** by the side map's paint, cake and vista, a place a ring.
+- **Segments, further.** Foes come back on a segment entered again, as rooms refill in the idiom. The pause map does not
+  yet mark which segment she is in, and a segment cannot yet be entered at a save room. A castle's
+  connector cannot yet be its own segment (a long bridge a map of its own).
 - **More of the castle's joins.** Ports on a box's top and bottom, so a castle climbs and descends as well as runs
   rightward. A hub with more than one way out, joining more than two boxes. Connectors that climb: a stair, a lift.
 - **A courtyard dressed as one.** The castle's courtyard stands open to the sky, but its shafts are only ledges against

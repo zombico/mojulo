@@ -143,6 +143,38 @@ describe('held gates', () => {
     expect(boss.body.hp).toBe(40); expect(boss.hpMax).toBe(40);
   });
 
+  it('raises what she gains as the journey, and puts it back in the next segment as it stood, without a toast', () => {
+    const H = (more) => ({ target: 'hero', gates: [{ id: 'gate-a', kind: 'key', opens: 'key:0' }], relics: [{ id: 'leap', at: [2, 0, 1], gives: 'key:0', rule: { airJumps: 1 }, name: 'the leap' }], ...more });
+    const w = world(H());
+    let c = E.castFacts(w, null);
+    const seen = [];
+    for (let k = 0; k < 120; k++) { E.stepWorld(w, { forward: 1 }, 1 / 60, { ground: () => 0 }); c = E.castFacts(w, c.prev); seen.push(...c.events.map((e) => e.type).filter((t) => t.startsWith('journey:'))); }
+    expect(seen).toEqual(['journey:taken:leap', 'journey:open:gate-a']);
+    // (the next segment: the relic was found beyond it, `elsewhere`; its gate is this one, carried open)
+    const v = world(H({ relics: [], elsewhere: [{ id: 'leap', gives: ['key:0'], rule: { airJumps: 1 } }] }), [GATE], [1, 0, 0]);
+    expect(E.carryIn(v, seen)).toBe(2);
+    expect(v.heldGates.held['key:0']).toBeDefined();
+    expect(v.byId.hero.rule.airJumps).toBe(1);
+    expect(v.breakables[0].broken).toBeTruthy();
+    expect(v.heldGates.got).toEqual([]);
+    // (carried once: neither carried again nor raised again as a gain of this segment's)
+    expect(E.carryIn(v, seen)).toBe(0);
+    let d = E.castFacts(v, null);
+    E.stepWorld(v, {}, 1 / 60, { ground: () => 0 }); d = E.castFacts(v, d.prev);
+    expect(d.events.filter((e) => e.type.startsWith('journey:'))).toEqual([]);
+  });
+
+  it('carries a boss felled in another visit as gone, its seal open and its gifts held', () => {
+    const w = E.createWorld({ breakables: [], heldGates: { target: 'hero', bosses: [{ id: 'boss-x', entity: 'warden', gives: ['boss:x'], rule: { dash: true } }] },
+      entities: [{ id: 'hero', pilotable: true, rule: { type: 'platform', speed: 5.8, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'mesh', hittable: true, hp: 100 }, transform: { pos: [0, 0, 0] } },
+        { id: 'warden', team: 'foes', rule: { type: 'walk' }, body: { type: 'mesh', hittable: true, hp: 40 }, transform: { pos: [0, 6, 0] } }] });
+    expect(E.carryIn(w, ['journey:felled:boss-x', 'journey:nonsense:x'])).toBe(1);
+    expect(w.byId.warden.gone).toBe(true);
+    expect(w.heldGates.felled['boss-x']).toBeDefined();
+    expect(w.heldGates.held['boss:x']).toBeDefined();
+    expect(w.byId.hero.rule.dash).toBe(true);
+  });
+
   it('a page without held gates carries none of it', () => {
     expect(emissionSource({})).not.toContain('stepWithHeldGates');
     expect(emissionSource({ heldGates: true })).toContain('stepWithHeldGates');

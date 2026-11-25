@@ -178,4 +178,74 @@ export function buildHeldGates(E) {
     }
     return out;
   };
+  // THE JOURNEY (a castle of segments, gameworld/metroidvania/castle.js segmentsOf: each its own page, the megaworld's
+  // ways between them): what the hero gains in one segment goes on into the next. Each gain is a bus event
+  // `journey:<what>:<id>` the journey mechanic keeps as a flag of that name: a relic taken, a boss felled, a gate opened,
+  // a tile walked (explore.js), a node learned (trees.js), a foe's souls (`fallen:<id>:<souls>`). Carried in,
+  // `carryIn(state, keys)` puts each back as it stood, without a toast: its tokens held and its rule laid over the
+  // target's (`elsewhere` names what is found beyond this segment), a relic gone, a boss's body gone and its seal open,
+  // a gate open, the map walked, the nodes learned and paid for.
+  const facts = E.castFacts;
+  if (facts) E.castFacts = function castFactsWithJourney(state, prev) {
+    const out = facts(state, prev), G = state.heldGates;
+    if (!G) return out;
+    const X = state.explored, Tr = state.trees, cur = {}, was = prev && prev.__journey, kept = G.carried || {};
+    for (const id in G.taken) cur['taken:' + id] = 1;
+    for (const id in G.felled) cur['felled:' + id] = 1;
+    for (const id in G.open) cur['open:' + id] = 1;
+    if (X) for (const k in X.visited) cur['seen:' + k] = 1;
+    if (Tr) {
+      for (const id in Tr.learned) cur['learned:' + id] = 1;
+      for (const id in Tr.fallen) cur['fallen:' + id + ':' + ((Tr.soulsOf && Tr.soulsOf[id]) || 0)] = 1;
+    }
+    if (was) for (const k in cur) if (!was[k] && !kept[k]) out.events.push({ type: 'journey', gain: k }, { type: 'journey:' + k });
+    out.prev.__journey = cur;
+    return out;
+  };
+  const ORDER = ['taken', 'felled', 'open', 'seen', 'fallen', 'learned'];
+  E.carryIn = function carryIn(state, keys) {
+    const G = state.heldGates;
+    if (!G || !Array.isArray(keys)) return 0;
+    const H = G.spec, T = state.byId ? state.byId[H.target || 'hero'] : null, X = state.explored, Tr = state.trees, t = state.time || 0;
+    const of = (id) => (H.relics || []).find((x) => x.id === id) || (H.bosses || []).find((x) => x.id === id) || (H.elsewhere || []).find((x) => x.id === id);
+    const hold = (gives, rule) => {
+      for (const k of gives) if (k && G.held[k] == null) G.held[k] = t;
+      if (rule && T && T.rule) { Object.assign(T.rule, rule); if (T.pilotRule && T.pilotRule !== T.rule) Object.assign(T.pilotRule, rule); }
+    };
+    const list = keys.map((k) => String(k).replace(/^journey:/, '')).filter((k) => ORDER.includes(k.split(':')[0]))
+      .sort((a, b) => ORDER.indexOf(a.split(':')[0]) - ORDER.indexOf(b.split(':')[0]));
+    G.carried = G.carried || {};
+    let n = 0;
+    for (const k of list) {
+      const i = k.indexOf(':'), what = k.slice(0, i), id = k.slice(i + 1);
+      if (G.carried[k]) continue;
+      if (what === 'taken' || what === 'felled') {
+        const R = of(id), into = what === 'taken' ? G.taken : G.felled;
+        if (!R || into[id] != null) continue;
+        into[id] = t;
+        hold(what === 'taken' ? (R.gives != null && !Array.isArray(R.gives) ? [R.gives] : R.gives || []) : R.gives || [], R.rule);
+        if (what === 'taken' && R.at) state.breaks.push({ seq: state.breakSeq++, id: R.id, t, at: R.at.slice(), by: T ? T.id : null, how: 'restore' });
+        // (a boss felled before: its body gone, a stand-in block gone, its seal open)
+        const e = what === 'felled' && R.entity && state.byId ? state.byId[R.entity] : null;
+        if (e) { e.downed = true; e.gone = true; e.route = null; e.moving = false; }
+        if (what === 'felled' && !R.entity && E.restoreBlock) E.restoreBlock(state, R.id);
+      } else if (what === 'open') {
+        if (!(H.gates || []).some((g) => g.id === id) || G.open[id] != null) continue;
+        if (E.restoreBlock) E.restoreBlock(state, id);
+        G.open[id] = t;
+      } else if (what === 'seen') {
+        if (!X || !X.tiles[id] || X.visited[id] != null) continue;
+        X.visited[id] = t; if (X.known[id] == null) X.known[id] = t;
+      } else if (what === 'fallen') {
+        const j = id.lastIndexOf(':'), who = id.slice(0, j), souls = Number(id.slice(j + 1)) || 0;
+        if (!Tr || Tr.fallen[who] != null) continue;
+        Tr.fallen[who] = t; Tr.souls += souls; if (Tr.soulsOf) Tr.soulsOf[who] = souls;
+      } else if (what === 'learned') {
+        if (!Tr || Tr.learned[id] != null || !Tr.carry) continue;
+        if (!Tr.carry(id)) continue;
+      }
+      G.carried[k] = 1; n++;
+    }
+    return n;
+  };
 }

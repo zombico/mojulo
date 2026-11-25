@@ -158,6 +158,24 @@ describe('aftermath on the page', () => {
   });
 });
 
+describe('the journey: a castle\'s segments carry what she gains', () => {
+  it('keeps each gain as a flag named for it, in a flags slice the level consumes and carries in', () => {
+    const c = composeMechanics([{ kind: 'journey', slice: 'journey' }, { kind: 'reach-exit', at: [9, 0, 0], exit: 'on' }], { player: 'hero', storeSchema: { slices: [{ name: 'journey', kind: 'flags' }] } });
+    expect(c.on['journey:*']).toEqual({ emit: { type: 'setFlag', slice: 'journey', key: '{event}', value: true } });
+    expect(c.consumes).toEqual([{ slice: 'journey' }]);
+    expect(c.journey).toEqual({ slice: 'journey' });
+  });
+  it('the game channel carries the flags in through the controllable world, once it is up', async () => {
+    const { gameChannelScript } = await import('../scene/channels/game.js');
+    const s = gameChannelScript({ levelRef: 'x', on: { 'journey:*': { emit: { type: 'setFlag', slice: 'journey', key: '{event}', value: true } } }, journey: { slice: 'journey' } });
+    expect(s).toContain("k.indexOf('journey:') === 0");
+    expect(s).toContain('C.carryIn(keys)');
+    expect(gameChannelScript({ levelRef: 'x', on: { 'goal:reached': { end: 'success' } } })).not.toContain('carryIn');
+    // (the page reads the world's happenings for it: a reaction hears each gain)
+    expect(composeMechanics([{ kind: 'journey', slice: 'journey' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero' }).events.reactions).toContainEqual({ on: 'journey', do: 'inc', var: '__gains', by: 1 });
+  });
+});
+
 describe('a firefight on the bus: hits cost hp, falls are counted, supplies give', () => {
   const B = buildBus();
   const level = (extra = []) => {

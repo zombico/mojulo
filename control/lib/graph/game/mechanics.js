@@ -1040,6 +1040,26 @@ const MECHANICS = {
     },
   },
 
+  // the JOURNEY (an emitter): a metroidvania castle cut into segments, each its own level (gameworld/metroidvania
+  // castle.js segmentsOf), keeps what the hero gains as it goes. Each gain the runtime raises as `journey:<what>:<id>`
+  // (worlds/controllable/held-gates.js: a relic taken, a boss felled, a gate opened, a tile walked, a node learned, a
+  // foe's souls) is kept as a flag of that name in a flags slice the game carries; entering the next segment, the page
+  // puts each back as it stood (carryIn), so her powers, the map and the castle's fallen go with her.
+  journey: {
+    role: 'emitter', requires: ['flags'],
+    lower(p, ctx) {
+      const slice = ctx.resolve('flags', p.slice, `journey[${ctx.i}]`);
+      return {
+        // (a gain counted: the page reads the world's happenings where a reaction hears one, playscape/ui/cast.js)
+        world: { vars: { __gains: 0 }, reactions: [{ on: 'journey', do: 'inc', var: '__gains', by: 1 }] },
+        produces: [{ type: 'setFlag', slice }],
+        on: { 'journey:*': { emit: { type: 'setFlag', slice, key: '{event}', value: true } } },
+        consumes: [{ slice }],
+        journey: { slice },
+      };
+    },
+  },
+
   // the BAG carried (an emitter): what the player holds goes from level to level. The level starts with the inventory
   // slice's items in its bag (held:bag:<item>, playscape/ui/items.js), and every item that comes into or leaves the
   // bag on the bus (`bag:in` / `bag:out`: a buy, a take, a give, a use) goes back to the slice as grant / consume. A
@@ -1509,7 +1529,7 @@ export function composeMechanics(mechanics, ctx = {}) {
   const audits = [];
   const doors = [];
   const keep = [];
-  let aftermath = null, bag = null, party = null;
+  let aftermath = null, bag = null, party = null, journey = null;
   let successTerminals = 0;
 
   const player = ctx.player || 'player';
@@ -1544,6 +1564,7 @@ export function composeMechanics(mechanics, ctx = {}) {
     }
     for (const c of (low.consumes || [])) consumes.push(c);
     if (low.aftermath) aftermath = low.aftermath;
+    if (low.journey) journey = low.journey;
     if (low.bag) bag = low.bag;
     if (low.party) party = low.party;
     for (const k of (low.keep || [])) { if (keep.some((x) => x.var === k.var)) errors.push(`mechanics[${i}] (${m.kind}): var '${k.var}' is kept twice`); else keep.push(k); }
@@ -1613,5 +1634,5 @@ export function composeMechanics(mechanics, ctx = {}) {
   for (const ch of ARRAY_CHANNELS) if (events[ch].length === 0) delete events[ch];
   if (Object.keys(events.vars).length === 0) delete events.vars;
 
-  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}), ...(bag ? { bag } : {}), ...(party ? { party } : {}) };
+  return { events, produces, on, consumes, requires: [...requires], audits, ...(doors.length ? { doors } : {}), ...(keep.length ? { keep } : {}), ...(aftermath ? { aftermath } : {}), ...(journey ? { journey } : {}), ...(bag ? { bag } : {}), ...(party ? { party } : {}) };
 }

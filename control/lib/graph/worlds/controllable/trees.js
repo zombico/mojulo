@@ -99,7 +99,7 @@ export function buildTrees(E) {
   E.createWorld = function createWithTrees(spec) {
     const s = make(spec), T = spec && spec.trees;
     if (!T || typeof T !== 'object') return s;
-    s.trees = { spec: T, learned: {}, spent: 0, granted: 0, log: [], open: {}, souls: 0, fallen: {} };
+    s.trees = { spec: T, learned: {}, spent: 0, granted: 0, log: [], open: {}, souls: 0, fallen: {}, soulsOf: {} };
     // (the target's moveset in full, its shut strings cut from what it plays)
     const H = target(s);
     if (H && H.rule && H.rule.moveset && H.rule.moveset.gated) { s.trees.full = H.rule.moveset; cut(s); }
@@ -107,6 +107,15 @@ export function buildTrees(E) {
     s.trees.points = () => earned(s) - s.trees.spent;
     s.trees.states = () => states(s);
     s.trees.grant = (n) => { s.trees.granted += n; };
+    // (a node learned in another segment of the castle, carried in: learned again as it was, paid for as it was;
+    // held-gates.js carryIn)
+    s.trees.carry = (id) => {
+      const N = T.nodes.find((n) => n.id === id);
+      if (!N || s.trees.learned[id] != null) return false;
+      if (!N.found) s.trees.spent += N.cost || 0;
+      give(s, N, 'carried');
+      return true;
+    };
     // (what the hero starts with: a node that costs nothing and needs nothing)
     for (const N of T.nodes) if (!N.found && !N.cost && !N.requires.length) give(s, N, 'start');
     return s;
@@ -120,7 +129,8 @@ export function buildTrees(E) {
     if (Tr.spec.souls) for (const e of state.entities || []) {
       if (e.team !== 'foes' || !e.downed || Tr.fallen[e.id]) continue;
       Tr.fallen[e.id] = state.time || 0;
-      Tr.souls += Tr.spec.souls[(e.rule && e.rule.mind && e.rule.mind.rank) === 'elite' ? 'elite' : 'minion'] || 0;
+      const n = Tr.spec.souls[(e.rule && e.rule.mind && e.rule.mind.rank) === 'elite' ? 'elite' : 'minion'] || 0;
+      Tr.souls += n; Tr.soulsOf[e.id] = n;
     }
     for (const N of Tr.spec.nodes) if (N.found && Tr.learned[N.id] == null && held[N.found] != null && N.requires.every((r) => Tr.learned[r] != null)) give(state, N, 'found');
     return out;

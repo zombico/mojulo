@@ -29,6 +29,10 @@
  *                          laid ({ id, from, to, by, ring, rooms, gate }), its boxes' own layouts in `castle.laid`
  *   castleLaws(C, { solved?, greybox? }) → [{ id, holds, says, rooms? }]: each box held to its own shape's laws
  *                          (`<box>:<law>`, BOX_SHARE), the castle to the laws a walk through all of it is held to
+ *   segmentsOf(C)          → the castle cut into SEGMENTS, a map each (the megaworld's zones: megaworld.js): a box and the
+ *                          connector leading out of it, [{ id, rooms, cols: [c0, c1], entry?, exits: [{ id, door, to,
+ *                          cells }], arrivals: [{ from, door, cells }] }]: each door across to another segment an EXIT
+ *                          (walked through, the page leaves for it) and an ARRIVAL (come back through, she stands at it)
  *
  * Pure: a castle is laid from its words alone.
  */
@@ -191,6 +195,24 @@ function lookOfIx(T, ring, rings) {
 }
 
 /** The castle's laws: each box's own, then the castle walked whole. */
+/** The castle cut into its segments (see the header). */
+export function segmentsOf(C) {
+  const segs = C.castle.boxes.map((b) => {
+    const out = C.castle.joins.filter((j) => j.from === b.id).flatMap((j) => j.rooms);
+    return { id: b.id, rooms: new Set([...C.rooms.filter((r) => r.box === b.id).map((r) => r.id), ...out]) };
+  });
+  const segOf = (room) => segs.find((g) => g.rooms.has(room))?.id ?? null;
+  return segs.map((g) => {
+    const rooms = C.rooms.filter((r) => g.rooms.has(r.id)), cols = [Math.min(...rooms.map((r) => r.rect[0])), Math.max(...rooms.map((r) => r.rect[0] + r.rect[2] - 1))];
+    const across = C.doors.filter((d) => g.rooms.has(d.a) !== g.rooms.has(d.b));
+    // (a way joins both ways: each door across is an exit from this side and an arrival into it, walked either way)
+    const other = (d) => segOf(g.rooms.has(d.a) ? d.b : d.a);
+    const exits = across.map((d) => ({ id: `to-${other(d)}`, door: d.id, to: other(d), cells: d.cells.map((c) => [...c]) }));
+    const arrivals = across.map((d) => ({ from: other(d), door: d.id, cells: d.cells.map((c) => [...c]) }));
+    return { id: g.id, rooms: rooms.map((r) => r.id), cols, ...(g.rooms.has(C.entry.room) ? { entry: { ...C.entry } } : {}), exits, arrivals };
+  });
+}
+
 export function castleLaws(C, { solved, greybox } = {}) {
   const S = solved ?? solveBox(C), G = greybox ?? greyboxOf(C), out = [];
   const law = (id, holds, says, rooms) => out.push({ id, holds: !!holds, says, ...(rooms && rooms.length ? { rooms } : {}) });

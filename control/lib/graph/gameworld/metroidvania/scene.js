@@ -37,7 +37,7 @@ import { readFeel } from '../feel/lower.js';
 import { reachOf } from '../feel/reach.js';
 import { TRAVERSAL_MOVES } from '../actions.js';
 import { layBox } from './box.js';
-import { isCastle, layCastle, castleLaws } from './castle.js';
+import { isCastle, layCastle, castleLaws, segmentsOf } from './castle.js';
 import { greyboxOf, FLOOR, boxCameraOf } from './rooms.js';
 import { solveBox } from './solve.js';
 import { boxLaws } from './laws.js';
@@ -53,7 +53,7 @@ import { mapOf, mapLaws } from './explored.js';
 import { backdropLaws } from './backdrop.js';
 import { fabricLaws } from './fabric.js';
 
-export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees', 'bosses', 'destruction', 'matter']);
+export const BOX_SCENE_KEYS = Object.freeze(['kind', 'show', 'cube', 'seed', 'metroidvania', 'feel', 'stature', 'title', 'viewBox', 'trees', 'bosses', 'destruction', 'matter', 'segment']);
 /** a boss stand-in's blows to fall */
 export const BOSS_HP = 6;
 /** a stood boss keeps this far from its room's walls (its doorways): it never follows her out */
@@ -93,7 +93,8 @@ function readBoxScene(m) {
   // (laid by the hero's MEASURED jump where a feel is named: its run's jump and, where its card has one, its air jump)
   const reach = m.feel === undefined ? null : reachOf(readFeel(typeof m.feel === 'string' ? { pole: m.feel, takes: true } : m.feel));
   const jump = reach ? r3(reach.moves.run.height) : undefined;
-  return { words: m.metroidvania, stood: m.bosses === 'stood', hero: readHero({ ...(m.stature !== undefined ? { stature: m.stature } : {}), ...(jump ? { jump } : {}) }) };
+  if (m.segment !== undefined && !(isCastle(m.metroidvania) && typeof m.segment === 'string')) no('segment is one of a castle\'s boxes, its map (castle.js segmentsOf): a castle\'s words alone are cut');
+  return { words: m.metroidvania, stood: m.bosses === 'stood', ...(m.segment !== undefined ? { segment: m.segment } : {}), hero: readHero({ ...(m.stature !== undefined ? { stature: m.stature } : {}), ...(jump ? { jump } : {}) }) };
 }
 
 /** What a box's secret walls are under destructible physics: its cube's wall matter (cubeMatter, stone where it says
@@ -116,6 +117,10 @@ export function boxOf(m) {
   const R = readBoxScene(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k)))), stood = R.stood;
   // (a box, or a castle of boxes joined by their connectors: castle.js, laid as one map)
   const castle = isCastle(R.words), layout = castle ? layCastle(R.words) : layBox(R.words), greybox = greyboxOf(layout, { hero: R.hero }), solved = solveBox(layout);
+  // (a castle's SEGMENT: one map of it, its box and the connector out of it, laid in the castle whole and cut to it as
+  // it is built, castle.js segmentsOf; its laws the castle's, whole)
+  const segment = R.segment !== undefined ? segmentsOf(layout).find((g) => g.id === R.segment) : null;
+  if (R.segment !== undefined && !segment) no(`segment '${R.segment}' is none of the castle's (${segmentsOf(layout).map((g) => g.id).join(', ')})`);
   // (its LOOK: its words' theme, else its cube's box, else the greybox: cube.js)
   const look = boxLookOf(layout, m.cube), T = look?.theme ?? null;
   // (and, dressed, its theme's: each ring unlike the last of its box, every gate standing out from its room; a ring's look
@@ -198,7 +203,7 @@ export function boxOf(m) {
   const explored = { target: 'hero', tile: [r3(W), r3(H)], tiles: layout.rooms.flatMap((r) => r.cells.map((q) => `${q[0]},${q[1]}`)),
     maps: layout.rooms.filter((r) => r.mapRoom).map((r) => ({ room: r.id, name: layout.rings[r.ring].place, rect: [r3(r.rect[0] * W), r3((r.rect[0] + r.rect[2]) * W), r3(r.rect[1] * H), r3((r.rect[1] + r.rect[3]) * H)], reveals: tilesOf(r.ring) })),
     map: mapOf(layout) };
-  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, secrets, explored, ...(physical ? { physical: true } : {}), ...(look ? { look } : {}), ...(dress ? { dress } : {}) };
+  return { layout, greybox, solved, laws, stature: R.hero.stature, hero: R.hero, breakables, held, relics, bosses, secrets, explored, ...(segment ? { segment } : {}), ...(physical ? { physical: true } : {}), ...(look ? { look } : {}), ...(dress ? { dress } : {}) };
 }
 
 /** The `geocube` kind's `show: 'metroidvania'`. */
@@ -275,6 +280,33 @@ export function assembleBox(m, ctx = {}) {
     sky: T ? { zenith: hexRgb(T.night.zenith).map((v) => Math.round(v * 255)), horizon: hexRgb(T.night.horizon).map((v) => Math.round(v * 255)), day: 0, stars: 0, seed: 1 } : { zenith: [12, 11, 16], horizon: [26, 22, 34], day: 0, stars: 0, seed: 1 },
     pack: true,
   };
-  Object.defineProperty(payload, 'metroidvania', { value: B, enumerable: false });
-  return payload;
+  const P = B.segment ? cutToSegment(payload, B) : payload;
+  Object.defineProperty(P, 'metroidvania', { value: B, enumerable: false });
+  return P;
+}
+
+/**
+ * A castle's SEGMENT on its page (castle.js segmentsOf): the castle built whole, what the page carries cut to the
+ * segment's columns: its faces, its solids, its gates, relics, saves and bosses, its flames and motes. What lies beyond
+ * its exits is the next segment's page. Its explored map stays the castle's whole.
+ */
+export function cutToSegment(P, B) {
+  const g = B.segment, W = B.greybox.screen.width, s0 = g.cols[0] * W, s1 = (g.cols[1] + 1) * W, rooms = new Set(g.rooms);
+  const over = (a, b) => b >= s0 - 1e-6 && a <= s1 + 1e-6, inside = (s) => s >= s0 - 1e-6 && s <= s1 + 1e-6;
+  const faceIn = (f) => { const ss = f.corners.map((q) => q[1]); return over(Math.min(...ss), Math.max(...ss)); };
+  const breakables = P.breakables.filter((b) => over(b.min[1], b.max[1])), kept = new Set(breakables.map((b) => b.id));
+  const doorIn = (id) => { const d = B.layout.doors.find((x) => `gate-${x.id}` === id); return d ? rooms.has(d.a) || rooms.has(d.b) : true; };
+  const H = P.heldGates;
+  const heldGates = { ...H, gates: H.gates.filter((x) => kept.has(x.id) || (!P.breakables.some((b) => b.id === x.id) && doorIn(x.id))),
+    relics: H.relics.filter((x) => inside(x.at[1])), bosses: H.bosses.filter((x) => rooms.has(x.id.replace(/^boss-/, ''))),
+    saves: H.saves.filter((x) => rooms.has(x.id)) };
+  // (what is found beyond the segment, so a gain carried in holds and does what it does here: the journey, held-gates.js)
+  const away = [...H.relics.filter((x) => !heldGates.relics.includes(x)).map((x) => ({ id: x.id, gives: [x.gives], ...(x.rule ? { rule: x.rule } : {}) })),
+    ...H.bosses.filter((x) => !heldGates.bosses.includes(x)).map((x) => ({ id: x.id, gives: [...(x.gives || [])], ...(x.rule ? { rule: x.rule } : {}) }))];
+  if (away.length) heldGates.elsewhere = away;
+  return { ...P, faces: P.faces.filter(faceIn), colliders: P.colliders.filter((c) => over(c.min[1], c.max[1])), breakables, heldGates,
+    ...(P.breakPieces ? { breakPieces: { ...P.breakPieces, breakables: P.breakPieces.breakables.filter((b) => kept.has(b.id)) } } : {}),
+    ...(P.flames ? { flames: P.flames.filter((x) => inside(x.at[1])) } : {}),
+    ...(P.motes ? { motes: { ...P.motes, boxes: P.motes.boxes.filter((q) => over(q[1], q[4])) } } : {}),
+    segment: { id: g.id, cols: [...g.cols] } };
 }

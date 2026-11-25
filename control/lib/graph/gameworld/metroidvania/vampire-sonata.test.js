@@ -33,4 +33,11 @@ describe('Vampire Sonata: Erina and her castle', () => {
     expect(stages.map((s) => s.section)).toEqual(['metroidvania']);
     expect(stages[0].manifest.show).toBe('metroidvania');
   });
+  it('cuts her castle a segment a level on the megaworld\'s chain, and refuses a segment the castle has not', () => {
+    const W0 = vampireSonataGame({ heroRef: 'erina', castle: 'segments' }), W = readGameworld(W0), stages = gameStages(W);
+    expect(stages.map((s) => [s.section, s.manifest.segment])).toEqual([['metroidvania', 'tower'], ['metroidvania', 'court'], ['metroidvania', 'keep']]);
+    expect(W0.megaworld).toEqual({ shape: 'chain', rings: [['tower'], ['court'], ['keep']] });
+    expect(() => readGameworld({ ...W0, levels: { ...W0.levels, tower: { ...W0.levels.tower, segment: 'moat' } } })).toThrow(/one of the castle's boxes \(tower, court, keep\)/);
+    expect(() => readGameworld({ ...W0, levels: { ...W0.levels, tower: { name: 'x', segment: 'tower' } } })).toThrow(/segment is a metroidvania castle's/);
+  });
 });

@@ -309,6 +309,19 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       for (const id of ids) C.restore(id);
     })(0);
   });
+` : ''}${game.journey ? `  // the JOURNEY carried in (the journey mechanic): what the hero gained in the castle's segments before (a relic, a
+  // boss felled, a gate, the map, a node, a foe's souls) put back as it stood (held-gates.js carryIn), once the
+  // controllable world is up
+  st.onStart.push(function (params) {
+    const s = params && params[__GAME.journey.slice], fl = (s && s.flags) || {};
+    const keys = Object.keys(fl).filter((k) => fl[k] && k.indexOf('journey:') === 0);
+    if (!keys.length) return;
+    (function carry(n) {
+      const C = window.__mojCtrl;
+      if (!C || !C.carryIn) { if (n < 100) setTimeout(function () { carry(n + 1); }, 50); return; }
+      C.carryIn(keys);
+    })(0);
+  });
 ` : ''}${Array.isArray(game.arrive) && game.arrive.length ? `  // ARRIVAL (a map game): the shell names the level travelled in from; the bus hears arrive:<ref> on its first frame
   // and the level's own events move the pilot to that end (deferred, as chapters are: the events channel may load later).
   st.onStart.push(function (params) {

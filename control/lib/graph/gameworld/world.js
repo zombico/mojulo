@@ -160,7 +160,7 @@ import { readBackdrop } from '../lorecube/backdrop.js';
 import { readIntake } from './intake.js';
 import { readRail } from './rails.js';
 import { readBox } from './metroidvania/box.js';
-import { isCastle, readCastle } from './metroidvania/castle.js';
+import { isCastle, readCastle, layCastle, segmentsOf } from './metroidvania/castle.js';
 import { readMegaworld } from './megaworld.js';
 import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
@@ -313,7 +313,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -632,6 +632,7 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
+    if (L.segment !== undefined && L.metroidvania === undefined) throw new Error(`gameworld: ${at}.segment is a metroidvania castle's (beside its \`metroidvania\`): which of its boxes this level is the map of`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
     if (L.goal !== undefined) {
@@ -730,6 +731,13 @@ export function readGameworld(W) {
       if (W.camera !== 'side') throw new Error(`gameworld: ${at}.metroidvania is seen from the side: set camera: 'side' (the side map's camera holds its rooms)`);
       // (a box, or a castle of boxes joined by their connectors: metroidvania/castle.js)
       try { (isCastle(L.metroidvania) ? readCastle : readBox)(L.metroidvania); } catch (e) { throw new Error(`gameworld: ${at}.metroidvania: ${e.message.replace(/^metroidvania:\s*/, '')}`); }
+      // (a castle's SEGMENT: this level one map of it, its box and the connector out of it, the others its neighbours'
+      // levels, joined by the megaworld: metroidvania/castle.js segmentsOf)
+      if (L.segment !== undefined) {
+        if (!isCastle(L.metroidvania)) throw new Error(`gameworld: ${at}.segment cuts a castle of boxes (its \`boxes\`) into its maps; this level is one box, a map already`);
+        const ids = segmentsOf(layCastle(L.metroidvania)).map((g) => g.id);
+        if (!ids.includes(L.segment)) throw new Error(`gameworld: ${at}.segment is one of the castle's boxes (${ids.join(', ')})`);
+      }
     } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
@@ -1123,7 +1131,7 @@ export function resolveLevel(world, id) {
   // a side map level: its zone chain as written (levels.js lays it on the level's geocube for the world's hero)
   if (L.sidemap) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, sidemap: L.sidemap };
   // a metroidvania level: its box as written (levels.js builds it for the world's hero)
-  if (L.metroidvania) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, metroidvania: L.metroidvania };
+  if (L.metroidvania) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, metroidvania: L.metroidvania, ...(L.segment !== undefined ? { segment: L.segment } : {}) };
   // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
   if (L.geocity) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };
