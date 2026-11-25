@@ -112,6 +112,27 @@ describe('the massif', () => {
     expect(near([300, 300])).toBeGreaterThan(near([-300, -300]) + 3);
   });
 
+  it('strews a broken meteorite\'s craters in a field along its flight, one age, the largest down-range, their ground broken', () => {
+    const M = one({ craters: { count: 0, diameter: [10, 40], fresh: 0.5, within: 500, at: [], clusters: { count: 3, members: [12, 16], length: [160, 160], width: [30, 30], diameter: [8, 30], fresh: 1 } }, strew: { count: 0, size: [2, 3] } });
+    const F = massifField(M, [0, 0], 5, 0), by = {};
+    for (const c of F.craters) if (c.field !== undefined) (by[c.field] ??= []).push(c);
+    const fields = Object.values(by);
+    expect(fields.length).toBe(3);
+    for (const L of fields) {
+      expect(L.length).toBeGreaterThan(6);
+      expect(new Set(L.map((c) => c.fresh)).size).toBe(1);   // (one age)
+      // (along its flight: the craters line up, the field far longer than it is wide, and grow toward one end)
+      const mx = L.reduce((a, c) => a + c.at[0], 0) / L.length, my = L.reduce((a, c) => a + c.at[1], 0) / L.length;
+      const far = L.reduce((b, c) => (Math.hypot(c.at[0] - mx, c.at[1] - my) > Math.hypot(b.at[0] - mx, b.at[1] - my) ? c : b)), u = [far.at[0] - mx, far.at[1] - my], l = Math.hypot(...u);
+      const along = (c) => ((c.at[0] - mx) * u[0] + (c.at[1] - my) * u[1]) / l, across = (c) => Math.abs((c.at[0] - mx) * -u[1] + (c.at[1] - my) * u[0]) / l;
+      expect(Math.max(...L.map((c) => Math.abs(along(c))))).toBeGreaterThan(2 * Math.max(...L.map(across)));
+      const sorted = [...L].sort((a, b) => along(a) - along(b)), half = Math.floor(sorted.length / 2), mean = (A) => A.reduce((a, c) => a + c.diameter, 0) / A.length;
+      expect(Math.abs(mean(sorted.slice(half)) - mean(sorted.slice(0, half)))).toBeGreaterThan(3);
+      // (its ground the broken ground a fresh crater throws)
+      expect(F.crush(L[0].at[0], L[0].at[1])).toBeGreaterThan(0.5);
+    }
+  });
+
   it('stands only on an island, and a meru that names none reads as it always did', () => {
     expect(() => readLocalMeru({ massif: 'wadi' })).toThrow(/stands on an island/);
     expect(readLocalMeru({ island: { walk: 'none' }, massif: 'wadi' }).massif.id).toBe('wadi');

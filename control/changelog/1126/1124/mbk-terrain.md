@@ -38,6 +38,11 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     - Each crater has its own age. A fresh one is deep, its rim sharp, its thrown blocks strewn round it; an old one is
       shallow, its rim worn, its floor filled flat with sand. A younger crater prints over an older.
     - They are laid by the dice off the rock and the water, or named in `at`.
+    - **Strewn fields** (`clusters`): a meteorite broken up on its way down, its fragments struck together along its
+      flight. Each field is an ellipse turned to its heading, all its craters of one age, the largest at the down-range
+      end and the small trailing behind. The crater plain has six, the wadi and the scarp two each.
+    - A fresh crater's bowl and rim are laid as gravel (`crush`) and small fresh craters throw blocks too, so a young
+      field reads as broken, blasted ground; an old one is sand-filled dimples.
   - **Fallen blocks** are mostly small, with a few great slabs: the size's dice are weighted to their low end, up to
     12 m.
   - **Laws**: walls stand (the rise is climbed on faces over 70°), talus at repose, the floor open for a frame.

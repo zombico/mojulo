@@ -282,7 +282,9 @@ function groundFaces(st, p, heightAt, S = null, seed = 1) {
   const isCliff = (cs, n) => n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1])) || (MR && n[2] < MASSIF_BARE && MR.inside(mean(cs)[0], mean(cs)[1]));
   // the ground: grass as it always was, or on a geo island (`cover: 'soil'`) bare soil, and scree where it slopes
   // (and a massif's dry washes, massif.js washes: their beds gravel, laid as scree whatever their slope)
-  const soil = S && S.cover === 'soil', coverOf = (n, cs) => (!soil ? 'isekai:ground' : n[2] < SCREE_N || (MR && cs && MR.wash(mean(cs)[0], mean(cs)[1]) > 0.55) ? 'isekai:scree' : 'isekai:soil');
+  // (and a fresh crater's bowl and rim, massif.js crush: the ground it broke and threw, gravel)
+  const broke = (cs) => { const q = mean(cs); return MR.wash(q[0], q[1]) > 0.55 || MR.crush(q[0], q[1]) > 0.5; };
+  const soil = S && S.cover === 'soil', coverOf = (n, cs) => (!soil ? 'isekai:ground' : n[2] < SCREE_N || (MR && cs && broke(cs)) ? 'isekai:scree' : 'isekai:soil');
   const F = p.recipe.shading ? p.recipe.shading.facet : 0, gritty = p.recipe.shading?.grit !== undefined && p.recipe.shading.grit >= GRIT_PIXELS;
   if (F > 0) for (let pass = 0; pass < FACET_PASSES; pass++) planarise(g, z, at, isCliff, F);
   const bed = S && S.seabed === 'merged' ? seabedCells(g, z, S.bed) : null;
