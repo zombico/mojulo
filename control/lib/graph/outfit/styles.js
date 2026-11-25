@@ -403,7 +403,65 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "knit", "sleeve": "long", "fit": "skin" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "into": "boots" },
       "outer": { "family": "woven", "sleeve": "long", "hem": "midi", "open": true, "cut": "aline", "posed": true, "stormFlap": true }, "feet": "boots", "tuck": true, "focal": "collar" },
     "tones": { "Top": "#1e1e22", "Bottom": "#26262c", "Outer": "#5a1e22", "Shoes": "#2a1c14", "Trim": "#9aa0a6" }
-  }
+  },
+  // ATHLEISURE, drawn on her (any card dresses any cast; last in the catalog, so the procedures' pins find the cards they
+  // were written on): knit sets close to the body or easy over it, worn in the street
+  // in sneakers or runners. A matching long-sleeved crop over leggings
+  yoga: {
+    "id": "yoga",
+    "dials": { "stylize": 0.2, "fit": 0.1, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "crop", "fit": "skin", "cloth": "jersey" }, "bottom": { "family": "knit", "leg": "long", "cut": "skinny", "fit": "skin", "cloth": "jersey" },
+      "feet": "sneakers", "tuck": false, "focal": "collar" },
+    "tones": { "Top": "#c9a3a8", "Bottom": "#c9a3a8", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+  },
+  // (a runner's: a fitted tank over brief shorts, in runners)
+  jogger: {
+    "id": "jogger",
+    "dials": { "stylize": 0.2, "fit": 0.2, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "none", "hem": "hip", "fit": "fitted", "cloth": "jersey" }, "bottom": { "family": "knit", "leg": "brief", "cut": "straight", "fit": "eased" },
+      "feet": "runners", "tuck": false, "focal": "collar" },
+    "tones": { "Top": "#e85d75", "Bottom": "#1d2433", "Shoes": "#f0f0f0", "Trim": "#f0f0f0" }
+  },
+  // (an oversized tee over bike shorts to mid-thigh)
+  bikeShorts: {
+    "id": "bikeShorts",
+    "dials": { "stylize": 0.2, "fit": 0.6, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "short", "hem": "hip", "fit": "loose", "cloth": "jersey" }, "bottom": { "family": "knit", "leg": "short", "cut": "skinny", "fit": "skin", "cloth": "jersey" },
+      "feet": "sneakers", "tuck": false, "focal": "collar" },
+    "tones": { "Top": "#ece7dc", "Bottom": "#1b1b1f", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+  },
+  // (a track suit: a zipped jacket with a stand collar and ribbed cuffs and waist over a tee, tapered joggers in its cloth)
+  tracksuit: {
+    "id": "tracksuit",
+    "dials": { "stylize": 0.2, "fit": 0.4, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "short", "hem": "hip", "fit": "fitted" }, "bottom": { "family": "knit", "leg": "long", "cut": "tapered", "fit": "eased" },
+      "outer": { "family": "knit", "sleeve": "long", "hem": "waist", "open": false, "fit": "eased", "front": "zip", "collar": true, "rib": "both" }, "feet": "sneakers", "tuck": false, "focal": "collar" },
+    "tones": { "Outer": "#2f4a6d", "Top": "#f2f2f2", "Bottom": "#2f4a6d", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+  },
+  // (from the studio: a zip-up left open over a crop and leggings in one colour)
+  studio: {
+    "id": "studio",
+    "dials": { "stylize": 0.2, "fit": 0.2, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "none", "hem": "crop", "fit": "skin", "cloth": "jersey" }, "bottom": { "family": "knit", "leg": "long", "cut": "skinny", "fit": "skin", "cloth": "jersey" },
+      "outer": { "family": "knit", "sleeve": "long", "hem": "waist", "open": true, "fit": "fitted", "rib": "cuffs" }, "feet": "sneakers", "tuck": false, "focal": "collar" },
+    "tones": { "Outer": "#d8d3cb", "Top": "#5c6b5a", "Bottom": "#5c6b5a", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+  },
+  // (court whites: a collared knit top over a crisp short skirt)
+  tennis: {
+    "id": "tennis",
+    "dials": { "stylize": 0.2, "fit": 0.3, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "cap", "hem": "hip", "fit": "fitted", "collar": "band" }, "bottom": { "kind": "skirt", "family": "knit", "leg": "mini", "cut": "aline", "rigidity": "crisp" },
+      "feet": "sneakers", "tuck": true, "focal": "collar" },
+    "tones": { "Top": "#f6f6f2", "Bottom": "#f6f6f2", "Shoes": "#f6f6f2", "Trim": "#2c5a8a" }
+  },
+  // (lounge: a loose cropped sweatshirt over wide sweatpants, one heather)
+  lounge: {
+    "id": "lounge",
+    "dials": { "stylize": 0.2, "fit": 0.7, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "waist", "fit": "loose", "cloth": "knit" }, "bottom": { "family": "knit", "leg": "long", "cut": "wide", "fit": "loose" },
+      "feet": "sneakers", "tuck": false, "focal": "collar" },
+    "tones": { "Top": "#a7a9ac", "Bottom": "#a7a9ac", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+  },
 });
 
 /** the FANTASY WARDROBE's cards (above), each an archetype in its own layers: the outfit card's `style` word on the hero

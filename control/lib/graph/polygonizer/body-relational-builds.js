@@ -243,6 +243,15 @@ const SHALLA = {
   },
 };
 export const BODY_BUILDS = Object.freeze({ norrin: NORRIN, shalla: SHALLA });
+/** THE HAND SIZED TO THE BODY (realistic laws 18): the hand's length, the wrist to the middle finger's tip, and its breadth
+ * across the knuckles, as shares of the stature (the anthropometric adult's: a man's hand about 19.4 cm long and 8.9 cm
+ * broad at 175.6 cm, a woman's 18.0 and 7.7 at 162.9). The authored hand (the hero's, kept by the slice) is sized to them
+ * about the wrist, its length and its breadth each by its own factor (body-relational.js `handsTo`); before laws 18 the
+ * authored hand stood at about four fifths of that length on the form field's taller body. */
+export const HAND_SIZE = Object.freeze({
+  norrin: Object.freeze({ length: 0.11, breadth: 0.0507 }),
+  shalla: Object.freeze({ length: 0.11, breadth: 0.0473 }),
+});
 
 /**
  * THE CERVICAL NECK (realistic laws 3): the neck's column leaning forward up to the skull, as the cervical spine does

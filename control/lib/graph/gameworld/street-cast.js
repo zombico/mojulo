@@ -6,6 +6,7 @@
  * clothes: each an everyday outfit card (outfit/styles.js) in colours of their own off the street's palette.
  *
  *   STREET_WARDROBE   { male, female }: the outfit cards a person on the street wears, each with the ages it suits
+ *                     [from, to, weight?] (weight 1 unless it says)
  *   STREET_MIX        a locale's ancestries, weighted (gameworld/locales.js ids); a place without one draws evenly
  *   STREET_PALETTE    the clothes' colours: tops, bottoms, shoes (an everyday street's, muted with a few brights)
  *   streetSix(seed, { locale?, set? }) → [{ id, label, spec, reads }] × 6: each a hero spec the door mints as it is
@@ -19,9 +20,12 @@ import { FACE_AGE } from '../polygonizer/face-compose.js';
 export const STREET_WARDROBE = Object.freeze({
   male: Object.freeze({
     casual: [16, 85], streetwear: [16, 40], office: [22, 65], business: [26, 70], athleisure: [16, 50],
+    tracksuit: [16, 70, 0.6], jogger: [18, 60, 0.4], lounge: [16, 45, 0.4],
   }),
   female: Object.freeze({
-    casual: [16, 85], sundress: [16, 60], blouse: [22, 75], athleisure: [16, 50], streetwear: [16, 40], trousersuit: [24, 70],
+    casual: [16, 85], sundress: [16, 60], blouse: [22, 75], athleisure: [16, 50, 0.5], streetwear: [16, 40], trousersuit: [24, 70],
+    // (the athleisure sets: the gym, the run, the studio, the court and the sofa, each a little less likely than a day's clothes)
+    yoga: [16, 55, 0.6], jogger: [16, 60, 0.5], bikeShorts: [16, 45, 0.5], tracksuit: [16, 70, 0.6], studio: [18, 50, 0.6], tennis: [16, 60, 0.4], lounge: [16, 60, 0.5],
   }),
 });
 export const STREET_MIX = Object.freeze({
@@ -63,8 +67,8 @@ export function streetSix(seed, { locale = null, set = 0 } = {}) {
     const cast = casts[i], [lo, hi] = ages[i], age = Math.min(FACE_AGE.range[1], Math.round(lo + R() * (hi - lo)));
     const ethnicity = weighted(R, mix);
     // (the clothes: a card this person's age wears that no one else in the six has on, in colours of their own)
-    const fits = Object.entries(STREET_WARDROBE[cast]).filter(([id, [a, b]]) => age >= a && age <= b && !worn.has(id)).map(([id]) => id);
-    const style = fits.length ? pick(R, fits) : 'casual'; worn.add(style);
+    const fits = Object.fromEntries(Object.entries(STREET_WARDROBE[cast]).filter(([id, [a, b]]) => age >= a && age <= b && !worn.has(id)).map(([id, [, , w = 1]]) => [id, w]));
+    const style = Object.keys(fits).length ? weighted(R, fits) : 'casual'; worn.add(style);
     const palette = { Top: pick(R, STREET_PALETTE.tops), Bottom: pick(R, STREET_PALETTE.bottoms), Shoes: pick(R, STREET_PALETTE.shoes) };
     const B = builds[i], physique = Object.fromEntries(Object.entries(B).map(([k, v]) => [k, typeof v === 'number' ? round(v) : v]));
     const spec = {

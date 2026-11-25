@@ -104,7 +104,36 @@ export function formSlice(recipe, R, build, opts = {}) {
   const field = bodyField(R, B, { extra: shared }), r = structuredClone(recipe), P = r.parts.torso;
   // THE HANDS (a physique's `hands`): the authored hand and its digits scaled about the wrist, their joints with them, so
   // the fingers still turn in their knuckles; the forearm's wrist mass grown the same, so the cuff and the hand agree
-  if (B.hands && B.hands !== 1) for (const S of ['R', 'L']) {
+  // (realistic laws 18, a build's `handsTo`: the hand sized to the body's stature instead, its length along the wrist's
+  // line to the middle knuckle and its breadth and depth across it each by its own factor, a physique's `hands` over both)
+  if (B.handsTo) {
+    const pt = (v) => (Array.isArray(v) ? v : v.at), top = R.joints.headTop && pt(R.joints.headTop);
+    let floor = Infinity;
+    for (const [k, Pt] of Object.entries(r.parts)) if (/^(foot|toes)[RL]$/.test(k)) for (const st of Pt.stations) for (const q of Object.values(st.points)) floor = Math.min(floor, q[2]);
+    const stature = top ? top[2] - (Number.isFinite(floor) ? floor : 0) : 0;
+    if (stature > 0) for (const S of ['R', 'L']) {
+      const w = R.joints[`wrist${S}`] && pt(R.joints[`wrist${S}`]), m = R.joints[`middleMcp${S}`] && pt(R.joints[`middleMcp${S}`]);
+      const ix = R.joints[`indexMcp${S}`] && pt(R.joints[`indexMcp${S}`]), lt = R.joints[`littleMcp${S}`] && pt(R.joints[`littleMcp${S}`]);
+      if (!w || !m || !ix || !lt) continue;
+      const re = new RegExp(`^(hand|thumb|index|middle|ring|little)${S}$`), a = unit(sub(m, w));
+      const off = (v, d) => sub(v, scl(d, dot(v, d))), across = unit(off(sub(lt, ix), a));
+      let far = 0, lo = Infinity, hi = -Infinity;
+      for (const [k, Pt] of Object.entries(r.parts)) if (re.test(k)) for (const st of Pt.stations) for (const q of Object.values(st.points)) {
+        far = Math.max(far, len(sub(q, w)));
+        if (k === `thumb${S}`) continue;
+        const d = sub(q, m); if (Math.abs(dot(d, a)) > 0.012) continue;
+        const c = dot(d, across); lo = Math.min(lo, c); hi = Math.max(hi, c);
+      }
+      if (!(far > 0) || !(hi > lo)) continue;
+      const g = B.hands ?? 1, sL = (g * B.handsTo.length * stature) / far, sB = (g * B.handsTo.breadth * stature) / (hi - lo);
+      const at = (p) => { const d = sub(p, w); return add(w, add(scl(d, sB), scl(a, (sL - sB) * dot(d, a)))).map(r6); };
+      for (const [k, Pt] of Object.entries(r.parts)) if (re.test(k)) {
+        for (const st of Pt.stations) for (const sl of Object.keys(st.points)) st.points[sl] = at(st.points[sl]);
+        if (Pt.caps) for (const c of Object.keys(Pt.caps)) Pt.caps[c] = at(Pt.caps[c]);
+      }
+      for (const j of Object.keys(r.rig.joints)) if (new RegExp(`^(knuckles|fingerAxis|thumb|index|middle|ring|little)[A-Za-z]*${S}$`).test(j)) { const v = r.rig.joints[j]; r.rig.joints[j] = Array.isArray(v) ? at(v) : { ...v, at: at(v.at) }; }
+    }
+  } else if (B.hands && B.hands !== 1) for (const S of ['R', 'L']) {
     const w = R.joints[`wrist${S}`]; if (!w) continue;
     const at = (p) => add(w, scl(sub(p, w), B.hands)).map(r6), re = new RegExp(`^(hand|thumb|index|middle|ring|little)${S}$`);
     for (const [k, Pt] of Object.entries(r.parts)) if (re.test(k)) {

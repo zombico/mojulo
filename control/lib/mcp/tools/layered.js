@@ -99,7 +99,7 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
-import { cervicalNeck, roundOut, maleHips, withHipSpan, throatLine } from '@/lib/graph/polygonizer/body-relational-builds';
+import { cervicalNeck, roundOut, maleHips, withHipSpan, throatLine, HAND_SIZE } from '@/lib/graph/polygonizer/body-relational-builds';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
@@ -348,7 +348,9 @@ function realisticBuild(hero) {
   // (realistic laws 9: the man's hips, a waist about as wide as them, body-relational-builds.js MALE_HIPS; laws 14: the
   // throat one slope from the jaw to the chest, THROAT_LINE)
   const R9 = laws >= 9 ? maleHips(R6, name) : R6;
-  return laws >= 14 ? throatLine(R9, name) : R9;
+  const R14 = laws >= 14 ? throatLine(R9, name) : R9;
+  // (realistic laws 18: the hand sized to the body's stature, body-relational-builds.js HAND_SIZE)
+  return laws >= 18 ? { ...R14, handsTo: HAND_SIZE[name] } : R14;
 }
 /** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
  * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it
@@ -1027,8 +1029,11 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * 16: the LATERAL PERIORBITAL FILL (head-relational.js, the `periorbital` relation: the tissue over the lateral orbital
  * rim, the skin beside each eye brought forward to the outer canthus's depth so it wraps the globe's side, the eye and
  * the front's silhouette kept), where laws 1 to 15 let the skin fall back a centimetre behind the canthus and the
- * globe's side show bare from 3/4 and the side */
-export const REALISTIC_LAWS_VERSION = 17;
+ * globe's side show bare from 3/4 and the side;
+ * 18: the HAND SIZED TO THE BODY (body-relational-builds.js HAND_SIZE: the authored hand scaled about the wrist to the
+ * stature's share, its length and its breadth each by its own factor, body-relational.js `handsTo`), where laws 1 to 17
+ * kept the authored hand at about 0.087 of the form field's stature, a fifth short of an adult's 0.11, and narrow */
+export const REALISTIC_LAWS_VERSION = 18;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies', 'stocking'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are

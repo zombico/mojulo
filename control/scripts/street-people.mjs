@@ -8,6 +8,8 @@
 //
 //   node scripts/street-people.mjs [--seed 7] [--locale los-angeles] [--set 0] [--out dir] [--jobs 2] [--reuse]
 //                                  [--only p1,p3] [--clip walk|idle|bind] [--phase 0.3] [--spec '{…}' (merged over each)]
+//                                  [--relief 1 (the normal map's strength: 0 off)] [--cast female] [--styles yoga,jogger,… (one card a
+//                                  person, in the card's own colours: a review of outfit cards)]
 //
 // Writes <out>/sheet.png (the row, front and ¾), <out>/close.png (faces and hands), <out>/read.json, and per person
 // <id>.glb and <id>.read.json (the mint's own read). A mint is a few minutes; --reuse keeps those already in --out.
@@ -56,6 +58,13 @@ const { streetSix } = await import(pathToFileURL(path.join(CONTROL, 'lib/graph/g
 let people = streetSix(seed, { locale, set });
 if (opt.only) { const keep = new Set(opt.only.split(',')); people = people.filter((p) => keep.has(p.id)); }
 if (extra) people = people.map((p) => ({ ...p, spec: { ...p.spec, ...extra } }));
+// (a review of cards: --cast sets everyone's cast, --styles one card a person in turn, worn in the card's own colours)
+if (opt.cast) people = people.map((p) => ({ ...p, spec: { ...p.spec, cast: opt.cast }, label: p.label.replace(/^(male|female)/, opt.cast) }));
+if (opt.styles) {
+  const S = opt.styles.split(',');
+  for (let k = 1; people.length < S.length; k++) people = [...people, ...streetSix(seed, { locale, set: set + k })];
+  people = people.slice(0, S.length).map((p, i) => { const { palette: _p, ...spec } = p.spec; return { ...p, spec: { ...spec, outfit: { ...spec.outfit, style: S[i] } }, label: p.label.replace(/\S+$/, S[i]) }; });
+}
 
 // ─── mint ───────────────────────────────────────────────────────────────────
 const todo = people.filter((p) => !(opt.reuse && existsSync(path.join(out, `${p.id}.glb`))));
@@ -72,10 +81,10 @@ if (!made.length) { console.error('street-people: no one minted'); process.exit(
 
 // ─── the row: a page that stands them on a pavement, measures them and frames each shot ─────────────────────────────
 const V = path.join(CONTROL, 'public/vendor/three');
-for (const f of ['three.core.min.js', 'three.module.min.js', 'addons/loaders/GLTFLoader.js', 'addons/utils/SkeletonUtils.js']) {
+for (const f of ['three.core.min.js', 'three.module.min.js', 'addons/loaders/GLTFLoader.js', 'addons/utils/BufferGeometryUtils.js', 'addons/utils/SkeletonUtils.js']) {
   mkdirSync(path.dirname(path.join(out, 'vendor/three', f)), { recursive: true }); copyFileSync(path.join(V, f), path.join(out, 'vendor/three', f));
 }
-const manifest = { clip, phase, people: made.map((p) => ({ id: p.id, label: p.label })) };
+const manifest = { clip, phase, relief: Number(opt.relief ?? 1), debug: !!opt.debug, people: made.map((p) => ({ id: p.id, label: p.label })) };
 writeFileSync(path.join(out, 'index.html'), `<!doctype html><html><head><meta charset="utf-8"><title>Street People</title>
 <style>html,body{margin:0;background:#cfd3d6}canvas{display:block}</style>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}</script></head>
@@ -89,34 +98,36 @@ document.body.appendChild(r.domElement);
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#bcc8d2');
 scene.add(new THREE.HemisphereLight('#dfe9f3', '#6b6560', 1.1));
 const sun = new THREE.DirectionalLight('#fff2dc', 2.6); sun.position.set(4, 8, 6); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 4, bottom: -4 }); scene.add(sun);
+sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 4, bottom: -4 }); scene.add(sun);
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 12), new THREE.MeshStandardMaterial({ color: '#9b9790', roughness: 0.95 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const cam = new THREE.PerspectiveCamera(30, 16 / 9, 0.05, 100);
-const loader = new GLTFLoader(), GAP = 1.15, figures = [];
-const HAND = /^body:(hand|thumb|index|middle|ring|pinky)\\d?R$/;
+const loader = new GLTFLoader(), GAP = 1.15, figures = [], RELIEF = M.relief, DEBUG = M.debug;
+const HAND = /^(hand|thumb|index|middle|ring|pinky|little)\\d?R$/;
 for (const [i, P] of M.people.entries()) {
   const g = await loader.loadAsync('./' + P.id + '.glb'), root = g.scene;
-  root.position.x = (i - (M.people.length - 1) / 2) * GAP; scene.add(root);
-  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; } });
-  const mixer = new THREE.AnimationMixer(root), A = g.animations.find((a) => a.name === 'body:' + M.clip);
-  if (A) { const act = mixer.clipAction(A); act.play(); mixer.setTime(A.duration * M.phase); } else mixer.update(0);
+  // (each faces the camera: the export's front is -z)
+  root.position.x = (i - (M.people.length - 1) / 2) * GAP; root.rotation.y = Math.PI; scene.add(root);
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; if (RELIEF !== 1 && o.material?.normalMap) o.material.normalScale.setScalar(RELIEF); } });
+  let skinned = null; root.traverse((o) => { if (o.isSkinnedMesh && !skinned) skinned = o; });
+  if (skinned) skinned.skeleton.pose();
   root.updateMatrixWorld(true);
-  figures.push({ P, root, mixer });
+  figures.push({ P, root, g, skinned });
 }
-// (the read, on the posed skin: the stature off the bind's box; the right hand, wrist to the farthest point its bones carry,
-// and its breadth across the knuckles)
+// (the read, at the bind (the fingers straight): the stature off its box; the right hand, wrist to the farthest point its
+// bones carry, and its breadth across the knuckles)
 const v = new THREE.Vector3(), reads = [];
 for (const F of figures) {
-  let skinned = null; F.root.traverse((o) => { if (o.isSkinnedMesh && !skinned) skinned = o; });
-  const box = new THREE.Box3().setFromObject(F.root, true);
+  // (the body's own box: the export carries a static part under the soles, out of sight, that is no part of the stature)
+  const skinned = F.skinned, box = skinned ? new THREE.Box3().setFromObject(skinned, true) : new THREE.Box3().setFromObject(F.root, true);
   const read = { id: F.P.id, label: F.P.label, stature: +(box.max.y - box.min.y).toFixed(3) };
+  if (DEBUG) { read.parts = []; F.root.traverse((o) => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o, true); read.parts.push([o.name, +b.min.y.toFixed(3), +b.max.y.toFixed(3)]); } }); if (skinned) read.bones = skinned.skeleton.bones.filter((b) => /head|neck|toe|foot|ankle/i.test(b.name)).map((b) => [b.name, +new THREE.Vector3().setFromMatrixPosition(b.matrixWorld).y.toFixed(3)]); }
   if (skinned) {
-    const S = skinned.skeleton, names = S.bones.map((b) => b.name), wristI = names.indexOf('body:handR');
+    const S = skinned.skeleton, names = S.bones.map((b) => b.name.replace(/^body:?/, '')), wristI = names.indexOf('handR');
     const handBones = new Set(names.map((n, k) => (HAND.test(n) ? k : -1)).filter((k) => k >= 0));
     const geo = skinned.geometry, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
     const wrist = new THREE.Vector3().setFromMatrixPosition(S.bones[wristI].matrixWorld);
-    const idx = (n) => S.bones[names.indexOf('body:' + n)];
+    const idx = (n) => S.bones[names.indexOf(n)];
     const knuckle = (n) => new THREE.Vector3().setFromMatrixPosition(idx(n).matrixWorld);
     let far = 0, pts = [];
     for (let k = 0; k < si.count; k++) {
@@ -131,9 +142,15 @@ for (const F of figures) {
     let lo = Infinity, hi = -Infinity;
     for (const p of pts) { const d = p.clone().sub(mid); if (Math.abs(d.dot(along)) > 0.012) continue; const s = d.dot(across); lo = Math.min(lo, s); hi = Math.max(hi, s); }
     Object.assign(read, { hand: +far.toFixed(3), handBreadth: +(hi - lo).toFixed(3), handShare: +(far / read.stature).toFixed(3), breadthShare: +((hi - lo) / read.stature).toFixed(3) });
-    F.wrist = wrist; F.tip = mid.clone().add(along.clone().multiplyScalar(0.05));
+    F.handAt = () => { const w = new THREE.Vector3().setFromMatrixPosition(S.bones[wristI].matrixWorld), m = knuckle('index1R').add(knuckle('middle1R')).multiplyScalar(0.5); return w.lerp(m, 0.8); };
   }
   F.box = box; reads.push(read);
+}
+// (then each plays its clip at the moment asked)
+for (const F of figures) {
+  const mixer = new THREE.AnimationMixer(F.root), A = F.g.animations.find((a) => a.name.replace(/^body:?/, '') === M.clip);
+  if (A) { mixer.clipAction(A).play(); mixer.setTime(A.duration * M.phase); }
+  F.root.updateMatrixWorld(true);
 }
 const frame = (pos, at, fov = 30) => { cam.fov = fov; cam.updateProjectionMatrix(); cam.position.set(...pos); cam.lookAt(...at); r.render(scene, cam); };
 const W = (M.people.length - 1) * GAP;
@@ -145,8 +162,8 @@ window.street = {
     if (view === 'front') frame([0, 1.0, d], [0, 0.88, 0]);
     else frame([d * 0.62, 1.15, d * 0.8], [0, 0.85, 0]);
   },
-  face(i) { const F = figures[i], h = F.box.max.y; frame([F.root.position.x + 0.08, h - 0.1, 0.75], [F.root.position.x, h - 0.12, 0], 22); },
-  hand(i) { const F = figures[i]; if (!F.wrist) return; const c = F.wrist.clone().lerp(F.tip, 0.5); frame([c.x - 0.25, c.y + 0.05, c.z + 0.42], [c.x, c.y, c.z], 26); },
+  face(i) { const F = figures[i], h = F.box.max.y; frame([F.root.position.x + 0.12, h - 0.1, 0.8], [F.root.position.x, h - 0.13, 0], 20); },
+  hand(i) { const F = figures[i]; if (!F.handAt) return; const c = F.handAt(); frame([c.x - 0.3, c.y + 0.06, c.z + 0.4], [c.x, c.y, c.z], 26); },
   ready: true,
 };
 </script></body></html>`);
@@ -157,7 +174,7 @@ const { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } = await import(pa
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.glb': 'model/gltf-binary' };
 const server = createServer((rq, rs) => {
   const rel = decodeURIComponent(new URL(rq.url, 'http://x').pathname).replace(/^\/+/, '') || 'index.html', file = path.resolve(out, rel);
-  if (!file.startsWith(out + path.sep) || !existsSync(file) || !statSync(file).isFile()) { rs.writeHead(404).end(); return; }
+  if (!file.startsWith(out + path.sep) || !existsSync(file) || !statSync(file).isFile()) { rs.writeHead(rel === 'favicon.ico' ? 204 : 404).end(); return; }
   rs.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream' }); createReadStream(file).pipe(rs);
 });
 await new Promise((res) => server.listen(0, '127.0.0.1', res));

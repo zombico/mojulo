@@ -55,8 +55,11 @@ kit and the cloth are made by the rules in [garment-principles.md](garment-princ
   first are one ring at the joint's plane, the same points, so the two shells are one surface and the shading welds
   across it (`formSlice` `stitch`). Before laws 4 the two overlapped across the plane, the upper's skin tucked inside
   past it.
-- **Kept authored:** the head, the hands. Under a physique with bulk the hands and their joints are scaled
-  about the wrist (`build.hands`).
+- **Kept authored:** the head, the hands. Under realistic laws 18 the hands and their joints are sized to the body about
+  the wrist (`build.handsTo`, `body-relational-builds.js` `HAND_SIZE`): the hand's length, the wrist to the middle
+  finger's tip, 0.11 of the stature (the head's top over the soles), and its breadth across the knuckles a man's 0.0507
+  or a woman's 0.0473 of it, each by its own factor; a physique's bulk over both (`build.hands`). Before laws 18 the
+  authored hand stood at about 0.087 of the stature, narrow, and only bulk scaled it.
 - **Rig additions:** joints `scapulaAcr<S>`, `scapulaSup<S>`, `scapulaInf<S>`, bone `scapula<S>`; the folds
   `shoulderFold<S>`, `kneeCrease<S>`, `elbowCrease<S>` with their bones; `foreArm<S>` gains `parent: 'upperArm<S>'`.
   At most four influences a vertex, as everywhere.

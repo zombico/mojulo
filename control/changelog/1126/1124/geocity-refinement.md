@@ -86,3 +86,11 @@
   four, eight or twelve sixes walking); downtown and the inner city are busy and the suburbs quiet by default.
 - Fixed: a hero starting downtown could find no car to take at the kerb, since a downtown parked car nearby kept the
   kerb cars from being laid; the kerb cars are laid now, never on a bay already taken.
+- Realistic heroes' hands fit their bodies: a hand is now as long as an adult's for the body's height (about a ninth of
+  it) and as broad across the knuckles as a man's or a woman's, where it had been a fifth short and narrow. Heroes made
+  before keep their hands; a new one, or one remade, gets the new size.
+- Athleisure outfits, drawn for women (any outfit dresses anyone): `yoga` (a matching long-sleeved crop and leggings),
+  `jogger` (a running tank and brief shorts in runners), `bikeShorts` (an oversized tee over bike shorts), `tracksuit`
+  (a zipped track jacket with ribbed cuffs and waist over a tee, tapered joggers), `studio` (a zip-up left open over a
+  crop and leggings), `tennis` (a collared knit top and a crisp short skirt) and `lounge` (a loose cropped sweatshirt and
+  wide sweatpants). Street people wear them now and then.
