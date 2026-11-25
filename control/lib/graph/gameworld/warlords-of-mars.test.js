@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { warlordsOfMarsStart, OPERATIONS, WARLORDS_OF_MARS } from './warlords-of-mars.js';
-import { readOperation, operationMechanics } from './frame-goal.js';
+import { readOperation, operationMechanics, OPERATION } from './frame-goal.js';
 import { readGameworld } from './world.js';
 import { runSteps } from './runner.js';
 import { composeGameworld } from './compose.js';
@@ -51,6 +51,19 @@ describe('Warlords of Mars', () => {
     }
   });
 
+  it('the Gnat Screen stands its drones in the air over the land, quick fliers that weave in close', () => {
+    const id = 'gnat-screen', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
+    const m = steps.find((s) => s.key.startsWith('level-')).order.manifest, F = frameField(m.cube);
+    const gnats = m.entities.filter((e) => e.id.startsWith('screen-'));
+    expect(gnats.length).toBe(8);
+    for (const g of gnats) {
+      const [x, y, z] = g.transform.pos;
+      expect(z - F.heightAt(x, y)).toBeCloseTo(OPERATION.units.gnat.air, 0);
+      expect(g.rule).toMatchObject({ type: 'ai', space: true, standoff: OPERATION.units.gnat.standoff });
+    }
+    expect(m.figures['unit-gnat']).toEqual({ unit: { kind: 'gnat' } });
+  });
+
   it('the path ladders up to an ace: its own build and paint, more armour, its phases on its mind, its reserve held back', () => {
     const id = 'vermilion', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
     const m = steps.find((s) => s.key.startsWith('level-')).order.manifest;
@@ -73,7 +86,7 @@ describe('Warlords of Mars', () => {
     expect(O.tasks[0].foes).toEqual(['a-1', 'a-2']);
     expect(O.tasks[1].foes).toEqual(['b']);
     expect(O.tasks[2].at).toEqual([180, 300, 12]);
-    expect(() => readOperation({ groups: [{ id: 'a', kind: 'dragon', at: [0, 0] }], tasks: [{ down: 'a' }] })).toThrow(/turret, tank, walker, frame/);
+    expect(() => readOperation({ groups: [{ id: 'a', kind: 'dragon', at: [0, 0] }], tasks: [{ down: 'a' }] })).toThrow(/kind is one of turret, tank, walker, .*frame/);
   });
 
   it('is reached from words by both doors: the producer\'s rail and the sentence door\'s starter', () => {

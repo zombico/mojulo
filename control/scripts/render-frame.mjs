@@ -13,6 +13,7 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +25,7 @@ const { frameClips } = await import('../lib/graph/assault-frame/clips.js');
 const { STOCK } = await import('../lib/graph/assault-frame/parts.js');
 
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
-const OUT = path.resolve(arg('out', '/tmp/claude-0/-home-user-mojulo/6ac92e75-a6eb-5dbb-b0b0-15051678ecf4/scratchpad/frame-renders'));
+const OUT = path.resolve(arg('out', path.join(os.tmpdir(), 'frame-renders')));
 const palette = arg('palette', 'federation'), wear = arg('wear', 'used');
 const custom = arg('build', null);
 const frames = custom ? [['custom', JSON.parse(custom)]] : arg('frames', Object.keys(STOCK).join(',')).split(',').map((n) => [n, n]);

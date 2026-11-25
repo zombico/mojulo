@@ -28,6 +28,16 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: 'guns', text: 'Break the gun line' }), f({ down: 'column', text: 'Destroy the tank column' }), f({ reach: f([0.4, 0.7]), text: 'Secure the relay' })]),
   }),
+  // (THE HELLAS ROAD, its rungs up to the ace, each teaching what the next leans on: the Gnat Screen first)
+  f({
+    id: 'gnat-screen', name: 'Gnat Screen', map: 'plain',
+    brief: 'A swarm of drones screens the road north. Small and quick, hard to hold in a lock: keep moving, keep firing on the move, and break the guns they cover.',
+    groups: f([
+      f({ id: 'screen', kind: 'gnat', count: 8, at: f([0, 0.15]), spread: 110 }),
+      f({ id: 'guns', kind: 'turret', count: 2, at: f([0.2, 0.55]), spread: 90 }),
+    ]),
+    tasks: f([f({ down: 'screen', text: 'Clear the drone screen' }), f({ down: 'guns', text: 'Silence the emplacements' })]),
+  }),
   f({
     id: 'red-dust', name: 'Red Dust', map: 'basin',
     brief: 'A pass through the crater rim, held by walkers and emplacements. A frame of the warlord\'s guard is on its way to reinforce it.',

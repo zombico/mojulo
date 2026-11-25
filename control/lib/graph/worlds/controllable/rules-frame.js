@@ -508,6 +508,17 @@ export function buildRulesFrame(E) {
     }
     e.slotState = st;
   }, 12);
+  // ── a flier over a frame's field (an ai in the air with a `floor`, a Gnat's): held that many metres over the land under
+  // it, so a swarm closing on a frame on its feet weaves over it and never through a hill ──
+  E.registerWorldPass('frame-fliers', (state, input, dt, world) => {
+    if (!world || !world.ground) return;
+    for (const e of state.entities) {
+      const r = e.rule;
+      if (!r || r.type !== 'ai' || !r.space || !(r.floor > 0) || e.gone || e.downed) continue;
+      const p = e.transform.pos, g = world.ground([p[0], p[1], p[2] + 60]);
+      if (g != null && p[2] < g + r.floor) p[2] = g + r.floor;
+    }
+  }, 30);
   // ── a frame's rounds meet the terrain: burst where they cross it (the world's z = 0 is not its ground) ──
   E.registerWorldPass('frame-rounds', (state, input, dt, world) => {
     const ps = state.projectiles;

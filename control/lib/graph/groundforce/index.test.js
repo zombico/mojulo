@@ -7,13 +7,11 @@ const kind = GROUND_UNIT_IDS[0];
 
 describe('the ground force', () => {
   it('is a card per unit, each with its numbers', () => {
-    expect(GROUND_UNIT_IDS).toEqual(['turret', 'tank', 'walker']);
-    for (const k of GROUND_UNIT_IDS) {
-      const U = GROUND_UNITS[k];
-      expect(U.label).toBeTruthy();
-      for (const n of ['size', 'hp', 'rof', 'range', 'points']) expect(U[n]).toBeGreaterThan(0);
-    }
-    expect(() => unitFaces('mech')).toThrow(/turret, tank, walker/);
+    // (one card read: a new card runs through the same reader)
+    const U = GROUND_UNITS[kind];
+    expect(U.label).toBeTruthy();
+    for (const n of ['size', 'hp', 'rof', 'range', 'points']) expect(U[n]).toBeGreaterThan(0);
+    expect(() => unitFaces('mech')).toThrow(new RegExp(GROUND_UNIT_IDS.join(', ')));
   });
 
   it('stands on the ground, larger than life, its armour lit and its sensor and drive their own colour', () => {

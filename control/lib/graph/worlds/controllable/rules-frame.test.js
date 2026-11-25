@@ -209,6 +209,15 @@ describe('the assault frame', () => {
     expect(A.poiseRegen).toBeCloseTo(regen * V.phases[2].regen, 5);
   });
 
+  it('a flier with a floor weaves in on a frame on its feet but never comes under its floor over the land', () => {
+    const gnat = { id: 'g', team: 'foes', rule: { type: 'ai', space: true, speed: 30, turn: 3, standoff: 40, floor: 10, sightRange: 400 }, body: { type: 'box', size: [2, 2, 1], hittable: true, hp: 100, radius: 2 }, transform: { pos: [120, 0, 40], heading: Math.PI, pitch: 0 } };
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), gnat], pilot: 'p' }), G = st.byId.g;
+    let low = 99;
+    for (let i = 0; i < 300; i++) { run(st, {}, 1); low = Math.min(low, G.transform.pos[2]); }
+    expect(Math.hypot(G.transform.pos[0], G.transform.pos[1])).toBeLessThan(100);
+    expect(low).toBeGreaterThanOrEqual(10 - 1e-6);
+  });
+
   it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {
     // (a heavy frame ahead with its mind off: the pilot's bazooka, the left hand, the weapon its stagger is read from)
     const foe = frameEntity('citadel', { id: 'f', at: [140, 0, 0], team: 'foes', mind: {} });

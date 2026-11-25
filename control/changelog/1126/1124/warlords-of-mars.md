@@ -84,6 +84,13 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     carries it in place of its laser, and an enemy Raptor closes on its assault boost to cut.
   - The lunge and the blow are the same for both: met, the damage and the impact on the foe's bar, a break or a kill
     armed as a round's is, a spark where it struck.
+- **The Hellas Road: an enemy ladder up to the ace.** One path, each rung teaching what the next leans on.
+  - The Gnat drone (`groundforce/` `gnat`, a card that `flies`): a flat armoured pod between two ducted fans burning
+    amber, a red eye and a chin gun, some 5 m across. It flies on the AI rule in the air, quick and close, weaving round
+    the frame, held at least 10 m over the land (a flier's `floor`, the frame levels' `frame-fliers` pass). Its operation,
+    the Gnat Screen, puts eight of them over the road before two emplacements: shooting on the move, holding a lock.
+  - The ground force's sheets: `node scripts/render-groundforce.mjs --units gnat,walker` draws each card from three sides
+    beside a frame's height.
 - **Aces: the frame a path ladders up to** (`assault-frame/aces.js`, a frame group's `ace`, a group's `reserve`).
   - An ace is a row: its name, build, paint, how much more armour it has than its build, and its phases. A new ace is a
     row.
@@ -121,8 +128,9 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   little air under its own weather: a butterscotch sky paling to a dusty horizon, a small dim sun, thin ice cloud
   high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck: a flight over
   Mars, where a frame's field is under its cube's heavens.
-- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is four operations:
+- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is five operations:
   - Landfall at Tharsis: a gun line, then a tank column;
+  - Gnat Screen: a drone swarm, then its emplacements;
   - Red Dust: a pass held by walkers, then a guard frame;
   - Vermilion: the warlord's ace, alone, its pickets held back;
   - The Warlord: an escort of two, then the warlord's heavy frame.

@@ -13,7 +13,7 @@
  *                  (drawn GROUNDFORCE_SCALE times larger); its `size` (its hit radius, m, at life), `hp`, its gun (`rof`
  *                  shots a second, `range` m) and its `points` on a stage
  *
- *   GROUND_UNITS, GROUND_UNIT_IDS   the cards (a new unit is a card)
+ *   GROUND_UNITS, GROUND_UNIT_IDS   the cards (a new unit is a card; `flies`: it is stood in the air, not on the ground)
  *   unitFaces(kind)                 → faces { corners, fill } lit (baked under one key, the lit parts their own colour),
  *                                     drawn GROUNDFORCE_SCALE times life
  *   unitRadius(kind)                → its hit radius as drawn (m)
@@ -69,6 +69,30 @@ export const GROUND_UNITS = Object.freeze({
       ...twin(0.6, 5.4, 2.55, 0.7, 0.15),
       ...[-1, 1].flatMap((s) => P.box([s * 1.25, -4.16, 1.3], [1.0, 0.08, 0.5], 'drive')),
     ],
+  }),
+  // a flier, one of a swarm: a flat armoured pod slung between two ducted fans burning under it, a red eye forward, one
+  // chin gun; it orbits and strafes, a small thing hard to hold in a lock
+  gnat: Object.freeze({
+    label: 'gnat drone', reads: 'a flat pod between two glowing ducted fans, a red eye, a chin gun: one of a swarm',
+    size: 0.85, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
+    // (half a walker's metres: some 5 m across as drawn, a thing a frame swats, not one it duels)
+    parts: () => { const k = 0.5, S = (v) => v.map((x) => x * k); return [
+      ...P.box(S([0, 0.1, 0.55]), S([1.2, 2.0, 0.55]), 'hull', { ch: 0.3 * k }),
+      ...P.box(S([0, -0.25, 0.95]), S([0.8, 1.1, 0.3]), 'hull2', { ch: 0.22 * k }),
+      ...P.box(S([0, 1.12, 0.6]), S([0.62, 0.08, 0.2]), 'sensor'),
+      ...P.box(S([0.62, 0.2, 0.62]), S([0.05, 1.2, 0.12]), 'accent'),
+      ...[-1, 1].flatMap((sd) => [
+        ...P.box(S([sd * 0.85, 0, 0.55]), S([0.6, 0.35, 0.22]), 'dark', { ch: 0.06 * k }),
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.72 * k, 0.72 * k, 0.38 * k, 0.78 * k, 'hull2', 12),
+        // (the fan's face in the duct's mouth, burning: seen from above and in front, and its wash under it)
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.56 * k, 0.56 * k, 0.78 * k, 0.81 * k, 'drive', 12),
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.5 * k, 0.5 * k, 0.33 * k, 0.4 * k, 'drive', 12),
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.16 * k, 0.16 * k, 0.4 * k, 0.86 * k, 'dark', 6),
+        ...[0, 1, 2].flatMap((i) => P.box(S([sd * 1.45, 0, 0.84]), [0.08 * k, 1.05 * k, 0.03 * k], 'dark').map((f) => ({ ...f, corners: f.corners.map((c) => { const a = (i * Math.PI) / 3, x = c[0] - sd * 1.45 * k, y = c[1]; return [sd * 1.45 * k + x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), c[2]]; }) }))),
+      ]),
+      ...P.pipe(S([0, 0.7, 0.22]), S([0, 1.75, 0.22]), 0.08 * k, 'dark', 6),
+      ...P.box(S([0, 0.55, 0.28]), S([0.3, 0.5, 0.2]), 'dark', { ch: 0.05 * k }),
+    ]; },
   }),
   // two backward-kneed legs under an enclosed cab, a red visor, twin chin guns, an antenna: it stands its ground
   walker: Object.freeze({
