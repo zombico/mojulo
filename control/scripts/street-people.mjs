@@ -64,6 +64,11 @@ if (opt.styles) {
   for (let k = 1; people.length < S.length; k++) people = [...people, ...streetSix(seed, { locale, set: set + k })];
   people = people.slice(0, S.length).map((p, i) => { const { palette: _p, ...spec } = p.spec; return { ...p, spec: { ...spec, outfit: { ...spec.outfit, style: S[i] } }, label: p.label.replace(/\S+$/, S[i]) }; });
 }
+// (a review of faces: --ethnicities one ancestry a person in turn, --age one age for all, --beauty how near each is drawn to
+// its population's mean: 0 every roll at its full reach, the hero door's 0.75 by default)
+if (opt.ethnicities) { const E = opt.ethnicities.split(','); for (let k = 1; people.length < E.length; k++) people = [...people, ...streetSix(seed, { locale, set: set + k })]; people = people.slice(0, E.length).map((p, i) => ({ ...p, spec: { ...p.spec, face: { ...p.spec.face, ethnicity: E[i] } }, label: p.label.replace(/^(\S+ \S+) \S+/, `$1 ${E[i]}`) })); }
+if (opt.age) people = people.map((p) => ({ ...p, spec: { ...p.spec, face: { ...p.spec.face, age: Number(opt.age) } }, label: p.label.replace(/^(\S+) \d+/, `$1 ${opt.age}`) }));
+if (opt.beauty !== undefined) people = people.map((p) => ({ ...p, spec: { ...p.spec, face: { ...p.spec.face, beauty: Number(opt.beauty) } } }));
 if (opt.cast) people = people.map((p) => ({ ...p, spec: { ...p.spec, cast: opt.cast }, label: p.label.replace(/^(male|female)/, opt.cast) }));
 
 // ─── mint ───────────────────────────────────────────────────────────────────
