@@ -87,7 +87,23 @@ export function formLandScript(form0, flora = null, { capture = false, fights = 
   const POS = new Float32Array(bytes(D.pos).buffer), C7 = linear(bytes(D.c7)), SPL = bytes(D.spl), NRM = new Int8Array(bytes(D.nrm).buffer);
   const rgb = (a) => new THREE.Color().setRGB(a[0] / 255, a[1] / 255, a[2] / 255, THREE.SRGBColorSpace);
 
-  // the sky: a dome from the horizon's colour to the zenith's, behind both halves and the gen-7 side's light and reflections
+${form.interior ? `  // the INTERIOR's environment (a cube's light.interior, form/interior-light.js): what the metal sees under a roof, a
+  // dark hall through its haze, the high-bay rows a band of light overhead and the glow low down, never a sky
+  function interiorEnv() {
+    const E = D.interior.env, g = new THREE.SphereGeometry(4000, 48, 24), p = g.attributes.position, col = new Float32Array(p.count * 3);
+    const vd = new THREE.Color(E.void), hz = new THREE.Color(E.haze), lp = new THREE.Color(E.lamp), gl = new THREE.Color(E.glow);
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i) / 4000, y = p.getY(i) / 4000, z = p.getZ(i) / 4000, c = vd.clone().lerp(hz, Math.max(0, 1 - Math.abs(z) * 2.2) * 0.6);
+      // (the lamps' rows: bands overhead across the roof; the glow: a warm low band toward the furnaces)
+      const rows = z > 0.55 ? Math.pow(Math.max(0, Math.cos(x * 18.0)), 24.0) * smooth01((z - 0.55) / 0.3) : 0, low = Math.max(0, 1 - Math.abs(z + 0.05) * 6) * Math.max(0, 0.5 + 0.5 * Math.sin(x * 3.0 + y * 2.0));
+      c.add(lp.clone().multiplyScalar(rows * 2.2)).add(gl.clone().multiplyScalar(low * 0.7));
+      col.set([c.r, c.g, c.b], i * 3);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide }));
+  }
+  function smooth01(t) { const u = Math.max(0, Math.min(1, t)); return u * u * (3 - 2 * u); }
+` : ''}  // the sky: a dome from the horizon's colour to the zenith's, behind both halves and the gen-7 side's light and reflections
   // (underground, a cavern, no sky: the rock's dark in the reflections)
   function skyDome() {
     const SK = D.sky || { zenith: [10, 11, 13], horizon: [10, 11, 13] };
@@ -132,7 +148,7 @@ export function formLandScript(form0, flora = null, { capture = false, fights = 
     return g;
   }
   // (the sky in the sea's reflections only: the land's light is the solved sun and sky light, nothing over it)
-  const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(); envScene.add(skyDome());
+  const pm = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(); envScene.add(${form.interior ? 'interiorEnv()' : 'skyDome()'});
   const skyEnv = pm.fromScene(envScene, 0, 1, 6000).texture;
   // the solved light in three's units: its diffuse is base × light / π, so each light is π × the solve's level
   const solved = (lin) => { const m = Math.max(...lin, 1e-9); return [new THREE.Color().setRGB(lin[0] / m, lin[1] / m, lin[2] / m, THREE.LinearSRGBColorSpace), Math.PI * m]; };
@@ -163,9 +179,9 @@ export function formLandScript(form0, flora = null, { capture = false, fights = 
     uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uMoss: { value: D.layers.moss ?? 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
 ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes || form.snow ? printScript(form) : ''}  function layeredGround(m, roughScale) {
     m.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
+      Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale }${form.layers && form.layers.metal ? ', uMetal: { value: new THREE.Vector4(...D.layers.metal) }, uRoughL: { value: new THREE.Vector4(...D.layers.roughs) }' : ''} });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
-      sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
+      sh.fragmentShader = ${form.layers && form.layers.metal ? "'uniform vec4 uMetal, uRoughL;\\n' + " : ''}'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
         + ${JSON.stringify(form.farCalm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)}
         // (the ground's own parallax kinds, procedural: a Voronoi cell's distance, its edge and its dice; and each kind's
         // height over its cells, GROUND_PARALLAX)
@@ -327,7 +343,10 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     // (the ledges' dirt toward the dry powder's tone: the rock's own grit and the dust blown onto it)
     diffuseColor.rgb = mix( diffuseColor.rgb, mix( diffuseColor.rgb, uPathBase, 0.55 ), dirtFrac * ws[ 2 ] / max( 1e-4, tw ) );
     diffuseColor.rgb *= mb * mix( 1.0, mr.x, 0.5 );
-    roughnessFactor = clamp( mr.y * uRough, 0.04, 1.0 );
+    roughnessFactor = clamp( mr.y * uRough, 0.04, 1.0 );${form.layers && form.layers.metal ? `
+    // (the land's MATERIALS, a cube's outside.materials: each natural layer as metal as its set says, and as rough, by weight)
+    { vec4 lw = vec4( ws[ 0 ], ws[ 1 ], ws[ 2 ], ws[ 3 ] ) / max( 1e-4, tw ); float ln = lw.x + lw.y + lw.z + lw.w;
+      metalnessFactor = dot( lw, uMetal ); roughnessFactor = clamp( roughnessFactor * ( dot( lw, uRoughL ) + 1.0 - ln ), 0.04, 1.0 ); }` : ''}
     // the ground's own PARALLAX KINDS (GROUND_PARALLAX): PEBBLES packed in the bare soil where it is damp, in the scree's
     // fines between its stones and on a pebbled stretch of trail; CRACKED EARTH, dry mud in curled plates, in the bare soil
     // where it is dry and on a cracked stretch of trail; FRACTURED PLATES, a second rock in patches over the rock. Each
@@ -461,7 +480,15 @@ ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace(
     window.__formRelief = { triangles: n / 3, cut: cut.filter(Boolean).length / 3 };
     return g;
   }
-  const sunLight = window.__formSun = new THREE.DirectionalLight(...solved(D.light.sun)); sunLight.castShadow = true;
+${form.interior ? `  // the INTERIOR's own light: the void behind everything and the smoke between, the high-bay lamps and what burns hung as
+  // lights of their own (no shadows: the key, overhead, throws those), a page lighting every fragment by each
+  scene.background = new THREE.Color(D.interior.void); scene.fog = new THREE.FogExp2(new THREE.Color(D.interior.haze.colour), D.interior.haze.density);
+  for (const q of D.interior.lamps) { const l = new THREE.PointLight(new THREE.Color(q.colour), q.power * 1800, q.range, 1.6); l.position.set(...q.at); scene.add(l); }
+  for (const q of D.interior.glows) { const l = new THREE.PointLight(new THREE.Color(q.colour), q.power * 4500, q.range, 1.8); l.position.set(...q.at); scene.add(l); }
+` : ''}  const sunLight = window.__formSun = new THREE.DirectionalLight(...solved(D.light.sun)); sunLight.castShadow = true;${form.interior ? `
+  // (under a roof the overhead key is the lamps' field, not a sun: a third of one, the ambient under it lower, so the pools of
+  // light and the glows read and the far hall goes to its void)
+  sunLight.intensity *= 0.38; __formAmb.intensity *= 0.55;` : ''}
   const [bx, by, bz] = D.box, mid = new THREE.Vector3((bx[0] + bx[1]) / 2, (by[0] + by[1]) / 2, (bz[0] + bz[1]) / 2), rad = Math.hypot(bx[1] - bx[0], by[1] - by[0], bz[1] - bz[0]) / 2;
   Object.assign(sunLight.shadow.camera, { left: -rad, right: rad, top: rad, bottom: -rad, near: 0.5, far: rad * 4 });
   sunLight.shadow.mapSize.set(4096, 4096); sunLight.shadow.bias = -0.0004; sunLight.shadow.normalBias = 0.04;
@@ -476,7 +503,7 @@ ${form.floods ? floodsScript() : ''}  for (const R of D.ranges) {
     if ((water && D.depth) || R.key === 'unread') continue;
     const m = water
       ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: R.rough, metalness: 0, transparent: true, depthWrite: false, envMap: skyEnv, envMapIntensity: 1 })
-      : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, side: THREE.DoubleSide });
+      : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: R.rough, metalness: 0, side: THREE.DoubleSide${form.layers && form.layers.metal ? `, envMap: skyEnv, envMapIntensity: ${form.interior ? 0.45 : 1}` : ''} });
     const ground = !water && D.layers.keys.includes(R.key.split(':')[0]);
     if (ground) layeredGround(m, 1);
 ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
@@ -567,7 +594,10 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
   // the painted land it draws in its place, and the painted water sheet under its sea (a standalone sheet: per-vertex
   // alpha, not one of the named groups)
   const __formNamed = new Set(Object.values(meshes));
-  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;
+  for (const g of D.hides) if (meshes[g]) meshes[g].visible = false;${form.ghosts ? `
+  // (the GHOSTS, a works' floors of grating: the plates a frame stands on under the bars it sees through, never drawn and
+  // still ray-cast)
+  for (const g of D.ghosts) if (meshes[g]) meshes[g].visible = false;` : ''}
   // (and the stage's painted far ring, which the form draws as its far land, with its painted tiles)
   if (D.far && D.far.length) { const U = new Set(D.far); scene.traverse((o) => { if (o.isMesh && U.has(o.userData.g)) o.visible = false; }); }${flora ? `
   // (the plants' groups wholly: a group drawn in several meshes, its faces split by their tiles, is one name in \`meshes\`)

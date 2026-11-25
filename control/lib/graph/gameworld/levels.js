@@ -447,15 +447,18 @@ export function frameLevelManifest(R) {
  * land's own ground, the field its bound, its exit the far side; the field's height its ground (as the page lays it).
  * Drawn once per manifest. */
 const FIELD_ENDS = new Map();
+const FRAME_INDOOR = Object.freeze({ probe: 3, collide: Object.freeze({ radius: 4, height: 9, step: 2 }) });
 export function frameFieldEnds(stage) {
   const key = JSON.stringify([stage.manifest, stage.frame]);
   if (FIELD_ENDS.has(key)) return FIELD_ENDS.get(key);
   if (FIELD_ENDS.size > 8) FIELD_ENDS.clear();
   const F = frameField(stage.manifest.cube), [cx, cy] = F.centre, half = F.half, g = (x, y) => r3(F.heightAt(x, y));
   const x = cx, y = r3(cy - half * 0.55), ex = cx, ey = r3(cy + half * 0.8);
-  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation' };
+  // (under a roof, a works' field: its ground looked for a step over a frame's feet, its works' solids stopping it)
+  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation',
+    ...(F.indoor ? { probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}) };
   const out = { spawn: frame.spawn.slice(), heading: frame.heading, exit: [ex, ey, g(ex, ey)], exitFrom: 'the field\'s far side', planar: false, beats: [], hazards: [] };
-  for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [], colliders: F.colliders ?? [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
   FIELD_ENDS.set(key, out);
   return out;
 }
@@ -1048,9 +1051,9 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // boosts, quick-boosts and climbs on its thrusters, its four guns on their own triggers; followed from behind and over
     // its shoulder, the chase pitched with its aim
     const F = ends.frame, fig = `frame-${typeof F.build === 'string' ? F.build : 'own'}`;
-    const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build) });
+    const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build), ...(F.probe ? { probe: F.probe, collide: F.collide } : {}) });
     pilotPart = {
-      figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0],
+      figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0], ...(ends.colliders.length ? { colliders: ends.colliders } : {}),
       camera: { rule: 'follow', target: 'player', ...FRAME_CAMERA },
       events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
     };

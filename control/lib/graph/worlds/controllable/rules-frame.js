@@ -178,6 +178,9 @@ export function buildRulesFrame(E) {
     }
     // (a bound to the field: the level's arena, where it says one)
     if (r.bound) { const B = r.bound; t.pos[0] = clamp(t.pos[0], B[0], B[2]); t.pos[1] = clamp(t.pos[1], B[1], B[3]); }
+    // (and what stands in its way, a works' walls and machines: where its rule names a body to stop, the world's colliders
+    // push it out, a deck's slab walked under or stood on by its step)
+    if (r.collideRadius > 0 && world && world.colliders) E.resolveBlocking(t.pos, t.pos[2], r.collideHeight ?? 9, r.collideRadius, world.colliders, r.step ?? 2);
     e.landT = Math.max(0, e.landT - dt);
 
     // ── the FCS: the foe nearest the aim, held to lock ──

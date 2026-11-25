@@ -77,6 +77,19 @@ const WHY = f([
   'Talus at every foot, at its repose, its fallen blocks the cover a frame crouches behind.',
 ]);
 
+// THE WORKS' FIELDS: an industrial interior at a frame's scale, no sky (form/interior-light.js), its floor the land dressed
+// in the works' materials (form/land-materials.js), its hall and machines the works (local-meru/works.js)
+const FLAT = f({ from: 'rolling', height: 0.6, scale: 60, finest: 6 });
+export const WORKS_OUTSIDE = (works, massif = works, materials = 'foundry', rock = SOOT) => f({
+  base: 'airless-plain', tiers: SWELL, island: DRY_ISLAND, land: LAND, relief: FLAT, massif, works, materials, rock, tiling: 'stochastic',
+  // (its rubble the slag's: lumps a frame kicks through)
+  rubble: f({ sizes: f([0.3, 1.1]), density: 0.12 }),
+});
+// (the steel blackened low by the soot of the floor's traffic, panels of their own tone, rust run down from the seams)
+const SOOT = f({ beds: f([f({ to: 5, value: -0.3 }), f({ to: 14, value: -0.12 }), f({ to: 2000 })]), blend: 3, thin: false, wear: f({ edge: 0.25, crease: 0.35, reach: 1 }), sections: f({ size: 14, value: 0.1, hue: 0.12, toward: 'sand' }), varnish: f({ strength: 0.6, width: 8, mask: 90 }) });
+const HALL_LIGHT = (lamps, glow, haze) => f({ reference: 'island-noon', outsideFog: 0.3, sun: f({ color: lamps }), sky: DESERT_SKY,
+  interior: f({ void: '#0b0908', haze: f({ colour: haze, density: 0.0016 }), lamps: f({ colour: lamps, power: 1.2, spacing: 88, height: 70 }), glow: f({ colour: glow, power: 1.5 }) }) });
+
 export const FIELD_GEOCUBES = f({
   'sandstone-wadi': f({
     id: 'sandstone-wadi', title: 'Sandstone wadi', reads: 'Sheer red sandstone jebels round an open sand floor, a siq between two, under a hard desert sun',
@@ -101,6 +114,18 @@ export const FIELD_GEOCUBES = f({
     outside: FIELD_OUTSIDE('craters', { dry: true }), wind: f({ speed: 5, dir: 250 }),
     why: f([WHY[1], 'The craters are the ground: bowls to drop into and fight across, their rims cover, the great one a field of its own.', 'Young craters sharp and strewn with their thrown blocks; old ones worn shallow and filled with sand.']),
   }),
+  'smelter-hall': f({
+    id: 'smelter-hall', title: 'Smelter hall', reads: 'A steelworks melt shop half a kilometre across: furnaces glowing under their hoods, decks and ramps, a crane overhead, slag on a concrete floor',
+    light: HALL_LIGHT('#ffdcae', '#ff6a18', '#3b2d22'),
+    colour: f({ stone: '#45474a', floor: '#625d56', trim: '#2a2624', accent: '#ff7a1a', grass: '#4f4a45', foliage: '#4a4640', water: '#2a3038', sand: '#3f3a35', shade: 28 }),
+    register: f({ steps: 0, key: 0.45 }), surfaces: SURFACES, inside: INSIDE,
+    outside: WORKS_OUTSIDE('smelter'), wind: f({ speed: 1, dir: 0 }),
+    why: f([
+      'No sky: the light is the works\' own, rows of high-bay lamps under the trusses and the furnaces\' glow, in a smoke that swallows the far wall.',
+      'Steel and concrete as materials, lit: the plate catches the lamps, the slag drinks them, the molten metal is the brightest thing in the hall.',
+      'A frame fights across its floor and up its decks, under the crane, between the furnaces.',
+    ]),
+  }),
   'wadi-oasis': f({
     id: 'wadi-oasis', title: 'Wadi oasis', reads: 'A lake on a wadi\'s floor among sheer sandstone jebels, a pool beside it',
     light: DESERT(0.26), colour: f({ ...SANDSTONE, water: '#2f8aa0' }), register: f({ steps: 0, key: 0.55 }), surfaces: SURFACES, inside: INSIDE,
@@ -114,6 +139,7 @@ export const FIELD_GEOCUBE_PALETTES = f({
   'sandstone-gorge': f({ intent: 'a red sandstone canyon, its floor and its river under a deep desert sky', key: 'mid', heat: 0.55, weight: 0.2, activity: 0, scheme: 'complementary', hues: f({ sky: 212, rock: 16, soil: 24, ground: 30, foliage: 64, accent: '#2f7fd0' }) }),
   'scree-scarp': f({ intent: 'a brown scarp over pale scree fans in a hard dry light', key: 'mid', heat: 0.45, weight: 0.2, activity: -0.1, scheme: 'analogous', hue: '#8e5a40', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
   'crater-plain': f({ intent: 'a stony desert plain struck by meteorites under a deep sky', key: 'mid', heat: 0.5, weight: 0.2, activity: 0.1, scheme: 'analogous', hue: '#86503a', hues: f({ sky: 214, accent: '#2f7fd0' }) }),
+  'smelter-hall': f({ intent: 'a steelworks melt shop: dark steel and concrete in smoke, lit by lamps and molten metal', key: 'low', heat: 0.4, weight: 0.5, activity: 0.2, scheme: 'mono-accent', hues: f({ rock: 210 }), lock: f({ accent: '#ff7a1a' }) }),
   'wadi-oasis': f({ intent: 'red sandstone round a blue lake on an orange floor', key: 'high', heat: 0.55, weight: 0.1, activity: 0.1, scheme: 'complementary', hues: f({ sky: 212, rock: 18, soil: 26, ground: 30, foliage: 70, accent: '#2f8aa0' }) }),
 });
 

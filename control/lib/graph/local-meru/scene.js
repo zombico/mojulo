@@ -33,6 +33,7 @@ import { bakeLand, ruleLand } from './shading.js';
 import { reliefField, reliefGrain } from '../noise/relief.js';
 import { groundField } from './ground.js';
 import { massifField } from './massif.js';
+import { worksFaces } from './works.js';
 import { crystalSites, landCrystalFaces } from './crystals.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor, GRIT_PIXELS } from './plan.js';
 import { rockFabric, FABRIC_GROUPS } from '../matte-paint/fabric.js';
@@ -583,7 +584,10 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     avoid: [...walk.faces, ...walk.wall].map((f) => mean(f.corners)),
     // the boulders' rule: clear of the seam, and off the trail's own ground; on an island, over the sea
     keep: (q) => Math.abs((q[0] - p.join.at[0]) * -p.join.N[1] + (q[1] - p.join.at[1]) * p.join.N[0]) >= 3 && !(p.join.site && q[1] < p.join.site.D + 2) && !(S && q[2] < S.sea + 1) })) : [];
-  const faces = [...land, ...lockFaces([...baked, ...cel], (f) => made.ramps[f.group] || (lockOf(f.group) ? st.palette[lockOf(f.group)] : null)), ...(S ? seaFaces(st, S, heightAt, ground.grid) : []), ...gems];
+  // (the works, works.js: the hall, its machines and its decks over the land, their faces in the land's own classes; the
+  // lamps and glows they hang, for the page's interior light)
+  const WK = p.recipe.works ? worksFaces(p.recipe.works, p.tiers[0].centre, heightAt) : null;
+  const faces = [...land, ...lockFaces([...baked, ...cel], (f) => made.ramps[f.group] || (lockOf(f.group) ? st.palette[lockOf(f.group)] : null)), ...(S ? seaFaces(st, S, heightAt, ground.grid) : []), ...gems, ...(WK ? WK.faces : [])];
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(blades)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // the frames: from the seam to the top; the whole level from off its flank; at each climb; from the top back
   // (the walk's spawn and the seam's eye: on an island, its own ground at the join, which can stand far above the stage's
@@ -597,6 +601,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     faces,
     cutouts,
     lights: [],
+    ...(WK ? { lamps: WK.lamps, glows: WK.glows, decks: WK.decks } : {}),
     cameras: [manifest.camera || cam('seam', eye, [c[0], c[1], peakZ - 2]), cam('wide', wide, [c[0], c[1], J.at[2] + rise * 0.55], 60), ...climbCams, cam('top', [top.arrive.at[0], top.arrive.at[1], top.arrive.at[2] + 1.6], [J.at[0], J.at[1], J.at[2]], 80)],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · local meru · ${st.id.replace('-', ' ')}`,

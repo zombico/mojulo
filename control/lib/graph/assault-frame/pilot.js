@@ -4,7 +4,7 @@
  * where its guns' muzzles are on its body (the body's mounts, body.js, where it is built; a stock place where not).
  *
  *   FRAME_WORLD                 the world's own numbers: Mars's gravity, the field a frame fights over
- *   frameEntity(build, { id, at, heading?, team?, pilot?, mind?, gravity?, figure?, mounts?, bound? }) → the entity
+ *   frameEntity(build, { id, at, heading?, team?, pilot?, mind?, gravity?, figure?, mounts?, bound?, probe?, collide? }) → the entity
  *     pilot     true: the player's (pilotable, no mind)
  *     mind      { range?, aggression?, dodge? }: an enemy frame's own keys (no pilot)
  *     figure    the figures map's name its body is drawn by (absent: none, a box)
@@ -40,7 +40,7 @@ export function frameSlots(weapons) {
   }]));
 }
 
-export function frameEntity(build, { id, at, heading = 0, team = null, pilot = false, mind = null, gravity = FRAME_WORLD.gravity, figure = null, mounts = null, bound = null } = {}) {
+export function frameEntity(build, { id, at, heading = 0, team = null, pilot = false, mind = null, gravity = FRAME_WORLD.gravity, figure = null, mounts = null, bound = null, probe = null, collide = null } = {}) {
   const A = assembleFrame(build), M = { ...STOCK_MOUNTS, ...(mounts ?? {}) };
   return {
     id, ...(team ? { team } : {}), ...(pilot ? { pilotable: true } : {}),
@@ -48,6 +48,9 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
       type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons),
       mounts: Object.fromEntries(Object.keys(A.weapons).map((s) => [s, M[s]])), eyeH: A.move.height + 2,
       ...(mind ? { mind: { range: 120, aggression: 0.6, dodge: 0.5, ...mind } } : {}), ...(bound ? { bound } : {}),
+      // (under a roof, a works' field: the ground looked for from a step over its feet, not from the sky, and the works'
+      // walls and machines stopping it, its body as wide and tall as it stands)
+      ...(probe ? { probe } : {}), ...(collide ? { collideRadius: collide.radius, collideHeight: collide.height, step: collide.step } : {}),
     },
     body: { type: figure ? 'figure-rig' : 'box', ...(figure ? { figure } : { size: [5, 4, 10] }), hittable: true, hp: A.ap, hpMax: A.ap, radius: 4.2, aimH: r2(A.move.height * 0.95), egg: { a: 3.2, c: r2(A.move.height), cz: r2(A.move.height * 0.95) }, blast: 6 },
     transform: { pos: [...at], heading },

@@ -153,6 +153,16 @@ export const MASSIF_CARDS = f({
       at: f([f({ at: f([110, 150]), diameter: 240, fresh: 0.95 }), f({ at: f([-230, -150]), diameter: 210, fresh: 0.12 })]),
       // (and strewn fields, broken meteorites' craters struck together, the largest down-range)
       clusters: f({ count: 6, members: f([8, 18]), length: f([80, 220]), width: f([18, 50]), diameter: f([8, 34]), fresh: 0.6 }) }) }),
+  // a smelter's floor (under its works, local-meru/works.js): slag heaped at its repose against the walls, low concrete
+  // plinths, casting pits by the ladles; nothing of a sandstone's: no lobes, no flutes, no clefts, no beds pushed
+  smelter: f({ ...CARD, id: 'smelter', reads: 'A melt shop\'s floor: slag heaps at their repose, concrete plinths, casting pits',
+    beds: f([f({ top: 0.6, bench: 0 }), f({ top: 400, bench: 0 })]), slope: 0, bench: 0, warp: f({ strength: 0, scale: 50 }), flute: f({ depth: 0, scale: 10 }),
+    cap: f({ form: 'dome', height: 4, run: 20 }), talus: f({ share: 0.45, angle: 34, fan: 0.3 }), clefts: f({ per: 0, width: f([10, 20]), reach: 0.5 }),
+    blocks: f([B([-360, 330], [44, 26], 20, 12, 2), B([350, -340], [40, 30], 70, 14, 2), B([-380, -120], [26, 40], 0, 10, 2), B([330, 120], [30, 22], 40, 9, 2)]),
+    outcrops: f({ count: 10, height: f([1.5, 3]), size: f([10, 22]), within: 360 }),
+    pools: f([f({ at: f([-150, -110]), radius: 18, depth: 5 }), f({ at: f([60, 120]), radius: 16, depth: 5 }), f({ at: f([150, -110]), radius: 16, depth: 4 })]),
+    strew: f({ count: 50, size: f([1, 3]) }), scatter: f({ clusters: 10, per: f([2, 5]), spread: 14, size: f([1, 3]) }),
+    face: f({ beds: f([5, 10]), bulge: 0, undercut: 0, grain: 0 }) }),
   // an oasis: a lake on the floor of a wadi among jebels, a pool beside it
   oasis: f({ ...CARD, id: 'oasis', reads: 'A lake on a wadi\'s floor among sheer jebels, a pool beside it',
     blocks: f([

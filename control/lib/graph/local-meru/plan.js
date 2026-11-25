@@ -38,6 +38,7 @@ import { readRelief } from '../noise/relief.js';
 import { readGround } from './ground.js';
 import { readCrystals } from './crystals.js';
 import { readMassif } from './massif.js';
+import { readWorks } from './works.js';
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5 + 0;
 const P = (p) => p.map(r5);
@@ -67,7 +68,7 @@ export const LOCAL_MERU = Object.freeze({
   tiers: [{ form: 'mound' }, { form: 'tower' }],
 });
 
-const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1, island: 1, shading: 1, relief: 1, ground: 1, crystals: 1, massif: 1 };
+const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1, island: 1, shading: 1, relief: 1, ground: 1, crystals: 1, massif: 1, works: 1 };
 
 /**
  * ISLAND (`island: true | { … }`, opt-in): the plain becomes an island in a sea. Past `shore` metres from the first
@@ -192,7 +193,7 @@ function tiersOfOld(recipe) {
 
 /** A recipe read against the defaults; anything it does not know is refused with what it does. */
 export function readLocalMeru(recipe = {}) {
-  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers, island, shading, relief, ground, crystals, massif)`);
+  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers, island, shading, relief, ground, crystals, massif, works)`);
   if (recipe.island !== undefined && recipe.after) throw new Error('local-meru: an island stands alone in its sea; it follows no trail (drop after, or island)');
   const old = recipe.mound || recipe.path || recipe.tower;
   if (old && recipe.tiers) throw new Error('local-meru: say the level as `tiers`, or as mound/path/tower, not both');
@@ -241,7 +242,9 @@ export function readLocalMeru(recipe = {}) {
   const island = readIsland(recipe.island), shading = readShading(recipe.shading), relief = recipe.relief === undefined || recipe.relief === false ? null : readRelief(recipe.relief);
   const ground = readGround(recipe.ground), crystals = readCrystals(recipe.crystals), massif = readMassif(recipe.massif);
   if (massif && !island) throw new Error('local-meru: a massif stands on an island (its words are laid from the island\'s middle): name island');
-  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers, ...(island ? { island } : {}), ...(shading ? { shading } : {}), ...(relief ? { relief } : {}), ...(ground ? { ground } : {}), ...(crystals ? { crystals } : {}), ...(massif ? { massif } : {}) };
+  const works = readWorks(recipe.works);
+  if (works && !island) throw new Error('local-meru: the works stand on an island (their words are laid from the island\'s middle): name island');
+  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers, ...(island ? { island } : {}), ...(shading ? { shading } : {}), ...(relief ? { relief } : {}), ...(ground ? { ground } : {}), ...(crystals ? { crystals } : {}), ...(massif ? { massif } : {}), ...(works ? { works } : {}) };
 }
 
 /**

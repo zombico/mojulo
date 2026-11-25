@@ -121,7 +121,7 @@ export function operationCast(op, ends) {
       if (g.kind === 'frame') {
         const fig = `frame-${g.build}${g.palette ? `-${g.palette}` : ''}`;
         figures[fig] = { assault: { build: g.build, palette: g.palette ?? 'ash' } };
-        const e = frameEntity(g.build, { id: m.id, at: m.at, heading: toward(m.at), team: 'foes', mind: { range: OPERATION.frameRange }, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound });
+        const e = frameEntity(g.build, { id: m.id, at: m.at, heading: toward(m.at), team: 'foes', mind: { range: OPERATION.frameRange }, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
         entities.push({ ...e, ...(dormant ? { dormant: true } : {}) });
         continue;
       }

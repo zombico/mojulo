@@ -91,4 +91,22 @@ describe('the assault frame', () => {
     expect(Math.hypot(F.transform.pos[0] - 300, F.transform.pos[1])).toBeGreaterThan(30);
     expect(JSON.stringify(a.byId.f.transform)).toBe(JSON.stringify(b.byId.f.transform));
   });
+
+  it('under a roof is stopped by the works\' walls, walks under a deck, and looks for its ground from a step, not the sky', () => {
+    const wall = { min: [30, -50, -1], max: [40, 50, 60] }, deck = { min: [-200, -50, 14], max: [-20, 50, 16] };
+    const indoor = (colliders) => E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true, probe: 3, collide: { radius: 4, height: 9, step: 2 } })], pilot: 'p', colliders });
+    // (the wall: a frame boosting at it stops a body's radius short of it)
+    const st = indoor([wall]);
+    run(st, { forward: 1, boost: 1 }, 300);
+    expect(st.byId.p.transform.pos[0]).toBeLessThan(30 - 3.9);
+    // (a frame that names no body to stop passes, as it always did)
+    const free = run(E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true })], pilot: 'p', colliders: [wall] }), { forward: 1, boost: 1 }, 300);
+    expect(free.byId.p.transform.pos[0]).toBeGreaterThan(45);
+    // (the deck 14 m up: walked under, its probe a step over its feet never finding the deck over its head)
+    const roofed = { ground: ([x, y, z]) => (x > -200 && x < -20 && z >= 16 ? 16 : 0) }, under = indoor([deck]);
+    under.byId.p.transform.heading = Math.PI;
+    for (let i = 0; i < 240; i++) E.stepWorld(under, { forward: 1 }, DT, roofed);
+    expect(under.byId.p.transform.pos[0]).toBeLessThan(-30);
+    expect(under.byId.p.transform.pos[2]).toBeLessThan(1);
+  });
 });

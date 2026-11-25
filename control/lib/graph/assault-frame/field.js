@@ -18,19 +18,21 @@
  *                              stands on (the land as the page lays it, with none of its faces built: local-meru/scene.js
  *                              localMeruHeight; or the water's sheet where the land lies under it: a frame hovers, it never
  *                              goes under), the land alone, where it is water, the water's line, its middle and the
- *                              half-width a frame keeps to; kept per cube
+ *                              half-width a frame keeps to; a works' field's (indoor) its works' colliders and decks;
+ *                              kept per cube
  *
  * Pure: the same form, the same field.
  */
 import { readGeocube, lowerGeocube } from '../era/geocube.js';
 import { localMeruHeight } from '../local-meru/scene.js';
 import { FIELD_GEOCUBES } from './geocubes.js';
+import { readWorks, worksFaces } from '../local-meru/works.js';
 
 const f = Object.freeze;
 // (the island a field is grown from: its land 4 m quads, broad, a narrow strand, its rim raised the whole way round so
 // the field reads as a bowl of country and its sea is never seen; open, its ground rolling right round, no trail's apron)
 // (the massif fields' forms and the battlefield cube each is cut from)
-export const MASSIF_FORMS = f({ wadi: 'sandstone-wadi', gorge: 'sandstone-gorge', scree: 'scree-scarp', craters: 'crater-plain', oasis: 'wadi-oasis' });
+export const MASSIF_FORMS = f({ wadi: 'sandstone-wadi', gorge: 'sandstone-gorge', scree: 'scree-scarp', craters: 'crater-plain', oasis: 'wadi-oasis', smelter: 'smelter-hall' });
 const ISLAND = f({ geology: true, walk: 'none', open: true, seabed: 'merged', cell: 4, scale: 3, cover: 'soil', beach: 10, sea: 2.1, depth: 9, shore: 560 });
 export const FRAME_FIELDS = f({
   plain: f({
@@ -81,7 +83,10 @@ export function frameField(cube) {
   // (a frame never goes under water: it hovers on it, so the ground it stands on is the land or the water's sheet over it,
   // as the page's probe finds the sea's surface first; `waterAt` says where it is water, for the hover's effects)
   const sea = H.island.sea, land = H.heightAt;
-  const out = { heightAt: (x, y) => Math.max(land(x, y), sea), landAt: land, waterAt: (x, y) => land(x, y) < sea, sea, centre: H.centre.map((v) => Math.round(v * 100) / 100), half };
+  // (a works' field, under a roof: indoor, its works' solids what stops a frame, local-meru/works.js)
+  const W = C.outside.works ? worksFaces(readWorks(C.outside.works), H.centre, land) : null;
+  const out = { heightAt: (x, y) => Math.max(land(x, y), sea), landAt: land, waterAt: (x, y) => land(x, y) < sea, sea, centre: H.centre.map((v) => Math.round(v * 100) / 100), half,
+    ...(W ? { indoor: true, colliders: W.colliders, decks: W.decks } : {}) };
   FIELDS.set(key, out);
   return out;
 }

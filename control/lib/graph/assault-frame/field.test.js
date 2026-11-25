@@ -54,4 +54,13 @@ describe('the frame field', () => {
     expect(F.landAt(...wet)).toBeLessThan(F.sea);
     expect(F.heightAt(...wet)).toBe(F.sea);
   });
+
+  it('under a roof (a works\' field): indoor, its works\' walls and machines what stop a frame', () => {
+    const form = Object.keys(MASSIF_FORMS).find((f) => FIELD_GEOCUBES[MASSIF_FORMS[f]].outside.works);
+    const F = frameField(frameFieldCube(form)), C = readGeocube(frameFieldCube(form));
+    expect(F.indoor).toBe(true);
+    expect(F.colliders.length).toBeGreaterThan(4);
+    expect(C.light.interior).toBeTruthy();
+    expect(F.indoor && frameField(frameFieldCube(Object.keys(FRAME_FIELDS)[0])).indoor).toBeFalsy();
+  });
 });

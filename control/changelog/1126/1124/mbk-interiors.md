@@ -1,0 +1,49 @@
+### Mech Battle Kai interiors: a smelter hall a frame fights through, lit by its own lamps and furnaces
+
+Enclosed fields at a frame's scale. The first is a steelworks' melt shop half a kilometre across. It has no sky: its
+light is the place's own and its background a smoky void. It stays in the seventh generation's form render, so its
+steel, concrete and slag are lit as materials. Its materials are the field's own floor: the land's layers re-dressed,
+so everything the land does (bands, wear, sections, stochastic tiling, rubble) works on them.
+
+- **The land's materials** (`form/land-materials.js`, a geocube's `outside.materials`, opt-in).
+  - A set dresses the four natural layers in a works' cuts, each with its tile, its cube colour and how metal it is:
+    `foundry` (riveted steel plate, black slag, slabbed concrete, settled ash), `refinery` (tread plate, gravel,
+    concrete pads, oily grime) and `hangar` (wall plate, a sealed epoxy floor, grit).
+  - The page blends each layer's metalness and roughness by its weights, and the metal reflects the place's
+    environment.
+  - Absent, the land is byte-identical.
+- **The interior's light** (`form/interior-light.js`, a geocube's `light.interior`, opt-in).
+  - A land under a roof has no sky: it has a void, a smoke haze, high-bay lamps and the glow of what burns.
+  - The lamps are the works' own (hung from the trusses' bottom chords) or rows under the roof. The page hangs the
+    nearest the middle as point lights, with the furnaces' and ladles' glows.
+  - The cube's sun stays as the high-bay field's overhead key, at a third of a sun, so decks still throw shadows.
+  - The metal reflects an interior environment, never a sky: a dark hall, the lamp rows a band overhead, the glow low
+    down. World-scene drops the page's sky and sets its background to the void.
+- **The works** (`local-meru/works.js`, a local meru island's `works`, a geocube's `outside.works`, opt-in). An
+  industrial interior built over the land, everything a height grid cannot draw:
+  - the hall's walls;
+  - its roof on lattice trusses (top and bottom chords, verticals and Pratt diagonals, purlins between) and the
+    column lines under them;
+  - a bridge crane on its rails;
+  - operating decks on legs with ramps up to them;
+  - furnaces under their hoods and stacks, their mouths glowing;
+  - tanks on concrete footings, ladles of molten metal, pipe runs on supports.
+  - **Wire scaffolds** are towers of tube in bays, with standards, ledgers and braces. Each lift is a floor of open
+    grating, a lattice of bars a frame sees through, stacked a frame's height apart, with guard rails and a barred ramp
+    up to the first lift. Under each floor lies a plate a frame stands on (`works:floor`), ray-cast and never drawn
+    (the land's `ghosts`).
+  - Its faces take the land's own classes, so the materials and the light reach them: steel is the rock layer,
+    concrete the soil, and what glows (`works:glow`) keeps its own fill.
+  - It gives the page its lamps and glows, its decks, and what stops a body.
+- **The smelter hall** (`assault-frame/geocubes.js` `smelter-hall`, the field's form `smelter`).
+  - The foundry's materials and colours under the interior light, with the smelter works on the `smelter` massif
+    card's floor: slag heaps at their repose, concrete plinths, casting pits.
+  - Steel is blackened low by soot, panels have their own tones, rust runs from the seams.
+  - Slag rubble; stochastic tiling.
+- **A frame under a roof.**
+  - On an indoor field a frame looks for its ground from a step over its feet (`rule.probe`), not from 60 m up, so
+    it walks under a deck or a scaffold floor and lands on one it jumps or ramps onto.
+  - The frame rule stops at what the world's colliders stand (`resolveBlocking`, when its rule names a body): the
+    works' walls, columns, furnaces, tanks and ladles, and the decks' slabs, walked under and stood on.
+  - The level carries the works' colliders (`frameField` `indoor`, `colliders`).
+  - A frame that names no body moves as it always did.

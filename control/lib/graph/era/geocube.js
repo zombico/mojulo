@@ -9,7 +9,8 @@
  *             solved day palette's light; the reference keeps the sun's arc and strength; era/cube-light.js reads it
  *             as the hue the palette's light is solved in, the hour's key where it is absent), the share of its light
  *             the sky gives (`skyShare`, 0–1: the form render's, era/cube-light.js; left out, the look's own, raised
- *             to meet the sky the cube paints), and the cast's `rim`
+ *             to meet the sky the cube paints), the `interior` (a land under a roof, no sky: its void, its smoke haze,
+ *             its high-bay lamps and its glow, form/interior-light.js), and the cast's `rim`
  *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
  *             the reference's horizon at the cast light's own strength), and the night's register (`night`:
              stylized, the night reference's deep blue, unless said; realistic, the colour drained by the dark, a pale
@@ -49,8 +50,12 @@
  *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
  *             count?, size?, glow?, seed? }, local-meru/crystals.js); `massif` (optional, an island's): its standing rock, sheer
  *             blocks stepped by beds, gorges, talus and water carved under the floor (a card or { from?, … },
- *             local-meru/massif.js); `rock` (optional): the colour its rock takes in the form render, by its beds' heights, each
+ *             local-meru/massif.js); `works` (optional, an island's): an industrial interior over the land, its hall and
+ *             roof, crane, decks and ramps, furnaces, tanks, ladles and pipes (a card or { from?, … }, local-meru/works.js);
+ *             `rock` (optional): the colour its rock takes in the form render, by its beds' heights, each
  *             thin bed's own tone and the varnish streaked down its walls ({ beds, blend?, thin?, varnish? }, form/rock-colour.js);
+ *             `materials` (optional): the land's four natural layers dressed as a works' materials, steel plate, slag,
+ *             concrete, ash (a set's name or { from?, rock?, scree?, soil?, sand? }, form/land-materials.js);
  *             `rubble` (optional): the scree's stones at the cube's own scale ({ sizes: [lo, hi] radii in metres, density per
  *             square metre of scree }, form/land-stones.js: a frame's knee-high blocks where a walker's pebbles lie);
  *             `tiling` (optional): 'stochastic', the form render's layer tiles (rock, scree, soil, sand) never repeating in a
@@ -148,7 +153,10 @@ import { readGround } from '../local-meru/ground.js';
 import { readGround as readTrailGround } from './out-ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
 import { readMassif } from '../local-meru/massif.js';
+import { readWorks } from '../local-meru/works.js';
 import { readRockColour } from '../form/rock-colour.js';
+import { readMaterials } from '../form/land-materials.js';
+import { readInterior } from '../form/interior-light.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
@@ -562,7 +570,8 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade', 'heavens'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade', 'heavens', 'interior'], 'light');
+  if (c.light.interior !== undefined) { try { readInterior(c.light.interior); } catch (e) { no(e.message); } }
   // (what hangs in its sky, era/heavens.js: no air and the stars by day, the sun's width, a companion world, rings)
   readHeavens(c.light.heavens, no);
   if (c.light.night !== undefined && !NIGHT_REGISTERS.includes(c.light.night)) no(`light.night is the night's register: ${NIGHT_REGISTERS.join(' or ')} (stylized, the reference's own deep blue, unless said; realistic, the colour drained by the dark, a pale moon, near-neutral greys)`);
@@ -649,7 +658,7 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'rock', 'tiling', 'rubble', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'works', 'rock', 'tiling', 'rubble', 'materials', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
   if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
@@ -657,7 +666,9 @@ export function readGeocube(spec) {
   if (c.outside.ground !== undefined) groundOrNo(c.outside.ground, 'outside.ground');
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.massif !== undefined) { try { readMassif(c.outside.massif); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.works !== undefined) { try { readWorks(c.outside.works); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.rock !== undefined) { try { readRockColour(c.outside.rock); } catch (e) { no(`outside.${e.message}`); } }
+  if (c.outside.materials !== undefined) { try { readMaterials(c.outside.materials); } catch (e) { no(`outside.${e.message}`); } }
   if (c.outside.rubble !== undefined) {
     const R = c.outside.rubble;
     if (!isObj(R) || Object.keys(R).some((k) => !['sizes', 'density'].includes(k))) no('outside.rubble is { sizes: [lo, hi], density }: the scree\'s stones at the cube\'s scale (radii in metres, stones per square metre of scree)');
@@ -1112,10 +1123,10 @@ function outsideOf(cube, base, sw, land, lookCard0) {
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land, made: { ...sw.made, ...cubeMade(cube) } } });
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
-  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals, Mf = cube.outside.massif;
+  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals, Mf = cube.outside.massif, Wk = cube.outside.works;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
     ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own, ...(cube.grit !== undefined ? { grit: cube.grit } : {}) } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
-    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}), ...(Mf !== undefined && Mf !== false ? { massif: Mf } : {}) } };
+    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}), ...(Mf !== undefined && Mf !== false ? { massif: Mf } : {}), ...(Wk !== undefined && Wk !== false ? { works: Wk } : {}) } };
 }
 
 /**
