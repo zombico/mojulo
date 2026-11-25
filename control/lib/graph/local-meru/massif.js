@@ -50,6 +50,10 @@
  *   scatter  { clusters, per: [lo, hi], spread, size: [lo, hi] }: boulders out on the open floor in clusters (a frame's cover,
  *            the ground in front of it at its scale): `clusters` places laid by the dice off the rock and the water, each
  *            `per` boulders within `spread` metres, their size the scene's boulder units (most small, a few large)
+ *   horizon  { count, radius, length: [lo, hi], depth: [lo, hi], height: [lo, hi] }: the field's skyline, escarpments
+ *            standing round it `radius` metres out (an island's rim, not a wall: the jebels and mesas the floor runs up to),
+ *            each `length` metres along the ring (its half), `depth` across it, its own height; laid by the dice round the
+ *            ring so they overlap into a broken skyline with its gaps, of the same rock as the rest
  *   craters  { count, diameter: [lo, hi], slope?, fresh, within, at? }: meteorite impacts on the floor. Each a simple crater, a bowl
  *            a fifth of its diameter deep under a raised rim (a twenty-fifth), its ejecta thinning as the cube of the
  *            distance out to three radii. Their sizes by the power law impacts keep, `slope` its exponent (1.1: many small pits,
@@ -85,6 +89,7 @@ const CARD = f({ beds: WADI_BEDS, slope: 0.25, bench: 0.7, blocks: f([]), warp: 
   face: f({ beds: f([5, 10]), bulge: 2.2, undercut: 2.4, grain: 1.6 }),
   outcrops: f({ count: 0, height: f([1.5, 5]), size: f([6, 22]), within: 520 }), washes: f({ count: 0, width: f([8, 18]), depth: f([0.8, 1.6]) }),
   scatter: f({ clusters: 0, per: f([3, 8]), spread: 24, size: f([2, 5]) }),
+  horizon: f({ count: 0, radius: 545, length: f([90, 170]), depth: f([40, 70]), height: f([50, 140]) }),
   craters: f({ count: 0, diameter: f([10, 120]), slope: 1.1, fresh: 0.4, within: 520, at: f([]), clusters: f({ count: 0, members: f([6, 14]), length: f([60, 160]), width: f([16, 40]), diameter: f([8, 26]), fresh: 0.6 }) }) });
 
 // how far a riser runs to its shoulder at most (metres): sheer at the foot, its top rounded over this
@@ -104,6 +109,7 @@ export const MASSIF_CARDS = f({
     // (the floor between: low ledges of slickrock and two dry washes across it)
     outcrops: f({ count: 30, height: f([2.5, 7]), size: f([8, 26]), within: 480 }), washes: f({ count: 2, width: f([10, 20]), depth: f([1, 1.7]) }),
     scatter: f({ clusters: 26, per: f([3, 8]), spread: 22, size: f([2, 5]) }),
+    horizon: f({ count: 14, radius: 560, length: f([110, 180]), depth: f([40, 70]), height: f([60, 140]) }),
     craters: f({ count: 14, diameter: f([10, 70]), slope: 1.1, fresh: 0.4, within: 480, at: f([]), clusters: f({ count: 2, members: f([6, 12]), length: f([60, 140]), width: f([16, 32]), diameter: f([8, 24]), fresh: 0.6 }) }) }),
   // a gorge: a plateau cut through by one winding canyon the field runs down, side canyons into it, a river on its floor
   gorge: f({ ...CARD, id: 'gorge', reads: 'A plateau cut by a winding canyon, side canyons into it, a river down its floor',
@@ -127,6 +133,7 @@ export const MASSIF_CARDS = f({
     ]),
     talus: f({ share: 0.34, angle: 33, fan: 0.9 }), outcrops: f({ count: 26, height: f([2.5, 5]), size: f([6, 18]), within: 460 }), washes: f({ count: 3, width: f([8, 16]), depth: f([0.8, 1.4]) }),
     scatter: f({ clusters: 40, per: f([4, 10]), spread: 26, size: f([2, 5]) }),
+    horizon: f({ count: 10, radius: 560, length: f([110, 180]), depth: f([40, 70]), height: f([50, 110]) }),
     craters: f({ count: 22, diameter: f([10, 90]), slope: 1.1, fresh: 0.5, within: 460, at: f([]), clusters: f({ count: 2, members: f([6, 12]), length: f([60, 140]), width: f([16, 32]), diameter: f([8, 24]), fresh: 0.6 }) }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }),
     // (a scarp shedding its rock: thick beds, broken more than bedded)
     face: f({ beds: f([6, 14]), bulge: 1.6, undercut: 1.6, grain: 2.4 }) }),
@@ -138,6 +145,7 @@ export const MASSIF_CARDS = f({
     cap: f({ form: 'flat', height: 0, run: 40 }), clefts: f({ per: 0.8, width: f([10, 20]), reach: 0.6 }),
     outcrops: f({ count: 18, height: f([2, 5]), size: f([6, 18]), within: 480 }),
     scatter: f({ clusters: 18, per: f([3, 7]), spread: 20, size: f([2, 4]) }),
+    horizon: f({ count: 13, radius: 565, length: f([100, 180]), depth: f([35, 60]), height: f([40, 90]) }),
     craters: f({ count: 60, diameter: f([10, 150]), slope: 1.0, fresh: 0.35, within: 520,
       at: f([f({ at: f([110, 150]), diameter: 240, fresh: 0.95 }), f({ at: f([-230, -150]), diameter: 210, fresh: 0.12 })]),
       // (and strewn fields, broken meteorites' craters struck together, the largest down-range)
@@ -150,7 +158,8 @@ export const MASSIF_CARDS = f({
     ]),
     pools: f([f({ at: f([40, 60]), radius: 150, depth: 6 }), f({ at: f([-150, -150]), radius: 46, depth: 4 })]),
     outcrops: f({ count: 22, height: f([2.5, 6]), size: f([8, 22]), within: 480 }), washes: f({ count: 1, width: f([10, 16]), depth: f([1, 1.5]) }),
-    scatter: f({ clusters: 20, per: f([3, 7]), spread: 20, size: f([2, 5]) }) }),
+    scatter: f({ clusters: 20, per: f([3, 7]), spread: 20, size: f([2, 5]) }),
+    horizon: f({ count: 14, radius: 560, length: f([110, 180]), depth: f([40, 70]), height: f([60, 130]) }) }),
 });
 
 const WORDS = ['id', 'reads', 'from', ...Object.keys(CARD)];
@@ -236,6 +245,13 @@ export function readMassif(spec) {
   range(M.scatter.per, 1, 30, '.scatter.per is [lo, hi] boulders a cluster, 1..30');
   num(M.scatter.spread, 2, 200, '.scatter.spread is metres a cluster spreads, 2..200');
   range(M.scatter.size, 1, 8, '.scatter.size is [lo, hi] boulder units, 1..8');
+  M.horizon = { ...CARD.horizon, ...(M.horizon ?? {}) };
+  if (!isObj(M.horizon)) bad('.horizon is { count, radius, length, depth, height }');
+  num(M.horizon.count, 0, 80, '.horizon.count is 0..80');
+  num(M.horizon.radius, 50, 4000, '.horizon.radius is metres from the middle, 50..4000');
+  range(M.horizon.length, 10, 2000, '.horizon.length is [lo, hi] metres along the ring (half), 10..2000');
+  range(M.horizon.depth, 5, 1000, '.horizon.depth is [lo, hi] metres across it (half), 5..1000');
+  range(M.horizon.height, 5, 400, '.horizon.height is [lo, hi] metres, 5..400');
   if (!isObj(M.craters)) bad('.craters is { count, diameter: [lo, hi], fresh, within, at? }');
   // (a document's craters over the card's: the words it leaves out its starter's)
   M.craters = { ...CARD.craters, ...M.craters };
@@ -339,8 +355,16 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     if (!M.blocks.every((b) => clear(b.at, Math.max(...b.size) + half + 20)) || !M.pools.every((q) => clear(q.at, q.radius * 1.3 + half)) || !laid.every((q) => clear(q.at, Math.max(...q.size) + half + 6))) continue;
     laid.push({ at, size: [half, half * (0.45 + 0.5 * hash3(k, 59, sd + 1411))], dir: 360 * hash3(k, 61, sd + 1413), height: r3(height), square: 2 + 3 * hash3(k, 67, sd + 1417) });
   }
+  // the HORIZON: escarpments round the ring, each turned along it, spaced by the dice so they overlap into a skyline
+  const HZ = M.horizon, ring = [];
+  for (let k = 0, a = 2 * Math.PI * hash3(0, 301, sd + 2101); k < HZ.count; k++) {
+    const len = HZ.length[0] + (HZ.length[1] - HZ.length[0]) * hash3(k, 307, sd + 2103), dep = HZ.depth[0] + (HZ.depth[1] - HZ.depth[0]) * hash3(k, 311, sd + 2105);
+    const r = HZ.radius + dep * 0.5 * (hash3(k, 313, sd + 2107) - 0.3), at = [r * Math.cos(a), r * Math.sin(a)];
+    ring.push({ at, size: [len, dep], dir: (a * 180) / Math.PI + 90 + 14 * (hash3(k, 317, sd + 2109) - 0.5), height: r3(HZ.height[0] + (HZ.height[1] - HZ.height[0]) * hash3(k, 331, sd + 2111)), square: 2.6 + 1.2 * hash3(k, 337, sd + 2113) });
+    a += (2 * Math.PI) / HZ.count * (0.7 + 0.6 * hash3(k, 347, sd + 2117));
+  }
   // each block: its frame, and the box it reaches (its outline's wander and its talus)
-  const blocks = [...M.blocks, ...laid].map((b, i) => {
+  const blocks = [...M.blocks, ...laid, ...ring].map((b, i) => {
     const a = ((b.dir ?? 0) * Math.PI) / 180, u = [Math.cos(a), Math.sin(a)], reach = Math.max(...b.size) + M.warp.strength * 1.5 + M.flute.depth + (M.talus.share * b.height * 2) / tan + 4;
     return { ...b, i, u, n: b.square ?? 3, c: [cx + b.at[0], cy + b.at[1]], reach };
   });

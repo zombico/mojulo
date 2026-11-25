@@ -23,7 +23,8 @@ const f = Object.freeze;
 // (the island a field is grown from: its land in 4 m quads, its rim raised all round so its sea is never seen; open, its
 // ground rolling right round with no trail's apron; its sea line 2.1 m under the floor, so a hollow carved deeper is water)
 // (no geology: the massif is the rock, and the joints would break the floor's own dunes into rock)
-const ISLAND = f({ geology: false, walk: 'none', open: true, seabed: 'merged', cell: 4, scale: 3, cover: 'soil', beach: 10, sea: 2.1, depth: 9, shore: 600, high: f({ height: 40, span: 360 }) });
+// (its rim a low far rise, not a wall: the skyline is the massif's horizon, its escarpments round the field)
+const ISLAND = f({ geology: false, walk: 'none', open: true, seabed: 'merged', cell: 4, scale: 3, cover: 'soil', beach: 10, sea: 2.1, depth: 9, shore: 600, high: f({ height: 12, span: 360 }) });
 // (a dry field's sea far under its floor: a crater's bowl or a wash cut deep never fills; its rim still hides it)
 const DRY_ISLAND = f({ ...ISLAND, sea: 60 });
 // (a local meru stands on a tier: a low swell at the middle, under the floor's own roll)

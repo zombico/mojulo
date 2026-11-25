@@ -31,6 +31,10 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     - **washes**: dry washes wandering across the floor, 1 to 1.7 m deep and never under the sea line, their beds laid
       as gravel (scree).
     - **scatter**: clusters of boulders 3 to 7 m across out on the open floor, off the rock and the water.
+  - **horizon**: the field's skyline. Escarpments stand round it just inside its shore, each long along the ring and
+    short across it, each its own height, laid by the dice so they overlap into a broken skyline with its gaps. They
+    are the same rock as the rest. The battlefield cubes' island rim is now a low far rise, so the pale ring wall it
+    was is gone.
   - **craters**: meteorite impacts on the floor. Each is a simple crater: a bowl a fifth of its diameter deep under a
     raised rim, its ejecta thinning as the cube of the distance out to three radii.
     - Sizes follow the impacts' power law (`slope`): many small pits, a fair few of every size between, a few great

@@ -133,6 +133,18 @@ describe('the massif', () => {
     }
   });
 
+  it('rings its field with escarpments for a skyline: rock all round the ring, broken by its gaps', () => {
+    const M = one({ blocks: [], horizon: { count: 12, radius: 500, length: [110, 160], depth: [40, 60], height: [60, 100] }, outcrops: { count: 0, height: [2, 3], size: [6, 8], within: 400 }, strew: { count: 0, size: [2, 3] } });
+    const F = massifField(M, [0, 0], 3);
+    let up = 0, n = 0;
+    for (let a = 0; a < 2 * Math.PI; a += Math.PI / 90) { n++; if (F.rock(500 * Math.cos(a), 500 * Math.sin(a)) > 30) up++; }
+    // (most of the ring stands, but not all of it: a skyline with gaps, not a wall)
+    expect(up / n).toBeGreaterThan(0.5);
+    expect(up / n).toBeLessThan(1);
+    // (and the floor inside it open)
+    expect(F.rock(0, 0)).toBe(0);
+  });
+
   it('stands only on an island, and a meru that names none reads as it always did', () => {
     expect(() => readLocalMeru({ massif: 'wadi' })).toThrow(/stands on an island/);
     expect(readLocalMeru({ island: { walk: 'none' }, massif: 'wadi' }).massif.id).toBe('wadi');
