@@ -55,7 +55,10 @@ describe('a city\'s massing in the form render', () => {
     expect(F.filter((r) => !pane(r)).map((r) => [r.group, r.transforms.length])).toEqual(front(paint).map((r) => [r.group, r.transforms.length]));
     const n = (L, re) => L.filter((r) => re.test(r.group)).reduce((a, r) => a + r.transforms.length, 0);
     expect(n(F, /front-win-pane/)).toBe(n(front(paint), /front-win-unit/));
-    expect(F.every((r) => r.template.every((f) => f.cornerLight !== undefined && f.sunShare !== undefined))).toBe(true);
+    // (every piece baked but a shop's lit interior, which carries its own light: frontage.js `interior`)
+    const own = (r) => r.group.startsWith('geocity:front-interior');
+    expect(F.filter((r) => !own(r)).every((r) => r.template.every((f) => f.cornerLight !== undefined && f.sunShare !== undefined))).toBe(true);
+    expect(F.filter(own).every((r) => r.template.every((f) => f.cornerLight === undefined))).toBe(true);
     // (the same piece each way: the same colours, a different light)
     const byGroup = new Map();
     for (const r of F) { if (!byGroup.has(r.group)) byGroup.set(r.group, []); byGroup.get(r.group).push(r); }

@@ -65,3 +65,9 @@
   on the sidewalk: sandwich boards, planters by the door, a cafe table under an umbrella, crates, bags out for
   collection. Downtown streets get manhole covers, oil stains where cars park, utility cabinets, mailboxes and the odd
   vendor's cart. Each is placed by its own position, so nothing else in the city moves.
+- Buildings no longer share one wall colour: each building's walls are a little lighter or darker and warmer or
+  cooler than its neighbours', and some wear brick where their neighbours are stone (or the other way round).
+- About a third of open shops show a lit interior through their glass (a shelf, a counter, someone behind it), lit by
+  its own lamps, so it glows the same at noon and at night.
+- Roadworks: some streets and main roads have a crew's works pickup or van (or a delivery truck) standing in the kerb
+  lane, a barrier behind it and cones tapered round it.

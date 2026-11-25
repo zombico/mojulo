@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { assembleGeocityScene, mouthsOf } from './scene.js';
 import { designGeocity } from './design.js';
 import { lotRoofPlan } from './rooftop.js';
-import { frontsOf } from './frontage.js';
+import { frontsOf, frontageTemplates } from './frontage.js';
 
 const geocity = { metro: { from: 'lakeshore', rings: { core: 160, frame: 330 } }, extent: [900, 800], water: { sides: ['s'], depth: 100 }, core: [0.5, 0.45], evoke: 'neighbourhood', at: 'core' };
 const M = { kind: 'geocube', cube: 'valley-morning', show: 'geocity', seed: 2, hour: 'noon', geocity };
@@ -56,10 +56,28 @@ describe('a downtown\'s detail', () => {
     const kinds = new Set(lived.map((p) => p.key.split(/[-:]/)[0]));
     for (const k of ['blind', 'curtain', 'life']) expect(kinds.has(k), k).toBe(true);
     // (none where it is not asked, and the rest of the wall as it was: nothing else moved)
-    expect(plain.some((p) => /^(blind|curtain|ac|shutter|life)[-:]/.test(p.key))).toBe(false);
-    expect(lived.filter((p) => !/^(blind|curtain|ac|shutter|life)[-:]/.test(p.key))).toEqual(plain);
+    expect(plain.some((p) => /^(blind|curtain|ac|shutter|interior|life)[-:]/.test(p.key))).toBe(false);
+    expect(lived.filter((p) => !/^(blind|curtain|ac|shutter|interior|life)[-:]/.test(p.key))).toEqual(plain);
     // (what a shop puts out stands out from its wall, on the walk's side of it)
     expect(lived.filter((p) => p.key.startsWith('life:')).every((p) => p.pos[1] < 0)).toBe(true);
     expect(JSON.stringify(frontsOf(wall, { ...spec, lived: true }, R))).toBe(JSON.stringify(lived));
   });
+
+  it('lights some shops\' interiors by their own lamps: a lit room\'s glow never shaded by the day', () => {
+    const wall = { facing: 's', a: [0, 0], L: 200, z0: 0 }, spec = { storeys: 2, floorH: 3.2, use: 'mixed', ground: 'shops', lived: true, palette: { frame: ['#333333'], shop: ['#444444'], sign: ['#aa3322'], awning: ['#225533'], door: ['#222222'], rail: ['#111111'] } };
+    expect(frontsOf(wall, spec, () => 0.5).some((p) => p.key.startsWith('interior-lit'))).toBe(true);
+    const dim = { ambient: 0.1, diffuse: 0.1, toLight: [0, 0, 1] }, bright = { ambient: 0.9, diffuse: 0.6, toLight: [0, -1, 0] };
+    expect(frontageTemplates(dim)['interior-lit:s'].map((f) => f.fill)).toEqual(frontageTemplates(bright)['interior-lit:s'].map((f) => f.fill));
+  });
+});
+
+describe('a city\'s walls and its works', () => {
+  it('varies its buildings\' walls each by its own place, and lays work zones: a crew\'s vehicle in a kerb lane, cones round it', () => {
+    const P = assembleGeocityScene(M);
+    expect(P.geocity.counts.works ?? 0).toBeGreaterThan(0);
+    expect((P.repeats ?? []).some((r) => r.group === 'geocity:cone')).toBe(true);
+    // (the massing's walls: not one paint a group any more)
+    const walls = P.faces.filter((f) => /^geocity:(tower|podium|midrise|slab|lowrise)$/.test(f.group) && Math.abs(f.normal[2]) < 0.3).map((f) => f.fill);
+    expect(new Set(walls).size).toBeGreaterThan(3);
+  }, 120_000);
 });

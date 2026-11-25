@@ -51,10 +51,12 @@ export const FRONTAGE = Object.freeze({
   blade: 0.4,
   // A LIVED-IN WALL's shares (`lived`): a window with its blind down, with curtains, with an air conditioner (a home's,
   // over its ground floor); a shop shut, a shut one tagged; what a shop puts out on its walk: a sandwich board, two
-  // planters at its door, a cafe's table, crates by its door, its bags at the kerb (each its place's own hash)
-  lived: { blind: 0.24, curtain: 0.14, ac: 0.09, shutter: 0.08, tag: 0.5, aboard: 0.3, planter: 0.2, cafe: 0.14, crates: 0.08, bags: 0.1 },
+  // planters at its door, a cafe's table, crates by its door, its bags at the kerb, its interior lit (each its place's own
+  // hash)
+  lived: { blind: 0.24, curtain: 0.14, ac: 0.09, shutter: 0.08, tag: 0.5, aboard: 0.3, planter: 0.2, cafe: 0.14, crates: 0.08, bags: 0.1, lit: 0.38 },
 });
 // a lived-in window's and a shutter's colours (`lived`): blinds pale, curtains warmer, a tag's spray
+const GLOWS = Object.freeze(['#f6dcaa', '#f8ecd2', '#eef4f6', '#f4c98c', '#fbe3b8']);
 const BLINDS = Object.freeze(['#ece6d8', '#ddd8cb', '#f3f0e8', '#cdbf9f', '#bcc6c9']), CURTAINS = Object.freeze(['#9a3b35', '#d8c6a3', '#3f5a75', '#e6dccb', '#6f7f4a', '#7a4f6d']), TAGS = Object.freeze(['#d0386f', '#2f8fd1', '#e2c23a', '#3fae5a', '#e36a2c']);
 // a window block's bays and storeys, and its nominal bay (m): stretched to a wall's bay and storey
 const WIN_BLOCK = [4, 2], WIN_BAY = 3.4;
@@ -118,6 +120,17 @@ const PIECES = {
     Q([[-2.2, 0.09, 0.05], [2.2, 0.09, 0.05], [2.2, 0.09, 3.0], [-2.2, 0.09, 3.0]], [0, 1, 0], 'shutter'), B(-2.25, 2.25, 0, 0.24, 3.0, 3.32, 'shutter'),
     Q([[-1.6, 0.096, 0.55], [0.5, 0.096, 0.55], [0.5, 0.096, 1.75], [-1.6, 0.096, 1.75]], [0, 1, 0], 'tag'),
   ],
+  // a shop's INTERIOR LIT (`lived`): its room seen through its glazing, lit by its own lamps (never the day's: its glow
+  // the same at noon and at night), a shelf along one side, its counter, someone at it, its door's glass lit too
+  interior: [
+    Q([[-2.15, 0.056, 0.6], [0.95, 0.056, 0.6], [0.95, 0.056, 2.95], [-2.15, 0.056, 2.95]], [0, 1, 0], 'glow'),
+    Q([[1.3, 0.036, 0.1], [2.15, 0.036, 0.1], [2.15, 0.036, 2.4], [1.3, 0.036, 2.4]], [0, 1, 0], 'glow'),
+    Q([[-2.1, 0.06, 0.6], [-1.25, 0.06, 0.6], [-1.25, 0.06, 2.3], [-2.1, 0.06, 2.3]], [0, 1, 0], 'goods'),
+    ...[1.1, 1.6].map((z) => Q([[-2.1, 0.062, z], [-1.25, 0.062, z], [-1.25, 0.062, z + 0.06], [-2.1, 0.062, z + 0.06]], [0, 1, 0], 'shelf')),
+    Q([[-0.3, 0.06, 0.6], [0.9, 0.06, 0.6], [0.9, 0.06, 1.55], [-0.3, 0.06, 1.55]], [0, 1, 0], 'goods'),
+    Q([[-0.85, 0.061, 0.6], [-0.5, 0.061, 0.6], [-0.5, 0.061, 2.05], [-0.85, 0.061, 2.05]], [0, 1, 0], 'goods'),
+    Q([[-0.79, 0.062, 2.05], [-0.56, 0.062, 2.05], [-0.56, 0.062, 2.3], [-0.79, 0.062, 2.3]], [0, 1, 0], 'goods'),
+  ],
   // a BLADE SIGN over a shop: a board square to the wall, out over the walk above the fascia, on two iron brackets
   blade: [
     B(-0.05, 0.05, 0.32, 1.28, 4.3, 5.9, 'blade'), B(-0.07, 0.07, 0.3, 1.3, 4.24, 4.3, 'bracket'), B(-0.07, 0.07, 0.3, 1.3, 5.9, 5.96, 'bracket'),
@@ -141,11 +154,13 @@ const PIECES = {
   ];
 }
 // each part's paint: a fixed one, or white for its instance's tint (TINTS: the parts a building or a shop paints)
-const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS, bracket: '#2a2c2f', letters: '#efe6d2', acbox: '#d3d4cf', acgrille: '#5c6063', shutter: '#8c9093' };
-const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band', 'blade', 'blind', 'curtain', 'tag']);
+const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS, bracket: '#2a2c2f', letters: '#efe6d2', acbox: '#d3d4cf', acgrille: '#5c6063', shutter: '#8c9093', goods: '#4a3f36', shelf: '#c9b18c' };
+const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band', 'blade', 'blind', 'curtain', 'tag', 'glow']);
+// (the parts that carry their own light: never shaded by the day's, a lit room's glow)
+const UNLIT = new Set(['glow', 'goods', 'shelf']);
 // each piece's parts gathered into the templates it stamps (a window one, its glass and sill tinted with its frame: a
 // metro stamps tens of thousands); a template is tinted when a part in it is
-const PART_OF_PIECE = { blade: { blade: 'board', bracket: 'bracket', letters: 'bracket' }, blind: { blind: 'blind' }, curtain: { curtain: 'curtain' }, ac: { acbox: 'unit', acgrille: 'unit' }, shutter: { shutter: 'shut', tag: 'tag' }, win: { glass: 'unit', frame: 'unit', stone: 'unit' }, shop: { shopglass: 'glass', doorglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, shopopen: { shopglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, awning: { awning: 'awning' },
+const PART_OF_PIECE = { blade: { blade: 'board', bracket: 'bracket', letters: 'bracket' }, blind: { blind: 'blind' }, curtain: { curtain: 'curtain' }, ac: { acbox: 'unit', acgrille: 'unit' }, shutter: { shutter: 'shut', tag: 'tag' }, interior: { glow: 'lit', goods: 'lit', shelf: 'lit' }, win: { glass: 'unit', frame: 'unit', stone: 'unit' }, shop: { shopglass: 'glass', doorglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, shopopen: { shopglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, awning: { awning: 'awning' },
   entry: { door: 'door', transom: 'stone', stone: 'stone', canopy: 'canopy' }, lobby: { shopglass: 'glass', frame: 'frame', canopy: 'canopy' }, balcony: { stone: 'slab', railglass: 'slab', rail: 'rail' }, band: { band: 'band' } };
 const TINTED = new Set(Object.values(PART_OF_PIECE).flatMap((m) => Object.entries(m).filter(([part]) => TINTS.has(part)).map(([, g]) => g)));
 
@@ -160,7 +175,7 @@ export function frontageTemplates(L, { frames = [], flat = false, panes = false 
   const out = {};
   for (const [f, n] of Object.entries(FACINGS)) {
     const t = [-n[1], n[0]], W = (u, v, z) => [r4(u * t[0] + v * n[0]), r4(u * t[1] + v * n[1]), r4(z)], N = (a, b, c) => [a * t[0] + b * n[0], a * t[1] + b * n[1], c];
-    const face = (corners, nl, hex) => { const nw = N(...nl), len = Math.hypot(...nw); const nn = nw.map((v) => v / len); return { corners: corners.map((c) => W(...c)), normal: nn, fill: flat ? hex : scaleHex(hex, litFactor(nn, L)) }; };
+    const face = (corners, nl, hex, own = false) => { const nw = N(...nl), len = Math.hypot(...nw); const nn = nw.map((v) => v / len); return { corners: corners.map((c) => W(...c)), normal: nn, fill: flat || own ? hex : scaleHex(hex, litFactor(nn, L)) }; };
     // (WINDOWS baked once a frame's paint, none tinted, as one or as a BLOCK of WIN_BLOCK bays by storeys: a metro stamps
     // tens of thousands, a block an eighth of them)
     const variants = (piece) => (piece === 'win' && frames.length ? frames.flatMap((hex, k) => [[1, 1], WIN_BLOCK].map(([c, r]) => ({ tag: `${k}x${c}${r}`, frame: hex, cols: c, rows: r }))) : [{ tag: '', frame: null, cols: 1, rows: 1 }]);
@@ -172,7 +187,7 @@ export function frontageTemplates(L, { frames = [], flat = false, panes = false 
       const pane = panes && piece === 'win' && it.part === 'glass';
       const group = pane ? `pane${V.tag ? V.tag.slice(V.tag.indexOf('x')) : ''}` : PART_OF_PIECE[piece][it.part] + V.tag, key = `${piece}-${group}:${f}`, hex = TINTS.has(it.part) ? V.frame ?? '#ffffff' : PART_HEX[it.part] ?? GLASS;
       const list = out[key] ?? (out[key] = []);
-      if (it.quad) { list.push(face(it.quad, it.n, hex)); continue; }
+      if (it.quad) { list.push(face(it.quad, it.n, hex, UNLIT.has(it.part))); continue; }
       const [u0, u1, v0, v1, z0, z1] = it.box;
       list.push(face([[u0, v1, z1], [u1, v1, z1], [u1, v0, z1], [u0, v0, z1]], [0, 0, 1], hex), face([[u0, v0, z0], [u1, v0, z0], [u1, v1, z0], [u0, v1, z0]], [0, 0, -1], hex),
         face([[u0, v1, z0], [u1, v1, z0], [u1, v1, z1], [u0, v1, z1]], [0, 1, 0], hex), face([[u0, v0, z0], [u0, v1, z0], [u0, v1, z1], [u0, v0, z1]], [-1, 0, 0], hex), face([[u1, v1, z0], [u1, v0, z0], [u1, v0, z1], [u1, v1, z1]], [1, 0, 0], hex));
@@ -270,6 +285,7 @@ export function frontsOf(wall, spec, R) {
           if (H('bags', u) < LV.bags * 2) life('bags', u + w / 2 - 0.6, 2.6);
         } else {
           const door = u + FRONTAGE.shop.door.u * (w / FRONTAGE.shop.w);
+          if (H('lit', u) < LV.lit) put('interior', u, zb, { lit: of(GLOWS, H('glow', u)) }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
           if (H('aboard', u) < LV.aboard) life(`aboard:${along}`, u - w / 4, 1.5);
           if (H('planter', u) < LV.planter) for (const sd of [-1, 1]) life('planter', door + sd * 0.95, 0.5);
           if (H('cafe', u) < LV.cafe) life(H('cafeg', u) < 0.5 ? 'cafe' : 'cafeg', u - w / 4, 2.4);

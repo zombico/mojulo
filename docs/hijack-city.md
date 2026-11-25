@@ -104,7 +104,13 @@ big ones (`geocity/rooftop.js` `lotRoofPlan`). Its ground level is lived in (`ge
 thing by its place's own hash so nothing else moves): blinds drawn and curtains in some windows, a window's air
 conditioner on some homes, a shop shut behind its roller shutter (a tag sprayed on some), and before the open ones a
 sandwich board, planters at the door, a cafe's table under its umbrella, crates, bags out at the kerb; its streets'
-manhole covers, oil stains where cars stand, a utility cabinet, a mailbox and a vendor's cart (`DOWNTOWN.life`). `civic: false` keeps none of the places.
+manhole covers, oil stains where cars stand, a utility cabinet, a mailbox and a vendor's cart (`DOWNTOWN.life`). Some
+shops' interiors are lit by their own lamps (a warm or cool room, a shelf, a counter and someone at it, its glow the
+same at noon and at night: frontage.js `interior`). Each building's walls are its own (`geocity/scene.js` `WALL_VARY`:
+its paint's lightness and a nudge warmer or cooler by its place's hash, a facade's stone or brick worn as the other on
+some). Work zones stand on some streets and arterial runs (`DOWNTOWN.works`): a crew's works pickup or van, or a
+delivery truck, in the kerb lane, a barrier behind it, cones tapered round it; never under a highway's deck nor by a
+streetcar's track. `civic: false` keeps none of the places.
 
 ## Locales
 
