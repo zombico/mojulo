@@ -283,6 +283,20 @@ export const OUTFIT_KINDS = Object.freeze({
   // CRAFT: a TOOL ROLL, a soft bundle at the back of the hip (handles out)
   toolRoll: { layer: 6, cls: 'stiff', colour: 'leather', compile: (p, B, G, I) => { const S = p.side ?? (I.side === 'R' ? 'L' : 'R');
     return { adorn: [{ id: `${p.id ?? 'toolRoll'}${S}`, mode: 'shell', part: 'pelvis', side: S, s: [0.9, 1.3], t: [2.4, 3.0], nt: 4, ns: 2, mugen: r3(0.02 * B.k), thick: r3(0.008 * B.k), group: G({ colour: 'leather' }), signature: { kind: 'pack', w: r3(0.2 * B.k), h: r3(0.09 * B.k), d: r3(0.08 * B.k), lift: 0, chamfer: r3(0.03 * B.k), soft: true, round: 2.2, sag: 0, flap: false, group: G(p) } }] }; } },
+  // a CORSET (a corsage): a stiff band round the trunk from the natural waist up under the bust, laced up the back, its
+  // lacing studded and SKULLS set down it (`skulls`, 0 … 5, three; `horns` on the topmost, a lord's), so the back says who
+  // she is as the front does; the band in the piece's colour, the skulls bone
+  corset: { layer: 4, cls: 'stiff', colour: 'secondary', compile: (p, B, G) => {
+    const s0 = B.ringAt(B.torso, B.waist).s, s1 = B.ringAt(B.torso, B.waist + 0.5 * (B.shoulder - B.waist)).s, n = Math.max(0, Math.min(5, p.skulls ?? 3)), id = p.id ?? 'corset';
+    // (the back's windows as shares of the trunk, its stations' span: the lacing and the skulls on the back's middle line)
+    const u0 = uOfStation(B.torso.stations[0], 0), sh = (v) => r3((v - u0) / (B.uTop(B.torso) - u0));
+    const band = { ...shell(id, 'torso', [s0 - 0.02, s1], { ns: 2, nt: 16, mugen: r3(0.012 * B.k), thick: r3(0.008 * B.k), group: G(p) }), signature: { kind: 'studs', r: r3(0.005 * B.k), h: r3(0.003 * B.k), count: 4, m: 6, group: G({ colour: 'trim' }) } };
+    const lace = { id: `${id}Lace`, mode: 'shell', part: 'torso', share: true, s: [sh(s0), sh(s1)], t: [0.95, 1], nt: 2, ns: 4, mugen: r3(0.016 * B.k), thick: r3(0.003 * B.k), group: G({ colour: 'trim' }),
+      signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.004 * B.k), count: 6, m: 6, group: G({ colour: 'trim' }) } };
+    const skulls = Array.from({ length: n }, (_, i) => { const u = n === 1 ? 0.5 : i / (n - 1), s = s0 + (s1 - s0) * (0.12 + 0.76 * u), w = 0.035 * (s1 - s0) + 0.01;
+      return { id: `${id}Skull${i + 1}`, mode: 'shell', part: 'torso', share: true, s: [sh(s - w), sh(s + w)], t: [0.93, 1], nt: 2, ns: 1, mugen: r3(0.02 * B.k), thick: r3(0.002 * B.k), group: G(p),
+        signature: { kind: 'skull', dir: [0, -1, 0], r: r3((0.05 - 0.008 * u) * B.k), proud: 0.4, horns: i === n - 1 && p.horns !== false ? 2 : 0, group: G({ colour: 'bone' }), socketGroup: G({ colour: 'shade' }), hornGroup: G({ colour: 'bone' }), m: 8 } }; });
+    return { adorn: [band, lace, ...skulls] }; } },
   // TROPHY (the warrior's): a horned skull hung at the hip
   trophy: { layer: 7, cls: 'loose', colour: 'bone', compile: (p, B, G, I) => { const S = p.side ?? I.side ?? 'R';
     return { adorn: [{ id: `${p.id ?? 'trophy'}${S}`, mode: 'shell', part: 'pelvis', side: S, s: [1.45, 1.62], t: [0.95, 1.25], nt: 4, ns: 2, mugen: r3(0.022 * B.k), thick: r3(0.004 * B.k), group: G({ colour: 'leather' }),
@@ -751,7 +765,7 @@ export function compileOutfit(plan, { rounds = 0 } = {}) {
 
 // ─── the laws of visual interest (the Dressing Bible's), advisory ───
 /** how much of the outfit's area a kind covers, roughly (a skirt and bodice far more than a buckle) */
-const AREA = { wings: 6, rags: 0.5, charms: 0.3, feathers: 0.4, streamers: 0.4, warpaint: 0.3, prayerBand: 0.3, toolRoll: 0.5, trophy: 0.4, bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, crest: 0.3, bands: 0.4, midriff: 1.5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, thighPouch: 0.8, pack: 2, quiver: 1 };
+const AREA = { wings: 6, corset: 2.5, rags: 0.5, charms: 0.3, feathers: 0.4, streamers: 0.4, warpaint: 0.3, prayerBand: 0.3, toolRoll: 0.5, trophy: 0.4, bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, crest: 0.3, bands: 0.4, midriff: 1.5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, thighPouch: 0.8, pack: 2, quiver: 1 };
 export const ARCHETYPE_SHAPES = { ruler: ['bell', 'column'], hero: ['wedge'], outlaw: ['wedge', 'needle'], caregiver: ['bell', 'barrel'], sage: ['bell', 'column'], magician: ['bell', 'needle'], explorer: ['wedge', 'column'], innocent: ['bell', 'barrel'], everyman: ['column', 'barrel'], jester: ['needle', 'wedge'], lover: ['needle', 'bell'], creator: ['column', 'barrel'] };
 
 /** the cut's cloth as the laws count it: each layer a piece of its area in its colour role (a coat over a shirt shows

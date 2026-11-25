@@ -181,3 +181,21 @@ describe('wings', () => {
     expect(rigNodesAt(R, { wingR: 45 }).nodes.wingTipL).toEqual(rigNodesAt(R, {}).nodes.wingTipL);
   });
 });
+
+// CORSET (outfit-plan.js `corset`): a stiff band from the natural waist up under the bust, laced up the back, skulls set
+// down the lacing (`skulls`), the topmost horned
+describe('corset', () => {
+  const style = (more = {}) => ({ id: 'corset-only', dials: { stylize: 0.4, fit: 0.4, coverage: 1, ornament: 1 }, language: { top: false, bottom: false, focal: 'collar' }, pieces: [{ kind: 'corset', ...more }] });
+  const adornOf = (more) => (plan({ cast: 'female', register: 'round', outfit: { type: 'outfit', style: style(more) } }).plan.adorn || []).filter((A) => /^corset/.test(A.id));
+  it('a band round the trunk, its lacing and its skulls on the back\'s middle line, as many as it asks', () => {
+    const A = adornOf({});
+    expect(A.find((x) => x.id === 'corset').t).toBe('wrap');
+    const skulls = A.filter((x) => /Skull/.test(x.id));
+    expect(skulls).toHaveLength(3);
+    for (const k of skulls) { expect(k.share).toBe(true); expect(k.t[0]).toBeGreaterThan(0.9); expect(k.signature.kind).toBe('skull'); expect(k.signature.dir[1]).toBeLessThan(0); }
+    // (down the back, the topmost horned, the rest not)
+    expect(skulls.map((k) => k.s[0])).toEqual([...skulls.map((k) => k.s[0])].sort((a, b) => a - b));
+    expect(skulls.map((k) => k.signature.horns)).toEqual([0, 0, 2]);
+    expect(adornOf({ skulls: 0 }).filter((x) => /Skull/.test(x.id))).toHaveLength(0);
+  });
+});

@@ -309,13 +309,16 @@ its start when she comes back.
 Erina's castle: the Gate Warden (a dead halberdier, a guard), the Bellkeeper and the Bell Ringer (lobbers throwing their
 bells), the Great Bell (a turret tolling rounds across the spire), the Warden (a quick devil, a stalker), the Crypt Lord
 (a great wolf that waits and springs), the Gatekeeper (a horned guard) and the Lord of the Keep (a pursuer). In the
-castle of boxes four more rooms have their own: the CARRION ABBESS in the belfry (the avian kin in a nun's black, a white
-wimple, black wings that beat as she strikes: she fights from the air, her `volley` of black quills thrown down into the
-floor one after another, her dives and her drop), the SIEGE OGRE in the barbican (the orc kin with a spiked mace: it
+castle of boxes four more rooms have their own: the CARRION ABBESS in the belfry (a crow TENGU: the avian kin beaked, in a mountain monk's
+whites, a red sash, a fan of black feathers at her arm and the monk's ringed staff, black wings that beat as she strikes: she fights from the air, her `volley` of black quills thrown down into the
+floor one after another, her dives and her drop), the SIEGE OGRE in the barbican (an ONI: the orc kin red-skinned, ivory horns grown off its brow by the xeno
+make-up (`xenoHeaddress`, a horn pair: an oni mask fits a person's head alone), a loincloth of ochre and black, a spiked
+iron club: it
 rolls the broken wall's `boulder` the length of the room, a thing that ROLLS, the shelf's `roll` shape, harming only
-where it is as it passes, so a jump clears it), the ARMIGER in the armoury (an empty suit of gilded plate, a dark T-visor
-where a face would be: its `lances` burst out of the floor under marks spreading from her feet, one after another) and
-the SERPENT COUNTESS in the upper keep (the serpentine kin, a coil for legs, under the anime head: her tail swept fast
+where it is as it passes, so a jump clears it), the ARMIGER in the armoury (an empty suit of gilded plate under the `wingedTVisor`, a dark T-visor
+where a face would be and a wing swept back off each ear (the helm's `earWings`): its `lances` burst out of the floor under marks spreading from her feet, one after another) and
+the SERPENT COUNTESS in the upper keep (the serpentine kin, a crimson coil for legs (its `Coil`), under the anime
+head with a gold circlet, a black `corset` laced up her back with skulls down the lacing, the topmost horned: her tail swept fast
 along the floor round her, `coil`, jumped, and her `venom`, a pool that burns where she spat it a while). A boss stands
 on its room's floor between its moves (a room's barbican-tall climb of ledges is no ground for a body as tall as their
 spacing); one whose moves fly, a first form or a second, flies in its sky.

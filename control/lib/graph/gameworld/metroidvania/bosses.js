@@ -155,31 +155,37 @@ export const CASTLE_FIGURES = Object.freeze({
   // THE NEW ROOMS' (found by minting: a hood, even worn down, wants a head the beaked kin has none of, so the Abbess wears a
   // mantle and a wimple's collar; the castle's stylism lays a harmony accent the Ogre's palette does not pin (a cyan
   // collar), and the orc's frame is the wedge already, so it goes without)
-  // (the Carrion Abbess: the avian kin in a nun's black, a white wimple and mantle, black wings swept back, rags of her habit)
+  // (the Carrion Abbess, a CROW TENGU: the avian kin beaked, black wings that beat as she strikes, in a mountain monk's
+  // whites (a robe, a red sash, a fan of black feathers at her arm, a prayer band) and the monk's ringed staff)
   'carrion-abbess': Object.freeze({ hero: { name: 'The Carrion Abbess', cast: { pole: 'female', build: 'lithe' }, head: 'none', tune: { stature: 1.1 },
     beast: { kin: 'avian', head: 'beaked', claws: 'long', hunch: 22, mass: { trunk: 1.15, upperArm: 1.1, foreArm: 1.1, thigh: 1.15 } },
-    outfit: shroud('carrion-habit', [{ kind: 'wings', span: 1.1, rise: 1, sweep: 0.75 }, { kind: 'mantle', colour: '#e8e0d0' }, { kind: 'collar', rise: 0.3, colour: '#e8e0d0' }, { kind: 'rags', count: 9, len: 0.5, shoulders: true, colour: '#2a2228' }, { kind: 'charms', charm: 'bone' }],
-      { OutfitSecond: '#14101a', OutfitBase: '#e8e0d0', OutfitTrim: '#8a7a5a', OutfitAccent: '#6a1a22', OutfitBone: '#e8dcc0' }),
-    palette: { Skin: '#1e1a22', Claws: '#d8ccb0', Top: '#1e1a22', Bottom: '#16121a', Shoes: '#12101a' } } }),
-  // (the Siege Ogre: the orc kin in harness and rags, iron at its arms, a spiked mace)
+    outfit: shroud('tengu-habit', [{ kind: 'wings', span: 1.1, rise: 1, sweep: 0.75 }, { kind: 'robe', colour: '#e8e0d0' }, { kind: 'sash', colour: '#b8321e' }, { kind: 'feathers', pair: true, colour: '#14101a' }, { kind: 'prayerBand' }, { kind: 'rags', count: 5, len: 0.4, shoulders: true, colour: '#2a2228' }],
+      { OutfitSecond: '#14101a', OutfitBase: '#e8e0d0', OutfitTrim: '#c9a75a', OutfitAccent: '#b8321e', OutfitBone: '#e8dcc0' }),
+    palette: { Skin: '#1e1a22', Claws: '#d8ccb0', Top: '#e8e0d0', Bottom: '#e8e0d0', Shoes: '#12101a' },
+    gear: { right: { item: 'staff', style: 'eastern', parts: { head: 'ringed' } } } } }),
+  // (the Siege Ogre, an ONI: the orc kin red-skinned, a pair of horns grown off its brow (the xeno make-up's: an oni mask
+  // fits the person's head alone), a loincloth of ochre and black, iron at its arms, a spiked iron club)
   'siege-ogre': Object.freeze({ hero: { name: 'The Siege Ogre', cast: { pole: 'male', build: 'brute' }, tune: { stature: 1.1 }, beast: { kin: 'orc' },
-    outfit: shroud('siege-rags', [{ kind: 'harness' }, { kind: 'rags', count: 6, len: 0.45, colour: '#4a3a2a' }, { kind: 'armRings' }],
+    xenoHeaddress: [{ family: 'horn', at: { az: 42, el: 52 }, pair: true, length: 0.17, width: 0.05, tip: 0.008, lift: 0.95, sweep: 25, spread: 24, coat: { color: '#e6dcc4' } }],
+    outfit: shroud('oni-loincloth', [{ kind: 'sash', colour: '#1a1410' }, { kind: 'rags', count: 9, len: 0.5, colour: '#c8902a' }, { kind: 'armRings' }, { kind: 'prayerBand' }],
       { OutfitSecond: '#3a2e22', OutfitTrim: '#6a6a60', Leather: '#2a2018', OutfitMetal: '#5a5a54', OutfitAccent: '#7a2a1a', OutfitBone: '#d8ccb0' }),
-    palette: { Skin: '#6e7a5a', Top: '#3a2e22', Bottom: '#2e241a', Shoes: '#1e1812' },
+    palette: { Skin: '#a8321e', Top: '#a8321e', Bottom: '#c8902a', Shoes: '#1e1812' },
     gear: { right: { item: 'staff', style: 'brutal', parts: { head: 'mace', reach: 'arm' }, dials: { mass: 2 } } } } }),
-  // (the Armiger: the knight's plate gilded and tarnished, nothing in it, a dark T-visor where a face would be; its sword
+  // (the Armiger: the knight's plate gilded and tarnished, nothing in it, a dark T-visor where a face would be, a wing
+  // swept back off each ear; its sword
   // and its shield, a red cloak torn at the hem)
   armiger: Object.freeze({ hero: { name: 'The Armiger', cast: { pole: 'male', build: 'heroic' }, head: 'landmark',
-    adorn: { type: 'armor', style: 'knight', theme: 'radiant', without: ['pauldron'], dials: { mass: 0.8, ornament: 2 } }, headgear: 'heavyTVisor',
+    adorn: { type: 'armor', style: 'knight', theme: 'radiant', without: ['pauldron'], dials: { mass: 0.8, ornament: 2 } }, headgear: 'wingedTVisor',
     outfit: shroud('armiger-tabard', [cloak('calf', 0.6, 'accent', { depth: 0.24, tongues: 5 }), { kind: 'rags', count: 4, len: 0.4, colour: '#5a1418' }, { kind: 'trophy' }], { OutfitSecond: '#2a0c10', OutfitAccent: '#7a1a1e', OutfitTrim: '#c9a75a' }),
     palette: { Skin: '#0a080c', Cloth: '#5a1418', Glow: '#e0c070', Helmet: '#8a7a4a', HelmetTrim: '#e0c070', HelmetVisor: '#050406', Visor: '#050406', Plate: '#8a7a4a', Iron: '#3a3428', Bronze: '#c9a75a', Helm: '#8a7a4a', Trim: '#e0c070', Rivet: '#e0c070', Accent: '#7a1a1e', Leather: '#1e1414', Top: '#1a1416', Bottom: '#120e10', Shoes: '#0e0a0a' },
     gear: { right: { item: 'greatsword', style: 'historical', dials: { mass: 1.1 } }, left: { item: 'shield', style: 'historical' } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
   // (the Serpent Countess: the serpentine kin (a coil for legs) under the anime head, sharp and cool, her hair long and
-  // dark, a noble's purple with gold at her throat and arms)
+  // dark, her scales crimson, a gold circlet, a noble's purple with gold at her throat and arms, a black corset laced up
+  // her back with skulls down its lacing)
   'serpent-countess': Object.freeze({ hero: { name: 'The Serpent Countess', cast: 'female', head: 'anime', animeStyle: 'shonen-high', animeBody: 'maki',
-    beast: { kin: 'serpentine' }, look: ['rival', 'sharp', 'narrow-eyes', 'mature'], hair: ['long'], expression: 'deadpan',
-    outfit: shroud('countess-bodice', [{ kind: 'mantle', colour: 'base' }, { kind: 'collar', rise: 0.24, flare: 3 }, { kind: 'torc' }, { kind: 'armRings' }, { kind: 'sash' }], { OutfitSecond: '#1a0a2a', OutfitBase: '#3a1050', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a' }),
-    palette: { Skin: '#e6e0d8', Hair: '#1a2a22', Scales: '#2a5a3a', Top: '#3a1050', Bottom: '#2a5a3a', Shoes: '#1a2a22' } } }),
+    beast: { kin: 'serpentine' }, headgear: 'circlet', look: ['rival', 'sharp', 'narrow-eyes', 'mature'], hair: ['long'], expression: 'deadpan',
+    outfit: shroud('countess-bodice', [{ kind: 'corset', skulls: 3, colour: '#14080e' }, { kind: 'collar', rise: 0.24, flare: 3 }, { kind: 'torc' }, { kind: 'armRings' }, { kind: 'sash' }], { OutfitSecond: '#1a0a2a', OutfitBase: '#3a1050', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a' }),
+    palette: { Skin: '#e6e0d8', Hair: '#1a2a22', Coil: '#6a1420', Top: '#3a1050', Bottom: '#6a1420', Shoes: '#1a0a0e' } } }),
   // (the great bell: no door makes a bell, so it is a card of its own, bell.js, built on the page with its swings)
   'great-bell': Object.freeze({ bell: { card: 'great-bell' } }),
   // (the vampire lord a woman, androgynous: the slim female body squared at the shoulder and straightened at the hip, a

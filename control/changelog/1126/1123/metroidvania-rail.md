@@ -155,3 +155,9 @@
 - Five new boss attacks: `volley`, `lances`, `coil`, `venom` and `boulder`, and a hazard that rolls (`roll`), harming
   only where it is as it passes.
 - A boss kept to its room stands on its floor: a tall boss no longer climbs a room's ledges between its moves.
+- The new bosses' looks: the Siege Ogre is an oni (red skin, ivory horns, a loincloth of ochre and black), the Carrion
+  Abbess a crow tengu (a mountain monk's whites, a red sash, a ringed staff), the Armiger's helm has a wing swept back
+  off each ear, and the Serpent Countess has a crimson coil, a gold circlet and a black corset laced up her back with
+  skulls down it.
+- Characters can wear a corset (an outfit piece, `corset`), laced up the back with skulls set down the lacing
+  (`skulls`); and a winged helm, the `wingedTVisor` headgear (its `earWings` ornament).
