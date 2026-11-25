@@ -31,6 +31,8 @@ describe('a box\'s shapes', () => {
     expect(at(L, 7, 1).walk).toBeLessThan(at(L, 0, 1).walk);
     // (the chute: a one-way drop from the top row to the bottom down the middle column)
     expect(L.doors.filter((d) => d.kind === 'shortcut' && d.oneWay && d.cells[0][0] === 4).length).toBe(5);
+    // (and no band's climb out of a boss's chamber: it is fought in on its floor)
+    for (const r of L.rooms.filter((x) => x.boss)) expect(L.doors.some((d) => d.kind === 'shortcut' && !d.oneWay && d.a === r.id)).toBe(false);
     expect(L.exit.cell[1]).toBe(5);
     expect(lost(L)).toEqual([]);
   });

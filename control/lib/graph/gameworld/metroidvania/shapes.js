@@ -75,14 +75,21 @@ export function laySerpentine(M, { room, door, rooms }) {
   // the SHORTCUTS: the CHUTE, a drop straight down the box's middle column through every row to the bottom (one way:
   // the way back, landing only where the walk has been), and from each band past the first a climb up into it from the
   // band below, gated by what it finds (opened from inside)
-  const mid = Math.floor(cols / 2), at = (c, r) => rooms.find((x) => x.cells.some((q) => q[0] === c && q[1] === r));
+  // (a band's climb kept off a BOSS's chamber, a plain room fought in on its floor (box.js plainRoom): its band's room
+  // before last, the room box.js furnishes it in; its column the nearest that climbs out of none. The chute down the
+  // middle may cross one: dropped into through its ceiling and out through its floor, it is never climbed in it)
+  const at = (c, r) => rooms.find((x) => x.cells.some((q) => q[0] === c && q[1] === r));
+  const bossRooms = new Set(M.rings.flatMap((R, k) => { if (!R.boss || R.core) return []; const rs = rooms.filter((x) => x.ring === k); return rs.length ? [rs[Math.max(0, rs.length - 2)].id] : []; }));
+  const clear = (c, rowsOf) => rowsOf.every((r) => !bossRooms.has(at(c, r)?.id));
+  const nearest = (c0, rowsOf) => { for (let d = 0; d < cols; d++) for (const c of [c0 - d, c0 + d]) if (c >= 1 && c < cols - 1 && clear(c, rowsOf)) return c; return c0; };
+  const mid = Math.floor(cols / 2);
   for (let r = rows - 1; r >= 1; r--) {
     const down = at(mid, r), below = at(mid, r - 1);
     if (down && below && down !== below) door(down.id, below.id, 'shortcut', { cells: [[mid, r], [mid, r - 1]], oneWay: true });
   }
   for (let k = 1; k < K; k++) {
     const lowRow = bands[k].r0;
-    const c2 = Math.max(1, mid - 2), up = at(c2, lowRow - 1), above = at(c2, lowRow), R = M.rings[k];
+    const c2 = nearest(Math.max(1, Math.floor(cols / 2) - 2), [lowRow - 1, lowRow]), up = at(c2, lowRow - 1), above = at(c2, lowRow), R = M.rings[k];
     if (up && above && up.ring === k - 1 && above.ring === k) door(up.id, above.id, 'shortcut', { cells: [[c2, lowRow - 1], [c2, lowRow]], gate: R.finds ? M.powers[R.finds].opens : R.inward ?? M.rings[k - 1].inward });
   }
   return { rings, entry: { cell: [0, 0], side: 'left', room: rooms[0].id }, exit: { cell: rooms.at(-1).cells.at(-1), room: rooms.at(-1).id } };

@@ -199,6 +199,41 @@ function placeMaps(M, rooms) {
 const withLooks = (rings, M) => rings.map((r, k) => ({ ...r, ...(M.rings[k].look !== undefined ? { look: M.rings[k].look } : {}), ...(M.rings[k].foes ? { foes: [...M.rings[k].foes] } : {}) }));
 
 /** The box laid: rings, rooms, doors and the walk. */
+/**
+ * A BOSS'S CHAMBER is a plain one: a room the fight is had in on its floor, never a shaft, no door above its floor to be
+ * climbed to (a door on an upper storey, a hole in its ceiling climbed up through); a hole in its floor is climbed in the
+ * room below and grated shut through the fight. A boss whose
+ * room is not is moved, with its prize and its seal, to the plain room of its region nearest it in the walk, free of
+ * anything else (a save, a key, a lock, a prize, a pocket, a gate corner, a map); where none is, it stays.
+ */
+export function climbedIn(r, doors) {
+  const low = Math.min(...r.cells.map((c) => c[1])), has = (c) => r.cells.some((x) => x[0] === c[0] && x[1] === c[1]);
+  return doors.some((d) => {
+    if (d.a !== r.id && d.b !== r.id) return false;
+    const mine = d.cells.find(has), other = d.cells.find((c) => !has(c));
+    if (!mine || !other) return false;
+    if (mine[1] === other[1]) return mine[1] > low;   // (a door on an upper storey of the room)
+    if (other[1] < mine[1]) return false;              // (a hole in its floor: climbed in the room below, grated shut through a fight)
+    return !(d.oneWay && d.a !== r.id);                // (a hole in its ceiling climbed up through; a drop in is not)
+  });
+}
+export const plainRoom = (r, doors) => r.kind !== 'shaft' && !climbedIn(r, doors);
+function plainBosses(rooms, doors, walk) {
+  const at = new Map(walk.map((id, k) => [id, k]));
+  for (const B of rooms.filter((r) => r.boss && r.role === 'boss')) {
+    if (plainRoom(B, doors)) continue;
+    const free = (r) => r !== B && r.ring === B.ring && !r.boss && !r.save && !r.key && !r.lock && !r.finds && !r.mapRoom && !(r.pockets?.length) && r.role !== 'gate' && r.role !== 'throne' && r.role !== 'relic' && plainRoom(r, doors);
+    const out = (r) => doors.find((d) => d.a === r.id && (d.kind === 'path' || d.kind === 'return') && !d.gate);
+    const to = rooms.filter((r) => free(r) && out(r)).sort((x, y) => Math.abs(at.get(x.id) - at.get(B.id)) - Math.abs(at.get(y.id) - at.get(B.id)) || at.get(y.id) - at.get(x.id))[0];
+    if (!to) continue;
+    // (its seal moved with it: the door out of its new room the walk takes)
+    for (const d of doors) if (d.a === B.id && d.gate === 'boss') delete d.gate;
+    out(to).gate = 'boss';
+    Object.assign(to, { role: 'boss', boss: B.boss, ...(B.finds ? { finds: B.finds } : {}) });
+    B.role = B.kind === 'turn' ? 'turn' : B.kind; delete B.boss; delete B.finds;
+  }
+}
+
 export function layBox(v) {
   const M = readBox(v), [cols, rows] = M.box, K = M.rings.length - 1;
   const rooms = [], doors = [], walk = [], rings = [];
@@ -304,6 +339,7 @@ export function layBox(v) {
   }
   // the ENTRY: the first room's near wall, on the box's left side
   const entry = { cell: [0, 0], side: 'left', room: rooms[0].id };
+  plainBosses(rooms, doors, walk);
   if (M.maps) placeMaps(M, rooms);
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {
@@ -339,6 +375,7 @@ function layShaped(M, ctx) {
     const corridors = rs.filter((x) => x.kind === 'corridor' && x !== end);
     (R.pockets ?? []).forEach((p, j) => { const at = corridors[Math.floor(((j + 0.5) * corridors.length) / R.pockets.length)]; if (!at) throw new Error(`metroidvania: ${R.id}.pockets: no corridor to hold ${p.holds} (a pocket is an alcove off a corridor)`); at.pockets.push({ ...p }); });
   }
+  plainBosses(rooms, doors, walk);
   if (M.maps) placeMaps(M, rooms);
   const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
   return {

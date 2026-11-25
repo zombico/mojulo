@@ -74,7 +74,12 @@ fungal caverns.
 
 9. **Every step in is a gate**, and each asks something no step before it asked.
 10. **What opens a gate is found before the gate is met** on the walk: a key before its lock, a power before its gate.
-    A boss stands in its ring's last corner, and its prize is the ring's power. A ring with no boss keeps its power in
+    A boss stands in its ring's last corner, and its prize is the ring's power. A boss's chamber is a plain one, fought
+    in on its floor: never a shaft, no door above its floor to climb to (`box.js` `plainRoom`; a hole in its floor is
+    climbed in the room below and grated shut through the fight). A boss laid in a room that is not is moved, with its
+    prize and its seal, to the nearest plain room of its region; a band's climb up out of a serpentine's region steps
+    aside of its chamber. The law `plain-chamber` holds it; a region with no plain room (the barbican, all shafts) has
+    no boss. A ring with no boss keeps its power in
     a relic room at its far top corner.
 11. **No stomp, no wall kick.** The castle's hero never lands on a foe to beat it and never kicks off a wall. Every
     climb is a stair of ledges each a share of a single jump apart. A double-jump gate's last rise is more than a jump
@@ -371,7 +376,7 @@ bells), the Great Bell (a turret tolling rounds across the spire), the Warden (a
 (a great wolf that waits and springs), the Gatekeeper (a horned guard) and the Lord of the Keep (a pursuer). In the
 castle of boxes four more rooms have their own: the CARRION ABBESS in the belfry (a crow TENGU: the avian kin beaked, in a mountain monk's
 whites, a red sash, a fan of black feathers at her arm and the monk's ringed staff, black wings that beat as she strikes: she fights from the air, her `volley` of black quills thrown down into the
-floor one after another, her dives and her drop), the SIEGE OGRE in the barbican (an ONI: the orc kin red-skinned, ivory horns grown off its brow by the xeno
+floor one after another, her dives and her drop), the SIEGE OGRE in the lower keep (an ONI: the orc kin red-skinned, ivory horns grown off its brow by the xeno
 make-up (`xenoHeaddress`, a horn pair: an oni mask fits a person's head alone), a loincloth of ochre and black, a spiked
 iron club: it
 rolls the broken wall's `boulder` the length of the room, a thing that ROLLS, the shelf's `roll` shape, harming only
@@ -472,6 +477,7 @@ The bosses' laws (`BOSS_LAWS`, `bosses:<id>`):
   told, escapable, survivable and opened after; three moves or more, two or more a phase; its phases falling and
   quickening.
 - `room-to-fight`: each boss on at least `FIGHT_ROOM` metres of lane.
+- `plain-chamber`: each boss fought on a plain chamber's floor: no shaft, nothing to climb in it.
 - `rising`: no boss along the walk under `BOSS_EASE` of the hardest before it.
 
 ## The explored map
@@ -498,11 +504,10 @@ map lets the player know without being told:
 9. **How much.** The share of tiles walked is shown for the castle and for each region.
 
 Played, the record is the explored map's builder ([explore.js](../control/lib/graph/worlds/controllable/explore.js)):
-the tiles walked and the map rooms found. The page draws two reads of it
-([explored-view.js](../control/lib/graph/scene/channels/controllable/explored-view.js)):
-- **The minimap,** top right: a window on the tiles round her, with the share walked under it and a map room found said
-  a moment.
-- **The whole map,** on M, over the held world.
+the tiles walked and the map rooms found. There is no map over the play: the map is the pause's and the map rooms'. The
+page draws it ([explored-view.js](../control/lib/graph/scene/channels/controllable/explored-view.js)):
+- **The whole map,** on M, over the held world (and the HUD's pause on Enter).
+- **A map room found** is said a moment at the top right.
 
 The map's laws (`MAP_LAWS`, `map:<id>`) are measured on the map drawn at the walk's start and at its end:
 - `maps-placed`: a map room in every region but a core.

@@ -32,7 +32,7 @@
  *                        falls back to), fights (each boss's fight held to the director's laws for a body on the lane,
  *                        its jump among its escapes: every move told, escapable, survivable, opened after; three moves
  *                        or more; its phases falling and quickening), room-to-fight (each boss's stretch of the lane at least FIGHT_ROOM metres: room to back off and
- *                        come in), rising (no boss along the walk under EASE of the hardest before it: the castle never
+ *                        come in), plain-chamber (each boss's room fought in on its floor: no shaft, nothing climbed in it), rising (no boss along the walk under EASE of the hardest before it: the castle never
  *                        eases going in)
  *   FIGHT_ROOM, BOSS_EASE
  *
@@ -46,6 +46,7 @@ import { bossRule, bossMind } from '../../boss/stand.js';
 import { bossLaws as directorLaws } from '../../boss/bosses.js';
 import { lookOfMove, windClips, flapWind } from '../../boss/looks.js';
 import { PATTERNS } from '../../boss/patterns.js';
+import { plainRoom } from './box.js';
 import { SEEDED_OUTFITS } from '../../outfit/styles.js';
 // (its FIGHT: the director's words for a human boss, boss/bosses.js: its moves over the side view's patterns,
 // boss/patterns.js, said in its own words, and its phases, quicker as its health falls)
@@ -72,15 +73,16 @@ export const CASTLE_BOSSES = Object.freeze({
   'crypt-lord': Object.freeze({ class: 'lurker', skin: Object.freeze({ species: 'wolf' }), tier: 1.8, blows: 26, reads: 'a great wolf of the crypt: it waits in the dark and springs',
     moves: Object.freeze({ pounce: { pattern: 'lunge', says: 'flattens to the floor, hackles up' }, maul: { pattern: 'cleave', says: 'rears with its jaws wide' }, howl: { pattern: 'toll', says: 'throws its head back; the crypt goes still' } }),
     phases: Object.freeze([ph({ pounce: 2, maul: 2 }, 2.2), ph({ pounce: 2, maul: 1, howl: 2 }, 1.8, { below: 0.6 }), ph({ pounce: 3, maul: 1, howl: 1 }, 1.4, { below: 0.3, temper: 'relentless' })]) }),
-  // THE NEW ROOMS' (a boss for the belfry, the barbican, the armoury and the upper keep): each a fight of its own, an
+  // THE NEW ROOMS' (a boss for the belfry, the lower keep, the armoury and the upper keep): each a fight of its own, an
   // attack the others have not (blades from the air, a boulder, lances out of the floor, a tail and venom)
   // (the belfry's: she fights from the air, a carrion bird in a nun's rags)
   'carrion-abbess': Object.freeze({ class: 'stalker', skin: Object.freeze({ people: 'undead' }), tier: 1.6, blows: 20, reads: 'the belfry\'s abbess, dead and feathered: a carrion bird in a nun\'s rags who fights from the air',
     moves: Object.freeze({ 'feather-volley': { pattern: 'volley', says: 'beats up over the floor and draws back an arm full of black quills' }, 'carrion-dive': { pattern: 'swoop', says: 'beats up into the bells and hangs there, then folds her wings and dives' },
       'talon-drop': { pattern: 'dive', says: 'rises over Erina on her wings; her shadow spreads under her' }, shriek: { pattern: 'toll', says: 'throws her beak open; the bells hum with her' } }),
     phases: Object.freeze([ph({ 'feather-volley': 2, 'carrion-dive': 2 }, 2.3), ph({ 'feather-volley': 2, 'carrion-dive': 1, 'talon-drop': 2, shriek: 1 }, 1.8, { below: 0.5, temper: 'opportunist' })]) }),
-  // (the barbican's: chained at the gate, it throws the broken wall at what comes in)
-  'siege-ogre': Object.freeze({ class: 'guard', skin: Object.freeze({ people: 'orcish' }), tier: 2, blows: 20, reads: 'the barbican\'s siege ogre, chained at the gate with a maul and the boulders of its broken wall',
+  // (the lower keep's: chained in its halls, it throws the broken wall at what comes in (the barbican, all shafts, has no
+  // plain chamber to fight in: box.js plainRoom))
+  'siege-ogre': Object.freeze({ class: 'guard', skin: Object.freeze({ people: 'orcish' }), tier: 2, blows: 22, reads: 'the keep\'s siege ogre, chained in its lower halls with a maul and the boulders of a broken wall',
     moves: Object.freeze({ 'maul-swing': { pattern: 'cleave', says: 'drags its maul back over its shoulder' }, 'wall-boulder': { pattern: 'boulder', says: 'heaves a boulder of the broken wall over its head' },
       'ground-pound': { pattern: 'quake', says: 'raises its maul in both fists' }, 'shoulder-rush': { pattern: 'lunge', says: 'drops its shoulder and stamps' } }),
     phases: Object.freeze([ph({ 'maul-swing': 2, 'wall-boulder': 2 }, 2.5), ph({ 'maul-swing': 1, 'wall-boulder': 2, 'ground-pound': 2, 'shoulder-rush': 1 }, 2, { below: 0.5, temper: 'bold' })]) }),
@@ -312,7 +314,7 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
 /** where the side view's frame tops out over the floor the hero stands on, a share of the frame's height (the floor sits in
  * its bottom fifth) */
 export const FRAME_TOP = 0.8;
-export const BOSS_LAWS = Object.freeze(['known', 'fights', 'room-to-fight', 'rising']);
+export const BOSS_LAWS = Object.freeze(['known', 'fights', 'room-to-fight', 'plain-chamber', 'rising']);
 /** a boss's stretch of the lane at least this long, and none along the walk under this share of the hardest before it */
 export const FIGHT_ROOM = 8, BOSS_EASE = 0.8;
 
@@ -328,6 +330,9 @@ export function bossLaws(B, { body = SIDE_BODY } = {}) {
   law('fights', !broke.length, broke.length ? `fights that break the director's laws on the lane: ${broke.join('; ')}` : `every boss's fight told, escaped along the lane or over, survivable and opened after, in phases that quicken (${ids.length})`);
   const tight = Bs.filter((b) => b.place.span[1] - b.place.span[0] < FIGHT_ROOM - 1e-9).map((b) => b.name);
   law('room-to-fight', !tight.length, tight.length ? `too little room to fight: ${tight.join(', ')}` : `every boss on ${FIGHT_ROOM} m of lane and more`);
+  // (a boss's chamber a plain one: fought in on its floor, never a shaft, nothing climbed in it, box.js plainRoom)
+  const climbs = Bs.filter((b) => { const r = B.layout.rooms.find((x) => x.id === b.place.room); return r && !plainRoom(r, B.layout.doors); }).map((b) => b.name);
+  law('plain-chamber', !climbs.length, climbs.length ? `a chamber that climbs: ${climbs.join(', ')}` : 'every boss fought on a plain chamber\'s floor: no shaft, nothing to climb');
   let most = 0;
   const eases = [];
   for (const b of Bs) { const n = bossRow(b.name).blows; if (n < most * BOSS_EASE - 1e-9) eases.push(b.name); most = Math.max(most, n); }

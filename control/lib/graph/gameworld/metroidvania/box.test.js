@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readBox, layBox, TURNS } from './box.js';
+import { readBox, layBox, TURNS, plainRoom, climbedIn } from './box.js';
 import { vampireSonata } from './vampire-sonata.js';
 
 // the smallest box with a ring inside a ring: 7 × 5, its core what is left (3 × 1)
@@ -74,5 +74,25 @@ describe('the spiralling box: laid', () => {
     expect(inner.rect[0]).toBe(outer.rect[0] + 2);
     expect(L.rooms.filter((r) => r.ring === 1 && r.kind === 'shaft').every((r) => r.rect[2] === 1)).toBe(true);
     expect(() => readBox({ ...vampireSonata(), rings: vampireSonata().rings.map((R, k) => (k === 3 ? { ...R, towers: true } : R)) })).toThrow(/towers/);
+  });
+});
+
+// A BOSS'S CHAMBER is a plain one (box.js plainRoom): never a shaft, nothing climbed in it; a boss laid in one that is
+// not is moved, with its prize and its seal, to the plain room of its region nearest it
+describe('a boss\'s chamber', () => {
+  it('is plain: no shaft and nothing climbed in it, its seal on its way out, the boss once a region', () => {
+    const L = layBox(vampireSonata());
+    const bosses = L.rooms.filter((r) => r.boss);
+    expect(bosses.length).toBeGreaterThan(0);
+    for (const r of bosses) {
+      expect(plainRoom(r, L.doors)).toBe(true);
+      // (sealed on its way out; the core's throne the walk's end, no way out to seal)
+      if (r.role !== 'throne') expect(L.doors.filter((d) => d.a === r.id && d.gate === 'boss').length).toBe(1);
+    }
+    expect(L.doors.filter((d) => d.gate === 'boss').every((d) => L.rooms.find((r) => r.id === d.a).boss)).toBe(true);
+    expect(new Set(bosses.map((r) => r.ring)).size).toBe(bosses.length);
+    // (what the test reads: a door on an upper storey of a room is climbed in it; a drop into it is not)
+    const shaft = L.rooms.find((r) => r.kind === 'shaft' && L.doors.some((d) => (d.a === r.id || d.b === r.id) && d.axis === 'h' && d.cells.some((c) => c[1] > r.rect[1] && r.cells.some((x) => x[0] === c[0] && x[1] === c[1]))));
+    if (shaft) expect(climbedIn(shaft, L.doors)).toBe(true);
   });
 });

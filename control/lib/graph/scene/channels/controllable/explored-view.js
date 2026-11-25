@@ -1,7 +1,6 @@
 // In-page script: a metroidvania's EXPLORED MAP seen (gameworld/metroidvania/explored.js draws it; worlds/controllable/
-// explore.js keeps the record). Two reads of one map:
-//   the MINIMAP   top right, a window on the tiles round the one she stands in, the map's own drawing at a small tile,
-//                 the share walked under it; a map room found said under it a moment
+// explore.js keeps the record). No map over the play (the map is the pause's and the map rooms'); a map room found is
+// said at the top right a moment.
 //   the MAP       M opens it whole, over the held world: the castle's tiles as walked, known and unwalked, its walls and
 //                 doors, its gates (ringed where what she holds opens them now), its frontier, its marks, the share
 //                 walked and each region's; M or Esc shuts it
@@ -14,7 +13,7 @@ export const MINIMAP = Object.freeze({ tile: 16, across: 7, up: 4 });
 
 export function exploredViewScript(map) {
   return `
-// THE EXPLORED MAP (explored-view.js): the minimap round her, the whole map on M
+// THE EXPLORED MAP (explored-view.js): the whole map on M (none over the play: a map room's word as it is read)
 const __XM = ${JSON.stringify(map).replace(/</g, '\\u003c')}, __XMM = ${JSON.stringify(MINIMAP)};
 const __xmView = ${viewOf.toString()};
 const __xmSvg = ${exploredSvg.toString()};
@@ -25,7 +24,8 @@ const __xmCap = document.createElement('div');
 __xmCap.style.cssText = 'position:fixed;right:16px;top:' + (18 + __XMM.tile * __XMM.up) + 'px;color:#e8dcc0;font:600 11px/1.3 Georgia,serif;letter-spacing:.06em;text-align:right;pointer-events:none;z-index:30;text-shadow:0 1px 2px #000';
 const __xmFull = document.createElement('div');
 __xmFull.style.cssText = 'position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(4,5,10,.9);z-index:35';
-document.body.appendChild(__xmMini); document.body.appendChild(__xmCap); document.body.appendChild(__xmFull);
+// (no map over the play: the map is the pause's and the map rooms'; over the play only a map room's word, for a moment)
+document.body.appendChild(__xmCap); document.body.appendChild(__xmFull);
 // (the minimap is this page's map round her: the page's own radar, drawn for any world with foes, put away by its id)
 { const __r = document.getElementById('__radar'); if (__r) __r.style.display = 'none'; }
 function __xmSeen() {
@@ -38,6 +38,7 @@ function __xmDraw(force) {
   const X = __world.explored;
   if (!X) return;
   const seen = __xmSeen(), sig = JSON.stringify([seen.visited.length, seen.known.length, seen.at, seen.held.length, seen.taken.length, seen.felled.length, __xmOpen]);
+  __xmCap.textContent = __xmSaid && (__world.time || 0) - __xmSaidT < 2.4 ? __xmSaid : '';
   if (!force && sig === __xmSig) return;
   __xmSig = sig;
   const V = __xmView(__XM, seen);
@@ -45,7 +46,6 @@ function __xmDraw(force) {
   __xmMiniIn.innerHTML = __xmSvg(V, { tile: __XMM.tile, title: '', key: false });
   if (seen.at) { const rows = __XM.box[1], x = 24 + seen.at[0] * __XMM.tile, y = 12 + (rows - 1 - seen.at[1]) * __XMM.tile; __xmMiniIn.style.transform = 'translate(' + (-(x - __XMM.tile * (__XMM.across - 1) / 2)) + 'px,' + (-(y - __XMM.tile * (__XMM.up - 1) / 2)) + 'px)'; }
   if (__xmOpen) __xmFull.innerHTML = __xmSvg(V, { tile: Math.max(14, Math.min(30, Math.floor(Math.min((innerWidth - 300) / __XM.box[0], (innerHeight - 140) / __XM.box[1])))), title: 'The castle' });
-  __xmCap.textContent = (__xmSaid && (__world.time || 0) - __xmSaidT < 2.4 ? __xmSaid + ' · ' : '') + V.percent + '%';
 }
 function __xmShow(on) {
   if (on === __xmOpen) return;

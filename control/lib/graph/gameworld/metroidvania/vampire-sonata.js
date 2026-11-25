@@ -109,14 +109,14 @@ export function vampireSonataCastle() {
         { id: 'spire', place: 'the spire', look: 0, foes: ['crow', 'ghoul'], boss: 'the Great Bell' },
       ] },
       { id: 'court', box: [7, 8], shape: 'hub', rings: [
-        { id: 'barbican', place: 'the barbican', look: 3, foes: ['crow'], key: true, boss: 'the Siege Ogre', inward: 'key' },
+        { id: 'barbican', place: 'the barbican', look: 3, foes: ['crow'], key: true, inward: 'key' },
         { id: 'yard', place: 'the courtyard', look: 0, foes: ['crow'] },
         { id: 'chapel', place: 'the chapel', look: 1, foes: ['ghoul'], boss: 'the Warden', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
         { id: 'armoury', place: 'the armoury', look: 3, foes: ['armor', 'ghoul'], boss: 'the Armiger', finds: 'mist-veil', inward: 'form' },
         { id: 'crypt', place: 'the crypt', look: 2, foes: ['armor', 'ghoul', 'wolf'], boss: 'the Crypt Lord' },
       ] },
       { id: 'keep', box: [8, 6], rings: [
-        { id: 'lower', place: 'the lower keep', look: 1, foes: ['armor', 'wolf'], key: true, inward: 'double-jump' },
+        { id: 'lower', place: 'the lower keep', look: 1, foes: ['armor', 'wolf'], key: true, boss: 'the Siege Ogre', inward: 'double-jump' },
         { id: 'upper', place: 'the upper keep', look: 2, foes: ['armor', 'crow'], boss: 'the Serpent Countess', inward: 'form' },
         { id: 'throne', place: 'the throne room', look: 3, foes: ['armor'], boss: 'the Lord of the Keep' },
       ] },

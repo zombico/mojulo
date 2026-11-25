@@ -145,7 +145,7 @@
 - A boss's attack can fly (`flies` on a pattern: a path of keys through the move), lowered under its room's ceiling and
   the air the screen gives it (`sky`); two new attack patterns, `swoop` and `dive`.
 - Four more boss fights in the castle: the Carrion Abbess in the belfry (a crow-nun who fights from the air on beating
-  wings and throws her quills into the floor), the Siege Ogre in the barbican (it rolls a boulder the length of the room:
+  wings and throws her quills into the floor), the Siege Ogre in the lower keep (it rolls a boulder the length of the room:
   jump it), the Armiger in the armoury (an empty suit of gilded plate that bursts lances out of the floor under marks)
   and the Serpent Countess in the upper keep (a lamia whose tail sweeps the floor and whose venom burns where it lands).
 - Five new boss attacks: `volley`, `lances`, `coil`, `venom` and `boulder`, and a hazard that rolls (`roll`), harming
@@ -159,3 +159,6 @@
   (`skulls`); and a winged helm, the `wingedTVisor` headgear (its `earWings` ornament).
 - The castle's HUD draws each thing once: one map (the corner map with how much is explored) and the boss's bar across the
   bottom of the screen; a boss's name shows alone as Erina enters its room, then fades.
+- No map over the play: the map is on the pause screen and in the map rooms.
+- Boss chambers are plain rooms fought in on their floor: no ladders, stairs or shafts. A boss whose room climbed moved to
+  the nearest plain room of its region, and the Siege Ogre moved from the barbican (all shafts) to the lower keep.
