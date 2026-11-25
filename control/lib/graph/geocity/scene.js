@@ -205,6 +205,10 @@ const FRONT_PAINT = Object.freeze({
 });
 // the furniture's strides (m): a hydrant, a bench and its bike rings, a residential street's hydro poles
 const HYDRANT = 90, BENCH = 70, HYDRO = 38;
+// A CITY AT NIGHT: its moonlight's ambient and its key dimmed by these shares (its lit things, windows, shops, lamps, its
+// own); its lamps' light (the metro's `lamps` its own colour), the pool each lays on the ground (its half width, an
+// alley lamp's, how strong at its middle), its head's glow, an alley lamp's stride along it (m)
+const NIGHT_CITY = Object.freeze({ ambient: 0.5, moon: 0.6, lamps: '#ffd08a', pool: Object.freeze({ r: 7, alley: 4.5, alpha: 0.42 }), glow: '0 0 26px 8px rgba(255,214,150,0.9)', alleyLamp: 14 });
 // a DOWNTOWN street's dress (downtownStreet): its centre line's stride (a 3 m dash in it), a parking bay's length and how
 // far in from the kerb a car stands, the share of bays taken, how far clear of a crossing it parks, its trees' stride
 const DOWNTOWN = Object.freeze({ dash: 9, bay: 6.4, park: 1.15, parked: 0.72, clear: 11, tree: 13,
@@ -373,7 +377,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   const FINISHED = Object.keys(OUT.finishes).length ? { ...FINISHES, ...Object.fromEntries(Object.entries(OUT.finishes).map(([g, w]) => [g, [w, 'wall']])) } : FINISHES;
   // ── the light: the cube's at its hour, under its clouds (city/plan/look.js: as it lights a city) ──
   const paint = readPaint({ geocube: m.cube, amount: 1, ...(m.hour !== undefined ? { hour: m.hour } : {}), ...(m.clouds !== undefined ? { clouds: m.clouds } : {}) });
-  const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), LIGHT = lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air, night = lit.night;
+  // (a city at NIGHT, NIGHT_CITY: its moonlight and its sky's dimmed, so what is lit, its windows, its shops, its lamps'
+  // pools, stands out of the dark; by day its light as the cube's hour gives it)
+  const spec = cubeLookSpec(paint), lit = lookLight(spec, paint), night = lit.night;
+  const LIGHT = night ? { ...lit.light, ambient: lit.light.ambient * NIGHT_CITY.ambient, diffuse: lit.light.diffuse * NIGHT_CITY.moon } : lit.light, sun = LIGHT.toLight, air = spec.air ?? spec.ref.air;
   // (the finishes in the cube's material context, each a tile; geotown/scene.js finishesOf)
   const MX = materialContext(cube), FIN = {};
   // (one tile a word, seeded by the word: every group that wears a brick wears the same brick, drawn and shipped once)
@@ -1056,6 +1063,8 @@ export function assembleGeocityScene(m, ctx = {}) {
       for (let s = al.lo + 4; s <= al.hi - 4; s += AD.stain) if (R() < 0.5) { const [x, y] = P(s + R() * 3, (R() - 0.5) * h); stamp('stain', [x, y, S(x, y) + 0.012], 0); }
       { const [x, y] = P((al.lo + al.hi) / 2, 0); stamp('manhole', [x, y, S(x, y) + 0.02], 0); }
       for (let s = al.lo + 6; s <= al.hi - 4; s += AD.wire) { const [x, y] = P(s, -h); stamp('wire', [x, y, S(x, y) + AD.wireZ[0] + R() * (AD.wireZ[1] - AD.wireZ[0])], ew ? Math.PI / 2 : 0, [al.w, 1, 1]); }
+      // (its lamps on its walls, each side by turns: a pool of light under each at night)
+      for (let s = al.lo + 5, k = 0; s <= al.hi - 4; s += NIGHT_CITY.alleyLamp, k++) { const sd = k % 2 ? 1 : -1, [x, y] = P(s, sd * (h - 0.05)); stamp(`walllamp:${face(sd)}`, [x, y, S(x, y)], 0); }
       counts.alleys = (counts.alleys ?? 0) + 1;
     }
   }
@@ -2526,6 +2535,23 @@ export function assembleGeocityScene(m, ctx = {}) {
     beaconAt.push(...beaconsOf(tall));
     if (beaconAt.length) counts.beacons = beaconAt.length;
   }
+  // AT NIGHT each lamp's POOL of light on the ground under its head (a decal in its light's colour, soft to its edge) and
+  // its head's glow; the street's lamps, a pole's, an alley's wall lamps (NIGHT_CITY)
+  if (night && E?.evoke !== 'skyline') {
+    const NC = NIGHT_CITY, hex = d.metro.lamps ?? NC.lamps, rgb = hexToRgb(hex), ARM = { lamp: [1.68, 7.9], hydro: [1.4, 7.6], walllamp: [0.55, 3.7] };
+    const STEP = { e: [1, 0], w: [-1, 0], n: [0, 1], s: [0, -1] };
+    for (const [k, list] of stamps) {
+      const [name, f] = k.split(':'), arm = ARM[name];
+      if (!arm || !f) continue;
+      const [dx, dy] = STEP[f], R = name === 'walllamp' ? NC.pool.alley : NC.pool.r;
+      for (const t of list) {
+        const x = t.pos[0] + dx * arm[0] * (name === 'walllamp' ? 1 : 1), y = t.pos[1] + dy * arm[0], zh = t.pos[2] + arm[1], zg = Math.max(S(x, y), t.pos[2] - (name === 'walllamp' ? 0 : KERB)) + 0.06;
+        faces.push({ corners: [[x - R, y - R, zg], [x + R, y - R, zg], [x + R, y + R, zg], [x - R, y + R, zg]].map(P3), normal: [0, 0, 1], group: 'geocity:pool', fill: hex, decal: 'shadow', shadowAlpha: NC.pool.alpha, shadowColor: rgb, shadowProfile: 'pool' });
+        faces.push({ corners: [[x - 0.2, y - 0.2, zh], [x + 0.2, y - 0.2, zh], [x + 0.2, y + 0.2, zh], [x - 0.2, y + 0.2, zh]].map(P3), normal: [0, 0, -1], group: 'geocity:lamp-glow', fill: hex, glow: NC.glow });
+        counts.pools = (counts.pools ?? 0) + 1;
+      }
+    }
+  }
   // (nothing stood in a street's mouth: what an arterial's kerb stood across it moved out, its trees with it; what lies
   // flat on the road and what hangs over it stays)
   {
@@ -2747,7 +2773,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     plan = { box: [0, 0, r5(d.frame.W), r5(d.frame.D)], shapes, places: entered.map((e) => ({ at: [r5(e.door[0]), r5(e.door[1])], kind: 'shop', card: e.S.card })) };
   }
   return {
-    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: coned ? { ...F, lod: FLOW_LOD } : F } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: { ...F, ...(coned ? { lod: FLOW_LOD } : {}), ...(night ? { night: true } : {}) } } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
@@ -2767,7 +2793,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     route,
     geocube: geocubeReadout(cube, 'geocity', null, m),
     geocity: {
-      metro: d.metro.id, grammar: G.label, frame: d.frame, land: d.land.range, seat: d.seat, evoke: d.spec.evoke, play: d.spec.play,
+      metro: d.metro.id, grammar: G.label, frame: d.frame, land: d.land.range, seat: d.seat, evoke: d.spec.evoke, play: d.spec.play, ...(night ? { night: { ambient: NIGHT_CITY.ambient, moon: NIGHT_CITY.moon, lamps: d.metro.lamps ?? NIGHT_CITY.lamps } } : {}),
       ...(E ? { evoked: { ...(E.at ? { at: E.at } : {}), ...(E.along ? { along: E.along } : {}), detail: E.blocks.length, massing: E.regions.length } } : {}),
       counts: { neighbourhoods: d.regions.length, blocks: Object.values(kinds).reduce((a, n) => a + n, 0), segments: kinds, ...counts, faces: faces.length },
       neighbourhoods: d.regions.map((r) => ({ id: r.id, ring: r.ring, builds: r.builds, ...(r.industrial ? { industrial: true } : {}), storeys: r.storeys.median, blocks: r.blocks.length, park: r.park || !!r.parkRect, ...(r.node ? { node: r.node } : {}), ...(r.beyond.length ? { beyond: r.beyond } : {}) })),

@@ -104,3 +104,19 @@ describe('a city\'s alleys', () => {
     expect(on.laws.filter((l) => !l.ok).map((l) => l.law)).toEqual(off.laws.filter((l) => !l.ok).map((l) => l.law));
   }, 60_000);
 });
+
+describe('a city at night', () => {
+  it('lays a pool of light under each lamp and lights its head, dims its moonlit walls, and lights its traffic\'s lamps', () => {
+    const N = assembleGeocityScene({ ...M, hour: 'night', geocity: { ...geocity, lamps: '#ffb766' } }), D = assembleGeocityScene(M);
+    const pools = N.faces.filter((f) => f.group === 'geocity:pool');
+    expect(pools.length).toBeGreaterThan(0);
+    expect(pools.every((f) => f.decal === 'shadow' && f.fill === '#ffb766')).toBe(true);
+    expect(N.faces.some((f) => f.group === 'geocity:lamp-glow' && f.glow)).toBe(true);
+    expect(N.geocity.night).toMatchObject({ lamps: '#ffb766' });
+    if (N.flow) expect(N.flow.night).toBe(true);
+    // (by day none of it)
+    expect(D.faces.some((f) => f.group === 'geocity:pool' || f.group === 'geocity:lamp-glow')).toBe(false);
+    expect(D.geocity.night).toBeUndefined();
+    if (D.flow) expect(D.flow.night).toBeUndefined();
+  }, 120_000);
+});

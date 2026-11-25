@@ -1,7 +1,7 @@
 // Hijack City (hijack-city.js): the open city's crime game as a rail and its starter. One case per concept: the starter
 // is a world the book reads, a locked pitch lays it and the creator's words win, a brief's words find it.
 import { describe, it, expect } from 'vitest';
-import { hijackCityWorld, hijackCityStart, HIJACK_CITY, HIJACK_GROWS, HIJACK_DISTRICTS, HIJACK_DISTRICT } from './hijack-city.js';
+import { hijackCityWorld, hijackCityStart, HIJACK_CITY, HIJACK_GROWS, HIJACK_DISTRICTS, HIJACK_DISTRICT, HIJACK_NIGHT } from './hijack-city.js';
 import { designGeocity } from '../geocity/design.js';
 import { pitchStart } from './pitch-start.js';
 import { readGameworld } from './world.js';
@@ -111,5 +111,18 @@ describe('Hijack City', () => {
     // (a row on each of its paths reads as a world: the lakeshore city's above, the Northeast's district and the hill city's)
     for (const id of ['boston', 'san-francisco']) expect(() => readGameworld(hijackCityWorld({ locale: id })), id).not.toThrow();
     expect(LOCALE_IDS).toContain('los-angeles');
+  });
+
+  it('plays its locale after dark by the hour: its night\'s lamps, air and grade; by day as it was', () => {
+    const day = hijackCityWorld({ locale: 'los-angeles' }), night = hijackCityWorld({ locale: 'los-angeles', hour: 'night' });
+    expect(day.levels.district.geocity.lamps).toBeUndefined();
+    expect(night.levels.district.geocity.lamps).toBe(LOCALES['los-angeles'].night.lamps);
+    expect(night.grade).toBe(LOCALES['los-angeles'].night.grade);
+    expect(night.style.air).toEqual(LOCALES['los-angeles'].night.air);
+    expect(night.style.hour).toBe('night');
+    expect(() => readGameworld(night)).not.toThrow();
+    // (no locale: the city's own night)
+    expect(hijackCityWorld({ hour: 'dusk' }).levels.district.geocity.lamps).toBe(HIJACK_NIGHT.lamps);
+    expect(hijackCityWorld({ hour: 'noon' })).toEqual({ ...hijackCityWorld(), style: { ...hijackCityWorld().style, hour: 'noon' } });
   });
 });

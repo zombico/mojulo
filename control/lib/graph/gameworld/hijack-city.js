@@ -91,7 +91,11 @@ export const HIJACK_GROWS = Object.freeze({
   music: 'the score: walking, the chase, the tension',
 });
 
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null } = {}) {
+// (a city's NIGHT where its locale says none: warm lamps, a dark thin haze, the night's grade)
+export const HIJACK_NIGHT = Object.freeze({ lamps: '#ffd08a', air: Object.freeze({ kind: 'haze', visibility: 2600, colour: '#252a35' }), grade: 'night' });
+const NIGHT_HOURS = Object.freeze(['dusk', 'night']);
+const isNight = (h) => (typeof h === 'number' ? h >= 19.5 || h < 5.5 : NIGHT_HOURS.includes(h));
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null } = {}) {
   // (`locale`: where it is, gameworld/locales.js: its suburbs' register, the part of town it stands in, its light, sky,
   // air and grade; every word the person names over it wins. None: the starter as it always was)
   const L = locale === null ? null : localeOf(locale), word = named ?? L?.district ?? 'downtown', register = own ?? L?.register ?? null;
@@ -102,16 +106,19 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   const hill = HIJACK_HILL_REGISTERS.includes(register);
   const base = hill ? (word === 'downtown' ? HIJACK_HILL_DISTRICT : { ...HIJACK_HILL_DISTRICT, at: word === 'inner-city' ? 'frame' : 'outskirts' }) : HIJACK_DISTRICTS[word];
   // (a locale's city, its grammar, its land and its heights by ring, over the district's metro: gameworld/locales.js)
-  const district = { ...JSON.parse(JSON.stringify(base)), ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}) };
+  // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
+  // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
+  const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
+  const district = { ...JSON.parse(JSON.stringify(base)), ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}) };
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair
     // sky, a haze thick enough that the far blocks pale a kilometre off, the finish over the bake (one tone curve, the
     // sky in the glass, the lamps' bloom) and the view cone, so the street's kit, its trees and its traffic are drawn as
     // far as they read)
-    style: { kit: 'trail-valley', geocube: { from: L ? L.cube : 'valley-morning', era: 'gen-7' }, ...(L?.hour ? { hour: L.hour } : {}), clouds: L?.clouds ?? 'fair', air: L?.air ? JSON.parse(JSON.stringify(L.air)) : hill ? { ...HILL_AIR } : { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
+    style: { kit: 'trail-valley', geocube: { from: L ? L.cube : 'valley-morning', era: 'gen-7' }, ...(hour ? { hour } : {}), clouds: L?.clouds ?? 'fair', air: N ? JSON.parse(JSON.stringify(N.air)) : L?.air ? JSON.parse(JSON.stringify(L.air)) : hill ? { ...HILL_AIR } : { kind: 'haze', visibility: 3500 }, finish: true, cone: true },
     // (a locale's colour grade over every frame, grade.js)
-    ...(L?.grade ? { grade: L.grade } : {}),
+    ...(N?.grade ?? L?.grade ? { grade: N?.grade ?? L.grade } : {}),
     characters: {
       direction: { tradition: 'western' },
       hero: { looks: { body: { cast: 'male' }, underlayer: { type: 'outfit', style: 'streetwear' } }, motion: { vibe: ['bold', 'athletic'] }, actions: { idiom: 'city-stalker-like' } },

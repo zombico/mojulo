@@ -115,7 +115,18 @@ core's and the frame's built blocks split down the middle by a 6 m service lane 
 was, its walls on the lane windows and never a shop; the lane's ground the neighbourhood's road, opened through the walks
 at its mouths and kept clear of parked cars and kerb things there; dumpsters along its walls, bags, stains, a manhole,
 wires slung across it overhead, a car or a van in some (`ALLEY`). A downtown walked into below (`under`) keeps its
-podiums whole. `alleys: false` cuts none. `civic: false` keeps none of the places.
+podiums whole. `alleys: false` cuts none.
+
+## Night
+
+`hijackCityWorld({ hour })` plays the city at any hour; past dusk (`dusk`, `night`, 19:30 to 05:30) it takes its
+locale's night (gameworld/locales.js `night`: its street lamps' light, its air and its grade; `HIJACK_NIGHT` where a
+locale says none). At night the city's moonlight and sky are dimmed (`geocity/scene.js` `NIGHT_CITY`, its land's with
+them), so what is lit stands out of the dark: its windows, its shops' interiors (their own lamps), a pool of light on the
+ground under every street lamp, pole lamp and alley wall lamp in the metro's `lamps` colour with a glow at its head, and
+its traffic's headlights and tail lights (scene/channels/flow.js, a night page's only). Los Angeles' lamps are sodium
+amber in a lit smog, Miami's white over a clear sea air, San Francisco's halos in its fog, Boston's cold white, Toronto's
+warm. `civic: false` keeps none of the places.
 
 ## Locales
 

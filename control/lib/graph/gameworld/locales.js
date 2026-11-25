@@ -9,7 +9,9 @@
  * its towers' share and shapes, its facades' affectations, its green), its land (its hills, its fall to its water) and
  * its heights by ring. A template's defaults: every word a person writes wins, and a new locale is a row, never code.
  *
- *   LOCALES              { <id>: { read, register, district?, cube, hour?, clouds?, air?, grade?, city? } }
+ *   LOCALES              { <id>: { read, register, district?, cube, hour?, clouds?, air?, grade?, city?, night } }
+ *                        `night`: the locale after dark (hijackCityWorld's `hour` past dusk): { read, lamps (its street
+ *                        lamps' light), air, grade }
  *   LOCALE_IDS
  *   localeOf(id)         → the row, or throws naming the locales
  *
@@ -18,6 +20,7 @@
 export const LOCALES = Object.freeze({
   'los-angeles': Object.freeze({
     read: 'Los Angeles: stucco ranches and palms under a low gold sun, the far blocks lost in a warm smog, the frame warm',
+    night: Object.freeze({ read: 'its night: sodium-amber lamps down every street, the smog lit from under', lamps: '#ffb766', air: Object.freeze({ kind: 'haze', visibility: 2400, colour: '#3b2e2a' }), grade: 'night' }),
     register: 'west-coast', cube: 'valley-morning', hour: 'golden', clouds: 'clear',
     air: Object.freeze({ kind: 'haze', visibility: 2600, colour: '#d8c4a2' }), grade: 'warm',
     // (a basin: the land nearly flat to its shore, its hills held back and low; a downtown of a few glass towers over a
@@ -42,6 +45,7 @@ export const LOCALES = Object.freeze({
   }),
   miami: Object.freeze({
     read: 'Miami: pastel block houses and coconut palms under a high noon sun, fair-weather cumulus, a bright sea haze, the colour vivid',
+    night: Object.freeze({ read: 'its night: white LED lamps, a clear sea air, the colour kept vivid', lamps: '#eef2ff', air: Object.freeze({ kind: 'haze', visibility: 4000, colour: '#1d2a3a' }), grade: 'vivid' }),
     register: 'tropical', cube: 'island-noon', hour: 'noon', clouds: 'fair',
     air: Object.freeze({ kind: 'haze', visibility: 4200, colour: '#cfe4ea' }), grade: 'vivid',
     // (flat to the water; slender white and blue-glass condo towers at its core, their balconies stacked, a low city of
@@ -63,6 +67,7 @@ export const LOCALES = Object.freeze({
   }),
   'san-francisco': Object.freeze({
     read: 'San Francisco: painted Victorians up the hill city\'s streets in the morning, the fog lying low over them under a grey sky, the frame cool',
+    night: Object.freeze({ read: 'its night: the fog in, every lamp a halo in it, the frame cool', lamps: '#ffcf8f', air: Object.freeze({ kind: 'mist' }), grade: 'cold' }),
     register: 'san-francisco', cube: 'valley-morning', hour: 'morning', clouds: 'overcast',
     air: Object.freeze({ kind: 'mist' }), grade: 'cold',
     // (the hill city's own land, steep; a downtown of white and grey stone and glass towers, its frame of pale render
@@ -78,6 +83,7 @@ export const LOCALES = Object.freeze({
   }),
   boston: Object.freeze({
     read: 'Boston: an inner city of brick walk-ups and main streets on a Northeast metro, an overcast afternoon, a soft haze, the frame filmic',
+    night: Object.freeze({ read: 'its night: cold white lamps over its brick, a thin haze', lamps: '#e9f0ff', air: Object.freeze({ kind: 'haze', visibility: 2800, colour: '#22262f' }), grade: 'night' }),
     register: 'northeast', district: 'inner-city', cube: 'upland-morning', hour: 'afternoon', clouds: 'overcast',
     air: Object.freeze({ kind: 'haze', visibility: 3000 }), grade: 'film',
     // (New York's brick and brownstone, without its fire escapes and its water tanks: bow-fronted brick rows, granite
@@ -96,6 +102,7 @@ export const LOCALES = Object.freeze({
   }),
   toronto: Object.freeze({
     read: 'Toronto: a lakeshore downtown and its streetcar suburbs of brick bay-and-gables, a fair morning, a light haze',
+    night: Object.freeze({ read: 'its night: warm lamps along its streetcar streets, a clear lake air', lamps: '#ffd9a2', air: Object.freeze({ kind: 'haze', visibility: 3200, colour: '#232833' }), grade: 'night' }),
     register: 'bay-and-gable', cube: 'valley-morning', clouds: 'fair',
     air: Object.freeze({ kind: 'haze', visibility: 3500 }),
   }),

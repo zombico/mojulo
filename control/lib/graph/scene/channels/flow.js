@@ -160,6 +160,25 @@ const __flParts = FLOW.kinds.map((k, i) => ['paint', 'trim', k.extra || null].fi
   scene.add(im);
   return { im, paint: part === 'paint' };
 }).filter(Boolean));
+${flow.night ? `// (AT NIGHT each vehicle's lamps: its headlights at its front, its tail lights at its back, lit by themselves, on the
+// same matrices as its body; a template faces +y)
+const __flLampGeo = (bb, front) => {
+  const w = bb.max.x - bb.min.x, h = bb.max.z - bb.min.z, cx = (bb.min.x + bb.max.x) / 2, y = front ? bb.max.y + 0.012 : bb.min.y - 0.012, z = bb.min.z + h * (front ? 0.4 : 0.5), pos = [];
+  for (const sx of [-1, 1]) { const g = new THREE.BoxGeometry(front ? 0.34 : 0.3, 0.05, front ? 0.15 : 0.12).toNonIndexed(); g.translate(cx + sx * (w / 2 - 0.34), y, z); pos.push(...g.attributes.position.array); }
+  const G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); return G;
+};
+const __flHead = new THREE.MeshBasicMaterial({ color: 0xfff1c8, toneMapped: false }), __flTail = new THREE.MeshBasicMaterial({ color: 0xff2414, toneMapped: false });
+FLOW.kinds.forEach((k, i) => {
+  const geo = __flN[i] && typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|paint'] : null;
+  if (!geo) return;
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  for (const [front, mat] of [[true, __flHead], [false, __flTail]]) {
+    const im = new THREE.InstancedMesh(__flLampGeo(geo.boundingBox, front), mat, __flN[i]);
+    im.count = 0; im.frustumCulled = false; im.userData.g = 'flow-lamps:' + k.model; scene.add(im);
+    __flParts[i].push({ im, paint: false });
+  }
+});
+` : ''}
 ${flow.lod ? `${outlineSource()}
 const __flFar = FLOW.kinds.map((k, i) => {
   const geo = __flN[i] && typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|paint'] : null;

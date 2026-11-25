@@ -54,8 +54,10 @@ describe('the geocity built: its map stood on the cube\'s land as massing', () =
     const N = assembleGeocityScene({ ...M, hour: 'night' });
     expect(N.geocity.counts.panes).toBeGreaterThan(0);
     expect(N.faces.filter((f) => f.group === 'geocity:night-window')).toHaveLength(N.geocity.counts.panes);
-    // (the rest of the night's metro is the day's, face for face but its light)
-    expect(N.faces.length - N.geocity.counts.panes).toBe(P.faces.length);
+    // (the rest of the night's metro is the day's, face for face but its light, and each lamp's pool and glow: NIGHT_CITY)
+    const lamps = N.faces.filter((f) => f.group === 'geocity:pool' || f.group === 'geocity:lamp-glow').length;
+    expect(lamps).toBe(2 * (N.geocity.counts.pools ?? 0));
+    expect(N.faces.length - N.geocity.counts.panes - lamps).toBe(P.faces.length);
   });
 
   it('is the same metro for the same recipe', () => {

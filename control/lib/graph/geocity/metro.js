@@ -55,6 +55,7 @@
  *                   largest block, `cemetery`), on their own dice; a block's area held inside `block` (m²); in the core
  *                   and the frame a place of worship takes a LOT in a built block, a slice `lot` m wide (least, most) at
  *                   its end on a street corner, built to its walk among its neighbours
+ *     lamps         '#rrggbb': its street lamps' light at night (geocity/scene.js NIGHT_CITY), its pools on the ground
  *     alleys        { core, frame, outskirts, w, least } or false: the share of each ring's built blocks cut down the
  *                   middle by a service alley street to street (blocks.js), its width and each half's least depth (m)
  *     industry      { share, segments: { works, warehouse, storage, tanks }, block: [least, most] } or false: the share
@@ -261,7 +262,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -366,6 +367,8 @@ export function readGeocity(spec = {}) {
     || !(Array.isArray(Cv.block) && Cv.block.length === 2 && num(Cv.block[0], 200, 1e5) && num(Cv.block[1], Cv.block[0], 1e6))
     || !(Array.isArray(Cv.lot) && Cv.lot.length === 2 && num(Cv.lot[0], 12, 80) && num(Cv.lot[1], Cv.lot[0], 120)))
     no(`civic is false or { worship: { core, frame, outskirts } 0–1, cemetery: the same, faiths: weights over ${FAITHS.join(', ')}, block: [least, most] m², lot: [least, most] m }`);
+  // (its street lamps' light at night, geocity/scene.js NIGHT_CITY: a colour, sodium's amber to an LED's white)
+  if (M.lamps !== undefined && !(typeof M.lamps === 'string' && /^#[0-9a-f]{6}$/i.test(M.lamps))) no('lamps is a colour, "#rrggbb": its street lamps\' light at night');
   // (its alleys, blocks.js: `false` none; else the share of each ring's built blocks cut by one, its width and the least
   // depth each half keeps, m)
   const ALD = { core: 0.55, frame: 0.6, outskirts: 0, w: 6, least: 16 };

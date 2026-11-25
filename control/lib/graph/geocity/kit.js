@@ -21,7 +21,8 @@
  *     a cemetery's: `headstone`, `cross`, `ledger` (facing: the way its face looks, toward the walk it is read from);
  *     a downtown kerb's `meter`; a lived-in street's: `aboard` (a sandwich board, facing the way a face looks), `planter`,
  *     `cafe` and `cafeg` (a table, two chairs, an umbrella, cream or green), `bags`, `crates`, `cabinet`, `mailbox`,
- *     `cart` (a vendor's), and flat on the road `manhole` and `stain`; an alley's `dumpster` (facing out into it)
+ *     `cart` (a vendor's), and flat on the road `manhole` and `stain`; an alley's `dumpster` (facing out into it) and
+ *     `walllamp` (facing the way its bracket reaches)
  *
  * Pure; no dice.
  */
@@ -183,6 +184,8 @@ const cart = (L) => realize([
   { kind: 'tram-bracket', x: 0.9, y: -0.03, w: 0.5, d: 0.06, z0: 0.95, z1: 0.99, tint: '#5c5f61' }, { kind: 'tram-bracket', x: -0.03, y: -0.03, w: 0.06, d: 0.06, z0: 1.04, z1: 2.3, tint: '#5c5f61' },
   { kind: 'park-bin', x: -1.1, y: -1.1, w: 2.2, d: 2.2, z0: 2.2, z1: 2.32, tint: '#e0b43a' },
 ], L);
+/** A WALL LAMP over an alley: its bracket out from the wall (`facing` the way it reaches) and its shaded head. */
+const walllamp = ([dx, dy], L) => realize([reach('wall-lamp', dx, dy, 0, 0.55, 0.05, 3.9, 3.95, '#2b2d2f'), reach('wall-lamp', dx, dy, 0.38, 0.72, 0.3, 3.7, 3.9, '#3a3c3e'), reach('wall-lamp', dx, dy, 0.42, 0.68, 0.24, 3.66, 3.7, '#f2d79a')], L);
 /** A DUMPSTER in an alley against its wall: its steel bin, its lids, its wheels; its long side along the alley, its
  *  front `facing` out into it. */
 function dumpster([dx, dy], L) {
@@ -297,7 +300,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     bench: four((v) => bench(v, L)),
     can: four((v) => can(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L), railing: railing(L), gate: gate(L),
-    dumpster: four((v) => dumpster(v, L)), aboard: four((v) => aboard(v, L)), planter: planter(L), cafe: cafe('#efe8d8')(L), cafeg: cafe('#2f5a46')(L), bags: bags(L), crates: crates(L), cabinet: cabinet(L), mailbox: mailbox(L), manhole: manhole(L), stain: stain(L), cart: cart(L),
+    walllamp: four((v) => walllamp(v, L)), dumpster: four((v) => dumpster(v, L)), aboard: four((v) => aboard(v, L)), planter: planter(L), cafe: cafe('#efe8d8')(L), cafeg: cafe('#2f5a46')(L), bags: bags(L), crates: crates(L), cabinet: cabinet(L), mailbox: mailbox(L), manhole: manhole(L), stain: stain(L), cart: cart(L),
     meter: meter(L), headstone: four((v) => headstone(v, L)), cross: four((v) => crossMarker(v, L)), ledger: four((v) => ledger(v, L)),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a

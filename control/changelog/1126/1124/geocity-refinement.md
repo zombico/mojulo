@@ -75,3 +75,7 @@
   street, with the backs of buildings on both sides (windows, balconies, no shopfronts), dumpsters and bags along the
   walls, oil stains, a manhole, wires strung across overhead and sometimes a car or a delivery van. The sidewalks open
   at each alley's mouth, and nothing is parked or stood across it. `alleys: false` turns them off.
+- Night scapes: Hijack City can be played at night (`hour: 'night'` or `'dusk'`), each locale with its own night (LA's
+  sodium-amber lamps in a lit smog, Miami's white lamps, San Francisco's fog, Boston's cold white, Toronto's warm). The
+  city falls dark so what is lit stands out: windows, lit shop interiors, a pool of light under every street lamp and
+  alley lamp with a glow at its head, and the traffic's headlights and tail lights. Alleys now have wall lamps.
