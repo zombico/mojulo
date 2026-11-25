@@ -33,6 +33,8 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
+import { scrollPodsScript } from './scroll-pods-view.js';
+import { PAD as SCROLL_PAD, scrollLegendRows } from '../../../gameworld/scroll-stage/controls.js';
 import { shutterScript } from './shutter-view.js';
 import { steamScript } from './steam-view.js';
 import { rockScript } from './rock-view.js';
@@ -902,6 +904,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // a starfighter flown from its cockpit, or a body with a ship's systems (worlds/controllable/rules-starfighter.js)
   const sfOn = entities.some((e) => e && ((e.rule && e.rule.type === 'starfighter') || (e.body && e.body.ship)));
   const sfPilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'starfighter');
+  // (a scroll stage's screen carried down its track and its ship on the d-pad: worlds/controllable/scroll.js; its camera
+  // looks square at the plane, its `up` the view's)
+  const scrollOn = !!(camera && camera.rule === 'scroll');
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
   // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
@@ -912,6 +917,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const foeRoundsOn = Object.keys(foeLooks).length > 0;
   // (a starfighter's page whose rounds carry the shot's look: its bolts, its blasts and its shields' shimmer drawn so)
   const sfFx = sfPilot && foeRoundsOn;
+  // (a scroll stage's page: its craft blown apart in Rebel Storm's space blast, space-blast.js, never a shell falling under
+  // gravity; its own rounds are its pods' view, scroll-pods-view.js)
+  const scrollFx = scrollOn && !sfFx && !busterOn;
   // (a foe that picks up and THROWS ROCKS, worlds/controllable/foe.js rockStep: its rocks drawn by rock-view.js, never as a
   // shell; none, nothing)
   const rockOn = entities.some((e) => e && e.rule && e.rule.foe && e.rule.foe.rock);
@@ -1426,7 +1434,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}), ...(routeFind ? { routeFind: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(scrollOn ? { scroll: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && e.rule.arsenal) ? { scrollPods: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && (e.rule.type === 'scroll-foe' || e.rule.type === 'scroll-mover')) ? { scrollFoes: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}), ...(routeFind ? { routeFind: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''} });${hasLooks ? `
 // (what a member wears, seen: its looks by armour, kept on its entity for its body's variants and the RPG channel's dress)
 for (const __l of ${safeJson((entities || []).filter((e) => e && e.looks && e.looks.by).map((e) => [e.id, e.looks]))}) if (__world.byId[__l[0]]) __world.byId[__l[0]].looks = __l[1];` : ''}
@@ -3250,7 +3258,7 @@ ${camSkips}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) {
     }
   }
   camera.position.set(px, py, pz);
-  ${sfPilot ? `// (a cockpit carries its craft's up: the camera rolled and looped with it, exact at any attitude)
+  ${sfPilot || scrollOn ? `// (a cockpit carries its craft's up: the camera rolled and looped with it, exact at any attitude)
   if (c.up) { camera.up.set(c.up[0], c.up[1], c.up[2]); camera.lookAt(look[0], look[1], look[2]); camera.up.set(0, 0, 1); } else ` : ''}camera.lookAt(look[0], look[1], look[2]);
   if (c.roll) camera.rotateZ(-c.roll);   // a follow camera banking with its target (rollFollow): about the view axis
 }
@@ -3514,7 +3522,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
   }
   if (__wcOpen && (slot || (__wcEnt() && (__wcEnt().loadoutIdx || 0) !== __wcCur))) __wcRender();   // live highlight tracks the engine's slot
   __wcPrevRB = rb; __wcPrevFace = face;
-  return {
+  ${scrollOn ? 'const __pr = ' : 'return '}{
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
     fire: pb('fire'), boost: pb('boost'),${moveset ? `
@@ -3533,12 +3541,26 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
     interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)${vayoOn ? `
     vayo: !!(g.buttons && g.buttons[13] && g.buttons[13].pressed),   // D-pad down — a vayo move (vayo-move.js)` : ''}
-  };
+  };${scrollOn ? `
+  // A SCROLL STAGE's pad, a shmup's (gameworld/scroll-stage/controls.js): the d-pad flies as the stick does, eight ways; the
+  // bottom face fires (the right trigger too), the left face or the left shoulder switches the pod, the right face held
+  // ejects (the left trigger too), the top face is the speed (the right shoulder's tap too); the d-pad is never the suit
+  // switch here, and the menu's button is the HUD's (channels/mana-hud.js)
+  const __sP = ${JSON.stringify(SCROLL_PAD)}, __sb = (L) => L.some(b);
+  if (!__pr.moveX) __pr.moveX = (b(__sP.right) ? 1 : 0) - (b(__sP.left) ? 1 : 0);
+  if (!__pr.moveY) __pr.moveY = (b(__sP.up) ? 1 : 0) - (b(__sP.down) ? 1 : 0);
+  __pr.fire = __pr.fire || __sb(__sP.fire); __pr.boost = __pr.boost || __sb(__sP.eject);
+  __pr.cycle = __pr.cycle || __sb(__sP.speed);
+  if (!__pr.slot && __sb(__sP.pod)) __pr.slot = 'next';
+  __pr.swap = false;
+  return __pr;` : ''}
 }
 // the pause legend for the piloted entity (scene-three's __controlRows asks): the scheme's rows,
 // read off the live bindings and filtered by what this world has, so it teaches only the keys it answers to.
 function __ctlLegend(pil) {
 ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (touch.js): its thumbs, not the keys
+` : ''}${scrollOn ? `  // (a scroll stage's ship: the stage's own layout, gameworld/scroll-stage/controls.js, on the pad in hand or the keys)
+  if (pil.rule && pil.rule.type === 'scroll-ship') { const __sl = ${JSON.stringify(Object.fromEntries([false, true].map((sh) => [sh ? 'in' : 'off', { keyboard: scrollLegendRows('keyboard', 'xbox', { shell: sh }), xbox: scrollLegendRows('gamepad', 'xbox', { shell: sh }), playstation: scrollLegendRows('gamepad', 'playstation', { shell: sh }), nintendo: scrollLegendRows('gamepad', 'nintendo', { shell: sh }) }])))}[window.parent !== window ? 'in' : 'off']; return (__padOn && __padSeen && __usePad && __sl[__padLayout]) || __sl.keyboard; }
 ` : ''}  const r = pil.rule || pil.pilotRule || {};
   const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
@@ -5270,7 +5292,8 @@ let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic b
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
 ${sfFx && !busterOn ? `const __sfShield = new Map();   // (a ship's shields' hits drawn: the count seen, rules-starfighter.js hitN)
-${spaceBlastScript()}` : ''}function __updateProjectiles() {${sfFx && !busterOn ? `
+${spaceBlastScript()}` : scrollFx ? spaceBlastScript() : ''}function __updateProjectiles() {${scrollFx ? `
+  __spaceBlastAge();` : ''}${sfFx && !busterOn ? `
   __blastAge(); __spaceBlastAge();
   // (a round another ship's shield took: a faint shell of its shield flashing round it on that side, quick)
   for (const e of __world.entities) {
@@ -5365,7 +5388,10 @@ ${busterOn || foeRoundsOn ? `    // (a buster's round, buster.js, drawn in its l
     if (b.effect === 'stun') { __lookStun(b); continue; }
     if (b.effect === 'chaff') { __lookChaff(b); continue; }
     if (b.look) { __lookBlast(b); continue; }
-    const col = b.fxColor != null ? b.fxColor : 0xffcc66;
+${scrollFx ? `    // (a scroll stage: a craft, a gun, a system blown up in the space blast as big as it is or a twenty-fifth of the view,
+    // its debris its blast's, flying straight on; nothing falls in space)
+    if (b.craft || b.debris) { const dc = camera.position.distanceTo(new THREE.Vector3(b.pos[0], b.pos[1], b.pos[2])); __spaceBlast(b.pos, Math.max(b.fxRadius || b.radius || 1, dc * 0.04), b.seq); continue; }
+` : ''}    const col = b.fxColor != null ? b.fxColor : 0xffcc66;
     // the shell peaks at the TRUE splash reach (b.radius) — honest to the gameplay AoE — but stays
     // TRANSLUCENT (dim 0.5) so it reads as a fireball, not a screen-filling wash. A small, brighter
     // white flash marks the detonation point. A record may carry fxRadius (the DEATH BURST, R34.1):
@@ -6241,7 +6267,7 @@ function __mojBackdrop(from, look, shift) {
     }
   })();
 })();
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay || armHeld ? gunplayScript(armHeld ? { held: true } : undefined) : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${sightShown ? sightScript() : ''}${alarm ? alarmScript() : ''}${knockout ? knockoutScript() : ''}${ghost ? ghostScript() : ''}${bossOn || minesOn ? bossViewScript() : ''}${mission ? missionScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${entities.some((e) => e && e.body && e.body.steam && Array.isArray(e.body.steam.vents) && e.body.steam.vents.length) ? steamScript() : ''}${rockOn ? rockScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay || armHeld ? gunplayScript(armHeld ? { held: true } : undefined) : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${sightShown ? sightScript() : ''}${alarm ? alarmScript() : ''}${knockout ? knockoutScript() : ''}${ghost ? ghostScript() : ''}${bossOn || minesOn ? bossViewScript() : ''}${mission ? missionScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${scrollOn && entities.some((e) => e && e.rule && (e.rule.arsenal || e.rule.type === 'scroll-foe')) ? `${scrollPodsScript()}${shotLightScript({ more: '__SPV.lights' })}` : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${entities.some((e) => e && e.body && e.body.steam && Array.isArray(e.body.steam.vents) && e.body.steam.vents.length) ? steamScript() : ''}${rockOn ? rockScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders
 // (the runtime's) and the scene (taken out, not hidden: the ground's ray and the camera's meet nothing where it was).

@@ -40,6 +40,7 @@ import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace, SPACE_STAR } from './space.js';
 import { planBackdrop } from './backdrop.js';
+import { readScrollStage, assembleScrollStage } from '../gameworld/scroll-stage/stage-scene.js';
 import { fleetWorld, layFleet, toward } from './space-fleet.js';
 import { trenchField } from './trench.js';
 import { railPath, railKeep, planRailStage, readRailPlan } from './rail-stage.js';
@@ -70,6 +71,8 @@ const COUNTRY_PIN = 16, COUNTRY_SPLIT = 10;
 /** Errors (strings) for an airspace manifest; [] when it builds. */
 export function validateAirspace(m) {
   if (!m || typeof m !== 'object') return ['airspace must be an object { kind: \'airspace\', map?, ground?, seed?, spawn? }'];
+  // a scroll stage (gameworld/scroll-stage/): Blaze Gunner's screen that scrolls on its own through space, its own words
+  if (m.scroll !== undefined) return readScrollStage(m.scroll);
   const e = [];
   if (isSpace(m)) {
     // space: a field and its rocks, no ground (space.js)
@@ -176,6 +179,7 @@ function oceanPageConfig(field, S) {
 }
 
 export function assembleAirspace(manifest, { title = 'mojulo airspace', live = false } = {}) {
+  if (manifest.scroll !== undefined) return assembleScrollStage(manifest, { title });
   if (isSpace(manifest)) return assembleSpace(manifest, { title });
   const { map, field } = airspaceOf(manifest);
   const channel = terrainPageChannel(field, { n: map.lod.n, split: map.lod.split, minSize: map.lod.minSize, horizonScale: map.lod.horizonScale });

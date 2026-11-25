@@ -57,6 +57,7 @@ import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
 import { sideMapLevelOrder } from './side-map/level.js';
+import { scrollHud } from './scroll-stage/hud.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
 import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
@@ -94,6 +95,8 @@ import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
 import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
 import { airspaceOf } from '../skyscape/airspace.js';
+import { scrollStageOf, scrollStagePlay } from './scroll-stage/stage-scene.js';
+import { SCROLL_VIEWS } from './scroll-stage/frame.js';
 import { planCourse } from '../skyscape/course.js';
 import { mapLaws } from '../skyscape/map.js';
 import { spaceLaws } from '../skyscape/space.js';
@@ -408,6 +411,15 @@ export function airspaceEnds(manifest) {
   const key = JSON.stringify(manifest);
   if (AIR_ENDS.has(key)) return AIR_ENDS.get(key);
   if (AIR_ENDS.size > 8) AIR_ENDS.clear();
+  // A SCROLL STAGE (scroll-stage/, Blaze Gunner's): no flight map; started where its ship stands on the screen, ended
+  // at its track's last screen; its play is its own (scrollStagePlay), laid as the pilot's part
+  if (manifest.scroll !== undefined) {
+    const G = scrollStageOf(manifest), P = scrollStagePlay(manifest), e0 = P.entities[0], V = SCROLL_VIEWS[G.view];
+    const end = [G.extent.u[1], G.extent.v[1]], exit = [0, 1, 2].map((k) => V.along[k] * end[0] + V.across[k] * end[1]);
+    const out = { spawn: e0.transform.pos.slice(), heading: e0.transform.heading, exit, exitFrom: 'the stage\'s end', planar: false, beats: [], hazards: [], airLaws: [], ground: () => -1e4, scroll: { ...G, track: P.camera.track }, scrollPlay: P };
+    AIR_ENDS.set(key, out);
+    return out;
+  }
   let map, field;
   try { ({ map, field } = airspaceOf(manifest)); } catch (e) { throw new Error(`levels: ${e.message}`); }
   const course = manifest.course ? planCourse(map, field, { ...(manifest.course === true ? {} : manifest.course), seed: manifest.seed ?? 1 }) : null;
@@ -1012,7 +1024,16 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // moments it is kept at; the game's shell holds it and hands it back on a continue
   if (ways?.save) game.save = ways.save;
   let pilotPart, seatable = false;
-  if (stage.section === 'airspace') {
+  if (stage.section === 'airspace' && ends.scroll) {
+    // A SCROLL STAGE (scroll-stage/stage-scene.js scrollStagePlay): its ship on the d-pad, the scroll camera, its foes, a
+    // hull on the play plane and the physics that breaks it; its HUD and menu in the game's look (scroll-stage/hud.js),
+    // the level's own keys besides (another mechanic's) with the stage's, where the stage's play carries one, else the
+    // keys as the level's line
+    const H = ends.scrollPlay.manaHud;
+    pilotPart = H
+      ? { ...ends.scrollPlay, manaHud: scrollHud({ theme: interfaceLook(G).theme, hp: H.feed.scroll.hp, lives: H.feed.scroll.lives, boss: H.feed.scroll.boss ?? null, stage: name, more: mechanics?.legend ?? '' }), events: {} }
+      : { ...ends.scrollPlay, events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `arrows / WASD  fly${legend ? ` · ${legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` }).events || {} };
+  } else if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
     // gives, the map's reach its bound, seated on the departure threshold (a craft with no engine launched aloft, high
     // enough to glide to the first gate), followed from behind by a chase camera that banks with it

@@ -334,7 +334,7 @@ const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments',
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them; its sky
 // (skyscape/sky.js: the weather it is flown in)
 // (its `lesson`: a flying lesson's brief, told before it is flown: gameworld/lesson-brief.js)
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing', 'sky', 'lesson'];
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing', 'sky', 'lesson', 'scroll'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -1135,6 +1135,8 @@ export function resolveLevel(world, id) {
   // a kitchen level (kitchen-shifts.js, laid by kitchen-level.js): its own room, its shift read as written
   if (L.kitchen) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, kitchen: { ...L.kitchen } };
   // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
+  // (a scroll stage, scroll-stage/: no flight map, no ground, no course; its scroll rides as written)
+  if (L.airspace?.scroll !== undefined) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { scroll: L.airspace.scroll } };
   if (L.airspace) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
     // (a rail stage has its path and no course; its airframe, and its rail, ride as written)
