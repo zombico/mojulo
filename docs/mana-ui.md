@@ -1132,6 +1132,9 @@ put away while it is up. A part fitted is stood at once: the page builds the fra
 (`assault-frame/kernel.js`, the frame's own modules). Sortie keeps the build in the save (the `hangar` slice's flags,
 `assault-frame/hangar.js`), takes the bay down and lets the operation go. The parts it offers are its stock's and the
 save's `parts`, which each operation's win adds to (its `reward`, the level's `wins`).
+Its cursor ticks (the runtime's `ticks` cues) play in the holo table's `glass` set through the level's audio
+(`window.__mojUiCue`, `scene/channels/frame-audio.js`), and an operation's briefing ticks the same way (its data's
+`sounds`); the space briefing stays silent.
 
 ### An operation's briefing
 

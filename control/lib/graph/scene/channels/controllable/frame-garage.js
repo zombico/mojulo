@@ -270,7 +270,7 @@ function open() {
   cam0 = { pos: camera.position.clone(), q: camera.quaternion.clone(), up: camera.up.clone() };
   bay = makeBay(P, H); orbit = 0.6; stow(true, P);
   words();
-  rt = __manaUi.runtime(${json(frameGarageSpec())}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: 'silent' });
+  rt = __manaUi.runtime(${json(frameGarageSpec())}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: 'ticks' });
   rt.glyphs(${json(manaGlyphs())});
   mview = __manaUi.mount(__grRoot.querySelector('.gr-mana'), rt, { auto: true });
   __manaHostK.connect(rt, mview, { keys: ${json(C.keys)}, pad: ${json(C.pad)}, padLayout: __manaPadLayout });
@@ -284,11 +284,14 @@ function sortie() {
   up = false; try { rt.close(); } catch (e) { /* closed */ }
   __grRoot.remove(); document.body.classList.remove('moj-garage');
   stow(false); if (bay) { scene.remove(bay); bay = null; }
+  if (window.__mojUiCue) window.__mojUiCue('close');
   if (cam0) { camera.up.copy(cam0.up); camera.position.copy(cam0.pos); camera.quaternion.copy(cam0.q); cam0 = null; }
   hold(false);
 }
 function act(e) {
   if (!e || !up) return;
+  // (the menus' sounds: the cursor's ticks, played by the level's audio, frame-audio.js window.__mojUiCue)
+  if (e.sound) { if (window.__mojUiCue) window.__mojUiCue(e.sound); return; }
   if (e.emit === 'garage:slot') { partsOf(e.slot); STATE.garage.partsTitle = NAMES[e.slot]; rt.open('parts'); }
   else if (e.emit === 'garage:fit') { fit(e.slot, e.item === '-' ? null : e.item); try { rt.back(); } catch (err) { rt.open('slots'); } }
   else if (e.emit === 'garage:sortie') sortie();

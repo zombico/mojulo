@@ -109,7 +109,8 @@ export function operationBriefingData(G, id) {
   ]).map((s, k) => ({ id: `step-${k + 1}`, stage: 'theatre', part: 3, title: s.title, say: s.say, show: s.show, routes: s.routes }));
   const name = L.name ?? nameOfId(id), region = B?.region ?? 'Tharsis';
   return {
-    id, name, status: 'approved', rosterTitle: 'Forces',
+    // (`sounds`: the table's menus heard, the cursor's ticks played by the level's audio: gameworld/frame-sound.js)
+    id, name, status: 'approved', rosterTitle: 'Forces', sounds: true,
     place: { line: ['Sol', 'Mars', region, name].join(' | '), parts: ['Sol', 'Mars', region, name] },
     // (the briefing opens on the field: the orrery is carried for the page's shape, never shown)
     orrery: (() => { const O = orrery(readPlace({ system: 'Sol', cluster: 'Mars', station: 'Operation', moon: 1 }), { moonKind: 'barren' }); return { ...O, homeMoons: O.planets[O.home].moons.length }; })(),

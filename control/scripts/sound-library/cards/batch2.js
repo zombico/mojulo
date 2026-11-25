@@ -34,7 +34,8 @@ export const CARDS = [
   shot('katana-swing', 'katana-swing', 'a fast katana sword swing cutting the air, sharp whoosh, close, dry', 0.6),
   shot('katana-draw', 'katana-draw', 'a katana drawn from its wooden scabbard, a steel slide and ring, close', 1.2),
   shot('blunt-hit', 'blunt-hit', 'a wooden club hitting a body, heavy dull thwack, close, dry, no voice', 0.6),
-  shot('shield-hit', 'shield-hit', 'a sword striking a wooden round shield with iron rim, heavy knock, close', 0.8),
+  // (a sword on a wooden shield is a parry's block: the shelf's shield-hit is an energy shield's, warlords-of-mars.js)
+  shot('shield-hit', 'block', 'a sword striking a wooden round shield with iron rim, heavy knock, close', 0.8),
   // explosions and breakage
   shot('grenade-blast', 'grenade-blast', 'a hand grenade explosion outdoors, sharp blast with shrapnel and debris', 2.5),
   shot('wood-break', 'wood-break', 'a wooden crate smashed apart, splintering planks falling', 1.5),

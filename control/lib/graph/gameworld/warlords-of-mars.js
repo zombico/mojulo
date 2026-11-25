@@ -221,7 +221,7 @@ export function operationLevel(op) {
   const W = WARLORDS_OF_MARS;
   return {
     name: op.name,
-    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette, garage: true, briefing: true } },
+    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette, garage: true, briefing: true, flavor: 'warlords-of-mars' } },
     goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' && !g.ace ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks), ...(op.reward ? { reward: [...op.reward] } : {}), ...(op.briefing ? { briefing: clone(op.briefing) } : {}) } },
   };
 }

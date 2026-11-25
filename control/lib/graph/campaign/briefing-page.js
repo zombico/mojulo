@@ -132,13 +132,15 @@ const STATE = window.__manaState = ${json(briefingState(D))};
 const stepWords = ${stepWords.toString()};
 let rt = null, mview = null, launched = false;
 const showStep = (k) => { if (launched) return; window.__brief.go(k); stepWords(STATE, BRIEF, window.__brief.step); if (mview) mview.paint(); };
-const act = (e) => {
+const act = (e) => {${D.sounds ? `
+  // (the menus' sounds, the briefing's data's \`sounds\`: the cursor's ticks played by the level's audio, window.__mojUiCue)
+  if (e.sound) { if (window.__mojUiCue) window.__mojUiCue(e.sound); return; }` : ''}
   if (e.emit === 'brief:next') showStep(window.__brief.step + 1);
   else if (e.emit === 'brief:prev') showStep(window.__brief.step - 1);
   else if (e.emit === 'brief:go') showStep(e.to);
   else if (e.emit === 'brief:launch' && !launched) ${launch}
 };
-rt = __manaUi.runtime(${json(spec)}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: 'silent' });
+rt = __manaUi.runtime(${json(spec)}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: ${D.sounds ? "'ticks'" : "'silent'"} });
 rt.glyphs(${json(manaGlyphs())});
 mview = __manaUi.mount(__bfMana, rt, { auto: true });
 __manaHostK.connect(rt, mview, { keys: ${json(C.keys)}, pad: ${json(C.pad)}, padLayout: __manaPadLayout });

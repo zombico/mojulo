@@ -31,6 +31,7 @@ import { frameEntity, frameMounts, FRAME_CAMERA, FRAME_WORLD } from '../assault-
 import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/field.js';
 import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
 import { OPERATION_LEGEND } from './frame-goal.js';
+import { frameAudio } from './frame-sound.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
 import { facilityBuilding } from '../era/facilities.js';
@@ -457,7 +458,7 @@ export function frameFieldEnds(stage) {
   const x = cx, y = r3(cy - half * 0.55), ex = cx, ey = r3(cy + half * 0.8);
   // (under a roof, a works' field: its ground looked for a step over a frame's feet, its works' solids stopping it)
   const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation',
-    ...(F.indoor ? { probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}), ...(stage.frame.garage ? { garage: true } : {}) };
+    ...(F.indoor ? { indoor: true, probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}), ...(stage.frame.garage ? { garage: true } : {}), ...(stage.frame.flavor ? { flavor: stage.frame.flavor } : {}) };
   const out = { spawn: frame.spawn.slice(), heading: frame.heading, exit: [ex, ey, g(ex, ey)], exitFrom: 'the field\'s far side', planar: false, beats: [], hazards: [] };
   for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [], colliders: F.colliders ?? [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
   FIELD_ENDS.set(key, out);
@@ -1070,6 +1071,9 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     if (F.garage) game.produces = { ...(game.produces ?? {}), events: [...(game.produces?.events ?? []), { type: 'setFlag', slice: HANGAR_SLICE }] };
     // (told on the holo table before the drop, campaign/operation-brief.js: the briefing channel over the level)
     if (X0?.briefing) pilotPart = { ...pilotPart, briefing: { data: X0.briefing } };
+    // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
+    // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
+    if (!audio) pilotPart = { ...pilotPart, audio: frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, flavor: F.flavor ?? null }) };
     // (an operation's reward, frame-goal.js: the parts its win grants, the game channel's `wins`)
     if (F.garage && X0?.wins?.length) { game.wins = X0.wins; game.produces = { ...game.produces, events: [...game.produces.events, { type: 'grant', slice: PARTS_SLICE }] }; }
   } else if (stage.section === 'airspace') {

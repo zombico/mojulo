@@ -498,6 +498,13 @@ const ROWS = {
   'railgun-shot': recorded('weapon', 'shoot', 'weapon.shot', 'a railgun firing: a charge whine snapping into a metallic crack', ['railgun', 'rail gun', 'mass driver'], { matter: ['electric', 'metal'], standIn: 'beam-rifle-shot' }),
   'vulcan-burst': recorded('weapon', 'shoot', 'weapon.shot', 'a head vulcan\'s short rapid burst', ['vulcan burst', 'head vulcan', 'head gun'], { matter: ['metal'], standIn: 'machine-gun-shot' }),
   'missile-salvo': recorded('weapon', 'shoot', 'weapon.shot', 'a salvo of missiles launching in quick succession', ['missile salvo', 'missile pod', 'micro missiles'], { matter: ['fire', 'machine'], standIn: 'missile-launch' }),
+  // ── an assault frame's (sfx-shelf/frame-sounds.js), Warlords of Mars's: the guns a frame carries at its own scale, its
+  //    wreck, its cockpit\'s missile warning; each heard as its stand-in until the library records it ──
+  'scatter-shot': recorded('weapon', 'shoot', 'weapon.shot', 'a frame\'s scatter cannon: a broad short bore\'s deep blast of shot', ['scatter cannon', 'frame shotgun', 'mech shotgun'], { matter: ['metal', 'fire'], standIn: 'shotgun-shot' }),
+  'gatling-burst': recorded('weapon', 'shoot', 'weapon.shot', 'a frame\'s gatling: six barrels spinning, a ripping stream of rounds', ['frame gatling', 'rotary cannon', 'mech gatling'], { matter: ['metal'], standIn: 'vulcan-burst' }),
+  'mortar-shot': recorded('weapon', 'shoot', 'weapon.shot', 'a frame\'s grenade cannon: a deep hollow thump lobbing a shell', ['grenade cannon', 'frame mortar', 'mech mortar'], { matter: ['metal', 'fire'], standIn: 'bazooka-shot' }),
+  'frame-wreck': recorded('explosion', 'death', 'on', 'a frame or a gunship going up: a reactor\'s blast, plates torn away, debris raining', ['frame destroyed', 'gunship destroyed', 'reactor blast'], { matter: ['metal', 'fire'], standIn: 'wreck-explosion' }),
+  'missile-warning': recorded('machinery', 'alarm', 'on', 'a cockpit\'s missile warning: a fast urgent two-tone beeping', ['missile warning', 'missile alert', 'incoming missile'], { matter: ['electric'], standIn: 'alarm' }),
   'heat-axe-swing': recorded('melee', 'swing', 'strike.swing', 'a heat axe swung: a heavy whoosh with a hot sizzle', ['heat axe', 'heat hawk', 'axe swing mech'], { matter: ['metal', 'fire'], standIn: 'saber-swing' }),
   'heat-axe-hit': recorded('melee', 'strike', 'strike.hit', 'a heat axe chopping into armour: a crunch and a hot sear', ['heat axe hit', 'heat hawk hit'], { matter: ['metal', 'fire'], standIn: 'saber-hit' }),
   // ── magic as a kit (sfx-shelf/magic-sounds.js): each element by its phase and tier, the statuses, the spells, a battle's
