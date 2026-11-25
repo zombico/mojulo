@@ -74,8 +74,10 @@ describe('the JRPG starter\'s town on the page', () => {
       await withinFrames((z) => window.__mojReach === z, 60, id);
       // (E held until the bus says the cue fired: the runtime reads it once a frame, and software GL under a heavy town
       // draws a frame a second or slower, so a fixed hold can fall between two frames)
+      // (a NEW firing: the log keeps every event, so a cue used before, the priest's on a second visit, is in it already)
+      const n0 = await page.evaluate(() => (window.__mojBus.state.log || []).length);
       await page.keyboard.down('KeyE');
-      try { await withinFrames((t) => (window.__mojBus.state.log || []).some((x) => x && x.type === t), 60, id.replace(/^cue-/, 'cue:')); }
+      try { await withinFrames(([t, n]) => (window.__mojBus.state.log || []).slice(n).some((x) => x && x.type === t), 60, [id.replace(/^cue-/, 'cue:'), n0]); }
       finally { await page.keyboard.up('KeyE'); }
     };
     try {
@@ -121,7 +123,8 @@ describe('the JRPG starter\'s town on the page', () => {
         });
         await pressUntil('Escape', () => !window.__mojScenes.on());
         // (the priest keeps the temple: their page said, its rite opens as the talk ends; closed again)
-        await withinFrames(() => !!window.__sawShop, 60);
+        // (failing, it says what the page saw: the last events, the mode, whether a scene is on)
+        await withinFrames(() => !!window.__sawShop, 60).catch(async (e) => { throw new Error(`${e.message}: ${JSON.stringify(await page.evaluate(() => ({ log: (window.__mojBus.state.log || []).slice(-20).map((x) => x && x.type), mode: window.__mojRpg.state().mode, scenes: window.__mojScenes.on() })))}`); });
         expect(await page.evaluate(() => window.__sawShop)).toBe('temple');
         await pressUntil('Escape', () => !window.__mojRpg.state().mode);
         return t;

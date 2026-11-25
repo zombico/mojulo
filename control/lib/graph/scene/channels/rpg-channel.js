@@ -934,10 +934,15 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     else if (e.emit === 'learn') { const why = K.buy(cfg, R, e.member, e.skill); said(why, memberName(e.member) + ' learned ' + cfg.skills[e.skill].name + '.'); if (!why) keep(); }
   }
   // ── a shop and an inn (rpg.js shops): opened by a cue's rpg-shop:<id>, its wares bought with the gold into the bag ──
+  // (false while a scene or a menu is up, so the ask is kept and tried again next frame: a scene's end can be logged on
+  // a frame its talk is still up, a slow device's, and a shop dropped then never opens; true when it is answered, or
+  // when the page is in a shop or a battle already, as it always was: a second E at the inn does not queue it again)
   function openShop(sid) {
-    if (mode || busy() || !K.shopOf(cfg, sid)) return;
+    if (!K.shopOf(cfg, sid) || mode) return true;
+    if (busy()) return false;
     mode = 'shop'; shopId = sid; smsg = '';
     screen('rpg-shop');
+    return true;
   }
   function shopModel() {
     const S = K.shopOf(cfg, shopId), gold = V()[cfg.rules.gold] || 0;
@@ -1033,7 +1038,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     }
     seen = log.length;
     for (const enc of fights) startBattle(enc);
-    if (shopAsk) { openShop(shopAsk); shopAsk = null; }
+    if (shopAsk && openShop(shopAsk)) shopAsk = null;
   }
   function walk() {
     const Rn = cfg.random, w = window.__mojCtrl && window.__mojCtrl.world;
