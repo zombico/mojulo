@@ -656,19 +656,6 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
-    id: 'side-shmup',
-    name: 'Horizontal shooter',
-    anchor: false,
-    why: 'one small ship on a screen the game scrolls, waves in formation, weapons taken from the foes that carry them, a station broken into to its reactor',
-    cube: {
-      reality: { medium: '3d' },
-      // (11-24, 1124-bullet-hell-sidescroller: Blaze Gunner's stages, made from a gameworld on its rail)
-      space: { levelForm: 'stage', topology: 'linear' },
-      power: { combat: ['ranged'], mechanics: ['waves', 'hp-pool'] },
-      soul: { seats: 'one', frame: 'scroll', input: 'real-time' },
-    },
-  },
-  {
     id: 'driver-and-gunner',
     name: 'Driver and gunner',
     anchor: false,
