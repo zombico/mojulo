@@ -100,6 +100,12 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     front are eaten until the shield breaks, a flank goes round it. A frame's lunge knocks the shield aside and staggers
     it, and a broken shield is raised again 7 s later (`rule.shieldRaise`, the `frame-shields` pass): the punish window.
     The lock box reads its shield's share, or SHIELD DOWN. Its operation, The Shield Line, puts three before two guns.
+  - The MTs (`assault-frame/mts.js`, a frame group's `mt`): the warlord's smaller frames, from the same parts on the same
+    rule, drawn smaller (a body's `scale`, `body.js` `scaleBody`: its bones, faces, mounts, thrusters and rig) with less
+    armour and a shorter stability bar, their eye and hit volume at their size. The Jackal (0.6, 4.8 m): a carbine and a
+    shotgun on light legs, in threes, circling in close. The Rhino (0.72, 6.8 m): a gatling and a mortar on heavy legs,
+    hanging back; its mortar braces it, the window. Their operation, the Jackal Pack, puts the pack on the crater road
+    and the Rhino behind it, before Vermilion. `node scripts/render-frame.mjs --mts jackal,rhino` draws their sheets.
   - A locked lunge now lasts as long as its reach takes to cross, so a foe at the edge of a kick's reach is met.
   - The ground force's sheets: `node scripts/render-groundforce.mjs --units gnat,walker` draws each card from three sides
     beside a frame's height.
@@ -140,12 +146,13 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   little air under its own weather: a butterscotch sky paling to a dusty horizon, a small dim sun, thin ice cloud
   high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck: a flight over
   Mars, where a frame's field is under its cube's heavens.
-- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is seven operations:
+- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is eight operations:
   - Landfall at Tharsis: a gun line, then a tank column;
   - Gnat Screen: a drone swarm, then its emplacements;
   - Long Guns: missile carriers behind a line of tanks, then the ridge;
   - The Shield Line: shield walkers, then the guns behind them;
   - Red Dust: a pass held by walkers, then a guard frame;
+  - Jackal Pack: three light MTs, then a heavy one;
   - Vermilion: the warlord's ace, alone, its pickets held back;
   - The Warlord: an escort of two, then the warlord's heavy frame.
 - **Made from words.**

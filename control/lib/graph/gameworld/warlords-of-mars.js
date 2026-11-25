@@ -68,6 +68,16 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: f(['pickets', 'nest']), text: 'Clear the pass' }), f({ down: 'guard', text: 'Destroy the guard frame' })]),
   }),
+  // (rung four: frames before the frame; a pack of light MTs that circle in, then a heavy one whose mortar is its window)
+  f({
+    id: 'jackal-pack', name: 'Jackal Pack', map: 'basin',
+    brief: 'Three Jackals hunt the crater road: small, quick frames that circle in close. Break them, and the Rhino behind them comes up. Its mortar hangs it in the air as it fires: that is when you hit it.',
+    groups: f([
+      f({ id: 'pack', kind: 'frame', mt: 'jackal', count: 3, at: f([0, 0.3]), spread: 90 }),
+      f({ id: 'rhino', kind: 'frame', mt: 'rhino', at: f([0, 0.68]) }),
+    ]),
+    tasks: f([f({ down: 'pack', text: 'Break the Jackal pack' }), f({ down: 'rhino', text: 'Destroy the Rhino' })]),
+  }),
   // (the ace the path ladders up to, assault-frame/aces.js: it duels, then rushes with its blade, its optics flaring
   // before it strikes, then, cornered, calls in the walkers held back behind it)
   f({

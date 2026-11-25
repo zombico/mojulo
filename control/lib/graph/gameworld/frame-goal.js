@@ -8,7 +8,8 @@
  *     groups   [{ id, kind: 'turret' | 'tank' | 'walker' | 'gnat' (a flier, stood in the air) | 'hammer' (a missile
  *              launcher) | 'bastion' (a shield-bearer) | 'frame', count?, at: [x, y] (a share of the field: −1..1 each
  *              way, the frame starting at [0, −0.55]), spread? (m), build? (a frame's: a STOCK name), palette?,
- *              ace? (a frame's: an ace off assault-frame/aces.js, its build, paint, armour and phases; one), reserve?
+ *              ace? (a frame's: an ace off assault-frame/aces.js, its build, paint, armour and phases; one), mt? (a frame's:
+ *              a smaller frame off assault-frame/mts.js, its build, scale, armour and mind), reserve?
  *              (true: held back dormant until an ace's phase calls it in) }]
  *     tasks    [{ down: <group id> | [ids] | true, text? } | { reach: [x, y], radius?, text? } | { hold: seconds, text? }]
  *              a down task's groups stand dormant until it begins (objectives wake them); true: every group
@@ -23,6 +24,7 @@
  */
 import { unitRadius } from '../groundforce/index.js';
 import { ACES, readAce } from '../assault-frame/aces.js';
+import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
 import { STOCK } from '../assault-frame/parts.js';
 
@@ -61,7 +63,7 @@ export function readOperation(v, at = 'goal.operation') {
   const ids = new Set();
   const groups = v.groups.map((g, i) => {
     const gat = `${at}.groups[${i}]`;
-    if (!isObj(g) || typeof g.id !== 'string' || !/^[a-z][a-z0-9-]{0,23}$/.test(g.id)) throw new Error(`${gat} is { id, kind, count?, at, spread?, build?, ace?, reserve? } (id a short lower-case name)`);
+    if (!isObj(g) || typeof g.id !== 'string' || !/^[a-z][a-z0-9-]{0,23}$/.test(g.id)) throw new Error(`${gat} is { id, kind, count?, at, spread?, build?, ace?, mt?, reserve? } (id a short lower-case name)`);
     if (ids.has(g.id)) throw new Error(`${gat}.id '${g.id}' is used twice`);
     ids.add(g.id);
     if (!KINDS.includes(g.kind)) throw new Error(`${gat}.kind is one of ${KINDS.join(', ')}`);
@@ -71,9 +73,11 @@ export function readOperation(v, at = 'goal.operation') {
     if (g.build !== undefined && (g.kind !== 'frame' || !STOCK[g.build])) throw new Error(`${gat}.build is a frame's: ${Object.keys(STOCK).join(', ')}`);
     // (an ace, assault-frame/aces.js: a named frame with its own build and paint and its phases; one of it)
     if (g.ace !== undefined) { if (g.kind !== 'frame') throw new Error(`${gat}.ace is a frame's`); readAce(g.ace, `${gat}.ace`); if (count !== 1) throw new Error(`${gat}.count: an ace is one`); }
+    // (an MT, assault-frame/mts.js: a smaller frame off its shelf, its build, scale, armour and mind its row's)
+    if (g.mt !== undefined) { if (g.kind !== 'frame' || g.ace !== undefined) throw new Error(`${gat}.mt is a frame's, not an ace's`); readMt(g.mt, `${gat}.mt`); }
     // (a reserve: held back, dormant, until an ace's phase calls it in)
     if (g.reserve !== undefined && g.reserve !== true) throw new Error(`${gat}.reserve is true: held back till an ace calls it`);
-    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.build ?? 'raptor' } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.reserve ? { reserve: true } : {}) };
+    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.reserve ? { reserve: true } : {}) };
   });
   if (!Array.isArray(v.tasks) || !v.tasks.length) throw new Error(`${at}.tasks is a list: { down }, { reach }, { hold }`);
   const tasks = v.tasks.map((t, i) => {
@@ -138,12 +142,13 @@ export function operationCast(op, ends) {
     for (const m of membersOf(g, ends)) {
       const dormant = asleep.has(g.id);
       if (g.kind === 'frame') {
-        const fig = g.ace ? `frame-ace-${g.ace}` : `frame-${g.build}${g.palette ? `-${g.palette}` : ''}`;
-        figures[fig] = { assault: { build: g.build, palette: g.palette ?? 'ash' } };
+        const T = g.mt ? MTS[g.mt] : null;
+        const fig = g.ace ? `frame-ace-${g.ace}` : T ? `frame-mt-${g.mt}` : `frame-${g.build}${g.palette ? `-${g.palette}` : ''}`;
+        figures[fig] = { assault: { build: g.build, palette: g.palette ?? 'ash', ...(T ? { scale: T.scale } : {}) } };
         // (an ace: its phases on its mind, its armour its row's share over its build's, its name on it for the HUD)
         const A = g.ace ? ACES[g.ace] : null;
-        const mind = A ? { range: A.phases[0].range, aggression: A.phases[0].aggression, dodge: A.phases[0].dodge, phases: A.phases } : { range: OPERATION.frameRange };
-        const e = frameEntity(g.build, { id: m.id, at: m.at, heading: toward(m.at), team: 'foes', mind, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound });
+        const mind = A ? { range: A.phases[0].range, aggression: A.phases[0].aggression, dodge: A.phases[0].dodge, phases: A.phases } : T ? { ...T.mind } : { range: OPERATION.frameRange };
+        const e = frameEntity(g.build, { id: m.id, at: m.at, heading: toward(m.at), team: 'foes', mind, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ...(T ? { scale: T.scale, ap: T.ap } : {}) });
         if (A) { const hp = Math.round(e.body.hp * A.ap); e.body = { ...e.body, hp, hpMax: hp }; e.ace = { id: g.ace, name: A.name }; }
         entities.push({ ...e, ...(dormant ? { dormant: true } : {}) });
         continue;

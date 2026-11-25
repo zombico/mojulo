@@ -1161,7 +1161,28 @@ export function readFrameLook({ palette, wear } = {}, at = 'frame') {
   return { palette: palette ?? 'federation', wear: wear ?? 'used' };
 }
 
-export function frameBody(build, { palette, wear } = {}) {
+/** A body drawn `k` times its size, every place in it scaled about the soles' middle (its bones, faces, mounts, thrusters,
+ *  height, footprint and rig): an MT, a frame's smaller cousin (assault-frame/mts.js). k 1 is the body as it was. */
+export function scaleBody(body, k) {
+  if (k === 1) return body;
+  const S = (p) => p.map((v) => r4(v * k));
+  return {
+    ...body, scale: k,
+    bones: body.bones.map((b) => ({ ...b, head: S(b.head) })),
+    faces: new Map([...body.faces].map(([id, fs]) => [id, fs.map((fc) => ({ ...fc, corners: fc.corners.map(S) }))])),
+    mounts: Object.fromEntries(Object.entries(body.mounts).map(([s2, m]) => [s2, { ...m, at: S(m.at) }])),
+    thrusters: body.thrusters.map((t) => ({ ...t, at: S(t.at), half: S(t.half) })),
+    height: r4(body.height * k), hips: r4(body.hips * k),
+    footprint: { L: r4(body.footprint.L * k), W: r4(body.footprint.W * k), H: r4(body.footprint.H * k) },
+    rig: { ...body.rig, legs: { ...body.rig.legs, L1: r4(body.rig.legs.L1 * k), L2: r4(body.rig.legs.L2 * k), hip: S(body.rig.legs.hip), knee: S(body.rig.legs.knee), ankle: S(body.rig.legs.ankle) }, grip: S(body.rig.grip) },
+  };
+}
+
+export function frameBody(build, { palette, wear, scale = 1 } = {}) {
+  if (!(Number.isFinite(scale) && scale >= 0.4 && scale <= 1.5)) throw new Error('frame: scale is 0.4 to 1.5 (an MT some 0.6)');
+  return scaleBody(frameBodyAt(build, { palette, wear }), scale);
+}
+function frameBodyAt(build, { palette, wear } = {}) {
   const B = readBuild(build), look = readFrameLook({ palette, wear }), C = FRAME_PALETTES[look.palette], Wr = WEAR[look.wear];
   const sk = skeleton(B);
   sk.thrusters = []; sk.legThrusters = []; sk.muzzles = {};

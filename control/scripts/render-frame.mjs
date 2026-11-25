@@ -7,7 +7,7 @@
  * environment the chrome reflects. No database writes.
  *
  * From control/:
- *   node scripts/render-frame.mjs [--out <dir>] [--frames vanguard,raptor,citadel] [--palette federation|mars|ash]
+ *   node scripts/render-frame.mjs [--out <dir>] [--frames vanguard,raptor,citadel] [--mts jackal,rhino] [--palette federation|mars|ash]
  *                                 [--wear factory|used|battered] [--build '<json build>']
  * Writes <frame>-sheet.png and <frame>-detail.png.
  */
@@ -28,7 +28,10 @@ const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ?
 const OUT = path.resolve(arg('out', path.join(os.tmpdir(), 'frame-renders')));
 const palette = arg('palette', 'federation'), wear = arg('wear', 'used');
 const custom = arg('build', null);
-const frames = custom ? [['custom', JSON.parse(custom)]] : arg('frames', Object.keys(STOCK).join(',')).split(',').map((n) => [n, n]);
+// (an MT off its shelf, assault-frame/mts.js: its build at its scale, in its paint)
+const { MTS } = await import('../lib/graph/assault-frame/mts.js');
+const mts = arg('mts', null);
+const frames = custom ? [['custom', JSON.parse(custom)]] : mts ? mts.split(',').map((n) => [`mt-${n}`, MTS[n].build, MTS[n]]) : arg('frames', Object.keys(STOCK).join(',')).split(',').map((n) => [n, n]);
 mkdirSync(OUT, { recursive: true });
 
 // (the slots' response, as figure.js gives the page; kept here so this script needs no loader for the page's imports)
@@ -153,8 +156,8 @@ const plumesOf = (body, pose, kinds) => body.thrusters.filter((t) => kinds.inclu
   return { at, dir: rot(t.dir), r, len };
 });
 
-for (const [name, build] of frames) {
-  const body = frameBody(build, { palette, wear }), clips = frameClips(body), C = FRAME_PALETTES[body.palette];
+for (const [name, build, mtRow] of frames) {
+  const body = frameBody(build, { palette: mtRow ? mtRow.palette : palette, wear, scale: mtRow ? mtRow.scale : 1 }), clips = frameClips(body), C = FRAME_PALETTES[body.palette];
   const nf = [...body.faces.values()].reduce((a, fs) => a + fs.length, 0);
   const Hh = body.height, mid = [0, 0, Hh * 0.5], dist = Hh * 2.75;
   const page = await browser.newPage({ viewport: { width: 1640, height: 1160 } });

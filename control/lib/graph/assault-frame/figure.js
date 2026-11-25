@@ -46,10 +46,10 @@ export function frameMaterials(palette = 'federation') {
 }
 export const FRAME_MATERIALS = frameMaterials('federation');
 
-const SPEC_KEYS = f(['build', 'palette', 'wear']);
+const SPEC_KEYS = f(['build', 'palette', 'wear', 'scale']);
 export function readFrameSpec(spec, at = 'frame') {
   if (typeof spec === 'string') spec = { build: spec };
-  if (!isObj(spec)) throw new Error(`${at} is { build, palette?, wear? }`);
+  if (!isObj(spec)) throw new Error(`${at} is { build, palette?, wear?, scale? }`);
   for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) throw new Error(`${at}.${k} is not a frame's word (${SPEC_KEYS.join(', ')})`);
   readBuild(spec.build ?? 'vanguard', `${at}.build`);
   readFrameLook(spec, at);
@@ -58,7 +58,7 @@ export function readFrameSpec(spec, at = 'frame') {
 
 export function frameFigure(spec, { setting = null } = {}) {
   const S = readFrameSpec(spec);
-  const body = frameBody(S.build ?? 'vanguard', { palette: S.palette, wear: S.wear });
+  const body = frameBody(S.build ?? 'vanguard', { palette: S.palette, wear: S.wear, scale: S.scale ?? 1 });
   const C = FRAME_PALETTES[body.palette];
   // (each bone's faces in the form render, their corner normals the body's where it drew them smooth, else flat)
   const form = new Map(body.bones.map(({ id }) => [id, body.faces.get(id).map((fc) => ({

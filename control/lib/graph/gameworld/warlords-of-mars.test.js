@@ -7,6 +7,7 @@ import { composeGameworld } from './compose.js';
 import { pitchStart } from './pitch-start.js';
 import { frameField } from '../assault-frame/field.js';
 import { ACES } from '../assault-frame/aces.js';
+import { MTS } from '../assault-frame/mts.js';
 import { assembleFrame } from '../assault-frame/assemble.js';
 import { nearestRails } from './rails.js';
 
@@ -80,6 +81,20 @@ describe('Warlords of Mars', () => {
     const B = m.entities.filter((e) => e.id.startsWith('line-'));
     expect(B.length).toBe(3);
     for (const b of B) { expect(b.body.shield).toEqual(OPERATION.units.bastion.shield); expect(b.rule.shieldRaise).toBe(OPERATION.units.bastion.shieldRaise); }
+  });
+
+  it('the Jackal Pack stands MTs: smaller frames off their shelf, less armour, the heavy one held till the pack is down', () => {
+    const id = 'jackal-pack', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
+    const m = steps.find((s) => s.key.startsWith('level-')).order.manifest;
+    const J = m.entities.filter((e) => e.id.startsWith('pack-')), R = m.entities.find((e) => e.id === 'rhino'), T = MTS.jackal;
+    expect(J.length).toBe(3);
+    expect(J[0].rule.type).toBe('frame');
+    expect(J[0].body.hp).toBe(Math.round(assembleFrame(T.build).ap * T.ap));
+    expect(m.figures[J[0].body.figure].assault).toMatchObject({ scale: T.scale, palette: T.palette });
+    expect(J[0].rule.eyeH).toBeCloseTo((assembleFrame(T.build).move.height + 2) * T.scale, 1);
+    expect(R.dormant).toBe(true);
+    expect(R.rule.slots.backR.handling).toBe('brace');
+    expect(() => readOperation({ groups: [{ id: 'a', kind: 'tank', mt: 'jackal', at: [0, 0] }], tasks: [{ down: 'a' }] })).toThrow(/mt is a frame's/);
   });
 
   it('the path ladders up to an ace: its own build and paint, more armour, its phases on its mind, its reserve held back', () => {
