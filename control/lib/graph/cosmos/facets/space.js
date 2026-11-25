@@ -156,6 +156,8 @@ export const SPACE = Object.freeze({
         wall: { status: 'built', lowers: 'lib/graph/worlds/controllable/wall.js', note: 'any box\'s face held (rule.wall), crawled, rounded at its outside corners and mantled off onto its roof; a wall-jump, a charged wall-launch; perched at a roof\'s lip, a dive off it; the climb holds only a placed ladder, rope or net' },
         // built 11-24 (Lost Nomad): the climber's hold, a lip the hands take from the air, not a face held
         ledge: { status: 'built', lowers: 'lib/graph/worlds/controllable/ledge.js', note: 'a lip caught from the air at hand height (any box\'s top edge, or a hold laid on a face: rule.ledge), hung from, shimmied along, leapt between up or along, pulled over onto its top, dropped from or kicked off; a set piece\'s face climbed stone by stone' },
+        // built 11-25 (Lost Nomad): a slick slope a body slides down, a level's `slides`
+        slide: { status: 'built', lowers: 'lib/graph/worlds/controllable/slide.js', note: 'a slick slope a level lays (slides) takes a body and slides it down, gathering speed; the stick steers across it, boulders bump it, a jump flings it off, its foot launches it level at its speed (a ledge across a gap catches it)' },
       },
     },
   },

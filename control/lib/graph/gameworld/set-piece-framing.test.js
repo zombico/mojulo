@@ -36,9 +36,9 @@ export function framingOf(kind) {
   const still = M.colliders;
   let boxes = still, tops = [...still, ...(M.breakables ?? [])];
   const ground = (p) => { let z = 0; for (const b of tops) if (p[0] >= b.min[0] && p[0] <= b.max[0] && p[1] >= b.min[1] && p[1] <= b.max[1] && b.max[2] <= p[2] + 0.6 && b.max[2] > z) z = b.max[2]; return z; };
-  const w = CW.createWorld({ entities: M.entities, camera: M.camera, colliders: still, chase: M.chase });
+  const w = CW.createWorld({ entities: M.entities, camera: M.camera, colliders: still, chase: M.chase, ...(M.slides ? { slides: M.slides } : {}) });
   w.pilotId = 'hero';
-  const h = w.byId.hero, jumps = S.jumps, out = { frames: 0, insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [], catches: 0, leaps: 0, maxZ: h.transform.pos[2], minZ: h.transform.pos[2] };
+  const h = w.byId.hero, jumps = S.jumps, out = { frames: 0, insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [], catches: 0, leaps: 0, falls: 0, slid: 0, maxZ: h.transform.pos[2] };
   let jumpT = -1;
   for (let i = 0; i < 60 * 60 && !w.chase.done.length; i++) {
     const jump = w.chase.on && i - jumpT > 30 && (h.ledge ? !h.ledge.leap && !h.ledge.pull : jumps.some((j) => w.chase.s > j - 0.6 && w.chase.s < j + 0.3) && h.grounded !== false);
@@ -51,7 +51,11 @@ export function framingOf(kind) {
     if (!held && h.ledge) out.catches++;
     if (h.ledge && h.ledge.leap && !out._leap) out.leaps++;
     out._leap = !!(h.ledge && h.ledge.leap);
-    out.maxZ = Math.max(out.maxZ, h.transform.pos[2]); out.minZ = Math.min(out.minZ, h.transform.pos[2]);
+    out.maxZ = Math.max(out.maxZ, h.transform.pos[2]);
+    if (h.slide) out.slid++;
+    // (the line's falls: each put back where the hero last stood; the gate owns the world, so it reads and clears them)
+    for (const x of w.chase.ev) if (x.endsWith(':fell')) out.falls++;
+    w.chase.ev.length = 0;
     const C = w.camera;
     if (!w.chase.on || !C.track || i < 30) continue;
     out.frames++;
@@ -74,8 +78,8 @@ describe('a set piece\'s camera sees its hero', () => {
       const F = framingOf(kind);
       expect(F.frames, kind).toBeGreaterThan(200);
       expect(F.done, kind).toEqual([kind]);
-      // (every gap the bot jumps cleared: never down off the set piece, a drop to a lower roof or a cab the most)
-      expect(F.minZ, kind).toBeGreaterThan(stuntLevel({ id: 'g' }, { spec: { kind }, cast: 'stand-in' }).setPiece.z - 2.5);
+      // (every gap cleared: never fallen off the set piece and put back)
+      expect(F.falls, kind).toBe(0);
       expect({ insideBlock: F.insideBlock, blocked: F.blocked, outOfFrame: F.outOfFrame, tooClose: F.tooClose, tooFar: F.tooFar, worst: F.worst }).toEqual({ insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [] });
     });
   }
@@ -84,5 +88,10 @@ describe('a set piece\'s camera sees its hero', () => {
     expect(F.catches).toBe(1);
     expect(F.leaps).toBe(3);                                   // (stone to stone, the last to the lip)
     expect(F.maxZ).toBeGreaterThan(11);
+  });
+  it('slide: down the slope on it, off its foot into a catch on the far lip, pulled over', () => {
+    const F = framingOf('slide');
+    expect(F.slid).toBeGreaterThan(60);                        // (a second and more on the slope)
+    expect(F.catches).toBe(1);
   });
 });

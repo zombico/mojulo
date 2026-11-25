@@ -17,7 +17,7 @@
  * Pure.
  */
 import { feelRule } from './feel/lower.js';
-import { playerWorld, LEDGE_CLIPS, ledgeStates } from '../playscape/player.js';
+import { playerWorld, STUNT_CLIPS, stuntStates } from '../playscape/player.js';
 import { lowerSetPiece, setPieceLaws } from './set-piece.js';
 import { layKind, siteOf, SET_PIECE_KINDS } from './set-piece-kinds.js';
 import { TARIQ } from './lost-nomad.js';
@@ -39,18 +39,18 @@ export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, 
   // (hung from a lip, shimmying along it and pulled up over it in the ledge's own poses; a stored hero, which cannot take
   // clips here, plays them on its jump)
   const body = standIn ? { cast: 'male' } : TARIQ;
-  const figures = { hero: own ? { ...lib, heroRef, clips: ledgeStates(lib.clips, false) } : { ...lib, hero: { ...body, clips: { ...(body.clips ?? {}), ...LEDGE_CLIPS } }, clips: ledgeStates(lib.clips) } };
+  const figures = { hero: own ? { ...lib, heroRef, clips: stuntStates(lib.clips, false) } : { ...lib, hero: { ...body, clips: { ...(body.clips ?? {}), ...STUNT_CLIPS } }, clips: stuntStates(lib.clips) } };
   const e0 = P.entities[0];
   const hero = { ...e0, body: { ...e0.body, hittable: true, hp: 100 }, transform: { pos: K.start.slice(), heading: K.heading } };
   // (a moving kind lays its own road, and its vehicles are bodies of the level: carriers the hero stands on)
-  const site = siteOf(K.blocks, { street: !K.faces });
+  const site = siteOf(K.blocks, { street: !K.entities });
   const cues = [...L.cues, ...(game ? [{ id: `${sp.id}-done`, when: { on: `chase:${sp.id}:end` }, then: { set: PIECE_DONE, to: 1 } }] : [])];
   const manifest = {
     kind: 'controllable', title: title ?? `${SET_PIECE_KINDS[kind].name} · ${G.name ?? G.id ?? 'game'}`, bg: '#1c1a18',
     faces: K.faces ? [...site.faces, ...K.faces] : site.faces, colliders: site.colliders, ...(site.breakables.length ? { breakables: site.breakables } : {}),
     figures: { ...figures, ...(L.figures ?? {}) }, entities: [hero, ...(K.entities ?? []), ...(L.entities ?? [])],
     camera: { ...P.camera, steer: 'orbit', mouseLook: true }, events: { ...(P.events ?? {}) },
-    chase: L.chase, prompts: L.prompts, ...(L.tempo ? { tempo: L.tempo } : {}), play: { cues },
+    chase: L.chase, prompts: L.prompts, ...(K.slides ? { slides: K.slides } : {}), ...(L.tempo ? { tempo: L.tempo } : {}), play: { cues },
     ...(game ? { game: { ...(ref ? { levelRef: ref } : {}), fall: { mode: 'respawn' }, mechanics: [{ kind: 'win-when', when: { var: PIECE_DONE, gte: 1 } }] } } : {}),
   };
   return { manifest, setPiece: sp, laws: setPieceLaws(sp), blocks: K.blocks, jumps: K.jumps, hero: own ? 'own' : standIn ? 'stand-in' : 'star' };

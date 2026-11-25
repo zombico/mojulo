@@ -86,7 +86,7 @@
   of it. A stunt level's hero has it: a short jump at the far roof is caught on its edge, and the climb's face is now
   stones a hand-hold apart, caught from a jump and leapt up, where it was the wall crawl. The framing gate and the
   played levels climb it so.
-- **The ledge's poses** (`playscape/player.js` `LEDGE_CLIPS`, `ledgeStates`): a body hung from a lip by its hands, the
+- **The ledge's poses** (`playscape/player.js` `STUNT_CLIPS`, `stuntStates`): a body hung from a lip by its hands, the
   arms up to it and the legs loose, swaying while it holds; the hands drawn together and spread again as it shimmies;
   the elbows driven down and a knee brought up as it pulls over. A stunt level's hero carries them; a stored hero hangs
   on its jump's flight and pulls up on its wind-up. Before, a held hang played the idle (the page plays a body's own
@@ -116,3 +116,19 @@
   page's probe never stands a body on another body: on a page a moving platform, a lift or a truck was walked through,
   and only Node tests, which wrote their own ground, stood on one. The step's ground now answers a carrier's deck where
   it is higher than the world's.
+- **The slide** (`worlds/controllable/slide.js`, a level's `slides`): a slick slope takes a body whose feet meet it and
+  slides it down, gathering speed against a little friction to a top speed; the stick, read as the camera reads it,
+  steers across it, never back up; a boulder on it bumps the body aside and slows it; jump flings it off; at its foot it
+  goes off level at its speed, handed back to the platform rule as its drive (an owner's held body has its drive
+  stopped, so the slide lets go on the frame it releases). The bus hears `slide:<id>:start | jump | end | bump`. Absent,
+  the page emits none of it. The stunt hero slides in a surfer's crouch (`STUNT_CLIPS.slide`, the set renamed from the
+  ledge's now it is a set piece's traversal; `stuntStates`).
+- **The `slide` kind** (`set-piece-kinds.js`): down a scree slope from a crest, boulders narrowing the run, off its foot
+  over a gap into a catch on the far shelf's lip (the ledge), a slowed Grab, the camera ahead looking back up at the
+  hero, low beside them as they go off, beside them for the catch. It joins the template movie between the cliffs and
+  the convoy ("The scree").
+- **The chase line's fall measured from a slope** (`chase-line.js`): the height a fall is measured from is the last
+  surface stood on, a slope's among them, while the place put back to is never on a slope. Before, 3 m down a slope
+  read as a fall. The framing gate counts the line's falls (it measured height, which a slide breaks by design) and
+  hands the world its slopes; the movie's suite checks the hero is never down on the street.
+

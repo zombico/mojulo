@@ -11,8 +11,9 @@
  *   LIBRARY_STATES          per library, runtime state → library clip (a jog, an idle, the jump's start and loop)
  *   PLAYER_CLIPS            the clips the move set adds, in the hero door's pose words (validated by the rig at mint)
  *   playerHero(spec)        the hero's spec with the move set's clips beside its own (its own win on a name clash)
- *   LEDGE_CLIPS, ledgeStates(states, own?)  the ledge's hang, shimmy and pull up, and its states played by them (or,
- *                           for a stored hero that cannot take them, by the jump's flight and its wind-up)
+ *   STUNT_CLIPS, stuntStates(states, own?)  a set piece's traversal: the ledge's hang, shimmy and pull up and the
+ *                           slide, and its states played by them (or, for a stored hero that cannot take them, by the
+ *                           jump's flight and its wind-up)
  *   playerStates(clips, library?, gaits?)  runtime state → clip: the library's where it has one (its walk, its jog the
  *                           run, its idle and jump), else the hero's own clips (forward jogs,
  *                           runs or walks, idle idles relaxed, leap and boost the jump's flight, squat)
@@ -45,15 +46,17 @@ export const PLAYER_CLIPS = Object.freeze({
   ] },
 });
 
-/** THE LEDGE'S CLIPS (worlds/controllable/ledge.js), in the same pose words: a body hung from a lip by its hands, facing
+/** THE STUNT HERO'S CLIPS: the traversal a set piece asks (the ledge, worlds/controllable/ledge.js; the slide,
+ *  slide.js), in the same pose words. The ledge's: a body hung from a lip by its hands, facing
  *  the face (`hang`: the arms up and a little forward to the lip, the legs loose under it, the chin up to the hold), the
  *  shimmy along it (`shimmy`: one arm drawn in as the other reaches on, the hips and the legs swaying under them, a
  *  cycle the ledge's phase runs at the shimmy's pace; its arms keep near one direction, so a rig that carries a pose
  *  between keys as joint angles never swings them down through the level), and the pull up over it (`pullUp`: the elbows driven down, the chest over the
- *  lip, a knee brought up onto it; its phase the pull's). Given only to a hero whose rule takes lips (gameworld/stunt-room.js):
- *  a page without one carries none of them. */
+ *  lip, a knee brought up onto it; its phase the pull's). The slide's (`slide`): a surfer's crouch down the slope, the lead
+ *  leg forward, the arms out for balance, the chest turned a little down it; its keys too keep near one direction. Given
+ *  only to a set piece's hero (gameworld/stunt-room.js): a page without one carries none of them. */
 const ARM_UP = (side, out, fwd, up = 0.93) => ({ x: side * out, y: fwd, z: up });
-export const LEDGE_CLIPS = Object.freeze({
+export const STUNT_CLIPS = Object.freeze({
   hang: { keys: [
     { spine: { arch: 0.08 }, head: { pitch: 10 }, armL: ARM_UP(-1, 0.2, 0.3), elbowL: 12, armR: ARM_UP(1, 0.2, 0.3), elbowR: 12, legL: { x: -0.04, y: 0.12, z: -0.99 }, kneeL: 18, legR: { x: 0.04, y: 0.04, z: -1 }, kneeR: 28 },
     { spine: { arch: 0.1 }, head: { pitch: 12 }, armL: ARM_UP(-1, 0.2, 0.3), elbowL: 16, armR: ARM_UP(1, 0.2, 0.3), elbowR: 16, legL: { x: -0.04, y: 0.08, z: -1 }, kneeL: 24, legR: { x: 0.04, y: 0.1, z: -0.99 }, kneeR: 20 },
@@ -66,14 +69,19 @@ export const LEDGE_CLIPS = Object.freeze({
     { spine: { arch: 0.05 }, head: { pitch: 12 }, armL: ARM_UP(-1, 0.2, 0.45, 0.85), elbowL: 95, armR: ARM_UP(1, 0.2, 0.45, 0.85), elbowR: 95, legL: { x: -0.04, y: 0.1, z: -0.99 }, kneeL: 30, legR: { x: 0.04, y: 0.1, z: -0.99 }, kneeR: 30 },
     { crouch: 0.15, spine: { lean: ['forward', 0.45] }, head: { pitch: -4 }, armL: { x: -0.25, y: 0.15, z: -0.95 }, elbowL: 25, armR: { x: 0.25, y: 0.15, z: -0.95 }, elbowR: 25, legR: { x: 0.05, y: 0.75, z: -0.65 }, kneeR: 110, legL: { x: -0.04, y: -0.1, z: -0.99 }, kneeL: 20 },
   ] },
+  slide: { keys: [
+    { crouch: 0.22, spine: { arch: 0.06, twist: ['left', 0.2] }, head: { pitch: 4 }, armL: { x: -0.85, y: 0.35, z: 0.3 }, elbowL: 25, armR: { x: 0.7, y: -0.4, z: -0.25 }, elbowR: 35, legL: { x: -0.1, y: 0.45, z: -0.88 }, kneeL: 25, legR: { x: 0.15, y: -0.2, z: -0.97 }, kneeR: 60 },
+    { crouch: 0.26, spine: { arch: 0.08, twist: ['left', 0.24] }, head: { pitch: 6 }, armL: { x: -0.82, y: 0.38, z: 0.36 }, elbowL: 30, armR: { x: 0.7, y: -0.38, z: -0.18 }, elbowR: 40, legL: { x: -0.1, y: 0.42, z: -0.9 }, kneeL: 30, legR: { x: 0.15, y: -0.22, z: -0.96 }, kneeR: 66 },
+  ] },
 });
-/** The ledge's states and the clip each plays: its own where the hero carries them, else the jump's flight (a body in the
- *  air, its arms thrown up) for a hang and a shimmy and the wind-up's crouch for the pull, so no figure stands upright
- *  against the face. */
-export function ledgeStates(states, own = true) {
+/** The stunt hero's states and the clip each plays: its own where the hero carries them, else the jump's flight (a body
+ *  in the air, its arms thrown up) for a hang and a shimmy, and the wind-up's crouch for the pull and the slide, so no
+ *  figure stands upright against a face or down a slope. */
+export function stuntStates(states, own = true) {
+  const crouch = states.squat ?? states.leap;
   return own
-    ? { ...states, hang: 'hang', shimmy: 'shimmy', mantle: 'pullUp' }
-    : { ...states, ...(states.leap ? { hang: states.leap, shimmy: states.leap } : {}), ...(states.squat ?? states.leap ? { mantle: states.squat ?? states.leap } : {}) };
+    ? { ...states, hang: 'hang', shimmy: 'shimmy', mantle: 'pullUp', slide: 'slide' }
+    : { ...states, ...(states.leap ? { hang: states.leap, shimmy: states.leap } : {}), ...(crouch ? { mantle: crouch, slide: crouch } : {}) };
 }
 
 /** The hero's spec with the move set's clips added (the hero's own clip of the same name wins). */

@@ -72,6 +72,7 @@ piece instead of drawing one:
 | `rooftop-run` | across the roofs: a gap, an edge that gives, a blast beside the run, a drop and a lip to climb | `height`, `pursuers`, `blast` |
 | `collapse` | down a roof street while the tower beside it comes down a course at a time, a last jump caught | `height`, `courses`, `pursuers` |
 | `climb` | up a sheer face by its stones (each a hold 1.6 m over the last), over its lip onto a ledge that gives, a reach across to the next roof | `height`, `face` |
+| `slide` | down a scree slope from a crest, boulders narrowing the run, off its foot over a gap into a catch on the far lip | `height`, `drop`, `length`, `boulders` |
 | `truck-top` | along the roofs of a convoy down a road: off each trailer onto its cab, truck to truck, pursuers behind, a blast beside, the widest gap caught | `trucks`, `speed`, `pursuers`, `blast` |
 | `train-roof` | along the roofs of a train: car to car, the widest gap caught, up onto the taller engine | `cars`, `speed`, `pursuers` |
 
@@ -84,11 +85,23 @@ reach above or along, else pulls up over the lip onto its top; held away it drop
 short jump at a roof is caught on its edge rather than missed, and a climb's face is climbed stone by stone. A box
 marked `hold: false` gives none. The bus hears `ledge:catch | pull | leap | drop`.
 
-The body plays the ledge's own poses (`playscape/player.js` `LEDGE_CLIPS`, in the hero door's pose words): `hang` (the
+## The slide
+
+A slick slope a level lays (`slides: [{ id, a, b, half? }]`, `worlds/controllable/slide.js`) takes a body whose feet meet
+it and slides it down, gathering speed against a little friction to a top speed. The stick, read as the camera reads it,
+steers across it, never back up; a boulder standing on it bumps the body aside and slows it; jump flings it off at its
+speed; at its foot it goes off level at the speed it reached, as the rule's own drive, so the air carries it as it
+carries a run. Off a slope's foot over a gap, a lip at hand height is caught by the ledge: the slide, the launch and the
+catch are three mechanics composed, not one special-cased. A fall from a slope puts the hero back where they last stood
+off it, the crest, to slide again (the chase line measures a fall from the slope, and puts back to the ground before
+it). The bus hears `slide:<id>:start | jump | end | bump`.
+
+The body plays the stunt hero's own poses (`playscape/player.js` `STUNT_CLIPS`, in the hero door's pose words): `hang` (the
 arms up and a little forward to the lip, the legs loose, a slow sway while held), `shimmy` (the hands drawn together and
 spread again along the hold) and `pullUp` (the elbows driven down, a knee brought up onto the lip). A set piece's hero
-carries them (`ledgeStates`); a stored hero, which cannot take clips there, hangs on its jump's flight and pulls up on
-its wind-up, so no body stands upright against a face.
+carries them (`stuntStates`); a stored hero, which cannot take clips there, hangs on its jump's flight and pulls up on
+its wind-up, so no body stands upright against a face. The slide's (`slide`): a surfer's crouch down the slope, the lead
+leg forward, the arms out for balance (a stored hero slides on its wind-up).
 
 ## On what moves
 

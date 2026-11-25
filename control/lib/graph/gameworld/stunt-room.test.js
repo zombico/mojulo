@@ -4,7 +4,7 @@ import { practiceFor } from './practice.js';
 import { stuntRoom, stuntLevel, PIECE_DONE } from './stunt-room.js';
 import { SET_PIECE_KIND_IDS } from './set-piece-kinds.js';
 import { TARIQ } from './lost-nomad.js';
-import { LEDGE_CLIPS } from '../playscape/player.js';
+import { STUNT_CLIPS } from '../playscape/player.js';
 import { readCues } from '../playscape/ui/cues.js';
 
 describe('the stunt room', () => {
@@ -24,8 +24,12 @@ describe('the stunt room', () => {
     // (the star as the template casts him, carrying the ledge's poses, and its states played by them)
     const { clips: own, ...star } = R.manifest.figures.hero.hero;
     expect(star).toEqual(TARIQ);
-    expect(Object.keys(own)).toEqual(Object.keys(LEDGE_CLIPS));
-    expect(R.manifest.figures.hero.clips).toMatchObject({ hang: 'hang', shimmy: 'shimmy', mantle: 'pullUp' });
+    expect(Object.keys(own)).toEqual(Object.keys(STUNT_CLIPS));
+    expect(R.manifest.figures.hero.clips).toMatchObject({ hang: 'hang', shimmy: 'shimmy', mantle: 'pullUp', slide: 'slide' });
+    // (a slide's level carries its slope to the world; a still kind none)
+    const Sl = stuntLevel({ id: 'g', feel: 'lost-nomad' }, { spec: { kind: 'slide' } }).manifest;
+    expect(Sl.slides).toEqual([expect.objectContaining({ id: 'slide-slope', half: 3 })]);
+    expect(R.manifest).not.toHaveProperty('slides');
     expect(R.manifest).not.toHaveProperty('game');
   });
 });

@@ -17,14 +17,18 @@
  *                   slowed Grab); the camera low beside the trucks as the road streams by
  *     train-roof    along the roofs of a train: car to car over the couplings, the widest gap caught (a slowed Grab), up
  *                   onto the taller engine (a mashed Climb), steam from its stack
+ *     slide         down a scree slope from a crest (the slide: slide.js), boulders narrowing the run, off its foot over
+ *                   a gap into a catch on the far shelf's lip (the ledge), a slowed Grab; the camera ahead looking back up
+ *                   at him, low beside him as he goes off, beside him for the catch
  *   A moving kind's vehicles are carriers (worlds/controllable/rules-basic.js `mover`, core.js carry), each on one path
  *   at one pace, and its set piece rides the first (`rides`): its line, its prompts' checkpoints and its pursuers in the
  *   convoy's frame, its beats at a body (`who`), never at a place the road leaves behind.
  *
  *   readKindWords(kind, words) → the kind's words, its defaults filled (throws naming what it takes)
- *   layKind(kind, words?)      → { blocks, setPiece, start, heading, jumps, rule?, entities?, faces? } (`jumps`: metres
+ *   layKind(kind, words?)      → { blocks, setPiece, start, heading, jumps, rule?, entities?, faces?, slides? } (`jumps`: metres
  *                                along the line where a gap is jumped, for a bot or a gate; `rule`: anything more the
- *                                hero's rule needs; `entities` and `faces`: a moving kind's vehicles and its road)
+ *                                hero's rule needs; `entities` and `faces`: a moving kind's vehicles and its road;
+ *                                `slides`: the slopes a body slides down, slide.js, their faces among the kind's `faces`)
  *   siteOf(blocks, { street? }) → { faces, colliders, breakables } the blocks as the World page takes them: a breakable
  *                                block's faces grouped `break:<id>` and named by `node`, kept out of the colliders (the
  *                                world holds it solid until it breaks: a beat's collapse or break)
@@ -202,16 +206,51 @@ function trainRoof(W) {
   return { blocks: [], setPiece, start: [9, 0, CAR], heading: 0, jumps, entities: C.entities, faces: C.faces };
 }
 
+// SLIDE: a crest, a scree slope down from its edge (boulders off the line narrowing it), a gap at its foot and a shelf
+// beyond whose lip stands where a body going off the foot level at speed meets it at hand height (the ledge catches it)
+const SCREE = '#9b8c78', SCREE_SIDE = '#7f725f', BOULDER = '#6f6558';
+function slideKind(W) {
+  const H = W.height, top = H + W.drop, x0 = 8, x1 = x0 + W.length, gap = 3, lip = H + 1.3;
+  const at = (x) => top - (W.drop * (x - x0)) / W.length;
+  const blocks = [
+    { id: 'crest', x: [-3, x0], y: [-3, 3], z: [0, top], fill: STONE },
+    { id: 'shelf', x: [x1 + gap, x1 + gap + 14], y: [-3, 3], z: [0, lip], fill: LEDGE },
+  ];
+  // under the slope a stair of boxes just below its surface: solid to the camera's clear view, no hold for the hands; it
+  // stops short of the foot, so a body going off it is in the air at once and never stood on its last tread
+  const foot = x1 - 0.6;
+  for (let x = x0, k = 1; x < foot - 1e-6; x += 2, k++) blocks.push({ id: `under-${k}`, x: [x, r2(Math.min(x + 2, foot))], y: [-3, 3], z: [0, r2(at(Math.min(x + 2, foot)) - 0.05)], fill: SCREE_SIDE, hold: false });
+  // the boulders: off the line on either side, standing a metre over the slope
+  for (let k = 0; k < W.boulders; k++) {
+    const x = x0 + (W.length * (k + 1)) / (W.boulders + 1), side = k % 2 ? -1 : 1, z = at(x);
+    blocks.push({ id: `boulder-${k + 1}`, x: [r2(x - 0.6), r2(x + 0.6)], y: side > 0 ? [1.1, 2.3] : [-2.3, -1.1], z: [r2(z - 0.4), r2(z + 1)], fill: BOULDER, hold: false });
+  }
+  // the slope's own face, and its sides
+  const quad = (a, b, c, d, fill) => ({ corners: [a, b, c, d], fill, group: 'site:slope', doubleSided: true });
+  const faces = [quad([x0, -3, top], [x1, -3, H], [x1, 3, H], [x0, 3, top], SCREE),
+    quad([x0, -3, 0], [x1, -3, 0], [x1, -3, H], [x0, -3, top], SCREE_SIDE), quad([x0, 3, 0], [x1, 3, 0], [x1, 3, H], [x0, 3, top], SCREE_SIDE)];
+  const end = r2(x1 + gap + 12), grab = r2(x1 + 1);
+  const setPiece = {
+    id: W.id, line: [[0, 0], [end, 0]], half: 2.4, z: top,
+    cams: [{ at: 0, frame: 'chase' }, { at: r2(x0 - 1), frame: 'lead', fov: 66, cut: true }, { at: r2(x1 - 4), frame: 'low', cut: true }, { at: r2(x1 + 1.5), frame: 'profile', cut: true }, { at: r2(x1 + gap + 4), frame: 'over' }],
+    beats: [{ at: r2(x0 + 1), id: 'scree', do: [{ puff: { who: 'hero', is: 'dust' } }, { shake: 0.3 }] }, { at: r2(x0 + W.length / 2), id: 'rumble', do: [{ puff: { who: 'hero', is: 'dust' } }, { shake: 0.5 }] }],
+    // (a miss is back on the crest, to slide again)
+    prompts: [{ at: grab, id: `${W.id}-grab`, says: 'Grab', slow: 0.3, back: r2(grab - (x0 - 3)) }],
+  };
+  return { blocks, setPiece, start: [1, 0, top], heading: 0, jumps: [], faces, slides: [{ id: `${W.id}-slope`, a: [x0, 0, top], b: [x1, 0, H], half: 3 }] };
+}
+
 export const SET_PIECE_KINDS = Object.freeze({
   'rooftop-run': { name: 'Rooftop run', about: 'across the roofs: a gap, an edge that gives, a blast beside the run, a drop and a lip to climb', words: { height: 6, pursuers: 2, blast: true }, lay: rooftopRun },
   collapse: { name: 'Collapse', about: 'down a roof street while the tower beside it comes down a course at a time, a last jump caught', words: { height: 6, courses: 5, pursuers: 0 }, lay: collapse },
   climb: { name: 'Climb', about: 'up a sheer face hold by hand, over its lip onto a ledge that gives, a reach across to the next roof', words: { height: 4, face: 7 }, lay: climb },
   'truck-top': { name: 'Truck top', about: 'along the roofs of a convoy down a road, truck to truck, pursuers behind, a blast beside, the widest gap caught', words: { trucks: 4, speed: 9, pursuers: 2, blast: true }, lay: truckTop },
+  slide: { name: 'Slide', about: 'down a scree slope, boulders narrowing the run, off its foot over a gap into a catch on the far lip', words: { height: 4, drop: 10, length: 28, boulders: 3 }, lay: slideKind },
   'train-roof': { name: 'Train roof', about: 'along the roofs of a train, car to car, the widest gap caught, up onto the engine', words: { cars: 5, speed: 12, pursuers: 2 }, lay: trainRoof },
 });
 export const SET_PIECE_KIND_IDS = Object.freeze(Object.keys(SET_PIECE_KINDS));
 
-const RANGES = Object.freeze({ height: [2, 20], pursuers: [0, 3], courses: [2, 10], face: [3, 14], trucks: [2, 8], cars: [2, 10], speed: [2, 25] });
+const RANGES = Object.freeze({ height: [2, 20], pursuers: [0, 3], courses: [2, 10], face: [3, 14], trucks: [2, 8], cars: [2, 10], speed: [2, 25], drop: [3, 30], length: [10, 80], boulders: [0, 6] });
 
 /** A kind's words, read (see the header). */
 export function readKindWords(kind, words = {}) {
@@ -224,7 +263,7 @@ export function readKindWords(kind, words = {}) {
     if (typeof K.words[k] === 'boolean') { if (typeof v !== 'boolean') throw new Error(`${kind}: ${k} is true or false`); out[k] = v; continue; }
     const [lo, hi] = RANGES[k];
     if (!(Number.isFinite(v) && v >= lo && v <= hi)) throw new Error(`${kind}: ${k} is ${lo}–${hi}`);
-    out[k] = ['pursuers', 'courses', 'trucks', 'cars'].includes(k) ? Math.round(v) : v;
+    out[k] = ['pursuers', 'courses', 'trucks', 'cars', 'boulders'].includes(k) ? Math.round(v) : v;
   }
   out.id = typeof words?.id === 'string' && /^[a-z0-9-]+$/.test(words.id) ? words.id : kind;
   return out;

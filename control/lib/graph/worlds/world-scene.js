@@ -25,6 +25,7 @@ import { readTempo } from '@/lib/graph/worlds/controllable/world-clock';
 import { readKeying } from '@/lib/graph/worlds/controllable/keying';
 import { readChase } from '@/lib/graph/worlds/controllable/chase-line';
 import { readPrompts } from '@/lib/graph/worlds/controllable/prompt';
+import { readSlides } from '@/lib/graph/worlds/controllable/slide';
 import { readGrade } from '@/lib/graph/scene/channels/grade';
 import { readDegree, breakablesOf, piecesOf } from '@/lib/graph/playscape/destruct/breakability';
 import { skandartLoose, landLoose } from '@/lib/graph/era/skandart';
@@ -2330,6 +2331,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the QUICK-TIME PROMPTS (worlds/controllable/prompt.js, drawn by channels/prompt-mana.js): one button in a window, held
   // to its laws; the page composes them only then. Absent: every byte as it was.
   if (payload && sketch.manifest.prompts != null && sketch.manifest.prompts !== false) { const P = readPrompts(sketch.manifest.prompts); if (P) payload.prompts = P; }
+  // the SLOPES a body slides down (worlds/controllable/slide.js): the page composes the slide only then. Absent: every
+  // byte as it was.
+  if (payload && sketch.manifest.slides != null && sketch.manifest.slides !== false) { const S = readSlides(sketch.manifest.slides); if (S) payload.slides = S; }
   // (and a scene's own moments, its script's slow motion and freezes, playscape/ui/scenes.js sceneMoments: the clock
   // composed for them, beside the world's own; none ⇒ as it was)
   if (payload && playEv?.scenes) {

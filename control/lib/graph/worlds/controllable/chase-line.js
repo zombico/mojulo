@@ -161,7 +161,7 @@ export function buildChaseLine(E) {
     if (!lines.length) return;
     // (a riding line's frame: where its carrier stands as the world starts)
     for (const C of lines) if (C.rides) { const c = Array.isArray(spec.entities) && spec.entities.find((e) => e && e.id === C.rides); if (c && c.transform && Array.isArray(c.transform.pos)) C.home = [c.transform.pos[0], c.transform.pos[1], c.transform.pos[2] || 0]; }
-    state.chase = { lines, on: null, s: 0, offset: 0, u: 0, done: [], rule: null, cam: null, mk: 0, pur: null, ps: null, safe: null, ev: [] };
+    state.chase = { lines, on: null, s: 0, offset: 0, u: 0, done: [], rule: null, cam: null, mk: 0, pur: null, ps: null, safe: null, ref: null, ev: [] };
   });
 
   const lineOf = (K, id) => K.lines.find((C) => C.id === id) || null;
@@ -186,7 +186,7 @@ export function buildChaseLine(E) {
     if (C.cams && cam) { K.cam = cam.rule; cam.rule = { type: 'track', target: p.id, path: C.path, keys: C.cams, ...(C.rides && C.home ? { rides: C.rides, home: C.home } : {}) }; cam._tr = null; }
     K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= K.s) K.mk++;
     K.pur = {}; for (const q of C.pursuers) K.pur[q.id] = { s: K.s - (q.gap || 7), off: 0 };
-    K.ps = K.s; K.safe = null;
+    K.ps = K.s; K.safe = null; K.ref = null;
     K.ev.push('chase:' + C.id + ':start'); if (K.ev.length > 16) K.ev.shift();   // (read by the bus; a page without one drops the oldest)
     return true;
   }
@@ -278,9 +278,11 @@ export function buildChaseLine(E) {
       // a gap, from a face), it is put back there, still the line's, and the bus hears `chase:<id>:fell`. A line is never
       // run from the street under its course
       // (kept in a riding line's frame, so the place stood on is the deck's, wherever it has gone)
-      if (p.grounded !== false && (!K.safe || pos[2] > K.safe[2] - DROP)) K.safe = [pos[0] - ox, pos[1] - oy, pos[2], at.s];
-      else if (K.safe && pos[2] < K.safe[2] - DROP) {
-        pos[0] = K.safe[0] + ox; pos[1] = K.safe[1] + oy; pos[2] = K.safe[2];
+      // (the place put back to is never on a slope the body slides down, slide.js: a fall off its foot puts it back where it
+      // stood before it; the height a fall is measured from is the last surface stood on, a slope's among them)
+      if (p.grounded !== false && (K.ref == null || pos[2] > K.ref - DROP)) { K.ref = pos[2]; if (!p.slide) K.safe = [pos[0] - ox, pos[1] - oy, pos[2], at.s]; }
+      else if (K.safe && pos[2] < (K.ref != null ? K.ref : K.safe[2]) - DROP) {
+        pos[0] = K.safe[0] + ox; pos[1] = K.safe[1] + oy; pos[2] = K.safe[2]; K.ref = K.safe[2]; p.slide = null;
         if (p.vel) { p.vel[0] = 0; p.vel[1] = 0; p.vel[2] = 0; }
         K.s = K.safe[3]; K.ps = K.s; K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= K.s) K.mk++;
         for (const q of C.pursuers) if (K.pur[q.id]) { K.pur[q.id].s = K.s - (q.gap || 7); K.pur[q.id].off = 0; }

@@ -67,7 +67,8 @@ describe('the template movie, played', () => {
       expect(Object.values(got.results).every((r) => r === 'hit'), JSON.stringify(got.results)).toBe(true);
       expect(got.chaseDone).toEqual([st.level]);
       expect(got.won).toBe(1);
-      expect(got.minZ, 'never run from the street under the course').toBeGreaterThan(got.z0 - 3.5);
+      // (never run from the street under the course: the street is at 0, every course well above it, a slide's foot too)
+      expect(got.minZ, 'never run from the street under the course').toBeGreaterThan(1);
     }, 240000);
   }
 });

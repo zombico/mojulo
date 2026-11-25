@@ -26,12 +26,13 @@ async function play(kind, jumps) {
     const C = window.__mojCtrl, W = C.world, h = W.byId[W.pilotId];
     const code = { forward: 'KeyW', boost: 'KeyF', jump: 'Space', act: 'KeyE' };
     const key = (k, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code: code[k], key: code[k], bubbles: true }));
-    const out = window.__bot = { done: false, maxZ: h.transform.pos[2], minZ: h.transform.pos[2], broken: 0, s: 0, x0: h.transform.pos[0], x: 0 };
+    const out = window.__bot = { done: false, maxZ: h.transform.pos[2], minZ: h.transform.pos[2], broken: 0, s: 0, x0: h.transform.pos[0], x: 0, slid: 0, held: 0 };
     let n = 0, jumpN = 0, actDown = false;
     key('forward', true); key('boost', true);
     (function frame() {
       n++;
       if (h.ledge) out.held = (out.held || 0) + 1;
+      if (h.slide) out.slid++;
       out.minZ = Math.min(out.minZ, h.transform.pos[2]); out.x = h.transform.pos[0];
       out.s = Math.max(out.s, W.chase.s); out.maxZ = Math.max(out.maxZ, h.transform.pos[2]);
       out.broken = (W.breakables || []).filter((b) => b.broken || b.gone || b.hp <= 0).length;
@@ -87,4 +88,14 @@ describe('set-piece kinds, played', () => {
       expect(got.x - got.x0).toBeGreaterThan(K.setPiece.line[1][0] * 1.5);
     }, 240000);
   }
+
+  it('the slide: down the scree on the slope, off its foot into a catch on the far lip, the Grab answered, run to its end', async () => {
+    if (!browser) return;
+    const { got, errors } = await play('slide', []);
+    expect(errors).toEqual([]);
+    expect(got.slid).toBeGreaterThan(60);                      // (a second and more on the slope)
+    expect(got.held).toBeGreaterThan(0);                       // (caught on the far lip)
+    expect(got.results['slide-grab']).toBe('hit');
+    expect(got.chaseDone).toEqual(['slide']);
+  }, 240000);
 });
