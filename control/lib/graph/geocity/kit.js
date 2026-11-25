@@ -21,7 +21,7 @@
  *     a cemetery's: `headstone`, `cross`, `ledger` (facing: the way its face looks, toward the walk it is read from);
  *     a downtown kerb's `meter`; a lived-in street's: `aboard` (a sandwich board, facing the way a face looks), `planter`,
  *     `cafe` and `cafeg` (a table, two chairs, an umbrella, cream or green), `bags`, `crates`, `cabinet`, `mailbox`,
- *     `cart` (a vendor's), and flat on the road `manhole` and `stain`
+ *     `cart` (a vendor's), and flat on the road `manhole` and `stain`; an alley's `dumpster` (facing out into it)
  *
  * Pure; no dice.
  */
@@ -183,6 +183,17 @@ const cart = (L) => realize([
   { kind: 'tram-bracket', x: 0.9, y: -0.03, w: 0.5, d: 0.06, z0: 0.95, z1: 0.99, tint: '#5c5f61' }, { kind: 'tram-bracket', x: -0.03, y: -0.03, w: 0.06, d: 0.06, z0: 1.04, z1: 2.3, tint: '#5c5f61' },
   { kind: 'park-bin', x: -1.1, y: -1.1, w: 2.2, d: 2.2, z0: 2.2, z1: 2.32, tint: '#e0b43a' },
 ], L);
+/** A DUMPSTER in an alley against its wall: its steel bin, its lids, its wheels; its long side along the alley, its
+ *  front `facing` out into it. */
+function dumpster([dx, dy], L) {
+  const A = (u0, u1, v0, v1, z0, z1, tint) => (dx ? { kind: 'dumpster', x: v0, y: u0, w: v1 - v0, d: u1 - u0, z0, z1, tint } : { kind: 'dumpster', x: u0, y: v0, w: u1 - u0, d: v1 - v0, z0, z1, tint });
+  const f = dx || dy;
+  return realize([
+    A(-0.95, 0.95, -0.55, 0.55, 0.16, 1.2, '#2f5a3c'), A(-0.97, 0.97, -0.6, 0.6, 1.2, 1.27, '#22402c'),
+    A(-0.9, 0.9, f > 0 ? 0.55 : -0.58, f > 0 ? 0.58 : -0.55, 0.7, 0.78, '#1e3326'),
+    ...[[-0.8, -0.4], [0.7, -0.4], [-0.8, 0.3], [0.7, 0.3]].map(([u, v]) => A(u, u + 0.1, v, v + 0.1, 0, 0.16, '#1a1b1c')),
+  ], L);
+}
 /** A PARKING METER at the kerb: its grey post and its head, a window on its street side. */
 const meter = (L) => realize([
   { kind: 'parking-meter', x: -0.04, y: -0.04, w: 0.08, d: 0.08, z0: 0, z1: 1.05, tint: '#5b6168' },
@@ -286,7 +297,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     bench: four((v) => bench(v, L)),
     can: four((v) => can(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L), railing: railing(L), gate: gate(L),
-    aboard: four((v) => aboard(v, L)), planter: planter(L), cafe: cafe('#efe8d8')(L), cafeg: cafe('#2f5a46')(L), bags: bags(L), crates: crates(L), cabinet: cabinet(L), mailbox: mailbox(L), manhole: manhole(L), stain: stain(L), cart: cart(L),
+    dumpster: four((v) => dumpster(v, L)), aboard: four((v) => aboard(v, L)), planter: planter(L), cafe: cafe('#efe8d8')(L), cafeg: cafe('#2f5a46')(L), bags: bags(L), crates: crates(L), cabinet: cabinet(L), mailbox: mailbox(L), manhole: manhole(L), stain: stain(L), cart: cart(L),
     meter: meter(L), headstone: four((v) => headstone(v, L)), cross: four((v) => crossMarker(v, L)), ledger: four((v) => ledger(v, L)),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a

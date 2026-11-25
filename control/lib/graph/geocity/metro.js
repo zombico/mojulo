@@ -55,6 +55,8 @@
  *                   largest block, `cemetery`), on their own dice; a block's area held inside `block` (m²); in the core
  *                   and the frame a place of worship takes a LOT in a built block, a slice `lot` m wide (least, most) at
  *                   its end on a street corner, built to its walk among its neighbours
+ *     alleys        { core, frame, outskirts, w, least } or false: the share of each ring's built blocks cut down the
+ *                   middle by a service alley street to street (blocks.js), its width and each half's least depth (m)
  *     industry      { share, segments: { works, warehouse, storage, tanks }, block: [least, most] } or false: the share
  *                   of the outskirts' neighbourhoods built as industry (design.js; its edge's and its shore's first),
  *                   their blocks' segments by weight (segments.js), a substation in each, the length of a block's side
@@ -259,7 +261,7 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
 const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
@@ -364,6 +366,13 @@ export function readGeocity(spec = {}) {
     || !(Array.isArray(Cv.block) && Cv.block.length === 2 && num(Cv.block[0], 200, 1e5) && num(Cv.block[1], Cv.block[0], 1e6))
     || !(Array.isArray(Cv.lot) && Cv.lot.length === 2 && num(Cv.lot[0], 12, 80) && num(Cv.lot[1], Cv.lot[0], 120)))
     no(`civic is false or { worship: { core, frame, outskirts } 0–1, cemetery: the same, faiths: weights over ${FAITHS.join(', ')}, block: [least, most] m², lot: [least, most] m }`);
+  // (its alleys, blocks.js: `false` none; else the share of each ring's built blocks cut by one, its width and the least
+  // depth each half keeps, m)
+  const ALD = { core: 0.55, frame: 0.6, outskirts: 0, w: 6, least: 16 };
+  M.alleys = M.alleys === false ? { ...ALD, core: 0, frame: 0, outskirts: 0 } : merge(ALD, M.alleys ?? {});
+  const Al = M.alleys;
+  if (!isObj(Al) || Object.keys(Al).some((k) => !Object.keys(ALD).includes(k)) || !RING_IDS.every((r) => num(Al[r], 0, 1)) || !num(Al.w, 3, 12) || !num(Al.least, 8, 60))
+    no('alleys is false or { core, frame, outskirts: 0–1 (the share of built blocks cut by one), w: 3–12 m, least: 8–60 m (each half\'s depth) }');
   // (its industry, industry.js: `false` none; else the share of its outskirts' neighbourhoods given to it, its blocks'
   // segments by weight, the length of a side its blocks are laid at)
   const IND = { share: 0.2, segments: { works: 3, warehouse: 3, storage: 1.5, tanks: 1.5 }, block: [120, 190] };

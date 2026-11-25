@@ -303,7 +303,7 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   }
   for (const r of regions) {
     const b = Bs[r.id];
-    Object.assign(r, { streets: b.streets, blocks: b.blocks, ledger: b.ledger });
+    Object.assign(r, { streets: b.streets, blocks: b.blocks, ledger: b.ledger, ...(b.alleys ? { alleys: b.alleys } : {}) });
     if (r.parkRect && b.park) r.parkRect = { ...r.parkRect, rect: b.park, area: r3(area(b.park)) };
     r.soft = r3(Object.entries(b.ledger.surfaces).filter(([k]) => isSoft(k)).reduce((s, [, v]) => s + v, 0));
   }

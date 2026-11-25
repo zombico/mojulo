@@ -6,7 +6,7 @@ import { designGeocity } from './design.js';
 import { readGeocity } from './metro.js';
 import { CIVIC_SEGMENTS } from './segments.js';
 
-const SPEC = { metro: { from: 'lakeshore', rings: { core: 300, frame: 650 } }, extent: [1500, 1300], water: { sides: ['s'], depth: 100 }, core: [0.5, 0.3] };
+const SPEC = { metro: { from: 'lakeshore', rings: { core: 300, frame: 650 } }, extent: [1500, 1300], water: { sides: ['s'], depth: 100 }, core: [0.5, 0.3], alleys: false };
 const kinds = (d) => new Map(d.regions.flatMap((r) => (r.blocks ?? []).map((b) => [b.id, b])));
 
 describe('the places a city keeps', () => {

@@ -81,3 +81,26 @@ describe('a city\'s walls and its works', () => {
     expect(new Set(walls).size).toBeGreaterThan(3);
   }, 120_000);
 });
+
+describe('a city\'s alleys', () => {
+  it('cuts some of its inner city\'s blocks down the middle, street to street: two halves of the block it was, an alley between, its own dice', () => {
+    const on = designGeocity(geocity, { seed: 2 }), off = designGeocity({ ...geocity, alleys: false }, { seed: 2 });
+    const alleys = on.regions.flatMap((r) => r.alleys ?? []);
+    expect(alleys.length).toBeGreaterThan(0);
+    expect(off.regions.some((r) => (r.alleys ?? []).length)).toBe(false);
+    for (const r of on.regions) for (const b of (r.blocks ?? []).filter((x) => x.id.endsWith('.b'))) {
+      const a = r.blocks.find((x) => x.id === b.id.slice(0, -2));
+      // (each half its alley side, the block it was its whole; the two and the alley the whole's area)
+      expect(Object.values(a.sides).filter((v) => v.kind === 'alley')).toHaveLength(1);
+      expect(Object.values(b.sides).filter((v) => v.kind === 'alley')).toHaveLength(1);
+      expect(a.kind).toBe(b.kind);
+      const W = a.whole, al = r.alleys.find((x) => x.id.startsWith(a.id));
+      expect(a.area + b.area + al.w * (al.hi - al.lo)).toBeCloseTo((W[2] - W[0]) * (W[3] - W[1]), 0);
+    }
+    // (the blocks it leaves whole the blocks they were)
+    const kinds = (d) => new Map(d.regions.flatMap((r) => (r.blocks ?? []).map((b) => [b.id, b.kind])));
+    const K0 = kinds(off);
+    for (const [id, k] of kinds(on)) if (!id.endsWith('.b') && K0.has(id)) expect(k, id).toBe(K0.get(id));
+    expect(on.laws.filter((l) => !l.ok).map((l) => l.law)).toEqual(off.laws.filter((l) => !l.ok).map((l) => l.law));
+  }, 60_000);
+});

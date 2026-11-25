@@ -138,7 +138,8 @@ export const FORM_GROUND = Object.freeze(['geocity:park', 'geocity:median', 'geo
  *  composed towns' (their trees, bushes and shrubs moved into the metro's frame; a block town's those on its block, its
  *  bushes' kinds merged into one list), with the ground every trunk and claim takes from the grass. */
 /** Each arterial's MOUTHS: where a neighbourhood's own street runs out to it, the street's carriageway across the
- *  arterial's walk on that side. → Map<line id, [{ side: ±1 (the side of the line the street comes from), lo, hi }]>. */
+ *  arterial's walk on that side, and each alley's (blocks.js) that runs out to one. → Map<line id, [{ side: ±1 (the side
+ *  of the line the street comes from), lo, hi, alley? }]>. */
 export function mouthsOf(d) {
   const out = new Map();
   for (const r of d.regions) {
@@ -155,6 +156,13 @@ export function mouthsOf(d) {
         out.get(sd.street).push({ side: s === 's' || s === 'w' ? 1 : -1, lo: r5(st.at - half), hi: r5(st.at + half) });
       }
     }
+    // (and its alleys where one runs out to an arterial, blocks.js: the alley's width)
+    for (const al of r.alleys ?? []) al.ends.forEach((k, e) => {
+      const s = al.axis === 'ew' ? (e ? 'e' : 'w') : (e ? 'n' : 's'), sd = r.sides[s];
+      if (k !== 'arterial' || sd?.kind !== 'arterial') return;
+      if (!out.has(sd.street)) out.set(sd.street, []);
+      out.get(sd.street).push({ side: s === 's' || s === 'w' ? 1 : -1, lo: r5(al.at - al.w / 2), hi: r5(al.at + al.w / 2), alley: true });
+    });
   }
   return out;
 }
@@ -207,6 +215,9 @@ const DOWNTOWN = Object.freeze({ dash: 9, bay: 6.4, park: 1.15, parked: 0.72, cl
   // (m); the cones of its taper, how far ahead it starts (m), a cone's stride along the lane's edge and how far past (m);
   // the share of crews in the city's works vehicles, the rest delivering)
   works: Object.freeze({ share: 0.3, arterial: 0.18, reach: 12, taper: 6, lead: 20, cone: 2.4, past: 9, utility: 0.75 }) });
+// an ALLEY's dress (alleyDress): its dumpsters' first and stride (m, a stride's jitter its own), the share with bags by
+// them, its stains' stride, its wires' stride and their height over it (m), the share of alleys with a car stood in them
+const ALLEY = Object.freeze({ dumpster: Object.freeze([5, 12]), bags: 0.6, stain: 6, wire: 9, wireZ: Object.freeze([6.5, 8.5]), car: 0.45 });
 // the ground and the masses in their material words (era/arch-style.js MATERIAL_WORDS), laid as tiles (texel × light):
 // a floor's on a face that lies flat, a wall's on an upright one; each word's seed its own
 const FINISHES = Object.freeze({
@@ -787,6 +798,8 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (r.park) { drape(r.rect, 'geocity:park', col.park); cityPark(r); continue; }
     drape(r.rect, 'geocity:road', col.road);
     const WALK = walkOf(r);
+    // (its alleys, blocks.js: their ground the neighbourhood's road between the halves of the blocks they cut; their dress)
+    alleyDress(r);
     for (const b of r.blocks) {
       const [x0, y0, x1, y1] = b.rect, Rb = streamOf(seed, 'scene', b.id), longY = y1 - y0 >= x1 - x0;
       // the walk round it (into the street, at a kerb over it), where the street is the neighbourhood's
@@ -1023,6 +1036,28 @@ export function assembleGeocityScene(m, ctx = {}) {
     for (let k = 0; k <= WK.taper; k++) { const f = k / WK.taper, [x, y] = pt(sd, s - dir * (WK.lead - f * (WK.lead - 7)), kerb - 0.4 - f * (kerb - 0.4 - lane)); stamp('cone', [x, y, on(x, y)], 0); }
     for (let t = -7 + WK.cone; t <= WK.past; t += WK.cone) { const [x, y] = pt(sd, s + dir * t, lane); stamp('cone', [x, y, on(x, y)], 0); }
     counts.works = (counts.works ?? 0) + 1;
+  }
+  /** AN ALLEY'S DRESS (blocks.js `alleys`, near the camera): dumpsters along its walls, bags by some, oil stains down it
+   *  and a manhole cover, wires slung across it overhead, a car or a van stood in some (ALLEY). */
+  function alleyDress(r) {
+    if (!BACKS_ON) return;
+    for (const al of r.alleys ?? []) {
+      const ew = al.axis === 'ew', P = (s, o) => (ew ? [s, al.at + o] : [al.at + o, s]), R = streamOf(seed, 'alley', al.id), h = al.w / 2, AD = ALLEY, len = al.hi - al.lo;
+      const face = (sd) => (ew ? (sd > 0 ? 's' : 'n') : (sd > 0 ? 'w' : 'e'));
+      // (a car or a van stood in some, against one wall)
+      const car = R() < AD.car && len > 24 ? { sd: R() < 0.5 ? -1 : 1, s: al.lo + 10 + R() * (len - 20) } : null;
+      if (car) { const [x, y] = P(car.s, car.sd * (h - 1.25)); vehicleAt(R() < 0.5 ? 'delivery' : 'civilian', x, y, S(x, y), ew ? [1, 0] : [0, 1], `${al.id}:car`); }
+      for (let s = al.lo + AD.dumpster[0] + R() * 6; s <= al.hi - 5; s += AD.dumpster[1] + R() * 8) {
+        const sd = R() < 0.5 ? -1 : 1;
+        if (car && car.sd === sd && Math.abs(s - car.s) < 6) continue;
+        const [x, y] = P(s, sd * (h - 0.72)); stamp(`dumpster:${face(sd)}`, [x, y, S(x, y)], 0);
+        if (R() < AD.bags) { const [bx, by] = P(s + 1.7, sd * (h - 0.55)); stamp('bags', [bx, by, S(bx, by)], 0); }
+      }
+      for (let s = al.lo + 4; s <= al.hi - 4; s += AD.stain) if (R() < 0.5) { const [x, y] = P(s + R() * 3, (R() - 0.5) * h); stamp('stain', [x, y, S(x, y) + 0.012], 0); }
+      { const [x, y] = P((al.lo + al.hi) / 2, 0); stamp('manhole', [x, y, S(x, y) + 0.02], 0); }
+      for (let s = al.lo + 6; s <= al.hi - 4; s += AD.wire) { const [x, y] = P(s, -h); stamp('wire', [x, y, S(x, y) + AD.wireZ[0] + R() * (AD.wireZ[1] - AD.wireZ[0])], ew ? Math.PI / 2 : 0, [al.w, 1, 1]); }
+      counts.alleys = (counts.alleys ?? 0) + 1;
+    }
   }
   /** Whether a point stands on a carriageway: an arterial's road, or a neighbourhood's own street's. */
   function roadAt(x, y) {
@@ -2440,7 +2475,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   const eyes = cameras.map((c) => c.worldFraming.cameraPosition).filter(([x, y, z]) => z - S(x, y) < FRONT_EYE), frontStamps = new Map();
   const nearEye = (q) => eyes.some(([x, y]) => Math.hypot(Math.max(q[0] - x, 0, x - q[2]), Math.max(q[1] - y, 0, y - q[3])) < NEAR + 60);
   const groundOf = (use, side, b) => {
-    if (!side || side.kind === 'water' || side.kind === 'beyond') return 'windows';
+    // (a wall on an alley, or against its neighbour's: its windows, never a shop or a door)
+    if (!side || side.kind === 'water' || side.kind === 'beyond' || side.kind === 'alley' || side.kind === 'party') return 'windows';
     if (use !== 'residential') return 'lobby';
     return (side.kind === 'arterial' || side.rank === 'collector') && b.ring !== 'outskirts' ? 'shops' : 'entries';
   };
@@ -2495,10 +2531,19 @@ export function assembleGeocityScene(m, ctx = {}) {
   {
     const boxes = [];
     for (const [id, ms] of MOUTHS) { const l = d.lines.find((x) => x.id === id), R2 = l.road / 2; for (const m of ms) { const [o0, o1] = m.side > 0 ? [R2 - 0.3, l.half + 0.3] : [-l.half - 0.3, -R2 + 0.3]; boxes.push(across(l, o0, o1, m.lo - 0.8, m.hi + 0.8)); } }
-    const inMouth = (x, y) => boxes.some((q) => x > q[0] && x < q[2] && y > q[1] && y < q[3]), FLAT = new Set(['bar', 'dash', 'line', 'yellow', 'rail', 'wire']);
+    // (an alley's mouth on a neighbourhood's own street: its walk and its kerb lane in front of it kept clear, no car parked
+    // across it)
+    for (const r of d.regions) for (const al of r.alleys ?? []) al.ends.forEach((k, e) => {
+      if (k !== 'street') return;
+      const reach = walkOf(r) + 2 * DOWNTOWN.park + 0.8, a0 = al.at - al.w / 2 - 0.6, a1 = al.at + al.w / 2 + 0.6, edge = e ? al.hi : al.lo, [u0, u1] = e ? [edge, edge + reach] : [edge - reach, edge];
+      boxes.push(al.axis === 'ew' ? [u0, a0, u1, a1] : [a0, u0, a1, u1]);
+    });
+    const inMouth = (x, y) => boxes.some((q) => x > q[0] && x < q[2] && y > q[1] && y < q[3]), FLAT = new Set(['bar', 'dash', 'line', 'yellow', 'rail', 'wire', 'manhole', 'stain']);
     if (boxes.length) {
       for (const [k, list] of stamps) if (!FLAT.has(k.split(':')[0])) stamps.set(k, list.filter((t) => !inMouth(t.pos[0], t.pos[1])));
       for (const [k, list] of trees) trees.set(k, list.filter((t) => !inMouth(t.x, t.y)));
+      const kept = vehicles.filter((v) => !inMouth(v.pos[0], v.pos[1]));
+      if (kept.length < vehicles.length) { counts.vehicles -= vehicles.length - kept.length; vehicles.length = 0; vehicles.push(...kept); }
     }
     counts.mouths = boxes.length;
   }

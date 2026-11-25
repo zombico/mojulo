@@ -71,3 +71,7 @@
   its own lamps, so it glows the same at noon and at night.
 - Roadworks: some streets and main roads have a crew's works pickup or van (or a delivery truck) standing in the kerb
   lane, a barrier behind it and cones tapered round it.
+- Alleys: more than half of the inner city's blocks are now split down the middle by a service alley running street to
+  street, with the backs of buildings on both sides (windows, balconies, no shopfronts), dumpsters and bags along the
+  walls, oil stains, a manhole, wires strung across overhead and sometimes a car or a delivery van. The sidewalks open
+  at each alley's mouth, and nothing is parked or stood across it. `alleys: false` turns them off.

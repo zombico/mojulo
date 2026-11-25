@@ -110,7 +110,12 @@ same at noon and at night: frontage.js `interior`). Each building's walls are it
 its paint's lightness and a nudge warmer or cooler by its place's hash, a facade's stone or brick worn as the other on
 some). Work zones stand on some streets and arterial runs (`DOWNTOWN.works`): a crew's works pickup or van, or a
 delivery truck, in the kerb lane, a barrier behind it, cones tapered round it; never under a highway's deck nor by a
-streetcar's track. `civic: false` keeps none of the places.
+streetcar's track. Its inner city is cut by ALLEYS (the metro's `alleys`, `geocity/blocks.js`): a share of the
+core's and the frame's built blocks split down the middle by a 6 m service lane street to street, each half the block it
+was, its walls on the lane windows and never a shop; the lane's ground the neighbourhood's road, opened through the walks
+at its mouths and kept clear of parked cars and kerb things there; dumpsters along its walls, bags, stains, a manhole,
+wires slung across it overhead, a car or a van in some (`ALLEY`). A downtown walked into below (`under`) keeps its
+podiums whole. `alleys: false` cuts none. `civic: false` keeps none of the places.
 
 ## Locales
 

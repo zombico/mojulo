@@ -20,11 +20,15 @@
  *             a cemetery, on their own dice: in the outskirts a calm block its own; in the core and the frame a LOT in a
  *             built block (`urban`), a slice at its end on a street corner (its id the block's and `.p`), the block's
  *             rest built as it was, a `party` side between them
+ *   alleys    in the core and the frame a share of built blocks (the metro's `alleys`) cut down the middle by a service
+ *             alley along their long side, street to street: each half the block's segment (the second's id `.b`), its
+ *             side on it `alley`, the block it was its `whole`
  *   storeys   the field's median at the block's middle inside its ring's rail, a block on an arterial its frontage's;
  *             a tower block's towers past it (the core's tail) and its podium
  *   ground    its segment's shares of its area, every square metre once
  *
  *   blocksOf(d) → { <region id>: { streets: [{ id, axis, at, w, rank, runs }], blocks: [block], park: rect | null,
+ *                   alleys?: [{ id, axis, at, lo, hi, w, ends: [kind, kind] }],
  *                   ledger: { area, streets, blocks, park, surfaces } } }
  *   block: { id, rect, area, kind, ring, sides: { n, e, s, w: { kind, rank? } }, storeys: { median, rail }, podium?, faith?, urban?,
  *            towers?: [{ rect, storeys }], surfaces: { <surface>: m² } }
@@ -47,6 +51,8 @@ const LEAST = 0.6;
 /** A weighted pick on a stream. */
 // (the blocks an inner city's place of worship may take a lot in: its built fabric, never a tower's or its square)
 const URBAN_HOSTS = Object.freeze(['podium', 'midrise', 'main-street', 'lowrise', 'apartments', 'slab']);
+// (the blocks an alley may cut: the inner city's built fabric, never a tower's, its square or a slab on its lawn)
+const ALLEY_HOSTS = Object.freeze(['podium', 'midrise', 'main-street', 'lowrise', 'apartments']);
 const pick = (R, weights) => { const es = Object.entries(weights).filter(([, w]) => w > 0), t = es.reduce((s, [, w]) => s + w, 0); let u = R() * t; for (const [k, w] of es) { if ((u -= w) < 0) return k; } return es[es.length - 1][0]; };
 
 /** Locals between fixed lines along one axis: each gap cut into whole blocks of `size`, `w` the local street. */
@@ -198,6 +204,30 @@ export function blocksOf(d) {
       }
     }
 
+    // ITS ALLEYS (the metro's `alleys`): in the core and the frame, each on its own dice, a share of its built blocks cut
+    // down the middle by a service alley along their long side, street to street; each half the block's segment, its side
+    // on the alley an `alley`, the block it was its `whole`
+    const alleys = [];
+    if (!ind && M.alleys && (M.alleys[ring] ?? 0) > 0) {
+      const AL = M.alleys, A = AL.w;
+      for (const x of blocks.slice()) {
+        const c = x.c;
+        // (a downtown walked into below, the metro's `under`: its podiums whole, their concourses joined under its streets)
+        if (!ALLEY_HOSTS.includes(x.kind) || (x.kind === 'podium' && d.spec?.under) || c === civicAt || x.urban || Object.values(c.sides).some((v) => v.kind === 'party')) continue;
+        if (streamOf(d.seed, 'blocks', `${r.id}.${c.i}.${c.j}:alley`)() >= AL[ring]) continue;
+        const [x0, y0, x1, y1] = c.rect, longX = x1 - x0 >= y1 - y0, deep = longX ? y1 - y0 : x1 - x0;
+        if ((deep - A) / 2 < AL.least) continue;
+        const m = longX ? (y0 + y1) / 2 : (x0 + x1) / 2, al = { kind: 'alley' };
+        const [ra, rb] = longX ? [[x0, y0, x1, m - A / 2], [x0, m + A / 2, x1, y1]] : [[x0, y0, m - A / 2, y1], [m + A / 2, y0, x1, y1]];
+        const [sa, sb] = longX ? ['n', 's'] : ['e', 'w'];
+        const ca = { ...c, rect: ra.map(r3), sides: { ...c.sides, [sa]: al }, whole: c.rect }, cb = { ...c, rect: rb.map(r3), sides: { ...c.sides, [sb]: al }, whole: c.rect, tag: 'b' };
+        blocks.splice(blocks.indexOf(x), 1, { ...x, c: ca }, { ...x, c: cb });
+        // (its run, its ends: what each end meets, a street, an arterial, the neighbourhood's edge)
+        const [e0, e1] = longX ? ['w', 'e'] : ['s', 'n'];
+        alleys.push({ id: `${r.id}.${c.i}.${c.j}:alley`, axis: longX ? 'ew' : 'ns', at: r3(m), lo: r3(longX ? x0 : y0), hi: r3(longX ? x1 : y1), w: A, ends: [c.sides[e0]?.kind ?? 'beyond', c.sides[e1]?.kind ?? 'beyond'] });
+      }
+    }
+
     // storeys, towers and ground
     const H = M.heights;
     const built = blocks.map(({ c, kind, becomes, faith, urban }, k) => {
@@ -206,7 +236,7 @@ export function blocksOf(d) {
       let median = Math.min(rail[1], Math.max(rail[0], m0));
       for (const [s, v] of Object.entries(c.sides)) if (v.kind === 'arterial' && r.frontage[s]) { median = Math.max(median, r.frontage[s].median); rail[1] = Math.max(rail[1], r.frontage[s].rail[1]); }
       if (CARDS[kind]?.storeys) { rail[0] = CARDS[kind].storeys[0]; rail[1] = CARDS[kind].storeys[1]; median = rail[0]; }
-      const b = { id, rect, area: a, kind, ring, sides: c.sides, storeys: { median: r3(median), rail }, ...(faith ? { faith } : {}), ...(urban ? { urban: true } : {}) };
+      const b = { id, rect, area: a, kind, ring, sides: c.sides, storeys: { median: r3(median), rail }, ...(faith ? { faith } : {}), ...(urban ? { urban: true } : {}), ...(c.whole ? { whole: c.whole } : {}) };
       // a building going up: what it becomes, and how far it has risen
       if (kind === 'construction') { const P0 = CARDS.construction.progress; b.becomes = becomes; b.progress = r3(P0[0] + (P0[1] - P0[0]) * Rb()); }
       if (kind === 'tower') {
@@ -235,7 +265,7 @@ export function blocksOf(d) {
     const blocksArea = built.filter((b) => b.kind !== 'park').reduce((s, b) => s + b.area, 0), parkArea = pk ? area(pk) : 0;
     const surfaces = {};
     for (const b of built) for (const [s, v] of Object.entries(b.surfaces)) surfaces[s] = r3((surfaces[s] ?? 0) + v);
-    out[r.id] = { streets, blocks: built, park: pk, ledger: { area: r.area, streets: r3(r.area - blocksArea - parkArea), blocks: r3(blocksArea), park: r3(parkArea), surfaces } };
+    out[r.id] = { streets, blocks: built, park: pk, ...(alleys.length ? { alleys } : {}), ledger: { area: r.area, streets: r3(r.area - blocksArea - parkArea), blocks: r3(blocksArea), park: r3(parkArea), surfaces } };
   }
   return out;
 }
