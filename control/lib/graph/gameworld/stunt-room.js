@@ -9,6 +9,8 @@
  *     spec      { kind, …its words } (set-piece-kinds.js)
  *     heroRef   the world's own hero, made; else the template's star, Tariq (lost-nomad.js); `cast: 'stand-in'` a plain
  *               stand-in (a quick page: the star's body slows a headless one to a few frames)
+ *     place     the level's place (set-piece-dress.js placeOf: its geocube read): the site dressed as it, its ground and
+ *               its town or crags round the play, its look the page's sun, sky and haze; absent, the greybox
  *     game      a level's manifest carries its `game` (true): won as the line ends (win-when on the bus's `pieceDone`), a
  *               fall off the site put back at its start
  *   stuntRoom(G, { refs?, cast? }) → { manifest, setPiece, laws, roofs, hero }   the practice door's: a rooftop run, no game
@@ -20,6 +22,7 @@ import { feelRule } from './feel/lower.js';
 import { playerWorld, STUNT_CLIPS, stuntStates } from '../playscape/player.js';
 import { lowerSetPiece, setPieceLaws } from './set-piece.js';
 import { layKind, siteOf, SET_PIECE_KINDS } from './set-piece-kinds.js';
+import { placeOf, surroundsOf } from './set-piece-dress.js';
 import { TARIQ } from './lost-nomad.js';
 
 export const STUNT_LEGEND = 'W A S D  run (down the way, whichever way the camera looks) · Space  jump · F  sprint · E  the prompt\'s button · K  reset';
@@ -27,7 +30,7 @@ export const STUNT_LEGEND = 'W A S D  run (down the way, whichever way the camer
 export const PIECE_DONE = 'pieceDone';
 
 /** A set piece laid from its kind, the star on it (see the header). */
-export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, cast = null, game = true } = {}) {
+export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, cast = null, game = true, place = null } = {}) {
   const { kind, ...words } = spec ?? {};
   const K = layKind(kind, words), sp = K.setPiece, L = lowerSetPiece(sp);
   const own = typeof heroRef === 'string';
@@ -43,11 +46,15 @@ export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, 
   const e0 = P.entities[0];
   const hero = { ...e0, body: { ...e0.body, hittable: true, hp: 100 }, transform: { pos: K.start.slice(), heading: K.heading } };
   // (a moving kind lays its own road, and its vehicles are bodies of the level: carriers the hero stands on)
-  const site = siteOf(K.blocks, { street: !K.entities });
+  // (IN ITS PLACE, set-piece-dress.js: the site's blocks seen as their roles say, its ground and what lies beyond the play
+  // the place's, the place's look its sun, sky and haze; the play on it as laid)
+  const seed = Number.isInteger(G.seed) ? G.seed : 1;
+  const site = siteOf(K.blocks, { street: !K.entities, place, seed });
+  const around = place ? surroundsOf(place, seed, { backdrop: K.backdrop ?? 'desert', bounds: K.bounds ?? boundsOf(K) }) : [];
   const cues = [...L.cues, ...(game ? [{ id: `${sp.id}-done`, when: { on: `chase:${sp.id}:end` }, then: { set: PIECE_DONE, to: 1 } }] : [])];
   const manifest = {
     kind: 'controllable', title: title ?? `${SET_PIECE_KINDS[kind].name} · ${G.name ?? G.id ?? 'game'}`, bg: '#1c1a18',
-    faces: K.faces ? [...site.faces, ...K.faces] : site.faces, colliders: site.colliders, ...(site.breakables.length ? { breakables: site.breakables } : {}),
+    faces: [...site.faces, ...(K.faces ?? []), ...around], colliders: site.colliders, ...(place && place.look ? { look: place.look } : {}), ...(site.breakables.length ? { breakables: site.breakables } : {}),
     figures: { ...figures, ...(L.figures ?? {}) }, entities: [hero, ...(K.entities ?? []), ...(L.entities ?? [])],
     camera: { ...P.camera, steer: 'orbit', mouseLook: true }, events: { ...(P.events ?? {}) },
     chase: L.chase, prompts: L.prompts, ...(K.slides ? { slides: K.slides } : {}), ...(L.tempo ? { tempo: L.tempo } : {}), play: { cues },
@@ -56,8 +63,14 @@ export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, 
   return { manifest, setPiece: sp, laws: setPieceLaws(sp), blocks: K.blocks, jumps: K.jumps, hero: own ? 'own' : standIn ? 'stand-in' : 'star' };
 }
 
+// the play's reach in plan: its blocks and its line
+function boundsOf(K) {
+  const xs = [...K.blocks.flatMap((b) => b.x), ...K.setPiece.line.map((p) => p[0])], ys = [...K.blocks.flatMap((b) => b.y), ...K.setPiece.line.map((p) => p[1])];
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
 /** The practice door's stunt room: a rooftop run on the template's roofs (see the header). */
 export function stuntRoom(G, { refs = {}, cast = null } = {}) {
-  const S = stuntLevel(G, { heroRef: refs.hero ?? null, spec: { kind: 'rooftop-run', id: 'rooftops' }, title: `Stunt room · ${G.name ?? G.id ?? 'game'}`, cast, game: false });
+  const S = stuntLevel(G, { heroRef: refs.hero ?? null, spec: { kind: 'rooftop-run', id: 'rooftops' }, title: `Stunt room · ${G.name ?? G.id ?? 'game'}`, cast, game: false, place: placeOf(G.style) });
   return { ...S, roofs: S.blocks.map((b) => [b.id, [b.x[0], b.y[0], b.x[1], b.y[1], b.z[1]]]) };
 }

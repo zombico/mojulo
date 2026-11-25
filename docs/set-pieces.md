@@ -103,6 +103,22 @@ carries them (`stuntStates`); a stored hero, which cannot take clips there, hang
 its wind-up, so no body stands upright against a face. The slide's (`slide`): a surfer's crouch down the slope, the lead
 leg forward, the arms out for balance (a stored hero slides on its wind-up).
 
+## In its place
+
+A set piece wears its level's place, as every other level does: the geocube the world's `style.geocube` (or the
+level's own) names (`gameworld/set-piece-dress.js`). The cube's light is the page's look (its sun with cast shadows,
+its sky and haze, `era/look.js`); its settlements' architecture builds the houses (`era/out-anchor-structure.js`
+`speak`, in a style of `era/arch-style.js`); its colours are the sand, the rock and the stone. A kind tags each block
+with what it is seen as (`role`):
+- **building:** a row of houses filling the block, its roof the block's top;
+- **rock:** laid in beds;
+- **stone:** tinted.
+
+It also says what lies beyond the play (`backdrop`): a `town`, a ring of houses facing in, or the `desert`, rock crags
+round the site or along a drive. Nothing played on moves: the colliders, breakables, slopes and line are the kind's as
+laid, so the gates hold as built. A level with no geocube is the greybox it was. Lost Nomad's place is `LEVANT`
+(`gameworld/lost-nomad.js`): limewashed medinas in the Moorish style and ochre rock under the dusk's low golden sun.
+
 ## On what moves
 
 A set piece may be laid on vehicles that drive (`rides`: the id of a carrier, a truck of a convoy or a car of a train).

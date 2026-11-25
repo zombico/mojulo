@@ -28,6 +28,7 @@
 import { practiceRoom } from './practice-room.js';
 import { platformRoom, COURSE } from './platform-room.js';
 import { stuntRoom, stuntLevel } from './stunt-room.js';
+import { placeOf } from './set-piece-dress.js';
 import { mountLane, FENCES } from './mount-lane.js';
 import { rollRoom, rollRoomMeasured, FORMS } from './roll-room.js';
 import { feelReport, readFeel } from './feel/lower.js';
@@ -194,7 +195,7 @@ export async function levelManifestHtml(manifest, ref, { cdn = false } = {}) {
 
 /** A set-piece level's page (stunt-room.js stuntLevel): the level a designed game's `stunt` makes, on the World page. */
 export async function stuntLevelHtml(G, spec, { heroRef = null, cast = null, cdn = false } = {}) {
-  const level = stuntLevel(G, { ref: spec?.id ?? spec?.kind, heroRef, spec, cast });
+  const level = stuntLevel(G, { ref: spec?.id ?? spec?.kind, heroRef, spec, cast, place: placeOf(G.style) });
   const payload = await resolved(level.manifest, `${G.id ?? 'game'}-${spec?.id ?? spec?.kind}`);
   return { html: await emitted(payload, cdn), level };
 }

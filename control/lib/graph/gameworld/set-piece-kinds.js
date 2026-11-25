@@ -25,27 +25,44 @@
  *   convoy's frame, its beats at a body (`who`), never at a place the road leaves behind.
  *
  *   readKindWords(kind, words) → the kind's words, its defaults filled (throws naming what it takes)
- *   layKind(kind, words?)      → { blocks, setPiece, start, heading, jumps, rule?, entities?, faces?, slides? } (`jumps`: metres
+ *   layKind(kind, words?)      → { blocks, setPiece, start, heading, jumps, backdrop, rule?, entities?, faces?, slides?, bounds? }
+ *                                (`backdrop`: what lies beyond the play in a place, 'town' or 'desert'; `bounds` [x0, y0, x1,
+ *                                y1] the play's reach where its blocks do not say it, a moving kind's drive; `jumps`: metres
  *                                along the line where a gap is jumped, for a bot or a gate; `rule`: anything more the
  *                                hero's rule needs; `entities` and `faces`: a moving kind's vehicles and its road;
  *                                `slides`: the slopes a body slides down, slide.js, their faces among the kind's `faces`)
- *   siteOf(blocks, { street? }) → { faces, colliders, breakables } the blocks as the World page takes them: a breakable
+ *   siteOf(blocks, { street?, place?, seed? }) → { faces, colliders, breakables } the blocks as the World page takes them
+ *                                (with a `place`, set-piece-dress.js: each block seen as its `role` says, a building as
+ *                                houses, a rock in beds, a stone tinted; the street left to the place's own ground): a breakable
  *                                block's faces grouped `break:<id>` and named by `node`, kept out of the colliders (the
  *                                world holds it solid until it breaks: a beat's collapse or break)
- *   blocks: [{ id, x: [x0, x1], y: [y0, y1], z: [z0, z1], fill, breaks?: true, hp? }]
+ *   blocks: [{ id, x: [x0, x1], y: [y0, y1], z: [z0, z1], fill, role?, breaks?: true, hp? }] (`role` what it is seen as
+ *            in a place: building | rock | stone, set-piece-dress.js)
  *
  * Pure.
  */
+import { dressFaces } from './set-piece-dress.js';
+
 const r2 = (v) => Math.round(v * 100) / 100;
 const ROOF = '#b49a7c', LOW = '#9c8468', LIP = '#8a6f55', STONE = '#a8957a', TOWER = '#8f7c66', LEDGE = '#9a8670', FACE = '#857360';
 
 /** Greybox blocks as the World page takes them (see the header). */
-export function siteOf(blocks, { street = true } = {}) {
+export function siteOf(blocks, { street = true, place = null, seed = 1 } = {}) {
   const faces = [], colliders = [], breakables = [];
   const quad = (a, b, c, d, fill, group, node) => ({ corners: [a, b, c, d], fill, group, doubleSided: true, ...(node ? { node } : {}) });
   for (const B of blocks) {
-    const [x0, x1] = B.x, [y0, y1] = B.y, [z0, z1] = B.z, fill = B.fill ?? STONE;
+    const [x0, x1] = B.x, [y0, y1] = B.y, [z0, z1] = B.z;
     const group = B.breaks ? `break:${B.id}` : `site:${B.id}`, node = B.breaks ? B.id : null;
+    // (in its place: as its role says; a breakable in the place's plaster, its group and node kept for the beat that
+    // brings it down)
+    const dressed = place ? dressFaces(B.breaks ? { ...B, role: 'stone' } : B, B.breaks ? { ...place, colour: { ...place.colour, stone: place.colour.trim } } : place, seed) : null;
+    if (dressed) {
+      faces.push(...(B.breaks ? dressed.map((f) => ({ ...f, group, node })) : dressed));
+      if (B.breaks) breakables.push({ id: B.id, min: [x0, y0, z0], max: [x1, y1, z1], hp: B.hp ?? 6 });
+      else colliders.push({ min: [x0, y0, z0], max: [x1, y1, z1], ...(B.hold === false ? { hold: false } : {}) });
+      continue;
+    }
+    const fill = B.fill ?? STONE;
     faces.push(
       quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], fill, group, node),
       quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], fill, group, node), quad([x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1], fill, group, node),
@@ -55,8 +72,8 @@ export function siteOf(blocks, { street = true } = {}) {
     if (B.breaks) breakables.push({ id: B.id, min: [x0, y0, z0], max: [x1, y1, z1], hp: B.hp ?? 6 });
     else colliders.push({ min: [x0, y0, z0], max: [x1, y1, z1], ...(B.hold === false ? { hold: false } : {}) });
   }
-  // the ground far below, a street (a moving kind lays its own road)
-  const G = street ? 70 : 0, step = 10;
+  // the ground far below, a street (a moving kind lays its own road; a place its own ground, set-piece-dress.js)
+  const G = street && !place ? 70 : 0, step = 10;
   for (let i = -G; i < G; i += step) for (let j = -G; j < G; j += step) faces.push(quad([i, j, 0], [i + step, j, 0], [i + step, j + step, 0], [i, j + step, 0], (i + j) / step % 2 ? '#6e665c' : '#746b60', 'site:street'));
   return { faces, colliders, breakables };
 }
@@ -65,11 +82,11 @@ export function siteOf(blocks, { street = true } = {}) {
 function rooftopRun(W) {
   const H = W.height;
   const blocks = [
-    { id: 'roof-a', x: [-3, 18], y: [-4, 4], z: [0, H], fill: ROOF },
-    { id: 'roof-b', x: [21, 42], y: [-4, 4], z: [0, H], fill: ROOF },
-    { id: 'roof-c', x: [34, 42], y: [4, 20], z: [0, H], fill: ROOF },
-    { id: 'roof-d', x: [34, 42], y: [22.5, 36], z: [0, H - 2], fill: LOW },
-    { id: 'lip', x: [34, 42], y: [36, 37], z: [0, H - 0.9], fill: LIP },
+    { id: 'roof-a', x: [-3, 18], y: [-4, 4], z: [0, H], fill: ROOF, role: 'building' },
+    { id: 'roof-b', x: [21, 42], y: [-4, 4], z: [0, H], fill: ROOF, role: 'building' },
+    { id: 'roof-c', x: [34, 42], y: [4, 20], z: [0, H], fill: ROOF, role: 'building' },
+    { id: 'roof-d', x: [34, 42], y: [22.5, 36], z: [0, H - 2], fill: LOW, role: 'building' },
+    { id: 'lip', x: [34, 42], y: [36, 37], z: [0, H - 0.9], fill: LIP, role: 'stone' },
   ];
   const setPiece = {
     id: W.id, line: [[0, 0], [38, 0], [38, 34]], half: 2.6, z: H,
@@ -78,7 +95,7 @@ function rooftopRun(W) {
     prompts: [{ at: 22.5, id: `${W.id}-grab`, says: 'Grab', slow: 0.3 }, { at: 62, id: `${W.id}-climb`, kind: 'mash', count: 5, window: 1.2, says: 'Climb' }],
     ...(W.pursuers ? { pursuers: Array.from({ length: W.pursuers }, (_, i) => ({ id: `${W.id}-pursuer-${i + 1}`, gap: 7 + 2 * i })) } : {}),
   };
-  return { blocks, setPiece, start: [1, 0, H], heading: 0, jumps: [17] };
+  return { blocks, setPiece, start: [1, 0, H], heading: 0, jumps: [17], backdrop: 'town' };
 }
 
 // COLLAPSE: a roof street east, the tower on its north side coming down a course at a time as the hero passes, the
@@ -87,10 +104,10 @@ function collapse(W) {
   const H = W.height, courses = W.courses, ch = 3;
   const tower = Array.from({ length: courses }, (_, k) => ({ id: `tower:${k + 1}`, x: [18, 26], y: [5, 12], z: [H + k * ch, H + (k + 1) * ch], fill: TOWER, breaks: true }));
   const blocks = [
-    { id: 'street', x: [-3, 46], y: [-4, 4], z: [0, H], fill: STONE },
-    { id: 'tower-foot', x: [18, 26], y: [5, 12], z: [0, H], fill: TOWER },
+    { id: 'street', x: [-3, 46], y: [-4, 4], z: [0, H], fill: STONE, role: 'building' },
+    { id: 'tower-foot', x: [18, 26], y: [5, 12], z: [0, H], fill: TOWER, role: 'building' },
     ...tower,
-    { id: 'far-roof', x: [49, 64], y: [-4, 4], z: [0, H + 0.5], fill: ROOF },
+    { id: 'far-roof', x: [49, 64], y: [-4, 4], z: [0, H + 0.5], fill: ROOF, role: 'building' },
   ];
   const setPiece = {
     id: W.id, line: [[0, 0], [62, 0]], half: 2.8, z: H,
@@ -103,7 +120,7 @@ function collapse(W) {
     prompts: [{ at: 45.5, id: `${W.id}-grab`, says: 'Grab', slow: 0.3 }],
     ...(W.pursuers ? { pursuers: Array.from({ length: W.pursuers }, (_, i) => ({ id: `${W.id}-pursuer-${i + 1}`, gap: 8 + 2 * i })) } : {}),
   };
-  return { blocks, setPiece, start: [1, 0, H], heading: 0, jumps: [45.2] };
+  return { blocks, setPiece, start: [1, 0, H], heading: 0, jumps: [45.2], backdrop: 'town' };
 }
 
 // CLIMB: a run to a sheer face, up it by its stones (each a hold, 1.6 m over the last, the first a jump from the
@@ -115,11 +132,11 @@ function climb(W) {
   for (let z = H + 2.6; z < top - 0.5; z += CLIMB_STEP) stones.push(z);   // (the first high enough that the feet leave the ground)
   // (the last stone sits a step under the lip, or less: the lip is reached from it)
   const blocks = [
-    { id: 'approach', x: [-3, 20], y: [-4, 4], z: [0, H], fill: STONE },
-    { id: 'face', x: [20, 24], y: [-6, 6], z: [0, top], fill: FACE },
-    ...stones.map((z, k) => ({ id: `stone-${k + 1}`, x: [19.7, 20], y: [-1.5, 1.5], z: [z - 0.3, z], fill: LIP })),
-    { id: 'ledge', x: [24, 40], y: [-1.5, 1.5], z: [0, H + face], fill: LEDGE },
-    { id: 'next-roof', x: [43, 58], y: [-5, 5], z: [0, H + face - 1], fill: ROOF },
+    { id: 'approach', x: [-3, 20], y: [-4, 4], z: [0, H], fill: STONE, role: 'rock' },
+    { id: 'face', x: [20, 24], y: [-6, 6], z: [0, top], fill: FACE, role: 'rock' },
+    ...stones.map((z, k) => ({ id: `stone-${k + 1}`, x: [19.7, 20], y: [-1.5, 1.5], z: [z - 0.3, z], fill: LIP, role: 'stone' })),
+    { id: 'ledge', x: [24, 40], y: [-1.5, 1.5], z: [0, H + face], fill: LEDGE, role: 'rock' },
+    { id: 'next-roof', x: [43, 58], y: [-5, 5], z: [0, H + face - 1], fill: ROOF, role: 'rock' },
   ];
   const setPiece = {
     id: W.id, line: [[0, 0], [56, 0]], half: 1.4, z: H,
@@ -128,7 +145,7 @@ function climb(W) {
     beats: [{ at: 33, id: 'gives', do: [{ shake: 0.6 }, { puff: { at: [33, 0, top], is: 'dust' } }] }],
     prompts: [{ at: 40, id: `${W.id}-reach`, says: 'Reach', slow: 0.3 }],
   };
-  return { blocks, setPiece, start: [1, 0, H], heading: 0, jumps: [19.2, 39.4] };
+  return { blocks, setPiece, start: [1, 0, H], heading: 0, jumps: [19.2, 39.4], backdrop: 'desert' };
 }
 
 // A CONVOY: vehicles in a row driving east along the line, nose to tail with a gap between each, all carriers on one path
@@ -159,7 +176,7 @@ function convoyOf(W, cars, { floor, road }) {
         quad([px, py0, 0], [px, py1, 0], [px, py1, 3], [px, py0, 3], '#4a4640', 'site:posts'), quad([px + 0.3, py0, 0], [px + 0.3, py1, 0], [px + 0.3, py1, 3], [px + 0.3, py0, 3], '#4a4640', 'site:posts'));
     }
   }
-  return { entities, faces, gaps, len: x, rides: `${W.id}-${cars[0].id}` };
+  return { entities, faces, gaps, len: x, rides: `${W.id}-${cars[0].id}`, bounds: [-40, -12, r2(D + x + 60), 12] };
 }
 
 // TRUCK-TOP: a convoy of trucks, each a trailer and a lower cab ahead of it; off the trailer onto the cab, a jump to the
@@ -184,7 +201,7 @@ function truckTop(W) {
     prompts: [{ at: r2(last.at + 1.2), id: `${W.id}-grab`, says: 'Grab', slow: 0.3 }],
     ...(W.pursuers ? { pursuers: Array.from({ length: W.pursuers }, (_, i) => ({ id: `${W.id}-pursuer-${i + 1}`, gap: 6.5 + 1.5 * i })) } : {}),
   };
-  return { blocks: [], setPiece, start: [9, 0, TRAILER], heading: 0, jumps, entities: C.entities, faces: C.faces };
+  return { blocks: [], setPiece, start: [9, 0, TRAILER], heading: 0, jumps, entities: C.entities, faces: C.faces, backdrop: 'desert', bounds: C.bounds };
 }
 
 // TRAIN-ROOF: cars nose to tail behind a taller engine; car to car over the couplings, the widest gap caught, up onto the
@@ -203,7 +220,7 @@ function trainRoof(W) {
     prompts: [{ at: r2(widest.at + 1.2), id: `${W.id}-grab`, says: 'Grab', slow: 0.3 }, { at: r2(engine.at + 0.2), id: `${W.id}-climb`, kind: 'mash', count: 5, window: 1.2, says: 'Climb' }],
     ...(W.pursuers ? { pursuers: Array.from({ length: W.pursuers }, (_, i) => ({ id: `${W.id}-pursuer-${i + 1}`, gap: 6.5 + 1.5 * i })) } : {}),
   };
-  return { blocks: [], setPiece, start: [9, 0, CAR], heading: 0, jumps, entities: C.entities, faces: C.faces };
+  return { blocks: [], setPiece, start: [9, 0, CAR], heading: 0, jumps, entities: C.entities, faces: C.faces, backdrop: 'desert', bounds: C.bounds };
 }
 
 // SLIDE: a crest, a scree slope down from its edge (boulders off the line narrowing it), a gap at its foot and a shelf
@@ -213,17 +230,17 @@ function slideKind(W) {
   const H = W.height, top = H + W.drop, x0 = 8, x1 = x0 + W.length, gap = 3, lip = H + 1.3;
   const at = (x) => top - (W.drop * (x - x0)) / W.length;
   const blocks = [
-    { id: 'crest', x: [-3, x0], y: [-3, 3], z: [0, top], fill: STONE },
-    { id: 'shelf', x: [x1 + gap, x1 + gap + 14], y: [-3, 3], z: [0, lip], fill: LEDGE },
+    { id: 'crest', x: [-3, x0], y: [-3, 3], z: [0, top], fill: STONE, role: 'rock' },
+    { id: 'shelf', x: [x1 + gap, x1 + gap + 14], y: [-3, 3], z: [0, lip], fill: LEDGE, role: 'rock' },
   ];
   // under the slope a stair of boxes just below its surface: solid to the camera's clear view, no hold for the hands; it
   // stops short of the foot, so a body going off it is in the air at once and never stood on its last tread
   const foot = x1 - 0.6;
-  for (let x = x0, k = 1; x < foot - 1e-6; x += 2, k++) blocks.push({ id: `under-${k}`, x: [x, r2(Math.min(x + 2, foot))], y: [-3, 3], z: [0, r2(at(Math.min(x + 2, foot)) - 0.05)], fill: SCREE_SIDE, hold: false });
+  for (let x = x0, k = 1; x < foot - 1e-6; x += 2, k++) blocks.push({ id: `under-${k}`, x: [x, r2(Math.min(x + 2, foot))], y: [-3, 3], z: [0, r2(at(Math.min(x + 2, foot)) - 0.05)], fill: SCREE_SIDE, hold: false, role: 'rock' });
   // the boulders: off the line on either side, standing a metre over the slope
   for (let k = 0; k < W.boulders; k++) {
     const x = x0 + (W.length * (k + 1)) / (W.boulders + 1), side = k % 2 ? -1 : 1, z = at(x);
-    blocks.push({ id: `boulder-${k + 1}`, x: [r2(x - 0.6), r2(x + 0.6)], y: side > 0 ? [1.1, 2.3] : [-2.3, -1.1], z: [r2(z - 0.4), r2(z + 1)], fill: BOULDER, hold: false });
+    blocks.push({ id: `boulder-${k + 1}`, x: [r2(x - 0.6), r2(x + 0.6)], y: side > 0 ? [1.1, 2.3] : [-2.3, -1.1], z: [r2(z - 0.4), r2(z + 1)], fill: BOULDER, hold: false, role: 'rock' });
   }
   // the slope's own face, and its sides
   const quad = (a, b, c, d, fill) => ({ corners: [a, b, c, d], fill, group: 'site:slope', doubleSided: true });
@@ -237,7 +254,7 @@ function slideKind(W) {
     // (a miss is back on the crest, to slide again)
     prompts: [{ at: grab, id: `${W.id}-grab`, says: 'Grab', slow: 0.3, back: r2(grab - (x0 - 3)) }],
   };
-  return { blocks, setPiece, start: [1, 0, top], heading: 0, jumps: [], faces, slides: [{ id: `${W.id}-slope`, a: [x0, 0, top], b: [x1, 0, H], half: 3 }] };
+  return { blocks, setPiece, start: [1, 0, top], heading: 0, jumps: [], faces, slides: [{ id: `${W.id}-slope`, a: [x0, 0, top], b: [x1, 0, H], half: 3 }], backdrop: 'desert' };
 }
 
 export const SET_PIECE_KINDS = Object.freeze({

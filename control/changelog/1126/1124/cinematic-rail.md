@@ -131,4 +131,14 @@
   surface stood on, a slope's among them, while the place put back to is never on a slope. Before, 3 m down a slope
   read as a fall. The framing gate counts the line's falls (it measured height, which a slide breaks by design) and
   hands the world its slopes; the movie's suite checks the hero is never down on the street.
+- **Set pieces in their place** (`gameworld/set-piece-dress.js`): a set piece wears its level's geocube (the world's
+  `style.geocube`, or the level's own; a stunt stage ignored it before). The cube's light is the page's look (a sun
+  with cast shadows, a sky and haze), its settlements' architecture style builds the houses (`speak`, the town's own
+  facades: walls, lights, doors, lintels, bands and a socle), its colours its sand and rock. A kind tags its blocks
+  (`role`: building, rock, stone) and says what lies beyond the play (`backdrop`: a town ring or desert crags). A
+  building is a row of houses filling its block, its roof the play's height; a rock is laid in beds; a breakable keeps
+  its group and node. Colliders, breakables, slopes and the line are as laid, so every gate holds. Without a geocube a
+  set piece is the greybox it was.
+- **Lost Nomad's place** (`lost-nomad.js` `LEVANT`): a geocube composed from the island's noon, its desert biocube,
+  the dusk's light and the Moorish medina's towns; every level of the template movie wears it.
 

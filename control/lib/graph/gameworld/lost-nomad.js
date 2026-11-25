@@ -52,10 +52,21 @@ export const REEL = Object.freeze([
 ]);
 
 /** The template movie (see the header). */
+/** THE PLACE the template's set pieces stand in: a Levantine country of limewashed medinas and ochre rock, under a low
+ *  golden sun (a geocube composed from the island's noon: its desert, its light the dusk's, its towns the Moorish
+ *  medina's). Every level of the movie wears it (set-piece-dress.js); a person's movie names its own. */
+export const LEVANT = Object.freeze({
+  from: 'island-noon', title: 'Levant', reads: 'Limewashed medinas and ochre rock under a low golden sun, the desert beyond',
+  biocube: 'desert', light: { reference: 'desert-dusk', outsideFog: 1 },
+  colour: { stone: '#dcc59c', floor: '#a47b52', trim: '#eadcbf', accent: '#2d6e70', grass: '#9a9a5a', foliage: '#6f7a44', water: '#3f8aa0', sand: '#d6bb8a' },
+  settlements: { medina: { style: 'moorish-medina' } },
+});
+
 export function lostNomadWorld({ name = LOST_NOMAD, seed = 7 } = {}) {
   const T = JSON.parse(JSON.stringify(TARIQ));
   return {
     id: 'lost-nomad', name, seed, mode: 'autonomous', feel: 'lost-nomad',
+    style: { geocube: JSON.parse(JSON.stringify(LEVANT)) },
     intent: { from: 'cinematic-action' },
     characters: {
       direction: { tradition: 'western' },

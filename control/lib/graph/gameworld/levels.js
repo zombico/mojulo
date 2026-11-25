@@ -59,6 +59,7 @@ import { fixedStations, uprightCamera, UPRIGHT, STEERED } from './cameras.js';
 import { SHOOT, PERSON, shoulderOf, STREET_LAY } from './quick.js';
 import { kitchenLevel } from './kitchen-level.js';
 import { stuntLevel } from './stunt-room.js';
+import { placeOf } from './set-piece-dress.js';
 import { HOLDER } from './mechanics.js';
 import { readScreen, screenPayload } from '../game/screen.js';
 import { cubeOfWorld } from './intent.js';
@@ -205,7 +206,8 @@ export function gameStages(world) {
     const R = resolveLevel(G, level);
     if (R.style?.hour !== undefined) hours[level] = R.style.hour;
     // a set-piece level is one stage: a set piece's kind on its own site (stunt-room.js), never laid by a trail
-    if (R.stunt) { out.push({ level, node: 'stunt', section: 'stunt', index: 0, label: R.name, stunt: R.stunt, manifest: stuntLevel(G, { ref: level, spec: { id: level, ...R.stunt } }).manifest }); continue; }
+    // (in the level's place: its geocube, the level's own or the world's, set-piece-dress.js)
+    if (R.stunt) { out.push({ level, node: 'stunt', section: 'stunt', index: 0, label: R.name, stunt: R.stunt, manifest: stuntLevel(G, { ref: level, spec: { id: level, ...R.stunt }, place: placeOf(R.style) }).manifest }); continue; }
     // a kitchen level is one stage: a kitchen room of its own (kitchen-level.js), never laid by a trail
     if (R.kitchen) { out.push({ level, node: 'kitchen', section: 'kitchen', index: 0, label: R.name, kitchen: R.kitchen, manifest: kitchenLevel(G, { ref: level, spec: R.kitchen }).manifest }); continue; }
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
@@ -921,7 +923,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
   if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, costar, heroGaits, heroStature, pilot, title, mechanics, extra, audio, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
-  if (stage.section === 'stunt') { const SL = stuntLevel(G, { ref, heroRef, spec: { id: stage.level, ...(stage.stunt ?? {}) }, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: SL.manifest.title, manifest: SL.manifest }, laws: SL.laws }; }
+  if (stage.section === 'stunt') { const SL = stuntLevel(G, { ref, heroRef, spec: { id: stage.level, ...(stage.stunt ?? {}) }, ...(title ? { title } : {}), place: placeOf(resolveLevel(G, stage.level).style) }); return { tool: 'create_sketch', args: { title: SL.manifest.title, manifest: SL.manifest }, laws: SL.laws }; }
   if (stage.section === 'kitchen') { const KL = kitchenLevel(G, { ref, heroRef, spec: stage.kitchen ?? {}, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: KL.manifest.title, manifest: KL.manifest }, laws: KL.laws }; }
   if (stage.section === 'street') { const S = streetLevel(G, stage.street, { title: title ?? stageTitle(stage), ref, heroRef, foeRefs, party, ...STREET_LAY }); return { tool: 'create_sketch', args: { title: S.manifest.title, manifest: S.manifest }, laws: S.laws }; }
   // (a mission in a building: the mission's cast, tasks, camera and page over the building's rooms)
