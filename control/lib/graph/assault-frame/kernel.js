@@ -1,8 +1,8 @@
 /**
  * THE FRAME KERNEL — the assault frame's modules as ONE page-runnable source, so a level can stand any build the player
  * chose in its garage (the hangar, the frame levels' `hangar` slice) without the server: the parts (parts.js), the
- * assembly (assemble.js), the body (body.js), its clips (clips.js), its entity (pilot.js) and its figure (figure.js,
- * packed by vehicle-rig.js's own packVehicleFigure and packFormMesh), each module's source in a closure of its own (its
+ * assembly (assemble.js), the body (body.js), its clips (clips.js), its entity (pilot.js), its figure (figure.js,
+ * packed by vehicle-rig.js's own packVehicleFigure and packFormMesh) and the save's word for it (hangar.js), each module's source in a closure of its own (its
  * helpers private, as in its file), its exports lifted for the modules after it.
  *
  * SINGLE SOURCE OF TRUTH: the page runs the modules' own text, read beside this file, its imports dropped (each is a
@@ -11,8 +11,8 @@
  * (form-light.js), handed to it (`light`), the level's own pilot's.
  *
  *   frameKernelSource()     → the source: an expression whose value is
- *                             { PARTS, SLOTS, WEAPON_SLOTS, STOCK, readBuild, assembleFrame, frameEntity, frameMounts,
- *                               frameFigure(spec, light) }
+ *                             { PARTS, SLOTS, WEAPON_SLOTS, STOCK, tableOf, readBuild, assembleFrame, frameEntity,
+ *                               frameMounts, frameFigure(spec, light), HANGAR_SLICE, buildOfFlags, flagsOfBuild }
  *   buildFrameKernel()      → that object, made here (`new Function` over the same source): what the tests hold to the
  *                             modules, byte for byte
  *
@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // (in the order they import each other: each module's imports are the lifted exports of those before it)
-const MODULES = Object.freeze(['parts.js', 'assemble.js', 'body.js', 'clips.js', 'pilot.js', 'figure.js']);
+const MODULES = Object.freeze(['parts.js', 'assemble.js', 'body.js', 'clips.js', 'pilot.js', 'figure.js', 'hangar.js']);
 // (what a module imports from outside the frame's folder, and what stands for it in the kernel)
 const OUTSIDE = Object.freeze({
   '../city/plan/dice.js': ['mulberry32', 'strHash'],
@@ -89,7 +89,7 @@ let __light = null;
 const skyMood = () => null, formLight = () => __light;
 ${parts.map(lift).join('\n')}
 const frameFigureLit = (spec, light) => { __light = light; try { return frameFigure(spec); } finally { __light = null; } };
-return { PARTS, SLOTS, WEAPON_SLOTS, STOCK, readBuild, assembleFrame, frameEntity, frameMounts, frameFigure: frameFigureLit };
+return { PARTS, SLOTS, WEAPON_SLOTS, STOCK, tableOf, readBuild, assembleFrame, frameEntity, frameMounts, frameFigure: frameFigureLit, HANGAR_SLICE, buildOfFlags, flagsOfBuild };
 })()`;
 }
 

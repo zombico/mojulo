@@ -43,6 +43,7 @@ import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
 import { cockpitHudScript } from '../cockpit-hud.js';
 import { frameHudScript } from './frame-hud.js';
+import { frameKernelSource } from '../../../assault-frame/kernel.js';
 import { frameFlameScript } from './frame-flame.js';
 import { keyClock } from '../../../worlds/controllable/keying.js';
 
@@ -5821,7 +5822,28 @@ function __msDespawn(id) {
   const b = __bodies[id];
   if (b) { scene.remove(b); delete __bodies[id]; }
 }
-function __applyMatchParams(params) {
+${framePilot ? `// THE HANGAR'S BUILD (assault-frame/hangar.js): a frame level consumes the save's \`hangar\` slice, the build the player
+// chose in the garage; the page builds it with the frame kernel (kernel.js: the frame's own modules) and stands it in
+// the pilot's place: its figure in the light the level's own pilot was made under, its numbers, its weapons; the rest
+// of the pilot (where it stands, its seat, its team) the level's
+const __FRAMEK = ${frameKernelSource()};
+function __frameRefit(build) {
+  const K = __FRAMEK, P = __world.byId[__world.pilotId];
+  if (!P || !P.rule || P.rule.type !== 'frame' || !P.body || !__FIG[P.body.figure] || !__FIG[P.body.figure].frame) return false;
+  const fig0 = __FIG[P.body.figure], name = 'frame-hangar';
+  try { K.readBuild(build); } catch (err) { console.warn('hangar build not stood:', err.message); return false; }
+  __FIG[name] = K.frameFigure({ build, palette: fig0.frame.palette, wear: fig0.frame.wear }, fig0.form);
+  const raw = K.frameEntity(build, { id: P.id, at: P.transform.pos.slice(), heading: P.transform.heading, pilot: true, figure: name, gravity: P.rule.gravity, bound: P.rule.bound, mounts: K.frameMounts(build) });
+  const N = __CW.createWorld({ entities: [raw], pilot: P.id }).byId[P.id];
+  for (const k of ['rule', 'pilotRule', 'body', 'poise', 'poiseMax', 'poiseRegen', 'hpMax']) if (N[k] !== undefined) P[k] = N[k];
+  const old = __bodies[P.id];
+  if (old) scene.remove(old);
+  const m = __makeBody(P);
+  if (m) __bodies[P.id] = m; else delete __bodies[P.id];
+  window.__mojFrameHangar = { build: K.readBuild(build), figure: name };
+  return true;
+}
+` : ''}function __applyMatchParams(params) {
   if (__world.spectate) {
     // SPECTATE PICKS (2026-08-09): the level authors every candidate seat:'ai' fighter; the shell's
     // watch picks name who fights and the unpicked cast leaves before the bout. Only roster slices
@@ -5842,7 +5864,9 @@ function __applyMatchParams(params) {
     }
     return;
   }
-  if (!params || typeof params !== 'object') return;
+  if (!params || typeof params !== 'object') return;${framePilot ? `
+  // (the save's build, the garage's: stood in the frame's place before the level starts)
+  if (params[__FRAMEK.HANGAR_SLICE]) { const hb = __FRAMEK.buildOfFlags(params[__FRAMEK.HANGAR_SLICE]); if (hb) __frameRefit(hb); }` : ''}
   // DIFFICULTY (arena difficulty select): the shell's pick rides beside the slice params as a
   // plain string naming an engine tuning tier ('easy' | 'medium' | 'max'); unknown or absent →
   // null = the max brain. Spectate returned above — an all-AI show is never detuned.
