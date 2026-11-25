@@ -54,10 +54,11 @@ export const BOARD_HUDS = Object.freeze({
   'cutscene': ['cinema-bars', 'subtitles'],
   'talk': ['cinema-bars', 'talk-box'],
   'stealth HUD': ['stealth-meter', 'enemy-plates', 'minimap-corner', 'interact-prompt'],
+  'campaign briefing': ['place-banner', 'flight-roster'],
 });
 
 // a screen idiom's board section, by its shelf (the HUD frames come first, as 'In game')
-const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight', brawl: 'Brawler', table: 'Table' };
+const GROUPS = { front: 'Front and menus', rpg: 'RPG', live: 'In play', fight: 'Fight', brawl: 'Brawler', table: 'Table', campaign: 'Campaign' };
 // a preview's stand-in for the controls layer: the menu scheme's default keys and its `also` (the keypad, Tab, the Page
 // keys), used only when no host is given
 export const PREVIEW_KEYS = Object.freeze({

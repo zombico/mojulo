@@ -17,7 +17,12 @@ export const EXAMPLES = (() => {
   return out;
 })();
 const WITH = { crops: ['clock'], 'defeat-all': ['hp-pool'] };
-const TURN_ON = { laps: { rivals: ['rival-1'] } };
+// (the parameters that turn a mechanic's other events on: a race's rivals; an objectives list's flight tasks, a gate
+// and a protected one, so a gate passed and a level lost to a protected one down are heard)
+const TURN_ON = {
+  laps: { rivals: ['rival-1'] },
+  objectives: { tasks: [...(EXAMPLES.objectives?.tasks ?? []), { id: 'ring', kind: 'gates', text: 'Fly the ring', gates: [{ at: [40, 0, 20], radius: 8 }] }, { id: 'cover', kind: 'protect', text: 'Keep it up', who: ['ally'], seconds: 5 }] },
+};
 // what a level with this mechanic can hear: the events it emits (reactions, watches, timers, sequences), the events
 // its reactions listen for (facts such as hit:<id>), and the outcomes its contract ends on
 export function surfaced(kind) {

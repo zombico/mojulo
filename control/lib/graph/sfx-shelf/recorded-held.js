@@ -66,6 +66,12 @@ export const HELD_TUNINGS = Object.freeze({
   'poison-bog': Object.freeze({ loop: 'mg-poison-bog', rate: [0.9, 1.1] }),
   // a swarm by how near (sfx-shelf/animal-voices.js MOVES)
   'insect-swarm': Object.freeze({ loop: 'an-insect-swarm', rate: [0.9, 1.15] }),
+  // a flown level's (sfx-shelf/flight-sounds.js): the air over a light plane and its wheels on the runway by its speed, an
+  // arcade fighter's engine from its cruise to its boost, a starfighter's engines by its throttle
+  airflow: Object.freeze({ loop: 'airflow-loop', rate: [0.8, 1.25] }),
+  'runway-roll': Object.freeze({ loop: 'runway-roll-loop', rate: [0.6, 1.4] }),
+  'arcade-fighter-engine': Object.freeze({ engine: 'arcade-fighter', rpm: [50, 100] }),
+  'starfighter-engine': Object.freeze({ engine: 'starfighter', rpm: [20, 100] }),
   // a game's own (a `flavor`: its rail's): heard only by a game of that flavor
   'charge-hum': Object.freeze({ loop: 'gb-charge', flavor: 'galaxy-boy', rate: [0.85, 1.3] }),
 });

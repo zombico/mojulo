@@ -30,6 +30,7 @@ import { PATCH_KINDS } from './trail-dress.js';
 import { STRAND } from './strand.js';
 import { ROCK_FLORA } from './rock-flora.js';
 import { GEOCUBE_PRESETS } from './geocube.js';
+import { ISEKAI_STYLES } from './isekai-tiles.js';
 import { substrateOf } from './substrate-of.js';
 import { GROUND_CUTS } from './gritty-flora.js';
 import { SUBSTRATE_IDS } from './substrate.js';
@@ -137,14 +138,18 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4;
 
 /**
  * How much of a level each ground covers: its share of a cube's stage land (a trail's, era/substrate-of.js), averaged
- * over the cube presets that have an outside (era/geocube.js GEOCUBE_PRESETS), each read with its own base, grit and
+ * over the cube presets that have an outside where things grow (era/geocube.js GEOCUBE_PRESETS), each read with its own base, grit and
  * formation, and cut with `water` when one is named (a form of era/out-water.js). → { <substrate>: share }
  */
+// (a base card that grows neither grass nor trees)
+const barren = (base) => { const C = ISEKAI_STYLES[base]; return !!C && !C.grass && !(C.trees?.clusters > 0); };
 export function measuredShares({ water = null } = {}) {
   const sums = Object.fromEntries(SUBSTRATE_IDS.map((k) => [k, 0])), seen = new Map();
   let n = 0;
   for (const cube of Object.values(GEOCUBE_PRESETS)) {
     if (!cube.outside?.base) continue;
+    // (a land where nothing grows, an airless base's (Mercury, the Moon, Mars: sol/geocubes.js), is no ground for flora)
+    if (barren(cube.outside.base)) continue;
     // (the ground is read off the base, the formation and the water alone: presets alike in those are read once)
     const skin = cube.outside.land?.skin, key = `${cube.outside.base}|${skin ?? ''}`;
     if (!seen.has(key)) seen.set(key, substrateOf({ kind: 'stage', kit: cube.outside.base, trail: water ? { ground: { water: { [water]: true } } } : {}, shading: { grit: cube.grit ?? 0.5, ...(skin ? { skin } : {}) } }).shares);

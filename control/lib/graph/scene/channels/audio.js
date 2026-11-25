@@ -6,6 +6,7 @@ import { safeJson } from '../emit-util.js';
 import { weatherAudioScript } from '../../beats/weather-audio.js';
 import { buildAdaptive } from '../../beats/adaptive-music.js';
 import { runAudioScript } from './run-audio.js';
+import { flightAudioScript } from './flight-audio.js';
 
 // audio channel (beats.plan.md): synthesized WebAudio presence over the live World — an ambient
 // soundtrack, bus-event SFX stingers, gait/walk footsteps, and wind. Emitted ONLY when the payload
@@ -551,7 +552,7 @@ ${audio.moves ? `// a MOVESET's sounds (audio.moves, beats-world.js; gameworld/c
     }
   })();
 })();
-` : ''}${audio.run ? runAudioScript({ air: !!audio.run.air }) : ''}${audio.foes ? `// a sheet level's FOES (audio.foes, beats-world.js; gameworld/sound-sheet.js): each foe of the bestiary by its id
+` : ''}${audio.run ? runAudioScript({ air: !!audio.run.air }) : ''}${audio.flight ? flightAudioScript() : ''}${audio.foes ? `// a sheet level's FOES (audio.foes, beats-world.js; gameworld/sound-sheet.js): each foe of the bestiary by its id
 // (a body's id is foe-<its id>-<n>) sounds on its attack (a swing begun), on a blow taken and as it falls, each a cue
 // of the level's, placed where it stands. A kind's attacks are held apart (a pack never says one sound at once).
 // Read-only, as the moveset's above. (No backticks: inside an emitted template literal.)

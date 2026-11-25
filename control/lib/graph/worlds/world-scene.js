@@ -32,6 +32,7 @@ import { readPanels } from '@/lib/graph/rupa/panels.js';
 import { shellBlocks } from '@/lib/graph/rupa/shell-blocks.js';
 import { physicsWind } from '@/lib/graph/rupa/one-wind.js';
 import { treeBlocks } from '@/lib/graph/rupa/tree-blocks.js';
+import { fleetPayload } from '@/lib/graph/fleet/build.js';
 import { groundGrid, waterBodies } from '@/lib/graph/rupa/ground-grid.js';
 import { groundOfShares } from '@/lib/graph/rupa/look-matter.js';
 import { manifestGarment } from '@/lib/graph/polygonizer/figure-outfit';
@@ -1103,6 +1104,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // (buildings under a wet weather and no clouds named: the weather's own sky, era/geocube.js)
     if (read && M.clouds === undefined && M.buildings !== undefined && CLOUDS_OF_WEATHER[M.weather] === 'storm' || read && M.clouds === undefined && M.buildings !== undefined && M.weather === 'drizzle') payload.form.land.clouds = { kind: CLOUDS_OF_WEATHER[M.weather], cover: 0.5, seed: 1 };
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
+    // (the flight sky's cumulus over the land on a clear, fair or hazy day, skyscape/sky.js groundCumulus: its weather's,
+    // else the one the sky reads, fair where the stage painted clouds and clear where it painted none; channels/sky-cumulus.js)
+    if (read && payload.form.land.sky) {
+      const { groundCumulus } = await import('@/lib/graph/skyscape/sky.js');
+      const painted = Array.isArray(payload.faces) && payload.faces.some((f) => f && f.group === 'isekai:cloud');
+      const cu = groundCumulus(payload.form.land.clouds ?? { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 });
+      if (cu && cu.n) payload.form.land.cumulus = cu;
+    }
     // (the view cone's reach fixed in metres, channels/view-cone.js; absent, the screen's)
     // (rain on the land: where it is raining, the land wears the film its buildings' walls and slabs do, era/wetness.js;
     // by the recipe's `wet`, or its weather's where it has buildings, as the buildings read it)
@@ -1183,6 +1192,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const Mc = sketch.manifest.clouds;
     payload.formSky = { sun: payload.sky.sun.dir, zenith: payload.sky.zenith, horizon: payload.sky.horizon,
       ...(Mc !== undefined ? { clouds: Mc === 'weather' ? { kind: CLOUDS_OF_WEATHER[sketch.manifest.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(Mc) } : {}) };
+    // (its cumulus as a form land's, the flight sky's on a clear, fair or hazy day)
+    {
+      const { groundCumulus } = await import('@/lib/graph/skyscape/sky.js');
+      const painted = Array.isArray(payload.faces) && payload.faces.some((f) => f && f.group === 'isekai:cloud');
+      const cu = groundCumulus(payload.formSky.clouds ?? { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 });
+      if (cu && cu.n) payload.formSky.cumulus = cu;
+    }
   }
   // (a page without the form render carries the view cone and its far structures only when its world asks: `cone`)
   if (payload && !payload.form && sketch.manifest.cone !== undefined && sketch.manifest.cone !== null) payload.cone = readCone(sketch.manifest.cone);
@@ -1415,10 +1431,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const facesSoFar = shells ? shells.faces : broken ? broken.faces : payload.faces;
     const treeSet = destruction === 'physical' && Array.isArray(payload.physicalTrees) ? treeBlocks(payload.physicalTrees, facesSoFar, { matterOf: cubeMatterOf }) : null;
     if (payload.physicalTrees !== undefined) delete payload.physicalTrees;
-    if ((broken && broken.breakables.length) || shells || treeSet) {
-      const faces = treeSet ? treeSet.faces : facesSoFar, colliders = [...(shells ? shells.colliders : broken ? broken.colliders : payload.colliders || []), ...(treeSet ? treeSet.footings : [])];
-      const breakables = [...(broken ? broken.breakables : []), ...(shells ? shells.breakables : []), ...(treeSet ? treeSet.breakables : [])];
-      payload.faces = faces; payload.colliders = colliders; payload.breakables = breakables; payload.breakPieces = piecesOf(breakables, faces, shells || treeSet ? { share: true } : {});
+    // and a space map's fleet (fleet/build.js: capital ships and stations, each a block a piece, welded back to its
+    // anchor and weightless: `matter.g` 0); not under physical, its faces stand and its blocks are plain colliders
+    const fleetSet = Array.isArray(payload.physicalFleet) ? fleetPayload(payload.physicalFleet, { physical: destruction === 'physical' }) : null;
+    if (payload.physicalFleet !== undefined) delete payload.physicalFleet;
+    if (fleetSet && destruction !== 'physical') { payload.faces = [...(payload.faces || []), ...fleetSet.faces]; payload.colliders = [...(payload.colliders || []), ...fleetSet.colliders]; }
+    const fleetOn = fleetSet && destruction === 'physical' ? fleetSet : null;
+    // (its plating's kibble: each block's level, drawn by the page's hull-kibble channel)
+    if (fleetSet && fleetSet.kibble) payload.kibble = fleetSet.kibble;
+    if ((broken && broken.breakables.length) || shells || treeSet || fleetOn) {
+      const faces = [...(treeSet ? treeSet.faces : facesSoFar || []), ...(fleetOn ? fleetOn.faces : [])], colliders = [...(shells ? shells.colliders : broken ? broken.colliders : payload.colliders || []), ...(treeSet ? treeSet.footings : [])];
+      const breakables = [...(broken ? broken.breakables : []), ...(shells ? shells.breakables : []), ...(treeSet ? treeSet.breakables : []), ...(fleetOn ? fleetOn.breakables : [])];
+      payload.faces = faces; payload.colliders = colliders; payload.breakables = breakables; payload.breakPieces = piecesOf(breakables, faces, shells || treeSet || fleetOn ? { share: true } : {});
       // (payload metadata, not drawn: what was built stands by itself, or what falls at once, is crushed, or sags)
       if (destruction === 'physical') payload.rupaAudit = { ...loadAudit(breakables, { colliders }), ...(shells ? { shells: shells.groups } : {}), ...(treeSet ? { trees: treeSet.trees.length } : {}) };
     }
@@ -1711,10 +1735,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // (`craft`: { archetype, look?, livery?, wear?, fold?, pad?, made? }, what a parked helicopter, aircraft or drone
         // writes), in the form render, made unless `made: false`, lit by its world's sky, its rotors still; `pad` a
         // helipad under it. Absent ⇒ no craft is resolved, byte-identical.
+        // A FLYING craft (`flying: true`, a flight level's pilot: skyscape/craft.js craftPilot) is drawn level, its gear
+        // `up` or `down` (where it starts: aloft or on the runway), and marked as a form that flies (`forms`), so the page
+        // banks and pitches it as its rule tilts it, as the artillery range's aircraft are.
         if (rawSpec.craft && typeof rawSpec.craft === 'object') {
           const { craftFormFigure } = await import('@/lib/graph/craft-shelf/craft-form.js');
           const K = rawSpec.craft;
           const opts = Object.fromEntries(['look', 'livery', 'wear', 'fold', 'pad'].filter((k) => K[k] !== undefined && K[k] !== false).map((k) => [k, K[k]]));
+          if (K.flying) {
+            // (its drives' exhaust on it, a spacecraft's: the page's thrusters, burning as hard as it is driven)
+            const fig = craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: K.gear === 'down' ? 0 : 1 }, attitude: 'level', made: K.made !== false, drives: true, ...opts });
+            payload.figures[name] = await atRigFidelity({ ...fig, forms: { base: 'air' } });
+            continue;
+          }
           payload.figures[name] = await atRigFidelity(craftFormFigure(K.archetype, { setting: { sky: payload.sky ?? null }, pose: { gear: 0 }, attitude: 'ground', made: K.made !== false, ...opts }));
           continue;
         }
@@ -1745,6 +1778,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         if (rawSpec.workbot && typeof rawSpec.workbot === 'object') {
           const { workbotFigure } = await import('@/lib/graph/workbots/index.js');
           payload.figures[name] = workbotFigure(rawSpec.workbot);
+          continue;
+        }
+        // GROUND FORCE bodies (groundforce/): a figures-map entry may be a sci-fi ground unit (`unit`: { kind }: a gun
+        // emplacement, a hover tank, a personnel walker), what an arcade stage's ground targets write; its rig, one bone.
+        // Absent ⇒ none is resolved, byte-identical.
+        if (rawSpec.unit && typeof rawSpec.unit === 'object') {
+          const { unitFigure } = await import('@/lib/graph/groundforce/index.js');
+          payload.figures[name] = unitFigure(rawSpec.unit.kind);
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
@@ -2434,6 +2475,46 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a mission on the world (gameworld/mission-level.js): its plan, its tasks and its briefing; the page's mission channel
   // draws its briefing, HUD, pause and debrief on mana-ui from them. Absent ⇒ nothing (scene/channels/mission.js).
   if (payload && sketch.manifest.mission && typeof sketch.manifest.mission === 'object' && Array.isArray(sketch.manifest.mission.tasks)) payload.mission = sketch.manifest.mission;
+  // a space mission's briefing over its cockpit level (campaign/: its design, read and drawn as the holo table); the
+  // page's briefing channel holds the mission behind it until Launch. Absent ⇒ nothing (scene/channels/briefing.js).
+  if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.briefing && typeof sketch.manifest.briefing === 'object') {
+    const { readMission } = await import('@/lib/graph/campaign/mission.js');
+    const { briefingData } = await import('@/lib/graph/campaign/briefing.js');
+    // (an arcade stage's design, one that names its route, told on the same table: campaign/stage.js)
+    // (a stage's: on its real ground when it is flown down a planet or a moon, campaign/stage-ground.js)
+    if (sketch.manifest.briefing.route !== undefined) {
+      const { readStage, stageBriefingData } = await import('@/lib/graph/campaign/stage.js');
+      const { stageGround } = await import('@/lib/graph/campaign/stage-ground.js');
+      payload.briefing = { data: stageBriefingData(readStage(sketch.manifest.briefing), { ground: stageGround(sketch.manifest, { seed: sketch.manifest.seed ?? 1 }) }) };
+    }
+    else payload.briefing = { data: briefingData(readMission(sketch.manifest.briefing)) };
+  }
+  // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
+  // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
+  if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {
+    const { lessonBriefData } = await import('@/lib/graph/gameworld/lesson-brief.js');
+    payload.lesson = { data: lessonBriefData(sketch.manifest.lesson) };
+  }
+  // a flown craft's speed in the world round it (scene/channels/speed-fx.js): speed lines in the air, dust in space, from
+  // its pilot's rule (a rail stage's, a cockpit's); a level nothing flies in carries none
+  if (payload && sketch.manifest.kind === 'airspace' && Array.isArray(sketch.manifest.entities)) {
+    const [{ speedFxConfig }, { isSpace }] = await Promise.all([import('@/lib/graph/scene/channels/speed-fx.js'), import('@/lib/graph/skyscape/airspace.js')]);
+    const fx = speedFxConfig(sketch.manifest, { space: isSpace(sketch.manifest) });
+    if (fx) payload.speedfx = fx;
+  }
+  // a flown craft's sounds (scene/channels/flight-audio.js: the kit by its pilot's rule, sfx-shelf/flight-sounds.js): its
+  // engine, the air, its guns, its hits, its kills, the stall, the landing, the lock; the level's own audio over them (its
+  // cues win), none where it says `audio: false`; a level nothing flies in carries none
+  if (payload && sketch.manifest.kind === 'airspace' && Array.isArray(payload.entities) && !(payload.audio && payload.audio.flight)) {
+    const { flightAudio } = await import('@/lib/graph/scene/channels/flight-audio.js');
+    const fa = flightAudio(payload, sketch.manifest);
+    if (fa) {
+      const A = resolveWorldAudio(fa.spec, { time, ref: sketch.ref });
+      const mix = { ...(payload.audio?.mix ?? A.mix ?? {}), reach: Math.max(payload.audio?.mix?.reach ?? 0, fa.reach) };
+      payload.audio = payload.audio ? { ...payload.audio, flight: A.flight, cues: { ...(A.cues ?? {}), ...(payload.audio.cues ?? {}) }, mix: { distance: true, ...mix } } : { ...A, mix };
+    }
+  }
+
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,
   // the dummies, the things); the page's brawl channel plays it, its blows sounded from the SFX shelf as a fight's are.
   // Absent (or a brawl block with no practice yet) ⇒ nothing (scene/channels/brawl.js).

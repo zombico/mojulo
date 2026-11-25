@@ -5,9 +5,12 @@
  * world's shadow lights, a hemisphere of the sky over the ground, and an environment of that sky for its reflections.
  *
  *   formLight(mood, materials, { ground? }) → { materials, key, keyIntensity, ambient, sky: { zenith, horizon, ground },
- *                                  toLight?, exposure }   (ground: the colour the hemisphere bounces up, [r, g, b])
- *   skyMood(sky)  → a world's own sky (its zenith, horizon, day and sun) read as a mood's light, for formLight
- *     mood       a race mood (roads/race-mood.js moodOf) or null (noon); its key's travel rides along when it names one
+ *                                  toLight?, hemi?, rim?, exposure }   (ground: the colour the hemisphere bounces up,
+ *                                  [r, g, b]; hemi and rim the body's own fill and edge where the mood writes them)
+ *   skyMood(sky)  → a world's own sky (its zenith, horizon, day and sun) read as a mood's light, for formLight; a
+ *                   space sky (`space: true`) the star's, SPACE_MOOD
+ *     mood       a race mood (roads/race-mood.js moodOf) or null (noon); its key's travel rides along when it names one,
+ *                its key's level (`level`, 2.6 where absent), its ground, its fill and its rim too
  *     materials  the slots' response (vehicle-surface-finish.js VEHICLE_MATERIALS, racer-shade.js KART_MATERIALS)
  *
  * Pure.
@@ -21,18 +24,46 @@ export function formLight(mood, materials, { ground = null } = {}) {
   const key = mood ? mood.key : [1, 0.97, 0.92], peak = Math.max(...key, 1e-3);
   return {
     materials,
-    key: key.map((v) => r4(v / peak)), keyIntensity: r4(2.6 * Math.min(1, peak)),
+    key: key.map((v) => r4(v / peak)), keyIntensity: r4((mood?.level ?? 2.6) * Math.min(1, peak)),
     ambient: r4(mood ? (mood.ambient[0] + mood.ambient[1] + mood.ambient[2]) / 3 : 0.55),
-    sky: { ...(mood?.sky ? { zenith: mood.sky.zenith, horizon: mood.sky.horizon } : NOON_SKY), ground: ground ?? GROUND },
+    sky: { ...(mood?.sky ? { zenith: mood.sky.zenith, horizon: mood.sky.horizon } : NOON_SKY), ground: ground ?? mood?.ground ?? GROUND },
     ...(mood?.toLight ? { toLight: mood.toLight.map(r4) } : {}),
+    // (a mood that writes the body's fill and rim itself, the star's: the cast rig's hemisphere and rim, linear)
+    ...(mood?.hemi ? { hemi: { sky: mood.hemi.sky.map(r4), ground: mood.hemi.ground.map(r4), gain: 1 } } : {}),
+    ...(mood?.rim ? { rim: { linear: mood.rim.linear.map(r4), strength: mood.rim.strength, power: mood.rim.power } } : {}),
     exposure: 1,
   };
 }
+
+/**
+ * THE STAR (a body in space: a world's sky `space: true`): space lit as it is, the gen-7 rig with nothing between the
+ * light and the hull. One key, a G star's white (5800 K) at full strength, since no air dims or warms it; it comes from
+ * where the sky draws its star (`sky.sun.dir`). No sky to fill the shade and no ground to bounce: the hemisphere is the
+ * galaxy's faint glow over the dark, a cool lift that keeps the shade side dark and never black (the cast rig's value
+ * law), the key side about fifteen times it. Nothing behind the hull to outline it, so the rim carries the silhouette
+ * (the rig's separation law): a cool starlit edge. The sky it reflects is the void, the star in it the one hot glint.
+ */
+/** A close world's light on a hull from below: its colour at its share of the sky, times this (a lit world's albedo
+ *  under a star, seen across half the sky, is a strong fill: a third of the key's level at full). */
+export const PLANETSHINE = 0.55;
+export const SPACE_MOOD = Object.freeze({
+  key: [1, 0.96, 0.91], level: 3.1, ambient: [0.05, 0.05, 0.07],
+  sky: Object.freeze({ zenith: [7, 9, 17], horizon: [11, 13, 24] }), ground: [3, 3, 6],
+  hemi: Object.freeze({ sky: [0.026, 0.031, 0.046], ground: [0.011, 0.011, 0.015] }),
+  rim: Object.freeze({ linear: [0.075, 0.095, 0.15], strength: 1, power: 3.5 }),
+});
 
 /** A world's own sky read as the light a body in it stands in (a mood's shape, for formLight): the key warm white by
  *  day, toward the horizon's colour as the sun sinks, a dim moonlight by night (the zenith's cool) at an eighth of the
  *  day's; the ambient the sky's share of it; its sky the world's; its travel the world's sun when it is up. */
 export function skyMood(sky) {
+  if (sky && sky.space) {
+    const d = Array.isArray(sky.sun?.dir) ? sky.sun.dir : null, L = d ? Math.hypot(d[0], d[1], d[2]) : 0;
+    // (a close world below: its light thrown back up onto the hull, the ground of its hemisphere, skyscape/backdrop.js)
+    const sh = sky.backdrop && sky.backdrop.planetshine, lin = (h) => [1, 3, 5].map((i) => { const c = parseInt(h.slice(i, i + 2), 16) / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+    const hemi = sh && /^#[0-9a-f]{6}$/i.test(sh.color) ? { sky: SPACE_MOOD.hemi.sky, ground: SPACE_MOOD.hemi.ground.map((g, k) => Math.round((g + lin(sh.color)[k] * sh.k * PLANETSHINE) * 1e4) / 1e4) } : null;
+    return { ...SPACE_MOOD, ...(hemi ? { hemi } : {}), ...(L > 0 ? { toLight: d.map((v) => v / L) } : {}) };
+  }
   if (!sky || !Array.isArray(sky.zenith) || !Array.isArray(sky.horizon)) return null;
   const d = Number.isFinite(sky.day) ? Math.max(0, Math.min(1, sky.day)) : 1;
   const unitC = (c) => { const m = Math.max(...c, 1); return c.map((v) => v / m); };

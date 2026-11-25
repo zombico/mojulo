@@ -39,6 +39,8 @@ export const E2E = [
   'lib/mcp/tools/design-game.climb.test.js',
   'lib/mcp/tools/design-game.quest.test.js',
   'lib/mcp/tools/design-game.mission.test.js',
+  // designed flight levels: each airspace flown for its flight goal (a lesson's tasks, a sortie's wings, a course)
+  'lib/mcp/tools/design-game.flight.test.js',
   'lib/graph/car-designer/racer-live.test.js',
   'lib/graph/gameworld/feel/hero-juice.live.test.js',
   'lib/graph/gameworld/practice-room.live.test.js',
@@ -102,6 +104,8 @@ export const E2E = [
   'lib/graph/scene/channels/controllable/keying.chrome.test.js',
   // the ray budget: a walker on a gen-7 land in headless Chrome, no ray testing a big mesh triangle by triangle
   'lib/graph/scene/channels/controllable/ray-budget.chrome.test.js',
+  // big grounds: a flight's land and a race's backdrop loaded in headless Chrome, their heap held under a ceiling
+  'lib/graph/scene/channels/controllable/big-ground.chrome.test.js',
   // the firing range heard: its page in headless Chrome, each action's sound counted by the sources it starts
   'lib/graph/gameworld/combat/range-sound.chrome.test.js',
   'lib/graph/gameworld/combat/artillery.chrome.test.js',

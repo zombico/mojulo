@@ -161,6 +161,8 @@ import { planLocalMeru } from '../local-meru/plan.js';
 import { readTownPlan } from './out-town.js';
 import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { readCone } from '../scene/channels/view-cone.js';
+import { readHeavens, heavensCard } from './heavens.js';
+import { SOL_GEOCUBES, SOL_GEOCUBE_PALETTES, SOL_GEOCUBE_BUILDINGS } from '../sol/geocubes.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -382,6 +384,9 @@ export const GEOCUBE_PRESETS = Object.freeze({
       'Quiet surfaces: the shape of a platform is read before its texture.',
     ],
   },
+  // THE CHILDREN OF SOL (sol/geocubes.js): the bodies with ground under foot, Mercury to Pluto, the Moon among them (the
+  // Earth is every cube above); their ground and their sky, and what hangs in it (era/heavens.js)
+  ...SOL_GEOCUBES,
 });
 
 /**
@@ -402,6 +407,8 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'limestone-crags': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
   'sherbet-orchard': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
   'toy-hill': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'hall', enter: 'walk' }] },
+  // the children of Sol's: a colony's (sol/geocubes.js)
+  ...SOL_GEOCUBE_BUILDINGS,
 });
 /**
  * The levels a preset makes, beyond its own room and land: its other terrains and interiors, and the domains that
@@ -446,6 +453,8 @@ export const GEOCUBE_PALETTES = Object.freeze({
   // lighter than that group, which the value-groups law says, and it is the orchard's point)
   'sherbet-orchard': { intent: 'sherbet pastels: peach ground, pink blossom, a mint accent', key: 'high', heat: 0.6, weight: -0.8, activity: 0.7, scheme: 'analogous', hues: { sky: 215, ground: 70, foliage: 10, rock: 60, soil: 40, accent: '#3fc9a0' }, lock: { foliage: '#e8789a' }, values: { groups: 3 } },
   'city-night': { intent: 'concrete, asphalt and neon under a glowing night sky', key: 'low', heat: -0.3, weight: 0.4, activity: 0.5, scheme: 'mono-accent', hues: { rock: 220 }, lock: { accent: '#ff3d7f' } },
+  // the children of Sol's (sol/geocubes.js)
+  ...SOL_GEOCUBE_PALETTES,
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
 const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'limestone-crags': [2, 5] , 'city-night': [0, 1], 'toy-hill': [0, 1, 2, 3], 'sherbet-orchard': [0, 1, 2, 3] });
@@ -535,7 +544,9 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade', 'heavens'], 'light');
+  // (what hangs in its sky, era/heavens.js: no air and the stars by day, the sun's width, a companion world, rings)
+  readHeavens(c.light.heavens, no);
   if (c.light.night !== undefined && !NIGHT_REGISTERS.includes(c.light.night)) no(`light.night is the night's register: ${NIGHT_REGISTERS.join(' or ')} (stylized, the reference's own deep blue, unless said; realistic, the colour drained by the dark, a pale moon, near-neutral greys)`);
   if (c.light.shade !== undefined && !(typeof c.light.shade === 'number' && c.light.shade >= 0.02 && c.light.shade <= 0.6)) no('light.shade is the share of the light the inside\'s shade keeps from its lamps, 0.02 (black shade, lamp-lit pools) to 0.6 (era/stage.js shade)');
   if (c.light.skyShare !== undefined && !(typeof c.light.skyShare === 'number' && c.light.skyShare > 0 && c.light.skyShare < 1)) no('light.skyShare is the share of its light the sky gives, between 0 and 1 (0.1 a hard sun over deep shade, 0.4 a clear noon, 0.85 an overcast sky; the form render\'s, era/cube-light.js: left out, the look\'s own, raised to meet the sky it paints)');
@@ -1012,7 +1023,7 @@ function lowerOutside(cube0, terrain, hour, clouds) {
   const key = ref.light.key ? { color: ref.light.key.color, elevation: ref.light.key.elevation, azimuth: ref.light.key.azimuth ?? 225 } : { color: cube.light.moon.color, elevation: cube.light.moon.elevation, azimuth: cube.light.moon.azimuth };
   const light = { ...card.light, key, ambient: ref.light.ambient, ...(ref.light.key ? {} : { sunGain: cube.light.moon.gain }) };
   const air = { ...card.air, fog: { color: S?.fog ?? ref.air.fog.color, density: +(ref.air.fog.density * cube.light.outsideFog).toFixed(5) } };
-  const lookCard = { ...card, palette: land, light, air, water: { fill: geocubeRamps(cube).water[2] }, principles: cube.why };
+  const lookCard = heavensCard({ ...card, palette: land, light, air, water: { fill: geocubeRamps(cube).water[2] }, principles: cube.why }, cube.light.heavens);
   return outsideOf(cube, base, sw, land, lookCard);
 }
 
@@ -1039,7 +1050,7 @@ function outsideAt(cube, hour, clouds, { base, card, sw, land0, fit, shadow, own
   // (the disc dropped where it stands: the card's keys keep their order, so its print, and the look's id, hold)
   // (and the cube's own light beside the hour's: what is drawn in its ramps' stops rather than baked moves by the
   // difference, era/isekai.js hourShift)
-  const lookCard = { ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band, ownLight };
+  const lookCard = heavensCard({ ...card, palette: land, light, air, water: { fill: water }, principles: cube.why, hour: H.hour, ...night, ...band, ownLight }, cube.light.heavens);
   if (!A.disc) delete lookCard.sun;
   return outsideOf(cube, base, sw, land, lookCard);
 }

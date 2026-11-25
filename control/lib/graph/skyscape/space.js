@@ -20,6 +20,8 @@
  * Pure, deterministic.
  */
 import { pilotEye } from './eye.js';
+import { validateBackdrop } from './backdrop.js';
+import { readSpaceFleet } from './space-fleet.js';
 import { rockPool, rockRepeats } from '../polygonizer/rock-pool.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { gnoise, hashSeed } from '../polygonizer/landform.js';
@@ -30,8 +32,12 @@ export const SPACE = Object.freeze({ fieldS: 40, fieldMin: 3000, depth: 0.5, war
 /** The asteroids: rocks per km³ of the field by density, their radius (m: median, spread of ln r, bounds), and the
  *  clearance (m) every leg of the course and the start keep from a rock's surface, past the gate's own radius. */
 export const ASTEROIDS = Object.freeze({ densities: { none: 0, sparse: 2, field: 6, dense: 15 }, r: { median: 28, sigma: 0.8, min: 6, max: 180 }, clear: 40 });
-/** The sun's direction (toward it) on a space map: the rocks are lit by it. */
+/** The sun's direction (toward it) on a space map: the rocks are lit by it, the sky draws its star there, and a craft
+ *  is lit from it (car-designer/form-light.js SPACE_MOOD: the one key, nothing to soften it). */
 const SUN = [0.45, -0.35, 0.82];
+/** The star in the sky: where the light comes from, seen. A sun at a planet's distance is half a degree across; drawn
+ *  past it (`size` of the sky's sun: its disc over a degree, its glow round it at full) so it reads as the source. */
+export const SPACE_STAR = Object.freeze({ dir: Object.freeze(SUN.map((v) => Math.round((v / Math.hypot(...SUN)) * 1e4) / 1e4)), size: 0.75, glow: 2 });
 /** A space gate's ring: wider than an atmosphere's (a gate a second wide at top speed, on these rails). */
 const GATE_R = [12, 40];
 /** The gates' weave: up and down by this share of the field's half-height. */
@@ -48,6 +54,9 @@ export function validateSpace(m = {}, s = {}) {
   if (s.asteroids !== undefined && !ASTEROIDS.densities[s.asteroids] && ASTEROIDS.densities[s.asteroids] !== 0) e.push(`space.asteroids must be one of ${Object.keys(ASTEROIDS.densities).join(', ')}`);
   if (s.trench !== undefined && typeof s.trench !== 'boolean') e.push('space.trench must be true (a battle station\'s trench to run, trench.js) or false');
   if (s.trench && s.asteroids !== undefined && s.asteroids !== 'none') e.push('space.trench: a station\'s surface has no asteroids over it');
+  e.push(...validateBackdrop(s.backdrop));
+  // capital ships and stations laid in the fight (space-fleet.js)
+  if (s.fleet !== undefined) e.push(...readSpaceFleet(s.fleet));
   return e;
 }
 

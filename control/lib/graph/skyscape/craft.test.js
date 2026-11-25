@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { flyRule } from './craft.js';
+import { flyRule, craftPilot, airframeOf, AIRFRAME, seatCraft } from './craft.js';
+import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 import { CRAFT } from './eye.js';
 import { planMap } from './map.js';
-import { assembleAirspace } from './airspace.js';
+import { assembleAirspace, airspaceOf, validateAirspace } from './airspace.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 
 // one powered class and one without an engine, chosen from the registry
@@ -47,5 +48,30 @@ describe('a craft on the fly rule', () => {
     const g = assembleAirspace({ ...base, fly: { craft: unpowered } }, { live: true });
     expect(g.entities[0].rule.launchSpeed).toBeGreaterThan(0);
     expect(g.entities[0].transform.pos[2]).toBeGreaterThan(p.entities[0].transform.pos[2] + 50);
+  });
+});
+
+// THE AIRFRAME: a level's craft flies as its class's machine off the craft shelf, or one the level names, or the slab
+// where the shelf has none (a glider) or the level asks for it (false); its gear down when it starts on the runway and up
+// when it starts aloft. A name the shelf lacks is refused, naming the shelf.
+describe('the craft as its airframe', () => {
+  const pilotOf = (manifest, opts) => { const { map, field } = airspaceOf(manifest); return craftPilot(map, seatCraft(map, field, null, {}), opts); };
+  it('every class\'s airframe is on the shelf, and the shelf\'s figure is the body', () => {
+    for (const a of Object.values(AIRFRAME)) expect(CRAFT_ARCHETYPES[a], a).toBeTruthy();
+    const P = pilotOf({ kind: 'airspace', map: { craft: 'trainer' }, ground: { pads: [{ kind: 'runway', at: [0.5, 0.25] }] } });
+    expect(P.entities[0].body).toEqual({ type: 'figure-rig', figure: 'craft' });
+    expect(P.figures.craft.craft).toEqual({ archetype: 'lightSingle', flying: true, gear: 'down' });
+  });
+  it('aloft (a glider is launched, space has no runway) the gear is up; a glider has no airframe and stays the slab', () => {
+    expect(pilotOf({ kind: 'airspace', map: { craft: 'fighter' } }).figures.craft.craft).toMatchObject({ archetype: 'strikeFoil', gear: 'up' });
+    const G = pilotOf({ kind: 'airspace', map: { craft: 'glider' } });
+    expect(G.entities[0].body.type).toBe('mesh');
+    expect(G.figures).toBeUndefined();
+  });
+  it('a level may name another airframe, or the slab; a name the shelf lacks is refused', () => {
+    expect(pilotOf({ kind: 'airspace', map: { craft: 'fighter' } }, { airframe: 'heavyFighter' }).figures.craft.craft.archetype).toBe('heavyFighter');
+    expect(pilotOf({ kind: 'airspace', map: { craft: 'trainer' } }, { airframe: false }).entities[0].body.type).toBe('mesh');
+    expect(() => airframeOf({ key: 'trainer' }, 'cessna')).toThrow(/'cessna' is not a craft of the shelf \(lightSingle/);
+    expect(validateAirspace({ kind: 'airspace', airframe: 'cessna' }).join(' ')).toMatch(/not a craft of the shelf/);
   });
 });

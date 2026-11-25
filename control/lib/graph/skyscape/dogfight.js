@@ -65,8 +65,22 @@ export function trenchCast(map, field) {
   return entities;
 }
 
+/** A fighter of a wing: a space mind (it seeks in three dimensions, holds its standoff, fires on an aim cone; over ground
+ *  it keeps two low passes clear of it: mind.js `clearance`), a little slower than the craft, its gun slower than the
+ *  craft's, its hull hittable; `dormant`, asleep until a mechanic wakes it (a wave, a task, a rail stage's mark). */
+export function wingFighter(map, id, pos, heading, { dormant = false } = {}) {
+  const c = map.craft, size = r2(Math.max(4, c.max / 25)), speed = r2(WING.speed * c.cruise);
+  return {
+    id, team: 'foes', ...(dormant ? { dormant: true } : {}),
+    rule: { type: 'ai', space: true, speed, turn: 1.4, standoff: r2(WING.standoffS * speed), fireArc: 6, burst: 0.5, pause: 1.6, sightRange: r2(RANGE_S * c.cruise * 2), eye: 0, missiles: missiles(c, { foe: true }), ...(map.form !== 'void' ? { clearance: 2 * c.lowPass } : {}) },
+    weapon: { ...guns(c), rof: 3, range: r2(0.7 * RANGE_S * c.cruise), assistAngle: 2 },
+    body: { type: 'mesh', shape: 'box', size: [size, size * 0.8, size * 0.35], color: '#d8483c', hittable: true, hp: WING.hp, poise: 99, radius: size, egg: { a: size, c: r2(size * 0.6), cz: 0 } },
+    transform: { pos: [r2(pos[0]), r2(pos[1]), r2(pos[2])], heading: r2(heading), pitch: 0 },
+  };
+}
+
 /** The craft as a fighter: its cannon, its missiles and flares, its boost and roll, its hull hittable. */
-function armedPilot(c, size) {
+export function armedPilot(c, size) {
   return { weapon: guns(c), rule: { missiles: missiles(c), boost: { ...MOVES.boost }, roll: { ...MOVES.roll } }, body: { hittable: true, radius: size, egg: { a: size, c: r2(size * 0.5), cz: 0 } } };
 }
 
@@ -96,14 +110,7 @@ export function dogfightCast(map, field, seat, { foes = WING.n, waves = 0 } = {}
     // over ground (air combat): three low passes clear of it (or of a roof), whatever the start's height
     if (map.form !== 'void') z = Math.max(z, (field.topAt ?? field.groundAt)(x, y) + 3 * c.lowPass);
     const speed = r2(WING.speed * c.cruise);
-    entities.push({
-      id: `foe-${i + 1}`, team: 'foes', ...(waves ? { dormant: true } : {}),
-      // (over ground, air combat, it keeps two low passes clear of it: mind.js `clearance`)
-      rule: { type: 'ai', space: true, speed, turn: 1.4, standoff: r2(WING.standoffS * speed), fireArc: 6, burst: 0.5, pause: 1.6, sightRange: r2(RANGE_S * c.cruise * 2), eye: 0, missiles: missiles(c, { foe: true }), ...(map.form !== 'void' ? { clearance: 2 * c.lowPass } : {}) },
-      weapon: { ...guns(c), rof: 3, range: r2(0.7 * RANGE_S * c.cruise), assistAngle: 2 },
-      body: { type: 'mesh', shape: 'box', size: [size, size * 0.8, size * 0.35], color: '#d8483c', hittable: true, hp: WING.hp, poise: 99, radius: size, egg },
-      transform: { pos: [r2(x), r2(y), r2(z)], heading: r2(h + Math.PI), pitch: 0 },
-    });
+    entities.push(wingFighter(map, `foe-${i + 1}`, [x, y, z], h + Math.PI, { dormant: !!waves }));
   }
   return {
     entities,

@@ -17,8 +17,12 @@
  * Each planet carries its own surface TYPE (banded gas giant / rocky / cloud / ocean), palette, ring
  * system, oblateness, axial tilt, atmosphere, and (gas giants) a storm spot.
  *
+ * The Moon and Pluto join them (the children of Sol, sol/roster.js: `gallery: 'sol'` steps through every one), and two close
+ * passes: `scenario: 'close'` low over the limb, the weather in the bands, the relief of the tops, the small craters;
+ * `scenario: 'rings'` through a ringed world's rings, a little over their plane, the ringlets drawn.
+ *
  * Stored manifest IS the recipe (regenerated on render):
- *   { kind:'saturn-view', planet?, gallery?, scenario?, inclination?, ringOut?, scale?, viewBox?,
+ *   { kind:'saturn-view', planet?, gallery? (true | 'sol'), scenario?, inclination?, ringOut?, scale?, viewBox?,
  *     scene?:{ bg? }, title? }
  *
  * Orbit-only object study (drag to orbit the camera). No walk, no /scene form.
@@ -32,6 +36,7 @@ precision highp float;
 uniform vec3 uCamPos; uniform mat3 uCamBasis; uniform vec2 uRes; uniform float uTime;
 uniform vec3 uSunDir, uBandA, uBandB, uPole, uSpot, uSpotCol, uAtmo;
 uniform float uFov, uRingIn, uRingOut, uOblate, uBacklit, uBandFreq, uContrast, uRingMode, uTilt, uSurfType, uAtmoStr, uIceLat;
+uniform float uDetail;   // a close pass (scenario close | rings): the finer weather, relief and ringlets; 0 the whole globe as ever
 
 float hash(vec3 p){ p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float vnoise(vec3 p){
@@ -58,6 +63,7 @@ void ringProps(float rr, float mode, out float op, out vec3 alb){
     dens += 0.62 * smoothstep(0.70, 0.745, u) * (1.0 - smoothstep(0.95, 0.995, u));    // A ring (past the Cassini Division gap)
     dens *= 1.0 - 0.85 * (smoothstep(0.86, 0.875, u) * (1.0 - smoothstep(0.885, 0.90, u)));  // Encke gap
     dens *= 0.82 + 0.18 * sin(u * 140.0 + 1.0);
+    if (uDetail > 0.0) dens *= mix(1.0, 0.62 + 0.38 * (0.5 + 0.5 * sin(u * 910.0 + 2.0 * sin(u * 57.0))) * (0.75 + 0.25 * sin(u * 2300.0)), uDetail);   // close: the ringlets
     a = mix(vec3(0.52, 0.47, 0.40), vec3(0.93, 0.89, 0.80), smoothstep(0.28, 0.62, u));
   } else if (mode < 2.5) {                                                             // JUPITER — one faint dusty ring
     dens = 0.13 * smoothstep(0.05, 0.25, u) * (1.0 - smoothstep(0.65, 0.95, u));
@@ -102,8 +108,23 @@ vec3 planetColor(vec3 nrm){
   float lat = nrm.y;
   if (uSurfType < 0.5) {                                                  // GAS GIANT — banded atmosphere
     float turb = vnoise(nrm * vec3(3.0, 9.0, 3.0) + vec3(uTime * 0.02, 0.0, 0.0));
-    float band = clamp(sin(lat * uBandFreq + turb * 2.2) * uContrast, -1.0, 1.0);
+    float wq = 0.0, w2 = 0.5;
+    if (uDetail > 0.0) {                                                  // close: the weather in the bands, drawn out east-west
+      // (the zonal winds stretch everything along the bands: the noise fast across them and slow along them, warped
+      // twice, so a band's edge waves and curls into festoons)
+      vec3 q = vec3(nrm.x * 2.5, lat * 26.0, nrm.z * 2.5) + vec3(uTime * 0.015, 0.0, 0.0);
+      float w1 = fbm(q);
+      w2 = fbm(q * vec3(1.0, 1.6, 1.0) + vec3(w1 * 4.0, w1 * 1.5, w1 * 4.0));
+      wq = (w2 - 0.5) * 2.4 * uDetail;
+    }
+    float band = clamp(sin(lat * uBandFreq + turb * 2.2 + wq) * uContrast, -1.0, 1.0);
     vec3 c = mix(uBandA, uBandB, 0.5 + 0.5 * band);
+    if (uDetail > 0.0) {                                                  // filaments along the bands, white ovals at their edges
+      float edge = 1.0 - abs(band);
+      c *= 1.0 + (fbm(vec3(nrm.x * 7.0, lat * 46.0, nrm.z * 7.0) + vec3(w2 * 3.0)) - 0.5) * 0.4 * uDetail;
+      float ov = smoothstep(0.72, 0.8, vnoise(nrm * 13.0 + vec3(w2 * 0.6))) * edge;
+      c = mix(c, mix(uBandB, vec3(1.0), 0.4), ov * 0.8 * uDetail);
+    }
     c = mix(c, uPole, smoothstep(0.6, 0.97, abs(lat)));
     if (uSpot.z > 0.001) {                                                // a storm spot (GRS / GDS)
       float lon = atan(nrm.x, nrm.z);
@@ -117,9 +138,16 @@ vec3 planetColor(vec3 nrm){
     vec3 c = mix(uBandA, uBandB, smoothstep(0.35, 0.65, n));
     c *= 0.72 + 0.5 * fbm(nrm * uBandFreq * 2.7);                         // crater / albedo speckle
     c = mix(c, uPole, smoothstep(uIceLat, uIceLat + 0.04, abs(lat)));     // polar ice caps
+    if (uSpot.z > 0.001) {                                                // a bright plain (Pluto's heart)
+      float lon = atan(nrm.x, nrm.z), dl = atan(sin(lon - uSpot.y), cos(lon - uSpot.y));
+      float d = length(vec2(dl * 0.8, lat - uSpot.x)) + (fbm(nrm * 9.0) - 0.5) * 0.12;
+      c = mix(uSpotCol, c, smoothstep(uSpot.z * 0.7, uSpot.z, d));
+    }
+    if (uDetail > 0.0) c *= 1.0 + (fbm(nrm * uBandFreq * 6.0) - 0.5) * 0.4 * uDetail;   // close: the small craters
     return c;
   } else if (uSurfType < 2.5) {                                           // CLOUD — Venus
     float n = fbm(nrm * uBandFreq + vec3(uTime * 0.01, 0.0, 0.0));
+    if (uDetail > 0.0) n += (fbm(nrm * vec3(uBandFreq * 6.0, uBandFreq * 14.0, uBandFreq * 6.0) + vec3(n * 3.0)) - 0.5) * 0.6 * uDetail;   // close: the Y and the streaks
     return mix(uBandA, uBandB, 0.45 + 0.5 * n);
   } else {                                                                // OCEAN — Earth
     float h = fbm(nrm * uBandFreq);
@@ -144,6 +172,12 @@ void main(){
   if (hp) {
     vec3 hit = ro + rd * tP;
     float diff = max(0.0, dot(nP, sun)) * ringShadow(hit, sun);
+    if (uDetail > 0.0) {                                                  // close: the tops in relief, lit on their sunward side
+      vec3 ts = normalize(sun - nP * dot(sun, nP) + vec3(1e-4));
+      vec3 nQ = normalize(nP + ts * 0.01), sQ = vec3(7.0, 46.0, 7.0);
+      float h0 = fbm(nP * sQ), h1 = fbm(nQ * sQ);
+      diff *= clamp(1.0 + (h1 - h0) * 6.0 * uDetail, 0.7, 1.3);
+    }
     planetCol = planetColor(nP) * (0.07 + 0.95 * diff);
     float limb = pow(1.0 - max(0.0, dot(nP, -rd)), 3.0);
     if (backlit) planetCol += uAtmo * limb * 1.8 * pow(max(0.0, dot(-sun, -rd)), 2.0) * (0.25 + uAtmoStr);   // forward-scattered atmosphere rim
@@ -189,16 +223,26 @@ const PLANETS = {
   jupiter: { surfType: 0, bandA: [0.55, 0.38, 0.26], bandB: [0.94, 0.85, 0.66], pole: [0.80, 0.74, 0.62], bandFreq: 22, contrast: 1.3, spot: [-0.32, 2.2, 0.24], spotCol: [0.74, 0.32, 0.20], ringMode: 2, ringIn: 1.18, ringOut: 1.55, oblate: 0.935, tilt: 0.05, atmo: [0.92, 0.82, 0.62], atmoStr: 0.35, iceLat: 2.0 },
   saturn: { surfType: 0, bandA: [0.78, 0.63, 0.40], bandB: [0.95, 0.87, 0.62], pole: [0.86, 0.80, 0.66], bandFreq: 17, contrast: 1.0, spot: [0, 0, 0], spotCol: [0, 0, 0], ringMode: 1, ringIn: 1.24, ringOut: 2.27, oblate: 0.90, tilt: 0.0, atmo: [0.93, 0.87, 0.70], atmoStr: 0.3, iceLat: 2.0 },
   uranus: { surfType: 0, bandA: [0.46, 0.74, 0.75], bandB: [0.64, 0.85, 0.85], pole: [0.72, 0.90, 0.90], bandFreq: 9, contrast: 0.3, spot: [0, 0, 0], spotCol: [0, 0, 0], ringMode: 4, ringIn: 1.55, ringOut: 2.0, oblate: 0.977, tilt: 1.42, atmo: [0.62, 0.86, 0.86], atmoStr: 0.4, iceLat: 2.0 },
+  // (the Moon and Pluto, the children of Sol beyond the eight: sol/roster.js; the eight's gallery is unchanged)
+  moon: { surfType: 1, bandA: [0.30, 0.30, 0.31], bandB: [0.66, 0.65, 0.62], pole: [0.6, 0.6, 0.58], bandFreq: 3.2, contrast: 1.0, spot: [0, 0, 0], spotCol: [0, 0, 0], ...NO_RING, oblate: 1.0, tilt: 0.0, atmo: [0, 0, 0], atmoStr: 0.0, iceLat: 2.0 },
+  pluto: { surfType: 1, bandA: [0.42, 0.27, 0.19], bandB: [0.82, 0.74, 0.64], pole: [0.86, 0.82, 0.76], bandFreq: 3.0, contrast: 1.0, spot: [0.22, 0.6, 0.42], spotCol: [0.95, 0.92, 0.86], ...NO_RING, oblate: 1.0, tilt: 0.0, atmo: [0.45, 0.62, 0.95], atmoStr: 0.12, iceLat: 2.0 },
   neptune: { surfType: 0, bandA: [0.10, 0.26, 0.62], bandB: [0.34, 0.55, 0.90], pole: [0.52, 0.68, 0.88], bandFreq: 12, contrast: 0.6, spot: [-0.28, 4.0, 0.22], spotCol: [0.05, 0.09, 0.28], ringMode: 3, ringIn: 1.35, ringOut: 2.05, oblate: 0.982, tilt: 0.0, atmo: [0.40, 0.6, 1.0], atmoStr: 0.45, iceLat: 2.0 },
 };
 
-export const SATURN_PLANETS = Object.keys(PLANETS);   // solar order: mercury … neptune
+export const SATURN_PLANETS = Object.freeze(['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']);   // the eight, the gallery's
+/** Every body the study draws, the children of Sol in order out from the Sun (the Moon after the Earth, Pluto last):
+ *  `gallery: 'sol'` steps through them. */
+export const SOL_MODELS = Object.freeze(['mercury', 'venus', 'earth', 'moon', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'pluto']);
 
 // lighting / viewing compositions (applied to any planet).
 const SCENARIOS = {
   classic: { inclination: 24, sun: [0.5, 0.62, 0.28], backlit: 0, fov: 38 },
   backlit: { inclination: 10, sun: [0.12, 0.2, -1.0], backlit: 1, fov: 42 },
   polar: { inclination: 74, sun: [0.4, 0.6, 0.3], backlit: 0, fov: 40 },
+  // up close (sol/roster.js SOL_VIEWS): low over the limb, the terminator across the view, the finer weather drawn; and
+  // through a ringed world's rings, a little above their plane, the rings sweeping in toward it
+  close: { inclination: 8, sun: [0.85, 0.42, 0.3], backlit: 0, fov: 50, close: { at: [0.0, 0.32, 1.42], target: [0.55, 0.12, 0.0], detail: 1 } },
+  rings: { inclination: 9, sun: [0.75, 0.38, -0.2], backlit: 0, fov: 52, close: { at: [1.45, 0.62, 1.95], target: [-0.25, -0.2, 0.0], detail: 1 } },
 };
 
 export const SATURN_SCENARIOS = Object.keys(SCENARIOS);
@@ -212,6 +256,8 @@ const PLANET_LINE = {
   saturn: 'Saturn — the bright structured rings (C / B / Cassini / A)',
   uranus: 'Uranus — tipped on its side, thin dark rings stand vertical',
   neptune: 'Neptune — deep methane blue, a Great Dark Spot, ring arcs',
+  moon: 'the Moon — grey highlands and dark maria, airless',
+  pluto: 'Pluto — nitrogen ice plains, red-brown highlands, the heart',
 };
 const PLANET_FACT = {
   mercury: 'no atmosphere · heavily cratered',
@@ -222,11 +268,15 @@ const PLANET_FACT = {
   saturn: 'rings shadow the planet · the planet shadows the rings',
   uranus: 'axial tilt ≈ 98° — it orbits on its side',
   neptune: 'the Adams ring breaks into bright ARCS',
+  moon: 'it keeps one face to the Earth',
+  pluto: 'Tombaugh Regio: a heart of nitrogen ice',
 };
 const SCENE_LINE = {
   classic: 'sunlit · rings shadow the planet · the planet shadows the rings',
   backlit: 'backlit (in the planet’s shadow) · rings glow by forward scatter',
   polar: 'high angle · the full ring system over the banded globe',
+  close: 'up close · low over the limb, the weather in the cloud tops',
+  rings: 'through the rings · just over their plane, the ringlets sweeping in',
 };
 
 // the per-planet uniform set (the shader is the same; only these change between gallery steps).
@@ -244,31 +294,39 @@ function uniformsFor(p, sun, backlit) {
  * `gallery:true` → a stepper through all eight planets. @returns {{ raymarch, stats }}
  */
 export function planSaturnScene(recipe = {}) {
-  const scenario = SCENARIOS[recipe.scenario] ? recipe.scenario : 'classic';
+  const scenario0 = SCENARIOS[recipe.scenario] ? recipe.scenario : 'classic';
+  const sol = recipe.gallery === 'sol';
+  const planet = recipe.gallery ? null : PLANETS[recipe.planet] ? recipe.planet : 'saturn';
+  // (a pass through the rings is a ringed world's: any other gets the close pass)
+  const scenario = scenario0 === 'rings' && planet && PLANETS[planet].ringMode === 0 ? 'close' : scenario0;
   const s = SCENARIOS[scenario];
   const incl = clampNum(recipe.inclination, 2, 88, s.inclination);
   const el = incl * DEG;
-  const cameraStart = [0, CAM_DIST * Math.sin(el), CAM_DIST * Math.cos(el)];
+  // (up close, the camera stands where the scenario puts it, in the body's own frame: its tilt set aside, so a pass
+  // through Uranus's rings is through them as through Saturn's)
+  const cameraStart = s.close ? s.close.at : [0, CAM_DIST * Math.sin(el), CAM_DIST * Math.cos(el)];
+  const target = s.close ? s.close.target : [0, 0, 0];
+  const near = (u) => (s.close ? { ...u, uTilt: 0, uDetail: s.close.detail } : u);
 
   if (recipe.gallery) {
-    const steps = SATURN_PLANETS.map((key) => ({
+    const keys = sol ? SOL_MODELS : SATURN_PLANETS;
+    const steps = keys.map((key) => ({
       label: key.charAt(0).toUpperCase() + key.slice(1),
-      uniforms: uniformsFor(PLANETS[key], s.sun, s.backlit),
-      readout: [PLANET_LINE[key], PLANET_FACT[key], 'ray-traced shader · ◀ ▶ to step planets · drag to orbit'],
+      uniforms: near(uniformsFor(PLANETS[key], s.sun, s.backlit)),
+      readout: [PLANET_LINE[key], PLANET_FACT[key], `ray-traced shader · ◀ ▶ to step ${sol ? 'the children of Sol' : 'planets'} · drag to orbit`],
     }));
     return {
-      raymarch: { frag: SATURN_FRAG, customUniforms: steps[0].uniforms, steps, cameraStart, target: [0, 0, 0], fov: s.fov },
-      stats: { gallery: true, scenario, planets: SATURN_PLANETS.length, inclination: incl },
+      raymarch: { frag: SATURN_FRAG, customUniforms: steps[0].uniforms, steps, cameraStart, target, fov: s.fov, ...(s.close ? { minDistance: 0.2 } : {}) },
+      stats: { gallery: sol ? 'sol' : true, scenario, planets: keys.length, inclination: incl },
     };
   }
 
-  const planet = PLANETS[recipe.planet] ? recipe.planet : 'saturn';
   const p = PLANETS[planet];
-  const u = uniformsFor(p, s.sun, s.backlit);
+  const u = near(uniformsFor(p, s.sun, s.backlit));
   u.uRingOut = clampNum(recipe.ringOut, 1.4, 3.0, p.ringOut);
   return {
     raymarch: {
-      frag: SATURN_FRAG, customUniforms: u, cameraStart, target: [0, 0, 0], fov: s.fov,
+      frag: SATURN_FRAG, customUniforms: u, cameraStart, target, fov: s.fov, ...(s.close ? { minDistance: 0.2 } : {}),
       readout: [PLANET_LINE[planet], SCENE_LINE[scenario], PLANET_FACT[planet], 'ray-traced shader (true shadows + translucency)'],
     },
     stats: { planet, scenario, inclination: incl, ringIn: p.ringIn, ringOut: u.uRingOut, oblate: p.oblate, tilt: p.tilt, surfType: p.surfType, backlit: !!s.backlit },
@@ -283,7 +341,8 @@ export function assembleSaturnScene(recipe = {}, { title } = {}) {
   const plan = planSaturnScene(recipe);
   const bg = (recipe.scene && /^#[0-9a-fA-F]{6}$/.test(recipe.scene.bg || '')) ? recipe.scene.bg : '#01010a';
   let defaultTitle;
-  if (plan.stats.gallery) defaultTitle = 'Solar gallery — the eight planets';
+  if (plan.stats.gallery === 'sol') defaultTitle = 'The children of Sol';
+  else if (plan.stats.gallery) defaultTitle = 'Solar gallery — the eight planets';
   else { const cap = plan.stats.planet.charAt(0).toUpperCase() + plan.stats.planet.slice(1); defaultTitle = `mojulo ${cap} (${plan.stats.scenario})`; }
   return {
     raymarch: plan.raymarch,

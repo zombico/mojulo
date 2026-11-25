@@ -378,6 +378,30 @@ class's voice, by its species or its class's stand-in, so an unskinned brute is 
 foe's fall, `ko:<foe>`, in its own voice ahead of the magic kit's dissolve), both only where the library records the
 class.
 
+## A flight as a kit
+
+`sfx-shelf/flight-sounds.js` hears a flown level by how its craft is flown, so a flight game sounds without writing a
+sound. The pilot's rule picks the KIT (`FLIGHT_KITS`):
+
+- `fly` is the TRAINER, a light propeller plane. Its engine is held by the throttle, the air over it by its speed and its
+  wheels on the runway by its speed on the ground. It has the stall warning (again while the stall lasts), a touchdown,
+  soft or hard by its sink, a crash and a ring flown through.
+- `rail` is the ARCADE fighter, punchy and bright. Its engine is held from cruise to boost. It has its lasers and a foe's,
+  its boost, brake and barrel roll, a shield hit, and what it blows apart: a fighter, a gun on the ground, the gunship
+  boss.
+- `starfighter` is the COCKPIT, a starfighter heard from its seat. Its engines are held by the throttle. It has its
+  laser cannon and a foe's, a hit on its shields and on its bare hull, the targeting computer seeking and locking, a
+  torpedo away, the incoming warning, flares, a fighter roaring past, a fighter and a warship blown apart, a scrape along
+  a hull.
+
+The events (`FLIGHT_EVENTS`; the engine, the air and the wheels held, `FLIGHT_HELD`) are read off the world each frame
+by the page's flight block (`scene/channels/flight-audio.js`), placed by their distance out to the kit's reach
+(`FLIGHT_REACH`: a flight's fights are kilometres across). The new words are rows (`FLIGHT_ROWS`, laid by the roster),
+recorded and heard as their stand-ins until the library records them; the trainer's engine is the prop's recorded
+loops. Every flown airspace hears its kit (Pilot School's lessons, Wolf Squadron's stages, Rebel Storm's missions). A
+level's own `audio` keeps its cues over the kit's, `flightSound: { <event>: <word> | false }` changes or silences one
+event, and `audio: false` silences the level. A new kind of flying is a row of `FLIGHT_KITS`.
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms

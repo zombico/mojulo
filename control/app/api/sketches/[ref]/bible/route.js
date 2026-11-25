@@ -9,7 +9,9 @@
  * with `book=foes` when it fields foes or fights something a casting call could cast for (lib/graph/gameworld/
  * foe-cast-html.js: each made foe photographed, lib/mcp/tools/foe-portraits.js, a download included)., the sound book
  * with `book=sound` (lib/graph/gameworld/sound-book.js: the game's sound sheet, each sound a button), the score
- * book with `book=score` (lib/graph/gameworld/score-book.js: its cue sheet, each cue a button). All are drawn
+ * book with `book=score` (lib/graph/gameworld/score-book.js: its cue sheet, each cue a button), a mission designed whole
+ * with `book=briefing&mission=<id>` (its holo briefing; `edit=1` the table it is edited and approved on,
+ * lib/graph/campaign/designer.js). All are drawn
  * from the recipe and kept in memory per revision (lib/sheet-cache.js), never stored. `?download=1` flips the
  * Content-Disposition.
  *
@@ -105,7 +107,7 @@ export async function GET(request, { params }) {
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
       const book = request.nextUrl.searchParams.get('book') ?? 'world';
-      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map', 'facilities'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map' or 'facilities'" }, { status: 400 });
+      if (!['world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map', 'facilities', 'briefing'].includes(book)) return NextResponse.json({ error: "book is 'world', 'characters', 'feel', 'practice', 'foes', 'atlas', 'combat', 'colour', 'sound', 'score', 'map' or 'facilities'" }, { status: 400 });
       // the practice room (lib/graph/gameworld/practice-room-page.js): its feel played on the runtime the game ships
       if (book === 'practice') {
         // (which rooms the world has, practice.js: the action room, the platform room, the mount lane; `room` picks one,
@@ -156,6 +158,29 @@ export async function GET(request, { params }) {
         base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${room === 'practice' ? 'practice' : room}`;
       // the combat book (lib/graph/gameworld/combat/book.js): the made game's first level's player and foe, measured on
       // its runtime and set in the gym laid from those numbers; `view` its own camera or the other one
+      } else if (book === 'briefing') {
+        // a mission designed whole (lib/graph/campaign/designer.js), on the holo table: its briefing as the pilot will see
+        // it, or (`edit=1`) the table the person moves its things on and changes what it says and does, saved or approved
+        // through the missions route
+        const id = request.nextUrl.searchParams.get('mission'), D = id && world.missions?.[id];
+        if (!D) return NextResponse.json({ error: `mission is one of the game's missions (${Object.keys(world.missions ?? {}).join(', ') || 'none yet: design_game writes them to /missions/<id>'})` }, { status: 404 });
+        const { readMission } = await import('@/lib/graph/campaign/mission');
+        const { briefingPage } = await import('@/lib/graph/campaign/briefing-page');
+        const { designKind } = await import('@/lib/graph/campaign/designer');
+        const post = `/api/sketches/${encodeURIComponent(ref)}/missions`, at = `/api/sketches/${encodeURIComponent(ref)}/bible?book=briefing&mission=${encodeURIComponent(id)}`;
+        if (designKind(D) === 'stage') {
+          // (an arcade stage's: its table drawn from its route and its waves, approved from its briefing, never moved about)
+          const { readStage, stageBriefingData } = await import('@/lib/graph/campaign/stage');
+          const S = readStage({ ...D, id });
+          // (on its real ground once its level is built: the built level's own map, ground, way and seed)
+          const { stageGround } = await import('@/lib/graph/campaign/stage-ground');
+          const L = get(`${ref}-level-${id}-0`)?.manifest, ground = L && L.kind === 'airspace' ? stageGround(L, { seed: L.seed ?? 1 }) : null;
+          html = briefingPage(null, { data: stageBriefingData(S, { ground }), editor: { ref, mission: id, design: { ...D, id }, edit: false, fixed: true, post, at } });
+        } else {
+          const edit = request.nextUrl.searchParams.get('edit') === '1';
+          html = briefingPage(readMission({ ...D, id }), { editor: { ref, mission: id, design: { ...D, id }, edit, post, at } });
+        }
+        base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}-${id}-briefing`;
       } else if (book === 'combat') {
         const view = request.nextUrl.searchParams.get('view') ?? 'own';
         if (!BOOK_VIEWS.includes(view)) return NextResponse.json({ error: `view is one of ${BOOK_VIEWS.join(', ')}` }, { status: 400 });

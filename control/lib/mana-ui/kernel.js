@@ -217,6 +217,8 @@ export function buildManaUi() {
     badge: { group: 'value', about: 'a small mark: new, a count, a rank, a score; `stamp` a rank stamped on as the screen settles; `side` its side\'s chip; `turn` alight while it is that side\'s turn', props: { value: [T, '', true], variant: [['plain', 'strong', 'muted', 'stamp'], 'plain'], side: [A], turn: [B, false] } },
     table: { group: 'value', about: 'rows under columns (a scoreboard, a forecast, a stat panel): the row whose `mark` field is true is yours, a row\'s `lead` names the column that leads it (marked ▲), a row\'s `side` its chip', props: { columns: [L, [], true], rows: [L, [], true], mark: [T, 'self'] } },
     gauge: { group: 'value', about: 'a value on a dial (a speedometer, a pressure, a charge)', props: { value: [N, 0, true], max: [N, 1, true], label: [T], unit: [T] } },
+    power: { group: 'value', about: 'a generator and what it feeds, no words but each feed\'s name: its core a ring filling to the next tick (`phase` 0..1) that beats as each tick lands (`pulse` its count), a conduit to each feed as thick as its `share` of the routing (0..1), lit as the tick reaches it (`got` 0..1 of the tick), into the feed\'s gauge (`fill` 0..1, `full` marked), its routing as `pips` of `max` where given; a feed fed what another could not hold `spill` (the redirect)', props: { phase: [N, 0], pulse: [N, 0], feeds: [L, []] } },
+    shields: { group: 'value', about: 'a craft\'s shields read off a plan of it, no words: its silhouette (`shape`: an SVG path in a 100 box, its nose up) tinted from its hull\'s colour to harm as the `hull` drains, an arc over its nose its `fore` shield and one under its tail its `aft`, each bright in the shield\'s colour when full and drained toward harm, faint and beating when spent; with no `max` (no shields) the craft alone', props: { fore: [N, 0], aft: [N, 0], max: [N, 0], hull: [N, 1], hullMax: [N, 1], shape: [T, ''] } },
     card: { group: 'value', about: 'a card on the table: its face (a band in its side\'s kit, the name, the cost, what it does, its tags, its power and guard, how many lie under it), `state` what can be done with it as a shape (playable an edge alight, picked lifted, spent turned on its side), `face: down` its back and a count; with `on.accept` a touch screen taps it (a cell of a grid picks it with the cursor)', props: { name: [T, ''], cost: [T], text: [T], tags: [L, []], power: [T], guard: [T], count: [T], side: [A], state: [['plain', 'playable', 'picked', 'spent'], 'plain'], face: [['up', 'down'], 'up'], size: [['s', 'm'], 'm'] }, verbs: ['accept'] },
     log: { group: 'value', about: 'the whole of what happened, kept (a move list, a game\'s log): the last `visible` rows shown, pinned to the newest, the rest counted above; `numbered` counts the rows from one; a row\'s `side` its chip', props: { rows: [L, [], true], field: [T, 'text'], numbered: [B, false], visible: [N, 8] } },
     spark: { group: 'value', about: 'a small series as bars (an army over a match, a score by round): each value against the largest, the last said as a number', props: { values: [L, [], true], max: [N], label: [T] } },
@@ -838,6 +840,27 @@ export function buildManaUi() {
                 const x = isObj(r) ? readPath(r, c.key) : r;
                 return ['td', { 'data-align': c.align, 'data-lead': isObj(r) && r.lead !== undefined && r.lead !== null && words(r.lead) === c.key ? 'yes' : null, ...(numOf(x) !== null ? chOf(changeOf(`${key}.${rk(r, i)}.${c.key}`, x)) : {}) }, ci === 0 && isObj(r) ? chip(r.side) : null, said(x)];
               })])]];
+          }
+          case 'shields': {
+            // the shares as the sheet's variables (the arcs' and the plan's colours and their strength), the plan a mask
+            const sh = p.max > 0, r3 = (x) => Math.round(clamp(x, 0, 1) * 1000) / 1000, f = sh ? p.fore / p.max : 0, a = sh ? p.aft / p.max : 0, h = p.hullMax > 0 ? p.hull / p.hullMax : 0;
+            const mask = p.shape ? `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='${String(p.shape).replace(/[^MLHVCSQTAZmlhvcsqtaz0-9 .,-]/g, '')}'/></svg>`)}")` : null;
+            return ['div', { class: cls, style: `--f:${r3(f)};--a:${r3(a)};--h:${r3(h)}`, 'data-shields': sh ? null : 'none', 'data-fore': sh && f <= 0 ? 'down' : null, 'data-aft': sh && a <= 0 ? 'down' : null, 'data-hull': h < 0.34 ? 'low' : null, role: 'img', 'aria-label': `shields ${Math.round(r3(f) * 100)} fore, ${Math.round(r3(a) * 100)} aft; hull ${Math.round(r3(h) * 100)}` },
+              sh ? ['span', { class: 'mana-sh-arc', 'data-side': 'fore' }] : null,
+              ['span', { class: 'mana-sh-plan', 'data-shape': mask ? null : 'none', style: mask ? `-webkit-mask-image:${mask};mask-image:${mask}` : null }],
+              sh ? ['span', { class: 'mana-sh-arc', 'data-side': 'aft' }] : null];
+          }
+          case 'power': {
+            // the core's fill and each feed's share, fill and take as the sheet's variables; the beat a pair of names
+            // swapped on each tick, so the pulse starts over
+            const r3 = (x) => Math.round(clamp(Number(x) || 0, 0, 1) * 1000) / 1000, beat = Math.floor(p.pulse) % 2 ? 'b' : 'a';
+            const feeds = (Array.isArray(p.feeds) ? p.feeds : []).filter(isObj);
+            return ['div', { class: cls, style: `--ph:${r3(p.phase)}`, 'data-beat': p.pulse > 0 ? beat : null, role: 'img', 'aria-label': feeds.map((f) => `${words(f.label ?? f.id)} ${Math.round(r3(f.share) * 100)}%`).join(', ') },
+              ['span', { class: 'mana-pw-core' }],
+              ['span', { class: 'mana-pw-feeds' }, ...feeds.map((f) => ['span', { class: 'mana-pw-feed', 'data-id': words(f.id), style: `--s:${r3(f.share)};--f:${r3(f.fill)};--g:${r3(f.got)}`, 'data-full': r3(f.fill) >= 1 ? 'yes' : null, 'data-spill': f.spill ? 'yes' : null, 'data-off': r3(f.share) <= 0 ? 'yes' : null },
+                ['span', { class: 'mana-pw-line' }], ['span', { class: 'mana-label' }, words(f.label ?? f.id)],
+                Number.isFinite(f.pips) && f.max > 0 ? ['span', { class: 'mana-pw-pips' }, '●'.repeat(clamp(Math.round(f.pips), 0, f.max)) + '○'.repeat(clamp(f.max - Math.round(f.pips), 0, f.max))] : null,
+                ['span', { class: 'mana-pw-pool' }, ['i', null]]])]];
           }
           case 'gauge': {
             const r = p.max > 0 ? clamp(p.value / p.max, 0, 1) : 0;

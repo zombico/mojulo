@@ -234,7 +234,7 @@ export function buildMind(E) {
         let bd = Infinity;
         for (const id in world.byId) {
           const o = world.byId[id];
-          if (o === e || o === skip || o.isCamera || o.downed || o.invincible || !(o.body && o.body.hittable)) continue;
+          if (o === e || o === skip || o.isCamera || o.downed || o.gone || o.dormant || o.invincible || !(o.body && o.body.hittable)) continue;   // (asleep or gone: not there to hunt)
           if (teamAware && o.team && o.team === e.team) continue;   // TEAM: never hunt an ally
           const ddx = o.transform.pos[0] - t.pos[0], ddy = o.transform.pos[1] - t.pos[1];
           const dd = ddx * ddx + ddy * ddy;
@@ -1153,10 +1153,26 @@ export function buildMind(E) {
       e.leadPrev = { id: target.id, at: [q[0], q[1]] };
       if (e.leadVel) { const tf = dist2d / w.projectileSpeed; ax = dx + e.leadVel[0] * tf; ay = dy + e.leadVel[1] * tf; }
     }
+    // (in space, led in three dimensions: the target's own velocity where it keeps one (a starfighter's), else its pace
+    // over its steps; the nose pitched at where it will be)
+    let aimZ = null;
+    if (w && w.fireClass === 'lob' && w.projectileSpeed > 0 && r.space) {
+      const q = target.transform.pos, lp = e.leadPrev;
+      let v = target.vel || null;
+      if (!v) {
+        if (lp && lp.id === target.id && dt > 0 && Math.hypot(q[0] - lp.at[0], q[1] - lp.at[1], q[2] - (lp.at[2] || 0)) < 60) {
+          const vv = [(q[0] - lp.at[0]) / dt, (q[1] - lp.at[1]) / dt, (q[2] - (lp.at[2] || 0)) / dt], o = e.leadVel && e.leadVel.length === 3 ? e.leadVel : vv;
+          e.leadVel = [o[0] * 0.7 + vv[0] * 0.3, o[1] * 0.7 + vv[1] * 0.3, o[2] * 0.7 + vv[2] * 0.3];
+        } else e.leadVel = null;
+        e.leadPrev = { id: target.id, at: [q[0], q[1], q[2]] };
+        v = e.leadVel;
+      }
+      if (v) { const tf = Math.hypot(dx, dy, q[2] - t.pos[2]) / w.projectileSpeed; ax = dx + v[0] * tf; ay = dy + v[1] * tf; aimZ = q[2] + v[2] * tf; }
+    }
     const rem = turnToward(t, Math.atan2(ay, ax), r, dt);
     const tb = target.body || {};
     const tcz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 0);
-    t.pitch = clamp(Math.atan2((target.transform.pos[2] + tcz) - (t.pos[2] + (w ? w.eye || 0 : 0)), dist2d), -1.2, 1.2);
+    t.pitch = clamp(Math.atan2(((aimZ ?? target.transform.pos[2]) + tcz) - (t.pos[2] + (w ? w.eye || 0 : 0)), aimZ === null ? dist2d : Math.hypot(ax, ay)), -1.2, 1.2);
 
     // ENGAGE: move to attack. Close to `standoff` while facing, then hold. With opt-in BOOST (`r.boost`) it juke-boosts
     // in bursts: `boostBurst` s weaving (boost armour live, a single bolt doesn't stun) then `boostRest` s grounded and
@@ -1226,6 +1242,34 @@ export function buildMind(E) {
         const step = Math.min(speed * dt, gd + 0.5);
         t.pos[0] += (mx / mn) * step; t.pos[1] += (my / mn) * step; moveMag = step; clip = 'forward';
       }
+    } else if (isSpace && r.passes) {
+      // PASSES (opt-in `rule.passes`: true | { breakAt?, extend?, time? }): a fighter that never hovers. It flies down
+      // its nose at its speed, the nose turned at its own rate (its pitch too). It runs in on its target (the lead its aim
+      // took), breaks off once within `breakAt` m (40% of its standoff), and extends: away from the target and to one
+      // side, out to `extend` m (2.5 standoffs) or for `time` s (6), then turns back in for another pass.
+      const P = r.passes === true ? {} : r.passes, breakAt = P.breakAt ?? standoff * 0.4, extendTo = P.extend ?? standoff * 2.5;
+      const wantP = t.pitch || 0, prevH = e.passH ?? t.heading, prevP = e.passP ?? wantP, turn = (r.turn ?? 1.8) * dt;
+      if (e.passState !== 'extend' && dist3d < breakAt) {
+        // (the break: away from the target, swung to a side its pass count picks, a little up or down)
+        const n = (e.passN = (e.passN || 0) + 1), side = n % 2 ? 1 : -1, ax = -dx / dist3d, ay = -dy / dist3d;
+        const sx = ax * Math.cos(0.7 * side) - ay * Math.sin(0.7 * side), sy = ax * Math.sin(0.7 * side) + ay * Math.cos(0.7 * side);
+        e.passState = 'extend'; e.passT = 0;
+        e.passTo = [target.transform.pos[0] + sx * extendTo, target.transform.pos[1] + sy * extendTo, target.transform.pos[2] + (n % 3 - 1) * extendTo * 0.25];
+      } else if (e.passState === 'extend') {
+        e.passT += dt;
+        if (dist3d > extendTo || e.passT > (P.time ?? 6)) e.passState = 'attack';
+      } else e.passState = 'attack';
+      if (e.passState === 'extend') {
+        // (the nose to where it extends, from where it pointed last: the aim's turn this frame undone)
+        const q = e.passTo, ex = q[0] - t.pos[0], ey = q[1] - t.pos[1], ez = q[2] - t.pos[2];
+        t.heading = prevH; turnToward(t, Math.atan2(ey, ex), r, dt);
+        t.pitch = prevP + clamp(Math.atan2(ez, Math.hypot(ex, ey)) - prevP, -turn, turn);
+      } else t.pitch = prevP + clamp(wantP - prevP, -turn, turn);
+      e.passH = t.heading; e.passP = t.pitch;
+      const a = fwd3(t.heading, t.pitch || 0), step = speed * dt;
+      t.pos[0] += a[0] * step; t.pos[1] += a[1] * step; t.pos[2] += a[2] * step;
+      e.vel = [a[0] * speed, a[1] * speed, a[2] * speed]; e.airspeed = speed;
+      moveMag = step; clip = 'boost'; e.thrust = Math.max(e.thrust, 0.6);
     } else if (isSpace) {
       const ux = dx / dist3d, uy = dy / dist3d, uz = dz / dist3d;
       if (boostBurst) {
@@ -1318,7 +1362,8 @@ export function buildMind(E) {
     const tchest = w && w.hand ? [target.transform.pos[0], target.transform.pos[1], target.transform.pos[2] + tcz] : null;
     const engaged = !!w && onAim && rangeD <= (w.range || 400)
       && !(tchest ? sightBlocked(muzzleAt(e, w), tchest, world && world.colliders) : sightBlocked(origin, target.transform.pos, world && world.colliders))
-      && !(r.clearLine && e.team && allyOnLine(e, origin, target, world));
+      && !(r.clearLine && e.team && allyOnLine(e, origin, target, world))
+      && !(r.passes && e.passState === 'extend');   // (a fighter breaking off has done with its run: it fires on the next)
     if (engaged) {
       const burstOn = (r.burst ?? 1.1) * (dif ? dif.burstMul : 1);
       const cycle = burstOn + (r.pause ?? 0.9) * (dif ? dif.pauseMul : 1);

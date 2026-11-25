@@ -210,7 +210,7 @@ ${game.party && game.party.slice ? `  // THE NAMES THE PLAYER GAVE (the party me
       return new RegExp('^' + pat.split('*').map((s) => s.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$').test(String(str));
     };
 ${keeps ? `    // the KEPT numbers (game.keep), as the level ends: each var off the bus, scaled, beside how the shell keeps its best
-    const __kept = (state) => ({ kept: __GAME.keep.map((k) => ({ label: k.label, value: Math.round((Number(state.vars[k.var]) || 0) * (k.scale || 1) * 1000) / 1000, best: k.best, ...(k.unit ? { unit: k.unit } : {}) })) });
+    const __kept = (state) => ({ kept: __GAME.keep.map((k) => ({ label: k.label, value: Math.round((Number(state.vars[k.var]) || 0) * (k.scale || 1) * 1000) / 1000, best: k.best, ...(k.unit ? { unit: k.unit } : {}), ...(k.names ? { names: k.names } : {}) })) });
 ` : ''}    const prev = __BUS.processEvents;
     __BUS.processEvents = function (state, events) {
       // Match against state.log's DELTA, not the incoming array: the reducer cascades

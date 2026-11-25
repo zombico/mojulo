@@ -14,6 +14,9 @@
  *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
+ *              'pilot-school' (Pilot School's: its first lessons on one airfield, each graded, pilot-school.js) or
+ *              'wolf-squadron' (Wolf Squadron's: its stages down a path, on a planet and in space, wolf-squadron.js),
+ *              'rebel-storm' (Rebel Storm's: its missions flown from the cockpit, rebel-storm.js) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level; a rail's own
  *              starter words where it has them: the party RPG's round, its levels)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
@@ -24,6 +27,9 @@
 import { readRail, railOf, railSheet, variantOf } from './rails.js';
 import { platformerStart } from './platformer-game.js';
 import { hijackCityStart } from './hijack-city.js';
+import { pilotSchoolStart } from './pilot-school.js';
+import { wolfSquadronStart } from './wolf-squadron.js';
+import { rebelStormStart } from './rebel-storm.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
@@ -53,6 +59,21 @@ export function pitchStart(world, { title } = {}) {
   if (plat) {
     const W = { ...plat.world, ...withFeel, ...named };
     return { world: W, laid: { by: 'platformer', dimension: plat.dimension, levels: Object.keys(W.levels), says: SAYS } };
+  }
+  // Pilot School's rail: its first lessons on one airfield, each flown for its tasks and graded (pilot-school.js)
+  if (R.id === 'pilot-school') {
+    const PS = pilotSchoolStart({ ...withFeel, ...named });
+    return { world: PS.world, laid: { by: 'pilot-school', levels: Object.keys(PS.world.levels), says: SAYS } };
+  }
+  // Wolf Squadron's rail: its stages down a path, a planet's canyon and a field of rocks, each to its boss (wolf-squadron.js)
+  if (R.id === 'wolf-squadron') {
+    const WS = wolfSquadronStart({ ...withFeel, ...named });
+    return { world: WS.world, laid: { by: 'wolf-squadron', levels: Object.keys(WS.world.levels), says: SAYS } };
+  }
+  // Rebel Storm's rail: its opening tour of missions, each a sector flown from the cockpit (rebel-storm.js)
+  if (R.id === 'rebel-storm') {
+    const RS = rebelStormStart({ ...withFeel, ...named });
+    return { world: RS.world, laid: { by: 'rebel-storm', levels: Object.keys(RS.world.levels), says: SAYS } };
   }
   // Hijack City's rail: its own starter, the district, the story, the law and the shops (hijack-city.js)
   if (R.id === 'hijack-city') {

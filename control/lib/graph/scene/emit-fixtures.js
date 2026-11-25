@@ -28,6 +28,15 @@ import { turnsArenaData } from '../contest/turn-arena.js';
 import { teamArenaData } from '../contest/team-arena.js';
 import { inningsArenaData } from '../contest/innings-arena.js';
 import { holoArenaData } from '../tabletop/holo-arena.js';
+import { readMission } from '../campaign/mission.js';
+import { briefingData } from '../campaign/briefing.js';
+import { lessonBriefData } from '../gameworld/lesson-brief.js';
+// (a space mission's briefing as its level carries it: the smallest design, a pilot's flight and a foe group, two steps)
+const BRIEFING = { data: briefingData(readMission({ id: 'fixture', name: 'Fixture', place: { system: 'Tor', cluster: 'Ash', station: 'Hale', moon: 1 },
+  theatre: { moon: { kind: 'barren', bearing: 20, elevation: 5 }, station: { kind: 'outpost', at: [0, -600, 0] } },
+  cast: [{ id: 'red', name: 'Red', side: 'friend', count: 2, pilot: true }, { id: 'foe', name: 'Foe', side: 'foe', count: 2, at: [0, 1500, 0] }],
+  goals: [{ destroy: 'foe' }],
+  steps: [{ title: 'You', say: 'Red flight.', show: ['red', 'station'] }, { title: 'Orders', say: 'Destroy them.', show: ['red', 'foe'] }] })) };
 import { broadcastScreens } from '../persona/screen.js';
 import { layBoard } from '../board/board-lay.js';
 import { boardChannelData } from '../board/board-page.js';
@@ -293,6 +302,15 @@ export const EMIT_FIXTURES = [
   ['mission', { faces: [floor()], mission: MISSION_UI }],
   // damage ring (a page with its own HUD: gameworld/damage-ring.js): its block alone, the tracker and the bearing inlined
   ['damage-ring', { faces: [floor()], damageRing: { life: 1.6, most: 6 } }],
+  // briefing (a space mission's holo briefing over its level: campaign/briefing-page.js): its block alone, the table's
+  // client, mana-ui and the controls host in a scope of its own, the mission held behind it until Launch
+  ['briefing', { faces: [floor()], briefing: BRIEFING }],
+  // lesson (a flying lesson's brief over its level: gameworld/lesson-brief.js): its block alone, mana-ui and the controls
+  // host in a scope of its own, the lesson held behind it until Start; the smallest graded lesson (two tasks)
+  ['lesson', { faces: [floor()], lesson: { data: lessonBriefData({ n: 1, of: 2, name: 'Fixture', brief: 'Fly it.', sky: 'fair', tasks: ['Take off', 'Level off'], grade: { time: [60, 90, 120] } }) } }],
+  // speedfx (a flown craft's speed in the world round it: channels/speed-fx.js): its block alone, the air's speed lines
+  // (the space's dust is the same block's other branch)
+  ['speedfx', { faces: [floor()], speedfx: { mode: 'air', base: 120, turbo: 204 } }],
   // meet (an athletic meet on a track): the meet block, its own frame step (`stepContest`), the camera owned
   ['meet', { faces: [floor()], meet: meetArenaData({ event: 'hurdles', lanes: 3, players: 1 }) }],
   // court (a net game on a court): the court block, its own frame step (`stepCourt`), the camera owned
