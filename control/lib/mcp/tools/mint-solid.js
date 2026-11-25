@@ -266,12 +266,12 @@ export function registerMintSolidTools() {
       + 'Characters: create_character; figure, layered, manji-tree. From words: equipment (gear), furniture. '
       + 'Hard-edged or fitted parts: scad (OpenSCAD with an `mj_*` library of threads, fits, gears, '
       + 'enclosures; which standard parts → fabricate_solid). Measured or organic objects: workbench, code. '
-      + 'Also assembler, carved-solid (metal wordmark), solid-turntable, edifice (an institution), '
-      + 'vehicle. One made elsewhere: model (spec.from, a file\'s path). A house or room is mint_building. Size the ask: `spec.ask` look|fit|function|engineered caps `next`. Params go '
+      + 'Also assembler, carved-solid (wordmark), solid-turntable, edifice (an institution), '
+      + 'vehicle. A file you have: model (spec.from). A house or room is mint_building. Size the ask: `spec.ask` look|fit|function|engineered caps `next`. Params go '
       + 'in `spec`; `via` picks an authoring door (manji-tree: ir/parts/prompt/packet; layered: '
-      + "plan, hero — a human by cast word + proportion tune). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }) and read its "
-      + "manual via get_solid_vocab({ id: '<kind>' }) before passing spec. Iterate the stored "
-      + 'recipe in place via `update_sketch`.',
+      + "plan, hero — a human by cast word + proportion tune). Find a kind by intent via semantic_search({ kinds: ['solid_vocab'] }); read its "
+      + "manual, get_solid_vocab({ id: '<kind>' }), before passing spec. Iterate in place: "
+      + '`update_sketch`.',
     inputSchema: {
       type: 'object',
       properties: {
