@@ -56,6 +56,26 @@ describe('the massif', () => {
     expect(L.find((l) => l.law === 'floor-open').ok).toBe(true);
   });
 
+  it('pushes a wall\'s corners in and out by its thin beds, never the floor\'s, the same place the same push', () => {
+    const M = one(), F = massifField(M, [0, 0], 3), G = massifField(structuredClone(M), [0, 0], 3);
+    // (the floor far off and the cap's middle are no wall)
+    expect(F.warp(300, 0, 0)).toEqual([0, 0]);
+    expect(F.warp(0, 0, 95)).toEqual([0, 0]);
+    // (up a wall, the push swings with the beds: some out, some in, never past the face's words)
+    const P = M.face.bulge + M.face.undercut + M.face.grain, ds = [];
+    for (let x = 130; x < 166; x += 2) for (let z = 2; z < 80; z += 3) { const [dx, dy] = F.warp(x, 0, z); ds.push(Math.hypot(dx, dy) * Math.sign(dx || 1)); expect(G.warp(x, 0, z)).toEqual([dx, dy]); }
+    expect(Math.max(...ds)).toBeGreaterThan(0.3);
+    expect(Math.min(...ds)).toBeLessThan(-0.3);
+    for (const d of ds) expect(Math.abs(d)).toBeLessThanOrEqual(P + 1e-9);
+    // (the thin beds' partings and middles, the heights a wall is cut at, in order and inside the span asked)
+    const L = F.partings(10, 40);
+    expect(L.length).toBeGreaterThan(2);
+    expect([...L].sort((a, b) => a - b)).toEqual(L);
+    for (const l of L) expect(l > 10 && l < 40).toBe(true);
+    // (a face of 0s is a smooth wall)
+    expect(massifField(one({ face: { beds: [5, 10], bulge: 0, undercut: 0, grain: 0 } }), [0, 0], 3).warp(150, 0, 20)).toEqual([0, 0]);
+  });
+
   it('stands only on an island, and a meru that names none reads as it always did', () => {
     expect(() => readLocalMeru({ massif: 'wadi' })).toThrow(/stands on an island/);
     expect(readLocalMeru({ island: { walk: 'none' }, massif: 'wadi' }).massif.id).toBe('wadi');

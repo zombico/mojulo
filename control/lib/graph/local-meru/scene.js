@@ -234,15 +234,25 @@ function seabedCells(g, z, bed) {
   return { flat, rects };
 }
 
+/** A polygon's normal by Newell's sum (any number of corners, any warp), turned toward `toward`. */
+function newell(cs, toward) {
+  let x = 0, y = 0, z = 0;
+  for (let i = 0; i < cs.length; i++) { const a = cs[i], b = cs[(i + 1) % cs.length]; x += (a[1] - b[1]) * (a[2] + b[2]); y += (a[2] - b[2]) * (a[0] + b[0]); z += (a[0] - b[0]) * (a[1] + b[1]); }
+  const n = unit([x, y, z]);
+  return dot(n, toward) < 0 ? n.map((v) => -v) : n;
+}
+
 /** A face cut at every `step` metres of height (levels fixed in the world, so two faces sharing an edge cut it at the same
  *  points): its bands, lowest first. */
 const WALL_BAND = 6;
-function bandFace(f, step) {
+function bandFace(f, step, levelsOf = null) {
   const zs = f.corners.map((c) => c[2]), lo = Math.min(...zs), hi = Math.max(...zs);
-  if (hi - lo <= step) return [f];
+  const levels = levelsOf ? levelsOf(lo, hi).filter((l) => l > lo + 1e-6 && l < hi - 1e-6) : null;
+  if (levels ? !levels.length : hi - lo <= step) return [f];
   const out = [];
   let rest = f;
-  for (let level = (Math.floor(lo / step) + 1) * step; level < hi - 1e-6 && rest; level += step) {
+  for (const level of levels ?? Array.from({ length: Math.ceil((hi - lo) / step) + 1 }, (_, i) => (Math.floor(lo / step) + 1 + i) * step).filter((l) => l < hi - 1e-6)) {
+    if (!rest) break;
     const parts = cutFace(rest, rest.corners.map((c) => c[2] - level), 'up');
     rest = null;
     for (const q of parts) { if (q.group === 'up') rest = { ...q, group: f.group }; else out.push(q); }
@@ -252,7 +262,7 @@ function bandFace(f, step) {
 }
 
 /** The ground grid's faces on the followed trail's lattice (or a plain one standing alone), cliff and grass. */
-function groundFaces(st, p, heightAt, S = null) {
+function groundFaces(st, p, heightAt, S = null, seed = 1) {
   const site = p.join.site, c = p.tiers[0].centre;
   const k = S ? S.scale : 1, reach = Math.max(Math.max(...p.tiers.map((t) => (t.form === 'mound' ? t.foot * (t.sides >= 3 ? 1 / Math.cos(Math.PI / t.sides) : 1) : t.half * 1.5))) + APRON * k, S ? S.reach : 0);
   const dx = site ? site.grid.dx : S ? S.cell : 0.5, xg0 = site ? site.grid.x0 : c[0] - reach;
@@ -281,7 +291,7 @@ function groundFaces(st, p, heightAt, S = null) {
       const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0, f0 = { corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', celN: n, group: 'isekai:cliff' };
       // (a massif's wall, a cell's quad standing tens of metres: cut into bands at fixed heights, so its corners are the
       // rock's all the way up and the scree at its foot stays in the lowest band, not smeared up the face)
-      for (const q of p.recipe.massif ? bandFace(f0, WALL_BAND) : [f0]) out.push({ ...q, uv: q.corners.map((c) => [r5(c[h] / sc), r5(c[2] / sc)]) });
+      for (const q of p.recipe.massif ? bandFace(f0, WALL_BAND, massifOf(p, seed).partings) : [f0]) out.push({ ...q, uv: q.corners.map((c) => [r5(c[h] / sc), r5(c[2] / sc)]) });
     } else if (S && gritty) {
       // (a gritty island's beach: the line between sand and turf drawn through the cells at the beach's height, not
       // round them, so its edge is a curve and not the grid's steps)
@@ -292,7 +302,18 @@ function groundFaces(st, p, heightAt, S = null) {
   }
   // (and on a massif every other face cut at the same heights as its walls, so an edge a wall shares with its talus is cut
   // at the same points on both sides: no point of a wall's edge the relief moves where its neighbour has none)
-  if (p.recipe.massif) return { faces: out.flatMap((f) => (f.cel === 'cliff' ? [f] : bandFace(f, WALL_BAND))), grid: { ...g, z } };
+  // (then its walls' own relief, massif.js warp: every corner pushed along the wall as its place says, the same place the
+  // same push, so the faces that share a corner still meet; each face's normal taken again from its corners)
+  if (p.recipe.massif) {
+    const Mf = massifOf(p, seed), moved = new Map(), at = (c) => { const k = `${c[0]},${c[1]},${c[2]}`; let q = moved.get(k); if (!q) { const [dx, dy] = Mf.warp(c[0], c[1], c[2]); q = dx || dy ? P([c[0] + dx, c[1] + dy, c[2]]) : c; moved.set(k, q); } return q; };
+    const faces = out.flatMap((f) => (f.cel === 'cliff' ? [f] : bandFace(f, WALL_BAND, Mf.partings))).map((f) => {
+      const cs = f.corners.map(at);
+      if (cs.every((c, i) => c === f.corners[i])) return f;
+      const n = newell(cs, f.normal);
+      return { ...f, corners: cs, normal: n.map(r5), outNormal: n.map(r5), ...(f.celN ? { celN: n } : {}), ...('flat' in f ? { flat: n[2] } : {}) };
+    });
+    return { faces, grid: { ...g, z } };
+  }
   return { faces: out, grid: { ...g, z } };
 }
 
@@ -453,7 +474,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   const S = p.recipe.island ? islandOf(p, p.recipe.island, Math.atan2(-p.join.N[0], p.join.N[1])) : null;
   const shore = S ? islandGround(groundOf(p, seed), S) : null;
   if (S && S.geology) S.geo = islandGeology(st, S, shore, seed, p.recipe.ground || p.recipe.massif ? islandGround(groundOf(p, seed, true), S) : shore);
-  const heightAt = S ? (S.geo ? S.geo.ground : shore) : groundOf(p, seed), ground = groundFaces(st, p, heightAt, S);
+  const heightAt = S ? (S.geo ? S.geo.ground : shore) : groundOf(p, seed), ground = groundFaces(st, p, heightAt, S, seed);
   // (island.walk 'none': no walk at all, the island a seed flown and zoomed; walking is the path's)
   const walk = S && S.walk === 'none' ? { faces: [], wall: [] } : walkFaces(st, p, heightAt, made, !!S && S.walk === 'base');
   const built = [...p.tiers.filter((t) => t.form === 'tower').flatMap((t) => towerFaces(t, made, seed)), ...p.links.filter((L) => L.via === 'climb').flatMap((L) => ladderFaces(L.climb, made))];

@@ -9,7 +9,9 @@
  *   readMassif(spec)          a card id or { from?, …words } → the massif, checked
  *   massifField(M, centre, seed, floor) → { at(x, y, h) → h' (the land's height with the massif on it, from the plain's h),
  *                                rock(x, y) → metres of rock over the floor (0 off it), water(x, y) → true where a hollow or a
- *                                river is carved, boulders: [{ x, y, size }] }
+ *                                river is carved, boulders: [{ x, y, size }], partings(lo, hi) → the thin beds' partings and
+ *                                middles between two heights (the levels a wall is cut at), warp(x, y, z) → [dx, dy]: how
+ *                                far a wall's corner is pushed (along the wall, out of the rock; 0 off a wall) }
  *   massifLaws(M, heightAt, square) → the ledger: [{ law, want, why, ok, value }]
  *
  * One wall profile reads both sides of the rock: a block's inward distance from its outline and a cut's distance past
@@ -35,6 +37,11 @@
  *            width between lo and hi; per 0 for none
  *   pools    [{ at: [x, y], radius, depth }]: hollows in the floor (under the island's sea line, a lake)
  *   strew    { count, size: [lo, hi] }: fallen blocks on the talus, the boulders the scene lays (their size in its units)
+ *   face     { beds: [lo, hi], bulge, undercut, grain }: the walls' own relief at a mech's scale, the land's corners pushed
+ *            in and out along the wall (`warp`): the column parted again into thin beds lo to hi metres thick, each of its
+ *            own hardness; a hard bed BULGES (up to `bulge` metres at its middle), a parting is a recess, the foot of a
+ *            massive bed is UNDERCUT (up to `undercut`, the overhang a height grid cannot draw, leaned in), and `grain`
+ *            metres of noise in all three directions so no two walls are alike. 0s for a smooth wall
  *
  * Pure and seeded: the same words, the same rock.
  */
@@ -49,7 +56,8 @@ const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 // the wadi's column: a plinth, the massive red wall, a ledge, the upper wall, the pale domed beds
 const WADI_BEDS = f([f({ top: 8, bench: 4 }), f({ top: 46, bench: 10 }), f({ top: 54, bench: 4 }), f({ top: 82, bench: 12 }), f({ top: 96, bench: 5 }), f({ top: 140, bench: 8 })]);
 const CARD = f({ beds: WADI_BEDS, slope: 0.25, bench: 0.7, blocks: f([]), warp: f({ strength: 60, scale: 120 }), flute: f({ depth: 6, scale: 16 }),
-  cap: f({ form: 'knobs', height: 16, run: 40 }), talus: f({ share: 0.2, angle: 34, fan: 0.6 }), cuts: f([]), clefts: f({ per: 1.2, width: f([12, 28]), reach: 0.75 }), pools: f([]), strew: f({ count: 60, size: f([2, 4]) }) });
+  cap: f({ form: 'knobs', height: 16, run: 40 }), talus: f({ share: 0.2, angle: 34, fan: 0.6 }), cuts: f([]), clefts: f({ per: 1.2, width: f([12, 28]), reach: 0.75 }), pools: f([]), strew: f({ count: 90, size: f([2, 8]) }),
+  face: f({ beds: f([5, 10]), bulge: 2.2, undercut: 2.4, grain: 1.6 }) });
 
 // how far a riser runs to its shoulder at most (metres): sheer at the foot, its top rounded over this
 const SHOULDER = 6;
@@ -73,7 +81,7 @@ export const MASSIF_CARDS = f({
       f({ path: f([f([-80, -600]), f([-40, -300]), f([90, -150]), f([60, 60]), f([-90, 200]), f([-30, 400]), f([60, 620])]), width: 190, river: f({ width: 34, depth: 4.5 }) }),
       f({ path: f([f([-600, -120]), f([-300, -90]), f([-60, -170])]), width: 70 }),
       f({ path: f([f([620, 260]), f([320, 200]), f([40, 120])]), width: 84 }),
-    ]), strew: f({ count: 70, size: f([2, 4]) }) }),
+    ]), strew: f({ count: 100, size: f([2, 8]) }) }),
   // scree country: a long scarp on the north, its foot a broad apron of fans and the blocks fallen off it, low buttes out
   // on the broken floor
   scree: f({ ...CARD, id: 'scree', reads: 'A long scarp, its foot a broad apron of scree fans and fallen blocks, low buttes on a broken floor',
@@ -83,7 +91,7 @@ export const MASSIF_CARDS = f({
       B([-200, 80], [36, 26], 30, 26, 3), B([140, -60], [30, 22], 120, 22, 3), B([-60, -240], [44, 30], 70, 30, 3),
       B([260, 170], [26, 18], 10, 18, 3), B([-340, -120], [28, 20], 150, 20, 3), B([330, -280], [40, 26], 60, 34, 3),
     ]),
-    talus: f({ share: 0.34, angle: 33, fan: 0.9 }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 160, size: f([2, 5]) }) }),
+    talus: f({ share: 0.34, angle: 33, fan: 0.9 }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }) }),
   // an oasis: a lake on the floor of a wadi among jebels, a pool beside it
   oasis: f({ ...CARD, id: 'oasis', reads: 'A lake on a wadi\'s floor among sheer jebels, a pool beside it',
     blocks: f([
@@ -161,6 +169,11 @@ export function readMassif(spec) {
     num(q.radius, 2, 800, `.pools[${i}].radius is metres, 2..800`);
     num(q.depth, 0.5, 40, `.pools[${i}].depth is metres under the floor, 0.5..40`);
   });
+  if (!isObj(M.face)) bad('.face is { beds: [lo, hi], bulge, undercut, grain }');
+  if (!(Array.isArray(M.face.beds) && M.face.beds.length === 2 && M.face.beds[0] >= 2 && M.face.beds[1] >= M.face.beds[0] && M.face.beds[1] <= 40)) bad('.face.beds is [lo, hi] metres a thin bed stands, 2..40');
+  num(M.face.bulge, 0, 4, '.face.bulge is metres a hard bed stands out, 0..4');
+  num(M.face.undercut, 0, 4, '.face.undercut is metres a bed\'s foot is cut in, 0..4');
+  num(M.face.grain, 0, 3, '.face.grain is metres of noise, 0..3');
   if (!isObj(M.strew)) bad('.strew is { count, size: [lo, hi] }');
   num(M.strew.count, 0, 600, '.strew.count is 0..600');
   if (!(Array.isArray(M.strew.size) && M.strew.size.length === 2 && M.strew.size[0] >= 1 && M.strew.size[1] >= M.strew.size[0] && M.strew.size[1] <= 8)) bad('.strew.size is [lo, hi], 1..8');
@@ -301,9 +314,36 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     const [wx, wy] = M.warp.strength ? warp2(x, y, warpW) : [x, y];
     const on = blocks.some((b) => { const e = into(b, x, y, wx, wy); return e < -2 && e > -(M.talus.share * b.height * 1.6) / tan; });
     if (!on) continue;
-    boulders.push({ x: r3(x), y: r3(y), size: M.strew.size[0] + Math.floor(hash3(k, 3, sd + 905) * (M.strew.size[1] - M.strew.size[0] + 1)) });
+    // (most of them small, a few great slabs: the size's dice weighted toward its low end)
+    boulders.push({ x: r3(x), y: r3(y), size: M.strew.size[0] + Math.floor(hash3(k, 3, sd + 905) ** 2.5 * (M.strew.size[1] - M.strew.size[0] + 1)) });
   }
-  return { at, rock, water: (x, y) => sink(x, y)[0] > 0, boulders };
+  // THE FACE: the column parted into thin beds (each lo..hi thick, its hardness its own), from the floor's datum up
+  const FC = M.face, thin = [];
+  for (let z = 0, k = 0; z < 420; k++) { const t = FC.beds[0] + (FC.beds[1] - FC.beds[0]) * hash3(k, 11, sd + 1101); thin.push({ z0: z, t, hard: 0.35 + 0.65 * hash3(k, 13, sd + 1103) }); z += t; }
+  const bedAt = (h) => { let lo = 0, hi = thin.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (thin[m].z0 <= h) lo = m; else hi = m - 1; } return thin[lo]; };
+  const partings = (lo, hi) => {
+    const out = [];
+    for (const b of thin) { const a = floor + b.z0, m = a + b.t / 2; if (a > hi) break; if (a > lo) out.push(r3(a)); if (m > lo && m < hi) out.push(r3(m)); }
+    return out;
+  };
+  const still = !FC.bulge && !FC.undercut && !FC.grain;
+  const warp = (x, y, z) => {
+    if (still) return [0, 0];
+    // (the wall's way out of the rock and how much of a wall it is here: the rock's slope over a few metres)
+    const S = 3, gx = (rock(x + S, y) - rock(x - S, y)) / (2 * S), gy = (rock(x, y + S) - rock(x, y - S)) / (2 * S), g = Math.hypot(gx, gy);
+    const w = smoothstep(0.9, 2.6, g);
+    if (w <= 0) return [0, 0];
+    const h = z - floor, b = bedAt(h), u = Math.min(1, Math.max(0, (h - b.z0) / b.t));
+    // (a hard bed bulges at its middle; its parting recesses; its foot is cut in under it; the bulge wanders along the wall)
+    // (and the country's own swing over a few hundred metres: one jebel massive and smooth, the next ledged bed on bed)
+    const along = (0.55 + 0.45 * wn(x, y, 38, 1201 + (b.z0 | 0))) * (0.45 + 0.55 * smoothstep(-0.6, 0.6, wn(x, y, 260, 1207)));
+    const bulge = FC.bulge * b.hard * along * (4 * u * (1 - u) - 0.45), under = FC.undercut * b.hard * (1 - u) ** 6;
+    const grain = FC.grain * (0.6 * fractal2((x + y) / 11, h / 7, { seed: sd + 1301, octaves: 2 })[0] + 0.4 * fractal2((x - y) / 6, h / 4, { seed: sd + 1303, octaves: 2 })[0]);
+    // (the floor and a cap are no wall: their corners stay where the land has them, the slope's weight easing to none)
+    const d = (bulge - under + grain) * w, ox = -gx / g, oy = -gy / g;
+    return [r3(ox * d), r3(oy * d)];
+  };
+  return { at, rock, water: (x, y) => sink(x, y)[0] > 0, boulders, partings, warp };
 }
 
 /**

@@ -17,6 +17,16 @@ book's map: a frame level's plate is now its operation map. Buildings come after
   - **Talus** lies at the angle of repose, lobed into fans, with fallen blocks strewn on it as boulders.
   - **Water**: river beds and pools carved under the floor's datum, so the island's sea fills them with no water of
     their own.
+  - **The face** (`face: { beds, bulge, undercut, grain }`): the walls' own relief at a mech's scale.
+    - The column is parted again into thin beds 5 to 10 m thick, each with its own hardness.
+    - Every wall is cut at those partings and at each bed's middle. Each corner is pushed along the wall, out of the
+      rock: a hard bed bulges, a parting recesses, a massive bed's foot is undercut, and a grain of noise in all three
+      directions keeps any two walls from matching.
+    - The push swings over a few hundred metres, so one jebel stands massive and smooth and the next is ledged bed on
+      bed.
+    - The push is a function of place alone, so faces that share a corner still meet. It adds no faces beyond the cuts.
+  - **Fallen blocks** are mostly small, with a few great slabs: the size's dice are weighted to their low end, up to
+    12 m.
   - **Laws**: walls stand (the rise is climbed on faces over 70°), talus at repose, the floor open for a frame.
 - **The battlefield cubes** (`assault-frame/geocubes.js`, in `GEOCUBE_PRESETS` with their palettes and outposts).
   - `sandstone-wadi`, `sandstone-gorge`, `scree-scarp` and `wadi-oasis`, sized for a frame 7.5 to 9 m tall: walls 40
@@ -39,8 +49,9 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     and its order.
   - The radar's ring round the drop.
 - **Fixed on the way.**
-  - A wall on a 4 m grid is cut into 6 m bands at fixed heights, so the scree at its foot stays in its lowest band
-    rather than smearing up the face. On a massif, every face is cut at the same heights, so shared edges agree.
+  - A wall on a 4 m grid is cut into bands at fixed heights (a massif's thin beds' partings and middles; 6 m
+    elsewhere), so the scree at its foot stays in its lowest band rather than smearing up the face. On a massif, every
+    face is cut at the same heights, so shared edges agree.
   - The land's layers take even dice (`form/land-layers.js` `even`, opt-in, on for a massif land). Their wander and
     scree patches no longer run in bars along y, which read as stripes from a frame's height. Absent, the dice are as
     they were.
