@@ -24,6 +24,9 @@ import { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannel
 import { holoChannelScript } from './holo.js';
 import { broadcastScreenScript } from './broadcast-screen.js';
 import { missionChannelScript } from './mission.js';
+import { briefingChannelScript } from './briefing.js';
+import { lessonChannelScript } from './lesson-brief.js';
+import { speedFxScript } from './speed-fx.js';
 import { damageRingChannelScript } from './damage-ring.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
@@ -306,6 +309,18 @@ export const SETUP_CHANNELS = [
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojDamageRing'],     // the marks standing, for probes
     requiresOptional: ['__mojCtrl'] }, // the pilot's hits, read where the page has a pilot
+  { key: 'briefing', anchor: 'post-capture', script: briefingChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a space mission's holo briefing over its level, the mission held until Launch (campaign/briefing-page.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojBriefing'] },     // the briefing's runtime and whether it is up, for probes
+  { key: 'lesson', anchor: 'post-capture', script: lessonChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a flying lesson's brief over its level, the lesson held until Start (gameworld/lesson-brief.js)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojLesson'] },       // the brief's runtime and whether it is up, for probes
+  { key: 'speedfx', anchor: 'post-capture', script: speedFxScript,
+    normalizeIn: 'emitThreeWorld',     // a flown craft's speed in the world round it: speed lines in the air, dust in space
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojSpeedFx'] },      // the speed read and how hard it is driven, for probes
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -396,6 +411,9 @@ export { meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannel
 export { holoChannelScript } from './holo.js';
 export { broadcastScreenScript } from './broadcast-screen.js';
 export { missionChannelScript } from './mission.js';
+export { briefingChannelScript } from './briefing.js';
+export { lessonChannelScript } from './lesson-brief.js';
+export { speedFxScript, speedFxConfig, SPEED_FX } from './speed-fx.js';
 export { damageRingChannelScript } from './damage-ring.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';

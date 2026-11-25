@@ -416,10 +416,31 @@ Pointers only; each target carries its own design notes.
   modes, states, death; a new thing on a shelf is a row, never a foe special-cased). Their book is the cast sheet
   (`/bible?book=foes`, [gameworld/foe-cast-html.js](control/lib/graph/gameworld/foe-cast-html.js)), and a world with
   none is proposed a cast by the casting call ([foe-casting.js](control/lib/graph/gameworld/foe-casting.js)).
+- Capital ships and stations: [fleet/](control/lib/graph/fleet/) (the fleet's industrial-realism language, its classes and
+  station kinds as rows, a builder laying each as blocks of matter; a ship read as one shape, a wedge, a concept solid
+  or blobs on an anchor, `forms.js`, its volume cut into blocks and its surface clipped to them; the structures, a
+  habitat cylinder, a torus station and a ring ship dressed civil or military by their `use`, `structures.js`; its
+  detail the shader's parallax kibble by block, `scene/channels/hull-kibble.js`; a sortie's `capital` / `station`
+  group; a procedural enemy, its named systems the targets, `systems.js`, blown up when they are gone; destructible in
+  zero g, held by welds to its reactor, cut loose: [docs/rupa.md](docs/rupa.md#in-space)).
+- Space campaigns (a mission designed whole before its level is built): [campaign/](control/lib/graph/campaign/) (the
+  place, "Kessa System | Varn Cluster | Vigil Station | Moon IV", and its orrery, `theatre.js`; a mission's design, its
+  laws and its compile onto a sortie, `mission.js`; the holo briefing the person approves it on, `briefing-page.js`, on
+  mana-ui's campaign idioms; `node scripts/briefing.mjs rebel-storm mission-1`). The designer, `designer.js`: a world's
+  `missions` drafted by the agent, edited and approved by the person on the holo table (the game's books,
+  `?book=briefing&mission=<id>&edit=1`, saved through `POST /api/sketches/<ref>/missions`), an approved one laid as its
+  level, briefed as it loads (`airspace.briefing`, `scene/channels/briefing.js`). Beacons (a sortie's `beacons`,
+  `game/sortie.js`) are its places and triggers. Rebel Storm's rail writes its designs (`MISSION_DESIGNS`) as missions. An arcade stage is designed the same way (`stage.js`: its route, waves in formation,
+  boss, points and medals), compiled onto a rail stage's `plan`; Wolf Squadron's rail writes its `STAGE_DESIGNS`. A
+  ground stage's route is laid in segments (a canyon, open country, a sci-fi colony) on a route map under the flight
+  sky, told over its real ground (`stage-ground.js`): [docs/flight-games.md](docs/flight-games.md).
 - Boss fights: [boss/](control/lib/graph/boss/) (attack patterns as timelines, a tell, hazards and an opening, held to
   measured laws: told, escapable, survivable, opened; a human boss a gimmick over them in phases, a vehicle boss parts
   and states won by mechanics; a new attack, boss or vehicle a row), played by `worlds/controllable/boss.js` (and the
   mines, `mines.js`), seen by `scene/channels/controllable/boss-view.js`: [docs/boss-fights.md](docs/boss-fights.md).
+- The ground force: [groundforce/](control/lib/graph/groundforce/) (a sci-fi army's ground units, a gun emplacement, a
+  hover tank, a personnel walker, as cards of a few big shapes, the workbots' primitives in a military register, drawn
+  larger than life; stood by a figures-map `unit`; an arcade stage's `ground` groups; a new unit is a card).
 - Worker bots: [workbots/](control/lib/graph/workbots/) (a toy world's worker bots in their own low-poly language: a
   few big primitives in toy colours by role, a face of two lit eyes and a mouth; a bot is a card, stood as a rig figure
   by a figures-map `workbot`; level 0's boss Bulwark is one).
@@ -458,6 +479,10 @@ Pointers only; each target carries its own design notes.
   their own `table` furniture by `broadcast-dom.js`; a contest's or a tabletop's `broadcast` key):
   [docs/broadcast.md](docs/broadcast.md). A new contest page feeds it or its guard test fails. It owns a sport's coverage;
   the menus around it are mana-ui's, in its look (`broadcast-mana.js`), the results read by `contest/contest-results.js`.
+- The children of Sol: [sol/](control/lib/graph/sol/) (one row per body, Mercury to Pluto and the Moon, in `roster.js`,
+  its handles into the planet study `saturn-view`, a space level's worlds `planet-gen.js`, a geocube for each body with
+  ground and its `light.heavens` (`era/heavens.js`), and a giant's flight over its cloud tops, an airspace's
+  `sky: { world }`): [docs/sol.md](docs/sol.md).
 - Science worlds: [science-worlds/](control/lib/graph/science-worlds/) (`classical`, `microscopic`, `quantum`, `relativistic`: a demo composed from a
   law table, model examined and dress declared; a law the scale lacks is a gap from `scales.js`, never approximated; a
   picture drawn by a shader is generated from the model's numbers and held to them by `conformance.js`).

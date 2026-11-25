@@ -928,6 +928,8 @@ export function buildRupa(E) {
       // plastic matter keeps what a blow does to it: its dents, and a count the page redraws it by
       if (s.yield > 0 || s.kerfWork > 0) Object.assign(b.rupa, { yield: s.yield || 0, wall: s.wall > 0 ? s.wall : null, kerfWork: s.kerfWork || 0, kerfHard: s.kerfHard || 0, tensile: s.tensile || 0, dents: [], cuts: [], form: 0, squash: 0 });
       b.hp = Infinity;   // the count never breaks it: the energy does
+      // (in space: an anchor, the block a structure is held by, rupa-space)
+      if (s.anchor) b.rupa.anchor = true;
     });
     if (!any) return;
     state.rupa = { swing: R.swing ?? 300, shot: R.shot ?? 2000, blastZ: R.blastZ ?? 4, power: R.power ?? 1, g: R.g ?? G, heatShare: R.heatShare ?? 0.3, fireTime: R.fireTime ?? 60, cool: R.cool ?? 120, seq: -1, hits: [], hotAt: -1, bodies: [], bodySeq: 0, pools: Array.isArray(R.pools) ? R.pools : [], sprays: [], drops: [], dropSeq: 0, wet: { volume: 0, landed: [] }, splashes: [], splashSeq: 0,
@@ -1721,6 +1723,129 @@ export function buildRupa(E) {
   // downwind edge and slid by its push, and held by its weight (W·half its depth; μW) and, at a mortared joint, by the
   // joint's cohesion (its bending section b·t²/6; its area). A stack that goes leaves the structure as falling bodies. ──
   const MU = 0.6, CP = 1.3;
+  // ── SPACE (a world with no weight, `rupa.g` 0: a fleet's ships and stations, fleet/build.js) ──
+  // Nothing falls and nothing is crushed by weight. A block is HELD while it touches, face to face (welded on every side),
+  // a block that is held, back to an ANCHOR (a ship's reactor, a station's core or its frame: `anchor` on the block); a
+  // block no longer held, its section cut loose, DRIFTS: a body of its own (as a stripped plate is), moving off away from
+  // what it was held by. A STRUCTURE's entity (`structure: { core, breach? }`: a capital ship's hull, the one the
+  // targeting computer names and a mission counts) goes down when its reactor's casing is BREACHED (`breach` holes
+  // through it: a steel casing is holed, not worn down) or torn away; its hull reads what is left of either. A gun on it
+  // (`onBlock: <block>`) goes down when the block it stands on does.
+  // (a structure's entity and a gun on one keep what ties them to their blocks)
+  E.registerNormalize((ent, raw) => {
+    const RS = raw.structure;
+    if (RS && (Array.isArray(RS.core) || Array.isArray(RS.systems))) ent.structure = { ...(Array.isArray(RS.core) ? { core: RS.core.slice() } : {}), ...(RS.breach > 0 ? { breach: RS.breach } : {}), ...(Array.isArray(RS.systems) ? { systems: RS.systems.slice() } : {}), ...(typeof RS.prefix === 'string' ? { prefix: RS.prefix } : {}), ...(RS.blowTime > 0 ? { blowTime: RS.blowTime } : {}) };
+    if (typeof raw.onBlock === 'string') ent.onBlock = raw.onBlock;
+  });
+  // (weightless before the break pass settles anything, so nothing falls even the first frame)
+  E.registerWorldPass('rupa-weightless', (state) => { if (state.rupa && state.rupa.g === 0) { state.fallGravity = 0; state.breakFloor = -Infinity; } }, 34.9);
+  E.registerWorldPass('rupa-space', (state) => {
+    const R = state.rupa;
+    if (!R || R.g !== 0 || !state.breakables) return;
+    // (the held graph only when something has broken since the last look)
+    const n = state.breaks ? state.breaks.length : 0;
+    if (R.spaceN !== n) spaceHeld(state, R);
+    // the structures' entities: a hull its core's share, down with it; a gun down with its mount
+    const byId = R.spaceById || (R.spaceById = new Map(state.breakables.map((b) => [b.id, b]))), gone = (id) => { const b = byId.get(id); return !b || b.broken || b.hp <= 0; };
+    for (const e of state.entities) {
+      if (e.downed) continue;
+      const S = e.structure;
+      if (S && Array.isArray(S.systems) && S.systems.length) {
+        // (a procedural enemy: its SYSTEMS, the targets a mission names; its hull reads how many stand, and with the last
+        // of them gone it blows up: a chain of blasts out from its heart, its blocks flung apart)
+        const left = S.systems.filter((id) => { const x = state.byId[id]; return x && !x.downed && !x.gone; }).length;
+        if (e.body) e.body.hp = Math.round((100 * left) / S.systems.length);
+        if (!left) { e.downed = true; e.moving = false; if (e.body) e.body.hp = 0; blowUp(state, R, e); }
+      } else if (S && Array.isArray(S.core) && S.core.length) {
+        // (a steel casing is holed, not worn down: its BREACHES, the holes through it, are what kill a reactor, S.breach
+        // of them; or the casing torn away. The hull reads the lesser of what is left of either)
+        const cap = S.core.reduce((s, id) => s + ((byId.get(id) && byId.get(id).rupa && byId.get(id).rupa.cap) || 0), 0), left = S.core.reduce((s, id) => s + (gone(id) ? 0 : (byId.get(id).rupa.joules || 0)), 0);
+        const holes = S.core.reduce((s, id) => s + (gone(id) ? 0 : ((byId.get(id).rupa.dents || []).filter((d) => d.hole).length)), 0), breach = S.breach > 0 ? S.breach : 4;
+        if (e.body && cap > 0) e.body.hp = Math.max(0, Math.round(100 * Math.min(left / cap, 1 - Math.min(1, holes / breach))));
+        if (S.core.every(gone) || holes >= breach) { e.downed = true; e.moving = false; if (e.body) e.body.hp = 0; }
+      }
+      if (e.onBlock && gone(e.onBlock)) { e.downed = true; e.moving = false; if (e.body) e.body.hp = 0; }
+    }
+  }, 36.5);
+  // ── A BLOW-UP: a structure whose systems are all gone goes in a chain of blasts out from its heart over `blowTime` s
+  // (3.5), each block, as its turn comes, stripped and flung away from the middle at a few to a dozen m/s, tumbling;
+  // its breaks say `how: 'drift'` with its own pivot and spin, and a blast (a craft's burst) at every third ──
+  const hz = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h / 4294967296; };
+  function blowUp(state, R, e) {
+    const S = e.structure, pre = S.prefix;
+    if (!pre) return;
+    const blocks = state.breakables.filter((b) => b.rupa && !b.broken && b.id.startsWith(pre));
+    if (!blocks.length) return;
+    const vol = (b) => Math.max(1e-6, (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2])), V = blocks.reduce((s, b) => s + vol(b), 0);
+    const c = [0, 1, 2].map((k) => blocks.reduce((s, b) => s + (vol(b) * (b.min[k] + b.max[k])) / 2, 0) / V);
+    // (the order: its skin first, blown off outward, then deeper in, the heart last in the biggest blast, so nothing
+    // flung out meets a plate still standing; each a little early or late by the dice)
+    const d = (b) => Math.hypot(...[0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2 - c[k])) * (0.75 + 0.5 * hz(b.id));
+    const ids = blocks.slice().sort((a, b) => d(b) - d(a) || (a.id < b.id ? -1 : 1)).map((b) => b.id);
+    for (const b of blocks) b.rupa.blowing = true;
+    const ext = Math.max(...[0, 1, 2].map((k) => Math.max(...blocks.map((b) => b.max[k])) - Math.min(...blocks.map((b) => b.min[k]))));
+    (R.blowups || (R.blowups = [])).push({ of: e.id, ids, c, t0: state.time, span: S.blowTime ?? 3.5, i: 0, size: ext });
+  }
+  E.registerWorldPass('rupa-blowup', (state) => {
+    const R = state.rupa;
+    if (!R || !R.blowups || !R.blowups.length) return;
+    if (!state.bursts) { state.bursts = []; state.burstSeq = 0; }
+    for (const U of R.blowups) {
+      if (U.i >= U.ids.length) continue;
+      const due = Math.ceil(U.ids.length * Math.pow(Math.min(1, (state.time - U.t0) / U.span), 0.7));
+      for (; U.i < due; U.i++) {
+        const b = state.breakables.find((q) => q.id === U.ids[U.i]);
+        if (!b || b.broken) continue;
+        const m = [0, 1, 2].map((k) => (b.min[k] + b.max[k]) / 2), size = Math.max(...[0, 1, 2].map((k) => b.max[k] - b.min[k]));
+        const v = [m[0] - U.c[0], m[1] - U.c[1], m[2] - U.c[2]], L = Math.hypot(v[0], v[1], v[2]) || 1, h = hz(b.id), away = v.map((x) => x / L);
+        if (U.i % 3 === 0) state.bursts.push({ seq: state.burstSeq++, pos: m, t: state.time, radius: 4, fxRadius: Math.round(Math.max(12, Math.min(70, size * 0.7))), fxColor: 0xffa03c, fxScale: Math.round(size * 0.3), debris: true, craft: true });
+        stripIt(state, b, null, { from: [2 * U.c[0] - m[0], 2 * U.c[1] - m[1], 2 * U.c[2] - m[2]] });
+        const br = state.breaks[state.breaks.length - 1], body = R.bodies.find((x) => x.id === br.body);
+        if (body) body.vel = away.map((x) => x * (3 + 9 * h));
+        br.how = 'drift'; br.drift = { pivot: m.map((x) => Math.round(x * 1e3) / 1e3), away, n: 1, spin: Math.round((0.2 + 0.6 * hz(b.id + '~')) * 1e3) / 1e3 }; br.away = away; b.broken.drift = true;
+      }
+      // (the heart's own blast as the last block goes)
+      if (U.i >= U.ids.length) state.bursts.push({ seq: state.burstSeq++, pos: U.c.slice(), t: state.time, radius: 4, fxRadius: Math.round(Math.max(40, Math.min(220, U.size * 0.35))), fxColor: 0xfff0c8, fxScale: Math.round(U.size * 0.1), debris: true, craft: true });
+    }
+  }, 36.6);
+  function spaceHeld(state, R) {
+    const live = state.breakables.filter((b) => b.rupa && !b.broken && !(b.hp <= 0)), touch = (a, b) => {
+      let flush = 0;
+      for (let k = 0; k < 3; k++) {
+        const o = Math.min(a.max[k], b.max[k]) - Math.max(a.min[k], b.min[k]);
+        if (o < -0.05) return false;
+        if (o <= 0.05) flush++;
+      }
+      return flush === 1;
+    };
+    const held = new Set(live.filter((b) => b.rupa.anchor)), queue = [...held];
+    while (queue.length) { const a = queue.pop(); for (const b of live) if (!held.has(b) && touch(a, b)) { held.add(b); queue.push(b); } }
+    const anchors = live.filter((b) => b.rupa.anchor), mid = anchors.length ? [0, 1, 2].map((k) => anchors.reduce((s, b) => s + (b.min[k] + b.max[k]) / 2, 0) / anchors.length) : null;
+    for (const b of live) if (held.has(b)) b.falling = null;
+    if (!anchors.length) { R.spaceN = state.breaks.length; return; }
+    // (cut loose: each piece of what is left, the blocks that touch, goes as ONE: off away from what held it at a walk,
+    // every block of it at that one velocity, so it drifts whole; its breaks name its pivot and the way it goes, and
+    // the page turns it about that pivot as it goes)
+    // (what is blowing up goes its own way: a blow-up's turn, not a drift)
+    const loose = live.filter((b) => !held.has(b) && !b.rupa.blowing), seen = new Set();
+    for (const b0 of loose) {
+      if (seen.has(b0)) continue;
+      const part = [b0], q = [b0]; seen.add(b0);
+      while (q.length) { const a = q.pop(); for (const b of loose) if (!seen.has(b) && touch(a, b)) { seen.add(b); part.push(b); q.push(b); } }
+      const vol = (b) => Math.max(1e-9, (b.max[0] - b.min[0]) * (b.max[1] - b.min[1]) * (b.max[2] - b.min[2])), V = part.reduce((s, b) => s + vol(b), 0);
+      const pivot = [0, 1, 2].map((k) => part.reduce((s, b) => s + vol(b) * (b.min[k] + b.max[k]) / 2, 0) / V);
+      const d = [pivot[0] - mid[0], pivot[1] - mid[1], pivot[2] - mid[2]], L = Math.hypot(d[0], d[1], d[2]) || 1, away = d.map((v) => v / L);
+      const vel = away.map((v) => v * (R.drift ?? 1.5));
+      for (const b of part) {
+        stripIt(state, b, null, { from: [2 * pivot[0] - mid[0], 2 * pivot[1] - mid[1], 2 * pivot[2] - mid[2]] });
+        const br = state.breaks[state.breaks.length - 1], body = R.bodies.find((x) => x.id === br.body);
+        if (body) body.vel = vel.slice();
+        br.how = 'drift'; br.drift = { pivot: pivot.map((v) => Math.round(v * 1e3) / 1e3), away, n: part.length }; br.away = away; b.broken.drift = true;
+      }
+    }
+    R.spaceN = state.breaks.length;
+  }
+
   E.registerWorldPass('rupa-wind', (state) => {
     const R = state.rupa;
     if (!R || !R.wind || state.time - R.windAt < 0.25) return;

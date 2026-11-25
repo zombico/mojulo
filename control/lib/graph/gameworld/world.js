@@ -42,6 +42,9 @@
  *                                         // at its end fought turn by turn, hp on the HUD, guards who see to get past
  *                                         // unseen, its last stage an escape room (escape.js: its way out sealed
  *                                         // until its locks open, their keys along the way); none: reach the exit
+ *                                         // on an AIRSPACE level the goal is { flight } alone (flight-goal.js: 'course',
+ *                                         // 'dogfight', 'trench' or { tasks }: gates, a band held, a landing, nav points,
+ *                                         // wings); none: its course, its trench, else its exit
  *       foes?: true | { from?, count? },  // the bestiary's foes on its trail stages (or a building's rooms), one a free beat (foes.js): hostile
  *                                         // classes in the hero's way; its hp then takes their hits
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
@@ -133,6 +136,11 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
+import { readMission as readSpaceMission } from '../campaign/mission.js';
+import { readStage } from '../campaign/stage.js';
+import { readLessonBrief } from './lesson-brief.js';
+import { withMissions } from '../campaign/designer.js';
+import { readFlightGoal } from './flight-goal.js';
 import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
 import { readLayouts } from '../era/room-layouts.js';
 import { readShift } from './kitchen-shifts.js';
@@ -302,7 +310,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -323,8 +331,10 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // ground, heights and marks; read by the miniature, not yet by the build)
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
 const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways', 'hats'];
-// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
+// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them; its sky
+// (skyscape/sky.js: the weather it is flown in)
+// (its `lesson`: a flying lesson's brief, told before it is flown: gameworld/lesson-brief.js)
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing', 'sky', 'lesson'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -581,6 +591,8 @@ export function readCivilizations(civs, { kit = 'isekai-meadow', seed = 1 } = {}
 export function readGameworld(W) {
   if (W && W[READ]) return W;
   if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, civilizations?, levels, links?, start? }');
+  // a space game's missions designed whole (campaign/designer.js): each read, the approved ones laid as their levels
+  if (W.missions !== undefined && W.missions !== null) W = withMissions(W);
   for (const k of Object.keys(W)) if (!KEYS.includes(k)) throw new Error(`gameworld: '${k}' is not a world setting (settings: ${KEYS.join(', ')})`);
   for (const k of RESERVED) if (W[k] !== undefined && W[k] !== null) throw new Error(`gameworld: ${k} are not on the ground: the world leaves them open for now (null, or leave it out)`);
   if (typeof W.id !== 'string' || !ID.test(W.id)) throw new Error('gameworld: id is a short lower-case name (letters, digits, hyphens)');
@@ -633,9 +645,20 @@ export function readGameworld(W) {
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
-    if (L.goal !== undefined) {
+    // an airspace's goal is a flight's (flight-goal.js: a course, a dogfight, a trench, or a list of tasks), alone
+    if (L.goal !== undefined && L.airspace !== undefined) {
+      if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
+      if (!isObj(L.goal) || Object.keys(L.goal).length !== 1 || L.goal.flight === undefined) throw new Error(`gameworld: ${at}.goal on an airspace is { flight }: what the level is flown for (a course, a dogfight, a trench, or { tasks })`);
+      const fg = readFlightGoal(L.goal.flight, `${at}.goal.flight`);
+      if (fg.kind === 'course' && !L.airspace?.course) throw new Error(`gameworld: ${at}.goal.flight: a course is flown on a course: give the airspace one (airspace.course: true)`);
+      if (fg.kind === 'trench' && !L.airspace?.space?.trench) throw new Error(`gameworld: ${at}.goal.flight: a trench run needs a trench (airspace.space: { trench: true })`);
+      if ((fg.kind === 'sortie') && !L.airspace?.cockpit) throw new Error(`gameworld: ${at}.goal.flight: a sortie is flown from a cockpit (airspace.cockpit: true, in space)`);
+      if ((fg.kind === 'stage') !== !!L.airspace?.rail) throw new Error(`gameworld: ${at}.goal.flight: ${fg.kind === 'stage' ? 'a stage is flown down a rail (airspace.rail: true)' : 'an airspace with a rail is flown as a stage (goal.flight: \'stage\', or none)'}`);
+      if (fg.kind === 'tasks' && fg.tasks.some((t) => t.gates !== undefined || t.reach?.gate !== undefined) && !L.airspace?.course) throw new Error(`gameworld: ${at}.goal.flight: gates are a course's: give the airspace one (airspace.course: true)`);
+    } else if (L.goal !== undefined) {
       const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true | { win }, health?: true, guards?: true, escape?: true | 1…4, gauntlet?: { arenas } }, at least one`;
       if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
+      if (Gl.flight !== undefined) throw new Error(`gameworld: ${at}.goal.flight is an airspace level's goal (levels.<id>.airspace)`);
       if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
       if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
       for (const k of Object.keys(Gl)) if (!LEVEL_GOAL_PARTS.includes(k)) throw new Error(`gameworld: ${at}.goal.${k} is not a level goal (${LEVEL_GOAL_PARTS.join(', ')})`);
@@ -789,6 +812,20 @@ export function readGameworld(W) {
       for (const k of Object.keys(As)) if (!AIRSPACE_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.airspace.${k} is not an airspace level setting (${AIRSPACE_LEVEL_KEYS.join(', ')})`);
       const errs = validateAirspace({ kind: 'airspace', ...As });
       if (errs.length) throw new Error(`gameworld: ${at}.${errs[0]}`);
+      // a cockpit mission's briefing: its design (campaign/mission.js), told on the holo table before it is flown
+      // (or an arcade stage's, one that names its route (campaign/stage.js): told on the same table before it is flown)
+      if (As.briefing !== undefined && isObj(As.briefing) && As.briefing.route !== undefined) {
+        if (!As.rail) throw new Error(`gameworld: ${at}.airspace.briefing: a stage's briefing is a rail stage's (airspace.rail)`);
+        try { readStage(As.briefing); } catch (e) { throw new Error(`gameworld: ${at}.airspace.briefing: ${e.message.replace(/^campaign: /, '')}`); }
+      } else if (As.briefing !== undefined) {
+        if (As.cockpit !== true) throw new Error(`gameworld: ${at}.airspace.briefing: a briefing is a cockpit mission's (airspace.cockpit: true) or a rail stage's (one that names its route)`);
+        try { readSpaceMission(As.briefing); } catch (e) { throw new Error(`gameworld: ${at}.airspace.briefing: ${e.message.replace(/^campaign: /, '')}`); }
+      }
+      // a flying lesson's brief (gameworld/lesson-brief.js), told on mana-ui before the lesson is flown
+      if (As.lesson !== undefined) {
+        const le = readLessonBrief(As.lesson, `${at}.airspace.lesson`);
+        if (le.length) throw new Error(`gameworld: ${le[0]}`);
+      }
     } else if (L.roadway !== undefined) {
       // a roadway level: a track built for driving (roads/track.js), laid on its own ground
       if (L.walk !== undefined || L.building !== undefined || L.city !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city or a roadway, one of them`);
@@ -1100,8 +1137,12 @@ export function resolveLevel(world, id) {
   // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
   if (L.airspace) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
-    const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
+    // (a rail stage has its path and no course; its airframe, and its rail, ride as written)
+    // (a cockpit's sortie has its flight groups and no gates, as a rail stage has its path)
+    // (a cockpit mission's briefing, its design, rides as written: scene/channels/briefing.js tells it as the level loads)
+    // (a flying lesson's brief rides as written: scene/channels/lesson-brief.js tells it as the lesson loads)
+    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe, briefing, sky, lesson } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}), ...(briefing ? { briefing } : {}), ...(sky !== undefined && !inSpace ? { sky } : {}), ...(lesson ? { lesson } : {}) } };
   }
   // a glyph-map level: the map's level as the map kind takes it (level/grid-scene.js), its seed the level's
   if (L.glyphs) {

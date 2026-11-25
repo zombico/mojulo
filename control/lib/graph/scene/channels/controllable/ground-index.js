@@ -11,7 +11,8 @@
  *
  *   indexBuckets(items, cell)   → { x0, y0, cell, nx, ny, cells }   items [{ id, box: [x0, y0, x1, y1] }]: each cell the
  *                                                                    ids whose box meets it (a box past the index's own
- *                                                                    reach is held to its edge cells)
+ *                                                                    reach is held to its edge cells); the cell doubled
+ *                                                                    while the index would be too big for its items
  *   bucketsAt(B, x, y)          → [ids]                              the ids over (x, y), [] off the index
  *   groundIndexScript()         → the page's `__giGround(pos, own)`  (needs the page's THREE, scene, camera, __rayRoots,
  *                                                                    __world and the ground grid's script)
@@ -22,13 +23,23 @@
 export const GROUND_INDEX = Object.freeze({ cell: 4, most: 400 });
 
 /** A plan's buckets: each `cell` m square the ids whose box meets it. A box larger than `most` cells a side (a far land's
- * ring, a sky's floor) is kept apart and listed in every cell, so the index stays the world's play area's size. */
+ * ring, a sky's floor) is kept apart and listed in every cell, so the index stays the world's play area's size. The cell
+ * is doubled while the index would hold more than 64 cells an item or list its items more than 256 times an item in all
+ * (a flight's land: hundreds of chunks of a kilometre or less spread over 16 km, 4 m cells by the million, each chunk in
+ * tens of thousands, the whole rebuilt as each chunk streams in): a cell only chooses which surfaces a probe tests, so its
+ * size changes the cost, never the ground found. */
 export function indexBuckets(items, cell = 4, most = 400) {   // (GROUND_INDEX's, inline: the page runs this by its source)
   const small = [], wide = [];
   for (const it of items) ((it.box[2] - it.box[0]) / cell > most || (it.box[3] - it.box[1]) / cell > most ? wide : small).push(it);
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const it of small) { x0 = Math.min(x0, it.box[0]); y0 = Math.min(y0, it.box[1]); x1 = Math.max(x1, it.box[2]); y1 = Math.max(y1, it.box[3]); }
   if (!small.length) { x0 = y0 = 0; x1 = y1 = cell; }
+  // (a cell the limits allow: its cells, and its listings summed over the boxes, counted before anything is built; at a
+  // cell the plan's size, two by two cells and each box in four of them at most)
+  const CELLS = Math.max(1 << 16, small.length * 64), LISTED = Math.max(1 << 18, small.length * 256);
+  const span = (c) => Math.max(1, Math.ceil((x1 - x0) / c) + 1) * Math.max(1, Math.ceil((y1 - y0) / c) + 1);
+  const listed = (c) => { let s = 0; for (const it of small) s += (Math.floor((it.box[2] - x0) / c) - Math.floor((it.box[0] - x0) / c) + 1) * (Math.floor((it.box[3] - y0) / c) - Math.floor((it.box[1] - y0) / c) + 1); return s; };
+  while (span(cell) > CELLS || listed(cell) > LISTED) cell *= 2;
   const nx = Math.max(1, Math.ceil((x1 - x0) / cell) + 1), ny = Math.max(1, Math.ceil((y1 - y0) / cell) + 1);
   const cells = new Array(nx * ny);
   for (const it of small) {

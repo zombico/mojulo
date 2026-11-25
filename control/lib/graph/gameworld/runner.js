@@ -29,6 +29,7 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { readFlightGoal, defaultFlightGoal, flightGoalMechanics, flightGoalCast, flightLegend } from './flight-goal.js';
 import { DRESS_THEMES, readDress } from './course-dress.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { menuSoundSet } from '../playscape/ui/interface-look.js';
@@ -732,6 +733,15 @@ const HERO_CAMERAS = Object.freeze(['top-down', 'side', 'third-person', 'fixed',
 const guarded = (G) => G.ids.some((id) => G.levels[id].goal?.guards);
 const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
 function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
+  // an airspace is flown for its flight goal (flight-goal.js), the one the quick door's flights read: its own, or what
+  // the airspace has (its course, its trench); one with neither is flown to its exit, as before
+  const A = G.levels[s.level]?.airspace;
+  if (A !== undefined) {
+    const F = G.levels[s.level].goal?.flight !== undefined ? readFlightGoal(G.levels[s.level].goal.flight, `levels.${s.level}.goal.flight`) : defaultFlightGoal(A);
+    if (!F) return {};
+    const legend = flightLegend(F);
+    return { goal: (ends) => flightGoalMechanics(F, ends), goalCast: (ends) => flightGoalCast(F, ends), ...(legend ? { legend } : {}) };
+  }
   const goal = G.levels[s.level]?.goal, foes = G.levels[s.level]?.foes !== undefined;
   if (!goal && !foes) return {};
   const last = lastOf[s.level] === s.index;

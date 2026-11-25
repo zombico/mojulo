@@ -1,10 +1,10 @@
 ---
-{ "id": "objectives", "name": "Objectives: a level's tasks, done in order (terminal)", "summary": "A list of tasks, a section each: a task begins when its section is walked into (its own foes woken then, never before), is met by what its kind names (take, reach, clear, man, hold), and being met opens the way on and hands over to the next; the last one met wins. A mission's structure: the shooter's first level is laid on it.", "when": "a mission with objectives, tasks in order, clear the room then move on, a door that opens when the room is cleared, objective markers, hold the point for a time then extract, a briefing's list of things to do, room by room, a level with structure" }
+{ "id": "objectives", "name": "Objectives: a level's tasks, done in order (terminal)", "summary": "A list of tasks, a section each: a task begins when its section is walked into (its own foes woken then, never before), is met by what its kind names (take, reach, clear, man, hold; in the air gates, land, band, protect), and being met opens the way on and hands over to the next; the last one met wins, a protected one down loses. A mission's structure: the shooter's first level is laid on it, and so are a flight's lessons and sorties.", "when": "a mission with objectives, tasks in order, clear the room then move on, a door that opens when the room is cleared, objective markers, hold the point for a time then extract, a briefing's list of things to do, room by room, a level with structure, a flight lesson, fly the gates then land, hold an altitude and heading, escort a freighter, a sortie's nav points" }
 ---
 
 ## Role
 
-**terminal** (ends in `success`). It owns no hp: compose it with `fail-on-death` (the level's hp) and `supplies` (what
+**terminal** (ends in `success`, and in `fail` when a `protect` task's one is downed). It owns no hp: compose it with `fail-on-death` (the level's hp) and `supplies` (what
 lies on the floor).
 
 ## Params
@@ -25,6 +25,15 @@ lies on the floor).
     task begins. `man`: a clear with a mounted gun to do it with (`gun`: its entity id).
   - `hold`: met when `seconds` have run from the moment it begins; its `waves` (lists of dormant foes) are woken one
     every `every` seconds, the first after a breath. What still stands at the end is left standing.
+- In the air (a flight's tasks: `gameworld/flight-goal.js` lays them from a level's words):
+  - `gates`: met when its `gates` (`[{ at, radius }]`) are flown through in order, in three dimensions; one flown out
+    of turn does nothing; each passed says `objective:gate { n, of }`.
+  - `land`: met by a soft touchdown (the page's `touchdown`, `hard: 0`) inside one of its `pads` (`[{ at, half }]`).
+  - `band`: met when the pilot has held every gauge of its `band` for `seconds` (`alt`, `agl` m; `speed` knots;
+    `climb` m/s; `bank`, `heading` degrees; each `[min, max]`, null for open; a heading's range wraps through north
+    when its min is above its max). Leaving one starts the clock again; `total: true` adds it up instead.
+  - `protect`: its `who` (ids) kept up; one down while it is still to be met fails the level (`objectives:failed`).
+    Met when `seconds` have run, or when the first of them arrives at `arrive` (`{ at, radius? }`).
 - `zone`: the section's box (`at` its centre, `half` its half-extents). Walking into it begins the task. Without one, a
   task begins the moment the one before is met; the first begins as the level starts.
 - `door`: the way on (`at`), sealed until the task is met. A body that walks into it sealed is put back at `back`.
@@ -37,7 +46,10 @@ lies on the floor).
   hold), a zone at its place (a take, a reach); a guarded hand-over; the `<id>-seal-<k>` marker and its zone at each
   door (`objective:sealed` and a `move` back while it is shut).
 - events: `objective:begin { n, of, task, text }`, `objective:done { n, of, task }`, `objective:sealed { task }`,
-  `wave { n, of }`, `objectives:done`.
+  `objective:gate { n, of, task }`, `wave { n, of }`, `objectives:done`, `objectives:failed { task }`.
+- In the air: a gate's zone per gate and the count of the next due; a pad's zone and a touchdown judged in two steps; a
+  `gauge` source per fact of a band (worlds/event-bus.js: entered while the fact is in range), a count of those held,
+  and a clock that adds a second only while all hold.
 - hud: the tasks met as a counter, a banner as each begins, a hold's clock.
 - contract: `on: { "objectives:done": { end: "success" } }`.
 - `audit`: none can fight, so it is not auto-auditable. Its proof is on the bus with each fall given

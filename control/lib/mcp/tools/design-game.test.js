@@ -374,7 +374,8 @@ describe('design_game: party battles on the book path (battles)', () => {
     expect(own('sprite').fall.once).toBe(true);
     const again = await designGameHandler({ ref: 'gc', run: true });
     expect([action(again, 'casting'), action(again, 'cast-party-1')]).toEqual(['keep', 'keep']);
-  }, 900_000);
+    // (a whole party game designed, run and built: past 900 s on a loaded runner, 1,060 s and 982 s on two runs)
+  }, 1_800_000);
 
   it('a journey cast is proposed: its part waits for the creator, and approving it readies the members', async () => {
     const world = { ...GATED, characters: { ...GATED.characters, casting: { scale: 'journey', n: 1 } } };

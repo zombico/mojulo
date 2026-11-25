@@ -25,6 +25,10 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
+import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
+import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
+/** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
+const FLEET_POWER = 1e3;
 import { facilityBuilding } from '../era/facilities.js';
 import { raceHud, RACE_DIAL } from './race-hud.js';
 import { levelHud } from '../game/hud-mana.js';
@@ -250,9 +254,10 @@ export function gameStages(world) {
     if (R.obstacles) { out.push({ level, node: 'obstacles', section: 'obstacles', index: 0, manifest: obstacleStage(G, R.obstacles) }); continue; }
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
     if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
-    // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's
+    // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's, titled by
+    // the level's name (a lesson's, a stage's)
     // manifest, coloured by the level's palette (the world's, or the world's moved by its script) where it has one
-    if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
+    if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
     const laid = layLevel(R.level);
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
     // along one straight lane, each its own length and its own course (sideSegments, stripCourse), played on one page
@@ -411,12 +416,16 @@ export function airspaceEnds(manifest) {
   const out = { spawn: [sx, sy, seat.ground], heading: seat.transform.heading, exit, exitFrom: course?.finish ? 'the runway' : 'the last gate', planar: false, beats: [], hazards: [] };
   // and the course flown by its own craft (skyscape/autopilot.js): the flight's walkability, a machine gate
   // (a trench run's proof is its line: down the middle, waypoints a little narrower than the trench, trench.js)
-  const run = course ?? (field.line?.length ? { gates: field.line.map((at) => ({ at, radius: field.trench.w / 2 - 5 })), laps: 1, finish: null } : null);
+  // a rail stage (skyscape/rail-stage.js): its path, its hazards, its waves and its boss, laid on this map; started at
+  // the way's head, ended in the boss's arena
+  const rail = manifest.rail ? planRailStage(map, field, { seed: manifest.seed ?? 1, ...(manifest.rail === true ? {} : manifest.rail) }) : null;
+  if (rail) { out.spawn = rail.path[0].slice(); out.heading = Math.atan2(rail.path[1][1] - rail.path[0][1], rail.path[1][0] - rail.path[0][0]); out.exit = rail.boss.at; out.exitFrom = 'the boss\'s arena'; }
+  const run = rail ? null : course ?? (field.line?.length ? { gates: field.line.map((at) => ({ at, radius: field.trench.w / 2 - 5 })), laps: 1, finish: null } : null);
   const flown = run ? flyCourse(map, field, run, { rule: seat.rule }) : null;
   // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
-  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
+  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(rail ? rail.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
     .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
-  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, cockpit: manifest.cockpit === true, airframe: manifest.airframe ?? null, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);
   return out;
 }
@@ -1009,7 +1018,25 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // enough to glide to the first gate), followed from behind by a chase camera that banks with it
     const aloft = ends.seat.rule.engine === false;
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${aloft ? '' : 'W / S  throttle (it holds) · '}A / D  bank · Space / Shift  nose up / down · mouse  pitch${ride?.transformer ? ' · B  transform' : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
-    pilotPart = { ...craftPilot(ends.airMap, ends.seat), events: P.events || {} };
+    pilotPart = { ...craftPilot(ends.airMap, ends.seat, { airframe: stage.manifest?.airframe }), events: P.events || {} };
+    // A RAIL STAGE (skyscape/rail-stage.js): the craft carried down the stage's path on the rail rule, seated at its head
+    // facing along it; the stick steers it about the way, W boosts and S brakes, Q / E roll, and the ground is a floor
+    if (ends.rail) {
+      const e0 = pilotPart.entities[0], S = ends.rail, [a, b] = S.path;
+      // (followed by the arcade's close chase, rail-stage.js RAIL.camera, not the free flier's long one)
+      pilotPart = { ...pilotPart, entities: [{ ...e0, rule: { ...S.rule, eye: e0.rule.eye ?? 0 }, transform: { pos: a.slice(), heading: Math.atan2(b[1] - a[1], b[0] - a[0]), pitch: 0 } }, ...pilotPart.entities.slice(1)], camera: { ...pilotPart.camera, ...RAIL.camera, rollFollow: 0.35 } };
+      pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `A / D  steer · Space / Shift  up / down · W  boost · S  brake · Q / E  roll${legend ? ` · ${legend}` : ''}` }).events || {};
+      // (flown in, never off a runway: its gear up)
+      if (pilotPart.figures?.craft?.craft) pilotPart.figures = { ...pilotPart.figures, craft: { craft: { ...pilotPart.figures.craft.craft, gear: 'up' } } };
+    }
+    // A COCKPIT (airspace.cockpit, skyscape/starfighter.js): the craft flown from its seat on the starfighter rule, the
+    // 90s space-combat sims' craft: the mouse flies it, the throttle a setting, its shields, power and cannons its own;
+    // the view starts in the cockpit, C out to the chase
+    if (ends.cockpit) {
+      const frame = pilotPart.figures?.craft?.craft?.archetype, e0 = starfighterPilot(ends.airMap, pilotPart.entities[0], { airframe: frame });
+      pilotPart = { ...pilotPart, entities: [e0, ...pilotPart.entities.slice(1)], camera: cockpitCamera(e0, pilotPart.camera, frame) };
+      pilotPart.events = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `mouse  fly · A / D  roll · W / S  throttle · click  lasers · Space  warhead · R  nearest foe · T  next target · C  cockpit / chase${legend ? ` · ${legend}` : ''}` }).events || {};
+    }
     if (ride?.transformer) {
       // A FLIER THAT TRANSFORMS (quick.transformer): seated as the craft is, in its vehicle form on the seat's rule, its
       // body the transformer; B drops it into its robot form (it falls, lands, walks) and back into the air
@@ -1261,6 +1288,10 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // the aim (their HUD is the page's own; a mission draws it in its own HUD). Any other level, as it was
   const ringed = !MX && stage.section !== 'airspace' && (G.quick?.goal === 'deathmatch' || (G.quick?.goal === 'shoot' && G.quick.craft === undefined)) && !!X0?.pilot?.weapon;
   let manifest = armLevel(G, { ...stage.manifest, ...(strip ?? {}), title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(roll ? { roll } : {}), ...(ringed ? { damageRing: true, mission: shooterHudUi(G, ends.arena ? { rect: [ends.arena.centre[0] - ends.arena.plan.half, ends.arena.centre[1] - ends.arena.plan.half, ends.arena.centre[0] + ends.arena.plan.half, ends.arena.centre[1] + ends.arena.plan.half] } : {}) } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(mechanics?.scars ? { scars: mechanics.scars } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), ...juiceOf(G), ...tempoOf(G), ...keyingOf(G), ...meterOf(G), ...gradeOf(G), ...figuresOf(), ...(seats ? { seats } : {}), ...(G.mounts ? { mounts: G.mounts } : {}), game });
+  // A FLEET in it (a sortie's capital ships and stations, fleet/): its blocks the airspace's to draw, the level under
+  // destructible physics, weightless (matter.g 0), its blows at a space fight's power (FLEET_POWER: a fighter's bolt
+  // dents armour and holes a hull's thin plate, a torpedo breaches a reactor's casing)
+  if (X?.fleet?.length) manifest = { ...manifest, fleet: X.fleet, destruction: 'physical', matter: { ...(manifest.matter ?? {}), g: 0, power: FLEET_POWER } };
   // ONE HUD (game/hud-mana.js): a world whose screens are the game UI runtime's (its `ui`) has its levels' own rows
   // drawn there too, in the same look, by the page's HUD host; a course's HUD is already its own (course-hud.js), and
   // a mission's is its own channel's (mission-mana.js)

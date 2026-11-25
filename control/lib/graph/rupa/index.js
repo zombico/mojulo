@@ -39,7 +39,7 @@ export const POWER = Object.freeze({
 });
 export const POWER_IDS = Object.freeze(Object.keys(POWER));
 
-const SPEC_KEYS = ['power', 'swing', 'shot', 'blastZ', 'heatShare', 'fireTime', 'cool', 'pools', 'wind', 'rainTime'];
+const SPEC_KEYS = ['power', 'swing', 'shot', 'blastZ', 'heatShare', 'fireTime', 'cool', 'pools', 'wind', 'rainTime', 'g'];
 const SPEC_UNITS = { swing: 'joules', shot: 'joules', blastZ: 'm/kg^⅓', fireTime: 'fire seconds a play second', cool: 'seconds', rainTime: 'rain seconds a play second' };
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const pos = (v) => typeof v === 'number' && Number.isFinite(v) && v > 0;
@@ -73,6 +73,8 @@ export function readMatterSpec(v, where = 'matter') {
     if (w.gust !== undefined && !(w.gust >= 0 && w.gust <= 1)) throw new Error(`${at}.gust is the gusts' share, 0 to 1`);
     out.wind = { speed: w.speed, dir: w.dir ?? 0, ...(w.terrain ? { terrain: w.terrain } : {}), ...(w.gust !== undefined ? { gust: w.gust } : {}), ...(w.seed !== undefined ? { seed: w.seed } : {}) };
   }
+  // (gravity, m/s²: 0 a world in space, weightless: nothing falls, nothing is crushed by weight, what is cut loose drifts)
+  if (v.g !== undefined) { if (!(Number.isFinite(v.g) && v.g >= 0)) throw new Error(`${where}.g is the world's gravity in m/s², 0 for space (weightless)`); out.g = v.g; }
   if (v.heatShare !== undefined) { if (!(Number.isFinite(v.heatShare) && v.heatShare >= 0 && v.heatShare <= 1)) throw new Error(`${where}.heatShare is the share of a burst's energy that is heat, 0 to 1`); out.heatShare = v.heatShare; }
   return out;
 }

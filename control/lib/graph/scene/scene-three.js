@@ -33,6 +33,7 @@
  * directly).
  */
 
+import { readKibble, hullKibbleScript } from './channels/hull-kibble.js';
 import { guideScript } from './channels/guide.js';
 import { hudGrammarScript } from './channels/hud-grammar.js';
 import { tourScript } from './channels/tour.js';
@@ -57,7 +58,7 @@ import {
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, marksChannelScript, normalizeMarks, shootChannelScript, shootSetScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript, liquidMeshScript, shallowsChannelScript, seawayChannelScript, jetChannelScript, aquaPatchScript, wetSandScript, softGroundScript, snowPrintsScript,
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
-  strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript, missionChannelScript, damageRingChannelScript,
+  strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript, missionChannelScript, briefingChannelScript, lessonChannelScript, speedFxScript, damageRingChannelScript,
 } from './channels/index.js';
 import { readFlow, flowChannelScript } from './channels/flow.js';
 import { readBeacons, beaconsChannelScript } from './channels/beacons.js';
@@ -142,7 +143,7 @@ export function verticalFov(hFovDeg, aspect) {
 // rendered on a screen quad, with the orbit camera's position + basis fed in as uniforms each frame so
 // the shader casts rays from wherever the user has dragged the camera. A separate, minimal emitter —
 // the mesh pipeline (groups, picks, channels) is irrelevant here. Reuses the importmap + .moj-readout.
-export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}, cameraStart = [0, 3, 17], target = [0, 0, 0], fov = 46, readout = [], steps = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#01010a', inline = false, cdn = false, pixelRatioCap = 1.5 } = {}) {
+export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}, cameraStart = [0, 3, 17], target = [0, 0, 0], fov = 46, readout = [], steps = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#01010a', inline = false, cdn = false, pixelRatioCap = 1.5, minDistance = 3 } = {}) {
   const W = viewBox.width, H = viewBox.height;
   const importmap = cdn ? CDN_IMPORTMAP : inline ? inlineImportmap() : VENDOR_IMPORTMAP;
   const cu = Object.entries(customUniforms).map(([k, v]) => `${k}:{value:${Array.isArray(v) ? `new THREE.Vector3(${v.join(',')})` : (+v)}}`).join(',');
@@ -186,7 +187,7 @@ const cam = new THREE.PerspectiveCamera(${fov}, ${W / H}, 0.1, 2000);
 cam.position.set(${cameraStart[0]}, ${cameraStart[1]}, ${cameraStart[2]});
 const controls = new OrbitControls(cam, canvas);
 controls.target.set(${target[0]}, ${target[1]}, ${target[2]});
-controls.enableDamping = true; controls.minDistance = 3; controls.maxDistance = 120; controls.update();
+controls.enableDamping = true; controls.minDistance = ${minDistance}; controls.maxDistance = 120; controls.update();
 const uniforms = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:${fov} * Math.PI / 180}, ${extras} };
 const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: ${safeJson(VERT)}, fragmentShader: ${safeJson(frag)} });
 scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
@@ -304,7 +305,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
 ].join('\n');
 
-export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, mission = null, damageRing = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, sea = null, marine = null, soften = null, seaway = null, captureSize = null, tempo = null, keying = null, styleMeter = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null, veils = null, density = null, radarMap = null, anchors = null, barriers = null } = {}) {
+export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, mission = null, damageRing = null, briefing = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, sea = null, marine = null, soften = null, seaway = null, captureSize = null, tempo = null, keying = null, styleMeter = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null, veils = null, density = null, radarMap = null, anchors = null, barriers = null, kibble = null, lesson = null, speedfx = null } = {}) {
   // SCREEN KEYS (game/screen-keys.js): a level made for a screen never asks for a key a thumb cannot press: each key it
   // listens for that the virtual pad has no control for (its own inputs, the journal, the library, the party menu) gets a
   // button in its HUD, drawn only on a touch screen. A level with no screen, or no such key, is as it was
@@ -714,7 +715,11 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
       center: Array.isArray(sky.center) ? sky.center : mesh.center,
       radius: Number.isFinite(sky.radius) ? sky.radius : (mesh.radius || 20),
       // a painted cloud band round the dome (matte-paint/sky.js): only a sky that carries one
-      ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}) }
+      ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}),
+      // a space sky flown through (skyscape/airspace.js): at infinity, its stars and its star riding with the eye
+      ...(sky.space && sky.follow === true ? { follow: true } : {}),
+      // its backdrop (skyscape/backdrop.js: a nebula, planets, a far sun), baked at infinity: channels/space-backdrop.js
+      ...(sky.space && sky.backdrop && typeof sky.backdrop === 'object' ? { backdrop: sky.backdrop } : {}) }
     : null;
   const skyBlock = skyDome ? skyDomeScript(bloomOn ? { ...skyDome, hot: true } : skyDome) : '';
   // DISTANCE HAZE (opt-in `haze: { color, density }`): three's exponential fog over every basic-material
@@ -826,7 +831,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   const fightPage = !!(events && events.rpg && typeof events.rpg === 'object');
   const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture, ...(fightPage ? { fights: true } : {}) }) : '';
   // (a page without the form render: the view cone and its far structures when the world asks, channels/far-structures.js)
-  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture })}})();\n` : '';
+  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture, cumulus: !!(formSky.cumulus && formSky.cumulus.n) })}})();\n` : '';
   // (the form render's sky and plants are clocked: a capture's frame() pins their clock as an overlay's, so a still is
   // the same however long it took to draw; the page's own clock otherwise, its bytes as they were)
   const formClocked = !!(formLandBlock || skyBlock2);
@@ -960,6 +965,12 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // the damage ring on a page with its own HUD (gameworld/damage-ring.js): never on a capture run, nor beside a mission
   // (a mission draws the same ring in its own HUD)
   const damageRingBlock = damageRing && !mission && !capture ? damageRingChannelScript(damageRing) : '';
+  // a space mission's holo briefing over the level as it loads (campaign/briefing-page.js): never on a capture run
+  const briefingBlock = briefing && !capture ? briefingChannelScript(briefing) : '';
+  // a flying lesson's brief over the level as it loads (gameworld/lesson-brief.js): never on a capture run
+  const lessonBlock = lesson && !capture ? lessonChannelScript(lesson) : '';
+  // a flown craft's speed in the world round it (scene/channels/speed-fx.js): speed lines in the air, dust in space
+  const speedfxBlock = speedfx && !capture ? speedFxScript(speedfx) : '';
 
   // controllable channel (opt-in, LIVE): the unified control primitive. Present when the manifest
   // carries `entities` (or a `camera` spec). When it owns a camera entity it disables OrbitControls.
@@ -1199,6 +1210,8 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   chBlocks.actions = actionsBlock;
   chBlocks.events = eventsBlock;
   chBlocks.controllable = controllableBlock;
+  // a fleet's hull kibble (hull-kibble.js): its blocks' plating detail in parallax layers; absent ⇒ nothing
+  const kibbleOn = readKibble(kibble);
   // the setup/post blocks hand theirs into the SETUP_CHANNELS-ordered sections (S3):
   // the registry owns splice order per anchor; the template interpolates one section call
   // per anchor instead of a hand-wired run of block variables.
@@ -1253,7 +1266,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}), ...(occlusionCfg && lightTier && lightTier.ao === 0.5 ? { aoHalf: true } : {}) }) : '',
     // the live light's budget (channels/cast-shadows.js liveBudgetScript): a page world-scene gave a tier counts what it draws
     lightBudget: lightTier && (liveShadows || occlusionCfg) ? liveBudgetScript(lightTier) : '',
-    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, brawl: brawlBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock, mission: missionBlock, damageRing: damageRingBlock,
+    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, brawl: brawlBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock, mission: missionBlock, damageRing: damageRingBlock, briefing: briefingBlock, lesson: lessonBlock, speedfx: speedfxBlock,
   };
 
   return `<!doctype html>
@@ -1771,7 +1784,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${Array.isArray(flames) && flames.length ? flamesScript(flames, { hot: !!bloomOn }) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${phoneBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${seaBlock}${marineBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${phoneBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${seaBlock}${marineBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}${kibbleOn ? hullKibbleScript(kibbleOn) : ''}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

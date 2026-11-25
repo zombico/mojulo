@@ -40,6 +40,10 @@ import { GENRE_HERO } from './hero-rows.js';
 import { GEOCUBE_PRESETS, GEOCUBE_PALETTES, readGeocube, geocubeDomains, cubeStreetLook } from '../era/geocube.js';
 import { suggestGenres, readGenre, cubeOfWorld, GENRES } from './intent.js';
 import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWords } from './genre-forms.js';
+import { RAILS } from './rails.js';
+import { pilotSchoolStart } from './pilot-school.js';
+import { wolfSquadronStart } from './wolf-squadron.js';
+import { rebelStormStart } from './rebel-storm.js';
 import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
 import { gmnOfWords, resolveGmn, stampGameBrief, MOTIVATIONS } from './gmn.js';
@@ -335,6 +339,43 @@ export function technologyOfWords(prompt) {
   return { ...(technology ? { technology } : {}), tunnels };
 }
 
+// THE FLIGHT RAILS' STARTERS: the rails whose first reading is their own starter (each a game of levels laid whole, its
+// lessons, stages or missions), with the count a sentence's `levels` asks of it. A rail is named by its own words; the
+// words alone too common to name it (a cockpit is a car's too) name it only beside its genre
+const RAIL_STARTS = Object.freeze({
+  'pilot-school': (w, n) => pilotSchoolStart(w, n ? { lessons: n } : {}),
+  'wolf-squadron': (w, n) => wolfSquadronStart(w, n ? { stages: n } : {}),
+  'rebel-storm': (w, n) => rebelStormStart(w, n ? { missions: n } : {}),
+});
+const RAIL_WEAK = new Set(['cockpit', 'starfighter', 'barrel roll', 'realistic flight']);
+const FLIGHT_GENRES = new Set(['flight-sim', 'air-combat', 'space-shooter', 'space-sim']);
+/** The flight rail a sentence is laid as, or null: { id, matched } (the rail's own words it used; none where the
+ * genre read is one no other form lays). Only beside no genre or a flight genre. */
+export function starterRailOf(prompt, genreId = null) {
+  if (genreId && !FLIGHT_GENRES.has(genreId)) return null;
+  const t = ` ${String(prompt ?? '').toLowerCase().replace(/[^a-z0-9-]+/g, ' ')} `;
+  const named = Object.keys(RAIL_STARTS)
+    .map((id) => ({ id, matched: RAILS[id].words.filter((w) => t.includes(` ${w} `)) }))
+    .filter((r) => r.matched.length && (genreId || r.matched.some((w) => !RAIL_WEAK.has(w))))
+    .sort((a, b) => b.matched.length - a.matched.length || Math.max(...b.matched.map((w) => w.length)) - Math.max(...a.matched.map((w) => w.length)));
+  if (named.length) return named[0];
+  // (a genre that is a rail's own cube and no form of the book's: laid as that rail)
+  const own = genreId && !GENRE_FORMS[genreId] ? Object.keys(RAIL_STARTS).find((id) => RAILS[id].handles.genres[0] === genreId) : null;
+  return own ? { id: own, matched: [] } : null;
+}
+/** The composed world laid as a flight rail's starter: its name, its brief and its seed the sentence's, the rest the
+ * rail's (its levels, its intent, its look), its pitch written. */
+function railStarterWorld(world, { id, matched }, levels) {
+  const R = RAILS[id], says = `rail.from=${id}`;
+  for (const w of matched) { const r = world.brief.read.find((x) => x.word === w); if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] }); }
+  const said = new Set(matched.flatMap((w) => w.split(/[^a-z0-9-]+/)));
+  const brief = { ...world.brief, unread: world.brief.unread.filter((w) => !said.has(w)), rail: { from: id, name: R.name, by: matched.length ? matched : 'its genre' }, start: `${R.name}'s starter: ${R.level1}` };
+  const { world: W } = RAIL_STARTS[id]({ id: world.id, name: world.name, seed: world.seed, brief }, levels);
+  const out = { ...W, ...(W.intent === undefined ? { intent: { from: R.handles.genres[0] } } : {}), rail: { from: id, size: 'designed' } };
+  readGameworld(out);
+  return out;
+}
+
 export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('gameworld: compose needs a prompt: a few words about the world');
   const P = readPrompt(prompt), rand = mulberry32((seed * 2654435761) >>> 0 || 1);
@@ -448,6 +489,11 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     const says = `intent.from=${genre.id}`, r = world.brief.read.find((x) => x.word === w);
     if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
   }
+  // A FLIGHT RAIL'S OWN GAME (rails.js): a sentence that names Pilot School, Wolf Squadron or Rebel Storm in their own
+  // words (flight school, a star fox style rail shooter, x-wing), or names the genre only that rail lays (a space combat
+  // sim), is laid as the rail's starter, its pitch written unlocked (the producer says it back and locks it)
+  const railStart = starterRailOf(prompt, genre?.id ?? null);
+  if (railStart) return railStarterWorld(world, railStart, levels);
   // (and the words that make a beat-em-up a superhero one decide its streets' tuning)
   for (const w of heroWords) {
     const says = 'levels.street.tuning=heroes', r = world.brief.read.find((x) => x.word === w);

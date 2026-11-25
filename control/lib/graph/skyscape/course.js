@@ -193,7 +193,13 @@ export function flightLaps(course, map, field, seat) {
   // the start: on the runway, or aloft for a craft with no engine and in space (nothing to stand on)
   const respawn = [{ spot: seat.transform.pos.map(r2), heading: r2(seat.transform.heading), aloft: seat.rule.engine === false || map.form === 'void' ? 1 : 0 }];
   for (let j = 0; j + 1 < cps.length; j++) respawn.push({ spot: G[j % G.length].at, heading: toward(cps[j].at, cps[j + 1].at), aloft: 1 });
-  return { kind: 'laps', checkpoints: cps, laps: course.laps ?? 1, ...(field.pads.length ? { land: { pads: field.pads.map((p) => ({ at: [p.center[0], p.center[1], r2(p.datum + TOUCHDOWN_H / 2)], half: padHalf(p) })) } } : {}), respawn };
+  return { kind: 'laps', checkpoints: cps, laps: course.laps ?? 1, ...(field.pads.length ? { land: { pads: padBoxes(field) } } : {}), respawn };
+}
+
+/** The boxes a craft may set down in: each runway's or pad's rectangle, TOUCHDOWN_H high over its datum (the laps
+ * mechanic's landing, the crash mechanic's and a land task's: gameworld/flight-goal.js). */
+export function padBoxes(field) {
+  return (field.pads ?? []).map((p) => ({ at: [p.center[0], p.center[1], r2(p.datum + TOUCHDOWN_H / 2)], half: padHalf(p) }));
 }
 
 /**

@@ -97,6 +97,10 @@ const pipe = (p0, p1, r, role, n = 8) => {
 // turn faces about the z axis through `p` by `a` radians (a head's glance)
 const turnZ = (faces, p, a) => { const c = Math.cos(a), s = Math.sin(a); return faces.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [p[0] + (x - p[0]) * c - (y - p[1]) * s, p[1] + (x - p[0]) * s + (y - p[1]) * c, z]) })); };
 
+/** The primitives the language is built of, shared with another language that builds from a few big shapes (the ground
+ *  force's units, groundforce/): each → faces { corners, role }. */
+export const WORKBOT_PRIMITIVES = Object.freeze({ box, prism, dome, ball, wheel, track, cap, pipe });
+
 // ── the language's parts, as a card names them ───────────────────────────────────────────────────────────────────
 const PART = {
   box: (P) => box(P.at, P.size, P.role, { ch: P.ch ?? 0 }),

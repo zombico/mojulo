@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { spaceBackdropScript, onPlanetSource } from './space-backdrop.js';
 
 // In-page script: a world-fixed sky, in two shapes. ATMOSPHERE (default): a huge inverted
 // sphere (BackSide) centred on the scene carries a z-up zenith→horizon gradient in its vertex
@@ -21,7 +22,10 @@ export function skyDomeScript(d) {
 const SKY = ${safeJson(d)};
 {
   const srgbLin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-  const R = Math.min(SKY.radius * 12, 3500);
+  const R = Math.min(SKY.radius * 12, 3500);${d.follow ? `
+  // (a sky at infinity, \`follow\`: a flight through space crosses more than the sky's radius, so the stars and the star
+  // ride with the eye, each drawn where it is from wherever the camera stands, and none is ever flown past)
+  const __skyFollow = (o, at) => { o.frustumCulled = false; o.onBeforeRender = (r, sc, cam) => { const e = cam.matrixWorld.elements; o.position.set(at[0] + e[12] - SKY.center[0], at[1] + e[13] - SKY.center[1], at[2] + e[14] - SKY.center[2]); o.updateMatrixWorld(); }; };` : ''}
   // ATMOSPHERE sky only: a gradient dome from horizon→zenith. SPACE sky skips it — the void is
   // the scene bg and stars wrap the full sphere, so there is no dome seam to orbit past.
   if (!SKY.space) {
@@ -58,6 +62,7 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     band.renderOrder = -1.5; band.frustumCulled = false; band.raycast = () => {};
     scene.add(band);
   }
+` : ''}${d.backdrop && d.backdrop.planets && d.backdrop.planets.length ? `  const __onPlanet = ${onPlanetSource};
 ` : ''}  if (SKY.stars > 0 && (SKY.space || SKY.day < 0.5)) {
     const nightF = SKY.space ? 1 : Math.min(1, (0.5 - SKY.day) / 0.5);  // space stars are always on
     const N = Math.round((SKY.space ? 2000 : 900) * SKY.stars * nightF);
@@ -66,16 +71,19 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     for (let i = 0; i < N; i++) {
       // SPACE: uniform over the full sphere (el ∈ [-π/2, π/2] via asin). ATMOSPHERE: upper dome, zenith-biased.
       const az = rnd() * Math.PI * 2, el = SKY.space ? Math.asin(2 * rnd() - 1) : Math.pow(rnd(), 0.6) * (Math.PI / 2);
-      const rr = R * 0.985, cr = Math.cos(el);
+      const rr = R * 0.985, cr = Math.cos(el);${d.backdrop && d.backdrop.planets && d.backdrop.planets.length ? `
+      const __hid = __onPlanet([cr * Math.cos(az), cr * Math.sin(az), Math.sin(el)]);   // (behind a planet: dark)` : ''}
       sp[i*3] = SKY.center[0] + rr*cr*Math.cos(az); sp[i*3+1] = SKY.center[1] + rr*cr*Math.sin(az); sp[i*3+2] = SKY.center[2] + rr*Math.sin(el);
-      const b = 0.6 + 0.4 * rnd(); sc[i*3] = b; sc[i*3+1] = b; sc[i*3+2] = b * (0.9 + 0.1 * rnd());
+      const b = 0.6 + 0.4 * rnd(); sc[i*3] = b; sc[i*3+1] = b; sc[i*3+2] = b * (0.9 + 0.1 * rnd());${d.backdrop && d.backdrop.planets && d.backdrop.planets.length ? `
+      if (__hid) sc[i*3] = sc[i*3+1] = sc[i*3+2] = 0;` : ''}
     }
     const sg = new THREE.BufferGeometry();
     sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
     sg.setAttribute('color', new THREE.BufferAttribute(sc, 3));
     const stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.8, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     stars.renderOrder = -1;
-    scene.add(stars);
+    scene.add(stars);${d.follow ? `
+    __skyFollow(stars, [0, 0, 0]);` : ''}
   }
   if (SKY.moon) {
     const M = SKY.moon;
@@ -95,7 +103,19 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     x.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false);                       // lit right limb (semicircle)
     // terminator: bulge LEFT (gibbous, tw>0) or RIGHT (crescent, tw<0) of the lit half
     x.ellipse(cx, cy, Math.abs(tw), r, 0, Math.PI / 2, -Math.PI / 2, tw < 0);
-    x.fill();
+    x.fill();${d.moon && Array.isArray(d.moon.spots) && d.moon.spots.length ? `
+    // (a world's face: its land and its clouds blotted over the lit part, era/heavens.js companion spots)
+    {
+      x.save(); x.clip();
+      let q = (SKY.seed >>> 0) + 7 || 7; const rn = () => ((q = (Math.imul(q, 1664525) + 1013904223) >>> 0) / 4294967296);
+      const SP = ${safeJson(d.moon.spots)};
+      for (let k = 0; k < 34; k++) {
+        const c = SP[k % SP.length], a = rn() * Math.PI * 2, d0 = Math.sqrt(rn()) * r, br = 1.5 + rn() * 5;
+        x.fillStyle = 'rgba(' + c.join(',') + ',' + (0.55 + 0.4 * rn()).toFixed(2) + ')';
+        x.beginPath(); x.ellipse(cx + Math.cos(a) * d0, cy + Math.sin(a) * d0, br * (1 + rn()), br, rn() * Math.PI, 0, Math.PI * 2); x.fill();
+      }
+      x.restore();
+    }` : ''}
     const msp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false }));
     const sz = R * 0.05 * (M.size || 1);
     msp.position.set(SKY.center[0] + dir[0] * rr, SKY.center[1] + dir[1] * rr, SKY.center[2] + dir[2] * rr);
@@ -135,8 +155,10 @@ ${d.clouds ? `  // the painted cloud band (matte-paint/sky.js): a ring inside th
     const sz = R * 0.06 * (S.size || 1);
     ssp.position.set(SKY.center[0] + dir[0] * rr, SKY.center[1] + dir[1] * rr, SKY.center[2] + dir[2] * rr);
     ssp.scale.set(sz, sz, 1); ssp.renderOrder = -1;
-    scene.add(ssp);${d.hot ? `
+    scene.add(ssp);${d.follow ? `
+    __skyFollow(ssp, ssp.position.toArray());` : ''}${d.hot ? `
     ssp.material.color.setScalar(${SUN_HOT});   // (under the bloom the sun's disc is drawn past white: a world's finish)` : ''}
   }
-}`;
+}${d.space && d.backdrop ? spaceBackdropScript(d.backdrop) : ''}`;
 }
+

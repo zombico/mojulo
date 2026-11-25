@@ -7,7 +7,8 @@
  * chips. A mesh that has moved, or one of several materials, takes three's own raycast.
  *
  *   gridIndex(pos, idx, cell)            → { x0, y0, cell, nx, ny, cells }   each cell the triangles whose xy box meets it
- *   gridFit(pos, idx, most?)             → a grid whose fullest cell holds `most` triangles or fewer (cells halved)
+ *   gridFit(pos, idx, most?)             → a grid whose fullest cell holds `most` triangles or fewer (cells halved),
+ *                                          within 16 cells and 32 listings a triangle (cells doubled)
  *   gridRayDown(G, pos, idx, x, y, z)    → [{ t, z }]                         every triangle under (x, y) at or below z:
  *                                                                              its height there; vertical faces have none
  *   gridRayCast(G, pos, idx, o, d, near, far, side) → [{ t, x, y, z, f }]  every triangle the ray meets in [near, far],
@@ -33,12 +34,41 @@ export function gridIndex(pos, idx, cell) {
   return { x0, y0, cell, nx, ny, cells };
 }
 
-/** A grid that fits its mesh: from 2 m cells, halved while its fullest cell holds more than `most` triangles (a scatter of
- * stones, a mesh's crowded corner), to a quarter metre at the finest. */
+/** A grid that fits its mesh: cells of 2 m, coarsened (doubled) while the grid would hold more than sixteen cells a
+ * triangle or list its triangles more than thirty-two times a triangle in all (a flight's land 16 km across in a few
+ * thousand triangles, a race's backdrop 12 km: tens of millions of 2 m cells, each big triangle listed in thousands of
+ * them), then halved while its fullest cell holds more than `most` triangles (a scatter of stones, a mesh's crowded
+ * corner), to a quarter metre at the finest and never past those two limits. The grid only chooses which triangles a ray
+ * tests, so its size changes the cost, never a hit. */
 export function gridFit(pos, idx, most = 192) {
-  let G = gridIndex(pos, idx, 2);
+  const n = idx ? idx.length / 3 : pos.length / 9, at = (t, k) => (idx ? idx[t * 3 + k] : t * 3 + k);
+  const CELLS = Math.max(1 << 14, n * 16), LISTED = Math.max(1 << 16, n * 32);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let i = 0; i < pos.length; i += 3) { x0 = Math.min(x0, pos[i]); x1 = Math.max(x1, pos[i]); y0 = Math.min(y0, pos[i + 1]); y1 = Math.max(y1, pos[i + 1]); }
+  if (!(x1 >= x0 && y1 >= y0)) return gridIndex(pos, idx, 2);
+  // (each triangle's xy box, once)
+  const box = new Float64Array(n * 4);
+  for (let t = 0; t < n; t++) {
+    let ax = Infinity, ay = Infinity, bx = -Infinity, by = -Infinity;
+    for (let k = 0; k < 3; k++) { const v = at(t, k) * 3; ax = Math.min(ax, pos[v]); bx = Math.max(bx, pos[v]); ay = Math.min(ay, pos[v + 1]); by = Math.max(by, pos[v + 1]); }
+    box[t * 4] = ax; box[t * 4 + 1] = ay; box[t * 4 + 2] = bx; box[t * 4 + 3] = by;
+  }
+  // (a cell size the limits allow: its cells, and its listings summed over the boxes, counted before anything is built)
+  const fits = (c) => {
+    if (Math.max(1, Math.ceil((x1 - x0) / c) + 1) * Math.max(1, Math.ceil((y1 - y0) / c) + 1) > CELLS) return false;
+    let listed = 0;
+    for (let t = 0; t < n; t++) {
+      listed += (Math.floor((box[t * 4 + 2] - x0) / c) - Math.floor((box[t * 4] - x0) / c) + 1) * (Math.floor((box[t * 4 + 3] - y0) / c) - Math.floor((box[t * 4 + 1] - y0) / c) + 1);
+      if (listed > LISTED) return false;
+    }
+    return true;
+  };
+  // (coarse enough always comes: at a cell the mesh's size, two by two cells and each triangle in four of them at most)
+  let cell = 2;
+  while (!fits(cell)) cell *= 2;
+  let G = gridIndex(pos, idx, cell);
   const fullest = (g) => g.cells.reduce((m, c) => Math.max(m, c ? c.length : 0), 0);
-  while (G.cell > 0.25 && fullest(G) > most) G = gridIndex(pos, idx, G.cell / 2);
+  while (G.cell > 0.25 && fullest(G) > most && fits(G.cell / 2)) G = gridIndex(pos, idx, G.cell / 2);
   return G;
 }
 
@@ -133,8 +163,20 @@ function __gridSlowNoted(rc, out) {
   return __gridSlow.call(this, rc, out);
 }
 THREE.Mesh.prototype.raycast = __gridSlowNoted;
+// (first, as three's own raycast does: a ray that misses the mesh's bounding sphere, or meets it past its far, tests
+// nothing, and its grid is never built: a flight's land is hundreds of chunks, and each ray was gridding every one)
+const __gridS = new THREE.Sphere(), __gridR = new THREE.Ray(), __gridH = new THREE.Vector3();
 function __gridRaycast(rc, out) {
-  const mat = this.material, g = this.geometry, pos = g.attributes.position.array, idx = g.index ? g.index.array : null;
+  const mat = this.material, g = this.geometry;
+  if (mat === undefined) return;
+  if (!g.boundingSphere) g.computeBoundingSphere();
+  __gridS.copy(g.boundingSphere).applyMatrix4(this.matrixWorld);
+  __gridR.copy(rc.ray).recast(rc.near);
+  if (!__gridS.containsPoint(__gridR.origin)) {
+    if (__gridR.intersectSphere(__gridS, __gridH) === null) return;
+    if (__gridR.origin.distanceToSquared(__gridH) > (rc.far - rc.near) ** 2) return;
+  }
+  const pos = g.attributes.position.array, idx = g.index ? g.index.array : null;
   const G = g.userData.__grid || (g.userData.__grid = __gridFit(pos, idx));
   // (the ray in the mesh's own frame, where its grid is: a mesh placed by a transform, or moved since, takes its grid all
   // the same. The direction is carried, not made unit, so a distance along the ray is the world's)

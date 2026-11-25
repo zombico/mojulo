@@ -1,0 +1,23 @@
+{
+  "id": "logbook",
+  "name": "Logbook",
+  "about": "A flying school's training logbook laid on a sectional chart: cream paper ruled in navy, a safety-orange tab for what matters, the chart's water blue, sober type that clicks over like a page. A look for learning to fly a light aircraft; nothing drawn across the view out of the canopy.",
+  "family": "clean",
+  "tags": ["flight-sim", "flying school", "pilot school", "logbook", "chart", "aviation"],
+  "author": "mojulo",
+  "from": "modern",
+  "tokens": { "ink": "#1c2a45", "panel": "#f4efe1", "line": "#8b9ab4", "accent": "#e2572a", "accent2": "#2c7a9c", "harm": "#c23a2b", "hp": "#3f8a4e" },
+  "frame": "rule",
+  "corner": "soft",
+  "plate": "solid",
+  "material": "paper",
+  "focus": "bar",
+  "motion": "ease",
+  "transition": "fade",
+  "backdrop": "dim",
+  "ornaments": ["ticks"],
+  "overlay": "none",
+  "stage": "none",
+  "sounds": "paper",
+  "title": "rise"
+}

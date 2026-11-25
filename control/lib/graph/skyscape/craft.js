@@ -20,6 +20,7 @@
 import { craftOf, G } from './eye.js';
 import { approachTo, GLIDE } from './course.js';
 import { spaceSeat } from './space.js';
+import { CRAFT_ARCHETYPES } from '../craft-shelf/craft-archetypes.js';
 
 const DEG = Math.PI / 180;
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -73,21 +74,47 @@ export function seatCraft(map, field, course = null, { assist = null } = {}) {
     const g0 = course?.gates?.[0]?.at;
     z = Math.max(gz + 4 * c.lowPass, g0 ? g0[2] + 1.2 * Math.hypot(g0[0] - sx, g0[1] - sy) / c.glide : -Infinity);
   }
+  // (a giant flown over its cloud tops, sol/skies.js: nothing to take off from, so every craft starts aloft over its deck)
+  const deck = field.sky?.world ? Math.max(...field.sky.layers.filter((L) => L.type === 'deck').map((L) => L.base + (L.depth ?? 0))) : null;
+  if (deck !== null) z = Math.max(z, gz + deck + 600);
   // the course as the page's guidance reads it: each gate [x, y, z, radius, heading], and the landing's approach (the aim
   // point, the landing heading and the slope) for the glide-slope lights
   const fin = course?.finish ? field.pads.find((q) => q.id === course.finish.pad) ?? pad : null, app = fin ? approachTo(map, fin) : null;
   const guide = course ? { gates: course.gates.map((g) => [...g.at, g.radius, g.heading]), ...(app ? { land: { aim: app.aim.map(r2), heading: r2(app.heading), glide: GLIDE } } : {}) } : null;
-  const rule = { ...base, ...(aloft ? { launchSpeed: c.cruise } : {}), ...(field.roofs && field.roofs.length ? { roofs: field.roofs } : {}), ...(guide ? { course: guide } : {}) };
+  const rule = { ...base, ...(aloft || deck !== null ? { launchSpeed: c.cruise } : {}), ...(field.roofs && field.roofs.length ? { roofs: field.roofs } : {}), ...(guide ? { course: guide } : {}) };
   return { rule, transform: { pos: [sx, sy, Math.round(z * 100) / 100], heading, pitch: 0 }, ground: gz, end: [end[0], end[1], pad ? pad.datum : field.groundAt(end[0], end[1])] };
 }
 
-/** The craft as a level's pilot: its entity (seated, on its rule; a slab for a body until the aircraft roster) and the
- *  chase camera that banks with it. `seat` is seatCraft's. → { entities, camera } */
-export function craftPilot(map, seat) {
-  const c = map.craft;
+/** The airframe off the craft shelf (craft-shelf/craft-archetypes.js) a craft class flies as when a level names none:
+ *  the class's own machine, or null where the shelf has none (a glider stays the slab). */
+export const AIRFRAME = Object.freeze({
+  trainer: 'lightSingle', fighter: 'strikeFoil', jet: 'jetFighter', warbird: 'warbird', navalWarbird: 'navalCorsair',
+  multirole: 'jetFighter', deltaInterceptor: 'deltaInterceptor', carrierFighter: 'carrierFighter', attack: 'attackJet',
+  transport: 'tacticalTransport', male: 'maleRecon', loiter: 'loiterMunition', stealth: 'stealthStrike',
+});
+/** The shelf's airframe a level's craft is drawn as: the level's own (`airframe`: an archetype, or false for the slab),
+ *  else its class's. Throws, teaching, on an archetype the shelf lacks. */
+export function airframeOf(craft, airframe) {
+  if (airframe === false) return null;
+  if (airframe !== undefined) {
+    if (typeof airframe !== 'string' || !CRAFT_ARCHETYPES[airframe]) throw new Error(`airspace.airframe '${airframe}' is not a craft of the shelf (${Object.keys(CRAFT_ARCHETYPES).join(', ')}), or false for the plain slab`);
+    return airframe;
+  }
+  return AIRFRAME[craft.key] ?? null;
+}
+
+/** The craft as a level's pilot: its entity (seated, on its rule) drawn as its airframe off the craft shelf (a figure the
+ *  world resolves: flying attitude, its gear down when it starts on the ground and up when it starts aloft; the page
+ *  banks and pitches it as the rule tilts it), or a slab where the shelf has none; and the chase camera that banks with
+ *  it. `seat` is seatCraft's. → { entities, camera, figures? } */
+export function craftPilot(map, seat, { airframe } = {}) {
+  const c = map.craft, frame = airframeOf(c, airframe);
+  const aloft = seat.rule.launchSpeed !== undefined || seat.rule.engine === false || map.form === 'void';
+  const body = frame ? { type: 'figure-rig', figure: 'craft' } : { type: 'mesh', shape: 'box', size: [r2(c.max / 10), r2(c.max / 7), 0.8], color: '#e9eef4' };
   return {
     // `player`, as every level's pilotable is: the level's zones (its gates, its pads) watch that id
-    entities: [{ id: 'player', pilotable: true, rule: seat.rule, ambient: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [r2(c.max / 10), r2(c.max / 7), 0.8], color: '#e9eef4' }, transform: seat.transform }],
+    entities: [{ id: 'player', pilotable: true, rule: seat.rule, ambient: { type: 'static' }, body, transform: seat.transform }],
     camera: { rule: 'follow', target: 'player', dist: r2(c.max / 4), height: r2(c.max / 16), lead: 8, lookH: 1.5, rollFollow: 1 },
+    ...(frame ? { figures: { craft: { craft: { archetype: frame, flying: true, gear: aloft ? 'up' : 'down' } } } } : {}),
   };
 }
