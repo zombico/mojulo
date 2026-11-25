@@ -1046,6 +1046,9 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0],
       camera: { rule: 'follow', target: 'player', ...FRAME_CAMERA },
       events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
+      // (the page's smoke, world-scene.js `smoke`: billows down a bazooka's, a mortar's and a missile's trail, a rolling
+      // cloud where each bursts, the dust a boost raises off the land)
+      smoke: { burstCount: 16, dust: { tint: 0xb07a52 } },
     };
   } else if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class

@@ -84,6 +84,18 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     carries it in place of its laser, and an enemy Raptor closes on its assault boost to cut.
   - The lunge and the blow are the same for both: met, the damage and the impact on the foe's bar, a break or a kill
     armed as a round's is, a spark where it struck.
+- **The fight's look: the flight games' effects, in the military register** (`scene/channels/controllable/index.js`,
+  `gameworld/feel/round-look.js` `BLAST_LOOK_MILITARY`). A frame level drew its rounds as plain cones and its bursts as
+  flat shells; it now draws them as the flight games do.
+  - Every frame's and MT's gun fires its rounds in the shot's look in the gun's colour (the carbine amber, the laser
+    cyan, the plasma pale blue), sized by the gun; the enemy units' rounds a hot red-orange.
+  - A round's hit is a spark in its gun's light; a splash's or a kill's burst an explosion as wide as its reach. Both
+    are kept at least a share of the view, so a blast two hundred metres off still reads.
+  - In the military register: no far hue, but the fire's own gone gold, a ring fewer, more sparks, an explosion that
+    lingers (0.85 s).
+  - A muzzle flash at each gun's muzzle as it fires, sized by the gun (a cannon's the biggest).
+  - The page's smoke is on: billows down a bazooka's, a mortar's and a missile's trail, a rolling cloud where each
+    bursts, and the dust a boost raises off the land.
 - **The Hellas Road: an enemy ladder up to the ace.** One path, each rung teaching what the next leans on.
   - The Gnat drone (`groundforce/` `gnat`, a card that `flies`): a flat armoured pod between two ducted fans burning
     amber, a red eye and a chin gun, some 5 m across. It flies on the AI rule in the air, quick and close, weaving round

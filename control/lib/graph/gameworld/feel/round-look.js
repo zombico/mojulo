@@ -33,6 +33,8 @@
  * runs on the page as its own source.
  *
  *   BLAST_LOOK, blastLook(color, kind, B = BLAST_LOOK) → { ramp, accent, halo, rings, sparks, life, core }
+ *   BLAST_LOOK_MILITARY       the realistic register's (an assault frame's field): the accent the fire's own gone gold,
+ *                             a ring fewer, more sparks, an explosion that lingers
  *
  * Pure: the same round, the same look.
  */
@@ -47,6 +49,14 @@ export const BLAST_LOOK = Object.freeze({
   impact: Object.freeze({ life: 0.24, core: 0.6, halo: 3.5, rings: 1, sparks: 6 }),
   blast: Object.freeze({ life: 0.5, core: 0.55, halo: 4.5, rings: 2, sparks: 14 }),
   chroma: ROUND_LOOK.chroma, deep: ROUND_LOOK.deep, accent: ROUND_LOOK.accent,
+});
+
+// (the military register, an assault frame's field: no far hue but the fire's own gone gold, a ring fewer and more sparks,
+// an explosion that lingers; the realistic war's blast, not the cel look's)
+export const BLAST_LOOK_MILITARY = Object.freeze({
+  impact: Object.freeze({ life: 0.3, core: 0.7, halo: 3.2, rings: 0, sparks: 9 }),
+  blast: Object.freeze({ life: 0.85, core: 0.6, halo: 5.2, rings: 1, sparks: 24 }),
+  chroma: ROUND_LOOK.chroma, deep: 0.34, accent: 28,
 });
 
 const hsv = (n) => {

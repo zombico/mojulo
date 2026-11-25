@@ -36,7 +36,7 @@ import { shotLightScript } from './shot-light-view.js';
 import { shutterScript } from './shutter-view.js';
 import { steamScript } from './steam-view.js';
 import { rockScript } from './rock-view.js';
-import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
+import { roundLooks, roundLook, blastLook, BLAST_LOOK, BLAST_LOOK_MILITARY, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
 import { spaceBlastScript } from './space-blast.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
@@ -914,6 +914,14 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // the shot's look in the foe's colour, one look a colour; none, nothing)
   // (a round's least size on screen, `weapon.fxMin` rad: a starfighter's bolt, drawn so it reads at a kilometre)
   const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, { ...roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0), ...(e.weapon.fxMin > 0 ? { min: e.weapon.fxMin } : {}) }]));
+  // (an assault frame's rounds, rules-frame.js: each of its guns' rounds in the shot's look in its gun's colour, sized by
+  // the gun's kind, the pilot's and the foes' alike, assault-frame/pilot.js frameSlots `color`; none, nothing)
+  const FRAME_ROUND = { rifle: 0.32, shotgun: 0.2, gatling: 0.26, bazooka: 0.75, laser: 0.45, missiles: 0.5, grenade: 0.9, plasma: 1.0 };
+  for (const e of entities) {
+    if (!(e && e.rule && e.rule.type === 'frame' && e.rule.slots)) continue;
+    // (its accent the military register's, the fire's own gone gold, never the cel look's far hue)
+    for (const W of Object.values(e.rule.slots)) if (W && Number.isInteger(W.color) && W.fire !== 'melee' && !foeLooks[W.color]) foeLooks[W.color] = { ...roundLook({ color: W.color, size: FRAME_ROUND[W.kind] ?? 0.3 }, 0), accent: blastLook(W.color, 'impact', BLAST_LOOK_MILITARY).accent, min: 0.004 };
+  }
   const foeRoundsOn = Object.keys(foeLooks).length > 0;
   // (a starfighter's page whose rounds carry the shot's look: its bolts, its blasts and its shields' shimmer drawn so)
   const sfFx = sfPilot && foeRoundsOn;
@@ -4937,7 +4945,7 @@ const __rlA = new THREE.Vector3(), __rlB = new THREE.Vector3(), __rlDir = new TH
 // rings in the accent, their near arc bright; sparks flung out across the camera's plane, the accent's and white; each
 // layer on its own clock over the blast's life. Any colour has its blast (a foe's round's), from its born time (a hitscan
 // impact waits for its bolt)
-const __BLAST = ${safeJson(BLAST_LOOK)};
+const __BLAST = ${safeJson(frameOn && !busterOn && !sfFx ? BLAST_LOOK_MILITARY : BLAST_LOOK)};
 const __blastLook = ${blastLook.toString()};
 const __blasts = [];
 function __blast(at, color, size, kind, bornAt) {
@@ -5033,7 +5041,23 @@ function __chargeFx(e) {
     sp.scale.set(sz, sz, 1); sp.material.opacity = fr * (0.35 + 0.65 * beat) * (0.55 + 0.45 * Math.max(0, Math.cos(a)));
   });
 }
-function __blastAge() {
+${frameOn && !sfFx && !busterOn && foeRoundsOn ? `// AN ASSAULT FRAME'S MUZZLE FLASH (rules-frame.js lastShot): where a shot left, at its gun's muzzle in the frame's heading
+// (frame space: +y forward, +x right), a quick impact-sized blast in the gun's colour, bigger for a cannon's
+const __FRAME_FLASH = { rifle: 0.9, shotgun: 1.3, gatling: 0.8, bazooka: 2.2, laser: 1.1, missiles: 1.4, grenade: 2.6, plasma: 2.4 };
+const __frameShotSeen = new Map();
+function __frameMuzzles() {
+  for (const e of __world.entities) {
+    const r = e.rule, S = e.lastShot;
+    if (!r || r.type !== 'frame' || !S || e.gone || e.downed) continue;
+    if (__frameShotSeen.get(e.id) === S.t) continue;
+    __frameShotSeen.set(e.id, S.t);
+    const W = r.slots && r.slots[S.slot], m = r.mounts && r.mounts[S.slot];
+    if (!W || !m || W.fire === 'melee') continue;
+    const h = e.transform.heading, c = Math.cos(h), sn = Math.sin(h), p = e.transform.pos;
+    __blast([p[0] + c * m[1] + sn * m[0], p[1] + sn * m[1] - c * m[0], p[2] + m[2]], W.color, __FRAME_FLASH[W.kind] || 1, 'impact');
+  }
+}
+` : ''}function __blastAge() {
   for (let i = __blasts.length - 1; i >= 0; i--) {
     const B = __blasts[i], u = (__world.time - B.born) / B.L.life, z = B.size;
     if (u >= 1) { scene.remove(B.g); B.g.traverse((o) => { if (o.geometry && !o.isSprite) o.geometry.dispose(); if (o.material) o.material.dispose(); }); __blasts.splice(i, 1); continue; }
@@ -5297,7 +5321,10 @@ ${spaceBlastScript()}` : ''}function __updateProjectiles() {${sfFx && !busterOn 
     const sh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), __fxMat(0x7fc8ff)); sh.raycast = function () {};
     sh.position.set(e.transform.pos[0] + f[0] * k * rr * 0.35, e.transform.pos[1] + f[1] * k * rr * 0.35, e.transform.pos[2] + f[2] * k * rr * 0.35); scene.add(sh);
     __fx.push({ obj: sh, born: __world.time, ttl: 0.2, kind: 'burst', base: rr * 0.8, dim: 0.22 });
-  }` : ''}${dustOn ? `
+  }` : ''}${frameOn && !sfFx && !busterOn && foeRoundsOn ? `
+  // (an assault frame's field: its rounds' muzzle rings and its blasts aged on the world's clock, and each shot's muzzle
+  // flash, the gun's own light at its muzzle, sized by the gun)
+  __rlAge(); __blastAge(); __frameMuzzles();` : ''}${dustOn ? `
   __dashDust();` : ''}${saberOn ? `
   for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) { __slashFx(e); __strandFx(e); }` : ''}${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
@@ -5393,6 +5420,11 @@ ${sfFx && !busterOn ? `    // (a starfighter's page: a craft blown apart as the 
     { const R = b.fxRadius || b.radius || 0.3, dc = camera.position.distanceTo(__rlA.set(b.pos[0], b.pos[1], b.pos[2]));
       if (b.craft || b.debris) __spaceBlast(b.pos, Math.max(R, dc * 0.04), b.seq);   // (a ship, a gun, a system blown up: fireball, smoke and debris, space-blast.js)
       else __blast(b.pos, col, Math.max(0.3, R * 0.5, dc * 0.003), 'impact'); }
+` : frameOn && !busterOn && foeRoundsOn ? `    // (an assault frame's field: a round's hit a spark in its gun's light, a splash's or a kill's burst an explosion as wide
+    // as its reach, its smoke the page's; a frame's quick fight read at a glance, never a flat shell)
+    // (and never smaller on screen than a share of the view: a blast two hundred metres off still reads)
+    { const R = b.fxRadius || b.radius || 0.5, big = R >= 3 || b.debris, dc = camera.position.distanceTo(__rlA.set(b.pos[0], b.pos[1], b.pos[2]));
+      __blast(b.pos, col, big ? Math.max(2.4, R * 0.9, dc * 0.045) : Math.max(0.9, R * 1.4, dc * 0.009), big ? 'blast' : 'impact'); }
 ` : busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
     // (a buster's round's burst its size's, the full charge's an explosion; any other's by its blast)
     { const R = b.fxRadius || b.radius || 0.3, P = __rlGone.find((q) => Math.abs(q.t - __world.time) < 0.1 && Math.hypot(q.at[0] - b.pos[0], q.at[1] - b.pos[1], q.at[2] - b.pos[2]) < 1.5);
