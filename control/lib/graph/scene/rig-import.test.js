@@ -19,7 +19,7 @@ const PARENT = { Spine: 'Hips', Spine1: 'Spine', Spine2: 'Spine1', Neck: 'Spine2
   RightUpLeg: 'Hips', RightLeg: 'RightUpLeg', RightFoot: 'RightLeg', RightToeBase: 'RightFoot' };
 const TOP = 180;   // the head's crown (cm)
 
-function skinnedGlb({ names = Object.keys(T), prefix = 'mixamorig:', rootRotation = null, skin = true, colour = [0.5, 0.2, 0.1, 1] } = {}) {
+function skinnedGlb({ names = Object.keys(T), prefix = 'mixamorig:', rename = null, rootRotation = null, skin = true, colour = [0.5, 0.2, 0.1, 1] } = {}) {
   const joints = names.filter((n) => T[n]);
   const pos = [], jnt = [], wgt = [], idx = [];
   joints.forEach((n, j) => {
@@ -32,7 +32,7 @@ function skinnedGlb({ names = Object.keys(T), prefix = 'mixamorig:', rootRotatio
   const nodes = [{ name: 'Armature', children: [1], scale: [0.01, 0.01, 0.01], ...(rootRotation ? { rotation: rootRotation } : {}) }];
   const at = {};
   joints.forEach((n, j) => { at[n] = 1 + j; });
-  joints.forEach((n) => { const p = PARENT[n], local = p ? T[n].map((v, k) => v - T[p][k]) : T[n]; nodes.push({ name: prefix + n, translation: local, children: joints.filter((c) => PARENT[c] === n).map((c) => at[c]) }); });
+  joints.forEach((n) => { const p = PARENT[n], local = p ? T[n].map((v, k) => v - T[p][k]) : T[n]; nodes.push({ name: rename ? rename(n) : prefix + n, translation: local, children: joints.filter((c) => PARENT[c] === n).map((c) => at[c]) }); });
   nodes[0].children = [at.Hips];
   nodes.push({ name: 'Body', mesh: 0, ...(skin ? { skin: 0 } : {}) });
   // the inverse bind matrices: each joint's place in the mesh's own space (centimetres) undone, so a vertex is carried
@@ -82,6 +82,44 @@ describe('a model\'s bones, by name', () => {
   it('refuses a model with no skeleton, and one missing a humanoid bone, naming what is missing', () => {
     expect(() => importRig(skinnedGlb({ skin: false }))).toThrow(/no skin/);
     expect(() => importRig(skinnedGlb({ names: Object.keys(T).filter((n) => n !== 'LeftHand' && n !== 'LeftHandIndex1') }))).toThrow(new RegExp(`no ${MODEL_REQUIRED.find((v) => v === 'leftHand')}`));
+  });
+});
+
+describe('a model\'s bones, by its shape', () => {
+  // (both hands bare, so the arms mirror; the names then taken away as a file without humanoid words has them)
+  const BARE = Object.keys(T).filter((n) => n !== 'LeftHandIndex1');
+  const near = (a, b) => { for (const id of a.bones.map((x) => x.id)) for (const k of ['head', 'tail']) bone(b, id)[k].forEach((v, i) => expect(v).toBeCloseTo(bone(a, id)[k][i], 3)); };
+  const numbered = (n) => { const side = /^Left/.test(n) ? '_L' : /^Right/.test(n) ? '_R' : ''; return `joint${side}_${Object.keys(T).indexOf(n)}`; };
+
+  it('reads numbered chains as the humanoid their shape is, its sides by their names, as the names would have', () => {
+    const byName = importRig(skinnedGlb({ names: BARE })).pack;
+    const { pack, ledger } = importRig(skinnedGlb({ names: BARE, rename: numbered }));
+    expect(ledger.how).toBe('shape');
+    expect(pack.bones.map((b) => b.id)).toEqual(byName.bones.map((b) => b.id));
+    near(byName, pack);
+  });
+
+  it('reads a skeleton with no names at all, its sides by glTF\'s facing (+z forward)', () => {
+    const byName = importRig(skinnedGlb({ names: BARE })).pack;
+    const { pack, ledger } = importRig(skinnedGlb({ names: BARE, rename: () => '' }));
+    expect(ledger.how).toBe('shape');
+    near(byName, pack);
+    expect(bone(pack, 'thighR').head[0]).toBeGreaterThan(0);
+  });
+
+  it('takes a palm for the hand on a side that has none, and lets it ride where there is one', () => {
+    const palms = (n) => ({ LeftHand: 'Palm.L', RightHand: 'Palm.R' }[n] ?? `mixamorig:${n}`);
+    const { pack, ledger } = importRig(skinnedGlb({ names: BARE, rename: palms }));
+    expect(ledger.how).toBe('name');
+    expect(ledger.bones.handL).toBe('Palm.L');
+    expect(vrmOfName('Palm2.L')).toBe('leftPalm');
+    expect(importRig(skinnedGlb()).ledger.how).toBe('name');
+  });
+
+  it('says why a skeleton is not a humanoid by its shape either', () => {
+    // (the legs taken off: no joint sends a mirrored pair down)
+    const legless = BARE.filter((n) => !/Leg|Foot|Toe/.test(n));
+    expect(() => importRig(skinnedGlb({ names: legless, rename: numbered }))).toThrow(/by its shape: no joint sends a mirrored pair/);
   });
 });
 

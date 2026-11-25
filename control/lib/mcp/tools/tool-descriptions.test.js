@@ -482,7 +482,10 @@ const DESCRIPTION_ALLOWLIST = {
 // tool: `start` (what a person with a home of their own has said so far, answered with the one question to ask, the
 // rail it starts from and the steps that make it; it builds nothing), a clause in its description, and `required`
 // emptied so `start` may be asked alone. Its steps are the `home-producer` routing card's.
-const PAYLOAD_CEILING = 181_100;
+// Raised 2026-11-25 on 1125-upload-helper (181_100 -> 181_600; measured 181,457) for a model made elsewhere: create_character
+// takes `from` (a model file on this machine, rigged onto the vajra) and its words (height, units, up, entry, rig,
+// licence), their prose said once in `from`; mint_solid gains the `model` kind. Both descriptions stayed in budget.
+const PAYLOAD_CEILING = 181_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

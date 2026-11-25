@@ -24,6 +24,12 @@ export async function modelPack(name, ref, { height = null } = {}) {
       ? `figures.${name}: sketch '${ref}' has no model bound onto it. ${pluginProfileNotice('Binding a model made outside mojulo')}`
       : `figures.${name}: sketch '${ref}' has no model bound onto it: bind a rigged humanoid .glb first (bind_mesh_render { ref, glb_path })`);
   }
+  // an imported model's own decided height (import-model.js: its units read, or stated) when the world says none
+  if (height === null) {
+    const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+    const h = SketchRepository.getByRef(ref)?.manifest?.import?.height;
+    if (Number.isFinite(h) && h > 0) height = h;
+  }
   const key = `${slot.path}|${height ?? ''}`;
   if (CACHE.has(key)) return CACHE.get(key);
   const { importRig, decodeModelImages } = await import('@/lib/graph/scene/rig-import.js');

@@ -124,6 +124,7 @@ import { residualRuns } from '@/lib/graph/scene/channels/stroke-overlay';
 import { frameSource } from '@/lib/graph/scene/wire-svg';
 import { LAYERED_VIEW_AZ } from '@/lib/graph/scene/depth-raster';
 import { assembleScadScene } from '@/lib/graph/worlds/scad';
+import { assembleModelScene } from '@/lib/graph/worlds/model';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
 import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable';
@@ -1231,6 +1232,12 @@ export const WORLD_KINDS = {
   scad: {
     title: 'mojulo scad',
     resolve: async (m, ctx) => assembleScadScene({ ...m, title: ctx.title, light: ctx.light, toon: ctx.toon }),
+  },
+  // A model made outside mojulo (mint_solid kind 'model', create_character { from }): the recipe is what the import
+  // decided, the geometry its bound file, on the same studio (worlds/model.js).
+  model: {
+    title: 'mojulo model',
+    resolve: async (m, ctx) => assembleModelScene(m, { ref: ctx.ref, title: ctx.title, light: ctx.light, toon: ctx.toon }),
   },
   // A polygomer (create_manji_tree) as a turnable 3D model: its slot-bonded lathes
   // lower to baked faces (turntable cameras + .glb export). When a skin is bound

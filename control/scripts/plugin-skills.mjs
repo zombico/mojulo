@@ -41,10 +41,10 @@ export const STARTS = Object.freeze([
   {
     name: 'make-character',
     title: 'Make a character',
-    lead: 'Make a character with mojulo: a hero (a person with a face, hair and an outfit), an invented creature or a real animal, rigged and kept as an editable recipe.',
-    cards: ['hero', 'creature', 'animal'],
+    lead: 'Make a character with mojulo: a hero, an invented creature or a real animal, rigged and kept as an editable recipe, or one they already have as a model file (.glb, .vrm, .obj) rigged and made playable.',
+    cards: ['hero', 'creature', 'animal', 'import-character'],
     steps: [
-      'Ask what it is (a person, an invented creature or a real animal) and what it is for (a game, a print, a film); a picture they bring is read, never guessed (card `photo-reference`).',
+      'Ask what it is (a person, an invented creature or a real animal) and what it is for (a game, a print, a film); a picture they bring is read, never guessed (card `photo-reference`); a model file they bring is imported by its path, `create_character({ from })` (card `import-character`).',
       'Mint it with `create_character({ as: \'hero\' | \'creature\' | \'animal\', spec })`, reading the manual the card names first.',
       'Show the person its page. Change it in place with `update_character({ ref, spec })`: never mint again to change a knob.',
       'Export with the tool the result names (`export_model`): a skinned GLB with its clips, an engine\'s project, or STL for a print.',
@@ -66,10 +66,10 @@ export const STARTS = Object.freeze([
   {
     name: 'design-object',
     title: 'Design an object',
-    lead: 'Design a 3D object with mojulo: an everyday thing, a mechanical part or an enclosure, measured at true size, to look at, to 3D print (STL, 3MF) or to build from standard parts.',
-    cards: ['workbench-object', 'scad-object', 'fabricate-parts'],
+    lead: 'Design a 3D object with mojulo at true size, to look at, 3D print (STL, 3MF) or build from standard parts, or bring in a model file they already have (.glb, .obj, .stl, .3mf).',
+    cards: ['workbench-object', 'scad-object', 'fabricate-parts', 'import-model'],
     steps: [
-      'Ask what it is for (to look at, to print, to build) and its sizes in real units.',
+      'Ask what it is for (to look at, to print, to build) and its sizes in real units. A model file they already have is imported by its path, `mint_solid({ kind: \'model\', spec: { from } })` (card `import-model`).',
       'Pick the door by what matters: its form (a workbench solid), sharp exact edges and holes (OpenSCAD), or the standard parts it is built from (`fabricate_solid`). Furniture is `mint_solid` kind `furniture`.',
       'Mint it, show the person its page, and change it in place (`edit_solid`, `update_sketch`): never mint again.',
       'Check its sizes with `measure_solid`, then export: `export_model` to STL or 3MF at true scale for a print, GLB for everything else.',
