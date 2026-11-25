@@ -31,6 +31,13 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     - **washes**: dry washes wandering across the floor, 1 to 1.7 m deep and never under the sea line, their beds laid
       as gravel (scree).
     - **scatter**: clusters of boulders 3 to 7 m across out on the open floor, off the rock and the water.
+  - **craters**: meteorite impacts on the floor. Each is a simple crater: a bowl a fifth of its diameter deep under a
+    raised rim, its ejecta thinning as the cube of the distance out to three radii.
+    - Sizes follow the impacts' power law (`slope`): many small pits, a fair few of every size between, a few great
+      bowls.
+    - Each crater has its own age. A fresh one is deep, its rim sharp, its thrown blocks strewn round it; an old one is
+      shallow, its rim worn, its floor filled flat with sand. A younger crater prints over an older.
+    - They are laid by the dice off the rock and the water, or named in `at`.
   - **Fallen blocks** are mostly small, with a few great slabs: the size's dice are weighted to their low end, up to
     12 m.
   - **Laws**: walls stand (the rise is climbed on faces over 70°), talus at repose, the floor open for a frame.
@@ -62,11 +69,16 @@ book's map: a frame level's plate is now its operation map. Buildings come after
 - **A massif's rock is bare** (`local-meru/scene.js`, `massif.js` `inside`): anything on the rock itself steeper than a
   near-level bench or top is rock, so its domes and shoulders never wear an apron's soil and scree.
 - **The battlefield cubes** (`assault-frame/geocubes.js`, in `GEOCUBE_PRESETS` with their palettes and outposts).
-  - `sandstone-wadi`, `sandstone-gorge`, `scree-scarp` and `wadi-oasis`, sized for a frame 7.5 to 9 m tall: walls 40
+  - `sandstone-wadi`, `sandstone-gorge`, `scree-scarp`, `crater-plain` and `wadi-oasis`, sized for a frame 7.5 to 9 m tall: walls 40
     to 120 m, gorges 25 to 200 m, talus 10 to 40 m out, blocks 3 to 7 m.
   - Each is red sandstone over an orange sand floor under a hard desert sun and a clear sky with no stars by day.
+  - `crater-plain` is a stony plain struck all over, with one great fresh bowl 240 m across and one old one worn nearly
+    flat. The wadi and the scarp take a handful of craters each.
+  - A dry cube's sea lies 60 m under its floor, so a crater's bowl never fills; the oasis and the gorge keep theirs for
+    their lake and river.
   - Each cube's outside is a field: an open island with no geology, its floor long low dunes, its rock the massif's card.
-- **The field's forms** (`assault-frame/field.js`): `wadi`, `gorge`, `scree` and `oasis` beside `plain` and `basin`.
+- **The field's forms** (`assault-frame/field.js`): `wadi`, `gorge`, `scree`, `craters` and `oasis` beside `plain` and
+  `basin`.
   - A massif form is its own cube's unless a world is named; Warlords can lay Mars's dust on a wadi's shape.
   - A frame level's map may name one: the flight map checks the rest (`gameworld/world.js`).
   - The level reads its geocube through `frameLevelManifest` (`gameworld/levels.js`).

@@ -49,6 +49,14 @@
  *   scatter  { clusters, per: [lo, hi], spread, size: [lo, hi] }: boulders out on the open floor in clusters (a frame's cover,
  *            the ground in front of it at its scale): `clusters` places laid by the dice off the rock and the water, each
  *            `per` boulders within `spread` metres, their size the scene's boulder units (most small, a few large)
+ *   craters  { count, diameter: [lo, hi], slope?, fresh, within, at? }: meteorite impacts on the floor. Each a simple crater, a bowl
+ *            a fifth of its diameter deep under a raised rim (a twenty-fifth), its ejecta thinning as the cube of the
+ *            distance out to three radii. Their sizes by the power law impacts keep, `slope` its exponent (1.1: many small pits,
+ *            a fair few of every size between, a few great bowls; steeper, nearly all pits);
+ *            each its own age, `fresh` the share young: a fresh one deep, its rim sharp, its ejected blocks strewn round it
+ *            as boulders; an old one shallow, its rim worn, its floor filled flat with sand. Laid by the dice `within`
+ *            metres of the middle (`count` of them), or named in `at` ([{ at: [x, y], diameter, fresh? }]); off the rock
+ *            and the water; a younger one printed over an older. A bowl under the island's sea line is a crater lake
  *   face     { beds: [lo, hi], bulge, undercut, grain }: the walls' own relief at a mech's scale, the land's corners pushed
  *            in and out along the wall (`warp`): the column parted again into thin beds lo to hi metres thick, each of its
  *            own hardness; a hard bed BULGES (up to `bulge` metres at its middle), a parting is a recess, the foot of a
@@ -71,7 +79,8 @@ const CARD = f({ beds: WADI_BEDS, slope: 0.25, bench: 0.7, blocks: f([]), warp: 
   cap: f({ form: 'knobs', height: 16, run: 40 }), talus: f({ share: 0.2, angle: 34, fan: 0.6 }), cuts: f([]), clefts: f({ per: 1.2, width: f([12, 28]), reach: 0.75 }), pools: f([]), strew: f({ count: 90, size: f([2, 8]) }),
   face: f({ beds: f([5, 10]), bulge: 2.2, undercut: 2.4, grain: 1.6 }),
   outcrops: f({ count: 0, height: f([1.5, 5]), size: f([6, 22]), within: 520 }), washes: f({ count: 0, width: f([8, 18]), depth: f([0.8, 1.6]) }),
-  scatter: f({ clusters: 0, per: f([3, 8]), spread: 24, size: f([2, 5]) }) });
+  scatter: f({ clusters: 0, per: f([3, 8]), spread: 24, size: f([2, 5]) }),
+  craters: f({ count: 0, diameter: f([10, 120]), slope: 1.1, fresh: 0.4, within: 520, at: f([]) }) });
 
 // how far a riser runs to its shoulder at most (metres): sheer at the foot, its top rounded over this
 const SHOULDER = 6;
@@ -89,7 +98,8 @@ export const MASSIF_CARDS = f({
     cuts: f([f({ path: f([f([-420, -40]), f([-300, -10]), f([-230, 30])]), width: 26 })]),
     // (the floor between: low ledges of slickrock and two dry washes across it)
     outcrops: f({ count: 30, height: f([2.5, 7]), size: f([8, 26]), within: 480 }), washes: f({ count: 2, width: f([10, 20]), depth: f([1, 1.7]) }),
-    scatter: f({ clusters: 26, per: f([3, 8]), spread: 22, size: f([2, 5]) }) }),
+    scatter: f({ clusters: 26, per: f([3, 8]), spread: 22, size: f([2, 5]) }),
+    craters: f({ count: 14, diameter: f([10, 70]), slope: 1.1, fresh: 0.4, within: 480, at: f([]) }) }),
   // a gorge: a plateau cut through by one winding canyon the field runs down, side canyons into it, a river on its floor
   gorge: f({ ...CARD, id: 'gorge', reads: 'A plateau cut by a winding canyon, side canyons into it, a river down its floor',
     beds: f([f({ top: 6, bench: 3 }), f({ top: 38, bench: 10 }), f({ top: 46, bench: 4 }), f({ top: 70, bench: 12 }), f({ top: 120, bench: 6 })]),
@@ -111,9 +121,20 @@ export const MASSIF_CARDS = f({
       B([260, 170], [26, 18], 10, 18, 3), B([-340, -120], [28, 20], 150, 20, 3), B([330, -280], [40, 26], 60, 34, 3),
     ]),
     talus: f({ share: 0.34, angle: 33, fan: 0.9 }), outcrops: f({ count: 26, height: f([2.5, 5]), size: f([6, 18]), within: 460 }), washes: f({ count: 3, width: f([8, 16]), depth: f([0.8, 1.4]) }),
-    scatter: f({ clusters: 40, per: f([4, 10]), spread: 26, size: f([2, 5]) }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }),
+    scatter: f({ clusters: 40, per: f([4, 10]), spread: 26, size: f([2, 5]) }),
+    craters: f({ count: 22, diameter: f([10, 90]), slope: 1.1, fresh: 0.5, within: 460, at: f([]) }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }),
     // (a scarp shedding its rock: thick beds, broken more than bedded)
     face: f({ beds: f([6, 14]), bulge: 1.6, undercut: 1.6, grain: 2.4 }) }),
+  // a crater plain: a stony floor struck all over, its craters of every size by the impacts' law, one great fresh bowl and
+  // one old one worn nearly flat; a few low buttes standing out on it, low ledges between
+  craters: f({ ...CARD, id: 'craters', reads: 'A stony plain struck all over: craters of every size, one great fresh bowl, low buttes standing out',
+    beds: f([f({ top: 6, bench: 4 }), f({ top: 30, bench: 6 }), f({ top: 44, bench: 5 }), f({ top: 120, bench: 6 })]),
+    blocks: f([B([-380, 260], [90, 50], 40, 46, 3), B([400, -220], [70, 46], 120, 38, 3), B([-60, -420], [60, 34], 10, 30, 4), B([330, 330], [50, 30], 70, 26, 3)]),
+    cap: f({ form: 'flat', height: 0, run: 40 }), clefts: f({ per: 0.8, width: f([10, 20]), reach: 0.6 }),
+    outcrops: f({ count: 18, height: f([2, 5]), size: f([6, 18]), within: 480 }),
+    scatter: f({ clusters: 18, per: f([3, 7]), spread: 20, size: f([2, 4]) }),
+    craters: f({ count: 60, diameter: f([10, 150]), slope: 1.0, fresh: 0.35, within: 520,
+      at: f([f({ at: f([110, 150]), diameter: 240, fresh: 0.95 }), f({ at: f([-230, -150]), diameter: 210, fresh: 0.12 })]) }) }),
   // an oasis: a lake on the floor of a wadi among jebels, a pool beside it
   oasis: f({ ...CARD, id: 'oasis', reads: 'A lake on a wadi\'s floor among sheer jebels, a pool beside it',
     blocks: f([
@@ -208,6 +229,20 @@ export function readMassif(spec) {
   range(M.scatter.per, 1, 30, '.scatter.per is [lo, hi] boulders a cluster, 1..30');
   num(M.scatter.spread, 2, 200, '.scatter.spread is metres a cluster spreads, 2..200');
   range(M.scatter.size, 1, 8, '.scatter.size is [lo, hi] boulder units, 1..8');
+  if (!isObj(M.craters)) bad('.craters is { count, diameter: [lo, hi], fresh, within, at? }');
+  num(M.craters.count, 0, 400, '.craters.count is 0..400');
+  range(M.craters.diameter, 4, 1200, '.craters.diameter is [lo, hi] metres, 4..1200');
+  num(M.craters.slope ?? 1.1, 0.3, 3, '.craters.slope is the size law\'s exponent, 0.3..3 (1.1: every size, the small the most)');
+  M.craters.slope = M.craters.slope ?? 1.1;
+  num(M.craters.fresh, 0, 1, '.craters.fresh is the share of them young, 0..1');
+  num(M.craters.within, 20, 2000, '.craters.within is metres from the middle, 20..2000');
+  if (!Array.isArray(M.craters.at)) bad('.craters.at is [{ at: [x, y], diameter, fresh? }]');
+  M.craters.at.forEach((c, i) => {
+    if (!isObj(c)) bad(`.craters.at[${i}] is { at: [x, y], diameter, fresh? }`);
+    pt(c.at, `.craters.at[${i}].at is [x, y] metres from the middle`);
+    num(c.diameter, 4, 2000, `.craters.at[${i}].diameter is metres, 4..2000`);
+    if (c.fresh !== undefined) num(c.fresh, 0, 1, `.craters.at[${i}].fresh is 0 (worn flat) to 1 (just struck)`);
+  });
   if (!isObj(M.face)) bad('.face is { beds: [lo, hi], bulge, undercut, grain }');
   if (!(Array.isArray(M.face.beds) && M.face.beds.length === 2 && M.face.beds[0] >= 2 && M.face.beds[1] >= M.face.beds[0] && M.face.beds[1] <= 40)) bad('.face.beds is [lo, hi] metres a thin bed stands, 2..40');
   num(M.face.bulge, 0, 4, '.face.bulge is metres a hard bed stands out, 0..4');
@@ -369,7 +404,42 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     }
     return [w, D];
   };
-  const at = (x, y, h) => {
+  // THE CRATERS: the named, then the dice's (sizes by the impacts' power law), off the rock and the water; oldest first,
+  // so a younger one prints over an older
+  const CR = M.craters, craters = [];
+  const clearOf = (x, y, R) => [[0, 0], [R, 0], [-R, 0], [0, R], [0, -R]].every(([dx, dy]) => rock(x + dx, y + dy) <= 0.3 && sink(x + dx, y + dy)[0] <= 0);
+  CR.at.forEach((c, i) => craters.push({ c: [cx + c.at[0], cy + c.at[1]], D: c.diameter, fresh: c.fresh ?? 0.8, age: 1 - (c.fresh ?? 0.8), k: 900 + i }));
+  const dLo = CR.diameter[0], dHi = CR.diameter[1], A = CR.slope;
+  for (let k = 0, tries = 0; craters.length - CR.at.length < CR.count && tries < CR.count * 30; tries++, k++) {
+    const u = hash3(k, 131, sd + 1801), D = dLo * (1 - u * (1 - (dLo / dHi) ** A)) ** (-1 / A);
+    const a = 2 * Math.PI * hash3(k, 137, sd + 1803), r = CR.within * Math.sqrt(hash3(k, 139, sd + 1807)), x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+    if (!clearOf(x, y, D / 2)) continue;
+    const fresh = hash3(k, 149, sd + 1811) < CR.fresh ? 0.75 + 0.25 * hash3(k, 151, sd + 1813) : 0.5 * hash3(k, 157, sd + 1817);
+    craters.push({ c: [x, y], D, fresh, age: hash3(k, 163, sd + 1819), k });
+  }
+  craters.sort((p, q) => q.age - p.age);
+  for (const q of craters) {
+    // (a fresh one: a fifth of its diameter deep, its rim a twenty-fifth high; worn: shallower, its rim down, its floor sand)
+    q.R = q.D / 2; q.depth = q.D * 0.2 * (0.35 + 0.65 * q.fresh); q.rim = q.D * 0.04 * (0.25 + 0.75 * q.fresh); q.infill = 0.55 * (1 - q.fresh);
+  }
+  const craterAt = (x, y, h) => {
+    let z = h;
+    for (const q of craters) {
+      const dx = x - q.c[0], dy = y - q.c[1];
+      if (Math.abs(dx) > q.R * 3.2 || Math.abs(dy) > q.R * 3.2) continue;
+      // (its rim not a ruled circle: its radius wanders round it)
+      const R = q.R * (1 + 0.07 * wn(x, y, Math.max(6, q.R * 0.6), 1901 + q.k)), t = Math.hypot(dx, dy) / R;
+      if (t >= 3.2) continue;
+      if (t < 1) {
+        // (the bowl, a paraboloid from the rim down; its floor filled flat as it wears; the level it was struck into)
+        const bowl = q.rim - (q.depth + q.rim) * (1 - t * t), floorZ = -q.depth * (1 - q.infill);
+        z += Math.max(bowl, floorZ);
+      } else z += q.rim * t ** -3 * (1 - smoothstep(2.2, 3.2, t));
+    }
+    return z;
+  };
+  const at = (x, y, h0) => {
+    const h = craters.length ? craterAt(x, y, h0) : h0;
     const z = rock(x, y), [w, D] = sink(x, y), [ww, WD] = washes.length ? washAt(x, y) : [0, 0];
     const base = (w > 0 ? h + (floor - D - h) * w : h) - WD * ww;
     return z > 0 ? Math.max(base, h + z) : base;
@@ -399,6 +469,16 @@ export function massifField(M, centre, seed = 1, floor = 0) {
       const b = 2 * Math.PI * hash3(k * 40 + m, 109, sd + 1709), d = SCT.spread * Math.sqrt(hash3(k * 40 + m, 113, sd + 1711)), x = x0 + d * Math.cos(b), y = y0 + d * Math.sin(b);
       if (rock(x, y) > 0.3 || sink(x, y)[0] > 0) continue;
       boulders.push({ x: r3(x), y: r3(y), size: SCT.size[0] + Math.floor(hash3(k * 40 + m, 127, sd + 1713) ** 2.2 * (SCT.size[1] - SCT.size[0] + 1)) });
+    }
+  }
+  // (a fresh crater's ejected blocks: strewn on its rim and its blanket, more the larger it is)
+  for (const q of craters) {
+    if (q.fresh < 0.7 || q.D < 24) continue;
+    const n = Math.min(40, Math.round(q.D / 6));
+    for (let m = 0; m < n; m++) {
+      const b = 2 * Math.PI * hash3(q.k * 64 + m, 167, sd + 1901), d = q.R * (0.95 + 1.1 * hash3(q.k * 64 + m, 173, sd + 1903) ** 2), x = q.c[0] + d * Math.cos(b), y = q.c[1] + d * Math.sin(b);
+      if (rock(x, y) > 0.3 || sink(x, y)[0] > 0) continue;
+      boulders.push({ x: r3(x), y: r3(y), size: 1 + Math.floor(hash3(q.k * 64 + m, 179, sd + 1907) ** 2.5 * Math.min(5, 1 + q.D / 40)) });
     }
   }
   // THE FACE: the column parted into thin beds (each lo..hi thick, its hardness its own), from the floor's datum up
@@ -436,7 +516,7 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     for (const c of cuts) { const [d, along] = toPath(c.path, wx, wy), w = c.width * (1 + 0.25 * wn(along, 0, 160, 601)) * (c.cleft ? 1 - 0.7 * smoothstep(0, c.length, along) : 1); if (d + flute(x, y) * 0.6 - w / 2 < 1) return false; }
     return true;
   };
-  return { at, rock, water: (x, y) => sink(x, y)[0] > 0, wash: (x, y) => (washes.length ? washAt(x, y)[0] : 0), boulders, partings, warp, inside, outcrops: laid };
+  return { at, rock, craters: craters.map((q) => ({ at: [r3(q.c[0] - cx), r3(q.c[1] - cy)], diameter: r3(q.D), fresh: r3(q.fresh), depth: r3(q.depth), rim: r3(q.rim) })), water: (x, y) => sink(x, y)[0] > 0, wash: (x, y) => (washes.length ? washAt(x, y)[0] : 0), boulders, partings, warp, inside, outcrops: laid };
 }
 
 /**

@@ -93,6 +93,25 @@ describe('the massif', () => {
     for (const b of F.boulders) { expect(F.rock(b.x, b.y)).toBeLessThanOrEqual(0.3); expect(F.water(b.x, b.y)).toBe(false); }
   });
 
+  it('strikes its craters by the impacts\' law: every size, a bowl under a rim, the fresh ones deep and strewn, the old filled', () => {
+    const M = one({ craters: { count: 30, diameter: [10, 120], slope: 1.1, fresh: 0.5, within: 500, at: [{ at: [300, 300], diameter: 80, fresh: 1 }, { at: [-300, -300], diameter: 80, fresh: 0 }] }, strew: { count: 0, size: [2, 3] } });
+    const F = massifField(M, [0, 0], 4, 0), C = F.craters;
+    expect(C.length).toBeGreaterThan(20);
+    // (the law: most small, but a fair few large)
+    const D = C.map((c) => c.diameter);
+    expect(D.filter((d) => d < 25).length).toBeGreaterThan(D.filter((d) => d >= 25).length);
+    expect(D.filter((d) => d >= 40).length).toBeGreaterThan(1);
+    // (a fresh one: a deep bowl under a rim; an old one of the same size shallow and flat-floored)
+    const at = (x, y) => F.at(x, y, 0);
+    expect(at(300, 300)).toBeLessThan(-12);
+    expect(at(300 + 40, 300)).toBeGreaterThan(1);
+    expect(at(-300, -300)).toBeGreaterThan(at(300, 300) + 5);
+    expect(at(-300, -300)).toBeCloseTo(at(-295, -300), 1);
+    // (its thrown blocks round the fresh one on its rim and blanket, more than round the old, which threw none of its own)
+    const near = (q) => F.boulders.filter((b) => { const d = Math.hypot(b.x - q[0], b.y - q[1]); return d > 38 && d < 90; }).length;
+    expect(near([300, 300])).toBeGreaterThan(near([-300, -300]) + 3);
+  });
+
   it('stands only on an island, and a meru that names none reads as it always did', () => {
     expect(() => readLocalMeru({ massif: 'wadi' })).toThrow(/stands on an island/);
     expect(readLocalMeru({ island: { walk: 'none' }, massif: 'wadi' }).massif.id).toBe('wadi');
