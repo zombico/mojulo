@@ -3685,8 +3685,9 @@ function __readInput() {
     vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}${sprint ? `
     sprint: __kbRead('ShiftLeft') || __kbRead('ShiftRight') ? 1 : 0,   // a person's sprint, held (rules-platform.js sprintSpeed)` : ''}
 ${framePilot ? `    // the frame's own (rules-frame.js; controls/schemes.js FRAME): the quick boost, the left hand on the right mouse, the
-    // shoulders' weapons on their keys
+    // shoulders' weapons on their keys, the assault boost and the kick
     qb: __k('quickBoost') ? 1 : 0, alt: window.__mojFrameAlt || __k('fireLeft') ? 1 : 0, backR: __k('fireBackRight') ? 1 : 0, backL: __k('fireBackLeft') ? 1 : 0,
+    ab: __k('assaultBoost') ? 1 : 0, kick: __k('frameKick') ? 1 : 0,
 ` : ''}${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
     // throttle, pick the target, link the cannons and move the power; the mouse, captured, flies right and nose-up
     // as it moves right and down (a stick pulled back)

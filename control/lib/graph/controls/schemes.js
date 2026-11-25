@@ -561,8 +561,8 @@ const COCKPIT = {
 
 // THE FRAME: an assault frame's pilot (worlds/controllable/rules-frame.js), laid out as the boost-and-gun mech games lay
 // it: the mouse turns it and aims, W / S / A / D walk it and point its boosts, Shift held skates on the booster, C (or the
-// mouse's thumb button) quick-boosts, Space jumps and, held in the air, climbs; the right hand's gun on the left mouse,
-// the left hand's on the right, the shoulders' on Q (left) and E (right). A page whose pilot is a frame reads this
+// mouse's thumb button) quick-boosts, X assault-boosts (a toggle), F kicks, Space jumps and, held in the air, climbs; the
+// right hand's gun on the left mouse, the left hand's on the right, the shoulders' on Q (left) and E (right). A page whose pilot is a frame reads this
 // scheme in the pilot's place.
 const FRAME_BIND = {
   moveForward: { keyboard: ['KeyW'], gamepad: ['leftY-'] }, moveBack: { keyboard: ['KeyS'], gamepad: ['leftY+'] },
@@ -578,6 +578,8 @@ const FRAME = {
   actions: [
     ...PILOT.actions.map((a) => (FRAME_BIND[a.id] ? { ...a, bind: FRAME_BIND[a.id] } : a)),
     { id: 'quickBoost', label: 'quick boost', group: 'move', in: ['vehicle'], bind: { keyboard: ['KeyC'], mouse: ['back'], gamepad: ['east'] } },
+    { id: 'assaultBoost', label: 'assault boost', group: 'move', in: ['vehicle'], bind: { keyboard: ['KeyX'], gamepad: ['north'] } },
+    { id: 'frameKick', label: 'boost kick', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyF'], gamepad: ['rs'] } },
     { id: 'fireLeft', label: 'left hand', group: 'combat', in: ['vehicle'], bind: { mouse: ['right'], gamepad: ['lt'] } },
     { id: 'fireBackLeft', label: 'left shoulder', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyQ'], gamepad: ['lb'] } },
     { id: 'fireBackRight', label: 'right shoulder', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyE'], gamepad: ['rb'] } },
@@ -588,6 +590,8 @@ const FRAME = {
       { ids: ['moveForward', 'strafeLeft', 'moveBack', 'strafeRight'], sep: ' ', label: 'move' },
       { ids: ['boost'], label: 'boost (held)' },
       { ids: ['quickBoost'], label: 'quick boost' },
+      { ids: ['assaultBoost'], label: 'assault boost' },
+      { ids: ['frameKick'], label: 'kick' },
       { ids: ['jump'], label: 'jump · hold to climb' },
       { ids: ['fire'], dev: 'mouse', label: 'right hand' },
       { ids: ['fireLeft'], dev: 'mouse', label: 'left hand' },
@@ -597,6 +601,7 @@ const FRAME = {
     gamepad: [
       { ids: ['moveForward', 'moveBack', 'strafeLeft', 'strafeRight'], sep: ' ', label: 'move' },
       { ids: ['jump', 'quickBoost', 'boost'], sep: ' · ', label: 'jump · quick boost · boost' },
+      { ids: ['assaultBoost', 'frameKick'], sep: ' · ', label: 'assault boost · kick' },
       { ids: ['fire', 'fireLeft'], sep: ' · ', label: 'right hand · left hand' },
       { ids: ['fireBackLeft', 'fireBackRight'], sep: ' · ', label: 'shoulders' },
       { ids: ['pause'], label: 'pause' },

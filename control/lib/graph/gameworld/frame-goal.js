@@ -36,7 +36,7 @@ export const OPERATION = Object.freeze({
   // (an enemy frame fights with the pilot's own weapons and armour, kept off its own team's rounds)
   frameRange: 140,
 });
-export const OPERATION_LEGEND = 'mouse  turn & aim · W A S D  move · Shift  boost · C  quick boost · Space  jump, hold to climb · click / right click  hands · Q / E  shoulders';
+export const OPERATION_LEGEND = 'mouse  turn & aim · W A S D  move · Shift  boost · C  quick boost · X  assault boost · F  kick · Space  jump, hold to climb · click / right click  hands · Q / E  shoulders';
 const KINDS = ['turret', 'tank', 'walker', 'frame'];
 
 export function readOperation(v, at = 'goal.operation') {

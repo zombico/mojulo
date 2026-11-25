@@ -20,7 +20,8 @@
  *   generator  weight; en (capacity), regen (EN a second), delay (s after a draw before it regenerates), out (s it waits
  *              when emptied, the frame's boost shut till then)
  *   fcs        weight; lock (s to lock a target), range (m), cone (degrees round the aim), locks (missile locks at once)
- *   arm weapon weight; fire 'auto' | 'semi' | 'charge'; damage, rof (rounds a second) or cooldown (s), mag, reload (s),
+ *   arm weapon weight; fire 'auto' | 'semi' | 'charge' | 'melee' (a blade: a lunge onto the locked foe and a cut, its
+ *              `range` its reach, its `speed` its lunge's); damage, rof (rounds a second) or cooldown (s), mag, reload (s),
  *              speed (m/s of the round), range (m), splash (m), stagger (0..1 of a target's poise per hit), energy (EN a
  *              shot, from the generator: an energy weapon), pellets (a shotgun's)
  *   back weapon as an arm weapon's; homing (rad/s a missile turns at, locked), salvo (missiles a trigger)
@@ -83,6 +84,8 @@ export const PARTS = f({
     'sg-scatter': row({ name: 'Scatter', kind: 'shotgun', weight: 4400, fire: 'semi', damage: 70, pellets: 8, cooldown: 0.9, mag: 48, reload: 3, speed: 420, range: 140, stagger: 0.05, about: 'a shotgun: a broad short bore, a drum under it' }),
     'gt-gatling': row({ name: 'Gatling', kind: 'gatling', weight: 6900, fire: 'auto', damage: 55, rof: 16, mag: 1200, reload: 4.5, speed: 560, range: 300, stagger: 0.01, about: 'a gatling: six barrels in a shroud, a belt to a drum' }),
     'bz-breaker': row({ name: 'Breaker', kind: 'bazooka', weight: 7800, fire: 'semi', damage: 1400, cooldown: 2.2, mag: 24, reload: 3.6, speed: 260, range: 420, splash: 6, stagger: 0.4, about: 'a bazooka: a fat tube, a rocket the size of a man' }),
+    // (a blade: no rounds, a lunge onto the locked foe within its reach and a cut; `range` its reach, `speed` its lunge)
+    'bl-shear': row({ name: 'Shear', kind: 'blade', weight: 3600, fire: 'melee', damage: 2400, cooldown: 1.6, mag: 9999, reload: 0, speed: 120, range: 90, energy: 420, stagger: 0.6, about: 'a blade: an emitter on the forearm, a white-hot edge out of it, a lunge and a cut' }),
     'lr-lance': row({ name: 'Lance', kind: 'laser', weight: 5200, fire: 'charge', damage: 650, cooldown: 0.8, mag: 9999, reload: 0, speed: 900, range: 520, energy: 380, stagger: 0.12, about: 'a laser rifle: a slim barrel in cooling fins, a charged shot' }),
   }),
   // what a shoulder carries: a launcher or a cannon, fired on its own key (the right on E, the left on Q)
@@ -111,9 +114,9 @@ export const STOCK = f({
   // (its fuselage forward and no head, on reverse-joint legs)
   vanguard: f({ head: null, core: 'cr-prow', arms: 'ar-standard', legs: 'lg-reverse', booster: 'bs-kestrel', generator: 'gn-standard', fcs: 'fc-standard',
     armR: 'rf-carbine', armL: 'bz-breaker', backR: 'ms-hornet', backL: 'gc-mortar' }),
-  // a light striker: shotgun and laser, quick boosts, a missile pod
+  // a light striker: shotgun and blade, quick boosts, a missile pod; it closes to cut
   raptor: f({ head: 'hd-lancet', core: 'cr-raptor', arms: 'ar-light', legs: 'lg-light', booster: 'bs-falcon', generator: 'gn-quick', fcs: 'fc-close',
-    armR: 'sg-scatter', armL: 'lr-lance', backR: 'ms-hornet', backL: null }),
+    armR: 'sg-scatter', armL: 'bl-shear', backR: 'ms-hornet', backL: null }),
   // a heavy: gatling and bazooka, plasma and mortar, slow and hard to put down
   citadel: f({ head: 'hd-bulwark', core: 'cr-citadel', arms: 'ar-heavy', legs: 'lg-heavy', booster: 'bs-ox', generator: 'gn-deep', fcs: 'fc-long',
     armR: 'gt-gatling', armL: 'bz-breaker', backR: 'pc-arc', backL: 'gc-mortar' }),

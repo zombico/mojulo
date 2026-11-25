@@ -92,6 +92,46 @@ describe('the assault frame', () => {
     expect(JSON.stringify(a.byId.f.transform)).toBe(JSON.stringify(b.byId.f.transform));
   });
 
+  it('assault-boosts along the aim, held at its height, until it is toggled off; a kick lunges onto the locked foe and breaks its bar', () => {
+    const st = world(), P = st.byId.p;
+    run(st, { jump: 1, jumpHeld: 1 }, 40);
+    const z0 = P.transform.pos[2];
+    run(st, { ab: 1 }, 1); run(st, {}, 120);
+    expect(P.ab).toBe(true);
+    expect(P.speed).toBeGreaterThan(A.move.boost * 1.3);
+    expect(Math.abs(P.transform.pos[2] - z0)).toBeLessThan(3);
+    run(st, { ab: 1 }, 1); run(st, {}, 2);
+    expect(P.ab).toBe(false);
+    // (a light frame ahead, locked, kicked: a lunge onto it, its bar broken by the kick and a round's chip)
+    const foe = frameEntity('raptor', { id: 'f', at: [60, 0, 0], team: 'foes', mind: {} });
+    const s2 = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), foe], pilot: 'p', ai: 'off' }), F = s2.byId.f, P2 = s2.byId.p;
+    run(s2, {}, 60);
+    expect(P2.locked).toBe(true);
+    F.poise = 0.3;
+    const hp0 = F.body.hp;
+    run(s2, { kick: 1 }, 1);
+    let n = 0;
+    while (!P2.lastHit && n++ < 60) run(s2, {}, 1);
+    expect(P2.lastHit).toMatchObject({ by: 'kick', to: 'f' });
+    expect(hp0 - F.body.hp).toBeGreaterThanOrEqual(A.kick.damage);
+    run(s2, {}, 2);
+    expect(F.stagger).toBeGreaterThan(0);
+  });
+
+  it('a blade\'s trigger lunges and cuts: no round flies', () => {
+    const st = E.createWorld({ entities: [frameEntity('raptor', { id: 'p', at: [0, 0, 0], pilot: true }), frameEntity('citadel', { id: 'f', at: [50, 0, 0], team: 'foes', mind: {} })], pilot: 'p', ai: 'off' });
+    const P = st.byId.p, F = st.byId.f, blade = assembleFrame('raptor').weapons.armL;
+    expect(blade.fire).toBe('melee');
+    run(st, {}, 60);
+    const hp0 = F.body.hp, rounds = (st.projectiles || []).length;
+    run(st, { alt: 1 }, 1);
+    let n = 0;
+    while (!P.lastHit && n++ < 60) run(st, {}, 1);
+    expect(P.lastHit).toMatchObject({ by: 'armL', to: 'f' });
+    expect(hp0 - F.body.hp).toBeGreaterThanOrEqual(blade.damage);
+    expect((st.projectiles || []).length).toBe(rounds);
+  });
+
   it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {
     // (a heavy frame ahead with its mind off: the pilot's bazooka, the left hand, the weapon its stagger is read from)
     const foe = frameEntity('citadel', { id: 'f', at: [140, 0, 0], team: 'foes', mind: {} });

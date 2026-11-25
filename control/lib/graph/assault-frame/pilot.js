@@ -28,7 +28,7 @@ export const FRAME_CAMERA = Object.freeze({ dist: 22, height: 9, lead: 12, lookH
 // ahead of the shoulders, the shoulders' weapons over them)
 const STOCK_MOUNTS = Object.freeze({ armR: [2.6, 3.4, 6.1], armL: [-2.6, 3.4, 6.1], backR: [2.1, 1.2, 9.3], backL: [-2.1, 1.2, 9.3] });
 // a weapon's tracer and burst colours, by kind
-const COLOR = Object.freeze({ rifle: 0xffd38a, shotgun: 0xffc070, gatling: 0xffe0a0, bazooka: 0xff9050, laser: 0x7fd8ff, missiles: 0xffb060, grenade: 0xff8040, plasma: 0x9fe8ff });
+const COLOR = Object.freeze({ rifle: 0xffd38a, shotgun: 0xffc070, gatling: 0xffe0a0, bazooka: 0xff9050, laser: 0x7fd8ff, blade: 0xfff0d0, missiles: 0xffb060, grenade: 0xff8040, plasma: 0x9fe8ff });
 
 export function frameSlots(weapons) {
   return Object.fromEntries(Object.entries(weapons).map(([slot, W]) => [slot, {
@@ -45,7 +45,7 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
   return {
     id, ...(team ? { team } : {}), ...(pilot ? { pilotable: true } : {}),
     rule: {
-      type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus },
+      type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus }, kick: A.kick,
       mounts: Object.fromEntries(Object.keys(A.weapons).map((s) => [s, M[s]])), eyeH: A.move.height + 2,
       ...(mind ? { mind: { range: 120, aggression: 0.6, dodge: 0.5, ...mind } } : {}), ...(bound ? { bound } : {}),
     },

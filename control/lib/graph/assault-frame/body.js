@@ -817,6 +817,18 @@ function armWeapon(K, W, a) {
       K.box([0, 0.15, z - 0.28], [0.18, 0.5, 0.2], 'gunmetal', { ch: 0.03 });
       return [0, 2.08, z + 0.08];
     }
+    case 'blade': {
+      // (a blade: the emitter, a plated housing on the fist, and the edge out of it, a long white-hot slab; its tip the
+      // muzzle, where the cut is reckoned from)
+      K.box([0, 0.1, z], [0.42, 0.9, 0.46], 'paint', { ch: 0.06 });
+      K.on([0, 0.1, z], [0.42, 0.9, 0.46], '+x', () => { K.panel(-0.32, -0.12, 0.3, 0.12, 'paint2', 0.03); K.rect(-0.1, -0.16, 0.18, -0.1, 'glow'); });
+      K.cyl([0, 0.5, z], [0, 0.78, z], 0.2, 0.15, 'chrome', { n: 12 });
+      for (const zz of [0.17, -0.17]) K.box([0, 0.66, z + zz], [0.34, 0.26, 0.05], 'gunmetal', { ch: 0.01 });
+      K.box([0, 2.6, z], [0.07, 3.7, 0.26], 'glow', { ch: 0.02 });
+      K.box([0, 2.6, z], [0.12, 3.6, 0.1], 'glow');
+      K.cyl([0, 4.4, z], [0, 4.6, z], 0.1, 0.02, 'glow', { n: 6, caps: [false, true] });
+      return [0, 4.6, z];
+    }
     case 'laser': {
       K.box([0, -0.05, z], [0.32, 1.1, 0.38], 'paint', { ch: 0.05 });
       K.box([0, -0.4, z - 0.32], [0.26, 0.5, 0.28], 'gunmetal', { ch: 0.04 });

@@ -24,6 +24,12 @@
  *     cooldown, an energy weapon's draw on EN and a charge weapon's charge (held, let go to fire). Fired from its mount
  *     (`mounts`, frame space: +y forward, +x right, +z up). Its rounds are the world's projectiles (combat-ranged.js):
  *     they hit bodies, burst with their splash, and here also burst on the terrain (`world.ground`), a missile homing.
+ *   • ASSAULT BOOST (an edge, a toggle): a charge along the aim at `move.ab`, built up over a breath, held at its height
+ *     (it climbs or dives with the aim), lit for `en.cost.abStart` and burning `en.cost.ab` a second; ended by its key
+ *     again, a quick boost, a kick, the generator emptied or a stagger. How a frame closes on another.
+ *   • THE LUNGE (the boost KICK on its key, `rule.kick`, and a BLADE, an arm weapon of fire 'melee'): onto the locked foe
+ *     within its reach (straight ahead when none), at its speed for at most its time; meeting it, the blow lands
+ *     (`frame-weapons`: its damage, its impact on the foe's bar). A kick out of an assault boost is the classic opener.
  *   • STABILITY AND THE STAGGER (`body.poise` its stability in standard bars, `rule.stab` { stagger, bonus }): every
  *     round's impact (its weapon's `stagger`) chips the bar, which comes back on its own (`poiseRegen`); broken, the frame
  *     REELS for `stab.stagger` s: no boost, no quick boost, no climb, no guns, carried on by what it was doing and
@@ -36,6 +42,7 @@
  *
  * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch, thrust (the
  * burn the page's thrusters draw, 0..1), stab (its stability left, 0..1 of its bar), stagger (seconds left reeling, 0 when not),
+ * ab (assault boosting), lunge ({ by, T, to, hit } while lunging), kickCd,
  * slotState { <slot>: { ammo, mag, reloading, cd, charge } }, locomotion (the body's clip: idle, forward, boost,
  * boost_left, boost_right, boost_back, hover, fall, land), gaitPhase, moving.
  *
@@ -69,7 +76,7 @@ export function buildRulesFrame(E) {
   // ── a mind's keys: an enemy frame's own input, read off the pilot ──
   function mindInput(e, dt, world) {
     const M = e.rule.mind, P = world.pilotId && world.byId[world.pilotId];
-    const out = { forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, lookDX: 0, lookDY: 0 };
+    const out = { forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 };
     if (!P || P.gone || P.downed || world.aiEnabled === false || e.dormant) return out;
     const t = e.transform, q = P.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1], dz = q[2] - t.pos[2], d = Math.hypot(dx, dy);
     e.mindFace = Math.atan2(dy, dx); e.mindPitch = Math.atan2(dz, d || 1);
@@ -87,10 +94,21 @@ export function buildRulesFrame(E) {
     if ((e.mindClimbT = (e.mindClimbT ?? 1 + 4 * dice(e)) - dt) <= 0) { e.mindClimbFor = 0.8 + 1.2 * dice(e); e.mindClimbT = 4 + 6 * dice(e); }
     if (e.mindClimbFor > 0) { e.mindClimbFor -= dt; out.jump = out.jumpHeld = 1; }
     // (its guns: those in range, while it holds its lock)
-    if (e.locked) { out.fire = d < 420 ? 1 : 0; out.alt = d < 320 && dice(e) < 0.5 ? 1 : 0; out.backR = dice(e) < dt * 0.6 ? 1 : 0; out.backL = dice(e) < dt * 0.3 ? 1 : 0; }
+    // (a blade in the left hand: in to its reach and cut, an assault boost to close from far off)
+    const blade = e.rule.slots && e.rule.slots.armL && e.rule.slots.armL.fire === 'melee' ? e.rule.slots.armL : null;
+    if (e.locked) { out.fire = d < 420 ? 1 : 0; out.alt = blade ? (d < blade.range * 0.9 ? 1 : 0) : d < 320 && dice(e) < 0.5 ? 1 : 0; out.backR = dice(e) < dt * 0.6 ? 1 : 0; out.backL = dice(e) < dt * 0.3 ? 1 : 0; }
+    if (blade && e.locked && d > blade.range && d < range * 2.2 && (M.aggression ?? 0.6) > 0.5) { out.forward = 1; out.strafe = 0; if (!e.ab && dice(e) < dt * 0.8) out.ab = 1; }
     // (the pilot reeling: the moment to punish it, everything it has, in close)
-    if (e.locked && P.stagger > 0) { out.fire = out.alt = 1; out.backR = out.backL = 1; out.forward = d > range * 0.6 ? 1 : 0; out.qb = 0; }
+    if (e.locked && P.stagger > 0) { out.fire = out.alt = 1; out.backR = out.backL = 1; out.forward = d > range * 0.6 ? 1 : 0; out.qb = 0; out.kick = d < ((e.rule.kick && e.rule.kick.range) ?? 80) ? 1 : 0; }
     return out;
+  }
+
+  // a lunge begun: onto the locked foe if it is within the reach, else straight ahead; `by` the kick or the slot
+  function lungeFrom(e, world, K) {
+    const tg = e.locked && e.lockOn && world.byId[e.lockOn], p = e.transform.pos;
+    const near = tg && Math.hypot(tg.transform.pos[0] - p[0], tg.transform.pos[1] - p[1], tg.transform.pos[2] - p[2]) <= (K.range ?? 80);
+    // (its time: enough to cross its reach at its speed, a breath more; a whiff a short one)
+    e.lunge = { by: K.by, to: near ? tg.id : null, damage: K.damage || 0, impact: K.impact || 0, speed: K.speed ?? 110, T: near ? Math.min(K.time ?? 0.7, (K.range ?? 80) / (K.speed ?? 110) + 0.15) : 0.25, hit: false };
   }
 
   function frame(e, input, dt, world) {
@@ -146,8 +164,26 @@ export function buildRulesFrame(E) {
     const inQb = e.qbT > 0;
     if (inQb) e.qbT = Math.max(0, e.qbT - dt);
 
+    // ── the assault boost: toggled, a charge along the aim, ended by a quick boost, a kick, the generator or a reel ──
+    const abEdge = !!inp.ab && !e.abPrev;
+    e.abPrev = !!inp.ab;
+    if (abEdge) { if (e.ab) e.ab = false; else if (enOk && !(e.landT > 0) && !reeling && draw(C.abStart ?? 380)) e.ab = true; }
+    if (e.ab && (reeling || (qbEdge && inQb) || !enOk || !draw((C.ab ?? 440) * dt))) e.ab = false;
+
+    // ── the kick: a lunge onto the locked foe within its reach (straight ahead when none) ──
+    e.kickCd = Math.max(0, (e.kickCd || 0) - dt);
+    const kickEdge = !!inp.kick && !e.kickPrev;
+    e.kickPrev = !!inp.kick;
+    if (kickEdge && r.kick && e.kickCd <= 0 && !reeling && !(e.landT > 0) && !e.lunge && enOk && draw(r.kick.en ?? 300)) {
+      lungeFrom(e, world, { by: 'kick', damage: r.kick.damage, impact: r.kick.impact, range: r.kick.range, speed: r.kick.speed, time: r.kick.time });
+      e.kickCd = r.kick.cool ?? 2.2;
+    }
+    if (e.lunge && (reeling || e.lunge.T <= 0)) e.lunge = null;
+    const lunging = !!e.lunge;
+    if (lunging) e.ab = false;
+
     // ── the boost: held, a skate (or a push across the air), drawing a little ──
-    e.boosting = !!inp.boost && enOk && !(e.landT > 0) && draw((C.boost ?? 260) * dt);
+    e.boosting = !e.ab && !lunging && !!inp.boost && enOk && !(e.landT > 0) && draw((C.boost ?? 260) * dt);
     // ── jump and climb ──
     const jumpEdge = !!inp.jump && !e.jumpPrev;
     e.jumpPrev = !!inp.jump;
@@ -155,7 +191,24 @@ export function buildRulesFrame(E) {
     e.ascending = !onGround && !!(inp.jumpHeld || inp.jump) && enOk && e.frTime - (e.jumpedAt ?? -9) > 0.12 && draw((C.ascend ?? 520) * dt);
 
     // ── the horizontal: eased toward what it wants, hard on the booster, soft on its feet, little in the air ──
-    if (!inQb) {
+    if (lunging) {
+      // (the lunge: straight at the foe's middle, or along the aim, at its speed; its time runs down)
+      const L = e.lunge, tg = L.to && world.byId[L.to];
+      let d = aimDir(t.heading, e.aimPitch * 0.5);
+      if (tg && !tg.gone && !tg.downed) {
+        const q = tg.transform.pos, v = [q[0] - t.pos[0], q[1] - t.pos[1], q[2] + ((tg.body && tg.body.aimH) ?? 2) - (t.pos[2] + (r.eyeH ?? 7) * 0.6)], n = Math.hypot(v[0], v[1], v[2]) || 1;
+        d = [v[0] / n, v[1] / n, v[2] / n];
+        t.heading = Math.atan2(v[1], v[0]);
+      }
+      e.v[0] = d[0] * L.speed; e.v[1] = d[1] * L.speed; e.v[2] = d[2] * L.speed;
+      L.T -= dt;
+    } else if (e.ab && !inQb) {
+      // (the charge: built up toward its speed along the aim, a little of the aim's pitch in it, held at its height)
+      // (its height settles fast, its speed builds: a charge takes its line at once and gathers along it)
+      const a = aimDir(t.heading, e.aimPitch * 0.6), k = Math.min(1, 2.4 * dt), kz = Math.min(1, 6 * dt), sp = M.ab ?? 76;
+      e.v[0] += (a[0] * sp - e.v[0]) * k; e.v[1] += (a[1] * sp - e.v[1]) * k; e.v[2] += (a[2] * sp - e.v[2]) * kz;
+      if (onGround && e.v[2] < 0) e.v[2] = 0;
+    } else if (!inQb) {
       const sp = e.boosting ? (M.boost ?? 46) : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : 0;
       const want = e.boosting ? (dir || [fx, fy]) : dir;
       const tx = want ? want[0] * sp : (onGround ? 0 : e.v[0]), ty = want ? want[1] * sp : (onGround ? 0 : e.v[1]);
@@ -163,7 +216,8 @@ export function buildRulesFrame(E) {
       e.v[0] += (tx - e.v[0]) * k; e.v[1] += (ty - e.v[1]) * k;
     }
     // ── the vertical: gravity, the climb over it, the boost's glide ──
-    if (onGround && e.v[2] <= 0) e.v[2] = 0;
+    if (lunging || e.ab) { /* (the charge and the lunge hold their own height) */ }
+    else if (onGround && e.v[2] <= 0) e.v[2] = 0;
     else {
       let az = -g;
       if (e.ascending) az += g + (M.lift ?? 9);
@@ -220,7 +274,9 @@ export function buildRulesFrame(E) {
       : (e.boosting || inQb) ? way : hs > 0.8 ? 'forward' : 'idle';
     e.gaitPhase = (e.gaitPhase || 0) + (e.locomotion === 'forward' ? hs / (r.stride ?? 9) : e.boosting ? 1.2 * dt : 0.4 * dt);
     // (the burn the page's thrusters draw: full in a quick boost, hard climbing, then boosting in the air and on the ground; off)
-    e.thrust = inQb ? 1 : e.ascending ? 0.85 : e.boosting ? (e.airborne ? 0.75 : 0.6) : 0;
+    e.thrust = inQb || e.ab || lunging ? 1 : e.ascending ? 0.85 : e.boosting ? (e.airborne ? 0.75 : 0.6) : 0;
+    if (e.ab || lunging) e.locomotion = e.airborne ? 'hover' : 'boost';
+    e.moving = e.moving || e.ab || lunging;
 
     // ── the stagger: a hit that lands on a reeling frame lands harder; the reel runs out ──
     const hp = e.body && Number.isFinite(e.body.hp) ? e.body.hp : null;
@@ -237,7 +293,7 @@ export function buildRulesFrame(E) {
     e.stab = Number.isFinite(e.poise) && e.poiseMax > 0 ? Math.round((e.poise / e.poiseMax) * 100) / 100 : 1;
   }
   // (what a reeling frame's keys are: none)
-  const REEL = Object.freeze({ forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, lookDX: 0, lookDY: 0 });
+  const REEL = Object.freeze({ forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 });
 
   // ── the break: the engine's hit reaction arms a stagger on a broken bar; a frame takes it as its own reel, before the
   // reaction could root it (a timer, run ahead of the bodies' owners), and a killing blow is left to floor it ──
@@ -274,6 +330,15 @@ export function buildRulesFrame(E) {
     const held = !!inp[TRIGGER[slot]], edge = held && !S.prev;
     S.prev = held;
     if (S.rl > 0 || S.ammo <= 0) { if (S.ammo <= 0 && !(S.rl > 0) && (W.reload ?? 0) > 0) S.rl = W.reload; return; }
+    // (a blade: its trigger lunges onto the foe; the cut is landed as the lunge meets it)
+    if (W.fire === 'melee') {
+      if (edge && S.cd <= 0 && !e.lunge && !(e.stagger > 0) && (!W.energy || e.en >= W.energy)) {
+        if (W.energy) { e.en -= W.energy; e.enLast = e.frTime; }
+        lungeFrom(e, world, { by: slot, damage: W.damage, impact: W.stagger, range: W.range, speed: W.speed, time: 0.7 });
+        S.cd = W.cooldown ?? 1.6; S.shots = (S.shots || 0) + 1; e.lastShot = { slot, t: state.time };
+      }
+      return;
+    }
     let go = false, mul = 1;
     if (W.fire === 'auto') go = held && S.cd <= 0;
     else if (W.fire === 'charge') {
@@ -317,11 +382,33 @@ export function buildRulesFrame(E) {
     S.cd = W.fire === 'auto' ? 1 / (W.rof || 6) : (W.cooldown ?? 0.6);
     e.lastShot = { slot, t: state.time };
   }
+  // the lunge's blow: met (its foe's egg within reach of the frame's front), its damage and its impact on the foe's bar,
+  // a break or a kill armed as a round's is (the engine's reaction; a frame takes it as its reel), a spark where it struck
+  function landLunge(e, state) {
+    const L = e.lunge;
+    if (!L || L.hit || !L.to) return;
+    const tg = state.byId[L.to];
+    if (!tg || tg.gone || tg.downed || !(tg.body && tg.body.hittable)) { e.lunge = null; return; }
+    const p = e.transform.pos, q = tg.transform.pos, h = (tg.body.aimH ?? 2), reach = (tg.body.radius || 3) + 4.5;
+    const at = [q[0], q[1], q[2] + h], me = [p[0], p[1], p[2] + (e.rule.eyeH ?? 7) * 0.6];
+    if (Math.hypot(at[0] - me[0], at[1] - me[1], at[2] - me[2]) > reach + h * 0.5) return;
+    L.hit = true; L.T = Math.min(L.T, 0.08);
+    if (Number.isFinite(tg.body.hp)) tg.body.hp = Math.max(0, tg.body.hp - L.damage);
+    tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1; tg.lastHitBy = e.id; tg.lastHitDmg = L.damage;
+    if (Number.isFinite(tg.poise) && tg.staggerT == null && !(tg.stagger > 0)) tg.poise -= L.impact;
+    if ((Number.isFinite(tg.poise) && tg.poise <= 0) || (Number.isFinite(tg.body.hp) && tg.body.hp <= 0)) E.armReaction(tg, 'stagger');
+    // (and the blow's spark: the world's burst at the point it struck, the frame carried back off it)
+    if (!state.bursts) { state.bursts = []; state.burstSeq = 0; }
+    state.bursts.push({ seq: state.burstSeq++, pos: [(at[0] + me[0]) / 2, (at[1] + me[1]) / 2, (at[2] + me[2]) / 2], t: state.time, radius: 3, fxColor: L.by === 'kick' ? 0xffd9a0 : 0xfff0d0, fxScale: 0.8 });
+    if (e.v) { e.v[0] *= -0.15; e.v[1] *= -0.15; e.v[2] = Math.max(e.v[2] * 0.2, 2); }
+    e.lastHit = { by: L.by, to: tg.id, t: state.time };
+  }
   E.registerEntityAction('frame-weapons', (e, input, dt, state, world, owns) => {
     if (!(e.rule && e.rule.type === 'frame') || !e.rule.slots || owns.reaction || owns.drop || owns.cine || e.downed || e.gone) return;
     // (reeling: its triggers are dead, but its guns' timers still run, a reload finished in the reel)
     if (e.stagger > 0) { for (const slot of ['armR', 'armL', 'backR', 'backL']) { const W = e.rule.slots[slot]; if (W && W.st) { W.st.cd = Math.max(0, W.st.cd - dt); if (W.st.rl > 0) { W.st.rl = Math.max(0, W.st.rl - dt); if (W.st.rl === 0) W.st.ammo = W.mag ?? 9999; } W.st.prev = false; } } return; }
     if (!state.projectiles) { state.projectiles = []; state.bursts = []; state.projSeq = 0; state.burstSeq = 0; }
+    landLunge(e, state);
     const mine = !e.rule.mind && (state.pilotId === e.id || E.seated(state, e));
     const inp = e.rule.mind ? (e.frInput || {}) : mine ? input : {};
     const slots = e.rule.slots, st = {};

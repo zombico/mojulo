@@ -33,7 +33,7 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     It writes its depth for a page with a logarithmic depth buffer, as a flight's is.
   - Its review sheets: `node scripts/render-frame.mjs`.
 - **The frame rule** (`worlds/controllable/rules-frame.js`, opt-in `frame`).
-  - The mouse turns the frame and aims it. W, A, S and D walk it.
+  - The mouse turns the frame and aims it. W, A, S and D walk it. X assault-boosts and F kicks.
   - Shift held skates on the booster; C quick-boosts a burst toward the keys (back when none); Space jumps and, held,
     climbs on the thrusters.
   - The generator's EN is drawn by the boost, the quick boost, the climb and an energy weapon's shot. It comes back
@@ -60,7 +60,18 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     it in mid-air.
   - The HUD shows the locked frame's stress under the lock box, filling as it is pressed, red with STAGGER when it
     breaks, and the pilot's own stability under the armour.
-  - An enemy frame punishes a reeling pilot: everything it has, in close.
+  - An enemy frame punishes a reeling pilot: everything it has, in close, and a kick.
+- **Closing in: the assault boost, the kick and a blade** (`rules-frame.js`, `assemble.js` `move.ab`, `kick`).
+  - The assault boost (X, a toggle) charges along the aim at two thirds again the boost's speed. Its height settles at
+    once and it climbs or dives with the aim. It burns a light-up and nearly twice the boost's draw a second, and ends on
+    its key, a quick boost, a kick, the generator emptied or a stagger. The HUD marks it.
+  - The boost kick (F) lunges onto the locked frame within 80 m and lands the frame's own mass as its blow, heavy on a
+    bar: out of an assault boost it opens a reel, and on a reeling frame it punishes one.
+  - A blade, the Shear (`bl-shear`, fire `melee`), is a left-hand weapon: its trigger lunges onto the locked foe within
+    its reach and cuts, no round fired. Its look is an emitter on the fist and a long white-hot edge. The Raptor now
+    carries it in place of its laser, and an enemy Raptor closes on its assault boost to cut.
+  - The lunge and the blow are the same for both: met, the damage and the impact on the foe's bar, a break or a kill
+    armed as a round's is, a spark where it struck.
 - **The frame level** (an airspace level's `frame`, `gameworld/frame-goal.js`). The frame is stood at the south of its
   field facing north. The level is fought for its operation:
   - groups of the ground force's turrets, tanks and walkers at a frame's scale, and enemy frames;
