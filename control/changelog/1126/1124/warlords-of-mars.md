@@ -130,14 +130,17 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - The Harrow: a gunship twice a frame's length, a long hull on four big ducted fans, a chin gatling, a missile pod on
     each stub wing. A `circuit` orbits the pilot, tighter as it is hurt, and hangs to barrage. It carries a boss bar, and
     its operation, Harrow, comes before Vermilion.
-  - The Thunderhead (`thunderhead`): the heavy gunship at the top of the air ladder, some 44 m across the wings, a deep
-    hull on four great propellers with an autocannon, a howitzer and twin gatlings out of its left side. A `pylon` turn
-    flies it round the frame at height, banked, its broadside on the frame, never stopping; hurt, it comes lower and
-    turns tighter. Its howitzer's shells barely turn but land hard. Its guns cannot bear more than `under` degrees below
-    it (the frame levels' `frame-broadside` action, its `blind`), so a frame right under it is safe while it stays there,
-    and the lock box says UNDER ITS GUNS. Its operation, Thunderhead, follows Harrow.
-  - Its propellers spin: a card's `hubs` make a bone of each (its figure's `roll` clip turning them about its nose's
-    axis, at the flight's `spin` turns a second); a card without hubs packs as one bone, as before.
+  - The Thunderhead (`thunderhead`): the heavy gunship at the top of the air ladder, a quad drone at a gunship's
+    scale, some 46 m rotor tip to rotor tip. An armoured core under a wide lit visor, an X of tapered arms out to four
+    motor pods, and on each a great three-bladed rotor turning flat in a guard ring; a chin gun and a rail cannon slung
+    forward under it. An `orbit` flies it round the frame at height, its nose on the frame, never stopping; hurt, it
+    comes lower and circles tighter. Its rail cannon's slugs barely turn but land hard. Its guns cannot bear more than
+    `under` degrees below it (the frame levels' `frame-broadside` action, its `blind`), so a frame right under it is
+    safe while it stays there, and the lock box says UNDER ITS GUNS. Its operation, Thunderhead, follows Harrow.
+  - Its rotors spin, the pairs opposite ways, a faint disc where the blades blur (`UNIT_MATERIALS.blur`, seen through;
+    the form render's alone). A card's `hubs` make a bone of each, its `turns` their ways; the figure's `roll` clip spins
+    them about the vertical (`vehicle-rig.js` `packVehicleFigure`'s new `axis` and `turns`; absent, the wheels' clip as it
+    was). A card without hubs packs as one bone, as before.
 - **The ground force in the form render** (`groundforce/` `unitFigure(kind, { form })`, a figures map's
   `unit: { kind, form: true }`; a frame level's units ask for it).
   - Its armour is a satin painted metal under a thin clear coat, its structure gunmetal, its eye and drive lit by their

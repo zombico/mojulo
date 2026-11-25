@@ -149,9 +149,11 @@ export function bakeVehicleRig(manifest = {}, { keys = 12, targetH = null } = {}
  * `bones`: [{ id, head }] in vehicle space (+y forward, +z up), already normalized; `buckets`: Map bone id → faces;
  * `rolls`: the bones the clip turns (absent: every bone but the root), so a rig can carry bones that live otherwise;
  * `packed`: each part indexed and quantized (rig-bake packRigMesh, the unit rigs' form) instead of float32 soup.
+ * `axis` ('x' | 'y' | 'z', default 'x') and `turns` (a sign per rolled bone): a rotor's spin instead of a wheel's roll,
+ * about its own axis through each bone's head, a pair turning opposite; absent, the clip is the wheels' as it was.
  * Shared by the assembler bake above and the car designer's lofted vehicles (car-designer/realistic.js).
  */
-export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null, packed = false, form = null } = {}) {
+export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null, packed = false, form = null, axis = 'x', turns = null } = {}) {
   const parts = bones.map((b) => {
     // (a bone drawn in the form render carries its material form instead of its baked fill: packFormMesh)
     if (form && form.has(b.id)) return { form: packFormMesh(form.get(b.id)) };
@@ -172,7 +174,12 @@ export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null, pac
     for (const b of bones) {
       // (`rolls`: the bones that turn with the road; absent, every bone but the root, as before)
       if (b.id === 'root' || (rolls && !rolls.includes(b.id))) flat.push(0, 0, 0, 1, ...b.head);
-      else flat.push(qx, 0, 0, qw, ...b.head);
+      else if (axis === 'x' && !turns) flat.push(qx, 0, 0, qw, ...b.head);
+      else {
+        // (a rotor's: about `axis` through its head, each rolled bone its `turns` way, +1 or −1)
+        const sg = turns ? turns[rolls ? rolls.indexOf(b.id) : bones.indexOf(b) - 1] ?? 1 : 1, q = r4(Math.sin((sg * th) / 2) + 0);
+        flat.push(axis === 'x' ? q : 0, axis === 'y' ? q : 0, axis === 'z' ? q : 0, qw, ...b.head);
+      }
     }
   }
 

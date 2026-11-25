@@ -281,20 +281,20 @@ describe('the assault frame', () => {
     expect(hung).toBe(true);
   });
 
-  it('a pylon turns round the pilot at height, banked broadside on, its props spinning, lower and tighter hurt; it cannot fire straight down', () => {
-    const T0 = { id: 't', team: 'foes', rule: { type: 'ai', space: true, speed: 0, turn: 0.9, standoff: 0, sightRange: 900, flight: { mode: 'pylon', radius: 260, alt: 115, speed: 44, turn: 0.7, under: 55, spin: 3.2 } }, body: { type: 'box', size: [3, 3, 1], hittable: true, hp: 1000, hpMax: 1000, radius: 3 }, transform: { pos: [260, 0, 115], heading: Math.PI, pitch: 0 } };
+  it('an orbit drifts round the pilot at height nose on, its rotors spinning, lower and tighter hurt; it cannot fire straight down', () => {
+    const T0 = { id: 't', team: 'foes', rule: { type: 'ai', space: true, speed: 0, turn: 0.9, standoff: 0, sightRange: 900, flight: { mode: 'orbit', radius: 260, alt: 115, speed: 44, turn: 0.7, under: 55, spin: 3.2 } }, body: { type: 'box', size: [3, 3, 1], hittable: true, hp: 1000, hpMax: 1000, radius: 3 }, transform: { pos: [260, 0, 115], heading: Math.PI, pitch: 0 } };
     const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), T0], pilot: 'p', ai: 'off' });
     const T = st.byId.t, P = st.byId.p, ring = () => Math.hypot(T.transform.pos[0], T.transform.pos[1]);
     const rs = [], phases = new Set();
     run(st, {}, 120);
     const a0 = Math.atan2(T.transform.pos[1], T.transform.pos[0]);
     for (let i = 0; i < 60 * 8; i++) { run(st, {}, 1); rs.push(ring()); phases.add(Math.round(T.gaitPhase * 10)); }
-    // (it kept to its ring at its height, going round counter-clockwise: the pilot on its left), never stopping
+    // (it kept to its ring at its height, going round, never stopping)
     expect(Math.min(...rs)).toBeGreaterThan(220);
     expect(Math.max(...rs)).toBeLessThan(300);
     expect(T.transform.pos[2]).toBeGreaterThan(95);
     expect(Math.atan2(T.transform.pos[1], T.transform.pos[0]) - a0).toBeGreaterThan(0.6);
-    // (its propellers turning: the figure's spin clip, its phase running round)
+    // (its rotors turning: the figure's spin clip, its phase running round)
     expect(T.locomotion).toBe('roll');
     expect(phases.size).toBeGreaterThan(5);
     // (hurt, it comes in lower and tighter)

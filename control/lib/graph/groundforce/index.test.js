@@ -45,22 +45,27 @@ describe('the ground force', () => {
     expect(unitFigure(k).form).toBeUndefined();
   });
 
-  it('a card with spinning parts packs a bone at each hub, its roll clip turning them and holding the rest still', () => {
+  it('a card with rotors packs a bone at each hub, its clip spinning them flat, a pair each way, and holding the rest still', () => {
     // (one such card, chosen by its hubs: a new one runs through the same packing)
     const k = GROUND_UNIT_IDS.find((u) => GROUND_UNITS[u].hubs);
     const hubs = GROUND_UNITS[k].hubs(), fig = unitFigure(k, { form: true });
-    expect(fig.bones.map((b) => b.id)).toEqual(['root', ...hubs.map((_, i) => `prop${i}`)]);
+    expect(fig.bones.map((b) => b.id)).toEqual(['root', ...hubs.map((_, i) => `rotor${i}`)]);
     expect(fig.parts.every((p) => p && p.form)).toBe(true);
     // (every face is on one bone, and each spinning bone has its own)
     const F = unitFormFaces(k), on = (b) => F.filter((f) => (f.bone ?? 'root') === b).length;
     expect(fig.bones.reduce((n, b) => n + on(b.id), 0)).toBe(F.length);
-    for (let i = 0; i < hubs.length; i++) expect(on(`prop${i}`)).toBeGreaterThan(0);
-    // (the clip turns a hub's bone about the figure's x and keeps the root at rest)
+    for (let i = 0; i < hubs.length; i++) expect(on(`rotor${i}`)).toBeGreaterThan(0);
+    // (the clip turns a hub's bone about the vertical, its neighbour the other way, and keeps the root at rest)
     const C = fig.clips.roll, n = fig.bones.length, key = (q, b) => C.b.slice((q * n + b) * 7, (q * n + b) * 7 + 4);
     expect(key(3, 0)).toEqual([0, 0, 0, 1]);
-    const q = key(3, 1);
-    expect(Math.abs(q[0])).toBeGreaterThan(0.5);
-    expect([q[1], q[2]]).toEqual([0, 0]);
+    const q1 = key(3, 1), q2 = key(3, 2);
+    expect(Math.abs(q1[2])).toBeGreaterThan(0.5);
+    expect([q1[0], q1[1]]).toEqual([0, 0]);
+    expect(q2[2]).toBeCloseTo(-q1[2], 4);
+    // (its blades' blur is the form render's alone, seen through: the baked unit draws no disc)
+    expect(F.some((f) => f.material === 'blur')).toBe(true);
+    expect(UNIT_MATERIALS.blur.transparent).toBe(true);
+    expect(unitFaces(k).some((f) => f.role === 'blur')).toBe(false);
     // (a card without hubs packs as one bone, as it always did)
     const plain = GROUND_UNIT_IDS.find((u) => !GROUND_UNITS[u].hubs);
     expect(unitFigure(plain, { form: true }).bones.map((b) => b.id)).toEqual(['root']);

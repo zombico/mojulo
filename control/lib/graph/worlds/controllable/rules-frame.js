@@ -32,12 +32,12 @@
  *     as it fires, a boost and an assault boost cut: it STICKS where it is for `brace` s (in the air too, no gravity, its
  *     drift checked hard), then WINDS DOWN over `wind` s, its gravity and its control coming back (the legs' `steady`
  *     scales both). A quick boost in the wind-down cancels it: the skilled way out; the stick itself cannot be.
- *   • A FLIER'S FLIGHT (an ai's `rule.flight` { mode: 'strafe' | 'perch' | 'circuit' | 'pylon', … }, `frame-flight`): the AI aims and
+ *   • A FLIER'S FLIGHT (an ai's `rule.flight` { mode: 'strafe' | 'perch' | 'circuit' | 'orbit', … }, `frame-flight`): the AI aims and
  *     fires it, the pass flies it: a strafe dives on a mark beside the pilot, rakes past low and pulls out to come round;
  *     a perch holds a point high and far, drifting to a new one; a circuit orbits the pilot, tighter as it is hurt, and
- *     hangs every so often to barrage (`hanging`); a pylon turns round the pilot at height, banked, broadside on it,
- *     tighter and lower as it is hurt; its guns cannot bear past `under` degrees down (`frame-broadside`, `blind`), and
- *     its propellers spin at `spin` turns a second (its figure's `roll` clip).
+ *     hangs every so often to barrage (`hanging`); an orbit (a quad drone's) drifts round the pilot at height, nose on
+ *     it, never stopping, tighter and lower as it is hurt; its guns cannot bear past `under` degrees down
+ *     (`frame-broadside`, `blind`), and its rotors spin at `spin` turns a second (its figure's `roll` clip).
  *   • A SHIELD (the engine's frontal shield, `body.shield`): a lunge knocks it aside and staggers its bearer; broken, it is
  *     raised again `rule.shieldRaise` s on (`frame-shields`).
  *   • THE LUNGE (the boost KICK on its key, `rule.kick`, and a BLADE, an arm weapon of fire 'melee'): onto the locked foe
@@ -545,7 +545,7 @@ export function buildRulesFrame(E) {
   // drifting to a new one now and then; a CIRCUIT orbits the pilot at its radius and height, tighter as it is hurt, and
   // every so often stops and hangs to barrage. Each steers its own velocity toward where it wants to be, at its speed and
   // turn, and faces its flight where it is running, not the pilot ──
-  const FLIGHT = { strafe: flyStrafe, perch: flyPerch, circuit: flyCircuit, pylon: flyPylon };
+  const FLIGHT = { strafe: flyStrafe, perch: flyPerch, circuit: flyCircuit, orbit: flyOrbit };
   function flyStrafe(e, F, P, ground) {
     const S = e.flight, p = e.transform.pos, q = P.transform.pos;
     if (!S.phase || S.phase === 'in' && !S.at) {
@@ -586,8 +586,8 @@ export function buildRulesFrame(E) {
     const x = q[0] + Math.cos(S.th) * R, y = q[1] + Math.sin(S.th) * R;
     return { at: [x, y, (ground(x, y) ?? 0) + (F.alt ?? 42)], speed: (F.speed ?? 24) * 1.4, face: false };
   }
-  function flyPylon(e, F, P, ground, dt) {
-    // (a pylon turn: round the pilot the way that keeps it on the gunship's left, its broadside, never stopping; hurt, it
+  function flyOrbit(e, F, P, ground, dt) {
+    // (an orbit: a quad drone drifting round the pilot at height, its nose (the AI's aim) on it, never stopping; hurt, it
     // tightens and comes down)
     const S = e.flight, q = P.transform.pos, share = e.body && e.body.hpMax > 0 ? Math.max(0, e.body.hp / e.body.hpMax) : 1;
     const R = (F.radius ?? 260) * (0.6 + 0.4 * share), sp = F.speed ?? 44;
@@ -613,11 +613,11 @@ export function buildRulesFrame(E) {
       p[0] += v[0] * dt; p[1] += v[1] * dt; p[2] += v[2] * dt;
       if (W.face && Math.hypot(v[0], v[1]) > 2) e.transform.heading = Math.atan2(v[1], v[0]);
       e.moving = true;
-      // (its propellers: the figure's spin clip, `roll`, at `spin` turns a second)
+      // (its rotors: the figure's spin clip, `roll`, at `spin` turns a second)
       if (F.spin > 0) { e.locomotion = 'roll'; e.gaitPhase = (state.time * F.spin) % 1; }
     }
   }, 29);
-  // ── a broadside's reach (a flight's `under`): its guns cannot bear more than `under` degrees below it, so a pilot right
+  // ── guns slung forward (a flight's `under`): they cannot bear more than `under` degrees below it, so a pilot right
   // under the gunship is not fired on while it stays there (`blind`); before the weapons, so the trigger it gives is held ──
   E.registerEntityAction('frame-broadside', (e, input, dt, state) => {
     const F = e.rule && e.rule.flight;

@@ -108,10 +108,10 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: 'gunship', text: 'Bring down the Harrow' })]),
   }),
-  // (the air ladder's top: the heavy gunship, a pylon turn at height, its broadside on the frame; under it is safe)
+  // (the air ladder's top: the heavy gunship, a quad drone at a gunship's scale orbiting high; under it is safe)
   f({
     id: 'thunderhead', name: 'Thunderhead', map: 'basin',
-    brief: 'The warlord\'s heavy gunship turns over the crater at height, banked, its broadside on you: an autocannon and a howitzer whose shells land hard. Its guns cannot reach straight down: get under it and stay there, and it cannot touch you. Hurt, it comes lower and turns tighter.',
+    brief: 'The warlord\'s heavy gunship is a drone as big as a hangar: four great rotors, a chin gun and a rail cannon whose slugs land hard. It circles over the crater with its nose on you. Its guns are slung forward and cannot reach straight down: get under it and stay there, and it cannot touch you. Hurt, it comes lower and circles tighter.',
     groups: f([
       f({ id: 'gunship', kind: 'thunderhead', at: f([0, 0.5]) }),
       f({ id: 'escort', kind: 'wasp', count: 3, at: f([0, 0.3]), spread: 160 }),
