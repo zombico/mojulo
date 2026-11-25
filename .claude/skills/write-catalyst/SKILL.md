@@ -1,6 +1,7 @@
 ---
 name: write-catalyst
-description: Draft a new mojulo catalyst (a curated workflow recipe shipped via MCP) into control/lib/mcp/catalysts/. Push back when the request isn't catalyst-shaped — when it's actually a mojulo code change, a one-off user skill, a write back into the workflow's own source, or too thin on mapping insight to earn a shelf spot. Invoke as `/write-catalyst` (the skill prompts for intent) or `/write-catalyst <one-line intent>`.
+description: "Draft a new mojulo catalyst (a curated workflow recipe shipped over MCP) into control/lib/mcp/catalysts/. Push back when the ask is a code change, a one-off skill, or too thin to earn a shelf spot."
+argument-hint: "[<one-line intent>]"
 ---
 
 # /write-catalyst

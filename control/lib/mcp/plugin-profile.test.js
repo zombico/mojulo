@@ -264,11 +264,19 @@ describe('stdio under MOJULO_DISTRIBUTION=claude-plugin', () => {
     expect(JSON.stringify(tool('create_cover'))).not.toMatch(/painted layers|render_brief/);
   });
 
-  it('keeps the voice registers out of the initialize preamble', () => {
+  // The plugin's skills route (plugins/mojulo/skills), so its preamble is short: what mojulo is, the skills with
+  // forward_context behind them, the rules every call keeps, the secrets rule; never a hidden tool.
+  it('gives the plugin its own short preamble: the skills route, forward_context behind them', async () => {
+    const { PLUGIN_PROFILE_INSTRUCTIONS: P, SERVER_INSTRUCTIONS } = await import('./server.js');
     for (const s of [flat, packs]) {
-      expect(s.init.instructions).toMatch(/scores and sound effects: `create_beats`\./);
+      expect(s.init.instructions).toContain(P);
       expect(hiddenIn(s.init.instructions)).toEqual([]);
     }
+    expect(P).toMatch(/start skill/);
+    expect(P).toContain('`forward_context()`');
+    expect(P).toMatch(/never `cat` or `Read` a `\.env`/);
+    expect(P).toMatch(/never claim the eyes gate passed/);
+    expect(P.length).toBeLessThan(SERVER_INSTRUCTIONS.length / 3);
   });
 
   it('refuses every hidden tool in-band, directly and through any pack', () => {
@@ -384,6 +392,13 @@ describe('orientation surfaces under the profile', () => {
     }
     expect(text('forward_context')).not.toMatch(/VOICE|image-outcome|sequential-art/);
     expect(text('get_ui_map')).not.toMatch(/\/maker\/voice|image-render queue/);
+    // the start rows are the start skills' (the plugin's main skill reads this index only when none covers the ask):
+    // one line names every start skill, and what those rows routed that no skill carries stays
+    const fc = text('forward_context');
+    expect(fc).not.toMatch(/^ {2}(CHARACTER|GAME|OBJECT|HOUSE) /m);
+    expect(fc).not.toMatch(/\bHOUSE\b/);
+    for (const skill of ['make-character', 'design-game', 'design-object', 'make-exhibit', 'design-building', 'design-interior']) expect(fc).toContain(`\`${skill}\``);
+    for (const tool of ['tune_ground', 'pick_palette', 'create_game', 'create_pixelizer_game', 'measure_solid', 'verify_machina']) expect(fc).toContain(`\`${tool}\``);
   });
 });
 
@@ -470,7 +485,8 @@ describe('the CLI under the profile', () => {
     expect(packList.code).toBe(0);
     expect(hiddenIn(packList.stdout)).toEqual([]);
     const orient = cli(['orient']);
-    expect(orient.stdout).toMatch(/scores and sound effects: `create_beats`\./);
+    expect(orient.stdout).toMatch(/The plugin's skills route/);
+    expect(hiddenIn(orient.stdout)).toEqual([]);
 
     const call = cli(['call', 'bind_image_render', '--json', '{}']);
     expect(call.code).toBe(1);

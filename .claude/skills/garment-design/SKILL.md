@@ -1,6 +1,7 @@
 ---
 name: garment-design
-description: Design an outfit for a hero on the realistic body from a brief, the way a fashion designer and a tailor would — turn the brief into stylism words (genre, register, target silhouette or 'balance', the canon western | anime) or an outfit card, say why principle by principle (docs/garment-principles.md), mint it, read the dressed outline and its advice in that canon, adjust the WORDS (never hand-built geometry) at most three times, and show the operator the sheet; the eyes gate is theirs. Use when asked to dress a character, design a costume or an outfit, "make this character's clothes striking", or to compare outfits on different figures. Invoke as `/garment-design <brief>`.
+description: "Design an outfit for a hero on the realistic body from a brief, as a fashion designer and tailor would: words, never hand-built geometry, the sheet shown, the eyes gate the person's. Use to dress a character, design a costume, or compare outfits across figures."
+argument-hint: "<brief>"
 ---
 
 # /garment-design

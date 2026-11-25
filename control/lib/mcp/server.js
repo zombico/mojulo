@@ -39,7 +39,7 @@ import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from
 import { rolesEnabled, isAdminContext } from '@/lib/roles/keys';
 // The Claude plugin profile (plugin-profile.js): what the plugin build leaves out. Pure data plus
 // distribution(); every check is false outside distribution() === 'claude-plugin'.
-import { pluginProfileActive, hiddenInPluginProfile, pluginProfileToolNotice, profileEdit, toolFace } from '@/lib/mcp/plugin-profile';
+import { pluginProfileActive, hiddenInPluginProfile, pluginProfileToolNotice, toolFace } from '@/lib/mcp/plugin-profile';
 
 // MCP spec revisions this server speaks, newest first. `initialize` answers with
 // the revision the client asked for when it is one of these, otherwise the newest
@@ -90,12 +90,17 @@ What it makes, by what people do with it:
 
 Tool descriptions self-route. When unsure, call \`forward_context()\`, a cheap routing index rather than a briefing. Pull a drawer only when a task needs depth: \`get_tool_index\` (every tool), \`get_register_kit\` (the glossary), \`get_ui_map\` (dashboard pages), \`get_substrate\` (what mojulo is, posture, costs).`;
 
-// The preamble under the Claude plugin profile: the voice registers are not in that build.
-const PLUGIN_PROFILE_INSTRUCTIONS = profileEdit(
-  SERVER_INSTRUCTIONS,
-  [['scores, sound effects and voices: `create_beats`, `create_voice`', 'scores and sound effects: `create_beats`']],
-  'SERVER_INSTRUCTIONS',
-);
+// The preamble under the Claude plugin profile. The plugin's skills route there (plugins/mojulo/skills: a start skill
+// names its entry tool and its steps), so this says only what the skills do not: what mojulo is, that the skills route
+// with forward_context behind them, the rules every call keeps, and the secrets rule. The voice registers are not in
+// that build. Paid once per session; kept under a third of SERVER_INSTRUCTIONS (plugin-profile.test.js).
+export const PLUGIN_PROFILE_INSTRUCTIONS = `Mojulo is a **3D creative studio** on this machine: characters, objects, worlds, buildings, games, diagrams, scores and sound effects, each kept as a small deterministic recipe (the recipe is the source; renders regenerate on every read), played in the browser, printed as STL or 3MF, or handed to Godot, Unity, Unreal or Blender.
+
+**The plugin's skills route.** A start skill (a character, a game, an object, a 3D exhibit, a home or a room) names its entry tool and its steps. When none covers the ask, call \`forward_context()\`, the routing index, and the tool on its row.
+
+Change a recipe in place (\`update_sketch\`, \`edit_solid\`), never by minting again. Gates advise and stamp: say which ran, and never claim the eyes gate passed; that is the person's.
+
+**Secrets:** never \`cat\` or \`Read\` a \`.env\` under \`$MOJULO_HOME\` or in any directory mojulo generated.`;
 
 /** The initialize preamble for this process: SERVER_INSTRUCTIONS, or its plugin-profile form. */
 export function serverInstructions(env = process.env) {

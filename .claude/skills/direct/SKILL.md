@@ -1,6 +1,7 @@
 ---
 name: direct
-description: Direct the camera on a brief the way a director and a director of photography would — choose the camera style or the shots in words (size, angle, side, place, the named moves), say why shot by shot, write them as a world's shoot plan or a screenplay's coverage, read the frame read's advice and LOOK at the contact sheet (or the storyboard), adjust the WORDS (never hand-placed coordinates) at most three times, and show the person the sheet; the eyes gate is theirs. Use when asked to shoot, film, cover or frame something, "set up the cameras", "make this scene feel handheld / symmetrical / like one take", a trailer or a tour of a world, or to fix framing that reads wrong. Invoke as `/direct <brief>`.
+description: "Direct a camera on a brief as a director and DP would: shots chosen and revised in words, the contact sheet looked at, the eyes gate left to the person. Use for \"shoot / film / frame this\", \"set up the cameras\", a trailer or a tour of a world, or framing that reads wrong."
+argument-hint: "<brief>"
 ---
 
 # /direct

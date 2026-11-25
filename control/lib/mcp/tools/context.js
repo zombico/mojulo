@@ -721,10 +721,23 @@ export function formToolset(key, profile = pluginProfileActive()) {
   return profile ? PROFILE_FORM_TOOLSETS[key] ?? null : FORM_TOOLSETS[key] ?? null;
 }
 
+// The start rows under the plugin: the plugin's start skills carry them (plugins/mojulo/skills, generated from the
+// routing cards by scripts/plugin-skills.mjs), and its main skill reads forward_context only when no start skill covers
+// the ask, so the rows become one line naming the skills; what each row routes that no skill carries stays.
+const PROFILE_START_ROWS = '  STARTS   a character (hero, creature, animal), a game, an object, a 3D exhibit, a home or a room → its start skill (`make-character` · `design-game` · `design-object` · `make-exhibit` · `design-building` · `design-interior`), which names the entry tool and its steps\n'
+  + '  ALSO     a character reused across games → `egocube` (`create_sketch`) · a level\'s ground → `tune_ground` · its colours → `pick_palette` · made levels, one store → `create_game` · a match-3 saga → `create_pixelizer_game` · emote a figure → `edit_solid` · measure an object → `measure_solid` · mechanical feasibility → `verify_machina`\n';
+
 const PROFILE_STUDIO_ROUTING_INDEX = profileEdit(STUDIO_ROUTING_INDEX, [
+  [/ {2}CHARACTER [^\n]*\n/, PROFILE_START_ROWS],
+  [/ {2}GAME {5}[^\n]*\n/, ''],
+  [/ {2}OBJECT {3}[^\n]*\n/, ''],
+  [/ {2}HOUSE {4}[^\n]*\n/, ''],
+  [' · a study object or a historic city ("teach me fission") → `create_exhibit` (their own people: `start` first)', ''],
+  ['a house to walk is HOUSE)', 'a house to walk is the `design-building` skill)'],
+  [' · a dwelling is HOUSE', ' · a dwelling is the `design-building` skill'],
+  ['  - no ask yet → offer five starts (a character, a game, an object, a 3D exhibit, a home or a room); a game runs from the idea, or the docs they bring, to its first level, machine-proved, theirs to approve', '  - no ask yet → offer the five starts; each is a start skill'],
   [' · voice never revises — re-`create_voice`', ''],
   [" · direct an AI-generated image / comic page → `create_sketch` kind 'image-outcome'/'sequential-art'", ''],
-  [' · paint / emote one → `edit_solid`', ' · emote a figure → `edit_solid`'],
   [/\n {2}VOICE {4}[^\n]*/, ''],
   [' · sprites → `bake_sprite_sheet`', ''],
 ], 'STUDIO_ROUTING_INDEX');

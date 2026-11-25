@@ -1,6 +1,7 @@
 ---
 name: hero-live
-description: Play the HERO as an engine gets it — the skinned GLB with every clip and the face's morph weights keyed into the body's — in a live three.js viewer (orbit, takes, a scrubber, every morph channel live or held by hand, wireframe, bones), with variants of the same hero side by side (bare, an armour, an armour round), and print what each mint read back (the adornment verdicts, the pieces left off, the clearance, the warnings). Use to debug or iterate the face rig, the clips, the skinning or the dress on a MOVING body, to run the adornment loop on the realistic body, or to put a live hero in front of the operator (an artifact). Invoke as `/hero-live [--hero '{…}'] [--armour knight,aka] [--variants '[…]'] [--clips '{…}'] [--publish]`.
+description: "Play the hero as an engine gets it (the skinned GLB, its clips and face morphs) in a live three.js viewer, variants side by side, with what each mint read back. Use to debug the face rig, clips, skinning or dress on a moving body, or to show a live hero."
+argument-hint: "[--hero '{…}'] [--armour knight,aka] [--variants '[…]'] [--clips '{…}'] [--publish]"
 ---
 
 # hero-live

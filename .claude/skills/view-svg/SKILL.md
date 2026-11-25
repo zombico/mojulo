@@ -1,6 +1,7 @@
 ---
 name: view-svg
-description: Rasterize SVG file(s) to PNG so they can be visually evaluated with the Read tool. Use whenever you need to *see* an SVG — illustration-experiment outputs under lite-template/integration/**/spike-output/, a stored sketch's SVG, or any .svg path. The Read tool renders PNG/JPG but not SVG; this bridges that gap. Invoke as `/view-svg <path|dir|glob>...`.
+description: "Rasterize SVG files to PNG so the Read tool can show them. Use whenever you need to see an SVG: a spike's output, a stored sketch, any .svg path."
+argument-hint: "<path|dir|glob>..."
 ---
 
 # view-svg
