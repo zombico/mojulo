@@ -168,7 +168,8 @@ window.street = {
     if (view === 'front') frame([0, 1.0, d], [0, 0.88, 0]);
     else frame([d * 0.62, 1.15, d * 0.8], [0, 0.85, 0]);
   },
-  face(i) { const F = figures[i], H = F.head ? new THREE.Vector3().setFromMatrixPosition(F.head.matrixWorld) : new THREE.Vector3(F.root.position.x, F.box.max.y - 0.13, 0), y = H.y + 0.09; frame([H.x + 0.12, y + 0.02, H.z + 0.8], [H.x, y, H.z], 20); },
+  // (the whole face, the crown to the chin, from the front or the side: side the profile, turned a quarter)
+  face(i, side = false) { const F = figures[i], H = F.head ? new THREE.Vector3().setFromMatrixPosition(F.head.matrixWorld) : new THREE.Vector3(F.root.position.x, F.box.max.y - 0.2, 0), y = H.y + 0.06; frame(side ? [H.x + 1.0, y + 0.01, H.z + 0.02] : [H.x + 0.04, y + 0.01, H.z + 1.0], [H.x, y, H.z + (side ? 0.02 : 0)], 17); },
   hand(i) { const F = figures[i]; if (!F.handAt) return; const c = F.handAt(); frame([c.x - 0.3, c.y + 0.06, c.z + 0.4], [c.x, c.y, c.z], 26); },
   ready: true,
 };
@@ -202,13 +203,16 @@ try {
   // the faces over the hands, one column a person
   const reads = await page.evaluate(() => window.street.reads), T = 400, Hh = 300, comps = [];
   for (const [i, R] of reads.entries()) {
-    const face = await shot(`street.face(${i})`), hand = await shot(`street.hand(${i})`);
-    comps.push({ input: await sharp(face).extract({ left: 400, top: 112, width: 800, height: 600 }).resize(T, Hh).toBuffer(), left: i * T, top: 0 });
-    comps.push({ input: label(`${R.id} ${R.label}`.slice(0, 44), T), left: i * T, top: Hh });
-    comps.push({ input: await sharp(hand).extract({ left: 400, top: 112, width: 800, height: 600 }).resize(T, Hh).toBuffer(), left: i * T, top: Hh + 26 });
-    comps.push({ input: label(`hand ${R.handShare ?? '?'} of ${R.stature} m`, T), left: i * T, top: 2 * Hh + 26 });
+    // (each face square, the front over the profile, then the hand)
+    const face = await shot(`street.face(${i})`), side = await shot(`street.face(${i}, true)`), hand = await shot(`street.hand(${i})`);
+    const sq = (png) => sharp(png).extract({ left: 350, top: 0, width: 900, height: 900 }).resize(T, T).toBuffer();
+    comps.push({ input: await sq(face), left: i * T, top: 0 });
+    comps.push({ input: await sq(side), left: i * T, top: T });
+    comps.push({ input: label(`${R.id} ${R.label}`.slice(0, 44), T), left: i * T, top: 2 * T });
+    comps.push({ input: await sharp(hand).extract({ left: 400, top: 112, width: 800, height: 600 }).resize(T, Hh).toBuffer(), left: i * T, top: 2 * T + 26 });
+    comps.push({ input: label(`hand ${R.handShare ?? '?'} of ${R.stature} m`, T), left: i * T, top: 2 * T + Hh + 26 });
   }
-  await sharp({ create: { width: T * reads.length, height: 2 * Hh + 52, channels: 3, background: '#ecebe7' } }).composite(comps).png().toFile(path.join(out, 'close.png'));
+  await sharp({ create: { width: T * reads.length, height: 2 * T + Hh + 52, channels: 3, background: '#ecebe7' } }).composite(comps).png().toFile(path.join(out, 'close.png'));
   writeFileSync(path.join(out, 'read.json'), JSON.stringify({ seed, locale, set, clip, phase, people: reads.map((R) => ({ ...R, spec: made.find((p) => p.id === R.id).spec })) }, null, 1));
   console.log('\nid   stature  hand (share)     breadth (share)   who');
   for (const R of reads) console.log(`${R.id.padEnd(4)} ${String(R.stature).padEnd(8)} ${String(R.hand).padEnd(6)} (${R.handShare})  ${String(R.handBreadth).padEnd(6)} (${R.breadthShare})    ${R.label}`);
