@@ -12,7 +12,8 @@ import { SET_PIECE_KIND_IDS } from './set-piece-kinds.js';
 
 const CW = composeLive();
 const DT = 1 / 60;
-export const GAPS = { 'rooftop-run': [17], collapse: [45.2], climb: [19.2, 39.4] };
+// a moving kind's vehicles as boxes where they now stand (a carrier's body: its centre, its size)
+const vehicles = (w) => w.entities.filter((e) => e.body && e.body.carrier).map((e) => { const p = e.transform.pos, [sx, sy, sz] = e.body.size; return { min: [p[0] - sx / 2, p[1] - sy / 2, p[2] - sz / 2], max: [p[0] + sx / 2, p[1] + sy / 2, p[2] + sz / 2] }; });
 
 // the ray from a to b meets the box (the slab test), its ends trimmed by `trim` metres
 function blocks(a, b, box, trim = 0.25) {
@@ -32,22 +33,25 @@ const inside = (p, box, m = 0.15) => p.every((v, i) => v > box.min[i] + m && v <
 
 export function framingOf(kind) {
   const S = stuntLevel({ id: 'g', feel: 'lost-nomad' }, { spec: { kind }, cast: 'stand-in' }), M = S.manifest;
-  const boxes = M.colliders;
-  const tops = [...boxes, ...(M.breakables ?? [])];
+  const still = M.colliders;
+  let boxes = still, tops = [...still, ...(M.breakables ?? [])];
   const ground = (p) => { let z = 0; for (const b of tops) if (p[0] >= b.min[0] && p[0] <= b.max[0] && p[1] >= b.min[1] && p[1] <= b.max[1] && b.max[2] <= p[2] + 0.6 && b.max[2] > z) z = b.max[2]; return z; };
-  const w = CW.createWorld({ entities: M.entities.filter((e) => e.pilotable), camera: M.camera, colliders: boxes, chase: M.chase });
+  const w = CW.createWorld({ entities: M.entities, camera: M.camera, colliders: still, chase: M.chase });
   w.pilotId = 'hero';
-  const h = w.byId.hero, jumps = GAPS[kind], out = { frames: 0, insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [], catches: 0, leaps: 0, maxZ: h.transform.pos[2] };
+  const h = w.byId.hero, jumps = S.jumps, out = { frames: 0, insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [], catches: 0, leaps: 0, maxZ: h.transform.pos[2], minZ: h.transform.pos[2] };
   let jumpT = -1;
   for (let i = 0; i < 60 * 60 && !w.chase.done.length; i++) {
     const jump = w.chase.on && i - jumpT > 30 && (h.ledge ? !h.ledge.leap && !h.ledge.pull : jumps.some((j) => w.chase.s > j - 0.6 && w.chase.s < j + 0.3) && h.grounded !== false);
     if (jump) jumpT = i;
     const held = !!h.ledge;
+    // (the ground and the camera's blocks as they stand this frame: a moving kind's vehicles where they have driven)
+    const V = vehicles(w);
+    if (V.length) { boxes = [...still, ...V]; tops = [...boxes, ...(M.breakables ?? [])]; }
     CW.stepWorld(w, { forward: 1, strafe: 0, boost: 1, jump: jump ? 1 : 0, jumpHeld: i - jumpT < 8 ? 1 : 0 }, DT, { ground });
     if (!held && h.ledge) out.catches++;
     if (h.ledge && h.ledge.leap && !out._leap) out.leaps++;
     out._leap = !!(h.ledge && h.ledge.leap);
-    out.maxZ = Math.max(out.maxZ, h.transform.pos[2]);
+    out.maxZ = Math.max(out.maxZ, h.transform.pos[2]); out.minZ = Math.min(out.minZ, h.transform.pos[2]);
     const C = w.camera;
     if (!w.chase.on || !C.track || i < 30) continue;
     out.frames++;
@@ -70,6 +74,8 @@ describe('a set piece\'s camera sees its hero', () => {
       const F = framingOf(kind);
       expect(F.frames, kind).toBeGreaterThan(200);
       expect(F.done, kind).toEqual([kind]);
+      // (every gap the bot jumps cleared: never down off the set piece, a drop to a lower roof or a cab the most)
+      expect(F.minZ, kind).toBeGreaterThan(stuntLevel({ id: 'g' }, { spec: { kind }, cast: 'stand-in' }).setPiece.z - 2.5);
       expect({ insideBlock: F.insideBlock, blocked: F.blocked, outOfFrame: F.outOfFrame, tooClose: F.tooClose, tooFar: F.tooFar, worst: F.worst }).toEqual({ insideBlock: 0, blocked: 0, outOfFrame: 0, tooClose: 0, tooFar: 0, worst: [] });
     });
   }

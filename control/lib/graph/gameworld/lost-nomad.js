@@ -6,7 +6,7 @@
  *            realistic body, in the basic adventurer's clothes (a henley with its sleeves pushed up, straight jeans, work
  *            boots, a belt with a pouch on the thigh), stubble, short swept hair; his motion the free runner's
  *   lostNomadWorld({ name?, seed? }) → the template movie: a designed world of three set-piece levels in order (the
- *            souk's rooftops, the fall of the tower, the cliffs), each a kind (set-piece-kinds.js) laid on its own site,
+ *            souk's rooftops, the fall of the tower, the cliffs, the convoy), each a kind (set-piece-kinds.js) laid on its own site,
  *            Tariq its hero (his looks the hero page's fragments, composed into his spec), the cinematic action feel
  *   lostNomadStart(world) → { world, says } the starter under what a person wrote (every key of theirs wins), or null
  *            for a world that already has levels
@@ -47,6 +47,7 @@ export const REEL = Object.freeze([
   ['souk', 'The souk rooftops', { kind: 'rooftop-run' }],
   ['tower', 'The fall of the tower', { kind: 'collapse' }],
   ['cliffs', 'The cliffs', { kind: 'climb' }],
+  ['convoy', 'The convoy', { kind: 'truck-top' }],
 ]);
 
 /** The template movie (see the header). */
@@ -75,5 +76,5 @@ export function lostNomadStart(world) {
   if (!world || typeof world !== 'object' || Array.isArray(world) || world.levels !== undefined) return null;
   const S = lostNomadWorld({ ...(typeof world.name === 'string' && world.name.trim() ? { name: world.name } : {}), ...(Number.isInteger(world.seed) ? { seed: world.seed } : {}) });
   const starter = Object.fromEntries(Object.entries(S).filter(([k]) => !OWN.includes(k)));
-  return { world: { ...starter, ...world }, says: `${LOST_NOMAD}'s starter: an action movie of three set pieces (${REEL.map(([, t]) => t.toLowerCase()).join(', ')}), Tariq its star, every one a word of the book: theirs to change, reorder or replace` };
+  return { world: { ...starter, ...world }, says: `${LOST_NOMAD}'s starter: an action movie of ${REEL.length} set pieces (${REEL.map(([, t]) => t.toLowerCase()).join(', ')}), Tariq its star, every one a word of the book: theirs to change, reorder or replace` };
 }

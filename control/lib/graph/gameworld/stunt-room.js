@@ -4,7 +4,8 @@
  * it. The practice door's stunt room is a rooftop run, played before there are levels; a designed level's `stunt` is
  * any kind, the level won as its line ends.
  *
- *   stuntLevel(G, { ref?, heroRef?, spec, title?, cast?, game? }) → { manifest, setPiece, laws, blocks, hero: 'own' | 'star' | 'stand-in' }
+ *   stuntLevel(G, { ref?, heroRef?, spec, title?, cast?, game? }) → { manifest, setPiece, laws, blocks, jumps, hero: 'own' | 'star' | 'stand-in' }
+ *               (a moving kind's vehicles stand in the level as its bodies, its road under them)
  *     spec      { kind, …its words } (set-piece-kinds.js)
  *     heroRef   the world's own hero, made; else the template's star, Tariq (lost-nomad.js); `cast: 'stand-in'` a plain
  *               stand-in (a quick page: the star's body slows a headless one to a few frames)
@@ -41,17 +42,18 @@ export function stuntLevel(G, { ref = null, heroRef = null, spec, title = null, 
   const figures = { hero: own ? { ...lib, heroRef, clips: ledgeStates(lib.clips, false) } : { ...lib, hero: { ...body, clips: { ...(body.clips ?? {}), ...LEDGE_CLIPS } }, clips: ledgeStates(lib.clips) } };
   const e0 = P.entities[0];
   const hero = { ...e0, body: { ...e0.body, hittable: true, hp: 100 }, transform: { pos: K.start.slice(), heading: K.heading } };
-  const site = siteOf(K.blocks);
+  // (a moving kind lays its own road, and its vehicles are bodies of the level: carriers the hero stands on)
+  const site = siteOf(K.blocks, { street: !K.faces });
   const cues = [...L.cues, ...(game ? [{ id: `${sp.id}-done`, when: { on: `chase:${sp.id}:end` }, then: { set: PIECE_DONE, to: 1 } }] : [])];
   const manifest = {
     kind: 'controllable', title: title ?? `${SET_PIECE_KINDS[kind].name} · ${G.name ?? G.id ?? 'game'}`, bg: '#1c1a18',
-    faces: site.faces, colliders: site.colliders, ...(site.breakables.length ? { breakables: site.breakables } : {}),
-    figures: { ...figures, ...(L.figures ?? {}) }, entities: [hero, ...(L.entities ?? [])],
+    faces: K.faces ? [...site.faces, ...K.faces] : site.faces, colliders: site.colliders, ...(site.breakables.length ? { breakables: site.breakables } : {}),
+    figures: { ...figures, ...(L.figures ?? {}) }, entities: [hero, ...(K.entities ?? []), ...(L.entities ?? [])],
     camera: { ...P.camera, steer: 'orbit', mouseLook: true }, events: { ...(P.events ?? {}) },
     chase: L.chase, prompts: L.prompts, ...(L.tempo ? { tempo: L.tempo } : {}), play: { cues },
     ...(game ? { game: { ...(ref ? { levelRef: ref } : {}), fall: { mode: 'respawn' }, mechanics: [{ kind: 'win-when', when: { var: PIECE_DONE, gte: 1 } }] } } : {}),
   };
-  return { manifest, setPiece: sp, laws: setPieceLaws(sp), blocks: K.blocks, hero: own ? 'own' : standIn ? 'stand-in' : 'star' };
+  return { manifest, setPiece: sp, laws: setPieceLaws(sp), blocks: K.blocks, jumps: K.jumps, hero: own ? 'own' : standIn ? 'stand-in' : 'star' };
 }
 
 /** The practice door's stunt room: a rooftop run on the template's roofs (see the header). */

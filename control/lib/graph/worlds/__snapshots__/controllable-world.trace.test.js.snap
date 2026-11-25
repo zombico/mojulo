@@ -21906,7 +21906,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           4.83513,
           3.92722,
-          2.72016,
+          2.93342,
         ],
         "vel": [
           0,
@@ -21958,14 +21958,14 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "lookAt": [
           3.12706,
           6.3935,
-          4.22016,
+          4.43342,
         ],
         "moving": false,
         "pitch": 0,
         "pos": [
           10.6687,
           -1.13515,
-          6.72043,
+          6.81719,
         ],
       },
     ],
@@ -21989,7 +21989,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           4.83513,
           3.92722,
-          2.72016,
+          2.83398,
         ],
         "vel": [
           0,
@@ -22041,14 +22041,14 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "lookAt": [
           3.70645,
           6.7068,
-          4.22016,
+          4.33398,
         ],
         "moving": false,
         "pitch": 0,
         "pos": [
           9.42124,
           -2.28099,
-          6.72028,
+          6.84607,
         ],
       },
     ],
@@ -22072,7 +22072,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           4.83513,
           3.92722,
-          2.72016,
+          2.72738,
         ],
         "vel": [
           0,
@@ -22124,14 +22124,14 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "lookAt": [
           3.91313,
           6.78203,
-          4.22016,
+          4.22738,
         ],
         "moving": false,
         "pitch": 0,
         "pos": [
           8.2675,
           -3.04836,
-          6.72022,
+          6.80167,
         ],
       },
     ],
@@ -22214,7 +22214,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           7.73131,
           -3.39927,
-          6.72019,
+          6.75679,
         ],
       },
     ],
@@ -22297,7 +22297,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           7.49038,
           -3.55694,
-          6.72017,
+          6.73662,
         ],
       },
     ],
@@ -22380,7 +22380,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           7.38213,
           -3.62779,
-          6.72017,
+          6.72756,
         ],
       },
     ],
@@ -22463,7 +22463,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           7.33349,
           -3.65962,
-          6.72017,
+          6.72349,
         ],
       },
     ],
@@ -22546,7 +22546,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           7.31163,
           -3.67392,
-          6.72016,
+          6.72166,
         ],
       },
     ],
@@ -22629,7 +22629,7 @@ exports[`golden traces (behavior gate for the controllable split) > walk world: 
         "pos": [
           7.30181,
           -3.68035,
-          6.72016,
+          6.72083,
         ],
       },
     ],

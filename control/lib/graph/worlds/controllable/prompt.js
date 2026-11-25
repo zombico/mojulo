@@ -11,7 +11,8 @@
  *     lead     seconds it is shown before its window opens (0.5): told, never sprung
  *     window   seconds it is open (0.8)
  *     slow     the world's speed while it is up (0 … 1): the world crawls, the prompt's clock is the screen's
- *     miss     'checkpoint' (the default: the hero put back at `back`, or where it stood as the prompt came up, and a
+ *     miss     'checkpoint' (the default: the hero put back at `back`, or where it stood as the prompt came up (both in a
+ *              riding chase line's frame while one holds the hero: chase-line.js `rides`), and a
  *              chase line holding it let go to take it again) | 'hurt' (`hurt` hp taken) | 'on' (nothing: play goes on)
  *
  *   promptFire(state, id)   brings a prompt up (true when it did); a cue's effect does it on the bus ({ op: 'prompt',
@@ -100,8 +101,11 @@ export function buildPrompt(E) {
   function fire(state, id) {
     const S = state.prompt, P = S && S.list.find((x) => x.id === id), p = state.pilotId && state.byId[state.pilotId];
     if (!P || S.up) return false;
+    // (where the hero stood as it came up: on a riding chase line, in that line's frame, so a miss puts the hero back on
+    // the deck it stood on, wherever the deck has gone: chase-line.js chaseFrame)
+    const line = E.chaseFrame && state.chase && state.chase.on, o = line ? E.chaseFrame(state, line) : null;
     S.up = { id: P.id, kind: P.kind, ...(P.button ? { button: P.button } : {}), ...(P.dir ? { dir: P.dir } : {}), t: 0, opens: P.lead, closes: P.lead + P.window, n: 0, held: 0, was: true,
-      at: p ? p.transform.pos.slice() : null, P };
+      at: p ? (o ? [p.transform.pos[0] - o[0], p.transform.pos[1] - o[1], p.transform.pos[2]] : p.transform.pos.slice()) : null, ...(o ? { line } : {}), P };
     said(S, 'prompt:' + P.id + ':up');
     if (P.slow != null && state.tempo && E.tempoMoment) E.tempoMoment(state, 'prompt:' + P.id);
     return true;
@@ -115,8 +119,9 @@ export function buildPrompt(E) {
     if (hit || !p) return;
     if (P.miss === 'hurt') { if (p.body && typeof p.body.hp === 'number') { p.body.hp = Math.max(0, p.body.hp - P.hurt); if (p.body.hp <= 0) p.downed = true; } }   // (emptied, downed as a blow downs)
     else if (P.miss === 'checkpoint') {
-      const to = P.back || U.at;
-      if (to) { p.transform.pos[0] = to[0]; p.transform.pos[1] = to[1]; p.transform.pos[2] = to[2]; }
+      // (on a riding line, its `back` and the place stood are in that line's frame: placed where the frame now stands)
+      const to = P.back || U.at, o = U.line ? E.chaseFrame(state, U.line) : null;
+      if (to) { p.transform.pos[0] = to[0] + (o ? o[0] : 0); p.transform.pos[1] = to[1] + (o ? o[1] : 0); p.transform.pos[2] = to[2]; }
       if (p.vel) { p.vel[0] = 0; p.vel[1] = 0; p.vel[2] = 0; }
       // (a chase line holding the hero lets it go, to take it again from the checkpoint)
       if (E.chaseReset) E.chaseReset(state);

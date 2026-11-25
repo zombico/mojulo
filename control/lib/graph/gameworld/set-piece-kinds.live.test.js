@@ -5,6 +5,7 @@
 // operator's to play.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { stuntLevelHtml } from './practice-room-page.js';
+import { layKind } from './set-piece-kinds.js';
 import { resolveChromium, launchChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
 let browser = null;
@@ -25,12 +26,13 @@ async function play(kind, jumps) {
     const C = window.__mojCtrl, W = C.world, h = W.byId[W.pilotId];
     const code = { forward: 'KeyW', boost: 'KeyF', jump: 'Space', act: 'KeyE' };
     const key = (k, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code: code[k], key: code[k], bubbles: true }));
-    const out = window.__bot = { done: false, maxZ: h.transform.pos[2], broken: 0, s: 0 };
+    const out = window.__bot = { done: false, maxZ: h.transform.pos[2], minZ: h.transform.pos[2], broken: 0, s: 0, x0: h.transform.pos[0], x: 0 };
     let n = 0, jumpN = 0, actDown = false;
     key('forward', true); key('boost', true);
     (function frame() {
       n++;
       if (h.ledge) out.held = (out.held || 0) + 1;
+      out.minZ = Math.min(out.minZ, h.transform.pos[2]); out.x = h.transform.pos[0];
       out.s = Math.max(out.s, W.chase.s); out.maxZ = Math.max(out.maxZ, h.transform.pos[2]);
       out.broken = (W.breakables || []).filter((b) => b.broken || b.gone || b.hp <= 0).length;
       if (W.chase.done.length || n > 60 * 60) { key('forward', false); key('boost', false); out.done = true; return; }
@@ -38,7 +40,9 @@ async function play(kind, jumps) {
       if (W.chase.on && !jumpN && (h.ledge ? !h.ledge.leap && !h.ledge.pull : jumps.some((j) => W.chase.s > j - 0.6 && W.chase.s < j + 0.3) && h.grounded !== false)) { key('jump', true); jumpN = n; }
       if (jumpN && n - jumpN > 3) { key('jump', false); if (n - jumpN > 30) jumpN = 0; }
       const U = W.prompt && W.prompt.up;
-      const want = !!U && U.t >= U.opens + (U.closes - U.opens) / 2 && U.t < U.opens + (U.closes - U.opens) / 2 + 0.1;
+      // (a press on its window's middle; a mash pressed every other frame from its opening)
+      const mid = U ? U.opens + (U.closes - U.opens) / 2 : 0;
+      const want = !!U && (U.kind === 'mash' ? U.t >= U.opens && !actDown : U.t >= mid && U.t < mid + 0.1);
       if (want !== actDown) { key('act', want); actDown = want; }
     })();
   }, jumps);
@@ -68,4 +72,19 @@ describe('set-piece kinds, played', () => {
     expect(got.results['climb-reach']).toBe('hit');
     expect(got.chaseDone).toEqual(['climb']);
   }, 240000);
+
+  // a moving kind: the convoy drives on down the road while the hero runs its roofs to the front, never down on the road
+  for (const kind of ['truck-top', 'train-roof']) {
+    it(`the ${kind}: run along the moving roofs to the front, every prompt answered, never down on the road`, async () => {
+      if (!browser) return;
+      const K = layKind(kind), { got, errors } = await play(kind, K.jumps);
+      expect(errors).toEqual([]);
+      expect(Object.values(got.results).length).toBe(K.setPiece.prompts.length);
+      expect(Object.values(got.results).every((r) => r === 'hit'), JSON.stringify(got.results)).toBe(true);
+      expect(got.chaseDone).toEqual([kind]);
+      expect(got.minZ).toBeGreaterThan(K.setPiece.z - 2.5);
+      // (carried: the hero ends far further down the road than the line is long)
+      expect(got.x - got.x0).toBeGreaterThan(K.setPiece.line[1][0] * 1.5);
+    }, 240000);
+  }
 });

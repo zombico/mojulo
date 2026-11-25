@@ -98,3 +98,21 @@
   added to it, so the grab and reach prompts showed the hero at the frame's edge. The `low` frame looks 1 m on. The
   framing gate holds every directed frame to 15° (it allowed 30°: at a 60° field of view, the frame's top edge); without
   the cap, each kind leaves it on dozens of frames.
+- **Set pieces on what moves** (`chase-line.js` `rides`, `chaseFrame`): a chase line may ride a carrier, its path laid in
+  the carrier's frame. Taken, walled, its pursuers run, its fall put back and its track camera placed in that frame, and
+  a pilot in the air between two decks carried by it, so a jump between moving trucks plays as one between still roofs.
+  A prompt's checkpoint on a riding line is kept in its frame (`prompt.js`): a miss puts the hero back on the deck they
+  stood on, wherever it has driven. A set piece's `rides` passes to its line (`set-piece.js`).
+- **Two moving kinds** (`set-piece-kinds.js`): `truck-top` (a convoy down a road: off each trailer onto its cab, truck
+  to truck, pursuers on the roofs behind, a blast on the road beside from a pacer driving with the convoy, the widest
+  gap a slowed Grab) and `train-roof` (car to car over the couplings, the widest gap a slowed Grab, a mashed Climb up
+  onto the taller engine, steam from its stack). Each lays its vehicles as carriers on one path at one pace and its road
+  the length of the drive, posts beside it so the speed reads. A kind now says where its jumps are (`jumps`), so the
+  bots and the framing gate read them, not tables of their own. The framing gate holds the camera clear of the vehicles
+  as of the blocks, and every kind to its landings (the hero never down off the set piece).
+- **The convoy** joins the template movie (`lost-nomad.js` REEL): four set pieces, the last along a convoy's roofs.
+- **A carrier's deck is footing on the page** (`worlds/controllable/decks.js`, emitted only into a page with a carrier).
+  The runtime carried a rider with its deck but left the deck's height to the world's ground probe, and the World
+  page's probe never stands a body on another body: on a page a moving platform, a lift or a truck was walked through,
+  and only Node tests, which wrote their own ground, stood on one. The step's ground now answers a carrier's deck where
+  it is higher than the world's.

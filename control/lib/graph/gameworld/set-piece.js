@@ -5,7 +5,7 @@
  * its marks), the prompts (worlds/controllable/prompt.js) and the level's cues (playscape/ui/cues.js: a beat is a cue on
  * a mark, its effects the world's own verbs: collapse, blast, spawn, shake, explode…).
  *
- *   setPiece: { id, line: [[x, y], …], half?, z?, pace?,
+ *   setPiece: { id, line: [[x, y], …], half?, z?, pace?, rides?,
  *     cams:    [{ at, frame, …dials, cut?, blend?, fov?, shake? }]   where along the line the camera takes each frame
  *     beats:   [{ at, id?, do: effect | [effect] }]                   what happens as the hero passes `at` (metres along)
  *     prompts: [{ at, id?, kind?, button?, says?, lead?, window?, count?, hold?, dir?, slow?, miss?, hurt?, then? }]
@@ -13,6 +13,9 @@
  *              `back` metres before it (6), on the line, to run at it again
  *     pursuers: [{ id?, figure?, gap?, catch?, pace?, speed?, back? }]   who chases the hero down the line (chase-line.js):
  *              stood behind its start, each the level's figure it names or a stand-in; caught, the hero is put back
+ *     rides:   the id of a carrier the set piece is laid on (a truck of a convoy, a car of a train): its line, the places
+ *              its prompts put the hero back and its pursuers' runs are in that carrier's frame (chase-line.js `rides`);
+ *              its beats name a body (`who`) where they would name a place, the road falling behind
  *   }
  *
  *   lowerSetPiece(sp) → { chase, prompts, cues, tempo?, entities?, figures? }   the level's keys: its chase line (with
@@ -58,7 +61,7 @@ function along(path) {
 export function readSetPiece(raw) {
   if (!isObj(raw)) throw new Error('setPiece: { id, line, cams, beats?, prompts? }');
   if (typeof raw.id !== 'string' || !/^[a-z0-9-]+$/.test(raw.id)) throw new Error('setPiece: an id of lower-case words and hyphens');
-  readChase({ lines: [{ id: raw.id, path: raw.line, ...(raw.half != null ? { half: raw.half } : {}) }] });
+  readChase({ lines: [{ id: raw.id, path: raw.line, ...(raw.half != null ? { half: raw.half } : {}), ...(raw.rides != null ? { rides: raw.rides } : {}) }] });
   const cams = Array.isArray(raw.cams) && raw.cams.length ? raw.cams : null;
   if (!cams) throw new Error('setPiece: cams, where along the line the camera takes each frame');
   readTrackKeys(cams.map(({ at, ...k }) => ({ s: at, ...k })), 'setPiece.cams');
@@ -82,7 +85,7 @@ export function lowerSetPiece(raw) {
   const prompts = (sp.prompts ?? []).map((p, i) => ({ ...p, pid: promptId(sp, p, i) }));
   const marks = [...beats.map((b) => ({ at: b.at, id: b.mark })), ...prompts.map((p) => ({ at: p.at, id: `prompt-${p.pid}` }))];
   const chasers = (sp.pursuers ?? []).map((q, i) => ({ ...q, id: q.id ?? `${sp.id}-pursuer-${i + 1}` }));
-  const line = { id: sp.id, path: sp.line, ...(sp.half != null ? { half: sp.half } : {}), marks, cams: sp.cams.map(({ at, ...k }) => ({ s: at, ...k })),
+  const line = { id: sp.id, path: sp.line, ...(sp.half != null ? { half: sp.half } : {}), ...(sp.rides ? { rides: sp.rides } : {}), marks, cams: sp.cams.map(({ at, ...k }) => ({ s: at, ...k })),
     ...(chasers.length ? { pursuers: chasers.map(({ figure: _f, ...q }) => q) } : {}) };
   const chase = readChase({ lines: [line] });
   const P = readPrompts(prompts.map((p, i) => {

@@ -27,7 +27,7 @@ the same world, which is what lets a level be replayed and walked headless.
 
 | Layer | What it does | Where |
 |---|---|---|
-| World step and collision | blocking against colliders on foot and in 3D, sight and shots against the same boxes, bodies against bodies, riding what moves, frame-rate-independent smoothing | [core.js](../control/lib/graph/worlds/controllable/core.js) |
+| World step and collision | blocking against colliders on foot and in 3D, sight and shots against the same boxes, bodies against bodies, riding what moves (a carrier's deck footing on the page as in Node: [decks.js](../control/lib/graph/worlds/controllable/decks.js)), frame-rate-independent smoothing | [core.js](../control/lib/graph/worlds/controllable/core.js) |
 | Character controllers | one rule a way of moving: on foot, the platform rule (gravity, variable jump, coyote time, buffering, a faster fall, air control; with a feel's takes, its wall slide and kick, dash, hang at the apex, landing lag and stomp attack), driving, flying, hovering, boats | `rules-*.js` beside it |
 | Feel | a game's feel template lowered onto the platform rule's numbers; what the rule does not carry yet is reported, never dropped | [gameworld/feel/lower.js](../control/lib/graph/gameworld/feel/lower.js), the templates `POLES` in `cards.js` |
 | Rigid bodies | mass, bounce, friction and spin on a fixed step, wind, drag and attractors | [physics-sim.js](../control/lib/graph/worlds/physics-sim.js) |

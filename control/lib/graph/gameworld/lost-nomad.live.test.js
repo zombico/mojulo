@@ -5,6 +5,7 @@
 // plays as an action movie is the operator's to say.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { levelManifestHtml } from './practice-room-page.js';
+import { layKind } from './set-piece-kinds.js';
 import { lostNomadWorld } from './lost-nomad.js';
 import { readGameworld } from './index.js';
 import { gameStages, stageLevelOrder } from './levels.js';
@@ -19,8 +20,6 @@ beforeAll(async () => {
 }, 60000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
 
-// where each kind's line meets its gap (metres along it): the bot's jump
-const GAPS = { 'rooftop-run': [17], collapse: [45.2], climb: [19.2, 39.4] };
 
 async function playLevel(manifest, ref, jumps) {
   const html = await levelManifestHtml(manifest, ref);
@@ -63,7 +62,7 @@ describe('the template movie, played', () => {
       const O = stageLevelOrder(G, st, { ref: `lv_${i}` }), M = O.args.manifest;
       expect(M.figures.hero.hero.face).toEqual({ seed: 1116, ethnicity: 'levantine', age: 34 });
       const manifest = { ...M, figures: { ...M.figures, hero: { ...M.figures.hero, hero: { cast: 'male', clips: M.figures.hero.hero.clips } } } };
-      const { got, errors } = await playLevel(manifest, `lost-nomad-${st.level}`, GAPS[st.stunt.kind]);
+      const { got, errors } = await playLevel(manifest, `lost-nomad-${st.level}`, layKind(st.stunt.kind, (({ kind: _k, ...w }) => w)(st.stunt)).jumps);
       expect(errors).toEqual([]);
       expect(Object.values(got.results).every((r) => r === 'hit'), JSON.stringify(got.results)).toBe(true);
       expect(got.chaseDone).toEqual([st.level]);

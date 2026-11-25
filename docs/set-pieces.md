@@ -72,6 +72,8 @@ piece instead of drawing one:
 | `rooftop-run` | across the roofs: a gap, an edge that gives, a blast beside the run, a drop and a lip to climb | `height`, `pursuers`, `blast` |
 | `collapse` | down a roof street while the tower beside it comes down a course at a time, a last jump caught | `height`, `courses`, `pursuers` |
 | `climb` | up a sheer face by its stones (each a hold 1.6 m over the last), over its lip onto a ledge that gives, a reach across to the next roof | `height`, `face` |
+| `truck-top` | along the roofs of a convoy down a road: off each trailer onto its cab, truck to truck, pursuers behind, a blast beside, the widest gap caught | `trucks`, `speed`, `pursuers`, `blast` |
+| `train-roof` | along the roofs of a train: car to car, the widest gap caught, up onto the taller engine | `cars`, `speed`, `pursuers` |
 
 ## The ledge
 
@@ -87,6 +89,18 @@ arms up and a little forward to the lip, the legs loose, a slow sway while held)
 spread again along the hold) and `pullUp` (the elbows driven down, a knee brought up onto the lip). A set piece's hero
 carries them (`ledgeStates`); a stored hero, which cannot take clips there, hangs on its jump's flight and pulls up on
 its wind-up, so no body stands upright against a face.
+
+## On what moves
+
+A set piece may be laid on vehicles that drive (`rides`: the id of a carrier, a truck of a convoy or a car of a train).
+Its line is laid along their roofs in the convoy's own frame, and everything it keeps moves with them: the line takes
+and walls the hero there, its marks and camera keys are metres along the convoy, its pursuers run its roofs, a fall
+puts the hero back on the deck they last stood on and a missed prompt on the deck they stood on as it came up, wherever
+the deck has driven since. A hero in the air between two trucks is carried by the convoy's frame, so a jump between
+moving roofs plays as one between still roofs (`worlds/controllable/chase-line.js` `rides`, `chaseFrame`). The track
+camera is carried with it, so it never trails the convoy. A beat names a body (`who`: a truck, the engine, a pacer
+driving beside the convoy) where a still set piece names a place, since the road falls behind. A vehicle is a carrier
+(a `mover` on one path at one pace, `body.carrier`), and its deck is footing (`decks.js`) on the page as in Node.
 
 A kind's site may carry breakable blocks (`breaks: true`): their faces are their own and the world holds them solid until
 a beat brings them down. A new kind is a row.

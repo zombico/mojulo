@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { composeLive, emissionSource } from './compose.js';
 import { readChase, CHASE } from './chase-line.js';
+import { readPrompts } from './prompt.js';
 
 // THE CHASE LINE: a set piece's way, which holds the pilot while it runs it; the stick read along the line, never the
 // camera, so a directed camera can turn round without the controls turning with it
@@ -232,5 +233,83 @@ describe('a fall from the line\'s course', () => {
     expect(lowest).toBeGreaterThan(6 - 3.5);            // never down on the street
     expect(w.chase.done).toEqual([]);                    // the line not run to its end from below
     expect(w.chase.s).toBeLessThan(21);
+  });
+});
+
+// A LINE THAT RIDES: a convoy of two trucks driving east at 8 m/s, a line laid along their tops in the convoy's frame
+describe('a chase line that rides a carrier', () => {
+  const SPEED = 8, RUN = 800;
+  // a truck: a deck 10 m long, 2.4 wide, its top 4 m up, driving east (a mover, a carrier)
+  const truck = (id, x) => ({ id, rule: { type: 'mover', path: [[x, 0, 2.5], [x + RUN, 0, 2.5]], period: RUN / SPEED, mode: 'loop' },
+    body: { type: 'mesh', shape: 'box', size: [10, 2.4, 3], carrier: true, carryHalf: [5, 1.2], deck: 1.5 }, transform: { pos: [x, 0, 2.5] } });
+  const trucks = [truck('t1', 5), truck('t2', 17)];   // decks x 0 … 10 and 12 … 22: a 2 m gap (this rule's jump at a run clears 3)
+  // the ground: the road, and each truck's deck where it now stands
+  const ground = (w) => ({ ground: (p) => { let z = 0; for (const e of w.entities) { const b = e.body; if (!b || !b.carrier) continue; const c = e.transform.pos, top = c[2] + b.deck; if (Math.abs(p[0] - c[0]) <= b.carryHalf[0] && Math.abs(p[1] - c[1]) <= b.carryHalf[1] && top <= p[2] + 0.6 && top > z) z = top; } return z; } });
+  const ride = (extra = {}) => {
+    const w = CW.createWorld({ entities: [{ id: 'h', pilotable: true, rule: { type: 'platform', eye: 0, speed: 6, jumpSpeed: 6.5, collideRadius: 0.3 }, transform: { pos: [1, 0, 4], heading: 0 } }, ...trucks],
+      chase: { lines: [{ id: 'convoy', path: [[0.5, 0], [21.5, 0]], half: 1.1, rides: 't1', ...extra }] } });
+    w.pilotId = 'h';
+    return w;
+  };
+  const go = (w, n, input) => { for (let i = 0; i < n; i++) CW.stepWorld(w, typeof input === 'function' ? input(i, w) : input, DT, ground(w)); return w; };
+
+  it('reads its carrier; a line that rides nothing has no frame', () => {
+    expect(readChase({ lines: [{ id: 'c', path: [[0, 0], [9, 0]], rides: 't1' }] }).lines[0].rides).toBe('t1');
+    expect(() => readChase({ lines: [{ id: 'c', path: [[0, 0], [9, 0]], rides: 3 }] })).toThrow(/rides is the id of a carrier/);
+    const w = run(world(null), {}, 1);
+    expect(CW.chaseFrame(w, 'roofs')).toBeNull();
+  });
+
+  it('takes a pilot standing on the deck, and reads its run along the deck, not along the road', () => {
+    const w = go(ride(), 30, {});
+    expect(w.chase.on).toBe('convoy');
+    const s0 = w.chase.s, x0 = w.byId.h.transform.pos[0];
+    go(w, 60, { forward: 1 });
+    // a second's run at 6 m/s: 6 m along the convoy, and 14 m along the road (the truck's 8 with it)
+    expect(w.chase.s - s0).toBeCloseTo(6, 0);
+    expect(w.byId.h.transform.pos[0] - x0).toBeCloseTo(14, 0);
+    expect(CW.chaseFrame(w)[0]).toBeGreaterThan(8);
+  });
+
+  it('a jump across the gap between two trucks lands on the next deck, carried through the air by the frame', () => {
+    const w = go(ride(), 10, {});
+    // (the jump held as a player holds it: its height is how long it is held)
+    let jumpAt = -1;
+    go(w, 200, (i, W) => { if (jumpAt < 0 && W.chase.s > 9) jumpAt = i; return { forward: 1, jump: i === jumpAt ? 1 : 0, jumpHeld: jumpAt >= 0 && i - jumpAt < 12 ? 1 : 0 }; });
+    expect(jumpAt).toBeGreaterThan(0);
+    expect(w.chase.s).toBeGreaterThan(13);                 // on the second deck, along the convoy
+    expect(w.byId.h.transform.pos[2]).toBeCloseTo(4, 1);  // stood on it, never down on the road
+    expect(w.byId.h.carriedBy).toBe('t2');
+  });
+
+  it('a fall into the gap puts the pilot back on the deck it last stood on, wherever the deck has gone', () => {
+    const w = go(ride(), 10, {}), events = [];
+    let prev = null;
+    for (let i = 0; i < 240; i++) {
+      CW.stepWorld(w, { forward: 1 }, DT, ground(w));
+      const f = CW.castFacts(w, prev); prev = f.prev; events.push(...f.events.filter((e) => e.type.startsWith('chase:')).map((e) => e.type));
+    }
+    expect(events).toContain('chase:convoy:fell');
+    // back on a deck (4 m up), on the first truck's run
+    const h = w.byId.h, t1 = w.byId.t1.transform.pos;
+    expect(h.transform.pos[2]).toBeGreaterThan(3.5);
+    expect(Math.abs(h.transform.pos[0] - t1[0])).toBeLessThan(5.5);
+  });
+
+  it('a prompt missed on the deck puts the hero back where they stood on it, the convoy driven on meanwhile', () => {
+    const w = CW.createWorld({ entities: [{ id: 'h', pilotable: true, rule: { type: 'platform', eye: 0, speed: 6, jumpSpeed: 6.5, collideRadius: 0.3 }, transform: { pos: [1, 0, 4], heading: 0 } }, ...trucks],
+      chase: { lines: [{ id: 'convoy', path: [[0.5, 0], [21.5, 0]], half: 1.1, rides: 't1' }] }, prompts: readPrompts([{ id: 'grab', says: 'Grab', window: 0.5 }]) });
+    w.pilotId = 'h';
+    go(w, 30, { forward: 1 });
+    const on = w.byId.h.transform.pos[0] - w.byId.t1.transform.pos[0];
+    CW.promptFire(w, 'grab');
+    let n = 0;
+    while (!w.prompt.results.grab && n++ < 120) go(w, 1, { forward: 1 });   // run on, never pressing: missed
+    expect(w.prompt.results.grab).toBe('miss');
+    // (put back, the run since undone: where the hero stood on the deck as it came up, the deck driven on down the road)
+    expect(w.byId.t1.transform.pos[0]).toBeGreaterThan(12);
+    const back = w.byId.h.transform.pos[0] - w.byId.t1.transform.pos[0];
+    expect(Math.abs(back - on)).toBeLessThan(0.5);
+    expect(w.byId.h.transform.pos[2]).toBeCloseTo(4, 1);
   });
 });

@@ -4,7 +4,7 @@
  * looking back at them, beside them, low behind), so a directed camera can turn round without the controls turning with
  * it. The body is kept inside the line's corridor by a soft wall; it is free across it, and may go back along it.
  *
- *   spec.chase: { lines: [{ id, path: [[x, y], …], half?, when?, marks?, cams?, pursuers? }] }
+ *   spec.chase: { lines: [{ id, path: [[x, y], …], half?, when?, marks?, cams?, pursuers?, rides? }] }
  *     path    the way, a polyline on the ground plane (2 to 64 points, metres)
  *     half    the corridor's half width (metres, 2.5): the body is held within it while the line holds it
  *     when    'enter' (the default): the line takes the pilot as it stands inside the corridor, past its start;
@@ -17,11 +17,19 @@
  *             back `back` metres (12) down the line, the pursuers their gap behind it
  *     cams    the track camera's keys [{ s, frame, … }] (below): the camera is directed along the line while it holds the
  *             pilot, and the level's own camera given back, looking down the line, as it ends
+ *     rides   the id of a carrier the line rides (a truck, a train: a mover with `body.carrier`): its path, its marks and
+ *             every place it keeps are in that carrier's frame, laid where the carrier stands as the world starts. The
+ *             line moves with it: taken, walled, its pursuers run, its fall put back and its camera placed in that frame,
+ *             and a pilot in the air (a jump between two trucks) is carried by the frame as one on a deck is by its deck,
+ *             so a run along a moving convoy plays as a run along still roofs
  *
  *   state.chase: { lines, on: id | null, s, offset, u, done: [id] }   where the pilot is along the line holding it:
  *            `s` metres along, `offset` across (+ to its left), `u` the share of its length (0 … 1)
  *   chaseStart(state, id) · chaseEnd(state, id)   start or end a line by name (true when it changed)
  *   chaseReset(state)     let the holding line go unended (taken again as the pilot stands in it)
+ *   chaseFrame(state, id?) the offset [x, y, z] of a riding line's frame from where it was laid (the holding line's, or
+ *                         the one named; null for a line that rides nothing): what a place in its frame adds to be a
+ *                         place in the world (a prompt's checkpoint on a riding set piece)
  *
  * The frame: before each step the camera's yaw (`camYaw`, the world's `cameraYaw`) is set to the line's heading where
  * the pilot stands (eased round each joint), and the pilot moves in that frame (`move: 'camera'`: its rule's copy while
@@ -57,6 +65,7 @@ export function readChase(raw) {
       if (!Array.isArray(L.path) || L.path.length < 2 || L.path.length > CHASE.maxPoints || !L.path.every(v2)) throw new Error(`${at}: a path of 2 to ${CHASE.maxPoints} points [x, y]`);
       if (L.half != null && !(Number.isFinite(L.half) && L.half > 0.2 && L.half <= 50)) throw new Error(`${at}: half is a width 0.2–50 m`);
       if (L.when != null && L.when !== 'enter' && L.when !== 'cue') throw new Error(`${at}: when is 'enter' or 'cue'`);
+      if (L.rides != null && !(typeof L.rides === 'string' && L.rides)) throw new Error(`${at}: rides is the id of a carrier the level stands`);
       const marks = L.marks == null ? null : Array.isArray(L.marks) ? L.marks : 'bad';
       if (marks === 'bad' || (marks && !marks.every((m) => m && typeof m.id === 'string' && m.id && Number.isFinite(m.at) && m.at >= 0))) throw new Error(`${at}: marks are [{ at: metres along, id }]`);
       const cams = L.cams == null ? null : readTrackKeys(L.cams, `${at}.cams`);
@@ -68,7 +77,7 @@ export function readChase(raw) {
       }) : 'bad';
       if (pursuers === 'bad') throw new Error(`${at}: pursuers are [{ id, gap?, catch?, pace?, speed?, back? }]`);
       return { id: L.id, path: L.path.map((p) => [p[0], p[1]]), ...(L.half != null ? { half: L.half } : {}), ...(L.when === 'cue' ? { when: 'cue' } : {}),
-        ...(marks && marks.length ? { marks: marks.map((m) => ({ at: m.at, id: m.id })).sort((a, b) => a.at - b.at) } : {}), ...(cams ? { cams } : {}), ...(pursuers && pursuers.length ? { pursuers } : {}) };
+        ...(marks && marks.length ? { marks: marks.map((m) => ({ at: m.at, id: m.id })).sort((a, b) => a.at - b.at) } : {}), ...(cams ? { cams } : {}), ...(pursuers && pursuers.length ? { pursuers } : {}), ...(L.rides ? { rides: L.rides } : {}) };
     }),
   };
 }
@@ -107,7 +116,7 @@ export function buildChaseLine(E) {
       segs.push({ ax, ay, dx, dy, len, s0: s, yaw: Math.atan2(dy, dx) });
       s += len;
     }
-    return { id: L.id, half: L.half || HALF, cue: L.when === 'cue', segs, len: s, marks: Array.isArray(L.marks) ? L.marks : [], cams: Array.isArray(L.cams) && L.cams.length ? L.cams : null, path: L.path, pursuers: Array.isArray(L.pursuers) ? L.pursuers : [] };
+    return { id: L.id, half: L.half || HALF, cue: L.when === 'cue', segs, len: s, marks: Array.isArray(L.marks) ? L.marks : [], cams: Array.isArray(L.cams) && L.cams.length ? L.cams : null, path: L.path, pursuers: Array.isArray(L.pursuers) ? L.pursuers : [], rides: typeof L.rides === 'string' ? L.rides : null, home: null };
   }
 
   // where a point stands on a line: metres along, metres across (+ left), the nearest segment; `near` the s the body
@@ -150,10 +159,21 @@ export function buildChaseLine(E) {
     const K = spec && spec.chase;
     const lines = (K && Array.isArray(K.lines) ? K.lines : []).filter((L) => L && L.id && Array.isArray(L.path) && L.path.length >= 2).map(compile).filter((C) => C.len > 0);
     if (!lines.length) return;
+    // (a riding line's frame: where its carrier stands as the world starts)
+    for (const C of lines) if (C.rides) { const c = Array.isArray(spec.entities) && spec.entities.find((e) => e && e.id === C.rides); if (c && c.transform && Array.isArray(c.transform.pos)) C.home = [c.transform.pos[0], c.transform.pos[1], c.transform.pos[2] || 0]; }
     state.chase = { lines, on: null, s: 0, offset: 0, u: 0, done: [], rule: null, cam: null, mk: 0, pur: null, ps: null, safe: null, ev: [] };
   });
 
   const lineOf = (K, id) => K.lines.find((C) => C.id === id) || null;
+  // a riding line's frame: its carrier's offset from where the line was laid (null for a line that rides nothing)
+  function frameOf(state, C) {
+    if (!C || !C.rides || !C.home) return null;
+    const c = state.byId && state.byId[C.rides];
+    if (!c) return null;
+    const p = c.transform.pos;
+    return [p[0] - C.home[0], p[1] - C.home[1], (p[2] || 0) - C.home[2]];
+  }
+  E.chaseFrame = (state, id) => { const K = state && state.chase; if (!K) return null; const C = lineOf(K, id || K.on); return frameOf(state, C); };
 
   function begin(state, C, at) {
     const K = state.chase, p = state.pilotId && state.byId[state.pilotId];
@@ -163,7 +183,7 @@ export function buildChaseLine(E) {
     if (p.rule && p.rule.move !== 'camera') { K.rule = p.rule; p.rule = { ...p.rule, move: 'camera' }; }
     // its camera: the track along it, the level's own kept to give back (eased over from where it stands)
     const cam = state.camera;
-    if (C.cams && cam) { K.cam = cam.rule; cam.rule = { type: 'track', target: p.id, path: C.path, keys: C.cams }; cam._tr = null; }
+    if (C.cams && cam) { K.cam = cam.rule; cam.rule = { type: 'track', target: p.id, path: C.path, keys: C.cams, ...(C.rides && C.home ? { rides: C.rides, home: C.home } : {}) }; cam._tr = null; }
     K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= K.s) K.mk++;
     K.pur = {}; for (const q of C.pursuers) K.pur[q.id] = { s: K.s - (q.gap || 7), off: 0 };
     K.ps = K.s; K.safe = null;
@@ -203,16 +223,20 @@ export function buildChaseLine(E) {
     if (!K.on) {
       for (const C of K.lines) {
         if (C.cue || K.done.indexOf(C.id) >= 0) continue;
-        const at = project(C, pos[0], pos[1], null);
+        const o = frameOf(state, C), at = project(C, pos[0] - (o ? o[0] : 0), pos[1] - (o ? o[1] : 0), null);
         if (at && Math.abs(at.off) <= C.half && at.s > 1e-3 && at.s < C.len - 0.5) { begin(state, C, at); break; }
       }
     }
     const C = K.on ? lineOf(K, K.on) : null;
     if (C && state.camera) state.camera.camYaw = yawAt(C, K.s);
+    const o0 = C ? frameOf(state, C) : null;
     const out = step(state, input, dt, hooks);
     if (C && K.on === C.id) {
       const pos = p.transform.pos;   // (read again: a rule may have stood the body somewhere new)
-      const at = project(C, pos[0], pos[1], K.s);
+      // (a riding line: its frame as it now stands; a pilot in the air carried by it, as one on a deck is by its deck)
+      const o = o0 ? frameOf(state, C) : null, ox = o ? o[0] : 0, oy = o ? o[1] : 0;
+      if (o && p.grounded === false) { pos[0] += o[0] - o0[0]; pos[1] += o[1] - o0[1]; }
+      const at = project(C, pos[0] - ox, pos[1] - oy, K.s);
       // the soft wall: past the corridor's edge, the body is set back on it and its way out of it stopped
       if (Math.abs(at.off) > C.half) {
         const g = C.segs[at.i], nx = -g.dy / g.len, ny = g.dx / g.len, over = at.off - Math.sign(at.off) * C.half;
@@ -234,7 +258,7 @@ export function buildChaseLine(E) {
           // (never slower than its own pace: held to its gap behind a pilot who runs faster, closing on one who does not)
           const v = Math.min(q.speed || 9, Math.max(q.pace != null ? q.pace : 4.5, vh + 1.6 * (at.s - (q.gap || 7) - P.s)));
           P.s += v * dt; P.off += (at.off - P.off) * Math.min(1, dt * 2);
-          const xy = pointAt(C, P.s, P.off), z0 = e.transform.pos[2], gz = hooks && hooks.ground ? hooks.ground([xy[0], xy[1], pos[2] + 2]) : null;
+          const q0 = pointAt(C, P.s, P.off), xy = [q0[0] + ox, q0[1] + oy], z0 = e.transform.pos[2], gz = hooks && hooks.ground ? hooks.ground([xy[0], xy[1], pos[2] + 2]) : null;
           e.transform.pos = [xy[0], xy[1], gz != null ? gz + ((e.rule && e.rule.eye) || 0) : z0];
           e.transform.heading = yawAt(C, Math.max(0, P.s));
           e.moving = v > 0.3; e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + (v * dt) / 2.4;
@@ -243,7 +267,7 @@ export function buildChaseLine(E) {
         if (caught) {
           K.ev.push('chase:' + C.id + ':caught'); if (K.ev.length > 16) K.ev.shift();
           const back = Math.max(0, at.s - (caught.back != null ? caught.back : 12)), xy = pointAt(C, back, 0);
-          pos[0] = xy[0]; pos[1] = xy[1];
+          pos[0] = xy[0] + ox; pos[1] = xy[1] + oy;
           if (p.vel) { p.vel[0] = 0; p.vel[1] = 0; }
           for (const q of C.pursuers) if (K.pur[q.id]) { K.pur[q.id].s = back - (q.gap || 7); K.pur[q.id].off = 0; }
           K.s = back; K.ps = back; K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= back) K.mk++;
@@ -253,9 +277,10 @@ export function buildChaseLine(E) {
       // THE FALL: the last place the pilot stood on the line's course kept; dropped `DROP` metres below it (off a roof, into
       // a gap, from a face), it is put back there, still the line's, and the bus hears `chase:<id>:fell`. A line is never
       // run from the street under its course
-      if (p.grounded !== false && (!K.safe || pos[2] > K.safe[2] - DROP)) K.safe = [pos[0], pos[1], pos[2], at.s];
+      // (kept in a riding line's frame, so the place stood on is the deck's, wherever it has gone)
+      if (p.grounded !== false && (!K.safe || pos[2] > K.safe[2] - DROP)) K.safe = [pos[0] - ox, pos[1] - oy, pos[2], at.s];
       else if (K.safe && pos[2] < K.safe[2] - DROP) {
-        pos[0] = K.safe[0]; pos[1] = K.safe[1]; pos[2] = K.safe[2];
+        pos[0] = K.safe[0] + ox; pos[1] = K.safe[1] + oy; pos[2] = K.safe[2];
         if (p.vel) { p.vel[0] = 0; p.vel[1] = 0; p.vel[2] = 0; }
         K.s = K.safe[3]; K.ps = K.s; K.mk = 0; while (K.mk < C.marks.length && C.marks[K.mk].at <= K.s) K.mk++;
         for (const q of C.pursuers) if (K.pur[q.id]) { K.pur[q.id].s = K.s - (q.gap || 7); K.pur[q.id].off = 0; }
@@ -268,7 +293,7 @@ export function buildChaseLine(E) {
     return out;
   };
 
-  // THE TRACK CAMERA (a camera rule: { type: 'track', target, path, keys, lerp?, turn?, frameMax? }): the camera directed by where the
+  // THE TRACK CAMERA (a camera rule: { type: 'track', target, path, keys, lerp?, turn?, frameMax?, rides?, home? }): the camera directed by where the
   // target is along a line, while the player keeps the stick. `path` is the line's own (a set piece hands it the chase
   // line's); `keys` [{ s, frame, …dials, cut?, blend?, fov?, shake? }] in metres along it, each frame a place round the
   // target in the line's own frame (along it, across it to the left, up), and a look point ahead of it:
@@ -319,7 +344,11 @@ export function buildChaseLine(E) {
     const r = e.rule, tgt = world.byId[r.target];
     if (!tgt || !Array.isArray(r.path) || r.path.length < 2 || !Array.isArray(r.keys) || !r.keys.length) return;
     if (!e._tr) e._tr = { C: compile({ id: '_track', path: r.path }), keys: r.keys.slice().sort((a, b) => (a.s || 0) - (b.s || 0)), s: null, key: -1 };
-    const T = e._tr, C = T.C, p = tgt.transform.pos, at = project(C, p[0], p[1], T.s);
+    // (a riding line's camera: the target read in its frame, and the camera carried with it, so it never trails the convoy)
+    const rc = r.rides && world.byId[r.rides], ro = rc && Array.isArray(r.home) ? [rc.transform.pos[0] - r.home[0], rc.transform.pos[1] - r.home[1]] : null;
+    const T = e._tr, C = T.C, p = tgt.transform.pos, at = project(C, p[0] - (ro ? ro[0] : 0), p[1] - (ro ? ro[1] : 0), T.s);
+    if (ro && T.ro && e._trPlaced) { e.transform.pos[0] += ro[0] - T.ro[0]; e.transform.pos[1] += ro[1] - T.ro[1]; }
+    T.ro = ro;
     T.s = at.s;
     // which key holds, and how far into the run to the next
     let i = 0;

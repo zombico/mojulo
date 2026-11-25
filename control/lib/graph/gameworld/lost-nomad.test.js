@@ -11,7 +11,7 @@ describe('the template movie', () => {
   it('is a designed world of its reel\'s set pieces, in order, each line named for its level', () => {
     const W = lostNomadWorld(), G = readGameworld(W), stages = gameStages(W);
     expect(stages.map((s) => [s.level, s.section])).toEqual(REEL.map(([id]) => [id, 'stunt']));
-    expect(G.links.map((l) => [l.from, l.to])).toEqual([['souk', 'tower'], ['tower', 'cliffs']]);
+    expect(G.links.map((l) => [l.from, l.to])).toEqual([['souk', 'tower'], ['tower', 'cliffs'], ['cliffs', 'convoy']]);
     stages.forEach((st, i) => {
       const O = stageLevelOrder(G, st, { ref: `lv_${i}`, heroRef: 'gw-hero' });
       expect(O.args.manifest.chase.lines[0].id).toBe(st.level);

@@ -110,6 +110,9 @@ const on = (i, frames) => (frames.includes(i) ? 1 : 0);
 const held = (i, spans) => (spans.some(([a, b]) => i >= a && i < b) ? 1 : 0);
 
 describe('golden traces (behavior gate for the controllable split)', () => {
+  // Re-pinned 2026-11-25 (a carrier's deck is footing: worlds/controllable/decks.js): the lift is a carrier, and its deck
+  // was never ground here (the trace's own ground knows only the terrain), so the walker passed through it; it now stands
+  // on the deck where the deck is higher than the terrain, as a page and every Node world with a carrier does.
   it('walk world: walk + mover + clock + follow camera over wavy terrain', () => {
     const state = createWorld({
       entities: [
