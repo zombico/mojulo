@@ -392,6 +392,13 @@ describe('orientation surfaces under the profile', () => {
     }
     expect(text('forward_context')).not.toMatch(/VOICE|image-outcome|sequential-art/);
     expect(text('get_ui_map')).not.toMatch(/\/maker\/voice|image-render queue/);
+    // the start rows are the start skills' (the plugin's main skill reads this index only when none covers the ask):
+    // one line names every start skill, and what those rows routed that no skill carries stays
+    const fc = text('forward_context');
+    expect(fc).not.toMatch(/^ {2}(CHARACTER|GAME|OBJECT|HOUSE) /m);
+    expect(fc).not.toMatch(/\bHOUSE\b/);
+    for (const skill of ['make-character', 'design-game', 'design-object', 'make-exhibit', 'design-building', 'design-interior']) expect(fc).toContain(`\`${skill}\``);
+    for (const tool of ['tune_ground', 'pick_palette', 'create_game', 'create_pixelizer_game', 'measure_solid', 'verify_machina']) expect(fc).toContain(`\`${tool}\``);
   });
 });
 

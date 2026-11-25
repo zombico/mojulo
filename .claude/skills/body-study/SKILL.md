@@ -1,6 +1,7 @@
 ---
 name: body-study
-description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>] [--physique <word|json>] [--vitruvian]`.
+description: "Render the hero's skinned body as an engine gets it, posed and cropped, with girth sections and a measures table. Use before and after changing the hero's shell, bind or skinning (beside control/scripts/hero-stretch.mjs)."
+argument-hint: "[male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>] [--physique <word|json>] [--vitruvian]"
 ---
 
 # body-study

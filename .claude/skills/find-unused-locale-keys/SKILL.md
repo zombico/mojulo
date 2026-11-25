@@ -1,6 +1,6 @@
 ---
 name: find-unused-locale-keys
-description: Find and (on confirmation) delete i18n message keys in control/messages/en.json that are no longer referenced anywhere in control/**. Uses deterministic, conservative static analysis of next-intl translator usage — zero false positives by design (never deletes a live key), at the cost of retaining a few dead keys that sit under dynamically-built key prefixes. Reports first; only deletes after you approve, and deletes from en.json ONLY — run /sync-locales afterward to propagate the removals to every other locale. Invoke as `/find-unused-locale-keys`.
+description: "Find en.json message keys nothing in control/ uses any more, and delete them from en.json once approved (never a live key). Use when cleaning up i18n; run /sync-locales after to carry the removals to every locale."
 ---
 
 # /find-unused-locale-keys
