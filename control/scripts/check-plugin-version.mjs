@@ -17,7 +17,8 @@
  *
  * `--since <git ref>` adds the plugin cache rule: Claude Code keys an installed plugin by its
  * plugin.json `version`, so a change under plugins/mojulo/ that keeps the version never reaches
- * anyone who already installed it. Compared against the merge base of <ref> and HEAD.
+ * anyone who already installed it. Compared against the merge base of <ref> and HEAD. A base version
+ * not yet released (no `v<version>` tag) has no installed copies, so it takes changes as it stands.
  * `--expect <version>` also requires package.json to be that version (the release workflow passes
  * the tag).
  *
@@ -181,7 +182,8 @@ export function checkPlaceholders({ root = REPO_ROOT } = {}) {
   return problems;
 }
 
-/** The cache rule: files under plugins/mojulo/ changed since `ref` but plugin.json's version did not. */
+/** The cache rule: files under plugins/mojulo/ changed since `ref` but plugin.json's version did not, when the base's
+ * version is a released one (its `v<version>` tag exists). */
 export function checkPluginVersionBump({ root = REPO_ROOT, since }) {
   const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
   const base = git('merge-base', since, 'HEAD');
@@ -193,6 +195,11 @@ export function checkPluginVersionBump({ root = REPO_ROOT, since }) {
   } catch {
     return []; // the plugin is new since the base
   }
+  // (a version not yet released has no installed copies to strand: the plugin waiting on its release (3.2.0 until its
+  // tag) takes changes under the version it will ship as. Released means its `v<version>` tag is here; a checkout with
+  // no tags at all cannot tell, so it keeps the rule)
+  const tags = git('tag', '--list', 'v*').split('\n').filter(Boolean);
+  if (tags.length && !tags.includes(`v${before}`)) return [];
   const now = JSON.parse(readFileSync(path.join(root, PLUGIN_MANIFEST), 'utf8')).version;
   return now === before
     ? [`${PLUGIN_DIR} changed since ${since} (${changed.join(', ')}) but ${PLUGIN_MANIFEST} is still version ${now}; raise it, or installed copies never update`]

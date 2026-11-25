@@ -168,8 +168,25 @@ describe('check-plugin-version', () => {
       git('-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'base');
       expect(checkPluginVersionBump({ root, since: 'HEAD' })).toEqual([]);
       write('plugins/mojulo/README.md', 'Run it, now with more words.');
+      // (no tags at all: released or not cannot be told, so the rule holds)
+      expect(checkPluginVersionBump({ root, since: 'HEAD' }).join('\n')).toMatch(/still version 3\.1\.0; raise it/);
+      // released (its tag is here): the rule holds
+      git('tag', 'v3.1.0');
       expect(checkPluginVersionBump({ root, since: 'HEAD' }).join('\n')).toMatch(/still version 3\.1\.0; raise it/);
       write(PLUGIN_MANIFEST, { name: 'mojulo', version: '3.1.1', mcpServers: pluginServer });
+      expect(checkPluginVersionBump({ root, since: 'HEAD' })).toEqual([]);
+    });
+
+    it('lets a plugin version not yet released take changes as it stands', () => {
+      tree();
+      const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+      git('init', '-q', '-b', 'main');
+      git('-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'root');
+      git('tag', 'v3.0.0');
+      git('add', '.');
+      git('-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'base');
+      // the base's plugin.json is 3.1.0 and only v3.0.0 is tagged: nobody has 3.1.0 installed
+      write('plugins/mojulo/README.md', 'Run it, now with more words.');
       expect(checkPluginVersionBump({ root, since: 'HEAD' })).toEqual([]);
     });
   });

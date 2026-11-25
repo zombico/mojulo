@@ -61,3 +61,7 @@ for an object, `create_character({ from })` for a character. Mojulo reads the fi
   - the routing cards are `import-model` and `import-character`;
   - the manual is `get_solid_vocab({ id: 'model' })`;
   - `pack-data` names the sketches whose bound meshes must be carried beside the database.
+- **The plugin cache rule counts released versions only.** `check-plugin-version.mjs --since` asks for a plugin.json
+  bump when the base's version has been released (its `v<version>` tag exists); the plugin waiting on its release
+  (3.2.0, untagged) takes changes under the version it will ship as, since no installed copy is stranded. A checkout
+  with no tags keeps the rule.
