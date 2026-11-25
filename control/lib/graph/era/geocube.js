@@ -51,6 +51,8 @@
  *             blocks stepped by beds, gorges, talus and water carved under the floor (a card or { from?, … },
  *             local-meru/massif.js); `rock` (optional): the colour its rock takes in the form render, by its beds' heights, each
  *             thin bed's own tone and the varnish streaked down its walls ({ beds, blend?, thin?, varnish? }, form/rock-colour.js);
+ *             `rubble` (optional): the scree's stones at the cube's own scale ({ sizes: [lo, hi] radii in metres, density per
+ *             square metre of scree }, form/land-stones.js: a frame's knee-high blocks where a walker's pebbles lie);
  *             `tiling` (optional): 'stochastic', the form render's layer tiles (rock, scree, soil, sand) never repeating in a
  *             grid (form/land-read.js, scene/channels/form-land.js), or 'grid' as they always were; `cliff` (optional): the far cliff its trails
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
@@ -647,7 +649,7 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'rock', 'tiling', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'rock', 'tiling', 'rubble', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
   if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
@@ -656,6 +658,12 @@ export function readGeocube(spec) {
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.massif !== undefined) { try { readMassif(c.outside.massif); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.rock !== undefined) { try { readRockColour(c.outside.rock); } catch (e) { no(`outside.${e.message}`); } }
+  if (c.outside.rubble !== undefined) {
+    const R = c.outside.rubble;
+    if (!isObj(R) || Object.keys(R).some((k) => !['sizes', 'density'].includes(k))) no('outside.rubble is { sizes: [lo, hi], density }: the scree\'s stones at the cube\'s scale (radii in metres, stones per square metre of scree)');
+    if (!(Array.isArray(R.sizes) && R.sizes.length === 2 && R.sizes[0] > 0 && R.sizes[1] >= R.sizes[0] && R.sizes[1] <= 6)) no('outside.rubble.sizes is [lo, hi] radii in metres, above 0 and at most 6');
+    if (!(typeof R.density === 'number' && R.density > 0 && R.density <= 4)) no('outside.rubble.density is stones per square metre of scree, above 0 and at most 4');
+  }
   if (c.outside.tiling !== undefined && c.outside.tiling !== 'stochastic' && c.outside.tiling !== 'grid') no("outside.tiling is 'stochastic' (the land's layer tiles sampled at offsets a slow noise picks, never repeating in a grid) or 'grid' (as it always was)");
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {

@@ -25,6 +25,12 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     - The push swings over a few hundred metres, so one jebel stands massive and smooth and the next is ledged bed on
       bed.
     - The push is a function of place alone, so faces that share a corner still meet. It adds no faces beyond the cuts.
+  - **The ground in front of a frame**, at its scale:
+    - **outcrops**: low ledges of the same rock laid by the dice over the floor, off the blocks and the water, 2.5 to 7
+      m high and 15 to 50 m across. Cover and a ledge to step up, stepped by the same beds.
+    - **washes**: dry washes wandering across the floor, 1 to 1.7 m deep and never under the sea line, their beds laid
+      as gravel (scree).
+    - **scatter**: clusters of boulders 3 to 7 m across out on the open floor, off the rock and the water.
   - **Fallen blocks** are mostly small, with a few great slabs: the size's dice are weighted to their low end, up to
     12 m.
   - **Laws**: walls stand (the rise is climbed on faces over 70°), talus at repose, the floor open for a frame.
@@ -44,6 +50,9 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     Absent, the land's colours are as they were.
   - Each battlefield cube names its column: a dark plinth, the massive red wall, a lighter band, and pale upper beds
     weathered toward its trim (Wadi Rum's Disi over its Umm Ishrin).
+- **Rubble at a cube's scale** (a geocube's `outside.rubble: { sizes, density }`, opt-in; `form/land-read.js`): the
+  scree's instanced stones at the cube's own sizes. On the battlefield cubes that is 0.8 to 3.6 m across, a frame's
+  knee-high rubble where a walker's pebbles would be. Absent, the stones are as they were.
 - **Stochastic tiling** (a geocube's `outside.tiling: 'stochastic'`, opt-in; `scene/channels/form-land.js`). The form
   render's natural layers (rock, scree, soil, sand) never repeat in a grid.
   - A slow noise over each tile picks one of eight offsets and the next. Both are sampled with the tile's own

@@ -76,6 +76,23 @@ describe('the massif', () => {
     expect(massifField(one({ face: { beds: [5, 10], bulge: 0, undercut: 0, grain: 0 } }), [0, 0], 3).warp(150, 0, 20)).toEqual([0, 0]);
   });
 
+  it('lays the ground in front of a frame: outcrops off the rock, dry washes, boulders in clusters on the open floor', () => {
+    const M = one({ outcrops: { count: 6, height: [3, 5], size: [8, 14], within: 400 }, washes: { count: 1, width: [12, 12], depth: [1.2, 1.2] }, scatter: { clusters: 4, per: [3, 5], spread: 15, size: [2, 4] }, strew: { count: 0, size: [2, 3] } });
+    const F = massifField(M, [0, 0], 7, 10);
+    // (the outcrops: low rock off the card's own block, each standing its height)
+    expect(F.outcrops.length).toBeGreaterThan(2);
+    for (const o of F.outcrops) { expect(Math.hypot(...o.at)).toBeGreaterThan(Math.max(...M.blocks[0].size)); expect(F.rock(o.at[0], o.at[1])).toBeGreaterThanOrEqual(o.height - 1e-9); }
+    // (a wash: its bed cut under the floor round it, never under the sea line: dry)
+    let bed = null;
+    for (let x = -400; x <= 400 && !bed; x += 4) for (let y = -400; y <= 400 && !bed; y += 4) if (F.wash(x, y) > 0.99 && F.rock(x, y) === 0) bed = [x, y];
+    expect(bed).toBeTruthy();
+    expect(F.at(bed[0], bed[1], 12)).toBeCloseTo(12 - 1.2, 1);
+    expect(F.water(bed[0], bed[1])).toBe(false);
+    // (the scatter's boulders on the open floor, off the rock and the water)
+    expect(F.boulders.length).toBeGreaterThan(4);
+    for (const b of F.boulders) { expect(F.rock(b.x, b.y)).toBeLessThanOrEqual(0.3); expect(F.water(b.x, b.y)).toBe(false); }
+  });
+
   it('stands only on an island, and a meru that names none reads as it always did', () => {
     expect(() => readLocalMeru({ massif: 'wadi' })).toThrow(/stands on an island/);
     expect(readLocalMeru({ island: { walk: 'none' }, massif: 'wadi' }).massif.id).toBe('wadi');

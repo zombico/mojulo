@@ -273,7 +273,10 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   const dirtBase = Object.fromEntries(Object.entries(tones).map(([k, t]) => [k, lin(hexRgb(t)).map((v, c) => Math.round(light.linearBases.floor[c] * v / Math.max(1e-6, floorLin[c]) * 1e4) / 1e4)]));
   // (the ground the trail's things claim, era/isekai.js ALLOT: its plants' `clear`, [x, y, r] each; no stone and no grass there)
   const CLAIMS = P0.plants?.clear?.length ? P0.plants.clear : null;
-  const STONES = landStones(P.faces, LY, { seed: 3, ...(stones !== 1 ? { density: STONE_DENSITY * stones } : {}), rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
+  // (a cube's own RUBBLE, `outside.rubble`: its scree's stones at its scale, a frame's knee-high blocks where a walker's
+  // pebbles would be; absent, the stones as they always were)
+  const RB = C.outside?.rubble;
+  const STONES = landStones(P.faces, LY, { seed: 3, ...(RB ? { sizes: RB.sizes, density: RB.density * stones } : stones !== 1 ? { density: STONE_DENSITY * stones } : {}), rubble: dress.pebbles ? 0 : dress.rubble, ...(dress.pebbles ? { offTrail: true } : {}), ...(CLAIMS ? { clear: CLAIMS } : {}) }), stoneBase = light.linearBases.stone;
   const stonePack = Float32Array.from(STONES.flatMap((q) => [...q.at, q.r, ...q.n, q.tone, q.v]));
   // THE GRASS (gen-7): the ground seen from above at GCELL (its height, and where grass grows: a green land's level ground,
   // off the trail), read by the near blades on the page; and the FAR, rows of brushes laid along the ground both ways

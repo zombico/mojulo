@@ -281,7 +281,8 @@ function groundFaces(st, p, heightAt, S = null, seed = 1) {
   const MR = p.recipe.massif ? massifOf(p, seed) : null;
   const isCliff = (cs, n) => n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1])) || (MR && n[2] < MASSIF_BARE && MR.inside(mean(cs)[0], mean(cs)[1]));
   // the ground: grass as it always was, or on a geo island (`cover: 'soil'`) bare soil, and scree where it slopes
-  const soil = S && S.cover === 'soil', coverOf = (n) => (!soil ? 'isekai:ground' : n[2] < SCREE_N ? 'isekai:scree' : 'isekai:soil');
+  // (and a massif's dry washes, massif.js washes: their beds gravel, laid as scree whatever their slope)
+  const soil = S && S.cover === 'soil', coverOf = (n, cs) => (!soil ? 'isekai:ground' : n[2] < SCREE_N || (MR && cs && MR.wash(mean(cs)[0], mean(cs)[1]) > 0.55) ? 'isekai:scree' : 'isekai:soil');
   const F = p.recipe.shading ? p.recipe.shading.facet : 0, gritty = p.recipe.shading?.grit !== undefined && p.recipe.shading.grit >= GRIT_PIXELS;
   if (F > 0) for (let pass = 0; pass < FACET_PASSES; pass++) planarise(g, z, at, isCliff, F);
   const bed = S && S.seabed === 'merged' ? seabedCells(g, z, S.bed) : null;
@@ -300,10 +301,10 @@ function groundFaces(st, p, heightAt, S = null, seed = 1) {
     } else if (S && gritty) {
       // (a gritty island's beach: the line between sand and turf drawn through the cells at the beach's height, not
       // round them, so its edge is a curve and not the grid's steps)
-      const f = { corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: coverOf(n), flat: n[2] };
+      const f = { corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: coverOf(n, cs), flat: n[2] };
       for (const q of cutFace(f, f.corners.map((c) => S.sea + BEACH * k - c[2]), 'isekai:sand')) out.push(q.group === 'isekai:sand' ? { ...q, tint: st.tint.trail } : q);
     } else if (S && mean(cs)[2] < S.sea + BEACH * k) out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.trail, group: 'isekai:sand', flat: n[2] });   // the beach and the seabed
-    else out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: coverOf(n), flat: n[2] });
+    else out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: coverOf(n, cs), flat: n[2] });
   }
   // (and on a massif every other face cut at the same heights as its walls, so an edge a wall shares with its talus is cut
   // at the same points on both sides: no point of a wall's edge the relief moves where its neighbour has none)

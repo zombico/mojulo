@@ -48,6 +48,9 @@ export const FIELD_OUTSIDE = (massif, rock = FIELD_ROCK[massif] ?? FIELD_ROCK.wa
   relief: f({ from: 'dune', height: 2.5, scale: 90, finest: 8 }), massif, rock,
   // (a kilometre of the same rock and sand: its tiles never repeating in a grid)
   tiling: 'stochastic',
+  // (the ground in front of a frame at its scale: rubble to its knee, half a metre to two and a half across, on the
+  // talus, in the washes and the scree's patches)
+  rubble: f({ sizes: f([0.4, 1.8]), density: 0.16 }),
 });
 
 // (no inside of its own worth naming: an outpost's research rooms and its panelled walls, Sol's)

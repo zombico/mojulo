@@ -12,7 +12,8 @@
  *                                river is carved, boulders: [{ x, y, size }], partings(lo, hi) → the thin beds' partings and
  *                                middles between two heights (the levels a wall is cut at), warp(x, y, z) → [dx, dy]: how
  *                                far a wall's corner is pushed (along the wall, out of the rock; 0 off a wall), inside(x, y) →
- *                                true on the rock itself (in a block's outline, off a cut's floor and the aprons) }
+ *                                true on the rock itself (in a block's outline, off a cut's floor and the aprons), wash(x, y) →
+ *                                how far into a dry wash's bed (1 its floor, 0 off it), outcrops: the ledges the dice laid }
  *   massifLaws(M, heightAt, square) → the ledger: [{ law, want, why, ok, value }]
  *
  * One wall profile reads both sides of the rock: a block's inward distance from its outline and a cut's distance past
@@ -38,6 +39,16 @@
  *            width between lo and hi; per 0 for none
  *   pools    [{ at: [x, y], radius, depth }]: hollows in the floor (under the island's sea line, a lake)
  *   strew    { count, size: [lo, hi] }: fallen blocks on the talus, the boulders the scene lays (their size in its units)
+ *   outcrops { count, height: [lo, hi], size: [lo, hi], within }: the ground in front of a frame: low ledges of the same
+ *            rock (slickrock, a pavement stepped up a bed or two) laid by the dice over the floor `within` metres of the
+ *            middle, off the blocks and the water, each `size` metres across (its half-length) and `height` high: cover a
+ *            frame crouches behind and a ledge it steps up, stepped by the same beds and worn by the same face
+ *   washes   { count, width: [lo, hi], depth: [lo, hi] }: dry washes wandering across the floor, a flash flood's bed:
+ *            shallow channels `depth` metres deep (never under the sea line: dry), their banks cut, their beds laid as
+ *            gravel (`wash(x, y)` says where, the scene lays it as scree)
+ *   scatter  { clusters, per: [lo, hi], spread, size: [lo, hi] }: boulders out on the open floor in clusters (a frame's cover,
+ *            the ground in front of it at its scale): `clusters` places laid by the dice off the rock and the water, each
+ *            `per` boulders within `spread` metres, their size the scene's boulder units (most small, a few large)
  *   face     { beds: [lo, hi], bulge, undercut, grain }: the walls' own relief at a mech's scale, the land's corners pushed
  *            in and out along the wall (`warp`): the column parted again into thin beds lo to hi metres thick, each of its
  *            own hardness; a hard bed BULGES (up to `bulge` metres at its middle), a parting is a recess, the foot of a
@@ -58,7 +69,9 @@ const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const WADI_BEDS = f([f({ top: 8, bench: 4 }), f({ top: 46, bench: 10 }), f({ top: 54, bench: 4 }), f({ top: 82, bench: 12 }), f({ top: 96, bench: 5 }), f({ top: 140, bench: 8 })]);
 const CARD = f({ beds: WADI_BEDS, slope: 0.25, bench: 0.7, blocks: f([]), warp: f({ strength: 60, scale: 120 }), flute: f({ depth: 6, scale: 16 }),
   cap: f({ form: 'knobs', height: 16, run: 40 }), talus: f({ share: 0.2, angle: 34, fan: 0.6 }), cuts: f([]), clefts: f({ per: 1.2, width: f([12, 28]), reach: 0.75 }), pools: f([]), strew: f({ count: 90, size: f([2, 8]) }),
-  face: f({ beds: f([5, 10]), bulge: 2.2, undercut: 2.4, grain: 1.6 }) });
+  face: f({ beds: f([5, 10]), bulge: 2.2, undercut: 2.4, grain: 1.6 }),
+  outcrops: f({ count: 0, height: f([1.5, 5]), size: f([6, 22]), within: 520 }), washes: f({ count: 0, width: f([8, 18]), depth: f([0.8, 1.6]) }),
+  scatter: f({ clusters: 0, per: f([3, 8]), spread: 24, size: f([2, 5]) }) });
 
 // how far a riser runs to its shoulder at most (metres): sheer at the foot, its top rounded over this
 const SHOULDER = 6;
@@ -73,7 +86,10 @@ export const MASSIF_CARDS = f({
       B([360, 40], [110, 160], 95, 118), B([210, 330], [150, 80], 10, 92), B([-140, 360], [110, 70], 160, 80),
       B([-60, 30], [46, 32], 40, 62, 4), B([130, -40], [40, 26], 120, 48, 4),
     ]),
-    cuts: f([f({ path: f([f([-420, -40]), f([-300, -10]), f([-230, 30])]), width: 26 })]) }),
+    cuts: f([f({ path: f([f([-420, -40]), f([-300, -10]), f([-230, 30])]), width: 26 })]),
+    // (the floor between: low ledges of slickrock and two dry washes across it)
+    outcrops: f({ count: 30, height: f([2.5, 7]), size: f([8, 26]), within: 480 }), washes: f({ count: 2, width: f([10, 20]), depth: f([1, 1.7]) }),
+    scatter: f({ clusters: 26, per: f([3, 8]), spread: 22, size: f([2, 5]) }) }),
   // a gorge: a plateau cut through by one winding canyon the field runs down, side canyons into it, a river on its floor
   gorge: f({ ...CARD, id: 'gorge', reads: 'A plateau cut by a winding canyon, side canyons into it, a river down its floor',
     beds: f([f({ top: 6, bench: 3 }), f({ top: 38, bench: 10 }), f({ top: 46, bench: 4 }), f({ top: 70, bench: 12 }), f({ top: 120, bench: 6 })]),
@@ -94,7 +110,8 @@ export const MASSIF_CARDS = f({
       B([-200, 80], [36, 26], 30, 26, 3), B([140, -60], [30, 22], 120, 22, 3), B([-60, -240], [44, 30], 70, 30, 3),
       B([260, 170], [26, 18], 10, 18, 3), B([-340, -120], [28, 20], 150, 20, 3), B([330, -280], [40, 26], 60, 34, 3),
     ]),
-    talus: f({ share: 0.34, angle: 33, fan: 0.9 }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }),
+    talus: f({ share: 0.34, angle: 33, fan: 0.9 }), outcrops: f({ count: 26, height: f([2.5, 5]), size: f([6, 18]), within: 460 }), washes: f({ count: 3, width: f([8, 16]), depth: f([0.8, 1.4]) }),
+    scatter: f({ clusters: 40, per: f([4, 10]), spread: 26, size: f([2, 5]) }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }),
     // (a scarp shedding its rock: thick beds, broken more than bedded)
     face: f({ beds: f([6, 14]), bulge: 1.6, undercut: 1.6, grain: 2.4 }) }),
   // an oasis: a lake on the floor of a wadi among jebels, a pool beside it
@@ -103,7 +120,9 @@ export const MASSIF_CARDS = f({
       B([-340, 40], [130, 110], 80, 98), B([-180, -320], [130, 60], 30, 84), B([200, -340], [150, 70], 160, 90),
       B([370, 90], [100, 150], 95, 112), B([120, 360], [170, 80], 10, 96), B([-260, 330], [90, 70], 150, 78),
     ]),
-    pools: f([f({ at: f([40, 60]), radius: 150, depth: 6 }), f({ at: f([-150, -150]), radius: 46, depth: 4 })]) }),
+    pools: f([f({ at: f([40, 60]), radius: 150, depth: 6 }), f({ at: f([-150, -150]), radius: 46, depth: 4 })]),
+    outcrops: f({ count: 22, height: f([2.5, 6]), size: f([8, 22]), within: 480 }), washes: f({ count: 1, width: f([10, 16]), depth: f([1, 1.5]) }),
+    scatter: f({ clusters: 20, per: f([3, 7]), spread: 20, size: f([2, 5]) }) }),
 });
 
 const WORDS = ['id', 'reads', 'from', ...Object.keys(CARD)];
@@ -174,6 +193,21 @@ export function readMassif(spec) {
     num(q.radius, 2, 800, `.pools[${i}].radius is metres, 2..800`);
     num(q.depth, 0.5, 40, `.pools[${i}].depth is metres under the floor, 0.5..40`);
   });
+  const range = (v, lo, hi, m) => { if (!(Array.isArray(v) && v.length === 2 && v.every(Number.isFinite) && v[0] >= lo && v[1] >= v[0] && v[1] <= hi)) bad(m); };
+  if (!isObj(M.outcrops)) bad('.outcrops is { count, height: [lo, hi], size: [lo, hi], within }');
+  num(M.outcrops.count, 0, 400, '.outcrops.count is 0..400');
+  range(M.outcrops.height, 0.5, 30, '.outcrops.height is [lo, hi] metres, 0.5..30');
+  range(M.outcrops.size, 2, 120, '.outcrops.size is [lo, hi] metres (half-lengths), 2..120');
+  num(M.outcrops.within, 20, 2000, '.outcrops.within is metres from the middle, 20..2000');
+  if (!isObj(M.washes)) bad('.washes is { count, width: [lo, hi], depth: [lo, hi] }');
+  num(M.washes.count, 0, 20, '.washes.count is 0..20');
+  range(M.washes.width, 2, 80, '.washes.width is [lo, hi] metres, 2..80');
+  range(M.washes.depth, 0.2, 1.9, '.washes.depth is [lo, hi] metres, 0.2..1.9 (a dry wash: over the sea line)');
+  if (!isObj(M.scatter)) bad('.scatter is { clusters, per: [lo, hi], spread, size: [lo, hi] }');
+  num(M.scatter.clusters, 0, 200, '.scatter.clusters is 0..200');
+  range(M.scatter.per, 1, 30, '.scatter.per is [lo, hi] boulders a cluster, 1..30');
+  num(M.scatter.spread, 2, 200, '.scatter.spread is metres a cluster spreads, 2..200');
+  range(M.scatter.size, 1, 8, '.scatter.size is [lo, hi] boulder units, 1..8');
   if (!isObj(M.face)) bad('.face is { beds: [lo, hi], bulge, undercut, grain }');
   if (!(Array.isArray(M.face.beds) && M.face.beds.length === 2 && M.face.beds[0] >= 2 && M.face.beds[1] >= M.face.beds[0] && M.face.beds[1] <= 40)) bad('.face.beds is [lo, hi] metres a thin bed stands, 2..40');
   num(M.face.bulge, 0, 4, '.face.bulge is metres a hard bed stands out, 0..4');
@@ -244,8 +278,17 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     }
     return Math.max(z, talus);
   };
+  // the OUTCROPS: low ledges laid by the dice over the floor, off the card's own blocks and its water
+  const O = M.outcrops, laid = [];
+  for (let k = 0, tries = 0; laid.length < O.count && tries < O.count * 30; tries++, k++) {
+    const a = 2 * Math.PI * hash3(k, 41, sd + 1401), r = O.within * Math.sqrt(hash3(k, 43, sd + 1403)), at = [r * Math.cos(a), r * Math.sin(a)];
+    const half = O.size[0] + (O.size[1] - O.size[0]) * hash3(k, 47, sd + 1407) ** 1.6, height = O.height[0] + (O.height[1] - O.height[0]) * hash3(k, 53, sd + 1409) ** 1.5;
+    const clear = (q, pad) => Math.hypot(at[0] - q[0], at[1] - q[1]) > pad;
+    if (!M.blocks.every((b) => clear(b.at, Math.max(...b.size) + half + 20)) || !M.pools.every((q) => clear(q.at, q.radius * 1.3 + half)) || !laid.every((q) => clear(q.at, Math.max(...q.size) + half + 6))) continue;
+    laid.push({ at, size: [half, half * (0.45 + 0.5 * hash3(k, 59, sd + 1411))], dir: 360 * hash3(k, 61, sd + 1413), height: r3(height), square: 2 + 3 * hash3(k, 67, sd + 1417) });
+  }
   // each block: its frame, and the box it reaches (its outline's wander and its talus)
-  const blocks = M.blocks.map((b, i) => {
+  const blocks = [...M.blocks, ...laid].map((b, i) => {
     const a = ((b.dir ?? 0) * Math.PI) / 180, u = [Math.cos(a), Math.sin(a)], reach = Math.max(...b.size) + M.warp.strength * 1.5 + M.flute.depth + (M.talus.share * b.height * 2) / tan + 4;
     return { ...b, i, u, n: b.square ?? 3, c: [cx + b.at[0], cy + b.at[1]], reach };
   });
@@ -274,6 +317,27 @@ export function massifField(M, centre, seed = 1, floor = 0) {
   }
   for (const c of cuts) { let L = 0; for (let i = 0; i + 1 < c.path.length; i++) L += Math.hypot(c.path[i + 1][0] - c.path[i][0], c.path[i + 1][1] - c.path[i][1]); c.length = L; }
   const pools = M.pools.map((q) => ({ ...q, c: [cx + q.at[0], cy + q.at[1]] }));
+  // the WASHES: from one side of the floor to the other through a point near the middle, wandering, each its own width
+  // and depth
+  const W = M.washes, washes = [];
+  for (let k = 0; k < W.count; k++) {
+    const a = 2 * Math.PI * hash3(k, 71, sd + 1501), R = (M.outcrops.within || 520) * 1.25, through = [cx + 160 * (hash3(k, 73, sd + 1503) - 0.5), cy + 160 * (hash3(k, 79, sd + 1507) - 0.5)];
+    const path = [];
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 10 - 0.5, side = 70 * (hash3(k * 16 + i, 83, sd + 1509) - 0.5);
+      path.push([through[0] + Math.cos(a) * 2 * R * t - Math.sin(a) * side, through[1] + Math.sin(a) * 2 * R * t + Math.cos(a) * side]);
+    }
+    washes.push({ path, width: W.width[0] + (W.width[1] - W.width[0]) * hash3(k, 89, sd + 1511), depth: W.depth[0] + (W.depth[1] - W.depth[0]) * hash3(k, 97, sd + 1513) });
+  }
+  // (how far into a wash's bed a point is: 1 on its floor, easing to 0 over its banks; and how deep it is cut there)
+  const washAt = (x, y) => {
+    let w = 0, D = 0;
+    for (const q of washes) {
+      const [wx, wy] = warp2(x, y, { strength: q.width * 1.2, scale: 90, seed: sd + 1601 }), [d] = toPath(q.path, wx, wy), hw = q.width / 2;
+      if (d < hw * 1.5) { const t = 1 - smoothstep(hw * 0.6, hw * 1.25, d); if (t > w) { w = t; D = q.depth; } }
+    }
+    return [w, D];
+  };
   const rock = (x, y) => {
     const [wx, wy] = M.warp.strength ? warp2(x, y, warpW) : [x, y];
     let z = 0;
@@ -306,7 +370,8 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     return [w, D];
   };
   const at = (x, y, h) => {
-    const z = rock(x, y), [w, D] = sink(x, y), base = w > 0 ? h + (floor - D - h) * w : h;
+    const z = rock(x, y), [w, D] = sink(x, y), [ww, WD] = washes.length ? washAt(x, y) : [0, 0];
+    const base = (w > 0 ? h + (floor - D - h) * w : h) - WD * ww;
     return z > 0 ? Math.max(base, h + z) : base;
   };
   // the fallen blocks: dice on the talus aprons (a point outside a wall and under its apron's line), off the water
@@ -322,6 +387,19 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     if (!on || rock(x, y) > M.talus.share * on.height * 1.3) continue;
     // (most of them small, a few great slabs: the size's dice weighted toward its low end)
     boulders.push({ x: r3(x), y: r3(y), size: M.strew.size[0] + Math.floor(hash3(k, 3, sd + 905) ** 2.5 * (M.strew.size[1] - M.strew.size[0] + 1)) });
+  }
+  // THE SCATTER: clusters of boulders out on the open floor, off the rock, its aprons and the water
+  const SCT = M.scatter, within = M.outcrops.within;
+  for (let k = 0, made = 0, tries = 0; made < SCT.clusters && tries < SCT.clusters * 30; tries++, k++) {
+    const a = 2 * Math.PI * hash3(k, 101, sd + 1701), r = within * Math.sqrt(hash3(k, 103, sd + 1703)), x0 = cx + r * Math.cos(a), y0 = cy + r * Math.sin(a);
+    if (rock(x0, y0) > 0.3 || sink(x0, y0)[0] > 0) continue;
+    made++;
+    const n = SCT.per[0] + Math.floor(hash3(k, 107, sd + 1707) * (SCT.per[1] - SCT.per[0] + 1));
+    for (let m = 0; m < n; m++) {
+      const b = 2 * Math.PI * hash3(k * 40 + m, 109, sd + 1709), d = SCT.spread * Math.sqrt(hash3(k * 40 + m, 113, sd + 1711)), x = x0 + d * Math.cos(b), y = y0 + d * Math.sin(b);
+      if (rock(x, y) > 0.3 || sink(x, y)[0] > 0) continue;
+      boulders.push({ x: r3(x), y: r3(y), size: SCT.size[0] + Math.floor(hash3(k * 40 + m, 127, sd + 1713) ** 2.2 * (SCT.size[1] - SCT.size[0] + 1)) });
+    }
   }
   // THE FACE: the column parted into thin beds (each lo..hi thick, its hardness its own), from the floor's datum up
   const FC = M.face, thin = [];
@@ -358,7 +436,7 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     for (const c of cuts) { const [d, along] = toPath(c.path, wx, wy), w = c.width * (1 + 0.25 * wn(along, 0, 160, 601)) * (c.cleft ? 1 - 0.7 * smoothstep(0, c.length, along) : 1); if (d + flute(x, y) * 0.6 - w / 2 < 1) return false; }
     return true;
   };
-  return { at, rock, water: (x, y) => sink(x, y)[0] > 0, boulders, partings, warp, inside };
+  return { at, rock, water: (x, y) => sink(x, y)[0] > 0, wash: (x, y) => (washes.length ? washAt(x, y)[0] : 0), boulders, partings, warp, inside, outcrops: laid };
 }
 
 /**
