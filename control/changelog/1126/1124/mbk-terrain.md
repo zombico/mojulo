@@ -102,6 +102,19 @@ book's map: a frame level's plate is now its operation map. Buildings come after
   - Every group of the operation where the level lays it, marked by kind, and each reach task's beacon with its radius
     and its order.
   - The radar's ring round the drop.
+- **Lighter fields.** A frame's field was a 67 MB page (30 MB gzipped) that took nearly three minutes to build. The wadi
+  is now 25 MB (17 MB gzipped), built in about 40 s. Every saving is scoped to a massif's land; any other page is
+  byte-identical.
+  - **Lean land** (`form.land.lean`, a massif's). The form render's meshes are the page's only ground: the painted
+    groups it hides are no longer sent (`scene/scene-three.js`). A world on the page holds its step until the land has
+    drawn (`window.__formReady`, the controllable channel's `landHold`), so nothing falls through it while it loads.
+  - **Far walls coarser** (`massif.js` `far`): past the detail's reach, a little inside the horizon's escarpments, a
+    wall is cut every 10 m and not pushed. The push eases out before the edge, so a wall cut both ways still meets
+    itself.
+  - **Rocks.** Only the great boulders are drawn broken, about a twelfth of the faces for the rest. No walker's pebbles
+    are strewn (the cube's rubble lies at a frame's scale), and no boulders past the shore.
+  - **Build.** The rock's height is kept per point and a cut is read only within its reach. The painted sun's shadow is
+    not baked for a land the page lights itself.
 - **Fixed on the way.**
   - A wall on a 4 m grid is cut into bands at fixed heights (a massif's thin beds' partings and middles; 6 m
     elsewhere), so the scree at its foot stays in its lowest band rather than smearing up the face. On a massif, every

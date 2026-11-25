@@ -14,7 +14,10 @@
  *                                far a wall's corner is pushed (along the wall, out of the rock; 0 off a wall), inside(x, y) →
  *                                true on the rock itself (in a block's outline, off a cut's floor and the aprons), wash(x, y) →
  *                                how far into a dry wash's bed (1 its floor, 0 off it), crush(x, y) → how much of a fresh
- *                                crater's broken ground lies here (its bowl and rim), outcrops: the ledges the dice laid }
+ *                                crater's broken ground lies here (its bowl and rim), far(x, y) → true past the detail's reach
+ *                                (the horizon's escarpments, seen only across the field: no push there, its walls cut coarser;
+ *                                the push eases out before it, so a wall cut both ways where they meet still meets),
+ *                                outcrops: the ledges the dice laid }
  *   massifLaws(M, heightAt, square) → the ledger: [{ law, want, why, ok, value }]
  *
  * One wall profile reads both sides of the rock: a block's inward distance from its outline and a cut's distance past
@@ -414,7 +417,20 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     }
     return [w, D];
   };
-  const rock = (x, y) => {
+  // (what each cut can reach: its path's box, out past its half width, the warp's push, a flute and the talus a wall
+  // sheds into it; past that its profile stands over any rock, so it is not read)
+  const maxH = Math.max(0, ...blocks.map((b) => b.height)), cutPad = M.warp.strength * 1.6 + M.flute.depth + (0.8 * M.talus.share * maxH * 2) / tan + 10;
+  for (const c of cuts) {
+    const xs = c.path.map((q) => q[0]), ys = c.path.map((q) => q[1]), m = c.width * 0.65 + cutPad;
+    c.box = [Math.min(...xs) - m, Math.min(...ys) - m, Math.max(...xs) + m, Math.max(...ys) + m];
+  }
+  // the rock's height at a point, kept per point (a land reads the same corner for its grid, its classes, its walls'
+  // push and its stones): a point no block can reach is 0 without the warp's noise
+  const ROCK = new Map(), key = (x, y) => Math.round(x * 256) * 4194304 + Math.round(y * 256);
+  const rockAt = (x, y) => {
+    let near = false;
+    for (const b of blocks) if (Math.abs(x - b.c[0]) <= b.reach && Math.abs(y - b.c[1]) <= b.reach) { near = true; break; }
+    if (!near) return 0;
     const [wx, wy] = M.warp.strength ? warp2(x, y, warpW) : [x, y];
     let z = 0;
     for (const b of blocks) {
@@ -425,9 +441,16 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     }
     if (z <= 0) return 0;
     for (const c of cuts) {
+      if (x < c.box[0] || y < c.box[1] || x > c.box[2] || y > c.box[3]) continue;
       const [d, along] = toPath(c.path, wx, wy), w = c.width * (1 + 0.25 * wn(along, 0, 160, 601)) * (c.cleft ? 1 - 0.7 * smoothstep(0, c.length, along) : 1);
       z = Math.min(z, Math.max(0, profile(x, y, d + flute(x, y) * 0.6 - w / 2, z)));
     }
+    return z;
+  };
+  const rock = (x, y) => {
+    const k = key(x, y);
+    let z = ROCK.get(k);
+    if (z === undefined) { z = rockAt(x, y); if (ROCK.size > 3e6) ROCK.clear(); ROCK.set(k, z); }
     return z;
   };
   // the water carved under the floor: a cut's river bed, a pool's bowl → [w, depth]: how far (0..1) the land is drawn
@@ -562,8 +585,15 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     return out;
   };
   const still = !FC.bulge && !FC.undercut && !FC.grain;
+  // THE DETAIL'S REACH: inside the horizon's escarpments (and FAR_FADE short of them) a wall is pushed and cut at every thin
+  // bed; past it, where the field is only ever seen across it, a wall stands as its bands do, cut coarser
+  const HZr = M.horizon.count ? M.horizon.radius - M.horizon.depth[1] - 20 : Infinity, FAR_FADE = 40;
+  const nearness = (x, y) => (HZr === Infinity ? 1 : 1 - smoothstep(HZr - FAR_FADE, HZr, Math.hypot(x - cx, y - cy)));
+  const far = (x, y) => HZr !== Infinity && Math.hypot(x - cx, y - cy) > HZr - FAR_FADE;
   const warp = (x, y, z) => {
     if (still) return [0, 0];
+    const nr = nearness(x, y);
+    if (nr <= 0) return [0, 0];
     // (the wall's way out of the rock and how much of a wall it is here: the rock's slope over a few metres)
     const S = 3, gx = (rock(x + S, y) - rock(x - S, y)) / (2 * S), gy = (rock(x, y + S) - rock(x, y - S)) / (2 * S), g = Math.hypot(gx, gy);
     const w = smoothstep(0.9, 2.6, g);
@@ -575,7 +605,7 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     const bulge = FC.bulge * b.hard * along * (4 * u * (1 - u) - 0.45), under = FC.undercut * b.hard * (1 - u) ** 6;
     const grain = FC.grain * (0.6 * fractal2((x + y) / 11, h / 7, { seed: sd + 1301, octaves: 2 })[0] + 0.4 * fractal2((x - y) / 6, h / 4, { seed: sd + 1303, octaves: 2 })[0]);
     // (the floor and a cap are no wall: their corners stay where the land has them, the slope's weight easing to none)
-    const d = (bulge - under + grain) * w, ox = -gx / g, oy = -gy / g;
+    const d = (bulge - under + grain) * w * nr, ox = -gx / g, oy = -gy / g;
     return [r3(ox * d), r3(oy * d)];
   };
   // (on the rock itself: inside a block's outline, not down a cut's floor or its aprons)
@@ -587,7 +617,7 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     for (const c of cuts) { const [d, along] = toPath(c.path, wx, wy), w = c.width * (1 + 0.25 * wn(along, 0, 160, 601)) * (c.cleft ? 1 - 0.7 * smoothstep(0, c.length, along) : 1); if (d + flute(x, y) * 0.6 - w / 2 < 1) return false; }
     return true;
   };
-  return { at, rock, craters: craters.map((q) => ({ at: [r3(q.c[0] - cx), r3(q.c[1] - cy)], diameter: r3(q.D), fresh: r3(q.fresh), depth: r3(q.depth), rim: r3(q.rim), ...(q.field !== undefined ? { field: q.field } : {}) })), water: (x, y) => sink(x, y)[0] > 0, wash: (x, y) => (washes.length ? washAt(x, y)[0] : 0), crush: (x, y) => (craters.length ? crushAt(x, y) : 0), boulders, partings, warp, inside, outcrops: laid };
+  return { at, rock, craters: craters.map((q) => ({ at: [r3(q.c[0] - cx), r3(q.c[1] - cy)], diameter: r3(q.D), fresh: r3(q.fresh), depth: r3(q.depth), rim: r3(q.rim), ...(q.field !== undefined ? { field: q.field } : {}) })), water: (x, y) => sink(x, y)[0] > 0, wash: (x, y) => (washes.length ? washAt(x, y)[0] : 0), crush: (x, y) => (craters.length ? crushAt(x, y) : 0), boulders, partings, warp, far, inside, outcrops: laid };
 }
 
 /**

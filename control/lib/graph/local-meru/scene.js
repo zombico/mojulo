@@ -242,11 +242,21 @@ function newell(cs, toward) {
   return dot(n, toward) < 0 ? n.map((v) => -v) : n;
 }
 
+/** A massif's face cut into its bands: at every thin bed's parting and middle where the walls are pushed, every FAR_BAND
+ *  metres past the detail's reach (massif.js far). */
+const FAR_BAND = 10;
+function massifBands(f, Mf) {
+  const n = f.corners.length, cx = f.corners.reduce((a, c) => a + c[0], 0) / n, cy = f.corners.reduce((a, c) => a + c[1], 0) / n;
+  return Mf.far(cx, cy) ? bandFace(f, FAR_BAND) : bandFace(f, WALL_BAND, Mf.partings);
+}
+
 /** A face cut at every `step` metres of height (levels fixed in the world, so two faces sharing an edge cut it at the same
  *  points): its bands, lowest first. */
 const WALL_BAND = 6;
 // a massif's rock steeper than this (a face's up, its normal's z: about 14°) is bare rock, whatever soil would lie on it
 const MASSIF_BARE = 0.97;
+// a massif's boulders this size (the scene's units) and over are drawn broken; the smaller ones whole
+const MASSIF_BROKEN = 4;
 function bandFace(f, step, levelsOf = null) {
   const zs = f.corners.map((c) => c[2]), lo = Math.min(...zs), hi = Math.max(...zs);
   const levels = levelsOf ? levelsOf(lo, hi).filter((l) => l > lo + 1e-6 && l < hi - 1e-6) : null;
@@ -299,7 +309,7 @@ function groundFaces(st, p, heightAt, S = null, seed = 1) {
       const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0, f0 = { corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', celN: n, group: 'isekai:cliff' };
       // (a massif's wall, a cell's quad standing tens of metres: cut into bands at fixed heights, so its corners are the
       // rock's all the way up and the scree at its foot stays in the lowest band, not smeared up the face)
-      for (const q of p.recipe.massif ? bandFace(f0, WALL_BAND, massifOf(p, seed).partings) : [f0]) out.push({ ...q, uv: q.corners.map((c) => [r5(c[h] / sc), r5(c[2] / sc)]) });
+      for (const q of p.recipe.massif ? massifBands(f0, massifOf(p, seed)) : [f0]) out.push({ ...q, uv: q.corners.map((c) => [r5(c[h] / sc), r5(c[2] / sc)]) });
     } else if (S && gritty) {
       // (a gritty island's beach: the line between sand and turf drawn through the cells at the beach's height, not
       // round them, so its edge is a curve and not the grid's steps)
@@ -314,7 +324,7 @@ function groundFaces(st, p, heightAt, S = null, seed = 1) {
   // same push, so the faces that share a corner still meet; each face's normal taken again from its corners)
   if (p.recipe.massif) {
     const Mf = massifOf(p, seed), moved = new Map(), at = (c) => { const k = `${c[0]},${c[1]},${c[2]}`; let q = moved.get(k); if (!q) { const [dx, dy] = Mf.warp(c[0], c[1], c[2]); q = dx || dy ? P([c[0] + dx, c[1] + dy, c[2]]) : c; moved.set(k, q); } return q; };
-    const faces = out.flatMap((f) => (f.cel === 'cliff' ? [f] : bandFace(f, WALL_BAND, Mf.partings))).map((f) => {
+    const faces = out.flatMap((f) => (f.cel === 'cliff' ? [f] : massifBands(f, Mf))).map((f) => {
       const cs = f.corners.map(at);
       if (cs.every((c, i) => c === f.corners[i])) return f;
       const n = newell(cs, f.normal);
@@ -501,16 +511,22 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   // the talus's scree on a geology island: the fragments the faces shed, small boulders on the apron
   if (S && S.geo) S.geo.scree.forEach((r, i) => rocks.push(boulderFaces(st, { x: r5(r.x), y: r5(r.y), z0: r.z0, size: 2, v: 20 + i }, seed, broken)));
   // the massif's fallen blocks on its talus (massif.js strew), each a boulder of its own size
-  if (p.recipe.massif) massifOf(p, seed).boulders.forEach((r, i) => rocks.push(boulderFaces(st, { x: r.x, y: r.y, z0: heightAt(r.x, r.y), size: r.size, v: 60 + i }, seed, broken)));
+  // (none past the island's shore: a boulder there stands on ground the field never shows; and only the great ones broken,
+  // MASSIF_BROKEN units and over: a broken rock is a dozen times the faces, and at a frame's distance only a big one's
+  // outline reads as broken)
+  if (p.recipe.massif) massifOf(p, seed).boulders.forEach((r, i) => { if (!S || Math.hypot(r.x - c[0], r.y - c[1]) < S.shore - 12) rocks.push(boulderFaces(st, { x: r.x, y: r.y, z0: heightAt(r.x, r.y), size: r.size, v: 60 + i }, seed, r.size >= MASSIF_BROKEN ? broken : 0)); });
   // (and its cliffs' rims break as the boulders' edges do, and small stones lie about: on the boulders' tops, along
   // the paths, at the cliffs' feet; broken-land.js)
   if (broken) {
     breakRims([...ground.faces, ...walk.faces, ...walk.wall], { grit: broken, seed, dx: ground.grid.dx });
-    rocks.push(...strewStones(st, { faces: [...ground.faces, ...walk.faces, ...walk.wall], rocks: [...rocks], heightAt, seed, grit: broken, sea: S ? S.sea : -Infinity }));
+    // (a walker's pebbles; a massif's ground has its own stones at a frame's scale, the cube's rubble)
+    if (!p.recipe.massif) rocks.push(...strewStones(st, { faces: [...ground.faces, ...walk.faces, ...walk.wall], rocks: [...rocks], heightAt, seed, grit: broken, sea: S ? S.sea : -Infinity }));
   }
   const solid = [...ground.faces, ...walk.faces, ...walk.wall, ...built, ...rocks.flatMap((b) => [...b.sides, ...b.cap])];
   const key = st.light.key, dir = sunDir(key.elevation, key.azimuth), soft = p.recipe.shading ? p.recipe.shading.sun : 0;
-  const shadow = soft ? makeSoftSunShadow(solid, dir, soft, { cell: 0.6 }) : makeSunShadow(solid, dir, { cell: 0.6 });
+  // (a massif's land in the form render is lit by the page, never by its faces' fills: the painted sun's shadow over a
+  // field of hundreds of thousands of faces is a bake nobody sees, so it is not made)
+  const shadow = p.recipe.massif && ctx.form ? () => 1 : soft ? makeSoftSunShadow(solid, dir, soft, { cell: 0.6 }) : makeSunShadow(solid, dir, { cell: 0.6 });
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow, ...(ctx.liveSun ? { share: true } : {}) };
   const reach = (q, nn) => Math.max(0, dot(nn, dir)) * shadow(add(q, mul(nn, 0.05)), nn), lit = (q, nn) => reach(q, nn) >= st.cel;
   // the polygon land (`shading`): no tiles on the land, rock baked flat per facet, the rest smoothed, then the rules
