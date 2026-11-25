@@ -37,6 +37,7 @@ import { LOCAL_MERU_PRESETS } from './presets.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from './ground.js';
 import { readCrystals } from './crystals.js';
+import { readMassif } from './massif.js';
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5 + 0;
 const P = (p) => p.map(r5);
@@ -66,7 +67,7 @@ export const LOCAL_MERU = Object.freeze({
   tiers: [{ form: 'mound' }, { form: 'tower' }],
 });
 
-const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1, island: 1, shading: 1, relief: 1, ground: 1, crystals: 1 };
+const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1, island: 1, shading: 1, relief: 1, ground: 1, crystals: 1, massif: 1 };
 
 /**
  * ISLAND (`island: true | { … }`, opt-in): the plain becomes an island in a sea. Past `shore` metres from the first
@@ -97,6 +98,11 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  * RELIEF (`relief: '<card>' | { from?, … }`, opt-in): the plain's own ground (noise/relief.js): rolling, craggy,
  * eroded, terraced, dune. It rides the level ground under the seam's fade, so the seam row is the trail's own, and
  * fades out round a tower that stands on the plain; a mound rises over it as over the level. Absent: nothing added.
+ */
+/**
+ * MASSIF (`massif: '<card>' | { from?, … }`, opt-in, an island's only): the standing rock of a field at a mech's scale
+ * (massif.js): sheer blocks stepped by one column of beds, gorges cut through them, talus at their feet, hollows and river
+ * beds under the island's sea line; laid over the plain after the mounds, the geology's rim left to the island.
  */
 /**
  * GROUND (`ground: { from, span?, height?, at?, detail? }`, opt-in): the plain taken from a terrain world's field
@@ -186,7 +192,7 @@ function tiersOfOld(recipe) {
 
 /** A recipe read against the defaults; anything it does not know is refused with what it does. */
 export function readLocalMeru(recipe = {}) {
-  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers, island, shading, relief, ground, crystals)`);
+  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers, island, shading, relief, ground, crystals, massif)`);
   if (recipe.island !== undefined && recipe.after) throw new Error('local-meru: an island stands alone in its sea; it follows no trail (drop after, or island)');
   const old = recipe.mound || recipe.path || recipe.tower;
   if (old && recipe.tiers) throw new Error('local-meru: say the level as `tiers`, or as mound/path/tower, not both');
@@ -233,8 +239,9 @@ export function readLocalMeru(recipe = {}) {
   const approach = o.approach ?? null;
   if (approach !== null && !(approach >= 0)) throw new Error("local-meru: approach must be metres at or above 0 (null: clear of the first tier's foot)");
   const island = readIsland(recipe.island), shading = readShading(recipe.shading), relief = recipe.relief === undefined || recipe.relief === false ? null : readRelief(recipe.relief);
-  const ground = readGround(recipe.ground), crystals = readCrystals(recipe.crystals);
-  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers, ...(island ? { island } : {}), ...(shading ? { shading } : {}), ...(relief ? { relief } : {}), ...(ground ? { ground } : {}), ...(crystals ? { crystals } : {}) };
+  const ground = readGround(recipe.ground), crystals = readCrystals(recipe.crystals), massif = readMassif(recipe.massif);
+  if (massif && !island) throw new Error('local-meru: a massif stands on an island (its words are laid from the island\'s middle): name island');
+  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers, ...(island ? { island } : {}), ...(shading ? { shading } : {}), ...(relief ? { relief } : {}), ...(ground ? { ground } : {}), ...(crystals ? { crystals } : {}), ...(massif ? { massif } : {}) };
 }
 
 /**

@@ -47,7 +47,9 @@
  *             relief card or { from, …changes } (noise/relief.js), `ground` (optional): a terrain world's field
  *             under the plain ({ from: <painted-landscape recipe>, span?, height?, at? }, local-meru/ground.js),
  *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
- *             count?, size?, glow?, seed? }, local-meru/crystals.js); `cliff` (optional): the far cliff its trails
+ *             count?, size?, glow?, seed? }, local-meru/crystals.js); `massif` (optional, an island's): its standing rock, sheer
+ *             blocks stepped by beds, gorges, talus and water carved under the floor (a card or { from?, … },
+ *             local-meru/massif.js); `cliff` (optional): the far cliff its trails
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
  *             false: none, the land open on both sides of every trail it paints (a field, a plain); `water`
  *             (optional): the water cut into the land of every trail it paints (a trail's `ground.water`, era/out-water.js:
@@ -140,6 +142,7 @@ import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readGround as readTrailGround } from './out-ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
+import { readMassif } from '../local-meru/massif.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
@@ -163,6 +166,7 @@ import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { readCone } from '../scene/channels/view-cone.js';
 import { readHeavens, heavensCard } from './heavens.js';
 import { SOL_GEOCUBES, SOL_GEOCUBE_PALETTES, SOL_GEOCUBE_BUILDINGS } from '../sol/geocubes.js';
+import { FIELD_GEOCUBES, FIELD_GEOCUBE_PALETTES, FIELD_GEOCUBE_BUILDINGS } from '../assault-frame/geocubes.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -387,6 +391,9 @@ export const GEOCUBE_PRESETS = Object.freeze({
   // THE CHILDREN OF SOL (sol/geocubes.js): the bodies with ground under foot, Mercury to Pluto, the Moon among them (the
   // Earth is every cube above); their ground and their sky, and what hangs in it (era/heavens.js)
   ...SOL_GEOCUBES,
+  // THE BATTLEFIELD CUBES (assault-frame/geocubes.js): sandstone country at a mech's scale, pure terrain, its standing rock
+  // its own words (local-meru/massif.js); a frame's fields are cut from them
+  ...FIELD_GEOCUBES,
 });
 
 /**
@@ -409,6 +416,7 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'toy-hill': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'hall', enter: 'walk' }] },
   // the children of Sol's: a colony's (sol/geocubes.js)
   ...SOL_GEOCUBE_BUILDINGS,
+  ...FIELD_GEOCUBE_BUILDINGS,
 });
 /**
  * The levels a preset makes, beyond its own room and land: its other terrains and interiors, and the domains that
@@ -455,6 +463,8 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'city-night': { intent: 'concrete, asphalt and neon under a glowing night sky', key: 'low', heat: -0.3, weight: 0.4, activity: 0.5, scheme: 'mono-accent', hues: { rock: 220 }, lock: { accent: '#ff3d7f' } },
   // the children of Sol's (sol/geocubes.js)
   ...SOL_GEOCUBE_PALETTES,
+  // the battlefield cubes' (assault-frame/geocubes.js)
+  ...FIELD_GEOCUBE_PALETTES,
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
 const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'limestone-crags': [2, 5] , 'city-night': [0, 1], 'toy-hill': [0, 1, 2, 3], 'sherbet-orchard': [0, 1, 2, 3] });
@@ -633,13 +643,14 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
   if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
   if (c.outside.ground !== undefined) groundOrNo(c.outside.ground, 'outside.ground');
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.massif !== undefined) { try { readMassif(c.outside.massif); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {
     if (!isObj(c.outside.terrains)) no(`outside.terrains is { <name>: { ${TERRAIN_KEYS.map((k) => `${k}?`).join(', ')} } }: the cube's other terrains`);
@@ -1087,10 +1098,10 @@ function outsideOf(cube, base, sw, land, lookCard0) {
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land, made: { ...sw.made, ...cubeMade(cube) } } });
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
-  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals;
+  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals, Mf = cube.outside.massif;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
     ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own, ...(cube.grit !== undefined ? { grit: cube.grit } : {}) } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
-    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}) } };
+    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}), ...(Mf !== undefined && Mf !== false ? { massif: Mf } : {}) } };
 }
 
 /**

@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { FRAME_FIELDS, frameField, frameFieldCube, frameFieldManifest } from './field.js';
+import { FRAME_FIELDS, MASSIF_FORMS, frameField, frameFieldCube, frameFieldManifest } from './field.js';
+import { FIELD_GEOCUBES } from './geocubes.js';
+import { readGeocube } from '../era/geocube.js';
 import { readLocalMeru } from '../local-meru/plan.js';
 
 // THE FIELD (field.js): a frame's level is a geocube's own land at a mech's scale, pure terrain. One case per concept: the
@@ -12,7 +14,7 @@ describe('the frame field', () => {
     const m = frameFieldManifest(form);
     expect(m).toMatchObject({ kind: 'geocube', show: 'land', cube: { from: 'mars', era: 'gen-7', outside: { island: { walk: 'none', open: true } } } });
     expect(frameFieldCube(form, { world: 'moon' }).from).toBe('moon');
-    expect(() => frameFieldCube('swamp')).toThrow(/plain, basin/);
+    expect(() => frameFieldCube('swamp')).toThrow(/plain, basin, wadi/);
   });
 
   it('reads its ground the same for the same cube, and rolls the whole way round', () => {
@@ -30,5 +32,26 @@ describe('the frame field', () => {
     expect(() => readLocalMeru({ island: { open: true } })).toThrow(/walk 'none'/);
     expect(() => readLocalMeru({ island: { walk: 'none', open: 1 } })).toThrow(/island.open is true/);
     expect(readLocalMeru({ island: true }).island).not.toHaveProperty('open');
+  });
+
+  it('cuts a massif field from its own battlefield cube, its rock its card, a world\'s colour on it when named', () => {
+    const [form, cube] = Object.entries(MASSIF_FORMS)[0];
+    expect(FIELD_GEOCUBES[cube].outside.massif).toBe(form);
+    const C = frameFieldCube(form);
+    expect(C.from).toBe(cube);
+    expect(readGeocube(C).outside.massif).toBe(form);
+    expect(frameFieldCube(form, { world: 'mars' }).from).toBe('mars');
+    expect(frameFieldManifest(form).parallax).toBe(false);
+  });
+
+  it('stands a frame on the water where the land lies under it: it hovers, never goes under', () => {
+    // (the cube whose card carves a pool: the field's water is its sea come in over the hollow)
+    const form = Object.keys(MASSIF_FORMS).find((f) => FIELD_GEOCUBES[MASSIF_FORMS[f]].outside.massif === 'oasis');
+    const F = frameField(frameFieldCube(form)), [cx, cy] = F.centre;
+    let wet = null;
+    for (let j = -8; j <= 8 && !wet; j++) for (let i = -8; i <= 8 && !wet; i++) { const x = cx + i * 25, y = cy + j * 25; if (F.waterAt(x, y)) wet = [x, y]; }
+    expect(wet).toBeTruthy();
+    expect(F.landAt(...wet)).toBeLessThan(F.sea);
+    expect(F.heightAt(...wet)).toBe(F.sea);
   });
 });

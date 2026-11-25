@@ -467,6 +467,12 @@ Pointers only; each target carries its own design notes.
   theorist: its cast read as figures on its ground, `color-theorist/figures.js`, kept in their hue families; the ways it
   could be oriented, `color-theorist/directions.js`, each a patch; the colour book, `/bible?book=colour`; a new kind of
   figure, direction or genre decision is a row): [docs/colour.md](docs/colour.md).
+- A frame's field (Mech Battle Kai's lands, Warlords of Mars): [assault-frame/field.js](control/lib/graph/assault-frame/field.js)
+  (a geocube's own land at a mech's scale, pure terrain and no trail, read off the radar and the beacons; a frame hovers on
+  its water) on the battlefield cubes, `assault-frame/geocubes.js`; its standing rock as words,
+  [local-meru/massif.js](control/lib/graph/local-meru/massif.js) (blocks stepped by one column of beds, gorges and clefts,
+  talus and fallen blocks, pools and river beds; a new field is a card); its plate in the game book the operation map,
+  `gameworld/frame-map.js`.
 - Destructible physics (internal name rupa; `destruction: 'physical'`, opt-in, never a default):
   [rupa/](control/lib/graph/rupa/) (matter, heat, ground) and the runtime builder
   [controllable/rupa.js](control/lib/graph/worlds/controllable/rupa.js): [docs/rupa.md](docs/rupa.md).

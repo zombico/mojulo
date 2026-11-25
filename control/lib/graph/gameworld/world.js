@@ -239,6 +239,8 @@ import { readUi } from '../playscape/ui/interface-look.js';
 import { readMinigameBook, minigamesOfWords } from './minigames.js';
 import { readMounts } from '../worlds/mount-units.js';
 import { validateAirspace, isSpace } from '../skyscape/airspace.js';
+import { MAP_FORMS } from '../skyscape/map.js';
+import { FRAME_FIELDS } from '../assault-frame/field.js';
 import { readGeotown } from '../geotown/read.js';
 import { readGeocity } from '../geocity/metro.js';
 import { readSideMap } from './side-map/zones.js';
@@ -257,6 +259,8 @@ import { readArea } from '../gameroom/area.js';
 import { BOSS_IDS } from './bosses.js';
 import { readMission } from '../mission/brief.js';
 import { loadoutOf } from './loadout.js';
+// (the flight map's forms: a frame level's map may name a field's own besides, assault-frame/field.js)
+const SKY_MAP_FORMS = Object.keys(MAP_FORMS);
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -817,7 +821,10 @@ export function readGameworld(W) {
       const As = L.airspace;
       if (!isObj(As)) throw new Error(`gameworld: ${at}.airspace is { ${AIRSPACE_LEVEL_KEYS.join(', ')} } (every one optional)`);
       for (const k of Object.keys(As)) if (!AIRSPACE_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.airspace.${k} is not an airspace level setting (${AIRSPACE_LEVEL_KEYS.join(', ')})`);
-      const errs = validateAirspace({ kind: 'airspace', ...As });
+      // (a frame's level is fought on its field, not flown over a map: its map's form may be a field's own, a massif
+      // field's among them, assault-frame/field.js; the flight map checks the rest)
+      const fieldForm = As.frame !== undefined && isObj(As.map) && typeof As.map.form === 'string' && FRAME_FIELDS[As.map.form] && !SKY_MAP_FORMS.includes(As.map.form);
+      const errs = validateAirspace({ kind: 'airspace', ...As, ...(fieldForm ? { map: (({ form, ...m }) => m)(As.map) } : {}) });
       if (errs.length) throw new Error(`gameworld: ${at}.${errs[0]}`);
       // a cockpit mission's briefing: its design (campaign/mission.js), told on the holo table before it is flown
       // (or an arcade stage's, one that names its route (campaign/stage.js): told on the same table before it is flown)

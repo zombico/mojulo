@@ -36,7 +36,7 @@ import { landForm, LAND_CLASSES, OPT_CLASSES, DEEP_FADE, DEEP_TONE, UNDER_TONE, 
 import { b64 } from '../scene/emit-util.js';
 import { dressedMaterial, screeDice } from '../matte-paint/dressed.js';
 import { encodePng } from '../landscape/surface-textures.js';
-import { landLayers, LAYER_OF, PATH_REACH } from './land-layers.js';
+import { landLayers, LAYER_OF, PATH_REACH, evenHash } from './land-layers.js';
 import { strHash } from '../city/plan/dice.js';
 import { landStones, stoneForms, SHAPES, STONE_DENSITY } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
@@ -59,7 +59,7 @@ export const LAWN = Object.freeze({ bare: 0.12 });
  *  what they show; its street trees lay no litter (a kept street is swept, channels/form-flora.js). */
 export const TOWN_FLORA = Object.freeze({ grass: 0.4, litter: false });
 /** A 32-bit hash's bits mixed through (murmur3's finaliser): every bit of the key moves every bit of the dice. */
-export const evenHash = (h0) => { let h = h0 >>> 0; h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0; h ^= h >>> 16; return h >>> 0; };
+export { evenHash };
 /** How far past a claimed ground (era/isekai.js ALLOT) the grass grows back to its full (m): none inside the claim, short
  *  and thin at its edge, so no blade leans into it. */
 export const GRASS_OFF = 0.6;
@@ -163,7 +163,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     // (what grows under the grass, over the dirt, on a green land)
     { id: 'undergrowth', cut: 'undergrowth', metres: 1.0, role: 'grass' }];
   const GREEN = L.faces.some((F) => F.cls === 'ground');
-  const TEX = ATLAS_TEX, LY = landLayers(P.faces, L, { seed: 3 }), layered = (F, i) => LY.layered(i) && !!F;
+  const TEX = ATLAS_TEX, LY = landLayers(P.faces, L, { seed: 3, ...(C.outside?.massif ? { even: true } : {}) }), layered = (F, i) => LY.layered(i) && !!F;
   // (the layers' textures are the cuts', the same for every cube: painted once per dress surface and kept)
   const { A, means, png, dicePng } = layerAtlas(LAYERS, dress.surface);
   // the path's mask as the page reads it: the weight a byte, the trail's height two (over the trail's own span)

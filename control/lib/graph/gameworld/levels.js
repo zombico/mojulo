@@ -262,7 +262,7 @@ export function gameStages(world) {
     // manifest, coloured by the level's palette (the world's, or the world's moved by its script) where it has one
     // (an assault frame's level is fought on a geocube's own land, assault-frame/field.js: pure terrain in the seventh
     // generation's form render, no trail and no map of the flight's; the frame and its form ride on the stage)
-    if (R.airspace?.frame) { out.push({ level, node: 'field', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, frame: R.airspace.frame, manifest: frameFieldManifest(FRAME_FIELDS[R.airspace.map?.form] ? R.airspace.map.form : 'plain', { world: ((g) => (typeof g === 'string' ? g : g?.from ?? g?.id ?? 'mars'))(R.airspace.ground?.geocube) }) }); continue; }
+    if (R.airspace?.frame) { out.push({ level, node: 'field', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, frame: R.airspace.frame, manifest: frameLevelManifest(R) }); continue; }
     if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
     const laid = layLevel(R.level);
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
@@ -434,6 +434,13 @@ export function airspaceEnds(manifest) {
   for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, rail, cockpit: manifest.cockpit === true, airframe: manifest.airframe ?? null, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);
   return out;
+}
+
+/** A frame level's field (assault-frame/field.js): its map's form (plain unless it names a field's form) on its ground's
+ *  geocube (a massif field's own battlefield cube when it names none; Mars for the plain and the basin). */
+export function frameLevelManifest(R) {
+  const g = R.airspace.ground?.geocube, world = typeof g === 'string' ? g : g?.from ?? g?.id;
+  return frameFieldManifest(FRAME_FIELDS[R.airspace.map?.form] ? R.airspace.map.form : 'plain', world ? { world } : {});
 }
 
 /** A frame's field's anchors (assault-frame/field.js): the frame stood south of the field's middle facing north on the

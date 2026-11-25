@@ -32,6 +32,7 @@ import { gridX, gridY, landformGrid, bakeGrid, applyLandform, gridSample } from 
 import { bakeLand, ruleLand } from './shading.js';
 import { reliefField, reliefGrain } from '../noise/relief.js';
 import { groundField } from './ground.js';
+import { massifField } from './massif.js';
 import { crystalSites, landCrystalFaces } from './crystals.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor, GRIT_PIXELS } from './plan.js';
 import { rockFabric, FABRIC_GROUPS } from '../matte-paint/fabric.js';
@@ -119,6 +120,9 @@ function groundOf(p, seed, bare = false) {
   const lump = (x, y) => 0.35 * (vnoise(x * 0.09, y * 0.09, seed + 311) - 0.5);
   const R = p.recipe.relief, relief = R ? reliefOn(p, R, seed) : null;
   const terrain = p.recipe.ground && !bare ? groundOn(p, seed) : null;
+  // (the massif, massif.js: the standing rock over the plain and the mounds, its hollows under them; not what the
+  // geology reads as raised land, so its walls stand as the massif cut them)
+  const rock = p.recipe.massif && !bare ? massifOf(p, seed) : null;
   // (an open island, island.open: no trail lands on it, so no level apron where one would: the relief all the way round)
   const open = p.recipe.island?.open === true && !site;
   return (x, y) => {
@@ -130,8 +134,15 @@ function groundOf(p, seed, bare = false) {
     if (relief?.flank) { const f = relief.flank(x, y) * seam; for (const t of mounds) h = Math.max(h, moundAt(t, x, y) + f); }
     else for (const t of mounds) h = Math.max(h, moundAt(t, x, y));
     for (const L of stairs) { const z = stairAt(L, x, y); if (z !== null && z < h) h = Math.max(z - 0.02, p.tiers.find((t) => t.id === L.tier).base); }
-    return h;
+    return rock ? rock.at(x, y, h) : h;
   };
+}
+// the massif per plan and seed (its field is read for every corner of the land, its geology's grid and its laws)
+const MASSIFS = new Map();
+function massifOf(p, seed) {
+  const key = JSON.stringify([p.recipe.massif, p.tiers[0].centre, seed, p.join.at[2]]);
+  if (!MASSIFS.has(key)) { if (MASSIFS.size > 8) MASSIFS.clear(); MASSIFS.set(key, massifField(p.recipe.massif, p.tiers[0].centre, seed, p.join.at[2])); }
+  return MASSIFS.get(key);
 }
 
 /**
@@ -223,6 +234,23 @@ function seabedCells(g, z, bed) {
   return { flat, rects };
 }
 
+/** A face cut at every `step` metres of height (levels fixed in the world, so two faces sharing an edge cut it at the same
+ *  points): its bands, lowest first. */
+const WALL_BAND = 6;
+function bandFace(f, step) {
+  const zs = f.corners.map((c) => c[2]), lo = Math.min(...zs), hi = Math.max(...zs);
+  if (hi - lo <= step) return [f];
+  const out = [];
+  let rest = f;
+  for (let level = (Math.floor(lo / step) + 1) * step; level < hi - 1e-6 && rest; level += step) {
+    const parts = cutFace(rest, rest.corners.map((c) => c[2] - level), 'up');
+    rest = null;
+    for (const q of parts) { if (q.group === 'up') rest = { ...q, group: f.group }; else out.push(q); }
+  }
+  if (rest) out.push(rest);
+  return out;
+}
+
 /** The ground grid's faces on the followed trail's lattice (or a plain one standing alone), cliff and grass. */
 function groundFaces(st, p, heightAt, S = null) {
   const site = p.join.site, c = p.tiers[0].centre;
@@ -250,8 +278,10 @@ function groundFaces(st, p, heightAt, S = null) {
     if (bed && bed.flat[j * (g.nx - 1) + i]) continue;
     const cs = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], n = facet(cs, [0, 0, 1]);
     if (isCliff(cs, n)) {
-      const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0;
-      out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', celN: n, uv: cs.map((q) => [r5(q[h] / sc), r5(q[2] / sc)]), group: 'isekai:cliff' });
+      const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0, f0 = { corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', celN: n, group: 'isekai:cliff' };
+      // (a massif's wall, a cell's quad standing tens of metres: cut into bands at fixed heights, so its corners are the
+      // rock's all the way up and the scree at its foot stays in the lowest band, not smeared up the face)
+      for (const q of p.recipe.massif ? bandFace(f0, WALL_BAND) : [f0]) out.push({ ...q, uv: q.corners.map((c) => [r5(c[h] / sc), r5(c[2] / sc)]) });
     } else if (S && gritty) {
       // (a gritty island's beach: the line between sand and turf drawn through the cells at the beach's height, not
       // round them, so its edge is a curve and not the grid's steps)
@@ -260,6 +290,9 @@ function groundFaces(st, p, heightAt, S = null) {
     } else if (S && mean(cs)[2] < S.sea + BEACH * k) out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.trail, group: 'isekai:sand', flat: n[2] });   // the beach and the seabed
     else out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: coverOf(n), flat: n[2] });
   }
+  // (and on a massif every other face cut at the same heights as its walls, so an edge a wall shares with its talus is cut
+  // at the same points on both sides: no point of a wall's edge the relief moves where its neighbour has none)
+  if (p.recipe.massif) return { faces: out.flatMap((f) => (f.cel === 'cliff' ? [f] : bandFace(f, WALL_BAND))), grid: { ...g, z } };
   return { faces: out, grid: { ...g, z } };
 }
 
@@ -405,7 +438,7 @@ export function localMeruHeight(manifest = {}) {
   const S = p.recipe.island ? islandOf(p, p.recipe.island, Math.atan2(-p.join.N[0], p.join.N[1])) : null;
   if (!S) return null;
   const shore = islandGround(groundOf(p, seed), S);
-  if (S.geology) S.geo = islandGeology(st, S, shore, seed, p.recipe.ground ? islandGround(groundOf(p, seed, true), S) : shore);
+  if (S.geology) S.geo = islandGeology(st, S, shore, seed, p.recipe.ground || p.recipe.massif ? islandGround(groundOf(p, seed, true), S) : shore);
   return { heightAt: S.geo ? S.geo.ground : shore, centre: p.tiers[0].centre.slice(0, 2), island: S };
 }
 
@@ -419,7 +452,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   // the island, when the recipe has one: its high side by default to the left of the wide view, which sees both shores
   const S = p.recipe.island ? islandOf(p, p.recipe.island, Math.atan2(-p.join.N[0], p.join.N[1])) : null;
   const shore = S ? islandGround(groundOf(p, seed), S) : null;
-  if (S && S.geology) S.geo = islandGeology(st, S, shore, seed, p.recipe.ground ? islandGround(groundOf(p, seed, true), S) : shore);
+  if (S && S.geology) S.geo = islandGeology(st, S, shore, seed, p.recipe.ground || p.recipe.massif ? islandGround(groundOf(p, seed, true), S) : shore);
   const heightAt = S ? (S.geo ? S.geo.ground : shore) : groundOf(p, seed), ground = groundFaces(st, p, heightAt, S);
   // (island.walk 'none': no walk at all, the island a seed flown and zoomed; walking is the path's)
   const walk = S && S.walk === 'none' ? { faces: [], wall: [] } : walkFaces(st, p, heightAt, made, !!S && S.walk === 'base');
@@ -438,6 +471,8 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   }
   // the talus's scree on a geology island: the fragments the faces shed, small boulders on the apron
   if (S && S.geo) S.geo.scree.forEach((r, i) => rocks.push(boulderFaces(st, { x: r5(r.x), y: r5(r.y), z0: r.z0, size: 2, v: 20 + i }, seed, broken)));
+  // the massif's fallen blocks on its talus (massif.js strew), each a boulder of its own size
+  if (p.recipe.massif) massifOf(p, seed).boulders.forEach((r, i) => rocks.push(boulderFaces(st, { x: r.x, y: r.y, z0: heightAt(r.x, r.y), size: r.size, v: 60 + i }, seed, broken)));
   // (and its cliffs' rims break as the boulders' edges do, and small stones lie about: on the boulders' tops, along
   // the paths, at the cliffs' feet; broken-land.js)
   if (broken) {
