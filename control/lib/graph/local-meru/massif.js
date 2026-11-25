@@ -81,7 +81,9 @@ export const MASSIF_CARDS = f({
       f({ path: f([f([-80, -600]), f([-40, -300]), f([90, -150]), f([60, 60]), f([-90, 200]), f([-30, 400]), f([60, 620])]), width: 190, river: f({ width: 34, depth: 4.5 }) }),
       f({ path: f([f([-600, -120]), f([-300, -90]), f([-60, -170])]), width: 70 }),
       f({ path: f([f([620, 260]), f([320, 200]), f([40, 120])]), width: 84 }),
-    ]), strew: f({ count: 100, size: f([2, 8]) }) }),
+    ]), strew: f({ count: 100, size: f([2, 8]) }),
+    // (a canyon's walls thinner-bedded and harder-edged than a jebel's)
+    face: f({ beds: f([4, 8]), bulge: 2.6, undercut: 2.6, grain: 1.4 }) }),
   // scree country: a long scarp on the north, its foot a broad apron of fans and the blocks fallen off it, low buttes out
   // on the broken floor
   scree: f({ ...CARD, id: 'scree', reads: 'A long scarp, its foot a broad apron of scree fans and fallen blocks, low buttes on a broken floor',
@@ -91,7 +93,9 @@ export const MASSIF_CARDS = f({
       B([-200, 80], [36, 26], 30, 26, 3), B([140, -60], [30, 22], 120, 22, 3), B([-60, -240], [44, 30], 70, 30, 3),
       B([260, 170], [26, 18], 10, 18, 3), B([-340, -120], [28, 20], 150, 20, 3), B([330, -280], [40, 26], 60, 34, 3),
     ]),
-    talus: f({ share: 0.34, angle: 33, fan: 0.9 }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }) }),
+    talus: f({ share: 0.34, angle: 33, fan: 0.9 }), flute: f({ depth: 7, scale: 18 }), strew: f({ count: 200, size: f([2, 8]) }),
+    // (a scarp shedding its rock: thick beds, broken more than bedded)
+    face: f({ beds: f([6, 14]), bulge: 1.6, undercut: 1.6, grain: 2.4 }) }),
   // an oasis: a lake on the floor of a wadi among jebels, a pool beside it
   oasis: f({ ...CARD, id: 'oasis', reads: 'A lake on a wadi\'s floor among sheer jebels, a pool beside it',
     blocks: f([

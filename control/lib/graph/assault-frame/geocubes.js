@@ -40,10 +40,11 @@ const PANEL = f({ gen: 'stone-brick', stone: [150, 150, 150], mortar: [96, 96, 9
 const DECK = f({ gen: 'flagstone', stone: [140, 140, 140], mortar: [70, 70, 70], gravel: [100, 100, 100], cells: 4, mortarThick: 0.04, wobble: 0.6, vary: 10, grain: 5, lost: 0, cracked: 0.05, seed: 17 });
 const SURFACES = f({ wall: PANEL, floor: DECK, accent: f({ gen: 'rock', style: 'cave', base: [170, 170, 170], seed: 1 }) });
 const INSIDE = f({ bones: 'research-lab', size: f([12, 12, 7]), accentWall: '+y' });
-// (a clear desert day: a hard high sun, a deep sky paling to a dusty horizon, the far walls going pale into the dust)
+// (a clear desert day: a hard high sun, a deep sky paling to a dusty horizon; the air clear enough that a wall 400 m off
+// keeps its colour, the far walls only going pale into the dust)
 const DESERT_SKY = f({ zenith: '#3f78c0', horizon: '#d6e2ea', fog: '#e2d6c4' });
 // (the outside's card is the airless plain's, bare rock and no grass; its void dropped for the air of a world with weather)
-const DESERT = (fog = 0.4) => f({ reference: 'island-noon', outsideFog: fog, sun: f({ color: '#fff4e2' }), sky: DESERT_SKY, heavens: f({ void: false, disc: f({ size: 1, glow: 1.1 }) }) });
+const DESERT = (fog = 0.25) => f({ reference: 'island-noon', outsideFog: fog, sun: f({ color: '#fff4e2' }), sky: DESERT_SKY, heavens: f({ void: false, disc: f({ size: 1, glow: 1.1 }) }) });
 // (the sandstone: red-brown walls, a paler upper rock, an orange-pink floor; shade a cool blue, never black)
 const SANDSTONE = f({ stone: '#a4573a', floor: '#cf8a5c', trim: '#e6c8a0', accent: '#2f7fd0', grass: '#b88454', foliage: '#76703e', water: '#3c7f98', sand: '#d99c68', shade: 218 });
 
@@ -62,19 +63,19 @@ export const FIELD_GEOCUBES = f({
   }),
   'sandstone-gorge': f({
     id: 'sandstone-gorge', title: 'Sandstone gorge', reads: 'A winding canyon cut through a sandstone plateau, side canyons into it, a river on its floor',
-    light: DESERT(0.45), colour: f({ ...SANDSTONE, stone: '#9a5236', floor: '#c48256' }), register: f({ steps: 0, key: 0.52 }), surfaces: SURFACES, inside: INSIDE,
+    light: DESERT(0.28), colour: f({ ...SANDSTONE, stone: '#9a5236', floor: '#c48256' }), register: f({ steps: 0, key: 0.52 }), surfaces: SURFACES, inside: INSIDE,
     outside: FIELD_OUTSIDE('gorge'), wind: f({ speed: 4, dir: 200 }),
     why: f([...WHY.slice(0, 2), 'The canyon is the field: its floor to fight down, its walls to climb, its rim to look over; the river a sheet the suits hover over.']),
   }),
   'scree-scarp': f({
     id: 'scree-scarp', title: 'Scree scarp', reads: 'A long scarp over a broad apron of scree fans and fallen blocks, low buttes out on a broken floor',
-    light: DESERT(0.5), colour: f({ ...SANDSTONE, stone: '#8e5a40', floor: '#b88a64', sand: '#c99a70' }), register: f({ steps: 0, key: 0.5 }), surfaces: SURFACES, inside: INSIDE,
+    light: DESERT(0.32), colour: f({ ...SANDSTONE, stone: '#8e5a40', floor: '#b88a64', sand: '#c99a70' }), register: f({ steps: 0, key: 0.5 }), surfaces: SURFACES, inside: INSIDE,
     outside: FIELD_OUTSIDE('scree'), wind: f({ speed: 6, dir: 260 }),
     why: f([WHY[0], WHY[1], 'The scarp sheds its rock: the fans run out from its foot and the blocks lie where they fell, broken ground and cover all the way across.']),
   }),
   'wadi-oasis': f({
     id: 'wadi-oasis', title: 'Wadi oasis', reads: 'A lake on a wadi\'s floor among sheer sandstone jebels, a pool beside it',
-    light: DESERT(0.42), colour: f({ ...SANDSTONE, water: '#2f8aa0' }), register: f({ steps: 0, key: 0.55 }), surfaces: SURFACES, inside: INSIDE,
+    light: DESERT(0.26), colour: f({ ...SANDSTONE, water: '#2f8aa0' }), register: f({ steps: 0, key: 0.55 }), surfaces: SURFACES, inside: INSIDE,
     outside: FIELD_OUTSIDE('oasis'), wind: f({ speed: 4, dir: 230 }),
     why: f([WHY[0], WHY[1], 'The water is the only cool colour on the floor: a sheet the suits hover over, never fight under.']),
   }),
