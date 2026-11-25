@@ -76,7 +76,8 @@ export function unwalked(steps) {
   for (const s of levelSteps(steps)) {
     if (!s.order.manifest.game) continue;
     const kinds = unprovenKinds(s.order);
-    if (kinds.length) out.push({ level: levelOf(s.key), step: s.key, why: `it carries ${kinds.join(', ')}: the walk proves a level of ${WALKED_WINS.join(', ')} alone; this one is the creator's to play` });
+    // (a scroll stage is played through by its bot instead, the check's playthrough: gameworld/scroll-stage/bot.js)
+    if (kinds.length) out.push({ level: levelOf(s.key), step: s.key, why: s.order.manifest.camera?.rule === 'scroll' ? 'a scroll stage: never walked, its bot plays it through (the check\'s playthrough) and a still ship must not clear it' : `it carries ${kinds.join(', ')}: the walk proves a level of ${WALKED_WINS.join(', ')} alone; this one is the creator's to play` });
   }
   return out;
 }

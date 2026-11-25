@@ -27,7 +27,9 @@ export const SHOT_LIGHT_CAP = 0.09;
  * light's reach, its colour × `gain`, held under `cap` (linear): a rim in the round's colour on the side it comes from. */
 export const SHOT_LIGHT_CEL = Object.freeze({ step: 0.35, reach: 0.7, gain: 0.9, cap: 0.5, edge: 0.45 });
 
-export function shotLightScript() {
+// `more` (opt-in): the name of a page function whose lights join the frame's (the same shape: pos, color, reach, power,
+// bodies?), the strongest K of them all laid: a scroll stage's strikes (scroll-pods-view.js). Absent, the script is as it was.
+export function shotLightScript({ more } = {}) {
   const K = SHOT_LIGHT_K, CAP = SHOT_LIGHT_CAP, { step: CEL_STEP, reach: CEL_REACH, gain: CEL_GAIN, cap: CEL_CAP, edge: CEL_EDGE } = SHOT_LIGHT_CEL;
   return `
 // ── THE SHOT LIGHT ──
@@ -71,7 +73,7 @@ let __slTick = 0;
 const __slLin = (v) => Math.pow(v, 2.2);
 function __slFrame() {
   const p = __world.pilotId && __world.byId ? __world.byId[__world.pilotId] : null;
-  const L = __shotLights(__world, { k: ${K}, focus: p && p.transform ? p.transform.pos : null }), U = __SL.U;
+  ${more ? `const F = p && p.transform ? p.transform.pos : null, L = __shotLights(__world, { k: ${K}, focus: F }).concat(${more}() || []).map((l) => [l, l.power / (1 + (F ? Math.hypot(l.pos[0] - F[0], l.pos[1] - F[1], l.pos[2] - F[2]) / Math.max(l.reach, 1e-3) : 0))]).sort((a, b) => b[1] - a[1]).slice(0, ${K}).map((x) => x[0]), U = __SL.U;` : `const L = __shotLights(__world, { k: ${K}, focus: p && p.transform ? p.transform.pos : null }), U = __SL.U;`}
   L.forEach((l, k) => { U.uSlP.value[k].set(l.pos[0], l.pos[1], l.pos[2]); U.uSlC.value[k].set(__slLin(l.color[0]) * l.power, __slLin(l.color[1]) * l.power, __slLin(l.color[2]) * l.power); U.uSlR.value[k] = l.reach; U.uSlB.value[k] = l.bodies === false ? 0 : 1; });
   U.uSlN.value = L.length; __SL.last = L;
 }

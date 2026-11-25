@@ -9,6 +9,11 @@
  *   `readLibrary()`             the index, or null when none is installed (read once per directory)
  *   `sampleSlice(cards)`        what an engine's `loadSamples` takes for those card names: { cards: { <card>: [id…] },
  *                               bytes: { <id>: Buffer } }, only the cards the library holds; null when it holds none
+ *                               (a name no card has but an INSTRUMENT's, a card's `instrument`: every pitched take that
+ *                               plays it, with `roots` { <id>: MIDI }, `loops` { <id>: [start, end] s } and a velocity
+ *                               layer's `vels` { <id>: 0…1 } beside; its key-offs under `<name>~release`, with
+ *                               `keyAt` { <id>: MIDI } the register each is for and `keyRoot` the pitch one carries)
+ *   `hasInstrument(name)`       whether the library holds an instrument's pitched takes
  *   `sampleSliceBase64(cards)`  the same with the bytes as base64, for a page to inline: each variant's MP3 where the
  *                               library carries one (`masters/<id>.mp3`, a tenth of the WAV), else its WAV
  *   `recordedEngine(engine)`    an engine's steady loops (cards whose `engine` is it, each with the `rpm` it was asked
@@ -123,18 +128,36 @@ export function sampleSlice(cards, { compact = false } = {}) {
   const lib = readLibrary();
   if (!lib) return null;
   const dir = libraryDir(), out = { cards: {}, bytes: {} };
+  const take = (v) => {
+    if (!ID.test(v.id)) return false;
+    const file = path.join(dir, 'masters', `${v.id}.wav`), mp3 = path.join(dir, 'masters', `${v.id}.mp3`);
+    if (!existsSync(file)) return false;
+    out.bytes[v.id] = readFileSync(compact && existsSync(mp3) ? mp3 : file);
+    // (a pitched take's measured root and its held loop: an instrument is played from them)
+    if (Number.isFinite(v.root)) (out.roots ??= {})[v.id] = v.root;
+    if (Array.isArray(v.loopAt)) (out.loops ??= {})[v.id] = v.loopAt.slice();
+    if (Number.isFinite(v.vel)) (out.vels ??= {})[v.id] = v.vel;
+    return true;
+  };
   for (const name of [...new Set(cards || [])].sort()) {
     const card = lib.cards[name];
-    if (!card) continue;
     const ids = [];
-    for (const v of card.variants || []) {
-      if (!ID.test(v.id)) continue;
-      const file = path.join(dir, 'masters', `${v.id}.wav`), mp3 = path.join(dir, 'masters', `${v.id}.mp3`);
-      if (!existsSync(file)) continue;
-      out.bytes[v.id] = readFileSync(compact && existsSync(mp3) ? mp3 : file);
-      ids.push(v.id);
-      // (a loop is held on its first take, recorded-held.js: its others are never heard, so never carried)
-      if (card.loop) break;
+    if (card) {
+      for (const v of card.variants || []) {
+        if (!take(v)) continue;
+        ids.push(v.id);
+        // (a loop is held on its first take, recorded-held.js: its others are never heard, so never carried)
+        if (card.loop) break;
+      }
+    } else {
+      // (an INSTRUMENT by its name: every take of every card that plays it, its notes, each with its root; and its
+      // key-offs, the release sounds, under `<name>~release`, each with the register it is for, `keyAt`)
+      const offs = [];
+      for (const k of Object.keys(lib.cards).sort()) if (lib.cards[k]?.instrument === name) for (const v of lib.cards[k].variants || []) {
+        if (lib.cards[k].keyOff) { if (Number.isFinite(v.keyAt) && take(v)) { offs.push(v.id); (out.keyAt ??= {})[v.id] = v.keyAt; if (Number.isFinite(v.keyRoot)) (out.keyRoot ??= {})[v.id] = v.keyRoot; } }
+        else if (Number.isFinite(v.root) && take(v)) ids.push(v.id);
+      }
+      if (ids.length && offs.length) out.cards[`${name}~release`] = offs;
     }
     if (ids.length) out.cards[name] = ids;
   }
@@ -144,5 +167,10 @@ export function sampleSlice(cards, { compact = false } = {}) {
 export function sampleSliceBase64(cards) {
   const s = sampleSlice(cards, { compact: true });
   if (!s) return null;
-  return { cards: s.cards, bytes: Object.fromEntries(Object.entries(s.bytes).map(([id, b]) => [id, b.toString('base64')])) };
+  return { cards: s.cards, bytes: Object.fromEntries(Object.entries(s.bytes).map(([id, b]) => [id, b.toString('base64')])), ...(s.roots ? { roots: s.roots } : {}), ...(s.loops ? { loops: s.loops } : {}), ...(s.vels ? { vels: s.vels } : {}), ...(s.keyAt ? { keyAt: s.keyAt } : {}), ...(s.keyRoot ? { keyRoot: s.keyRoot } : {}) };
+}
+
+export function hasInstrument(name) {
+  const lib = name ? readLibrary() : null;
+  return !!lib && Object.values(lib.cards).some((c) => c && c.instrument === name && (c.variants || []).some((v) => Number.isFinite(v.root)));
 }

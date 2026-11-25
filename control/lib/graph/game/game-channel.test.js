@@ -59,6 +59,12 @@ describe('emitThreeWorld — the __mojGame bridge', () => {
     expect(html).not.toContain('game-outcome');
   });
 
+  it('a level with a party hands the page the names its player gave (named), and none without one', () => {
+    const party = { ...CONTRACT, consumes: [{ slice: 'party' }], party: { slice: 'party' } };
+    expect(emitThreeWorld({ ...base, game: party })).toContain('window.__mojNames = window.__mojNames || {}');
+    expect(emitThreeWorld({ ...base, game: CONTRACT })).not.toContain('__mojNames');
+  });
+
   it('keeps the bridge in capture runs (unlike audio) so audits can read the envelope', () => {
     const html = emitThreeWorld({ ...base, game: CONTRACT, capture: true });
     expect(html).toContain('window.__mojGame');

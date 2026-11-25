@@ -1,0 +1,16 @@
+{
+  "id": "squadron",
+  "name": "Squadron",
+  "about": "An arcade flight squadron's: deep night-blue plates cut at the corner, a cyan hairline and an amber call for what matters, a stencilled squadron face in capitals, menus that slam in on chevrons. Loud between stages, nothing drawn across the way ahead during one.",
+  "family": "party",
+  "tags": ["arcade flight", "rail shooter", "space shooter", "squadron", "wolf squadron"],
+  "author": "mojulo",
+  "from": "arcade",
+  "tokens": { "ink": "#eaf6ff", "panel": "#0b1a33", "line": "#2fd0ff", "accent": "#ffb21a", "accent2": "#2fd0ff", "harm": "#ff4a3d", "hp": "#5cf08a", "shield": "#2fd0ff" },
+  "corner": "cut",
+  "slant": "light",
+  "case": "upper",
+  "stage": "chevrons",
+  "overlay": "none",
+  "title": "slam"
+}

@@ -9,7 +9,9 @@
  *       | { vanish | kill | stop: '<who>' }            send away · fell · end its walk or hold
  *       | { hurt: { who, by } } | { heal: '<who>' | { who, by? } }   its body.hp
  *       | { rearm: '<who>' | { who, by? } }            rounds for its weapon (by: into its reserve; no by: a full magazine)
- *       | { walk: { who, to, speed?, then?, face?, pose? } }   a dumb path through places: straight lines, no pathfinding
+ *       | { walk: { who, to, speed?, then?, face?, pose?, find? } }   a path through places: straight lines (the world's
+ *                                                      walls push it out), or with `find` each leg walked round what
+ *                                                      stands in the way (worlds/controllable/route-find.js)
  *       | { blast: { at, radius?, hurt? } } | { collapse: group | { group, how?, storey?, stagger? } } | { break: id }
  *       | { dig: who | { who? | at, to?, scoop? } }   the shovel, in a physical level's ground
  *                                                    the world's breaks, set off (worlds/controllable/trigger.js)
@@ -62,7 +64,7 @@ export const CAST_THEN = Object.freeze({
   hurt: '{ hurt: { who, by } } takes from its body.hp; at 0 it falls',
   heal: '{ heal: who | { who, by? } } gives back body.hp (no by: all of it)',
   rearm: '{ rearm: who | { who, by? } } rounds for the weapon in its hand: by more in its reserve, or (no by, or no reserve) a full magazine',
-  walk: "{ walk: { who, to: place | [places], speed?, then?: 'stay' | 'loop' | 'back', face?, pose? } } a dumb path: straight lines, the world's walls push it out, no pathfinding",
+  walk: "{ walk: { who, to: place | [places], speed?, then?: 'stay' | 'loop' | 'back', face?, pose?, find? } } a path: straight lines, the world's walls push it out; find: true walks each leg round what stands in the way",
   stop: 'end a walk, or a hold at a spot',
   status: `{ status: { who, is, look?, for?, color? } } the character carries a status: is is any name you give it; look is how it shows on the body as it moves (a preset: ${LOOK_NAMES.join(', ')}; a name in play.looks; or its layers), defaulting to the look called is; for seconds, until lifted, or until the cue ends`,
   lift: '{ lift: who | { who, is? } } take a status off (no is: all of them)',
@@ -267,6 +269,7 @@ export function readCastEffect(k, t, where, ctx = {}) {
     if (o.then !== undefined) { if (!WALK_THEN.includes(o.then)) throw new Error(`${w}.then is one of: ${WALK_THEN.join(', ')}`); out.then = o.then; }
     if (o.face !== undefined) { if (!Number.isFinite(o.face)) throw new Error(`${w}.face is degrees`); out.face = o.face; }
     if (o.pose !== undefined) { if (!SPOT_POSES.includes(o.pose)) throw new Error(`${w}.pose is one of: ${SPOT_POSES.join(', ')}`); out.pose = o.pose; }
+    if (o.find !== undefined) { if (o.find !== true) throw new Error(`${w}.find is true: each leg walked round what stands in the way`); out.find = true; }
   }
   return out;
 }
@@ -317,7 +320,7 @@ export function lowerCastEffect(t, on, frag, places = []) {
     r.points = ps.map((p) => [p.at[0], p.at[1]]);
     r.names = t.to.map((x, i) => (Array.isArray(x) ? String(i) : x));
     const end = ps[ps.length - 1];
-    for (const k of ['speed', 'then']) if (t[k] !== undefined) r[k] = t[k];
+    for (const k of ['speed', 'then', 'find']) if (t[k] !== undefined) r[k] = t[k];
     const face = t.face ?? end.face, pose = t.pose ?? end.pose;
     if (Number.isFinite(face)) r.face = face;
     if (pose) r.pose = pose;

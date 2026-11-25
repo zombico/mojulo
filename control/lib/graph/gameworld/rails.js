@@ -23,11 +23,14 @@
  *   seen     how it is seen, said outright where its tables' cameras are not the game's (seenOf reads it alone)
  *   words    the words people say for it that its pole's and its genres' own word lists lack
  *   lacks    what it does not do yet, beyond its pole's own `needs`
+ *   starter  { prompt, levels } the words its locked pitch's starter is composed from (pitch-start.js), where its genre's
+ *            own one level would not be its game (the party RPG's round)
+ *   steps    [{ step, does, card }] its game's own steps in the designed chain, before its first level
  *   variants { <id>: { name, like, level1, words, ask, quick?, street?, box? } }: the variants of the type a door's words
  *            make (the beat-em-up's heroes, Galaxy Boy's boxes): its own name and words, the step it ASKS before anything
  *            is made (`ask`, with its card), its quick door's words beside the goal, what a designed game's street carries
- *            (`street`), and the box a designed game starts from (`box`: { game, cube, library }, its starter and the
- *            geocube that dresses it, pitch-start.js)
+ *            (`street`), and the box a designed game starts from (`box`: { game, cube, library, castle? }, its starter and
+ *            the geocube that dresses it, pitch-start.js)
  *
  * How it is played THROUGH (levels in turns or an open world, the world's shape) is not a rail's: it is the Game
  * Brief's labour (gmn.js LABOURS). A rail says how a moment plays.
@@ -173,7 +176,7 @@ export const RAILS = Object.freeze({
   'steel-serpents': row({ name: 'Steel Serpents', like: 'stealth action: guards who see what is in front of them, slipped past or taken down',
     // (seen in the third person, the operator's word: the template's lab view is from overhead and the espionage cube's
     // from above, neither the game's camera)
-    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
+    handles: row({ pole: 'steel-serpents', genres: list(['stealth', 'tactical-espionage', 'cinematic-action']), quick: list(['sneak']) }), sizes: list(['quick', 'designed']), level1: 'a level: a base infiltrated layer by layer, unseen',
     seen: list(['free']) }),
   'vigilante-justice': row({ name: 'Vigilante Justice', like: 'a hero over a city: rooftops, a glide or a swing, a crowd fought with counters',
     handles: row({ pole: 'vigilante-justice', genres: list(['city-stalker']) }), sizes: list(['designed']), level1: 'a district crossed by its rooftops' }),
@@ -184,8 +187,18 @@ export const RAILS = Object.freeze({
   'mech-battle-kai': row({ name: 'Mech Battle Kai', like: 'robot action: a heavy machine that boosts, hovers, shoots and transforms',
     handles: row({ pole: 'mech-battle-kai', genres: list([]) }), sizes: list(['designed']), level1: 'a battlefield crossed in the machine',
     lacks: list(['no genre cube of its own: a designed game names its feel and starts from the cube nearest the ask']) }),
+  // (its starter is the ROUND, compose.js: the town at its heart with an inn, a temple and a save point, the wilds as the
+  // world map's blocks, a castle that keeps the core's key, and the dungeon at the core with its boss; laid in words the
+  // composer reads, and taught as the round's steps beside the designed game's own)
   'isekai-party': row({ name: 'Isekai Party', like: 'a party RPG: battles turn by turn, classes, skills and a bestiary',
-    handles: row({ pole: 'isekai-party', genres: list(['jrpg', 'story-adventure', 'long-rpg']), quick: list(['battle']) }), sizes: list(['quick', 'designed']), level1: 'a level: a field, its first battles, a town' }),
+    handles: row({ pole: 'isekai-party', genres: list(['jrpg', 'story-adventure', 'long-rpg']), quick: list(['battle']) }), sizes: list(['quick', 'designed']),
+    level1: 'the round: a town at its heart (an inn, a temple, a save point), the wilds with their first battles, a castle keeping the key, and the dungeon at the core with its boss',
+    starter: row({ prompt: 'a jrpg: a walled town, the wilds with monsters, a castle, and a dungeon with a boss', levels: 4 }),
+    steps: list([
+      row({ step: 'round', does: 'the round as a mandala (megaworld): the town, the wilds and the castle round it, the core behind a key; its save points (saves), and a crossing by ship or airship where the world goes further', card: 'gameworld-world' }),
+      row({ step: 'battles', does: 'the party and its classes, the packs, the boss as a party battle with its pattern and its pages, the states', card: 'gameworld-battles' }),
+      row({ step: 'talk', does: 'the townspeople: what each says, as pages that follow the story (the key held, the boss beaten)', card: 'gameworld-folk' }),
+    ]) }),
   // ── with a gun ──
   conscription: row({ name: 'Conscription', like: 'a first-person shooter: a soldier\'s run, cover, the guns',
     handles: row({ pole: 'conscription', genres: list(['shooter', 'military-sim']), quick: list(['shoot']) }), sizes: list(['quick', 'designed']), level1: 'a level: armed foes behind cover, shot through to the end' }),
@@ -219,7 +232,28 @@ export const RAILS = Object.freeze({
   racing: row({ name: 'Racing', like: 'a race: a track or a road, checkpoints, rivals, the best time kept',
     handles: row({ genres: list(['racing', 'kart-racer']), quick: list(['race']) }), sizes: list(['quick']), level1: 'a race: the laps, the podium' }),
   flight: row({ name: 'Flight', like: 'flying: a gate course, a dogfight, a sector of space',
-    handles: row({ genres: list(['flight-sim', 'air-combat', 'space-shooter']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
+    handles: row({ genres: list(['air-combat']), quick: list(['fly']) }), sizes: list(['quick', 'designed']), level1: 'a course flown gate by gate, and the landing' }),
+  // a licence earned lesson by lesson (pilot-school.js: its starter, the lessons on one airfield, each graded)
+  'pilot-school': row({ name: 'Pilot School', like: 'learning to fly a light aircraft: lessons on one airfield, each graded bronze to gold, a licence at the end',
+    handles: row({ genres: list(['flight-sim']) }), sizes: list(['designed']), level1: 'a lesson: the take-off, the first rings, leveling off over the field',
+    words: list(['pilot school', 'flight school', 'learn to fly', 'flying lessons', 'flight lessons', 'flight training', 'pilot licence', 'pilot license', 'pilotwings', 'flight instructor', 'realistic flight']),
+    lacks: list(['the circuit and the landing lesson, the stall, the cross-country, the crosswind and the check ride are later lessons, laid on the same words']) }),
+  // stages flown down a path, flight as a concept (wolf-squadron.js: its starter, a planet's canyon and a field of rocks)
+  'wolf-squadron': row({ name: 'Wolf Squadron', like: 'an arcade flight shooter: stages flown down a path on planets and in space, boost, brake and roll, waves of fighters, a boss at the end of each',
+    handles: row({ genres: list(['space-shooter']) }), sizes: list(['designed']), level1: 'a stage: down a canyon on a planet, its waves and its boss',
+    words: list(['wolf squadron', 'rail shooter', 'on-rails shooter', 'on rails shooter', 'arcade flight', 'arcade space shooter', 'starfighter', 'star fox', 'starfox', 'rogue squadron', 'barrel roll', 'space fighter game']),
+    lacks: list(['the squad and its calls, the rival squad and the all-range arena are to come', 'its cube is the space shooter\'s: its stages fly on the rail rule (power.rules=rail), which a stage of its own names']) }),
+  // a scrolling shooter, left to right (blaze-gunner.js: its starter, the fleet's edge; gameworld/scroll-stage/)
+  'blaze-gunner': row({ name: 'Blaze Gunner', like: 'a scrolling shooter: a small ship on the d-pad over a screen that scrolls on its own, waves in formation, pods taken from foes for weapons, a capital ship broken by its systems, then into a station: its corridors, guns, hatches, crushers and locks, its reactor at the heart',
+    handles: row({ genres: list(['co-op-scroller']) }), sizes: list(['designed']), level1: 'a stage: waves in the open, a hull run, the boss broken by its systems; then a second, the infiltration of a station to its reactor',
+    seen: list(['side', 'above']),
+    words: list(['blaze gunner', 'shmup', 'shoot em up', "shoot 'em up", 'bullet hell', 'scrolling shooter', 'horizontal shooter', 'side scrolling shmup', 'side scrolling space shooter', 'gradius', 'r-type', 'einhander', 'gunpod', 'gunpods', 'infiltrate a space station', 'fortress stage']),
+    lacks: list(['a vertical stage (seen from above, scrolling up) is the same stage turned: its frame is built, its first recipe is to come', 'its stage\'s own lives are the World page\'s: a designed level is lost when the ship is down, its continue the game\'s']) }),
+  // a war flown from the cockpit, mission by mission (rebel-storm.js: its starter, the rebels' opening tour)
+  'rebel-storm': row({ name: 'Rebel Storm / Rise of Empire', like: 'a space combat sim flown from the cockpit: the throttle set, the target picked, shields and power split, flight groups to destroy and craft to protect, a campaign of missions from either side of a war',
+    handles: row({ genres: list(['space-sim']) }), sizes: list(['designed']), level1: 'a mission: a patrol of fighters met with Red flight, interceptors jumping in',
+    words: list(['rebel storm', 'rise of empire', 'space combat sim', 'space sim', 'cockpit', 'x-wing', 'tie fighter', 'wing commander', 'freespace', 'flight groups', 'space combat campaign']),
+    lacks: list(['Rise of Empire, the other side\'s campaign, is laid on the same words to come; debriefs between missions are to come']) }),
   sports: row({ name: 'Sports', like: 'a sport in an arena: a net game, a turn sport, a team goal game, bat and ball, an athletics meet',
     handles: row({ genres: list(['net-game', 'turn-sport', 'team-goal-game', 'athletics-meet']), quick: list(['contest', 'meet']) }), sizes: list(['quick']), level1: 'a match, or an event of the meet',
     words: list(['sport', 'match', 'tournament', 'cricket']) }),
@@ -388,6 +422,8 @@ function chainOf(R, size, from, V = null) {
     ...(H.pole ? [{ step: 'feel', does: `feel: '${H.pole}', tuned toward their game; tried in a practice room before any level`, card: 'gameworld-feel' }] : []),
     ...(V?.ask ? [{ ...V.ask }] : []),
     { step: 'chapters', does: 'the book a chapter at a time: the hero, the world, the main quest, the foes', card: 'gameworld-studio' },
+    // (a rail's own steps, its game's shape taught before its first level: the party RPG's round)
+    ...(R.steps ?? []).map((x) => ({ ...x })),
     { step: 'first-level', does: `the first level: ${level1}${street}; made, then proved by the machine gate`, card: 'gameworld-ledger' },
     { step: 'play', does: 'the person plays it: the eyes gate is theirs' },
   ];

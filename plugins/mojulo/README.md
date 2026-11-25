@@ -13,9 +13,12 @@ thinking is Claude's, in your session. It needs no account, no API key and no GP
 to the maintainer or to any analytics service; mojulo's only log is a local record of its own tool
 calls, which you can turn off.
 
-This plugin starts the open-source mojulo MCP server (mojulo 3.1.1, installed from the lockfile the plugin
-ships, `server/package-lock.json`) and adds one skill
-that tells Claude to start from mojulo's routing index. It also adds two subagents that make your
+This plugin starts the open-source mojulo MCP server (mojulo 3.1.1, which Claude Code installs from the
+lockfile the plugin ships, `package-lock.json`, when you add or update the plugin). It adds a skill
+that tells Claude to start from mojulo's routing index, and a skill for each way in: make a character,
+design a game, design an object, make a 3D exhibit, design a building and design an interior, each
+loaded when you ask for that thing in your own words (or by name, as `/mojulo:design-game`). It also
+adds two subagents that make your
 usage limits go further: `mojulo-runner` runs light, decided calls (exports, measures, lists) on
 Haiku, and `mojulo-maker` writes or revises one recipe on Sonnet, while design (games, plans,
 publications) stays with your main session. Each subagent can call only the mojulo tools its tier
@@ -60,11 +63,10 @@ claude mcp remove mojulo -s user
 ## Requirements
 
 - **Node.js 22.14 or newer**, with `node` and `npm` on the `PATH` Claude sees.
-- **About 370 MB of disk**: about 227 MB installed (the package, 21.3 MB unpacked, and its
-  dependencies) and about 140 MB of npm cache. The first start downloads about 79 MB, the 6.7 MB
-  package included. Measured for 3.0.0 on an Apple M1 Max with an empty cache, through a local
-  stand-in for the npm registry (the real registry is slower), that first start answered in a median
-  4.5 seconds, nearly all of it npm's install; later starts reuse the cache.
+- **About 350 MB of disk**: about 260 MB installed in Claude Code's plugin cache (the package and its
+  dependencies) and the npm cache beside it. Adding the plugin downloads about 85 MB from
+  registry.npmjs.org, the 11.6 MB package included (measured for 3.1.1 on Linux x64); Claude Code
+  installs it once per plugin version, and later sessions start at once.
 - **For renders** (motion, proving a game level can be finished, a PNG still): a Chrome, Chromium,
   Microsoft Edge or Brave you already have, or `MOJULO_CHROMIUM` naming one. **For MP4**: an ffmpeg
   you already have, or `MOJULO_FFMPEG`. The plugin never downloads either; without one, the tool
@@ -97,7 +99,7 @@ below happens only on the action named.
 
 | Kind | What | When |
 |---|---|---|
-| Installs | `mojulo@3.1.1` and its dependencies, exactly as `server/package-lock.json` names them (versions and integrity hashes, which npm checks), from registry.npmjs.org, into `~/.mojulo/plugin/` | The first start, through `npm ci` (`server/launch.mjs`) |
+| Installs | `mojulo@3.1.1` and its dependencies, exactly as `package-lock.json` names them (versions and integrity hashes, which npm checks), from registry.npmjs.org, into Claude Code's copy of the plugin, with install scripts off | When you add or update the plugin, by Claude Code itself; the plugin carries no installer of its own |
 | Fetches | A version lookup on registry.npmjs.org, anonymous | Only when Claude calls `check_for_updates` |
 | Fetches | The dashboard, `mojulo-ui@3.1.1`, from registry.npmjs.org, once | Only when you open it yourself: `npx -y -p mojulo@3.1.1 mojulo-ui` announces the download first and refuses it under `MOJULO_UI_NO_FETCH=1` |
 | Fetches | The search runtime (npm) and its model (about 130 MB, huggingface.co) | Only when you run `npx -y mojulo@3.1.1 install recall` in a terminal. The server never fetches it on its own; without it, search ranks by words |
@@ -115,8 +117,8 @@ says so on stderr. Minting or editing a world, scene or solid renders a preview 
 with an installed browser and skips when there is none; `MOJULO_DISABLE_SCENE_WARM=1` turns that
 off.
 
-On macOS, one dependency's install script (`sharp`) asks Homebrew, if you have it, where libvips
-is, and Homebrew may refresh its own cache from formulae.brew.sh. Mojulo's code never runs `brew`.
+Claude Code installs the plugin's packages with their install scripts off, and none of them needs
+one: the SQLite and image libraries arrive prebuilt for your platform.
 
 Claude may write its own files through Claude: if you ask for a connected-service workflow, Claude
 may write a skill under `.claude/skills/`, naming the path first, under Claude Code's permission
@@ -170,18 +172,19 @@ your content.
 ## Updating and removing
 
 The plugin pins one mojulo version. To update, update the plugin (`/plugin`, then mojulo), then
-restart the session; don't run a newer `npx mojulo` beside it. Each version installs into its own folder
-under `~/.mojulo/plugin/`; once you have updated, you can delete the older ones. To remove everything:
-uninstall the plugin and delete `~/.mojulo/`.
+restart the session; don't start another mojulo version on the same `~/.mojulo/` beside it. Claude Code
+keeps each plugin version's packages in its plugin cache and removes an old one 14 days after an
+update. The 3.1 plugin installed into `~/.mojulo/plugin/`; once you have updated, you can delete that
+folder. To remove everything: uninstall the plugin and delete `~/.mojulo/`.
 
-## If the first start times out
+## If the install doesn't finish
 
-Claude Code gives a local server 30 seconds to start, and the first start downloads about 79 MB.
-On a slow link, either start Claude Code with `MCP_TIMEOUT=60000` in its environment, or warm npm's
-cache once from a terminal with `npx -y mojulo@3.1.1 --help` and reconnect in `/mcp`. A start cut
-short leaves nothing half-installed: the next one installs again, from what npm already downloaded.
-If a desktop or Cowork session reports `spawn node ENOENT`, the Node on that session's `PATH` is
-missing; a system install of Node from nodejs.org fixes it.
+Claude Code gives a plugin's package install 60 seconds. On a slow link the download can take
+longer; the plugin then loads without its server, and `/plugin` shows a note that its packages are
+not installed. Update the plugin from `/plugin` to run the install again: npm's cache keeps what
+the last try downloaded, so the next one goes faster. If a desktop or Cowork session reports
+`spawn node ENOENT`, the Node on that session's `PATH` is missing; a system install of Node from
+nodejs.org fixes it.
 
 ## Links
 

@@ -4,11 +4,11 @@
  * operator's laptop: the workshop's `local` path, lib/graph/game/workshop.js). The database is written whole and
  * compact (SQLite's VACUUM INTO: every row, the write-ahead log folded in, nothing half-written), then gzipped. The
  * storage folder (uploads, renders a sketch keeps) is not in the database: when it holds anything, it is named, to be
- * copied beside it.
+ * copied beside it; so are the sketches with a bound mesh (a model brought in from a file keeps its file there).
  *
  * Usage (from control/, repo-dev sets MOJULO_DATA_DIR; an install: npx mojulo script pack-data):
  *   node scripts/pack-data.mjs [--out <file.db.gz>]
- * Prints one JSON line: { file, bytes, rows: { sketches }, storage?, restore }.
+ * Prints one JSON line: { file, bytes, rows: { sketches }, storage?, bound?, restore }.
  * Restoring is a drop-in: gunzip it as the data folder's mojulo-lite.db (an install: ~/.mojulo/data; the repo:
  * control/data), the old one moved aside first, with nothing running on it.
  */
@@ -41,8 +41,12 @@ fs.rmSync(tmp, { force: true });
 // (the storage folder: named when it holds anything, to be carried beside the database)
 const count = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { withFileTypes: true }).reduce((n, e) => n + (e.isDirectory() ? count(path.join(d, e.name)) : 1), 0) : 0);
 const stored = count(storageRoot);
+// (the bound meshes: a model brought in from a file, a mesh bound back from Blender, live as files under the outcomes
+// folder, `<ref>/mesh-<n>.glb` and its sidecar, never in the database: named, each sketch's folder, to be carried too)
+const boundRefs = fs.existsSync(outcomesDir) ? fs.readdirSync(outcomesDir, { withFileTypes: true }).filter((e) => e.isDirectory() && fs.readdirSync(path.join(outcomesDir, e.name)).some((f) => /^mesh-\d+\.glb$/.test(f))).map((e) => e.name).sort() : [];
 process.stdout.write(`${JSON.stringify({
   file: out, bytes: fs.statSync(out).size, rows: { sketches },
   ...(stored ? { storage: { dir: storageRoot, files: stored, says: 'copy this folder beside the database too' } } : {}),
+  ...(boundRefs.length ? { bound: { dir: outcomesDir, refs: boundRefs, says: 'copy these sketches\' folders (their mesh-<n>.glb and its .json: an imported model\'s file) into the outcomes folder beside the database too' } } : {}),
   restore: 'gunzip it as the data folder\'s mojulo-lite.db (an install: ~/.mojulo/data; the repo: control/data), the old one moved aside first, nothing running on it',
 })}\n`);

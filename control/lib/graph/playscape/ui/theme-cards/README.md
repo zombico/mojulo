@@ -62,7 +62,7 @@ it holds to.
 | `toy` | round and chunky, as the hero is; bright plates; pictures before words; sized for the hand | toybox, hilltop, kart-candy |
 | `broadcast` | read from across a room: capitals, hard cuts on the slant, a scoreline's one loud colour, fast | matchday, floodlight |
 | `cosy` | made by hand: paper or wool, soft corners, warm ink, nothing in a hurry, pattern in place of shine | picnic, knit |
-| `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit, pit-wall |
+| `clean` | exact and airy: hairlines, glass, one clear signal colour and one alert, a lot of room | lightdeck, orbit, pit-wall, logbook |
 | `dread` | restraint: near black, one bad colour, texture over everything, nothing that moves fast | dread, static |
 | `grave` | dark fantasy's restraint: a serif, aged metal on black, a cresting, nothing that slams; the castle's show | ink-and-gold, nocturne (a metroidvania's castle) and its re-keys nocturne-frost, nocturne-blood and nocturne-xeno (XenoJager's planet) |
 | `machine`, `fight`, `brawl`, `table` | (see their cards) | blueprint, departure-board, galaxy and its re-keys galaxy-neon and galaxy-orbit, … |

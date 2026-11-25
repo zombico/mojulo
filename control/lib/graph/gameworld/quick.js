@@ -206,8 +206,7 @@ import { quickVehicleWords } from '../vehicle-registry/doors.js';
 import { rideRowOf, rideClassOf, rideableRows, rideLivery, rideWear, settingLivery } from '../vehicle-registry/ride.js';
 import { stampedTier } from '../vehicle-registry/tier.js';
 import { TIER_IDS } from '../vehicle-registry/builds.js';
-import { flightLaps } from '../skyscape/course.js';
-import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
+import { flightGoalOfQuick, flightGoalMechanics, flightGoalCast } from './flight-goal.js';
 import { escapeRoomOf } from './escape.js';
 import { gauntletMechanic } from './gauntlet.js';
 import { solveFighter } from '../versus/versus-solver.js';
@@ -284,8 +283,8 @@ export const QUICK_GOALS = Object.freeze({
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given); the guns small arms on the page (rounds.js)
-/** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
-export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
+// a dogfight's costs (what a hit on the craft takes off its hp, and what a crash does) are the flight goal's
+export { DOGFIGHT } from './flight-goal.js';
 /** A shooter's foe: a hunter in a person's skin (foes/classes/hunter.js), and what the shooter plays it at. */
 export const SHOOT_FOE = Object.freeze({ class: 'hunter', skin: { people: 'human' } });
 export const SHOOT = Object.freeze({
@@ -1543,7 +1542,7 @@ export function goalMechanics(quick, ends) {
       // the course's gates in three dimensions, then a landing on the runway (skyscape/course.js), round `laps` times; a
       // crash comes back at the last gate passed
       if (!ends.course) throw new Error('gameworld: quick.fly needs a course on its airspace (course: true)');
-      return [flightLaps(ends.course, ends.airMap, ends.airField, ends.seat)];
+      return flightGoalMechanics(flightGoalOfQuick(quick), ends);
     }
     case 'race': {
       // the trail's beats in order are the checkpoints, its end the finish; spaced when the intent asks (a beat nearer
@@ -1600,18 +1599,8 @@ export function goalMechanics(quick, ends) {
     }
     case 'shoot': {
       // a dogfight (a craft: skyscape/dogfight.js): every fighter down, each hit on the craft costs hp, a crash costs
-      // more and comes back at the start
-      if (ends.airMap) {
-        const p = ends.seat.transform;
-        return [
-          { kind: 'fail-on-death', startHp: SHOOT.hp, hits: DOGFIGHT.hit },
-          { kind: 'respawn', at: { spot: p.pos, heading: p.heading, aloft: 1 }, hurt: DOGFIGHT.crash },
-          // a dogfight in waves: wing after wing, each woken when the one before is down (dogfight.js waveIds)
-          ...(quick.waves && !ends.airField.port ? [{ kind: 'waves', waves: waveIds(quick.waves, quick.foes ?? WING.n), clear: true }] : [
-          // a trench run (a station's trench: skyscape/trench.js) is won by its port alone; a dogfight by the wing
-          { kind: 'defeat-all', who: 'foe-*', count: ends.airField.port ? 1 : Math.max(1, Math.min(WING.max, quick.foes ?? WING.n)), label: ends.airField.port ? 'Port' : 'Down' }]),
-        ];
-      }
+      // more and comes back at the start; a trench run won by its port (gameworld/flight-goal.js, the designed levels' too)
+      if (ends.airMap) return flightGoalMechanics(flightGoalOfQuick(quick), ends);
       // every foe down; each hit on you costs hp; the supplies between the posts
       const posts = shootPosts(quick, ends), drops = shootDrops(posts, ends);
       return [
@@ -1995,7 +1984,7 @@ export function shootDrops(posts, ends) {
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
 export function shootCast(quick, ends, ref, { hero = false, camera, G = null, guns = null } = {}) {
   // with a craft, a dogfight: the wing of fighters and the craft's cannon (skyscape/dogfight.js)
-  if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
+  if (ends.airMap) return flightGoalCast(flightGoalOfQuick(quick), ends);
   const posts = shootPosts(quick, ends), figures = {}, entities = [], part = { figures, entities };
   // (each a HUNTER, stood as every hostile is: foes.js standFoe; the shooter's own numbers over the class's, its gun, its
   // health and its spacing: the class says how it sees and hunts)

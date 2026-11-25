@@ -33,15 +33,20 @@ import { groundGridScript } from './ground-grid.js';
 import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
+import { scrollPodsScript } from './scroll-pods-view.js';
+import { PAD as SCROLL_PAD, scrollLegendRows } from '../../../gameworld/scroll-stage/controls.js';
 import { shutterScript } from './shutter-view.js';
 import { heldGatesScript } from './held-gates-view.js';
 import { exploredViewScript } from './explored-view.js';
 import { steamScript } from './steam-view.js';
 import { rockScript } from './rock-view.js';
 import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
+import { spaceBlastScript } from './space-blast.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
+import { cockpitHudScript } from '../cockpit-hud.js';
+import { keyClock } from '../../../worlds/controllable/keying.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -546,7 +551,7 @@ __ground = function (pos) {   // eslint-disable-line no-func-assign
 `;
 }
 
-export function distortViewScript() {
+export function distortViewScript({ weightless = false } = {}) {
   return `// distortion: blocks keep the shape their blows leave
 const __dentDraw = {}, __dentLight = [0.35, -0.55, 0.76];
 function __dentAt(b, ax, side, p, thick, hw) {
@@ -619,7 +624,7 @@ function __updateDents() {
     if (!b.rupa || !b.rupa.dents) continue;
     const id = b.id;
     let D = __dentDraw[id];
-    if (b.broken && b.broken.how !== 'strip') { if (D && D.mesh.visible) D.mesh.visible = false; continue; }
+    if (b.broken && (b.broken.how !== 'strip'${weightless ? ' || b.broken.drift' : ''})) { if (D && D.mesh.visible) D.mesh.visible = false; continue; }${weightless ? '   // (a module cut loose drifts as it was drawn: __updateDrifts)' : ''}
     if (!b.broken && b.rupa.form && (!D || D.form !== b.rupa.form)) {
       if (D) __dentDrop(D);
       D = __dentDraw[id] = { ...__dentMesh(b), form: b.rupa.form };
@@ -818,7 +823,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, heldGates = null, trees = null, explored = null, roomLit = false } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, routeFind = false, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, keying = null, heldGates = null, trees = null, explored = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -829,6 +834,9 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const scarsOn = !!(rupa && rupa.scars);
   // ground (rupa, the land as a soil grid): drawn and probed only when the world has ground, so every other page keeps its bytes
   const groundOn = !!(rupa && rupa.ground);
+  // weightless (rupa, `g: 0`: a capital ship, a station): a module cut loose drifts off as it was drawn, tumbling, and
+  // the pieces of a break fly on and fade, never falling; drawn only in zero g, so every other page keeps its bytes
+  const weightless = !!(rupa && rupa.g === 0);
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -895,13 +903,27 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   const turretOn = entities.some((e) => e && e.turret);
   // a body steered on its wheels (worlds/controllable/steer.js), its rule's or a form's: absent, nothing
   const hoverOn = entities.some((e) => e && e.rule && e.rule.type === 'hover');
+  // (an arcade flier carried down a stage's path: worlds/controllable/rules-rail.js, composed in and keyed as a flight)
+  const railOn = entities.some((e) => e && e.rule && e.rule.type === 'rail');
+  // a starfighter flown from its cockpit, or a body with a ship's systems (worlds/controllable/rules-starfighter.js)
+  const sfOn = entities.some((e) => e && ((e.rule && e.rule.type === 'starfighter') || (e.body && e.body.ship)));
+  const sfPilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'starfighter');
+  // (a scroll stage's screen carried down its track and its ship on the d-pad: worlds/controllable/scroll.js; its camera
+  // looks square at the plane, its `up` the view's)
+  const scrollOn = !!(camera && camera.rule === 'scroll');
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
   // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
   // (a FOE'S TRAVELLING ROUND, gameworld/side-map/cast.js: a gun its weapon fires as a round that crosses the room, drawn in
   // the shot's look in the foe's colour, one look a colour; none, nothing)
-  const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0)]));
+  // (a round's least size on screen, `weapon.fxMin` rad: a starfighter's bolt, drawn so it reads at a kilometre)
+  const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, { ...roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0), ...(e.weapon.fxMin > 0 ? { min: e.weapon.fxMin } : {}) }]));
   const foeRoundsOn = Object.keys(foeLooks).length > 0;
+  // (a starfighter's page whose rounds carry the shot's look: its bolts, its blasts and its shields' shimmer drawn so)
+  const sfFx = sfPilot && foeRoundsOn;
+  // (a scroll stage's page: its craft blown apart in Rebel Storm's space blast, space-blast.js, never a shell falling under
+  // gravity; its own rounds are its pods' view, scroll-pods-view.js)
+  const scrollFx = scrollOn && !sfFx && !busterOn;
   // (a foe that picks up and THROWS ROCKS, worlds/controllable/foe.js rockStep: its rocks drawn by rock-view.js, never as a
   // shell; none, nothing)
   const rockOn = entities.some((e) => e && e.rule && e.rule.foe && e.rule.foe.rock);
@@ -934,6 +956,11 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // slots drawn with physical materials, lit by the world's sun and an environment of its sky. No form body → the
   // emitted channel is byte-identical.
   const figHasForm = Object.values(figures || {}).some((f) => f && f.rig && f.form && Array.isArray(f.parts) && f.parts.some((p) => p && p.form));
+  // (a form body whose light writes its own fill and rim, form-light.js SPACE_MOOD: a craft under a star in the void)
+  const figFormOwn = figHasForm && Object.values(figures || {}).some((f) => f && f.form && f.form.hemi);
+  // (a craft's drives on its figure, craft-form.js: thrusters of kind `drive`, their plume and their mouth's flare burning
+  // by how hard the craft is driven, e.thrust)
+  const figDrives = Object.values(figures || {}).some((f) => f && Array.isArray(f.thrusters) && f.thrusters.some((t) => t && t.kind === 'drive'));
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
@@ -1014,6 +1041,9 @@ function __updateGearLines() {
   // the rule's choice shown; and a body's POSE LAYERS (\`body.layers\`): none, not a byte
   const hasSheath = (entities || []).some((e) => e && e.rule && e.rule.combat && e.rule.combat.sheathed);
   const figHasLayers = (entities || []).some((e) => e && e.body && e.body.layers);
+  // a body with LOOKS (gameworld/wardrobe.js: a member's figure in each armour it may wear, \`looks: { base, by }\`): each
+  // built up front as a loadout's are, the RPG channel choosing the one its armour shows. None ⇒ not a byte of it
+  const hasLooks = (entities || []).some((e) => e && e.looks && e.looks.by);
   // (and one whose atlas has edges, the hero's hair cards: its material alpha tested; none ⇒ not a byte of it)
   const figHasMask = figHasPaint && Object.values(figures || {}).some((f) => f?.paintTex?.alphaMask);
   // ONE DRAW A FIGURE (merged-figure.js): a plain rigid rig drawn as one skinned mesh, a draw a pass instead of one a part;
@@ -1236,7 +1266,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // a flight's game (the laps mechanic's land / respawn): each touchdown told to the bus with whether it sank harder
   // than the gear takes (rule.sinkMax), and its respawn carried out; a city's roofs (rule.roofs) counted as ground, so a
   // tower is hit, not flown through
-  // a touchdown counts once the craft has flown (over ARM m above the ground): not the first frames' settling on the pad
+  // a touchdown counts once the craft has flown (over ARM m above the ground, past its stall): not the first frames'
+  // settling on the pad
   var roofs = null, wasAir = null, lastVs = 0, hooked = false, armed = false, ARM = 3;
   function roofAt(x, y) {
     for (var k = 0; k < roofs.length; k++) {
@@ -1368,6 +1399,9 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
     return out;
   }
   function tick() {
+    // (not before the world is published: a page with rig figures awaits their pool, and a frame can come first, before
+    // the ground's probe exists)
+    if (!window.__mojCtrl) { requestAnimationFrame(tick); return; }
     var p = __world.pilotId && __world.byId[__world.pilotId];
     if (p && p.rule && p.rule.type === 'fly') {
       hook(p);
@@ -1377,7 +1411,9 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
         clearOfRocks = !hit;
       }
       var q0 = p.transform.pos, g0 = __ground([q0[0], q0[1], q0[2]]);
-      if (p.airborne && g0 !== null && q0[2] - g0 > ARM) armed = true;
+      // (armed by flight, not by height alone: a craft set down a little over the runway falls onto it at rest, and that
+      // settling is no landing; flying is being up and past the stall, which a glider launched aloft already is)
+      if (p.airborne && g0 !== null && q0[2] - g0 > ARM && (p.airspeed || 0) > (p.rule.stallSpeed || 15)) armed = true;
       if (wasAir === null) wasAir = !!p.airborne;
       if (p.airborne) lastVs = p.climbRate || 0;
       else if (wasAir && armed && window.__mojBus && window.__mojBus.bus) {
@@ -1404,11 +1440,13 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(heldOn ? { heldGates: true } : {}), ...(treesOn ? { trees: true } : {}), ...(exploredOn ? { explore: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}) })};
-const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''}${heldOn ? `, heldGates: ${safeJson(heldGates)}` : ''}${treesOn ? `, trees: ${safeJson(trees)}` : ''}${exploredOn ? `, explored: ${safeJson({ ...explored, map: undefined })}` : ''} });
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(heldOn ? { heldGates: true } : {}), ...(treesOn ? { trees: true } : {}), ...(exploredOn ? { explore: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(scrollOn ? { scroll: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && e.rule.arsenal) ? { scrollPods: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && (e.rule.type === 'scroll-foe' || e.rule.type === 'scroll-mover')) ? { scrollFoes: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}), ...(routeFind ? { routeFind: true } : {}) })};
+const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''}${heldOn ? `, heldGates: ${safeJson(heldGates)}` : ''}${treesOn ? `, trees: ${safeJson(trees)}` : ''}${exploredOn ? `, explored: ${safeJson({ ...explored, map: undefined })}` : ''} });${hasLooks ? `
+// (what a member wears, seen: its looks by armour, kept on its entity for its body's variants and the RPG channel's dress)
+for (const __l of ${safeJson((entities || []).filter((e) => e && e.looks && e.looks.by).map((e) => [e.id, e.looks]))}) if (__world.byId[__l[0]]) __world.byId[__l[0]].looks = __l[1];` : ''}
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
-` : ''}${commanderBlock}${flyHudBlock}${(() => {
+` : ''}${commanderBlock}${flyHudBlock}${sfPilot ? cockpitHudScript({ cockpit: camera && camera.cockpit }) : ''}${(() => {
     const { figs, same } = PAGE;
     // (clips on 16 bits: decoded once, after the bank and its pool, before any consumer reads a frame)
     const q16 = Object.values(figs).some((f) => f && ['clips', 'acts'].some((k) => f[k] && Object.values(f[k]).some((c) => c && c.b && c.b.q16 !== undefined)));
@@ -1480,11 +1518,12 @@ function __formEnv(F) {
 }
 // THE BODY'S LIGHT is the cast rig's (../cast-rig.js, color-theorist/cast-rig.js): one key, and the sky over the ground
 // in the body's own shader, where it lights nothing else. The rig is read off the body's own setting (its sky, its
-// ground, its ambient: what its hemisphere light was), its key's gain 1 and no rim (a body's rim is its sky, reflected).
+// ground, its ambient: what its hemisphere light was), its key's gain 1 and no rim (a body's rim is its sky, reflected)${figFormOwn ? `;
+// a body whose light writes its own fill and rim (a craft under a star, nothing behind it to reflect) takes them` : ''}.
 function __formRig(F) {
   ${place ? 'if (__castNow && __castNow.U) return __castNow.U;\n  if (!__castNow && F.__rig) return F.__rig;' : 'if (F.__rig) return F.__rig;'}
   const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }, a = (F.ambient * 1.6) / Math.PI;
-  const U = castKit.uniforms({ key: { linear: F.key, gain: 1 }, hemi: { sky: F.sky.zenith.map((c) => lin(c) * a), ground: F.sky.ground.map((c) => lin(c) * a), gain: 1 }, rim: { linear: [0, 0, 0], strength: 0, power: 3 }, tone: { exposure: 1 } });
+  const U = castKit.uniforms({ key: { linear: F.key, gain: 1 }, hemi: ${figFormOwn ? 'F.hemi || ' : ''}{ sky: F.sky.zenith.map((c) => lin(c) * a), ground: F.sky.ground.map((c) => lin(c) * a), gain: 1 }, rim: ${figFormOwn ? 'F.rim || ' : ''}{ linear: [0, 0, 0], strength: 0, power: 3 }, tone: { exposure: 1 } });
   ${place ? 'if (__castNow) return (__castNow.U = U);\n  ' : ''}return (F.__rig = U);
 }
 // the key: ${formLand ? "the land's own sun (channels/form-land.js): a body on a form page asks for no light of its own" : "the shadow lights the page already casts with take the key's colour and strength (they were white and seen by\n// nothing lit: the world is painted); with none, a key of its own along the sun"}
@@ -1698,7 +1737,29 @@ function __castMR(fig, c, n) {
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}function __makeRigGroup(fig, b) {
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
+// over the nozzle that swells and brightens as the craft is driven harder, and its plume, a cone of its glow trailing a
+// few mouths aft with a white-hot core, long at full throttle and short at idle; flattened to a slit's mouth
+let __driveTex = null;
+function __driveJet(th, holder, len, rad) {
+  if (!__driveTex) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+    const x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.75)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64); __driveTex = new THREE.CanvasTexture(cv);
+  }
+  const col = new THREE.Color(th.color || '#ff8a3c'), hot = col.clone().lerp(new THREE.Color(0xffffff), 0.65);
+  const add = (geo, c) => { const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.raycast = function () {}; m.frustumCulled = false; holder.add(m); return m; };
+  const outerG = new THREE.ConeGeometry(rad, len, 14, 1, true); outerG.translate(0, len / 2, 0);
+  const innerG = new THREE.ConeGeometry(rad * 0.55, len * 0.5, 10, 1, true); innerG.translate(0, len * 0.25, 0);
+  const core = add(outerG, col), inner = add(innerG, hot);
+  const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: __driveTex, color: hot, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  // (the flare on the mouth itself, beside the plume: round however the plume is stretched)
+  flare.raycast = function () {}; flare.frustumCulled = false; holder.parent.add(flare);
+  const h = th.half || [rad, rad], sq = [h[0] / rad, h[1] / rad];
+  return { holder, core, inner, flare, kind: 'drive', rad, sq, baseQ: holder.quaternion.clone() };
+}
+` : ''}function __makeRigGroup(fig, b) {
   const group = new THREE.Group();${figHasSkin ? `
   if (fig.skin) return __makeSkinGroup(fig, b, group);` : ''}${figMerge ? `
   if (__mergeable(fig)) return __makeMergedGroup(fig, b, group);` : ''}
@@ -1818,7 +1879,8 @@ ${figSkinParts ? `  // (one skin: every bone posed, a part's or none, and the sk
       holder.quaternion.setFromUnitVectors(__jUp, new THREE.Vector3(th.dir[0], th.dir[1], th.dir[2]).normalize());
       holder.visible = false;
       loc.add(holder);
-      const len = th.len || th.size * 4, rad = th.size;
+      const len = th.len || th.size * 4, rad = th.size;${figDrives ? `
+      if (th.kind === 'drive') { jets.push(__driveJet(th, holder, len, rad)); continue; }` : ''}
       const coneG = new THREE.ConeGeometry(rad, len, 10, 1, true);
       coneG.translate(0, len / 2, 0);
       const core = new THREE.Mesh(coneG, new THREE.MeshBasicMaterial({ color: new THREE.Color(0x8fd0ff), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -1850,7 +1912,8 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
     || ` : ''}(e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length ? e.rule.loadout : null)
     || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length ? e.pilotRule.loadout : null)${hasModes ? `
     || (Array.isArray(b.modes) && b.modes.length > 1 ? b.modes : null)` : ''}${hasSheath ? `
-    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }, ...Object.values(e.rule.combat.held || {}).map((f) => ({ figure: f }))] : null)` : ''};
+    || (e.rule && e.rule.combat && e.rule.combat.sheathed ? [{ figure: e.rule.combat.drawn }, { figure: e.rule.combat.sheathed }, ...Object.values(e.rule.combat.held || {}).map((f) => ({ figure: f }))] : null)` : ''}${hasLooks ? `
+    || (e.looks && e.looks.by ? [{ figure: e.looks.base }] : null)` : ''};
   // (a loadout whose slots name no figure, a carried kit's guns: arms-kit.js, has no variant bodies to build; the body is
   // its own figure, below. Without this a hero carrying a kit was never drawn)
   if (lo && lo.some((c) => c && c.figure) && (b.type === 'figure-rig' || b.type === 'figure-frames')) {
@@ -1869,7 +1932,8 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
     // LIVERY variants (livery-ingame.plan.md): pre-build each livery's baked body so a setup-screen
     // livery pick has a warm mesh to reveal — __applyMatchParams sets body.figure + loadout figures to
     // the chosen livery, the sync's variant-swap shows it, and __applyWeaponShow re-applies the weapon.
-    if (Array.isArray(e.liveries)) for (const lv of e.liveries) buildVariant(lv && lv.figure);
+    if (Array.isArray(e.liveries)) for (const lv of e.liveries) buildVariant(lv && lv.figure);${hasLooks ? `
+    if (e.looks && e.looks.by) for (const k in e.looks.by) buildVariant(e.looks.by[k]);` : ''}
     for (const k in variants) variants[k].userData.loadout.variants = variants;
     return variants[b.figure] || variants[lo[0].figure] || null;
   }
@@ -1916,6 +1980,17 @@ ${place ? 'let __castNow = null;   // (the body being made: its own set of the r
     return mesh;
   }
   if (b.type !== 'mesh') return null;
+  // a mission's BEACON (gameworld/flight-sortie.js): a place in space to fly to, lit: a bright core in rings of light
+  // that turn on three axes, seen from far off (unlit, additive, never shaded by the star)
+  if (b.beacon) {
+    const g = new THREE.Group(), r = b.radius || 10, col = new THREE.Color(b.color != null ? b.color : 0xffc23a);
+    const glow = (o) => new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.22, 16, 12), glow(1)), new THREE.Mesh(new THREE.SphereGeometry(r * 0.5, 16, 12), glow(0.18)));
+    for (let k = 0; k < 3; k++) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r * (0.75 + 0.18 * k), r * 0.035, 8, 64), glow(0.75)); ring.rotation.set(k === 1 ? Math.PI / 2 : 0, k === 2 ? Math.PI / 2 : 0, 0); g.add(ring); }
+    g.userData.beacon = true;
+    scene.add(g);
+    return g;
+  }
   const geo = b.shape === 'box' ? new THREE.BoxGeometry((b.size||[1,1,1])[0], (b.size||[1,1,1])[1], (b.size||[1,1,1])[2]) : new THREE.SphereGeometry(b.radius || 0.5, 24, 16);
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(b.color != null ? b.color : 0xff7a59) }));${castHook}
   if (b.marker !== false) {   // a dark nub on local +X so heading/yaw is visible
@@ -2485,18 +2560,49 @@ function __formMode(fig, e, mode) {
   return fig.clips[k] ? k : f + ':idle';
 }
 ` : ''}${acts ? `// a battle act's clip among the figure's own: the first it has of the act's names (its swing, its recoil, its fall)
-const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'] };
-function __actClip(fig, is) { const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null; }
+const __ACT_CLIPS = { strike: ['strike', 'swing_neutral', 'swing', 'attack', 'punch'], cast: ['cast', 'strike', 'swing_neutral'], use: ['cast', 'strike', 'swing_neutral'], hurt: ['stagger', 'hitHigh', 'flinch'], fall: ['topple', 'knockedOutDown', 'fall'], win: [], roar: [], channel: [] };
+// (a party battle's repertoire, fig.battle: its own clips for an act by name, egocube/moves.js battleMovesOf; an act
+// plays them in turn, from a place of its own on the figure's name, so no two blows in a row look alike; a foe's roar,
+// egocube/moves.js foeBattleMovesOf and a beast's beastMovesOf, its own only)
+const __ACT_OWN = { strike: ['strike', 'strike2', 'strike3'], cast: ['cast'], use: ['use', 'cast'], hurt: ['hurt', 'hurt2', 'hurt3'], win: ['win'], roar: ['roar'], channel: ['channel'] };
+function __actClip(fig, is, n, id) {
+  const B = fig.battle, own = [];
+  if (B) for (const k of __ACT_OWN[is] || []) if (B[k] && fig.clips[B[k]] && own.indexOf(B[k]) < 0) own.push(B[k]);
+  if (own.length) { let h = 0; for (let i = 0; i < (id || '').length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return own[(n + h) % own.length]; }
+  const L = __ACT_CLIPS[is] || []; for (let i = 0; i < L.length; i++) if (fig.clips[L[i]]) return L[i]; return null;
+}
 // A BATTLE ACT (the party battles' juice, rpg-channel.js: e.act { is, t0, for, to? }): the figure plays its own clip for it
 // at the act's phase on the world's clock (a fight holds the world still, its clock running), a strike leaning toward its
-// target and back; a fall holds its last frame; a figure without the clip plays nothing new (A.clip says which it played)
+// target and back; a fall and a win hold their last frame; a figure without the clip plays nothing new (A.clip says which
+// it played). Its STEP (e.stepOff { a, b, t0, for, run }: out of its line, up to its target, home again) moves it on the
+// way, running where it runs in; and a fighter with a READY stance (fig.battle.ready) stands in it while the fight lasts.
 function __actMode(fig, e, m) {
-  const A = e.act, at = A ? ((__world.time || 0) - A.t0) / A.for : -1;
-  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall'))) { if (A && at > 1) e.act = null; return null; }
-  const c = __actClip(fig, A.is); A.clip = c;
-  const T = A.to && A.is === 'strike' ? __world.byId[A.to] : null;
+  const now = __world.time || 0, S = e.stepOff;
+  let running = false;
+  if (S) {
+    const u = S.for > 0 ? Math.min(1, Math.max(0, (now - S.t0) / S.for)) : 1, k = u * u * (3 - 2 * u);
+    m.position.x += S.a[0] + (S.b[0] - S.a[0]) * k; m.position.y += S.a[1] + (S.b[1] - S.a[1]) * k;
+    running = !!S.run && u < 1;
+  }
+  let A = e.act, at = A ? (now - A.t0) / A.for : -1;
+  // (an act that goes on into another, A.then: a channel into its cast, the next begun where the first ends)
+  if (A && at > 1 && A.then) { A = e.act = { ...A.then, t0: A.t0 + A.for, ...(A.to ? { to: A.to } : {}) }; at = (now - A.t0) / A.for; }
+  if (!(A && at >= 0 && (at <= 1 || A.is === 'fall' || A.is === 'win'))) {
+    if (A && at > 1) e.act = null;
+    if (running) { const c = fig.clips.sprint ? 'sprint' : fig.clips.forward ? 'forward' : null; if (c) return { mode: c, phase: ((now - S.t0) / 0.67) % 1 }; }
+    const R = fig.battle && fig.battle.ready;
+    if (e.fightReady != null && R && fig.clips[R]) return { mode: R, phase: Math.min(0.999, Math.max(0, now - e.fightReady) / 0.5) };
+    return null;
+  }
+  if (A.n == null) A.n = e.actN = (e.actN || 0) + 1;
+  const c = __actClip(fig, A.is, A.n, e.id); A.clip = c;
+  // (a strike leans in toward its target, unless it ran up to it)
+  const T = A.to && A.is === 'strike' && !(S && Math.hypot(S.b[0], S.b[1]) > 0.01) ? __world.byId[A.to] : null;
   if (T && at <= 1) { const dx = T.transform.pos[0] - e.transform.pos[0], dy = T.transform.pos[1] - e.transform.pos[1], d = Math.hypot(dx, dy) || 1, k = Math.sin(Math.PI * at) * Math.min(1.2, d * 0.4) / d; m.position.x += dx * k; m.position.y += dy * k; }
-  return c ? { mode: c, phase: Math.min(at, 0.999) } : null;
+  if (c) return { mode: c, phase: Math.min(at, 0.999) };
+  // (an act it has no clip for, a channel without its own: it stands in its ready stance through it)
+  const R0 = fig.battle && fig.battle.ready;
+  return e.fightReady != null && R0 && fig.clips[R0] ? { mode: R0, phase: Math.min(0.999, Math.max(0, now - e.fightReady) / 0.5) } : null;
 }
 ` : ''}${figHasLayers ? `// POSE LAYERS (\`body.layers: { run?, combat?: [{ pivot, chain, axis, deg }] }\`, an action hero's: gameworld/levels.js): a
 // pose laid over the clip a state plays, each op turning its pivot bone (figure-local: right +x, forward +y, up +z) and
@@ -2991,7 +3097,8 @@ function __syncEntity(e, dt) {
   // wreck finisher: a respawn cleared the vanish — re-show the body. NOT while the hangar
   // menu holds this body hidden (userData.hangarHidden, __showActive): this unconditional
   // per-frame re-show is what superposed every suit at the origin after the respawn work.
-  if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}${aimView ? ' && !__avHides(e)' : ''}) m.visible = true;${aimView ? `
+  if (!m.visible && !m.userData.hangarHidden${hideId ? ` && e.id !== ${JSON.stringify(hideId)}` : ''}${aimView ? ' && !__avHides(e)' : ''}${sfPilot ? ' && !__sfHides(e)' : ''}) m.visible = true;${sfPilot ? `
+  if (__sfHides(e)) m.visible = false;   // the cockpit (rules-starfighter.js): the eye sits in this craft` : ''}${aimView ? `
   if (__avHides(e)) m.visible = false;   // the aim at the eye (aim-view.js): the camera rides inside this body` : ''}${hideId ? `
   if (e.id === ${JSON.stringify(hideId)}) m.visible = false;   // first person: the eye rides inside this body` : ''}${xr ? `
   if (__xrCtl && __xrCtl.hides(e)) m.visible = false;   // in the headset: the player stands inside this body` : ''}
@@ -3001,6 +3108,12 @@ function __syncEntity(e, dt) {
     const lit = e.hitFlash >= 0 && (__world.time - e.hitFlash) < 0.15;
     if (lit && !m.__flashed) { m.material.color.set(0xffffff); m.__flashed = true; }
     else if (!lit && m.__flashed) { m.material.color.set(e.body.color != null ? e.body.color : 0xff7a59); m.__flashed = false; }
+  }
+  // a BEACON's rings turn, each on its own axis, and its halo breathes (on the world's clock)
+  if (m.userData && m.userData.beacon) {
+    const t = __world.time || 0, k = m.children;
+    if (k[2]) k[2].rotation.z = t * 0.9; if (k[3]) k[3].rotation.y = t * 0.7; if (k[4]) k[4].rotation.x = t * 0.5;
+    if (k[1]) k[1].scale.setScalar(1 + 0.25 * Math.sin(t * 3));
   }
   // POLYGOMER body (platformer.plan.md P2): a rig-less baked mesh. Face it along heading (its authored
   // front is +y, so yaw −90° maps +y → forward) and give it its only animation — SQUASH & STRETCH,
@@ -3172,7 +3285,8 @@ ${camSkips}        let o = ho, isOwn = false; while (o) { if (own.includes(o)) {
     }
   }
   camera.position.set(px, py, pz);
-  camera.lookAt(look[0], look[1], look[2]);
+  ${sfPilot || scrollOn ? `// (a cockpit carries its craft's up: the camera rolled and looped with it, exact at any attitude)
+  if (c.up) { camera.up.set(c.up[0], c.up[1], c.up[2]); camera.lookAt(look[0], look[1], look[2]); camera.up.set(0, 0, 1); } else ` : ''}camera.lookAt(look[0], look[1], look[2]);
   if (c.roll) camera.rotateZ(-c.roll);   // a follow camera banking with its target (rollFollow): about the view axis
 }
 ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on, for the vehicle classes' rule
@@ -3215,7 +3329,9 @@ function __groundBy(pos) {
 // mouse button serves an action is the pilot scheme's (controls/schemes.js), read through the controls
 // kernel per device family (controls/devices.js); __BIND is the live table, so a remap replaces it and
 // nothing below changes. This page drives the keyboard, mouse and standard-mapping gamepad families.
-${aimView ? `// the aim held (aim-view.js): a body whose camera rides its eye for now is hidden
+${sfPilot ? `// the cockpit (rules-starfighter.js): the craft the eye sits in is hidden while it does
+const __sfHides = (e) => { const r = __world.camera && __world.camera.rule; return !!r && r.type === 'cockpit' && r.hideTarget === true && r.target === e.id; };
+` : ''}${aimView ? `// the aim held (aim-view.js): a body whose camera rides its eye for now is hidden
 const __avHides = (e) => { const r = __world.camera && __world.camera.rule; return !!r && r.type === 'eye' && r.hideTarget === true && r.target === e.id; };
 ` : ''}${freeRun ? `// getting over things (free-run.js): the chase is not pulled in on what its body gets over: a thing it vaults out of
 // the run or climbs (its top within the hands' reach of the feet). It neither closes in as the body comes up to such a
@@ -3225,7 +3341,7 @@ const __avHides = (e) => { const r = __world.camera && __world.camera.rule; retu
 const __frTop = (x, y, feet) => { const C = __world.colliders; if (!C) return null; let top = null, grew = true; while (grew) { grew = false; for (const b of C) { if (x < b.min[0] - 0.08 || x > b.max[0] + 0.08 || y < b.min[1] - 0.08 || y > b.max[1] + 0.08 || b.max[2] <= (top ?? feet) + 1e-6 || b.min[2] > (top ?? feet + 0.35) + 0.05) continue; top = b.max[2]; grew = true; } } return top; };
 const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; const feet = (p.fr ? p.fr.from[2] : p.transform.pos[2] - (p.rule.eye || 0)), top = __frTop(hit.point.x, hit.point.y, feet); return top != null && top <= feet + Math.max(F.vault ?? 1.15, Math.min(F.climb ?? 2.2, F.grab ?? 2.15)) + 0.1; };
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
-const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : SCHEMES.pilot)};
+const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : sfPilot ? SCHEMES.cockpit : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
 ${padOver ? `const __OVER = ${safeJson(padOver)};
 ` : ''}let __BIND = __CTL.resolve(__SCHEME, __DEV${padOver ? ', __OVER' : ''});
@@ -3433,7 +3549,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
   }
   if (__wcOpen && (slot || (__wcEnt() && (__wcEnt().loadoutIdx || 0) !== __wcCur))) __wcRender();   // live highlight tracks the engine's slot
   __wcPrevRB = rb; __wcPrevFace = face;
-  return {
+  ${scrollOn ? 'const __pr = ' : 'return '}{
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
     fire: pb('fire'), boost: pb('boost'),${moveset ? `
@@ -3452,16 +3568,30 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
     interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)${vayoOn ? `
     vayo: !!(g.buttons && g.buttons[13] && g.buttons[13].pressed),   // D-pad down — a vayo move (vayo-move.js)` : ''}
-  };
+  };${scrollOn ? `
+  // A SCROLL STAGE's pad, a shmup's (gameworld/scroll-stage/controls.js): the d-pad flies as the stick does, eight ways; the
+  // bottom face fires (the right trigger too), the left face or the left shoulder switches the pod, the right face held
+  // ejects (the left trigger too), the top face is the speed (the right shoulder's tap too); the d-pad is never the suit
+  // switch here, and the menu's button is the HUD's (channels/mana-hud.js)
+  const __sP = ${JSON.stringify(SCROLL_PAD)}, __sb = (L) => L.some(b);
+  if (!__pr.moveX) __pr.moveX = (b(__sP.right) ? 1 : 0) - (b(__sP.left) ? 1 : 0);
+  if (!__pr.moveY) __pr.moveY = (b(__sP.up) ? 1 : 0) - (b(__sP.down) ? 1 : 0);
+  __pr.fire = __pr.fire || __sb(__sP.fire); __pr.boost = __pr.boost || __sb(__sP.eject);
+  __pr.cycle = __pr.cycle || __sb(__sP.speed);
+  if (!__pr.slot && __sb(__sP.pod)) __pr.slot = 'next';
+  __pr.swap = false;
+  return __pr;` : ''}
 }
 // the pause legend for the piloted entity (scene-three's __controlRows asks): the scheme's rows,
 // read off the live bindings and filtered by what this world has, so it teaches only the keys it answers to.
 function __ctlLegend(pil) {
 ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (touch.js): its thumbs, not the keys
+` : ''}${scrollOn ? `  // (a scroll stage's ship: the stage's own layout, gameworld/scroll-stage/controls.js, on the pad in hand or the keys)
+  if (pil.rule && pil.rule.type === 'scroll-ship') { const __sl = ${JSON.stringify(Object.fromEntries([false, true].map((sh) => [sh ? 'in' : 'off', { keyboard: scrollLegendRows('keyboard', 'xbox', { shell: sh }), xbox: scrollLegendRows('gamepad', 'xbox', { shell: sh }), playstation: scrollLegendRows('gamepad', 'playstation', { shell: sh }), nintendo: scrollLegendRows('gamepad', 'nintendo', { shell: sh }) }])))}[window.parent !== window ? 'in' : 'off']; return (__padOn && __padSeen && __usePad && __sl[__padLayout]) || __sl.keyboard; }
 ` : ''}  const r = pil.rule || pil.pilotRule || {};
   const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
   return __CTL.legend(__SCHEME, __BIND, __DEV, {
-    space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly'${hoverOn ? " || r.type === 'hover'" : ''},
+    space: r.space === true, kneel: r.kneel === true, tackle: !!r.tackle, vehicle: r.type === 'drive' || r.type === 'fly'${hoverOn ? " || r.type === 'hover'" : ''}${railOn ? " || r.type === 'rail'" : ''},
     walker: r.walkSpeed > 0 && r.space !== true && !r.gear,   // a person: the walk held, no thrusters
     dash: !!r.dash, sprint: !!r.sprint && !r.dash,             // a feel's F: the dash, or the run button (rules-platform.js)
     mouselook: __MOUSELOOK, armed: W.entities.some((e) => e.weapon || lo(e)), lock: ${!!lock},
@@ -3563,7 +3693,7 @@ function __readInput() {
   // boosting while a vehicle is piloted (F is reserved there anyway). Keyed off the LIVE piloted
   // entity's rule each frame, so T in-and-out of a car swaps the scheme with the seat.
   const __vp = __world.pilotId && __world.byId[__world.pilotId];
-  const __veh = !!(__vp && __vp.rule && (__vp.rule.type === 'drive' || __vp.rule.type === 'fly'${hoverOn ? " || __vp.rule.type === 'hover'" : ''}));
+  const __veh = !!(__vp && __vp.rule && (__vp.rule.type === 'drive' || __vp.rule.type === 'fly'${hoverOn ? " || __vp.rule.type === 'hover'" : ''}${railOn ? " || __vp.rule.type === 'rail'" : ''}${sfPilot ? " || __vp.rule.type === 'starfighter'" : ''}));
   const inp = {
     forward: __kx('moveForward', 'moveBack')
       || (__veh && __pad && (__pad.rt > 0.02 || __pad.lt > 0.02) ? __pad.rt - __pad.lt : __pmy),
@@ -3591,8 +3721,18 @@ function __readInput() {
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
     vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}${sprint ? `
     sprint: __kbRead('ShiftLeft') || __kbRead('ShiftRight') ? 1 : 0,   // a person's sprint, held (rules-platform.js sprintSpeed)` : ''}
-    lookDX: __lookDX, lookDY: __lookDY,
-  };
+${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
+    // throttle, pick the target, link the cannons and move the power; the mouse, captured, flies right and nose-up
+    // as it moves right and down (a stick pulled back)
+    pitch: __kx('pitchUp', 'pitchDown'), yaw: __kx('yawRight', 'yawLeft'), roll: __kx('turnRight', 'turnLeft'),
+    thr: __k('thrZero') ? 'zero' : __k('thrFull') ? 'full' : __k('thrThird') ? 'third' : __k('thrTwoThirds') ? 'twothirds' : __k('matchSpeed') ? 'match' : null,
+    tgt: __k('tgtNext') ? 'next' : __k('tgtPrev') ? 'prev' : __k('tgtNear') ? 'near' : __k('tgtAtk') ? 'atk' : __k('tgtGoal') ? 'goal' : null,
+    power: __k('powLasers') ? 'lasers' : __k('powShields') ? 'shields' : __k('powEngines') ? 'engines' : __k('powEven') ? 'even' : null,
+    transfer: __k('xferLasers') ? 'lasers' : __k('xferShields') ? 'shields' : null,
+    shieldSet: __k('shieldSet') ? 1 : 0, link: __k('linkFire') ? 1 : 0, view: __k('cockpitView') ? 1 : 0,
+    lookDX: __MOUSELOOK ? -__lookDX : __lookDX, lookDY: __MOUSELOOK ? -__lookDY : __lookDY,
+` : `    lookDX: __lookDX, lookDY: __lookDY,
+`}  };
   __lookDX = 0; __lookDY = 0;
   return ${xr ? '__xrCtl ? __xrCtl.input(inp) : ' : ''}inp;
 }
@@ -3733,7 +3873,8 @@ const __armed = __world.entities.find((e) => e.weapon
   || (__entLoadout(e) || []).some((c) => c && c.weapon));
 // SPECTATE: no pilot aims a weapon — the reticle + ammo panel are pilot HUDs, so skip building them
 // (the watched fighter's own fire fx still render; only the operator's crosshair is gone).
-if (__armed && !__world.spectate) {
+// (a cockpit's sight and its charge are the cockpit HUD's: channels/cockpit-hud.js)
+if (__armed && !__world.spectate${sfPilot ? ' && false' : ''}) {
   const __lo = __entLoadout(__armed);
   const W = __armed.weapon
     || __CW.normalizeEntity({ weapon: __lo.find((c) => c && c.weapon).weapon }, 0).weapon;
@@ -4843,7 +4984,7 @@ function __blast(at, color, size, kind, bornAt) {
   camera.getWorldDirection(__rlFwd);
   const right = new THREE.Vector3().crossVectors(__rlFwd, __rlZ).normalize(), up = new THREE.Vector3().crossVectors(right, __rlFwd).normalize(), acc = new THREE.Color(L.accent);
   const rings = [];
-  for (let k = 0; k < L.rings; k++) {
+  for (let k = 0; k < ${sfFx && !busterOn ? '0' : 'L.rings'}; k++) {${sfFx && !busterOn ? '   // (in space no shock rings: a hit is its flash and its sparks)' : ''}
     const geo = new THREE.TorusGeometry(size, Math.max(0.01, size * 0.05), 6, 48), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.raycast = function () {};
     // (facing the camera, tipped back about the screen's horizontal so it reads as an ellipse, a shock round the blast)
@@ -4993,7 +5134,9 @@ function __rlRound(p) {
     const at = (s, along, across, sx, sy) => { s.position.set(__rlDir.x * along + __rlPerp.x * across, __rlDir.y * along + __rlPerp.y * across, __rlDir.z * along + __rlPerp.z * across); s.scale.set(sx, sy, 1); s.material.rotation = ang; };
     // (THE BALL AT THE HEAD: its core and its saturated layer centred on the round, where it hits; everything else behind
     // it, anchored to it: the body's front at the ball's front, the streaks and the tail from its centre back, never ahead)
-    const hd = L.head || st, bk = L.bulk || 1, ball = r * 1.25 * bk;
+${sfFx ? `    // (never drawn smaller than its least size on screen: past the range its size would shrink under it, it grows)
+    if (L.min) { const dc = camera.position.distanceTo(g.position); g.scale.setScalar(Math.max(1, (dc * L.min) / r)); }
+` : ''}    const hd = L.head || st, bk = L.bulk || 1, ball = r * 1.25 * bk;
     at(halo, -ball * 0.4, 0, r * L.halo * 2 * bk, r * L.halo * 2 * bk);
     const body = r * 3.6 * st * bk;
     at(deep, ball * hd - body / 2, 0, body, r * 3.2 * bk);
@@ -5175,7 +5318,20 @@ function __dashDust() {
 let __burstSeen = -1;       // highest burst seq drawn (the engine's monotonic burstSeq)
 const __projUpY = new THREE.Vector3(0, 1, 0);   // the cone axis (apex +Y) rotated onto each round's velocity
 const __projDir = new THREE.Vector3();
-function __updateProjectiles() {${dustOn ? `
+${sfFx && !busterOn ? `const __sfShield = new Map();   // (a ship's shields' hits drawn: the count seen, rules-starfighter.js hitN)
+${spaceBlastScript()}` : scrollFx ? spaceBlastScript() : ''}function __updateProjectiles() {${scrollFx ? `
+  __spaceBlastAge();` : ''}${sfFx && !busterOn ? `
+  __blastAge(); __spaceBlastAge();
+  // (a round another ship's shield took: a faint shell of its shield flashing round it on that side, quick)
+  for (const e of __world.entities) {
+    const S = e.ship; if (!S || e.gone || e.id === __world.pilotId) continue;   // (the pilot's own: its instruments say it)
+    const seen = __sfShield.get(e.id); __sfShield.set(e.id, S.hitN || 0);
+    if (seen == null || !(S.hitN > seen)) continue;
+    const rr = (e.body && e.body.radius) || 5, f = e.sfF || [Math.cos(e.transform.heading), Math.sin(e.transform.heading), 0], k = S.hitSide === 1 ? -1 : 1;
+    const sh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), __fxMat(0x7fc8ff)); sh.raycast = function () {};
+    sh.position.set(e.transform.pos[0] + f[0] * k * rr * 0.35, e.transform.pos[1] + f[1] * k * rr * 0.35, e.transform.pos[2] + f[2] * k * rr * 0.35); scene.add(sh);
+    __fx.push({ obj: sh, born: __world.time, ttl: 0.2, kind: 'burst', base: rr * 0.8, dim: 0.22 });
+  }` : ''}${dustOn ? `
   __dashDust();` : ''}${saberOn ? `
   for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) { __slashFx(e); ${steelOn ? 'if (e.rule.strikeFx.strand !== false) ' : ''}__strandFx(e); }` : ''}${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
@@ -5259,13 +5415,22 @@ ${busterOn || foeRoundsOn ? `    // (a buster's round, buster.js, drawn in its l
     if (b.effect === 'stun') { __lookStun(b); continue; }
     if (b.effect === 'chaff') { __lookChaff(b); continue; }
     if (b.look) { __lookBlast(b); continue; }
-    const col = b.fxColor != null ? b.fxColor : 0xffcc66;
+${scrollFx ? `    // (a scroll stage: a craft, a gun, a system blown up in the space blast as big as it is or a twenty-fifth of the view,
+    // its debris its blast's, flying straight on; nothing falls in space)
+    if (b.craft || b.debris) { const dc = camera.position.distanceTo(new THREE.Vector3(b.pos[0], b.pos[1], b.pos[2])); __spaceBlast(b.pos, Math.max(b.fxRadius || b.radius || 1, dc * 0.04), b.seq); continue; }
+` : ''}    const col = b.fxColor != null ? b.fxColor : 0xffcc66;
     // the shell peaks at the TRUE splash reach (b.radius) — honest to the gameplay AoE — but stays
     // TRANSLUCENT (dim 0.5) so it reads as a fireball, not a screen-filling wash. A small, brighter
     // white flash marks the detonation point. A record may carry fxRadius (the DEATH BURST, R34.1):
     // the spectacle outsizes the shove — safe, because the stagger is adjudicated the frame the
     // record spawns, so the bigger shell never overstates a circle anyone could still dodge.
-${busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
+${sfFx && !busterOn ? `    // (a starfighter's page: a craft blown apart as the effects shops filmed it, a fireball as big as it is or a
+    // twenty-fifth of the view at least, its smoke and its debris; a bolt's hit a spark in the shot's light, its own
+    // size, a three-hundredth of the view at least)
+    { const R = b.fxRadius || b.radius || 0.3, dc = camera.position.distanceTo(__rlA.set(b.pos[0], b.pos[1], b.pos[2]));
+      if (b.craft || b.debris) __spaceBlast(b.pos, Math.max(R, dc * 0.04), b.seq);   // (a ship, a gun, a system blown up: fireball, smoke and debris, space-blast.js)
+      else __blast(b.pos, col, Math.max(0.3, R * 0.5, dc * 0.003), 'impact'); }
+` : busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
     // (a buster's round's burst its size's, the full charge's an explosion; any other's by its blast)
     { const R = b.fxRadius || b.radius || 0.3, P = __rlGone.find((q) => Math.abs(q.t - __world.time) < 0.1 && Math.hypot(q.at[0] - b.pos[0], q.at[1] - b.pos[1], q.at[2] - b.pos[2]) < 1.5);
       if (P) __blast(b.pos, col, Math.max(0.3, P.size * 3.2), P.lv && P.lv === __RL.length - 1 ? 'blast' : 'impact');
@@ -5280,7 +5445,7 @@ ${busterOn ? `    // (in the shot's light, the blast: an impact for a small roun
     // and up, arcing down under gravity to rest on the ground — so the death reads as an explosion of
     // debris ahead of the smoke, not just one ball flash. Deterministic (golden-angle directions +
     // modulo speeds, no Math.random), so capture stays byte-identical. Only death bursts carry the flag.
-    if (b.debris) {
+    if (b.debris${sfFx && !busterOn ? " && false" : ''}) {${sfFx && !busterOn ? "   // (in space every death's debris is its blast's, flying straight on)" : ''}
       const N = 28, base = (b.fxScale != null ? b.fxScale : 6), col2 = b.fxColor != null ? b.fxColor : 0xffa03c;
       const positions = new Float32Array(N * 3), vels = [];
       for (let k = 0; k < N; k++) {
@@ -5372,8 +5537,17 @@ function __updateThrusters(dt) {
     const jyaw = Math.atan2(rf.jetVY, rf.jetVX);
     for (let i = 0; i < rf.jets.length; i++) {
       const j = rf.jets[i];
-      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false; continue; }
-      j.holder.visible = true;
+      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false;${figDrives ? ' if (j.flare) j.flare.visible = false;' : ''} continue; }
+      j.holder.visible = true;${figDrives ? `
+      if (j.kind === 'drive') {
+        // (a drive: its plume long and bright as it is driven, a pilot flame at idle; its mouth's flare swelling with it)
+        const fd = 0.92 + 0.08 * Math.sin(__world.time * 37 + i * 1.3), L = (0.25 + 0.75 * amt) * fd;
+        j.holder.scale.set(j.sq[0] * (0.8 + 0.2 * amt), L, j.sq[1] * (0.8 + 0.2 * amt));
+        j.core.material.opacity = 0.18 + 0.4 * amt; j.inner.material.opacity = 0.3 + 0.6 * amt;
+        const fs = j.rad * (2.2 + 3.2 * amt) * fd;
+        j.flare.visible = true; j.flare.scale.set(fs, fs, 1); j.flare.material.opacity = 0.35 + 0.6 * amt;
+        continue;
+      }` : ''}
       if (j.kind === 'backpack') {
         __jetQ.setFromAxisAngle(__jetZ, -jyaw);
         j.holder.quaternion.copy(__jetQ).multiply(j.baseQ);
@@ -5752,7 +5926,19 @@ const __breakPieces = ${safeJson(breakPieces || {})};${Object.values(breakPieces
 // blocks of one size and cut share their pieces (playscape/destruct/breakability.js piecesOf share): each takes the first's, in its own colour
 for (const k in __breakPieces) { const v = __breakPieces[k]; if (v.like) __breakPieces[k] = { ...__breakPieces[v.like], fill: v.fill, tex: v.tex }; }` : ''}
 const __pieces = [];
-let __breaksSeen = 0;
+let __breaksSeen = 0;${weightless ? `
+// a piece cut loose (a break \`drift\` { pivot, away }: every block of it at one velocity): each block's own drawing
+// rides its body off, the piece turning as one about its pivot, slowly, about an axis across the way it goes
+const __drifts = [];
+function __updateDrifts() {
+  for (const d of __drifts) {
+    const body = ((__world.rupa && __world.rupa.bodies) || []).find((x) => x.id === d.br.body);
+    if (!body) continue;
+    const P = d.br.drift.pivot, at = d.br.at, q = new THREE.Quaternion().setFromAxisAngle(d.axis, (__world.time - d.t0) * (d.br.drift.spin || 0.12));
+    const c = new THREE.Vector3(P[0], P[1], P[2]).applyQuaternion(q), o = [P[0] + body.pos[0] - at[0], P[1] + body.pos[1] - at[1], P[2] + body.pos[2] - at[2]];
+    for (const m of d.ms) { m.quaternion.copy(q); m.position.set(o[0] - c.x, o[1] - c.y, o[2] - c.z); }
+  }
+}` : ''}
 const __PART = { impact: { speed: 3.2, up: 2.2, blow: 1.6, hold: 0 }, blade: { speed: 0.9, up: 0.6, blow: 0.9, hold: 0.06 }, laser: { speed: 0.3, up: 0.2, blow: 0.2, hold: 0.25 }, anime: { speed: 1.2, up: 0.5, blow: 0.7, hold: 0.42 } };
 const __pieceLight = [0.35, -0.55, 0.76];
 function __spawnBreak(br) {
@@ -5797,7 +5983,7 @@ ${busterOn ? `  // (in the shot's light: an explosion where it broke, in the col
     m.position.set(k.at[0], k.at[1], k.at[2]); m.raycast = function () {}; scene.add(m);
     let ox = k.at[0] - br.at[0], oy = k.at[1] - br.at[1], oz = k.at[2] - br.at[2]; const ol = Math.hypot(ox, oy, oz) || 1; ox /= ol; oy /= ol; oz /= ol;
     const sp = P.speed * (0.7 + 0.6 * rnd());
-    __pieces.push({ m, born: __world.time, hold: P.hold, rest: floor + lo, r: r * 0.6,
+    __pieces.push({ m, born: __world.time, hold: P.hold, rest: ${weightless ? '-Infinity' : 'floor + lo'}, r: r * 0.6,
       v: [ox * sp + bx * P.blow, oy * sp + byy * P.blow, Math.max(0, oz) * sp + P.up * (0.6 + 0.8 * rnd())],
       w: [(rnd() - 0.5) * 9 * P.speed / 3.2, (rnd() - 0.5) * 9 * P.speed / 3.2, (rnd() - 0.5) * 4], settled: false });
   }
@@ -5809,7 +5995,8 @@ function __pieceBlocked(x, y, z, r) {
 function __updateBreaks(dt) {
   const B = __world.breaks || [];
   for (; __breaksSeen < B.length; __breaksSeen++) {
-    const br = B[__breaksSeen], m = meshes['break:' + br.id];
+    const br = B[__breaksSeen], m = meshes['break:' + br.id];${weightless ? `
+    if (br.drift) { if (m) { const a = br.drift.away, ax = new THREE.Vector3(-a[1], a[0], 0.35).normalize(); __drifts.push({ br, ms: [m, ...(m.userData.tex || [])], axis: ax, t0: br.t }); } continue; }` : ''}
     if (m) { m.visible = false; for (const tm of (m.userData.tex || [])) tm.visible = false; }
     if (br.how !== 'restore'${distort ? " && br.how !== 'strip' && br.how !== 'cut'" : ''}) __spawnBreak(br);   // a restored break (an aftermath carried in) is simply gone${distort ? '; a stripped plate falls whole and a cut block parts in two (__updateDents)' : ''}
   }
@@ -5817,9 +6004,9 @@ function __updateBreaks(dt) {
     const q = __pieces[i], age = __world.time - q.born;
     if (age > 4) { scene.remove(q.m); q.m.geometry.dispose(); q.m.material.dispose(); __pieces.splice(i, 1); continue; }
     if (age < q.hold) continue;   // the cut is drawn before anything parts
-    if (age > 3.2) { q.m.position.z -= dt * 0.25; continue; }   // sink away through the floor
+    ${weightless ? `if (age > 3.2) q.m.scale.multiplyScalar(Math.max(0, 1 - dt * 1.25));   // in zero g: flying on, fading away` : `if (age > 3.2) { q.m.position.z -= dt * 0.25; continue; }   // sink away through the floor`}
     if (q.settled) continue;
-    q.v[2] -= 9.8 * dt;
+    ${weightless ? '' : 'q.v[2] -= 9.8 * dt;'}
     // the walls hold them: each horizontal step that would put a piece inside a collider bounces back off it instead
     const x1 = q.m.position.x + q.v[0] * dt, y1 = q.m.position.y + q.v[1] * dt, z = q.m.position.z;
     if (__pieceBlocked(x1, q.m.position.y, z, q.r)) q.v[0] *= -0.3; else q.m.position.x = x1;
@@ -5832,14 +6019,14 @@ function __updateBreaks(dt) {
     }
   }
 }
-${distort ? distortViewScript() : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
+${distort ? distortViewScript(weightless ? { weightless } : {}) : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam
     if (__world.tempo && __world.tempo.playing !== __tmLast) { __tmLast = __world.tempo.playing; if (__tmLast && window.__mojShoot && window.__mojShoot.cue) window.__mojShoot.cue('tempo:' + __tmLast.on); }` : ''}
-    for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});${driveSurface && driveSurface.items ? `
+    ${keying ? `__keySync(dt, ${tempo ? 'wdt' : 'dt'});   // (keyed: each animated body posed on its layer's key, keying.js)` : `for (const e of __world.entities) __syncEntity(e, ${tempo ? 'wdt' : 'dt'});`}${driveSurface && driveSurface.items ? `
     __kiTick(dt);` : ''}${place ? '\n    __placeStep(dt);' : ''}${seats ? `
     __seatRings();
     __seatStrip();
@@ -5850,7 +6037,7 @@ ${hangarHook}  __msHookParams();
     __updateClashes();
     __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
     __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables || loose ? `
-    __updateBreaks(${tempo ? 'wdt' : 'dt'});${distort ? `
+    __updateBreaks(${tempo ? 'wdt' : 'dt'});${weightless ? ' __updateDrifts();' : ''}${distort ? `
     __updateDents();` : ''}${rupa ? `
     __updateSmoke();` : ''}` : ''}${panelsOn ? `
     __updatePanels();` : ''}${scarsOn ? `
@@ -5963,6 +6150,24 @@ __wings.add(__wingR, __wingL); __wings.visible = false;
 })();
 ` : ''}${tempo ? `let __tmLast = null;${tempoLook ? ' const __tmAt = new THREE.Vector3();' : ''}
 window.__mojTempo = { now: () => __world.tempo && { scale: __world.tempo.scale, playing: __world.tempo.playing && __world.tempo.playing.on }, fire: (on, who) => __CW.tempoMoment(__world, on, who), end: (on) => __CW.tempoEnd(__world, on) };
+` : ''}${keying ? `// KEYING IN PLAY (worlds/controllable/keying.js): each animated body (a rig, a baked figure) posed on its layer's key
+// (the hero the player pilots, the cast every other) and held between keys, its clips handed the time it held; the
+// world, ${keying.root === 'held' ? 'the camera and every other body on ones (a held body\'s place stepped with its pose)' : 'a body\'s place and heading, the camera and every other body on ones'}
+const __kyClock = (${keyClock.toString()})(${safeJson(keying)}), __kyW = { hero: 0, cast: 0 }, __kySeen = {};
+function __keySync(dt, wdt) {
+  const due = __kyClock.step(dt);
+  __kyW.hero += wdt; __kyW.cast += wdt;
+  for (const e of __world.entities) {
+    const m = __bodies[e.id], L = e.id === __world.pilotId ? 'hero' : 'cast';
+    const keyed = !!(m && m.userData && (m.userData.rigFig || m.userData.fig) && !m.userData.polygomer);
+    if (!keyed || due[L] || !__kySeen[e.id] || e.gone${boardOn ? ' || e.aboard' : ''}) { __syncEntity(e, keyed ? __kyW[L] : wdt); if (keyed) __kySeen[e.id] = true; continue; }
+${keying.root === 'held' ? '' : `    if (!m.visible || (e.tumble && e.tumble.angle)) continue;   // (a tumble is held whole)
+    m.position.set(e.transform.pos[0], e.transform.pos[1], e.transform.pos[2]);
+    if (!e.tilt) { const r = m.userData.rigFig, f = m.userData.fig; m.rotation.z = e.transform.heading + (r ? r.yaw : f.yaw); }
+`}  }
+  if (due.hero) __kyW.hero = 0;
+  if (due.cast) __kyW.cast = 0;
+}
 ` : ''}${backdrop ? `// THE ENCOUNTER'S BACKDROP (a fight staged on its own arena, rpg rules.stage 'backdrop'): the map drawn once from a pose
 // into a texture, stood as a full-frame quad behind the arena's camera (the same pose shifted by \`shift\`), so the arena
 // reads as the place the fight was met; the world itself stays where it is, out of the arena camera's sight
@@ -6089,7 +6294,7 @@ function __mojBackdrop(from, look, shift) {
     }
   })();
 })();
-` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${heldOn ? ' carryIn: (keys) => __CW.carryIn(__world, keys),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay || armHeld ? gunplayScript(armHeld ? { held: true } : undefined) : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${sightShown ? sightScript() : ''}${alarm ? alarmScript() : ''}${knockout ? knockoutScript() : ''}${ghost ? ghostScript() : ''}${bossOn || minesOn ? bossViewScript() : ''}${mission ? missionScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${heldOn ? heldGatesScript() : ''}${exploredOn ? exploredViewScript(explored.map) : ''}${entities.some((e) => e && e.body && e.body.steam && Array.isArray(e.body.steam.vents) && e.body.steam.vents.length) ? steamScript() : ''}${rockOn ? rockScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
+` : ''}window.__mojCtrl = { world: __world,${exposeBodies ? ' bodies: __bodies,' : ''}${backdrop ? ' backdrop: __mojBackdrop,' : ''}${breakables ? ' restore: (id) => __CW.restoreBlock(__world, id),' : ''}${heldOn ? ' carryIn: (keys) => __CW.carryIn(__world, keys),' : ''}${rupa && breakables ? ' strike: (id, joules, how, src) => __CW.strikeBlock(__world, id, joules, how, src), heat: (id, joules) => __CW.heatBlock(__world, id, joules), physics: __CW.rupaPhysics,' : ''}${gusts ? ' air: __CW.vayoAir,' : ''} step: (dt, input) => stepControllable(dt, input), cast: (ops) => __CW.castOps(__world, ops),${acts ? ' ground: (x, y, z) => __ground([x, y, z]), project: (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight, v.z]; },' : ''} facts: (prev) => __CW.castFacts(__world, prev), interacts: () => __interactN, label: (id) => { const f = __padOn && __padSeen && __usePad ? 'gamepad' : 'keyboard', c = (__BIND.bind[f][id] || [])[0]; return c ? __CTL.label(__DEV, f, c, __padLayout) : ''; } };${gunplay || armHeld ? gunplayScript(armHeld ? { held: true } : undefined) : ''}${aimView ? aimViewScript() : ''}${carry ? carryScript() : ''}${sightShown ? sightScript() : ''}${alarm ? alarmScript() : ''}${knockout ? knockoutScript() : ''}${ghost ? ghostScript() : ''}${bossOn || minesOn ? bossViewScript() : ''}${mission ? missionScript() : ''}${vayoOn ? vayoTrailScript() : ''}${knock ? knockFxScript() : ''}${turretOn ? turretScript() : ''}${boatOn ? boatWaterScript() : ''}${camera && camera.rule === 'side-map' ? shotLightScript() : ''}${heldOn ? heldGatesScript() : ''}${exploredOn ? exploredViewScript(explored.map) : ''}${scrollOn && entities.some((e) => e && e.rule && (e.rule.arsenal || e.rule.type === 'scroll-foe')) ? `${scrollPodsScript()}${shotLightScript({ more: '__SPV.lights' })}` : ''}${camera && camera.rule === 'side-map' && Array.isArray(camera.zones) && camera.zones.some((z) => z && z.shut) ? shutterScript() : ''}${entities.some((e) => e && e.body && e.body.steam && Array.isArray(e.body.steam.vents) && e.body.steam.vents.length) ? steamScript() : ''}${rockOn ? rockScript() : ''}${moveset ? specialsPaletteScript() : ''}${roll ? `
 // ---- THE ROLL (worlds/controllable/roll.js): what this level's seed picks on it. Applied once, where the level starts:
 // by the seed its shell sends with game-init${rollWaits ? '' : ' (this page has no game channel: the reference roll, seed 1)'}. A thing rolled away never stood: it leaves the colliders
 // (the runtime's) and the scene (taken out, not hidden: the ground's ray and the camera's meet nothing where it was).

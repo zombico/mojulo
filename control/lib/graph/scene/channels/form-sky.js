@@ -13,6 +13,8 @@
 //                as the eye walks), lit by the solved sun through its own depth toward the sun (a step `clouds.step`
 //                along it) with a silver edge facing the sun, and by the sky light from below; past `clouds.fade` m
 //                of its plane, the horizon's air over it. Drifting with the page's wind when it has one
+//   the cumulus  on a clear, fair or hazy day (the land's `cumulus`), the flight sky's own cumulus in sky space (sky-cumulus.js):
+//                a fair cloud a dome over a flat base, lit as one body, mixed in its kinds; the sheet a thin high layer over them
 //   the haze     the page's distance haze takes the air where the far land stands (`haze.h` over the horizon, a shade
 //                deeper: `haze.depth`), so the far land fades into the sky just over it; the stage's painted far land
 //                takes the haze too
@@ -20,6 +22,9 @@
 // A gen-7 geocube page without the form render (a geocity) carries it too (formSkyInput: its light the cube's own sky
 // colours). Drawn through the land's own tone curve. It replaces what the stage painted for the sky (its painted clouds, its
 // cloud band, its painted sun), its painted clouds' cut-out cards with them; the stars and the moon of a night sky stay. `window.__formSky` { cover, kind, A }.
+import { skyCumulusScript } from './sky-cumulus.js';
+import { cumulusPuffs } from './cumulus-puffs.js';
+
 export const FORM_SKY = Object.freeze({
   radius: 3000,
   horizon: Object.freeze({ lift: 0.6, sharp: 8 }),
@@ -93,18 +98,22 @@ void main() {
 
 /** The sky's input on a page without the form render (a gen-7 geocity, scene-three.js `formSky`): no solved light there,
  *  so its sky light is the cube's own sky colours (linear, their mean) and its sun that light's level × `painted.sun`, warm. */
-export function formSkyInput({ sun, zenith, horizon, clouds }) {
+export function formSkyInput({ sun, zenith, horizon, clouds, cumulus }) {
   const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
   const amb = [0, 1, 2].map((c) => (lin(zenith[c]) + lin(horizon[c])) / 2), L = 0.2126 * amb[0] + 0.7152 * amb[1] + 0.0722 * amb[2];
   const r4 = (v) => Math.round(v * 1e4) / 1e4;
-  return { sun, sky: { zenith, horizon }, light: { ambient: amb.map(r4), sun: C.painted.warm.map((w) => r4(w * L * C.painted.sun)) }, ...(clouds ? { clouds } : {}) };
+  return { sun, sky: { zenith, horizon }, light: { ambient: amb.map(r4), sun: C.painted.warm.map((w) => r4(w * L * C.painted.sun)) }, ...(clouds ? { clouds } : {}), ...(cumulus && cumulus.n ? { cumulus } : {}) };
 }
 
-/** The sky's page source, in the form channel's scope (THREE, scene, D: the form input, its `sky`, `sun`, `light` and
- *  `clouds`, meshes: the page's painted groups). `capture` (a capture page's): the clouds' own clock is the capture's
+/** The sky's page source, in the form channel's scope (THREE, scene, D: the form input, its `sky`, `sun`, `light`,
+ *  `clouds` and `cumulus`, meshes: the page's painted groups). `cumulus` (the land carries the flight sky's cumulus,
+ *  skyscape/sky.js groundCumulus): they are drawn in sky space (sky-cumulus.js) and the sheet is a thin high layer over
+ *  them; absent, the page's bytes as they were. `capture` (a capture page's): the clouds' own clock is the capture's
  *  (window.__mojClock, pinned by its frame()) when it is set, so a still is the same however long it took to draw; absent,
  *  the page's bytes as they were. */
-export function formSkyScript({ capture = false } = {}) {
+export function formSkyScript({ capture = false, cumulus = false } = {}) {
+  // (with the flight sky's cumulus (sky-cumulus.js) the sheet is the names below; without, the page as it was)
+  const KK = cumulus ? 'KH' : 'K', CV = cumulus ? 'coverH' : 'cover';
   return `
   // --- the form render's sky: the light that lights the land, seen (channels/form-sky.js) ---
   (function () {
@@ -123,10 +132,13 @@ export function formSkyScript({ capture = false } = {}) {
     const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], a = lum(amb) / Math.max(1e-6, lum(shape) / wsum), A = [a, a, a];
     // (the clouds: the recipe's weather and cover; absent, fair where the stage painted clouds, clear where it painted none)
     const painted = !!meshes['isekai:cloud'], W = D.clouds || { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 }, K = CK[W.kind] || CK.fair;
-    const cover = K.cover[0] + (K.cover[1] - K.cover[0]) * (W.cover ?? 0.5);
+    const cover = K.cover[0] + (K.cover[1] - K.cover[0]) * (W.cover ?? 0.5);${cumulus ? `
+    // (with the flight sky's cumulus under it, sky-cumulus.js, the sheet is a thin high layer over them: the sky mixed)
+    const KH = D.cumulus && D.cumulus.n ? { ...K, alt: 6000, stretch: 5, thin: 0.5 } : K, coverH = KH === K ? cover : cover * 0.7;
+    let CUMULUS_N = 0;` : ''}
     const U = { uSun: { value: sun }, uSunL: { value: new THREE.Vector3(...sunL) }, uAmb: { value: new THREE.Vector3(...amb) }, uZen: { value: new THREE.Vector3(...zen) }, uHor: { value: new THREE.Vector3(...hor) },
-      uA: { value: new THREE.Vector3(...A) }, uCover: { value: cover }, uDark: { value: K.dark }, uVeil: { value: K.veil }, uStretch: { value: K.stretch }, uThin: { value: K.thin ?? 1 },
-      uAlt: { value: K.alt ?? FSK.clouds.alt }, uTime: { value: 0 }, uSeed: { value: W.seed ?? 1 }, uDrift: { value: new THREE.Vector2(FSK.clouds.drift / FSK.clouds.scale, 0) } };
+      uA: { value: new THREE.Vector3(...A) }, uCover: { value: ${CV} }, uDark: { value: K.dark }, uVeil: { value: K.veil }, uStretch: { value: ${KK}.stretch }, uThin: { value: ${KK}.thin ?? 1 },
+      uAlt: { value: ${KK}.alt ?? FSK.clouds.alt }, uTime: { value: 0 }, uSeed: { value: W.seed ?? 1 }, uDrift: { value: new THREE.Vector2(FSK.clouds.drift / FSK.clouds.scale, 0) } };
     const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, depthWrite: false, fog: false,
       vertexShader: 'varying vec3 vWorld;\\nvoid main() { vec4 w = modelMatrix * vec4( position, 1.0 ); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
       fragmentShader: ${JSON.stringify(SKY_FRAG)} }));
@@ -140,7 +152,7 @@ export function formSkyScript({ capture = false } = {}) {
     // (a look whose haze is darker than its horizon keeps it so: its sky.air, form/land-read.js HAZE_UNDER)
     const hz = [0, 1, 2].map((c) => A[c] * (hor[c] + (zen[c] - hor[c]) * ht) * hk * Math.min(FSK.haze.depth, D.sky.air ?? 1));
     // (an air with its own colour, channels/atmosphere.js, keeps it: the recipe's word over the sky's haze)
-    const AC = window.__mojAir && window.__mojAir.colour, haze = AC ? AC : hz;
+    const AC = window.__mojAir && window.__mojAir.colour, haze = AC ? AC : hz;${cumulus ? skyCumulusScript({ puffs: cumulusPuffs.toString() }) : ''}
     if (scene.fog) scene.fog.color.setRGB(haze[0], haze[1], haze[2], THREE.LinearSRGBColorSpace);
     if (typeof FAR_AIR !== 'undefined') FAR_AIR.value.set(haze[0], haze[1], haze[2]);
     scene.traverse((o) => { if (o.isMesh && o.visible && o.material && !o.material.fog && /^isekai:/.test(String(o.userData.g || ''))) { o.material.fog = true; o.material.needsUpdate = true; } });
@@ -151,7 +163,7 @@ export function formSkyScript({ capture = false } = {}) {
       dome.position.setFromMatrixPosition(cam.matrixWorld); dome.scale.setScalar(Math.min(FSK.radius, (cam.far || 8000) * 0.9)); dome.updateMatrixWorld();
       const W2 = wind(); U.uTime.value = W2 && W2.uWindT ? W2.uWindT.value : ${capture ? '(window.__mojClock != null ? window.__mojClock : performance.now()) / 1000' : 'performance.now() / 1000'};
     };
-    window.__formSky = { kind: W.kind, cover, A };
+    window.__formSky = { kind: W.kind, cover, A${cumulus ? ', cumulus: CUMULUS_N' : ''} };
   })();
 `;
 }

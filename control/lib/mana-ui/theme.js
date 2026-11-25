@@ -58,7 +58,8 @@
  *     overlay   none | scanlines | crt | grid | vignette | grain       a filter over the whole stage while the UI is up
  *     stage     none | band | burst | shards | stripes | rings         one more layer: a shape behind everything a screen
  *               | chevrons | dots | confetti | tunnel | streaks       holds (over its scrim and its key art), sweeping in.
- *               | zigzag, or a LIST of them                          A list is a show: each kind of screen its own shape
+ *               | zigzag | starfield (stars at three depths drifting
+ *               on, the way a shooter's screen scrolls), or a LIST of them                          A list is a show: each kind of screen its own shape
  *                                                                    (the title, a middle screen, a full one, a result, a
  *                                                                    count over the play), so a game is not one pattern
  *     icons     none | solid | line | chunky | badge | duo            the style its pictograms are drawn in (icons.js): a
@@ -127,7 +128,7 @@ export const THEME_WORDS = Object.freeze({
   crest: ['none', 'victorian', 'tech', 'ribbon'],
   breakout: ['none', 'tab', 'echo', 'full'],
   overlay: ['none', 'scanlines', 'crt', 'grid', 'vignette', 'grain'],
-  stage: ['none', 'band', 'burst', 'shards', 'stripes', 'rings', 'chevrons', 'dots', 'confetti', 'tunnel', 'streaks', 'zigzag'],
+  stage: ['none', 'band', 'burst', 'shards', 'stripes', 'rings', 'chevrons', 'dots', 'confetti', 'tunnel', 'streaks', 'zigzag', 'starfield'],
   sounds: ['console', 'glass', 'chip', 'terminal', 'paper', 'party', 'robot', 'hydraulic', 'clack', 'crypt', 'jackpot'],
   ornaments: ['brackets', 'ticks', 'scanlines', 'dotgrid', 'stitch', 'hazard', 'glow'],
   hud: ['panel', 'bare'],
@@ -414,6 +415,17 @@ function crestOf(T, k) {
   }
   return null;
 }
+// the starfield's layers: a tile's size (w, h), a star's (ellipse width, height), where it sits in its tile, its colour and
+// its strength; far stars small and round, near ones longer, the streaks longest and faintest; the tiles' sizes primes,
+// so no two layers line up and the field reads as scattered, never as a lattice
+const STARFIELD = [
+  [113, 79, '2px', '2px', '23% 61%', 'ink', 0.42], [157, 97, '2px', '2px', '71% 14%', 'ink', 0.3], [199, 131, '2px', '2px', '9% 33%', 'ink', 0.36],
+  [241, 167, '3px', '2px', '58% 87%', 'ink', 0.4], [283, 191, '3px', '2px', '37% 8%', 'ink', 0.32], [331, 227, '5px', '2px', '86% 52%', 'ink', 0.5],
+  [379, 263, '7px', '2px', '14% 76%', 'accent2', 0.42], [433, 307, '9px', '2px', '63% 41%', 'ink', 0.45],
+  [601, 409, '70px', '1px', '28% 22%', 'accent', 0.2], [787, 541, '110px', '1px', '74% 70%', 'accent2', 0.14],
+];
+// (each layer drifts back a whole number of its own tiles in one loop, the near ones further: parallax, seamless)
+const STARFIELD_DRIFT = { seconds: 70, tiles: [1, 1, 1, 1, 2, 2, 2, 3, 4, 5] };
 // the stage: a shape behind everything a screen holds, in the theme's colours
 const STAGES = (k) => ({
   none: 'none',
@@ -434,6 +446,12 @@ const STAGES = (k) => ({
   tunnel: `repeating-radial-gradient(ellipse at 50% 38%,transparent 0 ${du(54)},${alpha(k.accent, 0.18)} ${du(54)} ${du(78)})`,
   // streaks: wind: thin and thick lines flying past on a slant, in the two accents
   streaks: `repeating-linear-gradient(-32deg,${alpha(k.accent, 0.22)} 0 ${du(7)},transparent ${du(7)} ${du(44)},${alpha(k.accent2, 0.18)} ${du(44)} ${du(60)},transparent ${du(60)} ${du(136)})`,
+  // starfield: flight through space: stars at their depths drawn short along the way the screen goes, the nearest the
+  // faintest streaks in the two accents, on tiles of sizes that never line up (it drifts on: STARFIELD_DRIFT), and a
+  // world's lit rim low in a corner
+  starfield: [...STARFIELD.map(([w, h, ew, eh, at, c, a]) => `radial-gradient(ellipse ${ew} ${eh} at ${at},${alpha(c === 'ink' ? k.ink : c === 'accent' ? k.accent : k.accent2, a)} 0 40%,transparent 100%) 0 0/${du(w)} ${du(h)}`),
+    // (and a world's lit rim low in the corner, as a stage flies past one: the dark of its night side under the accent)
+    `radial-gradient(circle at 96% 168%,${mix(k.panel, '#000000', 0.35)} 0 52%,${alpha(k.accent, 0.55)} 52.25%,${alpha(k.accent, 0.12)} 53.4%,transparent 56%) 0 0/100% 100% no-repeat`].join(','),
   // zigzag: a jolt: rows of teeth
   zigzag: [[135, -1], [225, -1], [315, 0], [45, 0]].map(([deg, off]) => `linear-gradient(${deg}deg,${alpha(k.accent, 0.2)} 25%,transparent 25%) ${off ? du(-40) : '0'} ${du(0)}/${du(80)} ${du(80)}`).join(','),
 });
@@ -528,6 +546,14 @@ export function themeCss(theme, scope = '.mana-root') {
   const bare = [T.halo === 'plate' ? null : '.mana-window[data-variant=ghost]', '.mana-screen>.mana-stack:has(>:is(.mana-bar,.mana-loader,.mana-list,.mana-text[data-role=caption]))'].filter(Boolean).join(',');
   // (a show: each kind of screen its own shape, the later kinds over the earlier where a screen is both)
   if (Array.isArray(T.stage)) SHOW.forEach((sel, i) => out.push(`${s} .mana-screen${sel}{--mana-stage:${STAGES(k)[T.stage[i % T.stage.length]]}}`));
+  // the starfield flies on: each layer drifting back a whole number of its tiles a loop (never under less motion)
+  if ((Array.isArray(T.stage) ? T.stage : [T.stage]).includes('starfield')) {
+    const P = (n) => [...STARFIELD.map(([w], i) => (n ? `${du(-w * STARFIELD_DRIFT.tiles[i])} 0` : '0 0')), '0 0'].join(',');
+    out.push(`@keyframes mana-starfield{from{background-position:${P(0)}}to{background-position:${P(1)}}}`,
+      `${s} .mana-screen::after{animation:mana-stage calc(var(--mana-dur) * 3) var(--mana-ease) both,mana-starfield ${STARFIELD_DRIFT.seconds}s linear infinite}`,
+      `${s}[data-motion=reduced] .mana-screen::after{animation:mana-stage calc(var(--mana-dur) * 3) var(--mana-ease) both}`,
+      `@media (prefers-reduced-motion:reduce){${s} .mana-screen::after{animation:none}}`);
+  }
   if (T.stage !== 'none') out.push(`${s} .mana-screen :is(${bare}){background:linear-gradient(90deg,${alpha(k.panel, 0.9)},${alpha(k.panel, 0.8)} calc(100% - ${du(90)}),${alpha(k.panel, 0)});padding:${du(12)} ${du(90)} ${du(12)} ${du(26)};margin:${du(-12)} ${du(-90)} ${du(-12)} ${du(-26)}}`);
   // a button standing on the screen itself, over a stage, is filled with the panel (its word is read, not the stripes)
   if (T.stage !== 'none') out.push(`${s} .mana-screen>.mana-button:not([data-st=focus]){background:${alpha(k.panel, 0.9)}}`);

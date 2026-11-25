@@ -62,6 +62,7 @@ describe('applyEvents — the generated reducers', () => {
       { type: 'levelUp', slice: 'hero', xp: 250 },
       { type: 'recruit', slice: 'army', member: { id: 'vex', name: 'Vex' } },
       { type: 'levelUp', slice: 'army', id: 'vex', by: 2 },
+      { type: 'rename', slice: 'army', id: 'vex', name: ' Vexa ' },
       { type: 'dismiss', slice: 'army', id: 'rook' },
       { type: 'promote', slice: 'campaign', ref: 'crypt-1' },
       { type: 'setFlag', slice: 'world', key: 'drawbridge-down' },
@@ -69,7 +70,7 @@ describe('applyEvents — the generated reducers', () => {
     expect(r.ok).toBe(true);
     expect(r.state.bag.items).toEqual({ potion: 1, 'rune-key': 1 });
     expect(r.state.hero).toMatchObject({ level: 2, xp: 250, stats: { hp: 88 } });
-    expect(r.state.army.roster).toEqual({ vex: { name: 'Vex', level: 3, xp: 0, stats: {}, tags: [] } });
+    expect(r.state.army.roster).toEqual({ vex: { name: 'Vexa', named: true, level: 3, xp: 0, stats: {}, tags: [] } });
     expect(r.state.campaign).toEqual({ completed: { 'crypt-1': 'success' }, unlocked: ['crypt-1'] });
     expect(r.state.world.flags['drawbridge-down']).toBe(true);
   });
@@ -92,6 +93,9 @@ describe('applyEvents — the generated reducers', () => {
     expect(K.applyEvents(SCHEMA, s0, [{ type: 'explode', slice: 'bag' }]).errors.join(' ')).toMatch(/not a typed event/);
     expect(K.applyEvents(SCHEMA, s0, [{ type: 'setFlag', slice: 'nope', key: 'k' }]).errors.join(' ')).toMatch(/not a declared slice/);
     expect(K.applyEvents(SCHEMA, s0, [{ type: 'recruit', slice: 'army', member: { id: 'rook' } }]).errors.join(' ')).toMatch(/already in the roster/);
+    expect(K.applyEvents(SCHEMA, s0, [{ type: 'rename', slice: 'army', id: 'rook', name: '  ' }]).errors.join(' ')).toMatch(/1 to 24 characters/);
+    expect(K.applyEvents(SCHEMA, s0, [{ type: 'rename', slice: 'bag', name: 'X' }]).errors.join(' ')).toMatch(/does not accept "rename"/);
+    expect(K.applyEvents(SCHEMA, s0, [{ type: 'rename', slice: 'hero', name: 'Ash' }]).state.hero.name).toBe('Ash');   // a character's name, once given
   });
 
   it('is pure and deterministic: same input state + events → identical output, input untouched', () => {

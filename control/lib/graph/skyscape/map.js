@@ -16,7 +16,12 @@
  * numbers that make it hold come from the pilot's eye (eye.js): the haze is clear enough at the low pass to see the
  * field across, thins to THIN times that at the ceiling, and the root is sized to hold what the ceiling sees.
  *
- *   MAP_FORMS, planMap({ form, field, craft, ceiling, seed, lands }), mapLaws(map)
+ *   MAP_FORMS, planMap({ form, field, craft, ceiling, seed, lands, route }), mapLaws(map)
+ *
+ * A ROUTE (`route: true`): a rail stage's long field down its length. Its reach is the field and a narrow band (the rail
+ * keeps the craft on its way), its haze sized to see ahead, not across; its grid spends the same cells along it (its
+ * cell from the budget of GRID.maxN², its long side at most ROUTE.maxN), a walled form's band capped to what the
+ * corridor sees; its laws its own (`way-seen`; no turn-room).
  *
  * Space forms (void, trench, limb) are a later step; a globe (the terrain channel's planet) is not a form.
  * Pure, deterministic.
@@ -37,6 +42,9 @@ export const SEE_S = 40;
 export const GRID = Object.freeze({ maxN: 256, minCell: 8 });
 /** A field when none is asked: this many seconds of the craft's cruise across, and never smaller than this (m). */
 export const FIELD_S = 40, FIELD_MIN = 4000;
+/** A route (`route: true`, a rail stage's way down the field's length): the band (m) past the field the way sways in,
+ *  the most cells its grid's long side holds, and the band (m) of a walled form's backdrop baked past its reach. */
+export const ROUTE = Object.freeze({ margin: 400, maxN: 1024, band: 1500 });
 
 /**
  * Each form's backdrop, shares of the ceiling: `base` where the land settles past the reach, `amp` its swell, `wall`
@@ -62,6 +70,7 @@ export function validateMap(m = {}) {
   if (f !== undefined && !(Number.isFinite(f) && f >= 500 && f <= 40000) && !(Array.isArray(f) && f.length === 2 && f.every((v) => Number.isFinite(v) && v >= 500 && v <= 40000))) e.push('map.field must be metres 500–40000, or [width, depth]: the box the course or mission fits in');
   if (m.ceiling !== undefined && !(Number.isFinite(m.ceiling) && m.ceiling >= 100 && m.ceiling <= 20000)) e.push('map.ceiling must be metres 100–20000 (the highest the craft may climb in play)');
   if (m.craft !== undefined) { try { craftOf(m.craft); } catch (err) { e.push(err.message); } }
+  if (m.route !== undefined && typeof m.route !== 'boolean') e.push('map.route must be true or false: a way flown down the field\'s length on a rail (its reach the field, its haze seen ahead)');
   return e;
 }
 
@@ -70,8 +79,8 @@ export function validateMap(m = {}) {
  * the craft); `lands` (the craft lands in play). → { form, craft, ceiling, rings, haze, backdrop, grid, lod, eye }.
  * Every ring is a half-extent box about the origin, in metres: { hx, hy }.
  */
-export function planMap({ form = 'island', field: fieldAsk, craft = 'trainer', ceiling, lands = true, seed = 1 } = {}) {
-  const errs = validateMap({ form, field: fieldAsk, craft, ceiling }); if (errs.length) throw new Error(`map: ${errs.join('; ')}`);
+export function planMap({ form = 'island', field: fieldAsk, craft = 'trainer', ceiling, lands = true, seed = 1, route = false } = {}) {
+  const errs = validateMap({ form, field: fieldAsk, craft, ceiling, route }); if (errs.length) throw new Error(`map: ${errs.join('; ')}`);
   const F = MAP_FORMS[form], eye = pilotEye(craft, { lands }), c = eye.craft;
   // the field when none is asked: FIELD_S of cruise across (a jet's is wider than a glider's), never under FIELD_MIN
   const field = fieldAsk ?? Math.max(FIELD_MIN, Math.round(c.cruise * FIELD_S / 100) * 100);
@@ -79,11 +88,13 @@ export function planMap({ form = 'island', field: fieldAsk, craft = 'trainer', c
   const [fw, fd] = Array.isArray(field) ? field : [field, field];
   const fieldBox = { hx: fw / 2, hy: fd / 2 };
   // room to turn back at top speed: the warning flown straight, then the turn circle's diameter
-  const margin = r2(c.max * WARN_S + 2 * eye.turn.max);
+  // (a route's craft is kept on its way by its rail: its reach the field and a band for the way's sway)
+  const margin = route ? ROUTE.margin : r2(c.max * WARN_S + 2 * eye.turn.max);
   const reach = { hx: r2(fieldBox.hx + margin), hy: r2(fieldBox.hy + margin) };
   // the haze: at the low pass the eye sees the field across (corner to corner) or SEE_S of cruise, whichever is more;
   // at the ceiling THIN times that. hazeHeight H solves (H + top) / (H + low) = THIN
-  const low = c.lowPass, seeLow = Math.max(dmath.hypot(fw, fd), c.cruise * SEE_S);
+  // (a route is seen ahead, not corner to corner: SEE_S of cruise, or its width)
+  const low = c.lowPass, seeLow = route ? Math.max(fd, c.cruise * SEE_S) : Math.max(dmath.hypot(fw, fd), c.cruise * SEE_S);
   const H = r2(Math.max(50, (top - THIN * low) / (THIN - 1)));
   // ρ at the datum, so ρ(low) · seeLow = OPAQUE_RD, kept to six figures (the page carries it so); seeLow is padded by
   // 1e-5, more than that rounding moves it, so the field stays in the clear whichever way the sixth figure goes
@@ -97,11 +108,16 @@ export function planMap({ form = 'island', field: fieldAsk, craft = 'trainer', c
   const backdrop = { sea: F.sea, base: r2(F.base * top), amp: r2(F.amp * top), wall: r2(F.wall * top), axis: F.axis, fall: r2(Math.max(margin, seeLow / 2)) };
   // the baked grid: the reach and a band of backdrop (where a wall rises), its cell from the eye where it is flown low,
   // coarsened to fit; the kernel's own octaves carry the detail below a cell
-  const gx = 2 * (reach.hx + (F.wall ? backdrop.fall : 0)), gy = 2 * (reach.hy + (F.wall ? backdrop.fall : 0));
-  const cell = Math.ceil(100 * Math.max(GRID.minCell, eye.spacing.lowPass * 2, Math.max(gx, gy) / GRID.maxN)) / 100;   // up to the cm: never a row past maxN
+  // (a route's wall band is only seen from its corridor: ROUTE.band of it baked)
+  const band = F.wall ? (route ? Math.min(backdrop.fall, ROUTE.band) : backdrop.fall) : 0;
+  const gx = 2 * (reach.hx + band), gy = 2 * (reach.hy + band);
+  // (a route's grid spends the same cells along its length: its cell from the budget of maxN², its long side at most
+  // ROUTE.maxN; else never a row past maxN)
+  const coarse = route ? Math.max(Math.sqrt((gx * gy) / (GRID.maxN * GRID.maxN)), Math.max(gx, gy) / ROUTE.maxN) : Math.max(gx, gy) / GRID.maxN;
+  const cell = Math.ceil(100 * Math.max(GRID.minCell, eye.spacing.lowPass * 2, coarse)) / 100;   // up to the cm
   const grid = { cell, nx: Math.ceil(gx / cell) + 1, ny: Math.ceil(gy / cell) + 1, hx: r2(gx / 2), hy: r2(gy / 2) };
   return {
-    form, label: F.label, seed, craft: c, ceiling: top,
+    form, label: F.label, seed, craft: c, ceiling: top, ...(route ? { route: true } : {}),
     rings: { field: fieldBox, reach, root: { hx: root / 2, hy: root / 2 } },
     haze: { hazeHeight: H, density: density0, see: { lowPass: r2(seeAt(low)), ceiling: seeTop } },
     backdrop, grid,
@@ -130,6 +146,13 @@ export function mapLaws(map) {
   const fieldAcross = dmath.hypot(2 * rings.field.hx, 2 * rings.field.hy);
   const margin = Math.min(rings.reach.hx - rings.field.hx, rings.reach.hy - rings.field.hy);
   const need = craft.max * WARN_S + 2 * map.eye.turn.max;
+  // (a route's craft is kept on its way by its rail: no turn back, and it sees ahead, not across)
+  if (map.route) return [
+    { law: 'edge-unseen', ok: corner + seeAt(map, ceiling) <= edge + 1e-6, note: `from the route's end at ${ceiling} m the haze closes ${r2(seeAt(map, ceiling))} m out; the root's edge is ${r2(edge - corner)} m past it` },
+    { law: 'way-seen', ok: seeAt(map, craft.lowPass) >= craft.cruise * SEE_S - 1e-6, note: `at the low pass the eye sees ${r2(seeAt(map, craft.lowPass))} m ahead: ${r2(seeAt(map, craft.lowPass) / craft.cruise)} s of cruise` },
+    { law: 'ceiling-flyable', ok: ceiling <= craft.ceiling && ceiling >= 4 * craft.lowPass, note: `ceiling ${ceiling} m; the ${craft.label} flies to ${craft.ceiling} m, its low pass ${craft.lowPass} m` },
+    { law: 'keeps-up', ok: map.eye.chunksPerFrame <= 4, note: `${map.eye.chunksPerFrame} chunks a frame down low at top speed` },
+  ];
   return [
     { law: 'edge-unseen', ok: corner + seeAt(map, ceiling) <= edge + 1e-6, note: `from the reach at ${ceiling} m the haze closes ${r2(seeAt(map, ceiling))} m out; the root's edge is ${r2(edge - corner)} m past the reach` },
     { law: 'field-seen', ok: seeAt(map, craft.lowPass) >= fieldAcross - 1e-6, note: `at the low pass the eye sees ${r2(seeAt(map, craft.lowPass))} m; the field is ${r2(fieldAcross)} m across` },

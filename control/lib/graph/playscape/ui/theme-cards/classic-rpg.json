@@ -1,0 +1,12 @@
+{
+  "id": "classic-rpg",
+  "name": "Classic RPG",
+  "about": "A party RPG's plain windows: the console RPG's blue, a double white rule round each window and a gold marker on the row in hand, and nothing behind or over them (no brushed metal, no plinth, no heading tab). The look a JRPG's battles, talk box and menus wear; a party game's layers are a party game's.",
+  "family": "calm",
+  "tags": ["jrpg", "party rpg", "turn-based", "classic", "console rpg"],
+  "author": "mojulo",
+  "from": "console",
+  "material": "none",
+  "backing": "none",
+  "breakout": "none"
+}

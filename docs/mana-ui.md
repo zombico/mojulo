@@ -153,6 +153,14 @@ widgets under a pointer (only the view knows where they are).
   Backspace and Delete erase, Enter is done, and the arrows, Esc and Tab still move and back out. A pad still types
   from the grid. The runtime takes text, never keys: `rt.typing(seat)`, `rt.type(text, seat)` (the entry's charset and
   max kept, lower case read as capitals), `rt.erase(seat)`, `rt.submit(seat)`.
+- **The keyboard on the screen.** A text entry with `charset: 'name'` is a name's whole keyboard, for a pad first: three
+  pages of one size (capitals, small letters, marks and digits) under tabs, the shoulders turning them with the cursor
+  kept on its key; Space, Delete, Done and, when the entry answers `cancel`, Cancel under the grid. On a pad, back erases
+  what this visit typed (with nothing typed it backs out as ever); a keyboard keeps Esc for leaving and types any page's
+  character in its own case. `min` holds Done back (a denied press) until the name is that long. The legend says the
+  pages and the erase. The RPG's party menu names a member with it (Status, Rename: `rpg-name`), and the store's
+  `rename` event carries the name to the next level. A game's own name screen, asked as a new game begins, is the play
+  shell's (`naming`, docs/game-flow.md).
 - **The glyphs out.**
   - `manaGlyphs()` gives each action's control per family and layout. A `prompt` and a `legend` print the one in hand
     ("Enter", "A", "✕"), switching as the player picks up another device; a touch screen draws no legend.
@@ -193,7 +201,7 @@ widgets under a pointer (only the view knows where they are).
 |---|---|
 | layout | screens on the stack (`seats` > 1 gives each couch seat a cursor), windows, stacks, splits, tabs (fixed, or pages from data), `each` (a row per item that does not itself take focus), dividers |
 | value | text in a type role, stats, bars (phase segments, the hatched chip of the last hit, filling from the right for a second fighter, or without their numbers), pips, counters, timers, compares (better or worse as ▲ ▼), tables (your row marked), dials, action and hotbar slots (key, cooldown, count, the one in hand), and placeholders for icons, portraits and images, badges, button prompts; a card (its face, its state as a shape, its back), a log (kept whole, shown from its end), a small series as bars, a magazine (the gun's wireframe over it, the rounds as the figure, the reserve its caption, a belt of the cartridges it feeds; low, empty and reloading said) |
-| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
+| input | lists (a long one scrolls), grids (two directions), trees (tiers by what each node requires), carousels, buttons, toggles, cyclers, sliders, keybinds, a `field` that picks its input from data, an allocator (points spent as a draft), a text entry (typed from a grid, so a pad can type; `charset: 'name'` a paged keyboard with cancel and a minimum). A disabled button, slot, row or cell may say `why`: its reason shows under it while it has the focus or the pointer, and as it is pressed |
 | hud | the in-game layer: a `hud` of regions (the nine screen places, a place that may be bound; a region bare, on a scrim, or at rest) and layers: anchors (a part over each thing in the world at the screen x and y the game projects; a row with an id is its own element, and `pass` rows rise and fade once: damage numbers), edges (what is off screen, held at the edge with an arrow), a threat ring (arcs where harm came from, fading), the peril (the screen's edge closing in as danger rises), the cinema bars; reticle, minimap (or a scope: a bezel, the wedge ahead, north), compass, feed, toast, banner, a phone's touch controls. A screen lays its own parts out in regions too, over the held game |
 | enemy | an enemy's awareness as a shape (unaware –, suspicious ?, searching ??, alert !, combat !!, fleeing », down ✕) and its statuses |
 
@@ -592,6 +600,10 @@ A game's HUD is a `hud` holding the HUD idioms it uses. A screen idiom is used a
 
 `idioms-live.js` covers what shows during play in each kind of game:
 
+- `idioms-campaign.js` — an action campaign of missions: the place banner (a mission's place widest first: "Kessa
+  System | Varn Cluster | Vigil Station | Moon IV"), the flight roster, the briefing told one step at a time over a map
+  the game draws behind it (`briefing-steps`), the tour of duty and the debrief. Its first client is the holo briefing
+  (`control/lib/graph/campaign/briefing-page.js`).
 - a fight: mirrored bars with the chip of the last hit, rounds, the clock; super meters; a combo count
 - a race: place, lap and times; a speedometer
 - a firefight: where harm came from, what is off screen, lock-on brackets, the ability bar; a shooter's own readouts
@@ -1044,6 +1056,47 @@ mana-ui, not a page panel of their own: `gameworld/practice-mana.js`, hosted by 
   takes the same look (`playCss`): the HUD's counters and its hint line as tickets, the use prompt with its key as a cap,
   and the page's margin in the plate's colour. Only the HUD's own hooks are styled (its classes and `--moj-*` tokens).
 
+### A flying lesson's brief
+
+Pilot School's game runs on mana-ui as Rebel Storm's does. Its rail dresses it in the `logbook` theme card (a training
+logbook on a sectional chart), so its title, its lessons, its pause and each lesson's graded result are mana-ui's, the
+shell remembering each lesson's best medal. Each lesson opens with the instructor's brief over its field as it loads
+(`gameworld/lesson-brief.js` its words, `scene/channels/lesson-brief.js` its page: an airspace level's `lesson` key):
+
+- **What it says:** the lesson's place in the syllabus, what it teaches, the sky it is flown in (the hour, the weather,
+  the wind in knots, the moon at night), its tasks in the instructor's words in the order they come, and what earns
+  gold, silver and bronze by every criterion it is graded on.
+- **It holds the lesson** on the shell's pause sidecar (`MSG_PAUSE`) until Start, so the clock its grade reads starts
+  with the student. It takes the keyboard as it opens, so Enter starts it from inside the shell. Start takes it away.
+- A page without a `lesson` key emits none of it.
+
+### An arcade stage's briefing
+
+Wolf Squadron's game runs on mana-ui too, in the `squadron` theme card (night-blue plates cut at the corner, cyan and
+amber, menus that slam in on chevrons), and each of its stages is designed whole the way a Rebel Storm mission is
+(`campaign/stage.js`):
+
+- **What a stage's design says:**
+  - its place;
+  - its route (a canyon on a moon or rocks over it, its speed, how thick its hazards stand);
+  - its waves, each at its share of the way, in a line, a vee, an echelon or a swarm;
+  - its boss (its guns round a core, light or heavy armour);
+  - its medals in points;
+  - the steps it is told in.
+- **The designer** (`campaign/designer.js`) knows a stage by its `route`: the same `missions` on the world, drafted and
+  approved the same way, its laws said in `design_game`'s readout. An approved stage's level is compiled onto the rail
+  stage's `plan` (`skyscape/rail-stage.js`): its waves at their marks in their formations, its hazards, its boss.
+- **A stage down a planet or a moon is told over its real ground.** The level's land is drawn as terrain on the table
+  (`campaign/stage-ground.js`, its heights stretched so a canyon reads), with the way as flown, the waves where they
+  are posted, the boss where it waits and a colony's masses. The route is laid in stretches (a canyon, open country, a
+  colony): [flight-games.md](flight-games.md#a-route-down-a-moon-a-rail-stage-in-segments).
+- **It is told on the same holo table** as a mission, as the level loads. The route is drawn as a ribbon, each wave
+  sits at its mark, the boss is past the route's end, and the orders give the points and the medals. It is held until
+  Launch and takes the keyboard as it opens, so Enter steps it from inside the game's shell. A stage's table follows
+  from its route and its waves, so it is approved from its briefing rather than moved about on the table.
+- **Arcade, not a sim:** every fighter, gun and core down scores its points (the `score` mechanic, on the HUD), the boss
+  down wins the stage, and its medal is its score's (the `grade` mechanic), the shell remembering the best.
+
 ### The first mission
 
 A shooter's first level ([missions.md](missions.md)) is on mana-ui whole, from one spec
@@ -1256,6 +1309,11 @@ A theme's `stage` is the shape behind everything a screen holds. Beside the calm
 different kind of energy. A `stage` written as a list is a show, so a game's screens do not all wear one pattern:
 the title takes the first, a screen in the middle (a pause, a menu) the second, a full screen (loading) the third, a
 result the fourth, a count over the play the fifth; a short list goes round again and `none` leaves a kind bare.
+
+One stage moves: `starfield`, a game set in space flying on behind its screens. Its stars are at their depths and
+drawn short along the way the screen scrolls, with a world's lit rim low in a corner. Each of its layers drifts back a
+whole number of its own tiles a loop, the near ones further, so the field parallaxes without a seam. It holds still
+under less motion. Blaze Gunner's look wears it.
 
 ### A running game's shell and HUD
 

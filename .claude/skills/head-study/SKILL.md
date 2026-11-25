@@ -1,6 +1,7 @@
 ---
 name: head-study
-description: Render the protoform HUMAN head (male and/or female) as a skull-shape turntable — an azimuth sweep (front → ¾ → lateral → back) plus top-down and under views, cropped to the head, filled and as the blueprint ring-wave wireframe — so the head reads correctly from EVERY angle. Use before/after tuning the head field (figure-head.js), the sex pole (`DIMORPH.head`), a head knob (browRidge, jawWidth, chinPoint, noseSize, cheekbone, foreheadSlope, earSize, eyeSize, neckGirth), the `face` dials (jaw, mouth, brow), or a wig on the new skull. The human sibling of /skull-study. `--field` reads the FIELD itself (surface nets, profile and cuts, calipers) instead of the latitude march. Invoke as `/head-study [male] [female] [--field] [--proto '{…}'] [--pose '{…}'] [--hair <wig>]`.
+description: "Render the human head as a turntable (every azimuth, top and under, filled and wireframe), or read its field (--field). Use before and after tuning figure-head.js, DIMORPH.head, a head knob, the face dials or a wig. The human sibling of /skull-study."
+argument-hint: "[male] [female] [--field] [--proto '{…}'] [--pose '{…}'] [--hair <wig>]"
 ---
 
 # head-study

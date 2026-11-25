@@ -10,13 +10,15 @@
  */
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { planSaturnScene, SATURN_SCENARIOS, SATURN_PLANETS } from '@/lib/graph/views/science/saturn-view';
+import { planSaturnScene, SATURN_SCENARIOS, SOL_MODELS } from '@/lib/graph/views/science/saturn-view';
+import { solId } from '@/lib/graph/sol/roster';
 
 export function mintSaturnView({ title, planet, gallery, scenario, inclination, ringOuter, scale, viewBox, scene, ref, folderRef } = {}) {
   const manifest = {
     kind: 'saturn-view',
-    ...(gallery === true ? { gallery: true } : {}),
-    ...(SATURN_PLANETS.includes(planet) ? { planet } : {}),
+    ...(gallery === true || gallery === 'sol' ? { gallery } : {}),
+    // (a child of Sol by any word people say for it: 'the red planet', 'luna': sol/roster.js)
+    ...(SOL_MODELS.includes(solId(planet)) ? { planet: solId(planet) } : {}),
     scenario: SATURN_SCENARIOS.includes(scenario) ? scenario : 'classic',
     ...(Number.isFinite(+inclination) ? { inclination: +inclination } : {}),
     ...(Number.isFinite(+ringOuter) ? { ringOut: +ringOuter } : {}),
@@ -40,7 +42,7 @@ export function mintSaturnView({ title, planet, gallery, scenario, inclination, 
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     recipe: manifest,
     stats: plan.stats.gallery
-      ? { gallery: true, planets: plan.stats.planets }
+      ? { gallery: plan.stats.gallery, planets: plan.stats.planets }
       : { planet: plan.stats.planet, scenario: plan.stats.scenario, inclination: plan.stats.inclination, backlit: plan.stats.backlit },
   };
 }

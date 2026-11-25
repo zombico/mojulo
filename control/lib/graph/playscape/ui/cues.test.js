@@ -231,3 +231,87 @@ describe('weather cues on a running bus', () => {
     expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: [{ weather: 'fog' }, { weather: 'rain' }] }] })).toThrow(/forces one weather/);
   });
 });
+
+// THE SCREEN ITSELF (a cue's `screen`): a fade to black and back, a tint, a flash, on the vars the page's screen layer
+// reads (scene/channels/screen-fx.js); what a cue faded or tinted undone after `for`
+describe('a cue\'s screen effect', () => {
+  it('is read and taught', () => {
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { screen: { tint: 'red' } } }] })).toThrow(/tint is a colour/);
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { screen: {} } }] })).toThrow(/says what it does/);
+  });
+
+  it('fades to black for its seconds, flashes, tints, on the bus the page reads', () => {
+    const play = { cues: [
+      { id: 'dark', when: { on: 'lights-out' }, then: { screen: { fade: 'out', for: 2 } } },
+      { id: 'hit', when: { on: 'struck' }, then: { screen: { flash: '#ff3020' } } },
+      { id: 'dusk', when: { on: 'dusk' }, then: { screen: { tint: '#ff8040' } } },
+    ] };
+    const ev = lowerCues(play), bus = createBusState(ev, []);
+    expect(bus.vars).toMatchObject({ 'screen-fade': 0, 'screen-tint': '', 'screen-flash': 0 });
+    processEvents(bus, [{ type: 'lights-out' }]);
+    expect(bus.vars['screen-fade']).toBe(1);
+    processEvents(bus, stepTime(bus, 2.1));
+    expect(bus.vars['screen-fade']).toBe(0);
+    processEvents(bus, [{ type: 'struck' }, { type: 'struck' }, { type: 'dusk' }]);
+    expect(bus.vars).toMatchObject({ 'screen-flash': 2, 'screen-flash-colour': '#ff3020', 'screen-tint': '#ff8040' });
+  });
+});
+
+describe('a cue\'s sound', () => {
+  it('raises sfx:<word> as it fires, for the level\'s sound sheet to voice', () => {
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { sound: 'Big Bell' } }] })).toThrow(/a sound's word/);
+    const ev = lowerCues({ cues: [{ id: 'ring', when: { on: 'rang' }, then: { sound: 'chime' } }] }), bus = createBusState(ev, []);
+    processEvents(bus, [{ type: 'rang' }]);
+    expect(bus.log.some((e) => e.type === 'sfx:chime')).toBe(true);
+  });
+});
+
+describe('a cue\'s music', () => {
+  it('raises music:<word> as it fires: a mood of the score, stop or place; a stinger or no mood refused', () => {
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { music: 'polka' } }] })).toThrow(/a mood of the score/);
+    expect(() => readCues({ cues: [{ id: 'x', when: { start: true }, then: { music: 'victory' } }] })).toThrow(/a mood of the score/);
+    const ev = lowerCues({ cues: [{ id: 'grave', when: { on: 'mourned' }, then: { music: 'sorrow' } }, { id: 'after', when: { on: 'risen' }, then: { music: 'place' } }] }), bus = createBusState(ev, []);
+    processEvents(bus, [{ type: 'mourned' }]);
+    processEvents(bus, [{ type: 'risen' }]);
+    expect(bus.log.filter((e) => e.type.startsWith('music:')).map((e) => e.type)).toEqual(['music:sorrow', 'music:place']);
+  });
+});
+
+// A NUMBER PUT IN (menus.js `number`, RPG Maker's input number): read and taught; on the page its digits turned and
+// moved along, accept writing the number to its var (held to its bounds) and the pick's effects following
+describe('a number put in', () => {
+  const LOCK = { menus: [{ id: 'lock', kind: 'number', ask: 'Four wheels.', var: 'code', digits: 4, max: 5000, then: { emit: 'dialled' } }] };
+
+  it('is read and taught: what it asks, the var it writes, its digits and bounds', async () => {
+    const { menuHtml, menuPages } = await import('./menus.js');
+    expect(readMenus(LOCK)[0]).toMatchObject({ kind: 'number', numVar: 'code', digits: 4, min: 0, max: 5000, edit: 'ui-number-lock' });
+    expect(() => readMenus({ menus: [{ id: 'x', kind: 'number', ask: 'a' }] })).toThrow(/names the var/);
+    expect(() => readMenus({ menus: [{ id: 'x', kind: 'number', ask: 'a', var: 'v', digits: 9 }] })).toThrow(/digits is 1 to 8/);
+    expect(() => readMenus({ menus: [{ id: 'x', kind: 'number', ask: 'a', var: 'v', digits: 2, max: 500 }] })).toThrow(/within its 2 digits/);
+    const frag = lowerMenus(LOCK);
+    expect(frag.vars).toMatchObject({ 'ui-number-lock': 0, code: 0 });
+    expect(frag.reactions.some((r) => r.on === 'menu-pick:lock:0' && r.do === 'emit' && r.type === 'dialled')).toBe(true);
+    const html = menuHtml(menuPages(LOCK)[0], 2, 0, { 'ui-number-lock': 1234 });
+    expect(html).toContain('<b class="pu-dig on" data-pick="2">3</b>');
+  });
+
+  it('on the page: the digit in focus turned round, the focus moved, accept writing it held to its bounds', async () => {
+    const { menuScript } = await import('../../scene/channels/interact-channel.js');
+    const { menuPages } = await import('./menus.js');
+    const el = () => ({ className: '', innerHTML: '', appendChild() {}, addEventListener() {} });
+    const vars = { 'ui-menu-lock': 1, 'ui-number-lock': 0, code: 42 }, queue = [];
+    const run = new Function('document', 'wrap', 'window', 'navigator', '__busState', '__inputQueue',
+      `${menuScript(menuPages(LOCK))}; return { sync: __syncMenus, act: __menuAct, do: __menuDo };`);
+    const P = run({ createElement: el }, el(), { addEventListener() {} }, {}, { vars }, queue);
+    P.sync();
+    // (it opens on its var's value, the focus on the last digit)
+    expect(vars['ui-number-lock']).toBe(42);
+    P.do('up'); P.do('left'); P.do('down');   // 43, then the tens turned down: 33
+    expect(vars['ui-number-lock']).toBe(33);
+    P.do('left'); P.do('left'); for (let i = 0; i < 9; i++) P.do('up');   // the thousands to 9: 9033
+    expect(vars['ui-number-lock']).toBe(9033);
+    P.do('accept');
+    expect(vars.code).toBe(5000);
+    expect(queue).toEqual([{ type: 'menu-pick:lock:0' }]);
+  });
+});

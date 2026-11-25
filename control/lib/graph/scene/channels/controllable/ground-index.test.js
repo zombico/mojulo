@@ -49,3 +49,35 @@ return { ground: __giGround, bake: __giBake };`)(THREE, scene, camera, world);
     for (const p of pts) expect(page.ground(p, own), String(p)).toBeCloseTo(ref(p), 6);
   });
 });
+
+// THE INDEX SIZED TO ITS ITEMS: a flight's land is hundreds of chunks of a kilometre or less spread over 16 km. At 4 m
+// that index was millions of cells and each chunk listed in tens of thousands, rebuilt as each chunk streamed in: the page
+// held hundreds of megabytes in it. It now coarsens within 64 cells and 256 listings an item, and a probe still finds
+// every chunk under it.
+describe('the ground\'s index sized to its items', () => {
+  it('a flight\'s quadtree of chunks stays within the limits, and each point still lists the chunks over it', () => {
+    // (a quadtree's leaves round a camera at the land's centre: finest near it, a size doubling each ring out to 1 km)
+    const items = [], S = 16384;
+    const leaf = (x0, y0, size) => {
+      const d = Math.max(0, Math.hypot(x0 + size / 2, y0 + size / 2) - size);
+      if (size > 32 && d < 1.6 * size) { const h = size / 2; leaf(x0, y0, h); leaf(x0 + h, y0, h); leaf(x0, y0 + h, h); leaf(x0 + h, y0 + h, h); }
+      else items.push({ id: items.length, box: [x0, y0, x0 + size, y0 + size] });
+    };
+    leaf(-S / 2, -S / 2, S);
+    const small = items.filter((it) => it.box[2] - it.box[0] <= 1600).length;
+    expect(small).toBeGreaterThan(30);
+    const B = indexBuckets(items, 4), listed = B.cells.reduce((m, c) => m + (c ? c.length : 0), 0);
+    expect(B.nx * B.ny).toBeLessThanOrEqual(Math.max(1 << 16, small * 64));
+    expect(listed).toBeLessThanOrEqual(Math.max(1 << 18, small * 256));
+    expect(B.cell).toBeGreaterThan(4);
+    // (every point lists every chunk whose box holds it)
+    let r = 3; const rnd = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+    for (let k = 0; k < 400; k++) {
+      const x = (rnd() - 0.5) * S * 0.99, y = (rnd() - 0.5) * S * 0.99, at = new Set(bucketsAt(B, x, y));
+      for (const it of items) if (x >= it.box[0] && x <= it.box[2] && y >= it.box[1] && y <= it.box[3]) expect(at.has(it.id)).toBe(true);
+    }
+    // a town's few hundred meshes over a few hundred metres keep the 4 m index they had
+    const town = Array.from({ length: 300 }, (_, i) => ({ id: i, box: [(i % 20) * 15, Math.floor(i / 20) * 15, (i % 20) * 15 + 12, Math.floor(i / 20) * 15 + 12] }));
+    expect(indexBuckets(town, 4).cell).toBe(4);
+  });
+});

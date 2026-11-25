@@ -33,6 +33,7 @@
  * directly).
  */
 
+import { readKibble, hullKibbleScript } from './channels/hull-kibble.js';
 import { guideScript } from './channels/guide.js';
 import { hudGrammarScript } from './channels/hud-grammar.js';
 import { tourScript } from './channels/tour.js';
@@ -57,7 +58,7 @@ import {
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, marksChannelScript, normalizeMarks, shootChannelScript, shootSetScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript, liquidMeshScript, shallowsChannelScript, seawayChannelScript, jetChannelScript, aquaPatchScript, wetSandScript, softGroundScript, snowPrintsScript,
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
-  strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript, missionChannelScript, damageRingChannelScript,
+  strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript, missionChannelScript, briefingChannelScript, lessonChannelScript, speedFxScript, damageRingChannelScript,
 } from './channels/index.js';
 import { readFlow, flowChannelScript } from './channels/flow.js';
 import { readBeacons, beaconsChannelScript } from './channels/beacons.js';
@@ -122,6 +123,9 @@ import { bodiesWanted } from './effect-rim.js';
 import { triggersIn } from '../worlds/controllable/trigger.js';
 const hexRgb255 = (h) => (typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : null);
 
+// a cue (or a scene's beat) that walks finding its way (a walk's `find`): the page's route-finder opted in
+// (worlds/controllable/route-find.js); a world with none emits not a byte of it
+const walksFinding = (ev) => { const seen = (x) => (Array.isArray(x) ? x.some(seen) : !!x && typeof x === 'object' && ((x.op === 'walk' && x.find === true) || Object.values(x).some(seen))); return seen(ev.reactions) || seen(ev.sequences); };
 
 // horizontal fov (deg) + aspect → vertical fov (deg) for THREE.PerspectiveCamera
 export function verticalFov(hFovDeg, aspect) {
@@ -141,7 +145,7 @@ export function verticalFov(hFovDeg, aspect) {
 // rendered on a screen quad, with the orbit camera's position + basis fed in as uniforms each frame so
 // the shader casts rays from wherever the user has dragged the camera. A separate, minimal emitter —
 // the mesh pipeline (groups, picks, channels) is irrelevant here. Reuses the importmap + .moj-readout.
-export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}, cameraStart = [0, 3, 17], target = [0, 0, 0], fov = 46, readout = [], steps = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#01010a', inline = false, cdn = false, pixelRatioCap = 1.5 } = {}) {
+export function emitRaymarchWorld({ frag, customUniforms = {}, dataTextures = {}, cameraStart = [0, 3, 17], target = [0, 0, 0], fov = 46, readout = [], steps = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#01010a', inline = false, cdn = false, pixelRatioCap = 1.5, minDistance = 3 } = {}) {
   const W = viewBox.width, H = viewBox.height;
   const importmap = cdn ? CDN_IMPORTMAP : inline ? inlineImportmap() : VENDOR_IMPORTMAP;
   const cu = Object.entries(customUniforms).map(([k, v]) => `${k}:{value:${Array.isArray(v) ? `new THREE.Vector3(${v.join(',')})` : (+v)}}`).join(',');
@@ -185,7 +189,7 @@ const cam = new THREE.PerspectiveCamera(${fov}, ${W / H}, 0.1, 2000);
 cam.position.set(${cameraStart[0]}, ${cameraStart[1]}, ${cameraStart[2]});
 const controls = new OrbitControls(cam, canvas);
 controls.target.set(${target[0]}, ${target[1]}, ${target[2]});
-controls.enableDamping = true; controls.minDistance = 3; controls.maxDistance = 120; controls.update();
+controls.enableDamping = true; controls.minDistance = ${minDistance}; controls.maxDistance = 120; controls.update();
 const uniforms = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:${fov} * Math.PI / 180}, ${extras} };
 const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: ${safeJson(VERT)}, fragmentShader: ${safeJson(frag)} });
 scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat));
@@ -303,7 +307,7 @@ const SCREEN_ZONES_CSS = [
   '  html[data-orientation=portrait] .moj-w-legend{white-space:normal;text-align:center}',
 ].join('\n');
 
-export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, mission = null, damageRing = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, sea = null, marine = null, soften = null, seaway = null, captureSize = null, tempo = null, styleMeter = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null, veils = null, density = null, radarMap = null, anchors = null, barriers = null, heldGates = null, trees = null, explored = null, ambient = null } = {}) {
+export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, chrome = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, seats = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, flow = null, beacons = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, brawl = null, vertexContrast = null, board = null, screen = null, runner = null, roll = null, manaHud = null, courseTouch = null, mission = null, damageRing = null, briefing = null, science = null, hazeHeight = null, snowPrints = null, fauna = null, fabric = null, resample = null, creases = null, occlusion = null, lightTier = null, finish = null, hydraulics = null, flames = null, roofs = null, meet = null, court = null, turns = null, pitch = null, holo = null, innings = null, form = null, broadcasts = null, cone = null, formSky = null, air = null, sea = null, marine = null, soften = null, seaway = null, captureSize = null, tempo = null, keying = null, styleMeter = null, grade = null, leaves = null, knock = null, guide = null, tour = null, sync = false, footless = null, veils = null, density = null, radarMap = null, anchors = null, barriers = null, kibble = null, lesson = null, speedfx = null, heldGates = null, trees = null, explored = null, ambient = null } = {}) {
   // SCREEN KEYS (game/screen-keys.js): a level made for a screen never asks for a key a thumb cannot press: each key it
   // listens for that the virtual pad has no control for (its own inputs, the journal, the library, the party menu) gets a
   // button in its HUD, drawn only on a touch screen. A level with no screen, or no such key, is as it was
@@ -713,7 +717,11 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
       center: Array.isArray(sky.center) ? sky.center : mesh.center,
       radius: Number.isFinite(sky.radius) ? sky.radius : (mesh.radius || 20),
       // a painted cloud band round the dome (matte-paint/sky.js): only a sky that carries one
-      ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}) }
+      ...(sky.clouds && !sky.space ? { clouds: sky.clouds } : {}),
+      // a space sky flown through (skyscape/airspace.js): at infinity, its stars and its star riding with the eye
+      ...(sky.space && sky.follow === true ? { follow: true } : {}),
+      // its backdrop (skyscape/backdrop.js: a nebula, planets, a far sun), baked at infinity: channels/space-backdrop.js
+      ...(sky.space && sky.backdrop && typeof sky.backdrop === 'object' ? { backdrop: sky.backdrop } : {}) }
     : null;
   const skyBlock = skyDome ? skyDomeScript(bloomOn ? { ...skyDome, hot: true } : skyDome) : '';
   // DISTANCE HAZE (opt-in `haze: { color, density }`): three's exponential fog over every basic-material
@@ -823,9 +831,11 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // a stage's tone (channels/tone.js): each surface lit first, coloured off its ramp after; none → not one byte
   const toneBlock = tone && Array.isArray(tone.ramps) && tone.ramps.length ? toneScript(tone) : '';
   // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
-  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture }) : '';
+  // (a page with party battles, playscape/rpg: its fights clear what stands in their shot, the props' and the flora's)
+  const fightPage = !!(events && events.rpg && typeof events.rpg === 'object');
+  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture, ...(fightPage ? { fights: true } : {}) }) : '';
   // (a page without the form render: the view cone and its far structures when the world asks, channels/far-structures.js)
-  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture })}})();\n` : '';
+  const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture, cumulus: !!(formSky.cumulus && formSky.cumulus.n) })}})();\n` : '';
   // (the form render's sky and plants are clocked: a capture's frame() pins their clock as an overlay's, so a still is
   // the same however long it took to draw; the page's own clock otherwise, its bytes as they were)
   const formClocked = !!(formLandBlock || skyBlock2);
@@ -959,6 +969,12 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // the damage ring on a page with its own HUD (gameworld/damage-ring.js): never on a capture run, nor beside a mission
   // (a mission draws the same ring in its own HUD)
   const damageRingBlock = damageRing && !mission && !capture ? damageRingChannelScript(damageRing) : '';
+  // a space mission's holo briefing over the level as it loads (campaign/briefing-page.js): never on a capture run
+  const briefingBlock = briefing && !capture ? briefingChannelScript(briefing) : '';
+  // a flying lesson's brief over the level as it loads (gameworld/lesson-brief.js): never on a capture run
+  const lessonBlock = lesson && !capture ? lessonChannelScript(lesson) : '';
+  // a flown craft's speed in the world round it (scene/channels/speed-fx.js): speed lines in the air, dust in space
+  const speedfxBlock = speedfx && !capture ? speedFxScript(speedfx) : '';
 
   // controllable channel (opt-in, LIVE): the unified control primitive. Present when the manifest
   // carries `entities` (or a `camera` spec). When it owns a camera entity it disables OrbitControls.
@@ -1185,12 +1201,12 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // a body in the form render (gen-7: a figure's `form`) is lit along the world's sun, the live light's own travel
   const formSun = Object.values(packedFigures || {}).some((f) => f && f.rig && f.form)
     ? shadowToLight(PL, shadows && typeof shadows === 'object' ? shadows : null) : null;
-  // a fight solved onto the map (rpg rules.stage 'arena'): the props' clearing (__mojClip), emitted only for it
-  const arenaClip = !!(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'arena');
+  // a page with party battles: the fight's clearing (__mojClip), whatever its stage (rpg-channel.js), emitted only for it
+  const arenaClip = !!(hasEvents && fightPage);
   // THE PIXEL BUDGET: a page played live (the controllable channel: its pilot is the page's own pick), never a capture
   // (its frame is its size), a headset's (its own) or the pixel look's (its own density). Every other page keeps its bytes
   const pixelBudget = !!(hasControllable && !capture && !xrCfg && !pixel);
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || talkFaces || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(loose ? { loose } : {}), ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true, ...(courseTouch ? { courseTouch } : {}), ...(manaHudBlock ? { touchView: 'mana' } : {}) } : {}), ...(runner ? { runner } : {}), ...(roll ? { roll, rollWaits: !!game } : {}), ...(seats ? { seats, ...(hasEvents && Array.isArray(events.sources) && events.sources.some((x) => x && x.seatUse) ? { seatUses: true } : {}) } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.vayo) ? { vayoGranted: true } : {}), ...(formSun ? { formSun, ...(form && form.land ? { formLand: true } : {}) } : {}), ...(tempo ? { tempo } : {}), ...(styleMeter ? { styleMeter } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {}), ...(fire && fire.gusts && Array.isArray(fire.sources) && fire.sources.length ? { gusts: true } : {}), ...(knock ? { knock } : carriesKnock(entityList, events, game) ? { knock: { attacks: true } } : {}), ...(stillBodies ? { stills: true } : {}), ...(form && form.room && form.room.place ? { place: form.room.place } : {}), ...(Array.isArray(veils) && veils.length ? { veils } : {}), ...(Array.isArray(barriers) && barriers.length ? { barriers } : {}), ...(heldGates && typeof heldGates === 'object' ? { heldGates } : {}), ...(trees && typeof trees === 'object' ? { trees } : {}), ...(explored && typeof explored === 'object' ? { explored } : {}), ...(stairZones ? { stairs: stairZones } : {}), ...(form && form.room && form.room.figures ? { roomLit: true } : {})  }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!capture || talkFaces || !!fxNorm || !!(fire && Array.isArray(fire.sources) && fire.sources.some((x) => x.follow && Number.isFinite(x.char))) || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0 || bodiesWanted(events))) || (hasEvents && (events.wreck === true || events.layer0 === true || Array.isArray(events.arrive))), pilot, spectate, ai, colliders, breakables, breakPieces, ...(loose ? { loose } : {}), ...(rupa ? { rupa } : {}), hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg, driveSurface, ...(screen ? { touch: true, ...(courseTouch ? { courseTouch } : {}), ...(manaHudBlock ? { touchView: 'mana' } : {}) } : {}), ...(runner ? { runner } : {}), ...(roll ? { roll, rollWaits: !!game } : {}), ...(seats ? { seats, ...(hasEvents && Array.isArray(events.sources) && events.sources.some((x) => x && x.seatUse) ? { seatUses: true } : {}) } : {}), gearGranted: !!(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.gear)), ...(game && game.powers && Object.values(game.powers.grants || {}).some((g) => g && g.vayo) ? { vayoGranted: true } : {}), ...(formSun ? { formSun, ...(form && form.land ? { formLand: true } : {}) } : {}), ...(tempo ? { tempo } : {}), ...(keying ? { keying } : {}), ...(styleMeter ? { styleMeter } : {}), ...(xrCfg ? { xr: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' ? { acts: true } : {}), ...(hasEvents && events.rpg && typeof events.rpg === 'object' && events.rpg.rules?.stage === 'backdrop' ? { backdrop: true } : {}), ...(hasEvents && triggersIn(events) ? { trigger: true } : {}), ...(hasEvents && walksFinding(events) ? { routeFind: true } : {}), ...(hasEvents && events.fxStyle && typeof events.fxStyle === 'object' && events.fxStyle.flow ? { flow: true } : {}), ...(fire && fire.gusts && Array.isArray(fire.sources) && fire.sources.length ? { gusts: true } : {}), ...(knock ? { knock } : carriesKnock(entityList, events, game) ? { knock: { attacks: true } } : {}), ...(stillBodies ? { stills: true } : {}), ...(form && form.room && form.room.place ? { place: form.room.place } : {}), ...(Array.isArray(veils) && veils.length ? { veils } : {}), ...(Array.isArray(barriers) && barriers.length ? { barriers } : {}), ...(heldGates && typeof heldGates === 'object' ? { heldGates } : {}), ...(trees && typeof trees === 'object' ? { trees } : {}), ...(explored && typeof explored === 'object' ? { explored } : {}), ...(stairZones ? { stairs: stairZones } : {}), ...(form && form.room && form.room.figures ? { roomLit: true } : {})  }) : '';
   // the headset: on a page with a controllable channel it drives the pilot (channels/xr.js `ctrl`), else it walks
   // (and on a pilot whose figure carries its hands, hero-xr-hands.js, the hands on the controllers)
   // (a page with a mana-ui surface, a party's battles: its screens on a panel in the headset, the controllers its own)
@@ -1200,6 +1216,8 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   chBlocks.actions = actionsBlock;
   chBlocks.events = eventsBlock;
   chBlocks.controllable = controllableBlock;
+  // a fleet's hull kibble (hull-kibble.js): its blocks' plating detail in parallax layers; absent ⇒ nothing
+  const kibbleOn = readKibble(kibble);
   // the setup/post blocks hand theirs into the SETUP_CHANNELS-ordered sections (S3):
   // the registry owns splice order per anchor; the template interpolates one section call
   // per anchor instead of a hand-wired run of block variables.
@@ -1254,7 +1272,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     creases: creasesCfg || occlusionCfg ? creasesChannelScript(creasesCfg, { metersPerUnit, ...(occlusionCfg ? { occlusion: occlusionCfg } : {}), ...(occlusionCfg && lightTier && lightTier.ao === 0.5 ? { aoHalf: true } : {}) }) : '',
     // the live light's budget (channels/cast-shadows.js liveBudgetScript): a page world-scene gave a tier counts what it draws
     lightBudget: lightTier && (liveShadows || occlusionCfg) ? liveBudgetScript(lightTier) : '',
-    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, brawl: brawlBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock, mission: missionBlock, damageRing: damageRingBlock,
+    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock, brawl: brawlBlock, board: boardBlock, meet: meetBlock, court: courtBlock, turns: turnsBlock, pitch: pitchBlock, holo: holoBlock, innings: inningsBlock, broadcasts: broadcastsBlock, mission: missionBlock, damageRing: damageRingBlock, briefing: briefingBlock, lesson: lessonBlock, speedfx: speedfxBlock,
   };
 
   return `<!doctype html>
@@ -1427,10 +1445,10 @@ function __grpCol(g) { if (!g.c8) return decodeF32(g.col); const c8 = decodeU8(g
   }
 }
 
-${arenaClip ? `// THE ARENA'S CLEARING (a fight solved onto the map, rpg rules.stage 'arena'): every group that is not the land (its
+${arenaClip ? `// THE FIGHT'S CLEARING (a party battle, on the map where it was met or solved onto it): every group that is not the land (its
 // trees, rocks, grass, scree) discards what stands inside the fight's cleared boxes (its footprint, and the corridor from
-// the camera to it), set by the fight and emptied after. Patched at the first fight, over whatever patch a material
-// already carries (a one-time recompile under the fight's opening flash): a box k is A (its centre x, y and its axis) and
+// the camera to it), set by the fight and emptied after. Patched as the page settles, over whatever patch a material
+// already carries (a one-time recompile, with nothing cut till a fight sets its boxes): a box k is A (its centre x, y and its axis) and
 // B (its half length along the axis, half width across it, and its floor and ceiling)
 const __clipU = { uClipN: { value: 0 }, uClipA: { value: [new THREE.Vector4(), new THREE.Vector4()] }, uClipB: { value: [new THREE.Vector4(), new THREE.Vector4()] } };
 const __CLIP_LAND = /(ground|trail|cliff|core|ridge|cloud|terrain|land|water|sky|road|floor|path)$/;
@@ -1447,16 +1465,24 @@ function __clipPatch() {
     mat.onBeforeCompile = function (sh, r) {
       if (prev) prev.call(this, sh, r);
       Object.assign(sh.uniforms, __clipU);
-      sh.vertexShader = 'varying vec3 vClipW;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vClipW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      // (an instanced group, a repeat's rocks and scree, each copy where its own matrix stands it)
+      sh.vertexShader = 'varying vec3 vClipW;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n#ifdef USE_INSTANCING\\n  vClipW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\\n#else\\n  vClipW = (modelMatrix * vec4(transformed, 1.0)).xyz;\\n#endif');
       sh.fragmentShader = 'varying vec3 vClipW;\\nuniform int uClipN;\\nuniform vec4 uClipA[2];\\nuniform vec4 uClipB[2];\\n' + sh.fragmentShader.replace('void main() {', 'void main() {\\n  for (int k = 0; k < 2; k++) { if (k >= uClipN) break; vec2 d = vClipW.xy - uClipA[k].xy; float a = dot(d, uClipA[k].zw), b = dot(d, vec2(-uClipA[k].w, uClipA[k].z)); if (abs(a) < uClipB[k].x && abs(b) < uClipB[k].y && vClipW.z > uClipB[k].z && vClipW.z < uClipB[k].w) discard; }');
     };
     mat.customProgramCacheKey = function () { return (prevKey ? prevKey.call(this) : '') + '|clip'; };
     mat.__clip = true; mat.needsUpdate = true;
   }
 }
+// (the boxes are kept, \`boxes\`: the flora reads them, form-flora.js, and leaves out every plant whose crown reaches one;
+// \`hits(x, y, r)\` a footprint of radius r in one; \`onChange\` its readers, told as they change)
+// (patched as the page settles, not at the first fight: the one-time recompile is the page's loading, never a stall
+// under the fight's opening frames)
+setTimeout(__clipPatch, 0);
 window.__mojClip = {
-  set(boxes) { __clipPatch(); const B = (boxes || []).slice(0, 2); B.forEach((b, k) => { __clipU.uClipA.value[k].set(b.c[0], b.c[1], b.u[0], b.u[1]); __clipU.uClipB.value[k].set(b.half[0], b.half[1], b.z[0], b.z[1]); }); __clipU.uClipN.value = B.length; },
-  clear() { __clipU.uClipN.value = 0; },
+  boxes: [], onChange: [],
+  set(boxes) { __clipPatch(); const B = (boxes || []).slice(0, 2); B.forEach((b, k) => { __clipU.uClipA.value[k].set(b.c[0], b.c[1], b.u[0], b.u[1]); __clipU.uClipB.value[k].set(b.half[0], b.half[1], b.z[0], b.z[1]); }); __clipU.uClipN.value = B.length; this.boxes = B; this.onChange.forEach((f) => f()); },
+  clear() { __clipU.uClipN.value = 0; this.boxes = []; this.onChange.forEach((f) => f()); },
+  hits(x, y, r) { return this.boxes.some((b) => { const dx = x - b.c[0], dy = y - b.c[1], a = dx * b.u[0] + dy * b.u[1], c = -dx * b.u[1] + dy * b.u[0]; return Math.abs(a) < b.half[0] + r && Math.abs(c) < b.half[1] + r; }); },
 };
 ` : ''}// ---- instanced repeats (renderer-ladder P4): one geometry upload, N transforms ----
 // Each entry is one InstancedMesh: baked template colours per vertex, per-instance matrix
@@ -1764,7 +1790,7 @@ window.addEventListener('message', (e) => {
 });
 try { window.parent.postMessage({ moj: '${MSG_VIEW_READY}', groups: Object.keys(meshes) }, '*'); } catch (err) { /* opaque or no parent */ }
 ${sunProbe}${formBlock}${hydraulics && (Array.isArray(hydraulics.mists) || Array.isArray(hydraulics.impacts)) ? hydraulicsScript(hydraulics) : ''}${Array.isArray(flames) && flames.length ? flamesScript(flames, { hot: !!bloomOn }) : ''}${channelSetupSection('pre-runtime', setupBlocks)}
-${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${treesBlock}${phoneBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${ambientBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${seaBlock}${marineBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}
+${channelRuntimeSection(chBlocks)}${manaHudBlock}${walkersBlock}${rigPreviewBlock}${strokeOverlayBlock}${carsBlock}${flowBlock}${cabPoolBlock}${mapBlock}${bagBlock}${treesBlock}${phoneBlock}${beaconsBlock}${xrBlock}${streamBlock}${terrainBlock}${crystalLightBlock}${doorsBlock}${swayBlock}${ambientBlock}${flickerBlock}${motesBlock}${faunaBlock}${faunaPetBlock}${mountRideBlock}${wetRoadBlock}${airBlock}${seaBlock}${marineBlock}${weatherBlock}${toneBlock}${fabricBlock}${leafBlock}${grassBlock}${fireBlock}${shallowsBlock}${seawayBlock}${jetBlock}${wetSandBlock}${softGroundBlock}${guide && Array.isArray(guide.steps) ? guideScript(guide, guideMana ? { host: true } : {}) : ''}${guideMana ? guideManaScript(manaHud.theme ?? null, manaShared ? { shared: manaShared } : {}) : ''}${events && events.grammar ? hudGrammarScript(events.grammar, events.hud) : ''}${hasTour ? tourScript(tour, { capture }) : ''}${sync === true ? syncScript() : ''}${snowPrintsBlock}${scienceBlock}${formLandBlock}${skyBlock2}${coneBlock}${kibbleOn ? hullKibbleScript(kibbleOn) : ''}
 // Frozen-frame deep link: ?t=<ms> renders ONE static frame at that simulation time (every animated
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit

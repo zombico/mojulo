@@ -1281,10 +1281,17 @@ export function buildBeatsKernel() {
     // recorded samples (opt-in, the sound library's): loadSamples({ cards: { <card>: [id…] }, bytes: { <id>: an
     // ArrayBuffer of a WAV } }) decodes each once for this engine; a `voice: 'sample'` patch names its card
     // (`library`), whose ids are its variants, one chosen per hit by the note's key, so a hit replays identically.
-    const sampleCards = {}, sampleBufs = new Map();
+    // an INSTRUMENT's takes carry their measured `roots` ({ <id>: MIDI }) and a held one's `loops` ({ <id>: [start, end]
+    // s }): a `zones` patch plays each note on the take whose root is nearest, bent the rest of the way.
+    const sampleCards = {}, sampleBufs = new Map(), sampleMeta = new Map();
     function loadSamples(slice) {
       if (!slice) return Promise.resolve();
       Object.assign(sampleCards, slice.cards || {});
+      for (const [id, r] of Object.entries(slice.roots || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { root: r }));
+      for (const [id, l] of Object.entries(slice.loops || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { loop: l }));
+      for (const [id, v] of Object.entries(slice.vels || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { vel: v }));
+      for (const [id, v] of Object.entries(slice.keyAt || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { keyAt: v }));
+      for (const [id, v] of Object.entries(slice.keyRoot || {})) sampleMeta.set(id, Object.assign({}, sampleMeta.get(id), { keyRoot: v }));
       const bytes = slice.bytes || {};
       return Promise.all(Object.keys(bytes).map((id) => (sampleBufs.has(id) ? null
         : Promise.resolve(ctx.decodeAudioData(bytes[id])).then((b) => { sampleBufs.set(id, b); }))));
@@ -1292,6 +1299,33 @@ export function buildBeatsKernel() {
     function sampleBuf(patch, k) {
       const ids = sampleCards[patch.library] || [];
       return ids.length ? sampleBufs.get(ids[(k >>> 0) % ids.length]) || null : null;
+    }
+    // the zone a note is played from: of the instrument's decoded takes with a root, those nearest the note (within a
+    // quarter tone of the nearest), one of them by the note's key; { buf, root, loop } or null. A velocity layer's takes
+    // (a `vel` each) are near by strength too: three semitones a whole velocity, so a soft note plays a soft take a
+    // semitone off before a medium one on the note, and an instrument with no layers is chosen by pitch alone.
+    function sampleZone(patch, k, hz, vel) {
+      const m = 69 + 12 * Math.log2(hz / 440), v = vel == null ? 0.8 : vel;
+      const cost = (id) => { const M = sampleMeta.get(id); return Math.abs(M.root - m) + (Number.isFinite(M.vel) ? 3 * Math.abs(M.vel - v) : 0); };
+      let near = Infinity;
+      const ids = (sampleCards[patch.library] || []).filter((id) => sampleBufs.has(id) && sampleMeta.has(id) && Number.isFinite(sampleMeta.get(id).root));
+      for (const id of ids) near = Math.min(near, cost(id));
+      const zone = ids.filter((id) => cost(id) <= near + 0.25);
+      if (!zone.length) return null;
+      const id = zone[(k >>> 0) % zone.length], M = sampleMeta.get(id);
+      return { buf: sampleBufs.get(id), root: M.root, loop: M.loop || null };
+    }
+    // an instrument's KEY-OFF (its release sound, `<library>~release`): of its decoded takes, those for the register
+    // nearest the note (`keyAt`), one by the note's key; { buf, root: the pitch it carries, if any } or null
+    function sampleKeyOff(patch, k, hz) {
+      const m = 69 + 12 * Math.log2(hz / 440);
+      const ids = (sampleCards[patch.library + '~release'] || []).filter((id) => sampleBufs.has(id) && sampleMeta.has(id) && Number.isFinite(sampleMeta.get(id).keyAt));
+      let near = Infinity;
+      for (const id of ids) near = Math.min(near, Math.abs(sampleMeta.get(id).keyAt - m));
+      const zone = ids.filter((id) => Math.abs(sampleMeta.get(id).keyAt - m) <= near + 0.5);
+      if (!zone.length) return null;
+      const id = zone[(k >>> 0) % zone.length];
+      return { buf: sampleBufs.get(id), root: sampleMeta.get(id).keyRoot };
     }
     // a cue's recorded gestures that are not loaded here (no library on the page, or not decoded yet) give way to the
     // synthesized gestures they stand in for, in their place, before the cue is planned: the cue is then exactly the
@@ -2402,12 +2436,17 @@ export function buildBeatsKernel() {
 /*@sampler{*/
       // a sample voice plays its recorded variant to its end (a one-shot rings out past a short note); unloaded (no
       // library on this machine, or not decoded yet) it plays the synthesized piece it stands in for, `fallback`.
-      let sbuf = null, srate = 1;
+      // (an instrument, `zones`: the note on its nearest take, bent from that take's root; a held one, `loop`, holds on its
+      // take's loop for as long as the note lasts, never rung out to the take's end)
+      let sbuf = null, srate = 1, sloop = null;
       if (voice === 'sample') {
-        sbuf = sampleBuf(patch, nk);
+        const Z = patch.zones ? sampleZone(patch, nk, hz, vel) : null;
+        sbuf = Z ? Z.buf : patch.zones ? null : sampleBuf(patch, nk);
         if (!sbuf) return patch.fallback ? playVoice(patch.fallback, hz, t, dur, vel, dest, key) : undefined;
-        srate = patch.root ? hz / (440 * Math.pow(2, (patch.root - 69) / 12)) : 1;
-        if (patch.oneShot !== false) dur = Math.max(dur, sbuf.duration / srate - (patch.release == null ? 0.05 : patch.release));
+        const root = Z ? Z.root : patch.root;
+        srate = root ? hz / (440 * Math.pow(2, (root - 69) / 12)) : 1;
+        sloop = patch.loop && Z && Z.loop ? Z.loop : null;
+        if (patch.oneShot !== false && !sloop) dur = Math.max(dur, sbuf.duration / srate - (patch.release == null ? 0.05 : patch.release));
       }
 /*|
 @*/
@@ -2553,8 +2592,49 @@ export function buildBeatsKernel() {
       }
 /*@sampler{*/
       if (sbuf) {
-        const src = ctx.createBufferSource(); src.buffer = sbuf; src.playbackRate.value = srate;
-        src.connect(env); src.start(t); src.stop(end);
+        // (the synth's modulators carried to the take: `unison` copies spread over `detune` cents, its pitch lanes and
+        // vibrato, `pitchLane`/`vib`, and an lfo aimed at pitch on each copy's detune; its filter, envelope, tremolo and
+        // amp lfo already sit after it)
+        // (and the synth's moves of its frequency, as ratios of its rate: a glide in from the row's previous note
+        // (`glideFrom`), a bend or a portamento (`bend` [from, to, startS, endS]), a legato run (`path` [[s, ratio]…]),
+        // each the same ramp the oscillator's frequency would take, on the take's playback rate)
+        const rideRate = (P) => {
+          if (patch.glideFrom) { P.setValueAtTime(srate * patch.glideFrom / hz, t); P.exponentialRampToValueAtTime(srate, t + (patch.glide || 0.08)); } else P.value = srate;
+          if (patch.bend) { const b = patch.bend; P.setValueAtTime(srate * b[0], t + b[2]); P.exponentialRampToValueAtTime(srate * b[1], t + Math.max(b[2] + 0.005, b[3])); }
+          if (patch.path) {
+            let r = 1;
+            for (const [dt, q] of patch.path) {
+              if (!dt) continue;
+              const g = Math.min(patch.pathGlide || 0.06, dt * 0.5);
+              P.setValueAtTime(srate * r, t + dt - g); P.exponentialRampToValueAtTime(srate * q, t + dt); r = q;
+            }
+          }
+        };
+        const n = Math.max(1, patch.unison | 0), ug = n > 1 ? ctx.createGain() : null;
+        if (ug) { ug.gain.value = 1 / Math.sqrt(n); ug.connect(env); }
+        for (let u = 0; u < n; u++) {
+          const src = ctx.createBufferSource(); src.buffer = sbuf; rideRate(src.playbackRate);
+          if (n > 1) src.detune.value = (u / (n - 1) - 0.5) * (patch.detune || 0);
+          if (sloop) { src.loop = true; src.loopStart = sloop[0]; src.loopEnd = sloop[1]; }
+          if (typeof pmod !== 'undefined' && pmod) pmod.connect(src.detune);
+          if (typeof lfoTo !== 'undefined' && lfoTo) lfoTo(src.detune, 'pitch');
+          src.connect(ug || env); src.start(t); src.stop(end);
+        }
+        // (the KEY-OFF: when the key is let go, the instrument's release sound for the note's register, `keyOff` dB under
+        // the note's own level (`volume`) and softer the softer the note was played; outside the note's envelope, which
+        // is releasing then)
+        if (patch.keyOff != null) {
+          const K = sampleKeyOff(patch, nk, hz), R = K && K.buf;
+          if (R) {
+            const ks = ctx.createBufferSource(), kg = ctx.createGain();
+            // (a release with a pitch of its own, a tick or a buzz, tuned to the note let go where the patch asks,
+            // `keyOffTuned`, within two octaves either way; one with none, a thump, plays as recorded)
+            const kr = patch.keyOffTuned && Number.isFinite(K.root) ? Math.max(0.25, Math.min(4, hz / (440 * Math.pow(2, (K.root - 69) / 12)))) : 1;
+            ks.playbackRate.value = kr;
+            ks.buffer = R; kg.gain.value = dbGain((patch.volume || 0) + patch.keyOff) * (0.4 + 0.6 * (vel == null ? 0.8 : vel));
+            ks.connect(kg); kg.connect(dest || master); ks.start(t + dur); ks.stop(t + dur + R.duration / kr + 0.05);
+          }
+        }
       } else
 /*|
 @*/

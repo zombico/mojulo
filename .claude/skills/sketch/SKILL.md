@@ -1,6 +1,7 @@
 ---
 name: sketch
-description: Mint a diagram via the control plane's `create_sketch` MCP tool, returning a `/sketches/<ref>` URL the user can open. Use for quick visuals ("draw me X", "show how Y works", "diagram of Z") — flow charts (boxes + arrows) AND data charts (stacked bar, donut/ring, KPI tiles, etc.). The chart vocabulary is retrieved on demand from `semantic_search` (kinds: ['sketch_vocab']), not memorized. Push back if the request needs a real diagram editor (sequence/UML, swimlanes) or an interactive/spreadsheet artifact, or if the answer is words. Invoke as `/sketch <one-line intent>`.
+description: "Mint a diagram or data chart with create_sketch and return its /sketches/<ref> URL. Use for \"draw me X\", \"show how Y works\", a flow chart or a chart of numbers; push back when it needs a real diagram editor, an interactive artifact, or words."
+argument-hint: "<one-line intent>"
 ---
 
 # /sketch

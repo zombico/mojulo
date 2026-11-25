@@ -41,6 +41,21 @@ describe('the craft in the form render', () => {
     expect(night.form.keyIntensity).toBeLessThan(noon.form.keyIntensity);
     expect(craftFigure(JET, { light: 'form' })).toEqual(noon);
   });
+  it('a spacecraft that flies carries its drives\' exhaust: each lit mouth aft, in its glow\'s colour; a jet none', () => {
+    const X = craftFormFigure('strikeFoil', { drives: true }), still = craftFormFigure('strikeFoil');
+    expect(still.thrusters).toBeUndefined();
+    const T = X.thrusters, ids = new Set(X.bones.map((b) => b.id));
+    expect(T.length).toBeGreaterThan(0);
+    for (const t of T) {
+      expect(t.kind).toBe('drive');
+      expect(ids.has(t.bone)).toBe(true);
+      expect(t.dir).toEqual([0, -1, 0]);
+      expect(t.local[1]).toBeLessThan(0);                        // aft of the middle
+      expect(t.len).toBeGreaterThan(t.size * 2);
+      expect(t.color).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+    expect(craftFormFigure(JET, { drives: true }).thrusters).toBeUndefined();
+  });
   it('the same twice; without the word, the baked figure as it was', () => {
     expect(JSON.stringify(craftForm(JET))).toBe(JSON.stringify(C));
     const baked = craftFigure(JET);

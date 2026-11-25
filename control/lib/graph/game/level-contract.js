@@ -211,7 +211,8 @@ export function validateLevelContract(game, schema) {
   // RANK: a level ranked on its results (game/rank.js): { par?: the seconds it is judged against }
   if (game.rank !== undefined && (!game.rank || typeof game.rank !== 'object' || Array.isArray(game.rank) || (game.rank.par !== undefined && !(Number.isFinite(game.rank.par) && game.rank.par > 0)))) errors.push('game.rank is { par?: seconds, more than 0 }');
   if (game.keep !== undefined) {
-    if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit? }]');
+    if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit?, names? }]');
+    else if (game.keep.some((k) => k && k.names !== undefined && !(Array.isArray(k.names) && k.names.length && k.names.every((n) => typeof n === 'string' && n)))) errors.push('game.keep[].names is the words its whole values are shown as (0 the first): a medal\'s no medal, bronze, silver, gold');
     else game.keep.forEach((k, i) => { if (!k || typeof k.var !== 'string' || typeof k.label !== 'string' || (k.best !== 'high' && k.best !== 'low') || (k.scale !== undefined && !Number.isFinite(k.scale)) || (k.unit !== undefined && typeof k.unit !== 'string')) errors.push(`game.keep[${i}] is { var, label, best: 'high' | 'low', scale?, unit? }`); });
   }
 

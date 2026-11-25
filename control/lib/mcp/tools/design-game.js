@@ -13,6 +13,7 @@
  * In one call, in order: the recipe (`world` creates or replaces it, `patch` edits it by part), then the verdicts
  * (`approve`, `revise`), then the run (`run: true`). Each is optional; a call with only `ref` reads.
  */
+import { missionsReadout } from '@/lib/graph/campaign/designer';
 import { openingMission } from '@/lib/graph/mission/campaign';
 import { NEW_GAME_SCREEN } from '@/lib/graph/game/screen';
 import { registerTool, clientTakesJobAgents } from '@/lib/mcp/server';
@@ -79,6 +80,7 @@ import { askAdvice, needsAsk, unaskedStamp, runAdvice, ASK_SAYS } from '@/lib/gr
 import { intakeAdvice, intakeReport } from '@/lib/graph/gameworld/intake.js';
 import { railReport } from '@/lib/graph/gameworld/rails.js';
 import { pitchStart } from '@/lib/graph/gameworld/pitch-start.js';
+import { flightStageManifests, proveFlights } from '@/lib/graph/gameworld/flight-proof.js';
 import { handOff } from '@/lib/graph/gameworld/hand-off.js';
 import { manualOrder } from '@/lib/graph/gameworld/battles-manual.js';
 import { treeOrder, treesOf } from '@/lib/graph/gameworld/battles-tree.js';
@@ -151,7 +153,7 @@ function withPin(world, pin) {
  * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
 // (a battle foe kind's figure, `foe-<kind>` (gameworld/battles.js FOE_LOOKS: a person), is made as a hero is)
 // (a town's folk, gameworld/folk-cast.js: each body a step minted through the hero door as a guard is)
-const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
+const HERO_STEP = /^(hero|hero-equipped|hero-sheathed|hero-held-[a-z0-9-]+|hero-look-[a-z0-9-]+|(guard|tower|farmhand|keeper|athlete)(-\d+)?|foe(-[a-z0-9][a-z0-9-]*)?|cast-.+|folk-[a-z0-9-]+)$/;
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped', 'hero-sheathed': 'the hero, its blade sheathed' };
 
 /** Make or remake one step; → the record to keep. */
@@ -166,10 +168,10 @@ async function realize(step, action) {
   if (key.startsWith('cast-') && order.egocube) {
     // a rolled cast member: the character its cast makes by path (create_character { egocube, member }); remade beside
     // and moved into its own row, as a fighter is, so the ref and its history stay
-    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref });
+    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ...(order.spec ? { spec: order.spec } : {}), ref });
     else {
       const beside = childRef(ref, 'remake');
-      await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ref: beside });
+      await createCharacterHandler({ egocube: order.egocube, member: order.member, title: order.title, ...(order.spec ? { spec: order.spec } : {}), ref: beside });
       try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: a cast member remade from its cast' }); }
       finally { SketchRepository.deleteByRef(beside); }
     }
@@ -188,7 +190,8 @@ async function realize(step, action) {
     return {};
   }
   // (a bestiary person dressed as a crew's, gameworld/foes.js isDressed: the hero door's grunt, made as a guard is)
-  if ((HERO_STEP.test(key) && !(key.startsWith('foe-') && !order.mint)) || (key.startsWith('foes-') && order.mint)) {
+  // (a people standing for every pack, `foe` made from its sheet, is the egocube's below, never the hero door's)
+  if ((HERO_STEP.test(key) && !(key === 'foe' && order.egocube) && !(key.startsWith('foe-') && !order.mint)) || (key.startsWith('foes-') && order.mint)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
     // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
     else if (order.mascot) await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/plan', value: order.mint.spec.plan }], note: 'design_game: the mascot hero' });
@@ -221,14 +224,14 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (/^(fighter|foes?)-.+-sheet$/.test(key)) {
+  if (/^(fighter|foes?)-.+-sheet$/.test(key) || key === 'foe-sheet') {
     // a fighter's sheet, or a bestiary people's (an egocube): rolled where it is written; a changed roll rolls it anew in
     // place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
-  if (key.startsWith('fighter-') || (/^foes?-/.test(key) && order.egocube)) {
+  if (key.startsWith('fighter-') || ((/^foes?-/.test(key) || key === 'foe') && order.egocube)) {
     // a fighter, or a bestiary people (gameworld/foes.js): the character its sheet makes (create_character { egocube }),
     // a people with its moves on it. Remade (its sheet rolled anew, the
     // character not edited by hand since): made beside it from the sheet as it is now and moved into its own row, so
@@ -593,6 +596,9 @@ function readout(ref, world, context = {}) {
       // leg is a checkpoint: mission/campaign.js)
       return { why: `or a campaign's opening mission, ${C.legs.length} legs played in order, each a level of its own (a leg is a checkpoint): ${C.legs.map((L) => `${L.name.split(' · ').pop()} (${L.beats.join(', ')})`).join('; ')}`, legs: C.legs.map((L) => ({ level: L.level, beats: L.beats, place: L.place })), patch: C.patch }; })(), industrial: { why: 'or out of doors: an industrial yard before a base building, its containers, barriers and floodlights stood under the arena\'s laws and built by the geocube (at sunset on wet ground, a tower to climb in it)', patch: [{ op: 'set', path: `/levels/${id}`, value: { name: 'First mission', industrial: true } }] } });
   }
+  // A SPACE GAME'S MISSIONS DESIGNED WHOLE (campaign/designer.js): each draft shown to the person on the holo table, where
+  // they move its things, change what it says and does, and approve it (the eyes gate, theirs); an approved one is a level
+  for (const M of missionsReadout(world, { ref })) if (M.status !== 'approved') next.push({ step: 'mission-design', mission: M.mission, name: M.name, place: M.place, why: 'a mission designed whole and not yet approved: show the person its briefing; they edit it on the table and approve it there, and the next run lays its level', briefing: M.briefing, editor: M.editor, ...(M.laws.length ? { laws: M.laws } : {}), gate: 'eyes', card: 'gameworld-cockpit' });
   // A WORLD MAP (gameworld/world-map.js): its blocks laid as the floor (the default ways, the scenario's beats on them);
   // each block's sketch is its author's, then level design's play layer, block by block. LOOKED AT FIRST: `look`, the map
   // designer's miniature (gameworld/map-designer.js), before a block is written or a page built
@@ -1586,6 +1592,15 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
   const missionProof = ran && Object.values(W.levels ?? {}).some((L) => L?.mission !== undefined) ? (() => {
     try { return { mission_proof: { gate: 'machine', levels: proveMissions(W, missionStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })).manifests), note: 'machine gate: each mission\'s tasks done in order on the bus with every way on sealed until its task was met, and the level played headless by a gunner that walks, aims and reloads (no cover, no flank); whether it is a good first level is the creator\'s to say in play (the eyes gate has not run)' } }; } catch (e) { return { mission_proof: { gate: 'machine', error: e.message } }; }
   })() : {};
+  // a run's flight levels flown for their tasks by the lesson pilot on the fly rule, judged on the bus by their own
+  // mechanics, each with its medal; its rail stages flown by the stage pilot and a still one (machine gate,
+  // gameworld/flight-proof.js)
+  const flightProof = ran && Object.values(W.levels ?? {}).some((L) => L?.airspace !== undefined && (L?.goal?.flight?.tasks || L.airspace?.rail || L.airspace?.cockpit)) ? (() => {
+    try {
+      const levels = proveFlights(flightStageManifests(runSteps(W, { ref, lookup: heroLookup(heroRefOf(W, ref)), composite: compositeOf(ref, W) })));
+      return levels ? { flight_proof: { gate: 'machine', levels, note: 'machine gate: each flight level\'s tasks flown by a careful student on the fly rule the page runs (one task at a time, its bands held at their middles), judged on the bus by the level\'s own mechanics; its medal is what a clean flight earns. Each rail stage flown on the runtime the page runs by an attentive player (hazards taken wide, the nearest fighter in range brought onto the guns, rounds rolled through) and by a still one: proved when the first wins and the second does not; each cockpit sortie the same way, by a steady pilot (its target the nearest hostile, the lead pip on the nose, the trigger pulled there). Whether the lesson teaches or the stage is fun is the creator\'s to say in play (the eyes gate has not run)' } } : {};
+    } catch (e) { return { flight_proof: { gate: 'machine', levels: [], error: e.message } }; }
+  })() : {};
   // each level's verdict kept in the run's record beside the row it judged: a later run gates only what changed
   if (framed) {
     const made = { ...W.made }, base = W;
@@ -1603,12 +1618,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, check, compa
     // a unit's own req (the live one asked for it): its remit, its precedent, its budget
     // (a job's seat reads its own req, whatever its status, and only its own job: the rest is the director's)
     const own = seat ? ledger.L.reqs.find((r) => r.id === seat.job.req) : ledger.L.reqs.find((r) => (r.unit === chapter || r.crew?.includes(chapter)) && !TERMINAL_REQ.has(r.status));
-    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
+    const view = chapterView({ ...full, ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...flightProof, ...(comparison ? { comparison } : {}) }, W, chapter, { ran, pending, patched });
     const R = own ? reqView(ref, own, ledger.L.reqs, { W, parts: ledgerStamps(ref, W), seat, agents: !seat && clientTakesJobAgents(context?.mcpSessionId ? getClientInfo(context.mcpSessionId) : null) }) : null;
     return { ok: true, readout: 'chapter', ...view, ...(seat ? { as: `${seat.job.req}.${seat.job.id}` } : {}), ...(R ? { req: R } : {}), ...(!seat && req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ticket ? { ask: ticket } : {}), ...share };
   }
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...flightProof, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(req !== undefined && full.reqs ? { reqs: full.reqs } : {}), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(resonance ? { resonance } : {}), ...eyes, ...errandProof, ...gauntletProof, ...missionProof, ...flightProof, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet
@@ -1624,7 +1639,8 @@ async function fightReadout(W) {
 }
 
 /** THE PLAYTHROUGH (gameworld/playthrough.js), a check's: each made level where foes stand and the hero plays a moveset
- * (an action game's), resolved as its page resolves it and played by the basic player and the still one. A level passes
+ * (an action game's), or a scroll stage (a shooter's: its bot, gameworld/scroll-stage/bot.js), resolved as its page
+ * resolves it and played by the basic player and the still one. A level passes
  * when the basic player wins it and the still one does not. Resolving a level is the cost (seconds to minutes), so the
  * levels are played in order while the run's budget lasts, the first always; the rest are named `unplayed` (the shell's
  * scripts/playthrough.mjs plays them all). Machine gate only; advice, never a refusal. */
@@ -1634,6 +1650,8 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
     const ents = row?.manifest?.entities ?? [], pilot = ents.find((e) => e?.pilotable);
     // (a street level is a fight: its own simulation, played by the brawl's scripted player, below)
     if (row?.manifest?.brawl?.practice?.street) return true;
+    // (a scroll stage is one too: its ship on the d-pad, played by the scroll stage's bot, below)
+    if (pilot?.rule?.type === 'scroll-ship') return true;
     return ents.some((e) => e?.team === 'foes') && !!(pilot?.rule?.moveset || pilot?.rule?.weapons);
   });
   if (!fights.length) return null;
@@ -1651,6 +1669,15 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
         // (a street its basic player loses: where, and the two words that ease it; advice, the design is the creator's)
         const eases = basic.won ? {} : { eases: `the basic player ${basic.outcome === 'lost' ? `ran out of falls at stop ${Math.min(basic.stops.of, basic.stops.cleared + 1)} of ${basic.stops.of}` : 'did not finish in time'}: allow more falls (street.lives), thin that stop's wave, or stand its boss at cpu: 'novice'` };
         levels.push({ level: key, pass: basic.won && !still.won, basic: streetSummary(basic), still: streetSummary(still), ...eases });
+        continue;
+      }
+      // a scroll stage (gameworld/scroll-stage/bot.js): its bot plays it to its end, a still ship neither moves nor fires
+      if (payload.camera?.rule === 'scroll') {
+        const { playScrollStage } = await import('@/lib/graph/gameworld/scroll-stage/bot.js');
+        const basic = playScrollStage(payload), still = playScrollStage(payload, { player: 'still' });
+        const say = (R) => `${R.cleared ? 'cleared' : R.ended ? 'ended, its boss up' : 'lost'} in ${Math.round(R.time)} s: ${R.foes.down} of ${R.foes.of} foes down, ${R.hits} hit${R.hits === 1 ? '' : 's'}, ${R.lost} li${R.lost === 1 ? 'fe' : 'ves'} lost`;
+        const eases = basic.cleared ? {} : { eases: 'the bot did not clear it: give the ship more hp or lives (scroll.hp, scroll.lives), thin a wave, or widen the narrowest of its interior' };
+        levels.push({ level: key, pass: basic.cleared && !still.cleared, basic: say(basic), still: say(still), ...eases });
         continue;
       }
       const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });

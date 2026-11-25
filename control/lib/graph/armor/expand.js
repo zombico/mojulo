@@ -19,6 +19,8 @@ import { plateSuit, PLATE_PIECES } from './plate.js';
 import { lamellarSuit } from './lamellar.js';
 import { hardSuit } from './hardsuit.js';
 import { toySuit } from './toy.js';
+import { leatherSuit } from './leather.js';
+import { mailSuit } from './mail.js';
 import { themeArmor } from './theme.js';
 import { THEMES, themeOf, validateTheme } from '../themes/themes.js';
 
@@ -82,13 +84,15 @@ export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth, chi
   let out = card.family === 'lamellar' ? lamellarSuit(dials, ctx, { crest: lang.crest ?? 'crescent' })
     : card.family === 'hardsuit' ? hardSuit(dials, ctx, lang)
       : card.family === 'toy' ? toySuit(dials, ctx, lang)
+      : card.family === 'leather' ? leatherSuit(dials, ctx, { cut: lang.cut ?? 'jerkin', studs: lang.studs ?? 0 })
+      : card.family === 'mail' ? mailSuit(dials, ctx, { coif: lang.coif ?? true, surcoat: lang.surcoat ?? 'none' })
       : plateSuit(dials, ctx, { variant: lang.pauldron ?? 'spaulder', focalSide: lang.focalSide ?? 'R', fnSide: lang.fnSide ?? 'L' });
   let tones = { ...(card.tones || {}) }, emissive = [...(card.emissive || [])];
   if (T) { const th = themeArmor(out, T, { family: card.family, dials, ctx, lang }); out = th; tones = { ...tones, ...th.tones }; emissive = [...new Set([...emissive, ...th.emissive])]; }
   return { kit: out.kit, tones, emissive, trace: { style: typeof build.style === 'string' ? build.style : card.id || 'inline', family: card.family, dials, language: lang, laws: build.laws ?? ARMOR_LAWS_VERSION, ...out.trace } };
 }
 
-/** The construction a build is made in ('plate' | 'lamellar' | 'hardsuit' | 'toy'), or null for anything not an armour build. */
+/** The construction a build is made in ('plate' | 'lamellar' | 'hardsuit' | 'toy' | 'leather' | 'mail'), or null for anything not an armour build. */
 export function armorFamily(build) {
   const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight') : null;
   return card && typeof card === 'object' ? card.family ?? null : null;

@@ -484,7 +484,7 @@ const FORM_DEFS = {
   },
   'building': {
     title: 'Buildings (houses and shops)',
-    makes: 'walkable houses, apartments, furnished rooms, stores, restaurants, malls, offices and school campuses, each with its structure book (concept, layout, drawings, build) or as a game level',
+    makes: 'walkable houses, apartments, furnished rooms, stores, restaurants, malls, offices and school campuses, each with its structure book (concept, layout, drawings, build) or as a game level. For someone\'s own home or room: `mint_building({ start: {} })` first',
     tools: ['mint_building', 'design_interior'],
   },
   'exhibit': {
@@ -580,7 +580,7 @@ function buildCreativeToolsetMap(profile = pluginProfileActive()) {
 // shared spine so an agent that jumps straight here is never missing the
 // standing rules.
 
-const STUDIO_OPENER = `The **call grammar**, mojulo's routing index. A **3D compiler for agents**: one store of refs, and every thing it makes IS its seeded deterministic recipe — renders are derived, byte-identical per read. Things to **Play** (browser or desktop app), **Print** (STL / 3MF at true scale), **Read**, **Hear** and **Observe**; **Workflows** orchestrate the rest. Inputs are words and images (a photo you can see → \`reference_protocol\`). Six verbs compose everything below; match the ask to a FORM in the mint dispatch and call the tool on that row.`;
+const STUDIO_OPENER = `The **call grammar**, mojulo's routing index. A **3D compiler for agents**: one store of refs, and every thing it makes IS its seeded deterministic recipe — renders are derived, byte-identical per read. Things to **Play** (browser or desktop app), **Print** (STL / 3MF at true scale), **Read**, **Hear** and **Observe**; **Workflows** orchestrate the rest. Inputs are words, images (a photo you can see → \`reference_protocol\`) and model files (MODEL FILE). Six verbs compose everything below; match the ask to a FORM in the mint dispatch and call the tool on that row.`;
 
 const STUDIO_ROUTING_INDEX = `## Routing index — the call grammar
 
@@ -599,12 +599,13 @@ Outcomes — a call lands one of four ways (classes to recognize, not wire types
 
 mint dispatch — match the ask to a FORM:
   CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal); revise, its target resolution, a level's light → \`update_character\` · to reuse across games → \`egocube\` (\`create_sketch\`)
+  MODEL FILE one they have (.glb .vrm .gltf .obj .stl .3mf, by its path) → a character \`create_character({ from })\` (rigged for you), an object \`mint_solid\` kind model · FBX/USD → ask for a GLB
   GAME     a game designed top down (hero, powers, gear, systems) → \`design_game\` · a level's ground → \`tune_ground\` · its colours → \`pick_palette\` · made levels, one store → \`create_game\` · a match-3 saga → \`create_pixelizer_game\`
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
   OBJECT   3D at literal scale — an everyday object / part, an assembly, a carved wordmark / logo, a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable) · paint / emote one → \`edit_solid\` · measure one → \`measure_solid\` · which screws / bearings / hinges it needs, what to buy → \`fabricate_solid\` · mechanical feasibility of a minted object (joints, clearances, will-it-spin) → \`verify_machina\` (level completability is MOTION traversal, below)
   WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · a study object or a historic city ("teach me fission") → \`create_exhibit\` (their own people: \`start\` first)
-  HOUSE    a house / apartment / cottage / townhouse / ONE furnished room / a store, restaurant, mall or school campus, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice) · decorating one room → \`design_interior\`
+  HOUSE    a house / apartment / cottage / townhouse / ONE furnished room / a store, restaurant, mall or school campus, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice) · decorating one room → \`design_interior\` (their own home: \`start\` first)
   BUILDING institutional / bespoke one-off (a terminal, a hall, a block of masses + concourses) → \`mint_solid\` kind edifice · a dwelling is HOUSE
   OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\` · cameras keyed in a world, a shot list → \`forge_motion\` \`shoot\`
   MOTION COMIC  click-by-click reveal, one self-contained HTML file → \`create_sketch\` kind 'motion-comic'
@@ -618,7 +619,7 @@ export dispatch: object/figure → \`export_model\` (print-ready 3MF | STL, mm, 
 Guards:
   - revise the same ref — never re-mint to change a thing
   - underdetermined form → ask one question; the answer routes
-  - no ask yet → offer four starts (a character, a game, an object, a 3D exhibit); a game runs from the idea, or the docs they bring, to its first level, machine-proved, theirs to approve
+  - no ask yet → offer five starts (a character, a game, an object, a 3D exhibit, a home or a room); a game runs from the idea, or the docs they bring, to its first level, machine-proved, theirs to approve
   - speaks 3D-modeler ("retopo", "blockout", "kitbash") → \`translate_modeler_lingo\`
   - fuzzy ask → \`semantic_search({kinds:['routing'], query:'<the ask>'})\` returns the family card whole`;
 
@@ -720,10 +721,23 @@ export function formToolset(key, profile = pluginProfileActive()) {
   return profile ? PROFILE_FORM_TOOLSETS[key] ?? null : FORM_TOOLSETS[key] ?? null;
 }
 
+// The start rows under the plugin: the plugin's start skills carry them (plugins/mojulo/skills, generated from the
+// routing cards by scripts/plugin-skills.mjs), and its main skill reads forward_context only when no start skill covers
+// the ask, so the rows become one line naming the skills; what each row routes that no skill carries stays.
+const PROFILE_START_ROWS = '  STARTS   a character (hero, creature, animal), a game, an object, a 3D exhibit, a home or a room → its start skill (`make-character` · `design-game` · `design-object` · `make-exhibit` · `design-building` · `design-interior`), which names the entry tool and its steps\n'
+  + '  ALSO     a character reused across games → `egocube` (`create_sketch`) · a level\'s ground → `tune_ground` · its colours → `pick_palette` · made levels, one store → `create_game` · a match-3 saga → `create_pixelizer_game` · emote a figure → `edit_solid` · measure an object → `measure_solid` · mechanical feasibility → `verify_machina`\n';
+
 const PROFILE_STUDIO_ROUTING_INDEX = profileEdit(STUDIO_ROUTING_INDEX, [
+  [/ {2}CHARACTER [^\n]*\n/, PROFILE_START_ROWS],
+  [/ {2}GAME {5}[^\n]*\n/, ''],
+  [/ {2}OBJECT {3}[^\n]*\n/, ''],
+  [/ {2}HOUSE {4}[^\n]*\n/, ''],
+  [' · a study object or a historic city ("teach me fission") → `create_exhibit` (their own people: `start` first)', ''],
+  ['a house to walk is HOUSE)', 'a house to walk is the `design-building` skill)'],
+  [' · a dwelling is HOUSE', ' · a dwelling is the `design-building` skill'],
+  ['  - no ask yet → offer five starts (a character, a game, an object, a 3D exhibit, a home or a room); a game runs from the idea, or the docs they bring, to its first level, machine-proved, theirs to approve', '  - no ask yet → offer the five starts; each is a start skill'],
   [' · voice never revises — re-`create_voice`', ''],
   [" · direct an AI-generated image / comic page → `create_sketch` kind 'image-outcome'/'sequential-art'", ''],
-  [' · paint / emote one → `edit_solid`', ' · emote a figure → `edit_solid`'],
   [/\n {2}VOICE {4}[^\n]*/, ''],
   [' · sprites → `bake_sprite_sheet`', ''],
 ], 'STUDIO_ROUTING_INDEX');

@@ -42,6 +42,9 @@
  *                                         // at its end fought turn by turn, hp on the HUD, guards who see to get past
  *                                         // unseen, its last stage an escape room (escape.js: its way out sealed
  *                                         // until its locks open, their keys along the way); none: reach the exit
+ *                                         // on an AIRSPACE level the goal is { flight } alone (flight-goal.js: 'course',
+ *                                         // 'dogfight', 'trench' or { tasks }: gates, a band held, a landing, nav points,
+ *                                         // wings); none: its course, its trench, else its exit
  *       foes?: true | { from?, count? },  // the bestiary's foes on its trail stages (or a building's rooms), one a free beat (foes.js): hostile
  *                                         // classes in the hero's way; its hp then takes their hits
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
@@ -103,6 +106,8 @@
  *                                         // (juice.js), laid on every level as `fxStyle`; absent, none is laid
  *     tempo?: 'auto' | false | words | { moments },   // its world clock (tempo.js): moments that slow or hold its live
  *                                         // levels on what happens, the camera on real time; laid on every level as `tempo`
+ *     keying?: 'auto' | false | a grain | { hero?, cast?, fps?, root? },   // its bodies drawn on twos or threes in play
+ *                                         // (keying.js), the world and the camera on ones; laid on every level as `keying`
  *     grade?: 'auto' | false | a word | dials,   // its grade (grade.js): the look over every frame of its levels;
  *                                         // laid on every level as `grade`
  *     battles?: { party?, packs?, per?, boss?, foe?, … },   // party battles on the trails, the party carried (battles.js)
@@ -133,6 +138,11 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
+import { readMission as readSpaceMission } from '../campaign/mission.js';
+import { readStage } from '../campaign/stage.js';
+import { readLessonBrief } from './lesson-brief.js';
+import { withMissions } from '../campaign/designer.js';
+import { readFlightGoal } from './flight-goal.js';
 import { FACILITIES, FACILITY_IDS } from '../era/facilities.js';
 import { readLayouts } from '../era/room-layouts.js';
 import { readShift } from './kitchen-shifts.js';
@@ -197,6 +207,7 @@ import { WEAPON_ROLES } from './weapon-roles.js';
 import { readFeel } from './feel/lower.js';
 import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
+import { readGameKeying } from './keying.js';
 import { readGameArsenal, arsenalOfGame } from './arsenal.js';
 import { readTrees } from './trees/tree.js';
 import { readFights } from './fights.js';
@@ -290,6 +301,8 @@ export const TOPOLOGIES = Object.freeze({
   linear: 'a line: each level opens when the one before it is beaten, picked from the list',
   interconnected: 'a map: every link runs both ways, a level is left by one of its exits and the game travels on; a link can be locked by a key found in another level',
 });
+// how a crossing is made (a link's `by`): what carries the party, and what the trip shows (game/play-shell.js)
+export const CROSSINGS = Object.freeze({ ship: 'by sea, aboard a ship', airship: 'by air, aboard an airship' });
 export const LINK_KINDS = Object.freeze({ road: 'the walk goes on: the next level starts where this one leaves', gate: 'a door between them: a portal, a stair down, a boat' });
 /** Not on the ground and not built yet: named so a world can say it, left open (none today). */
 export const RESERVED = Object.freeze([]);
@@ -303,7 +316,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', 'trees', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', 'trees', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -324,8 +337,10 @@ export const gridOfGlyphs = (g) => Object.fromEntries(GRID_OF_GLYPHS.filter((k) 
 // ground, heights and marks; read by the miniature, not yet by the build)
 // (`far`: a zoned map's pages see the rest of the map far off, level/far-view.js)
 const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments', 'kit', 'biocube', 'grass', 'wind', 'shrubs', 'zoned', 'apron', 'sketch', 'far', 'play', 'ways', 'hats'];
-// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
+// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them; its sky
+// (skyscape/sky.js: the weather it is flown in)
+// (its `lesson`: a flying lesson's brief, told before it is flown: gameworld/lesson-brief.js)
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing', 'sky', 'lesson', 'scroll'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -582,6 +597,8 @@ export function readCivilizations(civs, { kit = 'isekai-meadow', seed = 1 } = {}
 export function readGameworld(W) {
   if (W && W[READ]) return W;
   if (!isObj(W)) throw new Error('gameworld: a world is { id, name?, seed?, style?, civilizations?, levels, links?, start? }');
+  // a space game's missions designed whole (campaign/designer.js): each read, the approved ones laid as their levels
+  if (W.missions !== undefined && W.missions !== null) W = withMissions(W);
   for (const k of Object.keys(W)) if (!KEYS.includes(k)) throw new Error(`gameworld: '${k}' is not a world setting (settings: ${KEYS.join(', ')})`);
   for (const k of RESERVED) if (W[k] !== undefined && W[k] !== null) throw new Error(`gameworld: ${k} are not on the ground: the world leaves them open for now (null, or leave it out)`);
   if (typeof W.id !== 'string' || !ID.test(W.id)) throw new Error('gameworld: id is a short lower-case name (letters, digits, hyphens)');
@@ -635,9 +652,20 @@ export function readGameworld(W) {
     if (L.segment !== undefined && L.metroidvania === undefined) throw new Error(`gameworld: ${at}.segment is a metroidvania castle's (beside its \`metroidvania\`): which of its boxes this level is the map of`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
-    if (L.goal !== undefined) {
+    // an airspace's goal is a flight's (flight-goal.js: a course, a dogfight, a trench, or a list of tasks), alone
+    if (L.goal !== undefined && L.airspace !== undefined) {
+      if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
+      if (!isObj(L.goal) || Object.keys(L.goal).length !== 1 || L.goal.flight === undefined) throw new Error(`gameworld: ${at}.goal on an airspace is { flight }: what the level is flown for (a course, a dogfight, a trench, or { tasks })`);
+      const fg = readFlightGoal(L.goal.flight, `${at}.goal.flight`);
+      if (fg.kind === 'course' && !L.airspace?.course) throw new Error(`gameworld: ${at}.goal.flight: a course is flown on a course: give the airspace one (airspace.course: true)`);
+      if (fg.kind === 'trench' && !L.airspace?.space?.trench) throw new Error(`gameworld: ${at}.goal.flight: a trench run needs a trench (airspace.space: { trench: true })`);
+      if ((fg.kind === 'sortie') && !L.airspace?.cockpit) throw new Error(`gameworld: ${at}.goal.flight: a sortie is flown from a cockpit (airspace.cockpit: true, in space)`);
+      if ((fg.kind === 'stage') !== !!L.airspace?.rail) throw new Error(`gameworld: ${at}.goal.flight: ${fg.kind === 'stage' ? 'a stage is flown down a rail (airspace.rail: true)' : 'an airspace with a rail is flown as a stage (goal.flight: \'stage\', or none)'}`);
+      if (fg.kind === 'tasks' && fg.tasks.some((t) => t.gates !== undefined || t.reach?.gate !== undefined) && !L.airspace?.course) throw new Error(`gameworld: ${at}.goal.flight: gates are a course's: give the airspace one (airspace.course: true)`);
+    } else if (L.goal !== undefined) {
       const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true | { win }, health?: true, guards?: true, escape?: true | 1…4, gauntlet?: { arenas } }, at least one`;
       if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
+      if (Gl.flight !== undefined) throw new Error(`gameworld: ${at}.goal.flight is an airspace level's goal (levels.<id>.airspace)`);
       if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
       if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
       for (const k of Object.keys(Gl)) if (!LEVEL_GOAL_PARTS.includes(k)) throw new Error(`gameworld: ${at}.goal.${k} is not a level goal (${LEVEL_GOAL_PARTS.join(', ')})`);
@@ -807,6 +835,20 @@ export function readGameworld(W) {
       for (const k of Object.keys(As)) if (!AIRSPACE_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.airspace.${k} is not an airspace level setting (${AIRSPACE_LEVEL_KEYS.join(', ')})`);
       const errs = validateAirspace({ kind: 'airspace', ...As });
       if (errs.length) throw new Error(`gameworld: ${at}.${errs[0]}`);
+      // a cockpit mission's briefing: its design (campaign/mission.js), told on the holo table before it is flown
+      // (or an arcade stage's, one that names its route (campaign/stage.js): told on the same table before it is flown)
+      if (As.briefing !== undefined && isObj(As.briefing) && As.briefing.route !== undefined) {
+        if (!As.rail) throw new Error(`gameworld: ${at}.airspace.briefing: a stage's briefing is a rail stage's (airspace.rail)`);
+        try { readStage(As.briefing); } catch (e) { throw new Error(`gameworld: ${at}.airspace.briefing: ${e.message.replace(/^campaign: /, '')}`); }
+      } else if (As.briefing !== undefined) {
+        if (As.cockpit !== true) throw new Error(`gameworld: ${at}.airspace.briefing: a briefing is a cockpit mission's (airspace.cockpit: true) or a rail stage's (one that names its route)`);
+        try { readSpaceMission(As.briefing); } catch (e) { throw new Error(`gameworld: ${at}.airspace.briefing: ${e.message.replace(/^campaign: /, '')}`); }
+      }
+      // a flying lesson's brief (gameworld/lesson-brief.js), told on mana-ui before the lesson is flown
+      if (As.lesson !== undefined) {
+        const le = readLessonBrief(As.lesson, `${at}.airspace.lesson`);
+        if (le.length) throw new Error(`gameworld: ${le[0]}`);
+      }
     } else if (L.roadway !== undefined) {
       // a roadway level: a track built for driving (roads/track.js), laid on its own ground
       if (L.walk !== undefined || L.building !== undefined || L.city !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city or a roadway, one of them`);
@@ -945,7 +987,9 @@ export function readGameworld(W) {
   }
   const links = (W.links ?? []).map((e, i) => {
     if (!isObj(e)) throw new Error(`gameworld: links[${i}] is { from, to, kind? }`);
-    for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'key', 'keyAt', 'needs'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind, key, keyAt, needs)`);
+    for (const k of Object.keys(e)) if (!['from', 'to', 'kind', 'key', 'keyAt', 'needs', 'by'].includes(k)) throw new Error(`gameworld: links[${i}].${k} is not a link setting (from, to, kind, key, keyAt, needs, by)`);
+    // BY: a crossing (a megaworld's `crossings`): the way is taken aboard, its trip shown while the next map is built
+    if (e.by !== undefined && !CROSSINGS[e.by]) throw new Error(`gameworld: links[${i}].by is how the way is crossed: ${Object.keys(CROSSINGS).join(', ')}`);
     for (const k of ['from', 'to']) if (!levels[e[k]]) throw new Error(`gameworld: links[${i}].${k} '${e[k]}' is not a level (levels: ${ids.join(', ')})`);
     if (e.from === e.to) throw new Error(`gameworld: links[${i}] leads '${e.from}' to itself`);
     const kind = e.kind ?? 'road';
@@ -963,10 +1007,11 @@ export function readGameworld(W) {
     // before its quest is given); the flag one a quest starts or completes on, so every level's journal carries it
     if (e.needs !== undefined) {
       if (W.topology !== 'interconnected') throw new Error(`gameworld: links[${i}].needs shuts a way in a map world: set topology: 'interconnected', or leave it out`);
-      const QF = new Set((Array.isArray(W.quests) ? W.quests : []).flatMap((q) => [q?.starts, ...(Array.isArray(q?.steps) ? q.steps.map((st) => st?.done) : [])]).filter((f) => typeof f === 'string'));
+      // (and the flag the boss's fall sets, battles.sets: a story flag as a quest's is)
+      const QF = new Set([...(Array.isArray(W.quests) ? W.quests : []).flatMap((q) => [q?.starts, ...(Array.isArray(q?.steps) ? q.steps.map((st) => st?.done) : [])]), W.battles?.sets].filter((f) => typeof f === 'string'));
       if (typeof e.needs !== 'string' || !QF.has(e.needs)) throw new Error(`gameworld: links[${i}].needs is a quest's flag, one a quest starts or a step is done on (${[...QF].join(', ') || 'the world has no quests'}): the way opens with the story`);
     }
-    return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}), ...(e.needs ? { needs: e.needs } : {}) };
+    return { from: e.from, to: e.to, kind, ...(e.key ? { key: e.key, keyAt: e.keyAt } : {}), ...(e.needs ? { needs: e.needs } : {}), ...(e.by ? { by: e.by } : {}) };
   });
   const start = W.start ?? ids[0];
   // the hub: a level of the world, in a map (where every way runs both ways, so each way out of it leads back)
@@ -1024,6 +1069,8 @@ export function readGameworld(W) {
   if (W.fights !== undefined) readFights(W.fights, { foes: foes ?? undefined });
   // its world clock (tempo.js): moments that slow or hold its live levels on what happens in play
   readGameTempo(W.tempo);
+  // its keying (keying.js): its bodies drawn on twos or threes in play, each layer its own grain
+  readGameKeying(W.keying);
   // its grade (grade.js): the look laid over every frame of its levels, the base its moments' looks push from
   readGameGrade(W.grade);
   // the games inside the game (minigames.js): as written, else what the prompt's words ask for
@@ -1052,7 +1099,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), ...(W.trees !== undefined ? { trees: W.trees } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.keying !== undefined ? { keying: W.keying } : {}), ...(W.trees !== undefined ? { trees: W.trees } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
 }
 
 /**
@@ -1113,10 +1160,16 @@ export function resolveLevel(world, id) {
   // a kitchen level (kitchen-shifts.js, laid by kitchen-level.js): its own room, its shift read as written
   if (L.kitchen) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, kitchen: { ...L.kitchen } };
   // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
+  // (a scroll stage, scroll-stage/: no flight map, no ground, no course; its scroll rides as written)
+  if (L.airspace?.scroll !== undefined) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { scroll: L.airspace.scroll } };
   if (L.airspace) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
-    const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
+    // (a rail stage has its path and no course; its airframe, and its rail, ride as written)
+    // (a cockpit's sortie has its flight groups and no gates, as a rail stage has its path)
+    // (a cockpit mission's briefing, its design, rides as written: scene/channels/briefing.js tells it as the level loads)
+    // (a flying lesson's brief rides as written: scene/channels/lesson-brief.js tells it as the lesson loads)
+    const { map = {}, ground = {}, rail, cockpit, course = !rail && !cockpit, space, assist, airframe, briefing, sky, lesson } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}), ...(airframe !== undefined ? { airframe } : {}), ...(rail ? { rail } : {}), ...(cockpit ? { cockpit } : {}), ...(briefing ? { briefing } : {}), ...(sky !== undefined && !inSpace ? { sky } : {}), ...(lesson ? { lesson } : {}) } };
   }
   // a glyph-map level: the map's level as the map kind takes it (level/grid-scene.js), its seed the level's
   if (L.glyphs) {

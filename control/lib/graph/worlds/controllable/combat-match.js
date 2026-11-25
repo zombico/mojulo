@@ -208,7 +208,9 @@ export function buildCombatMatch(E) {
     // pure theater and never overstates a dodgeable circle. `radius` stays the honest mechanic.
     // `debris: true` marks this as a SUIT-DEATH blast (vs a projectile burst): the renderer adds a
     // fragment shower — the suit blowing apart into many pieces, not just a fireball (operator 2026-08-13).
-    state.bursts.push({ seq: state.burstSeq++, pos, t: state.time, radius: R, fxRadius: Math.round(R * 2 * 10) / 10, fxColor: 0xffa03c, fxScale: Math.round(hgt * 0.85 * 10) / 10, debris: true });
+    // (a craft's own size of blast, `body.blast` m, opt-in: its fireball that size, a starfighter's a few lengths across)
+    const big = e.body && Number.isFinite(e.body.blast) && e.body.blast > 0 ? e.body.blast : null;
+    state.bursts.push({ seq: state.burstSeq++, pos, t: state.time, radius: R, fxRadius: big ?? Math.round(R * 2 * 10) / 10, fxColor: 0xffa03c, fxScale: big ? Math.round(big * 0.4 * 10) / 10 : Math.round(hgt * 0.85 * 10) / 10, debris: true, ...(big ? { craft: true } : {}) });
   }
 
   // the createWorld STATE INIT — verbatim from the pre-split inline block: build the bout (or
@@ -327,7 +329,8 @@ export function buildCombatMatch(E) {
       }
       e.deathBurstDone = true;
       explodeUnit(state, e);
-      if (wreckFin) { e.gone = true; if (e.body) e.body.hittable = false; }   // removed the frame it detonates
+      // (removed the frame it detonates: a wreck finisher's, and a craft that blows apart in its own blast, `body.blast`)
+      if (wreckFin || (e.body && e.body.blast > 0)) { e.gone = true; if (e.body) e.body.hittable = false; }
     }
   }, 40);
   registerWorldPass('match', (state) => stepMatch(state), 50);   // after ALL damage adjudication this frame

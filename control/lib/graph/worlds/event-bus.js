@@ -454,6 +454,33 @@ export function buildBus() {
   // A zone source: { type:'zone', zone:<id>, at:[x,y,z], radius:R | half:[hx,hy,hz],
   //                  watch?:<entityId>|'*' (default '*'), planar?:true (ignore Z — a floor footprint) }
   // Entities may be controllable ({ id, transform:{ pos } }) or physics bodies ({ id, position }).
+  //
+  // A GAUGE source is a zone in a fact's range instead of in space: { type:'gauge', zone:<id>, fact, min?, max?,
+  // watch? }, entered while the watched body's fact is in [min, max] (either open), with the same `enter` / `exit`
+  // events. The facts are a pilot's, in the units its HUD shows: alt (m), agl (m over the ground under it), speed
+  // (knots), climb (m/s), bank (degrees, right positive), heading (compass degrees, 0 north, 90 east: a range whose min
+  // is above its max wraps through north), along (m down a rail stage's path: worlds/controllable/rules-rail.js). A body that has no such fact is in no gauge. A flight lesson's "hold 300 m on
+  // 270 at 90 kt" is three gauges (game/objectives.js `band`).
+  function gaugeFact(e, fact) {
+    const t = e.transform;
+    if (!t || !Array.isArray(t.pos)) return null;
+    switch (fact) {
+      case 'alt': return t.pos[2];
+      case 'agl': return Number.isFinite(e.agl) ? e.agl : null;
+      case 'speed': return Number.isFinite(e.airspeed) ? e.airspeed * 1.94384 : null;
+      case 'climb': return Number.isFinite(e.climbRate) ? e.climbRate : null;
+      case 'bank': return Number.isFinite(e.bank) ? e.bank * 180 / Math.PI : null;
+      case 'heading': return Number.isFinite(t.heading) ? ((90 - t.heading * 180 / Math.PI) % 360 + 360) % 360 : null;
+      case 'along': return Number.isFinite(e.along) ? e.along : null;
+      default: return null;
+    }
+  }
+  function inGauge(e, s) {
+    const v = gaugeFact(e, s.fact);
+    if (v === null) return false;
+    const lo = Number.isFinite(s.min) ? s.min : -Infinity, hi = Number.isFinite(s.max) ? s.max : Infinity;
+    return s.fact === 'heading' && lo > hi ? v >= lo || v <= hi : v >= lo && v <= hi;
+  }
   function zonePos(e) { return e && (e.transform ? e.transform.pos : e.position); }
   function inZone(p, s) {
     if (!p) return false;
@@ -475,12 +502,12 @@ export function buildBus() {
     const events = [];
     const curInside = {};
     for (const s of sources) {
-      if (s.type !== 'zone' || !s.zone) continue;
+      if ((s.type !== 'zone' && s.type !== 'gauge') || !s.zone) continue;
       const watch = s.watch || '*';
       for (const e of list) {
         if (!e || !e.id || (e.gone && !e.mountedOn)) continue;   // one asleep or sent away stands in no zone (one riding in a cab is where its car is)
         if (!glob(e.id, watch)) continue;
-        if (!inZone(zonePos(e), s)) continue;
+        if (s.type === 'gauge' ? !inGauge(e, s) : !inZone(zonePos(e), s)) continue;
         const key = s.zone + '|' + e.id;
         curInside[key] = 1;
         if (prev.inside[key]) continue;                 // still inside since last step — not an onset

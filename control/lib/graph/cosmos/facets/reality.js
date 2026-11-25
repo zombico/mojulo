@@ -82,14 +82,15 @@ export const REALITY = Object.freeze({
       },
     },
     // what a game sounds like. A quick game says its music and its effects; a gameworld's `sound` (11-13) lays the sound
-    // sheet on every level it builds, the SFX shelf read by word; a designed gameworld has no word for its score yet
+    // sheet on every level it builds, the SFX shelf read by word, and its `music` (11-13) scores every level, fight, boss
+    // and cinematic from the cue sheet on one identity; a played city's streets on ambient beats (11-16)
     sound: {
       multi: true,
       values: {
         none: { status: 'built', note: 'silent, as a world is until it says otherwise' },
-        score: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/score-suggest.js', note: 'a field score by the level\'s place and play, an explore and a combat score crossfaded on the fight (auto), a rhythm run on its beat: a quick game\'s music; a designed gameworld\'s levels have no word for it' },
-        sfx: { status: 'partial', effort: 'M', pkg: 'sound', lowers: 'lib/graph/beats/sfx-palettes.js', note: 'action sounds wired to the goal\'s events in the music\'s key, in a palette (arcade, foley, orchestral, synth): a quick game\'s sfx; a designed gameworld\'s levels take the sound sheet (shelf) and no palette' },
-        shelf: { status: 'local', effort: 'M', pkg: 'sound', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the mount lane and the fighter, and by the levels of a game on the sound sheet (a `sound` of its own, or a quick game\'s sfx: sheet): its first weapon, its ground, its doors, a foe spotting the hero; a level\'s guns, rides and its foes\' attacks are not on the sheet yet' },
+        score: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/gameworld/cue-sheet.js', note: 'the score by request (a gameworld\'s `music`): the title, the menus, each level\'s place, a level\'s fights and its boss, each cinematic and the outcomes answered with a cue on the game\'s one identity (beats/field-score.js scoreIdentity) in the audio direction\'s style and cast (audio-direction.js); a played city on ambient beats and a chase as the law comes (cityScore, 11-16); a quick game\'s field score by its place and play (beats/score-suggest.js). The generators have no title theme and no cue that ends yet: those requests take stand-ins' },
+        sfx: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/gameworld/sound-sheet.js', note: 'the sound sheet (a gameworld\'s `sound`): every weapon of the arsenal by the move\'s weight, the guard\'s block, parry and break, guns by cartridge on the shooter levels, each foe\'s attack, hurt and fall in its voice, a ride\'s engine by its speed, a played city\'s car (11-16); a quick game\'s palette (beats/sfx-palettes.js). Not on the sheet yet: a dogfight\'s craft, guns picked up off the floor, the bots\' guns, a rocket\'s blast' },
+        shelf: { status: 'built', since: '2026-11-13', lowers: 'lib/graph/sfx-shelf/roster.js', note: 'the SFX shelf: a sound a row under the words people say, built from gesture layers and held voices, a realistic style, a mixer that places a cue by distance in one space; read by the practice, platform and combat rooms, the mount lane and the fighter, and by every level of a game on the sound sheet (gameworld/sound-sheet.js levelSheet), the stage\'s bed with it' },
       },
     },
     // the game's colour (11-13, gameworld/colour.js, docs/colour.md): the bridge from a game to the colour theorist. The

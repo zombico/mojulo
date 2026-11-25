@@ -38,6 +38,12 @@ describe('the first session\'s goalposts', () => {
     expect(goalposts({ world: BOOK, chapters: ALL, mainQuest: PLAYS, made: { ...climb, [`audit-level-${L1}-1`]: MADE[`audit-level-${L1}-0`] } })).toBeNull();
   });
 
+  it('a game of scroll stages plays as its stages say: its play met with no feel written, a world of other levels still asks', () => {
+    const play = (levels) => at(goalposts({ world: { id: 'w', levels } }), 'play');
+    expect(play({ one: { airspace: { scroll: { track: [{ by: [4, 0] }] } } }, two: { airspace: { scroll: {} } } }).status).toBe('met');
+    expect(play({ one: { airspace: { scroll: {} } }, two: { buildings: [] } }).status).toBe('open');
+  });
+
   it('reads each partial from the book: no length, an open hero, a planned first beat, a level still to lay, a walk that failed', () => {
     const noLength = goalposts({ world: { ...BOOK, mainQuest: { acts: QUEST.acts } }, chapters: ALL, mainQuest: PLAYS, made: MADE });
     expect(at(noLength, 'shape')).toMatchObject({ status: 'partial', says: 'the main quest says no length' });

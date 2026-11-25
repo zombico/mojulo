@@ -1,6 +1,7 @@
 ---
 name: body-study
-description: Render the HERO's body (the layered character create_character mints) as an engine gets it — the skinned cage, shaded smooth — from the front, the front ¾, the lateral, the back and below, posed (the bind, a gait at a phase, a stand gesture, a raw rig pose) as rows, cropped to a joint, with a sections panel (the trunk cut level, the limbs square to the bone, each girth as a tape reads it) and a measures table. The realistic register's body lane: use before and after changing the hero's shell, its bind or its skinning, beside the stretch audit (`control/scripts/hero-stretch.mjs`), which measures what this shows. Invoke as `/body-study [male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>] [--physique <word|json>] [--vitruvian]`.
+description: "Render the hero's skinned body as an engine gets it, posed and cropped, with girth sections and a measures table. Use before and after changing the hero's shell, bind or skinning (beside control/scripts/hero-stretch.mjs)."
+argument-hint: "[male] [female] [--acts '[…]'] [--crop <joint>] [--register <word>] [--laws <n>] [--form <build>] [--physique <word|json>] [--vitruvian]"
 ---
 
 # body-study
@@ -30,6 +31,8 @@ node .claude/skills/body-study/body.mjs female \
   the door stamps it);
 - `{ "gesture": "relaxed" | "guard" | "hand-on-hip" … }` a stand as the door mints it on that cast;
 - `{ "pose": { … } }` a rig pose as `rigNodesAt` takes it (`{ "elbowR": 110 }`, `{ "support": "L", "kneeR": 90 }`).
+- `{ "aura": "channel", "phase": 0 … 1 }` a showcase pose (`hero-aura.js` `AURAS`, `<name>Left` its mirror) at a phase
+  of its performance, the hit held at 1 (the default).
 
 Any entry may carry its own `"crop"`.
 

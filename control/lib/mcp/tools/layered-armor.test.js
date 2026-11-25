@@ -78,4 +78,11 @@ describe('hero door: an armour build on adorn', () => {
     const figures = async (recipe) => JSON.stringify((await resolveWorldScene({ ref: 'x', title: 't', manifest: { ...m, recipe } })).payload.figures);
     expect(await figures(m.recipe)).not.toBe(await figures({ ...m.recipe, emissive: [] }));
   }, 60000);
+
+  it('mail on the anime head: its coif left off the head its pieces are not fitted to, its drape kept; on its own head, all of it', () => {
+    const cranium = (head) => heroPlanOf(heroRecord({ cast: 'male', ...(head ? { head } : {}), adorn: { type: 'armor', style: 'hauberk', dials: { coverage: 1 } } })).adorn;
+    expect(cranium('anime').filter((a) => a.part === 'cranium')).toEqual([]);
+    expect(cranium('anime').some((a) => a.id === 'neck-coif')).toBe(true);
+    expect(cranium(null).filter((a) => a.part === 'cranium').length).toBeGreaterThan(0);
+  }, 60000);
 });

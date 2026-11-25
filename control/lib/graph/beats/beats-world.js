@@ -60,6 +60,7 @@ import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
+import { CLUB_MOODS } from './club-score.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx, MECHANIC_SFX } from './sfx-palettes.js';
 import { sfxSound } from '../sfx-shelf/resolve.js';
 import { resolveSoundId } from '../sfx-shelf/roster.js';
@@ -72,6 +73,7 @@ export const RUN_FOE_MOVES = Object.freeze(['wake', 'hop', 'brace', 'stun', 'div
 import { bedManifest, resolveBed, BEDS } from '../sfx-shelf/beds.js';
 import { resolveTension } from './adaptive-music.js';
 import { SURFACES } from '../weather/weather.js';
+import { FLIGHT_EVENTS, FLIGHT_HELD } from '../sfx-shelf/flight-sounds.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
 const DEFAULT_FOOTSTEPS = {
@@ -201,6 +203,19 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     out.boss = resolveTrack(audioSpec.boss, { ...ctx, game: identity }, 'audio.boss').recipe;
   }
 
+  // THE MUSIC AN EVENT CHANGES TO (a cue's `music`, playscape/ui/cues.js: `music:<word>` on the bus): each mood the
+  // level's play names a piece of its own, in the soundtrack's identity (the game's key), played crossfaded in place of
+  // the place's score; `stop` and `place` need none. Named by none, not a byte.
+  if (Array.isArray(ctx.music) && ctx.music.length) {
+    const pieces = {};
+    for (const w of ctx.music) {
+      if (w === 'stop' || w === 'place') continue;
+      const club = !SCORE_MOODS[w] || (clubStyle && CLUB_MOODS[w]);
+      pieces[w] = resolveTrack({ score: { mood: w, ...(club ? { style: 'club' } : {}), ...(identity !== null ? { game: identity } : {}) } }, ctx, `music '${w}'`).recipe;
+    }
+    out.pieces = pieces;
+  }
+
   // THE BEAT (audio.beat: { lead? }): the soundtrack's pulse said on the bus, `lead` (0.15 s) before each beat. A beat
   // is a quarter, or a dotted quarter in a compound meter (6/8, 9/8, 12/8)
   if (audioSpec.beat !== undefined) {
@@ -242,6 +257,11 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
         const g = cues[cue] ?? cueOf(sheet.on?.[cue] ?? cue);
         if (g) { cues[cue] = g; on[glob] = cue; }
       }
+    }
+    // (the sounds the level's play names, a cue's `sound` effect, playscape/ui/cues.js: each word a cue on `sfx:<word>`)
+    for (const w of Array.isArray(ctx.sounds) ? ctx.sounds : []) {
+      const id = `sfx-${w}`, g = cues[id] ?? cueOf(w);
+      if (g) { cues[id] = g; on[`sfx:${w}`] = id; }
     }
     // (`sheet.events`: any of the bus's events by its glob, voiced by a shelf word, `ev-<word>` a cue of the level's: a
     // guard's sighting the alert's sting, a garrison's alarm found the siren, a thing taken the pickup. Over the mechanics')
@@ -589,6 +609,20 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     if (Gt.secrets !== undefined) { if (!Array.isArray(Gt.secrets) || !Gt.secrets.every((x) => typeof x === 'string')) throw new Error('audio.gates.secrets is the secret walls\' breakable ids'); gOut.secrets = Gt.secrets.slice(); }
     for (const k of Object.keys(Gt)) if (!['shut', 'open', 'break', 'breaks', 'secrets'].includes(k)) throw new Error(`audio.gates.${k} is not a held gate's (shut, open, break, breaks)`);
     out.gates = gOut;
+  }
+  // a flown level's sounds (`flight`, scene/channels/flight-audio.js: the kit by its pilot's rule, sfx-shelf/flight-sounds.js):
+  // each event a gesture list (a cue), the engine, the air and the wheels held voices; checked
+  if (audioSpec.flight !== undefined) {
+    const Fl = audioSpec.flight, fOut = {};
+    if (!Fl || typeof Fl !== 'object' || Array.isArray(Fl)) throw new Error(`audio.flight is { <event>: <a gesture list> | <a held voice> } (${FLIGHT_EVENTS.join(', ')})`);
+    for (const [ev, v] of Object.entries(Fl)) {
+      if (!FLIGHT_EVENTS.includes(ev)) throw new Error(`audio.flight.${ev} is not a flight's event (${FLIGHT_EVENTS.join(', ')})`);
+      if (FLIGHT_HELD.includes(ev)) { fOut[ev] = heldVoice(v, `audio.flight.${ev}`); continue; }
+      const check = validateBeatsManifest({ kind: 'beats-sfx', title: `flight ${ev}`, cues: { [ev]: v } });
+      if (!check.ok) throw new Error(`audio.flight.${ev}: invalid cue:\n - ${check.errors.join('\n - ')}`);
+      fOut[ev] = v;
+    }
+    if (Object.keys(fOut).length) out.flight = fOut;
   }
   if (audioSpec.moves !== undefined) out.moves = resolveMoves(audioSpec.moves, out.cues || {});
   // an RPG battle's sounds (`battle`: { order, ends: [[<happening>, <cue id>]…], also: { crit?, weak? } }): of the

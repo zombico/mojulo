@@ -483,5 +483,81 @@ const OPERATIVE = {
   },
 };
 
-export const SCHEMES = { pilot: PILOT, operative: OPERATIVE, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, brawl: BRAWL, action: ACTION };
+// THE COCKPIT: the pilot's actions laid out as the 90s space-combat sims laid them (worlds/controllable/rules-starfighter.js):
+// the mouse flies (pitch and yaw, the pointer captured), A / D roll, W / S move the throttle's setting and the row above
+// the Enter key sets it (Backspace stop, \\ full, [ a third, ] two thirds, Enter the target's speed); the targeting
+// computer on T, Y, R, E, U (next, previous, nearest foe, the one attacking you, the mission's), the cannons linked on
+// X, the power on 1 to 4 (lasers, shields, engines, even), a transfer on 5 and 6 (to lasers, to shields), the
+// shields' recharge set on G, the warhead on the right button or Space, the cockpit and the chase swapped on C. A page whose pilot is a starfighter reads this scheme in the
+// pilot's place.
+const COCKPIT_BIND = {
+  moveForward: { keyboard: ['KeyW'], gamepad: ['rt'] }, moveBack: { keyboard: ['KeyS'], gamepad: ['lt'] },
+  turnLeft: { keyboard: ['KeyA'], gamepad: ['lb'] }, turnRight: { keyboard: ['KeyD'], gamepad: ['rb'] },
+  strafeLeft: {}, strafeRight: {}, jump: {}, descend: {}, kneel: {}, boost: {}, walk: {}, tackle: {},
+  cycleWeapon: {}, weapon1: {}, weapon2: {}, weapon3: {}, weapon4: {}, weapon5: {}, lock: {}, swapSuit: {}, transform: {},
+  aiToggle: {}, flare: {}, useItem: {}, interact: {},
+  reverseView: { keyboard: ['KeyV'] }, spectateNext: { keyboard: ['Tab'], gamepad: ['right'] },
+  missile: { keyboard: ['Space'], mouse: ['right'], gamepad: ['west'] },
+  fire: { mouse: ['left'], keyboard: ['ControlLeft'], gamepad: ['south'] },
+};
+const COCKPIT = {
+  ...PILOT, id: 'cockpit', label: 'the cockpit: a starfighter flown in the 90s space-combat register',
+  actions: [
+    ...PILOT.actions.map((a) => (COCKPIT_BIND[a.id] ? { ...a, bind: COCKPIT_BIND[a.id] } : a)),
+    { id: 'pitchUp', label: 'nose up', group: 'move', in: ['vehicle'], bind: { keyboard: ['ArrowDown'], gamepad: ['leftY+'] } },
+    { id: 'pitchDown', label: 'nose down', group: 'move', in: ['vehicle'], bind: { keyboard: ['ArrowUp'], gamepad: ['leftY-'] } },
+    { id: 'yawLeft', label: 'yaw left', group: 'move', in: ['vehicle'], bind: { keyboard: ['ArrowLeft'], gamepad: ['leftX-'] } },
+    { id: 'yawRight', label: 'yaw right', group: 'move', in: ['vehicle'], bind: { keyboard: ['ArrowRight'], gamepad: ['leftX+'] } },
+    { id: 'thrZero', label: 'throttle: stop', group: 'move', in: ['vehicle'], bind: { keyboard: ['Backspace'] } },
+    { id: 'thrFull', label: 'throttle: full', group: 'move', in: ['vehicle'], bind: { keyboard: ['Backslash'] } },
+    { id: 'thrThird', label: 'throttle: a third', group: 'move', in: ['vehicle'], bind: { keyboard: ['BracketLeft'] } },
+    { id: 'thrTwoThirds', label: 'throttle: two thirds', group: 'move', in: ['vehicle'], bind: { keyboard: ['BracketRight'] } },
+    { id: 'matchSpeed', label: 'match the target\'s speed', group: 'move', in: ['vehicle'], bind: { keyboard: ['Enter'], gamepad: ['east'] } },
+    { id: 'tgtNext', label: 'target: next', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyT'], gamepad: ['right'] } },
+    { id: 'tgtPrev', label: 'target: previous', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyY'], gamepad: ['left'] } },
+    { id: 'tgtNear', label: 'target: nearest foe', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyR'], gamepad: ['north'] } },
+    { id: 'tgtAtk', label: 'target: the one attacking you', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyE'], gamepad: ['down'] } },
+    { id: 'tgtGoal', label: 'target: the mission\'s', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyU'], gamepad: ['up'] } },
+    { id: 'linkFire', label: 'link the cannons', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyX'], gamepad: ['rs'] } },
+    { id: 'powLasers', label: 'power to lasers', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit1'] } },
+    { id: 'powShields', label: 'power to shields', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit2'] } },
+    { id: 'powEngines', label: 'power to engines', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit3'] } },
+    { id: 'powEven', label: 'power even', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit4'] } },
+    { id: 'xferLasers', label: 'transfer: shields to lasers', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit5'] } },
+    { id: 'xferShields', label: 'transfer: lasers to shields', group: 'combat', in: ['vehicle'], bind: { keyboard: ['Digit6'] } },
+    { id: 'shieldSet', label: 'shields: even, fore, aft', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyG'] } },
+    { id: 'cockpitView', label: 'cockpit / chase view', group: 'camera', in: ['vehicle'], bind: { keyboard: ['KeyC'], gamepad: ['ls'] } },
+  ],
+  legend: {
+    keyboard: [
+      { text: 'mouse · click to capture', label: 'fly: pitch & yaw' },
+      { ids: ['turnLeft', 'turnRight'], label: 'roll' },
+      { ids: ['moveForward', 'moveBack'], label: 'throttle up / down' },
+      { ids: ['thrZero', 'thrThird', 'thrTwoThirds', 'thrFull'], sep: ' ', label: 'throttle: stop, a third, two thirds, full' },
+      { ids: ['matchSpeed'], label: 'match the target\'s speed' },
+      { ids: ['fire'], dev: 'mouse', label: 'lasers' },
+      { ids: ['missile'], label: 'warhead' },
+      { ids: ['linkFire'], label: 'link the cannons' },
+      { ids: ['tgtNext', 'tgtPrev', 'tgtNear', 'tgtAtk', 'tgtGoal'], sep: ' ', label: 'target: next, previous, nearest, attacker, mission' },
+      { ids: ['powLasers', 'powShields', 'powEngines', 'powEven'], sep: ' ', label: 'power: lasers, shields, engines, even' },
+      { ids: ['xferLasers', 'xferShields'], sep: ' ', label: 'transfer: to lasers, to shields' },
+      { ids: ['shieldSet'], label: 'shields: even, fore, aft' },
+      { ids: ['cockpitView'], label: 'cockpit / chase' },
+      { ids: ['reverseView'], label: 'look back', when: 'follow' },
+    ],
+    gamepad: [
+      { ids: ['pitchDown', 'pitchUp', 'yawLeft', 'yawRight'], sep: ' ', label: 'fly' },
+      { ids: ['turnLeft', 'turnRight'], label: 'roll' },
+      { ids: ['moveForward', 'moveBack'], label: 'throttle up / down' },
+      { ids: ['fire', 'missile'], sep: ' · ', label: 'lasers · warhead' },
+      { ids: ['tgtNear', 'tgtNext'], sep: ' · ', label: 'target: nearest · next' },
+      { ids: ['matchSpeed'], label: 'match speed' },
+      { ids: ['cockpitView'], label: 'cockpit / chase' },
+      { ids: ['pause'], label: 'pause' },
+    ],
+    xr: [], sim: [],
+  },
+};
+
+export const SCHEMES = { pilot: PILOT, operative: OPERATIVE, cockpit: COCKPIT, 'falling-block': FALLING_BLOCK, grid: GRID, board: BOARD, point: POINT, menu: MENU, shell: SHELL, versus: VERSUS, brawl: BRAWL, action: ACTION };
 export const SCHEME_IDS = Object.keys(SCHEMES);

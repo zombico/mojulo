@@ -197,7 +197,15 @@ between a margin and the eye. Above the crease the fold rises to the brow as a p
 upright under the brow, so a light from above reaches it; the brow's arc and its ties hang lower; a deep-set eye (its
 globe, lids and lashes) comes forward a share of the way toward the nose's tip, short of the glabella; the lower
 lashes root on the margin's front, shorter. Everything that rebuilds the head from its fit (the bake, the hair, the
-face rig) reads the same seated head. Under laws 12 the mouth has TEETH (`hero-one-skin.js` `teeth`): the bag behind the
+face rig) reads the same seated head. Under laws 14 the face's hair is drawn as a game draws it (the recipe's
+`faceHairPaint`): each brow hair of the groom a stroke in the head's page (`epidermis/dermal-brow.js`), the band
+thinning at its head and tail, with the lash line's dark band along each margin; the lashes a ribbon of alpha cards
+textured from their own strip of the atlas (`hair-strands.js` `LASH_PAGE`); a beard a coat over the skin textured with
+the hair's streaks, its points sharing the skin page's coordinates; the scalp painted the hair's colour under the locks,
+the hairline stopping at its edge, and the locks textured from a strip of their own (`LOCK_PAGE`), their tips kept off
+the skin. The cards are a primitive of their own with a MASK material (`alphaBox`), the body opaque, and the default
+heroes are held to a game's budget of triangles, vertices, atlas and materials (`hero-budget.e2e.test.js`). Under laws
+12 the mouth has TEETH (`hero-one-skin.js` `teeth`): the bag behind the
 lips is cut open at its front into a cup facing in, and in it the head's own dentition (`head-relational.js` `DENTITION`,
 each crown a tube along its vajra, the front ones blades) on the head bone above and the jaw's below, and the tongue on
 the jaw's; their colours are the palette's `Teeth`, `TeethShade` and `Tongue`. Toward each corner the lips' share of the
@@ -219,3 +227,13 @@ expression channels and their eye looks (`humanoid-head.js` `EYE_LOOKS`); the Wo
 In the one skin a lid's weight and turn are smoothed over the skin's own neighbours (`SKIN_FOLLOW.smooth`), so a
 blink shuts the lid as one sheet. The lips stretch as the
 jaw opens.
+
+The face over the relational head is composed (`face-compose.js` `composeFace`): its ancestry's bucket (`FACE_BUCKETS`)
+sets the population's mean as offsets over the sex's pole, then the rolls. The East and North Asian eye
+(`EAST_ASIAN_EYE`) is wider and less tall, its height taken off the lower lid; its tilt turns about the pupil
+(`tiltPivot`), so a lifted outer corner leaves the iris even between the lids; the globe sits toward the inner corner
+(`globeShift`), the white running out to the temple; the flesh is TENTED from the low nasal root over the inner corner
+(`tent`, `MEDIAL_TENT`, held from the lid space's cut), the fold being that skin in place of the lid's epicanthic roll;
+the lids close at both corners just past the globe (`innerClose`, `outerClose`), where the corner fill ends, set back to
+the face (`COVER_CLOSED`), so no bean stands at the eye's side; and the root and the brow sit back to the eye (the
+nasion ~6 mm ahead of the cornea). Each of these is 0 or absent on every other face, which renders as before.

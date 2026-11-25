@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readEgocubeKind, rollStored, egocubeNodes, egocubeCreate, egocubePrint, assembleEgocubeScene, LINEUP_GAP } from './kind.js';
 import { rollEgocube } from './egocube.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
-import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE } from './moves.js';
+import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE, battleMovesOf, BATTLE_ATTACKS_OF_ROLE, ARMED_ATTACKS, foeBattleMovesOf, beastMovesOf, FOE_ROAR, BATTLE_CHANNEL, WIN_OF_CLASS, VICTORY_CHEER, classOfFacets } from './moves.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { ROLES, ARCHETYPE_IDS } from './facets.js';
 
@@ -81,6 +81,50 @@ describe('a lone sheet made to play a part (`moves: true`, a bestiary\'s people)
     expect(egocubeCreate(plain).moves).toBeUndefined();
     expect(() => readEgocubeKind({ kind: 'egocube', roll, moves: 'yes' })).toThrow(/moves is true/);
   });
+
+  it('made to play a party battle\'s foe (`moves: \'battle\'`): a member\'s repertoire by its role and a roar, every word a motion', () => {
+    const roll = { facets: { role: 'frontline' }, seed: 4 }, S = rollStored({ kind: 'egocube', roll, moves: 'battle' }), f = S.sheet.facets;
+    const C = egocubeCreate(S), B = foeBattleMovesOf(f.role, { archetype: f.archetype });
+    expect(C.battle).toEqual(B.states);
+    expect(C.battle.roar).toBe(FOE_ROAR);
+    expect(C.battle.channel).toBe(BATTLE_CHANNEL);   // (and the channel every fighter gathers a power with)
+    expect(C.moves).toEqual(egocubeCreate(rollStored({ kind: 'egocube', roll, moves: true })).moves);
+    for (const w of Object.values(C.battle)) expect(C.create.spec.motion[w], w).toBe(true);
+    for (const w of Object.keys(C.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();
+    expect(egocubeCreate(rollStored({ kind: 'egocube', roll, moves: true }))).not.toHaveProperty('battle');
+    // (held, a weapon in its hand: its attacks the held swings the page bakes)
+    const A = egocubeCreate(S, { armed: true });
+    expect([A.battle.strike, A.battle.strike2, A.battle.strike3]).toEqual(ARMED_ATTACKS);
+  });
+});
+
+// THE VICTORY POSES (moves.js WIN_OF_CLASS, hero-aura.js's victory family): a class's own starter, a world's own over it
+describe('a party\'s victory poses', () => {
+  it('each class its own victory pose, a hero-door motion; one with no class cheers; a pose of its own wins', () => {
+    expect(new Set(Object.values(WIN_OF_CLASS)).size).toBe(Object.keys(WIN_OF_CLASS).length);
+    for (const w of [...Object.values(WIN_OF_CLASS), VICTORY_CHEER]) expect(MOTION_GAITS[w], w).toBeTruthy();
+    expect(battleMovesOf('frontline', { cls: 'knight' }).states.win).toBe('victorySalute');
+    expect(battleMovesOf('frontline', { cls: 'knight', win: 'peaceWink' }).states.win).toBe('peaceWink');
+    expect(battleMovesOf('frontline', { cls: 'knight', win: 'peaceWink' }).motion.peaceWink).toBe(true);
+    expect(battleMovesOf('frontline').states.win).toBe(VICTORY_CHEER);
+    expect(battleMovesOf('frontline', { archetype: 'ruler' }).states.win).toBe(WIN_OF_ARCHETYPE.ruler);
+  });
+});
+
+// A PARTY BATTLE'S BEAST (moves.js beastMovesOf { battle }): its strike and its other ways at a foe as the acts the page
+// plays them by; a body that cannot strike has none; without `battle`, as it always was
+describe('a party battle\'s beast', () => {
+  it('strikes, snaps and mauls in turn and roars; a snake has no maul; a swimmer none; plain, unchanged', () => {
+    const W = beastMovesOf('wolf', { battle: true });
+    expect(W.motion).toMatchObject({ strike: true, strikes: { snap: true, maul: true, roar: true } });
+    expect(W.states).toMatchObject({ strike: 'strike', strike2: 'snap', strike3: 'maul', roar: 'roar', channel: 'channel', stagger: 'flinch', swing_neutral: 'strike' });
+    const S = beastMovesOf('snake', { battle: true });
+    expect(S.states).toMatchObject({ strike: 'strike', strike2: 'snap', roar: 'roar' });
+    expect(S.states).not.toHaveProperty('strike3');
+    expect(beastMovesOf('salmon', { battle: true })).toEqual(beastMovesOf('salmon'));
+    expect(beastMovesOf('wolf', { battle: true, strike: { startup: 40 } }).motion.strike).toEqual({ startup: 40 });
+    expect(beastMovesOf('wolf')).toEqual({ motion: [...beastGaitsOf('wolf'), 'flinch', 'fall', 'rise'], states: { stagger: 'flinch', topple: 'fall', getup: 'rise' } });
+  });
 });
 
 describe('a cast as a cube (cast.js)', () => {
@@ -114,6 +158,27 @@ describe('a cast as a cube (cast.js)', () => {
     expect(egocubeCreate(rollStored(THREAD)).create.spec.motion).toBeUndefined();   // one character alone: as it was
     expect(() => egocubeCreate(S, { years: 20 })).toThrow(/made by path/);
     expect(() => egocubeCreate(rollStored(THREAD), { member: 'hero' })).toThrow(/this cube is one character/);
+  });
+
+  it('a member who fights in the party carries a party battle\'s repertoire: three attacks, a cast, its reactions, its stance and its win', () => {
+    const S = rollStored({ kind: 'egocube', cast: { seed: 4, cast: { mage: { relation: 'party', body: 'person', roles: ['caster'] } } } });
+    const path = Object.keys(S.castSheet.members).find((p) => p !== 'hero'), M = egocubeCreate(S, { member: path }), f = S.castSheet.members[path].sheet.facets;
+    expect(M.battle).toEqual(battleMovesOf(f.role, { archetype: f.archetype, cls: classOfFacets(f) }).states);
+    expect(new Set([M.battle.strike, M.battle.strike2, M.battle.strike3]).size).toBe(3);
+    expect(M.battle.channel).toBe(BATTLE_CHANNEL);
+    // (its victory pose its class's: the class its facets read as, a victory pose of the hero door)
+    expect(M.battle.win).toBe(WIN_OF_CLASS[classOfFacets(f)]);
+    expect(new Set([M.battle.hurt, M.battle.hurt2, M.battle.hurt3]).size).toBe(3);
+    for (const w of Object.values(M.battle)) expect(M.create.spec.motion[w], w).toBe(true);
+    for (const w of Object.keys(M.create.spec.motion)) expect(MOTION_GAITS[w], w).toBeTruthy();
+    // (one made holding a weapon strikes with it: its attacks the held swings the page bakes, none of its fists minted)
+    const A = egocubeCreate(S, { member: path, armed: true });
+    expect([A.battle.strike, A.battle.strike2, A.battle.strike3]).toEqual(ARMED_ATTACKS);
+    for (const w of [M.battle.strike, M.battle.strike2, M.battle.strike3]) expect(A.create.spec.motion[w], w).toBeUndefined();
+    // (one who is not of the party plays its part as it always did)
+    expect(egocubeCreate(rollStored(CAST), { member: 'hero/rival' })).not.toHaveProperty('battle');
+    // (each role its own blows: no two roles' attacks the same three)
+    expect(new Set(Object.values(BATTLE_ATTACKS_OF_ROLE).map((a) => a.join())).size).toBeGreaterThan(2);
   });
 
   it('previews the cast standing in a line, the beast among them', async () => {
