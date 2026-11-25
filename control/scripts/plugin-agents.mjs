@@ -7,6 +7,8 @@
  *   plugins/mojulo/agents/mojulo-maker.md    Sonnet, medium effort: `ride`, `fill` and `judge` tools
  *   plugins/mojulo/skills/mojulo/SKILL.md    the block between the tiers markers: what stays with the main
  *                                            session (`design`) and when to hand work to each subagent
+ *   plugins/mojulo/skills/<start>/SKILL.md   the start skills and the main skill's starts block, from the routing
+ *                                            cards (scripts/plugin-skills.mjs)
  *
  * Each subagent's `tools` list is exact: it cannot call a tool above its tier. Tools the plugin profile hides,
  * and tools whose tier is deferred, are left out. Model names live here and in the Claude runtime adapter only.
@@ -20,6 +22,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TOOL_TIERS } from '../lib/mcp/tool-tiers.js';
 import { hiddenInPluginProfile } from '../lib/mcp/plugin-profile.js';
+import { skillWithStarts, startSkills } from './plugin-skills.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PLUGIN_DIR = resolve(HERE, '../../plugins/mojulo');
@@ -158,7 +161,8 @@ export function generated() {
   return {
     [join(PLUGIN_DIR, 'agents/mojulo-runner.md')]: runnerAgent(),
     [join(PLUGIN_DIR, 'agents/mojulo-maker.md')]: makerAgent(),
-    [skillPath]: skillWithBlock(readFileSync(skillPath, 'utf8')),
+    [skillPath]: skillWithStarts(skillWithBlock(readFileSync(skillPath, 'utf8'))),
+    ...startSkills(PLUGIN_DIR),
   };
 }
 
