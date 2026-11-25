@@ -7,8 +7,8 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
 
 - **The assault frame** (`assault-frame/`). A frame is built from parts, one in each slot:
   - a core, a head, two arms, biped legs, a booster, a generator and an FCS;
-  - a weapon in each hand and on each shoulder (`parts.js`). The hands carry a rifle, a shotgun, a gatling, a bazooka or
-    a laser. The shoulders carry a missile pod, a mortar or a plasma cannon.
+  - a weapon in each hand and on each shoulder (`parts.js`). The hands carry a rifle, a shotgun, a gatling, a bazooka, a
+    laser or a blade. The shoulders carry a missile pod, a mortar or a plasma cannon.
   - Three stock frames: the medium Vanguard, the light Raptor, the heavy Citadel.
   - The pilot's Vanguard is headless on reverse-joint legs. Its core is a forward fuselage (`cr-prow`): a long
     armoured prow ahead of the shoulders, the cockpit under a narrow canopy, the optics in a chin turret, a chrome
