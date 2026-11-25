@@ -121,6 +121,7 @@ export function buildScrollPods(E) {
     if (state.podHits) state.podHits = state.podHits.filter((h) => now - h.t < 0.4);
     // (an interior's corridor and its bulkheads near the screen, the foes' pass reads them the same: a round ends in one)
     const c0 = cam._sc, SA0 = cam.rule.screen[0], walls = Array.isArray(cam.rule.walls) ? cam.rule.walls.filter((w) => w[1] > c0[0] - SA0 && w[0] < c0[0] + SA0) : [];
+    for (const m of state.entities) if (m._box && m.rule && m.rule.type === 'scroll-mover' && m._box[1] > c0[0] - SA0 && m._box[0] < c0[0] + SA0) walls.push(m._box);
     const K = Array.isArray(cam.rule.corridor) && cam.rule.corridor.length > 1 ? cam.rule.corridor : null;
     const inWall = (u, v) => {
       if (K) { const o = corridorAt(K, u); if (o && (v < o[0] || v > o[1])) return true; }

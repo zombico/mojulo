@@ -4,13 +4,15 @@
 // face turned to it brighter than one turned away, an enclosed face darker, a face turning from the eye rimmed cool;
 // the lamps drawn as their own colour); a ramp's deck faces along its slope; the station looks out through windows and
 // the facility stripes what crosses the way; the faces stand in the slab's depth, the back behind the play and the
-// struts before it; the top view gets it turned, never mirrored; the same plan the same faces; a stage carries it, its
+// struts before it; each hatch's opening and each mover's slot set in the wall; on the stage, a gun on each mount, each
+// hatch's drones, each mover a body on its rule; the top view gets it turned, never mirrored; the same plan the same
+// faces; a stage carries it, its
 // faces and kibble on the payload and its corridor and bulkheads on the camera's rule; a stage without one carries none.
 import { describe, it, expect } from 'vitest';
 import { layInterior, castBake, INTERIOR_LOOK, WALL_DEPTH } from './interior-scene.js';
 import { planInterior } from './interior.js';
 import { scrollCamera, toScreen, SCROLL_VIEWS } from './frame.js';
-import { assembleScrollStage, scrollStagePlay } from './stage-scene.js';
+import { assembleScrollStage, scrollStagePlay, readScrollStage } from './stage-scene.js';
 import { stageManifest, STAGE_IDS } from './stages.js';
 import { SPACE_MOOD } from '../../car-designer/form-light.js';
 
@@ -26,7 +28,7 @@ const rig = { toLight: [0, 0, 1], key: [1, 1, 1], keyIntensity: SPACE_MOOD.level
 describe('the interior drawn', () => {
   it('lays every part in its block', () => {
     const F = lay('station');
-    for (const b of ['cut', 'trim', 'deck', 'rib', 'back', 'bulkhead', 'hull', 'lamps', 'struts']) expect(blocks(F), b).toContain(b);
+    for (const b of ['cut', 'trim', 'deck', 'rib', 'back', 'bulkhead', 'hull', 'lamps', 'struts', 'slots']) expect(blocks(F), b).toContain(b);
     for (const f of F.faces) { expect(f.node).toBe(f.group.slice(6)); for (const p of f.corners) for (const x of p) expect(Number.isFinite(x)).toBe(true); }
     expect(F.report.ribs).toBeGreaterThan(4);
   });
@@ -80,6 +82,29 @@ describe('the interior drawn', () => {
 
   it('the same plan the same faces', () => {
     expect(JSON.stringify(lay('facility'))).toBe(JSON.stringify(lay('facility')));
+  });
+
+  it('sets each hatch\'s opening and each mover\'s slot in the wall, warning lamps by the slots', () => {
+    const P = planInterior({ at: 1, sections: ['hall', 'crushers', 'locks'].map((kind) => ({ kind })) }, { cam, track, seed: 2 }), F = layInterior(P, cam, { view: 'side', seed: 2 });
+    const near = (u, w) => F.faces.filter((f) => Math.abs(toScreen('side', f.corners[0])[0] - u) < w);
+    for (const h of P.hatches) expect(near(h.u, P.step * 0.2).some((f) => f.node === 'interior/slots')).toBe(true);
+    for (const m of P.movers) expect(near((m.u0 + m.u1) / 2, (m.u1 - m.u0)).filter((f) => f.fill === '#07090c').length).toBeGreaterThan(1);
+    expect(F.faces.some((f) => f.node === 'interior/lamps' && f.fill === '#ffcc33')).toBe(true);
+  });
+
+  it('its life on the stage: a gun on each mount, each hatch its drones, each mover a body on its rule', () => {
+    const M0 = stageManifest(STAGE_IDS[0]), M = { ...M0, scroll: { ...M0.scroll, interior: { at: 2, sections: ['hall', 'crushers', 'locks'].map((kind) => ({ kind })) } } };
+    const G = scrollStagePlay(M), I = planInterior(M.scroll.interior, { cam, track, seed: 2 }), E = G.entities;
+    const guns = E.filter((e) => e.id.startsWith('gun-mount')), drones = E.filter((e) => Array.isArray(e.rule.from)), movers = E.filter((e) => e.rule.type === 'scroll-mover');
+    expect(guns.length).toBeGreaterThan(0);
+    for (const g of guns) { expect(g.rule.path.kind).toBe('fixed'); expect(g.rule.pattern).toBeTruthy(); expect(g.body.marker).toBe(false); }
+    expect(drones.length).toBeGreaterThan(0);
+    for (const d of drones) { expect(d.rule.path.kind).toBe('rise'); expect(d.body.figure).toBe('foe-hatchling'); }
+    expect(G.figures['foe-hatchling']).toBeTruthy();
+    expect(movers.length).toBeGreaterThan(0);
+    for (const m of movers) { expect(m.rule.box).toHaveLength(4); expect(m.rule.cycle.period).toBeGreaterThan(0); expect(m.body.marker).toBe(false); }
+    expect(I.movers.length).toBe(movers.length);
+    expect(readScrollStage({ waves: [{ at: 1, foe: 'hatchling' }] }).join()).toMatch(/a hatchling with its hatch/);
   });
 
   it('a stage carries it: its faces and kibble on the payload, its corridor and bulkheads on the camera\'s rule; a stage without one none', () => {

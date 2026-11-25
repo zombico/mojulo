@@ -16,6 +16,9 @@
  *                 (holes: the space layers show through, the stage's world beyond)
  *   BULKHEADS     the one square thing across the way: a slab plated as the cut, its tip marked (the facility's in
  *                 hazard stripes), a signal lamp on it
+ *   HATCHES, SLOTS  a hatch's opening in the deck, its rim; the slot a crusher or a lock's leaf draws back into, dark
+ *                 through the deck and up the cut, warning lamps either side (red a crusher's, amber a lock's); a lock's
+ *                 frame on the back (the movers' bodies are the page's, on their rule: worlds/controllable/scroll-foes.js)
  *   the HULL      the station's face where the run begins and ends, plated, its docking lights either side
  *   FOREGROUND    struts in front of the play, dark, sliding past fastest (the side map's girders), a lit edge each
  *
@@ -31,6 +34,7 @@
  *                   lamp, window? (a station's), strut, kibble levels { cut, deck, back, rib, bulkhead, hull }
  *   WALL_DEPTH      the slab's reach off the play plane: { front (toward the camera), back }, camera distances
  *   castBake(hex, n, toEye, rig, { enclosed?, glow? }) → the face's colour under the rig (n, toEye: world unit vectors)
+ *   shipRig(view?, sun?)  → the rig: the space mood's light with its key from the stage's star (castBake's)
  *   layInterior(plan, cam, { view, seed?, sun? }) → { faces, kibble: { <block>: level }, report: { faces, windows, lamps,
  *                   ribs, struts } }
  *
@@ -83,16 +87,22 @@ export function castBake(hex, n, toEye, rig, { enclosed = 1, glow = null } = {})
   return linHex(neutral(a.map((v, i) => v * (rig.key[i] * kd + hemi[i] + g[i]) + rig.rim.linear[i] * f)));
 }
 
+/** The ship's light on a stage (see the header): the space mood's, its key the stage's star (the side map's key: from
+ *  behind the camera, over and ahead, where none is given). */
+export function shipRig(view = 'side', sun = null) {
+  const V = SCROLL_VIEWS[view], toLight = unit(sun ?? V.toward.map((t, i) => t * 0.6 + V.up[i] * 0.7 + V.along[i] * 0.35));
+  const kp = Math.max(...SPACE_MOOD.key);
+  return { toLight, key: SPACE_MOOD.key.map((v) => v / kp), keyIntensity: SPACE_MOOD.level * Math.min(1, kp), hemi: SPACE_MOOD.hemi, rim: SPACE_MOOD.rim };
+}
+
 /** The interior's faces (see the header). */
 export function layInterior(plan, cam, { view = 'side', seed = 1, sun = null } = {}) {
-  const V = SCROLL_VIEWS[view], K = INTERIOR_LOOK[plan.look] ?? INTERIOR_LOOK.station, C = cam.screen.across, A = cam.screen.along;
-  // the ship's light: the space mood's, its key the stage's star (the side map's key: from behind the camera, over and ahead)
-  const toLight = unit(sun ?? V.toward.map((t, i) => t * 0.6 + V.up[i] * 0.7 + V.along[i] * 0.35));
-  const kp = Math.max(...SPACE_MOOD.key), rig = { toLight, key: SPACE_MOOD.key.map((v) => v / kp), keyIntensity: SPACE_MOOD.level * Math.min(1, kp), hemi: SPACE_MOOD.hemi, rim: SPACE_MOOD.rim };
+  const V = SCROLL_VIEWS[view], K = INTERIOR_LOOK[plan.look] ?? INTERIOR_LOOK.station, C = cam.screen.across, A = cam.screen.along, rig = shipRig(view, sun);
   const dF = r3(WALL_DEPTH.front * cam.dist), dB = r3(WALL_DEPTH.back * cam.dist), depth = dF - dB;
   const faces = [], kibble = {}, report = { faces: 0, windows: 0, lamps: 0, ribs: 0, struts: 0 };
   const die = streamOf(seed, 'scroll-interior', 'dress'), E = plan.edges;
   const W = (p) => toWorld(view, p).map(r3), N = (n) => unit([0, 1, 2].map((k) => V.along[k] * n[0] + V.across[k] * n[1] + V.toward[k] * n[2]));
+  const edgeAt = (u) => { for (let k = 1; k < E.length; k++) if (u <= E[k].u + 1e-9) { const a = E[k - 1], b = E[k], t = b.u - a.u > 1e-9 ? (u - a.u) / (b.u - a.u) : 0; return [a.lo + (b.lo - a.lo) * t, a.hi + (b.hi - a.hi) * t]; } return [E[E.length - 1].lo, E[E.length - 1].hi]; };
   const midAt = (u) => { for (let k = 1; k < E.length; k++) if (u <= E[k].u + 1e-9) { const a = E[k - 1], b = E[k], t = b.u - a.u > 1e-9 ? (u - a.u) / (b.u - a.u) : 0; return a.mid + (b.mid - a.mid) * t; } return E[E.length - 1].mid; };
   // a polygon from (u, v, d) corners facing n (screen axes), baked under the rig as the eye on the track sees it
   const poly = (pts, n, hex, block, { enclosed = 1, glow = null, lit = false } = {}) => {
@@ -180,6 +190,27 @@ export function layInterior(plan, cam, { view = 'side', seed = 1, sun = null } =
     const mu = (w.u0 + w.u1) / 2;
     poly([[mu - 0.8, tip - s * 0.05, dF - 3], [mu + 0.8, tip - s * 0.05, dF - 3], [mu + 0.8, tip - s * 0.05, dF - 1], [mu - 0.8, tip - s * 0.05, dF - 1]], [0, -s, 0], '#ff3b30', 'lamps', { lit: true });
     report.lamps += 1;
+  }
+  // ── what moves and what opens: each sets its place in the wall (the movers' bodies are the page's, on their rule) ──
+  const slot = '#07090c', deckAt = (u, side) => { const o = edgeAt(u); return side === 'floor' ? o[0] : o[1]; };
+  // a HATCH: a dark opening in the deck, its rim in the trim (the facility's striped)
+  for (const h of plan.hatches || []) {
+    const s = h.side === 'floor' ? 1 : -1, w = plan.step * 0.18, u0 = h.u - w, u1 = h.u + w, e0 = deckAt(u0, h.side) + s * 0.05, e1 = deckAt(u1, h.side) + s * 0.05, n = [0, s, 0];
+    poly([[u0, e0, dF - depth * 0.5], [u1, e1, dF - depth * 0.5], [u1, e1, dF - depth * 0.1], [u0, e0, dF - depth * 0.1]], n, K.stripe ?? K.trim, 'trim', { enclosed: 0.8 });
+    poly([[u0 + 1, e0 + s * 0.05, dF - depth * 0.46], [u1 - 1, e1 + s * 0.05, dF - depth * 0.46], [u1 - 1, e1 + s * 0.05, dF - depth * 0.14], [u0 + 1, e0 + s * 0.05, dF - depth * 0.14]], n, slot, 'slots', { lit: true });
+  }
+  // a MOVER's slot: where a crusher or a lock's leaf draws back, dark through the deck and up the cut, warning lamps either side
+  for (const m of plan.movers || []) {
+    const s = m.from === 'floor' ? 1 : -1, e0 = deckAt(m.u0, m.from) + s * 0.05, e1 = deckAt(m.u1, m.from) + s * 0.05, n = [0, s, 0];
+    poly([[m.u0, e0, dB], [m.u1, e1, dB], [m.u1, e1, dF - bevel], [m.u0, e0, dF - bevel]], n, slot, 'slots', { lit: true });
+    const far = e0 - s * m.reach;
+    poly([[m.u0, far, dF + 0.05], [m.u1, far, dF + 0.05], [m.u1, e1, dF + 0.05], [m.u0, e0, dF + 0.05]], [0, 0, 1], slot, 'slots', { lit: true });
+    for (const u of [m.u0 - 1.6, m.u1 + 0.4]) { poly([[u, e0 + s * 0.06, dF - 4], [u + 1.2, e0 + s * 0.06, dF - 4], [u + 1.2, e0 + s * 0.06, dF - 1.5], [u, e0 + s * 0.06, dF - 1.5]], n, m.kind === 'lock' ? '#ffcc33' : '#ff3b30', 'lamps', { lit: true }); report.lamps += 1; }
+  }
+  // a LOCK's frame on the back: two posts in the trim either side of its leaves
+  for (const m of (plan.movers || []).filter((x) => x.kind === 'lock' && x.from === 'ceiling')) {
+    const o = edgeAt((m.u0 + m.u1) / 2), w = plan.step * 0.05;
+    for (const u of [m.u0 - w * 1.4, m.u1 + w * 0.4]) poly([[u, o[0], dB + 0.6], [u + w, o[0], dB + 0.6], [u + w, o[1], dB + 0.6], [u, o[1], dB + 0.6]], [0, 0, 1], K.trim, 'trim', { enclosed: ENCLOSED.back + 0.2, glow });
   }
   // ── the HULL's face where the run begins and ends, plated, its docking lights ──
   for (const [u, n, q] of [[plan.u0, -1, E[0]], [plan.u1, 1, E[E.length - 1]]]) {

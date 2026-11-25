@@ -17,6 +17,11 @@
  *     duct      narrow, in bends: the open climbs and drops a step at a time, held between
  *     shutters  bulkheads across the corridor, from the ceiling and the floor in turn: weave between them
  *     core      the room at the heart: wide, its walls far apart
+ *     crushers  pistons that shudder (told), slam out of the ceiling and the floor in turn, hold and draw back: out,
+ *               each still leaves the passage
+ *     locks     shutters that close right across the way, two leaves meeting in the middle, open on a cycle: go through
+ *               while they are open
+ *   (and a hall's HATCHES, on its floor and its ceiling in turn, each launching its drones as the screen comes up)
  *
  *   INTERIOR_LOOKS   station (white panels, cyan strips, windows out to the stars) | facility (dark steel, amber lamps,
  *                    hazard stripes): the drawing's (phase 12), named here so a stage can say it
@@ -32,6 +37,9 @@
  *     edges: [{ u, lo, hi, mid, section }]    the floor and the ceiling as lines through the knots (the run's ends and
  *                                             each step's middle): what is flown, drawn and struck
  *     walls: [{ id, u0, u1, v0, v1, role: 'bulkhead', from: 'ceiling' | 'floor', section }]   what stands across the way
+ *     movers: [{ id, kind: 'crusher' | 'lock', u0, u1, v0, v1 (its box when out), from (the wall it draws back into),
+ *              reach (how far), cycle: { period, phase, … } (CRUSHER, LOCK) }]   what moves across the way
+ *     hatches: [{ id, u, v, side, drones, section }]   a hall's hatches, each launching its drones
  *     mounts: [{ id, u, v, side: 'ceiling' | 'floor', section }]   where a gun stands on a wall, facing the open
  *     reach                                   how far past the open a wall goes (a screen across: never seen beyond)
  *   }
@@ -39,7 +47,9 @@
  *   interiorLaws(plan, { cam, ship, pace, gears? }) → [{ id, holds, says }], read at the knots and a bulkhead's ends:
  *     passage (the open, a bulkhead's pass included, never narrower than PASSAGE breadths), continuity (each stretch's
  *     open overlaps the next by as much), climb (a ramp asks no more than CLIMB of the slowest gear across), on screen (the open inside the frame, its edge kept),
- *     mounts (each on a wall, facing an open at least PASSAGE wide)
+ *     mounts (each on a wall, facing an open at least PASSAGE wide), crusher-pass (out, a crusher leaves the passage),
+ *     lock-window (a lock open LOCK_CROSS times as long as it takes to cross at the pace, twice while on the screen),
+ *     movers-told (each told half a second before it moves)
  *
  * Pure and deterministic: the same stage the same walls.
  */
@@ -48,11 +58,21 @@ import { streamOf } from '../../city/plan/dice.js';
 const row = (o) => Object.freeze(o);
 export const SECTIONS = Object.freeze({
   mouth: row({ length: 1, gap: [0.6, 0.66], drift: 0, mounts: 0, says: 'the way in: the hull\'s face, its walls closing from the screen\'s edges' }),
-  hall: row({ length: 3, gap: [0.56, 0.66], drift: 0.12, mounts: 2, says: 'a corridor wide enough to fight in, its walls wandering a little' }),
+  hall: row({ length: 3, gap: [0.56, 0.66], drift: 0.12, mounts: 2, hatches: true, says: 'a corridor wide enough to fight in, its walls wandering a little' }),
   duct: row({ length: 2, gap: [0.32, 0.36], drift: 0.2, turn: 0.06, mounts: 0, says: 'narrow, in bends: the open climbs and drops a step at a time' }),
   shutters: row({ length: 2, gap: [0.6, 0.64], drift: 0.05, bulkheads: 3, pass: 0.3, mounts: 1, says: 'bulkheads from the ceiling and the floor in turn: weave between them' }),
   core: row({ length: 1.5, gap: [0.82, 0.86], drift: 0, mounts: 0, says: 'the room at the heart: wide, its walls far apart' }),
+  crushers: row({ length: 2, gap: [0.6, 0.64], drift: 0.04, crushers: 3, pass: 0.3, mounts: 0, says: 'pistons that shudder, slam out of the ceiling and the floor in turn, hold and draw back' }),
+  locks: row({ length: 2, gap: [0.54, 0.6], drift: 0.03, locks: 6, mounts: 1, says: 'shutters that close right across the way and open again: go through while they are open' }),
 });
+// THE MOVERS' TIMING (seconds): a crusher told, slammed out, held, drawn back, at rest; a lock open, told, closing,
+// closed, opening (a lock's cycle starts open). Each mover's phase staggered down its section
+export const CRUSHER = Object.freeze({ tell: 0.7, slam: 0.22, hold: 0.7, back: 0.9, rest: 1.1 });
+export const LOCK = Object.freeze({ open: 2.5, tell: 0.5, close: 0.4, shut: 0.8, opening: 0.4 });
+/** a lock's open spell, at least this many times the time to cross it at the scroll's pace */
+export const LOCK_CROSS = 1.5;
+// HATCHES: a hall's, on its floor or its ceiling, each launching its drones as the screen comes up to it
+export const HATCHES = Object.freeze({ every: 1.5, drones: 3 });
 export const SECTION_IDS = Object.freeze(Object.keys(SECTIONS));
 export const INTERIOR_LOOKS = Object.freeze(['station', 'facility']);
 export const PASSAGE = 4;
@@ -154,6 +174,46 @@ export function planInterior(spec, { cam, track, start = [0, 0], seed = 1 }) {
       walls.push({ id: `bulkhead-${si}-${k}`, u0: r3(c - w / 2), u1: r3(c + w / 2), v0, v1, role: 'bulkhead', from: fromTop ? 'ceiling' : 'floor', section: si });
     });
   });
+  // the MOVERS: a section's CRUSHERS (pistons from the ceiling and the floor in turn, leaving their pass when out) and
+  // its LOCKS (shutters right across the way), each its box when out, the wall it draws back into, how far, its timing
+  const movers = [];
+  spec.sections.forEach((S0, si) => {
+    const S = SECTIONS[S0.kind], every = S.crushers || S.locks;
+    if (!every) return;
+    const steps = profile.filter((p) => p.section === si);
+    let n = 0;
+    steps.forEach((p, k) => {
+      if (k === 0 || k % every !== 0 || k >= steps.length - 1) return;
+      const c = (p.u0 + p.u1) / 2, w = r3(step * (S.crushers ? 0.55 : 0.3)), ends = [edgeAt(c - w / 2), edgeAt(c + w / 2)];
+      const lo = Math.min(ends[0][0], ends[1][0]), hi = Math.max(ends[0][1], ends[1][1]), loMax = Math.max(ends[0][0], ends[1][0]), hiMin = Math.min(ends[0][1], ends[1][1]);
+      if (S.crushers) {
+        const fromTop = n % 2 === 0, v0 = fromTop ? r3(loMax + S.pass * C) : r3(lo - 0.02 * C), v1 = fromTop ? r3(hi + 0.02 * C) : r3(hiMin - S.pass * C);
+        const T = CRUSHER, period = T.tell + T.slam + T.hold + T.back + T.rest;
+        movers.push({ id: `crusher-${si}-${k}`, kind: 'crusher', u0: r3(c - w / 2), u1: r3(c + w / 2), v0, v1, from: fromTop ? 'ceiling' : 'floor', reach: r3(v1 - v0), section: si,
+          cycle: { ...T, period: r3(period), phase: r3((n * period) / 3) } });
+      } else {
+        // (a lock: two leaves, from the ceiling and the floor, meeting in the middle of the way)
+        const m = r3((lo + hi) / 2), T = LOCK, period = T.open + T.tell + T.close + T.shut + T.opening;
+        for (const [from, v0, v1] of [['ceiling', m, r3(hi + 0.02 * C)], ['floor', r3(lo - 0.02 * C), m]]) {
+          movers.push({ id: `lock-${si}-${k}-${from}`, kind: 'lock', u0: r3(c - w / 2), u1: r3(c + w / 2), v0, v1, from, reach: r3((hi - lo) / 2 + 0.02 * C), section: si,
+            cycle: { ...T, period: r3(period), phase: r3((n * period) / 2) } });
+        }
+      }
+      n += 1;
+    });
+  });
+  // the HATCHES: on a hall's floor or ceiling, a screen and a half apart, each launching its drones
+  const hatches = [];
+  spec.sections.forEach((S0, si) => {
+    const S = SECTIONS[S0.kind];
+    if (!S.hatches) return;
+    const steps = profile.filter((p) => p.section === si), every = Math.max(3, Math.round((HATCHES.every * A) / step));
+    steps.forEach((p, k) => {
+      if (k < every / 2 || (k - Math.floor(every / 2)) % every !== 0 || k >= steps.length - 1) return;
+      const c = r3((p.u0 + p.u1) / 2), side = hatches.length % 2 ? 'ceiling' : 'floor';
+      hatches.push({ id: `hatch-${si}-${k}`, u: c, v: side === 'floor' ? p.lo : p.hi, side, section: si, drones: HATCHES.drones });
+    });
+  });
   // the GUNS' places: on the walls at a step's middle, the ceiling and the floor in turn, a step clear of any bulkhead
   spec.sections.forEach((S0, si) => {
     const S = SECTIONS[S0.kind];
@@ -162,11 +222,11 @@ export function planInterior(spec, { cam, track, start = [0, 0], seed = 1 }) {
     steps.forEach((p, k) => {
       if (k === 0 || k % every !== 0) return;
       const c = r3((p.u0 + p.u1) / 2), side = (k / every) % 2 === 1 ? 'floor' : 'ceiling';
-      if (walls.some((w) => Math.abs((w.u0 + w.u1) / 2 - c) < step * 1.2)) return;
+      if ([...walls, ...movers].some((w) => Math.abs((w.u0 + w.u1) / 2 - c) < step * 1.2) || hatches.some((h) => Math.abs(h.u - c) < step * 1.2)) return;
       mounts.push({ id: `mount-${si}-${k}`, u: c, v: side === 'floor' ? p.lo : p.hi, side, section: si });
     });
   });
-  return { u0, u1: r3(u), look: spec.look ?? 'station', step, reach: r3(REACH * C), sections, profile, edges, walls, mounts };
+  return { u0, u1: r3(u), look: spec.look ?? 'station', step, reach: r3(REACH * C), sections, profile, edges, walls, movers, hatches, mounts };
 }
 
 /** Where the open's floor and ceiling stand at `u` (the edges, a line between knots); null off the run. */
@@ -202,6 +262,18 @@ export function interiorLaws(plan, { cam, ship, pace, gears = [SLOWEST] }) {
   out.push({ id: 'climb', holds: !steep.length, says: steep.length ? `a ramp steeper than the slowest gear can follow at ${steep.join(', ')}` : `every ramp asks no more than ${CLIMB} of the slowest gear across` });
   const half = (0.5 - EDGE) * C, off = E.filter((q) => q.lo < q.mid - half - 1e-6 || q.hi > q.mid + half + 1e-6);
   out.push({ id: 'on-screen', holds: !off.length, says: off.length ? `the open past the frame's kept edge at ${off.map((q) => q.u).join(', ')}` : 'the open always inside the frame, its edge kept' });
+  // THE MOVERS: a crusher out still leaves the passage (at both its ends); a lock opens long enough to cross, and often
+  // enough to meet open (twice while it is on the screen); each is told before it moves
+  const crush = (plan.movers || []).filter((m) => m.kind === 'crusher').filter((m) => [m.u0, m.u1].some((u) => {
+    const o = openAt(plan, u); if (!o) return true;
+    return (m.from === 'ceiling' ? m.v0 - o[0] : o[1] - m.v1) < need - 1e-6;
+  }));
+  out.push({ id: 'crusher-pass', holds: !crush.length, says: crush.length ? `a crusher out leaves less than the passage: ${crush.map((m) => m.id).join(', ')}` : 'every crusher, out, leaves the passage' });
+  const onScreen = cam.screen.along / pace, locks = (plan.movers || []).filter((m) => m.kind === 'lock');
+  const shut = locks.filter((m) => m.cycle.open < LOCK_CROSS * ((m.u1 - m.u0) + ship.length) / pace || m.cycle.period > onScreen / 2);
+  out.push({ id: 'lock-window', holds: !shut.length, says: shut.length ? `a lock open too briefly or too seldom: ${shut.map((m) => m.id).join(', ')}` : `every lock open ${LOCK_CROSS} times as long as it takes to cross, and twice while it is on the screen` });
+  const untold = (plan.movers || []).filter((m) => !(m.cycle.tell >= 0.5));
+  out.push({ id: 'movers-told', holds: !untold.length, says: untold.length ? `a mover moving untold: ${untold.map((m) => m.id).join(', ')}` : 'every mover is told at least half a second before it moves' });
   const bad = plan.mounts.filter((M) => {
     const o = openAt(plan, M.u);
     if (!o) return true;

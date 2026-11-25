@@ -73,6 +73,19 @@ The corridor is drawn as a section through the station, seen from its open side:
 - the hull's face stands at both ends with docking lights;
 - dark struts slide past in front.
 
+Things live inside:
+- guns stand on its walls, aimed at the ship;
+- hatches in a hall's deck launch drones that rise out of the wall and run back across the screen;
+- crushers shudder before they slam out of the ceiling or the floor, hold, and draw back, and even fully out each
+  leaves the passage;
+- locks close right across the way, two leaves meeting in the middle, and open again often enough and long enough to
+  cross.
+
+A crusher or a lock where it stands is terrain and stops rounds, as a wall does. Each sets its place in the wall: a
+hatch's opening, a slot through the deck and the cut with warning lamps, a lock's frame. Laws hold them: a crusher out
+leaves the passage, a lock opens long enough and twice while it is on the screen, and every mover is told before it
+moves.
+
 It is lit as the ship is, by the ship's own light in space: one key from the stage's star, the galaxy's faint fill, a
 cool rim, the same tone curve. There are two looks:
 - a station: steel plate, cyan lamps, windows out to the stars;

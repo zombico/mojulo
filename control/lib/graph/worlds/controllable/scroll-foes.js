@@ -12,8 +12,11 @@
  *                  sine   so, weaving `amp` either side of where it came in, a `period` a weave
  *                  dive   to the ship's height for a second and a half, then straight on
  *                  hold   in to `at` of the screen from its right edge, held there `for` seconds, then out the way it came
- *                  fixed  where it stands in the world (`at` [u, v]: a hull's gun on its hardpoint), in as the screen's
- *                         edge reaches it, never leaving
+ *                  fixed  where it stands in the world (`at` [u, v]: a hull's gun on its hardpoint, an interior's on its
+ *                         mount), in as the screen's edge reaches it, never leaving
+ *                  rise   up out of a HATCH (`from` [u, v]: in where the hatch stands, once the screen's edge is `lead`
+ *                         metres past it), square to its wall (`dir` ±1 across) `out` metres while standing where it is
+ *                         in the world, then straight back across the screen
  *                and leaves (gone, no score) past the screen's far edge
  *   its PATTERN  told (`tellNow` 0 → 1 over `tell`: the page glows it, its signal light), then fired: `volleys` of
  *                `shots`, a fan over `spread`° (360 a ring) round its aim (`ship`, or `ahead`: back down the scroll),
@@ -31,9 +34,14 @@
  *                canopy): the ship's body hp less its damage, flashed, and unhurt for `invuln` seconds after (`_iT`);
  *                at 0 the ship is down (`downed`; its lives are the stage's)
  *
+ *   a MOVER      the rule `scroll-mover` (an interior's crusher or a lock's leaf, gameworld/scroll-stage/interior.js):
+ *                { kind: 'crusher' | 'lock', box: [u0, u1, v0, v1] (out), from: 'ceiling' | 'floor', reach, cycle: {
+ *                period, phase, … }, d? }: its box drawn back into its wall by its cycle on the world's clock, told
+ *                first (`tellNow`, a shudder); where it stands now (`_box`) is terrain and stops bullets, as a wall
+ *
  *   ship rule: { type: 'scroll-ship', hitbox: { r, at }, invuln? (s, 1) }
  *
- * Field ownership: a foe's e._at (its offset [u, v] from the screen's centre), e._t (its time in), e._hold, e._fire
+ * Field ownership: a mover's e._box, e.out, e.tellNow; a foe's e._risen; a foe's e._at (its offset [u, v] from the screen's centre), e._t (its time in), e._hold, e._fire
  * ({ phase, t, n, turn }), e.waiting, e.tellNow, e.gone; the world's state.foeShots; the ship's body.hp, hitFlash, _iT,
  * downed, hitsTaken.
  *
@@ -73,12 +81,23 @@ export function buildScrollFoes(E) {
       e.waiting = false; e._at = [r.at[0] - c[0], r.at[1] - c[1]]; e._t = (e._t || 0) + dt; return;
     }
     if (!e._at) {
-      if (c[0] + SA / 2 < r.enter) { e.waiting = true; e.transform.pos = W(B, r.enter + rad, c[1] + (r.v || 0)); return; }
-      e.waiting = false; e._at = [SA / 2 + rad, r.v || 0]; e._t = 0; e._v0 = r.v || 0;
+      // (out of a HATCH, `from` [u, v]: in where the hatch stands, once the screen's edge is `lead` metres past it)
+      if (Array.isArray(r.from)) {
+        if (c[0] + SA / 2 < r.from[0] + (r.lead || 0)) { e.waiting = true; e.transform.pos = W(B, r.from[0], r.from[1]); return; }
+        e.waiting = false; e._at = [r.from[0] - c[0], r.from[1] - c[1]]; e._t = 0; e._v0 = e._at[1]; e._risen = 0;
+      } else {
+        if (c[0] + SA / 2 < r.enter) { e.waiting = true; e.transform.pos = W(B, r.enter + rad, c[1] + (r.v || 0)); return; }
+        e.waiting = false; e._at = [SA / 2 + rad, r.v || 0]; e._t = 0; e._v0 = r.v || 0;
+      }
     }
     e._t += dt;
     const P = r.path || { kind: 'line' }, sp = r.speed || 10, ship = shipOf(world);
-    if (P.kind === 'sine') { e._at[0] -= sp * dt; e._at[1] = e._v0 + (P.amp || 0) * Math.sin((2 * Math.PI * e._t) / (P.period || 2)); }
+    if (P.kind === 'rise') {
+      // (a RISE: up out of its hatch, square to its wall (`dir`), standing where it is in the world as the screen moves
+      // on, `out` metres; then straight back across the screen)
+      if ((e._risen || 0) < (P.out || 0)) { const d = Math.min(sp * dt, P.out - e._risen); e._risen = (e._risen || 0) + d; e._at[1] += (r.dir || 1) * d; e._at[0] -= ((cam.scrollVel && cam.scrollVel[0]) || 0) * dt; }
+      else e._at[0] -= sp * dt;
+    } else if (P.kind === 'sine') { e._at[0] -= sp * dt; e._at[1] = e._v0 + (P.amp || 0) * Math.sin((2 * Math.PI * e._t) / (P.period || 2)); }
     else if (P.kind === 'dive') {
       e._at[0] -= sp * dt;
       if (e._t < 1.5 && ship) { const want = ship.screenAt[1] - c[1]; e._at[1] += clamp(want - e._at[1], -sp * 0.6 * dt, sp * 0.6 * dt); }
@@ -94,7 +113,27 @@ export function buildScrollFoes(E) {
     e.transform.heading = Math.atan2(-B.along[1], -B.along[0]);
     e.moving = true;
   }
-  Object.assign(RULES, { 'scroll-foe': scrollFoe });
+  // A MOVER, an interior's (gameworld/scroll-stage/interior.js movers): a crusher or a lock's leaf, its box `box` [u0, u1,
+  // v0, v1] when out, drawn back `reach` metres into the wall it comes `from` by its cycle (on the world's clock, `phase`
+  // on): a crusher told (shuddering), slammed out, held, drawn back, at rest; a lock open, told, closing, shut, opening.
+  // Its box now (`_box`) is terrain and stops rounds, as a wall's; its body stands at it, `d` metres off the play plane
+  function scrollMover(e, input, dt, world) {
+    const r = e.rule, cam = camOf(world);
+    if (!cam || !Array.isArray(r.box) || !r.cycle) return;
+    const B = VIEWS[cam.rule.view === 'top' ? 'top' : 'side'], Y = r.cycle, P = Y.period || 1, t = ((((world.time || 0) + (Y.phase || 0)) % P) + P) % P;
+    const ease = (x) => x * x * (3 - 2 * x);
+    let x = 0, tell = 0, k = t;
+    const seg = r.kind === 'lock'
+      ? [['open', Y.open, () => 0], ['tell', Y.tell, (f) => { tell = f; return 0; }], ['close', Y.close, (f) => ease(f)], ['shut', Y.shut, () => 1], ['opening', Y.opening, (f) => 1 - ease(f)]]
+      : [['tell', Y.tell, (f) => { tell = f; return 0; }], ['slam', Y.slam, (f) => f * f], ['hold', Y.hold, () => 1], ['back', Y.back, (f) => 1 - ease(f)], ['rest', Y.rest, () => 0]];
+    for (const [, len, fn] of seg) { if (k <= len) { x = fn(len > 0 ? k / len : 1); break; } k -= len; }
+    const shake = tell > 0 ? Math.sin((world.time || 0) * 70) * (r.reach || 1) * 0.012 * tell : 0;
+    const off = (1 - x) * (r.reach || 0) * (r.from === 'ceiling' ? 1 : -1) + shake;
+    e._box = [r.box[0], r.box[1], r.box[2] + off, r.box[3] + off]; e.out = x; e.tellNow = tell;
+    const T = B.toward, at = W(B, (r.box[0] + r.box[1]) / 2, (r.box[2] + r.box[3]) / 2 + off), d = r.d || 0;
+    e.transform.pos = [at[0] + T[0] * d, at[1] + T[1] * d, at[2] + T[2] * d];
+  }
+  Object.assign(RULES, { 'scroll-foe': scrollFoe, 'scroll-mover': scrollMover });
 
   // THE FIRE AND THE HITS: after every body has moved
   registerWorldPass('scroll-foes', (state, input, dt) => {
@@ -108,7 +147,7 @@ export function buildScrollFoes(E) {
     const shots = state.foeShots || (state.foeShots = []);
     for (const e of state.entities) {
       const r = e.rule, P = r && r.type === 'scroll-foe' && r.pattern;
-      if (!P || !e._at || e.gone || e.downed) { if (e.tellNow) e.tellNow = 0; continue; }
+      if (!P || !e._at || e.gone || e.downed) { if (e.tellNow && r && r.type === 'scroll-foe') e.tellNow = 0; continue; }
       const F = e._fire || (e._fire = { phase: 'wait', t: (e.id.length % 5) * 0.13, n: 0, turn: 0 });
       F.t += dt; e.tellNow = 0;
       const at = [c[0] + e._at[0], c[1] + e._at[1]], onScreen = Math.abs(e._at[0]) < SA / 2 && Math.abs(e._at[1]) < SC / 2;
@@ -165,8 +204,10 @@ export function buildScrollFoes(E) {
     // an interior's WALLS: its corridor's floor and ceiling (put out up or down, or back off the hull's face at the run's
     // ends) and its bulkheads (put out the nearest of four ways): terrain the same, a hit and out
     const K = Array.isArray(cam.rule.corridor) && cam.rule.corridor.length > 1 ? cam.rule.corridor : null;
-    const walls = Array.isArray(cam.rule.walls) ? cam.rule.walls.filter((w) => w[1] > c[0] - SA && w[0] < c[0] + SA) : null;
-    if ((K || (walls && walls.length)) && hc && !ship.downed && sr && ship.off) {
+    const walls = Array.isArray(cam.rule.walls) ? cam.rule.walls.filter((w) => w[1] > c[0] - SA && w[0] < c[0] + SA) : [];
+    // (and its MOVERS where they stand now: a crusher, a lock's leaf)
+    for (const m of state.entities) if (m._box && m.rule && m.rule.type === 'scroll-mover' && m._box[1] > c[0] - SA && m._box[0] < c[0] + SA) walls.push(m._box);
+    if ((K || walls.length) && hc && !ship.downed && sr && ship.off) {
       const r = hb.r, pushes = [];
       if (K) {
         const U0 = K[0][0], U1 = K[K.length - 1][0], o = corridorAt(K, Math.max(U0, Math.min(U1, hc[0])));
@@ -180,7 +221,7 @@ export function buildScrollFoes(E) {
           }
         }
       }
-      if (walls) for (const w of walls) {
+      for (const w of walls) {
         if (hc[0] < w[0] - r || hc[0] > w[1] + r || hc[1] < w[2] - r || hc[1] > w[3] + r) continue;
         pushes.push([[1, w[3] + r - hc[1]], [1, -(hc[1] - (w[2] - r))], [0, w[1] + r - hc[0]], [0, -(hc[0] - (w[0] - r))]].reduce((a, b) => (Math.abs(b[1]) < Math.abs(a[1]) ? b : a)));
       }
@@ -192,14 +233,14 @@ export function buildScrollFoes(E) {
     }
     const inWall = (u, v) => {
       if (K) { const o = corridorAt(K, u); if (o && (v < o[0] || v > o[1])) return true; }
-      if (walls) for (const w of walls) if (u > w[0] && u < w[1] && v > w[2] && v < w[3]) return true;
+      for (const w of walls) if (u > w[0] && u < w[1] && v > w[2] && v < w[3]) return true;
       return false;
     };
     const keep = [];
     for (const s of shots) {
       s.t += dt; s.u += s.du * dt; s.v += s.dv * dt;
       if (Math.abs(s.u - c[0]) > SA / 2 + 4 * s.r || Math.abs(s.v - c[1]) > SC / 2 + 4 * s.r || s.t > 20) continue;
-      if ((K || walls) && inWall(s.u, s.v)) continue;
+      if ((K || walls.length) && inWall(s.u, s.v)) continue;
       if (hc && !ship.downed && Math.hypot(s.u - hc[0], s.v - hc[1]) <= s.r + hb.r) {
         hurtShip(s.dmg);
         continue;

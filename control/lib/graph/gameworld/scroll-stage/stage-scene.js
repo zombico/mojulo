@@ -59,7 +59,7 @@ import { scrollHud } from './hud.js';
 import { FOES, FOE_IDS, lowerFoes, HITBOX } from './patterns.js';
 import { streamOf } from '../../city/plan/dice.js';
 import { readInterior, planInterior } from './interior.js';
-import { layInterior } from './interior-scene.js';
+import { layInterior, castBake, shipRig, INTERIOR_LOOK } from './interior-scene.js';
 
 export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'pods', 'targets', 'waves', 'hp', 'lives', 'hulls', 'interior', 'backdrop', 'seed']);
 /** A leg's pace where it names none: a tenth of a screen a second (an arcade scroll's unhurried crawl). */
@@ -136,7 +136,8 @@ export function readScrollStage(v) {
       if (!isObj(Wv)) { e.push(`${w} is { at, foe, … }`); return; }
       for (const f of Object.keys(Wv)) if (!['at', 'foe', 'count', 'formation', 'v', 'carries'].includes(f)) e.push(`${w}.${f} is not a wave's word (at, foe, count, formation, v, carries)`);
       if (!isNum(Wv.at) || Wv.at < 0) e.push(`${w}.at is screens along the stage`);
-      if (!FOES[Wv.foe] || !FOES[Wv.foe].craft) e.push(`${w}.foe is a foe that flies (${FOE_IDS.filter((id) => FOES[id].craft).join(', ')}); a turret comes with its hull`);
+      const flies = (id) => FOES[id] && FOES[id].craft && FOES[id].path.kind !== 'rise';
+      if (!flies(Wv.foe)) e.push(`${w}.foe is a foe that flies (${FOE_IDS.filter(flies).join(', ')}); a turret comes with its hull or its mount, a hatchling with its hatch`);
       if (Wv.count !== undefined && !(Number.isInteger(Wv.count) && Wv.count >= 1 && Wv.count <= 12)) e.push(`${w}.count is 1 to 12`);
       if (Wv.formation !== undefined && !FORMATIONS[Wv.formation]) e.push(`${w}.formation is ${Object.keys(FORMATIONS).join(' | ')}`);
       if (Wv.v !== undefined && !(isNum(Wv.v) && Math.abs(Wv.v) < 0.5)) e.push(`${w}.v is screens across from the middle (under a half either way)`);
@@ -215,15 +216,44 @@ export function scrollStageOf(manifest) {
   const turretSet = plane.length ? lowerFoes(['turret'], { L: ship.length, S: C }) : null;
   // the INTERIOR (interior.js): a run flown inside a station or a facility, its walls and the open between them
   const interior = S.interior ? planInterior(S.interior, { cam, track, start, seed }) : null;
-  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, lives: S.lives ?? SHIP_LIVES, plane, turretSet, interior };
+  // (its guns on their mounts and its hatches' drones: the turret's row and the hatchling's, patterns.js)
+  const insideSet = interior ? lowerFoes(['turret', 'hatchling'], { L: ship.length, S: C }) : null;
+  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, lives: S.lives ?? SHIP_LIVES, plane, turretSet, interior, insideSet };
 }
 
 // a body that blows apart when it falls: Rebel Storm's space blast at its own size (combat-match.js explodeUnit, its
 // `blast` the fireball's reach), at its centre on the play plane (its egg centred, `cz` 0: a side view's up is the world's)
 const blastOf = (r) => ({ blast: r2(r * 2.4), egg: { a: r, c: r, cz: 0 } });
+// AN INTERIOR'S LIFE: the guns on its mounts, the drones out of its hatches, its movers as bodies on their rule
+function interiorLife(I, set, { view, ship, back, airframe, look, cam }) {
+  const T = set.foes.turret, H = set.foes.hatchling, gunR = r2(ship.length * 0.28), droneR = r2(ship.length * 0.42), out = [];
+  const D = { front: 0.07 * cam.dist, back: -0.3 * cam.dist }, dMid = r2((D.front + D.back) / 2), dLen = r2(D.front - D.back);
+  // (a body is drawn in its colour as it is: its colour the face toward the camera's under the ship's light, the walls')
+  const K = INTERIOR_LOOK[look] ?? INTERIOR_LOOK.station, rig = shipRig(view), T0 = SCROLL_VIEWS[view].toward, lit = (hex) => castBake(hex, T0, T0, rig);
+  for (const M of I.mounts) {
+    const v = r2(M.v + (M.side === 'floor' ? 1 : -1) * gunR * 0.6);
+    out.push({ id: `gun-${M.id}`, team: 'foes', rule: { type: 'scroll-foe', enter: M.u, v: 0, at: [M.u, v], path: T.path, speed: 0, pattern: set.patterns[T.pattern], safe: set.safe, hue: set.hue, score: T.score },
+      body: { type: 'mesh', shape: 'box', size: [gunR, gunR, gunR], color: lit(K.pipe), marker: false, hp: T.hp, radius: gunR, ...blastOf(gunR) }, transform: { pos: toWorld(view, [M.u, v, 0]).map(r2), heading: back } });
+  }
+  for (const Hc of I.hatches) {
+    const dir = Hc.side === 'floor' ? 1 : -1;
+    for (let k = 0; k < Hc.drones; k++) out.push({ id: `drone-${Hc.id}-${k}`, team: 'foes',
+      rule: { type: 'scroll-foe', enter: Hc.u, from: [Hc.u, r2(Hc.v + dir * droneR)], lead: r2(cam.screen.along * (0.22 + 0.07 * k)), dir, path: H.path, speed: H.speed, safe: set.safe, hue: set.hue, score: H.score },
+      body: { ...(airframe ? { type: 'figure-rig', figure: 'foe-hatchling' } : { type: 'mesh', shape: 'box', size: [droneR, droneR * 2, droneR], color: '#c04a3a' }), hp: H.hp, radius: droneR, ...blastOf(droneR) },
+      transform: { pos: toWorld(view, [Hc.u, Hc.v, 0]).map(r2), heading: back } });
+  }
+  for (const m of I.movers) {
+    const len = r2(m.u1 - m.u0), across = r2(m.v1 - m.v0), size = view === 'side' ? [dLen, len, across] : [across, len, dLen];
+    out.push({ id: m.id, rule: { type: 'scroll-mover', kind: m.kind, box: [m.u0, m.u1, m.v0, m.v1], from: m.from, reach: m.reach, cycle: m.cycle, d: dMid },
+      body: { type: 'mesh', shape: 'box', size, color: lit(m.kind === 'lock' ? K.rib : K.cut), marker: false },
+      transform: { pos: toWorld(view, [(m.u0 + m.u1) / 2, (m.v0 + m.v1) / 2 + (m.from === 'ceiling' ? 1 : -1) * m.reach, dMid]).map(r2), heading: 0 } });
+  }
+  return out;
+}
+
 // the ship on the d-pad, a quarter of a screen back of the middle, and the camera carried down the track
 function playOf(G, { airframe = true, stage = '' } = {}) {
-  const { view, cam, ship, track, start, arsenal, targets, foes, foeSet, hp, lives, plane, turretSet } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0], back = Math.atan2(-V.along[1], -V.along[0]);
+  const { view, cam, ship, track, start, arsenal, targets, foes, foeSet, hp, lives, plane, turretSet, interior, insideSet } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0], back = Math.atan2(-V.along[1], -V.along[0]);
   // (a target: a drone's block in the foes' colour, its size a ship's breadth, on the play plane facing back at the ship)
   const tsize = r2(ship.breadth * 0.8);
   const body = airframe ? { type: 'figure-rig', figure: 'craft' } : { type: 'mesh', shape: 'box', size: view === 'side' ? [r2(ship.breadth / 3), ship.length, ship.breadth] : [ship.breadth, ship.length, r2(ship.breadth / 3)], color: '#e9eef4' };
@@ -259,15 +289,21 @@ function playOf(G, { airframe = true, stage = '' } = {}) {
             body: { type: 'mesh', shape: 'box', size: [gunR, gunR, gunR], color: '#2a2d31', hp: T.hp, radius: gunR, ...blastOf(gunR) }, transform: { pos: Hp.at, heading: back } };
         }),
       ];
-    })],
+    }),
     // (an interior's corridor and bulkheads ride on the camera's rule: terrain, and what stops the rounds,
     // worlds/controllable/scroll-foes.js)
-    camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track, ...(G.interior ? { corridor: G.interior.edges.map((q) => [q.u, q.lo, q.hi]), walls: G.interior.walls.map((w) => [w.u0, w.u1, w.v0, w.v1]) } : {}) },
+    // an INTERIOR's life (interior.js): a gun on each mount, fixed on its wall and aimed at the ship; each hatch's drones,
+    // up out of it as the screen comes up to it, a little apart; each mover (a crusher, a lock's leaf) its box, drawn back
+    // into its wall by its cycle (worlds/controllable/scroll-foes.js)
+    ...(interior ? interiorLife(interior, insideSet, { view, ship, back, airframe, look: interior.look, cam }) : []),
+    ],
+        camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track, ...(G.interior ? { corridor: G.interior.edges.map((q) => [q.u, q.lo, q.hi]), walls: G.interior.walls.map((w) => [w.u0, w.u1, w.v0, w.v1]) } : {}) },
     // (a hull on the play plane breaks as Rebel Storm's fleet does: destructible matter, weightless, gameworld/levels.js)
     ...(plane.length && airframe ? { destruction: 'physical', matter: { g: 0, power: 1e3 } } : {}),
     // (its HUD on mana-ui, scroll-stage/hud.js: a level's and a World page's, the page's HUD host reading the world)
     ...(airframe ? { manaHud: scrollHud({ hp, lives, stage, boss: bossHud(G) }) } : {}),
-    ...(airframe ? { figures: { craft: { craft: { archetype: ship.craft, flying: true, gear: 'up' } }, ...Object.fromEntries(Object.keys(foeSet.foes).map((k) => [`foe-${k}`, { craft: { archetype: foeSet.foes[k].craft, flying: true, gear: 'up' } }])) } } : {}),
+    ...(airframe ? { figures: { craft: { craft: { archetype: ship.craft, flying: true, gear: 'up' } }, ...Object.fromEntries(Object.keys(foeSet.foes).map((k) => [`foe-${k}`, { craft: { archetype: foeSet.foes[k].craft, flying: true, gear: 'up' } }])),
+      ...(interior && interior.hatches.length ? { 'foe-hatchling': { craft: { archetype: insideSet.foes.hatchling.craft, flying: true, gear: 'up' } } } : {}) } } : {}),
   };
 }
 

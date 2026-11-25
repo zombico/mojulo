@@ -139,6 +139,23 @@ describe('the foes', () => {
     expect(st.byId.ship.downed).toBe(true);
   });
 
+  it('a hatchling waits for the screen, comes up out of its hatch square to its wall, standing in the world, then runs back', () => {
+    const H = FS.foes.hatchling, hatch = [SA / 2 + 40, -30];
+    const f = { id: 'h', team: 'foes', rule: { type: 'scroll-foe', enter: hatch[0], from: hatch, lead: 20, dir: 1, path: H.path, speed: H.speed, safe: FS.safe, hue: FS.hue }, body: { type: 'none', hp: 1, radius: 2 }, transform: { pos: [0, 1e4, 0] } };
+    const st = world({ track: [{ by: [4000, 0], pace: 20 }], foes: [f] });
+    step(st, {}, 30);
+    expect(st.byId.h.waiting).toBe(true);
+    let seen = null;
+    step(st, {}, 60 * 4, (s) => { if (!seen && !s.byId.h.waiting) seen = { at: s.byId.h._at.slice(), c: s.camera._sc.slice() }; });
+    expect(seen.at[0] + seen.c[0]).toBeCloseTo(hatch[0], 0);
+    expect(seen.at[1] + seen.c[1]).toBeCloseTo(hatch[1], 0);
+    const h = st.byId.h, up = h._at[1] + st.camera._sc[1] - hatch[1];
+    expect(up).toBeCloseTo(H.path.out, 0);
+    // (risen, it runs back across the screen faster than the screen scrolls)
+    const u0 = h._at[0]; step(st, {}, 30);
+    expect(h._at[0]).toBeLessThan(u0 - 1);
+  });
+
   it('a page without foes keeps every byte', () => {
     expect(emissionSource({ scroll: true, scrollPods: true })).not.toContain('scroll-foe');
     expect(emissionSource({ scroll: true, scrollFoes: true })).toContain('scroll-foe');

@@ -3,7 +3,8 @@
 // bulkhead back down the scroll), once each invulnerable spell; a corridor's floor and ceiling are ramps between its
 // knots, the hitbox put out to where they stand, and the hull's face at the mouth puts a ship back off it; a foe's bullet that meets a wall ends there; the ship's
 // shot ends on a wall, struck (an impact), a grenade's burst going off there; a bomb blows on one; the beam reaches the
-// first wall across its line; with no walls nothing changes.
+// first wall across its line; a mover (a crusher, a lock's leaf) is told, slams, holds and draws back by its cycle, and
+// where it stands it is terrain and stops rounds; with no walls nothing changes.
 import { describe, it, expect } from 'vitest';
 import { composeLive } from './compose.js';
 import { scrollCamera } from '../../gameworld/scroll-stage/frame.js';
@@ -104,6 +105,33 @@ describe('an interior\'s walls', () => {
     step(b, { fire: 1 }, 2);
     // (the beam at v -20 meets the floor where it ramps up through -20: a third of the way from 0 to 60, less its half-width)
     expect(ship(b).beam.u1).toBeGreaterThan(5); expect(ship(b).beam.u1).toBeLessThan(40);
+  });
+
+  // a mover: a crusher from the ceiling, out over u 20..30 from v 0 to 60, drawn back 60 into the ceiling; its cycle
+  const CYC = { tell: 0.5, slam: 0.2, hold: 0.5, back: 0.5, rest: 1, period: 2.7, phase: 0 };
+  const mover = (o = {}) => ({ id: 'crusher', rule: { type: 'scroll-mover', kind: 'crusher', box: [20, 30, 0, 60], from: 'ceiling', reach: 60, cycle: CYC, ...o }, body: { type: 'none' }, transform: { pos: [0, 0, 0] } });
+  const withMover = (o, more = {}) => { const st = E.createWorld({ entities: [{ id: 'ship', pilotable: true, rule: { type: 'scroll-ship', size: [LEN, 4], at: [0, 0], arsenal: ARS, hitbox: { r: 1, at: 0 }, invuln: 1 }, body: { type: 'none', hp: 10 }, transform: { pos: [0, 0, 0] } }, mover(o)],
+    camera: { rule: 'scroll', target: 'ship', view: 'side', dist: C.dist, screen: [SA, SC], track: [], ...more }, pilot: 'ship' }); E.stepWorld(st, {}, DT); return st; };
+
+  it('a crusher is told (shuddering), slams out, holds and draws back by its cycle on the world\'s clock', () => {
+    const st = withMover();
+    const at = (t) => { while (st.time < t) E.stepWorld(st, {}, DT); return st.byId.crusher; };
+    expect(at(0.25).tellNow).toBeGreaterThan(0); expect(at(0.25).out).toBe(0);
+    expect(at(0.85).out).toBe(1); expect(at(0.85)._box[2]).toBeCloseTo(0, 6);
+    expect(at(2.2).out).toBe(0); expect(at(2.2)._box[2]).toBeCloseTo(60, 6);
+  });
+
+  it('a mover where it stands is terrain and stops rounds; drawn back it is neither', () => {
+    const st = withMover({ cycle: { ...CYC, tell: 0, slam: 0.01, hold: 99, period: 100 } });
+    step(st, {}, 2);
+    ship(st).off[0] = 25; ship(st).off[1] = 10; step(st); step(st);
+    expect(ship(st).body.hp).toBe(9);
+    st.foeShots = [{ u: 50, v: 30, du: -60, dv: 0, r: 0.5, dmg: 1, t: 0, hue: '#f0f' }];
+    step(st, {}, 30);
+    expect(st.foeShots).toHaveLength(0);
+    const back = withMover({ cycle: { ...CYC, tell: 0, slam: 0, hold: 0, back: 0, rest: 99, period: 100 } });
+    back.byId.ship.off[0] = 25; back.byId.ship.off[1] = 10; step(back); step(back);
+    expect(back.byId.ship.body.hp).toBe(10);
   });
 
   it('with no walls nothing changes', () => {

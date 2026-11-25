@@ -77,6 +77,9 @@ export const FOES = Object.freeze({
   // a hull's gun on its hardpoint (a capital ship on the play plane): fixed where it stands, aimed at the ship while it is
   // on the screen, down with its mount's block (rupa's `onBlock`); never in a wave, it comes with its hull
   turret: row({ hp: 4, pattern: 'aimed', path: row({ kind: 'fixed' }), speed: 0, score: 250 }),
+  // a hatchling: a drone out of an interior's hatch, up square to its wall, then back across the screen; never in a
+  // wave, it comes with its hatch
+  hatchling: row({ hp: 1, craft: 'daggerInterceptor', path: row({ kind: 'rise', out: 0.16 }), speed: 0.26, score: 120 }),
 });
 export const FOE_IDS = Object.freeze(Object.keys(FOES));
 
@@ -111,7 +114,7 @@ export function lowerFoes(ids = FOE_IDS, { L, S }) {
     if (!F) throw new Error(`scroll stage: '${id}' is not a foe (${FOE_IDS.join(', ')})`);
     const p = F.path;
     foes[id] = { hp: F.hp, craft: F.craft, speed: spd(F.speed), score: F.score, ...(F.pattern ? { pattern: F.pattern } : {}),
-      path: p.kind === 'sine' ? { kind: 'sine', amp: spd(p.amp), period: p.period } : p.kind === 'hold' ? { kind: 'hold', at: p.at, for: p.for } : { kind: p.kind } };
+      path: p.kind === 'sine' ? { kind: 'sine', amp: spd(p.amp), period: p.period } : p.kind === 'hold' ? { kind: 'hold', at: p.at, for: p.for } : p.kind === 'rise' ? { kind: 'rise', out: spd(p.out) } : { kind: p.kind } };
     if (F.pattern && !patterns[F.pattern]) {
       const P = PATTERNS[F.pattern];
       patterns[F.pattern] = { tell: P.tell, every: P.every, volleys: P.volleys || 1, gapS: P.gap_s || 0, shots: P.shots, spread: P.spread, aim: P.aim, turn: P.turn || 0,

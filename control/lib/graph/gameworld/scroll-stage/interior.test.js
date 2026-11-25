@@ -2,11 +2,13 @@
 // sections end to end from its mouth, in steps, its floor and ceiling lines through the steps' middles, so a change of
 // height is a ramp;
 // a mouth closes from near the frame's edges, a duct is narrow and bends, shutters stand bulkheads from the ceiling and
-// the floor in turn, a core is wide; the guns stand on the walls facing the open; the open follows the camera's middle
+// the floor in turn, a core is wide; crushers from the ceiling and the floor in turn leave the passage when out, locks
+// meet in the middle, hatches sit on a hall's walls, and the movers' laws are told when broken; the guns stand on the
+// walls facing the open; the open follows the camera's middle
 // as the track moves across; it holds its laws, and a plan that breaks one is told; the same stage the same walls; a
 // stage carries it as numbers.
 import { describe, it, expect } from 'vitest';
-import { SECTIONS, SECTION_IDS, PASSAGE, readInterior, planInterior, interiorLaws, openAt } from './interior.js';
+import { SECTIONS, SECTION_IDS, PASSAGE, CRUSHER, readInterior, planInterior, interiorLaws, openAt } from './interior.js';
 import { scrollStageOf, readScrollStage } from './stage-scene.js';
 import { stageManifest, STAGE_IDS } from './stages.js';
 
@@ -57,6 +59,28 @@ describe('the scroll stage\'s interior', () => {
     for (let k = 1; k < bh.length; k++) expect(bh[k].from).not.toBe(bh[k - 1].from);
     for (const w of bh) { const o = openAt(P, (w.u0 + w.u1) / 2); expect(w.from === 'ceiling' ? w.v1 > o[1] : w.v0 < o[0]).toBe(true); }
     expect(Math.min(...of(P, 'core').map(gap))).toBeGreaterThan(Math.max(...of(P, 'hall').map(gap)));
+  });
+
+  it('crushers from the ceiling and the floor in turn, out leaving the passage; locks two leaves meeting; hatches on a hall', () => {
+    const P = plan(), cr = P.movers.filter((m) => m.kind === 'crusher'), lk = P.movers.filter((m) => m.kind === 'lock');
+    expect(cr.length).toBeGreaterThan(1);
+    for (let k = 1; k < cr.length; k++) expect(cr[k].from).not.toBe(cr[k - 1].from);
+    for (const m of cr) { const o = openAt(P, (m.u0 + m.u1) / 2); expect(m.from === 'ceiling' ? m.v0 - o[0] : o[1] - m.v1).toBeGreaterThanOrEqual(PASSAGE * ship.breadth - 1e-6); expect(m.cycle.period).toBeCloseTo(Object.values(CRUSHER).reduce((a, b) => a + b, 0), 6); }
+    expect(lk.length % 2).toBe(0);
+    for (let k = 0; k < lk.length; k += 2) { expect(lk[k].from).toBe('ceiling'); expect(lk[k + 1].from).toBe('floor'); expect(lk[k].v0).toBe(lk[k + 1].v1); }
+    expect(P.hatches.length).toBeGreaterThan(0);
+    for (const h of P.hatches) { expect(P.sections[h.section].kind).toBe('hall'); const o = openAt(P, h.u); expect(h.v).toBeCloseTo(h.side === 'floor' ? o[0] : o[1], 2); }
+  });
+
+  it('the movers\' laws: a crusher out that shuts the way, a lock open too briefly, a mover untold are each told', () => {
+    const P = plan(), L = (Q) => lawsOf(Q).filter((l) => !l.holds).map((l) => l.id);
+    expect(L(P)).toEqual([]);
+    const fat = { ...P, movers: P.movers.map((m) => (m.kind === 'crusher' && m.from === 'ceiling' ? { ...m, v0: m.v0 - C * 0.3 } : m)) };
+    expect(L(fat)).toContain('crusher-pass');
+    const brief = { ...P, movers: P.movers.map((m) => (m.kind === 'lock' ? { ...m, cycle: { ...m.cycle, open: 0.3 } } : m)) };
+    expect(L(brief)).toContain('lock-window');
+    const sudden = { ...P, movers: P.movers.map((m) => ({ ...m, cycle: { ...m.cycle, tell: 0.1 } })) };
+    expect(L(sudden)).toContain('movers-told');
   });
 
   it('the guns stand on the walls, facing the open', () => {
