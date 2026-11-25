@@ -200,9 +200,10 @@ export const erinaHero = () => ({ as: 'hero', toon: { light: true }, spec: struc
 /** The castle as a STARTER (the galaxy-boy rail's `vampire-sonata` variant, pitch-start.js): Vampire Sonata's game words
  * with its box's look left to the world's geocube, the gothic night's castle (cube.js), so a person's game starts from
  * the cube and the words and changes either. */
-export function vampireSonataStart() {
-  const G = vampireSonataGame(), { theme: _theme, ...words } = G.levels.castle.metroidvania;
-  return { ...G, style: { geocube: 'gothic-night' }, levels: { castle: { ...G.levels.castle, metroidvania: words } } };
+export function vampireSonataStart({ castle = false } = {}) {
+  // (the box's look left to the cube: its words name no theme; `castle: 'segments'`, the castle a map a box, each map so)
+  const G = vampireSonataGame({ castle }), unthemed = ({ theme: _theme, ...words }) => words;
+  return { ...G, style: { geocube: 'gothic-night' }, levels: Object.fromEntries(Object.entries(G.levels).map(([id, L]) => [id, { ...L, metroidvania: unthemed(L.metroidvania) }])) };
 }
 
 /** Vampire Sonata as a designed game's words: Erina's feel and book, the castle its one level. */

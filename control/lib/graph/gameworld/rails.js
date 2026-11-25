@@ -157,6 +157,13 @@ export const RAILS = Object.freeze({
         words: list(['castlevania', 'igavania', 'gothic metroidvania', 'castle metroidvania', 'vampire castle', 'symphony of the night', 'vampire sonata']),
         ask: row({ step: 'box', does: 'ASK FIRST: their box (its premise, its size in screens, its rings and their places, its powers and bosses: theirs to design; the castle\'s if they have none) and its cube (the gothic night\'s castle, or another cube with a box)', card: 'gameworld-box' }),
         box: row({ game: 'vampire-sonata', cube: 'gothic-night', library: 'castle' }) }),
+      // (the castle of boxes played a map a box, metroidvania/castle.js segmentsOf: the tower, the courtyard and the keep
+      // each its own level on the megaworld's chain, the bridge and the gatehouse the ways between, what she gains carried)
+      'vampire-sonata-castle': row({ name: 'Vampire Sonata: the castle in maps', like: 'a metroidvania castle crossed map to map: a bell tower, a courtyard and a keep, each its own map joined by a bridge and a gatehouse, every power, relic, felled boss and room explored going on with the hunter',
+        level1: 'three maps on the gothic night cube: the bell tower, the courtyard and the keep, joined on the megaworld\'s chain, a power and a boss in each',
+        words: list(['castle of maps', 'connected maps', 'castle in maps', 'castle segments', 'segmented metroidvania', 'map to map', 'metroidvania megaworld']),
+        ask: row({ step: 'box', does: 'ASK FIRST: their castle (its boxes in the order she crosses them, each box\'s size, rings, powers and bosses, the connectors between: theirs to design; the bell tower, courtyard and keep if they have none), its cube (the gothic night\'s castle, or another cube with a box) and their hunter', card: 'gameworld-box' }),
+        box: row({ game: 'vampire-sonata', cube: 'gothic-night', library: 'castle', castle: 'segments' }) }),
       xenojager: row({ name: 'XenoJager', like: 'a metroidvania planet: an explorer goes down through a dangerous planet\'s caves, region by region to the nest at its core',
         level1: 'a box: the planet on its own cube, its crust, fungal caverns, flooded depths and magma core, a power and a boss a region',
         words: list(['metroid', 'metroid-like', 'super metroid', 'planet exploration', 'alien planet', 'subterranean exploration', 'xenojager']),

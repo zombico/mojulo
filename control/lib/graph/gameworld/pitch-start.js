@@ -56,7 +56,8 @@ export function pitchStart(world, { title } = {}) {
   // box's look left to the cube (metroidvania/cube.js), its own feel; every key the creator wrote winning
   const V0 = P.variant ? variantOf(R, P.variant) : null;
   if (V0?.box) {
-    const { id: _id, name: _name, ...ground } = BOX_STARTS[V0.box.game]();
+    // (a castle played a map a box, `box.castle`: its maps the megaworld's chain, castle.js segmentsOf)
+    const { id: _id, name: _name, ...ground } = BOX_STARTS[V0.box.game](V0.box.castle ? { castle: V0.box.castle } : {});
     const W = { ...ground, ...world, ...named, ...(world.intent === undefined && R.handles.genres[0] ? { intent: { from: R.handles.genres[0] } } : {}) };
     return { world: W, laid: { by: 'box', variant: V0.id, cube: V0.box.cube, levels: Object.keys(W.levels), says: SAYS } };
   }

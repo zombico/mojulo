@@ -249,6 +249,8 @@ joins the levels. `vampireSonataGame({ castle: 'segments' })` lays the tower, th
   move is laid on her again, because the gains found beyond a page are named in its `elsewhere`. A boss felled stays
   gone. The map shows what she walked. A learned node is learned again and paid for again.
 
+`design_game` starts it from Galaxy Boy's rail, the variant `vampire-sonata-castle` ("The rail" below).
+
 ## The words
 
 ```js
@@ -855,6 +857,7 @@ Galaxy Boy's rail, which owns the side-on run and gun and the metroidvania genre
 | Variant | Starts from | Its cube |
 |---|---|---|
 | `vampire-sonata` | the castle: outer wall, great halls, inner ward, keep | `gothic-night` |
+| `vampire-sonata-castle` | the castle in maps: the bell tower, the courtyard and the keep, a map each on a megaworld chain | `gothic-night` |
 | `xenojager` | the planet: crust, fungal caverns, flooded depths, magma core | XenoJager's (`XENOJAGER_CUBE`) |
 
 `design_game({ name, rail: { from: 'galaxy-boy', variant, locked: true } })` lays the starter (`pitch-start.js`): the

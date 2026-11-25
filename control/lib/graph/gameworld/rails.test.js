@@ -24,7 +24,8 @@ import { validateHeroSpec } from '../../mcp/tools/layered.js';
 import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 import { STYLISH } from './style-meter.js';
 import { readGameworld } from './world.js';
-import { gameStages } from './levels.js';
+import { gameStages, gameStore } from './levels.js';
+import { stampMegaworld } from './megaworld.js';
 import { boxLookOf } from './metroidvania/cube.js';
 import { chaptersOfPath } from './chapters.js';
 import { MOTIVATIONS } from './gmn.js';
@@ -530,6 +531,17 @@ describe('a rail\'s box variants', () => {
       expect(boxLookOf(stage.manifest.metroidvania, stage.manifest.cube)).toMatchObject({ id: V.box.library, from: 'cube', cube: V.box.cube });
       expect(pitchStart({ id: 'g', feel: 'jumping-giuseppe', rail: { from: rid, variant: vid, locked: true } }).world.feel).toBe('jumping-giuseppe');
     }
+  });
+  it('lays a castle a map a box where its variant says so: each map a level on the megaworld\'s chain, the journey carried', () => {
+    const P = pitchStart({ id: 'g', name: 'Theirs', rail: { from: 'galaxy-boy', variant: 'vampire-sonata-castle', locked: true } });
+    expect(P.laid.levels).toEqual(['tower', 'court', 'keep']);
+    expect(P.world.megaworld).toEqual({ shape: 'chain', rings: [['tower'], ['court'], ['keep']] });
+    const G = readGameworld(stampMegaworld(P.world));
+    expect(G.topology).toBe('interconnected');
+    expect(gameStages(G).map((s) => s.manifest.segment)).toEqual(['tower', 'court', 'keep']);
+    expect(gameStore(stampMegaworld(P.world)).slices.map((s) => s.name)).toContain('journey');
+    expect(railCardById('gameworld-rail-galaxy-boy-vampire-sonata-castle').body).toMatch(/a map a box/);
+    expect(nearestRails('a castle of maps like the old gothic games')[0]).toMatchObject({ id: 'galaxy-boy', variant: 'vampire-sonata-castle' });
   });
   it('is named by its own words; the genre\'s own word is still the plain rail', () => {
     for (const [rid, vid] of boxed) expect(nearestRails(`a game like ${variantOf(rid, vid).words[0]} with my own hero`)[0]).toMatchObject({ id: rid, variant: vid });

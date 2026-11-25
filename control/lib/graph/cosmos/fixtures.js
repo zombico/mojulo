@@ -208,7 +208,8 @@ export const FIXTURES = Object.freeze([
     why: 'a side camera, one interconnected map, abilities that open the way back',
     cube: {
       reality: { medium: '3d' },
-      space: { camera: 'side', topology: 'interconnected', traversal: 'platform' },
+      // (11-25: its map a box of screens, metroidvania/; before, the probe named no level form)
+      space: { camera: 'side', topology: 'interconnected', traversal: 'platform', levelForm: 'box' },
       power: { idiom: 'metroidvania-like', rules: ['platform'], systems: ['unlock'], combat: ['melee'] },
       soul: { hero: 'hero', gaits: ['jump', 'doubleJump'] },
       mind: { motivation: 'territorial', aggressiveness: 'bold', rank: 'miniboss' },
