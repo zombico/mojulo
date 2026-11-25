@@ -52,6 +52,17 @@ switches the pod, B or LT held ejects, and Y or RB changes speed. Each pad's but
 (Xbox, PlayStation or Nintendo), and the HUD's controls follow the device in hand. The game shell's controls panel
 lists the same layout.
 
+**Interiors.** A stage can fly inside a station or a facility: its `interior` lays a run of sections from its mouth:
+- a mouth that closes in from the hull's face;
+- a hall wide enough to fight in;
+- a duct that is narrow and bends;
+- shutters, bulkheads from the ceiling and the floor in turn;
+- a core, the wide room at the heart.
+
+Its walls are laid in steps, and guns stand on them facing the open. It is held to laws: the open is never narrower than
+four ship breadths, each step overlaps the last by as much, a bend asks no more than the slowest gear can follow, the
+open stays on the screen, and every gun stands on its wall.
+
 **Laws.** The arsenal and the bullet patterns are held to laws:
 - no pod is better on every measure, and every pod is worth taking over the base gun;
 - a bullet is seen coming, a volley always leaves a way through, and every volley is told;

@@ -24,6 +24,8 @@
  *               0: ON THE PLAY PLANE, its near face the plane: terrain flown along and broken, its systems the targets, its
  *               guns turrets, blown up in a chain when its systems are gone, rupa in zero g as Rebel Storm's fleet is),
  *               heading?: 0 (the way the stage scrolls) | 180, seed? }]: capital ships going by behind the fight
+ *     interior? { at: screens along, look?, sections: [{ kind, length? }], seed? }: a run flown inside a station or a
+ *               facility (interior.js: its walls the terrain, the open between them laid in steps)
  *     backdrop? false (stars alone) | { planets?, nebula?, suns?, worlds?, proximity?, seed? } (skyscape/backdrop.js),
  *               its large world set in the camera's view
  *     seed?
@@ -31,7 +33,7 @@
  *
  *   SCROLL_STAGE_KEYS, SCROLL_PACE, SCROLL_CRAFT, HULL_DEPTH, TARGET_HP, SHIP_HP, SHIP_LIVES, FORMATIONS
  *   readScrollStage(v)                → errors (strings); [] when it builds
- *   scrollStageOf(manifest)           → { cam, ship, track, start, extent }: the stage as numbers, no faces
+ *   scrollStageOf(manifest)           → { cam, ship, track, start, extent, interior? }: the stage as numbers, no faces
  *   scrollStagePlay(manifest, { airframe? }) → { entities, camera, figures?, manaHud? }: the ship and the scroll camera (and
  *                                       its HUD on mana-ui, scroll-stage/hud.js), as a level
  *                                       puts them on its manifest (a page resolves a figure from the manifest only: the
@@ -55,8 +57,9 @@ import { POD_IDS, lowerArsenal } from './pods.js';
 import { scrollHud } from './hud.js';
 import { FOES, FOE_IDS, lowerFoes, HITBOX } from './patterns.js';
 import { streamOf } from '../../city/plan/dice.js';
+import { readInterior, planInterior } from './interior.js';
 
-export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'pods', 'targets', 'waves', 'hp', 'lives', 'hulls', 'backdrop', 'seed']);
+export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'pods', 'targets', 'waves', 'hp', 'lives', 'hulls', 'interior', 'backdrop', 'seed']);
 /** A leg's pace where it names none: a tenth of a screen a second (an arcade scroll's unhurried crawl). */
 export const SCROLL_PACE = 0.1;
 /** The ship a stage flies where it names none: the craft shelf's hero gunship (craft-shelf/hero-gunship.js), Blaze
@@ -155,6 +158,7 @@ export function readScrollStage(v) {
       if (H.seed !== undefined && !Number.isInteger(H.seed)) e.push(`${w}.seed is a whole number`);
     });
   }
+  if (v.interior !== undefined) e.push(...readInterior(v.interior, at('interior')));
   if (v.backdrop !== undefined && v.backdrop !== false && !isObj(v.backdrop)) e.push(`${at('backdrop')} is false (stars alone) or { planets?, nebula?, suns?, worlds?, proximity?, seed? }`);
   if (isObj(v.backdrop) && v.backdrop.toward !== undefined) e.push(`${at('backdrop')}: its large world stands in the camera's view; toward is not a scroll stage's word`);
   if (v.seed !== undefined && !Number.isInteger(v.seed)) e.push(`${at('seed')} is a whole number`);
@@ -207,7 +211,9 @@ export function scrollStageOf(manifest) {
     return { id, H, P: placeFleet(B, { at: at0.map((x, i) => r2(x - V.toward[i] * near)), heading, id }) };
   });
   const turretSet = plane.length ? lowerFoes(['turret'], { L: ship.length, S: C }) : null;
-  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, lives: S.lives ?? SHIP_LIVES, plane, turretSet };
+  // the INTERIOR (interior.js): a run flown inside a station or a facility, its walls and the open between them
+  const interior = S.interior ? planInterior(S.interior, { cam, track, start, seed }) : null;
+  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, lives: S.lives ?? SHIP_LIVES, plane, turretSet, interior };
 }
 
 // a body that blows apart when it falls: Rebel Storm's space blast at its own size (combat-match.js explodeUnit, its
