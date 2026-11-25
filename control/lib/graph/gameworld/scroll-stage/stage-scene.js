@@ -48,6 +48,7 @@ import { CRAFT_ARCHETYPES } from '../../craft-shelf/craft-archetypes.js';
 import { assembleCraft } from '../../craft-shelf/index.js';
 import { CAPITAL_CLASSES } from '../../fleet/classes.js';
 import { buildCapital, placeFleet, fleetPayload } from '../../fleet/build.js';
+import { KIBBLE_SCALE } from '../../fleet/language.js';
 import { readFinish } from '../../scene/page-light.js';
 import { planBackdrop } from '../../skyscape/backdrop.js';
 import { SPACE_STAR } from '../../skyscape/space.js';
@@ -259,8 +260,9 @@ function playOf(G, { airframe = true, stage = '' } = {}) {
         }),
       ];
     })],
-    // (an interior's walls ride on the camera's rule: terrain, and what stops the rounds, worlds/controllable/scroll-foes.js)
-    camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track, ...(G.interior ? { walls: G.interior.walls.map((w) => [w.u0, w.u1, w.v0, w.v1]) } : {}) },
+    // (an interior's corridor and bulkheads ride on the camera's rule: terrain, and what stops the rounds,
+    // worlds/controllable/scroll-foes.js)
+    camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track, ...(G.interior ? { corridor: G.interior.edges.map((q) => [q.u, q.lo, q.hi]), walls: G.interior.walls.map((w) => [w.u0, w.u1, w.v0, w.v1]) } : {}) },
     // (a hull on the play plane breaks as Rebel Storm's fleet does: destructible matter, weightless, gameworld/levels.js)
     ...(plane.length && airframe ? { destruction: 'physical', matter: { g: 0, power: 1e3 } } : {}),
     // (its HUD on mana-ui, scroll-stage/hud.js: a level's and a World page's, the page's HUD host reading the world)
@@ -294,9 +296,10 @@ export function assembleScrollStage(manifest, { title = 'Blaze Gunner' } = {}) {
     const F = fleetPayload([P], { physical: false });
     return { faces: hazeHulls(F.faces, cam, d), kibble: F.kibble?.blocks ?? {}, scale: F.kibble?.scale, report: { id, kind: H.capital, label: P.label, at: pos, heading: H.heading ?? 0, blocks: P.blocks.length } };
   });
-  const kibble = Object.assign({}, ...hulls.map((h) => h.kibble)), kScale = hulls.find((h) => h.scale)?.scale;
-  // the INTERIOR (interior-scene.js): its walls, its back with its lamps and windows, its mouth, its struts
-  const inside = G.interior ? layInterior(G.interior, cam, { view, seed }) : null;
+  // the INTERIOR (interior-scene.js): its walls, its back with its lamps and windows, its mouth, its struts, lit as the
+  // ship is under the stage's star and plated with the fleet's kibble
+  const inside = G.interior ? layInterior(G.interior, cam, { view, seed, sun }) : null;
+  const kibble = Object.assign({}, ...hulls.map((h) => h.kibble), inside ? inside.kibble : {}), kScale = hulls.find((h) => h.scale)?.scale ?? KIBBLE_SCALE;
   // the sky at infinity: the space map's stars, and its backdrop's large world set in the camera's view, a little ahead
   // and over it
   const look = unit(V.toward.map((t, i) => -t + V.along[i] * 0.22 + V.up[i] * 0.16));

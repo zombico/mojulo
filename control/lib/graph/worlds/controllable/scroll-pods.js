@@ -28,7 +28,8 @@
  *                plated face to its systems and its guns, never breaking a plate (rupa's distortion would draw a struck
  *                steel block as its bare dented box, its plating gone); the hull itself is never a target (`hittable:
  *                false`), its systems are, and rupa blows it apart in its chain when they are gone, Rebel Storm's way
- *   a WALL       an interior's (the camera rule's `walls`, gameworld/scroll-stage/interior.js): a shot or a bomb that
+ *   a WALL       an interior's (its corridor's floor and ceiling and its bulkheads, the camera rule's `corridor` and
+ *                `walls`, gameworld/scroll-stage/interior.js, and the foes' pass): a shot or a bomb that
  *                meets one ends there, struck (an impact flash), its burst going off, a bomb's ring; the beam reaches
  *                the first wall across its line; a ring, a sweep and an orbit pass
  *   a HIT        a foe (an entity of team 'foes', not down) within reach: its body's hp less the damage, flashed
@@ -104,14 +105,50 @@ export function buildScrollPods(E) {
     }
   }
 
+  // an interior's CORRIDOR (the camera rule's `corridor`: [[u, lo, hi]] knots, gameworld/scroll-stage/interior.js): its
+  // floor and ceiling at u, a line between knots; null off the run
+  const corridorAt = (K, u) => {
+    if (!K || !K.length || u < K[0][0] || u > K[K.length - 1][0]) return null;
+    let a = 0, b = K.length - 1;
+    while (b - a > 1) { const m = (a + b) >> 1; if (K[m][0] <= u) a = m; else b = m; }
+    const p = K[a], q = K[b], t = q[0] - p[0] > 1e-9 ? (u - p[0]) / (q[0] - p[0]) : 0;
+    return [p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+  };
   registerWorldPass('scroll-pods', (state, input, dt) => {
     const cam = state.camera;
     if (!cam || !cam.rule || cam.rule.type !== 'scroll' || !cam._sc) return;
     const B = VIEWS[cam.rule.view === 'top' ? 'top' : 'side'], sc = cam.scrollVel || [0, 0], now = state.time;
     if (state.podHits) state.podHits = state.podHits.filter((h) => now - h.t < 0.4);
-    // (an interior's walls near the screen, worlds/controllable/scroll-foes.js's: a round ends in one)
+    // (an interior's corridor and its bulkheads near the screen, the foes' pass reads them the same: a round ends in one)
     const c0 = cam._sc, SA0 = cam.rule.screen[0], walls = Array.isArray(cam.rule.walls) ? cam.rule.walls.filter((w) => w[1] > c0[0] - SA0 && w[0] < c0[0] + SA0) : [];
-    const inWall = (u, v) => { for (const w of walls) if (u > w[0] && u < w[1] && v > w[2] && v < w[3]) return true; return false; };
+    const K = Array.isArray(cam.rule.corridor) && cam.rule.corridor.length > 1 ? cam.rule.corridor : null;
+    const inWall = (u, v) => {
+      if (K) { const o = corridorAt(K, u); if (o && (v < o[0] || v > o[1])) return true; }
+      for (const w of walls) if (u > w[0] && u < w[1] && v > w[2] && v < w[3]) return true;
+      return false;
+    };
+    // (the beam's reach: where its line first meets a bulkhead, or the corridor's floor or ceiling closes over it)
+    const beamReach = (u0, v, half, reach) => {
+      for (const w of walls) if (w[0] >= u0 && w[0] < reach && v + half > w[2] && v - half < w[3]) reach = w[0];
+      if (K) {
+        const U0 = K[0][0], U1 = K[K.length - 1][0];
+        if (u0 < U0 && U0 < reach) { const o = corridorAt(K, U0); if (v - half < o[0] || v + half > o[1]) return Math.min(reach, U0); }
+        for (let k = 1; k < K.length; k++) {
+          const p = K[k - 1], q = K[k];
+          if (q[0] < u0) continue;
+          if (p[0] >= reach) break;
+          const a0 = Math.max(p[0], u0), t0 = q[0] - p[0] > 1e-9 ? (a0 - p[0]) / (q[0] - p[0]) : 0;
+          // (each edge's clearance along the segment, a line: where it first goes under nothing, the beam stops)
+          for (const [e0, e1, sg] of [[p[1], q[1], 1], [p[2], q[2], -1]]) {
+            const at = (t) => sg * ((v - sg * half) - (e0 + (e1 - e0) * t));
+            const ca = at(t0), cb = at(1);
+            if (ca < 0) return Math.min(reach, a0);
+            if (cb < 0) { const t = t0 + (1 - t0) * (ca / (ca - cb)); reach = Math.min(reach, p[0] + (q[0] - p[0]) * t); }
+          }
+        }
+      }
+      return reach;
+    };
     for (const ship of state.entities) {
       const r = ship.rule, A = r && r.type === 'scroll-ship' && r.arsenal;
       if (!A || ship.gone || !ship.screenAt) continue;
@@ -146,8 +183,7 @@ export function buildScrollPods(E) {
       }
       if (firing && F.kind === 'beam') {
         // (an interior's wall stops it: it reaches the first wall across its line)
-        let reach = muzzle[0] + F.length;
-        for (const w of walls) if (w[0] >= muzzle[0] && w[0] < reach && muzzle[1] + F.width / 2 > w[2] && muzzle[1] - F.width / 2 < w[3]) reach = w[0];
+        const reach = beamReach(muzzle[0], muzzle[1], F.width / 2, muzzle[0] + F.length);
         ship.beam = { u0: muzzle[0], u1: reach, v: muzzle[1], width: F.width, hue: L.hue };
         for (const f of foes) if (f.u + f.r >= ship.beam.u0 && f.u - f.r <= ship.beam.u1 && Math.abs(f.v - muzzle[1]) <= F.width / 2 + f.r) hurt(state, ship, f, F.dps * dt, L.hue);
         spend(dt);

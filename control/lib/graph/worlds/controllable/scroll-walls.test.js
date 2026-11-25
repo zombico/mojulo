@@ -1,6 +1,7 @@
 // An interior's walls in play (the scroll camera rule's `walls`: worlds/controllable/scroll-foes.js and scroll-pods.js).
 // The concepts: a wall is terrain, the ship's hitbox in one takes a hit and is put out the nearest way (a floor up, a
-// bulkhead back down the scroll), once each invulnerable spell; a foe's bullet that meets a wall ends there; the ship's
+// bulkhead back down the scroll), once each invulnerable spell; a corridor's floor and ceiling are ramps between its
+// knots, the hitbox put out to where they stand, and the hull's face at the mouth puts a ship back off it; a foe's bullet that meets a wall ends there; the ship's
 // shot ends on a wall, struck (an impact), a grenade's burst going off there; a bomb blows on one; the beam reaches the
 // first wall across its line; with no walls nothing changes.
 import { describe, it, expect } from 'vitest';
@@ -10,10 +11,10 @@ import { lowerArsenal, PODS } from '../../gameworld/scroll-stage/pods.js';
 
 const E = composeLive(), DT = 1 / 60, LEN = 12, C = scrollCamera(LEN), SA = C.screen.along, SC = C.screen.across;
 const ARS = lowerArsenal(Object.keys(PODS), { L: LEN, S: SC });
-const world = ({ walls, at = [0, 0], slots, hp = 10 } = {}) => {
+const world = ({ walls, corridor, at = [0, 0], slots, hp = 10 } = {}) => {
   const st = E.createWorld({
     entities: [{ id: 'ship', pilotable: true, rule: { type: 'scroll-ship', size: [LEN, 4], at, arsenal: ARS, hitbox: { r: 1, at: 0 }, invuln: 1 }, body: { type: 'none', hp }, transform: { pos: [0, 0, 0] } }],
-    camera: { rule: 'scroll', target: 'ship', view: 'side', dist: C.dist, screen: [SA, SC], track: [], ...(walls ? { walls } : {}) },
+    camera: { rule: 'scroll', target: 'ship', view: 'side', dist: C.dist, screen: [SA, SC], track: [], ...(walls ? { walls } : {}), ...(corridor ? { corridor } : {}) },
     pilot: 'ship',
   });
   E.stepWorld(st, {}, DT);
@@ -26,9 +27,9 @@ const ship = (st) => st.byId.ship;
 describe('an interior\'s walls', () => {
   it('are terrain: the hitbox in a floor takes a hit and is put out upward, once a spell', () => {
     const st = world({ walls: [[-SA, SA, -SC, -2]] });
-    ship(st).off[1] = -3; step(st);
+    ship(st).off[1] = -3; step(st); step(st);
     expect(ship(st).body.hp).toBe(9);
-    expect(ship(st).screenAt[1] + 1).toBeGreaterThanOrEqual(-2 - 1e-6);
+    expect(ship(st).screenAt[1] - 1).toBeGreaterThanOrEqual(-2 - 1e-6);   // (out, its hitbox clear of the floor)
     ship(st).off[1] = -3; step(st);
     expect(ship(st).body.hp).toBe(9);   // (unhurt a moment after a hit)
   });
@@ -69,6 +70,40 @@ describe('an interior\'s walls', () => {
     const st = world({ walls: [[50, 54, -SC, SC], [30, 34, 20, SC]], slots: ['lance', null] });
     step(st, { fire: 1 }, 2);
     expect(ship(st).beam.u1).toBe(50);
+  });
+
+  // a corridor: a floor ramping up from -30 to -6 between u 0 and 60, the ceiling flat at 30; its run from -40 to 200
+  const RAMP = [[-40, -30, 30], [0, -30, 30], [60, -6, 30], [200, -6, 30]];
+
+  it('a corridor\'s floor is a ramp: the hitbox under it is put out up to where the floor stands at its place', () => {
+    const st = world({ corridor: RAMP });
+    ship(st).off[0] = 30; ship(st).off[1] = -25; step(st); step(st);
+    expect(ship(st).body.hp).toBe(9);
+    expect(ship(st).screenAt[1] - 1).toBeGreaterThanOrEqual(-18 - 0.05);
+    expect(ship(st).screenAt[1]).toBeLessThan(-14);
+  });
+
+  it('the hull\'s face at the run\'s mouth puts a ship back off it, outside the open', () => {
+    const st = world({ corridor: [[20, -10, 10], [200, -10, 10]] });
+    ship(st).off[1] = 30; step(st, { turn: 1 }, 30);
+    expect(ship(st).screenAt[0]).toBeLessThan(20);
+    expect(ship(st).body.hp).toBeLessThan(10);
+    const ok = world({ corridor: [[20, -10, 10], [200, -10, 10]] });
+    step(ok, { turn: 1 }, 30);
+    expect(ok.byId.ship.screenAt[0]).toBeGreaterThan(20);   // (in through the mouth: no harm)
+    expect(ok.byId.ship.body.hp).toBe(10);
+  });
+
+  it('rounds end where the corridor closes over them, the ship\'s and a foe\'s', () => {
+    const st = world({ corridor: RAMP });
+    st.foeShots = [{ u: 50, v: -20, du: 0, dv: -10, r: 0.5, dmg: 1, t: 0, hue: '#f0f' }];
+    step(st, {}, 5);
+    expect(st.foeShots).toHaveLength(0);
+    const b = world({ corridor: RAMP, slots: ['lance', null] });
+    b.byId.ship.off[1] = -20; step(b);
+    step(b, { fire: 1 }, 2);
+    // (the beam at v -20 meets the floor where it ramps up through -20: a third of the way from 0 to 60, less its half-width)
+    expect(ship(b).beam.u1).toBeGreaterThan(5); expect(ship(b).beam.u1).toBeLessThan(40);
   });
 
   it('with no walls nothing changes', () => {

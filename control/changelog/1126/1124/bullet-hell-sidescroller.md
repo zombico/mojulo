@@ -59,14 +59,24 @@ lists the same layout.
 - shutters, bulkheads from the ceiling and the floor in turn;
 - a core, the wide room at the heart.
 
-Its walls are laid in steps, and guns stand on them facing the open. The walls are terrain: touching one costs a hit
-and pushes the ship out the nearest way, and rounds end on them (a grenade bursts there, a bomb blows on one, a beam
-stops at the first). They are drawn as a corridor seen from its open side, in one of two looks:
-- a station: grey panels, cyan lamps, windows out to the stars;
-- a facility: dark steel, amber lamps, hazard stripes on what crosses the way.
+Its floor and ceiling run as ramps between the middles of its steps, so the corridor climbs and narrows at an angle,
+never in stairs. Guns stand on its walls facing the open. The walls are terrain: touching one costs a hit and pushes the
+ship out (back off the hull's face at the mouth), and rounds end on them (a grenade bursts there, a bomb blows on one,
+a beam stops where the corridor closes over it).
 
-Each look has lit lips along the open, a back wall in bays, the hull's face at the mouth with docking lights, and dark
-struts sliding past in front.
+The corridor is drawn as a section through the station, seen from its open side:
+- its cut face is plated with the hull kibble the fleet's capital ships wear;
+- its bevelled edge catches the light;
+- its decks are in bands that go darker deeper inside;
+- ribs frame it every other stretch, conduits run along the back over the floor and under the ceiling;
+- the back is in bays with lamp strips;
+- the hull's face stands at both ends with docking lights;
+- dark struts slide past in front.
+
+It is lit as the ship is, by the ship's own light in space: one key from the stage's star, the galaxy's faint fill, a
+cool rim, the same tone curve. There are two looks:
+- a station: steel plate, cyan lamps, windows out to the stars;
+- a facility: dark steel, amber lamps, rust-brown conduits, hazard stripes on what crosses the way.
 
 It is held to laws: the open is never narrower than
 four ship breadths, each step overlaps the last by as much, a bend asks no more than the slowest gear can follow, the

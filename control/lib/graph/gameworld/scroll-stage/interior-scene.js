@@ -1,141 +1,200 @@
 /**
  * THE INTERIOR, DRAWN (Blaze Gunner): a run inside a station or a facility (interior.js its plan) as the faces a scroll
  * stage's page draws, laid in screen axes and stood in the world by the view (frame.js toWorld), so the top view gets it
- * turned. The corridor is a box seen from its open side, as the side map's interiors are (side-map/scene.js):
+ * turned. The corridor is a box seen from its open side, as the side map's interiors are (side-map/scene.js), and every
+ * change of height in it a RAMP: its floor and ceiling run as lines through the plan's knots (interior.js edges).
  *
- *   the WALLS     each ceiling and floor run a slab from the back of the corridor to in front of the play plane: its
- *                 face toward the camera in panels, a step each, in two tones by turns (the side map's A and B bays),
- *                 a lit lip along the open's edge; its face to the open (the floor's top lit, the ceiling's underside in
- *                 shade) with a row of lamps along it; a riser where a step changes, facing the open
- *   BULKHEADS     the same slab across the corridor, its tip marked (the facility's in hazard stripes)
- *   the BACK      the corridor's far wall, in its look's dark, in bays, a lamp strip under the ceiling and over the
- *                 floor on each A bay; a station's windows out to the stars (holes: the space layers show through)
- *   the MOUTH     the hull's face where the run begins and ends, its rim in the look's trim, docking lights either side
+ *   THE CUT       each wall's face toward the camera: the station's section, cut at the play plane, plated (the hull
+ *                 kibble the fleet's capital ships wear, scene/channels/hull-kibble.js, its blocks the interior's), its
+ *                 edge to the open BEVELLED and bare (no kibble), so the key catches it clean as it catches a hull's chine
+ *   THE DECKS     the floor's top and the ceiling's underside, from the back of the corridor to the cut, in three bands
+ *                 deeper into the station (each a little more enclosed), a lamp on each knot's stretch
+ *   RIBS          the structure's frames, every other knot: a raised band round the corridor, over the decks and up the
+ *                 back, their sides catching the light
+ *   CONDUITS      a pipe along the back over the floor and under the ceiling, following their ramps
+ *   the BACK      the corridor's far wall in bays, lamp strips on alternate bays, a station's windows out to the stars
+ *                 (holes: the space layers show through, the stage's world beyond)
+ *   BULKHEADS     the one square thing across the way: a slab plated as the cut, its tip marked (the facility's in
+ *                 hazard stripes), a signal lamp on it
+ *   the HULL      the station's face where the run begins and ends, plated, its docking lights either side
  *   FOREGROUND    struts in front of the play, dark, sliding past fastest (the side map's girders), a lit edge each
  *
- * Lit as it is laid (the stage's pages draw their colours as they are): each face its base colour under its facing (a
- * floor's top full, a face toward the camera most of it, the ceiling's underside in shade), lamps their own colour
- * (bright: the page's bloom takes them, and what is fired lights the walls it passes, the shot light).
+ * LIT AS THE SHIP IS (car-designer/form-light.js SPACE_MOOD, the cast rig, scene/channels/cast-rig.js): one key from the
+ * stage's star (the sky's sun, the ship's own key), the galaxy's faint sky over the dark as the fill, a cool fresnel
+ * rim where a face turns from the eye, toned by the rig's curve (Khronos neutral), so a wall and the ship read as one
+ * scene. Baked into each face (the stage's pages draw their colours as they are): its key by its facing, its fill and
+ * its rim; a face inside the station ENCLOSED (its key and fill less the deeper it stands, the cut's lip shading it); the
+ * look's lamps a little light of their own on what faces the corridor; the lamps themselves drawn bright (the page's
+ * bloom takes them, and what is fired lights the walls it passes, the shot light).
  *
- *   INTERIOR_LOOK   the looks (a new look is a row): { wall, panel (the B bays'), lip, top (the open's faces), back,
- *                   backBay, lamp, trim, stripe?, window? (a station's), strut }
+ *   INTERIOR_LOOK   the looks (a new look is a row): albedos { cut, deck, back, backBay, rib, pipe, trim, stripe? },
+ *                   lamp, window? (a station's), strut, kibble levels { cut, deck, back, rib, bulkhead, hull }
  *   WALL_DEPTH      the slab's reach off the play plane: { front (toward the camera), back }, camera distances
- *   layInterior(plan, cam, { view, seed? }) → { faces, report: { walls, windows, lamps, struts } }
+ *   castBake(hex, n, toEye, rig, { enclosed?, glow? }) → the face's colour under the rig (n, toEye: world unit vectors)
+ *   layInterior(plan, cam, { view, seed?, sun? }) → { faces, kibble: { <block>: level }, report: { faces, windows, lamps,
+ *                   ribs, struts } }
  *
  * Pure: seeded dice, the same plan the same faces.
  */
 import { toWorld, SCROLL_VIEWS } from './frame.js';
 import { streamOf } from '../../city/plan/dice.js';
+import { SPACE_MOOD } from '../../car-designer/form-light.js';
 
 const row = (o) => Object.freeze(o);
 export const INTERIOR_LOOK = Object.freeze({
-  // a station: pale grey panels, a cyan that marks its edges and its lamps, windows out to the stars
-  station: row({ wall: '#5d6772', panel: '#525b66', lip: '#b9c6d3', top: '#8c98a6', back: '#1d232b', backBay: '#232a33', lamp: '#7fe8ff', trim: '#d5dee6', window: true, strut: '#141a21' }),
-  // a facility: dark steel, amber lamps, hazard stripes on what crosses the way
-  facility: row({ wall: '#4a4f56', panel: '#41464c', lip: '#8a8f94', top: '#5d636a', back: '#16181b', backBay: '#1b1e22', lamp: '#ffb347', trim: '#e0b020', stripe: '#1a1a1a', window: false, strut: '#111214' }),
+  // a station: light steel plate, a cyan that marks its lamps, windows out to the stars
+  station: row({ cut: '#737c86', deck: '#7f8992', back: '#47515c', backBay: '#3f4852', rib: '#a3acb5', pipe: '#5f6d7a', trim: '#dde5ec', lamp: '#7fe8ff', window: true, strut: '#141a21',
+    kibble: row({ cut: 0.5, deck: 0.4, back: 0.55, rib: 0.3, bulkhead: 0.5, hull: 0.7 }) }),
+  // a facility: dark steel, rust-brown conduits, amber lamps, hazard stripes on what crosses the way
+  facility: row({ cut: '#575c63', deck: '#6c7176', back: '#3b3f45', backBay: '#34383d', rib: '#7a8087', pipe: '#6b4a2e', trim: '#e0b020', stripe: '#1a1a1a', lamp: '#ffb347', window: false, strut: '#111214',
+    kibble: row({ cut: 0.5, deck: 0.45, back: 0.5, rib: 0.35, bulkhead: 0.45, hull: 0.65 }) }),
 });
 export const WALL_DEPTH = Object.freeze({ front: 0.07, back: -0.3 });
-const STRUT_DEPTH = 0.3, STRUT_EVERY = 1.3, LIP = 0.035, LAMP_EVERY = 1;   // (a strut a screen's 0.8 along; a lip a share across)
+const STRUT_DEPTH = 0.3, STRUT_EVERY = 1.3, BEVEL = 0.014, RIB = { every: 2, wide: 0.012, rise: 0.012 }, PIPE = { off: 0.09, size: 0.016 };
+// (how enclosed a face inside the station stands: the cut open to the light, the decks less the deeper their band, the
+// back most; the lamps' own light on what faces the corridor)
+const ENCLOSED = { band: [0.85, 0.6, 0.4], back: 0.4 }, GLOW = 0.16;
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
-const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-const rgbHex = (c) => `#${c.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
-const shade = (hex, k) => rgbHex(hexRgb(hex).map((v) => v * k));
+const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const srgb = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+const hexLin = (h) => [1, 3, 5].map((i) => lin(parseInt(h.slice(i, i + 2), 16) / 255));
+const linHex = (c) => `#${c.map((v) => Math.round(Math.max(0, Math.min(1, srgb(Math.max(0, v)))) * 255).toString(16).padStart(2, '0')).join('')}`;
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-// how much light a face gets by its facing (screen axes): the camera's side most, a floor's top full, an underside little
-const LIGHT = { toward: 0.86, up: 1, down: 0.55, back: 0.72, ahead: 0.62 };
+const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
+// the rig's curve (Khronos PBR neutral, as the cast rig's shader tones a body on a painted page)
+function neutral(c) {
+  const start = 0.8 - 0.04, desat = 0.15, x = Math.min(...c), off = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  let col = c.map((v) => v - off);
+  const peak = Math.max(...col);
+  if (peak < start) return col;
+  const d = 1 - start, np = 1 - (d * d) / (peak + d - start);
+  col = col.map((v) => (v * np) / peak);
+  const g = 1 - 1 / (desat * (peak - np) + 1);
+  return col.map((v) => v + (np - v) * g);
+}
+
+/** A face's colour under the rig (see the header): its albedo, its facing, the eye's way, how enclosed, a lamp's glow. */
+export function castBake(hex, n, toEye, rig, { enclosed = 1, glow = null } = {}) {
+  const a = hexLin(hex), kd = (Math.max(0, dot(n, rig.toLight)) * rig.keyIntensity * enclosed) / Math.PI;
+  const h = 0.5 + 0.5 * n[2], hemi = rig.hemi.sky.map((s, i) => (rig.hemi.ground[i] + (s - rig.hemi.ground[i]) * h) * enclosed);
+  const f = Math.pow(1 - Math.min(1, Math.abs(dot(n, toEye))), rig.rim.power) * rig.rim.strength;
+  const g = glow ? hexLin(glow).map((v) => v * GLOW) : [0, 0, 0];
+  return linHex(neutral(a.map((v, i) => v * (rig.key[i] * kd + hemi[i] + g[i]) + rig.rim.linear[i] * f)));
+}
 
 /** The interior's faces (see the header). */
-export function layInterior(plan, cam, { view = 'side', seed = 1 } = {}) {
+export function layInterior(plan, cam, { view = 'side', seed = 1, sun = null } = {}) {
   const V = SCROLL_VIEWS[view], K = INTERIOR_LOOK[plan.look] ?? INTERIOR_LOOK.station, C = cam.screen.across, A = cam.screen.along;
-  const dF = r3(WALL_DEPTH.front * cam.dist), dB = r3(WALL_DEPTH.back * cam.dist), faces = [], report = { walls: 0, windows: 0, lamps: 0, struts: 0 };
-  const die = streamOf(seed, 'scroll-interior', 'dress');
-  const N = { toward: V.toward, up: V.across, down: V.across.map((x) => -x), back: V.along.map((x) => -x), ahead: V.along };
-  // a quad from four (u, v, d) corners, facing n (one of N), anticlockwise seen from its side
-  const quad = (pts, n, fill, group) => {
-    const w = pts.map((p) => toWorld(view, p).map(r3)), [a, b, c] = w;
-    const x = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], y = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+  // the ship's light: the space mood's, its key the stage's star (the side map's key: from behind the camera, over and ahead)
+  const toLight = unit(sun ?? V.toward.map((t, i) => t * 0.6 + V.up[i] * 0.7 + V.along[i] * 0.35));
+  const kp = Math.max(...SPACE_MOOD.key), rig = { toLight, key: SPACE_MOOD.key.map((v) => v / kp), keyIntensity: SPACE_MOOD.level * Math.min(1, kp), hemi: SPACE_MOOD.hemi, rim: SPACE_MOOD.rim };
+  const dF = r3(WALL_DEPTH.front * cam.dist), dB = r3(WALL_DEPTH.back * cam.dist), depth = dF - dB;
+  const faces = [], kibble = {}, report = { faces: 0, windows: 0, lamps: 0, ribs: 0, struts: 0 };
+  const die = streamOf(seed, 'scroll-interior', 'dress'), E = plan.edges;
+  const W = (p) => toWorld(view, p).map(r3), N = (n) => unit([0, 1, 2].map((k) => V.along[k] * n[0] + V.across[k] * n[1] + V.toward[k] * n[2]));
+  const midAt = (u) => { for (let k = 1; k < E.length; k++) if (u <= E[k].u + 1e-9) { const a = E[k - 1], b = E[k], t = b.u - a.u > 1e-9 ? (u - a.u) / (b.u - a.u) : 0; return a.mid + (b.mid - a.mid) * t; } return E[E.length - 1].mid; };
+  // a polygon from (u, v, d) corners facing n (screen axes), baked under the rig as the eye on the track sees it
+  const poly = (pts, n, hex, block, { enclosed = 1, glow = null, lit = false } = {}) => {
+    const w = pts.map(W), nw = N(n), c = pts.reduce((s, p) => s.map((x, k) => x + p[k] / pts.length), [0, 0, 0]), cw = W(c);
+    const eye = unit(W([c[0], midAt(c[0]), cam.dist]).map((x, k) => x - cw[k]));
+    const a = w[0], b = w[1], q = w[2], x = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], y = [q[0] - a[0], q[1] - a[1], q[2] - a[2]];
     const cr = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]];
-    faces.push({ corners: dot(cr, N[n]) < 0 ? w.reverse() : w, normal: [...N[n]], fill, group });
+    const group = `break:interior/${block}`;
+    faces.push({ corners: dot(cr, nw) < 0 ? w.reverse() : w, normal: nw.map(r3), fill: lit ? hex : castBake(hex, nw, eye, rig, { enclosed, glow }), group, node: group.slice(6) });
+    report.faces += 1;
   };
-  // a rectangle on a plane square to the camera (at depth d), from (u0, v0) to (u1, v1)
-  const front = (d, u0, u1, v0, v1, fill, group) => { if (u1 - u0 > 1e-3 && v1 - v0 > 1e-3) quad([[u0, v0, d], [u1, v0, d], [u1, v1, d], [u0, v1, d]], 'toward', fill, group); };
-  // a face along the corridor at v (up: the floor's top; down: the ceiling's underside), from d0 to d1
-  const flat = (v, u0, u1, d0, d1, n, fill, group) => quad([[u0, v, d0], [u1, v, d0], [u1, v, d1], [u0, v, d1]], n, fill, group);
-  // a face across the corridor at u (back: facing the ship coming; ahead: facing on), from v0 to v1
-  const cross = (u, v0, v1, d0, d1, n, fill, group) => { if (v1 - v0 > 1e-3) quad([[u, v0, d0], [u, v1, d0], [u, v1, d1], [u, v0, d1]], n, fill, group); };
-  const P = plan.profile, step = plan.step;
-  const stepOf = (u) => Math.floor((u - plan.u0) / step + 1e-6);
-  // ── the WALLS: the ceiling's and the floor's runs, their faces toward the camera in panels, a lip, the face to the open ──
-  for (const w of plan.walls.filter((x) => x.role !== 'bulkhead')) {
-    const ceil = w.role === 'ceiling', edge = ceil ? w.v0 : w.v1, lip = LIP * C;
-    for (let u = w.u0; u < w.u1 - 1e-3; u += step) {
-      const b = Math.min(w.u1, u + step), tone = stepOf(u) % 2 ? K.panel : K.wall;
-      if (ceil) { front(dF, u, b, edge + lip, w.v1, shade(tone, LIGHT.toward), 'interior:wall'); front(dF, u, b, edge, edge + lip, K.lip, 'interior:lip'); }
-      else { front(dF, u, b, w.v0, edge - lip, shade(tone, LIGHT.toward), 'interior:wall'); front(dF, u, b, edge - lip, edge, K.lip, 'interior:lip'); }
-      // (its lamps along the face to the open: a short bright bar, a step each)
-      if (stepOf(u) % LAMP_EVERY === 0) {
-        const m = (u + b) / 2, half = step * 0.12;
-        flat(edge + (ceil ? -0.02 : 0.02), m - half, m + half, dF - 0.25 * (dF - dB), dF - 0.12 * (dF - dB), ceil ? 'down' : 'up', K.lamp, 'interior:lamp'); report.lamps += 1;
-      }
+  const kb = (block, level) => { if (level > 0) kibble[`interior/${block}`] = level; return block; };
+  // the open's edge normal between two knots (screen axes): the floor's up off it, the ceiling's down
+  const normalOf = (a, b, side) => { const du = b.u - a.u, dv = side === 'floor' ? b.lo - a.lo : b.hi - a.hi, l = Math.hypot(du, dv) || 1, s = side === 'floor' ? 1 : -1; return [(-dv / l) * s, (du / l) * s, 0]; };
+  const bevel = BEVEL * C, glow = K.lamp;
+
+  for (let k = 1; k < E.length; k++) {
+    const a = E[k - 1], b = E[k], si = b.section, kind = plan.sections[si].kind, R = plan.reach;
+    if (b.u - a.u < 1e-6) continue;
+    for (const side of ['floor', 'ceiling']) {
+      const ea = side === 'floor' ? a.lo : a.hi, eb = side === 'floor' ? b.lo : b.hi, s = side === 'floor' ? -1 : 1, n = normalOf(a, b, side);
+      const far = side === 'floor' ? Math.min(a.lo, b.lo) - R : Math.max(a.hi, b.hi) + R;
+      // THE CUT: the section's plate, out from the bevel to past the frame
+      poly([[a.u, ea + s * bevel, dF], [b.u, eb + s * bevel, dF], [b.u, far, dF], [a.u, far, dF]], [0, 0, 1], K.cut, kb(`cut-${si}`, K.kibble.cut));
+      // its BEVEL to the open: half toward the camera, half the open's way, so the key catches it
+      poly([[a.u, ea, dF - bevel], [b.u, eb, dF - bevel], [b.u, eb + s * bevel, dF], [a.u, ea + s * bevel, dF]], unit([n[0], n[1], 1]), K.trim, 'trim');
+      // THE DECK: from the bevel back to the corridor's back, in three bands, each more enclosed
+      const cuts = [dF - bevel, dF - bevel - depth * 0.25, dF - depth * 0.58, dB];
+      for (let j = 0; j < 3; j++) poly([[a.u, ea, cuts[j + 1]], [b.u, eb, cuts[j + 1]], [b.u, eb, cuts[j]], [a.u, ea, cuts[j]]], n, K.deck, kb(`deck-${si}`, K.kibble.deck), { enclosed: ENCLOSED.band[j], glow });
+      // a LAMP on each stretch: a bright bar set into the deck, a little off it into the open
+      const lu = (a.u + b.u) / 2, lv = (ea + eb) / 2, half = (b.u - a.u) * 0.14, sl = (eb - ea) / (b.u - a.u), off = -s * 0.04;
+      poly([[lu - half, lv - sl * half + off, dF - depth * 0.14], [lu + half, lv + sl * half + off, dF - depth * 0.14], [lu + half, lv + sl * half + off, dF - depth * 0.06], [lu - half, lv - sl * half + off, dF - depth * 0.06]], n, K.lamp, 'lamps', { lit: true });
+      report.lamps += 1;
+      // a CONDUIT along the back, over the floor and under the ceiling, following its ramp
+      const po = -s * PIPE.off * C, ps = PIPE.size * C, d0 = dB + 0.6, d1 = d0 + ps;
+      poly([[a.u, ea + po, d1], [b.u, eb + po, d1], [b.u, eb + po - s * ps, d1], [a.u, ea + po - s * ps, d1]], [0, 0, 1], K.pipe, kb(`rib-${si}`, K.kibble.rib), { enclosed: ENCLOSED.back + 0.2, glow });
+      poly([[a.u, ea + po - s * ps, d0], [b.u, eb + po - s * ps, d0], [b.u, eb + po - s * ps, d1], [a.u, ea + po - s * ps, d1]], n, K.pipe, kb(`rib-${si}`, K.kibble.rib), { enclosed: ENCLOSED.back + 0.3, glow });
     }
-    flat(edge, w.u0, w.u1, dB, dF, ceil ? 'down' : 'up', shade(K.top, ceil ? LIGHT.down : LIGHT.up), 'interior:wall');
-    report.walls += 1;
-  }
-  // the RISERS: where a step changes, the face across the corridor between the two edges, facing the open's side it stands to
-  for (const side of ['ceiling', 'floor']) {
-    const runs = plan.walls.filter((x) => x.role === side).sort((a, b) => a.u0 - b.u0);
-    for (let k = 1; k < runs.length; k++) {
-      const a = runs[k - 1], b = runs[k], ea = side === 'ceiling' ? a.v0 : a.v1, eb = side === 'ceiling' ? b.v0 : b.v1, u = b.u0;
-      // (the one that juts into the open shows the face: a lower ceiling ahead faces back at the ship, a higher one on)
-      const juts = side === 'ceiling' ? eb < ea : eb > ea, lo = Math.min(ea, eb), hi = Math.max(ea, eb);
-      cross(u, lo, hi, dB, dF, juts ? 'back' : 'ahead', shade(K.wall, juts ? LIGHT.back : LIGHT.ahead), 'interior:wall');
-    }
-  }
-  // ── BULKHEADS: a slab across the way, its tip marked ──
-  for (const w of plan.walls.filter((x) => x.role === 'bulkhead')) {
-    const n = Math.max(2, Math.round((w.v1 - w.v0) / (C * 0.04)));
-    for (let k = 0; k < n; k++) {
-      const v0 = w.v0 + ((w.v1 - w.v0) * k) / n, v1 = w.v0 + ((w.v1 - w.v0) * (k + 1)) / n, fill = K.stripe ? (k % 2 ? K.stripe : K.trim) : k % 2 ? K.panel : K.wall;
-      front(dF, w.u0, w.u1, v0, v1, shade(fill, LIGHT.toward), 'interior:bulkhead');
-    }
-    cross(w.u0, w.v0, w.v1, dB, dF, 'back', shade(K.wall, LIGHT.back), 'interior:bulkhead');
-    cross(w.u1, w.v0, w.v1, dB, dF, 'ahead', shade(K.wall, LIGHT.ahead), 'interior:bulkhead');
-    // (its tip, toward the open: a lit edge in the trim)
-    const P0 = P.find((p) => p.u0 <= w.u0 && w.u0 <= p.u1), fromTop = P0 && Math.abs(w.v1 - P0.hi) < 1e-6, tip = fromTop ? w.v0 : w.v1;
-    flat(tip, w.u0, w.u1, dB, dF, fromTop ? 'down' : 'up', K.trim, 'interior:bulkhead');
-    report.walls += 1;
-  }
-  // ── the BACK: the corridor's far wall, a step a bay, its lamp strips, a station's windows ──
-  for (let k = 0; k < P.length; k++) {
-    const p = P[k], lo = p.lo - 0.5, hi = p.hi + 0.5, bay = k % 2 ? K.backBay : K.back, gap = p.hi - p.lo;
-    const kind = plan.sections[p.section].kind, win = K.window && (kind === 'hall' || kind === 'core') && k % 4 === 2;
+    // THE BACK: a bay a stretch, a lamp strip on alternate bays, a station's window in its halls and its core
+    const bay = k % 2 ? K.backBay : K.back, win = K.window && (kind === 'hall' || kind === 'core') && k % 4 === 2;
+    const blk = kb(`back-${si}`, K.kibble.back), o = { enclosed: ENCLOSED.back, glow };
+    const at = (u, f) => { const t = (u - a.u) / (b.u - a.u), lo = a.lo + (b.lo - a.lo) * t, hi = a.hi + (b.hi - a.hi) * t; return lo + (hi - lo) * f; };
     if (win) {
-      // (a window: the bay with a hole in it, the space layers seen through)
-      const a = p.u0 + step * 0.2, b = p.u1 - step * 0.2, w0 = p.lo + gap * 0.3, w1 = p.hi - gap * 0.3;
-      front(dB, p.u0, a, lo, hi, bay, 'interior:back'); front(dB, b, p.u1, lo, hi, bay, 'interior:back');
-      front(dB, a, b, lo, w0, bay, 'interior:back'); front(dB, a, b, w1, hi, bay, 'interior:back');
-      // its frame in the trim, set a little toward the camera
-      for (const [x0, x1, y0, y1] of [[a, b, w0 - 1.2, w0], [a, b, w1, w1 + 1.2], [a - 1.2, a, w0 - 1.2, w1 + 1.2], [b, b + 1.2, w0 - 1.2, w1 + 1.2]]) front(dB + 0.5, x0, x1, y0, y1, shade(K.trim, 0.7), 'interior:back');
+      const u0 = a.u + (b.u - a.u) * 0.2, u1 = b.u - (b.u - a.u) * 0.2;
+      poly([[a.u, a.lo - 0.5, dB], [u0, at(u0, 0) - 0.5, dB], [u0, at(u0, 1) + 0.5, dB], [a.u, a.hi + 0.5, dB]], [0, 0, 1], bay, blk, o);
+      poly([[u1, at(u1, 0) - 0.5, dB], [b.u, b.lo - 0.5, dB], [b.u, b.hi + 0.5, dB], [u1, at(u1, 1) + 0.5, dB]], [0, 0, 1], bay, blk, o);
+      poly([[u0, at(u0, 0) - 0.5, dB], [u1, at(u1, 0) - 0.5, dB], [u1, at(u1, 0.3), dB], [u0, at(u0, 0.3), dB]], [0, 0, 1], bay, blk, o);
+      poly([[u0, at(u0, 0.7), dB], [u1, at(u1, 0.7), dB], [u1, at(u1, 1) + 0.5, dB], [u0, at(u0, 1) + 0.5, dB]], [0, 0, 1], bay, blk, o);
+      // its frame, set toward the camera
+      for (const [f0, f1] of [[0.28, 0.3], [0.7, 0.72]]) poly([[u0, at(u0, f0), dB + 0.5], [u1, at(u1, f0), dB + 0.5], [u1, at(u1, f1), dB + 0.5], [u0, at(u0, f1), dB + 0.5]], [0, 0, 1], K.trim, blk, o);
       report.windows += 1;
-    } else front(dB, p.u0, p.u1, lo, hi, bay, 'interior:back');
-    if (k % 2 === 0) for (const v of [p.hi - gap * 0.08, p.lo + gap * 0.08]) { front(dB + 0.4, p.u0 + step * 0.15, p.u1 - step * 0.15, v - 0.5, v + 0.5, K.lamp, 'interior:lamp'); report.lamps += 1; }
+    } else poly([[a.u, a.lo - 0.5, dB], [b.u, b.lo - 0.5, dB], [b.u, b.hi + 0.5, dB], [a.u, a.hi + 0.5, dB]], [0, 0, 1], bay, blk, o);
+    if (k % 2 === 0) for (const f of [0.9, 0.1]) {
+      const x0 = a.u + (b.u - a.u) * 0.15, x1 = b.u - (b.u - a.u) * 0.15;
+      poly([[x0, at(x0, f) - 0.5, dB + 0.4], [x1, at(x1, f) - 0.5, dB + 0.4], [x1, at(x1, f) + 0.5, dB + 0.4], [x0, at(x0, f) + 0.5, dB + 0.4]], [0, 0, 1], K.lamp, 'lamps', { lit: true });
+      report.lamps += 1;
+    }
   }
-  // ── the MOUTH and the way out: the hull's face across the run's ends, its rim and its docking lights ──
-  const ends = [[plan.u0, 'back', P[0]], [plan.u1, 'ahead', P[P.length - 1]]];
-  for (const [u, n, p] of ends) {
-    cross(u, p.hi, p.hi + C, dB, dF, n, shade(K.trim, n === 'back' ? 0.8 : 0.6), 'interior:hull');
-    cross(u, p.lo - C, p.lo, dB, dF, n, shade(K.trim, n === 'back' ? 0.8 : 0.6), 'interior:hull');
-    const o = n === 'back' ? -0.3 : 0.3;
-    for (const [v, hue] of [[p.hi + C * 0.02, '#ff3b30'], [p.lo - C * 0.02, '#3bff6a']]) { cross(u + o, v - 1.2, v + 1.2, dF - 3, dF - 0.6, n, hue, 'interior:lamp'); report.lamps += 1; }
+  // ── RIBS: the frames round the corridor every other knot, raised over the decks and up the back ──
+  for (let k = 1; k < E.length - 1; k++) {
+    if (k % RIB.every !== 0) continue;
+    const q = E[k], si = q.section, w = RIB.wide * C, h = RIB.rise * C, blk = kb(`rib-${si}`, K.kibble.rib), u0 = q.u - w / 2, u1 = q.u + w / 2;
+    for (const side of ['floor', 'ceiling']) {
+      const e = side === 'floor' ? q.lo : q.hi, s = side === 'floor' ? 1 : -1, top = e + s * h;
+      poly([[u0, top, dB], [u1, top, dB], [u1, top, dF - bevel], [u0, top, dF - bevel]], [0, s, 0], K.rib, blk, { enclosed: 0.75, glow });
+      poly([[u0, e, dB], [u0, top, dB], [u0, top, dF - bevel], [u0, e, dF - bevel]], [-1, 0, 0], K.rib, blk, { enclosed: 0.7 });
+      poly([[u1, e, dB], [u1, top, dB], [u1, top, dF - bevel], [u1, e, dF - bevel]], [1, 0, 0], K.rib, blk, { enclosed: 0.7 });
+      poly([[u0, e, dF - bevel], [u1, e, dF - bevel], [u1, top, dF - bevel], [u0, top, dF - bevel]], [0, 0, 1], K.rib, blk, { enclosed: 0.9 });
+    }
+    // (up the back: a pilaster between them, standing off the bay)
+    poly([[u0, q.lo + h, dB + h], [u1, q.lo + h, dB + h], [u1, q.hi - h, dB + h], [u0, q.hi - h, dB + h]], [0, 0, 1], K.rib, blk, { enclosed: ENCLOSED.back + 0.15, glow });
+    report.ribs += 1;
   }
-  // ── FOREGROUND: struts in front of the play, dark, a screen and a third apart (jittered), the frame's height and more ──
+  // ── BULKHEADS: a slab across the way, plated, its tip marked, a signal lamp on it ──
+  for (const w of plan.walls.filter((x) => x.role === 'bulkhead')) {
+    const fromTop = w.from === 'ceiling', tip = fromTop ? w.v0 : w.v1, s = fromTop ? 1 : -1, blk = kb(`bulkhead-${w.section}`, K.kibble.bulkhead);
+    const n = Math.max(2, Math.round(Math.abs(w.v1 - w.v0) / (C * 0.05)));
+    for (let j = 0; j < n; j++) {
+      const v0 = w.v0 + ((w.v1 - w.v0) * j) / n, v1 = w.v0 + ((w.v1 - w.v0) * (j + 1)) / n, fill = K.stripe && Math.abs((fromTop ? v0 : v1) - tip) < C * 0.25 ? (j % 2 ? K.stripe : K.trim) : K.cut;
+      poly([[w.u0, v0, dF], [w.u1, v0, dF], [w.u1, v1, dF], [w.u0, v1, dF]], [0, 0, 1], fill, blk);
+    }
+    poly([[w.u0, w.v0, dB], [w.u0, w.v1, dB], [w.u0, w.v1, dF], [w.u0, w.v0, dF]], [-1, 0, 0], K.cut, blk, { enclosed: 0.8, glow });
+    poly([[w.u1, w.v0, dB], [w.u1, w.v1, dB], [w.u1, w.v1, dF], [w.u1, w.v0, dF]], [1, 0, 0], K.cut, blk, { enclosed: 0.8, glow });
+    poly([[w.u0, tip, dB], [w.u1, tip, dB], [w.u1, tip, dF], [w.u0, tip, dF]], [0, -s, 0], K.trim, blk, { enclosed: 0.85 });
+    const mu = (w.u0 + w.u1) / 2;
+    poly([[mu - 0.8, tip - s * 0.05, dF - 3], [mu + 0.8, tip - s * 0.05, dF - 3], [mu + 0.8, tip - s * 0.05, dF - 1], [mu - 0.8, tip - s * 0.05, dF - 1]], [0, -s, 0], '#ff3b30', 'lamps', { lit: true });
+    report.lamps += 1;
+  }
+  // ── the HULL's face where the run begins and ends, plated, its docking lights ──
+  for (const [u, n, q] of [[plan.u0, -1, E[0]], [plan.u1, 1, E[E.length - 1]]]) {
+    const blk = kb('hull', K.kibble.hull);
+    poly([[u, q.hi, dB], [u, q.hi + plan.reach, dB], [u, q.hi + plan.reach, dF], [u, q.hi, dF]], [n, 0, 0], K.cut, blk, { enclosed: 0.9 });
+    poly([[u, q.lo - plan.reach, dB], [u, q.lo, dB], [u, q.lo, dF], [u, q.lo - plan.reach, dF]], [n, 0, 0], K.cut, blk, { enclosed: 0.9 });
+    for (const [v, hue] of [[q.hi + C * 0.02, '#ff3b30'], [q.lo - C * 0.02, '#3bff6a']]) { poly([[u + n * 0.3, v - 1.2, dF - 3], [u + n * 0.3, v + 1.2, dF - 3], [u + n * 0.3, v + 1.2, dF - 0.6], [u + n * 0.3, v - 1.2, dF - 0.6]], [n, 0, 0], hue, 'lamps', { lit: true }); report.lamps += 1; }
+  }
+  // ── FOREGROUND: struts in front of the play, a screen and a third apart (jittered), the frame's height and more ──
   const dS = STRUT_DEPTH * cam.dist, grow = (cam.dist - dS) / cam.dist, wide = C * 0.016;
   for (let u = plan.u0 + A * STRUT_EVERY * (0.3 + die() * 0.4); u < plan.u1; u += A * STRUT_EVERY * (0.8 + die() * 0.4)) {
-    const p = P.find((q) => q.u0 <= u && u <= q.u1) ?? P[P.length - 1], half = (C / 2) * grow * 1.3;
-    front(dS, u - wide / 2, u + wide / 2, p.mid - half, p.mid + half, K.strut, 'interior:strut');
-    front(dS + 0.05, u - wide / 2, u - wide / 2 + wide * 0.18, p.mid - half, p.mid + half, shade(K.lip, 0.35), 'interior:strut');
+    const mid = midAt(u), half = (C / 2) * grow * 1.3;
+    poly([[u - wide / 2, mid - half, dS], [u + wide / 2, mid - half, dS], [u + wide / 2, mid + half, dS], [u - wide / 2, mid + half, dS]], [0, 0, 1], K.strut, 'struts', { enclosed: 0.25 });
+    poly([[u - wide / 2, mid - half, dS + 0.05], [u - wide / 2 + wide * 0.18, mid - half, dS + 0.05], [u - wide / 2 + wide * 0.18, mid + half, dS + 0.05], [u - wide / 2, mid + half, dS + 0.05]], unit([-0.6, 0, 0.8]), K.rib, 'struts', { enclosed: 0.5 });
     report.struts += 1;
   }
-  return { faces, report };
+  return { faces, kibble, report };
 }

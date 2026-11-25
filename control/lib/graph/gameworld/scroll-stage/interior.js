@@ -2,8 +2,8 @@
  * THE SCROLL STAGE'S INTERIOR (Blaze Gunner): a run flown INSIDE a station or a facility, the genre's infiltration: a
  * ceiling and a floor that close in and open out, bends to follow, bulkheads to weave between, the room at its heart.
  * Laid in the stage's screen axes (frame.js: u along, v across), so the top view gets it turned (its walls left and
- * right), and in BLOCKS: the open between the walls a profile of steps (the genre's terrain, a bulkhead's edge), each
- * step a screen's eighth along.
+ * right). The open is laid a STEP at a time (a screen's eighth along), and its floor and ceiling drawn as lines through
+ * each step's middle, so a change of height is a ramp, never a stair; a bulkhead is the one square thing in the way.
  *
  *   a stage's `interior`: { at: screens along (where its mouth is), look?: INTERIOR_LOOKS, sections: [{ kind, length? }],
  *                           seed? }
@@ -29,12 +29,16 @@
  *     sections: [{ kind, u0, u1 }]
  *     profile: [{ u0, u1, lo, hi, mid, section }]  the open, step by step (v in metres on the play plane; mid the
  *                                             camera's middle across there)
- *     walls: [{ id, u0, u1, v0, v1, role: 'ceiling' | 'floor' | 'bulkhead', section }]   the solid, as boxes
+ *     edges: [{ u, lo, hi, mid, section }]    the floor and the ceiling as lines through the knots (the run's ends and
+ *                                             each step's middle): what is flown, drawn and struck
+ *     walls: [{ id, u0, u1, v0, v1, role: 'bulkhead', from: 'ceiling' | 'floor', section }]   what stands across the way
  *     mounts: [{ id, u, v, side: 'ceiling' | 'floor', section }]   where a gun stands on a wall, facing the open
+ *     reach                                   how far past the open a wall goes (a screen across: never seen beyond)
  *   }
- *   interiorLaws(plan, { cam, ship, pace, gears? }) → [{ id, holds, says }]: passage (the open, a bulkhead's pass
- *     included, never narrower than PASSAGE breadths), continuity (a step's open overlaps the next by as much), climb
- *     (a bend asks no more than CLIMB of the slowest gear across), on screen (the open inside the frame, its edge kept),
+ *   openAt(plan, u)  → [lo, hi] the open's floor and ceiling at u (null off the run)
+ *   interiorLaws(plan, { cam, ship, pace, gears? }) → [{ id, holds, says }], read at the knots and a bulkhead's ends:
+ *     passage (the open, a bulkhead's pass included, never narrower than PASSAGE breadths), continuity (each stretch's
+ *     open overlaps the next by as much), climb (a ramp asks no more than CLIMB of the slowest gear across), on screen (the open inside the frame, its edge kept),
  *     mounts (each on a wall, facing an open at least PASSAGE wide)
  *
  * Pure and deterministic: the same stage the same walls.
@@ -98,7 +102,7 @@ function middleAt(track, start) {
   };
 }
 
-/** The interior laid: its sections, the open step by step, the walls as boxes, the guns' places. */
+/** The interior laid: its sections, the open step by step and as its edges, the bulkheads, the guns' places. */
 export function planInterior(spec, { cam, track, start = [0, 0], seed = 1 }) {
   const errs = readInterior(spec);
   if (errs.length) throw new Error(errs.join('; '));
@@ -131,71 +135,77 @@ export function planInterior(spec, { cam, track, start = [0, 0], seed = 1 }) {
       u = b;
     }
     sections.push({ kind: S0.kind, u0: r3(s0), u1: r3(u) });
-    // the BULKHEADS: across the corridor every few steps, from the ceiling and the floor in turn, leaving their pass
-    if (S.bulkheads) {
-      const steps = profile.filter((p) => p.section === si);
-      steps.forEach((p, k) => {
-        if (k === 0 || k % S.bulkheads !== 0 || k === steps.length - 1) return;
-        const fromTop = (k / S.bulkheads) % 2 === 1, w = r3(step * 0.35), c = (p.u0 + p.u1) / 2;
-        const v0 = fromTop ? r3(p.lo + S.pass * C) : p.lo, v1 = fromTop ? p.hi : r3(p.hi - S.pass * C);
-        walls.push({ id: `bulkhead-${si}-${k}`, u0: r3(c - w / 2), u1: r3(c + w / 2), v0, v1, role: 'bulkhead', section: si });
-      });
-    }
-    // the GUNS' places: on the walls, the ceiling and the floor in turn, a step clear of any bulkhead
-    if (S.mounts) {
-      const steps = profile.filter((p) => p.section === si), every = Math.max(2, Math.round(steps.length / (S.mounts * (S0.length ?? S.length))));
-      steps.forEach((p, k) => {
-        if (k === 0 || k % every !== 0) return;
-        const c = r3((p.u0 + p.u1) / 2), side = (k / every) % 2 === 1 ? 'floor' : 'ceiling';
-        if (walls.some((w) => w.role === 'bulkhead' && Math.abs((w.u0 + w.u1) / 2 - c) < step * 1.2)) return;
-        mounts.push({ id: `mount-${si}-${k}`, u: c, v: side === 'floor' ? p.lo : p.hi, side, section: si });
-      });
-    }
   });
-  // the CEILING and the FLOOR: a box over and under each run of equal steps, reaching a screen past the open
-  for (const side of ['ceiling', 'floor']) {
-    let run = null;
-    const close = () => { if (run) walls.push(run); run = null; };
-    for (const p of profile) {
-      const edge = side === 'ceiling' ? p.hi : p.lo;
-      if (run && Math.abs((side === 'ceiling' ? run.v0 : run.v1) - edge) < 1e-6) { run.u1 = p.u1; continue; }
-      close();
-      run = side === 'ceiling' ? { id: '', u0: p.u0, u1: p.u1, v0: edge, v1: r3(edge + REACH * C), role: side, section: p.section } : { id: '', u0: p.u0, u1: p.u1, v0: r3(edge - REACH * C), v1: edge, role: side, section: p.section };
-    }
-    close();
-  }
-  walls.forEach((w, k) => { if (!w.id) w.id = `${w.role}-${k}`; });
-  return { u0, u1: r3(u), look: spec.look ?? 'station', step, sections, profile, walls, mounts };
+  // the EDGES: the open's floor and ceiling as lines through each step's middle, so every change of height is a ramp,
+  // never a step (the run's ends hold their first and last step's: the hull's face square across them)
+  const knot = (p, at) => ({ u: r3(at), lo: p.lo, hi: p.hi, mid: p.mid, section: p.section });
+  const edges = [knot(profile[0], u0), ...profile.map((p) => knot(p, (p.u0 + p.u1) / 2)), knot(profile[profile.length - 1], u)];
+  const edgeAt = (x) => { for (let k = 1; k < edges.length; k++) if (x <= edges[k].u + 1e-9) { const a = edges[k - 1], b = edges[k], t = b.u - a.u > 1e-9 ? (x - a.u) / (b.u - a.u) : 0; return [lerp(a.lo, b.lo, t), lerp(a.hi, b.hi, t)]; } const z = edges[edges.length - 1]; return [z.lo, z.hi]; };
+  // the BULKHEADS: across the corridor every few steps, from the ceiling and the floor in turn, leaving their pass at
+  // their narrowest across their width (the edges may slope under them)
+  spec.sections.forEach((S0, si) => {
+    const S = SECTIONS[S0.kind];
+    if (!S.bulkheads) return;
+    const steps = profile.filter((p) => p.section === si);
+    steps.forEach((p, k) => {
+      if (k === 0 || k % S.bulkheads !== 0 || k === steps.length - 1) return;
+      const fromTop = (k / S.bulkheads) % 2 === 1, w = r3(step * 0.35), c = (p.u0 + p.u1) / 2, ends = [edgeAt(c - w / 2), edgeAt(c + w / 2)];
+      const v0 = fromTop ? r3(Math.max(ends[0][0], ends[1][0]) + S.pass * C) : r3(Math.min(ends[0][0], ends[1][0]) - C), v1 = fromTop ? r3(Math.max(ends[0][1], ends[1][1]) + C) : r3(Math.min(ends[0][1], ends[1][1]) - S.pass * C);
+      walls.push({ id: `bulkhead-${si}-${k}`, u0: r3(c - w / 2), u1: r3(c + w / 2), v0, v1, role: 'bulkhead', from: fromTop ? 'ceiling' : 'floor', section: si });
+    });
+  });
+  // the GUNS' places: on the walls at a step's middle, the ceiling and the floor in turn, a step clear of any bulkhead
+  spec.sections.forEach((S0, si) => {
+    const S = SECTIONS[S0.kind];
+    if (!S.mounts) return;
+    const steps = profile.filter((p) => p.section === si), every = Math.max(2, Math.round(steps.length / (S.mounts * (S0.length ?? S.length))));
+    steps.forEach((p, k) => {
+      if (k === 0 || k % every !== 0) return;
+      const c = r3((p.u0 + p.u1) / 2), side = (k / every) % 2 === 1 ? 'floor' : 'ceiling';
+      if (walls.some((w) => Math.abs((w.u0 + w.u1) / 2 - c) < step * 1.2)) return;
+      mounts.push({ id: `mount-${si}-${k}`, u: c, v: side === 'floor' ? p.lo : p.hi, side, section: si });
+    });
+  });
+  return { u0, u1: r3(u), look: spec.look ?? 'station', step, reach: r3(REACH * C), sections, profile, edges, walls, mounts };
 }
 
-/** The interior held to its laws (see the header). */
+/** Where the open's floor and ceiling stand at `u` (the edges, a line between knots); null off the run. */
+export function openAt(plan, u) {
+  const E = plan.edges;
+  if (u < E[0].u || u > E[E.length - 1].u) return null;
+  for (let k = 1; k < E.length; k++) if (u <= E[k].u + 1e-9) { const a = E[k - 1], b = E[k], t = b.u - a.u > 1e-9 ? (u - a.u) / (b.u - a.u) : 0; return [a.lo + (b.lo - a.lo) * t, a.hi + (b.hi - a.hi) * t]; }
+  return null;
+}
+
+/** The interior held to its laws (see the header), read at its edges' knots. */
 export function interiorLaws(plan, { cam, ship, pace, gears = [SLOWEST] }) {
-  const C = cam.screen.across, need = PASSAGE * ship.breadth, out = [], P = plan.profile;
-  // the open at each step, a bulkhead's pass where one stands in it
-  const openAt = (p) => {
-    const bh = plan.walls.find((w) => w.role === 'bulkhead' && w.u0 < p.u1 && w.u1 > p.u0);
-    if (!bh) return [p.lo, p.hi];
-    return bh.v0 > p.lo + 1e-6 ? [p.lo, bh.v0] : [bh.v1, p.hi];
+  const C = cam.screen.across, need = PASSAGE * ship.breadth, out = [], E = plan.edges;
+  // the open at a knot, a bulkhead's pass where one stands over it
+  const passAt = (q) => {
+    const bh = plan.walls.find((w) => w.role === 'bulkhead' && w.u0 - 1e-6 <= q.u && q.u <= w.u1 + 1e-6);
+    if (!bh) return [q.lo, q.hi];
+    return bh.from === 'ceiling' ? [q.lo, bh.v0] : [bh.v1, q.hi];
   };
-  const narrow = P.filter((p) => { const [a, b] = openAt(p); return b - a < need - 1e-6; });
-  out.push({ id: 'passage', holds: !narrow.length, says: narrow.length ? `the open narrower than ${PASSAGE} ship breadths (${r3(need)} m) at ${narrow.map((p) => p.u0).join(', ')}` : `the open never narrower than ${PASSAGE} ship breadths (${r3(need)} m), a bulkhead's pass included` });
+  // (each bulkhead's ends besides: the edges slope under it)
+  const pts = [...E, ...plan.walls.flatMap((w) => [w.u0, w.u1].map((u) => { const o = openAt(plan, u); return { u, lo: o[0], hi: o[1] }; }))].sort((a, b) => a.u - b.u);
+  const narrow = pts.filter((q) => { const [a, b] = passAt(q); return b - a < need - 1e-6; });
+  out.push({ id: 'passage', holds: !narrow.length, says: narrow.length ? `the open narrower than ${PASSAGE} ship breadths (${r3(need)} m) at ${narrow.map((q) => r3(q.u)).join(', ')}` : `the open never narrower than ${PASSAGE} ship breadths (${r3(need)} m), a bulkhead's pass included` });
   const broken = [];
-  for (let k = 1; k < P.length; k++) { const [a0, b0] = openAt(P[k - 1]), [a1, b1] = openAt(P[k]); if (Math.min(b0, b1) - Math.max(a0, a1) < need - 1e-6) broken.push(P[k].u0); }
-  out.push({ id: 'continuity', holds: !broken.length, says: broken.length ? `a step whose open overlaps the last by less than the passage at ${broken.join(', ')}` : 'every step\'s open overlaps the last by the passage at least' });
-  // a bend: the middle's move across a step, against what the slowest gear covers while the scroll crosses the step
+  for (let k = 1; k < pts.length; k++) { const [a0, b0] = passAt(pts[k - 1]), [a1, b1] = passAt(pts[k]); if (Math.min(b0, b1) - Math.max(a0, a1) < need - 1e-6) broken.push(r3(pts[k].u)); }
+  out.push({ id: 'continuity', holds: !broken.length, says: broken.length ? `a stretch whose open overlaps the last by less than the passage at ${broken.join(', ')}` : 'every stretch\'s open overlaps the last by the passage at least' });
+  // a ramp: the middle's move across between knots, against what the slowest gear covers while the scroll crosses it
   const fly = Math.min(...gears) * C, steep = [];
-  for (let k = 1; k < P.length; k++) {
-    const dm = Math.abs((P[k].lo + P[k].hi) / 2 - (P[k - 1].lo + P[k - 1].hi) / 2), t = (P[k].u1 - P[k].u0) / pace;
-    if (dm > CLIMB * fly * t + 1e-6) steep.push(P[k].u0);
+  for (let k = 1; k < E.length; k++) {
+    const dm = Math.abs((E[k].lo + E[k].hi) / 2 - (E[k - 1].lo + E[k - 1].hi) / 2), t = (E[k].u - E[k - 1].u) / pace;
+    if (dm > CLIMB * fly * t + 1e-6) steep.push(E[k].u);
   }
-  out.push({ id: 'climb', holds: !steep.length, says: steep.length ? `a bend steeper than the slowest gear can follow at ${steep.join(', ')}` : `every bend asks no more than ${CLIMB} of the slowest gear across` });
-  const half = (0.5 - EDGE) * C, off = P.filter((p) => p.lo < p.mid - half - 1e-6 || p.hi > p.mid + half + 1e-6);
-  out.push({ id: 'on-screen', holds: !off.length, says: off.length ? `the open past the frame's kept edge at ${off.map((p) => p.u0).join(', ')}` : 'the open always inside the frame, its edge kept' });
+  out.push({ id: 'climb', holds: !steep.length, says: steep.length ? `a ramp steeper than the slowest gear can follow at ${steep.join(', ')}` : `every ramp asks no more than ${CLIMB} of the slowest gear across` });
+  const half = (0.5 - EDGE) * C, off = E.filter((q) => q.lo < q.mid - half - 1e-6 || q.hi > q.mid + half + 1e-6);
+  out.push({ id: 'on-screen', holds: !off.length, says: off.length ? `the open past the frame's kept edge at ${off.map((q) => q.u).join(', ')}` : 'the open always inside the frame, its edge kept' });
   const bad = plan.mounts.filter((M) => {
-    const p = P.find((q) => q.u0 <= M.u && M.u <= q.u1);
-    if (!p) return true;
-    const [a, b] = openAt(p);
-    return Math.abs(M.v - (M.side === 'floor' ? p.lo : p.hi)) > 1e-6 || b - a < need - 1e-6;
+    const o = openAt(plan, M.u);
+    if (!o) return true;
+    return Math.abs(M.v - (M.side === 'floor' ? o[0] : o[1])) > 1e-6 || o[1] - o[0] < need - 1e-6;
   });
   out.push({ id: 'mounts', holds: !bad.length, says: bad.length ? `a gun not on its wall or over too narrow an open: ${bad.map((M) => M.id).join(', ')}` : 'every gun stands on its wall, facing an open the passage wide' });
   return out;

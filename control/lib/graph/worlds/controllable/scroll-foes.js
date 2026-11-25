@@ -22,9 +22,11 @@
  *                nor from off the screen
  *   a BULLET     `state.foeShots`: { u, v, du, dv, r, dmg, t, hue, w }, carried by the scroll, gone off the screen
  *   TERRAIN      a hull on the play plane (its blocks, rupa.js's breakables): the hitbox inside a standing block's outline
- *                takes a hit and is put back out across it, the nearer way; an interior's WALLS (the camera rule's
- *                `walls`: [[u0, u1, v0, v1]] metres, gameworld/scroll-stage/interior.js) the same, put out the nearest of
- *                four ways (a bulkhead pushes back down the scroll), and a bullet that meets one ends there
+ *                takes a hit and is put back out across it, the nearer way; an interior's WALLS the same
+ *                (gameworld/scroll-stage/interior.js, on the camera rule): its CORRIDOR (`corridor`: [[u, lo, hi]] knots,
+ *                its floor and ceiling a line between them) puts the hitbox out up or down, or back off the hull's face
+ *                at the run's ends; its BULKHEADS (`walls`: [[u0, u1, v0, v1]]) the nearest of four ways (back down the
+ *                scroll, ahead of one); and a bullet that meets either ends there
  *   a HIT        a bullet within the ship's HITBOX (`rule.hitbox`: { r, at } metres, `at` ahead of its centre: round its
  *                canopy): the ship's body hp less its damage, flashed, and unhurt for `invuln` seconds after (`_iT`);
  *                at 0 the ship is down (`downed`; its lives are the stage's)
@@ -47,6 +49,15 @@ export function buildScrollFoes(E) {
   };
   const DEG = Math.PI / 180;
   const W = (B, u, v) => [B.along[0] * u + B.across[0] * v, B.along[1] * u + B.across[1] * v, B.along[2] * u + B.across[2] * v];
+  // an interior's CORRIDOR (the camera rule's `corridor`: [[u, lo, hi]] knots, gameworld/scroll-stage/interior.js): its
+  // floor and ceiling at u, a line between knots; null off the run
+  const corridorAt = (K, u) => {
+    if (!K || !K.length || u < K[0][0] || u > K[K.length - 1][0]) return null;
+    let a = 0, b = K.length - 1;
+    while (b - a > 1) { const m = (a + b) >> 1; if (K[m][0] <= u) a = m; else b = m; }
+    const p = K[a], q = K[b], t = q[0] - p[0] > 1e-9 ? (u - p[0]) / (q[0] - p[0]) : 0;
+    return [p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+  };
   const camOf = (world) => { const c = world.byId.__camera; return c && c.rule && c.rule.type === 'scroll' && c._sc ? c : null; };
   const shipOf = (world) => { const id = world.pilotId; const s = id && world.byId[id]; return s && s.rule && s.rule.type === 'scroll-ship' && s.screenAt ? s : null; };
 
@@ -151,23 +162,44 @@ export function buildScrollFoes(E) {
         break;
       }
     }
-    // an interior's WALLS: terrain the same, put out the nearest of four ways; those near the screen, once a frame
+    // an interior's WALLS: its corridor's floor and ceiling (put out up or down, or back off the hull's face at the run's
+    // ends) and its bulkheads (put out the nearest of four ways): terrain the same, a hit and out
+    const K = Array.isArray(cam.rule.corridor) && cam.rule.corridor.length > 1 ? cam.rule.corridor : null;
     const walls = Array.isArray(cam.rule.walls) ? cam.rule.walls.filter((w) => w[1] > c[0] - SA && w[0] < c[0] + SA) : null;
-    if (walls && walls.length && hc && !ship.downed && sr && ship.off) {
-      for (const w of walls) {
-        if (hc[0] < w[0] - hb.r || hc[0] > w[1] + hb.r || hc[1] < w[2] - hb.r || hc[1] > w[3] + hb.r) continue;
+    if ((K || (walls && walls.length)) && hc && !ship.downed && sr && ship.off) {
+      const r = hb.r, pushes = [];
+      if (K) {
+        const U0 = K[0][0], U1 = K[K.length - 1][0], o = corridorAt(K, Math.max(U0, Math.min(U1, hc[0])));
+        if (o && hc[0] > U0 - r && hc[0] < U1 + r) {
+          const out = hc[1] - r < o[0] ? o[0] + r - hc[1] : hc[1] + r > o[1] ? o[1] - r - hc[1] : 0;
+          if (out) {
+            pushes.push([1, out]);
+            // (by the hull's face at either end: back off it, when that is the nearer way)
+            if (hc[0] < U0 + r) pushes.push([0, U0 - r - hc[0]]);
+            if (hc[0] > U1 - r) pushes.push([0, U1 + r - hc[0]]);
+          }
+        }
+      }
+      if (walls) for (const w of walls) {
+        if (hc[0] < w[0] - r || hc[0] > w[1] + r || hc[1] < w[2] - r || hc[1] > w[3] + r) continue;
+        pushes.push([[1, w[3] + r - hc[1]], [1, -(hc[1] - (w[2] - r))], [0, w[1] + r - hc[0]], [0, -(hc[0] - (w[0] - r))]].reduce((a, b) => (Math.abs(b[1]) < Math.abs(a[1]) ? b : a)));
+      }
+      if (pushes.length) {
         hurtShip(1);
-        const out = [[1, w[3] + hb.r - hc[1]], [1, -(hc[1] - (w[2] - hb.r))], [0, w[1] + hb.r - hc[0]], [0, -(hc[0] - (w[0] - hb.r))]];
-        const m = out.reduce((a, b) => (Math.abs(b[1]) < Math.abs(a[1]) ? b : a));
+        const m = pushes.reduce((a, b) => (Math.abs(b[1]) < Math.abs(a[1]) ? b : a));
         ship.off[m[0]] += m[1]; hc[m[0]] += m[1];
       }
     }
-    const inWall = (u, v) => { if (walls) for (const w of walls) if (u > w[0] && u < w[1] && v > w[2] && v < w[3]) return true; return false; };
+    const inWall = (u, v) => {
+      if (K) { const o = corridorAt(K, u); if (o && (v < o[0] || v > o[1])) return true; }
+      if (walls) for (const w of walls) if (u > w[0] && u < w[1] && v > w[2] && v < w[3]) return true;
+      return false;
+    };
     const keep = [];
     for (const s of shots) {
       s.t += dt; s.u += s.du * dt; s.v += s.dv * dt;
       if (Math.abs(s.u - c[0]) > SA / 2 + 4 * s.r || Math.abs(s.v - c[1]) > SC / 2 + 4 * s.r || s.t > 20) continue;
-      if (walls && inWall(s.u, s.v)) continue;
+      if ((K || walls) && inWall(s.u, s.v)) continue;
       if (hc && !ship.downed && Math.hypot(s.u - hc[0], s.v - hc[1]) <= s.r + hb.r) {
         hurtShip(s.dmg);
         continue;
