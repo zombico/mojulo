@@ -63,12 +63,6 @@ describe('the rock\'s colour', () => {
     expect(same).toBeLessThan(10);
   });
 
-  it('takes the grit\'s words for the page, with its defaults, and refuses what it does not know', () => {
-    expect(readRockColour({ beds: [{ to: 10 }], grit: { depth: 0.4 } }).grit).toEqual({ depth: 0.4, width: 1.6, stretch: 6, shade: 0.25, reach: 160 });
-    expect(() => readRockColour({ beds: [{ to: 10 }], grit: { depth: 9 } })).toThrow(/grit.depth/);
-    expect(() => readRockColour({ beds: [{ to: 10 }], grit: { depth: 0.4, grain: 1 } })).toThrow(/not a word/);
-  });
-
   it('is a geocube\'s word, checked as the cube is read', () => {
     const cube = readGeocube('sandstone-wadi');
     expect(cube.outside.rock.beds.length).toBeGreaterThan(1);

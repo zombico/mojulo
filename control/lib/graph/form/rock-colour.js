@@ -26,10 +26,6 @@
  *            its value up to ±`value`, pulled up to `hue` toward the cube's `toward` colour (the floor's by default). A
  *            section is a cell of jittered points over the plan, each keyed to its own place (never a repeating tile), so
  *            on a wall its edges are vertical joints between one block of rock and the next
- *   grit     { depth, width?, stretch?, shade?, reach? }: the page's own, not the corners': runnels and flutes run straight
- *            down the walls (scene/channels/form-land.js ROCK_GRIT_GLSL), `width` metres apart (1.6), `stretch` times as
- *            long (6), cut `depth` metres, marched along the view so they stand in and out, their floors `shade` darker
- *            (0.25), drawn to `reach` metres from the eye (160) and faded by their size on the screen
  *   varnish  { strength, width, mask }: the desert varnish, dark streaks run down the walls from the ledges where the water
  *            ran: `strength` (0..1) how dark, `width` metres between streaks (a streak is a function of the plan alone, so on
  *            any wall it runs straight down; a wall's corners stand a land's cell apart, so a streak is no narrower than a
@@ -44,13 +40,13 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const bad = (m) => { throw new Error(`rock${m}`); };
 const num = (v, lo, hi, m) => { if (!(typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi)) bad(m); };
 const ROLE = /^[a-z]{3,16}$/;
-export const ROCK_COLOUR = Object.freeze({ blend: 2, thin: Object.freeze({ beds: Object.freeze([4, 9]), jitter: 0.08 }), wear: null, sections: null, varnish: null, grit: null });
+export const ROCK_COLOUR = Object.freeze({ blend: 2, thin: Object.freeze({ beds: Object.freeze([4, 9]), jitter: 0.08 }), wear: null, sections: null, varnish: null });
 
 /** The rock's words, checked → { beds, blend, thin, varnish }, or null when absent. */
 export function readRockColour(spec) {
   if (spec === undefined || spec === null || spec === false) return null;
   if (!isObj(spec)) bad(' is { beds, blend?, thin?, varnish? }: the rock\'s colour by its beds and its weather');
-  for (const k of Object.keys(spec)) if (!['beds', 'blend', 'thin', 'wear', 'sections', 'varnish', 'grit'].includes(k)) bad(`.${k} is not a word (rock: beds, blend, thin, wear, sections, varnish, grit)`);
+  for (const k of Object.keys(spec)) if (!['beds', 'blend', 'thin', 'wear', 'sections', 'varnish'].includes(k)) bad(`.${k} is not a word (rock: beds, blend, thin, wear, sections, varnish)`);
   const R = { ...ROCK_COLOUR, ...spec, thin: spec.thin === false ? null : { ...ROCK_COLOUR.thin, ...(spec.thin || {}) } };
   if (!Array.isArray(R.beds) || !R.beds.length) bad('.beds is [{ to, toward?, mix?, value? }], bottom up, at least one');
   R.beds = R.beds.map((b, i) => {
@@ -83,16 +79,6 @@ export function readRockColour(spec) {
     num(R.sections.value, 0, 0.4, '.sections.value is 0..0.4');
     num(R.sections.hue, 0, 1, '.sections.hue is 0..1');
     if (!(typeof R.sections.toward === 'string' && ROLE.test(R.sections.toward))) bad(".sections.toward is one of the cube's colours by its role");
-  }
-  if (R.grit !== null) {
-    if (!isObj(R.grit)) bad('.grit is { depth, width?, stretch?, shade?, reach? }');
-    for (const k of Object.keys(R.grit)) if (!['depth', 'width', 'stretch', 'shade', 'reach'].includes(k)) bad(`.grit.${k} is not a word (depth, width, stretch, shade, reach)`);
-    R.grit = { width: 1.6, stretch: 6, shade: 0.25, reach: 160, ...R.grit };
-    num(R.grit.depth, 0.02, 3, '.grit.depth is metres a runnel is cut, 0.02..3');
-    num(R.grit.width, 0.2, 20, '.grit.width is metres between runnels, 0.2..20');
-    num(R.grit.stretch, 1, 30, '.grit.stretch is how many times longer a runnel runs than it is wide, 1..30');
-    num(R.grit.shade, 0, 0.8, '.grit.shade is how much darker a runnel\'s floor is, 0..0.8');
-    num(R.grit.reach, 10, 1000, '.grit.reach is metres from the eye it is drawn to, 10..1000');
   }
   if (R.varnish !== null) {
     if (!isObj(R.varnish)) bad('.varnish is { strength, width?, mask? }');

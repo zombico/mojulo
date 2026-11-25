@@ -42,15 +42,6 @@ describe('the ground\'s parallax kinds', () => {
     expect(stoch.length).toBeGreaterThan(grid.length);
   });
 
-  it('cuts the rock\'s grit down its walls only where a cube names it (outside.rock.grit): absent, as it was', () => {
-    const plain = formLandScript(land), grit = formLandScript({ ...land, grit: { depth: 0.5, width: 1.8, stretch: 7, shade: 0.28, reach: 160 } });
-    expect(plain).not.toContain('gritW');
-    expect(grit).toContain('float gritW( vec3 q');
-    expect(grit).toContain('the rock\'s GRIT');
-    // (its numbers the cube's: the runnels' spacing and their stretched length)
-    expect(grit).toContain('vec2 gS = vec2( 1.800, 12.600 )');
-  });
-
   it('a lean ground marches no height and lays its kinds on the trail alone; a full one as it was', () => {
     const full = formLandScript(land), lean = formLandScript({ ...land, parallax: false });
     expect(full).not.toContain('false && ');
