@@ -285,6 +285,30 @@ export const THROAT_LINE = Object.freeze({
   norrin: Object.freeze({ top: 0.49, chest: 0.62, x0: 0.14, x1: 0.2, k: 0.03 }),
 });
 export const throatLine = (build, name) => ({ ...build, throat: THROAT_LINE[name] });
+/** HER ABDOMEN FLAT, WITH A NAVEL (realistic laws 20, the operator's eyes 2026-11-25: the lower belly a pouch under a crease,
+ * the six segments read as a man's, the navel lost): on her build the belly's mass shallower front to back, the rectus's
+ * three segments a third as proud (a toned front, not a six-pack) and its lower sheet nearly flush; the navel a dimple the
+ * skin's rings can carry (its radius ~8 mm on her frame, where 2.5 mm fell between rings a centimetre apart). Relative to
+ * the build as its physique left it, so a heavier woman's belly is still hers. */
+export const FLAT_BELLY = Object.freeze({ abdomenDepth: 0.8, rectus: 0.35, lowerSheet: 0.25, navel: Object.freeze({ r: 0.05, k: 0.03 }),
+  // (the seat's taper, the heart's point under the navel, set back and flatter front to back: it stood as a pad over the
+  // lower belly, wider than the waist, a crease at the navel over it)
+  taper: Object.freeze({ back: 0.05, squash: 0.8 }),
+  // (and the seat's lobes trimmed at their front alone, their back edge where it was: wrapped round to the thighs' tops
+  // they stood as two mounds at the front of her hips)
+  lobeFront: 0.04 });
+export const flatBelly = (build, name) => {
+  if (name !== 'shalla') return build;
+  const F = FLAT_BELLY;
+  return {
+    ...build,
+    base: build.base.map((m) => (m.id === 'abdomen' ? { ...m, r: [m.r[0], m.r[1] * F.abdomenDepth, m.r[2]] }
+      : m.id === 'seatTaper' ? { ...m, cone: m.cone.map(([x, y, z]) => [x, y - F.taper.back, z]), squash: (m.squash ?? 1) * F.taper.squash }
+      : m.id === 'seatLobe' ? { ...m, egg: [m.egg[0], m.egg[1] - F.lobeFront / 2, m.egg[2]], r: [m.r[0], m.r[1] - F.lobeFront / 2, m.r[2]] } : m)),
+    muscles: build.muscles.map((m) => (/^rectus[123]$/.test(m.id) && m.proud !== undefined ? { ...m, proud: m.proud * F.rectus } : m.id === 'rectus4' && m.proud !== undefined ? { ...m, proud: m.proud * F.lowerSheet } : m)),
+    dimples: (build.dimples || []).map((d) => (d.id === 'navel' ? { ...d, ...F.navel } : d)),
+  };
+};
 
 /** THE PHYSIQUE: four dials over a build, each −1 to 1, 0 the build as authored (the athletic base). `bulk` the muscles'
  * mass (their bellies across, how proud they stand; the bones and the joints as they are; on the plus side the arms set

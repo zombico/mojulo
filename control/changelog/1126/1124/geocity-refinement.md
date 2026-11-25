@@ -103,3 +103,6 @@
     chin, a flatter brow ridge and fuller lips. Bold features (a square jaw, a strong chin, heavy brows) are rarer, and a
     woman's overall character leans soft and delicate while still reaching the full range.
 - Street people mix ancestries (no more than two of one in a six) and their faces vary more than a hero's do.
+- Realistic women's bodies have a flat belly and a navel: the six-pack is now a smooth toned front, the pouch under the
+  navel and the mounds at the front of the hips are gone, and the navel shows (it was too small for the body's mesh to
+  carry). Heavier builds keep their belly. New heroes only; existing ones keep their bodies.

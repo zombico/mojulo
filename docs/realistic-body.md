@@ -85,6 +85,15 @@ A hero minted under realistic laws 19 wears its face's own colours and a woman's
   classical nose) and her refined ones likelier; `FACE_SEX_LEAN`, her character rolled leaning soft and delicate, the
   whole plane still reached. `composeFace({ laws })` reads them; a hero minted before composes as it did.
 
+## Her abdomen (realistic laws 20)
+
+Under realistic laws 20 a woman's belly is flat and carries a navel (`body-relational-builds.js` `FLAT_BELLY`, applied by
+the door to her build after its physique, so a heavier woman keeps her belly): the belly's mass shallower front to back;
+the rectus's three segments a third as proud (a toned front, not a six-pack) and its lower sheet nearly flush; the seat's
+taper (the heart's point under the navel) set back and flatter, and the seat's lobes trimmed at their front alone (their
+back edge, the seat behind, where it was); the navel a dimple of about 8 mm radius on her frame, which the skin's rings,
+a centimetre apart, carry (the 2.5 mm dimple before fell between them). A woman minted under laws 1 to 19 keeps her body.
+
 ## The correctives
 
 `recipe.correctives`: a list of `{ id, driver: { joint, to, from, full }, d }`.

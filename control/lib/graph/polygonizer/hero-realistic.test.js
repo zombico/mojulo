@@ -231,7 +231,8 @@ describe('the man\'s hips (realistic laws 9)', async () => {
     expect(before.core.waistToHip).toBeLessThan(CORE_BANDS.female.waistToHip[1]);
     expect(now.core.waistToHip).toBeGreaterThan(CORE_BANDS.female.waistToHip[1] + 0.02);
     expect(now.core.hip_m).toBeLessThan(before.core.hip_m - 0.03);
-    const her = read({ cast: 'female' }), herBefore = read({ cast: 'female', physique: { from: 'athletic', laws: 8 } });
+    // (her at laws 19, the last before laws 20 shaped her belly on purpose: laws 9 left her as she was)
+    const her = read({ cast: 'female', physique: { from: 'athletic', laws: 19 } }), herBefore = read({ cast: 'female', physique: { from: 'athletic', laws: 8 } });
     expect(her.hipX).toBe(herBefore.hipX); expect(her.core).toEqual(herBefore.core);
   }, 120_000);
 });
