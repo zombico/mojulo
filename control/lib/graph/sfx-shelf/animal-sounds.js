@@ -11,6 +11,7 @@
  *                              its own (a fish: `moves` only)
  *   animalRecorded(voice)      whether the library records that class (its alert): a page asks before it plays it
  *   FAMILY_VOICE, ORDER_VOICE, SPECIES_VOICE, MONSTER_VOICE   the tables (a new family, order or monster is a row)
+ *   PEOPLE_VOICE, peopleVoice(people)   a foe drawn as a people heard as a class (the undead, an ogre, a demon), else null
  *
  * Pure but for animalRecorded (it reads the library's index); timeless.
  */
@@ -56,8 +57,15 @@ export const MONSTER_VOICE = Object.freeze({
   bat: 'bat', spider: 'crawler', scorpion: 'crawler', wolf: 'canine', wolves: 'canine', dog: 'canine', hound: 'canine', jackal: 'canine',
   cat: 'house-cat', kitten: 'house-cat', lion: 'big-cat', tiger: 'big-cat', panther: 'big-cat', bear: 'bear', boar: 'pig',
   horse: 'equine', pony: 'equine', bird: 'songbird', eagle: 'raptor', hawk: 'raptor', falcon: 'raptor', serpent: 'snake', viper: 'snake',
+  ogre: 'ogre', oni: 'ogre', troll: 'ogre', cyclops: 'ogre', demon: 'demon', fiend: 'demon', imp: 'demon', devil: 'demon', vampire: 'demon', succubus: 'demon',
   bee: 'insect-buzz', wasp: 'insect-buzz', fly: 'insect-buzz', cricket: 'insect-chirp', crab: 'crawler', whale: 'whale', shark: null, fish: null,
 });
+
+// a PEOPLE (a foe drawn as one of them, foes/ skins' `people`) heard as a voice class where it is no person's: the
+// undead, the orcish (an ogre's bellow), the infernal (a demon's snarl); every other people is heard as a person
+export const PEOPLE_VOICE = Object.freeze({ undead: 'undead', orcish: 'ogre', infernal: 'demon' });
+/** The voice class of a foe's people, or null (a person's). */
+export const peopleVoice = (people) => (typeof people === 'string' && PEOPLE_VOICE[people]) || null;
 
 const lower = Object.fromEntries([...Object.keys(SPECIES), ...Object.keys(BUG_SPECIES), ...Object.keys(SPECIES_VOICE)].map((id) => [id.toLowerCase(), id]));
 const NONE = Symbol('no voice');
@@ -71,6 +79,8 @@ function voiceOfSpecies(id) {
 
 export function animalVoice(word) {
   if (typeof word !== 'string' || !word) return null;
+  // (a class named by its own id: 'undead', 'canine')
+  if (ANIMAL_CLASSES[word]) return word;
   const id = lower[word.toLowerCase()] ?? word;
   let v = voiceOfSpecies(id);
   if (v === undefined && FOE_CLASSES[id]) v = voiceOfSpecies(FOE_CLASSES[id].standIn);

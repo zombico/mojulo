@@ -6,6 +6,7 @@
   "tags": ["metroidvania", "exploration", "planet", "cave"],
   "author": "mojulo",
   "from": "nocturne",
+  "sounds": "terminal",
   "tokens": {
     "ink": "#e4f6ec",
     "panel": "#070c0c",

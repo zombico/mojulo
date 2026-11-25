@@ -176,6 +176,15 @@ export const VAMPIRE_SONATA_TREES = Object.freeze({
  * played with a sword of steel (`blade.steel`: no strand of light over it, its slash in steel, feel/saber.js). */
 export const VAMPIRE_SONATA_FEEL = Object.freeze({ pole: 'galaxy-boy', variant: 'saber', takes: true, set: Object.freeze({ cling: null, dash: Object.freeze({ wall: false }), blade: Object.freeze({ steel: true }) }) });
 
+/**
+ * THE CASTLE'S SOUND (gameworld/sound-sheet.js): its own recordings (`vampire-sonata`, a flavor of its own: the rail's
+ * robot is not the castle's), its menus on the crypt's set as its HUD is, and the run and gun's events heard as a
+ * swordswoman's in a castle: a foe struck is her blade in it, an armour's plate rings it off, a foe felled is unmade, a boss
+ * falls as a great body falls. Its bosses are heard by the director (sfx-shelf/boss-sounds.js), each by its voice.
+ */
+export const VAMPIRE_SONATA_SOUND = Object.freeze({ style: 'realistic', flavor: 'vampire-sonata', menus: 'crypt',
+  run: Object.freeze({ foeHit: 'blade-hit', armour: 'blade-clash', wreck: 'foe-dissolve', boss: 'boss-collapse' }) });
+
 /** Erina: the monster hunter, a grown woman in the traditional anime register, her longsword in her right hand. */
 export const ERINA = Object.freeze({
   name: 'Erina', cast: 'female', head: 'anime', animeStyle: 'z-fighter', animeBody: 'mizuki',
@@ -219,5 +228,7 @@ export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vamp
       : { levels: { castle: { name: 'The castle', foes: true, metroidvania: castle ? vampireSonataCastle() : vampireSonata({ ...(box ? { box } : {}), ...(turn ? { turn } : {}) }) } } }),
     // (its HUD, its menus and their sounds in the castle's look, the nocturne card: metroidvania/hud.js)
     ui: { theme: 'nocturne' },
+    // (its sounds: VAMPIRE_SONATA_SOUND)
+    sound: structuredClone(VAMPIRE_SONATA_SOUND),
   };
 }
