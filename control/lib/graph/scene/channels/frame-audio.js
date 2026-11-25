@@ -16,6 +16,7 @@
 //               distance), struck, and down by its size
 //   BURSTS      a splash round's burst where it went off (a small one under BURST_SMALL is its hit's), a big one a blast
 //   THE MENUS   window.__mojUiCue(<ui cue>) for the hangar and the briefing over the field (the holo table's set)
+//   window.__mojFrameHeard  the last cue ids played (a headless probe's: what the field said)
 //
 // While the hangar or the briefing holds the field, the field is silent. What the world had when the sound was unlocked
 // is taken as heard, so a page does not say every round in the air at once.
@@ -34,7 +35,9 @@ export function frameAudioScript() {
   const W0 = F.world || {}, CK = F.cockpit || {}, PL = (F.parts && F.parts.legs) || {}, PB = (F.parts && F.parts.booster) || {};
   let first = true, booted = false, bSeq = null, rounds = null, warnT = -9, burstT = -9;
   const drives = {}, hums = {};
-  const play = (cue, gain) => { if (cue) __beatsCue(cue, gain); };
+  // (a cue by its id among the level's cues: the engine plays a gesture list; the last heard kept for a headless probe)
+  const C = __AUDIO.cues || {}, heard = window.__mojFrameHeard = [];
+  const play = (cue, gain) => { if (!cue || !C[cue]) return; __beatsCue(C[cue], gain); heard.push(cue); if (heard.length > 64) heard.shift(); };
   const at = (e, P) => (P && e === P ? null : __proxGain(e.transform.pos));
   const held = () => !!((window.__mojGarage && window.__mojGarage.up) || (window.__mojBriefing && window.__mojBriefing.up));
   const hpOf = (e) => (e.body && Number.isFinite(e.body.hp) ? e.body.hp : null);
@@ -43,7 +46,7 @@ export function frameAudioScript() {
   const weightOf = (e) => F.weights[PL[built(e).legs]] || F.weights.medium || {};
   const driveOf = (e) => PB[built(e).booster] || 'jet';
   // (the hangar and the briefing play the menus' cues; a press on them unlocks the sound as a press on the field does)
-  window.__mojUiCue = function (c) { const id = F.ui && F.ui[c]; if (id) __beatsCue(id, 0.7); };
+  window.__mojUiCue = function (c) { play(F.ui && F.ui[c], 0.7); };
   window.addEventListener('pointerdown', __beatsUnlock, true);
   const voice = (tab, k, spec, level) => {
     if (tab[k] !== undefined) return tab[k];
