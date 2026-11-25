@@ -106,3 +106,6 @@
 - Realistic women's bodies have a flat belly and a navel: the six-pack is now a smooth toned front, the pouch under the
   navel and the mounds at the front of the hips are gone, and the navel shows (it was too small for the body's mesh to
   carry). Heavier builds keep their belly. New heroes only; existing ones keep their bodies.
+- Realistic people's heads and necks are their own: head size varies a little person to person (it was one size for
+  every woman and every man of a height), neck length varies, and the neck's width follows the head on it. Heavyset
+  necks are thick but no longer wider than the head. New heroes only; existing ones keep their bodies.

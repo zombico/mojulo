@@ -94,6 +94,22 @@ taper (the heart's point under the navel) set back and flatter, and the seat's l
 back edge, the seat behind, where it was); the navel a dimple of about 8 mm radius on her frame, which the skin's rings,
 a centimetre apart, carry (the 2.5 mm dimple before fell between them). A woman minted under laws 1 to 19 keeps her body.
 
+## A head and a neck of one's own (realistic laws 21)
+
+Under realistic laws 21 a person's head and neck are their own (`body-relational-builds.js` `HEAD_NECK`, `fitNeck`;
+`layered.js` `headNeckOf`): the head's size (±4 %, the mean of two dice) and the neck's length (±8 %) rolled off the face's
+seed on their own dice and laid on the build's tune (`head`, `neck`), so two people of one stature no longer share one
+head; the neck's width scaled with the head's (its masses × the head's scale × the face's skull breadth over its sex's
+pole's), so a broad head stands on a broader neck; a physique's growth of the neck held to 1.1 of its own and the fat
+layer faded out by the neck's middle (`neckFat`), so a heavyset neck is thick at its root, about 0.85 of the head's width
+under the jaw, where laws 1 to 20 stood it wider than the head (45 cm round a woman's, 50 a man's). The head's height is
+still fitted to the authored head's (hero-relational-head.js `fitOf`), which the tune now sizes per person.
+
+Open: a blink's worst-stretched lid edge (hero-lid-roll.test.js, a line of 4) is sensitive to the face and to the
+skin's net (a fixed cell over a head of another size). Laws 19 raised the count of edges stretched past twice on some
+faces (75 to 83 against about 40), and under laws 21 the test's own face reads 4.5 at its worst edge (laws 20: 3.6). The
+test holds the laws it was written under; the blink on a face of today's laws is not yet held to it.
+
 ## The correctives
 
 `recipe.correctives`: a list of `{ id, driver: { joint, to, from, full }, d }`.

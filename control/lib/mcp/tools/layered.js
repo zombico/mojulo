@@ -99,7 +99,7 @@ import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateFieldPaint, fieldPaintReadout } from '@/lib/graph/polygonizer/field-paint';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt, holdGrip } from '@/lib/graph/polygonizer/station-loft-rig';
 import { formSlice, physique as physiqueBuild, PHYSIQUES, PHYSIQUE_DIALS } from '@/lib/graph/polygonizer/body-relational';
-import { cervicalNeck, roundOut, maleHips, withHipSpan, throatLine, flatBelly, HAND_SIZE } from '@/lib/graph/polygonizer/body-relational-builds';
+import { cervicalNeck, roundOut, maleHips, withHipSpan, throatLine, flatBelly, fitNeck, HEAD_NECK, HAND_SIZE } from '@/lib/graph/polygonizer/body-relational-builds';
 import { envelopeParts } from '@/lib/graph/polygonizer/body-relational-envelope';
 import { bodyPartMap } from '@/lib/graph/polygonizer/body-relational-map';
 import { fieldGarment, FIELD_GARMENTS } from '@/lib/graph/polygonizer/body-relational-garment';
@@ -123,11 +123,12 @@ import { ONE_SKIN_RUNGS } from '@/lib/graph/polygonizer/hero-one-skin';
 import { heroJewellery, heroHair, heroLockHair, heroFaceHair } from '@/lib/graph/polygonizer/hero-head-layers';
 import { readScalp, hairLevel } from '@/lib/graph/epidermis/dermal-hair';
 import { heroDermisSpec } from '@/lib/graph/epidermis/dermal-hero';
-import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE, POLE_19_TUNE } from '@/lib/graph/polygonizer/face-compose';
+import { composeFace, FACE_BUCKETS, FACE_SHAPES, FACE_FEATURES, FACE_AGE, POLE_19_TUNE, POLE_19 } from '@/lib/graph/polygonizer/face-compose';
 import { readAncestry, ancestryIris } from '@/lib/graph/epidermis/dermal-looks';
 import { randomInt, createHash } from 'node:crypto';
 import { keptOnDisk } from '@/lib/util/kept';
-import { solveTune, raisedEar, evenFace } from '@/lib/graph/polygonizer/head-relational';
+import { solveTune, raisedEar, evenFace, RELATIONS, RELATION_POLES } from '@/lib/graph/polygonizer/head-relational';
+import { streamOf } from '@/lib/graph/city/plan/dice';
 import { DERMIS_DIALS } from '@/lib/graph/epidermis/dermal-map';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -352,7 +353,24 @@ function realisticBuild(hero) {
   // (realistic laws 18: the hand sized to the body's stature, body-relational-builds.js HAND_SIZE; laws 20: her abdomen
   // flat, with a navel, FLAT_BELLY)
   const R18 = laws >= 18 ? { ...R14, handsTo: HAND_SIZE[name] } : R14;
-  return laws >= 20 ? flatBelly(R18, name) : R18;
+  const R20 = laws >= 20 ? flatBelly(R18, name) : R18;
+  return laws >= 21 ? headNeckOf(R20, hero, name) : R20;
+}
+/** realistic laws 21 (body-relational-builds.js HEAD_NECK): the person's own head size and neck length on the build's
+ * tune, rolled off the face's seed on their own dice; the neck's width with the head's (its scale × the face's breadth
+ * over its sex's pole's); a physique's growth of the neck held (fitNeck) */
+function headNeckOf(B, hero, name) {
+  const sex = name === 'shalla' ? 'female' : 'male', P = B.physique ?? {}, grown = 1 + 0.1 * (P.bulk ?? 0) + 0.15 * Math.max(0, P.weight ?? 0);
+  // (the head's own size and the neck's width read off the relational face alone: a realistic body under the landmark head
+  // keeps its head, only its neck's growth held)
+  const C = realisticFaced(hero) && hero.face && typeof hero.face === 'object' ? realisticFaceOf({ ...hero, head: 'relational' }) : null;
+  if (!C) return fitNeck(B, { grown });
+  const d = streamOf(hero.face.seed ?? 1, 'head-neck', sex), two = () => d() + d() - 1;
+  const head = Math.round((1 + HEAD_NECK.head * two()) * 1e4) / 1e4, length = Math.round((1 + HEAD_NECK.length * two()) * 1e4) / 1e4;
+  const pole = { ...RELATIONS, ...RELATION_POLES[sex], ...(realisticLawsOf(hero) >= 19 ? POLE_19[sex] : {}) };
+  const breadth = Math.round(((C.relations.cephalic * C.relations.headLength) / (pole.cephalic * pole.headLength)) * 1e4) / 1e4;
+  const N = fitNeck(B, { head, breadth, grown });
+  return { ...N, tune: { ...(N.tune || {}), head: Math.round((N.tune?.head ?? 1) * head * 1e6) / 1e6, neck: Math.round((N.tune?.neck ?? 1) * length * 1e6) / 1e6 } };
 }
 /** A realistic body: the recipe re-sampled onto the build's form field (formSlice). A slice costs seconds, so slices are
  * kept by what a slice reads: the body's parts (the trunk, the limbs, the pectorals and the bust it removes, the hands it
@@ -1054,8 +1072,12 @@ export const STREAMLINED_DEPRECATED = "the streamlined core (core: 'streamlined'
  * IRIS_HEX), where laws 1 to 18 gave a hero in an outfit the plan's default hair and every realistic face one blue-grey
  * eye; 20: her ABDOMEN FLAT, WITH A NAVEL (body-relational-builds.js FLAT_BELLY: the belly's mass shallower, the rectus's
  * segments a third as proud, its lower sheet nearly flush, the navel a dimple the skin's rings carry), where laws 1 to 19
- * stood a pouch under a crease below her navel, a man's six segments over it, and a navel too small to show */
-export const REALISTIC_LAWS_VERSION = 20;
+ * stood a pouch under a crease below her navel, a man's six segments over it, and a navel too small to show; 21: the HEAD
+ * AND THE NECK a person's own (body-relational-builds.js HEAD_NECK, headNeckOf: the head's size ±4 % and the neck's
+ * length ±8 % off the face's seed, the neck's width with the head's, a heavy neck's growth held and its fat gone by the
+ * neck's middle), where laws 1 to 20 gave every head of a sex one size at a stature and the neck the build's alone, a
+ * heavyset neck wider than the head */
+export const REALISTIC_LAWS_VERSION = 21;
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'physique', 'skin', 'painterly', 'stylism', 'laws', 'headLaws', 'kit', 'headgear', 'name', 'emblem', 'undead', 'beast', 'perform', 'emote', 'acting', 'animeStyle', 'animeBody', 'muscleShirt', 'attach', 'reference', 'xenoHeaddress', 'xenoSpecies', 'stocking'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
 /** A named hero's name is its own on this machine: refused when another hero (any ref but `ref`) holds it, as names are

@@ -290,6 +290,23 @@ export const throatLine = (build, name) => ({ ...build, throat: THROAT_LINE[name
  * three segments a third as proud (a toned front, not a six-pack) and its lower sheet nearly flush; the navel a dimple the
  * skin's rings can carry (its radius ~8 mm on her frame, where 2.5 mm fell between rings a centimetre apart). Relative to
  * the build as its physique left it, so a heavier woman's belly is still hers. */
+/** THE HEAD AND THE NECK A PERSON'S OWN (realistic laws 21, the operator's eyes 2026-11-25: every head of a sex one size,
+ * the neck the build's whatever head sat on it, a heavy neck wider than the head): `HEAD_NECK` the reach of a person's own
+ * head size (± `head`, the mean of two dice: an adult's head varies about this much at one stature) and neck length
+ * (± `length`), rolled off the face's seed; the neck's width with the head's breadth (its masses × the head's scale × its
+ * breadth over its sex's pole's); a physique's growth of the neck held to `heavy` of its own, and its fat faded out by
+ * the neck's middle (`neckFat`), so a heavyset neck is thick at its root and never wider than the head. */
+export const HEAD_NECK = Object.freeze({ head: 0.04, length: 0.08, heavy: 1.1, neckFat: 0.3 });
+export const fitNeck = (build, { head = 1, breadth = 1, grown = 1 } = {}) => {
+  const k = head * breadth, held = grown > HEAD_NECK.heavy ? HEAD_NECK.heavy / grown : 1;
+  const scaleR = (m, f) => ({ ...m, r: m.r.map((x) => x * f) });
+  return {
+    ...build,
+    neckFat: HEAD_NECK.neckFat,
+    base: build.base.map((m) => (m.id === 'neck' ? scaleR(m, k * held) : m)),
+    muscles: build.muscles.map((m) => (m.id === 'sternocleidomastoid' ? scaleR(m, k * held) : m)),
+  };
+};
 export const FLAT_BELLY = Object.freeze({ abdomenDepth: 0.8, rectus: 0.35, lowerSheet: 0.25, navel: Object.freeze({ r: 0.05, k: 0.03 }),
   // (the seat's taper, the heart's point under the navel, set back and flatter front to back: it stood as a pad over the
   // lower belly, wider than the waist, a crease at the navel over it)

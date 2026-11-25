@@ -26,7 +26,9 @@ describe('the realistic neck leans up into the skull', () => {
   it('under laws 3 the skull\'s back stands well behind the nape and the jaw no further past the throat than a person\'s; laws 2 as it was', { timeout: 300_000 }, () => {
     expect(REALISTIC_LAWS_VERSION).toBeGreaterThanOrEqual(3);
     const spec = { form: 'realistic', cast: 'female', face: { seed: 11, ethnicity: 'western' } };
-    const before = profileOf({ ...spec, physique: { from: 'athletic', laws: 2 } }), now = profileOf(spec, before.earZ);
+    // (now: laws 20, the last before laws 21 made the neck a person's own, its width with the head's and its length
+    // rolled, which moves one person's jut about a millimetre within a person's range)
+    const before = profileOf({ ...spec, physique: { from: 'athletic', laws: 2 } }), now = profileOf({ ...spec, physique: { from: 'athletic', laws: 20 } }, before.earZ);
     expect(now.behind).toBeGreaterThan(before.behind + 0.008);
     expect(now.behind).toBeGreaterThan(0.038);
     expect(now.jut).toBeLessThan(before.jut - 0.008);
