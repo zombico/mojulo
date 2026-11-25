@@ -43,6 +43,7 @@ import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWo
 import { RAILS } from './rails.js';
 import { pilotSchoolStart } from './pilot-school.js';
 import { wolfSquadronStart } from './wolf-squadron.js';
+import { blazeGunnerStart } from './blaze-gunner.js';
 import { rebelStormStart } from './rebel-storm.js';
 import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
 import { stampMegaworld } from './megaworld.js';
@@ -346,9 +347,10 @@ const RAIL_STARTS = Object.freeze({
   'pilot-school': (w, n) => pilotSchoolStart(w, n ? { lessons: n } : {}),
   'wolf-squadron': (w, n) => wolfSquadronStart(w, n ? { stages: n } : {}),
   'rebel-storm': (w, n) => rebelStormStart(w, n ? { missions: n } : {}),
+  'blaze-gunner': (w, n) => blazeGunnerStart(w, n ? { stages: n } : {}),
 });
 const RAIL_WEAK = new Set(['cockpit', 'starfighter', 'barrel roll', 'realistic flight']);
-const FLIGHT_GENRES = new Set(['flight-sim', 'air-combat', 'space-shooter', 'space-sim']);
+const FLIGHT_GENRES = new Set(['flight-sim', 'air-combat', 'space-shooter', 'space-sim', 'co-op-scroller']);
 /** The flight rail a sentence is laid as, or null: { id, matched } (the rail's own words it used; none where the
  * genre read is one no other form lays). Only beside no genre or a flight genre. */
 export function starterRailOf(prompt, genreId = null) {

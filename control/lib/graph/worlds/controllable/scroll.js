@@ -23,19 +23,22 @@
  *
  *   camera: { rule: 'scroll', target, view?: 'side' | 'top', dist, screen: [along, across], start?: [u, v], track: [leg] }
  *   ship rule: { type: 'scroll-ship', frame?: camera id ('__camera'), gears?: [share…], gear?: index, size?: [l, b],
- *                margin?, tiltInto?, tiltRate?, deadzone? }
+ *                margin?, tiltInto?, tiltRate?, deadzone?, lives?, hp?, respawn? (s, 1.5), reguard? (s, 2.5) }
+ *   LIVES        down (its hp spent), blown apart and gone; `respawn` seconds on, a life spent, back home on the screen,
+ *                whole, unhurt for `reguard` seconds; the last spent, the stage over (`state.scrollOver`)
  *
  * Field ownership: the camera's e._sc (the centre [u, v]), e._leg, e._legAt (metres or seconds into it), e._from (where a leg began), e.scrollVel
  * ([du, dv] m/s this frame), e.scrollEnd, e.frame ({ u0, u1, v0, v1 }), e.lookAt, e.up; the ship's e.off (its offset
  * [u, v] from the centre), e.screenAt ([u, v] on the plane), e.gear, e._cyclePrev, e.tilt, e.thrust, and the flight
- * facts (airspeed, airborne, locomotion, moving).
+ * facts (airspeed, airborne, locomotion, moving); its livesLeft, _downAt, and on a respawn its downed, gone, hp, _iT; the
+ * world's scrollOver.
  *
  * Import-free (the page runs this source, compose.js): emitted only into a page whose camera is a scroll stage's, so
  * every other page keeps every byte.
  */
 
 export function buildScroll(E) {
-  const { clamp, RULES, registerPreStep } = E;
+  const { clamp, RULES, registerPreStep, registerWorldPass } = E;
   // (the views' bases: gameworld/scroll-stage/frame.js SCROLL_VIEWS, carried here as source; a test holds them equal)
   const VIEWS = {
     side: { along: [0, 1, 0], across: [0, 0, 1], toward: [1, 0, 0], up: [0, 0, 1] },
@@ -95,7 +98,7 @@ export function buildScroll(E) {
   const snap = (x, dz) => (x > dz ? 1 : x < -dz ? -1 : 0);
   function scrollShip(e, input, dt, world) {
     const r = e.rule, cam = world.byId[r.frame || '__camera'];
-    if (!cam || !cam._sc || !cam.rule || cam.rule.type !== 'scroll') return;
+    if (!cam || !cam._sc || !cam.rule || cam.rule.type !== 'scroll' || e.gone) return;
     const B = viewOf(cam), top = B === VIEWS.top, scr = cam.rule.screen || [0, 0], SA = scr[0], SC = scr[1];
     // the gear: `cycle` steps up through them and round, on its press
     const G = Array.isArray(r.gears) && r.gears.length ? r.gears : [0.45, 0.65, 0.9];
@@ -131,4 +134,22 @@ export function buildScroll(E) {
   }
 
   Object.assign(RULES, { scroll, 'scroll-ship': scrollShip });
+
+  // LIVES: the ship down (its hp spent by the foes' fire) is blown apart by the death burst (combat-match.js, its body's
+  // blast) and gone; `respawn` seconds later, a life spent, it is back at its home on the screen, whole, unhurt for
+  // `reguard` seconds; the last life spent, the stage is over (`state.scrollOver`). A ship without `lives` keeps none.
+  registerWorldPass('scroll-lives', (state) => {
+    const ship = state.pilotId && state.byId[state.pilotId], r = ship && ship.rule;
+    if (!r || r.type !== 'scroll-ship' || !(r.lives >= 0) || !ship.downed) return;
+    if (ship.livesLeft == null) ship.livesLeft = r.lives;
+    if (ship._downAt == null) ship._downAt = state.time;
+    if (state.time - ship._downAt < (r.respawn ?? 1.5)) return;
+    if (ship.livesLeft <= 0) { state.scrollOver = true; return; }
+    ship.livesLeft -= 1; ship._downAt = null;
+    ship.downed = false; ship.gone = false; ship.deathBurstDone = false; ship.deadAt = null;
+    if (ship.body) ship.body.hp = r.hp || 10;
+    ship._iT = r.reguard ?? 2.5;
+    ship.off = Array.isArray(r.at) ? [r.at[0], r.at[1]] : null;
+    ship.strikes = []; ship.beam = null; ship.orbit = null;
+  }, 120);
 }

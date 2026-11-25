@@ -6,7 +6,8 @@
  *
  *   the SLOTS    `e.slots` [pod | null] × the arsenal's `slots` (2), `e.live` the one in hand. FIRE fires the live slot's
  *                pod, or the base gun when that slot is open; SLOT (its press) switches the live slot; a pod's ammo (shots,
- *                swings, or seconds held) spent, its slot is open again (the pod drops off, no bomb)
+ *                swings, or seconds held) spent, its slot is open again (the pod drops off, no bomb); a digit (the page's
+ *                1, 2) picks its slot
  *   a CATCH      a foe whose rule `carries` a pod drops it where it falls (`state.podDrops`, standing in the world as the
  *                screen scrolls on, gone after DROP_LIFE); the ship touching it takes it into an open slot (the live one
  *                if it is open), or passes it by with both full
@@ -32,7 +33,8 @@
  *                death burst (combat-match.js) and gone after it, one without gone at once
  *
  *   ship rule: { type: 'scroll-ship', arsenal: { base, pods, slots, eject, bomb }, keys?: { fire, slot, eject } (the
- *                input's fields: 'fire', 'slot', 'missile') }
+ *                input's fields: 'fire', 'slot', 'boost': on the page J or the left mouse fires, a digit picks its slot,
+ *                F or the left trigger held ejects) }
  *
  * Field ownership: the ship's e.slots, e.live, e.strikes, e.beam, e.orbit, e._fireT, e._slotPrev, e._ejectT, e._orbitHit,
  * e.lastFire; the world's state.podDrops, state._podSeq, state.podHits (the last 0.4 s of hits: the page's impact flashes); a foe's body.hp, hitFlash, lastHitBy, downed, gone, deadAt.
@@ -113,12 +115,13 @@ export function buildScrollPods(E) {
       const at = ship.screenAt, muzzle = [at[0] + ((r.size && r.size[0]) || 0) / 2, at[1]];
       const foes = foesOf(state, B);
       // ── SLOT: its press switches the live slot ──
-      const sl = inp('slot', 'slot') ? 1 : 0;
-      if (sl && !ship._slotPrev) ship.live = (ship.live + 1) % ship.slots.length;
+      // (a digit picks its slot, 1 the first; any other press switches to the next)
+      const slv = inp('slot', 'slot'), sl = slv ? 1 : 0;
+      if (sl && !ship._slotPrev) ship.live = Number.isInteger(slv) && slv >= 1 && slv <= ship.slots.length ? slv - 1 : (ship.live + 1) % ship.slots.length;
       ship._slotPrev = sl;
       const held = ship.slots[ship.live], P = held ? A.pods[held.id] : A.base;
       // ── EJECT: held, never tapped: the live pod launched ahead as a timed bomb ──
-      if (inp('eject', 'missile') && held) {
+      if (inp('eject', 'boost') && held) {
         ship._ejectT = (ship._ejectT || 0) + dt;
         if (ship._ejectT >= (A.eject || 0.45)) {
           ship.strikes.push({ k: 'bomb', u: muzzle[0], v: muzzle[1], du: A.bomb.speed + sc[0], dv: sc[1], t: 0, life: A.bomb.fuse, r: P.bomb.r, dmg: P.bomb.dmg, time: A.bomb.time, hue: P.hue, pod: held.id });

@@ -136,6 +136,31 @@ describe('the ship on the d-pad', () => {
   });
 });
 
+describe('the ship\'s lives', () => {
+  it('down, it is blown apart and gone; back home on the screen whole after the respawn, a life spent; the last spent, the stage is over', () => {
+    const C = scrollCamera(SHIP.length), st = E.createWorld({
+      entities: [{ id: 'ship', pilotable: true, rule: { type: 'scroll-ship', size: [SHIP.length, SHIP.breadth], at: [-20, 0], hp: 10, lives: 1, respawn: 1, reguard: 2 },
+        body: { type: 'none', hp: 10, blast: 12, egg: { a: 6, c: 6, cz: 0 } }, transform: { pos: [0, 0, 0] } }],
+      camera: { rule: 'scroll', target: 'ship', view: 'side', dist: C.dist, screen: [C.screen.along, C.screen.across], track: [] }, pilot: 'ship',
+    });
+    const down = () => { st.byId.ship.body.hp = 0; st.byId.ship.downed = true; st.byId.ship.off = [30, 20]; };
+    step(st, {}, 2); down(); step(st, {}, 3);
+    expect(st.byId.ship.gone).toBe(true);
+    expect(st.bursts.some((b) => b.craft)).toBe(true);
+    step(st, {}, 60);
+    const s = st.byId.ship;
+    expect(s.gone).toBe(false);
+    expect(s.downed).toBe(false);
+    expect(s.body.hp).toBe(10);
+    expect(s.livesLeft).toBe(0);
+    expect(s._iT).toBeGreaterThan(1);
+    step(st, {}, 1);
+    expect(s.off).toEqual([-20, 0]);
+    down(); step(st, {}, 70);
+    expect(st.scrollOver).toBe(true);
+  });
+});
+
 describe('the page', () => {
   it('keeps every byte without a scroll stage', () => {
     expect(emissionSource()).not.toContain('scroll-ship');

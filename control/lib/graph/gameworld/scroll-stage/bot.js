@@ -15,7 +15,7 @@
  *
  *   botInput(world, { horizon?, scores? }) → the frame's input (the d-pad as the screen reads it, fire, slot); `scores`, a
  *                                          list, takes each choice's danger and lean (what a trace reads)
- *   playScrollStage(spec, { seconds?, dt?, trace? }) → { cleared, ended, bossDown, time, hp, hits, foes: { down, of },
+ *   playScrollStage(spec, { seconds?, dt?, trace? }) → { cleared, ended, bossDown, time, lost (lives), hp, hits, foes: { down, of },
  *                                             caught, held: [pods], peak (the most foes' bullets on the screen at once) }   spec: { entities, camera, pilot?, colliders?,
  *                                             breakables?, rupa? } (a payload, or a level's manifest-level play); cleared:
  *                                             the track run to its end, its boss (if it holds for one) down, the ship up
@@ -94,7 +94,8 @@ export function botInput(w, { horizon = HORIZON, scores = null } = {}) {
   const [bu, bv] = best || [0, 0], input = view === 'side' ? { turn: bu, forward: bv } : { forward: bu, turn: -bv };
   const swap = s.slots && !s.slots[s.live] && s.slots.some((x) => x) && !s._botSlot;
   s._botSlot = swap;
-  return { ...input, fire: 1, ...(swap ? { slot: 1 } : {}) };
+  // (a digit picks its slot: the one holding a pod)
+  return { ...input, fire: 1, ...(swap ? { slot: s.slots.findIndex((x) => x) + 1 } : {}) };
 }
 
 /** A scroll stage played to its end by the bot. */
@@ -110,11 +111,12 @@ export function playScrollStage(spec, { seconds = 300, dt = 1 / 30, trace = null
     E.stepWorld(w, botInput(w), dt);
     peak = Math.max(peak, (w.foeShots || []).length);
     if (trace && n % Math.round(1 / dt) === 0) trace.push({ t: +w.time.toFixed(2), u: +w.camera._sc[0].toFixed(1), hp: ship().body?.hp ?? null, shots: (w.foeShots || []).length });
-    if (ship().downed || (w.camera.scrollEnd && (!boss || w.byId[boss]?.downed))) break;
+    if (w.scrollOver || (ship().downed && !(ship().rule.lives >= 0)) || (w.camera.scrollEnd && !ship().downed && (!boss || w.byId[boss]?.downed))) break;
   }
   const s = ship(), bossDown = !boss || !!w.byId[boss]?.downed;
   return {
-    cleared: !!w.camera.scrollEnd && bossDown && !s.downed, ended: !!w.camera.scrollEnd, bossDown, time: +w.time.toFixed(2),
+    cleared: !!w.camera.scrollEnd && bossDown && !s.downed && !w.scrollOver, ended: !!w.camera.scrollEnd, bossDown, time: +w.time.toFixed(2),
+    lost: s.rule.lives >= 0 ? s.rule.lives - (s.livesLeft ?? s.rule.lives) + (w.scrollOver ? 1 : 0) : (s.downed ? 1 : 0),
     hp: s.body?.hp ?? null, hits: s.hitsTaken || 0, foes: { down: foes.filter((e) => e.downed).length, of: foes.length },
     caught: s.caught || 0, held: (s.slots || []).map((x) => x && x.id), peak,
   };

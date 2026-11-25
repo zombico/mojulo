@@ -19,6 +19,7 @@
  *               count? (1), formation?: line | column | vee | echelon | swarm (FORMATIONS), v?: screens across from the
  *               middle, carries?: a pod (the wave's last foe brings it) }]: the foes, each flying its path and its pattern
  *     hp?       the ship's (SHIP_HP): each bullet in its hitbox takes one
+ *     lives?    the ship's lives past its first (SHIP_LIVES): down, it is blown apart and back home on the screen, whole
  *     hulls?    [{ capital: a fleet class, at: screens along, v?: screens across, depth?: camera distances back (HULL_DEPTH;
  *               0: ON THE PLAY PLANE, its near face the plane: terrain flown along and broken, its systems the targets, its
  *               guns turrets, blown up in a chain when its systems are gone, rupa in zero g as Rebel Storm's fleet is),
@@ -28,7 +29,7 @@
  *     seed?
  *   } }
  *
- *   SCROLL_STAGE_KEYS, SCROLL_PACE, SCROLL_CRAFT, HULL_DEPTH, TARGET_HP, SHIP_HP, FORMATIONS
+ *   SCROLL_STAGE_KEYS, SCROLL_PACE, SCROLL_CRAFT, HULL_DEPTH, TARGET_HP, SHIP_HP, SHIP_LIVES, FORMATIONS
  *   readScrollStage(v)                → errors (strings); [] when it builds
  *   scrollStageOf(manifest)           → { cam, ship, track, start, extent }: the stage as numbers, no faces
  *   scrollStagePlay(manifest, { airframe? }) → { entities, camera, figures? }: the ship and the scroll camera, as a level
@@ -53,7 +54,7 @@ import { POD_IDS, lowerArsenal } from './pods.js';
 import { FOES, FOE_IDS, lowerFoes, HITBOX } from './patterns.js';
 import { streamOf } from '../../city/plan/dice.js';
 
-export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'pods', 'targets', 'waves', 'hp', 'hulls', 'backdrop', 'seed']);
+export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'pods', 'targets', 'waves', 'hp', 'lives', 'hulls', 'backdrop', 'seed']);
 /** A leg's pace where it names none: a tenth of a screen a second (an arcade scroll's unhurried crawl). */
 export const SCROLL_PACE = 0.1;
 /** The ship a stage flies where it names none: the craft shelf's hero gunship (craft-shelf/hero-gunship.js), Blaze
@@ -64,6 +65,8 @@ export const SCROLL_CRAFT = 'heroGunship';
 export const HULL_DEPTH = -4;
 /** The ship's hp where the stage names none: ten hits. */
 export const SHIP_HP = 10;
+/** The ship's lives past its first where the stage names none. */
+export const SHIP_LIVES = 2;
 /** How a wave flies in, its members' places off its lead (along, across) in spacings: a new formation is a row. */
 export const FORMATIONS = Object.freeze({
   line: (k) => [k, 0],                       // one after another down the same line: a snake
@@ -135,6 +138,7 @@ export function readScrollStage(v) {
     });
   }
   if (v.hp !== undefined && !(Number.isInteger(v.hp) && v.hp >= 1)) e.push(`${at('hp')} is a whole number of hits, 1 or more`);
+  if (v.lives !== undefined && !(Number.isInteger(v.lives) && v.lives >= 0 && v.lives <= 9)) e.push(`${at('lives')} is a whole number, 0 to 9`);
   if (v.hulls !== undefined) {
     if (!Array.isArray(v.hulls)) e.push(`${at('hulls')} is a list of { capital, at, v?, depth?, heading?, seed? }`);
     else v.hulls.forEach((H, k) => {
@@ -201,7 +205,7 @@ export function scrollStageOf(manifest) {
     return { id, H, P: placeFleet(B, { at: at0.map((x, i) => r2(x - V.toward[i] * near)), heading, id }) };
   });
   const turretSet = plane.length ? lowerFoes(['turret'], { L: ship.length, S: C }) : null;
-  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, plane, turretSet };
+  return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, lives: S.lives ?? SHIP_LIVES, plane, turretSet };
 }
 
 // a body that blows apart when it falls: Rebel Storm's space blast at its own size (combat-match.js explodeUnit, its
@@ -209,12 +213,12 @@ export function scrollStageOf(manifest) {
 const blastOf = (r) => ({ blast: r2(r * 2.4), egg: { a: r, c: r, cz: 0 } });
 // the ship on the d-pad, a quarter of a screen back of the middle, and the camera carried down the track
 function playOf(G, { airframe = true } = {}) {
-  const { view, cam, ship, track, start, arsenal, targets, foes, foeSet, hp, plane, turretSet } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0], back = Math.atan2(-V.along[1], -V.along[0]);
+  const { view, cam, ship, track, start, arsenal, targets, foes, foeSet, hp, lives, plane, turretSet } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0], back = Math.atan2(-V.along[1], -V.along[0]);
   // (a target: a drone's block in the foes' colour, its size a ship's breadth, on the play plane facing back at the ship)
   const tsize = r2(ship.breadth * 0.8);
   const body = airframe ? { type: 'figure-rig', figure: 'craft' } : { type: 'mesh', shape: 'box', size: view === 'side' ? [r2(ship.breadth / 3), ship.length, ship.breadth] : [ship.breadth, ship.length, r2(ship.breadth / 3)], color: '#e9eef4' };
   return {
-    entities: [{ id: 'player', pilotable: true, rule: { type: 'scroll-ship', size: [ship.length, ship.breadth], at, arsenal, hitbox: { r: foeSet.hitbox || r2(HITBOX * ship.length), at: r2(ship.length * 0.2) }, invuln: 1 }, ambient: { type: 'static' }, body: { ...body, hp, ...blastOf(r2(ship.length / 2)) },
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'scroll-ship', size: [ship.length, ship.breadth], at, arsenal, hitbox: { r: foeSet.hitbox || r2(HITBOX * ship.length), at: r2(ship.length * 0.2) }, invuln: 1, hp, lives }, ambient: { type: 'static' }, body: { ...body, hp, ...blastOf(r2(ship.length / 2)) },
       transform: { pos: toWorld(view, [start[0] + at[0], start[1] + at[1], 0]).map(r2), heading: Math.atan2(V.along[1], V.along[0]) } },
     ...targets.map((T) => ({ id: T.id, team: 'foes', rule: { type: 'static', ...(T.carries ? { carries: T.carries } : {}) },
       body: { type: 'mesh', shape: 'box', size: [tsize, tsize, tsize], color: T.carries ? arsenal.pods[T.carries].hue : '#c04a3a', hp: T.hp, radius: r2(tsize * 0.7), ...blastOf(r2(tsize * 0.7)) },

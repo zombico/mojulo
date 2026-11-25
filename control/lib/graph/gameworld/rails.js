@@ -217,6 +217,12 @@ export const RAILS = Object.freeze({
     handles: row({ genres: list(['space-shooter']) }), sizes: list(['designed']), level1: 'a stage: down a canyon on a planet, its waves and its boss',
     words: list(['wolf squadron', 'rail shooter', 'on-rails shooter', 'on rails shooter', 'arcade flight', 'arcade space shooter', 'starfighter', 'star fox', 'starfox', 'rogue squadron', 'barrel roll', 'space fighter game']),
     lacks: list(['the squad and its calls, the rival squad and the all-range arena are to come', 'its cube is the space shooter\'s: its stages fly on the rail rule (power.rules=rail), which a stage of its own names']) }),
+  // a scrolling shooter, left to right (blaze-gunner.js: its starter, the fleet's edge; gameworld/scroll-stage/)
+  'blaze-gunner': row({ name: 'Blaze Gunner', like: 'a scrolling shooter: a small ship on the d-pad over a screen that scrolls on its own, waves in formation, pods taken from foes for weapons, a capital ship broken by its systems at the end of each stage',
+    handles: row({ genres: list(['co-op-scroller']) }), sizes: list(['designed']), level1: 'a stage: waves in the open, a hull run, the boss broken by its systems',
+    seen: list(['side', 'above']),
+    words: list(['blaze gunner', 'shmup', 'shoot em up', "shoot 'em up", 'bullet hell', 'scrolling shooter', 'horizontal shooter', 'side scrolling shmup', 'gradius', 'r-type', 'einhander', 'gunpod', 'gunpods']),
+    lacks: list(['a vertical stage (seen from above, scrolling up) is the same stage turned: its frame is built, its first recipe is to come', 'its stage\'s own lives are the World page\'s: a designed level is lost when the ship is down, its continue the game\'s']) }),
   // a war flown from the cockpit, mission by mission (rebel-storm.js: its starter, the rebels' opening tour)
   'rebel-storm': row({ name: 'Rebel Storm / Rise of Empire', like: 'a space combat sim flown from the cockpit: the throttle set, the target picked, shields and power split, flight groups to destroy and craft to protect, a campaign of missions from either side of a war',
     handles: row({ genres: list(['space-sim']) }), sizes: list(['designed']), level1: 'a mission: a patrol of fighters met with Red flight, interceptors jumping in',

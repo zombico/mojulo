@@ -11,6 +11,8 @@
  *   stage     an arcade stage flown down a path (airspace.rail; skyscape/rail-stage.js, the rail rule): its waves woken
  *             as the craft passes their marks, its hazards met where they stand (a pillar's column, a rock), its boss's
  *             parts shot down to win; the craft's shield the level's hp, taken by hits and hazards, never by the ground
+ *   scroll    a scroll stage (airspace.scroll; gameworld/scroll-stage/, Blaze Gunner's): its own play, laid by the level;
+ *             lost when the ship is down, won when the boss its track holds for is down (else every foe)
  *   tasks     a list done in order (game/objectives.js), in the level's own words:
  *               { gates: true | [from, to] }            the course's gates (all, or gates from..to, counted from 1)
  *               { land: true }                          set down soft on a runway or a pad of the map
@@ -46,7 +48,7 @@ import { GROUND_UNITS, unitRadius } from '../groundforce/index.js';
 
 /** A fight in the air's costs: the craft's hp, what a hit on it takes, and what a crash does. */
 export const DOGFIGHT = Object.freeze({ hp: 100, hit: 4, crash: 25 });
-export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'stage', 'sortie', 'tasks']);
+export const FLIGHT_GOALS = Object.freeze(['course', 'dogfight', 'trench', 'stage', 'sortie', 'tasks', 'scroll']);
 /** A stage's costs and its foes: what a hit and a hazard flown into take off the shield, how its fighters fire (an
  *  arcade wing: no missiles, short bursts, long pauses, so a wave is broken up and not a wall of fire), and what they
  *  fire: a round that travels (m/s, flat, seen), so the craft steered out of its way or rolled through it is not hit. */
@@ -68,15 +70,17 @@ export const BAND_WORDS = Object.freeze([...BAND_FACTS, 'height', 'turn']);
 export const GRADE_BY = Object.freeze(['time', 'slip', 'sink']);
 /** The legend a fight in the air adds: the craft's guns and missiles, its flares, boost and roll. */
 export const FIGHT_LEGEND = 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll';
+/** A scroll stage's keys (worlds/controllable/scroll.js, scroll-pods.js): the d-pad on the arrows or WASD. */
+export const SCROLL_LEGEND = 'J or click  fire · R  speed · 1 / 2  pods · hold F  eject';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-const SHAPE = `is 'course' | 'dogfight' | 'trench' | 'stage', { dogfight: true | { foes?, waves? } }, { sortie: { groups, goals } } (a cockpit's), or { tasks: [ ${FLIGHT_TASKS.map((k) => `{ ${k} }`).join(' | ')} ], crash?: ${FLIGHT_CRASH.join(' | ')} }`;
+const SHAPE = `is 'course' | 'dogfight' | 'trench' | 'stage' | 'scroll', { dogfight: true | { foes?, waves? } }, { sortie: { groups, goals } } (a cockpit's), or { tasks: [ ${FLIGHT_TASKS.map((k) => `{ ${k} }`).join(' | ')} ], crash?: ${FLIGHT_CRASH.join(' | ')} }`;
 
 /** A flight goal in a level's words, read and taught. */
 export function readFlightGoal(v, at = 'goal.flight') {
   const fail = (m) => { throw new Error(`gameworld: ${at}${m}`); };
-  if (v === 'course' || v === 'dogfight' || v === 'trench' || v === 'stage') return { kind: v };
+  if (v === 'course' || v === 'dogfight' || v === 'trench' || v === 'stage' || v === 'scroll') return { kind: v };
   if (!isObj(v)) fail(` ${SHAPE}`);
   const keys = Object.keys(v);
   if (v.dogfight !== undefined) {
@@ -140,6 +144,7 @@ export function flightGoalOfQuick(quick) {
 
 /** What an airspace with no goal of its own is flown for: its course when it has one, its trench when it has one. */
 export function defaultFlightGoal(airspace) {
+  if (airspace?.scroll) return { kind: 'scroll' };
   if (airspace?.rail) return { kind: 'stage' };
   if (airspace?.space?.trench) return { kind: 'trench' };
   if (airspace?.course) return { kind: 'course' };
@@ -166,6 +171,19 @@ function bandText(t) {
 
 /** The goal's mechanics on the level's airspace (`ends`: levels.js airspaceEnds). */
 export function flightGoalMechanics(goal, ends) {
+  const fail0 = (m) => { throw new Error(`gameworld: goal.flight: ${m}`); };
+  // a SCROLL STAGE (gameworld/scroll-stage/: Blaze Gunner's): its play is the stage's own (its ship, its foes, its hulls,
+  // laid by the level as its pilot's part); the level is lost when the ship is down (its body: its hp, the foes' fire
+  // and the hull it flies into), won when the boss the track holds for is down, else when every foe is
+  if (goal.kind === 'scroll') {
+    const S = ends.scroll;
+    if (!S) { fail0('a scroll stage is flown on an airspace\'s scroll: give the airspace one (airspace.scroll)'); }
+    const boss = [...(S.track || [])].reverse().find((L) => L && L.hold === true && L.until)?.until ?? null;
+    return [
+      { kind: 'fail-on-death', of: 'body' },
+      boss ? { kind: 'defeat-all', who: boss, count: 1, label: 'Boss' } : { kind: 'defeat-all', who: 'foe-*', count: S.foes.length, label: 'Foes' },
+    ];
+  }
   const map = ends.airMap, field = ends.airField, seat = ends.seat, course = ends.course, p = seat.transform;
   const fail = (m) => { throw new Error(`gameworld: goal.flight: ${m}`); };
   if (goal.kind === 'course') {
@@ -273,6 +291,8 @@ export function flightGoalCast(goal, ends) {
 }
 
 function castOf(goal, ends) {
+  // (a scroll stage stands its own cast: the level lays it as its pilot's part, levels.js)
+  if (goal.kind === 'scroll') return null;
   // (a sortie's flight groups as craft; the pilot armed with its warheads)
   if (goal.kind === 'sortie') {
     // (its warheads its cockpit card's count: a craft that carries none flies with its cannons alone)
@@ -335,6 +355,7 @@ function castOf(goal, ends) {
 /** The keys the goal's play adds to the level's legend: a fight's guns, or nothing. */
 export function flightLegend(goal) {
   if (goal.kind === 'stage') return 'click or Z  guns · R  missile';
+  if (goal.kind === 'scroll') return SCROLL_LEGEND;
   if (goal.kind === 'dogfight' || goal.kind === 'trench') return FIGHT_LEGEND;
   if (goal.kind === 'tasks' && goal.tasks.some((t) => t.down !== undefined)) return FIGHT_LEGEND;
   return null;

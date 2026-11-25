@@ -68,7 +68,7 @@ describe('the arsenal', () => {
     const st = world({ slots: ['cannon', null] });
     step(st, { fire: 1 }, 1);
     expect(ship(st).strikes.at(-1).r).toBeCloseTo(PODS.cannon.fire.shots[0].r * LEN, 3);
-    step(st, {}, 1); step(st, { slot: 1 }, 5);
+    step(st, {}, 1); step(st, { slot: 2 }, 5);
     expect(ship(st).live).toBe(1);
     step(st, {}, 40); ship(st).strikes = [];
     step(st, { fire: 1 }, 1);
@@ -87,9 +87,9 @@ describe('the arsenal', () => {
     const burst = LEN / 2 + ARS.bomb.speed * BOMB.fuse;
     const st = world({ slots: ['grenade', null], foes: [{ at: [burst, 0], hp: 100, r: 2 }] });
     ship(st).body = { type: 'none', hp: 10 };
-    step(st, { missile: 1 }, Math.floor((EJECT_HOLD / DT) * 0.5)); step(st, {}, 1);
+    step(st, { boost: 1 }, Math.floor((EJECT_HOLD / DT) * 0.5)); step(st, {}, 1);
     expect(ship(st).slots[0]).not.toBe(null);
-    step(st, { missile: 1 }, Math.ceil(EJECT_HOLD / DT) + 1);
+    step(st, { boost: 1 }, Math.ceil(EJECT_HOLD / DT) + 1);
     expect(ship(st).slots[0]).toBe(null);
     expect(ship(st).strikes.some((s) => s.k === 'bomb')).toBe(true);
     const before = hp(st);

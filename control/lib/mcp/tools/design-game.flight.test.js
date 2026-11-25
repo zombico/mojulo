@@ -199,6 +199,26 @@ describe('design_game: designed flight levels', () => {
     expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.result, l.still]), JSON.stringify(run.flight_proof.levels)).toEqual([['mission-1', true, 'success', 'lost'], ['mission-2', true, 'success', 'lost'], ['mission-3', true, 'success', 'lost']]);
   }, 400000);
 
+  it('Blaze Gunner: a locked pitch lays its first stage; built, a scroll stage on its own play, lost with the ship and won with its boss', async () => {
+    const out = await designGameHandler({ title: 'Blaze', world: { id: 'blaze', name: 'Blaze', rail: { from: 'blaze-gunner', locked: true } } });
+    expect(out.pitch).toMatchObject({ stored: true, by: 'blaze-gunner', levels: ['stage-1'] });
+    const ref = out.ref, run = await designGameHandler({ ref, run: true });
+    expect(run.ran.filter((r) => r.action === 'make').map((r) => r.key)).toEqual(expect.arrayContaining(['level-stage-1-0', 'game']));
+    const M = SketchRepository.getByRef(`${ref}-level-stage-1-0`).manifest, kinds = M.game.mechanics.map((m) => m.kind);
+    // its own play (scroll-stage/stage-scene.js scrollStagePlay): the hero gunship on the d-pad under the scroll camera,
+    // its foes' craft, a hull on the play plane broken by rupa, weightless
+    expect(M.scroll).toBeTruthy();
+    expect(M.camera).toMatchObject({ rule: 'scroll', target: 'player', view: 'side' });
+    expect(M.entities.find((e) => e.pilotable).rule.type).toBe('scroll-ship');
+    expect(M.figures.craft.craft.archetype).toBe('heroGunship');
+    expect(M.entities.some((e) => e.rule.type === 'scroll-foe')).toBe(true);
+    expect(M).toMatchObject({ destruction: 'physical', matter: { g: 0 } });
+    // lost when the ship is down, won when the boss its track holds for is
+    expect(kinds).toEqual(['fail-on-death', 'defeat-all']);
+    expect(M.game.mechanics.find((m) => m.kind === 'defeat-all').who).toBe(M.camera.track.find((L) => L.until).until);
+    expect(JSON.stringify(M.events)).toContain('hold F  eject');
+  }, 400000);
+
   it('beacons: the pilot sent to places, a group brought in by one, the next lit by a group down; proved', async () => {
     const level = { name: 'Beacons', airspace: { map: { craft: 'fighter', field: 6000 }, space: { asteroids: 'sparse' }, airframe: 'strikeFoil', cockpit: true },
       goal: { flight: { sortie: {

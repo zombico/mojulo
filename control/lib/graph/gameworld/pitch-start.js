@@ -16,7 +16,8 @@
  *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
  *              'pilot-school' (Pilot School's: its first lessons on one airfield, each graded, pilot-school.js) or
  *              'wolf-squadron' (Wolf Squadron's: its stages down a path, on a planet and in space, wolf-squadron.js),
- *              'rebel-storm' (Rebel Storm's: its missions flown from the cockpit, rebel-storm.js) or
+ *              'rebel-storm' (Rebel Storm's: its missions flown from the cockpit, rebel-storm.js),
+ *              'blaze-gunner' (Blaze Gunner's: its stages on a screen that scrolls on its own, blaze-gunner.js) or
  *              'compose' (a first reading of the genre the rail starts from, compose.js, one level; a rail's own
  *              starter words where it has them: the party RPG's round, its levels)
  *     unlaid   a rail with no starter the book lays yet, or a size that is not the designed game's: said, the pitch
@@ -29,6 +30,7 @@ import { platformerStart } from './platformer-game.js';
 import { hijackCityStart } from './hijack-city.js';
 import { pilotSchoolStart } from './pilot-school.js';
 import { wolfSquadronStart } from './wolf-squadron.js';
+import { blazeGunnerStart } from './blaze-gunner.js';
 import { rebelStormStart } from './rebel-storm.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
@@ -69,6 +71,11 @@ export function pitchStart(world, { title } = {}) {
   if (R.id === 'wolf-squadron') {
     const WS = wolfSquadronStart({ ...withFeel, ...named });
     return { world: WS.world, laid: { by: 'wolf-squadron', levels: Object.keys(WS.world.levels), says: SAYS } };
+  }
+  // Blaze Gunner's rail: its stages on a screen that scrolls on its own, each to its boss (blaze-gunner.js)
+  if (R.id === 'blaze-gunner') {
+    const BG = blazeGunnerStart({ ...withFeel, ...named });
+    return { world: BG.world, laid: { by: 'blaze-gunner', levels: Object.keys(BG.world.levels), says: SAYS } };
   }
   // Rebel Storm's rail: its opening tour of missions, each a sector flown from the cockpit (rebel-storm.js)
   if (R.id === 'rebel-storm') {
