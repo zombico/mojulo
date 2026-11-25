@@ -39,7 +39,8 @@
  *   vessels   [{ at, radius, height, rings?: [z, …], ring? }]: distillation columns and reactors, a platform `ring`
  *             metres wide (6) round each at each ring's height, its rail
  *   spheres   [{ at, radius, height? }]: pressure storage on its legs, its middle `height` up (1.6 radii)
- *   racks     [{ path: [[x, y], …], tiers: [z, …], width? }]: pipe racks, a bent every 12 m, four pipes on each tier
+ *   racks     [{ path: [[x, y], …], tiers: [z, …], width? }]: pipe racks, a bent every 12 m, four pipes on each tier;
+ *             its posts and its tiers stop a body, its top tier a plate a frame walks along
  *   bridges   [{ from, to, z: [za, zb], width? }]: walkways of grating from one level to another
  *
  * Pure: the same words, the same works.
@@ -336,16 +337,31 @@ export function worksFaces(W, centre, floorAt = () => 0) {
     for (let k = 0; k < 8; k++) { const th = (2 * Math.PI * k) / 8, x = c[0] + R * Math.cos(th), y = c[1] + R * Math.sin(th); beam(out, [x, y, z0 - 0.5], [x, y, Zc], 1.2); }
     solid(c[0] - R, c[1] - R, z0 - 0.5, c[0] + R, c[1] + R, Zc + R);
   }
-  // THE RACKS: a pipe rack's bents along its path, a pipe or four on each tier
+  // THE RACKS: a pipe rack's bents along its path, four pipes on each tier
+  const RACK_CROWN = 3;   // (metres from a tier's beam to its pipes' crowns: the fattest pipe 1.4 in radius over a 0.35 shoe)
   for (const q of W.racks) {
     const P = q.path.map(A), hw = (q.width ?? 10) / 2, tiers = q.tiers;
     for (let i = 0; i + 1 < P.length; i++) {
       const [a, b] = [P[i], P[i + 1]], Lr = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / Lr, uy = (b[1] - a[1]) / Lr, px = -uy, py = ux;
       for (let s0 = 0; s0 <= Lr; s0 += 12) {
         const x = a[0] + ux * s0, y = a[1] + uy * s0, zf = floorAt(x, y), top = tiers[tiers.length - 1];
-        for (const sg of [-1, 1]) beam(out, [x + px * hw * sg, y + py * hw * sg, zf - 0.5], [x + px * hw * sg, y + py * hw * sg, zf + top], 0.8);
+        for (const sg of [-1, 1]) {
+          const X = x + px * hw * sg, Y = y + py * hw * sg;
+          beam(out, [X, Y, zf - 0.5], [X, Y, zf + top], 0.8); solid(X - 0.6, Y - 0.6, zf - 0.5, X + 0.6, Y + 0.6, zf + top);
+        }
         for (const t of tiers) beam(out, [x - px * hw, y - py * hw, zf + t], [x + px * hw, y + py * hw, zf + t], 0.7);
       }
+      // (what stops a body: each tier's bundle a slab from its beams to its pipes' crowns, a body walking under the lowest
+      // tier and stopped by any it reaches; the top tier's crowns a plate a frame stands on and walks along. A run along an
+      // axis is one slab a tier; a run across them a slab a bay, each its own box)
+      const za = floorAt(a[0], a[1]), straight = Math.abs(ux) < 1e-6 || Math.abs(uy) < 1e-6, step = straight ? Lr : 12;
+      for (let s0 = 0; s0 < Lr - 1e-6; s0 += step) {
+        const s1 = Math.min(Lr, s0 + step), xs = [a[0] + ux * s0 + px * hw, a[0] + ux * s0 - px * hw, a[0] + ux * s1 + px * hw, a[0] + ux * s1 - px * hw], ys = [a[1] + uy * s0 + py * hw, a[1] + uy * s0 - py * hw, a[1] + uy * s1 + py * hw, a[1] + uy * s1 - py * hw];
+        for (const t of tiers) solid(Math.min(...xs), Math.min(...ys), za + t - 0.35, Math.max(...xs), Math.max(...ys), za + t + RACK_CROWN);
+      }
+      const zt = za + tiers[tiers.length - 1] + RACK_CROWN;
+      quad(out, [[a[0] - px * hw, a[1] - py * hw, zt], [b[0] - px * hw, b[1] - py * hw, zt], [b[0] + px * hw, b[1] + py * hw, zt], [a[0] + px * hw, a[1] + py * hw, zt]], FLOOR);
+      decks.push([Math.min(a[0], b[0]) - hw, Math.min(a[1], b[1]) - hw, zt - 1, Math.max(a[0], b[0]) + hw, Math.max(a[1], b[1]) + hw, zt].map(r3));
       for (const t of tiers) for (let k = 0; k < 4; k++) {
         const off = -hw + (k + 0.5) * ((2 * hw) / 4), r = 0.8 + 0.3 * ((k + t) % 3), z = floorAt(a[0], a[1]) + t + r + 0.35;
         const ra = [a[0] + px * off, a[1] + py * off], rb = [b[0] + px * off, b[1] + py * off], n = 10;

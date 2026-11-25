@@ -9,8 +9,9 @@
  *   readInterior(spec)            → the interior's words, checked (null when absent)
  *   interiorLights(I, { box, lamps?, glows? }) → { lamps: [{ at, colour, power, range }], glows: [...] }: the lamps a
  *                                   place's works hang (`lamps`), or, with none, rows of them under the roof over the
- *                                   land's box; the glows it names. At most MAX_LAMPS and MAX_GLOWS, the nearest the
- *                                   middle kept: a page lights every fragment by each
+ *                                   land's box; the glows it names. At most MAX_LAMPS and MAX_GLOWS: more are pooled
+ *                                   (each its members' centre, strength and reach), so every part of a place is lit and
+ *                                   a page lights each fragment by no more than these
  *   interiorPayload(I, lights)    → what the page reads (form/land-read.js `interior`): the void, the haze, the lights and
  *                                   the environment's colours
  *
@@ -64,10 +65,47 @@ export function interiorLights(I, { box, floor = 0, lamps = null, glows = [] } =
     const S = I.lamps.spacing, nx = Math.max(1, Math.round((bx[1] - bx[0]) / S)), ny = Math.max(1, Math.round((by[1] - by[0]) / S));
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) L.push({ at: [bx[0] + (i + 0.5) * (bx[1] - bx[0]) / nx, by[0] + (j + 0.5) * (by[1] - by[0]) / ny, floor + I.lamps.height] });
   }
-  const near = (a, b) => Math.hypot(a.at[0] - mid[0], a.at[1] - mid[1]) - Math.hypot(b.at[0] - mid[0], b.at[1] - mid[1]);
-  const lampsOut = [...L].sort(near).slice(0, MAX_LAMPS).map((q) => ({ at: q.at.map(r2), colour: q.colour ?? I.lamps.colour, power: r2((q.power ?? 1) * I.lamps.power), range: r2(q.range ?? I.lamps.spacing * 1.6) }));
-  const glowsOut = [...glows].sort(near).slice(0, MAX_GLOWS).map((q) => ({ at: q.at.map(r2), colour: q.colour ?? I.glow.colour, power: r2((q.power ?? 1) * I.glow.power), range: r2(q.range ?? 120) }));
+  const lampsOut = pool(L.map((q) => ({ at: q.at, colour: q.colour ?? I.lamps.colour, power: (q.power ?? 1) * I.lamps.power, range: q.range ?? I.lamps.spacing * 1.6 })), MAX_LAMPS, mid);
+  const glowsOut = pool(glows.map((q) => ({ at: q.at, colour: q.colour ?? I.glow.colour, power: (q.power ?? 1) * I.glow.power, range: q.range ?? 120 })), MAX_GLOWS, mid);
   return { lamps: lampsOut, glows: glowsOut };
+}
+
+/**
+ * More lights than a page can hang, pooled into `max`: every light belongs to its nearest pool, so every part of the
+ * place is reached, not only its middle. The pools are seeded far apart (the light nearest the middle first, then each
+ * the farthest from those chosen) and settled a few rounds; each hangs at its members' centre weighted by their power,
+ * as strong as their mean grown by the root of their number (spread lamps light an area, not one point more brightly),
+ * reaching as far as its farthest member's reach, in its strongest member's colour. A list within `max` is kept as is.
+ */
+function pool(L, max, mid) {
+  const out = (q) => ({ at: q.at.map(r2), colour: q.colour, power: r2(q.power), range: r2(q.range) });
+  const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+  if (L.length <= max) return L.map(out);
+  let first = 0;
+  L.forEach((q, i) => { if (Math.hypot(q.at[0] - mid[0], q.at[1] - mid[1]) < Math.hypot(L[first].at[0] - mid[0], L[first].at[1] - mid[1])) first = i; });
+  const C = [L[first].at.slice()], best = L.map((q) => d2(q.at, C[0]));
+  while (C.length < max) {
+    let far = 0;
+    best.forEach((v, i) => { if (v > best[far]) far = i; });
+    C.push(L[far].at.slice());
+    L.forEach((q, i) => { best[i] = Math.min(best[i], d2(q.at, C[C.length - 1])); });
+  }
+  let of = [];
+  for (let round = 0; round < 8; round++) {
+    of = L.map((q) => { let k = 0; for (let j = 1; j < C.length; j++) if (d2(q.at, C[j]) < d2(q.at, C[k])) k = j; return k; });
+    C.forEach((c, k) => {
+      let w = 0; const s = [0, 0, 0];
+      L.forEach((q, i) => { if (of[i] === k) { w += q.power; for (let a = 0; a < 3; a++) s[a] += q.at[a] * q.power; } });
+      if (w > 0) C[k] = s.map((v) => v / w);
+    });
+  }
+  return C.map((c, k) => {
+    const M = L.filter((_, i) => of[i] === k);
+    if (!M.length) return null;
+    const strong = M.reduce((a, b) => (b.power > a.power ? b : a)), mean = M.reduce((a, q) => a + q.power, 0) / M.length;
+    const reach = Math.max(...M.map((q) => Math.sqrt(d2(q.at, c)) + q.range));
+    return out({ at: c, colour: strong.colour, power: mean * Math.sqrt(M.length), range: reach });
+  }).filter(Boolean);
 }
 
 /** What the page reads. */

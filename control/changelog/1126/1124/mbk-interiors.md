@@ -61,3 +61,9 @@ so everything the land does (bands, wear, sections, stochastic tiling, rubble) w
   - The `refinery` massif card is its floor: gravel between low concrete pads, bunds round the storage, oily sumps.
   - The refinery's materials, sodium lamps, and a fill as warm as its lamps (`HALL_LIGHT` takes a sky), so the floor
     is never shaded blue.
+- **Every unit lit, and racks that stop a frame.**
+  - A place with more lamps than a page hangs has them pooled, not cut: every lamp joins its nearest pool, and each
+    pool hangs at its members' centre with their reach, as strong as their mean grown by the root of their number.
+    The outer units and the far walls are lit, not only the middle (`form/interior-light.js`).
+  - A pipe rack's posts stop a body, each tier's bundle is a slab a frame walks under below the lowest tier and is
+    stopped by above it, and the top tier's crowns are a plate a frame lands on and walks along.
