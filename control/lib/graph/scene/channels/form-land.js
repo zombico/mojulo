@@ -16,6 +16,7 @@
  * it). A live light's own sun (channels/cast-shadows.js) is shadow only here too: its intensity is taken to nothing, so
  * the land is lit once. `window.__formReady` when it has drawn (its textures load first).
  */
+import { FLOOR_HEAD, FLOOR_PASS, floorUniforms } from './works-floor-glsl.js';
 import { deflateSync } from 'node:zlib';
 import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
@@ -177,9 +178,11 @@ ${form.interior ? `  // the INTERIOR's environment (a cube's light.interior, for
     tBase: { value: tBase }, tNorm: { value: tNorm }, tOrm: { value: tOrm }, tDice: { value: tDice }, uTile: { value: D.layers.tile }, uMean: { value: D.layers.mean.map((m) => new THREE.Vector3(...m)) },
     tPath: { value: pathMap }, uPathO: { value: new THREE.Vector2(...(D.path ? D.path.origin.map((v) => v - D.path.cell / 2) : [0, 0])) }, uPathM: { value: new THREE.Vector2(...(D.path ? D.path.metres : [1, 1])) },
     uPathZ: { value: new THREE.Vector2(...(D.path ? D.path.z : [0, 1])) }, uHasPath: { value: D.path ? 1 : 0 }, uDress: { value: new THREE.Vector3(D.dress.rubble, D.dress.dust, D.dress.reach) }, uSdIn: { value: D.dress.sdIn }, uPatch: { value: new THREE.Vector3(...D.dress.patches) }, uPathBase: { value: new THREE.Vector3(...D.layers.pathBase) }, uStoneBase: { value: new THREE.Vector3(...D.layers.stoneBase) }, uClayBase: { value: new THREE.Vector3(...D.layers.clayBase) }, uUnderBase: { value: new THREE.Vector3(...D.layers.underBase) }, uUnder: { value: D.layers.green ? 1 : 0 }, uMoss: { value: D.layers.moss ?? 0 }, uClay: { value: D.dress.surface === 'sand' ? 0 : D.dress.clay }, uWet: { value: new THREE.Vector4(D.wet.z ?? -1e9, D.wet.band, D.wet.tone, D.wet.rough) } };
-${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes || form.snow ? printScript(form) : ''}  function layeredGround(m, roughScale) {
+${form.floor ? `  // (the works' floor plan, works-floor-glsl.js)
+  const FLOOR_U = ${floorUniforms()};
+` : ''}${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes || form.snow ? printScript(form) : ''}  function layeredGround(m, roughScale) {
     m.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale }${form.layers && form.layers.metal ? ', uMetal: { value: new THREE.Vector4(...D.layers.metal) }, uRoughL: { value: new THREE.Vector4(...D.layers.roughs) }' : ''} });
+      Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale }${form.layers && form.layers.metal ? ', uMetal: { value: new THREE.Vector4(...D.layers.metal) }, uRoughL: { value: new THREE.Vector4(...D.layers.roughs) }' : ''} }${form.floor ? ', FLOOR_U' : ''});
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
       sh.fragmentShader = ${form.layers && form.layers.metal ? "'uniform vec4 uMetal, uRoughL;\\n' + " : ''}'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
         + ${JSON.stringify(form.farCalm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)}
@@ -187,7 +190,8 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
         // height over its cells, GROUND_PARALLAX)
         + 'vec3 vor5( vec2 p ) { vec2 i = floor( p ), f = fract( p ); float d1 = 8.0, d2 = 8.0; vec2 id = vec2( 0.0 ); for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) { vec2 g = vec2( float( x ), float( y ) ), o = vec2( hn( i + g ), hn( i + g + 17.3 ) ) * 0.8 + 0.1; float d = length( g + o - f ); if ( d < d1 ) { d2 = d1; d1 = d; id = i + g; } else if ( d < d2 ) d2 = d; } return vec3( d1, d2 - d1, hn( id + 5.1 ) ); }\\n'
         + 'float gHt( int k, vec2 p ) { if ( k > 0 ) p += vec2( vn( p * 0.45 ), vn( p * 0.45 + 7.7 ) ) * ( k == 1 ? 0.8 : 1.6 ); vec3 v = vor5( p ); if ( k == 0 ) { float r = mix( 0.22, 0.46, fract( v.z * 7.3 ) ), q = clamp( v.x / r, 0.0, 1.0 ); return v.z < 0.28 ? 0.0 : sqrt( 1.0 - q * q ) * mix( 0.6, 1.0, v.z ); } if ( k == 1 ) return smoothstep( 0.0, mix( 0.012, 0.09, vn( p * 1.7 + 3.0 ) ), v.y ) * ( 0.8 + 0.2 * v.x ); return smoothstep( 0.0, 0.05, v.y ) * mix( 0.35, 1.0, v.z ); }\\n'
-        + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
+${form.floor ? `        + ${JSON.stringify(FLOOR_HEAD)}
+` : ''}        + sh.fragmentShader.replace('#include <normal_fragment_maps>', \`
     vec3 nW = normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ), aN = abs( nW );
     vec2 uvW; vec3 tT, tB;
     if ( aN.z >= aN.x && aN.z >= aN.y ) { uvW = vWPos.xy; tT = vec3( 1.0, 0.0, 0.0 ); tB = vec3( 0.0, 1.0, 0.0 ); }
@@ -347,7 +351,7 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
     // (the land's MATERIALS, a cube's outside.materials: each natural layer as metal as its set says, and as rough, by weight)
     { vec4 lw = vec4( ws[ 0 ], ws[ 1 ], ws[ 2 ], ws[ 3 ] ) / max( 1e-4, tw ); float ln = lw.x + lw.y + lw.z + lw.w;
       metalnessFactor = dot( lw, uMetal ); roughnessFactor = clamp( roughnessFactor * ( dot( lw, uRoughL ) + 1.0 - ln ), 0.04, 1.0 ); }` : ''}
-    // the ground's own PARALLAX KINDS (GROUND_PARALLAX): PEBBLES packed in the bare soil where it is damp, in the scree's
+${form.floor ? FLOOR_PASS : ''}    // the ground's own PARALLAX KINDS (GROUND_PARALLAX): PEBBLES packed in the bare soil where it is damp, in the scree's
     // fines between its stones and on a pebbled stretch of trail; CRACKED EARTH, dry mud in curled plates, in the bare soil
     // where it is dry and on a cracked stretch of trail; FRACTURED PLATES, a second rock in patches over the rock. Each
     // marched along the view near (eight steps), its normal from its own height, its detail fading by its cells' size on
@@ -409,7 +413,7 @@ ${form.rain ? `    // (RAIN on the land, form.rain: a film of no thickness over 
     { vec4 fb = farBlanket( vWPos, nW ); if ( fb.a > 0.0 ) { diffuseColor.rgb = mix( diffuseColor.rgb, fb.rgb, fb.a ); roughnessFactor = mix( roughnessFactor, 0.8, fb.a ); mn = normalize( mix( mn, vec3( 0.0, 0.0, 1.0 ), fb.a ) ); } }
     normal = normalize( ( viewMatrix * vec4( normalize( tT * mn.x + tB * mn.y + nW * mn.z ), 0.0 ) ).xyz );\`);
 ${form.dunes ? `      sh.fragmentShader = DUNE_HEAD + sh.fragmentShader.replace('    // (the sand WET', DUNE_SAND + '    // (the sand WET'); Object.assign(sh.uniforms, DUNE_U);\n` : ''}${form.snow ? `      sh.fragmentShader = SNOW_HEAD + sh.fragmentShader.replace('    // (the sand WET', SNOW_COVER + '    // (the sand WET'); Object.assign(sh.uniforms, SNOW_U);\n` : ''}${form.dunes || form.snow ? `      sh.fragmentShader = PRINT_HEAD + sh.fragmentShader.replace('    // (the sand WET', PRINT_PRESS + '    // (the sand WET'); Object.assign(sh.uniforms, PRINT_U);\n` : ''}    };
-    m.customProgramCacheKey = () => 'layered-ground${form.dunes ? '-dunes' : ''}${form.snow ? '-snow' : ''}';
+    m.customProgramCacheKey = () => 'layered-ground${form.dunes ? '-dunes' : ''}${form.snow ? '-snow' : ''}${form.floor ? '-floor' : ''}';
     return m;
   }
   // the ROCK'S RELIEF (form/rock-relief.js): the cliff's steep faces cut finer and pushed in and out along their normals by

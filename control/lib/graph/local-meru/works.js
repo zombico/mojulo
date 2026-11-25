@@ -42,16 +42,20 @@
  *   racks     [{ path: [[x, y], …], tiers: [z, …], width? }]: pipe racks, a bent every 12 m, four pipes on each tier;
  *             its posts and its tiers stop a body, its top tier a plate a frame walks along
  *   bridges   [{ from, to, z: [za, zb], width? }]: walkways of grating from one level to another
+ *   floor     { yard?, lanes?, ring?, paint?, kibble? } or null: the floor under it designed from above, its zones read off
+ *             the works (local-meru/works-floor.js), drawn by the land's shader
  *
  * Pure: the same words, the same works.
  */
+import { readFloor } from './works-floor.js';
+
 const f = Object.freeze;
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const bad = (m) => { throw new Error(`local-meru: works${m}`); };
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const DIRS = f({ n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] });
 
-const CARD = f({ hall: null, trusses: f({ spacing: 42, depth: 6, panel: 11 }), scaffolds: f([]), frames: f([]), vessels: f([]), spheres: f([]), racks: f([]), bridges: f([]), columns: f({ rows: f([]) }), crane: null, decks: f([]), furnaces: f([]), tanks: f([]), ladles: f([]), pipes: f([]) });
+const CARD = f({ hall: null, trusses: f({ spacing: 42, depth: 6, panel: 11 }), scaffolds: f([]), frames: f([]), vessels: f([]), spheres: f([]), racks: f([]), bridges: f([]), columns: f({ rows: f([]) }), crane: null, decks: f([]), furnaces: f([]), tanks: f([]), ladles: f([]), pipes: f([]), floor: null });
 
 export const WORKS_CARDS = f({
   // a steelworks' melt shop: a hall half a kilometre across under its trusses, two column lines carrying the crane's
@@ -66,7 +70,10 @@ export const WORKS_CARDS = f({
     pipes: f([f({ path: f([f([-420, 230]), f([420, 230])]), z: 30, radius: 2.4 }), f({ path: f([f([-420, 250]), f([380, 250]), f([380, -420])]), z: 36, radius: 1.8 })]),
     // (wire scaffolds round the furnaces and up the walls: floors of grating stacked a frame's height apart)
     scaffolds: f([f({ at: f([-300, 120]), bays: f([5, 3]), lifts: f([10, 20, 30]), ramp: 's' }), f({ at: f([120, -170]), bays: f([6, 2]), lifts: f([10, 20]), ramp: 'w' }),
-      f({ at: f([300, -60]), bays: f([3, 6]), lifts: f([10, 20, 30, 40]), ramp: 'w' }), f({ at: f([-110, 200]), bays: f([4, 3]), lifts: f([12, 24]) })]) }),
+      f({ at: f([300, -60]), bays: f([3, 6]), lifts: f([10, 20, 30, 40]), ramp: 'w' }), f({ at: f([-110, 200]), bays: f([4, 3]), lifts: f([12, 24]) })]),
+    // (its floor: old concrete in great pours, lanes either side of the furnace line and between the decks)
+    floor: f({ yard: 'concrete', ring: 30, paint: '#d0a530', kibble: 0.6,
+      lanes: f([f({ path: f([f([-400, -110]), f([400, -110])]) }), f({ path: f([f([-400, 110]), f([400, 110])]) }), f({ path: f([f([-105, -400]), f([-105, 400])]) }), f({ path: f([f([105, -400]), f([105, 400])]) })]) }) }),
   // a refinery's superstructure under its enclosure: process frames stacked a frame's height a level, distillation columns
   // ringed by platforms, spheres on their legs, pipe racks carrying the spine between them, walkways bridging level to
   // level, fired heaters glowing at their feet
@@ -81,7 +88,11 @@ export const WORKS_CARDS = f({
     racks: f([f({ path: f([f([-420, -130]), f([420, -130])]), tiers: f([10, 17]), width: 14 }), f({ path: f([f([-150, -130]), f([-150, 360])]), tiers: f([12, 19]), width: 12 })]),
     bridges: f([f({ from: f([-12, -20]), to: f([15, -20]), z: f([48, 48]) }), f({ from: f([-12, -10]), to: f([74, 20]), z: f([24, 24]), width: 12 }),
       f({ from: f([74, 40]), to: f([43, 40]), z: f([36, 36]) }), f({ from: f([-30, -4]), to: f([-30, 46]), z: f([24, 24]) })]),
-    furnaces: f([f({ at: f([-330, 40]), radius: 14, height: 26, mouth: 'e' }), f({ at: f([300, 120]), radius: 14, height: 26, mouth: 'w' })]) }),
+    furnaces: f([f({ at: f([-330, 40]), radius: 14, height: 26, mouth: 'e' }), f({ at: f([300, 120]), radius: 14, height: 26, mouth: 'w' })]),
+    // (its floor: gravel between the units' pads, avenues between them, one round the enclosure)
+    floor: f({ yard: 'gravel', ring: 30, paint: '#c89a2a', kibble: 0.5,
+      lanes: f([f({ path: f([f([-400, -100]), f([400, -100])]) }), f({ path: f([f([-400, 100]), f([400, 100])]) }), f({ path: f([f([60, -400]), f([60, 400])]) }),
+        f({ path: f([f([-290, -400]), f([-290, 400])]) }), f({ path: f([f([260, -400]), f([260, 400])]) })]) }) }),
 });
 
 const WORDS = ['id', 'reads', 'from', ...Object.keys(CARD)];
@@ -138,6 +149,7 @@ export function readWorks(spec) {
   W.racks.forEach((q, i) => { if (!isObj(q) || !Array.isArray(q.path) || q.path.length < 2 || !Array.isArray(q.tiers) || !q.tiers.length) bad(`.racks[${i}] is { path: [[x, y], …], tiers: [z, …], width? }`); q.path.forEach((p) => pt(p, `.racks[${i}].path is [[x, y], …]`)); });
   if (!Array.isArray(W.bridges)) bad('.bridges is a list');
   W.bridges.forEach((q, i) => { if (!isObj(q)) bad(`.bridges[${i}] is { from, to, z: [za, zb], width? }`); pt(q.from, `.bridges[${i}].from is [x, y]`); pt(q.to, `.bridges[${i}].to is [x, y]`); pt(q.z, `.bridges[${i}].z is [za, zb] metres over the floor at each end`); });
+  if (W.floor !== null) readFloor(W.floor);
   if (!Array.isArray(W.pipes)) bad('.pipes is a list');
   W.pipes.forEach((q, i) => { if (!isObj(q) || !Array.isArray(q.path) || q.path.length < 2) bad(`.pipes[${i}] is { path: [[x, y], …], z, radius }`); q.path.forEach((p) => pt(p, `.pipes[${i}].path is [[x, y], …]`)); pos(q.z, `.pipes[${i}].z is metres`); pos(q.radius, `.pipes[${i}].radius is metres`); });
   return W;

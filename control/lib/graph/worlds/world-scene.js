@@ -1089,6 +1089,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(town ? { lawn: {} } : {}), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(TG ? (TG.elsewhere === 'meadow' ? { tallGrass: TG, ...(sward !== undefined ? { sward } : {}) } : { sward: { short: 0, medium: 0 }, tallGrass: TG }) : sward !== undefined ? { sward } : {}), ...(M.parallax === false ? { relief: false, stones: LEAN_STONES } : M.parallax === 'cliffs' ? { stones: LEAN_STONES } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a works' floor plan, local-meru/works-floor.js: the form's land draws it; nothing else reads it)
+    if (payload.floorPlan) { if (read) payload.form.land = { ...payload.form.land, floor: payload.floorPlan }; delete payload.floorPlan; }
     // (a land under a roof, the cube's `light.interior`, form/interior-light.js: no sky on the page, its background the
     // void, the lights the place hangs or rows under its roof; the works' own lamps and glows when it has them)
     const IN = read ? readInterior(cube.light?.interior) : null;

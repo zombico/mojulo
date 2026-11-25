@@ -67,3 +67,25 @@ so everything the land does (bands, wear, sections, stochastic tiling, rubble) w
     The outer units and the far walls are lit, not only the middle (`form/interior-light.js`).
   - A pipe rack's posts stop a body, each tier's bundle is a slab a frame walks under below the lowest tier and is
     stopped by above it, and the top tier's crowns are a plate a frame lands on and walks along.
+- **The works' floor, designed from above** (`local-meru/works-floor.js`, a works card's `floor`, opt-in; drawn by
+  `scene/channels/works-floor-glsl.js` in the land's shader). The floor is a plant's plan, not one tile repeated.
+  - Its zones are read off the works:
+    - a pad poured under every frame, scaffold, deck, column, tank and sphere, bunded by a kerb round what stores;
+    - a footing under each column of the hall's lines and each rack post, a rack's footings stepped along it;
+    - steel plate round the furnaces and ladles;
+    - a trench along each frame and each rack.
+  - Only the lanes and the yard are designed: lanes along the axes and one round the hall `ring` metres in, and a
+    gravel or concrete yard.
+  - Each zone is drawn its own way:
+    - a pad is sawcut at its own spacing from its own corner;
+    - an apron is laid in steel plates of three sizes, welded and bolted;
+    - a lane is lined in paint, dashed down its middle and worn in two tracks;
+    - a trench is grating over a pit seen in parallax;
+    - the yard is domed gravel stones, or concrete in long strip pours sawcut at no rhythm (no running bond).
+  - Kibble lies over the pads and the yard: manhole covers, drain grates over their own pits (parallax), bolted anchor
+    plates, oil stains. One at most per cell, kept off a zone's edge.
+  - Near, the floor's relief (joints, kerbs, bolts, plates, stones) turns its normal; far off, only its tones.
+  - It is drawn only on the floor, within 1.5 m of the floor at the centre, so a deck's top and a pipe's crown are not.
+  - The page reads it as two small textures: the zones, and a grid of cells naming the zones over each.
+  - The foundry's and the refinery's concrete layers became a jointless grain, since the plan draws the joints.
+  - Absent, the land and its page are byte-identical.

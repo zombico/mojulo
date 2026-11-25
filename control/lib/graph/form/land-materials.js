@@ -17,13 +17,14 @@ const f = Object.freeze;
 const L = (cut, metres, role, metal, rough) => f({ cut, metres, role, metal, ...(rough !== undefined ? { rough } : {}) });
 
 export const MATERIAL_SETS = f({
-  // a smelter's hall: walls and machines of riveted steel plate, slag in heaps and drifts, a poured concrete floor in its
-  // slabs, ash and dust settling everywhere the traffic does not reach
+  // a smelter's hall: walls and machines of riveted steel plate, slag in heaps and drifts, a poured concrete floor (its
+  // slabs, joints and pours the works' floor plan's, local-meru/works-floor.js: the layer only its grain), ash and dust
+  // settling everywhere the traffic does not reach
   foundry: f({ id: 'foundry', reads: 'Riveted steel plate, black slag, slabbed concrete, settled ash',
-    rock: L('plate', 5, 'stone', 0.65, 0.75), scree: L('scree', 3, 'trim', 0, 0.95), soil: L('precast', 16, 'floor', 0, 0.95), sand: L('powder', 2, 'sand', 0, 1) }),
-  // a refinery's superstructure: open steel grating and deck plate, gravel, concrete pads, oily grime
+    rock: L('plate', 5, 'stone', 0.65, 0.75), scree: L('scree', 3, 'trim', 0, 0.95), soil: L('powder', 3, 'floor', 0, 0.9), sand: L('powder', 2, 'sand', 0, 1) }),
+  // a refinery's superstructure: open steel grating and deck plate, gravel, concrete (its pads the floor plan's), oily grime
   refinery: f({ id: 'refinery', reads: 'Steel grating and tread plate, gravel ballast, concrete pads, oily grime',
-    rock: L('tread', 2.5, 'stone', 0.75, 0.5), scree: L('scree', 2.5, 'trim', 0, 0.95), soil: L('precast', 5, 'floor', 0, 0.85), sand: L('powder', 1.6, 'sand', 0, 0.7) }),
+    rock: L('tread', 2.5, 'stone', 0.75, 0.5), scree: L('scree', 2.5, 'trim', 0, 0.95), soil: L('powder', 3, 'floor', 0, 0.85), sand: L('powder', 1.6, 'sand', 0, 0.7) }),
   // a hangar: plate walls, a sealed epoxy floor in bays, grit and rubber in the lanes
   hangar: f({ id: 'hangar', reads: 'Steel wall plate, a sealed epoxy floor, grit in the lanes',
     rock: L('plate', 4, 'stone', 0.7, 0.5), scree: L('scree', 2, 'trim', 0, 0.95), soil: L('epoxy', 8, 'floor', 0, 0.45), sand: L('powder', 1.6, 'sand', 0, 0.9) }),

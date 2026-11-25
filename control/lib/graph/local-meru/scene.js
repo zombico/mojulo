@@ -34,6 +34,7 @@ import { reliefField, reliefGrain } from '../noise/relief.js';
 import { groundField } from './ground.js';
 import { massifField } from './massif.js';
 import { worksFaces } from './works.js';
+import { worksFloor } from './works-floor.js';
 import { crystalSites, landCrystalFaces } from './crystals.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor, GRIT_PIXELS } from './plan.js';
 import { rockFabric, FABRIC_GROUPS } from '../matte-paint/fabric.js';
@@ -602,6 +603,8 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     cutouts,
     lights: [],
     ...(WK ? { lamps: WK.lamps, glows: WK.glows, decks: WK.decks } : {}),
+    // (the works' floor designed from above, works-floor.js: the land's shader draws it, world-scene hands it to the form)
+    ...(WK && p.recipe.works.floor ? { floorPlan: worksFloor(p.recipe.works, p.tiers[0].centre, heightAt) } : {}),
     cameras: [manifest.camera || cam('seam', eye, [c[0], c[1], peakZ - 2]), cam('wide', wide, [c[0], c[1], J.at[2] + rise * 0.55], 60), ...climbCams, cam('top', [top.arrive.at[0], top.arrive.at[1], top.arrive.at[2] + 1.6], [J.at[0], J.at[1], J.at[2]], 80)],
     viewBox: manifest.viewBox || { width: 1120, height: 780 },
     title: ctx.title || manifest.title || `mojulo stage · local meru · ${st.id.replace('-', ' ')}`,
