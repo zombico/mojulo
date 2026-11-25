@@ -321,7 +321,8 @@ async function attachCityWalkers(scene, people = null) {
   // walker wears one in turn at a height of its own, real-size; the level's figures carry their bakes, none is added here)
   if (Array.isArray(people) && people.length) {
     const tall = (i) => 1 + ((((i * 2654435761) >>> 0) % 1000) / 1000 - 0.5) * 0.12;
-    scene.walkers = loops.map((L, i) => ({ figure: people[i % people.length], blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
+    // (a walker of a six wears its six's person, geocity/crowd.js `person`; any other the people in turn)
+    scene.walkers = loops.map((L, i) => ({ figure: people[(Number.isInteger(L.person) ? L.person : i) % people.length], blend: true, path: L.path, style: L.style || 'bumble', scale: Math.round(tall(i) * 1000) / 1000, speed: L.speed > 0 ? L.speed : 1.35, ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}) }));
     delete scene.walkerLoops;
     return scene;
   }

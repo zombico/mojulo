@@ -651,10 +651,11 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
   Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   Object.defineProperty(out, 'townDoors', { value: [], enumerable: false });
-  // (the cars its hero may get into, cars.js: the ones it parks, and where none stands within a walk of the start, its
-  // own fleet's at the kerb there)
+  // (the cars its hero may get into, cars.js: the ones it parks, and where none stands within a few steps of the start
+  // (KERB.walk: a downtown's kerbs park cars down every street), its own fleet's at the kerb there, in no bay a car of
+  // the street's already stands in)
   const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
-  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [])), ...lots], enumerable: false });
+  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [], lots)), ...lots], enumerable: false });
   // (its STREETS as a driver keeps to them: the middle line of each signalled street its traffic drives, cityRoads)
   Object.defineProperty(out, 'roads', { value: cityRoads(streets), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
@@ -685,8 +686,8 @@ const parkedCars = (list) => list.filter((c) => !c.extra).map((c) => ({ at: c.po
 // walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
 // apart, each spot on the road and clear of every box, nose to tail; where a ground is given (`top`), the road is
 // the ground there, never one running under a walk or a pad. → [{ at, heading }], none where no road lies beside the start
-const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 60, lane: 2.4 });
-function kerbSpots(route, road, colliders, top = null, lanes = []) {
+const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 20, lane: 2.4, bay: 5.5 });
+function kerbSpots(route, road, colliders, top = null, lanes = [], taken = []) {
   if (route.length < 2) return [];
   const [x0, y0] = route[0], hd = Math.atan2(route[1][1] - y0, route[1][0] - x0), f = [Math.cos(hd), Math.sin(hd)], spots = [];
   const blocked = (x, y, z) => colliders.some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
@@ -701,7 +702,8 @@ function kerbSpots(route, road, colliders, top = null, lanes = []) {
   for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
     if (spots.length >= KERB.most) break;
     const x = x0 + side.n[0] * side.s + f[0] * k * KERB.apart, y = y0 + side.n[1] * side.s + f[1] * k * KERB.apart, z = road(x, y);
-    if (z === null || blocked(x, y, z) || (top && [-2.2, 2.2].some((d) => !open(x + f[0] * d, y + f[1] * d)))) continue;
+    // (never in a bay the street already parks a car in: geocity/scene.js's kerbs, its lots)
+    if (z === null || blocked(x, y, z) || taken.some((c) => Math.hypot(c.at[0] - x, c.at[1] - y) < KERB.bay) || (top && [-2.2, 2.2].some((d) => !open(x + f[0] * d, y + f[1] * d)))) continue;
     spots.push({ at: [r3(x), r3(y), r3(z)], heading: r3(hd) });
   }
   return spots;

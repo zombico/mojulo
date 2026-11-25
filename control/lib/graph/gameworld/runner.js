@@ -83,6 +83,7 @@ import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHit
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
 import { peopleExtra } from './people.js';
+import { crowdSets } from '../geocity/crowd.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
 import { vehicleRule, VEHICLES as PHYSICS } from '../roads/vehicles.js';
 import { FLEET } from '../roads/fleet.js';
@@ -552,7 +553,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra() : null;
     const goalCast = (hostile || folk || cars) && !fight && !stall && !market ? GA.goalCast : null;
     // (the people of its pavements, people.js: a district's; rolled by the world's keys, worn by its scene's walkers)
-    const people = s.section === 'geocity' ? peopleExtra(G) : null;
+    // (as many sixes of different people as its crowd rolls, geocity/crowd.js: a busy downtown two, a packed one three)
+    const people = s.section === 'geocity' ? peopleExtra(G, { sets: crowdSets(G.levels[s.level]?.geocity ?? {}) }) : null;
     // (a side map's boss in its last room: side-map/boss-cast.js)
     const sideBoss = s.section === 'sidemap' && G.levels[s.level]?.sidemap?.boss ? (ends) => sideMapBossCast(G, ends, { refs: bossRefs, ...(heroStature ? { stature: heroStature } : {}) }) : null;
     const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people, sideBoss);

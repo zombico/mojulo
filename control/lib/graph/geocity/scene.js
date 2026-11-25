@@ -69,6 +69,7 @@ import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { flowOf, flowLaws, FLOW_LOD } from './flow.js';
 import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISHES, finishOf } from './industry.js';
 import { INDUSTRY_SEGMENTS, CIVIC_SEGMENTS } from './segments.js';
+import { sixesOf, crowdOf, CROWDS, SIX } from './crowd.js';
 import { HIGHWAY, deckAt } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates, shoreAt } from './waterfront.js';
 import { rooftopTemplates, rooftopPlan, lotRoofPlan, beaconsOf, BEACON, ROOFTOP } from './rooftop.js';
@@ -2744,22 +2745,30 @@ export function assembleGeocityScene(m, ctx = {}) {
   // one to each stretch of it, turn about one way and the other, at a person's pace; the legacy city's walkers carry them (worlds/world-kinds.js
   // attachCityWalkers, scene/channels/walkers.js: their clothed rigs, a looped path). A block whose shops stand on a
   // forecourt keeps its walk to those who shop there: its ring would pass through its rails. Seeded per block.
-  const PEOPLE = { inset: 1.2, stride: 6, speed: 1.35, most: 36, share: 0.9, each: 55, block: 6 }, walkerLoops = [];
+  const PEOPLE = { inset: 1.2, stride: 6, speed: 1.35 }, walkerLoops = [];
   if (PLAY) {
-    const railed = new Set(fores.map((f) => f.block));
+    // (its CROWD in sixes, crowd.js: each walked block an area, its walk's ring its path, asked its sixes by its walk and
+    // its kind; the district's sixes stacked where they are asked, nearest its middle first; each six six different
+    // people of one rolled set)
+    const railed = new Set(fores.map((f) => f.block)), areas = [], rings = new Map();
+    const mids = walked.map((b) => [(b.rect[0] + b.rect[2]) / 2, (b.rect[1] + b.rect[3]) / 2]), mid = mids.length ? mids.reduce((a, m) => [a[0] + m[0] / mids.length, a[1] + m[1] / mids.length], [0, 0]) : [0, 0];
+    const kindOf = new Map(d.regions.flatMap((r) => (r.blocks ?? []).map((b) => [b.id, b.kind])));
     for (const b of walked) {
-      if (walkerLoops.length >= PEOPLE.most) break;
       if (railed.has(b.id)) continue;
-      const R = streamOf(seed, 'people', b.id), [x0, y0, x1, y1] = b.rect, k = PEOPLE.inset;
-      if (x1 - x0 < 12 || y1 - y0 < 12 || R() >= PEOPLE.share) continue;
+      const [x0, y0, x1, y1] = b.rect, k = PEOPLE.inset;
+      if (x1 - x0 < 12 || y1 - y0 < 12) continue;
       const corners = [[x0 - k, y0 - k], [x1 + k, y0 - k], [x1 + k, y1 + k], [x0 - k, y1 + k], [x0 - k, y0 - k]], pts = [];
       for (let i = 0; i + 1 < corners.length; i++) { const [a, c] = [corners[i], corners[i + 1]], L = Math.hypot(c[0] - a[0], c[1] - a[1]), n = Math.max(1, Math.round(L / PEOPLE.stride)); for (let j = 0; j < n; j++) pts.push([a[0] + ((c[0] - a[0]) * j) / n, a[1] + ((c[1] - a[1]) * j) / n]); }
-      const ring = [...pts, pts[0]].map(([x, y]) => P3([x, y, S(x, y) + KERB]));
-      // (a person to each stretch of its walk, turn about: one way, then the other, set out round it)
-      const many = Math.max(1, Math.min(PEOPLE.block, Math.round((2 * (x1 - x0 + y1 - y0)) / PEOPLE.each))), first = R();
-      for (let i = 0; i < many && walkerLoops.length < PEOPLE.most; i++) walkerLoops.push({ block: b.id, path: i % 2 ? ring.slice().reverse() : ring, speed: r5(PEOPLE.speed * (0.85 + R() * 0.3)), start: r5((first + i / many) % 1) });
+      rings.set(b.id, [...pts, pts[0]].map(([x, y]) => P3([x, y, S(x, y) + KERB])));
+      areas.push({ id: b.id, length: 2 * (x1 - x0 + y1 - y0), kind: kindOf.get(b.id) ?? 'midrise', rank: Math.hypot((x0 + x1) / 2 - mid[0], (y0 + y1) / 2 - mid[1]) });
+    }
+    const crowd = crowdOf({ crowd: d.metro.crowd, at: d.spec.at });
+    for (const six of sixesOf(areas, { crowd, rand: (id) => streamOf(seed, 'people', id) })) {
+      const ring = rings.get(six.area);
+      for (const m of six.members) walkerLoops.push({ block: six.area, path: m.reverse ? ring.slice().reverse() : ring, speed: r5(PEOPLE.speed * m.speed), start: m.start, person: m.person });
     }
     if (walkerLoops.length) counts.people = walkerLoops.length;
+    counts.crowd = { word: crowd, sixes: walkerLoops.length / SIX, sets: CROWDS[crowd].sets };
   }
   // ── ITS PLAN (played): the metro as a map's ground, in its own metres (gameworld/city-map.js lays it on mana-ui's
   // map): its frame, its land as street, its water, its arterials' roadways, every block by what it is (a park, a

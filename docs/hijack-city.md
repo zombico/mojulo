@@ -128,6 +128,19 @@ its traffic's headlights and tail lights (scene/channels/flow.js, a night page's
 amber in a lit smog, Miami's white over a clear sea air, San Francisco's halos in its fog, Boston's cold white, Toronto's
 warm. `civic: false` keeps none of the places.
 
+## Pedestrians, in sixes
+
+The played district's pavements are walked by SIXES (`geocity/crowd.js`): six different people (each rolled a person of
+their own, gameworld/people.js `streetPeople`) walking one block's walk together and apart, two pairs side by side and
+two on their own, each group its own pace and its own way round. Each walked block asks for sixes by its walk's length
+and what it is (`KIND_WEIGHT`: a square, towers and a main street ask more than houses), and the district stacks sixes
+where they are asked, nearest its middle first, up to its crowd's most. The metro's `crowd` word sets how heavy:
+`quiet` (one six of people rolled, at most four sixes walking), `busy` (two rolled, eight walking) or `packed` (three
+rolled, twelve walking); a district in the core or the frame is busy and one in the outskirts quiet unless it says. The
+people a level rolls follow its crowd (gameworld/runner.js `crowdSets`), and every six on the pavement is six of one
+roll, so no two in a six are alike. The scene's readout says what it laid (`counts.crowd`: the word, the sixes, the
+rolls).
+
 ## Locales
 
 `hijackCityWorld({ locale })` stands the game in a place (`gameworld/locales.js` `LOCALES`, one row each): its suburbs'

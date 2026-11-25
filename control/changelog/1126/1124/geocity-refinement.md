@@ -79,3 +79,10 @@
   sodium-amber lamps in a lit smog, Miami's white lamps, San Francisco's fog, Boston's cold white, Toronto's warm). The
   city falls dark so what is lit stands out: windows, lit shop interiors, a pool of light under every street lamp and
   alley lamp with a glow at its head, and the traffic's headlights and tail lights. Alleys now have wall lamps.
+- Pedestrians, in sixes: the played district's sidewalks are walked by groups of six different people (two pairs side
+  by side and two on their own, each at its own pace and some going the other way round). Busier blocks (a square,
+  towers, a main street) get more sixes than quiet residential ones, filled nearest the middle first. A level's
+  `crowd` sets how heavy it is: `quiet`, `busy` or `packed` (one, two or three rolls of six different people, up to
+  four, eight or twelve sixes walking); downtown and the inner city are busy and the suburbs quiet by default.
+- Fixed: a hero starting downtown could find no car to take at the kerb, since a downtown parked car nearby kept the
+  kerb cars from being laid; the kerb cars are laid now, never on a bay already taken.
