@@ -765,9 +765,14 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const score = 100 * over(c, me) + 4 * party.reduce((a, B) => a + over(c, B), 0) + foes.reduce((a, B) => a + over(c, B), 0);
       if (!best || score < best.score - 1e-6) best = { ...c, score };
     }
+    // (the window as it was painted last frame: where it crossed an edge, its point moves by as much and keeps the move,
+    // so the window is held inside the screen whatever its height comes to after it was measured; a new member, afresh)
+    if (nudge.m !== m) { nudge.m = m; nudge.dy = 0; }
+    if (q && q.height > 0) { if (q.top < E - 0.5) nudge.dy += E - q.top; else if (q.bottom > Ht - E + 0.5) nudge.dy -= q.bottom - (Ht - E); }
     // (an anchor stands its row's bottom middle on its point)
-    return [(best.l + w / 2) / Wd, best.b / Ht];
+    return [(best.l + w / 2) / Wd, (best.b + nudge.dy) / Ht];
   }
+  const nudge = { m: null, dy: 0 };
   // (the world's own states on a fighter, by how a line says them: cfg.states, rpg.js)
   const ownStates = (st) => (cfg.states ? Object.keys(cfg.states).filter((k) => st[k] > 0).map((k) => cfg.states[k].said) : []);
   function battleModel() {
