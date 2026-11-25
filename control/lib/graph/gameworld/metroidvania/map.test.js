@@ -64,12 +64,11 @@ describe('the box\'s map', () => {
     expect(boxMapView(map, S)).toEqual(boxMapView(map, S));
   });
 
-  it('rides the HUD as a minimap on her, the boss under it, and the pause\'s whole map', () => {
+  it('rides the pause as the whole map; the minimap in play is the page\'s own, never a second one on the HUD', () => {
     const S = boxHudSpec(), json = JSON.stringify(S);
     expect(() => manaUi.readSpec(S)).not.toThrow();
-    const right = S.hud.children.find((c) => c.props.at === 'top-right'), mini = right.children[0].children[0];
-    expect(mini).toMatchObject({ use: 'map', props: { size: 'corner', focus: { bind: 'bx.focus' }, zoom: { bind: 'bx.zoom' } } });
-    expect(right.children[0].children[1].when).toEqual({ bind: 'bx.bossOn' });
+    // (the explored map's corner, channels/controllable/explored-view.js, is the one minimap: none at the HUD's top right)
+    expect(S.hud.children.find((c) => c.props.at === 'top-right')).toBeUndefined();
     expect(json).toContain('"size":"panel"');
     expect(map.zoom).toBeCloseTo(Math.max(...L.box) / BOX_MAP.mini, 3);
   });

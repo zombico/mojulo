@@ -157,3 +157,5 @@
   skulls down it.
 - Characters can wear a corset (an outfit piece, `corset`), laced up the back with skulls set down the lacing
   (`skulls`); and a winged helm, the `wingedTVisor` headgear (its `earWings` ornament).
+- The castle's HUD draws each thing once: one map (the corner map with how much is explored) and the boss's bar across the
+  bottom of the screen; a boss's name shows alone as Erina enters its room, then fades.

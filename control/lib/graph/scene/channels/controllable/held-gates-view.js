@@ -61,9 +61,11 @@ function __hgFrame() {
   // (one set of vitals: the page's own health panel, drawn and shown for any body with an hpMax, gives way to the castle's)
   if (typeof __hp !== 'undefined' && __hp && __hp.wrap && __hp.wrap.style.display !== 'none') __hp.wrap.style.display = 'none';
   // (a game with a look draws these on mana-ui, gameworld/metroidvania/hud.js: this page's own band and bars give way)
-  if (window.__mojHud && window.__mojHud.state && window.__mojHud.state.bx) { if (__hgV.parentNode) { __hgEl.remove(); __hgHeld.remove(); __hgV.remove(); } return; }
+  // (its vitals and its toasts only: the boss's bar across the bottom and the room's bars stay this page's)
+  const __mana = !!(window.__mojHud && window.__mojHud.state && window.__mojHud.state.bx);
+  if (__mana && __hgV.parentNode) { __hgEl.remove(); __hgHeld.remove(); __hgV.remove(); }
   const T = __world.byId[G.spec.target || 'hero'];
-  if (T) {
+  if (T && !__mana) {
     const hp = T.body && Number.isFinite(T.body.hp) && T.hpMax ? Math.max(0, T.body.hp / T.hpMax) : 1, M = T.rule && T.rule.moveset && T.rule.moveset.mp;
     __hgHp.style.width = (hp * 100).toFixed(1) + '%';
     __hgMp.style.width = (M ? Math.max(0, (T.mp == null ? M.max : T.mp) / M.max) * 100 : 0).toFixed(1) + '%';
@@ -87,6 +89,7 @@ function __hgFrame() {
   // (a boss of more than one form: the bar its form's, its full health and its name the mode's own)
   if (__b) { const Md = __b.e.body.modes && __b.e.body.modes[__b.e.modeIdx || 0], mx = Md && Md.hp ? Md.hp : (__hgBMax[__b.B.id] || 1);
     __hgBName.textContent = (Md && Md.title) || __b.B.title || __b.B.id; __hgBHp.style.width = (Math.max(0, __b.e.body.hp / mx) * 100).toFixed(1) + '%'; }
+  if (__mana) return;
   if (G.got.length > __hgSeen) {
     const g = G.got[G.got.length - 1]; __hgSeen = G.got.length; __hgAt = __world.time;
     __hgEl.textContent = g.name;

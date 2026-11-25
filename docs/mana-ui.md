@@ -1152,10 +1152,11 @@ a serif, a Victorian cresting, health in crimson and magic in blue); a box whose
 - **The vitals** at the top left: the place she stands in (the room's locale, else its ring), her health and her MP.
 - **The moments** across the top, one at a time by weight: a power found (rare: held longer, its own cue), a key, a
   prize, "Saved" with the room's place, a waking, a boss's fall; a new region's name as she crosses into it; a boss's
-  name as she comes into its room.
-- **The minimap** at the top right: the `map` component in the corner, on her (`focus`, `zoom`), the screens walked
-  round her.
-- **The boss's bar** under the minimap while she is in its room and it stands, its name over it.
+  name as she comes into its room, alone (no label), held a moment and gone.
+- **The minimap and the boss's bar are the page's own**, one of each, never drawn twice: the explored map's corner at the
+  top right (`channels/controllable/explored-view.js`, its share explored under it) and the boss's bar across the foot,
+  its name over it, while she is in its room and it stands (`held-gates-view.js`: a boss of two forms fills it again as
+  its second, under its own name).
 - **What is held** in a line at the foot's left.
 - **The pause** (Enter): the whole map walked so far, her vitals with their figures, her rooms and wakings counted,
   and the box's relics, each found by name and the rest locked. Back resumes.

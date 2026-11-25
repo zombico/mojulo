@@ -8,9 +8,9 @@
  *                 over them (the room's locale, else its ring's)
  *   the moments   said in a banner across the top, one at a time by weight: a power found (rare: held longer, its own
  *                 cue), a key, a prize, "Saved", a waking, a boss's fall; a new region's name as she crosses into it;
- *                 a boss's name as she comes into its room
- *   the minimap   at the top right, on her: the map of the screens walked round her (boxMapView), north up
- *   the boss      its bar under the minimap while she is in its room and it stands, its name over it
+ *                 a boss's name as she comes into its room, alone, held a moment and gone
+ *   (the minimap and the boss's bar are the page's own, one of each: the explored map's corner and the bar across the
+ *   foot, worlds' explored-view.js and held-gates-view.js)
  *   what is held  the powers and keys she holds, in a line at the foot's left
  *
  *   THE SCREEN (it holds the level while it is up)
@@ -71,12 +71,8 @@ export function boxHudSpec() {
       { use: 'region', props: { at: 'top-left', variant: 'bare' }, children: [col([T(B('place'), 'label'), ...bars(false)], { gap: 'tight' })] },
       // THE MOMENTS: across the top, one at a time
       { use: 'region', props: { at: 'top', variant: 'bare' }, children: [{ use: 'moments', props: { rows: B('moments'), as: 'banner', hold: 2.6, read: 0.8 } }] },
-      // THE MINIMAP, top right, on her: the screens walked round her; THE BOSS under it, its name over its bar, while she
-      // is in its room and it stands
-      { use: 'region', props: { at: 'top-right', variant: 'bare' }, children: [col([
-        { use: 'map', props: { shapes: B('shapes'), markers: B('markers'), view: 'plan', focus: B('focus'), zoom: B('zoom'), size: 'corner' } },
-        { ...col([T(B('bossName'), 'heading'), { use: 'bar', props: { value: B('boss'), max: B('bossMax'), variant: 'boss', figures: false } }], { gap: 'tight', align: 'end' }), when: B('bossOn') },
-      ], { gap: 'normal', align: 'end' })] },
+      // (no minimap and no boss bar here: the page's own are the one of each, the explored map's corner,
+      // channels/controllable/explored-view.js, and the boss's bar across the foot, held-gates-view.js)
       // WHAT IS HELD: a line at the foot's left
       { use: 'region', props: { at: 'bottom-left', variant: 'bare' }, when: B('hasHeld'), children: [T(B('heldWord'), 'label')] },
     ] },

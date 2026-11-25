@@ -16,11 +16,16 @@ const M = (words) => ({ kind: 'geocube', show: 'metroidvania', metroidvania: wor
 const order = (W) => { const [st] = gameStages(W); return stageLevelOrder(W, st, { heroRef: 'h', heroStature: 1.69, ref: 'l' }).args.manifest; };
 
 describe('the box\'s HUD and pause', () => {
-  it('is a spec the runtime reads: the vitals, the moments, the boss\'s bar, what is held, and the pause', () => {
+  it('is a spec the runtime reads: the vitals, the moments, what is held, and the pause; the minimap and the boss\'s bar the page\'s own', () => {
     expect(() => manaUi.readSpec(boxHudSpec())).not.toThrow();
-    const S = JSON.stringify(boxHudSpec());
-    for (const b of ['bx.hp', 'bx.mp', 'bx.moments', 'bx.bossOn', 'bx.shapes', 'bx.relics']) expect(S).toContain(b);
+    const S = JSON.stringify(boxHudSpec()), hud = JSON.stringify(boxHudSpec().hud);
+    for (const b of ['bx.hp', 'bx.mp', 'bx.moments', 'bx.shapes', 'bx.relics']) expect(S).toContain(b);
     expect(boxHudSpec().screens.pause).toBeDefined();
+    // (drawn once: the explored map's corner and the boss's bar across the foot are the page's, explored-view.js and
+    // held-gates-view.js; the pause keeps its map)
+    expect(hud).not.toContain('bx.bossOn');
+    expect(hud).not.toContain('"use":"map"');
+    expect(JSON.stringify(boxHudSpec().screens.pause)).toContain('"use":"map"');
   });
 
   it('lays every room of the box on its map, squared, and carries what the box holds', () => {

@@ -667,23 +667,10 @@ ${race ? `    if (RACE) {
       if (k >= 0 && k !== bxRoom) {
         bxRoom = k; const R = BXF.rooms[k]; st.bx.place = R.place;
         if (R.ring !== bxRing) { if (bxRing >= 0) bxMoment({ text: BXF.rings[R.ring], weight: 'major' }); bxRing = R.ring; }
-        if (R.boss && !bxBossSaid.has(k) && !(BG && BG.felled['boss-' + R.id] != null)) { bxBossSaid.add(k); bxMoment({ text: R.boss, sub: 'Boss', weight: 'decisive' }); }
+        if (R.boss && !bxBossSaid.has(k) && !(BG && BG.felled['boss-' + R.id] != null)) { bxBossSaid.add(k); bxMoment({ text: R.boss.charAt(0).toUpperCase() + R.boss.slice(1), weight: 'decisive' }); }
       }
       const R = bxRoom >= 0 ? BXF.rooms[bxRoom] : null, bb = R && R.boss && W.breakables ? W.breakables.find(function (b) { return b.id === 'boss-' + R.id; }) : null;
-      st.bx.bossOn = !!(bb && !bb.broken && Number.isFinite(bb.hp)); if (st.bx.bossOn) { st.bx.bossName = R.boss; st.bx.boss = Math.max(0, bb.hp); st.bx.bossMax = BXF.bossHp || 1; }
-      else if (BG && BG.spec && BG.spec.bosses) {
-        // (a boss STOOD as a body of the world (gameworld/metroidvania/bosses.js): the one whose room she stands in, standing;
-        // its bar its health against its form's (a boss of two forms fills again as its second, named as it), else its own)
-        const p = me.transform.pos;
-        for (const Bd of BG.spec.bosses) {
-          const e = Bd.entity && W.byId[Bd.entity], q = Bd.room;
-          if (!e || !q || !e.body || e.downed || e.gone || BG.felled[Bd.id] != null || !(p[1] >= q[0] && p[1] <= q[1] && p[2] >= q[2] && p[2] <= q[3])) continue;
-          if (e.hudMax == null) e.hudMax = e.body.hp;
-          const Md = e.body.modes && e.body.modes[e.modeIdx || 0];
-          st.bx.bossOn = true; st.bx.bossName = (Md && Md.title) || Bd.title || Bd.id; st.bx.boss = Math.max(0, e.body.hp); st.bx.bossMax = (Md && Md.hp) || e.hudMax || 1;
-          break;
-        }
-      }
+      st.bx.bossOn = !!(bb && !bb.broken && Number.isFinite(bb.hp)); if (st.bx.bossOn) { st.bx.bossName = R.boss; st.bx.boss = Math.max(0, bb.hp); }
     }` : ''}
     // (the touch layer's word for its pad, when the page has one)
     // (a page whose touch layer draws itself still says whether it is up: a button for a touch screen alone reads it)
