@@ -83,6 +83,17 @@ describe('the scroll stage\'s interior', () => {
     expect(L(sudden)).toContain('movers-told');
   });
 
+  it('the reactor stands in the core room\'s open, its shields a lock\'s leaves just ahead of it, open for good once it falls', () => {
+    const P = plan(), R = P.reactor, sec = P.sections[R.section], sh = P.movers.filter((m) => m.shield);
+    expect(sec.kind).toBe('core');
+    const o = openAt(P, R.u);
+    expect(R.v - R.r).toBeGreaterThan(o[0]); expect(R.v + R.r).toBeLessThan(o[1]);
+    expect(sh.map((m) => m.from).sort()).toEqual(['ceiling', 'floor']);
+    for (const m of sh) { expect(m.u1).toBeLessThan(R.u - R.r); expect(m.opensWith).toBe(R.id); }
+    expect(lawsOf({ ...P, movers: P.movers.map((m) => (m.shield ? { ...m, cycle: { ...m.cycle, open: 0.5 } } : m)) }).find((l) => l.id === 'shields-open').holds).toBe(false);
+    expect(planInterior({ at: 1, sections: [{ kind: 'hall' }] }, { cam, track: flat }).reactor).toBeNull();
+  });
+
   it('the guns stand on the walls, facing the open', () => {
     const P = plan();
     expect(P.mounts.length).toBeGreaterThan(0);

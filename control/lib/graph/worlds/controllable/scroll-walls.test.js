@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { composeLive } from './compose.js';
 import { scrollCamera } from '../../gameworld/scroll-stage/frame.js';
 import { lowerArsenal, PODS } from '../../gameworld/scroll-stage/pods.js';
+import { moverBoxAt } from '../../gameworld/scroll-stage/interior.js';
 
 const E = composeLive(), DT = 1 / 60, LEN = 12, C = scrollCamera(LEN), SA = C.screen.along, SC = C.screen.across;
 const ARS = lowerArsenal(Object.keys(PODS), { L: LEN, S: SC });
@@ -132,6 +133,24 @@ describe('an interior\'s walls', () => {
     const back = withMover({ cycle: { ...CYC, tell: 0, slam: 0, hold: 0, back: 0, rest: 99, period: 100 } });
     back.byId.ship.off[0] = 25; back.byId.ship.off[1] = 10; step(back); step(back);
     expect(back.byId.ship.body.hp).toBe(10);
+  });
+
+  it('the runtime reads a mover where interior.js\'s moverBoxAt reads it, every kind; a shield opens for good once its charge falls', () => {
+    for (const kind of ['crusher', 'lock']) {
+      const st = withMover({ kind, cycle: kind === 'lock' ? { open: 0.6, tell: 0.5, close: 0.4, shut: 0.7, opening: 0.4, period: 2.6, phase: 0.3 } : { ...CYC, phase: 0.4 } });
+      for (let i = 0; i < 200; i++) {
+        E.stepWorld(st, {}, DT);
+        const m = st.byId.crusher, want = moverBoxAt(m.rule, st.time - DT);   // (a rule runs on the clock before the step advances it)
+        expect(m._box[2]).toBeCloseTo(want.box[2], 6); expect(m.out).toBeCloseTo(want.out, 6);
+      }
+    }
+    const sh = E.createWorld({ entities: [{ id: 'ship', pilotable: true, rule: { type: 'scroll-ship', size: [LEN, 4], at: [0, 0], arsenal: ARS }, body: { type: 'none', hp: 10 }, transform: { pos: [0, 0, 0] } },
+      { id: 'core', team: 'foes', rule: { type: 'static' }, body: { type: 'none', hp: 5, radius: 3 }, transform: { pos: [0, 80, 0] } }, mover({ kind: 'lock', opensWith: 'core', cycle: { open: 0, tell: 0, close: 0.01, shut: 99, opening: 0, period: 100, phase: 0 } })],
+      camera: { rule: 'scroll', target: 'ship', view: 'side', dist: C.dist, screen: [SA, SC], track: [] }, pilot: 'ship' });
+    step(sh, {}, 10);
+    expect(sh.byId.crusher.out).toBe(1);
+    sh.byId.core.downed = true; step(sh, {}, 2);
+    expect(sh.byId.crusher.out).toBe(0);
   });
 
   it('with no walls nothing changes', () => {

@@ -50,7 +50,7 @@ describe('the interior drawn', () => {
     const F = lay('station'), side = SCROLL_VIEWS.side;
     const deck = (dir) => F.faces.filter((f) => f.node.startsWith('interior/deck') && f.normal[2] * side.across[2] * dir > 0.9);
     expect(Math.max(...deck(1).map((f) => lum(f.fill)))).toBeGreaterThan(Math.max(...deck(-1).map((f) => lum(f.fill))));
-    expect(F.faces.filter((f) => f.node === 'interior/lamps').every((f) => [INTERIOR_LOOK.station.lamp, '#ff3b30', '#3bff6a'].includes(f.fill))).toBe(true);
+    expect(F.faces.filter((f) => f.node === 'interior/lamps').every((f) => [INTERIOR_LOOK.station.lamp, '#ff3b30', '#3bff6a', '#ffcc33'].includes(f.fill))).toBe(true);
   });
 
   it('a ramp\'s deck faces along its slope', () => {
@@ -65,7 +65,7 @@ describe('the interior drawn', () => {
     expect(K.report.windows).toBe(0);
     const fills = (F) => new Set(F.faces.filter((f) => f.node.startsWith('interior/bulkhead')).map((f) => f.fill));
     expect(fills(K).size).toBeGreaterThan(fills(S).size);
-    expect(K.faces.filter((f) => f.node === 'interior/lamps').every((f) => [INTERIOR_LOOK.facility.lamp, '#ff3b30', '#3bff6a'].includes(f.fill))).toBe(true);
+    expect(K.faces.filter((f) => f.node === 'interior/lamps').every((f) => [INTERIOR_LOOK.facility.lamp, '#ff3b30', '#3bff6a', '#ffcc33'].includes(f.fill))).toBe(true);
   });
 
   it('stands in the slab\'s depth: the back behind the play, the struts before it', () => {

@@ -110,6 +110,9 @@ describe('the scroll stage\'s HUD', () => {
     expect(menuOf(H.feed.scroll.controls.in)).toEqual(['select']);
     expect(scrollHud({ more: 'G  call' }).feed.scroll.controls.off.keys.at(-1)).toEqual({ action: 'G', label: 'call' });
     expect(scrollHud({ boss: { id: 'x', name: 'X', systems: 0 } }).feed.scroll.boss).toBeUndefined();
+    // (a boss read by its hp, an interior's reactor: its full hp carried, the host's bar its share of it in ticks)
+    expect(scrollHud({ boss: { id: 'reactor', name: 'Reactor core', systems: 10, hp: 60 } }).feed.scroll.boss).toEqual({ id: 'reactor', name: 'Reactor core', systems: 10, hp: 60 });
+    expect(manaHudScript(scrollHud({ boss: { id: 'reactor', name: 'Reactor core', systems: 10, hp: 60 } }), { game: false })).toContain('SGF.boss.hp');
     expect(SCROLL_KEYS).toContain('F  eject (hold)');
   });
 

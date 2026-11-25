@@ -217,7 +217,7 @@ export function scrollStageOf(manifest) {
   // the INTERIOR (interior.js): a run flown inside a station or a facility, its walls and the open between them
   const interior = S.interior ? planInterior(S.interior, { cam, track, start, seed }) : null;
   // (its guns on their mounts and its hatches' drones: the turret's row and the hatchling's, patterns.js)
-  const insideSet = interior ? lowerFoes(['turret', 'hatchling'], { L: ship.length, S: C }) : null;
+  const insideSet = interior ? lowerFoes(['turret', 'hatchling', 'reactor'], { L: ship.length, S: C }) : null;
   return { view, cam, ship, track, start, extent: trackExtent(track, start), seed, arsenal, targets, foes, foeSet, hp: S.hp ?? SHIP_HP, lives: S.lives ?? SHIP_LIVES, plane, turretSet, interior, insideSet };
 }
 
@@ -244,9 +244,15 @@ function interiorLife(I, set, { view, ship, back, airframe, look, cam }) {
   }
   for (const m of I.movers) {
     const len = r2(m.u1 - m.u0), across = r2(m.v1 - m.v0), size = view === 'side' ? [dLen, len, across] : [across, len, dLen];
-    out.push({ id: m.id, rule: { type: 'scroll-mover', kind: m.kind, box: [m.u0, m.u1, m.v0, m.v1], from: m.from, reach: m.reach, cycle: m.cycle, d: dMid },
+    out.push({ id: m.id, rule: { type: 'scroll-mover', kind: m.kind, box: [m.u0, m.u1, m.v0, m.v1], from: m.from, reach: m.reach, cycle: m.cycle, d: dMid, ...(m.opensWith ? { opensWith: m.opensWith } : {}) },
       body: { type: 'mesh', shape: 'box', size, color: lit(m.kind === 'lock' ? K.rib : K.cut), marker: false },
       transform: { pos: toWorld(view, [(m.u0 + m.u1) / 2, (m.v0 + m.v1) / 2 + (m.from === 'ceiling' ? 1 : -1) * m.reach, dMid]).map(r2), heading: 0 } });
+  }
+  // the REACTOR: the core room's boss, fixed in its open behind its shields, its spiral out all round; a bright core
+  if (I.reactor) {
+    const R = I.reactor, F = set.foes.reactor;
+    out.push({ id: R.id, team: 'foes', rule: { type: 'scroll-foe', enter: R.u, v: 0, at: [R.u, R.v], path: F.path, speed: 0, pattern: set.patterns[F.pattern], safe: 0, hue: set.hue, score: F.score },
+      body: { type: 'mesh', shape: 'sphere', radius: R.r, color: K.lamp, marker: false, hp: F.hp, radius: R.r, poise: 99, ...blastOf(r2(R.r * 1.6)) }, transform: { pos: toWorld(view, [R.u, R.v, 0]).map(r2), heading: back } });
   }
   return out;
 }
@@ -307,10 +313,14 @@ function playOf(G, { airframe = true, stage = '' } = {}) {
   };
 }
 
-// the boss the track holds for, as the HUD names it: its hull's class (a corvette's 'Corvette') and its systems
+// the boss the track holds for, as the HUD names it: its hull's class (a corvette's 'Corvette') and its systems; an
+// interior's reactor its hp in ten ticks
+const REACTOR_TICKS = 10;
 function bossHud(G) {
   const id = [...G.track].reverse().find((L) => L && L.hold === true && L.until)?.until, H = id && G.plane.find((h) => h.id === id);
-  return H ? { id, name: String(H.P.label || H.H.capital).replace(/^an? /, '').replace(/^./, (c) => c.toUpperCase()), systems: H.P.systems.length } : null;
+  if (H) return { id, name: String(H.P.label || H.H.capital).replace(/^an? /, '').replace(/^./, (c) => c.toUpperCase()), systems: H.P.systems.length };
+  if (id && G.interior?.reactor?.id === id) return { id, name: 'Reactor core', systems: REACTOR_TICKS, hp: G.insideSet.foes.reactor.hp };
+  return null;
 }
 
 /** The ship and the scroll camera, as a level puts them on its manifest. */

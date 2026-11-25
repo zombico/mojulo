@@ -19,6 +19,8 @@
  *   HATCHES, SLOTS  a hatch's opening in the deck, its rim; the slot a crusher or a lock's leaf draws back into, dark
  *                 through the deck and up the cut, warning lamps either side (red a crusher's, amber a lock's); a lock's
  *                 frame on the back (the movers' bodies are the page's, on their rule: worlds/controllable/scroll-foes.js)
+ *   the REACTOR   its housing on the back where it stands: an octagonal ring in the trim, spokes of light out to it (the
+ *                 core itself and its shields are bodies on the page, worlds/controllable/scroll-foes.js)
  *   the HULL      the station's face where the run begins and ends, plated, its docking lights either side
  *   FOREGROUND    struts in front of the play, dark, sliding past fastest (the side map's girders), a lit edge each
  *
@@ -211,6 +213,18 @@ export function layInterior(plan, cam, { view = 'side', seed = 1, sun = null } =
   for (const m of (plan.movers || []).filter((x) => x.kind === 'lock' && x.from === 'ceiling')) {
     const o = edgeAt((m.u0 + m.u1) / 2), w = plan.step * 0.05;
     for (const u of [m.u0 - w * 1.4, m.u1 + w * 0.4]) poly([[u, o[0], dB + 0.6], [u + w, o[0], dB + 0.6], [u + w, o[1], dB + 0.6], [u, o[1], dB + 0.6]], [0, 0, 1], K.trim, 'trim', { enclosed: ENCLOSED.back + 0.2, glow });
+  }
+  // the REACTOR's housing on the back: an octagonal ring in the trim round where it stands, plated, spokes of light out to it
+  if (plan.reactor) {
+    const R = plan.reactor, r0 = R.r * 1.7, r1 = R.r * 2.2, d = dB + 0.8, blk = kb('hull', K.kibble.hull);
+    for (let k = 0; k < 8; k++) {
+      const a0 = (k * Math.PI) / 4 + Math.PI / 8, a1 = a0 + Math.PI / 4, P0 = (rr, a) => [R.u + Math.cos(a) * rr, R.v + Math.sin(a) * rr, d];
+      poly([P0(r0, a0), P0(r1, a0), P0(r1, a1), P0(r0, a1)], [0, 0, 1], K.trim, blk, { enclosed: 0.7, glow });
+      const am = (a0 + a1) / 2, sp = 0.6;
+      poly([[R.u + Math.cos(am) * r1 - Math.sin(am) * sp, R.v + Math.sin(am) * r1 + Math.cos(am) * sp, d + 0.1], [R.u + Math.cos(am) * r1 * 1.6 - Math.sin(am) * sp, R.v + Math.sin(am) * r1 * 1.6 + Math.cos(am) * sp, d + 0.1],
+        [R.u + Math.cos(am) * r1 * 1.6 + Math.sin(am) * sp, R.v + Math.sin(am) * r1 * 1.6 - Math.cos(am) * sp, d + 0.1], [R.u + Math.cos(am) * r1 + Math.sin(am) * sp, R.v + Math.sin(am) * r1 - Math.cos(am) * sp, d + 0.1]], [0, 0, 1], K.lamp, 'lamps', { lit: true });
+      report.lamps += 1;
+    }
   }
   // ── the HULL's face where the run begins and ends, plated, its docking lights ──
   for (const [u, n, q] of [[plan.u0, -1, E[0]], [plan.u1, 1, E[E.length - 1]]]) {

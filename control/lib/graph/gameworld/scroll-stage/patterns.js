@@ -80,6 +80,9 @@ export const FOES = Object.freeze({
   // a hatchling: a drone out of an interior's hatch, up square to its wall, then back across the screen; never in a
   // wave, it comes with its hatch
   hatchling: row({ hp: 1, craft: 'daggerInterceptor', path: row({ kind: 'rise', out: 0.16 }), speed: 0.26, score: 120 }),
+  // an interior's reactor: its core room's boss, fixed in the room behind its shields, a spiral out all round; never in
+  // a wave, it comes with its room (interior.js REACTOR)
+  reactor: row({ hp: 60, pattern: 'spiral', path: row({ kind: 'fixed' }), speed: 0, score: 5000 }),
 });
 export const FOE_IDS = Object.freeze(Object.keys(FOES));
 

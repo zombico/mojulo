@@ -202,9 +202,15 @@ describe('design_game: designed flight levels', () => {
 
   it('Blaze Gunner: a locked pitch lays its first stage; built, a scroll stage on its own play, lost with the ship and won with its boss', async () => {
     const out = await designGameHandler({ title: 'Blaze', world: { id: 'blaze', name: 'Blaze', rail: { from: 'blaze-gunner', locked: true } } });
-    expect(out.pitch).toMatchObject({ stored: true, by: 'blaze-gunner', levels: ['stage-1'] });
+    expect(out.pitch).toMatchObject({ stored: true, by: 'blaze-gunner', levels: ['stage-1', 'stage-2'] });
     const ref = out.ref, run = await designGameHandler({ ref, run: true });
-    expect(run.ran.filter((r) => r.action === 'make').map((r) => r.key)).toEqual(expect.arrayContaining(['level-stage-1-0', 'game']));
+    expect(run.ran.filter((r) => r.action === 'make').map((r) => r.key)).toEqual(expect.arrayContaining(['level-stage-1-0', 'level-stage-2-0', 'game']));
+    // (the second stage flies into a station: its corridor on the camera, its reactor the boss its track holds for)
+    const M2 = SketchRepository.getByRef(`${ref}-level-stage-2-0`).manifest;
+    expect(M2.camera.corridor.length).toBeGreaterThan(10);
+    expect(M2.entities.some((e) => e.rule.type === 'scroll-mover')).toBe(true);
+    expect(M2.game.mechanics.find((m) => m.kind === 'defeat-all').who).toBe('reactor');
+    expect(M2.manaHud.feed.scroll.boss).toMatchObject({ id: 'reactor', name: 'Reactor core' });
     const M = SketchRepository.getByRef(`${ref}-level-stage-1-0`).manifest, kinds = M.game.mechanics.map((m) => m.kind);
     // its own play (scroll-stage/stage-scene.js scrollStagePlay): the hero gunship on the d-pad under the scroll camera,
     // its foes' craft, a hull on the play plane broken by rupa, weightless

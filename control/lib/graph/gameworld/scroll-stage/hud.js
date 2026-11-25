@@ -28,7 +28,8 @@
  *     { spec, theme, feed: { scroll }, css }
  *     hp       the ship's hp (the bar's ticks)
  *     lives    the lives past the first
- *     boss     { id, name, systems } the hull the track holds for (its systems the bar's ticks), or null
+ *     boss     { id, name, systems, hp? } the hull the track holds for (its systems the bar's ticks), or a boss read by
+ *              its hp (`hp` its full: the bar's ticks its share of it, `systems` of them), or null
  *     stage    the stage's name (the menu's line under PAUSED)
  *     more     a level's further keys line (another mechanic's: 'G  call'), shown with the keys
  *   SCROLL_HUD_THEME   the theme card it is drawn in where the page names none (a World page's: `orbit`, a ship's
@@ -182,7 +183,7 @@ const SCROLL_HUD_CSS = [
 
 /** A scroll stage's `manaHud` (see the header). */
 export function scrollHud({ theme = cardTheme(SCROLL_HUD_THEME), hp = 10, lives = 2, boss = null, stage = '', more = '' } = {}) {
-  const B0 = boss && typeof boss.id === 'string' && Number.isInteger(boss.systems) && boss.systems > 0 ? { id: boss.id, name: String(boss.name || 'Boss'), systems: boss.systems } : null;
+  const B0 = boss && typeof boss.id === 'string' && Number.isInteger(boss.systems) && boss.systems > 0 ? { id: boss.id, name: String(boss.name || 'Boss'), systems: boss.systems, ...(boss.hp > 0 ? { hp: boss.hp } : {}) } : null;
   const H = Math.max(1, Math.round(hp)), L = Math.max(0, Math.round(lives));
   return {
     // (the theme without its overlay or its stage: a grid drawn over the screen would lie across the play, and the

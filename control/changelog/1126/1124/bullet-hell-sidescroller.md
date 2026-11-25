@@ -95,6 +95,20 @@ It is held to laws: the open is never narrower than
 four ship breadths, each step overlaps the last by as much, a bend asks no more than the slowest gear can follow, the
 open stays on the screen, and every gun stands on its wall.
 
+**The reactor and stage 2.** The core room holds the station's reactor, a boss fixed in the room that throws a spiral
+all round, behind shields that open and shut ahead of it; once it falls they stay open, and the run goes on out
+through the far face. The HUD names it and reads its hp as the bar. Stage 2, "infiltration", is a short approach in
+space with a carrier bringing the vulcan. Then it goes into the station by its mouth:
+- a hall of guns and hatches;
+- the duct;
+- the crushers;
+- the locks;
+- the shutters;
+- the reactor, the screen held until it falls.
+
+The rail lays both stages. The bot reads the corridor, the bulkheads and the movers where their cycles will have them,
+follows a bend before it is in it, and clears stage 2 end to end.
+
 **Laws.** The arsenal and the bullet patterns are held to laws:
 - no pod is better on every measure, and every pod is worth taking over the base gun;
 - a bullet is seen coming, a volley always leaves a way through, and every volley is told;

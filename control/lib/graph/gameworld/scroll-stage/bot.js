@@ -7,9 +7,11 @@
  *   the DODGE    each frame the d-pad's nine choices (the eight ways and none) weighed over the next HORIZON seconds (fine near,
  *                coarse far; each interval read by its nearest pass, so a fast bullet is never missed between two looks): the
  *                ship where each would carry it (at its gear's speed, held in the frame), the foes' bullets where theirs
- *                carry them, a hull's standing blocks as terrain; the danger a choice meets (how far inside a bullet's or
+ *                carry them, a hull's standing blocks as terrain, and an interior's (its corridor's floor and ceiling,
+ *                its bulkheads, its movers where their cycles will have them); the danger a choice meets (how far inside a bullet's or
  *                a block's reach the hitbox would come, the nearer in time the worse) above all else
- *   the LEAN     among choices as safe: toward the height of the nearest foe ahead of it (to be in line to hit it), toward
+ *   the LEAN     among choices as safe: toward the height of the nearest foe ahead of it (to be in line to hit it; inside
+ *                a run held to the open a little ahead, its middle where no foe asks: it follows a bend early), toward
  *                a dropped pod while a slot is open, and back toward its home a quarter of the screen behind the middle
  *   the GUNS     fired throughout; a pod in the other slot switched to when the live one is empty
  *
@@ -25,6 +27,17 @@
  */
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { SCROLL_VIEWS } from './frame.js';
+import { moverBoxAt } from './interior.js';
+
+// an interior's corridor at u (the camera rule's knots: its floor and ceiling a line between them), the runtime's reading
+const corridorAt = (K, u) => {
+  let a = 0, b = K.length - 1;
+  while (b - a > 1) { const m = (a + b) >> 1; if (K[m][0] <= u) a = m; else b = m; }
+  const p = K[a], q = K[b], t = q[0] - p[0] > 1e-9 ? Math.max(0, Math.min(1, (u - p[0]) / (q[0] - p[0]))) : 0;
+  return [p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+};
+// a shield open for good: what it shields has fallen
+const openedFor = (w, r) => { const k = r.opensWith && w.byId[r.opensWith]; return !!(k && (k.downed || k.gone)); };
 
 /** How far ahead the dodge looks (s), and how finely. */
 export const HORIZON = 0.7;
@@ -48,10 +61,20 @@ export function botInput(w, { horizon = HORIZON, scores = null } = {}) {
     const a = [dot(V.along, k.min), dot(V.along, k.max)], b = [dot(V.across, k.min), dot(V.across, k.max)];
     return [Math.min(...a), Math.max(...a), Math.min(...b), Math.max(...b)];
   });
+  // an interior's (interior.js): its corridor's floor and ceiling, its bulkheads with the hull's blocks, and its movers
+  // where their cycles will have them at each time looked at (moverBoxAt: the runtime's own reading)
+  const K = Array.isArray(cam.rule.corridor) && cam.rule.corridor.length > 1 ? cam.rule.corridor : null;
+  for (const q of cam.rule.walls || []) if (q[1] > c[0] - SA && q[0] < c[0] + SA) blocks.push(q);
+  const movers = w.entities.filter((e) => e.rule && e.rule.type === 'scroll-mover' && e.rule.box && e.rule.box[1] > c[0] - SA && e.rule.box[0] < c[0] + SA && !openedFor(w, e.rule));
+  const moved = TIMES.map((f) => movers.map((e) => moverBoxAt(e.rule, (w.time || 0) + f * horizon).box));
   // what it leans toward: the nearest foe ahead in the frame (its height), a pod while a slot is open
   const ahead = w.entities.filter((e) => e.team === 'foes' && !e.downed && !e.gone && !e.waiting && !(e.body && e.body.hittable === false)).map((e) => [dot(V.along, e.transform.pos), dot(V.across, e.transform.pos)])
     .filter(([u, v]) => u > s.screenAt[0] && u < c[0] + SA / 2 && Math.abs(v - c[1]) < SC / 2).sort((a, b) => a[0] - b[0])[0];
   const open = s.slots && s.slots.some((x) => !x), pod = open ? (w.podDrops || [])[0] : null;
+  // (inside a run, the height it leans to is held to the open a little ahead, its middle where nothing asks otherwise:
+  // so it follows a bend before it is in it)
+  const lookU = s.screenAt[0] + SA * 0.18, oAhead = K ? corridorAt(K, lookU) : null, oHere = K ? corridorAt(K, s.screenAt[0]) : null;
+  const inside = oAhead || oHere ? (v) => { const o = oAhead || oHere, m = (o[0] + o[1]) / 2, room = Math.max(0, (o[1] - o[0]) / 2 - (hb.r + MARGIN) * 3); return v == null ? m : Math.max(m - room, Math.min(m + room, v)); } : null;
   let best = null, bestScore = Infinity;
   for (const [du0, dv0] of DIRS) {
     let du = du0, dv = dv0;
@@ -75,7 +98,17 @@ export function botInput(w, { horizon = HORIZON, scores = null } = {}) {
           const d = Math.hypot(a0u + ru * x, a0v + rv * x), reach = b.r + hb.r + MARGIN;
           if (d < reach) d0 += (reach - d) * wgt;
         }
-        for (const q of blocks) { const g = hb.r + MARGIN; if (pu > q[0] - g && pu < q[1] + g && pv > q[2] - g && pv < q[3] + g) d0 += 3 * wgt * (1 + Math.min(pu - q[0] + g, q[1] + g - pu, pv - q[2] + g, q[3] + g - pv)); }
+        const g = hb.r + MARGIN, hit = (q) => { if (pu > q[0] - g && pu < q[1] + g && pv > q[2] - g && pv < q[3] + g) d0 += 3 * wgt * (1 + Math.min(pu - q[0] + g, q[1] + g - pu, pv - q[2] + g, q[3] + g - pv)); };
+        for (const q of blocks) hit(q);
+        for (const q of moved[k]) hit(q);
+        if (K) {
+          // (the corridor: under its floor or over its ceiling, or into the hull's face either side of its mouth)
+          const o = corridorAt(K, Math.max(K[0][0], Math.min(K[K.length - 1][0], pu)));
+          if (pu > K[0][0] - g && pu < K[K.length - 1][0] + g) {
+            if (pv < o[0] + g) d0 += 3 * wgt * (1 + o[0] + g - pv);
+            if (pv > o[1] - g) d0 += 3 * wgt * (1 + pv - o[1] + g);
+          }
+        }
         t0 = t; pu0 = pu; pv0 = pv;
       }
       return d0;
@@ -83,7 +116,7 @@ export function botInput(w, { horizon = HORIZON, scores = null } = {}) {
     const danger = Math.max(meet(true), meet(false));
     // (the lean read a step ahead, where the choice puts it next: home along the scroll held harder than the height, so a
     // dodge steps across a bullet's line rather than backing away down it)
-    const want = pod ? [pod.u - c[0], pod.v - c[1]] : [-SA / 4, ahead ? ahead[1] - c[1] : 0];
+    const want = pod ? [pod.u - c[0], pod.v - c[1]] : [-SA / 4, inside ? inside(ahead ? ahead[1] : null) - c[1] : ahead ? ahead[1] - c[1] : 0];
     const lean = Math.hypot((want[0] - first[0]) * (pod ? 1 : 1.5), want[1] - first[1]);
     const score = danger * 1000 + lean;
     if (scores) scores.push({ d: [du0, dv0], danger: +danger.toFixed(3), lean: +lean.toFixed(2) });

@@ -36,7 +36,9 @@
  *
  *   a MOVER      the rule `scroll-mover` (an interior's crusher or a lock's leaf, gameworld/scroll-stage/interior.js):
  *                { kind: 'crusher' | 'lock', box: [u0, u1, v0, v1] (out), from: 'ceiling' | 'floor', reach, cycle: {
- *                period, phase, … }, d? }: its box drawn back into its wall by its cycle on the world's clock, told
+ *                period, phase, … }, d?, opensWith? }: its box drawn back into its wall by its cycle on the world's clock
+ *                (gameworld/scroll-stage/interior.js moverBoxAt reads it the same; a shield open for good once the
+ *                entity `opensWith` names is down), told
  *                first (`tellNow`, a shudder); where it stands now (`_box`) is terrain and stops bullets, as a wall
  *
  *   ship rule: { type: 'scroll-ship', hitbox: { r, at }, invuln? (s, 1) }
@@ -127,6 +129,9 @@ export function buildScrollFoes(E) {
       ? [['open', Y.open, () => 0], ['tell', Y.tell, (f) => { tell = f; return 0; }], ['close', Y.close, (f) => ease(f)], ['shut', Y.shut, () => 1], ['opening', Y.opening, (f) => 1 - ease(f)]]
       : [['tell', Y.tell, (f) => { tell = f; return 0; }], ['slam', Y.slam, (f) => f * f], ['hold', Y.hold, () => 1], ['back', Y.back, (f) => 1 - ease(f)], ['rest', Y.rest, () => 0]];
     for (const [, len, fn] of seg) { if (k <= len) { x = fn(len > 0 ? k / len : 1); break; } k -= len; }
+    // (a reactor's shield: open for good once what it shields has fallen)
+    const kept = r.opensWith && world.byId[r.opensWith];
+    if (kept && (kept.downed || kept.gone)) { x = 0; tell = 0; }
     const shake = tell > 0 ? Math.sin((world.time || 0) * 70) * (r.reach || 1) * 0.012 * tell : 0;
     const off = (1 - x) * (r.reach || 0) * (r.from === 'ceiling' ? 1 : -1) + shake;
     e._box = [r.box[0], r.box[1], r.box[2] + off, r.box[3] + off]; e.out = x; e.tellNow = tell;

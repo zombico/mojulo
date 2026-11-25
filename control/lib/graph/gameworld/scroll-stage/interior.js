@@ -42,14 +42,17 @@
  *     hatches: [{ id, u, v, side, drones, section }]   a hall's hatches, each launching its drones
  *     mounts: [{ id, u, v, side: 'ceiling' | 'floor', section }]   where a gun stands on a wall, facing the open
  *     reach                                   how far past the open a wall goes (a screen across: never seen beyond)
+ *     reactor: { id, u, v, r, section } | null   the core room's boss (REACTOR), behind its shields (two
+ *              movers, `shield`, a lock's leaves on SHIELD's cycle, open for good once it falls: `opensWith`)
  *   }
  *   openAt(plan, u)  → [lo, hi] the open's floor and ceiling at u (null off the run)
+ *   moverBoxAt(m, t) → { box, out, tell }: where a mover stands at a time on the world's clock (the runtime's reading)
  *   interiorLaws(plan, { cam, ship, pace, gears? }) → [{ id, holds, says }], read at the knots and a bulkhead's ends:
  *     passage (the open, a bulkhead's pass included, never narrower than PASSAGE breadths), continuity (each stretch's
  *     open overlaps the next by as much), climb (a ramp asks no more than CLIMB of the slowest gear across), on screen (the open inside the frame, its edge kept),
  *     mounts (each on a wall, facing an open at least PASSAGE wide), crusher-pass (out, a crusher leaves the passage),
  *     lock-window (a lock open LOCK_CROSS times as long as it takes to cross at the pace, twice while on the screen),
- *     movers-told (each told half a second before it moves)
+ *     movers-told (each told half a second before it moves), shields-open (the reactor's open a second and a half a cycle)
  *
  * Pure and deterministic: the same stage the same walls.
  */
@@ -61,7 +64,7 @@ export const SECTIONS = Object.freeze({
   hall: row({ length: 3, gap: [0.56, 0.66], drift: 0.12, mounts: 2, hatches: true, says: 'a corridor wide enough to fight in, its walls wandering a little' }),
   duct: row({ length: 2, gap: [0.32, 0.36], drift: 0.2, turn: 0.06, mounts: 0, says: 'narrow, in bends: the open climbs and drops a step at a time' }),
   shutters: row({ length: 2, gap: [0.6, 0.64], drift: 0.05, bulkheads: 3, pass: 0.3, mounts: 1, says: 'bulkheads from the ceiling and the floor in turn: weave between them' }),
-  core: row({ length: 1.5, gap: [0.82, 0.86], drift: 0, mounts: 0, says: 'the room at the heart: wide, its walls far apart' }),
+  core: row({ length: 1.5, gap: [0.82, 0.86], drift: 0, mounts: 1, reactor: true, says: 'the room at the heart: wide, its walls far apart, the reactor in it behind its shields' }),
   crushers: row({ length: 2, gap: [0.6, 0.64], drift: 0.04, crushers: 3, pass: 0.3, mounts: 0, says: 'pistons that shudder, slam out of the ceiling and the floor in turn, hold and draw back' }),
   locks: row({ length: 2, gap: [0.54, 0.6], drift: 0.03, locks: 6, mounts: 1, says: 'shutters that close right across the way and open again: go through while they are open' }),
 });
@@ -73,6 +76,26 @@ export const LOCK = Object.freeze({ open: 2.5, tell: 0.5, close: 0.4, shut: 0.8,
 export const LOCK_CROSS = 1.5;
 // HATCHES: a hall's, on its floor or its ceiling, each launching its drones as the screen comes up to it
 export const HATCHES = Object.freeze({ every: 1.5, drones: 3 });
+// THE REACTOR: the core room's boss, `at` its share along the room, its radius a share across, behind its SHIELDS (a
+// lock's two leaves just ahead of it, on their own cycle: hit it while they are open; open for good once it falls)
+export const REACTOR = Object.freeze({ id: 'reactor', at: 0.6, r: 0.07 });   // (its hp, fire and points: patterns.js FOES.reactor)
+export const SHIELD = Object.freeze({ open: 2.2, tell: 0.5, close: 0.4, shut: 2.4, opening: 0.4 });
+
+/** Where a mover's box stands at time t (seconds on the world's clock): its cycle (a crusher's, a lock's, a shield's),
+ *  drawn back `reach` into the wall it comes from. The runtime's own (worlds/controllable/scroll-foes.js scrollMover)
+ *  is the same reading, held to this by its test. → { box: [u0, u1, v0, v1], out (0..1), tell (0..1) } */
+export function moverBoxAt(m, t) {
+  const Y = m.cycle, P = Y.period || 1, k0 = (((t + (Y.phase || 0)) % P) + P) % P, ease = (x) => x * x * (3 - 2 * x);
+  let x = 0, tell = 0, k = k0;
+  const seg = m.kind === 'crusher'
+    ? [[Y.tell, (f) => { tell = f; return 0; }], [Y.slam, (f) => f * f], [Y.hold, () => 1], [Y.back, (f) => 1 - ease(f)], [Y.rest, () => 0]]
+    : [[Y.open, () => 0], [Y.tell, (f) => { tell = f; return 0; }], [Y.close, (f) => ease(f)], [Y.shut, () => 1], [Y.opening, (f) => 1 - ease(f)]];
+  for (const [len, fn] of seg) { if (k <= len) { x = fn(len > 0 ? k / len : 1); break; } k -= len; }
+  // (told, it shudders: the runtime's own shake, so the bot reads it where it stands)
+  const shake = tell > 0 ? Math.sin(t * 70) * (m.reach || 1) * 0.012 * tell : 0;
+  const box = m.box || [m.u0, m.u1, m.v0, m.v1], off = (1 - x) * (m.reach || 0) * (m.from === 'ceiling' ? 1 : -1) + shake;
+  return { box: [box[0], box[1], box[2] + off, box[3] + off], out: x, tell };
+}
 export const SECTION_IDS = Object.freeze(Object.keys(SECTIONS));
 export const INTERIOR_LOOKS = Object.freeze(['station', 'facility']);
 export const PASSAGE = 4;
@@ -214,6 +237,19 @@ export function planInterior(spec, { cam, track, start = [0, 0], seed = 1 }) {
       hatches.push({ id: `hatch-${si}-${k}`, u: c, v: side === 'floor' ? p.lo : p.hi, side, section: si, drones: HATCHES.drones });
     });
   });
+  // the REACTOR: in the core room's open, `at` along it, in its middle across; its SHIELDS a lock's two leaves just ahead
+  let reactor = null;
+  spec.sections.forEach((S0, si) => {
+    if (!SECTIONS[S0.kind].reactor || reactor) return;
+    const sec = sections[si], u = r3(sec.u0 + (sec.u1 - sec.u0) * REACTOR.at), o = edgeAt(u), v = r3((o[0] + o[1]) / 2), r = r3(REACTOR.r * C);
+    const w = r3(step * 0.22), su = r3(u - r - step * 0.5), ends = [edgeAt(su - w / 2), edgeAt(su + w / 2)];
+    const lo = Math.min(ends[0][0], ends[1][0]), hi = Math.max(ends[0][1], ends[1][1]), T = SHIELD, period = T.open + T.tell + T.close + T.shut + T.opening;
+    reactor = { id: REACTOR.id, u, v, r, section: si };
+    for (const [from, v0, v1] of [['ceiling', v, r3(hi + 0.02 * C)], ['floor', r3(lo - 0.02 * C), v]]) {
+      movers.push({ id: `shield-${from}`, kind: 'lock', shield: true, u0: r3(su - w / 2), u1: r3(su + w / 2), v0, v1, from, reach: r3((hi - lo) / 2 + 0.02 * C), section: si, opensWith: REACTOR.id,
+        cycle: { ...T, period: r3(period), phase: 0 } });
+    }
+  });
   // the GUNS' places: on the walls at a step's middle, the ceiling and the floor in turn, a step clear of any bulkhead
   spec.sections.forEach((S0, si) => {
     const S = SECTIONS[S0.kind];
@@ -226,7 +262,7 @@ export function planInterior(spec, { cam, track, start = [0, 0], seed = 1 }) {
       mounts.push({ id: `mount-${si}-${k}`, u: c, v: side === 'floor' ? p.lo : p.hi, side, section: si });
     });
   });
-  return { u0, u1: r3(u), look: spec.look ?? 'station', step, reach: r3(REACH * C), sections, profile, edges, walls, movers, hatches, mounts };
+  return { u0, u1: r3(u), look: spec.look ?? 'station', step, reach: r3(REACH * C), sections, profile, edges, walls, movers, hatches, mounts, reactor };
 }
 
 /** Where the open's floor and ceiling stand at `u` (the edges, a line between knots); null off the run. */
@@ -269,10 +305,13 @@ export function interiorLaws(plan, { cam, ship, pace, gears = [SLOWEST] }) {
     return (m.from === 'ceiling' ? m.v0 - o[0] : o[1] - m.v1) < need - 1e-6;
   }));
   out.push({ id: 'crusher-pass', holds: !crush.length, says: crush.length ? `a crusher out leaves less than the passage: ${crush.map((m) => m.id).join(', ')}` : 'every crusher, out, leaves the passage' });
-  const onScreen = cam.screen.along / pace, locks = (plan.movers || []).filter((m) => m.kind === 'lock');
+  const onScreen = cam.screen.along / pace, locks = (plan.movers || []).filter((m) => m.kind === 'lock' && !m.shield);
   const shut = locks.filter((m) => m.cycle.open < LOCK_CROSS * ((m.u1 - m.u0) + ship.length) / pace || m.cycle.period > onScreen / 2);
   out.push({ id: 'lock-window', holds: !shut.length, says: shut.length ? `a lock open too briefly or too seldom: ${shut.map((m) => m.id).join(', ')}` : `every lock open ${LOCK_CROSS} times as long as it takes to cross, and twice while it is on the screen` });
   const untold = (plan.movers || []).filter((m) => !(m.cycle.tell >= 0.5));
+  // (the reactor's shields: open long enough to land a volley, every cycle)
+  const tight = (plan.movers || []).filter((m) => m.shield && m.cycle.open < 1.5);
+  out.push({ id: 'shields-open', holds: !tight.length, says: tight.length ? `a reactor's shield open too briefly: ${tight.map((m) => m.id).join(', ')}` : 'the reactor\'s shields open at least a second and a half each cycle' });
   out.push({ id: 'movers-told', holds: !untold.length, says: untold.length ? `a mover moving untold: ${untold.map((m) => m.id).join(', ')}` : 'every mover is told at least half a second before it moves' });
   const bad = plan.mounts.filter((M) => {
     const o = openAt(plan, M.u);

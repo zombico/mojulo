@@ -658,8 +658,10 @@ ${SG ? `    // (the scroll stage's: its ship's lives, hp, pods and gear; the sco
     if (W) {
       st.sg.score = W.scrollScore || 0;
       const cam = W.camera, Bo = SGF.boss && W.byId ? W.byId[SGF.boss.id] : null;
-      if (Bo && Bo.structure) {
-        st.sg.boss = Bo.structure.systems.filter(function (id) { const y = W.byId[id]; return y && !y.downed && !y.gone; }).length;
+      if (Bo && (Bo.structure || SGF.boss.hp)) {
+        // (its systems still up; or, a boss read by its hp, the share of it left in the bar's ticks)
+        st.sg.boss = Bo.structure ? Bo.structure.systems.filter(function (id) { const y = W.byId[id]; return y && !y.downed && !y.gone; }).length
+          : Bo.downed || Bo.gone ? 0 : Math.max(1, Math.ceil((Math.max(0, (Bo.body && Bo.body.hp) || 0) / SGF.boss.hp) * SGF.boss.systems));
         const near = cam && cam._sc && cam.rule && Math.abs(Bo.transform.pos[1] - cam._sc[0]) < cam.rule.screen[0] * 0.6;
         if (!sgOn && near) { sgOn = true; st.sg.moments = st.sg.moments.concat([{ id: 'boss', text: SGF.boss.name, weight: 'decisive' }]); }
         if (sgOn && (Bo.downed || st.sg.boss <= 0) && sgOff < 0) sgOff = clock + 1.5;
