@@ -33,6 +33,11 @@ book's map: a frame level's plate is now its operation map. Buildings come after
   - **beds**: bands by height, each the stone pulled toward one of the cube's own colours (pale trim for upper beds) and
     lifted or darkened, eased over each contact.
   - **thin**: thin beds, each with its own small tone, so no two ledges are one colour and nothing repeats.
+  - **wear**: the rock lit by its own shape. Each corner's standing out of or sitting back in its neighbours, along its
+    normal, is read off the land's mesh: edges lifted, creases darkened, so every bulge a massif pushed is its own
+    colour.
+  - **sections**: the rock in sections, each a cell of jittered points keyed to its own place and never a repeating
+    tile. Each takes its own small value and hue toward a cube colour; on a wall their edges are vertical joints.
   - **varnish**: dark streaks down the walls, a function of the plan alone so they run straight down any wall; a slow
     mask leaves some walls clean.
   - It is baked into the land's own corner colours over the rock layer, so a page and an engine handoff get the same.

@@ -197,6 +197,21 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   // normal the mean of the faces round it that lie within CREASE of the face's own, so a cliff's edge stays crisp
   const CREASE = Math.cos((55 * Math.PI) / 180), nKey = (c) => `${Math.round(c[0] * 100)},${Math.round(c[1] * 100)},${Math.round(c[2] * 100)}`, NB = new Map();
   P.faces.forEach((f, i) => { if (!L.faces[i].cls || L.faces[i].cls === 'water' || L.faces[i].under) return; const n = f.normal || [0, 0, 1]; for (const c of f.corners) (NB.get(nKey(c)) ?? NB.set(nKey(c), []).get(nKey(c))).push(n); });
+  // (the rock's WEAR, a cube's `outside.rock.wear`: how far each corner stands out of its neighbours along its normal, read
+  // off the land's own mesh: the mean of the corners it shares an edge with, against the mean of its faces' normals)
+  const CONVEX = RC?.wear ? (() => {
+    const acc = new Map();
+    P.faces.forEach((f, i) => {
+      if (!L.faces[i].cls || L.faces[i].cls === 'water' || L.faces[i].under) return;
+      const n = f.normal || [0, 0, 1], m = f.corners.length;
+      for (let j = 0; j < m; j++) {
+        const c = f.corners[j], k = nKey(c), a = acc.get(k) ?? acc.set(k, { s: [0, 0, 0], q: 0, n: [0, 0, 0] }).get(k);
+        for (const o of [f.corners[(j + 1) % m], f.corners[(j + m - 1) % m]]) { a.s[0] += o[0]; a.s[1] += o[1]; a.s[2] += o[2]; a.q += 1; }
+        a.n[0] += n[0]; a.n[1] += n[1]; a.n[2] += n[2];
+      }
+    });
+    return (c) => { const a = acc.get(nKey(c)); if (!a || !a.q) return 0; const l = Math.hypot(...a.n) || 1; return ((c[0] - a.s[0] / a.q) * a.n[0] + (c[1] - a.s[1] / a.q) * a.n[1] + (c[2] - a.s[2] / a.q) * a.n[2]) / l; };
+  })() : null;
   const smoothAt = (c, n) => { const m = [0, 0, 0]; for (const q of NB.get(nKey(c)) || [n]) if (q[0] * n[0] + q[1] * n[1] + q[2] * n[2] >= CREASE) { m[0] += q[0]; m[1] += q[1]; m[2] += q[2]; } const l = Math.hypot(...m) || 1; return m.map((v) => Math.round((v / l) * 127)); };
   const pos = [], c7 = [], spl = [], nrm = [], faceOf = [], cornerOf = [], ranges = [];
   for (const i of order) {
@@ -206,7 +221,7 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     const wAt = (j) => (layered(F, i) ? LY.weightAt(f.corners[j]) : F.under ? [0, 0, 0, 1] : [0, 0, 0, 0]);
     // (a face the read does not class keeps its paint: its fill, else its first corner's, a textured face's grey)
     // (the rock's own colour at the corner where a cube names it, `outside.rock`: its bed, its thin bed's tone, its varnish)
-    const roleAt = ROCK ? (j) => { const c = f.corners[j], r = ROCK(c[0], c[1], c[2], roleBase[0]); return [r, ...roleBase.slice(1)]; } : () => roleBase;
+    const roleAt = ROCK ? (j) => { const c = f.corners[j], r = ROCK(c[0], c[1], c[2], roleBase[0], CONVEX ? CONVEX(c) : 0); return [r, ...roleBase.slice(1)]; } : () => roleBase;
     const base = F.cls ? F.base : hexRgb(f.fill ?? f.cornerFills?.[0] ?? '#808080'), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? ((w, rb) => [0, 1, 2].map((c) => Math.round(w.reduce((s, x, li) => s + x * rb[li][c], 0))))(wAt(j), roleAt(j)) : base);
     let R = ranges[ranges.length - 1];
     if (!R || R.key !== key) ranges.push(R = { key, start: pos.length / 3, count: 0, rough: F.cls ? F.rough : 0.9 });

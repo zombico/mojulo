@@ -5,8 +5,10 @@
  * handoff get the same), and none of it costs a face.
  *
  *   readRockColour(spec)            → the rock's words, checked (null when absent)
- *   rockColourAt(R, bases, { seed? }) → (x, y, z, base) → [r, g, b] (0–255): the rock's base at a corner, from the layer's
- *                                   own (`base`) and the cube's solved bases (`bases`, era/cube-light.js: { role: '#rrggbb' })
+ *   rockColourAt(R, bases, { seed? }) → (x, y, z, base, convex?) → [r, g, b] (0–255): the rock's base at a corner, from
+ *                                   the layer's own (`base`), the cube's solved bases (`bases`, era/cube-light.js:
+ *                                   { role: '#rrggbb' }) and, for `wear`, how far the corner stands out of its neighbours
+ *                                   along its normal (`convex`, metres: + out, − in; form/land-read.js reads it off the mesh)
  *
  * The words (heights are metres over the land's datum; colours are the cube's own roles, so a solved palette moves them):
  *   beds     [{ to, toward?, mix?, value? }], bottom up: each band runs from the one below's `to` up to its own; its colour
@@ -16,6 +18,14 @@
  *   blend    metres a band fades into the next (2): a contact, not a line ruled across the cliff
  *   thin     { beds: [lo, hi], jitter }: the rock parted into thin beds lo..hi metres thick, each its own small tone (up to
  *            ±jitter), so no two ledges of a wall are the one colour and no pattern repeats (each bed's dice its own)
+ *   wear     { edge, crease, reach }: the rock lit by its own shape, corner by corner: a corner standing out of its
+ *            neighbours (a bulge's edge, a rim, a block's arris) lifted up to `edge`, one sat back in them (a parting, an
+ *            undercut, a cleft) darkened up to `crease`, at full by `reach` metres out or in; it reads the land's own
+ *            mesh, so every bulge a massif's face pushed is its own colour
+ *   sections { size, value, hue, toward? }: the rock in sections about `size` metres across, each its own small mood:
+ *            its value up to ±`value`, pulled up to `hue` toward the cube's `toward` colour (the floor's by default). A
+ *            section is a cell of jittered points over the plan, each keyed to its own place (never a repeating tile), so
+ *            on a wall its edges are vertical joints between one block of rock and the next
  *   varnish  { strength, width, mask }: the desert varnish, dark streaks run down the walls from the ledges where the water
  *            ran: `strength` (0..1) how dark, `width` metres between streaks (a streak is a function of the plan alone, so on
  *            any wall it runs straight down; a wall's corners stand a land's cell apart, so a streak is no narrower than a
@@ -30,13 +40,13 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const bad = (m) => { throw new Error(`rock${m}`); };
 const num = (v, lo, hi, m) => { if (!(typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi)) bad(m); };
 const ROLE = /^[a-z]{3,16}$/;
-export const ROCK_COLOUR = Object.freeze({ blend: 2, thin: Object.freeze({ beds: Object.freeze([4, 9]), jitter: 0.08 }), varnish: null });
+export const ROCK_COLOUR = Object.freeze({ blend: 2, thin: Object.freeze({ beds: Object.freeze([4, 9]), jitter: 0.08 }), wear: null, sections: null, varnish: null });
 
 /** The rock's words, checked → { beds, blend, thin, varnish }, or null when absent. */
 export function readRockColour(spec) {
   if (spec === undefined || spec === null || spec === false) return null;
   if (!isObj(spec)) bad(' is { beds, blend?, thin?, varnish? }: the rock\'s colour by its beds and its weather');
-  for (const k of Object.keys(spec)) if (!['beds', 'blend', 'thin', 'varnish'].includes(k)) bad(`.${k} is not a word (rock: beds, blend, thin, varnish)`);
+  for (const k of Object.keys(spec)) if (!['beds', 'blend', 'thin', 'wear', 'sections', 'varnish'].includes(k)) bad(`.${k} is not a word (rock: beds, blend, thin, wear, sections, varnish)`);
   const R = { ...ROCK_COLOUR, ...spec, thin: spec.thin === false ? null : { ...ROCK_COLOUR.thin, ...(spec.thin || {}) } };
   if (!Array.isArray(R.beds) || !R.beds.length) bad('.beds is [{ to, toward?, mix?, value? }], bottom up, at least one');
   R.beds = R.beds.map((b, i) => {
@@ -54,6 +64,21 @@ export function readRockColour(spec) {
   if (R.thin) {
     if (!(Array.isArray(R.thin.beds) && R.thin.beds.length === 2 && R.thin.beds[0] >= 1 && R.thin.beds[1] >= R.thin.beds[0] && R.thin.beds[1] <= 60)) bad('.thin.beds is [lo, hi] metres, 1..60');
     num(R.thin.jitter, 0, 0.4, '.thin.jitter is 0..0.4');
+  }
+  if (R.wear !== null) {
+    if (!isObj(R.wear)) bad('.wear is { edge, crease, reach? }');
+    R.wear = { reach: 1.5, ...R.wear };
+    num(R.wear.edge, 0, 0.6, '.wear.edge is 0..0.6, how far an edge is lifted');
+    num(R.wear.crease, 0, 0.6, '.wear.crease is 0..0.6, how far a crease is darkened');
+    num(R.wear.reach, 0.1, 20, '.wear.reach is metres out or in at full, 0.1..20');
+  }
+  if (R.sections !== null) {
+    if (!isObj(R.sections)) bad('.sections is { size, value, hue?, toward? }');
+    R.sections = { hue: 0, toward: 'floor', ...R.sections };
+    num(R.sections.size, 4, 1000, '.sections.size is metres a section spans, 4..1000');
+    num(R.sections.value, 0, 0.4, '.sections.value is 0..0.4');
+    num(R.sections.hue, 0, 1, '.sections.hue is 0..1');
+    if (!(typeof R.sections.toward === 'string' && ROLE.test(R.sections.toward))) bad(".sections.toward is one of the cube's colours by its role");
   }
   if (R.varnish !== null) {
     if (!isObj(R.varnish)) bad('.varnish is { strength, width?, mask? }');
@@ -79,8 +104,19 @@ export function rockColourAt(R, bases, { seed = 1 } = {}) {
   const thin = [];
   if (R.thin) for (let z = -200, k = 0; z < 2000 && thin.length < 4000; k++) { const t = R.thin.beds[0] + (R.thin.beds[1] - R.thin.beds[0]) * h01(k, 'thin'); thin.push({ z0: z, t, tone: (h01(k, 'tone') * 2 - 1) * R.thin.jitter }); z += t; }
   const thinAt = (z) => { let lo = 0, hi = thin.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (thin[m].z0 <= z) lo = m; else hi = m - 1; } return thin[lo]; };
-  const V = R.varnish;
-  return (x, y, z, base) => {
+  const V = R.varnish, W = R.wear, SC = R.sections;
+  // (a section: the nearest of jittered points, one a lattice cell, each cell's point and mood its own dice)
+  const sectionAt = SC ? (x, y) => {
+    const u = x / SC.size, v = y / SC.size, i0 = Math.floor(u), j0 = Math.floor(v);
+    let best = Infinity, bi = 0, bj = 0;
+    for (let j = j0 - 1; j <= j0 + 1; j++) for (let i = i0 - 1; i <= i0 + 1; i++) {
+      const px = i + h01(`${i},${j}`, 'sx'), py = j + h01(`${i},${j}`, 'sy'), d = (px - u) ** 2 + (py - v) ** 2;
+      if (d < best) { best = d; bi = i; bj = j; }
+    }
+    return [(h01(`${bi},${bj}`, 'sv') * 2 - 1) * SC.value, h01(`${bi},${bj}`, 'sh') * SC.hue];
+  } : null;
+  const toward = SC && bases[SC.toward] ? hexRgb(bases[SC.toward]) : null;
+  return (x, y, z, base, convex = 0) => {
     // the band: the colour of the bed it is in, faded into the next over `blend` metres either side of their contact
     let c = target(R.beds[R.beds.length - 1], base);
     for (let i = 0; i < R.beds.length; i++) {
@@ -101,6 +137,8 @@ export function rockColourAt(R, bases, { seed = 1 } = {}) {
       const b = thin.length ? thinAt(z) : null, top = b ? 0.45 + 0.55 * smooth(0, 1, (z - b.z0) / b.t) : 1;
       k *= 1 - V.strength * 0.7 * streak * mask * top;
     }
+    if (sectionAt) { const [dv, dh] = sectionAt(x, y); if (toward && dh) c = c.map((v, q) => v + (toward[q] - v) * dh); k *= 1 + dv; }
+    if (W) k *= convex >= 0 ? 1 + W.edge * smooth(0, W.reach, convex) : 1 - W.crease * smooth(0, W.reach, -convex);
     return c.map((v) => Math.max(0, Math.min(255, Math.round(v * k))));
   };
 }

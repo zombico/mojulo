@@ -316,8 +316,9 @@ export function massifField(M, centre, seed = 1, floor = 0) {
     const x = lo + (hi - lo) * hash3(k, 1, sd + 901), y = lo2 + (hi2 - lo2) * hash3(k, 2, sd + 903);
     if (sink(x, y)[0] > 0) continue;
     const [wx, wy] = M.warp.strength ? warp2(x, y, warpW) : [x, y];
-    const on = blocks.some((b) => { const e = into(b, x, y, wx, wy); return e < -2 && e > -(M.talus.share * b.height * 1.6) / tan; });
-    if (!on) continue;
+    const on = blocks.find((b) => { const e = into(b, x, y, wx, wy); return e < -2 && e > -(M.talus.share * b.height * 1.6) / tan; });
+    // (on an apron, never on a neighbour's rock: the ground there no higher than the apron's own foot)
+    if (!on || rock(x, y) > M.talus.share * on.height * 1.3) continue;
     // (most of them small, a few great slabs: the size's dice weighted toward its low end)
     boulders.push({ x: r3(x), y: r3(y), size: M.strew.size[0] + Math.floor(hash3(k, 3, sd + 905) ** 2.5 * (M.strew.size[1] - M.strew.size[0] + 1)) });
   }

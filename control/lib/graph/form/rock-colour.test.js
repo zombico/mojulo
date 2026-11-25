@@ -43,6 +43,26 @@ describe('the rock\'s colour', () => {
     expect(clean).toBeGreaterThan(10);
   });
 
+  it('lifts an edge and darkens a crease by how far the corner stands out of its neighbours', () => {
+    const at = rockColourAt(readRockColour({ beds: [{ to: 2000 }], thin: false, wear: { edge: 0.3, crease: 0.3, reach: 1 } }), bases);
+    expect(at(0, 0, 10, STONE, 0)).toEqual(STONE);
+    expect(at(0, 0, 10, STONE, 2)[0]).toBeGreaterThan(STONE[0]);
+    expect(at(0, 0, 10, STONE, -2)[0]).toBeLessThan(STONE[0]);
+  });
+
+  it('parts the rock into sections each its own mood, keyed to their place: never a repeating tile', () => {
+    const at = rockColourAt(readRockColour({ beds: [{ to: 2000 }], thin: false, sections: { size: 20, value: 0.2, hue: 0.3, toward: 'trim' } }), bases);
+    // (one section's ground is one colour; across many, many colours; and a section's mood is not its neighbour's a
+    // lattice's period away, as a tile's would be)
+    expect(at(1, 1, 10, STONE)).toEqual(at(1.2, 1.1, 10, STONE));
+    const seen = new Set();
+    for (let i = 0; i < 60; i++) seen.add(at(i * 23, i * 7, 10, STONE).join());
+    expect(seen.size).toBeGreaterThan(20);
+    let same = 0;
+    for (let i = 0; i < 40; i++) if (at(i * 13, 5, 10, STONE).join() === at(i * 13 + 200, 5, 10, STONE).join()) same++;
+    expect(same).toBeLessThan(10);
+  });
+
   it('is a geocube\'s word, checked as the cube is read', () => {
     const cube = readGeocube('sandstone-wadi');
     expect(cube.outside.rock.beds.length).toBeGreaterThan(1);
