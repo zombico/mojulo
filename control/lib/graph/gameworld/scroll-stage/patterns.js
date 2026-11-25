@@ -18,7 +18,8 @@
  *                | fixed (where it stands in the world: a hull's gun)
  *
  *   PATTERNS, PATTERN_IDS, FOES, FOE_IDS, HITBOX (the ship's, a share of its length), SEEN (the fastest a bullet is),
- *   SAFE (no volley fired from nearer the ship than this, in ship lengths), DODGE (the margin a gap leaves round the hitbox)
+ *   SAFE (no volley fired from nearer the ship than this, in ship lengths), DODGE (the margin a gap leaves round the hitbox),
+ *   DENSITY (the most foes' bullets on the screen at once a stage is held to: its bot's peak)
  *   patternLaws(rows?)        → [{ id, holds, says }]: seen coming; a way through; told
  *   FOE_HUE                  the foes' bullets' one colour, never a pod's: a hot magenta read against any ground
  *   lowerFoes(ids, { L, S }) → the runtime's foes and their patterns, in metres (a foe's hit radius is its body's: the
@@ -34,6 +35,9 @@ export const HITBOX = 0.07;
 export const SEEN = 0.5;
 /** No volley is fired from nearer the ship than this (ship lengths): nothing is born on top of it. */
 export const SAFE = 2.5;
+/** The most foes' bullets on the screen at once a stage is held to (its bot's peak): a bullet hell is dense, and a wall
+ * alone is some thirty across the screen, but past this a screen is no longer read, only survived. */
+export const DENSITY = 80;
 /** The margin a gap leaves round the hitbox, each side (ship lengths). */
 export const DODGE = 0.12;
 /** How far from the foe a fan's or a ring's neighbours are measured (ship lengths): where a player meets them. */
