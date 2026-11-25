@@ -71,6 +71,10 @@ export function xenoJager({ box = [14, 8], turn = 'ccw', theme = 'xeno' } = {}) 
  * climbed off their walls), its buster the cannon. */
 export const XENOJAGER_FEEL = Object.freeze({ pole: 'galaxy-boy', takes: true });
 
+/** XenoJager's sound: its own recordings (`xeno-jager`: a sealed suit's cannon and boots, the planet's rock), its menus
+ * and its HUD on the terminal's set (nocturne-xeno), and a boss falling as a great body does. */
+export const XENOJAGER_SOUND = Object.freeze({ style: 'realistic', flavor: 'xeno-jager', menus: 'terminal', run: Object.freeze({ boss: 'boss-collapse' }) });
+
 /** The planet as a STARTER (the galaxy-boy rail's `xenojager` variant, pitch-start.js): its feel, the side camera, the
  * planet one level whose look is the world's geocube (XENOJAGER_CUBE), its HUD the castle's card re-keyed for the planet.
  * No hero: the person's own, made with the character door. */
@@ -79,6 +83,7 @@ export function xenoJagerStart() {
     camera: 'side', feel: structuredClone({ ...XENOJAGER_FEEL }), style: { geocube: structuredClone(XENOJAGER_CUBE) },
     levels: { planet: { name: 'The planet', metroidvania: xenoJager({ theme: null }) } },
     ui: { theme: 'nocturne' },
+    sound: structuredClone(XENOJAGER_SOUND),
   };
 }
 

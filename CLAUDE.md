@@ -487,7 +487,9 @@ Pointers only; each target carries its own design notes.
   [docs/sound-library.md](docs/sound-library.md). Kits pick a thing's sounds by its axes (a new value is a row): a mobile
   suit's (`sfx-shelf/suit-sounds.js`: weight, drive, loadout) and magic's (`sfx-shelf/magic-sounds.js`: each element by
   phase and tier, statuses, spells, a battle's moments, the world's effects) and the animals' (`sfx-shelf/animal-sounds.js`:
-  each species to a voice class by its family, order or name, each class's call, alert, hurt and death), their variants
+  each species to a voice class by its family, order or name, each class's call, alert, hurt and death) and a boss
+  fight's (`sfx-shelf/boss-sounds.js`: each director pattern's wind-up and strike, a boss's voice by what it is, a
+  metroidvania's held gates; played by `scene/channels/boss-audio.js`), their variants
   recorded rows heard as a `standIn` (or silent) without the library.
 - Underwater: [scene/channels/sea.js](control/lib/graph/scene/channels/sea.js) (a geocube's `sea`: its land put under
   water by light alone on a gen-7 page, the air's sibling on three's fog chunk; waters and depth zones are rows, a zone

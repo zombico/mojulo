@@ -378,6 +378,29 @@ class's voice, by its species or its class's stand-in, so an unskinned brute is 
 foe's fall, `ko:<foe>`, in its own voice ahead of the magic kit's dissolve), both only where the library records the
 class.
 
+## A boss fight as a kit
+
+`sfx-shelf/boss-sounds.js` hears any boss on the director (`boss/`) by what it does:
+- **Patterns.** Each pattern (`BOSS_PATTERN_SOUNDS`: a cleave, a quake, a lunge, a toss, a toll, a volley, a swoop, a
+  beam's sweep…) has its wind-up (`tell`), played as the move is told, and its `strike`, played as it lands.
+- **Voice.** The boss's VOICE is an animal-voices class (`bossVoice`), read from what it is: its row's own `voice`, its
+  people's (`PEOPLE_VOICE`: the undead, an ogre for the orcish, a demon for the infernal), its species', or a dragon's
+  for a winged second form. It roars at its first move, as each phase turns and as its second form rises; it is hurt
+  when struck (held apart) and dies as its last form falls.
+- **Shared.** Every boss shares a form shed into the next (`boss-transform`) and a great body felled (`boss-collapse`).
+- **Gates.** A metroidvania's held gates have their moments (`GATE_SOUNDS`): a boss's room shut and opened, a gate's
+  break by its kind (a cracked wall, a secret wall, a grate, a lock, a seal), and any other wall struck down.
+
+The page's block (`scene/channels/boss-audio.js`: `audio.director`, `audio.gates`) reads each boss's director state and
+the world's breaks each frame. It joins a level's own audio, so a level on no sheet hears none of it. A game's
+`sound.bosses` overrides any pattern's words, the shed or the fall, and any gate's (false silences one). The new words are
+rows (`BOSS_ROWS`), recorded and heard as their stand-ins until the library records them. A new pattern is a row of
+`BOSS_PATTERN_SOUNDS`.
+
+Also on the sheet: a game's own flavor (`sound.flavor`, over its feel's pole's, or false) and its menus' set
+(`sound.menus`). A foe of a people with a voice of its own is heard as that class, never as a person, and a beast that
+braces to charge braces in its own threat.
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms

@@ -6,7 +6,8 @@
  * the way in, it is a body of the world: struck, it staggers and falls as a foe does, and its fall gives what its room
  * gives (held-gates.js, its `entity`): its seal broken, its power. Until its figure is made it stands as a block (STAND_IN).
  *
- *   CASTLE_BOSSES        { <id>: { class, skin, tier, blows, reads, moves, phases } }   a new boss is a row; `blows` its
+ *   CASTLE_BOSSES        { <id>: { class, skin, voice?, tier, blows, reads, moves, phases } }   (`voice`: the class it is heard
+ *                        by where its people's would not say it, sfx-shelf/boss-sounds.js bossVoice: a feathered abbess a crow's)   a new boss is a row; `blows` its
  *                        health in the hero's blows (foes/vocab.js HERO.blow), rising as the castle goes in; `moves` and
  *                        `phases` its FIGHT, a human boss's words for the boss director (boss/bosses.js: each move a side
  *                        view's pattern in its own words, boss/patterns.js; its phases quicker as its health falls)
@@ -48,6 +49,7 @@ import { lookOfMove, windClips, flapWind } from '../../boss/looks.js';
 import { PATTERNS } from '../../boss/patterns.js';
 import { plainRoom } from './box.js';
 import { SEEDED_OUTFITS } from '../../outfit/styles.js';
+import { bossVoice } from '../../sfx-shelf/boss-sounds.js';
 // (its FIGHT: the director's words for a human boss, boss/bosses.js: its moves over the side view's patterns,
 // boss/patterns.js, said in its own words, and its phases, quicker as its health falls)
 const ph = (moves, tempo, more = {}) => Object.freeze({ moves: Object.freeze(moves), tempo, ...more });
@@ -76,7 +78,7 @@ export const CASTLE_BOSSES = Object.freeze({
   // THE NEW ROOMS' (a boss for the belfry, the lower keep, the armoury and the upper keep): each a fight of its own, an
   // attack the others have not (blades from the air, a boulder, lances out of the floor, a tail and venom)
   // (the belfry's: she fights from the air, a carrion bird in a nun's rags)
-  'carrion-abbess': Object.freeze({ class: 'stalker', skin: Object.freeze({ people: 'undead' }), tier: 1.6, blows: 20, reads: 'the belfry\'s abbess, dead and feathered: a carrion bird in a nun\'s rags who fights from the air',
+  'carrion-abbess': Object.freeze({ class: 'stalker', skin: Object.freeze({ people: 'undead' }), voice: 'corvid', tier: 1.6, blows: 20, reads: 'the belfry\'s abbess, dead and feathered: a carrion bird in a nun\'s rags who fights from the air',
     moves: Object.freeze({ 'feather-volley': { pattern: 'volley', says: 'beats up over the floor and draws back an arm full of black quills' }, 'carrion-dive': { pattern: 'swoop', says: 'beats up into the bells and hangs there, then folds her wings and dives' },
       'talon-drop': { pattern: 'dive', says: 'rises over Erina on her wings; her shadow spreads under her' }, shriek: { pattern: 'toll', says: 'throws her beak open; the bells hum with her' } }),
     phases: Object.freeze([ph({ 'feather-volley': 2, 'carrion-dive': 2 }, 2.3), ph({ 'feather-volley': 2, 'carrion-dive': 1, 'talon-drop': 2, shriek: 1 }, 1.8, { below: 0.5, temper: 'opportunist' })]) }),
@@ -87,13 +89,13 @@ export const CASTLE_BOSSES = Object.freeze({
       'ground-pound': { pattern: 'quake', says: 'raises its maul in both fists' }, 'shoulder-rush': { pattern: 'lunge', says: 'drops its shoulder and stamps' } }),
     phases: Object.freeze([ph({ 'maul-swing': 2, 'wall-boulder': 2 }, 2.5), ph({ 'maul-swing': 1, 'wall-boulder': 2, 'ground-pound': 2, 'shoulder-rush': 1 }, 2, { below: 0.5, temper: 'bold' })]) }),
   // (the armoury's: an empty suit of plate, the armoury's lances at its call)
-  armiger: Object.freeze({ class: 'guard', skin: Object.freeze({ people: 'undead' }), tier: 1.7, blows: 24, reads: 'the armoury\'s armiger: an empty suit of gilded plate, nothing inside it, the armoury\'s lances at its call',
+  armiger: Object.freeze({ class: 'guard', skin: Object.freeze({ people: 'undead' }), voice: 'golem', tier: 1.7, blows: 24, reads: 'the armoury\'s armiger: an empty suit of gilded plate, nothing inside it, the armoury\'s lances at its call',
     moves: Object.freeze({ 'lance-field': { pattern: 'lances', says: 'drives its gauntlet into the floor; the marks spread from Erina\'s feet' }, 'blade-arc': { pattern: 'cleave', says: 'draws its sword back over its shoulder' },
       'shield-rush': { pattern: 'lunge', says: 'sets its shield and lowers itself behind it' }, 'flung-shield': { pattern: 'toss', says: 'hurls its shield high' } }),
     phases: Object.freeze([ph({ 'blade-arc': 2, 'shield-rush': 1, 'lance-field': 1 }, 2.3), ph({ 'blade-arc': 1, 'lance-field': 2, 'shield-rush': 1, 'flung-shield': 2 }, 1.8, { below: 0.6, temper: 'opportunist' }),
       ph({ 'lance-field': 3, 'shield-rush': 2, 'blade-arc': 1 }, 1.4, { below: 0.3, temper: 'relentless' })]) }),
   // (the upper keep's: the lord's countess, a serpent below the waist)
-  'serpent-countess': Object.freeze({ class: 'stalker', skin: Object.freeze({ people: 'infernal' }), tier: 1.8, blows: 30, reads: 'the lord\'s countess, a serpent below the waist: she coils across the upper keep and spits venom',
+  'serpent-countess': Object.freeze({ class: 'stalker', skin: Object.freeze({ people: 'infernal' }), voice: 'snake', tier: 1.8, blows: 30, reads: 'the lord\'s countess, a serpent below the waist: she coils across the upper keep and spits venom',
     moves: Object.freeze({ 'tail-sweep': { pattern: 'coil', says: 'draws her coils in under her; her tail lifts' }, 'venom-spit': { pattern: 'venom', says: 'rears back, her throat swelling' },
       'fang-strike': { pattern: 'lunge', says: 'draws her head back on her coils' }, 'fan-cut': { pattern: 'cleave', says: 'raises her bladed fan behind her' } }),
     phases: Object.freeze([ph({ 'fang-strike': 2, 'fan-cut': 2, 'tail-sweep': 1 }, 2.2), ph({ 'tail-sweep': 2, 'venom-spit': 2, 'fang-strike': 1, 'fan-cut': 1 }, 1.7, { below: 0.55, temper: 'opportunist' }),
@@ -259,6 +261,8 @@ export const sideBody = (reach) => (reach?.moves?.run ? { ...SIDE_BODY, speed: r
  * and its own words (the thing a toss throws) */
 const withLooks = (R, row) => ({ ...R, moves: Object.fromEntries(Object.entries(R.moves).map(([m, x]) => [m, { ...x, fx: lookOfMove({ id: m, ...row.moves[m] }) }])) });
 
+// (its VOICE, the class it is heard by: sfx-shelf/boss-sounds.js bossVoice; none known, none written)
+const voiced = (r) => { const v = bossVoice({ skin: r.skin ?? null, voice: r.voice ?? null, second: r.second === true }); return v ? { voice: v } : {}; };
 /** A boss's MODES (its first form, then its second, a row's `second`): each its figure and health and title; the second
  * its own director's rule (bossRule over its moves and phases, its looks, kept to the same room), its height and its hit
  * egg at its own tier. */
@@ -267,7 +271,7 @@ function modesOf(G, b, row, { stature, figure, fig2, k, wind = null, frame = nul
   // (a form that flies flies in its SKY: the air over its floor that keeps its head in the side view's frame, the frame's
   // top FRAME_TOP of its height over the floor the hero stands on)
   const flies = Object.values(S2.moves).some((m) => PATTERNS[m.pattern]?.flies), sky = flies && frame ? { sky: r3(Math.max(0, FRAME_TOP * frame - H2 - 0.3)) } : {};
-  const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...(b.room ? { room: [...b.room] } : {}), ...(wind ? { wind: structuredClone(wind) } : {}), ...sky }, S2);
+  const boss2 = withLooks({ ...bossRule(castleBoss(row.id, { second: true }), { seed: k + 101, first: 1.2 }), ...voiced({ voice: S2.voice, second: true }), ...(b.room ? { room: [...b.room] } : {}), ...(wind ? { wind: structuredClone(wind) } : {}), ...sky }, S2);
   return [{ figure, hp: row.blows * HERO.blow, title: b.title ?? castleBoss(row.id).name },
     // (its own size: a figure of its own stood at its tier's height by its own bounds, the page's mode fit)
     { figure: fig2 ?? figure, hp: S2.blows * HERO.blow, title: S2.title, rule: { collideHeight: H2, collideRadius: R2, boss: boss2 }, body: { radius: R2, egg: { a: r3(0.42 * S2.tier), c: r3(H2 / 2), cz: r3(H2 / 2) }, ...(fig2 ? { fit: { least: r3(H2 * (S2.over ?? 1)) } } : {}) } }];
@@ -305,7 +309,7 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
       // (its FIGHT the director's, boss/stand.js: its moves laid at its tempo, planted through each, its mind crossing its
       // phases; between its moves it fights as its class does)
       rule: { ...e.rule, collideHeight: H, collideRadius: R, rail: { a: [0, P.span[0]], b: [0, P.span[1]], join: P.at, heading: P.heading },
-        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && castleWind(row.id) ? { wind: structuredClone(castleWind(row.id)) } : {}), ...(fig2 ? { figures: [fig2] } : {}), ...sky1 }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
+        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...voiced(row), ...(b.room ? { room: [...b.room] } : {}), ...(figure && castleWind(row.id) ? { wind: structuredClone(castleWind(row.id)) } : {}), ...(fig2 ? { figures: [fig2] } : {}), ...sky1 }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
     });
   }
   return part;

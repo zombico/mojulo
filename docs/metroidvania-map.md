@@ -837,6 +837,29 @@ the readout's pitch report say the box and its cube (`box: { game, cube, library
 variant asks first for the person's box and its cube (the `gameworld-box` card). A sentence finds the variant by its
 own words ("a metroidvania castle", "a metroid-like planet"); "a metroidvania" alone is the plain rail.
 
+## How it sounds
+
+A box game is on the sound sheet ([sfx-shelf.md](sfx-shelf.md)) with sounds of its own. Each variant names its own
+flavor of recordings (`sound.flavor`), so it never hears the rail's robot. Its menus play its own set (`sound.menus`): the
+castle's on the crypt, as its HUD is, and the planet's on the terminal, as its card is.
+- **The castle (`VAMPIRE_SONATA_SOUND`).** Erina's longsword cuts the air, cuts into the dead and rings off plate, and her
+  boots strike flagstones. A foe felled is unmade, and a boss falls as a great body. Its peoples are heard as their
+  classes, never as people: the dead (rattling bones, groans), the ogre's bellow, the demon's snarl. The wolf braces in
+  its own threat.
+- **The planet (`XENOJAGER_SOUND`).** A sealed suit's arm cannon, its servos and armoured boots, and the planet's
+  crystal rock shattering.
+- **Bosses.** Every boss on the director is heard by its patterns (`sfx-shelf/boss-sounds.js`): each move's wind-up as
+  it is told and its strike as it lands. Its voice is read from what it is (its people, its species, or a row's own
+  `voice`: the Carrion Abbess a crow, the Armiger an empty suit's grind, the Serpent Countess a snake). It roars at its
+  first move and as each phase turns, is hurt when struck, and dies as its last form falls. A second form rises with a
+  surge.
+- **The held gates.** The boss's room is shut by a portcullis and winched open when the fight ends. A gate breaks by its
+  kind: a cracked wall crumbles, a secret wall falls away into its hollow, a grate scrapes aside, a lock turns, the
+  boss's seal shatters.
+
+Where the library is not installed, each new sound plays a stand-in, and a voice class is silent rather than heard as
+anything else.
+
 ## Not yet
 
 - **The castle's own feel.** Erina plays Galaxy Boy's run and gun with Zero Boy's saber string. A feel of her own would

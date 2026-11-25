@@ -2354,6 +2354,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
+  // a BOSS FIGHT and a metroidvania's HELD GATES heard (scene/channels/boss-audio.js, sfx-shelf/boss-sounds.js): each boss's
+  // moves told and landing, its voice, its second form and its fall; a boss's room shut and opened, a gate broken by its
+  // kind, a wall struck down. Joins the level's own audio (its style and flavor its sheet's, its game's `sound.bosses`);
+  // a level with no audio hears none of it.
+  if (payload && payload.audio && (payload.heldGates || (payload.entities || []).some((e) => e && e.rule && e.rule.boss && e.rule.boss.moves)) && !payload.audio.director && !payload.audio.gates) {
+    const { bossAudio } = await import('@/lib/graph/scene/channels/boss-audio.js');
+    const sh = sketch.manifest.audio?.sfx?.sheet;
+    const ba = bossAudio(payload, { own: sh?.bosses ?? null, style: sh?.style === 'mouth' || !sh?.style ? 'realistic' : sh.style, flavor: sh?.flavor ?? null });
+    if (ba) Object.assign(payload.audio, resolveWorldAudio(ba, { time, ref: sketch.ref }) ?? {});
+  }
   // a biocube's FAUNA heard (era/fauna-audio.js): the field's kinds and its herds calling from where they live, as place
   // sounds joining the level's audio (its own cues win), only where the sound library records their voices. None ⇒ nothing.
   if (payload && (payload.fauna || (payload.entities || []).some((e) => e && e.fauna))) {
