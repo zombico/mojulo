@@ -89,7 +89,7 @@ let __light = null;
 const skyMood = () => null, formLight = () => __light;
 ${parts.map(lift).join('\n')}
 const frameFigureLit = (spec, light) => { __light = light; try { return frameFigure(spec); } finally { __light = null; } };
-return { PARTS, SLOTS, WEAPON_SLOTS, STOCK, tableOf, readBuild, assembleFrame, frameEntity, frameMounts, frameFigure: frameFigureLit, HANGAR_SLICE, buildOfFlags, flagsOfBuild };
+return { PARTS, SLOTS, WEAPON_SLOTS, STOCK, tableOf, readBuild, assembleFrame, frameEntity, frameMounts, frameFigure: frameFigureLit, HANGAR_SLICE, PARTS_SLICE, buildOfFlags, flagsOfBuild };
 })()`;
 }
 

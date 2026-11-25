@@ -29,7 +29,7 @@ import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
 import { frameEntity, frameMounts, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
 import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/field.js';
-import { HANGAR_SLICE } from '../assault-frame/hangar.js';
+import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
 import { OPERATION_LEGEND } from './frame-goal.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
@@ -447,7 +447,7 @@ export function frameFieldEnds(stage) {
   if (FIELD_ENDS.size > 8) FIELD_ENDS.clear();
   const F = frameField(stage.manifest.cube), [cx, cy] = F.centre, half = F.half, g = (x, y) => r3(F.heightAt(x, y));
   const x = cx, y = r3(cy - half * 0.55), ex = cx, ey = r3(cy + half * 0.8);
-  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation' };
+  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation', ...(stage.frame.garage ? { garage: true } : {}) };
   const out = { spawn: frame.spawn.slice(), heading: frame.heading, exit: [ex, ey, g(ex, ey)], exitFrom: 'the field\'s far side', planar: false, beats: [], hazards: [] };
   for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
   FIELD_ENDS.set(key, out);
@@ -1043,6 +1043,9 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // its shoulder, the chase pitched with its aim
     const F = ends.frame, fig = `frame-${typeof F.build === 'string' ? F.build : 'own'}`;
     const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build) });
+    // (the hangar before the operation, frame-garage.js: the frame fitted from the parts the player has, its stock's
+    // and the save's; the build it goes out in kept in the save)
+    if (F.garage) e0.rule.garage = { owned: garageOwned(F.build) };
     pilotPart = {
       figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0],
       camera: { rule: 'follow', target: 'player', ...FRAME_CAMERA },
@@ -1051,8 +1054,12 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       // cloud where each bursts, the dust a boost raises off the land)
       smoke: { burstCount: 16, dust: { tint: 0xb07a52 } },
     };
-    // (the save's build, the hangar's: the page stands it in the frame's place, assault-frame/hangar.js)
-    game.consumes = [...(game.consumes ?? []), { slice: HANGAR_SLICE }];
+    // (the save's build, the hangar's: the page stands it in the frame's place, assault-frame/hangar.js; with a garage,
+    // the parts the player has too, and the build it fits is kept)
+    game.consumes = [...(game.consumes ?? []), { slice: HANGAR_SLICE }, ...(F.garage ? [{ slice: PARTS_SLICE }] : [])];
+    if (F.garage) game.produces = { ...(game.produces ?? {}), events: [...(game.produces?.events ?? []), { type: 'setFlag', slice: HANGAR_SLICE }] };
+    // (an operation's reward, frame-goal.js: the parts its win grants, the game channel's `wins`)
+    if (F.garage && X0?.wins?.length) { game.wins = X0.wins; game.produces = { ...game.produces, events: [...game.produces.events, { type: 'grant', slice: PARTS_SLICE }] }; }
   } else if (stage.section === 'airspace') {
     // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
     // gives, the map's reach its bound, seated on the departure threshold (a craft with no engine launched aloft, high
@@ -2120,6 +2127,8 @@ export function gameStore(world, book) {
   if (storyCarried(G) || storyCarried(laidCasting(laidJoins(G).G))) slices.push({ name: STORY_SLICE, kind: 'flags' });
   // a world with frame levels: the build its hangar keeps (assault-frame/hangar.js), every frame level standing it
   if (G.ids.some((id) => G.levels[id].airspace?.frame)) slices.push({ name: HANGAR_SLICE, kind: 'flags' });
+  // (and, a world whose frame is fitted in a garage, the parts it has won: an inventory)
+  if (G.ids.some((id) => G.levels[id].airspace?.frame?.garage)) slices.push({ name: PARTS_SLICE, kind: 'inventory' });
   // a megaworld's current map (game/play-shell.js atlas): where the player is and where they have been
   if (G.megaworld) slices.push({ name: ATLAS_SLICE, kind: 'flags' });
   // the world remembers what broke (a game that lets things break): each level keeps its breaks here

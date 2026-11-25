@@ -21,6 +21,8 @@ const f = Object.freeze;
 export const OPERATIONS = f([
   f({
     id: 'landfall', name: 'Landfall at Tharsis', map: 'plain',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['cr-vanguard', 'hd-sentinel', 'lg-medium']),
     brief: 'Dropped onto the Tharsis plain at dawn. A line of gun emplacements covers the landing zone: break it, then the hover tanks coming up behind it.',
     groups: f([
       f({ id: 'guns', kind: 'turret', count: 3, at: f([0, 0.1]), spread: 120 }),
@@ -31,6 +33,8 @@ export const OPERATIONS = f([
   // (THE HELLAS ROAD, its rungs up to the ace, each teaching what the next leans on: the Gnat Screen first)
   f({
     id: 'gnat-screen', name: 'Gnat Screen', map: 'plain',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['fc-close', 'sg-scatter']),
     brief: 'A swarm of drones screens the road north. Small and quick, hard to hold in a lock: keep moving, keep firing on the move, and break the guns they cover.',
     groups: f([
       f({ id: 'screen', kind: 'gnat', count: 8, at: f([0, 0.15]), spread: 110 }),
@@ -41,6 +45,8 @@ export const OPERATIONS = f([
   // (the fliers that fly: strike drones that dive and rake, with a Gnat screen round them)
   f({
     id: 'dust-devils', name: 'Dust Devils', map: 'plain',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['bs-falcon', 'gn-quick']),
     brief: 'Strike drones work the road, diving out of the sun to rake anything that moves and pulling away to come round again. Side-step the run, then catch them at the bottom of the dive, slow and low.',
     groups: f([
       f({ id: 'strikers', kind: 'wasp', count: 4, at: f([0, 0.45]), spread: 160 }),
@@ -51,6 +57,8 @@ export const OPERATIONS = f([
   // (rung two: homing salvos from far back, a quick boost to slip them and an assault boost to close)
   f({
     id: 'long-guns', name: 'Long Guns', map: 'plain',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['fc-long', 'gt-gatling']),
     brief: 'Missile carriers hang back behind a line of tanks, their salvos homing on anything that stands still. Quick-boost out from under each salvo, then charge through the tanks on an assault boost and break the carriers.',
     groups: f([
       f({ id: 'carriers', kind: 'hammer', count: 3, at: f([0, 0.7]), spread: 130 }),
@@ -61,6 +69,8 @@ export const OPERATIONS = f([
   // (perch drones high and far, missiles down on anything that stays still; climb to reach them)
   f({
     id: 'high-watch', name: 'High Watch', map: 'basin',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['lr-lance', 'gn-deep']),
     brief: 'Perch drones hang high over the crater, lobbing homing missiles down and drifting to a new perch when pressed. Climb on your thrusters to reach them, and keep moving under them.',
     groups: f([
       f({ id: 'perches', kind: 'kite', count: 3, at: f([0, 0.4]), spread: 220 }),
@@ -71,6 +81,8 @@ export const OPERATIONS = f([
   // (rung three: a front that is shut; break it, flank it, or kick it aside, then punish what is behind it)
   f({
     id: 'shield-line', name: 'The Shield Line', map: 'plain',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['ar-heavy', 'hd-bulwark']),
     brief: 'A line of shield walkers holds the approach, their slabs eating every round fired at their front. Break a slab with heavy fire, go round it, or kick it aside, and punish the walker behind it before it raises the slab again.',
     groups: f([
       f({ id: 'line', kind: 'bastion', count: 3, at: f([0, 0.3]), spread: 120 }),
@@ -80,6 +92,8 @@ export const OPERATIONS = f([
   }),
   f({
     id: 'red-dust', name: 'Red Dust', map: 'basin',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['cr-raptor', 'ar-light', 'hd-lancet']),
     brief: 'A pass through the crater rim, held by walkers and emplacements. A frame of the warlord\'s guard is on its way to reinforce it.',
     groups: f([
       f({ id: 'pickets', kind: 'walker', count: 5, at: f([-0.2, 0.15]), spread: 140 }),
@@ -91,6 +105,8 @@ export const OPERATIONS = f([
   // (rung four: frames before the frame; a pack of light MTs that circle in, then a heavy one whose mortar is its window)
   f({
     id: 'jackal-pack', name: 'Jackal Pack', map: 'basin',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['lg-light', 'bl-shear']),
     brief: 'Three Jackals hunt the crater road: small, quick frames that circle in close. Break them, and the Rhino behind them comes up. Its mortar hangs it in the air as it fires: that is when you hit it.',
     groups: f([
       f({ id: 'pack', kind: 'frame', mt: 'jackal', count: 3, at: f([0, 0.3]), spread: 90 }),
@@ -101,6 +117,8 @@ export const OPERATIONS = f([
   // (the gunship: twice a frame, circling, hanging to barrage, a Gnat escort round it)
   f({
     id: 'harrow', name: 'Harrow', map: 'plain',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['bs-ox', 'lg-heavy']),
     brief: 'The warlord\'s gunship hunts the plain: it circles, then stops and hangs to barrage with its chin gun and its missile pods. That hang is your window: close on it and hit it hard. It tightens its circle as it is hurt.',
     groups: f([
       f({ id: 'gunship', kind: 'harrow', at: f([0, 0.4]) }),
@@ -111,6 +129,8 @@ export const OPERATIONS = f([
   // (the air ladder's top: the heavy gunship, a quad drone at a gunship's scale orbiting high; under it is safe)
   f({
     id: 'thunderhead', name: 'Thunderhead', map: 'basin',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['pc-arc']),
     brief: 'The warlord\'s heavy gunship is a drone as big as a hangar: four great rotors, a chin gun and a rail cannon whose slugs land hard. It circles over the crater with its nose on you. Its guns are slung forward and cannot reach straight down: get under it and stay there, and it cannot touch you. Hurt, it comes lower and circles tighter.',
     groups: f([
       f({ id: 'gunship', kind: 'thunderhead', at: f([0, 0.5]) }),
@@ -122,6 +142,8 @@ export const OPERATIONS = f([
   // before it strikes, then, cornered, calls in the walkers held back behind it)
   f({
     id: 'vermilion', name: 'Vermilion', map: 'basin',
+    // (what its win adds to the garage, frame-goal.js `reward`)
+    reward: f(['cr-citadel']),
     brief: 'The warlord\'s ace waits on the crater floor. It duels first; wounded, it rushes with its blade, and its optics flare before it strikes: make it miss, then punish it. Cornered, it calls in its pickets.',
     groups: f([
       f({ id: 'ace', kind: 'frame', ace: 'vermilion', at: f([0, 0.45]) }),
@@ -147,8 +169,8 @@ export function operationLevel(op) {
   const W = WARLORDS_OF_MARS;
   return {
     name: op.name,
-    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette } },
-    goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' && !g.ace ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks) } },
+    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette, garage: true } },
+    goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' && !g.ace ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks), ...(op.reward ? { reward: [...op.reward] } : {}) } },
   };
 }
 

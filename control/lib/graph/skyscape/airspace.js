@@ -102,9 +102,11 @@ export function validateAirspace(m) {
   }
   // an assault frame (assault-frame/, the frame rule): stood on the ground and fought on it, not flown
   if (m.frame !== undefined) {
-    if (!m.frame || typeof m.frame !== 'object' || Array.isArray(m.frame)) e.push('airspace.frame is { build?, palette? }: an assault frame stood on the ground');
+    if (!m.frame || typeof m.frame !== 'object' || Array.isArray(m.frame)) e.push('airspace.frame is { build?, palette?, garage? }: an assault frame stood on the ground');
     else {
-      for (const k of Object.keys(m.frame)) if (!['build', 'palette'].includes(k)) e.push(`airspace.frame.${k} is not a frame's setting (build, palette)`);
+      for (const k of Object.keys(m.frame)) if (!['build', 'palette', 'garage'].includes(k)) e.push(`airspace.frame.${k} is not a frame's setting (build, palette, garage)`);
+      // (garage: true, the hangar before the operation: the frame fitted from the parts the player has, scene/channels/controllable/frame-garage.js)
+      if (m.frame.garage !== undefined && typeof m.frame.garage !== 'boolean') e.push('airspace.frame.garage is true where the frame is fitted in its hangar before it goes out');
       if (m.frame.build !== undefined) { try { readBuild(m.frame.build, 'airspace.frame.build'); } catch (err) { e.push(err.message); } }
       if (isSpace(m)) e.push('airspace.frame: a frame fights on a ground (no space map)');
       if (m.rail || m.cockpit || m.course) e.push('airspace.frame: a frame is fought on its feet, not flown down a rail, from a cockpit or round a course');

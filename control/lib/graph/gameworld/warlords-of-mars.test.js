@@ -11,7 +11,7 @@ import { MTS } from '../assault-frame/mts.js';
 import { assembleFrame } from '../assault-frame/assemble.js';
 import { nearestRails } from './rails.js';
 import { gameStore } from './levels.js';
-import { HANGAR_SLICE } from '../assault-frame/hangar.js';
+import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
 
 // WARLORDS OF MARS (warlords-of-mars.js): an assault frame's operations on Mars, on the level path Wolf Squadron and Rebel
 // Storm laid. One case per concept: the starter reads, a level is a frame's (its pilot, its groups, its tasks), words reach
@@ -43,8 +43,14 @@ describe('Warlords of Mars', () => {
     expect(foes.filter((e) => e.dormant).length).toBe(op.groups.filter((g) => op.tasks.slice(1).some((t) => t.down?.includes(g.id))).reduce((a, g) => a + g.count, 0));
     expect(m.game.mechanics.map((x) => x.kind)).toEqual(expect.arrayContaining(['objectives', 'fail-on-death']));
     // (it stands the save's build, the hangar's: the level consumes the slice, the game's store keeps it)
-    expect(m.game.consumes).toEqual(expect.arrayContaining([{ slice: HANGAR_SLICE }]));
-    expect(gameStore(W(), null).slices).toEqual(expect.arrayContaining([{ name: HANGAR_SLICE, kind: 'flags' }]));
+    expect(m.game.consumes).toEqual(expect.arrayContaining([{ slice: HANGAR_SLICE }, { slice: PARTS_SLICE }]));
+    expect(gameStore(W(), null).slices).toEqual(expect.arrayContaining([{ name: HANGAR_SLICE, kind: 'flags' }, { name: PARTS_SLICE, kind: 'inventory' }]));
+    // (fitted in its hangar before it goes out: the parts it starts with its stock's, the build it fits kept)
+    expect(P.rule.garage.owned).toEqual(garageOwned(WARLORDS_OF_MARS.frame));
+    expect(m.game.produces.events).toEqual(expect.arrayContaining([{ type: 'setFlag', slice: HANGAR_SLICE }]));
+    // (its win adds its reward to the garage: each part granted to the save's parts as it is won)
+    expect(m.game.wins).toEqual(OPERATIONS[0].reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })));
+    expect(m.game.produces.events).toEqual(expect.arrayContaining([{ type: 'grant', slice: PARTS_SLICE }]));
     // (fought on Mars's own land in the seventh generation, assault-frame/field.js: pure terrain, no trail, no flight map;
     // the frame and every foe stood on the land's height, inside the field's bound)
     expect(m).toMatchObject({ kind: 'geocube', show: 'land', cube: { from: 'mars', era: 'gen-7', outside: { island: { walk: 'none', open: true } } } });

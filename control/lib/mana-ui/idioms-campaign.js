@@ -14,6 +14,12 @@
  *                    its brief, its record)
  *   mission-debrief  the mission over: the outcome, the place, each goal met or failed, the figures, a medal stamped
  *                    on, then on with the tour
+ *   garage-slots     the hangar: the machine's slots down the left, each with what is fitted in it, the one in focus
+ *                    opened to its parts; and the way out (sortie)
+ *   garage-parts     one slot's parts down the left: each with its line and what fitting it does to the whole machine
+ *                    (each figure compared with the machine as it stands), the fitted one marked; accept fits it
+ *   machine-sheet    the machine as it stands (right): its numbers, its load as a bar against what its legs carry, and
+ *                    its laws, each kept or said as a warning
  */
 const P = (name) => ({ param: name });
 const I = (field) => ({ item: field });
@@ -100,5 +106,43 @@ export const CAMPAIGN_IDIOMS = {
       { use: 'window', props: { variant: 'ghost' }, children: [thenList(P('items'), txt(I('label'), 'heading'), { variant: 'menu' })] },
     ], 'loose')] },
     example: { outcome: { bind: 'campaign.debrief.outcome' }, place: { bind: 'campaign.debrief.place' }, goals: { bind: 'campaign.debrief.goals' }, stats: { bind: 'campaign.debrief.stats' }, medal: { bind: 'campaign.debrief.medal' }, items: [{ label: 'Next mission', then: { emit: 'next' } }, { label: 'Fly it again', then: { emit: 'again' } }, { label: 'The tour', then: { emit: 'tour' } }] },
+  },
+  'garage-slots': {
+    kind: 'screen', about: 'the hangar: the machine\'s slots down the left, each with the part fitted in it; the one in focus opened to its parts; the way out, once the machine is fitted (the machine itself stands in the game\'s view beside it)',
+    reads: 'title, slots: [{ slot, name, then }], go (the way out\'s words), sortie (its effect)', emits: 'a slot\'s then (open its parts); sortie',
+    params: ['title', 'slots', 'go', 'sortie'],
+    node: { use: 'screen', props: { title: P('title'), place: 'left' }, children: [col([
+      thenList(P('slots'), row([txt(I('slot'), 'label'), txt(I('name'), 'heading')], 'apart', 'normal')),
+      { use: 'button', props: { label: P('go') }, on: { accept: P('sortie') } },
+    ], 'loose')] },
+    example: { title: 'Hangar', slots: { bind: 'garage.slots' }, go: 'Sortie', sortie: { emit: 'garage:sortie' } },
+  },
+  'garage-parts': {
+    kind: 'screen', about: 'one slot\'s parts: each with its line and what fitting it does to the whole machine, every figure compared with the machine as it stands (better told by a shape), the fitted one marked; accept fits it, back keeps what is fitted',
+    reads: 'title, parts: [{ name, about?, fitted?, delta: [{ label, from, to, better? }], then }]', emits: 'a part\'s then (fit it)',
+    params: ['title', 'parts'],
+    node: { use: 'screen', props: { title: P('title'), place: 'left' }, children: [thenList(P('parts'), col([
+      row([txt(I('name'), 'heading'), { use: 'badge', props: { value: '◆', variant: 'strong' }, when: I('fitted') }], 'apart'),
+      { use: 'text', props: { value: I('about'), role: 'caption' }, when: I('about') },
+      { use: 'each', props: { rows: I('delta'), row: { use: 'compare', props: { label: I('label'), from: I('from'), to: I('to'), better: I('better') } } } },
+    ]), { visible: 6 })] },
+    example: { title: 'Core', parts: { bind: 'garage.parts' } },
+  },
+  'machine-sheet': {
+    kind: 'hud', about: 'the machine as it stands, on the right: its name, its numbers, its load as a bar against what its legs carry, and its laws, each kept or said as a warning',
+    reads: 'title, numbers: [{ label, value }], loadLabel, load, loadMax, laws: [{ says, ok }]', emits: '—',
+    params: ['title', 'numbers', 'loadLabel', 'load', 'loadMax', 'laws'],
+    node: { use: 'region', props: { at: 'right', variant: 'scrim' }, children: [col([
+      txt(P('title'), 'heading'),
+      { use: 'bar', props: { label: P('loadLabel'), value: P('load'), max: P('loadMax'), variant: 'stamina' } },
+      { use: 'each', props: { rows: P('numbers'), row: { use: 'stat', props: { label: I('label'), value: I('value') } } } },
+      { use: 'divider' },
+      { use: 'each', props: { rows: P('laws'), row: row([
+        { use: 'text', props: { value: '✓', role: 'caption' }, when: I('ok') },
+        { use: 'text', props: { value: '!', role: 'label' }, unless: I('ok') },
+        { use: 'text', props: { value: I('says'), role: 'caption' } },
+      ]) } },
+    ])] },
+    example: { title: { bind: 'garage.sheet.title' }, loadLabel: 'Load t', numbers: { bind: 'garage.sheet.numbers' }, load: { bind: 'garage.sheet.load' }, loadMax: { bind: 'garage.sheet.loadMax' }, laws: { bind: 'garage.sheet.laws' } },
   },
 };

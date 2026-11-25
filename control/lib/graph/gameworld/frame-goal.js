@@ -27,7 +27,8 @@ import { unitRadius } from '../groundforce/index.js';
 import { ACES, readAce } from '../assault-frame/aces.js';
 import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
-import { STOCK } from '../assault-frame/parts.js';
+import { STOCK, PARTS } from '../assault-frame/parts.js';
+import { PARTS_SLICE } from '../assault-frame/hangar.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -72,7 +73,9 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward)`);
+  // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
+  if (v.reward !== undefined && !(Array.isArray(v.reward) && v.reward.every((id) => typeof id === 'string' && Object.values(PARTS).some((T) => T[id])))) throw new Error(`${at}.reward is a list of parts (assault-frame/parts.js ids) its win adds to the garage`);
   if (!Array.isArray(v.groups) || !v.groups.length) throw new Error(`${at}.groups is a list of the enemy's groups`);
   const ids = new Set();
   const groups = v.groups.map((g, i) => {
@@ -112,7 +115,7 @@ export function readOperation(v, at = 'goal.operation') {
     }
     throw new Error(`${tat} is { down } | { reach } | { hold }`);
   });
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}) };
 }
 
 // the field's half-size, and a share of it as a place on the ground (round the field's middle: a geocube's land is
@@ -180,5 +183,6 @@ export function operationCast(op, ends) {
       });
     }
   }
-  return { entities, figures };
+  // (its reward: each part granted to the save's parts as the operation is won, the game channel's `wins`)
+  return { entities, figures, ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}) };
 }

@@ -5,6 +5,8 @@
  * stands the build (kernel.js); the hangar writes it (setFlag events) as the player goes out.
  *
  *   HANGAR_SLICE              the slice's name in a game's store
+ *   PARTS_SLICE               the parts the player has won (an inventory: a part's id, one each), the garage's to fit
+ *   garageOwned(build)        → the parts a garage starts with: its stock frame's own (a build's every part, sorted)
  *   buildOfFlags(flags)       → the build the flags say ({ <slot>: id | null } over every slot they name), or null where
  *                               they name none; a part no table has is left to the stock's (said by readBuild, never here)
  *   flagsOfBuild(build)       → the setFlag events that keep a build: [{ type, slice, key, value }], every slot's
@@ -12,8 +14,10 @@
  * Pure: the same flags, the same build.
  */
 import { SLOTS, WEAPON_SLOTS, tableOf } from './parts.js';
+import { readBuild } from './assemble.js';
 
 export const HANGAR_SLICE = 'hangar';
+export const PARTS_SLICE = 'parts';
 const KEY = 'frame.', NONE = '-';
 const EVERY = Object.freeze([...SLOTS, ...WEAPON_SLOTS]);
 
@@ -34,3 +38,7 @@ export function flagsOfBuild(build) {
   return EVERY.filter((s) => build[s] !== undefined).map((s) => ({ type: 'setFlag', slice: HANGAR_SLICE, key: KEY + s, value: build[s] === null ? NONE : String(build[s]) }));
 }
 
+export function garageOwned(build) {
+  const B = readBuild(build);
+  return [...new Set(EVERY.map((s) => B[s]).filter((v) => typeof v === 'string'))].sort();
+}

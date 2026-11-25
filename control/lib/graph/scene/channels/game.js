@@ -98,7 +98,9 @@ const __levelRank = ${levelRank.toString()};
         return null;
       }
     }
-    st.ended = true;
+${game.wins ? `    // (what its win grants, the level's \`wins\`: an operation's reward, its parts; on a success only)
+    if ((result || 'success') === 'success' && Array.isArray(__GAME.wins)) for (const w of __GAME.wins) emit(w);
+` : ''}    st.ended = true;
     st.envelope = { contractVersion: __CV, levelRef: __GAME.levelRef, seed: st.seed, result: result || 'success', events: st.events.slice() };${exits ? `
     // the way the level was left, when it has several (a map game travels by it)
     if (typeof exit === 'string' && exit) st.envelope.exit = exit;` : ''}

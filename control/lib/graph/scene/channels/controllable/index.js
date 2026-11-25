@@ -44,6 +44,7 @@ import { tellOf } from '../../../worlds/controllable/tell.js';
 import { cockpitHudScript } from '../cockpit-hud.js';
 import { frameHudScript } from './frame-hud.js';
 import { frameKernelSource } from '../../../assault-frame/kernel.js';
+import { frameGarageScript } from './frame-garage.js';
 import { frameFlameScript } from './frame-flame.js';
 import { keyClock } from '../../../worlds/controllable/keying.js';
 
@@ -908,6 +909,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // (an assault frame: worlds/controllable/rules-frame.js, composed in where one stands; its pilot reads the frame's scheme)
   const frameOn = entities.some((e) => e && e.rule && e.rule.type === 'frame');
   const framePilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'frame');
+  // (the hangar before the operation, frame-garage.js: a pilot frame whose rule says its garage)
+  const garageCfg = ((entities.find((e) => e && e.pilotable && e.rule && e.rule.type === 'frame' && e.rule.garage) || {}).rule || {}).garage || null;
   const boatOn = entities.some((e) => e && e.rule && e.rule.type === 'boat');
   // (a run and gun's arm cannon, worlds/controllable/buster.js: a body whose rule carries a buster; its rounds drawn as pellets)
   const busterOn = entities.some((e) => e && e.rule && e.rule.buster);
@@ -5843,6 +5846,7 @@ function __frameRefit(build) {
   window.__mojFrameHangar = { build: K.readBuild(build), figure: name };
   return true;
 }
+${garageCfg ? frameGarageScript(garageCfg) : ''}
 ` : ''}function __applyMatchParams(params) {
   if (__world.spectate) {
     // SPECTATE PICKS (2026-08-09): the level authors every candidate seat:'ai' fighter; the shell's
