@@ -487,6 +487,20 @@ A flown level's speed reads off the world round its craft (`control/lib/graph/sc
 
 The cue is read off the craft's motion, so the rail's boost and a cockpit's throttle drive the same effect.
 
+## How a flight sounds
+
+A flown level hears its craft by how it is flown (`control/lib/graph/sfx-shelf/flight-sounds.js`, played by the page's
+flight block, `scene/channels/flight-audio.js`):
+- the `fly` rule is a trainer: its prop engine by the throttle, the air and the runway by its speed, the stall warning,
+  the touchdown, a crash, a ring;
+- the `rail` rule is an arcade fighter: its engine to its boost, its lasers, boost, brake and roll, shield hits and what
+  it blows apart, ground guns and the boss among them;
+- the `starfighter` rule is a cockpit: its engines by the throttle, its cannon, shields and hull hit, the lock and the
+  torpedo, the incoming warning, flares, a fighter past, a warship going up.
+
+Pilot School, Wolf Squadron and Rebel Storm hear them with nothing written. The kit and its recordings:
+[sfx-shelf.md](sfx-shelf.md#a-flight-as-a-kit).
+
 ## Made from words: the three rails
 
 A person asks for a flight game in their own words. Two doors read those words, and both land on the same three
@@ -512,7 +526,7 @@ rails (`control/lib/graph/gameworld/rails.js`):
 ## What comes next
 
 1. **Pilots on the `fly` rule:** foes and wingmen that fly it, with lead pursuit.
-2. **Comms and the flight HUD on mana-ui**, and a flight sound sheet.
+2. **Comms and the flight HUD on mana-ui.**
 3. **Rebel Storm's other side:** Rise of Empire's campaign, and debriefs between missions.
 4. **Wolf Squadron's squad:** its calls, the rival squad, and the all-range arena.
 5. **Pilot School's later lessons:** the stall, the cross-country, the crosswind and the check ride.
