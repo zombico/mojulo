@@ -200,7 +200,7 @@ describe('design_game: designed flight levels', () => {
     expect(run.flight_proof.levels.map((l) => [l.level, l.won, l.result, l.still]), JSON.stringify(run.flight_proof.levels)).toEqual([['mission-1', true, 'success', 'lost'], ['mission-2', true, 'success', 'lost'], ['mission-3', true, 'success', 'lost']]);
   }, 400000);
 
-  it('Blaze Gunner: a locked pitch lays its first stage; built, a scroll stage on its own play, lost with the ship and won with its boss', async () => {
+  it('Blaze Gunner: a locked pitch lays its stages; built, scroll stages on their own play, lost with the ship and won with the boss; checked, level one proved', async () => {
     const out = await designGameHandler({ title: 'Blaze', world: { id: 'blaze', name: 'Blaze', rail: { from: 'blaze-gunner', locked: true } } });
     expect(out.pitch).toMatchObject({ stored: true, by: 'blaze-gunner', levels: ['stage-1', 'stage-2'] });
     const ref = out.ref, run = await designGameHandler({ ref, run: true });
@@ -231,6 +231,18 @@ describe('design_game: designed flight levels', () => {
     expect(M.events?.hud ?? []).toEqual([]);
     expect(M.manaHud.feed.scroll.boss.id).toBe(M.camera.track.find((L) => L.until).until);
     expect(() => readTheme(M.manaHud.theme)).not.toThrow();
+    // FROM ZERO TO LEVEL ONE: its front and its look written by the rail (a press-start, orbit in its own colours, no
+    // overlay over the play); the check plays each stage through, its bot clearing it and a still ship not: the machine
+    // gate proves both, and the play and the first level goalposts are met
+    const W = SketchRepository.getByRef(ref).manifest;
+    expect(W.front).toMatchObject({ press: 'press start' });
+    expect(W.ui).toMatchObject({ theme: { from: 'orbit', overlay: 'none' }, colour: 'theme' });
+    const checked = await designGameHandler({ ref, run: true, check: true });
+    expect(checked.playthrough).toMatchObject({ gate: 'machine', won: 2, of: 2 });
+    for (const l of checked.playthrough.levels) { expect(l.basic).toMatch(/^cleared/); expect(l.still).not.toMatch(/^cleared/); }
+    const posts = Object.fromEntries(checked.goalposts.posts.map((p) => [p.id, p.status]));
+    expect(posts).toMatchObject({ play: 'met', 'first-level': 'met' });
+    expect(checked.audits.unwalked.every((u) => /its bot plays it through/.test(u.why))).toBe(true);
   }, 400000);
 
   it('beacons: the pilot sent to places, a group brought in by one, the next lit by a group down; proved', async () => {

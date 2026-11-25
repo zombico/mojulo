@@ -12,7 +12,9 @@
  * the ship is down, won when the boss its track holds for is down.
  *
  *   BLAZE_GUNNER_LOOK          the look mana-ui draws its menus and its HUD in (a ship's console in space, calm and
- *                              exact: the `orbit` card)
+ *                              exact: the `orbit` card, in its own colours, never the world's palette, and with no
+ *                              overlay: its grid would lie over the play under the shell's pause button)
+ *   BLAZE_GUNNER_FRONT         its title screen: a press-start, a tagline, the end card
  *   stageLevel(id)             → the stage as a gameworld level: { name, airspace, goal }
  *   blazeGunnerStart(world, { stages? }) → { world }: the rail's starter, its first stages under what the creator wrote
  *
@@ -21,6 +23,9 @@
 import { STAGES, STAGE_IDS, stageManifest } from './scroll-stage/stages.js';
 
 export const BLAZE_GUNNER_LOOK = 'orbit';
+/** Its front (game/play-front.js): a press-start over the title, its tagline, the end card when the last stage's boss
+ *  falls; the menu the shell's own (continue, play, the levels, options) */
+export const BLAZE_GUNNER_FRONT = Object.freeze({ press: 'press start', tagline: 'one small ship, two pods, a station to break into', end: Object.freeze({ text: 'The reactor is down' }) });
 
 /** A stage as a gameworld level: its airspace the stage's scroll, flown for the scroll goal. */
 export function stageLevel(id) {
@@ -32,5 +37,5 @@ export function stageLevel(id) {
 export function blazeGunnerStart(world, { stages = STAGE_IDS.length } = {}) {
   const ids = STAGE_IDS.slice(0, Math.max(1, stages));
   const levels = Object.fromEntries(ids.map((id) => [id, stageLevel(id)]));
-  return { world: { mode: 'autonomous', ui: { theme: BLAZE_GUNNER_LOOK }, start: ids[0], ...world, levels } };
+  return { world: { mode: 'autonomous', ui: { theme: { from: BLAZE_GUNNER_LOOK, overlay: 'none' }, colour: 'theme' }, front: BLAZE_GUNNER_FRONT, start: ids[0], ...world, levels } };
 }

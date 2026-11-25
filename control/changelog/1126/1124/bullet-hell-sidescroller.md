@@ -109,6 +109,15 @@ space with a carrier bringing the vulcan. Then it goes into the station by its m
 The rail lays both stages. The bot reads the corridor, the bulkheads and the movers where their cycles will have them,
 follows a bend before it is in it, and clears stage 2 end to end.
 
+**From nothing to level one.** Blaze Gunner is made through the game book from nothing to a first level a person can
+play. A shmup's words (or a station infiltration's) place it on its rail, and a locked pitch lays both stages as the
+game's levels. It also writes the game's front (a press-start, its tagline, the end card "The reactor is down") and its
+look (`orbit` in its own colours, no overlay across the play). Its play is the stages' own, so the play goalpost is met
+by them. A run with `check: true` proves every stage the way a fight level is proved: the bot clears it and a still
+ship that neither moves nor fires does not, and that meets the first level's goalpost. The shell plays the whole game
+on mana-ui: press start, the title, a stage under its HUD, CLEARED with the next stage offered, the second stage, the
+end card.
+
 **Laws.** The arsenal and the bullet patterns are held to laws:
 - no pod is better on every measure, and every pod is worth taking over the base gun;
 - a bullet is seen coming, a volley always leaves a way through, and every volley is told;

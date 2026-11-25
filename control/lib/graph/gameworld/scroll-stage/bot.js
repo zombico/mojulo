@@ -17,10 +17,12 @@
  *
  *   botInput(world, { horizon?, scores? }) → the frame's input (the d-pad as the screen reads it, fire, slot); `scores`, a
  *                                          list, takes each choice's danger and lean (what a trace reads)
- *   playScrollStage(spec, { seconds?, dt?, trace? }) → { cleared, ended, bossDown, time, lost (lives), hp, hits, foes: { down, of },
+ *   playScrollStage(spec, { seconds?, dt?, trace?, player? }) → { cleared, ended, bossDown, time, lost (lives), hp, hits, foes: { down, of },
  *                                             caught, held: [pods], peak (the most foes' bullets on the screen at once) }   spec: { entities, camera, pilot?, colliders?,
  *                                             breakables?, rupa? } (a payload, or a level's manifest-level play); cleared:
- *                                             the track run to its end, its boss (if it holds for one) down, the ship up
+ *                                             the track run to its end, its boss (if it holds for one) down, the ship up;
+ *                                             `player: 'still'` neither moves nor fires (the machine gate's other player:
+ *                                             a stage it clears asks nothing of the one who plays it)
  *   stageSpec(manifest)                   → (async) the spec as the page resolves it (worlds/world-scene.js)
  *
  * Deterministic: a fixed step, no dice: the same stage plays the same way.
@@ -132,7 +134,7 @@ export function botInput(w, { horizon = HORIZON, scores = null } = {}) {
 }
 
 /** A scroll stage played to its end by the bot. */
-export function playScrollStage(spec, { seconds = 300, dt = 1 / 30, trace = null } = {}) {
+export function playScrollStage(spec, { seconds = 300, dt = 1 / 30, trace = null, player = 'basic' } = {}) {
   E ??= composeLive();
   const w = E.createWorld({ entities: spec.entities, camera: spec.camera, pilot: spec.pilot ?? 'player', colliders: spec.colliders ?? [],
     ...(spec.breakables ? { breakables: spec.breakables } : {}), ...(spec.rupa ? { rupa: spec.rupa } : {}) });
@@ -141,7 +143,7 @@ export function playScrollStage(spec, { seconds = 300, dt = 1 / 30, trace = null
   let n = 0, peak = 0;
   const ship = () => w.byId[w.pilotId];
   for (; n * dt < seconds; n++) {
-    E.stepWorld(w, botInput(w), dt);
+    E.stepWorld(w, player === 'still' ? {} : botInput(w), dt);
     peak = Math.max(peak, (w.foeShots || []).length);
     if (trace && n % Math.round(1 / dt) === 0) trace.push({ t: +w.time.toFixed(2), u: +w.camera._sc[0].toFixed(1), hp: ship().body?.hp ?? null, shots: (w.foeShots || []).length });
     if (w.scrollOver || (ship().downed && !(ship().rule.lives >= 0)) || (w.camera.scrollEnd && !ship().downed && (!boss || w.byId[boss]?.downed))) break;

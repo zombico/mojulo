@@ -3,7 +3,7 @@
 // sentence door lays it from a shmup's own words, and a run and gun's words stay the run and gun's; its flight goal is
 // lost with the ship and won with the boss its track holds for.
 import { describe, it, expect } from 'vitest';
-import { blazeGunnerStart, stageLevel } from './blaze-gunner.js';
+import { blazeGunnerStart, stageLevel, BLAZE_GUNNER_FRONT, BLAZE_GUNNER_LOOK } from './blaze-gunner.js';
 import { STAGE_IDS, stageManifest, bossOf, STAGES } from './scroll-stage/stages.js';
 import { starterRailOf } from './compose.js';
 import { readGenre } from './intent.js';
@@ -21,6 +21,14 @@ describe('Blaze Gunner\'s rail', () => {
     expect(L.airspace).toEqual(airspace);
     expect(L.goal).toEqual({ flight: 'scroll' });
     expect(blazeGunnerStart({}, { stages: 1 }).world.levels).toHaveProperty(STAGE_IDS[0]);
+  });
+
+  it('its starter writes its front (a press-start, the end card) and its look (orbit in its own colours, no overlay), under what the creator wrote', () => {
+    const W = blazeGunnerStart({}).world;
+    expect(W.front).toEqual(BLAZE_GUNNER_FRONT);
+    expect(W.ui).toEqual({ theme: { from: BLAZE_GUNNER_LOOK, overlay: 'none' }, colour: 'theme' });
+    expect(Object.keys(W.levels)).toEqual(STAGE_IDS);
+    expect(blazeGunnerStart({ front: { tagline: 'mine' } }).world.front).toEqual({ tagline: 'mine' });
   });
 
   it('the sentence door lays it from a shmup\'s words; a run and gun\'s stay the run and gun\'s', () => {

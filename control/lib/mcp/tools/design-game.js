@@ -1639,7 +1639,8 @@ async function fightReadout(W) {
 }
 
 /** THE PLAYTHROUGH (gameworld/playthrough.js), a check's: each made level where foes stand and the hero plays a moveset
- * (an action game's), resolved as its page resolves it and played by the basic player and the still one. A level passes
+ * (an action game's), or a scroll stage (a shooter's: its bot, gameworld/scroll-stage/bot.js), resolved as its page
+ * resolves it and played by the basic player and the still one. A level passes
  * when the basic player wins it and the still one does not. Resolving a level is the cost (seconds to minutes), so the
  * levels are played in order while the run's budget lasts, the first always; the rest are named `unplayed` (the shell's
  * scripts/playthrough.mjs plays them all). Machine gate only; advice, never a refusal. */
@@ -1649,6 +1650,8 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
     const ents = row?.manifest?.entities ?? [], pilot = ents.find((e) => e?.pilotable);
     // (a street level is a fight: its own simulation, played by the brawl's scripted player, below)
     if (row?.manifest?.brawl?.practice?.street) return true;
+    // (a scroll stage is one too: its ship on the d-pad, played by the scroll stage's bot, below)
+    if (pilot?.rule?.type === 'scroll-ship') return true;
     return ents.some((e) => e?.team === 'foes') && !!(pilot?.rule?.moveset || pilot?.rule?.weapons);
   });
   if (!fights.length) return null;
@@ -1666,6 +1669,15 @@ export async function playReadout(W, { budgetMs = runBudgetMs(), clock = Date.no
         // (a street its basic player loses: where, and the two words that ease it; advice, the design is the creator's)
         const eases = basic.won ? {} : { eases: `the basic player ${basic.outcome === 'lost' ? `ran out of falls at stop ${Math.min(basic.stops.of, basic.stops.cleared + 1)} of ${basic.stops.of}` : 'did not finish in time'}: allow more falls (street.lives), thin that stop's wave, or stand its boss at cpu: 'novice'` };
         levels.push({ level: key, pass: basic.won && !still.won, basic: streetSummary(basic), still: streetSummary(still), ...eases });
+        continue;
+      }
+      // a scroll stage (gameworld/scroll-stage/bot.js): its bot plays it to its end, a still ship neither moves nor fires
+      if (payload.camera?.rule === 'scroll') {
+        const { playScrollStage } = await import('@/lib/graph/gameworld/scroll-stage/bot.js');
+        const basic = playScrollStage(payload), still = playScrollStage(payload, { player: 'still' });
+        const say = (R) => `${R.cleared ? 'cleared' : R.ended ? 'ended, its boss up' : 'lost'} in ${Math.round(R.time)} s: ${R.foes.down} of ${R.foes.of} foes down, ${R.hits} hit${R.hits === 1 ? '' : 's'}, ${R.lost} li${R.lost === 1 ? 'fe' : 'ves'} lost`;
+        const eases = basic.cleared ? {} : { eases: 'the bot did not clear it: give the ship more hp or lives (scroll.hp, scroll.lives), thin a wave, or widen the narrowest of its interior' };
+        levels.push({ level: key, pass: basic.cleared && !still.cleared, basic: say(basic), still: say(still), ...eases });
         continue;
       }
       const basic = playLevel(payload, { player: 'basic' }), still = playLevel(payload, { player: 'still' });

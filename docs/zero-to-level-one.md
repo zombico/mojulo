@@ -63,7 +63,9 @@ session leaves.
 5. **The build.** `run: true` makes every ready step through the real doors (each level a world row, then the game
    row), keeping what did not move. Its `compile` readout is the pre-build check: blockers, advises, an estimate.
 6. **The machine gate.** `run: true, check: true` walks each level in headless Chrome to its win (`audits`), and for a
-   fight level sends a scripted player that must win and a still one that must not (`playthrough`).
+   fight level sends a scripted player that must win and a still one that must not (`playthrough`). A scroll stage
+   (a shooter's) is never walked: its own bot plays it through, and a still ship that neither moves nor fires must not
+   clear it (`control/lib/graph/gameworld/scroll-stage/bot.js`).
 7. **The eyes gate.** The `play` step. The person plays it; nothing in mojulo ever says a person has looked.
 8. **Keep it.** `export_game` writes the web build (or a desktop app); `export_model { engine }` hands a team's engine
    the levels and assets. Where it is built and where it can be seen: [workshop.md](workshop.md).
@@ -81,6 +83,13 @@ A platformer has a rail of its own under the designed path: a world that plays a
 is offered its first level and the flow that plays it as a ready patch (`next: first-level`,
 `control/lib/graph/gameworld/platformer-game.js`). It is a side-scroller (one strip, one turn) unless the camera or the
 brief says the round; the 3D platformer lays courses up a hill, a turn each, entered from a courses screen.
+
+A scrolling shooter has one too, Blaze Gunner (`blaze-gunner`, `control/lib/graph/gameworld/blaze-gunner.js`). A locked
+pitch lays its stages as the game's levels: the first in open space, the second the infiltration of a station to its
+reactor. It writes the game's front (a press-start and an end card) and its look (the `orbit` card, a ship's console).
+Its play is the stages' own, the ship on the d-pad and its pods, so the play goalpost needs no feel written. A run with
+`check: true` proves each stage by its bot, which meets the first level's goalpost. The shell plays it on mana-ui: the
+title, each stage under its HUD, the result between stages, and the end card when the reactor falls.
 
 The sentence door is a keyword reader, not the agent's judgment. It is a starting recipe; the words it lists as
 `unread` are the agent's to write in.
