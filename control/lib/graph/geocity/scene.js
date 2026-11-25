@@ -199,7 +199,10 @@ const FRONT_PAINT = Object.freeze({
 const HYDRANT = 90, BENCH = 70, HYDRO = 38;
 // a DOWNTOWN street's dress (downtownStreet): its centre line's stride (a 3 m dash in it), a parking bay's length and how
 // far in from the kerb a car stands, the share of bays taken, how far clear of a crossing it parks, its trees' stride
-const DOWNTOWN = Object.freeze({ dash: 9, bay: 6.4, park: 1.15, parked: 0.72, clear: 11, tree: 13 });
+const DOWNTOWN = Object.freeze({ dash: 9, bay: 6.4, park: 1.15, parked: 0.72, clear: 11, tree: 13,
+  // (its life, on its own dice: a manhole's stride down its middle (m), the share of bays with a stain, of its ends with a
+  // utility cabinet, a mailbox, a vendor's cart)
+  life: Object.freeze({ manhole: 34, stain: 0.3, cabinet: 0.6, mailbox: 0.45, cart: 0.25 }) });
 // the ground and the masses in their material words (era/arch-style.js MATERIAL_WORDS), laid as tiles (texel × light):
 // a floor's on a face that lies flat, a wall's on an upright one; each word's seed its own
 const FINISHES = Object.freeze({
@@ -974,10 +977,16 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
     }
   }
+  /** Whether a point stands on a carriageway: an arterial's road, or a neighbourhood's own street's. */
+  function roadAt(x, y) {
+    if (d.lines.some((l) => Math.abs((l.axis === 'ns' ? x : y) - l.at) < l.road / 2 + 0.4)) return true;
+    return d.regions.some((r) => x >= r.rect[0] && x <= r.rect[2] && y >= r.rect[1] && y <= r.rect[3] && (r.streets ?? []).some((st) => Math.abs((st.axis === 'ns' ? x : y) - st.at) < st.w / 2 - walkOf(r) + 0.4));
+  }
   /** A DOWNTOWN STREET (the core's and the frame's own streets, near: DOWNTOWN): its centre line dashed; a zebra at
    *  each crossing of another of its neighbourhood's streets and where it meets an arterial; cars parked along both
    *  kerbs, a meter every second bay, clear of its crossings and its hydrants; its trees in their pits along both walks,
-   *  between its lamps; a hydrant and a rack of newspaper boxes by its corners. */
+   *  between its lamps; a hydrant and a rack of newspaper boxes by its corners; and its life on its own dice: manhole
+   *  covers, oil stains where cars stand, a utility cabinet, a mailbox, a vendor's cart. */
   function downtownStreet(r, st, a, b, { WALK, pt, face, ns }) {
     const half = st.w / 2 - WALK, D = DOWNTOWN, R = streamOf(seed, 'downtown', `${st.id}:${Math.round(a)}`), lift = 0.03;
     const crosses = r.streets.filter((o) => o !== st && o.axis !== st.axis).map((o) => [o.at - o.w / 2, o.at + o.w / 2]).filter(([p, q]) => q > a && p < b);
@@ -1010,6 +1019,14 @@ export function assembleGeocityScene(m, ctx = {}) {
       plant('sidewalk', x, y, S(x, y) + KERB, `downtown:${st.id}:${sd}:${Math.round(s0)}`, null, Math.atan2(cy - y, cx - x));
       stamp('soil', [x, y, S(x, y) + KERB], rot);
     }
+    // ITS LIFE (its own dice, so nothing else on it moves): manhole covers down its middle, oil stains where cars stand,
+    // a utility cabinet and a mailbox by its corners, a vendor's cart on some
+    const RL = streamOf(seed, 'downtown-life', `${st.id}:${Math.round(a)}`), L0 = DOWNTOWN.life;
+    for (let s0 = a + 12 + RL() * L0.manhole; s0 <= b - 8; s0 += L0.manhole * (0.7 + 0.6 * RL())) { if (near(s0, 2)) continue; const [x, y] = pt(1, s0, (RL() - 0.5) * half * 0.8); stamp('manhole', [x, y, S(x, y) + lift], 0); }
+    for (const sd of [-1, 1]) for (let s0 = a + D.clear; s0 <= b - D.clear; s0 += D.bay) if (!near(s0, D.clear) && RL() < L0.stain) { const [x, y] = pt(sd, s0 + (RL() - 0.5) * 2, half - D.park); stamp('stain', [x, y, S(x, y) + 0.012], 0); }
+    { const [cx, cy] = pt(1, a + 5, half + 1.6); if (RL() < L0.cabinet) stamp('cabinet', [cx, cy, S(cx, cy) + KERB], 0); }
+    { const [mx, my] = pt(-1, b - 6.5, half + 0.6); if (RL() < L0.mailbox) stamp('mailbox', [mx, my, S(mx, my) + KERB], 0); }
+    { const [vx, vy] = pt(RL() < 0.5 ? 1 : -1, a + 13, half + 1.2); if (RL() < L0.cart) stamp('cart', [vx, vy, S(vx, vy) + KERB], ns ? Math.PI / 2 : 0); }
     // a hydrant and a rack of newspaper boxes by its corners
     for (const [s0, sd] of [[a + 9, 1], [b - 9, -1]]) {
       const [hx, hy] = pt(sd, s0, half + 0.5); stamp('hydrant', [hx, hy, S(hx, hy) + KERB], 0);
@@ -2382,7 +2399,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (a house its door on its street, windows round it)
       // (a row of shops walked into: its ground its shops, each open)
       const side = F.b.sides?.[f], ground = F.open ? 'shops' : F.house ? (f === F.house ? 'entries' : 'windows') : groundOf(F.use, side, F.b);
-      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, ...(formB ? { panes: true } : {}), ...(F.b.ring !== 'outskirts' ? { blades: true } : {}), frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
+      for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, ...(formB ? { panes: true } : {}), ...(F.b.ring !== 'outskirts' ? { blades: true } : {}), lived: true, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
+        // (what a shop puts out on its walk, frontage.js `lived`: the street's kit on the ground it stands on, never the road)
+        if (p.key.startsWith('life:')) { const [x, y] = p.pos; if (!roadAt(x, y)) { const b = F.b, q = b?.rect, inB = !!q && x >= q[0] && x <= q[2] && y >= q[1] && y <= q[3]; stamp(p.key.slice(5), [x, y, inB ? zOf.get(b.id)?.(x, y) ?? p.pos[2] : q ? S(x, y) + KERB : p.pos[2]], 0); counts.life = (counts.life ?? 0) + 1; } continue; }
         (frontStamps.get(p.key) ?? frontStamps.set(p.key, []).get(p.key)).push({ pos: P3(p.pos), ...(p.scale ? { scale: p.scale } : {}), ...(p.tint ? { tint: p.tint } : {}) });
       }
       counts.fronts = (counts.fronts ?? 0) + 1;

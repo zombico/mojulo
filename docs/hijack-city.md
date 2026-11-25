@@ -100,7 +100,11 @@ by its corners (`geocity/scene.js` `DOWNTOWN`). Where a neighbourhood's own stre
 across its mouth and the road carried through to the arterial's (`mouthsOf`), nothing of the kerb's stood in it. A
 downtown's shops hang blade signs over the walk (`geocity/frontage.js` `blades`), and its roofs are dressed: a tower's
 mechanical penthouse and cooling towers, a flat roof's stair bulkhead, its row of air handlers and a cooling tower on the
-big ones (`geocity/rooftop.js` `lotRoofPlan`). `civic: false` keeps none of the places.
+big ones (`geocity/rooftop.js` `lotRoofPlan`). Its ground level is lived in (`geocity/frontage.js` `lived`, `FRONTAGE.lived`, each
+thing by its place's own hash so nothing else moves): blinds drawn and curtains in some windows, a window's air
+conditioner on some homes, a shop shut behind its roller shutter (a tag sprayed on some), and before the open ones a
+sandwich board, planters at the door, a cafe's table under its umbrella, crates, bags out at the kerb; its streets'
+manhole covers, oil stains where cars stand, a utility cabinet, a mailbox and a vendor's cart (`DOWNTOWN.life`). `civic: false` keeps none of the places.
 
 ## Locales
 

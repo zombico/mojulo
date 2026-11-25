@@ -19,7 +19,9 @@
  *     `scaffold` a bay against a wall (facing out of it), `fence` a temporary panel, `hoarding` a plywood one, `barrier`,
  *     `cone`, `car` (facing: its length along x for e/w, y for n/s; its body pale for an instance's tint), `stall`;
  *     a cemetery's: `headstone`, `cross`, `ledger` (facing: the way its face looks, toward the walk it is read from);
- *     a downtown kerb's `meter`
+ *     a downtown kerb's `meter`; a lived-in street's: `aboard` (a sandwich board, facing the way a face looks), `planter`,
+ *     `cafe` and `cafeg` (a table, two chairs, an umbrella, cream or green), `bags`, `crates`, `cabinet`, `mailbox`,
+ *     `cart` (a vendor's), and flat on the road `manhole` and `stain`
  *
  * Pure; no dice.
  */
@@ -143,6 +145,44 @@ const ledger = ([dx, dy], L) => realize([
   { kind: 'grave', ...(dx ? { x: -1.1, y: -0.45, w: 2.0, d: 0.9 } : { x: -0.45, y: -1.1, w: 0.9, d: 2.0 }), z0: 0, z1: 0.3, tint: '#9a978f' },
   { kind: 'grave', ...markerBox([dx, dy], 0.16, 0.86, 0.3, 0.8, '#b4b1aa', -0.95) },
 ], L);
+// ── A LIVED-IN STREET'S THINGS (downtown, near the camera): what a shop puts out, what its street wears ──
+/** A SANDWICH BOARD before a shop: two boards leaning together, their faces along the walk (`facing` the way one looks),
+ *  a chalk panel on each. */
+function aboard([dx, dy], L) {
+  const P = (a, t, z) => (dx ? [t, a, z] : [a, t, z]), n = (s) => (dx ? [s * 0.96, 0, 0.28] : [0, s * 0.96, 0.28]);
+  const out = [];
+  for (const s of [-1, 1]) {
+    out.push(quad([P(-0.3, s * 0.27, 0), P(0.3, s * 0.27, 0), P(0.3, s * 0.02, 0.92), P(-0.3, s * 0.02, 0.92)], n(s), '#6b4a2f', L));
+    out.push(quad([P(-0.24, s * 0.255, 0.16), P(0.24, s * 0.255, 0.16), P(0.24, s * 0.06, 0.82), P(-0.24, s * 0.06, 0.82)].map((c) => c.map((v, k) => v + n(s)[k] * 0.012)), n(s), '#2e3431', L));
+  }
+  return out;
+}
+/** A PLANTER by a shop's door: a pot and the shrub in it. */
+const planter = (L) => realize([{ kind: 'park-bin', x: -0.32, y: -0.32, w: 0.64, d: 0.64, z0: 0, z1: 0.62, tint: '#a0634a' }, { kind: 'park-bin', x: -0.36, y: -0.36, w: 0.72, d: 0.72, z0: 0.62, z1: 1.18, tint: '#4f6e3a' }], L);
+/** A CAFE'S TABLE out on the walk: its round top on a post, two chairs, an umbrella over it (`hue` its canopy's). */
+const cafe = (hue) => (L) => realize([
+  { kind: 'park-bin', x: -0.36, y: -0.36, w: 0.72, d: 0.72, z0: 0.72, z1: 0.75, tint: '#d9d6cf' }, { kind: 'tram-bracket', x: -0.03, y: -0.03, w: 0.06, d: 0.06, z0: 0, z1: 2.3, tint: '#3a3c3e' },
+  ...[-0.62, 0.62].flatMap((x) => [{ kind: 'tram-bracket', x: x - 0.2, y: -0.2, w: 0.4, d: 0.4, z0: 0.44, z1: 0.48, tint: '#3a3c3e' }, { kind: 'tram-bracket', x: x + (x > 0 ? 0.16 : -0.2), y: -0.2, w: 0.04, d: 0.4, z0: 0.48, z1: 0.86, tint: '#3a3c3e' }, ...[[-0.17, -0.17], [0.13, 0.13]].map(([a, b]) => ({ kind: 'tram-bracket', x: x + a, y: b, w: 0.04, d: 0.04, z0: 0, z1: 0.44, tint: '#3a3c3e' }))]),
+  { kind: 'park-bin', x: -1.15, y: -1.15, w: 2.3, d: 2.3, z0: 2.15, z1: 2.27, tint: hue },
+], L);
+/** A PILE OF RUBBISH BAGS at the kerb, out for the morning. */
+const bags = (L) => realize([[-0.28, -0.1, 0.55, '#232527'], [0.25, 0.05, 0.48, '#2c2f31'], [0, 0.32, 0.42, '#1d1f20'], [0.05, -0.12, 0.85, '#2a2c2e']].map(([x, y, h, t], k) => ({ kind: 'park-bin', x: x - 0.27, y: y - 0.27, w: 0.54, d: 0.54, z0: k === 3 ? 0.45 : 0, z1: k === 3 ? h : h, tint: t })), L);
+/** A STACK OF DELIVERY CRATES by a shop's door. */
+const crates = (L) => realize([{ kind: 'crate', x: -0.3, y: -0.2, w: 0.6, d: 0.4, z0: 0, z1: 0.3, tint: '#8a6a45' }, { kind: 'crate', x: -0.28, y: -0.2, w: 0.6, d: 0.4, z0: 0.3, z1: 0.6, tint: '#5f7d4e' }, { kind: 'crate', x: 0.36, y: -0.2, w: 0.6, d: 0.4, z0: 0, z1: 0.3, tint: '#8a6a45' }], L);
+/** A UTILITY CABINET at a corner: a signal's or a line's box on its plinth, a seam down its doors. */
+const cabinet = (L) => realize([{ kind: 'cabinet', x: -0.5, y: -0.3, w: 1.0, d: 0.6, z0: 0, z1: 0.12, tint: '#8f8c84' }, { kind: 'cabinet', x: -0.46, y: -0.26, w: 0.92, d: 0.52, z0: 0.12, z1: 1.38, tint: '#7f8a7c' }, { kind: 'cabinet', x: -0.01, y: -0.27, w: 0.02, d: 0.54, z0: 0.2, z1: 1.3, tint: '#5d665b' }], L);
+/** A MAILBOX at the kerb: its blue box on four legs. */
+const mailbox = (L) => realize([...[[-0.3, -0.24], [0.26, -0.24], [-0.3, 0.2], [0.26, 0.2]].map(([x, y]) => ({ kind: 'mailbox', x, y, w: 0.04, d: 0.04, z0: 0, z1: 0.3, tint: '#20314f' })), { kind: 'mailbox', x: -0.32, y: -0.26, w: 0.64, d: 0.52, z0: 0.3, z1: 1.2, tint: '#2b4a86' }, { kind: 'park-bin', x: -0.32, y: -0.26, w: 0.64, d: 0.52, z0: 1.2, z1: 1.32, tint: '#2b4a86' }], L);
+/** A MANHOLE's cover in the road, flat; a STAIN of oil where a car stands, flat. */
+const manhole = (L) => realize([{ kind: 'park-bin', x: -0.36, y: -0.36, w: 0.72, d: 0.72, z0: 0, z1: 0.015, tint: '#3b3a37' }, { kind: 'park-bin', x: -0.24, y: -0.24, w: 0.48, d: 0.48, z0: 0.015, z1: 0.02, tint: '#46443f' }], L);
+const stain = (L) => realize([{ kind: 'park-bin', x: -0.75, y: -0.45, w: 1.5, d: 0.9, z0: 0, z1: 0.008, tint: '#2a2a2b' }, { kind: 'park-bin', x: -0.2, y: -0.5, w: 0.9, d: 0.7, z0: 0, z1: 0.009, tint: '#252526' }], L);
+/** A VENDOR'S CART on a corner: its steel box on wheels, its handle, its umbrella. */
+const cart = (L) => realize([
+  { kind: 'cart', x: -0.9, y: -0.45, w: 1.8, d: 0.9, z0: 0.35, z1: 1.0, tint: '#c3c6c8' }, { kind: 'cart', x: -0.92, y: -0.47, w: 1.84, d: 0.94, z0: 1.0, z1: 1.04, tint: '#8e9396' },
+  ...[-0.6, 0.6].map((x) => ({ kind: 'park-bin', x: x - 0.22, y: -0.5, w: 0.44, d: 0.06, z0: 0, z1: 0.44, tint: '#232425' })),
+  { kind: 'tram-bracket', x: 0.9, y: -0.03, w: 0.5, d: 0.06, z0: 0.95, z1: 0.99, tint: '#5c5f61' }, { kind: 'tram-bracket', x: -0.03, y: -0.03, w: 0.06, d: 0.06, z0: 1.04, z1: 2.3, tint: '#5c5f61' },
+  { kind: 'park-bin', x: -1.1, y: -1.1, w: 2.2, d: 2.2, z0: 2.2, z1: 2.32, tint: '#e0b43a' },
+], L);
 /** A PARKING METER at the kerb: its grey post and its head, a window on its street side. */
 const meter = (L) => realize([
   { kind: 'parking-meter', x: -0.04, y: -0.04, w: 0.08, d: 0.08, z0: 0, z1: 1.05, tint: '#5b6168' },
@@ -246,6 +286,7 @@ export function kitTemplates(L, { gauge = 1.495, poleReach = 4 } = {}) {
     bench: four((v) => bench(v, L)),
     can: four((v) => can(v, L)),
     bin: bin(L), hydrant: hydrant(L), papers: four((v) => papers(v, L)), ring: ring(L), bollard: bollard(L), railing: railing(L), gate: gate(L),
+    aboard: four((v) => aboard(v, L)), planter: planter(L), cafe: cafe('#efe8d8')(L), cafeg: cafe('#2f5a46')(L), bags: bags(L), crates: crates(L), cabinet: cabinet(L), mailbox: mailbox(L), manhole: manhole(L), stain: stain(L), cart: cart(L),
     meter: meter(L), headstone: four((v) => headstone(v, L)), cross: four((v) => crossMarker(v, L)), ledger: four((v) => ledger(v, L)),
     hydro: four((v) => hydro(v, L)),
     // a site's and a lot's: scaffolding against a wall (facing out from it), fencing, hoarding, barriers, cones, a

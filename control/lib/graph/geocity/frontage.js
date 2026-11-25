@@ -21,7 +21,9 @@
  *                                  palette: { frame, shop, sign, awning, door, rail } (lists of hex), frames? (the
  *                                  windows' baked paints: a window its frame's variant), panes?: true (a window's glass
  *                                  its own stamp, `win-pane…`: the form render's), blades?: true (a blade sign over
- *                                  some of its shops: a downtown's), open?: true | [a bay's
+ *                                  some of its shops: a downtown's), lived?: true (a lived-in wall: blinds, curtains and
+ *                                  air conditioners in its windows, a shop shut behind its shutter, and what its shops put
+ *                                  out on their walk, each `life:<kit>` at its place: FRONTAGE.lived), open?: true | [a bay's
  *                                  place along it…] (its shops OPEN, each or those named walked into: wider bays, no
  *                                  leaf in an open one's door), signs?, sinks? ({ <bay>: … }: an open shop's sign's
  *                                  colour, and how far its front stands under the wall's foot) }; R its dice
@@ -47,7 +49,13 @@ export const FRONTAGE = Object.freeze({
   window: { h: 3 },
   // the share of shops with a blade sign over them (`blades`: a downtown's)
   blade: 0.4,
+  // A LIVED-IN WALL's shares (`lived`): a window with its blind down, with curtains, with an air conditioner (a home's,
+  // over its ground floor); a shop shut, a shut one tagged; what a shop puts out on its walk: a sandwich board, two
+  // planters at its door, a cafe's table, crates by its door, its bags at the kerb (each its place's own hash)
+  lived: { blind: 0.24, curtain: 0.14, ac: 0.09, shutter: 0.08, tag: 0.5, aboard: 0.3, planter: 0.2, cafe: 0.14, crates: 0.08, bags: 0.1 },
 });
+// a lived-in window's and a shutter's colours (`lived`): blinds pale, curtains warmer, a tag's spray
+const BLINDS = Object.freeze(['#ece6d8', '#ddd8cb', '#f3f0e8', '#cdbf9f', '#bcc6c9']), CURTAINS = Object.freeze(['#9a3b35', '#d8c6a3', '#3f5a75', '#e6dccb', '#6f7f4a', '#7a4f6d']), TAGS = Object.freeze(['#d0386f', '#2f8fd1', '#e2c23a', '#3fae5a', '#e36a2c']);
 // a window block's bays and storeys, and its nominal bay (m): stretched to a wall's bay and storey
 const WIN_BLOCK = [4, 2], WIN_BAY = 3.4;
 const GLASS = '#2f3c46', SHOP_GLASS = '#7d97a3', DOOR_GLASS = '#3a454c', TRANSOM = '#64808c', STONE = '#cfc8ba', RAIL_GLASS = '#a9bcc4';
@@ -101,6 +109,15 @@ const PIECES = {
   ],
   // a band along a wall (a cornice, a band over its shops): a unit box, stretched along the wall and in its height
   band: [B(0, 1, 0, 0.4, 0, 0.5, 'band')],
+  // A LIVED-IN WALL (`lived`): a blind drawn down a window's top, curtains at its sides, a window's air conditioner on
+  // its sill; a shop shut behind its roller shutter, a tag sprayed on some
+  blind: [Q([[-0.6, 0.035, 1.82], [0.6, 0.035, 1.82], [0.6, 0.035, 2.43], [-0.6, 0.035, 2.43]], [0, 1, 0], 'blind')],
+  curtain: [Q([[-0.6, 0.035, 0.9], [-0.3, 0.035, 0.9], [-0.3, 0.035, 2.43], [-0.6, 0.035, 2.43]], [0, 1, 0], 'curtain'), Q([[0.3, 0.035, 0.9], [0.6, 0.035, 0.9], [0.6, 0.035, 2.43], [0.3, 0.035, 2.43]], [0, 1, 0], 'curtain')],
+  ac: [B(-0.34, 0.34, 0.02, 0.46, 0.92, 1.3, 'acbox'), Q([[-0.28, 0.465, 0.98], [0.28, 0.465, 0.98], [0.28, 0.465, 1.24], [-0.28, 0.465, 1.24]], [0, 1, 0], 'acgrille')],
+  shutter: [
+    Q([[-2.2, 0.09, 0.05], [2.2, 0.09, 0.05], [2.2, 0.09, 3.0], [-2.2, 0.09, 3.0]], [0, 1, 0], 'shutter'), B(-2.25, 2.25, 0, 0.24, 3.0, 3.32, 'shutter'),
+    Q([[-1.6, 0.096, 0.55], [0.5, 0.096, 0.55], [0.5, 0.096, 1.75], [-1.6, 0.096, 1.75]], [0, 1, 0], 'tag'),
+  ],
   // a BLADE SIGN over a shop: a board square to the wall, out over the walk above the fascia, on two iron brackets
   blade: [
     B(-0.05, 0.05, 0.32, 1.28, 4.3, 5.9, 'blade'), B(-0.07, 0.07, 0.3, 1.3, 4.24, 4.3, 'bracket'), B(-0.07, 0.07, 0.3, 1.3, 5.9, 5.96, 'bracket'),
@@ -124,11 +141,11 @@ const PIECES = {
   ];
 }
 // each part's paint: a fixed one, or white for its instance's tint (TINTS: the parts a building or a shop paints)
-const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS, bracket: '#2a2c2f', letters: '#efe6d2' };
-const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band', 'blade']);
+const PART_HEX = { glass: GLASS, shopglass: SHOP_GLASS, doorglass: DOOR_GLASS, transom: TRANSOM, stone: STONE, railglass: RAIL_GLASS, bracket: '#2a2c2f', letters: '#efe6d2', acbox: '#d3d4cf', acgrille: '#5c6063', shutter: '#8c9093' };
+const TINTS = new Set(['frame', 'sign', 'awning', 'door', 'canopy', 'rail', 'band', 'blade', 'blind', 'curtain', 'tag']);
 // each piece's parts gathered into the templates it stamps (a window one, its glass and sill tinted with its frame: a
 // metro stamps tens of thousands); a template is tinted when a part in it is
-const PART_OF_PIECE = { blade: { blade: 'board', bracket: 'bracket', letters: 'bracket' }, win: { glass: 'unit', frame: 'unit', stone: 'unit' }, shop: { shopglass: 'glass', doorglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, shopopen: { shopglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, awning: { awning: 'awning' },
+const PART_OF_PIECE = { blade: { blade: 'board', bracket: 'bracket', letters: 'bracket' }, blind: { blind: 'blind' }, curtain: { curtain: 'curtain' }, ac: { acbox: 'unit', acgrille: 'unit' }, shutter: { shutter: 'shut', tag: 'tag' }, win: { glass: 'unit', frame: 'unit', stone: 'unit' }, shop: { shopglass: 'glass', doorglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, shopopen: { shopglass: 'glass', transom: 'glass', frame: 'frame', sign: 'sign' }, awning: { awning: 'awning' },
   entry: { door: 'door', transom: 'stone', stone: 'stone', canopy: 'canopy' }, lobby: { shopglass: 'glass', frame: 'frame', canopy: 'canopy' }, balcony: { stone: 'slab', railglass: 'slab', rail: 'rail' }, band: { band: 'band' } };
 const TINTED = new Set(Object.values(PART_OF_PIECE).flatMap((m) => Object.entries(m).filter(([part]) => TINTS.has(part)).map(([, g]) => g)));
 
@@ -217,6 +234,18 @@ export function frontsOf(wall, spec, R) {
     if (piece === 'win' && spec.panes) out.push({ key: `win-pane:${facing}`, pos, ...(scale ? { scale } : {}) });
     for (const { g, tinted } of partsOf(piece)) out.push({ key: `${piece}-${g}:${facing}`, pos, ...(scale ? { scale } : {}), ...(tinted && tint ? { tint: TINT(tint[g] ?? tint.all) } : {}) });
   };
+  // (a lived-in wall's own dice: its place's hash, never the wall's stream, so nothing else on it moves)
+  const LV = FRONTAGE.lived, H = (tag, u, z = 0) => (strHash(`${facing}:${pos0(u)}:${r2(z)}:${tag}`) % 1000) / 1000, of = (xs, h) => xs[Math.floor(h * xs.length) % xs.length];
+  // (a thing a shop puts out: its place on the walk, `o` metres out from its wall, the way along the wall it faces)
+  const along = Object.entries(FACINGS).find(([, v]) => v[0] === t[0] && v[1] === t[1])[0];
+  const life = (kit, u, o) => out.push({ key: `life:${kit}`, pos: [r2(a[0] + t[0] * u + n[0] * o), r2(a[1] + t[1] * u + n[1] * o), r2(z0)], out: o });
+  const dressWin = (u, z, scale) => {
+    if (!spec.lived) return;
+    const h = H('win', u, z);
+    if (h < LV.blind) put('blind', u, z, { blind: of(BLINDS, H('blind', u, z)) }, scale);
+    else if (h < LV.blind + LV.curtain) put('curtain', u, z, { curtain: of(CURTAINS, H('curtain', u, z)) }, scale);
+    if (spec.use !== 'office' && z - z0 > floorH * 0.5 && H('ac', u, z) < LV.ac) put('ac', u, z, null, scale);
+  };
   if (L < 3 || storeys < 1) return out;
   const bay = FRONTAGE.bay[spec.use] ?? 3.4, nb = Math.max(1, Math.floor(L / bay)), step = L / nb, zs = floorH / FRONTAGE.window.h;
   const pick = (xs) => xs[Math.floor(R() * xs.length)];
@@ -234,6 +263,20 @@ export function frontsOf(wall, spec, R) {
       put(pieceOf(i), u, zb, { frame, sign }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
       // (a blade sign over some, at the bay's end, in its sign's colour: by the place's own hash, so no other dice move)
       if (spec.blades && strHash(`${facing}:${pos0(u)}`) % 100 < FRONTAGE.blade * 100) put('blade', u + w / 2 - 0.45, zb, { board: sign }, sc(1, shopRise(floorH)));
+      // (a lived-in street's shop: shut behind its shutter, tagged on some; else what it puts out on its walk)
+      if (spec.lived && pieceOf(i) === 'shop') {
+        if (H('shut', u) < LV.shutter) {
+          put('shutter', u, zb, { tag: H('tag', u) < LV.tag ? of(TAGS, H('tagc', u)) : '#8c9093' }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
+          if (H('bags', u) < LV.bags * 2) life('bags', u + w / 2 - 0.6, 2.6);
+        } else {
+          const door = u + FRONTAGE.shop.door.u * (w / FRONTAGE.shop.w);
+          if (H('aboard', u) < LV.aboard) life(`aboard:${along}`, u - w / 4, 1.5);
+          if (H('planter', u) < LV.planter) for (const sd of [-1, 1]) life('planter', door + sd * 0.95, 0.5);
+          if (H('cafe', u) < LV.cafe) life(H('cafeg', u) < 0.5 ? 'cafe' : 'cafeg', u - w / 4, 2.4);
+          else if (H('crates', u) < LV.crates) life('crates', door - 1.4, 0.45);
+          if (H('bags', u) < LV.bags) life('bags', u + w / 2 - 0.6, 2.6);
+        }
+      }
       if (R() < FRONTAGE.shop.awning) put('awning', u, zb, { awning: pick(P.awning) }, sc(w / FRONTAGE.shop.w, shopRise(floorH)));
     }
     // (a band over the shops, the storey's floor)
@@ -249,11 +292,13 @@ export function frontsOf(wall, spec, R) {
     const [bc, br] = WIN_BLOCK, done = new Set(), blocks = spec.frames?.length;
     if (blocks) for (let j = 1; j + br - 1 < storeys; j += br) for (let k = 0; k + bc - 1 < nb; k += bc) {
       put('win', (k + bc / 2) * step, z0 + j * floorH, { all: frame, block: `${bc}${br}` }, sc(step / WIN_BAY, zs));
+      for (let jj = 0; jj < br; jj++) for (let kk = 0; kk < bc; kk++) dressWin((k + kk + 0.5) * step, z0 + (j + jj) * floorH, sc(step / WIN_BAY, zs));
       for (let jj = j; jj < j + br; jj++) for (let kk = k; kk < k + bc; kk++) done.add(`${jj}:${kk}`);
     }
     for (let j = 0; j < storeys; j++) for (let k = 0; k < nb; k++) {
       if ((j === 0 && taken.has(k)) || done.has(`${j}:${k}`)) continue;
       put('win', (k + 0.5) * step, z0 + j * floorH, { all: frame }, sc(1, zs));
+      dressWin((k + 0.5) * step, z0 + j * floorH, sc(1, zs));
     }
     if (balc) for (let j = 1; j < storeys; j++) for (let k = 1; k < nb; k += 2) put('balcony', (k + 0.5) * step, z0 + j * floorH, { rail });
   }

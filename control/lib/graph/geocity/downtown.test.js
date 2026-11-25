@@ -49,4 +49,17 @@ describe('a downtown\'s detail', () => {
     // (the rest of the wall as it was)
     expect(with_.filter((p) => !p.key.startsWith('blade-'))).toEqual(without);
   });
+
+  it('lives in a wall where asked: blinds, curtains and air conditioners in its windows, a shop shut on some, what its shops put out; its own dice', () => {
+    const wall = { facing: 's', a: [0, 0], L: 160, z0: 0 }, spec = { storeys: 6, floorH: 3.2, use: 'mixed', ground: 'shops', frames: ['#333333'], palette: { frame: ['#333333'], shop: ['#444444'], sign: ['#aa3322'], awning: ['#225533'], door: ['#222222'], rail: ['#111111'] } };
+    const R = () => 0.5, lived = frontsOf(wall, { ...spec, lived: true }, R), plain = frontsOf(wall, spec, R);
+    const kinds = new Set(lived.map((p) => p.key.split(/[-:]/)[0]));
+    for (const k of ['blind', 'curtain', 'life']) expect(kinds.has(k), k).toBe(true);
+    // (none where it is not asked, and the rest of the wall as it was: nothing else moved)
+    expect(plain.some((p) => /^(blind|curtain|ac|shutter|life)[-:]/.test(p.key))).toBe(false);
+    expect(lived.filter((p) => !/^(blind|curtain|ac|shutter|life)[-:]/.test(p.key))).toEqual(plain);
+    // (what a shop puts out stands out from its wall, on the walk's side of it)
+    expect(lived.filter((p) => p.key.startsWith('life:')).every((p) => p.pos[1] < 0)).toBe(true);
+    expect(JSON.stringify(frontsOf(wall, { ...spec, lived: true }, R))).toBe(JSON.stringify(lived));
+  });
 });

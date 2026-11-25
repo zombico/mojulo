@@ -60,3 +60,8 @@
   across its mouth and the road runs through, and no bench, lamp, bin or tree stands in the way.
 - Downtown shops hang blade signs over the sidewalk, and the roofs are dressed: towers carry a mechanical penthouse
   and cooling towers, flat roofs a stair bulkhead, a row of air handlers and, on the big ones, a cooling tower.
+- The city's ground level looks lived in: some windows have blinds drawn or curtains, some homes have a window air
+  conditioner, a few shops are shut behind roller shutters (some tagged with graffiti), and open shops put things out
+  on the sidewalk: sandwich boards, planters by the door, a cafe table under an umbrella, crates, bags out for
+  collection. Downtown streets get manhole covers, oil stains where cars park, utility cabinets, mailboxes and the odd
+  vendor's cart. Each is placed by its own position, so nothing else in the city moves.
