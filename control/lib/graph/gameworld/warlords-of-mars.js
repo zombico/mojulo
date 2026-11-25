@@ -38,6 +38,17 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: f(['pickets', 'nest']), text: 'Clear the pass' }), f({ down: 'guard', text: 'Destroy the guard frame' })]),
   }),
+  // (the ace the path ladders up to, assault-frame/aces.js: it duels, then rushes with its blade, its optics flaring
+  // before it strikes, then, cornered, calls in the walkers held back behind it)
+  f({
+    id: 'vermilion', name: 'Vermilion', map: 'basin',
+    brief: 'The warlord\'s ace waits on the crater floor. It duels first; wounded, it rushes with its blade, and its optics flare before it strikes: make it miss, then punish it. Cornered, it calls in its pickets.',
+    groups: f([
+      f({ id: 'ace', kind: 'frame', ace: 'vermilion', at: f([0, 0.45]) }),
+      f({ id: 'reserve', kind: 'walker', count: 4, at: f([0, 0.8]), spread: 140, reserve: true }),
+    ]),
+    tasks: f([f({ down: 'ace', text: 'Destroy Vermilion' })]),
+  }),
   f({
     id: 'warlord', name: 'The Warlord', map: 'basin',
     brief: 'The warlord\'s own frame, heavy and slow and hard to put down, with two of its guard. Take the guard first.',
@@ -57,7 +68,7 @@ export function operationLevel(op) {
   return {
     name: op.name,
     airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette } },
-    goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks) } },
+    goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' && !g.ace ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks) } },
   };
 }
 

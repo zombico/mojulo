@@ -84,6 +84,19 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     carries it in place of its laser, and an enemy Raptor closes on its assault boost to cut.
   - The lunge and the blow are the same for both: met, the damage and the impact on the foe's bar, a break or a kill
     armed as a round's is, a spark where it struck.
+- **Aces: the frame a path ladders up to** (`assault-frame/aces.js`, a frame group's `ace`, a group's `reserve`).
+  - An ace is a row: its name, build, paint, how much more armour it has than its build, and its phases. A new ace is a
+    row.
+  - Its mind fights in the phase its armour's share is in, each with its reach, press and dodge: a duel keeps its
+    reach; a rush assault-boosts in and lunges, but first its optics flare (a tell) for a moment, the window to make it
+    miss, and it rests after; a desperate one charges and fires its braced cannon. Crossing into a phase can wake its
+    reserve (a group held back dormant) and steady its stability.
+  - Vermilion, the warlord's ace: a light-medium duellist on reverse legs in lacquered red over black (the `vermilion`
+    paint), with a carbine, the Shear blade, missiles and the Arc plasma cannon, at 1.8 times its build's armour. It
+    duels above 60%, rushes with its blade below it, and below 25% calls in four walkers and braces its cannon.
+  - Its operation sits between Red Dust and The Warlord, on the crater floor.
+  - The HUD carries an ace's name, armour and stability across the top, the line it says as it crosses a phase, and a
+    red diamond over it while it tells a lunge.
 - **The frame level** (an airspace level's `frame`, `gameworld/frame-goal.js`). The frame is stood at the south of its
   field facing north. The level is fought for its operation:
   - groups of the ground force's turrets, tanks and walkers at a frame's scale, and enemy frames;
@@ -108,9 +121,10 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   little air under its own weather: a butterscotch sky paling to a dusty horizon, a small dim sun, thin ice cloud
   high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck: a flight over
   Mars, where a frame's field is under its cube's heavens.
-- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is three operations:
+- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is four operations:
   - Landfall at Tharsis: a gun line, then a tank column;
   - Red Dust: a pass held by walkers, then a guard frame;
+  - Vermilion: the warlord's ace, alone, its pickets held back;
   - The Warlord: an escort of two, then the warlord's heavy frame.
 - **Made from words.**
   - The genre reader names a new genre, `mech-action` (armored core, mech game, assault frame).

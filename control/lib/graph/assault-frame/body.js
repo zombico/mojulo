@@ -24,7 +24,7 @@
  *   FRAME_SLOTS        the material slots: paint (the satin military paint), chrome (polished metal), gunmetal (the
  *                      structure's dark metal), seal (rubber, cables, boots), lens (sensor glass), glow (lit), stencil
  *   FRAME_PALETTES     federation (default: cold blue-grey over chrome), mars (rust red, sand), ash (dark grey, hazard
- *                      yellow); each role's colour
+ *                      yellow), vermilion (an ace's: lacquered red over black, gold trim); each role's colour
  *   FRAME_WEARS        factory | used (default) | battered: edges rubbed bright, a grime, soot round the bells
  *
  * Frame space: metres, +y forward, +x right, +z up, the soles on z = 0 at rest, centred on x = y = 0. Pure and
@@ -48,6 +48,8 @@ export const FRAME_PALETTES = f({
   // a Mars garrison's: rust red over warm chrome, its trim the desert's sand
   mars: f({ paint: '#9b4a2d', paint2: '#6a3522', trim: '#d6b489', chrome: '#e6ddd1', gunmetal: '#4d423b', dark: '#241d19', seal: '#1c1716', lens: '#1c110c', glow: '#ffb24a', stencil: '#efe4d4', exhaust: '#ffbf78' }),
   // ash: dark grey, hazard yellow bands, red optics
+  // vermilion: an ace's own, a deep lacquered red over black plate, gold trim, white-hot optics
+  vermilion: f({ paint: '#9e1b1e', paint2: '#1c1a1d', trim: '#d4a64a', chrome: '#e8e2da', gunmetal: '#2b2a2e', dark: '#121113', seal: '#0e0d0e', lens: '#1a0606', glow: '#fff2e0', stencil: '#f3e3c4', exhaust: '#ff9a6a' }),
   ash: f({ paint: '#4b4e53', paint2: '#33363a', trim: '#e2b021', chrome: '#d7dbdf', gunmetal: '#3c3f44', dark: '#17181a', seal: '#131415', lens: '#160b0b', glow: '#ff4b3a', stencil: '#ecebe6', exhaust: '#ffa36b' }),
 });
 export const FRAME_WEARS = f(['factory', 'used', 'battered']);

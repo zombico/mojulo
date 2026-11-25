@@ -35,6 +35,10 @@
  *   • THE LUNGE (the boost KICK on its key, `rule.kick`, and a BLADE, an arm weapon of fire 'melee'): onto the locked foe
  *     within its reach (straight ahead when none), at its speed for at most its time; meeting it, the blow lands
  *     (`frame-weapons`: its damage, its impact on the foe's bar). A kick out of an assault boost is the classic opener.
+ *   • AN ACE (`mind.phases`, assault-frame/aces.js): the mind fights in the phase its armour's share is in: its reach,
+ *     press and dodge; a duel keeps its reach, a rush assault-boosts in and lunges after a TELL (`tell` s, its optics
+ *     flared: `tell` the fact) and rests after, a desperate one charges and looses its braced cannon. Crossing into a phase
+ *     wakes its reserve (`adds`: a group's bodies) or steadies its bar (`regen`).
  *   • STABILITY AND THE STAGGER (`body.poise` its stability in standard bars, `rule.stab` { stagger, bonus }): every
  *     round's impact (its weapon's `stagger`) chips the bar, which comes back on its own (`poiseRegen`); broken, the frame
  *     REELS for `stab.stagger` s: no boost, no quick boost, no climb, no guns, carried on by what it was doing and
@@ -48,6 +52,7 @@
  * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch, thrust (the
  * burn the page's thrusters draw, 0..1), stab (its stability left, 0..1 of its bar), stagger (seconds left reeling, 0 when not),
  * ab (assault boosting), lunge ({ by, T, to, hit } while lunging), kickCd, braced ('stick' | 'wind' | null), dragT,
+ * acePhase (an ace's phase index), tell ({ T, then } while it is told),
  * slotState { <slot>: { ammo, mag, reloading, cd, charge } }, locomotion (the body's clip: idle, forward, boost,
  * boost_left, boost_right, boost_back, hover, fall, land), gaitPhase, moving.
  *
@@ -85,16 +90,19 @@ export function buildRulesFrame(E) {
     if (!P || P.gone || P.downed || world.aiEnabled === false || e.dormant) return out;
     const t = e.transform, q = P.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1], dz = q[2] - t.pos[2], d = Math.hypot(dx, dy);
     e.mindFace = Math.atan2(dy, dx); e.mindPitch = Math.atan2(dz, d || 1);
-    const range = M.range ?? 120;
+    // (an ace's phase, by its armour's share: its reach, its press and its dodge; crossing into one calls its reserve in
+    // or steadies it, assault-frame/aces.js)
+    const PH = M.phases ? phaseOf(e, M.phases, world) : null;
+    const range = PH ? PH.range : M.range ?? 120;
     // (round the pilot: in toward its range, out from it, across it the way it is going, the way turned now and then)
     if (e.mindDir == null || (e.mindTurnT = (e.mindTurnT ?? 0) - dt) <= 0) { e.mindDir = dice(e) < 0.5 ? -1 : 1; e.mindTurnT = 2.5 + 3 * dice(e); }
     out.forward = d > range * 1.25 ? 1 : d < range * 0.7 ? -1 : 0;
     out.strafe = e.mindDir;
-    out.boost = (M.aggression ?? 0.6) > 0.3 || d > range * 1.5 ? 1 : 0;
+    out.boost = ((PH ? PH.aggression : M.aggression) ?? 0.6) > 0.3 || d > range * 1.5 ? 1 : 0;
     // (a quick boost out of the way: as it is hit, or now and then when it is in the pilot's sights)
     const hitNow = e.hitFlash != null && e.hitFlash !== e.mindHitSeen;
     if (hitNow) e.mindHitSeen = e.hitFlash;
-    if ((hitNow && dice(e) < (M.dodge ?? 0.5)) || dice(e) < dt * 0.25) { out.qb = 1; out.strafe = dice(e) < 0.5 ? -1 : 1; out.forward = 0; }
+    if ((hitNow && dice(e) < ((PH ? PH.dodge : M.dodge) ?? 0.5)) || dice(e) < dt * 0.25) { out.qb = 1; out.strafe = dice(e) < 0.5 ? -1 : 1; out.forward = 0; }
     // (up at times, and down again)
     if ((e.mindClimbT = (e.mindClimbT ?? 1 + 4 * dice(e)) - dt) <= 0) { e.mindClimbFor = 0.8 + 1.2 * dice(e); e.mindClimbT = 4 + 6 * dice(e); }
     if (e.mindClimbFor > 0) { e.mindClimbFor -= dt; out.jump = out.jumpHeld = 1; }
@@ -102,7 +110,8 @@ export function buildRulesFrame(E) {
     // (a blade in the left hand: in to its reach and cut, an assault boost to close from far off)
     const blade = e.rule.slots && e.rule.slots.armL && e.rule.slots.armL.fire === 'melee' ? e.rule.slots.armL : null;
     if (e.locked) { out.fire = d < 420 ? 1 : 0; out.alt = blade ? (d < blade.range * 0.9 ? 1 : 0) : d < 320 && dice(e) < 0.5 ? 1 : 0; out.backR = dice(e) < dt * 0.6 ? 1 : 0; out.backL = dice(e) < dt * 0.3 ? 1 : 0; }
-    if (blade && e.locked && d > blade.range && d < range * 2.2 && (M.aggression ?? 0.6) > 0.5) { out.forward = 1; out.strafe = 0; if (!e.ab && dice(e) < dt * 0.8) out.ab = 1; }
+    if (!PH && blade && e.locked && d > blade.range && d < range * 2.2 && (M.aggression ?? 0.6) > 0.5) { out.forward = 1; out.strafe = 0; if (!e.ab && dice(e) < dt * 0.8) out.ab = 1; }
+    if (PH) aceKeys(e, PH, out, d, dt, blade);
     // (the pilot reeling: the moment to punish it, everything it has, in close)
     if (e.locked && P.stagger > 0) { out.fire = out.alt = 1; out.backR = out.backL = 1; out.forward = d > range * 0.6 ? 1 : 0; out.qb = 0; out.kick = d < ((e.rule.kick && e.rule.kick.range) ?? 80) ? 1 : 0; }
     return out;
@@ -114,6 +123,51 @@ export function buildRulesFrame(E) {
     const near = tg && Math.hypot(tg.transform.pos[0] - p[0], tg.transform.pos[1] - p[1], tg.transform.pos[2] - p[2]) <= (K.range ?? 80);
     // (its time: enough to cross its reach at its speed, a breath more; a whiff a short one)
     e.lunge = { by: K.by, to: near ? tg.id : null, damage: K.damage || 0, impact: K.impact || 0, speed: K.speed ?? 110, T: near ? Math.min(K.time ?? 0.7, (K.range ?? 80) / (K.speed ?? 110) + 0.15) : 0.25, hit: false };
+  }
+
+  // ── an ace's phases: the one it fights in by its armour's share; crossing into one, its reserve woken, its bar steadied ──
+  function phaseOf(e, phases, world) {
+    const share = e.body && e.body.hpMax > 0 ? e.body.hp / e.body.hpMax : 1;
+    let i = 0;
+    for (let k = 0; k < phases.length; k++) if (share <= phases[k].below) i = k;
+    if (e.acePhase !== i) {
+      e.acePhase = i; e.phaseAt = e.frTime || 0;
+      const P = phases[i];
+      if (P.regen && Number.isFinite(e.poiseRegen)) { if (e.poiseRegen0 == null) e.poiseRegen0 = e.poiseRegen; e.poiseRegen = e.poiseRegen0 * P.regen; }
+      // (its reserve: every body of the group it names, woken where it stood)
+      if (P.adds) for (const id in world.byId) { const b = world.byId[id]; if (b.dormant && (id === P.adds || id.indexOf(P.adds + '-') === 0)) b.dormant = false; }
+    }
+    return phases[i];
+  }
+  // ── an ace's keys by its phase's style: the rush told and its rest after, the desperate cannon charged and loosed ──
+  function aceKeys(e, PH, out, d, dt, blade) {
+    out.alt = 0; out.backL = 0;
+    if (!e.locked) { e.tell = null; return; }
+    if (PH.style === 'rush') {
+      e.rushCd = Math.max(0, (e.rushCd || 0) - dt);
+      const reach = Math.min(blade ? blade.range : 999, (e.rule.kick && e.rule.kick.range) || 80);
+      if (e.tell) {
+        // (told: its optics flare while it squares up, then the lunge; the blade if it is ready, else the kick)
+        e.tell.T -= dt; out.forward = 1; out.strafe = 0; out.qb = 0; out.fire = 0;
+        if (e.tell.T <= 0) { out[e.tell.then] = 1; e.tell = null; e.rushCd = PH.rest ?? 2; }
+      } else if (e.rushCd <= 0) {
+        if (d > reach * 0.85) { out.forward = 1; out.strafe = 0; out.qb = 0; if (!e.ab) out.ab = 1; }
+        else {
+          const ready = blade && !(blade.st && blade.st.cd > 0);
+          e.tell = { T: PH.tell ?? 0.5, then: ready ? 'alt' : 'kick' };
+          if (e.ab) out.ab = 1;   // (the charge cut as it squares up: the tell is seen, not run through)
+        }
+      }
+    } else e.tell = null;
+    if (PH.style === 'desperate') {
+      // (its cannon held to charge, then loosed: a braced shot, the frame hung where it fired, every few seconds)
+      const W = e.rule.slots && e.rule.slots.backL;
+      if (W && W.fire === 'charge') {
+        e.mChargeCd = Math.max(0, (e.mChargeCd ?? 1.5) - dt);
+        if (e.mHold > 0) { e.mHold -= dt; out.backL = e.mHold > 0 ? 1 : 0; if (!(e.mHold > 0)) e.mChargeCd = 4; }
+        else if (e.mChargeCd <= 0 && d < W.range) e.mHold = (W.chargeTime ?? 0.8) + 0.15;
+      }
+    }
   }
 
   function frame(e, input, dt, world) {

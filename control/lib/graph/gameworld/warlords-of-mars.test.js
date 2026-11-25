@@ -6,6 +6,8 @@ import { runSteps } from './runner.js';
 import { composeGameworld } from './compose.js';
 import { pitchStart } from './pitch-start.js';
 import { frameField } from '../assault-frame/field.js';
+import { ACES } from '../assault-frame/aces.js';
+import { assembleFrame } from '../assault-frame/assemble.js';
 import { nearestRails } from './rails.js';
 
 // WARLORDS OF MARS (warlords-of-mars.js): an assault frame's operations on Mars, on the level path Wolf Squadron and Rebel
@@ -47,6 +49,20 @@ describe('Warlords of Mars', () => {
       expect(Math.abs(z - F.heightAt(x, y))).toBeLessThan(0.01);
       expect(x >= x0 && x <= x1 && y >= y0 && y <= y1).toBe(true);
     }
+  });
+
+  it('the path ladders up to an ace: its own build and paint, more armour, its phases on its mind, its reserve held back', () => {
+    const id = 'vermilion', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
+    const m = steps.find((s) => s.key.startsWith('level-')).order.manifest;
+    const ace = m.entities.find((e) => e.ace), V = ACES[id];
+    expect(ace.ace).toEqual({ id, name: V.name });
+    expect(ace.rule.mind.phases.map((p) => p.style)).toEqual(V.phases.map((p) => p.style));
+    expect(ace.body.hp).toBe(Math.round(assembleFrame(V.build).ap * V.ap));
+    expect(m.figures[ace.body.figure].assault.palette).toBe(V.palette);
+    const reserve = m.entities.filter((e) => e.id.startsWith('reserve-'));
+    expect(reserve.length).toBeGreaterThan(0);
+    expect(reserve.every((e) => e.dormant)).toBe(true);
+    expect(() => readOperation({ groups: [{ id: 'a', kind: 'tank', ace: id, at: [0, 0] }], tasks: [{ down: 'a' }] })).toThrow(/ace is a frame's/);
   });
 
   it('an operation\'s tasks lower onto the objectives: its downs as clears of their groups, a reach on the ground', () => {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { composeLive } from './compose.js';
 import { frameEntity } from '../../assault-frame/pilot.js';
 import { assembleFrame } from '../../assault-frame/assemble.js';
+import { ACES } from '../../assault-frame/aces.js';
 
 // THE ASSAULT FRAME (rules-frame.js): a mech that boosts, quick-boosts, climbs and fights with four guns. One procedure each:
 // the boost, the quick boost, the generator emptied, the climb and the fall, the lock, the four triggers, a mind.
@@ -176,6 +177,35 @@ describe('the assault frame', () => {
     const sp0 = P.speed;
     run(st, { forward: 1, boost: 1, fire: 1 }, 90);
     expect(P.speed).toBeLessThan(sp0 * (C.weapons.armR.drag + 0.05));
+  });
+
+  it('an ace fights by its phase: a rush tells its lunge before it strikes; cornered, it wakes its reserve and steadies', () => {
+    const V = ACES.vermilion, P1 = V.phases[1];
+    const ace = frameEntity(V.build, { id: 'ace', at: [70, 0, 0], heading: Math.PI, team: 'foes', mind: { range: V.phases[0].range, phases: V.phases } });
+    const res = frameEntity('raptor', { id: 'reserve-1', at: [200, 0, 0], team: 'foes', mind: {} });
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), ace, { ...res, dormant: true }], pilot: 'p' });
+    const A = st.byId.ace, R = st.byId['reserve-1'];
+    run(st, {}, 30);
+    expect(A.acePhase).toBe(0);
+    // (wounded past its first threshold: the rush; its lunge comes only after its tell)
+    A.body.hp = A.body.hpMax * (P1.below - 0.05);
+    let told = -1, struck = -1;
+    for (let i = 0; i < 60 * 8 && struck < 0; i++) {
+      run(st, {}, 1);
+      if (told < 0 && A.tell) told = i;
+      if (A.lunge && struck < 0) struck = i;
+    }
+    expect(A.acePhase).toBe(1);
+    expect(told).toBeGreaterThanOrEqual(0);
+    expect(struck - told).toBeGreaterThanOrEqual(Math.round(P1.tell / DT) - 1);
+    expect(R.dormant).toBe(true);
+    // (cornered: its reserve woken, its bar steadier)
+    const regen = A.poiseRegen;
+    A.body.hp = A.body.hpMax * 0.2;
+    run(st, {}, 2);
+    expect(A.acePhase).toBe(2);
+    expect(R.dormant).toBe(false);
+    expect(A.poiseRegen).toBeCloseTo(regen * V.phases[2].regen, 5);
   });
 
   it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {

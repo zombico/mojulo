@@ -7,6 +7,8 @@
 //                 STRESS, its stability spent (filling as it is pressed, red and STAGGER when it breaks: the moment to
 //                 punish it)
 //   own           its own stability under its armour, and STAGGER while it reels
+//   an ace        its name and its armour across the top while it is in the field (its stability under it), a line said
+//                 as it crosses into a phase, and its TELL: a flare marked over it while it squares up to lunge
 //   bottom        THE GENERATOR: EN as one long bar, its draw seen as it happens; OUT when it is emptied and shut. Over
 //                 it the frame's armour (AP) as a figure and a bar, and its speed and height
 //   the corners   THE WEAPONS where they are on the frame: the hands below left and right, the shoulders above them;
@@ -28,6 +30,10 @@ export function frameHudScript() {
     + '.fh .acs{position:absolute;height:4px;background:rgba(255,208,96,.18);display:none}.fh .acs i{display:block;height:100%;width:0;background:#ffd060}'
     + '.fh .acs.brk i{background:#ff3b2f}.fh .acs.brk:after{content:"STAGGER";position:absolute;left:0;right:0;top:7px;text-align:center;font-size:12px;font-weight:700;color:#ff3b2f;letter-spacing:.14em}'
     + '.fh .stb{position:absolute;left:50%;bottom:98px;width:440px;margin-left:-220px;height:2px;background:rgba(160,230,255,.12)}.fh .stb i{position:absolute;left:0;top:0;bottom:0;background:#ffd060}'
+    + '.fh .ace{position:absolute;left:50%;top:22px;width:520px;margin-left:-260px;display:none;text-align:center}.fh .ace b{font-size:13px;letter-spacing:.3em;color:#ffd9b0}'
+    + '.fh .ace .hp{height:6px;margin-top:4px;border:1px solid rgba(255,190,150,.5)}.fh .ace .hp i{display:block;height:100%;background:linear-gradient(90deg,#c22a22,#ff8a5a)}'
+    + '.fh .ace .st{height:2px;margin-top:2px;background:rgba(255,208,96,.15)}.fh .ace .st i{display:block;height:100%;background:#ffd060}.fh .ace em{display:block;font-style:normal;font-size:12px;color:#ffb48a;margin-top:4px;min-height:14px}'
+    + '.fh .tell{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border:2px solid #ff3b2f;transform:rotate(45deg);display:none;box-shadow:0 0 14px #ff3b2f}'
     + '.fh .me{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:18px;font-weight:700;color:#ff3b2f;letter-spacing:.2em;display:none}'
     + '.fh .en{position:absolute;left:50%;bottom:78px;width:440px;margin-left:-220px;height:8px;border:1px solid rgba(160,230,255,.5)}'
     + '.fh .en i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#3ec6ff,#bff0ff)}.fh .en.out i{background:#ff4a3a}'
@@ -40,12 +46,12 @@ export function frameHudScript() {
     + '.fh .backR{right:calc(50% - 330px);bottom:200px;text-align:right}.fh .backL{left:calc(50% - 330px);bottom:200px}';
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'fh';
-  root.innerHTML = '<div class="ret"></div><div class="dot"></div><div class="box"></div><div class="tap"></div><div class="acs"><i></i></div><div class="me">STAGGER</div><div class="stb"><i></i></div>'
+  root.innerHTML = '<div class="ret"></div><div class="dot"></div><div class="box"></div><div class="tap"></div><div class="acs"><i></i></div><div class="me">STAGGER</div><div class="ace"><b></b><div class="hp"><i></i></div><div class="st"><i></i></div><em></em></div><div class="tell"></div><div class="stb"><i></i></div>'
     + '<div class="ap"><span class="apn">AP</span><span class="spd"></span></div><div class="apb"><i></i></div>'
     + '<div class="enl"><span>EN</span><span class="ens"></span></div><div class="en"><i></i></div>'
     + ['armR', 'armL', 'backR', 'backL'].map((s) => '<div class="w ' + s + '"><b></b><span></span><div class="bar"><i></i></div></div>').join('');
   document.body.appendChild(root);
-  const q = (s) => root.querySelector(s), box = q('.box'), tap = q('.tap'), acs = q('.acs'), acsI = q('.acs i'), me = q('.me'), stbI = q('.stb i'), enEl = q('.en'), enI = q('.en i'), ens = q('.ens'), apn = q('.apn'), spd = q('.spd'), apI = q('.apb i');
+  const q = (s) => root.querySelector(s), box = q('.box'), tap = q('.tap'), acs = q('.acs'), acsI = q('.acs i'), me = q('.me'), stbI = q('.stb i'), aceEl = q('.ace'), aceN = q('.ace b'), aceHp = q('.ace .hp i'), aceSt = q('.ace .st i'), aceSay = q('.ace em'), tellEl = q('.tell'), enEl = q('.en'), enI = q('.en i'), ens = q('.ens'), apn = q('.apn'), spd = q('.spd'), apI = q('.apb i');
   const W = {}; for (const s of ['armR', 'armL', 'backR', 'backL']) W[s] = { el: q('.' + s), b: q('.' + s + ' b'), n: q('.' + s + ' span'), bar: q('.' + s + ' .bar i') };
   const out = window.__mojFrameHud = { en: 0, ap: 0, lock: null };
   let pv = null;
@@ -74,6 +80,18 @@ export function frameHudScript() {
       X.n.textContent = v.reloading ? 'RELOAD' : slot.mag >= 9999 ? (slot.energy ? 'EN' : '--') : (v.ammo ?? slot.mag);
       X.bar.style.width = (v.charge > 0 ? 100 * v.charge : v.reloading ? 100 : 0) + '%';
     }
+    // an ace in the field: its bar across the top, the line it says as it crosses a phase, and its tell over it
+    let ace = null;
+    for (const id in w.byId) { const b = w.byId[id]; if (b.ace && !b.dormant && !b.gone && !b.downed) { ace = b; break; } }
+    if (ace) {
+      aceEl.style.display = 'block'; aceN.textContent = ace.ace.name.toUpperCase();
+      aceHp.style.width = (100 * Math.max(0, ace.body.hp) / (ace.body.hpMax || 1)).toFixed(1) + '%'; aceSt.style.width = (100 * (ace.stab ?? 1)).toFixed(1) + '%';
+      const ph = ace.rule.mind && ace.rule.mind.phases && ace.rule.mind.phases[ace.acePhase || 0];
+      aceSay.textContent = ph && ph.say && (ace.frTime - (ace.phaseAt || 0)) < 4 ? ph.say : '';
+      const ts = ace.tell ? screenOf([ace.transform.pos[0], ace.transform.pos[1], ace.transform.pos[2] + ((ace.body && ace.body.aimH) || 6)]) : null;
+      if (ts && !ts.back) { tellEl.style.display = 'block'; tellEl.style.left = ts.x + 'px'; tellEl.style.top = ts.y + 'px'; } else tellEl.style.display = 'none';
+      out.ace = { id: ace.id, phase: ace.acePhase || 0, tell: !!ace.tell };
+    } else { aceEl.style.display = 'none'; tellEl.style.display = 'none'; out.ace = null; }
     // the lock: a box on the foe the FCS holds, closing as it builds
     const T = P.lockOn && w.byId[P.lockOn];
     if (T && !T.gone && !T.downed) {
