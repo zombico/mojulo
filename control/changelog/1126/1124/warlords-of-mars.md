@@ -121,6 +121,23 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - A locked lunge now lasts as long as its reach takes to cross, so a foe at the edge of a kick's reach is met.
   - The ground force's sheets: `node scripts/render-groundforce.mjs --units gnat,walker` draws each card from three sides
     beside a frame's height.
+- **The fliers.** Three cards that fly (`groundforce/` `wasp`, `kite`, `harrow`); a frame level's `frame-flight` pass
+  flies them by their `flight` while the AI aims and fires.
+  - The Wasp: a swept delta strike drone, one engine burning aft, twin guns under a red-eyed nose. A `strafe` dives on
+    a mark beside the pilot, rakes past low firing and pulls out to come round. Its operation is Dust Devils.
+  - The Kite: three ducted fans round an armoured hub, a missile rack on its back, a sensor ball under it. A `perch`
+    holds high and far and lobs homing missiles down. Its operation is High Watch.
+  - The Harrow: a gunship twice a frame's length, a long hull on four big ducted fans, a chin gatling, a missile pod on
+    each stub wing. A `circuit` orbits the pilot, tighter as it is hurt, and hangs to barrage. It carries a boss bar, and
+    its operation, Harrow, comes before Vermilion.
+- **The ground force in the form render** (`groundforce/` `unitFigure(kind, { form })`, a figures map's
+  `unit: { kind, form: true }`; a frame level's units ask for it).
+  - Its armour is a satin painted metal under a thin clear coat, its structure gunmetal, its eye and drive lit by their
+    own colour (`UNIT_MATERIALS`), lit by the world's sky as a frame is: the light runs off them.
+  - Its shapes are rounded: the same card built with rounded primitives, each box filleted at its corners and edges and
+    each round part twice the sides, its corners' normals smoothed across the faces they join within a crease, weighted
+    by area, so a panel stays flat and its edge reads round.
+  - The baked units (an arcade stage's) are unchanged.
 - **Aces: the frame a path ladders up to** (`assault-frame/aces.js`, a frame group's `ace`, a group's `reserve`).
   - An ace is a row: its name, build, paint, how much more armour it has than its build, and its phases. A new ace is a
     row.

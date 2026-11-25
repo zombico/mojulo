@@ -163,7 +163,8 @@ export function operationCast(op, ends) {
         continue;
       }
       const U = OPERATION.units[g.kind], fig = `unit-${g.kind}`, R = unitRadius(g.kind);
-      figures[fig] = { unit: { kind: g.kind } };
+      // (drawn in the form render as the frames are: its metal lit by the world, its round parts round)
+      figures[fig] = { unit: { kind: g.kind, form: true } };
       entities.push({
         id: m.id, team: 'foes', ...(dormant ? { dormant: true } : {}),
         rule: { type: 'ai', space: true, speed: U.flight ? 0 : U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), ...(U.flight ? { flight: { ...U.flight } } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6 },

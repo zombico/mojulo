@@ -1796,7 +1796,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ none is resolved, byte-identical.
         if (rawSpec.unit && typeof rawSpec.unit === 'object') {
           const { unitFigure } = await import('@/lib/graph/groundforce/index.js');
-          payload.figures[name] = unitFigure(rawSpec.unit.kind);
+          payload.figures[name] = unitFigure(rawSpec.unit.kind, rawSpec.unit.form === true ? { form: true, setting: { sky: payload.sky ?? null } } : {});
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map

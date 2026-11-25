@@ -17,13 +17,55 @@
  *   unitFaces(kind)                 → faces { corners, fill } lit (baked under one key, the lit parts their own colour),
  *                                     drawn GROUNDFORCE_SCALE times life
  *   unitRadius(kind)                → its hit radius as drawn (m)
- *   unitFigure(kind)                → the rig figure a level stands it as (vehicle-rig.js packVehicleFigure, one bone)
+ *   unitFigure(kind, { form?, setting? }) → the rig figure a level stands it as (vehicle-rig.js packVehicleFigure, one
+ *                                     bone); `form`: in the form render, its metal lit by the world, rounded parts round
+ *   unitFormFaces(kind)             → its faces for the form render: material slots, colours, smoothed corner normals
+ *   UNIT_MATERIALS                  the form render's slots: satin painted metal, gunmetal, the lit eye and drive
  *   GROUNDFORCE_PALETTE             the roles' colours
  *
  * Pure and deterministic: the same card, the same unit.
  */
-import { WORKBOT_PRIMITIVES as P } from '../workbots/index.js';
+import { WORKBOT_PRIMITIVES as BASE } from '../workbots/index.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
+import { formLight, skyMood } from '../car-designer/form-light.js';
+
+// The primitives a card is built of: the workbots' few big shapes, and in the FORM render the same calls ROUNDED, each
+// box a rounded box (its plan's corners and its top and bottom edges turned on arcs), each round part twice the sides.
+// A card calls `P.box(...)` and gets whichever its render builds with (partsOf below); the baked render is unchanged.
+let P = BASE;
+const ARC = 3;
+// (a rectangle's outline with its corners on arcs of radius r, counter-clockwise seen from +z, at height z)
+const roundRect = (c, hx, hy, r, z) => [[1, -1, -Math.PI / 2], [1, 1, 0], [-1, 1, Math.PI / 2], [-1, -1, Math.PI]].flatMap(([sx, sy, a0]) =>
+  Array.from({ length: ARC + 1 }, (_, i) => { const a = a0 + (Math.PI / 2) * (i / ARC); return [c[0] + sx * (hx - r) + r * Math.cos(a), c[1] + sy * (hy - r) + r * Math.sin(a), z]; }));
+function roundBox(c, s, role, { ch = 0 } = {}) {
+  const [hx, hy, hz] = s.map((v) => v / 2), m = Math.min(hx, hy, hz);
+  // (a slit, a stripe, a blade or a lit mouth stays a box: too thin to round)
+  if (m < 0.05) return BASE.box(c, s, role, { ch });
+  const e = Math.min(m * 0.5, Math.max(ch * 0.5, m * 0.32)), r = Math.min(Math.min(hx, hy) * 0.96, Math.max(ch, e * 1.25, m * 0.4));
+  const rings = [];
+  for (const [side, z0] of [[-1, c[2] - hz + e], [1, c[2] + hz - e]]) {
+    const steps = Array.from({ length: ARC + 1 }, (_, i) => (side < 0 ? ARC - i : i));
+    for (const i of steps) { const t = (Math.PI / 2) * (i / ARC), d = e * (1 - Math.cos(t)); rings.push(roundRect(c, hx - d, hy - d, r - d, z0 + side * e * Math.sin(t))); }
+  }
+  const out = [];
+  for (let k = 0; k + 1 < rings.length; k++) {
+    const A = rings[k], B = rings[k + 1], n = A.length;
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; out.push({ corners: [A[i], A[j], B[j], B[i]], role }); }
+  }
+  out.push({ corners: [...rings[0]].reverse(), role }, { corners: rings[rings.length - 1], role });
+  return out;
+}
+const more = (n) => Math.max(12, n * 2);
+const ROUND = Object.freeze({
+  ...BASE, box: roundBox,
+  prism: (c, rx, ry, z0, z1, role, n = 8) => BASE.prism(c, rx, ry, z0, z1, role, more(n)),
+  dome: (c, rx, ry, z0, h, role, n = 8, rings = 3) => BASE.dome(c, rx, ry, z0, h, role, more(n), rings * 2),
+  ball: (c, r, role, n = 8, rings = 4) => BASE.ball(c, r, role, more(n), rings * 2),
+  wheel: (c, r, w, role, n = 10) => BASE.wheel(c, r, w, role, more(n)),
+  pipe: (p0, p1, r, role, n = 8) => BASE.pipe(p0, p1, r, role, more(n)),
+});
+// (a card's parts built with the baked or the rounded primitives)
+function partsOf(U, round) { P = round ? ROUND : BASE; try { return U.parts(); } finally { P = BASE; } }
 
 /** How much larger than life a unit is drawn (and hit): an arcade fighter goes past at speed, 45 m up, and must read
  *  each one at a glance (its card is in life's metres). */
@@ -277,6 +319,8 @@ export const GROUND_UNIT_IDS = Object.freeze(Object.keys(GROUND_UNITS));
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+// (a planar polygon's area: a broad flat panel outweighs the narrow arcs at its edge when a corner's normal is smoothed)
+const areaOf = (C) => { let x = 0, y = 0, z = 0; for (let i = 1; i + 1 < C.length; i++) { const a = C[0], b = C[i], d = C[i + 1], u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [d[0] - a[0], d[1] - a[1], d[2] - a[2]]; x += u[1] * v[2] - u[2] * v[1]; y += u[2] * v[0] - u[0] * v[2]; z += u[0] * v[1] - u[1] * v[0]; } return Math.hypot(x, y, z) / 2; };
 const normalOf = (C) => {
   // (Newell's normal: robust for any planar polygon the primitives make)
   let x = 0, y = 0, z = 0;
@@ -290,7 +334,7 @@ export function unitFaces(kind) {
   if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${GROUND_UNIT_IDS.join(', ')})`);
   const L = KEY.dir, ll = Math.hypot(...L);
   const k = GROUNDFORCE_SCALE;
-  return U.parts().map((f) => {
+  return partsOf(U, false).map((f) => {
     const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]), base = hexRgb(GROUNDFORCE_PALETTE[f.role]);
     if (LIT.has(f.role)) return { corners, fill: GROUNDFORCE_PALETTE[f.role], role: f.role };
     const n = normalOf(corners), lam = KEY.ambient + KEY.gain * Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / ll);
@@ -301,9 +345,51 @@ export function unitFaces(kind) {
 /** A unit's hit radius as drawn. */
 export const unitRadius = (kind) => Math.round(GROUND_UNITS[kind].size * GROUNDFORCE_SCALE * 100) / 100;
 
-/** The rig figure a level stands the unit as: one bone, its faces packed (vehicle-rig.js). */
-export function unitFigure(kind) {
+/** The materials a unit is drawn with in the FORM render (`unitFigure(kind, { form })`): its armour a satin painted metal
+ *  under a thin clear coat, its second plate a shade rougher, its structure and running gear gunmetal, its stripe the
+ *  paint's, its eye and its drive lit by their own colour. The renderer lights them by the world: the light runs off them. */
+export const UNIT_MATERIALS = Object.freeze({
+  hull: Object.freeze({ metalness: 0.55, roughness: 0.34, clearcoat: 0.45, clearcoatRoughness: 0.22 }),
+  hull2: Object.freeze({ metalness: 0.6, roughness: 0.42, clearcoat: 0.25, clearcoatRoughness: 0.3 }),
+  dark: Object.freeze({ metalness: 0.78, roughness: 0.3 }),
+  accent: Object.freeze({ metalness: 0.3, roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.2 }),
+  sensor: Object.freeze({ metalness: 0, roughness: 0.4, emissive: GROUNDFORCE_PALETTE.sensor, emissiveIntensity: 2.2 }),
+  drive: Object.freeze({ metalness: 0, roughness: 0.45, emissive: GROUNDFORCE_PALETTE.drive, emissiveIntensity: 1.8 }),
+});
+// (the crease under which corners are drawn smooth: a fan's round duct, a dome, a ball and a bevel read round, a box's
+// edge stays an edge)
+const SMOOTH_COS = Math.cos((40 * Math.PI) / 180);
+/** A unit's faces for the form render: each its role's material slot and its colour (no light in it), its corners'
+ *  normals smoothed across the faces that meet there within the crease. */
+export function unitFormFaces(kind) {
+  const U = GROUND_UNITS[kind];
+  if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${GROUND_UNIT_IDS.join(', ')})`);
+  const k = GROUNDFORCE_SCALE;
+  const faces = partsOf(U, true).map((f) => { const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]); return { corners, role: f.role, n: normalOf(corners), w: areaOf(corners) }; });
+  const key = (p) => p.map((v) => Math.round(v * 200)).join(',');
+  const at = new Map();
+  faces.forEach((f, i) => f.corners.forEach((p) => { const kk = key(p); if (!at.has(kk)) at.set(kk, []); at.get(kk).push(i); }));
+  const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
+  return faces.map((f) => ({
+    corners: f.corners.map((p) => p.map(r4)), material: f.role, albedo: GROUNDFORCE_PALETTE[f.role], outNormal: f.n.map(r4),
+    cornerNormals: f.corners.map((p) => {
+      const sum = [0, 0, 0];
+      for (const j of at.get(key(p))) { const m = faces[j].n; if (m[0] * f.n[0] + m[1] * f.n[1] + m[2] * f.n[2] >= SMOOTH_COS) for (let c = 0; c < 3; c++) sum[c] += m[c] * faces[j].w; }
+      const l = Math.hypot(...sum) || 1;
+      return sum.map((v) => r4(v / l));
+    }),
+  }));
+}
+
+/** The rig figure a level stands the unit as: one bone, its faces packed (vehicle-rig.js); `form`: in the form render,
+ *  its metal lit by the world (UNIT_MATERIALS), its rounded parts shaded round (`setting.sky` the world's sky, its light). */
+export function unitFigure(kind, { form = false, setting = null } = {}) {
   const faces = unitFaces(kind);
+  if (form) {
+    const F = unitFormFaces(kind);
+    const fig = packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', faces]]), { keys: 2, rolls: [], form: new Map([['root', F]]) });
+    return { ...fig, form: { ...formLight(skyMood(setting?.sky), UNIT_MATERIALS, {}), normalBias: 0.1 }, groundforce: { kind, label: GROUND_UNITS[kind].label, faces: F.length, form: true } };
+  }
   const fig = packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', faces]]), { keys: 2, rolls: [] });
   return { ...fig, groundforce: { kind, label: GROUND_UNITS[kind].label, faces: faces.length } };
 }

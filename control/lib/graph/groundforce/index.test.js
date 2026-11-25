@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GROUND_UNITS, GROUND_UNIT_IDS, GROUNDFORCE_PALETTE, GROUNDFORCE_SCALE, unitFaces, unitFigure, unitRadius } from './index.js';
+import { GROUND_UNITS, GROUND_UNIT_IDS, GROUNDFORCE_PALETTE, GROUNDFORCE_SCALE, UNIT_MATERIALS, unitFaces, unitFormFaces, unitFigure, unitRadius } from './index.js';
 
 // THE GROUND FORCE (groundforce/): a sci-fi army's units as cards of a few big shapes, lit under one key, drawn larger than
 // life for an arcade fighter going past. One procedure for every card: a unit's faces, its figure, its numbers.
@@ -31,5 +31,17 @@ describe('the ground force', () => {
     expect(fig.bones.map((b) => b.id)).toEqual(['root']);
     expect(fig.groundforce).toMatchObject({ kind, faces: unitFaces(kind).length });
     expect(JSON.stringify(unitFigure(kind))).toBe(JSON.stringify(fig));
+  });
+  it('in the form render: each face its role\'s metal and colour, its round parts shaded round and its edges kept', () => {
+    // (a flier with fans and a ball, chosen in code: the first that flies)
+    const k = GROUND_UNIT_IDS.find((u) => GROUND_UNITS[u].flies) ?? kind, F = unitFormFaces(k);
+    for (const f of F) { expect(UNIT_MATERIALS[f.material]).toBeTruthy(); expect(f.albedo).toBe(GROUNDFORCE_PALETTE[f.material]); }
+    // (some corners smoothed off their face's own normal, a box's corner never past the crease)
+    const bent = F.flatMap((f) => f.cornerNormals.map((n) => n[0] * f.outNormal[0] + n[1] * f.outNormal[1] + n[2] * f.outNormal[2]));
+    expect(bent.some((d) => d < 0.999)).toBe(true);
+    expect(Math.min(...bent)).toBeGreaterThan(Math.cos((40 * Math.PI) / 180) - 1e-6);
+    const fig = unitFigure(k, { form: true });
+    expect(fig.form.materials).toBe(UNIT_MATERIALS);
+    expect(unitFigure(k).form).toBeUndefined();
   });
 });

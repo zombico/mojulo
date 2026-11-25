@@ -62,7 +62,7 @@ describe('Warlords of Mars', () => {
       expect(z - F.heightAt(x, y)).toBeCloseTo(OPERATION.units.gnat.air, 0);
       expect(g.rule).toMatchObject({ type: 'ai', space: true, standoff: OPERATION.units.gnat.standoff });
     }
-    expect(m.figures['unit-gnat']).toEqual({ unit: { kind: 'gnat' } });
+    expect(m.figures['unit-gnat']).toEqual({ unit: { kind: 'gnat', form: true } });
   });
 
   it('Long Guns stands its carriers with a launcher and no gun, hanging back behind the tanks', () => {
