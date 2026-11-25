@@ -34,10 +34,12 @@ const LAND = f({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 });
 const VARNISH = f({ strength: 0.8, width: 18, mask: 160 }), THIN = f({ beds: f([4, 9]), jitter: 0.07 });
 // (worn by its own shape: its edges lifted, its creases darkened; and in sections, each block of a wall its own mood)
 const WEAR = f({ edge: 0.22, crease: 0.3, reach: 1.6 }), SECTIONS = f({ size: 36, value: 0.09, hue: 0.18 });
+// (and gritty: runnels straight down every wall at a frame's scale, the page's own)
+const GRIT = f({ depth: 0.5, width: 1.8, stretch: 7, shade: 0.28, reach: 160 });
 export const FIELD_ROCK = f({
-  wadi: f({ beds: f([f({ to: 8, value: -0.14 }), f({ to: 54 }), f({ to: 84, toward: 'floor', mix: 0.3, value: 0.04 }), f({ to: 2000, toward: 'trim', mix: 0.5, value: 0.06 })]), blend: 3, thin: THIN, wear: WEAR, sections: SECTIONS, varnish: VARNISH }),
-  gorge: f({ beds: f([f({ to: 6, value: -0.16 }), f({ to: 46 }), f({ to: 64, toward: 'floor', mix: 0.3, value: 0.04 }), f({ to: 2000, toward: 'trim', mix: 0.55, value: 0.05 })]), blend: 2.5, thin: THIN, wear: WEAR, sections: SECTIONS, varnish: f({ ...VARNISH, strength: 0.8 }) }),
-  scree: f({ beds: f([f({ to: 14, toward: 'floor', mix: 0.2, value: -0.1 }), f({ to: 62 }), f({ to: 2000, toward: 'trim', mix: 0.4, value: 0.04 })]), blend: 4, thin: f({ beds: f([6, 14]), jitter: 0.09 }), wear: f({ ...WEAR, edge: 0.28 }), sections: f({ ...SECTIONS, size: 24, value: 0.12 }), varnish: f({ ...VARNISH, strength: 0.5 }) }),
+  wadi: f({ beds: f([f({ to: 8, value: -0.14 }), f({ to: 54 }), f({ to: 84, toward: 'floor', mix: 0.3, value: 0.04 }), f({ to: 2000, toward: 'trim', mix: 0.5, value: 0.06 })]), blend: 3, thin: THIN, wear: WEAR, sections: SECTIONS, varnish: VARNISH, grit: GRIT }),
+  gorge: f({ beds: f([f({ to: 6, value: -0.16 }), f({ to: 46 }), f({ to: 64, toward: 'floor', mix: 0.3, value: 0.04 }), f({ to: 2000, toward: 'trim', mix: 0.55, value: 0.05 })]), blend: 2.5, thin: THIN, wear: WEAR, sections: SECTIONS, varnish: f({ ...VARNISH, strength: 0.8 }), grit: GRIT }),
+  scree: f({ beds: f([f({ to: 14, toward: 'floor', mix: 0.2, value: -0.1 }), f({ to: 62 }), f({ to: 2000, toward: 'trim', mix: 0.4, value: 0.04 })]), blend: 4, thin: f({ beds: f([6, 14]), jitter: 0.09 }), wear: f({ ...WEAR, edge: 0.28 }), sections: f({ ...SECTIONS, size: 24, value: 0.12 }), varnish: f({ ...VARNISH, strength: 0.5 }), grit: f({ ...GRIT, width: 2.6, stretch: 4, depth: 0.7 }) }),
 });
 
 /** A field's outside: the island, the swell, the sand floor rolled by the wind, the massif's card on it and its rock's colour. */

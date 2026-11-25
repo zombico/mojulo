@@ -38,6 +38,13 @@ book's map: a frame level's plate is now its operation map. Buildings come after
     colour.
   - **sections**: the rock in sections, each a cell of jittered points keyed to its own place and never a repeating
     tile. Each takes its own small value and hue toward a cube colour; on a wall their edges are vertical joints.
+  - **grit**: the page's own, not the corners'. Runnels and flutes run straight down the walls at a frame's scale
+    (`scene/channels/form-land.js` `ROCK_GRIT_GLSL`).
+    - Their height is a field of the world: its two side projections blend by the land's smoothed normal, so a runnel
+      runs on round a wall's turn and never jumps at a face's edge.
+    - The field is marched along the view into the wall, so the runnels stand in and out; they have their own normal
+      and darker floors.
+    - They are drawn to their reach and faded by their size on the screen. Absent, the shader is as it was.
   - **varnish**: dark streaks down the walls, a function of the plan alone so they run straight down any wall; a slow
     mask leaves some walls clean.
   - It is baked into the land's own corner colours over the rock layer, so a page and an engine handoff get the same.

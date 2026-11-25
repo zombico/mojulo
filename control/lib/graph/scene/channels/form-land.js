@@ -69,6 +69,12 @@ export function packLand(form) {
   }
   return n ? { ...out, packed: n } : form;
 }
+/** The rock's grit (a cube's `outside.rock.grit`): its runnels' height over the face, in its own units (one across a
+ *  runnel's spacing, one up its stretched length): ridges that wander as they run down, a finer set over them. Value noise
+ *  `vn` (the page's), so nothing repeats; ridged, so a runnel's floor is sharp and its crest round. `gritW`: the same over
+ *  the world, its two side projections blended by how far the wall faces x (`gX`), so it runs on round a turn. */
+export const ROCK_GRIT_GLSL = 'float gritH( vec2 p ) { float u = p.x + 0.45 * vn( vec2( p.y * 0.7, p.x * 0.13 ) + 17.0 ); float r = 1.0 - abs( vn( vec2( u, p.y * 0.2 ) ) * 2.0 - 1.0 ); float u2 = p.x * 2.6 + 0.3 * vn( vec2( p.y * 1.3, 5.0 ) ); float r2 = 1.0 - abs( vn( vec2( u2, p.y * 0.5 + 9.0 ) ) * 2.0 - 1.0 ); return 0.68 * r * r + 0.32 * r2 * r2; }\nfloat gritW( vec3 q, vec2 gS, float gX ) { return mix( gritH( vec2( q.x + 31.7, q.z ) / gS ), gritH( vec2( q.y, q.z ) / gS ), gX ); }\n';
+
 export function formLandScript(form0, flora = null, { capture = false, fights = false } = {}) {
   const form = packLand(form0);
   return `
@@ -166,7 +172,9 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       Object.assign(sh.uniforms, LAYER_U, { uRough: { value: roughScale } });
       sh.vertexShader = 'attribute vec4 splat;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\\n  vSplat = splat; vWPos = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
       sh.fragmentShader = 'uniform sampler2DArray tBase, tNorm, tOrm;\\nuniform sampler2D tPath, tDice;\\nuniform float uTile[7];\\nuniform vec3 uMean[7];\\nuniform float uRough, uHasPath;\\nuniform vec2 uPathO, uPathM, uPathZ;\\nuniform vec3 uPathBase, uStoneBase, uClayBase;\\nuniform float uClay, uUnder, uHasG, uMoss;\\nuniform sampler2D tGrassL;\\nuniform vec2 uGOl, uGMl;\\nuniform vec3 uUnderBase;\\nuniform vec4 uWet;\\nuniform vec3 uDress, uPatch;\\nuniform float uSdIn;\\nvarying vec4 vSplat;\\nvarying vec3 vWPos;\\nfloat hn( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }\\nfloat vn( vec2 p ) { vec2 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( hn( i ), hn( i + vec2( 1.0, 0.0 ) ), f.x ), mix( hn( i + vec2( 0.0, 1.0 ) ), hn( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }\\n'
-        + ${JSON.stringify(form.farCalm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)}
+        + ${JSON.stringify(form.farCalm ? farBlanketGlsl(true) : FAR_BLANKET_GLSL)}${form.grit ? `
+        // (the rock's GRIT, a cube's outside.rock.grit: its runnels' height, ROCK_GRIT_GLSL)
+        + ${JSON.stringify(ROCK_GRIT_GLSL)}` : ''}
         // (the ground's own parallax kinds, procedural: a Voronoi cell's distance, its edge and its dice; and each kind's
         // height over its cells, GROUND_PARALLAX)
         + 'vec3 vor5( vec2 p ) { vec2 i = floor( p ), f = fract( p ); float d1 = 8.0, d2 = 8.0; vec2 id = vec2( 0.0 ); for ( int y = -1; y <= 1; y++ ) for ( int x = -1; x <= 1; x++ ) { vec2 g = vec2( float( x ), float( y ) ), o = vec2( hn( i + g ), hn( i + g + 17.3 ) ) * 0.8 + 0.1; float d = length( g + o - f ); if ( d < d1 ) { d2 = d1; d1 = d; id = i + g; } else if ( d < d2 ) d2 = d; } return vec3( d1, d2 - d1, hn( id + 5.1 ) ); }\\n'
@@ -265,7 +273,32 @@ ${form.dunes ? duneScript() : ''}${form.snow ? snowScript() : ''}${form.dunes ||
       ns[ 0 ] = vec3( dot( wb, tT ), dot( wb, tB ), dot( wb, nW ) );
       hgt[ 0 ] = mix( hgt[ 0 ], o2.b, rkB ); rs[ 0 ] = mix( rs[ 0 ], o2.rg, rkB ); bs[ 0 ] = mix( bs[ 0 ], texture( tBase, a2 ).rgb / uMean[ 0 ], rkB );
     }
-    // (dirt settles on the rock's ledges: where its own relief faces up, and more on a face that leans back)
+${form.grit ? `    // the rock's GRIT (a cube's outside.rock.grit, form/rock-colour.js): runnels and flutes run straight down every wall at a
+    // frame's scale, their height a ridged field stretched up the face, marched along the view (six steps) where the wall
+    // is near enough to show it, its normal its own and its grooves darker; faded by the grooves' size on the screen, so
+    // a far wall keeps its colour and never sparkles
+    if ( vSplat.x > 0.02 && aN.z < 0.85 ) {
+      float gReach = 1.0 - smoothstep( ${(form.grit.reach * 0.6).toFixed(1)}, ${form.grit.reach.toFixed(1)}, camD );
+      vec2 gS = vec2( ${form.grit.width.toFixed(3)}, ${(form.grit.width * form.grit.stretch).toFixed(3)} );
+      // (a field of the world, not of the face: the two side projections blended by the land's smoothed normal, so a
+      // runnel runs on round a wall's turn and never jumps at a face's edge)
+      float gX = smoothstep( 0.3, 0.7, aN.x / max( 1e-4, aN.x + aN.y ) );
+      float gDet = 1.0 - smoothstep( 0.12, 0.45, length( fwidth( vWPos ) ) / gS.x );
+      if ( gReach * gDet > 0.0 ) {
+        // (marched along the view into the wall, six steps of a sixth of the cut each, until under the runnels' floor)
+        vec3 Vg = normalize( cameraPosition - vWPos ), stepW = -Vg / max( dot( Vg, nW ), 0.35 ) * ( ${form.grit.depth.toFixed(3)} * gReach / 6.0 ), q = vWPos;
+        float lg = 0.0, hg = 1.0 - gritW( q, gS, gX );
+        for ( int k = 0; k < 6; k++ ) { if ( lg >= hg ) break; q += stepW; hg = 1.0 - gritW( q, gS, gX ); lg += 0.1667; }
+        float e = 0.05 * gS.x, g0 = gritW( q, gS, gX ), gx = gritW( q + tT * e, gS, gX ), gy = gritW( q + tB * e, gS, gX );
+        vec2 gd = vec2( g0 - gx, g0 - gy ) * ( ${form.grit.depth.toFixed(3)} / e );
+        float wg = gReach * gDet * smoothstep( 0.02, 0.3, vSplat.x ) * ( 1.0 - smoothstep( 0.6, 0.85, aN.z ) );
+        // (its normal laid over the rock's own, whiteout: the runnels' slopes added, the rock's detail kept)
+        ns[ 0 ] = normalize( mix( ns[ 0 ], vec3( ns[ 0 ].xy + gd, ns[ 0 ].z ), wg ) );
+        bs[ 0 ] *= mix( 1.0, ${(1 - form.grit.shade).toFixed(3)} + ${form.grit.shade.toFixed(3)} * g0, wg );
+        hgt[ 0 ] = mix( hgt[ 0 ], g0, 0.5 * wg );
+      }
+    }
+` : ''}    // (dirt settles on the rock's ledges: where its own relief faces up, and more on a face that leans back)
     float ledge = vSplat.x > 0.001 ? smoothstep( 0.5, 0.85, ( tT * ns[ 0 ].x + tB * ns[ 0 ].y + nW * ns[ 0 ].z ).z ) * ( 0.55 + 0.45 * vn( vWPos.xy / 1.2 + vWPos.z * 0.7 + 63.0 ) ) + 0.3 * smoothstep( 0.62, 0.85, nW.z ) * smoothstep( 0.5, 0.75, vn( vWPos.xy / 2.0 + 29.0 ) ) : 0.0;
     // (the trail's dirt two: powder and clay by a wandering field, its share of clay the dress's)
     float clayK = clamp( uClay * ( 1.0 + 2.2 * ( vn( vWPos.xy / 1.6 + 91.0 ) * 0.7 + vn( vWPos.xy / 0.55 + 13.0 ) * 0.3 - 0.5 ) ), 0.0, 1.0 );
