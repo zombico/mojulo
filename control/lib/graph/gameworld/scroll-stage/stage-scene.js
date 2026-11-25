@@ -52,7 +52,7 @@ import { SPACE_STAR } from '../../skyscape/space.js';
 import { SCROLL_VIEWS, SCROLL_VIEW_IDS, scrollCamera, toWorld, trackExtent } from './frame.js';
 import { SPACE_LAYER_IDS, SPACE_VOID, layScrollSpace, hazeHulls } from './space-layers.js';
 import { POD_IDS, lowerArsenal } from './pods.js';
-import { scrollHud, SCROLL_KEYS } from './hud.js';
+import { scrollHud } from './hud.js';
 import { FOES, FOE_IDS, lowerFoes, HITBOX } from './patterns.js';
 import { streamOf } from '../../city/plan/dice.js';
 
@@ -214,7 +214,7 @@ export function scrollStageOf(manifest) {
 // `blast` the fireball's reach), at its centre on the play plane (its egg centred, `cz` 0: a side view's up is the world's)
 const blastOf = (r) => ({ blast: r2(r * 2.4), egg: { a: r, c: r, cz: 0 } });
 // the ship on the d-pad, a quarter of a screen back of the middle, and the camera carried down the track
-function playOf(G, { airframe = true } = {}) {
+function playOf(G, { airframe = true, stage = '' } = {}) {
   const { view, cam, ship, track, start, arsenal, targets, foes, foeSet, hp, lives, plane, turretSet } = G, V = SCROLL_VIEWS[view], at = [-cam.screen.along / 4, 0], back = Math.atan2(-V.along[1], -V.along[0]);
   // (a target: a drone's block in the foes' colour, its size a ship's breadth, on the play plane facing back at the ship)
   const tsize = r2(ship.breadth * 0.8);
@@ -256,7 +256,7 @@ function playOf(G, { airframe = true } = {}) {
     // (a hull on the play plane breaks as Rebel Storm's fleet does: destructible matter, weightless, gameworld/levels.js)
     ...(plane.length && airframe ? { destruction: 'physical', matter: { g: 0, power: 1e3 } } : {}),
     // (its HUD on mana-ui, scroll-stage/hud.js: a level's and a World page's, the page's HUD host reading the world)
-    ...(airframe ? { manaHud: scrollHud({ hp, lives, keys: `arrows / WASD  fly · ${SCROLL_KEYS}`, boss: bossHud(G) }) } : {}),
+    ...(airframe ? { manaHud: scrollHud({ hp, lives, stage, boss: bossHud(G) }) } : {}),
     ...(airframe ? { figures: { craft: { craft: { archetype: ship.craft, flying: true, gear: 'up' } }, ...Object.fromEntries(Object.keys(foeSet.foes).map((k) => [`foe-${k}`, { craft: { archetype: foeSet.foes[k].craft, flying: true, gear: 'up' } }])) } } : {}),
   };
 }
@@ -268,7 +268,7 @@ function bossHud(G) {
 }
 
 /** The ship and the scroll camera, as a level puts them on its manifest. */
-export const scrollStagePlay = (manifest, { airframe = true } = {}) => playOf(scrollStageOf(manifest), { airframe });
+export const scrollStagePlay = (manifest, { airframe = true } = {}) => playOf(scrollStageOf(manifest), { airframe, stage: typeof manifest?.title === 'string' ? manifest.title : '' });
 
 /** The World payload of a scroll stage. */
 export function assembleScrollStage(manifest, { title = 'Blaze Gunner' } = {}) {

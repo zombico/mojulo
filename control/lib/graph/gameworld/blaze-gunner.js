@@ -11,7 +11,8 @@
  * laid as a gameworld level whose airspace is that recipe and whose flight goal is `scroll` (flight-goal.js): lost when
  * the ship is down, won when the boss its track holds for is down.
  *
- *   BLAZE_GUNNER_LOOK          the look mana-ui draws its menus in (an arcade space shooter's: the `squadron` card)
+ *   BLAZE_GUNNER_LOOK          the look mana-ui draws its menus and its HUD in (a ship's console in space, calm and
+ *                              exact: the `orbit` card)
  *   stageLevel(id)             → the stage as a gameworld level: { name, airspace, goal }
  *   blazeGunnerStart(world, { stages? }) → { world }: the rail's starter, its first stages under what the creator wrote
  *
@@ -19,7 +20,7 @@
  */
 import { STAGES, STAGE_IDS, stageManifest } from './scroll-stage/stages.js';
 
-export const BLAZE_GUNNER_LOOK = 'squadron';
+export const BLAZE_GUNNER_LOOK = 'orbit';
 
 /** A stage as a gameworld level: its airspace the stage's scroll, flown for the scroll goal. */
 export function stageLevel(id) {

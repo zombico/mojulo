@@ -27,15 +27,30 @@ starter lays the first stage as a designed game's level. A "side-scrolling shoot
   the side map's shot light with an opt-in hook. Rounds are drawn in the shot look, and muzzle flashes, impacts and a
   guard ring show.
 
-**The HUD.** The stage's HUD runs on mana-ui, in the game's own look for a designed level. It leaves the play clear
-between its corners:
-- the score, the lives, the hull as ticks and the speed's gear at the top left;
-- the two pods at the bottom left, each with its ammo in its own hue and the live one marked;
-- the boss's systems at the top right while its hull is on the screen, its name said as it comes in;
+**The HUD.** The stage's HUD runs on mana-ui. It is drawn as a ship's console in the `orbit` look, which is now Blaze
+Gunner's look for its menus too: hairlines, dark glass and a soft glow, with nothing drawn across the play. It speaks
+in pictures and leaves the play clear between its corners:
+- a star and the score, a ship for each life left, a heart and the hull as ticks, and the speed as lit chevrons at the
+  top left;
+- a card for each pod at the bottom left: the pod's own picture in its hue, its ammo as a count and a bar, and the
+  eject's hold filling under the live one;
+- a skull and the boss's systems at the top right while its hull is on the screen, its name said as it comes in;
 - READY at the start and after a life is lost, then GAME OVER or STAGE CLEAR with the score;
-- the keys as key caps for the first seconds.
+- hints with the controls at the bottom right, as key caps or as the pad's own buttons. They show for the first
+  seconds and again when a pad or the keyboard is picked up, then fade out.
 
 A pod scores its kills.
+
+**The menu.** Enter opens the stage's menu over the held stage, and so do Esc and the pad's start on their own page.
+In a game, the shell's pause keeps Esc and start, and the stage's menu is on select. It is mana-ui's pause:
+- resume;
+- a controls sheet, with the keys and the pad side by side;
+- the control hints on or off, remembered.
+
+**A controller.** A pad plays the stage as a shooter's pad does: the d-pad or the stick flies, A or RT fires, X or LB
+switches the pod, B or LT held ejects, and Y or RB changes speed. Each pad's buttons are printed as that pad names them
+(Xbox, PlayStation or Nintendo), and the HUD's controls follow the device in hand. The game shell's controls panel
+lists the same layout.
 
 **Laws.** The arsenal and the bullet patterns are held to laws:
 - no pod is better on every measure, and every pod is worth taking over the base gun;

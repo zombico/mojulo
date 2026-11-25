@@ -34,6 +34,7 @@ import { turretScript } from './turret-view.js';
 import { boatWaterScript } from './boat-water.js';
 import { shotLightScript } from './shot-light-view.js';
 import { scrollPodsScript } from './scroll-pods-view.js';
+import { PAD as SCROLL_PAD, scrollLegendRows } from '../../../gameworld/scroll-stage/controls.js';
 import { shutterScript } from './shutter-view.js';
 import { steamScript } from './steam-view.js';
 import { rockScript } from './rock-view.js';
@@ -3521,7 +3522,7 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
   }
   if (__wcOpen && (slot || (__wcEnt() && (__wcEnt().loadoutIdx || 0) !== __wcCur))) __wcRender();   // live highlight tracks the engine's slot
   __wcPrevRB = rb; __wcPrevFace = face;
-  return {
+  ${scrollOn ? 'const __pr = ' : 'return '}{
     moveX: mx, moveY: -my,                     // stick up = forward
     lookX: lx, lookY: ly,
     fire: pb('fire'), boost: pb('boost'),${moveset ? `
@@ -3540,12 +3541,26 @@ ${seats ? `  // SEATS: seat 1 reads only its own pad (none when the keyboard is 
     transform: pb('transform'),                // L3 (left stick click) = transform (forms.js)` : ''}
     interact: pb('interact', rb),              // X / PS square — use / talk where the figure stands in reach (silent inside an RB chord)${vayoOn ? `
     vayo: !!(g.buttons && g.buttons[13] && g.buttons[13].pressed),   // D-pad down — a vayo move (vayo-move.js)` : ''}
-  };
+  };${scrollOn ? `
+  // A SCROLL STAGE's pad, a shmup's (gameworld/scroll-stage/controls.js): the d-pad flies as the stick does, eight ways; the
+  // bottom face fires (the right trigger too), the left face or the left shoulder switches the pod, the right face held
+  // ejects (the left trigger too), the top face is the speed (the right shoulder's tap too); the d-pad is never the suit
+  // switch here, and the menu's button is the HUD's (channels/mana-hud.js)
+  const __sP = ${JSON.stringify(SCROLL_PAD)}, __sb = (L) => L.some(b);
+  if (!__pr.moveX) __pr.moveX = (b(__sP.right) ? 1 : 0) - (b(__sP.left) ? 1 : 0);
+  if (!__pr.moveY) __pr.moveY = (b(__sP.up) ? 1 : 0) - (b(__sP.down) ? 1 : 0);
+  __pr.fire = __pr.fire || __sb(__sP.fire); __pr.boost = __pr.boost || __sb(__sP.eject);
+  __pr.cycle = __pr.cycle || __sb(__sP.speed);
+  if (!__pr.slot && __sb(__sP.pod)) __pr.slot = 'next';
+  __pr.swap = false;
+  return __pr;` : ''}
 }
 // the pause legend for the piloted entity (scene-three's __controlRows asks): the scheme's rows,
 // read off the live bindings and filtered by what this world has, so it teaches only the keys it answers to.
 function __ctlLegend(pil) {
 ${touchLayer ? `  if (__touchOn()) return __touchRows();   // the screen's pad (touch.js): its thumbs, not the keys
+` : ''}${scrollOn ? `  // (a scroll stage's ship: the stage's own layout, gameworld/scroll-stage/controls.js, on the pad in hand or the keys)
+  if (pil.rule && pil.rule.type === 'scroll-ship') { const __sl = ${JSON.stringify(Object.fromEntries([false, true].map((sh) => [sh ? 'in' : 'off', { keyboard: scrollLegendRows('keyboard', 'xbox', { shell: sh }), xbox: scrollLegendRows('gamepad', 'xbox', { shell: sh }), playstation: scrollLegendRows('gamepad', 'playstation', { shell: sh }), nintendo: scrollLegendRows('gamepad', 'nintendo', { shell: sh }) }])))}[window.parent !== window ? 'in' : 'off']; return (__padOn && __padSeen && __usePad && __sl[__padLayout]) || __sl.keyboard; }
 ` : ''}  const r = pil.rule || pil.pilotRule || {};
   const W = __world, lo = (e) => (e.rule && Array.isArray(e.rule.loadout) && e.rule.loadout.length) || (e.pilotRule && Array.isArray(e.pilotRule.loadout) && e.pilotRule.loadout.length);
   return __CTL.legend(__SCHEME, __BIND, __DEV, {

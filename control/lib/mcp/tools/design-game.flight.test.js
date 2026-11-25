@@ -217,9 +217,11 @@ describe('design_game: designed flight levels', () => {
     // lost when the ship is down, won when the boss its track holds for is
     expect(kinds).toEqual(['fail-on-death', 'defeat-all']);
     expect(M.game.mechanics.find((m) => m.kind === 'defeat-all').who).toBe(M.camera.track.find((L) => L.until).until);
-    // its HUD on mana-ui (scroll-stage/hud.js), in the game's own look, its boss the hull the track holds for; the keys
-    // its legend, said once
-    expect(JSON.stringify(M.manaHud.feed.scroll.keys)).toContain('eject (hold)');
+    // its HUD and menu on mana-ui (scroll-stage/hud.js), in the game's own look, its boss the hull the track holds for;
+    // the controls on it (the menu on select, the shell's pause holding start), said once
+    expect(M.manaHud.feed.scroll.controls.in.pad.xbox.find((r) => r.label === 'menu').actions).toEqual(['select']);
+    expect(JSON.stringify(M.manaHud.feed.scroll.controls.in.keys)).toContain('eject (hold)');
+    expect(M.manaHud.spec.screens.menu.use).toBe('pause-menu');
     expect(M.events?.hud ?? []).toEqual([]);
     expect(M.manaHud.feed.scroll.boss.id).toBe(M.camera.track.find((L) => L.until).until);
     expect(() => readTheme(M.manaHud.theme)).not.toThrow();
