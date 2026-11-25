@@ -66,6 +66,32 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: 'carriers', text: 'Destroy the missile carriers' }), f({ reach: f([0, 0.85]), text: 'Take the ridge' })]),
   }),
+  // (a gorge, a designed operation told on the holo table: guns on the high ground over a slot canyon, Wasps raking down
+  // its length, a shield wall at its narrows, and out to the beacon where it opens)
+  f({
+    id: 'the-siq', name: 'The Siq', map: 'gorge',
+    brief: 'A slot canyon cut into the wall of the Valles, the warlord\'s convoy road through it. Guns hold the high ground, Wasps work its length, and two Bastions shut the narrows. Break through and reach the beacon where it opens.',
+    groups: f([
+      f({ id: 'rim-guns', kind: 'turret', count: 3, at: f([0.25, 0.1]), spread: 110 }),
+      f({ id: 'wasps', kind: 'wasp', count: 4, at: f([0, 0.3]), spread: 140 }),
+      f({ id: 'shield-wall', kind: 'bastion', count: 2, at: f([0, 0.6]), spread: 40 }),
+    ]),
+    tasks: f([
+      f({ down: 'rim-guns', text: 'Silence the guns on the high ground' }),
+      f({ down: f(['wasps', 'shield-wall']), text: 'Break the shield wall' }),
+      f({ reach: f([0, 0.82]), text: 'Reach the canyon mouth' }),
+    ]),
+    briefing: f({
+      region: 'Valles Marineris',
+      steps: f([
+        f({ title: 'The Siq', say: 'A slot canyon in the wall of the Valles, its floor the warlord\'s convoy road. You drop at its south end. Everything in it is above you or ahead of you.' }),
+        f({ title: 'Guns on the high ground', say: 'Three emplacements on the high ground cover the floor. Climb on your booster and take them from above: on the floor you are under all three.', show: f(['rim-guns']), routes: f([f(['drop', 'rim-guns'])]) }),
+        f({ title: 'Wasps', say: 'Four Wasps work the canyon in pairs, diving down its length. Keep moving: they rake where you were, not where you are.', show: f(['wasps']) }),
+        f({ title: 'The shield wall', say: 'Two Bastions hold the narrows, shields up and facing you. Go over them, go round them, or kick one aside and punish it while its shield is down.', show: f(['shield-wall']), routes: f([f(['rim-guns', 'shield-wall'])]) }),
+        f({ title: 'Out', say: 'Past the narrows the canyon opens. Reach the beacon at its mouth: the dropship is waiting.', show: f(['beacon-3']), routes: f([f(['shield-wall', 'beacon-3'])]) }),
+      ]),
+    }),
+  }),
   // (perch drones high and far, missiles down on anything that stays still; climb to reach them)
   f({
     id: 'high-watch', name: 'High Watch', map: 'basin',
@@ -113,6 +139,32 @@ export const OPERATIONS = f([
       f({ id: 'rhino', kind: 'frame', mt: 'rhino', at: f([0, 0.68]) }),
     ]),
     tasks: f([f({ down: 'pack', text: 'Break the Jackal pack' }), f({ down: 'rhino', text: 'Destroy the Rhino' })]),
+  }),
+  // (the smelter hall, a designed operation told on the holo table: walkers on the decks, the crane controls held while
+  // the main ladle is cut loose, and the foreman's pack the noise brings)
+  f({
+    id: 'furnace-row', name: 'Furnace Row', map: 'smelter',
+    brief: 'The warlord\'s smelter hall at Pavonis, half a kilometre under one roof. Clear the operating decks, hold the crane controls while the main ladle is cut loose, then deal with the foreman\'s pack.',
+    groups: f([
+      f({ id: 'deck-guards', kind: 'walker', count: 3, at: f([-0.2, 0.2]), spread: 90 }),
+      f({ id: 'pack', kind: 'frame', mt: 'jackal', count: 2, at: f([0.3, 0.55]), spread: 70 }),
+      f({ id: 'foreman', kind: 'frame', mt: 'rhino', at: f([0, 0.7]) }),
+    ]),
+    tasks: f([
+      f({ down: 'deck-guards', text: 'Clear the operating decks' }),
+      f({ reach: f([0.15, 0.35]), text: 'Reach the crane controls' }),
+      f({ hold: 20, text: 'Hold the controls while the ladle is cut loose' }),
+      f({ down: f(['pack', 'foreman']), text: 'Destroy the foreman\'s pack' }),
+    ]),
+    briefing: f({
+      region: 'Pavonis Works',
+      steps: f([
+        f({ title: 'Furnace Row', say: 'The warlord\'s smelter hall at Pavonis: half a kilometre under one roof. No sky, and the trusses break a lock as often as they hold it.' }),
+        f({ title: 'The decks', say: 'Three walkers on the operating decks over the casting floor. Their guns cover the ramps up; come up the far side, or go up on your booster.', show: f(['deck-guards']), routes: f([f(['drop', 'deck-guards'])]) }),
+        f({ title: 'The crane', say: 'Get to the crane controls and hold them for twenty seconds while our cutters take the main ladle off its hooks. Stay inside the ring.', show: f(['beacon-2']), routes: f([f(['deck-guards', 'beacon-2'])]) }),
+        f({ title: 'The foreman', say: 'The noise brings the foreman\'s pack: two Jackals, and the Rhino that runs this floor. Its mortar holds it braced when it fires: that is when you hit it.', show: f(['pack', 'foreman']), routes: f([f(['beacon-2', 'foreman'])]) }),
+      ]),
+    }),
   }),
   // (the gunship: twice a frame, circling, hanging to barrage, a Gnat escort round it)
   f({
@@ -169,8 +221,8 @@ export function operationLevel(op) {
   const W = WARLORDS_OF_MARS;
   return {
     name: op.name,
-    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette, garage: true } },
-    goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' && !g.ace ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks), ...(op.reward ? { reward: [...op.reward] } : {}) } },
+    airspace: { map: { form: op.map, field: W.field, craft: 'jet' }, ground: { geocube: W.geocube }, sky: { world: W.sky }, frame: { build: W.frame, palette: W.palette, garage: true, briefing: true } },
+    goal: { operation: { groups: clone(op.groups).map((g) => (g.kind === 'frame' && !g.ace ? { ...g, palette: W.foePalette } : g)), tasks: clone(op.tasks), ...(op.reward ? { reward: [...op.reward] } : {}), ...(op.briefing ? { briefing: clone(op.briefing) } : {}) } },
   };
 }
 

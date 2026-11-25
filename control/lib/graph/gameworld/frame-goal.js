@@ -73,7 +73,9 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing)`);
+  // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
+  if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
   if (v.reward !== undefined && !(Array.isArray(v.reward) && v.reward.every((id) => typeof id === 'string' && Object.values(PARTS).some((T) => T[id])))) throw new Error(`${at}.reward is a list of parts (assault-frame/parts.js ids) its win adds to the garage`);
   if (!Array.isArray(v.groups) || !v.groups.length) throw new Error(`${at}.groups is a list of the enemy's groups`);

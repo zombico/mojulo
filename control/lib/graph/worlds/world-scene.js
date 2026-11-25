@@ -2513,6 +2513,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     else payload.briefing = { data: briefingData(readMission(sketch.manifest.briefing)) };
   }
+  // an assault frame's operation told on the holo table over its field (campaign/operation-brief.js): its level carries
+  // the table's data whole, made as the level was. Absent ⇒ nothing
+  else if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.briefing?.data && typeof sketch.manifest.briefing.data === 'object') payload.briefing = { data: sketch.manifest.briefing.data };
   // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
   // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
   if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {

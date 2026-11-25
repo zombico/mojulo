@@ -1133,6 +1133,14 @@ put away while it is up. A part fitted is stood at once: the page builds the fra
 `assault-frame/hangar.js`), takes the bay down and lets the operation go. The parts it offers are its stock's and the
 save's `parts`, which each operation's win adds to (its `reward`, the level's `wins`).
 
+### An operation's briefing
+
+A frame operation can open on the holo table, as a space mission's briefing does (a frame stage's `briefing: true`,
+`campaign/operation-brief.js`): the field's own ground as the table's terrain (a works' field its machines as masses),
+the drop, the operation's groups as miniatures and its beacons, told in the operation's designed steps or a step a task.
+It is the same page and the same idioms as the space briefing (`place-banner`, `flight-roster` headed in the design's
+word, `briefing-steps`), over the level on its briefing channel; Launch hands the held operation to its hangar.
+
 ### The strategy boards
 
 A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by

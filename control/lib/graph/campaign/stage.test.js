@@ -138,7 +138,7 @@ describe('a ground stage\'s force: real ships in its waves, units on the ground'
     expect(S.ground.map((g) => g.kind)).toEqual(D.ground.map((g) => g.kind));
     expect(S.waves.map((w) => w.craft)).toEqual(D.waves.map((w) => w.craft ?? FORMATION_CRAFT[w.formation ?? 'line']));
     const bad = (patch, m) => expect(() => readStage({ ...D, ...patch })).toThrow(m);
-    bad({ ground: [{ id: 'x', name: 'X', kind: 'battleship', count: 1, at: 0.3 }] }, /turret, tank, walker/);
+    bad({ ground: [{ id: 'x', name: 'X', kind: 'battleship', count: 1, at: 0.3 }] }, /turret, tank, .*walker/);
     bad({ ground: [{ id: 'x', name: 'X', kind: 'tank', count: 9, at: 0.3 }] }, /1 to 6/);
     bad({ ground: [{ id: 'scouts', name: 'X', kind: 'tank', count: 1, at: 0.3 }] }, /taken/);
     bad({ waves: [{ ...D.waves[0], craft: 'jumbo' }] }, /ship its fighters fly/);

@@ -50,7 +50,7 @@ export function briefingSpec() {
     start: 'briefing',
     hud: { use: 'hud', children: [
       { use: 'place-banner', props: { parts: B('place'), state: B('state') } },
-      { use: 'flight-roster', props: { title: 'Flight groups', rows: B('roster') }, when: B('theatre') },
+      { use: 'flight-roster', props: { title: B('rosterTitle'), rows: B('roster') }, when: B('theatre') },
       // the orders, once the table is on the fight: each goal as the briefing says it
       { use: 'region', props: { at: 'bottom-right', variant: 'scrim' }, when: B('theatre'), children: [{ use: 'stack', props: { gap: 'tight' }, children: [
         { use: 'text', props: { value: 'Orders', role: 'label' } },
@@ -77,6 +77,8 @@ const SIDE = { friend: 0, foe: 1, neutral: 2 };
 export function briefingState(D) {
   return { bf: {
     state: D.status === 'approved' ? 'Approved' : 'Draft · for approval',
+    // (who is in it, headed in the design's word: a squadron's flight groups, an operation's forces)
+    rosterTitle: D.rosterTitle ?? 'Flight groups',
     place: D.place.parts.map((name) => ({ name })), roster: D.roster.map((r) => ({ id: r.id, name: r.name, craft: r.craft, count: `×${r.count}`, side: SIDE[r.side] ?? 2 })),
     goals: D.goals, theatre: false,
     brief: { kicker: '', title: '', say: '', step: 0, count: D.steps.length, ready: false, steps: [] },

@@ -1068,6 +1068,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // the parts the player has too, and the build it fits is kept)
     game.consumes = [...(game.consumes ?? []), { slice: HANGAR_SLICE }, ...(F.garage ? [{ slice: PARTS_SLICE }] : [])];
     if (F.garage) game.produces = { ...(game.produces ?? {}), events: [...(game.produces?.events ?? []), { type: 'setFlag', slice: HANGAR_SLICE }] };
+    // (told on the holo table before the drop, campaign/operation-brief.js: the briefing channel over the level)
+    if (X0?.briefing) pilotPart = { ...pilotPart, briefing: { data: X0.briefing } };
     // (an operation's reward, frame-goal.js: the parts its win grants, the game channel's `wins`)
     if (F.garage && X0?.wins?.length) { game.wins = X0.wins; game.produces = { ...game.produces, events: [...game.produces.events, { type: 'grant', slice: PARTS_SLICE }] }; }
   } else if (stage.section === 'airspace') {

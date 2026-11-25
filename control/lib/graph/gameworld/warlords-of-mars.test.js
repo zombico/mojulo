@@ -51,6 +51,9 @@ describe('Warlords of Mars', () => {
     // (its win adds its reward to the garage: each part granted to the save's parts as it is won)
     expect(m.game.wins).toEqual(OPERATIONS[0].reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })));
     expect(m.game.produces.events).toEqual(expect.arrayContaining([{ type: 'grant', slice: PARTS_SLICE }]));
+    // (told on the holo table before the drop: the briefing channel's data on the level, campaign/operation-brief.js)
+    expect(m.briefing.data.things.some((t) => t.pilot)).toBe(true);
+    expect(m.briefing.data.steps.length).toBeGreaterThan(1);
     // (fought on Mars's own land in the seventh generation, assault-frame/field.js: pure terrain, no trail, no flight map;
     // the frame and every foe stood on the land's height, inside the field's bound)
     expect(m).toMatchObject({ kind: 'geocube', show: 'land', cube: { from: 'mars', era: 'gen-7', outside: { island: { walk: 'none', open: true } } } });

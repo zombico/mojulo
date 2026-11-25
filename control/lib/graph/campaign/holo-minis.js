@@ -83,9 +83,18 @@ export const GROUND_MINIS = Object.freeze({
   turret: S({ size: 'probe', parts: [{ box: [0, 0, 0.6, 6.8, 6.8, 1.2] }, { ball: [0, 0, 1.7, 2.1] }, { box: [0, 1.0, 2.5, 2.0, 2.2, 1.1] }, { tube: [-0.5, 4.3, 2.45, 0.22, 4.6] }, { tube: [0.5, 4.3, 2.45, 0.22, 4.6] }] }),
   tank: S({ size: 'probe', parts: [{ box: [0, 0, 1.0, 4.6, 8.2, 1.0] }, { box: [0, 3.9, 1.15, 3.0, 1.4, 0.7] }, { box: [0, -0.7, 2.5, 2.7, 3.3, 0.86] }, { tube: [-0.35, 3.0, 2.55, 0.16, 4.8] }, { tube: [0.35, 3.0, 2.55, 0.16, 4.8] }] }),
   walker: S({ size: 'probe', parts: [{ box: [0, 0.25, 3.95, 1.9, 2.3, 1.3] }, { box: [-0.9, -0.15, 1.6, 0.4, 0.4, 3.0] }, { box: [0.9, -0.15, 1.6, 0.4, 0.4, 3.0] }, { box: [-0.95, 0.35, 0.16, 0.95, 1.7, 0.32] }, { box: [0.95, 0.35, 0.16, 0.95, 1.7, 0.32] }, { tube: [0, 1.7, 3.42, 0.12, 1.4] }] }),
+  // (an assault frame: a torso on two legs, its shoulders broad, a gun forward and a pod on its back)
+  frame: S({ size: 'probe', parts: [{ box: [0, 0, 5.6, 3.0, 2.0, 2.2] }, { box: [0, 0.2, 7.1, 1.1, 1.0, 0.8] }, { box: [-1.0, 0, 2.4, 0.8, 0.9, 4.6] }, { box: [1.0, 0, 2.4, 0.8, 0.9, 4.6] }, { box: [-2.0, 0.4, 5.0, 0.7, 0.7, 2.4] }, { box: [2.0, 0.4, 5.0, 0.7, 0.7, 2.4] }, { tube: [2.0, 2.2, 4.0, 0.25, 3.0] }, { box: [-1.0, -1.2, 7.0, 1.2, 1.4, 1.0] }] }),
+  // (a drone: a pod between two fans)
+  drone: S({ size: 'probe', parts: [{ box: [0, 0, 0.5, 1.4, 2.2, 0.6] }, { ball: [-1.6, 0, 0.5, 0.8] }, { ball: [1.6, 0, 0.5, 0.8] }] }),
+  // (a gunship: a long hull on four fans)
+  gunship: S({ size: 'probe', parts: [{ box: [0, 0, 1.4, 2.0, 7.0, 1.4] }, { ball: [-2.6, 2, 1.6, 1.2] }, { ball: [2.6, 2, 1.6, 1.2] }, { ball: [-2.6, -2, 1.6, 1.2] }, { ball: [2.6, -2, 1.6, 1.2] }] }),
 });
+// (the ground force's other cards drawn as the nearest of these: a carrier a tank, a shield-bearer a walker, the fliers
+// by their size)
+const GROUND_MINI_OF = Object.freeze({ hammer: 'tank', bastion: 'walker', gnat: 'drone', wasp: 'drone', kite: 'drone', harrow: 'gunship', thunderhead: 'gunship' });
 export function groundMini(kind) {
-  const M = GROUND_MINIS[kind];
+  const M = GROUND_MINIS[GROUND_MINI_OF[kind] ?? kind];
   if (!M) throw new Error(`campaign: '${kind}' is not a ground unit (${Object.keys(GROUND_MINIS).join(', ')})`);
   return { family: 'ground', size: M.size, parts: M.parts };
 }

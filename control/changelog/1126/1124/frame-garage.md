@@ -25,3 +25,16 @@
   none carries nothing). Warlords of Mars rewards a ladder: a conventional biped kit at Landfall, the close and long
   FCS, the Scatter, the Gatling and the Lance, the light and heavy arms, heads and legs, the Falcon and the Ox, the
   Shear blade, the Arc after the Thunderhead and the Citadel core after Vermilion.
+- **The operation's briefing** (`campaign/operation-brief.js`, a frame stage's `briefing: true`): an operation is told
+  on the holo table before the drop, as Rebel Storm's missions and Wolf Squadron's stages are. The table is the field's
+  own ground (its height grid the hologram's terrain; a works' field its machines, decks, furnaces and racks stood up as
+  masses), the drop, every group of the operation where it stands as a miniature with its count, and each beacon. The
+  steps are the operation's own design (an operation's `briefing`: a region and its steps, each a title, its words, what
+  it lights and the routes it draws), else a step for the field and one a task. The briefing channel holds the operation
+  behind it; Launch hands it to the hangar. The table's roster is headed in the design's word (`rosterTitle`: an
+  operation's Forces; a squadron's Flight groups, as before). The ground force's other cards stand on the table as the
+  nearest miniature (a frame, a drone and a gunship join the unit minis).
+- **Two designed operations.** The Siq (the gorge massif, Valles Marineris): guns on the high ground over a slot canyon,
+  Wasps raking its length, two Bastions shutting the narrows, then out to the beacon at its mouth. Furnace Row (the
+  smelter hall, Pavonis Works): walkers on the operating decks, the crane controls reached and held while the main
+  ladle is cut loose, then the foreman's pack of two Jackals and their Rhino.

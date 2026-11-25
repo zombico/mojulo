@@ -262,6 +262,8 @@ const hold = (on) => { window.__mojMenuOpen = on; window.__mojFreeze = on; try {
 function open() {
   const P = pilot();
   if (up || !P || !P.rule || P.rule.type !== 'frame') return;
+  // (the operation told first: the hangar opens once the briefing's Launch has let it go)
+  if (window.__mojBriefing && window.__mojBriefing.up) { setTimeout(open, 120); return; }
   build = K.readBuild((window.__mojFrameHangar && window.__mojFrameHangar.build) || (__FIG[P.body.figure] && __FIG[P.body.figure].frame && __FIG[P.body.figure].frame.build) || 'vanguard');
   up = true; document.body.classList.add('moj-garage'); document.body.appendChild(__grRoot); hold(true);
   const H = (__FIG[P.body.figure] && __FIG[P.body.figure].figH) || 9;
