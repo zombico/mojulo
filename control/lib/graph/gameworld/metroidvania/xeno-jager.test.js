@@ -57,7 +57,9 @@ describe('XenoJager: a dangerous planet explored down through its crust', () => 
     const hz = Object.entries(B.dress.plan).filter(([, p]) => p.hazard);
     expect(new Set(hz.map(([, p]) => p.hazard))).toEqual(new Set(Object.keys(XENOJAGER_HANDLE.hazards)));
     for (const [room, p] of hz) expect(B.layout.rooms.find((r) => r.id === room).ring).toBeGreaterThan(1);
-    expect([XENOJAGER_HANDLE.hero, XENOJAGER_HANDLE.feel, ...Object.values(XENOJAGER_HANDLE.hazards)].every((h) => h.wired === false)).toBe(true);
+    expect([XENOJAGER_HANDLE.hero, ...Object.values(XENOJAGER_HANDLE.hazards)].every((h) => h.wired === false)).toBe(true);
+    // (wired: its feel, its HUD's card and its cube, the starter's)
+    expect([XENOJAGER_HANDLE.feel, XENOJAGER_HANDLE.ui, XENOJAGER_HANDLE.cube].every((h) => h.wired === true)).toBe(true);
     // (its HUD's card is the one thing wired: the box's HUD wears it by its theme)
     expect(BOX_LOOKS.xeno).toBe(XENOJAGER_HANDLE.ui.theme);
     // (its feel the run and gun's own, its wall kept: the lowered rule clings)

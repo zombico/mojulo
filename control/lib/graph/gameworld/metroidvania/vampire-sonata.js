@@ -29,6 +29,7 @@
  *   erinaHero()          → the character door's words for her (create_character { as: 'hero', spec, toon })
  *   vampireSonataGame({ heroRef?, id?, name? }) → a designed game's words: the feel, the side camera, her book (adopted
  *                        by `heroRef`, the row erinaHero mints), the castle one level
+ *   vampireSonataStart() → the same as a starter: the box's look left to the world's geocube (gothic-night)
  *   VAMPIRE_SONATA_PREMISE, VAMPIRE_SONATA_POWERS, VAMPIRE_SONATA_FEEL, ERINA
  *
  * Pure: words in, words out.
@@ -104,6 +105,14 @@ export const ERINA = Object.freeze({
 
 /** The character door's words for Erina. */
 export const erinaHero = () => ({ as: 'hero', toon: { light: true }, spec: structuredClone({ ...ERINA }) });
+
+/** The castle as a STARTER (the galaxy-boy rail's `vampire-sonata` variant, pitch-start.js): Vampire Sonata's game words
+ * with its box's look left to the world's geocube, the gothic night's castle (cube.js), so a person's game starts from
+ * the cube and the words and changes either. */
+export function vampireSonataStart() {
+  const G = vampireSonataGame(), { theme: _theme, ...words } = G.levels.castle.metroidvania;
+  return { ...G, style: { geocube: 'gothic-night' }, levels: { castle: { ...G.levels.castle, metroidvania: words } } };
+}
 
 /** Vampire Sonata as a designed game's words: Erina's feel and book, the castle its one level. */
 export function vampireSonataGame({ heroRef, id = 'vampire-sonata', name = 'Vampire Sonata', box, turn } = {}) {

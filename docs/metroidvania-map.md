@@ -541,6 +541,23 @@ game therefore never disagree.
 
 The page also says what dresses the box: its words' theme, its geocube, or neither (the greybox).
 
+## The rail
+
+A box game is started from a template, as every game type is (`gameworld/rails.js`). The box games are variants of
+Galaxy Boy's rail, which owns the side-on run and gun and the metroidvania genre:
+
+| Variant | Starts from | Its cube |
+|---|---|---|
+| `vampire-sonata` | the castle: outer wall, great halls, inner ward, keep | `gothic-night` |
+| `xenojager` | the planet: crust, fungal caverns, flooded depths, magma core | XenoJager's (`XENOJAGER_CUBE`) |
+
+`design_game({ name, rail: { from: 'galaxy-boy', variant, locked: true } })` lays the starter (`pitch-start.js`): the
+template's game words with its box naming no theme, and the world's `style.geocube` the variant's cube, so the box is
+dressed by the cube (`vampireSonataStart`, `xenoJagerStart`). Every key the person wrote wins. The variant's sheet and
+the readout's pitch report say the box and its cube (`box: { game, cube, library }`), as does its rail card. Each
+variant asks first for the person's box and its cube (the `gameworld-box` card). A sentence finds the variant by its
+own words ("a metroidvania castle", "a metroid-like planet"); "a metroidvania" alone is the plain rail.
+
 ## Not yet
 
 - **The castle's own feel.** Erina plays Galaxy Boy's run and gun with Zero Boy's saber string. A feel of her own would
@@ -558,7 +575,7 @@ The page also says what dresses the box: its words' theme, its geocube, or neith
 - **Foes and real bosses** on the side map's foe shelf and the boss director, in place of the stand-ins. A boss's
   room shut behind her as a side map's is.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
-- **The rail**, once a first box plays; the map shown in the game from the rooms visited.
+- **The map shown in the game** from the rooms visited.
 - **Dressed** by the side map's paint, cake and vista, a place a ring.
 - **Several boxes** joined as castle wings round a keep: the megaworld at the next scale. The shapes are its first half
   (the bell tower passes through, the courtyard joins, the keep is the destination); ports on a box's sides and the

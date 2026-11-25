@@ -15,3 +15,13 @@
   - the powers and what each opens;
   - every law the box is held to, labelled as the machine gate.
 - The game book opens for a metroidvania level and a side map level. Both used to stop the book before its first page.
+- A box game starts from a template on Galaxy Boy's rail: its variants `vampire-sonata` (the castle on the gothic night)
+  and `xenojager` (the planet on its own cube). Locking the pitch lays the template's box with no theme, on the world's
+  geocube, so the cube dresses it. The rail's sheet, the readout's pitch report and the variant's rail card each name
+  the box and its cube. Each variant asks first for the person's box and its cube, and a sentence finds it by its own
+  words. A new card, `gameworld-box`, teaches the box's words, its templates, the look a cube gives it, and its page in
+  the book.
+- XenoJager's handle now has its feel wired: the run and gun's, its wall kept. Its hero and its hazards are still the
+  next builder's.
+- The interface card lists theme cards a family at a time, a re-key counted on its parent. The world card's ceiling
+  rises for a side strip's `scenery`.

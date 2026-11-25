@@ -19,7 +19,9 @@
  *
  *   xenoJager({ box?, turn?, theme? }) → the map's words (box.js readBox's), the planet at 14 × 8 screens unless said;
  *                        `theme: null` leaves the look to the level's geocube (XENOJAGER_CUBE: cube.js)
- *   XENOJAGER_PREMISE, XENOJAGER_POWERS, XENOJAGER_HANDLE, XENOJAGER_CUBE
+ *   xenoJagerStart()     → the planet as a starter: its feel, the side camera, its level on its cube (the galaxy-boy rail's
+ *                        `xenojager` variant)
+ *   XENOJAGER_PREMISE, XENOJAGER_POWERS, XENOJAGER_HANDLE, XENOJAGER_CUBE, XENOJAGER_FEEL
  *
  * Pure: words in, words out.
  */
@@ -65,12 +67,28 @@ export function xenoJager({ box = [14, 8], turn = 'ccw', theme = 'xeno' } = {}) 
   };
 }
 
+/** XenoJager's feel: the galaxy-boy pole's run and gun as it is, its wall cling and kick kept (a planet's shafts are
+ * climbed off their walls), its buster the cannon. */
+export const XENOJAGER_FEEL = Object.freeze({ pole: 'galaxy-boy', takes: true });
+
+/** The planet as a STARTER (the galaxy-boy rail's `xenojager` variant, pitch-start.js): its feel, the side camera, the
+ * planet one level whose look is the world's geocube (XENOJAGER_CUBE), its HUD the castle's card re-keyed for the planet.
+ * No hero: the person's own, made with the character door. */
+export function xenoJagerStart() {
+  return {
+    camera: 'side', feel: structuredClone({ ...XENOJAGER_FEEL }), style: { geocube: structuredClone(XENOJAGER_CUBE) },
+    levels: { planet: { name: 'The planet', metroidvania: xenoJager({ theme: null }) } },
+    ui: { theme: 'nocturne' },
+  };
+}
+
 /**
- * What the next builder picks up to make XenoJager a game (none of it is wired: this is the handle, said).
+ * What the next builder picks up to make XenoJager a game (each marked wired or not: this is the handle, said).
  *   hero      an explorer in a sealed suit, her right arm a cannon: the character door's words to be written (the
  *             equipment shelf's arms, `equipment/arms/`, for the cannon)
- *   feel      the galaxy-boy pole's run and gun, its buster the cannon, its cling and wall kick KEPT (a planet's shafts
- *             are climbed off their walls; the castle refuses it, gates.js REFUSED_MOVES, the box itself lays no chimney)
+ *   feel      wired: the galaxy-boy pole's run and gun, its buster the cannon, its cling and wall kick KEPT (a planet's
+ *             shafts are climbed off their walls; the castle refuses it, gates.js REFUSED_MOVES, the box itself lays no
+ *             chimney): XENOJAGER_FEEL, the starter's
  *   hazards   the looks' `hazard` (the flooded depths' water, the magma core's lava), recorded in each room's dress plan
  *             (dress.js `plan[room].hazard`): drawn today, harmless; a suit's power is to let her through, and a gate kind
  *             for it (a pool, a lava floor) is a row of gates.js the box would lay as it lays a grate
@@ -78,7 +96,7 @@ export function xenoJager({ box = [14, 8], turn = 'ccw', theme = 'xeno' } = {}) 
  */
 export const XENOJAGER_HANDLE = Object.freeze({
   hero: Object.freeze({ name: 'Jager', role: 'an explorer in a sealed suit, her right arm a cannon', wired: false }),
-  feel: Object.freeze({ pole: 'galaxy-boy', takes: true, keeps: Object.freeze(['cling', 'wall-kick', 'buster']), wired: false }),
+  feel: Object.freeze({ pole: 'galaxy-boy', takes: true, keeps: Object.freeze(['cling', 'wall-kick', 'buster']), wired: true }),
   hazards: Object.freeze({
     water: Object.freeze({ in: 'the flooded depths', suit: 'the dive frame', does: 'slows her and cuts her jump until the suit is found', wired: false }),
     lava: Object.freeze({ in: 'the magma core', suit: 'the heat shell', does: 'burns her until the suit is found', wired: false }),
