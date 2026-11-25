@@ -9,7 +9,8 @@
 //   node scripts/street-people.mjs [--seed 7] [--locale los-angeles] [--set 0] [--out dir] [--jobs 2] [--reuse]
 //                                  [--only p1,p3] [--clip walk|idle|bind] [--phase 0.3] [--spec '{…}' (merged over each)]
 //                                  [--relief 1 (the normal map's strength: 0 off)] [--cast female] [--styles yoga,jogger,… (one card a
-//                                  person, in the card's own colours: a review of outfit cards)]
+//                                  person, in the card's own colours: a review of outfit cards)] [--ethnicities a,b,…] [--age n]
+//                                  [--beauty 0…1] [--face '{"character":[-0.6,-0.5]}' (merged over each face's words)]
 //
 // Writes <out>/sheet.png (the row, front and ¾), <out>/close.png (faces and hands), <out>/read.json, and per person
 // <id>.glb and <id>.read.json (the mint's own read). A mint is a few minutes; --reuse keeps those already in --out.
@@ -68,6 +69,7 @@ if (opt.styles) {
 // its population's mean: 0 every roll at its full reach, the hero door's 0.75 by default)
 if (opt.ethnicities) { const E = opt.ethnicities.split(','); for (let k = 1; people.length < E.length; k++) people = [...people, ...streetSix(seed, { locale, set: set + k })]; people = people.slice(0, E.length).map((p, i) => ({ ...p, spec: { ...p.spec, face: { ...p.spec.face, ethnicity: E[i] } }, label: p.label.replace(/^(\S+ \S+) \S+/, `$1 ${E[i]}`) })); }
 if (opt.age) people = people.map((p) => ({ ...p, spec: { ...p.spec, face: { ...p.spec.face, age: Number(opt.age) } }, label: p.label.replace(/^(\S+) \d+/, `$1 ${opt.age}`) }));
+if (opt.face) { const W = JSON.parse(opt.face); people = people.map((p) => ({ ...p, spec: { ...p.spec, face: { ...p.spec.face, ...W } } })); }
 if (opt.beauty !== undefined) people = people.map((p) => ({ ...p, spec: { ...p.spec, face: { ...p.spec.face, beauty: Number(opt.beauty) } } }));
 if (opt.cast) people = people.map((p) => ({ ...p, spec: { ...p.spec, cast: opt.cast }, label: p.label.replace(/^(male|female)/, opt.cast) }));
 
