@@ -27,6 +27,11 @@
  *   • ASSAULT BOOST (an edge, a toggle): a charge along the aim at `move.ab`, built up over a breath, held at its height
  *     (it climbs or dives with the aim), lit for `en.cost.abStart` and burning `en.cost.ab` a second; ended by its key
  *     again, a quick boost, a kick, the generator emptied or a stagger. How a frame closes on another.
+ *   • HANDLING (a weapon's `handling`): 'free' fires on the move at full speed, an assault boost too; 'drag' holds the
+ *     boost and the charge to its `drag` of their speed while it fires (its recoil, sustained); 'brace' stops the frame
+ *     as it fires, a boost and an assault boost cut: it STICKS where it is for `brace` s (in the air too, no gravity, its
+ *     drift checked hard), then WINDS DOWN over `wind` s, its gravity and its control coming back (the legs' `steady`
+ *     scales both). A quick boost in the wind-down cancels it: the skilled way out; the stick itself cannot be.
  *   • THE LUNGE (the boost KICK on its key, `rule.kick`, and a BLADE, an arm weapon of fire 'melee'): onto the locked foe
  *     within its reach (straight ahead when none), at its speed for at most its time; meeting it, the blow lands
  *     (`frame-weapons`: its damage, its impact on the foe's bar). A kick out of an assault boost is the classic opener.
@@ -42,7 +47,7 @@
  *
  * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch, thrust (the
  * burn the page's thrusters draw, 0..1), stab (its stability left, 0..1 of its bar), stagger (seconds left reeling, 0 when not),
- * ab (assault boosting), lunge ({ by, T, to, hit } while lunging), kickCd,
+ * ab (assault boosting), lunge ({ by, T, to, hit } while lunging), kickCd, braced ('stick' | 'wind' | null), dragT,
  * slotState { <slot>: { ammo, mag, reloading, cd, charge } }, locomotion (the body's clip: idle, forward, boost,
  * boost_left, boost_right, boost_back, hover, fall, land), gaitPhase, moving.
  *
@@ -118,6 +123,15 @@ export function buildRulesFrame(E) {
     const reeling = e.stagger > 0;
     const inp = reeling ? REEL : mine ? input : mindInput(e, dt, world);
     e.frInput = inp;
+    // (a braced shot: stuck for its time, then winding down, its control and its gravity coming back by `ctl`)
+    let ctl = 1, stuck = false;
+    if (e.brace) {
+      if (e.brace.T > 0) { e.brace.T -= dt; stuck = true; ctl = 0; }
+      else if (e.brace.W > 0) { e.brace.W = Math.max(0, e.brace.W - dt); ctl = 1 - e.brace.W / (e.brace.Wmax || 1); }
+      if (!(e.brace.T > 0) && !(e.brace.W > 0)) e.brace = null;
+    }
+    e.dragT = Math.max(0, (e.dragT || 0) - dt);
+    const dragK = e.dragT > 0 ? (e.dragK ?? 1) : 1;
     if (e.en == null) { e.en = EN.max ?? 3000; e.enLast = -1e9; e.v = [0, 0, 0]; e.qbCd = 0; e.qbT = 0; e.landT = 0; e.aimPitch = 0; e.frTime = 0; }
     e.frTime += dt;
     const g = r.gravity ?? GRAV;
@@ -155,7 +169,8 @@ export function buildRulesFrame(E) {
     e.qbCd = Math.max(0, e.qbCd - dt);
     const qbEdge = !!inp.qb && !e.qbPrev;
     e.qbPrev = !!inp.qb;
-    if (qbEdge && e.qbCd <= 0 && enOk && !(e.landT > 0) && draw(C.qb ?? 600)) {
+    if (qbEdge && !stuck && e.qbCd <= 0 && enOk && !(e.landT > 0) && draw(C.qb ?? 600)) {
+      e.brace = null; ctl = 1;
       const d = dir || [-fx, -fy];
       e.qbDir = d; e.qbT = M.qbTime ?? 0.24; e.qbCd = (M.qbTime ?? 0.24) + (M.qbCool ?? 0.42);
       e.v[0] = d[0] * (M.qb ?? 96); e.v[1] = d[1] * (M.qb ?? 96);
@@ -167,8 +182,8 @@ export function buildRulesFrame(E) {
     // ── the assault boost: toggled, a charge along the aim, ended by a quick boost, a kick, the generator or a reel ──
     const abEdge = !!inp.ab && !e.abPrev;
     e.abPrev = !!inp.ab;
-    if (abEdge) { if (e.ab) e.ab = false; else if (enOk && !(e.landT > 0) && !reeling && draw(C.abStart ?? 380)) e.ab = true; }
-    if (e.ab && (reeling || (qbEdge && inQb) || !enOk || !draw((C.ab ?? 440) * dt))) e.ab = false;
+    if (abEdge) { if (e.ab) e.ab = false; else if (enOk && !(e.landT > 0) && !reeling && !stuck && draw(C.abStart ?? 380)) e.ab = true; }
+    if (e.ab && (reeling || stuck || (qbEdge && inQb) || !enOk || !draw((C.ab ?? 440) * dt))) e.ab = false;
 
     // ── the kick: a lunge onto the locked foe within its reach (straight ahead when none) ──
     e.kickCd = Math.max(0, (e.kickCd || 0) - dt);
@@ -183,12 +198,12 @@ export function buildRulesFrame(E) {
     if (lunging) e.ab = false;
 
     // ── the boost: held, a skate (or a push across the air), drawing a little ──
-    e.boosting = !e.ab && !lunging && !!inp.boost && enOk && !(e.landT > 0) && draw((C.boost ?? 260) * dt);
+    e.boosting = !e.ab && !lunging && !stuck && !!inp.boost && enOk && !(e.landT > 0) && draw((C.boost ?? 260) * dt);
     // ── jump and climb ──
     const jumpEdge = !!inp.jump && !e.jumpPrev;
     e.jumpPrev = !!inp.jump;
-    if (onGround && jumpEdge && !(e.landT > 0)) { e.v[2] = M.jump ?? 13; e.jumpedAt = e.frTime; }
-    e.ascending = !onGround && !!(inp.jumpHeld || inp.jump) && enOk && e.frTime - (e.jumpedAt ?? -9) > 0.12 && draw((C.ascend ?? 520) * dt);
+    if (onGround && jumpEdge && !stuck && !(e.landT > 0)) { e.v[2] = M.jump ?? 13; e.jumpedAt = e.frTime; }
+    e.ascending = !onGround && !stuck && !!(inp.jumpHeld || inp.jump) && enOk && e.frTime - (e.jumpedAt ?? -9) > 0.12 && draw((C.ascend ?? 520) * dt);
 
     // ── the horizontal: eased toward what it wants, hard on the booster, soft on its feet, little in the air ──
     if (lunging) {
@@ -205,11 +220,16 @@ export function buildRulesFrame(E) {
     } else if (e.ab && !inQb) {
       // (the charge: built up toward its speed along the aim, a little of the aim's pitch in it, held at its height)
       // (its height settles fast, its speed builds: a charge takes its line at once and gathers along it)
-      const a = aimDir(t.heading, e.aimPitch * 0.6), k = Math.min(1, 2.4 * dt), kz = Math.min(1, 6 * dt), sp = M.ab ?? 76;
+      const a = aimDir(t.heading, e.aimPitch * 0.6), k = Math.min(1, 2.4 * dt), kz = Math.min(1, 6 * dt), sp = (M.ab ?? 76) * dragK;
       e.v[0] += (a[0] * sp - e.v[0]) * k; e.v[1] += (a[1] * sp - e.v[1]) * k; e.v[2] += (a[2] * sp - e.v[2]) * kz;
       if (onGround && e.v[2] < 0) e.v[2] = 0;
+    } else if (stuck) {
+      // (stuck: its drift checked hard, where it fired from)
+      const k = Math.min(1, 8 * dt);
+      e.v[0] -= e.v[0] * k; e.v[1] -= e.v[1] * k;
     } else if (!inQb) {
-      const sp = e.boosting ? (M.boost ?? 46) : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : 0;
+      // (its speed by the wind-down's share of its control, and a dragging weapon's recoil on the boost)
+      const sp = (e.boosting ? (M.boost ?? 46) * dragK : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : 0) * (0.25 + 0.75 * ctl);
       const want = e.boosting ? (dir || [fx, fy]) : dir;
       const tx = want ? want[0] * sp : (onGround ? 0 : e.v[0]), ty = want ? want[1] * sp : (onGround ? 0 : e.v[1]);
       const k = Math.min(1, (e.boosting ? (onGround ? 5 : 3) : onGround ? 7 : 0.6) * dt);
@@ -217,9 +237,11 @@ export function buildRulesFrame(E) {
     }
     // ── the vertical: gravity, the climb over it, the boost's glide ──
     if (lunging || e.ab) { /* (the charge and the lunge hold their own height) */ }
+    else if (stuck && !onGround) e.v[2] -= e.v[2] * Math.min(1, 10 * dt);
     else if (onGround && e.v[2] <= 0) e.v[2] = 0;
     else {
-      let az = -g;
+      // (winding down, gravity comes back with its control)
+      let az = -g * (e.brace ? Math.max(0.1, ctl) : 1);
       if (e.ascending) az += g + (M.lift ?? 9);
       else if ((e.boosting || inQb) && e.v[2] < 0) az = -g * (r.glide ?? 0.35);
       e.v[2] += az * dt;
@@ -276,6 +298,8 @@ export function buildRulesFrame(E) {
     // (the burn the page's thrusters draw: full in a quick boost, hard climbing, then boosting in the air and on the ground; off)
     e.thrust = inQb || e.ab || lunging ? 1 : e.ascending ? 0.85 : e.boosting ? (e.airborne ? 0.75 : 0.6) : 0;
     if (e.ab || lunging) e.locomotion = e.airborne ? 'hover' : 'boost';
+    else if (stuck) e.locomotion = e.airborne ? 'hover' : 'idle';
+    e.braced = stuck ? 'stick' : e.brace ? 'wind' : null;
     e.moving = e.moving || e.ab || lunging;
 
     // ── the stagger: a hit that lands on a reeling frame lands harder; the reel runs out ──
@@ -378,6 +402,13 @@ export function buildRulesFrame(E) {
         });
       }
     }
+    // (its handling: a braced shot sticks the frame and winds it down, a dragging one holds its boost back)
+    const steadyK = e.rule.steady ?? 1;
+    if (W.handling === 'brace') {
+      const T = (W.brace ?? 0.5) * steadyK, Wd = (W.wind ?? 0.6) * steadyK;
+      e.brace = { T: Math.max(T, (e.brace && e.brace.T) || 0), W: Wd, Wmax: Wd, of: slot };
+      e.ab = false; e.boosting = false;
+    } else if (W.handling === 'drag') { e.dragT = 0.3; e.dragK = W.drag ?? 0.7; }
     S.ammo -= 1; S.shots = (S.shots || 0) + 1;
     S.cd = W.fire === 'auto' ? 1 / (W.rof || 6) : (W.cooldown ?? 0.6);
     e.lastShot = { slot, t: state.time };

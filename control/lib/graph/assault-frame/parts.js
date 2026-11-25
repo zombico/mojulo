@@ -12,7 +12,8 @@
  *              `headless` (its cockpit and sensors in a forward fuselage) takes none: the slot null, its `sensor` the core's
  *   core       ap, weight; size the body's girth (1 a medium core); headless (a forward fuselage: no head), sensor
  *   arms       ap, weight; aim (rad/s: how fast the arms come round onto a lock), recoil (a heavy arm steadies a gun: 0..1)
- *   legs       ap, weight; joint 'reverse' (the knee bent back) or a biped's; load (kg the legs carry before they are overweight), walk (m/s), jump (m/s up off the
+ *   legs       ap, weight; steady (how long a braced shot holds them, 1 a medium biped's: heavy legs settle sooner);
+ *              joint 'reverse' (the knee bent back) or a biped's; load (kg the legs carry before they are overweight), walk (m/s), jump (m/s up off the
  *              ground), land (s the legs take a hard landing in), height (m of the hips over the ground)
  *   booster    weight; boost (m/s, a skate's speed at its rated mass), rated (kg), qb (m/s of a quick boost), qbTime (s),
  *              qbCool (s), lift (m/s² up while ascending, over the world's gravity), cost { boost, qb, ascend } (EN a
@@ -24,6 +25,10 @@
  *              `range` its reach, its `speed` its lunge's); damage, rof (rounds a second) or cooldown (s), mag, reload (s),
  *              speed (m/s of the round), range (m), splash (m), stagger (0..1 of a target's poise per hit), energy (EN a
  *              shot, from the generator: an energy weapon), pellets (a shotgun's)
+ *              handling (how it fires on the move): 'free' (on the move at full speed, in an assault boost too),
+ *              'drag' (its recoil holds the boost to `drag` of its speed while it fires) or 'brace' (firing it stops the
+ *              frame, a boost and an assault boost cut: in the air it sticks where it is for `brace` s, then winds down
+ *              over `wind` s, its gravity and its control coming back; the legs' `steady` scales both)
  *   back weapon as an arm weapon's; homing (rad/s a missile turns at, locked), salvo (missiles a trigger)
  *
  *   PARTS                       { <slot>: { <id>: row } }
@@ -57,11 +62,11 @@ export const PARTS = f({
     'ar-heavy': row({ name: 'Heavy', class: 'heavy', ap: 5900, weight: 13600, aim: 3.2, recoil: 0.8, about: 'heavy arms: shouldered with armour, slow round, steady under a heavy gun' }),
   }),
   legs: f({
-    'lg-medium': row({ name: 'Biped M', class: 'medium', ap: 9800, weight: 19500, load: 64000, walk: 11, jump: 13, land: 0.35, height: 5.2, about: 'medium biped legs: the thighs armoured, the shins carrying their own thrusters' }),
-    'lg-light': row({ name: 'Biped L', class: 'light', ap: 6900, weight: 14200, load: 41000, walk: 13, jump: 16, land: 0.22, height: 5.0, about: 'light biped legs: long and lean, a jump that carries' }),
+    'lg-medium': row({ name: 'Biped M', class: 'medium', steady: 1, ap: 9800, weight: 19500, load: 64000, walk: 11, jump: 13, land: 0.35, height: 5.2, about: 'medium biped legs: the thighs armoured, the shins carrying their own thrusters' }),
+    'lg-light': row({ name: 'Biped L', class: 'light', steady: 1.2, ap: 6900, weight: 14200, load: 41000, walk: 13, jump: 16, land: 0.22, height: 5.0, about: 'light biped legs: long and lean, a jump that carries' }),
     // (reverse-joint legs: the knee bent back as a bird's, a long shin down to a splayed foot; they jump and land lightest)
-    'lg-reverse': row({ name: 'Reverse M', class: 'medium', joint: 'reverse', ap: 9200, weight: 18200, load: 63000, walk: 12, jump: 19, land: 0.26, height: 4.2, about: 'reverse-joint legs: thighs slung back from the hips, the knee bent back like a bird\'s, a long shin forward to a splayed three-toed foot with a spur behind; a jump that carries far' }),
-    'lg-heavy': row({ name: 'Biped H', class: 'heavy', ap: 13800, weight: 27800, load: 84000, walk: 8.5, jump: 10, land: 0.55, height: 5.4, about: 'heavy biped legs: wide plated thighs, broad feet, a landing that shakes' }),
+    'lg-reverse': row({ name: 'Reverse M', class: 'medium', joint: 'reverse', steady: 1.1, ap: 9200, weight: 18200, load: 63000, walk: 12, jump: 19, land: 0.26, height: 4.2, about: 'reverse-joint legs: thighs slung back from the hips, the knee bent back like a bird\'s, a long shin forward to a splayed three-toed foot with a spur behind; a jump that carries far' }),
+    'lg-heavy': row({ name: 'Biped H', class: 'heavy', steady: 0.55, ap: 13800, weight: 27800, load: 84000, walk: 8.5, jump: 10, land: 0.55, height: 5.4, about: 'heavy biped legs: wide plated thighs, broad feet, a landing that shakes' }),
   }),
   booster: f({
     'bs-kestrel': row({ name: 'Kestrel', class: 'medium', weight: 2600, boost: 46, rated: 80000, qb: 96, qbTime: 0.24, qbCool: 0.42, lift: 9, cost: f({ boost: 260, qb: 620, ascend: 520 }), about: 'a balanced booster: four bells under a cowl' }),
@@ -80,19 +85,19 @@ export const PARTS = f({
   }),
   // what a hand holds: a gun on its own trigger (the right on the left mouse, the left on the right)
   armWeapon: f({
-    'rf-carbine': row({ name: 'Carbine', kind: 'rifle', weight: 3800, fire: 'auto', damage: 120, rof: 6, mag: 360, reload: 2.4, speed: 520, range: 380, stagger: 0.02, about: 'an assault rifle: a long receiver, a box magazine, a muzzle brake' }),
-    'sg-scatter': row({ name: 'Scatter', kind: 'shotgun', weight: 4400, fire: 'semi', damage: 70, pellets: 8, cooldown: 0.9, mag: 48, reload: 3, speed: 420, range: 140, stagger: 0.05, about: 'a shotgun: a broad short bore, a drum under it' }),
-    'gt-gatling': row({ name: 'Gatling', kind: 'gatling', weight: 6900, fire: 'auto', damage: 55, rof: 16, mag: 1200, reload: 4.5, speed: 560, range: 300, stagger: 0.01, about: 'a gatling: six barrels in a shroud, a belt to a drum' }),
-    'bz-breaker': row({ name: 'Breaker', kind: 'bazooka', weight: 7800, fire: 'semi', damage: 1400, cooldown: 2.2, mag: 24, reload: 3.6, speed: 260, range: 420, splash: 6, stagger: 0.4, about: 'a bazooka: a fat tube, a rocket the size of a man' }),
+    'rf-carbine': row({ name: 'Carbine', kind: 'rifle', weight: 3800, handling: 'free', fire: 'auto', damage: 120, rof: 6, mag: 360, reload: 2.4, speed: 520, range: 380, stagger: 0.02, about: 'an assault rifle: a long receiver, a box magazine, a muzzle brake' }),
+    'sg-scatter': row({ name: 'Scatter', kind: 'shotgun', weight: 4400, handling: 'free', fire: 'semi', damage: 70, pellets: 8, cooldown: 0.9, mag: 48, reload: 3, speed: 420, range: 140, stagger: 0.05, about: 'a shotgun: a broad short bore, a drum under it' }),
+    'gt-gatling': row({ name: 'Gatling', kind: 'gatling', weight: 6900, handling: 'drag', drag: 0.7, fire: 'auto', damage: 55, rof: 16, mag: 1200, reload: 4.5, speed: 560, range: 300, stagger: 0.01, about: 'a gatling: six barrels in a shroud, a belt to a drum' }),
+    'bz-breaker': row({ name: 'Breaker', kind: 'bazooka', weight: 7800, handling: 'brace', brace: 0.3, wind: 0.45, fire: 'semi', damage: 1400, cooldown: 2.2, mag: 24, reload: 3.6, speed: 260, range: 420, splash: 6, stagger: 0.4, about: 'a bazooka: a fat tube, a rocket the size of a man' }),
     // (a blade: no rounds, a lunge onto the locked foe within its reach and a cut; `range` its reach, `speed` its lunge)
     'bl-shear': row({ name: 'Shear', kind: 'blade', weight: 3600, fire: 'melee', damage: 2400, cooldown: 1.6, mag: 9999, reload: 0, speed: 120, range: 90, energy: 420, stagger: 0.6, about: 'a blade: an emitter on the forearm, a white-hot edge out of it, a lunge and a cut' }),
-    'lr-lance': row({ name: 'Lance', kind: 'laser', weight: 5200, fire: 'charge', damage: 650, cooldown: 0.8, mag: 9999, reload: 0, speed: 900, range: 520, energy: 380, stagger: 0.12, about: 'a laser rifle: a slim barrel in cooling fins, a charged shot' }),
+    'lr-lance': row({ name: 'Lance', kind: 'laser', weight: 5200, handling: 'free', fire: 'charge', damage: 650, cooldown: 0.8, mag: 9999, reload: 0, speed: 900, range: 520, energy: 380, stagger: 0.12, about: 'a laser rifle: a slim barrel in cooling fins, a charged shot' }),
   }),
   // what a shoulder carries: a launcher or a cannon, fired on its own key (the right on E, the left on Q)
   backWeapon: f({
-    'ms-hornet': row({ name: 'Hornet', kind: 'missiles', weight: 4600, fire: 'semi', damage: 260, salvo: 4, cooldown: 2.6, mag: 96, reload: 0, speed: 180, range: 520, splash: 4, homing: 2.4, stagger: 0.06, about: 'a missile pod: four cells under a hatch' }),
-    'gc-mortar': row({ name: 'Mortar', kind: 'grenade', weight: 8200, fire: 'semi', damage: 1800, cooldown: 3.4, mag: 20, reload: 0, speed: 200, range: 480, splash: 14, stagger: 0.5, about: 'a grenade cannon: a short heavy barrel on a cradle, folded over the shoulder to fire' }),
-    'pc-arc': row({ name: 'Arc', kind: 'plasma', weight: 6400, fire: 'charge', damage: 1100, cooldown: 2, mag: 9999, reload: 0, speed: 320, range: 360, splash: 8, energy: 900, stagger: 0.3, about: 'a plasma cannon: coils round a bore, a cell behind it' }),
+    'ms-hornet': row({ name: 'Hornet', kind: 'missiles', weight: 4600, handling: 'free', fire: 'semi', damage: 260, salvo: 4, cooldown: 2.6, mag: 96, reload: 0, speed: 180, range: 520, splash: 4, homing: 2.4, stagger: 0.06, about: 'a missile pod: four cells under a hatch' }),
+    'gc-mortar': row({ name: 'Mortar', kind: 'grenade', weight: 8200, handling: 'brace', brace: 0.9, wind: 0.9, fire: 'semi', damage: 1800, cooldown: 3.4, mag: 20, reload: 0, speed: 200, range: 480, splash: 14, stagger: 0.5, about: 'a grenade cannon: a short heavy barrel on a cradle, folded over the shoulder to fire' }),
+    'pc-arc': row({ name: 'Arc', kind: 'plasma', weight: 6400, handling: 'brace', brace: 0.7, wind: 0.8, fire: 'charge', damage: 1100, cooldown: 2, mag: 9999, reload: 0, speed: 320, range: 360, splash: 8, energy: 900, stagger: 0.3, about: 'a plasma cannon: coils round a bore, a cell behind it' }),
   }),
 });
 

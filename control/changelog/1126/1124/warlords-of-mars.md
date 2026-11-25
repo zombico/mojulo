@@ -61,6 +61,18 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - The HUD shows the locked frame's stress under the lock box, filling as it is pressed, red with STAGGER when it
     breaks, and the pilot's own stability under the armour.
   - An enemy frame punishes a reeling pilot: everything it has, in close, and a kick.
+- **Handling: how each weapon fires on the move** (a weapon row's `handling`, the legs' `steady`).
+  - Free: on the move at full speed, in an assault boost too. The carbine, the shotgun, the charge laser and the
+    missiles.
+  - Drag: its sustained recoil holds the boost and the charge to a fraction of their speed while it fires. The gatling,
+    to 70%.
+  - Brace: firing it stops the frame and cuts a boost or an assault boost. It sticks where it fired, in the air too, its
+    gravity off and its drift checked hard, then winds down, its gravity and control coming back. The bazooka briefly
+    (0.3 s, then 0.45 s), the plasma cannon and the mortar at length (0.7 to 0.9 s, then 0.8 to 0.9 s).
+  - The legs scale the brace: heavy legs settle in about half the time, light legs take a fifth longer.
+  - A quick boost in the wind-down cancels it, the skilled way out; the stick itself cannot be cut short.
+  - The HUD reads BRACED in the stick and RECOVER in the wind-down. An enemy frame that fires its mortar hangs in the
+    air for it: the moment to punish.
 - **Closing in: the assault boost, the kick and a blade** (`rules-frame.js`, `assemble.js` `move.ab`, `kick`).
   - The assault boost (X, a toggle) charges along the aim at two thirds again the boost's speed. Its height settles at
     once and it climbs or dives with the aim. It burns a light-up and nearly twice the boost's draw a second, and ends on

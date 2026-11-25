@@ -36,6 +36,7 @@ export function frameSlots(weapons) {
     ...(W.rof ? { rof: W.rof } : {}), ...(W.cooldown != null ? { cooldown: W.cooldown } : {}), speed: W.speed, range: W.range,
     ...(W.splash ? { splash: W.splash } : {}), ...(W.pellets ? { pellets: W.pellets } : {}), ...(W.salvo ? { salvo: W.salvo } : {}),
     ...(W.homing ? { homing: W.homing } : {}), ...(W.energy ? { energy: W.energy } : {}), stagger: W.stagger ?? 0,
+    ...(W.handling ? { handling: W.handling } : {}), ...(W.drag ? { drag: W.drag } : {}), ...(W.brace ? { brace: W.brace, wind: W.wind } : {}),
     color: COLOR[W.kind] ?? 0xffd38a,
   }]));
 }
@@ -45,7 +46,7 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
   return {
     id, ...(team ? { team } : {}), ...(pilot ? { pilotable: true } : {}),
     rule: {
-      type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus }, kick: A.kick,
+      type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus }, kick: A.kick, steady: A.parts.legs.steady ?? 1,
       mounts: Object.fromEntries(Object.keys(A.weapons).map((s) => [s, M[s]])), eyeH: A.move.height + 2,
       ...(mind ? { mind: { range: 120, aggression: 0.6, dodge: 0.5, ...mind } } : {}), ...(bound ? { bound } : {}),
     },

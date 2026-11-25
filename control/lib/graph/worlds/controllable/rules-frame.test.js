@@ -132,6 +132,52 @@ describe('the assault frame', () => {
     expect((st.projectiles || []).length).toBe(rounds);
   });
 
+  it('fires by its weapons\' handling: a free gun on the move, a dragging one holds the boost back, a braced one sticks it in the air and winds it down', () => {
+    // (the Vanguard: a carbine (free) in the right hand, a mortar (braced) on the left shoulder; up and boosting first)
+    const st = world(), P = st.byId.p, mortar = A.weapons.backL;
+    expect(A.weapons.armR.handling).toBe('free');
+    expect(mortar.handling).toBe('brace');
+    run(st, { jump: 1, jumpHeld: 1 }, 50);
+    run(st, { forward: 1, boost: 1, jumpHeld: 1 }, 60);
+    const sp0 = P.speed;
+    run(st, { forward: 1, boost: 1, jumpHeld: 1, fire: 1 }, 30);
+    expect(P.speed).toBeGreaterThan(sp0 * 0.9);
+    expect(P.braced).toBeNull();
+    // (the mortar: the boost cut, the frame stuck where it fired, in the air, no gravity on it)
+    run(st, { forward: 1, boost: 1, backL: 1 }, 1);
+    run(st, { forward: 1, boost: 1 }, 20);
+    expect(P.braced).toBe('stick');
+    expect(P.airborne).toBe(true);
+    expect(P.boosting).toBe(false);
+    const z = P.transform.pos[2];
+    run(st, { forward: 1, boost: 1 }, 10);
+    expect(Math.abs(P.transform.pos[2] - z)).toBeLessThan(0.3);
+    expect(P.speed).toBeLessThan(sp0 * 0.4);
+    // (then the wind-down: gravity and control coming back; then free)
+    const steady = assembleFrame('vanguard').parts.legs.steady;
+    run(st, {}, Math.round((mortar.brace * steady) / DT));
+    expect(P.braced).toBe('wind');
+    run(st, {}, Math.round((mortar.wind * steady) / DT) + 2);
+    expect(P.braced).toBeNull();
+    // (a quick boost in the wind-down cancels it; in the stick it cannot)
+    run(st, { backL: 0 }, Math.round(mortar.cooldown / DT));
+    run(st, { backL: 1 }, 1); run(st, {}, 3);
+    run(st, { strafe: 1, qb: 1 }, 1);
+    expect(P.braced).toBe('stick');
+    run(st, { strafe: 1, qb: 0 }, Math.round((mortar.brace * steady) / DT) + 2);
+    run(st, { strafe: 1, qb: 1 }, 1);
+    expect(P.braced).toBeNull();
+  });
+
+  it('a gatling\'s recoil holds the boost back while it fires', () => {
+    const st = E.createWorld({ entities: [frameEntity('citadel', { id: 'p', at: [0, 0, 0], pilot: true })], pilot: 'p' }), P = st.byId.p, C = assembleFrame('citadel');
+    expect(C.weapons.armR.handling).toBe('drag');
+    run(st, { forward: 1, boost: 1 }, 120);
+    const sp0 = P.speed;
+    run(st, { forward: 1, boost: 1, fire: 1 }, 90);
+    expect(P.speed).toBeLessThan(sp0 * (C.weapons.armR.drag + 0.05));
+  });
+
   it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {
     // (a heavy frame ahead with its mind off: the pilot's bazooka, the left hand, the weapon its stagger is read from)
     const foe = frameEntity('citadel', { id: 'f', at: [140, 0, 0], team: 'foes', mind: {} });

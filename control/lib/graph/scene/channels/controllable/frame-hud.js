@@ -61,7 +61,7 @@ export function frameHudScript() {
     ens.textContent = P.enOut > 0 || P.enShut ? 'EN OUT' : Math.round(P.en || 0);
     const hp = P.body ? P.body.hp : 0, hpMax = (P.body && P.body.hpMax) || hp || 1;
     apn.textContent = 'AP ' + Math.round(hp); apI.style.width = (100 * hp / hpMax).toFixed(1) + '%';
-    spd.textContent = (P.ab ? 'ASSAULT BOOST  ' : '') + Math.round((P.speed || 0) * 3.6) + ' km/h  ' + Math.round(P.agl || 0) + ' m';
+    spd.textContent = (P.braced === 'stick' ? 'BRACED  ' : P.braced === 'wind' ? 'RECOVER  ' : P.ab ? 'ASSAULT BOOST  ' : '') + Math.round((P.speed || 0) * 3.6) + ' km/h  ' + Math.round(P.agl || 0) + ' m';
     out.en = Math.round(P.en || 0); out.ap = Math.round(hp);
     stbI.style.width = (100 * (P.stab ?? 1)).toFixed(1) + '%';
     me.style.display = P.stagger > 0 ? 'block' : 'none';
