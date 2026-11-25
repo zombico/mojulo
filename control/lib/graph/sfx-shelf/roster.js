@@ -501,7 +501,7 @@ const ROWS = {
   // ── an assault frame's (sfx-shelf/frame-sounds.js), Warlords of Mars's: the guns a frame carries at its own scale, its
   //    wreck, its cockpit\'s missile warning; each heard as its stand-in until the library records it ──
   'scatter-shot': recorded('weapon', 'shoot', 'weapon.shot', 'a frame\'s scatter cannon: a broad short bore\'s deep blast of shot', ['scatter cannon', 'frame shotgun', 'mech shotgun'], { matter: ['metal', 'fire'], standIn: 'shotgun-shot' }),
-  'gatling-burst': recorded('weapon', 'shoot', 'weapon.shot', 'a frame\'s gatling: six barrels spinning, a ripping stream of rounds', ['frame gatling', 'rotary cannon', 'mech gatling'], { matter: ['metal'], standIn: 'vulcan-burst' }),
+  'gatling-burst': recorded('weapon', 'shoot', 'weapon.shot', 'a frame\'s gatling: six barrels spinning, a ripping stream of rounds', ['frame gatling', 'rotary cannon', 'mech gatling'], { matter: ['metal'], standIn: 'machine-gun-shot' }),
   'mortar-shot': recorded('weapon', 'shoot', 'weapon.shot', 'a frame\'s grenade cannon: a deep hollow thump lobbing a shell', ['grenade cannon', 'frame mortar', 'mech mortar'], { matter: ['metal', 'fire'], standIn: 'bazooka-shot' }),
   'frame-wreck': recorded('explosion', 'death', 'on', 'a frame or a gunship going up: a reactor\'s blast, plates torn away, debris raining', ['frame destroyed', 'gunship destroyed', 'reactor blast'], { matter: ['metal', 'fire'], standIn: 'wreck-explosion' }),
   'missile-warning': recorded('machinery', 'alarm', 'on', 'a cockpit\'s missile warning: a fast urgent two-tone beeping', ['missile warning', 'missile alert', 'incoming missile'], { matter: ['electric'], standIn: 'alarm' }),
