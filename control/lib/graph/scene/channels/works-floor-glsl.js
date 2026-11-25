@@ -9,6 +9,7 @@
  *   APRON    heavy steel plates round what burns, a six-metre square whole, halved either way or quartered by its dice,
  *            welded at their seams and bolted at their corners
  *   LANE     smoother and darker, its edges lined in paint, a dashed line down it, worn in two tracks, sawcut across only
+ *   BED      a track's ballast, sharp stones darker than the yard's, oiled black between its rails
  *   TRENCH   an angle at each lip, grating over a pit: the pit seen between the bars shifted along the view by its depth
  *            (PARALLAX: its wall where the deeper point is past the lip), as a real pit is
  *
@@ -113,6 +114,11 @@ float flSurf( vec2 p, vec2 vt, float px, float near, out float tone, out float p
     tone = ( 0.86 - 0.14 * tr * ( 0.6 + 0.4 * vn( p / 2.0 ) ) ) * ( 1.0 - 0.4 * jc ); h = -0.02 * jc;
     paint = max( ln, dash ) * ( 0.45 + 0.35 * vn( p * 1.3 ) ) * ( 1.0 - 0.7 * tr ); rough = mix( 0.78, 0.5, tr );
     kib = 0.25;
+  } else if ( k > 4.5 ) {
+    // a track's BED: ballast, sharp stones smaller and darker than the yard's, oiled black between the rails
+    bool ax = A.z >= A.w; float ac = ax ? p.y - A.y : p.x - A.x;
+    float gd = 1.0 - smoothstep( 0.03, 0.1, px ); vec3 v = vor5( p / 0.22 + 3.0 ); float st = 1.0 - smoothstep( 0.0, 0.42, v.x );
+    tone = 0.62 * ( 1.0 - 0.35 * smoothstep( 1.3, 0.4, abs( ac ) ) * vn( p / 1.5 ) ) * mix( 1.0, mix( 0.6, 1.2, v.z ) * mix( 0.6, 1.0, st ), gd ); h = 0.05 * st * gd; rough = 0.85;
   } else {
     bool ax = A.z >= A.w; float ac = ax ? p.y - A.y : p.x - A.x, al = ax ? p.x : p.y;
     float bar = step( fract( ac / 0.24 ), 0.32 ), crs = step( fract( al / 1.4 ), 0.06 );

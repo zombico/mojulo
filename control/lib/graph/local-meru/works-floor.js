@@ -1,7 +1,8 @@
 /**
  * THE WORKS' FLOOR (a works card's `floor`, opt-in): the floor under an industrial interior designed from above, as a
  * plant's floor is: a pad poured under every unit, a footing under every column and rack post, steel plate round what
- * burns, lanes for the traffic between them, trenches draining along the racks and the frames, and the yard left over.
+ * burns, lanes for the traffic between them, trenches draining along the racks and the frames, ballast under the tracks,
+ * and the yard left over.
  * The plan is read off the works themselves (local-meru/works.js), so a unit moved moves its pad; only the lanes and the
  * yard are designed. The land's shader draws it (scene/channels/works-floor-glsl.js): each zone its own way, never one
  * tile: a pad sawcut at its own spacing from its own corner, a kerb round what is bunded; an apron in plates of three
@@ -9,7 +10,8 @@
  * irregular pours; and kibble scattered over them (manholes, drains, anchor plates, oil).
  *
  *   readFloor(spec)              → the floor's words, checked (null when absent)
- *   floorShapes(W, F, centre)    → the plan: [{ kind, at, half, r, kerb }], highest first (trench, apron, pad, lane);
+ *   floorShapes(W, F, centre)    → the plan: [{ kind, at, half, r, kerb }], highest first (trench, apron, pad, lane,
+ *                                  a track's bed);
  *                                  `kerb` 1 a kerb round a pad, FOOTINGS a strip of footings every FOOTING_STEP
  *   worksFloor(W, centre, floorAt) → the page's plan: the shapes packed, a grid of cells naming the shapes over each (at
  *                                  most CELL_MAX, the highest kept), the yard, the paint and the kibble
@@ -24,8 +26,8 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const bad = (m) => { throw new Error(`local-meru: works.floor${m}`); };
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 
-export const FLOOR_KINDS = f({ yard: 0, pad: 1, apron: 2, lane: 3, trench: 4 });
-const RANK = f([FLOOR_KINDS.trench, FLOOR_KINDS.apron, FLOOR_KINDS.pad, FLOOR_KINDS.lane]);
+export const FLOOR_KINDS = f({ yard: 0, pad: 1, apron: 2, lane: 3, trench: 4, bed: 5 });
+const RANK = f([FLOOR_KINDS.trench, FLOOR_KINDS.apron, FLOOR_KINDS.pad, FLOOR_KINDS.lane, FLOOR_KINDS.bed]);
 export const FLOOR = f({ yard: 'concrete', lanes: f([]), ring: 0, paint: '#e0b020', kibble: 0.5 });
 export const CELL = 24, CELL_MAX = 8;
 // (the floor is what lies within FLOOR_TOP metres over the floor at the centre: a deck's top, a pipe's crown are not)
@@ -59,7 +61,7 @@ export function floorShapes(W, F, centre) {
   const [cx, cy] = centre, A = ([x, y]) => [cx + x, cy + y], S = [];
   const rect = (kind, at, half, kerb = 0) => S.push({ kind, at: at.map(r3), half: half.map(r3), r: 0, kerb });
   const circle = (kind, at, r, kerb = 0) => S.push({ kind, at: at.map(r3), half: [r3(r), r3(r)], r: r3(r), kerb });
-  const { pad, apron, lane, trench } = FLOOR_KINDS;
+  const { pad, apron, lane, trench, bed } = FLOOR_KINDS;
   // (a frame's and a scaffold's pad, a trench along its south side; a deck's pad under its legs)
   for (const [list, bay, margin] of [[W.frames, 12, 4], [W.scaffolds, 8, 2]]) for (const q of list) {
     const B = q.bay ?? bay, c = A(q.at), hx = (q.bays[0] * B) / 2 + margin, hy = (q.bays[1] * B) / 2 + margin;
@@ -91,6 +93,14 @@ export function floorShapes(W, F, centre) {
         const off = hw + 3, m = [(a[0] + b[0]) / 2 + px * off, (a[1] + b[1]) / 2 + py * off];
         rect(trench, m, along ? [L / 2, TRENCH_HALF] : [TRENCH_HALF, L / 2]);
       } else for (let s = 0; s <= L; s += 12) for (const sg of [-1, 1]) rect(pad, [a[0] + ux * s + px * hw * sg, a[1] + uy * s + py * hw * sg], [1.6, 1.6]);
+    }
+  }
+  // (a track's ballast bed under its sleepers; a lane crossing it is paved over)
+  for (const q of W.rails ?? []) {
+    const G = q.gauge ?? 2.5;
+    for (let k = 0; k + 1 < q.path.length; k++) {
+      const [a, b] = [A(q.path[k]), A(q.path[k + 1])];
+      rect(bed, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], a[1] === b[1] ? [Math.abs(b[0] - a[0]) / 2 + 1, G / 2 + 2] : [G / 2 + 2, Math.abs(b[1] - a[1]) / 2 + 1]);
     }
   }
   // (the lanes the floor designs, and one round the hall `ring` metres in from its walls)

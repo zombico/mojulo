@@ -89,3 +89,18 @@ so everything the land does (bands, wear, sections, stochastic tiling, rubble) w
   - The page reads it as two small textures: the zones, and a grid of cells naming the zones over each.
   - The foundry's and the refinery's concrete layers became a jointless grain, since the plan draws the joints.
   - Absent, the land and its page are byte-identical.
+- **The smelter's charge and its metal** (`local-meru/works.js` `rails` and `runners`, `scene/channels/works-melt.js`).
+  - **Rails:** tracks along the axes, two rails on sleepers at a heavy plant's broad gauge, ballast under them in the
+    floor plan (a lane crossing is paved over).
+    - Trains stand on them: hopper wagons on their bogies, heaped over the brim with what is to be smelted. Ore and
+      coke are mounded to the middle in lumps; scrap lies in plates and bars every way; `mixed` takes them in turn.
+    - Each wagon stops a frame and is cover the height of its hopper.
+    - The smelter has two tracks the length of the hall: trains of ore and coke on one, scrap and a mixed train on the
+      other.
+  - **Runners:** refractory troughs carrying the molten metal from each furnace's tap.
+    - Each is level across its furnace's deck, then a spout off the deck's edge (a height at each point of its path),
+      on trestles a frame walks under. The metal pours into the ladle at its end.
+    - The metal is the page's own, lit by itself: white-yellow down the middle, orange to its banks, and a dark crust
+      in plates drifting down the runner with the flow. The stream falls faster than the runner flows.
+    - Each ladle's metal is now a pool whose crust drifts in from the rim.
+    - Glows along each runner and at each pour light what is round them.

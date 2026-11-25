@@ -17,6 +17,7 @@
  * the land is lit once. `window.__formReady` when it has drawn (its textures load first).
  */
 import { FLOOR_HEAD, FLOOR_PASS, floorUniforms } from './works-floor-glsl.js';
+import { meltScript } from './works-melt.js';
 import { deflateSync } from 'node:zlib';
 import { safeJson } from '../emit-util.js';
 import { formGrassScript } from './form-grass.js';
@@ -489,7 +490,7 @@ ${form.interior ? `  // the INTERIOR's own light: the void behind everything and
   scene.background = new THREE.Color(D.interior.void); scene.fog = new THREE.FogExp2(new THREE.Color(D.interior.haze.colour), D.interior.haze.density);
   for (const q of D.interior.lamps) { const l = new THREE.PointLight(new THREE.Color(q.colour), q.power * 1800, q.range, 1.6); l.position.set(...q.at); scene.add(l); }
   for (const q of D.interior.glows) { const l = new THREE.PointLight(new THREE.Color(q.colour), q.power * 4500, q.range, 1.8); l.position.set(...q.at); scene.add(l); }
-` : ''}  const sunLight = window.__formSun = new THREE.DirectionalLight(...solved(D.light.sun)); sunLight.castShadow = true;${form.interior ? `
+` : ''}${form.melt ? meltScript() : ''}  const sunLight = window.__formSun = new THREE.DirectionalLight(...solved(D.light.sun)); sunLight.castShadow = true;${form.interior ? `
   // (under a roof the overhead key is the lamps' field, not a sun: a third of one, the ambient under it lower, so the pools of
   // light and the glows read and the far hall goes to its void)
   sunLight.intensity *= 0.38; __formAmb.intensity *= 0.55;` : ''}

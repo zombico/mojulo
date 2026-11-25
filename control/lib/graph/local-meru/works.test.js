@@ -19,7 +19,10 @@ describe('the works', () => {
 
   it('builds its faces in the land\'s classes, its scaffolds\' floors unseen plates, the same for the same words', () => {
     const W = readWorks({ from: id, scaffolds: [{ at: [0, 0], bays: [2, 2], lifts: [10, 20] }] }), R = worksFaces(W, [0, 0]), S = worksFaces(structuredClone(W), [0, 0]);
-    expect(new Set(R.faces.map((f) => f.group))).toEqual(new Set(['isekai:cliff', 'isekai:rock', 'isekai:soil', 'works:glow', 'works:floor']));
+    // (the land's classes, what glows and the unseen plates; and what its wagons carry, in fills of their own)
+    const G = new Set(R.faces.map((f) => f.group));
+    for (const g of ['isekai:cliff', 'isekai:rock', 'isekai:soil', 'works:glow', 'works:floor']) expect(G.has(g)).toBe(true);
+    for (const g of G) expect(['isekai:cliff', 'isekai:rock', 'isekai:soil', 'works:glow', 'works:floor', 'works:ore', 'works:coke']).toContain(g);
     expect(R.faces.filter((f) => f.group === 'works:floor').length).toBe(2);   // (one plate a lift)
     expect(JSON.stringify(S.faces)).toBe(JSON.stringify(R.faces));
     // (each lift a deck a frame stands on, at its height)
@@ -30,7 +33,8 @@ describe('the works', () => {
     const W = readWorks(id), R = worksFaces(W, [0, 0]);
     expect(R.lamps.length).toBeGreaterThan(0);
     for (const q of R.lamps) expect(q.at[2]).toBeLessThan(W.hall.height - W.trusses.depth);
-    expect(R.glows.length).toBe(W.furnaces.length + W.ladles.length);
+    // (a glow at each furnace's mouth and over each ladle, and more along the runners between)
+    expect(R.glows.length).toBeGreaterThanOrEqual(W.furnaces.length + W.ladles.length);
     // (the hall's four walls, a column under each truss's end on each line, a furnace, a deck's slab among what stops)
     const has = (x, y, z) => R.colliders.some((c) => x >= c.min[0] && x <= c.max[0] && y >= c.min[1] && y <= c.max[1] && z >= c.min[2] && z <= c.max[2]);
     expect(has(W.hall.half[0] + 2, 0, 5)).toBe(true);
@@ -63,5 +67,29 @@ describe('the works', () => {
     expect(R.lamps.filter((q) => q.at[2] < 24).length).toBeGreaterThanOrEqual(2);
     expect(() => readWorks({ frames: [{ at: [0, 0], bays: [2, 2], levels: [24, 12] }] })).toThrow(/rising/);
     expect(() => readWorks({ bridges: [{ from: [0, 0], to: [1, 1] }] })).toThrow(/bridges\[0\]\.z/);
+  });
+
+  it('lays rails with trains of what is to be smelted, and runners of molten metal from the tap to the pour', () => {
+    const W = readWorks({ rails: [{ path: [[-100, 0], [100, 0]], trains: [{ at: 10, cars: 2, load: 'mixed' }] }],
+      runners: [{ path: [[0, 40], [0, 80], [20, 80]], z: [16, 16, 12], pour: 3 }], ladles: [{ at: [25, 80], radius: 8, height: 9 }] });
+    const R = worksFaces(W, [0, 0]), groups = new Set(R.faces.map((f) => f.group));
+    const has = (x, y, z) => R.colliders.some((c) => x >= c.min[0] && x <= c.max[0] && y >= c.min[1] && y <= c.max[1] && z >= c.min[2] && z <= c.max[2]);
+    // (two wagons a load each, 'mixed' taking the loads in turn; each stops a body, the track between them none)
+    expect(groups.has('works:ore') && groups.has('works:coke')).toBe(true);
+    expect(has(-100 + 10 + 7, 0, 3)).toBe(true);
+    expect(has(-100 + 10 + 16 + 7, 0, 3)).toBe(true);
+    expect(has(60, 0, 1)).toBe(false);
+    // (the runner's metal level on the level stretch and down its spout, a stream falling at its end; the ladle a pool)
+    const [run, fall, pool] = [R.melt.find((m) => !m.fall && !m.pool), R.melt.find((m) => m.fall), R.melt.find((m) => m.pool)];
+    expect(run.pts[0][2]).toBeCloseTo(16.55, 2);
+    expect(run.pts[run.pts.length - 1][2]).toBeCloseTo(12.55, 2);
+    expect(fall.pts[0][2] - fall.pts[1][2]).toBeCloseTo(3, 5);
+    expect(pool.pts[0].slice(0, 2)).toEqual([25, 80]);
+    // (its trestles stop a body; under its trough a frame walks)
+    expect(has(0, 80, 5) || has(1.8, 80, 5) || has(-1.8, 80, 5)).toBe(false);
+    expect(R.colliders.some((c) => c.max[2] > 14 && c.max[0] - c.min[0] < 2)).toBe(true);
+    expect(() => readWorks({ rails: [{ path: [[0, 0], [10, 10]] }] })).toThrow(/along the axes/);
+    expect(() => readWorks({ rails: [{ path: [[0, 0], [10, 0]], trains: [{ at: 0, cars: 1, load: 'gold' }] }] })).toThrow(/load/);
+    expect(() => readWorks({ runners: [{ path: [[0, 0], [10, 0], [10, 10]], z: [1, 2, 3, 4] }] })).toThrow(/z/);
   });
 });

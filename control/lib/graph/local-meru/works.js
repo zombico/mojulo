@@ -42,6 +42,13 @@
  *   racks     [{ path: [[x, y], …], tiers: [z, …], width? }]: pipe racks, a bent every 12 m, four pipes on each tier;
  *             its posts and its tiers stop a body, its top tier a plate a frame walks along
  *   bridges   [{ from, to, z: [za, zb], width? }]: walkways of grating from one level to another
+ *   rails     [{ path: [[x, y], …], gauge?, trains?: [{ at, cars, load }] }]: a track along the axes, two rails on
+ *             sleepers (RAIL_GAUGE), and trains standing on it `at` metres along: hopper wagons heaped with what is to be
+ *             smelted, `load` 'ore' | 'coke' | 'scrap' | 'mixed'; each wagon stops a body
+ *   runners   [{ path: [[x, y], …], z: [za, zb] | [z, …], width?, pour? }]: refractory troughs along the axes carrying
+ *             molten metal from a furnace's tap down to a ladle, `z` metres over the floor at each end (or at each point
+ *             of its path: level across a deck, then a spout down), on trestles; the metal
+ *             falls `pour` metres at its end. The metal is the page's (`melt`, scene/channels/works-melt.js)
  *   floor     { yard?, lanes?, ring?, paint?, kibble? } or null: the floor under it designed from above, its zones read off
  *             the works (local-meru/works-floor.js), drawn by the land's shader
  *
@@ -54,8 +61,14 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const bad = (m) => { throw new Error(`local-meru: works${m}`); };
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 const DIRS = f({ n: [0, 1], s: [0, -1], e: [1, 0], w: [-1, 0] });
+// (a heavy plant's broad gauge, read at a frame's scale; a hopper wagon's length and the gap coupled between two)
+export const RAIL_GAUGE = 2.5;
+const CAR = f({ length: 14, gap: 2 });
+export const LOADS = f(['ore', 'coke', 'scrap']);
+// (seeded dice, never Math.random: the same works, the same wagons)
+const dice = (a, b, c) => { const x = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453; return x - Math.floor(x); };
 
-const CARD = f({ hall: null, trusses: f({ spacing: 42, depth: 6, panel: 11 }), scaffolds: f([]), frames: f([]), vessels: f([]), spheres: f([]), racks: f([]), bridges: f([]), columns: f({ rows: f([]) }), crane: null, decks: f([]), furnaces: f([]), tanks: f([]), ladles: f([]), pipes: f([]), floor: null });
+const CARD = f({ hall: null, trusses: f({ spacing: 42, depth: 6, panel: 11 }), scaffolds: f([]), frames: f([]), vessels: f([]), spheres: f([]), racks: f([]), bridges: f([]), columns: f({ rows: f([]) }), crane: null, decks: f([]), furnaces: f([]), tanks: f([]), ladles: f([]), pipes: f([]), rails: f([]), runners: f([]), floor: null });
 
 export const WORKS_CARDS = f({
   // a steelworks' melt shop: a hall half a kilometre across under its trusses, two column lines carrying the crane's
@@ -71,6 +84,14 @@ export const WORKS_CARDS = f({
     // (wire scaffolds round the furnaces and up the walls: floors of grating stacked a frame's height apart)
     scaffolds: f([f({ at: f([-300, 120]), bays: f([5, 3]), lifts: f([10, 20, 30]), ramp: 's' }), f({ at: f([120, -170]), bays: f([6, 2]), lifts: f([10, 20]), ramp: 'w' }),
       f({ at: f([300, -60]), bays: f([3, 6]), lifts: f([10, 20, 30, 40]), ramp: 'w' }), f({ at: f([-110, 200]), bays: f([4, 3]), lifts: f([12, 24]) })]),
+    // (the charge brought in by rail: two tracks the length of the hall, trains of ore, coke and scrap standing on them)
+    rails: f([f({ path: f([f([-425, -200]), f([425, -200])]), trains: f([f({ at: 40, cars: 6, load: 'ore' }), f({ at: 520, cars: 4, load: 'coke' })]) }),
+      f({ path: f([f([-425, 175]), f([425, 175])]), trains: f([f({ at: 90, cars: 5, load: 'scrap' }), f({ at: 470, cars: 6, load: 'mixed' })]) })]),
+    // (the metal tapped from each furnace on its deck, run down to its ladle and poured)
+    // (each level across its furnace's deck, then a spout down off its edge to the ladle)
+    runners: f([f({ path: f([f([-210, 15]), f([-210, -60]), f([-168, -60]), f([-158, -60])]), z: f([17.6, 17.2, 17.2, 13.5]), pour: 3.5 }),
+      f({ path: f([f([0, -14]), f([0, 70]), f([42, 70]), f([52, 70])]), z: f([17.6, 17.2, 17.2, 13.5]), pour: 3.5 }),
+      f({ path: f([f([210, 15]), f([210, -60]), f([168, -60]), f([156, -60])]), z: f([17.6, 17.2, 17.2, 13]), pour: 4 })]),
     // (its floor: old concrete in great pours, lanes either side of the furnace line and between the decks)
     floor: f({ yard: 'concrete', ring: 30, paint: '#d0a530', kibble: 0.6,
       lanes: f([f({ path: f([f([-400, -110]), f([400, -110])]) }), f({ path: f([f([-400, 110]), f([400, 110])]) }), f({ path: f([f([-105, -400]), f([-105, 400])]) }), f({ path: f([f([105, -400]), f([105, 400])]) })]) }) }),
@@ -149,6 +170,26 @@ export function readWorks(spec) {
   W.racks.forEach((q, i) => { if (!isObj(q) || !Array.isArray(q.path) || q.path.length < 2 || !Array.isArray(q.tiers) || !q.tiers.length) bad(`.racks[${i}] is { path: [[x, y], …], tiers: [z, …], width? }`); q.path.forEach((p) => pt(p, `.racks[${i}].path is [[x, y], …]`)); });
   if (!Array.isArray(W.bridges)) bad('.bridges is a list');
   W.bridges.forEach((q, i) => { if (!isObj(q)) bad(`.bridges[${i}] is { from, to, z: [za, zb], width? }`); pt(q.from, `.bridges[${i}].from is [x, y]`); pt(q.to, `.bridges[${i}].to is [x, y]`); pt(q.z, `.bridges[${i}].z is [za, zb] metres over the floor at each end`); });
+  const axial = (P, m) => { for (let k = 0; k + 1 < P.length; k++) if ((P[k][0] !== P[k + 1][0]) === (P[k][1] !== P[k + 1][1])) bad(`${m} runs along the axes: each step changes x or y, not both`); };
+  if (!Array.isArray(W.rails)) bad('.rails is a list');
+  W.rails.forEach((q, i) => {
+    if (!isObj(q) || !Array.isArray(q.path) || q.path.length < 2) bad(`.rails[${i}] is { path: [[x, y], …], gauge?, trains? }`);
+    q.path.forEach((p) => pt(p, `.rails[${i}].path is [[x, y], …]`)); axial(q.path, `.rails[${i}]`);
+    if (q.gauge !== undefined && !(typeof q.gauge === 'number' && q.gauge >= 1 && q.gauge <= 6)) bad(`.rails[${i}].gauge is metres, 1..6`);
+    if (q.trains !== undefined && !Array.isArray(q.trains)) bad(`.rails[${i}].trains is a list`);
+    (q.trains ?? []).forEach((t, k) => {
+      if (!isObj(t) || !(typeof t.at === 'number' && t.at >= 0) || !(Number.isInteger(t.cars) && t.cars >= 1 && t.cars <= 30)) bad(`.rails[${i}].trains[${k}] is { at: metres along, cars: 1..30, load }`);
+      if (![...LOADS, 'mixed'].includes(t.load)) bad(`.rails[${i}].trains[${k}].load is one of ${[...LOADS, 'mixed'].join(', ')}`);
+    });
+  });
+  if (!Array.isArray(W.runners)) bad('.runners is a list');
+  W.runners.forEach((q, i) => {
+    if (!isObj(q) || !Array.isArray(q.path) || q.path.length < 2) bad(`.runners[${i}] is { path: [[x, y], …], z: [za, zb], width?, pour? }`);
+    q.path.forEach((p) => pt(p, `.runners[${i}].path is [[x, y], …]`)); axial(q.path, `.runners[${i}]`);
+    if (!(Array.isArray(q.z) && (q.z.length === 2 || q.z.length === q.path.length) && q.z.every((v) => typeof v === 'number' && v >= 0.5))) bad(`.runners[${i}].z is [za, zb] metres over the floor at each end, or one at each point of its path`);
+    if (q.width !== undefined) pos(q.width, `.runners[${i}].width is metres`);
+    if (q.pour !== undefined) pos(q.pour, `.runners[${i}].pour is metres the metal falls at its end`);
+  });
   if (W.floor !== null) readFloor(W.floor);
   if (!Array.isArray(W.pipes)) bad('.pipes is a list');
   W.pipes.forEach((q, i) => { if (!isObj(q) || !Array.isArray(q.path) || q.path.length < 2) bad(`.pipes[${i}] is { path: [[x, y], …], z, radius }`); q.path.forEach((p) => pt(p, `.pipes[${i}].path is [[x, y], …]`)); pos(q.z, `.pipes[${i}].z is metres`); pos(q.radius, `.pipes[${i}].radius is metres`); });
@@ -159,7 +200,9 @@ export function readWorks(spec) {
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
 const STEEL_WALL = 'isekai:cliff', STEEL_TOP = 'isekai:rock', CONCRETE = 'isekai:soil', GLOW = 'works:glow', FLOOR = 'works:floor';
-const FILLS = f({ [STEEL_WALL]: '#5e6266', [STEEL_TOP]: '#6a6d70', [CONCRETE]: '#8c877e', [GLOW]: '#ffb04a', [FLOOR]: '#000000' });
+// (what a wagon carries to be smelted, each its own fill: ore red-brown, coke black; scrap is steel)
+const ORE = 'works:ore', COKE = 'works:coke';
+const FILLS = f({ [STEEL_WALL]: '#5e6266', [STEEL_TOP]: '#6a6d70', [CONCRETE]: '#8c877e', [GLOW]: '#ffb04a', [FLOOR]: '#000000', [ORE]: '#6e3a24', [COKE]: '#232120' });
 function quad(out, cs, group) {
   const P = cs.map((c) => c.map(r3)), n = unit(cross(sub(P[2], P[0]), sub(P[3], P[1])));
   out.push({ corners: P, normal: n.map(r3), outNormal: n.map(r3), group, fill: FILLS[group] });
@@ -189,7 +232,7 @@ function cylinder(out, [cx, cy], r0, z0, z1, { r1 = r0, n = 24, side = STEEL_WAL
 }
 
 export function worksFaces(W, centre, floorAt = () => 0) {
-  const [cx, cy] = centre, out = [], lamps = [], glows = [], decks = [], colliders = [];
+  const [cx, cy] = centre, out = [], lamps = [], glows = [], decks = [], colliders = [], melt = [];
   const solid = (x0, y0, z0, x1, y1, z1) => colliders.push({ min: [x0, y0, z0].map(r3), max: [x1, y1, z1].map(r3) });
   const A = ([x, y]) => [cx + x, cy + y];
   // THE HALL: its walls round the floor, its roof over the trusses
@@ -267,6 +310,8 @@ export function worksFaces(W, centre, floorAt = () => 0) {
     cylinder(out, c, q.radius * 0.8, z0 - 0.5, z0 + q.height, { r1: q.radius, cap: false, n: 16 }); solid(c[0] - q.radius, c[1] - q.radius, z0 - 0.5, c[0] + q.radius, c[1] + q.radius, z0 + q.height);
     cylinder(out, c, q.radius * 0.95, z0 + q.height - 1.2, z0 + q.height - 1, { n: 16, side: GLOW, top: GLOW });
     glows.push({ at: [r3(c[0]), r3(c[1]), r3(z0 + q.height + 6)], power: 0.7, range: 70 });
+    // (its metal the page's own where the page draws it: a pool skinning over at its rim)
+    melt.push({ pts: [[c[0], c[1], z0 + q.height - 0.95].map(r3)], w: r3(q.radius * 1.9), pool: true });
   }
   // THE PIPES: runs of pipe on their supports, a support every 30 m
   for (const q of W.pipes) {
@@ -280,6 +325,80 @@ export function worksFaces(W, centre, floorAt = () => 0) {
       }
       for (let s = 0; s <= L; s += 30) { const x = a[0] + ux * s, y = a[1] + uy * s; box(out, [x - 1, y - 1, floorAt(x, y) - 1, x + 1, y + 1, q.z - r], STEEL_WALL, STEEL_TOP); }
     }
+  }
+  // (along an axis-aligned run: a box `hu` along it and `hv` across, centred `s` along and `v` across from `a`)
+  const runBox = (a, u, s, v, hu, hv, z0, z1, side, top) => {
+    const p = [-u[1], u[0]], c = [a[0] + u[0] * s + p[0] * v, a[1] + u[1] * s + p[1] * v], hx = Math.abs(u[0]) * hu + Math.abs(p[0]) * hv, hy = Math.abs(u[1]) * hu + Math.abs(p[1]) * hv;
+    box(out, [c[0] - hx, c[1] - hy, z0, c[0] + hx, c[1] + hy, z1], side, top);
+  };
+  const runs = (P) => P.slice(1).map((b, i) => { const a = P[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]); return { a, b, L, u: [(b[0] - a[0]) / L, (b[1] - a[1]) / L] }; });
+  // (a point `s` metres along a path, its run's direction)
+  const along = (R, s) => { for (const r of R) { if (s <= r.L || r === R[R.length - 1]) return { at: [r.a[0] + r.u[0] * Math.min(s, r.L), r.a[1] + r.u[1] * Math.min(s, r.L)], u: r.u }; s -= r.L; } return null; };
+  // THE RAILS: a track of two rails on sleepers along the floor, and the trains standing on it: hopper wagons heaped with
+  // what is to be smelted (ore, coke, scrap), each a body that stops a frame
+  for (const q of W.rails) {
+    const R = runs(q.path.map(A)), G = q.gauge ?? RAIL_GAUGE;
+    for (const r of R) {
+      for (let s = 0.9; s < r.L; s += 1.8) { const x = r.a[0] + r.u[0] * s, y = r.a[1] + r.u[1] * s; runBox(r.a, r.u, s, 0, 0.3, G / 2 + 0.9, floorAt(x, y) - 0.1, floorAt(x, y) + 0.25, CONCRETE, CONCRETE); }
+      const zr = floorAt(r.a[0] + (r.u[0] * r.L) / 2, r.a[1] + (r.u[1] * r.L) / 2);
+      for (const v of [-G / 2, G / 2]) runBox(r.a, r.u, r.L / 2, v, r.L / 2 + 0.3, 0.18, zr + 0.25, zr + 0.55, STEEL_WALL, STEEL_TOP);
+    }
+    for (const [ti, t] of (q.trains ?? []).entries()) for (let k = 0; k < t.cars; k++) {
+      const P = along(R, t.at + k * (CAR.length + CAR.gap) + CAR.length / 2);
+      if (!P) continue;
+      const { at: c, u } = P, p = [-u[1], u[0]], zf = floorAt(...c), hl = CAR.length / 2, W0 = G + 1.6, W1 = G + 3, z1 = zf + 2.2, z2 = zf + 5.2;
+      const L2W = (lu, lv, z) => [c[0] + u[0] * lu + p[0] * lv, c[1] + u[1] * lu + p[1] * lv, z];
+      // (its bogies, its frame, and the hopper flaring up from it)
+      for (const sg of [-1, 1]) runBox(c, u, sg * (hl - 2.6), 0, 1.7, G / 2 + 0.4, zf + 0.55, zf + 1.6, STEEL_WALL, STEEL_WALL);
+      runBox(c, u, 0, 0, hl, W0 / 2, zf + 1.6, z1, STEEL_WALL, STEEL_TOP);
+      const lo = [[-hl + 0.8, -W0 / 2], [hl - 0.8, -W0 / 2], [hl - 0.8, W0 / 2], [-hl + 0.8, W0 / 2]], hi = [[-hl, -W1 / 2], [hl, -W1 / 2], [hl, W1 / 2], [-hl, W1 / 2]];
+      for (let e = 0; e < 4; e++) { const n = (e + 1) % 4; quad(out, [L2W(...lo[e], z1), L2W(...lo[n], z1), L2W(...hi[n], z2), L2W(...hi[e], z2)], STEEL_WALL); beam(out, L2W(...hi[e], z2), L2W(...hi[n], z2), 0.35); }
+      // (its load heaped over the brim: ore and coke in lumps mounded to the middle, scrap in plates and bars every way)
+      const load = t.load === 'mixed' ? LOADS[(k + ti) % LOADS.length] : t.load, seed = (ti + 1) * 97 + k * 13;
+      if (load === 'scrap') for (let m = 0; m < 16; m++) {
+        const a = [(dice(seed, m, 1) - 0.5) * 2 * (hl - 1), (dice(seed, m, 2) - 0.5) * (W1 - 1.5)], d = dice(seed, m, 3) * Math.PI, len = 2 + 4 * dice(seed, m, 4), rise = (dice(seed, m, 5) - 0.3) * 1.6;
+        beam(out, L2W(a[0] - (Math.cos(d) * len) / 2, a[1] - (Math.sin(d) * len) / 2, z2 - 0.8 + dice(seed, m, 6)), L2W(a[0] + (Math.cos(d) * len) / 2, a[1] + (Math.sin(d) * len) / 2, z2 - 0.8 + dice(seed, m, 6) + rise), 0.35 + 0.6 * dice(seed, m, 7), m % 3 ? STEEL_WALL : STEEL_TOP);
+      }
+      else for (let i = 0; i < 9; i++) for (let j = 0; j < 4; j++) {
+        const cu = -hl + ((i + 0.5) * 2 * hl) / 9, cv = -W1 / 2 + ((j + 0.5) * W1) / 4, du = cu / hl, dv = cv / (W1 / 2), hgt = 1.5 * Math.max(0, 1 - 0.55 * du * du - 0.8 * dv * dv) + 0.5 * dice(seed, i, j), hs = 0.85 * hl / 9, vs = 0.85 * W1 / 8;
+        const C2 = L2W(cu, cv, 0), hx = Math.abs(u[0]) * hs + Math.abs(p[0]) * vs, hy = Math.abs(u[1]) * hs + Math.abs(p[1]) * vs;
+        box(out, [C2[0] - hx, C2[1] - hy, z2 - 0.8, C2[0] + hx, C2[1] + hy, z2 + hgt], load === 'coke' ? COKE : ORE, load === 'coke' ? COKE : ORE);
+      }
+      const ex = Math.abs(u[0]) * hl + Math.abs(p[0]) * (W1 / 2), ey = Math.abs(u[1]) * hl + Math.abs(p[1]) * (W1 / 2);
+      solid(c[0] - ex, c[1] - ey, zf, c[0] + ex, c[1] + ey, z2 + 1);
+    }
+  }
+  // THE RUNNERS: refractory troughs carrying the molten metal from a furnace's tap down to its ladle, on trestles a frame
+  // walks under, falling into the ladle at its end; the metal itself the page's (`melt`: a ribbon flowing along it)
+  for (const q of W.runners) {
+    // (its height over the floor along it: the two ends' run straight between, or one at each point of its path)
+    const P = q.path.map(A), R = runs(P), Lt = R.reduce((t, r) => t + r.L, 0), w = (q.width ?? 3) / 2, pts = [];
+    const knots = q.z.length === q.path.length ? q.z.map((z, k) => [R.slice(0, k).reduce((t, r) => t + r.L, 0), z]) : [[0, q.z[0]], [Lt, q.z[1]]];
+    const zAt = (s) => { for (let k = 0; k + 1 < knots.length; k++) if (s <= knots[k + 1][0] || k + 2 === knots.length) { const [s0, z0] = knots[k], [s1, z1] = knots[k + 1]; return z0 + ((z1 - z0) * Math.min(1, Math.max(0, (s - s0) / Math.max(1e-6, s1 - s0)))); } return q.z[0]; };
+    let s0 = 0;
+    for (const r of R) {
+      const p = [-r.u[1], r.u[0]], W2 = (s, v, dz) => { const x = r.a[0] + r.u[0] * s + p[0] * v, y = r.a[1] + r.u[1] * s + p[1] * v; return [x, y, floorAt(r.a[0], r.a[1]) + zAt(s0 + s) + dz]; };
+      // (its bed under, its walls either side, their tops; the lining inside down to the metal)
+      quad(out, [W2(0, -w - 0.6, -0.8), W2(r.L, -w - 0.6, -0.8), W2(r.L, w + 0.6, -0.8), W2(0, w + 0.6, -0.8)], CONCRETE);
+      for (const sg of [-1, 1]) {
+        quad(out, [W2(0, sg * (w + 0.6), -0.8), W2(r.L, sg * (w + 0.6), -0.8), W2(r.L, sg * (w + 0.6), 1.1), W2(0, sg * (w + 0.6), 1.1)], CONCRETE);
+        quad(out, [W2(0, sg * w, 1.1), W2(r.L, sg * w, 1.1), W2(r.L, sg * (w + 0.6), 1.1), W2(0, sg * (w + 0.6), 1.1)], CONCRETE);
+        quad(out, [W2(0, sg * w, 0.2), W2(r.L, sg * w, 0.2), W2(r.L, sg * w, 1.1), W2(0, sg * w, 1.1)], CONCRETE);
+      }
+      // (its trestles every 10 m, their legs what stops a body)
+      for (let s = 2; s < r.L; s += 10) for (const sg of [-1, 1]) {
+        const [x, y, z] = W2(s, sg * (w + 0.3), -0.8);
+        beam(out, [x, y, floorAt(x, y) - 0.5], [x, y, z], 0.7); solid(x - 0.5, y - 0.5, floorAt(x, y) - 0.5, x + 0.5, y + 0.5, z);
+      }
+      for (let s = 0; s < r.L; s += 4) pts.push(W2(s, 0, 0.55));
+      for (let s = 15; s < r.L; s += 30) glows.push({ at: W2(s, 0, 3.5).map(r3), power: 0.5, range: 50 });
+      s0 += r.L;
+    }
+    const end = R[R.length - 1], [ex, ey] = end.b, zEnd = floorAt(end.a[0], end.a[1]) + q.z[q.z.length - 1] + 0.55;
+    pts.push([ex, ey, zEnd]);
+    melt.push({ pts: pts.map((v) => v.map(r3)), w: r3(2 * w - 0.2) });
+    // (at its end the metal falls, `pour` metres, into what waits under it)
+    if (q.pour) { const tip = [ex + end.u[0] * 1.2, ey + end.u[1] * 1.2]; melt.push({ pts: [[...tip, zEnd], [...tip, zEnd - q.pour]].map((v) => v.map(r3)), w: 2.4, fall: true }); glows.push({ at: [r3(tip[0]), r3(tip[1]), r3(zEnd - q.pour / 2)], power: 0.8, range: 60 }); }
   }
   // THE SCAFFOLDS AND THE FRAMES: towers in bays, a floor of grating at each level, guard rails along its edges, braces up
   // its faces; a scaffold's of tube, a process frame's of heavy steel, its columns stopping a body and a lamp under each
@@ -393,5 +512,5 @@ export function worksFaces(W, centre, floorAt = () => 0) {
     for (const sg of [-1, 1]) { beam(out, [a[0] + px * w * sg, a[1] + py * w * sg, za - 0.8], [b[0] + px * w * sg, b[1] + py * w * sg, zb - 0.8], 1.0); beam(out, [a[0] + px * w * sg, a[1] + py * w * sg, za + 2.2], [b[0] + px * w * sg, b[1] + py * w * sg, zb + 2.2], 0.4); }
     decks.push([Math.min(a[0], b[0]) - w, Math.min(a[1], b[1]) - w, Math.min(za, zb) - 1, Math.max(a[0], b[0]) + w, Math.max(a[1], b[1]) + w, Math.max(za, zb)].map(r3));
   }
-  return { faces: out, lamps, glows, decks, colliders };
+  return { faces: out, lamps, glows, decks, colliders, melt };
 }

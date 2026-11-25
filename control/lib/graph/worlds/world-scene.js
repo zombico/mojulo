@@ -1091,6 +1091,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
     // (a works' floor plan, local-meru/works-floor.js: the form's land draws it; nothing else reads it)
     if (payload.floorPlan) { if (read) payload.form.land = { ...payload.form.land, floor: payload.floorPlan }; delete payload.floorPlan; }
+    // (and the molten metal its runners carry, channels/works-melt.js)
+    if (payload.melt) { if (read) payload.form.land = { ...payload.form.land, melt: payload.melt }; delete payload.melt; }
     // (a land under a roof, the cube's `light.interior`, form/interior-light.js: no sky on the page, its background the
     // void, the lights the place hangs or rows under its roof; the works' own lamps and glows when it has them)
     const IN = read ? readInterior(cube.light?.interior) : null;

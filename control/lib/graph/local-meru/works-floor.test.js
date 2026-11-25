@@ -45,6 +45,11 @@ describe('the works\' floor', () => {
     expect(at(-100 + FOOTING_STEP, 85).kind).toBe(FLOOR_KINDS.pad);
     expect(at(-100 + FOOTING_STEP / 2, 85)).toBeNull(); // (the yard between them)
     expect(at(-60, -60)).toBeNull();
+    // (a track's ballast bed, a lane paved over it where they cross)
+    const T = readWorks({ hall: { half: [200, 200], height: 60 }, rails: [{ path: [[-150, -120], [150, -120]] }], floor: { lanes: [{ path: [[0, -180], [0, 180]] }] } });
+    const ST = floorShapes(T, readFloor(T.floor), centre), PT = worksFloor(T, centre), atT = (x, y) => zoneAt(PT, ST, [centre[0] + x, centre[1] + y]);
+    expect(atT(-80, -120).kind).toBe(FLOOR_KINDS.bed);
+    expect(atT(0, -120).kind).toBe(FLOOR_KINDS.lane);
   });
 
   it('packs the plan for the page, each cell its zones highest first, the same for the same works; none without a floor', () => {
