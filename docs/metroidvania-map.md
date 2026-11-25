@@ -570,12 +570,13 @@ own words ("a metroidvania castle", "a metroid-like planet"); "a metroidvania" a
   climbs against a wall, and the crown's turrets seen from the play (today only the castle's whole view shows them).
 - **The rest of the hunt.** Foes in the rooms, from the side map's foe shelf, giving experience and gold. Levels and
   growth from the world's stats (`gameworld/mechanics.js`). Drops and potions; heart vessels raising her health. Gear and
-  one menu (status, equipment, items, the map of rooms visited). Then the merchant, MP spells and real bosses in place of
+  one menu (status, equipment, items). Then the merchant, MP spells and real bosses in place of
   the stand-ins.
 - **Foes and real bosses** on the side map's foe shelf and the boss director, in place of the stand-ins. A boss's
   room shut behind her as a side map's is.
 - **A bot that plays the whole box.** The proof today plays each gate where it stands.
-- **The map shown in the game** from the rooms visited.
+- **A map found whole** (a castle's map room) and the map kept across a reload. The map walked, revealed a screen at a
+  time, is the HUD's ([mana-ui.md](mana-ui.md) "The metroidvania's HUD").
 - **Dressed** by the side map's paint, cake and vista, a place a ring.
 - **Several boxes** joined as castle wings round a keep: the megaworld at the next scale. The shapes are its first half
   (the bell tower passes through, the courtyard joins, the keep is the destination); ports on a box's sides and the

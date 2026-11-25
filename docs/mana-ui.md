@@ -1153,11 +1153,17 @@ a serif, a Victorian cresting, health in crimson and magic in blue); a box whose
 - **The moments** across the top, one at a time by weight: a power found (rare: held longer, its own cue), a key, a
   prize, "Saved" with the room's place, a waking, a boss's fall; a new region's name as she crosses into it; a boss's
   name as she comes into its room.
-- **The boss's bar** at the top right while she is in its room and it stands, its name over it.
+- **The minimap** at the top right: the `map` component in the corner, on her (`focus`, `zoom`), the screens walked
+  round her.
+- **The boss's bar** under the minimap while she is in its room and it stands, its name over it.
 - **What is held** in a line at the foot's left.
-- **The pause** (Enter): the map of the rooms she has walked (on the `map` component, the box squared, the room she
-  stands in marked, the save rooms found, the bosses still standing), her vitals with their figures, her rooms and
-  wakings counted, and the box's relics, each found by name and the rest locked. Back resumes.
+- **The pause** (Enter): the whole map walked so far, her vitals with their figures, her rooms and wakings counted,
+  and the box's relics, each found by name and the rest locked. Back resumes.
+
+The map is revealed a screen at a time, as she enters each screen (`boxMapOf`, `boxMapView`; the page runs the view's
+own source). A room's screens join, and the walls between rooms stand with the doors through them. A gate is marked at
+its door until she holds what opens it, and a relic where it lies until she takes it. Save rooms found and bosses
+still standing are marked, as is she. A box whose theme is XenoJager's planet wears `nocturne-xeno`.
 
 ### A level's HUD is heard
 

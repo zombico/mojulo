@@ -53,6 +53,7 @@ import { hudSubst, fmtDelta } from '../../game/hud-widgets.js';
 import { manaControls, manaHostSource } from '../../controls/mana-controls.js';
 import { radarMarks, sceneThings, RADAR, planSvg, planBox, radarPlan, planFloors, floorPlanSvg } from '../../gameworld/radar.js';
 import { hitBearing } from '../../gameworld/damage-ring.js';
+import { boxMapView } from '../../gameworld/metroidvania/hud.js';
 import { talkSpec, talkState, TALK_GLYPHS } from '../../playscape/ui/talk-box.js';
 import { faceFrame, buildTalkFace } from './talk-face.js';
 
@@ -301,25 +302,21 @@ ${HS ? `  // THE HUD'S SOUNDS (mana-hud-sounds.js): the look's set, its cues hea
 ` : ''}${BX ? `  // A BOX's vitals, moments, boss and pause (gameworld/metroidvania/hud.js): the room she stands in read off her place in
   // the box's cells; what is found said as it is taken; the pause's map of the rooms walked
   const BXF = F.box;
-  st.bx = { place: '', hp: 1, hpMax: 1, mp: 0, mpMax: 1, moments: [], bossOn: false, bossName: '', boss: 0, bossMax: BXF.bossHp || 1, heldWord: '', hasHeld: false, shapes: [], markers: [], relics: [], roomsWord: '0', wakeWord: '0' };
-  let bxUp = null, bxQuiet = false, bxSeen = 0, bxRoom = -1, bxRing = -1, bxN = 0, bxHeld = '';
-  const bxVisited = new Set(), bxBossSaid = new Set();
+  st.bx = { place: '', hp: 1, hpMax: 1, mp: 0, mpMax: 1, moments: [], bossOn: false, bossName: '', boss: 0, bossMax: BXF.bossHp || 1, heldWord: '', hasHeld: false, shapes: [], markers: [], focus: { x: 0.5, y: 0.5 }, zoom: BXF.map ? BXF.map.zoom : 1, relics: [], roomsWord: '0', wakeWord: '0' };
+  let bxUp = null, bxQuiet = false, bxSeen = 0, bxSeenMap = 0, bxRoom = -1, bxRing = -1, bxN = 0, bxHeld = '', bxCell = -1;
+  // (the screens walked, revealed one at a time as she enters each: the map's view, gameworld/metroidvania/hud.js)
+  const bxCells = {}, bxBossSaid = new Set(), __bxView = ${boxMapView.toString()};
   const bxHoldEl = document.createElement('div'); bxHoldEl.className = 'moj-menu-hud'; bxHoldEl.style.display = 'none'; document.body.appendChild(bxHoldEl);
   function bxOpen(id) { bxQuiet = true; try { rt.close(); rt.open(id); } finally { bxQuiet = false; } bxUp = id; window.__mojMenuOpen = true; window.__mojFreeze = true; bxHoldEl.textContent = id; view.paint(); }
   function bxShut() { window.__mojMenuOpen = false; window.__mojFreeze = false; setTimeout(function () { if (!bxUp) bxHoldEl.textContent = ''; }, 0); }
   function bxMoment(m) { st.bx.moments = st.bx.moments.concat([Object.assign({ id: 'bx' + (++bxN) }, m)]).slice(-8); }
-  // (the pause's map: the rooms walked, the one she stands in marked; the save rooms found; the bosses still standing)
+  // (the map: the screens walked, the one she stands in marked, a room's screens joined and the doors between rooms; a
+  // gate until she holds its opener, a relic until taken; the save rooms found; the bosses still standing. The minimap
+  // the same on her, the pause's the whole box)
   function bxMap() {
-    const G = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.heldGates, shapes = [], markers = [];
-    BXF.rooms.forEach(function (R, k) {
-      if (!bxVisited.has(k)) return;
-      shapes.push({ kind: k === bxRoom ? 'park' : 'building', x: R.x, y: R.y, w: R.w, h: R.h });
-      const cx = R.x + R.w / 2, cy = R.y + R.h / 2;
-      if (R.save) markers.push({ x: cx, y: cy, kind: 'goal', label: 'Save' });
-      if (R.boss && !(G && G.felled && G.felled['boss-' + R.id] != null)) markers.push({ x: cx, y: cy, kind: 'foe', label: R.boss });
-      if (k === bxRoom) markers.push({ x: cx, y: cy, kind: 'self', you: true, heading: 90 });
-    });
-    st.bx.shapes = shapes; st.bx.markers = markers; st.bx.roomsWord = bxVisited.size + ' of ' + BXF.rooms.length;
+    const G = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.heldGates;
+    const V = __bxView(BXF.map, { seen: bxCells, here: bxCell, held: G && G.held, taken: G && G.taken, felled: G && G.felled });
+    st.bx.shapes = V.shapes; st.bx.markers = V.markers; st.bx.focus = V.focus; st.bx.roomsWord = V.rooms + ' of ' + BXF.rooms.length;
     st.bx.relics = BXF.relics.map(function (x) { const got = !!(G && G.taken && G.taken[x.id] != null); return { name: got ? x.name : '— — —', icon: got ? (x.kind === 'key' ? 'key' : x.kind === 'power' ? 'star' : 'gem') : 'lock' }; });
   }
   function bxAct(e) {
@@ -653,6 +650,7 @@ ${race ? `    if (RACE) {
         else if (R0 && R0.kind === 'key') bxMoment({ text: R0.name, sub: 'A key', weight: 'normal', icon: 'key' });
         else if (R0) bxMoment({ text: R0.name, sub: 'Found', weight: 'minor', icon: 'gem' });
       }
+      if (bxSeen !== bxSeenMap) { bxSeenMap = bxSeen; bxMap(); }
       st.bx.wakeWord = String(BG.deaths || 0);
       const hw = BXF.relics.filter(function (x) { return x.kind !== 'prize' && BG.taken[x.id] != null; }).map(function (x) { return x.name; }).join(' · ');
       if (hw !== bxHeld) { bxHeld = hw; st.bx.heldWord = hw; st.bx.hasHeld = !!hw; }
@@ -660,8 +658,10 @@ ${race ? `    if (RACE) {
     if (me && me.transform) {
       const ps = me.transform.pos, ft = ps[2] - ((me.rule && me.rule.eye) || 0), c = Math.floor(ps[1] / BXF.screen[0]), r = Math.floor(ft / BXF.screen[1]);
       const k = c >= 0 && r >= 0 && c < BXF.cols && r < BXF.rows ? BXF.cells[r * BXF.cols + c] : -1;
+      const ci = k >= 0 ? r * BXF.cols + c : -1;
+      if (ci >= 0 && ci !== bxCell) { bxCell = ci; bxCells[ci] = 1; bxMap(); }
       if (k >= 0 && k !== bxRoom) {
-        bxRoom = k; bxVisited.add(k); const R = BXF.rooms[k]; st.bx.place = R.place;
+        bxRoom = k; const R = BXF.rooms[k]; st.bx.place = R.place;
         if (R.ring !== bxRing) { if (bxRing >= 0) bxMoment({ text: BXF.rings[R.ring], weight: 'major' }); bxRing = R.ring; }
         if (R.boss && !bxBossSaid.has(k) && !(BG && BG.felled['boss-' + R.id] != null)) { bxBossSaid.add(k); bxMoment({ text: R.boss, sub: 'Boss', weight: 'decisive' }); }
       }
