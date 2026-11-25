@@ -82,76 +82,115 @@ const twin = (y0, y1, z, apart, r) => [-1, 1].flatMap((s) => P.pipe([s * apart /
 // (a part's faces turned about an axis through `at`, parallel to x: a rack raised, a barrel laid)
 const tiltX = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const y = c[1] - at[1], z = c[2] - at[2]; return [c[0], at[1] + y * Math.cos(a) - z * Math.sin(a), at[2] + y * Math.sin(a) + z * Math.cos(a)]; }) }));
 
-// the Thunderhead's parts: a quad drone at a gunship's scale, laid in DRAWN metres (some 46 m rotor tip to rotor tip) and
-// carried to a card's by GROUNDFORCE_SCALE. An armoured core under a wide lit visor, an X of tapered arms out to four
-// motor pods, and on each a great three-bladed rotor turning flat in a guard ring, a faint disc where its blades blur;
-// its guns slung forward under the core (a rail cannon, a twin chin gun), so they cannot bear straight down. Each rotor
-// is its own bone (`bone: 'rotor0'…`), its hub on the vertical, the figure's `spin` clip turning it, the pairs opposite.
-const THUNDER_ARM = Object.freeze([[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([sx, sy]) => Object.freeze([sx * 14.5, sy * 13.5])));
-const THUNDER_ROTOR = Object.freeze({ r: 8.6, z: 4.3, blades: 3 });
+// the Thunderhead's parts: a quad drone at a gunship's scale, laid in DRAWN metres (some 54 m duct to duct) and carried
+// to a card's by GROUNDFORCE_SCALE. A heavy armoured hull (a deep core, side sponsons, a dorsal block, a brow over a wide
+// lit visor, a gun bay under it), an X of armoured arms out to four rotors, each turning flat inside an ARMOURED DUCT: a
+// thick wall rounded at its lip, segmented plates round its outside, a grille of bars over its mouth under a hub cap, a
+// lit ring deep in it, a faint disc where the blades blur. Its guns are slung forward (a rail cannon, a chin gun), so
+// they cannot bear straight down. Each rotor is its own bone (`bone: 'rotor0'…`), its hub on the vertical, the
+// figure's `spin` clip turning it, the pairs opposite.
+const THUNDER_ARM = Object.freeze([[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([sx, sy]) => Object.freeze([sx * 16, sy * 15])));
+const THUNDER_ROTOR = Object.freeze({ r: 8.4, z: 4.3, blades: 4, duct: Object.freeze({ in: 8.9, out: 10.3, lo: 2.6, hi: 6.0 }) });
 // (faces turned about the vertical through `at`)
 const turnZ = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const dx = c[0] - at[0], dy = c[1] - at[1]; return [at[0] + dx * Math.cos(a) - dy * Math.sin(a), at[1] + dx * Math.sin(a) + dy * Math.cos(a), c[2]]; }) }));
-// (a box whose top and sides narrow toward +y: a nose, a visor's brow, an arm toward its tip)
+// (a box whose top and sides narrow toward +y: a nose, a visor's brow)
 const taperY = (faces, y0, y1, kx, kz, z0) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const t = Math.max(0, Math.min(1, (c[1] - y0) / (y1 - y0))); return [c[0] * (1 - kx * t), c[1], z0 + (c[2] - z0) * (1 - kz * t)]; }) }));
+/** A LATHE: a closed section [[r, z]…] (counter-clockwise in the r-z plane) swept round the vertical through `c`, from
+ *  bearing a0 to a1 in n steps; a whole turn closes on itself, a part of one is capped at its ends (a plate). */
+function lathe(c, section, role, { n = 32, a0 = 0, a1 = 2 * Math.PI } = {}) {
+  const whole = Math.abs(a1 - a0 - 2 * Math.PI) < 1e-9, m = whole ? n : n + 1;
+  const ring = (k) => { const a = a0 + ((a1 - a0) * k) / n; return section.map(([r, z]) => [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a), z]); };
+  const rings = Array.from({ length: m }, (_, k) => ring(k)), out = [], L = section.length;
+  for (let k = 0; k < n; k++) {
+    const A = rings[k], B = rings[(k + 1) % m];
+    for (let i = 0; i < L; i++) { const j = (i + 1) % L; out.push({ corners: [A[i], B[i], B[j], A[j]], role }); }
+  }
+  if (!whole) out.push({ corners: [...rings[0]], role }, { corners: [...rings[m - 1]].reverse(), role });
+  return out;
+}
+// (a rounded section: a rectangle r0..r1 by z0..z1, its corners on arcs of radius e, `arc` steps each)
+const roundSection = (r0, r1, z0, z1, e, arc = 3) => [[r1, z0, -Math.PI / 2], [r1, z1, 0], [r0, z1, Math.PI / 2], [r0, z0, Math.PI]].flatMap(([r, z, b], k) =>
+  Array.from({ length: arc + 1 }, (_, i) => { const a = b + (Math.PI / 2) * (i / arc), sr = k === 0 || k === 1 ? -1 : 1, sz = k === 0 || k === 3 ? 1 : -1; return [r + sr * e + e * Math.cos(a), z + sz * e + e * Math.sin(a)]; }));
 function thunderheadParts() {
-  const D = 1 / GROUNDFORCE_SCALE, R = THUNDER_ROTOR;
-  // (a beam laid along its own x, then turned onto the arm's bearing: so a box's length is the arm's)
-  const beam = ([x, y]) => { const a = Math.atan2(y, x), L = Math.hypot(x, y) - 5, c = Math.hypot(x, y) / 2 + 2.5;
-    const at = [Math.cos(a) * c, Math.sin(a) * c, 1.7], lay = (fs) => turnZ(fs.map((f) => ({ ...f, corners: f.corners.map((p) => [p[0] + at[0], p[1] + at[1], p[2]]) })), at, a);
+  const D = 1 / GROUNDFORCE_SCALE, R = THUNDER_ROTOR, U = R.duct;
+  // (an arm: an armoured beam laid along its own x, then turned onto its bearing, from the hull's shoulder to its duct)
+  const beam = ([x, y]) => { const a = Math.atan2(y, x), d = Math.hypot(x, y), r0 = 7.5, r1 = d - U.in + 0.4, L = r1 - r0, c = (r0 + r1) / 2;
+    const at = [Math.cos(a) * c, Math.sin(a) * c, 0], lay = (fs) => turnZ(fs.map((f) => ({ ...f, corners: f.corners.map((p) => [p[0] + at[0], p[1] + at[1], p[2]]) })), at, a);
     return [
-      ...lay(P.box([0, 0, 1.7], [L, 3.2, 1.8], 'hull2', { ch: 0.85 })),
-      ...lay(P.box([0, 0, 2.63], [L * 0.8, 0.24, 0.08], 'drive')),
-      ...lay(P.box([-L * 0.18, 0, 0.82], [L * 0.45, 1.4, 0.5], 'dark', { ch: 0.2 })),
+      ...lay(P.box([0, 0, 2.4], [L, 4.0, 2.6], 'hull2', { ch: 1.0 })),
+      ...lay(P.box([-L * 0.08, 0, 3.95], [L * 0.75, 3.2, 0.7], 'hull', { ch: 0.32 })),
+      ...lay(P.box([0, 0, 4.33], [L * 0.6, 0.26, 0.08], 'drive')),
+      ...lay(P.box([-L * 0.15, 0, 0.95], [L * 0.5, 2.2, 0.6], 'dark', { ch: 0.25 })),
     ]; };
-  const pod = ([x, y], i) => [
-    // (the motor pod: a drum, its armoured band and its lit base ring, a cap over the hub)
-    ...P.prism([x, y, 0], 2.0, 2.0, 0.2, 3.6, 'hull', 16),
-    ...P.prism([x, y, 0], 2.08, 2.08, 1.5, 2.1, 'accent', 16),
-    ...P.prism([x, y, 0], 1.7, 1.7, -0.1, 0.2, 'drive', 16),
-    ...P.dome([x, y, 3.6], 1.5, 1.5, 3.6, 0.6, 'dark', 12, 2),
-    // (its guard ring round the rotor's sweep, on two struts)
-    ...Array.from({ length: 28 }, (_, k) => { const a = (2 * Math.PI * k) / 28, rr = R.r + 0.7, cx = x + Math.cos(a) * rr, cy = y + Math.sin(a) * rr;
-      return turnZ(P.box([cx, cy, R.z], [0.5, 2.0, 0.55], 'hull2'), [cx, cy, R.z], a); }).flat(),
-    ...[0.6, -0.6].flatMap((da) => { const a = Math.atan2(y, x) + da, c = [x + Math.cos(a) * (R.r / 2 + 0.6), y + Math.sin(a) * (R.r / 2 + 0.6), R.z - 0.35];
-      return turnZ(P.box(c, [R.r - 0.8, 0.35, 0.3], 'dark'), c, a); }),
-    // (the blur of its blades: a faint disc in their plane)
-    ...P.prism([x, y, 0], R.r, R.r, R.z - 0.03, R.z + 0.03, 'blur', 32),
-    // (the rotor: three long blades round its hub, their tips lit; the rotor's own bone)
-    ...[
-      ...P.prism([x, y, 0], 0.7, 0.7, 3.7, R.z + 0.45, 'dark', 10),
-      ...Array.from({ length: R.blades }, (_, b) => turnZ([
-        ...P.box([x + R.r / 2 + 0.3, y, R.z + 0.12], [R.r - 0.6, 1.05, 0.2], 'hull2', { ch: 0.06 }),
-        ...P.box([x + R.r - 0.35, y, R.z + 0.12], [0.5, 1.1, 0.24], 'accent'),
-      ], [x, y, 0], (2 * Math.PI * b) / R.blades + i * 0.5)).flat(),
-    ].map((f) => ({ ...f, bone: `rotor${i}` })),
-    // (its landing leg)
-    ...P.pipe([x * 0.93, y * 0.93, 0.1], [x * 0.9, y * 0.9, -2.6], 0.3, 'dark', 8),
-    ...P.box([x * 0.9, y * 0.9, -2.7], [1.4, 1.4, 0.3], 'dark', { ch: 0.3 }),
-  ];
+  const rotor = ([x, y], i) => {
+    const hub = [x, y, 0], gap = 0.16;
+    return [
+      // (the duct: a thick wall rounded at its lip and its foot)
+      ...lathe(hub, roundSection(U.in, U.out, U.lo, U.hi, 0.5), 'hull2', { n: 30 }),
+      // (its armour: eight curved plates round the outside, a gap between each, two of them striped)
+      ...Array.from({ length: 8 }, (_, k) => { const a0 = (k * Math.PI) / 4 + gap, a1 = ((k + 1) * Math.PI) / 4 - gap;
+        return lathe(hub, roundSection(U.out - 0.1, U.out + 0.85, U.lo + 0.45, U.hi - 0.35, 0.3, 2), k % 4 === 1 ? 'accent' : 'hull', { n: 5, a0, a1 }); }).flat(),
+      // (a lit ring deep in its throat, under the blades)
+      ...lathe(hub, [[U.in - 0.35, U.lo + 0.25], [U.in + 0.02, U.lo + 0.25], [U.in + 0.02, U.lo + 0.55], [U.in - 0.35, U.lo + 0.55]], 'drive', { n: 30 }),
+      // (its grille over the mouth: three armoured bars through the hub, a cap over it)
+      ...[0, 1, 2].flatMap((k) => turnZ(P.box([x, y, U.hi - 0.2], [2 * U.in + 0.4, 0.75, 0.5], 'dark', { ch: 0.2 }), hub, (k * Math.PI) / 3 + 0.25)),
+      ...P.dome([x, y, U.hi + 0.05], 1.9, 1.9, U.hi + 0.05, 0.9, 'hull', 14, 3),
+      ...lathe(hub, [[1.95, U.hi - 0.05], [2.15, U.hi - 0.05], [2.15, U.hi + 0.25], [1.95, U.hi + 0.25]], 'accent', { n: 24 }),
+      // (the motor drum under the hub, on three struts to the wall)
+      ...P.prism(hub, 1.8, 1.8, 0.3, R.z - 0.4, 'hull', 16),
+      ...P.prism(hub, 1.5, 1.5, 0.05, 0.3, 'drive', 16),
+      ...[0, 1, 2].flatMap((k) => { const a = (k * 2 * Math.PI) / 3 + 0.6, c = [x + Math.cos(a) * (U.in / 2 + 0.9), y + Math.sin(a) * (U.in / 2 + 0.9), U.lo + 0.9];
+        return turnZ(BASE.box(c, [U.in - 1.6, 0.5, 0.45], 'dark'), c, a); }),
+      // (the blur of its blades: a faint disc in their plane)
+      ...BASE.prism(hub, R.r, R.r, R.z - 0.03, R.z + 0.03, 'blur', 30),
+      // (the rotor: four broad blades round its hub, their tips lit; the rotor's own bone)
+      ...[
+        ...P.prism(hub, 0.75, 0.75, R.z - 0.4, R.z + 0.45, 'dark', 10),
+        ...Array.from({ length: R.blades }, (_, b) => turnZ([
+          // (thin plates: a blade stays a blade, not rounded)
+          ...BASE.box([x + R.r / 2 + 0.35, y, R.z + 0.05], [R.r - 0.7, 1.35, 0.22], 'hull2', { ch: 0.08 }),
+          ...BASE.box([x + R.r - 0.3, y, R.z + 0.05], [0.45, 1.4, 0.26], 'accent'),
+        ], hub, (2 * Math.PI * b) / R.blades + i * 0.4)).flat(),
+      ].map((f) => ({ ...f, bone: `rotor${i}` })),
+      // (its landing leg)
+      ...P.pipe([x * 0.88, y * 0.88, 2.8], [x * 0.86, y * 0.86, -3.0], 0.36, 'dark', 8),
+      ...P.box([x * 0.86, y * 0.86, -3.1], [1.6, 1.6, 0.34], 'dark', { ch: 0.35 }),
+    ];
+  };
   return [
-    // (the core: a long armoured body, its nose drawn to a brow over a wide lit visor, its spine raised, its tail flat)
-    ...taperY(P.box([0, 0, 1.9], [10.5, 18.5, 5.4], 'hull', { ch: 3.1 }), 2.5, 9.8, 0.35, 0.45, 1.7),
-    ...taperY(P.box([0, -1.4, 4.9], [6.4, 13, 1.7], 'hull2', { ch: 1.5 }), 1.2, 5.1, 0.4, 0.6, 4.3),
-    ...P.box([0, 8.62, 2.3], [5.2, 0.1, 0.72], 'sensor'),
-    ...P.box([0, -9.0, 1.9], [6.6, 0.12, 0.8], 'drive'),
+    // (the hull: a deep armoured core, its nose drawn to a heavy brow over a wide lit visor, a dorsal block on its back)
+    ...taperY(P.box([0, 0, 1.5], [13, 23, 7.0], 'hull', { ch: 3.4 }), 3, 11.5, 0.3, 0.35, 1.2),
+    ...taperY(P.box([0, -1.6, 5.6], [8.4, 15, 2.6], 'hull2', { ch: 1.3 }), 1.5, 5.9, 0.35, 0.5, 4.8),
+    ...P.box([0, -4.5, 7.1], [4.6, 6, 0.9], 'hull', { ch: 0.4 }),
+    ...taperY(P.box([0, 9.4, 3.85], [9.4, 3.6, 1.7], 'hull2', { ch: 0.8 }), 8, 11.2, 0.25, 0.3, 3.2),
+    ...P.box([0, 11.32, 2.05], [6.6, 0.1, 0.8], 'sensor'),
+    ...[-1, 1].flatMap((sx) => P.box([sx * 2.6, 11.0, 0.55], [1.1, 0.1, 0.42], 'sensor')),
+    // (the side sponsons, armoured, a stripe and a vent each)
     ...[-1, 1].flatMap((sx) => [
-      ...P.box([sx * 5.2, 0.5, 2.3], [0.1, 11, 0.34], 'accent'),
-      ...P.box([sx * 4.7, -4.2, 3.4], [1.6, 5, 1.4], 'dark', { ch: 0.5 }),
-      ...P.box([sx * 5.5, -4.2, 3.4], [0.06, 4, 0.6], 'drive'),
+      ...P.box([sx * 7.3, -0.5, 1.3], [3.2, 15, 4.8], 'hull2', { ch: 1.3 }),
+      ...P.box([sx * 8.95, 1.5, 2.3], [0.1, 9, 0.4], 'accent'),
+      ...P.box([sx * 8.95, -5.2, 1.0], [0.1, 3.4, 1.2], 'dark'),
+      ...[0, 1, 2].map((k) => P.box([sx * 9.0, -6.4 + k * 1.2, 1.0], [0.08, 0.3, 1.0], 'drive')).flat(),
     ]),
+    // (the stern: a heavy block, its drive lit across it)
+    ...P.box([0, -11.8, 1.8], [9.5, 2.6, 4.6], 'dark', { ch: 0.9 }),
+    ...[-2.4, 2.4].flatMap((dx) => P.box([dx, -13.15, 1.8], [3.4, 0.12, 1.6], 'drive')),
+    // (a sensor mast on its back)
+    ...P.pipe([1.8, -8, 7.4], [1.8, -8, 10.4], 0.12, 'dark', 6),
+    ...P.box([1.8, -8, 10.5], [0.5, 0.5, 0.3], 'sensor'),
     ...THUNDER_ARM.flatMap(beam),
-    ...THUNDER_ARM.flatMap(pod),
-    // (its guns, slung forward under the core: the rail cannon's two rails with the charge between, the twin chin gun in
-    // its ball, the missile cells either side)
-    ...[-0.85, 0.85].flatMap((dx) => P.box([dx, 7.0, -0.95], [0.65, 15, 1.0], 'dark', { ch: 0.22 })),
-    ...P.box([0, 7.0, -0.95], [0.6, 14, 0.24], 'drive'),
-    ...P.box([0, 0, -0.75], [4.4, 4.2, 1.6], 'hull2', { ch: 0.7 }),
-    ...P.ball([0, 6.2, -1.95], 1.45, 'dark', 12, 5),
-    ...[-0.36, 0.36].flatMap((dx) => P.pipe([dx, 6.9, -2.05], [dx, 10.8, -2.1], 0.18, 'dark', 8)),
-    ...P.box([0, 7.6, -1.95], [0.7, 0.08, 0.34], 'sensor'),
+    ...THUNDER_ARM.flatMap(rotor),
+    // (the gun bay under the hull and its guns slung forward: the rail cannon's two rails and the charge between them,
+    // the twin chin gun in its ball, the missile cells under the sponsons)
+    ...P.box([0, 1, -2.4], [6.4, 10, 2.0], 'hull2', { ch: 0.8 }),
+    ...[-0.95, 0.95].flatMap((dx) => P.box([dx, 8.5, -2.7], [0.75, 17, 1.15], 'dark', { ch: 0.25 })),
+    ...P.box([0, 8.5, -2.7], [0.7, 16, 0.26], 'drive'),
+    ...P.ball([0, 10.4, -2.3], 1.7, 'dark', 12, 5),
+    ...[-0.4, 0.4].flatMap((dx) => P.pipe([dx, 11.2, -2.4], [dx, 15.2, -2.45], 0.2, 'dark', 8)),
+    ...P.box([0, 12.05, -2.25], [0.8, 0.08, 0.36], 'sensor'),
     ...[-1, 1].flatMap((sx) => [
-      ...P.box([sx * 4.1, 3.0, -0.3], [2.0, 5.0, 1.9], 'hull2', { ch: 0.6 }),
-      ...[-0.45, 0.45].flatMap((dx) => [-0.42, 0.42].flatMap((dz) => P.box([sx * 4.1 + dx, 5.52, -0.3 + dz], [0.6, 0.06, 0.6], 'drive'))),
+      ...P.box([sx * 6.6, 4.2, -1.9], [2.4, 5.6, 2.2], 'hull2', { ch: 0.7 }),
+      ...[-0.55, 0.55].flatMap((dx) => [-0.5, 0.5].flatMap((dz) => P.box([sx * 6.6 + dx, 7.02, -1.9 + dz], [0.7, 0.06, 0.7], 'drive'))),
     ]),
   ].map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] * D, c[1] * D, c[2] * D]) }));
 }
@@ -320,8 +359,8 @@ export const GROUND_UNITS = Object.freeze({
   // the heavy gunship: a high-winged hull on four great propellers, its guns out of its left side; it flies a banked
   // turn round the frame at height, its broadside on it, and cannot bring its guns to bear on a frame right under it
   thunderhead: Object.freeze({
-    label: 'thunderhead gunship', reads: 'a quad drone at a gunship\'s scale: an armoured core on an X of arms, four great rotors turning flat in guard rings, a rail cannon and a chin gun slung forward',
-    size: 7.5, hp: 60, rof: 9, range: 800, points: 4000, flies: true,
+    label: 'thunderhead gunship', reads: 'a quad drone at a gunship\'s scale: a heavy armoured hull on an X of armoured arms, four great rotors turning flat in armoured ducts under grilles, a rail cannon and a chin gun slung forward',
+    size: 8.8, hp: 60, rof: 9, range: 800, points: 4000, flies: true,
     parts: thunderheadParts, hubs: thunderHubs, turns: THUNDER_TURN,
   }),
   // an artillery truck: six wheels under a long bed, a cab forward, outriggers braced on the ground, and on the bed a

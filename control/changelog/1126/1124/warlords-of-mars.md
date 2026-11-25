@@ -131,14 +131,16 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     each stub wing. A `circuit` orbits the pilot, tighter as it is hurt, and hangs to barrage. It carries a boss bar, and
     its operation, Harrow, comes before Vermilion.
   - The Thunderhead (`thunderhead`): the heavy gunship at the top of the air ladder, a quad drone at a gunship's
-    scale, some 46 m rotor tip to rotor tip. An armoured core under a wide lit visor, an X of tapered arms out to four
-    motor pods, and on each a great three-bladed rotor turning flat in a guard ring; a chin gun and a rail cannon slung
-    forward under it. An `orbit` flies it round the frame at height, its nose on the frame, never stopping; hurt, it
+    scale, some 54 m duct to duct. A heavy armoured hull (a deep core, side sponsons, a dorsal block, a brow over a wide
+    lit visor, a gun bay under it), an X of armoured arms, and four great rotors turning flat inside armoured ducts: a
+    thick wall rounded at its lip, eight curved plates round its outside, a grille of bars over its mouth under a hub
+    cap, a lit ring deep in its throat. A chin gun and a rail cannon are slung forward under the hull. An `orbit` flies it round the frame at height, its nose on the frame, never stopping; hurt, it
     comes lower and circles tighter. Its rail cannon's slugs barely turn but land hard. Its guns cannot bear more than
     `under` degrees below it (the frame levels' `frame-broadside` action, its `blind`), so a frame right under it is
     safe while it stays there, and the lock box says UNDER ITS GUNS. Its operation, Thunderhead, follows Harrow.
   - Its rotors spin, the pairs opposite ways, a faint disc where the blades blur (`UNIT_MATERIALS.blur`, seen through;
-    the form render's alone). A card's `hubs` make a bone of each, its `turns` their ways; the figure's `roll` clip spins
+    the form render's alone). Its ducts are lathed sections (`groundforce/` `lathe`: a closed section swept round the
+    vertical, whole or a plate's arc). A card's `hubs` make a bone of each, its `turns` their ways; the figure's `roll` clip spins
     them about the vertical (`vehicle-rig.js` `packVehicleFigure`'s new `axis` and `turns`; absent, the wheels' clip as it
     was). A card without hubs packs as one bone, as before.
 - **The ground force in the form render** (`groundforce/` `unitFigure(kind, { form })`, a figures map's
