@@ -59,12 +59,12 @@ let people = streetSix(seed, { locale, set });
 if (opt.only) { const keep = new Set(opt.only.split(',')); people = people.filter((p) => keep.has(p.id)); }
 if (extra) people = people.map((p) => ({ ...p, spec: { ...p.spec, ...extra } }));
 // (a review of cards: --cast sets everyone's cast, --styles one card a person in turn, worn in the card's own colours)
-if (opt.cast) people = people.map((p) => ({ ...p, spec: { ...p.spec, cast: opt.cast }, label: p.label.replace(/^(male|female)/, opt.cast) }));
 if (opt.styles) {
   const S = opt.styles.split(',');
   for (let k = 1; people.length < S.length; k++) people = [...people, ...streetSix(seed, { locale, set: set + k })];
   people = people.slice(0, S.length).map((p, i) => { const { palette: _p, ...spec } = p.spec; return { ...p, spec: { ...spec, outfit: { ...spec.outfit, style: S[i] } }, label: p.label.replace(/\S+$/, S[i]) }; });
 }
+if (opt.cast) people = people.map((p) => ({ ...p, spec: { ...p.spec, cast: opt.cast }, label: p.label.replace(/^(male|female)/, opt.cast) }));
 
 // ─── mint ───────────────────────────────────────────────────────────────────
 const todo = people.filter((p) => !(opt.reuse && existsSync(path.join(out, `${p.id}.glb`))));
@@ -99,7 +99,7 @@ const scene = new THREE.Scene(); scene.background = new THREE.Color('#bcc8d2');
 scene.add(new THREE.HemisphereLight('#dfe9f3', '#6b6560', 1.1));
 const sun = new THREE.DirectionalLight('#fff2dc', 2.6); sun.position.set(4, 8, 6); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 4, bottom: -4 }); scene.add(sun);
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 12), new THREE.MeshStandardMaterial({ color: '#9b9790', roughness: 0.95 }));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 60), new THREE.MeshStandardMaterial({ color: '#9b9790', roughness: 0.95 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 const cam = new THREE.PerspectiveCamera(30, 16 / 9, 0.05, 100);
 const loader = new GLTFLoader(), GAP = 1.15, figures = [], RELIEF = M.relief, DEBUG = M.debug;
@@ -142,6 +142,7 @@ for (const F of figures) {
     let lo = Infinity, hi = -Infinity;
     for (const p of pts) { const d = p.clone().sub(mid); if (Math.abs(d.dot(along)) > 0.012) continue; const s = d.dot(across); lo = Math.min(lo, s); hi = Math.max(hi, s); }
     Object.assign(read, { hand: +far.toFixed(3), handBreadth: +(hi - lo).toFixed(3), handShare: +(far / read.stature).toFixed(3), breadthShare: +((hi - lo) / read.stature).toFixed(3) });
+    F.head = S.bones[names.indexOf('head')];
     F.handAt = () => { const w = new THREE.Vector3().setFromMatrixPosition(S.bones[wristI].matrixWorld), m = knuckle('index1R').add(knuckle('middle1R')).multiplyScalar(0.5); return w.lerp(m, 0.8); };
   }
   F.box = box; reads.push(read);
@@ -162,7 +163,7 @@ window.street = {
     if (view === 'front') frame([0, 1.0, d], [0, 0.88, 0]);
     else frame([d * 0.62, 1.15, d * 0.8], [0, 0.85, 0]);
   },
-  face(i) { const F = figures[i], h = F.box.max.y; frame([F.root.position.x + 0.12, h - 0.1, 0.8], [F.root.position.x, h - 0.13, 0], 20); },
+  face(i) { const F = figures[i], H = F.head ? new THREE.Vector3().setFromMatrixPosition(F.head.matrixWorld) : new THREE.Vector3(F.root.position.x, F.box.max.y - 0.13, 0), y = H.y + 0.09; frame([H.x + 0.12, y + 0.02, H.z + 0.8], [H.x, y, H.z], 20); },
   hand(i) { const F = figures[i]; if (!F.handAt) return; const c = F.handAt(); frame([c.x - 0.3, c.y + 0.06, c.z + 0.4], [c.x, c.y, c.z], 26); },
   ready: true,
 };

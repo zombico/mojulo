@@ -412,7 +412,7 @@ export const SEEDED_OUTFITS = Object.freeze({
     "dials": { "stylize": 0.2, "fit": 0.1, "coverage": 1, "ornament": 1 },
     "language": { "top": { "family": "knit", "sleeve": "long", "hem": "crop", "fit": "skin", "cloth": "jersey" }, "bottom": { "family": "knit", "leg": "long", "cut": "skinny", "fit": "skin", "cloth": "jersey" },
       "feet": "sneakers", "tuck": false, "focal": "collar" },
-    "tones": { "Top": "#c9a3a8", "Bottom": "#c9a3a8", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+    "tones": { "Top": "#c9a3a8", "Bottom": "#c9a3a8", "Shoes": "#f2f2f2", "Trim": "#b89097" }
   },
   // (a runner's: a fitted tank over brief shorts, in runners)
   jogger: {
@@ -420,7 +420,7 @@ export const SEEDED_OUTFITS = Object.freeze({
     "dials": { "stylize": 0.2, "fit": 0.2, "coverage": 1, "ornament": 1 },
     "language": { "top": { "family": "knit", "sleeve": "none", "hem": "hip", "fit": "fitted", "cloth": "jersey" }, "bottom": { "family": "knit", "leg": "brief", "cut": "straight", "fit": "eased" },
       "feet": "runners", "tuck": false, "focal": "collar" },
-    "tones": { "Top": "#e85d75", "Bottom": "#1d2433", "Shoes": "#f0f0f0", "Trim": "#f0f0f0" }
+    "tones": { "Top": "#e85d75", "Bottom": "#1d2433", "Shoes": "#f0f0f0", "Trim": "#d44e66" }
   },
   // (an oversized tee over bike shorts to mid-thigh)
   bikeShorts: {
@@ -428,7 +428,7 @@ export const SEEDED_OUTFITS = Object.freeze({
     "dials": { "stylize": 0.2, "fit": 0.6, "coverage": 1, "ornament": 1 },
     "language": { "top": { "family": "knit", "sleeve": "short", "hem": "hip", "fit": "loose", "cloth": "jersey" }, "bottom": { "family": "knit", "leg": "short", "cut": "skinny", "fit": "skin", "cloth": "jersey" },
       "feet": "sneakers", "tuck": false, "focal": "collar" },
-    "tones": { "Top": "#ece7dc", "Bottom": "#1b1b1f", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+    "tones": { "Top": "#ece7dc", "Bottom": "#1b1b1f", "Shoes": "#f2f2f2", "Trim": "#dcd6ca" }
   },
   // (a track suit: a zipped jacket with a stand collar and ribbed cuffs and waist over a tee, tapered joggers in its cloth)
   tracksuit: {
@@ -460,7 +460,7 @@ export const SEEDED_OUTFITS = Object.freeze({
     "dials": { "stylize": 0.2, "fit": 0.7, "coverage": 1, "ornament": 1 },
     "language": { "top": { "family": "knit", "sleeve": "long", "hem": "waist", "fit": "loose", "cloth": "knit" }, "bottom": { "family": "knit", "leg": "long", "cut": "wide", "fit": "loose" },
       "feet": "sneakers", "tuck": false, "focal": "collar" },
-    "tones": { "Top": "#a7a9ac", "Bottom": "#a7a9ac", "Shoes": "#f2f2f2", "Trim": "#f2f2f2" }
+    "tones": { "Top": "#a7a9ac", "Bottom": "#a7a9ac", "Shoes": "#f2f2f2", "Trim": "#96989b" }
   },
 });
 
