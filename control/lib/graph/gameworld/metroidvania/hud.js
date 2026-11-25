@@ -21,7 +21,8 @@
  *                 box (each found by name, the rest locked); back resumes
  *
  *   boxMapOf({ layout, screen, held }) → the map as data: cells, joins, doors, relics, rooms' middles, the minimap's zoom
- *   boxMapView(map, { seen, here, held, taken, felled }) → { shapes, markers, rooms, focus }: what it shows (import-free)
+ *   boxMapView(map, { seen, here, held, taken, felled, broken }) → { shapes, markers, rooms, focus }: what it shows
+ *                (import-free); a secret's prize hidden until its wall is broken
  *   BOX_MAP      the map's measures
  *
  *   boxHud({ theme, layout, screen, held, bosses, sounds? }) → a level manifest's `manaHud`: { spec, theme, feed: { box },
@@ -129,9 +130,11 @@ export function boxMapOf({ layout: L, screen, held }) {
     const hg = d.gate ? (held.gates || []).find((x) => x.id === `gate-${d.id}`) : null;
     return { a, b, ...rect, ...(d.gate ? { gate: d.gate, opens: hg ? hg.opens : `gate:${d.gate}` } : {}) };
   });
+  // (a prize behind a SECRET wall is no one's to see until the wall is down: its wall's breakable named on it)
+  const secretOf = (x) => { const m = /^prize:(.+):(\d+)$/.exec(x.gives); const R = m && L.rooms.find((q) => q.id === m[1]), p = R && R.pockets[Number(m[2])]; return p && p.gate === 'secret' ? `pocket-${R.id}-${m[2]}` : null; };
   const relics = (held.relics || []).map((x) => {
-    const s = x.at[1], z = x.at[2], c = Math.floor(s / screen.width), r = Math.floor(z / screen.height);
-    return { id: x.id, cell: at(c, r), x: r3(ox + (s / screen.width) * u), y: r3(oy + (rows - z / screen.height) * u), name: x.name, kind: x.gives.startsWith('key:') ? 'key' : x.gives.startsWith('prize:') ? 'prize' : 'power' };
+    const s = x.at[1], z = x.at[2], c = Math.floor(s / screen.width), r = Math.floor(z / screen.height), sec = secretOf(x);
+    return { id: x.id, cell: at(c, r), x: r3(ox + (s / screen.width) * u), y: r3(oy + (rows - z / screen.height) * u), name: x.name, kind: x.gives.startsWith('key:') ? 'key' : x.gives.startsWith('prize:') ? 'prize' : 'power', ...(sec ? { secret: sec } : {}) };
   });
   const middles = L.rooms.map((R) => { const [c, r, w, h] = R.rect; return { x: r3(X(c) + (w * u) / 2), y: r3(Y(r + h - 1) + (h * u) / 2), ...(R.save ? { save: true } : {}), ...(R.boss ? { boss: R.boss, id: R.id } : {}) }; });
   return { cols, rows, u: r3(u), cells, joins, doors, relics, rooms: middles, zoom: r3(Math.max(cols, rows) / BOX_MAP.mini) };
@@ -140,10 +143,11 @@ export function boxMapOf({ layout: L, screen, held }) {
 /**
  * What the map shows (import-free: the page runs this source): `seen` the cells walked ({ <cell>: 1 }), `here` the cell
  * she stands in, `held` the tokens she holds, `taken` the relics taken, `felled` the bosses felled (the held gates'
- * state). → { shapes, markers, rooms: the rooms seen, focus: her cell's middle }
+ * state), `broken` the breakables broken ({ <id>: 1 }: a secret's prize shown once its wall is down). → { shapes, markers,
+ * rooms: the rooms seen, focus: her cell's middle }
  */
 export function boxMapView(M, S) {
-  const seen = S.seen || {}, held = S.held || {}, taken = S.taken || {}, felled = S.felled || {}, here = S.here == null ? -1 : S.here;
+  const seen = S.seen || {}, held = S.held || {}, taken = S.taken || {}, felled = S.felled || {}, broken = S.broken || {}, here = S.here == null ? -1 : S.here;
   const shapes = [], markers = [], rooms = {};
   let focus = { x: 0.5, y: 0.5 };
   for (const C of M.cells) {
@@ -158,7 +162,7 @@ export function boxMapView(M, S) {
     shapes.push({ kind: 'walk', x: D.x, y: D.y, w: D.w, h: D.h });
     if (D.gate && held[D.opens] == null) markers.push({ x: D.x + D.w / 2, y: D.y + D.h / 2, kind: 'poi', icon: 'lock', label: D.gate });
   }
-  for (const R of M.relics) if (seen[R.cell] && taken[R.id] == null) markers.push({ x: R.x, y: R.y, kind: 'item', icon: R.kind === 'key' ? 'key' : R.kind === 'power' ? 'star' : 'gem', label: R.name });
+  for (const R of M.relics) if (seen[R.cell] && taken[R.id] == null && !(R.secret && !broken[R.secret])) markers.push({ x: R.x, y: R.y, kind: 'item', icon: R.kind === 'key' ? 'key' : R.kind === 'power' ? 'star' : 'gem', label: R.name });
   M.rooms.forEach((R, k) => {
     if (!rooms[k]) return;
     if (R.save) markers.push({ x: R.x, y: R.y, kind: 'goal', label: 'Save' });

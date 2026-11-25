@@ -88,7 +88,7 @@ export function boxPlanSvg(B, { width = 900, marks = true } = {}) {
 }
 
 /** what a gate is, as a thing a prize stands behind */
-const BEHIND = Object.freeze({ sill: 'a sill', cracked: 'a cracked wall', grate: 'a grate', lock: 'a locked door', seal: 'a seal' });
+const BEHIND = Object.freeze({ sill: 'a sill', cracked: 'a cracked wall', grate: 'a grate', lock: 'a locked door', seal: 'a seal', secret: 'a secret wall' });
 const swatch = (c, esc) => `<span class="sw" style="background:${esc(c)}" title="${esc(c)}"></span>`;
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 

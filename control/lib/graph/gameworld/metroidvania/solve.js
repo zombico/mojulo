@@ -69,7 +69,7 @@ export function solveBox(L) {
     if (r.finds) more = take(L.powers[r.finds].name ?? r.finds, 'power', r.id, `gate:${L.powers[r.finds].opens}`) || more;
     r.pockets.forEach((p, k) => {
       const id = `${r.id}#${k}`;
-      if (!pocketsGot.has(id) && held.has(`gate:${p.gate}`)) { pocketsGot.add(id); got.push({ what: p.holds, kind: 'pocket', room: r.id, order: got.length }); }
+      if (!pocketsGot.has(id) && (held.has(`gate:${p.gate}`) || GATES[p.gate]?.by === 'blows')) { pocketsGot.add(id); got.push({ what: p.holds, kind: 'pocket', room: r.id, order: got.length }); }
     });
     return more;
   };

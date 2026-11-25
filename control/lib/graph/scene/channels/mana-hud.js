@@ -303,7 +303,7 @@ ${HS ? `  // THE HUD'S SOUNDS (mana-hud-sounds.js): the look's set, its cues hea
   // the box's cells; what is found said as it is taken; the pause's map of the rooms walked
   const BXF = F.box;
   st.bx = { place: '', hp: 1, hpMax: 1, mp: 0, mpMax: 1, moments: [], bossOn: false, bossName: '', boss: 0, bossMax: BXF.bossHp || 1, heldWord: '', hasHeld: false, shapes: [], markers: [], focus: { x: 0.5, y: 0.5 }, zoom: BXF.map ? BXF.map.zoom : 1, relics: [], roomsWord: '0', wakeWord: '0' };
-  let bxUp = null, bxQuiet = false, bxSeen = 0, bxSeenMap = 0, bxRoom = -1, bxRing = -1, bxN = 0, bxHeld = '', bxCell = -1;
+  let bxUp = null, bxQuiet = false, bxSeen = 0, bxSeenMap = 0, bxBrokeN = 0, bxRoom = -1, bxRing = -1, bxN = 0, bxHeld = '', bxCell = -1;
   // (the screens walked, revealed one at a time as she enters each: the map's view, gameworld/metroidvania/hud.js)
   const bxCells = {}, bxBossSaid = new Set(), __bxView = ${boxMapView.toString()};
   const bxHoldEl = document.createElement('div'); bxHoldEl.className = 'moj-menu-hud'; bxHoldEl.style.display = 'none'; document.body.appendChild(bxHoldEl);
@@ -315,7 +315,9 @@ ${HS ? `  // THE HUD'S SOUNDS (mana-hud-sounds.js): the look's set, its cues hea
   // the same on her, the pause's the whole box)
   function bxMap() {
     const G = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.heldGates;
-    const V = __bxView(BXF.map, { seen: bxCells, here: bxCell, held: G && G.held, taken: G && G.taken, felled: G && G.felled });
+    const WB = window.__mojCtrl && window.__mojCtrl.world && window.__mojCtrl.world.breakables, broken = {};
+    if (WB) WB.forEach(function (b) { if (b.broken) broken[b.id] = 1; });
+    const V = __bxView(BXF.map, { seen: bxCells, here: bxCell, held: G && G.held, taken: G && G.taken, felled: G && G.felled, broken: broken });
     st.bx.shapes = V.shapes; st.bx.markers = V.markers; st.bx.focus = V.focus; st.bx.roomsWord = V.rooms + ' of ' + BXF.rooms.length;
     st.bx.relics = BXF.relics.map(function (x) { const got = !!(G && G.taken && G.taken[x.id] != null); return { name: got ? x.name : '— — —', icon: got ? (x.kind === 'key' ? 'key' : x.kind === 'power' ? 'star' : 'gem') : 'lock' }; });
   }
@@ -650,7 +652,9 @@ ${race ? `    if (RACE) {
         else if (R0 && R0.kind === 'key') bxMoment({ text: R0.name, sub: 'A key', weight: 'normal', icon: 'key' });
         else if (R0) bxMoment({ text: R0.name, sub: 'Found', weight: 'minor', icon: 'gem' });
       }
-      if (bxSeen !== bxSeenMap) { bxSeenMap = bxSeen; bxMap(); }
+      // (redrawn on anything got, and on a wall broken: a secret's prize comes onto the map)
+      const nb = W.breakables ? W.breakables.reduce(function (n, b) { return n + (b.broken ? 1 : 0); }, 0) : 0;
+      if (bxSeen !== bxSeenMap || nb !== bxBrokeN) { bxSeenMap = bxSeen; bxBrokeN = nb; bxMap(); }
       st.bx.wakeWord = String(BG.deaths || 0);
       const hw = BXF.relics.filter(function (x) { return x.kind !== 'prize' && BG.taken[x.id] != null; }).map(function (x) { return x.name; }).join(' · ');
       if (hw !== bxHeld) { bxHeld = hw; st.bx.heldWord = hw; st.bx.hasHeld = !!hw; }

@@ -46,7 +46,8 @@ describe('a metroidvania level, played as its page resolves it', () => {
     expect(payload.camera.rule).toBe('side-map');
     expect(payload.camera.zones.length).toBe(B.layout.rooms.length);
     expect(payload.heldGates.gates.map((g) => g.kind).sort()).toEqual(expect.arrayContaining(['boss', 'form', 'key', 'wall-break']));
-    expect(payload.breakables.length).toBe(payload.heldGates.gates.length + payload.heldGates.bosses.length);
+    // (the breakables: the held gates, the bosses, and the secret walls, which no gate holds: blows find them)
+    expect(payload.breakables.length).toBe(payload.heldGates.gates.length + payload.heldGates.bosses.length + B.secrets.length);
     expect(payload.entities[0].rule.strike).toBe('melee');
     expect(payload.entities[0].rule.cling).toBeUndefined();
   });
@@ -140,6 +141,46 @@ describe('a metroidvania level, played as its page resolves it', () => {
     P.cut(1, 8);
     expect(g.broken).toBeTruthy();
   });
+
+  // THE SECRET WALLS: a wall like the others, struck down; counted blows, or, the game physical, its stone by its matter
+  const secretWall = (P, Bx) => {
+    const sec = Bx.secrets[0], b = P.sim.world.breakables.find((x) => x.id === sec.id), r = P.room(sec.room), W = P.W;
+    P.place(sec.room, (b.min[1] - 1.1 - r.rect[0] * W) / (r.rect[2] * W));
+    return b;
+  };
+  it('hides a secret wall that stands a cut and falls to the string, its prize then on the map', () => {
+    const P = play(), b = secretWall(P, B);
+    expect(B.secrets.length).toBeGreaterThan(0);
+    expect(payload.heldGates.gates.some((g) => g.id === b.id)).toBe(false);
+    P.cut(1, 1);
+    expect(b.broken).toBeFalsy();
+    P.cut(1, 8);
+    expect(b.broken).toBeTruthy();
+  });
+
+  it('breaks a secret wall by its matter where the game is physical: its stone, its joules spent by blows, its debris', async () => {
+    const G = vampireSonataGame({ heroRef: 'erina-ref' }); G.mechanics = { ...(G.mechanics ?? {}), destruction: 'physical' };
+    const W = readGameworld(G), [stage] = gameStages(W), m = stageLevelOrder(W, stage, { heroRef: 'erina-ref', heroStature: 1.69, ref: 'lvl' }).args.manifest;
+    m.figures = {}; m.entities = m.entities.map((e) => ({ ...e, body: { ...e.body, type: 'none', figure: undefined } }));
+    expect(m.destruction).toBe('physical');
+    const { payload: Pp } = await resolveWorldScene({ manifest: m }), Bp = boxOf(m);
+    expect(Pp.rupa).toBeTruthy();
+    const P = playIn(Pp, Bp), b = secretWall(P, Bp);
+    expect(Pp.breakables.find((x) => x.id === b.id)).toMatchObject({ matter: 'stone' });
+    // (the page hands its world the payload's rupa, controllable/index.js; the sim harness carries no rupa, level-sim.js
+    // WORLD_OPTIONS: its blows set to the payload's power, as the page's are)
+    P.sim.world.rupa.power = Pp.rupa.power;
+    P.cut(1, 1);
+    expect(b.broken).toBeFalsy();
+    P.cut(1, 10);
+    expect(b.broken).toBeTruthy();
+    const hits = P.sim.world.rupa.hits.filter((h) => h.id === b.id);
+    expect(hits.every((h) => h.how === 'swing')).toBe(true);
+    // (its joules its blows': 3 swings at the box's power, then it broke as stone, its debris on the break)
+    expect(hits.length).toBe(3);
+    const br = P.sim.world.breaks.find((x) => x.id === b.id);
+    expect(br.debris?.pieces?.length ?? br.debris?.length ?? 0).toBeGreaterThan(0);
+  }, 120000);
 
   // THE CLIMBS (climbs.js): a bot climbs every room it can open, stand by stand, on a single jump (a stair walked), and
   // out through its door above: going up is going across

@@ -46,7 +46,9 @@ describe('the box\'s map', () => {
     const seen = Object.fromEntries(map.cells.map((C) => [C.i, 1])), all = boxMapView(map, { seen });
     const locks = all.markers.filter((m) => m.icon === 'lock'), items = all.markers.filter((m) => m.kind === 'item');
     expect(locks.length).toBe(map.doors.filter((D) => D.gate).length);
-    expect(items.length).toBe(map.relics.length);
+    // (every prize but a secret's: that one waits for its wall to break)
+    expect(items.length).toBe(map.relics.filter((R) => !R.secret).length);
+    expect(boxMapView(map, { seen, broken: Object.fromEntries(map.relics.filter((R) => R.secret).map((R) => [R.secret, 1])) }).markers.filter((m) => m.kind === 'item').length).toBe(map.relics.length);
     expect(all.markers.filter((m) => m.kind === 'foe').length).toBe(L.rooms.filter((r) => r.boss).length);
     expect(all.markers.filter((m) => m.kind === 'goal').length).toBe(L.rooms.filter((r) => r.save).length);
     expect(all.rooms).toBe(L.rooms.length);

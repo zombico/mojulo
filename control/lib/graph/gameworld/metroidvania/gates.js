@@ -9,12 +9,14 @@
  *   wall-break    a cracked wall across a doorway: broken by the special strike
  *   key           a locked door: its key found in the same ring, before it
  *   boss          the boss room's way on, sealed until the boss falls
+ *   secret        a pocket's wall like the walls round it: found by striking it, broken by blows, no power asked; under
+ *                 destructible physics (`destruction: 'physical'`) it is its room's own wall matter, broken by rupa
  *
  * The castle's hero never STOMPS and never KICKS OFF A WALL: no gate and no climb asks either (REFUSED_MOVES). Every rise
  * on the way is a single jump; a double-jump gate's is a double jump's, and more than a single jump's, so the gate is a
  * gate.
  *
- *   GATES, GATE_IDS, OPENERS, REFUSED_MOVES
+ *   GATES, GATE_IDS, OPENERS, REFUSED_MOVES, SECRET
  *   GREYBOX_HERO              the hero a greybox is laid for when its words name none: the side map's (its stature and
  *                             Galaxy Boy's measured jump, the double jump a share over it)
  *   gateSill(kind, hero)      → metres the gate's last rise is: a double jump's sill, else a single jump's ledge
@@ -28,10 +30,16 @@ export const GATES = Object.freeze({
   'wall-break': Object.freeze({ read: 'a cracked wall across the way: broken by the special strike', by: 'power', shape: 'cracked', colour: '#f08a3c' }),
   key: Object.freeze({ read: 'a locked door: its key found in the same ring, before it', by: 'key', shape: 'lock', colour: '#e8c547' }),
   boss: Object.freeze({ read: 'the boss room\'s way on, sealed until the boss falls', by: 'boss', shape: 'seal', colour: '#e5484d' }),
+  // (a SECRET: a wall like the walls round it, hollow behind, found by striking it; no power asked, nothing marks it. Its
+  // colour is the book's and the greybox's alone: in a dressed box it is drawn as its room's wall)
+  secret: Object.freeze({ read: 'a wall like the walls round it, hollow behind: broken by blows, no power asked', by: 'blows', shape: 'secret', colour: '#a08c74', hidden: true }),
 });
+/** a secret wall: the blows it takes (counted, or its joules under destructible physics: `blows` × a swing × the
+ * world's power), and the power a box's blows land at when its level is physical and its matter names none */
+export const SECRET = Object.freeze({ blows: 3, power: 'heroic' });
 export const GATE_IDS = Object.freeze(Object.keys(GATES));
-/** what opens a gate: a power the hero carries, a key, a boss felled */
-export const OPENERS = Object.freeze(['power', 'key', 'boss']);
+/** what opens a gate: a power the hero carries, a key, a boss felled, blows (a secret wall) */
+export const OPENERS = Object.freeze(['power', 'key', 'boss', 'blows']);
 export const REFUSED_MOVES = Object.freeze({
   stomp: 'no foe and no gate is beaten by landing on it: the castle is fought with the weapon',
   'wall-kick': 'no climb is a chimney: every rise is a ledge a jump apart, or a gate\'s ledge a double jump up',

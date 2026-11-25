@@ -870,6 +870,9 @@ the cube's water as the fluid layer, then the geocity's physical ring near the p
 - `world-scene.js`: with `scars`, `payload.rupa.scars` is the level's `scars` read by `readScarsSpec` (any degree).
 - `compose.js`: `EMISSION_OPT_IN.rupa`, composed onto a page only when its blocks carry matter.
 - `era/compose.js`: `DESTRUCTION_WORDS.physical`, the words that ask for it.
+- `gameworld/metroidvania/scene.js`: a metroidvania box's secret walls, under `physical`, its room's wall matter at a
+  facing calibrated to its blows (`secretMatter`), the box's own breakables beside its held gates
+  (`docs/metroidvania-map.md` "Secret walls").
 - `rupa/panels.js` and `world-scene.js`: under `physical`, an entity's `panels` resolved to plates and their metal's
   numbers; the page draws them only when an object carries them.
 - Engines: the physics is the web build's. The engine handoff (`export_model { engine }`) carries a level's models and

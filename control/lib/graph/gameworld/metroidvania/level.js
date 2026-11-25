@@ -32,6 +32,7 @@ import { SIDE_FALL, LIMBO } from '../side-map/play.js';
 import { LADDER_RATE } from '../side-map/layout.js';
 import { boxOf, BOSS_HP } from './scene.js';
 import { FLOOR, boxCameraOf } from './rooms.js';
+import { GATES, SECRET } from './gates.js';
 import { boxHud, BOX_LOOKS, BOX_MENU_KEY } from './hud.js';
 import { interfaceLook } from '../../playscape/ui/interface-look.js';
 import { hudSounds } from '../../scene/channels/mana-hud-sounds.js';
@@ -76,7 +77,12 @@ function boxHudOf(G, B) {
 export function boxLevelOrder(G, stage, { ref, heroRef, heroGaits = null, heroStature = null, pilot = null, title, mechanics = null, audio = null } = {}) {
   if (!heroRef) throw new Error('levels: a metroidvania is played by a hero seen from the side; give the world a hero (its characters)');
   const name = title ?? `${G.name ?? G.id} · ${stage.label ?? stage.level}`, stature = heroStature ?? SIDE_MAP_STATURE;
-  const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature };
+  // (its SECRET walls break: the game's own degree where it says one (`physical` breaks them by their matter, rupa, at the
+  // box's blows unless the level says its own), else by counted blows with no degree said)
+  const secretive = (stage.manifest.metroidvania?.rings ?? []).some((r) => (r.pockets ?? []).some((p) => GATES[p.gate]?.by === 'blows'));
+  const degree = secretive && !stage.manifest.destruction ? (mechanics?.destruction ?? G.mechanics?.destruction ?? null) : null;
+  const manifest0 = { ...stage.manifest, ...(G.feel ? { feel: G.feel } : {}), stature, ...(degree ? { destruction: degree } : {}),
+    ...(degree === 'physical' && stage.manifest.matter === undefined ? { matter: { power: SECRET.power } } : {}) };
   const B = boxOf(manifest0), { layout: L, greybox: Gb } = B, W = Gb.screen.width, H = Gb.screen.height;
   const camera = boxCamera(B), spawn = [0, ...camera.zones[0].checkpoint];
   spawn[2] = r3(spawn[2] + 0.05);

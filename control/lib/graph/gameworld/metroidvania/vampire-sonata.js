@@ -52,7 +52,7 @@ export function vampireSonata({ box = [14, 8], turn = 'ccw' } = {}) {
     rings: [
       { id: 'outer-wall', place: 'the outer wall', towers: true, key: true, boss: 'the Gate Warden', finds: 'second-leap', inward: 'double-jump',
         pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }, { gate: 'wall-break', holds: 'a relic' }, { gate: 'form', holds: 'a heart vessel' }] },
-      { id: 'great-halls', place: 'the great halls', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
+      { id: 'great-halls', place: 'the great halls', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }, { gate: 'secret', holds: 'a relic' }] },
       { id: 'inner-ward', place: 'the inner ward', boss: 'the Bellkeeper', finds: 'mist-veil', inward: 'form' },
       { id: 'keep', place: 'the keep', boss: 'the Lord of the Keep' },
     ],

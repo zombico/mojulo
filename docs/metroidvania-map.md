@@ -51,6 +51,26 @@ what it asks from across the room. A new gate is a row.
 | wall-break | a cracked wall across the way | a power: the special strike | a cracked block |
 | key | a locked door | the key found earlier in the same ring | a door with a keyhole |
 | boss | the boss room's way on | the boss felled | a seal |
+| secret | a pocket's wall like the walls round it | blows: no power asked | a block of the wall's own stone |
+
+### Secret walls: destructible terrain
+
+A pocket may be a secret (`pockets: [{ gate: 'secret', holds }]`). Its wall is the one gate no power opens and nothing
+marks: it is found by striking the walls. It is never the step into a ring (`inward`), and the solve opens it with
+nothing held.
+
+- **It looks like the wall.** In a dressed box it is the alcove's own back wall copied across its mouth (`scene.js`):
+  the same blocks, mortar and baked light. Only the blow tells it.
+- **No gate holds it.** It is a breakable outside the held gates, broken in `SECRET.blows` blows (`gates.js`).
+- **The map keeps its prize off** until the wall is down (`boxMapView`'s `broken`).
+- **Destructible terrain where the game asks for it.** Under the game's `mechanics.destruction: 'physical'`, the level
+  is physical (`level.js`). The secret wall is then its room's wall matter, the geocube's (`cubeMatter`), a facing just
+  thin enough to fall on its last blow at the box's power (`SECRET.power`, heroic, unless the level's `matter` says
+  its own). Rupa breaks it: its joules spent swing by swing, its pieces thrown as its stone (`docs/rupa.md`). The law
+  `secrets` says each falls on its last blow. Without a degree, it falls to counted blows.
+
+Vampire Sonata hides a relic in the great halls; XenoJager hides a missile pack in the crust and an energy tank in the
+fungal caverns.
 
 9. **Every step in is a gate**, and each asks something no step before it asked.
 10. **What opens a gate is found before the gate is met** on the walk: a key before its lock, a power before its gate.

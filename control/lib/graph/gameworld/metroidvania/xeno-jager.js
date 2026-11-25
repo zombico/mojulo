@@ -59,8 +59,8 @@ export function xenoJager({ box = [14, 8], turn = 'ccw', theme = 'xeno' } = {}) 
     powers: structuredClone({ ...XENOJAGER_POWERS }),
     rings: [
       { id: 'crust', place: 'the crust', towers: true, key: true, boss: 'the Crust Warden', finds: 'thruster-leap', inward: 'double-jump',
-        pockets: [{ gate: 'double-jump', holds: 'an energy tank' }, { gate: 'wall-break', holds: 'a missile pack' }, { gate: 'form', holds: 'an energy tank' }] },
-      { id: 'fungal-caverns', place: 'the fungal caverns', finds: 'pulse-cannon', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'an energy tank' }] },
+        pockets: [{ gate: 'double-jump', holds: 'an energy tank' }, { gate: 'wall-break', holds: 'a missile pack' }, { gate: 'form', holds: 'an energy tank' }, { gate: 'secret', holds: 'a missile pack' }] },
+      { id: 'fungal-caverns', place: 'the fungal caverns', finds: 'pulse-cannon', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'an energy tank' }, { gate: 'secret', holds: 'an energy tank' }] },
       { id: 'flooded-depths', place: 'the flooded depths', boss: 'the Leviathan', finds: 'curl-drive', inward: 'form' },
       { id: 'magma-core', place: 'the magma core', boss: 'the Brood Mother' },
     ],

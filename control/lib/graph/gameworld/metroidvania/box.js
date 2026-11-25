@@ -24,7 +24,8 @@
  *       boss    the boss's name: it stands in the ring's last corner, its way on sealed until it falls
  *       key     true: a key in the ring's second corner, its lock on the top leg's middle door
  *       inward  the gate on the step into the next ring (gates.js; never a boss's: a boss seals its own room)
- *       pockets [{ gate, holds }]: an alcove in one of its corridors behind a gate, holding a prize (a power found
+ *       pockets [{ gate, holds }]: an alcove in one of its corridors behind a gate (or a `secret` wall, found by blows),
+ *               holding a prize (a power found
  *               later opens it: the box walked again)
  *       towers  true: its legs up and down two screens wide, a tower each (its corners as wide), the rings inside it a
  *               column further in; its shafts climbed across both screens (climbs.js)
@@ -126,7 +127,7 @@ export function readBox(v) {
     if (R.key !== undefined) { if (R.key !== true) fail(`${at}.key is true: a key in the ring, its lock on its top leg`); r.key = true; }
     // (a hub's own region may leave its first wing open: the hub is where the walk chooses)
     if (!(out.shape === 'hub' && i === 1 && R.inward === undefined)) {
-    if (!(GATES[R.inward] && R.inward !== 'boss')) fail(`${at}.inward is the gate on the step into the ring inside: ${GATE_IDS.filter((g) => g !== 'boss').join(' | ')} (a boss seals its own room)`);
+    if (!(GATES[R.inward] && R.inward !== 'boss' && GATES[R.inward].by !== 'blows')) fail(`${at}.inward is the gate on the step into the ring inside: ${GATE_IDS.filter((g) => g !== 'boss' && GATES[g].by !== 'blows').join(' | ')} (a boss seals its own room; a secret hides a pocket)`);
     if (GATES[R.inward].by === 'power' && !opened.has(R.inward)) fail(`${at}.inward '${R.inward}' is opened by no power (say one in powers)`);
     if (R.inward === 'key' && !r.key) fail(`${at}.inward is a key's: say key: true, so the ring holds one`);
     r.inward = R.inward;
@@ -135,7 +136,7 @@ export function readBox(v) {
       if (!Array.isArray(R.pockets)) fail(`${at}.pockets is [{ gate, holds }]`);
       r.pockets = R.pockets.map((p, k) => {
         if (!isObj(p) || Object.keys(p).some((x) => !['gate', 'holds'].includes(x))) fail(`${at}.pockets[${k}] is { gate, holds }`);
-        if (!(GATES[p.gate] && GATES[p.gate].by === 'power' && opened.has(p.gate))) fail(`${at}.pockets[${k}].gate is a gate a power opens (${[...opened].join(' | ') || 'none said'})`);
+        if (!(GATES[p.gate] && ((GATES[p.gate].by === 'power' && opened.has(p.gate)) || GATES[p.gate].by === 'blows'))) fail(`${at}.pockets[${k}].gate is a gate a power opens (${[...opened].join(' | ') || 'none said'}), or 'secret' (a wall like the others, broken by blows)`);
         if (!word(p.holds)) fail(`${at}.pockets[${k}].holds is the prize, a word (a heart, a relic)`);
         return { gate: p.gate, holds: p.holds.trim() };
       });
