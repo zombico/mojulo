@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assembleSideStrip, sideRuns, sidePads, sideLaws, foreTop, SIDE, SIDE_CAMERA, sideShapes, sideCameraWords, SIDE_SHAPES, SHAPE_FAMILIES, SHAPED_CAMERA, sliceOrder } from './geocube-side.js';
+import { assembleSideStrip, sideRuns, sidePads, sideLaws, foreTop, SIDE, SIDE_CAMERA, sideShapes, sideCameraWords, SIDE_SHAPES, SHAPE_FAMILIES, SHAPED_CAMERA, sliceOrder, SCENE_KEYS } from './geocube-side.js';
 
 // THE SIDE STRIP (geocube-side.js): a course (the shape course.js lays on a straight lane) skinned in the cube's layers,
 // the land behind it, the hills and the range at their depths, a low foreground. One small course: two floors with a gap,
@@ -102,6 +102,52 @@ describe('the land behind the lane', () => {
       expect(groups(Q).has('side:crowns')).toBe(false);
       expect(sideLaws({ ...M, cube }, Q).filter((l) => !l.holds)).toEqual([]);
       expect(sideLaws({ ...M, cube }, Q).map((l) => l.id)).toContain('one-family');
+    });
+
+    // (docs/side-scroll-backgrounds.md) the rows a stair under a quarter of sky; the terrace a step into the air; the backdrop moving
+    it('stands its rows in a stair under the sky\'s share, takes the terrace into the air, and moves its clouds and blossom', () => {
+      const C = SHAPED_CAMERA, top = 2.2, eye = top + C.lookH + C.dist * Math.sin(C.tilt), deg = 180 / Math.PI;
+      const crest = (pred) => Math.max(...Q.faces.filter(pred).flatMap((f) => f.corners.map((c) => Math.atan2(c[2] - eye, C.dist - c[0]) * deg)));
+      const far = crest((f) => f.group === 'side:range'), mid = crest((f) => f.group === 'side:hills' && f.corners[0][0] < -30), near = crest((f) => f.group === 'side:hills' && f.corners[0][0] > -30);
+      expect(far).toBeGreaterThan(mid);
+      expect(mid).toBeGreaterThan(near);
+      const frameTop = C.vfov / 2 - Math.atan2(eye - (top + C.lookH), C.dist) * deg;
+      expect((frameTop - far) / C.vfov).toBeGreaterThan(0.2);
+      // (cooler than the lane it stands behind: further into the air)
+      const cool = (g) => { const fs = Q.faces.filter((f) => f.group === g && f.normal[2] > 0.5), rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); return fs.reduce((a, f) => { const [r, , b] = rgb(f.fill); return a + b - r; }, 0) / fs.length; };
+      expect(cool('side:terrace')).toBeGreaterThan(cool('side:top'));
+      expect(Object.keys(Q.ambient.groups).sort()).toEqual(['side:blossom', 'side:clouds']);
+      for (const g of Object.keys(Q.ambient.groups)) expect(groups(Q).has(g)).toBe(true);
+      expect(P.ambient).toBeUndefined();
+    });
+
+    // (docs/side-strip-principles.md "Sceneries") the same family, another place, segment by segment
+    it('lays a scenery a segment, a headland where it changes, and refuses one it does not know', () => {
+      const segs = [{ node: 'a', s0: 0, length: 17 }, { node: 'b', s0: 17, length: 17 }];
+      const lake = assembleSideStrip({ ...M, cube, side: { ...M.side, segments: segs, scenery: ['orchard', 'lake'] } }), forest = assembleSideStrip({ ...M, cube, side: { ...M.side, segments: segs, scenery: 'forest' } });
+      const coast = assembleSideStrip({ ...M, cube, side: { ...M.side, scenery: 'coast' } });
+      expect(groups(lake).has('side:water')).toBe(true);
+      expect(groups(Q).has('side:water')).toBe(false);
+      // (the lake lies on its own segment's stretch, never on the orchard's)
+      expect(lake.faces.filter((f) => f.group === 'side:water').every((f) => f.corners.every((c) => c[1] >= 17 - 1e-6))).toBe(true);
+      // (a forest's canopy where the near hills were; the coast's sea, its islands and no hills at all)
+      expect(groups(forest).has('side:canopy')).toBe(true);
+      expect(groups(coast).has('side:islands')).toBe(true);
+      expect(coast.faces.some((f) => /^side:(hills|range)$/.test(f.group))).toBe(false);
+      // (where it changes, a headland on each row; and the laws hold through every scenery)
+      expect(lake.faces.filter((f) => f.group === 'side:range').length).toBeGreaterThan(Q.faces.filter((f) => f.group === 'side:range').length - 6);
+      for (const P2 of [lake, forest, coast]) expect(sideLaws({ ...M, cube }, P2).filter((l) => !l.holds)).toEqual([]);
+      // (its water glints and its canopy sways on the page)
+      expect(Object.keys(lake.ambient.groups)).toContain('side:shimmer');
+      expect(Object.keys(forest.ambient.groups)).toContain('side:canopy');
+      expect(() => assembleSideStrip({ ...M, cube, side: { ...M.side, scenery: 'desert' } })).toThrow(/orchard, lake, forest, coast/);
+      // (a RE-KEY: the same rows and pieces in other colours, no new drawing; its laws hold)
+      for (const sc of Object.keys(SCENE_KEYS).filter((k) => SCENE_KEYS[k].land)) {
+        const R = assembleSideStrip({ ...M, cube, side: { ...M.side, scenery: sc } }), fills = (P2) => new Set(P2.faces.filter((f) => f.group === 'side:hills').map((f) => f.fill));
+        expect(R.faces.filter((f) => f.group === 'side:hills').length, sc).toBe(Q.faces.filter((f) => f.group === 'side:hills').length);
+        expect([...fills(R)].some((c) => fills(Q).has(c)), sc).toBe(false);
+        expect(sideLaws({ ...M, cube }, R).filter((l) => !l.holds), sc).toEqual([]);
+      }
     });
 
     it('is framed nearly level, so the sky is in the frame; and is the same every time', () => {

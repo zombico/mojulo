@@ -14,6 +14,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const E2E = [
   // a side map level resolved as its page resolves it and played to its goal by the side map's bot (gameworld/side-map/)
   'lib/graph/gameworld/side-map/level.e2e.test.js',
+  // a metroidvania's box resolved as its page resolves it and played on the side map's runtime (gameworld/metroidvania/)
+  'lib/graph/gameworld/metroidvania/level.e2e.test.js', 'lib/graph/gameworld/metroidvania/castle.e2e.test.js', 'lib/graph/gameworld/metroidvania/foes.e2e.test.js', 'lib/graph/gameworld/metroidvania/segments.e2e.test.js',
   // a scroll stage resolved as its page resolves it and played to its end by Blaze Gunner's bot (gameworld/scroll-stage/)
   'lib/graph/gameworld/scroll-stage/stage.e2e.test.js',
   'lib/graph/gameworld/race-hud.e2e.test.js',

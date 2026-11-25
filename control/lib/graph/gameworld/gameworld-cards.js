@@ -106,7 +106,7 @@ import { COLOUR_DIRECTIONS } from '../color-theorist/directions.js';
 import { GENRE_COLOUR } from './world-palette.js';
 import { BOOK_SKINS } from './book-skin.js';
 import { INTENT_LOOKS } from '../playscape/ui/interface-look.js';
-import { THEME_CARD_IDS } from '../playscape/ui/theme-cards/loader.js';
+import { THEME_CARD_IDS, THEME_CARDS } from '../playscape/ui/theme-cards/loader.js';
 import { FRONT_CARD_IDS } from '../playscape/ui/front-cards/loader.js';
 import { STAGE_TREATMENTS } from '../game/front-stage.js';
 import { THEME_WORDS, THEME_FAMILIES } from '../../mana-ui/theme.js';
@@ -677,7 +677,8 @@ function interfaceCard() {
     'REGISTERS (intent → look; console when none):',
     ...Object.entries(byLook).map(([look, gs]) => `  ${look}: ${gs.join(' ')}`),
     `FAMILIES: ${Object.entries(THEME_FAMILIES).map(([f, ids]) => `${f} ${ids.join(' ')}`).join('; ')}.`,
-    `CARDS: ${THEME_CARD_IDS.join(', ')}. A NEW LOOK IS A CARD: { id, name, about, family?, tags?, from, ...words } as a`,
+    // (a re-key, a card `from` another card, is counted on its parent: the shelf grows a family at a time)
+    `CARDS: ${THEME_CARD_IDS.filter((id) => !THEME_CARDS[THEME_CARDS[id].from]).map((id) => { const n = THEME_CARD_IDS.filter((k) => THEME_CARDS[k].from === id).length; return n ? `${id} (+${n} re-key${n === 1 ? '' : 's'})` : id; }).join(', ')}. A NEW LOOK IS A CARD: { id, name, about, family?, tags?, from, ...words } as a`,
     'JSON file on the shelf (playscape/ui/theme-cards/, its README), the way a WordPress theme is a theme.json; for one',
     'game only, the same inline as ui.theme.',
     'THE START SCREEN (front.stage): a launcher before any engine loads, ONE of the game\'s subjects (hero, ally, foe,',
@@ -1065,6 +1066,37 @@ function mountsCard() {
     'CARS — a level on a town or a district (a geotown\'s, a geocity\'s) needs none asked for: the cars it parks nearest its\n' +
     '  start are the hero\'s to get into, each its own model and paint where it stands. E in reach walks to the driver\'s door\n' +
     '  and gets in: W throttle, S brake then reverse, A/D steer; E when nearly stopped gets out at the door, on foot again.',
+  );
+}
+
+function boxCard() {
+  return lines(
+    'THE BOX — a metroidvania laid as one box of screens entered from the left, its walk spiralling ring by ring to a core:',
+    '  each ring a region, a power found inside opening the gate on and the pockets and shortcuts behind (docs/metroidvania-map.md).',
+    '  Seen from the side on the galaxy-boy rail. Its templates are its variants, each a STARTER: theirs to change, never the game.',
+    '',
+    'START design_game({ name, rail: { from: \'galaxy-boy\', variant, locked: true } }): the starter laid, every key they wrote winning',
+    '  vampire-sonata  the castle on the gothic night cube: outer wall, great halls, inner ward, keep (no stomp, no wall kick)',
+    '  vampire-sonata-castle  the castle in maps: the bell tower, the courtyard and the keep, a map each on a megaworld chain',
+    '  xenojager       the planet on its own cube: crust, fungal caverns, flooded depths, magma core (the wall kept); no hero',
+    '  ASK FIRST: their box and its cube (the variant\'s question). A sentence ("a metroidvania castle") finds the variant.',
+    '',
+    'THE WORDS, levels.<id>.metroidvania (box.js readBox):',
+    '  box: [cols, rows] screens · shape: spiral | serpentine | hub · turn: ccw | cw · premise',
+    '  powers.<id>: { opens: double-jump | wall-break | form, name }',
+    '  rings: [{ id, place, finds?, inward?, boss?, key?, towers?, pockets?: [{ gate, holds }] }, …, the core last]',
+    '  theme?  the box\'s look written in (castle, castle-frost, castle-blood, xeno); left out, the cube says it',
+    '  a CASTLE of boxes: { boxes: [{ id, box, shape, rings }], joins: [{ by: bridge | gatehouse, … }], powers } (castle.js);',
+    '  segment: <box id> beside it plays one box a level, the levels a megaworld chain; the ways the doors she crosses by,',
+    '  her gains (powers, relics, felled bosses, rooms walked, nodes) carried map to map by the journey (a flags slice)',
+    '',
+    'THE LOOK, the world\'s style.geocube (or the level\'s): a cube with a box dresses every box that names no theme',
+    '  gothic-night (the castle) · the planet\'s cube (XENOJAGER_CUBE) · any cube: { from: <preset>, box: { library, tint?, rock? } }',
+    '  library castle | xeno; tint 0 (the library\'s colours) to 1 (the cube\'s hues), lightness kept; rock: its boulders;',
+    '  the cube\'s outside.crystals: every druse\'s gem. A cube with no box leaves the greybox.',
+    '',
+    'READ IT: /bible#boxes: the plan (rooms by ring, gates, saves S, bosses B, keys K, powers, pockets), a card a ring, the',
+    '  powers, the laws. The laws are the machine gate; the person plays the box: the eyes gate is theirs.',
   );
 }
 
@@ -1691,6 +1723,9 @@ function railCard(id, variant = null) {
     `THE RAIL: ${S.name} — ${S.like}. A TEMPLATE: the person's game starts from it and is theirs (its name, hero, world`,
     'and story). Say what they keep from it and where their game departs.',
     ...(STYLISH.includes(railOf(id).handles.pole) ? ['Locked, it lays a stylish starter (its kit, its meter, the citadel, a look): what each part is and the words that change it, gameworld-stylish.'] : []),
+    // (a box variant: the box it lays and the geocube that dresses it, metroidvania/cube.js)
+    ...(S.box ? [`Locked, it lays its box: the ${S.box.library} starter on the ${S.box.cube} geocube (the world's style.geocube), its look the cube's; the words, the templates and the look, gameworld-box.`] : []),
+    ...(S.box?.castle === 'segments' ? ['Its castle is laid a map a box: each box (with the connector out of it) its own level, `segment` beside its `metroidvania`, the levels a `megaworld` chain; each way out is the door she crosses by, and the journey (a flags slice) carries what she gains into the next map: powers, relics, felled bosses, the rooms walked, the nodes learned.'] : []),
     '',
     `seen: ${S.seen.length ? seenSays(S.seen) : 'as its page lays it'}${S.seen.length > 1 ? ' (a choice: ask which)' : ''}.   first: ${S.level1}.`,
     ...S.sizes.map((z) => `  ${z.size.padEnd(9)}${z.door}   ${set(z.with)}`),
@@ -1980,6 +2015,7 @@ const CARDS = [
   ['gameworld-villains', 'Supervillains', 'the bosses a superhero street ends on, each a row of the foe shelf\'s idioms (a summoner, a pair, a form it is defeated into, acts that call henchmen), and how to design one', 'a supervillain, a boss that summons, twin bosses, a boss with a second form, the villain at the end, henchmen', villainsCard],
   ['gameworld-track-language', 'The track\'s language', 'how a raced track looks: one design language for its way, kerbs, rail, flags, trees and sky, and the principles a new map starts from', 'design a race track, a new kart map, the look of the track, track theme, the barriers and kerbs, a candy track, decorate the circuit, track materials, make the road more interesting, the sky over the track', trackLanguageCard],
   ['gameworld-hijack-city', 'Hijack City', 'the open city\'s crime game, a starter for a GTA-like: a district, cars to take, missions, the law, shops', 'a gta-like game, grand theft auto, an open world crime game, steal cars, a wanted level, police chases, a crime sandbox, hijack city, a city to drive around and cause trouble', hijackCityCard],
+  ['gameworld-box', 'The box', 'a metroidvania laid as one box of screens spiralling to a core: its words, its templates (a castle, a planet) and the geocube that dresses it', 'a metroidvania, a castle to explore, abilities that unlock the map, backtracking, a metroid-like planet, a castlevania-like game', boxCard],
   ['gameworld-mounts', 'The mounts', 'horses the hero gets on and rides: their coats, where they stand, the ride', 'a horse to ride, mount a horse, ride a horse, horseback, get on my horse, a stable of horses, cavalry, a car to drive, get in a car, a parked car, drive around town', mountsCard],
   ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
   ['gameworld-foes', 'The foes', 'hostile classes on the trails: how each moves, hurts and decides, at any rank, on any body that fits', 'enemies in my level, goombas, monsters to fight, a wolf pack, a boss beast, dire wolves, foot soldiers, a turret, things that chase me, a swarm of rats', foesCard],

@@ -2,10 +2,15 @@
  * THE BOSS DIRECTOR — a boss fight played (lib/graph/boss/: its patterns, its gimmick's moves and phases, a vehicle's
  * parts and states). A body whose rule carries `boss` is directed here, the pilot its target:
  *
+ *   a boss kept to its ROOM (rule.boss.room, [y0, y1, z0, z1]: a castle's boss on its lane) takes no move while the pilot
+ *                 is out of it, its first `first` seconds after the pilot comes in, and stands on its room's floor (the
+ *                 height it stood at, `bossS.floor`) unless a flight takes it up
  *   a human boss  (rule.boss.kind 'human', its mind a boss's: rank and phases, mind.js) fights as its mind fights between
  *                 its moves; every `tempo` seconds of its phase it takes one of the phase's moves by weight, and while the
  *                 move's tell and hazards run it is planted, facing the aim (its rule held for the step), a charge carried
- *                 down its lane; in the move's OPENING it stands winded and takes half again what lands on it. Crossing a
+ *                 down its lane, a FLIGHT (a pattern's `flies`) flown along its path off the floor and down again, under
+ *                 its room's ceiling and its `sky` (metres of air over its floor: a side view's frame) (e.aloft its height
+ *                 over its floor while it flies); in the move's OPENING it stands winded and takes half again what lands on it. Crossing a
  *                 phase (the mind's own crossing, `mindPhase`) runs the phase's arena EVENT: `burn` (fires along the
  *                 arena's rim), `relocate` (to the next of its `perches`), `tear` (a piece of cover gone: of its `cover`
  *                 ([{ id, min, max }]) the one nearest the pilot, its collider and its body), `live` (the floor's grid fired on its own between its moves), `adds`
@@ -42,7 +47,8 @@
  *
  * HAZARDS: each move laid (boss/patterns.js, through E.layPattern) into state.bossHazards; every step each live hazard
  * lands on the bodies of another team inside it, once each, unless the body is invincible (a dive through it), crouched
- * or lying under a `low` one, or behind cover from its origin (a `cover` one: sightBlocked). A hazard that `track`s is
+ * or lying under a `low` one, over one that says how high it reaches (`rise`: its feet higher, a jump clearing it), or
+ * behind cover from its origin (a `cover` one: sightBlocked). A hazard that `track`s is
  * laid again through the pilot until its time, then held. What it takes is its `harm` of the body's health.
  *
  * E.bossHit(state, vehicle, kind, at, dmg) judges a hit a module lands itself. state.bossHazards (the page draws them: their marks from `tm`, their landings), state.bosses ({ <id>: { name, phase,
@@ -70,9 +76,32 @@ export function buildBoss(E) {
     const look = B.look || {};
     S.count = (S.count || 0) + 1;
     const z = (target[2] != null ? target[2] : p[2]) - ((state.pilotId && state.byId[state.pilotId] && state.byId[state.pilotId].rule && state.byId[state.pilotId].rule.eye) || 0);
-    H.forEach((h, k) => state.bossHazards.push({ ...h, z, id: `${e.id}:${S.count}:${k}`, by: e.id, move: id, k, ...(look.hazard ? { colour: look.hazard } : {}), ...(look.tell ? { tellColour: look.tell } : {}) }));
+    // (one that says how high it reaches rises from the boss's own floor: a body already in the air is no ground for it)
+    const zb = p[2] - ((e.rule && e.rule.eye) || 0);
+    H.forEach((h, k) => state.bossHazards.push({ ...h, z: h.rise != null ? zb : z, id: `${e.id}:${S.count}:${k}`, by: e.id, move: id, k, ...(look.hazard ? { colour: look.hazard } : {}), ...(look.tell ? { tellColour: look.tell } : {}) }));
     const end = Math.max(...H.map((h) => h.t1)) - t;
-    S.cur = { id, t0: t, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: P.pattern === 'charge' ? H[0] : null, vent: !!P.vent, scope: !!P.scope };
+    // (when it lands, its first hazard's landing, and its pattern: the page's wind-up and strike, boss-view)
+    S.cur = { id, t0: t, land: Math.min(...H.map((h) => h.t0)), pattern: P.pattern || null, frame, aim: Math.atan2(target[1] - p[1], target[0] - p[0]), start: [p[0], p[1]], openAt: t + Math.max(P.open.at, end), openEnd: t + Math.max(P.open.at, end) + P.open.for, charge: !P.flies && (P.pattern === 'charge' || P.carries) ? H[0] : null, vent: !!P.vent, scope: !!P.scope, fly: P.flies ? flight(e, P.flies, target) : null };
+  }
+
+  // A FLIGHT (a pattern's `flies`: [[s, x, z], …], boss/patterns.js): its path laid in the move's frame, from where the boss
+  // stands down the aim, over its floor; held under its room's ceiling (`room`'s top, the boss's height under it) and in
+  // its SKY (`sky`: the metres of air over its floor it may fly in, a side view's frame) by lowering the whole path, never
+  // cutting it
+  function flight(e, keys, target) {
+    const p = e.transform.pos, B = e.rule.boss, dx = target[0] - p[0], dy = target[1] - p[1], d = Math.hypot(dx, dy) || 1;
+    const z0 = p[2] - ((e.rule && e.rule.eye) || 0), H = (e.rule && e.rule.collideHeight) || 2, top = Math.max(...keys.map((q) => q[2]));
+    const room = Math.min(B.room ? Math.max(0, B.room[3] - z0 - H - 0.2) : Infinity, Number.isFinite(B.sky) ? Math.max(0, B.sky) : Infinity), k = top > room ? room / top : 1;
+    return { o: [p[0], p[1]], f: [dx / d, dy / d], z0, eye: p[2] - z0, top: top * k, keys: keys.map((q) => [q[0], q[1], q[2] * k]) };
+  }
+  // where a flight has the boss at u seconds into its move: a Catmull-Rom through its keys, never under its floor nor over
+  // its path's top (the curve's overshoot)
+  function flownAt(F, u) {
+    const K = F.keys; if (u >= K[K.length - 1][0]) return [K[K.length - 1][1], K[K.length - 1][2]];
+    let i = 0; while (i < K.length - 2 && u > K[i + 1][0]) i++;
+    const P0 = K[Math.max(0, i - 1)], P1 = K[i], P2 = K[i + 1], P3 = K[Math.min(K.length - 1, i + 2)], s = Math.max(0, Math.min(1, (u - P1[0]) / (P2[0] - P1[0] || 1)));
+    const cr = (j) => 0.5 * (2 * P1[j] + (-P0[j] + P2[j]) * s + (2 * P0[j] - 5 * P1[j] + 4 * P2[j] - P3[j]) * s * s + (-P0[j] + 3 * P1[j] - 3 * P2[j] + P3[j]) * s * s * s);
+    return [cr(1), Math.max(0, Math.min(F.top, cr(2)))];
   }
 
   // a phase's arena event, as the crossing runs it
@@ -541,6 +570,19 @@ export function buildBoss(E) {
           const h = S.cur.charge, u = Math.max(0, Math.min(1, (t - h.t0) / (h.t1 - h.t0)));
           if (t >= h.t0) { e.transform.pos[0] = h.a[0] + (h.b[0] - h.a[0]) * u; e.transform.pos[1] = h.a[1] + (h.b[1] - h.a[1]) * u; }
         }
+        if (S.cur && S.cur.fly) {
+          // (a flight flies it along its path through the move, its fall held off while it is aloft; `aloft` its height over its floor)
+          const F = S.cur.fly, [x, z] = flownAt(F, t - S.cur.t0);
+          e.transform.pos[0] = F.o[0] + F.f[0] * x; e.transform.pos[1] = F.o[1] + F.f[1] * x; e.transform.pos[2] = F.z0 + F.eye + z;
+          if (e.vel) e.vel[2] = 0;
+          e.aloft = z > 0.05 ? Math.round(z * 1000) / 1000 : 0;
+        } else if (e.aloft) e.aloft = 0;
+        // (a boss kept to its ROOM stands on its room's floor, the height it stood at: never settled up onto a ledge or a
+        // climb's ledges over it, which a body as tall as their spacing reaches from its head down; a flight's air its own)
+        if (B.room && !(S.cur && S.cur.fly)) {
+          if (S.floor == null) S.floor = e.transform.pos[2];
+          else if (e.transform.pos[2] > S.floor + 0.25) { e.transform.pos[2] = S.floor; if (e.vel) e.vel[2] = 0; }
+        }
       } else {
         // VEHICLE: what hit it, judged by part (its health given back first); the mines under it
         if (e.body.hp < H0) {
@@ -567,12 +609,17 @@ export function buildBoss(E) {
       const table = B.kind === 'human' ? (B.phases[S.phase] || B.phases[0]) : (B.states[S.state] || {});
       if (S.cur && t >= S.cur.openEnd) { S.cur = null; S.next = t + (table.tempo || 2); }
       const onRun = B.kind === 'vehicle' && S.run;
-      if (!S.cur && !quiet && pilot && alive(pilot) && t >= S.next && !(e.phaseShiftT > 0) && (!onRun || !S.run.strafed)) {
+      // (a boss kept to its ROOM, `room` [y0, y1, z0, z1] on its lane: no move while the pilot is out of it, its first
+      // `first` seconds after the pilot comes in)
+      const pp = pilot && pilot.transform.pos, pz = pp && pp[2] - ((pilot.rule && pilot.rule.eye) || 0);
+      const inRoom = !B.room || !!(pp && pp[1] >= B.room[0] && pp[1] <= B.room[1] && pz >= B.room[2] - 0.1 && pz <= B.room[3]);
+      if (!inRoom && !S.cur) S.next = Math.max(S.next, t + (B.first ?? 2));
+      if (inRoom && !S.cur && !quiet && pilot && alive(pilot) && t >= S.next && !(e.phaseShiftT > 0) && (!onRun || !S.run.strafed)) {
         const id = pick(table.moves, dice(B.seed || 1, S.count + 1));
         if (id) { lay(state, e, S, id, pilot.transform.pos, t); if (onRun) S.run.strafed = true; }
       }
       // (a live floor fires its grid on its own between the moves)
-      if (S.live && B.moves['live-floor'] && pilot && !quiet && !S.cur && (S.liveNext == null || t >= S.liveNext)) { S.liveNext = t + 5; const keep = S.cur; lay(state, e, S, 'live-floor', pilot.transform.pos, t); S.cur = keep; }
+      if (inRoom && S.live && B.moves['live-floor'] && pilot && !quiet && !S.cur && (S.liveNext == null || t >= S.liveNext)) { S.liveNext = t + 5; const keep = S.cur; lay(state, e, S, 'live-floor', pilot.transform.pos, t); S.cur = keep; }
       // tracking hazards follow the pilot until they hold
       if (S.cur && pilot) for (const h of state.bossHazards) if (h.by === e.id && h.track != null && t < h.track && h.t0 > t) {
         const P = B.moves[h.move], R = E.layPattern(P, ...S.cur.frame(pilot.transform.pos), S.cur.t0)[h.k];
@@ -590,6 +637,8 @@ export function buildBoss(E) {
         if ((h.hit || (h.hit = {}))[b.id] || !E.hazardHit(h, q[0], q[1], t)) continue;
         if (b.invincible) continue;
         if (h.low && (b.crouched || b.prone)) continue;
+        // (over it: a hazard that reaches `rise` over its ground misses a body whose feet are higher, a jump clearing it)
+        if (h.rise != null && q[2] - ((b.rule && b.rule.eye) || 0) > (h.z || 0) + h.rise) continue;
         if (h.cover && h.o && state.colliders && E.sightBlocked([h.o[0], h.o[1], (by ? by.transform.pos[2] : q[2]) + 1.3], [q[0], q[1], q[2] + 1], state.colliders)) continue;
         h.hit[b.id] = true;
         const max = b.hpMax || b.body.hpMax || 100;

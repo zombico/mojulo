@@ -17,6 +17,7 @@ const calls = (cls, [call, alert, hurt, death], { kind = ANIMAL, long = 1 } = {}
 }));
 const M = { kind: MONSTER };
 
+// (the ogre's hurt asked again in other words, takes 3 and 4: its first two said a word and are left out)
 export const CARDS = [
   ...calls('big-cat', ['a lion roaring, deep and powerful', 'a big cat snarling and growling as it charges', 'a big cat yowling in pain, a short grunt', 'a big cat\'s dying groan, a fading rumble'], { long: 1.3 }),
   ...calls('house-cat', ['a house cat meowing', 'a cat hissing and spitting', 'a cat yowling in pain', 'a cat\'s weak fading mewl']),
@@ -64,6 +65,9 @@ export const CARDS = [
   ...calls('golem', ['a stone golem grinding and rumbling', 'a stone golem roaring with grinding rock as it attacks', 'stone cracking and a golem groaning', 'a stone golem crumbling apart, rocks tumbling'], { ...M, long: 1.2 }),
   ...calls('wisp', ['a wisp humming with an eerie airy shimmer', 'a spirit wailing with a ghostly whoosh', 'a spirit\'s sharp eerie shriek', 'a spirit fading away with a ghostly sigh'], M),
   ...calls('undead', ['bones rattling and a low hollow groan', 'a zombie snarling and groaning as it lunges', 'bones cracking and a hollow groan', 'bones clattering to the ground in a heap'], M),
+  // (the castle's peoples, sfx-shelf/animal-sounds.js PEOPLE_VOICE: an ogre's bellow, a demon's snarl)
+  ...calls('ogre', ['a huge ogre grunting and breathing heavily, a deep rumbling snort', 'a huge ogre bellowing a deep furious roar', 'a huge brute beast\'s deep pained snort and growl', 'a huge ogre collapsing with a long deep dying groan'], M),
+  ...calls('demon', ['a demon hissing softly, a rasping inhuman breath', 'a demon snarling, a rasping shrieking hiss as it lunges', 'a demon shrieking in pain, a sharp rasping hiss', 'a demon dissolving with a fading inhuman shriek and a sizzle'], M),
   // what moves without a voice
   { id: 'an-wings-flutter', shelf: 'wings-flutter', role: 'one-shot', prompt: `small bird wings fluttering as it takes off, ${ANIMAL}`, seconds: 1, influence: 0.6, loop: false, takes: 2, tags: ['animal', 'move'] },
   { id: 'an-wings-heavy', shelf: 'wings-heavy', role: 'one-shot', prompt: `huge wings beating heavily, a few powerful flaps, ${ANIMAL}`, seconds: 2, influence: 0.6, loop: false, takes: 2, tags: ['animal', 'move'] },
@@ -71,4 +75,4 @@ export const CARDS = [
   { id: 'an-fish-splash', shelf: 'fish-splash', role: 'one-shot', prompt: `a fish jumping and splashing at the water's surface, ${ANIMAL}`, seconds: 1.2, influence: 0.6, loop: false, takes: 2, tags: ['animal', 'move'] },
   { id: 'an-whale-breach', shelf: 'whale-breach', role: 'one-shot', prompt: `a whale breaching and crashing back into the sea, a huge splash, ${ANIMAL}`, seconds: 3, influence: 0.6, loop: false, takes: 2, tags: ['animal', 'move'] },
   { id: 'an-insect-swarm', shelf: 'insect-swarm', role: 'loop', prompt: `a swarm of insects buzzing, constant and steady, ${ANIMAL}`, seconds: 8, influence: 0.6, loop: true, takes: 2, tags: ['animal', 'move'] },
-];
+].map((c) => (c.id === 'an-ogre-hurt' ? { ...c, takes: 4 } : c));

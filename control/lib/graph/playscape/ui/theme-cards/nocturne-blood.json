@@ -1,0 +1,21 @@
+{
+  "id": "nocturne-blood",
+  "name": "Nocturne under a Blood Moon",
+  "about": "Nocturne re-keyed for a castle under a blood moon: brass on a black-red night, the lines dried blood, magic a cold violet so it stands apart from health.",
+  "family": "grave",
+  "tags": ["metroidvania", "gothic", "horror", "castle"],
+  "author": "mojulo",
+  "from": "nocturne",
+  "tokens": {
+    "ink": "#f4ded0",
+    "panel": "#140508",
+    "line": "#7a2030",
+    "accent": "#e09a5a",
+    "accent2": "#9a7ae0",
+    "paper": "#1e080c",
+    "hp": "#e0303c",
+    "mp": "#8a6ae0",
+    "boss": "#ff5a3a",
+    "harm": "#ff6a5a"
+  }
+}

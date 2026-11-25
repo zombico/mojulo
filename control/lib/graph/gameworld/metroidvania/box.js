@@ -1,0 +1,385 @@
+/**
+ * THE SPIRALLING BOX (docs/metroidvania-map.md): a metroidvania's map as one BOX of screens, entered from the left, its
+ * way spiralling inward ring by ring to a CORE. Written as words, read and refused with teaching, laid on a grid of
+ * screen cells (a cell one screen, as a metroidvania's map squares are).
+ *
+ * The walk of a ring, turning `ccw` (the default): from its corner at the bottom left, along the floor, up the far
+ * side, back along the top, down the near side, ending beside where it began; a gated STEP then into the ring inside it,
+ * whose walk starts in its own bottom-left corner. `cw` climbs the near side first. The rings are the walled-core
+ * dungeon's layers (wcd/wcd.js: deeper at every gated door, the core the deepest) and the megaworld's mandala
+ * (megaworld.js) folded into one continuous map, so every ring lies against the one outside it: that is what a power
+ * found inside spends, opening SHORTCUTS back out and POCKETS in rooms already walked.
+ *
+ *   metroidvania: { premise?, box: [cols, rows], shape?, turn?, theme?, powers, rings: [RING, …, CORE] }
+ *     maps      true: a map room in each region but the core (the first room past its gate holding nothing else), a
+ *               lectern showing the region's tiles on the explored map (explored.js)
+ *     shape     how its walk fills it (shapes.js): `spiral` (unsaid: below), `serpentine` (row by row, climbing a row a
+ *               turn: its rings bands of rows, lowest first), `hub` (a centre column, an approach climbed to it, wings out
+ *               and back from it: its rings the approach, the hub, then its wings); the words below are a spiral's, and
+ *               every shape's region takes a ring's words
+ *     box       [cols, rows] in screens; each ring takes a cell off every side, so a ring needs three each way
+ *     turn      'ccw' (along the floor first) | 'cw' (up the near side first)
+ *     theme     what it is made of and how it is lit, ring by ring (themes.js: `castle`); unsaid, greybox
+ *     powers    { <id>: { opens: <gate>, name? } }: what the box hands the hero, each opening one gate kind (gates.js)
+ *     RING      { id, place, finds?, boss?, key?, inward, pockets? }   outermost first
+ *       finds   a power's id: its boss's prize where it has one, else a relic room in its far top corner
+ *       boss    the boss's name: it stands in the ring's last corner, its way on sealed until it falls
+ *       key     true: a key in the ring's second corner, its lock on the top leg's middle door
+ *       inward  the gate on the step into the next ring (gates.js; never a boss's: a boss seals its own room)
+ *       pockets [{ gate, holds }]: an alcove in one of its corridors behind a gate (or a `secret` wall, found by blows),
+ *               holding a prize (a power found
+ *               later opens it: the box walked again)
+ *       towers  true: its legs up and down two screens wide, a tower each (its corners as wide), the rings inside it a
+ *               column further in; its shafts climbed across both screens (climbs.js)
+ *     CORE      the last: { id, place, boss? }: what is left in the middle, its halls walked to the throne
+ *
+ *   readBox(v) → the words as read (each ring's rect in cells); throws, teaching
+ *   layBox(v)  → {
+ *     box, turn, premise?, entry: { cell, side },
+ *     rings:  [{ i, id, place, rect: [c0, c1, r0, r1], core?, legs: [{ dir, axis, cells }] }],
+ *     rooms:  [{ id, ring, i, rect: [c, r, w, h], kind, role, walk, save?, boss?, finds?, key?, lock?, pockets }]
+ *             kind turn | corridor | shaft | hall; role gate | turn | relic | boss | corridor | shaft | antechamber | throne
+ *     doors:  [{ id, a, b, cells: [[c, r], [c, r]], axis: 'h' | 'v', kind, gate?, oneWay? }]
+ *             kind path (the walk), step (into the ring inside), loop (the ring's last room back to its gate: a drop),
+ *             shortcut (a ring's floor dropped out to the ring outside, its top climbed out to it), entry
+ *     walk:   the room ids in the order the spiral walks them; cells: how many cells the rooms take, of cols × rows
+ *   }
+ *   CELL_RUN, CELL_SHAFT, TURNS
+ *
+ * Pure, no dice: the box is laid from its words alone.
+ */
+import { GATES, GATE_IDS } from './gates.js';
+import { BOX_THEMES, BOX_THEME_IDS } from './themes.js';
+import { SHAPES, SHAPE_IDS, shapeRects, laySerpentine, layHub } from './shapes.js';
+
+export const TURNS = Object.freeze({ ccw: 'along the floor first, up the far side, back along the top, down the near side', cw: 'up the near side first, along the top, down the far side, back along the floor' });
+/** the most cells a corridor runs, and a shaft climbs, before it is two rooms */
+export const CELL_RUN = 3;
+export const CELL_SHAFT = 3;
+/** a core's halls: as wide as a corridor, the core's height */
+const HALL = 3;
+
+const ID = /^[a-z][a-z0-9-]{0,31}$/;
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const word = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 80;
+const fail = (m) => { throw new Error(`metroidvania: ${m}`); };
+const BOX_KEYS = ['premise', 'box', 'shape', 'turn', 'theme', 'maps', 'powers', 'rings'];
+const RING_KEYS = ['id', 'place', 'finds', 'boss', 'key', 'inward', 'pockets', 'towers', 'look', 'foes'];
+const CORE_KEYS = ['id', 'place', 'boss', 'look', 'foes'];
+
+/** The words as read: throws, teaching, on any it does not know. */
+export function readBox(v) {
+  if (!isObj(v)) fail('the map is { box: [cols, rows], powers, rings: [ … ] }: one box of screens, its rings spiralling in');
+  for (const k of Object.keys(v)) if (!BOX_KEYS.includes(k)) fail(`${k} is not the map's word (${BOX_KEYS.join(', ')})`);
+  const out = {};
+  if (v.premise !== undefined) { if (!(typeof v.premise === 'string' && v.premise.trim() && v.premise.length <= 240)) fail('premise is one sentence: who storms this place, and toward what'); out.premise = v.premise.trim(); }
+  if (!(Array.isArray(v.box) && v.box.length === 2 && v.box.every((n) => Number.isInteger(n) && n >= 3))) fail('box is [cols, rows] in screens, each a whole number, three or more (a ring needs a middle)');
+  const [cols, rows] = v.box;
+  out.box = [cols, rows];
+  // (its MAP ROOMS, `maps: true`: a lectern in each region showing its tiles on the explored map, explored.js)
+  if (v.maps !== undefined) { if (typeof v.maps !== 'boolean') fail('maps is true (a map room in each region: its tiles shown on the explored map) or false'); out.maps = v.maps; }
+  if (v.theme !== undefined) { if (!BOX_THEMES[v.theme]) fail(`theme is ${BOX_THEME_IDS.join(' | ')} (what the box is made of and how it is lit: themes.js)`); out.theme = v.theme; }
+  // (its SHAPE, shapes.js: how its walk fills it; a spiral unsaid)
+  out.shape = v.shape ?? 'spiral';
+  if (!SHAPES[out.shape]) fail(`shape is ${SHAPE_IDS.map((k) => `${k} (${SHAPES[k].read})`).join('; ')}`);
+  if (v.turn !== undefined && out.shape !== 'spiral') fail(`turn is a spiral's word (which way its rings are walked); a ${out.shape} turns as its shape does`);
+  out.turn = v.turn ?? 'ccw';
+  if (!TURNS[out.turn]) fail(`turn is ${Object.entries(TURNS).map(([k, s]) => `${k} (${s})`).join('; ')}`);
+  // the powers: each opens one gate kind that a power opens
+  const powers = v.powers ?? {};
+  if (!isObj(powers)) fail('powers is { <id>: { opens, name? } }: what the box hands the hero');
+  out.powers = {};
+  for (const [id, p] of Object.entries(powers)) {
+    if (!ID.test(id)) fail(`powers.${id}: a power's id is a short lower-case name`);
+    if (!isObj(p)) fail(`powers.${id} is { opens, name? }`);
+    for (const k of Object.keys(p)) if (!['opens', 'name'].includes(k)) fail(`powers.${id}.${k} is not a power's word (opens, name)`);
+    if (!(GATES[p.opens] && GATES[p.opens].by === 'power')) fail(`powers.${id}.opens is the gate it opens: ${GATE_IDS.filter((g) => GATES[g].by === 'power').join(' | ')}`);
+    out.powers[id] = { opens: p.opens, ...(p.name !== undefined ? { name: word(p.name) ? p.name.trim() : fail(`powers.${id}.name is words`) } : {}) };
+  }
+  const opened = new Set(Object.values(out.powers).map((p) => p.opens));
+  // the rings: as many as the box has depth for, the last the core
+  if (!(Array.isArray(v.rings) && v.rings.length >= 2)) fail(`rings is a list of its regions in walk order (a ${out.shape}'s: ${SHAPES[out.shape].regions}): at least two, the last the core`);
+  const K = v.rings.length - 1;
+  // (a ring with TOWERS takes two columns off each side: its legs up and down two screens wide)
+  const side = (i) => v.rings.slice(0, i).reduce((a, R) => a + (isObj(R) && R.towers === true ? 2 : 1), 0);
+  if (out.shape !== 'spiral') shapeRects(out.shape, out.box, v.rings.length);
+  else if (v.rings.some((R) => isObj(R) && R.towers === true) && cols - 2 * side(K) < 1 && cols - 2 * (K - 1) >= 3 && rows - 2 * (K - 1) >= 3) fail(`rings: a ${cols} × ${rows} box is too narrow for its rings and their towers (each ring takes a column off each side, a ring with towers two, and the core needs one)`);
+  else if (cols - 2 * (K - 1) < 3 || rows - 2 * (K - 1) < 3) fail(`rings: a ${cols} × ${rows} box holds ${Math.max(0, Math.min(Math.floor((cols - 3) / 2), Math.floor((rows - 3) / 2)) + 1)} rings round a core, not ${K} (each takes a cell off every side and needs three each way)`);
+  const ids = new Set(), found = new Map();
+  out.rings = v.rings.map((R, i) => {
+    const at = `rings[${i}]`, core = i === K;
+    if (!isObj(R)) fail(`${at} is { id, place, … }`);
+    for (const k of Object.keys(R)) if (!(core ? CORE_KEYS : RING_KEYS).includes(k)) fail(`${at}.${k} is not ${core ? 'the core\'s' : 'a ring\'s'} word (${(core ? CORE_KEYS : RING_KEYS).join(', ')})${core && RING_KEYS.includes(k) ? ': the core is walked to its throne, never out of' : ''}`);
+    if (!ID.test(R.id ?? '')) fail(`${at}.id is a short lower-case name`);
+    if (ids.has(R.id)) fail(`${at}.id '${R.id}' is used twice`);
+    ids.add(R.id);
+    if (!word(R.place)) fail(`${at}.place is the place it is, a word (the outer wall, the great halls)`);
+    const r = { i, id: R.id, place: R.place.trim(), rect: [side(i), cols - 1 - side(i), i, rows - 1 - i], ...(core ? { core: true } : {}) };
+    if (R.towers !== undefined) {
+      if (R.towers !== true) fail(`${at}.towers is true: its legs up and down two screens wide, a tower each`);
+      if (core || out.shape !== 'spiral') fail(`${at}.towers: a spiral ring's word (its legs up and down two screens wide); ${core ? 'the core is halls' : `a ${out.shape} lays its own shafts`}`);
+      r.towers = true;
+    }
+    if (R.boss !== undefined) { if (!word(R.boss)) fail(`${at}.boss is the boss's name`); if (out.shape === 'hub' && i === 1) fail(`${at}.boss: the hub is walked through to every wing, never fought in (a wing holds a boss)`); r.boss = R.boss.trim(); }
+    // (its LOOK, where it says: the theme's look by its place in the theme's looks, else its place in the box's rings')
+    if (R.look !== undefined) {
+      const n = out.theme ? BOX_THEMES[out.theme].looks.length : 0;
+      if (!(Number.isInteger(R.look) && R.look >= 0 && (!n || R.look < n))) fail(`${at}.look is a look of the theme's, by its place (0 to ${n ? n - 1 : 'its last'}${out.theme ? `: ${BOX_THEMES[out.theme].looks.map((x) => x.place).join(', ')}` : ''})`);
+      r.look = R.look;
+    }
+    // (who HAUNTS it, `foes`: the level's bestiary ids its rooms stand, cast.js; read against the bestiary by the level)
+    if (R.foes !== undefined) {
+      if (!(Array.isArray(R.foes) && R.foes.length && R.foes.every((f) => typeof f === 'string' && f))) fail(`${at}.foes is a list of the bestiary's ids: who haunts its rooms`);
+      r.foes = [...R.foes];
+    }
+    if (core) return r;
+    if (R.finds !== undefined) {
+      if (!out.powers[R.finds]) fail(`${at}.finds is a power's id (${Object.keys(out.powers).join(', ') || 'none: say them in powers'})`);
+      if (found.has(R.finds)) fail(`${at}.finds: '${R.finds}' is found in ${found.get(R.finds)} already`);
+      found.set(R.finds, R.id);
+      r.finds = R.finds;
+    }
+    if (R.key !== undefined) { if (R.key !== true) fail(`${at}.key is true: a key in the ring, its lock on its top leg`); r.key = true; }
+    // (a hub's own region may leave its first wing open: the hub is where the walk chooses)
+    if (!(out.shape === 'hub' && i === 1 && R.inward === undefined)) {
+    if (!(GATES[R.inward] && R.inward !== 'boss' && GATES[R.inward].by !== 'blows')) fail(`${at}.inward is the gate on the step into the ring inside: ${GATE_IDS.filter((g) => g !== 'boss' && GATES[g].by !== 'blows').join(' | ')} (a boss seals its own room; a secret hides a pocket)`);
+    if (GATES[R.inward].by === 'power' && !opened.has(R.inward)) fail(`${at}.inward '${R.inward}' is opened by no power (say one in powers)`);
+    if (R.inward === 'key' && !r.key) fail(`${at}.inward is a key's: say key: true, so the ring holds one`);
+    r.inward = R.inward;
+    }
+    if (R.pockets !== undefined) {
+      if (!Array.isArray(R.pockets)) fail(`${at}.pockets is [{ gate, holds }]`);
+      if (out.shape === 'hub' && i < 2) fail(`${at}.pockets: a hub's ${i ? 'hub' : 'approach'} is climbed in shafts, and a pocket is an alcove off a corridor: put it in a wing`);
+      r.pockets = R.pockets.map((p, k) => {
+        if (!isObj(p) || Object.keys(p).some((x) => !['gate', 'holds'].includes(x))) fail(`${at}.pockets[${k}] is { gate, holds }`);
+        if (!(GATES[p.gate] && ((GATES[p.gate].by === 'power' && opened.has(p.gate)) || GATES[p.gate].by === 'blows'))) fail(`${at}.pockets[${k}].gate is a gate a power opens (${[...opened].join(' | ') || 'none said'}), or 'secret' (a wall like the others, broken by blows)`);
+        if (!word(p.holds)) fail(`${at}.pockets[${k}].holds is the prize, a word (a heart, a relic)`);
+        return { gate: p.gate, holds: p.holds.trim() };
+      });
+    }
+    return r;
+  });
+  return out;
+}
+
+/** a ring's legs, in its walk: [{ dir, axis, cells }] — the corners their own legs of one cell */
+function legsOf([c0, c1, r0, r1], turn, t = 1) {
+  const span = (a, b) => { const o = []; for (let k = a; a <= b ? k <= b : k >= b; k += a <= b ? 1 : -1) o.push(k); return o; };
+  // (a leg up or down `t` columns wide, its cells row by row, each row's from the column it is entered by; a corner as
+  // wide, its cells in the order the walk crosses it)
+  const H = (r, a, b, dir) => ({ dir, axis: 'h', cells: span(a, b).map((c) => [c, r]) });
+  const V = (cs, a, b, dir) => ({ dir, axis: 'v', width: t, cells: span(a, b).flatMap((r) => cs.map((c) => [c, r])) });
+  const corner = (cs, r) => ({ dir: 'corner', axis: null, cells: cs.map((c) => [c, r]) });
+  const L0 = span(c0, c0 + t - 1), R0 = span(c1 - t + 1, c1), rev = (a) => [...a].reverse();
+  if (turn === 'ccw') return [corner(L0, r0), H(r0, c0 + t, c1 - t, 'right'), corner(R0, r0), V(R0, r0 + 1, r1 - 1, 'up'), corner(rev(R0), r1), H(r1, c1 - t, c0 + t, 'left'), corner(rev(L0), r1), V(L0, r1 - 1, r0 + 1, 'down')];
+  return [corner(L0, r0), V(L0, r0 + 1, r1 - 1, 'up'), corner(L0, r1), H(r1, c0 + t, c1 - t, 'right'), corner(R0, r1), V(rev(R0), r1 - 1, r0 + 1, 'down'), corner(rev(R0), r0), H(r0, c1 - t, c0 + t, 'left')];
+}
+/** a run of n cells cut into pieces of at most `most`, as even as they come, the longer first */
+function pieces(n, most) {
+  const k = Math.ceil(n / most), base = Math.floor(n / k), extra = n % k;
+  return Array.from({ length: k }, (_, i) => base + (i < extra ? 1 : 0));
+}
+const rectOf = (cells) => {
+  const cs = cells.map((c) => c[0]), rs = cells.map((c) => c[1]);
+  const c = Math.min(...cs), r = Math.min(...rs);
+  return [c, r, Math.max(...cs) - c + 1, Math.max(...rs) - r + 1];
+};
+const touches = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+
+/** the MAP ROOMS: in each region but the core, the first room past its gate that holds nothing else (no save, key, boss
+ * or find), a lectern in it showing the region's tiles */
+function placeMaps(M, rooms) {
+  for (let k = 0; k < M.rings.length; k++) {
+    if (M.rings[k].core) continue;
+    const at = rooms.filter((r) => r.ring === k).slice(1).find((r) => !r.save && !r.key && !r.boss && !r.finds && !r.lock && r.role !== 'throne');
+    if (at) at.mapRoom = true;
+  }
+}
+/** a laid box's rings, each with the look its words name */
+const withLooks = (rings, M) => rings.map((r, k) => ({ ...r, ...(M.rings[k].look !== undefined ? { look: M.rings[k].look } : {}), ...(M.rings[k].foes ? { foes: [...M.rings[k].foes] } : {}) }));
+
+/** The box laid: rings, rooms, doors and the walk. */
+/**
+ * A BOSS'S CHAMBER is a plain one: a room the fight is had in on its floor, never a shaft, no door above its floor to be
+ * climbed to (a door on an upper storey, a hole in its ceiling climbed up through); a hole in its floor is climbed in the
+ * room below and grated shut through the fight. A boss whose
+ * room is not is moved, with its prize and its seal, to the plain room of its region nearest it in the walk, free of
+ * anything else (a save, a key, a lock, a prize, a pocket, a gate corner, a map); where none is, it stays.
+ */
+export function climbedIn(r, doors) {
+  const low = Math.min(...r.cells.map((c) => c[1])), has = (c) => r.cells.some((x) => x[0] === c[0] && x[1] === c[1]);
+  return doors.some((d) => {
+    if (d.a !== r.id && d.b !== r.id) return false;
+    const mine = d.cells.find(has), other = d.cells.find((c) => !has(c));
+    if (!mine || !other) return false;
+    if (mine[1] === other[1]) return mine[1] > low;   // (a door on an upper storey of the room)
+    if (other[1] < mine[1]) return false;              // (a hole in its floor: climbed in the room below, grated shut through a fight)
+    return !(d.oneWay && d.a !== r.id);                // (a hole in its ceiling climbed up through; a drop in is not)
+  });
+}
+export const plainRoom = (r, doors) => r.kind !== 'shaft' && !climbedIn(r, doors);
+function plainBosses(rooms, doors, walk) {
+  const at = new Map(walk.map((id, k) => [id, k]));
+  for (const B of rooms.filter((r) => r.boss && r.role === 'boss')) {
+    if (plainRoom(B, doors)) continue;
+    const free = (r) => r !== B && r.ring === B.ring && !r.boss && !r.save && !r.key && !r.lock && !r.finds && !r.mapRoom && !(r.pockets?.length) && r.role !== 'gate' && r.role !== 'throne' && r.role !== 'relic' && plainRoom(r, doors);
+    const out = (r) => doors.find((d) => d.a === r.id && (d.kind === 'path' || d.kind === 'return') && !d.gate);
+    const to = rooms.filter((r) => free(r) && out(r)).sort((x, y) => Math.abs(at.get(x.id) - at.get(B.id)) - Math.abs(at.get(y.id) - at.get(B.id)) || at.get(y.id) - at.get(x.id))[0];
+    if (!to) continue;
+    // (its seal moved with it: the door out of its new room the walk takes)
+    for (const d of doors) if (d.a === B.id && d.gate === 'boss') delete d.gate;
+    out(to).gate = 'boss';
+    Object.assign(to, { role: 'boss', boss: B.boss, ...(B.finds ? { finds: B.finds } : {}) });
+    B.role = B.kind === 'turn' ? 'turn' : B.kind; delete B.boss; delete B.finds;
+  }
+}
+
+export function layBox(v) {
+  const M = readBox(v), [cols, rows] = M.box, K = M.rings.length - 1;
+  const rooms = [], doors = [], walk = [], rings = [];
+  const door = (a, b, kind, extra = {}) => {
+    const A = rooms.find((r) => r.id === a), B = rooms.find((r) => r.id === b);
+    // (where the walk crosses: the pair given where its cells touch, else one with A's last cell, else B's first, else
+    // the lowest: a door on the floor)
+    const all = []; for (const x of A.cells) for (const y of B.cells) if (touches(x, y)) all.push([x, y]);
+    const same = (p, q) => p[0] === q[0] && p[1] === q[1];
+    const pair = (extra.cells && touches(...extra.cells) ? extra.cells : null) ?? all.find((p) => same(p[0], A.cells.at(-1))) ?? all.find((p) => same(p[1], B.cells[0])) ?? all.sort((p, q) => Math.min(p[0][1], p[1][1]) - Math.min(q[0][1], q[1][1]))[0];
+    if (!pair) throw new Error(`metroidvania: no wall between ${a} and ${b} (a door joins rooms side by side)`);
+    const { cells: _c, ...rest } = extra;
+    doors.push({ id: `d${doors.length}`, a, b, cells: pair, axis: pair[0][1] === pair[1][1] ? 'h' : 'v', kind, ...rest });
+  };
+  const room = (ring, cells, kind, role) => {
+    const R = { id: `${M.rings[ring].id}-${rooms.filter((x) => x.ring === ring).length}`, ring, i: rooms.length, rect: rectOf(cells), kind, role, walk: walk.length, cells, pockets: [] };
+    rooms.push(R); walk.push(R.id);
+    return R;
+  };
+
+  if (M.shape !== 'spiral') return layShaped(M, { rooms, doors, walk, door, room });
+  for (let k = 0; k <= K; k++) {
+    const R = M.rings[k], ring = { i: k, id: R.id, place: R.place, rect: R.rect, ...(R.core ? { core: true } : {}) };
+    rings.push(ring);
+    const [c0, c1, r0, r1] = R.rect, first = rooms.length;
+    if (R.core) {
+      // THE CORE: what is left in the middle, cut into halls the core's height, walked toward the far side to the throne
+      const w = c1 - c0 + 1, cut = pieces(w, HALL);
+      let c = c0;
+      cut.forEach((n, j) => {
+        const cells = []; for (let x = c; x < c + n; x++) for (let y = r0; y <= r1; y++) cells.push([x, y]);
+        const last = j === cut.length - 1;
+        room(k, cells, 'hall', last ? 'throne' : 'antechamber');
+        c += n;
+      });
+      if (R.boss) rooms.at(-1).boss = R.boss;
+    } else {
+      // A RING: its legs in its walk, each corner a room (a turn), each leg cut into corridors or shafts
+      ring.legs = legsOf(R.rect, M.turn, R.towers ? 2 : 1);
+      let corner = 0;
+      for (const L of ring.legs) {
+        if (L.dir === 'corner') { room(k, L.cells, 'turn', corner === 0 ? 'gate' : 'turn'); corner++; continue; }
+        // (a leg cut by its length: a corridor by its cells, a shaft by its rows, a tower's two cells a row)
+        const w = L.width ?? 1;
+        let at = 0;
+        for (const n of pieces(L.cells.length / w, L.axis === 'h' ? CELL_RUN : CELL_SHAFT)) { room(k, L.cells.slice(at * w, (at + n) * w), L.axis === 'h' ? 'corridor' : 'shaft', L.axis === 'h' ? 'corridor' : 'shaft'); at += n; }
+      }
+      const mine = rooms.slice(first), corners = mine.filter((x) => x.kind === 'turn');
+      // the gate corner and the far top corner are save rooms
+      corners[0].save = true; corners[2].save = true;
+      // a boss stands in the ring's last corner, its prize the ring's power; else the power in the far top corner, a relic room
+      if (R.boss) { corners[3].role = 'boss'; corners[3].boss = R.boss; if (R.finds) corners[3].finds = R.finds; }
+      else if (R.finds) { corners[2].role = 'relic'; corners[2].finds = R.finds; }
+      if (R.key) corners[1].key = true;
+      // pockets: in the ring's corridors, spread along them
+      const corridors = mine.filter((x) => x.kind === 'corridor');
+      (R.pockets ?? []).forEach((p, j) => { const at = corridors[Math.floor(((j + 0.5) * corridors.length) / R.pockets.length)]; at.pockets.push({ ...p }); });
+    }
+    // the walk's doors inside the ring, one between each room and the next
+    const mine = rooms.slice(first);
+    for (let j = 1; j < mine.length; j++) {
+      const a = mine[j - 1], b = mine[j], gate = a.boss ? 'boss' : undefined;
+      // (the walk crosses where the last cell of one meets the first of the next)
+      // (a core's halls meet at their floor: the hall's last column and the next's first, on the core's bottom row)
+      const cells = R.core ? [[a.rect[0] + a.rect[2] - 1, r0], [b.rect[0], r0]] : [a.cells.at(-1), b.cells[0]];
+      door(a.id, b.id, 'path', { cells, ...(gate ? { gate } : {}) });
+    }
+    if (R.core) continue;
+    // a key's lock: on the top leg, at its middle door (the key in the second corner, walked past first)
+    if (R.key) {
+      const top = mine.filter((x) => x.cells.every((c) => c[1] === r1));
+      const pd = doors.filter((d) => top.some((t) => t.id === d.a) && top.some((t) => t.id === d.b));
+      const mid = pd[Math.floor((pd.length - 1) / 2)] ?? doors.find((d) => d.b === top.find((t) => t.kind === 'corridor')?.id);
+      if (mid) { mid.gate = 'key'; mine.find((x) => x.id === mid.b).lock = true; }
+    }
+    // the LOOP: the ring's last room back to its gate, a drop (one-way), so the gate corner is a step away
+    const last = mine.at(-1), gateRoom = mine[0];
+    if (touches(last.cells.at(-1), gateRoom.cells[0])) {
+      const pair = [last.cells.at(-1), gateRoom.cells[0]], down = pair[0][1] > pair[1][1];
+      door(last.id, gateRoom.id, 'loop', { cells: pair, ...(down ? { oneWay: true } : {}) });
+    }
+  }
+  // the STEPS: each ring's last room into the next ring's first, through its inward gate
+  for (let k = 0; k < K; k++) {
+    const a = rooms.filter((x) => x.ring === k).at(-1), b = rooms.find((x) => x.ring === k + 1);
+    door(a.id, b.id, 'step', { gate: M.rings[k].inward });
+  }
+  // the SHORTCUTS: each ring past the first, out to the ring outside it — its floor's middle corridor dropped through
+  // (one-way, out), its top's middle corridor climbed through, gated by what the ring finds (opened from inside)
+  for (let k = 1; k < K; k++) {
+    const R = M.rings[k], [, , r0, r1] = R.rect, mine = rooms.filter((x) => x.ring === k), outer = rooms.filter((x) => x.ring === k - 1);
+    const midOf = (row) => { const cs = mine.filter((x) => x.kind === 'corridor' && x.cells.every((c) => c[1] === row)); return cs[Math.floor((cs.length - 1) / 2)]; };
+    const through = (from, dr) => {
+      if (!from) return null;
+      const cell = from.cells[Math.floor((from.cells.length - 1) / 2)], to = outer.find((x) => x.cells.some((c) => c[0] === cell[0] && c[1] === cell[1] + dr));
+      return to ? { from, to, pair: [cell, [cell[0], cell[1] + dr]] } : null;
+    };
+    const fl = through(midOf(r0), -1);
+    if (fl) door(fl.from.id, fl.to.id, 'shortcut', { cells: fl.pair, oneWay: true });
+    const tp = through(midOf(r1), +1);
+    const opener = R.finds ? M.powers[R.finds].opens : M.rings[k].inward;
+    if (tp) door(tp.from.id, tp.to.id, 'shortcut', { cells: tp.pair, gate: opener });
+  }
+  // the ENTRY: the first room's near wall, on the box's left side
+  const entry = { cell: [0, 0], side: 'left', room: rooms[0].id };
+  plainBosses(rooms, doors, walk);
+  if (M.maps) placeMaps(M, rooms);
+  const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
+  return {
+    box: M.box, shape: M.shape, turn: M.turn, ...(M.maps ? { maps: true } : {}), ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry,
+    rings: withLooks(rings, M), rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
+  };
+}
+
+/**
+ * A box of another shape (shapes.js lays its rooms and doors), FURNISHED as every region is: a save room at its first room
+ * and its middle, its key early and its lock halfway, its boss (and its prize) or its relic near its end where the shape
+ * puts its end (a wing's dead end, a band's last turn), its pockets spread along its corridors, the throne its last room.
+ */
+function layShaped(M, ctx) {
+  const L = M.shape === 'serpentine' ? laySerpentine(M, ctx) : layHub(M, ctx), { rooms, doors, walk } = ctx, K = M.rings.length - 1;
+  for (let k = 0; k <= K; k++) {
+    const R = M.rings[k], rs = rooms.filter((x) => x.ring === k), n = rs.length;
+    rs[0].role = k === 0 ? 'gate' : rs[0].role; rs[0].save = true;
+    if (n >= 6) rs[Math.floor(n / 2)].save = true;
+    // (its end: a hub's wing ends where it turns back to the hub, a dead end; any other region's just before it steps on)
+    const endAt = M.shape === 'hub' && k >= 2 ? n - 1 : Math.max(0, n - 2), end = rs[endAt];
+    if (R.core) { rs.at(-1).role = 'throne'; if (R.boss) rs.at(-1).boss = R.boss; continue; }
+    if (R.boss) { end.role = 'boss'; end.boss = R.boss; if (R.finds) end.finds = R.finds; }
+    else if (R.finds) { end.role = 'relic'; end.finds = R.finds; }
+    if (R.key) {
+      const keyAt = rs[Math.max(1, Math.floor(n / 4))], lockAt = rs[Math.max(2, Math.floor(n / 2))];
+      keyAt.key = true;
+      const d = doors.find((x) => x.kind === 'path' && x.b === lockAt.id && !x.gate);
+      if (d) { d.gate = 'key'; lockAt.lock = true; }
+    }
+    // (a boss's room sealed on its way on: the door out of it the walk takes, or a wing's return to the hub)
+    if (R.boss) { const d = doors.find((x) => x.a === end.id && (x.kind === 'path' || x.kind === 'return') && !x.gate); if (d) d.gate = 'boss'; }
+    const corridors = rs.filter((x) => x.kind === 'corridor' && x !== end);
+    (R.pockets ?? []).forEach((p, j) => { const at = corridors[Math.floor(((j + 0.5) * corridors.length) / R.pockets.length)]; if (!at) throw new Error(`metroidvania: ${R.id}.pockets: no corridor to hold ${p.holds} (a pocket is an alcove off a corridor)`); at.pockets.push({ ...p }); });
+  }
+  plainBosses(rooms, doors, walk);
+  if (M.maps) placeMaps(M, rooms);
+  const used = new Set(rooms.flatMap((x) => x.cells.map((c) => c.join(','))));
+  return {
+    box: M.box, shape: M.shape, ...(M.maps ? { maps: true } : {}), ...(M.premise ? { premise: M.premise } : {}), ...(M.theme ? { theme: M.theme } : {}), powers: M.powers, entry: L.entry, ...(L.exit ? { exit: L.exit } : {}),
+    rings: withLooks(L.rings, M), rooms: rooms.map(({ cells, ...r }) => ({ ...r, cells })), doors, walk, cells: used.size,
+  };
+}

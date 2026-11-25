@@ -31,7 +31,7 @@ describe('the rail\'s cards', () => {
   it('the guide first, then a card per page in the loop\'s order, each small', () => {
     expect(GAMEWORLD_CARD_IDS[0]).toBe('gameworld-guide');
     // (the studio second: the book worked a chapter at a time, read after the guide when the ask is a whole game)
-    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-ledger', 'gameworld-producer', 'gameworld-main-quest', 'gameworld-quick', 'gameworld-brief', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-course', 'gameworld-mission', 'gameworld-flight', 'gameworld-cockpit', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-stylish', 'gameworld-colour', 'gameworld-sound', 'gameworld-music', 'gameworld-juice', 'gameworld-interface', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-roll', 'gameworld-course-dress', 'gameworld-side-scroll', 'gameworld-heroes', 'gameworld-villains', 'gameworld-track-language', 'gameworld-hijack-city', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-flow', 'gameworld-next']);
+    expect(GAMEWORLD_CARD_IDS).toEqual(['gameworld-guide', 'gameworld-studio', 'gameworld-ledger', 'gameworld-producer', 'gameworld-main-quest', 'gameworld-quick', 'gameworld-brief', 'gameworld-intent', 'gameworld-world', 'gameworld-wcd', 'gameworld-course', 'gameworld-mission', 'gameworld-flight', 'gameworld-cockpit', 'gameworld-qow', 'gameworld-direction', 'gameworld-looks', 'gameworld-motion', 'gameworld-feel', 'gameworld-stylish', 'gameworld-colour', 'gameworld-sound', 'gameworld-music', 'gameworld-juice', 'gameworld-interface', 'gameworld-actions', 'gameworld-adornment', 'gameworld-equipment', 'gameworld-systems', 'gameworld-roll', 'gameworld-course-dress', 'gameworld-side-scroll', 'gameworld-heroes', 'gameworld-villains', 'gameworld-track-language', 'gameworld-hijack-city', 'gameworld-box', 'gameworld-mounts', 'gameworld-battles', 'gameworld-foes', 'gameworld-story', 'gameworld-folk', 'gameworld-flow', 'gameworld-next']);
     // the guide alone may run to 4224 bytes: its loop gained the battles page (10-16) with 3 bytes to spare under 4096;
     // 4480 since 2026-10-29 (1029-tac-com-simulator-interior: SHOWN FIRST, a draft's book as the approval sheet, 4407 bytes);
     // 4512 since 2026-11-04 (1103-game-design-studio-abstraction: the book's line points at the studio card, the book
@@ -108,7 +108,9 @@ describe('the rail\'s cards', () => {
     // (2026-11-21: gameworld-battles 5888 → 6144: `wins`, the victory pose each class strikes and its starters, one line)
     // (2026-11-24, 1119-jrpg-starter-cont merged with 1116-rc: gameworld-interface 4864 → 4992: the candidate's start
     // screen and the branch's lines read together, 4880 bytes)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5760, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6144, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    // (2026-11-25, 1124-side-scroll-backgrounds: gameworld-world 5760 → 5888: a side strip's `scenery`, the land behind
+    // its lane segment by segment, one style word; 5690 bytes before, 5810 with it)
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5888, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6144, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

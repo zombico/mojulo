@@ -246,7 +246,9 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (sheet) {
     const style = sheet.style ?? 'mouth';
     const flavor = typeof sheet.flavor === 'string' ? sheet.flavor : null;
-    const cueOf = (word) => { const v = sfxSound(word, { style, flavor }); if (!v) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v.gestures ?? null; };
+    // (a word the shelf has but nothing voices here, a row only the library records, is silent: only a word the shelf has
+    // not is refused)
+    const cueOf = (word) => { const v = sfxSound(word, { style, flavor }); if (!v && !resolveSoundId(word)) throw new Error(`audio.sfx.sheet: '${word}' is not a sound on the SFX shelf`); return v?.gestures ?? null; };
     // (`sheet.cues`: more cues, each a gesture list, for the level's book: its guns' own, played from the weapon)
     const cues = { ...(sheet.cues && typeof sheet.cues === 'object' ? sheet.cues : {}) }, on = {};
     for (const kind of Array.isArray(ctx.mechanics) ? ctx.mechanics : []) {
@@ -583,6 +585,30 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       rOut[ev] = v;
     }
     if (Object.keys(rOut).length) out.run = rOut;
+  }
+  // a boss fight on the director (`director`, scene/channels/boss-audio.js): each pattern's wind-up and strike, each voice's
+  // roar, hurt and fall, a form shed and a boss felled, every one a gesture list; checked
+  if (audioSpec.director !== undefined) {
+    const D = audioSpec.director, cueAt = (g, at) => { const c = validateBeatsManifest({ kind: 'beats-sfx', title: at, cues: { c: g } }); if (!c.ok) throw new Error(`${at}: invalid cue:\n - ${c.errors.join('\n - ')}`); return g; };
+    if (!D || typeof D !== 'object' || Array.isArray(D)) throw new Error('audio.director is { moves?: { <pattern>: { tell?, strike? } }, voices?: { <class>: { roar?, hurt?, fall? } }, shed?, fall? }');
+    const dOut = { moves: {}, voices: {} };
+    for (const [p, M] of Object.entries(D.moves ?? {})) { dOut.moves[p] = {}; for (const [k, g] of Object.entries(M ?? {})) { if (!['tell', 'strike'].includes(k)) throw new Error(`audio.director.moves.${p}.${k}: a move is its tell and its strike`); dOut.moves[p][k] = cueAt(g, `audio.director.moves.${p}.${k}`); } }
+    for (const [v, M] of Object.entries(D.voices ?? {})) { dOut.voices[v] = {}; for (const [k, g] of Object.entries(M ?? {})) { if (!['roar', 'hurt', 'fall'].includes(k)) throw new Error(`audio.director.voices.${v}.${k}: a boss's voice roars, is hurt and falls`); dOut.voices[v][k] = cueAt(g, `audio.director.voices.${v}.${k}`); } }
+    for (const k of ['shed', 'fall']) if (D[k] !== undefined) dOut[k] = cueAt(D[k], `audio.director.${k}`);
+    for (const k of Object.keys(D)) if (!['moves', 'voices', 'shed', 'fall'].includes(k)) throw new Error(`audio.director.${k} is not a boss fight's (moves, voices, shed, fall)`);
+    out.director = dOut;
+  }
+  // a metroidvania's held gates (`gates`, scene/channels/boss-audio.js): a boss's room shut and opened, a gate broken by its
+  // kind, any other wall struck down; checked
+  if (audioSpec.gates !== undefined) {
+    const Gt = audioSpec.gates, cueAt = (g, at) => { const c = validateBeatsManifest({ kind: 'beats-sfx', title: at, cues: { c: g } }); if (!c.ok) throw new Error(`${at}: invalid cue:\n - ${c.errors.join('\n - ')}`); return g; };
+    if (!Gt || typeof Gt !== 'object' || Array.isArray(Gt)) throw new Error('audio.gates is { shut?, open?, break?, breaks?: { <gate kind>: <a gesture list> } }');
+    const gOut = { breaks: {} };
+    for (const k of ['shut', 'open', 'break']) if (Gt[k] !== undefined) gOut[k] = cueAt(Gt[k], `audio.gates.${k}`);
+    for (const [k, g] of Object.entries(Gt.breaks ?? {})) gOut.breaks[k] = cueAt(g, `audio.gates.breaks.${k}`);
+    if (Gt.secrets !== undefined) { if (!Array.isArray(Gt.secrets) || !Gt.secrets.every((x) => typeof x === 'string')) throw new Error('audio.gates.secrets is the secret walls\' breakable ids'); gOut.secrets = Gt.secrets.slice(); }
+    for (const k of Object.keys(Gt)) if (!['shut', 'open', 'break', 'breaks', 'secrets'].includes(k)) throw new Error(`audio.gates.${k} is not a held gate's (shut, open, break, breaks)`);
+    out.gates = gOut;
   }
   // a flown level's sounds (`flight`, scene/channels/flight-audio.js: the kit by its pilot's rule, sfx-shelf/flight-sounds.js):
   // each event a gesture list (a cue), the engine, the air and the wheels held voices; checked

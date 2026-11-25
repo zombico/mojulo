@@ -14,6 +14,8 @@
  *              template kit, `arsenal: { from }`,
  *              and its style meter, `styleMeter: 'auto'`, the orbit camera and the starter's look) or
  *              'hijack-city' (Hijack City's: its district, story, law and shops, hijack-city.js) or
+ *              'box' (a box variant of Galaxy Boy's rail: its template's box on its geocube, `cube` said: Vampire
+ *              Sonata's castle on the gothic night, XenoJager's planet on its own, metroidvania/) or
  *              'pilot-school' (Pilot School's: its first lessons on one airfield, each graded, pilot-school.js) or
  *              'wolf-squadron' (Wolf Squadron's: its stages down a path, on a planet and in space, wolf-squadron.js),
  *              'rebel-storm' (Rebel Storm's: its missions flown from the cockpit, rebel-storm.js),
@@ -35,12 +37,16 @@ import { rebelStormStart } from './rebel-storm.js';
 import { composeGameworld } from './compose.js';
 import { GENRES, readGenre } from './intent.js';
 import { actionStarter } from './action-first-level.js';
+import { vampireSonataStart } from './metroidvania/vampire-sonata.js';
+import { xenoJagerStart } from './metroidvania/xeno-jager.js';
 import { levelPlan, planOfWords } from './action-levels.js';
 import { STYLISH } from './style-meter.js';
 import { TEMPLATE_ARSENALS } from './combos.js';
 import { ACTION_OUTFITS } from '../outfit/styles.js';
 import { HAIR_STYLE_NAMES, HAIR_KEYS } from '../polygonizer/humanoid-hair.js';
 
+/** the box starters a box variant names (rails.js variants' `box.game`) */
+const BOX_STARTS = Object.freeze({ 'vampire-sonata': vampireSonataStart, xenojager: xenoJagerStart });
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 // the workflow's own keys of a composed world: the starter brings its ground, never its review or its brief
 const NOT_THE_STARTERS = ['id', 'name', 'mode', 'review', 'brief', 'made'];
@@ -55,6 +61,15 @@ export function pitchStart(world, { title } = {}) {
   if (P.size !== undefined && P.size !== 'designed') return { unlaid: `a ${P.size} game is made in its own call (${S.sizes.find((z) => z.size === P.size)?.door ?? 'its door'}): it needs no starter` };
   if (!R.sizes.includes('designed')) return { unlaid: `${R.name} is not laid as a designed game yet: it reaches ${R.sizes.join(', ')}` };
   const named = { ...(title && world.name === undefined ? { name: title } : {}) };
+  // a BOX variant (Galaxy Boy's: Vampire Sonata's castle, XenoJager's planet): its template's box on its geocube, the
+  // box's look left to the cube (metroidvania/cube.js), its own feel; every key the creator wrote winning
+  const V0 = P.variant ? variantOf(R, P.variant) : null;
+  if (V0?.box) {
+    // (a castle played a map a box, `box.castle`: its maps the megaworld's chain, castle.js segmentsOf)
+    const { id: _id, name: _name, ...ground } = BOX_STARTS[V0.box.game](V0.box.castle ? { castle: V0.box.castle } : {});
+    const W = { ...ground, ...world, ...named, ...(world.intent === undefined && R.handles.genres[0] ? { intent: { from: R.handles.genres[0] } } : {}) };
+    return { world: W, laid: { by: 'box', variant: V0.id, cube: V0.box.cube, levels: Object.keys(W.levels), says: SAYS } };
+  }
   const withFeel = { ...world, ...(world.feel === undefined && R.handles.pole ? { feel: R.handles.pole } : {}) };
   // the platformer's rail: its first level and the flow that plays it, as the words its start offers
   const plat = (() => { try { return platformerStart(withFeel); } catch { return null; } })();

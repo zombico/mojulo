@@ -43,6 +43,8 @@ export const VERTICALITY = Object.freeze({
 // the walkway: its width across the line, the tile laid along it, the course's lift over the trailhead's ground (the
 // drop a gap falls to), the stairs' riser and tread, a floor's least length (a landing), a fighting floor's
 const WIDTH = 3, TILE = 1.5, RISER = 0.22, TREAD = 0.4, LAND = 4, FIGHT = 9, MARGIN = 0.35, END = 3;
+/** a terrace down, a share of the running jump's height (so each is climbed back up by a jump) */
+export const TERRACE = 0.9;
 // SIZED BY WHAT THE HERO CLEARS (its running jump's rise, reach.moves.run.height), never by a fixed number of metres: a
 // course is lifted a little over a jump (a fall into a gap is a fall, not a hop back up), and a floor is a SLAB about
 // two thirds of a jump thick, not a column down to the ground. A taller hero's course is taller; a small one's is not
@@ -123,14 +125,17 @@ function beatsOf(reach, teach, verticality, floor = null) {
 /** The course a segment lays: its floors and the gaps between them along `length` metres of line. `lift` the height
  * it stands over its ground (its stairs climb it; 0, a side strip's: no stairs, the floors start on the ground), `end`
  * the ground before its first step and after its last. */
-export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = liftOf(reach), end = END, floor = null, walls = true } = {}) {
+export function coursePlan(reach, { teach = 'basic', verticality = 'flat', length = 72, lift = liftOf(reach), end = END, floor = null, walls = true, down = false } = {}) {
   if (!TEACH.includes(teach)) throw new Error(`course: teach is one of ${TEACH.join(', ')}`);
   if (!VERTICALITY[verticality]) throw new Error(`course: verticality is one of ${Object.entries(VERTICALITY).map(([k, v]) => `${k} (${v.says})`).join(', ')}`);
   // (`walls: false`: no wall face to kick up, the climbing left to a level's own climbs: a side map's run is one screen
   // thick, and going up is an up run's)
   const beats = walls ? beatsOf(reach, teach, verticality, floor) : beatsOf(reach, teach, verticality, floor).filter((b) => b.kind !== 'wall');
   const stairs = Math.ceil(lift / RISER) * TREAD;
-  const s0 = end + stairs, s1 = length - end - stairs, room = s1 - s0;
+  // (`down`: a course that ends high comes back down to its ground across TERRACES, each a share of the jump down and a
+  // landing long, before its end: going down is going across, never a cliff dropped off)
+  const high = beats.reduce((z, b) => z + b.dz, 0), H = reach.moves.run.height, terraces = down && high > H ? Math.ceil(high / (TERRACE * H)) : 0;
+  const s0 = end + stairs, s1 = length - end - stairs - terraces * LAND, room = s1 - s0;
   // the floors share what the gaps leave, a fighting segment's floors long enough to fight on
   const gapsLen = beats.reduce((a, b) => a + b.w, 0), n = beats.length + 1;
   const least = teach === 'gauntlet' || teach === 'meet' || teach === 'boss' ? FIGHT : LAND;
@@ -145,6 +150,13 @@ export function coursePlan(reach, { teach = 'basic', verticality = 'flat', lengt
     if (!b) break;
     gaps.push({ s0: r3(s), s1: r3(s + b.w), w: b.w, dz: b.dz, teaches: b.teaches, kind: b.kind ?? (b.w > 0 ? 'gap' : b.dz >= 0 ? 'step' : 'drop') });
     s += b.w; z += b.dz;
+  }
+  for (let k = 1; k <= terraces; k++) {
+    const dz = r3(-z / (terraces - k + 1));
+    gaps.push({ s0: r3(s), s1: r3(s), w: 0, dz, teaches: 'run', kind: 'terrace' });
+    z = r3(z + dz);
+    floors.push({ s0: r3(s), s1: r3(s + LAND), z, terrace: true });
+    s += LAND;
   }
   return { teach, verticality, lift, start: r3(end), end: r3(length - end), floors, gaps };
 }

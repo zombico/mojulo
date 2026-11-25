@@ -1190,6 +1190,44 @@ screen is up.
 - `over`, GAME OVER where the level lets the player continue (the lives mechanic's `continues`). Continue and Give up
   raise `continue` and `giveup` on the level's bus; back does not leave it.
 
+A side map's look follows its setting where the game wears the run and gun's own (`galaxy`): a neon city's HUD wears
+`galaxy-neon` and an orbital colony's `galaxy-orbit` (`SETTING_LOOKS`, `side-map/level.js`), the same ticks and
+shutter re-keyed. It is heard in its look's sounds (below).
+
+### The metroidvania's HUD
+
+A metroidvania level (`gameworld/metroidvania/level.js`) of a game with a `ui` draws its HUD on mana-ui
+(`gameworld/metroidvania/hud.js`), hosted by the level page's HUD host on its `box` feed, in place of the page's own
+band and bars (`held-gates-view.js`, which stands down). Vampire Sonata wears the `nocturne` card (aged gold on black,
+a serif, a Victorian cresting, health in crimson and magic in blue); a box whose theme is a re-key wears its card
+(`BOX_LOOKS`: `castle-frost` → `nocturne-frost`, `castle-blood` → `nocturne-blood`).
+
+- **The vitals** at the top left: the place she stands in (the room's locale, else its ring), her health and her MP.
+- **The moments** across the top, one at a time by weight: a power found (rare: held longer, its own cue), a key, a
+  prize, "Saved" with the room's place, a waking, a boss's fall; a new region's name as she crosses into it; a boss's
+  name as she comes into its room, alone (no label), held a moment and gone.
+- **The minimap and the boss's bar are the page's own**, one of each, never drawn twice: the explored map's corner at the
+  top right (`channels/controllable/explored-view.js`, its share explored under it) and the boss's bar across the foot,
+  its name over it, while she is in its room and it stands (`held-gates-view.js`: a boss of two forms fills it again as
+  its second, under its own name).
+- **What is held** in a line at the foot's left.
+- **The pause** (Enter): the whole map walked so far, her vitals with their figures, her rooms and wakings counted,
+  and the box's relics, each found by name and the rest locked. Back resumes.
+
+The map is revealed a screen at a time, as she enters each screen (`boxMapOf`, `boxMapView`; the page runs the view's
+own source). A room's screens join, and the walls between rooms stand with the doors through them. A gate is marked at
+its door until she holds what opens it, and a relic where it lies until she takes it. Save rooms found and bosses
+still standing are marked, as is she. A box whose theme is XenoJager's planet wears `nocturne-xeno`.
+
+### A level's HUD is heard
+
+A level's HUD on mana-ui is heard in its look's sound set (`scene/channels/mana-hud-sounds.js` `hudSounds`): the set
+the look's `sounds` word names, the cues its `cues` word hears, the beats kernel the set needs and the recordings over
+it where the library is installed. The host wraps the runtime's `act` so each `{ sound }` it emits is played: a moment
+called chimes (`toast`, and a rare one's `rare`), a screen opening and closing sound their triad, and the cursor
+clicks. The castle is heard in `crypt` (a toll on a power found), the side map in `chip`. Muted with the game's sound;
+a look whose cues are silent, or a HUD that carries none, adds not a byte.
+
 ### The open city
 
 A played city (an open-world game: errands and jobs, a phone, a map, a bag, a journal) draws every part of its UI on

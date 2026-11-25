@@ -4,19 +4,31 @@
 // the side map's camera, its ladders, colliders and the catch zone its falls are counted in, the game's own fall policy
 // off, the goal at the far side of the last zone, and the map's laws all held.
 import { describe, it, expect } from 'vitest';
-import { platformerGame } from '../platformer-game.js';
+import { platformerGame, SIDE_MAP_CUBE, PLATFORMER_CUBE } from '../platformer-game.js';
 import { gameStages, stageLevelOrder } from '../levels.js';
 import { readGameworld } from '../world.js';
 import { SIDE_FALL, SIDE_DOWN } from './play.js';
-import { SIDE_ENERGY } from './level.js';
+import { SIDE_ENERGY, SETTING_LOOKS } from './level.js';
+import { THEME_CARDS } from '../../playscape/ui/theme-cards/loader.js';
 
 const galaxy = () => ({ id: 'gb', name: 'Galaxy Boy', ...platformerGame({ pole: 'galaxy-boy' }).words });
 
 describe('a side map level', () => {
   it('the rail writes the run and gun\'s first level as a side map, the mascot platformer\'s as its strip', () => {
-    expect(Object.keys(galaxy().levels.first)).toEqual(['name', 'sidemap', 'foes']);
+    expect(Object.keys(galaxy().levels.first)).toEqual(['name', 'style', 'sidemap', 'foes']);
+    // (drawn in its own cube, a city by night, never the mascot platformer's orchard)
+    expect(galaxy().levels.first.style.geocube).toBe(SIDE_MAP_CUBE);
+    expect(galaxy().style.geocube).toBe(PLATFORMER_CUBE);
     expect(galaxy().levels.first.name).toBe('Level 0');
     expect(platformerGame({ pole: 'jumping-giuseppe' }).words.levels.first.course).toBeDefined();
+  });
+  // (docs/mana-ui.md "The side map's HUD") its look re-keyed by its setting, and heard in its sounds
+  it('wears its setting\'s card where the game wears galaxy, and is heard in its look\'s sounds', () => {
+    const lvl = (premise) => { const W = readGameworld({ ...galaxy(), levels: { first: { ...galaxy().levels.first, sidemap: { ...galaxy().levels.first.sidemap, premise } } } }), [st] = gameStages(W); return stageLevelOrder(W, st, { heroRef: 'h', heroStature: 1.67, ref: 'l' }).args.manifest.manaHud; };
+    const plant = lvl('Galaxy Boy breaks into the plant'), city = lvl('Galaxy Boy climbs the neon city');
+    expect(plant.sounds.set).toBe('chip');
+    expect(plant.theme.tokens.accent).toBe(THEME_CARDS.galaxy.tokens.accent);
+    expect(city.theme.tokens.accent).toBe(THEME_CARDS[SETTING_LOOKS.city].tokens.accent);
   });
   it('a world refuses a side map with no side camera, or beside another level form', () => {
     const W = galaxy();

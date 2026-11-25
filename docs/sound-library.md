@@ -71,6 +71,12 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   pace, a neigh as the hero is up, a snort at the gallop), and a biocube's field and herds (crows over the site, gnats
   at their clouds, ducks on the stream, mice and roaches by the walls, each herd calling from its ground). Tags:
   `animal`, the class, the call.
+- **A boss fight's kit** (`sfx-shelf/boss-sounds.js`, recorded from `cards/bosses.js`): the wind-ups the director's
+  patterns lack and their strikes, a second form rising, a great body falling, and the held gates' moments (a portcullis
+  winched up, a cracked wall, a secret wall, a grate, a seal). Not a flavor. The castle's peoples' voices, an ogre's and
+  a demon's, are animal classes (`cards/animals.js`). Tag: `boss`.
+- **The box games' own** (flavors `vampire-sonata` and `xeno-jager`, `cards/vampire-sonata.js` and `cards/xeno-jager.js`):
+  Erina's longsword, boots and coat in a castle, and a sealed suit's arm cannon, servos and boots on alien rock.
 - **A flight's kit** (`sfx-shelf/flight-sounds.js`, recorded from `cards/flight.js`): the trainer's air, wheels, stall
   warning, touchdowns, crash and ring chime (its engine is the prop's loops above), the arcade fighter's engine at
   cruise and on boost and its lasers, boost, brake, roll, shield hit and blasts, and the cockpit starfighter's engines

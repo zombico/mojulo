@@ -24,6 +24,9 @@ import { validateHeroSpec } from '../../mcp/tools/layered.js';
 import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 import { STYLISH } from './style-meter.js';
 import { readGameworld } from './world.js';
+import { gameStages, gameStore } from './levels.js';
+import { stampMegaworld } from './megaworld.js';
+import { boxLookOf } from './metroidvania/cube.js';
 import { chaptersOfPath } from './chapters.js';
 import { MOTIVATIONS } from './gmn.js';
 import { MEADOWMARK } from './examples.js';
@@ -485,7 +488,8 @@ describe('the pitch kept: a locked pitch with no level is given the rail\'s star
 // whose chain asks its own question before anything is made, and lays its street's words on a designed game's starter
 describe('a rail\'s variants', () => {
   const withV = RAIL_IDS.filter((id) => RAILS[id].variants);
-  const [rid] = withV, [vid] = Object.keys(RAILS[rid].variants), V = variantOf(rid, vid);
+  // (a street's variant: its quick door and its street's words; a box's variant is below)
+  const rid = withV.find((id) => Object.values(RAILS[id].variants).some((v) => v.street)), vid = Object.keys(RAILS[rid].variants).find((k) => RAILS[rid].variants[k].street), V = variantOf(rid, vid);
   it('every variant has its name, its words, its first level and the question it asks with its card', () => {
     for (const id of withV) for (const k of Object.keys(RAILS[id].variants)) {
       const v = variantOf(id, k);
@@ -524,5 +528,47 @@ describe('a rail\'s variants', () => {
     expect(streets.length).toBeGreaterThan(0);
     for (const L of streets) expect(L.street).toMatchObject(V.street);
     expect(() => readGameworld(P.world)).not.toThrow();
+  });
+});
+
+// A RAIL'S BOX VARIANTS: a metroidvania started from a template's box (a castle, a planet) on its geocube: named by its
+// own words, its sheet and its report saying the cube, its pitch laying the box whose look the cube says
+describe('a rail\'s box variants', () => {
+  const boxed = RAIL_IDS.flatMap((id) => Object.entries(RAILS[id].variants ?? {}).filter(([, v]) => v.box).map(([vid]) => [id, vid]));
+  it('says the box and its cube on its sheet, its report and its card', () => {
+    expect(boxed.length).toBeGreaterThan(0);
+    for (const [rid, vid] of boxed) {
+      const V = variantOf(rid, vid), S = railSheet(rid, vid);
+      expect(S.box).toEqual({ ...V.box });
+      expect(railReport({ rail: { from: rid, variant: vid, locked: true } }).box).toEqual({ ...V.box });
+      expect(railCardById(`gameworld-rail-${rid}-${vid}`).body).toContain(`on the ${V.box.cube} geocube`);
+      expect(V.ask.card).toBe('gameworld-box');
+    }
+  });
+  it('lays its template\'s box on its geocube, the box naming no theme so the cube dresses it, the creator\'s keys winning', () => {
+    for (const [rid, vid] of boxed) {
+      const V = variantOf(rid, vid), P = pitchStart({ id: 'g', name: 'Theirs', rail: { from: rid, variant: vid, locked: true } });
+      expect(P.laid).toMatchObject({ by: 'box', variant: vid, cube: V.box.cube });
+      const G = readGameworld(P.world), [stage] = gameStages(G);
+      expect(G.name).toBe('Theirs');
+      expect(stage.manifest.metroidvania.theme).toBeUndefined();
+      expect(boxLookOf(stage.manifest.metroidvania, stage.manifest.cube)).toMatchObject({ id: V.box.library, from: 'cube', cube: V.box.cube });
+      expect(pitchStart({ id: 'g', feel: 'jumping-giuseppe', rail: { from: rid, variant: vid, locked: true } }).world.feel).toBe('jumping-giuseppe');
+    }
+  });
+  it('lays a castle a map a box where its variant says so: each map a level on the megaworld\'s chain, the journey carried', () => {
+    const P = pitchStart({ id: 'g', name: 'Theirs', rail: { from: 'galaxy-boy', variant: 'vampire-sonata-castle', locked: true } });
+    expect(P.laid.levels).toEqual(['tower', 'court', 'keep']);
+    expect(P.world.megaworld).toEqual({ shape: 'chain', rings: [['tower'], ['court'], ['keep']] });
+    const G = readGameworld(stampMegaworld(P.world));
+    expect(G.topology).toBe('interconnected');
+    expect(gameStages(G).map((s) => s.manifest.segment)).toEqual(['tower', 'court', 'keep']);
+    expect(gameStore(stampMegaworld(P.world)).slices.map((s) => s.name)).toContain('journey');
+    expect(railCardById('gameworld-rail-galaxy-boy-vampire-sonata-castle').body).toMatch(/a map a box/);
+    expect(nearestRails('a castle of maps like the old gothic games')[0]).toMatchObject({ id: 'galaxy-boy', variant: 'vampire-sonata-castle' });
+  });
+  it('is named by its own words; the genre\'s own word is still the plain rail', () => {
+    for (const [rid, vid] of boxed) expect(nearestRails(`a game like ${variantOf(rid, vid).words[0]} with my own hero`)[0]).toMatchObject({ id: rid, variant: vid });
+    expect(nearestRails('a metroidvania')[0].variant).toBeUndefined();
   });
 });

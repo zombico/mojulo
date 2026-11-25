@@ -85,6 +85,9 @@
  *   avoid     (optional) the mistakes the style names, [{ line, law }], each measured by its law when the cube is read
  *             (geocube-laws.js: a palette law off the solved contract, or the cube's own) and written back on the line
  *             as { ok, value }: advice, never a refusal
+ *   box       (optional) the metroidvania box its side levels are dressed in ({ library, tint?, rock? }: a box library of
+ *             gameworld/metroidvania/themes.js, its rings tinted toward the cube's colours by `tint`, its crystals the
+ *             cube's `outside.crystals`, its boulders `rock`; gameworld/metroidvania/cube.js reads it)
  *   era       the look's generation (eras.js; gen-6 by default): its light and surface conventions, at any resolution
  *   target    what the level is drawn for (target.js: resolution, framing, error; 1080p third-person by default): how
  *             many pixels a metre covers, so how dense its cast's rings and its surfaces' texels need to be. A hero lit
@@ -201,6 +204,8 @@ export const GEOCUBE_PRESETS = Object.freeze({
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
     outside: { base: 'isekai-meadow', tiers: MERU_BASES, island: MERU_ISLE, land: LAND },
+    // (its metroidvania box: the castle, in its own colours (tint 0): Vampire Sonata's, gameworld/metroidvania/cube.js)
+    box: { library: 'castle', tint: 0 },
     why: [
       'Stone is cool blue-grey, never warm: the only warm light is fire.',
       'One accent, a deep red, on one wall inside; outside it lives only in the light.',
@@ -471,7 +476,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, wind: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, avoid: 1, buildings: 1, palette: 1, materials: 1, matter: 1, wind: 1, grit: 1, biocube: 1, snow: 1, structures: 1, settlements: 1, domains: 1, box: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -590,6 +595,13 @@ export function readGeocube(spec) {
   if (c.contrast === undefined && c.register.contrast !== undefined && c.register.contrast !== false) c.contrast = c.register.contrast;
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
+  // (the metroidvania box its side levels are dressed in: a library of gameworld/metroidvania/themes.js, read there)
+  if (c.box !== undefined) {
+    if (!isObj(c.box) || typeof c.box.library !== 'string') no('box is { library, tint?, rock? }: the metroidvania box library its levels are dressed in (gameworld/metroidvania/cube.js)');
+    only(c.box, ['library', 'tint', 'rock'], 'box');
+    if (c.box.tint !== undefined && !(Number.isFinite(c.box.tint) && c.box.tint >= 0 && c.box.tint <= 1)) no('box.tint is 0 (the library\'s own colours) to 1 (the cube\'s hues)');
+    if (c.box.rock !== undefined && typeof c.box.rock !== 'string') no('box.rock is a rock preset (polygonizer/rock-minerals.js)');
+  }
   // matter (optional): what its things are made of, by role (rupa/look-matter.js); a role it names none is read off its look
   if (c.matter !== undefined) {
     if (!c.matter || typeof c.matter !== 'object' || Array.isArray(c.matter)) no(`matter is { <role>: matter }, its roles ${LOOK_ROLES.join(', ')}`);

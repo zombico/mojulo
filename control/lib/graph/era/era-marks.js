@@ -47,8 +47,10 @@ export const NEUTRAL_INPUTS = Object.freeze([
   'science', 'hazeHeight', 'fauna', 'meet', 'court', 'turns', 'pitch', 'holo', 'innings', 'broadcasts', 'mission', 'damageRing', 'briefing', 'cone', 'formSky', 'air', 'sea', 'marine', 'soften',
   'knock', 'guide', 'tour', 'sync', 'footless', 'finish', 'hydraulics', 'flames', 'roofs',
   // (tall grass's sight, the pixel budget's cap, the radar's map, a building's stairs for the follow camera; glass and
-  // mesh a body is held out of and a gaze goes through, worlds/controllable/barrier.js)
-  'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi',
+  // mesh a body is held out of and a gaze goes through, worlds/controllable/barrier.js; a metroidvania's gates held shut
+  // until what opens them is held, worlds/controllable/held-gates.js; the hero's trees, worlds/controllable/trees.js; the explored map, explore.js;
+  // a backdrop's slow motion, channels/ambient.js)
+  'veils', 'density', 'radarMap', 'anchors', 'barriers', 'cityMap', 'bagUi', 'phoneUi', 'heldGates', 'trees', 'explored', 'ambient',
   // (a fleet's hull kibble, its plating's detail drawn by the shader on each block, the same procedure in any era)
   'kibble',
   // (a flying lesson's brief, told on mana-ui before the lesson is flown)

@@ -34,6 +34,8 @@ import { sideMapEnds, sideFoe } from './cast.js';
 import { sideMapHud, BOSS_TICKS, MENU_KEY } from './hud.js';
 import { BOSSES } from '../bosses.js';
 import { interfaceLook } from '../../playscape/ui/interface-look.js';
+import { hudSounds } from '../../scene/channels/mana-hud-sounds.js';
+import { settingOf } from './dress.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 // (the foes' cues beside the systems' play: its lists joined, the rest the systems')
@@ -46,6 +48,16 @@ const mergePlay = (base, more) => {
 
 /** A side map level's order: the stage's map laid for the world's hero and played by it. */
 // the boss stood in the last room (boss-cast.js): its body, its name and its health, off its defeat-all's bar
+/** The card a side map's HUD wears by its setting, where the game wears the run and gun's own look (`galaxy`): the
+ *  setting's re-key (docs/mana-ui.md "The side map's HUD"); any other look is kept as the game says it. */
+export const SETTING_LOOKS = Object.freeze({ city: 'galaxy-neon', orbital: 'galaxy-orbit' });
+function sideMapHudOf(G, stage, words) {
+  const set = settingOf(stage.manifest?.sidemap?.premise ?? ''), keyed = G.ui?.theme === 'galaxy' && SETTING_LOOKS[set] ? SETTING_LOOKS[set] : null;
+  const theme = interfaceLook(keyed ? { ...G, ui: { ...G.ui, theme: keyed } } : G).theme, S = hudSounds(theme);
+  // (heard in its look's sounds: the chip set's blips and chimes as a weapon is won, a boss named, a menu opened)
+  return { ...sideMapHud({ theme, ...words }), ...(S ? { sounds: S } : {}) };
+}
+
 /** The hero's ENERGY on a side map: the genre's 28 ticks, a hit taking 4 (seven hits to fall), a life spent when it runs
  * out and the hero back at the zone's checkpoint (the lives mechanic's `energy`). */
 export const SIDE_ENERGY = Object.freeze({ max: BOSS_TICKS, hit: 4 });
@@ -121,7 +133,7 @@ export function sideMapLevelOrder(G, stage, { ref, heroRef, costar = null, heroG
     ...(audio ? { audio } : {}),
     // ITS HUD (hud.js), where the game's screens are the game UI runtime's (its `ui`): the 8-bit action platformer's
     // columns of ticks, the lives and the boss's energy, READY, the keys at first; in the game's look
-    ...(G.ui !== undefined ? { manaHud: sideMapHud({ theme: interfaceLook(G).theme, lives: G.mechanics?.lives ?? 3, energy: G.mechanics?.lives ? SIDE_ENERGY.max : 0, boss: bossOf(X), intro: introOf(stage), keys: `${controls} · ${MENU_KEY}  menu`, continues: !!G.mechanics?.lives }) } : {}),
+    ...(G.ui !== undefined ? { manaHud: sideMapHudOf(G, stage, { lives: G.mechanics?.lives ?? 3, energy: G.mechanics?.lives ? SIDE_ENERGY.max : 0, boss: bossOf(X), intro: introOf(stage), keys: `${controls} · ${MENU_KEY}  menu`, continues: !!G.mechanics?.lives }) } : {}),
   };
   return { tool: 'create_sketch', args: { title: name, manifest }, laws: M.laws.map((l) => ({ ...l, id: `sidemap:${l.id}` })) };
 }

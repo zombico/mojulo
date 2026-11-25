@@ -57,6 +57,7 @@ import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
 import { outTrailSpan } from '../era/out-trail.js';
 import { SIDE_CUBE, sidePads, sideCameraWords } from '../era/geocube-side.js';
 import { sideMapLevelOrder } from './side-map/level.js';
+import { boxLevelOrder, JOURNEY_SLICE } from './metroidvania/level.js';
 import { scrollHud } from './scroll-stage/hud.js';
 import { TRAVERSAL_MOVES, HERO_MOVES } from './actions.js';
 import { RIDE_H } from './ride.js';
@@ -226,6 +227,8 @@ export function gameStages(world) {
     if (R.glyphs) { out.push({ level, node: 'map', section: 'map', index: 0, manifest: { kind: 'map', level: R.glyphs } }); continue; }
     // a side map level is one stage: the map on its cube (side-map/scene.js), laid for the hero its level order makes
     if (R.sidemap) { out.push({ level, node: 'map', section: 'sidemap', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'sidemap', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, sidemap: R.sidemap } }); continue; }
+    // a metroidvania level is one stage: its box built for the hero its level order makes (metroidvania/scene.js)
+    if (R.metroidvania) { out.push({ level, node: 'box', section: 'metroidvania', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'metroidvania', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, metroidvania: R.metroidvania, ...(R.segment !== undefined ? { segment: R.segment } : {}) } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
     if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...(R.geocity.hour !== undefined ? { hour: R.geocity.hour } : {}) } }); continue; }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
@@ -265,7 +268,7 @@ export function gameStages(world) {
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
     // along one straight lane, each its own length and its own course (sideSegments, stripCourse), played on one page
     if (laid.stages.length > 1 && laid.stages.every((s) => sideCourse(G, level, s))) {
-      const s0 = laid.stages[0], { seed } = outTrailStyle(s0.manifest), side = sideSegments(G, level, laid.stages);
+      const s0 = laid.stages[0], { seed } = outTrailStyle(s0.manifest), scenery = R.style?.scenery ?? G.style?.scenery, side = { ...sideSegments(G, level, laid.stages), ...(scenery !== undefined ? { scenery } : {}) };
       out.push({ level, node: s0.node, section: s0.section, index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'side', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed, side } });
       continue;
     }
@@ -924,10 +927,11 @@ function withBookUi(G, play) {
   return { ...play, ui: { seed: h % 2147483647 } };
 }
 
-function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, heldRefs = null, foeRefs = null, gunnerRef = null } = {}) {
+function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, heroStature = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {}, sheathRef = null, heldRefs = null, foeRefs = null, gunnerRef = null, castleBossRefs = null } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs, heroRef, heroGaits });
   // a side map (side-map/level.js): its hero on the lane, its camera on the zones, its falls out of the frame
+  if (stage.section === 'metroidvania') return boxLevelOrder(G, stage, { ref, heroRef, map, heroGaits, heroStature, pilot, title, mechanics, audio, extra, ...(castleBossRefs ? { bossRefs: castleBossRefs } : {}), foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   if (stage.section === 'sidemap') return sideMapLevelOrder(G, stage, { ref, heroRef, costar, heroGaits, heroStature, pilot, title, mechanics, extra, audio, foeFrom: G.levels?.[stage.level]?.foes !== undefined ? readLevelFoes(G.levels[stage.level].foes, G.foes, `levels.${stage.level}`).from : [] });
   // a street level (brawl-cast.js): its own simulation and its own contract, the game's hero and made foes its bodies
   if (stage.section === 'kitchen') { const KL = kitchenLevel(G, { ref, heroRef, spec: stage.kitchen ?? {}, ...(title ? { title } : {}) }); return { tool: 'create_sketch', args: { title: KL.manifest.title, manifest: KL.manifest }, laws: KL.laws }; }
@@ -1552,7 +1556,7 @@ function sideSegments(G, level, stages) {
   const segments = stages.map((s) => {
     const C = courseAt(spec, s.node);
     let D = 12;
-    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END, floor: 0 }); break; } catch { D += 1; } }
+    while (D < 400) { try { coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: D, lift: 0, end: STRIP_END, floor: 0, down: true }); break; } catch { D += 1; } }
     D = Math.ceil(D * STRIP_SLACK);
     const seg = { node: s.node, s0: r3(at), length: r3(D) };
     at += D;
@@ -1577,7 +1581,7 @@ function stripCourse(G, stage) {
     if (!C) continue;
     // (on a strip the course stands on the ground: no stairs up to it, the hero on its first floor at once)
     // (a floor never stands under the strip's ground, `floor: 0`: a rolling trail rolls, it does not sink)
-    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END, floor: 0 });
+    const plan = coursePlan(reach, { teach: C.teach, verticality: C.verticality ?? 'flat', length: Math.floor(seg.length), lift: 0, end: STRIP_END, floor: 0, down: true });
     const line = Array.from({ length: Math.floor(seg.length) + 1 }, (_, k) => [0, r3(seg.s0 + k)]);
     const L = lowerCourse(plan, { line, ground: () => 0 }), B = L.blocks[0].blocks;
     B.forEach((b, k) => { const p = L.parts[k]; blocks.push(b); parts.push({ ...p, role: p.stair || (p.floor > 0 && plan.gaps[p.floor - 1]?.kind === 'wall') ? 'built' : 'terrain', node: seg.node }); });
@@ -1727,6 +1731,8 @@ export function mapPlan(G, stages, refs) {
     let k = 0;
     p.on.forEach((w) => { if (w.zone === undefined) { w.id = k ? `on-${k + 1}` : 'on'; k++; } });
     p.back.forEach((w, j) => { w.id = j ? `back-${j + 1}` : 'back'; });
+    // (a way into a castle's segment names it, metroidvania/castle.js segmentsOf: the door it crosses by is its own)
+    for (const w of [...p.on, ...p.back]) { const i = refs.indexOf(w.to), sg = i >= 0 ? stages[i].manifest?.segment : undefined; if (sg !== undefined) w.segment = sg; }
   }
   return plan;
 }
@@ -2102,6 +2108,8 @@ export function gameStore(world, book) {
   if (G.megaworld) slices.push({ name: ATLAS_SLICE, kind: 'flags' });
   // the world remembers what broke (a game that lets things break): each level keeps its breaks here
   if (book?.mechanics?.destruction && book.mechanics.destruction !== 'none') slices.push({ name: AFTERMATH_SLICE, kind: 'flags' });
+  // a castle cut into segments on a map (metroidvania/castle.js segmentsOf): what the hero gains goes on with her
+  if ((G.topology === 'interconnected' || G.megaworld) && G.ids.some((id) => G.levels[id].segment !== undefined)) slices.push({ name: JOURNEY_SLICE, kind: 'flags' });
   // party battles (battles.js): the party, its levels, classes and skills, carried from level to level
   if (G.battles) {
     slices.push({ name: PARTY_SLICE, kind: 'party', init: { roster: battleRoster(G) } });

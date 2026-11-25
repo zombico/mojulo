@@ -121,6 +121,20 @@ export const SEEDED_STYLES = Object.freeze({
     "roles": { "blade": { "metal": "stainless", "finish": "mirror" }, "fittings": { "metal": "gold", "finish": "polished" }, "accent": { "metal": "gold", "finish": "mirror" }, "wrap": ["matte", "#f4f1e8"] },
     "gem": { "gem": "diamond", "glow": 0.2, "cut": "brilliant" }
   },
+  // the hunter's: a monster hunter's longsword in a gothic castle (Vampire Sonata's Erina, gameworld/metroidvania/): a hero's
+  // blade of polished silver, the bane of what walks by night, under a winged guard and a ring pommel of blackened steel
+  // with silver at their edges, a wire grip over crimson leather; no gem, nothing lit: a sword, not a light
+  hunter: {
+    "id": "hunter",
+    "dials": { "stylize": 0.45, "mass": 0.95, "focus": "guard", "ornament": 2 },
+    "lean": { "span": 1.2, "L": 1.08, "W": 0.92 },
+    "language": { "blade": "hero", "guard": "winged", "pommel": "ring", "grip": "wire",
+      "staff": { "head": "spear", "focus": "head", "shaft": ["matte", "#2a2228"] },
+      "bow": { "limb": "recurve", "tips": "wing", "focus": "riser", "shaft": ["matte", "#2a2228"] },
+      "shield": { "outline": "heater", "device": "wings", "focus": "boss", "board": ["matte", "#4a1622"] } },
+    "edge": { "fuller": 0.4, "bevel": 0.5 },
+    "roles": { "blade": { "metal": "silver", "finish": "polished" }, "fittings": { "metal": "steel", "finish": "blasted", "film": { "temper": 340 } }, "accent": { "metal": "silver", "finish": "mirror" }, "wrap": ["matte", "#5a1622"] }
+  },
   // a light blade: a long round edge of light (the shelf's neon, its own glow) out of a short machined hilt; a saber
   // rhythm level's (mechanic-cards/notes.md) red in the left hand, this blue in the right
   saber: {

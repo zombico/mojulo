@@ -65,7 +65,9 @@ export const MENU_SOUNDS = Object.freeze({
 /** The sound set a game's menus play: its rail's (its feel's pole), else its genre's, else its look's (`theme`'s sounds). */
 export function menuSoundSet(G, theme) {
   const F = G && G.feel, pole = typeof F === 'string' ? F : F && typeof F === 'object' ? F.pole : null;
-  const own = (pole && MENU_SOUNDS.pole[pole]) || MENU_SOUNDS.intent[G && G.intent && G.intent.from];
+  // (the game's own, `sound.menus`, a box variant's: Vampire Sonata's castle on the crypt, not its rail's robot)
+  const said = G && G.sound && typeof G.sound === 'object' && typeof G.sound.menus === 'string' ? G.sound.menus : null;
+  const own = said || (pole && MENU_SOUNDS.pole[pole]) || MENU_SOUNDS.intent[G && G.intent && G.intent.from];
   if (own) return own;
   try { return readTheme(theme === undefined ? 'greybox' : theme).sounds; } catch { return null; }
 }

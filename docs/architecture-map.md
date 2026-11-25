@@ -152,6 +152,21 @@ Pointers only; each target carries its own design notes.
 - The exhibit producer: [exhibit/producer.js](../control/lib/graph/exhibit/producer.js) (`create_exhibit({ start })`),
   [exhibit/scales.js](../control/lib/graph/exhibit/scales.js), [exhibit/fit.js](../control/lib/graph/exhibit/fit.js),
   [exhibit/intake.js](../control/lib/graph/exhibit/intake.js); the steps are the `exhibit-producer` routing card's.
+- A game's trees (the skill tree on movement, the tech tree on spells and attacks: a world's `trees`, a node a row of
+  `trees/movement.js` or `trees/techs.js`, learned at runtime by `worlds/controllable/trees.js` and on T by the trees
+  channel): [gameworld/trees/](../control/lib/graph/gameworld/trees/), [docs/trees.md](trees.md).
+- The metroidvania map (the spiralling box: one box of screens entered from the left, its walk spiralling ring by ring
+  to a core, every ring a region against the last so a power found inside opens shortcuts out and pockets behind; its
+  gates rows of `gates.js`; Vampire Sonata its template and Erina its hero, no stomp and no wall kick; a box's look a
+  theme, ring by ring, `themes.js` (the castle; XenoJager's planet, `xeno-jager.js`), named by its words or by its
+  level's geocube's `box` (`cube.js`; its page in the game book, `book.js`; its templates the galaxy-boy rail's box
+  variants, each laid on its cube), laid by `dress.js`, its closed parts built as what they are by `fabric.js`, its
+  climbs figures laid across the screen by `climbs.js`; its secret walls a gate no power opens; a world's
+  `levels.<id>.metroidvania`, built as the geocube's `show: 'metroidvania'` and played on the side map's runtime, its
+  gates held shut until the hero holds what opens them, `worlds/controllable/held-gates.js`; boxes of other shapes,
+  `shapes.js`, joined port to port by connectors into a castle, `castle.js`, laid as one map or a map a box on the
+  megaworld's chain, `segment`, her gains carried map to map by the journey):
+  [gameworld/metroidvania/](../control/lib/graph/gameworld/metroidvania/), [docs/metroidvania-map.md](metroidvania-map.md).
 - The platformer's rail (a mascot platformer from its feel to a first level and the flow that plays it, in two
   dimensions: `2d` the side-scroller, one strip and one turn, its home the title; `3d` opt-in, courses up a hill, a
   turn each, its home the courses screen; both on one flow shape, a start menu, a screen on its side, the
@@ -159,7 +174,10 @@ Pointers only; each target carries its own design notes.
   [gameworld/first-level.js](../control/lib/graph/gameworld/first-level.js); manual: the `gameworld-course` card. A course in
   the round is skinned by [gameworld/course-skin.js](../control/lib/graph/gameworld/course-skin.js) (floors the land's turf,
   dirt and rock; stairs and walls a geocube's stone and trim, the cube read from the level, the world or the kit). The
-  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](side-strip-principles.md).
+  land behind a side strip's lane is dressed by [docs/side-strip-principles.md](side-strip-principles.md). What makes any
+  side-scroller's background good to look at (contrast, colour, composition, light, motion; the page's `ambient` channel):
+  [docs/side-scroll-backgrounds.md](side-scroll-backgrounds.md); making a variation of one (a scenery, a place, a
+  vista, a locale, a colour key): [docs/backdrop-variations.md](backdrop-variations.md).
 - Title cards: [game/title-carve.js](../control/lib/graph/game/title-carve.js) (a HUD banner `as: 'title'`: its words carved
   by [motion/glyph-carver.js](../control/lib/motion/glyph-carver.js) into the glyph atlas the page plays, slam | rise | stamp,
   in the juice register's look; words by key in the world's `locale` from `control/messages/`: `game/title-words.js`);
@@ -291,7 +309,8 @@ Pointers only; each target carries its own design notes.
   phase and tier, statuses, spells, a battle's moments, the world's effects) and the animals' (`sfx-shelf/animal-sounds.js`:
   each species to a voice class by its family, order or name, each class's call, alert, hurt and death) and a flight's
   (`sfx-shelf/flight-sounds.js`: the kit by the pilot's rule, a trainer, an arcade fighter or a cockpit; played by
-  `scene/channels/flight-audio.js`), their variants
+  `scene/channels/flight-audio.js`) and a boss fight's (`sfx-shelf/boss-sounds.js`: each director pattern's wind-up and
+  strike, a boss's voice by what it is, a metroidvania's held gates; played by `scene/channels/boss-audio.js`), their variants
   recorded rows heard as a `standIn` (or silent) without the library.
 - Underwater: [scene/channels/sea.js](../control/lib/graph/scene/channels/sea.js) (a geocube's `sea`: its land put under
   water by light alone on a gen-7 page, the air's sibling on three's fog chunk; waters and depth zones are rows, a zone

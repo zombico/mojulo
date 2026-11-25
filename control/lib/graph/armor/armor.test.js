@@ -39,7 +39,19 @@ describe('armor build validation', () => {
     expect(validateArmor({ type: 'armor', style: 'aka', language: { crest: 'dragon' } })[0]).toMatch(/crescent, kuwagata, sun/);
     expect(() => expandArmor({ type: 'armor', style: 'paladin' }, CTX)).toThrow(/Invalid armour build/);
   });
-  it('stamps the current laws when absent', () => {
+  it('leaves the plate pieces a build names off (`without`): the shoulders bare for a cape, the rest as worn', () => {
+    const all = expandArmor({ type: 'armor', style: 'knight' }, CTX), bare = expandArmor({ type: 'armor', style: 'knight', without: ['pauldron'] }, CTX);
+    expect(all.trace.worn.some((w) => w.startsWith('pauldron'))).toBe(true);
+    expect(bare.trace.worn.some((w) => w.startsWith('pauldron'))).toBe(false);
+    expect(bare.trace.worn).toEqual(all.trace.worn.filter((w) => !w.startsWith('pauldron')));
+    expect(bare.kit.some((A) => /pauldron/.test(A.id))).toBe(false);
+    expect(bare.trace.focal).toBe('cuirass');
+    // (a themed suit keeps its motifs where its anchors still are)
+    expect(expandArmor({ type: 'armor', style: 'knight', theme: 'death-knight', without: ['pauldron'] }, CTX).kit.length).toBeGreaterThan(0);
+    expect(validateArmor({ type: 'armor', without: ['cape'] })[0]).toMatch(/plate pieces left off/);
+    expect(validateArmor({ type: 'armor', style: 'aka', without: ['pauldron'] })[0]).toMatch(/only a plate suit/);
+  });
+    it('stamps the current laws when absent', () => {
     expect(kitOf('knight').trace.laws).toBe(ARMOR_LAWS_VERSION);
   });
   it('the hard-suit samples wear genre colours, not a franchise livery (the palette only: the kits are pinned)', () => {
