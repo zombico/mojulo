@@ -28,6 +28,17 @@ book's map: a frame level's plate is now its operation map. Buildings come after
   - **Fallen blocks** are mostly small, with a few great slabs: the size's dice are weighted to their low end, up to
     12 m.
   - **Laws**: walls stand (the rise is climbed on faces over 70°), talus at repose, the floor open for a frame.
+- **The rock's colour** (`form/rock-colour.js`, a geocube's `outside.rock`, opt-in, read by the form render's land for
+  any cube that names it). The colour comes from the beds the rock is made of and the weather that ran down it:
+  - **beds**: bands by height, each the stone pulled toward one of the cube's own colours (pale trim for upper beds) and
+    lifted or darkened, eased over each contact.
+  - **thin**: thin beds, each with its own small tone, so no two ledges are one colour and nothing repeats.
+  - **varnish**: dark streaks down the walls, a function of the plan alone so they run straight down any wall; a slow
+    mask leaves some walls clean.
+  - It is baked into the land's own corner colours over the rock layer, so a page and an engine handoff get the same.
+    Absent, the land's colours are as they were.
+  - Each battlefield cube names its column: a dark plinth, the massive red wall, a lighter band, and pale upper beds
+    weathered toward its trim (Wadi Rum's Disi over its Umm Ishrin).
 - **The battlefield cubes** (`assault-frame/geocubes.js`, in `GEOCUBE_PRESETS` with their palettes and outposts).
   - `sandstone-wadi`, `sandstone-gorge`, `scree-scarp` and `wadi-oasis`, sized for a frame 7.5 to 9 m tall: walls 40
     to 120 m, gorges 25 to 200 m, talus 10 to 40 m out, blocks 3 to 7 m.

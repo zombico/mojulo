@@ -49,7 +49,9 @@
  *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
  *             count?, size?, glow?, seed? }, local-meru/crystals.js); `massif` (optional, an island's): its standing rock, sheer
  *             blocks stepped by beds, gorges, talus and water carved under the floor (a card or { from?, … },
- *             local-meru/massif.js); `cliff` (optional): the far cliff its trails
+ *             local-meru/massif.js); `rock` (optional): the colour its rock takes in the form render, by its beds' heights, each
+ *             thin bed's own tone and the varnish streaked down its walls ({ beds, blend?, thin?, varnish? }, form/rock-colour.js);
+ *             `cliff` (optional): the far cliff its trails
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
  *             false: none, the land open on both sides of every trail it paints (a field, a plain); `water`
  *             (optional): the water cut into the land of every trail it paints (a trail's `ground.water`, era/out-water.js:
@@ -143,6 +145,7 @@ import { readGround } from '../local-meru/ground.js';
 import { readGround as readTrailGround } from './out-ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
 import { readMassif } from '../local-meru/massif.js';
+import { readRockColour } from '../form/rock-colour.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
@@ -643,7 +646,7 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'rock', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
   if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
@@ -651,6 +654,7 @@ export function readGeocube(spec) {
   if (c.outside.ground !== undefined) groundOrNo(c.outside.ground, 'outside.ground');
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.massif !== undefined) { try { readMassif(c.outside.massif); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.rock !== undefined) { try { readRockColour(c.outside.rock); } catch (e) { no(`outside.${e.message}`); } }
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {
     if (!isObj(c.outside.terrains)) no(`outside.terrains is { <name>: { ${TERRAIN_KEYS.map((k) => `${k}?`).join(', ')} } }: the cube's other terrains`);

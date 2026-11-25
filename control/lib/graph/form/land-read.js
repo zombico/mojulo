@@ -37,6 +37,7 @@ import { b64 } from '../scene/emit-util.js';
 import { dressedMaterial, screeDice } from '../matte-paint/dressed.js';
 import { encodePng } from '../landscape/surface-textures.js';
 import { landLayers, LAYER_OF, PATH_REACH, evenHash } from './land-layers.js';
+import { readRockColour, rockColourAt } from './rock-colour.js';
 import { strHash } from '../city/plan/dice.js';
 import { landStones, stoneForms, SHAPES, STONE_DENSITY } from './land-stones.js';
 import { soilTones } from '../color-theorist/ground.js';
@@ -177,6 +178,8 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
   })();
   // (the cover's dirt, under the undergrowth on a green land, the theorist's humus; the bare island's soil its own floor)
   const roleBase = LAYERS.map((Ly, li) => (li === 2 && GREEN ? hexL(lin(hexRgb(soilTones(C.colour.floor).humus)).map((v, c) => light.linearBases.floor[c] * v / Math.max(1e-6, lin(hexRgb(C.colour.floor))[c]))) : bases[Ly.role])).map((h) => hexRgb(h));
+  // (the rock's colour by its beds and its weather, a cube's `outside.rock`, form/rock-colour.js; absent, the layer's own)
+  const RC = readRockColour(C.outside?.rock), ROCK = RC ? rockColourAt(RC, bases, { seed: 3 }) : null;
   // the sand under the line, corner by corner, as form/land-form.js fades it into the deep water's colour: every sand
   // face, the ones the line crosses too, so the sand meets its shallows without a step at a face's edge
   const sandZ = P.faces.flatMap((f, i) => (L.faces[i].cls === 'sand' ? f.corners.map((c) => c[2]) : []));
@@ -202,7 +205,9 @@ export function landRead(P0, C, { hour, dress = DRESS_DEFAULT, grass: withGrass 
     // (a layered face's corner: its layers' weights, and its base their solved bases by weight; wet sand keeps its own)
     const wAt = (j) => (layered(F, i) ? LY.weightAt(f.corners[j]) : F.under ? [0, 0, 0, 1] : [0, 0, 0, 0]);
     // (a face the read does not class keeps its paint: its fill, else its first corner's, a textured face's grey)
-    const base = F.cls ? F.base : hexRgb(f.fill ?? f.cornerFills?.[0] ?? '#808080'), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? [0, 1, 2].map((c) => Math.round(wAt(j).reduce((s, x, li) => s + x * roleBase[li][c], 0))) : base);
+    // (the rock's own colour at the corner where a cube names it, `outside.rock`: its bed, its thin bed's tone, its varnish)
+    const roleAt = ROCK ? (j) => { const c = f.corners[j], r = ROCK(c[0], c[1], c[2], roleBase[0]); return [r, ...roleBase.slice(1)]; } : () => roleBase;
+    const base = F.cls ? F.base : hexRgb(f.fill ?? f.cornerFills?.[0] ?? '#808080'), baseAt = (j) => (F.cls === 'sand' && L.waterZ !== null && f.corners[j][2] <= L.waterZ ? underAt(f.corners[j][2]) : F.corners ? F.corners[j] : layered(F, i) ? ((w, rb) => [0, 1, 2].map((c) => Math.round(w.reduce((s, x, li) => s + x * rb[li][c], 0))))(wAt(j), roleAt(j)) : base);
     let R = ranges[ranges.length - 1];
     if (!R || R.key !== key) ranges.push(R = { key, start: pos.length / 3, count: 0, rough: F.cls ? F.rough : 0.9 });
     for (let k = 1; k + 1 < f.corners.length; k++) for (const j of [0, k, k + 1]) {

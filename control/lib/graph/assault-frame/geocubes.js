@@ -9,8 +9,9 @@
  *                             scree-scarp, wadi-oasis
  *   FIELD_GEOCUBE_PALETTES    each one's palette spec (a seeded variant is solved from it)
  *   FIELD_GEOCUBE_BUILDINGS   the outposts each plausibly has (a recommendation, never a placement)
- *   FIELD_OUTSIDE(massif)     → a field's outside: the island at a frame's scale, its floor a sand plain rolled by the
- *                             wind, the massif's card on it (assault-frame/field.js reads the same)
+ *   FIELD_ROCK                each field's rock colour by its column (form/rock-colour.js, a geocube's `outside.rock`)
+ *   FIELD_OUTSIDE(massif, rock?) → a field's outside: the island at a frame's scale, its floor a sand plain rolled by the
+ *                             wind, the massif's card on it, its rock's colour (assault-frame/field.js reads the same)
  *
  * The scale (a frame is 7.5 to 9 m tall, it boosts and climbs): its square some 800 m a side; walls 40 to 120 m, high
  * enough to climb over on the booster and tall enough to break a lock; gorges 25 to 200 m across, a siq a frame threads
@@ -27,12 +28,22 @@ const ISLAND = f({ geology: false, walk: 'none', open: true, seabed: 'merged', c
 const SWELL = f([f({ form: 'mound', height: 1.5, foot: 24, summit: 10, profile: 0.6 })]);
 const LAND = f({ smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 });
 
-/** A field's outside: the island, the swell, the sand floor rolled by the wind and the massif's card on it. */
-export const FIELD_OUTSIDE = (massif, seed = massif) => f({
+// THE ROCK'S COLOUR (form/rock-colour.js) by each field's column: a dark plinth, the massive red wall, a lighter band, the
+// pale upper beds weathered toward the cube's trim (Wadi Rum's Disi over its Umm Ishrin); each thin bed its own tone;
+// the varnish streaked down the walls, some walls clean
+const VARNISH = f({ strength: 0.8, width: 18, mask: 160 }), THIN = f({ beds: f([4, 9]), jitter: 0.07 });
+export const FIELD_ROCK = f({
+  wadi: f({ beds: f([f({ to: 8, value: -0.14 }), f({ to: 54 }), f({ to: 84, toward: 'floor', mix: 0.3, value: 0.04 }), f({ to: 2000, toward: 'trim', mix: 0.5, value: 0.06 })]), blend: 3, thin: THIN, varnish: VARNISH }),
+  gorge: f({ beds: f([f({ to: 6, value: -0.16 }), f({ to: 46 }), f({ to: 64, toward: 'floor', mix: 0.3, value: 0.04 }), f({ to: 2000, toward: 'trim', mix: 0.55, value: 0.05 })]), blend: 2.5, thin: THIN, varnish: f({ ...VARNISH, strength: 0.8 }) }),
+  scree: f({ beds: f([f({ to: 14, toward: 'floor', mix: 0.2, value: -0.1 }), f({ to: 62 }), f({ to: 2000, toward: 'trim', mix: 0.4, value: 0.04 })]), blend: 4, thin: f({ beds: f([6, 14]), jitter: 0.09 }), varnish: f({ ...VARNISH, strength: 0.5 }) }),
+});
+
+/** A field's outside: the island, the swell, the sand floor rolled by the wind, the massif's card on it and its rock's colour. */
+export const FIELD_OUTSIDE = (massif, rock = FIELD_ROCK[massif] ?? FIELD_ROCK.wadi, seed = massif) => f({
   base: 'airless-plain', tiers: SWELL, island: ISLAND, land: LAND,
   ground: f({ from: f({ heartbeat: 'gentle-pulse', splatch: 'bone-trio', seed }), span: 1800, height: 7 }),
   // (the floor's dunes long and low at a frame's scale: a skate over them, never a climb)
-  relief: f({ from: 'dune', height: 2.5, scale: 90, finest: 8 }), massif,
+  relief: f({ from: 'dune', height: 2.5, scale: 90, finest: 8 }), massif, rock,
 });
 
 // (no inside of its own worth naming: an outpost's research rooms and its panelled walls, Sol's)
