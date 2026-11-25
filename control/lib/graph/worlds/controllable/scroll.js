@@ -22,6 +22,7 @@
  *                view, banked in the top (`tilt`)
  *
  *   camera: { rule: 'scroll', target, view?: 'side' | 'top', dist, screen: [along, across], start?: [u, v], track: [leg] }
+ *           (walls?: [[u0, u1, v0, v1]] an interior's, read by scroll-foes.js and scroll-pods.js: terrain, and what stops rounds)
  *   ship rule: { type: 'scroll-ship', frame?: camera id ('__camera'), gears?: [share…], gear?: index, size?: [l, b],
  *                margin?, tiltInto?, tiltRate?, deadzone?, lives?, hp?, respawn? (s, 1.5), reguard? (s, 2.5) }
  *   LIVES        down (its hp spent), blown apart and gone; `respawn` seconds on, a life spent, back home on the screen,

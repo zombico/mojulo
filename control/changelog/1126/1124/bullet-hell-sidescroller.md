@@ -59,7 +59,16 @@ lists the same layout.
 - shutters, bulkheads from the ceiling and the floor in turn;
 - a core, the wide room at the heart.
 
-Its walls are laid in steps, and guns stand on them facing the open. It is held to laws: the open is never narrower than
+Its walls are laid in steps, and guns stand on them facing the open. The walls are terrain: touching one costs a hit
+and pushes the ship out the nearest way, and rounds end on them (a grenade bursts there, a bomb blows on one, a beam
+stops at the first). They are drawn as a corridor seen from its open side, in one of two looks:
+- a station: grey panels, cyan lamps, windows out to the stars;
+- a facility: dark steel, amber lamps, hazard stripes on what crosses the way.
+
+Each look has lit lips along the open, a back wall in bays, the hull's face at the mouth with docking lights, and dark
+struts sliding past in front.
+
+It is held to laws: the open is never narrower than
 four ship breadths, each step overlaps the last by as much, a bend asks no more than the slowest gear can follow, the
 open stays on the screen, and every gun stands on its wall.
 

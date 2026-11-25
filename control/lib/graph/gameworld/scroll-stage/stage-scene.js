@@ -38,7 +38,7 @@
  *                                       its HUD on mana-ui, scroll-stage/hud.js), as a level
  *                                       puts them on its manifest (a page resolves a figure from the manifest only: the
  *                                       ship flies its airframe there; `airframe: false` the slab)
- *   assembleScrollStage(manifest, { title? }) → the World payload: faces (the layers, the hulls), sky, bg, cameras (a
+ *   assembleScrollStage(manifest, { title? }) → the World payload: faces (the layers, the hulls, the interior), sky, bg, cameras (a
  *                                       bookmark at the start), meta.scroll, and the play with the ship a slab (a payload
  *                                       resolves no figures: the space map's own convention, skyscape/airspace.js)
  *
@@ -58,6 +58,7 @@ import { scrollHud } from './hud.js';
 import { FOES, FOE_IDS, lowerFoes, HITBOX } from './patterns.js';
 import { streamOf } from '../../city/plan/dice.js';
 import { readInterior, planInterior } from './interior.js';
+import { layInterior } from './interior-scene.js';
 
 export const SCROLL_STAGE_KEYS = Object.freeze(['view', 'ship', 'track', 'pace', 'start', 'layers', 'pods', 'targets', 'waves', 'hp', 'lives', 'hulls', 'interior', 'backdrop', 'seed']);
 /** A leg's pace where it names none: a tenth of a screen a second (an arcade scroll's unhurried crawl). */
@@ -258,7 +259,8 @@ function playOf(G, { airframe = true, stage = '' } = {}) {
         }),
       ];
     })],
-    camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track },
+    // (an interior's walls ride on the camera's rule: terrain, and what stops the rounds, worlds/controllable/scroll-foes.js)
+    camera: { rule: 'scroll', target: 'player', view, dist: cam.dist, screen: [cam.screen.along, cam.screen.across], start, track, ...(G.interior ? { walls: G.interior.walls.map((w) => [w.u0, w.u1, w.v0, w.v1]) } : {}) },
     // (a hull on the play plane breaks as Rebel Storm's fleet does: destructible matter, weightless, gameworld/levels.js)
     ...(plane.length && airframe ? { destruction: 'physical', matter: { g: 0, power: 1e3 } } : {}),
     // (its HUD on mana-ui, scroll-stage/hud.js: a level's and a World page's, the page's HUD host reading the world)
@@ -293,6 +295,8 @@ export function assembleScrollStage(manifest, { title = 'Blaze Gunner' } = {}) {
     return { faces: hazeHulls(F.faces, cam, d), kibble: F.kibble?.blocks ?? {}, scale: F.kibble?.scale, report: { id, kind: H.capital, label: P.label, at: pos, heading: H.heading ?? 0, blocks: P.blocks.length } };
   });
   const kibble = Object.assign({}, ...hulls.map((h) => h.kibble)), kScale = hulls.find((h) => h.scale)?.scale;
+  // the INTERIOR (interior-scene.js): its walls, its back with its lamps and windows, its mouth, its struts
+  const inside = G.interior ? layInterior(G.interior, cam, { view, seed }) : null;
   // the sky at infinity: the space map's stars, and its backdrop's large world set in the camera's view, a little ahead
   // and over it
   const look = unit(V.toward.map((t, i) => -t + V.along[i] * 0.22 + V.up[i] * 0.16));
@@ -300,7 +304,7 @@ export function assembleScrollStage(manifest, { title = 'Blaze Gunner' } = {}) {
   const hfov = 2 * Math.atan(Math.tan((cam.vfov * Math.PI) / 360) * cam.aspect) * (180 / Math.PI);
   const look0 = toWorld(view, [start[0], start[1], 0]), eye0 = toWorld(view, [start[0], start[1], cam.dist]);
   return {
-    faces: [...space.faces, ...hulls.flatMap((h) => h.faces)],
+    faces: [...space.faces, ...hulls.flatMap((h) => h.faces), ...(inside ? inside.faces : [])],
     sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000, follow: true, sun: { dir: sun, size: SPACE_STAR.size, glow: SPACE_STAR.glow }, ...(B ? { backdrop: B } : {}) },
     bg: SPACE_VOID,
     ...(Object.keys(kibble).length ? { kibble: { scale: kScale, blocks: kibble } } : {}),
@@ -313,7 +317,7 @@ export function assembleScrollStage(manifest, { title = 'Blaze Gunner' } = {}) {
     cameras: [{ name: 'start', worldFraming: { cameraPosition: eye0.map(r2), lookAt: look0.map(r2), horizontalFov: r2(hfov) } }],
     viewBox: { width: 1280, height: Math.round(1280 / cam.aspect) },
     title,
-    meta: { scroll: { view, screen: cam.screen, dist: cam.dist, ship, track, extent, layers: space.report, hulls: hulls.map((h) => h.report) } },
+    meta: { scroll: { view, screen: cam.screen, dist: cam.dist, ship, track, extent, layers: space.report, hulls: hulls.map((h) => h.report), ...(inside ? { interior: { look: G.interior.look, sections: G.interior.sections, ...inside.report } } : {}) } },
   };
 }
 

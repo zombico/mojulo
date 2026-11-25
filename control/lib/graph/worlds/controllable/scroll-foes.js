@@ -22,7 +22,9 @@
  *                nor from off the screen
  *   a BULLET     `state.foeShots`: { u, v, du, dv, r, dmg, t, hue, w }, carried by the scroll, gone off the screen
  *   TERRAIN      a hull on the play plane (its blocks, rupa.js's breakables): the hitbox inside a standing block's outline
- *                takes a hit and is put back out across it, the nearer way
+ *                takes a hit and is put back out across it, the nearer way; an interior's WALLS (the camera rule's
+ *                `walls`: [[u0, u1, v0, v1]] metres, gameworld/scroll-stage/interior.js) the same, put out the nearest of
+ *                four ways (a bulkhead pushes back down the scroll), and a bullet that meets one ends there
  *   a HIT        a bullet within the ship's HITBOX (`rule.hitbox`: { r, at } metres, `at` ahead of its centre: round its
  *                canopy): the ship's body hp less its damage, flashed, and unhurt for `invuln` seconds after (`_iT`);
  *                at 0 the ship is down (`downed`; its lives are the stage's)
@@ -149,10 +151,23 @@ export function buildScrollFoes(E) {
         break;
       }
     }
+    // an interior's WALLS: terrain the same, put out the nearest of four ways; those near the screen, once a frame
+    const walls = Array.isArray(cam.rule.walls) ? cam.rule.walls.filter((w) => w[1] > c[0] - SA && w[0] < c[0] + SA) : null;
+    if (walls && walls.length && hc && !ship.downed && sr && ship.off) {
+      for (const w of walls) {
+        if (hc[0] < w[0] - hb.r || hc[0] > w[1] + hb.r || hc[1] < w[2] - hb.r || hc[1] > w[3] + hb.r) continue;
+        hurtShip(1);
+        const out = [[1, w[3] + hb.r - hc[1]], [1, -(hc[1] - (w[2] - hb.r))], [0, w[1] + hb.r - hc[0]], [0, -(hc[0] - (w[0] - hb.r))]];
+        const m = out.reduce((a, b) => (Math.abs(b[1]) < Math.abs(a[1]) ? b : a));
+        ship.off[m[0]] += m[1]; hc[m[0]] += m[1];
+      }
+    }
+    const inWall = (u, v) => { if (walls) for (const w of walls) if (u > w[0] && u < w[1] && v > w[2] && v < w[3]) return true; return false; };
     const keep = [];
     for (const s of shots) {
       s.t += dt; s.u += s.du * dt; s.v += s.dv * dt;
       if (Math.abs(s.u - c[0]) > SA / 2 + 4 * s.r || Math.abs(s.v - c[1]) > SC / 2 + 4 * s.r || s.t > 20) continue;
+      if (walls && inWall(s.u, s.v)) continue;
       if (hc && !ship.downed && Math.hypot(s.u - hc[0], s.v - hc[1]) <= s.r + hb.r) {
         hurtShip(s.dmg);
         continue;
