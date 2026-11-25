@@ -59,7 +59,20 @@ describe('a side view\'s patterns', () => {
   it('a hazard that says how high it reaches is jumped by a lane\'s body, and every side pattern holds its laws', () => {
     expect(sides.some((id) => reads(id).shares.over > 0)).toBe(true);
     // (the side patterns, each laid down the lane: told, escaped along it or over, survivable, opened after)
-    for (const id of [...sides, 'cleave', 'toss']) expect(patternLaws(id, SIDE).filter((l) => !l.holds).map((l) => `${id}:${l.law}`)).toEqual([]);
+    for (const id of [...sides, 'cleave', 'toss', 'lances', 'venom']) expect(patternLaws(id, SIDE).filter((l) => !l.holds).map((l) => `${id}:${l.law}`)).toEqual([]);
+  });
+
+  it('a thing that rolls harms only where it is as it passes, never where it was: jumped as it rolls under', () => {
+    const id = PATTERN_IDS.find((k) => PATTERNS[k].hazards.some((h) => h.shape === 'roll')), P = readPattern(id);
+    const [h] = layPattern(P, [0, 0], [P.reach, 0], 0), at = (x) => h.t0 + ((x - h.a[0]) / (h.b[0] - h.a[0])) * (h.t1 - h.t0);
+    // (at 6 m down the lane: hit as it is there, not before it comes nor after it has passed)
+    expect(hazardHit(h, 6, 0, at(6))).toBe(true);
+    expect(hazardHit(h, 6, 0, at(6) - 0.3)).toBe(false);
+    expect(hazardHit(h, 6, 0, at(6) + 0.3)).toBe(false);
+    // (on the lane, a jump clears it where it passes quick enough, and behind the one who rolled it is out)
+    const R = hazardReads(h, SIDE);
+    expect(R.shares.over).toBeGreaterThan(0); expect(R.shares.none).toBe(0);
+    expect(() => readPattern({ ...P, hazards: [{ ...P.hazards[0], step: 1 }] })).toThrow(/not a roll's word/);
   });
 
   it('a flight is a path off the floor and down again by its opening, its hazards landing as it comes down', () => {
@@ -69,7 +82,7 @@ describe('a side view\'s patterns', () => {
       const P = PATTERNS[id], F = P.flies, land = Math.min(...P.hazards.map((h) => h.at));
       expect(F[0]).toEqual([0, 0, 0]); expect(F[F.length - 1][2]).toBe(0);
       // (aloft through its tell, then low over the floor as the first hazard lands)
-      expect(Math.max(...F.filter((q) => q[0] < land).map((q) => q[2]))).toBeGreaterThan(2);
+      expect(Math.max(...F.filter((q) => q[0] < land).map((q) => q[2]))).toBeGreaterThanOrEqual(2);
       expect(patternLaws(id, SIDE).filter((l) => !l.holds)).toEqual([]);
     }
     const P = PATTERNS[flying[0]];

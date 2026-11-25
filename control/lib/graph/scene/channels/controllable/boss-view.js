@@ -26,7 +26,7 @@
 //                     jumped, a tall one left. Over it, the move's LOOK where its boss's move carries one (boss/looks.js,
 //                     `fx`): its tell on the boss and the floor as it winds up (a glint, glowing cracks, shimmering air,
 //                     the thing thrown coming down) and its hit as it lands (a crescent, a wall of dust, a wall of
-//                     ripples, an impact, streaks and afterimages), in the boss's colours over a white-hot core
+//                     ripples, an impact, streaks and afterimages, a boulder rolling), in the boss's colours over a white-hot core
 // Emitted only into a page whose world has a boss or a placed weapon, so every other page keeps every byte. Needs THREE,
 // scene and __world in scope.
 export function bossViewScript() {
@@ -93,6 +93,7 @@ const __bvGeo = (h) => {
   if (S === 'ring') { const g = new THREE.RingGeometry(Math.max(0.01, h.r0), h.r1 + h.band / 2, 64); g.translate(h.o[0], h.o[1], 0); return g; }
   if (S === 'disc') { const g = new THREE.CircleGeometry(h.r, 32); g.translate(h.c[0], h.c[1], 0); return g; }
   if (S === 'square') { const g = new THREE.PlaneGeometry(h.side * 0.96, h.side * 0.96); g.rotateZ(h.dir); g.translate(h.c[0], h.c[1], 0); return g; }
+  if (S === 'roll') { const dx = h.b[0] - h.a[0], dy = h.b[1] - h.a[1], L = Math.hypot(dx, dy) || 0.01; const g = new THREE.PlaneGeometry(L, 2 * h.r); g.rotateZ(Math.atan2(dy, dx)); g.translate((h.a[0] + h.b[0]) / 2, (h.a[1] + h.b[1]) / 2, 0); return g; }
   if (S === 'strafe') { const L = Math.hypot(h.b[0] - h.a[0], h.b[1] - h.a[1]), n = Math.max(1, Math.floor(L / h.step)), gs = []; for (let k = 0; k <= n; k++) { const g = new THREE.CircleGeometry(h.r, 20); g.translate(h.a[0] + ((h.b[0] - h.a[0]) * k) / n, h.a[1] + ((h.b[1] - h.a[1]) * k) / n, 0); gs.push(g); } return gs; }
   return null;
 };
@@ -186,6 +187,13 @@ function __bvFx(h, by) {
   } else if (kind === 'impact') {
     const s = __bvSoft(core, 0); s.scale.setScalar(0.1); g.add(s); X.hit.star = s;
     X.hit.puffs = Array.from({ length: 8 }, (_, k) => { const q = __bvSoft(dust, 0); g.add(q); return { q, side: k % 2 ? 1 : -1, v: 1.5 + rnd() * 2, z: 0.1 + rnd() * 0.5 }; });
+  } else if (kind === 'rolling' && h.a && h.b) {
+    // (the thing itself: a stone of a few facets, two greys and its chips, so its turning reads; dust thrown up behind it)
+    const r = h.r || 0.8, stone = new THREE.Group();
+    stone.add(new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), new THREE.MeshBasicMaterial({ color: 0x5e554a })));
+    for (let k = 0; k < 5; k++) { const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r * (0.32 + rnd() * 0.15), 0), new THREE.MeshBasicMaterial({ color: k % 2 ? 0x3e3730 : 0x7a6e60 })); const a = rnd() * 6.283, b = (rnd() - 0.5) * 2.4; c.position.set(Math.cos(a) * Math.cos(b) * r * 0.82, Math.sin(a) * Math.cos(b) * r * 0.82, Math.sin(b) * r * 0.82); stone.add(c); }
+    stone.visible = false; g.add(stone); X.hit.stone = stone; X.hit.stoneR = r;
+    X.hit.trail = Array.from({ length: 6 }, (_, k) => { const q = __bvSoft(dust, 0); g.add(q); return { q, k }; });
   } else if (kind === 'streak') {
     const rise = h.rise != null ? h.rise : 1.2;
     X.hit.lines = [0.12, 0.3, 0.5, 0.7, 0.88].map((f, k) => { const q = new THREE.Mesh(__bvYZ(new THREE.PlaneGeometry(1, k === 2 ? 0.16 : 0.08)), k === 2 ? __bvAdd(core, 0.95) : __bvFlat(hot, 0.8)); q.position.z = rise * f; q.userData.lag = [0.6, 0.2, 0, 0.35, 0.8][k]; g.add(q); return q; });
@@ -240,6 +248,12 @@ function __bvFxStep(X, h, t, by) {
     const cy = (h.c || h.o || [0, yb])[1];
     Hh.star.visible = on; Hh.star.position.set(0.05, cy, 0.5); Hh.star.scale.setScalar(on ? 3.2 * (1 - age / 0.6) + 0.3 : 0.1); Hh.star.material.opacity = on ? 1 - age / 0.6 : 0; Hh.star.material.rotation = age * 2;
     for (const p of Hh.puffs) { const a = Math.max(0, age), on2 = age >= 0 && age < 1; p.q.visible = on2; p.q.position.set(0, cy + p.side * p.v * Math.sqrt(a), p.z + a * 0.6); p.q.scale.setScalar(0.4 + a * 1.4); p.q.material.opacity = on2 ? 0.7 * (1 - a) : 0; }
+  }
+  if (Hh.stone) {
+    // (where it is on its line now, turning as far as it has rolled; its dust behind it, thinning)
+    const a = h.a, b = h.b, y = a[1] + (b[1] - a[1]) * k, on = t >= h.t0 && t <= h.t1;
+    Hh.stone.visible = on; Hh.stone.position.set(0, y, Hh.stoneR); Hh.stone.rotation.x = -(y - a[1]) / Hh.stoneR;
+    for (const P of Hh.trail) { const d = (P.k + 1) * 0.55; P.q.visible = on && Math.abs(y - a[1]) > d; P.q.position.set(0.1, y - X.dir * d, 0.25 + P.k * 0.12); P.q.scale.setScalar(0.6 + P.k * 0.25); P.q.material.opacity = 0.55 * (1 - P.k / 6); }
   }
   if (Hh.lines && h.a && h.b) {
     const a = h.a, b = h.b, y1 = a[1] + (b[1] - a[1]) * k, ya = a[1];

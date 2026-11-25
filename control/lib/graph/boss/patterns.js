@@ -18,6 +18,9 @@
  *     square  { c: [x, y], side }                            a floor tile charged
  *     strafe  { from: [x, y], to: [x, y], r, step }          a run of landings walking down a line, one every `step`
  *                                                            metres through its time (a gunship's rockets)
+ *     roll    { from: [x, y], to: [x, y], r }                a thing rolling down a line through its time, harming what it
+ *                                                            is over as it passes (a boulder): only where it is, never
+ *                                                            where it was
  *   A `lock` (on a line or a strafe, `track: s`) follows the body until `track` seconds and is fixed there: its end, or the
  *   strafe's line, laid through where the body stood then.
  *   A FLIGHT (`flies`: [[s, x, z], …], a winged boss's) is the path the boss flies through the move, key by key: `s` seconds
@@ -39,7 +42,7 @@ const no = (msg) => { throw new Error(`boss pattern: ${msg}`); };
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const SHAPES = Object.freeze({
   line: ['from', 'to', 'width'], cone: ['half', 'reach'], sweep: ['from', 'to', 'beam', 'reach'], ring: ['from', 'to', 'band'],
-  disc: ['c', 'r'], square: ['c', 'side'], strafe: ['from', 'to', 'r', 'step'],
+  disc: ['c', 'r'], square: ['c', 'side'], strafe: ['from', 'to', 'r', 'step'], roll: ['from', 'to', 'r'],
 });
 const COMMON = ['shape', 'at', 'for', 'harm', 'mark', 'low', 'cover', 'rise', 'origin', 'track', 'says'];
 
@@ -124,6 +127,29 @@ export const PATTERNS = Object.freeze({
     hazards: [{ shape: 'disc', origin: 'target', c: [0, 0], r: 1.6, mark: 0.6, at: 1.7, for: 0.3, harm: 0.18, says: 'its weight, dropped' },
       { shape: 'ring', origin: 'target', from: 1.2, to: 8, band: 0.9, rise: 0.7, at: 1.75, for: 0.9, harm: 0.12, says: 'the floor\'s front' }],
     open: { at: 2.65, for: 2 }, reads: 'a plunge out of the air onto where the body stood: out from under its shadow, then jump the front' },
+  // a run of blades thrown from the air, sticking into the floor one after another along the lane through where the body
+  // stood: jumped as each comes, or back under the thrower
+  volley: { reach: 6, tell: { for: 1.1, says: 'beats up over the floor and draws back its arm; the run of blades is marked' },
+    flies: [[0, 0, 0], [0.5, -0.4, 2], [1.1, -0.6, 2.3], [1.9, -0.5, 2.2], [2.4, 0, 0]],
+    hazards: [{ shape: 'strafe', from: [1, 0], to: [11.8, 0], r: 0.6, step: 1.2, rise: 0.9, at: 1.1, for: 1, harm: 0.14, says: 'the blades, one after another' }],
+    open: { at: 2.4, for: 1.6 }, reads: 'blades thrown from the air into the floor one after another: jump each as it comes, or get back under the thrower' },
+  // lances bursting up out of the floor under marks, one after another, where the body stands and on either side: off
+  // each mark before it bursts
+  lances: { reach: 5, tell: { for: 1.2, says: 'drives its hand into the floor; the marks spread from where the body stands' },
+    hazards: [[0, 0], [2.2, 0], [-2.2, 0], [4.4, 0]].map((c, i) => ({ shape: 'disc', origin: 'target', c, r: 1, mark: 0.3 * i, at: 1.2 + 0.35 * i, for: 0.4, harm: 0.12, says: 'a lance out of the floor' })),
+    open: { at: 2.85, for: 1.6 }, reads: 'lances out of the floor under marks, one after another: off each mark before it bursts' },
+  // a tail swept round along the floor, quick and close: jumped as it comes
+  coil: { reach: 3, tell: { for: 0.9, says: 'draws its coils in under it; its tail lifts off the floor' },
+    hazards: [{ shape: 'ring', from: 0.6, to: 5, band: 1, rise: 0.6, at: 0.9, for: 0.45, harm: 0.14, says: 'its tail along the floor' }],
+    open: { at: 1.5, for: 1.4 }, reads: 'a tail swept fast along the floor round it: jump it as it comes, or be past its reach' },
+  // venom spat where the body stood, a pool that burns there a while: out of its mark, and kept off it while it burns
+  venom: { reach: 6, tell: { for: 1.1, says: 'rears back, its throat swelling; where it lands is marked' },
+    hazards: [{ shape: 'disc', origin: 'target', c: [0, 0], r: 1.2, at: 1.1, for: 2.4, harm: 0.12, says: 'a pool of venom' }],
+    open: { at: 3.5, for: 1.4 }, reads: 'venom spat where the body stood, burning there a while: out from under its mark, and off it while it burns' },
+  // a boulder rolled down the lane the length of the room: jumped as it rolls under, or behind the one who rolled it
+  boulder: { reach: 6, tell: { for: 1.3, says: 'heaves a boulder up over its head; its road down the floor is marked' },
+    hazards: [{ shape: 'roll', from: [1, 0], to: [18, 0], r: 0.8, rise: 1.4, at: 1.3, for: 1.7, harm: 0.2, says: 'the boulder, rolling' }],
+    open: { at: 3, for: 1.8 }, reads: 'a boulder rolled the length of the room: jump it as it rolls under, or get behind the one who rolled it' },
   // a low spring down the lane at the body: jumped over as it comes, or out past its end
   lunge: { reach: 5, carries: true, tell: { for: 1, says: 'crouches low, its weight on its back foot' },
     hazards: [{ shape: 'line', from: [0, 0], to: [9, 0], width: 1.6, rise: 1.3, at: 1, for: 0.25, harm: 0.2 }],
@@ -171,6 +197,7 @@ export function layPattern(p, boss, target, t0) {
     else if (h.shape === 'disc') out.push({ ...base, c: W(h.c, o), r: h.r });
     else if (h.shape === 'square') out.push({ ...base, c: W(h.c, o), side: h.side, dir: aim });
     else if (h.shape === 'strafe') out.push({ ...base, a: W(h.from, o), b: W(h.to, o), r: h.r, step: h.step });
+    else if (h.shape === 'roll') out.push({ ...base, a: W(h.from, o), b: W(h.to, o), r: h.r });
   }
   return out;
 }
@@ -188,6 +215,7 @@ export function hazardHit(h, x, y, t) {
     case 'ring': { const r = Math.hypot(x - h.o[0], y - h.o[1]), at = h.r0 + (h.r1 - h.r0) * u; return Math.abs(r - at) <= h.band / 2; }
     case 'disc': return Math.hypot(x - h.c[0], y - h.c[1]) <= h.r;
     case 'square': { const c = Math.cos(-h.dir), s = Math.sin(-h.dir), lx = (x - h.c[0]) * c - (y - h.c[1]) * s, ly = (x - h.c[0]) * s + (y - h.c[1]) * c; return Math.abs(lx) <= h.side / 2 && Math.abs(ly) <= h.side / 2; }
+    case 'roll': { const q = [h.a[0] + (h.b[0] - h.a[0]) * u, h.a[1] + (h.b[1] - h.a[1]) * u]; return Math.hypot(x - q[0], y - q[1]) <= h.r; }
     case 'strafe': {
       // (the landings so far down the line, each burning a moment: the last half second's)
       const L = Math.hypot(h.b[0] - h.a[0], h.b[1] - h.a[1]), n = Math.max(1, Math.floor(L / h.step)), dt = (h.t1 - h.t0) / n;
@@ -204,6 +232,7 @@ export function hazardFoot(h) {
   switch (h.shape) {
     case 'line': return box([h.a, h.b], h.w / 2);
     case 'strafe': return box([h.a, h.b], h.r);
+    case 'roll': return box([h.a, h.b], h.r);
     case 'disc': return box([h.c], h.r);
     case 'square': return box([h.c], (h.side * Math.SQRT2) / 2);
     case 'ring': return box([h.o], h.r1 + h.band / 2);

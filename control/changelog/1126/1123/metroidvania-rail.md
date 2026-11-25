@@ -148,3 +148,10 @@
   can key.
 - A boss's attack can fly (`flies` on a pattern: a path of keys through the move), lowered under its room's ceiling and
   the air the screen gives it (`sky`); two new attack patterns, `swoop` and `dive`.
+- Four more boss fights in the castle: the Carrion Abbess in the belfry (a crow-nun who fights from the air on beating
+  wings and throws her quills into the floor), the Siege Ogre in the barbican (it rolls a boulder the length of the room:
+  jump it), the Armiger in the armoury (an empty suit of gilded plate that bursts lances out of the floor under marks)
+  and the Serpent Countess in the upper keep (a lamia whose tail sweeps the floor and whose venom burns where it lands).
+- Five new boss attacks: `volley`, `lances`, `coil`, `venom` and `boulder`, and a hazard that rolls (`roll`), harming
+  only where it is as it passes.
+- A boss kept to its room stands on its floor: a tall boss no longer climbs a room's ledges between its moves.

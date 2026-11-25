@@ -3,7 +3,8 @@
  * parts and states). A body whose rule carries `boss` is directed here, the pilot its target:
  *
  *   a boss kept to its ROOM (rule.boss.room, [y0, y1, z0, z1]: a castle's boss on its lane) takes no move while the pilot
- *                 is out of it, its first `first` seconds after the pilot comes in
+ *                 is out of it, its first `first` seconds after the pilot comes in, and stands on its room's floor (the
+ *                 height it stood at, `bossS.floor`) unless a flight takes it up
  *   a human boss  (rule.boss.kind 'human', its mind a boss's: rank and phases, mind.js) fights as its mind fights between
  *                 its moves; every `tempo` seconds of its phase it takes one of the phase's moves by weight, and while the
  *                 move's tell and hazards run it is planted, facing the aim (its rule held for the step), a charge carried
@@ -576,6 +577,12 @@ export function buildBoss(E) {
           if (e.vel) e.vel[2] = 0;
           e.aloft = z > 0.05 ? Math.round(z * 1000) / 1000 : 0;
         } else if (e.aloft) e.aloft = 0;
+        // (a boss kept to its ROOM stands on its room's floor, the height it stood at: never settled up onto a ledge or a
+        // climb's ledges over it, which a body as tall as their spacing reaches from its head down; a flight's air its own)
+        if (B.room && !(S.cur && S.cur.fly)) {
+          if (S.floor == null) S.floor = e.transform.pos[2];
+          else if (e.transform.pos[2] > S.floor + 0.25) { e.transform.pos[2] = S.floor; if (e.vel) e.vel[2] = 0; }
+        }
       } else {
         // VEHICLE: what hit it, judged by part (its health given back first); the mines under it
         if (e.body.hp < H0) {

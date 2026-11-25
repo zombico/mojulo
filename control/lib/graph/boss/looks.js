@@ -15,6 +15,8 @@
  *            sound     ripple lines standing at the front, as high as it reaches, rolling out
  *            impact    a star where it lands, a dust ring and chips
  *            streak    speed lines along the stretch at its height, afterimages of the boss as it is carried
+ *            rolling   the thing itself rolling down its line (a boulder: a stone turning as it goes), dust thrown up
+ *                      behind it
  *
  * Its colours are the boss's (`rule.boss.look`: `tell` the wind-up's, `hazard` the blow's) and the floor's dust; a look
  * names none of its own but `core` (the white-hot centre) and `dust`.
@@ -47,7 +49,7 @@
 import { PATTERNS } from './patterns.js';
 
 export const ATTACK_TELLS = Object.freeze(['glint', 'cracks', 'shimmer', 'falling']);
-export const ATTACK_HITS = Object.freeze(['crescent', 'dust', 'sound', 'impact', 'streak']);
+export const ATTACK_HITS = Object.freeze(['crescent', 'dust', 'sound', 'impact', 'streak', 'rolling']);
 const THINGS = ['weight', 'bell', 'swarm'], AT = ['weapon', 'eyes', 'feet'];
 const no = (m) => { throw new Error(`attack look: ${m}`); };
 
@@ -60,6 +62,12 @@ export const ATTACK_LOOKS = Object.freeze({
   // (the air's: its eyes catching the light as it hangs over the room, then what comes down)
   swoop: Object.freeze({ tell: Object.freeze({ glint: 'eyes' }), hit: 'streak', reads: 'its eyes glinting as it hangs over the room, then streaks and afterimages as it rakes along the floor' }),
   dive: Object.freeze({ tell: Object.freeze({ glint: 'eyes', cracks: true }), hit: 'impact', reads: 'its eyes glinting over its shadow, the floor\'s cracks lit under it, then a star, a dust ring and chips where it lands' }),
+  // (the new rooms' bosses: blades thrown from the air, lances out of the floor, a tail along it, venom, a boulder)
+  volley: Object.freeze({ tell: Object.freeze({ glint: 'weapon' }), hit: 'streak', reads: 'a glint in its raised hand, then streaks along the floor as the blades stick one after another' }),
+  lances: Object.freeze({ tell: Object.freeze({ cracks: true }), hit: 'impact', reads: 'the floor\'s cracks glowing under each mark, then a star, a dust ring and chips as each lance bursts' }),
+  coil: Object.freeze({ tell: Object.freeze({ glint: 'feet' }), hit: 'dust', reads: 'a glow at its coils as they draw in, then a wall of dust swept out both ways along the floor' }),
+  venom: Object.freeze({ tell: Object.freeze({ glint: 'eyes' }), hit: 'impact', reads: 'its eyes glinting as its throat swells, then a splash where the venom lands' }),
+  boulder: Object.freeze({ tell: Object.freeze({ glint: 'weapon', cracks: true }), hit: 'rolling', reads: 'the boulder raised and the floor cracking under the weight, then the boulder itself rolling the length of the room' }),
 });
 // THE BODY'S: arms as directions (+y ahead, +x its right, +z up), elbows and knees in degrees
 const up = (x, y = 0) => ({ x, y, z: 0.95 }), A = (x, y, z) => ({ x, y, z });
@@ -91,6 +99,26 @@ export const ATTACK_POSES = Object.freeze({
   dive: Object.freeze({ wound: { crouch: 0.05, spine: { arch: 0.1 }, armR: A(0.85, 0.1, 0.5), elbowR: 25, armL: A(-0.85, 0.1, 0.5), elbowL: 25, kneeL: 60, kneeR: 60, head: { pitch: 24 } },
     struck: { crouch: 0.42, spine: { lean: ['forward', 0.35] }, armR: A(0.15, 0.5, -0.85), elbowR: 10, armL: A(-0.15, 0.5, -0.85), elbowL: 10, kneeL: 70, kneeR: 70, head: { pitch: 12 } },
     reads: 'hanging over the body, arms spread and head down at it, then landing in a crouch, both hands driven down' }),
+  // (the arm drawn back high over the shoulder, the blades in its hand; then flung down and across, the body following)
+  volley: Object.freeze({ wound: { crouch: 0.05, spine: { arch: 0.2, twist: ['right', 0.35] }, armR: A(0.3, -0.5, 0.81), elbowR: 60, armL: A(-0.5, 0.7, 0.5), elbowL: 20, kneeL: 50, kneeR: 50, head: { pitch: 12 } },
+    struck: { crouch: 0.05, spine: { lean: ['forward', 0.4], twist: ['left', 0.35] }, armR: A(0.2, 0.85, -0.49), elbowR: 5, armL: A(-0.5, -0.4, -0.77), elbowL: 20, kneeL: 40, kneeR: 40, head: { pitch: 16 } },
+    reads: 'its arm drawn back high with the blades, then flung down and across' }),
+  // (bent over with one hand to the floor, the other raised; then both thrown up, the lances following them)
+  lances: Object.freeze({ wound: { crouch: 0.35, spine: { lean: ['forward', 0.55] }, armR: A(0.15, 0.4, -0.9), elbowR: 5, armL: A(-0.5, 0.2, 0.84), elbowL: 20, kneeL: 60, kneeR: 40, head: { pitch: 14 } },
+    struck: { crouch: 0.05, spine: { arch: 0.25 }, armR: A(0.35, 0.3, 0.89), elbowR: 10, armL: A(-0.35, 0.3, 0.89), elbowL: 10, head: { pitch: -16 } },
+    reads: 'bent with a hand to the floor, then both arms thrown up as the lances burst' }),
+  // (drawn in and turned away, the arms wrapped about it; then whipped round the other way, the arms flung out)
+  coil: Object.freeze({ wound: { crouch: 0.3, spine: { twist: ['right', 0.6], lean: ['forward', 0.2] }, armR: A(-0.2, 0.6, -0.4), elbowR: 80, armL: A(0.2, 0.6, -0.4), elbowL: 80, head: { pitch: 6 } },
+    struck: { crouch: 0.15, spine: { twist: ['left', 0.6] }, armR: A(0.95, 0.2, 0.1), elbowR: 10, armL: A(-0.95, 0.2, 0.1), elbowL: 10, head: { pitch: -4 } },
+    reads: 'drawn in and turned away, then whipped round, the arms flung out' }),
+  // (reared back, the chin up and the hands at the throat; then thrust forward, the head snapping out)
+  venom: Object.freeze({ wound: { crouch: 0.05, spine: { arch: 0.3 }, armR: A(0.3, 0.6, 0.2), elbowR: 110, armL: A(-0.3, 0.6, 0.2), elbowL: 110, head: { pitch: -24 } },
+    struck: { crouch: 0.12, spine: { lean: ['forward', 0.45] }, armR: A(0.5, 0.3, -0.81), elbowR: 30, armL: A(-0.5, 0.3, -0.81), elbowL: 30, head: { pitch: 10 } },
+    reads: 'reared back with its chin up, then thrust forward as it spits' }),
+  // (the boulder heaved up over the head in both hands; then thrown down and forward, the body bent behind it)
+  boulder: Object.freeze({ wound: { crouch: 0.1, spine: { arch: 0.3 }, armR: up(0.2, -0.2), elbowR: 70, armL: up(-0.2, -0.2), elbowL: 70, kneeL: 25, kneeR: 25, head: { pitch: -12 } },
+    struck: { crouch: 0.35, spine: { lean: ['forward', 0.6] }, armR: A(0.18, 0.75, -0.64), elbowR: 10, armL: A(-0.18, 0.75, -0.64), elbowL: 10, kneeL: 50, kneeR: 30, head: { pitch: 12 } },
+    reads: 'a boulder heaved up over its head, then thrown down and forward' }),
   lunge: Object.freeze({ wound: { crouch: 0.45, spine: { lean: ['forward', 0.5] }, armR: A(0.3, -0.7, -0.64), elbowR: 25, armL: A(-0.3, -0.7, -0.64), elbowL: 25, kneeL: 85, kneeR: 85, head: { pitch: -10 } },
     struck: { crouch: 0.18, spine: { lean: ['forward', 0.65] }, armR: A(0.08, 0.99, 0.05), elbowR: 0, armL: A(-0.4, -0.5, -0.75), elbowL: 20, kneeL: 55, kneeR: 15, head: { pitch: -18 } },
     reads: 'sunk low and leaning in, then sprung out flat along the lane' }),
@@ -106,6 +134,11 @@ export const WING_BEATS = Object.freeze({
   lunge: Object.freeze({ wound: 30, struck: 40, reads: 'folded back along it, flattened as it springs' }),
   swoop: Object.freeze({ wound: -40, struck: 45, reads: 'beating it up off the floor and holding it there, then folded back into the dive' }),
   dive: Object.freeze({ wound: -38, struck: 55, reads: 'beating it up over the body and holding it there, then beaten down as it drops' }),
+  volley: Object.freeze({ wound: -35, struck: 40, reads: 'holding it up in the air, then beaten down with the throw' }),
+  lances: Object.freeze({ wound: 25, struck: -40, reads: 'folded down as it bends, then flung up with the lances' }),
+  coil: Object.freeze({ wound: 30, struck: 35, reads: 'folded close as it draws in, held close through the sweep' }),
+  venom: Object.freeze({ wound: -30, struck: 20, reads: 'raised as it rears, then dropped as it spits' }),
+  boulder: Object.freeze({ wound: -25, struck: 45, reads: 'raised with the boulder, then beaten down with the throw' }),
 });
 
 /** The wind-up and strike clips of each pattern given that has a pose; a winged body's wings beating through them (see

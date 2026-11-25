@@ -27,6 +27,7 @@ attacks (the aim), and the body stands `reach` metres down the aim. A pattern ha
   | `disc` | a shell's landing |
   | `square` | a charged floor tile |
   | `strafe` | landings walked down a line |
+  | `roll` | a thing rolling down a line, harming only where it is as it passes (a boulder) |
 
   A hazard with `track` follows the body until that moment, then holds. A `low` one passes over a crouch. A `cover` one
   is stopped by a box between its origin and the body.
@@ -39,7 +40,11 @@ The shelf is `PATTERNS`: a new attack is a row. The side view's rows (a castle's
 (`rise`), where a jump is its escape; the air's rows fly: `swoop` (up off the floor and back, hanging over the room, then
 a dive that skims the floor through where the body stood, jumped as it rakes past) and `dive` (up over where the body
 stood, hanging there, then dropped straight onto it, a front rolling out from where it lands: out from under its shadow,
-then jump the front).
+then jump the front). The castle's new rooms add `volley` (blades thrown from the air into the floor one after another,
+jumped as each comes), `lances` (lances out of the floor under marks spreading from the body, one after another), `coil`
+(a tail swept fast along the floor round the boss, jumped), `venom` (a pool spat where the body stood that burns there a
+while) and `boulder` (a boulder rolled the length of the room, jumped as it rolls under; the `rolling` look draws the
+stone).
 
 ### The laws
 
@@ -166,7 +171,8 @@ shelf: `bossRule`, `bossMind`, `vehicleEntity`.
   pipeline is untouched. A charge carries it down its lane. A flight flies it along its path, off the floor and down
   again, its whole path lowered (never cut) under its room's ceiling and its `sky` (the metres of air over its floor it
   may fly in: a side view's frame, so its head stays on the screen); `aloft` is its height over its floor while it
-  flies. The page's tells and hits rise with it.
+  flies. The page's tells and hits rise with it. A boss kept to its `room` stands on its room's floor between its moves (the height it
+  stood at), so its settling never carries a tall body up onto ledges over it.
 - **A vehicle** is driven by its state. Each hit on it is judged by part after the step: its health is given back, then
   taken again as each hit counts, by where the round or burst landed in its own frame. A smaller part beats the hull on
   a tie. `E.bossHit` judges a hit another module lands.

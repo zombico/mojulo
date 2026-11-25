@@ -71,6 +71,18 @@ describe('a human boss', () => {
     expect(B.top).toBeGreaterThan(2);
   });
 
+  it('a boss kept to its room stands on its room\'s floor: lifted onto a ledge, it is put back; a flight still takes it up', () => {
+    const rule = { ...oneMove(id, charge), room: [-20, 20, -1, 8] };
+    const s = world([pilot([8, 0]), human(rule)]);
+    run(s, 0.2);
+    s.byId.b.transform.pos[2] = 3; run(s, 0.1);
+    expect(s.byId.b.transform.pos[2]).toBeCloseTo(0, 6);
+    // (a body never stood in a room keeps no floor: as it was)
+    const t = world([pilot([8, 0]), human(oneMove(id, charge))]);
+    run(t, 0.2); t.byId.b.transform.pos[2] = 3; run(t, 0.1);
+    expect(t.byId.b.bossS.floor).toBeUndefined();
+  });
+
   it('a boss kept to its room takes no move while the body is out of it', () => {
     const rule = { ...oneMove(id, charge), room: [-5, 5, -1, 4] };
     const s = world([pilot([0, 12]), human(rule)]);

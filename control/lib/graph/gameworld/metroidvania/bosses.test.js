@@ -56,6 +56,20 @@ describe('the castle\'s bosses', () => {
     expect(bossLaws(C).filter((l) => !l.holds)).toEqual([]);
   });
 
+  it('every boss on the shelf has a figure and stands somewhere in the castle; one that flies flies in its sky', () => {
+    const C = boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonataCastle(), stature: 1.63, bosses: 'stood' });
+    const named = new Set(C.bosses.map((b) => bossRow(b.name).id)), one = boxOf({ kind: 'geocube', show: 'metroidvania', metroidvania: vampireSonata(), stature: 1.63, bosses: 'stood' });
+    for (const b of one.bosses) named.add(bossRow(b.name).id);
+    for (const id of Object.keys(CASTLE_BOSSES)) { expect(named.has(id)).toBe(true); expect(CASTLE_FIGURES[id]).toBeDefined(); }
+    // (a winged figure's wind-ups flap; a boss whose moves fly is stood with its sky, keeping its head in the frame)
+    const id = Object.keys(CASTLE_FIGURES).find((k) => CASTLE_FIGURES[k].hero?.outfit?.style?.pieces?.some((q) => q.kind === 'wings'));
+    expect(castleFigure(id).hero.clips[`wind_${Object.values(CASTLE_BOSSES[id].moves)[0].pattern}`]).toHaveLength(6);
+    const G = readGameworld(vampireSonataGame({ heroRef: 'erina-ref' })), P = standBosses(G, C, { stature: 1.63, refs: { [id]: 'ref-1' } });
+    const e = P.entities.find((x) => bossRow(C.bosses.find((b) => b.id === x.id).name).id === id);
+    expect(e.rule.boss.sky).toBeGreaterThan(1);
+    expect(e.rule.boss.sky + e.rule.collideHeight).toBeLessThan(FRAME_TOP * C.greybox.screen.height);
+  });
+
   it('each boss with a figure is made by the runner and stood as it, grown to its tier; one with none stands as a block', () => {
     const names = S.bosses.map((b) => b.name), ids = figuredBosses(names);
     expect(ids.length).toBeGreaterThan(0);

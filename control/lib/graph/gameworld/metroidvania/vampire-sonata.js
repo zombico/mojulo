@@ -104,19 +104,19 @@ export function vampireSonataCastle() {
     boxes: [
       { id: 'tower', box: [8, 5], shape: 'serpentine', rings: [
         { id: 'foot', place: 'the tower foot', look: 1, foes: ['rat', 'ghoul'], boss: 'the Bell Ringer', finds: 'second-leap', inward: 'double-jump', pockets: [{ gate: 'double-jump', holds: 'a heart vessel' }] },
-        { id: 'belfry', place: 'the belfry', look: 2, foes: ['crow', 'ghoul'], key: true, inward: 'key', pockets: [{ gate: 'wall-break', holds: 'a relic' }] },
+        { id: 'belfry', place: 'the belfry', look: 2, foes: ['crow', 'ghoul'], key: true, boss: 'the Carrion Abbess', inward: 'key', pockets: [{ gate: 'wall-break', holds: 'a relic' }] },
         { id: 'spire', place: 'the spire', look: 0, foes: ['crow', 'ghoul'], boss: 'the Great Bell' },
       ] },
       { id: 'court', box: [7, 8], shape: 'hub', rings: [
-        { id: 'barbican', place: 'the barbican', look: 3, foes: ['crow'], key: true, inward: 'key' },
+        { id: 'barbican', place: 'the barbican', look: 3, foes: ['crow'], key: true, boss: 'the Siege Ogre', inward: 'key' },
         { id: 'yard', place: 'the courtyard', look: 0, foes: ['crow'] },
         { id: 'chapel', place: 'the chapel', look: 1, foes: ['ghoul'], boss: 'the Warden', finds: 'ram-strike', inward: 'wall-break', pockets: [{ gate: 'form', holds: 'a heart vessel' }] },
-        { id: 'armoury', place: 'the armoury', look: 3, foes: ['armor', 'ghoul'], finds: 'mist-veil', inward: 'form' },
+        { id: 'armoury', place: 'the armoury', look: 3, foes: ['armor', 'ghoul'], boss: 'the Armiger', finds: 'mist-veil', inward: 'form' },
         { id: 'crypt', place: 'the crypt', look: 2, foes: ['armor', 'ghoul', 'wolf'], boss: 'the Crypt Lord' },
       ] },
       { id: 'keep', box: [8, 6], rings: [
         { id: 'lower', place: 'the lower keep', look: 1, foes: ['armor', 'wolf'], key: true, inward: 'double-jump' },
-        { id: 'upper', place: 'the upper keep', look: 2, foes: ['armor', 'crow'], inward: 'form' },
+        { id: 'upper', place: 'the upper keep', look: 2, foes: ['armor', 'crow'], boss: 'the Serpent Countess', inward: 'form' },
         { id: 'throne', place: 'the throne room', look: 3, foes: ['armor'], boss: 'the Lord of the Keep' },
       ] },
     ],

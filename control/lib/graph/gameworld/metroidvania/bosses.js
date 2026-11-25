@@ -72,6 +72,30 @@ export const CASTLE_BOSSES = Object.freeze({
   'crypt-lord': Object.freeze({ class: 'lurker', skin: Object.freeze({ species: 'wolf' }), tier: 1.8, blows: 26, reads: 'a great wolf of the crypt: it waits in the dark and springs',
     moves: Object.freeze({ pounce: { pattern: 'lunge', says: 'flattens to the floor, hackles up' }, maul: { pattern: 'cleave', says: 'rears with its jaws wide' }, howl: { pattern: 'toll', says: 'throws its head back; the crypt goes still' } }),
     phases: Object.freeze([ph({ pounce: 2, maul: 2 }, 2.2), ph({ pounce: 2, maul: 1, howl: 2 }, 1.8, { below: 0.6 }), ph({ pounce: 3, maul: 1, howl: 1 }, 1.4, { below: 0.3, temper: 'relentless' })]) }),
+  // THE NEW ROOMS' (a boss for the belfry, the barbican, the armoury and the upper keep): each a fight of its own, an
+  // attack the others have not (blades from the air, a boulder, lances out of the floor, a tail and venom)
+  // (the belfry's: she fights from the air, a carrion bird in a nun's rags)
+  'carrion-abbess': Object.freeze({ class: 'stalker', skin: Object.freeze({ people: 'undead' }), tier: 1.6, blows: 20, reads: 'the belfry\'s abbess, dead and feathered: a carrion bird in a nun\'s rags who fights from the air',
+    moves: Object.freeze({ 'feather-volley': { pattern: 'volley', says: 'beats up over the floor and draws back an arm full of black quills' }, 'carrion-dive': { pattern: 'swoop', says: 'beats up into the bells and hangs there, then folds her wings and dives' },
+      'talon-drop': { pattern: 'dive', says: 'rises over Erina on her wings; her shadow spreads under her' }, shriek: { pattern: 'toll', says: 'throws her beak open; the bells hum with her' } }),
+    phases: Object.freeze([ph({ 'feather-volley': 2, 'carrion-dive': 2 }, 2.3), ph({ 'feather-volley': 2, 'carrion-dive': 1, 'talon-drop': 2, shriek: 1 }, 1.8, { below: 0.5, temper: 'opportunist' })]) }),
+  // (the barbican's: chained at the gate, it throws the broken wall at what comes in)
+  'siege-ogre': Object.freeze({ class: 'guard', skin: Object.freeze({ people: 'orcish' }), tier: 2, blows: 20, reads: 'the barbican\'s siege ogre, chained at the gate with a maul and the boulders of its broken wall',
+    moves: Object.freeze({ 'maul-swing': { pattern: 'cleave', says: 'drags its maul back over its shoulder' }, 'wall-boulder': { pattern: 'boulder', says: 'heaves a boulder of the broken wall over its head' },
+      'ground-pound': { pattern: 'quake', says: 'raises its maul in both fists' }, 'shoulder-rush': { pattern: 'lunge', says: 'drops its shoulder and stamps' } }),
+    phases: Object.freeze([ph({ 'maul-swing': 2, 'wall-boulder': 2 }, 2.5), ph({ 'maul-swing': 1, 'wall-boulder': 2, 'ground-pound': 2, 'shoulder-rush': 1 }, 2, { below: 0.5, temper: 'bold' })]) }),
+  // (the armoury's: an empty suit of plate, the armoury's lances at its call)
+  armiger: Object.freeze({ class: 'guard', skin: Object.freeze({ people: 'undead' }), tier: 1.7, blows: 24, reads: 'the armoury\'s armiger: an empty suit of gilded plate, nothing inside it, the armoury\'s lances at its call',
+    moves: Object.freeze({ 'lance-field': { pattern: 'lances', says: 'drives its gauntlet into the floor; the marks spread from Erina\'s feet' }, 'blade-arc': { pattern: 'cleave', says: 'draws its sword back over its shoulder' },
+      'shield-rush': { pattern: 'lunge', says: 'sets its shield and lowers itself behind it' }, 'flung-shield': { pattern: 'toss', says: 'hurls its shield high' } }),
+    phases: Object.freeze([ph({ 'blade-arc': 2, 'shield-rush': 1, 'lance-field': 1 }, 2.3), ph({ 'blade-arc': 1, 'lance-field': 2, 'shield-rush': 1, 'flung-shield': 2 }, 1.8, { below: 0.6, temper: 'opportunist' }),
+      ph({ 'lance-field': 3, 'shield-rush': 2, 'blade-arc': 1 }, 1.4, { below: 0.3, temper: 'relentless' })]) }),
+  // (the upper keep's: the lord's countess, a serpent below the waist)
+  'serpent-countess': Object.freeze({ class: 'stalker', skin: Object.freeze({ people: 'infernal' }), tier: 1.8, blows: 30, reads: 'the lord\'s countess, a serpent below the waist: she coils across the upper keep and spits venom',
+    moves: Object.freeze({ 'tail-sweep': { pattern: 'coil', says: 'draws her coils in under her; her tail lifts' }, 'venom-spit': { pattern: 'venom', says: 'rears back, her throat swelling' },
+      'fang-strike': { pattern: 'lunge', says: 'draws her head back on her coils' }, 'fan-cut': { pattern: 'cleave', says: 'raises her bladed fan behind her' } }),
+    phases: Object.freeze([ph({ 'fang-strike': 2, 'fan-cut': 2, 'tail-sweep': 1 }, 2.2), ph({ 'tail-sweep': 2, 'venom-spit': 2, 'fang-strike': 1, 'fan-cut': 1 }, 1.7, { below: 0.55, temper: 'opportunist' }),
+      ph({ 'venom-spit': 2, 'tail-sweep': 2, 'fang-strike': 2 }, 1.3, { below: 0.25, temper: 'relentless' })]) }),
   'lord-of-the-keep': Object.freeze({ class: 'pursuer', skin: Object.freeze({ people: 'infernal' }), tier: 1.6, blows: 34, reads: 'the vampire lord herself, cool and sharp: she follows Erina across her throne room and strikes',
     moves: Object.freeze({ 'cape-sweep': { pattern: 'cleave', says: 'gathers her cape and sweeps it round' }, 'bat-swarm': { pattern: 'toss', says: 'opens her cape; bats pour out where Erina stood', look: { tell: { falling: 'swarm' } } }, 'blood-wave': { pattern: 'toll', says: 'raises both hands; the throne room\'s air turns red' }, 'shadow-lunge': { pattern: 'lunge', says: 'sinks into her own shadow' } }),
     phases: Object.freeze([ph({ 'cape-sweep': 2, 'bat-swarm': 2 }, 2.2), ph({ 'cape-sweep': 2, 'bat-swarm': 1, 'blood-wave': 2 }, 1.8, { below: 0.66, temper: 'opportunist' }), ph({ 'blood-wave': 2, 'shadow-lunge': 2, 'bat-swarm': 1, 'cape-sweep': 1 }, 1.3, { below: 0.33, temper: 'relentless' })]),
@@ -128,6 +152,34 @@ export const CASTLE_FIGURES = Object.freeze({
   // its head thrown up; played through the tell and the blow by the page's wind-up, `wind`, by the pattern each move draws)
   'crypt-lord': Object.freeze({ animal: { species: 'wolf', ooze: ['dire', 'shadow'], strike: { startup: 30, active: 8, recovery: 22 } },
     wind: Object.freeze({ lunge: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, cleave: { wind: ['swing_neutral', 0, 0.42], strike: ['swing_neutral', 0.42, 1] }, toll: { wind: ['stagger', 0, 0.5], strike: ['stagger', 0.5, 1] } }) }),
+  // THE NEW ROOMS' (found by minting: a hood, even worn down, wants a head the beaked kin has none of, so the Abbess wears a
+  // mantle and a wimple's collar; the castle's stylism lays a harmony accent the Ogre's palette does not pin (a cyan
+  // collar), and the orc's frame is the wedge already, so it goes without)
+  // (the Carrion Abbess: the avian kin in a nun's black, a white wimple and mantle, black wings swept back, rags of her habit)
+  'carrion-abbess': Object.freeze({ hero: { name: 'The Carrion Abbess', cast: { pole: 'female', build: 'lithe' }, head: 'none', tune: { stature: 1.1 },
+    beast: { kin: 'avian', head: 'beaked', claws: 'long', hunch: 22, mass: { trunk: 1.15, upperArm: 1.1, foreArm: 1.1, thigh: 1.15 } },
+    outfit: shroud('carrion-habit', [{ kind: 'wings', span: 1.1, rise: 1, sweep: 0.75 }, { kind: 'mantle', colour: '#e8e0d0' }, { kind: 'collar', rise: 0.3, colour: '#e8e0d0' }, { kind: 'rags', count: 9, len: 0.5, shoulders: true, colour: '#2a2228' }, { kind: 'charms', charm: 'bone' }],
+      { OutfitSecond: '#14101a', OutfitBase: '#e8e0d0', OutfitTrim: '#8a7a5a', OutfitAccent: '#6a1a22', OutfitBone: '#e8dcc0' }),
+    palette: { Skin: '#1e1a22', Claws: '#d8ccb0', Top: '#1e1a22', Bottom: '#16121a', Shoes: '#12101a' } } }),
+  // (the Siege Ogre: the orc kin in harness and rags, iron at its arms, a spiked mace)
+  'siege-ogre': Object.freeze({ hero: { name: 'The Siege Ogre', cast: { pole: 'male', build: 'brute' }, tune: { stature: 1.1 }, beast: { kin: 'orc' },
+    outfit: shroud('siege-rags', [{ kind: 'harness' }, { kind: 'rags', count: 6, len: 0.45, colour: '#4a3a2a' }, { kind: 'armRings' }],
+      { OutfitSecond: '#3a2e22', OutfitTrim: '#6a6a60', Leather: '#2a2018', OutfitMetal: '#5a5a54', OutfitAccent: '#7a2a1a', OutfitBone: '#d8ccb0' }),
+    palette: { Skin: '#6e7a5a', Top: '#3a2e22', Bottom: '#2e241a', Shoes: '#1e1812' },
+    gear: { right: { item: 'staff', style: 'brutal', parts: { head: 'mace', reach: 'arm' }, dials: { mass: 2 } } } } }),
+  // (the Armiger: the knight's plate gilded and tarnished, nothing in it, a dark T-visor where a face would be; its sword
+  // and its shield, a red cloak torn at the hem)
+  armiger: Object.freeze({ hero: { name: 'The Armiger', cast: { pole: 'male', build: 'heroic' }, head: 'landmark',
+    adorn: { type: 'armor', style: 'knight', theme: 'radiant', without: ['pauldron'], dials: { mass: 0.8, ornament: 2 } }, headgear: 'heavyTVisor',
+    outfit: shroud('armiger-tabard', [cloak('calf', 0.6, 'accent', { depth: 0.24, tongues: 5 }), { kind: 'rags', count: 4, len: 0.4, colour: '#5a1418' }, { kind: 'trophy' }], { OutfitSecond: '#2a0c10', OutfitAccent: '#7a1a1e', OutfitTrim: '#c9a75a' }),
+    palette: { Skin: '#0a080c', Cloth: '#5a1418', Glow: '#e0c070', Helmet: '#8a7a4a', HelmetTrim: '#e0c070', HelmetVisor: '#050406', Visor: '#050406', Plate: '#8a7a4a', Iron: '#3a3428', Bronze: '#c9a75a', Helm: '#8a7a4a', Trim: '#e0c070', Rivet: '#e0c070', Accent: '#7a1a1e', Leather: '#1e1414', Top: '#1a1416', Bottom: '#120e10', Shoes: '#0e0a0a' },
+    gear: { right: { item: 'greatsword', style: 'historical', dials: { mass: 1.1 } }, left: { item: 'shield', style: 'historical' } }, stylism: { ...MYTH, silhouette: 'wedge' } } }),
+  // (the Serpent Countess: the serpentine kin (a coil for legs) under the anime head, sharp and cool, her hair long and
+  // dark, a noble's purple with gold at her throat and arms)
+  'serpent-countess': Object.freeze({ hero: { name: 'The Serpent Countess', cast: 'female', head: 'anime', animeStyle: 'shonen-high', animeBody: 'maki',
+    beast: { kin: 'serpentine' }, look: ['rival', 'sharp', 'narrow-eyes', 'mature'], hair: ['long'], expression: 'deadpan',
+    outfit: shroud('countess-bodice', [{ kind: 'mantle', colour: 'base' }, { kind: 'collar', rise: 0.24, flare: 3 }, { kind: 'torc' }, { kind: 'armRings' }, { kind: 'sash' }], { OutfitSecond: '#1a0a2a', OutfitBase: '#3a1050', OutfitTrim: '#c9a75a', OutfitAccent: '#c9a75a' }),
+    palette: { Skin: '#e6e0d8', Hair: '#1a2a22', Scales: '#2a5a3a', Top: '#3a1050', Bottom: '#2a5a3a', Shoes: '#1a2a22' } } }),
   // (the great bell: no door makes a bell, so it is a card of its own, bell.js, built on the page with its swings)
   'great-bell': Object.freeze({ bell: { card: 'great-bell' } }),
   // (the vampire lord a woman, androgynous: the slim female body squared at the shoulder and straightened at the hip, a
@@ -235,6 +287,8 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
     // bounds would count the halberd held over its head); a beast by its own bounds to the tier's height, the page's fit
     // (its skeleton shorter than its flesh))
     const { scale: _s, fit: _f, ...body } = e.body, fit = !figure || F.bell ? {} : F.animal ? { fit: { least: H, from: 1 } } : { scale: row.tier };
+    // (a boss that flies flies in its sky, as a second form does: modesOf)
+    const sky1 = Object.values(row.moves).some((m) => PATTERNS[m.pattern]?.flies) && B.greybox?.screen?.height ? { sky: r3(Math.max(0, FRAME_TOP * B.greybox.screen.height - H - 0.3)) } : {};
     part.entities.push({
       ...e,
       body: { ...body, ...fit, hp: row.blows * HERO.blow, hpBar: 'none', radius: R, egg: { a: r3(0.42 * row.tier), c: r3(H / 2), cz: r3(H / 2) },
@@ -243,7 +297,7 @@ export function standBosses(G, B, { stature = HERO.height, refs = {} } = {}) {
       // (its FIGHT the director's, boss/stand.js: its moves laid at its tempo, planted through each, its mind crossing its
       // phases; between its moves it fights as its class does)
       rule: { ...e.rule, collideHeight: H, collideRadius: R, rail: { a: [0, P.span[0]], b: [0, P.span[1]], join: P.at, heading: P.heading },
-        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && castleWind(row.id) ? { wind: structuredClone(castleWind(row.id)) } : {}), ...(fig2 ? { figures: [fig2] } : {}) }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
+        boss: withLooks({ ...bossRule(castleBoss(row.id), { seed: k + 1, first: 1.5 }), ...(b.room ? { room: [...b.room] } : {}), ...(figure && castleWind(row.id) ? { wind: structuredClone(castleWind(row.id)) } : {}), ...(fig2 ? { figures: [fig2] } : {}), ...sky1 }, row), mind: { ...(e.rule.mind ?? {}), ...bossMind(castleBoss(row.id)), rank: 'boss' } },
     });
   }
   return part;
