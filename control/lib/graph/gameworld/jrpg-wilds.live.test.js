@@ -78,8 +78,9 @@ describe('the JRPG starter\'s wilds on the page', () => {
       const fighters = await page.evaluate(() => window.__mojRpg.R.b.ids.length + window.__mojRpg.R.b.foes.length);
       expect(at.bar).toBeTruthy();
       expect(at.win.l >= at.bar.r - 1 || at.win.r <= at.bar.l + 1).toBe(true);
-      expect(at.win.b).toBeLessThanOrEqual(at.H);
-      expect(at.win.t).toBeGreaterThanOrEqual(0);
+      // (failing, it says the boxes it measured: the window's, the bar's and the screen's)
+      expect(at.win.b, JSON.stringify(at)).toBeLessThanOrEqual(at.H);
+      expect(at.win.t, JSON.stringify(at)).toBeGreaterThanOrEqual(0);
       // (JRPG_WILDS_SHOT=<png>: the battle on the wilds' map, for the eyes)
       if (process.env.JRPG_WILDS_SHOT) await page.screenshot({ path: process.env.JRPG_WILDS_SHOT });
       // picked, the window goes and the blow plays: one member's turn, then the next one's (the timeline, one at a time)

@@ -765,9 +765,16 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const score = 100 * over(c, me) + 4 * party.reduce((a, B) => a + over(c, B), 0) + foes.reduce((a, B) => a + over(c, B), 0);
       if (!best || score < best.score - 1e-6) best = { ...c, score };
     }
-    // (an anchor stands its row's bottom middle on its point)
-    return [(best.l + w / 2) / Wd, best.b / Ht];
+    // (an anchor stands its row's bottom middle on its point, but where the window is painted can sit off that point by
+    // an amount the screen sets, its row's own height under another device's fonts: on a CI runner 24 px up, over the
+    // top. That offset is read off last frame, the window as painted against the point it was given, and the point is
+    // given less it, so the window lands where it was chosen to: inside the screen and clear of the party. One frame's
+    // offset, never a sum: a point the window does not follow cannot run away)
+    const off = asked.m === m && q && q.height > 0 ? q.bottom - asked.b : 0, b = best.b - Math.max(-h, Math.min(h, off));
+    asked.m = m; asked.b = b;
+    return [(best.l + w / 2) / Wd, b / Ht];
   }
+  const asked = { m: null, b: 0 };
   // (the world's own states on a fighter, by how a line says them: cfg.states, rpg.js)
   const ownStates = (st) => (cfg.states ? Object.keys(cfg.states).filter((k) => st[k] > 0).map((k) => cfg.states[k].said) : []);
   function battleModel() {
@@ -934,10 +941,15 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     else if (e.emit === 'learn') { const why = K.buy(cfg, R, e.member, e.skill); said(why, memberName(e.member) + ' learned ' + cfg.skills[e.skill].name + '.'); if (!why) keep(); }
   }
   // ── a shop and an inn (rpg.js shops): opened by a cue's rpg-shop:<id>, its wares bought with the gold into the bag ──
+  // (false while a scene or a menu is up, so the ask is kept and tried again next frame: a scene's end can be logged on
+  // a frame its talk is still up, a slow device's, and a shop dropped then never opens; true when it is answered, or
+  // when the page is in a shop or a battle already, as it always was: a second E at the inn does not queue it again)
   function openShop(sid) {
-    if (mode || busy() || !K.shopOf(cfg, sid)) return;
+    if (!K.shopOf(cfg, sid) || mode) return true;
+    if (busy()) return false;
     mode = 'shop'; shopId = sid; smsg = '';
     screen('rpg-shop');
+    return true;
   }
   function shopModel() {
     const S = K.shopOf(cfg, shopId), gold = V()[cfg.rules.gold] || 0;
@@ -1033,7 +1045,7 @@ export function rpgPage(cfg, K, ctl, jk, M) {
     }
     seen = log.length;
     for (const enc of fights) startBattle(enc);
-    if (shopAsk) { openShop(shopAsk); shopAsk = null; }
+    if (shopAsk && openShop(shopAsk)) shopAsk = null;
   }
   function walk() {
     const Rn = cfg.random, w = window.__mojCtrl && window.__mojCtrl.world;
