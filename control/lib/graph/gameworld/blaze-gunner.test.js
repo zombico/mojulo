@@ -23,10 +23,12 @@ describe('Blaze Gunner\'s rail', () => {
     expect(blazeGunnerStart({}, { stages: 1 }).world.levels).toHaveProperty(STAGE_IDS[0]);
   });
 
-  it('its starter writes its front (a press-start, the end card) and its look (orbit in its own colours, no overlay), under what the creator wrote', () => {
+  it('its starter writes its name, its front (a press-start, the end card) and its look (orbit in its own colours, no overlay, a starfield), under what the creator wrote', () => {
     const W = blazeGunnerStart({}).world;
     expect(W.front).toEqual(BLAZE_GUNNER_FRONT);
-    expect(W.ui).toEqual({ theme: { from: BLAZE_GUNNER_LOOK, overlay: 'none' }, colour: 'theme' });
+    expect(W.ui).toEqual({ theme: { from: BLAZE_GUNNER_LOOK, overlay: 'none', stage: 'starfield' }, colour: 'theme' });
+    expect(W.name).toBe('Blaze Gunner');
+    expect(blazeGunnerStart({ name: 'Mine' }).world.name).toBe('Mine');
     expect(Object.keys(W.levels)).toEqual(STAGE_IDS);
     expect(blazeGunnerStart({ front: { tagline: 'mine' } }).world.front).toEqual({ tagline: 'mine' });
   });

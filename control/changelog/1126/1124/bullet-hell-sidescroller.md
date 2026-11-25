@@ -118,6 +118,11 @@ ship that neither moves nor fires does not, and that meets the first level's goa
 on mana-ui: press start, the title, a stage under its HUD, CLEARED with the next stage offered, the second stage, the
 end card.
 
+**Its screens.** The game is named Blaze Gunner where the person gives it no name of its own. Its menus are drawn
+over a new mana-ui stage, `starfield`, in place of orbit's rings: scattered stars drawn short along the way the stages
+scroll, drifting on in parallax, with a world's lit rim low in a corner. It holds still under less motion. The title,
+the result between stages and the end card all wear it.
+
 **Laws.** The arsenal and the bullet patterns are held to laws:
 - no pod is better on every measure, and every pod is worth taking over the base gun;
 - a bullet is seen coming, a volley always leaves a way through, and every volley is told;

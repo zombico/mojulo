@@ -1272,6 +1272,11 @@ different kind of energy. A `stage` written as a list is a show, so a game's scr
 the title takes the first, a screen in the middle (a pause, a menu) the second, a full screen (loading) the third, a
 result the fourth, a count over the play the fifth; a short list goes round again and `none` leaves a kind bare.
 
+One stage moves: `starfield`, a game set in space flying on behind its screens. Its stars are at their depths and
+drawn short along the way the screen scrolls, with a world's lit rim low in a corner. Each of its layers drifts back a
+whole number of its own tiles a loop, the near ones further, so the field parallaxes without a seam. It holds still
+under less motion. Blaze Gunner's look wears it.
+
 ### A running game's shell and HUD
 
 A game of obstacle courses (`docs/course-dress-principles.md`) has its screens drawn here without asking: its

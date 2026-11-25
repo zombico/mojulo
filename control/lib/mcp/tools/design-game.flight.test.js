@@ -236,7 +236,7 @@ describe('design_game: designed flight levels', () => {
     // gate proves both, and the play and the first level goalposts are met
     const W = SketchRepository.getByRef(ref).manifest;
     expect(W.front).toMatchObject({ press: 'press start' });
-    expect(W.ui).toMatchObject({ theme: { from: 'orbit', overlay: 'none' }, colour: 'theme' });
+    expect(W.ui).toMatchObject({ theme: { from: 'orbit', overlay: 'none', stage: 'starfield' }, colour: 'theme' });
     const checked = await designGameHandler({ ref, run: true, check: true });
     expect(checked.playthrough).toMatchObject({ gate: 'machine', won: 2, of: 2 });
     for (const l of checked.playthrough.levels) { expect(l.basic).toMatch(/^cleared/); expect(l.still).not.toMatch(/^cleared/); }
