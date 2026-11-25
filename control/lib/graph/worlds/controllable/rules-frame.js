@@ -373,6 +373,9 @@ export function buildRulesFrame(E) {
   // (what a reeling frame's keys are: none)
   const REEL = Object.freeze({ forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 });
 
+  // ── an ace's name, carried onto the body (the HUD's bar reads it): the world keeps only the fields it is told of ──
+  E.registerNormalize((ent, raw) => { if (raw.ace && typeof raw.ace === 'object') ent.ace = { id: String(raw.ace.id), name: String(raw.ace.name) }; });
+
   // ── the break: the engine's hit reaction arms a stagger on a broken bar; a frame takes it as its own reel, before the
   // reaction could root it (a timer, run ahead of the bodies' owners), and a killing blow is left to floor it ──
   E.registerEntityTimer('frame-stagger', (e) => {

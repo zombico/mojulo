@@ -30,7 +30,7 @@ export function frameHudScript() {
     + '.fh .acs{position:absolute;height:4px;background:rgba(255,208,96,.18);display:none}.fh .acs i{display:block;height:100%;width:0;background:#ffd060}'
     + '.fh .acs.brk i{background:#ff3b2f}.fh .acs.brk:after{content:"STAGGER";position:absolute;left:0;right:0;top:7px;text-align:center;font-size:12px;font-weight:700;color:#ff3b2f;letter-spacing:.14em}'
     + '.fh .stb{position:absolute;left:50%;bottom:98px;width:440px;margin-left:-220px;height:2px;background:rgba(160,230,255,.12)}.fh .stb i{position:absolute;left:0;top:0;bottom:0;background:#ffd060}'
-    + '.fh .ace{position:absolute;left:50%;top:22px;width:520px;margin-left:-260px;display:none;text-align:center}.fh .ace b{font-size:13px;letter-spacing:.3em;color:#ffd9b0}'
+    + '.fh .ace{position:absolute;left:50%;top:92px;width:520px;margin-left:-260px;display:none;text-align:center}.fh .ace b{font-size:13px;letter-spacing:.3em;color:#ffd9b0}'
     + '.fh .ace .hp{height:6px;margin-top:4px;border:1px solid rgba(255,190,150,.5)}.fh .ace .hp i{display:block;height:100%;background:linear-gradient(90deg,#c22a22,#ff8a5a)}'
     + '.fh .ace .st{height:2px;margin-top:2px;background:rgba(255,208,96,.15)}.fh .ace .st i{display:block;height:100%;background:#ffd060}.fh .ace em{display:block;font-style:normal;font-size:12px;color:#ffb48a;margin-top:4px;min-height:14px}'
     + '.fh .tell{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border:2px solid #ff3b2f;transform:rotate(45deg);display:none;box-shadow:0 0 14px #ff3b2f}'

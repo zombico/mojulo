@@ -181,10 +181,11 @@ describe('the assault frame', () => {
 
   it('an ace fights by its phase: a rush tells its lunge before it strikes; cornered, it wakes its reserve and steadies', () => {
     const V = ACES.vermilion, P1 = V.phases[1];
-    const ace = frameEntity(V.build, { id: 'ace', at: [70, 0, 0], heading: Math.PI, team: 'foes', mind: { range: V.phases[0].range, phases: V.phases } });
+    const ace = { ...frameEntity(V.build, { id: 'ace', at: [70, 0, 0], heading: Math.PI, team: 'foes', mind: { range: V.phases[0].range, phases: V.phases } }), ace: { id: 'vermilion', name: V.name } };
     const res = frameEntity('raptor', { id: 'reserve-1', at: [200, 0, 0], team: 'foes', mind: {} });
     const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), ace, { ...res, dormant: true }], pilot: 'p' });
     const A = st.byId.ace, R = st.byId['reserve-1'];
+    expect(A.ace).toEqual({ id: 'vermilion', name: V.name });   // (its name kept on the body: the HUD's bar reads it)
     run(st, {}, 30);
     expect(A.acePhase).toBe(0);
     // (wounded past its first threshold: the rush; its lunge comes only after its tell)
