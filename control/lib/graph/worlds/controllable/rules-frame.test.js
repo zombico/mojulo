@@ -91,4 +91,38 @@ describe('the assault frame', () => {
     expect(Math.hypot(F.transform.pos[0] - 300, F.transform.pos[1])).toBeGreaterThan(30);
     expect(JSON.stringify(a.byId.f.transform)).toBe(JSON.stringify(b.byId.f.transform));
   });
+
+  it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {
+    // (a heavy frame ahead with its mind off: the pilot's bazooka, the left hand, the weapon its stagger is read from)
+    const foe = frameEntity('citadel', { id: 'f', at: [140, 0, 0], team: 'foes', mind: {} });
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), foe], pilot: 'p', ai: 'off' }), F = st.byId.f;
+    const S = assembleFrame('citadel').stab, bz = A.weapons.armL;
+    expect(F.poise).toBeCloseTo(S.max, 5);
+    // (aimed until it holds its lock, then one round)
+    run(st, {}, 60);
+    // (the lowest the bar goes: it comes back as soon as it is hit)
+    run(st, { alt: 1 }, 1);
+    let low = F.poise;
+    for (let i = 0; i < 90; i++) { run(st, {}, 1); low = Math.min(low, F.poise); }
+    expect(low).toBeLessThan(S.max - bz.stagger * 0.9);
+    expect(F.stagger ?? 0).toBe(0);
+    // (broken: the engine arms a stagger on a bar at nothing; the frame takes it as its own reel)
+    run(st, {}, Math.round(bz.cooldown / DT));
+    F.poise = 0.01; run(st, { alt: 1 }, 1);
+    let n = 0;
+    while (!(F.stagger > 0) && n++ < 240) run(st, {}, 1);
+    expect(F.stagger).toBeGreaterThan(0);
+    expect(F.staggerT).toBeNull();
+    expect(F.staggers).toBe(1);
+    // (reeling: no boost though its keys would; a hit on it lands half as hard again)
+    st.aiEnabled = true; run(st, {}, 2);
+    expect(F.boosting).toBe(false);
+    const hp0 = F.body.hp; F.body.hp -= 100; run(st, {}, 1);
+    expect(hp0 - F.body.hp).toBeCloseTo(100 * S.bonus, 0);
+    // (the reel runs out, and the bar comes back from nothing)
+    run(st, {}, Math.round(S.stagger / DT) + 2);
+    expect(F.stagger).toBe(0);
+    expect(F.stab).toBeGreaterThan(0);
+    expect(F.staggers).toBe(1);
+  });
 });

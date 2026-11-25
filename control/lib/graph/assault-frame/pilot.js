@@ -45,11 +45,11 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
   return {
     id, ...(team ? { team } : {}), ...(pilot ? { pilotable: true } : {}),
     rule: {
-      type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons),
+      type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus },
       mounts: Object.fromEntries(Object.keys(A.weapons).map((s) => [s, M[s]])), eyeH: A.move.height + 2,
       ...(mind ? { mind: { range: 120, aggression: 0.6, dodge: 0.5, ...mind } } : {}), ...(bound ? { bound } : {}),
     },
-    body: { type: figure ? 'figure-rig' : 'box', ...(figure ? { figure } : { size: [5, 4, 10] }), hittable: true, hp: A.ap, hpMax: A.ap, radius: 4.2, aimH: r2(A.move.height * 0.95), egg: { a: 3.2, c: r2(A.move.height), cz: r2(A.move.height * 0.95) }, blast: 6 },
+    body: { type: figure ? 'figure-rig' : 'box', ...(figure ? { figure } : { size: [5, 4, 10] }), hittable: true, hp: A.ap, hpMax: A.ap, poise: A.stab.max, poiseRegen: A.stab.regen, staggerDur: A.stab.stagger, radius: 4.2, aimH: r2(A.move.height * 0.95), egg: { a: 3.2, c: r2(A.move.height), cz: r2(A.move.height * 0.95) }, blast: 6 },
     transform: { pos: [...at], heading },
     frame: { build: A.build, weight: A.weight, ap: A.ap },
   };

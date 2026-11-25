@@ -24,12 +24,18 @@
  *     cooldown, an energy weapon's draw on EN and a charge weapon's charge (held, let go to fire). Fired from its mount
  *     (`mounts`, frame space: +y forward, +x right, +z up). Its rounds are the world's projectiles (combat-ranged.js):
  *     they hit bodies, burst with their splash, and here also burst on the terrain (`world.ground`), a missile homing.
+ *   • STABILITY AND THE STAGGER (`body.poise` its stability in standard bars, `rule.stab` { stagger, bonus }): every
+ *     round's impact (its weapon's `stagger`) chips the bar, which comes back on its own (`poiseRegen`); broken, the frame
+ *     REELS for `stab.stagger` s: no boost, no quick boost, no climb, no guns, carried on by what it was doing and
+ *     pulled down, and every hit on it lands `stab.bonus` times as hard. The engine's hit reaction would freeze it where
+ *     it stood (a rooted clip that suppresses the rule); a frame reels on its own physics, so the break is taken here.
+ *     Pressure it until it breaks, then punish it: the fight's loop.
  *   • A MIND (`mind` { range?, aggression?, dodge? }): an enemy frame's own keys: it keeps its range to the pilot,
  *     strafing round it and boosting, quick-boosting out of the way of a shot it sees coming or as it is hit, climbing at
  *     times, firing what is in range while it holds its lock. Not the pilot's input: its own.
  *
  * Facts: speed, airborne, agl, en, enMax, enOut, boosting, qbT, ascending, landT, lockOn, locked, lockT, aimPitch, thrust (the
- * burn the page's thrusters draw, 0..1),
+ * burn the page's thrusters draw, 0..1), stab (its stability left, 0..1 of its bar), stagger (seconds left reeling, 0 when not),
  * slotState { <slot>: { ammo, mag, reloading, cd, charge } }, locomotion (the body's clip: idle, forward, boost,
  * boost_left, boost_right, boost_back, hover, fall, land), gaitPhase, moving.
  *
@@ -82,13 +88,17 @@ export function buildRulesFrame(E) {
     if (e.mindClimbFor > 0) { e.mindClimbFor -= dt; out.jump = out.jumpHeld = 1; }
     // (its guns: those in range, while it holds its lock)
     if (e.locked) { out.fire = d < 420 ? 1 : 0; out.alt = d < 320 && dice(e) < 0.5 ? 1 : 0; out.backR = dice(e) < dt * 0.6 ? 1 : 0; out.backL = dice(e) < dt * 0.3 ? 1 : 0; }
+    // (the pilot reeling: the moment to punish it, everything it has, in close)
+    if (e.locked && P.stagger > 0) { out.fire = out.alt = 1; out.backR = out.backL = 1; out.forward = d > range * 0.6 ? 1 : 0; out.qb = 0; }
     return out;
   }
 
   function frame(e, input, dt, world) {
     const r = e.rule, t = e.transform, M = r.move || {}, EN = r.en || {}, C = EN.cost || {};
     const mine = !r.mind;
-    const inp = mine ? input : mindInput(e, dt, world);
+    // (reeling: the stagger takes every key from it; it is carried on by what it was doing, and comes down)
+    const reeling = e.stagger > 0;
+    const inp = reeling ? REEL : mine ? input : mindInput(e, dt, world);
     e.frInput = inp;
     if (e.en == null) { e.en = EN.max ?? 3000; e.enLast = -1e9; e.v = [0, 0, 0]; e.qbCd = 0; e.qbT = 0; e.landT = 0; e.aimPitch = 0; e.frTime = 0; }
     e.frTime += dt;
@@ -211,7 +221,34 @@ export function buildRulesFrame(E) {
     e.gaitPhase = (e.gaitPhase || 0) + (e.locomotion === 'forward' ? hs / (r.stride ?? 9) : e.boosting ? 1.2 * dt : 0.4 * dt);
     // (the burn the page's thrusters draw: full in a quick boost, hard climbing, then boosting in the air and on the ground; off)
     e.thrust = inQb ? 1 : e.ascending ? 0.85 : e.boosting ? (e.airborne ? 0.75 : 0.6) : 0;
+
+    // ── the stagger: a hit that lands on a reeling frame lands harder; the reel runs out ──
+    const hp = e.body && Number.isFinite(e.body.hp) ? e.body.hp : null;
+    if (hp != null) {
+      // (what it lost since last frame, lost again by the bonus's share over one; taken to nothing, it is floored)
+      if (reeling && e.frHp != null && hp < e.frHp) {
+        e.body.hp = Math.max(0, hp - (e.frHp - hp) * (((r.stab && r.stab.bonus) ?? 1.5) - 1));
+        if (e.body.hp <= 0 && !e.noDestroy) { e.downed = true; e.moving = false; }
+      }
+      e.frHp = e.body.hp;
+    }
+    // (the bar held empty while it reels: it comes back from nothing once the reel is over)
+    if (reeling) { e.stagger = Math.max(0, e.stagger - dt); e.locomotion = e.airborne ? 'fall' : 'land'; e.thrust = 0; if (Number.isFinite(e.poise)) e.poise = 0; }
+    e.stab = Number.isFinite(e.poise) && e.poiseMax > 0 ? Math.round((e.poise / e.poiseMax) * 100) / 100 : 1;
   }
+  // (what a reeling frame's keys are: none)
+  const REEL = Object.freeze({ forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, lookDX: 0, lookDY: 0 });
+
+  // ── the break: the engine's hit reaction arms a stagger on a broken bar; a frame takes it as its own reel, before the
+  // reaction could root it (a timer, run ahead of the bodies' owners), and a killing blow is left to floor it ──
+  E.registerEntityTimer('frame-stagger', (e) => {
+    if (!(e.rule && e.rule.type === 'frame') || e.staggerT == null || e.downed) return;
+    // (a break while it already reels is no new reel: never a lock it cannot leave)
+    if (!(e.stagger > 0)) { e.stagger = (e.rule.stab && e.rule.stab.stagger) ?? 1.6; e.staggers = (e.staggers || 0) + 1; }
+    e.staggerT = null; e.reactDur = null; e.reactClip = 'stagger'; e.locomotion = e.staggerReturn || e.locomotion;
+    // (the bar refilled by the break, as the engine's is: empty to the eye a breath, then back from nothing)
+    e.poise = 0;
+  }, 40);
 
   // ── the weapons: four triggers, four guns, after the rule (the aim settled) ──
   function lead(from, tg, speed) {
@@ -282,6 +319,8 @@ export function buildRulesFrame(E) {
   }
   E.registerEntityAction('frame-weapons', (e, input, dt, state, world, owns) => {
     if (!(e.rule && e.rule.type === 'frame') || !e.rule.slots || owns.reaction || owns.drop || owns.cine || e.downed || e.gone) return;
+    // (reeling: its triggers are dead, but its guns' timers still run, a reload finished in the reel)
+    if (e.stagger > 0) { for (const slot of ['armR', 'armL', 'backR', 'backL']) { const W = e.rule.slots[slot]; if (W && W.st) { W.st.cd = Math.max(0, W.st.cd - dt); if (W.st.rl > 0) { W.st.rl = Math.max(0, W.st.rl - dt); if (W.st.rl === 0) W.st.ammo = W.mag ?? 9999; } W.st.prev = false; } } return; }
     if (!state.projectiles) { state.projectiles = []; state.bursts = []; state.projSeq = 0; state.burstSeq = 0; }
     const mine = !e.rule.mind && (state.pilotId === e.id || E.seated(state, e));
     const inp = e.rule.mind ? (e.frInput || {}) : mine ? input : {};

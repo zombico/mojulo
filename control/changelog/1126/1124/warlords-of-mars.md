@@ -47,6 +47,20 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     the way as it is hit, climbs and fires while it holds its lock.
   - Its scheme is `frame` (`controls/schemes.js`). Its HUD (`scene/channels/controllable/frame-hud.js`) shows the
     reticle and the lock box, EN, AP and speed, and the four weapons where they sit on the frame.
+- **Stability and the stagger: the fight's loop** (`rules-frame.js`, `assemble.js` `stab`). Pressure a frame until it
+  breaks, then punish it.
+  - Each frame has a stability bar sized by its mass: the light Raptor's is about 0.8 of a standard bar, the Vanguard's
+    1.1, the heavy Citadel's 1.5. It recovers on its own, the lighter frames faster.
+  - Every round's impact (its weapon's `stagger`, a share of one bar) chips it. The bazooka and the mortar break bars;
+    the rifles and gatlings wear them down.
+  - Broken, the frame reels for 1.6 s: no boost, quick boost, climb or guns. It is carried on by what it was doing and
+    pulled down, and every hit on it lands 1.5 times as hard. A break during a reel does not extend it, so there is no
+    lock it cannot leave. The bar then comes back from empty.
+  - It rides the engine's poise chip, but the break is taken by the frame itself: the engine's hit reaction would root
+    it in mid-air.
+  - The HUD shows the locked frame's stress under the lock box, filling as it is pressed, red with STAGGER when it
+    breaks, and the pilot's own stability under the armour.
+  - An enemy frame punishes a reeling pilot: everything it has, in close.
 - **The frame level** (an airspace level's `frame`, `gameworld/frame-goal.js`). The frame is stood at the south of its
   field facing north. The level is fought for its operation:
   - groups of the ground force's turrets, tanks and walkers at a frame's scale, and enemy frames;

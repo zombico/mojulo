@@ -6,12 +6,16 @@
  *   readBuild(build, at?)        → the build, its stock's parts under the ones it names; throws, teaching
  *                                  build: a STOCK name, or { from?: <stock>, head?, core?, …, armR?, armL?, backR?, backL? }
  *                                  (a weapon slot null: none in it; the head null where the core carries its own sensors)
- *   assembleFrame(build)         → { build, parts, weight, ap, load, over, move, en, fcs, weapons, laws }
+ *   assembleFrame(build)         → { build, parts, weight, ap, load, over, move, en, fcs, stab, weapons, laws }
  *     weight    kg, every part and weapon
  *     over      how far over the legs' load (0 within it; 0.2 a fifth over)
  *     move      { walk, boost, qb, qbTime, qbCool, jump, lift, land, height } m/s, s, m/s² (over the load: slower)
  *     en        { max, regen, delay, out, cost { boost, qb, ascend } }
  *     fcs       { lock, range, cone, locks }
+ *     stab      { max, regen, stagger, bonus }: its stability, the bar a hit's impact breaks (in standard bars: a weapon's
+ *               `stagger` is its share of one), heavier frames the steadier; regen bars a second; stagger the seconds
+ *               it reels when broken, bonus how much harder a hit lands on a frame reeling (the fight's loop:
+ *               pressure a frame until it breaks, then punish it)
  *     weapons   { armR?, armL?, backR?, backL? } each its row with its id
  *     laws      [{ law, ok, says }]: within the load, the booster carries its mass, the generator feeds a quick boost,
  *               an energy weapon's shot within the generator, a pair of hands armed
@@ -61,6 +65,9 @@ export function assembleFrame(build) {
   };
   const en = { max: G.en, regen: G.regen, delay: G.delay, out: G.out, cost: { ...Bs.cost } };
   const fcs = { lock: F.lock, range: F.range + ((parts.head ?? parts.core).sensor || 0), cone: F.cone, locks: F.locks };
+  // (stability by mass: a medium frame of some 70 t is one standard bar, a light one less, a heavy one more; it comes back
+  // a third of a bar a second, a light frame's a little faster)
+  const stab = { max: r2(Math.min(1.8, Math.max(0.6, weight / 70000))), regen: r2(0.34 * Math.min(1.3, Math.max(0.8, 70000 / weight))), stagger: 1.6, bonus: 1.5 };
   const energyShot = Math.max(0, ...Object.values(weapons).map((w) => w.energy || 0));
   const laws = [
     { law: 'load', ok: over === 0, says: over === 0 ? `within the legs' load (${Math.round(carried / 1000)} of ${Math.round(L.load / 1000)} t)` : `${Math.round(over * 100)}% over the legs' load: slower on its feet and its boost` },
@@ -69,7 +76,7 @@ export function assembleFrame(build) {
     { law: 'energy weapon', ok: energyShot <= G.en * 0.35, says: energyShot <= G.en * 0.35 ? 'its energy weapons\' shots within the generator' : 'an energy weapon\'s shot takes over a third of the generator' },
     { law: 'armed', ok: !!(weapons.armR || weapons.armL), says: weapons.armR || weapons.armL ? 'a hand armed at least' : 'no arm weapon: a frame fights with its hands' },
   ];
-  return { build: B, parts, weight, ap, load: L.load, over, move, en, fcs, weapons, laws };
+  return { build: B, parts, weight, ap, load: L.load, over, move, en, fcs, stab, weapons, laws };
 }
 
 export { PARTS, SLOTS, WEAPON_SLOTS, STOCK };
