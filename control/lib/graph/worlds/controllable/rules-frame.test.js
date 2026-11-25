@@ -252,6 +252,35 @@ describe('the assault frame', () => {
     expect(B.shieldHp).toBe(B.shieldMax);
   });
 
+  it('a flier flies by its flight: a strafe dives low beside the pilot and pulls out; a perch holds high; a circuit circles and hangs', () => {
+    const flier = (id, flight, at) => ({ id, team: 'foes', rule: { type: 'ai', space: true, speed: 0, turn: 2, standoff: 0, sightRange: 900, flight }, body: { type: 'box', size: [3, 3, 1], hittable: true, hp: 1000, hpMax: 1000, radius: 3 }, transform: { pos: at, heading: Math.PI, pitch: 0 } });
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }),
+      flier('w', { mode: 'strafe', speed: 64, alt: 50, low: 14, out: 260, turn: 1.8 }, [300, 0, 50]),
+      flier('k', { mode: 'perch', alt: 70, range: 320, speed: 20, every: 9 }, [0, 320, 70]),
+      flier('h', { mode: 'circuit', radius: 170, alt: 42, speed: 26, hover: [3.5, 11], turn: 1.2 }, [170, 0, 42])], pilot: 'p', ai: 'off' });
+    const W = st.byId.w, K = st.byId.k, H = st.byId.h;
+    let wLow = 99, wNear = 999, wOut = false, kLow = 99, hR = [], hung = false;
+    for (let i = 0; i < 60 * 14; i++) {
+      run(st, {}, 1);
+      const [x, y, z] = W.transform.pos, d = Math.hypot(x, y);
+      if (d < 60) { wLow = Math.min(wLow, z); wNear = Math.min(wNear, d); }
+      if (W.flight.phase === 'out' && wNear < 60) wOut = true;
+      kLow = Math.min(kLow, K.transform.pos[2]);
+      if (i > 120) hR.push(Math.hypot(H.transform.pos[0], H.transform.pos[1]));
+      if (H.hanging) hung = true;
+    }
+    // (the Wasp came in low beside the frame and was on its way out again)
+    expect(wNear).toBeGreaterThan(8);
+    expect(wLow).toBeLessThan(30);
+    expect(wOut).toBe(true);
+    // (the Kite held its height)
+    expect(kLow).toBeGreaterThan(55);
+    // (the Harrow kept to its circle, and hung to barrage at least once)
+    expect(Math.min(...hR)).toBeGreaterThan(120);
+    expect(Math.max(...hR)).toBeLessThan(220);
+    expect(hung).toBe(true);
+  });
+
   it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {
     // (a heavy frame ahead with its mind off: the pilot's bazooka, the left hand, the weapon its stagger is read from)
     const foe = frameEntity('citadel', { id: 'f', at: [140, 0, 0], team: 'foes', mind: {} });

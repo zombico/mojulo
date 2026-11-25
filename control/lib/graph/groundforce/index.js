@@ -40,6 +40,43 @@ const twin = (y0, y1, z, apart, r) => [-1, 1].flatMap((s) => P.pipe([s * apart /
 // (a part's faces turned about an axis through `at`, parallel to x: a rack raised, a barrel laid)
 const tiltX = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const y = c[1] - at[1], z = c[2] - at[2]; return [c[0], at[1] + y * Math.cos(a) - z * Math.sin(a), at[2] + y * Math.sin(a) + z * Math.cos(a)]; }) }));
 
+// the Harrow gunship's parts, at its own metres (GROUND_UNITS.harrow draws them at three quarters)
+function harrowParts() {
+  const fan = (x, y) => [
+    ...P.prism([x, y, 0], 1.05, 1.05, 0.95, 1.6, 'hull2', 14),
+    ...P.prism([x, y, 0], 1.08, 1.08, 1.2, 1.32, 'accent', 14),
+    ...P.prism([x, y, 0], 0.86, 0.86, 1.6, 1.63, 'drive', 14),
+    ...P.prism([x, y, 0], 0.86, 0.86, 0.9, 0.96, 'drive', 14),
+    ...P.prism([x, y, 0], 0.22, 0.22, 0.98, 1.68, 'dark', 8),
+    ...[0, 1, 2, 3].flatMap((i) => P.box([x, y, 1.66], [0.13, 1.6, 0.04], 'dark').map((f) => ({ ...f, corners: f.corners.map((c) => { const b = (i * Math.PI) / 4 + 0.3, dx = c[0] - x, dy = c[1] - y; return [x + dx * Math.cos(b) - dy * Math.sin(b), y + dx * Math.sin(b) + dy * Math.cos(b), c[2]]; }) }))),
+  ];
+  return [
+    // (the hull: a long armoured body, its spine raised, its nose tapering to the slit eye)
+    ...P.box([0, 0, 1.45], [1.9, 5.4, 1.2], 'hull', { ch: 0.45 }),
+    ...P.box([0, -0.4, 2.2], [1.3, 3.6, 0.5], 'hull2', { ch: 0.25 }),
+    ...P.box([0, 3.1, 1.32], [1.4, 1.2, 0.9], 'hull', { ch: 0.42 }),
+    ...P.box([0, 3.72, 1.42], [0.95, 0.08, 0.22], 'sensor'),
+    ...P.box([0.96, 0.2, 1.5], [0.06, 3.6, 0.2], 'accent'), ...P.box([-0.96, 0.2, 1.5], [0.06, 3.6, 0.2], 'accent'),
+    // (the chin gatling: a turret ball under the nose, its barrels forward)
+    ...P.ball([0, 2.7, 0.65], 0.42, 'dark', 10, 4),
+    ...[-0.12, 0.12].flatMap((dx) => [-0.08, 0.1].flatMap((dz) => P.pipe([dx, 2.9, 0.62 + dz], [dx, 4.1, 0.62 + dz], 0.05, 'dark', 6))),
+    // (the arms out to the fans, and the fans, two forward and two aft)
+    ...[[1, 1.6], [-1, 1.6], [1, -1.9], [-1, -1.9]].flatMap(([sx, y]) => [...P.pipe([sx * 0.8, y, 1.55], [sx * 2.3, y, 1.4], 0.16, 'dark', 8), ...fan(sx * 2.75, y)]),
+    // (the stub wings and their missile pods, eight tubes lit at the mouth)
+    ...[-1, 1].flatMap((sx) => [
+      ...P.box([sx * 1.35, 0, 1.15], [0.9, 1.1, 0.16], 'hull2', { ch: 0.05 }),
+      ...P.box([sx * 1.55, 0.1, 0.8], [0.55, 1.5, 0.55], 'hull', { ch: 0.12 }),
+      ...[-0.13, 0.13].flatMap((dx) => [-0.12, 0.12].flatMap((dz) => P.box([sx * 1.55 + dx, 0.87, 0.8 + dz], [0.17, 0.04, 0.17], 'drive'))),
+    ]),
+    // (the tail boom, its fin and its glow)
+    ...P.box([0, -3.6, 1.6], [0.55, 2.2, 0.5], 'hull2', { ch: 0.15 }),
+    ...P.box([0, -4.4, 2.35], [0.12, 0.9, 1.2], 'hull', { ch: 0.05 }),
+    ...P.box([0, -4.72, 1.6], [0.36, 0.05, 0.3], 'drive'),
+    // (its skids)
+    ...[-1, 1].flatMap((sx) => [...P.pipe([sx * 0.7, 1.2, 0.85], [sx * 0.85, 1.2, 0.12], 0.07, 'dark', 6), ...P.pipe([sx * 0.7, -1.2, 0.85], [sx * 0.85, -1.2, 0.12], 0.07, 'dark', 6), ...P.pipe([sx * 0.85, 1.8, 0.12], [sx * 0.85, -1.8, 0.12], 0.08, 'dark', 6)]),
+  ];
+}
+
 /** The units, by kind. */
 export const GROUND_UNITS = Object.freeze({
   // dug in, a ring of armour round a domed turret, its twin guns long: it turns to the craft and fires up at it
@@ -96,6 +133,70 @@ export const GROUND_UNITS = Object.freeze({
       ...P.pipe(S([0, 0.7, 0.22]), S([0, 1.75, 0.22]), 0.08 * k, 'dark', 6),
       ...P.box(S([0, 0.55, 0.28]), S([0.3, 0.5, 0.2]), 'dark', { ch: 0.05 * k }),
     ]; },
+  }),
+  // a strike drone: a swept delta, a single engine burning at its tail, twin guns under its nose, a red eye in a chin
+  // fairing; it dives on a frame, rakes past firing and pulls away to come round again
+  wasp: Object.freeze({
+    label: 'wasp drone', reads: 'a swept delta strike drone, one engine burning aft, twin guns under a red-eyed nose',
+    size: 1.3, hp: 3, rof: 3.2, range: 1000, points: 90, flies: true,
+    parts: () => {
+      const k = 0.62, S = (v) => v.map((x) => x * k);
+      // (the delta: a flat swept wing lofted from its root chord to its tips)
+      // (its chord narrowing to a third at the tip, the tip swept back: a delta, not a plank)
+      const wing = (sd) => P.box(S([sd * 1.25, -0.35, 0.5]), S([2.1, 1.9, 0.14]), 'hull2', { ch: 0.05 }).map((f) => ({ ...f, corners: f.corners.map((c) => { const x = c[0] / k, y = c[1] / k, t = Math.max(0, Math.min(1, (Math.abs(x) - 0.2) / 2.1)); return [c[0], (-0.35 + (y + 0.35) * (1 - 0.66 * t) - t * 1.1) * k, c[2]]; }) }));
+      return [
+        ...P.box(S([0, 0.2, 0.55]), S([0.9, 3.2, 0.62]), 'hull', { ch: 0.28 }),
+        ...P.box(S([0, 1.6, 0.45]), S([0.6, 0.9, 0.42]), 'hull', { ch: 0.2 }),
+        ...P.box(S([0, 2.06, 0.38]), S([0.38, 0.06, 0.14]), 'sensor'),
+        ...P.box(S([0, -0.2, 0.92]), S([0.5, 1.5, 0.22]), 'hull2', { ch: 0.12 }),
+        ...wing(1), ...wing(-1),
+        ...[-1, 1].flatMap((sd) => P.box(S([sd * 2.15, -1.05, 0.5]), S([0.06, 0.7, 0.14]), 'accent')),
+        ...[-1, 1].flatMap((sd) => P.box(S([sd * 0.55, -1.1, 0.95]), S([0.08, 0.7, 0.55]), 'hull2', { ch: 0.03 })),
+        ...P.pipe(S([0, -1.3, 0.55]), S([0, -1.75, 0.55]), 0.3 * k, 'dark', 10),
+        ...P.prism(S([0, -1.78, 0]), 0.22 * k, 0.22 * k, 0.4 * k, 0.7 * k, 'drive', 10).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1] + (c[2] - 0.55 * k) * 0, c[2]]) })),
+        ...P.box(S([0, -1.8, 0.55]), S([0.4, 0.05, 0.4]), 'drive'),
+        ...[-0.25, 0.25].flatMap((x) => P.pipe(S([x, 1.0, 0.18]), S([x, 2.4, 0.18]), 0.06 * k, 'dark', 6)),
+      ];
+    },
+  }),
+  // a perch drone: three ducted fans in a triangle round an armoured hub, a missile rack on its back, a sensor ball slung
+  // under it with a red eye; it holds high and far, and lobs homing missiles down
+  kite: Object.freeze({
+    label: 'kite drone', reads: 'three ducted fans in a triangle round an armoured hub, a missile rack on its back, a red-eyed sensor ball under it',
+    size: 1.9, hp: 4, rof: 0.5, range: 1800, points: 140, flies: true,
+    parts: () => {
+      const k = 0.7, S = (v) => v.map((x) => x * k);
+      const fan = (a) => { const x = Math.cos(a) * 1.75, y = Math.sin(a) * 1.75; return [
+        ...P.pipe(S([Math.cos(a) * 0.6, Math.sin(a) * 0.6, 0.7]), S([x * 0.78, y * 0.78, 0.7]), 0.12 * k, 'dark', 6),
+        ...P.prism(S([x, y, 0]), 0.78 * k, 0.78 * k, 0.45 * k, 0.9 * k, 'hull2', 12),
+        ...P.prism(S([x, y, 0]), 0.6 * k, 0.6 * k, 0.9 * k, 0.93 * k, 'drive', 12),
+        ...P.prism(S([x, y, 0]), 0.6 * k, 0.6 * k, 0.4 * k, 0.46 * k, 'drive', 12),
+        ...P.prism(S([x, y, 0]), 0.17 * k, 0.17 * k, 0.5 * k, 0.96 * k, 'dark', 6),
+        // (its blades across the burning face, three, as a Gnat's)
+        ...[0, 1, 2].flatMap((i) => P.box([x * k, y * k, 0.95 * k], [0.1 * k, 1.15 * k, 0.03 * k], 'dark').map((f) => ({ ...f, corners: f.corners.map((c) => { const b = (i * Math.PI) / 3 + 0.4, dx = c[0] - x * k, dy = c[1] - y * k; return [x * k + dx * Math.cos(b) - dy * Math.sin(b), y * k + dx * Math.sin(b) + dy * Math.cos(b), c[2]]; }) }))),
+      ]; };
+      return [
+        ...P.prism(S([0, 0, 0]), 0.85 * k, 0.85 * k, 0.45 * k, 1.05 * k, 'hull', 6),
+        ...P.dome(S([0, 0, 1.05]), 0.75 * k, 0.75 * k, 1.05 * k, 0.3 * k, 'hull2', 6, 2),
+        ...[Math.PI / 2, Math.PI / 2 + (2 * Math.PI) / 3, Math.PI / 2 + (4 * Math.PI) / 3].flatMap(fan),
+        // (the rack on its back: four tubes, their mouths forward and lit)
+        ...P.box(S([0, -0.1, 1.45]), S([0.9, 1.3, 0.5]), 'hull', { ch: 0.1 * k }),
+        ...[-0.22, 0.22].flatMap((x) => [0.06, 0.32].flatMap((z) => P.box(S([x, 0.56, 1.33 + z]), S([0.3, 0.05, 0.2]), 'drive'))),
+        ...P.box(S([0.46, -0.1, 1.45]), S([0.05, 1.0, 0.12]), 'accent'),
+        // (the sensor ball slung under its hub, its eye forward)
+        ...P.ball(S([0, 0.25, 0.25]), 0.36 * k, 'dark', 10, 4),
+        ...P.box(S([0, 0.58, 0.25]), S([0.24, 0.06, 0.14]), 'sensor'),
+        ...P.pipe(S([0.3, -0.5, 1.6]), S([0.3, -0.5, 2.5]), 0.03 * k, 'dark', 6),
+      ];
+    },
+  }),
+  // the gunship: twice a frame's length, a long armoured hull on four big ducted fans out on arms, a chin gatling under a
+  // slit-eyed nose, a missile pod on each stub wing, a tail boom with a fin; it circles, then hangs and barrages
+  harrow: Object.freeze({
+    label: 'harrow gunship', reads: 'a long armoured hull on four big ducted fans, a chin gatling, a missile pod on each stub wing, a finned tail',
+    size: 2.6, hp: 30, rof: 8, range: 1800, points: 1500, flies: true,
+    // (laid out at its own metres, then drawn at three quarters of them: some 16 m nose to tail as drawn, twice a frame)
+    parts: () => harrowParts().map((f) => ({ ...f, corners: f.corners.map((c) => c.map((v) => v * 0.76)) })),
   }),
   // an artillery truck: six wheels under a long bed, a cab forward, outriggers braced on the ground, and on the bed a
   // launcher rack raised toward the sky, eight tubes with their missiles' noses showing; it hangs back and lobs homing salvos

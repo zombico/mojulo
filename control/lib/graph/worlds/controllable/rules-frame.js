@@ -32,6 +32,10 @@
  *     as it fires, a boost and an assault boost cut: it STICKS where it is for `brace` s (in the air too, no gravity, its
  *     drift checked hard), then WINDS DOWN over `wind` s, its gravity and its control coming back (the legs' `steady`
  *     scales both). A quick boost in the wind-down cancels it: the skilled way out; the stick itself cannot be.
+ *   • A FLIER'S FLIGHT (an ai's `rule.flight` { mode: 'strafe' | 'perch' | 'circuit', … }, `frame-flight`): the AI aims and
+ *     fires it, the pass flies it: a strafe dives on a mark beside the pilot, rakes past low and pulls out to come round;
+ *     a perch holds a point high and far, drifting to a new one; a circuit orbits the pilot, tighter as it is hurt, and
+ *     hangs every so often to barrage (`hanging`).
  *   • A SHIELD (the engine's frontal shield, `body.shield`): a lunge knocks it aside and staggers its bearer; broken, it is
  *     raised again `rule.shieldRaise` s on (`frame-shields`).
  *   • THE LUNGE (the boost KICK on its key, `rule.kick`, and a BLADE, an arm weapon of fire 'melee'): onto the locked foe
@@ -533,6 +537,73 @@ export function buildRulesFrame(E) {
       if (state.time - (e.shieldBreakAt || 0) >= e.rule.shieldRaise) { e.shieldBroken = false; e.shieldHp = e.shieldMax; }
     }
   }, 21);
+  // ── a flier's flight over a frame's field (an ai in the air with a `flight`, a Wasp's, a Kite's, a gunship's): the AI aims
+  // it and fires it; this flies it, its rule's own speed nothing. A STRAFE dives from its height at a point beside the
+  // pilot, rakes past it low, pulls up and out, and comes round again; a PERCH holds a point high and far off the pilot,
+  // drifting to a new one now and then; a CIRCUIT orbits the pilot at its radius and height, tighter as it is hurt, and
+  // every so often stops and hangs to barrage. Each steers its own velocity toward where it wants to be, at its speed and
+  // turn, and faces its flight where it is running, not the pilot ──
+  const FLIGHT = { strafe: flyStrafe, perch: flyPerch, circuit: flyCircuit };
+  function flyStrafe(e, F, P, ground) {
+    const S = e.flight, p = e.transform.pos, q = P.transform.pos;
+    if (!S.phase || S.phase === 'in' && !S.at) {
+      // (a run's mark: beside the pilot by a share of its own dice, low over the land there)
+      const side = dice(e) < 0.5 ? -1 : 1, d = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, ux = (q[0] - p[0]) / d, uy = (q[1] - p[1]) / d;
+      const x = q[0] - uy * side * (12 + 18 * dice(e)), y = q[1] + ux * side * (12 + 18 * dice(e));
+      S.phase = 'in'; S.at = [x, y, (ground(x, y) ?? 0) + (F.low ?? 12)]; S.dir = [ux, uy];
+    }
+    if (S.phase === 'in') {
+      const d = Math.hypot(S.at[0] - p[0], S.at[1] - p[1]);
+      if (d < 18 || (p[0] - S.at[0]) * S.dir[0] + (p[1] - S.at[1]) * S.dir[1] > 0) {
+        // (past its mark: out along the run and up, to come round)
+        const o = F.out ?? 250, x = S.at[0] + S.dir[0] * o, y = S.at[1] + S.dir[1] * o;
+        S.phase = 'out'; S.at = [x, y, (ground(x, y) ?? 0) + (F.alt ?? 45)];
+      }
+    } else if (Math.hypot(S.at[0] - p[0], S.at[1] - p[1]) < 30) { S.phase = 'in'; S.at = null; return null; }
+    return { at: S.at, speed: F.speed ?? 60, face: S.phase === 'out' };
+  }
+  function flyPerch(e, F, P, ground, dt) {
+    const S = e.flight, q = P.transform.pos;
+    S.T = (S.T ?? 0) - dt;
+    if (!S.at || S.T <= 0) {
+      const a = (S.a ?? dice(e) * Math.PI * 2) + (dice(e) - 0.5) * 1.6, R = (F.range ?? 300) * (0.85 + 0.3 * dice(e));
+      const x = q[0] + Math.cos(a) * R, y = q[1] + Math.sin(a) * R;
+      S.a = a; S.T = F.every ?? 9; S.at = [x, y, (ground(x, y) ?? 0) + (F.alt ?? 70)];
+    }
+    return { at: S.at, speed: F.speed ?? 18, face: false };
+  }
+  function flyCircuit(e, F, P, ground, dt) {
+    const S = e.flight, q = P.transform.pos, share = e.body && e.body.hpMax > 0 ? Math.max(0, e.body.hp / e.body.hpMax) : 1;
+    // (hurt, its circuit tightens and it hangs to barrage more often)
+    const H = F.hover || [3.5, 11], R = (F.radius ?? 170) * (0.55 + 0.45 * share), every = H[1] * (0.55 + 0.45 * share);
+    S.T = (S.T ?? every) - dt;
+    if (S.hang > 0) { S.hang -= dt; if (S.hang <= 0) S.T = every; return { at: null, speed: 0, face: false }; }
+    if (S.T <= 0) { S.hang = H[0]; e.hanging = true; return { at: null, speed: 0, face: false }; }
+    e.hanging = false;
+    S.th = (S.th ?? Math.atan2(e.transform.pos[1] - q[1], e.transform.pos[0] - q[0])) + ((F.speed ?? 24) / R) * dt * (S.dirn ?? 1);
+    const x = q[0] + Math.cos(S.th) * R, y = q[1] + Math.sin(S.th) * R;
+    return { at: [x, y, (ground(x, y) ?? 0) + (F.alt ?? 42)], speed: (F.speed ?? 24) * 1.4, face: false };
+  }
+  E.registerWorldPass('frame-flight', (state, input, dt, world) => {
+    if (!world || !world.ground || !(dt > 0)) return;
+    const P = state.byId && state.byId[state.pilotId];
+    if (!P || P.gone || P.downed) return;
+    const ground = (x, y) => world.ground([x, y, 2000]);
+    for (const e of state.entities) {
+      const r = e.rule, F = r && r.flight;
+      if (!F || r.type !== 'ai' || e.gone || e.downed || e.dormant || e.staggerT != null || !FLIGHT[F.mode]) continue;
+      if (!e.flight) e.flight = { v: [0, 0, 0] };
+      const W = FLIGHT[F.mode](e, F, P, ground, dt), v = e.flight.v, p = e.transform.pos;
+      if (!W) continue;
+      // (its velocity steered toward its mark at its speed, as fast as its turn lets it; none: it brakes and hangs)
+      const want = W.at ? (() => { const d = [W.at[0] - p[0], W.at[1] - p[1], W.at[2] - p[2]], n = Math.hypot(d[0], d[1], d[2]) || 1, sp = Math.min(W.speed, n / Math.max(dt, 0.05)); return [d[0] / n * sp, d[1] / n * sp, d[2] / n * sp]; })() : [0, 0, 0];
+      const k = Math.min(1, (F.turn ?? 1.6) * dt);
+      for (let i = 0; i < 3; i++) v[i] += (want[i] - v[i]) * k;
+      p[0] += v[0] * dt; p[1] += v[1] * dt; p[2] += v[2] * dt;
+      if (W.face && Math.hypot(v[0], v[1]) > 2) e.transform.heading = Math.atan2(v[1], v[0]);
+      e.moving = true;
+    }
+  }, 29);
   // ── a flier over a frame's field (an ai in the air with a `floor`, a Gnat's): held that many metres over the land under
   // it, so a swarm closing on a frame on its feet weaves over it and never through a hill ──
   E.registerWorldPass('frame-fliers', (state, input, dt, world) => {

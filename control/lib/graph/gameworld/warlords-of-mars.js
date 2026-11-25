@@ -38,6 +38,16 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: 'screen', text: 'Clear the drone screen' }), f({ down: 'guns', text: 'Silence the emplacements' })]),
   }),
+  // (the fliers that fly: strike drones that dive and rake, with a Gnat screen round them)
+  f({
+    id: 'dust-devils', name: 'Dust Devils', map: 'plain',
+    brief: 'Strike drones work the road, diving out of the sun to rake anything that moves and pulling away to come round again. Side-step the run, then catch them at the bottom of the dive, slow and low.',
+    groups: f([
+      f({ id: 'strikers', kind: 'wasp', count: 4, at: f([0, 0.45]), spread: 160 }),
+      f({ id: 'screen', kind: 'gnat', count: 4, at: f([0, 0.2]), spread: 90 }),
+    ]),
+    tasks: f([f({ down: 'strikers', text: 'Down the strike drones' })]),
+  }),
   // (rung two: homing salvos from far back, a quick boost to slip them and an assault boost to close)
   f({
     id: 'long-guns', name: 'Long Guns', map: 'plain',
@@ -47,6 +57,16 @@ export const OPERATIONS = f([
       f({ id: 'screen', kind: 'tank', count: 3, at: f([0, 0.2]), spread: 100 }),
     ]),
     tasks: f([f({ down: 'carriers', text: 'Destroy the missile carriers' }), f({ reach: f([0, 0.85]), text: 'Take the ridge' })]),
+  }),
+  // (perch drones high and far, missiles down on anything that stays still; climb to reach them)
+  f({
+    id: 'high-watch', name: 'High Watch', map: 'basin',
+    brief: 'Perch drones hang high over the crater, lobbing homing missiles down and drifting to a new perch when pressed. Climb on your thrusters to reach them, and keep moving under them.',
+    groups: f([
+      f({ id: 'perches', kind: 'kite', count: 3, at: f([0, 0.4]), spread: 220 }),
+      f({ id: 'guns', kind: 'turret', count: 2, at: f([0, 0.15]), spread: 120 }),
+    ]),
+    tasks: f([f({ down: 'perches', text: 'Bring down the perch drones' }), f({ down: 'guns', text: 'Silence the guns' })]),
   }),
   // (rung three: a front that is shut; break it, flank it, or kick it aside, then punish what is behind it)
   f({
@@ -77,6 +97,16 @@ export const OPERATIONS = f([
       f({ id: 'rhino', kind: 'frame', mt: 'rhino', at: f([0, 0.68]) }),
     ]),
     tasks: f([f({ down: 'pack', text: 'Break the Jackal pack' }), f({ down: 'rhino', text: 'Destroy the Rhino' })]),
+  }),
+  // (the gunship: twice a frame, circling, hanging to barrage, a Gnat escort round it)
+  f({
+    id: 'harrow', name: 'Harrow', map: 'plain',
+    brief: 'The warlord\'s gunship hunts the plain: it circles, then stops and hangs to barrage with its chin gun and its missile pods. That hang is your window: close on it and hit it hard. It tightens its circle as it is hurt.',
+    groups: f([
+      f({ id: 'gunship', kind: 'harrow', at: f([0, 0.4]) }),
+      f({ id: 'escort', kind: 'gnat', count: 6, at: f([0, 0.3]), spread: 120 }),
+    ]),
+    tasks: f([f({ down: 'gunship', text: 'Bring down the Harrow' })]),
   }),
   // (the ace the path ladders up to, assault-frame/aces.js: it duels, then rushes with its blade, its optics flaring
   // before it strikes, then, cornered, calls in the walkers held back behind it)
