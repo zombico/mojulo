@@ -263,7 +263,7 @@ export function gameStages(world) {
     // manifest, coloured by the level's palette (the world's, or the world's moved by its script) where it has one
     // (an assault frame's level is fought on a geocube's own land, assault-frame/field.js: pure terrain in the seventh
     // generation's form render, no trail and no map of the flight's; the frame and its form ride on the stage)
-    if (R.airspace?.frame) { out.push({ level, node: 'field', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, frame: R.airspace.frame, manifest: frameFieldManifest(FRAME_FIELDS[R.airspace.map?.form] ? R.airspace.map.form : 'plain', { world: ((g) => (typeof g === 'string' ? g : g?.from ?? g?.id ?? 'mars'))(R.airspace.ground?.geocube) }) }); continue; }
+    if (R.airspace?.frame) { out.push({ level, node: 'field', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, frame: R.airspace.frame, manifest: frameLevelManifest(R) }); continue; }
     if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
     const laid = layLevel(R.level);
     // a level whose trails are all courses a side camera plays is ONE side strip: its trails its SEGMENTS, end to end
@@ -437,19 +437,29 @@ export function airspaceEnds(manifest) {
   return out;
 }
 
+/** A frame level's field (assault-frame/field.js): its map's form (plain unless it names a field's form) on its ground's
+ *  geocube (a massif field's own battlefield cube when it names none; Mars for the plain and the basin). */
+export function frameLevelManifest(R) {
+  const g = R.airspace.ground?.geocube, world = typeof g === 'string' ? g : g?.from ?? g?.id;
+  return frameFieldManifest(FRAME_FIELDS[R.airspace.map?.form] ? R.airspace.map.form : 'plain', world ? { world } : {});
+}
+
 /** A frame's field's anchors (assault-frame/field.js): the frame stood south of the field's middle facing north on the
  * land's own ground, the field its bound, its exit the far side; the field's height its ground (as the page lays it).
  * Drawn once per manifest. */
 const FIELD_ENDS = new Map();
+const FRAME_INDOOR = Object.freeze({ probe: 3, collide: Object.freeze({ radius: 4, height: 9, step: 2 }) });
 export function frameFieldEnds(stage) {
   const key = JSON.stringify([stage.manifest, stage.frame]);
   if (FIELD_ENDS.has(key)) return FIELD_ENDS.get(key);
   if (FIELD_ENDS.size > 8) FIELD_ENDS.clear();
   const F = frameField(stage.manifest.cube), [cx, cy] = F.centre, half = F.half, g = (x, y) => r3(F.heightAt(x, y));
   const x = cx, y = r3(cy - half * 0.55), ex = cx, ey = r3(cy + half * 0.8);
-  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation', ...(stage.frame.garage ? { garage: true } : {}) };
+  // (under a roof, a works' field: its ground looked for a step over a frame's feet, its works' solids stopping it)
+  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation',
+    ...(F.indoor ? { probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}), ...(stage.frame.garage ? { garage: true } : {}) };
   const out = { spawn: frame.spawn.slice(), heading: frame.heading, exit: [ex, ey, g(ex, ey)], exitFrom: 'the field\'s far side', planar: false, beats: [], hazards: [] };
-  for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [], colliders: F.colliders ?? [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
   FIELD_ENDS.set(key, out);
   return out;
 }
@@ -1042,12 +1052,12 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // boosts, quick-boosts and climbs on its thrusters, its four guns on their own triggers; followed from behind and over
     // its shoulder, the chase pitched with its aim
     const F = ends.frame, fig = `frame-${typeof F.build === 'string' ? F.build : 'own'}`;
-    const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build) });
+    const e0 = frameEntity(F.build, { id: 'player', at: F.spawn, heading: F.heading, pilot: true, figure: fig, gravity: F.gravity, bound: F.bound, mounts: frameMounts(F.build), ...(F.probe ? { probe: F.probe, collide: F.collide } : {}) });
     // (the hangar before the operation, frame-garage.js: the frame fitted from the parts the player has, its stock's
     // and the save's; the build it goes out in kept in the save)
     if (F.garage) e0.rule.garage = { owned: garageOwned(F.build) };
     pilotPart = {
-      figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0],
+      figures: { [fig]: { assault: { build: F.build, palette: F.palette } } }, entities: [e0], ...(ends.colliders.length ? { colliders: ends.colliders } : {}),
       camera: { rule: 'follow', target: 'player', ...FRAME_CAMERA },
       events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
       // (the page's smoke, world-scene.js `smoke`: billows down a bazooka's, a mortar's and a missile's trail, a rolling

@@ -165,7 +165,7 @@ export function operationCast(op, ends) {
         // (an ace: its phases on its mind, its armour its row's share over its build's, its name on it for the HUD)
         const A = g.ace ? ACES[g.ace] : null;
         const mind = A ? { range: A.phases[0].range, aggression: A.phases[0].aggression, dodge: A.phases[0].dodge, phases: A.phases } : T ? { ...T.mind } : { range: OPERATION.frameRange };
-        const e = frameEntity(g.build, { id: m.id, at: m.at, heading: toward(m.at), team: 'foes', mind, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ...(T ? { scale: T.scale, ap: T.ap } : {}) });
+        const e = frameEntity(g.build, { id: m.id, at: m.at, heading: toward(m.at), team: 'foes', mind, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ...(T ? { scale: T.scale, ap: T.ap } : {}), ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
         if (A) { const hp = Math.round(e.body.hp * A.ap); e.body = { ...e.body, hp, hpMax: hp }; e.ace = { id: g.ace, name: A.name }; }
         entities.push({ ...e, ...(dormant ? { dormant: true } : {}) });
         continue;

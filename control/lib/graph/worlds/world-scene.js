@@ -69,6 +69,7 @@ import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, ROAD_PEBBLES, GRASS_CARDS, TOWN_FLORA } from '@/lib/graph/form/land-read';
+import { readInterior, interiorLights, interiorPayload } from '@/lib/graph/form/interior-light';
 // (a lean ground, a geocube's `parallax: false`: no detail marched or displaced, its cliffs plain faces (no relief), and
 // a third of its scree's stones stood up; `parallax: 'cliffs'` the same ground with its rock kept: the fractured plates
 // over the rock (the blocks a gorge's wall reads by, at every distance), the rock's own march near the eye
@@ -1088,6 +1089,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(town ? { lawn: {} } : {}), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(TG ? (TG.elsewhere === 'meadow' ? { tallGrass: TG, ...(sward !== undefined ? { sward } : {}) } : { sward: { short: 0, medium: 0 }, tallGrass: TG }) : sward !== undefined ? { sward } : {}), ...(M.parallax === false ? { relief: false, stones: LEAN_STONES } : M.parallax === 'cliffs' ? { stones: LEAN_STONES } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a works' floor plan, local-meru/works-floor.js: the form's land draws it; nothing else reads it)
+    if (payload.floorPlan) { if (read) payload.form.land = { ...payload.form.land, floor: payload.floorPlan }; delete payload.floorPlan; }
+    // (and the molten metal its runners carry, channels/works-melt.js)
+    if (payload.melt) { if (read) payload.form.land = { ...payload.form.land, melt: payload.melt }; delete payload.melt; }
+    // (a land under a roof, the cube's `light.interior`, form/interior-light.js: no sky on the page, its background the
+    // void, the lights the place hangs or rows under its roof; the works' own lamps and glows when it has them)
+    const IN = read ? readInterior(cube.light?.interior) : null;
+    if (IN) {
+      const box = payload.form.land.box, lights = interiorLights(IN, { box, floor: 0, lamps: payload.lamps ?? null, glows: payload.glows ?? [] });
+      payload.form.land = { ...payload.form.land, sky: null, interior: interiorPayload(IN, lights) };
+      payload.sky = null; payload.bg = IN.void;
+    }
     // (and each patch a VEIL the runtime's sight reads, worlds/controllable/veil.js: its foot on the ground the map has)
     // (each standing on the level ground its grass grows on, none where too little grows; how each stood is said beside it)
     // (and the land under the radar's map, a level's `radar: { map: 'topo' }`: its contours and its trail, gameworld/radar.js)

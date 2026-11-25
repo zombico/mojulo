@@ -34,6 +34,14 @@ describe('the ground\'s parallax kinds', () => {
     expect(page).toContain('smoothstep( 0.590, 0.710,');
   });
 
+  it('samples the natural layers stochastically only where the land asks (a cube\'s outside.tiling): absent, as it was', () => {
+    const grid = formLandScript(land), stoch = formLandScript({ ...land, tiling: 'stochastic' });
+    expect(grid).not.toContain('STOCHASTIC TILING');
+    expect(stoch).toContain('STOCHASTIC TILING');
+    expect(stoch).toContain('textureGrad( tBase, aA, gxS, gyS )');
+    expect(stoch.length).toBeGreaterThan(grid.length);
+  });
+
   it('a lean ground marches no height and lays its kinds on the trail alone; a full one as it was', () => {
     const full = formLandScript(land), lean = formLandScript({ ...land, parallax: false });
     expect(full).not.toContain('false && ');

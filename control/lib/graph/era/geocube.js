@@ -9,7 +9,8 @@
  *             solved day palette's light; the reference keeps the sun's arc and strength; era/cube-light.js reads it
  *             as the hue the palette's light is solved in, the hour's key where it is absent), the share of its light
  *             the sky gives (`skyShare`, 0–1: the form render's, era/cube-light.js; left out, the look's own, raised
- *             to meet the sky the cube paints), and the cast's `rim`
+ *             to meet the sky the cube paints), the `interior` (a land under a roof, no sky: its void, its smoke haze,
+ *             its high-bay lamps and its glow, form/interior-light.js), and the cast's `rim`
  *             ({ strength?, power? }: the rim the cube's people wear, era/cast-light.js, in the cube's own sky; absent,
  *             the reference's horizon at the cast light's own strength), and the night's register (`night`:
              stylized, the night reference's deep blue, unless said; realistic, the colour drained by the dark, a pale
@@ -47,7 +48,18 @@
  *             relief card or { from, …changes } (noise/relief.js), `ground` (optional): a terrain world's field
  *             under the plain ({ from: <painted-landscape recipe>, span?, height?, at? }, local-meru/ground.js),
  *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
- *             count?, size?, glow?, seed? }, local-meru/crystals.js); `cliff` (optional): the far cliff its trails
+ *             count?, size?, glow?, seed? }, local-meru/crystals.js); `massif` (optional, an island's): its standing rock, sheer
+ *             blocks stepped by beds, gorges, talus and water carved under the floor (a card or { from?, … },
+ *             local-meru/massif.js); `works` (optional, an island's): an industrial interior over the land, its hall and
+ *             roof, crane, decks and ramps, furnaces, tanks, ladles and pipes (a card or { from?, … }, local-meru/works.js);
+ *             `rock` (optional): the colour its rock takes in the form render, by its beds' heights, each
+ *             thin bed's own tone and the varnish streaked down its walls ({ beds, blend?, thin?, varnish? }, form/rock-colour.js);
+ *             `materials` (optional): the land's four natural layers dressed as a works' materials, steel plate, slag,
+ *             concrete, ash (a set's name or { from?, rock?, scree?, soil?, sand? }, form/land-materials.js);
+ *             `rubble` (optional): the scree's stones at the cube's own scale ({ sizes: [lo, hi] radii in metres, density per
+ *             square metre of scree }, form/land-stones.js: a frame's knee-high blocks where a walker's pebbles lie);
+ *             `tiling` (optional): 'stochastic', the form render's layer tiles (rock, scree, soil, sand) never repeating in a
+ *             grid (form/land-read.js, scene/channels/form-land.js), or 'grid' as they always were; `cliff` (optional): the far cliff its trails
  *             break into (a trail's `ground.cliff`, era/out-ground.js: { height?, face?, bed?, dip?, joint?, pattern? }), or
  *             false: none, the land open on both sides of every trail it paints (a field, a plain); `water`
  *             (optional): the water cut into the land of every trail it paints (a trail's `ground.water`, era/out-water.js:
@@ -140,6 +152,11 @@ import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
 import { readGround as readTrailGround } from './out-ground.js';
 import { readCrystals } from '../local-meru/crystals.js';
+import { readMassif } from '../local-meru/massif.js';
+import { readWorks } from '../local-meru/works.js';
+import { readRockColour } from '../form/rock-colour.js';
+import { readMaterials } from '../form/land-materials.js';
+import { readInterior } from '../form/interior-light.js';
 import { rollTiers } from '../local-meru/roll.js';
 import { outTrailOf } from './out-trail-board.js';
 import { materialsErrors } from '../materials/dress-materials.js';
@@ -163,6 +180,7 @@ import { LIVE_SHADOW_KEYS } from '../scene/live-light.js';
 import { readCone } from '../scene/channels/view-cone.js';
 import { readHeavens, heavensCard } from './heavens.js';
 import { SOL_GEOCUBES, SOL_GEOCUBE_PALETTES, SOL_GEOCUBE_BUILDINGS } from '../sol/geocubes.js';
+import { FIELD_GEOCUBES, FIELD_GEOCUBE_PALETTES, FIELD_GEOCUBE_BUILDINGS } from '../assault-frame/geocubes.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -387,6 +405,9 @@ export const GEOCUBE_PRESETS = Object.freeze({
   // THE CHILDREN OF SOL (sol/geocubes.js): the bodies with ground under foot, Mercury to Pluto, the Moon among them (the
   // Earth is every cube above); their ground and their sky, and what hangs in it (era/heavens.js)
   ...SOL_GEOCUBES,
+  // THE BATTLEFIELD CUBES (assault-frame/geocubes.js): sandstone country at a mech's scale, pure terrain, its standing rock
+  // its own words (local-meru/massif.js); a frame's fields are cut from them
+  ...FIELD_GEOCUBES,
 });
 
 /**
@@ -409,6 +430,7 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'toy-hill': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'hall', enter: 'walk' }] },
   // the children of Sol's: a colony's (sol/geocubes.js)
   ...SOL_GEOCUBE_BUILDINGS,
+  ...FIELD_GEOCUBE_BUILDINGS,
 });
 /**
  * The levels a preset makes, beyond its own room and land: its other terrains and interiors, and the domains that
@@ -455,6 +477,8 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'city-night': { intent: 'concrete, asphalt and neon under a glowing night sky', key: 'low', heat: -0.3, weight: 0.4, activity: 0.5, scheme: 'mono-accent', hues: { rock: 220 }, lock: { accent: '#ff3d7f' } },
   // the children of Sol's (sol/geocubes.js)
   ...SOL_GEOCUBE_PALETTES,
+  // the battlefield cubes' (assault-frame/geocubes.js)
+  ...FIELD_GEOCUBE_PALETTES,
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
 const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4], 'theatre-grey': [1, 2], 'limestone-crags': [2, 5] , 'city-night': [0, 1], 'toy-hill': [0, 1, 2, 3], 'sherbet-orchard': [0, 1, 2, 3] });
@@ -546,7 +570,8 @@ export function readGeocube(spec) {
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade', 'heavens'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky', 'sun', 'rim', 'skyShare', 'night', 'shade', 'heavens', 'interior'], 'light');
+  if (c.light.interior !== undefined) { try { readInterior(c.light.interior); } catch (e) { no(e.message); } }
   // (what hangs in its sky, era/heavens.js: no air and the stars by day, the sun's width, a companion world, rings)
   readHeavens(c.light.heavens, no);
   if (c.light.night !== undefined && !NIGHT_REGISTERS.includes(c.light.night)) no(`light.night is the night's register: ${NIGHT_REGISTERS.join(' or ')} (stylized, the reference's own deep blue, unless said; realistic, the colour drained by the dark, a pale moon, near-neutral greys)`);
@@ -633,13 +658,24 @@ export function readGeocube(spec) {
     }
   }
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'massif', 'works', 'rock', 'tiling', 'rubble', 'materials', 'cliff', 'water', 'dunes', 'terrain', 'terrains'], 'outside');
   if (c.outside.dunes !== undefined) dunesOrNo(c.outside.dunes, 'outside.dunes');
   if (c.outside.cliff !== undefined) cliffOrNo(c.outside.cliff, 'outside.cliff');
   if (c.outside.water !== undefined) waterOrNo(c.outside.water, c.outside.cliff, 'outside.water');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
   if (c.outside.ground !== undefined) groundOrNo(c.outside.ground, 'outside.ground');
   if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.massif !== undefined) { try { readMassif(c.outside.massif); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.works !== undefined) { try { readWorks(c.outside.works); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
+  if (c.outside.rock !== undefined) { try { readRockColour(c.outside.rock); } catch (e) { no(`outside.${e.message}`); } }
+  if (c.outside.materials !== undefined) { try { readMaterials(c.outside.materials); } catch (e) { no(`outside.${e.message}`); } }
+  if (c.outside.rubble !== undefined) {
+    const R = c.outside.rubble;
+    if (!isObj(R) || Object.keys(R).some((k) => !['sizes', 'density'].includes(k))) no('outside.rubble is { sizes: [lo, hi], density }: the scree\'s stones at the cube\'s scale (radii in metres, stones per square metre of scree)');
+    if (!(Array.isArray(R.sizes) && R.sizes.length === 2 && R.sizes[0] > 0 && R.sizes[1] >= R.sizes[0] && R.sizes[1] <= 6)) no('outside.rubble.sizes is [lo, hi] radii in metres, above 0 and at most 6');
+    if (!(typeof R.density === 'number' && R.density > 0 && R.density <= 4)) no('outside.rubble.density is stones per square metre of scree, above 0 and at most 4');
+  }
+  if (c.outside.tiling !== undefined && c.outside.tiling !== 'stochastic' && c.outside.tiling !== 'grid') no("outside.tiling is 'stochastic' (the land's layer tiles sampled at offsets a slow noise picks, never repeating in a grid) or 'grid' (as it always was)");
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {
     if (!isObj(c.outside.terrains)) no(`outside.terrains is { <name>: { ${TERRAIN_KEYS.map((k) => `${k}?`).join(', ')} } }: the cube's other terrains`);
@@ -1087,10 +1123,10 @@ function outsideOf(cube, base, sw, land, lookCard0) {
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land, made: { ...sw.made, ...cubeMade(cube) } } });
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
-  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals;
+  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals, Mf = cube.outside.massif, Wk = cube.outside.works;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
     ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own, ...(cube.grit !== undefined ? { grit: cube.grit } : {}) } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
-    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}) } };
+    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}), ...(Mf !== undefined && Mf !== false ? { massif: Mf } : {}), ...(Wk !== undefined && Wk !== false ? { works: Wk } : {}) } };
 }
 
 /**
