@@ -580,7 +580,7 @@ function buildCreativeToolsetMap(profile = pluginProfileActive()) {
 // shared spine so an agent that jumps straight here is never missing the
 // standing rules.
 
-const STUDIO_OPENER = `The **call grammar**, mojulo's routing index. A **3D compiler for agents**: one store of refs, and every thing it makes IS its seeded deterministic recipe — renders are derived, byte-identical per read. Things to **Play** (browser or desktop app), **Print** (STL / 3MF at true scale), **Read**, **Hear** and **Observe**; **Workflows** orchestrate the rest. Inputs are words and images (a photo you can see → \`reference_protocol\`). Six verbs compose everything below; match the ask to a FORM in the mint dispatch and call the tool on that row.`;
+const STUDIO_OPENER = `The **call grammar**, mojulo's routing index. A **3D compiler for agents**: one store of refs, and every thing it makes IS its seeded deterministic recipe — renders are derived, byte-identical per read. Things to **Play** (browser or desktop app), **Print** (STL / 3MF at true scale), **Read**, **Hear** and **Observe**; **Workflows** orchestrate the rest. Inputs are words, images (a photo you can see → \`reference_protocol\`) and model files (MODEL FILE). Six verbs compose everything below; match the ask to a FORM in the mint dispatch and call the tool on that row.`;
 
 const STUDIO_ROUTING_INDEX = `## Routing index — the call grammar
 
@@ -599,6 +599,7 @@ Outcomes — a call lands one of four ways (classes to recognize, not wire types
 
 mint dispatch — match the ask to a FORM:
   CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal); revise, its target resolution, a level's light → \`update_character\` · to reuse across games → \`egocube\` (\`create_sketch\`)
+  MODEL FILE one they have (.glb .vrm .gltf .obj .stl .3mf, by its path) → a character \`create_character({ from })\` (rigged for you), an object \`mint_solid\` kind model · FBX/USD → ask for a GLB
   GAME     a game designed top down (hero, powers, gear, systems) → \`design_game\` · a level's ground → \`tune_ground\` · its colours → \`pick_palette\` · made levels, one store → \`create_game\` · a match-3 saga → \`create_pixelizer_game\`
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'

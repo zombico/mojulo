@@ -37,9 +37,9 @@ describe('mint_solid consolidation', () => {
     const list = await getSolidVocabHandler({});
     const ids = list.cards.map((c) => c.id).sort();
     // one card per mint_solid kind + the two edit ops + fabricate_solid's manual + verify_machina's + the persona's
-    // (create_character)
+    // (create_character); `model` is the kind a model made elsewhere is brought in by (and create_character's `from`)
     expect(ids).toEqual(
-      ['animal', 'assembler', 'carved-solid', 'code', 'edifice', 'emote', 'equipment', 'fabricate', 'figure', 'furniture', 'layered', 'machina', 'manji-tree', 'persona', 'scad', 'skin', 'solid-turntable', 'vehicle', 'workbench'].sort(),
+      ['animal', 'assembler', 'carved-solid', 'code', 'edifice', 'emote', 'equipment', 'fabricate', 'figure', 'furniture', 'layered', 'machina', 'manji-tree', 'model', 'persona', 'scad', 'skin', 'solid-turntable', 'vehicle', 'workbench'].sort(),
     );
     const one = await getSolidVocabHandler({ id: 'figure' });
     expect(one.ok).toBe(true);

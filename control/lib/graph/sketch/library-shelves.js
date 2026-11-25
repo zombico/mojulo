@@ -44,7 +44,7 @@ export const CHARACTER_KINDS = ['figure', 'character-sheet', 'sprite-sheet'];
  * orbited and read, never printed. `views` is the object bucket minus the
  * solids, so the two shelves partition it exactly.
  */
-export const SOLID_KINDS = ['workbench', 'scad', 'assembler', 'manji-tree'];
+export const SOLID_KINDS = ['workbench', 'scad', 'model', 'assembler', 'manji-tree'];
 export const VIEW_KINDS = OBJECT_RENDER_KINDS.filter((k) => !SOLID_KINDS.includes(k));
 
 /**
