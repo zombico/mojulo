@@ -102,7 +102,9 @@ export function frameHudScript() {
         box.style.left = (sp.x - size / 2) + 'px'; box.style.top = (sp.y - size / 2) + 'px'; box.style.width = size + 'px'; box.style.height = size + 'px';
         const thp = T.body.hp, tmax = T.body.hpMax || thp || 1, d = Math.hypot(T.transform.pos[0] - P.transform.pos[0], T.transform.pos[1] - P.transform.pos[1], T.transform.pos[2] - P.transform.pos[2]);
         tap.style.display = 'block'; tap.style.left = (sp.x + size / 2 + 6) + 'px'; tap.style.top = (sp.y - 8) + 'px';
-        tap.textContent = (P.locked ? 'LOCK ' : '') + Math.round(d) + ' m  ' + Math.round(100 * thp / tmax) + '%';
+        // (a shield-bearer's shield: what is left of it, or down)
+        const shTxt = T.shieldMax > 0 ? (T.shieldBroken ? '  SHIELD DOWN' : '  SHIELD ' + Math.round(100 * (T.shieldHp || 0) / T.shieldMax) + '%') : '';
+        tap.textContent = (P.locked ? 'LOCK ' : '') + Math.round(d) + ' m  ' + Math.round(100 * thp / tmax) + '%' + shTxt;
         // (its stress: a frame's stability spent, filling as it is pressed; broken, red with STAGGER under it)
         const frame = T.rule && T.rule.type === 'frame', stress = frame ? Math.max(0, Math.min(1, 1 - (T.stab ?? 1))) : 0, brk = frame && T.stagger > 0;
         acs.style.display = frame ? 'block' : 'none';

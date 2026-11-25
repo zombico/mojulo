@@ -230,6 +230,28 @@ describe('the assault frame', () => {
     expect(P.poise).toBeLessThan(P.poiseMax);
   });
 
+  it('a shield-bearer\'s front eats rounds; a kick knocks the shield aside and staggers it; it is raised again', () => {
+    const bastion = { id: 'b', team: 'foes', rule: { type: 'ai', space: true, speed: 0, turn: 2, standoff: 150, sightRange: 400, shieldRaise: 7 }, body: { type: 'box', size: [6, 6, 8], hittable: true, hp: 5000, hpMax: 5000, poise: 99, radius: 6, aimH: 4, shield: { hp: 4000, arc: 120 } }, transform: { pos: [70, 0, 0], heading: Math.PI, pitch: 0 } };
+    const st = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), bastion], pilot: 'p', ai: 'off' }), B = st.byId.b, P = st.byId.p;
+    run(st, {}, 60);
+    expect(P.locked).toBe(true);
+    // (the carbine into its front: the shield drains, its armour untouched)
+    run(st, { fire: 1 }, 90); run(st, {}, 30);
+    expect(B.shieldHp).toBeLessThan(B.shieldMax);
+    expect(B.body.hp).toBe(5000);
+    // (the kick: the shield knocked aside, the bearer staggered)
+    run(st, { kick: 1 }, 1);
+    let n = 0;
+    while (!P.lastHit && n++ < 60) run(st, {}, 1);
+    expect(B.shieldBroken).toBe(true);
+    expect(B.staggerT != null || B.reactClip === 'stagger').toBe(true);
+    expect(B.body.hp).toBeLessThan(5000);
+    // (and raised again, whole)
+    run(st, {}, Math.round(7 / DT) + 5);
+    expect(B.shieldBroken).toBe(false);
+    expect(B.shieldHp).toBe(B.shieldMax);
+  });
+
   it('a hit\'s impact chips the stability bar; broken, the frame reels, its keys dead, hit harder, then stands again', () => {
     // (a heavy frame ahead with its mind off: the pilot's bazooka, the left hand, the weapon its stagger is read from)
     const foe = frameEntity('citadel', { id: 'f', at: [140, 0, 0], team: 'foes', mind: {} });

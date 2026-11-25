@@ -123,6 +123,34 @@ export const GROUND_UNITS = Object.freeze({
       ];
     },
   }),
+  // a shield-bearer: a stocky walker behind a tall slab of armour, its vision slit lit, a cannon reaching round the slab's
+  // edge; it advances behind it, and its front is shut until the slab is broken, it is flanked or kicked aside
+  bastion: Object.freeze({
+    label: 'bastion walker', reads: 'a stocky walker behind a tall slab shield with a lit slit, a cannon round its edge',
+    size: 3.4, hp: 9, rof: 1.2, range: 1100, points: 260,
+    parts: () => [
+      // (the legs: thick, short, plated feet)
+      ...[-1, 1].flatMap((s2) => [
+        ...P.box([s2 * 1.05, -0.2, 0.2], [1.1, 1.8, 0.4], 'dark', { ch: 0.3 }),
+        ...P.pipe([s2 * 1.05, -0.3, 0.35], [s2 * 1.0, -0.6, 1.7], 0.32, 'hull2', 8),
+        ...P.ball([s2 * 1.0, -0.6, 1.75], 0.4, 'dark', 8, 3),
+        ...P.pipe([s2 * 1.0, -0.6, 1.75], [s2 * 0.8, -0.3, 2.7], 0.36, 'hull2', 8),
+      ]),
+      // (the body: a squat hull behind the slab)
+      ...P.box([0, -0.5, 3.2], [2.5, 1.9, 1.5], 'hull', { ch: 0.45 }),
+      ...P.box([0, -0.9, 4.1], [1.6, 1.2, 0.4], 'hull2', { ch: 0.3 }),
+      // (the slab: tall and broad ahead of it, its edges red, a lit slit to see over)
+      ...P.box([0, 1.15, 2.75], [3.4, 0.45, 4.6], 'hull2', { ch: 0.35 }),
+      ...P.box([0, 1.4, 2.75], [3.0, 0.08, 4.1], 'hull', { ch: 0.2 }),
+      ...[-1, 1].flatMap((s2) => P.box([s2 * 1.66, 1.2, 2.75], [0.08, 0.5, 4.4], 'accent')),
+      ...P.box([0, 1.46, 4.3], [1.6, 0.06, 0.18], 'sensor'),
+      ...[-0.7, 0.7].flatMap((x) => P.box([x, 1.46, 2.3], [0.5, 0.04, 2.0], 'dark', { ch: 0.05 })),
+      // (the cannon: from the body's right, past the slab's edge)
+      ...P.box([1.75, 0.1, 3.4], [0.6, 1.4, 0.6], 'dark', { ch: 0.15 }),
+      ...P.pipe([1.95, 0.6, 3.45], [1.95, 3.3, 3.45], 0.17, 'dark', 8),
+      ...P.pipe([1.95, 3.0, 3.45], [1.95, 3.35, 3.45], 0.24, 'hull2', 8),
+    ],
+  }),
   // two backward-kneed legs under an enclosed cab, a red visor, twin chin guns, an antenna: it stands its ground
   walker: Object.freeze({
     label: 'personnel walker', reads: 'an enclosed cab on two backward-kneed legs, a red visor, twin chin guns',

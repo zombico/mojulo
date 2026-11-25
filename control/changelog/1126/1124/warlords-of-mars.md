@@ -95,6 +95,12 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
     pass), so it chips a frame's bar rather than breaking it as an impact-less burst would; its splash reaches past its
     proximity fuse, so one that bursts passing still lands. Its operation, Long Guns, puts three behind a screen of
     tanks: quick-boost out from under each salvo, charge through on an assault boost.
+  - The Bastion walker (`groundforce/` `bastion`): a stocky walker behind a tall slab shield with a lit vision slit and
+    red edging, its cannon reaching round the slab. It carries the engine's frontal shield (`body.shield`): rounds from in
+    front are eaten until the shield breaks, a flank goes round it. A frame's lunge knocks the shield aside and staggers
+    it, and a broken shield is raised again 7 s later (`rule.shieldRaise`, the `frame-shields` pass): the punish window.
+    The lock box reads its shield's share, or SHIELD DOWN. Its operation, The Shield Line, puts three before two guns.
+  - A locked lunge now lasts as long as its reach takes to cross, so a foe at the edge of a kick's reach is met.
   - The ground force's sheets: `node scripts/render-groundforce.mjs --units gnat,walker` draws each card from three sides
     beside a frame's height.
 - **Aces: the frame a path ladders up to** (`assault-frame/aces.js`, a frame group's `ace`, a group's `reserve`).
@@ -134,10 +140,11 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   little air under its own weather: a butterscotch sky paling to a dusty horizon, a small dim sun, thin ice cloud
   high over a haze of dust. It rides the flight sky's machinery as the giants' skies do, with no deck: a flight over
   Mars, where a frame's field is under its cube's heavens.
-- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is six operations:
+- **The rail** (`rails.js` `warlords-of-mars`, `gameworld/warlords-of-mars.js`). Its starter is seven operations:
   - Landfall at Tharsis: a gun line, then a tank column;
   - Gnat Screen: a drone swarm, then its emplacements;
   - Long Guns: missile carriers behind a line of tanks, then the ridge;
+  - The Shield Line: shield walkers, then the guns behind them;
   - Red Dust: a pass held by walkers, then a guard frame;
   - Vermilion: the warlord's ace, alone, its pickets held back;
   - The Warlord: an escort of two, then the warlord's heavy frame.

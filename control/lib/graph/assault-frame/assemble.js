@@ -12,7 +12,7 @@
  *     move      { walk, boost, qb, qbTime, qbCool, jump, lift, land, height, ab } m/s, s, m/s² (over the load: slower;
  *               ab the assault boost's charge)
  *     en        { max, regen, delay, out, cost { boost, qb, ascend, abStart, ab } }
- *     kick      { damage, impact, range, speed, time, cool, en }: the boost kick, a lunge onto the locked target
+ *     kick      { damage, impact, range, speed, cool, en }: the boost kick, a lunge onto the locked target
  *     fcs       { lock, range, cone, locks }
  *     stab      { max, regen, stagger, bonus }: its stability, the bar a hit's impact breaks (in standard bars: a weapon's
  *               `stagger` is its share of one), heavier frames the steadier; regen bars a second; stagger the seconds
@@ -71,7 +71,7 @@ export function assembleFrame(build) {
   const en = { max: G.en, regen: G.regen, delay: G.delay, out: G.out, cost: { ...Bs.cost, abStart: Math.round(Bs.cost.qb * 0.6), ab: Math.round(Bs.cost.boost * 1.7) } };
   // (the boost kick: a lunge onto the target, the frame's own mass its blow; hard on a bar, so it is how a reel is opened
   // or punished)
-  const kick = { damage: Math.round(weight / 45), impact: 0.55, range: 80, speed: r2(Math.max(90, Bs.qb * 1.05)), time: 0.5, cool: 2.2, en: Math.round(Bs.cost.qb * 0.5) };
+  const kick = { damage: Math.round(weight / 45), impact: 0.55, range: 80, speed: r2(Math.max(90, Bs.qb * 1.05)), cool: 2.2, en: Math.round(Bs.cost.qb * 0.5) };
   const fcs = { lock: F.lock, range: F.range + ((parts.head ?? parts.core).sensor || 0), cone: F.cone, locks: F.locks };
   // (stability by mass: a medium frame of some 70 t is one standard bar, a light one less, a heavy one more; it comes back
   // a third of a bar a second, a light frame's a little faster)

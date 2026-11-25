@@ -6,7 +6,7 @@
  *
  *   goal: { operation: { groups: [...], tasks: [...], time? } }
  *     groups   [{ id, kind: 'turret' | 'tank' | 'walker' | 'gnat' (a flier, stood in the air) | 'hammer' (a missile
- *              launcher) | 'frame', count?, at: [x, y] (a share of the field: −1..1 each
+ *              launcher) | 'bastion' (a shield-bearer) | 'frame', count?, at: [x, y] (a share of the field: −1..1 each
  *              way, the frame starting at [0, −0.55]), spread? (m), build? (a frame's: a STOCK name), palette?,
  *              ace? (a frame's: an ace off assault-frame/aces.js, its build, paint, armour and phases; one), reserve?
  *              (true: held back dormant until an ace's phase calls it in) }]
@@ -41,6 +41,10 @@ export const OPERATION = Object.freeze({
     // `rule.missiles`, its impact a share of a frame's bar; it hangs back at its standoff behind what screens it. Its
     // splash wider than its fuse's reach and its round's: a missile that bursts as it passes still lands)
     hammer: Object.freeze({ hp: 3600, range: 650, move: 4, standoff: 420, turn: 0.9, missiles: Object.freeze({ count: 40, lockTime: 1.6, cone: 40, range: 650, speed: 115, turn: 1.3, damage: 520, splash: 9, prox: 4, fuse: 9, cooldown: 1.1, impact: 0.12 }) }),
+    // (a shield-bearer: the engine's frontal shield, combat-hit.js `body.shield` { hp, arc }: shots from in front are eaten
+    // until it breaks, a flank goes round it; broken, it staggers and raises it again `shieldRaise` s on, a frame's lunge
+    // knocks it aside, rules-frame.js)
+    bastion: Object.freeze({ hp: 5200, damage: 150, rof: 1.6, range: 380, speed: 360, move: 3.5, standoff: 150, shield: Object.freeze({ hp: 4200, arc: 120 }), shieldRaise: 7 }),
     gnat: Object.freeze({ hp: 700, damage: 32, rof: 4, range: 260, speed: 420, move: 30, air: 30, standoff: 55, turn: 3.2, floor: 10 }),
   }),
   reach: 60,
@@ -48,7 +52,7 @@ export const OPERATION = Object.freeze({
   frameRange: 140,
 });
 export const OPERATION_LEGEND = 'mouse  turn & aim · W A S D  move · Shift  boost · C  quick boost · X  assault boost · F  kick · Space  jump, hold to climb · click / right click  hands · Q / E  shoulders';
-const KINDS = ['turret', 'tank', 'walker', 'gnat', 'hammer', 'frame'];
+const KINDS = ['turret', 'tank', 'walker', 'gnat', 'hammer', 'bastion', 'frame'];
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
@@ -148,9 +152,9 @@ export function operationCast(op, ends) {
       figures[fig] = { unit: { kind: g.kind } };
       entities.push({
         id: m.id, team: 'foes', ...(dormant ? { dormant: true } : {}),
-        rule: { type: 'ai', space: true, speed: U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6 },
+        rule: { type: 'ai', space: true, speed: U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6 },
         ...(U.missiles ? {} : { weapon: { fireClass: 'lob', auto: true, rof: U.rof, damage: U.damage, impact: 0.02, range: U.range, coreAngle: 2, assistAngle: 5, eye: R * 0.6, lobAngle: 0, projectileSpeed: U.speed, projectileGravity: 0, projRadius: 0.8, splashRadius: g.kind === 'tank' ? 4 : 0, fuse: U.range / U.speed * 1.3, noGround: true, passTeam: true, smokeTrail: g.kind === 'tank', fxColor: 0xff5a3a, foeRound: true, magazine: 9999 } }),
-        body: { type: 'figure-rig', figure: fig, hittable: true, hp: U.hp, hpMax: U.hp, poise: 99, radius: R, egg: { a: R, c: r2(R * 0.6), cz: r2(R * 0.4) }, aimH: r2(R * 0.4), blast: 4 },
+        body: { type: 'figure-rig', figure: fig, hittable: true, hp: U.hp, hpMax: U.hp, poise: 99, ...(U.shield ? { shield: { ...U.shield } } : {}), radius: R, egg: { a: R, c: r2(R * 0.6), cz: r2(R * 0.4) }, aimH: r2(R * 0.4), blast: 4 },
         transform: { pos: U.air ? [m.at[0], m.at[1], r2(m.at[2] + U.air)] : m.at, heading: toward(m.at), pitch: 0 },
       });
     }

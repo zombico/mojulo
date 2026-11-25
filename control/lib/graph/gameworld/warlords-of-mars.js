@@ -48,6 +48,16 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: 'carriers', text: 'Destroy the missile carriers' }), f({ reach: f([0, 0.85]), text: 'Take the ridge' })]),
   }),
+  // (rung three: a front that is shut; break it, flank it, or kick it aside, then punish what is behind it)
+  f({
+    id: 'shield-line', name: 'The Shield Line', map: 'plain',
+    brief: 'A line of shield walkers holds the approach, their slabs eating every round fired at their front. Break a slab with heavy fire, go round it, or kick it aside, and punish the walker behind it before it raises the slab again.',
+    groups: f([
+      f({ id: 'line', kind: 'bastion', count: 3, at: f([0, 0.3]), spread: 120 }),
+      f({ id: 'guns', kind: 'turret', count: 2, at: f([0, 0.62]), spread: 110 }),
+    ]),
+    tasks: f([f({ down: 'line', text: 'Break the shield line' }), f({ down: 'guns', text: 'Silence the guns behind it' })]),
+  }),
   f({
     id: 'red-dust', name: 'Red Dust', map: 'basin',
     brief: 'A pass through the crater rim, held by walkers and emplacements. A frame of the warlord\'s guard is on its way to reinforce it.',

@@ -74,6 +74,14 @@ describe('Warlords of Mars', () => {
     expect(mid(H)).toBeGreaterThan(mid(T) + 80);
   });
 
+  it('the Shield Line stands its walkers behind their shields, raised again after a break', () => {
+    const id = 'shield-line', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
+    const m = steps.find((s) => s.key.startsWith('level-')).order.manifest;
+    const B = m.entities.filter((e) => e.id.startsWith('line-'));
+    expect(B.length).toBe(3);
+    for (const b of B) { expect(b.body.shield).toEqual(OPERATION.units.bastion.shield); expect(b.rule.shieldRaise).toBe(OPERATION.units.bastion.shieldRaise); }
+  });
+
   it('the path ladders up to an ace: its own build and paint, more armour, its phases on its mind, its reserve held back', () => {
     const id = 'vermilion', steps = runSteps({ ...W(), levels: { [id]: W().levels[id] }, start: id }, { ref: 'wom' });
     const m = steps.find((s) => s.key.startsWith('level-')).order.manifest;

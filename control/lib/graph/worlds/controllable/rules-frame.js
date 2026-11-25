@@ -32,8 +32,10 @@
  *     as it fires, a boost and an assault boost cut: it STICKS where it is for `brace` s (in the air too, no gravity, its
  *     drift checked hard), then WINDS DOWN over `wind` s, its gravity and its control coming back (the legs' `steady`
  *     scales both). A quick boost in the wind-down cancels it: the skilled way out; the stick itself cannot be.
+ *   • A SHIELD (the engine's frontal shield, `body.shield`): a lunge knocks it aside and staggers its bearer; broken, it is
+ *     raised again `rule.shieldRaise` s on (`frame-shields`).
  *   • THE LUNGE (the boost KICK on its key, `rule.kick`, and a BLADE, an arm weapon of fire 'melee'): onto the locked foe
- *     within its reach (straight ahead when none), at its speed for at most its time; meeting it, the blow lands
+ *     within its reach (straight ahead when none), at its speed for as long as its reach takes; meeting it, the blow lands
  *     (`frame-weapons`: its damage, its impact on the foe's bar). A kick out of an assault boost is the classic opener.
  *   • AN ACE (`mind.phases`, assault-frame/aces.js): the mind fights in the phase its armour's share is in: its reach,
  *     press and dodge; a duel keeps its reach, a rush assault-boosts in and lunges after a TELL (`tell` s, its optics
@@ -121,8 +123,9 @@ export function buildRulesFrame(E) {
   function lungeFrom(e, world, K) {
     const tg = e.locked && e.lockOn && world.byId[e.lockOn], p = e.transform.pos;
     const near = tg && Math.hypot(tg.transform.pos[0] - p[0], tg.transform.pos[1] - p[1], tg.transform.pos[2] - p[2]) <= (K.range ?? 80);
-    // (its time: enough to cross its reach at its speed, a breath more; a whiff a short one)
-    e.lunge = { by: K.by, to: near ? tg.id : null, damage: K.damage || 0, impact: K.impact || 0, speed: K.speed ?? 110, T: near ? Math.min(K.time ?? 0.7, (K.range ?? 80) / (K.speed ?? 110) + 0.15) : 0.25, hit: false };
+    // (its time: enough to cross its whole reach at its speed, a breath more, so a foe at the edge of it is met; a whiff a
+    // short one)
+    e.lunge = { by: K.by, to: near ? tg.id : null, damage: K.damage || 0, impact: K.impact || 0, speed: K.speed ?? 110, T: near ? (K.range ?? 80) / (K.speed ?? 110) + 0.2 : 0.25, hit: false };
   }
 
   // ── an ace's phases: the one it fights in by its armour's share; crossing into one, its reserve woken, its bar steadied ──
@@ -244,7 +247,7 @@ export function buildRulesFrame(E) {
     const kickEdge = !!inp.kick && !e.kickPrev;
     e.kickPrev = !!inp.kick;
     if (kickEdge && r.kick && e.kickCd <= 0 && !reeling && !(e.landT > 0) && !e.lunge && enOk && draw(r.kick.en ?? 300)) {
-      lungeFrom(e, world, { by: 'kick', damage: r.kick.damage, impact: r.kick.impact, range: r.kick.range, speed: r.kick.speed, time: r.kick.time });
+      lungeFrom(e, world, { by: 'kick', damage: r.kick.damage, impact: r.kick.impact, range: r.kick.range, speed: r.kick.speed });
       e.kickCd = r.kick.cool ?? 2.2;
     }
     if (e.lunge && (reeling || e.lunge.T <= 0)) e.lunge = null;
@@ -415,7 +418,7 @@ export function buildRulesFrame(E) {
     if (W.fire === 'melee') {
       if (edge && S.cd <= 0 && !e.lunge && !(e.stagger > 0) && (!W.energy || e.en >= W.energy)) {
         if (W.energy) { e.en -= W.energy; e.enLast = e.frTime; }
-        lungeFrom(e, world, { by: slot, damage: W.damage, impact: W.stagger, range: W.range, speed: W.speed, time: 0.7 });
+        lungeFrom(e, world, { by: slot, damage: W.damage, impact: W.stagger, range: W.range, speed: W.speed });
         S.cd = W.cooldown ?? 1.6; S.shots = (S.shots || 0) + 1; e.lastShot = { slot, t: state.time };
       }
       return;
@@ -481,6 +484,8 @@ export function buildRulesFrame(E) {
     const at = [q[0], q[1], q[2] + h], me = [p[0], p[1], p[2] + (e.rule.eyeH ?? 7) * 0.6];
     if (Math.hypot(at[0] - me[0], at[1] - me[1], at[2] - me[2]) > reach + h * 0.5) return;
     L.hit = true; L.T = Math.min(L.T, 0.08);
+    // (a frontal shield is no guard against a lunge: the blow knocks it aside, its break the engine's, a stagger)
+    if (tg.shieldHp > 0 && !tg.shieldBroken) { tg.shieldHp = 0; tg.shieldBroken = true; tg.shieldBreakAt = state.time; state.shieldBreaks = (state.shieldBreaks || 0) + 1; E.armReaction(tg, 'stagger'); }
     if (Number.isFinite(tg.body.hp)) tg.body.hp = Math.max(0, tg.body.hp - L.damage);
     tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1; tg.lastHitBy = e.id; tg.lastHitDmg = L.damage;
     if (Number.isFinite(tg.poise) && tg.staggerT == null && !(tg.stagger > 0)) tg.poise -= L.impact;
@@ -521,6 +526,13 @@ export function buildRulesFrame(E) {
       if (m && m.impact > 0 && !(p.impact > 0)) p.impact = m.impact;
     }
   }, 20);
+  // ── a shield raised again (a body's `rule.shieldRaise` s after it was broken, a Bastion's): the punish window shuts ──
+  E.registerWorldPass('frame-shields', (state) => {
+    for (const e of state.entities) {
+      if (!e.shieldBroken || !(e.rule && e.rule.shieldRaise > 0) || e.gone || e.downed) continue;
+      if (state.time - (e.shieldBreakAt || 0) >= e.rule.shieldRaise) { e.shieldBroken = false; e.shieldHp = e.shieldMax; }
+    }
+  }, 21);
   // ── a flier over a frame's field (an ai in the air with a `floor`, a Gnat's): held that many metres over the land under
   // it, so a swarm closing on a frame on its feet weaves over it and never through a hill ──
   E.registerWorldPass('frame-fliers', (state, input, dt, world) => {
