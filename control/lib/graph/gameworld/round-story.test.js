@@ -20,7 +20,5 @@ describe('the round\'s story', () => {
     const core = W.megaworld.rings.at(-1)[0], flow = runSteps(W, { ref: 'rs' }).find((s) => s.key === 'game').order.flow.steps;
     expect(Object.values(flow).find((s) => s.scene === 'round-opening')).toMatchObject({ kind: 'cutscene', stage: `rs-level-${W.hub}-0` });
     expect(Object.values(flow).find((s) => s.scene === 'round-ending')).toMatchObject({ stage: `rs-level-${core}-0` });
-    // (a whole round composed and run, its town, its wilds and its citadel: about 25 s alone, so the default 30 s left a
-    // shard under load no room; given the room its siblings that compose a world are, compose-goals.test.js)
-  }, 300000);
+  }, 120_000); // a whole round composed and its steps run: about 16 s alone, past the 30 s default on a busy CI shard
 });

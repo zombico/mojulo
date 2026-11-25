@@ -765,14 +765,16 @@ export function rpgPage(cfg, K, ctl, jk, M) {
       const score = 100 * over(c, me) + 4 * party.reduce((a, B) => a + over(c, B), 0) + foes.reduce((a, B) => a + over(c, B), 0);
       if (!best || score < best.score - 1e-6) best = { ...c, score };
     }
-    // (the window as it was painted last frame: where it crossed an edge, its point moves by as much and keeps the move,
-    // so the window is held inside the screen whatever its height comes to after it was measured; a new member, afresh)
-    if (nudge.m !== m) { nudge.m = m; nudge.dy = 0; }
-    if (q && q.height > 0) { if (q.top < E - 0.5) nudge.dy += E - q.top; else if (q.bottom > Ht - E + 0.5) nudge.dy -= q.bottom - (Ht - E); }
-    // (an anchor stands its row's bottom middle on its point)
-    return [(best.l + w / 2) / Wd, (best.b + nudge.dy) / Ht];
+    // (an anchor stands its row's bottom middle on its point, but where the window is painted can sit off that point by
+    // an amount the screen sets, its row's own height under another device's fonts: on a CI runner 24 px up, over the
+    // top. That offset is read off last frame, the window as painted against the point it was given, and the point is
+    // given less it, so the window lands where it was chosen to: inside the screen and clear of the party. One frame's
+    // offset, never a sum: a point the window does not follow cannot run away)
+    const off = asked.m === m && q && q.height > 0 ? q.bottom - asked.b : 0, b = best.b - Math.max(-h, Math.min(h, off));
+    asked.m = m; asked.b = b;
+    return [(best.l + w / 2) / Wd, b / Ht];
   }
-  const nudge = { m: null, dy: 0 };
+  const asked = { m: null, b: 0 };
   // (the world's own states on a fighter, by how a line says them: cfg.states, rpg.js)
   const ownStates = (st) => (cfg.states ? Object.keys(cfg.states).filter((k) => st[k] > 0).map((k) => cfg.states[k].said) : []);
   function battleModel() {

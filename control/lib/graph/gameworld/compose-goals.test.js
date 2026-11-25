@@ -248,8 +248,7 @@ describe('composed: a party RPG round its town, its castle and its dungeon', () 
       expect(game.atlas.shape).toBe(shape);
       expect(game.gameOver).toBe(true);
     }
-    // (three games composed and laid whole: 21 s on a quiet machine, past the default 30 s on a loaded runner)
-  }, 300000);
+  }, 240_000); // three whole rounds composed and their steps run: past the 30 s default on a busy CI shard
 
   it('keeps a quest in its journal, named for what it is about, its steps raised as they happen: the key found, the core entered, the boss down', () => {
     const core = W.megaworld.rings.at(-1)[0], keyAt = W.megaworld.gates[core].keyAt;
