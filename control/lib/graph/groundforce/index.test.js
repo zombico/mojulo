@@ -44,4 +44,25 @@ describe('the ground force', () => {
     expect(fig.form.materials).toBe(UNIT_MATERIALS);
     expect(unitFigure(k).form).toBeUndefined();
   });
+
+  it('a card with spinning parts packs a bone at each hub, its roll clip turning them and holding the rest still', () => {
+    // (one such card, chosen by its hubs: a new one runs through the same packing)
+    const k = GROUND_UNIT_IDS.find((u) => GROUND_UNITS[u].hubs);
+    const hubs = GROUND_UNITS[k].hubs(), fig = unitFigure(k, { form: true });
+    expect(fig.bones.map((b) => b.id)).toEqual(['root', ...hubs.map((_, i) => `prop${i}`)]);
+    expect(fig.parts.every((p) => p && p.form)).toBe(true);
+    // (every face is on one bone, and each spinning bone has its own)
+    const F = unitFormFaces(k), on = (b) => F.filter((f) => (f.bone ?? 'root') === b).length;
+    expect(fig.bones.reduce((n, b) => n + on(b.id), 0)).toBe(F.length);
+    for (let i = 0; i < hubs.length; i++) expect(on(`prop${i}`)).toBeGreaterThan(0);
+    // (the clip turns a hub's bone about the figure's x and keeps the root at rest)
+    const C = fig.clips.roll, n = fig.bones.length, key = (q, b) => C.b.slice((q * n + b) * 7, (q * n + b) * 7 + 4);
+    expect(key(3, 0)).toEqual([0, 0, 0, 1]);
+    const q = key(3, 1);
+    expect(Math.abs(q[0])).toBeGreaterThan(0.5);
+    expect([q[1], q[2]]).toEqual([0, 0]);
+    // (a card without hubs packs as one bone, as it always did)
+    const plain = GROUND_UNIT_IDS.find((u) => !GROUND_UNITS[u].hubs);
+    expect(unitFigure(plain, { form: true }).bones.map((b) => b.id)).toEqual(['root']);
+  });
 });

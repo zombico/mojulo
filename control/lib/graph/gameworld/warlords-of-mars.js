@@ -108,6 +108,16 @@ export const OPERATIONS = f([
     ]),
     tasks: f([f({ down: 'gunship', text: 'Bring down the Harrow' })]),
   }),
+  // (the air ladder's top: the heavy gunship, a pylon turn at height, its broadside on the frame; under it is safe)
+  f({
+    id: 'thunderhead', name: 'Thunderhead', map: 'basin',
+    brief: 'The warlord\'s heavy gunship turns over the crater at height, banked, its broadside on you: an autocannon and a howitzer whose shells land hard. Its guns cannot reach straight down: get under it and stay there, and it cannot touch you. Hurt, it comes lower and turns tighter.',
+    groups: f([
+      f({ id: 'gunship', kind: 'thunderhead', at: f([0, 0.5]) }),
+      f({ id: 'escort', kind: 'wasp', count: 3, at: f([0, 0.3]), spread: 160 }),
+    ]),
+    tasks: f([f({ down: 'gunship', text: 'Bring down the Thunderhead' })]),
+  }),
   // (the ace the path ladders up to, assault-frame/aces.js: it duels, then rushes with its blade, its optics flaring
   // before it strikes, then, cornered, calls in the walkers held back behind it)
   f({

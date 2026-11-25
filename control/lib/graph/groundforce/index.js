@@ -82,6 +82,66 @@ const twin = (y0, y1, z, apart, r) => [-1, 1].flatMap((s) => P.pipe([s * apart /
 // (a part's faces turned about an axis through `at`, parallel to x: a rack raised, a barrel laid)
 const tiltX = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const y = c[1] - at[1], z = c[2] - at[2]; return [c[0], at[1] + y * Math.cos(a) - z * Math.sin(a), at[2] + y * Math.sin(a) + z * Math.cos(a)]; }) }));
 
+// the Thunderhead's parts, at its own metres (a heavy gunship some 40 m across the wings; GROUND_UNITS.thunderhead draws
+// them at THUNDER_K): laid nose +y as every card is, then turned so its nose is the figure's +x and its LEFT side the
+// figure's forward (+y), the side its guns are on and the heading its aim turns, and banked left wing down into the turn
+// it flies (a pylon turn, the guns on the pilot inside it). Each propeller is its own bone (`bone: 'prop0'…`), its hub
+// on the figure's x axis, so the figure's `roll` clip spins it.
+const THUNDER_K = 0.44, THUNDER_BANK = -0.32, THUNDER_PROPS = Object.freeze([-12.5, -6.5, 6.5, 12.5]);
+const thunderPlace = (c) => {
+  // (nose +y → +x, left −x → +y; then the bank about the nose's axis through the fuselage's middle)
+  const x = c[1], y = -c[0], z = c[2] - 2.5, cb = Math.cos(THUNDER_BANK), sb = Math.sin(THUNDER_BANK);
+  return [x * THUNDER_K, (y * cb - z * sb) * THUNDER_K, (y * sb + z * cb + 2.5) * THUNDER_K];
+};
+function thunderheadParts() {
+  const spinY = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const dx = c[0] - at[0], dz = c[2] - at[2]; return [at[0] + dx * Math.cos(a) - dz * Math.sin(a), c[1], at[2] + dx * Math.sin(a) + dz * Math.cos(a)]; }) }));
+  // (the wing: a high wing, its chord narrowing toward the tips and its leading edge swept a little)
+  const wing = P.box([0, 1.5, 4.75], [40, 4.4, 0.6], 'hull2', { ch: 0.3 }).map((f) => ({ ...f, corners: f.corners.map((c) => { const t = Math.min(1, Math.abs(c[0]) / 20); return [c[0], 1.5 + (c[1] - 1.5) * (1 - 0.45 * t) - t * 0.8, c[2] - t * 0.25]; }) }));
+  const nacelle = (x) => [
+    ...P.pipe([x, 6.3, 4.15], [x, -1.6, 4.35], 1.15, 'hull', 10),
+    ...P.pipe([x, -1.6, 4.35], [x, -2.4, 4.4], 0.65, 'dark', 8),
+    ...P.box([x, -2.45, 4.4], [0.85, 0.06, 0.6], 'drive'),
+    ...P.box([x, 2.4, 3.15], [0.9, 4.4, 0.9], 'hull2', { ch: 0.35 }),
+  ];
+  // (a propeller: four blades round its spinner, each a broad paddle a touch twisted, in the plane square to the nose)
+  const prop = (x, i) => { const hub = [x, 6.95, 4.15];
+    return [
+      ...P.ball([x, 6.75, 4.15], 0.72, 'accent', 10, 4),
+      ...[0, 1, 2, 3].flatMap((b) => spinY(P.box([x + 1.75, 6.9, 4.15], [2.9, 0.14, 0.62], 'dark'), hub, (b * Math.PI) / 2 + 0.4)),
+    ].map((f) => ({ ...f, bone: `prop${i}` })); };
+  return [
+    // (the fuselage: long and deep, its nose rounded under a lit slit, its tail sweeping up to the fin)
+    ...P.box([0, 0, 2.45], [4.6, 24, 4.4], 'hull', { ch: 2.0 }),
+    ...P.box([0, 13.0, 2.25], [4.0, 3.6, 3.7], 'hull', { ch: 1.75 }),
+    ...P.box([0, 14.86, 3.15], [2.6, 0.06, 0.5], 'sensor'),
+    ...P.box([0, -14.6, 3.25], [3.2, 6.4, 3.0], 'hull', { ch: 1.3 }).map((f) => ({ ...f, corners: f.corners.map((c) => { const t = Math.max(0, Math.min(1, (-c[1] - 11.4) / 6.4)); return [c[0] * (1 - 0.45 * t), c[1], 3.25 + (c[2] - 3.25) * (1 - 0.4 * t) + t * 0.9]; }) })),
+    ...P.box([0, -1, 0.42], [3.6, 13, 0.6], 'hull2', { ch: 0.25 }),
+    ...[-1, 1].flatMap((sx) => P.box([sx * 2.55, -0.5, 0.9], [1.2, 7, 1.7], 'hull2', { ch: 0.5 })),
+    ...[-1, 1].flatMap((sx) => P.box([sx * 2.3, 4, 3.2], [0.05, 9, 0.24], 'accent')),
+    // (the wing and its engines, two a side, its tips red)
+    ...wing,
+    ...[-1, 1].flatMap((sx) => P.box([sx * 18.6, 0.75, 4.55], [1.6, 2.6, 0.64], 'accent', { ch: 0.25 })),
+    ...THUNDER_PROPS.flatMap(nacelle),
+    // (the tail: a tall fin over a broad tailplane)
+    ...P.box([0, -16.2, 7.3], [0.55, 4.4, 6.2], 'hull2', { ch: 0.22 }).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1] - (c[2] - 4.2) * 0.35, c[2]]) })),
+    ...P.box([0, -16.2, 4.4], [13, 2.9, 0.42], 'hull2', { ch: 0.2 }).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1] - Math.abs(c[0]) * 0.12, c[2]]) })),
+    ...P.box([0, -17.95, 9.0], [0.62, 1.2, 1.1], 'accent', { ch: 0.2 }),
+    // (the broadside, out of its LEFT side: the howitzer aft, the autocannon amidships, twin gatlings forward)
+    ...P.box([-2.4, -2.2, 1.6], [0.6, 2.6, 1.7], 'dark', { ch: 0.22 }),
+    ...P.pipe([-2.6, -2.2, 1.6], [-6.0, -2.2, 1.35], 0.38, 'dark', 10),
+    ...P.box([-6.1, -2.2, 1.34], [0.55, 1.0, 1.0], 'dark', { ch: 0.2 }),
+    ...P.box([-2.4, 3.6, 1.5], [0.6, 1.8, 1.3], 'dark', { ch: 0.2 }),
+    ...P.pipe([-2.6, 3.6, 1.45], [-5.0, 3.6, 1.3], 0.22, 'dark', 8),
+    ...[-0.25, 0.25].flatMap((dy) => P.pipe([-2.4, 8.2 + dy, 1.45], [-4.0, 8.2 + dy, 1.35], 0.12, 'dark', 6)),
+    // (the sensor ball under its chin, its eye down and out to the left)
+    ...P.ball([0, 11.2, 0.3], 0.8, 'dark', 10, 4),
+    ...P.box([-0.66, 11.4, 0.1], [0.06, 0.36, 0.26], 'sensor'),
+    ...THUNDER_PROPS.flatMap((x, i) => prop(x, i)),
+  ].map((f) => ({ ...f, corners: f.corners.map(thunderPlace) }));
+}
+/** The Thunderhead's propeller hubs, as the figure carries them (its bones' heads). */
+const thunderHubs = () => THUNDER_PROPS.map((x) => thunderPlace([x, 6.95, 4.15]).map((v) => v * GROUNDFORCE_SCALE));
+
 // the Harrow gunship's parts, at its own metres (GROUND_UNITS.harrow draws them at three quarters)
 function harrowParts() {
   const fan = (x, y) => [
@@ -240,6 +300,13 @@ export const GROUND_UNITS = Object.freeze({
     // (laid out at its own metres, then drawn at three quarters of them: some 16 m nose to tail as drawn, twice a frame)
     parts: () => harrowParts().map((f) => ({ ...f, corners: f.corners.map((c) => c.map((v) => v * 0.76)) })),
   }),
+  // the heavy gunship: a high-winged hull on four great propellers, its guns out of its left side; it flies a banked
+  // turn round the frame at height, its broadside on it, and cannot bring its guns to bear on a frame right under it
+  thunderhead: Object.freeze({
+    label: 'thunderhead gunship', reads: 'a heavy high-winged gunship on four great propellers, banked, a howitzer, an autocannon and gatlings out of its left side',
+    size: 6.4, hp: 60, rof: 9, range: 800, points: 4000, flies: true,
+    parts: thunderheadParts, hubs: thunderHubs,
+  }),
   // an artillery truck: six wheels under a long bed, a cab forward, outriggers braced on the ground, and on the bed a
   // launcher rack raised toward the sky, eight tubes with their missiles' noses showing; it hangs back and lobs homing salvos
   hammer: Object.freeze({
@@ -336,9 +403,10 @@ export function unitFaces(kind) {
   const k = GROUNDFORCE_SCALE;
   return partsOf(U, false).map((f) => {
     const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]), base = hexRgb(GROUNDFORCE_PALETTE[f.role]);
-    if (LIT.has(f.role)) return { corners, fill: GROUNDFORCE_PALETTE[f.role], role: f.role };
+    const bone = f.bone ? { bone: f.bone } : {};
+    if (LIT.has(f.role)) return { corners, fill: GROUNDFORCE_PALETTE[f.role], role: f.role, ...bone };
     const n = normalOf(corners), lam = KEY.ambient + KEY.gain * Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / ll);
-    return { corners, fill: rgbHex(base.map((v) => v * lam)), role: f.role };
+    return { corners, fill: rgbHex(base.map((v) => v * lam)), role: f.role, ...bone };
   });
 }
 
@@ -365,16 +433,16 @@ export function unitFormFaces(kind) {
   const U = GROUND_UNITS[kind];
   if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${GROUND_UNIT_IDS.join(', ')})`);
   const k = GROUNDFORCE_SCALE;
-  const faces = partsOf(U, true).map((f) => { const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]); return { corners, role: f.role, n: normalOf(corners), w: areaOf(corners) }; });
+  const faces = partsOf(U, true).map((f) => { const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]); return { corners, role: f.role, n: normalOf(corners), w: areaOf(corners), bone: f.bone ?? null }; });
   const key = (p) => p.map((v) => Math.round(v * 200)).join(',');
   const at = new Map();
   faces.forEach((f, i) => f.corners.forEach((p) => { const kk = key(p); if (!at.has(kk)) at.set(kk, []); at.get(kk).push(i); }));
   const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
   return faces.map((f) => ({
-    corners: f.corners.map((p) => p.map(r4)), material: f.role, albedo: GROUNDFORCE_PALETTE[f.role], outNormal: f.n.map(r4),
+    ...(f.bone ? { bone: f.bone } : {}), corners: f.corners.map((p) => p.map(r4)), material: f.role, albedo: GROUNDFORCE_PALETTE[f.role], outNormal: f.n.map(r4),
     cornerNormals: f.corners.map((p) => {
       const sum = [0, 0, 0];
-      for (const j of at.get(key(p))) { const m = faces[j].n; if (m[0] * f.n[0] + m[1] * f.n[1] + m[2] * f.n[2] >= SMOOTH_COS) for (let c = 0; c < 3; c++) sum[c] += m[c] * faces[j].w; }
+      for (const j of at.get(key(p))) { const m = faces[j].n; if (faces[j].bone === f.bone && m[0] * f.n[0] + m[1] * f.n[1] + m[2] * f.n[2] >= SMOOTH_COS) for (let c = 0; c < 3; c++) sum[c] += m[c] * faces[j].w; }
       const l = Math.hypot(...sum) || 1;
       return sum.map((v) => r4(v / l));
     }),
@@ -384,12 +452,17 @@ export function unitFormFaces(kind) {
 /** The rig figure a level stands the unit as: one bone, its faces packed (vehicle-rig.js); `form`: in the form render,
  *  its metal lit by the world (UNIT_MATERIALS), its rounded parts shaded round (`setting.sky` the world's sky, its light). */
 export function unitFigure(kind, { form = false, setting = null } = {}) {
-  const faces = unitFaces(kind);
+  const U = GROUND_UNITS[kind], faces = unitFaces(kind);
+  // (a card with spinning parts, `hubs`: a bone each, at its hub, turned by the figure's `roll` clip; the rest the root)
+  const hubs = U && U.hubs ? U.hubs() : [], spun = hubs.map((_, i) => `prop${i}`);
+  const bones = [{ id: 'root', head: [0, 0, 0] }, ...hubs.map((h, i) => ({ id: spun[i], head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) }))];
+  const byBone = (fs) => new Map(bones.map((b) => [b.id, fs.filter((f) => (f.bone ?? 'root') === b.id)]));
+  const opts = hubs.length ? { keys: 12, rolls: spun } : { keys: 2, rolls: [] };
   if (form) {
     const F = unitFormFaces(kind);
-    const fig = packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', faces]]), { keys: 2, rolls: [], form: new Map([['root', F]]) });
-    return { ...fig, form: { ...formLight(skyMood(setting?.sky), UNIT_MATERIALS, {}), normalBias: 0.1 }, groundforce: { kind, label: GROUND_UNITS[kind].label, faces: F.length, form: true } };
+    const fig = packVehicleFigure(bones, byBone(faces), { ...opts, form: byBone(F) });
+    return { ...fig, form: { ...formLight(skyMood(setting?.sky), UNIT_MATERIALS, {}), normalBias: 0.1 }, groundforce: { kind, label: U.label, faces: F.length, form: true } };
   }
-  const fig = packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', faces]]), { keys: 2, rolls: [] });
-  return { ...fig, groundforce: { kind, label: GROUND_UNITS[kind].label, faces: faces.length } };
+  const fig = packVehicleFigure(bones, byBone(faces), opts);
+  return { ...fig, groundforce: { kind, label: U.label, faces: faces.length } };
 }

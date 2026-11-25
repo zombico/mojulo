@@ -5,8 +5,8 @@
  * the objectives mechanic (game/objectives.js), in the level's own words.
  *
  *   goal: { operation: { groups: [...], tasks: [...], time? } }
- *     groups   [{ id, kind: 'turret' | 'tank' | 'walker' | 'gnat' | 'wasp' | 'kite' | 'harrow' (fliers, stood in the air, the
- *              last a gunship with a boss's bar) | 'hammer' (a missile
+ *     groups   [{ id, kind: 'turret' | 'tank' | 'walker' | 'gnat' | 'wasp' | 'kite' | 'harrow' | 'thunderhead' (fliers, stood
+ *              in the air, the last two gunships with a boss's bar) | 'hammer' (a missile
  *              launcher) | 'bastion' (a shield-bearer) | 'frame', count?, at: [x, y] (a share of the field: −1..1 each
  *              way, the frame starting at [0, −0.55]), spread? (m), build? (a frame's: a STOCK name), palette?,
  *              ace? (a frame's: an ace off assault-frame/aces.js, its build, paint, armour and phases; one), mt? (a frame's:
@@ -53,6 +53,10 @@ export const OPERATION = Object.freeze({
     // name on the HUD's bar, assault-frame/aces.js's shape)
     wasp: Object.freeze({ hp: 1100, damage: 45, rof: 6, range: 300, speed: 480, air: 55, turn: 2.6, floor: 8, flight: Object.freeze({ mode: 'strafe', speed: 64, alt: 50, low: 14, out: 260, turn: 1.8 }) }),
     kite: Object.freeze({ hp: 2200, range: 720, air: 70, turn: 1.4, floor: 20, flight: Object.freeze({ mode: 'perch', alt: 70, range: 320, speed: 20, every: 9 }), missiles: Object.freeze({ count: 30, lockTime: 1.8, cone: 50, range: 720, speed: 105, turn: 1.2, damage: 420, splash: 8, prox: 4, fuse: 10, cooldown: 2.4, impact: 0.1 }) }),
+    // (the Thunderhead, the heavy gunship: a pylon turn round the frame at height, banked, its broadside on it: an
+    // autocannon and a howitzer whose shells barely turn but land hard; its guns cannot bear past `under` degrees down,
+    // so a frame right under it is safe while it stays there; its propellers spin at `spin` turns a second)
+    thunderhead: Object.freeze({ hp: 64000, damage: 60, rof: 10, range: 820, speed: 560, air: 115, turn: 0.9, floor: 60, boss: 'Thunderhead', flight: Object.freeze({ mode: 'pylon', radius: 260, alt: 115, speed: 44, turn: 0.7, under: 55, spin: 3.2 }), missiles: Object.freeze({ count: 80, lockTime: 2.4, cone: 40, range: 850, speed: 150, turn: 0.3, damage: 1500, splash: 16, prox: 5, fuse: 8, cooldown: 5, impact: 0.5 }) }),
     harrow: Object.freeze({ hp: 32000, damage: 90, rof: 7, range: 520, speed: 520, air: 45, turn: 1.4, floor: 18, boss: 'Harrow', flight: Object.freeze({ mode: 'circuit', radius: 170, alt: 42, speed: 26, hover: Object.freeze([3.5, 11]), turn: 1.2 }), missiles: Object.freeze({ count: 120, lockTime: 1.2, cone: 60, range: 650, speed: 115, turn: 1.3, damage: 480, splash: 9, prox: 4, fuse: 9, cooldown: 1.4, impact: 0.1 }) }),
     gnat: Object.freeze({ hp: 700, damage: 32, rof: 4, range: 260, speed: 420, move: 30, air: 30, standoff: 55, turn: 3.2, floor: 10 }),
   }),
@@ -63,7 +67,7 @@ export const OPERATION = Object.freeze({
 // (the enemy's rounds: a hot red-orange in the shot's look, scene/channels/controllable/index.js foeLooks)
 const FOE_ROUND = Object.freeze({ color: 0xff5a36, size: 0.42 });
 export const OPERATION_LEGEND = 'mouse  turn & aim · W A S D  move · Shift  boost · C  quick boost · X  assault boost · F  kick · Space  jump, hold to climb · click / right click  hands · Q / E  shoulders';
-const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'hammer', 'bastion', 'frame'];
+const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'thunderhead', 'hammer', 'bastion', 'frame'];
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);

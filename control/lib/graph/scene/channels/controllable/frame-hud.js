@@ -104,7 +104,8 @@ export function frameHudScript() {
         tap.style.display = 'block'; tap.style.left = (sp.x + size / 2 + 6) + 'px'; tap.style.top = (sp.y - 8) + 'px';
         // (a shield-bearer's shield: what is left of it, or down)
         const shTxt = T.shieldMax > 0 ? (T.shieldBroken ? '  SHIELD DOWN' : '  SHIELD ' + Math.round(100 * (T.shieldHp || 0) / T.shieldMax) + '%') : '';
-        tap.textContent = (P.locked ? 'LOCK ' : '') + Math.round(d) + ' m  ' + Math.round(100 * thp / tmax) + '%' + shTxt;
+        // (a broadside that cannot bear on the pilot right under it: said, so the pilot knows the safe place it found)
+        tap.textContent = (P.locked ? 'LOCK ' : '') + Math.round(d) + ' m  ' + Math.round(100 * thp / tmax) + '%' + shTxt + (T.blind ? '  UNDER ITS GUNS' : '');
         // (its stress: a frame's stability spent, filling as it is pressed; broken, red with STAGGER under it)
         const frame = T.rule && T.rule.type === 'frame', stress = frame ? Math.max(0, Math.min(1, 1 - (T.stab ?? 1))) : 0, brk = frame && T.stagger > 0;
         acs.style.display = frame ? 'block' : 'none';

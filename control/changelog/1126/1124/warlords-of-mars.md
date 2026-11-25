@@ -130,6 +130,14 @@ objectives mechanic, and a HUD. It is not the mobile suit arena.
   - The Harrow: a gunship twice a frame's length, a long hull on four big ducted fans, a chin gatling, a missile pod on
     each stub wing. A `circuit` orbits the pilot, tighter as it is hurt, and hangs to barrage. It carries a boss bar, and
     its operation, Harrow, comes before Vermilion.
+  - The Thunderhead (`thunderhead`): the heavy gunship at the top of the air ladder, some 44 m across the wings, a deep
+    hull on four great propellers with an autocannon, a howitzer and twin gatlings out of its left side. A `pylon` turn
+    flies it round the frame at height, banked, its broadside on the frame, never stopping; hurt, it comes lower and
+    turns tighter. Its howitzer's shells barely turn but land hard. Its guns cannot bear more than `under` degrees below
+    it (the frame levels' `frame-broadside` action, its `blind`), so a frame right under it is safe while it stays there,
+    and the lock box says UNDER ITS GUNS. Its operation, Thunderhead, follows Harrow.
+  - Its propellers spin: a card's `hubs` make a bone of each (its figure's `roll` clip turning them about its nose's
+    axis, at the flight's `spin` turns a second); a card without hubs packs as one bone, as before.
 - **The ground force in the form render** (`groundforce/` `unitFigure(kind, { form })`, a figures map's
   `unit: { kind, form: true }`; a frame level's units ask for it).
   - Its armour is a satin painted metal under a thin clear coat, its structure gunmetal, its eye and drive lit by their
