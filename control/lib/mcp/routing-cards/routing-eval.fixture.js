@@ -29,6 +29,10 @@ export const FIXTURE = [
   ['model a wine glass true to size', 'mint_solid'],
   ['write me a bracket with four bolt holes in openscad', 'mint_solid'],
   ['I have some .scad code for an enclosure, can you bring it in and show it', 'mint_solid'],
+  // a model made elsewhere, from a file on the machine: an object through mint_solid's model kind, a character through
+  // create_character's from (rigged onto the vajra)
+  ['I downloaded a low-poly barrel glb from a free asset site, can I put it in my level', 'mint_solid'],
+  ['this is my VRoid avatar as a .vrm file, make it the player character', 'create_character'],
   ['put the wheels and the chassis together into one model', 'mint_solid'],
   // a vehicle by name: the vehicle registry's door
   ['show me a pickup truck I can spin around and look at', 'mint_solid'],

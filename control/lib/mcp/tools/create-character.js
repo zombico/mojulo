@@ -43,6 +43,7 @@ import { personaManifest, personaReads, readSummary, isPersonaKind } from '@/lib
 import { speakerFidelity, FACE_ERA } from '@/lib/graph/persona/fidelity.js';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { withReferenceViews } from '@/lib/mcp/tools/character-views';
+import { importModel } from '@/lib/mcp/tools/import-model';
 
 // as → the mint_solid call it makes, and the card that is its manual.
 export const CHARACTER_DOORS = {
@@ -161,6 +162,12 @@ async function createFromPack({ pack, as, spec, title, ref, folder_ref: folderRe
 }
 
 export async function createCharacterHandler(input) {
+  // a character made elsewhere, from a file on this machine: rigged onto the vajra as a body or a mascot (import-model.js)
+  if (input && typeof input === 'object' && input.from !== undefined) {
+    const stray = ['spec', 'egocube', 'pack', 'member', 'years', 'output'].filter((k) => input[k] !== undefined);
+    if (stray.length) throw new Error(`create_character: a character from a file takes from, as?, height?, units?, up?, entry?, rig?, licence?, title, ref and folder_ref (not ${stray.join(', ')}); edit it after with update_character`);
+    return importModel(input, { door: 'character' });
+  }
   if (input && typeof input === 'object' && input.egocube !== undefined) return createFromEgocube(input);
   if (input && typeof input === 'object' && input.pack !== undefined) return createFromPack(input);
   if (!input || typeof input !== 'object') {
@@ -286,7 +293,7 @@ export function registerCreateCharacterTools() {
       + "'male' | 'female', register: 'round' | 'lowpoly' …, tune, face, hair, expression, detail, adorn }); "
       + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan, a ring plan, or a layered "
       + "recipe); `as: 'animal'`, a real species (spec { species } or { archetype }); `as: 'mascot'`, cartoony, "
-      + "head-heavy (spec { brief: 'sonic-like', facets?, tune? }); `as: 'persona'`, a hero who reads scripts. A deterministic recipe: a still, a World that "
+      + "head-heavy (spec { brief: 'sonic-like', facets?, tune? }); `as: 'persona'`, a hero who reads scripts; `from`, one made elsewhere (a file's path). A deterministic recipe: a still, a World that "
       + 'plays its clips, a skinned `.glb`. Iterate in place with `update_character`; never re-mint. Manual: '
       + "get_solid_vocab({ id: 'layered' }), ({ id: 'animal' }) for an animal.",
     inputSchema: {
@@ -298,6 +305,13 @@ export function registerCreateCharacterTools() {
         member: { type: 'string', description: 'A cast member\'s path (hero/rival).' },
         output: { type: 'string', enum: ['character', 'mascot'], description: "With egocube: 'mascot' makes the cube's character as its mascot." },
         pack: { type: 'object', description: "A pack's character by name: { id: 'comic-hero', member | grunt, look?, … } (get_solid_vocab({ id: 'comic-hero' }))." },
+        from: { type: 'string', description: "A character made elsewhere: the path of a model file on this machine (.glb, .vrm, .gltf, .obj, .zip, or its folder), rigged onto the vajra; `as` 'hero' | 'mascot' over what its proportions say. Manual: get_solid_vocab({ id: 'model' })." },
+        height: { type: 'number', description: 'With from: the metres it stands.' },
+        units: { type: 'string', enum: ['mm', 'cm', 'm', 'in', 'ft'], description: "With from: the unit the file's numbers are in." },
+        up: { type: 'string', enum: ['y', 'z'], description: 'With from: the axis the file stands on, when not its format\'s own.' },
+        entry: { type: 'string', description: 'With from: the model meant, in a zip or folder of several.' },
+        rig: { type: 'string', enum: ['auto'], description: "With from: 'auto' fits it onto the vajra even when its own skeleton reads." },
+        licence: { description: "With from: the terms it came under: a word ('CC0-1.0') or { name, url?, author? }." },
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },

@@ -43,6 +43,7 @@ export const INTAKE_KINDS = Object.freeze({
   lore: Object.freeze({ name: 'a setting\'s lore or a story', door: 'the world\'s `backdrop` (extracted, never authored), then the main quest', answers: Object.freeze(['shape']) }),
   rules: Object.freeze({ name: 'rules, stats, a bestiary or a power system', door: 'the actions, the systems, the foes; a party game\'s bestiary → battles.manual, its school of techniques → battles.tree (gameworld-battles); a power system no page takes yet is set aside', answers: Object.freeze(['play']) }),
   art: Object.freeze({ name: 'concept art or a mood board', door: 'reference_protocol → capture_reference, then the direction and the world\'s look', answers: Object.freeze(['look']) }),
+  model: Object.freeze({ name: 'a 3D model file (a .glb, .vrm, .gltf, .obj, .stl or a zip of one)', door: "a character: create_character({ from }) (rigged onto the vajra, a body or a mascot by its proportions); an object: mint_solid({ kind: 'model', spec: { from } }) (get_solid_vocab({ id: 'model' }))", answers: Object.freeze(['look']) }),
   plan: Object.freeze({ name: 'a production plan or a level list', door: 'the main quest\'s beats and the levels they are played on', answers: Object.freeze(['plan']) }),
 });
 export const INTAKE_KIND_IDS = Object.freeze(Object.keys(INTAKE_KINDS));
