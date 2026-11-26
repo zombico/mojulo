@@ -4,6 +4,10 @@
  * where its guns' muzzles are on its body (the body's mounts, body.js, where it is built; a stock place where not).
  *
  *   FRAME_WORLD                 the world's own numbers: Mars's gravity, the field a frame fights over
+ *   FRAME_GRAVITY               the game's gravities by name: `planetary` (a planet's, the frame's own) and `space` (the
+ *                               space ground: an asteroid, the Moon, a flat orbital platform, a third of it). A game, not a
+ *                               simulation: off a planet a frame still walks, boosts and climbs
+ *   frameGravity(g)             → m/s²: a name of FRAME_GRAVITY or a number (throws, teaching)
  *   frameEntity(build, { id, at, heading?, team?, pilot?, mind?, gravity?, figure?, mounts?, bound?, probe?, collide? }) → the entity
  *     pilot     true: the player's (pilotable, no mind)
  *     mind      { range?, aggression?, dodge? }: an enemy frame's own keys (no pilot)
@@ -22,6 +26,15 @@ const r2 = (v) => Math.round(v * 100) / 100;
 // (a frame falls by the game's gravity, not the planet's alone: Mars's 3.71 m/s² would hold a frame up a quarter of a
 // minute off a two-second climb; the game's is twice it, a long hang that still comes down to the fight)
 export const FRAME_WORLD = Object.freeze({ gravity: 7.4, mars: 3.71, earth: 9.81 });
+export const FRAME_GRAVITY = Object.freeze({ planetary: FRAME_WORLD.gravity, space: r2(FRAME_WORLD.gravity / 3) });
+export function frameGravity(g) {
+  if (typeof g === 'string' && FRAME_GRAVITY[g] !== undefined) return FRAME_GRAVITY[g];
+  if (Number.isFinite(g) && g > 0 && g <= 30) return g;
+  throw new Error(`a frame's gravity is ${Object.keys(FRAME_GRAVITY).join(' | ')} or m/s² over 0 to 30 (got ${JSON.stringify(g)})`);
+}
+// (under a gravity not the frame's own its jump is taken to the same height, slower: a jump's speed by the root of the
+// gravities' ratio, and a landing hard at the speed that height falls to there; the frame's own gravity changes nothing)
+const lowG = (g) => (g === FRAME_WORLD.gravity ? 1 : Math.sqrt(g / FRAME_WORLD.gravity));
 export const FRAME_CAMERA = Object.freeze({ dist: 22, height: 9, lead: 12, lookH: 6.5, shoulder: 2.2, lerp: 9, pitchFollow: 0.8, mouseLook: true });
 
 // (a stock muzzle where the body has not said: frame space, +y forward, +x right, +z up; the hands at the chest's height
@@ -46,11 +59,12 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
   // `ap` its armour's share of its build's)
   const A0 = assembleFrame(build), k = scale;
   const A = k === 1 && ap === 1 ? A0 : { ...A0, ap: Math.round(A0.ap * ap), move: { ...A0.move, height: r2(A0.move.height * k) }, stab: { ...A0.stab, max: r2(A0.stab.max * k) } };
+  const q = lowG(gravity), mv = q === 1 ? A.move : { ...A.move, ...(Number.isFinite(A.move.jump) ? { jump: r2(A.move.jump * q) } : {}) };
   const M = Object.fromEntries(Object.entries({ ...STOCK_MOUNTS, ...(mounts ?? {}) }).map(([s2, m]) => [s2, k === 1 ? m : m.map((v) => r2(v * k))]));
   return {
     id, ...(team ? { team } : {}), ...(pilot ? { pilotable: true } : {}),
     rule: {
-      type: 'frame', move: A.move, en: A.en, fcs: A.fcs, gravity, slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus }, kick: A.kick, steady: A.parts.legs.steady ?? 1,
+      type: 'frame', move: mv, en: A.en, fcs: A.fcs, gravity, ...(q === 1 ? {} : { hardLand: r2(18 * q) }), slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus }, kick: A.kick, steady: A.parts.legs.steady ?? 1,
       mounts: Object.fromEntries(Object.keys(A.weapons).map((s) => [s, M[s]])), eyeH: r2((A0.move.height + 2) * k),
       ...(mind ? { mind: { range: 120, aggression: 0.6, dodge: 0.5, ...mind } } : {}), ...(bound ? { bound } : {}),
       // (under a roof, a works' field: the ground looked for from a step over its feet, not from the sky, and the works'

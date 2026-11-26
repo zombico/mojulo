@@ -27,7 +27,7 @@
  */
 import { planRailStage, RAIL } from '../skyscape/rail-stage.js';
 import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
-import { frameEntity, frameMounts, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
+import { frameEntity, frameMounts, frameGravity, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
 import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/field.js';
 import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
 import { OPERATION_LEGEND } from './frame-goal.js';
@@ -55,7 +55,7 @@ import { layLevel } from '../level/index.js';
 import { readGrid } from '../level/grid.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { ladderParams, climbSurface, LADDER, LADDER_VARIANTS } from '../playscape/objects/ladder.js';
-import { withGeocube } from '../era/geocube.js';
+import { withGeocube, readGeocube } from '../era/geocube.js';
 import { playerWorld, traversalStates, HERO_WALK_RUN } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf, outTrailStyle } from '../era/out-trail-board.js';
@@ -470,10 +470,12 @@ export function frameFieldEnds(stage) {
   if (FIELD_ENDS.has(key)) return FIELD_ENDS.get(key);
   if (FIELD_ENDS.size > 8) FIELD_ENDS.clear();
   const F = frameField(stage.manifest.cube), [cx, cy] = F.centre, half = F.half, g = (x, y) => r3(F.heightAt(x, y));
+  // (an airless field, the space ground's: no air to carry a sound or hold a boost's dust up, its dust the regolith's own)
+  const C = readGeocube(stage.manifest.cube), airless = !!(C.light.heavens && C.light.heavens.void);
   const x = cx, y = r3(cy - half * 0.55), ex = cx, ey = r3(cy + half * 0.8);
   // (under a roof, a works' field: its ground looked for a step over a frame's feet, its works' solids stopping it)
-  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: FRAME_WORLD.gravity, build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation',
-    ...(F.indoor ? { indoor: true, probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}), ...(stage.frame.garage ? { garage: true } : {}), ...(stage.frame.flavor ? { flavor: stage.frame.flavor } : {}) };
+  const frame = { half, centre: [cx, cy], spawn: [x, y, g(x, y)], heading: Math.PI / 2, bound: [r3(cx - half), r3(cy - half), r3(cx + half), r3(cy + half)], gravity: stage.frame.gravity === undefined ? FRAME_WORLD.gravity : frameGravity(stage.frame.gravity), build: stage.frame.build ?? 'vanguard', palette: stage.frame.palette ?? 'federation',
+    ...(F.indoor ? { indoor: true, probe: FRAME_INDOOR.probe, collide: FRAME_INDOOR.collide } : {}), ...(stage.frame.garage ? { garage: true } : {}), ...(stage.frame.flavor ? { flavor: stage.frame.flavor } : {}), ...(airless ? { airless: true, dust: parseInt((C.colour.sand ?? C.colour.floor).slice(1), 16) } : {}) };
   const out = { spawn: frame.spawn.slice(), heading: frame.heading, exit: [ex, ey, g(ex, ey)], exitFrom: 'the field\'s far side', planar: false, beats: [], hazards: [] };
   for (const [k, v] of Object.entries({ ground: g, rocks: null, frame, airLaws: [], colliders: F.colliders ?? [] })) Object.defineProperty(out, k, { value: v, enumerable: false });
   FIELD_ENDS.set(key, out);
@@ -1088,7 +1090,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
       events: playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${OPERATION_LEGEND}${legend ? ` · ${legend}` : ''}` }).events || {},
       // (the page's smoke, world-scene.js `smoke`: billows down a bazooka's, a mortar's and a missile's trail, a rolling
       // cloud where each bursts, the dust a boost raises off the land)
-      smoke: { burstCount: 16, dust: { tint: 0xb07a52 } },
+      smoke: { burstCount: 16, dust: { tint: F.dust ?? 0xb07a52 } },
     };
     // (the save's build, the hangar's: the page stands it in the frame's place, assault-frame/hangar.js; with a garage,
     // the parts the player has too, and the build it fits is kept)
@@ -1098,7 +1100,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     if (X0?.briefing) pilotPart = { ...pilotPart, briefing: { data: X0.briefing } };
     // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
     // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
-    if (!audio) pilotPart = { ...pilotPart, audio: frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, flavor: F.flavor ?? null }) };
+    if (!audio) pilotPart = { ...pilotPart, audio: frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, airless: !!F.airless, flavor: F.flavor ?? null }) };
     // (an operation's reward, frame-goal.js: the parts its win grants, the game channel's `wins`)
     if (F.garage && X0?.wins?.length) { game.wins = X0.wins; game.produces = { ...game.produces, events: [...game.produces.events, { type: 'grant', slice: PARTS_SLICE }] }; }
   } else if (stage.section === 'airspace') {

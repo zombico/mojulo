@@ -153,6 +153,19 @@ export const MASSIF_CARDS = f({
       at: f([f({ at: f([110, 150]), diameter: 240, fresh: 0.95 }), f({ at: f([-230, -150]), diameter: 210, fresh: 0.12 })]),
       // (and strewn fields, broken meteorites' craters struck together, the largest down-range)
       clusters: f({ count: 6, members: f([8, 18]), length: f([80, 220]), width: f([18, 50]), diameter: f([8, 34]), fresh: 0.6 }) }) }),
+  // an asteroid: a rock with no air and no weather, so nothing has worn it; craters on craters, fresh and sharp, the
+  // ground between them broken by low ridges where the rock was struck up, and no skyline past a close horizon (a small
+  // body's ground falls away: no escarpments on the ring)
+  asteroid: f({ ...CARD, id: 'asteroid', reads: 'A rock in the belt: craters on craters, fresh and sharp, low ridges struck up between them, a close horizon',
+    beds: f([f({ top: 4, bench: 3 }), f({ top: 14, bench: 4 }), f({ top: 60, bench: 5 })]),
+    blocks: f([B([-360, 240], [70, 26], 30, 16, 4), B([380, -200], [60, 22], 110, 14, 4), B([-80, -400], [50, 20], 170, 12, 4), B([300, 320], [44, 18], 60, 10, 4)]),
+    cap: f({ form: 'flat', height: 0, run: 30 }), clefts: f({ per: 0.5, width: f([6, 14]), reach: 0.5 }),
+    outcrops: f({ count: 26, height: f([1.5, 4]), size: f([4, 14]), within: 480 }),
+    scatter: f({ clusters: 24, per: f([3, 8]), spread: 18, size: f([1.5, 4]) }),
+    horizon: f({ count: 0, radius: 545, length: f([90, 170]), depth: f([40, 70]), height: f([50, 140]) }),
+    craters: f({ count: 80, diameter: f([8, 170]), slope: 1.1, fresh: 0.6, within: 520,
+      at: f([f({ at: f([120, 140]), diameter: 230, fresh: 0.9 }), f({ at: f([-220, -160]), diameter: 190, fresh: 0.7 })]),
+      clusters: f({ count: 4, members: f([8, 16]), length: f([70, 180]), width: f([16, 40]), diameter: f([6, 28]), fresh: 0.8 }) }) }),
   // a smelter's floor (under its works, local-meru/works.js): slag heaped at its repose against the walls, low concrete
   // plinths, casting pits by the ladles; nothing of a sandstone's: no lobes, no flutes, no clefts, no beds pushed
   smelter: f({ ...CARD, id: 'smelter', reads: 'A melt shop\'s floor: slag heaps at their repose, concrete plinths, casting pits',
