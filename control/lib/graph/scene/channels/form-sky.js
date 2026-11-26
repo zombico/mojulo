@@ -141,7 +141,7 @@ export function formSkyScript({ capture = false, cumulus = false, airless = fals
       uA: { value: new THREE.Vector3(...A) }, uCover: { value: ${CV} }, uDark: { value: K.dark }, uVeil: { value: K.veil }, uStretch: { value: ${KK}.stretch }, uThin: { value: ${KK}.thin ?? 1 },
       uAlt: { value: ${KK}.alt ?? FSK.clouds.alt }, uTime: { value: 0 }, uSeed: { value: W.seed ?? 1 }, uDrift: { value: new THREE.Vector2(FSK.clouds.drift / FSK.clouds.scale, 0) } };
 ${airless ? `    // (no air: an airless cube's sky lights nothing and holds nothing, its haze none; the stars and the sun's disc alone)
-    A.fill(0); U.uCover.value = 0; U.uVeil.value = 0;
+    A.fill(0); U.uA.value.set(0, 0, 0); U.uCover.value = 0; U.uVeil.value = 0;
 ` : ''}    const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.ShaderMaterial({ uniforms: U, side: THREE.BackSide, depthWrite: false, fog: false,
       vertexShader: 'varying vec3 vWorld;\\nvoid main() { vec4 w = modelMatrix * vec4( position, 1.0 ); vWorld = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
       fragmentShader: ${JSON.stringify(SKY_FRAG)} }));
