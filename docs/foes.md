@@ -34,6 +34,7 @@ on a shelf is a row, pointing at primitives that already exist.
 | Shelf | What it says | The word | A new one is |
 | --- | --- | --- | --- |
 | Behaviour | how it moves and attacks | `class` (`foes/classes/`) | a class card |
+| Attack | which blow of its class's kind, and how its body throws it | `attack` (`foes/attacks.js`) | a card |
 | Skin | what it looks like | `skin` (a species, a people: `egocube/ancestry.js` lineages, or a model made elsewhere: `foes/model.js`) | a lineage, a card, or a bound model |
 | Modes | the forms it is defeated through | `body.modes` (`worlds/controllable/vanish.js`) | a mode |
 | States | what it is born under | `states` (`foes/states.js` FOE_STATES) | a row |
@@ -56,6 +57,20 @@ An entry reads as a recipe:
 ```js
 { class: 'charger', skin: { people: 'skeleton' }, states: { flaming: { color: 'blue', elemental: true } } }
 ```
+
+### Attack: the blow apart from the body that throws it
+
+A class says the KIND of harm a foe deals (a blow, a shot, a lob, a charge); an attack card (`foes/attacks.js`) says
+which blow of that kind and how each shape of body throws it. A card keeps its class's verb: it re-skins the blow,
+and the mind that closes to throw it is the class's. So one body takes several cards (a wolf that snaps, the same wolf
+that mauls) and one card is thrown by several bodies (a maul is a bear's rear-and-slam and an orc's overhead cleave).
+
+A card carries its timing (the wind-up the player reads, the blow, the way back), which the runtime's contact window
+and the clip's beats both take, so the hit lands when the body shows it. Its `ways` are keyed by the body's topology
+(`foes/fit.js` TOPOLOGIES: `person`, `kin`, `winged`, `quadruped`, `biped`, `finned`, `limbless`, every fit's body
+carrying its own): a beast's way is one of its strike clips (`fauna/behavior/strike.js`: the lunge, a snap, a maul…),
+a person's or a kin's a held swing or a strike. A body whose topology a card has no way for is refused by name.
+Absent, the class's own attack, every byte as it was.
 
 ### Modes: defeated, never destroyed, until the last
 

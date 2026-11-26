@@ -310,8 +310,8 @@ const REACT_STATES = reactStatesOf(Object.keys(REACT_MOTION));
 // clip its swing plays); a species alone orders as it always did. A party battle's beast (`battle`) is made with its
 // other ways at a foe beside its strike (a snap, a maul, its roar: egocube/moves.js beastMovesOf)
 const beastStep = (key, ref, look, title, { battle = false } = {}) => {
-  const { strike, ...L } = typeof look === 'string' ? { species: look } : look;
-  const animal = { ...L, motion: beastMovesOf(L.species, { strike, ...(battle ? { battle } : {}) }).motion };
+  const { strike, way, ...L } = typeof look === 'string' ? { species: look } : look;
+  const animal = { ...L, motion: beastMovesOf(L.species, { strike, ...(way ? { way } : {}), ...(battle ? { battle } : {}) }).motion };
   return { key, ref, ready: true, order: { animal, title }, print: fingerprint({ animal }) };
 };
 // a mascot's own one-shots (egocube/mascot-form.js `reactions`)

@@ -11,6 +11,10 @@
  *                            non-human people, on two legs at its own stature)
  *   fitOfModel(classId, skin) · checkFitModel(classId, skin)     the same for a model made elsewhere (./model.js: a rigged
  *                            humanoid, on two legs at the height it is stood at)
+ *   TOPOLOGIES · topologyOf(body)  the body's shape as the shelves that animate it key it: a `person` (a people on the
+ *                            humanoid rig, or a model), a `kin` (a beast-kin's card on that rig, beast/cards.js), and a
+ *                            species by what holds it up: `winged` (any wings), `quadruped`, `biped`, `finned`, `limbless`.
+ *                            Every fit's body carries it (`body.topology`)
  *   bodyOf(species, { ooze?, stylism? })  the body measured: an ooze GROWS it (mutagen/compose.js: a uniform `scale`,
  *                            never a joint), so its size class is the grown body's (a dire wolf is a wolf × 1.45)
  *
@@ -27,6 +31,7 @@ import { MOVES } from './vocab.js';
 import { foeClass } from './index.js';
 import { peopleBody } from './people.js';
 import { modelBody } from './model.js';
+import { isKin } from './packs.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -35,6 +40,15 @@ export function bodyOf(species, { ooze, stylism } = {}) {
   const cap = capabilitiesOf(species), M = resolveMutagen(ooze, { key: species, stylism }), scale = M?.form?.scale ?? 1;
   const extent = r3(extentOf(species) * scale), height = r3(heightOf(species) * scale);
   return { support: cap.support, wings: cap.wings, swimmer: cap.swimmer, size: classOfExtent(extent, height), extent, height, scale, gaits: motionGaits(species) };
+}
+
+/** A body's shape, as the shelves that move it read it (the attack cards' poses, the foe audit): one word a body. */
+export const TOPOLOGIES = Object.freeze(['person', 'kin', 'winged', 'quadruped', 'biped', 'finned', 'limbless']);
+const BY_SUPPORT = Object.freeze({ four: 'quadruped', two: 'biped', wingwalk: 'winged', fins: 'finned', none: 'limbless' });
+export function topologyOf(b) {
+  if (b.people !== undefined) return isKin(b.people) ? 'kin' : 'person';
+  if (b.model !== undefined) return 'person';
+  return b.wings ? 'winged' : b.swimmer && b.support !== 'four' ? 'finned' : BY_SUPPORT[b.support] ?? 'limbless';
 }
 
 const NEEDS = {
@@ -51,7 +65,7 @@ function fitWith(c, b) {
   if (F.gaits && !F.gaits.some((g) => b.gaits.includes(g))) misses.push(`gaits: it moves by ${F.gaits.join(' | ')}, the body by ${b.gaits.join(', ')}`);
   if (F.wings === true && !b.wings) misses.push('wings: it flies, and the body has none');
   if (F.wings === false && b.wings) misses.push('wings: it keeps to the ground, and the body has wings');
-  return { ok: misses.length === 0, misses, body: b };
+  return { ok: misses.length === 0, misses, body: { ...b, topology: topologyOf(b) } };
 }
 
 export const fitOf = (classId, species, grown = {}) => fitWith(foeClass(classId), bodyOf(species, grown));

@@ -79,7 +79,7 @@ import { settingOfGame } from './cast-setting.js';
 import { rowFoe } from './hero-rows.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'vanish', 'states', 'summons', 'pair', 'becomes'];
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'attack', 'vanish', 'states', 'summons', 'pair', 'becomes'];
 // the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's)
 const specOf = ({ vanish, states, summons, pair, becomes, ...spec }) => spec;
 /** A summoner's call (worlds/controllable/summon.js): how many of its summons may be up at once, the seconds between
@@ -228,7 +228,7 @@ export function fieldedIds(G) {
   return Object.keys(bestiaryOf(G)).filter((id) => used.has(id));
 }
 
-export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}) }; };
+export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}) }; };
 
 /** A people's roll (foes/people.js): its class's role, its people and facets, in the game's setting, on the entry's own
  * seed. The run makes its sheet from it, and the field rolls the same sheet to draw it. */
@@ -351,7 +351,7 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
     part.figures[id] = had ?? fieldFigure(ref, fieldOf({ body: 'person', sheet }));
     return peopleBody(statureOf({ body: 'person', sheet }) * peopleStands(entry.skin), f.scale);
   }
-  part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}) });
+  part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}) });
   return beastBody(f.measured, f.scale);
 }
 

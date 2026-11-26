@@ -81,7 +81,7 @@ function silhouette(x, ground, px, { w, h, people, flies }, ink, edge = null) {
 
 // the size an entry is drawn at: its grown body at its game scale (foes/resolve.js), a person upright at its height
 function shapeOf(entry) {
-  const f = resolveFoe((({ class: c, rank, skill, skin }) => ({ class: c, ...(rank ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}) }))(entry));
+  const f = resolveFoe((({ class: c, rank, skill, skin, attack }) => ({ class: c, ...(rank ? { rank } : {}), ...(skill ? { skill } : {}), ...(skin ? { skin } : {}), ...(attack ? { attack } : {}) }))(entry));
   const m = f.measured;
   if (entry.skin?.people !== undefined || entry.skin?.meshRef !== undefined) return { w: r2(m.height * f.scale * 0.32), h: r2(m.height * f.scale), people: true, flies: false };
   return { w: r2(m.extent * f.scale), h: r2(m.height * f.scale), people: false, flies: !!m.wings };

@@ -3,7 +3,7 @@
  * resolves to (mind/resolve.js, on the entity itself, so a class whose attack its body cannot carry out is the mind's to
  * report, not a second check's), its toll in the hero's frame, its attack's timing and what lowers it today.
  *
- *   resolveFoe({ class, rank?, skill?, skin?, group? }, { hero? })
+ *   resolveFoe({ class, rank?, skill?, skin?, group?, attack? }, { hero? })   (`attack`: an attack card, ./attacks.js)
  *     → { class, rank, skill, body, skin, measured, stature, scale, entity, mind, toll: { downs, harm, hp, damage }, attack: { kind,
  *         timing, pattern?, reach?, zone? }, strike, stomp, threat, status, short, advisories }
  *     `strike` the timing its body deals a melee attack's blow by (its clip: fauna/behavior/strike.js), null when its
@@ -29,6 +29,8 @@
 import { PACES, MOVES, ATTACKS, FOE_RANKS, HERO } from './vocab.js';
 import { foeClass, classStatus } from './index.js';
 import { checkFit, checkFitPeople, checkFitModel } from './fit.js';
+import { cardFor, cardAttack } from './attacks.js';
+import { SWING_WORDS } from '../polygonizer/hero-swing.js';
 import { readPeopleSkin } from './people.js';
 import { readModelSkin, isModelSkin } from './model.js';
 import { RANKS, SKILLS, sightKnobs } from '../mind/vocab.js';
@@ -40,19 +42,20 @@ import { strikesOf, strikeWindow } from '../fauna/behavior/strike.js';
 const FPS = 60;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const SKIN_KEYS = ['species', 'ooze', 'stylism'];
-const SPEC_KEYS = ['class', 'rank', 'skill', 'skin', 'group'];
+const SPEC_KEYS = ['class', 'rank', 'skill', 'skin', 'group', 'attack'];
 
 function check(what, v, table) {
   if (!(v in table)) throw new Error(`foe: unknown ${what} '${v}' (known: ${Object.keys(table).join(', ')})`);
 }
 
 // the attack's Power verb on the rule: a blade slot the mind draws, or a weapon it fires
-function armed(rule, entity, A, damage) {
+function armed(rule, entity, A, damage, swing = null) {
   const t = A.timing;
   if (A.verb === 'melee') {
     Object.assign(rule, { meleeSeek: true, meleeCombo: false });
     // (the hit lands on the blow's own frames: the window the beast's strike clip shows it in, fauna/behavior/strike.js)
-    rule.loadout = [{ name: 'blow', strike: 'melee', strikeReach: A.reach, strikeDamage: damage, strikeDur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS), strikeContact: strikeWindow(t) }];
+    // (`swing`: a card's held swing for a body with hands, polygonizer/hero-swing.js, baked on its rig at that window)
+    rule.loadout = [{ name: 'blow', strike: 'melee', strikeReach: A.reach, strikeDamage: damage, strikeDur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS), strikeContact: strikeWindow(t), ...(swing ? { swing } : {}) }];
   } else if (A.fireClass) {
     entity.weapon = { fireClass: A.fireClass, damage };
   }
@@ -87,8 +90,11 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   if (errs.length) throw new Error(`foe: .skin: ${errs.join('; ')}`);
   const { body: measured } = model ? checkFitModel(c.id, model) : people ? checkFitPeople(c.id, people) : checkFit(c.id, species, grown);
 
-  const M = MOVES[c.move], W = ATTACKS[c.attack.kind];
-  const A = { ...W, ...c.attack, timing: { ...(W.timing || {}), ...(c.attack.timing || {}) } };
+  // its ATTACK CARD (./attacks.js), where the entry names one: the class's blow re-skinned, the way its body throws it
+  const K = spec.attack !== undefined ? cardFor(spec.attack, c, measured.topology) : null;
+  const CA = K ? cardAttack(c, K.card) : c.attack;
+  const M = MOVES[c.move], W = ATTACKS[CA.kind];
+  const A = { ...W, ...CA, timing: { ...(W.timing || {}), ...(CA.timing || {}) } };
   if (A.pattern !== undefined) check('shot pattern', A.pattern, RANGED);
   const R = FOE_RANKS[rank];
   const downs = c.toll.downs * R.downs, damage = c.toll.harm * hero.hit;
@@ -100,7 +106,7 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   };
   const rule = { type: 'ai', dodge: false, mind, ...(c.pace ? { speed: r3(PACES[c.pace] * hero.run) } : {}), ...(M.rule || {}), ...sightKnobs(c.mind) };
   const entity = { rule, body: { hp: downs * hero.blow } };
-  armed(rule, entity, A, damage);
+  armed(rule, entity, A, damage, K && people && SWING_WORDS.includes(K.way) ? K.way : null);
   // what the mind does not play (worlds/controllable/foe.js): its own move's numbers, the touch it hurts by, the stomp
   const own = foeRecord(c, M, A);
   if (own) rule.foe = own;
@@ -112,7 +118,7 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   // the blow its body deals it by (a melee attack, on a body that can strike: fauna/behavior/strike.js), at its timing; a
   // people's swing is its role's attack (egocube/moves.js), not a beast's strike
   const strike = !people && A.verb === 'melee' && strikesOf(species).length ? { ...A.timing } : null;
-  const attack = { kind: c.attack.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}) };
+  const attack = { kind: CA.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}), ...(K ? { card: K.card.id, way: K.way } : {}) };
   // its PRESENCE: the size it reads at in the game (its longest extent, the class's share of the hero's height grown by
   // rank), the body drawn at the scale that takes its grown extent there
   // (a people stands at its own height, grown only by its rank: a class's presence is a beast's word)

@@ -61,6 +61,7 @@ describe('the rail\'s cards', () => {
     // (2026-11-16: gameworld-next 5120 → 5504: the `goalpost` move, a draft build, a quick game's `grow` and the start,
     // three lines; 5071 bytes before, 5417 with them)
     // (2026-11-16: gameworld-foes 5760 → 5888: a street level, whose crowd is the bestiary, one line; 5753 bytes before)
+    // (2026-11-26, 1126-beastiary-update: gameworld-foes 5888 → 6016: an entry's attack card, one line; 5977 bytes with it)
     // (2026-11-16: gameworld-guide 4608 → 4864: SIZE THE ASK names the designed game first, the intake question and
     // the start from a name alone, two lines: three fresh agents each invented a level to begin; 4816 bytes)
     // (2026-11-06: gameworld-world 4480 → 4736: a level's new shape, glyphs, a level as one glyph-map world, two lines)
@@ -110,7 +111,7 @@ describe('the rail\'s cards', () => {
     // screen and the branch's lines read together, 4880 bytes)
     // (2026-11-25, 1124-side-scroll-backgrounds: gameworld-world 5760 → 5888: a side strip's `scenery`, the land behind
     // its lane segment by segment, one style word; 5690 bytes before, 5810 with it)
-    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5888, 'gameworld-foes': 5888, 'gameworld-wcd': 4992, 'gameworld-battles': 6144, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
+    const CEIL = { 'gameworld-studio': 4608, 'gameworld-feel': 4608, 'gameworld-guide': 4864, 'gameworld-world': 5888, 'gameworld-foes': 6016, 'gameworld-wcd': 4992, 'gameworld-battles': 6144, 'gameworld-next': 5632, 'gameworld-interface': 4992, 'gameworld-actions': 4608, 'gameworld-story': 4480 };
     for (const c of cards.values()) expect(Buffer.byteLength(c.body), c.id).toBeLessThan(CEIL[c.id] ?? 4096);
   });
 

@@ -70,6 +70,7 @@ import { CAMERAS } from './cameras.js';
 import { TEACH, VERTICALITY } from './course.js';
 import { FOE_CLASSES, classStatus } from '../foes/index.js';
 import { MOVES, ATTACKS, STOMPS, FOE_RANKS } from '../foes/vocab.js';
+import { ATTACK_CARD_IDS } from '../foes/attacks.js';
 import { SWARM, MAX_FOES, PAIR_DOWNS, ROOM_FOES } from './foes.js';
 import { VANISHES, SEVERS } from './vanish.js';
 import { PEOPLE } from '../foes/people.js';
@@ -1394,6 +1395,7 @@ function foesCard() {
     ...Object.values(FOE_CLASSES).map(row),
     '',
     `MOVES   ${Object.keys(MOVES).join(', ')}; ATTACKS ${Object.keys(ATTACKS).join(', ')}.`,
+    `CARD    an entry's attack: ${ATTACK_CARD_IDS.join(' | ')}: its class's blow re-skinned (one body, several cards), its body's way.`,
     'MODES   becomes: <id>: defeated, it is that entry (skin, class, bar) till the last: a knight\'s armour, a shell.',
     'SUMMONS a summoner\'s: { foe, count?, bound? }: another entry, asleep till called; bound (true), they fall with it.',
     `PAIR    an entry's pair: { foe, cover?, down?: ${PAIR_DOWNS.join(' | ')}, swap? }: its partner stands beside it, each its own bar;`,

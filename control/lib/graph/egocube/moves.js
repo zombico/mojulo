@@ -23,6 +23,8 @@
  *                          gaits and its flinch, fall and rise: fauna/behavior/react.js) and the field states they play;
  *                          with `strike` (true, or its attack's { startup, active, recovery }) and a body that can deal
  *                          one (fauna/behavior/strike.js), the motion's object form carrying it, played by the swing
+ *   beastMovesOf(species, { strike, way })  → the same with its swing an attack card's way (foes/attacks.js: a snap, a
+ *                          maul), its clip at the strike's timing, where the body has that way
  *   beastMovesOf(species, { battle: true }) → a party battle's beast: its strike and its other ways at a foe (a snap, a
  *                          maul, its roar: fauna/behavior/strike.js) as its acts by name, strike, strike2, strike3, roar
  *   foeBattleMovesOf(role, { archetype?, armed? }) → a party battle's person foe: a member's repertoire and a roar
@@ -178,20 +180,24 @@ const SWINGS = ['neutral', 'forward', 'back', 'left', 'right'];
 // (a party battle's beast: its strike and its other ways at a foe, fauna/behavior/strike.js, as the acts the page plays
 // them by, strike, strike2, strike3 in turn, its roar and its channel; a body that cannot strike has none of them)
 const BATTLE_WAYS = Object.freeze({ snap: 'strike2', maul: 'strike3', roar: 'roar', channel: 'channel' });
-export function beastMovesOf(species, { strike, battle = false } = {}) {
+export function beastMovesOf(species, { strike, battle = false, way = null } = {}) {
   const reacts = motionReactions(species), gaits = beastGaitsOf(species);
   // (a strike at its attack's timing: the motion's object form; without one the words, as always)
   const struck = (strike || battle) && strikesOf(species).length ? strike || true : null;
   const ways = battle && struck ? strikeWaysOf(species).filter((w) => BATTLE_WAYS[w]) : [];
   // (a body with no maul, a snake, varies its two)
   const acts = ways.length ? { strike: 'strike', ...Object.fromEntries(ways.map((w) => [BATTLE_WAYS[w], w])) } : {};
+  // (an attack card's WAY, foes/attacks.js: its swing plays that way's clip, at the attack's own timing, where the body
+  // has it; the lunge, or a way the body has not, plays the strike as always)
+  const own = struck && way && way !== 'strike' && strikeWaysOf(species).includes(way) ? way : null;
+  const strikes = { ...Object.fromEntries(ways.map((w) => [w, true])), ...(own ? { [own]: struck } : {}) };
   return {
-    motion: struck ? { gaits, ...(reacts.length ? { reactions: reacts } : {}), strike: struck, ...(ways.length ? { strikes: Object.fromEntries(ways.map((w) => [w, true])) } : {}) } : [...gaits, ...reacts],
-    states: { ...(reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {}), ...(struck ? Object.fromEntries(SWINGS.map((d) => [`swing_${d}`, 'strike'])) : {}), ...acts },
+    motion: struck ? { gaits, ...(reacts.length ? { reactions: reacts } : {}), strike: struck, ...(Object.keys(strikes).length ? { strikes } : {}) } : [...gaits, ...reacts],
+    states: { ...(reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {}), ...(struck ? Object.fromEntries(SWINGS.map((d) => [`swing_${d}`, own ?? 'strike'])) : {}), ...acts },
   };
 }
 
-export function beastFieldOf(species, { strike, battle = false } = {}) {
-  const g = beastGaitsOf(species), M = beastMovesOf(species, { strike, battle });
+export function beastFieldOf(species, { strike, battle = false, way = null } = {}) {
+  const g = beastGaitsOf(species), M = beastMovesOf(species, { strike, battle, way });
   return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
 }
