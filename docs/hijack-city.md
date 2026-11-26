@@ -256,7 +256,12 @@ keeps the chase it always had (`gameworld/cars.js` `CAB.camera`); a bigger vehic
 past its bumper, looking at a point over it in proportion to its height (`CAB_VIEW`). A parked cab is framed by its
 model when the level makes it, a vehicle taken from the traffic by its own template when it is taken. The chase keeps
 `CAB.pullIn` metres off a wall between it and the car (`worlds/controllable/mount.js` `pullIn`, only while it is ridden), so a rig's long chase does not stand
-inside the building behind it.
+inside the building behind it. While it follows a car it is pulled in on no instanced kit (a lamp post, a tree, a
+bollard: `__camDrv` in `scene/channels/controllable/index.js`), which flicked it in and out a metre at a time down a
+street. The point it looks at swings to a new heading at an eased rate (the follow rule's `lookEase`,
+`worlds/controllable/rules-basic.js`; `CAB.camera.lookEase`), so a tap of the steering no longer whips the view; its
+place still follows the car as it did. The traffic is never footing nor a wall for that camera (`scene/channels/flow.js`
+`__flNoRay`, as the cab pool's cars): a driven car's ground probe could land on a passing car's roof and drop off it.
 
 ## What it does not do yet
 

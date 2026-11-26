@@ -148,6 +148,9 @@ ${TRAFFIC_MODEL_SOURCE}
 const __flCycle = FLOW.signals[0].cycle;
 // each kind's parts: instanced meshes on the pooled templates, sized to its vehicles, drawn as many as are near
 const __flMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+// (traffic is never footing nor a wall the chase camera pulls in on: a ray passes through it, as through the cab pool's
+// cars. Footing, a driven car's ground probe landed on a passing car's roof and dropped off it: a hop)
+const __flNoRay = () => {};
 ${coat ? `// (the near bodies under a clear coat, channels/car-paint.js: the paint's and the trim's, each its own; the far ones plain)
 const __flCoat = { paint: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'paint'), trim: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'trim') };
 ` : ''}const __flN = FLOW.kinds.map(() => 0); for (const c of FLOW.cars) __flN[c[1]]++;
@@ -155,7 +158,7 @@ const __flParts = FLOW.kinds.map((k, i) => ['paint', 'trim', k.extra || null].fi
   const geo = typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|' + part] : null;
   if (!geo || !__flN[i]) return null;
   const im = new THREE.InstancedMesh(geo, ${coat ? '__flCoat[part] || __flMat' : '__flMat'}, __flN[i]);
-  im.count = 0; im.frustumCulled = false; im.userData.g = 'flow:' + k.model;${cast ? `
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow:' + k.model;${cast ? `
   im.castShadow = true;   // (the near vehicles cast into the live light's actors' map, the one that follows the player: a draw a part)` : ''}
   if (part === 'paint') im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(__flN[i] * 3), 3);
   scene.add(im);
@@ -175,7 +178,7 @@ FLOW.kinds.forEach((k, i) => {
   if (!geo.boundingBox) geo.computeBoundingBox();
   for (const [front, mat] of [[true, __flHead], [false, __flTail]]) {
     const im = new THREE.InstancedMesh(__flLampGeo(geo.boundingBox, front), mat, __flN[i]);
-    im.count = 0; im.frustumCulled = false; im.userData.g = 'flow-lamps:' + k.model; scene.add(im);
+    im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-lamps:' + k.model; scene.add(im);
     __flParts[i].push({ im, paint: false });
   }
 });
@@ -185,7 +188,7 @@ const __flFar = FLOW.kinds.map((k, i) => {
   const geo = __flN[i] && typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|paint'] : null;
   if (!geo) return null;
   const im = new THREE.InstancedMesh(__flOutline(geo, __POOLS[k.model + '|trim'], FLOW.lod), __flMat, __flN[i]);
-  im.count = 0; im.frustumCulled = false; im.userData.g = 'flow-far:' + k.model;
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-far:' + k.model;
   im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(__flN[i] * 3), 3);
   scene.add(im);
   return im;
@@ -231,7 +234,7 @@ const __flDisc = FLOW.kinds.map((k, i) => {
   const H = typeof __HUBS !== 'undefined' ? __HUBS[k.model] : null;
   if (!H || !H.length || !__flN[i]) return null;
   const im = new THREE.InstancedMesh(__hubDisc(H[0].r), __hubMat, __flN[i] * H.length);
-  im.count = 0; im.frustumCulled = false; im.userData.g = 'flow-hubs:' + k.model; scene.add(im);
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-hubs:' + k.model; scene.add(im);
   return { im, hubs: H };
 });
 ` : ''}const __flNow = (m, k, L, sec) => { const c = m.cars[k], a = Math.max(0, Math.min(FLOW.T.DT || 0, sec - m.t)); let s = c.s + (c.v || 0) * a; if (s >= L.total) s -= L.total; return s; };

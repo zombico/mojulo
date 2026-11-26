@@ -15,7 +15,9 @@ const reach = (V, L, H) => { const behind = V.dist - L / 2, rise = V.height - H;
 describe('the view from behind a vehicle', () => {
   it('a car keeps the chase it had; a truck is seen from further back and higher, over its roof to the road ahead', () => {
     const car = carModel('familySedan'), truck = carModel('loft:straightBox');
-    expect(cabView({ length: car.L, height: car.H }, CAB.camera, CAB_VIEW)).toEqual(CAB.camera);
+    // (the framing: the chase's look easing, lookEase, is the camera's own and not the view's to size)
+    const { dist, height, lookH } = CAB.camera;
+    expect(cabView({ length: car.L, height: car.H }, CAB.camera, CAB_VIEW)).toEqual({ dist, height, lookH });
     const T = cabView({ length: truck.L, height: truck.H }, CAB.camera, CAB_VIEW);
     expect(T.dist).toBeGreaterThan(CAB.camera.dist);
     expect(T.height).toBeGreaterThan(CAB.camera.height);

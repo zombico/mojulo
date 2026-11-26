@@ -146,5 +146,8 @@
 - Driving is smoother. The car you drive was drawn one step behind the camera following it, which made it judder; it is
   now drawn exactly where the camera sees it, and its tilt over bumps in the road is eased instead of snapping. Traffic
   now moves every frame instead of in 20-per-second steps.
+- Driving is less jerky. The camera behind your car no longer jumps in and out past lamp posts, trees and bollards,
+  it turns with the car smoothly instead of whipping round at each tap of the steering, and your car no longer hops when
+  it drives over the spot where a traffic car is.
 - Wheels visibly turn. Each moving car, yours and the traffic's, shows a spoked hubcap on each wheel that turns with its
   speed.
