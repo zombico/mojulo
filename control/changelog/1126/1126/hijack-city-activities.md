@@ -34,13 +34,14 @@
   screen counts what is swept and calls each quarter; sweep it all to get paid, and the streets are dirty again by the
   next round.
 - **Groundskeeping.** The parks' grounds crew keeps falling ill, and the parks office will take anyone with a licence:
-  the fake ID gets you this one too. There's no mower left lying around town: walk to the groundskeeper's shed by the
-  nearest park and take the mower out, and a mowing minigame of its own comes up. It's that park from above (its paths,
-  trees, playground and flowerbeds): drive the zero-turn mower to cut the long grass in stripes, steer round the trees,
-  stay off the flowers, and beat the clock. Cut enough of it to get paid; the shed is open for another round.
-- **A new minigame, Mowing.** Beside blocks, match and fishing, any level can now put a mowing round at a place
-  (`play.minigames`, `game: 'mowing'`), on a lawn of its own (`lawn`) or a seeded park, with a condition before it can be
-  started (`if`) and what's said when it can't (`locked`). The book's `minigames: true` stays the three stall games.
+  the fake ID gets you this one too. There's no mower left lying around town: it's kept in the groundskeeper's shed by
+  the nearest park. Take it out and a round starts on the clock, right there on the park's own lawn: long grass round
+  the paths and trees, cut to stubble as you drive over it, striped light and dark by the way you went. Cut enough of
+  it before time runs out to get paid; get off and the mower goes back in the shed.
+- **A new minigame, Mowing** (for an arcade, later). Beside blocks, match and fishing, a level can put a pixel mowing
+  round at a place (`play.minigames`, `game: 'mowing'`): a zero-turn mower over a lawn from above, with a condition
+  before it can be started (`if`) and what's said when it can't (`locked`). Nothing in Hijack City uses it yet. The
+  book's `minigames: true` stays the three stall games.
 - **The ride-on mower** is new on the vehicle shelf (`ride-on mower`, `riding mower`, `lawn tractor`): a low bonnet, an
   open seat with a high back, a cutting deck under it and its chute out to the side, at a mower's own weight and top
   speed.

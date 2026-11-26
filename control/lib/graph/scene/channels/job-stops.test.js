@@ -1,5 +1,5 @@
 // The jobs' piles (job-stops.js): what a level's collecting driving jobs show and press. The laws: each collecting job's
-// piles are heaps keyed to their own flags (a mow's shed where its round is started), the vars its line reads, its load and its hold in ticks; a job of any other
+// piles are heaps keyed to their own flags (a mow's cells of long grass, and its shed), the vars its line reads, its load and its hold in ticks; a job of any other
 // mode, or a level with none, shows nothing; the tailgate's moment rises, holds and falls inside itself.
 import { describe, it, expect } from 'vitest';
 import { jobStopsOf, JOB_KEY } from './job-stops.js';
@@ -16,9 +16,10 @@ describe('the jobs\' piles', () => {
     const route = of([{ ...COLLECT, mode: 'route', id: 'bus', vehicle: 'bus', stops: [{ at: [60, 0, 1], riders: 3, N: [0, -1] }] }]).jobs[0];
     expect(route).toMatchObject({ mode: 'route', vehicle: 'bus', piles: [{ at: [60, 0, 1], v: 'flag-stop-bus-1', riders: 3, N: [0, -1] }] });
     expect(route.load).toBeUndefined();
-    // (a mow: no piles, its round a minigame; its shed at the park)
-    const mow = of([{ kind: 'shift', mode: 'mow', id: 'grounds', depot: [60, 0, 1], shed: { at: [62, 3, 1], heading: 1.5708, half: [1.4, 1.1] } }]);
-    expect(mow).toEqual({ jobs: [], sheds: [{ id: 'grounds', at: [62, 3, 1], heading: 1.571, half: [1.4, 1.1] }] });
+    // (a mow's cells: each its patch's half sides; how many of them pay, its clock; its shed, the mower kept in it)
+    const M = of([{ ...COLLECT, mode: 'mow', id: 'grounds', vehicle: 'ride-on mower', stops: [{ at: [60, 0, 1], half: [2, 2] }, { at: [64, 0, 1], half: [2, 2] }], goal: 0.5, shed: { at: [62, 3, 1], heading: 1.5708, half: [1.6, 1.4] } }]);
+    expect(M.jobs[0]).toMatchObject({ mode: 'mow', piles: [{ at: [60, 0, 1], v: 'flag-stop-grounds-1', half: [2, 2] }, { half: [2, 2] }], goal: 1, clock: 'left-grounds', live: 'live-grounds' });
+    expect(M.sheds).toEqual([{ id: 'grounds', at: [62, 3, 1], heading: 1.571, half: [1.6, 1.4] }]);
     expect(of([{ ...COLLECT, unload: undefined, yard: 'works yard' }]).jobs[0].where).toBe('the works yard');
     expect(of([{ ...COLLECT, mode: 'haul' }])).toBe(null);
     expect(of([{ kind: 'bag', slice: 'bag' }])).toBe(null);

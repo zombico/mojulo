@@ -50,15 +50,16 @@
  *                                called counting; the last back, the first is called again
  *                       sweep    its `stops` heaps of litter, each driven over in the vehicle once a round; every
  *                                one swept pays, and a standing one's are laid again
- *                       mow      a lawn mown as a minigame of its own (playscape/ui/minigames.js `mowing`, the
- *                                level's play.minigames, its id the job's): on foot, no vehicle; started at its
- *                                place once taken, a round won (`minigame-won:<id>`) pays
+ *                       mow      a ROUND on a lawn in its mower: got into, its clock starts at `time` seconds and
+ *                                its `stops` (cells of long grass, { at, half }) are long again; each driven over in
+ *                                it cut once; `goal` of them (a share) cut pays; the clock run out ends it unpaid;
+ *                                got out of, the mower goes back to `back` (its shed) and the round with it
  *                       dig      an operated machine (an excavator): the page says each scoop and each tip
  *                                (`shift:scoop:<id>`, `shift:tip:<id>`); a full bucket tipped is a load, `loads` of
  *                                them pay and the truck goes off empty
  *                       { id, mode?: 'route', depot: [x, y, z], radius? | half?, cabs: [entity id], stops?: [{ at, radius? }], loads?,
  *                         load?, hold?, unload?: { at, half }, site?: { at, half | radius }, back?: [x, y, z],
- *                         reward?, repeat?, after?, vehicle?, yard?, done?, pitch? }
+ *                         reward?, repeat?, after?, vehicle?, yard?, done?, pitch?, time?, goal? }
  *                       Flags (the guide's and the journal's): `on-<id>` clocked in; `stop-<id>-<k>` a stop or a pile;
  *                       `full-<id>` a collect's vehicle full; `done-<id>` paid.
 
@@ -405,8 +406,8 @@ export function lowerShift(p, ctx) {
   if (!['route', 'collect', 'haul', 'dig', 'sweep', 'mow'].includes(mode)) fail('mode is route, collect, haul, dig, sweep or mow');
   if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
   if (!isVec(p.depot)) fail('depot is [x, y, z]: the yard its vehicle is had from');
-  if (mode !== 'mow' && (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c))) fail('cabs is the ids of the vehicles it is done in, at least one');
-  if ((mode === 'route' || mode === 'collect' || mode === 'sweep') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
+  if (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c)) fail('cabs is the ids of the vehicles it is done in, at least one');
+  if ((mode === 'route' || mode === 'collect' || mode === 'sweep' || mode === 'mow') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
   // (a haul's CALLS: each a vehicle of its own (`cab`), where it is driven (`site`) and where it is taken back to (`back`),
   // worked in turn; one call is the shift's own `cabs[0]`, `site` and `back`)
   const calls = mode !== 'haul' ? [] : Array.isArray(p.calls) && p.calls.length ? p.calls : [{ cab: p.cabs[0], site: p.site, back: p.back }];
@@ -436,7 +437,7 @@ export function lowerShift(p, ctx) {
   const callVar = `call-${id}`, called = calls.length > 1;
   if (called) frag.vars[callVar] = 1;
   const board = (c) => { const k = calls.findIndex((x) => x.cab === c); return called ? ev(`board:${k + 1}`) : ev('board'); };
-  for (const c of called ? calls.map((x) => x.cab) : p.cabs ?? []) {
+  for (const c of called ? calls.map((x) => x.cab) : p.cabs) {
     R.push({ on: 'mounted', match: { mount: c }, do: 'set', var: aboard, to: 1 });
     R.push(took ? { on: 'mounted', match: { mount: c }, if: { var: took, gte: 1 }, do: 'emit', type: board(c) } : { on: 'mounted', match: { mount: c }, do: 'emit', type: board(c) });
     R.push({ on: 'dismounted', match: { mount: c }, do: 'set', var: aboard, to: 0 }, { on: 'dismounted', match: { mount: c }, do: 'set', var: inV, to: 0 });
@@ -550,14 +551,40 @@ export function lowerShift(p, ctx) {
     R.push({ on: paid, do: 'set', var: dv, to: 1 });
   }
   if (mode === 'mow') {
-    // MOWN, as a minigame of its own (its round the level's play.minigames `mowing`, its id the job's): started once taken
-    // is the clock in; a round won pays, one lost says so (the shed is open for another)
-    const paid = ev('paid'), won = `minigame-won:${id}`;
-    const gate = took ? { if: { var: took, gte: 1 } } : {};
-    R.push({ on: `minigame:${id}`, ...gate, do: 'emit', type: ev('in') }, { on: won, ...gate, do: 'emit', type: ev('won') });
+    // A ROUND ON THE LAWN, in its mower: clocked in, the clock set and the grass long; `live` while in it on the clock
+    // (one var, so a cell's cut is two steps); each cell entered then cut once; `goal` of them pays; the clock run out
+    // ends it, its grass growing back; got out, the mower goes back to its shed and the round ends with it
+    const paid = ev('paid'), live = `live-${id}`, left = `left-${id}`, T = Number.isFinite(p.time) && p.time > 0 ? p.time : 150;
+    const G = Math.max(1, Math.min(N, Math.ceil(N * (Number.isFinite(p.goal) && p.goal > 0 && p.goal <= 1 ? p.goal : 0.85)))), over = ev('over');
+    Object.assign(frag.vars, { [live]: 0, [left]: 0 });
+    const regrow = (on) => [{ on, do: 'set', var: n, to: 0 }, ...stops.map((_, k) => ({ on, do: 'set', var: `flag-${stopFlag(k)}`, to: 0 }))];
+    R.push({ on: ev('clock'), do: 'set', var: live, to: 1 }, { on: ev('clock'), do: 'set', var: left, to: T }, ...regrow(ev('clock')));
+    stops.forEach((s0, k) => {
+      const z = `shift-${id}-${k + 1}`, f = `flag-${stopFlag(k)}`, hit = ev(`stop:${k + 1}`);
+      zone(z, s0.at, s0);
+      R.push({ on: 'enter', match: { zone: z }, if: { var: live, gte: 1 }, do: 'emit', type: `${hit}:0` }, { on: `${hit}:0`, if: { var: f, eq: 0 }, do: 'emit', type: hit });
+      R.push({ on: hit, do: 'set', var: f, to: 1 }, { on: hit, do: 'emit', type: `flag:${stopFlag(k)}` }, { on: hit, do: 'inc', var: n, by: 1 }, { on: hit, do: 'emit', type: ev('took') });
+    });
+    // (the clock: a second at a time while it runs)
+    frag.timers.push({ every: 1, emit: { type: ev('sec') }, while: { var: live, gte: 1 } });
+    R.push({ on: ev('sec'), do: 'inc', var: left, by: -1, min: 0 }, { on: ev('sec'), if: { var: left, lte: 0 }, do: 'emit', type: ev('timeout') });
+    R.push({ on: ev('took'), if: { var: n, gte: G }, do: 'emit', type: `${ev('took')}:all` });
+    R.push({ on: `${ev('took')}:all`, if: { var: live, gte: 1 }, do: 'emit', type: ev('won') });
     once(ev('won'), paid);
     payOut(paid);
-    frag.hud.push({ on: `minigame-lost:${id}`, as: 'toast', text: `Not enough of the ${p.item ?? 'lawn'} cut: try again`, ttl: 2.6 });
+    // (a round over, won or run out or left: off the clock, the next got into starts another)
+    for (const e of [ev('won'), ev('timeout')]) R.push({ on: e, do: 'emit', type: over });
+    R.push({ on: over, do: 'set', var: live, to: 0 }, { on: over, do: 'set', var: `flag-${on}`, to: 0 });
+    R.push(...regrow(ev('timeout')));
+    frag.hud.push({ on: ev('timeout'), as: 'toast', text: `Out of time: the grass grows back. Take the ${vehicle} out again for another round`, ttl: 3.2 });
+    // (got off: the mower back in its shed; a round still running ends, its grass growing back)
+    if (isVec(p.back)) {
+      const back = ev('return');
+      R.push({ on: 'dismounted', match: { mount: p.cabs[0] }, do: 'emit', type: back });
+      R.push({ on: back, do: 'move', target: p.cabs[0], to: p.back.slice() }, { on: back, if: { var: live, gte: 1 }, do: 'emit', type: `${back}:live` });
+      R.push({ on: `${back}:live`, do: 'emit', type: over }, ...regrow(`${back}:live`));
+      frag.hud.push({ on: back, as: 'toast', text: `The ${vehicle} goes back in the ${yard === 'park' ? 'shed' : yard}`, ttl: 2.2 });
+    }
   }
 
   if (mode === 'sweep') {

@@ -269,19 +269,36 @@ describe('shift: a driving job in a city vehicle, from its depot and back (gamew
     expect(drive([SWEEP, TASK], [take, ...sweepAll]).log).not.toContain('errand:done:bins');
     expect(drive([SWEEP, TASK], [take, inCab(), ...sweepAll.slice(0, 3)]).log).not.toContain('errand:done:bins');
   });
-  // MOW: a minigame of its own, on foot; a round won pays
-  it('mow: on foot, no vehicle; a mowing round won once the job is taken pays, one lost says so; the pitch said as it is taken', () => {
-    const MOW = { kind: 'shift', mode: 'mow', id: 'bins', depot: [0, 0, 0], radius: 4, item: 'lawn', vehicle: 'ride-on mower', reward: [{ item: 'coin', n: 45 }], after: 'took-bins', repeat: true, pitch: 'Parks office: the crew is off sick.' };
-    const won = { ev: { type: 'minigame-won:bins' } };
-    const r = drive([MOW, TASK], [take, { ev: { type: 'minigame:bins' } }, won, won]);
-    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
-    expect(r.vars[H('coin')]).toBe(90);
-    expect(r.vars['flag-on-bins']).toBe(1);
-    // (won before it is taken: nothing)
-    expect(drive([MOW, TASK], [won]).log).not.toContain('errand:done:bins');
+  // MOW: a timed round on the lawn, in the mower
+  const CELLS = [[30, 0, 0], [40, 0, 0], [50, 0, 0], [60, 0, 0]];
+  const MOW = { kind: 'shift', mode: 'mow', id: 'bins', depot: [0, 0, 0], cabs: ['car-7'], back: [0, 0, 0], stops: CELLS.map((at) => ({ at, half: [2, 2] })), time: 20, goal: 0.75, item: 'lawn', vehicle: 'ride-on mower', yard: 'park', reward: [{ item: 'coin', n: 45 }], after: 'took-bins', repeat: true, pitch: 'Parks office: the crew is off sick.' };
+  const mowAll = CELLS.map((at) => ({ at }));
+  it('mow: taken out, a round on the clock; enough of the lawn cut in it pays; got off, the mower goes back to its shed', () => {
+    const r = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 3)]);
+    expect(r.log).toContain('errand:done:bins');
+    expect(r.vars[H('coin')]).toBe(45);
+    // (the round over: off the clock; the lawn stays cut till the next)
+    expect(r.vars['live-bins']).toBe(0);
+    expect(r.vars['flag-on-bins']).toBe(0);
+    expect(r.vars['flag-stop-bins-1']).toBe(1);
+    // (on foot, or not enough of it: nothing paid)
+    expect(drive([MOW, TASK], [take, ...mowAll]).log).not.toContain('errand:done:bins');
+    expect(drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2)]).log).not.toContain('errand:done:bins');
+    // (got off: the mower back to its shed, the round ended and its grass grown back; in again, another round)
+    const off = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2), out(), { at: [0, 30, 0] }]);
+    expect(off.warps?.['car-7']).toEqual([0, 0, 0]);
+    expect(off.vars).toMatchObject({ 'live-bins': 0, 'n-bins': 0, 'flag-stop-bins-1': 0, 'flag-on-bins': 0 });
+    const again = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2), out(), inCab(), ...mowAll.slice(0, 3)]);
+    expect(again.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+  });
+  it('mow: the clock run out ends the round unpaid, its grass grown back; the pitch said as it is taken', () => {
+    const r = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2), { secs: 21 }, ...mowAll.slice(2)]);
+    expect(r.log).toContain('shift:timeout:bins');
+    expect(r.log).not.toContain('errand:done:bins');
+    expect(r.vars).toMatchObject({ 'live-bins': 0, 'left-bins': 0, 'flag-stop-bins-1': 0 });
     const { hud } = composeMechanics([{ kind: 'bag', slice: 'bag' }, MOW, TASK, EXIT], ctx).events;
     expect(hud.find((h) => h.as === 'banner')).toMatchObject({ text: 'Lawn mowed' });
-    expect(hud.find((h) => h.on === 'minigame-lost:bins')).toMatchObject({ as: 'toast', text: 'Not enough of the lawn cut: try again' });
+    expect(hud.find((h) => h.on === 'shift:timeout:bins')).toMatchObject({ as: 'toast' });
     expect(hud.find((h) => h.text === MOW.pitch).on).toBe('flag:took-bins');
   });
   it('a malformed shift says what is wrong', () => {

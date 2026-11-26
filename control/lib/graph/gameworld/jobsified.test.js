@@ -94,12 +94,12 @@ describe('a shift read by the guide, the journal and the phone', () => {
     expect(J.steps[2]).toMatchObject({ say: 'Sweep the streets: drive over the litter', when: 'flag-done-street-sweeping', near: PILES.map((at, k) => ({ at, v: `flag-stop-street-sweeping-${k + 1}` })) });
     expect(J.loop).toBe(null);
   });
-  it('mow: walked to the groundskeeper\'s shed, its round started there; done when one is won', () => {
-    const MW = { kind: 'shift', mode: 'mow', id: 'groundskeeping', name: 'Groundskeeping', item: 'lawn', depot: [10, 60, 1], radius: 3, vehicle: 'ride-on mower', yard: 'park', reward: [{ item: 'coin', n: 45 }], repeat: true };
+  it('mow: its mower taken out of the groundskeeper\'s shed, then the lawn, the way to the nearest long grass not yet cut', () => {
+    const MW = { ...HAULED, mode: 'mow', id: 'groundskeeping', site: undefined, vehicle: 'ride-on mower', yard: 'park', stops: PILES.map((at) => ({ at, half: [2, 2] })) };
     const [J] = jobsOf([MW, task('groundskeeping')]);
     expect(J.steps.map((s) => s.id)).toEqual(['app-groundskeeping', 'clock-groundskeeping', 'mow-groundskeeping']);
-    expect(J.steps[1]).toMatchObject({ say: 'Go to the groundskeeper\'s shed at the park', at: [10, 60, 1], when: 'flag-on-groundskeeping' });
-    expect(J.steps[2]).toMatchObject({ when: 'flag-done-groundskeeping', says: 'Paid 45 coin' });
+    expect(J.steps[1]).toMatchObject({ say: 'Take the ride-on mower out of the groundskeeper\'s shed at the park', when: 'flag-on-groundskeeping' });
+    expect(J.steps[2]).toMatchObject({ say: 'Mow the lawn before the clock runs out', when: 'flag-done-groundskeeping', near: PILES.map((at, k) => ({ at, v: `flag-stop-groundskeeping-${k + 1}` })) });
   });
   it('route: its bus taken where it is issued, then each stop in order, held at; the last pays', () => {
     const R = { ...COLLECT, mode: 'route', load: undefined, unload: undefined, back: [10, 60, 1], vehicle: 'bus', place: 'bakery', yard: 'bus depot', stop: 'Pick up at the bus stop', stops: PILES.map((at) => ({ at, radius: 7, place: 'cafe', riders: 2 })) };
@@ -148,41 +148,41 @@ describe('a depot\'s vehicles and an issued truck made cabs', () => {
 });
 
 describe('a groundskeeper\'s lawn (lawnOf)', () => {
-  // (a park 60 by 36 with a path across it east to west, a pavilion, a tree; a strip too thin to mow nearer the start)
+  // (a park 60 by 36 with a path across it east to west, 2 wide, a pavilion, a tree; a strip too thin to mow nearer the start)
   const park = { id: 'B1.park', rect: [0, 0, 60, 36], z: 2, at: [30, 18, 2], trees: [[9, 9, 2]], things: [[0, 17, 60, 19], [40, 24, 48, 30]], gates: [] };
   const ends = { spawn: [100, 18, 2], parks: [{ id: 'A1.park', rect: [80, 0, 200, 8], z: 2, at: [140, 4, 2], trees: [], things: [], gates: [] }, park] };
   const L = lawnOf(ends);
-  it('the nearest park wide enough; the shed\'s door on its path up from the edge nearest the start, the shed beside it', () => {
+  it('the nearest park wide enough; its shed beside its path up from the edge nearest the start, open to the path; one stands at its door', () => {
     expect(L.park).toBe('B1.park');
-    expect(L.spot).toEqual({ at: [60 - MOW.spot, 18, 2], heading: expect.closeTo(Math.PI, 3) });
-    expect(Math.abs(L.shed.at[1] - 18)).toBeCloseTo(MOW.shed);
-    expect(L.shed.at[0]).toBeLessThan(60);
+    const [ha, hd] = MOW.shedHalf;
+    // (coming in from the east, westward: the shed on the right, the north, its door facing south to the path)
+    expect(L.shed.at[0]).toBeCloseTo(60 - MOW.spot - ha);
+    expect(L.shed.at[1]).toBeCloseTo(18 + 1 + MOW.gap + hd);
+    expect(L.shed.heading).toBeCloseTo(-Math.PI / 2);
+    expect(L.spot.at[1]).toBeGreaterThan(18);
+    expect(L.spot.at[1]).toBeLessThan(19);
+    expect(Math.hypot(L.spot.at[0] - L.shed.at[0], L.spot.at[1] - L.shed.at[1])).toBeLessThan(2.6);
   });
-  it('the park as the minigame\'s tiles, north up: its path a row of path, its pavilion and shed things, its tree; the mower at the door, nosed in', () => {
-    const { rows, start } = L.lawn, W = rows[0].length;
-    expect(W).toBeLessThanOrEqual(MOW.across);
-    expect(rows.every((r) => r.length === W && /^[.=T#*]+$/.test(r))).toBe(true);
-    expect(rows.filter((r) => /^=+$/.test(r))).toHaveLength(1);
-    expect(rows.join('')).toMatch(/T/);
-    expect(rows.join('').split('#').length - 1).toBeGreaterThanOrEqual(2);
-    // (the tree in the south-west: low rows, west columns)
-    const tj = rows.findIndex((r) => r.includes('T'));
-    expect(tj).toBeGreaterThan(rows.length / 2);
-    expect(rows[tj].indexOf('T')).toBeLessThan(W / 2);
-    expect(rows[Math.floor(start[1])][Math.floor(start[0])]).toBe('=');
-    expect(start[2]).toBeCloseTo(-Math.PI);
+  it('its cells on the lawn: none over its path, its things or its shed, none on a trunk; at most MOW.most', () => {
+    expect(L.cells.length).toBeGreaterThan(40);
+    expect(L.cells.length).toBeLessThanOrEqual(MOW.most);
+    const [ha, hd] = MOW.shedHalf, shed = [L.shed.at[0] - ha, L.shed.at[1] - hd, L.shed.at[0] + ha, L.shed.at[1] + hd];
+    for (const c of L.cells) {
+      expect(c.half).toEqual([MOW.cell / 2, MOW.cell / 2]);
+      for (const q of [...park.things, shed]) expect(c.at[0] + 2 <= q[0] || c.at[0] - 2 >= q[2] || c.at[1] + 2 <= q[1] || c.at[1] - 2 >= q[3]).toBe(true);
+      expect(Math.hypot(c.at[0] - 9, c.at[1] - 9)).toBeGreaterThanOrEqual(MOW.tree);
+    }
     expect(lawnOf(ends)).toEqual(L);
     expect(lawnOf({ spawn: [0, 0, 0] })).toBe(null);
   });
-  it('a park on a terrace: its door at a path\'s end walked in at, not the nearer one walled over its walk', () => {
+  it('a park on a terrace: its shed by a path\'s end walked in at, not the nearer one walled over its walk', () => {
     // (the park stands 2 m over the walk on its east, level on its west)
     const W = lawnOf({ ...ends, ground: (x) => (x > 60 ? 0 : 2) });
-    expect(W.spot.at[0]).toBeCloseTo(MOW.spot);
-    expect(W.spot.heading).toBeCloseTo(0);
-    expect(W.lawn.start[0]).toBeLessThan(2);
+    expect(W.shed.at[0]).toBeLessThan(10);
   });
-  it('a mow is done on foot: no vehicle issued for it', () => {
-    expect(issuedOf({ ...ends, kerbAt: () => null }, [{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }], 'district')).toEqual([]);
-    expect(shiftRoles([{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }], 'district')).toEqual([]);
+  it('its mower issued in the shed, nosed out of its door; none where no park is wide enough', () => {
+    const E = [{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }];
+    expect(issuedOf({ ...ends, kerbAt: () => null }, E, 'district')).toEqual([expect.objectContaining({ id: 'groundskeeping', at: L.shed.at, heading: L.shed.heading, model: 'loft:rideOnMower', yard: 'park' })]);
+    expect(issuedOf({ ...ends, parks: [ends.parks[0]], kerbAt: () => null }, E, 'district')).toEqual([]);
   });
 });

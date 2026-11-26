@@ -181,16 +181,16 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
   street's middle); nothing is held, driving over a heap sweeps it. A line on screen counts them, a word comes at each
   quarter, and the last one pays; the streets get dirty again for the next round.
 - **Groundskeeping** (`groundskeeper`, mode `mow`): the parks' grounds crew is off sick, so the parks office takes
-  anyone with a licence (the fake ID again; its `pitch` is what the office says as it is taken). It is done on foot and
-  played as a minigame of its own: no mower stands in the city. The park nearest the start gets a groundskeeper's shed
-  by its path (`lawnOf`: its door `MOW.spot` up a path from the park's edge, at the end nearest the start that is level
-  with the walk outside it, `MOW.step`, since a park on a terrace is walled over its walk; the shed beside it); walk to
-  the door and use it to take the mower out (before the job is taken it says to take it first). The round is the
-  minigame `mowing` (`playscape/ui/minigames.js`, `pixelizer/mowing-core.js`): the park itself from above, its paths, its
-  trees, its playground and its shed as the minigame's tiles (`MOW.across` across at most), a flowerbed round some of its
-  trees. Drive the zero-turn mower with the arrows or WASD, cut the long grass in stripes, steer round the trees, keep off
-  the flowerbeds; the clock is `MOW_GAME.time`. A round that cuts 85% pays the job; the mower goes back in the shed for
-  the next. The scene tells a level its parks (`ctx.parks`, geocity/scene.js; `ends.parks`).
+  anyone with a licence (the fake ID again; its `pitch` is what the office says as it is taken). No mower stands about
+  the city: the park nearest the start gets a groundskeeper's shed beside its path (`lawnOf`: `MOW.spot` up a path from
+  the park's edge, at the end nearest the start that is level with the walk outside it, `MOW.step`, since a park on a
+  terrace is walled over its walk), open to the path, its ride-on mower (`MOWERS`, the car shelf's `rideOnMower`) kept
+  inside. Taking the mower out starts a ROUND in the engine, on the park's own lawn: its long grass laid in cells
+  (`MOW.cell` squares round its paths, its things, the shed and its trees' trunks, the `MOW.most` nearest the shed), its
+  clock at `MOW_ROUND.time`. Each cell driven over is cut, its tufts down to stubble over a stripe light or dark by the
+  way the mower went; a line on screen says how much is cut toward the goal and the time left. `MOW_ROUND.goal` of it
+  cut pays; the clock run out ends the round and the grass grows back; getting off puts the mower back in the shed and
+  ends a round still running. The scene tells a level its parks (`ctx.parks`, geocity/scene.js; `ends.parks`).
 
 ```js
 errands: [{ id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: true, reward: [{ item: 'coin', n: 40 }] }]

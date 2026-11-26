@@ -3,8 +3,8 @@
 // round is laid at the works yard nearest the start, its cabs the yard's own garbage trucks among the level's bodies, its
 // piles places of the district's apart from each other and the yard, emptied at the dump; the heavy haul's truck is issued
 // at a kerb by the yard as a cab after all others, and sent to a building site across the district; the bus route's bus
-// is issued the same way, its stops in order, people waiting at each; groundskeeping is on foot, a mowing minigame
-// started at a park's shed on the park's own lawn; each is on
+// is issued the same way, its stops in order, people waiting at each; groundskeeping's mower is kept in a shed by
+// a park's path, a round on the clock over the park's own long grass; each is on
 // Jobsified; the guide leads them, and the errand proof drives each on the bus to its pay.
 import { describe, it, expect } from 'vitest';
 import { hijackCityWorld } from './hijack-city.js';
@@ -12,7 +12,7 @@ import { runSteps } from './runner.js';
 import { cityGuide } from './city-guide.js';
 import { phoneUi } from './phone-ui.js';
 import { proveErrands, lastStageManifests } from './errand-proof.js';
-import { SHIFT, SHIFTS, HEAVY_VEHICLES, FREIGHT_VEHICLES, MOW, MOW_GAME } from './jobsified.js';
+import { SHIFT, SHIFTS, HEAVY_VEHICLES, FREIGHT_VEHICLES, MOW, MOW_ROUND } from './jobsified.js';
 
 const world = hijackCityWorld(), steps = runSteps(world, { ref: 'hc' }), level = steps.find((x) => x.key.startsWith('level-')).order.manifest, M = level.game.mechanics;
 const bins = M.find((m) => m.kind === 'shift' && m.id === 'bin-round'), haul = M.find((m) => m.kind === 'shift' && m.id === 'heavy-haul'), bus = M.find((m) => m.kind === 'shift' && m.id === 'bus-route'), dig = M.find((m) => m.kind === 'shift' && m.id === 'dig-and-load'), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -44,7 +44,7 @@ describe('Hijack City\'s driving jobs, laid', () => {
     const e = cab(haul.cabs[0]), ids = level.entities.filter((x) => x.mount?.cab && !x.mount.spare && x.id.startsWith('car-')).map((x) => Number(x.id.slice(4)));
     expect(e?.mount?.cab).toBe(true);
     // (the issued vehicles are the level's last cabs, the call's and the bus's)
-    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), sweeper = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping'), issued = [...haul.cabs, bus.cabs[0], ...sweeper.cabs, ...orders.cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
+    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), sweeper = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping'), mower = M.find((m) => m.kind === 'shift' && m.id === 'groundskeeping'), issued = [...haul.cabs, bus.cabs[0], ...sweeper.cabs, ...mower.cabs, ...orders.cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
     expect(issued).toEqual(ids.sort((a, b) => a - b).slice(-issued.length));
     expect(e.mount.pool.gate).toBeUndefined();
     expect(d(e.transform.pos, haul.back)).toBeLessThan(0.01);
@@ -94,18 +94,18 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(sw.stops.length).toBeGreaterThanOrEqual(12);
     for (const q of sw.stops) expect(q.at).toHaveLength(3);
   });
-  it('groundskeeping: on foot, no mower in the city; its round a mowing minigame started at the shed of the park nearest the start', () => {
-    const gk = M.find((m) => m.kind === 'shift' && m.id === 'groundskeeping'), G = level.play.minigames.find((g) => g.id === 'groundskeeping');
-    expect(gk).toMatchObject({ mode: 'mow', vehicle: 'ride-on mower', yard: 'park', repeat: true, pitch: SHIFTS.groundskeeper.pitch, shed: { half: MOW.shedHalf } });
-    expect(gk.cabs).toBeUndefined();
-    expect(level.entities.some((e) => e.mount?.pool?.model === 'loft:rideOnMower')).toBe(false);
-    // (its round: the park's own lawn, the mower at the shed's door on a path; started there only once taken)
-    expect(G).toMatchObject({ game: 'mowing', gold: 0, time: MOW_GAME.time, at: { at: gk.depot.slice(0, 2), r: MOW_GAME.reach }, if: { var: 'flag-took-groundskeeping', gte: 1 } });
-    const { rows, start } = G.lawn;
-    expect(rows.join('')).toMatch(/=/);
-    expect(rows.join('')).toMatch(/T/);
-    expect(rows[Math.floor(start[1])][Math.floor(start[0])]).toBe('=');
-    expect((rows.join('').match(/\./g) ?? []).length).toBeGreaterThan(100);
+  it('groundskeeping: its mower kept in a shed by the park\'s path, a round on the clock over the park\'s own long grass', () => {
+    const gk = M.find((m) => m.kind === 'shift' && m.id === 'groundskeeping'), e = cab(gk.cabs[0]);
+    expect(gk).toMatchObject({ mode: 'mow', vehicle: 'ride-on mower', yard: 'park', repeat: true, pitch: SHIFTS.groundskeeper.pitch, time: MOW_ROUND.time, goal: MOW_ROUND.goal, shed: { half: MOW.shedHalf } });
+    expect(e.mount.pool.model).toBe('loft:rideOnMower');
+    // (in the shed, sent back there when left)
+    expect(d(e.transform.pos, gk.shed.at)).toBeLessThan(0.01);
+    expect(d(gk.back, gk.shed.at)).toBeLessThan(0.01);
+    expect(gk.stops.length).toBeGreaterThanOrEqual(40);
+    for (const q of gk.stops) expect(q.half).toEqual([MOW.cell / 2, MOW.cell / 2]);
+    // (no other mower in the city; no minigame window)
+    expect(level.entities.filter((x) => x.mount?.pool?.model === 'loft:rideOnMower')).toHaveLength(1);
+    expect(level.play?.minigames).toBeUndefined();
     // (a licence's job: taken only with the forger's papers)
     expect(M.find((m) => m.kind === 'task' && m.id === 'groundskeeping').needs).toMatchObject({ item: 'fake-id' });
   });

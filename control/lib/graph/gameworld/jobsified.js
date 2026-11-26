@@ -19,10 +19,11 @@
  *            which pays (the page says each scoop and each tip: scene/channels/operate.js)
  *   sweep    a street sweeper's route: litter along the kerb side of a few streets near its yard (sweepRoute), each
  *            heap swept by driving over it in the sweeper; every one swept pays, and the streets get dirty again
- *   mow      a groundskeeper's lawn, played as a minigame of its own (no mower stands in the city): the job taken,
- *            the hero walks to the groundskeeper's shed at the park nearest the start (geocity's block parks,
- *            ends.parks) and starts the round there; the park's own lawn, its paths, trees and things laid as the
- *            minigame's tiles (lawnOf; playscape/ui/minigames.js `mowing`), and a round won pays. On foot (`foot`)
+ *   mow      a groundskeeper's round on a park's own lawn (geocity's block parks, ends.parks): its ride-on mower kept in
+ *            the groundskeeper's shed by the park's path (lawnOf), never left about the city; taken out of the shed, a
+ *            round starts on the clock, the lawn's long grass in cells round its paths, things and trees, each cut by
+ *            driving over it; enough of it cut in time pays, the clock run out does not, and got off, the mower goes back
+ *            in the shed
  *   haul     a heavy vehicle driven to a job (a general heavy driver's): one is ISSUED at the kerb by the yard (one of
  *            the `fleet`'s models, stood there for the job: issuedOf), got into and driven across the district to a
  *            building site (a construction lot near the eye, else a far place), which pays; left there, it is taken
@@ -69,7 +70,7 @@ export const SHIFTS = Object.freeze({
   sweeper: Object.freeze({ name: 'Street sweeping', mode: 'sweep', yard: 'works', vehicles: 'sweeper', calls: 1, vehicle: 'street sweeper', item: 'litter', stops: 3, done: 'Streets swept' }),
   // (the parks' groundskeeper, for licence holders: the crew is off sick, so anyone with papers will do; `pitch` what
   // the parks office says as it is taken)
-  groundskeeper: Object.freeze({ name: 'Groundskeeping', mode: 'mow', yard: 'park', foot: true, licence: true, vehicle: 'ride-on mower', item: 'lawn', stops: 1, done: 'Lawn mowed',
+  groundskeeper: Object.freeze({ name: 'Groundskeeping', mode: 'mow', yard: 'park', vehicles: 'mower', calls: 1, licence: true, vehicle: 'ride-on mower', item: 'lawn', stops: 1, done: 'Lawn mowed',
     pitch: 'Parks office: half the grounds crew is off sick again and the grass won\'t wait. Got a licence? The mower\'s in the shed at the park.' }),
   heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, licence: true, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
@@ -95,12 +96,14 @@ export const FREIGHT_VEHICLES = Object.freeze([
 ]);
 // THE WORKS YARD'S SWEEPER (a row's `vehicles: 'sweeper'`)
 export const SWEEPERS = Object.freeze([Object.freeze({ model: 'loft:streetSweeper', word: 'street sweeper', paint: '#f1f1ee' })]);
-const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VEHICLES, sweeper: SWEEPERS });
+// THE PARKS' MOWER (a row's `vehicles: 'mower'`): the car shelf's ride-on mower, kept in the groundskeeper's shed
+export const MOWERS = Object.freeze([Object.freeze({ model: 'loft:rideOnMower', word: 'ride-on mower', paint: '#3f7a3a' })]);
+const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VEHICLES, sweeper: SWEEPERS, mower: MOWERS });
 /** Whether a row's vehicle is issued (a fleet's, or one of a list's turn about), not the depot's own. */
 export const issues = (S) => !!(S && (S.fleet || S.vehicles || S.machine));
 for (const [word, S] of Object.entries(SHIFTS)) {
   if (!SHIFT_MODES.includes(S.mode)) throw new Error(`jobsified: '${word}' works as ${SHIFT_MODES.join(', ')}`);
-  if (!issues(S) && !S.foot && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet, vehicles)`);
+  if (!issues(S) && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet, vehicles)`);
   if (S.mode === 'haul' && !issues(S)) throw new Error(`jobsified: '${word}' is a haul: its vehicle is issued (fleet, vehicles)`);
   if (S.vehicles && !VEHICLE_LISTS[S.vehicles]) throw new Error(`jobsified: '${word}' issues from no list (${Object.keys(VEHICLE_LISTS).join(', ')})`);
 }
@@ -116,7 +119,7 @@ export function shiftOf(word) {
   return S;
 }
 
-export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level && SHIFTS[E.vehicle] && !issues(SHIFTS[E.vehicle]) && !SHIFTS[E.vehicle].foot).map((E) => E.vehicle))];
+export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level && SHIFTS[E.vehicle] && !issues(SHIFTS[E.vehicle])).map((E) => E.vehicle))];
 
 // (a word's own number, for a choice no die makes: the same job issues the same truck)
 const hashOf = (w) => [...String(w)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
@@ -129,6 +132,12 @@ export function issuedOf(ends, errands, level) {
     const S = E?.vehicle && E.giver === level ? SHIFTS[E.vehicle] : null;
     if (!issues(S) || S.machine || typeof ends?.kerbAt !== 'function') continue;
     // (its yard: a depot's, or the district's dock, geocity `dock`; the start where it has neither)
+    // (a park's mower: in its groundskeeper's shed, nosed out of its door, lawnOf; never at a kerb)
+    if (S.yard === 'park') {
+      const L = lawnOf(ends), V = VEHICLE_LISTS[S.vehicles][hashOf(E.id) % VEHICLE_LISTS[S.vehicles].length];
+      if (L) out.push({ id: E.id, call: 1, at: L.shed.at.slice(), heading: L.shed.heading, model: V.model, paint: V.paint, word: V.word, place: null, yard: YARD_NAMES.park });
+      continue;
+    }
     const D = S.yard === 'dock' ? ends.dock ?? null : (ends.depots ?? []).find((x) => x.yard === S.yard), from = D ? D.at : ends.spawn;
     const list = S.vehicles ? VEHICLE_LISTS[S.vehicles] : null, n = list ? Math.min(S.calls ?? 1, list.length) : 1, h = hashOf(E.id);
     const which = (k) => { if (list) return list[(h + k) % list.length]; const rows = fleetOf(S.fleet), R = rows[h % rows.length]; return { model: R.model, word: R.word, paint: R.paints[0] }; };
@@ -208,57 +217,47 @@ export function sweepRoute(ends, from, { stretches = SWEEP.stretches } = {}) {
   return out;
 }
 
-// A MOW'S ROUND (playscape/ui/minigames.js `mowing`): how near the shed's door it is started (m), the word at it, the
-// seconds a round lasts, and what is said there before the job is taken
-export const MOW_GAME = Object.freeze({ reach: 3, prompt: 'take the mower out', time: 150, locked: 'Parks office: take the groundskeeping job on Jobsified first' });
-// A GROUNDSKEEPER'S LAWN (m): the least a park is across to be mown; how many tiles its long side is cut into, and the
-// least a tile is; how far up its path from its edge the shed's door is, and how far beside the path the shed stands,
-// its half sides; a flowerbed beside a tree one tree in so many; the most a path's end may step from the walk outside
-// it and still be walked in at (a park on a terrace is walled where it stands over its walk)
-export const MOW = Object.freeze({ deep: 20, across: 26, tile: 2.4, spot: 1.5, shed: 3.2, shedHalf: Object.freeze([1.4, 1.1]), beds: 2, step: 0.5 });
+// A MOW'S ROUND: the seconds on its clock, and the share of the lawn's cells cut that pays
+export const MOW_ROUND = Object.freeze({ time: 150, goal: 0.85 });
+// A GROUNDSKEEPER'S LAWN (m): the least a park is across to be mown; its cells' side, the most a round has (the nearest
+// the shed), how clear of the park's things and how far off a tree's trunk; how far up its path from its edge the shed
+// stands and its half sides (along the path, across it), the gap between it and the path; the most a path's end may step
+// from the walk outside it and still be walked in at (a park on a terrace is walled where it stands over its walk)
+export const MOW = Object.freeze({ deep: 20, cell: 4, most: 140, clear: 0.3, tree: 1.2, spot: 1.5, shedHalf: Object.freeze([1.6, 1.4]), gap: 0.2, step: 0.5 });
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 /** A lawn to mow: the park nearest `from` (the start) at least MOW.deep across (ends.parks, geocity/scene.js). Its
- *  shed's door on its path, up from the edge nearest the start that is level with the walk outside it (`spot`, where
- *  the round is started), the shed beside the path on the lawn (`shed`); the park laid as the mowing minigame's tiles (pixelizer/mowing-core.js TILES: its paths,
- *  its trees, its things and the shed, a flowerbed by some of its trees), row 0 its north, and the mower at the door,
- *  nosed in.  → { park, rect, spot: { at, heading }, shed: { at, heading, half }, lawn: { rows, start } } | null */
+ *  groundskeeper's shed beside its path, up from the edge nearest the start that is level with the walk outside it,
+ *  open to the path (`shed`: its middle, the way its door faces, its half sides); where one stands on the path at its
+ *  door (`spot`); the lawn's cells of MOW.cell on a grid from its middle, clear of its things, the shed and its trees'
+ *  trunks, the MOW.most nearest the shed.  → { park, rect, spot: { at, heading }, shed: { at, heading, half },
+ *  cells: [{ at, half }] } | null */
 export function lawnOf(ends, from = ends?.spawn) {
   const f = from ?? [0, 0], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const P = (ends?.parks ?? []).filter((q) => Math.min(q.rect[2] - q.rect[0], q.rect[3] - q.rect[1]) >= MOW.deep).sort((a, b) => d2(a.at, f) - d2(b.at, f) || a.id.localeCompare(b.id))[0];
   if (!P) return null;
   const [x0, y0, x1, y1] = P.rect, ground = (x, y) => { const z = typeof ends.ground === 'function' ? ends.ground(x, y) : null; return Number.isFinite(z) ? z : P.z; };
-  // (its paths: its long thin things; a door may be at each end of one that meets the park's edge, the shed beside it)
+  // (its paths: its long thin things; the shed by an end of one that meets the park's edge, [x, y, dx, dy, half width])
   const thin = P.things.filter((q) => Math.max(q[2] - q[0], q[3] - q[1]) >= 3 * Math.min(q[2] - q[0], q[3] - q[1]));
   const edge = (e) => Math.min(Math.abs(e[0] - x0), Math.abs(e[0] - x1), Math.abs(e[1] - y0), Math.abs(e[1] - y1)) <= 0.5;
-  const ends2 = thin.flatMap((q) => (q[2] - q[0] >= q[3] - q[1] ? [[q[0], (q[1] + q[3]) / 2, 1, 0], [q[2], (q[1] + q[3]) / 2, -1, 0]] : [[(q[0] + q[2]) / 2, q[1], 0, 1], [(q[0] + q[2]) / 2, q[3], 0, -1]])).filter(edge);
-  // (the door at an end walked in at, level with the walk outside it; the nearest the start of those, else of all)
+  const ends2 = thin.flatMap((q) => (q[2] - q[0] >= q[3] - q[1] ? [[q[0], (q[1] + q[3]) / 2, 1, 0, (q[3] - q[1]) / 2], [q[2], (q[1] + q[3]) / 2, -1, 0, (q[3] - q[1]) / 2]] : [[(q[0] + q[2]) / 2, q[1], 0, 1, (q[2] - q[0]) / 2], [(q[0] + q[2]) / 2, q[3], 0, -1, (q[2] - q[0]) / 2]])).filter(edge);
+  // (at an end walked in at, level with the walk outside it; the nearest the start of those, else of all)
   const level = (e) => Math.abs(ground(e[0] - e[2] * MOW.spot, e[1] - e[3] * MOW.spot) - ground(e[0] + e[2] * MOW.spot, e[1] + e[3] * MOW.spot)) <= MOW.step;
   const near = (a, b) => d2(a, f) - d2(b, f) || a[0] - b[0] || a[1] - b[1];
-  const E = (ends2.some(level) ? ends2.filter(level) : ends2).sort(near)[0] ?? [x0, (y0 + y1) / 2, 1, 0];
-  const sx = E[0] + E[2] * MOW.spot, sy = E[1] + E[3] * MOW.spot, heading = Math.atan2(E[3], E[2]);
-  const spot = { at: [r3(sx), r3(sy), r3(ground(sx, sy))], heading: r3(heading) };
-  // (the shed on the lawn beside the door, to its right as one comes in, its door to the path)
-  const hx = sx + E[3] * MOW.shed + E[2] * MOW.shedHalf[0], hy = sy - E[2] * MOW.shed + E[3] * MOW.shedHalf[0];
-  const shed = { at: [r3(hx), r3(hy), r3(ground(hx, hy))], heading: r3(Math.atan2(E[2], -E[3])), half: MOW.shedHalf.slice() };
-  const box = E[2] ? [hx - MOW.shedHalf[0], hy - MOW.shedHalf[1], hx + MOW.shedHalf[0], hy + MOW.shedHalf[1]] : [hx - MOW.shedHalf[1], hy - MOW.shedHalf[0], hx + MOW.shedHalf[1], hy + MOW.shedHalf[0]];
-  // (its tiles: the long side cut into MOW.across at most, none under MOW.tile; row 0 the north)
-  const t = Math.max(MOW.tile, Math.max(x1 - x0, y1 - y0) / MOW.across), W = Math.max(4, Math.round((x1 - x0) / t)), H = Math.max(3, Math.round((y1 - y0) / t)), tx = (x1 - x0) / W, ty = (y1 - y0) / H;
-  // (a long thin thing, a path, laid along its middle line, a tile wide whatever its width; the rest by the tiles
-  // whose middles they cover)
-  const inR = (x, y, q) => x >= q[0] && x <= q[2] && y >= q[1] && y <= q[3], col = (x) => Math.min(W - 1, Math.max(0, Math.floor((x - x0) / tx))), row = (y) => Math.min(H - 1, Math.max(0, Math.floor((y1 - y) / ty)));
-  const onPath = (i, j) => thin.some((q) => (q[2] - q[0] >= q[3] - q[1] ? row((q[1] + q[3]) / 2) === j && i >= col(q[0]) && i <= col(q[2]) : col((q[0] + q[2]) / 2) === i && j >= row(q[3]) && j <= row(q[1])));
-  const g = Array.from({ length: H }, (_, j) => Array.from({ length: W }, (_, i) => {
-    const cx = x0 + (i + 0.5) * tx, cy = y1 - (j + 0.5) * ty;
-    if (inR(cx, cy, box)) return '#';
-    if (onPath(i, j)) return '=';
-    if (P.things.some((q) => !thin.includes(q) && inR(cx, cy, q))) return '#';
-    if (P.trees.some((tr) => Math.abs(tr[0] - cx) <= tx / 2 && Math.abs(tr[1] - cy) <= ty / 2)) return 'T';
-    return '.';
-  }));
-  // (a flowerbed round some of its trees: the park's own word picks which)
-  const h0 = hashOf(P.id);
-  g.forEach((row, j) => row.forEach((c, i) => { if (c === 'T' && (h0 + i * 7 + j * 13) % MOW.beds === 0) for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (g[j + dj]?.[i + di] === '.') g[j + dj][i + di] = '*'; }));
-  // (the mower at the door, nosed in: x east, y south in tiles)
-  const start = [col(sx) + 0.5, row(sy) + 0.5, r3(-heading)];
-  return { park: P.id, rect: P.rect.slice(), spot, shed, lawn: { rows: g.map((r) => r.join('')), start } };
+  const E = (ends2.some(level) ? ends2.filter(level) : ends2).sort(near)[0] ?? [x0, (y0 + y1) / 2, 1, 0, 1];
+  // (the shed to the right as one comes in, MOW.spot past the edge, its door to the path; one stands at the door on the path)
+  const [ex, ey, dx, dy, pw] = E, rx = dy, ry = -dx, [ha, hd] = MOW.shedHalf, a = MOW.spot + ha, o = pw + MOW.gap + hd;
+  const hx = ex + dx * a + rx * o, hy = ey + dy * a + ry * o, sx = ex + dx * a + rx * Math.max(0, pw - 0.4), sy = ey + dy * a + ry * Math.max(0, pw - 0.4);
+  const shed = { at: [r3(hx), r3(hy), r3(ground(hx, hy))], heading: r3(Math.atan2(-ry, -rx)), half: [ha, hd] };
+  const spot = { at: [r3(sx), r3(sy), r3(ground(sx, sy))], heading: r3(Math.atan2(ry, rx)) };
+  const box = dx ? [hx - ha, hy - hd, hx + ha, hy + hd] : [hx - hd, hy - ha, hx + hd, hy + ha];
+  // (its cells on a grid from its middle, clear of its things and the shed, none on a trunk; the nearest the shed)
+  const C = MOW.cell, h = C / 2, nx = Math.floor((x1 - x0) / C), ny = Math.floor((y1 - y0) / C), ox = (x0 + x1) / 2 - (nx * C) / 2 + h, oy = (y0 + y1) / 2 - (ny * C) / 2 + h, cells = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const cx = ox + i * C, cy = oy + j * C;
+    if ([...P.things, box].some((q) => cx + h > q[0] - MOW.clear && cx - h < q[2] + MOW.clear && cy + h > q[1] - MOW.clear && cy - h < q[3] + MOW.clear)) continue;
+    if (P.trees.some((t) => Math.hypot(t[0] - cx, t[1] - cy) < MOW.tree)) continue;
+    cells.push({ at: [r3(cx), r3(cy), r3(ground(cx, cy))], half: [h, h] });
+  }
+  const most = cells.sort((p, q) => d2(p.at, shed.at) - d2(q.at, shed.at) || p.at[0] - q.at[0] || p.at[1] - q.at[1]).slice(0, MOW.most);
+  return { park: P.id, rect: P.rect.slice(), spot, shed, cells: most };
 }
