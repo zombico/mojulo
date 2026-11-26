@@ -42,7 +42,7 @@ export const DESK_CSS = `
 .dw-q{margin:6px 0 8px;font-weight:600}
 .dw-step{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#6a7385}
 .dw-ans{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.dw-ans button{padding:9px 10px;border:1px solid #b9c1d0;border-radius:6px;background:#fff;font:inherit;cursor:pointer;text-align:left}
+.dw-ans button{padding:9px 10px;border:1px solid #b9c1d0;border-radius:6px;background:#fff;color:#1d2430;font:inherit;cursor:pointer;text-align:left}
 .dw-ans button:hover{background:#eef3ff}
 .dw-ans kbd{display:inline-block;min-width:16px;margin-right:6px;padding:0 4px;border:1px solid #b9c1d0;border-radius:3px;font-size:11px;text-align:center;color:#56607a}
 .dw-mail{border-top:1px solid #eceef2;padding:7px 0}
@@ -51,6 +51,7 @@ export const DESK_CSS = `
 .dw-empty{color:#6a7385;padding:16px}
 .dw-pop{position:absolute;inset:0;background:rgba(20,24,34,.55);display:flex;align-items:center;justify-content:center}
 .dw-pop div{width:360px;background:#fff;border-radius:8px;padding:16px 18px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.dw button{color:inherit}
 .dw-pop button{margin-top:12px;padding:8px 14px;border:0;border-radius:6px;background:#2d6cdf;color:#fff;font:inherit;cursor:pointer}
 .dw-pol li{margin-bottom:8px}
 `;
