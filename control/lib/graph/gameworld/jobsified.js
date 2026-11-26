@@ -132,10 +132,12 @@ export function issuedOf(ends, errands, level) {
     const S = E?.vehicle && E.giver === level ? SHIFTS[E.vehicle] : null;
     if (!issues(S) || S.machine || typeof ends?.kerbAt !== 'function') continue;
     // (its yard: a depot's, or the district's dock, geocity `dock`; the start where it has neither)
-    // (a park's mower: in its groundskeeper's shed, nosed out of its door, lawnOf; never at a kerb)
+    // (a park's mower: in its groundskeeper's shed, nosed out of its door and drawn up to it, MOW.forward, so one on the
+    // path reaches it, lawnOf; never at a kerb)
     if (S.yard === 'park') {
       const L = lawnOf(ends), V = VEHICLE_LISTS[S.vehicles][hashOf(E.id) % VEHICLE_LISTS[S.vehicles].length];
-      if (L) out.push({ id: E.id, call: 1, at: L.shed.at.slice(), heading: L.shed.heading, model: V.model, paint: V.paint, word: V.word, place: null, yard: YARD_NAMES.park });
+      const at = L ? [r3(L.shed.at[0] + Math.cos(L.shed.heading) * MOW.forward), r3(L.shed.at[1] + Math.sin(L.shed.heading) * MOW.forward), L.shed.at[2]] : null;
+      if (L) out.push({ id: E.id, call: 1, at, heading: L.shed.heading, model: V.model, paint: V.paint, word: V.word, place: null, yard: YARD_NAMES.park });
       continue;
     }
     const D = S.yard === 'dock' ? ends.dock ?? null : (ends.depots ?? []).find((x) => x.yard === S.yard), from = D ? D.at : ends.spawn;
@@ -221,9 +223,10 @@ export function sweepRoute(ends, from, { stretches = SWEEP.stretches } = {}) {
 export const MOW_ROUND = Object.freeze({ time: 150, goal: 0.85 });
 // A GROUNDSKEEPER'S LAWN (m): the least a park is across to be mown; its cells' side, the most a round has (the nearest
 // the shed), how clear of the park's things and how far off a tree's trunk; how far up its path from its edge the shed
-// stands and its half sides (along the path, across it), the gap between it and the path; the most a path's end may step
+// stands and its half sides (along the path, across it), the gap between it and the path, how far toward its door its
+// mower is drawn up; the most a path's end may step
 // from the walk outside it and still be walked in at (a park on a terrace is walled where it stands over its walk)
-export const MOW = Object.freeze({ deep: 20, cell: 4, most: 140, clear: 0.3, tree: 1.2, spot: 1.5, shedHalf: Object.freeze([1.6, 1.4]), gap: 0.2, step: 0.5 });
+export const MOW = Object.freeze({ deep: 20, cell: 4, most: 140, clear: 0.3, tree: 1.2, spot: 1.5, shedHalf: Object.freeze([1.6, 1.4]), gap: 0.2, step: 0.5, forward: 0.4 });
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 /** A lawn to mow: the park nearest `from` (the start) at least MOW.deep across (ends.parks, geocity/scene.js). Its
  *  groundskeeper's shed beside its path, up from the edge nearest the start that is level with the walk outside it,

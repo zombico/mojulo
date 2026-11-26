@@ -180,9 +180,13 @@ describe('a groundskeeper\'s lawn (lawnOf)', () => {
     const W = lawnOf({ ...ends, ground: (x) => (x > 60 ? 0 : 2) });
     expect(W.shed.at[0]).toBeLessThan(10);
   });
-  it('its mower issued in the shed, nosed out of its door; none where no park is wide enough', () => {
+  it('its mower issued in the shed, nosed out of its door and drawn up to it; none where no park is wide enough', () => {
     const E = [{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }];
-    expect(issuedOf({ ...ends, kerbAt: () => null }, E, 'district')).toEqual([expect.objectContaining({ id: 'groundskeeping', at: L.shed.at, heading: L.shed.heading, model: 'loft:rideOnMower', yard: 'park' })]);
+    const [I] = issuedOf({ ...ends, kerbAt: () => null }, E, 'district');
+    expect(I).toMatchObject({ id: 'groundskeeping', heading: L.shed.heading, model: 'loft:rideOnMower', yard: 'park' });
+    // (drawn up to the door: one standing in the middle of the path reaches it, a cab's reach 2.6)
+    expect(Math.hypot(I.at[0] - L.shed.at[0], I.at[1] - L.shed.at[1])).toBeCloseTo(MOW.forward);
+    expect(Math.hypot(I.at[0] - L.shed.at[0] - Math.cos(L.shed.heading) * 2.8, I.at[1] - L.shed.at[1] - Math.sin(L.shed.heading) * 2.8)).toBeLessThan(2.6);
     expect(issuedOf({ ...ends, parks: [ends.parks[0]], kerbAt: () => null }, E, 'district')).toEqual([]);
   });
 });

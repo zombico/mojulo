@@ -99,8 +99,8 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(gk).toMatchObject({ mode: 'mow', vehicle: 'ride-on mower', yard: 'park', repeat: true, pitch: SHIFTS.groundskeeper.pitch, time: MOW_ROUND.time, goal: MOW_ROUND.goal, shed: { half: MOW.shedHalf } });
     expect(e.mount.pool.model).toBe('loft:rideOnMower');
     // (in the shed, sent back there when left)
-    expect(d(e.transform.pos, gk.shed.at)).toBeLessThan(0.01);
-    expect(d(gk.back, gk.shed.at)).toBeLessThan(0.01);
+    expect(d(e.transform.pos, gk.shed.at)).toBeCloseTo(MOW.forward, 2);
+    expect(d(gk.back, e.transform.pos)).toBeLessThan(0.01);
     expect(gk.stops.length).toBeGreaterThanOrEqual(40);
     for (const q of gk.stops) expect(q.half).toEqual([MOW.cell / 2, MOW.cell / 2]);
     // (no other mower in the city; no minigame window)
