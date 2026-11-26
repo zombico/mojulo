@@ -1108,7 +1108,10 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: '', kind: 'reach', at: t.at, radius: t.radius ?? 2, when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
     // (its script, gameworld/script.js: each line raised on the bus at its moment, shown on the page as comms)
     if (X0?.script) pilotPart = { ...pilotPart, events: { ...pilotPart.events, sequences: [...(pilotPart.events.sequences ?? []), ...scriptSequences(X0.script.lines)] }, comms: commsData(X0.script) };
-    if (ways.length || X0?.lessons?.length) pilotPart = { ...pilotPart, guide: { steps: ways, ...(X0?.lessons?.length ? { lessons: X0.lessons } : {}), done: '', top: 96 } };
+    // (a frame level that teaches: each lesson waits for the pilot to do it, no count shown; and the keys' legend along
+    // the bottom left off, the lessons saying each key as it comes: the screen is the game's)
+    if (ways.length || X0?.lessons?.length) pilotPart = { ...pilotPart, guide: { steps: ways, ...(X0?.lessons?.length ? { lessons: X0.lessons, strict: true } : {}), done: '', top: 96 } };
+    if (X0?.lessons?.length && Array.isArray(pilotPart.events?.hud)) pilotPart = { ...pilotPart, events: { ...pilotPart.events, hud: pilotPart.events.hud.filter((h) => !(h.slot === 'bottom' && h.ttl)) } };
     // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
     // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
     if (!audio) pilotPart = { ...pilotPart, audio: frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, airless: !!F.airless, flavor: F.flavor ?? null }) };

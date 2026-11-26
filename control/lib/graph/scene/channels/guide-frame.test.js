@@ -53,6 +53,19 @@ describe('a frame\'s lessons', () => {
     expect(G.win.__mojGuide.showing()).not.toBe('keys');
   });
 
+  it('strict: a lesson waits for the pilot to do it however long, with no count shown; otherwise it is let go after its patience', () => {
+    const lax = page(guide);
+    lax.step(0.05, 400);
+    expect(lax.at()).toBeGreaterThan(0);                    // (twenty seconds, never boosted: let go)
+    const S = page({ ...guide, strict: true });
+    S.step(0.05, 400);
+    expect(S.at()).toBe(0);                                  // (still the boost, waiting for it)
+    expect(guideScript({ ...guide, strict: true })).not.toContain("' / ' + LS.length");
+    expect(guideScript(guide)).toContain("' / ' + LS.length");
+    S.P.boosting = true; S.step(0.05, 40);
+    expect(S.at()).toBe(1);
+  });
+
   it('a word it does not teach, or a task it has not, is refused by name', () => {
     expect(() => readFrameLessons([{ teach: ['fly'] }], 2)).toThrow(/'fly'/);
     expect(() => readFrameLessons([{ teach: ['boost'], at: 3 }], 2)).toThrow(/at is the task \(1 to 2\)/);

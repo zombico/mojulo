@@ -14,7 +14,9 @@
  *              (true: held back dormant until an ace's phase calls it in) }]
  *     tasks    [{ down: <group id> | [ids] | true, text? } | { reach: [x, y], radius?, text? } | { scan: [x, y], radius?,
  *              seconds?, found?, text? } (stay in the ring while the readout fills) | { hold: seconds, text? }]
- *              a down task's groups stand dormant until it begins (objectives wake them); true: every group
+ *              a down task's groups stand dormant until it begins (objectives wake them); true: every group;
+ *              any task's `pause`: the seconds after the one before is met that it begins (a beat let breathe)
+ *     a group's `wary: true`: a unit that holds its fire until it is hit (a survey drone spotted, pointed out, engaged)
  *
  *   OPERATION                      the numbers: a unit's armour and guns at a frame's scale, a reach's radius
  *   readOperation(v, at)           → the operation; throws, teaching
@@ -101,7 +103,10 @@ export function readOperation(v, at = 'goal.operation') {
     if (g.mt !== undefined) { if (g.kind !== 'frame' || g.ace !== undefined) throw new Error(`${gat}.mt is a frame's, not an ace's`); readMt(g.mt, `${gat}.mt`); }
     // (a reserve: held back, dormant, until an ace's phase calls it in)
     if (g.reserve !== undefined && g.reserve !== true) throw new Error(`${gat}.reserve is true: held back till an ace calls it`);
-    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.reserve ? { reserve: true } : {}) };
+    // (wary: it goes about its own work, holding its fire until it is hit: a survey drone spotted before it is fought,
+    // the mind's `defensive` temperament, worlds/controllable/mind.js; a unit's, not a frame's)
+    if (g.wary !== undefined && (g.wary !== true || g.kind === 'frame')) throw new Error(`${gat}.wary is true: a unit that holds its fire until it is hit (not a frame)`);
+    return { id: g.id, kind: g.kind, count, at: g.at.slice(), spread: g.spread ?? 40, ...(g.kind === 'frame' ? { build: g.ace ? ACES[g.ace].build : g.mt ? MTS[g.mt].build : g.build ?? 'raptor' } : {}), ...(g.mt ? { mt: g.mt, palette: MTS[g.mt].palette } : {}), ...(g.ace ? { ace: g.ace, palette: ACES[g.ace].palette } : {}), ...(g.palette ? { palette: g.palette } : {}), ...(g.wary ? { wary: true } : {}), ...(g.reserve ? { reserve: true } : {}) };
   });
   if (!Array.isArray(v.tasks) || !v.tasks.length) throw new Error(`${at}.tasks is a list: { down }, { reach }, { hold }`);
   const tasks = v.tasks.map((t, i) => {
@@ -128,6 +133,12 @@ export function readOperation(v, at = 'goal.operation') {
       return { hold: t.hold, ...(t.text ? { text: t.text } : {}) };
     }
     throw new Error(`${tat} is { down } | { reach } | { scan } | { hold }`);
+  });
+  // (a task's pause: the seconds after the one before is met that it begins, a beat let breathe, game/objectives.js)
+  v.tasks.forEach((t, i) => {
+    if (t.pause === undefined) return;
+    if (!(Number.isFinite(t.pause) && t.pause > 0 && t.pause <= 30)) throw new Error(`${at}.tasks[${i}].pause is the seconds after the one before is met that it begins, up to 30`);
+    tasks[i] = { ...tasks[i], pause: t.pause };
   });
   // (its allies: frames on the pilot's side, a wingman who leads it through the operation's places and fights beside it)
   const allies = v.allies === undefined ? null : readAllies(v.allies, ids, `${at}.allies`);
@@ -258,7 +269,8 @@ export function operationMechanics(op, ends) {
     if (t.scan) { const [x, y] = placeOf(ends, t.scan); return { id: `t${i + 1}`, kind: 'scan', text: t.text ?? 'Scan the site: stay inside the ring', at: [x, y, r2(ends.ground(x, y))], radius: t.radius, seconds: t.seconds, planar: true, ...(t.found ? { found: t.found } : {}) }; }
     return { id: `t${i + 1}`, kind: 'hold', text: t.text ?? `Hold for ${t.hold} s`, seconds: t.hold };
   });
-  return [{ kind: 'objectives', tasks, say: 'line' }, { kind: 'fail-on-death', of: 'body' }];
+  // (quiet: the frame's own HUD says what it needs; the objectives show the task in hand and its own clock, no count)
+  return [{ kind: 'objectives', tasks: tasks.map((o, i) => (op.tasks[i].pause ? { ...o, pause: op.tasks[i].pause } : o)), say: 'line', quiet: true }, { kind: 'fail-on-death', of: 'body' }];
 }
 
 export function operationCast(op, ends) {
@@ -287,7 +299,7 @@ export function operationCast(op, ends) {
       figures[fig] = { unit: { kind: g.kind, form: true } };
       entities.push({
         id: m.id, team: 'foes', ...(dormant ? { dormant: true } : {}),
-        rule: { type: 'ai', space: true, speed: U.flight ? 0 : U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), ...(U.flight ? { flight: { ...U.flight } } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6 },
+        rule: { type: 'ai', space: true, speed: U.flight ? 0 : U.move ?? 0, turn: U.turn ?? 1.4, standoff: U.standoff ?? (U.move ? 120 : 0), ...(U.floor ? { floor: U.floor } : {}), ...(U.missiles ? { missiles: { ...U.missiles } } : {}), ...(U.shieldRaise ? { shieldRaise: U.shieldRaise } : {}), ...(U.flight ? { flight: { ...U.flight } } : {}), fireArc: 14, burst: 0.6, pause: 1.8, sightRange: U.range, eye: R * 0.6, ...(g.wary ? { mind: { aggressiveness: 'defensive' } } : {}) },
         ...(!U.rof ? {} : { weapon: { foeRound: true, fxColor: FOE_ROUND.color, fxScale: FOE_ROUND.size, fireClass: 'lob', auto: true, rof: U.rof, damage: U.damage, impact: 0.02, range: U.range, coreAngle: 2, assistAngle: 5, eye: R * 0.6, lobAngle: 0, projectileSpeed: U.speed, projectileGravity: 0, projRadius: 0.8, splashRadius: g.kind === 'tank' ? 4 : 0, fuse: U.range / U.speed * 1.3, noGround: true, passTeam: true, smokeTrail: g.kind === 'tank', fxColor: 0xff5a3a, foeRound: true, magazine: 9999 } }),
         body: { type: 'figure-rig', figure: fig, hittable: true, hp: U.hp, hpMax: U.hp, poise: 99, ...(U.shield ? { shield: { ...U.shield } } : {}), radius: R, egg: { a: R, c: r2(R * 0.6), cz: r2(U.hitAt ?? R * 0.4) }, aimH: r2(U.hitAt ?? R * 0.4), blast: 4 },
         transform: { pos: U.air ? [m.at[0], m.at[1], r2(m.at[2] + U.air)] : m.at, heading: toward(m.at), pitch: 0 },

@@ -27,6 +27,10 @@ export function guideScript(guide, { host = false } = {}) {
   // that waits for its task, `when`; a guide with neither is as it was, byte for byte)
   const L0 = Array.isArray(guide.lessons) ? guide.lessons : [];
   const frameFacts = L0.some((l) => FRAME_FACTS.has(l.fact) || /^fire-/.test(l.fact || '')), waits = L0.some((l) => l.when);
+  // (STRICT: a lesson waits for the pilot to do it, however long, and no count of them is shown: a level that teaches
+  // its controls as it is played, the player getting each right before the next; absent, a lesson is let go after its
+  // patience and numbered, as it was)
+  const strict = guide.strict === true;
   return `
 // --- the guide: the level's intro and the way on, one thing at a time (level/guide.js) ---
 (function () {
@@ -92,7 +96,7 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
     const frameDone = L.fact === 'boost' ? (ls.boost || 0) >= 0.6 : L.fact === 'quick-boost' ? (p.qbT || 0) > 0 : L.fact === 'climb' ? (ls.climb || 0) >= 0.5
       : L.fact === 'assault-boost' ? !!p.ab : L.fact === 'lock' ? !!p.locked : /^fire-/.test(L.fact || '') ? fired(L.fact.slice(5)) : null;
 ` : ''}    const done = ${frameFacts ? 'frameDone !== null ? frameDone : ' : ''}L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
-    if ((done && age >= LESSON.read) || age >= LESSON.patience) { li++; ls = null; if (li >= LS.length) phase = 'play'; }
+    if ((done && age >= LESSON.read)${strict ? '' : ' || age >= LESSON.patience'}) { li++; ls = null; if (li >= LS.length) phase = 'play'; }
   }
   const standing = (e) => e.team === 'foes' && !e.gone && !e.dormant && !e.downed && !(e.hp <= 0);
   // (a foe fallen: what a fight that counts its falls is won by; one asleep or sent away has not fallen)
@@ -127,7 +131,7 @@ ${waits ? `      // (a lesson that waits for its task, \`when\`: the objectives'
       V.goal = cur ? { say: cur.say, at: cur.at, d: Math.round(d) } : null;
       if (now < sayUntil) put('say', esc(sayText), sayText);
       else if (phase === 'intro') put('intro', esc(GD.intro), GD.intro);
-      else if (phase === 'lessons'${waits ? ' && !waiting' : ''}) put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys), '', [LS[li].keys]);
+      else if (phase === 'lessons'${waits ? ' && !waiting' : ''}) put('keys', ${strict ? '' : `'<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + `}capped(LS[li].keys), '', [LS[li].keys]);
       else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''), '', GD.introKeys);
       else if (atHeld) put('held', 'The way on is held while foes stand here', 'The way on is held while foes stand here');
       // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)

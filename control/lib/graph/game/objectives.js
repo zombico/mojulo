@@ -31,8 +31,13 @@
  * sealed puts a body that walks into it back (`back`), as the gauntlet's does.
  *
  * Params:
- *   { id?: 'obj', tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, planar?, foes?, gun?, seconds?, every?, waves?,
- *                           door?: { at, back, radius? }, gates?, pads?, band?, total?, who?, arrive? }] }
+ *   { id?: 'obj', quiet?, tasks: [{ id, kind, text, zone?: { at, half }, at?, radius?, planar?, foes?, gun?, seconds?, every?, waves?,
+ *                           door?: { at, back, radius? }, gates?, pads?, band?, total?, who?, arrive?, pause? }] }
+ *   pause  seconds after the one before is met that it begins (a beat let breathe: what was found said, a line spoken,
+ *          before the next is set); a pause on the first, after the level starts. Not met before it has begun: a place
+ *          reached in the pause is met as it begins
+ *   quiet  no count of the tasks met on the HUD (a level whose own HUD says what it needs): the task in hand's words, and
+ *          a task's own clock while it is in hand, are all it shows
  *   zone   the section's box (its centre and half-extents; or { at, radius }, a round one, for a section in an open
  *          place): walking into it begins the task (none: it begins as the one
  *          before is met; the first begins as the level starts)
@@ -116,13 +121,16 @@ export function lowerObjectives(p, ctx) {
     for (const f of [...(t.foes ?? []), ...(t.waves ?? []).flat()]) { if (woken.has(f)) fail(`${at}: '${f}' is woken twice (a foe is woken once: name another)`); woken.add(f); }
     if (t.zone !== undefined && !(t.zone && isVec(t.zone.at) && (isVec(t.zone.half) || (Number.isFinite(t.zone.radius) && t.zone.radius > 0)))) fail(`${at}.zone is { at: [x, y, z], half: [hx, hy, hz] } (the section's box) or { at, radius } (a round one)`);
     if (t.door !== undefined && !(t.door && isVec(t.door.at) && isVec(t.door.back))) fail(`${at}.door is { at, back }: the way on and where a body is put back while it is sealed`);
+    if (t.pause !== undefined && !(Number.isFinite(t.pause) && t.pause > 0 && t.pause <= 30)) fail(`${at}.pause is the seconds after the one before is met that it begins, up to 30`);
+    if (t.pause !== undefined && t.zone !== undefined) fail(`${at}: a task begun by its section (zone) takes no pause`);
   });
   const N = T.length, names = objectiveNames(id), cur = names.task, pre = `__${id}`;
   const beginE = (k) => `${pre}:begin:${k}`, metE = (k) => `${pre}:met:${k}`, advE = (k) => `${pre}:adv:${k}`;
   // (what the level keeps for its result: the tasks met, the foes downed, the seconds it took: the clock runs until the
   // last task is met)
   const downs = `${pre}_downs`, time = `${pre}_time`;
-  const world = { vars: { [cur]: 0, [downs]: 0, [time]: 0 }, reactions: [], watches: [], sequences: [], timers: [{ every: 1, emit: { type: `${pre}:sec` }, while: { var: cur, lt: N } }], hud: [], entities: [], sources: [], initial: [{ type: beginE(0) }] };
+  const world = { vars: { [cur]: 0, [downs]: 0, [time]: 0 }, reactions: [], watches: [], sequences: [], timers: [{ every: 1, emit: { type: `${pre}:sec` }, while: { var: cur, lt: N } }], hud: [], entities: [], sources: [], initial: [{ type: T[0].pause ? `${pre}:start` : beginE(0) }] };
+  if (T[0].pause) world.sequences.push({ id: `${pre}:pause:0`, trigger: { on: `${pre}:start` }, steps: [{ await: { timer: T[0].pause } }, { do: 'emit', type: beginE(0) }] });
   world.reactions.push({ on: `${pre}:sec`, do: 'inc', var: time, by: 1 });
   for (const f of woken) world.reactions.push({ on: 'down', match: { entity: f }, do: 'inc', var: downs, by: 1 });
   T.forEach((t, k) => {
@@ -144,6 +152,13 @@ export function lowerObjectives(p, ctx) {
       // floor over or under it)
       world.sources.push({ type: 'zone', zone, at: t.at.slice(), radius: Number.isFinite(t.radius) ? t.radius : t.kind === 'take' ? 1.4 : 2, planar: t.planar !== false, watch: ctx.player });
       world.reactions.push({ on: 'enter', match: { zone }, if: mine, do: 'emit', type: metE(k) });
+      // (paused: the place may be reached before it begins; inside it then, it is met as it begins)
+      if (t.pause) {
+        const there = `${pre}_there${k}`;
+        world.vars[there] = 0;
+        world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: there, to: 1 }, { on: 'exit', match: { zone }, do: 'set', var: there, to: 0 });
+        world.reactions.push({ on: beginE(k), if: { var: there, eq: 1 }, do: 'emit', type: metE(k) });
+      }
     } else if (t.kind === 'clear' || t.kind === 'man') {
       const d = names.downs(k);
       world.vars[d] = 0;
@@ -250,7 +265,11 @@ export function lowerObjectives(p, ctx) {
       world.timers.push({ every: 1, emit: { type: tick }, while: { var: on, eq: 1 } });
       world.reactions.push({ on: tick, do: 'inc', var: left, by: -1, min: 0 });
       world.watches.push({ type: metE(k), when: { var: left, lte: 0 } });
-      world.hud.push({ var: left, label: 'Hold', as: 'counter' });
+      // (its clock on the HUD only while it is in hand)
+      const shown = `${id}-hold-${k}`;
+      world.vars[`ui-${shown}`] = 0;
+      world.reactions.push({ on: beginE(k), do: 'set', var: `ui-${shown}`, to: 1 }, { on: advE(k), do: 'set', var: `ui-${shown}`, to: 0 });
+      world.hud.push({ var: left, label: 'Hold', as: 'counter', id: shown });
       if (waves.length) {
         world.sequences.push({ id: `${pre}:waves:${k}`, trigger: { on: 'objective:begin', task: t.id }, steps: waves.flatMap((_, w) => [{ await: { timer: w ? every : 1.5 } }, { do: 'emit', type: `${pre}:wave:${k}:${w}` }]) });
         waves.forEach((W, w) => {
@@ -263,10 +282,16 @@ export function lowerObjectives(p, ctx) {
     }
     world.reactions.push({ on: beginE(k), do: 'set', var: begun, to: 1 });
     // met while it is the one in hand: handed over (the guard read once, the hand-over its own event)
-    world.reactions.push({ on: metE(k), if: mine, do: 'emit', type: advE(k) });
+    // (a paused task is met only once it has begun: the guard read in two steps, the bus having no conjunctions)
+    if (t.pause) world.reactions.push({ on: metE(k), if: { var: begun, eq: 1 }, do: 'emit', type: `${pre}:met2:${k}` }, { on: `${pre}:met2:${k}`, if: mine, do: 'emit', type: advE(k) });
+    else world.reactions.push({ on: metE(k), if: mine, do: 'emit', type: advE(k) });
     world.reactions.push({ on: advE(k), do: 'set', var: cur, to: k + 1 }, { on: advE(k), do: 'emit', type: 'objective:done', n: k + 1, of: N, task: t.id });
-    if (k + 1 < N) { if (!T[k + 1].zone) world.reactions.push({ on: advE(k), do: 'emit', type: beginE(k + 1) }); }
-    else world.reactions.push({ on: advE(k), do: 'emit', type: 'objectives:done' });
+    // (the next begun as this is met, or its pause after)
+    if (k + 1 < N && !T[k + 1].zone) {
+      if (T[k + 1].pause) world.sequences.push({ id: `${pre}:pause:${k + 1}`, trigger: { on: advE(k) }, steps: [{ await: { timer: T[k + 1].pause } }, { do: 'emit', type: beginE(k + 1) }] });
+      else world.reactions.push({ on: advE(k), do: 'emit', type: beginE(k + 1) });
+    }
+    if (k + 1 >= N) world.reactions.push({ on: advE(k), do: 'emit', type: 'objectives:done' });
     // the way on: sealed until the task is met; walked into sealed, the body is put back
     if (t.door) {
       const seal = names.seal(k), zone = `${id}_door_${k}`;
@@ -286,7 +311,8 @@ export function lowerObjectives(p, ctx) {
   const line = p.say === 'line', say = Number.isFinite(p.say) && p.say > 0 ? p.say : 3;
   world.vars[names.say] = '';
   world.reactions.push({ on: 'objective:begin', do: 'set', var: names.say, to: 'event.text' });
-  world.hud.unshift({ var: cur, label: 'Objective', as: 'counter', max: N }, line ? { var: names.say, label: '', as: 'text', slot: 'top' } : { on: 'objective:begin', text: `{${names.say}}`, ttl: say }, { on: 'objective:sealed', text: 'The way on is sealed', as: 'toast', ttl: 1.2 });
+  if (p.quiet !== undefined && typeof p.quiet !== 'boolean') fail('quiet is true: no count of the tasks met on the HUD');
+  world.hud.unshift(...(p.quiet ? [] : [{ var: cur, label: 'Objective', as: 'counter', max: N }]), line ? { var: names.say, label: '', as: 'text', slot: 'top' } : { on: 'objective:begin', text: `{${names.say}}`, ttl: say }, { on: 'objective:sealed', text: 'The way on is sealed', as: 'toast', ttl: 1.2 });
   for (const ch of ['watches', 'sequences', 'timers', 'entities', 'sources']) if (!world[ch].length) delete world[ch];
   const banded = T.some((t) => t.kind === 'band'), landed = T.some((t) => t.kind === 'land');
   if (banded) world.vars[names.slip] = 0;
