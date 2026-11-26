@@ -6,9 +6,10 @@
  *   foe-lit      every foe is drawn under the level's own key: the cast rig of the page's land (`figure.cast`) or the
  *                room's lamps (`form.room.figures`), as the hero is; a body baked under its own studio light is not
  *   foe-moves    every state its rule plays has a pose of its own: it stands (`idle`, not the rest pose), it moves
- *                (`forward`), it strikes (`swing_*`) where it swings a blow, it fires (`fire`) where it carries a gun,
- *                it lifts (`lift`) where it throws a rock, and it winds up (`wind_*`) where the runtime holds it braced
- *                before its move (a charge's brace, a dive's telegraph): a blow's own wind-up is its swing clip's
+ *                (`forward`), it strikes (`swing_*`) where it swings a blow, it fires (`fire`) where it carries a gun
+ *                (`throw` where its throw is its body's), it lifts (`lift`) where it throws a rock, and it winds up
+ *                (`wind_*`) where the runtime holds it braced before its move (a charge's brace, a dive's telegraph;
+ *                `brace`, and `dive` for a dive, where its move is posed): a blow's own wind-up is its swing clip's
  *   foe-zone     every blow thrown at a strike zone (foes/zones.js: the legs, the body, from above) passes its weapon
  *                through that zone on the hero while it can hit: its measured path (the slot's `blade`, gameworld/foe-blade.js)
  *                meets the zone's band; a foe that names no zone is not asked
@@ -44,8 +45,12 @@ function needsOf(e) {
   if (melee.length || R.meleeSeek) needs.push('swing');
   // (a move the runtime holds braced before it goes: a charge's brace, a dive's telegraph, foe.js; a blow's wind-up is
   // played inside its swing, fauna/behavior/strike.js)
-  if (R.foe?.rush || R.foe?.dive) needs.push('wind');
-  if (isObj(e.weapon) || isObj(R.weapon)) needs.push('fire');
+  // (one whose move is posed, `foe.poses`, braces in a state of its own and dives in another: foe.js `posed`)
+  if (R.foe?.rush || R.foe?.dive) needs.push(R.foe?.poses ? 'brace' : 'wind');
+  if (R.foe?.dive && R.foe?.poses) needs.push('dive');
+  // (a thrower whose throw is its body's, `weapon.throw.clip`, fires in its throw: combat-ranged.js)
+  const W = isObj(e.weapon) ? e.weapon : isObj(R.weapon) ? R.weapon : null;
+  if (W) needs.push(W.throw?.clip ? 'throw' : 'fire');
   if (isObj(R.foe?.rock)) needs.push('lift');
   return needs;
 }
@@ -56,6 +61,9 @@ const HAS = {
   swing: (c) => Object.keys(c).some((k) => k.startsWith('swing_')),
   wind: (c) => Object.keys(c).some((k) => k.startsWith('wind_')),
   fire: (c) => !!c.fire,
+  throw: (c) => !!c.throw,
+  brace: (c) => !!c.brace,
+  dive: (c) => !!c.dive,
   lift: (c) => !!c.lift,
 };
 

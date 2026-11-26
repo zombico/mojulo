@@ -16,6 +16,10 @@
 - **A tall foe's aimed blow never breaks its level**: a strike pitch whose pose the rig cannot stand (a boss's planted
   foot out of its leg's reach) is out of reach to the aim's search (`worlds/world-kinds.js` aimedKeys), which draws in
   to the last it can, where it threw and the level failed to build.
+- **A flier dives from the air**: a swooper still rising to its perch, met on the ground where it spawned, climbs before
+  it braces (`worlds/controllable/foe.js`), where it braced on the ground and its dive ended where it began; a routed
+  flier hovers on its wings at rest. The foe audit reads the states a posed move and a thrown weapon play (`brace`,
+  `dive`, `throw`), where it asked for a wind-up and a gun's fire they never play.
 - **Throwers throw** (the `throw` and `toss` cards): the body winds a real throw and the round leaves at its release.
 - **Fable of Artesia's cast**: the goblin band (raiders who chop, a slinger who throws) under orc leaders who maul,
   wolves, a boar that braces and charges, cave bats; foes lit by each level's own cube, the target rim only on a lock.

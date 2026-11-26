@@ -84,6 +84,23 @@ describe('the foe families: the rails whose foes walk as their bodies do', () =>
     expect(run(false)).not.toContain('brace');
   });
 
+  it('a flier met on the ground where it spawned climbs to its perch before it braces, then dives at the hero', () => {
+    const E = composeLive(), DT = 1 / 30;
+    const diver = Object.values(FOE_CLASSES).find((c) => c.move === 'swoop' || MOVES[c.move]?.rule?.flier), f = resolveFoe({ class: diver.id }), D = f.entity.rule.foe.dive;
+    const foe = { id: 'f', team: 'foes', rule: { ...f.entity.rule, eye: 0, collideRadius: 0.3, collideHeight: 0.5 }, body: { type: 'none', hp: 3 }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const hero = { id: 'p', pilotable: true, rule: { type: 'platform', speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'none', hittable: true, hp: 1e6 }, transform: { pos: [Math.min(4, D.radius * 0.6), 0, 0], heading: Math.PI } };
+    const st = E.createWorld({ entities: [foe, hero] });
+    let firstBrace = null, closest = Infinity;
+    for (let i = 0; i < 300; i++) {
+      E.stepWorld(st, {}, DT, { ground: () => 0 });
+      const e = st.byId.f;
+      if (firstBrace === null && e.foeDive === 'brace') firstBrace = e.transform.pos[2];
+      if (e.foeDive === 'dive' || e.foeDive === 'climb') closest = Math.min(closest, Math.hypot(e.transform.pos[0] - hero.transform.pos[0], e.transform.pos[1], e.transform.pos[2] - 0.6));
+    }
+    expect(firstBrace).toBeGreaterThan(D.altitude - 0.6);
+    expect(closest).toBeLessThan(0.8);
+  });
+
   it('a beast made to brace gathers in its channel and is stunned in its flinch; a flier braces and dives on its wings', () => {
     const rusher = Object.values(FOE_CLASSES).find((c) => c.move === 'rush');
     expect(foeGaitOf({ class: rusher.id }).brace).toBe(true);

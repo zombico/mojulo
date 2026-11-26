@@ -223,7 +223,8 @@ export function buildFoe(E) {
       const a = e.foeT * 0.9, w = [perch[0] + Math.cos(a) * 2, perch[1] + Math.sin(a) * 2, perch[2]];
       fly(w, (r.speed ?? 3) * 0.5);
       const near = nearestPilot(e, world);
-      if (near && near.d < D.radius && !((e.foeCool || 0) > e.foeT)) { e.foeDive = 'brace'; e.foeT = 0; e.foeAim = [near.p.transform.pos[0], near.p.transform.pos[1], near.p.transform.pos[2] + 0.6]; }
+      // (it braces from the air: a flier still rising to its perch, met on the ground where it spawned, climbs first)
+      if (near && near.d < D.radius && t.pos[2] >= perch[2] - 0.5 && !((e.foeCool || 0) > e.foeT)) { e.foeDive = 'brace'; e.foeT = 0; e.foeAim = [near.p.transform.pos[0], near.p.transform.pos[1], near.p.transform.pos[2] + 0.6]; }
     } else if (S === 'brace') {
       t.heading = angleTo(t.pos, e.foeAim); e.moving = false; e.locomotion = 'idle';
       if (r.foe.poses) posed(e, 'brace', e.foeT / Math.max(0.05, D.telegraph));

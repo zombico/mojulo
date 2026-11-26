@@ -205,14 +205,15 @@ export function beastMovesOf(species, { strike, battle = false, way = null, gait
 
 export function beastFieldOf(species, { strike, battle = false, way = null, gait = null } = {}) {
   const g = beastGaitsOf(species), M = beastMovesOf(species, { strike, battle, way, gait });
-  // (a routed foe's gait: it walks at its walk and runs at its run, idles in its relax loop, and a flier flies)
+  // (a routed foe's gait: it walks at its walk and runs at its run, idles in its relax loop, and a flier flies, hovering
+  // on its wings at rest)
   if (gait) {
     const flies = gait.fly && motionGaits(species).includes('fly'), relax = motionBehaviors(species).includes('relax');
     const glides = flies && motionGaits(species).includes('glide'), channels = !flies && gait.brace && strikeWaysOf(species).includes('channel'), flinches = motionReactions(species).includes('flinch');
     // (its own move's moments, foe.js `foe.poses`: the brace its gathering or, aloft, its wingbeat; the dive its glide; the
     // stun its flinch, slowed)
     const poses = { ...(flies ? { brace: 'fly', dive: glides ? 'glide' : 'fly' } : channels ? { brace: 'channel' } : {}), ...(flinches ? { stun: 'flinch' } : {}) };
-    return { own: { forward: flies ? 'fly' : g.at(-1), walk: flies ? 'fly' : g[0], turn: g[0], strafe: flies ? 'fly' : g.at(-1), ...(relax ? { idle: 'relax' } : {}), ...poses }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
+    return { own: { forward: flies ? 'fly' : g.at(-1), walk: flies ? 'fly' : g[0], turn: g[0], strafe: flies ? 'fly' : g.at(-1), ...(flies ? { idle: 'fly' } : relax ? { idle: 'relax' } : {}), ...poses }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
   }
   return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
 }
