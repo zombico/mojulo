@@ -12,7 +12,7 @@
 {"kind": "shift", "mode": "collect", "id": "bin-round", "depot": [85, 413, 32], "half": [20, 12], "cabs": ["car-121"], "stops": [{"at": [183, 287, 16]}], "load": 4, "hold": 1.5, "unload": {"at": [688, 431, 22], "half": [17, 10]}, "reward": [{"item": "coin", "n": 40}], "repeat": true, "after": "took-bin-round", "vehicle": "garbage truck", "yard": "works yard", "done": "Garbage collected"}
 ```
 
-- `mode` — `collect` (piles held at until `load` fill it, emptied at `unload`, the depot where none), `route` (its `stops` held at in order; the last pays), `haul` (driven to its `site`; got out there, warped back to `back`).
+- `mode` — `collect` (piles held at until `load` fill it, emptied at `unload`, the depot where none), `route` (its `stops` held at in order; the last pays), `haul` (driven to its `site`; got out there, warped back to `back`; several `calls` in turn), `dig` (an operated machine: the page says `shift:scoop:<id>` and `shift:tip:<id>`, `loads` of them pay).
 - `depot`, `half` or `radius` — where its vehicle is had.
 - `cabs` — the ids of the vehicles it is done in (gameworld/cars.js `car-<i>`): getting into one clocks in.
 - `stops` — a collect's piles or a route's stops, each `{ at, radius? (7) }`.

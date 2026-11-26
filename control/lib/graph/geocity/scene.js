@@ -1311,7 +1311,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       box(q[0], q[1], q[2], q[3], zc, z1, ston, roofs[strHash(b.id) % roofs.length], 'geocity:slab');
       lights(q[0], q[1], q[2], q[3], zc, z1, resid, Rb);
       frontOf(b, q, zc, med, resid, 'residential');
-    } else if (b.kind === 'construction') { going(b, { x0, y0, x1, y1, longY, zAt, Rb, far }); if (Array.isArray(ctx.lots) && !far) ctx.lots.push({ id: b.id, kind: 'construction', rect: [r5(x0), r5(y0), r5(x1), r5(y1)], z: r5(zAt(cx, cy)) }); }
+    } else if (b.kind === 'construction') { if (Array.isArray(ctx.lots) && !far) ctx.lots.push({ id: b.id, kind: 'construction', rect: [r5(x0), r5(y0), r5(x1), r5(y1)], z: r5(zAt(cx, cy)) }); going(b, { x0, y0, x1, y1, longY, zAt, Rb, far }); }
     else if (b.kind === 'parking') parked(b, { x0, y0, x1, y1, longY, zAt, Rb });
     // (a vacant block by its neighbourhood's sites its contractor's yard, fleets.js: their machines staged on it)
     else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt, 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
@@ -1386,8 +1386,11 @@ export function assembleGeocityScene(m, ctx = {}) {
     // inside the hoarding, near the camera: an excavator digging on the band beside the building, facing it, and a
     // tipper waiting on the band along its front, nose along it (each where the band is wide enough to hold it)
     const bx = x1 - (x1 - q[2]) / 2, by = y0 + (q[1] - y0) / 2;
-    if (x1 - q[2] >= 7) siteNear('digger', [bx, cy, zc], Math.PI / 2);
-    if (q[1] - y0 >= 6) siteNear('truck', [cx, by, zc], -Math.PI / 2);
+    // (a level that asks, `ctx.lots`, is told where they stand: a job's excavator to operate and the tipper it loads,
+    // gameworld/jobsified.js; one it operates, `ctx.operated` (its block's id), is the level's and not drawn here)
+    const staged = Array.isArray(ctx.lots) ? ctx.lots.find((Q) => Q.id === b.id) : null;
+    if (x1 - q[2] >= 7) { if (!ctx.operated?.includes(b.id)) siteNear('digger', [bx, cy, zc], Math.PI / 2); if (staged) staged.digger = { at: [r5(bx), r5(cy), r5(zc)], rotZ: r5(Math.PI / 2) }; }
+    if (q[1] - y0 >= 6) { siteNear('truck', [cx, by, zc], -Math.PI / 2); if (staged) staged.truck = { at: [r5(cx), r5(by), r5(zc)], rotZ: r5(-Math.PI / 2) }; }
     // (and its mixer on the band along its back: the construction shelf's)
     if (y1 - q[3] >= 6) machineAt('mixerTruck', [cx, y1 - (y1 - q[3]) / 2, zc], Math.PI / 2);
     // near: scaffolding up its two long faces, a bay every 2 m along and every lift up

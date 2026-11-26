@@ -75,14 +75,16 @@ export function proveErrands(world, manifests) {
       if (!Sh) return { errand: E.id, proved: false, legs: [], assumed: [], arrives: [], says: `the giver's level '${E.giver}' lays no driving job for it` };
       const events = [...(Tk ? [{ type: `app:sub:${Tk.app}` }, { type: `app:take:${E.id}` }] : []), { type: 'mounted', rider: 'hero', mount: Sh.cabs[0] }];
       const mode = Sh.mode ?? 'route', unload = Sh.unload?.at ?? Sh.depot;
-      const walk = mode === 'haul' ? [Sh.site.at] : mode === 'collect' ? Sh.stops.slice(0, Sh.load).map((q) => ({ at: q.at, hold: E.id })) : Sh.stops.map((q) => ({ at: q.at, hold: E.id }));
+      const walk = mode === 'dig' ? [] : mode === 'haul' ? [Sh.site.at] : mode === 'collect' ? Sh.stops.slice(0, Sh.load).map((q) => ({ at: q.at, hold: E.id })) : Sh.stops.map((q) => ({ at: q.at, hold: E.id }));
       // (a job that asks for papers, a licence: held, as if bought at the forger)
       const papers = Tk?.needs?.item ? { [`held:bag:${Tk.needs.item}`]: 1 } : {};
-      const r = visit(H, store, { ...bag, ...papers }, mode === 'collect' ? [...walk, unload] : walk, events);
-      const proved = r.log.includes(`errand:done:${E.id}`), where = mode === 'haul' ? (Sh.site.to ?? 'site') : mode === 'collect' ? (Sh.unload ? 'dump' : Sh.yard ?? 'depot') : 'last stop';
+      // (a dig: the operator's scoops and tips given, a truck's worth, the page's to say)
+      const dig = mode === 'dig' ? Array.from({ length: Sh.loads }, () => [{ type: `shift:scoop:${E.id}` }, { type: `shift:tip:${E.id}` }]).flat() : [];
+      const r = visit(H, store, { ...bag, ...papers }, mode === 'dig' ? [] : mode === 'collect' ? [...walk, unload] : walk, [...events, ...dig]);
+      const proved = r.log.includes(`errand:done:${E.id}`), where = mode === 'haul' ? (Sh.site.to ?? 'site') : mode === 'collect' ? (Sh.unload ? 'dump' : Sh.yard ?? 'depot') : mode === 'dig' ? 'tipper' : 'last stop';
       bag = r.bag;
       return { errand: E.id, proved, legs: [{ item: mode, level: E.giver, bag: { ...bag } }], assumed: [`the hero gets into the ${Sh.vehicle ?? 'vehicle'} (${Sh.cabs[0]}): the proof cannot drive`, ...(Tk?.needs ? [`the hero holds the ${Tk.needs.name ?? Tk.needs.item}, bought at the forger`] : [])], arrives: [],
-        says: proved ? `driven: ${mode === 'haul' ? 'to the ' + where : mode === 'collect' ? `${Sh.load} piles held at and emptied at the ${where}` : `${Sh.stops.length} stops held at in order`}: paid` : `the ${where} did not pay: ${r.log.filter((t) => typeof t === 'string' && t.startsWith('flag:stop-')).length} piles or stops made` };
+        says: proved ? `driven: ${mode === 'dig' ? `${Sh.loads} bucketfuls scooped and tipped (given: the operator's)` : mode === 'haul' ? 'to the ' + where : mode === 'collect' ? `${Sh.load} piles held at and emptied at the ${where}` : `${Sh.stops.length} stops held at in order`}: paid` : `the ${where} did not pay: ${r.log.filter((t) => typeof t === 'string' && t.startsWith('flag:stop-')).length} piles or stops made` };
     }
     const legs = [], assumed = [], missing = [];
     const solvable = E.laws.find((l) => l.law === 'solvable');

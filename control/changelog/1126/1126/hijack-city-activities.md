@@ -15,6 +15,10 @@
 - **A fake ID.** The city has a forger: walk in with 150 and walk out with a forged heavy machinery licence. The heavy
   vehicle call can't be taken without one; the phone says what it needs and who sells it. A world turns the forger on
   with `shops: { forger: true }`; Hijack City has one.
+- **Dig and load.** A side game at a building site, for licence holders: climb into the site's excavator and work it
+  with an operator's levers, A/D to swing, W/S for the arm, the arrow keys for the boom and the bucket. Dig into the
+  pile of spoil, curl the bucket to scoop, swing over the waiting tipper and open it to tip. Three loads fill the truck
+  and pay. The boom, arm, bucket and their hydraulic rams all move as the real machine's do.
 - **Bus route.** A bus waits at the kerb by the depot. Its stops come in order, each with a sign and people waiting.
   Pull up and hold F to open the doors: the waiting people walk over and board, and the ones who got on at the stop
   before get off and walk away. The last stop pays and the route starts again.

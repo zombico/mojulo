@@ -70,7 +70,7 @@ import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
 import { patrolCar, depotCabs, issuedCabs } from './cars.js';
-import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues } from './jobsified.js';
+import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf } from './jobsified.js';
 import { FORGED } from './shops.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
@@ -684,7 +684,7 @@ function geocityEnds(manifest) {
   }), enumerable: false });
   // (its LOTS near the eye: each empty lot and building site, its box and its middle on the ground, an empty lot's open
   // side: where a driving job builds its dump or sends a load, jobsified.js)
-  Object.defineProperty(out, 'lots', { value: emptyLots.map((Q) => ({ id: Q.id, kind: Q.kind, rect: Q.rect, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]), ...(Q.open ? { open: Q.open } : {}) })), enumerable: false });
+  Object.defineProperty(out, 'lots', { value: emptyLots.map((Q) => ({ id: Q.id, kind: Q.kind, rect: Q.rect, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]), ...(Q.open ? { open: Q.open } : {}), ...(Q.digger ? { digger: Q.digger } : {}), ...(Q.truck ? { truck: Q.truck } : {}) })), enumerable: false });
   // (its DUMP, where it asks for one, `geocity.dump`: the tipping hall's middle on its floor and its box)
   Object.defineProperty(out, 'dump', { value: dumpAt[0] ? { id: dumpAt[0].id, at: on(dumpAt[0].at), half: dumpAt[0].half } : null, enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
@@ -1906,6 +1906,16 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
             ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
         };
         const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done };
+        // A DIG: its machine operated where a building site stages its excavator, its pile and its tipper beside it
+        // (jobsified.js operatedOf; the machine a cab after every car, cars.js carsExtra `operate`)
+        if (S.mode === 'dig') {
+          const O = operatedOf(ends, city.errands ?? [], stage.level).find((x) => x.id === L.id);
+          if (!O) { unlaid.add(k); continue; }
+          used.push(O.at, O.pile.at, O.truck.at);
+          legs[k] = { ...base, depot: O.at.slice(), radius: ERRAND_DRIVE.reach, cabs: [O.cab], vehicle: S.vehicle, yard: 'building site', site: O.site, machine: O.archetype, pile: O.pile, bed: O.bed, truck: O.truckCab, loads: S.loads };
+          task();
+          continue;
+        }
         // ITS VEHICLE: issued at the kerb by its yard (a row with a fleet: a haul's truck, a route's bus), or one of the
         // depot's own nearest the start (a collect's garbage trucks)
         let from;

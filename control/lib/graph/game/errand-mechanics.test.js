@@ -244,10 +244,24 @@ describe('shift: a driving job in a city vehicle, from its depot and back (gamew
     const mid = drive([CALLS, TASK], [take, inCab('car-7'), { at: [400, 0, 0] }, out('car-7')]);
     expect([mid.vars['call-bins'], mid.vars['flag-on-bins-1'], mid.vars['flag-done-bins-1']]).toEqual([2, 1, 1]);
   });
+  // DIG: an operated machine; the page says each scoop and each tip
+  const DIG = { kind: 'shift', mode: 'dig', id: 'bins', depot: [0, 0, 0], cabs: ['op-bins'], loads: 2, reward: [{ item: 'coin', n: 70 }], after: 'took-bins', repeat: true };
+  const scoop = { ev: { type: 'shift:scoop:bins' } }, tip = { ev: { type: 'shift:tip:bins' } };
+  it('dig: in the machine, a scoop fills the bucket and a tip empties it into the truck; its loads pay and the truck goes off empty', () => {
+    const r = drive([DIG, TASK], [take, inCab('op-bins'), scoop, tip, scoop, scoop, tip]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+    expect(r.vars[H('coin')]).toBe(70);
+    expect([r.vars['load-bins'], r.vars['bucket-bins']]).toEqual([0, 0]);
+    // (a tip with nothing in the bucket, or out of the machine, or before the job is taken: nothing)
+    expect(drive([DIG, TASK], [take, inCab('op-bins'), tip, tip]).vars['load-bins']).toBe(0);
+    expect(drive([DIG, TASK], [take, scoop, tip]).vars['load-bins']).toBe(0);
+    expect(drive([DIG, TASK], [inCab('op-bins'), scoop, tip]).vars['load-bins']).toBe(0);
+  });
   it('a malformed shift says what is wrong', () => {
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...COLLECT, load: 9 }, EXIT], ctx)).toThrow(/load is how many/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...HAUL, site: undefined }, EXIT], ctx)).toThrow(/site is/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, mode: 'fly' }, EXIT], ctx)).toThrow(/mode is/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...DIG, loads: 0 }, EXIT], ctx)).toThrow(/loads is/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, cabs: [] }, EXIT], ctx)).toThrow(/cabs is the ids/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, stops: [] }, EXIT], ctx)).toThrow(/stops is/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, depot: [1, 2] }, EXIT], ctx)).toThrow(/depot is/);

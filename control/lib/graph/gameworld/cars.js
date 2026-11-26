@@ -17,7 +17,9 @@
  *                            issuedOf), after all of them
  *   depotCabs(ends, role, { roles? }) → [{ depot, ids }]: each depot keeping the role's vehicles, and their cab ids
  *   issuedCabs(ends, issue, { roles? }) → the cab ids of the issued trucks, in order
- *   carsExtra({ roles?, issue? }) → (ends) → { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
+ *   carsExtra({ roles?, issue?, operate? }) → (ends) → (`operate`: a dig job's machines, jobsified.js operatedOf: its
+ *                            machine got into and never driven, `op-<job>`, drawn by scene/channels/operate.js; its
+ *                            tipper a cab from the pool, `op-<job>-truck`; after every car, so no car's id moves) { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
  *                            body drawn from the town's own template of its model (`mount.pool`), and the spares a
  *                            vehicle taken from the traffic becomes
  *   patrolCar({ id, at, heading, model, paint, target, roads, posts })
@@ -85,7 +87,7 @@ export function depotCabs(ends, role, { roles = [role] } = {}) {
 const cab = (hull, height = null) => ({ cab: true, hull, reach: Math.max(CAB.reach, hull[0] + 2), stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...(height === null ? CAB.camera : cabView({ length: 2 * hull[1], height }, CAB.camera, CAB_VIEW)), pullIn: CAB.pullIn } });
 const box = (rule) => ({ ...rule, eye: 0, collideRadius: CAB.radius, collideHeight: CAB.height, step: CAB.step });
 
-export function carsExtra({ roles = [], issue = null } = {}) {
+export function carsExtra({ roles = [], issue = null, operate = null } = {}) {
   return (ends) => {
     const cars = levelCars(ends, { roles, issue: typeof issue === 'function' ? issue(ends) : issue ?? [] });
     if (!cars.length) return null;
@@ -105,6 +107,13 @@ export function carsExtra({ roles = [], issue = null } = {}) {
         transform: { pos: [r3(c.at[0]), r3(c.at[1]), r3(c.at[2])], heading: r3(c.heading) },
       });
     });
+    // (a dig job's machine, operated where it stands: a cab got into, its rule still, its body the operate channel's;
+    // and its tipper, a cab of the pool's)
+    for (const O of typeof operate === 'function' ? operate(ends) : operate ?? []) {
+      const M = carModel(`site:${O.archetype}`), T = carModel(O.truck.model), at = (p) => p.map(r3);
+      part.entities.push({ id: O.cab, pilotable: false, rule: { type: 'static' }, mount: { ...cab([r3(M.W / 2), r3(M.L / 2)], M.H), operate: O.id }, body: { type: 'none' }, transform: { pos: at(O.at), heading: r3(O.heading) } });
+      part.entities.push({ id: O.truckCab, pilotable: false, rule: box(ruleOf(O.truck.model)), mount: { ...cab([r3(T.W / 2), r3(T.L / 2)], T.H), pool: { model: O.truck.model, tint: lin('#d8d4ca') } }, body: { type: 'none' }, transform: { pos: at(O.truck.at), heading: r3(O.truck.heading) } });
+    }
     // (the spares: out of the world until a vehicle is taken from the traffic, then that vehicle)
     const at = cars[0].at;
     for (let k = 0; k < CAB.spares; k++) part.entities.push({

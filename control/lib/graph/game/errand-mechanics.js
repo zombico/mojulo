@@ -48,7 +48,10 @@
  *                                `back` (its spot by the yard) for the next. A haul of several `calls` ({ cab, site,
  *                                back, vehicle }: a heavy call's) works them in turn (`call-<id>`), only the vehicle
  *                                called counting; the last back, the first is called again
- *                       { id, mode?: 'route', depot: [x, y, z], radius? | half?, cabs: [entity id], stops?: [{ at, radius? }],
+ *                       dig      an operated machine (an excavator): the page says each scoop and each tip
+ *                                (`shift:scoop:<id>`, `shift:tip:<id>`); a full bucket tipped is a load, `loads` of
+ *                                them pay and the truck goes off empty
+ *                       { id, mode?: 'route', depot: [x, y, z], radius? | half?, cabs: [entity id], stops?: [{ at, radius? }], loads?,
  *                         load?, hold?, unload?: { at, half }, site?: { at, half | radius }, back?: [x, y, z],
  *                         reward?, repeat?, after?, vehicle?, yard?, done? }
  *                       Flags (the guide's and the journal's): `on-<id>` clocked in; `stop-<id>-<k>` a stop or a pile;
@@ -391,16 +394,17 @@ export function lowerShift(p, ctx) {
   const at0 = `shift[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   ctx.resolve('inventory', p.slice ?? BAG, at0);
   const mode = p.mode ?? 'route';
-  if (!['route', 'collect', 'haul'].includes(mode)) fail('mode is route, collect or haul');
+  if (!['route', 'collect', 'haul', 'dig'].includes(mode)) fail('mode is route, collect, haul or dig');
   if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
   if (!isVec(p.depot)) fail('depot is [x, y, z]: the yard its vehicle is had from');
   if (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c)) fail('cabs is the ids of the vehicles it is done in, at least one');
-  if (mode !== 'haul' && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
+  if ((mode === 'route' || mode === 'collect') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
   // (a haul's CALLS: each a vehicle of its own (`cab`), where it is driven (`site`) and where it is taken back to (`back`),
   // worked in turn; one call is the shift's own `cabs[0]`, `site` and `back`)
   const calls = mode !== 'haul' ? [] : Array.isArray(p.calls) && p.calls.length ? p.calls : [{ cab: p.cabs[0], site: p.site, back: p.back }];
   if (calls.some((c) => !c || typeof c.cab !== 'string' || !c.site || !isVec(c.site.at))) fail('site is { at: [x, y, z], half? | radius? }: where a haul is driven (each of its calls { cab, site, back })');
   if (mode === 'collect' && !(posInt(p.load) && p.load <= p.stops.length)) fail('load is how many piles fill the vehicle, 1 to its piles');
+  if (mode === 'dig' && !posInt(p.loads)) fail('loads is how many bucketfuls fill the truck, from 1');
   const reward = p.reward === undefined ? [] : p.reward;
   if (!Array.isArray(reward) || reward.some((r) => !r || typeof r.item !== 'string' || (r.n !== undefined && !posInt(r.n)))) fail('reward is [{ item, n? }]: what it pays');
   if (p.after !== undefined && (typeof p.after !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.after))) fail('after is the flag taking the job sets (took-bin-round)');
@@ -414,7 +418,7 @@ export function lowerShift(p, ctx) {
     for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: paid }, frag);
     R.push({ on: paid, do: 'set', var: `flag-${done}`, to: 1 }, { on: paid, do: 'emit', type: `flag:${done}` }, { on: paid, do: 'emit', type: `errand:done:${id}` });
     // (paid: a card in the middle, its name over what it paid, slammed in the game's look: game/hud-mana.js banner)
-    frag.hud.push({ on: paid, as: 'banner', text: mode === 'haul' ? 'Delivered' : mode === 'route' ? 'Route complete' : 'Round complete', sub: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Done'}${p.repeat === true ? ' · another when you are ready' : ''}` });
+    frag.hud.push({ on: paid, as: 'banner', text: mode === 'haul' ? 'Delivered' : mode === 'route' ? 'Route complete' : mode === 'dig' ? 'Truck loaded' : 'Round complete', sub: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Done'}${p.repeat === true ? ' · another when you are ready' : ''}` });
   };
   // (a one-off pays once: its way to its pay is shut once paid)
   const once = (from, to) => R.push(p.repeat === true ? { on: from, do: 'emit', type: to } : { on: from, if: { var: `flag-${done}`, eq: 0 }, do: 'emit', type: to });
@@ -532,6 +536,22 @@ export function lowerShift(p, ctx) {
     payOut(paid);
     R.push({ on: paid, do: 'set', var: dv, to: 1 });
   }
+  if (mode === 'dig') {
+    // OPERATED (the page says each scoop and each tip of the machine's bucket: scene/channels/operate.js
+    // `shift:scoop:<id>`, `shift:tip:<id>`), in the machine: a scoop fills an empty bucket; a full bucket tipped into the
+    // truck is a load, `loads` of them fill it, which pays and it is sent off empty
+    const bucket = `bucket-${id}`, load = `load-${id}`, L = p.loads, paid = ev('paid');
+    Object.assign(frag.vars, { [bucket]: 0, [load]: 0 });
+    R.push({ on: ev('scoop'), if: { var: inV, gte: 1 }, do: 'emit', type: `${ev('scoop')}:in` }, { on: `${ev('scoop')}:in`, if: { var: bucket, eq: 0 }, do: 'emit', type: ev('full') });
+    R.push({ on: ev('full'), do: 'set', var: bucket, to: 1 });
+    R.push({ on: ev('tip'), if: { var: inV, gte: 1 }, do: 'emit', type: `${ev('tip')}:in` }, { on: `${ev('tip')}:in`, if: { var: bucket, gte: 1 }, do: 'emit', type: ev('tipped') });
+    R.push({ on: ev('tipped'), do: 'set', var: bucket, to: 0 }, { on: ev('tipped'), do: 'inc', var: load, by: 1 }, { on: ev('tipped'), do: 'inc', var: n, by: 1 }, { on: ev('tipped'), if: { var: load, gte: L }, do: 'emit', type: `${ev('tipped')}:full` });
+    once(`${ev('tipped')}:full`, paid);
+    frag.hud.push({ on: ev('full'), as: 'toast', text: 'Bucket full: swing over the tipper and open it', ttl: 2 }, { on: ev('tipped'), as: 'toast', text: typeof p.done === 'string' && p.done ? p.done : 'Tipped', ttl: 1.4 });
+    payOut(paid);
+    R.push({ on: paid, do: 'set', var: load, to: 0 });
+  }
+
   return {
     world: { ...frag, sources },
     produces: reward.length ? [{ type: 'grant', slice: BAG }] : [],

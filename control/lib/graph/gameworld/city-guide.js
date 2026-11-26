@@ -105,6 +105,11 @@ export function jobsOf(mechanics) {
       steps.push({ id: `collect-${Sh.id}`, say: `${Sh.stop ?? 'Collect'} · hold ${CITY_GUIDE.hold}`, at: at3(Sh.stops[0].at), radius: 0, near: Sh.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${Sh.id}-${k + 1}` })), when: `flag-full-${Sh.id}`, flag: `full-${Sh.id}` });
       const U = Sh.unload ?? { at: Sh.depot, radius: r };
       steps.push(last({ id: `unload-${Sh.id}`, say: `Take the full ${vehicle} to ${Sh.unload ? 'the dump' : `the ${yard}`}`, at: at3(U.at), radius: reach(U) }));
+    } else if (mode === 'dig') {
+      // (operated where it stands: in the machine, then its loads into the tipper; worked at one place, so no round:
+      // the guide waits on its first truck loaded, and the operate channel's line says the rest)
+      loop = null;
+      steps.push({ id: `dig-${Sh.id}`, say: `Load the tipper: dig into the pile, tip it into the truck`, at: at3(Sh.bed?.at ?? Sh.depot), radius: 0, when: `flag-done-${Sh.id}`, ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
     } else if (Array.isArray(Sh.calls) && Sh.calls.length > 1) {
       // (a heavy call: each call its vehicle taken where it stands and driven to its site, in turn, each waited on by its
       // own flags; the round from the first)
@@ -151,7 +156,7 @@ export function cityGuide(manifest) {
     // after the taking; a standing one goes back to its first stop after its way back)
     if (J.shift) {
       const at = steps.length + (J.steps[0]?.take ? 1 : 0);
-      if (J.starts) rounds.push({ when: `flag-${J.starts}`, at, ...(J.repeat ? { from: steps.length + J.loop, end: steps.length + J.steps.length } : {}) });
+      if (J.starts) rounds.push({ when: `flag-${J.starts}`, at, ...(J.repeat && J.loop != null ? { from: steps.length + J.loop, end: steps.length + J.steps.length } : {}) });
     } else if (J.repeat && loop === null) loop = steps.length + (J.steps[0]?.take ? 1 : 0);   // (a standing job goes round again from its pick-up: it is taken once)
     for (const { flag: _flag, take: _take, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
   }

@@ -14,7 +14,7 @@ import { proveErrands, lastStageManifests } from './errand-proof.js';
 import { SHIFT, SHIFTS, HEAVY_VEHICLES } from './jobsified.js';
 
 const world = hijackCityWorld(), steps = runSteps(world, { ref: 'hc' }), level = steps.find((x) => x.key.startsWith('level-')).order.manifest, M = level.game.mechanics;
-const bins = M.find((m) => m.kind === 'shift' && m.id === 'bin-round'), haul = M.find((m) => m.kind === 'shift' && m.id === 'heavy-haul'), bus = M.find((m) => m.kind === 'shift' && m.id === 'bus-route'), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const bins = M.find((m) => m.kind === 'shift' && m.id === 'bin-round'), haul = M.find((m) => m.kind === 'shift' && m.id === 'heavy-haul'), bus = M.find((m) => m.kind === 'shift' && m.id === 'bus-route'), dig = M.find((m) => m.kind === 'shift' && m.id === 'dig-and-load'), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const cab = (id) => level.entities.find((x) => x.id === id);
 
 describe('Hijack City\'s driving jobs, laid', () => {
@@ -40,7 +40,7 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(models.some((m) => m.startsWith('site:'))).toBe(true);
     expect(models.some((m) => m.startsWith('loft:'))).toBe(true);
     for (const C of haul.calls) { expect(d(cab(C.cab).transform.pos, C.back)).toBeLessThan(0.01); expect(d(C.site.at, C.back)).toBeGreaterThanOrEqual(SHIFT.haul); }
-    const e = cab(haul.cabs[0]), ids = level.entities.filter((x) => x.mount?.cab && !x.mount.spare).map((x) => Number(x.id.slice(4)));
+    const e = cab(haul.cabs[0]), ids = level.entities.filter((x) => x.mount?.cab && !x.mount.spare && x.id.startsWith('car-')).map((x) => Number(x.id.slice(4)));
     expect(e?.mount?.cab).toBe(true);
     // (the issued vehicles are the level's last cabs, the call's and the bus's)
     const issued = [...haul.cabs, bus.cabs[0]].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
@@ -64,11 +64,20 @@ describe('Hijack City\'s driving jobs, laid', () => {
     for (const q of bus.stops) { expect(q.riders).toBeGreaterThanOrEqual(SHIFTS.bus.riders[0]); expect(q.riders).toBeLessThanOrEqual(SHIFTS.bus.riders[1]); expect(q.N).toHaveLength(2); }
     for (let i = 0; i < bus.stops.length; i++) for (let j = i + 1; j < bus.stops.length; j++) expect(d(bus.stops[i].at, bus.stops[j].at)).toBeGreaterThanOrEqual(SHIFT.apart);
   });
+  it('dig and load: a building site\'s excavator operated where it was staged, its pile and its tipper beside it along the band; it asks for the licence', () => {
+    expect(dig).toMatchObject({ mode: 'dig', machine: SHIFTS.excavator.machine, loads: SHIFTS.excavator.loads, cabs: ['op-dig-and-load'], truck: 'op-dig-and-load-truck' });
+    const op = cab('op-dig-and-load'), truck = cab('op-dig-and-load-truck');
+    expect(op).toMatchObject({ rule: { type: 'static' }, mount: { cab: true, operate: 'dig-and-load' } });
+    expect(truck.mount.pool.model).toBe('site:tipperTruck');
+    expect(d(op.transform.pos, dig.pile.at)).toBeCloseTo(7, 1);
+    expect(d(truck.transform.pos, op.transform.pos)).toBeGreaterThan(6);
+    expect(M.find((m) => m.kind === 'task' && m.id === 'dig-and-load').needs).toMatchObject({ item: 'fake-id' });
+  });
   it('each is on Jobsified; the guide leads each when it is taken; the errand proof drives each to its pay', () => {
-    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route']]]);
+    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'dig-and-load']]]);
     const g = cityGuide(level);
-    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route']);
+    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-dig-and-load']);
     const P = proveErrands(world, lastStageManifests(steps));
-    for (const id of ['bin-round', 'heavy-haul', 'bus-route']) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
+    for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'dig-and-load']) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
   });
 });

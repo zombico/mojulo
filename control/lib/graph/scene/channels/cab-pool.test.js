@@ -38,4 +38,12 @@ describe('the cab pool channel', () => {
     const plain = emitThreeWorld({ faces: [floor], repeats: pools, entities: [hero, cab({ pool: { model: 'sedan', tint: [0.2, 0.3, 0.4] } })] });
     for (const s of ['e.tipAt', '__mojJobStops']) expect(plain).not.toContain(s);
   });
+  it('an operated machine (a dig job\'s excavator, channels/operate.js): its parts and levers on the page, which parses; absent, not one byte of it', async () => {
+    const { operateOf } = await import('./operate.js');
+    const game = { mechanics: [{ kind: 'bag', slice: 'bag' }, { kind: 'shift', mode: 'dig', id: 'dig', machine: 'crawlerExcavator', cabs: ['car-1'], pile: { at: [7, 0, 0], radius: 2.6 }, bed: { at: [-7, 0, 1.6], half: [1.25, 2.4], heading: 0 }, loads: 3 }] };
+    const html = emitThreeWorld({ faces: [floor], repeats: pools, entities: [hero, cab({})], operate: operateOf({ game }) });
+    for (const s of ['__mojOperate', 'shift:scoop:', 'shift:tip:', "'ArrowUp'"]) expect(html).toContain(s);
+    expect(parses(html)).toBe(null);
+    expect(emitThreeWorld({ faces: [floor], repeats: pools, entities: [hero, cab({ pool: { model: 'sedan', tint: [1, 1, 1] } })] })).not.toContain('__mojOperate');
+  }, 60000);
 });

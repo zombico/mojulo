@@ -156,6 +156,14 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
   to the yard, and the next is called; after the last, the first again. Each drives as its own class (its mass, its
   power: roads/vehicles.js); a machine is drawn from the construction shelf as a city's site draws it
   (`geotown/cars.js` `carModel` `site:<archetype>`).
+- **Dig and load** (`excavator`, mode `dig`): a side game at a building site, and it asks for the licence too. The
+  site's excavator (the one it stages on the band beside its building) is the player's to operate: get in, and the keys
+  are an operator's levers, **A/D** swing, **W/S** arm out and in, **↑/↓** boom, **←/→** bucket curled and opened.
+  Dig the bucket into the pile of spoil and curl it shut to scoop; swing over the tipper waiting along the band and
+  open it to tip. Three loads fill the truck, which pays and goes off empty. The machine is drawn from the
+  construction shelf as an operator rig (`construction-shelf/con-operate.js`: each part's placement under its parent
+  sampled across its own joint, so the page moves the boom, the arm, the bucket and their rams exactly without running
+  the chain), on the page by `scene/channels/operate.js`, which says each scoop and tip to the bus.
 - **Bus route** (`bus`, mode `route`): a bus stands at the kerb by the bus depot (by the start where the district keeps
   none). Its stops come in order, each a bus-stop sign with people waiting. Pull up and hold **F** to open the doors:
   those waiting walk to the bus and board, and those who boarded at the stop before get off and walk away. The last stop

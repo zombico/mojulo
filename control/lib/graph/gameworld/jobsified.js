@@ -13,6 +13,10 @@
  *   route    a round of stops in order (a bus's): at the next stop, held at (`hold` seconds, the doors open) the people
  *            waiting there board and those who boarded at the stop before get off; the last stop pays, and the round
  *            begins again
+ *   dig      a machine OPERATED on a building site (an excavator: its swing, boom, arm and bucket under the keys,
+ *            construction-shelf/con-operate.js): the site's own excavator taken over, a pile of spoil beside it and a
+ *            tipper waiting along the band; scooped from the pile and tipped into the truck, `loads` of them fill it,
+ *            which pays (the page says each scoop and each tip: scene/channels/operate.js)
  *   haul     a heavy vehicle driven to a job (a general heavy driver's): one is ISSUED at the kerb by the yard (one of
  *            the `fleet`'s models, stood there for the job: issuedOf), got into and driven across the district to a
  *            building site (a construction lot near the eye, else a far place), which pays; left there, it is taken
@@ -38,7 +42,7 @@
 import { YARDS, fleetOf } from '../geocity/fleets.js';
 
 export const JOBSIFIED = 'jobsified';
-export const SHIFT_MODES = Object.freeze(['collect', 'route', 'haul']);
+export const SHIFT_MODES = Object.freeze(['collect', 'route', 'haul', 'dig']);
 
 export const YARD_NAMES = Object.freeze({ works: 'works yard', depot: 'bus depot', emergency: 'emergency station', contractor: 'contractor\'s yard', lot: 'car park' });
 
@@ -51,6 +55,7 @@ export const YARD_NAMES = Object.freeze({ works: 'works yard', depot: 'bus depot
 export const SHIFTS = Object.freeze({
   garbage: Object.freeze({ name: 'Bin round', mode: 'collect', yard: 'works', vehicle: 'garbage truck', item: 'garbage', stops: 8, load: 4, hold: 1.5, stop: 'Collect the garbage', done: 'Garbage collected' }),
   bus: Object.freeze({ name: 'Bus route', mode: 'route', yard: 'depot', fleet: 'bus', vehicle: 'bus', item: 'riders', stops: 5, hold: 1.5, riders: Object.freeze([1, 3]), stop: 'Pick up at the bus stop', done: 'Doors closed' }),
+  excavator: Object.freeze({ name: 'Dig and load', mode: 'dig', yard: 'works', machine: 'crawlerExcavator', vehicle: 'excavator', item: 'spoil', stops: 1, loads: 3, licence: true, done: 'Load tipped' }),
   heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, licence: true, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
 // THE HEAVY CALL'S VEHICLES (a row's `vehicles: 'heavy'`): trucks and a site's machines turn about, each a body a hero
@@ -68,7 +73,7 @@ export const HEAVY_VEHICLES = Object.freeze([
 ]);
 const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES });
 /** Whether a row's vehicle is issued (a fleet's, or one of a list's turn about), not the depot's own. */
-export const issues = (S) => !!(S && (S.fleet || S.vehicles));
+export const issues = (S) => !!(S && (S.fleet || S.vehicles || S.machine));
 for (const [word, S] of Object.entries(SHIFTS)) {
   if (!SHIFT_MODES.includes(S.mode)) throw new Error(`jobsified: '${word}' works as ${SHIFT_MODES.join(', ')}`);
   if (!issues(S) && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet, vehicles)`);
@@ -115,6 +120,32 @@ export function issuedOf(ends, errands, level) {
       taken.push(spot.at);
       k++;
     }
+  }
+  return out;
+}
+
+// WHERE A DIG IS WORKED (m): its machine at a building site's staged excavator, turned as it stands; its pile `pile`
+// along the band to one side, the tipper `truck` along it to the other, nose along the band; the pile's reach
+export const DIG = Object.freeze({ pile: 7, truck: 7.5, reach: 2.6, bed: Object.freeze({ back: 1.6, half: Object.freeze([1.25, 2.4]), top: 1.6 }) });
+/** The machines a level's dig shifts operate: each at the building site nearest the start that stages an excavator and a
+ *  tipper (ends.lots `digger`, `truck`), its pile and its tipper beside it along the band.
+ *  → [{ id, cab, truckCab, site, archetype, at, heading, pile: { at, radius }, truck: { at, heading, model }, bed: { at, half, heading } }] */
+export function operatedOf(ends, errands, level) {
+  const out = [], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), used = new Set();
+  for (const E of errands ?? []) {
+    const S = E?.vehicle && E.giver === level ? SHIFTS[E.vehicle] : null;
+    if (!S || S.mode !== 'dig') continue;
+    const lots = (ends?.lots ?? []).filter((q) => q.kind === 'construction' && q.digger && !used.has(q.id)).sort((a, b) => d2(a.at, ends.spawn) - d2(b.at, ends.spawn) || a.id.localeCompare(b.id));
+    const L = lots[0];
+    if (!L) continue;
+    used.add(L.id);
+    // (its heading as a parked body's, from its turn; along the band to its right and its left)
+    const at = L.digger.at, heading = L.digger.rotZ + Math.PI / 2, right = [Math.sin(heading), -Math.cos(heading)], along = Math.atan2(right[1], right[0]);
+    const p = (k) => [Math.round((at[0] + right[0] * k) * 1000) / 1000, Math.round((at[1] + right[1] * k) * 1000) / 1000, at[2]];
+    const truck = { at: p(-DIG.truck), heading: along + Math.PI, model: 'site:tipperTruck' };
+    // (its bed: behind its cab, along its nose)
+    const nose = [Math.cos(truck.heading), Math.sin(truck.heading)], bed = { at: [truck.at[0] - nose[0] * DIG.bed.back, truck.at[1] - nose[1] * DIG.bed.back, truck.at[2] + DIG.bed.top], half: DIG.bed.half.slice(), heading: truck.heading };
+    out.push({ id: E.id, cab: `op-${E.id}`, truckCab: `op-${E.id}-truck`, site: L.id, archetype: S.machine, at: at.slice(), heading, pile: { at: p(DIG.pile), radius: DIG.reach }, truck, bed });
   }
   return out;
 }

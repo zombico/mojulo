@@ -6,7 +6,7 @@
 // laid in: jobsified.e2e.test.js.
 import { describe, it, expect } from 'vitest';
 import { readErrands, errandLegs } from './errand.js';
-import { SHIFTS, SHIFT_MODES, shiftRoles, JOBSIFIED } from './jobsified.js';
+import { SHIFTS, SHIFT_MODES, shiftRoles, JOBSIFIED, issues } from './jobsified.js';
 import { jobsOf, jobQuests, cityGuide, CITY_GUIDE } from './city-guide.js';
 import { phoneUi } from './phone-ui.js';
 import { levelCars, depotCabs, issuedCabs, CAB } from './cars.js';
@@ -17,10 +17,10 @@ const BINS = { id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: t
 const HAUL = { id: 'heavy-haul', giver: 'district', vehicle: 'heavy', repeat: true, reward: [{ item: 'coin', n: 60 }] };
 
 describe('a shift read', () => {
-  it('each row is worked by a mode; a collect or a route by a fleet its yard keeps', () => {
+  it('each row is worked by a mode; one not issued its vehicle by a fleet its yard keeps', () => {
     for (const [word, S] of Object.entries(SHIFTS)) {
       expect(SHIFT_MODES).toContain(S.mode);
-      if (S.mode !== 'haul') expect(YARDS[S.yard].roles[word]).toBeGreaterThan(0);
+      if (!issues(S)) expect(YARDS[S.yard].roles[word]).toBeGreaterThan(0);
       if (S.mode === 'collect') expect(S.load).toBeLessThanOrEqual(S.stops);
     }
   });
