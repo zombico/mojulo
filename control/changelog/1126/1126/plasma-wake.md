@@ -20,3 +20,7 @@
   distance, a cycle and more every frame: the legs flickered through their poses, a tiptoe), and a frame off its
   booster keeps its way on in the air: what it carries, and at least its walk, steered by the keys (it had been braked
   to a stand whenever a key was held).
+- Sticky feet: a frame on its feet that has not jumped or climbed stays on the ground over a crest or a dip, held down
+  by as much as `stick` metres a step (1.2) or its pace over the ground, so a bumpy field is walked, not floated over; a
+  deeper drop is a ledge, and it goes over it into the air.
+- A quick boost is steered: through its burst it turns toward the keys held, at its own speed (`qbTurn`, 9 rad/s).

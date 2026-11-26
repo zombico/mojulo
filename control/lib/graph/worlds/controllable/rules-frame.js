@@ -320,7 +320,14 @@ export function buildRulesFrame(E) {
       // (stuck: its drift checked hard, where it fired from)
       const k = Math.min(1, 8 * dt);
       e.v[0] -= e.v[0] * k; e.v[1] -= e.v[1] * k;
-    } else if (!inQb) {
+    } else if (inQb) {
+      // (a quick boost steered: its burst turned toward the keys held, at its own speed, as quick as `qbTurn` rad/s)
+      if (dir) {
+        const sp = Math.hypot(e.v[0], e.v[1]), a = Math.atan2(e.v[1], e.v[0]), b = Math.atan2(dir[1], dir[0]);
+        const d = Math.atan2(Math.sin(b - a), Math.cos(b - a)), turn = clamp(d, -(r.qbTurn ?? 9) * dt, (r.qbTurn ?? 9) * dt), n = a + turn;
+        e.v[0] = Math.cos(n) * sp; e.v[1] = Math.sin(n) * sp; e.qbDir = [Math.cos(n), Math.sin(n)];
+      }
+    } else {
       // (its speed by the wind-down's share of its control, and a dragging weapon's recoil on the boost)
       // (in the air off the booster it keeps its way on: what it carries, and at least its walk, steered by the keys)
       const sp = (e.boosting ? (M.boost ?? 46) * dragK : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : Math.max((M.walk ?? 11) * (r.airWalk ?? 1), Math.hypot(e.v[0], e.v[1]))) * (0.25 + 0.75 * ctl);
@@ -350,6 +357,10 @@ export function buildRulesFrame(E) {
     const lastZ = t.pos[2];
     t.pos[0] += e.v[0] * dt; t.pos[1] += e.v[1] * dt; t.pos[2] += e.v[2] * dt;
     const g2 = groundAt(t.pos[0], t.pos[1], t.pos[2]) ?? 0;
+    // (STICKY FEET: a frame on its feet that has not jumped or climbed stays on the ground over a crest or a dip, held
+    // down to it by as much as `stick` metres a step, or its pace over the ground, so a bumpy field is walked, not
+    // floated over; a drop deeper than that is a ledge, and it goes over it into the air)
+    if (onGround && !e.ascending && e.v[2] <= 0.01 && !lunging && !e.ab && t.pos[2] > g2 && t.pos[2] - g2 <= Math.max(r.stick ?? 1.2, Math.hypot(e.v[0], e.v[1]) * dt)) { t.pos[2] = g2; e.v[2] = 0; }
     if (t.pos[2] <= g2) {
       const fall = -e.v[2];
       t.pos[2] = g2;

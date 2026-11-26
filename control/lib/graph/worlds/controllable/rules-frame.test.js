@@ -43,6 +43,31 @@ describe('the assault frame', () => {
     expect(P2.speed).toBeGreaterThan(A.move.walk * 0.5);
   });
 
+  it('keeps its feet on bumpy ground, and goes over a ledge into the air', () => {
+    // (rolling ground: a crest every 12 m, a metre high; a frame walked and skated over it stays on it)
+    const bumps = { ground: ([x]) => Math.sin(x / 12 * Math.PI * 2) * 1 + 1 };
+    const st = world(), P = st.byId.p;
+    let air = 0;
+    for (let i = 0; i < 240; i++) { E.stepWorld(st, { forward: 1, boost: i > 120 ? 1 : 0 }, DT, bumps); if (P.airborne) air++; }
+    expect(P.transform.pos[0]).toBeGreaterThan(60);
+    expect(air).toBe(0);
+    // (a ledge: ten metres down at x = 20; it walks off it and falls)
+    const ledge = { ground: ([x]) => (x < 20 ? 10 : 0) }, s2 = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 10], pilot: true })], pilot: 'p' }), Q = s2.byId.p;
+    let fell = false;
+    for (let i = 0; i < 180 && !fell; i++) { E.stepWorld(s2, { forward: 1 }, DT, ledge); fell = Q.airborne; }
+    expect(fell).toBe(true);
+  });
+
+  it('a quick boost turns toward the keys held through its burst', () => {
+    const st = world(), P = st.byId.p;
+    run(st, { forward: 1, qb: 1 }, 1);
+    const a0 = Math.atan2(P.v[1], P.v[0]);
+    run(st, { strafe: 1 }, Math.round((A.move.qbTime * 0.8) / DT));
+    // (right of a frame facing +x is −y: turned toward it, still at the burst's speed)
+    expect(Math.atan2(P.v[1], P.v[0])).toBeLessThan(a0 - 0.5);
+    expect(Math.hypot(P.v[0], P.v[1])).toBeGreaterThan(A.move.qb * 0.9);
+  });
+
   it('quick-boosts a burst across, costing the generator, then waits for its cooldown', () => {
     const st = world(), P = st.byId.p;
     run(st, { strafe: 1, qb: 1 }, 1);
