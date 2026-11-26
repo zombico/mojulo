@@ -90,12 +90,42 @@ export function buildRulesFrame(E) {
     return out;
   };
   const aimDir = (h, p) => [Math.cos(h) * Math.cos(p), Math.sin(h) * Math.cos(p), Math.sin(p)];
+  // (how far the pilot may drop behind a leading ally before it waits for it, metres)
+  const ALLY_WAIT = 600;
+
+  // ── an ally's: the nearest foe awake within its reach of it, else none ──
+  function allyFoe(e, world, reach) {
+    const p = e.transform.pos;
+    let best = null, bd = reach;
+    for (const f of foesOf(e, world)) { if (f.team !== 'foes') continue; const d = Math.hypot(f.transform.pos[0] - p[0], f.transform.pos[1] - p[1], f.transform.pos[2] - p[2]); if (d < bd) { bd = d; best = f; } }
+    return best;
+  }
+  // ── an ally with no foe near: to the next of its places the pilot has not reached, waiting there (and waiting for the
+  // pilot if it has dropped far behind), else at the pilot's side ──
+  function escortKeys(e, dt, M, P, out) {
+    const t = e.transform, q = P.transform.pos, L = M.lead || [];
+    let i = e.leadI || 0;
+    while (i < L.length && Math.hypot(q[0] - L[i].at[0], q[1] - L[i].at[1]) < (L[i].r || 40)) i++;
+    e.leadI = i;
+    const lead = i < L.length, behind = Math.hypot(q[0] - t.pos[0], q[1] - t.pos[1]);
+    // (leading: the place, unless the pilot has dropped far behind; else beside the pilot, a little off)
+    const g = lead && behind < ALLY_WAIT ? L[i].at : [q[0] + Math.cos((P.transform.heading || 0) + Math.PI / 2) * 30, q[1] + Math.sin((P.transform.heading || 0) + Math.PI / 2) * 30, q[2]];
+    const dx = g[0] - t.pos[0], dy = g[1] - t.pos[1], d = Math.hypot(dx, dy);
+    e.mindFace = d > 1 ? Math.atan2(dy, dx) : (P.transform.heading || 0); e.mindPitch = 0;
+    const stop = lead && behind < ALLY_WAIT ? 12 : 25;
+    out.forward = d > stop ? 1 : 0;
+    out.boost = d > 90 ? 1 : 0;
+    return out;
+  }
 
   // ── a mind's keys: an enemy frame's own input, read off the pilot ──
   function mindInput(e, dt, world) {
-    const M = e.rule.mind, P = world.pilotId && world.byId[world.pilotId];
+    const M = e.rule.mind, P0 = world.pilotId && world.byId[world.pilotId];
     const out = { forward: 0, strafe: 0, boost: 0, qb: 0, jump: 0, jumpHeld: 0, fire: 0, alt: 0, backR: 0, backL: 0, ab: 0, kick: 0, lookDX: 0, lookDY: 0 };
-    if (!P || P.gone || P.downed || world.aiEnabled === false || e.dormant) return out;
+    if (!P0 || P0.gone || P0.downed || world.aiEnabled === false || e.dormant) return out;
+    // (an ALLY, a wingman on the pilot's side: it fights the nearest foe awake near it; with none, it leads the pilot)
+    let P = P0;
+    if (M.ally) { const F = allyFoe(e, world, M.engage ?? 500); if (!F) return escortKeys(e, dt, M, P0, out); P = F; }
     const t = e.transform, q = P.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1], dz = q[2] - t.pos[2], d = Math.hypot(dx, dy);
     e.mindFace = Math.atan2(dy, dx); e.mindPitch = Math.atan2(dz, d || 1);
     // (an ace's phase, by its armour's share: its reach, its press and its dodge; crossing into one calls its reserve in

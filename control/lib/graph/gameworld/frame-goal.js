@@ -29,6 +29,7 @@ import { ACES, readAce } from '../assault-frame/aces.js';
 import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
 import { STOCK, PARTS } from '../assault-frame/parts.js';
+import { readBuild } from '../assault-frame/assemble.js';
 import { PARTS_SLICE } from '../assault-frame/hangar.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -76,7 +77,7 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -127,9 +128,33 @@ export function readOperation(v, at = 'goal.operation') {
     }
     throw new Error(`${tat} is { down } | { reach } | { scan } | { hold }`);
   });
+  // (its allies: frames on the pilot's side, a wingman who leads it through the operation's places and fights beside it)
+  const allies = v.allies === undefined ? null : readAllies(v.allies, ids, `${at}.allies`);
   // (its lessons: the frame's controls taught one at a time, each group as its task begins: FRAME_LESSONS)
   const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}) };
+}
+
+/** An operation's allies checked (throws, teaching): [{ id, name, build?, palette?, ap?, lead? }]. A wingman: a frame on
+ *  the pilot's side (no team, as the pilot has none), its mind an ally's (rules-frame.js): it fights the nearest foe
+ *  awake near it, and with none it leads to the operation's places in order (its reaches' and its scans'), waiting at
+ *  each for the pilot, then keeps by the pilot. `ap` its armour's share over its build's (a wingman is hard to lose). */
+export const ALLY = Object.freeze({ most: 3, ap: 3, engage: 500, palette: 'federation', build: 'raptor' });
+function readAllies(v, groupIds, at) {
+  if (!Array.isArray(v) || !v.length || v.length > ALLY.most) throw new Error(`${at} is 1 to ${ALLY.most} allies: [{ id, name, build?, palette?, ap?, lead? }]`);
+  const seen = new Set();
+  return v.map((a, i) => {
+    const aat = `${at}[${i}]`;
+    if (!isObj(a)) throw new Error(`${aat} is { id, name, build?, palette?, ap?, lead? }`);
+    for (const k of Object.keys(a)) if (!['id', 'name', 'build', 'palette', 'ap', 'lead'].includes(k)) throw new Error(`${aat}.${k} is not part of an ally (id, name, build, palette, ap, lead)`);
+    if (typeof a.id !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(a.id) || seen.has(a.id) || groupIds.has(a.id)) throw new Error(`${aat}.id is its own name, lower-case, not a group's`);
+    seen.add(a.id);
+    if (typeof a.name !== 'string' || !a.name || a.name.length > 24) throw new Error(`${aat}.name is what it is called, up to 24 letters`);
+    if (a.build !== undefined) readBuild(a.build, `${aat}.build`);
+    if (a.ap !== undefined && !(Number.isFinite(a.ap) && a.ap > 0 && a.ap <= 10)) throw new Error(`${aat}.ap is its armour's share over its build's, 0 to 10`);
+    if (a.lead !== undefined && typeof a.lead !== 'boolean') throw new Error(`${aat}.lead is true where it leads the pilot through the operation's places`);
+    return { id: a.id, name: a.name, build: a.build ?? ALLY.build, palette: a.palette ?? ALLY.palette, ap: a.ap ?? ALLY.ap, lead: a.lead !== false };
+  });
 }
 
 /**
@@ -242,5 +267,14 @@ export function operationCast(op, ends) {
     }
   }
   // (its reward: each part granted to the save's parts as the operation is won, the game channel's `wins`)
+  // (its allies: stood beside the drop, a little behind, facing the way on; a leader's places the operation's reaches' and
+  // scans', in order, each with the radius the pilot meets it in)
+  const places = op.tasks.map((t) => t.reach ?? t.scan ? (() => { const [x, y] = placeOf(ends, t.reach ?? t.scan); return { at: [x, y, r2(ends.ground(x, y))], r: t.radius }; })() : null).filter(Boolean);
+  (op.allies ?? []).forEach((a, i) => {
+    const fig = `frame-ally-${a.id}`, side = i % 2 ? -1 : 1, x = r2(p0[0] + side * (40 + 20 * i)), y = r2(p0[1] - 20), at = [x, y, r2(ends.ground(x, y))];
+    figures[fig] = { assault: { build: a.build, palette: a.palette } };
+    const e = frameEntity(a.build, { id: a.id, at, heading: ends.heading ?? Math.PI / 2, mind: { range: OPERATION.frameRange, aggression: 0.5, dodge: 0.5, ally: true, engage: ALLY.engage, ...(a.lead && places.length ? { lead: places } : {}) }, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ap: a.ap, ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
+    entities.push({ ...e, ally: { name: a.name } });
+  });
   return { entities, figures, ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons ? { lessons: op.lessons } : {}) };
 }
