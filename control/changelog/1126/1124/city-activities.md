@@ -12,3 +12,9 @@
 - Two more buildings to walk into near the start: an **arcade** behind a lit pink-and-cyan sign, its games floor with a
   blocks cabinet, and a **public library** with a small portico, a reading room with a match table, the stacks and the
   archive in plaster and oak. Each opens on a page of its own, like the museum, and you walk back out onto its steps.
+- An **aquarium** behind a deep blue sign: glass tanks of water down its three wings, The Reef, Life on the Bed and Open
+  Water, with clownfish, angelfish, a pufferfish and a cuttlefish, an octopus and a moray eel on the sand, and a sea
+  turtle, a manta ray and squid in the big tank at the end.
+- A **zoo** behind a gate with a lit sign and a ticket booth: open to the sky, three wings of pens fenced in mesh,
+  The Savanna (zebras, ostriches, a giraffe and an elephant in the big enclosure), Big Cats and Bears (lions, tigers, a
+  brown bear and a polar bear) and Around the World (kangaroos hopping, flamingos, penguins, meerkats and camels).

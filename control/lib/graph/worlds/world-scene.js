@@ -622,6 +622,28 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
   }
 
+  // a building's TANKS' fish (era/aquarium.js, marine/tank.js): the sea's animals on loops inside each tank's water, drawn
+  // by the walkers channel as the sea's are. No tanks ⇒ untouched
+  if (payload && Array.isArray(payload.tankSwims)) {
+    const swims = payload.tankSwims;
+    delete payload.tankSwims;
+    const { tankFauna } = await import('@/lib/graph/marine/tank.js');
+    const { lowerMarineFauna, marineLength } = await import('@/lib/graph/worlds/marine-fauna.js');
+    await lowerMarineFauna(payload, tankFauna(swims, { lengthOf: marineLength, seed: sketch.manifest?.program?.seed ?? 1 }));
+  }
+
+  // a building's PENS' animals (era/zoo.js, fauna/pen.js): the land's animals walking loops inside each pen's fence
+  if (payload && Array.isArray(payload.penWalks)) {
+    const walks = payload.penWalks;
+    delete payload.penWalks;
+    const { penFauna } = await import('@/lib/graph/fauna/pen.js');
+    const { sizeClassOf } = await import('@/lib/graph/fauna/size-class.js');
+    const { lowerMarineFauna } = await import('@/lib/graph/worlds/marine-fauna.js');
+    const { motionGaits } = await import('@/lib/graph/fauna/rig.js');
+    const gaitOf = (sp) => { const g = motionGaits(sp); return ['walk', 'waddle', 'hop', 'trot'].find((x) => g.includes(x)) ?? g[0]; };
+    await lowerMarineFauna(payload, penFauna(walks, { lengthOf: (sp) => sizeClassOf(sp).extent, gaitOf, seed: sketch.manifest?.program?.seed ?? 1 }));
+  }
+
   // statue refs (historic/statues.js): a historic city's statue slots name stored statues; the city removed the stand-ins
   // and recorded where each figure stands (metres, its turn, its height). The ref resolves HERE, where the store is: its
   // World faces baked under the city's sun turned into its own frame (`light`), its base dropped, fitted onto the slot's

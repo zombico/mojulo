@@ -64,7 +64,7 @@ function spots(r, n) {
 }
 
 /** The rooms of each wing, near to far: a room joined to a wing's corridor is that wing's (its letter the corridor's). */
-function wingRooms(plan) {
+export function wingRooms(plan) {
   const wings = new Map();
   const corridor = (id) => /^corridor-\d+([a-z])$/.exec(id)?.[1] ?? null;
   for (const l of plan.links ?? []) {

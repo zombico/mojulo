@@ -23,6 +23,8 @@
  * Deterministic: a pure function of the recipe.
  */
 import { layExhibits } from './exhibits.js';
+import { layTanks } from './aquarium.js';
+import { layPens } from './zoo.js';
 import { planVents, readVents, shadeDucts } from './vents.js';
 import { planInnerWindows, readInnerWindows } from './inner-windows.js';
 import { glazeOpening } from './bay-glass.js';
@@ -1685,11 +1687,21 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
   // a building's EXHIBITS (exhibits.js): its rooms planned once to stand its plinths, then laid with them; each piece
   // the plinth holds leaves as an itemRef, resolved where the store is (worlds/world-scene.js)
-  if (manifest.exhibits !== undefined && !manifest._exhibits) {
-    const L = layExhibits(planStage(manifest), manifest.exhibits);
-    const P = assembleStageScene({ ...manifest, _exhibits: true, props: [...(Array.isArray(manifest.props) ? manifest.props : []), ...L.props] }, ctx);
-    if (L.items.length) P.itemRefs = [...(P.itemRefs ?? []), ...L.items];
-    P.exhibits = { wings: L.wings, ...(L.findings.length ? { findings: L.findings } : {}) };
+  // and its TANKS (aquarium.js): glass tanks of water in its rooms, their water handed on for the sea's animals
+  // (marine/tank.js, resolved where the world is: worlds/world-scene.js)
+  // and its PENS (zoo.js): a mesh fence round an enclosure in each room, its ground handed on for the land's animals
+  if ((manifest.exhibits !== undefined || manifest.tanks !== undefined || manifest.pens !== undefined) && !manifest._exhibits) {
+    const plan = planStage(manifest), L = manifest.exhibits !== undefined ? layExhibits(plan, manifest.exhibits) : null, T = manifest.tanks !== undefined ? layTanks(plan, manifest.tanks) : null, Z = manifest.pens !== undefined ? layPens(plan, manifest.pens) : null;
+    const P = assembleStageScene({ ...manifest, _exhibits: true, ...(L || Z ? { props: [...(Array.isArray(manifest.props) ? manifest.props : []), ...(L?.props ?? []), ...(Z?.props ?? [])] } : {}) }, ctx);
+    if (Z) { if (Z.walks.length) P.penWalks = Z.walks; P.pens = { wings: Z.wings, ...(Z.findings.length ? { findings: Z.findings } : {}) }; }
+    if (L?.items.length) P.itemRefs = [...(P.itemRefs ?? []), ...L.items];
+    if (L) P.exhibits = { wings: L.wings, ...(L.findings.length ? { findings: L.findings } : {}) };
+    if (T) {
+      P.faces = [...(P.faces ?? []), ...T.faces];
+      P.colliders = [...(P.colliders ?? []), ...T.colliders];
+      if (T.swims.length) P.tankSwims = T.swims;
+      P.tanks = { wings: T.wings, ...(T.findings.length ? { findings: T.findings } : {}) };
+    }
     return P;
   }
   const plan = planStage(manifest);

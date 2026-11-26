@@ -1517,6 +1517,35 @@ export function assembleGeocityScene(m, ctx = {}) {
     const { x0, y0, x1, y1, zAt, far } = geo, Cc = W.colours, fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n';
     const deep = along ? y1 - y0 : x1 - x0, wide = along ? x1 - x0 : y1 - y0, m0 = along ? (x0 + x1) / 2 : (y0 + y1) / 2;
     const fw = Math.min(W.hall.wide, wide - 8), fl = Math.min(W.hall.deep, deep - 10), court = 5;
+    // A GATE (a zoo's): no hall on the street, its grounds behind railings, trees over them; two posts and a lit sign
+    // over the way in, a ticket booth beside it
+    if (W.front === 'gate') {
+      const front0 = fs === 's' ? y0 : fs === 'n' ? y1 : fs === 'w' ? x0 : x1, inw = -1 * (fs === 's' || fs === 'w' ? -1 : 1);
+      const atG = (t, u) => (along ? [m0 + t, front0 + inw * u] : [front0 + inw * u, m0 + t]);
+      const rectG = (t0, t1, u0, u1) => { const p = atG(t0, u0), q = atG(t1, u1); return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]; };
+      const zc = zAt(...atG(0, court)), gw = 4.4, half = (wide - 4) / 2;
+      counts.walkins = (counts.walkins ?? 0) + 1;
+      // (its grounds: lawn the block over, trees behind the railing)
+      const L = rectG(-half, half, court, deep - 2);
+      put([[L[0], L[1], zc + 0.02], [L[2], L[1], zc + 0.02], [L[2], L[3], zc + 0.02], [L[0], L[3], zc + 0.02]], 'geocity:park', col.park);
+      if (far) return;
+      const C = rectG(-gw, gw, 0.8, court);
+      put([[C[0], C[1], zAt(C[0], C[1]) + 0.03], [C[2], C[1], zAt(C[2], C[1]) + 0.03], [C[2], C[3], zAt(C[2], C[3]) + 0.03], [C[0], C[3], zAt(C[0], C[3]) + 0.03]], 'geocity:paving', col.plaza);
+      // (railings either side of the gate along the front, each a run of posts and a top rail)
+      for (const [t0, t1] of [[-half, -gw / 2 - 0.6], [gw / 2 + 0.6, half]]) {
+        box(...rectG(t0, t1, court - 0.05, court + 0.05), zc + 1.6, zc + 1.7, Cc.rail, Cc.rail, 'geocity:walkin');
+        for (let t = t0; t <= t1 + 1e-6; t += 2.4) box(...rectG(t - 0.05, t + 0.05, court - 0.05, court + 0.05), zc, zc + 1.7, Cc.rail, Cc.rail, 'geocity:walkin');
+      }
+      // (the gate's posts, its lintel and the lit sign on it; the booth by the left post)
+      for (const o of [-1, 1]) box(...rectG(o * (gw / 2 + 0.3) - 0.3, o * (gw / 2 + 0.3) + 0.3, court - 0.3, court + 0.3), zc, zc + 5.2, Cc.post, Cc.post, 'geocity:walkin');
+      box(...rectG(-gw / 2 - 0.6, gw / 2 + 0.6, court - 0.25, court + 0.25), zc + 4.4, zc + 5.2, Cc.post, Cc.post, 'geocity:walkin');
+      const pS = atG(-gw / 2 - 0.4, court - 0.3), qS = atG(gw / 2 + 0.4, court - 0.3);
+      put([[pS[0], pS[1], zc + 4.5], [qS[0], qS[1], zc + 4.5], [qS[0], qS[1], zc + 5.1], [pS[0], pS[1], zc + 5.1]], 'geocity:sign', Cc.band, [fx, fy, 0]);
+      box(...rectG(-gw / 2 - 3.6, -gw / 2 - 1, court - 1.4, court + 0.6), zc, zc + 2.6, Cc.booth, Cc.post, 'geocity:walkin');
+      for (let k = 0; k < 4; k++) plant('dense', ...atG(-half + 3 + (k * (2 * half - 6)) / 3, court + 6), zAt(...atG(0, court + 6)), `zoo:${b.id}:${k}`, 10);
+      const door = atG(0, court);
+      return done({ at: P3([door[0], door[1], zc]), N: P3([fx, fy, 0]), floor: r5(zc) });
+    }
     const front = fs === 's' ? y0 : fs === 'n' ? y1 : fs === 'w' ? x0 : x1, inward = -1 * (fs === 's' || fs === 'w' ? -1 : 1);
     const at = (t, u) => (along ? [m0 + t, front + inward * u] : [front + inward * u, m0 + t]);
     const rect = (t0, t1, u0, u1) => { const p = at(t0, u0), q = at(t1, u1); return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]; };

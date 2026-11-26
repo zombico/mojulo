@@ -74,7 +74,7 @@ Each piece leaves the stage as an `itemRef`. `worlds/world-scene.js` resolves it
 The museum is the first row of a shelf: a city's civic buildings walked into the same way (`geocity/walkins.js`).
 
 ```js
-geocity: { …, enter: ['arcade', 'library'] }
+geocity: { …, enter: ['arcade', 'library', 'aquarium', 'zoo'] }
 ```
 
 - **The blocks** (`pickWalkins`): each kind the next block of the built fabric after the walk's own and the museum's, at
@@ -88,7 +88,21 @@ geocity: { …, enter: ['arcade', 'library'] }
   world's inside minigames (`gameworld/minigames.js` `ROOMS_KEPT`, the book's `minigames: [{ game, where: 'inside' }]`),
   spread over them in order.
 
-A new kind is a row: its name, front, program, kit, look, hall and colours.
+- **The aquarium** (`aquarium`): a deep blue marquee; inside, the museum's T of galleries in white and teal under cold
+  light, a glass tank in each gallery and a big one in each wing's hall (`era/aquarium.js` `layTanks`: a dark base, sand,
+  a tinted block of water and glass round it, both seen through, a box walked round). The row's `tanks` name a
+  collection a wing (`[{ title, life: ['<sea species>', …] }]`, `marine/fauna.js`); each gallery's tank holds two of its
+  kinds in turn, the hall's all of them. The fish swim on loops held inside their tank's water (`marine/tank.js`
+  `tankFauna`), drawn by the walkers channel as the sea's are (`worlds/marine-fauna.js` `lowerMarineFauna`).
+- **The zoo** (`zoo`): a `gate` front (railings along the street, two posts and a lit sign over the way in, a ticket
+  booth, trees on its grounds); inside, open to the sky (the `island-plaza` kit under the `island-noon` look, laid at
+  `scale` 2), the museum's T of wings, each room a pen fenced in see-through mesh (`era/zoo.js` `layPens`) with a walk
+  round it, each wing's hall its big enclosure. The row's `pens` name a collection a wing, by the names people say
+  (`fauna/entries.js`; the sea's are refused, they belong in a tank). A body too long for a gallery's pen is kept in
+  the hall. The animals walk loops inside their pen (`fauna/pen.js` `penFauna`), each by a gait it has (a kangaroo hops).
+  The plaza kit is heavy: a zoo's page carries several times the faces of the museum's.
+
+A new kind is a row: its name, front, program, kit, look, hall and colours, and what it keeps (`tanks`, `pens`).
 
 ## Gates
 

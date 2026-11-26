@@ -836,7 +836,7 @@ function walkinDoor(a, ground, seed) {
   const [nx, ny] = a.N, W = WALKINS[a.use], z = (p) => ground(p[0], p[1]) ?? a.floor;
   const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + 3), a.at[1] + ny * (MUSEUM_IN.zone + 3)];
   return { id: a.use, at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
-    inside: { use: W.program, seed, kit: W.kit, compose: { ...W.compose }, scale: MUSEUM_IN.scale, exit: false, name: a.name ?? W.name } };
+    inside: { use: W.program, seed, kit: W.kit, compose: W.compose === false ? false : { ...W.compose }, scale: W.scale ?? MUSEUM_IN.scale, exit: false, name: a.name ?? W.name, ...(W.reference ? { reference: W.reference } : {}), ...(W.tanks ? { tanks: JSON.parse(JSON.stringify(W.tanks)) } : {}), ...(W.pens ? { pens: JSON.parse(JSON.stringify(W.pens)) } : {}) } };
 }
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
@@ -2365,10 +2365,15 @@ export function interiorStage(inside) {
     // under warm light and its plinths alone, programs.js)
     kind: 'stage', kit: inside.kit ?? (PROGRAMS[inside.use]?.look ? PROGRAMS[inside.use].kit : undefined) ?? roomKitFor(anchor),
     // (a look given by the door, a walk-in's own, geocity/walkins.js, over its program's)
-    ...(inside.compose ?? PROGRAMS[inside.use]?.look ? { compose: { ...(inside.compose ?? PROGRAMS[inside.use].look) }, ...(inside.exhibits === undefined ? { props: false } : {}) } : {}),
+    // (`compose: false`: none, a kit not of the bay's, the zoo's open plaza)
+    ...(inside.compose !== false && (inside.compose ?? PROGRAMS[inside.use]?.look) ? { compose: { ...(inside.compose ?? PROGRAMS[inside.use].look) }, ...(inside.exhibits === undefined ? { props: false } : {}) } : {}),
+    ...(inside.reference ? { reference: inside.reference } : {}),
     program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}), ...(inside.scale !== undefined ? { scale: inside.scale } : {}) },
     // (its pieces on their plinths, era/exhibits.js; a building looked round and left by its door has no goal room)
     ...(inside.exhibits !== undefined ? { exhibits: inside.exhibits } : {}),
+    // (an aquarium's tanks, era/aquarium.js)
+    ...(inside.tanks !== undefined ? { tanks: inside.tanks } : {}),
+    ...(inside.pens !== undefined ? { pens: inside.pens } : {}),
     level: { door: 'out', ...(inside.exit === false ? { exit: false, mechanics: [{ ...LOOKED_ROUND }] } : {}) },
   };
 }
