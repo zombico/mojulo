@@ -100,6 +100,11 @@ export const HIJACK_SHIFTS = Object.freeze([
   Object.freeze({ id: 'dig-and-load', name: 'Dig and load', vehicle: 'excavator', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 70 })]) }),
   // (the pit dug, the foreman's materials never come: the Dockers' delivery orders, checked in for at their HQ)
   Object.freeze({ id: 'materials', name: 'Delivery orders', vehicle: 'freight', after: 'dig-and-load', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 80 })]) }),
+  // (the emergency station's calls: a patient taken in, fires hosed down; a courier's van out of the dock; a mail round)
+  Object.freeze({ id: 'ambulance-calls', name: 'Ambulance calls', vehicle: 'ambulance', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 55 })]) }),
+  Object.freeze({ id: 'fire-calls', name: 'Fire calls', vehicle: 'fire', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 65 })]) }),
+  Object.freeze({ id: 'courier-run', name: 'Courier run', vehicle: 'courier', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
+  Object.freeze({ id: 'mail-round', name: 'Mail round', vehicle: 'mail', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 35 })]) }),
 ]);
 
 /** What a person changes first, each a key of the gameworld (the gameworld-hijack-city card says how). */

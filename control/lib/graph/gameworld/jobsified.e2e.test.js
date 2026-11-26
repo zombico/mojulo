@@ -17,6 +17,7 @@ import { SHIFT, SHIFTS, HEAVY_VEHICLES, FREIGHT_VEHICLES, MOW, MOW_ROUND } from 
 const world = hijackCityWorld(), steps = runSteps(world, { ref: 'hc' }), level = steps.find((x) => x.key.startsWith('level-')).order.manifest, M = level.game.mechanics;
 const bins = M.find((m) => m.kind === 'shift' && m.id === 'bin-round'), haul = M.find((m) => m.kind === 'shift' && m.id === 'heavy-haul'), bus = M.find((m) => m.kind === 'shift' && m.id === 'bus-route'), dig = M.find((m) => m.kind === 'shift' && m.id === 'dig-and-load'), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const cab = (id) => level.entities.find((x) => x.id === id);
+const job = (id) => M.find((m) => m.kind === 'shift' && m.id === id);
 
 describe('Hijack City\'s driving jobs, laid', () => {
   it('the bin round: at the works yard, its cabs the yard\'s garbage trucks, its piles apart, emptied at the dump', () => {
@@ -44,7 +45,7 @@ describe('Hijack City\'s driving jobs, laid', () => {
     const e = cab(haul.cabs[0]), ids = level.entities.filter((x) => x.mount?.cab && !x.mount.spare && x.id.startsWith('car-')).map((x) => Number(x.id.slice(4)));
     expect(e?.mount?.cab).toBe(true);
     // (the issued vehicles are the level's last cabs, the call's and the bus's)
-    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), sweeper = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping'), mower = M.find((m) => m.kind === 'shift' && m.id === 'groundskeeping'), issued = [...haul.cabs, bus.cabs[0], ...sweeper.cabs, ...mower.cabs, ...orders.cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
+    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), sweeper = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping'), mower = M.find((m) => m.kind === 'shift' && m.id === 'groundskeeping'), issued = [...haul.cabs, bus.cabs[0], ...sweeper.cabs, ...mower.cabs, ...orders.cabs, ...job('courier-run').cabs, ...job('mail-round').cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
     expect(issued).toEqual(ids.sort((a, b) => a - b).slice(-issued.length));
     expect(e.mount.pool.gate).toBeUndefined();
     expect(d(e.transform.pos, haul.back)).toBeLessThan(0.01);
@@ -110,11 +111,35 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(M.find((m) => m.kind === 'task' && m.id === 'groundskeeping').needs).toMatchObject({ item: 'fake-id' });
   });
   it('each is on Jobsified; the guide leads each when it is taken; the errand proof drives each to its pay', () => {
-    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load']]]);
+    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', ...['ambulance-calls', 'fire-calls'].filter((id) => job(id)), 'courier-run', 'mail-round']]]);
     const g = cityGuide(level);
     // (the delivery orders' two: taken at the HQ, its first truck; its call come, the HQ)
-    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-street-sweeping', 'clock-groundskeeping', 'clock-dig-and-load', 'clock-materials-1', 'hq-materials']);
+    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-street-sweeping', 'clock-groundskeeping', 'clock-dig-and-load', 'clock-materials-1', 'hq-materials', 'clock-courier-run', 'clock-mail-round']);
     const P = proveErrands(world, lastStageManifests(steps));
-    for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', 'materials']) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
+    for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', 'materials', 'courier-run', 'mail-round', ...['ambulance-calls', 'fire-calls'].filter((x) => job(x))]) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
+  });
+});
+
+describe('the city\'s other jobs, laid', () => {
+  // (an emergency station's jobs where the district keeps one: its ambulances and fire engines the station's own; the
+  // starter's downtown keeps none, so these hold where it does)
+  const station = level.entities.some((e) => e.mount?.pool?.model === 'loft:ambulance');
+  it.skipIf(!station)('ambulance calls: the emergency station\'s own ambulances, a patient waiting at the first stop and nobody at the drop-off', () => {
+    const A = job('ambulance-calls');
+    expect(A).toMatchObject({ mode: 'route', marker: 'call', says: { aboard: 'patient' } });
+    expect(A.stops.map((q) => q.riders)).toEqual([1, 0]);
+    for (const id of A.cabs) expect(cab(id).mount.pool.model).toBe('loft:ambulance');
+  });
+  it('fire calls and a courier run: stops with nobody waiting, each its marker; the courier\'s van in a dock bay of its own', () => {
+    if (station) { expect(job('fire-calls')).toMatchObject({ mode: 'route', marker: 'fire' }); expect(job('fire-calls').stops.every((q) => q.riders === 0)).toBe(true); }
+    const C = job('courier-run'), orders = job('materials');
+    expect(C).toMatchObject({ mode: 'route', marker: 'parcel' });
+    const at = (id) => cab(id).transform.pos;
+    for (const c of orders?.calls ?? []) expect(d(at(C.cabs[0]), at(c.cab))).toBeGreaterThan(4);
+  });
+  it('the mail round: its post boxes emptied back at its yard, never the dump', () => {
+    const P = job('mail-round');
+    expect(P).toMatchObject({ mode: 'collect', marker: 'mailbox', load: SHIFTS.mail.load });
+    expect(P.unload).toBeUndefined();
   });
 });

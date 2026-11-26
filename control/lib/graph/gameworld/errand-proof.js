@@ -21,12 +21,15 @@ import { buildBus } from '../worlds/event-bus.js';
 
 const B = buildBus();
 
-/** Each level's last stage's manifest, from runSteps' steps (`level-<id>-<k>`, the last k a level's last stage). */
+/** Each level's last stage's manifest, from runSteps' steps (`level-<id>-<k>`, the last k a level's last stage); a
+ *  building entered by its door from it (a museum, a town's house: no errand of the level's is laid there) never
+ *  stands in for the stage that lays them. */
 export function lastStageManifests(steps) {
   const out = {};
+  const lays = (M) => (M?.game?.mechanics ?? []).some((x) => x && (x.kind === 'task' || x.kind === 'shift' || x.kind === 'errand'));
   for (const s of steps) {
     const m = /^level-(.+)-(\d+)$/.exec(s.key);
-    if (m && s.order?.manifest) out[m[1]] = s.order.manifest;
+    if (m && s.order?.manifest && !(out[m[1]] && lays(out[m[1]]) && !lays(s.order.manifest))) out[m[1]] = s.order.manifest;
   }
   return out;
 }

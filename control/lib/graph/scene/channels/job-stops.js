@@ -37,6 +37,8 @@ export function jobStopsOf(manifest) {
     piles: m.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${m.id}-${k + 1}`, ...(m.mode === 'route' ? { riders: q.riders ?? 1, N: Array.isArray(q.N) ? q.N.map(r3) : [0, 1] } : {}), ...(m.mode === 'mow' ? { half: Array.isArray(q.half) ? q.half.map(r3) : [2, 2] } : {}) })),
     vars: { in: `in-${m.id}`, at: `at-${m.id}`, prog: `prog-${m.id}`, load: `load-${m.id}`, on: `flag-on-${m.id}`, full: `flag-full-${m.id}`, next: `next-${m.id}` },
     ...(m.mode === 'collect' ? { load: m.load, where: m.unload ? 'the dump' : `the ${m.yard ?? 'depot'}` } : {}),
+    // (what stands at its stops, and the words the line says it in: gameworld/jobsified.js `marker`, `says`)
+    ...(typeof m.marker === 'string' ? { marker: m.marker } : {}), ...(m.says && typeof m.says === 'object' ? { says: { ...(typeof m.says.aboard === 'string' ? { aboard: m.says.aboard } : {}), ...(typeof m.says.hold === 'string' ? { hold: m.says.hold } : {}) } } : {}),
     // (a mow's round: how many cells pay, its clock's var and whether it runs)
     ...(m.mode === 'mow' ? { goal: Math.max(1, Math.min(m.stops.length, Math.ceil(m.stops.length * (Number.isFinite(m.goal) && m.goal > 0 && m.goal <= 1 ? m.goal : 0.85)))), clock: `left-${m.id}`, live: `live-${m.id}` } : {}), ticks: Math.max(1, Math.round((Number.isFinite(m.hold) && m.hold > 0 ? m.hold : 1.5) / 0.1)), key: JOB_KEY.label, vehicle: m.vehicle ?? 'truck',
   }));
@@ -76,9 +78,15 @@ export function jobStopsScript(spec) {
     J.piles.forEach(function (q, k) {
       // (its people along the walk beside the sign, a stride apart, facing the street)
       const n = Math.hypot(q.N[0], q.N[1]) || 1, N = [q.N[0] / n, q.N[1] / n], A = [-N[1], N[0]], post = [q.at[0] + A[0] * 1.4, q.at[1] + A[1] * 1.4, q.at[2]];
-      sign(post);
+      // (its MARKER: a bus stop's sign by default; an ambulance call's a red cross on its post; a fire, flames and smoke at
+      // the kerb; a parcel, a box at the door; each gone once the stop is made, back when the round begins again)
+      const mark = new THREE.Group(); scene.add(mark);
+      if (!J.marker) sign(post);
+      else if (J.marker === 'call') { mark.add(box(0.08, 0.08, 2.6, '#5c6166', [post[0], post[1], post[2] + 1.3])); mark.add(box(0.6, 0.06, 0.6, '#f4f4f0', [post[0], post[1], post[2] + 2.4])); mark.add(box(0.44, 0.08, 0.12, '#c8242c', [post[0], post[1], post[2] + 2.4])); mark.add(box(0.12, 0.08, 0.44, '#c8242c', [post[0], post[1], post[2] + 2.4])); }
+      else if (J.marker === 'fire') { const c = [q.at[0] + N[0] * 3, q.at[1] + N[1] * 3, q.at[2]]; mark.add(box(1.6, 1.2, 0.5, '#2b2622', [c[0], c[1], c[2] + 0.25])); [[0, 0, 1.2, '#ff7a1a'], [0.35, 0.1, 0.9, '#ffb030'], [-0.3, -0.1, 1.0, '#ff5a10'], [0.05, 0.05, 1.6, '#ffd060']].forEach(function (f) { mark.add(box(0.36, 0.36, f[2], f[3], [c[0] + f[0], c[1] + f[1], c[2] + 0.5 + f[2] / 2])); }); [[0, 0, 3.0, 1.2], [0.4, 0.3, 4.2, 1.6], [-0.3, 0.5, 5.4, 2.0]].forEach(function (k) { mark.add(box(k[3], k[3], k[3] * 0.8, '#55524f', [c[0] + k[0], c[1] + k[1], c[2] + k[2]])); }); }
+      else if (J.marker === 'parcel') { const c = [q.at[0] + N[0] * 1.6, q.at[1] + N[1] * 1.6, q.at[2]]; mark.add(box(0.6, 0.45, 0.42, '#b8875a', [c[0], c[1], c[2] + 0.21])); mark.add(box(0.62, 0.08, 0.44, '#d8c8a0', [c[0], c[1], c[2] + 0.22])); }
       const folk = []; for (let j = 0; j < q.riders; j++) { const p = person(k * 3 + j + J.id.length); const o = (j - (q.riders - 1) / 2) * 0.9 - 0.6; p.position.set(q.at[0] + A[0] * o - N[0] * 0.5, q.at[1] + A[1] * o - N[1] * 0.5, q.at[2]); p.rotation.z = Math.atan2(N[1], N[0]) - Math.PI / 2; folk.push({ p, home: p.position.clone(), face: p.rotation.z }); }
-      stops.push({ J, q, k, N, folk, was: 0, off: [], state: 'wait' });
+      stops.push({ J, q, k, N, folk, mark, was: 0, off: [], state: 'wait' });
     });
   });
   // a heap of litter on the road: a dirty smear and a few scraps
@@ -130,6 +138,8 @@ export function jobStopsScript(spec) {
   JS.jobs.filter(function (J) { return J.mode === 'collect'; }).forEach(function (J) {
     J.piles.forEach(function (q, k) {
       const g = new THREE.Group(); g.position.set(q.at[0], q.at[1], q.at[2]);
+      // (a post box's: the box stands, its sack of mail beside it goes when emptied)
+      if (J.marker === 'mailbox') { scene.add(box(0.5, 0.5, 1.25, '#b3242a', [q.at[0] + 0.9, q.at[1], q.at[2] + 0.62])); scene.add(box(0.56, 0.56, 0.08, '#2a2a2a', [q.at[0] + 0.9, q.at[1], q.at[2] + 1.29])); g.add(box(0.5, 0.4, 0.38, '#cdbb8e', [0, 0, 0.19])); scene.add(g); piles.push({ J, q, g, was: 0, t0: null }); return; }
       [[0, 0, 0.5, 0.45, 0.5, '#1f2124'], [0.45, 0.15, 0.42, 0.4, 0.42, '#2a3a2a'], [-0.35, 0.2, 0.46, 0.42, 0.44, '#1f2124'], [0.1, -0.35, 0.4, 0.38, 0.38, '#26282c']].forEach(function (b, j) {
         const m = box(b[2], b[3], b[4], b[5], [b[0], b[1], b[4] / 2]); m.rotation.z = (k * 1.7 + j) % 3 - 1; g.add(m);
       });
@@ -185,13 +195,13 @@ export function jobStopsScript(spec) {
     for (const x of stops) {
       const on = !!x.made; x.made = false;
       if (on && pilot && x.J.cabs.indexOf(pilot.id) >= 0) {
-        x.bus = pilot; x.state = 'board';
+        x.bus = pilot; x.state = 'board'; x.mark.visible = false;
         // (those who boarded at the stop before get off here)
         const before = stops.find((y) => y.J === x.J && y.k === x.k - 1);
         if (before) { const d = door(pilot); x.off = before.folk.map(function (f, j) { const p = person(before.k * 3 + j + x.J.id.length); p.position.set(d[0], d[1], d[2]); return { p, to: [d[0] + x.N[0] * 6 + (j - 1) * 1.2, d[1] + x.N[1] * 6, d[2]], t0: t }; }); }
       }
       // (the round paid and begun again: a few seconds on, every stop's people waiting again)
-      if (ways[x.J.id] != null && t >= ways[x.J.id] && x.state !== 'wait') { x.state = 'wait'; for (const f of x.folk) { f.p.visible = true; f.p.position.copy(f.home); f.p.rotation.z = f.face; } }
+      if (ways[x.J.id] != null && t >= ways[x.J.id] && x.state !== 'wait') { x.state = 'wait'; x.mark.visible = true; for (const f of x.folk) { f.p.visible = true; f.p.position.copy(f.home); f.p.rotation.z = f.face; } }
       if (x.state === 'board') {
         const d = door(x.bus); let left = 0;
         for (const f of x.folk) { if (!f.p.visible) continue; left++; if (walkTo(f.p, d, dt) < 0.4) f.p.visible = false; }
@@ -217,7 +227,8 @@ export function jobStopsScript(spec) {
       else if (J.mode === 'route') {
         // (the next stop, and who rode from the last one made)
         const next = Math.min(J.piles.length, Number(V[J.vars.next]) || 1), made = J.piles.filter((q) => Number(V[q.v]) >= 1), aboard = made.length ? made[made.length - 1].riders : 0;
-        h = 'Stop ' + next + ' / ' + J.piles.length + ' · riders ' + aboard + (at >= 1 ? ' · hold <b>' + J.key + '</b> to open the doors' + bar(prog / J.ticks) : '');
+        const S = J.says || {}, who = J.marker && !S.aboard ? '' : ' · ' + (S.aboard || 'riders') + ' ' + aboard;
+        h = 'Stop ' + next + ' / ' + J.piles.length + who + (at >= 1 ? ' · hold <b>' + J.key + '</b> ' + (S.hold || 'to open the doors') + bar(prog / J.ticks) : '');
       } else h = 'Load ' + load + ' / ' + J.load + (load >= J.load ? ' · full: take it to ' + J.where : held);
     }
     if (h !== shown) { shown = h; line.innerHTML = h; line.style.display = h ? 'block' : 'none'; }

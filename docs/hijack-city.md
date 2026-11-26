@@ -35,7 +35,7 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 | (the hero) | bare hands by default, a sidearm drawn with R or 1/2, fired on Q or the click | [arsenal.js](../control/lib/graph/gameworld/arsenal.js) |
 | `factions` | crews with turf and rivals, a board of acts (torch, tag, take) | [factions.js](../control/lib/graph/gameworld/factions.js) |
 | `errands[].app` | side work on the phone: fares | [errand-mechanics.js](../control/lib/graph/game/errand-mechanics.js) |
-| `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping, groundskeeping | [jobsified.js](../control/lib/graph/gameworld/jobsified.js) |
+| `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping, groundskeeping, ambulance and fire calls, a courier run, a mail round | [jobsified.js](../control/lib/graph/gameworld/jobsified.js) |
 | `ui`, `sound`, `music` | the look of the menus and HUD (mana-ui), the car's sounds, the score (walking, the chase, tension) | [docs/mana-ui.md](mana-ui.md), [docs/game-audio.md](game-audio.md) |
 
 The game ships with a title screen, a pause, a save and continue (the level's own save: what was done, kept at the
@@ -225,6 +225,23 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
   way the mower went; a line on screen says how much is cut toward the goal and the time left. `MOW_ROUND.goal` of it
   cut pays; the clock run out ends the round and the grass grows back; getting off puts the mower back in the shed and
   ends a round still running. The scene tells a level its parks (`ctx.parks`, geocity/scene.js; `ends.parks`).
+- **Ambulance calls** (`ambulance`, mode `route`): one of the emergency station's own ambulances (the station keeps
+  them, `geocity/fleets.js` YARDS). A round of two stops: the patient waiting at the first (a red cross on a post, the
+  job's `marker: 'call'`), held at to load them, and the last a drop-off (`dropoff`: nobody waits there; the patient gets
+  off). The screen says `patient` for riders and `to load the patient` for the hold (`says`). Laid where the district
+  keeps an emergency station.
+- **Fire calls** (`fire`, mode `route`): the station's own fire engines; three fires burning at kerbs (`marker: 'fire'`:
+  flames over a charred heap, smoke above), each held at to hose it down; nobody rides.
+- **Courier run** (`courier`, mode `route`): a courier van (`PARCEL_VANS`, the road shelf's `courierVan`) issued in a bay
+  of the dock's own, never one another job's truck stands in; four doors, a parcel at each (`marker: 'parcel'`), held at
+  to hand it over.
+- **Mail round** (`mail`, mode `collect`): a mail truck (`MAIL_TRUCKS`, the road shelf's `mailTruck`); four post boxes
+  (`marker: 'mailbox'`: the box stands, its sack of mail goes as it is emptied), the mail taken back to the yard and never
+  to the dump (`unload: 'yard'`).
+
+A vehicle a row issues stands at a kerb by its yard. Where no kerb by the yard will take one (a yard among blocks with
+no shop front near it), it stands at a kerb by the start, said to be there and not at the yard. A streetcar's tracks
+never keep a kerb from parking (`kerbLanes`): its cars run past what is parked.
 
 ```js
 errands: [{ id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: true, reward: [{ item: 'coin', n: 40 }] }]

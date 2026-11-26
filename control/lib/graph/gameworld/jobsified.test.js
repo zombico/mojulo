@@ -190,3 +190,32 @@ describe('a groundskeeper\'s lawn (lawnOf)', () => {
     expect(issuedOf({ ...ends, parks: [ends.parks[0]], kerbAt: () => null }, E, 'district')).toEqual([]);
   });
 });
+
+// THE CITY'S OTHER JOBS, as rows (jobsified.js SHIFTS): the emergency station's ambulance and fire calls, a courier's van
+// out of the dock, a mail round back to its yard; and the issuing that every issued job shares
+describe('the city\'s other jobs', () => {
+  it('a route that drops off its last rider, or waits for none, says so; a collect emptied at its yard says so', () => {
+    const routes = Object.entries(SHIFTS).filter(([, S]) => S.mode === 'route');
+    expect(routes.some(([, S]) => S.dropoff && S.riders[0] > 0)).toBe(true);
+    expect(routes.some(([, S]) => S.riders[1] === 0 && S.marker)).toBe(true);
+    for (const [w, S] of routes) if (S.marker) expect(typeof S.says?.hold, w).toBe('string');
+    expect(Object.values(SHIFTS).some((S) => S.mode === 'collect' && S.unload === 'yard')).toBe(true);
+  });
+  it('each is a task on Jobsified, worked from a yard that keeps its vehicle or issues it', () => {
+    for (const [w, S] of Object.entries(SHIFTS)) if (!issues(S)) expect(YARDS[S.yard]?.roles?.[w], w).toBeTruthy();
+  });
+  const kerb = (at) => ({ at: [at[0] + 1, at[1], 0], heading: 0 });
+  const places = Array.from({ length: 30 }, (_, i) => ({ at: [i * 40, 0, 0], N: [0, 1], card: `shop-${i}` }));
+  it('two jobs issued at one dock never stand in one bay; where its yard has no kerb, a vehicle stands at one by the start', () => {
+    const W = (ids) => ids.map((id) => ({ id, giver: 'district', vehicle: id === 'courier-run' ? 'courier' : 'freight' }));
+    const dockEnds = { spawn: [0, 0, 0], places, kerbAt: kerb, dock: { at: [600, 0, 0], bays: [{ at: [600, 10, 0], heading: 0 }, { at: [614, 10, 0], heading: 0 }, { at: [628, 10, 0], heading: 0 }, { at: [642, 10, 0], heading: 0 }] } };
+    const I = issuedOf(dockEnds, W(['materials', 'courier-run']), 'district'), bays = I.map((x) => `${x.at[0]},${x.at[1]}`);
+    expect(new Set(bays).size).toBe(bays.length);
+    // (a works yard with no kerb by it: the mail truck at a kerb by the start, not said to be at the yard)
+    const town = Array.from({ length: 60 }, (_, i) => ({ at: [i * 40, 0, 0], N: [0, 1], card: `shop-${i}` }));
+    const yardEnds = { spawn: [0, 0, 0], places: town, depots: [{ yard: 'works', at: [5000, 5000, 0] }], kerbAt: (at) => (at[0] > 600 ? null : kerb(at)) };
+    const [M] = issuedOf(yardEnds, [{ id: 'mail-round', giver: 'district', vehicle: 'mail' }], 'district');
+    expect(M.at[0]).toBeLessThan(200);
+    expect(M.yard).toBe(null);
+  });
+});

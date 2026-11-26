@@ -35,7 +35,10 @@
  *
  *   JOBSIFIED          the app's id (phone-ui.js: a shift's app unless it names its own)
  *   SHIFT_MODES        collect | route | haul | dig | sweep | mow
- *   SHIFTS             { <word>: { name, mode, yard, vehicle, item, stops, stop?, done, load?, hold?, fleet?, to?, riders? } }
+ *   SHIFTS             { <word>: { name, mode, yard, vehicle, item, stops, stop?, done, load?, hold?, fleet?, to?, riders?,
+ *                      dropoff?, unload?, marker?, says? } }   (`dropoff`: a route's last stop has nobody waiting; `unload:
+ *                      'yard'` a collect emptied back at its yard; `marker` what stands at a stop: call, fire, parcel, mailbox;
+ *                      `says` the screen's words: aboard, hold, banner)
  *   YARD_NAMES         a yard as people call it (the works yard, the bus depot)
  *   SHIFT              the laying's numbers: how far a stop is driven from the one before, how far apart, the depot's reach
  *   shiftOf(word)      → the row, or throws (teaching)
@@ -72,6 +75,15 @@ export const SHIFTS = Object.freeze({
   // the parks office says as it is taken)
   groundskeeper: Object.freeze({ name: 'Groundskeeping', mode: 'mow', yard: 'park', vehicles: 'mower', calls: 1, licence: true, vehicle: 'ride-on mower', item: 'lawn', stops: 1, done: 'Lawn mowed',
     pitch: 'Parks office: half the grounds crew is off sick again and the grass won\'t wait. Got a licence? The mower\'s in the shed at the park.' }),
+  // (THE EMERGENCY STATION's: its ambulances and fire engines the station's own, geocity/fleets.js YARDS.emergency. An
+  // ambulance call is a route of two, the patient picked up and dropped at the end, `dropoff`; a fire call is a route of
+  // fires, each held at to hose it down. `marker` what stands at a stop, `says` the words the screen says it in)
+  ambulance: Object.freeze({ name: 'Ambulance calls', mode: 'route', yard: 'emergency', vehicle: 'ambulance', item: 'patients', stops: 2, hold: 2, riders: Object.freeze([1, 1]), dropoff: true, marker: 'call', says: Object.freeze({ aboard: 'patient', hold: 'to load the patient', banner: 'Patient delivered' }), stop: 'Pick up the patient', done: 'Patient delivered' }),
+  fire: Object.freeze({ name: 'Fire calls', mode: 'route', yard: 'emergency', vehicle: 'fire engine', item: 'fires', stops: 3, hold: 3, riders: Object.freeze([0, 0]), marker: 'fire', says: Object.freeze({ hold: 'to hose it down', banner: 'Fires out' }), stop: 'Put out the fire', done: 'Fires out' }),
+  // (a COURIER's van, out of the dock's logistics yard: a route of doors, a parcel handed over at each)
+  courier: Object.freeze({ name: 'Courier run', mode: 'route', yard: 'dock', vehicles: 'parcel', calls: 1, vehicle: 'courier van', item: 'parcels', stops: 4, hold: 1.2, riders: Object.freeze([0, 0]), marker: 'parcel', says: Object.freeze({ hold: 'to hand it over', banner: 'Parcels delivered' }), stop: 'Hand over the parcel', done: 'Parcels delivered' }),
+  // (a MAIL round: the post boxes emptied into the mail truck and the mail taken back to the yard, never the dump)
+  mail: Object.freeze({ name: 'Mail round', mode: 'collect', yard: 'works', vehicles: 'mail', calls: 1, vehicle: 'mail truck', item: 'mail', stops: 4, load: 4, hold: 1, unload: 'yard', marker: 'mailbox', stop: 'Empty the post box', done: 'Mail collected' }),
   heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, licence: true, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
 // THE HEAVY CALL'S VEHICLES (a row's `vehicles: 'heavy'`): trucks and a site's machines turn about, each a body a hero
@@ -98,7 +110,10 @@ export const FREIGHT_VEHICLES = Object.freeze([
 export const SWEEPERS = Object.freeze([Object.freeze({ model: 'loft:streetSweeper', word: 'street sweeper', paint: '#f1f1ee' })]);
 // THE PARKS' MOWER (a row's `vehicles: 'mower'`): the car shelf's ride-on mower, kept in the groundskeeper's shed
 export const MOWERS = Object.freeze([Object.freeze({ model: 'loft:rideOnMower', word: 'ride-on mower', paint: '#3f7a3a' })]);
-const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VEHICLES, sweeper: SWEEPERS, mower: MOWERS });
+// THE COURIER'S VAN and THE MAIL TRUCK (a row's `vehicles: 'parcel'`, `'mail'`)
+export const PARCEL_VANS = Object.freeze([Object.freeze({ model: 'loft:courierVan', word: 'courier van', paint: '#d9a520' })]);
+export const MAIL_TRUCKS = Object.freeze([Object.freeze({ model: 'loft:mailTruck', word: 'mail truck', paint: '#f1f1ee' })]);
+const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VEHICLES, sweeper: SWEEPERS, mower: MOWERS, parcel: PARCEL_VANS, mail: MAIL_TRUCKS });
 /** Whether a row's vehicle is issued (a fleet's, or one of a list's turn about), not the depot's own. */
 export const issues = (S) => !!(S && (S.fleet || S.vehicles || S.machine));
 for (const [word, S] of Object.entries(SHIFTS)) {
@@ -148,19 +163,24 @@ export function issuedOf(ends, errands, level) {
     // (a dock's own bays, where it has them: a truck backed to each, its first ones)
     for (const bay of S.yard === 'dock' ? D?.bays ?? [] : []) {
       if (k >= n) break;
+      // (a bay another job's truck already stands in is not this one's)
+      if (!taken.every((t) => d2(bay.at, t) > 4)) continue;
       const V = which(k);
       out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: bay.at.slice(), heading: bay.heading, model: V.model, paint: V.paint, word: V.word, place: null, yard: YARD_NAMES.dock });
       taken.push(bay.at);
       k++;
     }
-    // (each at a kerb of its own, clear of the others' by a long vehicle's length)
-    for (const q of near.slice(0, 40 + n * 4)) {
+    // (each at a kerb of its own, clear of the others' by a long vehicle's length; where no kerb by its yard will take
+    // one, a yard among the district's blocks with no shop front near it, at a kerb near the start as where it has none)
+    const byStart = D ? (ends.places ?? []).slice().sort((a, b) => d2(a.at, ends.spawn) - d2(b.at, ends.spawn) || a.at[0] - b.at[0] || a.at[1] - b.at[1]) : [];
+    const byYard = new Set(near.slice(0, 40 + n * 4));
+    for (const q of [...byYard, ...byStart.slice(0, 40 + n * 4)]) {
       if (k >= n) break;
       if (!taken.every((t) => d2(q.at, t) > 16)) continue;
       const spot = ends.kerbAt(q.at, q.N);
       if (!spot || !taken.every((t) => d2(spot.at, t) > 16)) continue;
       const V = which(k);
-      out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: spot.at, heading: spot.heading, model: V.model, paint: V.paint, word: V.word, place: q.card, yard: D ? YARD_NAMES[S.yard] : null });
+      out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: spot.at, heading: spot.heading, model: V.model, paint: V.paint, word: V.word, place: q.card, yard: D && byYard.has(q) ? YARD_NAMES[S.yard] : null });
       taken.push(spot.at);
       k++;
     }

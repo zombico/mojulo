@@ -427,7 +427,7 @@ export function lowerShift(p, ctx) {
     for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: paid }, frag);
     R.push({ on: paid, do: 'set', var: `flag-${done}`, to: 1 }, { on: paid, do: 'emit', type: `flag:${done}` }, { on: paid, do: 'emit', type: `errand:done:${id}` });
     // (paid: a card in the middle, its name over what it paid, slammed in the game's look: game/hud-mana.js banner)
-    frag.hud.push({ on: paid, as: 'banner', text: mode === 'haul' ? 'Delivered' : mode === 'route' ? 'Route complete' : mode === 'dig' ? 'Truck loaded' : mode === 'sweep' ? 'Streets swept' : mode === 'mow' ? 'Lawn mowed' : 'Round complete', sub: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Done'}${p.repeat === true ? ' · another when you are ready' : ''}` });
+    frag.hud.push({ on: paid, as: 'banner', text: typeof p.says?.banner === 'string' && p.says.banner ? p.says.banner : mode === 'haul' ? 'Delivered' : mode === 'route' ? 'Route complete' : mode === 'dig' ? 'Truck loaded' : mode === 'sweep' ? 'Streets swept' : mode === 'mow' ? 'Lawn mowed' : 'Round complete', sub: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Done'}${p.repeat === true ? ' · another when you are ready' : ''}` });
   };
   // (a one-off pays once: its way to its pay is shut once paid)
   const once = (from, to) => R.push(p.repeat === true ? { on: from, do: 'emit', type: to } : { on: from, if: { var: `flag-${done}`, eq: 0 }, do: 'emit', type: to });

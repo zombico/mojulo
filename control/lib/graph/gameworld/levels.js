@@ -642,6 +642,9 @@ function geotownEnds(manifest) {
 // never a roof, and never the highway carried over its streets: a level is set down on the street under it), what
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
+// the lanes a kerb keeps out of: the traffic's, never a streetcar's tracks (geocity/flow.js `:tram`): its cars run past
+// what is parked, as they did before the tracks were lanes, and a street a line runs down still parks at its kerbs
+const kerbLanes = (P) => (P.flow?.lanes ?? []).filter((L) => !String(L.line ?? '').endsWith(':tram'));
 function geocityEnds(manifest) {
   const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], emptyLots = [], dumpAt = [], dockAt = [], rampsAt = [], parks = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards, lots: emptyLots, dumpAt, dockAt, rampsAt, parks });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
@@ -665,11 +668,11 @@ function geocityEnds(manifest) {
   // (KERB.walk: a downtown's kerbs park cars down every street), its own fleet's at the kerb there, in no bay a car of
   // the street's already stands in)
   const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
-  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [], lots)), ...lots], enumerable: false });
+  Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, kerbLanes(P), lots)), ...lots], enumerable: false });
   // (a KERB beside a place on its walk, `kerbAt(p, N)`, N the way out to its street: a bay on the road there, clear of
   // the cars parked, turned along the street; null where none. Where a job stands a vehicle of its own: jobsified.js)
   let roadAt = null;
-  Object.defineProperty(out, 'kerbAt', { value: (p, N) => { roadAt ??= groundSampler(P.faces ?? [], /^geocity:road$/); return kerbSpots([[p[0], p[1]], [p[0] - N[1], p[1] + N[0]]], roadAt, P.colliders ?? [], ground, P.flow?.lanes ?? [], lots)[0] ?? null; }, enumerable: false });
+  Object.defineProperty(out, 'kerbAt', { value: (p, N) => { roadAt ??= groundSampler(P.faces ?? [], /^geocity:road$/); return kerbSpots([[p[0], p[1]], [p[0] - N[1], p[1] + N[0]]], roadAt, P.colliders ?? [], ground, kerbLanes(P), lots)[0] ?? null; }, enumerable: false });
   // (its STREETS as a driver keeps to them: the middle line of each signalled street its traffic drives, cityRoads)
   Object.defineProperty(out, 'roads', { value: cityRoads(streets), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
@@ -2000,14 +2003,17 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
           if (!free.length) break;
           const q = free.reduce((m, x) => (Math.abs(d2(x.at, prev) - SHIFT.hop) < Math.abs(d2(m.at, prev) - SHIFT.hop) - 1e-9 ? x : m));
           // (a route's stop: how many wait there, the row's few to many by the stop's own number)
-          const riders = S.riders ? S.riders[0] + (((j + 1) * 7 + L.id.length * 3) % (S.riders[1] - S.riders[0] + 1)) : null;
-          stops.push({ at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card, ...(riders ? { riders } : {}), ...(S.mode === 'route' ? { N: q.N.slice() } : {}) });
+          // (a drop-off's last stop: nobody waits there, its riders only get off; a round of none, a fire's or a parcel's)
+          const riders = S.riders ? (S.dropoff && j === L.stops - 1 ? 0 : S.riders[0] + (((j + 1) * 7 + L.id.length * 3) % (S.riders[1] - S.riders[0] + 1))) : null;
+          stops.push({ at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card, ...(riders || (riders === 0 && (S.dropoff || S.riders[1] === 0)) ? { riders } : {}), ...(S.mode === 'route' ? { N: q.N.slice() } : {}) });
           prev = q.at;
         }
         if (stops.length < (S.mode === 'collect' ? S.load : 2)) { unlaid.add(k); continue; }
         used.push(from.at, ...stops.map((q) => q.at));
         legs[k] = { ...who, stops, stop: S.stop, ...(S.hold ? { hold: S.hold } : {}),
-          ...(S.mode === 'collect' ? { load: S.load, ...(ends.dump ? { unload: { at: ends.dump.at.slice(), half: ends.dump.half.slice() } } : {}) } : {}) };
+          ...(S.mode === 'collect' ? { load: S.load, ...(ends.dump && S.unload !== 'yard' ? { unload: { at: ends.dump.at.slice(), half: ends.dump.half.slice() } } : {}) } : {}),
+          // (what stands at its stops and the words it is said in: jobsified.js `marker`, `says`)
+          ...(S.marker ? { marker: S.marker } : {}), ...(S.says ? { says: { ...S.says } } : {}) };
         task();
       }
     }
