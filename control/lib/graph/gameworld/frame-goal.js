@@ -30,6 +30,7 @@ import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
 import { STOCK, PARTS } from '../assault-frame/parts.js';
 import { readBuild } from '../assault-frame/assemble.js';
+import { readScript } from './script.js';
 import { PARTS_SLICE } from '../assault-frame/hangar.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -77,7 +78,7 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -130,9 +131,11 @@ export function readOperation(v, at = 'goal.operation') {
   });
   // (its allies: frames on the pilot's side, a wingman who leads it through the operation's places and fights beside it)
   const allies = v.allies === undefined ? null : readAllies(v.allies, ids, `${at}.allies`);
+  // (its script: the spoken lines on its moments, gameworld/script.js; its allies speak under their own names)
+  const script = v.script === undefined ? null : (() => { const S = readScript(v.script, { tasks: tasks.length, at: `${at}.script` }); for (const a of allies ?? []) S.speakers[a.id] ??= { name: a.name }; return S; })();
   // (its lessons: the frame's controls taught one at a time, each group as its task begins: FRAME_LESSONS)
   const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}) };
 }
 
 /** An operation's allies checked (throws, teaching): [{ id, name, build?, palette?, ap?, lead? }]. A wingman: a frame on
@@ -276,5 +279,5 @@ export function operationCast(op, ends) {
     const e = frameEntity(a.build, { id: a.id, at, heading: ends.heading ?? Math.PI / 2, mind: { range: OPERATION.frameRange, aggression: 0.5, dodge: 0.5, ally: true, engage: ALLY.engage, ...(a.lead && places.length ? { lead: places } : {}) }, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ap: a.ap, ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
     entities.push({ ...e, ally: { name: a.name } });
   });
-  return { entities, figures, ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons ? { lessons: op.lessons } : {}) };
+  return { entities, figures, ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons ? { lessons: op.lessons } : {}), ...(op.script ? { script: op.script } : {}) };
 }

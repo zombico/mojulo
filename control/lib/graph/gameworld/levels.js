@@ -32,6 +32,8 @@ import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/f
 import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
 import { OPERATION_LEGEND, FRAME_LESSON_TASK } from './frame-goal.js';
 import { frameAudio } from './frame-sound.js';
+import { scriptSequences } from './script.js';
+import { commsData } from '../scene/channels/comms.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
 import { facilityBuilding } from '../era/facilities.js';
@@ -1104,6 +1106,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     // FRAME_LESSONS, each group as its task begins)
     const OB = game.mechanics.find((m) => m && m.kind === 'objectives');
     const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: '', kind: 'reach', at: t.at, radius: t.radius ?? 2, when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
+    // (its script, gameworld/script.js: each line raised on the bus at its moment, shown on the page as comms)
+    if (X0?.script) pilotPart = { ...pilotPart, events: { ...pilotPart.events, sequences: [...(pilotPart.events.sequences ?? []), ...scriptSequences(X0.script.lines)] }, comms: commsData(X0.script) };
     if (ways.length || X0?.lessons?.length) pilotPart = { ...pilotPart, guide: { steps: ways, ...(X0?.lessons?.length ? { lessons: X0.lessons } : {}), done: '', top: 96 } };
     // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
     // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
