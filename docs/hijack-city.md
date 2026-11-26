@@ -69,6 +69,15 @@ land, the actors' live shadows, the buildings' baked light and relief near the e
 Its frame is held to what it shows: passers-by drawn where they are seen and one draw each, the occlusion's prepass to
 its reach, a town's lawn blades near the eye only, one reading of each dressed tile. `gen-6` is the lighter page.
 
+Its shadows are the live light's two maps (`scene/channels/cast-shadows.js`): what moves (the hero, the walkers, the
+traffic) in a map that follows the player, and the static city (its buildings, trees, posts, parked cars) in the hour's
+map, drawn once. The hour's map is fitted to the district itself (`geocity/scene.js` `SHADOW_FIT`: its frame and a
+margin), never to everything static on the page: the metro's evocations and its water reach twice the frame out on every
+side, and a map fitted to all of them was 3 km across, its texels a metre and a half and its depth bias taller than a
+tree, so nothing in the street cast and the buildings' shadows were smeared away. A shadow takes away the sun's share of
+a surface's light (its `sunShare`), so at a low sun (Los Angeles's golden hour, the sun about 8° up and a quarter of the
+street's light) the long shadows are faint; at noon they are strong.
+
 Its style asks the district for its sky as it asks for its hour (`world.js` `skyOfStyle`, carried onto the geocube):
 `clouds: 'fair'`, an `air` of haze that pales the far blocks a kilometre off, the `finish` (one tone curve, the sky in
 the glass, the lamps' bloom) and the view `cone`. Under the cone the street's kit is drawn as far as it reads, and
@@ -169,7 +178,18 @@ channel as it was. A realistic person is LIT (`lit`): its colours are its painte
 scene's light (the sun by day, the lamps by night), never darker than `WALKER_LIT.floor` of its own colours, since a
 street's lamp pools are painted on the ground and light no one. A quick figure's colours carry their light and stay unlit.
 A six's people keep their places on their walk (`startFrac`: its groups a quarter of the loop apart, its pairs a step
-apart), so no two are drawn on one spot. A realistic person takes a minute or so to bake, so a level's people are baked once and kept
+apart), so no two are drawn on one spot.
+
+Each realistic person walks the hero's own walk, as the mint stamps it (`hero-motion.js` `stampHeroMotion`), moved by a
+gait (`street-cast.js` `STREET_GAITS`: easy, the hero's own; brisk, stroll, heavy, weary, graceful, swagger and shy, each
+a set of the vibe's axes lowered through `gameworld/hero-vibe.js`). The gait is rolled on dice of its own by the
+person's age, build and sex (`gaitOdds`: the young brisker, the old slower, a heavy build heavier), so their face, body
+and clothes are as they were. A walk carries the ground it covers: its crowd figure carries its STRIDE, measured off its
+planted feet (`figures/walker-pace.js` `walkStride`), and the walkers channel steps it by that stride, so its feet stay
+where they land and no one skates. Each group of a six walks at its people's mean natural pace (each walk's stride over
+its cycle, at its height) times the group's own pace at half its spread (`paceWalkers`, applied once the people are
+baked): a pair stays side by side, each stepping at its own rhythm. On the realistic body the gaits run from about
+0.7 m/s (weary) to 1.55 m/s (brisk). A realistic person takes a minute or so to bake, so a level's people are baked once and kept
 (`figures/crowd-kept.js`, under `MOJULO_CROWD_DIR`, else `~/.mojulo/cache/crowd`), keyed by the person, the grade and
 the realistic laws: a level's second read takes them from disk.
 

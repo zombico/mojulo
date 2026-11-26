@@ -49,4 +49,10 @@ describe('the walkers\' near figure', () => {
     expect(walkersChannelScript([walker({ startFrac: 0.25 })], bank)).toContain('((sec / r.period + (w.startFrac || 0)) % 1) * r.total');
     expect(walkersChannelScript([walker({ startFrac: 0.25, holds: [] })], bank)).not.toContain('((sec / r.period + (w.startFrac || 0)) % 1)');
   });
+  it('a walk that carries its measured stride steps by it, so its feet stay planted; none carried, not a byte', () => {
+    const plain = walkersChannelScript([walker()], { p: fig(2) });
+    expect(plain).not.toContain('clip.stride > 0');
+    const strode = fig(2); strode.clips = { forward: { ...strode.clips.forward, stride: 1.14, s: 1.1 } };
+    expect(walkersChannelScript([walker()], { p: strode })).toContain('clip.stride > 0 ? clip.stride * scale : ');
+  });
 });

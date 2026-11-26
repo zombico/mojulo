@@ -38,6 +38,7 @@ const ints = (s, n) => { const b = Buffer.from(s, 'base64'), ab = b.buffer.slice
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 
 import { lodFigure, simplifyPart, partFaces } from './figure-lod.js';
+import { walkStride } from './walker-pace.js';
 import { decodePng } from '../era/tone.js';
 
 // a part's corners, read through its index where it has one: { P, C, J, W, corner(k) → its source corner }
@@ -286,13 +287,19 @@ const headOf = (fig) => fig.parts.reduce((b, p, i) => (p?.morph && partFaces(p) 
 // (a packed part read back as the crowd figure's input: its weights, a byte each, as floats again)
 const unpack = (p) => (p && p.wgt && p.wq === 8 ? { ...p, wgt: Buffer.from(Float32Array.from(Buffer.from(p.wgt, 'base64'), (b) => b / 255).buffer).toString('base64') } : p);
 
-export function realCrowdFigure(fig, { budget = REAL_CROWD.near, stand = false } = {}) {
+export function realCrowdFigure(fig, opts = {}) {
+  // (its walk's stride with it, measured off the source's planted feet: the ground a cycle of it covers, by which a
+  // walker steps without skating, figures/walker-pace.js; a walk that plants none carries none)
+  const out = realCrowdBody(fig, opts), stride = walkStride(fig);
+  return stride ? { ...out, clips: { ...out.clips, forward: { ...out.clips.forward, stride } } } : out;
+}
+function realCrowdBody(fig, { budget = REAL_CROWD.near, stand = false } = {}) {
   // (a FAR walker, under a near one's budget: the grid over the NEAR walker, which welds across its parts so none gaps
   // from the next, its colours each corner's own; simplified to so few, a hem's and a cuff's open edges held the
   // simplifier at ten times the budget, welded loose the parts stood apart at every seam, and the grid over the whole
   // figure snapped the skin under loose cloth through it)
   if (budget < REAL_CROWD.near) {
-    const N = realCrowdFigure(fig, { budget: REAL_CROWD.near, stand }), gridded = { ...fig, parts: N.parts.map(unpack) };
+    const N = realCrowdBody(fig, { budget: REAL_CROWD.near, stand }), gridded = { ...fig, parts: N.parts.map(unpack) };
     const { paintTex: _t, normalTex: _n, ormTex: _o, face: _f, ...bare } = gridded;
     return crowdFigure(bare, { budget, stand });
   }

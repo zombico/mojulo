@@ -1987,6 +1987,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = renderFigureWorldFrames(spec, spec.frames || 24).frames;
         }
       }
+      // (a city's realistic people paced by their own walks, figures/walker-pace.js: each group of a six at its members' mean
+      // natural pace, each stepping by the stride its walk measures, so no one skates; a page without them as it was)
+      if (Array.isArray(payload.walkers) && payload.figures && payload.walkers.some((w) => w && w.near && payload.figures[w.figure]?.clips?.forward?.stride > 0)) {
+        const [{ paceWalkers }, { SIX_WALK }] = await Promise.all([import('@/lib/graph/figures/walker-pace.js'), import('@/lib/graph/geocity/crowd.js')]);
+        payload.walkers = paceWalkers(payload.walkers, payload.figures, { base: SIX_WALK });
+      }
       // I4: record each figures-map entry's manifest-level body
       // source so the GLB export can stamp `moj:body` extras on entity nodes. Payload-only
       // metadata — emitThreeWorld destructures known keys and ignores this, so no emitted

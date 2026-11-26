@@ -69,7 +69,7 @@ import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { flowOf, flowLaws, FLOW_LOD } from './flow.js';
 import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISHES, finishOf } from './industry.js';
 import { INDUSTRY_SEGMENTS, CIVIC_SEGMENTS } from './segments.js';
-import { sixesOf, crowdOf, CROWDS, SIX } from './crowd.js';
+import { sixesOf, crowdOf, CROWDS, SIX, SIX_WALK } from './crowd.js';
 import { HIGHWAY, deckAt } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates, shoreAt } from './waterfront.js';
 import { rooftopTemplates, rooftopPlan, lotRoofPlan, beaconsOf, BEACON, ROOFTOP } from './rooftop.js';
@@ -360,6 +360,12 @@ const GLAZED = Object.freeze({ 'geocity:glass': TOWN_GLOSS.window, 'geocity:curt
 const BACK_CLAIMED = new Set(['paving', 'deck', 'shed', 'roof', 'garage', 'gravel', 'soil', 'sand', 'water', 'coping', 'timber', 'chips', 'mulch', 'compost', 'steel', 'dirt', 'court', 'track', 'drive', 'car', 'lane', 'park-path', 'step', 'bin', 'line']);
 /** A level face wider than this (m) is ground, and shades nothing; the sun test's grid for a city (m). */
 const FORM_SPAN = 30, FORM_CELL = 3;
+/** THE SHADOWS' FIT (a form render's, scene/channels/cast-shadows.js `fit`): the live light's maps fitted to the district
+ *  itself, its frame and SHADOW_FIT.margin round it, and not to everything static on the page (the metro's evocations and
+ *  its water reach twice the frame out on every side, a box 3 km across whose texels and bias swallowed every tree, post
+ *  and car and smeared the buildings' shadows away) */
+export const SHADOW_FIT = Object.freeze({ margin: 40 });
+const shadowFit = (d) => ({ at: [r5(d.frame.W / 2), r5(d.frame.D / 2), r5((d.land.range[0] + d.land.range[1]) / 2)], half: r5(Math.max(d.frame.W, d.frame.D) / 2 + SHADOW_FIT.margin) });
 export function assembleGeocityScene(m, ctx = {}) {
   for (const k of Object.keys(m)) if (!GEOCITY_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geocity (cube, seed, hour, clouds, geocity, cone, air, crowns)`);
   // (`crowns`: how the form render reads its broadleaves, its street trees' and its towns', form/flora-read.js readCrowns;
@@ -2748,7 +2754,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // one to each stretch of it, turn about one way and the other, at a person's pace; the legacy city's walkers carry them (worlds/world-kinds.js
   // attachCityWalkers, scene/channels/walkers.js: their clothed rigs, a looped path). A block whose shops stand on a
   // forecourt keeps its walk to those who shop there: its ring would pass through its rails. Seeded per block.
-  const PEOPLE = { inset: 1.2, stride: 6, speed: 1.35 }, walkerLoops = [];
+  const PEOPLE = { inset: 1.2, stride: 6, speed: SIX_WALK }, walkerLoops = [];
   if (PLAY) {
     // (its CROWD in sixes, crowd.js: each walked block an area, its walk's ring its path, asked its sixes by its walk and
     // its kind; the district's sixes stacked where they are asked, nearest its middle first; each six six different
@@ -2785,7 +2791,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     plan = { box: [0, 0, r5(d.frame.W), r5(d.frame.D)], shapes, places: entered.map((e) => ({ at: [r5(e.door[0]), r5(e.door[1])], kind: 'shop', card: e.S.card })) };
   }
   return {
-    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: { ...F, ...(coned ? { lod: FLOW_LOD } : {}), ...(night ? { night: true } : {}) } } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown }, ...(ctx.liveSun ? { shadows: { fit: shadowFit(d) } } : {}) } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: { ...F, ...(coned ? { lod: FLOW_LOD } : {}), ...(night ? { night: true } : {}) } } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },

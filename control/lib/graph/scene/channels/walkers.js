@@ -125,6 +125,8 @@ export function walkersChannelScript(walkers, bank, { cast = false, signals = nu
   // (and never darker than WALKER_LIT.floor of its own colours, so between a street's lamps, whose pools are painted on the
   // ground and light no one, a passer-by is a person in the half-light and not a hole)
   const lit = walkers.some((w) => w.lit);
+  // (a walk whose stride is measured, a realistic person's: stepped by it; none ⇒ not a byte)
+  const measured = walkers.some((w) => bank[w.figure]?.clips?.forward?.stride > 0);
   const starts = walkers.some((w) => !Array.isArray(w.holds) && w.loop !== false && Number.isFinite(w.startFrac) && w.startFrac % 1);
   const follow = !capture && walkers.some((w) => w.follow);
   return `
@@ -266,7 +268,9 @@ const __walkerRigs = WALKERS.map((w) => {
     yaw: w.yaw != null ? w.yaw : -Math.PI / 2,   // rig faces +y → subtract 90° so heading 0 aims +x
     // world units advanced per full gait cycle (2 steps). Defaults off the baked figure height (times
     // the group scale, so the scaled foot swing matches the ground it passes over); overridable (P3 tune).
-    stride: w.stride > 0 ? w.stride : Math.max(0.05, (fig.figH || 1.8) * 0.72 * scale)${held ? `,
+    // (a walk that carries its own stride, measured off its planted feet (figures/walker-pace.js walkStride): stepped by it,
+    // so its feet stay where they land)
+    stride: w.stride > 0 ? w.stride : ${measured ? 'clip.stride > 0 ? clip.stride * scale : ' : ''}Math.max(0.05, (fig.figH || 1.8) * 0.72 * scale)${held ? `,
     held: Array.isArray(w.holds) ? { s0: ((w.startFrac || 0) % 1) * at.total, s: ((w.startFrac || 0) % 1) * at.total, t: 0 } : null` : ''} };
 });
 ${lod ? `// (a walker's near rig: made once, hidden until it comes near. Every one is made now, while the page warms behind the

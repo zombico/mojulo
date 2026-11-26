@@ -19,7 +19,7 @@ import { realCrowdFigure, REAL_CROWD } from './crowd-figure.js';
 import { REALISTIC_LAWS_VERSION } from '../../mcp/tools/layered.js';
 
 /** this shelf's version: a change to how a crowd figure is made bumps it, so nothing older is read back */
-export const CROWD_KEPT_VERSION = 1;
+export const CROWD_KEPT_VERSION = 2;   // 2: its walk's stride measured onto it (walker-pace.js)
 const dir = () => process.env.MOJULO_CROWD_DIR || path.join(process.env.MOJULO_HOME || path.join(os.homedir(), '.mojulo'), 'cache', 'crowd');
 const keyOf = (spec) => createHash('sha256').update(JSON.stringify([CROWD_KEPT_VERSION, REALISTIC_LAWS_VERSION, REAL_CROWD, spec.hero, spec.grade ?? null])).digest('hex').slice(0, 24);
 const named = (name, kept) => ({ [name]: kept.far, [`${name}:near`]: kept.near });

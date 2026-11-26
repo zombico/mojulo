@@ -129,3 +129,11 @@
   instead of lifting on the first frame and leaving the game frozen for a while. Realistic pedestrians' detailed
   figures are built during that warm-up (one body shared by everyone wearing it), so walking up to someone no longer
   hitches the game.
+- Realistic pedestrians really walk now, with planted feet. Before, they took steps in place while sliding along the
+  pavement. Each walks the main character's own walk in a gait of their own, chosen by age and build: easy, brisk,
+  stroll, heavy, weary, graceful, swagger or shy, from about 0.7 to 1.55 m/s. Each group walks at its members' own pace,
+  so a pair stays side by side, each stepping in their own rhythm.
+- The city's buildings, trees, lamp posts and parked cars now cast shadows. Before, only characters did, because the
+  city's shadow map stretched over the whole metro and its water, about 3 km across, too coarse to draw anything in the
+  street. It now covers only the district you play in. Shadows are strong at noon; at a low sun, like Los Angeles's
+  golden hour, they are long but faint, since the sun then gives the street only about a quarter of its light.
