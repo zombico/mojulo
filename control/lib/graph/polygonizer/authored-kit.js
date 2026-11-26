@@ -8,7 +8,9 @@
  *                of its window (no lower than the hips' widest), read off everything worn there, the legs' tops among
  *                it (`beltOn`, sampled round the body `BELT_ROUND` ways, not the cloth's ring12), on the cloth piece it
  *                names or the outermost one there; belts within a hand's width share a height, the later cinched over
- *                the earlier; its buckle a frame (`frameBuckle`)
+ *                the earlier; its buckle a frame (`frameBuckle`); a `tall` one (m) as wide as its window up to that, a
+ *                cincher's band where a belt's is held to 5.5 cm; a motif on it its pattern's strips (`beltPattern`), a
+ *                `clasp` its round plate on its front (`beltClasp`)
  *   CLEARED      the trunk's cloth worn over a belt (a jacket, a tunic out over its trousers) carried out over the belt
  *                and its buckle at its height, eased back to its own line within 2 cm
  *   the KIT      a pouch, a holster, a harness's webbing, a thigh rig's band (`kitPieces`), on the cloth and the belts
@@ -22,7 +24,7 @@
  *   authoredKit(recipe, adorn) → { parts, taken }   `taken` the adornments' ids made here, for the kernel to leave
  * Pure and deterministic.
  */
-import { beltOn, frameBuckle, kitPieces } from './body-relational-kit.js';
+import { beltClasp, beltOn, beltPattern, frameBuckle, kitPieces } from './body-relational-kit.js';
 import { clearanceOver } from './body-relational-tailor.js';
 import { byShare } from './station-loft-adorn.js';
 import { compileLayered } from './station-loft.js';
@@ -114,10 +116,10 @@ export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
   for (const A of adorn || []) {
     if (!isBelt(A, P0)) continue;
     const seg = A.part.split('_').pop(), carrier = P0[A.part], W = byShare(carrier, A);
-    const width = clamp(Math.abs(zAt(carrier, W.s[1]) - zAt(carrier, W.s[0])), WIDTH), thick = clamp(A.thick ?? 0.006, THICK);
+    const width = clamp(Math.abs(zAt(carrier, W.s[1]) - zAt(carrier, W.s[0])), A.tall ? [WIDTH[0], Math.max(WIDTH[1], A.tall)] : WIDTH), thick = clamp(A.thick ?? 0.006, THICK);
     // (a belt rides the trunk: on the hips no lower than their widest, never down where the legs part from the pelvis,
-    // which a hip belt's window reaches on the game body's short pelvis)
-    let z = Math.max(zAt(carrier, (W.s[0] + W.s[1]) / 2), hipFloor + width / 2);
+    // which a hip belt's window reaches on the game body's short pelvis; a tall one's foot may lap over their top)
+    let z = Math.max(zAt(carrier, (W.s[0] + W.s[1]) / 2), hipFloor + width * (A.tall ? 0.2 : 0.5));
     // (hugging: a belt within a hand's width of one already made shares its height, cinched over it)
     const by = zones.map(([lo, hi]) => (lo + hi) / 2).find((m) => Math.abs(m - z) < 0.1); if (by !== undefined) z = by;
     // (on the cloth piece it names; on the skin, or worn on top, the outermost cloth there; none, the skin itself)
@@ -136,6 +138,10 @@ export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
       const F = frameBuckle({ ...band, group: A.group ?? 'Leather' }, `${A.id}Buckle`, { w: Math.max(0.04, sig.w ?? 0.05), group: sig.group ?? 'Buckle', tailGroup: A.group ?? 'Leather' });
       for (const [k, P] of Object.entries(F)) { parts[`${k}_${seg}`] = P; made.push(P); }
     }
+    // (a patterned belt, a motif its signature: the pattern's strips worked on its face, body-relational-kit.js beltPattern)
+    if (sig?.kind === 'motif') for (const [k, P] of Object.entries(beltPattern(band, `${A.id}Pattern`, { name: sig.name, w: Math.max(0.004, sig.w ?? 0), clear: A.clasp?.r ?? 0, group: sig.group ?? 'Trim' }))) { parts[`${k}_${seg}`] = P; made.push(P); }
+    // (a clasp of its own, `clasp`: a round plate centred on its front, over the pattern)
+    if (A.clasp) { const Q = beltClasp(band, { r: A.clasp.r, group: A.clasp.group ?? 'Trim' }); parts[`${A.id}Clasp_${seg}`] = Q; made.push(Q); }
     // CLEARED: the trunk's cloth worn over the belt carried out over it and its buckle at its height, eased back to its
     // own line within 2 cm above and below
     const bp = made.flatMap(pointsOf), zLo = Math.min(...bp.map((q) => q[2])), zHi = Math.max(...bp.map((q) => q[2])), need = clearanceOver(bp.map((q) => [q[0], q[1], z]));

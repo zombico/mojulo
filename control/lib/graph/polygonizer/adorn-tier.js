@@ -10,7 +10,8 @@
  *     coarser plate's points), nor than a ring at standoff s over a radius r
  *     needs to clear it, cos(π/N) ≥ r / (r + s). Its stations follow by the same share, never fewer than the carrier's
  *     stations it spans.
- *   ELEMENTS by their size (the lean ear's rule): a signature's disc takes the sides its radius in pixels wants; a row of
+ *   ELEMENTS by their size (the lean ear's rule): a signature's disc takes the sides its radius in pixels wants (a `round`
+ *     one at least ROUND_DISC); a row of
  *     studs whose stud is under MIN_ELEMENT_PX across becomes one stud (the element the ledger reads stays).
  *   TRIM and LACING as paint (the face tint's rule): a rolled edge (armor/plate.js `edgeTrim`) narrower than MIN_TRIM_PX
  *     becomes its carrier shell's painted `rim` in the trim's group, the low-poly trim that is the plate's own edge. A
@@ -34,6 +35,8 @@ export const MIN_ELEMENT_PX = 2;
 export const MIN_TRIM_PX = 3;
 /** the fewest sides a disc keeps */
 const MIN_DISC = 4;
+/** the fewest a `round` disc keeps: a circle, never a polygon */
+export const ROUND_DISC = 16;
 
 const flat = (v) => (Array.isArray(v) ? v.flat(Infinity) : [v]).filter(Number.isFinite);
 const twinR = (p) => p.replace(/L$/, 'R');
@@ -98,7 +101,8 @@ export function tierKit(kit, plan, targetSpec) {
     }
     const S = A.signature;
     if (S && Number.isFinite(S.r) && Number.isFinite(S.m)) {
-      const m2 = discSides(S.r, S.m);
+      // (a disc its author made `round`, a clasp that must read as a circle, keeps ROUND_DISC sides however small)
+      const m2 = S.round ? Math.max(Math.min(S.m, ROUND_DISC), discSides(S.r, S.m)) : discSides(S.r, S.m);
       let S2 = m2 !== S.m ? { ...S, m: m2 } : S;
       if (S.kind === 'studs' && S.count > 1 && 2 * S.r * ppm < MIN_ELEMENT_PX) { S2 = { ...S2, count: 1 }; trace.studs++; }
       if (S2 !== S) { E = { ...E, signature: S2 }; if (m2 !== S.m) trace.discs++; }

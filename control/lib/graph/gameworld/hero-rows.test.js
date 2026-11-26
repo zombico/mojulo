@@ -78,12 +78,12 @@ describe('the clothing words the row is made of', () => {
     expect(low(parts.cloak_cape)).toBeLessThan(low(plain.cloak_cape));
   });
 
-  it('bands cross the front only, a half each side of the centre; a crest is a plaque and its gem on the centre line at the waist', () => {
+  it('bands cross the front only, a half each side of the centre; a crest at the waist is a plaque and its gem on the centre line', () => {
     const bands = M.plan.adorn.filter((a) => /^band\d[RL]$/.test(a.id));
     expect(bands.map((a) => a.id)).toEqual(['band1R', 'band1L', 'band2R', 'band2L']);
     for (const b of bands) { expect(b.t[0]).toBe(0); expect(b.t[1]).toBeLessThan(2); expect(b.part).toBe('torso'); }
     expect(bands[2].s[0]).toBeGreaterThan(bands[0].s[1]);
-    const crest = M.plan.adorn.find((a) => a.id === 'crest'), gem = M.plan.adorn.find((a) => a.id === 'crestGem');
+    const W = outfitOf([{ kind: 'crest', at: 'waist' }]).plan.adorn, crest = W.find((a) => a.id === 'crest'), gem = W.find((a) => a.id === 'crestGem');
     expect(crest.signature.c[0]).toBe(0);
     expect(gem.signature.c[0]).toBe(0);
     expect(gem.signature.r).toBeLessThan(crest.signature.r);
@@ -96,9 +96,10 @@ describe('the clothing words the row is made of', () => {
   });
 
   it('a waist belt carries one pouch at its front, no buckle of its own; a midriff is the legs\' cloth on the belly', () => {
-    expect(adorn).toContain('pouchesBelt');
-    expect(adorn.filter((id) => /^pouches(?!Belt)/.test(id))).toEqual(['pouchesFront']);
-    const pouch = M.plan.adorn.find((a) => a.id === 'pouchesFront'), belt = M.plan.adorn.find((a) => a.id === 'pouchesBelt');
+    const one = outfitOf([{ kind: 'pouches', at: 'waist', on: 'torso', count: 1, front: true, buckle: false, drop: 0.35 }]).plan.adorn, ids = one.map((a) => a.id);
+    expect(ids).toContain('pouchesBelt');
+    expect(ids.filter((id) => /^pouches(?!Belt)/.test(id))).toEqual(['pouchesFront']);
+    const pouch = one.find((a) => a.id === 'pouchesFront'), belt = one.find((a) => a.id === 'pouchesBelt');
     expect(pouch.part).toBe('torso');
     expect(pouch.t[1]).toBeLessThan(1.5);
     expect(belt.signature.kind).not.toBe('buckle');
@@ -112,11 +113,48 @@ describe('the clothing words the row is made of', () => {
   });
 
   it('a plain guard on each shoulder, a rim on each boot: the pieces\' own words', () => {
-    expect(adorn.filter((id) => /^pauldron/.test(id))).toEqual(['pauldronR', 'pauldronL']);
-    expect(M.plan.adorn.find((a) => a.id === 'pauldronR').rim).toBeUndefined();
+    const guards = outfitOf([{ kind: 'pauldron', colour: 'trim', plain: true, pair: true, hover: false }]).plan.adorn;
+    expect(guards.map((a) => a.id).filter((id) => /^pauldron/.test(id))).toEqual(['pauldronR', 'pauldronL']);
+    expect(guards.find((a) => a.id === 'pauldronR').rim).toBeUndefined();
     const rim = M.plan.adorn.find((a) => a.id === 'bootRimR'), ank = M.plan.adorn.find((a) => a.id === 'ankletR');
     expect(rim.part).toBe(ank.part);
     expect(rim.s[1]).toBeLessThan(ank.s[0]);
+  });
+});
+
+describe('her belt and her cape, on the game body', () => {
+  const M = outfitOf(GENRE_HERO['action-rpg'].looks.underlayer.pieces), P = M.recipe.parts;
+  const ctr = (p) => { const q = p.stations.flatMap((st) => Object.values(st.points)); return [0, 1, 2].map((k) => q.reduce((t, v) => t + v[k], 0) / q.length); };
+  const span = (p) => { const z = p.stations.flatMap((st) => Object.values(st.points)).map((v) => v[2]); return Math.max(...z) - Math.min(...z); };
+
+  it('a tall belt is a cincher, wider than a belt is held to; without the word, a belt\'s', () => {
+    const belt = Object.keys(P).find((k) => /^belt_/.test(k)), plain = outfitOf([{ kind: 'belt', at: 'waist', width: 2.2, buckle: false }]).recipe.parts;
+    expect(span(P[belt])).toBeGreaterThan(0.07);
+    expect(span(plain[Object.keys(plain).find((k) => /^belt_/.test(k))])).toBeLessThanOrEqual(0.0551 + 0.002);
+  });
+
+  it('its motif is worked on its face: borders and a row of diamonds either side of its clasp alike; its clasp a round plate centred on its front', () => {
+    const pat = Object.keys(P).filter((k) => /^beltPattern/.test(k)), dia = pat.filter((k) => /Diamond/.test(k)), clasp = P[Object.keys(P).find((k) => /^beltClasp_/.test(k))];
+    expect(pat.some((k) => /Low/.test(k)) && pat.some((k) => /High/.test(k))).toBe(true);
+    expect(dia.length).toBeGreaterThan(8);
+    expect(ctr(clasp)[0]).toBeCloseTo(0, 3);
+    expect(clasp.slots.length).toBeGreaterThanOrEqual(16);
+    // (the row mirrored about the centre line, none under the clasp)
+    const xs = dia.map((k) => ctr(P[k])[0]).sort((a, b) => a - b);
+    xs.forEach((x, i) => expect(x).toBeCloseTo(-xs[xs.length - 1 - i], 3));
+    const front = dia.map((k) => ctr(P[k])).filter((c) => c[1] > 0);
+    expect(Math.min(...front.map((c) => Math.abs(c[0])))).toBeGreaterThan(0.04);
+    // (each bound as the belt's face: a skin's weights, summing to one)
+    for (const k of [...pat, Object.keys(P).find((n) => /^beltClasp_/.test(n))]) for (const W of Object.values(P[k].bind.blend)) expect(Object.values(W).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 5);
+  });
+
+  it('her cape hangs behind her from its hood worn down as a cowl, its foot round the throat wider than the cape\'s arc', () => {
+    const G = M.plan.garments ?? [], cape = G.find((g) => g.fit === 'cape'), hood = G.find((g) => g.fit === 'hood');
+    expect(hood.worn).toBe('down');
+    expect(hood.around[1] - hood.around[0]).toBeGreaterThan(cape.around[1] - cape.around[0] + 180);
+    expect(cape.around[1] - cape.around[0]).toBeLessThan(180);
+    // (a wrap past a whole turn is not a hood's word: the cloak is said and left off, never worn wrong)
+    expect((outfitOf([{ kind: 'cloak', hood: { worn: 'down', wrap: 2 } }]).plan.garments ?? []).some((g) => g.fit === 'hood')).toBe(false);
   });
 });
 

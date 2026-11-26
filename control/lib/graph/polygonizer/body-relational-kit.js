@@ -10,6 +10,8 @@
  *       ripple; its edges rounded; on `on`'s slots, carried by `on`'s weights. → the band, or null
  *   frameBuckle(belt, { w, h, bar, thick })  the BUCKLE on its front: a frame of four bars, the tongue across it, the
  *       belt's end through it and on past it, a keeper loop beside it. → { <name>: part }
+ *   beltClasp(belt, { r, h })  a round CLASP centred on its front; beltPattern(belt, id, { name, w, clear })  a PATTERN
+ *       worked on its face: a border top and bottom, a row of diamond plates or a zigzag between
  *
  * Every piece is a layer-1 part (stations of rings, caps, a bind), as the tailor's are. The game body wears them too
  * (authored-kit.js), its weights read by ring and its bands sampled round at their own density. Deterministic, no dice.
@@ -176,6 +178,76 @@ export function frameBuckle(belt, id, { w = 0.05, h = null, group = 'Buckle', ta
   put('Tongue', at(w / 4 - B.bar / 4, 0, 0.0035), F.across, { w: B.tongue, h: w / 2, thick: B.tongue }, group);
   // (the keeper: a loop round the belt beside the frame, the tail under it)
   put('Keeper', at(-w / 2 - B.keeperGap - B.keeper / 2, 0, 0.0035), F.up, { w: B.keeper, h: F.height + 0.006, thick: 0.003 }, tailGroup ?? belt.group ?? 'Leather');
+  return out;
+}
+
+/** the weights of a belt's face at slot `q`, `h` of its height up: its foot's and its top's mixed (the belt's own face
+ * between its two outer rings), so a piece worked on it moves as the face it lies on */
+function faceWeight(belt, q, h) {
+  const S = belt.stations, of = (st) => belt.bind.blend?.[`${st.id}.${q}`] ?? belt.bind.blend?.[st.id] ?? { [belt.bind.bone]: 1 }, t = Math.max(0, Math.min(1, h)), W = {};
+  for (const [b, x] of Object.entries(of(S[2]))) W[b] = (W[b] ?? 0) + x * (1 - t);
+  for (const [b, x] of Object.entries(of(S[S.length - 3]))) W[b] = (W[b] ?? 0) + x * t;
+  // (a skin's four strongest, summing to one: the remainder of the rounding on the strongest)
+  const top = Object.entries(W).filter(([, x]) => x > 1e-6).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 4), sum = top.reduce((a, [, x]) => a + x, 0);
+  const out = top.map(([b, x]) => [b, r6(x / sum)]); out[0][1] = r6(1 - out.slice(1).reduce((a, [, x]) => a + x, 0));
+  return Object.fromEntries(out);
+}
+
+/** THE BELT'S CLASP: a round plate `r` across on the belt's front, centred on its height, `h` deep over its face (and
+ * over a pattern worked on it), its edge bevelled; bound as the face under it is. → the part */
+export function beltClasp(belt, { r = 0.045, h = 0.007, m = 24, group = 'Trim' } = {}) {
+  const F = frontOf(belt), lift = 0.0025, q = belt.slots.includes('front') ? 'front' : belt.slots[0];
+  const ring = (rr, d) => Array.from({ length: m }, (_, j) => { const a = (2 * Math.PI * j) / m; return add(add(F.P, scl(F.n, lift + d)), add(scl(F.across, Math.cos(a) * rr), scl(F.up, Math.sin(a) * rr))); });
+  const T = tube([ring(r * 0.96, -0.004), ring(r, h * 0.55), ring(r * 0.8, h)], add(F.P, scl(F.n, lift - 0.005)), add(F.P, scl(F.n, lift + h + 0.0005)));
+  const W = faceWeight(belt, q, 0.5), blend = { back: W, tip: W };
+  for (const st of T.stations) for (const sl of Object.keys(st.points)) blend[`${st.id}.${sl}`] = W;
+  return { ...T, group, bind: { bone: belt.bind.bone, blend } };
+}
+
+/** THE BELT'S PATTERN, worked on its face round the whole belt, raised `thick` off it: a border strip `w` wide along its
+ * top and its bottom edge, and between them a row of rhombus plates for `diamond` (one at each of its slots, the front
+ * left `clear` metres either side for a clasp), a zigzag strip apexed at each slot for any other pattern. Each strip one piece, bound as the belt is (the game body draws a motif's
+ * fine threads too thin to read: these are its strokes made as things on the belt). `id` names the parts. */
+export function beltPattern(belt, id, { name = 'diamond', w = 0.004, thick = 0.0015, clear = 0, group = 'Trim' } = {}) {
+  const S = belt.stations, lo = S[2], hi = S[S.length - 3], sl = belt.slots, N = sl.length, c = middle(lo), out = {};
+
+  const H = hi.points[sl[0]][2] - lo.points[sl[0]][2], e = Math.min(0.3, (w * 0.5 + 0.001) / Math.max(1e-6, H));
+  // (a point on the belt's face `jf` slots round and `h` of its height up, `l` off it: between two slots on the arc
+  // through them, never the chord that cuts into the belt)
+  const P = (j, h) => { const a = lo.points[sl[j % N]], b = hi.points[sl[j % N]]; return [0, 1, 2].map((q) => a[q] + (b[q] - a[q]) * h); };
+  const on = (jf, h, l) => {
+    const j = Math.floor(jf), t = jf - j, A = P(j, h), B = P(j + 1, h), ra = Math.hypot(A[0] - c[0], A[1] - c[1]), rb = Math.hypot(B[0] - c[0], B[1] - c[1]);
+    const d = unitv([(A[0] - c[0]) / (ra || 1) * (1 - t) + (B[0] - c[0]) / (rb || 1) * t, (A[1] - c[1]) / (ra || 1) * (1 - t) + (B[1] - c[1]) / (rb || 1) * t, 0]), r = ra + (rb - ra) * t + l;
+    return { p: [c[0] + d[0] * r, c[1] + d[1] * r, A[2] + (B[2] - A[2]) * t].map(r6), n: d };
+  };
+  const strip = (key, hOf, l) => {
+    const pts = Array.from({ length: 2 * N + 1 }, (_, i) => on(i / 2, hOf(i / 2), l)), path = pts.map((x) => x.p), ns = pts.map((x) => x.n);
+    const acs = path.map((p, i) => unitv(cross(ns[i], sub(path[Math.min(i + 1, path.length - 1)], path[Math.max(i - 1, 0)]))));
+    // (bound as the belt's face under it is: its weights at its foot and its top mixed by the strip's height on it, the
+    // slot nearest; never a nearest ring's, which tears a strip's two edges apart where the belt's rings bind apart)
+    const S0 = stripAlong(path, ns, acs, w, thick), blend = {};
+    const at = (i) => { const jf = Math.min(i, 2 * N) / 2; return faceWeight(belt, sl[Math.round(jf) % N], hOf(jf)); };
+    S0.stations.forEach((st, i) => { for (const q of Object.keys(st.points)) blend[`${st.id}.${q}`] = at(i); });
+    blend.back = at(0); blend.tip = at(2 * N);
+    out[`${id}${key}`] = { ...S0, group, bind: { bone: belt.bind.bone, blend } };
+  };
+  strip('Low', () => e, 0.0004);
+  strip('High', () => 1 - e, 0.0004);
+  // (inside the borders: the zigzag at a slot low, the next high)
+  const lowZ = e + w / H + 0.04, highZ = 1 - e - w / H - 0.04, zig = (jf) => { const u = jf % 2; return lowZ + (highZ - lowZ) * (u <= 1 ? u : 2 - u); };
+  // (diamonds: a row of rhombus plates between the borders, one every two slots, each corner on the belt's face so the
+  // plate follows its curve; any other pattern, the zigzag)
+  if (name !== 'diamond') { strip('Zig', zig, 0.0004); return out; }
+  const half = 0.4, mid = (lowZ + highZ) / 2, plate = (j) => {
+    const corners = (l, inset) => [[j + half * inset, mid], [j, mid + (highZ - mid) * inset], [j - half * inset, mid], [j, mid - (mid - lowZ) * inset]].map(([jf, h]) => on(jf, h, l).p);
+    const T = tube([corners(-0.001, 1), corners(thick * 1.6, 1), corners(thick * 2, 0.78)], on(j, mid, -0.0015).p, on(j, mid, thick * 2 + 0.0005).p);
+    const W = faceWeight(belt, sl[j % N], mid), blend = { back: W, tip: W };
+    for (const st of T.stations) for (const q of Object.keys(st.points)) blend[`${st.id}.${q}`] = W;
+    out[`${id}Diamond${j}`] = { ...T, group, bind: { bone: belt.bind.bone, blend } };
+  };
+  // (the front left clear `clear` metres either side, where a clasp sits over it)
+  const step = (2 * Math.PI * Math.hypot(lo.points[sl[0]][0] - c[0], lo.points[sl[0]][1] - c[1])) / N, skip = Math.ceil(clear / step + half - 0.5);
+  for (let j = 0; j < N; j++) if (Math.min(j, N - j) > (clear > 0 ? skip : -1)) plate(j);
   return out;
 }
 

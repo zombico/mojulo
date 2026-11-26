@@ -1,7 +1,7 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { describe, it, expect } from 'vitest';
-import { tierKit, MIN_TRIM_PX } from './adorn-tier.js';
+import { tierKit, MIN_TRIM_PX, ROUND_DISC } from './adorn-tier.js';
 import { dressContext, rangerKit } from './hero-dress.js';
 import { expandArmor } from '../armor/expand.js';
 import { SEEDED_ARMOR } from '../armor/styles.js';
@@ -30,6 +30,14 @@ describe('adorn-tier: a kit drawn for its target', () => {
         if (B.signature?.cords != null) expect(A.signature.cords).toBeLessThanOrEqual(B.signature.cords);
       }
     }
+  });
+
+  it('a small disc made round keeps a circle\'s sides at the coarsest target; the same disc unmade round takes its pixels\' few', () => {
+    const disc = (round) => ({ id: 'clasp', mode: 'shell', part: 'torso', share: true, s: [0.4, 0.5], t: 'wrap', nt: 8, ns: 1, ghost: true,
+      signature: { kind: 'disc', c: [0, 0.1, 1], n: [0, 1, 0], r: 0.03, h: 0.01, m: 24, rim: 0.7, ...(round ? { round: true } : {}) } });
+    const m = (round) => tierKit([disc(round)], PLAN, '480p').kit[0].signature.m;
+    expect(m(false)).toBeLessThan(ROUND_DISC);
+    expect(m(true)).toBe(ROUND_DISC);
   });
 
   it('a piece on a part with no radius (the hand\'s rings) stays as its author drew it', () => {

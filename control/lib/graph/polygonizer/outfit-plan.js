@@ -81,6 +81,8 @@ export function bodyMap(plan) {
     thigh, arm, neckSeg, hasMeta: !!seg('metaR'), chestW, torsoW, armX, hipW, tail: z('tail0') ?? null, top: torso.stations[torso.stations.length - 1], front: (h, top) => plumb(h, top, 1), back: (h, top) => plumb(h, top, -1) };
 }
 
+/** a tall belt's widest band (m, at the body's scale): a cincher's, a hand's width */
+const TALL_BELT = 0.1;
 const shell = (id, part, s, extra = {}) => ({ id, mode: 'shell', part, s: s.map(r3), t: 'wrap', nt: 16, ns: 2, ...extra });
 
 /** THE CATALOGUE: each kind's layer, class, colour role and compile (piece, body, groupOf) → { garments?, adorn?, segments? } */
@@ -163,7 +165,15 @@ export const OUTFIT_KINDS = Object.freeze({
     // (`drop`: worn that much of the torso's stations below the natural waist, toward the hips; `buckle: false`: no
     // buckle of its own, where a clasp worn over it is one)
     if (p.at === 'waist') { const s = Math.max(0.3, B.ringAt(B.torso, B.waist).s - (p.drop ?? 0)), waistBuckle = { ...buckle, w: r3(0.04 * B.k * bs), h: r3(0.034 * B.k * bs), bar: r3(0.008 * B.k) };
-      return { adorn: [shell(p.id ?? 'belt', 'torso', [Math.max(0, s - 0.28 * wd), s + 0.28 * wd], { nt: 14, mugen: r3(0.009 * B.k), thick: r3(0.012 * B.k * wd), group: G(p), signature: p.buckle === false ? { kind: 'studs', r: r3(0.002 * B.k), h: r3(0.001 * B.k), count: 1, m: 6, group: G(p) } : waistBuckle })] }; }
+      // (`motif`: the band worked with a border of it, the trim's colour, edge to edge round it, where no buckle is: a
+      // patterned belt whose clasp is a crest worn over it, station-loft-adorn.js MOTIFS)
+      // (`tall`: a cincher, its band as wide as its `width` makes its window, up to TALL_BELT, where the game body holds a
+      // belt's to 5.5 cm: authored-kit.js)
+      // (`clasp: { r?, colour? }`: a round plate of its own centred on its front, over its pattern, where a crest worn over
+      // a belt is placed off the body and a tall belt stands out past it; the game body draws it: authored-kit.js)
+      const sig = p.motif ? { kind: 'motif', name: p.motif, mode: 'border', w: r3(0.0025 * B.k * Math.min(2, wd)), lift: r3(0.0006 * B.k), group: G({ colour: p.motifColour ?? 'trim' }) }
+        : p.buckle === false ? { kind: 'studs', r: r3(0.002 * B.k), h: r3(0.001 * B.k), count: 1, m: 6, group: G(p) } : waistBuckle;
+      return { adorn: [shell(p.id ?? 'belt', 'torso', [Math.max(0, s - 0.28 * wd), s + 0.28 * wd], { nt: 14, mugen: r3(0.009 * B.k), thick: r3(0.012 * B.k * wd), group: G(p), ...(p.tall ? { tall: r3(TALL_BELT * B.k) } : {}), ...(p.clasp ? { clasp: { r: r3((p.clasp.r ?? 0.045) * B.k), group: G({ colour: p.clasp.colour ?? 'trim' }) } } : {}), signature: sig })] }; }
     // (`painted`: a band of the belt's colour on the hips themselves over `window`: it shows wherever the body shows
     // between two cloths, the gap between a shirt's hem and a skirt's top, and nothing worn can cover it wrongly)
     if (p.painted) return { paint: [{ part: 'pelvis', u: Array.isArray(p.window) ? p.window : [0, 2.4], group: G(p) }] };
@@ -461,8 +471,9 @@ function crestOf(p, B, G, I) {
   const z = waist ? B.waist + (p.lift ?? -0.05) * B.k : S[i].z + (S[i + 1].z - S[i].z) * (u - i) + (p.lift ?? 0.1) * B.k;
   const sg = (p.side ?? I.side ?? 'R') === 'R' ? 1 : -1, x = waist ? 0 : r3(sg * B.chestW * (p.out ?? 0.2)), y = B.front(z, z) + (waist ? (p.proud ?? 0.02) * B.k : 0), n = waist ? [0, 1, 0.05] : [r3(sg * 0.25), 1, 0.15], r = (p.r ?? 0.042) * k, id = p.id ?? 'crest';
   const boss = (name, c, rr, h, m, rim, group) => ({ id: name, mode: 'shell', part: 'torso', share: true, s: [0.4, 0.5], t: 'wrap', nt: 8, ns: 1, mugen: 0, thick: r3(0.001 * k), group, ghost: true, stack: false,
-    signature: { kind: 'disc', c, n, r: r3(rr), h: r3(h), m, rim, group } });
-  return { adorn: [boss(id, [x, r3(y + 0.04 * k), r3(z)], r, 0.014 * k, 6, 0.7, G(p)), boss(`${id}Gem`, [x, r3(y + 0.055 * k), r3(z)], r * 0.48, 0.022 * k, 8, 0.25, G({ colour: p.gem ?? 'accent' }))] };
+    signature: { kind: 'disc', c, n, r: r3(rr), h: r3(h), m, rim, group, ...(m > 12 ? { round: true } : {}) } });
+  // (`round`: a disc where the crest is a hexagon; `gem: false`: the boss alone, its own metal, no stone set in it)
+  return { adorn: [boss(id, [x, r3(y + 0.04 * k), r3(z)], r, 0.014 * k, p.round ? 24 : 6, 0.7, G(p)), ...(p.gem === false ? [] : [boss(`${id}Gem`, [x, r3(y + 0.055 * k), r3(z)], r * 0.48, 0.022 * k, 8, 0.25, G({ colour: p.gem ?? 'accent' }))])] };
 }
 
 /** a BOARD: a flat cloth loft through `pts` [[y, z, half-width]] (a collar
@@ -614,16 +625,20 @@ function bowOf(p, B, G) {
  * wool collapses, stiff leather stands), `worn` up (the default) or down on the shoulders, `point` none | short (the
  * default) | long (a liripipe that flows), `depth` deep (the default) | shallow, at the register's budget (the box's
  * planes, the low-poly's facets). Laws 1 keep the smooth bell over the head's ellipsoid, a stored row's look. */
-export const HOOD_FIELDS = Object.freeze(['open', 'worn', 'point', 'depth']);
+export const HOOD_FIELDS = Object.freeze(['open', 'worn', 'point', 'depth', 'wrap']);
 function hoodOf(p, B, G, id, around, ease, material) {
   if (!p.hood || !B.head) return [];
   const h = typeof p.hood === 'object' ? p.hood : {};
   if (B.laws >= 2) for (const k of Object.keys(h)) {
     if (!HOOD_FIELDS.includes(k)) throw new Error(`hood.${k}: not a hood word (${HOOD_FIELDS.join(', ')})`);
-    if (k !== 'open' && !HOOD_WORDS[k].includes(h[k])) throw new Error(`hood.${k}: '${h[k]}' is not a hood word (${HOOD_WORDS[k].join(', ')})`);
+    if (k === 'wrap' && !(Number.isFinite(h[k]) && h[k] >= 0.2 && h[k] <= 1)) throw new Error(`hood.wrap: the share of a turn its foot goes round the neck, 0.2–1 (${h[k]})`);
+    if (k !== 'open' && k !== 'wrap' && !HOOD_WORDS[k].includes(h[k])) throw new Error(`hood.${k}: '${h[k]}' is not a hood word (${HOOD_WORDS[k].join(', ')})`);
   }
   const draped = B.laws >= 2 ? { worn: h.worn ?? 'up', point: h.point ?? 'short', depth: h.depth ?? 'deep', budget: B.budget, ...(p.rigidity !== undefined ? { rigidity: p.rigidity } : {}), material: p.material ?? material } : {};
-  return [{ id: `${id}Hood`, fit: 'hood', part: ['torso', 'upperArm', 'neck'].filter((n) => B.names.has(n)), from: { part: 'torso', run: 1 }, head: B.head, around,
+  // (`wrap`: its foot's own arc round the neck, where the cloak's is narrower: a snood, the hood worn down closed round
+  // the throat over a cape that hangs behind)
+  const arc = h.wrap !== undefined ? 360 * Math.min(0.98, h.wrap) : null;
+  return [{ id: `${id}Hood`, fit: 'hood', part: ['torso', 'upperArm', 'neck'].filter((n) => B.names.has(n)), from: { part: 'torso', run: 1 }, head: B.head, around: arc ? [r3(180 - arc / 2), r3(180 + arc / 2)] : around,
     ...(h.open !== undefined ? { open: h.open } : {}), ease, thick: r3(0.006 * B.k), group: G(p), ...draped }];
 }
 
