@@ -31,7 +31,7 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 | `errands[].mission` | a contact's jobs told as missions: `heat` (stars as the goods are had), `clean` (lose them first), `time`, `final` (the end) | [mission-mechanics.js](../control/lib/graph/game/mission-mechanics.js) |
 | `law` | the wanted level: mayhem raises stars, police on foot and in cars, armed from a star, busted and fined | [law.js](../control/lib/graph/gameworld/law.js), [law-mechanics.js](../control/lib/graph/game/law-mechanics.js) |
 | (laid with the law) | the street's health, wasted and the bill | [vitals-mechanics.js](../control/lib/graph/game/vitals-mechanics.js) |
-| `shops` | a respray garage (lose the police) and a gun shop (rounds for the sidearm) | [shop-mechanics.js](../control/lib/graph/game/shop-mechanics.js) |
+| `shops` | a respray garage (lose the police), a gun shop (rounds for the sidearm) and a forger (a fake ID: a heavy machinery licence) | [shop-mechanics.js](../control/lib/graph/game/shop-mechanics.js) |
 | (the hero) | bare hands by default, a sidearm drawn with R or 1/2, fired on Q or the click | [arsenal.js](../control/lib/graph/gameworld/arsenal.js) |
 | `factions` | crews with turf and rivals, a board of acts (torch, tag, take) | [factions.js](../control/lib/graph/gameworld/factions.js) |
 | `errands[].app` | side work on the phone: fares | [errand-mechanics.js](../control/lib/graph/game/errand-mechanics.js) |
@@ -146,7 +146,10 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
 - **Bin round** (`garbage`, mode `collect`): get into a garbage truck at the works yard. Piles of bags stand at kerbs
   across the district; pull up to one and hold **F** to collect it. Four fill the truck; full, take it to the DUMP and
   drive in to empty it and be paid (its tailgate swings up). Every pile taken, the city lays them all again.
-- **Heavy vehicle call** (`heavy`, mode `haul`): a general call for heavy operators. Three heavy vehicles stand at kerbs
+- **Heavy vehicle call** (`heavy`, mode `haul`): a general call for heavy operators, and it asks for a licence: the
+  forger at a shop front (`shops.forger`, 150 coin) sells a fake ID, a heavy machinery licence (`fake-id` in the bag,
+  kept), and the call is taken on the phone only while it is held (its row's `licence`, the task's `needs`; without it
+  the app says what it needs, and its row on the phone says who sells it). Three heavy vehicles stand at kerbs
   by the works yard, trucks and a site's machines turn about (`HEAVY_VEHICLES`: a concrete mixer, a flatbed, a wheel
   loader, a tipper, a skip lorry, a backhoe, a box truck, a wheeled excavator), and the call names them in turn. Take
   the one called and drive it across the district to its building site; arriving pays. Get out there and it goes back

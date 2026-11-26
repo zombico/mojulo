@@ -98,7 +98,7 @@ export const HIJACK_GROWS = Object.freeze({
   errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work (TaskFu\'s fares, Jobsified\'s driving jobs: `vehicle`, gameworld/jobsified.js)',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
-  shops: 'the respray garage and the gun shop, their prices',
+  shops: 'the respray garage, the gun shop and the forger (a fake ID: the heavy machinery licence the heavy vehicle call asks for), their prices',
   ui: 'the look of the menus and the HUD (a theme card)',
   music: 'the score: walking, the chase, the tension',
 });
@@ -156,7 +156,8 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
     foes: { docker: { class: 'pursuer', skin: { people: 'human', dress: { faction: 'streetGang', colourway: 'blue' } } } },
     sound: {}, music: {},
     law: true,
-    shops: { respray: true, guns: true },
+    // (a forger too: the papers the heavy vehicle call asks for, HIJACK_SHIFTS)
+    shops: { respray: true, guns: true, forger: true },
   };
 }
 

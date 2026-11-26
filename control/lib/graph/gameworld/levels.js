@@ -71,6 +71,7 @@ import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
 import { patrolCar, depotCabs, issuedCabs } from './cars.js';
 import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues } from './jobsified.js';
+import { FORGED } from './shops.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -1900,6 +1901,8 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         const task = () => {
           const on = taskApps(L, fus).length ? taskApps(L, fus) : [JOBSIFIED], subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
           offers.push({ kind: 'task', id: L.id, app: on[0], flag: `took-${L.id}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(L.tags ? { tags: L.tags } : {}),
+            // (a job that asks for a licence, where the world's forger sells one: taken only with it)
+            ...(S.licence && city.shops?.forger ? { needs: { item: FORGED.item, name: FORGED.name } } : {}),
             ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
         };
         const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done };
@@ -2026,6 +2029,12 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
       const at = pick((ends.places ?? []).map((q) => q.at).filter((q) => taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.guns);
       if (at) mechanics.push({ kind: 'gunshop', at: at.slice(), price: city.shops.guns.price, rounds: city.shops.guns.rounds });
     }
+    // (the forger, shops.js: a shop front a drive off, no one standing at it and no job sending the player there, its
+    // papers a licence a driving job may ask for)
+    if (city.shops.forger) {
+      const near = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at), at = pick((ends.places ?? []).map((q) => q.at).filter((q) => near.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.forger);
+      if (at) mechanics.push({ kind: 'forger', at: at.slice(), price: city.shops.forger.price, item: FORGED.item, name: FORGED.name });
+    }
     if (city.shops.respray) {
       const parked = ends.parked ?? [], at = pick(roadPosts(ends.roads ?? [], ends).filter((q) => parked.every((c) => d2(c.at, q) > SHOP_AT.clear) && taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.respray);
       if (at) mechanics.push({ kind: 'respray', at: at.slice(), price: city.shops.respray.price });
@@ -2044,7 +2053,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
 const CITY_SAVE = Object.freeze({ vars: Object.freeze(['flag-', 'held:bag:', 'standing-', 'join-open-', 'delivered-', 'mission-done-']), on: Object.freeze(['flag:took-', 'errand:done:', 'mission-passed:', 'join:', 'app:sub:', 'act:', 'gunshop:bought', 'respray:done']) });
 // where a city's shops stand (m): the gun shop at least this far from the start, the respray this far; apart from any
 // place a job uses, and the respray clear of a parked car
-const SHOP_AT = Object.freeze({ guns: 60, respray: 90, apart: 20, clear: 9 });
+const SHOP_AT = Object.freeze({ guns: 60, respray: 90, forger: 140, apart: 20, clear: 9 });
 // the street's health in a played city (game/vitals-mechanics.js): a blow's cost, the mending, and the hospital's bill
 const VITALS_CITY = Object.freeze({ hp: 100, hit: 10, mend: 3, after: 5 }), VITALS_BILL = 25;
 

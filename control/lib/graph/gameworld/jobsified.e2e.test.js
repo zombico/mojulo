@@ -49,6 +49,14 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(d(e.transform.pos, haul.back)).toBeLessThan(0.01);
     expect(d(haul.site.at, haul.back)).toBeGreaterThanOrEqual(SHIFT.haul);
   });
+  it('the heavy vehicle call asks for a licence: the forger sells one at a shop front a drive from the start', () => {
+    const F = M.find((m) => m.kind === 'forger'), T = M.find((m) => m.kind === 'task' && m.id === 'heavy-haul');
+    expect(F).toMatchObject({ item: 'fake-id', name: 'heavy machinery licence', price: 150 });
+    expect(d(F.at, level.entities.find((e) => e.pilotable).transform.pos)).toBeGreaterThanOrEqual(140);
+    expect(T.needs).toEqual({ item: 'fake-id', name: 'heavy machinery licence' });
+    expect(M.find((m) => m.kind === 'task' && m.id === 'bin-round').needs).toBeUndefined();
+    expect(phoneUi(level).apps.find((a) => a.name === 'Jobsified').tasks.find((t) => t.id === 'heavy-haul')).toMatchObject({ needs: 'heavy machinery licence', has: 'held:bag:fake-id' });
+  });
   it('the bus route: its bus issued at a kerb as a cab, its stops in order across the district, people waiting at each', () => {
     expect(bus).toMatchObject({ mode: 'route', vehicle: 'bus', repeat: true, hold: SHIFTS.bus.hold, after: 'took-bus-route' });
     expect(cab(bus.cabs[0]).mount.pool.model).toBe('loft:bus');

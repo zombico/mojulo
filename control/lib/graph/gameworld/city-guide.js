@@ -119,7 +119,7 @@ export function jobsOf(mechanics) {
       loop = steps.length - 1;
       steps.push(last({ id: `haul-${Sh.id}`, say: `Drive the ${vehicle} to the ${Sh.site.to ?? (Sh.site.place ? shop(Sh.site.place) : 'job')}`, at: at3(Sh.site.at), radius: reach(Sh.site) }));
     }
-    out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, loop, ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
+    out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, loop, ...(Tk?.needs ? { needs: { ...Tk.needs } } : {}), ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
   }
   // (a faction's POSTINGS, lowerAct: each one step, an act done somewhere in a zone; taken on the phone, on its board)
   for (const A of M.filter((m) => m && m.kind === 'act' && Array.isArray(m.at))) out.push({ id: A.id, name: A.title ?? `${words(A.id)[0].toUpperCase()}${words(A.id).slice(1)}`, repeat: false, faction: A.faction, starts: A.flag,

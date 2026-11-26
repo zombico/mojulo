@@ -46,11 +46,12 @@ export const YARD_NAMES = Object.freeze({ works: 'works yard', depot: 'bus depot
 // the round's), how many stops (piles) a round has (an errand's list count says its own), what a stop says and what
 // doing it says; a collect's `load` (piles a truck holds); `hold` (seconds a pile or a stop is held at); `fleet` (the
 // fleet its vehicle is issued from, where it is not the depot's own); a haul's `to` (where it is driven); a route's
-// `riders` (how few and how many wait at a stop)
+// `riders` (how few and how many wait at a stop); `licence`: taken only with the papers a world's forger sells
+// (gameworld/shops.js FORGED, a heavy machinery licence), where it sells them
 export const SHIFTS = Object.freeze({
   garbage: Object.freeze({ name: 'Bin round', mode: 'collect', yard: 'works', vehicle: 'garbage truck', item: 'garbage', stops: 8, load: 4, hold: 1.5, stop: 'Collect the garbage', done: 'Garbage collected' }),
   bus: Object.freeze({ name: 'Bus route', mode: 'route', yard: 'depot', fleet: 'bus', vehicle: 'bus', item: 'riders', stops: 5, hold: 1.5, riders: Object.freeze([1, 3]), stop: 'Pick up at the bus stop', done: 'Doors closed' }),
-  heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
+  heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, licence: true, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
 // THE HEAVY CALL'S VEHICLES (a row's `vehicles: 'heavy'`): trucks and a site's machines turn about, each a body a hero
 // can drive (a car shelf loft or a construction shelf machine, geotown/cars.js carModel), what it is called and its

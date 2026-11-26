@@ -37,7 +37,7 @@ import { jobsOf, contactName, appName } from './city-guide.js';
 
 export const PHONE_UI = Object.freeze({ title: 'Phone', you: 'You', next: 'Next: ', done: 'Done. ', home: 'Bring it back to me when you have it.', again: 'There is always another.',
   // an app's words: what it is before it is subscribed to, its one row then, and a task's states
-  pitch: 'Paid tasks around the city, sent to your phone. No one to meet: take one here, do it, get paid.', subscribe: 'Subscribe', open: 'Open', active: 'Active', paid: 'Paid', task: 'Task', pays: 'Pays', tags: 'Tags', carries: 'Carries',
+  pitch: 'Paid tasks around the city, sent to your phone. No one to meet: take one here, do it, get paid.', subscribe: 'Subscribe', open: 'Open', needs: 'Needs', forger: 'a forger sells them', active: 'Active', paid: 'Paid', task: 'Task', pays: 'Pays', tags: 'Tags', carries: 'Carries',
   // a faction's board
   standing: 'Standing', with: 'You are with ', job: 'Job', locked: ' more at higher standing', finished: 'Done', leave: 'Leave', leaving: 'Take this row to walk away. Your standing is kept, and any faction\'s contact will have you.' });
 const KEYS = ['title', 'apps'];
@@ -98,7 +98,7 @@ export function phoneUi(manifest, ui = undefined) {
     // (what it pays: its hand-in's, or a driving job's own, a shift's: jobsified.js)
     const hand = J.steps[J.steps.length - 1], D = M.find((m) => (m?.kind === 'deliver' || m?.kind === 'shift') && (m.id ?? 'errand') === J.id);
     const task = { id: J.id, name: J.name, took: `flag-${J.starts}`, ...(hand?.flag ? { done: `flag-${hand.flag}` } : {}), repeat: J.repeat, ...(J.tags?.length ? { tags: J.tags.slice() } : {}),
-      pays: (D?.reward ?? []).map((r) => `${r.n ?? 1} ${String(r.item).replace(/-/g, ' ')}`).join(', '), steps: J.steps.filter((x) => !x.take).map((x) => ({ say: x.say, ...(x.flag ? { var: `flag-${x.flag}` } : {}) })) };
+      pays: (D?.reward ?? []).map((r) => `${r.n ?? 1} ${String(r.item).replace(/-/g, ' ')}`).join(', '), ...(J.needs ? { needs: J.needs.name ?? J.needs.item, has: `held:bag:${J.needs.item}` } : {}), steps: J.steps.filter((x) => !x.take).map((x) => ({ say: x.say, ...(x.flag ? { var: `flag-${x.flag}` } : {}) })) };
     // (a task is on each app its tags put it on, the same task: taken on one, it is taken)
     for (const id of J.apps ?? [J.app]) {
       let A = apps.find((a) => a.id === id);
@@ -141,6 +141,7 @@ export function phoneTasks(A, vars, W) {
     const took = on(T.took), done = on(T.done), lines = [{ who: W.task, text: T.steps.map((s, i) => (i ? s.say[0].toLowerCase() + s.say.slice(1) : s.say)).join(', then ') }];
     if (T.tags && T.tags.length) lines.push({ who: W.tags, text: T.tags.join(' · ') });
     if (T.pays) lines.push({ who: W.pays, text: T.pays + (T.repeat ? ' each time' : '') });
+    if (T.needs) lines.push({ who: W.needs, text: T.needs + (Number(vars[T.has]) >= 1 ? ' ✓' : ' · ' + W.forger) });
     if (took) { const next = T.steps.find((s) => !on(s.var)); if (next && !(done && !T.repeat)) lines.push({ who: A.name, text: W.next + next.say }); }
     return { id: 'task:' + T.id, name: T.name, state: !took ? W.open : done && !T.repeat ? W.paid : W.active, lines };
   });

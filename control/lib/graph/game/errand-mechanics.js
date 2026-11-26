@@ -212,14 +212,20 @@ export function lowerTask(p, ctx) {
   const name = typeof p.name === 'string' && p.name ? p.name : p.app, subs = p.subscribe === true ? [{ app: p.app, name }] : Array.isArray(p.subscribe) ? p.subscribe : [];
   for (const s of subs) if (!s || typeof s.app !== 'string' || !WORD.test(s.app)) fail('subscribe is true, or [{ app, name? }]: the apps this task carries the subscribing of');
   const took = `task:${p.id}`, v = `flag-${p.flag}`;
+  // (a task that asks for papers, `needs`: { item, name } (a licence, gameworld/shops.js FORGED): taken only while the bag
+  // holds them; without, the app says what it asks for)
+  const N = p.needs && typeof p.needs.item === 'string' ? p.needs : null, held = N ? heldVar(BAG, N.item) : null;
   return {
     world: {
-      vars: { [v]: 0, ...Object.fromEntries(apps.map((a) => [`flag-sub-${a}`, 0])) },
+      vars: { [v]: 0, ...Object.fromEntries(apps.map((a) => [`flag-sub-${a}`, 0])), ...(N ? { [held]: 0 } : {}) },
       reactions: [
         ...subs.map((s) => ({ on: `app:sub:${s.app}`, do: 'set', var: `flag-sub-${s.app}`, to: 1 })),
-        { on: `app:take:${p.id}`, if: { var: v, eq: 0 }, do: 'emit', type: took }, { on: took, do: 'set', var: v, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` },
+        ...(N ? [{ on: `app:take:${p.id}`, if: { var: v, eq: 0 }, do: 'emit', type: `${took}:try` }, { on: `${took}:try`, if: { var: held, gte: 1 }, do: 'emit', type: took }, { on: `${took}:try`, if: { var: held, eq: 0 }, do: 'emit', type: `task:needs:${p.id}` }]
+          : [{ on: `app:take:${p.id}`, if: { var: v, eq: 0 }, do: 'emit', type: took }]),
+        { on: took, do: 'set', var: v, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` },
       ],
-      hud: [...subs.map((s) => ({ on: `app:sub:${s.app}`, as: 'toast', text: `${s.name ?? s.app}: subscribed. Tasks come to your phone.`, ttl: 3.2 })), { on: took, as: 'toast', text: `${name}: task taken`, ttl: 3.2 }],
+      hud: [...subs.map((s) => ({ on: `app:sub:${s.app}`, as: 'toast', text: `${s.name ?? s.app}: subscribed. Tasks come to your phone.`, ttl: 3.2 })), { on: took, as: 'toast', text: `${name}: task taken`, ttl: 3.2 },
+        ...(N ? [{ on: `task:needs:${p.id}`, as: 'toast', text: `${name}: this one needs a ${N.name ?? N.item.replace(/-/g, ' ')}`, ttl: 3.2 }] : [])],
     },
     emits: [took],
   };

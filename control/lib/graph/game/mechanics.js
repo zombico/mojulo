@@ -20,7 +20,7 @@ import { lowerEscapeRoom } from './escape-room.js';
 import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct, lowerShift } from './errand-mechanics.js';
 import { lowerWanted } from './law-mechanics.js';
 import { lowerVitals } from './vitals-mechanics.js';
-import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
+import { lowerRespray, lowerGunshop, lowerForger } from './shop-mechanics.js';
 import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
@@ -1086,6 +1086,8 @@ const MECHANICS = {
   // (the city's shops: a respray that loses the law, a gun shop's rounds; game/shop-mechanics.js)
   respray: { role: 'emitter', requires: ['inventory'], lower: lowerRespray },
   gunshop: { role: 'emitter', requires: ['inventory'], lower: lowerGunshop },
+  // (a forger's papers: a licence a driving job may ask for, gameworld/jobsified.js `licence`)
+  forger: { role: 'emitter', requires: ['inventory'], lower: lowerForger },
   // (a story mission: a job with ways to fail, started again after; game/mission-mechanics.js)
   mission: { role: 'emitter', lower: lowerMission },
 
