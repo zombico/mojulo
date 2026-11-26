@@ -81,13 +81,17 @@ export function carsExtra({ roles = [] } = {}) {
     const cars = levelCars(ends, { roles });
     if (!cars.length) return null;
     const part = { figures: {}, entities: [] };
+    // (a depot's vehicles a driving job is done in, `roles`: their bodies move their parts where their model has them, a
+    // garbage truck's bin lifter and tailgate, scene/channels/cab-pool.js `gate`)
+    const depot = new Set();
+    for (const D of ends.depots ?? []) for (const v of D.cabs) if (roles.includes(v.role)) depot.add(v.car);
     cars.forEach((c, i) => {
       // (its hull against another car and a body on foot, mount.js: half its width, half its length; its body the
       // town's own template of its model, in its paint: scene/channels/cab-pool.js)
       const M = carModel(c.model), hull = [r3(M.W / 2), r3(M.L / 2)];
       part.entities.push({
         id: `car-${i + 1}`, pilotable: false, rule: box(ruleOf(c.model)),
-        mount: { ...cab(hull, M.H), pool: { model: c.model, tint: lin(c.paint) } },
+        mount: { ...cab(hull, M.H), pool: { model: c.model, tint: lin(c.paint), ...(depot.has(c) && M.gate ? { gate: { pivot: M.gate.pivot, lift: M.gate.lift, tip: M.gate.tip } } : {}) } },
         body: { type: 'none' },
         transform: { pos: [r3(c.at[0]), r3(c.at[1]), r3(c.at[2])], heading: r3(c.heading) },
       });

@@ -194,6 +194,10 @@ describe('shift: a driving job in a city vehicle, from its depot and back (gamew
         const doubled = drive([{ ...SHIFT, repeat: true }, TASK], [take, inCab(), { at: STOPS[0] }, { at: [30, 60, 0] }, { at: STOPS[0] }, { at: [30, 60, 0] }, { at: DEPOT }]);
     expect(doubled.log).not.toContain('errand:done:bins');
   });
+  it('is paid with a card: the round\'s name over its pay', () => {
+    const c = composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, repeat: true }, EXIT], ctx);
+    expect(c.events.hud).toContainEqual({ on: 'shift:paid:bins', as: 'banner', text: 'Round complete', sub: 'Paid 40 coin · another round when you are ready' });
+  });
   it('a malformed shift says what is wrong', () => {
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, cabs: [] }, EXIT], ctx)).toThrow(/cabs is the ids/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, stops: [] }, EXIT], ctx)).toThrow(/stops is/);

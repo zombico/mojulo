@@ -424,7 +424,8 @@ export function lowerShift(p, ctx) {
   // (a standing shift: its round open again, the vehicle still in hand; a one-off is over, its stops quiet)
   R.push({ on: paid, do: 'set', var: n, to: 0 });
   if (p.repeat === true) R.push(...p.stops.map((_, k) => ({ on: paid, do: 'set', var: `flag-${stopFlag(k)}`, to: 0 })));
-  frag.hud.push({ on: paid, as: 'toast', text: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Round done'}${p.repeat === true ? `. Another round when you are ready` : ''}`, ttl: 2.4 });
+  // (paid: a card in the middle, the round's name over what it paid, slammed in the game's look: game/hud-mana.js banner)
+  frag.hud.push({ on: paid, as: 'banner', text: 'Round complete', sub: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Done'}${p.repeat === true ? ' · another round when you are ready' : ''}` });
   return {
     world: { ...frag, sources },
     produces: reward.length ? [{ type: 'grant', slice: BAG }] : [],

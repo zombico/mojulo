@@ -321,7 +321,7 @@ ${styled ? '  let sTier = 0;\n' : ''}${vit ? `  // THE VITALS (game/hud-mana.js 
     if (e && typeof e.key === 'string') { for (const t of ['keydown', 'keyup']) window.dispatchEvent(new KeyboardEvent(t, { key: e.key, code: e.code || e.key, bubbles: true, cancelable: true })); return; }
     if (e && typeof e.emit === 'string' && window.__mojBus && window.__mojBus.press) window.__mojBus.press(e.emit);
   }
-  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: press, now: function () { return clock; } });
+  const rt = manaUi.runtime(CFG.spec, { read: function (p) { return manaUi.readPath(st, p); }, act: press, now: function () { return clock; }${hud.count ? ', countUp: 0.8' : ''} });
   rt.glyphs({ keys: { jump: 'Space', steer: 'A · D' }, pad: { xbox: { jump: 'A', steer: 'L' }, playstation: { jump: '✕', steer: 'L' }, nintendo: { jump: 'B', steer: 'L' } }, touch: { jump: 'tap', steer: 'swipe' } });
   // (the device in hand: a touch screen, or the page told to be one, as the touch layer reads it)
   const __tq = new URLSearchParams(location.search).get('touch');
@@ -409,7 +409,7 @@ ${race ? `    // (a race's lights: the karts held and the race's clock frozen, t
     if (logN < 0 || log.length < logN) logN = logN < 0 ? log.length : 0;
     for (let i = logN; i < log.length; i++) {
       const ev = log[i]; if (!ev || !ev.type) continue;
-      for (const b of ROWS.banners) if (glob(ev.type, b.on) && stands(b, V)) st.moments = st.moments.slice(-5).concat([{ id: 'b' + (seq++), text: hudSubst(b.text, V, { event: ev }) }]);
+      for (const b of ROWS.banners) if (glob(ev.type, b.on) && stands(b, V)) st.moments = st.moments.slice(-5).concat([{ id: 'b' + (seq++), text: hudSubst(b.text, V, { event: ev })${R && R.banners.some((b) => b.sub) ? ", ...(b.sub ? { sub: hudSubst(b.sub, V, { event: ev }) } : {})" : ''} }]);
       for (const tw of ROWS.toasts) if (tw.on && glob(ev.type, tw.on) && stands(tw, V)) line(tw, hudSubst(tw.text, V, { event: ev }));
     }
     logN = log.length;

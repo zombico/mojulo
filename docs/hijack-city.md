@@ -170,6 +170,16 @@ is taken on the phone (`scene/channels/guide.js` `rounds`) and a standing shift'
 its stops, the map marks them and the phone's Jobsified tab shows what it pays. The errand proof drives it on the bus,
 the getting in given (the proof cannot drive); the drive itself is the person's to play.
 
+What is seen (`scene/channels/job-stops.js`, the timings in `scene/channels/job-motion.js`): at each stop a wheelie
+bin and a few bags; the stop made, the bags are tossed in and the bin rolled to the truck, carried up by the truck's own
+bin LIFTER, tipped in and set back at its kerb; the round paid, the TAILGATE swings up at the yard. The truck moves its
+parts because its depot's trucks are drawn from their model's body baked apart from its tailgate and lifter
+(`geotown/cars.js` `carModel` `gate`, the parts named by `car-designer/road-civic-works.js` `refuseGate`), pooled only for
+a page that asks (`carRepeats` `gate`) and swung by `scene/channels/cab-pool.js` `gate`; every other vehicle, parked,
+driven or in traffic, is drawn as it was. A fare's passenger waits, walks to the car and gets in, and gets out at the
+drop; a one-off's goods arc to the door they are handed in at. On the HUD, a round paid is a card ("Round complete"
+over its pay, a HUD banner's `sub`), and the money counts up as it lands (`levelHud` `count`, a level with a shift).
+
 Not yet: the works pickups and vans (their roof beacon is not carried by a cab), a stop that asks the vehicle to stand
 still, passengers on a bus route, a shift against the clock.
 

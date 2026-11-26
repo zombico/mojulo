@@ -59,3 +59,20 @@ describe('the town\'s cars: the registry\'s family cars, instanced', () => {
     expect(pooled.map(({ pool: _p, ...r }) => r).filter((r) => r.transforms.length)).toEqual(reps);
   });
 });
+
+describe('a body with moving parts (a refuse truck\'s tailgate and bin lifter)', () => {
+  it('is baked apart for a page that moves them, its whole paint and trim as they were; pooled only when asked', async () => {
+    const { carModel, carRepeats } = await import('./cars.js');
+    const M = carModel('loft:refuseTruck');
+    expect(M.gate.tip).toBeLessThan(-0.5);
+    for (const k of ['bodyPaint', 'bodyTrim', 'gatePaint', 'gateTrim', 'liftTrim']) expect(M.gate[k].length).toBeGreaterThan(0);
+    // (the parts and the body without them are the whole, face for face)
+    expect(M.gate.bodyPaint.length + M.gate.gatePaint.length).toBe(M.paint.length);
+    expect(M.gate.bodyTrim.length + M.gate.gateTrim.length + M.gate.liftTrim.length).toBe(M.trim.length);
+    expect(carModel('familySedan').gate).toBeUndefined();
+    const keys = (pool) => carRepeats([], { group: 'v', pool }).map((r) => r.pool);
+    expect(keys([{ model: 'loft:refuseTruck' }])).toEqual(['loft:refuseTruck|paint', 'loft:refuseTruck|trim']);
+    expect(keys([{ model: 'loft:refuseTruck', gate: true }])).toEqual(['loft:refuseTruck|paint', 'loft:refuseTruck|trim', ...['body-paint', 'body-trim', 'gate-paint', 'gate-trim', 'lift-trim'].map((k) => `loft:refuseTruck|${k}`)]);
+    expect(keys([{ model: 'familySedan', gate: true }])).toEqual(['familySedan|paint', 'familySedan|trim']);
+  });
+});
