@@ -254,7 +254,7 @@ export function shapeVrmMap(json, bin, skin, J, parent) {
   return { map };
 }
 
-export function importRig(bytes, { height = null, images = null } = {}) {
+export function importRig(bytes, { height = null, images = null, lit = false } = {}) {
   const { json, bin } = parseGlb(bytes);
   const skin = json.skins?.[0];
   if (!skin) throw new Error('rig-import: the model has no skin (no skeleton it moves by): a rigged humanoid is what is worn as a foe');
@@ -385,15 +385,18 @@ export function importRig(bytes, { height = null, images = null } = {}) {
   // the bones: a head at its joint, a tail at the next joint down its chain, a limb's end out to its own flesh
   const restHead = ids.map(() => null);
   for (const v of ORDER) if (boneOfVrm[v] !== undefined && !restHead[boneOfVrm[v]]) { restHead[boneOfVrm[v]] = place(jat(v)); ledger.bones[ids[boneOfVrm[v]]] = J[jointOf.get(nodeOf[v])].name; }
-  const parts = ids.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
+  // (`lit`: the parts in their own colour under no light, each corner's normal beside it, for the page's cast rig to light
+  // as any lit body is, worlds/world-scene.js; absent, shaded by the studio key as always)
+  const parts = ids.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0, ...(lit ? { nrm: [] } : {}) }));
   for (const T of tris) {
     const sum = new Map(); for (const c of T) for (const [b, w] of c.w) sum.set(b, (sum.get(b) || 0) + w);
     const bi = [...sum].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0], P = parts[bi];
     const p = T.map((c) => place(c.p)), fn = unit(cross(sub(p[1], p[0]), sub(p[2], p[0])));
     P.faces++; ledger.triangles++;
     T.forEach((c, k) => {
-      const n = c.n ? unit(turn(c.n)) : fn, shade = 0.55 + 0.45 * Math.max(0, dot(n, KEY));
+      const n = c.n ? unit(turn(c.n)) : fn, shade = lit ? 1 : 0.55 + 0.45 * Math.max(0, dot(n, KEY));
       P.pos.push(...p[k]); P.col.push(c.c[0] * shade, c.c[1] * shade, c.c[2] * shade);
+      if (P.nrm) P.nrm.push(...n);
       const top = [...c.w].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 4), ws = top.reduce((t, e) => t + e[1], 0) || 1;
       while (top.length < 4) top.push([0, 0]);
       P.jnt.push(...top.map((e) => e[0])); P.wgt.push(...top.map((e) => e[1] / ws));
@@ -423,7 +426,7 @@ export function importRig(bytes, { height = null, images = null } = {}) {
   const pack = {
     rig: true, layered: true,
     bones: ids.map((id, i) => ({ id, head: restHead[i].map(r4), tail: tail[i].map(r4) })),
-    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt) } : null)),
+    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.nrm ? { nrm: b64f32(P.nrm) } : {}) } : null)),
     clips: {}, figH: r4(mx),
   };
   return { pack, ledger: { ...ledger, colour: [...ledger.colour].sort(), joints: J.length } };

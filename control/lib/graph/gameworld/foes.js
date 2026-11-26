@@ -59,6 +59,7 @@ import { foeFigure, fieldFigure, modelFigure, libraryFigure, facing } from './st
 import { LIBRARY_STATES } from '../playscape/player.js';
 import { gaitRouted, foeGaitOf } from './foe-families.js';
 import { STRIKE_ZONES, zoneOf, zoneAim, zoneBand } from '../foes/zones.js';
+import { isThrow } from '../foes/attacks.js';
 import { HERO } from '../foes/vocab.js';
 import { dressOrders } from '../foes/dress.js';
 import { isModelSkin } from '../foes/model.js';
@@ -231,6 +232,8 @@ export function fieldedIds(G) {
   return Object.keys(bestiaryOf(G)).filter((id) => used.has(id));
 }
 
+/** The throw a people foe's card asks it be made with (foes/attacks.js isThrow), or null. */
+export const foeThrowOf = (entry) => { try { const w = resolveFoe(specOf(entry)).attack.way; return isThrow(w) ? w : null; } catch { return null; } };
 export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}) }; };
 
 /** A people's roll (foes/people.js): its class's role, its people and facets, in the game's setting, on the entry's own
@@ -341,7 +344,12 @@ const walkedOn = (F) => {
 };
 
 function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } = {}) {
-  const had = part.figures[id], gait = gaitRouted(G) ? foeGaitOf(entry) : null, walked = (F) => (gait ? walkedOn(F) : F);
+  // (and a thrower's THROW, a card's: its `throw` state the throw it was made with, foes/attacks.js; worlds/controllable/mind.js
+  // plays it before its round leaves)
+  const throwWord = isThrow(f.attack.way) ? f.attack.way : null;
+  const gait = gaitRouted(G) ? foeGaitOf(entry) : null, walked0 = (F) => (gait ? walkedOn(F) : F);
+  const walked = (F) => { const W = walked0(F); return throwWord ? { ...W, moves: { ...(W.moves ?? {}), throw: throwWord } } : W; };
+  const had = part.figures[id];
   if (figure) {
     // a game's own person, made by its own door: drawn as it is, at a person's height grown by its rank
     part.figures[id] = figure;
@@ -349,7 +357,7 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
   }
   if (isModel(entry)) {
     // a MODEL made elsewhere (foes/model.js): worn as a person on the library, stood at its height grown by its rank
-    part.figures[id] = had ?? walked(modelFigure(ref, f.measured.height));
+    part.figures[id] = had ?? walked(gait ? { ...modelFigure(ref, f.measured.height), castLit: true } : modelFigure(ref, f.measured.height));
     return peopleBody(f.measured.height, f.scale);
   }
   if (isDressed(entry)) {
@@ -417,11 +425,15 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   // (a routed rail's held swing thrown AT the hero: its STRIKE ZONE by how tall it stands against the hero, foes/zones.js,
   // each direction's verb, the swing aimed at the zone, the step in with it and, low, the string from side to side)
   const zoned = gaitRouted(G) && !figure ? zonedSlot(b.rule.collideHeight, f.scale) : null;
-  const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: fig, ...(zoned && slot.swing ? zoned.slot : {}) })) } : {};
+  // (a BEAST's blow at its zone too: its bite measured off its head on the page, gameworld/foe-blade.js; its way its card's)
+  const beastZone = zoned && f.strike && !isPeople(p.entry) && !isModel(p.entry) ? { zone: zoned.slot.zone, bite: 'head' } : null;
+  const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: fig, ...(zoned && slot.swing ? zoned.slot : {}), ...(beastZone && slot.strike === 'melee' && !slot.swing ? beastZone : {}) })) } : {};
   const T = tune ?? {}, weapon = T.weapon ?? f.entity.weapon;
   const e = {
     id: p.id, team: T.team ?? 'foes',
-    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(zoned && (f.entity.rule.loadout ?? []).some((l) => l.swing) ? zoned.rule : {}), ...(more.rule || {}), ...(T.rule || {}), ...(gaitRouted(G) && !figure ? { gaitFit: true } : {}) },
+    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(zoned && (f.entity.rule.loadout ?? []).some((l) => l.swing) ? zoned.rule : {}), ...(more.rule || {}), ...(T.rule || {}), ...(gaitRouted(G) && !figure ? { gaitFit: true } : {}),
+      // (a routed beast's own move POSED: its brace, its dive and its stun each a state, worlds/controllable/foe.js)
+      ...(gaitRouted(G) && !figure && f.entity.rule.foe && !isPeople(p.entry) && !isModel(p.entry) ? { foe: { ...f.entity.rule.foe, poses: true } } : {}) },
     ...(weapon ? { weapon: { ...weapon } } : {}),
     // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
     // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)

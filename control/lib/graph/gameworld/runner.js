@@ -86,7 +86,7 @@ import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
 import { gaitRouted, foeGaitOf, FOE_GAITS, familyOf } from './foe-families.js';
-import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
+import { fieldedIds, bestiaryOf, foeLook, foeThrowOf, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
 import { peopleExtra } from './people.js';
@@ -797,7 +797,8 @@ const foeSteps = (G, ref, ready, ids = null) => {
     // a person dressed as a crew's (foes/dress.js): the hero door's grunt, its reactions on it, as a quick game's guard is
     // made (guardStep)
     if (isDressed(entry)) {
-      const { mint: M } = dressOf(G, id, entry), spec0 = withReact(true, M.spec), spec = gaits ? { ...spec0, motion: { ...(spec0.motion ?? {}), ...FOE_GAITS } } : spec0, mint = { ...M, spec };
+      const thrownD = foeThrowOf(entry), spec0 = withReact(true, dressOf(G, id, entry).mint.spec);
+      const { mint: M } = dressOf(G, id, entry), spec = gaits || thrownD ? { ...spec0, motion: { ...(spec0.motion ?? {}), ...(gaits ? FOE_GAITS : {}), ...(thrownD ? { [thrownD]: true } : {}) } } : spec0, mint = { ...M, spec };
       return [{ key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { spec, mint, motion: null }, print: fingerprint({ spec, dress: entry.skin.dress }) }];
     }
     // a person or a people (foes/people.js): its sheet rolled in the game's setting, then the character the loop makes
@@ -815,7 +816,9 @@ const foeSteps = (G, ref, ready, ids = null) => {
     // henchman's, a person's, is never laid over it, or the tradition's head would meet the kin's skull and the door refuse)
     const onTiered = !!kinSheet && beastOnTiered(kinSheet);
     const body = hench && !onTiered ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear, kin = kinWords(entry.skin, { rank: entry.rank, sheet: kinSheet });
-    const words = body || gear || kin || gaits ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}), ...(gaits ? { motion: { ...FOE_GAITS } } : {}) } : null;
+    // (and a thrower's throw, its card's: the hero door's throw on its own rig, foes/attacks.js)
+    const thrown = foeThrowOf(entry), motion = gaits || thrown ? { ...(gaits ? FOE_GAITS : {}), ...(thrown ? { [thrown]: true } : {}) } : null;
+    const words = body || gear || kin || motion ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}), ...(motion ? { motion } : {}) } : null;
     const bare = kinBare(entry.skin, kinSheet) ? { dress: 'kit' } : {}, adorned = entry.skin && entry.skin.adorned ? { adorned: true } : {};
     return [
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },

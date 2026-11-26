@@ -12,6 +12,8 @@
  *            the blow, metres a second through the wind-up): the low foe darts in and cuts from one side then the other,
  *            never standing still; and `stop`, where the step in stops, a share of the weapon's reach (mind.js, the slot's
  *            `strikeLungeStop`): where the weapon connects, never the body in the hero's lap
+ *   beast    the card a beast throws there (foes/attacks.js): a low beast snaps at the legs, one the hero's height lunges
+ *            at the body, a tall one rears and mauls down; its bite is measured off its head (gameworld/foe-blade.js)
  *
  *   STRIKE_ZONES, ZONE_IDS
  *   zoneOf(stature, hero?)          → the zone id: under `legs.under` of the hero's height, `legs`; over `high.over`, `high`;
@@ -30,11 +32,11 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 export const STRIKE_ZONES = Object.freeze({
   legs: Object.freeze({ under: 0.78, band: [0.1, 0.5], reads: 'it goes for your legs, a low cut from one side then the other: jump it',
     words: Object.freeze({ neutral: 'forehand', left: 'forehand', right: 'backhand', forward: 'forehand', back: 'backhand' }),
-    moves: Object.freeze({ combo: true, lunge: 1.6, stop: 0.8 }), sink: 0.14, bend: 14 }),
-  body: Object.freeze({ band: [0.35, 0.85], reads: 'it swings at your body', words: null, moves: Object.freeze({ combo: false, lunge: 1.2, stop: 0.75 }), sink: 0, bend: 0 }),
+    moves: Object.freeze({ combo: true, lunge: 1.6, stop: 0.8 }), sink: 0.14, bend: 14, beast: 'snap' }),
+  body: Object.freeze({ band: [0.35, 0.85], reads: 'it swings at your body', words: null, moves: Object.freeze({ combo: false, lunge: 1.2, stop: 0.75 }), sink: 0, bend: 0, beast: 'lunge' }),
   high: Object.freeze({ over: 1.25, band: [0.55, 1.05], reads: 'it brings its blow down on you from above: step out from under it',
     words: Object.freeze({ neutral: 'chop', left: 'chop', right: 'chop', forward: 'chop', back: 'cleave' }),
-    moves: Object.freeze({ combo: false, lunge: 0.8, stop: 0.75 }), sink: 0.06, bend: 8 }),
+    moves: Object.freeze({ combo: false, lunge: 0.8, stop: 0.75 }), sink: 0.06, bend: 8, beast: 'maul' }),
 });
 export const ZONE_IDS = Object.freeze(Object.keys(STRIKE_ZONES));
 

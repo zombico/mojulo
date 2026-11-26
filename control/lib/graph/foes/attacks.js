@@ -19,13 +19,15 @@
  *            hand countering, the whole body behind the arm. A person's or a kin's swing is always carried so
  *   ways     { <topology>: <way> } how each shape of body throws it (./fit.js TOPOLOGIES): a beast's a strike way
  *            (fauna/behavior/strike.js STRIKE_WAYS: strike the lunge, snap, maul, roar, channel); a person's or a kin's
- *            a held swing (polygonizer/hero-swing.js SWING_WORDS) or a strike (polygonizer/hero-strike.js STRIKES).
+ *            a held swing (polygonizer/hero-swing.js SWING_WORDS), a strike (polygonizer/hero-strike.js STRIKES) or, for a
+ *            thrown round, a throw (polygonizer/hero-held-words.js THROW_WORDS: the round leaves at its release).
  *            A body whose topology the card has no way for cannot take it, and is refused naming the ones it has
  *
  *   ATTACK_CARDS, ATTACK_CARD_IDS
  *   attackCard(id)                         → the card (with its id), or throws naming the cards
  *   cardFor(id, classRow, topology)        → { card, way }: the card checked against the class's verb and the body's
  *                                            topology, throwing with words where it does not fit
+ *   isThrow(way)                           → a way that is a throw (its round wound up and released by the body)
  *   cardAttack(classRow, card)             → the class's attack with the card's kind, timing and reach over it
  *
  * Pure: no database, no clock, no dice.
@@ -35,6 +37,7 @@ import { STRIKE_WAYS } from '../fauna/behavior/strike.js';
 import { SWING_WORDS } from '../polygonizer/hero-swing.js';
 import { STRIKES } from '../polygonizer/hero-strike.js';
 import { SWING_STYLES } from '../polygonizer/hero-swing-body.js';
+import { THROW_WORDS } from '../polygonizer/hero-held-words.js';
 
 const card = (o) => Object.freeze({ ...o, ways: Object.freeze(o.ways) });
 const BEASTS = ['quadruped', 'biped', 'limbless', 'winged'];
@@ -49,6 +52,9 @@ export const ATTACK_CARDS = Object.freeze({
   thrust: card({ kind: 'strike', reads: 'draws back and drives its point straight at you: step aside', timing: { startup: 20, active: 4, recovery: 24 }, reach: 1.8, art: 'inspired', ways: each(FOLK, 'thrust') }),
   bash: card({ kind: 'strike', reads: 'shoves its shield into you at close range', timing: { startup: 16, active: 5, recovery: 20 }, reach: 1, art: 'action', ways: each(FOLK, 'bash') }),
   punch: card({ kind: 'strike', reads: 'throws a punch from its guard', timing: { startup: 18, active: 4, recovery: 18 }, reach: 0.9, ways: each(FOLK, 'cross') }),
+  // THROWN (a lob, its round leaving the hand at the throw's own release: worlds/controllable/mind.js `wind`)
+  throw: card({ kind: 'lob', reads: 'winds back and hurls a stone over its head at where you stand: move when its arm goes back', timing: { startup: 42, active: 2, recovery: 26 }, ways: each(FOLK, 'throwOverhand') }),
+  toss: card({ kind: 'lob', reads: 'swings its arm low and lobs something high, to land where you stood', timing: { startup: 34, active: 2, recovery: 22 }, ways: each(FOLK, 'throwUnderhand') }),
 });
 export const ATTACK_CARD_IDS = Object.freeze(Object.keys(ATTACK_CARDS));
 
@@ -58,7 +64,7 @@ for (const [id, C] of Object.entries(ATTACK_CARDS)) {
   if (C.art !== undefined && !SWING_STYLES[C.art]) throw new Error(`foe: attack card '${id}': no art '${C.art}' (${Object.keys(SWING_STYLES).join(', ')})`);
   for (const [t, w] of Object.entries(C.ways)) {
     if (!TOPOLOGIES.includes(t)) throw new Error(`foe: attack card '${id}': no topology '${t}' (${TOPOLOGIES.join(', ')})`);
-    const ok = FOLK.includes(t) ? SWING_WORDS.includes(w) || !!STRIKES[w] : STRIKE_WAYS.includes(w);
+    const ok = FOLK.includes(t) ? SWING_WORDS.includes(w) || !!STRIKES[w] || !!THROW_WORDS[w] : STRIKE_WAYS.includes(w);
     if (!ok) throw new Error(`foe: attack card '${id}': '${w}' is not a way a ${t} throws a blow`);
   }
 }
@@ -80,3 +86,5 @@ export function cardFor(id, c, topology) {
 export const cardAttack = (c, C) => ({
   ...c.attack, kind: C.kind, timing: { ...(c.attack.timing || {}), ...C.timing }, ...(C.reach !== undefined ? { reach: C.reach } : {}),
 });
+
+export const isThrow = (way) => typeof way === 'string' && !!THROW_WORDS[way];

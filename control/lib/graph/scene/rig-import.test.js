@@ -79,6 +79,16 @@ describe('a model\'s bones, by name', () => {
     expect(ledger.bones.upperArmL).toBe('mixamorig:LeftArm');
   });
 
+  it('read lit, its parts carry their own colour and each corner\'s normal, for the page\'s cast rig; absent, shaded and none', () => {
+    const plain = importRig(skinnedGlb()).pack, lit = importRig(skinnedGlb(), { lit: true }).pack;
+    const i = plain.parts.findIndex(Boolean), P0 = plain.parts[i], P1 = lit.parts[i];
+    expect(P0.nrm).toBeUndefined();
+    expect(Buffer.from(P1.nrm, 'base64').length / 4).toBe(Buffer.from(P1.pos, 'base64').length / 4);
+    // (the studio key only darkens: the lit read's colours are its own, never under the shaded ones)
+    const c0 = Buffer.from(P0.col, 'base64'), c1 = Buffer.from(P1.col, 'base64');
+    expect([...c1].every((v, k) => v >= c0[k])).toBe(true);
+  });
+
   it('refuses a model with no skeleton, and one missing a humanoid bone, naming what is missing', () => {
     expect(() => importRig(skinnedGlb({ skin: false }))).toThrow(/no skin/);
     expect(() => importRig(skinnedGlb({ names: Object.keys(T).filter((n) => n !== 'LeftHand' && n !== 'LeftHandIndex1') }))).toThrow(new RegExp(`no ${MODEL_REQUIRED.find((v) => v === 'leftHand')}`));

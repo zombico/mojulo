@@ -46,6 +46,7 @@ import { HEIGHT } from '../egocube/plan.js';
 import { ARMORY_ARMS } from '../equipment/armory.js';
 import { fitOfPeople } from '../foes/fit.js';
 import { familyOf } from './foe-families.js';
+import { STRIKE_ZONES, zoneOf } from '../foes/zones.js';
 import { AGGRESSIVENESS } from '../mind/vocab.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { GRUNT_STYLES } from '../cosmos/packs/comic-hero/grunts.js';
@@ -147,9 +148,13 @@ function cardOfFamily(family, role, entry) {
   if (!cards) return null;
   let topology;
   try { topology = resolveFoe(entry).measured.topology; } catch { return null; }
-  const card = cards[topology];
-  if (!card) return null;
-  try { resolveFoe({ ...entry, attack: card }); return card; } catch { return null; }
+  // ('zone': the card a beast throws at its strike zone, by how tall it stands against the hero, foes/zones.js)
+  // (its height as it stands, the body measured at its scale, as the stand step reads it: a beast's presence is its length)
+  const list = cards[topology] === 'zone' ? (() => { try { const f = resolveFoe(entry); return [STRIKE_ZONES[zoneOf(f.measured.height * f.scale)].beast]; } catch { return []; } })() : [].concat(cards[topology] ?? []);
+  for (const card of list) {
+    try { resolveFoe({ ...entry, attack: card }); return card; } catch { /* the next */ }
+  }
+  return null;
 }
 
 export function castingCall(world) {
@@ -244,6 +249,12 @@ export function castingCall(world) {
     take('elite', (c) => c.threat >= 2);
     take('boss', (c) => c.threat >= 3);
   }
+  // (a routed rail's family names the class a role is cast as where the call picked another, foe-families.js: Artesia's
+  // harrier is its goblin slinger, the lobber)
+  for (const [role, want] of Object.entries(family?.roles ?? {})) {
+    const x = cast[role] ? scored.find((y) => y.c.id === want.class) : null;
+    if (x && x.c.id !== cast[role].c.id) { taken.splice(taken.indexOf(cast[role].c.id), 1, x.c.id); cast[role] = { ...x, why: [`the ${family.name}'s ${role}: ${x.c.reads}`] }; }
+  }
 
   // (a people's RANK AND FILE stands at its lineage's smallest build, its elite and its boss at their own roll grown by
   // their rank: the goblin under the orc. A person dressed as a crew takes its build from its dress)
@@ -298,6 +309,16 @@ export function castingCall(world) {
     }
   }
   const variantsOf = (role) => variants.filter((v) => v.of === role).map((v) => v.id);
+  // a routed rail's family's OWN FOES beside the roles (foe-families.js `extras`: Artesia's field beasts and its bats),
+  // each its card at its zone, met from the second level on as the variants are; one that does not stand, left off
+  const extras = [];
+  for (const X of family?.extras ?? []) {
+    const e0 = { class: X.class, skin: { ...X.skin } };
+    try { resolveFoe(e0); } catch { continue; }
+    const card = cardOfFamily(family, 'file', e0);
+    foes[X.id] = card ? { ...e0, attack: card } : e0;
+    extras.push(X.id);
+  }
 
   // where they stand, in the order the levels are played: the grunt and the harrier on every walk, the elite from the
   // middle on (the first of two), their variants from the second on (the first, of two), the boss alone on the last
@@ -306,18 +327,31 @@ export function castingCall(world) {
   const levels = {}, n = order.length, open = order.filter((id) => G.levels[id].foes === undefined);
   // (a WORLD MAP, gameworld/world-map.js: one planned map whose scenario stands each fight's foes by role, every role
   // fielded from it; its beats say where and how many)
+  const scenarios = {};
   for (const id of mapped.filter((x) => G.levels[x].foes === undefined)) {
-    levels[id] = { from: Object.keys(ROLES).filter((r) => foes[r]).flatMap((r) => [r, ...(r !== 'boss' ? variantsOf(r) : [])]) };
+    levels[id] = { from: [...Object.keys(ROLES).filter((r) => foes[r]).flatMap((r) => [r, ...(r !== 'boss' ? variantsOf(r) : [])]), ...extras] };
+    // (the family's own foes on the map's fights, one kind to each fight past the opening, in order; its climax and its
+    // shortcuts as they were)
+    if (extras.length) {
+      const beats = G.levels[id].glyphs.sketch.scenario.beats, first = beats[0]?.at;
+      let k = 0;
+      scenarios[id] = beats.map((b) => {
+        if (b.kind !== 'fight' || !b.foes || b.at === first || /shortcut/.test(b.id) || k >= extras.length) return b;
+        const xid = extras[k++], X = family.extras.find((x) => x.id === xid);
+        return { ...b, foes: { ...b.foes, [X.id]: X.count ?? 1 } };
+      });
+    }
   }
   order.forEach((id, k) => {
     if (!open.includes(id)) return;
     // (the variants from the second level on; where the boss's is the second, from the first)
     const last = k === n - 1 && n > 1, deeper = k >= Math.min(1, Math.max(0, n - 2));
     const roles0 = last ? ['boss'] : ['grunt', 'harrier', ...(k >= Math.floor((n - 1) / 2) ? ['elite'] : []), ...(n === 1 ? ['boss'] : [])];
-    const from = roles0.flatMap((r) => [r, ...(deeper && r !== 'boss' ? variantsOf(r) : [])]);
+    const from = [...roles0.flatMap((r) => [r, ...(deeper && r !== 'boss' ? variantsOf(r) : [])]), ...(deeper && !last ? extras : [])];
     levels[id] = { from: from.filter((r) => foes[r]), ...(last ? { count: 1, win: 'clear' } : {}) };
   });
-  const patch = [{ op: 'set', path: '/foes', value: foes }, ...Object.entries(levels).map(([id, v]) => ({ op: 'set', path: `/levels/${id}/foes`, value: v }))];
+  const patch = [{ op: 'set', path: '/foes', value: foes }, ...Object.entries(levels).map(([id, v]) => ({ op: 'set', path: `/levels/${id}/foes`, value: v })),
+    ...Object.entries(scenarios).map(([id, beats]) => ({ op: 'set', path: `/levels/${id}/glyphs/sketch/scenario/beats`, value: beats }))];
   const reasons = [
     genre ? `a ${genre} (the intent's cube), its minds ${Object.entries(mind).filter(([k]) => k !== 'foes').map(([k, v]) => `${k} ${v}`).join(', ') || 'unsaid'}` : 'no genre: the cube\'s own values',
     `a ${style.flavor} game in the ${style.register} register (${style.from})`,
@@ -328,5 +362,5 @@ export function castingCall(world) {
     ...(bossRank !== 'boss' ? [`the boss stands as a ${bossRank}, the cube's rank`] : []),
     ...(skill ? [`every foe at ${skill} skill, the cube's`] : []),
   ];
-  return { foes, levels, patch, roles, variants, from: { genre, flavor: style.flavor, register: style.register, era, ...(people ? { people } : {}), ...(lead ? { leaders: lead } : {}), ...(kinStyle ? { pack: { style: kinStyle, colourway: kinColourway } } : {}), ...(F ? { dress: { faction, colourway } } : {}), ...(oozes.length ? { oozes } : {}), mind: { ...mind } }, reasons };
+  return { foes, levels, patch, roles, variants, ...(Object.keys(scenarios).length ? { scenarios } : {}), from: { genre, flavor: style.flavor, register: style.register, era, ...(people ? { people } : {}), ...(lead ? { leaders: lead } : {}), ...(kinStyle ? { pack: { style: kinStyle, colourway: kinColourway } } : {}), ...(F ? { dress: { faction, colourway } } : {}), ...(oozes.length ? { oozes } : {}), mind: { ...mind } }, reasons };
 }

@@ -4,15 +4,20 @@
  * at a walk and runs at a run, its feet planted (figures/clip-travel.js), and a flier flies. A rail not here, every
  * byte as it was; a rail is routed by its row, one at a time.
  *
- *   FOE_FAMILIES             { <rail id>: { name, gait: true, cards?: { file, lead } } }: `cards` the attack card a role's
- *                              body throws by its topology (the rank and file's, the leaders': the elite and the boss),
- *                              written into the cast by the casting call (foe-casting.js)
+ *   FOE_FAMILIES             { <rail id>: { name, gait: true, cards?: { file, lead }, roles? } }: `cards` the attack cards
+ *                              a role's body throws by its topology (the rank and file's, the leaders': the elite and the
+ *                              boss), each a list, the first its class's blow takes; `roles` the class a role is cast as
+ *                              where the casting call would pick another; `extras` its own foes beside the roles
+ *                              (an id, a class, a skin, how many to a fight), met from the second level on (on a world
+ *                              map, one kind to each fight past the opening, in order); all written into the cast
+ *                              (foe-casting.js)
  *   familyOf(G)              → the row (with its rail's id) a gameworld's foes are cast from, or null: the rail its feel's
  *                              template is (rails.js railOfPole)
  *   FOE_GAITS                the hero door's gaits a person or a kin foe is made with: a walk and a jog, solved on its
  *                              own rig (polygonizer/hero-motion.js), as the hero's are
  *   WALK_OVER                a body walks under this share over its walk's own pace, and runs above it
- *   foeGaitOf(entry)         → { fly }: the gait words its figure is made with (a flier's flight, where its class flies)
+ *   foeGaitOf(entry)         → { fly, brace? }: the gait words its figure is made with (a flier's flight, where its class
+ *                              flies; its gathering, where its own move braces)
  *   gaitFit(figure, scale?)  → { stride?, walkStride?, walkPace? }: a packed figure's run and walk measured off their clips
  *                              (figures/clip-travel.js) at its body's scale, the rule's words the runtime steps by
  *
@@ -29,10 +34,22 @@ export const FOE_FAMILIES = Object.freeze({
   'fable-of-artesia': Object.freeze({ name: 'the goblin band and the wilds', gait: true,
     // the cards its cast throws (foes/attacks.js), by role and by the body's topology: the rank and file chop, the
     // leaders maul; a beast snaps, its leader mauls. A role or a body with none keeps its class's own blow
+    // (each body's cards in order of choice: the first its class's blow takes; a slinger throws, a cutter chops; a
+    // beast's `zone`, the card its height against the hero's calls for, foes/zones.js: a wolf snaps at the legs)
     cards: Object.freeze({
-      file: Object.freeze({ person: 'chop', kin: 'chop', quadruped: 'snap', biped: 'snap', limbless: 'snap' }),
-      lead: Object.freeze({ person: 'maul', kin: 'maul', quadruped: 'maul', biped: 'maul' }),
-    }) }),
+      file: Object.freeze({ person: ['chop', 'throw'], kin: ['chop', 'throw'], quadruped: 'zone', biped: 'zone', limbless: ['snap'] }),
+      lead: Object.freeze({ person: ['maul'], kin: ['maul'], quadruped: 'zone', biped: 'zone' }),
+    }),
+    // the roles its cast fields by class where its own casting would pick another (the goblin slinger, who keeps its
+    // distance and throws: the band's ranged hand)
+    roles: Object.freeze({ harrier: Object.freeze({ class: 'lobber' }) }),
+    // its own foes beside the band: the field's beasts (wolves that hunt in a pack, a boar that charges) and the bats
+    // of its caves, each wild, its card at its zone
+    extras: Object.freeze([
+      Object.freeze({ id: 'wolf', class: 'pursuer', skin: Object.freeze({ species: 'wolf' }), count: 2 }),
+      Object.freeze({ id: 'bat', class: 'swooper', skin: Object.freeze({ species: 'fruitBat' }), count: 2 }),
+      Object.freeze({ id: 'boar', class: 'charger', skin: Object.freeze({ species: 'wildBoar' }), count: 1 }),
+    ]) }),
 });
 
 export const FOE_GAITS = Object.freeze({ walk: true, jog: true });
@@ -49,7 +66,8 @@ export const gaitRouted = (G) => !!familyOf(G)?.gait;
 
 export function foeGaitOf(entry) {
   const c = FOE_CLASSES[entry?.class], M = c ? MOVES[c.move] : null;
-  return { fly: !!(M?.rule?.flier || M?.needs?.includes('wings') || c?.fits?.wings === true) };
+  // (and a BRACE where its own move gathers before it goes: a charge, a hop, worlds/controllable/foe.js)
+  return { fly: !!(M?.rule?.flier || M?.needs?.includes('wings') || c?.fits?.wings === true), ...(['rush', 'hop'].includes(c?.move) ? { brace: true } : {}) };
 }
 
 export function gaitFit(figure, scale = 1) {

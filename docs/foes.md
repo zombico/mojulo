@@ -79,6 +79,24 @@ pivoting on its ball, the off hand countering. And the hit is the weapon's (`gam
 weapon tip is read across its contact window (`figures/clip-reach.js`), and the blow's reach and cone are set from that
 path at the body's scale, so it lands where the weapon passes and a player reads the reach off the weapon itself.
 
+### Strike zone: thrown at the hero, by height
+
+A routed rail's foe throws its blow AT the hero (`foes/zones.js`): its strike zone is read off how tall it stands
+against the hero. Well under the hero (a goblin, a wolf) it goes for the legs; about its height, the body; well over
+it, from above. A body with hands throws its card's swing at the zone, each swing direction its own verb (low cuts from
+alternate sides at the legs), the arm's pitch searched on the rig until the weapon's tip passes through the zone's
+middle (`worlds/world-kinds.js` aimedKeys), stepping in with the blow and stopping where its weapon connects
+(`strikeLungeStop`). A beast's card is the one its zone calls for (a snap at the legs, a lunge at the body, a maul from
+above), its bite measured off its head. The foe audit's `foe-zone` law reads every zoned foe's weapon path against its
+zone.
+
+### Thrown rounds
+
+A thrower's card (`throw`, `toss`) is a hero-door throw on its own rig (`polygonizer/hero-throw.js`), and its weapon's
+`throw` with `ai` makes its mind wind the throw before the round leaves (`worlds/controllable/mind.js`, as a pilot's
+grenade does, `throw.js`): the round is loosed at the throw's own release, read off the baked clip, so it leaves the
+hand the body shows it leave.
+
 ### Gait: walking as its body does
 
 A routed rail's foes (`gameworld/foe-families.js` FOE_FAMILIES: Fable of Artesia first) walk as their bodies do.
@@ -88,7 +106,10 @@ each figure's run and walk are measured off the clips it plays them with (`figur
 in place, so a planted foot slides back as far as the body should move, and that slide over the stance is the cycle's
 travel) at the body's scale, and the rule takes them as its `stride`, `walkStride` and `walkPace`. The runtime then
 walks a foe under its walk's pace (a patrol, a wander) and runs it over it (a chase), each at its own stride, so its
-feet plant where the clip plants them. A rail not routed, every byte as it was.
+feet plant where the clip plants them. A beast's own move poses its moments (`foe.poses`): a charger's brace in its
+gathering and its stun in its flinch, a flier's brace and dive on its wings, a hopper's crouch between hops. Its target
+rim shows only while the hero is locked on (`targetRimOn: 'lock'`), and each map level lights its bodies by its own
+cube (`castLight`), a model made elsewhere included (`castLit`). A rail not routed, every byte as it was.
 
 ### Modes: defeated, never destroyed, until the last
 

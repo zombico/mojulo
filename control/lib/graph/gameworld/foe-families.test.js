@@ -7,7 +7,8 @@ import { MOVES } from '../foes/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { composeLive } from '../worlds/controllable/compose.js';
 import { beastFieldOf, beastMovesOf, beastGaitsOf } from '../egocube/moves.js';
-import { motionGaits, motionBehaviors } from '../fauna/rig.js';
+import { motionGaits, motionBehaviors, motionReactions } from '../fauna/rig.js';
+import { strikeWaysOf } from '../fauna/behavior/strike.js';
 
 // a figure whose run and walk each slide a known way: two feet, planted half a cycle, `m` metres a cycle
 const slid = (m, k = 20) => {
@@ -67,5 +68,29 @@ describe('the foe families: the rails whose foes walk as their bodies do', () =>
     expect(beastFieldOf(ground).own).not.toHaveProperty('walk');
     const flier = Object.values(FOE_CLASSES).map((c) => c.standIn).find((s) => motionGaits(s).includes('fly'));
     expect(beastFieldOf(flier, { gait: { fly: true } }).own.forward).toBe('fly');
+  });
+
+  it('a charger that poses its move braces, charges and is stunned in states of its own; without, the rest pose', () => {
+    const E = composeLive(), DT = 1 / 30;
+    const rusher = Object.values(FOE_CLASSES).find((c) => c.move === 'rush'), f = resolveFoe({ class: rusher.id });
+    const run = (poses) => {
+      const foe = { id: 'f', team: 'foes', rule: { ...f.entity.rule, eye: 0, collideRadius: 0.4, collideHeight: 0.8, foe: { ...f.entity.rule.foe, ...(poses ? { poses: true } : {}) } }, body: { type: 'none', hp: 3 }, transform: { pos: [0, 0, 0], heading: 0 } };
+      const hero = { id: 'p', pilotable: true, rule: { type: 'platform', speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'none' }, transform: { pos: [6, 0, 0], heading: Math.PI } };
+      const st = E.createWorld({ entities: [foe, hero] }), seen = [];
+      for (let i = 0; i < 150; i++) { E.stepWorld(st, {}, DT, { ground: () => 0 }); const L = st.byId.f.locomotion; if (seen[seen.length - 1] !== L) seen.push(L); }
+      return seen;
+    };
+    expect(run(true)).toEqual(expect.arrayContaining(['brace', 'forward', 'stun']));
+    expect(run(false)).not.toContain('brace');
+  });
+
+  it('a beast made to brace gathers in its channel and is stunned in its flinch; a flier braces and dives on its wings', () => {
+    const rusher = Object.values(FOE_CLASSES).find((c) => c.move === 'rush');
+    expect(foeGaitOf({ class: rusher.id }).brace).toBe(true);
+    const own = beastFieldOf(rusher.standIn, { gait: foeGaitOf({ class: rusher.id }) }).own;
+    if (strikeWaysOf(rusher.standIn).includes('channel')) expect(own.brace).toBe('channel');
+    if (motionReactions(rusher.standIn).includes('flinch')) expect(own.stun).toBe('flinch');
+    const flier = Object.values(FOE_CLASSES).map((c) => c.standIn).find((x) => motionGaits(x).includes('fly'));
+    expect(beastFieldOf(flier, { gait: { fly: true } }).own).toMatchObject({ brace: 'fly' });
   });
 });

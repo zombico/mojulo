@@ -748,7 +748,9 @@ export function composedWorld(c) {
   // casting call's proposal written (its foes, each level's stand), the brief naming it; the creator revises it as any part
   const call = world.characters ? castingCall(world) : null;
   if (!call) return world;
-  const levels = Object.fromEntries(Object.entries(world.levels).map(([id, L]) => [id, call.levels[id] ? { ...L, foes: call.levels[id] } : L]));
+  // (a family's own foes on a world map's fights, foe-casting.js: the scenario's beats as the call wrote them)
+  const withBeats = (id, L) => (call.scenarios?.[id] ? { ...L, glyphs: { ...L.glyphs, sketch: { ...L.glyphs.sketch, scenario: { ...L.glyphs.sketch.scenario, beats: call.scenarios[id] } } } } : L);
+  const levels = Object.fromEntries(Object.entries(world.levels).map(([id, L]) => [id, call.levels[id] ? withBeats(id, { ...L, foes: call.levels[id] }) : L]));
   return { ...world, foes: call.foes, levels, brief: { ...world.brief, foes: call.roles.map((r) => r.id) } };
 }
 // what a composed world's words decided (its brief): each word read and what it decided, the cube, what nothing read

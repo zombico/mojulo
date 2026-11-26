@@ -272,7 +272,8 @@ export async function heroFigure(name, spec, { swing = null, swings = null, hand
   let manifest, body;
   // a MODEL made elsewhere (`modelRef`: a sketch a rigged humanoid .glb is bound onto, stood `height` metres): its pack read
   // by scene/rig-import.js, played as a hero's is (worlds/controllable/model-figure.js)
-  if (typeof spec.modelRef === 'string') body = await (await import('@/lib/graph/worlds/controllable/model-figure.js')).modelPack(name, spec.modelRef, { height: spec.height ?? null });
+  // (lit, a model under the cast rig: its own colour and its normals, rig-import.js `lit`)
+  if (typeof spec.modelRef === 'string') body = await (await import('@/lib/graph/worlds/controllable/model-figure.js')).modelPack(name, spec.modelRef, { height: spec.height ?? null, ...(lit ? { lit: true } : {}) });
   else if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
@@ -1614,7 +1615,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // were. A figure no entity wears, and every page without a form land, as it was: nothing added
           // (the one a player pilots among them plays the engagement run's body: heroFigure's `pilot`)
           const piloted = (payload.entities || []).some((e) => e && e.pilotable && e.body && (e.body.figure === name || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name))));
-          const castFig = !!formCast && typeof rawSpec.modelRef !== 'string' && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name)) || (e.rule && e.rule.boss && Array.isArray(e.rule.boss.figures) && e.rule.boss.figures.includes(name))));
+          // (a model made elsewhere only where its figure asks, `castLit`, a routed rail's foe, gameworld/foe-families.js)
+          const castFig = !!formCast && (typeof rawSpec.modelRef !== 'string' || rawSpec.castLit === true) && (payload.entities || []).some((e) => e && e.body && (e.body.figure === name || (Array.isArray(e.body.modes) && e.body.modes.some((m) => m && m.figure === name)) || (e.rule && e.rule.combat && (e.rule.combat.drawn === name || e.rule.combat.sheathed === name)) || (e.rule && e.rule.boss && Array.isArray(e.rule.boss.figures) && e.rule.boss.figures.includes(name))));
           // (a party battle's fighter holding a weapon, its moves naming the held swings, egocube/moves.js ARMED_ATTACKS: the
           // swings baked on its own rig at a blow's window, no rule armed with them)
           const battleSwings = !(wielder || mover) && rawSpec.moves && typeof rawSpec.moves === 'object' && Object.values(rawSpec.moves).some((c) => typeof c === 'string' && c.startsWith('swing_')) ? { swings: { contact: BATTLE_SWING_CONTACT } } : {};
@@ -1726,6 +1728,28 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
               const fit = bladeFit(F, ['swing_neutral', 'swing_left', 'swing_right', 'swing_back'], e.body.scale ?? 1);
               return fit ? { ...e, rule: { ...e.rule, loadout: e.rule.loadout.map((l) => (l && l.swing ? { ...l, strikeReach: fit.strikeReach, strikeCone: fit.strikeCone, blade: fit.blade } : l)) } } : e;
             });
+          }
+          // A BEAST'S BITE (`slot.bite`: its head's bone, a routed rail's beast at its strike zone, gameworld/foes.js): its
+          // reach and cone measured off its snout (the head bone's tip) through the blow's window, as a weapon's are off its
+          // tip, so a bite lands where the jaws go. None asks ⇒ as it was
+          if (!cardSlot && (payload.entities || []).some((e) => e && e.body && e.body.figure === name && e.rule && (e.rule.loadout || []).some((l) => l && l.bite))) {
+            const { bladeFit } = await import('@/lib/graph/gameworld/foe-blade.js'), F = payload.figures[name] ?? figure;
+            payload.entities = payload.entities.map((e) => {
+              if (!(e && e.body && e.body.figure === name && e.rule && Array.isArray(e.rule.loadout))) return e;
+              return { ...e, rule: { ...e.rule, loadout: e.rule.loadout.map((l) => {
+                if (!(l && l.bite)) return l;
+                const B = (F.bones || []).find((b) => b.id === l.bite), fit = B ? bladeFit(F, 'swing_neutral', e.body.scale ?? 1, { tip: { bone: l.bite, at: B.tail }, window: l.strikeContact }) : null;
+                return fit ? { ...l, strikeReach: fit.strikeReach, strikeCone: fit.strikeCone, blade: fit.blade } : l;
+              }) } };
+            });
+          }
+          // A FOE'S THROW (`weapon.throw.ai`, a card's thrown round, foes/attacks.js): its round loosed at the share of the
+          // throw this figure's own baked throw releases at (hero-throw.js, the clip's `held.release.t`), so the round and
+          // the hand part where the page shows them part. None thrown ⇒ as it was
+          {
+            const T = (payload.figures[name] ?? figure).clips?.throw?.held?.release?.t;
+            if (Number.isFinite(T) && (payload.entities || []).some((e) => e && e.body && e.body.figure === name && e.weapon && e.weapon.throw && e.weapon.throw.ai))
+              payload.entities = payload.entities.map((e) => (e && e.body && e.body.figure === name && e.weapon && e.weapon.throw && e.weapon.throw.ai ? { ...e, weapon: { ...e.weapon, throw: { ...e.weapon.throw, release: Math.round(Math.min(0.95, Math.max(0.05, T)) * 1e4) / 1e4 } } } : e));
           }
           // A FOE'S GAIT FITTED TO ITS BODY (`rule.gaitFit`, a routed rail's foes, gameworld/foe-families.js): its run and
           // its walk measured off the clips this figure plays them with (figures/clip-travel.js) at the body's scale, so its

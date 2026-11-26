@@ -55,4 +55,26 @@ describe('the attack cards: the blow apart from the body that throws it', () => 
     expect(() => resolveFoe({ class: otherVerb.id, attack: 'snap' })).toThrow(/never its kind/);
     expect(() => cardFor('chop', beastClass, 'quadruped')).toThrow(/person \| kin, not a quadruped/);
   });
+
+  it('a thrower\'s card winds its throw before the round leaves: the round loosed at the release, once a throw; absent, as it fired', async () => {
+    const { composeLive } = await import('../worlds/controllable/compose.js');
+    const E = composeLive(), DT = 1 / 60;
+    const lob = Object.values(FOE_CLASSES).find((c) => c.attack.kind === "lob"), kin = PEOPLE.find((p) => isKin(p) && fitOfPeople(lob.id, { people: p }).ok) ?? PEOPLE.find((p) => fitOfPeople(lob.id, { people: p }).ok);
+    const rounds = (attack) => {
+      const f = resolveFoe({ class: lob.id, skin: { people: kin }, ...(attack ? { attack } : {}) });
+      const foe = { id: 'f', team: 'foes', rule: { ...f.entity.rule, eye: 0, collideRadius: 0.3, collideHeight: 1.1 }, weapon: { ...f.entity.weapon }, body: { type: 'none', hittable: true, hp: 50 }, transform: { pos: [0, 0, 0], heading: 0 } };
+      const hero = { id: 'p', pilotable: true, rule: { type: 'platform', speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'none', hittable: true, hp: 1e6 }, transform: { pos: [8, 0, 0], heading: Math.PI } };
+      const st = E.createWorld({ entities: [foe, hero] }), out = [];
+      let n0 = 0;
+      for (let i = 0; i < 300; i++) { E.stepWorld(st, {}, DT, { ground: () => 0 }); const n = (st.projectiles || []).length; if (n > n0) out.push({ i, windT: st.byId.f.windT, loc: st.byId.f.locomotion }); n0 = n; }
+      return { out, w: f.entity.weapon };
+    };
+    const thrown = rounds('throw'), plain = rounds(null);
+    expect(thrown.w.throw).toMatchObject({ clip: true, ai: true });
+    expect(thrown.out.length).toBeGreaterThan(0);
+    expect(thrown.out[0].loc).toBe('throw');
+    expect(thrown.out[0].windT).toBeCloseTo(thrown.w.throw.dur * thrown.w.throw.release, 1);
+    expect(thrown.out.length).toBeLessThan(plain.out.length);
+    expect(plain.w.throw).toBeUndefined();
+  });
 });

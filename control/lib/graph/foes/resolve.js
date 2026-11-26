@@ -29,7 +29,7 @@
 import { PACES, MOVES, ATTACKS, FOE_RANKS, HERO } from './vocab.js';
 import { foeClass, classStatus } from './index.js';
 import { checkFit, checkFitPeople, checkFitModel } from './fit.js';
-import { cardFor, cardAttack } from './attacks.js';
+import { cardFor, cardAttack, isThrow } from './attacks.js';
 import { SWING_WORDS } from '../polygonizer/hero-swing.js';
 import { readPeopleSkin } from './people.js';
 import { readModelSkin, isModelSkin } from './model.js';
@@ -49,7 +49,7 @@ function check(what, v, table) {
 }
 
 // the attack's Power verb on the rule: a blade slot the mind draws, or a weapon it fires
-function armed(rule, entity, A, damage, swing = null, art = null) {
+function armed(rule, entity, A, damage, swing = null, art = null, thrown = null) {
   const t = A.timing;
   if (A.verb === 'melee') {
     Object.assign(rule, { meleeSeek: true, meleeCombo: false });
@@ -57,7 +57,10 @@ function armed(rule, entity, A, damage, swing = null, art = null) {
     // (`swing`: a card's held swing for a body with hands, polygonizer/hero-swing.js, baked on its rig at that window)
     rule.loadout = [{ name: 'blow', strike: 'melee', strikeReach: A.reach, strikeDamage: damage, strikeDur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS), strikeContact: strikeWindow(t), ...(swing ? { swing, art: art ?? 'action' } : {}) }];
   } else if (A.fireClass) {
-    entity.weapon = { fireClass: A.fireClass, damage };
+    // (a THROWN round, a card's throw: `throw` { dur, release, clip, ai }, the body's throw played before it and the round
+    // loosed at its release, a share of the throw, as a pilot's grenade is (worlds/controllable/throw.js); the page fits
+    // the release to the throw's own, world-scene.js)
+    entity.weapon = { fireClass: A.fireClass, damage, ...(thrown ? { throw: { dur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS), release: r3((t.startup ?? 0) / Math.max(1, (t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0))), clip: true, ai: true } } : {}) };
   }
 }
 
@@ -106,7 +109,7 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   };
   const rule = { type: 'ai', dodge: false, mind, ...(c.pace ? { speed: r3(PACES[c.pace] * hero.run) } : {}), ...(M.rule || {}), ...sightKnobs(c.mind) };
   const entity = { rule, body: { hp: downs * hero.blow } };
-  armed(rule, entity, A, damage, K && people && SWING_WORDS.includes(K.way) ? K.way : null, K?.card.art ?? null);
+  armed(rule, entity, A, damage, K && people && SWING_WORDS.includes(K.way) ? K.way : null, K?.card.art ?? null, K && people && isThrow(K.way) ? K.way : null);
   // what the mind does not play (worlds/controllable/foe.js): its own move's numbers, the touch it hurts by, the stomp
   const own = foeRecord(c, M, A);
   if (own) rule.foe = own;

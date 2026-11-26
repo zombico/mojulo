@@ -297,6 +297,16 @@ export function buildMind(E) {
     if (e.aiJukeClock >= jp) { e.aiJukeClock = 0; e.aiJukeSide = e.aiJukeSide === 1 ? -1 : 1; }
     return e.aiJukeSide || 1;
   }
+  // stepWind(e, W, dt) — a foe's throw played through (`W`: a weapon's { dur, release }): the body in its `throw` clip at
+  // the throw's phase, the round loosed once at the release, and a beat's pause after it before the next
+  function stepWind(e, W, dt) {
+    e.windT += dt;
+    const u = e.windT / Math.max(0.1, W.dur);
+    e.locomotion = 'throw'; e.moving = true; e.gaitPhase = Math.min(0.999, u);
+    e.aiFire = !e.windFired && u >= W.release ? 1 : 0;
+    if (e.aiFire) e.windFired = true;
+    if (u >= 1) { e.windT = null; e.windFired = false; e.aiClock = -(W.rest ?? 1); }
+  }
   // walkToward(e, r, want, dt, world, speed) — turn toward heading `want` and walk on when roughly facing it, solid and
   // on the ground, with the walk gait. Returns the distance moved.
   function walkToward(e, r, want, dt, world, speed) {
@@ -975,6 +985,12 @@ export function buildMind(E) {
       // on aim it works the trigger, pulled and let go on alternate frames (a semi weapon fires on the pull), its
       // cooldown the pace
       const onAim = !!e.weapon && Math.abs(rem) <= ((r.fireArc ?? 6) * Math.PI) / 180;
+      // (a THROWN round, `weapon.throw.ai`: on aim and its pause over, it winds its throw, the round loosed at the release)
+      if (e.weapon && e.weapon.throw && e.weapon.throw.ai) {
+        if (e.windT == null) { e.aiClock = Math.min(0, (e.aiClock || 0) + dt); if (onAim && e.aiClock >= 0) { e.windT = 0; e.windFired = false; } }
+        if (e.windT != null) stepWind(e, e.weapon.throw, dt); else e.aiFire = 0;
+        return;
+      }
       e.sentryPull = onAim && !e.sentryPull;
       e.aiFire = e.sentryPull ? 1 : 0;
       return;
@@ -1176,6 +1192,9 @@ export function buildMind(E) {
     const tcz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 0);
     t.pitch = clamp(Math.atan2(((aimZ ?? target.transform.pos[2]) + tcz) - (t.pos[2] + (w ? w.eye || 0 : 0)), aimZ === null ? dist2d : Math.hypot(ax, ay)), -1.2, 1.2);
 
+    // A THROW UNDER WAY (`w.throw.ai`, a foe's thrown round: below): the body stands in its throw, turned on its target,
+    // until it is through; nothing else moves it
+    if (w && w.throw && w.throw.ai && e.windT != null) { stepWind(e, w.throw, dt); return; }
     // ENGAGE: move to attack. Close to `standoff` while facing, then hold. With opt-in BOOST (`r.boost`) it juke-boosts
     // in bursts: `boostBurst` s weaving (boost armour live, a single bolt doesn't stun) then `boostRest` s grounded and
     // stunnable, so the same enemy shows both reads. In SPACE it seeks along the full 3D vector.
@@ -1372,6 +1391,10 @@ export function buildMind(E) {
       e.aiClock = (e.aiClock || 0) + dt;
       e.aiFire = e.aiClock >= 0 && (e.aiClock % cycle) <= burstOn ? 1 : 0;
     } else e.aiClock = dif && dif.reactDelay ? -dif.reactDelay : 0;
+    // A THROWN ROUND (`w.throw` with `ai`: { dur, release }, a foe's throw card, foes/attacks.js; combat-ranged.js and the
+    // pilot's own, throw.js): the trigger winds the body's throw first, the round loosed at its release, a share of the
+    // throw, so it leaves the hand the body shows it leave
+    if (w && w.throw && w.throw.ai && e.aiFire) { e.aiFire = 0; e.windT = 0; e.windFired = false; stepWind(e, w.throw, 0); }
     // DETUNE: the tuning's accuracy, a deterministic sinusoidal wobble applied AFTER every decision, so the mind fires
     // believing it is locked while the shot ray (stepWeapon → fwd3(heading, pitch)) inherits the error and misses real
     // geometry. Heading is integrated, so last frame's offset is swapped out; pitch is absolute, so a plain add decays.

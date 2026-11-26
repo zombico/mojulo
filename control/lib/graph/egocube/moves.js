@@ -184,8 +184,10 @@ export function beastMovesOf(species, { strike, battle = false, way = null, gait
   const reacts = motionReactions(species), gaits0 = beastGaitsOf(species);
   // (a GAIT of its own, a routed foe's, gameworld/foe-families.js: its relax loop as its idle where its body poses one, and
   // a flier's flight where it has one, beside its two gaits; absent, as always)
-  const fly = gait?.fly && motionGaits(species).includes('fly') ? ['fly'] : [];
+  const fly = gait?.fly && motionGaits(species).includes('fly') ? ['fly', ...(motionGaits(species).includes('glide') ? ['glide'] : [])] : [];
   const gaits = [...gaits0, ...fly], idle = gait && motionBehaviors(species).includes('relax') ? ['relax'] : [];
+  // (and its BRACE, a routed foe's telegraph: its `channel`, drawn in and hunkered, head down, where its body has one)
+  const brace = gait?.brace && !fly.length && strikeWaysOf(species).includes('channel') ? { channel: true } : {};
   // (a strike at its attack's timing: the motion's object form; without one the words, as always)
   const struck = (strike || battle) && strikesOf(species).length ? strike || true : null;
   const ways = battle && struck ? strikeWaysOf(species).filter((w) => BATTLE_WAYS[w]) : [];
@@ -194,9 +196,9 @@ export function beastMovesOf(species, { strike, battle = false, way = null, gait
   // (an attack card's WAY, foes/attacks.js: its swing plays that way's clip, at the attack's own timing, where the body
   // has it; the lunge, or a way the body has not, plays the strike as always)
   const own = struck && way && way !== 'strike' && strikeWaysOf(species).includes(way) ? way : null;
-  const strikes = { ...Object.fromEntries(ways.map((w) => [w, true])), ...(own ? { [own]: struck } : {}) };
+  const strikes = { ...Object.fromEntries(ways.map((w) => [w, true])), ...(own ? { [own]: struck } : {}), ...brace };
   return {
-    motion: struck ? { gaits, ...(idle.length ? { behaviors: idle } : {}), ...(reacts.length ? { reactions: reacts } : {}), strike: struck, ...(Object.keys(strikes).length ? { strikes } : {}) } : [...gaits, ...idle, ...reacts],
+    motion: struck || brace.channel ? { gaits, ...(idle.length ? { behaviors: idle } : {}), ...(reacts.length ? { reactions: reacts } : {}), ...(struck ? { strike: struck } : {}), ...(Object.keys(strikes).length ? { strikes } : {}) } : [...gaits, ...idle, ...reacts],
     states: { ...(reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {}), ...(struck ? Object.fromEntries(SWINGS.map((d) => [`swing_${d}`, own ?? 'strike'])) : {}), ...acts },
   };
 }
@@ -206,7 +208,11 @@ export function beastFieldOf(species, { strike, battle = false, way = null, gait
   // (a routed foe's gait: it walks at its walk and runs at its run, idles in its relax loop, and a flier flies)
   if (gait) {
     const flies = gait.fly && motionGaits(species).includes('fly'), relax = motionBehaviors(species).includes('relax');
-    return { own: { forward: flies ? 'fly' : g.at(-1), walk: flies ? 'fly' : g[0], turn: g[0], strafe: flies ? 'fly' : g.at(-1), ...(relax ? { idle: 'relax' } : {}) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
+    const glides = flies && motionGaits(species).includes('glide'), channels = !flies && gait.brace && strikeWaysOf(species).includes('channel'), flinches = motionReactions(species).includes('flinch');
+    // (its own move's moments, foe.js `foe.poses`: the brace its gathering or, aloft, its wingbeat; the dive its glide; the
+    // stun its flinch, slowed)
+    const poses = { ...(flies ? { brace: 'fly', dive: glides ? 'glide' : 'fly' } : channels ? { brace: 'channel' } : {}), ...(flinches ? { stun: 'flinch' } : {}) };
+    return { own: { forward: flies ? 'fly' : g.at(-1), walk: flies ? 'fly' : g[0], turn: g[0], strafe: flies ? 'fly' : g.at(-1), ...(relax ? { idle: 'relax' } : {}), ...poses }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
   }
   return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
 }

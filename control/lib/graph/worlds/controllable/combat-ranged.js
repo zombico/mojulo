@@ -240,10 +240,11 @@ export function buildCombatRanged(E) {
       // muzzle flash's length; absent, the renderer's bolt and burst at fxScale, as before
       ...(w.round && typeof w.round === 'object' ? { round: { speed: w.round.speed > 0 ? w.round.speed : 800, flash: w.round.flash > 0 ? w.round.flash : 0.12, ...(typeof w.round.look === 'string' ? { look: w.round.look } : {}) } } : {}),
       smokeTrail: w.smokeTrail ?? true,    // lob projectile smoke trail toggle (grenades opt out; bazookas keep it)
-      // A THROWN WEAPON (opt-in, throw.js: a hand grenade's { dur, release, clip? }) and what its round does where it goes off
+      // A THROWN WEAPON (opt-in, throw.js: a hand grenade's { dur, release, clip? }; `ai`, a foe's throw, mind.js: its mind
+      // winds the throw before the round leaves, as a pilot's press does) and what its round does where it goes off
       // (opt-in `effect`: 'frag' hurts, the default; 'stun' knocks out what sees it; 'chaff' jams radios and radars round
       // it, its `jam` { r (m), for (s) }); absent, a lob as before
-      ...(w.throw && typeof w.throw === 'object' ? { throw: { dur: w.throw.dur > 0 ? w.throw.dur : 1, release: Math.min(0.95, Math.max(0, w.throw.release ?? 0.5)), ...(w.throw.clip ? { clip: true } : {}) } } : {}),
+      ...(w.throw && typeof w.throw === 'object' ? { throw: { dur: w.throw.dur > 0 ? w.throw.dur : 1, release: Math.min(0.95, Math.max(0, w.throw.release ?? 0.5)), ...(w.throw.clip ? { clip: true } : {}), ...(w.throw.ai ? { ai: true } : {}) } } : {}),
       ...(w.effect === 'stun' || w.effect === 'chaff' || w.effect === 'frag' ? { effect: w.effect } : {}),
       ...(w.jam && typeof w.jam === 'object' ? { jam: { r: w.jam.r > 0 ? w.jam.r : 15, for: w.jam.for > 0 ? w.jam.for : 15 } } : {}),
       reticleDist: w.reticleDist ?? null, // how far ahead the crosshair marks the aim point (renderer)

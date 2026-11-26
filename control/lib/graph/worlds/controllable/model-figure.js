@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 
 const CACHE = new Map(), CACHE_MAX = 8;
 
-export async function modelPack(name, ref, { height = null } = {}) {
+export async function modelPack(name, ref, { height = null, lit = false } = {}) {
   const { latestBoundMesh } = await import('@/lib/graph/scene/mesh-store.js');
   const slot = latestBoundMesh(ref);
   if (!slot) {
@@ -30,12 +30,12 @@ export async function modelPack(name, ref, { height = null } = {}) {
     const h = SketchRepository.getByRef(ref)?.manifest?.import?.height;
     if (Number.isFinite(h) && h > 0) height = h;
   }
-  const key = `${slot.path}|${height ?? ''}`;
+  const key = `${slot.path}|${height ?? ''}${lit ? '|lit' : ''}`;
   if (CACHE.has(key)) return CACHE.get(key);
   const { importRig, decodeModelImages } = await import('@/lib/graph/scene/rig-import.js');
   const bytes = readFileSync(slot.path);
   let pack;
-  try { pack = importRig(bytes, { height, images: (await decodeModelImages(bytes)).images }).pack; }
+  try { pack = importRig(bytes, { height, images: (await decodeModelImages(bytes)).images, ...(lit ? { lit: true } : {}) }).pack; }
   catch (e) { throw new Error(`figures.${name}: the model bound onto '${ref}' cannot be worn: ${e.message.replace(/^rig-import: /, '')}`); }
   if (CACHE.size >= CACHE_MAX) CACHE.delete(CACHE.keys().next().value);
   CACHE.set(key, pack);

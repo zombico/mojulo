@@ -86,6 +86,9 @@ export function buildFoe(E) {
     return { moved, blocked: want > 0 && moved < want * 0.5, ledge: false };
   }
   const gait = (e, r, moved) => { e.gaitPhase = (e.gaitPhase || 0) + moved / (r.stride ?? 2.4); };
+  // (a body that POSES its own move's moments, `foe.poses`, a routed rail's beast, gameworld/foe-families.js: its brace, its
+  // dive and its stun each a state of its own at its share through, the figure's clip for it; without, the rest pose)
+  const posed = (e, name, u) => { e.moving = true; e.locomotion = name; e.gaitPhase = Math.max(0, Math.min(0.999, u)); };
   // (a body with a WALK of its own, `walkStride` and `walkPace`, gameworld/foe-families.js: a step under its walk's pace
   // walks, its phase by the walk's stride; one over it runs. Without them, the one gait as ever)
   const paced = (e, r, moved, dt) => {
@@ -200,7 +203,7 @@ export function buildFoe(E) {
       const q = u / A;
       e.transform.pos[2] += H.height * 4 * q * (1 - q);
       e.moving = true; e.locomotion = 'forward'; gait(e, r, s.moved);
-    } else { settle(e, r, world); e.moving = false; e.locomotion = 'idle'; }
+    } else { settle(e, r, world); e.moving = false; e.locomotion = 'idle'; if (r.foe.poses) posed(e, 'brace', (u - A) / Math.max(0.05, 1 - A)); }
   }
 
   function dive(e, r, dt, world) {
@@ -223,10 +226,12 @@ export function buildFoe(E) {
       if (near && near.d < D.radius && !((e.foeCool || 0) > e.foeT)) { e.foeDive = 'brace'; e.foeT = 0; e.foeAim = [near.p.transform.pos[0], near.p.transform.pos[1], near.p.transform.pos[2] + 0.6]; }
     } else if (S === 'brace') {
       t.heading = angleTo(t.pos, e.foeAim); e.moving = false; e.locomotion = 'idle';
+      if (r.foe.poses) posed(e, 'brace', e.foeT / Math.max(0.05, D.telegraph));
       if (e.foeT >= D.telegraph) { e.foeDive = 'dive'; e.foeT = 0; }
     } else if (S === 'dive') {
-      const g = groundAt(world, t.pos[0], t.pos[1], t.pos[2]);
-      if (fly(e.foeAim, D.speed) < 0.2 || (g != null && t.pos[2] <= g + 0.2)) { e.foeDive = 'climb'; e.foeT = 0; }
+      const g = groundAt(world, t.pos[0], t.pos[1], t.pos[2]), left = fly(e.foeAim, D.speed);
+      if (r.foe.poses) e.locomotion = 'dive';
+      if (left < 0.2 || (g != null && t.pos[2] <= g + 0.2)) { e.foeDive = 'climb'; e.foeT = 0; }
     } else if (fly(perch, (r.speed ?? 3) * 0.8) < 0.2) { e.foeDive = 'drift'; e.foeT = 0; e.foeCool = D.cooldown; }
   }
 
@@ -243,6 +248,7 @@ export function buildFoe(E) {
       if (Math.abs(dh) < 0.15) { e.foeRush = 'brace'; e.foeT = 0; }
     } else if (S === 'brace') {
       e.moving = false; e.locomotion = 'idle';
+      if (r.foe.poses) posed(e, 'brace', e.foeT / Math.max(0.05, R.brace));
       if (e.foeT >= R.brace) { e.foeRush = 'charge'; e.foeT = 0; e.foeRun = 0; }
     } else if (S === 'charge') {
       const s = stepAlong(e, r, dt, world, R.speed);
@@ -251,6 +257,7 @@ export function buildFoe(E) {
       else if (e.foeRun >= R.run) { e.foeRush = 'stun'; e.foeT = 0; e.foeStunFor = R.recover; }
     } else {
       e.moving = false; e.locomotion = 'idle';
+      if (r.foe.poses) posed(e, 'stun', e.foeT / Math.max(0.05, e.foeStunFor ?? R.recover));
       if (e.foeT >= (e.foeStunFor ?? R.recover)) { e.foeRush = 'watch'; e.foeT = 0; }
     }
   }
