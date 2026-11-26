@@ -53,7 +53,7 @@ import { roadKinds, layoutOf } from './roads.js';
 import { townsOf, blockTownsOf } from './towns.js';
 import { isSoft } from './segments.js';
 import { streamOf } from '../city/plan/dice.js';
-import { highwaysOf, highwayLaws, highwayPlan, corridorHalf } from './highways.js';
+import { highwaysOf, highwayLaws, highwayPlan, corridorHalf, rampsOf, RAMP } from './highways.js';
 import { waterfrontOf, waterfrontLaws } from './waterfront.js';
 import { terrainField } from '../terrain/terrain-field.js';
 import { profileStreets, climbLift } from '../geotown/profile.js';
@@ -196,7 +196,8 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   // (an arterial that carries a highway, highways.js: laid to its corridor, the deck's half and its clearance each side,
   // so no block is cut under or against the deck; the right-of-way's walks wide under it)
   for (const p of highwayPlan(M, { lines, water, seat, frame: { W, D } })) {
-    const l = lines.find((x) => x.id === p.along), c = corridorHalf(M.highways.lanes);
+    // (a district with a dock, its highways driven: room each side for a ramp, highways.js RAMP)
+    const l = lines.find((x) => x.id === p.along), c = r3(corridorHalf(M.highways.lanes) + (T.dock ? RAMP.room : 0));
     if (!l || l.half >= c) continue;
     Object.assign(l, { half: c, rect: l.axis === 'ns' ? [r3(l.at - c), land[1], r3(l.at + c), land[3]] : [land[0], r3(l.at - c), land[2], r3(l.at + c)] });
   }
@@ -337,6 +338,15 @@ export function designGeocity(spec = {}, { seed = 1, field = null } = {}) {
   // 10 an evocation: what it centres on and draws at detail, and the metro to scale it is held to
   if (T.evoke !== 'metro') {
     d.evoked = evokedOf(d, T);
+    // (a DOCK, `dock`: the main shore's segment before the evocation's middle a working port, its ramps down from the
+    // highways; waterfront.js `port`, highways.js rampsOf)
+    if (T.dock && d.waterfront) {
+      const ER = d.regions.filter((r) => d.evoked.regions?.includes(r.id)), c = ER.length ? [ER.reduce((s, r) => s + (r.rect[0] + r.rect[2]) / 2, 0) / ER.length, ER.reduce((s, r) => s + (r.rect[1] + r.rect[3]) / 2, 0) / ER.length] : d.seat;
+      const Wm = d.waterfront.find((w) => w.main), along = Wm && (Wm.side === 's' || Wm.side === 'n') ? c[0] : c[1];
+      const g = Wm?.segments.find((x) => along >= x.a0 && along <= x.a1) ?? Wm?.segments.reduce((m, x) => (!m || Math.abs((x.a0 + x.a1) / 2 - along) < Math.abs((m.a0 + m.a1) / 2 - along) ? x : m), null);
+      if (g) { g.kind = 'port'; delete g.shore; delete g.piers; }
+    }
+    if (T.dock && d.highways) d.ramps = rampsOf(d);
     const told = ['evoke', 'at', 'along', 'play', 'under', 'subway'];
     const ref = designGeocity(Object.fromEntries(Object.entries(spec).filter(([k]) => !told.includes(k))), { seed, field });
     d.laws.push(evokesLaw(d, ref));

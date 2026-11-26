@@ -638,7 +638,7 @@ function geotownEnds(manifest) {
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], emptyLots = [], dumpAt = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards, lots: emptyLots, dumpAt });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], emptyLots = [], dumpAt = [], dockAt = [], rampsAt = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards, lots: emptyLots, dumpAt, dockAt, rampsAt });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -685,6 +685,10 @@ function geocityEnds(manifest) {
   // (its LOTS near the eye: each empty lot and building site, its box and its middle on the ground, an empty lot's open
   // side: where a driving job builds its dump or sends a load, jobsified.js)
   Object.defineProperty(out, 'lots', { value: emptyLots.map((Q) => ({ id: Q.id, kind: Q.kind, rect: Q.rect, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]), ...(Q.open ? { open: Q.open } : {}), ...(Q.digger ? { digger: Q.digger } : {}), ...(Q.truck ? { truck: Q.truck } : {}) })), enumerable: false });
+  // (its DOCK, where it asks for one, `geocity.dock`: the port's yard, its middle and its truck bays; and its RAMPS, each
+  // between a highway's deck and the street, its top and its foot: the highways driven)
+  Object.defineProperty(out, 'dock', { value: dockAt[0] ? { id: dockAt[0].id, at: dockAt[0].at.map(r3), rect: dockAt[0].rect, bays: dockAt[0].bays.map((b) => ({ at: b.at.map(r3), heading: b.heading })) } : null, enumerable: false });
+  Object.defineProperty(out, 'ramps', { value: rampsAt.map((r) => ({ ...r })), enumerable: false });
   // (its DUMP, where it asks for one, `geocity.dump`: the tipping hall's middle on its floor and its box)
   Object.defineProperty(out, 'dump', { value: dumpAt[0] ? { id: dumpAt[0].id, at: on(dumpAt[0].at), half: dumpAt[0].half } : null, enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
@@ -1890,7 +1894,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     // issued at the kerb by its yard (issuedOf; a cab after all others, cars.js levelCars `issue`) and driven to a
     // building site at least SHIFT.haul off (a far place where none is). A stage with no such depot, or no cars, or no
     // place to send it lays none of it (advised, never refused: the errand proof says it was not laid)
-    const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt);
+    const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt), atHq = [];
     if (shiftAt.length && driven) {
       const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !issues(shiftOf(w))))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
       const issue = issuedOf(ends, city.errands ?? [], stage.level), issuedIds = issuedCabs(ends, issue, { roles });
@@ -1899,6 +1903,9 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
       for (const k of shiftAt) {
         const L = legs[k], S = shiftOf(L.vehicle), yard = YARD_NAMES[S.yard];
         const task = () => {
+          // (given at a faction's HQ, `given`: taken by checking in there, once its call has come, after the factions
+          // are laid below; told by a call when the errand it waits on pays)
+          if (S.given) { atHq.push({ L, S }); return; }
           const on = taskApps(L, fus).length ? taskApps(L, fus) : [JOBSIFIED], subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
           offers.push({ kind: 'task', id: L.id, app: on[0], flag: `took-${L.id}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(L.tags ? { tags: L.tags } : {}),
             // (a job that asks for a licence, where the world's forger sells one: taken only with it)
@@ -2005,6 +2012,15 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
             ...(Pn.reward.length ? { reward: Pn.reward } : {}), standing: Pn.standing, rank: Pn.rank, name: F.name, title: Pn.name, line: actLine(Pn, factions), ...(Pn.says ? { says: Pn.says } : {}), ...(fight ? { fight } : {}) });
         }
       }
+    }
+    // THE HQ'S ORDERS (a shift `given` at a faction's HQ, jobsified.js: the Dockers' delivery orders): its call, on the
+    // errand it waits on paid (the foreman's), and its check-in where the faction's contact stands, open once the call
+    // has come; a faction not laid here, its task on the app as any shift's
+    for (const { L, S } of atHq) {
+      const hq = offers.find((o) => o.kind === 'join' && o.faction === S.given), told = `told-${L.id}`, story = S.story ?? {};
+      if (L.waits) offers.push({ kind: 'call', id: L.id, flag: told, on: `errand:done:${L.waits}`, from: story.from ?? 'Foreman', says: story.says ?? 'There is work for you.' });
+      if (hq) offers.push({ kind: 'offer', id: L.id, at: hq.at.slice(), flag: `took-${L.id}`, ...(L.waits ? { after: told } : {}), says: story.hq ?? `${hq.name ?? S.given}: orders come to your phone.`, radius: ERRAND_DRIVE.reach, place: hq.place, hq: S.given, name: hq.name ?? S.given });
+      else offers.push({ kind: 'task', id: L.id, app: JOBSIFIED, flag: `took-${L.id}`, name: appTitle(JOBSIFIED, fus), ...(subbed.has(JOBSIFIED) ? {} : { subscribe: true }) });
     }
     // (the legs before the offers: a hand-in where its giver stands is not tried on the step that takes the job)
     mechanics.push(...legs, ...offers);

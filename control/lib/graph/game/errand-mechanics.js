@@ -167,11 +167,14 @@ export function lowerOffer(p, ctx) {
   if (!isVec(p.at)) fail('at is [x, y, z]: where its giver stands');
   if (typeof p.flag !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.flag)) fail('flag is the flag taking it sets (took-parcel)');
   if (p.says !== undefined && (typeof p.says !== 'string' || !p.says.trim())) fail('says is what its giver says, in words');
+  if (p.after !== undefined && (typeof p.after !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.after))) fail('after is the flag it opens on (told-materials)');
   const zone = `offer-${p.id}`, took = `offer:${p.id}`, v = `flag-${p.flag}`;
+  // (one that opens on a flag, `after`: taken there only once it is set, a call's)
+  const open = p.after ? [{ on: 'enter', match: { zone }, if: { var: `flag-${p.after}`, gte: 1 }, do: 'emit', type: `${took}:open` }, { on: `${took}:open`, if: { var: v, eq: 0 }, do: 'emit', type: took }] : [{ on: 'enter', match: { zone }, if: { var: v, eq: 0 }, do: 'emit', type: took }];
   return {
     world: {
-      vars: { [v]: 0 },
-      reactions: [{ on: 'enter', match: { zone }, if: { var: v, eq: 0 }, do: 'emit', type: took }, { on: took, do: 'set', var: v, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` }],
+      vars: { [v]: 0, ...(p.after ? { [`flag-${p.after}`]: 0 } : {}) },
+      reactions: [...open, { on: took, do: 'set', var: v, to: 1 }, { on: took, do: 'emit', type: `flag:${p.flag}` }],
       hud: p.says ? [{ on: took, as: 'toast', text: p.says, ttl: 3.2 }] : [],
       sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2.5, planar: p.planar !== false, watch: ctx.player }],
     },

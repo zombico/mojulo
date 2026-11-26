@@ -19,6 +19,13 @@
   with an operator's levers, A/D to swing, W/S for the arm, the arrow keys for the boom and the bucket. Dig into the
   pile of spoil, curl the bucket to scoop, swing over the waiting tipper and open it to tip. Three loads fill the truck
   and pay. The boom, arm, bucket and their hydraulic rams all move as the real machine's do.
+- **The materials never came.** Once the dig is done the foreman calls: his building materials never turned up, does
+  anyone know a logistics company? The Dockers do. Check in at the Dockers' HQ for delivery orders: trucks of steel,
+  timber, fittings and containers wait at the dock, and each driven to a building site pays.
+- **A dock, and highways you can drive.** A district can now have a working port on its shore (`dock: true`): a yard
+  with a warehouse and truck bays, container stacks and a big quayside crane. Its highways get ramps: at every arterial
+  they cross there is a ramp down to the street on each side, and one from the shore highway down into the port, so
+  trucks can run from the dock up onto the highway and come off again in town. Hijack City has both.
 - **Bus route.** A bus waits at the kerb by the depot. Its stops come in order, each with a sign and people waiting.
   Pull up and hold F to open the doors: the waiting people walk over and board, and the ones who got on at the stop
   before get off and walk away. The last stop pays and the route starts again.

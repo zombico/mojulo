@@ -90,6 +90,9 @@ export function jobsOf(mechanics) {
     const reach = (Z) => (Array.isArray(Z.half) ? Math.max(...Z.half) : Z.radius ?? 7);
     const last = (x) => ({ ...x, ...(Sh.repeat ? {} : { when: `flag-done-${Sh.id}` }), ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
     if (Tk) steps.push({ id: `app-${Tk.id}`, say: `Take the ${words(Sh.name ?? Sh.id).toLowerCase()} on ${Tk.name ?? appName(Tk.app)} · P`, at: depot, radius: 0, when: `flag-${Tk.flag}`, take: true });
+    // (given at a faction's HQ, an offer there: checked in at, once its call has come, `told`)
+    const Hq = Tk ? null : M.find((m) => m && m.kind === 'offer' && m.id === Sh.id && m.hq && Array.isArray(m.at));
+    if (Hq) steps.push({ id: `hq-${Sh.id}`, say: `Find a logistics company: check in at the ${Hq.name ?? Hq.hq} HQ${Hq.place ? ` by the ${shop(Hq.place)}` : ''}`, at: at3(Hq.at), radius: Hq.radius ?? 7, when: `flag-${Hq.flag}`, ...(Hq.says ? { says: Hq.says } : {}), take: true });
     // (an issued vehicle, `back` its spot: taken where it stands; a depot's own: got into at the yard)
     const clock = { id: `clock-${Sh.id}`, say: Sh.back ? `Take the ${vehicle}${Sh.place ? ` outside the ${shop(Sh.place)}` : ''}${Sh.yard ? ` by the ${yard}` : ''}` : `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` };
     steps.push(clock);
@@ -124,7 +127,7 @@ export function jobsOf(mechanics) {
       loop = steps.length - 1;
       steps.push(last({ id: `haul-${Sh.id}`, say: `Drive the ${vehicle} to the ${Sh.site.to ?? (Sh.site.place ? shop(Sh.site.place) : 'job')}`, at: at3(Sh.site.at), radius: reach(Sh.site) }));
     }
-    out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, loop, ...(Tk?.needs ? { needs: { ...Tk.needs } } : {}), ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
+    out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, loop, ...(Tk?.needs ? { needs: { ...Tk.needs } } : {}), ...(Hq ? { starts: Hq.flag, ...(Hq.after ? { told: Hq.after } : {}), hq: Hq.hq } : {}), ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
   }
   // (a faction's POSTINGS, lowerAct: each one step, an act done somewhere in a zone; taken on the phone, on its board)
   for (const A of M.filter((m) => m && m.kind === 'act' && Array.isArray(m.at))) out.push({ id: A.id, name: A.title ?? `${words(A.id)[0].toUpperCase()}${words(A.id).slice(1)}`, repeat: false, faction: A.faction, starts: A.flag,
@@ -157,6 +160,8 @@ export function cityGuide(manifest) {
     if (J.shift) {
       const at = steps.length + (J.steps[0]?.take ? 1 : 0);
       if (J.starts) rounds.push({ when: `flag-${J.starts}`, at, ...(J.repeat && J.loop != null ? { from: steps.length + J.loop, end: steps.length + J.steps.length } : {}) });
+      // (its call come, `told`: the guide to where it is taken, its HQ)
+      if (J.told) rounds.push({ when: `flag-${J.told}`, at: steps.length });
     } else if (J.repeat && loop === null) loop = steps.length + (J.steps[0]?.take ? 1 : 0);   // (a standing job goes round again from its pick-up: it is taken once)
     for (const { flag: _flag, take: _take, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
   }

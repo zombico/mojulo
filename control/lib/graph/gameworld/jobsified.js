@@ -44,7 +44,7 @@ import { YARDS, fleetOf } from '../geocity/fleets.js';
 export const JOBSIFIED = 'jobsified';
 export const SHIFT_MODES = Object.freeze(['collect', 'route', 'haul', 'dig']);
 
-export const YARD_NAMES = Object.freeze({ works: 'works yard', depot: 'bus depot', emergency: 'emergency station', contractor: 'contractor\'s yard', lot: 'car park' });
+export const YARD_NAMES = Object.freeze({ dock: 'dock', works: 'works yard', depot: 'bus depot', emergency: 'emergency station', contractor: 'contractor\'s yard', lot: 'car park' });
 
 // each driving job: its mode, the yard it starts from, the vehicle as it is called, what is had at a stop (an item word:
 // the round's), how many stops (piles) a round has (an errand's list count says its own), what a stop says and what
@@ -56,6 +56,10 @@ export const SHIFTS = Object.freeze({
   garbage: Object.freeze({ name: 'Bin round', mode: 'collect', yard: 'works', vehicle: 'garbage truck', item: 'garbage', stops: 8, load: 4, hold: 1.5, stop: 'Collect the garbage', done: 'Garbage collected' }),
   bus: Object.freeze({ name: 'Bus route', mode: 'route', yard: 'depot', fleet: 'bus', vehicle: 'bus', item: 'riders', stops: 5, hold: 1.5, riders: Object.freeze([1, 3]), stop: 'Pick up at the bus stop', done: 'Doors closed' }),
   excavator: Object.freeze({ name: 'Dig and load', mode: 'dig', yard: 'works', machine: 'crawlerExcavator', vehicle: 'excavator', item: 'spoil', stops: 1, loads: 3, licence: true, done: 'Load tipped' }),
+  // (the Dockers' delivery orders: given at the faction's HQ, `given`, not on an app; told by a call, `story`, once the
+  // errand it waits on has paid (the foreman's pit dug, his materials never come); its trucks at the district's DOCK)
+  freight: Object.freeze({ name: 'Delivery orders', mode: 'haul', yard: 'dock', vehicles: 'freight', calls: 3, given: 'dockers', vehicle: 'truck', item: 'materials', stops: 1, to: 'building site', done: 'Materials delivered',
+    story: Object.freeze({ from: 'Foreman', says: 'The pit\'s dug, but our building materials never turned up. You know a logistics outfit? We need trucks.', hq: 'Dockers: materials for a site? We move anything. Trucks are at the dock; orders come to your phone.' }) }),
   heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, licence: true, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
 // THE HEAVY CALL'S VEHICLES (a row's `vehicles: 'heavy'`): trucks and a site's machines turn about, each a body a hero
@@ -71,7 +75,14 @@ export const HEAVY_VEHICLES = Object.freeze([
   Object.freeze({ model: 'loft:straightBox', word: 'box truck', paint: '#e6e6e2' }),
   Object.freeze({ model: 'site:wheeledExcavator', word: 'wheeled excavator', paint: '#e0b02a' }),
 ]);
-const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES });
+// THE DOCK'S TRUCKS (a row's `vehicles: 'freight'`): what the Dockers send building materials in
+export const FREIGHT_VEHICLES = Object.freeze([
+  Object.freeze({ model: 'loft:rollOff', word: 'container truck', paint: '#2e86c1' }),
+  Object.freeze({ model: 'loft:flatbedTruck', word: 'flatbed of steel', paint: '#2e86c1' }),
+  Object.freeze({ model: 'loft:straightBox', word: 'box truck of fittings', paint: '#e6e6e2' }),
+  Object.freeze({ model: 'loft:mediumTruck', word: 'stake truck of timber', paint: '#2e86c1' }),
+]);
+const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VEHICLES });
 /** Whether a row's vehicle is issued (a fleet's, or one of a list's turn about), not the depot's own. */
 export const issues = (S) => !!(S && (S.fleet || S.vehicles || S.machine));
 for (const [word, S] of Object.entries(SHIFTS)) {
@@ -104,11 +115,20 @@ export function issuedOf(ends, errands, level) {
   for (const E of errands ?? []) {
     const S = E?.vehicle && E.giver === level ? SHIFTS[E.vehicle] : null;
     if (!issues(S) || typeof ends?.kerbAt !== 'function') continue;
-    const D = (ends.depots ?? []).find((x) => x.yard === S.yard), from = D ? D.at : ends.spawn;
+    // (its yard: a depot's, or the district's dock, geocity `dock`; the start where it has neither)
+    const D = S.yard === 'dock' ? ends.dock ?? null : (ends.depots ?? []).find((x) => x.yard === S.yard), from = D ? D.at : ends.spawn;
     const list = S.vehicles ? VEHICLE_LISTS[S.vehicles] : null, n = list ? Math.min(S.calls ?? 1, list.length) : 1, h = hashOf(E.id);
     const which = (k) => { if (list) return list[(h + k) % list.length]; const rows = fleetOf(S.fleet), R = rows[h % rows.length]; return { model: R.model, word: R.word, paint: R.paints[0] }; };
     const near = (ends.places ?? []).slice().sort((a, b) => d2(a.at, from) - d2(b.at, from) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
     let k = 0;
+    // (a dock's own bays, where it has them: a truck backed to each, its first ones)
+    for (const bay of S.yard === 'dock' ? D?.bays ?? [] : []) {
+      if (k >= n) break;
+      const V = which(k);
+      out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: bay.at.slice(), heading: bay.heading, model: V.model, paint: V.paint, word: V.word, place: null, yard: YARD_NAMES.dock });
+      taken.push(bay.at);
+      k++;
+    }
     // (each at a kerb of its own, clear of the others' by a long vehicle's length)
     for (const q of near.slice(0, 12 + n * 4)) {
       if (k >= n) break;

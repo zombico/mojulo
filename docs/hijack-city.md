@@ -164,6 +164,13 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
   construction shelf as an operator rig (`construction-shelf/con-operate.js`: each part's placement under its parent
   sampled across its own joint, so the page moves the boom, the arm, the bucket and their rams exactly without running
   the chain), on the page by `scene/channels/operate.js`, which says each scoop and tip to the bus.
+- **Delivery orders** (`freight`, mode `haul`, given at the Dockers' HQ): the story's turn after the dig. Once the
+  first truck is loaded the foreman calls: the pit is dug but the building materials never arrived; does the player
+  know a logistics outfit? The Dockers' contact (the faction's, on its turf) is their HQ: checking in there, once the
+  call has come, takes their delivery orders. Three trucks stand at the dock's bays (`FREIGHT_VEHICLES`: a container
+  truck, a flatbed of steel, a box truck of fittings, a stake truck of timber), called in turn; each driven to a
+  building site pays, and goes back to the dock once left there. The errand says it waits on the dig (`after`), the row
+  that it is given at a faction's HQ (`given`) and told by a call (`story`).
 - **Bus route** (`bus`, mode `route`): a bus stands at the kerb by the bus depot (by the start where the district keeps
   none). Its stops come in order, each a bus-stop sign with people waiting. Pull up and hold **F** to open the doors:
   those waiting walk to the bus and board, and those who boarded at the stop before get off and walk away. The last stop
@@ -188,6 +195,18 @@ beside a place is `ends.kerbAt`. A depot's vehicles and the issued ones are made
 places, each about `SHIFT.hop` from the one before and `SHIFT.apart` from the rest (and the dump); a haul's site is the
 building site past `SHIFT.haul`, farthest first, a call each in turn. A district with no such depot, no place to send it or no room for its piles
 lays none of it: the errand proof says so.
+
+THE DOCK is a district's word too (`geocity.dock: true`, Hijack City's on): the main shore's waterfront segment
+before the evocation is built as a working PORT (`waterfront.js` `port`, never picked by the dice): its yard of
+asphalt, a warehouse with a row of truck bays before it (where the Dockers' trucks stand), container stacks with lanes
+between them and a ship-to-shore crane at its quay, its arterials reaching it along the boulevard. With it the
+district's highways are DRIVEN: every land highway is given RAMPS (`highways.js` `rampsOf`, `RAMP`): at each arterial
+it crosses one each side, beside its deck in the room its corridor now keeps, from the deck's top down to the street
+short of the crossing the way its traffic runs on that side, the deck's barrier left open where it meets; and one from
+the shore's highway down into the port. A ramp is a surface the runtime's ray down finds, so a car drives up it onto
+the deck and down again (`scene.js` `geocity:ramp`); the level knows the dock (`ends.dock`, its bays) and the ramps
+(`ends.ramps`, each top and foot). Where a dock re-cuts the district so that no car park is left for the DUMP, the dump
+is built in the port instead, a waste transfer hall at its far end.
 
 THE DUMP is a district's word (`geocity.dump: true`, Hijack City's on): of its car parks drawn near the eye, the one
 farthest from its works yard is built as a tipping hall (`geocity/scene.js` `DUMP`, `dumpOf`): a concrete apron and,

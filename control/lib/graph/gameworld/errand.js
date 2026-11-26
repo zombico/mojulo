@@ -29,7 +29,10 @@
  *            given by the Jobsified app unless it names its own. Taken on the phone, the hero gets into one at the depot
  *            that keeps it, drives its stops in it and brings it back there to be paid. Its list may be left out: one
  *            item, the row's (bins), at the giver's level, its `count` the round's stops (the row's by default); a list
- *            given is that one item. No contact, no mission, no needs, no shop
+ *            given is that one item. No contact, no mission, no needs, no shop. A row `given` at a faction's HQ
+ *            (the Dockers' delivery orders) is taken by checking in there, not on an app
+ *   after    the errand it waits on (its id): a shift is opened once that one has paid (a call says so: the foreman's,
+ *            whose pit is dug, needing materials)
  *   mission  a STORY MISSION (game/mission-mechanics.js): the job told as one, with ways to fail.
  *            { heat?: 1 to 5, clean?: true, time?: seconds, final?: true }
  *              heat   the stars the law gives the player as the goods are had (an alarm, a witness: law.js)
@@ -68,7 +71,7 @@ export const ERRAND_LAWS = Object.freeze({
   varied: 'Varied: no two legs in a row in the same level; an errand crosses the world.',
   survivable: 'Survivable: a fragile or perishable cargo carries a margin to lose on the way.',
 });
-const KEYS = ['id', 'giver', 'reward', 'list', 'repeat', 'offer', 'contact', 'app', 'tags', 'mission', 'name', 'vehicle'];
+const KEYS = ['id', 'giver', 'reward', 'list', 'repeat', 'offer', 'contact', 'app', 'tags', 'mission', 'name', 'vehicle', 'after'];
 const MISSION_KEYS = ['heat', 'clean', 'time', 'final'];
 export const TILL_REACH = 1.6;
 const NODE_KEYS = ['item', 'at', 'count', 'min', 'needs', 'from', 'cargo', 'shop'];
@@ -112,6 +115,7 @@ function readOne(E, k, G) {
     if (isObj(N) && (N.needs !== undefined || N.from !== undefined || N.shop !== undefined || N.cargo !== undefined || N.min !== undefined)) no('.list[0] is a shift\'s round: { item, at, count } (count its stops), no needs, bounty, shop, cargo or min');
     if (isObj(N) && N.count === undefined) E = { ...E, list: [{ ...N, count: V.stops }] };
   }
+  if (E.after !== undefined && (typeof E.after !== 'string' || !WORD.test(E.after) || E.after === E.id)) no('.after is the id of the errand it waits on');
   const reward = E.reward ?? [];
   if (!Array.isArray(reward) || reward.some((r) => !isObj(r) || typeof r.item !== 'string' || !WORD.test(r.item) || (r.n !== undefined && !posInt(r.n)))) no('.reward is [{ item, n? }]: what the giver pays');
   if (!Array.isArray(E.list) || !E.list.length) no('.list is [{ item, at, … }], at least one: what is fetched');
@@ -157,7 +161,7 @@ function readOne(E, k, G) {
   for (const N of list) visit(N.item, []);
   const needed = new Set(list.flatMap((N) => N.needs));
   const roots = list.filter((N) => !needed.has(N.item)).map((N) => N.item);
-  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.name ? { name: E.name.trim() } : {}), ...(M ? { mission: { ...M } } : {}), ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : V ? { app: JOBSIFIED } : {}), ...(E.tags ? { tags: E.tags.slice() } : {}), ...(V ? { vehicle: E.vehicle } : {}) };
+  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.name ? { name: E.name.trim() } : {}), ...(M ? { mission: { ...M } } : {}), ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : V ? { app: JOBSIFIED } : {}), ...(E.tags ? { tags: E.tags.slice() } : {}), ...(V ? { vehicle: E.vehicle } : {}), ...(E.after ? { after: E.after } : {}) };
   read.laws = errandLaws(read, G);
   return read;
 }
@@ -170,6 +174,7 @@ export function readErrands(spec, G) {
   const out = spec.map((E, k) => readOne(E, k, G));
   const ids = new Set();
   for (const E of out) { if (ids.has(E.id)) throw new Error(`gameworld: errands: '${E.id}' names two errands`); ids.add(E.id); }
+  for (const E of out) if (E.after && !ids.has(E.after)) throw new Error(`gameworld: errands: '${E.id}' waits on '${E.after}', which is no errand (${[...ids].join(', ')})`);
   // one item, one place: a world's errands share the bag
   const where = new Map();
   for (const E of out) for (const N of E.list) { if (where.has(N.item)) throw new Error(`gameworld: errands: '${N.item}' is fetched by '${where.get(N.item)}' and '${E.id}': one item, one errand (the bag is shared)`); where.set(N.item, E.id); }
@@ -227,7 +232,7 @@ export function errandLegs(errands, level) {
   for (const E of errands) {
     // (a SHIFT, jobsified.js: one leg, its round driven from its depot and back, laid where the level lays it)
     if (E.vehicle) {
-      if (E.giver === level) legs.push({ kind: 'shift', id: E.id, vehicle: E.vehicle, item: E.list[0].item, stops: E.list[0].count, ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : {}), ...(E.name ? { name: E.name } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags } : {}) });
+      if (E.giver === level) legs.push({ kind: 'shift', id: E.id, vehicle: E.vehicle, item: E.list[0].item, stops: E.list[0].count, ...(E.after ? { waits: E.after } : {}), ...(E.reward.length ? { reward: E.reward } : {}), ...(E.repeat ? { repeat: true } : {}), ...(E.name ? { name: E.name } : {}), ...(E.app ? { app: E.app } : {}), ...(E.tags ? { tags: E.tags } : {}) });
       continue;
     }
     const count = (item) => E.list.find((x) => x.item === item).count;
