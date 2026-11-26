@@ -56,6 +56,8 @@ describe('the town\'s cars: the registry\'s family cars, instanced', () => {
     const pooled = carRepeats(list, { group: 'g', pool: [{ model: 'loft:van', extra: 'beacon' }, { model: 'loft:van' }] });
     expect(pooled.filter((r) => r.pool).map((r) => r.pool).sort()).toEqual(['loft:van|beacon', 'loft:van|paint', 'loft:van|trim']);
     expect(pooled.find((r) => r.pool === 'loft:van|beacon').transforms).toHaveLength(0);
-    expect(pooled.map(({ pool: _p, ...r }) => r).filter((r) => r.transforms.length)).toEqual(reps);
+    expect(pooled.map(({ pool: _p, hubs: _h, ...r }) => r).filter((r) => r.transforms.length)).toEqual(reps);
+    // (a pooled model's trim carries its hubs, where its spinning hubcaps stand: scene/channels/hub-disc.js)
+    expect(pooled.find((r) => r.pool === 'loft:van|trim').hubs).toHaveLength(4);
   });
 });

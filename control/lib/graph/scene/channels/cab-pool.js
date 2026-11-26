@@ -35,8 +35,9 @@ export function cabPoolScript({ mayhem = false, patrol = false, coat = false } =
 // --- the city's cars as bodies: drawn from the pooled templates; one taken from the traffic ---
 (function () {
   if (typeof __POOLS === 'undefined') return;
+  const HUB_I = typeof THREE !== 'undefined' ? new THREE.Matrix4() : null;
   const TRIM = ${coat ? '__carCoat(' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })${coat ? ", 'trim')" : ''}, made = new Map();
-  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90;
+  const REACH = 3.6, SLOW = 2, FAR = 120, SEEN = 420, TILT = 90, TILT_EASE = 14;
   ${cabView.toString()}
   const CAB_VIEW = ${JSON.stringify(CAB_VIEW)};${mayhem ? `
   const CRASH = { speed: 7, every: 2500 };` : ''}
@@ -49,9 +50,12 @@ export function cabPoolScript({ mayhem = false, patrol = false, coat = false } =
     if (trim) g.add(new THREE.Mesh(trim, TRIM));
     // (never footing: the ground probe is a ray down through the scene's meshes, and a car that found its own roof
     // under its nose would lie to that, and again the next frame: it wobbles)
+    // (its hubcaps, channels/hub-disc.js: a disc on each wheel turned as it rolls)
+    const hubs = typeof __HUBS !== 'undefined' ? __HUBS[P.model] : null, discs = [];
+    if (hubs) for (const h of hubs) { const d = new THREE.Mesh(__hubDisc(h.r), __hubMat); d.matrixAutoUpdate = false; __hubSpin(HUB_I, h, 0, d.matrix); g.add(d); discs.push({ d, h }); }
     g.traverse(function (o) { o.raycast = function () {}; });
     g.userData.g = 'cab:' + P.model; scene.add(g);
-    b = { g, model: P.model, tint: P.tint }; made.set(e.id, b); return b;
+    b = { g, model: P.model, tint: P.tint, discs, rolled: 0 }; made.set(e.id, b); return b;
   }
 ${patrol ? `  // a police car: its model's body in its livery, a light bar over its roof (two lamps, red and blue)
   const patrols = new Map();
@@ -71,8 +75,10 @@ ${patrol ? `  // a police car: its model's body in its livery, a light bar over 
 ` : ''}  // (the page's own ground probe, the controllable runtime's: down from a point)
   const GROUND = typeof __ground === 'function' ? (x, y, z) => __ground([x, y, z]) : null;
   let prevN = null;
-  (function tick() {
-    requestAnimationFrame(tick);
+  // (the cars placed each frame right after the world steps them, so a car is drawn where the camera that follows it
+  // sees it: a loop of its own ran before the step and drew the car a step behind its camera, a gap that changed with
+  // each frame's length; a judder)
+  function place(dt) {
     const C = window.__mojCtrl; if (!C || !C.world || !C.world.byId) return;
     const W = C.world, pilot = W.byId[W.pilotId], cam = camera.position;
     const cabs = W.entities.filter((e) => e.mount && e.mount.cab);
@@ -89,11 +95,16 @@ ${patrol ? `  // a police car: its model's body in its livery, a light bar over 
       if (GROUND && dx * dx + dy * dy < TILT * TILT && (moving || b.at !== p[0] + ':' + p[1])) {
         const a = e.transform.heading, fx = Math.cos(a), fy = Math.sin(a), hl = e.mount.hull[1] * 0.7, hw = e.mount.hull[0] * 0.8, z = p[2] + 1.2;
         const zf = GROUND(p[0] + fx * hl, p[1] + fy * hl, z), zr = GROUND(p[0] - fx * hl, p[1] - fy * hl, z), zl = GROUND(p[0] - fy * hw, p[1] + fx * hw, z), zR = GROUND(p[0] + fy * hw, p[1] - fx * hw, z);
-        b.pitch = zf != null && zr != null && Math.abs(zf - zr) < hl ? Math.atan2(zf - zr, 2 * hl) : 0;
-        b.roll = zl != null && zR != null && Math.abs(zl - zR) < hw ? Math.atan2(zR - zl, 2 * hw) : 0;
+        b.tp = zf != null && zr != null && Math.abs(zf - zr) < hl ? Math.atan2(zf - zr, 2 * hl) : 0;
+        b.tr = zl != null && zR != null && Math.abs(zl - zR) < hw ? Math.atan2(zR - zl, 2 * hw) : 0;
+        if (b.pitch === undefined || !moving) { b.pitch = b.tp; b.roll = b.tr; }
         b.at = p[0] + ':' + p[1];
       }
+      // (its tilt eased to the road's, not snapped: the road's faces step, and a car that took each step at once shook)
+      if (b.tp !== undefined && moving) { const k = 1 - Math.exp(-TILT_EASE * Math.max(0, dt || 0)); b.pitch += (b.tp - b.pitch) * k; b.roll += (b.tr - b.roll) * k; }
       b.g.rotation.set(b.pitch || 0, -(b.roll || 0), e.transform.heading - Math.PI / 2, 'ZXY');
+      // (its wheels turned by the ground it covered: each disc by that over its wheel's radius)
+      if (b.discs.length && e.speed) { b.rolled += e.speed * Math.max(0, dt || 0); for (const D of b.discs) { __hubSpin(HUB_I, D.h, b.rolled / D.h.r, D.d.matrix); D.d.matrixWorldNeedsUpdate = true; } }
     }
 ${patrol ? `    // the law's cars: placed, turned, their lamps flashing turn about
     const flash = Math.floor(performance.now() / 160) % 2;
@@ -145,7 +156,9 @@ ${patrol ? `    // the law's cars: placed, turned, their lamps flashing turn abo
         for (const x of W.trafficHulls || []) { if (Math.abs(x.p[2] - cp[2]) > 2.5) continue; if (Math.hypot(x.p[0] - cp[0], x.p[1] - cp[1]) < x.hull[1] * 0.5 + (car.mount.hull ? car.mount.hull[1] * 0.5 : 2.2)) { W.crashT = now; window.__mojBus.press('mayhem:crash'); break; } }
       }
     }` : ''}
-  })();
+  }
+  if (typeof stepControllable === 'function') { const __cabStep0 = stepControllable; stepControllable = (dt, o) => { __cabStep0(dt, o); place(dt); }; }
+  else { let last = performance.now(); (function tick() { requestAnimationFrame(tick); const now = performance.now(); place(Math.min(0.1, (now - last) / 1000)); last = now; })(); }
 })();
 `;
 }

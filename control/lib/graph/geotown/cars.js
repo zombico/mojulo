@@ -73,7 +73,14 @@ export function carModel(card) {
   const ys = cs.map((q) => q[1]), L = Math.max(...ys) - Math.min(...ys), W = Math.max(...ws) - Math.min(...ws), H = Math.max(...cs.map((q) => q[2]));
   // (its front third's: the nose found once, not once a corner, a rig's tens of thousands of them)
   const nose = Math.max(...ys), front = loft ? cs.filter((q) => q[1] > nose - L / 3) : cs, top = front.reduce((a, q) => (q[2] > a[2] ? q : a), front[0]);
-  m = Object.freeze({ card, L: r4(L), W: r4(W), H: r4(H), roof: { y: r4(top[1]), z: r4(top[2]) }, paint, trim });
+  // (its WHEELS' hubs, each wheel's own centre, its radius and the side it faces out to, read off its wheel parts: where a
+  // spinning hubcap is set on a car the page moves, channels/hub-disc.js)
+  const hubs = Object.values(Object.fromEntries(Object.entries(c.form).filter(([b]) => b !== 'root'))).map((fs) => {
+    const P = fs.flatMap((f) => f.corners), lo = [0, 1, 2].map((k) => Math.min(...P.map((q) => q[k]))), hi = [0, 1, 2].map((k) => Math.max(...P.map((q) => q[k])));
+    const at = [0, 1, 2].map((k) => (lo[k] + hi[k]) / 2), side = at[0] >= 0 ? 1 : -1;
+    return { at: [r4(side > 0 ? hi[0] : lo[0]), r4(at[1]), r4(at[2])], r: r4((hi[2] - lo[2]) / 2), side };
+  }).filter((h) => h.r > 0.05);
+  m = Object.freeze({ card, L: r4(L), W: r4(W), H: r4(H), roof: { y: r4(top[1]), z: r4(top[2]) }, paint, trim, hubs });
   MODELS.set(card, m);
   // (a metro's whole fleet, its trucks and rigs among them, kept: a model evicted is compiled again)
   if (MODELS.size > 32) MODELS.delete(MODELS.keys().next().value);
@@ -121,7 +128,7 @@ export function carRepeats(list, { group = 'car', pool = null } = {}) {
   for (const [card, cars] of [...by].sort(([a], [b]) => a.localeCompare(b))) {
     const M = carModel(card), at = (c) => ({ pos: c.pos, ...(c.rotZ ? { rotZ: c.rotZ } : {}) }), P = pooled.get(card), key = (part) => (P ? { pool: `${card}|${part}` } : {});
     out.push({ group: `${group}-paint`, template: M.paint, transforms: cars.map((c) => ({ ...at(c), tint: TINTS.get(c.paint) ?? lin(c.paint) })), ...key('paint') });
-    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at), ...key('trim') });
+    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at), ...key('trim'), ...(P && M.hubs.length ? { hubs: M.hubs } : {}) });
     // (its roof's extras, each on the same transforms: set back from the roof's top along its nose a little)
     for (const ex of [...new Set([...cars.filter((c) => c.extra).map((c) => c.extra), ...(P ?? [])])].sort()) out.push({ group: `${group}-${ex}`, template: ROOF_EXTRAS[ex](r4(M.roof.y - 0.3), M.roof.z), transforms: cars.filter((c) => c.extra === ex).map(at), ...(P?.has(ex) ? { pool: `${card}|${ex}` } : {}) });
   }

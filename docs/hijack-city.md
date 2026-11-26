@@ -240,6 +240,16 @@ A new locale is a row. Night locales wait on the night pass (lamps that light, h
 
 ## The driving view
 
+A driven car is placed each frame right after the world steps it (`scene/channels/cab-pool.js`, its placing wrapped onto
+`stepControllable`), so it is drawn where the camera that follows it sees it; a loop of its own ran before the step and
+drew the car a step behind its camera, a gap that changed with each frame's length, a judder. Its tilt eases to the
+road's under it (`TILT_EASE`) rather than taking each of the road's faces at once. The traffic is stepped in its model's
+ticks (20 a second) and drawn where it is now, each car carried on by its own speed for the time since the last tick
+(`scene/channels/flow.js` `__flNow`), so it moves every frame. Each moving car's wheels are seen to turn: its wheels are
+baked into its body, so a disc of spokes stands just off each wheel's face and turns about the axle by the ground it
+covers over the wheel's radius (`scene/channels/hub-disc.js`, the car model's `hubs`, `geotown/cars.js`): the driven car's
+and the traffic's near the camera.
+
 The camera behind a car the hero drives is framed by the vehicle's size (`scene/channels/cab-pool.js` `cabView`): a car
 keeps the chase it always had (`gameworld/cars.js` `CAB.camera`); a bigger vehicle is seen from further back, its rear
 `back` metres off the lens, and from higher, so the eye's line over its roof's back edge lands on the road `see` metres

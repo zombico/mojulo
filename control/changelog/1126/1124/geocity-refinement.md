@@ -143,3 +143,8 @@
   more triangles per frame on a downtown street.
 - Hijack City has one streetcar line instead of track down several main streets, and streetcars now run on it: one each
   way along every track, stopping at the traffic lights with the cars. Other cities keep their own amount of track.
+- Driving is smoother. The car you drive was drawn one step behind the camera following it, which made it judder; it is
+  now drawn exactly where the camera sees it, and its tilt over bumps in the road is eased instead of snapping. Traffic
+  now moves every frame instead of in 20-per-second steps.
+- Wheels visibly turn. Each moving car, yours and the traffic's, shows a spoked hubcap on each wheel that turns with its
+  speed.
