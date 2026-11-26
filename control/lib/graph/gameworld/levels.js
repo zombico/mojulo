@@ -70,7 +70,7 @@ import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
 import { patrolCar, depotCabs, issuedCabs } from './cars.js';
-import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf } from './jobsified.js';
+import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues } from './jobsified.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -1891,7 +1891,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     // place to send it lays none of it (advised, never refused: the errand proof says it was not laid)
     const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt);
     if (shiftAt.length && driven) {
-      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !shiftOf(w).fleet))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !issues(shiftOf(w))))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
       const issue = issuedOf(ends, city.errands ?? [], stage.level), issuedIds = issuedCabs(ends, issue, { roles });
       // (nothing stood within a stop's reach of the dump: a pile in its yard would be emptied as it is taken)
       const used = [...givers.map((g) => g.at), ...legs.filter((l) => Array.isArray(l.at)).map((l) => l.at), ...(ends.dump ? [ends.dump.at] : [])];
@@ -1906,11 +1906,12 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         // ITS VEHICLE: issued at the kerb by its yard (a row with a fleet: a haul's truck, a route's bus), or one of the
         // depot's own nearest the start (a collect's garbage trucks)
         let from;
-        if (S.fleet) {
-          const j = issue.findIndex((x) => x.id === L.id);
-          if (j < 0) { unlaid.add(k); continue; }
-          const I = issue[j];
-          from = { at: I.at, cabs: [issuedIds[j]], depot: { depot: I.at.slice(), radius: ERRAND_DRIVE.reach }, vehicle: I.word, ...(I.place ? { place: I.place } : {}), back: I.at.slice() };
+        if (issues(S)) {
+          // (each vehicle it is issued, a heavy call's in turn: the first its own spot and words)
+          const js = issue.map((x, j) => (x.id === L.id ? j : -1)).filter((j) => j >= 0);
+          if (!js.length) { unlaid.add(k); continue; }
+          const I = issue[js[0]];
+          from = { at: I.at, cabs: js.map((j) => issuedIds[j]), depot: { depot: I.at.slice(), radius: ERRAND_DRIVE.reach }, vehicle: I.word, ...(I.place ? { place: I.place } : {}), back: I.at.slice(), issued: js.map((j) => ({ ...issue[j], cab: issuedIds[j] })) };
         } else {
           const found = depotCabs(ends, L.vehicle, { roles });
           if (!found.length) { unlaid.add(k); continue; }
@@ -1919,13 +1920,14 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         }
         const who = { ...base, ...from.depot, cabs: from.cabs, vehicle: from.vehicle, yard: yard ?? 'yard', ...(from.place ? { place: from.place } : {}) };
         if (S.mode === 'haul') {
-          // (its site the building site farthest off within reach, else a far place)
-          const far = (q) => d2(q.at, from.at), sites = (ends.lots ?? []).filter((q) => q.kind === 'construction' && far(q) >= SHIFT.haul);
-          const lot = sites.reduce((m, q) => (!m || far(q) > far(m) + 1e-9 ? q : m), null), place = lot ? null : (ends.places ?? []).filter((q) => far(q) >= SHIFT.haul && used.every((u) => d2(q.at, u) >= SHIFT.apart)).reduce((m, q) => (!m || far(q) > far(m) + 1e-9 ? q : m), null);
-          if (!lot && !place) { unlaid.add(k); continue; }
-          const site = lot ? { at: lot.at.slice(), half: [r3((lot.rect[2] - lot.rect[0]) / 2 + SHIFT.site), r3((lot.rect[3] - lot.rect[1]) / 2 + SHIFT.site)], to: S.to } : { at: place.at.slice(), radius: ERRAND_DRIVE.reach, place: place.card };
-          used.push(from.at, site.at);
-          legs[k] = { ...who, site, back: from.back };
+          // (its sites: the building sites past SHIFT.haul, farthest first, a call each in turn; else far places)
+          const far = (q) => d2(q.at, from.at), sites = (ends.lots ?? []).filter((q) => q.kind === 'construction' && far(q) >= SHIFT.haul).sort((a, b) => far(b) - far(a) || a.id.localeCompare(b.id));
+          const places = sites.length ? [] : (ends.places ?? []).filter((q) => far(q) >= SHIFT.haul && used.every((u) => d2(q.at, u) >= SHIFT.apart)).sort((a, b) => far(b) - far(a) || a.at[0] - b.at[0]).slice(0, from.issued.length);
+          if (!sites.length && !places.length) { unlaid.add(k); continue; }
+          const siteOf = (j) => { if (sites.length) { const lot = sites[j % sites.length]; return { at: lot.at.slice(), half: [r3((lot.rect[2] - lot.rect[0]) / 2 + SHIFT.site), r3((lot.rect[3] - lot.rect[1]) / 2 + SHIFT.site)], to: S.to }; } const q = places[j % places.length]; return { at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card }; };
+          const calls = from.issued.map((I, j) => ({ cab: I.cab, site: siteOf(j), back: I.at.slice(), vehicle: I.word, ...(I.place ? { place: I.place } : {}) }));
+          used.push(...calls.flatMap((c) => [c.back, c.site.at]));
+          legs[k] = { ...who, site: calls[0].site, back: from.back, ...(calls.length > 1 ? { calls } : {}) };
           task();
           continue;
         }

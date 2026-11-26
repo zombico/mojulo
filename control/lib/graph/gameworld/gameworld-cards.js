@@ -1082,7 +1082,7 @@ function hijackCityCard() {
     '  shops: { respray, guns }   repaint and lose the police; rounds for the sidearm (Q fires, R holsters it)',
     '  factions.<id>          crews: turf, rivals, a board of acts (torch, tag, take)   app: \'taskfu\' fares on the phone',
     '  errands[].vehicle     a driving job on the Jobsified app (jobsified.js): garbage (piles held at, F, emptied at the',
-    '                        dump, geocity `dump: true`), heavy (a truck to a building site), bus (stops in order, riders)',
+    '                        dump, geocity `dump: true`), heavy (a call: trucks and machines in turn to building sites), bus (stops, riders)',
     '  ui.theme, sound, music  the look (theme cards), the car\'s sounds, the score (walk, chase, tension)',
     '',
     'GROW IT: rename it; the hero (create_character words); its suburbs (`geocity.outskirts`: west-coast, tropical,',

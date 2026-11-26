@@ -45,7 +45,9 @@
  *                                at `unload` (the dump; the depot where none), which pays; every pile taken, all are
  *                                laid again
  *                       haul     driven to its `site`, it is delivered and paid; got out of there, it is taken back to
- *                                `back` (its spot by the yard) for the next
+ *                                `back` (its spot by the yard) for the next. A haul of several `calls` ({ cab, site,
+ *                                back, vehicle }: a heavy call's) works them in turn (`call-<id>`), only the vehicle
+ *                                called counting; the last back, the first is called again
  *                       { id, mode?: 'route', depot: [x, y, z], radius? | half?, cabs: [entity id], stops?: [{ at, radius? }],
  *                         load?, hold?, unload?: { at, half }, site?: { at, half | radius }, back?: [x, y, z],
  *                         reward?, repeat?, after?, vehicle?, yard?, done? }
@@ -388,7 +390,10 @@ export function lowerShift(p, ctx) {
   if (!isVec(p.depot)) fail('depot is [x, y, z]: the yard its vehicle is had from');
   if (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c)) fail('cabs is the ids of the vehicles it is done in, at least one');
   if (mode !== 'haul' && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
-  if (mode === 'haul' && (!p.site || !isVec(p.site.at))) fail('site is { at: [x, y, z], half? | radius? }: where a haul is driven');
+  // (a haul's CALLS: each a vehicle of its own (`cab`), where it is driven (`site`) and where it is taken back to (`back`),
+  // worked in turn; one call is the shift's own `cabs[0]`, `site` and `back`)
+  const calls = mode !== 'haul' ? [] : Array.isArray(p.calls) && p.calls.length ? p.calls : [{ cab: p.cabs[0], site: p.site, back: p.back }];
+  if (calls.some((c) => !c || typeof c.cab !== 'string' || !c.site || !isVec(c.site.at))) fail('site is { at: [x, y, z], half? | radius? }: where a haul is driven (each of its calls { cab, site, back })');
   if (mode === 'collect' && !(posInt(p.load) && p.load <= p.stops.length)) fail('load is how many piles fill the vehicle, 1 to its piles');
   const reward = p.reward === undefined ? [] : p.reward;
   if (!Array.isArray(reward) || reward.some((r) => !r || typeof r.item !== 'string' || (r.n !== undefined && !posInt(r.n)))) fail('reward is [{ item, n? }]: what it pays');
@@ -409,12 +414,18 @@ export function lowerShift(p, ctx) {
   const once = (from, to) => R.push(p.repeat === true ? { on: from, do: 'emit', type: to } : { on: from, if: { var: `flag-${done}`, eq: 0 }, do: 'emit', type: to });
 
   // IN THE VEHICLE: one of its cabs, got into (or the job taken while in one); out of it, nothing counts
-  for (const c of p.cabs) {
+  // (a haul of several calls: only the vehicle called now counts, `call-<id>`)
+  const callVar = `call-${id}`, called = calls.length > 1;
+  if (called) frag.vars[callVar] = 1;
+  const board = (c) => { const k = calls.findIndex((x) => x.cab === c); return called ? ev(`board:${k + 1}`) : ev('board'); };
+  for (const c of called ? calls.map((x) => x.cab) : p.cabs) {
     R.push({ on: 'mounted', match: { mount: c }, do: 'set', var: aboard, to: 1 });
-    R.push(took ? { on: 'mounted', match: { mount: c }, if: { var: took, gte: 1 }, do: 'emit', type: ev('in') } : { on: 'mounted', match: { mount: c }, do: 'emit', type: ev('in') });
+    R.push(took ? { on: 'mounted', match: { mount: c }, if: { var: took, gte: 1 }, do: 'emit', type: board(c) } : { on: 'mounted', match: { mount: c }, do: 'emit', type: board(c) });
     R.push({ on: 'dismounted', match: { mount: c }, do: 'set', var: aboard, to: 0 }, { on: 'dismounted', match: { mount: c }, do: 'set', var: inV, to: 0 });
   }
-  if (took) R.push({ on: `flag:${p.after}`, if: { var: aboard, gte: 1 }, do: 'emit', type: ev('in') });
+  if (called) calls.forEach((_, k) => R.push({ on: ev(`board:${k + 1}`), if: { var: callVar, eq: k + 1 }, do: 'emit', type: ev('in') }, { on: ev(`board:${k + 1}`), if: { var: callVar, eq: k + 1 }, do: 'set', var: `flag-on-${id}-${k + 1}`, to: 1 }, { on: ev(`board:${k + 1}`), if: { var: callVar, eq: k + 1 }, do: 'emit', type: `flag:on-${id}-${k + 1}` }));
+  else R.push({ on: ev('board'), do: 'emit', type: ev('in') });
+  if (took && !called) R.push({ on: `flag:${p.after}`, if: { var: aboard, gte: 1 }, do: 'emit', type: ev('in') });
   R.push({ on: ev('in'), do: 'set', var: inV, to: 1 }, { on: ev('in'), if: { var: `flag-${on}`, eq: 0 }, do: 'emit', type: ev('clock') });
   R.push({ on: ev('clock'), do: 'set', var: `flag-${on}`, to: 1 }, { on: ev('clock'), do: 'emit', type: `flag:${on}` });
   frag.hud.push({ on: ev('clock'), as: 'toast', text: `On the clock: drive the ${vehicle}`, ttl: 2.4 });
@@ -484,22 +495,36 @@ export function lowerShift(p, ctx) {
   }
 
   if (mode === 'haul') {
-    // DELIVERED: driven to the site in the vehicle, once a run; got out of it there, it is taken back to its spot by the
-    // yard and the next run is open (clocked in again when it is got into)
-    const sz = `shift-${id}-site`, paid = ev('paid'), dv = `delivered-${id}`;
+    // DELIVERED: the vehicle called driven to its site, once a call; got out of it there, it is taken back to its spot by
+    // the yard and the next call is open (clocked in again when its vehicle is got into); after the last, the first again
+    const paid = ev('paid'), dv = `delivered-${id}`, n = calls.length;
     frag.vars[dv] = 0;
-    zone(sz, p.site.at, p.site);
-    R.push({ on: 'enter', match: { zone: sz }, if: { var: inV, gte: 1 }, do: 'emit', type: `${ev('site')}:0` });
-    if (took) R.push({ on: 'enter', match: { zone: sz }, if: { var: inV, eq: 0 }, do: 'emit', type: ev('afoot') }, { on: ev('afoot'), if: { var: took, gte: 1 }, do: 'emit', type: ev('need') });
-    once(`${ev('site')}:0`, `${ev('site')}:1`);
-    R.push({ on: `${ev('site')}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: paid }, { on: paid, do: 'set', var: dv, to: 1 });
+    calls.forEach((C, k) => {
+      const sz = n > 1 ? `shift-${id}-site-${k + 1}` : `shift-${id}-site`, at = ev(`site:${k + 1}`);
+      if (n > 1) Object.assign(frag.vars, { [`flag-on-${id}-${k + 1}`]: 0, [`flag-done-${id}-${k + 1}`]: 0 });
+      zone(sz, C.site.at, C.site);
+      R.push({ on: 'enter', match: { zone: sz }, if: { var: inV, gte: 1 }, do: 'emit', type: n > 1 ? `${at}:0` : at });
+      if (n > 1) R.push({ on: `${at}:0`, if: { var: callVar, eq: k + 1 }, do: 'emit', type: at });
+      if (took) R.push({ on: 'enter', match: { zone: sz }, if: { var: inV, eq: 0 }, do: 'emit', type: ev('afoot') });
+      once(at, `${at}:1`);
+      R.push({ on: `${at}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: paid });
+      if (n > 1) R.push({ on: `${at}:1`, if: { var: dv, eq: 0 }, do: 'set', var: `flag-done-${id}-${k + 1}`, to: 1 }, { on: `${at}:1`, if: { var: dv, eq: 0 }, do: 'emit', type: `flag:done-${id}-${k + 1}` });
+      // (got out of it there: back to its spot, the next call open)
+      if (isVec(C.back)) {
+        const back = ev(`return:${k + 1}`);
+        R.push({ on: 'dismounted', match: { mount: C.cab }, if: { var: dv, gte: 1 }, do: 'emit', type: n > 1 ? `${back}:0` : back });
+        if (n > 1) R.push({ on: `${back}:0`, if: { var: callVar, eq: k + 1 }, do: 'emit', type: back });
+        R.push({ on: back, do: 'move', target: C.cab, to: C.back.slice() }, { on: back, do: 'set', var: dv, to: 0 });
+        if (p.repeat === true) R.push({ on: back, do: 'set', var: `flag-${on}`, to: 0 });
+        if (n > 1) R.push(k + 1 < n ? { on: back, do: 'set', var: callVar, to: k + 2 } : { on: back, do: 'set', var: callVar, to: 1 });
+        // (the last call back: every call open again, the round from its first)
+        if (n > 1 && k + 1 === n && p.repeat === true) R.push(...calls.flatMap((_, j) => [{ on: back, do: 'set', var: `flag-on-${id}-${j + 1}`, to: 0 }, { on: back, do: 'set', var: `flag-done-${id}-${j + 1}`, to: 0 }]));
+        frag.hud.push({ on: back, as: 'toast', text: `The ${C.vehicle ?? vehicle} goes back to the ${yard}.${n > 1 ? ' The next call is in' : ' Another job when you are ready'}`, ttl: 2.6 });
+      }
+    });
+    if (took) R.push({ on: ev('afoot'), if: { var: took, gte: 1 }, do: 'emit', type: ev('need') });
     payOut(paid);
-    if (isVec(p.back)) for (const c of p.cabs) {
-      R.push({ on: 'dismounted', match: { mount: c }, if: { var: dv, gte: 1 }, do: 'emit', type: ev(`return:${c}`) });
-      R.push({ on: ev(`return:${c}`), do: 'move', target: c, to: p.back.slice() }, { on: ev(`return:${c}`), do: 'set', var: dv, to: 0 });
-      if (p.repeat === true) R.push({ on: ev(`return:${c}`), do: 'set', var: `flag-${on}`, to: 0 });
-    }
-    frag.hud.push({ on: ev(`return:${p.cabs[0]}`), as: 'toast', text: `The ${vehicle} goes back to the ${yard}. Another job when you are ready`, ttl: 2.6 });
+    R.push({ on: paid, do: 'set', var: dv, to: 1 });
   }
   return {
     world: { ...frag, sources },

@@ -11,7 +11,7 @@ import { runSteps } from './runner.js';
 import { cityGuide } from './city-guide.js';
 import { phoneUi } from './phone-ui.js';
 import { proveErrands, lastStageManifests } from './errand-proof.js';
-import { SHIFT, SHIFTS } from './jobsified.js';
+import { SHIFT, SHIFTS, HEAVY_VEHICLES } from './jobsified.js';
 
 const world = hijackCityWorld(), steps = runSteps(world, { ref: 'hc' }), level = steps.find((x) => x.key.startsWith('level-')).order.manifest, M = level.game.mechanics;
 const bins = M.find((m) => m.kind === 'shift' && m.id === 'bin-round'), haul = M.find((m) => m.kind === 'shift' && m.id === 'heavy-haul'), bus = M.find((m) => m.kind === 'shift' && m.id === 'bus-route'), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -32,12 +32,19 @@ describe('Hijack City\'s driving jobs, laid', () => {
     for (const q of bins.stops) expect(d(q.at, bins.depot)).toBeGreaterThanOrEqual(SHIFT.apart);
     for (let i = 0; i < bins.stops.length; i++) for (let j = i + 1; j < bins.stops.length; j++) expect(d(bins.stops[i].at, bins.stops[j].at)).toBeGreaterThanOrEqual(SHIFT.apart);
   });
-  it('the heavy haul: its truck issued at a kerb as a cab after all others, sent to a building site across the district', () => {
+  it('the heavy vehicle call: its trucks and machines issued at kerbs as cabs after all others, each sent to a building site across the district', () => {
     expect(haul).toMatchObject({ mode: 'haul', repeat: true, after: 'took-heavy-haul', site: { to: SHIFTS.heavy.to } });
+    expect(haul.calls).toHaveLength(SHIFTS.heavy.calls);
+    const models = haul.calls.map((C) => cab(C.cab).mount.pool.model);
+    for (const m of models) expect(HEAVY_VEHICLES.map((v) => v.model)).toContain(m);
+    expect(models.some((m) => m.startsWith('site:'))).toBe(true);
+    expect(models.some((m) => m.startsWith('loft:'))).toBe(true);
+    for (const C of haul.calls) { expect(d(cab(C.cab).transform.pos, C.back)).toBeLessThan(0.01); expect(d(C.site.at, C.back)).toBeGreaterThanOrEqual(SHIFT.haul); }
     const e = cab(haul.cabs[0]), ids = level.entities.filter((x) => x.mount?.cab && !x.mount.spare).map((x) => Number(x.id.slice(4)));
     expect(e?.mount?.cab).toBe(true);
-    // (the issued vehicles are the level's last cabs, the haul's and the bus's)
-    expect([haul.cabs[0], bus.cabs[0]].map((c) => Number(c.slice(4))).sort((a, b) => a - b)).toEqual(ids.sort((a, b) => a - b).slice(-2));
+    // (the issued vehicles are the level's last cabs, the call's and the bus's)
+    const issued = [...haul.cabs, bus.cabs[0]].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
+    expect(issued).toEqual(ids.sort((a, b) => a - b).slice(-issued.length));
     expect(e.mount.pool.gate).toBeUndefined();
     expect(d(e.transform.pos, haul.back)).toBeLessThan(0.01);
     expect(d(haul.site.at, haul.back)).toBeGreaterThanOrEqual(SHIFT.haul);
@@ -52,7 +59,7 @@ describe('Hijack City\'s driving jobs, laid', () => {
   it('each is on Jobsified; the guide leads each when it is taken; the errand proof drives each to its pay', () => {
     expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route']]]);
     const g = cityGuide(level);
-    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul', 'clock-bus-route']);
+    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route']);
     const P = proveErrands(world, lastStageManifests(steps));
     for (const id of ['bin-round', 'heavy-haul', 'bus-route']) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
   });

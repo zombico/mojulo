@@ -50,12 +50,29 @@ export const YARD_NAMES = Object.freeze({ works: 'works yard', depot: 'bus depot
 export const SHIFTS = Object.freeze({
   garbage: Object.freeze({ name: 'Bin round', mode: 'collect', yard: 'works', vehicle: 'garbage truck', item: 'garbage', stops: 8, load: 4, hold: 1.5, stop: 'Collect the garbage', done: 'Garbage collected' }),
   bus: Object.freeze({ name: 'Bus route', mode: 'route', yard: 'depot', fleet: 'bus', vehicle: 'bus', item: 'riders', stops: 5, hold: 1.5, riders: Object.freeze([1, 3]), stop: 'Pick up at the bus stop', done: 'Doors closed' }),
-  heavy: Object.freeze({ name: 'Heavy haul', mode: 'haul', yard: 'works', fleet: 'industry', vehicle: 'heavy truck', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
+  heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
+// THE HEAVY CALL'S VEHICLES (a row's `vehicles: 'heavy'`): trucks and a site's machines turn about, each a body a hero
+// can drive (a car shelf loft or a construction shelf machine, geotown/cars.js carModel), what it is called and its
+// paint (a machine wears its own colours). A job's calls are the next `calls` of them from its own word
+export const HEAVY_VEHICLES = Object.freeze([
+  Object.freeze({ model: 'site:mixerTruck', word: 'concrete mixer', paint: '#d8d4ca' }),
+  Object.freeze({ model: 'loft:flatbedTruck', word: 'flatbed truck', paint: '#20497f' }),
+  Object.freeze({ model: 'site:wheelLoader', word: 'wheel loader', paint: '#e0b02a' }),
+  Object.freeze({ model: 'site:tipperTruck', word: 'tipper truck', paint: '#d8d4ca' }),
+  Object.freeze({ model: 'loft:skipLoader', word: 'skip lorry', paint: '#c45a1d' }),
+  Object.freeze({ model: 'site:backhoeLoader', word: 'backhoe', paint: '#e0b02a' }),
+  Object.freeze({ model: 'loft:straightBox', word: 'box truck', paint: '#e6e6e2' }),
+  Object.freeze({ model: 'site:wheeledExcavator', word: 'wheeled excavator', paint: '#e0b02a' }),
+]);
+const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES });
+/** Whether a row's vehicle is issued (a fleet's, or one of a list's turn about), not the depot's own. */
+export const issues = (S) => !!(S && (S.fleet || S.vehicles));
 for (const [word, S] of Object.entries(SHIFTS)) {
   if (!SHIFT_MODES.includes(S.mode)) throw new Error(`jobsified: '${word}' works as ${SHIFT_MODES.join(', ')}`);
-  if (!S.fleet && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet)`);
-  if (S.mode === 'haul' && !S.fleet) throw new Error(`jobsified: '${word}' is a haul: its truck is issued from a fleet`);
+  if (!issues(S) && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet, vehicles)`);
+  if (S.mode === 'haul' && !issues(S)) throw new Error(`jobsified: '${word}' is a haul: its vehicle is issued (fleet, vehicles)`);
+  if (S.vehicles && !VEHICLE_LISTS[S.vehicles]) throw new Error(`jobsified: '${word}' issues from no list (${Object.keys(VEHICLE_LISTS).join(', ')})`);
 }
 
 // how a round is laid (m): each stop about `hop` from the one before (the nearest place to that), never nearer than
@@ -69,27 +86,33 @@ export function shiftOf(word) {
   return S;
 }
 
-export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level && SHIFTS[E.vehicle] && !SHIFTS[E.vehicle].fleet).map((E) => E.vehicle))];
+export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level && SHIFTS[E.vehicle] && !issues(SHIFTS[E.vehicle])).map((E) => E.vehicle))];
 
 // (a word's own number, for a choice no die makes: the same job issues the same truck)
 const hashOf = (w) => [...String(w)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
-/** The vehicles a level's shifts issue (a row with a `fleet`: a haul's truck, a route's bus): each one of its fleet's (by
- *  the job's own word), at the kerb before the place nearest its yard (the start where the district keeps no such yard),
- *  turned along the street. */
+/** The vehicles a level's shifts issue: a fleet's one (a route's bus) or a list's `calls` (a heavy call's, each the next
+ *  of the list from the job's own word, `call` its number), each at the kerb before one of the places nearest its yard
+ *  (the start where the district keeps no such yard), turned along the street. */
 export function issuedOf(ends, errands, level) {
   const out = [], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = [];
   for (const E of errands ?? []) {
     const S = E?.vehicle && E.giver === level ? SHIFTS[E.vehicle] : null;
-    if (!S || !S.fleet || typeof ends?.kerbAt !== 'function') continue;
+    if (!issues(S) || typeof ends?.kerbAt !== 'function') continue;
     const D = (ends.depots ?? []).find((x) => x.yard === S.yard), from = D ? D.at : ends.spawn;
-    const near = (ends.places ?? []).filter((q) => taken.every((t) => d2(q.at, t) > 12)).sort((a, b) => d2(a.at, from) - d2(b.at, from) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
-    for (const q of near.slice(0, 6)) {
+    const list = S.vehicles ? VEHICLE_LISTS[S.vehicles] : null, n = list ? Math.min(S.calls ?? 1, list.length) : 1, h = hashOf(E.id);
+    const which = (k) => { if (list) return list[(h + k) % list.length]; const rows = fleetOf(S.fleet), R = rows[h % rows.length]; return { model: R.model, word: R.word, paint: R.paints[0] }; };
+    const near = (ends.places ?? []).slice().sort((a, b) => d2(a.at, from) - d2(b.at, from) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+    let k = 0;
+    // (each at a kerb of its own, clear of the others' by a long vehicle's length)
+    for (const q of near.slice(0, 12 + n * 4)) {
+      if (k >= n) break;
+      if (!taken.every((t) => d2(q.at, t) > 16)) continue;
       const spot = ends.kerbAt(q.at, q.N);
-      if (!spot) continue;
-      const rows = fleetOf(S.fleet), R = rows[hashOf(E.id) % rows.length];
-      out.push({ id: E.id, at: spot.at, heading: spot.heading, model: R.model, paint: R.paints[0], word: R.word, place: q.card, yard: D ? YARD_NAMES[S.yard] : null });
+      if (!spot || !taken.every((t) => d2(spot.at, t) > 16)) continue;
+      const V = which(k);
+      out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: spot.at, heading: spot.heading, model: V.model, paint: V.paint, word: V.word, place: q.card, yard: D ? YARD_NAMES[S.yard] : null });
       taken.push(spot.at);
-      break;
+      k++;
     }
   }
   return out;

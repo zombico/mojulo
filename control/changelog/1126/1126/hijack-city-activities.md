@@ -8,8 +8,10 @@
   up as it unloads. Collect every pile and the city puts more out.
 - **The dump.** A district can now have a dump (`dump: true` on its city settings): one of its car parks is built as a
   big tipping hall, open to the street, that a truck drives into. Hijack City has one.
-- **Heavy haul.** A heavy truck waits at the kerb by the works yard. Take it across town to a building site to get paid;
-  step out and it goes back to the yard for the next job.
+- **Heavy vehicle call.** A general call for heavy operators: trucks and construction machines wait at the kerb by the
+  works yard, a concrete mixer, a flatbed, a wheel loader, a tipper, a skip lorry, a backhoe, a box truck, a wheeled
+  excavator, three at a time. The call names one; drive it across town to its building site to get paid, step out and
+  it goes back to the yard, and the next is called. Each handles as its own weight and power.
 - **Bus route.** A bus waits at the kerb by the depot. Its stops come in order, each with a sign and people waiting.
   Pull up and hold F to open the doors: the waiting people walk over and board, and the ones who got on at the stop
   before get off and walk away. The last stop pays and the route starts again.

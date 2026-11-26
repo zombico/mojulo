@@ -230,6 +230,20 @@ describe('shift: a driving job in a city vehicle, from its depot and back (gamew
     // (on foot at the site: nothing)
     expect(drive([HAUL, TASK], [take, { at: [395, 10, 0] }]).log).not.toContain('errand:done:bins');
   });
+  it('haul of several calls: only the vehicle called counts; each delivered and left goes back, the next called; after the last, the first', () => {
+    const CALLS = { ...HAUL, cabs: ['car-7', 'car-8'], calls: [{ cab: 'car-7', site: { at: [400, 0, 0], radius: 10 }, back: [0, 0, 0] }, { cab: 'car-8', site: { at: [0, 400, 0], radius: 10 }, back: [5, 0, 0] }] };
+    // (the second's vehicle while the first is called: nothing)
+    expect(drive([CALLS, TASK], [take, inCab('car-8'), { at: [0, 400, 0] }]).log).not.toContain('errand:done:bins');
+    const r = drive([CALLS, TASK], [take, inCab('car-7'), { at: [400, 0, 0] }, out('car-7'), inCab('car-8'), { at: [0, 400, 0] }, out('car-8')]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    expect(r.vars[H('coin')]).toBe(120);
+    expect(r.vars['call-bins']).toBe(1);
+    expect(r.warps).toEqual({ 'car-7': [0, 0, 0], 'car-8': [5, 0, 0] });
+    expect([1, 2].map((k) => [r.vars[`flag-on-bins-${k}`], r.vars[`flag-done-bins-${k}`]])).toEqual([[0, 0], [0, 0]]);
+    // (mid-round, each call's own flags kept for the guide)
+    const mid = drive([CALLS, TASK], [take, inCab('car-7'), { at: [400, 0, 0] }, out('car-7')]);
+    expect([mid.vars['call-bins'], mid.vars['flag-on-bins-1'], mid.vars['flag-done-bins-1']]).toEqual([2, 1, 1]);
+  });
   it('a malformed shift says what is wrong', () => {
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...COLLECT, load: 9 }, EXIT], ctx)).toThrow(/load is how many/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...HAUL, site: undefined }, EXIT], ctx)).toThrow(/site is/);

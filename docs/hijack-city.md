@@ -146,8 +146,13 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
 - **Bin round** (`garbage`, mode `collect`): get into a garbage truck at the works yard. Piles of bags stand at kerbs
   across the district; pull up to one and hold **F** to collect it. Four fill the truck; full, take it to the DUMP and
   drive in to empty it and be paid (its tailgate swings up). Every pile taken, the city lays them all again.
-- **Heavy haul** (`heavy`, mode `haul`): a heavy truck stands at the kerb by the works yard. Take it and drive it across
-  the district to a building site; arriving pays. Get out there and the truck goes back to the yard for the next job.
+- **Heavy vehicle call** (`heavy`, mode `haul`): a general call for heavy operators. Three heavy vehicles stand at kerbs
+  by the works yard, trucks and a site's machines turn about (`HEAVY_VEHICLES`: a concrete mixer, a flatbed, a wheel
+  loader, a tipper, a skip lorry, a backhoe, a box truck, a wheeled excavator), and the call names them in turn. Take
+  the one called and drive it across the district to its building site; arriving pays. Get out there and it goes back
+  to the yard, and the next is called; after the last, the first again. Each drives as its own class (its mass, its
+  power: roads/vehicles.js); a machine is drawn from the construction shelf as a city's site draws it
+  (`geotown/cars.js` `carModel` `site:<archetype>`).
 - **Bus route** (`bus`, mode `route`): a bus stands at the kerb by the bus depot (by the start where the district keeps
   none). Its stops come in order, each a bus-stop sign with people waiting. Pull up and hold **F** to open the doors:
   those waiting walk to the bus and board, and those who boarded at the stop before get off and walk away. The last stop
@@ -159,8 +164,9 @@ errands: [{ id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: true
 
 `vehicle` is a row of `SHIFTS` (`gameworld/jobsified.js`): its mode, the yard it starts from, the vehicle as it is
 called, its stops or piles, a collect's `load`, the seconds a place is held at (`hold`), and where its vehicle comes from:
-the depot's own (the works yard's garbage trucks) or, for a row with a `fleet`, ISSUED (`issuedOf`: one of the fleet's,
-stood at the kerb before the place nearest its yard). A new kind of driving job is a row. The errand's list may be left
+the depot's own (the works yard's garbage trucks) or ISSUED (`issuedOf`): a row with a `fleet` one of the fleet's (the
+bus), a row with `vehicles` its `calls` of a list's in turn (the heavy call), each stood at the kerb before one of the
+places nearest its yard. A new kind of driving job is a row. The errand's list may be left
 out (the row's item, its stops as its count). A shift is given by Jobsified unless it names its own `app`; it has no
 contact and is never a mission.
 
@@ -169,7 +175,7 @@ lots and building sites near the eye (`ctx.lots`), and its dump (`ctx.dumpAt`), 
 beside a place is `ends.kerbAt`. A depot's vehicles and the issued ones are made cabs after the level's nearest cars
 (`gameworld/cars.js` `levelCars` `roles`, `issue`), so no other car's id moves. Stops and piles are the district's
 places, each about `SHIFT.hop` from the one before and `SHIFT.apart` from the rest (and the dump); a haul's site is the
-building site farthest off past `SHIFT.haul`. A district with no such depot, no place to send it or no room for its piles
+building site past `SHIFT.haul`, farthest first, a call each in turn. A district with no such depot, no place to send it or no room for its piles
 lays none of it: the errand proof says so.
 
 THE DUMP is a district's word (`geocity.dump: true`, Hijack City's on): of its car parks drawn near the eye, the one

@@ -80,12 +80,12 @@ const MISSIONS = Object.freeze([
 
 /** The city's driving jobs a Hijack City starts with, on the Jobsified app (gameworld/jobsified.js SHIFTS, a job a row),
  *  each taken on the phone and worked again for more: the bin round (a garbage truck from the works yard, its piles held
- *  at until it is full, emptied at the district's dump), a heavy haul (a truck issued by the works yard, driven across
- *  the district to a building site) and a bus route (a bus issued by the depot, its stops held at in order: those
+ *  at until it is full, emptied at the district's dump), a heavy vehicle call (trucks and a site's machines issued by the
+ *  works yard in turn, each driven across the district to a building site) and a bus route (a bus issued by the depot, its stops held at in order: those
  *  waiting board, those from the stop before get off). */
 export const HIJACK_SHIFTS = Object.freeze([
   Object.freeze({ id: 'bin-round', name: 'Bin round', vehicle: 'garbage', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
-  Object.freeze({ id: 'heavy-haul', name: 'Heavy haul', vehicle: 'heavy', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 60 })]) }),
+  Object.freeze({ id: 'heavy-haul', name: 'Heavy vehicle call', vehicle: 'heavy', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 60 })]) }),
   Object.freeze({ id: 'bus-route', name: 'Bus route', vehicle: 'bus', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 50 })]) }),
 ]);
 

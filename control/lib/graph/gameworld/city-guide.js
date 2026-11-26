@@ -105,6 +105,16 @@ export function jobsOf(mechanics) {
       steps.push({ id: `collect-${Sh.id}`, say: `${Sh.stop ?? 'Collect'} · hold ${CITY_GUIDE.hold}`, at: at3(Sh.stops[0].at), radius: 0, near: Sh.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${Sh.id}-${k + 1}` })), when: `flag-full-${Sh.id}`, flag: `full-${Sh.id}` });
       const U = Sh.unload ?? { at: Sh.depot, radius: r };
       steps.push(last({ id: `unload-${Sh.id}`, say: `Take the full ${vehicle} to ${Sh.unload ? 'the dump' : `the ${yard}`}`, at: at3(U.at), radius: reach(U) }));
+    } else if (Array.isArray(Sh.calls) && Sh.calls.length > 1) {
+      // (a heavy call: each call its vehicle taken where it stands and driven to its site, in turn, each waited on by its
+      // own flags; the round from the first)
+      steps.pop();
+      loop = steps.length;
+      Sh.calls.forEach((C, k) => {
+        const w = C.vehicle ?? vehicle;
+        steps.push({ id: `clock-${Sh.id}-${k + 1}`, say: `Take the ${w}${C.place ? ` outside the ${shop(C.place)}` : ''}${Sh.yard ? ` by the ${yard}` : ''}`, at: at3(C.back ?? Sh.depot), radius: r, when: `flag-on-${Sh.id}-${k + 1}`, flag: `on-${Sh.id}-${k + 1}` });
+        steps.push({ id: `haul-${Sh.id}-${k + 1}`, say: `Drive the ${w} to the ${C.site.to ?? (C.site.place ? shop(C.site.place) : 'job')}`, at: at3(C.site.at), radius: reach(C.site), when: `flag-done-${Sh.id}-${k + 1}`, ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}-${k + 1}` });
+      });
     } else {
       loop = steps.length - 1;
       steps.push(last({ id: `haul-${Sh.id}`, say: `Drive the ${vehicle} to the ${Sh.site.to ?? (Sh.site.place ? shop(Sh.site.place) : 'job')}`, at: at3(Sh.site.at), radius: reach(Sh.site) }));

@@ -57,7 +57,8 @@ export const CAB = Object.freeze({
 const lin = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 16) / 255; return Math.round((c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4) * 1e4) / 1e4; });
 // a parked vehicle's physics class: its card's, or its loft's own (`loft:<class>|<brief>`); a class the road's table
 // does not carry drives as a midsize car
-const ruleOf = (model) => { const cls = CAR_CARDS[model]?.class ?? (model.startsWith('loft:') ? model.slice(5).split('|')[0] : 'midsize'); try { return vehicleRule(cls, { tuning: 'arcade' }); } catch { return vehicleRule('midsize', { tuning: 'arcade' }); } };
+// (a site's machine, `site:<archetype>`, drives as its own class: roads/vehicles.js mixerTruck, wheelLoader, …)
+const ruleOf = (model) => { const cls = CAR_CARDS[model]?.class ?? (model.startsWith('loft:') ? model.slice(5).split('|')[0] : model.startsWith('site:') ? model.slice(5) : 'midsize'); try { return vehicleRule(cls, { tuning: 'arcade' }); } catch { return vehicleRule('midsize', { tuning: 'arcade' }); } };
 
 export function levelCars(ends, { roles = [], issue = [] } = {}) {
   const from = ends?.spawn, parked = ends?.parked ?? [];

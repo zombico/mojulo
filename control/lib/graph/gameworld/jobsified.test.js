@@ -76,6 +76,17 @@ describe('a shift read by the guide, the journal and the phone', () => {
     expect(J.loop).toBe(1);
     expect(J.steps[2]).toMatchObject({ at: HAULED.site.at, radius: 28, says: 'Paid 60 coin', flag: 'done-heavy-haul' });
   });
+  it('haul of several calls: each vehicle taken where it stands and driven to its site, in turn; round again from the first', () => {
+    const CALLS = { ...HAULED, cabs: ['car-14', 'car-15'], calls: [{ cab: 'car-14', site: HAULED.site, back: [10, 60, 1], vehicle: 'concrete mixer', place: 'bakery' }, { cab: 'car-15', site: { at: [0, 600, 1], radius: 7, place: 'cafe' }, back: [30, 60, 1], vehicle: 'flatbed truck' }] };
+    const [J] = jobsOf([CALLS, task('heavy-haul')]);
+    expect(J.steps.map((s) => [s.id, s.say, s.when])).toEqual([
+      ['app-heavy-haul', 'Take the heavy haul on Jobsified · P', 'flag-took-heavy-haul'],
+      ['clock-heavy-haul-1', 'Take the concrete mixer outside the bakery by the works yard', 'flag-on-heavy-haul-1'], ['haul-heavy-haul-1', 'Drive the concrete mixer to the building site', 'flag-done-heavy-haul-1'],
+      ['clock-heavy-haul-2', 'Take the flatbed truck by the works yard', 'flag-on-heavy-haul-2'], ['haul-heavy-haul-2', 'Drive the flatbed truck to the cafe', 'flag-done-heavy-haul-2']]);
+    expect(J.loop).toBe(1);
+    const g = cityGuide(manifest([CALLS, task('heavy-haul')]));
+    expect(g.rounds).toEqual([{ when: 'flag-took-heavy-haul', at: g.steps.findIndex((s) => s.id === 'clock-heavy-haul-1'), from: g.steps.findIndex((s) => s.id === 'clock-heavy-haul-1'), end: g.steps.length }]);
+  });
   it('route: its bus taken where it is issued, then each stop in order, held at; the last pays', () => {
     const R = { ...COLLECT, mode: 'route', load: undefined, unload: undefined, back: [10, 60, 1], vehicle: 'bus', place: 'bakery', yard: 'bus depot', stop: 'Pick up at the bus stop', stops: PILES.map((at) => ({ at, radius: 7, place: 'cafe', riders: 2 })) };
     const [J] = jobsOf([R, task('bin-round')]);
