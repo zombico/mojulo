@@ -43,6 +43,8 @@ export const HIJACK_DISTRICT = Object.freeze({
   // (downtown: the metro's core, its towers, its podiums and its square, the frame round it; the suburbs are a district
   // of their own)
   evoke: 'neighbourhood', at: 'core', shops: true,
+  // (one line of streetcar track through it, its streetcars running on it: geocity/roads.js `most`, geocity/flow.js)
+  roads: Object.freeze({ streetcar: Object.freeze({ most: 1 }) }),
   // (its outskirts' register: a West Coast tract of stucco ranches under palms, geotown/pattern.js; the downtown the
   // metro's own)
   outskirts: 'west-coast',
@@ -61,7 +63,8 @@ const HILL_AIR = Object.freeze({ kind: 'mist' });
 // (a Northeast metro cut small for a district: its harbour east, its core by it, its frame and outskirts inland; it
 // holds every law of the metro's at its game scale, evoked at either ring)
 const NORTHEAST_CUT = Object.freeze({ metro: Object.freeze({ from: 'northeast', rings: Object.freeze({ core: 350, frame: 900 }) }), extent: Object.freeze([3000, 2400]),
-  water: Object.freeze({ sides: Object.freeze(['e']), depth: 200 }), core: Object.freeze([0.85, 0.5]), evoke: 'neighbourhood', shops: true });
+  water: Object.freeze({ sides: Object.freeze(['e']), depth: 200 }), core: Object.freeze([0.85, 0.5]), evoke: 'neighbourhood', shops: true,
+  roads: Object.freeze({ streetcar: Object.freeze({ most: 1 }) }) });
 /** The districts a Hijack City may stand in, by a word: its streets, its buildings and its traffic each its ring's. */
 export const HIJACK_DISTRICTS = Object.freeze({
   downtown: HIJACK_DISTRICT,

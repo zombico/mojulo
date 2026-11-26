@@ -92,7 +92,7 @@ import { readSection } from '../network/sections.js';
 import { dressUnder, ROUTES } from './dress.js';
 import { subwayUnder, subwayPlan, withGeocitySubwayLevel } from './subway.js';
 import { registerLevelKind } from '../structure/level.js';
-import { streetcarFaces, STREETCAR } from './streetcar.js';
+import { streetcarFaces, STREETCAR, STREETCAR_MODEL, streetcarPool } from './streetcar.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { TOWN_GLOSS, glazed } from '../form/town-gloss.js';
 import { sacredMass, SACRED } from '../city/plan/landmarks.js';
@@ -2636,7 +2636,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (their models pooled with the traffic's: the templates those bodies are drawn from, scene/channels/cab-pool.js;
     // `ctx.pooled`, the models of bodies the district did not park itself: its fleet's cars a level stands at a kerb)
     const bodyModels = drivenAt.length ? [...new Set([...vehicles.filter((c) => !undriven.includes(c)).map((c) => c.model), ...(ctx.pooled ?? [])])].sort().map((model) => ({ model })) : [];
-    for (const r of carRepeats(undriven, { group: 'geocity:vehicle', ...(F || bodyModels.length ? { pool: [...(F ? F.kinds : []), ...bodyModels] } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
+    for (const r of carRepeats(undriven, { group: 'geocity:vehicle', ...(F || bodyModels.length ? { pool: [...(F ? F.kinds.filter((k) => k.model !== STREETCAR_MODEL) : []), ...bodyModels] } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
+    // (the streetcars the traffic runs on its tracks, flow.js: the metro's streetcar pooled, streetcar.js)
+    if (F && F.kinds.some((k) => k.model === STREETCAR_MODEL)) for (const r of streetcarPool()) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
     for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, compact: true, ...kit });
     // (its industry's pieces, industry.js: the tall ones seen across their district, the rest near the camera)
     if (indStamps.size) {

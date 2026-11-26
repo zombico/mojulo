@@ -31,3 +31,18 @@ export function streetcarFaces({ axis, at, s0, dir, z }) {
   };
   return car().map((f) => ({ ...f, corners: f.corners.map(place), group: 'geocity:streetcar' }));
 }
+
+/** A STREETCAR IN THE TRAFFIC (geocity/flow.js runs one on each streetcar track, scene/channels/flow.js draws it): the
+ *  same car as a pooled template the traffic instances, facing +y and centred on the origin as a traffic model is. Its
+ *  body keeps its own shaded colours (its `paint` tinted white), its trim a speck within it, so the traffic's outline of
+ *  it far off is its body's. */
+export const STREETCAR_MODEL = 'streetcar';
+export const STREETCAR_WIDTH = 2.65;
+export function streetcarPool(group = 'geocity:tram') {
+  const L = STREETCAR.length, body = streetcarFaces({ axis: 'ns', at: 0, s0: L / 2, dir: 1, z: () => 0 }).map(({ group: _g, ...f }) => f);
+  const speck = [{ corners: [[0, 0, 1], [0.01, 0, 1], [0, 0.01, 1]], fill: '#202326' }];
+  return [
+    { group: `${group}-paint`, template: body, transforms: [], pool: `${STREETCAR_MODEL}|paint` },
+    { group: `${group}-trim`, template: speck, transforms: [], pool: `${STREETCAR_MODEL}|trim` },
+  ];
+}

@@ -142,6 +142,15 @@ its traffic's headlights and tail lights (scene/channels/flow.js, a night page's
 amber in a lit smog, Miami's white over a clear sea air, San Francisco's halos in its fog, Boston's cold white, Toronto's
 warm. `civic: false` keeps none of the places.
 
+## Streetcars
+
+A Hijack City district carries one line of streetcar track (`roads.streetcar.most: 1`, `geocity/roads.js`: the spines
+first, then the longest; a metro lays track on every spine and a share of its other main streets, and a district may say
+how many it keeps), and the streetcars run on it. Each track is a lane of the traffic (`geocity/flow.js`, `FLOW.streetcar`:
+8 m/s, a car every 450 m or so) run by the metro's own streetcar, pooled for the traffic (`geocity/streetcar.js`
+`streetcarPool`), through the same crossings and signals as the cars beside it, so it stops on red. The streetcar is 25.6
+m long, so the signals' all-red clearance is sized to clear it.
+
 ## The jobs' stops downtown
 
 A contact's jobs stand their pick-ups and hand-ins at the district's shops, at the kerb before each door

@@ -141,3 +141,5 @@
   where the level starts, and moving traffic casts them around the player. The static objects cost nothing per frame,
   because the city's shadows are drawn once while the level loads. Moving traffic adds about 1% more draw calls and 7%
   more triangles per frame on a downtown street.
+- Hijack City has one streetcar line instead of track down several main streets, and streetcars now run on it: one each
+  way along every track, stopping at the traffic lights with the cars. Other cities keep their own amount of track.
