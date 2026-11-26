@@ -1419,7 +1419,10 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // (a level that carries the style meter, style-meter.js, shows it there, whether or not the world writes a `ui`)
   if ((G.ui !== undefined || manifest.styleMeter) && !manifest.manaHud && !MX && !manifest.events?.grammar) {
     const U = G.ui && typeof G.ui === 'object' ? G.ui : {};
-    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}) } };
+    // (a frame's level: its pilot's armour and generator are the frame's own HUD's, scene/channels/controllable/frame-hud.js;
+    // the mana HUD draws no pilot's strip of its own beside them)
+    const frameHero = pilotPart.entities?.[0]?.rule?.type === 'frame';
+    manifest = { ...manifest, manaHud: { ...levelHud(interfaceLook(G).theme, { screen: G.screen ?? null, ...(G.ui?.radar ? { radar: G.ui.radar } : {}), ...(manifest.styleMeter ? { style: true, vitals: vitalsOf(G) } : {}) }), ...(U.map !== undefined ? { map: U.map } : {}), ...(U.inventory !== undefined ? { inventory: U.inventory } : {}), ...(U.phone !== undefined ? { phone: U.phone } : {}), ...(frameHero ? { hero: false } : {}) } };
   }
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
