@@ -13,3 +13,9 @@
   bell to the sky, a thing a mining ship lowers onto a rock. A prop is never a foe a stage fields (`GROUND_PROP_IDS`
   beside `GROUND_UNIT_IDS`).
 - A level with no walk (an airspace's, a frame's) keeps its `scenes`, played in its one stage.
+- A directed shot on a subject bigger than a person (a frame, a tower) is framed by its size, room round it by its
+  radius and looked at by its height (a person's shot as it was); and as it cuts it finds a place whose line to its
+  subjects no other body stands in (`worlds/controllable/rules-basic.js` `shot`): the pilot's own frame no longer fills
+  the lens of a shot on what it is watching.
+- A frame operation's marks (`goal.operation.marks: { <name>: [x, y] }`): named places on the field, each a spot of its
+  name for the level's scenes (where a walk ends, a shot's place).

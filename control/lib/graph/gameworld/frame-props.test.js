@@ -23,6 +23,12 @@ describe('an operation\'s props', () => {
     expect(operationCast(readOperation({ ...OP, props: undefined }), ends).play).toBeUndefined();
   });
 
+  it('a mark is a named place on the field, a spot of its name for the scenes', () => {
+    const X = operationCast(readOperation({ ...OP, props: undefined, marks: { post: [-0.2, 0.1] } }), ends);
+    expect(X.play.spots).toContainEqual({ id: 'post', at: [-100, 50, -1] });
+    expect(() => readOperation({ ...OP, marks: { t3: [0, 0] } })).toThrow(/not a task's/);
+  });
+
   it('a prop is no foe a stage fields; one it cannot read is refused, teaching', () => {
     expect(GROUND_UNIT_IDS).not.toContain(prop);
     expect(() => readOperation({ ...OP, props: [{ id: 'drones', unit: prop, at: [0, 0] }] })).toThrow(/not a group's/);

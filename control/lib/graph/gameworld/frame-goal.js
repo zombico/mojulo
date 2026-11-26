@@ -18,6 +18,7 @@
  *              any task's `pause`: the seconds after the one before is met that it begins (a beat let breathe);
  *              { learn: <FRAME_LESSONS word>, text? } a control shown and met only as it is done; { act: <bus event>,
  *              text? } met as the level says it (a scene's end: `scene-end:<id>`)
+ *     marks    { <name>: [x, y] } named places on the field, each a spot of its name for the level's scenes
  *     a group's `wary: true`: a unit that holds its fire until it is hit (a survey drone spotted, pointed out, engaged)
  *
  *   OPERATION                      the numbers: a unit's armour and guns at a frame's scale, a reach's radius
@@ -82,7 +83,7 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props', 'marks'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props, marks)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -159,9 +160,20 @@ export function readOperation(v, at = 'goal.operation') {
   const script = v.script === undefined ? null : (() => { const S = readScript(v.script, { tasks: tasks.length, at: `${at}.script` }); for (const a of allies ?? []) S.speakers[a.id] ??= { name: a.name }; return S; })();
   // (its lessons: the frame's controls taught one at a time, each group as its task begins: FRAME_LESSONS)
   const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
+  // (its marks: named places on the field for its scenes, a walk's end, a shot's place: each a spot of its name)
+  const marks = v.marks === undefined ? null : readMarks(v.marks, `${at}.marks`);
   // (its props: things stood on the field for its scenes to move, PROP)
   const props = v.props === undefined ? null : readProps(v.props, new Set([...ids, ...(allies ?? []).map((a) => a.id)]), `${at}.props`);
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}) };
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}), ...(marks ? { marks } : {}) };
+}
+// (an operation's marks: { <name>: [x, y] }, each a share of the field, at most 16)
+function readMarks(v, at) {
+  if (!isObj(v) || !Object.keys(v).length || Object.keys(v).length > 16) throw new Error(`${at} is { <name>: [x, y] }, 1 to 16 places (each −1..1 of the field)`);
+  return Object.fromEntries(Object.entries(v).map(([k, p]) => {
+    if (!/^[a-z][a-z0-9-]{0,30}$/.test(k) || /^t\d+$/.test(k)) throw new Error(`${at}.${k}: a mark's name is lower-case, not a task's (t<n>)`);
+    if (!(Array.isArray(p) && p.length === 2 && p.every((x) => Number.isFinite(x) && Math.abs(x) <= 1))) throw new Error(`${at}.${k} is [x, y], each −1..1 of the field`);
+    return [k, p.slice()];
+  }));
 }
 
 /** An operation's PROPS checked (throws, teaching): [{ id, unit, at, raise?, hidden?, face? }]. A thing stood on the field
@@ -349,11 +361,12 @@ export function operationCast(op, ends) {
   // the spot t<n>, for the scenes to frame and to set things down on)
   const spots = [];
   op.tasks.forEach((t, i) => { if (t.reach ?? t.scan) { const [x, y] = placeOf(ends, t.reach ?? t.scan); spots.push({ id: `t${i + 1}`, at: [x, y, r2(ends.ground(x, y))] }); } });
+  for (const [k, m] of Object.entries(op.marks ?? {})) { const [x, y] = placeOf(ends, m); spots.push({ id: k, at: [x, y, r2(ends.ground(x, y))] }); }
   for (const p of op.props ?? []) {
     const [x, y] = placeOf(ends, p.at), z = r2(ends.ground(x, y)), fig = `prop-${p.unit}`, face = p.face !== undefined ? (p.face * Math.PI) / 180 : toward([x, y]);
     figures[fig] = { unit: { kind: p.unit, form: true } };
     entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), body: { type: 'figure-rig', figure: fig, hittable: false, radius: unitRadius(p.unit) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
     spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
   }
-  return { entities, figures, ...(op.props ? { play: { spots } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
+  return { entities, figures, ...(op.props || op.marks ? { play: { spots } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
 }

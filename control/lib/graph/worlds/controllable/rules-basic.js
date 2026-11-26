@@ -364,7 +364,10 @@ export function buildRulesBasic(E) {
     if (!subs.length) return;
     let cx = 0, cy = 0, cz = 0, spread = 0;
     for (const s of subs) { cx += s.transform.pos[0]; cy += s.transform.pos[1]; cz += s.transform.pos[2]; }
-    cx /= subs.length; cy /= subs.length; cz = cz / subs.length + (r.lookH ?? 1.4);
+    // (a subject bigger than a person, a frame or a tower: framed by its size, room round it by its radius past a
+    // person's, looked at by its height; a person's shot as it was)
+    const big = Math.max(0, ...subs.map((s) => ((s.body && s.body.radius) || 0) - 1)), tall = Math.max(0, ...subs.map((s) => (s.body && (s.body.aimH || s.body.radius)) || 0));
+    cx /= subs.length; cy /= subs.length; cz = cz / subs.length + (r.lookH ?? (big > 0 ? Math.max(1.4, tall) : 1.4));
     for (const s of subs) spread = Math.max(spread, Math.hypot(s.transform.pos[0] - cx, s.transform.pos[1] - cy));
     e._shotT = (e._shotT || 0) + dt;
     // over the shoulder: the first framed past the second's shoulder (the listener's back to the camera, a little aside)
@@ -379,7 +382,7 @@ export function buildRulesBasic(E) {
       e.lookAt = [A[0], A[1], A[2] + lh];
       return;
     }
-    const [room, rise, off] = FRAMES[r.frame] || FRAMES.wide;
+    const [room0, rise0, off] = FRAMES[r.frame] || FRAMES.wide, room = room0 + big * 1.6, rise = rise0 * (1 + big * 0.5);
     // the side of the line: the one asked, else (as a cut is made) the one nearer where the camera stands, so a cut
     // keeps the player's side of the action; kept for the shot
     if (r.side == null && e._shotSide == null && subs.length >= 2) {
@@ -417,12 +420,20 @@ export function buildRulesBasic(E) {
       return at;
     };
     // a CLEAR view: as the shot cuts, the ground (rocks, a bank) sampled along the line to the subjects must stay under
-    // it; else the next of a few places round the framing, a little aside and then higher, kept for the shot
+    // it, and no body but the subjects stand in it (the pilot's own frame between the lens and what it frames); else the
+    // next of a few places round the framing, a little aside and then higher (by the shot's distance), kept for the shot
     if (e._shotTry == null) {
       e._shotTry = [0, 0];
-      if (world.ground) {
-        const clear = (at) => { for (let k = 1; k < 8; k++) { const u = k / 8, x = at[0] + (cx - at[0]) * u, y = at[1] + (cy - at[1]) * u, z = at[2] + (cz - at[2]) * u, g = world.ground([x, y, 1e4]); if (g != null && g > z - 0.3) return false; } return true; };
-        search: for (const lift of [0, 1.5, 3.5]) for (const dy of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) if (clear(place(yaw + dy, lift))) { e._shotTry = [dy, lift]; break search; }
+      const subIds = new Set(subs.map((s) => s.id).filter(Boolean));
+      const bodies = Object.values(world.byId || {}).filter((b) => b && !b.isCamera && !b.gone && !b.dormant && !subIds.has(b.id) && b.body && b.body.radius > 0);
+      const blocked = (at) => bodies.some((b) => {
+        const R = b.body.radius, q = b.transform.pos, c = [q[0], q[1], q[2] + R * 0.8], v = [cx - at[0], cy - at[1], cz - at[2]], L2 = v[0] * v[0] + v[1] * v[1] + v[2] * v[2] || 1;
+        const u = Math.max(0, Math.min(1, ((c[0] - at[0]) * v[0] + (c[1] - at[1]) * v[1] + (c[2] - at[2]) * v[2]) / L2));
+        return Math.hypot(at[0] + v[0] * u - c[0], at[1] + v[1] * u - c[1], at[2] + v[2] * u - c[2]) < R;
+      });
+      if (world.ground || bodies.length) {
+        const clear = (at) => { if (blocked(at)) return false; if (!world.ground) return true; for (let k = 1; k < 8; k++) { const u = k / 8, x = at[0] + (cx - at[0]) * u, y = at[1] + (cy - at[1]) * u, z = at[2] + (cz - at[2]) * u, g = world.ground([x, y, 1e4]); if (g != null && g > z - 0.3) return false; } return true; };
+        search: for (const lift of big > 0 ? [0, 0.15 * dist, 0.35 * dist] : [0, 1.5, 3.5]) for (const dy of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) if (clear(place(yaw + dy, lift))) { e._shotTry = [dy, lift]; break search; }
       }
     }
     const at = place(yaw + e._shotTry[0], e._shotTry[1]);
