@@ -62,6 +62,11 @@ describe('a level\'s rows on mana-ui', () => {
     expect(C.slice(3).map((c) => c.when && c.when.bind)).toEqual(['gun.on', 'radar.on', 'wheel.open']);
     expect(C[2].props).toMatchObject({ at: 'bottom-left', variant: 'scrim', rest: { bind: 'hero.rest' } });
     expect(hudToMana([], { hero: false }).spec.hud.children).toEqual([]);
+    // (heroBar false: the pilot kept, its gun, radar and wheel, but no health strip in the corner: a frame's own HUD has it)
+    const F = hudToMana([], { heroBar: false });
+    expect(F.feed.hero).toBe(true);
+    expect(F.spec.hud.children.some((c) => c.props && c.props.at === 'bottom-left')).toBe(false);
+    expect(F.spec.hud.children.length).toBe(C.length - 1);
   });
   it('draws as a game: the health a strip in cells with no label, the corners on a scrim, the rest bare', () => {
     const E = hudToMana([{ var: 'hp', label: 'HP' }, { var: 'down', label: 'Down', as: 'counter', slot: 'top-left' }, { text: 'W walk', slot: 'bottom', ttl: 9 }]), J = JSON.stringify(E.spec);

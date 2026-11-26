@@ -12,5 +12,5 @@
 - Strict lessons (the guide's `strict`, a frame level's that teaches): each control's lesson waits for the pilot to do
   it, however long, and no count of them is shown; the keys' legend along the bottom is left off, the lessons saying
   each key as it comes.
-- A frame's level draws no pilot's strip of its own on the mana HUD (`manaHud.hero: false`): the frame's own HUD carries
+- A frame's level draws no pilot's strip of its own on the mana HUD (`manaHud.heroBar: false`, `game/hud-mana.js`): the frame's own HUD carries
   its armour and generator, and the strip in the corner was a second health bar.

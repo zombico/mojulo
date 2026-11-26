@@ -166,7 +166,7 @@ const TALK_CSS = '#moj-mana-talk{position:fixed;inset:0;pointer-events:none;z-in
 
 export function manaHudScript(hud, { game = false, rows = null, register = null, touch = false, radarMap = null, talk = false, boss = false, shared = null } = {}) {
   // (a level whose HUD is its own rows, `rows: 'events'`: lowered here, where the page emits them, game/hud-mana.js)
-  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, touch, ...(hud.radar ? { radar: hud.radar } : {}), ...(boss ? { boss: true } : {}), style: hud.style === true, vitals: hud.vitals ?? null }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
+  if (hud && hud.rows === 'events' && !hud.spec) { const L = hudToMana(rows, { register, hero: hud.hero !== false, ...(hud.heroBar === false ? { heroBar: false } : {}), touch, ...(hud.radar ? { radar: hud.radar } : {}), ...(boss ? { boss: true } : {}), style: hud.style === true, vitals: hud.vitals ?? null }); hud = { ...hud, spec: L.spec, feed: { ...L.feed, ...(hud.feed ?? {}) } }; }
   // (a level's radar look, game/hud-mana.js RADAR_LOOK: its size and a square scope's face are this HUD's own CSS, and its
   // floor the plan and the guards of the pilot's floor alone; absent, not one byte)
   const RL = hud && hud.radar ? hud.radar : null, floorRadar = !!(RL && RL.floor);
