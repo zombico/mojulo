@@ -27,8 +27,10 @@
   catch you (a weapon's `hitGap`, combat-ranged.js). Artesia's venom drake spits, its fire salamander breathes.
 - **Throwers throw** (the `throw` and `toss` cards): the body winds a real throw and the round leaves at its release.
 - **Fable of Artesia's cast**: the goblin band (raiders who chop, a slinger who throws) under orc leaders who maul, and
-  the monsters of its wilds, never its small animals: skeletons risen from its ruins with rusted swords, gloomwings (a
-  bat grown dire and dark) that dive from the air, a crystal behemoth that braces and charges, a venom drake lying in
+  the monsters of its wilds, never its small animals: skeletons risen from its ruins with rusted swords, a manticore (a
+  lion grafted with wings, horns and a dragon's tail by the chimera dial) that bites and breathes fire, gloomwings (a
+  bat grown dire and dark) that dive from the air, a chimera (a goat so grafted) and a crystal behemoth that brace and
+  charge, a venom drake lying in
   wait in the grass, a fire salamander that hunts (a family's `extras`, each a beast grown by its oozes or a people; a
   people's `arm` from the armory); foes lit by each level's own cube, the target rim only on a lock.
 - **Fable of Artesia's swordswoman, cleaned up** (`gameworld/hero-rows.js`, Lucien's lessons in Fallen Angel carried to
