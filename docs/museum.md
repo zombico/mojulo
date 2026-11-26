@@ -69,6 +69,27 @@ exhibits: [{ title?, pieces: ['<ref>' | { ref, name?, life? }] }]   // one colle
 Each piece leaves the stage as an `itemRef`. `worlds/world-scene.js` resolves it where the store is, and
 `placeItemFaces` fits its faces. The studio floor a thing's own page stands it on is left out.
 
+## Other walk-ins
+
+The museum is the first row of a shelf: a city's civic buildings walked into the same way (`geocity/walkins.js`).
+
+```js
+geocity: { …, enter: ['arcade', 'library'] }
+```
+
+- **The blocks** (`pickWalkins`): each kind the next block of the built fabric after the walk's own and the museum's, at
+  least its row's `least` across (a walk-in's front is smaller than the museum's).
+- **The fronts** (`geocity/scene.js` `walkinFront`): a `portico` at the row's own measures, the museum's builder with
+  fewer, shorter columns (a library's), or a `marquee`: a dark box with glass across its front, its doors in the middle
+  and a lit sign band with its trim over them (an arcade's).
+- **The door** (`gameworld/levels.js` `walkinDoor`): its zone before the door, the way back out in the forecourt. Its
+  inside is the row's `program` in its `kit`, composed to its `compose`, never won and left by its door.
+- **What is inside** composes with the rest of the game. An arcade's games floor and a library's reading room keep the
+  world's inside minigames (`gameworld/minigames.js` `ROOMS_KEPT`, the book's `minigames: [{ game, where: 'inside' }]`),
+  spread over them in order.
+
+A new kind is a row: its name, front, program, kit, look, hall and colours.
+
 ## Gates
 
 - **Machine:** `era/exhibits.test.js` and `geocity/museum.test.js`. The wings are the corridors' rooms, every piece

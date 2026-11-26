@@ -393,8 +393,9 @@ Pointers only; each target carries its own design notes.
   (three tiles, floor, rail and pillar, a row each in `tiles.js`, and the modules on them; a deck a map of glyphs, its
   rails and columns found, `plan.js`; its laws, `laws.js`; built over the sea, `build.js`; a new rig a row of `rigs.js`;
   drawn in the facility maps book): [docs/offshore-rigs.md](docs/offshore-rigs.md).
-- Museums (a city's civic building walked into on a page of its own, a T of three gallery wings, its pieces things
-  mojulo made on plinths): the front `geocity/museum.js`, the program `era/programs.js` `museum`, the plinths
+- Museums and the city's other walk-ins (a civic building walked into on a page of its own: the museum's T of three
+  gallery wings, its pieces things mojulo made on plinths; an arcade, a library, a row each of `geocity/walkins.js`): the
+  front `geocity/museum.js`, the program `era/programs.js` `museum`, the plinths
   [era/exhibits.js](control/lib/graph/era/exhibits.js), the door `gameworld/levels.js` `museumDoor`:
   [docs/museum.md](docs/museum.md).
 - Room craft: [era/room-craft.js](control/lib/graph/era/room-craft.js) (the craft laws of `era/laws.js` as the questions a room is

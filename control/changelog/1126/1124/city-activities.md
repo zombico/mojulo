@@ -9,3 +9,6 @@
 - Fixed: the heavy vehicle call, street sweeping and the new mail round could be silently missing when their yard had
   no kerb nearby; their vehicle now waits at a kerb near the start instead. A street with a streetcar line no longer
   loses all its kerb parking. The courier's van never parks in a bay another truck already stands in.
+- Two more buildings to walk into near the start: an **arcade** behind a lit pink-and-cyan sign, its games floor with a
+  blocks cabinet, and a **public library** with a small portico, a reading room with a match table, the stacks and the
+  archive in plaster and oak. Each opens on a page of its own, like the museum, and you walk back out onto its steps.

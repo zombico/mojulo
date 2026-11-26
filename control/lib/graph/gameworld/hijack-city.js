@@ -128,6 +128,10 @@ const isNight = (h) => (typeof h === 'number' ? h >= 19.5 || h < 5.5 : NIGHT_HOU
 // (its MUSEUM, geocity/museum.js: a block across a street from the walk's start built as one, entered by its door into a
 // building of its own, three wings of galleries; a collection a wing, each piece a stored sketch's ref, era/exhibits.js)
 export const HIJACK_MUSEUM = Object.freeze({ name: 'The City Museum' });
+// (its other WALK-INS, geocity/walkins.js: an arcade whose floor keeps the inside games, a public library; and THE GAMES
+// INSIDE THE GAME, gameworld/minigames.js: a blocks cabinet and a match cabinet, kept where a room keeps one)
+export const HIJACK_ENTER = Object.freeze(['arcade', 'library']);
+export const HIJACK_MINIGAMES = Object.freeze([Object.freeze({ game: 'blocks', where: 'inside' }), Object.freeze({ game: 'match', where: 'inside' })]);
 export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null, people = null, museum = null } = {}) {
   // (`locale`: where it is, gameworld/locales.js: its suburbs' register, the part of town it stands in, its light, sky,
   // air and grade; every word the person names over it wins. None: the starter as it always was)
@@ -142,7 +146,7 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
   // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
   const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
-  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
+  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, enter: [...HIJACK_ENTER], ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
   if (district.museum === undefined) delete district.museum;
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
@@ -178,6 +182,7 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
     foes: { docker: { class: 'pursuer', skin: { people: 'human', dress: { faction: 'streetGang', colourway: 'blue' } } } },
     // (its sound: the block at street level, horns and sirens and no birds, sfx-shelf/beds.js `block`; its score: the
     // streets walked to shady lo-fi with the chase over it, its screens to the mirror, vibrant: beats/club-score.js)
+    minigames: HIJACK_MINIGAMES.map((g) => ({ ...g })),
     sound: { bed: 'block' }, music: { cues: { 'level:district': 'shady', title: 'vibrant', menu: 'vibrant' } },
     law: true,
     // (a forger too: the papers the heavy vehicle call asks for, HIJACK_SHIFTS)

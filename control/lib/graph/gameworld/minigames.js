@@ -13,7 +13,7 @@
  *
  * Each game is spread across the game in order over the stages of its kind, a keeper standing at its stall. On a trail,
  * a few steps on from the stage's start, beside the way. Inside, in a room that keeps one (ROOMS_KEPT: a tavern's snug
- * or taproom, a hall's hall, a shop's floor, a library's reading room), in its corner farthest from the way in; a
+ * or taproom, a hall's hall, a shop's floor, a library's reading room, an arcade's games floor), in its corner farthest from the way in; a
  * building level or the inside of a building entered by its door alike. A city, a roadway, an airspace or an arena
  * keeps none.
  *
@@ -38,7 +38,7 @@ export const WHERE = Object.freeze(['inside', 'trail']);
 // where a game is kept when the book does not say
 const HOME = Object.freeze({ fishing: 'trail', blocks: 'inside', match: 'inside' });
 // the rooms of a building that keep a stall, by its use (era/programs.js), the best first
-export const ROOMS_KEPT = Object.freeze({ tavern: ['snug', 'taproom'], hall: ['hall'], keep: ['hall'], shop: ['shopfloor'], library: ['reading'], dwelling: ['hall'] });
+export const ROOMS_KEPT = Object.freeze({ tavern: ['snug', 'taproom'], hall: ['hall'], keep: ['hall'], shop: ['shopfloor'], library: ['reading'], dwelling: ['hall'], arcade: ['floor'] });
 // where a keeper can stand: a stage walked along a trail, or a building with a room that keeps one
 const ON_TRAIL = (s) => !['building', 'interior', 'city', 'roadway', 'airspace', 'arena'].includes(s.section);
 const INSIDE = (s) => (s.section === 'building' || s.section === 'interior') && !!ROOMS_KEPT[s.building?.use];

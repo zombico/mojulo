@@ -48,6 +48,7 @@
  *
  * Metres, the design's frame (x east, y north, z up). Pure; seeded dice only.
  */
+import { WALKINS, pickWalkins } from './walkins.js';
 import { MUSEUM, pickMuseum } from './museum.js';
 import { readCone } from '../scene/channels/view-cone.js';
 import { designGeocity } from './design.js';
@@ -782,6 +783,9 @@ export function assembleGeocityScene(m, ctx = {}) {
   // door into a building of its own (none where the recipe asks for none: no block changes)
   const museumBlock = d.spec.museum && E ? pickMuseum(d.regions.flatMap((r) => r.blocks), E.blocks) : null, museums = [];
   if (museumBlock) { museumBlock.kind = 'museum'; delete museumBlock.becomes; delete museumBlock.towers; }
+  // its WALK-INS (walkins.js): the next blocks after the museum's, each built as its civic building, walked into the same way
+  const walkins = [];
+  for (const { use, block } of d.spec.enter?.length && E ? pickWalkins(d.regions.flatMap((r) => r.blocks), E.blocks, d.spec.enter, museumBlock ? [museumBlock] : []) : []) { block.kind = 'walkin'; block.walkin = use; delete block.becomes; delete block.towers; }
   // (a facade-detail lot's skin, its walls varied: worn in the other of stone and brick on some, where its grammar builds
   // the other at all; its wall's paint its own, WALL_VARY)
   const builds = (m) => (G.skin.mix?.[m] ?? [1]).some((w) => w > 0) && (G.skin[m] ?? []).length;
@@ -1342,6 +1346,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
     else if (b.kind === 'worship') worship(b, { x0, y0, x1, y1, zAt, far });
     else if (b.kind === 'museum') museum(b, { x0, y0, x1, y1, zAt, far });
+    else if (b.kind === 'walkin') walkinFront(b, { x0, y0, x1, y1, zAt, far });
     else if (b.kind === 'cemetery') cemetery(b, { x0, y0, x1, y1, zAt, far });
     else if (INDUSTRY_SEGMENTS.includes(b.kind)) industrial(b, { zAt, Rb, far });
     else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps });
@@ -1448,8 +1453,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   /** THE MUSEUM (museum.js): on a paved forecourt at its front street, a flight of steps up to a portico of columns
    *  under a pediment, its stone hall behind, banners either side of its door; the door its anchor, a level's door into
    *  the museum's own building (gameworld/levels.js geocityEnds). Drawn whole near the walk; a far one its hall alone. */
-  function museum(b, { x0, y0, x1, y1, zAt, far }) {
-    const Mu = MUSEUM, Cc = Mu.colours, fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n';
+  function museum(b, geo) { portico(b, geo, MUSEUM, (door) => museums.push({ id: `museum-${b.id}`, block: b.id, ...door, ...(typeof d.spec.museum?.name === 'string' ? { name: d.spec.museum.name } : {}) })); }
+  // (a portico's front at its measures `Mu` (museum.js MUSEUM's keys), its door said to `done`: the museum's, a library's)
+  function portico(b, { x0, y0, x1, y1, zAt, far }, Mu, done) {
+    const Cc = Mu.colours, fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n';
     const deep = along ? y1 - y0 : x1 - x0, wide = along ? x1 - x0 : y1 - y0, m0 = along ? (x0 + x1) / 2 : (y0 + y1) / 2;
     const St = Mu.steps, Po = Mu.portico, run = St.n * St.run, fw = Math.min(Mu.hall.wide, wide - 8), fl = Math.min(Mu.hall.deep, deep - Mu.court - run - Po.deep - 4);
     // (a point `t` along its front and `u` in from its front street, in the city's x and y)
@@ -1498,8 +1505,37 @@ export function assembleGeocityScene(m, ctx = {}) {
     [-1, 1].forEach((o, k) => panel(o * bay - Bn.wide / 2, o * bay + Bn.wide / 2, zf + Bn.lift, zf + Bn.lift + Bn.high, Cc.banners[k % Cc.banners.length], 'geocity:banner'));
     // (its door: where the level's door stands, the way out of it its front street's)
     const door = at(0, uHall);
-    museums.push({ id: `museum-${b.id}`, block: b.id, at: P3([door[0], door[1], zf]), N: P3([fx, fy, 0]), floor: r5(zf), ...(typeof d.spec.museum?.name === 'string' ? { name: d.spec.museum.name } : {}) });
+    done({ at: P3([door[0], door[1], zf]), N: P3([fx, fy, 0]), floor: r5(zf) });
   }
+
+  /** A WALK-IN (walkins.js): a civic building on its block, its door a level's door into its inside: a portico at its own
+   *  measures (a library's), or a MARQUEE, a dark box with a lit sign band along its front over glass, its doors in the
+   *  middle (an arcade's). Its door is its anchor (`walkin`, its use), as the museum's is. */
+  function walkinFront(b, geo) {
+    const W = WALKINS[b.walkin], done = (door) => walkins.push({ id: `walkin-${b.walkin}-${b.id}`, use: b.walkin, block: b.id, ...door, name: W.name });
+    if (W.front === 'portico') return portico(b, geo, { ...MUSEUM, portico: { ...MUSEUM.portico, columns: 4, high: 7 }, hall: { ...MUSEUM.hall, ...W.hall }, colours: W.colours, banner: { ...MUSEUM.banner, wide: 1.8, high: 5 } }, done);
+    const { x0, y0, x1, y1, zAt, far } = geo, Cc = W.colours, fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n';
+    const deep = along ? y1 - y0 : x1 - x0, wide = along ? x1 - x0 : y1 - y0, m0 = along ? (x0 + x1) / 2 : (y0 + y1) / 2;
+    const fw = Math.min(W.hall.wide, wide - 8), fl = Math.min(W.hall.deep, deep - 10), court = 5;
+    const front = fs === 's' ? y0 : fs === 'n' ? y1 : fs === 'w' ? x0 : x1, inward = -1 * (fs === 's' || fs === 'w' ? -1 : 1);
+    const at = (t, u) => (along ? [m0 + t, front + inward * u] : [front + inward * u, m0 + t]);
+    const rect = (t0, t1, u0, u1) => { const p = at(t0, u0), q = at(t1, u1); return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]; };
+    const H = rect(-fw / 2, fw / 2, court, court + fl), zc = Math.max(zAt(H[0], H[1]), zAt(H[2], H[1]), zAt(H[2], H[3]), zAt(H[0], H[3]), zAt(...at(0, court)));
+    box(H[0], H[1], H[2], H[3], zc, zc + W.hall.high, Cc.wall, Cc.wall, 'geocity:walkin');
+    counts.walkins = (counts.walkins ?? 0) + 1;
+    if (far) return;
+    const C = rect(-fw / 2, fw / 2, 0.8, court);
+    put([[C[0], C[1], zAt(C[0], C[1]) + 0.03], [C[2], C[1], zAt(C[2], C[1]) + 0.03], [C[2], C[3], zAt(C[2], C[3]) + 0.03], [C[0], C[3], zAt(C[0], C[3]) + 0.03]], 'geocity:paving', col.plaza);
+    // (its front: glass the width of it under the sign, the doors in its middle, the lit band and its trim standing out over them)
+    const fu = court - 0.06;
+    const panel = (t0, t1, z0, z1, hex, group, u = fu) => { const p = at(t0, u), q = at(t1, u); put([[p[0], p[1], z0], [q[0], q[1], z0], [q[0], q[1], z1], [p[0], p[1], z1]], group, hex, [fx, fy, 0]); };
+    panel(-fw / 2 + 1, fw / 2 - 1, zc + 0.3, zc + 3.6, Cc.glass, 'geocity:walkin:glass');
+    panel(-1.8, 1.8, zc, zc + 3, Cc.door, 'geocity:door', fu - 0.02);
+    for (const [z0, z1, hex] of [[zc + 4.2, zc + 4.4, Cc.trim], [zc + 4.4, zc + 6.2, Cc.band], [zc + 6.2, zc + 6.4, Cc.trim]]) panel(-fw / 2, fw / 2, z0, z1, hex, 'geocity:sign', fu - 0.5);
+    const door = at(0, court);
+    done({ at: P3([door[0], door[1], zc]), N: P3([fx, fy, 0]), floor: r5(zc) });
+  }
+
 
   /** A PLACE OF WORSHIP (segments.js `worship`, its `faith`): on a paved forecourt at its front street, the city
    *  library's church, mosque or temple (city/plan/landmarks.js sacredMass, landmarks/refacade-sacred.js) at a
@@ -2976,8 +3012,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
-    ...(podia.length || SUB || entered.length || museums.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
+    ...(podia.length || SUB || entered.length || museums.length || walkins.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
       ...museums.map((M) => ({ ...M, kind: 'museum', use: 'museum', enter: 'door' })),
+      ...walkins.map((M) => ({ ...M, kind: 'walkin', enter: 'door' })),
       ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, ...(e.sink ? { sink: e.sink } : {}), door: P3(e.door), ...(e.till ? { till: e.till, keeper: e.keeper } : {}), inside: e.inside } })),
       ...(SUB?.anchors ?? []),
       ...(dressed?.readout.court ? [{ id: `food-court-${dressed.readout.court.podium}`, kind: 'food-court', podium: `podium-${dressed.readout.court.podium}`, tables: dressed.readout.court.tables }] : []),

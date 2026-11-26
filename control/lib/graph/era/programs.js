@@ -76,6 +76,10 @@ export const PROGRAMS = Object.freeze({
     rooms: [R('guardroom', [6, 8], [5, 6]), R('bunks', [4, 6], [4, 5], 'guardroom'), R('cell', [3, 3], [4, 4], 'guardroom', { n: 2 }), R('armoury', [6, 7], [6, 7], 'bunks')] },
   library: { reads: 'a reading room, the stacks behind it, the archive at the back', shape: 'chain', goal: 'archive',
     rooms: [R('reading', [7, 9], [6, 8], null, { h: 1.3 }), R('stacks', [4, 5], [8, 10], 'reading', { n: 2 }), R('archive', [6, 7], [6, 7], 'stacks')] },
+  // an ARCADE (geocity/walkins.js): a foyer off the street, one long games floor of cabinets (its minigames,
+  // gameworld/minigames.js ROOMS_KEPT), the prize counter at its end
+  arcade: { reads: 'a foyer off the street, the long games floor, the prize counter at its end', shape: 'chain', goal: 'prizes',
+    rooms: [R('foyer', [6, 7], [4, 5]), R('floor', [12, 14], [14, 18], 'foyer', { h: 1.3 }), R('prizes', [6, 7], [5, 6], 'floor'), R('office', [3, 4], [4, 4], 'prizes', { p: 0.5 })] },
   lab: { reads: 'a lobby, the lab floor, a store, and the sealed core', shape: 'chain', goal: 'core',
     rooms: [R('lobby', [5, 7], [4, 5]), R('lab', [8, 10], [7, 9], 'lobby', { h: 1.2 }), R('store', [4, 5], [4, 4], 'lab', { p: 0.6 }), R('core', [6, 7], [6, 7], 'lab')] },
   // buildings (era/program-core.js): a core and its wings, the same plate up every storey, a lobby with the way in; each
