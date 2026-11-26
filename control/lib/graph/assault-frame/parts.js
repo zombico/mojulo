@@ -40,6 +40,16 @@
 const f = Object.freeze;
 const row = (o) => f(o);
 
+// THE PROPELLANTS: what a booster throws. The batteries charge its capacitors and it fires them as pulses, a plasma
+// drive and no fire: each pulse a knot of the propellant's plasma, which glows as it recombines in the frame's wake, in
+// the gas's own colour. So a booster is read by its streak: argon refined from Mars's own air (violet, the Martian
+// frames'), xenon shipped in (blue, dear), krypton a cheap mixed fill (white-green, a scrapper's).
+export const PROPELLANTS = f({
+  argon: f({ colour: '#a47cff', from: "refined from Mars's air" }),
+  xenon: f({ colour: '#5aa6ff', from: 'shipped in' }),
+  krypton: f({ colour: '#c4ffd6', from: 'a cheap mixed fill' }),
+});
+
 export const SLOTS = f(['head', 'core', 'arms', 'legs', 'booster', 'generator', 'fcs']);
 export const WEAPON_SLOTS = f(['armR', 'armL', 'backR', 'backL']);
 
@@ -69,9 +79,9 @@ export const PARTS = f({
     'lg-heavy': row({ name: 'Biped H', class: 'heavy', steady: 0.55, ap: 13800, weight: 27800, load: 84000, walk: 8.5, jump: 10, land: 0.55, height: 5.4, about: 'heavy biped legs: wide plated thighs, broad feet, a landing that shakes' }),
   }),
   booster: f({
-    'bs-kestrel': row({ name: 'Kestrel', class: 'medium', weight: 2600, boost: 46, rated: 80000, qb: 96, qbTime: 0.24, qbCool: 0.42, lift: 9, cost: f({ boost: 260, qb: 620, ascend: 520 }), about: 'a balanced booster: four bells under a cowl' }),
-    'bs-falcon': row({ name: 'Falcon', class: 'light', weight: 2100, boost: 52, rated: 72000, qb: 118, qbTime: 0.2, qbCool: 0.36, lift: 10.5, cost: f({ boost: 340, qb: 820, ascend: 640 }), about: 'a hot booster: fast and hungry, two long nozzles' }),
-    'bs-ox': row({ name: 'Ox', class: 'heavy', weight: 3700, boost: 41, rated: 105000, qb: 84, qbTime: 0.3, qbCool: 0.5, lift: 8, cost: f({ boost: 220, qb: 560, ascend: 460 }), about: 'a heavy booster: six bells, slow to wind up, carries a heavy frame' }),
+    'bs-kestrel': row({ name: 'Kestrel', class: 'medium', propellant: 'argon', weight: 2600, boost: 46, rated: 80000, qb: 96, qbTime: 0.24, qbCool: 0.42, lift: 9, cost: f({ boost: 260, qb: 620, ascend: 520 }), about: 'a balanced booster: four bells under a cowl' }),
+    'bs-falcon': row({ name: 'Falcon', class: 'light', propellant: 'xenon', weight: 2100, boost: 52, rated: 72000, qb: 118, qbTime: 0.2, qbCool: 0.36, lift: 10.5, cost: f({ boost: 340, qb: 820, ascend: 640 }), about: 'a hot booster: fast and hungry, two long nozzles' }),
+    'bs-ox': row({ name: 'Ox', class: 'heavy', propellant: 'krypton', weight: 3700, boost: 41, rated: 105000, qb: 84, qbTime: 0.3, qbCool: 0.5, lift: 8, cost: f({ boost: 220, qb: 560, ascend: 460 }), about: 'a heavy booster: six bells, slow to wind up, carries a heavy frame' }),
   }),
   generator: f({
     'gn-standard': row({ name: 'Standard', weight: 4200, en: 3200, regen: 1100, delay: 0.55, out: 1.8 }),

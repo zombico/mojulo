@@ -50,6 +50,7 @@ import { frameHudScript } from './frame-hud.js';
 import { frameKernelSource } from '../../../assault-frame/kernel.js';
 import { frameGarageScript } from './frame-garage.js';
 import { frameFlameScript } from './frame-flame.js';
+import { frameWakeScript } from './frame-wake.js';
 import { keyClock } from '../../../worlds/controllable/keying.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
@@ -827,7 +828,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, routeFind = false, glide = false, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, keying = null, heldGates = null, trees = null, explored = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false, landHold = false } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, routeFind = false, glide = false, wake = null, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, keying = null, heldGates = null, trees = null, explored = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false, landHold = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -1756,7 +1757,7 @@ function __castMR(fig, c, n) {
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figFlames ? frameFlameScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figFlames && wake ? frameWakeScript(wake) : ''}${figFlames ? frameFlameScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
 // over the nozzle that swells and brightens as the craft is driven harder, and its plume, a cone of its glow trailing a
 // few mouths aft with a white-hot core, long at full throttle and short at idle; flattened to a slit's mouth
 let __driveTex = null;
@@ -6115,7 +6116,8 @@ ${hangarHook}  __msHookParams();
     __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
-    __updateThrusters(${tempo ? 'wdt' : 'dt'});${figHasJuice ? `
+    __updateThrusters(${tempo ? 'wdt' : 'dt'});${figFlames && wake ? `
+    __updateWake(${tempo ? 'wdt' : 'dt'});` : ''}${figHasJuice ? `
     __updateRacerJuice(${tempo ? 'wdt' : 'dt'});` : ''}${shadowHook}${smokeHook}${gearHook}${breakables || loose ? `
     __updateBreaks(${tempo ? 'wdt' : 'dt'});${weightless ? ' __updateDrifts();' : ''}${distort ? `
     __updateDents();` : ''}${rupa ? `

@@ -1,0 +1,153 @@
+// In-page script: A FRAME'S WAKE — the light a pulsed plasma drive leaves where it has been (assault-frame/parts.js
+// PROPELLANTS: the batteries charge the booster's capacitors, it fires them as pulses, and each pulse's knot of plasma
+// glows as it recombines). Kept in the world, not on the nozzle: a ribbon from each main bell along the way the bell
+// went, so the pilot's movement draws the streaks (a strafe a curve, a quick boost a corner, a climb a hook).
+//
+//   THE RIBBON   facing the eye, white at its heart and the propellant's colour at its edges (the figure's `wake`), thin
+//                to nothing as it ages; sampled on the world's clock (WAKE.step), gone after WAKE.life seconds
+//   THE BEADS    the pulses themselves: bright knots along it, one every 1 / WAKE.rate seconds of the drive's burn, held
+//                where they were thrown, so their spacing says the speed (close at a walk, strung out at a boost)
+//   THE AIR      in an atmosphere the wake curls and frays as it ages (the plasma ionising the air round it and the air
+//                tearing it) and fades sooner; in vacuum (`air: false`) it is dead straight and lasts
+//   QUICK BOOST  the whole bank fired at once: the ribbon wide and white-hot while it lasts (a hard bright corner where it
+//                turns), and a ring of light shed where it begins, standing across the dash (the drive's field collapsing)
+//   ASSAULT      its ribbon wider and hotter for as long as the charge is held
+//
+// Emitted only on a page whose figures carry a `wake` (an assault frame's) and never in a capture: every other page keeps
+// its bytes. It reads each body's main bells (its rig's flame jets, frame-flame.js) and the world's entities (`thrust`,
+// `qbT`, `qbDir`, `ab`); it writes nothing back. `window.__mojWake` { trails, rings } is its probe.
+export const WAKE = Object.freeze({
+  step: 1 / 45,
+  life: Object.freeze({ air: 0.6, space: 1.1 }),
+  width: 1.3,
+  rate: 14,
+  curl: 2.4,
+  qb: Object.freeze({ width: 2.4, ring: Object.freeze([2, 16]), life: 0.42 }),
+  ab: 1.6,
+  rings: 8,
+});
+
+const WAKE_VERT = `
+#include <common>
+#include <logdepthbuf_pars_vertex>
+attribute float aAge; attribute float aSide; attribute float aT; attribute float aHot;
+varying float vAge; varying float vSide; varying float vT; varying float vHot;
+void main() {
+  vAge = aAge; vSide = aSide; vT = aT; vHot = aHot;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  #include <logdepthbuf_vertex>
+}`;
+const WAKE_FRAG = `
+#include <common>
+#include <logdepthbuf_pars_fragment>
+uniform vec3 uCol; uniform float uRate;
+varying float vAge; varying float vSide; varying float vT; varying float vHot;
+void main() {
+  #include <logdepthbuf_fragment>
+  if (vAge >= 1.0) discard;
+  float e = abs(vSide), heart = 1.0 - smoothstep(0.0, 0.4, e), body = 1.0 - smoothstep(0.45, 1.0, e);
+  float fade = pow(1.0 - vAge, 1.6);
+  // (a pulse: a knot of light where each was thrown, outlasting the glow round it a little)
+  float bead = pow(0.5 + 0.5 * cos(vT * 6.2831853 * uRate), 10.0) * pow(1.0 - vAge, 0.8);
+  float k = (0.5 * body + 0.6 * heart) * fade + 0.95 * bead * body;
+  k *= 1.0 + 0.8 * vHot;
+  if (k < 0.004) discard;
+  vec3 c = mix(uCol, vec3(1.0), clamp(heart * 0.75 + vHot * 0.45 + bead * 0.4, 0.0, 1.0));
+  gl_FragColor = vec4(c * k, k);
+}`;
+
+/** The page's block: `__updateWake(dt)`, called each step after the thrusters. */
+export function frameWakeScript({ air = true } = {}) {
+  const life = air ? WAKE.life.air : WAKE.life.space;
+  return `
+// A FRAME'S WAKE (scene/channels/controllable/frame-wake.js): the plasma's light left where each main bell has been
+const __WK = ${JSON.stringify({ ...WAKE, life, air })}, __WK_N = Math.ceil(__WK.life / __WK.step) + 2;
+const __wkTrails = new Map(), __wkRings = [];
+const __wkP = new THREE.Vector3(), __wkD = new THREE.Vector3(), __wkS = new THREE.Vector3(), __wkV = new THREE.Vector3(), __wkE = new THREE.Vector3(), __wkQ = new THREE.Quaternion(), __wkUp = new THREE.Vector3(0, 1, 0);
+function __wkTrail(e, rf) {
+  let T = __wkTrails.get(e.id);
+  if (T && T.rf === rf) return T;
+  if (T) { scene.remove(T.m); T.g.dispose(); T.m.material.dispose(); }
+  const jets = rf.jets.filter((j) => j.kind === 'flame' && j.main);
+  if (!jets.length) { __wkTrails.set(e.id, null); return null; }
+  const V = jets.length * __WK_N * 2, g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V * 3), 3));
+  for (const [k, n] of [['aAge', 1], ['aSide', 1], ['aT', 1], ['aHot', 1]]) g.setAttribute(k, new THREE.BufferAttribute(new Float32Array(V * n), n));
+  const idx = [];
+  for (let j = 0; j < jets.length; j++) for (let i = 0; i < __WK_N - 1; i++) { const a = 2 * (j * __WK_N + i); idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  g.setIndex(idx);
+  const col = new THREE.Color((rf.fig.wake && rf.fig.wake.colour) || '#a47cff');
+  const mat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: col }, uRate: { value: __WK.rate } }, vertexShader: ${JSON.stringify(WAKE_VERT)}, fragmentShader: ${JSON.stringify(WAKE_FRAG)}, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = 6; m.raycast = function () {}; scene.add(m);
+  T = { e: e.id, rf, m, g, col, jets: jets.map((j) => ({ j, s: [], last: -1e9, ws: j.holder.parent.getWorldScale(__wkS).x })), qb: false };
+  __wkTrails.set(e.id, T);
+  return T;
+}
+// (a curl in the air: how far a sample has drifted by its age, the same for the same sample on every page)
+function __wkCurl(s, age, out) {
+  const a = Math.pow(age, 1.5) * __WK.curl, t = s.t;
+  out.set(s.x + a * Math.sin(t * 5.3 + s.j * 1.7), s.y + a * Math.cos(t * 4.1 + s.j * 2.3), s.z + a * 0.6 * Math.sin(t * 3.7 + s.j));
+}
+function __wkRing(at, dir, col) {
+  let R = __wkRings.find((r) => !r.m.visible);
+  if (!R) {
+    if (__wkRings.length >= __WK.rings) R = __wkRings.reduce((a, b) => (a.t0 < b.t0 ? a : b));
+    else { const m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 48), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.frustumCulled = false; m.renderOrder = 6; m.raycast = function () {}; scene.add(m); R = { m, t0: 0 }; __wkRings.push(R); }
+  }
+  R.t0 = __world.time; R.m.visible = true; R.m.position.copy(at);
+  R.m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+  R.m.material.color.copy(col).lerp(new THREE.Color(1, 1, 1), 0.5);
+}
+function __updateWake(dt) {
+  const t = __world.time;
+  for (const e of __world.entities) {
+    const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig;
+    if (!rf || !rf.jets || !rf.fig || !rf.fig.wake) continue;
+    const T = __wkTrail(e, rf);
+    if (!T) continue;
+    const on = !e.gone && !e.dormant && body.visible !== false && (rf.thrustAmt || 0) > 0.05, qb = (e.qbT || 0) > 0, hot = qb ? 1 : e.ab ? 0.6 : 0;
+    // (a quick boost's start: the bank fired at once, a ring shed across the dash where it begins)
+    if (qb && !T.qb && on) {
+      const p = e.transform.pos, d = Array.isArray(e.qbDir) ? e.qbDir : [Math.cos(e.transform.heading || 0), Math.sin(e.transform.heading || 0)];
+      __wkD.set(d[0], d[1], d[2] || 0); if (__wkD.lengthSq() < 1e-6) __wkD.set(1, 0, 0); __wkD.normalize();
+      __wkP.set(p[0], p[1], p[2]); __wkRing(__wkP, __wkD, T.col);
+    }
+    T.qb = qb;
+    const P = T.g.attributes.position.array, AG = T.g.attributes.aAge.array, SD = T.g.attributes.aSide.array, AT = T.g.attributes.aT.array, HT = T.g.attributes.aHot.array;
+    T.jets.forEach((J, jn) => {
+      // (where the bell's plume ends: its mouth and a little aft along the way the exhaust leaves)
+      J.j.holder.getWorldPosition(__wkP); J.j.holder.getWorldQuaternion(__wkQ); __wkD.copy(__wkUp).applyQuaternion(__wkQ);
+      const w = J.j.rad * J.ws * __WK.width * (qb ? __WK.qb.width : e.ab ? __WK.ab : 1);
+      __wkP.addScaledVector(__wkD, J.j.rad * J.ws * 2.5);
+      if (on && t - J.last >= __WK.step) { J.s.unshift({ x: __wkP.x, y: __wkP.y, z: __wkP.z, t, w, h: hot, j: jn }); J.last = t; }
+      while (J.s.length && (t - J.s[J.s.length - 1].t > __WK.life || J.s.length > __WK_N - 1)) J.s.pop();
+      // (its head on the bell while it burns, so the ribbon never stands off it)
+      const pts = on ? [{ x: __wkP.x, y: __wkP.y, z: __wkP.z, t, w, h: hot, j: jn }, ...J.s] : J.s, n = pts.length;
+      const base = jn * __WK_N;
+      for (let i = 0; i < __WK_N; i++) {
+        const s = pts[Math.min(i, Math.max(0, n - 1))], o = 2 * (base + i);
+        if (!s) { for (const k of [0, 1]) { AG[o + k] = 1; P.set([0, 0, -1e6], 3 * (o + k)); } continue; }
+        const age = i < n ? Math.min(1, (t - s.t) / __WK.life) : 1;
+        if (__WK.air) __wkCurl(s, age, __wkV); else __wkV.set(s.x, s.y, s.z);
+        const s2 = pts[Math.min(i + 1, n - 1)], s0 = pts[Math.max(i - 1, 0)];
+        __wkS.set(s0.x - s2.x, s0.y - s2.y, s0.z - s2.z); if (__wkS.lengthSq() < 1e-8) __wkS.copy(__wkD);
+        __wkS.cross(__wkE.set(__wkV.x - camera.position.x, __wkV.y - camera.position.y, __wkV.z - camera.position.z)).normalize();
+        const ww = s.w * (0.25 + 0.75 * (1 - age)) * (__WK.air ? 1 + 0.6 * age : 1);
+        P.set([__wkV.x + __wkS.x * ww, __wkV.y + __wkS.y * ww, __wkV.z + __wkS.z * ww, __wkV.x - __wkS.x * ww, __wkV.y - __wkS.y * ww, __wkV.z - __wkS.z * ww], 3 * o);
+        AG[o] = AG[o + 1] = age; SD[o] = -1; SD[o + 1] = 1; AT[o] = AT[o + 1] = s.t; HT[o] = HT[o + 1] = s.h;
+      }
+    });
+    for (const k of ['position', 'aAge', 'aSide', 'aT', 'aHot']) T.g.attributes[k].needsUpdate = true;
+    T.m.visible = T.jets.some((J) => J.s.length > 0);
+  }
+  for (const R of __wkRings) {
+    if (!R.m.visible) continue;
+    const u = (t - R.t0) / __WK.qb.life;
+    if (u >= 1 || u < 0) { R.m.visible = false; continue; }
+    const r = __WK.qb.ring[0] + (__WK.qb.ring[1] - __WK.qb.ring[0]) * (1 - Math.pow(1 - u, 3));
+    R.m.scale.setScalar(r); R.m.material.opacity = 0.85 * (1 - u) * (1 - u);
+  }
+}
+window.__mojWake = { trails: __wkTrails, rings: __wkRings };
+`;
+}
