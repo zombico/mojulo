@@ -91,7 +91,7 @@ export const HIJACK_GROWS = Object.freeze({
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
   shops: 'the respray garage and the gun shop, their prices',
   ui: 'the look of the menus and the HUD (a theme card)',
-  music: 'the score: walking, the chase, the tension',
+  music: 'the score: walking (shady lo-fi, `music.cues[\'level:district\']`), the screens (its mirror, vibrant), the chase, the tension; the street\'s bed (`sound.bed`: block, boulevard, city)',
 });
 
 // (a city's NIGHT where its locale says none: warm lamps, a dark thin haze, the night's grade)
@@ -142,7 +142,9 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
       dockers: { name: 'The Dockers', colour: '#2e86c1', turf: 'south', rivals: ['reds'], board: [{ id: 'repo', name: 'Repossession', act: { verb: 'take', target: 'car', on: 'reds' }, reward: [{ item: 'coin', n: 40 }] }], crew: 'docker' },
     },
     foes: { docker: { class: 'pursuer', skin: { people: 'human', dress: { faction: 'streetGang', colourway: 'blue' } } } },
-    sound: {}, music: {},
+    // (its sound: the block at street level, horns and sirens and no birds, sfx-shelf/beds.js `block`; its score: the
+    // streets walked to shady lo-fi with the chase over it, its screens to the mirror, vibrant: beats/club-score.js)
+    sound: { bed: 'block' }, music: { cues: { 'level:district': 'shady', title: 'vibrant', menu: 'vibrant' } },
     law: true,
     shops: { respray: true, guns: true },
   };

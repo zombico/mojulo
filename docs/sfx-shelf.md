@@ -253,6 +253,8 @@ A game's sounds are solved from what the game is (`gameworld/sound-sheet.js`, th
   level's climate and its look's title. One ground a level: it does not change where the surface does.
 - **Its bed:** the environment under the score, from the same words: rain, a cave, a swamp, a farm, night, a wood.
   The world's default meadow lays none, since it is under a desert and a city too.
+  A played city lays the street's (`city`); a game names another by `sound.bed`: the block after dark (`block`) or a
+  busy boulevard (`boulevard`), the city's two without birds.
 - **Its foes:** a beast's voice by its species, heard when it spots the hero and each time it attacks; a big cat
   also grunts when struck. A foe drawn as a person shouts on its attack, grunts on a blow and cries out as it falls.
   A pack's attacks are held apart, so five wolves never say one snarl at once. A foe that is neither is listed as

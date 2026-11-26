@@ -60,7 +60,14 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
 - **law**: how many stars, police per star, cars, the star they come armed from, the fine.
 - **shops**: the respray and the gun shop, their prices.
 - **ui**: a theme card (`playscape/ui/theme-cards/`).
-- **music**: the score's moods.
+- **music**: the score's moods. The streets are walked to `shady` (`music.cues['level:district']`: lo-fi with an edge,
+  a dark swung boom-bap on a minor chart that leans on the flat second, worn tape, a lead that rubs a semitone into its
+  notes, a streetlight's hum a tritone over the tonic), the chase (`drive`) coming in over it with the stars; the title
+  and the menus to its mirror, `vibrant` (the same tempo, key centre and melody's rhythm in the major, a walking bass,
+  brighter keys and busier hats: `beats/club-score.js`). Name `vibrant` for the level to walk a sunnier city.
+- **sound**: the street's bed under the score (`sound.bed`): `block` by default (horns, a car alarm and a siren a few
+  blocks off, a gate, a bottle breaking somewhere: no birds, no wind), `boulevard` (horns, a bus's doors, a bicycle
+  bell, a tram's) or `city` (the played city's own, with its pigeons and sparrows); `sfx-shelf/beds.js`.
 
 ## Era
 

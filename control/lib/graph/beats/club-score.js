@@ -44,6 +44,13 @@ export const CLUB_MOODS = {
   ambient: { soft: true, tempo: [60, 76], drums: 'none', hold: 2, charts: [['i9', 'bVImaj7', 'bIIImaj7', 'bVIImaj7'], ['i7', 'iv9', 'i7', 'bVImaj7'], ['Imaj9', 'IVmaj7', 'Imaj9', 'vi9']], bass: ['contrabass-3', 'fm-bass'], lead: ['fm-bell', 'celesta', 'vibraphone', 'glockenspiel'], keys: ['grand-piano', 'rhodes'], arp: ['fm-bell', 'harp-2', 'celesta'], pad: ['poly-strings', 'string-machine'], says: 'ambient: no beat, a drone and slow swells, bells far off (space, underwater, a void, a puzzle, rest)' },
   chill: { soft: true, tempo: [80, 92], drums: 'boombap', swing: [0.16, 0.26], hold: 1, charts: [['i7', 'iv9', 'bVImaj7', 'bVII7'], ['ii9', 'bVII7', 'i7', 'i7'], ['i9', 'bIIImaj7', 'iv9', 'bVII7']], bass: ['upright-bass', 'fm-bass'], lead: ['vibraphone', 'fm-bell', 'rhodes'], keys: ['rhodes', 'grand-piano', 'fm-keys'], pad: ['string-machine', 'poly-strings'], kit: ['drum-machine-88', 'acoustic-kit'], tape: true, says: 'lo-fi beats: a swung head-nod, dusty keys (a room, a cafe, rain, a study break)' },
   lofi: { soft: true, tempo: [116, 122], drums: 'house', swing: [0.1, 0.18], hold: 1, charts: [['i7', 'iv9', 'bVImaj7', 'bVII7'], ['iv9', 'bVII7', 'bIIImaj7', 'bVImaj7'], ['i7', 'bIIImaj7', 'iv9', 'bVII7']], bass: ['fm-bass', 'upright-bass', 'picked-bass'], lead: ['vibraphone', 'fm-bell', 'rhodes'], keys: ['rhodes', 'fm-keys', 'grand-piano'], pad: ['string-machine', 'poly-strings'], kit: ['drum-machine-88', 'drum-machine-909'], tape: true, says: 'lo-fi house: a warm four-on-the-floor, tape-worn chords (a rooftop, a city at dusk, a cozy hub)' },
+  // a city's two faces, one the other's mirror (`twin`: the twin's dice, so the same seed gives both the same tempo, the
+  // same chart's place in its list, the same voices' places in theirs and the same melody's rhythm). SHADY: lo-fi with
+  // an edge, a dark swung boom-bap, a minor chart that leans on the flat second, the tape worn further, a lead that rubs
+  // a semitone into its notes and a hum a tritone over the tonic under it all. VIBRANT: the same piece in the parallel
+  // major, the tape lighter, the bass walking, the keys and the hats busier.
+  shady: { soft: true, tempo: [80, 88], drums: 'boombap', swing: [0.2, 0.28], hold: 1, edge: true, charts: [['i7', 'bIImaj7', 'i7', 'bIImaj7'], ['i9', 'bVI7', 'iiø7', 'bIImaj7'], ['i7', 'iv7', 'bII7', 'i7']], bass: ['fm-bass', 'upright-bass'], lead: ['rhodes', 'fm-bell', 'vibraphone'], keys: ['rhodes', 'fm-keys'], pad: ['string-machine', 'poly-strings'], kit: ['drum-machine-88', 'acoustic-kit'], tape: true, says: 'lo-fi with an edge: a dark swung head-nod, a flat second leaned on, worn tape and a streetlight hum (a back alley, the block after dark, a deal going down)' },
+  vibrant: { soft: true, tempo: [80, 88], drums: 'boombap', swing: [0.2, 0.28], hold: 1, twin: 'shady', major: true, bright: true, charts: [['Imaj7', 'IVmaj7', 'Imaj7', 'IVmaj7'], ['Imaj9', 'vi7', 'ii7', 'IVmaj7'], ['Imaj7', 'iii7', 'IV9', 'Imaj7']], bass: ['picked-bass', 'upright-bass'], lead: ['vibraphone', 'marimba', 'rhodes'], keys: ['rhodes', 'grand-piano'], pad: ['poly-strings', 'string-machine'], kit: ['drum-machine-88', 'acoustic-kit'], tape: true, says: 'the city alive: shady\'s mirror in the major, a bouncing bass, bright keys and busy hats (a sunny boulevard, a market, the block on a good day)' },
 };
 export const CLUB_MOOD_NAMES = Object.keys(CLUB_MOODS);
 
@@ -175,23 +182,24 @@ function fit(midi, inst) {
 }
 
 function softScore(mood, M, seed, id, C) {
-  const V = rngOf('club-voices', id.seed, mood);
-  const R = rngOf('club-cue', mood, seed, id.seed);
+  const V = rngOf('club-voices', id.seed, M.twin ?? mood);
+  const R = rngOf('club-cue', M.twin ?? mood, seed, id.seed);
   const voice = {
     bass: C.ground ?? V.pick(M.bass), lead: C.lead ? C.lead[0] : V.pick(M.lead), keys: C.colour ?? V.pick(M.keys),
     arp: C.motion ?? (M.arp ? V.pick(M.arp) : null), pad: C.pad ?? V.pick(M.pad), kit: M.kit ? C.kit ?? V.pick(M.kit) : null,
   };
   const bpm = R.range(M.tempo[0], M.tempo[1]);
   const swing = M.swing ? r3(M.swing[0] + R() * (M.swing[1] - M.swing[0])) : 0;
-  const key = NOTE_NAMES[id.tonic] + 'm';
+  const key = NOTE_NAMES[id.tonic] + (M.major ? '' : 'm');
   const chartBase = R.pick(M.charts);
   const chart = Array.from({ length: BARS }, (_, b) => chartBase[Math.floor(b / M.hold) % chartBase.length]);
   const chordAt = (b) => parseChord(chart[b], key);
   const q = (b, step) => r3(b * 4 + step / 4);
   const hum = (v) => r3(Math.max(0.05, Math.min(0.85, v + (R() - 0.5) * 0.1)));
   const ambient = M.drums === 'none';
-  const tape = M.tape ? [{ type: 'tape', wow: 0.35, flutter: 0.25, drive: 0.2, tone: 4500 }] : [];
-  const tone = M.tape ? { tone: 0.62 } : {};
+  // (the edge wears the tape further and darker; the bright end lighter and clearer)
+  const tape = M.tape ? [M.edge ? { type: 'tape', wow: 0.5, flutter: 0.35, drive: 0.3, tone: 3200 } : M.bright ? { type: 'tape', wow: 0.2, flutter: 0.15, drive: 0.12, tone: 7000 } : { type: 'tape', wow: 0.35, flutter: 0.25, drive: 0.2, tone: 4500 }] : [];
+  const tone = M.tape ? { tone: M.edge ? 0.5 : M.bright ? 0.8 : 0.62 } : {};
   const parts = [];
   // the breath of the form: lo-fi drops its drums for the break (16–19), chill thins to hats there
   const breath = (b) => on(b, BREAK);
@@ -207,7 +215,10 @@ function softScore(mood, M, seed, id, C) {
       for (const s of kickSteps) if (!(M.drums === 'boombap' && breath(b))) kick.push([q(b, s), 'C2', 0.25, hum(0.72)]);
       if (!breath(b)) for (const s of [4, 12]) snare.push([q(b, s), M.drums === 'house' ? 'C#2' : 'D2', 0.25, hum(M.drums === 'house' ? 0.45 : 0.62)]);
       if (M.drums === 'house') for (const s of [2, 6, 10, 14]) hats.push([q(b, s), 'A#2', 0.25, hum(0.38)]);
-      for (let s = 0; s < 16; s += 2) hats.push([q(b, s + (M.drums === 'house' ? 1 : 0)), 'F#2', 0.25, hum(s % 4 === 0 ? 0.32 : 0.2)]);
+      if (M.bright) for (let s = 0; s < 16; s++) hats.push([q(b, s), 'F#2', 0.25, hum(s % 4 === 0 ? 0.32 : s % 2 === 0 ? 0.22 : 0.14)]);
+      else for (let s = 0; s < 16; s += 2) hats.push([q(b, s + (M.drums === 'house' ? 1 : 0)), 'F#2', 0.25, hum(s % 4 === 0 ? 0.32 : 0.2)]);
+      // (the edge: a roll of thirty-seconds into every fourth bar's last beat)
+      if (M.edge && b % 4 === 3 && !breath(b)) for (let k = 0; k < 8; k++) hats.push([r3(b * 4 + 3 + k / 8), 'F#2', 0.125, hum(0.12 + k * 0.02)]);
     }
     parts.push({ name: 'kick', instrument: voice.kit, events: kick, chain: crush, ...tone });
     parts.push({ name: 'hats', instrument: voice.kit, events: hats.sort((a, z) => a[0] - z[0]), chain: crush, ...tone });
@@ -218,7 +229,7 @@ function softScore(mood, M, seed, id, C) {
   // KEYS: the chords, worn by tape. lo-fi house comps on the off-beats, chill lays a chord on the one and its echo, ambient
   // leaves a soft chord at the head of each pair of bars
   const comp = M.drums === 'house' ? [0, 0, 0.5, 0, 0, 0, 0, 0.42, 0, 0, 0.5, 0, 0, 0, 0, 0]
-    : M.drums === 'boombap' ? [0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.36, 0, 0, 0, 0, 0] : 'whole';
+    : M.drums === 'boombap' ? (M.bright ? [0.5, 0, 0, 0.36, 0, 0, 0.42, 0, 0, 0, 0.46, 0, 0, 0.34, 0, 0] : [0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.36, 0, 0, 0, 0, 0]) : 'whole';
   parts.push({ name: 'keys', instrument: voice.keys, chordVoice: 'chord', rhythm: comp, ...(ambient ? { hold: 0.9 } : {}), vel: ambient ? 0.32 : 0.5, octave: 3, bars: ambient ? [[8, 16], [20, 28]] : [0, BARS], chain: tape, ...tone, ...pump });
 
   // GROUND: a round bass (the house line, or roots on the one and the and-of-two), or ambient's drone
@@ -229,21 +240,22 @@ function softScore(mood, M, seed, id, C) {
     for (let b = M.drums === 'house' ? 8 : 4; b < BARS; b++) {
       if (breath(b)) continue;
       const root = 36 + chordAt(b).root;
-      const row = M.drums === 'house' ? bassBar('house', R, id.motif) : [[0, 0, 6, 0.6], [6, 0, 2, 0.45], [10, R.chance(0.5) ? 7 : 12, 4, 0.5]];
+      // (the bright end walks: the root, its fifth, the octave and back to the fifth)
+      const row = M.drums === 'house' ? bassBar('house', R, id.motif) : M.bright ? [[0, 0, 3, 0.6], [4, 7, 2, 0.5], [8, 12, 2, 0.52], [12, 7, 2, 0.48]] : [[0, 0, 6, 0.6], [6, 0, 2, 0.45], [10, R.chance(0.5) ? 7 : 12, 4, 0.5]];
       for (const [s, d, len, v] of row) ev.push([q(b, s), nameOf(fit(root + d, voice.bass)), r3((len / 4) * 0.9), hum(v)]);
     }
     parts.push({ name: 'bass', instrument: voice.bass, events: ev, chain: tape, ...tone, ...pump });
   }
 
   // PAD: held far off. ambient swells it in and out over every eight bars; the others hold it through the break
-  const padBars = ambient ? [0, BARS] : [BREAK[0], BARS];
+  const padBars = ambient ? [0, BARS] : M.bright ? [8, BARS] : [BREAK[0], BARS];
   parts.push({
     name: 'pad', instrument: voice.pad, chordVoice: 'upper', rhythm: 'whole', hold: 0.95, vel: ambient ? 0.5 : 0.4, octave: 4, bars: padBars, chain: tape, ...tone,
     ...(ambient ? { dynamics: [0, 8, 16, 24].flatMap((a) => [{ at: `${a}:0:0`, to: 'pp' }, { at: `${a + 1}:0:0`, to: 'mp', over: '3:0:0' }, { at: `${a + 5}:0:0`, to: 'pp', over: '3:0:0' }]) } : {}),
   });
 
   // LEAD: ambient's bells (one note every two bars, a chord tone high up, through a long echo); a sparse chop otherwise
-  const RR = rngOf('club-riff', id.seed, id.motif, seed);
+  const RR = rngOf('club-riff', id.seed, id.motif, seed), E = rngOf('club-edge', id.seed, seed);
   const leadEv = [];
   const from = ambient ? 4 : M.drums === 'house' ? 20 : 8;
   for (let b = from; b < (ambient ? 30 : 28); b += ambient ? 2 : 1) {
@@ -252,7 +264,12 @@ function softScore(mood, M, seed, id, C) {
     const n = ambient ? 1 : RR.range(1, 3);
     for (let k = 0; k < n; k++) {
       const step = ambient ? RR.pick([0, 4, 8]) : RR.pick([2, 3, 6, 10, 11, 14]);
-      leadEv.push([q(b, step), nameOf(fit(RR.pick(tones) + (ambient && RR.chance(0.4) ? 12 : 0), voice.lead)), ambient ? 3 : 0.5, r3(ambient ? 0.42 : 0.5)]);
+      const note = fit(RR.pick(tones) + (ambient && RR.chance(0.4) ? 12 : 0), voice.lead);
+      // (the edge: a semitone above leaned into the note a sixteenth before it, now and then; drawn from its own dice, so
+      // its mirror's melody keeps the same rhythm)
+      // (from below where the note is the instrument's top)
+      if (M.edge && step > 0 && E.chance(0.35)) leadEv.push([q(b, step - 1), nameOf(fit(note + 1, voice.lead) === note + 1 ? note + 1 : note - 1), 0.25, 0.34]);
+      leadEv.push([q(b, step), nameOf(note), ambient ? 3 : 0.5, r3(ambient ? 0.42 : 0.5)]);
     }
   }
   const echo = [{ type: 'pingpong', time: '3/16', feedback: ambient ? 0.45 : 0.3, mix: ambient ? 0.35 : 0.2 }];
@@ -260,6 +277,9 @@ function softScore(mood, M, seed, id, C) {
 
   // ARP (ambient): quarter notes up the chord in the middle of the piece
   if (ambient && voice.arp) parts.push({ name: 'arp', instrument: voice.arp, chordVoice: 'arp', arp: 'updown', rhythm: [0.3, 0, 0, 0, 0.24, 0, 0, 0, 0.27, 0, 0, 0, 0.24, 0, 0, 0], vel: 0.3, octave: 4, bars: [12, 24], chain: echo });
+
+  // HUM (the edge): a streetlight's, the tritone over the tonic, held far off and quiet through the verses
+  if (M.edge) parts.push({ name: 'hum', instrument: voice.pad, events: [[0, 16], [20, 32]].map(([a, z]) => [a * 4, nameOf(fit(60 + id.tonic + 6, voice.pad)), (z - a) * 4, 0.16]), chain: tape, ...tone });
 
   // DUST: a vinyl crackle under lo-fi, a soft air under ambient, every bar (or two)
   const barSec = 240 / bpm;

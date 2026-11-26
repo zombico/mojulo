@@ -239,8 +239,9 @@ const sheetOf = (G, s, score = null) => {
   const city = sheet ? citySounds(G, { manifest: s.manifest ?? null }) : null;
   if (city && audio) { audio.engine = city.engine; audio.ambience = city.ambience; audio.sfx = { ...audio.sfx, sheet: { ...audio.sfx.sheet, cues: { ...(audio.sfx.sheet.cues ?? {}), ...city.cues } } }; }
   // (and its score: ambient beats under its streets, a chase when the law or a fight comes: cue-sheet.js cityScore; a
-  // game that writes the level's cue, or a stage its own soundtrack, keeps its own)
-  const tune = city && audio && score && own?.soundtrack === undefined && G.music?.cues?.[`level:${s.level}`] === undefined ? cityScore(G, score.sheet) : null;
+  // game that writes the level's cue walks to it with the chase still over it; a level the game silences, or a stage
+  // with its own soundtrack, keeps its own)
+  const tune = city && audio && score && own?.soundtrack === undefined && G.music?.cues?.[`level:${s.level}`] !== false ? cityScore(G, score.sheet, s.level) : null;
   if (tune) Object.assign(audio, tune);
   return audio ? { audio } : {};
 };

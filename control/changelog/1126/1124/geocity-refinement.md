@@ -149,5 +149,11 @@
 - Driving is less jerky. The camera behind your car no longer jumps in and out past lamp posts, trees and bollards,
   it turns with the car smoothly instead of whipping round at each tap of the steering, and your car no longer hops when
   it drives over the spot where a traffic car is.
+- Hijack City has its own music. The streets play a darker lo-fi beat with a sketchy edge, and the police chase still
+  kicks in over it when you get stars. The title and menus play its mirror, a bright, bouncing "vibrant city" version of
+  the same tune. Both are new moods any game can name: `shady` and `vibrant`.
+- Hijack City's streets sound like a city, not a park: no more birdsong and wind under the music. Horns, a car alarm and
+  a siren a few blocks off, a gate creaking and now and then a bottle breaking. A busy daytime boulevard is the other
+  choice.
 - Wheels visibly turn. Each moving car, yours and the traffic's, shows a spoked hubcap on each wheel that turns with its
   speed.
