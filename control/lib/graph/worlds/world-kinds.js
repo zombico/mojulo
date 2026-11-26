@@ -70,17 +70,20 @@ import { swingBody, aimSwingKeys, reachGuard, moveClip, readyClip, strikeMoveCli
 // A SWING AIMED AT A HEIGHT (a foe's strike zone, foes/zones.js): its strike's arm pitch searched (a bisection, the
 // weapon's tip falling as the pitch falls) until `tipZ` of the keys stands at `aim.height`; at the nearest bound where
 // the height is past what the arm reaches; its own guess where the tip cannot be read
-function aimedKeys(keysAt, aim, tipZ) {
-  const at = (p) => { const ks = keysAt({ ...aim, pitch: p }); return { ks, z: tipZ(ks) }; };
-  let lo = 5, hi = 130;
-  const L = at(lo), H = at(hi);
+// (a pitch whose pose the rig cannot stand, a planted foot out of the leg's reach on a tall body, is past what it reaches:
+// the bounds drawn in to the last it can, a middle it cannot taken as too far)
+export function aimedKeys(keysAt, aim, tipZ) {
+  const at = (p) => { const ks = keysAt({ ...aim, pitch: p }); let z = null; try { z = tipZ(ks); } catch { z = null; } return { ks, z }; };
+  let lo = 5, hi = 130, L = at(lo), H = at(hi);
+  while (!Number.isFinite(H.z) && hi - lo > 15) { hi -= 15; H = at(hi); }
+  while (!Number.isFinite(L.z) && hi - lo > 15) { lo += 15; L = at(lo); }
   if (!Number.isFinite(L.z) || !Number.isFinite(H.z) || H.z <= L.z) return keysAt(aim);
   if (aim.height <= L.z) return L.ks;
   if (aim.height >= H.z) return H.ks;
   let best = L;
   for (let i = 0; i < 9; i++) {
     const m = (lo + hi) / 2, M = at(m);
-    if (!Number.isFinite(M.z)) return keysAt(aim);
+    if (!Number.isFinite(M.z)) { hi = m; continue; }
     best = M;
     if (M.z > aim.height) hi = m; else lo = m;
   }

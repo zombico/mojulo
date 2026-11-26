@@ -13,6 +13,9 @@
   alternate sides, stepping in and stopping where its club connects; a wolf snaps at the legs; a tall foe brings it down
   from above. Its swing is carried by its whole body (staggered feet, the weight moved, the off hand countering) and its
   hit is its weapon's: reach and cone measured off the weapon's tip, or a beast's head, through the blow.
+- **A tall foe's aimed blow never breaks its level**: a strike pitch whose pose the rig cannot stand (a boss's planted
+  foot out of its leg's reach) is out of reach to the aim's search (`worlds/world-kinds.js` aimedKeys), which draws in
+  to the last it can, where it threw and the level failed to build.
 - **Throwers throw** (the `throw` and `toss` cards): the body winds a real throw and the round leaves at its release.
 - **Fable of Artesia's cast**: the goblin band (raiders who chop, a slinger who throws) under orc leaders who maul,
   wolves, a boar that braces and charges, cave bats; foes lit by each level's own cube, the target rim only on a lock.
