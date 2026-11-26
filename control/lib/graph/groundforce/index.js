@@ -14,6 +14,8 @@
  *                  shots a second, `range` m) and its `points` on a stage
  *
  *   GROUND_UNITS, GROUND_UNIT_IDS   the cards (a new unit is a card; `flies`: it is stood in the air, not on the ground)
+ *   GROUND_PROP_IDS                 the cards that are PROPS (`prop`): a thing a level's scene stands and moves (a pusher
+ *                                     rocket lowered onto a rock), never a foe a stage fields
  *   unitFaces(kind)                 → faces { corners, fill } lit (baked under one key, the lit parts their own colour),
  *                                     drawn GROUNDFORCE_SCALE times life
  *   unitRadius(kind)                → its hit radius as drawn (m)
@@ -437,8 +439,34 @@ export const GROUND_UNITS = Object.freeze({
       ...P.pipe([0.62, -0.6, 4.75], [0.62, -0.6, 5.7], 0.04, 'dark', 6),
     ],
   }),
+  // A PROP, not a foe (`prop`: stood by a level's scene, never fielded by a stage): a ROMAN CANDLE, a pusher rocket that
+  // a mining ship lowers onto a rock on cables and drills in, its bell to the sky. Its drill spike under its foot (z < 0)
+  // goes into the ground as it is set down; a braced collar, a long tank body banded twice, the throat and the bell.
+  candle: Object.freeze({
+    label: 'roman candle', reads: 'a tall pusher rocket on a braced drilled foot, banded tank body, a wide bell to the sky',
+    size: 2.2, hp: 1, rof: 0, range: 0, points: 0, prop: true,
+    parts: () => [
+      ...P.prism([0, 0, 0], 0.3, 0.3, -3, -1.5, 'dark', 8),
+      ...P.prism([0, 0, 0], 0.55, 0.55, -1.5, 0, 'dark', 8),
+      ...P.prism([0, 0, 0], 2.2, 2.2, 0, 0.6, 'dark', 10),
+      ...[0, 1, 2].flatMap((i) => { const a = (i * 2 * Math.PI) / 3; return P.pipe([Math.cos(a) * 1.95, Math.sin(a) * 1.95, 0.4], [Math.cos(a) * 1.3, Math.sin(a) * 1.3, 3.2], 0.16, 'hull2', 6); }),
+      ...P.prism([0, 0, 0], 1.4, 1.4, 0.6, 12, 'hull', 12),
+      ...P.prism([0, 0, 0], 1.6, 1.6, 3, 5, 'hull2', 12),
+      ...P.prism([0, 0, 0], 1.6, 1.6, 8, 10, 'hull2', 12),
+      ...P.prism([0, 0, 0], 1.43, 1.43, 6, 6.4, 'accent', 12),
+      ...P.prism([0, 0, 0], 1.43, 1.43, 11, 11.3, 'accent', 12),
+      ...P.box([0, 1.62, 9], [0.5, 0.06, 0.2], 'sensor'),
+      ...P.box([0, -1.62, 9], [0.5, 0.06, 0.2], 'sensor'),
+      ...P.prism([0, 0, 0], 1.0, 1.0, 12, 12.6, 'dark', 12),
+      ...P.prism([0, 0, 0], 1.3, 1.3, 12.6, 14, 'dark', 12),
+      ...P.prism([0, 0, 0], 1.8, 1.8, 14, 15.6, 'dark', 12),
+      ...P.prism([0, 0, 0], 1.7, 1.7, 15.5, 15.55, 'drive', 12),
+    ],
+  }),
 });
-export const GROUND_UNIT_IDS = Object.freeze(Object.keys(GROUND_UNITS));
+// (the foes a stage fields; a prop is stood only by a level's own scene: GROUND_PROP_IDS)
+export const GROUND_UNIT_IDS = Object.freeze(Object.keys(GROUND_UNITS).filter((k) => !GROUND_UNITS[k].prop));
+export const GROUND_PROP_IDS = Object.freeze(Object.keys(GROUND_UNITS).filter((k) => GROUND_UNITS[k].prop));
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
@@ -454,7 +482,7 @@ const normalOf = (C) => {
 /** A unit's faces, lit: each its role's colour under the key (the lit parts their own). */
 export function unitFaces(kind) {
   const U = GROUND_UNITS[kind];
-  if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${GROUND_UNIT_IDS.join(', ')})`);
+  if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${[...GROUND_UNIT_IDS, ...GROUND_PROP_IDS].join(', ')})`);
   const L = KEY.dir, ll = Math.hypot(...L);
   const k = GROUNDFORCE_SCALE;
   return partsOf(U, false).filter((f) => f.role !== 'blur').map((f) => {

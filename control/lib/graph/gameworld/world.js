@@ -986,7 +986,8 @@ export function readGameworld(W) {
     const { scenes: sc, ...lv } = L;
     if (sc !== undefined) {
       if (!Array.isArray(sc)) throw new Error(`gameworld: ${at}.scenes is a list of scenes (get_play_vocab({ id: 'ui-scenes' })), each with stage?: '<node>'`);
-      const nodes = Object.keys(L.walk.nodes || {});
+      // (a level with no walk, an airspace's or a frame's, plays its scenes in its one stage)
+      const nodes = Object.keys(L.walk?.nodes || {});
       const bare = sc.map((s, i) => {
         if (!isObj(s)) throw new Error(`gameworld: ${at}.scenes[${i}] is a scene { id, when, beats, if?, sets?, stage? }`);
         if (s.stage !== undefined && !nodes.includes(s.stage)) throw new Error(`gameworld: ${at}.scenes[${i}].stage names one of the level's stages (${nodes.join(', ')})`);

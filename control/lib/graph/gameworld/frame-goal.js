@@ -24,7 +24,7 @@
  *
  * Pure: the dice are the field's, seeded by the group's id.
  */
-import { unitRadius } from '../groundforce/index.js';
+import { unitRadius, GROUND_UNITS } from '../groundforce/index.js';
 import { ACES, readAce } from '../assault-frame/aces.js';
 import { MTS, readMt } from '../assault-frame/mts.js';
 import { frameEntity } from '../assault-frame/pilot.js';
@@ -78,7 +78,7 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons', 'allies', 'script', 'props'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons, allies, script, props)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -135,7 +135,33 @@ export function readOperation(v, at = 'goal.operation') {
   const script = v.script === undefined ? null : (() => { const S = readScript(v.script, { tasks: tasks.length, at: `${at}.script` }); for (const a of allies ?? []) S.speakers[a.id] ??= { name: a.name }; return S; })();
   // (its lessons: the frame's controls taught one at a time, each group as its task begins: FRAME_LESSONS)
   const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}) };
+  // (its props: things stood on the field for its scenes to move, PROP)
+  const props = v.props === undefined ? null : readProps(v.props, new Set([...ids, ...(allies ?? []).map((a) => a.id)]), `${at}.props`);
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}), ...(allies ? { allies } : {}), ...(script ? { script } : {}), ...(props ? { props } : {}) };
+}
+
+/** An operation's PROPS checked (throws, teaching): [{ id, unit, at, raise?, hidden?, face? }]. A thing stood on the field
+ *  for the level's scenes to move (the world's `scenes`, playscape/ui/scenes.js): a body drawn as a card (groundforce/,
+ *  a prop's card or any unit's), no mind, nothing hits it. It stands `raise` metres over its place, asleep while
+ *  `hidden` (a scene's spawn wakes it), and its place, where it is set down, is a spot of its own id for the scenes
+ *  (`{ glide: { who: 'candle', to: 'candle' } }` lowers it onto it); each reach's and scan's place is the spot `t<n>`. */
+export const PROP = Object.freeze({ most: 12, raise: 3000 });
+function readProps(v, taken, at) {
+  if (!Array.isArray(v) || !v.length || v.length > PROP.most) throw new Error(`${at} is 1 to ${PROP.most} props: [{ id, unit, at, raise?, hidden?, face? }]`);
+  const seen = new Set();
+  return v.map((p, i) => {
+    const pat = `${at}[${i}]`;
+    if (!isObj(p)) throw new Error(`${pat} is { id, unit, at, raise?, hidden?, face? }`);
+    for (const k of Object.keys(p)) if (!['id', 'unit', 'at', 'raise', 'hidden', 'face'].includes(k)) throw new Error(`${pat}.${k} is not part of a prop (id, unit, at, raise, hidden, face)`);
+    if (typeof p.id !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(p.id) || seen.has(p.id) || taken.has(p.id) || /^t\d+$/.test(p.id)) throw new Error(`${pat}.id is its own name, lower-case, not a group's, an ally's or a task's (t<n>)`);
+    seen.add(p.id);
+    if (!GROUND_UNITS[p.unit]) throw new Error(`${pat}.unit is the card it is drawn as: ${Object.keys(GROUND_UNITS).join(', ')}`);
+    if (!(Array.isArray(p.at) && p.at.length === 2 && p.at.every((x) => Number.isFinite(x) && x >= -1 && x <= 1))) throw new Error(`${pat}.at is its place, [x, y] each -1 to 1 of the field`);
+    if (p.raise !== undefined && !(Number.isFinite(p.raise) && p.raise >= 0 && p.raise <= PROP.raise)) throw new Error(`${pat}.raise is metres over its place, 0 to ${PROP.raise}`);
+    if (p.hidden !== undefined && typeof p.hidden !== 'boolean') throw new Error(`${pat}.hidden is true where it waits asleep for a scene to spawn it`);
+    if (p.face !== undefined && !Number.isFinite(p.face)) throw new Error(`${pat}.face is degrees`);
+    return { id: p.id, unit: p.unit, at: p.at.slice(), ...(p.raise ? { raise: p.raise } : {}), ...(p.hidden ? { hidden: true } : {}), ...(p.face !== undefined ? { face: p.face } : {}) };
+  });
 }
 
 /** An operation's allies checked (throws, teaching): [{ id, name, build?, palette?, ap?, lead? }]. A wingman: a frame on
@@ -279,5 +305,15 @@ export function operationCast(op, ends) {
     const e = frameEntity(a.build, { id: a.id, at, heading: ends.heading ?? Math.PI / 2, mind: { range: OPERATION.frameRange, aggression: 0.5, dodge: 0.5, ally: true, engage: ALLY.engage, ...(a.lead && places.length ? { lead: places } : {}) }, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ap: a.ap, ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
     entities.push({ ...e, ally: { name: a.name } });
   });
-  return { entities, figures, ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons ? { lessons: op.lessons } : {}), ...(op.script ? { script: op.script } : {}) };
+  // (its props: each stood raised over its place, asleep while hidden; its place a spot of its id, and each task's place
+  // the spot t<n>, for the scenes to frame and to set things down on)
+  const spots = [];
+  op.tasks.forEach((t, i) => { if (t.reach ?? t.scan) { const [x, y] = placeOf(ends, t.reach ?? t.scan); spots.push({ id: `t${i + 1}`, at: [x, y, r2(ends.ground(x, y))] }); } });
+  for (const p of op.props ?? []) {
+    const [x, y] = placeOf(ends, p.at), z = r2(ends.ground(x, y)), fig = `prop-${p.unit}`, face = p.face !== undefined ? (p.face * Math.PI) / 180 : toward([x, y]);
+    figures[fig] = { unit: { kind: p.unit, form: true } };
+    entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), body: { type: 'figure-rig', figure: fig, hittable: false, radius: unitRadius(p.unit) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
+    spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
+  }
+  return { entities, figures, ...(op.props ? { play: { spots } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons ? { lessons: op.lessons } : {}), ...(op.script ? { script: op.script } : {}) };
 }
