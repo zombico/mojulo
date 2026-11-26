@@ -9,14 +9,16 @@
  *   resolveOverlay(state)  → { title, score, served, quota, time, rank, status, message }
  *   DESK_CSS
  */
-import { KINDS, STEPS, TABS, FOLDERS, SENDS, rankTitle } from './core.js';
+import { KINDS, STEPS, TABS, FOLDERS, SENDS, DEPTS, STAMPS, WORKS, rankTitle } from './core.js';
 
 const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const act = (a) => ` data-act="${esc(JSON.stringify(a))}"`;
 const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const dollars = (c) => `$${Math.floor(c / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${String(c % 100).padStart(2, '0')}`;
-const LABEL = { inbox: 'Inbox', invoices: 'Invoices', decisions: 'Decisions', tps: 'TPS Reports', policies: 'Policies' };
-const ADDR = { inbox: 'mail', invoices: 'ap/invoices', decisions: 'strategy/decisions', tps: 'ops/tps', policies: 'hr/policies/current-final-v2-FINAL' };
+const LABEL = { inbox: 'Inbox', invoices: 'Invoices', decisions: 'Decisions', tps: 'TPS Reports', orders: 'Work Orders', policies: 'Policies' };
+const ADDR = { inbox: 'mail', invoices: 'ap/invoices', decisions: 'strategy/decisions', tps: 'ops/tps', orders: 'clerk/work-orders', policies: 'hr/policies/current-final-v2-FINAL' };
+// (a city hall clerk's shift, its tickets work orders alone, is on the city's intranet)
+const hostOf = (s) => (s.tickets.length && s.tickets.every((x) => x.kind === 'permit') ? 'intranet.cityhall.gov' : 'intranet.synergetics.corp');
 
 export const DESK_CSS = `
 .dw{width:min(860px,calc(100vw - 40px));height:min(540px,calc(100vh - 120px));display:flex;flex-direction:column;background:#f4f5f7;color:#1d2430;font:13px/1.4 system-ui,sans-serif;border-radius:8px;overflow:hidden;position:relative;box-shadow:0 10px 40px rgba(0,0,0,.5)}
@@ -63,6 +65,7 @@ function docOf(x) {
   const d = x.doc;
   if (x.kind === 'invoice') return `<div class="dw-doc"><b>${esc(d.vendor)}</b> · Invoice ${esc(d.no)} · ${esc(d.po)}<table><tr><th>Item</th><th class="n">Qty</th><th class="n">Unit</th><th class="n">Amount</th></tr>${d.lines.map((l) => `<tr><td>${esc(l.item)}</td><td class="n">${l.qty}</td><td class="n">${dollars(l.unit)}</td><td class="n">${dollars(l.qty * l.unit)}</td></tr>`).join('')}<tr><td colspan="3">Subtotal</td><td class="n">${dollars(d.sub)}</td></tr><tr><td colspan="3">Tax (${d.rate}%)</td><td class="n">${dollars(d.tax)}</td></tr></table><small>Total: see subtotal and tax. Please do the math. We believe in you.</small></div>`;
   if (x.kind === 'decision') return `<div class="dw-doc"><b>From: ${esc(d.asker)}</b><p>We need a vendor for ${esc(d.project)}. It must come in under ${esc(d.budget)}, be delivered within ${d.days} days, and Legal must have approved it. Please recommend one by end of day (end of day is now).</p><table><tr><th>Vendor</th><th class="n">Cost</th><th class="n">Days</th><th>Legal</th></tr>${d.rows.map((r) => `<tr><td>${esc(r.vendor)}</td><td class="n">${esc(r.cost)}</td><td class="n">${r.days}</td><td>${esc(r.legal)}</td></tr>`).join('')}</table></div>`;
+  if (x.kind === 'permit') return `<div class="dw-doc"><b>Constituent request</b> from ${esc(d.from)}<p>${esc(d.thing)}, ${esc(d.where)}. ${d.units} ${esc(d.unit)}${d.units === 1 ? '' : 's'} needed (estimated by the constituent, who is not an engineer, but is very sure).</p><small>Make it a work order: route it, cost it, stamp it. See Policies.</small></div>`;
   return `<div class="dw-doc"><b>TPS events, ${esc(d.period)}</b><table><tr>${d.week.map((w) => `<th class="n">${w.day}</th>`).join('')}</tr><tr>${d.week.map((w) => `<td class="n">${w.n}</td>`).join('')}</tr></table><small>Reminder: TPS reports now require a cover sheet. See the latest memo.</small></div>`;
 }
 
@@ -81,21 +84,22 @@ function inbox(s) {
 }
 
 function policies(s) {
-  const P = s.policies;
-  return `<div class="dw-body dw-pol"><h3>Policies (current, final, v2, FINAL)</h3><ol>
-<li><b>Invoices.</b> An invoice over ${dollars(P.threshold)} goes to <i>${esc(FOLDERS[1])}</i>. An invoice from Synergetics Internal is an <i>${esc(FOLDERS[2])}</i>, whatever it says. Everything else: <i>${esc(FOLDERS[0])}</i>. Nothing goes to <i>${esc(FOLDERS[3])}</i> (see Policy 0).</li>
-<li><b>TPS reports.</b> Per the memo of this morning, every TPS report carries <b>Cover sheet v${P.cover}</b>. Earlier versions are deprecated. Later versions are not yet approved and must not be used, or discussed.</li>
-<li><b>Routing.</b> TPS reports go to <i>${esc(SENDS[P.send])}</i>. Do not Reply All. We know who you are.</li>
-<li><b>Recommendations.</b> Recommend the vendor that meets every constraint in the request. If none does, form a committee. One always does.</li>
-<li><b>Policy 0.</b> This policy supersedes itself.</li></ol></div>`;
+  const P = s.policies, has = (k) => s.tickets.some((x) => x.kind === k), rules = [];
+  if (has('invoice')) rules.push(`<li><b>Invoices.</b> An invoice over ${dollars(P.threshold)} goes to <i>${esc(FOLDERS[1])}</i>. An invoice from Synergetics Internal is an <i>${esc(FOLDERS[2])}</i>, whatever it says. Everything else: <i>${esc(FOLDERS[0])}</i>. Nothing goes to <i>${esc(FOLDERS[3])}</i> (see Policy 0).</li>`);
+  if (has('tps')) rules.push(`<li><b>TPS reports.</b> Per the memo of this morning, every TPS report carries <b>Cover sheet v${P.cover}</b>. Earlier versions are deprecated. Later versions are not yet approved and must not be used, or discussed.</li>`, `<li><b>Routing.</b> TPS reports go to <i>${esc(SENDS[P.send])}</i>. Do not Reply All. We know who you are.</li>`);
+  if (has('decision')) rules.push('<li><b>Recommendations.</b> Recommend the vendor that meets every constraint in the request. If none does, form a committee. One always does.</li>');
+  if (has('permit')) rules.push(`<li><b>Departments.</b> Potholes: <i>${esc(DEPTS[0])}</i>. Fences: <i>${esc(DEPTS[1])}</i>, unless the fence is in a park, in which case <i>${esc(DEPTS[2])}</i>. Public spaces: <i>${esc(DEPTS[2])}</i>. The <i>${esc(DEPTS[3])}</i> is not accepting new work orders.</li>`,
+    `<li><b>Costing.</b> ${Object.values(WORKS).map((W) => `${esc(W.thing)}: ${dollars(W.rate)} a ${esc(W.unit)}`).join('. ')}. Every work order carries a call-out fee of ${dollars(P.callout)}, once.</li>`,
+    `<li><b>Stamps.</b> A clerk signs off up to ${dollars(P.limit)}: <i>${esc(STAMPS[0])}</i>. Over it: <i>${esc(STAMPS[1])}</i>. We do not deny. We defer, and we do not defer either.</li>`);
+  return `<div class="dw-body dw-pol"><h3>Policies (current, final, v2, FINAL)</h3><ol>${rules.join('')}<li><b>Policy 0.</b> This policy supersedes itself.</li></ol></div>`;
 }
 
 /** Pure state → the browser. */
 export function renderHtml(state) {
-  const s = state, n = open(s).length, tabs = TABS.map((t) => `<button class="dw-tab${s.tab === t ? ' on' : ''}"${act({ type: 'tab', tab: t })}>${LABEL[t]}${t === 'inbox' && n ? `<b>${n}</b>` : t !== 'inbox' && t !== 'policies' && open(s).some((x) => KINDS[x.kind].tab === t) ? `<b>${open(s).filter((x) => KINDS[x.kind].tab === t).length}</b>` : ''}</button>`).join('');
+  const s = state, n = open(s).length, tabs = (s.tabs ?? TABS).map((t) => `<button class="dw-tab${s.tab === t ? ' on' : ''}"${act({ type: 'tab', tab: t })}>${LABEL[t]}${t === 'inbox' && n ? `<b>${n}</b>` : t !== 'inbox' && t !== 'policies' && open(s).some((x) => KINDS[x.kind].tab === t) ? `<b>${open(s).filter((x) => KINDS[x.kind].tab === t).length}</b>` : ''}</button>`).join('');
   const page = s.tab === 'inbox' ? inbox(s) : s.tab === 'policies' ? policies(s) : work(s, s.tab);
   const pop = s.popup ? `<div class="dw-pop"><div><b>${esc(s.popup.title)}</b><p>${esc(s.popup.text)}</p><button${act({ type: 'ack' })}>${esc(s.popup.ok)}</button></div></div>` : '';
-  return `<div class="dw"><div class="dw-strip">${tabs}</div><div class="dw-addr"><span class="dw-url">https://intranet.synergetics.corp/${ADDR[s.tab]}</span><span class="dw-stat">${clock(s.left)} · Quota ${s.served}/${s.quota} · ${esc(rankTitle(s.rank))}</span></div><div class="dw-page">${page}</div>${pop}</div>`;
+  return `<div class="dw"><div class="dw-strip">${tabs}</div><div class="dw-addr"><span class="dw-url">https://${hostOf(s)}/${ADDR[s.tab]}</span><span class="dw-stat">${clock(s.left)} · Quota ${s.served}/${s.quota} · ${esc(rankTitle(s.rank))}</span></div><div class="dw-page">${page}</div>${pop}</div>`;
 }
 
 /** The communication layer as a pure view-model. */

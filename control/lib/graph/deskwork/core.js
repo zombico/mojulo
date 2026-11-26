@@ -4,7 +4,8 @@
  * step is a question to work out (the invoice's total, the vendor a memo's constraints allow, the week's TPS count); a
  * BUCKET step is a quick sort (which folder, which cover sheet, who it goes to), answered by the shift's POLICIES (the
  * Policies tab: the threshold over which an invoice waits for approval, the cover sheet the latest memo names, who a TPS
- * report goes to). Each question has its answer among four choices, generated from the ticket's own numbers on seeded
+ * report goes to; for a city hall clerk's work order, its department, its rates and call-out, the signing limit over
+ * which it waits on the Council). Each question has its answer among four choices, generated from the ticket's own numbers on seeded
  * dice, so every one is answerable from what the tabs show. A right answer moves the ticket on; the last step serves it;
  * a wrong one is a mistake (it costs, and Quality Assurance writes). A ticket past its due is escalated. The shift ends
  * on the clock; met quota is a won shift. Half of it is Kafka (the memo about the memo, training on the policy you were
@@ -18,7 +19,8 @@
  *   step(state, action)  actions: { type: 'tick', dt } (ms) · { type: 'tab', tab } · { type: 'open', id } ·
  *                        { type: 'answer', k } · { type: 'ack' } (the popup) · 'restart'
  *   wonOf(state)   whether the quota is met
- *   KINDS, TABS, RANKS, PER_RANK, rankTitle(rank)
+ *   KINDS, TABS (every tab; a shift's own `tabs` the inbox, its tickets' and the policies), RANKS, PER_RANK, rankTitle(rank)
+ *   WORKS, DEPTS, STAMPS  a city hall clerk's work orders (`permit`): the jobs and their rates, the departments, the stamps
  *
  * Pure and deterministic: mulberry32 over the seed, a ticket's own stream from its number.
  */
@@ -36,6 +38,8 @@ export const KINDS = Object.freeze({
   invoice: { name: 'Invoice', tab: 'invoices', steps: ['extract', 'file'] },
   decision: { name: 'Recommendation request', tab: 'decisions', steps: ['recommend'] },
   tps: { name: 'TPS report', tab: 'tps', steps: ['tally', 'cover', 'send'] },
+  // (a city hall clerk's: a constituent's request made a work order, gameworld/municipal.js)
+  permit: { name: 'Work order', tab: 'orders', steps: ['dept', 'cost', 'stamp'] },
 });
 export const STEPS = Object.freeze({
   extract: { verb: 'shovel', title: 'Extract invoice data' },
@@ -44,8 +48,13 @@ export const STEPS = Object.freeze({
   tally: { verb: 'shovel', title: 'Prepare TPS report' },
   cover: { verb: 'bucket', title: 'Attach the cover sheet' },
   send: { verb: 'bucket', title: 'Send the TPS report' },
+  dept: { verb: 'bucket', title: 'Route it to its department' },
+  cost: { verb: 'shovel', title: 'Cost the work order' },
+  stamp: { verb: 'bucket', title: 'Stamp it' },
 });
-export const TABS = Object.freeze(['inbox', 'invoices', 'decisions', 'tps', 'policies']);
+/** Every tab a shift may have, in order: the inbox, the kinds' own (only those its tickets need), the policies. */
+export const TABS = Object.freeze(['inbox', 'invoices', 'decisions', 'tps', 'orders', 'policies']);
+const tabsOf = (tickets) => TABS.filter((t) => t === 'inbox' || t === 'policies' || tickets.some((x) => KINDS[x.kind].tab === t));
 
 /** mulberry32 over a carried state: → [value in [0, 1), next state]. */
 export function rngNext(s) {
@@ -78,11 +87,21 @@ const PROJECTS = ['the Synergy Initiative', 'Project Paradigm', 'the Q3 Realignm
 const ASKERS = ['Darla (your manager)', 'Bill from Accounts', 'The Office of the Deputy VP', 'Kevin (no relation)', 'Legal (automated)'];
 export const FOLDERS = Object.freeze(['Accounts Payable', 'Approvals Pending (Do Not Open)', 'Inter-Department Chargebacks', 'The Shredder']);
 export const SENDS = Object.freeze(['Your manager', 'Your manager\'s manager, cc your manager', 'Reply All to the company', 'Nobody (save as draft)']);
+export const DEPTS = Object.freeze(['Roads', 'Public Works', 'Parks & Recreation', 'Department of Departments']);
+export const STAMPS = Object.freeze(['APPROVED', 'APPROVED, PENDING COUNCIL', 'DEFERRED', 'DENIED']);
+// a work order's kinds of job: what it is called, its unit, its rate a unit (cents) in the policies
+export const WORKS = Object.freeze({
+  pothole: { thing: 'Pothole', unit: 'patch', rate: 8500 },
+  fence: { thing: 'Broken fence', unit: 'panel', rate: 4000 },
+  park: { thing: 'Public space clean-up', unit: 'bag', rate: 2500 },
+});
+const CONSTITUENTS = ['Mrs. Henderson', 'Gus from the laundromat', 'The Residents\' Association (all three of them)', 'A concerned citizen (anonymous, signed)', 'Dr. Patel', 'Marjorie, again'];
+const STREETS = ['Elm St', 'Harbor Ave', 'Fourth St', 'Mission Blvd', 'Dock Rd', 'Pine Ct', 'Civic Plaza'];
 
 /** The shift's policies, on the seed: they decide the buckets and the Policies tab says them. */
 export function policiesOf(seed) {
   const D = dice(seed ^ 0x9e3779b9);
-  return { threshold: D.pick([50000, 100000, 250000]), cover: 4 + D.draw(5), send: 1 };
+  return { threshold: D.pick([50000, 100000, 250000]), cover: 4 + D.draw(5), send: 1, callout: 12000, limit: D.pick([30000, 50000, 80000]) };
 }
 
 /** A ticket's steps, its questions worked out from its own numbers. */
@@ -112,6 +131,17 @@ function ticketOf(seed, k, kind, P) {
     const committee = 'Form a committee to study it';
     const four = D.shuffle([...rows.map((r) => r.vendor), committee]);
     t.steps = [{ step: 'recommend', ask: `Which vendor do you recommend for ${project}?`, choices: four, answer: four.indexOf(right) }];
+  } else if (kind === 'permit') {
+    // (a constituent's request made a work order: routed to its department, costed by the policies' rates, stamped by the
+    // clerk's signing limit)
+    const job = D.pick(Object.keys(WORKS)), W = WORKS[job], units = 1 + D.draw(job === 'pothole' ? 4 : 9), inPark = job === 'fence' && D.draw(2) === 0;
+    const cost = units * W.rate + P.callout, dept = job === 'pothole' ? 'Roads' : job === 'park' || inPark ? 'Parks & Recreation' : 'Public Works';
+    t.doc = { from: D.pick(CONSTITUENTS), job, thing: W.thing, where: `${D.pick(STREETS)}${inPark ? ' (in the park)' : ''}`, units, unit: W.unit };
+    t.steps = [
+      { step: 'dept', ask: 'Which department does it go to?', choices: DEPTS.slice(), answer: DEPTS.indexOf(dept) },
+      { step: 'cost', ask: 'What does the work order cost, call-out included?', ...choices(D, money(cost), [money(cost - P.callout), money(cost + P.callout), money(cost + W.rate)]) },
+      { step: 'stamp', ask: 'Stamp it as the policies say.', choices: STAMPS.slice(), answer: cost > P.limit ? 1 : 0 },
+    ];
   } else {
     // (the week's TPS events, a day each; the report's count is their sum)
     const week = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d) => ({ day: d, n: 3 + D.draw(25) })), sum = week.reduce((a, x) => a + x.n, 0);
@@ -138,7 +168,7 @@ export function newGame(seed, { rank = 0, schedule = null, time = TIME } = {}) {
   const tickets = S.map((x, k) => ({ id: k + 1, at: x.at, due: x.at + x.patience, kind: x.kind, ...ticketOf(seed >>> 0, k, x.kind, P), on: 0, state: 'later' }));
   // (training: past the first rank, a mandatory course comes up mid-shift and holds the screen till it is acknowledged)
   const D = dice((seed ^ 0x5bd1e995) >>> 0), training = rank >= 1 ? [Math.round(time * (0.3 + 0.3 * D.u()))] : [];
-  return { seed: seed >>> 0, rank: rank | 0, time, t: 0, left: time * 1000, policies: P, tickets, tab: 'inbox', open: null, served: 0, missed: 0, mistakes: 0, score: 0,
+  return { seed: seed >>> 0, rank: rank | 0, time, t: 0, left: time * 1000, policies: P, tickets, tabs: tabsOf(tickets), tab: 'inbox', open: null, served: 0, missed: 0, mistakes: 0, score: 0,
     quota: Math.max(1, Math.ceil(tickets.length * QUOTA)), training, popup: null, mail: [{ at: 0, from: 'Darla (your manager)', text: `Welcome aboard, ${rankTitle(rank)}! Tickets come to your inbox. The Policies tab has everything you need, probably.` }], last: null, over: false };
 }
 
@@ -195,7 +225,7 @@ export function step(state, action) {
   if (state.over) return state;
   if (type === 'ack') return state.popup ? { ...state, popup: null } : state;
   if (state.popup) return state;
-  if (type === 'tab') return TABS.includes(action.tab) ? { ...state, tab: action.tab } : state;
+  if (type === 'tab') return (state.tabs ?? TABS).includes(action.tab) ? { ...state, tab: action.tab } : state;
   if (type === 'open') { const x = state.tickets.find((y) => y.id === action.id && y.state === 'open'); return x ? { ...state, open: x.id, tab: KINDS[x.kind].tab } : state; }
   if (type === 'answer') return answer(state, action.k);
   return state;

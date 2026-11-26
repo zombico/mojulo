@@ -135,7 +135,7 @@ export function minigamePage(cfg, GAMES) {
     if (cur.G.renderHtml) {
       // (a page's keys: a number answers, a bracket turns the tabs)
       if (a === undefined || ev.repeat) return;
-      if (/^Bracket/.test(ev.code)) { const T = cur.G.tabs || [], i = T.indexOf(cur.s.tab); if (T.length) act({ type: 'tab', tab: T[(i + a + T.length) % T.length] }); }
+      if (/^Bracket/.test(ev.code)) { const T = cur.s.tabs || cur.G.tabs || [], i = T.indexOf(cur.s.tab); if (T.length) act({ type: 'tab', tab: T[(i + a + T.length) % T.length] }); }
       else act({ type: 'answer', k: a });
       return;
     }

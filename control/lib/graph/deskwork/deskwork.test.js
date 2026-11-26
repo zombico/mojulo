@@ -4,9 +4,9 @@
 // escalated; training holds the screen till acknowledged; the browser's every control is an action the reducer takes;
 // the card's schedules give more tickets on less patience as the rank climbs.
 import { describe, it, expect } from 'vitest';
-import { newGame, step, wonOf, KINDS, TABS, policiesOf, rankTitle, RANKS, POINTS, SLIP, FOLDERS, SENDS } from './core.js';
+import { newGame, step, wonOf, KINDS, TABS, policiesOf, rankTitle, RANKS, POINTS, SLIP, FOLDERS, SENDS, WORKS } from './core.js';
 import { renderHtml, resolveOverlay } from './skin.js';
-import { deskSchedule, PATIENCE } from './card.js';
+import { deskSchedule, PATIENCE, CLERK } from './card.js';
 
 const cents = (s) => Number(s.replace(/[$,.]/g, ''));
 // a player who opens each ticket as it comes and answers each step with the right choice (or a wrong one, `slip`)
@@ -112,7 +112,8 @@ describe('deskwork: the shift', () => {
     const x = s.tickets.find((y) => y.state === 'open');
     s = step(s, { type: 'open', id: x.id });
     const html = renderHtml(s);
-    for (const t of TABS) expect(html).toContain(`&quot;tab&quot;:&quot;${t}&quot;`);
+    for (const t of s.tabs) expect(html).toContain(`&quot;tab&quot;:&quot;${t}&quot;`);
+    expect(s.tabs).toEqual(TABS.filter((t) => t !== 'orders'));
     expect(html).toContain(rankTitle(3));
     const acts = [...html.matchAll(/data-act="([^"]+)"/g)].map((m) => JSON.parse(m[1].replace(/&quot;/g, '"')));
     expect(acts.some((a) => a.type === 'answer')).toBe(true);
@@ -122,13 +123,36 @@ describe('deskwork: the shift', () => {
   });
 });
 
+describe('deskwork: a city hall clerk\'s work orders', () => {
+  it('each routed, costed and stamped as the policies say; the clerk\'s shift its tabs the inbox, the orders and the policies', () => {
+    const s = newGame(4, { schedule: Array.from({ length: 9 }, (_, k) => ({ at: k, kind: 'permit', patience: 60 })) }), P = s.policies;
+    expect(s.tabs).toEqual(['inbox', 'orders', 'policies']);
+    for (const x of s.tickets) {
+      const [dept, cost, stamp] = x.steps, d = x.doc, W = WORKS[d.job], c = d.units * W.rate + P.callout;
+      expect(dept.choices[dept.answer]).toBe(d.job === 'pothole' ? 'Roads' : d.job === 'park' || /in the park/.test(d.where) ? 'Parks & Recreation' : 'Public Works');
+      expect(cents(cost.choices[cost.answer])).toBe(c);
+      expect(stamp.choices[stamp.answer]).toBe(c > P.limit ? 'APPROVED, PENDING COUNCIL' : 'APPROVED');
+    }
+    const html = renderHtml(step(step(s, { type: 'tick', dt: 2000 }), { type: 'tab', tab: 'policies' }));
+    expect(html).toContain('intranet.cityhall.gov');
+    expect(html).toContain('call-out fee');
+    expect(html).not.toContain('Cover sheet');
+    expect(wonOf(work(s))).toBe(true);
+  });
+  it('its card: a work order a ticket, more of them as the rank climbs', () => {
+    const lo = deskSchedule(0, 2, CLERK), hi = deskSchedule(5, 2, CLERK);
+    expect(new Set([...lo, ...hi].map((x) => x.kind))).toEqual(new Set(['permit']));
+    expect(hi.length).toBeGreaterThan(lo.length);
+  });
+});
+
 describe('deskwork: the card', () => {
   it('more rank, more work: more tickets a shift on less patience, every kind dealt; the same seed the same shift', () => {
     const lo = deskSchedule(0, 3), hi = deskSchedule(RANKS.length - 1, 3);
     expect(hi.length).toBeGreaterThan(lo.length);
     expect(lo[0].patience).toBe(PATIENCE[1]);
     expect(hi[0].patience).toBe(PATIENCE[0]);
-    for (const S of [lo, hi]) expect(new Set(S.map((x) => x.kind))).toEqual(new Set(Object.keys(KINDS)));
+    for (const S of [lo, hi]) expect(new Set(S.map((x) => x.kind))).toEqual(new Set(['invoice', 'decision', 'tps']));
     expect(deskSchedule(0, 3)).toEqual(lo);
     // (its shift played right meets quota)
     expect(wonOf(work(newGame(3, { schedule: lo })))).toBe(true);

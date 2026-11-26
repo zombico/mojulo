@@ -15,10 +15,10 @@
  * Every kind of ticket comes at every rank (the solver's beat and rushes kept, its mix not), and a ticket's patience
  * eases from PATIENCE's most to its least as the rank climbs.
  *
- *   OFFICE                      the card
+ *   OFFICE, CLERK               the cards: an office's shift, a city hall clerk's (work orders, gameworld/municipal.js)
  *   challengeOf(rank)           → 0 … 1
- *   deskSchedule(rank, seed)    → [{ at, kind, patience }]: one shift's tickets (deskwork/core.js newGame's schedule)
- *   deskSchedules(seed)         → a schedule for each rank (deskwork/core.js RANKS): what a level's desk carries, the
+ *   deskSchedule(rank, seed, card?) → [{ at, kind, patience }]: one shift's tickets (deskwork/core.js newGame's schedule)
+ *   deskSchedules(seed, card?)  → a schedule for each rank (deskwork/core.js RANKS): what a level's desk carries, the
  *                                 page picking by the player's rank
  *
  * Node only (the solver and the simulator are not inlined into a page; their output is).
@@ -48,21 +48,35 @@ export const OFFICE = Object.freeze({
 
 // the seconds a ticket waits, at the least and the most (a shift is TIME)
 export const PATIENCE = Object.freeze([40, 90]);
+// A CITY HALL CLERK'S SHIFT (gameworld/municipal.js): a constituent's request made a work order, routed (bucket), costed
+// (shovel), stamped (bucket); one kind of ticket, a shorter shift
+export const CLERK = Object.freeze({
+  id: 'clerk', name: 'A city hall clerk\'s shift',
+  why: 'costing a work order is shovel work, routing it and stamping it bucket work; switching tabs is the walk between stations',
+  crew: { workers: 1, travel: 1 },
+  stations: {
+    dept: { verb: 'bucket', takes: { request: 1 }, gives: { routed: 1 }, work: 3 },
+    cost: { verb: 'shovel', takes: { routed: 1 }, gives: { costed: 1 }, work: 10 },
+    stamp: { verb: 'bucket', takes: { costed: 1 }, gives: { order: 1 }, work: 2 },
+  },
+  demand: { mode: 'orders', every: 20, patience: 60, serve: 0.5, orders: [{ name: 'permit', wants: { order: 1 }, weight: 1 }] },
+  session: 120,
+});
 export const challengeOf = (rank) => Math.max(0, Math.min(1, (rank | 0) / (RANKS.length - 1)));
 
 const MEMO = new Map();
 /** One shift's tickets at a rank: the card solved to the rank's challenge, its arrivals on the seed. */
-export function deskSchedule(rank, seed = 1) {
-  const key = `${rank}|${seed}`;
+export function deskSchedule(rank, seed = 1, base = OFFICE) {
+  const key = `${base.id}|${rank}|${seed}`;
   if (MEMO.has(key)) return MEMO.get(key);
-  const { card } = solve(JSON.parse(JSON.stringify(OFFICE)), challengeOf(rank), { seeds: [1, 2], rounds: 4 });
+  const { card } = solve(JSON.parse(JSON.stringify(base)), challengeOf(rank), { seeds: [1, 2], rounds: 4 });
   // (its beat and its rushes as solved; every kind of ticket at every rank, the three tasks being the job; a ticket's
   // patience by the rank, from PATIENCE's most to its least, so more rank is never more time)
-  const dealt = { ...card, demand: { ...card.demand, orders: OFFICE.demand.orders.map((o) => ({ ...o })) } };
+  const dealt = { ...card, demand: { ...card.demand, orders: base.demand.orders.map((o) => ({ ...o })) } };
   const names = dealt.demand.orders.map((o) => o.name), patience = Math.round(PATIENCE[1] + (PATIENCE[0] - PATIENCE[1]) * challengeOf(rank));
   const out = arrivalsOf(dealt, seed).map((a) => ({ at: Math.round(a.at * 10) / 10, kind: names[a.order], patience }));
   MEMO.set(key, out);
   return out;
 }
 
-export const deskSchedules = (seed = 1) => RANKS.map((_, r) => deskSchedule(r, seed));
+export const deskSchedules = (seed = 1, base = OFFICE) => RANKS.map((_, r) => deskSchedule(r, seed, base));
