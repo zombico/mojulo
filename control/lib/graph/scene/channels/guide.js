@@ -118,15 +118,16 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
       if (phase === 'lessons' && p && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 10)) { li = LS.length; ls = null; phase = 'play'; }
 ${waits ? `      // (a lesson that waits for its task, \`when\`: the objectives' task in hand; until then nothing of it shows)
-      const waiting = phase === 'lessons' && LS[li] && LS[li].when && !(window.__mojBus && window.__mojBus.state.vars[LS[li].when.var] >= LS[li].when.gte);
-      if (phase === 'lessons' && p && !waiting) lesson(p, now);` : `      if (phase === 'lessons' && p) lesson(p, now);`}
+      const waitsNow = () => phase === 'lessons' && !!LS[li] && !!LS[li].when && !(window.__mojBus && window.__mojBus.state.vars[LS[li].when.var] >= LS[li].when.gte);
+      if (phase === 'lessons' && p && !waitsNow()) lesson(p, now);
+      // (read again once a lesson may have passed: the next may wait; while one waits the way on is shown, not hidden)
+      const waiting = waitsNow();` : `      if (phase === 'lessons' && p) lesson(p, now);`}
       const atHeld = p && GD.held && GD.held.some((h) => Math.hypot(h[0] - p.transform.pos[0], h[1] - p.transform.pos[1]) < 5) && W.entities.some(standing);
       // ONE THING: the line just said, the opening, a held way, a lesson at hand, else the way on
       V.goal = cur ? { say: cur.say, at: cur.at, d: Math.round(d) } : null;
       if (now < sayUntil) put('say', esc(sayText), sayText);
       else if (phase === 'intro') put('intro', esc(GD.intro), GD.intro);
-${waits ? `      else if (phase === 'lessons' && waiting) put('way', '', '');
-` : ''}      else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys), '', [LS[li].keys]);
+      else if (phase === 'lessons'${waits ? ' && !waiting' : ''}) put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys), '', [LS[li].keys]);
       else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''), '', GD.introKeys);
       else if (atHeld) put('held', 'The way on is held while foes stand here', 'The way on is held while foes stand here');
       // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)

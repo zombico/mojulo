@@ -41,7 +41,7 @@ describe('a frame\'s lessons', () => {
     G.P.boosting = true; G.step(0.05, 40); G.P.boosting = false; G.P.qbT = 0.2; G.step(0.05, 30); G.P.qbT = 0; G.P.ascending = true; G.step(0.05, 40); G.P.ascending = false;
     G.step(0.05, 400);
     expect(G.at()).toBe(3);
-    expect(G.showing()).toBe('way');             // (waiting: nothing of it shown, however long)
+    expect(G.showing()).not.toBe('keys');        // (waiting: none of its keys shown, however long; the way on instead)
     G.win.__mojBus.state.vars[FRAME_LESSON_TASK] = 1;
     G.step(0.05, 40);
     expect(G.at()).toBe(3);                      // (its right hand not fired yet)
