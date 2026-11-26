@@ -101,7 +101,7 @@ export function fixSitesScript(spec) {
   (function tick() {
     requestAnimationFrame(tick);
     const C = window.__mojCtrl && window.__mojCtrl.world, B = window.__mojBus && window.__mojBus.state; if (!C || !B) return;
-    const V = B.vars, t = performance.now() / 1000, dt = Math.min(0.1, lastT ? t - lastT : 0), pilot = C.byId[C.pilotId]; lastT = t;
+    const V = B.vars, t = performance.now() / 1000, dt = Math.min(0.5, lastT ? t - lastT : 0), pilot = C.byId[C.pilotId]; lastT = t;   // (a slow frame counts its own time, half a second at most)
     const on = (v) => !!v && Number(V[v]) >= 1, onFoot = pilot && !pilot.mount;
     let h = '', at = null;
     for (const S of sites) {
