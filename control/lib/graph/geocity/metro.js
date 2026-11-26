@@ -273,9 +273,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'dump', 'dock', 'museum', 'office']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'dump', 'dock', 'museum', 'office', 'cityhall']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'dump', 'dock', 'museum', 'office']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'dump', 'dock', 'museum', 'office', 'cityhall']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
 const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
 const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
@@ -438,6 +438,14 @@ export function readGeocity(spec = {}) {
     for (const k of Object.keys(office)) if (!['name'].includes(k)) no(`office.${k} is not a setting (name)`);
     if (office.name !== undefined && !(typeof office.name === 'string' && office.name.trim())) no('office.name is its name');
   }
+  // (its CITY HALL walked into, scene.js: the museum's civic front on the next block that can take one, its door into a
+  // building of its own where a clerk makes work orders: gameworld/municipal.js)
+  const cityhall = spec.cityhall === undefined || spec.cityhall === false ? null : spec.cityhall === true ? {} : spec.cityhall;
+  if (cityhall !== null) {
+    if (!isObj(cityhall)) no('cityhall is true or { name? }: a city hall on a block near the walk\'s start, walked into');
+    for (const k of Object.keys(cityhall)) if (!['name'].includes(k)) no(`cityhall.${k} is not a setting (name)`);
+    if (cityhall.name !== undefined && !(typeof cityhall.name === 'string' && cityhall.name.trim())) no('cityhall.name is its name');
+  }
   // (a DUMP, scene.js dumpOf: one of its car parks near the eye built as a tipping hall, a driving job's: jobsified.js)
   if (spec.dump !== undefined && spec.dump !== true) no('dump is true: one of the district\'s car parks built as a dump, where a garbage truck unloads');
   // (a DOCK, waterfront.js `port`: the main shore's segment before the evocation a working port, its trucks', its ramp up
@@ -497,5 +505,5 @@ export function readGeocity(spec = {}) {
     slope = { streets: { ...S.streets } };
     if (!profile) profile = {};
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(spec.dump === true ? { dump: true } : {}), ...(spec.dock === true ? { dock: true } : {}), ...(museum ? { museum } : {}), ...(office ? { office } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(spec.dump === true ? { dump: true } : {}), ...(spec.dock === true ? { dock: true } : {}), ...(museum ? { museum } : {}), ...(office ? { office } : {}), ...(cityhall ? { cityhall } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
 }

@@ -17,7 +17,7 @@ describe('the temp agency: its desk', () => {
     const [g] = readMinigames(X.play);
     expect(g).toMatchObject({ game: 'deskwork', at: { at: [25, 5], r: TEMP.desk.reach }, purse: TEMP.vars.coin, level: TEMP.vars.merit, each: TEMP.vars.merit, if: { var: TEMP.vars.badge, gte: 1 }, locked: TEMP.locked });
     expect(g.schedules).toHaveLength(RANKS.length);
-    expect(X.play.cues.find((c) => c.id === 'reception-hello').then.say).toMatch(/Desk 104/);
+    expect(X.play.cues.find((c) => c.id === 'desk-reception-hello').then.say).toMatch(/Desk 104/);
     expect(X.mechanics).toEqual([{ kind: 'bag', slice: 'bag' }]);
   });
   it('none where the building has no office room; the same desk every read', () => {

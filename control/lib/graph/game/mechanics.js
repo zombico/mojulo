@@ -21,6 +21,7 @@ import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCal
 import { lowerWanted } from './law-mechanics.js';
 import { lowerVitals } from './vitals-mechanics.js';
 import { lowerRespray, lowerGunshop, lowerForger } from './shop-mechanics.js';
+import { lowerRequest } from './request-mechanics.js';
 import { lowerMission } from './mission-mechanics.js';
 import { lowerWaveGauntlet } from './wave-gauntlet.js';
 import { lowerObjectives } from './objectives.js';
@@ -1088,6 +1089,8 @@ const MECHANICS = {
   gunshop: { role: 'emitter', requires: ['inventory'], lower: lowerGunshop },
   // (a forger's papers: a licence a driving job may ask for, gameworld/jobsified.js `licence`)
   forger: { role: 'emitter', requires: ['inventory'], lower: lowerForger },
+  // (a constituent's infra request: a work order, its material from the yard, its spots fixed; game/request-mechanics.js)
+  request: { role: 'emitter', requires: ['inventory'], lower: lowerRequest },
   // (a story mission: a job with ways to fail, started again after; game/mission-mechanics.js)
   mission: { role: 'emitter', lower: lowerMission },
 

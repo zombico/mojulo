@@ -54,6 +54,14 @@
   worked out from what the tabs show, the Policies tab most of all. Mistakes bring Quality Assurance; late tickets are
   escalated to a committee; Mandatory Training interrupts. Meet quota and you're paid, recognised (automatically) and
   commended; two commendations make a promotion, and a promotion is more work: more tickets, less time for each.
+- **The municipal office.** A parallel track to the temp agency, at City Hall: constituents' requests come in on the
+  CityLine 311 app and fill the journal. Buy a city worker ID from the forger (a laminated ID and a hi-vis vest), then do
+  each request yourself: get a work order stamped at City Hall's clerk desk (a Deskwork shift of work orders: route it,
+  cost it, stamp it), collect the material at the works yard, and fix it where it is. Shovel and tamp a pothole by the
+  shops near the start, lift and nail the panels of a building site's blown-down hoarding, and clear the litter off the
+  park's lawn: hold F, then tap F, at each spot. Fixed, you're paid and the constituent writes back.
+- **City Hall.** A district can now have one (`cityhall: true`): the museum's civic front on the next block over, its
+  banners in the city's colours, walked into on a page of its own. Hijack City has one.
 - **Issued vehicles stand in their yard.** The heavy call's trucks, the bus and the sweeper are now waiting in the works
   yard and the bus depot when there's room, instead of at a kerb; the streetcar line had taken the kerbs by the yard.
 - **The way and the screen.** Taking a job on the phone points the guide at it straight away; the arrow leads to the

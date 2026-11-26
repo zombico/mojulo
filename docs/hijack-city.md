@@ -35,7 +35,8 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 | (the hero) | bare hands by default, a sidearm drawn with R or 1/2, fired on Q or the click | [arsenal.js](../control/lib/graph/gameworld/arsenal.js) |
 | `factions` | crews with turf and rivals, a board of acts (torch, tag, take) | [factions.js](../control/lib/graph/gameworld/factions.js) |
 | `errands[].app` | side work on the phone: fares | [errand-mechanics.js](../control/lib/graph/game/errand-mechanics.js) |
-| `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping, groundskeeping; an office temp's job on the Placeholder Staffing app | [jobsified.js](../control/lib/graph/gameworld/jobsified.js), [temp-agency.js](../control/lib/graph/gameworld/temp-agency.js) |
+| `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping, groundskeeping; an office temp's job on the Placeholder Staffing app |
+| `municipal` | constituents' infra requests on the CityLine 311 app: a work order at City Hall, the material from the works yard, the fix in place | [municipal.js](../control/lib/graph/gameworld/municipal.js), [request-mechanics.js](../control/lib/graph/game/request-mechanics.js) | [jobsified.js](../control/lib/graph/gameworld/jobsified.js), [temp-agency.js](../control/lib/graph/gameworld/temp-agency.js) |
 | `ui`, `sound`, `music` | the look of the menus and HUD (mana-ui), the car's sounds, the score (walking, the chase, tension) | [docs/mana-ui.md](mana-ui.md), [docs/game-audio.md](game-audio.md) |
 
 The game ships with a title screen, a pause, a save and continue (the level's own save: what was done, kept at the
@@ -310,6 +311,32 @@ holds the screen while the clock runs on. Meeting quota pays into the bag and pu
 promotion (Temp, Probationary Associate, Associate, Senior Associate, Associate Senior Associate, Vice President of
 Associates), and a promotion is more work: the shift's tickets are a shovels & buckets card (`deskwork/card.js`) solved by
 the work sim's solver to the rank's challenge, more of them on less patience.
+
+## The municipal office: constituents' requests
+
+The temp agency's parallel track, at City Hall. Constituents' **infra requests** come in on the **CityLine 311** app on
+the phone, and the journal is their log (`municipal: { requests: [{ id, kind, from?, says?, reward? }] }`,
+`gameworld/municipal.js`; Hijack City has three: a pothole, a fence, the park). They are not deliveries for someone else:
+the player, in a city worker's ID the forger sells (`PAPERS.municipal`, a laminated ID and a hi-vis vest that does most
+of the work), does each one themselves, by a combination of what the city already does:
+
+- **Approve.** A work order made at City Hall. City Hall is a geocity word, `cityhall: true | { name }`: the museum's
+  civic front (steps, a portico, a pediment) on the next block that can take one, its banners the city's colours, its
+  door into a building of its own (`levels.js` `cityhallDoor`). At the clerk's desk inside, a Deskwork shift of **work
+  orders** (`deskwork/card.js` `CLERK`): each a constituent's request routed to its department (potholes to Roads, fences
+  to Public Works unless the fence is in a park, public spaces to Parks & Recreation), costed at the policies' rates with
+  a call-out, and stamped by the clerk's signing limit (over it, pending Council). A shift won puts a work order in the
+  bag, carried back out to the city.
+- **Deliver.** The request's material collected at the works yard, signed out on the work order: a bag of cold-patch
+  asphalt, a stack of fence panels, a litter picker and bin bags. Without a work order the yard says where one is made.
+- **Fix**, in the engine at the real place (`scene/channels/fix-sites.js`): a pothole in the road by a shop near the
+  start (cones by it), a building site's hoarding blown down along its street, heaps of litter on the park's lawn. At
+  each spot, hold F (shovel in the asphalt, lift the panel, pick up the litter) and then tap F (tamp it, nail it, tie
+  off the bag); the pothole fills, the panel rises, a planter stands where the litter was. Every spot fixed, the request
+  is done: the work order and the material used, the pay into the bag, and the constituent's thanks.
+
+A request is the `request` mechanic (`game/request-mechanics.js`); its kind is a row of `REQUEST_KINDS` (its material,
+its spots, its hold and its taps, its words), placed by `requestSites`. A new kind of request is a row.
 
 ## Pedestrians, in sixes
 

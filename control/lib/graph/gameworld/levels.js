@@ -72,6 +72,7 @@ import { policeCount, policeCars, LAW } from './law.js';
 import { patrolCar, depotCabs, issuedCabs } from './cars.js';
 import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf, MOW_ROUND } from './jobsified.js';
 import { FORGED, PAPERS } from './shops.js';
+import { MUNICIPAL, REQUEST_KINDS, requestSites } from './municipal.js';
 // (the papers a driving or desk job asks for: its row's `papers`, or the licence a `licence` row asks for)
 const paperOf = (S) => (S.papers ? PAPERS[S.papers] : S.licence ? FORGED : null);
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
@@ -227,7 +228,7 @@ export function gameStages(world) {
       out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...skyWords(R.geocity) } });
       // (its museum and its office tower entered at their doors, geocity/museum.js and scene.js `office`: each a level of its
       // own after the district, linked by its door; the office's a desk's, deskwork's: gameworld/temp-agency.js)
-      if (R.geocity.spec?.museum || R.geocity.spec?.office) (stageEnds(out[out.length - 1].manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `district-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'district', index: 0, door: d.id }, building: { use: d.inside.use }, label: d.inside.name, ...(d.inside.desk ? { desk: true } : {}), manifest: interiorStage(d.inside) }));
+      if (R.geocity.spec?.museum || R.geocity.spec?.office || R.geocity.spec?.cityhall) (stageEnds(out[out.length - 1].manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `district-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'district', index: 0, door: d.id }, building: { use: d.inside.use }, label: d.inside.name, ...(d.inside.desk ? { desk: true } : {}), ...(d.inside.clerk ? { clerk: true } : {}), manifest: interiorStage(d.inside) }));
       continue;
     }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
@@ -659,7 +660,9 @@ function geocityEnds(manifest) {
   // its own; walked back out, the hero stands at the foot of its steps facing its street)
   const doors = [...(manifest.geocity?.museum ? (P.anchors ?? []).filter((a) => a.kind === 'museum').map((a) => museumDoor(a, manifest.geocity.museum, ground, manifest.seed ?? 1)) : []),
     // (its OFFICE tower's lobby, `office`: entered into the office's building, its desk where a temp's shift is worked)
-    ...(manifest.geocity?.office ? (P.anchors ?? []).filter((a) => a.kind === 'office').map((a) => officeDoor(a, manifest.geocity.office, ground, manifest.seed ?? 1)) : [])];
+    ...(manifest.geocity?.office ? (P.anchors ?? []).filter((a) => a.kind === 'office').map((a) => officeDoor(a, manifest.geocity.office, ground, manifest.seed ?? 1)) : []),
+    // (its CITY HALL's door, `cityhall`: the museum's civic front, into a building of its own, a clerk's desk in it)
+    ...(manifest.geocity?.cityhall ? (P.anchors ?? []).filter((a) => a.kind === 'cityhall').map((a) => cityhallDoor(a, manifest.geocity.cityhall, ground, manifest.seed ?? 1)) : [])];
   const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]), ...(doors.length ? { doors } : {}) };
   Object.defineProperty(out, 'ground', { value: ground, enumerable: false });
   Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
@@ -846,6 +849,16 @@ function officeDoor(a, O0, ground, seed) {
   const zone = [a.at[0] + nx * OFFICE_IN.zone, a.at[1] + ny * OFFICE_IN.zone], back = [a.at[0] + nx * (OFFICE_IN.zone + OFFICE_IN.back), a.at[1] + ny * (OFFICE_IN.zone + OFFICE_IN.back)];
   return { id: 'office', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
     inside: { use: 'office', seed: seed + 2, kit: OFFICE_IN.kit, layouts: OFFICE_IN.layouts, exit: false, desk: true, name: O.name ?? OFFICE_IN.name } };
+}
+
+/** CITY HALL'S DOOR (geocity/scene.js `cityhall`, the museum's civic front): its zone on its portico before its door, the
+ *  way back out at the foot of its steps; its inside the office program in the everyday kit (its offices in pods), no
+ *  goal, a clerk's desk in it where work orders are made (gameworld/municipal.js CLERK_DESK). */
+function cityhallDoor(a, O0, ground, seed) {
+  const [nx, ny] = a.N, z = (p) => ground(p[0], p[1]) ?? a.floor, O = O0 === true ? {} : O0;
+  const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + MUSEUM_IN.back), a.at[1] + ny * (MUSEUM_IN.zone + MUSEUM_IN.back)];
+  return { id: 'cityhall', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: 'office', seed: seed + 3, kit: OFFICE_IN.kit, layouts: OFFICE_IN.layouts, exit: false, clerk: true, name: O.name ?? 'City Hall' } };
 }
 
 /** THE MUSEUM'S DOOR (geocity/museum.js): its zone on the portico just before its door, the way back out at the foot of
@@ -1072,7 +1085,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null, errands: G.errands ?? null }) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length || !!G.municipal, shops: G.shops ?? null, errands: G.errands ?? null, municipal: G.municipal ?? null }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -2134,6 +2147,19 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop
   // front a short walk off that no one stands at and no job sends the player to; the respray at a street's junction a
   // drive off, clear of the cars parked there
+  // THE MUNICIPAL OFFICE'S REQUESTS (municipal.js), before the shops (the forger deals in the papers its tasks ask for):
+  // each placed where it is fixed, its material at the works yard, City
+  // Hall's door where its work order is made; taken on the 311 app, asking for a city worker's ID where the forger deals
+  // in papers; a request the district has no place for left out
+  if (city.municipal && cityStage(stage)) {
+    const hall = (ends.doors ?? []).find((x) => x.id === 'cityhall');
+    requestSites(ends, city.municipal.requests).forEach((S, k) => {
+      const Q = city.municipal.requests.find((r) => r.id === S.id), K = REQUEST_KINDS[Q.kind];
+      mechanics.push({ kind: 'request', id: Q.id, job: Q.kind, name: K.thing, title: K.name, from: Q.from, says: Q.says.replace('{where}', S.where), thanks: K.thanks, where: S.where, done: K.done, spots: S.spots, yard: S.yard,
+        material: { ...K.material }, order: { ...MUNICIPAL.order }, reward: [{ item: 'coin', n: Q.reward }], after: `took-${Q.id}`, fix: { hold: { ...K.hold }, tap: { ...K.tap } }, ...(hall ? { hall: hall.at.slice() } : {}) });
+      mechanics.push({ kind: 'task', id: Q.id, app: MUNICIPAL.app, flag: `took-${Q.id}`, name: MUNICIPAL.appName, ...(k === 0 ? { subscribe: true } : {}), ...(city.shops?.forger ? { needs: { item: PAPERS[MUNICIPAL.papers].item, name: PAPERS[MUNICIPAL.papers].name } } : {}) });
+    });
+  }
   if (city.shops && city.bag && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
     const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at);
     const pick = (list, lo) => list.filter((q) => d2(q, ends.spawn) >= lo).sort((a, b) => d2(a, ends.spawn) - d2(b, ends.spawn) || a[0] - b[0] || a[1] - b[1])[0] ?? null;

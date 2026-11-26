@@ -198,6 +198,8 @@ const NEAR = 320, LAMP = 31, POLE = 35;
 // the frontage's eyes: the cameras within this many metres of the ground (a person's, not a bird's)
 const FRONT_EYE = 25;
 // (a detailed lot's ground floor stood this proud of its facade's plane, before its piers)
+// a city hall's banners (its civic front the museum's: museum.js MUSEUM), the city's own colours
+const CITYHALL_BANNERS = Object.freeze(['#1f3f6e', '#c9a227']);
 const FRONT_PROUD = 0.35;
 // the frontage's paints: a building's window frames and balcony rails, its shops' frames, signs and awnings, its doors
 const FRONT_PAINT = Object.freeze({
@@ -782,6 +784,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   // door into a building of its own (none where the recipe asks for none: no block changes)
   const museumBlock = d.spec.museum && E ? pickMuseum(d.regions.flatMap((r) => r.blocks), E.blocks) : null, museums = [];
   if (museumBlock) { museumBlock.kind = 'museum'; delete museumBlock.becomes; delete museumBlock.towers; }
+  // its CITY HALL (`cityhall`): the same civic front on the next block that can take one, its banners the city's own, its
+  // door a level's door into a building of its own (a clerk's desk where work orders are made, gameworld/municipal.js)
+  const hallBlock = d.spec.cityhall && E ? pickMuseum(d.regions.flatMap((r) => r.blocks), E.blocks) : null, cityhalls = [];
+  if (hallBlock) { hallBlock.kind = 'cityhall'; delete hallBlock.becomes; delete hallBlock.towers; }
   // (a facade-detail lot's skin, its walls varied: worn in the other of stone and brick on some, where its grammar builds
   // the other at all; its wall's paint its own, WALL_VARY)
   const builds = (m) => (G.skin.mix?.[m] ?? [1]).some((w) => w > 0) && (G.skin[m] ?? []).length;
@@ -1342,6 +1348,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     }
     else if (b.kind === 'worship') worship(b, { x0, y0, x1, y1, zAt, far });
     else if (b.kind === 'museum') museum(b, { x0, y0, x1, y1, zAt, far });
+    else if (b.kind === 'cityhall') museum(b, { x0, y0, x1, y1, zAt, far, civic: 'cityhall' });
     else if (b.kind === 'cemetery') cemetery(b, { x0, y0, x1, y1, zAt, far });
     else if (INDUSTRY_SEGMENTS.includes(b.kind)) industrial(b, { zAt, Rb, far });
     else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps });
@@ -1448,8 +1455,8 @@ export function assembleGeocityScene(m, ctx = {}) {
   /** THE MUSEUM (museum.js): on a paved forecourt at its front street, a flight of steps up to a portico of columns
    *  under a pediment, its stone hall behind, banners either side of its door; the door its anchor, a level's door into
    *  the museum's own building (gameworld/levels.js geocityEnds). Drawn whole near the walk; a far one its hall alone. */
-  function museum(b, { x0, y0, x1, y1, zAt, far }) {
-    const Mu = MUSEUM, Cc = Mu.colours, fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n';
+  function museum(b, { x0, y0, x1, y1, zAt, far, civic = 'museum' }) {
+    const Mu = MUSEUM, Cc = civic === 'cityhall' ? { ...Mu.colours, banners: CITYHALL_BANNERS } : Mu.colours, fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n';
     const deep = along ? y1 - y0 : x1 - x0, wide = along ? x1 - x0 : y1 - y0, m0 = along ? (x0 + x1) / 2 : (y0 + y1) / 2;
     const St = Mu.steps, Po = Mu.portico, run = St.n * St.run, fw = Math.min(Mu.hall.wide, wide - 8), fl = Math.min(Mu.hall.deep, deep - Mu.court - run - Po.deep - 4);
     // (a point `t` along its front and `u` in from its front street, in the city's x and y)
@@ -1498,7 +1505,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     [-1, 1].forEach((o, k) => panel(o * bay - Bn.wide / 2, o * bay + Bn.wide / 2, zf + Bn.lift, zf + Bn.lift + Bn.high, Cc.banners[k % Cc.banners.length], 'geocity:banner'));
     // (its door: where the level's door stands, the way out of it its front street's)
     const door = at(0, uHall);
-    museums.push({ id: `museum-${b.id}`, block: b.id, at: P3([door[0], door[1], zf]), N: P3([fx, fy, 0]), floor: r5(zf), ...(typeof d.spec.museum?.name === 'string' ? { name: d.spec.museum.name } : {}) });
+    (civic === 'cityhall' ? cityhalls : museums).push({ id: `${civic}-${b.id}`, block: b.id, at: P3([door[0], door[1], zf]), N: P3([fx, fy, 0]), floor: r5(zf), ...(typeof d.spec[civic]?.name === 'string' ? { name: d.spec[civic].name } : {}) });
   }
 
   /** A PLACE OF WORSHIP (segments.js `worship`, its `faith`): on a paved forecourt at its front street, the city
@@ -2984,9 +2991,10 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
-    ...(podia.length || SUB || entered.length || museums.length || offices.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
+    ...(podia.length || SUB || entered.length || museums.length || offices.length || cityhalls.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
       ...museums.map((M) => ({ ...M, kind: 'museum', use: 'museum', enter: 'door' })),
       ...offices.map((O) => ({ ...O, kind: 'office', use: 'office', enter: 'door' })),
+      ...cityhalls.map((H) => ({ ...H, kind: 'cityhall', use: 'office', enter: 'door' })),
       ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, ...(e.sink ? { sink: e.sink } : {}), door: P3(e.door), ...(e.till ? { till: e.till, keeper: e.keeper } : {}), inside: e.inside } })),
       ...(SUB?.anchors ?? []),
       ...(dressed?.readout.court ? [{ id: `food-court-${dressed.readout.court.podium}`, kind: 'food-court', podium: `podium-${dressed.readout.court.podium}`, tables: dressed.readout.court.tables }] : []),
