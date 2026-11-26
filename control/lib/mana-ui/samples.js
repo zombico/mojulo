@@ -91,6 +91,15 @@ export const SAMPLE_STATE = Object.freeze({
   ],
   sp: 3,
   levelup: { who: 'Ayla', level: 8, points: 3, stats: [{ id: 'atk', label: 'Attack', value: 21 }, { id: 'def', label: 'Defence', value: 18 }, { id: 'mag', label: 'Magic', value: 4, max: 6 }, { id: 'spd', label: 'Speed', value: 9 }] },
+  // a machine's hangar (the campaign idioms garage-slots, garage-parts, machine-sheet): its slots, one slot's parts and
+  // their figures, the machine as it stands
+  garage: {
+    slots: [{ slot: 'Core', name: 'Prow', then: { emit: 'garage:slot', slot: 'core' } }, { slot: 'Legs', name: 'Reverse M', then: { emit: 'garage:slot', slot: 'legs' } }, { slot: 'Right arm', name: 'Carbine', then: { emit: 'garage:slot', slot: 'armR' } }],
+    parts: [{ name: 'Prow', about: 'a headless forward fuselage', fitted: true, then: { emit: 'garage:fit', slot: 'core', item: 'cr-prow' } }, { name: 'Citadel', about: 'a heavy core, slow and hard to break', then: { emit: 'garage:fit', slot: 'core', item: 'cr-citadel' } }],
+    columns: [{ key: 'part', label: 'Part' }, { key: 'ap', label: 'AP', align: 'right' }, { key: 'wt', label: 'Weight', align: 'right' }],
+    rows: [{ part: 'Prow', ap: '9,200', wt: '14,800', mark: true }, { part: 'Citadel', ap: '13,600 +4,400', wt: '21,500 +6,700' }],
+    sheet: { title: 'Vanguard', load: 52, loadMax: 63, rows: [{ what: 'AP', value: '31,400' }, { what: 'Boost', value: '46' }], laws: [{ says: 'Within its legs\' load', ok: true }] },
+  },
   loadout: {
     weight: 34, weightMax: 50,
     slots: [
