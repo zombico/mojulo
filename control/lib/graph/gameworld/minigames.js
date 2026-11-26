@@ -21,7 +21,7 @@
  * `minigamePlan(G, stages)` the games each stage keeps; `minigameCast(G, stage, ends, { ref, games, bag })` what a stage
  * stands and plays (its keepers stood as stage-figures.js stands every figure).
  */
-import { MINIGAMES, MINIGAME_IDS, readMinigames } from '../playscape/ui/minigames.js';
+import { MINIGAMES, STALLS as MINIGAME_IDS, readMinigames } from '../playscape/ui/minigames.js';
 import { libraryFigure, stand } from './stage-figures.js';
 
 export const MINIGAME_KEEPER = Object.freeze({ cast: 'female', palette: { Top: '#2f6b55' } });

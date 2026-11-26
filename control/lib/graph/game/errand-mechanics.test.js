@@ -269,18 +269,20 @@ describe('shift: a driving job in a city vehicle, from its depot and back (gamew
     expect(drive([SWEEP, TASK], [take, ...sweepAll]).log).not.toContain('errand:done:bins');
     expect(drive([SWEEP, TASK], [take, inCab(), ...sweepAll.slice(0, 3)]).log).not.toContain('errand:done:bins');
   });
-  // MOW: a sweep's twin on a lawn, its cells squares
-  it('mow: each patch of long grass driven over in the vehicle is mown once; every one mown pays, in its own words', () => {
-    const MOW = { ...SWEEP, mode: 'mow', stops: SWEEP.stops.map((q) => ({ at: q.at, half: [3, 3] })), pitch: 'Parks office: the crew is off sick.' };
-    const r = drive([MOW, TASK], [take, inCab(), ...sweepAll, { at: [60, 40, 0] }, ...sweepAll]);
+  // MOW: a minigame of its own, on foot; a round won pays
+  it('mow: on foot, no vehicle; a mowing round won once the job is taken pays, one lost says so; the pitch said as it is taken', () => {
+    const MOW = { kind: 'shift', mode: 'mow', id: 'bins', depot: [0, 0, 0], radius: 4, item: 'lawn', vehicle: 'ride-on mower', reward: [{ item: 'coin', n: 45 }], after: 'took-bins', repeat: true, pitch: 'Parks office: the crew is off sick.' };
+    const won = { ev: { type: 'minigame-won:bins' } };
+    const r = drive([MOW, TASK], [take, { ev: { type: 'minigame:bins' } }, won, won]);
     expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    expect(r.vars[H('coin')]).toBe(90);
+    expect(r.vars['flag-on-bins']).toBe(1);
+    // (won before it is taken: nothing)
+    expect(drive([MOW, TASK], [won]).log).not.toContain('errand:done:bins');
     const { hud } = composeMechanics([{ kind: 'bag', slice: 'bag' }, MOW, TASK, EXIT], ctx).events;
     expect(hud.find((h) => h.as === 'banner')).toMatchObject({ text: 'Lawn mowed' });
-    expect(hud.map((h) => h.text)).toEqual(expect.arrayContaining(['Half of the lawn mowed', 'Parks office: the crew is off sick.']));
+    expect(hud.find((h) => h.on === 'minigame-lost:bins')).toMatchObject({ as: 'toast', text: 'Not enough of the lawn cut: try again' });
     expect(hud.find((h) => h.text === MOW.pitch).on).toBe('flag:took-bins');
-    // (a patch is a square: its corner reached is in it, past it is not)
-    expect(drive([MOW, TASK], [take, inCab(), { at: [32.5, 2.5, 0] }]).vars['flag-stop-bins-1']).toBe(1);
-    expect(drive([MOW, TASK], [take, inCab(), { at: [33.5, 0, 0] }]).vars['flag-stop-bins-1']).toBe(0);
   });
   it('a malformed shift says what is wrong', () => {
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...COLLECT, load: 9 }, EXIT], ctx)).toThrow(/load is how many/);

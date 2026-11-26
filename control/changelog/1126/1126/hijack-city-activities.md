@@ -34,11 +34,16 @@
   screen counts what is swept and calls each quarter; sweep it all to get paid, and the streets are dirty again by the
   next round.
 - **Groundskeeping.** The parks' grounds crew keeps falling ill, and the parks office will take anyone with a licence:
-  the fake ID gets you this one too. A ride-on mower waits on the path of the nearest park; its lawn is long grass in
-  patches round the paths, the pavilion and the trees. Drive over each to mow it, leaving a lighter stripe; mow them
-  all to get paid, and the grass grows back for the next round. The ride-on mower is new on the vehicle shelf (`ride-on
-  mower`, `riding mower`, `lawn tractor`): a low bonnet, an open seat with a high back, a cutting deck under it and its
-  chute out to the side, at a mower's own weight and top speed.
+  the fake ID gets you this one too. There's no mower left lying around town: walk to the groundskeeper's shed by the
+  nearest park and take the mower out, and a mowing minigame of its own comes up. It's that park from above (its paths,
+  trees, playground and flowerbeds): drive the zero-turn mower to cut the long grass in stripes, steer round the trees,
+  stay off the flowers, and beat the clock. Cut enough of it to get paid; the shed is open for another round.
+- **A new minigame, Mowing.** Beside blocks, match and fishing, any level can now put a mowing round at a place
+  (`play.minigames`, `game: 'mowing'`), on a lawn of its own (`lawn`) or a seeded park, with a condition before it can be
+  started (`if`) and what's said when it can't (`locked`). The book's `minigames: true` stays the three stall games.
+- **The ride-on mower** is new on the vehicle shelf (`ride-on mower`, `riding mower`, `lawn tractor`): a low bonnet, an
+  open seat with a high back, a cutting deck under it and its chute out to the side, at a mower's own weight and top
+  speed.
 - **The way and the screen.** Taking a job on the phone points the guide at it straight away; the arrow leads to the
   nearest pile still waiting. A line on screen shows the truck's load or the next stop and who is aboard, with a bar
   while F is held. A finished job is announced with a card in the middle of the screen over what it paid, the money in

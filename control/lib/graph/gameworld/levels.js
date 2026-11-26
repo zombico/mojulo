@@ -70,7 +70,7 @@ import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
 import { patrolCar, depotCabs, issuedCabs } from './cars.js';
-import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf } from './jobsified.js';
+import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf, MOW_GAME } from './jobsified.js';
 import { FORGED } from './shops.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
@@ -1245,6 +1245,8 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   }
   // (its jobs kept in its journal: each errand a quest, its legs the steps, city-guide.js jobQuests)
   if (ways?.quests?.length) extraPlay = mergePlay(extraPlay, { quests: ways.quests });
+  // (its jobs' minigames: a groundskeeper's lawn, levels' stageWays)
+  if (ways?.minigames?.length) extraPlay = mergePlay(extraPlay, { minigames: ways.minigames });
   let play;
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   // (a level on lives shows them, not the hp bar, and no level badge: the lives and coins counters say the run; and the
@@ -1354,7 +1356,7 @@ function seatPart(G, pilotPart, ends, lane) {
 
 // the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots, routines) one after the
 // other, the items together, the rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
-const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests', 'scenes'];
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines', 'quests', 'scenes', 'minigames'];
 // A NEW LEVEL'S GRASS (era/isekai.js `grass.form`): a trail stage on an isekai land (its kit, or a geocube's) is made with
 // its field drawn as the form render's grass near and the raised ground beyond, in its own ramp (channels/stage-grass.js),
 // in place of the spiky tufts and cards. Written here, as the level is made, so a stage already stored keeps what it drew;
@@ -1789,6 +1791,8 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   }
   const mechanics = [], arrive = [];
   let quests = [], stoodGivers = [], encounter = null;
+  // (a mow's round: the level's play.minigames, playscape/ui/minigames.js)
+  const minis = [];
   for (const w of [...gated, ...plan.on, ...plan.back]) {
     const s = spot.get(w);
     mechanics.push({ kind: 'reach-exit', exit: w.id, at: s.at, radius: w === plan.back[0] ? 1.2 : 2.5, ...(ends.planar ? {} : { planar: false }), ...(w.needs ? { needs: w.needs } : {}) });
@@ -1898,7 +1902,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     // place to send it lays none of it (advised, never refused: the errand proof says it was not laid)
     const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt), atHq = [];
     if (shiftAt.length && driven) {
-      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !issues(shiftOf(w))))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !issues(shiftOf(w)) && !shiftOf(w).foot))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
       const issue = issuedOf(ends, city.errands ?? [], stage.level), issuedIds = issuedCabs(ends, issue, { roles });
       // (nothing stood within a stop's reach of the dump: a pile in its yard would be emptied as it is taken)
       const used = [...givers.map((g) => g.at), ...legs.filter((l) => Array.isArray(l.at)).map((l) => l.at), ...(ends.dump ? [ends.dump.at] : [])];
@@ -1925,6 +1929,17 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
           task();
           continue;
         }
+        // A MOW: on foot, its round a minigame of its own (playscape/ui/minigames.js `mowing`): started at the shed's door
+        // at the park nearest the start, the park's lawn its tiles (jobsified.js lawnOf), once the job is taken
+        if (S.mode === 'mow') {
+          const lawn = lawnOf(ends);
+          if (!lawn) { unlaid.add(k); continue; }
+          used.push(lawn.spot.at);
+          legs[k] = { ...base, depot: lawn.spot.at.slice(), radius: MOW_GAME.reach, vehicle: S.vehicle, yard: yard ?? 'park', shed: lawn.shed };
+          minis.push({ id: L.id, game: 'mowing', title: S.name, at: { at: lawn.spot.at.slice(0, 2), r: MOW_GAME.reach }, prompt: MOW_GAME.prompt, lawn: lawn.lawn, time: MOW_GAME.time, gold: 0, if: { var: `flag-took-${L.id}`, gte: 1 }, locked: MOW_GAME.locked });
+          task();
+          continue;
+        }
         // ITS VEHICLE: issued at the kerb by its yard (a row with a fleet: a haul's truck, a route's bus), or one of the
         // depot's own nearest the start (a collect's garbage trucks)
         let from;
@@ -1941,14 +1956,6 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
           from = { at: D.at, cabs: ids, depot: { depot: D.at.slice(), radius: r3(Math.max(SHIFT.reach, D.radius)), ...(D.half ? { half: D.half.map((h) => r3(Math.max(SHIFT.reach, h))) } : {}) }, vehicle: S.vehicle };
         }
         const who = { ...base, ...from.depot, cabs: from.cabs, vehicle: from.vehicle, yard: yard ?? 'yard', ...(from.place ? { place: from.place } : {}) };
-        if (S.mode === 'mow') {
-          // (its lawn: the park its mower stands in, cut into cells, jobsified.js lawnOf)
-          const lawn = lawnOf(ends);
-          if (!lawn || lawn.cells.length < 4) { unlaid.add(k); continue; }
-          legs[k] = { ...who, yard: 'park', stops: lawn.cells.map((q) => ({ at: q.at, half: q.half })) };
-          task();
-          continue;
-        }
         if (S.mode === 'sweep') {
           // (its litter: along the streets nearest its yard, jobsified.js sweepRoute)
           const D = (ends.depots ?? []).find((x) => x.yard === S.yard), heaps = sweepRoute(ends, D ? D.at : from.at);
@@ -2088,7 +2095,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   // faction's fight): blows cost it, quiet mends it, and at none the player is wasted, billed and set down at the start
   if (cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (police || encounter)) mechanics.push({ kind: 'vitals', ...VITALS_CITY, ...(city.bag ? { bill: VITALS_BILL } : {}), back: ends.spawn.slice() });
   const save = cityStage(stage) && (ends.parked?.length ?? 0) > 0 && (stoodGivers.length || mechanics.some((m) => m.kind === 'task' || m.kind === 'join')) ? CITY_SAVE : null;
-  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}), ...(save ? { save } : {}) };
+  return { mechanics, arrive, exits: [...plan.on, ...plan.back].map((w) => ({ id: w.id, to: w.to, ...(w.gate ? { gate: w.gate } : {}) })), ...(quests.length ? { quests } : {}), ...(minis.length ? { minigames: minis } : {}), ...(stoodGivers.length ? { givers: stoodGivers } : {}), ...(encounter ? { encounter } : {}), ...(police ? { police } : {}), ...(save ? { save } : {}) };
 }
 
 // A PLAYED CITY'S SAVE (scene/channels/game.js `save`): the bus vars that hold its progress (the jobs' and factions'

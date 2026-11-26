@@ -50,8 +50,9 @@
  *                                called counting; the last back, the first is called again
  *                       sweep    its `stops` heaps of litter, each driven over in the vehicle once a round; every
  *                                one swept pays, and a standing one's are laid again
- *                       mow      a sweep's twin on a lawn: its `stops` cells of long grass ({ at, half }), each driven
- *                                over once a round; every one mown pays, and the grass grows back
+ *                       mow      a lawn mown as a minigame of its own (playscape/ui/minigames.js `mowing`, the
+ *                                level's play.minigames, its id the job's): on foot, no vehicle; started at its
+ *                                place once taken, a round won (`minigame-won:<id>`) pays
  *                       dig      an operated machine (an excavator): the page says each scoop and each tip
  *                                (`shift:scoop:<id>`, `shift:tip:<id>`); a full bucket tipped is a load, `loads` of
  *                                them pay and the truck goes off empty
@@ -404,8 +405,8 @@ export function lowerShift(p, ctx) {
   if (!['route', 'collect', 'haul', 'dig', 'sweep', 'mow'].includes(mode)) fail('mode is route, collect, haul, dig, sweep or mow');
   if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
   if (!isVec(p.depot)) fail('depot is [x, y, z]: the yard its vehicle is had from');
-  if (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c)) fail('cabs is the ids of the vehicles it is done in, at least one');
-  if ((mode === 'route' || mode === 'collect' || mode === 'sweep' || mode === 'mow') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
+  if (mode !== 'mow' && (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c))) fail('cabs is the ids of the vehicles it is done in, at least one');
+  if ((mode === 'route' || mode === 'collect' || mode === 'sweep') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
   // (a haul's CALLS: each a vehicle of its own (`cab`), where it is driven (`site`) and where it is taken back to (`back`),
   // worked in turn; one call is the shift's own `cabs[0]`, `site` and `back`)
   const calls = mode !== 'haul' ? [] : Array.isArray(p.calls) && p.calls.length ? p.calls : [{ cab: p.cabs[0], site: p.site, back: p.back }];
@@ -435,7 +436,7 @@ export function lowerShift(p, ctx) {
   const callVar = `call-${id}`, called = calls.length > 1;
   if (called) frag.vars[callVar] = 1;
   const board = (c) => { const k = calls.findIndex((x) => x.cab === c); return called ? ev(`board:${k + 1}`) : ev('board'); };
-  for (const c of called ? calls.map((x) => x.cab) : p.cabs) {
+  for (const c of called ? calls.map((x) => x.cab) : p.cabs ?? []) {
     R.push({ on: 'mounted', match: { mount: c }, do: 'set', var: aboard, to: 1 });
     R.push(took ? { on: 'mounted', match: { mount: c }, if: { var: took, gte: 1 }, do: 'emit', type: board(c) } : { on: 'mounted', match: { mount: c }, do: 'emit', type: board(c) });
     R.push({ on: 'dismounted', match: { mount: c }, do: 'set', var: aboard, to: 0 }, { on: 'dismounted', match: { mount: c }, do: 'set', var: inV, to: 0 });
@@ -548,9 +549,20 @@ export function lowerShift(p, ctx) {
     payOut(paid);
     R.push({ on: paid, do: 'set', var: dv, to: 1 });
   }
-  if (mode === 'sweep' || mode === 'mow') {
-    // SWEPT (a mow: MOWN): each heap of litter (a cell of long grass) driven over in the vehicle, once a round; every one
-    // pays and the streets get dirty (the grass grows) again, a standing one's; a word at each quarter
+  if (mode === 'mow') {
+    // MOWN, as a minigame of its own (its round the level's play.minigames `mowing`, its id the job's): started once taken
+    // is the clock in; a round won pays, one lost says so (the shed is open for another)
+    const paid = ev('paid'), won = `minigame-won:${id}`;
+    const gate = took ? { if: { var: took, gte: 1 } } : {};
+    R.push({ on: `minigame:${id}`, ...gate, do: 'emit', type: ev('in') }, { on: won, ...gate, do: 'emit', type: ev('won') });
+    once(ev('won'), paid);
+    payOut(paid);
+    frag.hud.push({ on: `minigame-lost:${id}`, as: 'toast', text: `Not enough of the ${p.item ?? 'lawn'} cut: try again`, ttl: 2.6 });
+  }
+
+  if (mode === 'sweep') {
+    // SWEPT: each heap of litter driven over in the vehicle, once a round; every one swept pays and the streets get dirty
+    // again (a standing one); a word at each quarter swept
     const paid = ev('paid'), q = [1, 2, 3].map((j) => Math.ceil((N * j) / 4));
     stops.forEach((s0, k) => {
       const z = `shift-${id}-${k + 1}`, f = `flag-${stopFlag(k)}`, hit = ev(`stop:${k + 1}`);
@@ -559,7 +571,7 @@ export function lowerShift(p, ctx) {
       R.push({ on: hit, do: 'set', var: f, to: 1 }, { on: hit, do: 'emit', type: `flag:${stopFlag(k)}` }, { on: hit, do: 'inc', var: n, by: 1 }, { on: hit, do: 'emit', type: ev('took') });
     });
     for (const m of q) R.push({ on: ev('took'), if: { var: n, eq: m }, do: 'emit', type: ev(`part:${m}`) });
-    q.forEach((m, j) => frag.hud.push({ on: ev(`part:${m}`), as: 'toast', text: `${['A quarter', 'Half', 'Three quarters'][j]} of the ${mode === 'mow' ? 'lawn mowed' : 'streets swept'}`, ttl: 1.8 }));
+    q.forEach((m, j) => frag.hud.push({ on: ev(`part:${m}`), as: 'toast', text: `${['A quarter', 'Half', 'Three quarters'][j]} of the streets swept`, ttl: 1.8 }));
     // (every one swept: its count, each heap counted once by its own flag; never a chain of its flags, which runs past
     // the bus's depth for a street's worth)
     R.push({ on: ev('took'), if: { var: n, gte: N }, do: 'emit', type: `${ev('took')}:all` });

@@ -93,7 +93,7 @@ import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.
 import { CRAFT } from '../skyscape/eye.js';
 import { MAP_FORMS } from '../skyscape/map.js';
 import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
-import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
+import { STALLS as MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';

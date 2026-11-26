@@ -17,10 +17,10 @@ const BINS = { id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: t
 const HAUL = { id: 'heavy-haul', giver: 'district', vehicle: 'heavy', repeat: true, reward: [{ item: 'coin', n: 60 }] };
 
 describe('a shift read', () => {
-  it('each row is worked by a mode; one not issued its vehicle by a fleet its yard keeps', () => {
+  it('each row is worked by a mode; one not issued its vehicle (nor on foot) by a fleet its yard keeps', () => {
     for (const [word, S] of Object.entries(SHIFTS)) {
       expect(SHIFT_MODES).toContain(S.mode);
-      if (!issues(S)) expect(YARDS[S.yard].roles[word]).toBeGreaterThan(0);
+      if (!issues(S) && !S.foot) expect(YARDS[S.yard].roles[word]).toBeGreaterThan(0);
       if (S.mode === 'collect') expect(S.load).toBeLessThanOrEqual(S.stops);
     }
   });
@@ -94,11 +94,12 @@ describe('a shift read by the guide, the journal and the phone', () => {
     expect(J.steps[2]).toMatchObject({ say: 'Sweep the streets: drive over the litter', when: 'flag-done-street-sweeping', near: PILES.map((at, k) => ({ at, v: `flag-stop-street-sweeping-${k + 1}` })) });
     expect(J.loop).toBe(null);
   });
-  it('mow: its mower taken where it stands, then the lawn, the way to the nearest long grass not yet mown', () => {
-    const MW = { ...HAULED, mode: 'mow', id: 'groundskeeping', site: undefined, vehicle: 'ride-on mower', yard: 'park', stops: PILES.map((at) => ({ at, half: [3, 3] })) };
+  it('mow: walked to the groundskeeper\'s shed, its round started there; done when one is won', () => {
+    const MW = { kind: 'shift', mode: 'mow', id: 'groundskeeping', name: 'Groundskeeping', item: 'lawn', depot: [10, 60, 1], radius: 3, vehicle: 'ride-on mower', yard: 'park', reward: [{ item: 'coin', n: 45 }], repeat: true };
     const [J] = jobsOf([MW, task('groundskeeping')]);
     expect(J.steps.map((s) => s.id)).toEqual(['app-groundskeeping', 'clock-groundskeeping', 'mow-groundskeeping']);
-    expect(J.steps[2]).toMatchObject({ say: 'Mow the lawn: drive over the long grass', when: 'flag-done-groundskeeping', near: PILES.map((at, k) => ({ at, v: `flag-stop-groundskeeping-${k + 1}` })) });
+    expect(J.steps[1]).toMatchObject({ say: 'Go to the groundskeeper\'s shed at the park', at: [10, 60, 1], when: 'flag-on-groundskeeping' });
+    expect(J.steps[2]).toMatchObject({ when: 'flag-done-groundskeeping', says: 'Paid 45 coin' });
   });
   it('route: its bus taken where it is issued, then each stop in order, held at; the last pays', () => {
     const R = { ...COLLECT, mode: 'route', load: undefined, unload: undefined, back: [10, 60, 1], vehicle: 'bus', place: 'bakery', yard: 'bus depot', stop: 'Pick up at the bus stop', stops: PILES.map((at) => ({ at, radius: 7, place: 'cafe', riders: 2 })) };
@@ -151,26 +152,30 @@ describe('a groundskeeper\'s lawn (lawnOf)', () => {
   const park = { id: 'B1.park', rect: [0, 0, 60, 36], z: 2, at: [30, 18, 2], trees: [[9, 9, 2]], things: [[0, 17, 60, 19], [40, 24, 48, 30]], gates: [] };
   const ends = { spawn: [100, 18, 2], parks: [{ id: 'A1.park', rect: [80, 0, 200, 8], z: 2, at: [140, 4, 2], trees: [], things: [], gates: [] }, park] };
   const L = lawnOf(ends);
-  it('the nearest park wide enough, its mower on its path up from the edge nearest the start, nosed in', () => {
+  it('the nearest park wide enough; the shed\'s door on its path up from the edge nearest the start, the shed beside it', () => {
     expect(L.park).toBe('B1.park');
-    expect(L.spot.at).toEqual([60 - MOW.spot, 18, 2]);
-    expect(L.spot.heading).toBeCloseTo(Math.PI);
+    expect(L.spot).toEqual({ at: [60 - MOW.spot, 18, 2], heading: expect.closeTo(Math.PI, 3) });
+    expect(Math.abs(L.shed.at[1] - 18)).toBeCloseTo(MOW.shed);
+    expect(L.shed.at[0]).toBeLessThan(60);
   });
-  it('its cells on the grass: none over its path or its things, none on a trunk, each a square; at most MOW.most', () => {
-    expect(L.cells.length).toBeGreaterThan(10);
-    expect(L.cells.length).toBeLessThanOrEqual(MOW.most);
-    for (const c of L.cells) {
-      expect(c.half).toEqual([MOW.cell / 2, MOW.cell / 2]);
-      for (const q of park.things) expect(c.at[0] + 3 <= q[0] || c.at[0] - 3 >= q[2] || c.at[1] + 3 <= q[1] || c.at[1] - 3 >= q[3]).toBe(true);
-      expect(Math.hypot(c.at[0] - 9, c.at[1] - 9)).toBeGreaterThanOrEqual(MOW.tree);
-    }
-    // (the same lawn every read)
+  it('the park as the minigame\'s tiles, north up: its path a row of path, its pavilion and shed things, its tree; the mower at the door, nosed in', () => {
+    const { rows, start } = L.lawn, W = rows[0].length;
+    expect(W).toBeLessThanOrEqual(MOW.across);
+    expect(rows.every((r) => r.length === W && /^[.=T#*]+$/.test(r))).toBe(true);
+    expect(rows.filter((r) => /^=+$/.test(r))).toHaveLength(1);
+    expect(rows.join('')).toMatch(/T/);
+    expect(rows.join('').split('#').length - 1).toBeGreaterThanOrEqual(2);
+    // (the tree in the south-west: low rows, west columns)
+    const tj = rows.findIndex((r) => r.includes('T'));
+    expect(tj).toBeGreaterThan(rows.length / 2);
+    expect(rows[tj].indexOf('T')).toBeLessThan(W / 2);
+    expect(rows[Math.floor(start[1])][Math.floor(start[0])]).toBe('=');
+    expect(start[2]).toBeCloseTo(-Math.PI);
     expect(lawnOf(ends)).toEqual(L);
-  });
-  it('a mow\'s mower issued on that spot, not at a kerb; none where no park is wide enough', () => {
-    const E = [{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }];
-    expect(issuedOf({ ...ends, kerbAt: () => null }, E, 'district')).toEqual([expect.objectContaining({ id: 'groundskeeping', at: L.spot.at, heading: L.spot.heading, model: 'loft:rideOnMower', yard: 'park' })]);
-    expect(issuedOf({ ...ends, parks: [ends.parks[0]], kerbAt: () => null }, E, 'district')).toEqual([]);
     expect(lawnOf({ spawn: [0, 0, 0] })).toBe(null);
+  });
+  it('a mow is done on foot: no vehicle issued for it', () => {
+    expect(issuedOf({ ...ends, kerbAt: () => null }, [{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }], 'district')).toEqual([]);
+    expect(shiftRoles([{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }], 'district')).toEqual([]);
   });
 });

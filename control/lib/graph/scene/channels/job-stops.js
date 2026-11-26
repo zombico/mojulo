@@ -6,8 +6,8 @@ import { JOB_MOTION } from './job-motion.js';
 //   STOPS     at each of a route's stops a bus-stop sign and its people waiting (`riders`), there while its flag is down.
 //             Made (the flag rises) on the bus that made it: those waiting walk to its door and board, and those who
 //             boarded at the stop before get off at the door and walk away; laid again (the round begun again), they wait.
-//   LAWNS     a mow's cells of long grass, tufts on its patch (one instanced mesh a job); mown (its flag up) the tufts cut
-//             to stubble and the patch striped, the mower's way; laid again (the grass grown back), long again.
+//   SHEDS     a mow's groundskeeper's shed at its park: walls, a pitched roof, its door to the path and a sign by it; its
+//             round is a minigame of its own (minigame-channel.js `mowing`), started at the door.
 //   PILES     at each pile a heap of bags at the kerb, there while its flag (`flag-stop-<id>-<k>`) is down; taken, it
 //             pops away; laid again, it is back.
 //   THE KEY   held (F) while driving: its going down and coming up said to the bus (`shift:hold:<id>`, `shift:let:<id>`),
@@ -31,13 +31,15 @@ export const JOB_KEY = Object.freeze({ key: 'f', label: 'F' });
 /** What a level's collecting jobs show, or null. */
 export function jobStopsOf(manifest) {
   const M = Array.isArray(manifest?.game?.mechanics) ? manifest.game.mechanics : [];
-  const jobs = M.filter((m) => m && m.kind === 'shift' && (m.mode === 'collect' || m.mode === 'route' || m.mode === 'sweep' || m.mode === 'mow') && Array.isArray(m.stops) && Array.isArray(m.cabs)).map((m) => ({
+  const jobs = M.filter((m) => m && m.kind === 'shift' && (m.mode === 'collect' || m.mode === 'route' || m.mode === 'sweep') && Array.isArray(m.stops) && Array.isArray(m.cabs)).map((m) => ({
     id: m.id, mode: m.mode, cabs: m.cabs.slice(), done: `errand:done:${m.id}`,
-    piles: m.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${m.id}-${k + 1}`, ...(m.mode === 'route' ? { riders: q.riders ?? 1, N: Array.isArray(q.N) ? q.N.map(r3) : [0, 1] } : {}), ...(m.mode === 'mow' ? { half: Array.isArray(q.half) ? q.half.map(r3) : [3, 3] } : {}) })),
+    piles: m.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${m.id}-${k + 1}`, ...(m.mode === 'route' ? { riders: q.riders ?? 1, N: Array.isArray(q.N) ? q.N.map(r3) : [0, 1] } : {}) })),
     vars: { in: `in-${m.id}`, at: `at-${m.id}`, prog: `prog-${m.id}`, load: `load-${m.id}`, on: `flag-on-${m.id}`, full: `flag-full-${m.id}`, next: `next-${m.id}` },
     ...(m.mode === 'collect' ? { load: m.load, where: m.unload ? 'the dump' : `the ${m.yard ?? 'depot'}` } : {}), ticks: Math.max(1, Math.round((Number.isFinite(m.hold) && m.hold > 0 ? m.hold : 1.5) / 0.1)), key: JOB_KEY.label, vehicle: m.vehicle ?? 'truck',
   }));
-  return jobs.length ? { jobs } : null;
+  // (a mow's shed at its park: its round a minigame, started at the door, minigame-channel.js; a shed and its sign here)
+  const sheds = M.filter((m) => m && m.kind === 'shift' && m.mode === 'mow' && m.shed && Array.isArray(m.shed.at)).map((m) => ({ id: m.id, at: at3(m.shed.at), heading: r3(m.shed.heading ?? 0), half: (m.shed.half ?? [1.4, 1.1]).map(r3) }));
+  return jobs.length || sheds.length ? { jobs, ...(sheds.length ? { sheds } : {}) } : null;
 }
 
 export function jobStopsScript(spec) {
@@ -85,27 +87,17 @@ export function jobStopsScript(spec) {
       scene.add(g); piles.push({ J, q, g, was: 0, t0: null });
     });
   });
-  // the long grass of a mow: on each cell a grid of tufts, jittered by their own numbers; mown, cut to stubble over a
-  // striped patch (alternate cells a lighter green, as a mower leaves a lawn)
-  const lawns = [], TUFT = 5;
-  JS.jobs.filter(function (J) { return J.mode === 'mow'; }).forEach(function (J) {
-    const n = J.piles.length * TUFT * TUFT, geo = new THREE.ConeGeometry(0.32, 0.7, 5); geo.rotateX(Math.PI / 2); geo.translate(0, 0, 0.35);
-    const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff' }), n), o = new THREE.Object3D(), c = new THREE.Color();
-    mesh.raycast = function () {}; mesh.frustumCulled = false;
-    const jit = (a, b) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
-    J.piles.forEach(function (q, k) {
-      const hx = q.half[0], hy = q.half[1], tufts = [];
-      for (let i = 0; i < TUFT; i++) for (let j = 0; j < TUFT; j++) {
-        const id = (k * TUFT + i) * TUFT + j, x = q.at[0] - hx + ((i + 0.2 + 0.6 * jit(id, 1)) * 2 * hx) / TUFT, y = q.at[1] - hy + ((j + 0.2 + 0.6 * jit(id, 2)) * 2 * hy) / TUFT, s = 0.8 + 0.5 * jit(id, 3);
-        tufts.push({ id, x, y, z: q.at[2], s, r: jit(id, 4) * 6.28 });
-        c.set(jit(id, 5) < 0.5 ? '#4f7f2e' : '#5d8c35'); c.multiplyScalar(0.85 + 0.25 * jit(id, 6)); mesh.setColorAt(id, c);
-      }
-      const mown = box(2 * hx - 0.2, 2 * hy - 0.2, 0.03, k % 2 ? '#86b25a' : '#76a44c', [q.at[0], q.at[1], q.at[2] + 0.05]); mown.visible = false; scene.add(mown);
-      lawns.push({ J, q, tufts, mown, was: -1 });
-    });
-    lawns.mesh = mesh; lawns.o = o; scene.add(mesh);
+  // a groundskeeper's shed: green walls, a dark pitched roof, its door to the path, a sign on a post by it
+  (JS.sheds || []).forEach(function (H) {
+    const g = new THREE.Group(); g.position.set(H.at[0], H.at[1], H.at[2]); g.rotation.z = H.heading - Math.PI / 2;
+    const w = 2 * H.half[0], d = 2 * H.half[1];
+    g.add(box(w, d, 2.2, '#3f6b3a', [0, 0, 1.1]));
+    for (const s of [-1, 1]) { const r = box(w + 0.3, d / 2 + 0.35, 0.12, '#3a3a40', [0, s * d / 4, 2.45]); r.rotation.x = s * 0.5; g.add(r); }
+    g.add(box(1.0, 0.06, 1.9, '#6b4a2e', [0, d / 2 + 0.02, 0.95]));
+    g.add(box(0.08, 0.08, 1.6, '#5c6166', [w / 2 + 0.6, d / 2 + 0.4, 0.8]));
+    g.add(box(0.7, 0.06, 0.45, '#2f7a3a', [w / 2 + 0.6, d / 2 + 0.4, 1.6]));
+    scene.add(g);
   });
-  const lay = (x, h) => { for (const u of x.tufts) { lawns.o.position.set(u.x, u.y, u.z); lawns.o.rotation.set(0, 0, u.r); lawns.o.scale.set(u.s, u.s, u.s * h); lawns.o.updateMatrix(); lawns.mesh.setMatrixAt(u.id, lawns.o.matrix); } lawns.mesh.instanceMatrix.needsUpdate = true; };
   JS.jobs.filter(function (J) { return J.mode === 'collect'; }).forEach(function (J) {
     J.piles.forEach(function (q, k) {
       const g = new THREE.Group(); g.position.set(q.at[0], q.at[1], q.at[2]);
@@ -139,8 +131,6 @@ export function jobStopsScript(spec) {
       x.was = on ? 1 : 0;
       if (x.t0 != null) { const k = Math.min(1, (t - x.t0) / 0.35); x.g.scale.setScalar(1 - k); x.g.position.z = x.q.at[2] + Math.sin(k * Math.PI) * 0.6; if (k >= 1) { x.g.visible = false; x.t0 = null; } }
     }
-    // a patch mown: its tufts cut to stubble, its stripe down; the grass grown back, long again
-    for (const x of lawns) { const on = Number(V[x.q.v]) >= 1 ? 1 : 0; if (on !== x.was) { lay(x, on ? 0.12 : 1); x.mown.visible = !!on; x.was = on; } }
     // a stop made on the bus that made it: those waiting walk to its door and board; those from the stop before get off
     // and walk away; the round begun again, they wait again
     const door = (e) => { const a = e.transform.heading - Math.PI / 2, c = Math.cos(a), sn = Math.sin(a), st = (e.mount && e.mount.stand) || [-1.6, 0.25], p = e.transform.pos; return [p[0] + st[0] * c - st[1] * sn, p[1] + st[0] * sn + st[1] * c, p[2]]; };
@@ -182,7 +172,6 @@ export function jobStopsScript(spec) {
       const bar = (u) => '<span style="display:inline-block;width:120px;height:7px;margin:0 8px;border-radius:4px;background:rgba(255,255,255,.25);vertical-align:middle"><span style="display:block;height:100%;width:' + Math.round(Math.min(1, u) * 100) + '%;border-radius:4px;background:#f2c75c"></span></span>';
       const held = at >= 1 ? ' · hold <b>' + J.key + '</b>' + bar(prog / J.ticks) : '';
       if (J.mode === 'sweep') h = 'Swept ' + J.piles.filter((q) => Number(V[q.v]) >= 1).length + ' / ' + J.piles.length;
-      else if (J.mode === 'mow') h = 'Mowed ' + J.piles.filter((q) => Number(V[q.v]) >= 1).length + ' / ' + J.piles.length;
       else if (J.mode === 'route') {
         // (the next stop, and who rode from the last one made)
         const next = Math.min(J.piles.length, Number(V[J.vars.next]) || 1), made = J.piles.filter((q) => Number(V[q.v]) >= 1), aboard = made.length ? made[made.length - 1].riders : 0;
@@ -190,7 +179,7 @@ export function jobStopsScript(spec) {
       } else h = 'Load ' + load + ' / ' + J.load + (load >= J.load ? ' · full: take it to ' + J.where : held);
     }
     if (h !== shown) { shown = h; line.innerHTML = h; line.style.display = h ? 'block' : 'none'; }
-    window.__mojJobStops = { mown: lawns.filter((x) => x.was === 1).length, lawn: lawns.length, piles: piles.filter((x) => x.g.visible).length, of: piles.length, stops: stops.map((x) => x.state), waiting: stops.reduce((a, x) => a + x.folk.filter((f) => f.p.visible).length, 0), off: stops.reduce((a, x) => a + x.off.length, 0), held: held, line: shown.replace(/<[^>]+>/g, ''), tipped: tips, motion: JM.tip.s };
+    window.__mojJobStops = { piles: piles.filter((x) => x.g.visible).length, of: piles.length, stops: stops.map((x) => x.state), waiting: stops.reduce((a, x) => a + x.folk.filter((f) => f.p.visible).length, 0), off: stops.reduce((a, x) => a + x.off.length, 0), held: held, line: shown.replace(/<[^>]+>/g, ''), tipped: tips, motion: JM.tip.s };
   })();
 })();
 `;
