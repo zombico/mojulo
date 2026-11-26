@@ -240,6 +240,8 @@ export function buildCombatRanged(E) {
       // muzzle flash's length; absent, the renderer's bolt and burst at fxScale, as before
       ...(w.round && typeof w.round === 'object' ? { round: { speed: w.round.speed > 0 ? w.round.speed : 800, flash: w.round.flash > 0 ? w.round.flash : 0.12, ...(typeof w.round.look === 'string' ? { look: w.round.look } : {}) } } : {}),
       smokeTrail: w.smokeTrail ?? true,    // lob projectile smoke trail toggle (grenades opt out; bazookas keep it)
+      // (`hitGap` s: a body its rounds hurt is spared them that long, a stream one hit; absent, not a byte)
+      ...(w.hitGap > 0 ? { hitGap: w.hitGap } : {}),
       // A THROWN WEAPON (opt-in, throw.js: a hand grenade's { dur, release, clip? }; `ai`, a foe's throw, mind.js: its mind
       // winds the throw before the round leaves, as a pilot's press does) and what its round does where it goes off
       // (opt-in `effect`: 'frag' hurts, the default; 'stun' knocks out what sees it; 'chaff' jams radios and radars round
@@ -499,7 +501,7 @@ export function buildCombatRanged(E) {
           gravity: w.projectileGravity || 0, splashRadius: w.splashRadius || 0, projRadius: w.projRadius || 0.5, prox: w.proximity || 0,
           // (a charged round carries the charge's damage, a bow's arrow drawn full; any other the weapon's own)
           damage: chargedShot ? shotDamage : (w.damage || 0), impact: shotImpact, born: state.time, age: 0, armTime: w.armTime || 0, fuse: w.fuse || 4, ...(w.projectileDrag ? { drag: w.projectileDrag } : {}),
-          fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}),
+          fxColor: w.fxColor ?? null, fxScale: w.fxScale ?? null, smokeTrail: w.smokeTrail !== false, ...(w.knock ? { knock: w.knock } : {}), ...(w.hitGap > 0 ? { hitGap: w.hitGap } : {}),
           ...(w.round && w.round.look ? { look: w.round.look } : {}), ...(w.effect ? { effect: w.effect } : {}), ...(w.jam ? { jam: { ...w.jam } } : {}),          ...(w.noGround ? { noGround: true } : {}), ...(w.passTeam ? { passTeam: true } : {}),
         });
         e.lastShot = { mode: 'launch', t: state.time, from, to: null, charged: chargedShot };
@@ -730,6 +732,9 @@ export function buildCombatRanged(E) {
         if (Number.isFinite(tg.poise) && tg.staggerT == null) armReaction(tg, 'stagger');
         continue;
       }
+      // (a round with a HIT GAP, `weapon.hitGap` s, a foe's breath: a body its owner's rounds hurt is spared them that long,
+      // so a stream lands as one hit, not one a round; absent, every round as it always was)
+      if (p.hitGap > 0) { const G = tg.roundGap || (tg.roundGap = {}); if (G[p.owner] != null && state.time - G[p.owner] < p.hitGap) continue; G[p.owner] = state.time; }
       tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + (p.hitsAs || 1);   // a missile (hitsAs) counts as that many hits (what hp-pools and fail-on-death charge)
       tg.burstHitAt = state.time;   // (a burst's hurt, not a blow's: knockout.js leaves it a hurt)
       tg.lastHitBy = p.owner;   // match-layer attribution (the round remembers its shooter)

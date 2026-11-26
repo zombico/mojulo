@@ -29,6 +29,8 @@
  *                                            topology, throwing with words where it does not fit
  *   isThrow(way)                           → a way that is a throw (its round wound up and released by the body)
  *   cardAttack(classRow, card)             → the class's attack with the card's kind, timing and reach over it
+ *   SECOND_CARDS, alsoFor(id, classRow, topology)   → a SECOND attack beside the blow (an entry's `also`: a spit, a
+ *                                            breath), its round the body's element
  *
  * Pure: no database, no clock, no dice.
  */
@@ -55,7 +57,20 @@ export const ATTACK_CARDS = Object.freeze({
   // THROWN (a lob, its round leaving the hand at the throw's own release: worlds/controllable/mind.js `wind`)
   throw: card({ kind: 'lob', reads: 'winds back and hurls a stone over its head at where you stand: move when its arm goes back', timing: { startup: 42, active: 2, recovery: 26 }, ways: each(FOLK, 'throwOverhand') }),
   toss: card({ kind: 'lob', reads: 'swings its arm low and lobs something high, to land where you stood', timing: { startup: 34, active: 2, recovery: 22 }, ways: each(FOLK, 'throwUnderhand') }),
+  // A SECOND ATTACK (an entry's `also`, beside its blow: a beast that bites up close and breathes or spits from further
+  // off): its round its body's element (the ooze it is grown by: fire, venom, shadow…). `round` the travelling round's
+  // words (worlds/controllable/combat-ranged.js: speed m/s, flat, `splash` the burst's reach round where it lands, `life`
+  // its flight before it bursts wherever it is, `rof` rounds a second while the mind holds its trigger (a spit one a
+  // while, a breath a stream through the mind's burst), `share` of the blow's damage a round deals, `gap` s a body its
+  // rounds hurt is spared them (a breath lands as one hit, however many of its rounds catch you), `band`
+  // [near, far] metres it is thrown at (the mind closes to bite inside it); its way the clip its body fires it in
+  spit: card({ kind: 'lob', reads: 'rears its head back and spits a ball of fire that flies slow and bursts where it lands: step out of its line', timing: { startup: 36, active: 2, recovery: 24 },
+    second: true, round: Object.freeze({ speed: 11, splash: 1.3, life: 1.6, rof: 0.42, share: 0.8 }), band: Object.freeze([3.5, 16]), ways: each(BEASTS, 'snap') }),
+  breath: card({ kind: 'lob', reads: 'draws a breath and pours a jet of fire over the ground before it: get out of its front, or over it', timing: { startup: 30, active: 12, recovery: 30 },
+    second: true, round: Object.freeze({ speed: 9, splash: 1.1, life: 0.7, rof: 12, share: 0.5, gap: 1.2 }), band: Object.freeze([2.5, 6]), ways: each(BEASTS, 'roar') }),
 });
+/** the cards that are a second attack (an entry's `also`), never its blow */
+export const SECOND_CARDS = Object.freeze(Object.keys(ATTACK_CARDS).filter((k) => ATTACK_CARDS[k].second));
 export const ATTACK_CARD_IDS = Object.freeze(Object.keys(ATTACK_CARDS));
 
 // (held to its own words at load: a card's kind is an attack, its topologies the fit's, each way a body's)
@@ -77,7 +92,20 @@ export function attackCard(id) {
 
 export function cardFor(id, c, topology) {
   const C = attackCard(id), verb = ATTACKS[C.kind].verb, own = ATTACKS[c.attack.kind].verb;
+  if (C.second) throw new Error(`foe: the card '${id}' is a second attack, beside a blow: an entry's \`also\` (${SECOND_CARDS.join(', ')}), never its \`attack\``);
   if (verb !== own) throw new Error(`foe: a ${c.id}'s attack is a ${c.attack.kind} (${own}); the card '${id}' is a ${C.kind} (${verb}): a card re-skins its class's blow, never its kind`);
+  const way = C.ways[topology];
+  if (!way) throw new Error(`foe: the attack card '${id}' is thrown by a ${Object.keys(C.ways).join(' | ')}, not a ${topology}`);
+  return { card: C, way };
+}
+
+/** An entry's SECOND attack (`also`): a second card (SECOND_CARDS), beside a class's blow (a melee class: it closes to
+ * bite inside the card's band and throws the card from further off), its way the body's by its topology; throws with
+ * words where it does not fit. → { card, way } */
+export function alsoFor(id, c, topology) {
+  const C = attackCard(id);
+  if (!C.second) throw new Error(`foe: \`also\` is a second attack (${SECOND_CARDS.join(', ')}), not '${id}': a blow is the entry's \`attack\``);
+  if (ATTACKS[c.attack.kind].verb !== 'melee') throw new Error(`foe: a ${c.id}'s attack is a ${c.attack.kind}: a second attack goes beside a blow (a class that strikes)`);
   const way = C.ways[topology];
   if (!way) throw new Error(`foe: the attack card '${id}' is thrown by a ${Object.keys(C.ways).join(' | ')}, not a ${topology}`);
   return { card: C, way };

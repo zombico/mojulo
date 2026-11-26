@@ -20,10 +20,15 @@
   it braces (`worlds/controllable/foe.js`), where it braced on the ground and its dive ended where it began; a routed
   flier hovers on its wings at rest. The foe audit reads the states a posed move and a thrown weapon play (`brace`,
   `dive`, `throw`), where it asked for a wind-up and a gun's fire they never play.
+- **A second attack: a spit, a breath** (an entry's `also`, `foes/attacks.js` SECOND_CARDS): a beast that strikes
+  spits a slow ball that bursts where it lands from a few metres out, or pours a jet of fire over the ground before it
+  at close range, coming on while it throws and biting once in reach; its round its body's element (fire, venom, shadow,
+  frost, storm) and fired from its head in its card's clip, a breath landing as one hit however many of its rounds
+  catch you (a weapon's `hitGap`, combat-ranged.js). Artesia's venom drake spits, its fire salamander breathes.
 - **Throwers throw** (the `throw` and `toss` cards): the body winds a real throw and the round leaves at its release.
 - **Fable of Artesia's cast**: the goblin band (raiders who chop, a slinger who throws) under orc leaders who maul, and
   the monsters of its wilds, never its small animals: skeletons risen from its ruins with rusted swords, gloomwings (a
-  bat grown dire and dark) that dive from the air, a crystal behemoth that braces and charges, a venom serpent lying in
+  bat grown dire and dark) that dive from the air, a crystal behemoth that braces and charges, a venom drake lying in
   wait in the grass, a fire salamander that hunts (a family's `extras`, each a beast grown by its oozes or a people; a
   people's `arm` from the armory); foes lit by each level's own cube, the target rim only on a lock.
 - **Fable of Artesia's swordswoman, cleaned up** (`gameworld/hero-rows.js`, Lucien's lessons in Fallen Angel carried to

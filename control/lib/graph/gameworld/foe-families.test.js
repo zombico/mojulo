@@ -101,6 +101,11 @@ describe('the foe families: the rails whose foes walk as their bodies do', () =>
     expect(familyOf(readGameworld(W))?.rail).toBe(rail);
     const cast = castingCall(readGameworld(W)), foes = cast.foes ?? cast;
     expect(foes[X.id].skin.gear.right.item).toBeTruthy();
+    // (and a monster's second attack is its cast's, kept by the bestiary the level reads)
+    const { readBestiary } = await import('./foes.js');
+    const Y = F.extras.find((x) => x.also);
+    expect(foes[Y.id].also).toBe(Y.also);
+    expect(readBestiary(foes)[Y.id].also).toBe(Y.also);
   });
 
   it('a flier met on the ground where it spawned climbs to its perch before it braces, then dives at the hero', () => {

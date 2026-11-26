@@ -79,6 +79,19 @@ pivoting on its ball, the off hand countering. And the hit is the weapon's (`gam
 weapon tip is read across its contact window (`figures/clip-reach.js`), and the blow's reach and cone are set from that
 path at the body's scale, so it lands where the weapon passes and a player reads the reach off the weapon itself.
 
+### A second attack: a spit, a breath
+
+A beast that strikes can carry a second attack beside its blow, an entry's `also` (`foes/attacks.js` SECOND_CARDS):
+a `spit`, a ball that flies slow and flat and bursts where it lands, thrown from a few metres out; or a `breath`, a jet
+of short-lived rounds poured over the ground before it, each bursting in a small splash, at close range; a breath
+lands as one hit however many of its rounds catch you (a weapon's `hitGap`: a body its rounds hurt is spared them). It is a slot
+of its loadout with a `band` (the range it is thrown at) and an `approach` that keeps the beast coming while it throws,
+so the mind (`worlds/controllable/mind.js`) throws it on the way in and bites once in reach. Its round is the body's
+element (`foes/resolve.js` ELEMENT_ROUNDS: the ooze it is grown by, fire, venom, shadow, frost, storm), drawn as a
+foe's round in that colour and leaving at its head; its body fires in the card's way (a snap, a roar), the figure's
+`fire` state. A second card is never a blow, and goes only beside one: a class whose attack is a contact (a charge, a
+dive) or a shot is refused by name.
+
 ### Strike zone: thrown at the hero, by height
 
 A routed rail's foe throws its blow AT the hero (`foes/zones.js`): its strike zone is read off how tall it stands

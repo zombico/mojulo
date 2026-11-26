@@ -19,6 +19,8 @@
  *             Or { meshRef, height? }: a model made elsewhere (./model.js), a rigged humanoid worn as a people is
  *             (`body` null; `skin` the model)
  *     group   the id a swarm's members share (rule.mind.group); absent, the class's id
+ *     also    a SECOND attack beside its blow (./attacks.js SECOND_CARDS: a spit, a breath), on a class that strikes:
+ *             a slot of its loadout thrown from the card's band, its round its body's element (ELEMENT_ROUNDS)
  *     hero    the frame (./vocab.js HERO): its run sets a pace's speed, its blow and its hit price the toll
  *
  * The entity's attack is the Power verb its class's attack holds (a blade slot, a weapon); `contact` and `charge` have
@@ -29,7 +31,8 @@
 import { PACES, MOVES, ATTACKS, FOE_RANKS, HERO } from './vocab.js';
 import { foeClass, classStatus } from './index.js';
 import { checkFit, checkFitPeople, checkFitModel } from './fit.js';
-import { cardFor, cardAttack, isThrow } from './attacks.js';
+import { cardFor, cardAttack, isThrow, alsoFor } from './attacks.js';
+import { OOZES } from '../mutagen/oozes/index.js';
 import { SWING_WORDS } from '../polygonizer/hero-swing.js';
 import { readPeopleSkin } from './people.js';
 import { readModelSkin, isModelSkin } from './model.js';
@@ -42,7 +45,12 @@ import { strikesOf, strikeWindow } from '../fauna/behavior/strike.js';
 const FPS = 60;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const SKIN_KEYS = ['species', 'ooze', 'stylism'];
-const SPEC_KEYS = ['class', 'rank', 'skill', 'skin', 'group', 'attack'];
+const SPEC_KEYS = ['class', 'rank', 'skill', 'skin', 'group', 'attack', 'also'];
+// a second attack's round in its body's element (the ooze it is grown by, mutagen/oozes: its `element`); none, fire's
+export const ELEMENT_ROUNDS = Object.freeze({ fire: 0xff7a1a, poison: 0x9cff3a, dark: 0xa86bff, ice: 0x9fe8ff, thunder: 0xfff27a });
+/** how long a second attack takes to bring up after its blow (s) */
+const SECOND_READY = 0.2;
+const elementOf = (ooze) => [ooze].flat().filter(Boolean).map((o) => OOZES[typeof o === 'string' ? o : o?.id]?.element).find((e) => ELEMENT_ROUNDS[e]) ?? 'fire';
 
 function check(what, v, table) {
   if (!(v in table)) throw new Error(`foe: unknown ${what} '${v}' (known: ${Object.keys(table).join(', ')})`);
@@ -113,6 +121,23 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   // what the mind does not play (worlds/controllable/foe.js): its own move's numbers, the touch it hurts by, the stomp
   const own = foeRecord(c, M, A);
   if (own) rule.foe = own;
+  // its SECOND attack (`also`, ./attacks.js alsoFor): a travelling round beside its blow, a slot of its loadout the mind
+  // throws from inside the card's band (worlds/controllable/mind.js, the bands), loosed at its head (forward its half
+  // length, up most of its height), in its element's colour; the entity's own weapon too, so the page draws its rounds
+  const K2 = spec.also !== undefined ? alsoFor(spec.also, c, measured.topology) : null;
+  if (K2) {
+    const Rd = K2.card.round, len = people ? 0.35 : (measured.extent ?? 1) * 0.5, tall = people ? measured.height * 0.85 : (measured.height ?? 0.5) * 0.8;
+    const sc = people ? R.presence : (c.presence * R.presence * hero.height) / Math.max(0.01, measured.extent), element = people ? 'fire' : elementOf(grown.ooze);
+    const W2 = { fireClass: 'lob', damage: r3(damage * Rd.share), projectileSpeed: Rd.speed, projectileGravity: 0, lobAngle: 0, splashRadius: Rd.splash, fuse: Rd.life, armTime: 0.12, projRadius: 0.25,
+      auto: true, rof: Rd.rof, ...(Rd.gap ? { hitGap: Rd.gap } : {}), smokeTrail: false, foeRound: true, fxColor: ELEMENT_ROUNDS[element], fxScale: 0.22,
+      muzzleOffset: { f: r3(len * sc), u: r3(tall * sc) }, eye: r3(tall * sc) };
+    // (it keeps coming while it throws, pressing in to its blow's reach: a slot's `approach`, mind.js spacing; fires no
+    // further than its band; and brings it up at once, SECOND_READY, where a gun's draw is a second: a fast beast is
+    // through its band before a second is out)
+    W2.range = K2.card.band[1];
+    rule.loadout = [...(rule.loadout ?? []), { name: K2.card.id, weapon: W2, band: [...K2.card.band], approach: { standoff: r3(Math.max(0.6, (A.reach ?? 1.2) * 0.8)) }, switchReady: SECOND_READY }];
+    entity.weapon = W2;
+  }
   // a touch closes to the body, not to a gun's standoff
   if (A.verb === 'contact') rule.standoff = r3(Math.max(0.3, (rule.collideRadius ?? 0.3)));
 
@@ -121,7 +146,8 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   // the blow its body deals it by (a melee attack, on a body that can strike: fauna/behavior/strike.js), at its timing; a
   // people's swing is its role's attack (egocube/moves.js), not a beast's strike
   const strike = !people && A.verb === 'melee' && strikesOf(species).length ? { ...A.timing } : null;
-  const attack = { kind: CA.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}), ...(K ? { card: K.card.id, way: K.way } : {}) };
+  const attack = { kind: CA.kind, timing: A.timing, ...(A.pattern ? { pattern: A.pattern } : {}), ...(A.reach !== undefined ? { reach: A.reach } : {}), ...(A.zone ? { zone: A.zone } : {}), ...(K ? { card: K.card.id, way: K.way } : {}),
+    ...(K2 ? { also: { card: K2.card.id, way: K2.way, timing: K2.card.timing } } : {}) };
   // its PRESENCE: the size it reads at in the game (its longest extent, the class's share of the hero's height grown by
   // rank), the body drawn at the scale that takes its grown extent there
   // (a people stands at its own height, grown only by its rank: a class's presence is a beast's word)

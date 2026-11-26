@@ -12,7 +12,8 @@
  *                `brace`, and `dive` for a dive, where its move is posed): a blow's own wind-up is its swing clip's
  *   foe-zone     every blow thrown at a strike zone (foes/zones.js: the legs, the body, from above) passes its weapon
  *                through that zone on the hero while it can hit: its measured path (the slot's `blade`, gameworld/foe-blade.js)
- *                meets the zone's band; a foe that names no zone is not asked
+ *                meets the zone's band (the legs' from the ground up: a bite at the ankles is at the legs); a foe that
+ *                names no zone is not asked
  *
  *   foeAudit(payload) → null (no foe on the page) | { hero: { light } | null, foes: [<row>], laws: [{ law, ok, value }] }
  *     row  { id, figure, body: 'figure' | 'frames' | 'box' | 'none' | 'unmade', light: 'cast' | 'room' | 'baked',
@@ -81,7 +82,7 @@ export function foeAudit(payload) {
     const fig = figures[e.body?.figure], body = bodyOf(e, figures), clips = isObj(fig?.clips) ? fig.clips : {};
     const needs = needsOf(e), missing = body === 'figure' || body === 'frames' ? needs.filter((s) => !HAS[s](clips)) : needs;
     const zs = (e.rule?.loadout ?? []).find((l) => l && l.zone);
-    const zone = zs ? { id: zs.zone.id, band: zs.zone.band, ...(zs.blade ? { blade: [zs.blade.low, zs.blade.high], meets: zs.blade.low <= zs.zone.band[1] && zs.blade.high >= zs.zone.band[0] } : {}) } : null;
+    const zone = zs ? { id: zs.zone.id, band: zs.zone.band, ...(zs.blade ? { blade: [zs.blade.low, zs.blade.high], meets: zs.blade.low <= zs.zone.band[1] && zs.blade.high >= (zs.zone.id === 'legs' ? 0 : zs.zone.band[0]) } : {}) } : null;
     return { id: e.id, figure: e.body?.figure ?? null, body, light: body === 'box' ? 'baked' : lightOf(fig, roomLit), needs, missing, ...(zone ? { zone } : {}) };
   });
   const unbodied = rows.filter((r) => r.body !== 'figure' && r.body !== 'frames');

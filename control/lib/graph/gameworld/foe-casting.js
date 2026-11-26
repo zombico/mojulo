@@ -314,7 +314,7 @@ export function castingCall(world) {
   const extras = [];
   for (const X of family?.extras ?? []) {
     // (a people among them carries the arm it names, the armory's: equipment/armory.js; a skeleton's rusted sword)
-    const e0 = { class: X.class, skin: { ...X.skin, ...(X.arm && ARMORY_ARMS[X.arm] ? { gear: { right: { ...ARMORY_ARMS[X.arm], laws: 2 } } } : {}) } };
+    const e0 = { class: X.class, skin: { ...X.skin, ...(X.arm && ARMORY_ARMS[X.arm] ? { gear: { right: { ...ARMORY_ARMS[X.arm], laws: 2 } } } : {}) }, ...(X.also ? { also: X.also } : {}) };
     try { resolveFoe(e0); } catch { continue; }
     const card = cardOfFamily(family, 'file', e0);
     foes[X.id] = card ? { ...e0, attack: card } : e0;

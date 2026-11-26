@@ -83,7 +83,7 @@ import { settingOfGame } from './cast-setting.js';
 import { rowFoe } from './hero-rows.js';
 
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
-const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'attack', 'vanish', 'states', 'summons', 'pair', 'becomes'];
+const ENTRY_KEYS = ['class', 'rank', 'skill', 'skin', 'attack', 'also', 'vanish', 'states', 'summons', 'pair', 'becomes'];
 // the entry as the foe resolver takes it (its disposal is the gameworld's: vanish.js; what it calls, the bestiary's)
 const specOf = ({ vanish, states, summons, pair, becomes, ...spec }) => spec;
 /** A summoner's call (worlds/controllable/summon.js): how many of its summons may be up at once, the seconds between
@@ -164,7 +164,7 @@ export function readBestiary(F) {
     try { resolveFoe(specOf(e)); } catch (err) { throw new Error(`${at}: ${err.message.replace(/^foe: /, '')}`); }
     const vanish = e.vanish !== undefined ? readVanish(e.vanish, `${at}.vanish`) : undefined;
     const states = e.states !== undefined ? readStates(e.states, `${at}.states`) : undefined;
-    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(e.attack !== undefined ? { attack: e.attack } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
+    out[id] = { class: e.class, ...(e.rank !== undefined ? { rank: e.rank } : {}), ...(e.skill !== undefined ? { skill: e.skill } : {}), ...(e.skin !== undefined ? { skin: e.skin } : {}), ...(e.attack !== undefined ? { attack: e.attack } : {}), ...(e.also !== undefined ? { also: e.also } : {}), ...(vanish !== undefined ? { vanish } : {}), ...(states !== undefined && Object.keys(states).length ? { states } : {}) };
   }
   // (what a summoner calls: read once every entry is known)
   for (const [id, e] of Object.entries(F)) {
@@ -234,7 +234,7 @@ export function fieldedIds(G) {
 
 /** The throw a people foe's card asks it be made with (foes/attacks.js isThrow), or null. */
 export const foeThrowOf = (entry) => { try { const w = resolveFoe(specOf(entry)).attack.way; return isThrow(w) ? w : null; } catch { return null; } };
-export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}) }; };
+export const foeLook = (entry) => { const f = resolveFoe(specOf(entry)); return { ...f.skin, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}), ...(f.attack.also ? { also: { way: f.attack.also.way, timing: f.attack.also.timing } } : {}) }; };
 
 /** A people's roll (foes/people.js): its class's role, its people and facets, in the game's setting, on the entry's own
  * seed. The run makes its sheet from it, and the field rolls the same sheet to draw it. */
@@ -373,7 +373,7 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
     part.figures[id] = had ?? walked(fieldFigure(ref, fieldOf({ body: 'person', sheet })));
     return peopleBody(statureOf({ body: 'person', sheet }) * peopleStands(entry.skin), f.scale);
   }
-  part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}), ...(gait ? { gait } : {}) });
+  part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}), ...(f.attack.also ? { also: { way: f.attack.also.way, timing: f.attack.also.timing } } : {}), ...(gait ? { gait } : {}) });
   return beastBody(f.measured, f.scale);
 }
 

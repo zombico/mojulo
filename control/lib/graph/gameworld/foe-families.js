@@ -8,7 +8,8 @@
  *                              a role's body throws by its topology (the rank and file's, the leaders': the elite and the
  *                              boss), each a list, the first its class's blow takes; `roles` the class a role is cast as
  *                              where the casting call would pick another; `extras` its own foes beside the roles
- *                              (an id, a class, a skin, a people's `arm` from the armory, how many to a fight), met
+ *                              (an id, a class, a skin, a people's `arm` from the armory, a second attack `also`
+ *                              (foes/attacks.js SECOND_CARDS), how many to a fight), met
  *                              from the second level on (on a world map, one kind to each fight past the opening, in
  *                              order); all written into the cast (foe-casting.js)
  *   familyOf(G)              → the row (with its rail's id) a gameworld's foes are cast from, or null: the rail its feel's
@@ -45,14 +46,15 @@ export const FOE_FAMILIES = Object.freeze({
     roles: Object.freeze({ harrier: Object.freeze({ class: 'lobber' }) }),
     // its own foes beside the band: the MONSTERS of its wilds, never its small animals. The dead risen from its ruins
     // (skeletons that cut with a blade), gloomwings over its roads (a bat grown dire and dark), a crystal behemoth that
-    // charges (a rhino grown through with stone), a venom serpent lying in wait in the grass and a fire salamander that
-    // hunts: each a real body grown into a monster (mutagen/oozes) or a people of the dead, its card at its zone
+    // charges (a rhino grown through with stone), a venom drake lying in wait in the grass that spits venom from off,
+    // and a fire salamander that hunts and breathes fire before it: each a real body grown into a monster
+    // (mutagen/oozes) or a people of the dead, its card at its zone, a second attack beside its bite (`also`)
     extras: Object.freeze([
       Object.freeze({ id: 'skeleton', class: 'pursuer', skin: Object.freeze({ people: 'skeleton' }), arm: 'rusted-sword', count: 2 }),
       Object.freeze({ id: 'gloomwing', class: 'swooper', skin: Object.freeze({ species: 'fruitBat', ooze: Object.freeze(['dire', 'shadow']) }), count: 2 }),
       Object.freeze({ id: 'behemoth', class: 'charger', skin: Object.freeze({ species: 'rhino', ooze: Object.freeze(['dire', 'crystal']) }), count: 1 }),
-      Object.freeze({ id: 'serpent', class: 'lurker', skin: Object.freeze({ species: 'snake', ooze: Object.freeze(['dire', 'venom']) }), count: 1 }),
-      Object.freeze({ id: 'salamander', class: 'brute', skin: Object.freeze({ species: 'monitorLizard', ooze: Object.freeze(['fire']) }), count: 1 }),
+      Object.freeze({ id: 'drake', class: 'lurker', skin: Object.freeze({ species: 'crocodile', ooze: Object.freeze(['venom']) }), also: 'spit', count: 1 }),
+      Object.freeze({ id: 'salamander', class: 'brute', skin: Object.freeze({ species: 'monitorLizard', ooze: Object.freeze(['fire']) }), also: 'breath', count: 1 }),
     ]) }),
 });
 

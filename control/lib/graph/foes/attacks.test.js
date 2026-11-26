@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { FOE_CLASSES } from './index.js';
 import { ATTACKS } from './vocab.js';
 import { resolveFoe } from './resolve.js';
-import { ATTACK_CARDS, attackCard, cardFor } from './attacks.js';
+import { ATTACK_CARDS, attackCard, cardFor, SECOND_CARDS } from './attacks.js';
+import { ELEMENT_ROUNDS } from './resolve.js';
+import { beastFieldOf } from '../egocube/moves.js';
 import { bodyOf, topologyOf, fitOfPeople } from './fit.js';
 import { beastMovesOf } from '../egocube/moves.js';
 import { strikeWaysOf } from '../fauna/behavior/strike.js';
@@ -76,5 +78,66 @@ describe('the attack cards: the blow apart from the body that throws it', () => 
     expect(thrown.out[0].windT).toBeCloseTo(thrown.w.throw.dur * thrown.w.throw.release, 1);
     expect(thrown.out.length).toBeLessThan(plain.out.length);
     expect(plain.w.throw).toBeUndefined();
+  });
+
+  it('a second attack goes beside its blow: a slot of its loadout thrown from its band, its round its body\'s element; refused with words elsewhere', () => {
+    const [spit] = SECOND_CARDS, C = ATTACK_CARDS[spit];
+    const plain = resolveFoe({ class: beastClass.id }), f = resolveFoe({ class: beastClass.id, also: spit });
+    expect(plain.entity.rule.loadout).toHaveLength(1);
+    const slot = f.entity.rule.loadout.at(-1);
+    expect(slot).toMatchObject({ name: spit, band: [...C.band] });
+    expect(slot.weapon).toMatchObject({ fireClass: 'lob', projectileGravity: 0, foeRound: true, fxColor: ELEMENT_ROUNDS.fire });
+    expect(slot.weapon.muzzleOffset.f).toBeGreaterThan(0);
+    // (grown by an element, its round that element's)
+    const venomous = resolveFoe({ class: beastClass.id, skin: { species: beastClass.standIn, ooze: ['venom'] }, also: spit });
+    expect(venomous.entity.rule.loadout.at(-1).weapon.fxColor).toBe(ELEMENT_ROUNDS.poison);
+    expect(f.attack.also).toMatchObject({ card: spit });
+    expect(() => resolveFoe({ class: beastClass.id, attack: spit })).toThrow(/a second attack/);
+    expect(() => resolveFoe({ class: otherVerb.id, also: spit })).toThrow(/beside a blow/);
+  });
+
+  it('its figure fires in its second attack\'s clip; without one, no fire state', () => {
+    const F = (also) => beastFieldOf(beastClass.standIn, { strike: ATTACK_CARDS.snap.timing, way: 'snap', ...(also ? { also } : {}) });
+    const breath = SECOND_CARDS.map((k) => ATTACK_CARDS[k]).find((c) => strikeWaysOf(beastClass.standIn).includes(c.ways.quadruped) && c.ways.quadruped !== 'snap');
+    if (breath) expect(F({ way: breath.ways.quadruped, timing: breath.timing }).own.fire).toBe(breath.ways.quadruped);
+    expect(F(null).own.fire).toBeUndefined();
+  });
+
+  it('on the runtime it comes on throwing its rounds from off, and bites when close', async () => {
+    const { composeLive } = await import('../worlds/controllable/compose.js');
+    const E = composeLive(), DT = 1 / 60, [spit] = SECOND_CARDS;
+    // (one that hunts, picked in code: a lurker lies still till the hero is on it)
+    const hunter = Object.values(FOE_CLASSES).find((c) => melee(c) && c.move === 'chase' && topologyOf(bodyOf(c.standIn)) === 'quadruped');
+    const f = resolveFoe({ class: hunter.id, also: spit });
+    const foe = { id: 'f', team: 'foes', rule: { ...f.entity.rule, eye: 0, collideRadius: 0.3, collideHeight: 0.8 }, weapon: { ...f.entity.weapon }, body: { type: 'none', hittable: true, hp: 50 }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const hero = { id: 'p', pilotable: true, rule: { type: 'platform', speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'none', hittable: true, hp: 1e6 }, transform: { pos: [15, 0, 0], heading: Math.PI } };
+    const st = E.createWorld({ entities: [foe, hero] });
+    let thrown = 0, n0 = 0, bit = false;
+    for (let i = 0; i < 900; i++) {
+      E.stepWorld(st, {}, DT, { ground: () => 0 });
+      const n = (st.projectiles || []).length; if (n > n0 && Math.hypot(st.byId.f.transform.pos[0] - 15, st.byId.f.transform.pos[1]) > ATTACK_CARDS[spit].band[0] - 0.5) thrown++; n0 = n;
+      if (st.byId.f.swingT != null) bit = true;
+    }
+    expect(thrown).toBeGreaterThan(0);
+    expect(bit).toBe(true);
+  });
+
+  it('a breath is a stream that lands as one hit: its rounds spare a body they hurt for its gap; without the gap, a hit a round', async () => {
+    const { composeLive } = await import('../worlds/controllable/compose.js');
+    const E = composeLive(), DT = 1 / 60, breath = SECOND_CARDS.find((k) => ATTACK_CARDS[k].round.gap > 0);
+    // (one that chases and bites short of the breath's far reach, picked in code: it breathes before it commits to the bite)
+    const hunter = Object.values(FOE_CLASSES).find((c) => melee(c) && c.move === 'chase' && topologyOf(bodyOf(c.standIn)) === 'quadruped'
+      && (resolveFoe({ class: c.id }).entity.rule.loadout[0].strikeReach ?? 1.2) * 3 < ATTACK_CARDS[breath].band[1] - 0.5);
+    const hits = (gap) => {
+      const f = resolveFoe({ class: hunter.id, also: breath }), lo = f.entity.rule.loadout.map((l) => (l.weapon && !gap ? { ...l, weapon: { ...l.weapon, hitGap: 0 } } : l));
+      const foe = { id: 'f', team: 'foes', rule: { ...f.entity.rule, loadout: lo, speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 0.8 }, body: { type: 'none', hittable: true, hp: 50 }, transform: { pos: [0, 0, 0], heading: 0 } };
+      const hero = { id: 'p', pilotable: true, rule: { type: 'platform', speed: 0, eye: 0, collideRadius: 0.3, collideHeight: 1.7 }, body: { type: 'none', hittable: true, hp: 1e6 }, transform: { pos: [ATTACK_CARDS[breath].band[1] - 0.5, 0, 0], heading: Math.PI } };
+      const st = E.createWorld({ entities: [foe, hero] });
+      // (one breath: the mind's first burst of the trigger, its pause not yet over)
+      for (let i = 0; i < 100; i++) E.stepWorld(st, {}, DT, { ground: () => 0 });
+      return st.byId.p.hits || 0;
+    };
+    expect(hits(true)).toBe(1);
+    expect(hits(false)).toBeGreaterThan(1);
   });
 });
