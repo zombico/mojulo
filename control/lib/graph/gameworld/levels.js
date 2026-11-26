@@ -1098,11 +1098,12 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     if (F.garage) game.produces = { ...(game.produces ?? {}), events: [...(game.produces?.events ?? []), { type: 'setFlag', slice: HANGAR_SLICE }] };
     // (told on the holo table before the drop, campaign/operation-brief.js: the briefing channel over the level)
     if (X0?.briefing) pilotPart = { ...pilotPart, briefing: { data: X0.briefing } };
-    // (its guide, channels/guide.js: the way to each place a task names (a reach's, a scan's), shown as its task begins
+    // (its guide, channels/guide.js: the way to each place a task names (a reach's, a scan's), shown as its task begins,
+    // an arrow and the metres under the objectives' own line, which says what it is (said once, not twice)
     // and passed as it is met, the objectives' task in hand its clock; and what it teaches as it is played, frame-goal.js
     // FRAME_LESSONS, each group as its task begins)
     const OB = game.mechanics.find((m) => m && m.kind === 'objectives');
-    const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: t.text, kind: 'reach', at: t.at, radius: t.radius ?? 2, when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
+    const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: '', kind: 'reach', at: t.at, radius: t.radius ?? 2, when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
     if (ways.length || X0?.lessons?.length) pilotPart = { ...pilotPart, guide: { steps: ways, ...(X0?.lessons?.length ? { lessons: X0.lessons } : {}), done: '', top: 96 } };
     // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
     // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
