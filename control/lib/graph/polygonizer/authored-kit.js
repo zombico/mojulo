@@ -9,8 +9,8 @@
  *                it (`beltOn`, sampled round the body `BELT_ROUND` ways, not the cloth's ring12), on the cloth piece it
  *                names or the outermost one there; belts within a hand's width share a height, the later cinched over
  *                the earlier; its buckle a frame (`frameBuckle`); a `tall` one (m) as wide as its window up to that, a
- *                cincher's band where a belt's is held to 5.5 cm; a motif on it its pattern's strips (`beltPattern`), a
- *                `clasp` its round plate on its front (`beltClasp`)
+ *                cincher's band where a belt's is held to 5.5 cm, shaped to the waist row by row; a motif on it
+ *                its pattern's strips (`beltPattern`), a `clasp` its round plate on its front (`beltClasp`)
  *   CLEARED      the trunk's cloth worn over a belt (a jacket, a tunic out over its trousers) carried out over the belt
  *                and its buckle at its height, eased back to its own line within 2 cm
  *   the KIT      a pouch, a holster, a harness's webbing, a thigh rig's band (`kitPieces`), on the cloth and the belts
@@ -130,7 +130,7 @@ export function authoredKit(recipe, adorn, { tailoring = null } = {}) {
     const rOn = radiusAt(on, z);
     const under = trunkCloth().filter(([k, P]) => k === onName || !(radiusAt(P, z) > rOn)).map(([, P]) => P);
     const cinched = [...under, ...belts, ...skin, ...legs].map(readOf).flatMap(pointsOf);
-    const band = beltOn(readOf(on), cinched, z, { width, thick, around: BELT_ROUND, rings: true });
+    const band = beltOn(readOf(on), cinched, z, { width, thick, around: BELT_ROUND, rings: true, ...(A.tall ? { shaped: true } : {}) });
     if (!band) continue;
     parts[`${A.id}_${seg}`] = { ...band, group: A.group ?? 'Leather' };
     const sig = A.signature, made = [band];

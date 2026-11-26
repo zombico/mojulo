@@ -1394,8 +1394,8 @@ export const SIGNATURES = {
     return out; },
   /** a POLYLINE: a tube through world points `pts` the caller computed off the body's own landmarks (a necklace's curve
    * round the neck and over the chest, which the body's rings cannot address), `r` a radius per segment (beads and links
-   * alternating read as a chain): { pts, r, sides? } */
-  polyline: (fig, g, _b, S) => sweep(S.pts, Array.isArray(S.r) ? S.r : S.pts.slice(0, -1).map(() => S.r), S.sides ?? 6),
+   * alternating read as a chain): { pts, r, sides?, squash? } (`squash`: its section across and up, a fold's flat roll) */
+  polyline: (fig, g, _b, S) => sweep(S.pts, Array.isArray(S.r) ? S.r : S.pts.slice(0, -1).map(() => S.r), S.sides ?? 6, S.squash ? { squash: S.squash } : {}),
   /** a DISC at a world point `c` facing `n` (a pendant, a mounted boss): { c, n, r, h, m?, rim? } */
   disc: (fig, g, _b, S) => disc(S.c, unit(S.n), S.r, S.h, S.m ?? 14, S.rim ?? 0.55),
   /** a TABARD hung from a strap's path: a cloth board `len` long, standing `stand` off, its hem swung `tilt` out, `taper`ing to

@@ -148,13 +148,30 @@ describe('her belt and her cape, on the game body', () => {
     for (const k of [...pat, Object.keys(P).find((n) => /^beltClasp_/.test(n))]) for (const W of Object.values(P[k].bind.blend)) expect(Object.values(W).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 5);
   });
 
-  it('her cape hangs behind her from its hood worn down as a cowl, its foot round the throat wider than the cape\'s arc', () => {
-    const G = M.plan.garments ?? [], cape = G.find((g) => g.fit === 'cape'), hood = G.find((g) => g.fit === 'hood');
-    expect(hood.worn).toBe('down');
-    expect(hood.around[1] - hood.around[0]).toBeGreaterThan(cape.around[1] - cape.around[0] + 180);
+  it('her cape hangs behind her from a cowl; a cowl\'s soft rolls drape round a neck, each lower at the front and wider than the one above', () => {
+    const cape = (M.plan.garments ?? []).find((g) => g.fit === 'cape');
     expect(cape.around[1] - cape.around[0]).toBeLessThan(180);
-    // (a wrap past a whole turn is not a hood's word: the cloak is said and left off, never worn wrong)
+    // (hers two rolls; a cowl of three to read its rolls by)
+    expect(M.plan.adorn.filter((a) => /^cowl\d$/.test(a.id))).toHaveLength(2);
+    const rolls = outfitOf([{ kind: 'cowl', rolls: 3 }]).plan.adorn.filter((a) => /^cowl\d$/.test(a.id)).map((a) => a.signature);
+    expect(rolls.length).toBe(3);
+    // (its ends at the nape, its lowest point at the throat: a U)
+    const front = (S) => S.pts.reduce((b, q) => (q[1] > b[1] ? q : b)), wide = (S) => Math.max(...S.pts.map((q) => Math.abs(q[0])));
+    for (let i = 1; i < rolls.length; i++) { expect(front(rolls[i])[2]).toBeLessThan(front(rolls[i - 1])[2]); expect(wide(rolls[i])).toBeGreaterThan(wide(rolls[i - 1])); }
+    expect(rolls[0].pts[0][1]).toBeLessThan(0);
+    expect(rolls[0].squash[1]).toBeGreaterThan(rolls[0].squash[0]);
+    // (a hood worn down may close round the throat wider than its cape: its own `wrap`; past a turn it is not a hood's word)
+    const H = outfitOf([{ kind: 'cloak', wrap: 0.4, hood: { worn: 'down', wrap: 0.95 } }]).plan.garments, hood = H.find((g) => g.fit === 'hood'), cp = H.find((g) => g.fit === 'cape');
+    expect(hood.around[1] - hood.around[0]).toBeGreaterThan(cp.around[1] - cp.around[0] + 180);
     expect((outfitOf([{ kind: 'cloak', hood: { worn: 'down', wrap: 2 } }]).plan.garments ?? []).some((g) => g.fit === 'hood')).toBe(false);
+  });
+
+  it('a tall belt is cinched to the waist row by row: its face rows narrow in where the waist does', () => {
+    const belt = P[Object.keys(P).find((k) => /^belt_/.test(k))], plain = outfitOf([{ kind: 'belt', at: 'waist', width: 2.2, buckle: false }]).recipe.parts;
+    expect(belt.stations.length).toBeGreaterThan(plain[Object.keys(plain).find((k) => /^belt_/.test(k))].stations.length);
+    const R = (st) => { const q = Object.values(st.points), c = [0, 1].map((d) => q.reduce((t, v) => t + v[d], 0) / q.length); return q.reduce((t, v) => t + Math.hypot(v[0] - c[0], v[1] - c[1]), 0) / q.length; };
+    const face = belt.stations.slice(2, -2).map(R);
+    expect(Math.min(...face)).toBeLessThan(Math.max(face[0], face.at(-1)) - 0.002);
   });
 });
 

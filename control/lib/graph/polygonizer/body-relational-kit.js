@@ -132,7 +132,7 @@ function hullRadii(c, dirs, R) {
  * `around`: the section sampled so many ways evenly round the body (its slots `ringSlots(around)`, the front +y, the right +x) in place
  * of the cloth's own slots (a game body's cloth is 12 round, too few for a belt to read round); `rings`: the cloth's
  * weights read by ring where it blends so (the game body's). Null when `on` has no ring near `z`. */
-export function beltOn(on, worn, z, { width = 0.035, thick = 0.004, around = null, rings = false } = {}) {
+export function beltOn(on, worn, z, { width = 0.035, thick = 0.004, around = null, rings = false, shaped = false } = {}) {
   const st = nearestStation(on, z), c0 = middle(st);
   if (Math.abs(c0[2] - z) > 0.04) return null;
   const c = [c0[0], c0[1], z], K = KIT.belt, slots = around ? ringSlots(around) : on.slots;
@@ -145,10 +145,23 @@ export function beltOn(on, worn, z, { width = 0.035, thick = 0.004, around = nul
   const inner = hullRadii(c, dirs, reach).map((r) => r + K.gap);
   // the section's profile up the belt: [height share, out share of the thickness]
   const e = Math.min(K.round, 0.5), prof = [[0, 0.15], [e * thick / width, 0.8], [2 * e * thick / width, 1], [1 - 2 * e * thick / width, 1], [1 - e * thick / width, 0.8], [1, 0.15]];
-  const stations = prof.map(([h, o], k) => ({ id: `st${k}`, u: k, points: Object.fromEntries(slots.map((sl, j) => [sl, [c[0] + dirs[j][0] * (inner[j] + o * thick), c[1] + dirs[j][1] * (inner[j] + o * thick), z - width / 2 + h * width].map(r6)])) }));
+  // (`shaped`: a tall belt, a cincher, read row by row up its height, its face following the waist in where one section
+  // the width of its widest row would stand off it; its face rows between its rounded edges)
+  const innerAt = shaped ? (h) => hullRadii(c, dirs, reachOf(near, c, dirs, [z - width / 2 + h * width], { band: K.step })).map((r) => r + K.gap) : () => inner;
+  const rows = shaped ? [...prof.slice(0, 3), ...Array.from({ length: SHAPED_ROWS }, (_, i) => [prof[2][0] + (prof[3][0] - prof[2][0]) * (i + 1) / (SHAPED_ROWS + 1), 1]), ...prof.slice(3)] : prof;
+  const stations = rows.map(([h, o], k) => { const I = innerAt(Math.max(prof[2][0], Math.min(prof[3][0], h)));
+    return { id: `st${k}`, u: k, points: Object.fromEntries(slots.map((sl, j) => [sl, [c[0] + dirs[j][0] * (I[j] + o * thick), c[1] + dirs[j][1] * (I[j] + o * thick), z - width / 2 + h * width].map(r6)])) }; });
   const band = { layer: 1, closure: 'closed', slots, ...(on.slotT && !around ? { slotT: on.slotT } : {}), stations,
     caps: { back: [c[0], c[1], z - width / 2 - 0.001].map(r6), tip: [c[0], c[1], z + width / 2 + 0.001].map(r6) } };
-  return { ...band, bind: bindNearest(band, on, { rings }) };
+  return { ...band, ...(shaped ? { shaped: true } : {}), bind: bindNearest(band, on, { rings }) };
+}
+/** a shaped belt's face rows between its edges */
+const SHAPED_ROWS = 5;
+/** a point on a belt's outer face at slot `q`, `h` of its face's height up: between the face's own rows (its foot and its
+ * top, and a shaped belt's rows between) */
+function faceAt(belt, q, h) {
+  const S = belt.stations.slice(2, belt.stations.length - 2), t = Math.max(0, Math.min(1, h)) * (S.length - 1), i = Math.min(S.length - 2, Math.floor(t)), f = t - i, a = S[i].points[q], b = S[i + 1].points[q];
+  return [0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * f);
 }
 
 /** the belt's front: the point on its outer face at its middle height, its outward normal, its up and its across */
@@ -196,7 +209,7 @@ function faceWeight(belt, q, h) {
 /** THE BELT'S CLASP: a round plate `r` across on the belt's front, centred on its height, `h` deep over its face (and
  * over a pattern worked on it), its edge bevelled; bound as the face under it is. → the part */
 export function beltClasp(belt, { r = 0.045, h = 0.007, m = 24, group = 'Trim' } = {}) {
-  const F = frontOf(belt), lift = 0.0025, q = belt.slots.includes('front') ? 'front' : belt.slots[0];
+  const q = belt.slots.includes('front') ? 'front' : belt.slots[0], F0 = frontOf(belt), F = belt.shaped ? { ...F0, P: faceAt(belt, q, 0.5) } : F0, lift = 0.0025;
   const ring = (rr, d) => Array.from({ length: m }, (_, j) => { const a = (2 * Math.PI * j) / m; return add(add(F.P, scl(F.n, lift + d)), add(scl(F.across, Math.cos(a) * rr), scl(F.up, Math.sin(a) * rr))); });
   const T = tube([ring(r * 0.96, -0.004), ring(r, h * 0.55), ring(r * 0.8, h)], add(F.P, scl(F.n, lift - 0.005)), add(F.P, scl(F.n, lift + h + 0.0005)));
   const W = faceWeight(belt, q, 0.5), blend = { back: W, tip: W };
@@ -214,7 +227,7 @@ export function beltPattern(belt, id, { name = 'diamond', w = 0.004, thick = 0.0
   const H = hi.points[sl[0]][2] - lo.points[sl[0]][2], e = Math.min(0.3, (w * 0.5 + 0.001) / Math.max(1e-6, H));
   // (a point on the belt's face `jf` slots round and `h` of its height up, `l` off it: between two slots on the arc
   // through them, never the chord that cuts into the belt)
-  const P = (j, h) => { const a = lo.points[sl[j % N]], b = hi.points[sl[j % N]]; return [0, 1, 2].map((q) => a[q] + (b[q] - a[q]) * h); };
+  const P = (j, h) => faceAt(belt, sl[j % N], h);
   const on = (jf, h, l) => {
     const j = Math.floor(jf), t = jf - j, A = P(j, h), B = P(j + 1, h), ra = Math.hypot(A[0] - c[0], A[1] - c[1]), rb = Math.hypot(B[0] - c[0], B[1] - c[1]);
     const d = unitv([(A[0] - c[0]) / (ra || 1) * (1 - t) + (B[0] - c[0]) / (rb || 1) * t, (A[1] - c[1]) / (ra || 1) * (1 - t) + (B[1] - c[1]) / (rb || 1) * t, 0]), r = ra + (rb - ra) * t + l;

@@ -22,10 +22,12 @@
   the caps sat close on the shoulders over it; her arms drawn with a shoulder, a biceps and a forearm by a new muscle
   card of the arms alone (`musculature/cards.js` `arms`: a body's arm groups, its chest and what is drawn on it
   untouched), the arm's girth a little fuller.
-- **Her neck, collar, belt and cape**: a fuller neck; the cape behind her, hung from its hood worn down as a cowl closed
-  round the throat (a hood's `wrap`: its foot's own arc, where the cloak's is narrower), over a stand collar; a tall belt
-  worked with a pattern and clasped at its middle. On the game body a belt piece's `tall` (a cincher's band, up to 10 cm
-  where a belt's is held to 5.5), its `motif` drawn as a pattern on its face (a border top and bottom, a row of diamond
-  plates or a zigzag between: `beltPattern`, where the motif's threads were dropped) and its `clasp` a round plate
-  centred on its front (`beltClasp`), each bound as the belt's face under it; a crest made `round` keeps a circle's
-  sides at any target (`adorn-tier.js` ROUND_DISC).
+- **Her neck, belt and cape**: a fuller neck; the cape behind her, hung from a cowl (a new piece, `cowl`: soft rolls of
+  cloth draped round the neck, each lower at the front and wider over the shoulders than the one above, a U at the
+  throat, lying over a hood worn down where one is; laid as a necklace's loop is, the two now one `neckLoop`); her braid sewn flat (the bands' `standoff` and
+  `thick`); a tall belt cinched at the waist, worked with a pattern and clasped at its middle. On the game body a belt
+  piece's `tall` (a cincher's band up to 10 cm, where a belt's is held to 5.5, read row by row so it follows the waist
+  in), its `motif` drawn as a pattern on its face (a border top and bottom, a row of diamond plates or a zigzag between:
+  `beltPattern`, where the motif's threads were dropped) and its `clasp` a round plate centred on its front
+  (`beltClasp`), each bound as the belt's face under it. A hood worn down takes its own `wrap` round the throat; a crest
+  made `round` keeps a circle's sides at any target (`adorn-tier.js` ROUND_DISC); a polyline's section may be squashed.

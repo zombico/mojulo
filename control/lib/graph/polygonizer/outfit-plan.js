@@ -218,13 +218,16 @@ export const OUTFIT_KINDS = Object.freeze({
   bow: { layer: 7, cls: 'soft', colour: 'accent', compile: (p, B, G) => bowOf(p, B, G) },
   // L7: a CHAIN OF OFFICE or a MEDALLION on a cord: a disc hanging at the chest, under the face
   chain: { layer: 7, cls: 'loose', colour: 'accent', compile: (p, B, G) => necklaceOf(p, B, G, { r: 0.055, heavy: 1.6 }) },
+  // a COWL: soft rolls of cloth round the neck, lower at the front and wider over the shoulders each (cowlOf)
+  cowl: { layer: 7, cls: 'soft', colour: 'secondary', compile: (p, B, G) => cowlOf(p, B, G) },
   medallion: { layer: 7, cls: 'loose', colour: 'accent', compile: (p, B, G) => (p.mount === 'harness' ? mountedOf(p, B, G, { r: 0.05 }) : necklaceOf(p, B, G, { r: 0.05, heavy: 1 })) },
   // BANDS: level lines of braid round the chest (`count`, two; `at`: the lowest's place between the waist and the
   // shoulder line, 0 to 1, `gap` between them the same way), thin and in the trim, each closed on its buttons: a bandsman's jacket said in two strokes
   bands: { layer: 4, cls: 'stiff', colour: 'trim', compile: (p, B, G) => { const n = Math.max(1, Math.min(4, p.count ?? 2)), s0 = B.ringAt(B.torso, B.waist).s, s1 = B.ringAt(B.torso, B.shoulder).s, at = s0 + (p.at ?? 0.3) * (s1 - s0), gap = (p.gap ?? 0.22) * (s1 - s0), w = p.width ?? 0.03;
     // (across the FRONT only, `arc` of each half from the centre line: the braid of a jacket's front, not a hoop)
+    // (`standoff`, `thick` (m): how far it stands off what it lies on and how deep it is, a braid sewn flat or a bar proud)
     const arc = p.arc ?? 1.2;
-    return { adorn: Array.from({ length: n }, (_, i) => ['R', 'L'].map((S) => ({ ...shell(`${p.id ?? 'band'}${i + 1}${S}`, 'torso', [at + i * gap - w, at + i * gap + w], { ns: 1, nt: 8, mugen: r3(0.008 * B.k), thick: r3(0.006 * B.k), group: G(p) }), side: S, t: [0, arc],
+    return { adorn: Array.from({ length: n }, (_, i) => ['R', 'L'].map((S) => ({ ...shell(`${p.id ?? 'band'}${i + 1}${S}`, 'torso', [at + i * gap - w, at + i * gap + w], { ns: 1, nt: 8, mugen: r3((p.standoff ?? 0.008) * B.k), thick: r3((p.thick ?? 0.006) * B.k), group: G(p) }), side: S, t: [0, arc],
       signature: { kind: 'studs', r: r3(0.007 * B.k), h: r3(0.004 * B.k), count: 1, m: 8, group: G(p) } }))).flat() }; } },
   // a MIDRIFF: the close top's cloth on the belly repainted in another colour (`colour`), from the hips up to `to`
   // (a share of the way from the waist to the shoulder line): a bodice in two colours on one garment; `group`: a
@@ -427,7 +430,7 @@ function necklaceOf(p, B, G, { r, heavy = 1 }) {
   // (the neck's radius: a chain's `rA`; outfit laws 2 reads a lofted neck too (the hero's), by its lowest ring, where
   // laws 1 found no radius there and left the necklace off)
   const rn = n ? (n.rA === undefined && B.laws >= 2 && n.stations?.length ? rad(n.stations[0].r) : rad(n.rA)) : 0.1 * k;
-  const T = B.top, top = T.z, tr = Array.isArray(T.r) ? T.r : [T.r, T.r], tyc = T.yc ?? 0;
+  const top = B.top.z;
   // (outfit laws 2: WORN OVER THE BODICE, under a cloak or a mantle: it clears the close cloth already on the chest (each
   // layer's ease, the cut's shirt and a robe's bodice stacked, B.worn), so the pendant hangs on the outermost bodice
   // instead of on the skin under it, and it lies at the NECK'S ROOT behind, close round the neck, where laws 1 hung it
@@ -436,18 +439,8 @@ function necklaceOf(p, B, G, { r, heavy = 1 }) {
   const over = onChest.length ? onChest.reduce((t, g) => t + (g.ease ?? 0), 0) + (B.round ?? 0) : 0;
   const bead = 0.011 * heavy * k, link = 0.0055 * heavy * k, clear = 0.01 * k + bead + over, N = 40;
   const zNape = Math.max(nb[2], top) + (L2 ? 0.02 : 0.05) * k, zFront = top - (p.drop ?? 0.17) * k * (0.9 + 0.1 * heavy);
-  const yBack = nb[1] - rn * (L2 ? 1.05 : 1.15), yFront = B.front(zFront, top + 1) + clear, Rx = L2 ? rn * 1.25 + 0.01 * k + over : rn * 1.45 + 0.015 * k;
-  // the loop in its tilted plane: a = 0 the front (lowest), a = π the nape (highest)
-  let P = Array.from({ length: N }, (_, i) => { const a = 2 * Math.PI * i / N, c = Math.cos(a);
-    return [Math.sin(a) * Rx, (yBack + yFront) / 2 + c * (yFront - yBack) / 2, (zNape + zFront) / 2 - c * (zNape - zFront) / 2]; });
-  // laid on the body: lifted onto the shoulders' top where it would pass inside them, out onto the chest's front below it
-  const lay = (q) => { let [x, y, z] = q; const inTop = (x / tr[0]) ** 2 + ((y - tyc) / tr[1]) ** 2 < 1;
-    if (inTop && z < top + clear) z = top + clear;
-    if (z < top && y > tyc) y = Math.max(y, B.front(z, top + 1) + clear);
-    return [x, y, z]; };
-  P = P.map(lay);
-  for (let pass = 0; pass < 4; pass++) P = P.map((q, i) => lay(q.map((v, d) => (P[(i + N - 1) % N][d] + 2 * v + P[(i + 1) % N][d]) / 4)));   // smoothed, laid again
-  const pts = [...P, P[0]].map((q) => q.map(r3)), bottom = pts[0];
+  const yBack = nb[1] - rn * (L2 ? 1.05 : 1.15), Rx = L2 ? rn * 1.25 + 0.01 * k + over : rn * 1.45 + 0.015 * k;
+  const pts = neckLoop(B, { zNape, zFront, yBack, Rx, clear, N }), bottom = pts[0];
   const rp = r3(r * k), cz = r3(bottom[2] - bead - rp * 1.05), cy = bottom[1], chainG = G({ colour: p.cordColour ?? 'accent' });
   const carrier = (sid, signature) => ({ id: sid, mode: 'shell', part: 'torso', share: true, s: [0.9, 0.95], t: 'wrap', nt: 8, ns: 1, mugen: 0, thick: r3(0.001 * k), group: chainG, ghost: true, stack: false, signature });
   return { adorn: [
@@ -457,6 +450,52 @@ function necklaceOf(p, B, G, { r, heavy = 1 }) {
     carrier(`${id}Pendant`, { kind: 'disc', c: [0, r3(cy + 0.004 * k), cz], n: [0, 1, 0.12], r: rp, h: r3(0.014 * k), m: 16, rim: 0.6, group: G(p) }),
   ] };
 }
+/** A LOOP ROUND THE NECK laid on the body (a necklace's chain, a cowl's roll): in its tilted plane, `N` points from the
+ * front (lowest, `zFront`) round to the nape (highest, `zNape`, `yBack`), `Rx` wide; lifted onto the shoulders' top where
+ * it would pass inside them and out onto the chest's front below it, `clear` off them; smoothed and laid again. Closed:
+ * its last point its first. `swing`: its front carried that far aside (a fold's swoop). */
+function neckLoop(B, { zNape, zFront, yBack, Rx, clear, N = 40, swing = 0 }) {
+  const T = B.top, top = T.z, tr = Array.isArray(T.r) ? T.r : [T.r, T.r], tyc = T.yc ?? 0, yFront = B.front(zFront, top + 1) + clear;
+  // the loop in its tilted plane: a = 0 the front (lowest), a = π the nape (highest)
+  let P = Array.from({ length: N }, (_, i) => { const a = 2 * Math.PI * i / N, c = Math.cos(a);
+    return [swing ? Math.sin(a) * Rx + swing * (1 + c) / 2 : Math.sin(a) * Rx, (yBack + yFront) / 2 + c * (yFront - yBack) / 2, (zNape + zFront) / 2 - c * (zNape - zFront) / 2]; });
+  // laid on the body: lifted onto the shoulders' top where it would pass inside them, out onto the chest's front below it
+  const lay = (q) => { let [x, y, z] = q; const inTop = (x / tr[0]) ** 2 + ((y - tyc) / tr[1]) ** 2 < 1;
+    if (inTop && z < top + clear) z = top + clear;
+    if (z < top && y > tyc) y = Math.max(y, B.front(z, top + 1) + clear);
+    return [x, y, z]; };
+  P = P.map(lay);
+  for (let pass = 0; pass < 4; pass++) P = P.map((q, i) => lay(q.map((v, d) => (P[(i + N - 1) % N][d] + 2 * v + P[(i + 1) % N][d]) / 4)));   // smoothed, laid again
+  return [...P, P[0]].map((q) => q.map(r3));
+}
+
+/** A COWL: soft ROLLS of cloth round the neck (`rolls`, three), as a cowl neck drapes: the first close round the neck's
+ * root, each after it lower at the front by `step` (a share of a metre) and wider over the shoulders by `spread`, so they
+ * lie on one another down onto the collarbones and the shoulders' caps, a U at the throat; each a soft tube `thick`
+ * through, fullest at the front where the cloth gathers and thinner round the nape (where a cape hung from it falls). The
+ * cloak's cloth (`colour`, the secondary); `drop`: the first roll's front below the shoulders' top. */
+function cowlOf(p, B, G) {
+  const id = p.id ?? 'cowl', k = B.k, n = Math.max(1, Math.min(4, p.rolls ?? 3)), nb = B.J.neckBase ?? [0, 0, B.top.z], ns = B.neckSeg, N = 40;
+  const rn = ns ? (ns.rA === undefined && ns.stations?.length ? rad(ns.stations[0].r) : rad(ns.rA)) : 0.1 * k, top = B.top.z;
+  // (over the close cloth on the chest, and over a hood worn down that it lies on: the cloak's own drape under its rolls)
+  const onChest = (B.worn || []).filter((g) => (!g.fit || (g.fit === 'hood' && g.worn === 'down')) && (Array.isArray(g.part) ? g.part : [g.part]).includes('torso'));
+  const over = onChest.reduce((t, g) => t + (g.ease ?? 0) + (g.fit === 'hood' ? 2 * (g.thick ?? 0) : 0), 0) + (B.round ?? 0);
+  return { adorn: Array.from({ length: n }, (_, i) => {
+    // (each roll a flat fold, deep across and tall up the body, overlapping the one above; the lower ones dipping
+    // further at the front, a U, and swung a little aside, one way then the other)
+    const r = (p.thick ?? 0.024) * k * (1 + 0.12 * i), clear = r * 0.5 + over;
+    const zNape = Math.max(nb[2], top) + (0.02 - 0.018 * i) * k, zFront = top - ((p.drop ?? 0.065) + i * (p.step ?? 0.038) * (1 + 0.25 * i)) * k;
+    const yBack = nb[1] - rn * 1.05 - r * 0.4, Rx = rn * 1.15 + r * 0.7 + over + i * (p.spread ?? 0.032) * k;
+    const closed = neckLoop(B, { zNape, zFront, yBack, Rx, clear, N, swing: r3((i % 2 ? 1 : -1) * 0.012 * i * k) }), open = closed.slice(0, -1);
+    // (its ends meet at the nape, under the cape, never at the throat)
+    const loop = [...open.slice(N / 2), ...open.slice(0, N / 2)], pts = [...loop, loop[0]];
+    // (fullest at the front where the cloth gathers, thinner round the nape)
+    const radii = loop.map((_, j) => r3(r * (0.7 + 0.3 * (1 + Math.cos((2 * Math.PI * (j + N / 2 + 0.5)) / N)) / 2)));
+    return { id: `${id}${i + 1}`, mode: 'shell', part: 'torso', share: true, s: [0.9, 0.95], t: 'wrap', nt: 8, ns: 1, mugen: 0, thick: r3(0.001 * k), group: G(p), ghost: true, stack: false,
+      signature: { kind: 'polyline', pts, r: radii, sides: 10, squash: [0.5, 1.25], group: G(p) } };
+  }) };
+}
+
 /** a MEDALLION MOUNTED on the harness: the boss where its straps cross on the chest */
 function mountedOf(p, B, G, { r }) {
   const k = B.k, S = B.torso.stations, u = 1.9, i = Math.min(S.length - 2, Math.floor(u)), z = S[i].z + (S[i + 1].z - S[i].z) * (u - i);
