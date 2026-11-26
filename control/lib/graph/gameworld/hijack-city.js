@@ -20,7 +20,8 @@
  *                          gameworld/locales.js: its register, district, light, sky, air and grade, each word named
  *                          over it winning; `district` a HIJACK_DISTRICTS word, downtown by default; `register` its outskirts' pattern, geotown/pattern.js, the district's
  *                          own unless named, a San Francisco one laying it on the hill city in its fog): a hero, the
- *                          district, four story missions for one contact (the last the end), a repeated fare, two
+ *                          district, four story missions for one contact (the last the end), a repeated fare, a
+ *                          garbage truck's bin round on Jobsified (HIJACK_SHIFTS), two
  *                          crews, the law, the shops, the look, sound and music. A plain value: the same words give
  *                          the same world
  *   hijackCityStart(world) → null | { world, says }: a locked pitch from the rail with no level yet, laid with the
@@ -77,13 +78,19 @@ const MISSIONS = Object.freeze([
   { id: 'the-jeweller', name: 'The jeweller', reward: 300, item: 'stones', offer: 'This is the one. The jeweller\'s. Take the stones, lose the police, bring them to me. Five minutes.', mission: { heat: 3, clean: true, time: 300, final: true } },
 ]);
 
+/** The city's driving jobs a Hijack City starts with, on the Jobsified app (gameworld/jobsified.js SHIFTS: a vehicle a
+ *  row): taken on the phone, the vehicle got into at its depot, its stops driven, brought back to be paid. */
+export const HIJACK_SHIFTS = Object.freeze([
+  Object.freeze({ id: 'bin-round', name: 'Bin round', vehicle: 'garbage', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
+]);
+
 /** What a person changes first, each a key of the gameworld (the gameworld-hijack-city card says how). */
 export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
   style: 'where it is, by a locale (`hijackCityWorld({ locale })`, gameworld/locales.js: los-angeles, miami, san-francisco, boston, toronto: its suburbs, light, sky, air and grade together), or its own `geocube`, `hour`, `clouds`, `air`',
   levels: 'the district: one of HIJACK_DISTRICTS (downtown, the inner city\'s walk-ups and main streets, the suburbs), its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, northeast, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, northeast, bayside), where in it (`geocity.at`: a neighbourhood or a ring), its size, its water, another district beside it',
-  errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work',
+  errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work (TaskFu\'s fares, Jobsified\'s driving jobs: `vehicle`, gameworld/jobsified.js)',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
   shops: 'the respray garage and the gun shop, their prices',
@@ -129,6 +136,9 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
       ...MISSIONS.map((m) => ({ id: m.id, name: m.name, contact: 'vince', giver: 'district', reward: [{ item: 'coin', n: m.reward }], offer: m.offer, list: [{ item: m.item, at: 'district' }], mission: { ...m.mission } })),
       // (side work on the phone: fares, as many as are driven)
       { id: 'fare', giver: 'district', repeat: true, reward: [{ item: 'coin', n: 12 }], list: [{ item: 'passenger', at: 'district' }], app: 'taskfu' },
+      // (the city's driving jobs on Jobsified, jobsified.js: a garbage truck's bin round from the works yard and back,
+      // driven again for more; a district with no works yard lays none of it)
+      ...HIJACK_SHIFTS.map((J) => ({ ...J, giver: 'district', reward: J.reward.map((r) => ({ ...r })) })),
     ],
     ui: { theme: { from: 'downtown', icons: 'solid' }, colour: 'theme' },
     factions: {

@@ -47,6 +47,7 @@ export function bagUi(manifest, ui = undefined) {
   for (const m of M) {
     if (m?.kind === 'trade') { note(m.item, 'had'); for (const n of m.needs ?? []) note(n.item, 'price'); }
     if (m?.kind === 'deliver') { for (const w of m.wants ?? []) note(w.item, 'asked'); for (const r of m.reward ?? []) note(r.item, 'pay'); }
+    if (m?.kind === 'shift') for (const r of m.reward ?? []) note(r.item, 'pay');
     if (m?.kind === 'collect') for (const p of m.pickups ?? []) note(p.item, 'found');
   }
   // (money: what is only ever paid, never had from a trade or asked for)

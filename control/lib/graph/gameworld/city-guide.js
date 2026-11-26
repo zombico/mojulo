@@ -10,7 +10,7 @@
  *   CITY_GUIDE                 its numbers and its words
  *   jobsOf(mechanics)          → a level's jobs, each its steps in order (see below)
  *   jobQuests(mechanics)       → the same jobs as the journal's quests (playscape/ui/quests.js)
- *   cityGuide(manifest)        → { intro, lessons, steps: [{ id, say, kind, at, radius, says? }], loop?, done } | null:
+ *   cityGuide(manifest)        → { intro, lessons, steps: [{ id, say, kind, at, radius, says? }], loop?, rounds?, done } | null:
  *                              a level manifest (its title, entities, game.mechanics); null where it stands no car
  *
  * Pure: the level's recipe in, the guide out.
@@ -32,8 +32,9 @@ const words = (item) => String(item).replace(/-/g, ' ');
 const shop = (card) => { const w = words(card); return /(store|shop|pharmacy|diner|market|bakery|cafe|bar)$/.test(w) ? w : `${w} shop`; };
 /** A contact as it is called: the level's one unnamed contact 'Your contact', a named one its word ('Dispatch'). */
 export const contactName = (id) => (!id || id === 'contact' ? 'Your contact' : `${words(id)[0].toUpperCase()}${words(id).slice(1)}`);
-/** A phone app as it is called: 'taskfu' TaskFu, any other its word ('Runner'). */
-export const APP_NAMES = Object.freeze({ taskfu: 'TaskFu' });
+/** A phone app as it is called: 'taskfu' TaskFu, 'jobsified' Jobsified (the city's driving jobs, jobsified.js), any
+ * other its word ('Runner'). */
+export const APP_NAMES = Object.freeze({ taskfu: 'TaskFu', jobsified: 'Jobsified' });
 export const appName = (id) => APP_NAMES[id] ?? `${words(id)[0].toUpperCase()}${words(id).slice(1)}`;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
@@ -78,6 +79,18 @@ export function jobsOf(mechanics) {
     if (Tk) { const first = steps.find((x) => x.at); steps[0].at = first ? first.at.slice() : at3(J.at); }
     out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : Cl ? { starts: Cl.flag, called: true } : Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}), ...(who ? { contact: who } : {}) });
   }
+  // (a DRIVING JOB, lowerShift (jobsified.js): taken on its app, then into one of the depot's vehicles, round its stops
+  // in it and back. Each step waits on its own flag (`when`), since being at a place on foot is not doing it; a standing
+  // shift's way back is reached by coming to the depot, its stops' flags open again as it is paid)
+  for (const Sh of M.filter((m) => m && m.kind === 'shift' && Array.isArray(m.depot))) {
+    const Tk = M.find((m) => m && m.kind === 'task' && m.id === Sh.id), depot = at3(Sh.depot), r = Sh.radius ?? 9, cap = (w) => `${w[0].toUpperCase()}${w.slice(1)}`;
+    const yard = Sh.yard ?? 'depot', vehicle = Sh.vehicle ?? 'vehicle', paid = (Sh.reward ?? []).map((x) => `${x.n ?? 1} ${words(x.item)}`).join(', '), steps = [];
+    if (Tk) steps.push({ id: `app-${Tk.id}`, say: `Take the ${words(Sh.name ?? Sh.id).toLowerCase()} on ${Tk.name ?? appName(Tk.app)} · P`, at: depot, radius: 0, when: `flag-${Tk.flag}`, take: true });
+    steps.push({ id: `clock-${Sh.id}`, say: `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` });
+    Sh.stops.forEach((q, k) => steps.push({ id: `stop-${Sh.id}-${k + 1}`, say: `${Sh.stop ?? 'Make the stop'}${q.place ? ` at the ${shop(q.place)}` : ''}`, at: at3(q.at), radius: q.radius ?? 7, when: `flag-stop-${Sh.id}-${k + 1}`, flag: `stop-${Sh.id}-${k + 1}` }));
+    steps.push({ id: `back-${Sh.id}`, say: `Bring the ${vehicle} back to the ${yard}`, at: depot, radius: r, ...(Sh.repeat ? {} : { when: `flag-done-${Sh.id}` }), ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
+    out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
+  }
   // (a faction's POSTINGS, lowerAct: each one step, an act done somewhere in a zone; taken on the phone, on its board)
   for (const A of M.filter((m) => m && m.kind === 'act' && Array.isArray(m.at))) out.push({ id: A.id, name: A.title ?? `${words(A.id)[0].toUpperCase()}${words(A.id).slice(1)}`, repeat: false, faction: A.faction, starts: A.flag,
     steps: [{ id: `act-${A.id}`, say: A.line ?? words(A.verb), at: at3(A.at), radius: A.radius ?? 2, flag: A.done, zone: true }] });
@@ -101,12 +114,16 @@ export function cityGuide(manifest) {
   const steps = [{ id: 'car', say: 'Get into a car', kind: 'find', at: at3(car.transform.pos), radius: CITY_GUIDE.car, cab: true }];
   // each job's steps in the order it is done; the first standing job goes round again from its pick-up
   let loop = null;
-  const jobs = jobsOf(M.game?.mechanics);
+  const jobs = jobsOf(M.game?.mechanics), rounds = [];
   for (const J of jobs) {
     if (J.faction) continue;   // (a faction's posting is a side taken, never the way on: its board, the journal and the map say it)
-    // (a standing job goes round again from its pick-up: it is taken once)
-    if (J.repeat && loop === null) loop = steps.length + (J.steps[0]?.take ? 1 : 0);
-    for (const { flag: _flag, take: _take, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
+    // (a DRIVING JOB, a shift: its own ROUND, guide.js `rounds`. Taken on the phone, the guide goes to its first step
+    // after the taking; a standing one goes back to its first stop after its way back)
+    if (J.shift) {
+      const at = steps.length + (J.steps[0]?.take ? 1 : 0);
+      if (J.starts) rounds.push({ when: `flag-${J.starts}`, at, ...(J.repeat ? { from: at + 1, end: steps.length + J.steps.length } : {}) });
+    } else if (J.repeat && loop === null) loop = steps.length + (J.steps[0]?.take ? 1 : 0);   // (a standing job goes round again from its pick-up: it is taken once)
+    for (const { flag: _flag, take: _take, shift: _shift, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
   }
   const job = jobs.some((J) => !J.faction);
   return {
@@ -115,6 +132,7 @@ export function cityGuide(manifest) {
     lessons: CITY_GUIDE.lessons.map((l) => ({ ...l })),
     steps,
     ...(loop !== null ? { loop } : {}),
+    ...(rounds.length ? { rounds } : {}),
     done: CITY_GUIDE.open,
   };
 }

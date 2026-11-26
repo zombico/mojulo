@@ -62,6 +62,18 @@ export function proveErrands(world, manifests) {
   const store = gameStore(world, null);
   let bag = {};
   return G.errands.map((E) => {
+    // (a SHIFT, jobsified.js: its task taken and one of the depot's vehicles got into, then its stops and the depot walked
+    // in it; the proof cannot drive, so the getting in is given and said)
+    if (E.vehicle) {
+      const H = manifests[E.giver], mechs = H?.game?.mechanics ?? [], Sh = mechs.find((m) => m.kind === 'shift' && m.id === E.id), Tk = mechs.find((m) => m.kind === 'task' && m.id === E.id);
+      if (!Sh) return { errand: E.id, proved: false, legs: [], assumed: [], arrives: [], says: `the giver's level '${E.giver}' lays no driving job for it` };
+      const events = [...(Tk ? [{ type: `app:sub:${Tk.app}` }, { type: `app:take:${E.id}` }] : []), { type: 'mounted', rider: 'hero', mount: Sh.cabs[0] }];
+      const r = visit(H, store, bag, [...Sh.stops.map((q) => q.at), Sh.depot], events);
+      const proved = r.log.includes(`errand:done:${E.id}`);
+      bag = r.bag;
+      return { errand: E.id, proved, legs: [{ item: 'round', level: E.giver, bag: { ...bag } }], assumed: [`the hero gets into a ${Sh.vehicle ?? 'vehicle'} at the ${Sh.yard ?? 'depot'} (${Sh.cabs[0]}): the proof cannot drive`], arrives: [],
+        says: proved ? `driven: ${Sh.stops.length} stops and back to the ${Sh.yard ?? 'depot'}: paid` : `the ${Sh.yard ?? 'depot'} did not pay: ${r.log.filter((t) => t.startsWith('flag:stop-')).length} of ${Sh.stops.length} stops made` };
+    }
     const legs = [], assumed = [], missing = [];
     const solvable = E.laws.find((l) => l.law === 'solvable');
     const order = solvable.holds ? E.order : [];

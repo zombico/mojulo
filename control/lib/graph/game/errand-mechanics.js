@@ -34,7 +34,16 @@
  *   call     (emitter)  a job offered by phone, by a giver already met: on its event (the job before it done) its
  *                       flag is set, once, and the caller's words are said.   { id, flag, on, from?, says? }
  *
- *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct   (game/mechanics.js registers them)
+ *   shift    (emitter)  a DRIVING JOB in a city vehicle (gameworld/jobsified.js): getting into one of the depot's vehicles
+ *                       (`cabs`, the bus's `mounted`) once the job is taken (`after`) clocks in; each stop reached in it
+ *                       is done once; back at the depot in it with every stop done, it pays (`errand:done:<id>`) and, a
+ *                       standing shift (`repeat`), its stops are open again. Getting out leaves the round where it is.
+ *                       { id, depot: [x, y, z], radius? | half?: [hx, hy] (the yard's box), cabs: [entity id], stops: [{ at, radius?, place? }], reward?,
+ *                         repeat?, after?, vehicle?: 'garbage truck', yard?: 'works yard', done?: 'Bins emptied' }
+ *                       Flags (the guide's and the journal's): `on-<id>` clocked in, `stop-<id>-<k>` each stop,
+ *                       `done-<id>` paid.
+ *
+ *   lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct, lowerShift   (game/mechanics.js registers them)
  *
  * Pure, no dice.
  */
@@ -355,5 +364,70 @@ export function lowerDeliver(p, ctx) {
     ...(p.repeat === true || p.open === true ? {} : { on: { [done]: { end: 'success' } } }),
     produces: [{ type: 'consume', slice: BAG }, ...(reward.length ? [{ type: 'grant', slice: BAG }] : [])],
     audit: { kind: 'walkto', target: p.at.slice() },
+  };
+}
+
+/** THE SHIFT (an emitter): a driving job in one of the city's vehicles, from its depot and back (gameworld/jobsified.js).
+ * In the vehicle is a var of the job's (`in-<id>`), set by the bus's `mounted` on one of the depot's cabs once the job is
+ * taken (and on taking it while already in one) and cleared by `dismounted`; a stop counts only while it is set, so the
+ * round is driven, never walked. */
+export function lowerShift(p, ctx) {
+  const at0 = `shift[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
+  ctx.resolve('inventory', p.slice ?? BAG, at0);
+  if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
+  if (!isVec(p.depot)) fail('depot is [x, y, z]: the yard its vehicle is had from and brought back to');
+  if (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c)) fail('cabs is the ids of the depot\'s vehicles a hero gets into, at least one');
+  if (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
+  const reward = p.reward === undefined ? [] : p.reward;
+  if (!Array.isArray(reward) || reward.some((r) => !r || typeof r.item !== 'string' || (r.n !== undefined && !posInt(r.n)))) fail('reward is [{ item, n? }]: what a round pays');
+  if (p.after !== undefined && (typeof p.after !== 'string' || !/^[a-z][a-z0-9-]{0,47}$/.test(p.after))) fail('after is the flag taking the job sets (took-bin-round)');
+  const id = p.id, inV = `in-${id}`, aboard = `aboard-${id}`, n = `n-${id}`, took = p.after ? `flag-${p.after}` : null;
+  const vehicle = typeof p.vehicle === 'string' && p.vehicle ? p.vehicle : 'vehicle', yard = typeof p.yard === 'string' && p.yard ? p.yard : 'depot';
+  const on = `on-${id}`, done = `done-${id}`, stopFlag = (k) => `stop-${id}-${k + 1}`, ev = (w) => `shift:${w}:${id}`, N = p.stops.length;
+  const frag = { vars: { [inV]: 0, [aboard]: 0, [n]: 0, [`flag-${on}`]: 0, [`flag-${done}`]: 0, ...Object.fromEntries(p.stops.map((_, k) => [`flag-${stopFlag(k)}`, 0])), ...(took ? { [took]: 0 } : {}) }, reactions: [], hud: [] };
+  const R = frag.reactions;
+  // IN THE VEHICLE: one of the depot's, got into (or the job taken while in one); out of it, the round waits
+  for (const c of p.cabs) {
+    R.push({ on: 'mounted', match: { mount: c }, do: 'set', var: aboard, to: 1 });
+    R.push(took ? { on: 'mounted', match: { mount: c }, if: { var: took, gte: 1 }, do: 'emit', type: ev('in') } : { on: 'mounted', match: { mount: c }, do: 'emit', type: ev('in') });
+    R.push({ on: 'dismounted', match: { mount: c }, do: 'set', var: aboard, to: 0 }, { on: 'dismounted', match: { mount: c }, do: 'set', var: inV, to: 0 });
+  }
+  if (took) R.push({ on: `flag:${p.after}`, if: { var: aboard, gte: 1 }, do: 'emit', type: ev('in') });
+  R.push({ on: ev('in'), do: 'set', var: inV, to: 1 }, { on: ev('in'), if: { var: `flag-${on}`, eq: 0 }, do: 'emit', type: ev('clock') });
+  R.push({ on: ev('clock'), do: 'set', var: `flag-${on}`, to: 1 }, { on: ev('clock'), do: 'emit', type: `flag:${on}` });
+  frag.hud.push({ on: ev('clock'), as: 'toast', text: `On the clock: drive the ${vehicle}`, ttl: 2.4 });
+  // THE STOPS: each reached in the vehicle is done once a round; on foot, a word that it is driven
+  const sources = [];
+  p.stops.forEach((q, k) => {
+    const zone = `shift-${id}-${k + 1}`, f = `flag-${stopFlag(k)}`, at = ev(`at:${k + 1}`), hit = ev(`stop:${k + 1}`);
+    sources.push({ type: 'zone', zone, at: q.at.slice(), radius: Number.isFinite(q.radius) ? q.radius : 7, planar: q.planar !== false, watch: ctx.player });
+    R.push({ on: 'enter', match: { zone }, if: { var: inV, gte: 1 }, do: 'emit', type: at });
+    if (took) R.push({ on: 'enter', match: { zone }, if: { var: inV, eq: 0 }, do: 'emit', type: ev('afoot') });
+    R.push({ on: at, if: { var: f, eq: 0 }, do: 'emit', type: hit });
+    R.push({ on: hit, do: 'set', var: f, to: 1 }, { on: hit, do: 'inc', var: n, by: 1 }, { on: hit, do: 'emit', type: `flag:${stopFlag(k)}` });
+    frag.hud.push({ on: hit, as: 'toast', text: `${typeof p.done === 'string' && p.done ? p.done : 'Stop done'} (${k + 1} of ${N})`, ttl: 1.8 });
+  });
+  if (took) R.push({ on: ev('afoot'), if: { var: took, gte: 1 }, do: 'emit', type: ev('need') });
+  frag.hud.push({ on: ev('need'), as: 'toast', text: `This stop is made in the ${vehicle}`, ttl: 1.8 });
+  // BACK AT THE DEPOT in the vehicle: every stop done pays; some done, a word of what is left
+  const dz = `shift-${id}-depot`, back = ev('back'), paid = ev('paid'), short = ev('short');
+  const yardBox = Array.isArray(p.half) && p.half.length === 2 && p.half.every((h) => Number.isFinite(h) && h > 0);
+  sources.push({ type: 'zone', zone: dz, at: p.depot.slice(), ...(yardBox ? { half: p.half.slice() } : { radius: Number.isFinite(p.radius) ? p.radius : 9 }), planar: p.planar !== false, watch: ctx.player });
+  R.push({ on: 'enter', match: { zone: dz }, if: { var: inV, gte: 1 }, do: 'emit', type: `${back}:0` });
+  // (a one-off pays once; paid is every stop's own flag, the save's, never a count: `n-<id>` only says the round is begun)
+  R.push(p.repeat === true ? { on: `${back}:0`, do: 'emit', type: back } : { on: `${back}:0`, if: { var: `flag-${done}`, eq: 0 }, do: 'emit', type: back });
+  chain(R, back, p.stops.map((_, k) => ({ var: `flag-${stopFlag(k)}`, gte: 1 })), paid);
+  R.push({ on: back, if: { var: n, lt: N }, do: 'emit', type: `${short}:0` }, { on: `${short}:0`, if: { var: n, gte: 1 }, do: 'emit', type: short });
+  frag.hud.push({ on: short, as: 'toast', text: `The round is not done: drive the rest before you bring the ${vehicle} back`, ttl: 2.2 });
+  for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: paid }, frag);
+  R.push({ on: paid, do: 'set', var: `flag-${done}`, to: 1 }, { on: paid, do: 'emit', type: `flag:${done}` }, { on: paid, do: 'emit', type: `errand:done:${id}` });
+  // (a standing shift: its round open again, the vehicle still in hand; a one-off is over, its stops quiet)
+  R.push({ on: paid, do: 'set', var: n, to: 0 });
+  if (p.repeat === true) R.push(...p.stops.map((_, k) => ({ on: paid, do: 'set', var: `flag-${stopFlag(k)}`, to: 0 })));
+  frag.hud.push({ on: paid, as: 'toast', text: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Round done'}${p.repeat === true ? `. Another round when you are ready` : ''}`, ttl: 2.4 });
+  return {
+    world: { ...frag, sources },
+    produces: reward.length ? [{ type: 'grant', slice: BAG }] : [],
+    emits: [`errand:done:${id}`],
   };
 }

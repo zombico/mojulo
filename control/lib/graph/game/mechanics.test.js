@@ -62,7 +62,9 @@ describe('lowerMechanic — individual verbs', () => {
         // (a job's start and a faction's words: offer, call, task, join, act)
         id: 'job', flag: 'took-job', done: 'done-job', on: 'errand:done:other', app: 'taskfu', faction: 'reds', verb: 'tag',
         // (the law's: the police it brings)
-        police: ['police-1'] };
+        police: ['police-1'],
+        // (a driving job's, a shift: its yard, the yard's vehicles, its round)
+        depot: [0, 40, 0], cabs: ['car-1'], stops: [{ at: [9, 0, 0] }] };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });

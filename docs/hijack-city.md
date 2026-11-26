@@ -35,6 +35,7 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 | (the hero) | bare hands by default, a sidearm drawn with R or 1/2, fired on Q or the click | [arsenal.js](../control/lib/graph/gameworld/arsenal.js) |
 | `factions` | crews with turf and rivals, a board of acts (torch, tag, take) | [factions.js](../control/lib/graph/gameworld/factions.js) |
 | `errands[].app` | side work on the phone: fares | [errand-mechanics.js](../control/lib/graph/game/errand-mechanics.js) |
+| `errands[].vehicle` | driving jobs on the Jobsified app: a garbage truck's bin round from the works yard | [jobsified.js](../control/lib/graph/gameworld/jobsified.js) |
 | `ui`, `sound`, `music` | the look of the menus and HUD (mana-ui), the car's sounds, the score (walking, the chase, tension) | [docs/mana-ui.md](mana-ui.md), [docs/game-audio.md](game-audio.md) |
 
 The game ships with a title screen, a pause, a save and continue (the level's own save: what was done, kept at the
@@ -135,6 +136,42 @@ A contact's jobs stand their pick-ups and hand-ins at the district's shops, at t
 `shops` word) uses those. Downtown's towers and podiums have shopfronts but no shop walked into, so there each shop bay's
 frame is the place: the kerb before it, its tenant's store named, never a till (`geocity/scene.js`, the level's
 `ctx.shopfronts`; nothing drawn by it).
+
+## Jobsified: the city's driving jobs
+
+Jobsified is a phone app (P, its own tab beside TaskFu) that lists jobs done in one of the city's own vehicles. A job on
+it is a SHIFT: take it on the phone, go to the DEPOT that keeps the vehicle (a yard of the metro's,
+`geocity/fleets.js` `YARDS`), get into one there, drive its STOPS in it and bring it back to the depot to be paid. A
+standing shift (`repeat`) opens its round again as it pays.
+
+```js
+errands: [{ id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: true, reward: [{ item: 'coin', n: 40 }] }]
+```
+
+`vehicle` is a row of `SHIFTS` (`gameworld/jobsified.js`): the fleet the job is driven in, the yard that keeps it, what
+the vehicle is called, how many stops a round has and what a stop says. `garbage` (the works yard's garbage trucks: the
+bin round) and `bus` (the bus depot's buses: a route) are the rows today; a new kind of driving job is a row. The
+errand's list may be left out (the row's item, its stops as its count); a list given is that one item, its `count` the
+round's stops. A shift is given by Jobsified unless it names its own `app` (its `tags` put it on other apps as well); it
+has no contact and is never a mission.
+
+Where it is laid (`gameworld/levels.js`): the scene tells a level its yards (`geocity/scene.js` `ctx.yards`, nothing
+drawn by it), and the district its DEPOTS (`ends.depots`: each yard's box and the vehicles it keeps by role). The shift
+stands at the depot of its fleet nearest the start; that depot's vehicles are made cabs after the level's nearest cars
+(`gameworld/cars.js` `levelCars` `roles`), so no other car's id moves. Its stops are the district's places, each about
+`SHIFT.hop` from the one before and `SHIFT.apart` from the others and the yard. A district with no such depot, or no
+place for a stop, lays none of it: the errand proof says so.
+
+How it plays (`game/errand-mechanics.js` `lowerShift`, the mechanic card `shift`): the bus hears getting into a vehicle
+(`mounted`, `scene/channels/mount-ride.js`); getting into one of the depot's vehicles once the job is taken clocks in, a
+stop counts only while in it (on foot, the stop says it is driven), and back in the yard's box with every stop done it
+pays. The round's progress is its stops' own flags, so a save keeps it. The guide goes to the shift's steps the moment it
+is taken on the phone (`scene/channels/guide.js` `rounds`) and a standing shift's round loops on itself; the journal ticks
+its stops, the map marks them and the phone's Jobsified tab shows what it pays. The errand proof drives it on the bus,
+the getting in given (the proof cannot drive); the drive itself is the person's to play.
+
+Not yet: the works pickups and vans (their roof beacon is not carried by a cab), a stop that asks the vehicle to stand
+still, passengers on a bus route, a shift against the clock.
 
 ## Pedestrians, in sixes
 

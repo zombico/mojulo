@@ -17,7 +17,7 @@
  */
 import { heldVar, itemKey } from '../playscape/ui/items.js';
 import { lowerEscapeRoom } from './escape-room.js';
-import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct } from './errand-mechanics.js';
+import { lowerTrade, lowerCargo, lowerBounty, lowerDeliver, lowerOffer, lowerCall, lowerTask, lowerJoin, lowerAct, lowerShift } from './errand-mechanics.js';
 import { lowerWanted } from './law-mechanics.js';
 import { lowerVitals } from './vitals-mechanics.js';
 import { lowerRespray, lowerGunshop } from './shop-mechanics.js';
@@ -1074,6 +1074,8 @@ const MECHANICS = {
   call: { role: 'emitter', lower: lowerCall },
   // (a job given by a phone app, subscribed to and taken on the phone: no one to meet)
   task: { role: 'emitter', lower: lowerTask },
+  // (a driving job in a city vehicle, from its depot and back: gameworld/jobsified.js)
+  shift: { role: 'emitter', requires: ['inventory'], lower: lowerShift },
   // (a faction joined where its contact stands; its board's posting, finished by an act done)
   join: { role: 'emitter', lower: lowerJoin },
   act: { role: 'emitter', lower: lowerAct },

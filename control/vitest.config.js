@@ -16,6 +16,8 @@ export const E2E = [
   'lib/graph/gameworld/side-map/level.e2e.test.js',
   'lib/graph/gameworld/race-hud.e2e.test.js',
   'lib/graph/gameworld/door-probes.e2e.test.js',
+  // Jobsified's bin round laid in Hijack City's downtown, its depot's trucks made cabs, driven by the errand proof
+  'lib/graph/gameworld/jobsified.e2e.test.js',
   // a shoot plan's contact sheet rendered through the door: its frames captured in headless Chrome and composed
   'lib/mcp/tools/shoot-contact.e2e.test.js',
   // the exhibit starters made through create_exhibit: Pompeii resolves a whole historic town and its people

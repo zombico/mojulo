@@ -9,9 +9,12 @@
  *   CAB                      a cab's numbers: its reach, its door, how long getting in and out take, how slow it lets
  *                            its driver out, the camera behind a car (a bigger vehicle's framed by its size,
  *                            cab-pool.js cabView), its box, how many cars and how far from the start
- *   levelCars(ends)          → [{ at, heading, model, paint }]: the parked cars (`ends.parked`, levels.js) a level's hero
- *                            may get into, nearest its spawn first
- *   carsExtra()              → (ends) → { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
+ *   levelCars(ends, { roles? }) → [{ at, heading, model, paint }]: the parked cars (`ends.parked`, levels.js) a level's
+ *                            hero may get into, nearest its spawn first; then, for each fleet role in `roles` (a driving
+ *                            job's, gameworld/jobsified.js), its depots' vehicles (`ends.depots`) not among them, so a
+ *                            car's id (`car-<i>`, its place in this list) is the same with roles as without
+ *   depotCabs(ends, role, { roles? }) → [{ depot, ids }]: each depot keeping the role's vehicles, and their cab ids
+ *   carsExtra({ roles? })    → (ends) → { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
  *                            body drawn from the town's own template of its model (`mount.pool`), and the spares a
  *                            vehicle taken from the traffic becomes
  *   patrolCar({ id, at, heading, model, paint, target, roads, posts })
@@ -53,20 +56,29 @@ const lin = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 
 // does not carry drives as a midsize car
 const ruleOf = (model) => { const cls = CAR_CARDS[model]?.class ?? (model.startsWith('loft:') ? model.slice(5).split('|')[0] : 'midsize'); try { return vehicleRule(cls, { tuning: 'arcade' }); } catch { return vehicleRule('midsize', { tuning: 'arcade' }); } };
 
-export function levelCars(ends) {
+export function levelCars(ends, { roles = [] } = {}) {
   const from = ends?.spawn, parked = ends?.parked ?? [];
   if (!from || !parked.length) return [];
   const d = (c) => Math.hypot(c.at[0] - from[0], c.at[1] - from[1]);
-  return parked.map((c, i) => ({ c, i, d: d(c) })).filter((x) => x.d <= CAB.far).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, CAB.most).map((x) => x.c);
+  const near = parked.map((c, i) => ({ c, i, d: d(c) })).filter((x) => x.d <= CAB.far).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, CAB.most).map((x) => x.c);
+  if (!roles.length) return near;
+  const had = new Set(near), more = [];
+  for (const D of ends.depots ?? []) for (const v of D.cabs) if (roles.includes(v.role) && !had.has(v.car)) { had.add(v.car); more.push(v.car); }
+  return [...near, ...more];
+}
+
+export function depotCabs(ends, role, { roles = [role] } = {}) {
+  const cars = levelCars(ends, { roles }), idOf = new Map(cars.map((c, i) => [c, `car-${i + 1}`]));
+  return (ends?.depots ?? []).map((D) => ({ depot: D, ids: D.cabs.filter((v) => v.role === role && idOf.has(v.car)).map((v) => idOf.get(v.car)) })).filter((x) => x.ids.length);
 }
 
 // (its camera framed by its size, scene/channels/cab-pool.js cabView: a car's the CAB's, a truck's further back and higher)
 const cab = (hull, height = null) => ({ cab: true, hull, reach: Math.max(CAB.reach, hull[0] + 2), stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...(height === null ? CAB.camera : cabView({ length: 2 * hull[1], height }, CAB.camera, CAB_VIEW)), pullIn: CAB.pullIn } });
 const box = (rule) => ({ ...rule, eye: 0, collideRadius: CAB.radius, collideHeight: CAB.height, step: CAB.step });
 
-export function carsExtra() {
+export function carsExtra({ roles = [] } = {}) {
   return (ends) => {
-    const cars = levelCars(ends);
+    const cars = levelCars(ends, { roles });
     if (!cars.length) return null;
     const part = { figures: {}, entities: [] };
     cars.forEach((c, i) => {

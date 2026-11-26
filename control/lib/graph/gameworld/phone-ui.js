@@ -95,7 +95,8 @@ export function phoneUi(manifest, ui = undefined) {
   const apps = [], conf = isObj(ui) ? ui.apps : undefined;
   for (const J of jobsOf(M)) {
     if (!J.app) continue;
-    const hand = J.steps[J.steps.length - 1], D = M.find((m) => m?.kind === 'deliver' && (m.id ?? 'errand') === J.id);
+    // (what it pays: its hand-in's, or a driving job's own, a shift's: jobsified.js)
+    const hand = J.steps[J.steps.length - 1], D = M.find((m) => (m?.kind === 'deliver' || m?.kind === 'shift') && (m.id ?? 'errand') === J.id);
     const task = { id: J.id, name: J.name, took: `flag-${J.starts}`, ...(hand?.flag ? { done: `flag-${hand.flag}` } : {}), repeat: J.repeat, ...(J.tags?.length ? { tags: J.tags.slice() } : {}),
       pays: (D?.reward ?? []).map((r) => `${r.n ?? 1} ${String(r.item).replace(/-/g, ' ')}`).join(', '), steps: J.steps.filter((x) => !x.take).map((x) => ({ say: x.say, ...(x.flag ? { var: `flag-${x.flag}` } : {}) })) };
     // (a task is on each app its tags put it on, the same task: taken on one, it is taken)

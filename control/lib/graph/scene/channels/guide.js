@@ -17,7 +17,9 @@ import { safeJson } from '../emit-util.js';
 // controllable channel's), so it waits for it. Emitted only when the page has a guide: every other page byte-identical.
 // A guide that goes ROUND (`loop`: the step it returns to after its last, a standing job's pick-up: gameworld/city-guide.js)
 // one whose step is reached by being in a car (a step's `cab`), one waited on (a step's `when`: a bus var set, a task taken on the phone), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
-// with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
+// with none of them is as it was, byte for byte. A guide with ROUNDS (`rounds`: [{ when, at, from?, end? }], a driving
+// job's, gameworld/city-guide.js) goes to a job's own steps (`at`) the moment it is taken on the phone (`when` rises),
+// wherever it stood, and a standing round goes back to its `from` after its last step (`end`, the step past it); none, no byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
 // line stays down for that host as it does for the HUD grammar; unasked, not a byte.
 export function guideScript(guide, { host = false } = {}) {
   return `
@@ -83,7 +85,10 @@ export function guideScript(guide, { host = false } = {}) {
   function tick() {
     const W = window.__mojCtrl && window.__mojCtrl.world;
     if (W) {
-      if (!up) begin();
+      if (!up) begin();${Array.isArray(guide.rounds) && guide.rounds.length ? `
+      // (a job taken on the phone: the guide to its own steps, wherever it stood)
+      const BV = window.__mojBus && window.__mojBus.state.vars;
+      if (BV) for (const R of GD.rounds) { const on = BV[R.when] >= 1; if (on && !R.was && k !== R.at) { k = R.at; plant(); } R.was = on; }` : ''}
       const p = (W.pilotId && W.byId[W.pilotId]) || W.entities.find((e) => e.pilotable), s = GD.steps[k];
       let dx = 0, dy = 0, d = Infinity, near = false;
       if (p && s) {
@@ -91,7 +96,7 @@ export function guideScript(guide, { host = false } = {}) {
         near = s.fight ? W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
         // (a fight that counts its falls is won by them, wherever it was fought; any other beat by reaching it)
         const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}${guide.steps.some((x) => x && x.when) ? 's.when ? !!(window.__mojBus && window.__mojBus.state.vars[s.when] >= 1) : ' : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
-        if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++;${Number.isInteger(guide.loop) ? ' if (k >= GD.steps.length) k = GD.loop;' : ''} plant(); }
+        if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++;${Array.isArray(guide.rounds) && guide.rounds.some((R) => R.end) ? ' { const Rr = GD.rounds.find((R) => R.end && k === R.end); if (Rr) k = Rr.from; }' : ''}${Number.isInteger(guide.loop) ? ' if (k >= GD.steps.length) k = GD.loop;' : ''} plant(); }
       }
       const now = performance.now(), cur = GD.steps[k];
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)

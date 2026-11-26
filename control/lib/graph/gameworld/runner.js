@@ -82,6 +82,7 @@ import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } fro
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
+import { shiftRoles } from './jobsified.js';
 import { peopleExtra } from './people.js';
 import { crowdSets, peopleOf } from '../geocity/crowd.js';
 import { rideOf, loftCamera } from '../vehicle-registry/ride.js';
@@ -550,7 +551,8 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const mintOf = folks[i] ? new Map(folks[i].bodies.mints.map((m) => [m.key, m])) : null;
     const folk = folks[i] ? folkExtra(folks[i], (k) => folkRef[folkMintKey(folks[i], mintOf.get(k))], { shops: market ? hubFolkShops(G) : null, talk: G.ui !== undefined ? 'box' : 'menu' }) : null;
     // (the cars its town or district parks, its hero's to get into, cars.js: a walked town's and district's stage)
-    const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra() : null;
+    // (and, where a driving job is given on it, its depot's vehicles of that job's fleet: jobsified.js)
+    const cars = s.section === 'geotown' || s.section === 'geocity' ? carsExtra({ roles: shiftRoles(G.errands, s.level) }) : null;
     const goalCast = (hostile || folk || cars) && !fight && !stall && !market ? GA.goalCast : null;
     // (the people of its pavements, people.js: a district's; rolled by the world's keys, worn by its scene's walkers)
     // (as many sixes of different people as its crowd rolls, geocity/crowd.js: a busy downtown two, a packed one three)

@@ -69,7 +69,8 @@ import { taskApps, appTitle } from './phone-ui.js';
 import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
-import { patrolCar } from './cars.js';
+import { patrolCar, depotCabs } from './cars.js';
+import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED } from './jobsified.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -636,7 +637,7 @@ function geotownEnds(manifest) {
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -666,6 +667,16 @@ function geocityEnds(manifest) {
   const walkedIn = (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.at, N: a.N }));
   const shops = walkedIn.length ? walkedIn : shopfronts;
   Object.defineProperty(out, 'places', { value: shops.map((a) => ({ id: a.id, card: a.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]), N: [r3(a.N[0]), r3(a.N[1])] })), enumerable: false });
+  // (its DEPOTS: each yard the district keeps vehicles in (geocity/fleets.js YARDS), its middle on the ground, how far it
+  // reaches, and each of its vehicles a hero may get into (one of `parked`, the same entry) by its role: a driving job's
+  // depot, gameworld/jobsified.js)
+  const lotsOut = out.parked;
+  Object.defineProperty(out, 'depots', { value: yards.map((Y) => {
+    const cabs = Y.vehicles.map((v) => ({ role: v.role, car: lotsOut.find((c) => Math.abs(c.at[0] - v.at[0]) < 0.05 && Math.abs(c.at[1] - v.at[1]) < 0.05) ?? null })).filter((v) => v.car);
+    const [x0, y0, x1, y1] = Y.rect;
+    // (`half`: its box, the yard whole; `radius` the reach of a word about it, to its far corner)
+    return { id: Y.id, yard: Y.yard, at: on([(x0 + x1) / 2, (y0 + y1) / 2, Y.z]), half: [r3((x1 - x0) / 2), r3((y1 - y0) / 2)], radius: r3(Math.hypot(x1 - x0, y1 - y0) / 2), cabs };
+  }), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
@@ -1862,6 +1873,37 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) };
     });
     offers.push(...tasks);
+    // THE SHIFTS (jobsified.js): each a driving job taken on its app, driven in a vehicle of its fleet from the depot
+    // nearest the start that keeps one (its vehicles cabs: cars.js levelCars `roles`), round its stops (places of the
+    // district's, each about a hop from the one before) and back. A stage with no such depot, or no cars, or no place
+    // for a stop lays none of it (advised, never refused: the errand proof says it was not laid)
+    const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt);
+    if (shiftAt.length && driven) {
+      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const used = [...givers.map((g) => g.at), ...legs.filter((l) => Array.isArray(l.at)).map((l) => l.at)];
+      for (const k of shiftAt) {
+        const L = legs[k], S = shiftOf(L.vehicle), yard = YARD_NAMES[S.yard], found = depotCabs(ends, L.vehicle, { roles });
+        if (!found.length) { unlaid.add(k); continue; }
+        const { depot: D, ids } = found.reduce((m, x) => (d2(x.depot.at, ends.spawn) < d2(m.depot.at, ends.spawn) - 1e-9 ? x : m));
+        const stops = [];
+        let prev = D.at;
+        for (let j = 0; j < L.stops; j++) {
+          const free = (ends.places ?? []).filter((q) => d2(q.at, D.at) >= SHIFT.apart && used.every((u) => d2(q.at, u) >= SHIFT.apart) && stops.every((u) => d2(q.at, u.at) >= SHIFT.apart));
+          if (!free.length) break;
+          const q = free.reduce((m, x) => (Math.abs(d2(x.at, prev) - SHIFT.hop) < Math.abs(d2(m.at, prev) - SHIFT.hop) - 1e-9 ? x : m));
+          stops.push({ at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card });
+          prev = q.at;
+        }
+        if (!stops.length) { unlaid.add(k); continue; }
+        used.push(D.at, ...stops.map((q) => q.at));
+        const on = taskApps(L, fus).length ? taskApps(L, fus) : [JOBSIFIED], subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
+        legs[k] = { kind: 'shift', id: L.id, name: L.name ?? S.name, item: L.item, depot: D.at.slice(), radius: r3(Math.max(SHIFT.reach, D.radius)), ...(D.half ? { half: D.half.map((h) => r3(Math.max(SHIFT.reach, h))) } : {}), cabs: ids, stops, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`,
+          vehicle: S.vehicle, yard, stop: S.stop, done: S.done };
+        offers.push({ kind: 'task', id: L.id, app: on[0], flag: `took-${L.id}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(L.tags ? { tags: L.tags } : {}),
+          ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
+      }
+    }
+    for (const k of [...unlaid].sort((a, b) => b - a)) legs.splice(k, 1);
     // THE FACTIONS (factions.js): each on its turf, a part of the district its shops stand in. Its contact stands at a
     // shop on its turf, and coming to them is joining it (lowerJoin: one faction at a time). Its board's postings are
     // acts (lowerAct), each with the zone it is done in: its target's turf, a rival's when it names one.

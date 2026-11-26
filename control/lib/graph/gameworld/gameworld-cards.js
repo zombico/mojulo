@@ -1081,6 +1081,8 @@ function hijackCityCard() {
     '  law: true | { stars, per, cars, armed, calm, busted, fine }   mayhem raises stars; police on foot and in cars',
     '  shops: { respray, guns }   repaint and lose the police; rounds for the sidearm (Q fires, R holsters it)',
     '  factions.<id>          crews: turf, rivals, a board of acts (torch, tag, take)   app: \'taskfu\' fares on the phone',
+    '  errands[].vehicle     a driving job on the Jobsified app (jobsified.js: garbage, bus): into one at its depot, its',
+    '                        stops driven, back to be paid; the starter\'s bin round (a district without the yard lays none)',
     '  ui.theme, sound, music  the look (theme cards), the car\'s sounds, the score (walk, chase, tension)',
     '',
     'GROW IT: rename it; the hero (create_character words); its suburbs (`geocity.outskirts`: west-coast, tropical,',

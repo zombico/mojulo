@@ -1578,13 +1578,18 @@ export function assembleGeocityScene(m, ctx = {}) {
     const roles = Object.entries(Y.roles), deep = yard === 'depot' ? 14 : yard === 'contractor' ? 11.5 : 10.5, wide = yard === 'depot' ? 4.2 : yard === 'contractor' ? 4.6 : 3.8, aisle = yard === 'depot' ? 14 : 9;
     const roleOf = () => { const t = Ry() * roles.reduce((s2, [, w]) => s2 + w, 0); let u = 0; for (const [r, w] of roles) { u += w; if (t <= u) return r; } return roles[roles.length - 1][0]; };
     const end = (a1 - a0 > bd + 30 ? b0 - 3 : a1 - 3);
+    // (a level that asks, `ctx.yards`, is told each yard: its block, what it is, its ground and the vehicles it keeps by
+    // role, where they stand: a driving job's depot, gameworld/jobsified.js. Nothing drawn by it)
+    const rec = Array.isArray(ctx.yards) ? { id: b.id, yard, rect: [r5(x0), r5(y0), r5(x1), r5(y1)], z: r5(z), vehicles: [] } : null;
     for (let a = a0 + 3; a + 2 * deep + aisle <= end; a += 2 * deep + aisle) for (const [r0, out] of [[a, 1], [a + deep + aisle, -1]]) {
       for (let sv = s0 + 3; sv + wide <= s1 - 3; sv += wide) {
         if (Ry() >= 0.82) continue;
-        const c = P(r0 + deep / 2, sv + wide / 2);
-        vehicleAt(roleOf(), c[0], c[1], z, longY ? [0, out] : [out, 0], `${b.id}:${r5(c[0])}:${r5(c[1])}`);
+        const c = P(r0 + deep / 2, sv + wide / 2), role = roleOf();
+        vehicleAt(role, c[0], c[1], z, longY ? [0, out] : [out, 0], `${b.id}:${r5(c[0])}:${r5(c[1])}`);
+        if (rec) rec.vehicles.push({ role, at: [r5(c[0]), r5(c[1])] });
       }
     }
+    if (rec) ctx.yards.push(rec);
     counts.yards = { ...(counts.yards ?? {}), [yard]: (counts.yards?.[yard] ?? 0) + 1 };
   }
 

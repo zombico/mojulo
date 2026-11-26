@@ -141,3 +141,62 @@ describe('an errand on one level', () => {
     expect(() => composeMechanics([{ kind: 'deliver', at: [0, 0, 0], wants: [{ item: 'eggs' }] }], { player: 'hero', storeSchema: { slices: [{ name: 'hero', kind: 'character' }] } })).toThrow(/slice 'bag' is not in the store/);
   });
 });
+
+describe('shift: a driving job in a city vehicle, from its depot and back (gameworld/jobsified.js)', () => {
+  const DEPOT = [0, 40, 0], STOPS = [[60, 0, 0], [120, 0, 0]];
+  const SHIFT = { kind: 'shift', id: 'bins', depot: DEPOT, radius: 9, cabs: ['car-7', 'car-9'], stops: STOPS.map((at) => ({ at })), reward: [{ item: 'coin', n: 40 }], after: 'took-bins', vehicle: 'garbage truck', yard: 'works yard', done: 'Bins emptied' };
+  const TASK = { kind: 'task', id: 'bins', app: 'jobsified', flag: 'took-bins', name: 'Jobsified', subscribe: true };
+  // (a bus a walker steps through, with whole events fed between: the mount's { type, rider, mount })
+  function drive(mechs, script) {
+    const c = composeMechanics([{ kind: 'bag', slice: 'bag' }, ...mechs, EXIT], ctx), ev = c.events, s = B.createBusState(ev, ev.entities);
+    let prev;
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } };
+    pump([]);
+    for (const step of script) {
+      if (step.at) for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: 'hero', position: step.at }], prev, ev.sources); prev = z.prev; pump(z.events); }
+      if (step.ev) pump([step.ev]);
+    }
+    return { vars: s.vars, log: s.log.map((r) => r.type) };
+  }
+  const take = { ev: { type: 'app:take:bins' } }, inCab = (m = 'car-7') => ({ ev: { type: 'mounted', rider: 'hero', mount: m } }), out = (m = 'car-7') => ({ ev: { type: 'dismounted', rider: 'hero', mount: m } });
+  const round = [{ at: STOPS[0] }, { at: [90, 20, 0] }, { at: STOPS[1] }, { at: [60, 60, 0] }, { at: DEPOT }];
+
+  it('is driven: in one of the depot\'s vehicles once taken, every stop made in it, back at the depot it pays', () => {
+    const r = drive([SHIFT, TASK], [take, { at: DEPOT }, inCab(), ...round]);
+    expect(r.log).toEqual(expect.arrayContaining(['flag:on-bins', 'flag:stop-bins-1', 'flag:stop-bins-2', 'flag:done-bins', 'errand:done:bins']));
+    expect(r.vars[H('coin')]).toBe(40);
+  });
+  it('counts nothing before it is taken, on foot, or in a vehicle that is not the depot\'s', () => {
+    for (const script of [[inCab(), ...round], [take, ...round], [take, inCab('car-3'), ...round], [take, inCab(), out(), ...round]]) {
+      const r = drive([SHIFT, TASK], script);
+      expect(r.log).not.toContain('errand:done:bins');
+      expect(r.log.filter((t) => t.startsWith('flag:stop-'))).toEqual([]);
+    }
+    // (taken while already in one: on the clock at once)
+    expect(drive([SHIFT, TASK], [inCab(), take, ...round]).log).toContain('errand:done:bins');
+  });
+  it('pays only for the whole round: back early says what is left, and a one-off pays once', () => {
+    const early = drive([SHIFT, TASK], [take, inCab(), { at: STOPS[0] }, { at: [30, 60, 0] }, { at: DEPOT }]);
+    expect(early.log).toContain('shift:short:bins');
+    expect(early.log).not.toContain('errand:done:bins');
+    const twice = drive([SHIFT, TASK], [take, inCab(), ...round, { at: [30, 80, 0] }, ...round]);
+    expect(twice.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+    expect(twice.vars[H('coin')]).toBe(40);
+  });
+  it('a standing shift opens its round again when it pays, and pays again for the next', () => {
+    const again = drive([{ ...SHIFT, repeat: true }, TASK], [take, inCab(), ...round, ...round]);
+    expect(again.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    expect(again.vars[H('coin')]).toBe(80);
+    // (the round is the stops' own flags: a stop made twice in one round counts once)
+    // (a yard is a box: brought back anywhere in it, a long yard's far end too)
+    const yard = drive([{ ...SHIFT, half: [30, 6] }, TASK], [take, inCab(), { at: STOPS[0] }, { at: STOPS[1] }, { at: [60, 60, 0] }, { at: [-28, 44, 0] }]);
+    expect(yard.log).toContain('errand:done:bins');
+        const doubled = drive([{ ...SHIFT, repeat: true }, TASK], [take, inCab(), { at: STOPS[0] }, { at: [30, 60, 0] }, { at: STOPS[0] }, { at: [30, 60, 0] }, { at: DEPOT }]);
+    expect(doubled.log).not.toContain('errand:done:bins');
+  });
+  it('a malformed shift says what is wrong', () => {
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, cabs: [] }, EXIT], ctx)).toThrow(/cabs is the ids/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, stops: [] }, EXIT], ctx)).toThrow(/stops is/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, depot: [1, 2] }, EXIT], ctx)).toThrow(/depot is/);
+  });
+});
