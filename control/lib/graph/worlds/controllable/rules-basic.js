@@ -422,6 +422,8 @@ export function buildRulesBasic(E) {
     // a CLEAR view: as the shot cuts, the ground (rocks, a bank) sampled along the line to the subjects must stay under
     // it, and no body but the subjects stand in it (the pilot's own frame between the lens and what it frames); else the
     // next of a few places round the framing, a little aside and then higher (by the shot's distance), kept for the shot
+    // (a tracking shot looks again each second: the ground it moves over rises and falls, and what was clear may not be)
+    if (r.move === 'track' && e._shotTry != null && e._shotT - (e._shotChk || 0) >= 1) { e._shotChk = e._shotT; e._shotTry = null; }
     if (e._shotTry == null) {
       e._shotTry = [0, 0];
       const subIds = new Set(subs.map((s) => s.id).filter(Boolean));

@@ -22,4 +22,18 @@ describe('a shot on a big subject', () => {
     // (and aimed under the tower's middle, so it rides above a scene's talk box)
     expect(look[2]).toBeLessThan(5.5);
   });
+
+  it('a tracking shot looks again as its subject moves: a ridge come between them is gone round', () => {
+    // (a walker on open ground, then past a ridge the line from the shot's first place would cross)
+    let ridge = false;
+    const ground = { ground: ([x, y]) => (ridge && x > 6 && x < 12 && Math.abs(y) < 4 ? 30 : 0) };
+    const W = { id: 'w', rule: { type: 'static' }, body: { type: 'box', size: [5, 4, 10], radius: 4.2 }, transform: { pos: [0, 0, 0], heading: 0 } };
+    const st = E.createWorld({ entities: [W, { id: 'cam', isCamera: true, rule: { type: 'follow', target: 'w' }, transform: { pos: [20, 0, 5], heading: Math.PI } }], pilot: 'w', camera: 'cam' });
+    E.castOps(st, [{ op: 'shot', shot: { frame: 'wide', on: ['w'], move: 'track' } }]);
+    E.stepWorld(st, {}, 1 / 60, ground);
+    expect(st.camera._shotTry).toEqual([0, 0]);
+    ridge = true;
+    for (let i = 0; i < 80; i++) E.stepWorld(st, {}, 1 / 60, ground);
+    expect(st.camera._shotTry).not.toEqual([0, 0]);                              // (looked again, and moved aside or up)
+  });
 });

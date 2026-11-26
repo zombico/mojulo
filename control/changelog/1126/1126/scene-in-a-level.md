@@ -25,3 +25,5 @@
   play back. Optional, a group's own; skippable as every scene is.
 - A shot on big subjects aims a share of its distance under them, so they ride above a scene's talk box (its lower
   third) rather than behind it.
+- A tracking shot looks again each second: the ground it moves over rises and falls, so a ridge come between it and
+  its subjects is gone round (aside, then higher), where it had only looked as it cut.
