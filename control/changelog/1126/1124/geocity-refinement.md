@@ -137,3 +137,7 @@
   city's shadow map stretched over the whole metro and its water, about 3 km across, too coarse to draw anything in the
   street. It now covers only the district you play in. Shadows are strong at noon; at a low sun, like Los Angeles's
   golden hour, they are long but faint, since the sun then gives the street only about a quarter of its light.
+- Parked cars, benches, hydrants, trees and street furniture now cast shadows everywhere in the district, not only near
+  where the level starts, and moving traffic casts them around the player. The static objects cost nothing per frame,
+  because the city's shadows are drawn once while the level loads. Moving traffic adds about 1% more draw calls and 7%
+  more triangles per frame on a downtown street.

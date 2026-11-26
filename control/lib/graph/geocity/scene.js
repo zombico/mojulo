@@ -363,8 +363,10 @@ const FORM_SPAN = 30, FORM_CELL = 3;
 /** THE SHADOWS' FIT (a form render's, scene/channels/cast-shadows.js `fit`): the live light's maps fitted to the district
  *  itself, its frame and SHADOW_FIT.margin round it, and not to everything static on the page (the metro's evocations and
  *  its water reach twice the frame out on every side, a box 3 km across whose texels and bias swallowed every tree, post
- *  and car and smeared the buildings' shadows away) */
-export const SHADOW_FIT = Object.freeze({ margin: 40 });
+ *  and car and smeared the buildings' shadows away). Its depth BIAS (metres) under a parked car's height, so a car, a bench
+ *  and a hydrant cast (the map's own default, three of its texels, was 1.7 m on a district); and WHOLE, every static solid
+ *  in it however far from the eye (the street's kit is drawn by tiles near it), so they cast everywhere */
+export const SHADOW_FIT = Object.freeze({ margin: 40, bias: 0.6 });
 const shadowFit = (d) => ({ at: [r5(d.frame.W / 2), r5(d.frame.D / 2), r5((d.land.range[0] + d.land.range[1]) / 2)], half: r5(Math.max(d.frame.W, d.frame.D) / 2 + SHADOW_FIT.margin) });
 export function assembleGeocityScene(m, ctx = {}) {
   for (const k of Object.keys(m)) if (!GEOCITY_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geocity (cube, seed, hour, clouds, geocity, cone, air, crowns)`);
@@ -2791,7 +2793,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     plan = { box: [0, 0, r5(d.frame.W), r5(d.frame.D)], shapes, places: entered.map((e) => ({ at: [r5(e.door[0]), r5(e.door[1])], kind: 'shop', card: e.S.card })) };
   }
   return {
-    faces, ...(formTown ? { form: { town: formTown }, ...(ctx.liveSun ? { shadows: { fit: shadowFit(d) } } : {}) } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: { ...F, ...(coned ? { lod: FLOW_LOD } : {}), ...(night ? { night: true } : {}) } } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown }, ...(ctx.liveSun ? { shadows: { fit: shadowFit(d), hourBias: SHADOW_FIT.bias, whole: true } } : {}) } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: { ...F, ...(coned ? { lod: FLOW_LOD } : {}), ...(night ? { night: true } : {}) } } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },

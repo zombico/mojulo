@@ -76,7 +76,12 @@ margin), never to everything static on the page: the metro's evocations and its 
 side, and a map fitted to all of them was 3 km across, its texels a metre and a half and its depth bias taller than a
 tree, so nothing in the street cast and the buildings' shadows were smeared away. A shadow takes away the sun's share of
 a surface's light (its `sunShare`), so at a low sun (Los Angeles's golden hour, the sun about 8° up and a quarter of the
-street's light) the long shadows are faint; at noon they are strong.
+street's light) the long shadows are faint; at noon they are strong. Its depth bias is 0.6 m (`SHADOW_FIT.bias`), under a parked car's
+height, so cars, benches and hydrants cast; and the map holds the city WHOLE (`whole`): the street's kit is drawn by tiles
+near the eye, so on the frame the map is drawn every static solid is shown and hidden again after, and things cast
+everywhere, not only round the spot the page opened on. The map is drawn once, behind the loading screen, so none of
+this costs a frame. The moving traffic casts into the actors' map (`flow.js` `cast`), the vehicles near the player
+only: on a downtown street about 1 % more draws a frame and 7 % more triangles.
 
 Its style asks the district for its sky as it asks for its hour (`world.js` `skyOfStyle`, carried onto the geocube):
 `clouds: 'fair'`, an `air` of haze that pales the far blocks a kilometre off, the `finish` (one tone curve, the sky in

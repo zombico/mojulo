@@ -1055,6 +1055,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
     ...(Number.isFinite(shadows.bias) && shadows.bias > 0 ? { bias: shadows.bias } : {}),
     ...(Number.isFinite(shadows.fitMin) && shadows.fitMin > 0 ? { fitMin: shadows.fitMin } : {}),
+    // (the hour map's own depth bias in metres, and `whole`: every static solid in it, shown or not; a city's, geocity/scene.js)
+    ...(Number.isFinite(shadows.hourBias) && shadows.hourBias > 0 ? { hourBias: shadows.hourBias } : {}),
+    ...(shadows.whole === true && liveShadows.hour ? { whole: true } : {}),
   }) : '';
   // (walkers, cars and the controllable bodies flag themselves as casters for `cast` and for `actors`)
   const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors);
@@ -1127,7 +1130,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   const coatEnv = hasPool && (flow || entityList.some((e) => e.mount && e.mount.cab)) && finish && finish.reflect && !PL.indoor ? skyEnv(PL.sky) : null;
   const carPaintBlock = coatEnv ? carPaintScript(coatEnv, PL.toLight) : '', coat = !!carPaintBlock;
   const cabPoolBlock = hasPool && entityList.some((e) => e.mount && e.mount.cab && (e.mount.pool || e.mount.spare)) ? cabPoolScript({ ...(coat ? { coat } : {}), mayhem: hasEvents && events.reactions.some((r) => r && typeof r.on === 'string' && r.on.startsWith('mayhem:')), patrol: entityList.some((e) => e.carBody) }) : '';
-  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab), ...(coat ? { coat } : {}) }) : '';
+  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab), ...(coat ? { coat } : {}), ...(liveShadows && liveShadows.actors ? { cast: true } : {}) }) : '';
   // a city's aviation lights (channels/beacons.js): blinking over its tallest on the world clock; none ⇒ ''
   const beaconsSpec = readBeacons(beacons), beaconsBlock = beaconsSpec ? beaconsChannelScript(beaconsSpec) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
