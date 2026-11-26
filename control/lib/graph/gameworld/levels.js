@@ -70,7 +70,7 @@ import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
 import { patrolCar, depotCabs, issuedCabs } from './cars.js';
-import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf } from './jobsified.js';
+import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf } from './jobsified.js';
 import { FORGED } from './shops.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
@@ -638,7 +638,7 @@ function geotownEnds(manifest) {
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], emptyLots = [], dumpAt = [], dockAt = [], rampsAt = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards, lots: emptyLots, dumpAt, dockAt, rampsAt });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], emptyLots = [], dumpAt = [], dockAt = [], rampsAt = [], parks = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards, lots: emptyLots, dumpAt, dockAt, rampsAt, parks });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -685,6 +685,8 @@ function geocityEnds(manifest) {
   // (its LOTS near the eye: each empty lot and building site, its box and its middle on the ground, an empty lot's open
   // side: where a driving job builds its dump or sends a load, jobsified.js)
   Object.defineProperty(out, 'lots', { value: emptyLots.map((Q) => ({ id: Q.id, kind: Q.kind, rect: Q.rect, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]), ...(Q.open ? { open: Q.open } : {}), ...(Q.digger ? { digger: Q.digger } : {}), ...(Q.truck ? { truck: Q.truck } : {}) })), enumerable: false });
+  // (its parks near the eye, geocity/scene.js `ctx.parks`: a groundskeeper's lawns)
+  Object.defineProperty(out, 'parks', { value: parks.map((Q) => ({ ...Q, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]) })), enumerable: false });
   // (its DOCK, where it asks for one, `geocity.dock`: the port's yard, its middle and its truck bays; and its RAMPS, each
   // between a highway's deck and the street, its top and its foot: the highways driven)
   Object.defineProperty(out, 'dock', { value: dockAt[0] ? { id: dockAt[0].id, at: dockAt[0].at.map(r3), rect: dockAt[0].rect, bays: dockAt[0].bays.map((b) => ({ at: b.at.map(r3), heading: b.heading })) } : null, enumerable: false });
@@ -1912,7 +1914,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
             ...(S.licence && city.shops?.forger ? { needs: { item: FORGED.item, name: FORGED.name } } : {}),
             ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
         };
-        const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done };
+        const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done, ...(S.pitch ? { pitch: S.pitch } : {}) };
         // A DIG: its machine operated where a building site stages its excavator, its pile and its tipper beside it
         // (jobsified.js operatedOf; the machine a cab after every car, cars.js carsExtra `operate`)
         if (S.mode === 'dig') {
@@ -1939,6 +1941,22 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
           from = { at: D.at, cabs: ids, depot: { depot: D.at.slice(), radius: r3(Math.max(SHIFT.reach, D.radius)), ...(D.half ? { half: D.half.map((h) => r3(Math.max(SHIFT.reach, h))) } : {}) }, vehicle: S.vehicle };
         }
         const who = { ...base, ...from.depot, cabs: from.cabs, vehicle: from.vehicle, yard: yard ?? 'yard', ...(from.place ? { place: from.place } : {}) };
+        if (S.mode === 'mow') {
+          // (its lawn: the park its mower stands in, cut into cells, jobsified.js lawnOf)
+          const lawn = lawnOf(ends);
+          if (!lawn || lawn.cells.length < 4) { unlaid.add(k); continue; }
+          legs[k] = { ...who, yard: 'park', stops: lawn.cells.map((q) => ({ at: q.at, half: q.half })) };
+          task();
+          continue;
+        }
+        if (S.mode === 'sweep') {
+          // (its litter: along the streets nearest its yard, jobsified.js sweepRoute)
+          const D = (ends.depots ?? []).find((x) => x.yard === S.yard), heaps = sweepRoute(ends, D ? D.at : from.at);
+          if (heaps.length < 4) { unlaid.add(k); continue; }
+          legs[k] = { ...who, stops: heaps.map((q) => ({ at: q.at, radius: SWEEP.reach })) };
+          task();
+          continue;
+        }
         if (S.mode === 'haul') {
           // (its sites: the building sites past SHIFT.haul, farthest first, a call each in turn; else far places)
           const far = (q) => d2(q.at, from.at), sites = (ends.lots ?? []).filter((q) => q.kind === 'construction' && far(q) >= SHIFT.haul).sort((a, b) => far(b) - far(a) || a.id.localeCompare(b.id));

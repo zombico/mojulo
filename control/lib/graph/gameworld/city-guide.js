@@ -108,6 +108,15 @@ export function jobsOf(mechanics) {
       steps.push({ id: `collect-${Sh.id}`, say: `${Sh.stop ?? 'Collect'} · hold ${CITY_GUIDE.hold}`, at: at3(Sh.stops[0].at), radius: 0, near: Sh.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${Sh.id}-${k + 1}` })), when: `flag-full-${Sh.id}`, flag: `full-${Sh.id}` });
       const U = Sh.unload ?? { at: Sh.depot, radius: r };
       steps.push(last({ id: `unload-${Sh.id}`, say: `Take the full ${vehicle} to ${Sh.unload ? 'the dump' : `the ${yard}`}`, at: at3(U.at), radius: reach(U) }));
+    } else if (mode === 'sweep') {
+      // (the litter: the way to the nearest heap not yet swept, `near`; done when every one is, the first time; the line
+      // on the screen counts the rest)
+      loop = null;
+      steps.push({ id: `sweep-${Sh.id}`, say: 'Sweep the streets: drive over the litter', at: at3(Sh.stops[0].at), radius: 0, near: Sh.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${Sh.id}-${k + 1}` })), when: `flag-done-${Sh.id}`, ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
+    } else if (mode === 'mow') {
+      // (the long grass: the way to the nearest patch not yet mown, as a sweep's)
+      loop = null;
+      steps.push({ id: `mow-${Sh.id}`, say: 'Mow the lawn: drive over the long grass', at: at3(Sh.stops[0].at), radius: 0, near: Sh.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${Sh.id}-${k + 1}` })), when: `flag-done-${Sh.id}`, ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
     } else if (mode === 'dig') {
       // (operated where it stands: in the machine, then its loads into the tipper; worked at one place, so no round:
       // the guide waits on its first truck loaded, and the operate channel's line says the rest)

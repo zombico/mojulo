@@ -48,12 +48,16 @@
  *                                `back` (its spot by the yard) for the next. A haul of several `calls` ({ cab, site,
  *                                back, vehicle }: a heavy call's) works them in turn (`call-<id>`), only the vehicle
  *                                called counting; the last back, the first is called again
+ *                       sweep    its `stops` heaps of litter, each driven over in the vehicle once a round; every
+ *                                one swept pays, and a standing one's are laid again
+ *                       mow      a sweep's twin on a lawn: its `stops` cells of long grass ({ at, half }), each driven
+ *                                over once a round; every one mown pays, and the grass grows back
  *                       dig      an operated machine (an excavator): the page says each scoop and each tip
  *                                (`shift:scoop:<id>`, `shift:tip:<id>`); a full bucket tipped is a load, `loads` of
  *                                them pay and the truck goes off empty
  *                       { id, mode?: 'route', depot: [x, y, z], radius? | half?, cabs: [entity id], stops?: [{ at, radius? }], loads?,
  *                         load?, hold?, unload?: { at, half }, site?: { at, half | radius }, back?: [x, y, z],
- *                         reward?, repeat?, after?, vehicle?, yard?, done? }
+ *                         reward?, repeat?, after?, vehicle?, yard?, done?, pitch? }
  *                       Flags (the guide's and the journal's): `on-<id>` clocked in; `stop-<id>-<k>` a stop or a pile;
  *                       `full-<id>` a collect's vehicle full; `done-<id>` paid.
 
@@ -397,11 +401,11 @@ export function lowerShift(p, ctx) {
   const at0 = `shift[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   ctx.resolve('inventory', p.slice ?? BAG, at0);
   const mode = p.mode ?? 'route';
-  if (!['route', 'collect', 'haul', 'dig'].includes(mode)) fail('mode is route, collect, haul or dig');
+  if (!['route', 'collect', 'haul', 'dig', 'sweep', 'mow'].includes(mode)) fail('mode is route, collect, haul, dig, sweep or mow');
   if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
   if (!isVec(p.depot)) fail('depot is [x, y, z]: the yard its vehicle is had from');
   if (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c)) fail('cabs is the ids of the vehicles it is done in, at least one');
-  if ((mode === 'route' || mode === 'collect') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
+  if ((mode === 'route' || mode === 'collect' || mode === 'sweep' || mode === 'mow') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
   // (a haul's CALLS: each a vehicle of its own (`cab`), where it is driven (`site`) and where it is taken back to (`back`),
   // worked in turn; one call is the shift's own `cabs[0]`, `site` and `back`)
   const calls = mode !== 'haul' ? [] : Array.isArray(p.calls) && p.calls.length ? p.calls : [{ cab: p.cabs[0], site: p.site, back: p.back }];
@@ -421,7 +425,7 @@ export function lowerShift(p, ctx) {
     for (const r of reward) lowerMove({ item: r.item, n: r.n ?? 1, from: NOWHERE, to: BAG, on: paid }, frag);
     R.push({ on: paid, do: 'set', var: `flag-${done}`, to: 1 }, { on: paid, do: 'emit', type: `flag:${done}` }, { on: paid, do: 'emit', type: `errand:done:${id}` });
     // (paid: a card in the middle, its name over what it paid, slammed in the game's look: game/hud-mana.js banner)
-    frag.hud.push({ on: paid, as: 'banner', text: mode === 'haul' ? 'Delivered' : mode === 'route' ? 'Route complete' : mode === 'dig' ? 'Truck loaded' : 'Round complete', sub: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Done'}${p.repeat === true ? ' · another when you are ready' : ''}` });
+    frag.hud.push({ on: paid, as: 'banner', text: mode === 'haul' ? 'Delivered' : mode === 'route' ? 'Route complete' : mode === 'dig' ? 'Truck loaded' : mode === 'sweep' ? 'Streets swept' : mode === 'mow' ? 'Lawn mowed' : 'Round complete', sub: `${reward.length ? `Paid ${reward.map((r) => `${r.n ?? 1} ${itemKey(r.item).replace(/-/g, ' ')}`).join(', ')}` : 'Done'}${p.repeat === true ? ' · another when you are ready' : ''}` });
   };
   // (a one-off pays once: its way to its pay is shut once paid)
   const once = (from, to) => R.push(p.repeat === true ? { on: from, do: 'emit', type: to } : { on: from, if: { var: `flag-${done}`, eq: 0 }, do: 'emit', type: to });
@@ -443,6 +447,8 @@ export function lowerShift(p, ctx) {
   R.push({ on: ev('clock'), do: 'set', var: `flag-${on}`, to: 1 }, { on: ev('clock'), do: 'emit', type: `flag:${on}` });
   frag.hud.push({ on: ev('clock'), as: 'toast', text: `On the clock: drive the ${vehicle}`, ttl: 2.4 });
   if (took) frag.hud.push({ on: ev('need'), as: 'toast', text: `This is done in the ${vehicle}`, ttl: 1.8 });
+  // (what its giver says as it is taken, `pitch`: the parks office short of hands)
+  if (took && typeof p.pitch === 'string' && p.pitch) frag.hud.push({ on: `flag:${p.after}`, as: 'toast', text: p.pitch, ttl: 6 });
 
   // HOLDING AT A PLACE (a collect's pile, a route's stop): in the vehicle at it, the key held (the page presses its down
   // and up: `shift:hold:<id>`, `shift:let:<id>`) for `hold` seconds; the place held at is the last one come to that is
@@ -493,9 +499,12 @@ export function lowerShift(p, ctx) {
     R.push({ on: ev('took'), if: { var: load, gte: L }, do: 'emit', type: ev('full') }, { on: ev('full'), do: 'set', var: `flag-${full}`, to: 1 }, { on: ev('full'), do: 'emit', type: `flag:${full}` });
     const where = p.unload ? 'the dump' : `the ${yard}`;
     frag.hud.push({ on: ev('full'), as: 'toast', text: `The ${vehicle} is full: take it to ${where}`, ttl: 3 }, { on: ev('isfull'), as: 'toast', text: `Full: take it to ${where}`, ttl: 1.2 });
-    // (every pile taken: the city has made more, all laid again)
-    chain(R, ev('took'), stops.map((_, k) => ({ var: `flag-${stopFlag(k)}`, gte: 1 })), ev('swept'));
-    R.push(...stops.map((_, k) => ({ on: ev('swept'), do: 'set', var: `flag-${stopFlag(k)}`, to: 0 })));
+    // (every pile taken: the city has made more, all laid again; counted, `swept-<id>`, never a chain of the piles' flags,
+    // which runs past the bus's depth)
+    const swept = `swept-${id}`;
+    frag.vars[swept] = 0;
+    R.push({ on: ev('took'), do: 'inc', var: swept, by: 1 }, { on: ev('took'), if: { var: swept, gte: N }, do: 'emit', type: ev('swept') });
+    R.push({ on: ev('swept'), do: 'set', var: swept, to: 0 }, ...stops.map((_, k) => ({ on: ev('swept'), do: 'set', var: `flag-${stopFlag(k)}`, to: 0 })));
     // UNLOADED at the dump (the depot where there is none), in the vehicle, full: paid, emptied
     const U = p.unload && isVec(p.unload.at) ? p.unload : { at: p.depot, ...(Array.isArray(p.half) ? { half: p.half } : { radius: Number.isFinite(p.radius) ? p.radius : 9 }) }, uz = `shift-${id}-unload`, paid = ev('paid');
     zone(uz, U.at, U);
@@ -539,6 +548,27 @@ export function lowerShift(p, ctx) {
     payOut(paid);
     R.push({ on: paid, do: 'set', var: dv, to: 1 });
   }
+  if (mode === 'sweep' || mode === 'mow') {
+    // SWEPT (a mow: MOWN): each heap of litter (a cell of long grass) driven over in the vehicle, once a round; every one
+    // pays and the streets get dirty (the grass grows) again, a standing one's; a word at each quarter
+    const paid = ev('paid'), q = [1, 2, 3].map((j) => Math.ceil((N * j) / 4));
+    stops.forEach((s0, k) => {
+      const z = `shift-${id}-${k + 1}`, f = `flag-${stopFlag(k)}`, hit = ev(`stop:${k + 1}`);
+      zone(z, s0.at, s0);
+      R.push({ on: 'enter', match: { zone: z }, if: { var: inV, gte: 1 }, do: 'emit', type: `${hit}:0` }, { on: `${hit}:0`, if: { var: f, eq: 0 }, do: 'emit', type: hit });
+      R.push({ on: hit, do: 'set', var: f, to: 1 }, { on: hit, do: 'emit', type: `flag:${stopFlag(k)}` }, { on: hit, do: 'inc', var: n, by: 1 }, { on: hit, do: 'emit', type: ev('took') });
+    });
+    for (const m of q) R.push({ on: ev('took'), if: { var: n, eq: m }, do: 'emit', type: ev(`part:${m}`) });
+    q.forEach((m, j) => frag.hud.push({ on: ev(`part:${m}`), as: 'toast', text: `${['A quarter', 'Half', 'Three quarters'][j]} of the ${mode === 'mow' ? 'lawn mowed' : 'streets swept'}`, ttl: 1.8 }));
+    // (every one swept: its count, each heap counted once by its own flag; never a chain of its flags, which runs past
+    // the bus's depth for a street's worth)
+    R.push({ on: ev('took'), if: { var: n, gte: N }, do: 'emit', type: `${ev('took')}:all` });
+    once(`${ev('took')}:all`, paid);
+    payOut(paid);
+    R.push({ on: paid, do: 'set', var: n, to: 0 });
+    if (p.repeat === true) R.push(...stops.map((_, k) => ({ on: paid, do: 'set', var: `flag-${stopFlag(k)}`, to: 0 })));
+  }
+
   if (mode === 'dig') {
     // OPERATED (the page says each scoop and each tip of the machine's bucket: scene/channels/operate.js
     // `shift:scoop:<id>`, `shift:tip:<id>`), in the machine: a scoop fills an empty bucket; a full bucket tipped into the

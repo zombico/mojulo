@@ -71,7 +71,7 @@ export function operateScript(spec) {
     m.set(e(0), e(1), e(2), e(3), e(4), e(5), e(6), e(7), e(8), e(9), e(10), e(11), 0, 0, 0, 1);
   }
   const line = document.createElement('div');
-  line.style.cssText = 'position:absolute;left:50%;bottom:16%;transform:translateX(-50%);pointer-events:none;z-index:13;color:#fbf6e9;font:600 15px/1.4 system-ui,sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.9);text-align:center;display:none';
+  line.style.cssText = 'position:absolute;left:50%;bottom:calc(16% + 48px);transform:translateX(-50%);pointer-events:none;z-index:13;color:#fbf6e9;font:600 15px/1.4 system-ui,sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.9);text-align:center;display:none';
   (typeof wrap !== 'undefined' && wrap ? wrap : document.body).appendChild(line);
   let shown = '', last = performance.now();
   const cap = (k) => '<b style="display:inline-block;min-width:1.4em;padding:0 4px;border:1.5px solid rgba(251,246,233,.85);border-bottom-width:3px;border-radius:4px;margin:0 2px">' + k + '</b>';

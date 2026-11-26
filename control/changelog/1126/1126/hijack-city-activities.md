@@ -29,6 +29,10 @@
 - **Bus route.** A bus waits at the kerb by the depot. Its stops come in order, each with a sign and people waiting.
   Pull up and hold F to open the doors: the waiting people walk over and board, and the ones who got on at the stop
   before get off and walk away. The last stop pays and the route starts again.
+- **Street sweeping.** A street sweeper waits at the kerb by the works yard, and litter lies along the kerb side of
+  the streets nearby. No button to hold: drive along the kerb and the sweeper picks each heap up as it passes. The
+  screen counts what is swept and calls each quarter; sweep it all to get paid, and the streets are dirty again by the
+  next round.
 - **The way and the screen.** Taking a job on the phone points the guide at it straight away; the arrow leads to the
   nearest pile still waiting. A line on screen shows the truck's load or the next stop and who is aboard, with a bar
   while F is held. A finished job is announced with a card in the middle of the screen over what it paid, the money in

@@ -43,7 +43,7 @@ describe('Hijack City\'s driving jobs, laid', () => {
     const e = cab(haul.cabs[0]), ids = level.entities.filter((x) => x.mount?.cab && !x.mount.spare && x.id.startsWith('car-')).map((x) => Number(x.id.slice(4)));
     expect(e?.mount?.cab).toBe(true);
     // (the issued vehicles are the level's last cabs, the call's and the bus's)
-    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), issued = [...haul.cabs, bus.cabs[0], ...orders.cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
+    const orders = M.find((m) => m.kind === 'shift' && m.id === 'materials'), sweeper = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping'), issued = [...haul.cabs, bus.cabs[0], ...sweeper.cabs, ...orders.cabs].map((c) => Number(c.slice(4))).sort((a, b) => a - b);
     expect(issued).toEqual(ids.sort((a, b) => a - b).slice(-issued.length));
     expect(e.mount.pool.gate).toBeUndefined();
     expect(d(e.transform.pos, haul.back)).toBeLessThan(0.01);
@@ -86,12 +86,19 @@ describe('Hijack City\'s driving jobs, laid', () => {
     expect(new Set(orders.calls.map((C) => C.back[1])).size).toBe(1);
     expect(M.some((m) => m.kind === 'task' && m.id === 'materials')).toBe(false);
   });
+  it('street sweeping: its sweeper issued at a kerb by the works yard, litter along the kerb side of the streets nearest the yard', () => {
+    const sw = M.find((m) => m.kind === 'shift' && m.id === 'street-sweeping');
+    expect(sw).toMatchObject({ mode: 'sweep', vehicle: 'street sweeper', repeat: true });
+    expect(cab(sw.cabs[0]).mount.pool.model).toBe('loft:streetSweeper');
+    expect(sw.stops.length).toBeGreaterThanOrEqual(12);
+    for (const q of sw.stops) expect(q.at).toHaveLength(3);
+  });
   it('each is on Jobsified; the guide leads each when it is taken; the errand proof drives each to its pay', () => {
-    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'dig-and-load']]]);
+    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'dig-and-load']]]);
     const g = cityGuide(level);
     // (the delivery orders' two: taken at the HQ, its first truck; its call come, the HQ)
-    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-dig-and-load', 'clock-materials-1', 'hq-materials']);
+    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-street-sweeping', 'clock-dig-and-load', 'clock-materials-1', 'hq-materials']);
     const P = proveErrands(world, lastStageManifests(steps));
-    for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'dig-and-load', 'materials']) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
+    for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'dig-and-load', 'materials']) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
   });
 });

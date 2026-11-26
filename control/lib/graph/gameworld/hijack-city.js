@@ -90,6 +90,7 @@ export const HIJACK_SHIFTS = Object.freeze([
   Object.freeze({ id: 'bin-round', name: 'Bin round', vehicle: 'garbage', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
   Object.freeze({ id: 'heavy-haul', name: 'Heavy vehicle call', vehicle: 'heavy', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 60 })]) }),
   Object.freeze({ id: 'bus-route', name: 'Bus route', vehicle: 'bus', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 50 })]) }),
+  Object.freeze({ id: 'street-sweeping', name: 'Street sweeping', vehicle: 'sweeper', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 35 })]) }),
   Object.freeze({ id: 'dig-and-load', name: 'Dig and load', vehicle: 'excavator', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 70 })]) }),
   // (the pit dug, the foreman's materials never come: the Dockers' delivery orders, checked in for at their HQ)
   Object.freeze({ id: 'materials', name: 'Delivery orders', vehicle: 'freight', after: 'dig-and-load', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 80 })]) }),

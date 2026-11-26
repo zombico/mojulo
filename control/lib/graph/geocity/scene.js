@@ -868,6 +868,9 @@ export function assembleGeocityScene(m, ctx = {}) {
       if (b.kind === 'park' && BACKS_ON) {
         const Fr = backFrame([x0, y0], null), K = blockPark(x1 - x0, y1 - y0, { zAt: (u, v) => zAt(...Fr.xy(u, v)), P: townP, R: streamOf(seed, 'backs', b.id) });
         layBack(Fr, K.faces); growBack(Fr, K.trees, b.id, 'dense'); counts2.parks++;
+        // (a level that asks, `ctx.parks`, is told its parks: where a groundskeeper's lawn is, round its trees and its
+        // things, its gates; nothing drawn for the telling)
+        if (Array.isArray(ctx.parks)) ctx.parks.push({ id: b.id, rect: [r5(x0), r5(y0), r5(x1), r5(y1)], z: r5(zAt((x0 + x1) / 2, (y0 + y1) / 2)), trees: K.trees.map((t) => [r5(x0 + t.u), r5(y0 + t.v), r5(t.z)]), things: K.things.map((q) => [r5(x0 + q[0]), r5(y0 + q[1]), r5(x0 + q[2]), r5(y0 + q[3])]), gates: ['s', 'n', 'w', 'e'].filter((k) => ['street', 'arterial'].includes(b.sides?.[k]?.kind)) });
         // (its edge at its streets railed, a gate where its paths come in at each side's middle)
         bordered(b, { x0, y0, x1, y1 }, zAt, { gates: { s: [(x0 + x1) / 2], n: [(x0 + x1) / 2], w: [(y0 + y1) / 2], e: [(y0 + y1) / 2] } });
       }

@@ -6,7 +6,7 @@
 // laid in: jobsified.e2e.test.js.
 import { describe, it, expect } from 'vitest';
 import { readErrands, errandLegs } from './errand.js';
-import { SHIFTS, SHIFT_MODES, shiftRoles, JOBSIFIED, issues } from './jobsified.js';
+import { SHIFTS, SHIFT_MODES, shiftRoles, JOBSIFIED, issues, lawnOf, issuedOf, MOW } from './jobsified.js';
 import { jobsOf, jobQuests, cityGuide, CITY_GUIDE } from './city-guide.js';
 import { phoneUi } from './phone-ui.js';
 import { levelCars, depotCabs, issuedCabs, CAB } from './cars.js';
@@ -87,6 +87,19 @@ describe('a shift read by the guide, the journal and the phone', () => {
     const g = cityGuide(manifest([CALLS, task('heavy-haul')]));
     expect(g.rounds).toEqual([{ when: 'flag-took-heavy-haul', at: g.steps.findIndex((s) => s.id === 'clock-heavy-haul-1'), from: g.steps.findIndex((s) => s.id === 'clock-heavy-haul-1'), end: g.steps.length }]);
   });
+  it('sweep: its sweeper taken where it is issued, then the streets, the way to the nearest litter not yet swept', () => {
+    const SW = { ...HAULED, mode: 'sweep', id: 'street-sweeping', site: undefined, vehicle: 'street sweeper', stops: PILES.map((at) => ({ at, radius: 3.2 })) };
+    const [J] = jobsOf([SW, task('street-sweeping')]);
+    expect(J.steps.map((s) => s.id)).toEqual(['app-street-sweeping', 'clock-street-sweeping', 'sweep-street-sweeping']);
+    expect(J.steps[2]).toMatchObject({ say: 'Sweep the streets: drive over the litter', when: 'flag-done-street-sweeping', near: PILES.map((at, k) => ({ at, v: `flag-stop-street-sweeping-${k + 1}` })) });
+    expect(J.loop).toBe(null);
+  });
+  it('mow: its mower taken where it stands, then the lawn, the way to the nearest long grass not yet mown', () => {
+    const MW = { ...HAULED, mode: 'mow', id: 'groundskeeping', site: undefined, vehicle: 'ride-on mower', yard: 'park', stops: PILES.map((at) => ({ at, half: [3, 3] })) };
+    const [J] = jobsOf([MW, task('groundskeeping')]);
+    expect(J.steps.map((s) => s.id)).toEqual(['app-groundskeeping', 'clock-groundskeeping', 'mow-groundskeeping']);
+    expect(J.steps[2]).toMatchObject({ say: 'Mow the lawn: drive over the long grass', when: 'flag-done-groundskeeping', near: PILES.map((at, k) => ({ at, v: `flag-stop-groundskeeping-${k + 1}` })) });
+  });
   it('route: its bus taken where it is issued, then each stop in order, held at; the last pays', () => {
     const R = { ...COLLECT, mode: 'route', load: undefined, unload: undefined, back: [10, 60, 1], vehicle: 'bus', place: 'bakery', yard: 'bus depot', stop: 'Pick up at the bus stop', stops: PILES.map((at) => ({ at, radius: 7, place: 'cafe', riders: 2 })) };
     const [J] = jobsOf([R, task('bin-round')]);
@@ -130,5 +143,34 @@ describe('a depot\'s vehicles and an issued truck made cabs', () => {
     expect(depotCabs(ends, 'bus')).toEqual([]);
     expect(issuedCabs(ends, issued, { roles: ['garbage'] })).toEqual([`car-${CAB.most + 2}`]);
     expect(issuedCabs(ends, issued)).toEqual([`car-${CAB.most + 1}`]);
+  });
+});
+
+describe('a groundskeeper\'s lawn (lawnOf)', () => {
+  // (a park 60 by 36 with a path across it east to west, a pavilion, a tree; a strip too thin to mow nearer the start)
+  const park = { id: 'B1.park', rect: [0, 0, 60, 36], z: 2, at: [30, 18, 2], trees: [[9, 9, 2]], things: [[0, 17, 60, 19], [40, 24, 48, 30]], gates: [] };
+  const ends = { spawn: [100, 18, 2], parks: [{ id: 'A1.park', rect: [80, 0, 200, 8], z: 2, at: [140, 4, 2], trees: [], things: [], gates: [] }, park] };
+  const L = lawnOf(ends);
+  it('the nearest park wide enough, its mower on its path up from the edge nearest the start, nosed in', () => {
+    expect(L.park).toBe('B1.park');
+    expect(L.spot.at).toEqual([60 - MOW.spot, 18, 2]);
+    expect(L.spot.heading).toBeCloseTo(Math.PI);
+  });
+  it('its cells on the grass: none over its path or its things, none on a trunk, each a square; at most MOW.most', () => {
+    expect(L.cells.length).toBeGreaterThan(10);
+    expect(L.cells.length).toBeLessThanOrEqual(MOW.most);
+    for (const c of L.cells) {
+      expect(c.half).toEqual([MOW.cell / 2, MOW.cell / 2]);
+      for (const q of park.things) expect(c.at[0] + 3 <= q[0] || c.at[0] - 3 >= q[2] || c.at[1] + 3 <= q[1] || c.at[1] - 3 >= q[3]).toBe(true);
+      expect(Math.hypot(c.at[0] - 9, c.at[1] - 9)).toBeGreaterThanOrEqual(MOW.tree);
+    }
+    // (the same lawn every read)
+    expect(lawnOf(ends)).toEqual(L);
+  });
+  it('a mow\'s mower issued on that spot, not at a kerb; none where no park is wide enough', () => {
+    const E = [{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }];
+    expect(issuedOf({ ...ends, kerbAt: () => null }, E, 'district')).toEqual([expect.objectContaining({ id: 'groundskeeping', at: L.spot.at, heading: L.spot.heading, model: 'loft:rideOnMower', yard: 'park' })]);
+    expect(issuedOf({ ...ends, parks: [ends.parks[0]], kerbAt: () => null }, E, 'district')).toEqual([]);
+    expect(lawnOf({ spawn: [0, 0, 0] })).toBe(null);
   });
 });

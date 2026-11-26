@@ -257,6 +257,31 @@ describe('shift: a driving job in a city vehicle, from its depot and back (gamew
     expect(drive([DIG, TASK], [take, scoop, tip]).vars['load-bins']).toBe(0);
     expect(drive([DIG, TASK], [inCab('op-bins'), scoop, tip]).vars['load-bins']).toBe(0);
   });
+  // SWEEP: litter driven over in the vehicle
+  const SWEEP = { kind: 'shift', mode: 'sweep', id: 'bins', depot: [0, 0, 0], cabs: ['car-7'], stops: [[30, 0, 0], [60, 0, 0], [90, 0, 0], [120, 0, 0]].map((at) => ({ at, radius: 3 })), reward: [{ item: 'coin', n: 35 }], after: 'took-bins', repeat: true };
+  const sweepAll = [{ at: [30, 0, 0] }, { at: [60, 0, 0] }, { at: [90, 0, 0] }, { at: [120, 0, 0] }];
+  it('sweep: each heap driven over in the vehicle is swept once; every one swept pays, and the streets get dirty again', () => {
+    const r = drive([SWEEP, TASK], [take, inCab(), ...sweepAll, { at: [60, 40, 0] }, ...sweepAll]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    expect(r.vars[H('coin')]).toBe(70);
+    expect(r.log).toContain('shift:part:2:bins');
+    // (on foot, or half the street: nothing paid)
+    expect(drive([SWEEP, TASK], [take, ...sweepAll]).log).not.toContain('errand:done:bins');
+    expect(drive([SWEEP, TASK], [take, inCab(), ...sweepAll.slice(0, 3)]).log).not.toContain('errand:done:bins');
+  });
+  // MOW: a sweep's twin on a lawn, its cells squares
+  it('mow: each patch of long grass driven over in the vehicle is mown once; every one mown pays, in its own words', () => {
+    const MOW = { ...SWEEP, mode: 'mow', stops: SWEEP.stops.map((q) => ({ at: q.at, half: [3, 3] })), pitch: 'Parks office: the crew is off sick.' };
+    const r = drive([MOW, TASK], [take, inCab(), ...sweepAll, { at: [60, 40, 0] }, ...sweepAll]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    const { hud } = composeMechanics([{ kind: 'bag', slice: 'bag' }, MOW, TASK, EXIT], ctx).events;
+    expect(hud.find((h) => h.as === 'banner')).toMatchObject({ text: 'Lawn mowed' });
+    expect(hud.map((h) => h.text)).toEqual(expect.arrayContaining(['Half of the lawn mowed', 'Parks office: the crew is off sick.']));
+    expect(hud.find((h) => h.text === MOW.pitch).on).toBe('flag:took-bins');
+    // (a patch is a square: its corner reached is in it, past it is not)
+    expect(drive([MOW, TASK], [take, inCab(), { at: [32.5, 2.5, 0] }]).vars['flag-stop-bins-1']).toBe(1);
+    expect(drive([MOW, TASK], [take, inCab(), { at: [33.5, 0, 0] }]).vars['flag-stop-bins-1']).toBe(0);
+  });
   it('a malformed shift says what is wrong', () => {
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...COLLECT, load: 9 }, EXIT], ctx)).toThrow(/load is how many/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...HAUL, site: undefined }, EXIT], ctx)).toThrow(/site is/);
