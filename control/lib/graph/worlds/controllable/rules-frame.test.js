@@ -23,6 +23,26 @@ describe('the assault frame', () => {
     expect(P.locomotion).toBe('boost');
   });
 
+  it('walks a cycle a stride, by the ground it covers', () => {
+    const st = run(world(), { forward: 1 }, 90), P = st.byId.p, ph0 = P.gaitPhase, x0 = P.transform.pos[0];
+    run(st, { forward: 1 }, 120);
+    expect((P.gaitPhase - ph0) * P.rule.stride).toBeCloseTo(P.transform.pos[0] - x0, 0);
+  });
+
+  it('keeps its way on in the air off the booster: a jump from a walk carries on, a standing jump is steered forward', () => {
+    const st = run(world(), { forward: 1 }, 90), P = st.byId.p;
+    run(st, { forward: 1, jump: 1 }, 1);
+    run(st, { forward: 1 }, 20);
+    expect(P.airborne).toBe(true);
+    expect(P.speed).toBeGreaterThan(A.move.walk * 0.95);
+    // (from a stand: the keys take it forward through the air)
+    const s2 = run(world(), {}, 30), P2 = s2.byId.p;
+    run(s2, { jump: 1 }, 1);
+    run(s2, { forward: 1 }, 40);
+    expect(P2.airborne).toBe(true);
+    expect(P2.speed).toBeGreaterThan(A.move.walk * 0.5);
+  });
+
   it('quick-boosts a burst across, costing the generator, then waits for its cooldown', () => {
     const st = world(), P = st.byId.p;
     run(st, { strafe: 1, qb: 1 }, 1);

@@ -16,3 +16,7 @@
 - The frames take longer, heavier steps: each some 0.84 of a leg's reach (`assault-frame/clips.js` `FRAME_STEP`), the
   foot lifted higher through its swing and the pelvis dropping deeper onto it, and the walk's cycle covers the ground
   its own legs do (`frameStride`, the frame rule's `stride`), so a planted foot holds where it landed.
+- The walk's cycle runs by the ground covered each step (the frame rule's gait phase had taken the speed for the
+  distance, a cycle and more every frame: the legs flickered through their poses, a tiptoe), and a frame off its
+  booster keeps its way on in the air: what it carries, and at least its walk, steered by the keys (it had been braked
+  to a stand whenever a key was held).

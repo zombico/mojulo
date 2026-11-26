@@ -298,7 +298,7 @@ export function buildRulesFrame(E) {
     if (onGround && jumpEdge && !stuck && !(e.landT > 0)) { e.v[2] = M.jump ?? 13; e.jumpedAt = e.frTime; }
     e.ascending = !onGround && !stuck && !!(inp.jumpHeld || inp.jump) && enOk && e.frTime - (e.jumpedAt ?? -9) > 0.12 && draw((C.ascend ?? 520) * dt);
 
-    // ── the horizontal: eased toward what it wants, hard on the booster, soft on its feet, little in the air ──
+    // ── the horizontal: eased toward what it wants, hard on the booster, soft on its feet, carried on in the air ──
     if (lunging) {
       // (the lunge: straight at the foe's middle, or along the aim, at its speed; its time runs down)
       const L = e.lunge, tg = L.to && world.byId[L.to];
@@ -322,10 +322,11 @@ export function buildRulesFrame(E) {
       e.v[0] -= e.v[0] * k; e.v[1] -= e.v[1] * k;
     } else if (!inQb) {
       // (its speed by the wind-down's share of its control, and a dragging weapon's recoil on the boost)
-      const sp = (e.boosting ? (M.boost ?? 46) * dragK : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : 0) * (0.25 + 0.75 * ctl);
+      // (in the air off the booster it keeps its way on: what it carries, and at least its walk, steered by the keys)
+      const sp = (e.boosting ? (M.boost ?? 46) * dragK : onGround ? (M.walk ?? 11) * (e.landT > 0 ? 0.25 : 1) : Math.max((M.walk ?? 11) * (r.airWalk ?? 1), Math.hypot(e.v[0], e.v[1]))) * (0.25 + 0.75 * ctl);
       const want = e.boosting ? (dir || [fx, fy]) : dir;
       const tx = want ? want[0] * sp : (onGround ? 0 : e.v[0]), ty = want ? want[1] * sp : (onGround ? 0 : e.v[1]);
-      const k = Math.min(1, (e.boosting ? (onGround ? 5 : 3) : onGround ? 7 : 0.6) * dt);
+      const k = Math.min(1, (e.boosting ? (onGround ? 5 : 3) : onGround ? 7 : r.airSteer ?? 1.5) * dt);
       e.v[0] += (tx - e.v[0]) * k; e.v[1] += (ty - e.v[1]) * k;
     }
     // ── the vertical: gravity, the climb over it, the boost's glide ──
@@ -390,7 +391,8 @@ export function buildRulesFrame(E) {
     e.locomotion = e.landT > 0 ? 'land'
       : e.airborne ? (e.ascending || e.v[2] > 0.5 || e.boosting || inQb ? (inQb || e.boosting ? way === 'boost' ? 'hover' : way : 'hover') : 'fall')
       : (e.boosting || inQb) ? way : hs > 0.8 ? 'forward' : 'idle';
-    e.gaitPhase = (e.gaitPhase || 0) + (e.locomotion === 'forward' ? hs / (r.stride ?? 9) : e.boosting ? 1.2 * dt : 0.4 * dt);
+    // (the walk's phase on by the ground gone over this step: a cycle a stride)
+    e.gaitPhase = (e.gaitPhase || 0) + (e.locomotion === 'forward' ? (hs * dt) / (r.stride ?? 9) : e.boosting ? 1.2 * dt : 0.4 * dt);
     // (the burn the page's thrusters draw: full in a quick boost, hard climbing, then boosting in the air and on the ground; off)
     e.thrust = inQb || e.ab || lunging ? 1 : e.ascending ? 0.85 : e.boosting ? (e.airborne ? 0.75 : 0.6) : 0;
     if (e.ab || lunging) e.locomotion = e.airborne ? 'hover' : 'boost';
