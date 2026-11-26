@@ -12,7 +12,8 @@
  *              ace? (a frame's: an ace off assault-frame/aces.js, its build, paint, armour and phases; one), mt? (a frame's:
  *              a smaller frame off assault-frame/mts.js, its build, scale, armour and mind), reserve?
  *              (true: held back dormant until an ace's phase calls it in) }]
- *     tasks    [{ down: <group id> | [ids] | true, text? } | { reach: [x, y], radius?, text? } | { hold: seconds, text? }]
+ *     tasks    [{ down: <group id> | [ids] | true, text? } | { reach: [x, y], radius?, text? } | { scan: [x, y], radius?,
+ *              seconds?, found?, text? } (stay in the ring while the readout fills) | { hold: seconds, text? }]
  *              a down task's groups stand dormant until it begins (objectives wake them); true: every group
  *
  *   OPERATION                      the numbers: a unit's armour and guns at a frame's scale, a reach's radius
@@ -63,6 +64,8 @@ export const OPERATION = Object.freeze({
     gnat: Object.freeze({ hp: 700, damage: 32, rof: 4, range: 260, speed: 420, move: 30, air: 30, standoff: 55, turn: 3.2, floor: 10 }),
   }),
   reach: 60,
+  // (a scan's ring and how long it takes inside it)
+  scan: Object.freeze({ radius: 40, seconds: 6 }),
   // (an enemy frame fights with the pilot's own weapons and armour, kept off its own team's rounds)
   frameRange: 140,
 });
@@ -101,7 +104,7 @@ export function readOperation(v, at = 'goal.operation') {
   if (!Array.isArray(v.tasks) || !v.tasks.length) throw new Error(`${at}.tasks is a list: { down }, { reach }, { hold }`);
   const tasks = v.tasks.map((t, i) => {
     const tat = `${at}.tasks[${i}]`;
-    if (!isObj(t)) throw new Error(`${tat} is { down } | { reach } | { hold }`);
+    if (!isObj(t)) throw new Error(`${tat} is { down } | { reach } | { scan } | { hold }`);
     if (t.down !== undefined) {
       const of = t.down === true ? [...ids] : [].concat(t.down);
       for (const id of of) if (!ids.has(id)) throw new Error(`${tat}.down names '${id}', not a group (${[...ids].join(', ')})`);
@@ -111,11 +114,18 @@ export function readOperation(v, at = 'goal.operation') {
       if (!(Array.isArray(t.reach) && t.reach.length === 2 && t.reach.every((x) => Number.isFinite(x) && Math.abs(x) <= 1))) throw new Error(`${tat}.reach is [x, y], each −1..1`);
       return { reach: t.reach.slice(), radius: t.radius ?? OPERATION.reach, ...(t.text ? { text: t.text } : {}) };
     }
+    if (t.scan !== undefined) {
+      // (a scan: the ring stood in while the readout fills, what it found said as it is met; game/objectives.js `scan`)
+      if (!(Array.isArray(t.scan) && t.scan.length === 2 && t.scan.every((x) => Number.isFinite(x) && Math.abs(x) <= 1))) throw new Error(`${tat}.scan is [x, y], each −1..1: the place scanned`);
+      if (t.seconds !== undefined && !(Number.isFinite(t.seconds) && t.seconds > 0 && t.seconds <= 60)) throw new Error(`${tat}.seconds is how long the scan takes, 0 to 60`);
+      if (t.found !== undefined && !(typeof t.found === 'string' && t.found && t.found.length <= 120)) throw new Error(`${tat}.found is what the scan found, in words (up to 120 letters)`);
+      return { scan: t.scan.slice(), radius: t.radius ?? OPERATION.scan.radius, seconds: t.seconds ?? OPERATION.scan.seconds, ...(t.found ? { found: t.found } : {}), ...(t.text ? { text: t.text } : {}) };
+    }
     if (t.hold !== undefined) {
       if (!(Number.isFinite(t.hold) && t.hold > 0)) throw new Error(`${tat}.hold is seconds`);
       return { hold: t.hold, ...(t.text ? { text: t.text } : {}) };
     }
-    throw new Error(`${tat} is { down } | { reach } | { hold }`);
+    throw new Error(`${tat} is { down } | { reach } | { scan } | { hold }`);
   });
   // (its lessons: the frame's controls taught one at a time, each group as its task begins: FRAME_LESSONS)
   const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
@@ -191,6 +201,7 @@ export function operationMechanics(op, ends) {
       return { id: `t${i + 1}`, kind: 'clear', text: t.text ?? `Destroy: ${names}`, foes: idsOf(op, ends, t.down) };
     }
     if (t.reach) { const [x, y] = placeOf(ends, t.reach); return { id: `t${i + 1}`, kind: 'reach', text: t.text ?? 'Move to the waypoint', at: [x, y, r2(ends.ground(x, y))], radius: t.radius, planar: true }; }
+    if (t.scan) { const [x, y] = placeOf(ends, t.scan); return { id: `t${i + 1}`, kind: 'scan', text: t.text ?? 'Scan the site: stay inside the ring', at: [x, y, r2(ends.ground(x, y))], radius: t.radius, seconds: t.seconds, planar: true, ...(t.found ? { found: t.found } : {}) }; }
     return { id: `t${i + 1}`, kind: 'hold', text: t.text ?? `Hold for ${t.hold} s`, seconds: t.hold };
   });
   return [{ kind: 'objectives', tasks, say: 'line' }, { kind: 'fail-on-death', of: 'body' }];

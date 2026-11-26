@@ -30,7 +30,7 @@ import { starfighterPilot, cockpitCamera } from '../skyscape/starfighter.js';
 import { frameEntity, frameMounts, frameGravity, FRAME_CAMERA, FRAME_WORLD } from '../assault-frame/pilot.js';
 import { FRAME_FIELDS, frameField, frameFieldManifest } from '../assault-frame/field.js';
 import { HANGAR_SLICE, PARTS_SLICE, garageOwned } from '../assault-frame/hangar.js';
-import { OPERATION_LEGEND } from './frame-goal.js';
+import { OPERATION_LEGEND, FRAME_LESSON_TASK } from './frame-goal.js';
 import { frameAudio } from './frame-sound.js';
 /** A space fight's blows against a fleet's matter (rupa power): a fighter's bolt about 2×10⁸ J, a torpedo 6×10¹⁰. */
 const FLEET_POWER = 1e3;
@@ -1098,8 +1098,12 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
     if (F.garage) game.produces = { ...(game.produces ?? {}), events: [...(game.produces?.events ?? []), { type: 'setFlag', slice: HANGAR_SLICE }] };
     // (told on the holo table before the drop, campaign/operation-brief.js: the briefing channel over the level)
     if (X0?.briefing) pilotPart = { ...pilotPart, briefing: { data: X0.briefing } };
-    // (taught as it is played, frame-goal.js FRAME_LESSONS: the guide channel's lessons, each group as its task begins)
-    if (X0?.lessons?.length) pilotPart = { ...pilotPart, lessons: X0.lessons };
+    // (its guide, channels/guide.js: the way to each place a task names (a reach's, a scan's), shown as its task begins
+    // and passed as it is met, the objectives' task in hand its clock; and what it teaches as it is played, frame-goal.js
+    // FRAME_LESSONS, each group as its task begins)
+    const OB = game.mechanics.find((m) => m && m.kind === 'objectives');
+    const ways = (OB?.tasks ?? []).map((t, k) => (Array.isArray(t.at) && (t.kind === 'reach' || t.kind === 'scan') ? { id: t.id, say: t.text, kind: 'reach', at: t.at, radius: t.radius ?? 2, when: { var: FRAME_LESSON_TASK, gte: k + 1 }, from: { var: FRAME_LESSON_TASK, gte: k } } : null)).filter(Boolean);
+    if (ways.length || X0?.lessons?.length) pilotPart = { ...pilotPart, guide: { steps: ways, ...(X0?.lessons?.length ? { lessons: X0.lessons } : {}), done: '', top: 96 } };
     // (heard, gameworld/frame-sound.js: every frame by its parts, every unit by its kind, the objectives' stingers, the
     // field's air, the hangar's and the briefing's menus; a game on the sound sheet keeps its own)
     if (!audio) pilotPart = { ...pilotPart, audio: frameAudio({ units: (X0?.entities ?? []).map((x) => x.body?.figure).filter((f) => typeof f === 'string' && f.startsWith('unit-')).map((f) => f.slice(5)), indoor: !!F.indoor, airless: !!F.airless, flavor: F.flavor ?? null }) };

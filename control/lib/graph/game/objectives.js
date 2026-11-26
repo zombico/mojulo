@@ -10,6 +10,9 @@
  *   man      a clear with a mounted gun to do it with (`gun`, the pilot's swap takes it): met as a clear is
  *   hold     still there when `seconds` have run, while its `waves` are woken one every `every` seconds (the first
  *            after a breath); what still stands when the clock runs out is left standing
+ *   scan     stay inside a ring (`at`, `radius`) for `seconds` while a readout fills: its clock runs only inside the
+ *            ring, keeping what it had (`total`) when the pilot steps out; met, what it found (`found`) is said as a
+ *            banner and as an event (`objective:found { task, text }`) a script can answer
  *
  * A flight's tasks (a lesson, a stage, a sortie: gameworld/flight-goal.js lays them), each in three dimensions:
  *   gates    fly through its `gates` ([{ at, radius }]) in order; each passed is said (`objective:gate`)
@@ -54,7 +57,7 @@
  */
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect']);
+export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect', 'scan']);
 /** The facts a `band` holds (worlds/event-bus.js gauges), in the units the flight HUD shows. */
 export const BAND_FACTS = Object.freeze(['alt', 'agl', 'speed', 'climb', 'bank', 'heading']);
 const isRange = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => x === null || Number.isFinite(x)) && !(v[0] === null && v[1] === null);
@@ -78,6 +81,12 @@ export function lowerObjectives(p, ctx) {
     if (!OBJECTIVE_KINDS.includes(t.kind)) fail(`${at}.kind is one of ${OBJECTIVE_KINDS.join(', ')}`);
     if (typeof t.text !== 'string' || !t.text) fail(`${at}.text is what the player is told to do`);
     if ((t.kind === 'take' || t.kind === 'reach') && !isVec(t.at)) fail(`${at}.at is [x, y, z]: where a ${t.kind} is met`);
+    if (t.kind === 'scan') {
+      if (!isVec(t.at)) fail(`${at}.at is [x, y, z]: the ring's middle`);
+      if (!(Number.isFinite(t.radius) && t.radius > 0)) fail(`${at}.radius is the ring's, metres`);
+      if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long the scan takes inside the ring`);
+      if (t.found !== undefined && !(typeof t.found === 'string' && t.found)) fail(`${at}.found is what the scan found, in words`);
+    }
     if (t.kind === 'clear' || t.kind === 'man') { if (!Array.isArray(t.foes) || !t.foes.length || t.foes.some((f) => typeof f !== 'string' || !f)) fail(`${at}.foes is the ids to be downed, at least one`); }
     if (t.kind === 'man' && !(typeof t.gun === 'string' && t.gun)) fail(`${at}.gun is the id of the gun it is done with`);
     if (t.kind === 'hold') {
@@ -195,6 +204,27 @@ export function lowerObjectives(p, ctx) {
       world.vars[`ui-${shown}`] = 0;
       world.reactions.push({ on: beginE(k), do: 'set', var: `ui-${shown}`, to: 1 }, { on: advE(k), do: 'set', var: `ui-${shown}`, to: 0 });
       world.hud.push({ var: held, label: 'Held', as: 'counter', max: Math.ceil(t.seconds), id: shown });
+    } else if (t.kind === 'scan') {
+      // inside its ring the clock runs, a second a tick, while the task is in hand; out of it the clock holds what it had
+      const zone = `${id}_scan_${k}`, inR = `${pre}_scanin${k}`, held = `${pre}_held${k}`, on = `${pre}_on${k}`, tick = `${pre}:tick:${k}`;
+      world.vars[inR] = 0; world.vars[held] = 0; world.vars[on] = 0;
+      world.sources.push({ type: 'zone', zone, at: t.at.slice(), radius: t.radius, planar: t.planar !== false, watch: ctx.player });
+      world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: inR, to: 1 }, { on: 'exit', match: { zone }, do: 'set', var: inR, to: 0 });
+      world.reactions.push({ on: beginE(k), if: { var: begun, eq: 0 }, do: 'set', var: on, to: 1 });
+      world.timers.push({ every: 1, emit: { type: tick }, while: { var: on, eq: 1 } });
+      world.reactions.push({ on: tick, if: { var: inR, eq: 1 }, do: 'inc', var: held, by: 1 });
+      if (t.total === false) world.reactions.push({ on: tick, if: { var: inR, eq: 0 }, do: 'set', var: held, to: 0 });
+      world.watches.push({ type: metE(k), when: { var: held, gte: Math.ceil(t.seconds) } });
+      world.reactions.push({ on: advE(k), do: 'set', var: on, to: 0 });
+      // (its readout on the HUD only while it is in hand; what it found said as it is met)
+      const shown = `${id}-scan-${k}`;
+      world.vars[`ui-${shown}`] = 0;
+      world.reactions.push({ on: beginE(k), do: 'set', var: `ui-${shown}`, to: 1 }, { on: advE(k), do: 'set', var: `ui-${shown}`, to: 0 });
+      world.hud.push({ var: held, label: 'Scan', as: 'counter', max: Math.ceil(t.seconds), id: shown });
+      if (t.found) {
+        world.reactions.push({ on: advE(k), do: 'emit', type: 'objective:found', task: t.id, text: t.found });
+        world.hud.push({ on: `${pre}:adv:${k}`, text: t.found, ttl: 4 });
+      }
     } else if (t.kind === 'protect') {
       // one of them down while the task is still to be met (in hand, or before it) loses the level
       for (const w of t.who) world.reactions.push({ on: 'down', match: { entity: w }, if: { var: cur, lte: k }, do: 'emit', type: 'objectives:failed', task: t.id });

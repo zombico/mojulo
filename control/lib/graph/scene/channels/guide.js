@@ -39,7 +39,9 @@ export function guideScript(guide, { host = false } = {}) {
     + '.moj-gd .cap{display:inline-block;min-width:1.6em;margin:0 4px;padding:2px 7px;border:1.5px solid rgba(251,246,233,.9);border-bottom-width:3px;border-radius:5px;font:700 14px/1.2 ui-monospace,Menlo,monospace;background:rgba(10,8,6,.35);text-shadow:none}'
     + '.moj-gd .kw{margin:0 14px 0 4px;letter-spacing:1px;text-transform:uppercase;font-size:14px}';
   document.head.appendChild(sheet);
-  const slot = document.createElement('div'); slot.className = 'moj-gd off'; host.appendChild(slot);
+  const slot = document.createElement('div'); slot.className = 'moj-gd off'; host.appendChild(slot);${Number.isFinite(guide.top) ? `
+  // (its line lower down, \`top\`: under a standing line of the level's own, the objectives')
+  slot.style.top = '${Math.round(guide.top)}px';` : ''}
   // (what is up, and its text: redrawn only when it changes)
   let shown = '', mode = '';
   // (what it says, as data: a HUD that has its own card lane draws it, hud-grammar.js, and this line stays down)
@@ -106,10 +108,13 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
         dx = s.at[0] - p.transform.pos[0]; dy = s.at[1] - p.transform.pos[1]; d = Math.hypot(dx, dy);
         near = s.fight ? W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;
         // (a fight that counts its falls is won by them, wherever it was fought; any other beat by reaching it)
-        const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}${guide.steps.some((x) => x && x.when) ? 's.when ? !!(window.__mojBus && window.__mojBus.state.vars[s.when] >= 1) : ' : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
+        const won = ${guide.steps.some((x) => x && x.cab) ? 's.cab ? !!(p.mount && p.mount.cab) : ' : ''}${guide.steps.some((x) => x && x.when) ? (guide.steps.some((x) => x && x.when && typeof x.when === 'object') ? 's.when ? !!(window.__mojBus && (typeof s.when === \'object\' ? window.__mojBus.state.vars[s.when.var] >= s.when.gte : window.__mojBus.state.vars[s.when] >= 1)) : ' : 's.when ? !!(window.__mojBus && window.__mojBus.state.vars[s.when] >= 1) : ') : ''}s.downs ? W.entities.filter(fell).length >= s.downs : d < s.radius && !near;
         if (won) { if (s.says) { sayText = s.says; sayUntil = performance.now() + 4500; } k++;${Number.isInteger(guide.loop) ? ' if (k >= GD.steps.length) k = GD.loop;' : ''} plant(); }
       }
-      const now = performance.now(), cur = GD.steps[k];
+      const now = performance.now(), cur = GD.steps[k];${guide.steps.some((x) => x && x.from) ? `
+      // (a step held back until its task begins, \`from\`: neither its way nor its pillar shown before)
+      const gated = !!(cur && cur.from && !(window.__mojBus && window.__mojBus.state.vars[cur.from.var] >= cur.from.gte));
+      if (pillar) pillar.visible = !gated;` : ''}
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
       if (phase === 'lessons' && p && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 10)) { li = LS.length; ls = null; phase = 'play'; }
 ${waits ? `      // (a lesson that waits for its task, \`when\`: the objectives' task in hand; until then nothing of it shows)
@@ -126,7 +131,7 @@ ${waits ? `      else if (phase === 'lessons' && waiting) put('way', '', '');
       else if (atHeld) put('held', 'The way on is held while foes stand here', 'The way on is held while foes stand here');
       // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)
       else if (cur && cur.keys && cur.keys.length && p && (d < Math.max(cur.radius * 2, 18) || (cur.fight && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 14)))) put('keys', cur.keys.map(capped).join(''), '', cur.keys);
-      else if (!cur) put('way', ${typeof guide.done === 'string' ? 'esc(GD.done), GD.done' : "'The way on lies past this place', 'The way on lies past this place'"});
+${guide.steps.some((x) => x && x.from) ? "      else if (gated) put('way', '', '');\n" : ''}      else if (!cur) put('way', ${typeof guide.done === 'string' ? 'esc(GD.done), GD.done' : "'The way on lies past this place', 'The way on lies past this place'"});
       else if (p) {
         let yaw = p.transform.heading;
         if (view && typeof camera !== 'undefined') { camera.getWorldDirection(view); yaw = Math.atan2(view.y, view.x); }

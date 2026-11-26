@@ -65,7 +65,7 @@ export function readOperationBriefing(v, ids, at = 'operation.briefing') {
 }
 
 // a task's words, as the objectives say it
-const taskText = (t, op) => t.text ?? (t.down ? `Destroy: ${t.down.map((id) => groupWords(op.groups.find((g) => g.id === id)).name).join(', ')}` : t.reach ? 'Move to the beacon' : `Hold for ${t.hold} s`);
+const taskText = (t, op) => t.text ?? (t.down ? `Destroy: ${t.down.map((id) => groupWords(op.groups.find((g) => g.id === id)).name).join(', ')}` : t.reach ? 'Move to the beacon' : t.scan ? 'Scan the site' : `Hold for ${t.hold} s`);
 
 export function operationBriefingData(G, id) {
   const L = G.levels[id], D = frameMapData(G, id), raw = L.goal.operation, op = readOperation(raw);
@@ -99,12 +99,12 @@ export function operationBriefingData(G, id) {
   const ids = things.map((t) => t.id);
   // the steps: the operation's own design, else the field and then a step a task
   const B = raw.briefing ? readOperationBriefing(raw.briefing, ids, `levels.${id}.goal.operation.briefing`) : null;
-  let beaconN = 0;
   const steps = (B ? B.steps : [
     { title: L.name ?? nameOfId(id), say: `The field, ${Math.round(D.field.half * 2)} m across. You drop at its south edge.`, show: [], routes: [] },
-    ...op.tasks.map((t) => {
-      const to = t.down ? t.down.filter((g) => ids.includes(g)) : t.reach ? [`beacon-${++beaconN}`] : [];
-      return { title: taskText(t, op), say: t.down ? to.map((g) => things.find((x) => x.id === g).label).join(', ').replace(/^\w/, (c) => c.toUpperCase()) + '.' : t.reach ? 'Get your frame inside the beacon\'s ring.' : `Keep your frame alive for ${t.hold} seconds.`, show: to, routes: to.map((g) => ['drop', g]) };
+    ...op.tasks.map((t, i) => {
+      // (a place's beacon by its task's number, as the table names it)
+      const to = t.down ? t.down.filter((g) => ids.includes(g)) : t.reach || t.scan ? [`beacon-${i + 1}`] : [];
+      return { title: taskText(t, op), say: t.down ? to.map((g) => things.find((x) => x.id === g).label).join(', ').replace(/^\w/, (c) => c.toUpperCase()) + '.' : t.reach ? 'Get your frame inside the beacon\'s ring.' : t.scan ? 'Stand inside the beacon\'s ring while the scan runs.' : `Keep your frame alive for ${t.hold} seconds.`, show: to, routes: to.map((g) => ['drop', g]) };
     }),
   ]).map((s, k) => ({ id: `step-${k + 1}`, stage: 'theatre', part: 3, title: s.title, say: s.say, show: s.show, routes: s.routes }));
   const name = L.name ?? nameOfId(id), region = B?.region ?? 'Tharsis';
