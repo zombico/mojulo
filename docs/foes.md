@@ -72,6 +72,13 @@ carrying its own): a beast's way is one of its strike clips (`fauna/behavior/str
 a person's or a kin's a held swing or a strike. A body whose topology a card has no way for is refused by name.
 Absent, the class's own attack, every byte as it was.
 
+A body with hands never throws a card's swing with its arm alone. The swing is carried by the whole body
+(`polygonizer/hero-swing-body.js`, the hero's own layer) in the card's `art`: a staggered stance, the hips leading the
+chest, the weight moved back over the rear foot in the wind-up and onto the lead foot through the blow, the rear foot
+pivoting on its ball, the off hand countering. And the hit is the weapon's (`gameworld/foe-blade.js`): the swing's
+weapon tip is read across its contact window (`figures/clip-reach.js`), and the blow's reach and cone are set from that
+path at the body's scale, so it lands where the weapon passes and a player reads the reach off the weapon itself.
+
 ### Gait: walking as its body does
 
 A routed rail's foes (`gameworld/foe-families.js` FOE_FAMILIES: Fable of Artesia first) walk as their bodies do.

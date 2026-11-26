@@ -1618,7 +1618,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // (a party battle's fighter holding a weapon, its moves naming the held swings, egocube/moves.js ARMED_ATTACKS: the
           // swings baked on its own rig at a blow's window, no rule armed with them)
           const battleSwings = !(wielder || mover) && rawSpec.moves && typeof rawSpec.moves === 'object' && Object.values(rawSpec.moves).some((c) => typeof c === 'string' && c.startsWith('swing_')) ? { swings: { contact: BATTLE_SWING_CONTACT } } : {};
-          const fig = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(piloted && sketch.manifest.styleMeter && typeof sketch.manifest.styleMeter === 'object' && sketch.manifest.styleMeter.halo ? { marks: HALO_MARKS } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...battleSwings, ...(cardSlot ? { swings: { contact: cardSlot.strikeContact, word: cardSlot.swing } } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
+          const fig = await heroFigure(name, rawSpec, { swing, ...(piloted ? { pilot: true } : {}), ...(piloted && sketch.manifest.styleMeter && typeof sketch.manifest.styleMeter === 'object' && sketch.manifest.styleMeter.halo ? { marks: HALO_MARKS } : {}), ...(sketch.manifest.figureGrade ? { grade: sketch.manifest.figureGrade } : {}), ...battleSwings, ...(cardSlot ? { swings: { contact: cardSlot.strikeContact, word: cardSlot.swing, body: true, ...(cardSlot.art ? { style: cardSlot.art } : {}) } } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(sketch.manifest.xr || viewOpts.xr ? { hands: true } : {}), ...(ride ? { ride } : {}), ...(takes ? { takes } : {}), ...(talks ? { talks } : {}), ...(castFig ? { lit: true } : {}), ...(rawSpec.light === 'cel' && !castFig ? { cel: true } : {}) });
           const { held, ...figure } = fig;
           if (castFig) {
             const { castRig, CAST_REGISTERS } = await import('@/lib/graph/color-theorist/cast-rig.js'), { castRigInput } = await import('@/lib/graph/scene/channels/cast-rig.js');
@@ -1679,7 +1679,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           // the pose grade, `<name>@pose`, the page cutting it in while a close shot is on; two bakes that are not one
           // character (bones, clips, height) keep the play grade alone. Any other world: nothing more
           if (sketch.manifest.figureGrade === 'play' && !rawSpec.grade && (poseNames ??= (await import('@/lib/graph/figures/figure-grades.js')).poseCast(sketch.manifest)).has(name)) {
-            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(piloted ? { pilot: true } : {}), ...battleSwings, ...(cardSlot ? { swings: { contact: cardSlot.strikeContact, word: cardSlot.swing } } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
+            const { held: _held, ...pose } = await heroFigure(name, { ...rawSpec, grade: 'pose' }, { swing, ...(piloted ? { pilot: true } : {}), ...battleSwings, ...(cardSlot ? { swings: { contact: cardSlot.strikeContact, word: cardSlot.swing, body: true, ...(cardSlot.art ? { style: cardSlot.art } : {}) } } : {}), ...(wielder || mover ? { swings: { contact: (wielder || mover).rule.strikeContact, ...((wielder || mover).rule.moveset ? { body: true, ...movesOf((wielder || mover).rule, name) } : {}) } } : {}), ...(takes ? { takes } : {}), ...(castFig ? { lit: true } : {}) });
             const { crossGradeErrors } = await import('@/lib/graph/figures/figure-grades.js');
             if (!crossGradeErrors(pose, payload.figures[name]).length) { payload.figures[`${name}@pose`] = figure.cast ? { ...pose, cast: figure.cast } : pose; payload.figures[name] = { ...payload.figures[name], pose: `${name}@pose` }; }
           }
@@ -1715,6 +1715,17 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
               const muzzle = { ...at(U.head), ...(Object.keys(moves).length ? { moves } : {}) };
               payload.entities = payload.entities.map((e) => (e.rule && e.rule.buster && e.body && e.body.figure === name ? { ...e, rule: { ...e.rule, buster: { ...e.rule.buster, muzzle } } } : e));
             }
+          }
+          // A FOE'S BLADE (a card's held swing baked on this figure, `cardSlot`, gameworld/foe-blade.js): its blow's reach and
+          // cone taken from where its weapon's tip goes through the contact window, at the body's scale, so a hit lands
+          // where the weapon passes. No card's swing ⇒ as it was
+          if (cardSlot) {
+            const { bladeFit } = await import('@/lib/graph/gameworld/foe-blade.js'), F = payload.figures[name] ?? figure;
+            payload.entities = payload.entities.map((e) => {
+              if (!(e && e.rule && Array.isArray(e.rule.loadout) && e.body && e.body.figure === name)) return e;
+              const fit = bladeFit(F, 'swing_neutral', e.body.scale ?? 1);
+              return fit ? { ...e, rule: { ...e.rule, loadout: e.rule.loadout.map((l) => (l && l.swing ? { ...l, strikeReach: fit.strikeReach, strikeCone: fit.strikeCone, blade: fit.blade } : l)) } } : e;
+            });
           }
           // A FOE'S GAIT FITTED TO ITS BODY (`rule.gaitFit`, a routed rail's foes, gameworld/foe-families.js): its run and
           // its walk measured off the clips this figure plays them with (figures/clip-travel.js) at the body's scale, so its

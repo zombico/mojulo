@@ -49,13 +49,13 @@ function check(what, v, table) {
 }
 
 // the attack's Power verb on the rule: a blade slot the mind draws, or a weapon it fires
-function armed(rule, entity, A, damage, swing = null) {
+function armed(rule, entity, A, damage, swing = null, art = null) {
   const t = A.timing;
   if (A.verb === 'melee') {
     Object.assign(rule, { meleeSeek: true, meleeCombo: false });
     // (the hit lands on the blow's own frames: the window the beast's strike clip shows it in, fauna/behavior/strike.js)
     // (`swing`: a card's held swing for a body with hands, polygonizer/hero-swing.js, baked on its rig at that window)
-    rule.loadout = [{ name: 'blow', strike: 'melee', strikeReach: A.reach, strikeDamage: damage, strikeDur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS), strikeContact: strikeWindow(t), ...(swing ? { swing } : {}) }];
+    rule.loadout = [{ name: 'blow', strike: 'melee', strikeReach: A.reach, strikeDamage: damage, strikeDur: r3(((t.startup ?? 0) + (t.active ?? 0) + (t.recovery ?? 0)) / FPS), strikeContact: strikeWindow(t), ...(swing ? { swing, art: art ?? 'action' } : {}) }];
   } else if (A.fireClass) {
     entity.weapon = { fireClass: A.fireClass, damage };
   }
@@ -106,7 +106,7 @@ export function resolveFoe(spec, { hero = HERO } = {}) {
   };
   const rule = { type: 'ai', dodge: false, mind, ...(c.pace ? { speed: r3(PACES[c.pace] * hero.run) } : {}), ...(M.rule || {}), ...sightKnobs(c.mind) };
   const entity = { rule, body: { hp: downs * hero.blow } };
-  armed(rule, entity, A, damage, K && people && SWING_WORDS.includes(K.way) ? K.way : null);
+  armed(rule, entity, A, damage, K && people && SWING_WORDS.includes(K.way) ? K.way : null, K?.card.art ?? null);
   // what the mind does not play (worlds/controllable/foe.js): its own move's numbers, the touch it hurts by, the stomp
   const own = foeRecord(c, M, A);
   if (own) rule.foe = own;
