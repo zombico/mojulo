@@ -27,7 +27,7 @@ import { capabilitiesOf } from '../fauna/behavior/capabilities.js';
 import { extentOf, heightOf, classOfExtent } from '../fauna/size-class.js';
 import { resolveMutagen } from '../mutagen/index.js';
 import { motionGaits } from '../fauna/rig.js';
-import { MOVES } from './vocab.js';
+import { MOVES, TOPOLOGIES } from './vocab.js';
 import { foeClass } from './index.js';
 import { peopleBody } from './people.js';
 import { modelBody } from './model.js';
@@ -43,7 +43,7 @@ export function bodyOf(species, { ooze, stylism } = {}) {
 }
 
 /** A body's shape, as the shelves that move it read it (the attack cards' poses, the foe audit): one word a body. */
-export const TOPOLOGIES = Object.freeze(['person', 'kin', 'winged', 'quadruped', 'biped', 'finned', 'limbless']);
+export { TOPOLOGIES };
 const BY_SUPPORT = Object.freeze({ four: 'quadruped', two: 'biped', wingwalk: 'winged', fins: 'finned', none: 'limbless' });
 export function topologyOf(b) {
   if (b.people !== undefined) return isKin(b.people) ? 'kin' : 'person';

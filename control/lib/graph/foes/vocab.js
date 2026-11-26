@@ -156,3 +156,7 @@ export const FOE_RANKS = Object.freeze({
   miniboss: { downs: 6, threat: 5, presence: 1.4 },
   boss: { downs: 15, threat: 12, presence: 1.8 },
 });
+
+/** A body's shape, as the shelves that move it read it (./fit.js topologyOf: the attack cards' ways, the foe audit).
+ * Here, a leaf, so a shelf that reads it never waits on the fit's own imports. */
+export const TOPOLOGIES = Object.freeze(['person', 'kin', 'winged', 'quadruped', 'biped', 'finned', 'limbless']);

@@ -27,8 +27,7 @@
  *
  * Pure: no database, no clock, no dice.
  */
-import { ATTACKS } from './vocab.js';
-import { TOPOLOGIES } from './fit.js';
+import { ATTACKS, TOPOLOGIES } from './vocab.js';
 import { STRIKE_WAYS } from '../fauna/behavior/strike.js';
 import { SWING_WORDS } from '../polygonizer/hero-swing.js';
 import { STRIKES } from '../polygonizer/hero-strike.js';
