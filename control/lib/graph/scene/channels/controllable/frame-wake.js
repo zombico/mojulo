@@ -26,7 +26,7 @@ export const WAKE = Object.freeze({
   curl: 2.4,
   // (the quick boost's burst: `bits` small knots of plasma thrown out round the dash, from `ring[0]` to as far as
   // `ring[1]` metres, each fading on its own clock within `life` s, `size` metres across, drifting back `drift` m/s)
-  qb: Object.freeze({ width: 2.4, ring: Object.freeze([1.5, 13]), life: 1.1, bits: 72, size: Object.freeze([0.26, 0.56]), drift: 3, spread: 0.6 }),
+  qb: Object.freeze({ width: 2.4, ring: Object.freeze([0.8, 7]), life: 1.1, bits: 120, size: Object.freeze([0.1, 0.24]), drift: 2, spread: 0.35 }),
   ab: 1.6,
   rings: 8,
 });

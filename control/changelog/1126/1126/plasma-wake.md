@@ -8,7 +8,7 @@
   has been, so the pilot's movement draws the streaks: white at its heart, the propellant's colour at its edges, thin to
   nothing as it ages. Bright beads along it are the drive's pulses, held where they were thrown, their spacing the speed.
   In air it curls and frays and fades sooner; in vacuum it runs straight and lasts. A quick boost burns it wide and
-  white-hot and sheds a burst where it begins: a ring of small plasma bits thrown out across the dash, each slowing,
+  white-hot and sheds a burst where it begins: a fine ring of small plasma bits (a tenth to a quarter of a metre, some 7 m across at its widest) thrown out across the dash, each slowing,
   drifting back along the way it came and going out on its own, so the ring frays and scatters as it fades; an assault boost burns it wider while held.
 - One mesh a frame, its pulses and its curl in the shader and the ribbon's sampling; emitted only on a page whose figures
   carry a wake, never in a capture.
@@ -32,3 +32,6 @@
 - A frame level's field lays its stones once: on a page whose pilot is a frame, the land's stones are no longer swapped
   in and out as the eye moves (the ladder's coming and going read as stones popping), its `STONE_STILL.most` biggest
   laid as the page opens and held, the rest the ground's own scree and pebbles (`scene/channels/form-land.js`).
+- The frame's HUD lets its weapons' names go: shown as the level opens and when a weapon's state turns (a reload, run
+  dry, a new one in its slot), then faded out after a few seconds (`FRAME_HUD`), so the fight is the screen and only the
+  rounds stay.

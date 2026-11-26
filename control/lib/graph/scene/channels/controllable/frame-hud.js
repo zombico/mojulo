@@ -12,11 +12,15 @@
 //   bottom        THE GENERATOR: EN as one long bar, its draw seen as it happens; OUT when it is emptied and shut. Over
 //                 it the frame's armour (AP) as a figure and a bar, and its speed and height
 //   the corners   THE WEAPONS where they are on the frame: the hands below left and right, the shoulders above them;
-//                 each its name, its rounds (a reload and a charge shown as a bar filling)
+//                 each its name, its rounds (a reload and a charge shown as a bar filling); the names shown as the level
+//                 opens and when a weapon's state turns (a reload, run dry, a new one in its slot), then gone after
+//                 FRAME_HUD.names s (faded over FRAME_HUD.fade s), so the fight is the screen and its rounds the figures
 //
 // The page is its host: each frame it reads the pilot off `window.__mojCtrl` and projects the locked foe through the
 // page's camera. It takes no input. `window.__mojFrameHud` → { en, ap, lock: { id, locked, stress?, stagger? } } as
 // last drawn.
+
+export const FRAME_HUD = Object.freeze({ names: 5, fade: 1.2 });
 
 export function frameHudScript() {
   return `
@@ -52,7 +56,8 @@ export function frameHudScript() {
     + ['armR', 'armL', 'backR', 'backL'].map((s) => '<div class="w ' + s + '"><b></b><span></span><div class="bar"><i></i></div></div>').join('');
   document.body.appendChild(root);
   const q = (s) => root.querySelector(s), box = q('.box'), tap = q('.tap'), acs = q('.acs'), acsI = q('.acs i'), me = q('.me'), stbI = q('.stb i'), aceEl = q('.ace'), aceN = q('.ace b'), aceHp = q('.ace .hp i'), aceSt = q('.ace .st i'), aceSay = q('.ace em'), tellEl = q('.tell'), enEl = q('.en'), enI = q('.en i'), ens = q('.ens'), apn = q('.apn'), spd = q('.spd'), apI = q('.apb i');
-  const W = {}; for (const s of ['armR', 'armL', 'backR', 'backL']) W[s] = { el: q('.' + s), b: q('.' + s + ' b'), n: q('.' + s + ' span'), bar: q('.' + s + ' .bar i') };
+  const W = {}; for (const s of ['armR', 'armL', 'backR', 'backL']) W[s] = { el: q('.' + s), b: q('.' + s + ' b'), n: q('.' + s + ' span'), bar: q('.' + s + ' .bar i'), seen: performance.now(), was: '' };
+  const NAMES = ${JSON.stringify(FRAME_HUD)};
   const out = window.__mojFrameHud = { en: 0, ap: 0, lock: null };
   let pv = null;
   const screenOf = (p) => { if (typeof camera === 'undefined' || typeof THREE === 'undefined') return null; pv = pv || new THREE.Vector3(); camera.updateMatrixWorld(); pv.set(p[0], p[1], p[2]).project(camera); return { x: (pv.x + 1) / 2 * innerWidth, y: (1 - pv.y) / 2 * innerHeight, back: pv.z >= 1 }; };
@@ -77,6 +82,10 @@ export function frameHudScript() {
       if (!slot) { X.el.style.display = 'none'; continue; }
       X.el.style.display = ''; X.b.textContent = (s.startsWith('arm') ? (s === 'armR' ? 'R ARM ' : 'L ARM ') : (s === 'backR' ? 'R BACK ' : 'L BACK ')) + slot.name.toUpperCase();
       const v = S[s] || {};
+      // (its name kept up a while as the level opens and as its state turns, then gone: the rounds stay)
+      const state = X.b.textContent + (v.reloading ? ':r' : '') + (v.ammo === 0 ? ':0' : ''), now = performance.now();
+      if (state !== X.was) { X.was = state; X.seen = now; }
+      X.b.style.opacity = Math.max(0, Math.min(1, 1 - ((now - X.seen) / 1000 - NAMES.names) / NAMES.fade)).toFixed(2);
       X.n.textContent = v.reloading ? 'RELOAD' : slot.mag >= 9999 ? (slot.energy ? 'EN' : '--') : (v.ammo ?? slot.mag);
       X.bar.style.width = (v.charge > 0 ? 100 * v.charge : v.reloading ? 100 : 0) + '%';
     }
