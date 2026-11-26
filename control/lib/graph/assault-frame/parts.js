@@ -45,7 +45,7 @@ const row = (o) => f(o);
 // the gas's own colour. So a booster is read by its streak: argon refined from Mars's own air (violet, the Martian
 // frames'), xenon shipped in (blue, dear), krypton a cheap mixed fill (white-green, a scrapper's).
 export const PROPELLANTS = f({
-  argon: f({ colour: '#a47cff', from: "refined from Mars's air" }),
+  argon: f({ colour: '#8673bd', from: "refined from Mars's air" }),
   xenon: f({ colour: '#5aa6ff', from: 'shipped in' }),
   krypton: f({ colour: '#c4ffd6', from: 'a cheap mixed fill' }),
 });

@@ -36,7 +36,7 @@ describe('a frame\'s wake', () => {
     camera.position.set(0, -30, 12); camera.lookAt(0, 0, 8);
     // (a body with two main bells on its rig, as frame-flame.js makes them: a holder at each mouth, its exhaust down its y)
     const group = new THREE.Group(), jets = [-1, 1].map((sx) => { const loc = new THREE.Object3D(); loc.position.set(sx, -1, 6); group.add(loc); const holder = new THREE.Object3D(); loc.add(holder); return { kind: 'flame', main: true, holder, rad: 0.4 }; });
-    group.userData.rigFig = { jets, fig: { wake: { colour: '#a47cff' } }, thrustAmt: 0 };
+    group.userData.rigFig = { jets, fig: { wake: { colour: '#8673bd' } }, thrustAmt: 0 };
     scene.add(group);
     const P = { id: 'p', transform: { pos: [0, 0, 0], heading: 0 }, qbT: 0 };
     const __world = { time: 0, entities: [P] }, __bodies = { p: group }, win = {}, warned = [];

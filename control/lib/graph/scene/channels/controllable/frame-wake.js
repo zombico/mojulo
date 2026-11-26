@@ -10,7 +10,9 @@
 //   THE AIR      in an atmosphere the wake curls and frays as it ages (the plasma ionising the air round it and the air
 //                tearing it) and fades sooner; in vacuum (`air: false`) it is dead straight and lasts
 //   QUICK BOOST  the whole bank fired at once: the ribbon wide and white-hot while it lasts (a hard bright corner where it
-//                turns), and a ring of light shed where it begins, standing across the dash (the drive's field collapsing)
+//                turns), and a burst shed where it begins: a ring of small plasma bits thrown out across the dash (the
+//                drive's field collapsing), each slowing, drifting back along the way it came and going out on its own,
+//                so the ring frays and scatters as it fades; one point cloud a burst, moved in its shader
 //   ASSAULT      its ribbon wider and hotter for as long as the charge is held
 //
 // Emitted only on a page whose figures carry a `wake` (an assault frame's) and never in a capture: every other page keeps
@@ -22,7 +24,9 @@ export const WAKE = Object.freeze({
   width: 1.3,
   rate: 14,
   curl: 2.4,
-  qb: Object.freeze({ width: 2.4, ring: Object.freeze([2, 16]), life: 0.42 }),
+  // (the quick boost's burst: `bits` small knots of plasma thrown out round the dash, from `ring[0]` to as far as
+  // `ring[1]` metres, each fading on its own clock within `life` s, `size` metres across, drifting back `drift` m/s)
+  qb: Object.freeze({ width: 2.4, ring: Object.freeze([1.5, 13]), life: 1.1, bits: 72, size: Object.freeze([0.26, 0.56]), drift: 3, spread: 0.6 }),
   ab: 1.6,
   rings: 8,
 });
@@ -49,11 +53,46 @@ void main() {
   float fade = pow(1.0 - vAge, 1.6);
   // (a pulse: a knot of light where each was thrown, outlasting the glow round it a little)
   float bead = pow(0.5 + 0.5 * cos(vT * 6.2831853 * uRate), 10.0) * pow(1.0 - vAge, 0.8);
-  float k = (0.5 * body + 0.6 * heart) * fade + 0.95 * bead * body;
-  k *= 1.0 + 0.8 * vHot;
+  float k = (0.32 * body + 0.42 * heart) * fade + 0.55 * bead * body;
+  k *= 1.0 + 0.5 * vHot;
   if (k < 0.004) discard;
-  vec3 c = mix(uCol, vec3(1.0), clamp(heart * 0.75 + vHot * 0.45 + bead * 0.4, 0.0, 1.0));
+  vec3 c = mix(uCol, vec3(1.0), clamp(heart * 0.55 + vHot * 0.35 + bead * 0.3, 0.0, 1.0));
   gl_FragColor = vec4(c * k, k);
+}`;
+
+// (the burst's bits: each thrown out along its own way round the ring at its own pace, slowing, carried back along the
+// dash, smaller and fainter as it goes, out by its own share of the burst's life, a flicker in it)
+const BURST_VERT = `
+#include <common>
+#include <logdepthbuf_pars_vertex>
+attribute vec3 aDir; attribute float aSpeed; attribute float aSeed;
+uniform float uAge; uniform float uLife; uniform vec3 uBack; uniform float uR0; uniform float uR1; uniform vec2 uSize; uniform float uViewH;
+varying float vA; varying float vHeat;
+void main() {
+  float u = clamp(uAge / uLife, 0.0, 1.0);
+  float r = uR0 + (uR1 - uR0) * aSpeed * (1.0 - pow(1.0 - u, 3.0));
+  vec3 p = position + aDir * r + uBack * uAge * (0.5 + aSeed);
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * mv;
+  float own = 0.55 + 0.45 * aSeed;
+  vA = pow(max(0.0, 1.0 - u / own), 1.6) * (0.8 + 0.2 * sin(uAge * 47.0 + aSeed * 31.0));
+  vHeat = 1.0 - u;
+  float sz = mix(uSize.x, uSize.y, fract(aSeed * 7.13)) * (1.0 - 0.55 * u);
+  gl_PointSize = max(1.0, sz * uViewH / max(0.5, -mv.z));
+  #include <logdepthbuf_vertex>
+}`;
+const BURST_FRAG = `
+#include <common>
+#include <logdepthbuf_pars_fragment>
+uniform vec3 uCol;
+varying float vA; varying float vHeat;
+void main() {
+  #include <logdepthbuf_fragment>
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  if (d > 1.0 || vA < 0.004) discard;
+  float a = (1.0 - d * d) * vA * 0.9;
+  vec3 c = mix(uCol, vec3(1.0), 0.45 * (1.0 - d) * vHeat);
+  gl_FragColor = vec4(c * a, a);
 }`;
 
 /** The page's block: `__updateWake(dt)`, called each step after the thrusters. */
@@ -76,7 +115,7 @@ function __wkTrail(e, rf) {
   const idx = [];
   for (let j = 0; j < jets.length; j++) for (let i = 0; i < __WK_N - 1; i++) { const a = 2 * (j * __WK_N + i); idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   g.setIndex(idx);
-  const col = new THREE.Color((rf.fig.wake && rf.fig.wake.colour) || '#a47cff');
+  const col = new THREE.Color((rf.fig.wake && rf.fig.wake.colour) || '#8673bd');
   const mat = new THREE.ShaderMaterial({ uniforms: { uCol: { value: col }, uRate: { value: __WK.rate } }, vertexShader: ${JSON.stringify(WAKE_VERT)}, fragmentShader: ${JSON.stringify(WAKE_FRAG)}, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
   const m = new THREE.Mesh(g, mat); m.frustumCulled = false; m.renderOrder = 6; m.raycast = function () {}; scene.add(m);
   T = { e: e.id, rf, m, g, col, jets: jets.map((j) => ({ j, s: [], last: -1e9, ws: j.holder.parent.getWorldScale(__wkS).x })), qb: false };
@@ -88,15 +127,39 @@ function __wkCurl(s, age, out) {
   const a = Math.pow(age, 1.5) * __WK.curl, t = s.t;
   out.set(s.x + a * Math.sin(t * 5.3 + s.j * 1.7), s.y + a * Math.cos(t * 4.1 + s.j * 2.3), s.z + a * 0.6 * Math.sin(t * 3.7 + s.j));
 }
+// (a burst: a point cloud from the pool, its bits laid round the dash's axis by the burst's own count, no dice)
+let __wkSeq = 0;
+const __wkH = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233 + 3.1) * 43758.5453; return x - Math.floor(x); };
 function __wkRing(at, dir, col) {
   let R = __wkRings.find((r) => !r.m.visible);
   if (!R) {
     if (__wkRings.length >= __WK.rings) R = __wkRings.reduce((a, b) => (a.t0 < b.t0 ? a : b));
-    else { const m = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 48), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.frustumCulled = false; m.renderOrder = 6; m.raycast = function () {}; scene.add(m); R = { m, t0: 0 }; __wkRings.push(R); }
+    else {
+      const N = __WK.qb.bits, g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+      g.setAttribute('aDir', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+      g.setAttribute('aSpeed', new THREE.BufferAttribute(new Float32Array(N), 1));
+      g.setAttribute('aSeed', new THREE.BufferAttribute(new Float32Array(N), 1));
+      const U = { uAge: { value: 0 }, uLife: { value: __WK.qb.life }, uBack: { value: new THREE.Vector3() }, uR0: { value: __WK.qb.ring[0] }, uR1: { value: __WK.qb.ring[1] }, uSize: { value: new THREE.Vector2(__WK.qb.size[0], __WK.qb.size[1]) }, uViewH: { value: 600 }, uCol: { value: new THREE.Color() } };
+      const m = new THREE.Points(g, new THREE.ShaderMaterial({ uniforms: U, vertexShader: ${JSON.stringify(BURST_VERT)}, fragmentShader: ${JSON.stringify(BURST_FRAG)}, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      m.frustumCulled = false; m.renderOrder = 6; m.raycast = function () {}; scene.add(m);
+      R = { m, g, U, t0: 0 }; __wkRings.push(R);
+    }
   }
+  // (the ring's plane: two ways across the dash)
+  const a = new THREE.Vector3(0, 0, 1).cross(dir); if (a.lengthSq() < 1e-6) a.set(1, 0, 0); a.normalize();
+  const b = new THREE.Vector3().crossVectors(dir, a).normalize(), seq = ++__wkSeq, N = __WK.qb.bits;
+  const P = R.g.attributes.position.array, D = R.g.attributes.aDir.array, SP = R.g.attributes.aSpeed.array, SE = R.g.attributes.aSeed.array;
+  for (let i = 0; i < N; i++) {
+    const th = (i / N + 0.6 * __wkH(i, seq) / N) * Math.PI * 2, c = Math.cos(th), sn = Math.sin(th), j = (__wkH(i, seq + 7) - 0.5) * __WK.qb.spread;
+    D[3 * i] = a.x * c + b.x * sn; D[3 * i + 1] = a.y * c + b.y * sn; D[3 * i + 2] = a.z * c + b.z * sn;
+    P[3 * i] = dir.x * j; P[3 * i + 1] = dir.y * j; P[3 * i + 2] = dir.z * j;
+    SP[i] = 0.55 + 0.45 * __wkH(i, seq + 13); SE[i] = __wkH(i, seq + 29);
+  }
+  for (const k of ['position', 'aDir', 'aSpeed', 'aSeed']) R.g.attributes[k].needsUpdate = true;
   R.t0 = __world.time; R.m.visible = true; R.m.position.copy(at);
-  R.m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-  R.m.material.color.copy(col).lerp(new THREE.Color(1, 1, 1), 0.5);
+  R.U.uBack.value.copy(dir).multiplyScalar(-__WK.qb.drift);
+  R.U.uCol.value.copy(col).lerp(new THREE.Color(1, 1, 1), 0.25);
 }
 // (a look, never the game's: one that fails puts itself out, said once, and the world plays on)
 let __wkOff = false;
@@ -146,12 +209,13 @@ function __wakeStep(dt) {
     for (const k of ['position', 'aAge', 'aSide', 'aT', 'aHot']) T.g.attributes[k].needsUpdate = true;
     T.m.visible = T.jets.some((J) => J.s.length > 0);
   }
+  // (the bursts' age, and the screen's scale for their bits' size: its height in device pixels over the lens's)
+  const vh = (typeof innerHeight !== 'undefined' ? innerHeight : 720) * (typeof renderer !== 'undefined' && renderer.getPixelRatio ? renderer.getPixelRatio() : 1) * 0.5 / Math.tan(((camera.fov || 60) * Math.PI) / 360);
   for (const R of __wkRings) {
     if (!R.m.visible) continue;
-    const u = (t - R.t0) / __WK.qb.life;
-    if (u >= 1 || u < 0) { R.m.visible = false; continue; }
-    const r = __WK.qb.ring[0] + (__WK.qb.ring[1] - __WK.qb.ring[0]) * (1 - Math.pow(1 - u, 3));
-    R.m.scale.setScalar(r); R.m.material.opacity = 0.85 * (1 - u) * (1 - u);
+    const age = t - R.t0;
+    if (age >= __WK.qb.life || age < 0) { R.m.visible = false; continue; }
+    R.U.uAge.value = age; R.U.uViewH.value = vh;
   }
 }
 window.__mojWake = { trails: __wkTrails, rings: __wkRings };
