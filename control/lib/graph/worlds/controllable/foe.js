@@ -86,6 +86,12 @@ export function buildFoe(E) {
     return { moved, blocked: want > 0 && moved < want * 0.5, ledge: false };
   }
   const gait = (e, r, moved) => { e.gaitPhase = (e.gaitPhase || 0) + moved / (r.stride ?? 2.4); };
+  // (a body with a WALK of its own, `walkStride` and `walkPace`, gameworld/foe-families.js: a step under its walk's pace
+  // walks, its phase by the walk's stride; one over it runs. Without them, the one gait as ever)
+  const paced = (e, r, moved, dt) => {
+    const w = r.walkStride > 0 && moved / Math.max(dt, 1e-6) < (r.walkPace ?? 0);
+    e.locomotion = w ? 'walk' : 'forward'; e.gaitPhase = (e.gaitPhase || 0) + moved / (w ? r.walkStride : (r.stride ?? 2.4));
+  };
   // the end of its stretch it walks to; it turns for the other at an end, a wall or a ledge
   // (its stretch: `ends` when its level laid them, else `stretch` m along the way it first faced, centred where it stood)
   function leg(e, r) {
@@ -140,7 +146,7 @@ export function buildFoe(E) {
     e.transform.heading = angleTo(e.transform.pos, end);
     const s = stepAlong(e, r, dt, world, Math.min(r.speed ?? 2, flat(e.transform.pos, end) / dt));
     if (s.ledge || s.blocked) e.foeLeg = 1 - e.foeLeg;
-    e.moving = s.moved > 0; e.locomotion = 'forward'; gait(e, r, s.moved);
+    e.moving = s.moved > 0; paced(e, r, s.moved, dt);
     // (`fire`: it fires its gun at a hero AHEAD of it as it goes, the trigger pulled and let go on alternate frames, its
     // cooldown the pace; one behind it it rolls on from, until it turns at its end and faces it)
     if (r.foe.fire && e.weapon) {

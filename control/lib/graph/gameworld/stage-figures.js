@@ -46,7 +46,8 @@ export const fieldFigure = (ref, field) => (field?.own
 export const beastLook = (look) => (look && typeof look === 'object' && typeof look.species === 'string' ? look.species : null);
 // (`battle`: a party battle's foe, a beast with its other ways at a foe as its acts: egocube/moves.js beastMovesOf)
 // (`way`: its attack card's way at a foe, foes/attacks.js, the clip its swing plays)
-export const foeFigure = (ref, look, { battle = false } = {}) => (beastLook(look) ? fieldFigure(ref, beastFieldOf(beastLook(look), { strike: look.strike, ...(look.way ? { way: look.way } : {}), ...(battle ? { battle } : {}) })) : libraryFigure(ref));
+// (`gait`: a routed rail's foe, its walk, its idle and a flier's flight, egocube/moves.js beastFieldOf)
+export const foeFigure = (ref, look, { battle = false } = {}) => (beastLook(look) ? fieldFigure(ref, beastFieldOf(beastLook(look), { strike: look.strike, ...(look.way ? { way: look.way } : {}), ...(look.gait ? { gait: look.gait } : {}), ...(battle ? { battle } : {}) })) : libraryFigure(ref));
 
 // a beast foe's look: its species, and what grows it (mutagen: the animal door's `ooze` and `stylism`)
 const BEAST_LOOK_KEYS = ['species', 'ooze', 'stylism'];

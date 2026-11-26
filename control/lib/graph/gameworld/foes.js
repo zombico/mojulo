@@ -56,6 +56,8 @@ import { MOVES } from '../foes/vocab.js';
 import { SIGHTS } from '../mind/vocab.js';
 import { resolveFoe } from '../foes/resolve.js';
 import { foeFigure, fieldFigure, modelFigure, libraryFigure, facing } from './stage-figures.js';
+import { LIBRARY_STATES } from '../playscape/player.js';
+import { gaitRouted, foeGaitOf } from './foe-families.js';
 import { dressOrders } from '../foes/dress.js';
 import { isModelSkin } from '../foes/model.js';
 import { LEVEL_GOAL, PERSON } from './quick.js';
@@ -326,8 +328,19 @@ function peopleBody(height, scale) {
 }
 
 // a foe's figure into the part, by its skin (a game's own, a model, a people, a beast), and the body it stands in
+// (a routed rail's foe WALKS AS ITS BODY DOES, foe-families.js: on the library it runs the library's run and walks its
+// walk, its own door gaits (a jog and a walk, solved on its rig) over them where it was made with them; a body of its
+// own clips walks its walk; the page fits each to the body, gaitFit)
+const walkedOn = (F) => {
+  if (F.library) {
+    const L = LIBRARY_STATES[F.library];
+    return { ...F, clips: { ...F.clips, forward: L.forward, strafe: L.strafe, walk: L.walk }, moves: { ...(F.moves ?? {}), forward: 'jog', strafe: 'jog', walk: 'walk' } };
+  }
+  return F.clips?.turn && !F.clips.walk ? { ...F, clips: { ...F.clips, walk: F.clips.turn } } : F;
+};
+
 function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } = {}) {
-  const had = part.figures[id];
+  const had = part.figures[id], gait = gaitRouted(G) ? foeGaitOf(entry) : null, walked = (F) => (gait ? walkedOn(F) : F);
   if (figure) {
     // a game's own person, made by its own door: drawn as it is, at a person's height grown by its rank
     part.figures[id] = figure;
@@ -335,12 +348,12 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
   }
   if (isModel(entry)) {
     // a MODEL made elsewhere (foes/model.js): worn as a person on the library, stood at its height grown by its rank
-    part.figures[id] = had ?? modelFigure(ref, f.measured.height);
+    part.figures[id] = had ?? walked(modelFigure(ref, f.measured.height));
     return peopleBody(f.measured.height, f.scale);
   }
   if (isDressed(entry)) {
     // a person dressed as a crew's (foes/dress.js), made through the hero door: on the library as any made person is
-    part.figures[id] = had ?? libraryFigure(ref);
+    part.figures[id] = had ?? walked(libraryFigure(ref));
     return peopleBody(f.measured.height, f.scale);
   }
   if (isPeople(entry)) {
@@ -348,10 +361,10 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
     // body, over the library's; a people of the operator's own below the hero door on its creature clips), drawn from
     // the sheet the run made it from
     const sheet = C.sheets[eid] ?? (C.sheets[eid] = rollEgocube(peopleRollOf(G, eid, entry)));
-    part.figures[id] = had ?? fieldFigure(ref, fieldOf({ body: 'person', sheet }));
+    part.figures[id] = had ?? walked(fieldFigure(ref, fieldOf({ body: 'person', sheet })));
     return peopleBody(statureOf({ body: 'person', sheet }) * peopleStands(entry.skin), f.scale);
   }
-  part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}) });
+  part.figures[id] = had ?? foeFigure(ref, { species: f.body, ...(f.strike ? { strike: f.strike } : {}), ...(f.strike && f.attack.way ? { way: f.attack.way } : {}), ...(gait ? { gait } : {}) });
   return beastBody(f.measured, f.scale);
 }
 
@@ -393,7 +406,7 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   const T = tune ?? {}, weapon = T.weapon ?? f.entity.weapon;
   const e = {
     id: p.id, team: T.team ?? 'foes',
-    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}), ...(T.rule || {}) },
+    rule: { ...f.entity.rule, ...b.rule, ...loadout, ...(more.rule || {}), ...(T.rule || {}), ...(gaitRouted(G) && !figure ? { gaitFit: true } : {}) },
     ...(weapon ? { weapon: { ...weapon } } : {}),
     // (its hp bar over it only while the hero targets it, clear of its body: the World page's foe bars)
     // (and a rim of light round it while it is the one targeted, in the world's accent: the page's target rim)

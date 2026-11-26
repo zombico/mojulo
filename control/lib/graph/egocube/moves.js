@@ -38,7 +38,7 @@
  * Pure. First readings, for the eyes gate.
  */
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
-import { motionGaits, motionReactions } from '../fauna/rig.js';
+import { motionGaits, motionReactions, motionBehaviors } from '../fauna/rig.js';
 import { strikesOf, strikeWaysOf } from '../fauna/behavior/strike.js';
 
 export const READY_OF_ROLE = Object.freeze({ frontline: 'guard', flanker: 'low', support: 'centre', controller: 'centre', caster: 'centre', ranged: 'athletic' });
@@ -180,8 +180,12 @@ const SWINGS = ['neutral', 'forward', 'back', 'left', 'right'];
 // (a party battle's beast: its strike and its other ways at a foe, fauna/behavior/strike.js, as the acts the page plays
 // them by, strike, strike2, strike3 in turn, its roar and its channel; a body that cannot strike has none of them)
 const BATTLE_WAYS = Object.freeze({ snap: 'strike2', maul: 'strike3', roar: 'roar', channel: 'channel' });
-export function beastMovesOf(species, { strike, battle = false, way = null } = {}) {
-  const reacts = motionReactions(species), gaits = beastGaitsOf(species);
+export function beastMovesOf(species, { strike, battle = false, way = null, gait = null } = {}) {
+  const reacts = motionReactions(species), gaits0 = beastGaitsOf(species);
+  // (a GAIT of its own, a routed foe's, gameworld/foe-families.js: its relax loop as its idle where its body poses one, and
+  // a flier's flight where it has one, beside its two gaits; absent, as always)
+  const fly = gait?.fly && motionGaits(species).includes('fly') ? ['fly'] : [];
+  const gaits = [...gaits0, ...fly], idle = gait && motionBehaviors(species).includes('relax') ? ['relax'] : [];
   // (a strike at its attack's timing: the motion's object form; without one the words, as always)
   const struck = (strike || battle) && strikesOf(species).length ? strike || true : null;
   const ways = battle && struck ? strikeWaysOf(species).filter((w) => BATTLE_WAYS[w]) : [];
@@ -192,12 +196,17 @@ export function beastMovesOf(species, { strike, battle = false, way = null } = {
   const own = struck && way && way !== 'strike' && strikeWaysOf(species).includes(way) ? way : null;
   const strikes = { ...Object.fromEntries(ways.map((w) => [w, true])), ...(own ? { [own]: struck } : {}) };
   return {
-    motion: struck ? { gaits, ...(reacts.length ? { reactions: reacts } : {}), strike: struck, ...(Object.keys(strikes).length ? { strikes } : {}) } : [...gaits, ...reacts],
+    motion: struck ? { gaits, ...(idle.length ? { behaviors: idle } : {}), ...(reacts.length ? { reactions: reacts } : {}), strike: struck, ...(Object.keys(strikes).length ? { strikes } : {}) } : [...gaits, ...idle, ...reacts],
     states: { ...(reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {}), ...(struck ? Object.fromEntries(SWINGS.map((d) => [`swing_${d}`, own ?? 'strike'])) : {}), ...acts },
   };
 }
 
-export function beastFieldOf(species, { strike, battle = false, way = null } = {}) {
-  const g = beastGaitsOf(species), M = beastMovesOf(species, { strike, battle, way });
+export function beastFieldOf(species, { strike, battle = false, way = null, gait = null } = {}) {
+  const g = beastGaitsOf(species), M = beastMovesOf(species, { strike, battle, way, gait });
+  // (a routed foe's gait: it walks at its walk and runs at its run, idles in its relax loop, and a flier flies)
+  if (gait) {
+    const flies = gait.fly && motionGaits(species).includes('fly'), relax = motionBehaviors(species).includes('relax');
+    return { own: { forward: flies ? 'fly' : g.at(-1), walk: flies ? 'fly' : g[0], turn: g[0], strafe: flies ? 'fly' : g.at(-1), ...(relax ? { idle: 'relax' } : {}) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
+  }
   return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
 }

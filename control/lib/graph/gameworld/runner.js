@@ -85,6 +85,7 @@ import { REACT_MOTION, reactStatesOf, beastMovesOf, battleMovesOf, foeBattleMove
 import { beastLook } from './stage-figures.js';
 import { kinWords, kinBare, isKin } from '../foes/packs.js';
 import { brawlCast, brawlBodies, withBodies, brawlStreet, withStreetBodies } from './brawl-cast.js';
+import { gaitRouted, foeGaitOf, FOE_GAITS } from './foe-families.js';
 import { fieldedIds, bestiaryOf, foeLook, foePlacements, hostileCast, withFoeHits, withFoeWin, onBody, peopleRollOf, isPeople, isModel, isDressed, dressOf } from './foes.js';
 import { rideBuild, rideRule } from './ride.js';
 import { carsExtra } from './cars.js';
@@ -310,8 +311,8 @@ const REACT_STATES = reactStatesOf(Object.keys(REACT_MOTION));
 // clip its swing plays); a species alone orders as it always did. A party battle's beast (`battle`) is made with its
 // other ways at a foe beside its strike (a snap, a maul, its roar: egocube/moves.js beastMovesOf)
 const beastStep = (key, ref, look, title, { battle = false } = {}) => {
-  const { strike, way, ...L } = typeof look === 'string' ? { species: look } : look;
-  const animal = { ...L, motion: beastMovesOf(L.species, { strike, ...(way ? { way } : {}), ...(battle ? { battle } : {}) }).motion };
+  const { strike, way, gait, ...L } = typeof look === 'string' ? { species: look } : look;
+  const animal = { ...L, motion: beastMovesOf(L.species, { strike, ...(way ? { way } : {}), ...(gait ? { gait } : {}), ...(battle ? { battle } : {}) }).motion };
   return { key, ref, ready: true, order: { animal, title }, print: fingerprint({ animal }) };
 };
 // a mascot's own one-shots (egocube/mascot-form.js `reactions`)
@@ -790,11 +791,13 @@ const foeSteps = (G, ref, ready, ids = null) => {
     const entry = bestiaryOf(G)[id], title = `${G.name ?? G.id} ${id}`;
     // (a model made elsewhere is made by no step: it stands on the sketch its model is bound onto)
     if (isModel(entry)) return [];
-    if (!isPeople(entry)) return [{ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(entry), setting, ...coat }, title), ...ready }];
+    // (a routed rail's foe is made with gaits of its own: foe-families.js)
+    const gaits = gaitRouted(G);
+    if (!isPeople(entry)) return [{ ...beastStep(`foes-${id}`, childRef(ref, `foes-${id}`), { ...foeLook(entry), setting, ...coat, ...(gaits ? { gait: foeGaitOf(entry) } : {}) }, title), ...ready }];
     // a person dressed as a crew's (foes/dress.js): the hero door's grunt, its reactions on it, as a quick game's guard is
     // made (guardStep)
     if (isDressed(entry)) {
-      const { mint: M } = dressOf(G, id, entry), spec = withReact(true, M.spec), mint = { ...M, spec };
+      const { mint: M } = dressOf(G, id, entry), spec0 = withReact(true, M.spec), spec = gaits ? { ...spec0, motion: { ...(spec0.motion ?? {}), ...FOE_GAITS } } : spec0, mint = { ...M, spec };
       return [{ key: `foes-${id}`, ref: childRef(ref, `foes-${id}`), ...ready, order: { spec, mint, motion: null }, print: fingerprint({ spec, dress: entry.skin.dress }) }];
     }
     // a person or a people (foes/people.js): its sheet rolled in the game's setting, then the character the loop makes
@@ -812,7 +815,7 @@ const foeSteps = (G, ref, ready, ids = null) => {
     // henchman's, a person's, is never laid over it, or the tradition's head would meet the kin's skull and the door refuse)
     const onTiered = !!kinSheet && beastOnTiered(kinSheet);
     const body = hench && !onTiered ? henchOverSheet(manifest, hench, setting, G) : null, gear = entry.skin && entry.skin.gear, kin = kinWords(entry.skin, { rank: entry.rank, sheet: kinSheet });
-    const words = body || gear || kin ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}) } : null;
+    const words = body || gear || kin || gaits ? { ...(body ?? {}), ...(kin ?? {}), ...(gear ? { gear: structuredClone(gear) } : {}), ...(gaits ? { motion: { ...FOE_GAITS } } : {}) } : null;
     const bare = kinBare(entry.skin, kinSheet) ? { dress: 'kit' } : {}, adorned = entry.skin && entry.skin.adorned ? { adorned: true } : {};
     return [
       { key: `foes-${id}-sheet`, ref: sheetRef, ...ready, order: { title: `${title} (sheet)`, manifest }, print: fingerprint(manifest) },

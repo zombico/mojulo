@@ -72,6 +72,17 @@ carrying its own): a beast's way is one of its strike clips (`fauna/behavior/str
 a person's or a kin's a held swing or a strike. A body whose topology a card has no way for is refused by name.
 Absent, the class's own attack, every byte as it was.
 
+### Gait: walking as its body does
+
+A routed rail's foes (`gameworld/foe-families.js` FOE_FAMILIES: Fable of Artesia first) walk as their bodies do.
+Each is made with gaits of its own: a person or a kin a walk and a jog from the hero door, solved on its own rig as the
+hero's are; a beast its walk, its run, its relax loop as its idle and, where its class flies, its flight. On the page
+each figure's run and walk are measured off the clips it plays them with (`figures/clip-travel.js`: a gait is played
+in place, so a planted foot slides back as far as the body should move, and that slide over the stance is the cycle's
+travel) at the body's scale, and the rule takes them as its `stride`, `walkStride` and `walkPace`. The runtime then
+walks a foe under its walk's pace (a patrol, a wander) and runs it over it (a chase), each at its own stride, so its
+feet plant where the clip plants them. A rail not routed, every byte as it was.
+
 ### Modes: defeated, never destroyed, until the last
 
 An entry names its next mode as another entry, `becomes: '<id>'` (a chain, no loop, at most four): each mode is that

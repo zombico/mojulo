@@ -310,7 +310,9 @@ export function buildMind(E) {
     }
     if (world && world.colliders) block(t, r, eye, world);
     standOnGround(t, r, eye, world);
-    if (step > 0) { e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + step / (r.stride ?? 2.4); e.moving = true; }
+    // (a body with a WALK of its own, `walkStride` and `walkPace`, gameworld/foe-families.js: at a pace under its walk's
+    // it walks, its phase by the walk's stride; over it, it runs. Without them, the one gait as ever)
+    if (step > 0) { const w = r.walkStride > 0 && speed < (r.walkPace ?? 0); e.locomotion = w ? 'walk' : 'forward'; e.gaitPhase = (e.gaitPhase || 0) + step / (w ? r.walkStride : (r.stride ?? 2.4)); e.moving = true; }
     else e.moving = false;
     return step;
   }

@@ -1716,6 +1716,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
               payload.entities = payload.entities.map((e) => (e.rule && e.rule.buster && e.body && e.body.figure === name ? { ...e, rule: { ...e.rule, buster: { ...e.rule.buster, muzzle } } } : e));
             }
           }
+          // A FOE'S GAIT FITTED TO ITS BODY (`rule.gaitFit`, a routed rail's foes, gameworld/foe-families.js): its run and
+          // its walk measured off the clips this figure plays them with (figures/clip-travel.js) at the body's scale, so its
+          // feet plant where the clip plants them, walking or running. None asks ⇒ as it was
+          if ((payload.entities || []).some((e) => e && e.rule && e.rule.gaitFit && e.body && e.body.figure === name)) {
+            const { gaitFit } = await import('@/lib/graph/gameworld/foe-families.js'), F = payload.figures[name] ?? figure;
+            payload.entities = payload.entities.map((e) => (e && e.rule && e.rule.gaitFit && e.body && e.body.figure === name ? { ...e, rule: { ...e.rule, ...gaitFit(F, e.body.scale ?? 1) } } : e));
+          }
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
