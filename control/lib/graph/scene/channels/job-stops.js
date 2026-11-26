@@ -106,10 +106,10 @@ export function jobStopsScript(spec) {
   });
   // the long grass of a mow: on each cell a few rows of tufts, jittered by their own numbers; cut, they drop to stubble
   // over a stripe, light or dark by the way the mower was going (as a mown lawn reads)
-  const lawns = [], TUFT = 4, lawnO = new THREE.Object3D(), lawnC = new THREE.Color();
+  const lawns = [], TUFT = 5, lawnO = new THREE.Object3D(), lawnC = new THREE.Color();
   let lawnMesh = null;
   JS.jobs.filter(function (J) { return J.mode === 'mow'; }).forEach(function (J) {
-    const n = J.piles.length * TUFT * TUFT, geo = new THREE.ConeGeometry(0.3, 0.55, 5); geo.rotateX(Math.PI / 2); geo.translate(0, 0, 0.27);
+    const n = J.piles.length * TUFT * TUFT, geo = new THREE.ConeGeometry(0.2, 0.5, 5); geo.rotateX(Math.PI / 2); geo.translate(0, 0, 0.25);
     const mesh = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: '#ffffff' }), n);
     mesh.raycast = function () {}; mesh.frustumCulled = false;
     const jit = (a, b) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
