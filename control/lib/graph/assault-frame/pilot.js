@@ -20,6 +20,7 @@
  */
 import { assembleFrame } from './assemble.js';
 import { frameBody } from './body.js';
+import { frameStride } from './clips.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
 
@@ -65,6 +66,8 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
     id, ...(team ? { team } : {}), ...(pilot ? { pilotable: true } : {}),
     rule: {
       type: 'frame', move: mv, en: A.en, fcs: A.fcs, gravity, ...(q === 1 ? {} : { hardLand: r2(18 * q) }), slots: frameSlots(A.weapons), stab: { stagger: A.stab.stagger, bonus: A.stab.bonus }, kick: A.kick, steady: A.parts.legs.steady ?? 1,
+      // (the ground its walk's cycle covers, from its own legs: clips.js frameStride, so a foot holds where it landed)
+      stride: r2(strideOf(build) * k),
       mounts: Object.fromEntries(Object.keys(A.weapons).map((s) => [s, M[s]])), eyeH: r2((A0.move.height + 2) * k),
       ...(mind ? { mind: { range: 120, aggression: 0.6, dodge: 0.5, ...mind } } : {}), ...(bound ? { bound } : {}),
       // (under a roof, a works' field: the ground looked for from a step over its feet, not from the sky, and the works'
@@ -75,6 +78,14 @@ export function frameEntity(build, { id, at, heading = 0, team = null, pilot = f
     transform: { pos: [...at], heading },
     frame: { build: A.build, weight: A.weight, ap: A.ap },
   };
+}
+
+// (a build's stride, its body built once to read it)
+const STRIDES = new Map();
+function strideOf(build) {
+  const key = JSON.stringify(build ?? null);
+  if (!STRIDES.has(key)) { if (STRIDES.size > 16) STRIDES.clear(); STRIDES.set(key, frameStride(frameBody(build))); }
+  return STRIDES.get(key);
 }
 
 /** Its guns' muzzles as its body places them (frame space: +x right, +y forward, +z up; body.js mounts), each slot's

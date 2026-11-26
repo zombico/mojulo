@@ -11,3 +11,8 @@
   white-hot and sheds a ring of light across the dash where it begins; an assault boost burns it wider while held.
 - One mesh a frame, its pulses and its curl in the shader and the ribbon's sampling; emitted only on a page whose figures
   carry a wake, never in a capture.
+- A look that fails never stops the game: the wake puts itself out, said once, and the world plays on (a sample past the
+  ribbon's end once threw on a boost and a jump and froze the page).
+- The frames take longer, heavier steps: each some 0.84 of a leg's reach (`assault-frame/clips.js` `FRAME_STEP`), the
+  foot lifted higher through its swing and the pelvis dropping deeper onto it, and the walk's cycle covers the ground
+  its own legs do (`frameStride`, the frame rule's `stride`), so a planted foot holds where it landed.

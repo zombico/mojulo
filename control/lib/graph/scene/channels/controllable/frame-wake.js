@@ -98,7 +98,13 @@ function __wkRing(at, dir, col) {
   R.m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
   R.m.material.color.copy(col).lerp(new THREE.Color(1, 1, 1), 0.5);
 }
+// (a look, never the game's: one that fails puts itself out, said once, and the world plays on)
+let __wkOff = false;
 function __updateWake(dt) {
+  if (__wkOff) return;
+  try { __wakeStep(dt); } catch (err) { __wkOff = true; for (const T of __wkTrails.values()) if (T) T.m.visible = false; console.warn('frame wake off:', err); }
+}
+function __wakeStep(dt) {
   const t = __world.time;
   for (const e of __world.entities) {
     const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig;
@@ -129,7 +135,7 @@ function __updateWake(dt) {
         if (!s) { for (const k of [0, 1]) { AG[o + k] = 1; P.set([0, 0, -1e6], 3 * (o + k)); } continue; }
         const age = i < n ? Math.min(1, (t - s.t) / __WK.life) : 1;
         if (__WK.air) __wkCurl(s, age, __wkV); else __wkV.set(s.x, s.y, s.z);
-        const s2 = pts[Math.min(i + 1, n - 1)], s0 = pts[Math.max(i - 1, 0)];
+        const c = Math.min(i, n - 1), s2 = pts[Math.min(c + 1, n - 1)], s0 = pts[Math.max(c - 1, 0)];
         __wkS.set(s0.x - s2.x, s0.y - s2.y, s0.z - s2.z); if (__wkS.lengthSq() < 1e-8) __wkS.copy(__wkD);
         __wkS.cross(__wkE.set(__wkV.x - camera.position.x, __wkV.y - camera.position.y, __wkV.z - camera.position.z)).normalize();
         const ww = s.w * (0.25 + 0.75 * (1 - age)) * (__WK.air ? 1 + 0.6 * age : 1);
