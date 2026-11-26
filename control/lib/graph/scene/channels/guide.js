@@ -96,7 +96,8 @@ ${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a c
     const frameDone = L.fact === 'boost' ? (ls.boost || 0) >= 0.6 : L.fact === 'quick-boost' ? (p.qbT || 0) > 0 : L.fact === 'climb' ? (ls.climb || 0) >= 0.5
       : L.fact === 'assault-boost' ? !!p.ab : L.fact === 'lock' ? !!p.locked : /^fire-/.test(L.fact || '') ? fired(L.fact.slice(5)) : null;
 ` : ''}    const done = ${frameFacts ? 'frameDone !== null ? frameDone : ' : ''}L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
-    if ((done && age >= LESSON.read)${strict ? '' : ' || age >= LESSON.patience'}) { li++; ls = null; if (li >= LS.length) phase = 'play'; }
+    // (strict: the lesson done is said on the level's bus, \`lesson:<fact>\`, so an objective can wait for it: game/objectives.js \`act\`)
+    if ((done && age >= LESSON.read)${strict ? '' : ' || age >= LESSON.patience'}) { ${strict ? "if (done && L.fact) { try { __inputQueue.push({ type: 'lesson:' + L.fact }); } catch (err) { /* (no bus on the page) */ } } " : ''}li++; ls = null; if (li >= LS.length) phase = 'play'; }
   }
   const standing = (e) => e.team === 'foes' && !e.gone && !e.dormant && !e.downed && !(e.hp <= 0);
   // (a foe fallen: what a fight that counts its falls is won by; one asleep or sent away has not fallen)

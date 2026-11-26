@@ -14,3 +14,13 @@
   each key as it comes.
 - A frame's level draws no pilot's strip of its own on the mana HUD (`manaHud.heroBar: false`, `game/hud-mana.js`): the frame's own HUD carries
   its armour and generator, and the strip in the corner was a second health bar.
+- A level that teaches by instruction: an objective can be an `act`, met as a bus event says the thing was done while it
+  is in hand (`game/objectives.js`), and a strict guide says each lesson done on the bus (`lesson:<fact>`). A frame
+  operation's `learn` task is a control shown and met only as the pilot does it (its lesson shown once the task has
+  begun, so it is never done in the pause before it); its `act` task waits on any event the level raises (a scene's
+  end, `scene-end:<id>`), no clock.
+- An ally that holds (`allies[].hold`): an instructor on the range, standing its ground turned to the pilot, leading
+  nowhere and fighting only a foe that comes to it.
+- A frame's field heard by where each sound is (`scene/channels/frame-audio.js` `FRAME_EAR`): every sound but the pilot's
+  own falls away with its distance from the pilot (full within 30 m, silent past 700; the shared rolloff, full to
+  250 m, heard a whole fight at once), and the field's effects sit lower in the mix.

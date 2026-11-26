@@ -12,10 +12,11 @@ function page(guide) {
   const W = { pilotId: 'p', byId: { p: P }, entities: [P] };
   const win = { __mojCtrl: { world: W }, __mojBus: { state: { vars: { [FRAME_LESSON_TASK]: 0 } } } };
   const doc = { createElement: el, head: { appendChild() {} }, body: el() };
-  new Function('window', 'document', 'performance', 'requestAnimationFrame', guideScript(guide))(win, doc, { now: () => now }, (f) => { frame = f; });
+  const queue = [];
+  new Function('window', 'document', 'performance', 'requestAnimationFrame', '__inputQueue', guideScript(guide))(win, doc, { now: () => now }, (f) => { frame = f; }, queue);
   // (a step: the clock on by dt seconds, the frame drawn)
   const step = (dt = 0.05, n = 1) => { for (let i = 0; i < n; i++) { now += dt * 1000; const f = frame; frame = null; f(); } };
-  return { P, win, step, at: () => win.__mojGuide.lesson(), showing: () => win.__mojGuide.showing() };
+  return { P, win, step, queue, at: () => win.__mojGuide.lesson(), showing: () => win.__mojGuide.showing() };
 }
 
 describe('a frame\'s lessons', () => {
@@ -64,6 +65,10 @@ describe('a frame\'s lessons', () => {
     expect(guideScript(guide)).toContain("' / ' + LS.length");
     S.P.boosting = true; S.step(0.05, 40);
     expect(S.at()).toBe(1);
+    // (the lesson done said on the level's bus, for an objective that waits on it; a lax guide says nothing)
+    expect(S.queue).toEqual([{ type: 'lesson:boost' }]);
+    lax.P.boosting = true; lax.step(0.05, 40);
+    expect(lax.queue).toEqual([]);
   });
 
   it('a word it does not teach, or a task it has not, is refused by name', () => {

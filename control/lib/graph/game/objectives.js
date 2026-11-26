@@ -10,6 +10,8 @@
  *   man      a clear with a mounted gun to do it with (`gun`, the pilot's swap takes it): met as a clear is
  *   hold     still there when `seconds` have run, while its `waves` are woken one every `every` seconds (the first
  *            after a breath); what still stands when the clock runs out is left standing
+ *   act      do a thing the page says was done (`on`: the bus event it raises, e.g. the guide's `lesson:<fact>` as a
+ *            lesson's control is done): met when it comes while the task is in hand
  *   scan     stay inside a ring (`at`, `radius`) for `seconds` while a readout fills: its clock runs only inside the
  *            ring, keeping what it had (`total`) when the pilot steps out; met, what it found (`found`) is said as a
  *            banner and as an event (`objective:found { task, text }`) a script can answer
@@ -44,7 +46,8 @@
  *   door   the way on, sealed until the task is met
  *   planar false: a take or a reach met at its height (a place on a storey: never from the floor over or under it)
  *
- *   objectiveNames(id)      → { task (the var: the index in hand, the count when all are met), seal(k), left(k), downs(k),
+ *   objectiveNames(id)      → { task (the var: the index in hand, the count when all are met), begun(k) (1 once the task
+ *                             k has begun), seal(k), left(k), downs(k),
  *                             felled, time, slip, sink } the names it gives its things (felled: every foe of its downed;
  *                             time: seconds; slip: seconds out of a band in hand; sink: the landing's sink, m/s; say:
  *                             the words of the task in hand)
@@ -62,12 +65,12 @@
  */
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
-export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect', 'scan']);
+export const OBJECTIVE_KINDS = Object.freeze(['take', 'reach', 'clear', 'man', 'hold', 'gates', 'land', 'band', 'protect', 'scan', 'act']);
 /** The facts a `band` holds (worlds/event-bus.js gauges), in the units the flight HUD shows. */
 export const BAND_FACTS = Object.freeze(['alt', 'agl', 'speed', 'climb', 'bank', 'heading']);
 const isRange = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => x === null || Number.isFinite(x)) && !(v[0] === null && v[1] === null);
 
-export const objectiveNames = (id) => ({ task: `__${id}`, seal: (k) => `${id}-seal-${k}`, left: (k) => `__${id}_left${k}`, downs: (k) => `__${id}_d${k}`, felled: `__${id}_downs`, time: `__${id}_time`, slip: `__${id}_slip`, sink: `__${id}_sink`, say: `__${id}_say` });
+export const objectiveNames = (id) => ({ task: `__${id}`, begun: (k) => `__${id}_in${k}`, seal: (k) => `${id}-seal-${k}`, left: (k) => `__${id}_left${k}`, downs: (k) => `__${id}_d${k}`, felled: `__${id}_downs`, time: `__${id}_time`, slip: `__${id}_slip`, sink: `__${id}_sink`, say: `__${id}_say` });
 export const objectivesOf = (mechanics) => (Array.isArray(mechanics) ? mechanics.find((m) => m && m.kind === 'objectives') ?? null : null);
 
 export function lowerObjectives(p, ctx) {
@@ -112,6 +115,7 @@ export function lowerObjectives(p, ctx) {
       if (!(Number.isFinite(t.seconds) && t.seconds > 0)) fail(`${at}.seconds is how long the band is held, above 0`);
       if (t.total !== undefined && typeof t.total !== 'boolean') fail(`${at}.total is true (the seconds add up) or false (held in one go: the default)`);
     }
+    if (t.kind === 'act' && !(typeof t.on === 'string' && /^[a-z][a-z0-9:_-]{0,63}$/i.test(t.on))) fail(`${at}.on is the bus event that meets it (the page's: a lesson done is lesson:<fact>)`);
     if (t.kind === 'protect') {
       if (!Array.isArray(t.who) || !t.who.length || t.who.some((w) => typeof w !== 'string' || !w)) fail(`${at}.who is the ids kept up, at least one`);
       const by = (Number.isFinite(t.seconds) && t.seconds > 0 ? 1 : 0) + (t.arrive !== undefined ? 1 : 0);
@@ -240,6 +244,9 @@ export function lowerObjectives(p, ctx) {
         world.reactions.push({ on: advE(k), do: 'emit', type: 'objective:found', task: t.id, text: t.found });
         world.hud.push({ on: `${pre}:adv:${k}`, text: t.found, ttl: 4 });
       }
+    } else if (t.kind === 'act') {
+      // (met as the page says it was done, while it is the task in hand)
+      world.reactions.push({ on: t.on, if: mine, do: 'emit', type: metE(k) });
     } else if (t.kind === 'protect') {
       // one of them down while the task is still to be met (in hand, or before it) loses the level
       for (const w of t.who) world.reactions.push({ on: 'down', match: { entity: w }, if: { var: cur, lte: k }, do: 'emit', type: 'objectives:failed', task: t.id });

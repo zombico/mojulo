@@ -15,7 +15,9 @@
  *     tasks    [{ down: <group id> | [ids] | true, text? } | { reach: [x, y], radius?, text? } | { scan: [x, y], radius?,
  *              seconds?, found?, text? } (stay in the ring while the readout fills) | { hold: seconds, text? }]
  *              a down task's groups stand dormant until it begins (objectives wake them); true: every group;
- *              any task's `pause`: the seconds after the one before is met that it begins (a beat let breathe)
+ *              any task's `pause`: the seconds after the one before is met that it begins (a beat let breathe);
+ *              { learn: <FRAME_LESSONS word>, text? } a control shown and met only as it is done; { act: <bus event>,
+ *              text? } met as the level says it (a scene's end: `scene-end:<id>`)
  *     a group's `wary: true`: a unit that holds its fire until it is hit (a survey drone spotted, pointed out, engaged)
  *
  *   OPERATION                      the numbers: a unit's armour and guns at a frame's scale, a reach's radius
@@ -128,11 +130,22 @@ export function readOperation(v, at = 'goal.operation') {
       if (t.found !== undefined && !(typeof t.found === 'string' && t.found && t.found.length <= 120)) throw new Error(`${tat}.found is what the scan found, in words (up to 120 letters)`);
       return { scan: t.scan.slice(), radius: t.radius ?? OPERATION.scan.radius, seconds: t.seconds ?? OPERATION.scan.seconds, ...(t.found ? { found: t.found } : {}), ...(t.text ? { text: t.text } : {}) };
     }
+    if (t.learn !== undefined) {
+      // (a control learnt: the pilot shown its keys and told what it does, and the task met only as it is done, the
+      // guide's lesson saying so on the bus: FRAME_LESSONS, game/objectives.js `act`)
+      if (!(typeof t.learn === 'string' && FRAME_LESSONS[t.learn] && FRAME_LESSONS[t.learn].fact)) throw new Error(`${tat}.learn is a control the frame shows it is done: ${Object.keys(FRAME_LESSONS).filter((k) => FRAME_LESSONS[k].fact).join(', ')}`);
+      return { learn: t.learn, ...(t.text ? { text: t.text } : {}) };
+    }
+    if (t.act !== undefined) {
+      // (an event waited on: met as the level's bus says it, a scene's end (`scene-end:<id>`) or any other: no clock)
+      if (!(typeof t.act === 'string' && /^[a-z][a-z0-9:_-]{0,63}$/i.test(t.act))) throw new Error(`${tat}.act is the bus event that meets it (a scene's end is scene-end:<id>)`);
+      return { act: t.act, ...(t.text ? { text: t.text } : {}) };
+    }
     if (t.hold !== undefined) {
       if (!(Number.isFinite(t.hold) && t.hold > 0)) throw new Error(`${tat}.hold is seconds`);
       return { hold: t.hold, ...(t.text ? { text: t.text } : {}) };
     }
-    throw new Error(`${tat} is { down } | { reach } | { scan } | { hold }`);
+    throw new Error(`${tat} is { down } | { reach } | { scan } | { hold } | { learn } | { act }`);
   });
   // (a task's pause: the seconds after the one before is met that it begins, a beat let breathe, game/objectives.js)
   v.tasks.forEach((t, i) => {
@@ -186,14 +199,17 @@ function readAllies(v, groupIds, at) {
   return v.map((a, i) => {
     const aat = `${at}[${i}]`;
     if (!isObj(a)) throw new Error(`${aat} is { id, name, build?, palette?, ap?, lead? }`);
-    for (const k of Object.keys(a)) if (!['id', 'name', 'build', 'palette', 'ap', 'lead'].includes(k)) throw new Error(`${aat}.${k} is not part of an ally (id, name, build, palette, ap, lead)`);
+    for (const k of Object.keys(a)) if (!['id', 'name', 'build', 'palette', 'ap', 'lead', 'hold'].includes(k)) throw new Error(`${aat}.${k} is not part of an ally (id, name, build, palette, ap, lead, hold)`);
     if (typeof a.id !== 'string' || !/^[a-z][a-z0-9-]{0,30}$/.test(a.id) || seen.has(a.id) || groupIds.has(a.id)) throw new Error(`${aat}.id is its own name, lower-case, not a group's`);
     seen.add(a.id);
     if (typeof a.name !== 'string' || !a.name || a.name.length > 24) throw new Error(`${aat}.name is what it is called, up to 24 letters`);
     if (a.build !== undefined) readBuild(a.build, `${aat}.build`);
     if (a.ap !== undefined && !(Number.isFinite(a.ap) && a.ap > 0 && a.ap <= 10)) throw new Error(`${aat}.ap is its armour's share over its build's, 0 to 10`);
     if (a.lead !== undefined && typeof a.lead !== 'boolean') throw new Error(`${aat}.lead is true where it leads the pilot through the operation's places`);
-    return { id: a.id, name: a.name, build: a.build ?? ALLY.build, palette: a.palette ?? ALLY.palette, ap: a.ap ?? ALLY.ap, lead: a.lead !== false };
+    // (hold: it stands its ground where it was stood, facing the pilot, an instructor on the range; it fights only a foe
+    // that comes within its reach, and leads nowhere)
+    if (a.hold !== undefined && typeof a.hold !== 'boolean') throw new Error(`${aat}.hold is true where it stands its ground, an instructor, and leads nowhere`);
+    return { id: a.id, name: a.name, build: a.build ?? ALLY.build, palette: a.palette ?? ALLY.palette, ap: a.ap ?? ALLY.ap, lead: a.lead !== false && !a.hold, ...(a.hold ? { hold: true } : {}) };
   });
 }
 
@@ -222,6 +238,16 @@ export const FRAME_LESSONS = Object.freeze({
 });
 // (the objectives mechanic's task in hand, game/objectives.js objectiveNames: the operation's is the default id's)
 export const FRAME_LESSON_TASK = '__obj';
+// (a learnt control's words on the objective line, from its lesson: what follows its keys, `W A S D  move` → `Move`)
+const learnText = (L) => { const w = L.keys.split(/\s{2,}/).slice(1).join(' ') || L.keys; return w[0].toUpperCase() + w.slice(1); };
+// (the lessons the operation shows, in the order its tasks come: its own groups, each as its task begins, and each
+// learn task's control, shown once that task has begun (its begun flag, game/objectives.js), so it is never done in the
+// pause before it)
+function lessonsOf(op) {
+  const own = (op.lessons ?? []).map((l) => ({ l, at: l.when ? l.when.gte : 0 }));
+  const learnt = op.tasks.map((t, i) => (t.learn ? { l: { ...FRAME_LESSONS[t.learn], when: { var: `${FRAME_LESSON_TASK}_in${i}`, gte: 1 } }, at: i } : null)).filter(Boolean);
+  return [...own, ...learnt].map((x, n) => ({ ...x, n })).sort((a, b) => a.at - b.at || a.n - b.n).map((x) => x.l);
+}
 
 /** An operation's lessons checked (throws, teaching) and lowered to the guide's: [{ keys, fact?, when? }]. */
 export function readFrameLessons(v, taskCount, at = 'operation.lessons') {
@@ -267,6 +293,8 @@ export function operationMechanics(op, ends) {
     }
     if (t.reach) { const [x, y] = placeOf(ends, t.reach); return { id: `t${i + 1}`, kind: 'reach', text: t.text ?? 'Move to the waypoint', at: [x, y, r2(ends.ground(x, y))], radius: t.radius, planar: true }; }
     if (t.scan) { const [x, y] = placeOf(ends, t.scan); return { id: `t${i + 1}`, kind: 'scan', text: t.text ?? 'Scan the site: stay inside the ring', at: [x, y, r2(ends.ground(x, y))], radius: t.radius, seconds: t.seconds, planar: true, ...(t.found ? { found: t.found } : {}) }; }
+    if (t.act) return { id: `t${i + 1}`, kind: 'act', on: t.act, text: t.text ?? 'Stand by' };
+    if (t.learn) { const L = FRAME_LESSONS[t.learn]; return { id: `t${i + 1}`, kind: 'act', on: `lesson:${L.fact}`, text: t.text ?? learnText(L) }; }
     return { id: `t${i + 1}`, kind: 'hold', text: t.text ?? `Hold for ${t.hold} s`, seconds: t.hold };
   });
   // (quiet: the frame's own HUD says what it needs; the objectives show the task in hand and its own clock, no count)
@@ -314,7 +342,7 @@ export function operationCast(op, ends) {
   (op.allies ?? []).forEach((a, i) => {
     const fig = `frame-ally-${a.id}`, side = i % 2 ? -1 : 1, x = r2(p0[0] + side * (40 + 20 * i)), y = r2(p0[1] - 20), at = [x, y, r2(ends.ground(x, y))];
     figures[fig] = { assault: { build: a.build, palette: a.palette } };
-    const e = frameEntity(a.build, { id: a.id, at, heading: ends.heading ?? Math.PI / 2, mind: { range: OPERATION.frameRange, aggression: 0.5, dodge: 0.5, ally: true, engage: ALLY.engage, ...(a.lead && places.length ? { lead: places } : {}) }, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ap: a.ap, ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
+    const e = frameEntity(a.build, { id: a.id, at, heading: ends.heading ?? Math.PI / 2, mind: { range: OPERATION.frameRange, aggression: 0.5, dodge: 0.5, ally: true, engage: a.hold ? ALLY.engage / 2 : ALLY.engage, ...(a.lead && places.length ? { lead: places } : {}), ...(a.hold ? { hold: true } : {}) }, figure: fig, gravity: ends.frame?.gravity, bound: ends.frame?.bound, ap: a.ap, ...(ends.frame?.probe ? { probe: ends.frame.probe, collide: ends.frame.collide } : {}) });
     entities.push({ ...e, ally: { name: a.name } });
   });
   // (its props: each stood raised over its place, asleep while hidden; its place a spot of its id, and each task's place
@@ -327,5 +355,5 @@ export function operationCast(op, ends) {
     entities.push({ id: p.id, ...(p.hidden ? { dormant: true } : {}), body: { type: 'figure-rig', figure: fig, hittable: false, radius: unitRadius(p.unit) }, transform: { pos: [x, y, r2(z + (p.raise ?? 0))], heading: face, pitch: 0 } });
     spots.push({ id: p.id, at: [x, y, z], face: r2((face * 180) / Math.PI) });
   }
-  return { entities, figures, ...(op.props ? { play: { spots } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons ? { lessons: op.lessons } : {}), ...(op.script ? { script: op.script } : {}) };
+  return { entities, figures, ...(op.props ? { play: { spots } } : {}), ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons || op.tasks.some((t) => t.learn) ? { lessons: lessonsOf(op) } : {}), ...(op.script ? { script: op.script } : {}) };
 }

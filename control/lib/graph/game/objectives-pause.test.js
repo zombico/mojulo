@@ -14,7 +14,7 @@ function play(tasks, extra = {}) {
   const stand = (at) => { for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: 'p', position: at }], prev, ev.sources); prev = z.prev; pump(z.events); } };
   const time = (secs) => { for (let k = 0; k < secs * 10; k++) { pump(B.tickTimers(s, 0.1)); pump(B.stepTime(s, 0.1)); } };
   pump(ev.initial ?? []); stand([0, 0, 0]);
-  return { s, ev, stand, time, cur: () => s.vars[objectiveNames('obj').task], begun: () => s.log.filter((e) => e.type === 'objective:begin').length };
+  return { s, ev, stand, time, pump, cur: () => s.vars[objectiveNames('obj').task], begun: () => s.log.filter((e) => e.type === 'objective:begin').length };
 }
 const A = { id: 'a', kind: 'reach', text: 'A', at: [40, 0, 0], radius: 5 };
 const Bt = { id: 'b', kind: 'reach', text: 'B', at: [80, 0, 0], radius: 5, pause: 4 };
@@ -49,5 +49,18 @@ describe('a pause', () => {
     expect(hud({ quiet: true }).some((r) => r.label === 'Objective')).toBe(false);
     expect(hud({}).find((r) => r.label === 'Hold')).toMatchObject({ id: 'obj-hold-1' });
     expect(() => composeMechanics([{ kind: 'objectives', tasks: [{ ...A, pause: 40 }] }], { player: 'p', spawn: [0, 0, 0] })).toThrow(/pause is the seconds/);
+  });
+
+  it('an act is met when the page says it was done, only while it is in hand', () => {
+    const P = play([{ id: 'walk', kind: 'act', on: 'lesson:move', text: 'Walk' }, { id: 'go', kind: 'act', on: 'lesson:boost', text: 'Boost', pause: 1 }]);
+    P.pump([{ type: 'lesson:boost' }]);
+    expect(P.cur()).toBe(0);                                  // (not the task in hand: nothing)
+    P.pump([{ type: 'lesson:move' }]);
+    expect(P.cur()).toBe(1);
+    P.pump([{ type: 'lesson:boost' }]);
+    expect(P.cur()).toBe(1);                                  // (said in the pause, before it began: not met)
+    P.time(1.5); P.pump([{ type: 'lesson:boost' }]);
+    expect(P.cur()).toBe(2);
+    expect(() => composeMechanics([{ kind: 'objectives', tasks: [{ id: 'x', kind: 'act', text: 'X' }] }], { player: 'p', spawn: [0, 0, 0] })).toThrow(/on is the bus event/);
   });
 });

@@ -104,6 +104,8 @@ export function buildRulesFrame(E) {
   // pilot if it has dropped far behind), else at the pilot's side ──
   function escortKeys(e, dt, M, P, out) {
     const t = e.transform, q = P.transform.pos, L = M.lead || [];
+    // (holding its ground, an instructor on the range: where it stands, turned to the pilot)
+    if (M.hold) { e.mindFace = Math.atan2(q[1] - t.pos[1], q[0] - t.pos[0]); e.mindPitch = 0; return out; }
     let i = e.leadI || 0;
     while (i < L.length && Math.hypot(q[0] - L[i].at[0], q[1] - L[i].at[1]) < (L[i].r || 40)) i++;
     e.leadI = i;
