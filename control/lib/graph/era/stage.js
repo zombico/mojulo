@@ -22,6 +22,7 @@
  * corners, drawn as a sconce with a glowing flame, and leaves as a KHR punctual point light in the GLB.
  * Deterministic: a pure function of the recipe.
  */
+import { layExhibits } from './exhibits.js';
 import { planVents, readVents, shadeDucts } from './vents.js';
 import { planInnerWindows, readInnerWindows } from './inner-windows.js';
 import { glazeOpening } from './bay-glass.js';
@@ -1682,6 +1683,15 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   // follow camera over its walker's shoulder; not `ceilings`, which lays each room's ceiling as a collider)
   if (manifest.headroom !== undefined && !manifest._headroom) return assembleStageScene(withHeadroom(manifest), ctx);
   if (Array.isArray(manifest.rooms) && manifest.rooms.some((r) => r && r.storey !== undefined && r.storey !== 0)) return assembleStoreys(manifest, ctx, planStage(manifest), assembleStageScene);
+  // a building's EXHIBITS (exhibits.js): its rooms planned once to stand its plinths, then laid with them; each piece
+  // the plinth holds leaves as an itemRef, resolved where the store is (worlds/world-scene.js)
+  if (manifest.exhibits !== undefined && !manifest._exhibits) {
+    const L = layExhibits(planStage(manifest), manifest.exhibits);
+    const P = assembleStageScene({ ...manifest, _exhibits: true, props: [...(Array.isArray(manifest.props) ? manifest.props : []), ...L.props] }, ctx);
+    if (L.items.length) P.itemRefs = [...(P.itemRefs ?? []), ...L.items];
+    P.exhibits = { wings: L.wings, ...(L.findings.length ? { findings: L.findings } : {}) };
+    return P;
+  }
   const plan = planStage(manifest);
   const Bio = manifest.biocube !== undefined ? readBiocube(manifest.biocube) : null;
   const roomFauna = Bio?.fauna ? ((F) => (Object.keys(F).length > 1 ? F : null))(placeIndoorFauna(Bio.fauna, { rooms: plan.rooms, seed: Number.isFinite(manifest.seed) ? manifest.seed : 1 })) : null;

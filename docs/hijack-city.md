@@ -65,6 +65,10 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
   notes, a streetlight's hum a tritone over the tonic), the chase (`drive`) coming in over it with the stars; the title
   and the menus to its mirror, `vibrant` (the same tempo, key centre and melody's rhythm in the major, a walking bass,
   brighter keys and busier hats: `beats/club-score.js`). Name `vibrant` for the level to walk a sunnier city.
+- **museum**: the museum across a street from the start (`hijackCityWorld({ museum })` or the district's
+  `geocity.museum`): its name and its three wings' collections, things minted in mojulo, each a ref on a plinth, one a
+  wing life-size in its hall (`exhibits`); `false` for none. Its inside is a page of its own, entered and left by its
+  door: [docs/museum.md](museum.md).
 - **sound**: the street's bed under the score (`sound.bed`): `block` by default (horns, a car alarm and a siren a few
   blocks off, a gate, a bottle breaking somewhere: no birds, no wind), `boulevard` (horns, a bus's doors, a bicycle
   bell, a tram's) or `city` (the played city's own, with its pigeons and sparrows); `sfx-shelf/beds.js`.

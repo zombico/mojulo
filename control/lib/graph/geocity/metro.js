@@ -121,6 +121,7 @@
  *
  * Metres throughout. Anything off the card is refused by name; nothing here rolls a die.
  */
+import { readExhibits } from '../era/exhibits.js';
 import { readEnter } from '../retail/store-enter.js';
 import { resolveGrammar } from '../city/plan/grammars.js';
 import { grammarAtPlay } from '../city/plan/grammar.js';
@@ -266,9 +267,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'museum']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'museum']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
 const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
 const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
@@ -413,6 +414,16 @@ export function readGeocity(spec = {}) {
   // building's detail
   // (its shops walked into, retail/store-slot.js: each shop of a row of shops a store from a card, entered by its door)
   const shops = readEnter(spec.shops, no);
+  // (its museum, geocity/museum.js: a block near the walk's start built as one, entered by its door into a building of
+  // its own; its galleries' pieces the interior's, era/exhibits.js)
+  const museum = spec.museum === undefined || spec.museum === false ? null : spec.museum === true ? {} : spec.museum;
+  if (museum !== null) {
+    if (!isObj(museum)) no('museum is true or { name?, exhibits?, scale? }: a museum on a block near the walk\'s start, walked into');
+    for (const k of Object.keys(museum)) if (!['name', 'exhibits', 'scale'].includes(k)) no(`museum.${k} is not a setting (name, exhibits, scale)`);
+    if (museum.name !== undefined && !(typeof museum.name === 'string' && museum.name.trim())) no('museum.name is its name');
+    if (museum.scale !== undefined && !num(museum.scale, 1, 2)) no('museum.scale is 1 to 2: its rooms laid that much larger for a third-person camera');
+    if (museum.exhibits !== undefined) { try { readExhibits(museum.exhibits); } catch (e) { no(`museum.${e.message}`); } }
+  }
   const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
   if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podiums walked into from their streets, their concourses under them and the passages between, or the one `at` names alone');
   if (under !== null && !['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('under is an evocation\'s (a neighbourhood, a corridor or a segment): what is walked into is drawn at a building\'s detail');
@@ -467,5 +478,5 @@ export function readGeocity(spec = {}) {
     slope = { streets: { ...S.streets } };
     if (!profile) profile = {};
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(museum ? { museum } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
 }

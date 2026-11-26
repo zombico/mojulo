@@ -1047,7 +1047,8 @@ export function roomItemFaces(placed, baseZ, o) {
  *  floor, scaled uniformly to fit size × height, its +y front turned to `facing` (after an
  *  extra `turn`, degrees). Pure — world-scene.js calls it once the ref is resolved. */
 export function placeItemFaces(faces, rec) {
-  const src = (faces || []).filter((f) => f && Array.isArray(f.corners) && f.corners.length && !f.helper);
+  // (a helper, and the studio floor a thing's own page stands it on, are never the thing)
+  const src = (faces || []).filter((f) => f && Array.isArray(f.corners) && f.corners.length && !f.helper && !f.studio);
   if (!src.length) return [];
   const turn = ((rec.turn || 0) * Math.PI) / 180;
   const ct = SM.cos(turn), st = SM.sin(turn);

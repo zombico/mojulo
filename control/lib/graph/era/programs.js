@@ -89,6 +89,13 @@ export const PROGRAMS = Object.freeze({
     core: { storeys: 2, wings: 'I', loading: 'single', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'locker', room: 'office', far: 'dispatch', goal: 'manager' }, annex: { role: 'shed', w: 18, d: 30, h: 12, ways: ['+x'] } },
   clinic: { reads: 'a waiting room at the front, consult rooms both sides of the corridors, treatment rooms at their ends, the records room last', shape: 'core', goal: 'records', kit: 'bay-everyday',
     core: { storeys: 1, wings: 'T', loading: 'double', bays: 2, h: 3.5 }, lobby: { d: 8, h: 4 }, roles: { near: 'wc', second: 'waiting', room: 'consult', far: 'treatment', goal: 'records' } },
+  // a MUSEUM: a lobby at the front, three wings of galleries in a T off it (a wing a collection, exhibits.js), each
+  // wing's end its hall; tall plaster rooms under daylight and track light, nothing to fight in
+  museum: { reads: 'a lobby, galleries both sides of three wings in a T, each wing\'s end a hall, the great hall last', shape: 'core', goal: 'great-hall', kit: 'bay-gallery',
+    // (its look, compose.js and bay-axes.js `gallery`: plaster walls a room's own colour, oak and pale stone underfoot,
+    // daylight through coffers and warm track light, bare; its things its plinths alone)
+    look: Object.freeze({ construction: 'gallery', palette: 'gallery', plot: 'gallery', dressing: 'gallery' }),
+    core: { storeys: 1, wings: 'T', loading: 'double', bays: 3, h: 5 }, lobby: { d: 10, h: 6 }, roles: { near: 'gallery', second: 'gallery', room: 'gallery', far: 'hall', goal: 'great-hall' } },
   // a military base's buildings (a walled-core dungeon's spaces, wcd/wcd.js), on the same core: each on the bay kit of
   // what it is (a hangar's steel, a barracks' painted block, a comms room's white panels, a plant's concrete), so the
   // layers a base is walked through look unlike each other; the rooms are what a base is stocked for
