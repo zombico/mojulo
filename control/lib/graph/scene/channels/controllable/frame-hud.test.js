@@ -29,4 +29,18 @@ describe('the frame\'s HUD', () => {
     expect(Number(H.name().style.opacity)).toBe(1);
     expect(H.count()).toBe('RELOAD');
   });
+
+  it('stands down while a scene plays', () => {
+    const H = page();
+    H.step(0.5);
+    const all = document.querySelectorAll('.fh'), root = all[all.length - 1];
+    expect(root.style.display).toBe('');
+    window.__mojScenes = { on: () => true };
+    H.step(0.2);
+    expect(root.style.display).toBe('none');
+    window.__mojScenes = { on: () => false };
+    H.step(0.2);
+    expect(root.style.display).toBe('');
+    delete window.__mojScenes;
+  });
 });

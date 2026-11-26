@@ -24,3 +24,5 @@
 - A frame's field heard by where each sound is (`scene/channels/frame-audio.js` `FRAME_EAR`): every sound but the pilot's
   own falls away with its distance from the pilot (full within 30 m, silent past 700; the shared rolloff, full to
   250 m, heard a whole fight at once), and the field's effects sit lower in the mix.
+- The frame's HUD stands down while a scene plays (`window.__mojScenes.on()`): the letterbox and its lines are the
+  screen.

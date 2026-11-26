@@ -64,7 +64,8 @@ export function frameHudScript() {
   function tick() {
     requestAnimationFrame(tick);
     const C = window.__mojCtrl, w = C && C.world, P = w && w.pilotId && w.byId[w.pilotId];
-    if (!P || !P.rule || P.rule.type !== 'frame') { root.style.display = 'none'; return; }
+    // (and out of the way while a scene plays: the letterbox and its lines are the screen)
+    if (!P || !P.rule || P.rule.type !== 'frame' || (window.__mojScenes && window.__mojScenes.on())) { root.style.display = 'none'; return; }
     root.style.display = '';
     const R = P.rule, enMax = P.enMax || (R.en && R.en.max) || 1;
     enI.style.width = (100 * Math.max(0, P.en || 0) / enMax).toFixed(1) + '%';
