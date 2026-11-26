@@ -375,7 +375,7 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
 function zonedSlot(stature, scale = 1) {
   const zone = zoneOf(stature), Z = STRIKE_ZONES[zone], A = Z.words ? zoneAim(stature, HERO, zone) : null, band = zoneBand(zone);
   return {
-    slot: { zone: { id: zone, band }, ...(Z.words ? { words: { ...Z.words } } : {}), ...(A ? { aim: { pitch: Math.round((90 - A.drop) * 10) / 10, height: Math.round(((band[0] + band[1]) / 2 / (scale > 0 ? scale : 1)) * 1000) / 1000, sink: A.sink, bend: A.bend } } : {}), ...(Z.moves.lunge ? { strikeLunge: Z.moves.lunge } : {}) },
+    slot: { zone: { id: zone, band }, ...(Z.words ? { words: { ...Z.words } } : {}), ...(A ? { aim: { pitch: Math.round((90 - A.drop) * 10) / 10, height: Math.round(((band[0] + band[1]) / 2 / (scale > 0 ? scale : 1)) * 1000) / 1000, sink: A.sink, bend: A.bend } } : {}), ...(Z.moves.lunge ? { strikeLunge: Z.moves.lunge, ...(Z.moves.stop ? { strikeLungeStop: Z.moves.stop } : {}) } : {}) },
     rule: Z.moves.combo ? { meleeCombo: true } : {},
   };
 }

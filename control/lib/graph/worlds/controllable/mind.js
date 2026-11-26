@@ -907,7 +907,7 @@ export function buildMind(E) {
       e.swingT += dt / (e.swingDur || 0.9);
       e.locomotion = e.swingClip || 'swing_neutral'; e.moving = true; e.gaitPhase = Math.min(1, e.swingT); e.aiFire = 0;
       const lungeTo = e.lungeTo && world && world.byId ? world.byId[e.lungeTo] : null;
-      const lungeRoom = !lungeTo || Math.hypot(lungeTo.transform.pos[0] - t.pos[0], lungeTo.transform.pos[1] - t.pos[1]) > (e.strikeParams ? e.strikeParams.reach : 1) * 0.5;
+      const lungeRoom = !lungeTo || Math.hypot(lungeTo.transform.pos[0] - t.pos[0], lungeTo.transform.pos[1] - t.pos[1]) > (e.strikeParams ? e.strikeParams.reach : 1) * ((e.strikeParams && e.strikeParams.lungeStop) || 0.5);
       if (e.swingLunge && e.strikeParams && e.swingT < e.strikeParams.to && lungeRoom) {   // it stops at half its reach
         const lf = fwdXY(t.heading), ls = e.swingLunge * dt;
         t.pos[0] += lf[0] * ls; t.pos[1] += lf[1] * ls;

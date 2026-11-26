@@ -47,6 +47,9 @@ export function buildCombatMelee(E) {
         // spark tint/size for the renderer's clash channel — the melee analog of a ranged
         // weapon's fxColor/fxScale ({ color, scale }); null → the renderer's default clash read.
         fx: sv.strikeFx ?? sc.strikeFx ?? r.strikeFx ?? null,
+        // where its LUNGE stops (`strikeLungeStop`, a share of its reach; mind.js): a blow whose weapon connects at the end of
+        // its reach stops there, not in the target's lap; absent, no field (half its reach, as always)
+        ...((sv.strikeLungeStop ?? sc.strikeLungeStop) != null ? { lungeStop: sv.strikeLungeStop ?? sc.strikeLungeStop } : {}),
         // its kinetic and impact energy (knock.js: knockback apart from damage); absent, no field
         ...((sv.strikeKnock ?? sc.strikeKnock ?? r.strikeKnock) ? { knock: sv.strikeKnock ?? sc.strikeKnock ?? r.strikeKnock } : {}),
       },
