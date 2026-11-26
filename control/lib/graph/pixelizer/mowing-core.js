@@ -87,9 +87,17 @@ function mow(s) {
   return cut === s.cut ? s : { ...s, cut, mown, trampled };
 }
 
+// (a slow frame is played as several short ones, so the mower goes as far as the clock runs at any rate)
+const STEP_MS = 50;
 function tick(state, ms) {
+  let s = state;
+  for (let left = Math.min(ms, 1000); left > 0 && !s.over; left -= STEP_MS) s = tick1(s, Math.min(STEP_MS, left));
+  return s;
+}
+
+function tick1(state, ms) {
   if (state.over) return state;
-  const dt = Math.min(ms, 100) / 1000, K = state.keys, M = state.mower;
+  const dt = ms / 1000, K = state.keys, M = state.mower;
   const want = K.up && !K.down ? SPEED : K.down && !K.up ? -BACK : 0;
   const v = r5(Math.abs(want - M.v) <= ACCEL * dt ? want : M.v + Math.sign(want - M.v) * ACCEL * dt);
   const h = r5(M.h + ((K.right ? 1 : 0) - (K.left ? 1 : 0)) * TURN * dt);

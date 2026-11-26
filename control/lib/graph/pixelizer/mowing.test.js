@@ -63,6 +63,13 @@ describe('mowing', () => {
     expect(resolveOverlay(play(newGame(1, { lawn: OPEN }), driver(SERPENT)))).toMatchObject({ status: 'over', message: 'Every blade cut' });
   });
 
+  it('a slow frame goes as far as several quick ones: the mower keeps to the clock at any rate', () => {
+    const go = (dt, n) => { let s = step(newGame(1, { lawn: OPEN }), { type: 'key', key: 'up', on: true }); for (let i = 0; i < n; i++) s = step(s, { type: 'tick', dt }); return s; };
+    const slow = go(500, 2), quick = go(50, 20);
+    expect(slow.mower.x).toBeCloseTo(quick.mower.x, 5);
+    expect(slow.left).toBe(quick.left);
+  });
+
   it('refuses a lawn that is not one: rows of two widths, a tile it does not know', () => {
     expect(() => newGame(1, { lawn: { rows: ['...', '..'] } })).toThrow(/one width/);
     expect(() => newGame(1, { lawn: { rows: ['..q'] } })).toThrow(/one of/);
