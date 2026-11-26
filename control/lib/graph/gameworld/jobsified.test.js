@@ -174,6 +174,13 @@ describe('a groundskeeper\'s lawn (lawnOf)', () => {
     expect(lawnOf(ends)).toEqual(L);
     expect(lawnOf({ spawn: [0, 0, 0] })).toBe(null);
   });
+  it('a park on a terrace: its door at a path\'s end walked in at, not the nearer one walled over its walk', () => {
+    // (the park stands 2 m over the walk on its east, level on its west)
+    const W = lawnOf({ ...ends, ground: (x) => (x > 60 ? 0 : 2) });
+    expect(W.spot.at[0]).toBeCloseTo(MOW.spot);
+    expect(W.spot.heading).toBeCloseTo(0);
+    expect(W.lawn.start[0]).toBeLessThan(2);
+  });
   it('a mow is done on foot: no vehicle issued for it', () => {
     expect(issuedOf({ ...ends, kerbAt: () => null }, [{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }], 'district')).toEqual([]);
     expect(shiftRoles([{ id: 'groundskeeping', giver: 'district', vehicle: 'groundskeeper' }], 'district')).toEqual([]);

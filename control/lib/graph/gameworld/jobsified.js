@@ -213,12 +213,13 @@ export function sweepRoute(ends, from, { stretches = SWEEP.stretches } = {}) {
 export const MOW_GAME = Object.freeze({ reach: 3, prompt: 'take the mower out', time: 150, locked: 'Parks office: take the groundskeeping job on Jobsified first' });
 // A GROUNDSKEEPER'S LAWN (m): the least a park is across to be mown; how many tiles its long side is cut into, and the
 // least a tile is; how far up its path from its edge the shed's door is, and how far beside the path the shed stands,
-// its half sides; a flowerbed beside a tree one tree in so many
-export const MOW = Object.freeze({ deep: 20, across: 26, tile: 2.4, spot: 1.5, shed: 3.2, shedHalf: Object.freeze([1.4, 1.1]), beds: 2 });
+// its half sides; a flowerbed beside a tree one tree in so many; the most a path's end may step from the walk outside
+// it and still be walked in at (a park on a terrace is walled where it stands over its walk)
+export const MOW = Object.freeze({ deep: 20, across: 26, tile: 2.4, spot: 1.5, shed: 3.2, shedHalf: Object.freeze([1.4, 1.1]), beds: 2, step: 0.5 });
 const r3 = (v) => Math.round(v * 1000) / 1000 + 0;
 /** A lawn to mow: the park nearest `from` (the start) at least MOW.deep across (ends.parks, geocity/scene.js). Its
- *  shed's door on its path, up from the edge nearest the start (`spot`, where the round is started), the shed beside the
- *  path on the lawn (`shed`); the park laid as the mowing minigame's tiles (pixelizer/mowing-core.js TILES: its paths,
+ *  shed's door on its path, up from the edge nearest the start that is level with the walk outside it (`spot`, where
+ *  the round is started), the shed beside the path on the lawn (`shed`); the park laid as the mowing minigame's tiles (pixelizer/mowing-core.js TILES: its paths,
  *  its trees, its things and the shed, a flowerbed by some of its trees), row 0 its north, and the mower at the door,
  *  nosed in.  → { park, rect, spot: { at, heading }, shed: { at, heading, half }, lawn: { rows, start } } | null */
 export function lawnOf(ends, from = ends?.spawn) {
@@ -226,10 +227,14 @@ export function lawnOf(ends, from = ends?.spawn) {
   const P = (ends?.parks ?? []).filter((q) => Math.min(q.rect[2] - q.rect[0], q.rect[3] - q.rect[1]) >= MOW.deep).sort((a, b) => d2(a.at, f) - d2(b.at, f) || a.id.localeCompare(b.id))[0];
   if (!P) return null;
   const [x0, y0, x1, y1] = P.rect, ground = (x, y) => { const z = typeof ends.ground === 'function' ? ends.ground(x, y) : null; return Number.isFinite(z) ? z : P.z; };
-  // (its paths: the things that run from edge to edge; the door up the end of one nearest the start, the shed beside it)
-  const paths = P.things.filter((q) => q[2] - q[0] >= (x1 - x0) * 0.6 || q[3] - q[1] >= (y1 - y0) * 0.6);
-  const ends2 = paths.flatMap((q) => (q[2] - q[0] >= q[3] - q[1] ? [[q[0], (q[1] + q[3]) / 2, 1, 0], [q[2], (q[1] + q[3]) / 2, -1, 0]] : [[(q[0] + q[2]) / 2, q[1], 0, 1], [(q[0] + q[2]) / 2, q[3], 0, -1]]));
-  const E = ends2.sort((a, b) => d2(a, f) - d2(b, f) || a[0] - b[0] || a[1] - b[1])[0] ?? [x0, (y0 + y1) / 2, 1, 0];
+  // (its paths: its long thin things; a door may be at each end of one that meets the park's edge, the shed beside it)
+  const thin = P.things.filter((q) => Math.max(q[2] - q[0], q[3] - q[1]) >= 3 * Math.min(q[2] - q[0], q[3] - q[1]));
+  const edge = (e) => Math.min(Math.abs(e[0] - x0), Math.abs(e[0] - x1), Math.abs(e[1] - y0), Math.abs(e[1] - y1)) <= 0.5;
+  const ends2 = thin.flatMap((q) => (q[2] - q[0] >= q[3] - q[1] ? [[q[0], (q[1] + q[3]) / 2, 1, 0], [q[2], (q[1] + q[3]) / 2, -1, 0]] : [[(q[0] + q[2]) / 2, q[1], 0, 1], [(q[0] + q[2]) / 2, q[3], 0, -1]])).filter(edge);
+  // (the door at an end walked in at, level with the walk outside it; the nearest the start of those, else of all)
+  const level = (e) => Math.abs(ground(e[0] - e[2] * MOW.spot, e[1] - e[3] * MOW.spot) - ground(e[0] + e[2] * MOW.spot, e[1] + e[3] * MOW.spot)) <= MOW.step;
+  const near = (a, b) => d2(a, f) - d2(b, f) || a[0] - b[0] || a[1] - b[1];
+  const E = (ends2.some(level) ? ends2.filter(level) : ends2).sort(near)[0] ?? [x0, (y0 + y1) / 2, 1, 0];
   const sx = E[0] + E[2] * MOW.spot, sy = E[1] + E[3] * MOW.spot, heading = Math.atan2(E[3], E[2]);
   const spot = { at: [r3(sx), r3(sy), r3(ground(sx, sy))], heading: r3(heading) };
   // (the shed on the lawn beside the door, to its right as one comes in, its door to the path)
@@ -241,7 +246,6 @@ export function lawnOf(ends, from = ends?.spawn) {
   // (a long thin thing, a path, laid along its middle line, a tile wide whatever its width; the rest by the tiles
   // whose middles they cover)
   const inR = (x, y, q) => x >= q[0] && x <= q[2] && y >= q[1] && y <= q[3], col = (x) => Math.min(W - 1, Math.max(0, Math.floor((x - x0) / tx))), row = (y) => Math.min(H - 1, Math.max(0, Math.floor((y1 - y) / ty)));
-  const thin = P.things.filter((q) => Math.max(q[2] - q[0], q[3] - q[1]) >= 3 * Math.min(q[2] - q[0], q[3] - q[1]));
   const onPath = (i, j) => thin.some((q) => (q[2] - q[0] >= q[3] - q[1] ? row((q[1] + q[3]) / 2) === j && i >= col(q[0]) && i <= col(q[2]) : col((q[0] + q[2]) / 2) === i && j >= row(q[3]) && j <= row(q[1])));
   const g = Array.from({ length: H }, (_, j) => Array.from({ length: W }, (_, i) => {
     const cx = x0 + (i + 0.5) * tx, cy = y1 - (j + 0.5) * ty;

@@ -183,7 +183,8 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
 - **Groundskeeping** (`groundskeeper`, mode `mow`): the parks' grounds crew is off sick, so the parks office takes
   anyone with a licence (the fake ID again; its `pitch` is what the office says as it is taken). It is done on foot and
   played as a minigame of its own: no mower stands in the city. The park nearest the start gets a groundskeeper's shed
-  by its path (`lawnOf`: its door `MOW.spot` up the path from the edge nearest the start, the shed beside it); walk to
+  by its path (`lawnOf`: its door `MOW.spot` up a path from the park's edge, at the end nearest the start that is level
+  with the walk outside it, `MOW.step`, since a park on a terrace is walled over its walk; the shed beside it); walk to
   the door and use it to take the mower out (before the job is taken it says to take it first). The round is the
   minigame `mowing` (`playscape/ui/minigames.js`, `pixelizer/mowing-core.js`): the park itself from above, its paths, its
   trees, its playground and its shed as the minigame's tiles (`MOW.across` across at most), a flowerbed round some of its
