@@ -9,7 +9,7 @@
 ## Params
 
 ```json
-{"kind": "shift", "mode": "collect", "id": "bin-round", "depot": [85, 413, 32], "half": [20, 12], "cabs": ["car-121"], "stops": [{"at": [183, 287, 16]}], "load": 4, "hold": 1.5, "unload": {"at": [688, 431, 22], "half": [17, 10]}, "reward": [{"item": "coin", "n": 40}], "repeat": true, "after": "took-bin-round", "vehicle": "garbage truck", "yard": "works yard", "done": "Garbage collected"}
+{"kind": "shift", "mode": "collect", "id": "bin-round", "depot": [85, 413, 32], "half": [20, 12], "cabs": ["car-121"], "stops": [{"at": [183, 287, 16]}, {"at": [212, 301, 16]}, {"at": [240, 318, 17]}, {"at": [266, 333, 17]}], "load": 4, "hold": 1.5, "unload": {"at": [688, 431, 22], "half": [17, 10]}, "reward": [{"item": "coin", "n": 40}], "repeat": true, "after": "took-bin-round", "vehicle": "garbage truck", "yard": "works yard", "done": "Garbage collected"}
 ```
 
 - `mode` — `collect` (piles held at until `load` fill it, emptied at `unload`, the depot where none), `route` (its `stops` held at in order; the last pays), `haul` (driven to its `site`; got out there, warped back to `back`; several `calls` in turn), `dig` (an operated machine: the page says `shift:scoop:<id>` and `shift:tip:<id>`, `loads` of them pay), `sweep` (its `stops` heaps of litter, each driven over once a round; all swept pays, and a standing one's are laid again), `mow` (a round in its mower: got into, its clock at `time` and its `stops`, cells `{ at, half }` of long grass, long again; each driven over cut once; `goal` of them, a share, pays; the clock run out ends it; got out, the mower goes to `back`).
