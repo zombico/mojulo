@@ -8,7 +8,10 @@
  *   (score, goal, best, the clock or the casts), the keys below; at the end the result (won or not, the gold paid).
  *   Keys: blocks arrows / WASD, up or X turns (Z back), Space drops, C holds; match arrows move, Space or Enter picks
  *   (or click a cell); fishing hold Space (or the pointer) to lift the line; mowing hold up / W to drive (down back), left
- *   and right to turn. Escape ends the round as it stands.
+ *   and right to turn; deskwork is a page of its own (its face's renderHtml: a browser of tabs), clicked (each control's
+ *   data-act an action of its reducer), 1-4 to answer, [ and ] to turn its tabs. Escape ends the round as it stands.
+ *   A game drawn as a page: its difficulty from a var's count (`level`, its face's rankOf), its win its own (wonOf), a
+ *   var raised every round won (`each`).
  *
  * It reads the bus's log for `minigame:<id>`, and as a round ends writes its score to `minigame-last-<id>` (and
  * `minigame-best-<id>` when better), pays its gold into the game's purse (said as a bag transfer, in:<holder>:<item>:<n>,
@@ -53,9 +56,10 @@ export function minigamePage(cfg, GAMES) {
     match: { ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', Space: 'pick', Enter: 'pick' },
     fishing: { Space: 'reel', Enter: 'reel', ArrowUp: 'reel', KeyW: 'reel' },
     mowing: { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' },
+    deskwork: { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3, BracketLeft: -1, BracketRight: 1 },
   };
-  const HINT = { blocks: '← → move · ↑ turn · ↓ drop · Space slam · C hold · Esc stop', match: 'arrows move · Space pick · Esc stop', fishing: 'hold Space to lift the line · Esc stop', mowing: '↑ drive · ↓ back · ← → turn · Esc stop' };
-  const plays = {};
+  const HINT = { blocks: '← → move · ↑ turn · ↓ drop · Space slam · C hold · Esc stop', match: 'arrows move · Space pick · Esc stop', fishing: 'hold Space to lift the line · Esc stop', mowing: '↑ drive · ↓ back · ← → turn · Esc stop', deskwork: 'click, or 1-4 to answer · [ ] turn the tabs · Esc end the shift' };
+  const plays = {}, styled = {};
   // cur: the round up, or null: { g, s (the reducer's state), phase: 'play' | 'result', left (blocks' clock, ms), grav, cx, cy, pay, won }
   let cur = null, pending = [], seen = 0, lastT = 0, lastKey = '', lastDraw = -1, dirty = true;
   const busy = () => (window.__mojMenus && window.__mojMenus.open && window.__mojMenus.open()) || (window.__mojScenes && window.__mojScenes.on && window.__mojScenes.on()) || (window.__mojRpg && window.__mojRpg.state && window.__mojRpg.state().mode);
@@ -67,8 +71,12 @@ export function minigamePage(cfg, GAMES) {
     if (!g || cur) return false;
     const n = plays[id] = (plays[id] || 0) + 1;
     const seed = (g.seed + Math.imul(n - 1, 2654435761)) >>> 0, G = GAMES[g.game];
-    const s = g.game === 'fishing' ? G.newGame(seed, g.casts ? { casts: g.casts } : {}) : g.game === 'mowing' ? G.newGame(seed, { lawn: g.lawn || null, ...(g.time ? { time: g.time } : {}) }) : G.newGame(seed);
-    cur = { g, G, s, phase: 'play', left: (g.time || 0) * 1000, grav: 0, cx: 0, cy: 0, pay: 0, won: false };
+    // (a game drawn as a page: its rank from its level var's count, its schedule that rank's)
+    const count = g.level ? Number(V()[g.level]) || 0 : 0, rank = G.rankOf ? G.rankOf(count) : 0;
+    const s = g.game === 'fishing' ? G.newGame(seed, g.casts ? { casts: g.casts } : {}) : g.game === 'mowing' ? G.newGame(seed, { lawn: g.lawn || null, ...(g.time ? { time: g.time } : {}) })
+      : G.renderHtml ? G.newGame(seed, { rank, ...(g.schedules ? { schedule: g.schedules[Math.min(rank, g.schedules.length - 1)] } : {}) }) : G.newGame(seed);
+    if (G.css && !styled[g.game]) { const css = document.createElement('style'); css.textContent = G.css; document.head.appendChild(css); styled[g.game] = true; }
+    cur = { g, G, s, phase: 'play', left: (g.time || 0) * 1000, grav: 0, cx: 0, cy: 0, pay: 0, won: false, count, promoted: null };
     lastKey = ''; lastDraw = -1; dirty = true; hold(); root.classList.add('on');
     return true;
   }
@@ -76,7 +84,7 @@ export function minigamePage(cfg, GAMES) {
     if (!cur || cur.phase !== 'play') return;
     const g = cur.g, v = V(), score = cur.s.score || 0;
     cur.phase = 'result';
-    cur.won = score >= g.goal;
+    cur.won = cur.G.wonOf ? cur.G.wonOf(cur.s) : score >= g.goal;
     cur.pay = Math.floor(score * g.gold);
     v['minigame-last-' + g.id] = score;
     if (score > (Number(v['minigame-best-' + g.id]) || 0)) { v['minigame-best-' + g.id] = score; cur.best = true; }
@@ -84,6 +92,12 @@ export function minigamePage(cfg, GAMES) {
       v[g.purse] = (Number(v[g.purse]) || 0) + cur.pay;
       // a holder's var (held:bag:gold): said as the bag transfer it is, so the bag mechanic carries it
       if (g.purse.indexOf('held:') === 0) __inputQueue.push({ type: 'in:' + g.purse.slice(5) + ':' + cur.pay });
+    }
+    // (every round won raises its `each`: a commendation; past a rank's worth, a promotion said)
+    if (cur.won && g.each) {
+      v[g.each] = (Number(v[g.each]) || 0) + 1;
+      if (g.each.indexOf('held:') === 0) __inputQueue.push({ type: 'in:' + g.each.slice(5) + ':1' });
+      if (cur.G.rankOf && g.level === g.each && cur.G.rankOf(cur.count + 1) > cur.G.rankOf(cur.count)) cur.promoted = cur.G.rankTitle(cur.G.rankOf(cur.count + 1));
     }
     __inputQueue.push({ type: 'minigame-done:' + g.id });
     __inputQueue.push({ type: (cur.won ? 'minigame-won:' : 'minigame-lost:') + g.id });
@@ -99,6 +113,7 @@ export function minigamePage(cfg, GAMES) {
     if (cur.phase === 'result') { if (a === 'end' || a === 'go') close(); return; }
     if (a === 'end') return finish();
     const G = cur.G, k = cur.g.game;
+    if (G.renderHtml) { if (a && typeof a === 'object') cur.s = G.step(cur.s, a); dirty = true; return; }
     if (k === 'blocks') cur.s = G.step(cur.s, a);
     else if (k === 'match') {
       if (a === 'pick') cur.s = G.step(cur.s, { type: 'select', x: cur.cx, y: cur.cy });
@@ -117,6 +132,13 @@ export function minigamePage(cfg, GAMES) {
     // the result goes on Space or Enter only: a key still held from the round never skips it
     if (cur.phase === 'result') { if (!ev.repeat && (ev.code === 'Space' || ev.code === 'Enter')) close(); return; }
     const a = (KEYS[cur.g.game] || {})[ev.code];
+    if (cur.G.renderHtml) {
+      // (a page's keys: a number answers, a bracket turns the tabs)
+      if (a === undefined || ev.repeat) return;
+      if (/^Bracket/.test(ev.code)) { const T = cur.G.tabs || [], i = T.indexOf(cur.s.tab); if (T.length) act({ type: 'tab', tab: T[(i + a + T.length) % T.length] }); }
+      else act({ type: 'answer', k: a });
+      return;
+    }
     if (!a) return;
     if (cur.g.game === 'fishing') { if (!ev.repeat) act('reel'); return; }
     if (cur.g.game === 'mowing') { if (!ev.repeat) act({ key: a, on: true }); return; }
@@ -132,6 +154,8 @@ export function minigamePage(cfg, GAMES) {
   root.addEventListener('pointerdown', (ev) => {
     if (!cur) return;
     if (cur.phase === 'result') return close();
+    // (a page's controls: each says its action)
+    if (cur.G.renderHtml) { const el = ev.target.closest && ev.target.closest('[data-act]'); if (el) { try { act(JSON.parse(el.getAttribute('data-act'))); } catch (e) { /* a control that says nothing */ } } return; }
     const fr = ev.target.closest('.moj-mini-frame');
     if (!fr) return;
     if (cur.g.game === 'fishing') return act('reel');
@@ -155,6 +179,7 @@ export function minigamePage(cfg, GAMES) {
   function draw(now) {
     // a frame at most every 50 ms (at once after a key), and only when the raster or the facts changed
     if (!dirty && lastDraw >= 0 && now - lastDraw < 50) return;
+    if (cur.G.renderHtml) return drawPage(now);
     const svg = cur.G.renderWorldSvg(cur.s), f = facts(), key = svg + JSON.stringify(f);
     lastDraw = now;
     if (!dirty && key === lastKey) return;
@@ -166,6 +191,19 @@ export function minigamePage(cfg, GAMES) {
       : '<div class="moj-mini-msg">' + esc(f.msg || '') + '</div><div class="moj-mini-keys">' + esc(HINT[g.game] || '') + '</div>';
     root.innerHTML = '<div class="moj-w moj-mini-box"><div class="moj-mini-t">' + esc(g.title) + '</div><div class="moj-mini-row"><div class="moj-mini-frame">' + svg + curEl + '</div><div class="moj-mini-facts">' +
       f.rows.map((r) => '<div><span class="k">' + esc(r[0]) + '</span><span>' + esc(r[1]) + '</span></div>').join('') + '</div></div>' + end + '</div>';
+  }
+
+  // a game drawn as a page: its own page, and under it at the end what the round came to
+  function drawPage(now) {
+    const g = cur.g, o = cur.G.resolveOverlay(cur.s), html = cur.G.renderHtml(cur.s);
+    const end = cur.phase === 'result'
+      ? '<div class="moj-w" style="margin-top:8px;text-align:center"><div class="moj-mini-end">' + (cur.won ? 'Quota met' : 'Quota missed') + '</div><div>' + esc(o.message || '') + (cur.pay ? ' · +' + cur.pay + ' pay' : '') + (cur.promoted ? ' · Promoted to ' + esc(cur.promoted) + '! Your new responsibilities include all of your old ones, and Kevin\'s.' : cur.won && g.each ? ' · A commendation for your file.' : '') + '</div><div class="moj-mini-keys">Space to go on</div></div>'
+      : '<div class="moj-mini-keys" style="margin-top:6px;text-align:center">' + esc(HINT[g.game] || '') + '</div>';
+    const key = html + end;
+    lastDraw = now;
+    if (!dirty && key === lastKey) return;
+    lastKey = key; dirty = false;
+    root.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto">' + html + end + '</div>';
   }
 
   function listen() {
@@ -206,13 +244,14 @@ export function minigamePage(cfg, GAMES) {
   return api;
 }
 
-const FILES = { blocks: ['brickster-core.js', 'brickster-skin.js'], match: ['philosophers-stone-core.js', 'philosophers-stone-skin.js'], fishing: ['fishing-core.js', 'fishing-skin.js'], mowing: ['mowing-core.js', 'mowing-skin.js'] };
+const FILES = { blocks: ['brickster-core.js', 'brickster-skin.js'], match: ['philosophers-stone-core.js', 'philosophers-stone-skin.js'], fishing: ['fishing-core.js', 'fishing-skin.js'], mowing: ['mowing-core.js', 'mowing-skin.js'], deskwork: ['../deskwork/core.js', '../deskwork/skin.js'] };
 // each game's face to the page: its reducer, its raster, its facts (match is the timed trial)
 const FACE = {
   blocks: '{ newGame: (s) => newGame(s), step, renderWorldSvg: (s) => renderWorldSvg(s, 4), resolveOverlay, gravityMs }',
   match: "{ newGame: (s) => newGame(s, { mode: 'timed' }), step, renderWorldSvg: (s) => renderWorldSvg(s, 3), resolveOverlay }",
   fishing: '{ newGame: (s, o) => newGame(s, o), step, renderWorldSvg: (s) => renderWorldSvg(s, 4), resolveOverlay }',
   mowing: '{ newGame: (s, o) => newGame(s, o), step, renderWorldSvg: (s) => renderWorldSvg(s, 4), resolveOverlay }',
+  deskwork: '{ newGame: (s, o) => newGame(s, o), step, renderHtml, resolveOverlay, wonOf, css: DESK_CSS, tabs: TABS, rankOf: (n) => Math.min(RANKS.length - 1, Math.floor(n / PER_RANK)), rankTitle }',
 };
 /** One game's code as an expression: its core and skin in a scope of their own (their names may meet another's). */
 export const gameSource = (game) => `(function () {\n${FILES[game].map(inlineSource).join('\n')}\nreturn ${FACE[game]};\n})()`;

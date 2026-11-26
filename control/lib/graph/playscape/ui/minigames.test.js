@@ -155,6 +155,37 @@ describe('the page: a round in a window over the field', () => {
     expect(P.queue.map((e) => e.type)).toEqual(['minigame-done:grounds', 'minigame-won:grounds']);
   });
 
+  it('deskwork: a page of its own at the rank its commendations make; answered right, its quota met pays, commends and promotes', () => {
+    const sched = [{ at: 1, kind: 'invoice', patience: 60 }, { at: 2, kind: 'decision', patience: 60 }];
+    const desk = { id: 'desk', game: 'deskwork', gold: 0.1, purse: 'held:bag:coin', level: 'held:bag:commendation', each: 'held:bag:commendation', schedules: [sched, sched] };
+    const P = page({ minigames: [desk] }, { 'held:bag:coin': 5, 'held:bag:commendation': 1 });
+    P.api.open('desk');
+    expect(P.api.game()).toMatchObject({ rank: 0, tab: 'inbox' });
+    expect(P.window.__mojFreeze).toBe(true);
+    // (a bracket turns the tabs; a number answers the open ticket's step)
+    P.key('BracketRight');
+    expect(P.api.game().tab).toBe('invoices');
+    P.frames(60, 50);
+    for (let guard = 0; guard < 20; guard++) {
+      const s = P.api.game(), x = s.tickets.find((y) => y.state === 'open');
+      if (!x) break;
+      P.api.act({ type: 'open', id: x.id });
+      P.key(`Digit${x.steps[x.on].answer + 1}`);
+    }
+    expect(P.api.game().served).toBe(2);
+    P.key('Escape');
+    const r = P.api.state();
+    expect(r).toMatchObject({ phase: 'result', won: true, score: 200, pay: 20 });
+    expect(P.bus.vars['held:bag:coin']).toBe(25);
+    expect(P.bus.vars['held:bag:commendation']).toBe(2);
+    expect(P.queue.map((e) => e.type)).toEqual(['in:bag:coin:20', 'in:bag:commendation:1', 'minigame-done:desk', 'minigame-won:desk']);
+    // (two commendations a promotion: the next shift is an Associate's of a sort, on the next rank's schedule)
+    P.key('Space');
+    P.api.open('desk');
+    expect(P.api.game().rank).toBe(1);
+    expect(() => readMinigames({ minigames: [{ id: 'a', game: 'fishing', schedules: [sched] }] })).toThrow(/schedules/);
+  });
+
   it('match: the arrows move the cursor, a pick selects; Escape ends the round as it stands', () => {
     const P = page({ minigames: [{ id: 'derby', game: 'match' }] });
     P.api.open('derby');
