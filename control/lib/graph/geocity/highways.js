@@ -15,6 +15,12 @@
  *   deckAt(h, u)   its deck's top at u
  *   HIGHWAY        its numbers: a lane, a shoulder, the median, the deck's depth, a pier's stride, the clearance and the
  *                  rise it flies over another by, the steepest it climbs, the clearance kept each side of its deck
+ *   RAMP           a ramp's numbers: its width, the room the corridor keeps for it each side, its grade, how far short of
+ *                  a crossing it lands, the barrier left open where it meets the deck
+ *   rampsOf(d)     → [{ id, highway, axis, at: [across], side, u0, u1, z0, z1, w, port? }]: a district with a dock's ramps
+ *                  (design.js `dock`): at each arterial a land highway crosses, one each side, beside its deck, from the
+ *                  deck's top (u0, z0) down to the street (u1, z1) short of the crossing, the way its traffic runs on
+ *                  that side; and one from the shore's highway down into the port, on its water side. Driven both ways
  *   highwayLaws(d, hs) → [{ law, ok, value }]: each no steeper than it climbs, clear of the ground under it, a flyover
  *                  clear of the deck it crosses, its corridor clear of every block (no neighbourhood within its deck and
  *                  its clearance)
@@ -142,7 +148,7 @@ export function highwaysOf(d) {
     const stations = h.us.flatMap((u, i) => [r2(u), r2(h.z[i])]);
     // (its corridor: the ground its deck and its clearance stand over, kept clear of blocks and of what stands taller
     // than its underside)
-    const c = h.w / 2 + HIGHWAY.side, corridor = (h.axis === 'x' ? [h.lo, h.at - c, h.hi, h.at + c] : [h.at - c, h.lo, h.at + c, h.hi]).map(r2);
+    const c = h.w / 2 + HIGHWAY.side + (d.spec?.dock ? RAMP.room : 0), corridor = (h.axis === 'x' ? [h.lo, h.at - c, h.hi, h.at + c] : [h.at - c, h.lo, h.at + c, h.hi]).map(r2);
     return { id: h.id, role: h.role, along: h.along, axis: h.axis, at: r3(h.at), lo: r2(h.lo), hi: r2(h.hi), w: h.w, lanes: h.lanes, H: h.H, stations, piers, corridor, ...(h.water ? { water: true } : {}), ...(h.boulevard ? { boulevard: true } : {}), ...(h.joins ? { joins: h.joins } : {}), ...(h.over ? { over: h.over } : {}) };
   });
   // (a deck's profile before it is held: the deck being laid's z at u)
@@ -180,4 +186,41 @@ export function highwayLaws(d, hs) {
     { law: 'highway-grade', ok: steep <= HIGHWAY.grade + 1e-3, value: `${hs.length} highways, the steepest ${(steep * 100).toFixed(1)}%`, want: `≤ ${HIGHWAY.grade * 100}%` },
     { law: 'highway-clear', ok: low >= HIGHWAY.clear - 1e-3 && (fly === Infinity || fly >= HIGHWAY.clear - 1e-3), value: `${Number.isFinite(low) ? low.toFixed(1) : '—'} m under its decks at the least${fly < Infinity ? `, ${fly.toFixed(1)} m under a flyover` : ''}`, want: `≥ ${HIGHWAY.clear} m` },
   ];
+}
+
+
+// A RAMP between a deck and the ground beside it (m): its width, the room the corridor keeps for it each side of the
+// deck, its grade, how far short of a crossing it lands, and how much of the deck's barrier is left open where it meets
+export const RAMP = Object.freeze({ w: 7.5, room: 8, grade: 0.075, short: 14, open: 50 });
+
+export function rampsOf(d) {
+  const out = [], hws = d.highways ?? [], ground = (x, y) => (typeof d.land?.S === 'function' ? d.land.S(x, y) : 0) ?? 0;
+  for (const h of hws) {
+    if (h.water) continue;
+    const half = h.w / 2, off = half + RAMP.room / 2, P = (u, o) => (h.axis === 'x' ? [u, h.at + o] : [h.at + o, u]);
+    // (the arterials it crosses: across its axis, within its run)
+    const cross = (d.lines ?? []).filter((l) => (h.axis === 'x' ? l.axis === 'ns' : l.axis === 'ew') && l.at > h.lo + 40 && l.at < h.hi - 40).map((l) => l.at).sort((a, b) => a - b);
+    for (const uc of cross) for (const sg of [1, -1]) {
+      // (its traffic keeps right: on the +across side it runs toward -u, so a ramp there lands short of the crossing
+      // coming from +u; on the -across side toward +u)
+      // (its length its rise over its grade, the deck's top read where it leaves it: found again till it holds)
+      const dir = sg > 0 ? -1 : 1, u1 = uc - dir * RAMP.short, [x1, y1] = P(u1, sg * off), zg = ground(x1, y1);
+      let u0 = u1 - dir * Math.max(40, (deckAt(h, u1) - zg) / RAMP.grade);
+      for (let k = 0; k < 10; k++) u0 = u1 - dir * Math.max(40, (deckAt(h, u0) - zg) / RAMP.grade);
+      if (u0 < h.lo + 10 || u0 > h.hi - 10) continue;
+      out.push({ id: `ramp-${h.id}-${Math.round(uc)}-${sg > 0 ? 'p' : 'n'}`, highway: h.id, axis: h.axis, at: r3(h.at + sg * off), side: sg, u0: r2(u0), u1: r2(u1), z0: r2(deckAt(h, u0)), z1: r2(zg), w: RAMP.w });
+    }
+  }
+  // (the port's: from the shore's highway down into it, on its water side, along its middle)
+  const Wm = d.waterfront?.find((w) => w.main), port = Wm?.segments.find((g) => g.kind === 'port'), shore = hws.find((h) => h.role === 'shore' || h.boulevard);
+  if (port && shore && Wm) {
+    const toWater = Wm.side === 's' || Wm.side === 'w' ? -1 : 1, off = shore.w / 2 + RAMP.room / 2, mid = (port.a0 + port.a1) / 2, P = (u, o) => (shore.axis === 'x' ? [u, shore.at + o] : [shore.at + o, u]);
+    // (its foot in the port's yard, its top back along the deck at its grade, found again till it holds)
+    const u1 = Math.min(port.a1 - 20, mid + 30), [xf, yf] = P(u1, toWater * off), zg = ground(xf, yf) + 0.15;
+    let top = u1 - (deckAt(shore, u1) - zg) / RAMP.grade;
+    for (let k = 0; k < 4; k++) top = Math.max(shore.lo + 10, u1 - (deckAt(shore, top) - zg) / RAMP.grade);
+    const zd = deckAt(shore, top);
+    out.push({ id: `ramp-${shore.id}-port`, highway: shore.id, axis: shore.axis, at: r3(shore.at + toWater * off), side: toWater, u0: r2(top), u1: r2(u1), z0: r2(zd), z1: r2(zg), w: RAMP.w, port: true });
+  }
+  return out;
 }

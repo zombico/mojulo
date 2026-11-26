@@ -17,7 +17,7 @@ describe('Hijack City', () => {
     expect(() => readGameworld(W)).not.toThrow();
     expect(Object.values(W.levels)[0].geocity).toBeTruthy();
     expect(W.errands.filter((e) => e.mission).map((e) => !!e.mission.final)).toContain(true);
-    expect(W.law).toBe(true); expect(W.shops).toEqual({ respray: true, guns: true });
+    expect(W.law).toBe(true); expect(W.shops).toEqual({ respray: true, guns: true, forger: true });
     // (each word a person grows it by is a key of the world)
     for (const k of Object.keys(HIJACK_GROWS)) expect(k in W, k).toBe(true);
     // a plain value: the same words, the same world
@@ -75,9 +75,10 @@ describe('Hijack City', () => {
 
   it('stands in a district by its word: downtown as it was, the inner city\'s low-rise or the suburbs, each its ring\'s', () => {
     expect(hijackCityWorld({ district: 'downtown' })).toEqual(hijackCityWorld());
-    // (and its museum across from the start, geocity/museum.js; none where it asks for none)
-    expect(hijackCityWorld().levels.district.geocity).toEqual({ ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), museum: { ...HIJACK_MUSEUM } });
-    expect(hijackCityWorld({ museum: false }).levels.district.geocity).toEqual(JSON.parse(JSON.stringify(HIJACK_DISTRICT)));
+    // (a car park of it built as the dump, where the bin round empties its truck: jobsified.js; a working dock; and its
+    // museum across from the start, geocity/museum.js, none where it asks for none)
+    expect(hijackCityWorld().levels.district.geocity).toEqual({ ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), dump: true, dock: true, museum: { ...HIJACK_MUSEUM } });
+    expect(hijackCityWorld({ museum: false }).levels.district.geocity).toEqual({ ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), dump: true, dock: true });
     expect(() => hijackCityWorld({ district: 'uptown' })).toThrow(/district is/);
     // (each district's neighbourhood its ring's, and lived in: the inner city's walk-ups and low-rises among its
     // midrises, the suburbs' houses and garden apartments)

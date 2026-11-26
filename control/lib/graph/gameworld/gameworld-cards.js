@@ -93,7 +93,7 @@ import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.
 import { CRAFT } from '../skyscape/eye.js';
 import { MAP_FORMS } from '../skyscape/map.js';
 import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
-import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
+import { STALLS as MINIGAME_IDS } from '../playscape/ui/minigames.js';
 import { ROOMS_KEPT } from './minigames.js';
 import { JUICE_REGISTERS, JUICE_LOOKS, JUICE_FLAVORS, JUICE_DIALS, juiceFloor, juiceSignature } from '../scene/juice-style.js';
 import { WCD_KINDS, WCD_VIAS, WCD_PRINCIPLES } from '../wcd/wcd.js';
@@ -1081,6 +1081,8 @@ function hijackCityCard() {
     '  law: true | { stars, per, cars, armed, calm, busted, fine }   mayhem raises stars; police on foot and in cars',
     '  shops: { respray, guns }   repaint and lose the police; rounds for the sidearm (Q fires, R holsters it)',
     '  factions.<id>          crews: turf, rivals, a board of acts (torch, tag, take)   app: \'taskfu\' fares on the phone',
+    '  errands[].vehicle     a driving job on the Jobsified app (jobsified.js): garbage (piles held at, F, emptied at the',
+    '                        dump, geocity `dump: true`), heavy (a call: trucks and machines to sites), bus (stops, riders), excavator (operated)',
     '  ui.theme, sound, music  the look (theme cards), the car\'s sounds, the score (walk, chase, tension)',
     '',
     'GROW IT: rename it; the hero (create_character words); its suburbs (`geocity.outskirts`: west-coast, tropical,',

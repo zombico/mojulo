@@ -15,6 +15,8 @@
  * as sketch.title || manifest.title || descriptor.title.
  */
 
+import { jobStopsOf } from '../scene/channels/job-stops.js';
+import { operateOf } from '../scene/channels/operate.js';
 import { posedCoatClips } from '../polygonizer/coat-poses.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity, CITY_METERS_PER_UNIT } from '@/lib/graph/city/fractal-city';
@@ -223,6 +225,10 @@ import { phoneUi } from '@/lib/graph/gameworld/phone-ui.js';
 
 // where a played level's driven cars stand (gameworld/cars.js: entities with a cab): the scene draws no parked car there
 const pooledOf = (m) => [...new Set((Array.isArray(m.entities) ? m.entities : []).map((e) => e?.mount?.pool?.model).filter((x) => typeof x === 'string'))];
+// (the models of cabs whose bodies move their parts, `mount.pool.gate`: a driving job's garbage truck, gameworld/cars.js)
+const gatedOf = (m) => [...new Set((Array.isArray(m.entities) ? m.entities : []).filter((e) => e?.mount?.pool?.gate).map((e) => e.mount.pool.model))];
+// (the building sites whose excavator a level operates, a dig job's: the scene stages none there, scene/channels/operate.js)
+const operatedSites = (m) => (m.game?.mechanics ?? []).filter((x) => x?.kind === 'shift' && x.mode === 'dig' && x.site).map((x) => x.site);
 const drivenOf = (m) => (Array.isArray(m.entities) ? m.entities.filter((e) => e?.mount?.cab && Array.isArray(e.transform?.pos)).map((e) => e.transform.pos) : []);
 
 const svgDataUrl = (svg) => `data:image/svg+xml;base64,${Buffer.from(String(svg), 'utf8').toString('base64')}`;
@@ -632,7 +638,7 @@ export const WORLD_KINDS = {
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
       // stand-in walks it)
       // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
-      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k)), (k) => (m.figures?.[k]?.crowd === 'real' ? `${k}:near` : null)).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null; return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
+      if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k)), (k) => (m.figures?.[k]?.crowd === 'real' ? `${k}:near` : null)).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null, stops = jobStopsOf(m), op = operateOf(m); return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}), ...(stops ? { jobStops: stops } : {}), ...(op ? { operate: op } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m), ...(gatedOf(m).length ? { gated: gatedOf(m) } : {}) } : {}), ...(operatedSites(m).length ? { operated: operatedSites(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
       const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },

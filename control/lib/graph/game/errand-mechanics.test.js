@@ -141,3 +141,173 @@ describe('an errand on one level', () => {
     expect(() => composeMechanics([{ kind: 'deliver', at: [0, 0, 0], wants: [{ item: 'eggs' }] }], { player: 'hero', storeSchema: { slices: [{ name: 'hero', kind: 'character' }] } })).toThrow(/slice 'bag' is not in the store/);
   });
 });
+
+describe('shift: a driving job in a city vehicle, from its depot and back (gameworld/jobsified.js)', () => {
+  const DEPOT = [0, 40, 0], STOPS = [[60, 0, 0], [120, 0, 0]];
+  const SHIFT = { kind: 'shift', id: 'bins', depot: DEPOT, radius: 9, cabs: ['car-7', 'car-9'], stops: STOPS.map((at) => ({ at })), reward: [{ item: 'coin', n: 40 }], after: 'took-bins', vehicle: 'garbage truck', yard: 'works yard', done: 'Bins emptied' };
+  const TASK = { kind: 'task', id: 'bins', app: 'jobsified', flag: 'took-bins', name: 'Jobsified', subscribe: true };
+  // (a bus a walker steps through, with whole events fed between: the mount's { type, rider, mount })
+  function drive(mechs, script) {
+    const c = composeMechanics([{ kind: 'bag', slice: 'bag' }, ...mechs, EXIT], ctx), ev = c.events, s = B.createBusState(ev, ev.entities);
+    let prev;
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } };
+    pump([]);
+    for (const step of script) {
+      if (step.at) for (let f = 0; f < 2; f++) { const z = B.deriveZoneEvents([{ id: 'hero', position: step.at }], prev, ev.sources); prev = z.prev; pump(z.events); }
+      if (step.ev) pump([step.ev]);
+      if (step.secs) for (let k = 0; k < Math.round(step.secs * 10); k++) pump(B.tickTimers(s, 0.1));
+    }
+    return { vars: s.vars, log: s.log.map((r) => r.type), warps: s._ctrlWarps };
+  }
+  const take = { ev: { type: 'app:take:bins' } }, inCab = (m = 'car-7') => ({ ev: { type: 'mounted', rider: 'hero', mount: m } }), out = (m = 'car-7') => ({ ev: { type: 'dismounted', rider: 'hero', mount: m } });
+  // (at a place, the key held for its seconds and let go, then on a little)
+  const holdAt = (at, secs = 1.6) => [{ at }, { ev: { type: 'shift:hold:bins' } }, { secs }, { ev: { type: 'shift:let:bins' } }, { at: [at[0], 40, 0] }];
+  // ROUTE: its stops in order, each held at (its doors open); the last pays
+  const ROUTE = { ...SHIFT, mode: 'route', hold: 1.5, done: 'Doors closed' }, round = [...holdAt(STOPS[0]), ...holdAt(STOPS[1])];
+
+  it('route: the next stop held at in the vehicle once taken is made; the last made pays', () => {
+    const r = drive([ROUTE, TASK], [take, inCab(), ...round]);
+    expect(r.log).toEqual(expect.arrayContaining(['flag:on-bins', 'flag:stop-bins-1', 'flag:stop-bins-2', 'flag:done-bins', 'errand:done:bins']));
+    expect(r.vars[H('coin')]).toBe(40);
+  });
+  it('route: nothing counts before it is taken, on foot, in a vehicle not its own, out of order or for a short hold', () => {
+    for (const script of [[inCab(), ...round], [take, ...round], [take, inCab('car-3'), ...round], [take, inCab(), out(), ...round], [take, inCab(), ...holdAt(STOPS[1])], [take, inCab(), ...holdAt(STOPS[0], 0.5)]]) {
+      const r = drive([ROUTE, TASK], script);
+      expect(r.log).not.toContain('errand:done:bins');
+      expect(r.log.filter((t) => t.startsWith('flag:stop-'))).toEqual([]);
+    }
+    // (taken while already in one: on the clock at once)
+    expect(drive([ROUTE, TASK], [inCab(), take, ...round]).log).toContain('errand:done:bins');
+  });
+  it('route: a one-off pays once; a standing one begins again from its first stop and pays again', () => {
+    const twice = drive([ROUTE, TASK], [take, inCab(), ...round, ...round]);
+    expect(twice.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+    const again = drive([{ ...ROUTE, repeat: true }, TASK], [take, inCab(), ...round, ...round]);
+    expect(again.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    expect(again.vars[H('coin')]).toBe(80);
+    expect(again.vars['next-bins']).toBe(1);
+  });
+  it('is paid with a card: its name over its pay', () => {
+    const c = composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...ROUTE, repeat: true }, EXIT], ctx);
+    expect(c.events.hud).toContainEqual({ on: 'shift:paid:bins', as: 'banner', text: 'Route complete', sub: 'Paid 40 coin · another when you are ready' });
+  });
+  // COLLECT: piles held at in the vehicle, a load, emptied at the dump
+  const PILES = [[60, 0, 0], [120, 0, 0], [180, 0, 0]], DUMP = [300, 0, 0];
+  const COLLECT = { ...SHIFT, mode: 'collect', stops: PILES.map((at) => ({ at })), load: 2, hold: 1, unload: { at: DUMP, half: [12, 8] } };
+  it('collect: a pile held at in the vehicle for its seconds is taken on; a short hold, on foot, or with the vehicle full takes nothing', () => {
+    const r = drive([COLLECT, TASK], [take, inCab(), ...holdAt(PILES[0], 1.2)]);
+    expect(r.log).toContain('flag:stop-bins-1');
+    expect(r.vars['load-bins']).toBe(1);
+    expect(drive([COLLECT, TASK], [take, inCab(), ...holdAt(PILES[0], 0.5)]).vars['load-bins']).toBe(0);
+    expect(drive([COLLECT, TASK], [take, inCab(), out(), ...holdAt(PILES[0])]).vars['load-bins']).toBe(0);
+    const full = drive([COLLECT, TASK], [take, inCab(), ...holdAt(PILES[0]), ...holdAt(PILES[1]), ...holdAt(PILES[2])]);
+    expect(full.vars['load-bins']).toBe(2);
+    expect(full.vars['flag-full-bins']).toBe(1);
+    expect(full.log).toContain('shift:isfull:bins');
+    expect(full.vars['flag-stop-bins-3']).toBe(0);
+  });
+  it('collect: full, emptied at the dump it pays and is empty again; not full, it says so; every pile taken, all are laid again', () => {
+    const r = drive([{ ...COLLECT, repeat: true }, TASK], [take, inCab(), ...holdAt(PILES[0]), { at: DUMP }, { at: [250, 40, 0] }, ...holdAt(PILES[1]), { at: DUMP }]);
+    expect(r.log).toContain('shift:short:bins');
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+    expect(r.vars[H('coin')]).toBe(40);
+    expect(r.vars['load-bins']).toBe(0);
+    expect(r.vars['flag-full-bins']).toBe(0);
+    const swept = drive([{ ...COLLECT, load: 3 }, TASK], [take, inCab(), ...PILES.flatMap((p) => holdAt(p))]);
+    expect(swept.log).toContain('shift:swept:bins');
+    expect(PILES.map((_, k) => swept.vars[`flag-stop-bins-${k + 1}`])).toEqual([0, 0, 0]);
+  });
+  // HAUL: driven to its site, paid; got out there, taken back to its spot
+  const HAUL = { kind: 'shift', mode: 'haul', id: 'bins', depot: [0, 0, 0], cabs: ['car-7'], site: { at: [400, 0, 0], half: [20, 15] }, back: [0, 0, 0], reward: [{ item: 'coin', n: 60 }], after: 'took-bins', repeat: true };
+  it('haul: driven to its site it pays once a run; got out there, it goes back to its spot and the next run is open', () => {
+    const r = drive([HAUL, TASK], [take, inCab(), { at: [200, 0, 0] }, { at: [395, 10, 0] }, { at: [380, 0, 0] }, { at: [395, 10, 0] }]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+    expect(r.vars[H('coin')]).toBe(60);
+    const back = drive([HAUL, TASK], [take, inCab(), { at: [395, 10, 0] }, out()]);
+    expect(back.warps).toEqual({ 'car-7': [0, 0, 0] });
+    expect(back.vars['delivered-bins']).toBe(0);
+    expect(back.vars['flag-on-bins']).toBe(0);
+    // (on foot at the site: nothing)
+    expect(drive([HAUL, TASK], [take, { at: [395, 10, 0] }]).log).not.toContain('errand:done:bins');
+  });
+  it('haul of several calls: only the vehicle called counts; each delivered and left goes back, the next called; after the last, the first', () => {
+    const CALLS = { ...HAUL, cabs: ['car-7', 'car-8'], calls: [{ cab: 'car-7', site: { at: [400, 0, 0], radius: 10 }, back: [0, 0, 0] }, { cab: 'car-8', site: { at: [0, 400, 0], radius: 10 }, back: [5, 0, 0] }] };
+    // (the second's vehicle while the first is called: nothing)
+    expect(drive([CALLS, TASK], [take, inCab('car-8'), { at: [0, 400, 0] }]).log).not.toContain('errand:done:bins');
+    const r = drive([CALLS, TASK], [take, inCab('car-7'), { at: [400, 0, 0] }, out('car-7'), inCab('car-8'), { at: [0, 400, 0] }, out('car-8')]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    expect(r.vars[H('coin')]).toBe(120);
+    expect(r.vars['call-bins']).toBe(1);
+    expect(r.warps).toEqual({ 'car-7': [0, 0, 0], 'car-8': [5, 0, 0] });
+    expect([1, 2].map((k) => [r.vars[`flag-on-bins-${k}`], r.vars[`flag-done-bins-${k}`]])).toEqual([[0, 0], [0, 0]]);
+    // (mid-round, each call's own flags kept for the guide)
+    const mid = drive([CALLS, TASK], [take, inCab('car-7'), { at: [400, 0, 0] }, out('car-7')]);
+    expect([mid.vars['call-bins'], mid.vars['flag-on-bins-1'], mid.vars['flag-done-bins-1']]).toEqual([2, 1, 1]);
+  });
+  // DIG: an operated machine; the page says each scoop and each tip
+  const DIG = { kind: 'shift', mode: 'dig', id: 'bins', depot: [0, 0, 0], cabs: ['op-bins'], loads: 2, reward: [{ item: 'coin', n: 70 }], after: 'took-bins', repeat: true };
+  const scoop = { ev: { type: 'shift:scoop:bins' } }, tip = { ev: { type: 'shift:tip:bins' } };
+  it('dig: in the machine, a scoop fills the bucket and a tip empties it into the truck; its loads pay and the truck goes off empty', () => {
+    const r = drive([DIG, TASK], [take, inCab('op-bins'), scoop, tip, scoop, scoop, tip]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+    expect(r.vars[H('coin')]).toBe(70);
+    expect([r.vars['load-bins'], r.vars['bucket-bins']]).toEqual([0, 0]);
+    // (a tip with nothing in the bucket, or out of the machine, or before the job is taken: nothing)
+    expect(drive([DIG, TASK], [take, inCab('op-bins'), tip, tip]).vars['load-bins']).toBe(0);
+    expect(drive([DIG, TASK], [take, scoop, tip]).vars['load-bins']).toBe(0);
+    expect(drive([DIG, TASK], [inCab('op-bins'), scoop, tip]).vars['load-bins']).toBe(0);
+  });
+  // SWEEP: litter driven over in the vehicle
+  const SWEEP = { kind: 'shift', mode: 'sweep', id: 'bins', depot: [0, 0, 0], cabs: ['car-7'], stops: [[30, 0, 0], [60, 0, 0], [90, 0, 0], [120, 0, 0]].map((at) => ({ at, radius: 3 })), reward: [{ item: 'coin', n: 35 }], after: 'took-bins', repeat: true };
+  const sweepAll = [{ at: [30, 0, 0] }, { at: [60, 0, 0] }, { at: [90, 0, 0] }, { at: [120, 0, 0] }];
+  it('sweep: each heap driven over in the vehicle is swept once; every one swept pays, and the streets get dirty again', () => {
+    const r = drive([SWEEP, TASK], [take, inCab(), ...sweepAll, { at: [60, 40, 0] }, ...sweepAll]);
+    expect(r.log.filter((t) => t === 'errand:done:bins')).toHaveLength(2);
+    expect(r.vars[H('coin')]).toBe(70);
+    expect(r.log).toContain('shift:part:2:bins');
+    // (on foot, or half the street: nothing paid)
+    expect(drive([SWEEP, TASK], [take, ...sweepAll]).log).not.toContain('errand:done:bins');
+    expect(drive([SWEEP, TASK], [take, inCab(), ...sweepAll.slice(0, 3)]).log).not.toContain('errand:done:bins');
+  });
+  // MOW: a timed round on the lawn, in the mower
+  const CELLS = [[30, 0, 0], [40, 0, 0], [50, 0, 0], [60, 0, 0]];
+  const MOW = { kind: 'shift', mode: 'mow', id: 'bins', depot: [0, 0, 0], cabs: ['car-7'], back: [0, 0, 0], stops: CELLS.map((at) => ({ at, half: [2, 2] })), time: 20, goal: 0.75, item: 'lawn', vehicle: 'ride-on mower', yard: 'park', reward: [{ item: 'coin', n: 45 }], after: 'took-bins', repeat: true, pitch: 'Parks office: the crew is off sick.' };
+  const mowAll = CELLS.map((at) => ({ at }));
+  it('mow: taken out, a round on the clock; enough of the lawn cut in it pays; got off, the mower goes back to its shed', () => {
+    const r = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 3)]);
+    expect(r.log).toContain('errand:done:bins');
+    expect(r.vars[H('coin')]).toBe(45);
+    // (the round over: off the clock; the lawn stays cut till the next)
+    expect(r.vars['live-bins']).toBe(0);
+    expect(r.vars['flag-on-bins']).toBe(0);
+    expect(r.vars['flag-stop-bins-1']).toBe(1);
+    // (on foot, or not enough of it: nothing paid)
+    expect(drive([MOW, TASK], [take, ...mowAll]).log).not.toContain('errand:done:bins');
+    expect(drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2)]).log).not.toContain('errand:done:bins');
+    // (got off: the mower back to its shed, the round ended and its grass grown back; in again, another round)
+    const off = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2), out(), { at: [0, 30, 0] }]);
+    expect(off.warps?.['car-7']).toEqual([0, 0, 0]);
+    expect(off.vars).toMatchObject({ 'live-bins': 0, 'n-bins': 0, 'flag-stop-bins-1': 0, 'flag-on-bins': 0 });
+    const again = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2), out(), inCab(), ...mowAll.slice(0, 3)]);
+    expect(again.log.filter((t) => t === 'errand:done:bins')).toHaveLength(1);
+  });
+  it('mow: the clock run out ends the round unpaid, its grass grown back; the pitch said as it is taken', () => {
+    const r = drive([MOW, TASK], [take, inCab(), ...mowAll.slice(0, 2), { secs: 21 }, ...mowAll.slice(2)]);
+    expect(r.log).toContain('shift:timeout:bins');
+    expect(r.log).not.toContain('errand:done:bins');
+    expect(r.vars).toMatchObject({ 'live-bins': 0, 'left-bins': 0, 'flag-stop-bins-1': 0 });
+    const { hud } = composeMechanics([{ kind: 'bag', slice: 'bag' }, MOW, TASK, EXIT], ctx).events;
+    expect(hud.find((h) => h.as === 'banner')).toMatchObject({ text: 'Lawn mowed' });
+    expect(hud.find((h) => h.on === 'shift:timeout:bins')).toMatchObject({ as: 'toast' });
+    expect(hud.find((h) => h.text === MOW.pitch).on).toBe('flag:took-bins');
+  });
+  it('a malformed shift says what is wrong', () => {
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...COLLECT, load: 9 }, EXIT], ctx)).toThrow(/load is how many/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...HAUL, site: undefined }, EXIT], ctx)).toThrow(/site is/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, mode: 'fly' }, EXIT], ctx)).toThrow(/mode is/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...DIG, loads: 0 }, EXIT], ctx)).toThrow(/loads is/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, cabs: [] }, EXIT], ctx)).toThrow(/cabs is the ids/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, stops: [] }, EXIT], ctx)).toThrow(/stops is/);
+    expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...SHIFT, depot: [1, 2] }, EXIT], ctx)).toThrow(/depot is/);
+  });
+});

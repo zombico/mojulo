@@ -104,6 +104,12 @@
  *                   BLOCK ('D3.2.1') laid by one of the geotown's block segments (true: the block's own if it is one,
  *                   else its ring's; or `{ segment: 'main-street' }`), cropped to its block and centred in the metro's
  *
+ *     dock          true: a working port on the main shore before the evocation (waterfront.js `port`: its yard, its
+ *                   containers, its warehouse and its trucks' bays), a ramp up from it to the shore's highway, and ramps
+ *                   from every land highway down to its streets at each arterial it crosses (highways.js rampsOf): the
+ *                   highways driven, gameworld/jobsified.js's dock
+ *     dump          true: one of its car parks near the eye, the farthest from its works yard, built as a dump (a tipping
+ *                   hall open to its street): where a driving job's garbage truck unloads, gameworld/jobsified.js
  *     shops         true | { cards?: [a seeded store card's id…], near?: metres }: its rows of shops walked into, each
  *                   bay a store from a card behind its own door, its inside drawn near the camera only
  *                   (retail/store-slot.js); a geotown composed into it takes it too
@@ -267,9 +273,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'museum']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'dump', 'dock', 'museum']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'museum']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'dump', 'dock', 'museum']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
 const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
 const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
@@ -424,6 +430,11 @@ export function readGeocity(spec = {}) {
     if (museum.scale !== undefined && !num(museum.scale, 1, 2)) no('museum.scale is 1 to 2: its rooms laid that much larger for a third-person camera');
     if (museum.exhibits !== undefined) { try { readExhibits(museum.exhibits); } catch (e) { no(`museum.${e.message}`); } }
   }
+  // (a DUMP, scene.js dumpOf: one of its car parks near the eye built as a tipping hall, a driving job's: jobsified.js)
+  if (spec.dump !== undefined && spec.dump !== true) no('dump is true: one of the district\'s car parks built as a dump, where a garbage truck unloads');
+  // (a DOCK, waterfront.js `port`: the main shore's segment before the evocation a working port, its trucks', its ramp up
+  // to the shore's highway; and every land highway given RAMPS down to its streets, highways.js rampsOf)
+  if (spec.dock !== undefined && spec.dock !== true) no('dock is true: a working port on the main shore, a ramp up to its highway, and ramps from the highways down to the streets');
   const under = spec.under === undefined ? null : spec.under === true ? {} : spec.under;
   if (under !== null && (!isObj(under) || Object.keys(under).some((k) => k !== 'at') || (under.at !== undefined && (typeof under.at !== 'string' || !/^[A-Z]+[0-9]+\.[0-9]+\.[0-9]+$/.test(under.at))))) no('under is true or { at?: \'<block id>\' }: the podiums walked into from their streets, their concourses under them and the passages between, or the one `at` names alone');
   if (under !== null && !['neighbourhood', 'segment', 'corridor'].includes(evoke)) no('under is an evocation\'s (a neighbourhood, a corridor or a segment): what is walked into is drawn at a building\'s detail');
@@ -478,5 +489,5 @@ export function readGeocity(spec = {}) {
     slope = { streets: { ...S.streets } };
     if (!profile) profile = {};
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(museum ? { museum } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(spec.dump === true ? { dump: true } : {}), ...(spec.dock === true ? { dock: true } : {}), ...(museum ? { museum } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
 }
