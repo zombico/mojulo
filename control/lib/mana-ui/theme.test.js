@@ -103,6 +103,23 @@ describe('the stage: more than one kind of excitement, and a show of them', () =
     expect(themeCss('idol')).not.toMatch(/\.mana-screen\[data-place=left\]\{--mana-stage/);
   });
 
+  it('the starfield: stars scattered on tiles that never line up and a world\'s rim, drifting on, still under less motion; no other stage drifts', () => {
+    const css = themeCss({ from: 'modern', stage: 'starfield' }), stage = css.match(/--mana-stage:(.*?);--mana-/)[1];
+    expect(THEME_WORDS.stage).toContain('starfield');
+    expect((stage.match(/radial-gradient\(ellipse/g) ?? []).length).toBeGreaterThan(6);
+    expect(stage).toMatch(/radial-gradient\(circle at 96% 168%/);
+    const sizes = [...stage.matchAll(/0 0\/calc\((\d+) \* var\(--mana-du\)\)/g)].map((m) => Number(m[1]));
+    expect(new Set(sizes).size).toBe(sizes.length);
+    const frames = css.match(/@keyframes mana-starfield\{from\{background-position:([^}]*)\}to\{background-position:([^}]*)\}\}/);
+    expect(frames[1].split(',')).toHaveLength(frames[2].split(',').length);
+    expect(frames[1].split(',').length).toBe(stage.split('radial-gradient(').length - 1);
+    expect(css).toMatch(/\[data-motion=reduced\] \.mana-screen::after\{animation:mana-stage/);
+    expect(css).toMatch(/prefers-reduced-motion:reduce\)\{[^}]*\.mana-screen::after\{animation:none\}/);
+    for (const other of ['rings', 'streaks', 'none']) expect(themeCss({ from: 'modern', stage: other })).not.toMatch(/mana-starfield/);
+    // (and in a show, the drift goes with it)
+    expect(themeCss({ from: 'modern', stage: ['starfield', 'none'] })).toMatch(/@keyframes mana-starfield/);
+  });
+
   it('a list is a show: each kind of screen its own shape, round again when the list is short; the malformed teach', () => {
     const T = readTheme({ from: 'idol', stage: ['chevrons', 'dots', 'none'] });
     expect(T.stage).toEqual(['chevrons', 'dots', 'none']);

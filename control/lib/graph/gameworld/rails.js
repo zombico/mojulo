@@ -26,9 +26,11 @@
  *   starter  { prompt, levels } the words its locked pitch's starter is composed from (pitch-start.js), where its genre's
  *            own one level would not be its game (the party RPG's round)
  *   steps    [{ step, does, card }] its game's own steps in the designed chain, before its first level
- *   variants { <id>: { name, like, level1, words, ask, quick, street } }: the variants of the type a door's words make
- *            (the beat-em-up's heroes): its own name and words, the step it ASKS before anything is made (`ask`, with
- *            its card), its quick door's words beside the goal and what a designed game's street carries (`street`)
+ *   variants { <id>: { name, like, level1, words, ask, quick?, street?, box? } }: the variants of the type a door's words
+ *            make (the beat-em-up's heroes, Galaxy Boy's boxes): its own name and words, the step it ASKS before anything
+ *            is made (`ask`, with its card), its quick door's words beside the goal, what a designed game's street carries
+ *            (`street`), and the box a designed game starts from (`box`: { game, cube, library, castle? }, its starter and
+ *            the geocube that dresses it, pitch-start.js)
  *
  * How it is played THROUGH (levels in turns or an open world, the world's shape) is not a rail's: it is the Game
  * Brief's labour (gmn.js LABOURS). A rail says how a moment plays.
@@ -83,6 +85,8 @@
  *     labours   the Game Brief's labours that suit it (gmn.js: advice, any labour may be mixed with any rail)
  *     chain     the tools that build it, in order, each with the card to pull when it is reached
  *     kinds     the kinds of level a game of it is built from (level-kinds.js LEVEL_KINDS), where the rail names them
+ *     box       a box variant's: { game, cube, library }, the starter its pitch lays and the geocube that dresses its box
+ *               (railReport says it back, so the readout names the cube)
  *   nearestRails(text, n?)     → [{ id, name, like, sizes, matched }] the rails whose words the text uses, most first;
  *                              a heuristic over words, said to be one: the agent, the real reader of a brief, picks
  *                              from it or asks. It suggests and refuses nothing
@@ -146,7 +150,29 @@ export const RAILS = Object.freeze({
   'jumping-giuseppe': row({ name: 'Jumping Giuseppe', like: 'a platformer: the jump is the game, things to collect, foes to stomp',
     handles: row({ pole: 'jumping-giuseppe', genres: list(['collectathon', 'platformer-3d', 'co-op-platformer']), quick: list(['collect']) }), sizes: list(['quick', 'designed']), level1: 'a level: basics, a first foe, the harder jumps, a gauntlet, a boss if asked' }),
   'galaxy-boy': row({ name: 'Galaxy Boy', like: 'a side-on run and gun: the dash, the wall kick, a charged shot, powers that open the map',
-    handles: row({ pole: 'galaxy-boy', genres: list(['metroidvania']) }), sizes: list(['designed']), level1: 'a level seen from the side, its first power at the end' }),
+    handles: row({ pole: 'galaxy-boy', genres: list(['metroidvania']) }), sizes: list(['designed']), level1: 'a level seen from the side, its first power at the end',
+    // its BOX variants: a metroidvania laid as one box of screens spiralling to a core (metroidvania/box.js), started from
+    // a template's box on its geocube (`box`: the starter, the cube that dresses it, metroidvania/cube.js), its words the
+    // person's to change
+    variants: row({
+      'vampire-sonata': row({ name: 'Vampire Sonata', like: 'a metroidvania castle: a hunter storms a vampire lord\'s castle ring by ring to its keep, each power found opening the way on and the pockets behind',
+        level1: 'a box: the castle on the gothic night cube, its outer wall, great halls, inner ward and keep, a power and a boss a ring',
+        words: list(['castlevania', 'igavania', 'gothic metroidvania', 'castle metroidvania', 'vampire castle', 'symphony of the night', 'vampire sonata']),
+        ask: row({ step: 'box', does: 'ASK FIRST: their box (its premise, its size in screens, its rings and their places, its powers and bosses: theirs to design; the castle\'s if they have none) and its cube (the gothic night\'s castle, or another cube with a box)', card: 'gameworld-box' }),
+        box: row({ game: 'vampire-sonata', cube: 'gothic-night', library: 'castle' }) }),
+      // (the castle of boxes played a map a box, metroidvania/castle.js segmentsOf: the tower, the courtyard and the keep
+      // each its own level on the megaworld's chain, the bridge and the gatehouse the ways between, what she gains carried)
+      'vampire-sonata-castle': row({ name: 'Vampire Sonata: the castle in maps', like: 'a metroidvania castle crossed map to map: a bell tower, a courtyard and a keep, each its own map joined by a bridge and a gatehouse, every power, relic, felled boss and room explored going on with the hunter',
+        level1: 'three maps on the gothic night cube: the bell tower, the courtyard and the keep, joined on the megaworld\'s chain, a power and a boss in each',
+        words: list(['castle of maps', 'connected maps', 'castle in maps', 'castle segments', 'segmented metroidvania', 'map to map', 'metroidvania megaworld']),
+        ask: row({ step: 'box', does: 'ASK FIRST: their castle (its boxes in the order she crosses them, each box\'s size, rings, powers and bosses, the connectors between: theirs to design; the bell tower, courtyard and keep if they have none), its cube (the gothic night\'s castle, or another cube with a box) and their hunter', card: 'gameworld-box' }),
+        box: row({ game: 'vampire-sonata', cube: 'gothic-night', library: 'castle', castle: 'segments' }) }),
+      xenojager: row({ name: 'XenoJager', like: 'a metroidvania planet: an explorer goes down through a dangerous planet\'s caves, region by region to the nest at its core',
+        level1: 'a box: the planet on its own cube, its crust, fungal caverns, flooded depths and magma core, a power and a boss a region',
+        words: list(['metroid', 'metroid-like', 'super metroid', 'planet exploration', 'alien planet', 'subterranean exploration', 'xenojager']),
+        ask: row({ step: 'box', does: 'ASK FIRST: their box (its premise, its size in screens, its regions, its powers and bosses: theirs to design; the planet\'s if they have none), its cube (the planet\'s, or another cube with a box) and their explorer', card: 'gameworld-box' }),
+        box: row({ game: 'xenojager', cube: 'xenojager', library: 'xeno' }) }),
+    }) }),
   'steel-serpents': row({ name: 'Steel Serpents', like: 'stealth action: guards who see what is in front of them, slipped past or taken down',
     // (seen in the third person, the operator's word: the template's lab view is from overhead and the espionage cube's
     // from above, neither the game's camera)
@@ -217,6 +243,12 @@ export const RAILS = Object.freeze({
     handles: row({ genres: list(['space-shooter']) }), sizes: list(['designed']), level1: 'a stage: down a canyon on a planet, its waves and its boss',
     words: list(['wolf squadron', 'rail shooter', 'on-rails shooter', 'on rails shooter', 'arcade flight', 'arcade space shooter', 'starfighter', 'star fox', 'starfox', 'rogue squadron', 'barrel roll', 'space fighter game']),
     lacks: list(['the squad and its calls, the rival squad and the all-range arena are to come', 'its cube is the space shooter\'s: its stages fly on the rail rule (power.rules=rail), which a stage of its own names']) }),
+  // a scrolling shooter, left to right (blaze-gunner.js: its starter, the fleet's edge; gameworld/scroll-stage/)
+  'blaze-gunner': row({ name: 'Blaze Gunner', like: 'a scrolling shooter: a small ship on the d-pad over a screen that scrolls on its own, waves in formation, pods taken from foes for weapons, a capital ship broken by its systems, then into a station: its corridors, guns, hatches, crushers and locks, its reactor at the heart',
+    handles: row({ genres: list(['co-op-scroller']) }), sizes: list(['designed']), level1: 'a stage: waves in the open, a hull run, the boss broken by its systems; then a second, the infiltration of a station to its reactor',
+    seen: list(['side', 'above']),
+    words: list(['blaze gunner', 'shmup', 'shoot em up', "shoot 'em up", 'bullet hell', 'scrolling shooter', 'horizontal shooter', 'side scrolling shmup', 'side scrolling space shooter', 'gradius', 'r-type', 'einhander', 'gunpod', 'gunpods', 'infiltrate a space station', 'fortress stage']),
+    lacks: list(['a vertical stage (seen from above, scrolling up) is the same stage turned: its frame is built, its first recipe is to come', 'its stage\'s own lives are the World page\'s: a designed level is lost when the ship is down, its continue the game\'s']) }),
   // a war flown from the cockpit, mission by mission (rebel-storm.js: its starter, the rebels' opening tour)
   'rebel-storm': row({ name: 'Rebel Storm / Rise of Empire', like: 'a space combat sim flown from the cockpit: the throttle set, the target picked, shields and power split, flight groups to destroy and craft to protect, a campaign of missions from either side of a war',
     handles: row({ genres: list(['space-sim']) }), sizes: list(['designed']), level1: 'a mission: a patrol of fighters met with Red flight, interceptors jumping in',
@@ -410,6 +442,7 @@ export function railSheet(id, variant = null) {
   const pole = H.pole ? POLES[H.pole] : null;
   return {
     id: R.id, ...(V ? { variant: V.id } : {}), name: V?.name ?? R.name, like: V?.like ?? R.like, seen: seenOf(R), level1: V?.level1 ?? R.level1,
+    ...(V?.box ? { box: { ...V.box } } : {}),
     ...(R.variants && !V ? { variants: Object.entries(R.variants).map(([vid, v]) => ({ id: vid, name: v.name, like: v.like })) } : {}),
     sizes: R.sizes.map((size) => ({ size, name: SIZES[size].name, door: SIZES[size].door, with: keysFor(R, size) })),
     from, starts, ...(gaps.length ? { gaps } : {}),
@@ -491,7 +524,7 @@ export function railReport(world, before = null) {
     ...(P.size ? { size: P.size } : {}), ...(short ? { short } : {}),
     seen: S.seen, level1: S.level1,
     keeps: Object.keys(TUNINGS).filter((k) => !P.departs[k]), departs: P.departs, locked: P.locked,
-    starts: S.starts, ...(S.gaps ? { gaps: S.gaps } : {}),
+    starts: S.starts, ...(S.gaps ? { gaps: S.gaps } : {}), ...(S.box ? { box: S.box } : {}),
     ...(was?.locked && was.from !== P.from ? { replanned: { was: was.from } } : {}),
     card: `gameworld-rail-${P.from}${P.variant ? `-${P.variant}` : ''}`,
   };

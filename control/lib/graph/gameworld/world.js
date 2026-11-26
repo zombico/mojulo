@@ -97,6 +97,8 @@
  *     feel?: '<template>' | { pole, variant?, toward?, t?, set? },   // how the hero moves: an action-lab template's card,
  *                                         // lowered over the hero's platform rule (feel/lower.js); what the runtime does
  *                                         // not carry yet is said in design_game's readout
+ *     trees?: { points?, movement?, techs? },   // the skill tree on how the hero moves and the tech tree on its spells
+ *                                               // and attacks (trees/tree.js), learned as it plays
  *     arsenal?: 'auto' | false | '<template>' | { from, …edits } | an arsenal,   // its weapons and strings (arsenal.js,
  *                                         // combos.js): the practice room's, laid on every level's hero that strikes
  *     juice?: 'auto' | false | { register?, flavor?, …dials },   // how its effects are drawn and timed: the effects'
@@ -168,6 +170,8 @@ import { readGameBrief } from './gmn.js';
 import { readBackdrop } from '../lorecube/backdrop.js';
 import { readIntake } from './intake.js';
 import { readRail } from './rails.js';
+import { readBox } from './metroidvania/box.js';
+import { isCastle, readCastle, layCastle, segmentsOf } from './metroidvania/castle.js';
 import { readMegaworld } from './megaworld.js';
 import { readLoop } from './core-loop.js';
 import { readBookSkin } from './book-skin.js';
@@ -206,6 +210,7 @@ import { readJuiceStyle } from '../scene/juice-style.js';
 import { readGameTempo } from './tempo.js';
 import { readGameKeying } from './keying.js';
 import { readGameArsenal, arsenalOfGame } from './arsenal.js';
+import { readTrees } from './trees/tree.js';
 import { readFights } from './fights.js';
 import { readTasks } from './task-read.js';
 import { readLoadout } from './carried.js';
@@ -276,6 +281,7 @@ export const WORLD_STYLE = Object.freeze({
   hour: 'the cube lit at an hour: dawn, noon, dusk, night… or 0-24',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
+  scenery: 'the land behind a side strip\'s lane: one of era/geocube-side.js SCENERIES, or a list laid segment by segment',
   // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
   palette: 'pick_palette\'s spec, or false',
 });
@@ -315,7 +321,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'gameBrief', 'backdrop', 'intake', 'rail', 'megaworld', 'made', 'missions', 'quick', 'intent', 'feel', 'arsenal', 'juice', 'tempo', 'keying', 'grade', 'camera', 'screen', 'hud', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'hub', 'characters', 'equipment', 'mechanics', 'battles', 'minigames', 'mounts', 'roll', 'moves', 'foes', 'story', 'quests', 'front', 'ui', 'flow', 'setup', 'wcd', 'qow', 'book', 'errands', 'factions', 'law', 'shops', 'xr', 'mainQuest', 'loop', 'room', 'sound', 'music', 'fights', 'loadout', 'styleMeter', 'trees', ...RESERVED];
 /** The recipe's own keys, read here (the chapter registry, chapters.js, gives each its chapter). */
 export const GAMEWORLD_KEYS = Object.freeze([...KEYS]);
 // THE HUD'S LOOK (`hud`): a mana-ui theme preset its levels' HUD wears (mana-ui/theme.js: a bare HUD's parts on the scene
@@ -325,7 +331,7 @@ function readHudLook(v) {
   if (typeof v !== 'string' || !THEMES[v]) throw new Error(`gameworld: hud is the look its HUD wears, a mana-ui theme: ${Object.keys(THEMES).join(', ')}`);
   return v;
 }
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'runner', 'goal', 'foes', 'geotown', 'geocity', 'glyphs', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap', 'metroidvania', 'segment'];
 // a glyph-map level (level/grid.js, level/grid-scene.js): its grid and the stage's own words every tile takes
 // a glyph-map level's grid (level/grid.js): its rows, key and regions, or its plan and segments (level/plan.js)
 export const GRID_OF_GLYPHS = Object.freeze(['tile', 'rows', 'key', 'regions', 'plan', 'segments']);
@@ -339,7 +345,7 @@ const GLYPHS_LEVEL_KEYS = ['tile', 'rows', 'key', 'regions', 'plan', 'segments',
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them; its sky
 // (skyscape/sky.js: the weather it is flown in)
 // (its `lesson`: a flying lesson's brief, told before it is flown: gameworld/lesson-brief.js)
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing', 'sky', 'lesson', 'frame'];
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist', 'airframe', 'rail', 'cockpit', 'briefing', 'sky', 'lesson', 'scroll', 'frame'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -648,6 +654,7 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
+    if (L.segment !== undefined && L.metroidvania === undefined) throw new Error(`gameworld: ${at}.segment is a metroidvania castle's (beside its \`metroidvania\`): which of its boxes this level is the map of`);
     // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
     // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
     // an airspace's goal is a flight's (flight-goal.js: a course, a dogfight, a trench, or a list of tasks), alone
@@ -708,7 +715,8 @@ export function readGameworld(W) {
       if (quickGame) throw new Error(`gameworld: ${at}.foes: a quick game's foes are its goal's (quick.foe)`);
       // (a glyph map's: on its walk's beats, or where its approved sketch marks its fights: gameworld/foes.js)
       // (and on a side map's spawners and runs: side-map/cast.js)
-      if (L.walk === undefined && L.glyphs === undefined && L.sidemap === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map, a side map or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
+      // (and in a metroidvania's rooms, region by region: metroidvania/cast.js)
+      if (L.walk === undefined && L.glyphs === undefined && L.sidemap === undefined && L.metroidvania === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.foes stand on a walk's trails, a glyph map, a side map, a metroidvania's rooms or a building's rooms (a building made by ref, a city, a road or a run takes none yet)`);
       readLevelFoes(L.foes, foes, at);
     }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
@@ -754,6 +762,21 @@ export function readGameworld(W) {
       try { readSideMap(L.sidemap); } catch (e) { throw new Error(`gameworld: ${at}.${e.message.replace(/^side map:\s*sidemap\.?/, 'sidemap.').replace(/^side map:\s*/, '')}`); }
       // (its boss one of the roster's: gameworld/bosses.js)
       if (L.sidemap.boss !== undefined && !BOSS_IDS.includes(L.sidemap.boss)) throw new Error(`gameworld: ${at}.sidemap.boss is a boss of the roster (${BOSS_IDS.join(', ')})`);
+    } else if (L.metroidvania !== undefined) {
+      // a METROIDVANIA level (metroidvania/box.js): one box of screens entered from the left, its walk spiralling ring by
+      // ring to a core, its gates held until the hero holds what opens them; built as the geocube's `show: 'metroidvania'`
+      const other = ['walk', 'building', 'city', 'roadway', 'airspace', 'runner', 'geotown', 'geocity', 'glyphs', 'places', 'ground', 'arena', 'course', 'obstacles', 'street', 'mission', 'industrial', 'kitchen', 'sidemap'].filter((k) => L[k] !== undefined);
+      if (other.length) throw new Error(`gameworld: ${at}: a metroidvania level is the box alone: no ${other.join(', ')} beside it`);
+      if (W.camera !== 'side') throw new Error(`gameworld: ${at}.metroidvania is seen from the side: set camera: 'side' (the side map's camera holds its rooms)`);
+      // (a box, or a castle of boxes joined by their connectors: metroidvania/castle.js)
+      try { (isCastle(L.metroidvania) ? readCastle : readBox)(L.metroidvania); } catch (e) { throw new Error(`gameworld: ${at}.metroidvania: ${e.message.replace(/^metroidvania:\s*/, '')}`); }
+      // (a castle's SEGMENT: this level one map of it, its box and the connector out of it, the others its neighbours'
+      // levels, joined by the megaworld: metroidvania/castle.js segmentsOf)
+      if (L.segment !== undefined) {
+        if (!isCastle(L.metroidvania)) throw new Error(`gameworld: ${at}.segment cuts a castle of boxes (its \`boxes\`) into its maps; this level is one box, a map already`);
+        const ids = segmentsOf(layCastle(L.metroidvania)).map((g) => g.id);
+        if (!ids.includes(L.segment)) throw new Error(`gameworld: ${at}.segment is one of the castle's boxes (${ids.join(', ')})`);
+      }
     } else if (L.glyphs !== undefined) {
       // a glyph-map level: the whole level one world written as a glyph grid (its paths, its places, its regions), walked
       // end to end on one page; the map is its own ground
@@ -1046,6 +1069,8 @@ export function readGameworld(W) {
   }
   // its weapons and strings (arsenal.js): the practice room's arsenal, laid on every level's hero that strikes
   readGameArsenal(W.arsenal);
+  // its trees (trees/tree.js): the skill tree on how the hero moves, the tech tree on its spells and attacks
+  if (W.trees !== undefined) { try { readTrees(W.trees); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
   // its sound (sound-sheet.js): the sheet's style and any slot or cue it names by shelf word, over what the game solves
   readSound(W.sound);
   // its music (audio-direction.js): the audio direction every audio page reads, and the score's cue sheet
@@ -1088,7 +1113,7 @@ export function readGameworld(W) {
   // laws advise (design_game's readout), a malformed one is refused here. Its core loop (core-loop.js) is read the same
   const mainQuest = W.mainQuest === undefined || W.mainQuest === null ? null : (() => { try { return readMainQuest(W.mainQuest, mainQuestContext(W)); } catch (e) { throw new Error(`gameworld: ${e.message}`); } })();
   try { readLoop(W.loop); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.keying !== undefined ? { keying: W.keying } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(megaworld ? { megaworld } : {}), ...(wcd ? { wcd } : {}), ...(qow ? { qow } : {}), ...(mainQuest ? { mainQuest } : {}), ...(errands ? { errands } : {}), ...(factions ? { factions } : {}), ...(law ? { law } : {}), ...(W.shops !== undefined && readShops(W.shops) ? { shops: readShops(W.shops) } : {}), ...(book ? { book } : {}), ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(feel ? { feel } : {}), ...(W.juice !== undefined ? { juice: W.juice } : {}), ...(W.arsenal !== undefined ? { arsenal: W.arsenal } : {}), ...(W.sound !== undefined ? { sound: W.sound } : {}), ...(W.music !== undefined ? { music: W.music } : {}), ...(W.tempo !== undefined ? { tempo: W.tempo } : {}), ...(W.keying !== undefined ? { keying: W.keying } : {}), ...(W.trees !== undefined ? { trees: W.trees } : {}), ...(W.grade !== undefined ? { grade: W.grade } : {}), ...(W.battles !== undefined ? { battles: readBattles(W.battles, characters, ids) } : {}), ...(minigames ? { minigames } : {}), ...(W.mounts != null && W.mounts !== false ? { mounts: readMounts(W.mounts) } : {}), ...(W.roll != null && W.roll !== false ? { roll: readWorldRoll(W.roll) } : {}), ...(W.moves ? { moves: true } : {}), ...(foes ? { foes } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(screen ? { screen: W.screen } : {}), ...(W.xr ? { xr: W.xr } : {}), ...(W.room !== undefined ? { room: W.room } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.hub !== undefined ? { hub: W.hub } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.hud !== undefined ? { hud: readHudLook(W.hud) } : {}), ...(W.ui !== undefined ? { ui: W.ui } : {}), ...(W.flow !== undefined ? { flow: W.flow } : {}), ...(W.setup !== undefined ? { setup: W.setup } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(typeof W.brief?.prompt === 'string' && characters?.casting ? { prompt: W.brief.prompt } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), ...(W.fights !== undefined ? { fights: W.fights } : {}), ...(W.loadout !== undefined ? { loadout: W.loadout } : {}), ...(W.styleMeter !== undefined ? { styleMeter: W.styleMeter } : {}), [READ]: true };
 }
 
 /**
@@ -1149,6 +1174,8 @@ export function resolveLevel(world, id) {
   // a kitchen level (kitchen-shifts.js, laid by kitchen-level.js): its own room, its shift read as written
   if (L.kitchen) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, kitchen: { ...L.kitchen } };
   // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
+  // (a scroll stage, scroll-stage/: no flight map, no ground, no course; its scroll rides as written)
+  if (L.airspace?.scroll !== undefined) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { scroll: L.airspace.scroll } };
   if (L.airspace) {
     // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
     // (a rail stage has its path and no course; its airframe, and its rail, ride as written)
@@ -1171,6 +1198,8 @@ export function resolveLevel(world, id) {
   }
   // a side map level: its zone chain as written (levels.js lays it on the level's geocube for the world's hero)
   if (L.sidemap) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, sidemap: L.sidemap };
+  // a metroidvania level: its box as written (levels.js builds it for the world's hero)
+  if (L.metroidvania) return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, metroidvania: L.metroidvania, ...(L.segment !== undefined ? { segment: L.segment } : {}) };
   // a geocity level: the district on the level's geocube (a morning valley unless the style names one), as a geotown's
   if (L.geocity) {
     const c0 = cubeInPalette(style.geocube ?? 'valley-morning', style.palette), c1 = typeof c0 === 'string' ? { from: c0 } : c0, cube = c1.era ? c1 : { ...c1, era: 'gen-7' };

@@ -1,6 +1,7 @@
 ---
 name: historic-culture
-description: Add or deepen a historic culture (a real city or civilization at its period) in the historic-city generator — scaffold a new one at depth 0 on an existing culture's form, take one to its record and style card, its own assets or its own form and monument, add a region for a new part of the world, or land a culture branch on the release-candidate trunk. Use when asked to "add a civilization / city / culture", "start the Indus / Maya / Babylon …", "deepen <culture>", "give <culture> its own record / assets / form / monument", or "land / merge <culture>". Invoke as `/historic-culture <ask>`.
+description: "Add or deepen a historic culture (a real city at its period) in the historic-city generator, or land a culture branch. Use for \"add a civilization / city\", \"start the Maya\", \"deepen <culture>\", \"give <culture> its own record / assets / form\", \"land <culture>\"."
+argument-hint: "<ask>"
 ---
 
 # /historic-culture

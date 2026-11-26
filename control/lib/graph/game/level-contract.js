@@ -201,6 +201,10 @@ export function validateLevelContract(game, schema) {
   if (game.aftermath !== undefined && !(game.aftermath && typeof game.aftermath.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.aftermath.slice))) {
     errors.push('game.aftermath is { slice }: a flags slice the level consumes (its broken blocks, kept and restored)');
   }
+  // JOURNEY: the flags slice a castle's segments keep the hero's gains in (the journey mechanic), carried in on entry
+  if (game.journey !== undefined && !(game.journey && typeof game.journey.slice === 'string' && consumed(game.journey.slice))) {
+    errors.push('game.journey is { slice }: a flags slice the level consumes (what the hero gained in the segments before, carried in)');
+  }
 
   // KEEP: the numbers a level reports at its end (a score, a time), each kept best by the shell: { var, label, best:
   // 'high' | 'low', scale?, unit? } (the laps and score mechanics write them)

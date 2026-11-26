@@ -111,6 +111,12 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
         if (!ok) lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb}: a stand ${r2(dz)} m up and ${r2(h)} m across (the running jump rises ${run.height} m)` });
       }
     }
+    // (a tower's, an atrium's: every storey risen, by a chimney or a ladder)
+    for (const Z of ups.filter((Z) => Z.climb === 'tower' || Z.climb === 'atrium')) {
+      const T = (L.towers ?? []).find((t) => t.zone === Z.i);
+      if (!T || !T.legs.length) lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb} has no way up` });
+      else if (Math.abs(T.legs.at(-1).zt - Z.exit[1]) > EPS) lost.push({ zone: Z.i, says: `zone ${Z.i}'s ${Z.climb} stops short of its top` });
+    }
     // (and every step up the path a hop the running jump clears with room, path.js)
     for (const st of L.steps ?? []) if (st.dz > 0) { const at = reachAt(run, st.dz); if (!(at !== null && at >= MARGIN)) lost.push({ zone: st.zone, says: `a step ${r2(st.dz)} m up in zone ${st.zone}: the running jump rises ${run.height} m` }); }
     // (and room to stand on every stand up a climb: nothing over it closer than the hero is tall)
@@ -128,14 +134,20 @@ export function sideMapLaws(layout, reach, { dress, paint } = {}) {
       const most = zs.slice(1).reduce((m, v, k) => Math.max(m, v - zs[k]), 0);
       if (!kick || most > 3 * kick + EPS) lost.push({ zone: Z.i, most });
     }
-    law('rests', lost, `no more than three kicks (${kick ? r2(3 * kick) : '—'} m) between rests up any chimney`, (x) => x.map((y) => kick ? `zone ${y.zone}: ${r2(y.most)} m between rests, three kicks ${r2(3 * kick)} m` : `zone ${y.zone}: a chimney, and the hero kicks off no wall`).join('; '));
+    // (and every chimney up a tower's or an atrium's storeys)
+    for (const T of L.towers ?? []) for (const g of T.legs.filter((g) => g.kind === 'chimney')) {
+      const zs = [g.zb, ...g.rests.map((r) => r.z).sort((a, b) => a - b), g.zt];
+      const most = zs.slice(1).reduce((m, v, k) => Math.max(m, v - zs[k]), 0);
+      if (!kick || most > 3 * kick + EPS) lost.push({ zone: T.zone, most });
+    }
+    law('rests', lost, `no more than three kicks (${kick ? r2(3 * kick) : '—'} m) between rests up any chimney (a tower's storeys' too)`, (x) => x.map((y) => kick ? `zone ${y.zone}: ${r2(y.most)} m between rests, three kicks ${r2(3 * kick)} m` : `zone ${y.zone}: a chimney, and the hero kicks off no wall`).join('; '));
   }
   // outclimbs: the frame slower than the bot
   {
     const lost = [], said = [];
     for (const R of L.rises) {
       const Z = L.zones[R.zone], shaft = byZone(L.open, R.zone)[0];
-      const bot = climbTime({ climb: Z.climb, from: R.from, to: R.to, rests: byZone(L.rests, R.zone), width: shaft.s1 - shaft.s0 }, reach), frame = (R.to - R.from) / R.pace;
+      const bot = climbTime({ climb: Z.climb, from: R.from, to: R.to, rests: byZone(L.rests, R.zone), width: shaft.s1 - shaft.s0, legs: (L.towers ?? []).find((t) => t.zone === R.zone)?.legs ?? [] }, reach), frame = (R.to - R.from) / R.pace;
       said.push(`zone ${R.zone}: the bot ${r2(bot)} s, the frame ${r2(frame)} s`);
       if (!(frame >= OUTCLIMB * bot - EPS)) lost.push({ zone: R.zone, says: `zone ${R.zone}'s frame rises ${R.pace} m/s and takes ${r2(frame)} s; the bot climbs in ${r2(bot)} s, a margin of ${OUTCLIMB}× wants ${r2(OUTCLIMB * bot)} s` });
     }

@@ -1,6 +1,6 @@
 ---
 name: hillclimb
-description: Pick the next game capability to build from the cosmos sweep, build it as one composed concept rather than value by value, and re-sweep. Use when choosing or starting game-making work (cameras, topology, combat, quests, shots, passage of time…), when asked "what should we build next" or "what can we make", or after a capability lands, to record the move.
+description: "Pick the next game capability to build from the cosmos sweep, build it as one composed concept, and re-sweep. Use when choosing or starting game work, asked \"what should we build next\" or \"what can we make\", or after a capability lands."
 ---
 
 # /hillclimb

@@ -889,6 +889,9 @@ hull) is downed when its block goes.
 - `fleet/build.js` `fleetPayload` and `world-scene.js`: a capital ship's or a station's blocks as breakables, their
   faces grouped by block, under `physical` and `g: 0` (`gameworld/levels.js` sets both for a sortie with a fleet).
 - `era/compose.js`: `DESTRUCTION_WORDS.physical`, the words that ask for it.
+- `gameworld/metroidvania/scene.js`: a metroidvania box's secret walls, under `physical`, its room's wall matter at a
+  facing calibrated to its blows (`secretMatter`), the box's own breakables beside its held gates
+  (`docs/metroidvania-map.md` "Secret walls").
 - `rupa/panels.js` and `world-scene.js`: under `physical`, an entity's `panels` resolved to plates and their metal's
   numbers; the page draws them only when an object carries them.
 - Engines: the physics is the web build's. The engine handoff (`export_model { engine }`) carries a level's models and

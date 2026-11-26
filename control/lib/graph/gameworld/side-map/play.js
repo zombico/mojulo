@@ -47,7 +47,7 @@ export function sideMapPlay(layout, { stature, target = 'hero' } = {}) {
     const base = [0, l.foot[0], l.foot[1]], length = r3(l.lip[1] - l.foot[1]);
     return {
       id: `side-ladder-${i}`,
-      rule: { type: 'climbable', form: 'ladder', base, axis: [0, 0, 1], length, N: [1, 0, 0], Nh: [1, 0, 0], U: [0, 1, 0], half: 0, speed: LADDER_RATE, standoff: 0.35, pitch: 0.3, top: [0, r3(l.lip[0] + 0.7), l.lip[1]] },
+      rule: { type: 'climbable', form: 'ladder', base, axis: [0, 0, 1], length, N: [1, 0, 0], Nh: [1, 0, 0], U: [0, 1, 0], half: 0, speed: LADDER_RATE, standoff: 0.35, pitch: 0.3, top: l.off ? [0, r3(l.off[0]), r3(l.off[1])] : [0, r3(l.lip[0] + 0.7), l.lip[1]] },
       body: { type: 'none' },
       transform: { pos: base, heading: Math.PI },
     };

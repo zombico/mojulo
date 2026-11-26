@@ -137,13 +137,16 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     // `hats: 'lips'`): those two words on each trail stage's manifest and nothing else; without them every order below
     // prints as it did. c9c3c6b8 -> a0e638e8, 33b4c186 -> 64b2bc96, 71917dd0 -> cd58ee08, aa47dab1 -> c97f28f9,
     // b14f4c0f -> 610ba5bf, 323e54e5 -> fd0f2b8d)
-    expect(fingerprint(unladdered(unaudited(orders)))).toBe('a0e638e8');
+    // (re-pinned 2026-11-25, 1123-meteroidvania-rail merging 1124-side-scroll-backgrounds: a geocube carries the box its
+    // metroidvania is built in (gameworld/metroidvania/cube.js: the cube's library and its tint), so each level's
+    // geocube style gains `box: { library: 'castle', tint: 0 }` for this gothic cube and nothing else moved, a0e638e8 -> b09bbe72)
+    expect(fingerprint(unladdered(unaudited(orders)))).toBe('b09bbe72');
     expect(fingerprint(unladdered(unaudited(ground)))).toBe('64b2bc96');
     // (re-pinned 2026-11-07, 1107-action-rpg merging 1105-rc: the hero's figure maps the library's Sprint_Loop as its
     // `sprint` clip (playscape/player.js, the stamina sprint's legs), one more clip in each order's hero figure and nothing
     // else: without it the orders print 3229f9a0 as before, 3229f9a0 -> 71917dd0)
     expect(fingerprint(unladdered(unaudited(hero)))).toBe('cd58ee08');   // (3498540d -> 3229f9a0: the play grade, above)
-    expect(fingerprint(unaudited(orders))).toBe('c97f28f9');   // (642958c3 -> aa47dab1: the play grade, above)
+    expect(fingerprint(unaudited(orders))).toBe('b57152eb');   // (642958c3 -> aa47dab1: the play grade, above; c97f28f9 -> b57152eb: the cube's box, above)
     expect(fingerprint(unaudited(ground))).toBe('610ba5bf');   // (eadb7584 -> b14f4c0f: the play grade, above)
     expect(fingerprint(unaudited(hero))).toBe('fd0f2b8d');   // (4e44b89a -> 2448f711: the play grade; -> 323e54e5: the sprint clip, above)
   }, 300000);

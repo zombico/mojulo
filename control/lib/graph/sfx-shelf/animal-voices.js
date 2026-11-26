@@ -67,13 +67,15 @@ export const ANIMAL_CLASSES = freeze({
   golem: { label: 'a golem of stone', weight: 'heavy' },
   wisp: { label: 'a wisp or a spirit', weight: 'light' },
   undead: { label: 'the undead (a skeleton, a zombie)', weight: 'mid' },
+  ogre: { label: 'an ogre, an oni, a troll: a giant\'s bellow', weight: 'heavy' },
+  demon: { label: 'a demon or a fiend: a hissing, rasping snarl', weight: 'mid' },
 });
 export const ANIMAL_CLASS_IDS = Object.freeze(Object.keys(ANIMAL_CLASSES));
 
 // what moves without a voice
 export const MOVES = Object.freeze({ flutter: 'wings-flutter', flap: 'wings-heavy', slither: 'slither', swim: 'fish-splash', breach: 'whale-breach', swarm: 'insect-swarm' });
 
-const CREATURE_MATTER = Object.freeze({ golem: ['stone', 'creature'], slime: ['water', 'creature'], wisp: ['energy', 'creature'], undead: ['creature', 'voice'] });
+const CREATURE_MATTER = Object.freeze({ golem: ['stone', 'creature'], slime: ['water', 'creature'], wisp: ['energy', 'creature'], undead: ['creature', 'voice'], ogre: ['creature', 'voice'], demon: ['creature', 'voice'] });
 const CALL_LABEL = Object.freeze({ call: 'its call', alert: 'its threat, an attack', hurt: 'a blow taken', death: 'its dying cry' });
 const words = (cls) => cls.replace(/-/g, ' ');
 export const ANIMAL_ROWS = Object.freeze([

@@ -43,6 +43,7 @@ import { GENRE_FORMS, HAND_OFFS, refusalOf, pendingOf, heroFrameOf, heroStreetWo
 import { RAILS } from './rails.js';
 import { pilotSchoolStart } from './pilot-school.js';
 import { wolfSquadronStart } from './wolf-squadron.js';
+import { blazeGunnerStart } from './blaze-gunner.js';
 import { rebelStormStart } from './rebel-storm.js';
 import { warlordsOfMarsStart } from './warlords-of-mars.js';
 import { worldMapLevel, wildsLevel, WORLD_MAP } from './world-map.js';
@@ -348,9 +349,10 @@ const RAIL_STARTS = Object.freeze({
   'wolf-squadron': (w, n) => wolfSquadronStart(w, n ? { stages: n } : {}),
   'rebel-storm': (w, n) => rebelStormStart(w, n ? { missions: n } : {}),
   'warlords-of-mars': (w, n) => warlordsOfMarsStart(w, n ? { operations: n } : {}),
+  'blaze-gunner': (w, n) => blazeGunnerStart(w, n ? { stages: n } : {}),
 });
 const RAIL_WEAK = new Set(['cockpit', 'starfighter', 'barrel roll', 'realistic flight']);
-const STARTER_GENRES = new Set(['flight-sim', 'air-combat', 'space-shooter', 'space-sim', 'mech-action']);
+const STARTER_GENRES = new Set(['flight-sim', 'air-combat', 'space-shooter', 'space-sim', 'co-op-scroller', 'mech-action']);
 /** The rail a sentence is laid as by its own starter, or null: { id, matched } (the rail's own words it used; none where
  * the genre read is one no other form lays). Only beside no genre or one of those rails' genres. */
 export function starterRailOf(prompt, genreId = null) {

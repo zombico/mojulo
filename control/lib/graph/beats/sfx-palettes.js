@@ -160,6 +160,9 @@ export const MECHANIC_SFX = {
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },
   work: { 'work:took': 'pickup', 'work:made': 'thud', 'work:ready': 'chime', 'work:burned': 'hit', 'work:served': 'goal', 'work:walked': 'lose', 'work:full': 'thud', 'work:won': 'goal', 'work:lost': 'lose' },
   aftermath: { 'broke:*': 'thud' },
+  // (a castle segment's gain kept: its own moment already sounds, the relic's pickup or the boss's fall; the keeping is a
+  // step, as quiet as a footfall)
+  journey: { 'journey:*': 'step' },
   trade: { 'pickup:*': 'pickup', 'trade:*:short': 'thud' },
   cargo: { 'cargo:lost:*': 'hit' },
   bounty: { 'bounty:*': 'pickup' },

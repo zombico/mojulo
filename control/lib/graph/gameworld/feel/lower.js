@@ -31,7 +31,7 @@
  */
 import { FPS, r4, POLES, POLE_IDS, variantsOf, poleCard, blendPoles, mergeDeep } from './cards.js';
 import { jumpShares } from '../../polygonizer/hero-jump.js';
-import { saberRule } from './saber.js';
+import { saberRule, SABER_COMBOS } from './saber.js';
 import { DASH_DUST } from './round-look.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -203,7 +203,8 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
     half('moves.string', `the contact window's place in the swing (${m.startup} of ${total} frames to the first active); its frames are the swing clip's until the clips are fitted to the card${S.length > 2 ? `; a string of ${S.length} plays as the runtime's two-hit combo` : ''}`);
   }
   // the SABER (a card's `blade: { kit: 'saber' }`, saber.js): its string on the fire press, in place, on the buster's scale
-  if (C.blade?.kit === 'saber') { Object.assign(rule, saberRule()); carried.push('blade'); }
+  // (`steel: true`: a sword of steel plays the string: no strand of light over it, its slash in steel)
+  if (C.blade?.kit === 'saber') { Object.assign(rule, saberRule(C.blade)); carried.push('blade'); }
   // THE PAD (a card's `pad`: { <action>: [control, control] }, the controls schemes.js names): the pad's faces as the
   // card's game lays them, over the scheme's own (controls-kernel.js resolve's override; the legend relabels itself)
   if (C.pad && typeof C.pad === 'object') { rule.controls = { gamepad: Object.fromEntries(Object.entries(C.pad).map(([k, v]) => [k, [...v]])) }; carried.push('pad'); }
@@ -313,6 +314,13 @@ export function lowerFeel(card, { gear = null, takes = false, base = null } = {}
 }
 
 /** The rule a written feel lays over the hero's platform rule: its card lowered, with its takes when it asks for them. */
+/** The combo manifest a feel's moveset is lowered from (combos.js: its moves and its strings, written), or null where its
+ * card strikes no string: what a tech tree (trees/techs.js) builds its strings on. */
+export function feelCombos(feel) {
+  const C = feelCard(feel);
+  return C.blade?.kit === 'saber' ? structuredClone(SABER_COMBOS) : null;
+}
+
 export function feelRule(feel) {
   const F = readFeel(feel);
   // (the template's worn gear with it: a glider it holds is carried, lowerFeel)

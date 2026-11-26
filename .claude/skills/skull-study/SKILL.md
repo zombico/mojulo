@@ -1,6 +1,7 @@
 ---
 name: skull-study
-description: Render an animal HEAD as a skull-shape turntable — an azimuth sweep (front → ¾ → lateral → back) plus top-down and under views, cropped to the head — so a skull reads correctly from EVERY angle, not just one. Catches the failure modes a single view hides (a hollow/open-tube face that only shows head-on, a pale interior scoop that only shows at ¾, a lopsided or over-long muzzle that only shows from above). Use before/after tuning any animal head, when adding a new species' skull, or after editing the skull/welded-head builders (figure-animal-skull.js, weldedSkull in figure-animal-skin.js). Invoke as `/skull-study <species|archetype>` or `/skull-study --recipe head.json`.
+description: "Render an animal head as a turntable (every azimuth, top and under) so the skull reads right from every angle. Use before and after tuning an animal head, adding a species' skull, or editing figure-animal-skull.js or weldedSkull."
+argument-hint: "<species|archetype> | --recipe head.json"
 ---
 
 # skull-study

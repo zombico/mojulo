@@ -76,6 +76,48 @@ far) are turned into silhouettes of their own.
 - **An edge catches the light.** A floor's top edge is a thin lit line, so a platform reads against what is behind it.
 - **The frame is graded.** A mascot platformer is saturated (`grade: 'vivid'`, the rail's word).
 
+## The stair, the air and the motion
+
+The general principles are in [side-scroll-backgrounds.md](side-scroll-backgrounds.md). In a scooped strip:
+
+- **The rows stand in a stair.** Each nearer row's crests stand under the farther row's in the frame, so every row
+  shows its own edge and the sky keeps a quarter to a third of the picture.
+- **A far row is quieter.** Its lit cap fades with its distance, never brighter than a near row's.
+- **The terrace is a step into the air,** so the lane is the clearest land on the screen and never one field with it.
+- **The clouds sit on a shaded underside and drift.** The blossom stirs, each crown after the one beside it (the
+  page's ambient channel).
+
+## Going up and coming down
+
+The strip's climbs are built, never bare blocks. A face climbed by kicks (a course's wall) is a **tower** of the place:
+quoins down its ends, a string course every few metres, round windows set in their frames under its cornice
+(`era/geocube-side.js`, a built run taller than a step). A segment that ends high comes back down to the strip's ground
+across **terraces** (`course.js` `TERRACE`, a course's `down`): each a share of the jump down and a landing long, so
+going down is going across and each can be climbed back up by a jump, never a cliff dropped off. Jumping Giuseppe's
+climb ends on its tower and comes down the hill by its terraces.
+
+## Sceneries
+
+A scooped strip's land behind the lane may be one of several SCENERIES (`SCENERIES` in `era/geocube-side.js`), laid
+segment by segment along the lane: a strip's `side.scenery` (one, or a list taken in turn by its segments), which a
+level writes as its `style.scenery`. Each is the same family of shapes under the same light, and another place.
+
+| Scenery | What stands behind the terrace | What moves |
+|---|---|---|
+| orchard | the domed hills in three rows, groves of blossom | the clouds, the blossom |
+| lake | the far hills over a lake in bands, deep near and pale far, the hills' reflection at its far shore | light glinting on the water, a sailing boat drifting |
+| forest | a forest's edge: a far canopy in mint, a near one in blossom; the groves thicker | the canopy swaying |
+| coast | the sea to the horizon, islands on it; the terrace a beach of sand | light on the waves |
+| dunes (a re-key) | the three rows in warm sand, a beach, cacti for groves | the clouds |
+| snowfield (a re-key) | the three rows under snow, the terrace snow, the groves' crowns frosted | the clouds, the frosted crowns |
+
+A RE-KEY (`SCENE_KEYS`) is a scenery with no drawing of its own: the same rows and pieces with its land (`sand`,
+`snow`), its terrace's turf and its groves (`blossom`, `cactus`, `frost`) named.
+
+Where the scenery changes a HEADLAND stands on each row, a cape passed and never a seam, and a forest thins toward its
+ends. Jumping Giuseppe's first level runs through all four, a trail each (`PLATFORMER_SCENERY`). A new scenery is a row
+and its drawing.
+
 ## What holds it
 
 `sideLaws` measures these on a built strip: `rhythm` (the slices keep the walls' rule), `behind` (the dress stands

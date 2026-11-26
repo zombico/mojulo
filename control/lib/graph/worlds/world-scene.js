@@ -1804,6 +1804,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = workbotFigure(rawSpec.workbot);
           continue;
         }
+        // A CASTLE'S BELL (gameworld/metroidvania/bell.js: a boss no door makes): a figures-map entry `bell: { card }`,
+        // delivered as its rig (its chains the root, the bell on its axle, the clapper), its moves its clips. Absent ⇒ none
+        if (rawSpec.bell && typeof rawSpec.bell === 'object') {
+          const { bellFigure } = await import('@/lib/graph/gameworld/metroidvania/bell.js');
+          payload.figures[name] = bellFigure(rawSpec.bell);
+          continue;
+        }
         // GROUND FORCE bodies (groundforce/): a figures-map entry may be a sci-fi ground unit (`unit`: { kind }: a gun
         // emplacement, a hover tank, a personnel walker), what an arcade stage's ground targets write; its rig, one bone.
         // Absent ⇒ none is resolved, byte-identical.
@@ -2077,6 +2084,14 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
       // FIT (a body's `fit: { least, from? }`, a side map's foes, gameworld/side-map/cast.js): a body drawn at least `least` m tall
       // by its figure's own bounds, its scale, hit egg and collider grown together; a figure the order could not see (a
       // beast's skeleton is shorter than its flesh and its head). None ⇒ the bodies as they were
+      // (a MODE's own size, `modes[k].body.fit`: the form it becomes stood at `least` m by its own figure's bounds, its
+      // scale its own (grown or shrunk), the page building that form at it: a boss's second form of another size)
+      for (const e of payload.entities || []) for (const M of (e && e.body && Array.isArray(e.body.modes) ? e.body.modes : [])) {
+        const F = M && M.body && M.body.fit && payload.figures[M.figure], b = F ? rigBounds(F) : null;
+        if (!M || !M.body || !M.body.fit) continue;
+        const { fit, ...mb } = M.body;
+        M.body = b && b.h > 0 ? { ...mb, scale: Math.round((fit.least / b.h) * 1000) / 1000 } : mb;
+      }
       const fitted = (payload.entities || []).filter((e) => e && e.body && e.body.fit && payload.figures[e.body.figure]);
       for (const e of fitted) {
         const b = rigBounds(payload.figures[e.body.figure]), { fit, ...body } = e.body;
@@ -2430,6 +2445,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics, ...(sounds.length ? { sounds } : {}), ...(music.length ? { music } : {}) });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
+  // a BOSS FIGHT and a metroidvania's HELD GATES heard (scene/channels/boss-audio.js, sfx-shelf/boss-sounds.js): each boss's
+  // moves told and landing, its voice, its second form and its fall; a boss's room shut and opened, a gate broken by its
+  // kind, a wall struck down. Joins the level's own audio (its style and flavor its sheet's, its game's `sound.bosses`);
+  // a level with no audio hears none of it.
+  if (payload && payload.audio && (payload.heldGates || (payload.entities || []).some((e) => e && e.rule && e.rule.boss && e.rule.boss.moves)) && !payload.audio.director && !payload.audio.gates) {
+    const { bossAudio } = await import('@/lib/graph/scene/channels/boss-audio.js');
+    const sh = sketch.manifest.audio?.sfx?.sheet;
+    const ba = bossAudio(payload, { own: sh?.bosses ?? null, style: sh?.style === 'mouth' || !sh?.style ? 'realistic' : sh.style, flavor: sh?.flavor ?? null });
+    if (ba) Object.assign(payload.audio, resolveWorldAudio(ba, { time, ref: sketch.ref }) ?? {});
+  }
   // a biocube's FAUNA heard (era/fauna-audio.js): the field's kinds and its herds calling from where they live, as place
   // sounds joining the level's audio (its own cues win), only where the sound library records their voices. None ⇒ nothing.
   if (payload && (payload.fauna || (payload.entities || []).some((e) => e && e.fauna))) {
@@ -2528,6 +2553,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const [{ speedFxConfig }, { isSpace }] = await Promise.all([import('@/lib/graph/scene/channels/speed-fx.js'), import('@/lib/graph/skyscape/airspace.js')]);
     const fx = speedFxConfig(sketch.manifest, { space: isSpace(sketch.manifest) });
     if (fx) payload.speedfx = fx;
+  }
+  // a flown craft's sounds (scene/channels/flight-audio.js: the kit by its pilot's rule, sfx-shelf/flight-sounds.js): its
+  // engine, the air, its guns, its hits, its kills, the stall, the landing, the lock; the level's own audio over them (its
+  // cues win), none where it says `audio: false`; a level nothing flies in carries none
+  if (payload && sketch.manifest.kind === 'airspace' && Array.isArray(payload.entities) && !(payload.audio && payload.audio.flight)) {
+    const { flightAudio } = await import('@/lib/graph/scene/channels/flight-audio.js');
+    const fa = flightAudio(payload, sketch.manifest);
+    if (fa) {
+      const A = resolveWorldAudio(fa.spec, { time, ref: sketch.ref });
+      const mix = { ...(payload.audio?.mix ?? A.mix ?? {}), reach: Math.max(payload.audio?.mix?.reach ?? 0, fa.reach) };
+      payload.audio = payload.audio ? { ...payload.audio, flight: A.flight, cues: { ...(A.cues ?? {}), ...(payload.audio.cues ?? {}) }, mix: { distance: true, ...mix } } : { ...A, mix };
+    }
   }
 
   // a brawl on the world (brawl/brawl-levels.js brawlLevel): its practice yard, the belt and the practice (who plays,

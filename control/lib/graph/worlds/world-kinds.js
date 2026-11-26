@@ -29,6 +29,7 @@ import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene, geocubeReadout, GEOCUBE_KEYS } from '@/lib/graph/era/geocube';
 import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
 import { assembleSideMap, SIDE_MAP_SCENE_KEYS } from '@/lib/graph/gameworld/side-map/scene';
+import { assembleBox, BOX_SCENE_KEYS } from '@/lib/graph/gameworld/metroidvania/scene';
 import { geocubeCity, withSidewalkCamera } from '@/lib/graph/era/geocube-city';
 import { assembleGeotownScene, GEOTOWN_KEYS } from '@/lib/graph/geotown/scene';
 import { assembleGeocityScene, GEOCITY_KEYS } from '@/lib/graph/geocity/scene';
@@ -124,6 +125,7 @@ import { residualRuns } from '@/lib/graph/scene/channels/stroke-overlay';
 import { frameSource } from '@/lib/graph/scene/wire-svg';
 import { LAYERED_VIEW_AZ } from '@/lib/graph/scene/depth-raster';
 import { assembleScadScene } from '@/lib/graph/worlds/scad';
+import { assembleModelScene } from '@/lib/graph/worlds/model';
 import { assembleFigureScene, assembleAnimalScene } from '@/lib/graph/figures/figure-world';
 import { assembleCarvedSolidScene } from '@/lib/graph/effects/carved-solid-world';
 import { assembleSolidTurntableScene } from '@/lib/graph/worlds/solid-turntable';
@@ -624,6 +626,9 @@ export const WORLD_KINDS = {
       // reach, dressed and built where the camera sees, lit by the cube
       // (played, a level's: its pilot, camera and game layered over it by the page, the scene reading its own words only)
       if (m.show === 'sidemap') return assembleSideMap(Object.fromEntries(Object.entries(m).filter(([k]) => SIDE_MAP_SCENE_KEYS.includes(k))), { title: ctx.title });
+      // a metroidvania's box (gameworld/metroidvania/scene.js): its rooms built in greybox for the hero's stature and jump,
+      // its gates held until the hero holds what opens them (played, a level's pilot, camera and game layered over it)
+      if (m.show === 'metroidvania') return assembleBox(Object.fromEntries(Object.entries(m).filter(([k]) => BOX_SCENE_KEYS.includes(k))), { title: ctx.title });
       // a metro on the cube's own land (geocity/scene.js): its major streets first, its blocks as massing, in metres
       // (formBuildings: its massing baked for the form render, form/sun-light.js; a page's read only, the handoff's as it was)
       // (a game's level stands on one, a district: the level's pilot and its game layered over it by the page, and no
@@ -1234,6 +1239,12 @@ export const WORLD_KINDS = {
   scad: {
     title: 'mojulo scad',
     resolve: async (m, ctx) => assembleScadScene({ ...m, title: ctx.title, light: ctx.light, toon: ctx.toon }),
+  },
+  // A model made outside mojulo (mint_solid kind 'model', create_character { from }): the recipe is what the import
+  // decided, the geometry its bound file, on the same studio (worlds/model.js).
+  model: {
+    title: 'mojulo model',
+    resolve: async (m, ctx) => assembleModelScene(m, { ref: ctx.ref, title: ctx.title, light: ctx.light, toon: ctx.toon }),
   },
   // A polygomer (create_manji_tree) as a turnable 3D model: its slot-bonded lathes
   // lower to baked faces (turntable cameras + .glb export). When a skin is bound

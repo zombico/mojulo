@@ -378,6 +378,53 @@ class's voice, by its species or its class's stand-in, so an unskinned brute is 
 foe's fall, `ko:<foe>`, in its own voice ahead of the magic kit's dissolve), both only where the library records the
 class.
 
+## A boss fight as a kit
+
+`sfx-shelf/boss-sounds.js` hears any boss on the director (`boss/`) by what it does:
+- **Patterns.** Each pattern (`BOSS_PATTERN_SOUNDS`: a cleave, a quake, a lunge, a toss, a toll, a volley, a swoop, a
+  beam's sweep…) has its wind-up (`tell`), played as the move is told, and its `strike`, played as it lands.
+- **Voice.** The boss's VOICE is an animal-voices class (`bossVoice`), read from what it is: its row's own `voice`, its
+  people's (`PEOPLE_VOICE`: the undead, an ogre for the orcish, a demon for the infernal), its species', or a dragon's
+  for a winged second form. It roars at its first move, as each phase turns and as its second form rises; it is hurt
+  when struck (held apart) and dies as its last form falls.
+- **Shared.** Every boss shares a form shed into the next (`boss-transform`) and a great body felled (`boss-collapse`).
+- **Gates.** A metroidvania's held gates have their moments (`GATE_SOUNDS`): a boss's room shut and opened, a gate's
+  break by its kind (a cracked wall, a secret wall, a grate, a lock, a seal), and any other wall struck down.
+
+The page's block (`scene/channels/boss-audio.js`: `audio.director`, `audio.gates`) reads each boss's director state and
+the world's breaks each frame. It joins a level's own audio, so a level on no sheet hears none of it. A game's
+`sound.bosses` overrides any pattern's words, the shed or the fall, and any gate's (false silences one). The new words are
+rows (`BOSS_ROWS`), recorded and heard as their stand-ins until the library records them. A new pattern is a row of
+`BOSS_PATTERN_SOUNDS`.
+
+Also on the sheet: a game's own flavor (`sound.flavor`, over its feel's pole's, or false) and its menus' set
+(`sound.menus`). A foe of a people with a voice of its own is heard as that class, never as a person, and a beast that
+braces to charge braces in its own threat.
+
+## A flight as a kit
+
+`sfx-shelf/flight-sounds.js` hears a flown level by how its craft is flown, so a flight game sounds without writing a
+sound. The pilot's rule picks the KIT (`FLIGHT_KITS`):
+
+- `fly` is the TRAINER, a light propeller plane. Its engine is held by the throttle, the air over it by its speed and its
+  wheels on the runway by its speed on the ground. It has the stall warning (again while the stall lasts), a touchdown,
+  soft or hard by its sink, a crash and a ring flown through.
+- `rail` is the ARCADE fighter, punchy and bright. Its engine is held from cruise to boost. It has its lasers and a foe's,
+  its boost, brake and barrel roll, a shield hit, and what it blows apart: a fighter, a gun on the ground, the gunship
+  boss.
+- `starfighter` is the COCKPIT, a starfighter heard from its seat. Its engines are held by the throttle. It has its
+  laser cannon and a foe's, a hit on its shields and on its bare hull, the targeting computer seeking and locking, a
+  torpedo away, the incoming warning, flares, a fighter roaring past, a fighter and a warship blown apart, a scrape along
+  a hull.
+
+The events (`FLIGHT_EVENTS`; the engine, the air and the wheels held, `FLIGHT_HELD`) are read off the world each frame
+by the page's flight block (`scene/channels/flight-audio.js`), placed by their distance out to the kit's reach
+(`FLIGHT_REACH`: a flight's fights are kilometres across). The new words are rows (`FLIGHT_ROWS`, laid by the roster),
+recorded and heard as their stand-ins until the library records them; the trainer's engine is the prop's recorded
+loops. Every flown airspace hears its kit (Pilot School's lessons, Wolf Squadron's stages, Rebel Storm's missions). A
+level's own `audio` keeps its cues over the kit's, `flightSound: { <event>: <word> | false }` changes or silences one
+event, and `audio: false` silences the level. A new kind of flying is a row of `FLIGHT_KITS`.
+
 ## Not yet
 
 Beyond the sheet, the fight and the firing range, a level reads the shelf by its words only by hand so far: the practice rooms
