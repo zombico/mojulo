@@ -98,6 +98,8 @@ export const HIJACK_SHIFTS = Object.freeze([
   // (the parks' grounds crew off sick: the long grass mown on a ride-on mower, licence and all)
   Object.freeze({ id: 'groundskeeping', name: 'Groundskeeping', vehicle: 'groundskeeper', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 45 })]) }),
   Object.freeze({ id: 'dig-and-load', name: 'Dig and load', vehicle: 'excavator', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 70 })]) }),
+  // (an office temp's job, the staffing app's: a lifted badge, a desk in Synergetics Tower, its shifts paid in there)
+  Object.freeze({ id: 'office-temp', name: 'Office temp', vehicle: 'temp', repeat: true }),
   // (the pit dug, the foreman's materials never come: the Dockers' delivery orders, checked in for at their HQ)
   Object.freeze({ id: 'materials', name: 'Delivery orders', vehicle: 'freight', after: 'dig-and-load', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 80 })]) }),
 ]);
@@ -137,7 +139,7 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
   // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
   const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
-  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
+  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, office: true, ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
   if (district.museum === undefined) delete district.museum;
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
@@ -160,7 +162,7 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
       { id: 'fare', giver: 'district', repeat: true, reward: [{ item: 'coin', n: 12 }], list: [{ item: 'passenger', at: 'district' }], app: 'taskfu' },
       // (the city's driving jobs on Jobsified, jobsified.js: a garbage truck's bin round from the works yard and back,
       // driven again for more; a district with no works yard lays none of it)
-      ...HIJACK_SHIFTS.map((J) => ({ ...J, giver: 'district', reward: J.reward.map((r) => ({ ...r })) })),
+      ...HIJACK_SHIFTS.map((J) => ({ ...J, giver: 'district', ...(J.reward ? { reward: J.reward.map((r) => ({ ...r })) } : {}) })),
     ],
     ui: { theme: { from: 'downtown', icons: 'solid' }, colour: 'theme' },
     factions: {

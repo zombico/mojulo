@@ -45,6 +45,17 @@
 - **The ride-on mower** is new on the vehicle shelf (`ride-on mower`, `riding mower`, `lawn tractor`): a low bonnet, an
   open seat with a high back, a cutting deck under it and its chute out to the side, at a mower's own weight and top
   speed.
+- **The temp agency.** A new app on the phone, Placeholder Staffing, posts an office temp's job at Synergetics Tower.
+  It asks for an office ID badge; the forger happens to have one, lifted off a commuter's lanyard (the forger now sells
+  whichever paper the job that turned you away asked for). Walk through the tower's glass lobby into its own building:
+  reception points you to your desk, and the desk starts a shift.
+- **Deskwork.** The shift is a browser of tabs: an inbox of tickets, invoices to read and file, vendor recommendations
+  to make against a memo's constraints, TPS reports to tally, cover with the right sheet and route. Every answer is
+  worked out from what the tabs show, the Policies tab most of all. Mistakes bring Quality Assurance; late tickets are
+  escalated to a committee; Mandatory Training interrupts. Meet quota and you're paid, recognised (automatically) and
+  commended; two commendations make a promotion, and a promotion is more work: more tickets, less time for each.
+- **Issued vehicles stand in their yard.** The heavy call's trucks, the bus and the sweeper are now waiting in the works
+  yard and the bus depot when there's room, instead of at a kerb; the streetcar line had taken the kerbs by the yard.
 - **The way and the screen.** Taking a job on the phone points the guide at it straight away; the arrow leads to the
   nearest pile still waiting. A line on screen shows the truck's load or the next stop and who is aboard, with a bar
   while F is held. A finished job is announced with a card in the middle of the screen over what it paid, the money in

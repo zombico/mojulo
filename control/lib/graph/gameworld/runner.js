@@ -29,6 +29,7 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
+import { deskCast } from './temp-agency.js';
 import { DRESS_THEMES, readDress } from './course-dress.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { menuSoundSet } from '../playscape/ui/interface-look.js';
@@ -561,7 +562,9 @@ export function runSteps(world, { ref, lookup, composite } = {}) {
     const people = geo ? peopleExtra(G, { sets: crowdSets(geo), realistic: peopleOf(geo) === 'realistic', locale: geo.mix ?? null }) : null;
     // (a side map's boss in its last room: side-map/boss-cast.js)
     const sideBoss = s.section === 'sidemap' && G.levels[s.level]?.sidemap?.boss ? (ends) => sideMapBossCast(G, ends, { refs: bossRefs, ...(heroStature ? { stature: heroStature } : {}) }) : null;
-    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people, sideBoss);
+    // (an office tower's desk, temp-agency.js: its shift's round in the ground floor's office, reception's word)
+    const desk = s.desk ? (ends) => deskCast(G, s, ends) : null;
+    const extra = composeExtras(fight, stall, market, goalCast, folk, hostile, cars, people, sideBoss, desk);
     // (a stage with cars says its key: the same press gets in and out)
     const fights = extra ? { extra, ...(fight ? { legend: 'P  party' } : cars ? { legend: 'E  car' } : {}) } : {};
     // a walked stage's story slots: its before at its start, its after (and its epoch's end) at its exit

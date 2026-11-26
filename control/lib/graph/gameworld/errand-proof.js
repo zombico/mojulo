@@ -24,9 +24,12 @@ const B = buildBus();
 /** Each level's last stage's manifest, from runSteps' steps (`level-<id>-<k>`, the last k a level's last stage). */
 export function lastStageManifests(steps) {
   const out = {};
+  // (a level's last stage, but the one that lays its jobs over a building entered from it that lays none: a district's
+  // museum or office tower comes after it)
+  const jobs = (M) => (M?.game?.mechanics ?? []).some((x) => ['task', 'offer', 'call', 'shift', 'deliver', 'trade'].includes(x?.kind));
   for (const s of steps) {
     const m = /^level-(.+)-(\d+)$/.exec(s.key);
-    if (m && s.order?.manifest) out[m[1]] = s.order.manifest;
+    if (m && s.order?.manifest && (!out[m[1]] || jobs(s.order.manifest) || !jobs(out[m[1]]))) out[m[1]] = s.order.manifest;
   }
   return out;
 }
@@ -73,9 +76,10 @@ export function proveErrands(world, manifests) {
     if (E.vehicle) {
       const H = manifests[E.giver], mechs = H?.game?.mechanics ?? [], Sh = mechs.find((m) => m.kind === 'shift' && m.id === E.id), Tk = mechs.find((m) => m.kind === 'task' && m.id === E.id);
       if (!Sh) return { errand: E.id, proved: false, legs: [], assumed: [], arrives: [], says: `the giver's level '${E.giver}' lays no driving job for it` };
-      const events = [...(Tk ? [{ type: `app:sub:${Tk.app}` }, { type: `app:take:${E.id}` }] : []), { type: 'mounted', rider: 'hero', mount: Sh.cabs[0] }];
+      // (a desk's is on foot: walked to its building's door)
+      const events = [...(Tk ? [{ type: `app:sub:${Tk.app}` }, { type: `app:take:${E.id}` }] : []), ...(Sh.mode === 'desk' ? [] : [{ type: 'mounted', rider: 'hero', mount: Sh.cabs[0] }])];
       const mode = Sh.mode ?? 'route', unload = Sh.unload?.at ?? Sh.depot;
-      const walk = mode === 'dig' ? [] : mode === 'mow' ? Sh.stops.slice(0, Math.ceil(Sh.stops.length * (Sh.goal ?? 0.85))).map((q) => q.at) : mode === 'sweep' ? Sh.stops.map((q) => q.at) : mode === 'haul' ? [Sh.site.at] : mode === 'collect' ? Sh.stops.slice(0, Sh.load).map((q) => ({ at: q.at, hold: E.id })) : Sh.stops.map((q) => ({ at: q.at, hold: E.id }));
+      const walk = mode === 'dig' ? [] : mode === 'desk' ? [Sh.depot] : mode === 'mow' ? Sh.stops.slice(0, Math.ceil(Sh.stops.length * (Sh.goal ?? 0.85))).map((q) => q.at) : mode === 'sweep' ? Sh.stops.map((q) => q.at) : mode === 'haul' ? [Sh.site.at] : mode === 'collect' ? Sh.stops.slice(0, Sh.load).map((q) => ({ at: q.at, hold: E.id })) : Sh.stops.map((q) => ({ at: q.at, hold: E.id }));
       // (a job that asks for papers, a licence: held, as if bought at the forger)
       const papers = Tk?.needs?.item ? { [`held:bag:${Tk.needs.item}`]: 1 } : {};
       // (one taken at a faction's HQ: checked in there, its call come)
@@ -84,10 +88,10 @@ export function proveErrands(world, manifests) {
       // (a dig: the operator's scoops and tips given, a truck's worth, the page's to say)
       const dig = mode === 'dig' ? Array.from({ length: Sh.loads }, () => [{ type: `shift:scoop:${E.id}` }, { type: `shift:tip:${E.id}` }]).flat() : [];
       const r = visit(H, store, { ...bag, ...papers }, mode === 'dig' ? [] : mode === 'collect' ? [...walk, unload] : walk, [...events, ...dig]);
-      const proved = r.log.includes(`errand:done:${E.id}`), where = mode === 'haul' ? (Sh.site.to ?? 'site') : mode === 'collect' ? (Sh.unload ? 'dump' : Sh.yard ?? 'depot') : mode === 'dig' ? 'tipper' : mode === 'sweep' ? 'last heap' : mode === 'mow' ? 'lawn' : 'last stop';
+      const proved = mode === 'desk' ? r.log.includes(`flag:on-${E.id}`) : r.log.includes(`errand:done:${E.id}`), where = mode === 'haul' ? (Sh.site.to ?? 'site') : mode === 'collect' ? (Sh.unload ? 'dump' : Sh.yard ?? 'depot') : mode === 'dig' ? 'tipper' : mode === 'sweep' ? 'last heap' : mode === 'mow' ? 'lawn' : mode === 'desk' ? 'door' : 'last stop';
       bag = r.bag;
-      return { errand: E.id, proved, legs: [{ item: mode, level: E.giver, bag: { ...bag } }], assumed: [`the hero gets into the ${Sh.vehicle ?? 'vehicle'} (${Sh.cabs[0]}): the proof cannot drive`, ...(Tk?.needs ? [`the hero holds the ${Tk.needs.name ?? Tk.needs.item}, bought at the forger`] : []), ...(Hq ? [`the hero has checked in at the ${Hq.name ?? Hq.hq} HQ`] : [])], arrives: [],
-        says: proved ? `driven: ${mode === 'sweep' ? `${Sh.stops.length} heaps swept` : mode === 'mow' ? `${Math.ceil(Sh.stops.length * (Sh.goal ?? 0.85))} of the lawn's ${Sh.stops.length} cells cut in a round` : mode === 'dig' ? `${Sh.loads} bucketfuls scooped and tipped (given: the operator's)` : mode === 'haul' ? 'to the ' + where : mode === 'collect' ? `${Sh.load} piles held at and emptied at the ${where}` : `${Sh.stops.length} stops held at in order`}: paid` : `the ${where} did not pay: ${r.log.filter((t) => typeof t === 'string' && t.startsWith('flag:stop-')).length} piles or stops made` };
+      return { errand: E.id, proved, legs: [{ item: mode, level: E.giver, bag: { ...bag } }], assumed: [mode === 'desk' ? 'the hero works the shift at the desk inside: the building\'s own page' : `the hero gets into the ${Sh.vehicle ?? 'vehicle'} (${Sh.cabs[0]}): the proof cannot drive`, ...(Tk?.needs ? [`the hero holds the ${Tk.needs.name ?? Tk.needs.item}, bought at the forger`] : []), ...(Hq ? [`the hero has checked in at the ${Hq.name ?? Hq.hq} HQ`] : [])], arrives: [],
+        says: proved ? mode === 'desk' ? `walked to the ${Sh.yard ?? 'office'} and clocked in: its shift is the building's own page (Deskwork)` : `driven: ${mode === 'sweep' ? `${Sh.stops.length} heaps swept` : mode === 'mow' ? `${Math.ceil(Sh.stops.length * (Sh.goal ?? 0.85))} of the lawn's ${Sh.stops.length} cells cut in a round` : mode === 'dig' ? `${Sh.loads} bucketfuls scooped and tipped (given: the operator's)` : mode === 'haul' ? 'to the ' + where : mode === 'collect' ? `${Sh.load} piles held at and emptied at the ${where}` : `${Sh.stops.length} stops held at in order`}: paid` : `the ${where} did not pay: ${r.log.filter((t) => typeof t === 'string' && t.startsWith('flag:stop-')).length} piles or stops made` };
     }
     const legs = [], assumed = [], missing = [];
     const solvable = E.laws.find((l) => l.law === 'solvable');

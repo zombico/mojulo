@@ -273,9 +273,9 @@ export const EVOKE_IDS = Object.freeze(Object.keys(EVOKES));
 export const PLAY = Object.freeze({ real: null, game: Object.freeze({ pitch: 0.6, depth: 0.8 }) });
 export const DEFAULT_METRO = 'lakeshore';
 // what a recipe may say beside its metro: each a card's setting laid over the card's
-const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'dump', 'dock', 'museum']);
+const KEYS = Object.freeze(['metro', 'extent', 'water', 'core', 'fall', 'hills', 'shore', 'heights', 'green', 'streets', 'segments', 'lively', 'civic', 'alleys', 'lamps', 'crowd', 'people', 'mix', 'industry', 'highways', 'waterfront', 'roads', 'grammar', 'outskirts', 'evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'grades', 'shops', 'dump', 'dock', 'museum', 'office']);
 // (how the recipe is told, and what it composes, not a setting of its metro)
-const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'dump', 'dock', 'museum']);
+const TOLD = Object.freeze(['evoke', 'at', 'along', 'play', 'geotowns', 'under', 'subway', 'profile', 'slope', 'shops', 'dump', 'dock', 'museum', 'office']);
 // a subway line under an evocation's street (geocity/subway.js): its settings
 const SUBWAY_KEYS = Object.freeze(['along', 'stations', 'plan', 'line', 'depth', 'gap', 'tunnels', 'elevation']);
 const CITY_ELEVATIONS = Object.freeze(['deep', 'elevated']);
@@ -430,6 +430,14 @@ export function readGeocity(spec = {}) {
     if (museum.scale !== undefined && !num(museum.scale, 1, 2)) no('museum.scale is 1 to 2: its rooms laid that much larger for a third-person camera');
     if (museum.exhibits !== undefined) { try { readExhibits(museum.exhibits); } catch (e) { no(`museum.${e.message}`); } }
   }
+  // (an OFFICE tower walked into, scene.js: the lobby of the office front nearest the walk's start a door into a building
+  // of its own, the office program's, era/programs.js; a desk job's: gameworld/temp-agency.js)
+  const office = spec.office === undefined || spec.office === false ? null : spec.office === true ? {} : spec.office;
+  if (office !== null) {
+    if (!isObj(office)) no('office is true or { name? }: an office tower near the walk\'s start, its lobby walked into');
+    for (const k of Object.keys(office)) if (!['name'].includes(k)) no(`office.${k} is not a setting (name)`);
+    if (office.name !== undefined && !(typeof office.name === 'string' && office.name.trim())) no('office.name is its name');
+  }
   // (a DUMP, scene.js dumpOf: one of its car parks near the eye built as a tipping hall, a driving job's: jobsified.js)
   if (spec.dump !== undefined && spec.dump !== true) no('dump is true: one of the district\'s car parks built as a dump, where a garbage truck unloads');
   // (a DOCK, waterfront.js `port`: the main shore's segment before the evocation a working port, its trucks', its ramp up
@@ -489,5 +497,5 @@ export function readGeocity(spec = {}) {
     slope = { streets: { ...S.streets } };
     if (!profile) profile = {};
   }
-  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(spec.dump === true ? { dump: true } : {}), ...(spec.dock === true ? { dock: true } : {}), ...(museum ? { museum } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
+  return { metro: M, grammar, pattern, hills, evoke, play, geotowns, ...(under ? { under } : {}), ...(shops ? { shops } : {}), ...(spec.dump === true ? { dump: true } : {}), ...(spec.dock === true ? { dock: true } : {}), ...(museum ? { museum } : {}), ...(office ? { office } : {}), ...(subway ? { subway } : {}), ...(spec.at !== undefined ? { at: spec.at } : {}), ...(spec.along !== undefined ? { along: spec.along } : {}), ...(profile ? { profile } : {}), ...(slope ? { slope } : {}) };
 }

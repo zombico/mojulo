@@ -2674,6 +2674,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     if (use !== 'residential') return 'lobby';
     return (side.kind === 'arterial' || side.rank === 'collector') && b.ring !== 'outskirts' ? 'shops' : 'entries';
   };
+  // (its OFFICE tower, `office`: of the office fronts near the eye whose street wall has the room for a lobby, the one nearest
+  // the walk's start, its lobby a level's door into the office's own building, gameworld/levels.js officeDoor)
+  const lobbies = [], offices = [];
   for (const F of fronts) {
     if (!nearEye(F.q)) continue;
     const R = streamOf(seed, 'frontage', `${F.b.id}:${F.q.map((v) => Math.round(v)).join(',')}`), one = (xs) => [xs[Math.floor(R() * xs.length)]];
@@ -2684,6 +2687,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       // (a house its door on its street, windows round it)
       // (a row of shops walked into: its ground its shops, each open)
       const side = F.b.sides?.[f], ground = F.open ? 'shops' : F.house ? (f === F.house ? 'entries' : 'windows') : groundOf(F.use, side, F.b);
+      if (d.spec.office && F.use === 'office' && ground === 'lobby' && W4[f].L >= FRONTAGE.lobby.w + 2) { const n = FACINGS[f], t = [-n[1], n[0]], o = F.ground ? FRONT_PROUD : 0; lobbies.push({ b: F.b, at: [W4[f].a[0] + n[0] * o + t[0] * W4[f].L / 2, W4[f].a[1] + n[1] * o + t[1] * W4[f].L / 2, F.z0], N: n }); }
       for (const p of frontsOf({ facing: f, a: W4[f].a, L: W4[f].L, z0: F.z0, ...(F.ground ? { out: FRONT_PROUD } : {}) }, { storeys: F.storeys, floorH: F.floorH, use: F.use, ground, palette, ...(formB ? { panes: true } : {}), ...(F.b.ring !== 'outskirts' ? { blades: true } : {}), lived: true, frames: FRONT_PAINT.frame, ...(F.ground ? { windows: false } : {}), ...(F.house ? { balconies: false } : {}), ...(F.open ? { open: F.open, signs: F.signs, ...(F.sinks ? { sinks: F.sinks } : {}) } : {}) }, R)) {
         // (what a shop puts out on its walk, frontage.js `lived`: the street's kit on the ground it stands on, never the road)
         if (p.key.startsWith('life:')) { const [x, y] = p.pos; if (!roadAt(x, y)) { const b = F.b, q = b?.rect, inB = !!q && x >= q[0] && x <= q[2] && y >= q[1] && y <= q[3]; stamp(p.key.slice(5), [x, y, inB ? zOf.get(b.id)?.(x, y) ?? p.pos[2] : q ? S(x, y) + KERB : p.pos[2]], 0); counts.life = (counts.life ?? 0) + 1; } continue; }
@@ -2694,6 +2698,10 @@ export function assembleGeocityScene(m, ctx = {}) {
       }
       counts.fronts = (counts.fronts ?? 0) + 1;
     }
+  }
+  if (lobbies.length) {
+    const from = eyes[0] ?? d.seat, L = lobbies.reduce((m, q) => (Math.hypot(q.at[0] - from[0], q.at[1] - from[1]) < Math.hypot(m.at[0] - from[0], m.at[1] - from[1]) - 1e-9 ? q : m));
+    offices.push({ id: `office-${L.b.id}`, block: L.b.id, at: P3(L.at), N: P3([L.N[0], L.N[1], 0]), floor: r5(L.at[2]), ...(typeof d.spec.office?.name === 'string' ? { name: d.spec.office.name } : {}) });
   }
   // ── the TRAFFIC (flow.js): every arterial's travel lanes driven by the fleets' vehicles, a signal at each crossing; the
   // page steps a lane and draws its vehicles only near the camera (scene/channels/flow.js); its kerbs kept clear ──
@@ -2976,8 +2984,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
-    ...(podia.length || SUB || entered.length || museums.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
+    ...(podia.length || SUB || entered.length || museums.length || offices.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
       ...museums.map((M) => ({ ...M, kind: 'museum', use: 'museum', enter: 'door' })),
+      ...offices.map((O) => ({ ...O, kind: 'office', use: 'office', enter: 'door' })),
       ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, ...(e.sink ? { sink: e.sink } : {}), door: P3(e.door), ...(e.till ? { till: e.till, keeper: e.keeper } : {}), inside: e.inside } })),
       ...(SUB?.anchors ?? []),
       ...(dressed?.readout.court ? [{ id: `food-court-${dressed.readout.court.podium}`, kind: 'food-court', podium: `podium-${dressed.readout.court.podium}`, tables: dressed.readout.court.tables }] : []),

@@ -301,6 +301,16 @@ describe('shift: a driving job in a city vehicle, from its depot and back (gamew
     expect(hud.find((h) => h.on === 'shift:timeout:bins')).toMatchObject({ as: 'toast' });
     expect(hud.find((h) => h.text === MOW.pitch).on).toBe('flag:took-bins');
   });
+  // DESK: on foot, clocked in at a building's door; its shift is that building's own page
+  it('desk: no vehicle; walked to its door once taken, it clocks in; nothing is paid here', () => {
+    const DESK = { kind: 'shift', mode: 'desk', id: 'bins', depot: [40, 0, 0], radius: 4, item: 'shift', vehicle: 'desk', yard: 'Synergetics Tower', after: 'took-bins', repeat: true };
+    const r = drive([DESK, TASK], [take, { at: [40, 0, 0] }]);
+    expect(r.vars['flag-on-bins']).toBe(1);
+    expect(r.log).not.toContain('errand:done:bins');
+    expect(drive([DESK, TASK], [{ at: [40, 0, 0] }]).vars['flag-on-bins']).toBe(0);
+    const { hud } = composeMechanics([{ kind: 'bag', slice: 'bag' }, DESK, TASK, EXIT], ctx).events;
+    expect(hud.find((h) => h.on === 'shift:clock:bins')).toMatchObject({ text: 'Clocked in: your desk is inside the Synergetics Tower' });
+  });
   it('a malformed shift says what is wrong', () => {
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...COLLECT, load: 9 }, EXIT], ctx)).toThrow(/load is how many/);
     expect(() => composeMechanics([{ kind: 'bag', slice: 'bag' }, { ...HAUL, site: undefined }, EXIT], ctx)).toThrow(/site is/);
