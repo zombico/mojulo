@@ -19,5 +19,7 @@ describe('a shot on a big subject', () => {
     const C = st.camera.transform.pos, look = st.camera.lookAt;
     expect(Math.hypot(C[0], C[1])).toBeGreaterThan(12);                         // (off it by its size, not a person's 3 m)
     expect(segDist(C, look, [9, 0, 4.2 * 0.8])).toBeGreaterThan(4.2);          // (the frame out of the line)
+    // (and aimed under the tower's middle, so it rides above a scene's talk box)
+    expect(look[2]).toBeLessThan(5.5);
   });
 });

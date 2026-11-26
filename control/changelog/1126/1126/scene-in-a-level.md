@@ -23,3 +23,5 @@
   comes (its down task begins, or the level starts for one awake from it), a short scene: the camera pushed in on its
   members, its name as a banner (its title, else its card's label), a line said over it where one is written, then the
   play back. Optional, a group's own; skippable as every scene is.
+- A shot on big subjects aims a share of its distance under them, so they ride above a scene's talk box (its lower
+  third) rather than behind it.
