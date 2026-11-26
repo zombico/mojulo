@@ -120,3 +120,8 @@
   patches.
 - Hijack City builds again: since its district moved downtown, the contact's jobs had no shops to stand at and the level
   could not be laid. Downtown's shopfronts are now the jobs' stops (the kerb before each shop).
+- A big level's loading screen no longer disappears before the level is ready. Exported games' levels now say how their
+  download is going (the percentage and what is loading: the world, the people, then building the world) and the
+  loading screen stays up until the first frame is drawn. Before, it was taken down after 45 seconds, leaving a blank
+  screen while a large level was still loading. The level's files also download at the same time instead of one after
+  another.

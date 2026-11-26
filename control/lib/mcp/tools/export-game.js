@@ -36,6 +36,7 @@ import { pluginProfileActive, withPluginProfile } from '@/lib/mcp/plugin-profile
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
+import { MSG_LOADING } from '@/lib/graph/game/level-contract';
 import { emitShellFor } from '@/lib/graph/game/shell-for';
 import { resolveWorldScene, WALK_KINDS } from '@/lib/graph/worlds/world-scene';
 import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
@@ -120,6 +121,34 @@ async function emitWorldPage(sketch, role, { cdn = false, era, reads = null } = 
 // world-geometry size and the bank ships once, browser-cached across levels. Trade-off, recorded
 // in the README: exported levels now fetch WITHIN the folder, so file:// no longer plays — any
 // static server (GitHub Pages included) does.
+
+// The level page's loader (hoistShared): every hoisted bank fetched at once as the page's script starts, its bytes
+// counted as they stream in against what the export wrote (`sizes`), the shell told how far and what it is on
+// (MSG_LOADING) a percent at a time; the page's own fetches, `await __mojGet(path)`, take what has come. A level whose
+// banks are all in hand says it is building its world. Bytes from 10 to 85 per cent; the build after; the first frame the
+// shell's own (MSG_SHOWN).
+const PAGE_MODULE = '<script type="module">';
+export function pageLoader(sizes) {
+  return `const __mojGet = (() => {
+  const T = ${JSON.stringify(sizes)}, total = Object.values(T).reduce((a, b) => a + b, 0) || 1, got = {}, P = {};
+  const say = (progress, step) => { try { window.parent.postMessage({ moj: ${JSON.stringify(MSG_LOADING)}, progress, step }, '*'); } catch (e) { /* no shell */ } };
+  const mb = (b) => Math.round(b / 1048576), what = (u) => (u.indexOf('/figures/') >= 0 ? 'the people' : 'the world');
+  let last = -1, left = Object.keys(T).length;
+  const tell = (u) => { const done = Object.values(got).reduce((a, b) => a + b, 0), pc = Math.floor(10 + 75 * Math.min(1, done / total)); if (pc === last) return; last = pc; say(pc, 'downloading ' + what(u) + ' · ' + mb(done) + ' of ' + mb(total) + ' MB'); };
+  const read = async (u) => {
+    const r = await fetch(u);
+    if (!r.ok) throw new Error(u + ': ' + r.status);
+    if (!r.body || !r.body.getReader) { const j = await r.json(); got[u] = T[u] || 0; tell(u); return j; }
+    const rd = r.body.getReader(), parts = []; let len = 0;
+    for (;;) { const c = await rd.read(); if (c.done) break; parts.push(c.value); len += c.value.length; got[u] = len; tell(u); }
+    const all = new Uint8Array(len); let o = 0; for (const q of parts) { all.set(q, o); o += q.length; }
+    return JSON.parse(new TextDecoder().decode(all));
+  };
+  say(10, 'downloading the level');
+  for (const u of Object.keys(T)) { P[u] = read(u); P[u].catch(() => {}); }
+  return (u) => (P[u] || read(u)).then((v) => { if (--left === 0) say(88, 'building the world'); return v; });
+})();`;
+}
 
 // Scan a JSON object literal from `start` (must be '{') to its balanced close, string-aware.
 // Returns the end index (inclusive). The bank is safeJson output, so this is plain JSON.
@@ -346,6 +375,8 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
   // (the same suit in 35 levels, a livery repeated by its preview turntable) ship exactly once.
   // Pages live in levels/, so the shim fetches ../assets/figures/….
   const figureFiles = new Map();   // rel path → true (written)
+  // (what the page being hoisted fetches: each file's path as the page names it and its bytes, for its loader)
+  let fetched = null;
   const hoistFigures = async (html) => {
     // the figure-buffer POOL (channels/controllable poolFigureBuffers — packed buffers shared
     // across livery variants, referenced from __FIG by {__p:i} markers) is one big array literal
@@ -360,7 +391,8 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       const h = createHash('sha256').update(body).digest('hex').slice(0, 8);
       const rel = `assets/figures/figpool-${h}.json`;
       if (!figureFiles.has(rel)) { figureFiles.set(rel, true); await write(rel, body); }
-      html = html.slice(0, poolStart) + `await (await fetch(${JSON.stringify(`../${rel}`)})).json()` + html.slice(poolEnd + 1);
+      fetched[`../${rel}`] = Buffer.byteLength(body);
+      html = html.slice(0, poolStart) + `await __mojGet(${JSON.stringify(`../${rel}`)})` + html.slice(poolEnd + 1);
     }
     const marker = 'const __FIG = ';
     const at = html.indexOf(marker);
@@ -375,10 +407,11 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       const rel = `assets/figures/${name.replace(/[^A-Za-z0-9_-]/g, '_')}-${h}.json`;
       if (!figureFiles.has(rel)) { figureFiles.set(rel, true); await write(rel, body); }
       srcs[name] = `../${rel}`;
+      fetched[`../${rel}`] = Buffer.byteLength(body);
     }
     const shim = 'Object.fromEntries(await Promise.all(Object.entries('
       + JSON.stringify(srcs)
-      + ').map(async (e) => [e[0], await (await fetch(e[1])).json()])))';
+      + ').map(async (e) => [e[0], await __mojGet(e[1])])))';
     return html.slice(0, objStart) + shim + html.slice(objEnd + 1);
   };
 
@@ -404,11 +437,20 @@ export async function exportGameHandler(input, context = {}, deps = {}) {
       const h = createHash('sha256').update(body).digest('hex').slice(0, 8);
       const rel = `assets/geometry/${name.toLowerCase()}-${h}.json`;
       if (!geometryFiles.has(rel)) { geometryFiles.set(rel, true); await write(rel, body); }
-      html = html.slice(0, start) + `await (await fetch(${JSON.stringify(`../${rel}`)})).json()` + html.slice(end + 1);
+      fetched[`../${rel}`] = Buffer.byteLength(body);
+      html = html.slice(0, start) + `await __mojGet(${JSON.stringify(`../${rel}`)})` + html.slice(end + 1);
     }
     return html;
   };
-  const hoistShared = async (html) => hoistGeometry(await hoistFigures(html));
+  // THE PAGE'S LOADER (its banks fetched at once, as soon as its script runs, rather than one after another): what
+  // arrives said to the shell as it arrives (level-contract.js MSG_LOADING: how far, by the bytes the export wrote, and
+  // what it is on), so the shell's loading screen moves while a big level's banks come and holds until its first frame
+  const hoistShared = async (html) => {
+    fetched = {};
+    const out = await hoistGeometry(await hoistFigures(html)), at = out.indexOf(PAGE_MODULE);
+    if (!Object.keys(fetched).length || at < 0) return out;
+    return out.slice(0, at + PAGE_MODULE.length) + '\n' + pageLoader(fetched) + out.slice(at + PAGE_MODULE.length);
+  };
 
   const manifest = sketch.manifest;
   const hash = manifestHash(manifest);

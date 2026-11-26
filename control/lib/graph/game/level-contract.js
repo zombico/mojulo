@@ -85,6 +85,13 @@ export const MSG_SEATS = 'game-seats';
 //                                             skip? }) has ended; missing: the level has no such scene; skipped: its
 //                                             conditions did not hold or it had played its once. The flow goes on
 export const MSG_SHOWN = 'game-shown';
+//   level → shell  { moj: MSG_LOADING, progress, step }
+//                                           — the level still loading: how far (0 … 100, null when not known) and the
+//                                             step it is on (its words, as the loading screen shows them). Each one is
+//                                             news: the shell holds its loading screen while news comes (a big level's
+//                                             banks take more than a minute to arrive and build) and lifts it at the
+//                                             first frame (MSG_SHOWN), never on ready alone
+export const MSG_LOADING = 'game-loading';
 export const MSG_SCENE_END = 'game-scene-end';
 export const MSG_CARD_DONE = 'game-card-done';
 

@@ -32,7 +32,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_SAVE, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_MENU, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_SAVE, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_MENU, MSG_GAMEPAD, MSG_SEATS, MSG_SHOWN, MSG_CARD_DONE, MSG_SCENE_END, MSG_LOADING } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
@@ -141,7 +141,7 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
     // the screens' score (music.menu, resolved to a src): looped while a screen is up, never under a level
     ...(stingers && stingers.menu ? { screens: stingers.menu } : {}),
-    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(levelTable.some((l) => l.contract && l.contract.save) ? { save: MSG_SAVE } : {}), ...(links ? { door: MSG_DOOR } : {}) },
+    wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, menu: MSG_MENU, gamepad: MSG_GAMEPAD, seats: MSG_SEATS, shown: MSG_SHOWN, loading: MSG_LOADING, cardDone: MSG_CARD_DONE, sceneEnd: MSG_SCENE_END, ...(levelTable.some((l) => l.contract && l.contract.save) ? { save: MSG_SAVE } : {}), ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key (a
     // staged front draws no cover: its stage is the title's picture)
@@ -615,12 +615,12 @@ export function playShellRuntime(cfg, K) {
     const place = run ? (run.at ? 'cleared ' + run.at + ' of ' + run.order.length + ' · ' : '') + 'map ' + (run.at + 1) + ' of ' + run.order.length : lv.title;
     if (STAGE && STAGE.loading(place)) { if (MANA) MANA.close(); /* the stage holds until the level is drawn, mana-ui's title put away */ }
     else if (MANA) MANA.loading(place);
-    else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; }
+    else { $('veilText').textContent = lv.title; veil.style.display = 'flex'; const bi = veil.querySelector('.bar i'); if (bi) { bi.style.animation = ''; bi.style.width = ''; } }
     clearTimeout(veilCap);
     // (a big map is baked before a byte of it arrives, for minutes: the veil holds, and says so, until the frame has loaded;
     // a level without the bridge still shows, a while after it has)
     clearTimeout(veilHint);
-    veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; if (STAGE) STAGE.slow('being built for the first time: a big map can take a few minutes'); }, 8000);
+    veilHint = setTimeout(() => { $('veilText').textContent = lv.title + ' · being built for the first time: a big map can take a few minutes'; if (STAGE) STAGE.slow('being built for the first time: a big map can take a few minutes'); if (MANA) MANA.progress(null, 'opening the level: a big one takes a minute or two'); }, 8000);
     veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); }, 600000);
     frame.src = lv.src;
   }
@@ -631,7 +631,11 @@ export function playShellRuntime(cfg, K) {
     post({ moj: W.gamepad, on: true, deadZone: 0.15, lookScale: 18, invertY: false });
   };
   frame.addEventListener('load', pushPrefs);
-  frame.addEventListener('load', () => { if (veil.style.display === 'none' && !(STAGE && STAGE.isLoading())) return; clearTimeout(veilCap); clearTimeout(veilHint); $('veilText').textContent = session ? session.level.title : ''; veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); }, 45000); });
+  // (the level's veil lifted: the shell's own, mana-ui's loading screen, a staged game's stage)
+  const lift = () => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); };
+  // (a level that says how its load goes, MSG_LOADING: its veil held while news comes, LOAD_QUIET after the last)
+  const LOAD_QUIET = 45000;
+  frame.addEventListener('load', () => { if (veil.style.display === 'none' && !(STAGE && STAGE.isLoading())) return; if (session && session.loads) return; clearTimeout(veilCap); clearTimeout(veilHint); $('veilText').textContent = session ? session.level.title : ''; veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); if (STAGE) STAGE.loaded(); }, 45000); });
 
   window.addEventListener('message', (e) => {
     const d = e.data;
@@ -648,8 +652,18 @@ export function playShellRuntime(cfg, K) {
     // the level's own end card read (or put away): the flow goes on
     if (d.moj === W.cardDone) { if (waitCard) { const f = waitCard; waitCard = null; f(); } signal('card-done'); return; }
     if (W.save && d.moj === W.save && session && d.levelRef === session.level.ref && d.vars && typeof d.vars === 'object') { progress[d.levelRef] = d.vars; progress.__last = d.levelRef; keepProgress(); toast('Progress saved'); return; }
+    // the level still loading: how far and what it is on; the veil held while news comes, and said
+    if (W.loading && d.moj === W.loading) {
+      if (veil.style.display === 'none' && !MANA && !(STAGE && STAGE.isLoading())) return;
+      session.loads = true; clearTimeout(veilCap); clearTimeout(veilHint); veilCap = setTimeout(lift, LOAD_QUIET);
+      const pc = typeof d.progress === 'number' ? Math.max(0, Math.min(100, d.progress)) : null, step = typeof d.step === 'string' ? d.step : '';
+      if (MANA) MANA.progress(pc, step);
+      else { $('veilText').textContent = session.level.title + (step ? ' · ' + step : ''); const bi = veil.querySelector('.bar i'); if (bi && pc !== null) { bi.style.animation = 'none'; bi.style.width = pc + '%'; } }
+      return;
+    }
     if (d.moj === W.ready) {
-      clearTimeout(veilCap); clearTimeout(veilHint); veilCap = setTimeout(() => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, 1200);
+      // (a level that says how it loads lifts its veil at its first frame, MSG_SHOWN; one from before, a moment after ready)
+      clearTimeout(veilCap); clearTimeout(veilHint); veilCap = setTimeout(session.loads ? lift : () => { veil.style.display = 'none'; if (MANA) MANA.loaded(); }, session.loads ? LOAD_QUIET : 1200);
       if (d.contractVersion !== W.version) { clearTimeout(veilCap); veil.style.display = 'none'; if (MANA) MANA.loaded(); toast('This level speaks a newer contract (v' + d.contractVersion + '); re-make the game.'); return; }
       post({ moj: W.init, contractVersion: W.version, params: session.params, seed: session.seed, theme: cfg.theme });
       pushPrefs();

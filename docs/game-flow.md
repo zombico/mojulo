@@ -193,6 +193,12 @@ The flow kernel (`buildFlowKernel`) is inlined in the play shell beside the stor
 every level's end are events the runner steps on. Hand-offs wait on events, never on timers alone:
 
 - `game-shown`: the level's first frame is drawn, so the loading veil lifts on a picture;
+- `game-loading`: the level is still loading, how far (0 to 100, or null when not known) and the step it is on. Each is
+  news: the shell's loading screen shows it, and holds while news comes (45 s after the last). A level that sends it
+  lifts its veil at `game-shown`, never on `game-ready` alone, since a big level is ready before it has built its
+  world. An exported level's page sends it as its banks arrive (export-game.js `pageLoader`: every bank fetched at once,
+  its bytes counted against what the export wrote), then that it is building its world; a level from before never sends
+  it and its veil lifts as it always did;
 - `game-card-done`: the level's own end card is read (or put away, or it has none), so the flow goes on;
 - `game-scene-end`: the scene a cinematic step staged has ended (or the level has no such scene).
 

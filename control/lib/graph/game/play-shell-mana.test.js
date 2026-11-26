@@ -3,7 +3,7 @@ import { JSDOM } from 'jsdom';
 import { emitPlayShell } from './play-shell.js';
 import { readShellUi, shellManaSpec } from './play-shell-mana.js';
 import { normalizeGameManifest, validateGameManifest } from './game-manifest.js';
-import { normalizeLevelContract, CONTRACT_VERSION, MSG_OUTCOME, MSG_SHOWN, MSG_CARD_DONE } from './level-contract.js';
+import { normalizeLevelContract, CONTRACT_VERSION, MSG_OUTCOME, MSG_SHOWN, MSG_CARD_DONE, MSG_LOADING, MSG_READY } from './level-contract.js';
 
 // THE PLAY SHELL'S SCREENS IN MANA-UI: a game with a `ui` has its flow's screens drawn by the game UI runtime, in its
 // look, driven by the keys and pads through the controls host; a game without one carries none of it. Played in a DOM
@@ -40,6 +40,26 @@ describe('the play shell\'s screens in mana-ui', () => {
     expect(Object.keys(shellManaSpec().screens)).toEqual(['attract', 'title', 'levels', 'options', 'credits', 'end', 'result', 'pause', 'controls', 'loading']);
     // (and a HUD of passing moments over the play)
     expect(shellManaSpec().hud.use).toBe('hud');
+  });
+
+  it('a level that says how its load goes: its loading screen shows how far and what it is on, held past ready until its first frame', async () => {
+    const P = await page({ front: {}, ui: { theme: 'grim' } });
+    await P.key('Enter');
+    expect(P.screen()).toBe('loading');
+    P.say({ moj: MSG_LOADING, progress: 42, step: 'downloading the world · 19 of 45 MB' });
+    await wait(60);
+    expect(P.text()).toMatch(/downloading the world · 19 of 45 MB/);
+    expect(P.text()).toMatch(/42%/);
+    // (its ready comes while it builds: the screen stays, as a level from before game-loading's would not)
+    P.say({ moj: MSG_LOADING, progress: 88, step: 'building the world' });
+    P.say({ moj: MSG_READY, contractVersion: CONTRACT_VERSION });
+    await wait(1500);
+    expect(P.screen()).toBe('loading');
+    expect(P.text()).toMatch(/building the world/);
+    P.say({ moj: MSG_SHOWN });
+    await wait(150);
+    expect(P.screen()).toBeNull();
+    P.close();
   });
 
   it('the title\'s menu starts the first level over a loading screen that goes once the level is drawn; its result says what next', async () => {
