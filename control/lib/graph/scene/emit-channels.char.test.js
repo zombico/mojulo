@@ -1,3 +1,6 @@
+// Re-pinned 2026-11-26 (the chase eased through a turn): every fixture that embeds the controllable runtime. The follow
+// rule gained `lookEase` (rules-basic.js: the look ahead swings to a new heading at an eased rate, not at once), taken
+// only by a camera that names it (the cab's, gameworld/cars.js; no fixture's does): their worlds step as before.
 // Re-pinned 2026-11-23 (the jump's missing moves): every fixture that embeds the controllable runtime. The platform rule
 // gained `hang`, `landLag` and `pound` (rules-platform.js: the apex held, the landing's lag, the stomp attack), each
 // taken only by a rule that names it (no fixture's does). Checked: each moved hash is the old emission with only the

@@ -44,7 +44,8 @@ export const CAB = Object.freeze({
   // (how far off its side its driver stands at the door: clear of its hull, a body's half width and a hand)
   door: 0.5,
   in: 0.35, out: 0.35, slow: 1.5,
-  camera: Object.freeze({ dist: 8.5, height: 3.2, lookH: 1.1 }),
+  // (`lookEase`: the chase's aim eased after the car's heading, worlds/controllable/rules-basic.js, so a steering tap does not jerk the view)
+  camera: Object.freeze({ dist: 8.5, height: 3.2, lookH: 1.1, lookEase: 5 }),
   // (the chase kept this far off a wall that stands between it and its car, while it is driven: worlds/controllable/mount.js `pullIn`)
   pullIn: 0.6,
   // its box against a wall: half its width, its height; a kerb it climbs
@@ -84,7 +85,7 @@ export function depotCabs(ends, role, { roles = [role] } = {}) {
 }
 
 // (its camera framed by its size, scene/channels/cab-pool.js cabView: a car's the CAB's, a truck's further back and higher)
-const cab = (hull, height = null) => ({ cab: true, hull, reach: Math.max(CAB.reach, hull[0] + 2), stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...(height === null ? CAB.camera : cabView({ length: 2 * hull[1], height }, CAB.camera, CAB_VIEW)), pullIn: CAB.pullIn } });
+const cab = (hull, height = null) => ({ cab: true, hull, reach: Math.max(CAB.reach, hull[0] + 2), stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...CAB.camera, ...(height === null ? {} : cabView({ length: 2 * hull[1], height }, CAB.camera, CAB_VIEW)), pullIn: CAB.pullIn } });
 const box = (rule) => ({ ...rule, eye: 0, collideRadius: CAB.radius, collideHeight: CAB.height, step: CAB.step });
 
 export function carsExtra({ roles = [], issue = null, operate = null } = {}) {

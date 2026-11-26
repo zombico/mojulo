@@ -48,6 +48,7 @@
  *
  * Metres, the design's frame (x east, y north, z up). Pure; seeded dice only.
  */
+import { MUSEUM, pickMuseum } from './museum.js';
 import { readCone } from '../scene/channels/view-cone.js';
 import { designGeocity } from './design.js';
 import { readGeocube, geocubeReadout } from '../era/geocube.js';
@@ -69,7 +70,7 @@ import { fleetOf, pickOf, YARDS } from './fleets.js';
 import { flowOf, flowLaws, FLOW_LOD } from './flow.js';
 import { industryTemplates, industrialPlan, INDUSTRY_FAR, PYLON, INDUSTRY_FINISHES, finishOf } from './industry.js';
 import { INDUSTRY_SEGMENTS, CIVIC_SEGMENTS } from './segments.js';
-import { sixesOf, crowdOf, CROWDS, SIX } from './crowd.js';
+import { sixesOf, crowdOf, CROWDS, SIX, SIX_WALK } from './crowd.js';
 import { HIGHWAY, deckAt, RAMP } from './highways.js';
 import { WATERFRONT, WATERFRONT_PAINT, frameOf, waterfrontTemplates, shoreAt } from './waterfront.js';
 import { rooftopTemplates, rooftopPlan, lotRoofPlan, beaconsOf, BEACON, ROOFTOP } from './rooftop.js';
@@ -92,7 +93,7 @@ import { readSection } from '../network/sections.js';
 import { dressUnder, ROUTES } from './dress.js';
 import { subwayUnder, subwayPlan, withGeocitySubwayLevel } from './subway.js';
 import { registerLevelKind } from '../structure/level.js';
-import { streetcarFaces, STREETCAR } from './streetcar.js';
+import { streetcarFaces, STREETCAR, STREETCAR_MODEL, streetcarPool } from './streetcar.js';
 import { sunLitFaces, skyAt } from '../form/sun-light.js';
 import { TOWN_GLOSS, glazed } from '../form/town-gloss.js';
 import { sacredMass, SACRED } from '../city/plan/landmarks.js';
@@ -363,6 +364,14 @@ const GLAZED = Object.freeze({ 'geocity:glass': TOWN_GLOSS.window, 'geocity:curt
 const BACK_CLAIMED = new Set(['paving', 'deck', 'shed', 'roof', 'garage', 'gravel', 'soil', 'sand', 'water', 'coping', 'timber', 'chips', 'mulch', 'compost', 'steel', 'dirt', 'court', 'track', 'drive', 'car', 'lane', 'park-path', 'step', 'bin', 'line']);
 /** A level face wider than this (m) is ground, and shades nothing; the sun test's grid for a city (m). */
 const FORM_SPAN = 30, FORM_CELL = 3;
+/** THE SHADOWS' FIT (a form render's, scene/channels/cast-shadows.js `fit`): the live light's maps fitted to the district
+ *  itself, its frame and SHADOW_FIT.margin round it, and not to everything static on the page (the metro's evocations and
+ *  its water reach twice the frame out on every side, a box 3 km across whose texels and bias swallowed every tree, post
+ *  and car and smeared the buildings' shadows away). Its depth BIAS (metres) under a parked car's height, so a car, a bench
+ *  and a hydrant cast (the map's own default, three of its texels, was 1.7 m on a district); and WHOLE, every static solid
+ *  in it however far from the eye (the street's kit is drawn by tiles near it), so they cast everywhere */
+export const SHADOW_FIT = Object.freeze({ margin: 40, bias: 0.6 });
+const shadowFit = (d) => ({ at: [r5(d.frame.W / 2), r5(d.frame.D / 2), r5((d.land.range[0] + d.land.range[1]) / 2)], half: r5(Math.max(d.frame.W, d.frame.D) / 2 + SHADOW_FIT.margin) });
 export function assembleGeocityScene(m, ctx = {}) {
   for (const k of Object.keys(m)) if (!GEOCITY_KEYS.includes(k)) no(`'${k}' is not a setting of the geocube kind's geocity (cube, seed, hour, clouds, geocity, cone, air, crowns)`);
   // (`crowns`: how the form render reads its broadleaves, its street trees' and its towns', form/flora-read.js readCrowns;
@@ -769,6 +778,10 @@ export function assembleGeocityScene(m, ctx = {}) {
   // an evocation's tiers: its blocks at a building's detail, the neighbourhoods round them as massing, the rest its
   // skyline (each neighbourhood's ground one coarse drape, its tall buildings on it, nothing low)
   const E = d.evoked, detail = new Set(E?.blocks ?? []), massed = E ? new Set(E.regions) : null, lots = [], sacred = [];
+  // its MUSEUM (museum.js): an evoked block across a street from where its walk starts built as one, its door a level's
+  // door into a building of its own (none where the recipe asks for none: no block changes)
+  const museumBlock = d.spec.museum && E ? pickMuseum(d.regions.flatMap((r) => r.blocks), E.blocks) : null, museums = [];
+  if (museumBlock) { museumBlock.kind = 'museum'; delete museumBlock.becomes; delete museumBlock.towers; }
   // (a facade-detail lot's skin, its walls varied: worn in the other of stone and brick on some, where its grammar builds
   // the other at all; its wall's paint its own, WALL_VARY)
   const builds = (m) => (G.skin.mix?.[m] ?? [1]).some((w) => w > 0) && (G.skin[m] ?? []).length;
@@ -1328,6 +1341,7 @@ export function assembleGeocityScene(m, ctx = {}) {
       if (BACKS_ON && !far) { const Fr = backFrame([x0, y0], null); growBack(Fr, volunteers([0, 0, x1 - x0, y1 - y0], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', b.id) }).trees, b.id, 'low', true); }
     }
     else if (b.kind === 'worship') worship(b, { x0, y0, x1, y1, zAt, far });
+    else if (b.kind === 'museum') museum(b, { x0, y0, x1, y1, zAt, far });
     else if (b.kind === 'cemetery') cemetery(b, { x0, y0, x1, y1, zAt, far });
     else if (INDUSTRY_SEGMENTS.includes(b.kind)) industrial(b, { zAt, Rb, far });
     else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps });
@@ -1429,6 +1443,62 @@ export function assembleGeocityScene(m, ctx = {}) {
       for (const g of gs) stamp('gate', at(g), rot);
       for (let t = a + 1.25; t <= c - 1.25 + 1e-6; t += 2.5) if (!gs.some((g) => Math.abs(g - t) < 2.1)) stamp('railing', at(t), rot);
     }
+  }
+
+  /** THE MUSEUM (museum.js): on a paved forecourt at its front street, a flight of steps up to a portico of columns
+   *  under a pediment, its stone hall behind, banners either side of its door; the door its anchor, a level's door into
+   *  the museum's own building (gameworld/levels.js geocityEnds). Drawn whole near the walk; a far one its hall alone. */
+  function museum(b, { x0, y0, x1, y1, zAt, far }) {
+    const Mu = MUSEUM, Cc = Mu.colours, fs = frontSide(b), [fx, fy] = SIDE_OF[fs], along = fs === 's' || fs === 'n';
+    const deep = along ? y1 - y0 : x1 - x0, wide = along ? x1 - x0 : y1 - y0, m0 = along ? (x0 + x1) / 2 : (y0 + y1) / 2;
+    const St = Mu.steps, Po = Mu.portico, run = St.n * St.run, fw = Math.min(Mu.hall.wide, wide - 8), fl = Math.min(Mu.hall.deep, deep - Mu.court - run - Po.deep - 4);
+    // (a point `t` along its front and `u` in from its front street, in the city's x and y)
+    const front = fs === 's' ? y0 : fs === 'n' ? y1 : fs === 'w' ? x0 : x1, inward = -1 * (fs === 's' || fs === 'w' ? -1 : 1);
+    const at = (t, u) => (along ? [m0 + t, front + inward * u] : [front + inward * u, m0 + t]);
+    const rect = (t0, t1, u0, u1) => { const p = at(t0, u0), q = at(t1, u1); return [Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.max(p[0], q[0]), Math.max(p[1], q[1])]; };
+    const uSteps = Mu.court, uPortico = uSteps + run, uHall = uPortico + Po.deep, uBack = uHall + fl;
+    const H = rect(-fw / 2, fw / 2, uHall, uBack), zc = Math.max(zAt(H[0], H[1]), zAt(H[2], H[1]), zAt(H[2], H[3]), zAt(H[0], H[3]), zAt(...at(0, uSteps)));
+    // its hall, the stone mass behind the portico
+    box(H[0], H[1], H[2], H[3], zc, zc + Mu.hall.high, Cc.stone, Cc.roof, 'geocity:museum');
+    counts.museums = (counts.museums ?? 0) + 1;
+    if (far) return;
+    // (a slab with no plinth under it: a tread, the portico's floor, its entablature over the columns)
+    const slab = (R, z0, z1, hex, group, hold0 = false) => {
+      const [a0, b0, a1, b1] = R;
+      put([[a0, b0, z1], [a1, b0, z1], [a1, b1, z1], [a0, b1, z1]], group, hex);
+      put([[a0, b0, z0], [a1, b0, z0], [a1, b0, z1], [a0, b0, z1]], group, hex, [0, -1, 0]); put([[a1, b0, z0], [a1, b1, z0], [a1, b1, z1], [a1, b0, z1]], group, hex, [1, 0, 0]);
+      put([[a1, b1, z0], [a0, b1, z0], [a0, b1, z1], [a1, b1, z1]], group, hex, [0, 1, 0]); put([[a0, b1, z0], [a0, b0, z0], [a0, b0, z1], [a0, b1, z1]], group, hex, [-1, 0, 0]);
+      if (hold0) hold(a0, b0, a1, b1, z0, z1, `${b.id}:museum`);
+    };
+    // (its cornice: a pale band round the hall's top, standing a little proud of its walls)
+    const Hc = Mu.hall, zt = zc + Hc.high;
+    slab([H[0] - Hc.over, H[1] - Hc.over, H[2] + Hc.over, H[3] + Hc.over], zt - Hc.cornice, zt, Cc.column, 'geocity:museum');
+    // its forecourt, paved from its street to its steps
+    const C = rect(-fw / 2 - 2, fw / 2 + 2, 0.8, uSteps);
+    put([[C[0], C[1], zAt(C[0], C[1]) + 0.03], [C[2], C[1], zAt(C[2], C[1]) + 0.03], [C[2], C[3], zAt(C[2], C[3]) + 0.03], [C[0], C[3], zAt(C[0], C[3]) + 0.03]], 'geocity:paving', col.plaza);
+    // its steps, the width of the portico, each a tread up; the portico's floor at their top
+    const pw = fw - 2;
+    for (let k = 0; k < St.n; k++) slab(rect(-pw / 2, pw / 2, uSteps + k * St.run, uHall), zc, zc + (k + 1) * St.rise, Cc.steps, 'geocity:stoop');
+    const zf = zc + St.n * St.rise;
+    // its columns along the portico's front, its entablature over them and the pediment over that
+    const n = Po.columns, cw = Po.column, uc = uPortico + 0.6;
+    for (let k = 0; k < n; k++) { const t = -pw / 2 + cw / 2 + 0.6 + (k * (pw - cw - 1.2)) / (n - 1); box(...rect(t - cw / 2, t + cw / 2, uc, uc + cw), zf, zf + Po.high, Cc.column, Cc.column, 'geocity:museum'); }
+    const ze = zf + Po.high, zr = ze + Po.entablature;
+    slab(rect(-pw / 2, pw / 2, uPortico, uHall + 0.3), ze, zr, Cc.column, 'geocity:museum');
+    const [pl, pr] = [at(-pw / 2, uPortico), at(pw / 2, uPortico)], apex = at(0, uPortico), [ql, qr] = [at(-pw / 2, uHall + 0.3), at(pw / 2, uHall + 0.3)], apexB = at(0, uHall + 0.3), zp = zr + Po.pediment;
+    put([[pl[0], pl[1], zr], [pr[0], pr[1], zr], [apex[0], apex[1], zp]], 'geocity:museum', Cc.column, [fx, fy, 0]);
+    put([[pl[0], pl[1], zr], [apex[0], apex[1], zp], [apexB[0], apexB[1], zp], [ql[0], ql[1], zr]], 'geocity:museum:roof', Cc.roof);
+    put([[pr[0], pr[1], zr], [qr[0], qr[1], zr], [apexB[0], apexB[1], zp], [apex[0], apex[1], zp]], 'geocity:museum:roof', Cc.roof);
+    // its door in the hall's front, a little proud of it; a banner either side
+    const fu = uHall - 0.06, D = Mu.door, Bn = Mu.banner;
+    const panel = (t0, t1, z0, z1, hex, group) => { const p = at(t0, fu), q = at(t1, fu); put([[p[0], p[1], z0], [q[0], q[1], z0], [q[0], q[1], z1], [p[0], p[1], z1]], group, hex, [fx, fy, 0]); };
+    panel(-D.wide / 2, D.wide / 2, zf, zf + D.high, Cc.door, 'geocity:door');
+    // (the banners in the bays either side of the door's: an even row of columns leaves the door a bay of its own)
+    const bay = (pw - cw - 1.2) / (n - 1);
+    [-1, 1].forEach((o, k) => panel(o * bay - Bn.wide / 2, o * bay + Bn.wide / 2, zf + Bn.lift, zf + Bn.lift + Bn.high, Cc.banners[k % Cc.banners.length], 'geocity:banner'));
+    // (its door: where the level's door stands, the way out of it its front street's)
+    const door = at(0, uHall);
+    museums.push({ id: `museum-${b.id}`, block: b.id, at: P3([door[0], door[1], zf]), N: P3([fx, fy, 0]), floor: r5(zf), ...(typeof d.spec.museum?.name === 'string' ? { name: d.spec.museum.name } : {}) });
   }
 
   /** A PLACE OF WORSHIP (segments.js `worship`, its `faith`): on a paved forecourt at its front street, the city
@@ -2743,7 +2813,9 @@ export function assembleGeocityScene(m, ctx = {}) {
     // `ctx.pooled`, the models of bodies the district did not park itself: its fleet's cars a level stands at a kerb)
     // (`ctx.gated`: the models whose bodies move their parts, a driving job's garbage truck: their parts pooled too)
     const bodyModels = drivenAt.length ? [...new Set([...vehicles.filter((c) => !undriven.includes(c)).map((c) => c.model), ...(ctx.pooled ?? [])])].sort().map((model) => ({ model, ...(ctx.gated?.includes(model) ? { gate: true } : {}) })) : [];
-    for (const r of carRepeats(undriven, { group: 'geocity:vehicle', ...(F || bodyModels.length ? { pool: [...(F ? F.kinds : []), ...bodyModels] } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
+    for (const r of carRepeats(undriven, { group: 'geocity:vehicle', ...(F || bodyModels.length ? { pool: [...(F ? F.kinds.filter((k) => k.model !== STREETCAR_MODEL) : []), ...bodyModels] } : {}) })) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
+    // (the streetcars the traffic runs on its tracks, flow.js: the metro's streetcar pooled, streetcar.js)
+    if (F && F.kinds.some((k) => k.model === STREETCAR_MODEL)) for (const r of streetcarPool()) repeats.push({ ...r, near: NEAR, occlude: false, compact: true, ...kit });
     for (const [arch, transforms] of [...machines].sort(([a], [b]) => a.localeCompare(b))) repeats.push({ group: `geocity:machine-${arch}`, template: siteFaces(LIGHT, `m:${arch}`, () => assembleMachine(arch, { laws: false })), transforms, near: NEAR, occlude: false, compact: true, ...kit });
     // (its industry's pieces, industry.js: the tall ones seen across their district, the rest near the camera)
     if (indStamps.size) {
@@ -2863,7 +2935,7 @@ export function assembleGeocityScene(m, ctx = {}) {
   // one to each stretch of it, turn about one way and the other, at a person's pace; the legacy city's walkers carry them (worlds/world-kinds.js
   // attachCityWalkers, scene/channels/walkers.js: their clothed rigs, a looped path). A block whose shops stand on a
   // forecourt keeps its walk to those who shop there: its ring would pass through its rails. Seeded per block.
-  const PEOPLE = { inset: 1.2, stride: 6, speed: 1.35 }, walkerLoops = [];
+  const PEOPLE = { inset: 1.2, stride: 6, speed: SIX_WALK }, walkerLoops = [];
   if (PLAY) {
     // (its CROWD in sixes, crowd.js: each walked block an area, its walk's ring its path, asked its sixes by its walk and
     // its kind; the district's sixes stacked where they are asked, nearest its middle first; each six six different
@@ -2900,11 +2972,12 @@ export function assembleGeocityScene(m, ctx = {}) {
     plan = { box: [0, 0, r5(d.frame.W), r5(d.frame.D)], shapes, places: entered.map((e) => ({ at: [r5(e.door[0]), r5(e.door[1])], kind: 'shop', card: e.S.card })) };
   }
   return {
-    faces, ...(formTown ? { form: { town: formTown } } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: { ...F, ...(coned ? { lod: FLOW_LOD } : {}), ...(night ? { night: true } : {}) } } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
+    faces, ...(formTown ? { form: { town: formTown }, ...(ctx.liveSun ? { shadows: { fit: shadowFit(d), hourBias: SHADOW_FIT.bias, whole: true } } : {}) } : {}), ...(repeats.length ? { repeats } : {}), ...(F ? { flow: { ...F, ...(coned ? { lod: FLOW_LOD } : {}), ...(night ? { night: true } : {}) } } : {}), ...(plan ? { plan } : {}), ...(walkerLoops.length ? { walkerLoops, cityCues: { pedHeight: 1.75 } } : {}), ...(beaconAt.length ? { beacons: { at: beaconAt, color: BEACON.color, period: BEACON.period, duty: BEACON.duty } } : {}), ...(counts.industry?.lines ? { footless: ['geocity:wire'] } : {}), ...(plants ? { plants } : {}), ...(textures ? { textures } : {}), ...(colliders.length ? { colliders } : {}), cameras, viewBox: { width: 1280, height: 720 }, title: ctx.title || `${cube.title} · geocity`,
     // (the city's haze is laid per its world unit, city/plan/scene.js; this world's unit is the metre)
     bg, haze: { color: air.fog.color, density: r5((air.fog.density * CITY_HAZE) / CITY_METERS_PER_UNIT) },
     sky: { zenith: air.dome.zenith, horizon: air.dome.horizon, day: night ? 0 : 1, stars: 0, seed: 1, ...(night ? {} : { sun: { dir: P3(sun), size: 1.4, glow: 1.3 } }), ...(spec.air ? hourSky(spec.air) : {}) },
-    ...(podia.length || SUB || entered.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
+    ...(podia.length || SUB || entered.length || museums.length ? { ...(podia.length ? { lights: podia.flatMap((P) => P.I.lights) } : {}), anchors: [
+      ...museums.map((M) => ({ ...M, kind: 'museum', use: 'museum', enter: 'door' })),
       ...entered.map((e) => ({ id: `shop-${e.id}`, kind: 'shop', use: 'shop', enter: 'walk', block: e.block, at: P3(e.door), N: P3([e.N[0], e.N[1], 0]), floor: r5(e.door[2]), store: { card: e.S.card, rise: e.rise, ...(e.sink ? { sink: e.sink } : {}), door: P3(e.door), ...(e.till ? { till: e.till, keeper: e.keeper } : {}), inside: e.inside } })),
       ...(SUB?.anchors ?? []),
       ...(dressed?.readout.court ? [{ id: `food-court-${dressed.readout.court.podium}`, kind: 'food-court', podium: `podium-${dressed.readout.court.podium}`, tables: dressed.readout.court.tables }] : []),

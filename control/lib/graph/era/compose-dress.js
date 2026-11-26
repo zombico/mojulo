@@ -93,6 +93,10 @@ export const PIECES = Object.freeze({
   centrifuge: { class: 'set-piece', w: 2.6, d: 2.6, h: 2.2, parts: [['prism', 1.3, 1.3, 1.3, 0, 0.3, 12, 'beam'], ['prism', 1.3, 1.3, 1.1, 0.3, 1.6, 12, 'cabinet'], ['prism', 1.3, 1.3, 0.7, 1.6, 2.2, 12, 'services']] },
   sculpture: { class: 'set-piece', w: 1.6, d: 1.6, h: 2.6, parts: [B(0, 1.6, 0, 1.6, 0, 0.5, 'concrete'), B(0.3, 1.2, 0.35, 1.25, 0.5, 1.7, 'paint'), B(0.5, 1.4, 0.2, 1.0, 1.7, 2.6, 'concrete')] },
   find: { class: 'crate', w: 0.8, d: 0.5, h: 0.45, parts: [B(0, 0.8, 0, 0.5, 0, 0.4, 'paint'), B(0.02, 0.78, 0.02, 0.48, 0.4, 0.45, 'trim')] },
+  // (a museum's plinth: a piece minted elsewhere stands on its top, era/exhibits.js)
+  plinth: { class: 'set-piece', w: 1.4, d: 1.4, h: 0.9, parts: [B(0, 1.4, 0, 1.4, 0, 0.08, 'trim'), B(0.05, 1.35, 0.05, 1.35, 0.08, 0.86, 'concrete'), B(0, 1.4, 0, 1.4, 0.86, 0.9, 'cabinet')] },
+  // (and its dais: a piece stood life-size in a museum wing's hall)
+  dais: { class: 'set-piece', w: 5, d: 3, h: 0.25, parts: [B(0, 5, 0, 3, 0, 0.21, 'concrete'), B(0, 5, 0, 3, 0.21, 0.25, 'cabinet')] },
   prize: { class: 'set-piece', w: 0.9, d: 0.9, h: 1.45, parts: [B(0, 0.9, 0, 0.9, 0, 1.0, 'concrete'), B(0.2, 0.7, 0.25, 0.65, 1.0, 1.4, 'paint'), B(0.18, 0.72, 0.23, 0.67, 1.4, 1.45, 'trim')] },
   sign: { class: 'sign', w: 1.4, d: 0.06, h: 0.5, solid: false, parts: [B(0, 1.4, 0, 0.06, 0, 0.5, 'paint')] },
   // A TOWN'S FURNITURE (the vernacular register: stocking.js TOWN_STOCK): boards and timber (`cabinet` the boards, `beam`
@@ -133,9 +137,11 @@ export const PIECE_SETS = Object.freeze({
   science: Object.freeze(['bench', 'instrument-rack', 'fume-hood', 'cart']),
   everyday: Object.freeze(['desk', 'filing', 'locker', 'cart']),
   vernacular: Object.freeze(['barrel', 'crate', 'sack', 'chest']),
+  // (a gallery's floor holds what it shows: a plinth, a bench to sit and look from)
+  gallery: Object.freeze(['plinth', 'plinth', 'plinth', 'plinth']),
 });
 export const SET_PIECES = Object.freeze({
-  'great-object': Object.freeze({ military: 'generator', utility: 'press', science: 'centrifuge', everyday: 'sculpture', vernacular: 'hearth' }),
+  'great-object': Object.freeze({ military: 'generator', utility: 'press', science: 'centrifuge', everyday: 'sculpture', vernacular: 'hearth', gallery: 'sculpture' }),
   find: 'find', prize: 'prize', sign: 'sign',
 });
 // how many clusters a room's role takes (a passage is left clear), and a dark mood's clutter in a dead end

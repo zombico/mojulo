@@ -1,7 +1,7 @@
 // Hijack City (hijack-city.js): the open city's crime game as a rail and its starter. One case per concept: the starter
 // is a world the book reads, a locked pitch lays it and the creator's words win, a brief's words find it.
 import { describe, it, expect } from 'vitest';
-import { hijackCityWorld, hijackCityStart, HIJACK_CITY, HIJACK_GROWS, HIJACK_DISTRICTS, HIJACK_DISTRICT, HIJACK_NIGHT } from './hijack-city.js';
+import { hijackCityWorld, hijackCityStart, HIJACK_CITY, HIJACK_GROWS, HIJACK_DISTRICTS, HIJACK_DISTRICT, HIJACK_NIGHT, HIJACK_MUSEUM } from './hijack-city.js';
 import { designGeocity } from '../geocity/design.js';
 import { pitchStart } from './pitch-start.js';
 import { readGameworld } from './world.js';
@@ -75,8 +75,10 @@ describe('Hijack City', () => {
 
   it('stands in a district by its word: downtown as it was, the inner city\'s low-rise or the suburbs, each its ring\'s', () => {
     expect(hijackCityWorld({ district: 'downtown' })).toEqual(hijackCityWorld());
-    // (a car park of it built as the dump, where the bin round empties its truck: jobsified.js)
-    expect(hijackCityWorld().levels.district.geocity).toEqual({ ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), dump: true, dock: true });
+    // (a car park of it built as the dump, where the bin round empties its truck: jobsified.js; a working dock; and its
+    // museum across from the start, geocity/museum.js, none where it asks for none)
+    expect(hijackCityWorld().levels.district.geocity).toEqual({ ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), dump: true, dock: true, museum: { ...HIJACK_MUSEUM } });
+    expect(hijackCityWorld({ museum: false }).levels.district.geocity).toEqual({ ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), dump: true, dock: true });
     expect(() => hijackCityWorld({ district: 'uptown' })).toThrow(/district is/);
     // (each district's neighbourhood its ring's, and lived in: the inner city's walk-ups and low-rises among its
     // midrises, the suburbs' houses and garden apartments)

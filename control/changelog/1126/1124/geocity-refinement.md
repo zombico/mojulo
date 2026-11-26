@@ -129,3 +129,31 @@
   instead of lifting on the first frame and leaving the game frozen for a while. Realistic pedestrians' detailed
   figures are built during that warm-up (one body shared by everyone wearing it), so walking up to someone no longer
   hitches the game.
+- Realistic pedestrians really walk now, with planted feet. Before, they took steps in place while sliding along the
+  pavement. Each walks the main character's own walk in a gait of their own, chosen by age and build: easy, brisk,
+  stroll, heavy, weary, graceful, swagger or shy, from about 0.7 to 1.55 m/s. Each group walks at its members' own pace,
+  so a pair stays side by side, each stepping in their own rhythm.
+- The city's buildings, trees, lamp posts and parked cars now cast shadows. Before, only characters did, because the
+  city's shadow map stretched over the whole metro and its water, about 3 km across, too coarse to draw anything in the
+  street. It now covers only the district you play in. Shadows are strong at noon; at a low sun, like Los Angeles's
+  golden hour, they are long but faint, since the sun then gives the street only about a quarter of its light.
+- Parked cars, benches, hydrants, trees and street furniture now cast shadows everywhere in the district, not only near
+  where the level starts, and moving traffic casts them around the player. The static objects cost nothing per frame,
+  because the city's shadows are drawn once while the level loads. Moving traffic adds about 1% more draw calls and 7%
+  more triangles per frame on a downtown street.
+- Hijack City has one streetcar line instead of track down several main streets, and streetcars now run on it: one each
+  way along every track, stopping at the traffic lights with the cars. Other cities keep their own amount of track.
+- Driving is smoother. The car you drive was drawn one step behind the camera following it, which made it judder; it is
+  now drawn exactly where the camera sees it, and its tilt over bumps in the road is eased instead of snapping. Traffic
+  now moves every frame instead of in 20-per-second steps.
+- Driving is less jerky. The camera behind your car no longer jumps in and out past lamp posts, trees and bollards,
+  it turns with the car smoothly instead of whipping round at each tap of the steering, and your car no longer hops when
+  it drives over the spot where a traffic car is.
+- Hijack City has its own music. The streets play a darker lo-fi beat with a sketchy edge, and the police chase still
+  kicks in over it when you get stars. The title and menus play its mirror, a bright, bouncing "vibrant city" version of
+  the same tune. Both are new moods any game can name: `shady` and `vibrant`.
+- Hijack City's streets sound like a city, not a park: no more birdsong and wind under the music. Horns, a car alarm and
+  a siren a few blocks off, a gate creaking and now and then a bottle breaking. A busy daytime boulevard is the other
+  choice.
+- Wheels visibly turn. Each moving car, yours and the traffic's, shows a spoked hubcap on each wheel that turns with its
+  speed.

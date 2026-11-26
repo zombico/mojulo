@@ -221,7 +221,12 @@ export function gameStages(world) {
     // a side map level is one stage: the map on its cube (side-map/scene.js), laid for the hero its level order makes
     if (R.sidemap) { out.push({ level, node: 'map', section: 'sidemap', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', show: 'sidemap', cube: R.style?.geocube ?? G.style?.geocube ?? SIDE_CUBE, seed: R.seed, sidemap: R.sidemap } }); continue; }
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
-    if (R.geocity) { out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...skyWords(R.geocity) } }); continue; }
+    if (R.geocity) {
+      out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...skyWords(R.geocity) } });
+      // (its museum entered at its door, geocity/museum.js: a level of its own after the district, linked by its door)
+      if (R.geocity.spec?.museum) (stageEnds(out[out.length - 1].manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `district-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'district', index: 0, door: d.id }, building: { use: d.inside.use }, label: d.inside.name, manifest: interiorStage(d.inside) }));
+      continue;
+    }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
     if (R.geotown) {
       out.push({ level, node: 'town', section: 'geotown', index: 0, manifest: { kind: 'geocube', cube: R.geotown.cube, show: 'geotown', seed: R.seed, geotown: R.geotown.spec, ...skyWords(R.geotown), ...(R.geotown.enter?.length ? { enter: [...R.geotown.enter] } : {}) } });
@@ -647,7 +652,10 @@ function geocityEnds(manifest) {
   const beats = [];
   let last = route[0];
   for (const p of route.slice(1, far)) if (Math.hypot(p[0] - last[0], p[1] - last[1]) >= 12) { beats.push({ beat: 'along', at: on(p) }); last = p; }
-  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]) };
+  // (its MUSEUM's door, geocity/museum.js: the portico before its door, entered into the museum's building on a page of
+  // its own; walked back out, the hero stands at the foot of its steps facing its street)
+  const doors = manifest.geocity?.museum ? (P.anchors ?? []).filter((a) => a.kind === 'museum').map((a) => museumDoor(a, manifest.geocity.museum, ground, manifest.seed ?? 1)) : [];
+  const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]), ...(doors.length ? { doors } : {}) };
   Object.defineProperty(out, 'ground', { value: ground, enumerable: false });
   Object.defineProperty(out, 'surface', { value: ground, enumerable: false });
   Object.defineProperty(out, 'rocks', { value: () => null, enumerable: false });
@@ -802,6 +810,18 @@ const GIVER = Object.freeze({ off: 120, apart: 14, says: 'I have a job for you.'
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
 function kerbCars(seed, spots) {
   return spots.map((k, i) => { const v = pickOf(fleetOf('civilian'), streamOf(seed, 'fleet', `kerb:${i}`)); return { at: k.at, heading: k.heading, model: v.model, paint: v.paint }; }).filter((c) => !c.model.startsWith('site:'));
+}
+
+/** THE MUSEUM'S DOOR (geocity/museum.js): its zone on the portico just before its door, the way back out at the foot of
+ *  its steps, facing its street; its inside the museum's building (era/programs.js `museum`) with the city's exhibits,
+ *  laid larger for the follow camera, and no goal: it is looked round and left by its door. */
+export const MUSEUM_IN = Object.freeze({ zone: 0.9, back: 6, scale: 1.5 });
+function museumDoor(a, M, ground, seed) {
+  const [nx, ny] = a.N, z = (p) => ground(p[0], p[1]) ?? a.floor;
+  const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + MUSEUM_IN.back), a.at[1] + ny * (MUSEUM_IN.zone + MUSEUM_IN.back)];
+  const O = M === true ? {} : M;
+  return { id: 'museum', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: 'museum', seed: seed + 1, scale: O.scale ?? MUSEUM_IN.scale, exit: false, ...(O.name ? { name: O.name } : {}), ...(O.exhibits ? { exhibits: O.exhibits } : {}) } };
 }
 
 // THE TOWN'S DOORS: for each use the level opens (`enter`), the house of that use whose door stands nearest the walk the
@@ -2323,11 +2343,20 @@ export function interiorStage(inside) {
     return { ...S, level: { door: 'out' } };
   }
   return {
-    kind: 'stage', kit: inside.kit ?? roomKitFor(anchor),
-    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}) },
-    level: { door: 'out' },
+    // (a use with a look of its own is laid in its kit and composed to it, its things its own: a museum's white panels
+    // under warm light and its plinths alone, programs.js)
+    kind: 'stage', kit: inside.kit ?? (PROGRAMS[inside.use]?.look ? PROGRAMS[inside.use].kit : undefined) ?? roomKitFor(anchor),
+    ...(PROGRAMS[inside.use]?.look ? { compose: { ...PROGRAMS[inside.use].look }, ...(inside.exhibits === undefined ? { props: false } : {}) } : {}),
+    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}), ...(inside.scale !== undefined ? { scale: inside.scale } : {}) },
+    // (its pieces on their plinths, era/exhibits.js; a building looked round and left by its door has no goal room)
+    ...(inside.exhibits !== undefined ? { exhibits: inside.exhibits } : {}),
+    level: { door: 'out', ...(inside.exit === false ? { exit: false, mechanics: [{ ...LOOKED_ROUND }] } : {}) },
   };
 }
+
+/** A building only looked round (a museum): no goal room, and a level still needs a way it could be won, so a win on a
+ *  count nothing raises; it is never won, only left by its door (game/mechanic-cards/win-when.md). */
+export const LOOKED_ROUND = Object.freeze({ kind: 'win-when', when: Object.freeze({ var: 'looked-round', gte: 1 }) });
 
 /** The game's door links: each inside's `out` paired with its building's door on the stage outside. */
 export function gameLinks(stages, refs) {

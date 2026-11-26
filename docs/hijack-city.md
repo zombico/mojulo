@@ -61,7 +61,18 @@ The starter's `HIJACK_GROWS` names what a person changes first, each a key of th
 - **law**: how many stars, police per star, cars, the star they come armed from, the fine.
 - **shops**: the respray and the gun shop, their prices.
 - **ui**: a theme card (`playscape/ui/theme-cards/`).
-- **music**: the score's moods.
+- **music**: the score's moods. The streets are walked to `shady` (`music.cues['level:district']`: lo-fi with an edge,
+  a dark swung boom-bap on a minor chart that leans on the flat second, worn tape, a lead that rubs a semitone into its
+  notes, a streetlight's hum a tritone over the tonic), the chase (`drive`) coming in over it with the stars; the title
+  and the menus to its mirror, `vibrant` (the same tempo, key centre and melody's rhythm in the major, a walking bass,
+  brighter keys and busier hats: `beats/club-score.js`). Name `vibrant` for the level to walk a sunnier city.
+- **museum**: the museum across a street from the start (`hijackCityWorld({ museum })` or the district's
+  `geocity.museum`): its name and its three wings' collections, things minted in mojulo, each a ref on a plinth, one a
+  wing life-size in its hall (`exhibits`); `false` for none. Its inside is a page of its own, entered and left by its
+  door: [docs/museum.md](museum.md).
+- **sound**: the street's bed under the score (`sound.bed`): `block` by default (horns, a car alarm and a siren a few
+  blocks off, a gate, a bottle breaking somewhere: no birds, no wind), `boulevard` (horns, a bus's doors, a bicycle
+  bell, a tram's) or `city` (the played city's own, with its pigeons and sparrows); `sfx-shelf/beds.js`.
 
 ## Era
 
@@ -69,6 +80,20 @@ Hijack City is built in the seventh generation by default (`style.geocube.era: '
 land, the actors' live shadows, the buildings' baked light and relief near the eye, tone mapping and contact occlusion.
 Its frame is held to what it shows: passers-by drawn where they are seen and one draw each, the occlusion's prepass to
 its reach, a town's lawn blades near the eye only, one reading of each dressed tile. `gen-6` is the lighter page.
+
+Its shadows are the live light's two maps (`scene/channels/cast-shadows.js`): what moves (the hero, the walkers, the
+traffic) in a map that follows the player, and the static city (its buildings, trees, posts, parked cars) in the hour's
+map, drawn once. The hour's map is fitted to the district itself (`geocity/scene.js` `SHADOW_FIT`: its frame and a
+margin), never to everything static on the page: the metro's evocations and its water reach twice the frame out on every
+side, and a map fitted to all of them was 3 km across, its texels a metre and a half and its depth bias taller than a
+tree, so nothing in the street cast and the buildings' shadows were smeared away. A shadow takes away the sun's share of
+a surface's light (its `sunShare`), so at a low sun (Los Angeles's golden hour, the sun about 8° up and a quarter of the
+street's light) the long shadows are faint; at noon they are strong. Its depth bias is 0.6 m (`SHADOW_FIT.bias`), under a parked car's
+height, so cars, benches and hydrants cast; and the map holds the city WHOLE (`whole`): the street's kit is drawn by tiles
+near the eye, so on the frame the map is drawn every static solid is shown and hidden again after, and things cast
+everywhere, not only round the spot the page opened on. The map is drawn once, behind the loading screen, so none of
+this costs a frame. The moving traffic casts into the actors' map (`flow.js` `cast`), the vehicles near the player
+only: on a downtown street about 1 % more draws a frame and 7 % more triangles.
 
 Its style asks the district for its sky as it asks for its hour (`world.js` `skyOfStyle`, carried onto the geocube):
 `clouds: 'fair'`, an `air` of haze that pales the far blocks a kilometre off, the `finish` (one tone curve, the sky in
@@ -128,6 +153,15 @@ ground under every street lamp, pole lamp and alley wall lamp in the metro's `la
 its traffic's headlights and tail lights (scene/channels/flow.js, a night page's only). Los Angeles' lamps are sodium
 amber in a lit smog, Miami's white over a clear sea air, San Francisco's halos in its fog, Boston's cold white, Toronto's
 warm. `civic: false` keeps none of the places.
+
+## Streetcars
+
+A Hijack City district carries one line of streetcar track (`roads.streetcar.most: 1`, `geocity/roads.js`: the spines
+first, then the longest; a metro lays track on every spine and a share of its other main streets, and a district may say
+how many it keeps), and the streetcars run on it. Each track is a lane of the traffic (`geocity/flow.js`, `FLOW.streetcar`:
+8 m/s, a car every 450 m or so) run by the metro's own streetcar, pooled for the traffic (`geocity/streetcar.js`
+`streetcarPool`), through the same crossings and signals as the cars beside it, so it stops on red. The streetcar is 25.6
+m long, so the signals' all-red clearance is sized to clear it.
 
 ## The jobs' stops downtown
 
@@ -281,7 +315,18 @@ channel as it was. A realistic person is LIT (`lit`): its colours are its painte
 scene's light (the sun by day, the lamps by night), never darker than `WALKER_LIT.floor` of its own colours, since a
 street's lamp pools are painted on the ground and light no one. A quick figure's colours carry their light and stay unlit.
 A six's people keep their places on their walk (`startFrac`: its groups a quarter of the loop apart, its pairs a step
-apart), so no two are drawn on one spot. A realistic person takes a minute or so to bake, so a level's people are baked once and kept
+apart), so no two are drawn on one spot.
+
+Each realistic person walks the hero's own walk, as the mint stamps it (`hero-motion.js` `stampHeroMotion`), moved by a
+gait (`street-cast.js` `STREET_GAITS`: easy, the hero's own; brisk, stroll, heavy, weary, graceful, swagger and shy, each
+a set of the vibe's axes lowered through `gameworld/hero-vibe.js`). The gait is rolled on dice of its own by the
+person's age, build and sex (`gaitOdds`: the young brisker, the old slower, a heavy build heavier), so their face, body
+and clothes are as they were. A walk carries the ground it covers: its crowd figure carries its STRIDE, measured off its
+planted feet (`figures/walker-pace.js` `walkStride`), and the walkers channel steps it by that stride, so its feet stay
+where they land and no one skates. Each group of a six walks at its people's mean natural pace (each walk's stride over
+its cycle, at its height) times the group's own pace at half its spread (`paceWalkers`, applied once the people are
+baked): a pair stays side by side, each stepping at its own rhythm. On the realistic body the gaits run from about
+0.7 m/s (weary) to 1.55 m/s (brisk). A realistic person takes a minute or so to bake, so a level's people are baked once and kept
 (`figures/crowd-kept.js`, under `MOJULO_CROWD_DIR`, else `~/.mojulo/cache/crowd`), keyed by the person, the grade and
 the realistic laws: a level's second read takes them from disk.
 
@@ -318,13 +363,28 @@ A new locale is a row. Night locales wait on the night pass (lamps that light, h
 
 ## The driving view
 
+A driven car is placed each frame right after the world steps it (`scene/channels/cab-pool.js`, its placing wrapped onto
+`stepControllable`), so it is drawn where the camera that follows it sees it; a loop of its own ran before the step and
+drew the car a step behind its camera, a gap that changed with each frame's length, a judder. Its tilt eases to the
+road's under it (`TILT_EASE`) rather than taking each of the road's faces at once. The traffic is stepped in its model's
+ticks (20 a second) and drawn where it is now, each car carried on by its own speed for the time since the last tick
+(`scene/channels/flow.js` `__flNow`), so it moves every frame. Each moving car's wheels are seen to turn: its wheels are
+baked into its body, so a disc of spokes stands just off each wheel's face and turns about the axle by the ground it
+covers over the wheel's radius (`scene/channels/hub-disc.js`, the car model's `hubs`, `geotown/cars.js`): the driven car's
+and the traffic's near the camera.
+
 The camera behind a car the hero drives is framed by the vehicle's size (`scene/channels/cab-pool.js` `cabView`): a car
 keeps the chase it always had (`gameworld/cars.js` `CAB.camera`); a bigger vehicle is seen from further back, its rear
 `back` metres off the lens, and from higher, so the eye's line over its roof's back edge lands on the road `see` metres
 past its bumper, looking at a point over it in proportion to its height (`CAB_VIEW`). A parked cab is framed by its
 model when the level makes it, a vehicle taken from the traffic by its own template when it is taken. The chase keeps
 `CAB.pullIn` metres off a wall between it and the car (`worlds/controllable/mount.js` `pullIn`, only while it is ridden), so a rig's long chase does not stand
-inside the building behind it.
+inside the building behind it. While it follows a car it is pulled in on no instanced kit (a lamp post, a tree, a
+bollard: `__camDrv` in `scene/channels/controllable/index.js`), which flicked it in and out a metre at a time down a
+street. The point it looks at swings to a new heading at an eased rate (the follow rule's `lookEase`,
+`worlds/controllable/rules-basic.js`; `CAB.camera.lookEase`), so a tap of the steering no longer whips the view; its
+place still follows the car as it did. The traffic is never footing nor a wall for that camera (`scene/channels/flow.js`
+`__flNoRay`, as the cab pool's cars): a driven car's ground probe could land on a passing car's roof and drop off it.
 
 ## What it does not do yet
 

@@ -137,7 +137,7 @@ export function readFlow(flow) {
 }
 
 /** The page's script: `stepFlow(t)` (t in ms, the world clock), `window.__mojFlow` its probe. */
-export function flowChannelScript(flow, { play = false, coat = false } = {}) {
+export function flowChannelScript(flow, { play = false, coat = false, cast = false, hubs = false } = {}) {
   const F = { T: flow.T, signals: flow.signals, near: flow.near ?? 320, kinds: flow.kinds.map((k) => ({ model: k.model, ...(k.extra ? { extra: k.extra } : {}), len: k.len, ...(play ? { wid: k.wid ?? 1.9 } : {}) })), tints: flow.tints, lanes: flow.lanes.map((L) => ({ axis: L.axis, cross: L.cross, lo: L.lo, hi: L.hi, dir: L.dir, total: L.total, speed: L.speed, crossings: L.crossings, ground: L.ground })), cars: flow.cars, ...(flow.lod ? { lod: flow.lod } : {}) };
   return `
 // ---- flow channel (a metro's traffic: lanes stepped and vehicles drawn near the camera only) ----
@@ -148,6 +148,9 @@ ${TRAFFIC_MODEL_SOURCE}
 const __flCycle = FLOW.signals[0].cycle;
 // each kind's parts: instanced meshes on the pooled templates, sized to its vehicles, drawn as many as are near
 const __flMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+// (traffic is never footing nor a wall the chase camera pulls in on: a ray passes through it, as through the cab pool's
+// cars. Footing, a driven car's ground probe landed on a passing car's roof and dropped off it: a hop)
+const __flNoRay = () => {};
 ${coat ? `// (the near bodies under a clear coat, channels/car-paint.js: the paint's and the trim's, each its own; the far ones plain)
 const __flCoat = { paint: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'paint'), trim: __carCoat(new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), 'trim') };
 ` : ''}const __flN = FLOW.kinds.map(() => 0); for (const c of FLOW.cars) __flN[c[1]]++;
@@ -155,7 +158,8 @@ const __flParts = FLOW.kinds.map((k, i) => ['paint', 'trim', k.extra || null].fi
   const geo = typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|' + part] : null;
   if (!geo || !__flN[i]) return null;
   const im = new THREE.InstancedMesh(geo, ${coat ? '__flCoat[part] || __flMat' : '__flMat'}, __flN[i]);
-  im.count = 0; im.frustumCulled = false; im.userData.g = 'flow:' + k.model;
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow:' + k.model;${cast ? `
+  im.castShadow = true;   // (the near vehicles cast into the live light's actors' map, the one that follows the player: a draw a part)` : ''}
   if (part === 'paint') im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(__flN[i] * 3), 3);
   scene.add(im);
   return { im, paint: part === 'paint' };
@@ -174,7 +178,7 @@ FLOW.kinds.forEach((k, i) => {
   if (!geo.boundingBox) geo.computeBoundingBox();
   for (const [front, mat] of [[true, __flHead], [false, __flTail]]) {
     const im = new THREE.InstancedMesh(__flLampGeo(geo.boundingBox, front), mat, __flN[i]);
-    im.count = 0; im.frustumCulled = false; im.userData.g = 'flow-lamps:' + k.model; scene.add(im);
+    im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-lamps:' + k.model; scene.add(im);
     __flParts[i].push({ im, paint: false });
   }
 });
@@ -184,7 +188,7 @@ const __flFar = FLOW.kinds.map((k, i) => {
   const geo = __flN[i] && typeof __POOLS !== 'undefined' ? __POOLS[k.model + '|paint'] : null;
   if (!geo) return null;
   const im = new THREE.InstancedMesh(__flOutline(geo, __POOLS[k.model + '|trim'], FLOW.lod), __flMat, __flN[i]);
-  im.count = 0; im.frustumCulled = false; im.userData.g = 'flow-far:' + k.model;
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-far:' + k.model;
   im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(__flN[i] * 3), 3);
   scene.add(im);
   return im;
@@ -224,6 +228,16 @@ ${flowYield.toString()}
 ${stepFlowYielding.toString()}
 const __flBlocks = (L) => laneBlocks(L, __flBodies, FLOW.T, __flZ);
 ` : ''}window.__mojFlow = { lanes: FLOW.lanes.length, cars: FLOW.cars.length, active: 0, drawn: 0, pose: [] };
+${hubs ? `// (each model's hubcaps, one instanced disc a wheel of every car of it drawn near: channels/hub-disc.js)
+const __flHM = new THREE.Matrix4();
+const __flDisc = FLOW.kinds.map((k, i) => {
+  const H = typeof __HUBS !== 'undefined' ? __HUBS[k.model] : null;
+  if (!H || !H.length || !__flN[i]) return null;
+  const im = new THREE.InstancedMesh(__hubDisc(H[0].r), __hubMat, __flN[i] * H.length);
+  im.count = 0; im.frustumCulled = false; im.raycast = __flNoRay; im.userData.g = 'flow-hubs:' + k.model; scene.add(im);
+  return { im, hubs: H };
+});
+` : ''}const __flNow = (m, k, L, sec) => { const c = m.cars[k], a = Math.max(0, Math.min(FLOW.T.DT || 0, sec - m.t)); let s = c.s + (c.v || 0) * a; if (s >= L.total) s -= L.total; return s; };
 stepFlow = (t) => {
   const sec = t / 1000, p = camera.position, R = FLOW.near;
   camera.getWorldDirection(__flF);
@@ -244,7 +258,9 @@ ${flow.lod ? '  for (let i = 0; i < __flFarAt.length; i++) __flFarAt[i] = 0;\n' 
 ${play ? '    const __flB = __flBlocks(L); __flNB += __flB.length;\n    if (__flB.length) stepFlowYielding(m, sec, __flB, FLOW.T, trafficTick); else\n' : ''}    stepTraffic(m, sec);
     const heading = L.axis === 'y' ? (L.dir >= 0 ? 0 : Math.PI) : (L.dir >= 0 ? -Math.PI / 2 : Math.PI / 2), sg = L.dir >= 0 ? 1 : -1;
     for (let k = 0; k < m.cars.length; k++) {
-      const c = lane.cars[k], kind = FLOW.kinds[c[1]], s = m.cars[k].s, u = sg > 0 ? L.lo + s : L.hi - s;
+      // (drawn where it is now, not where the model's last tick left it: carried on by its own speed for the time since
+      // that tick, never more than a tick, so it moves every frame and not every few; the model is unchanged)
+      const c = lane.cars[k], kind = FLOW.kinds[c[1]], s = __flNow(m, k, L, sec), u = sg > 0 ? L.lo + s : L.hi - s;
       const x = L.axis === 'y' ? L.cross : u, y = L.axis === 'y' ? u : L.cross, dx = x - p.x, dy = y - p.y;
 ${play ? '      // (one a hero took, channels/cab-pool.js: a body of the world now, drawn and held there)\n      if (window.__mojTaken && window.__mojTaken[__flLanes.indexOf(lane) + \':\' + k]) continue;\n      // (near the pilot, seen or not: a hull the world holds its bodies out of)\n      if (__flHulls && (x - __flPil[0]) * (x - __flPil[0]) + (y - __flPil[1]) * (y - __flPil[1]) < 1600) __flHulls.push({ p: [x, y, __flZ(L.ground, u)], heading: heading + Math.PI / 2, hull: [kind.wid / 2, kind.len / 2], v: m.cars[k].v, id: __flLanes.indexOf(lane) + \':\' + k, model: kind.model, tint: FLOW.tints[c[2]] });\n' : ''}      // (within reach, and not behind the camera)
       if (dx * dx + dy * dy > R * R || dx * fx + dy * fy < -kind.len) continue;
@@ -253,12 +269,16 @@ ${play ? '      // (one a hero took, channels/cab-pool.js: a body of the world n
       __flE.set(Math.atan2(zf - zr, 2 * h), 0, heading); __flQ.setFromEuler(__flE); __flP.set(x, y, (zf + zr) / 2);
       __flM.compose(__flP, __flQ, __flS);
 ${flow.lod ? "      // (past its full reach: its outline)\n      if (dx * dx + dy * dy + dz * dz > __flFull2 && __flFar[c[1]]) { const f = __flFar[c[1]], j = __flFarAt[c[1]]++; f.setMatrixAt(j, __flM); f.setColorAt(j, __flTint[c[2]]); if (pose.length < 64) pose.push({ kind: c[1], at: [x, y, (zf + zr) / 2], v: m.cars[k].v, far: true }); continue; }\n" : ''}      const n = __flAt[c[1]]++;
-      for (const part of __flParts[c[1]]) { part.im.setMatrixAt(n, __flM); if (part.paint) part.im.setColorAt(n, __flTint[c[2]]); }
+      for (const part of __flParts[c[1]]) { part.im.setMatrixAt(n, __flM); if (part.paint) part.im.setColorAt(n, __flTint[c[2]]); }${hubs ? `
+      // (its hubcaps turned by the ground it has covered along its lane: channels/hub-disc.js)
+      const D = __flDisc[c[1]];
+      if (D) for (let j = 0; j < D.hubs.length; j++) D.im.setMatrixAt(n * D.hubs.length + j, __hubSpin(__flM, D.hubs[j], s / D.hubs[j].r, __flHM));` : ''}
       if (pose.length < 64) pose.push({ kind: c[1], at: [x, y, (zf + zr) / 2], v: m.cars[k].v });
     }
   }
   let drawn = 0;
-  __flParts.forEach((parts, i) => { for (const part of parts) { part.im.count = __flAt[i]; part.im.instanceMatrix.needsUpdate = true; if (part.paint && part.im.instanceColor) part.im.instanceColor.needsUpdate = true; } drawn += __flAt[i]; });
+  __flParts.forEach((parts, i) => { for (const part of parts) { part.im.count = __flAt[i]; part.im.instanceMatrix.needsUpdate = true; if (part.paint && part.im.instanceColor) part.im.instanceColor.needsUpdate = true; } drawn += __flAt[i]; });${hubs ? `
+  __flDisc.forEach((D, i) => { if (!D) return; D.im.count = __flAt[i] * D.hubs.length; D.im.instanceMatrix.needsUpdate = true; });` : ''}
 ${flow.lod ? '  let far = 0;\n  __flFar.forEach((f, i) => { if (!f) return; f.count = __flFarAt[i]; f.instanceMatrix.needsUpdate = true; f.instanceColor.needsUpdate = true; far += __flFarAt[i]; });\n  window.__mojFlow.far = far;\n' : ''}  const P = window.__mojFlow; P.active = active; P.drawn = drawn; P.pose = pose;
 ${play ? '  P.blocks = __flNB;\n' : ''}};
 }`;

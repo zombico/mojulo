@@ -62,6 +62,7 @@ import {
   strokeOverlayChannelScript, versusChannelScript, brawlChannelScript, boardChannelScript, meetChannelScript, courtChannelScript, turnsChannelScript, pitchChannelScript, holoChannelScript, inningsChannelScript, broadcastScreenScript, missionChannelScript, damageRingChannelScript,
 } from './channels/index.js';
 import { readFlow, flowChannelScript } from './channels/flow.js';
+import { hubDiscSource } from './channels/hub-disc.js';
 import { readBeacons, beaconsChannelScript } from './channels/beacons.js';
 import { xrModeScript, xrConfig } from './channels/xr.js';
 import { resampleScript } from './channels/resample.js';
@@ -504,6 +505,8 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, j
       ...(Number.isFinite(r.near) && r.near > 0 && ['in', 'out', 'kit'].includes(r.cone) ? { cone: r.cone } : {}),
       // (a pool's key: the flow channel's moving instances of it, channels/flow.js)
       ...(typeof r.pool === 'string' ? { pool: r.pool } : {}),
+      // (a pooled car's hubs, geotown/cars.js carModel: where its spinning hubcaps stand, channels/hub-disc.js)
+      ...(typeof r.pool === 'string' && Array.isArray(r.hubs) && r.hubs.length ? { hubs: r.hubs } : {}),
     };
   });
   const hasRepLit = packedRepeats.some((r) => r.lt);
@@ -613,6 +616,8 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, j
   const hasNear = packedRepeats.some((r) => r.near);   // absent: no near tiles, not one byte
   const hasCompact = packedRepeats.some((r) => r.q);   // absent: no compact template, not one byte
   const hasPool = packedRepeats.some((r) => r.pool);   // none: no pools, not one byte
+  // (a pooled car with hubs: its wheels' hubcaps turn as it moves, channels/hub-disc.js; none: not a byte)
+  const hasHubs = packedRepeats.some((r) => r.pool && r.hubs);
   const hasConeTiles = packedRepeats.some((r) => r.cone);   // absent: the ring alone, not one byte of the cone's rule
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
   // the resampler (channels/resample.js): the plans for the textures this page draws; none, nothing emitted
@@ -1057,6 +1062,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, j
     ...(Array.isArray(shadows.noCastGroups) && shadows.noCastGroups.length ? { noCast: shadows.noCastGroups } : {}),
     ...(Number.isFinite(shadows.bias) && shadows.bias > 0 ? { bias: shadows.bias } : {}),
     ...(Number.isFinite(shadows.fitMin) && shadows.fitMin > 0 ? { fitMin: shadows.fitMin } : {}),
+    // (the hour map's own depth bias in metres, and `whole`: every static solid in it, shown or not; a city's, geocity/scene.js)
+    ...(Number.isFinite(shadows.hourBias) && shadows.hourBias > 0 ? { hourBias: shadows.hourBias } : {}),
+    ...(shadows.whole === true && liveShadows.hour ? { whole: true } : {}),
   }) : '';
   // (walkers, cars and the controllable bodies flag themselves as casters for `cast` and for `actors`)
   const castsActors = !!castShadows || !!(liveShadows && liveShadows.actors);
@@ -1134,7 +1142,7 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, j
   const jobStopsBlock = jobStops && !capture ? jobStopsScript(jobStops) : '';
   // a played city's operated machines (channels/operate.js): a site's excavator under the operator's levers; none ⇒ ''
   const operateBlock = operate && Array.isArray(operate.machines) && operate.machines.length ? operateScript(operate) : '';
-  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab), ...(coat ? { coat } : {}) }) : '';
+  const flowSpec = readFlow(flow), flowBlock = flowSpec && hasPool ? flowChannelScript(flowSpec, { play: entityList.some((e) => e.mount && e.mount.cab), ...(coat ? { coat } : {}), ...(liveShadows && liveShadows.actors ? { cast: true } : {}), ...(hasHubs ? { hubs: true } : {}) }) : '';
   // a city's aviation lights (channels/beacons.js): blinking over its tallest on the world clock; none ⇒ ''
   const beaconsSpec = readBeacons(beacons), beaconsBlock = beaconsSpec ? beaconsChannelScript(beaconsSpec) : '';
   // effects[] block (U3): one fullscreen premultiplied quad per layer, each camera-fed and stacked
@@ -1502,14 +1510,14 @@ scene.onBeforeRender = function (rd, sc, cam, rt) {
   const p = cam.position;
   ${hasConeTiles ? cityConeRule() : 'for (const n of __nearTiles) n.im.visible = (n.x - p.x) * (n.x - p.x) + (n.y - p.y) * (n.y - p.y) < n.r * n.r;'}
 };
-` : ''}${hasPool ? '// POOLS: a template the flow channel instances by its key (its vehicles moving), drawn here where it stands too\nconst __POOLS = {};\n' : ''}for (const r of REPEATS) {
+` : ''}${hasPool ? '// POOLS: a template the flow channel instances by its key (its vehicles moving), drawn here where it stands too\nconst __POOLS = {};\n' : ''}${hasHubs ? `const __HUBS = {};${hubDiscSource()}` : ''}for (const r of REPEATS) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(${hasCompact ? 'r.q ? __q16(r.q, r.qb) : ' : ''}decodeF32(r.pos), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(${hasCompact ? 'r.c8 ? __c8(r.c8) : ' : ''}decodeF32(r.col), 3));${hasRepLit ? `
   if (r.lt) geo.setAttribute('aLit', new THREE.BufferAttribute(decodeF32(r.lt), 3));   // (a template baked for the form render)
   if (r.sun) geo.setAttribute('aSun', new THREE.BufferAttribute(decodeF32(r.sun), 1));` : ''}
   geo.computeBoundingSphere();
-  ${hasPool ? 'if (r.pool) { __POOLS[r.pool] = geo; if (!r.t.length) continue; }\n  ' : ''}${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
+  ${hasPool ? `if (r.pool) { __POOLS[r.pool] = geo;${hasHubs ? " if (r.hubs) __HUBS[r.pool.split('|')[0]] = r.hubs;" : ''} if (!r.t.length) continue; }\n  ` : ''}${hasNear ? 'if (r.near) { __nearRepeat(r, geo); continue; }\n  ' : ''}const im = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }), r.t.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);

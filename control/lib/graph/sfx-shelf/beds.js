@@ -38,6 +38,15 @@ export const BEDS = Object.freeze({
     { word: 'truck-horn', hits: 1, vel: [0.03, 0.06], pan: 0.3 }, { word: 'dog-bark', hits: 1, vel: [0.05, 0.09], pan: -0.35 },
     { word: 'siren', hits: 1, vel: [0.025, 0.04], pan: 0.7 }, { word: 'wind-gust', hits: 1, vel: [0.08, 0.14], pan: 0 },
     { word: 'sparrow', hits: 2, vel: [0.12, 0.22], pan: -0.4 }, { word: 'bird-chirp', hits: 1, vel: [0.12, 0.2], pan: 0.45 }] },
+  // the city's two faces at street level, no birds and no wind: the BLOCK (shady's) and the BOULEVARD (vibrant's)
+  block: { label: 'the block after dark, no birds: horns down the street, a car alarm a few blocks off, a siren, a gate creaking, a bottle breaking somewhere, a reverse beeper', aliases: ['the block', 'back street', 'alley', 'hood'], bpm: 90, tracks: [
+    { word: 'car-horn', hits: 2, vel: [0.05, 0.1], pan: -0.6 }, { word: 'car-alarm', hits: 1, vel: [0.025, 0.04], pan: 0.6 },
+    { word: 'police-siren', hits: 1, vel: [0.025, 0.04], pan: -0.7 }, { word: 'metal-creak', hits: 1, vel: [0.03, 0.05], pan: 0.2 },
+    { word: 'glass-break', hits: 1, vel: [0.015, 0.03], pan: 0.4 }, { word: 'reverse-beeper', hits: 1, vel: [0.02, 0.035], pan: -0.3 }] },
+  boulevard: { label: 'a busy boulevard by day, no birds: horns, a bus opening its doors, a bicycle bell, a tram\'s bell, a car door shut', aliases: ['boulevard', 'main street', 'busy street'], bpm: 90, tracks: [
+    { word: 'car-horn', hits: 3, vel: [0.05, 0.1], pan: -0.5 }, { word: 'truck-horn', hits: 1, vel: [0.03, 0.06], pan: 0.3 },
+    { word: 'bus-door', hits: 1, vel: [0.04, 0.07], pan: 0.5 }, { word: 'bicycle-bell', hits: 2, vel: [0.05, 0.09], pan: -0.25 },
+    { word: 'tram-bell', hits: 1, vel: [0.03, 0.05], pan: 0.65 }, { word: 'car-door', hits: 1, vel: [0.04, 0.07], pan: -0.4 }] },
   farm: { label: 'a farmyard: hens, ducks, a goose, the rooster now and then', aliases: ['farm', 'farmyard', 'barnyard'], bpm: 90, tracks: [
     { word: 'chicken', hits: 3, vel: [0.35, 0.55], pan: -0.4 }, { word: 'duck', hits: 2, vel: [0.3, 0.5], pan: 0.4 },
     { word: 'goose', hits: 1, vel: [0.3, 0.45], pan: 0.2 }, { word: 'rooster', hits: 1, vel: [0.4, 0.5], pan: -0.1 }] },

@@ -45,6 +45,8 @@ export const HIJACK_DISTRICT = Object.freeze({
   // (downtown: the metro's core, its towers, its podiums and its square, the frame round it; the suburbs are a district
   // of their own)
   evoke: 'neighbourhood', at: 'core', shops: true,
+  // (one line of streetcar track through it, its streetcars running on it: geocity/roads.js `most`, geocity/flow.js)
+  roads: Object.freeze({ streetcar: Object.freeze({ most: 1 }) }),
   // (its outskirts' register: a West Coast tract of stucco ranches under palms, geotown/pattern.js; the downtown the
   // metro's own)
   outskirts: 'west-coast',
@@ -63,7 +65,8 @@ const HILL_AIR = Object.freeze({ kind: 'mist' });
 // (a Northeast metro cut small for a district: its harbour east, its core by it, its frame and outskirts inland; it
 // holds every law of the metro's at its game scale, evoked at either ring)
 const NORTHEAST_CUT = Object.freeze({ metro: Object.freeze({ from: 'northeast', rings: Object.freeze({ core: 350, frame: 900 }) }), extent: Object.freeze([3000, 2400]),
-  water: Object.freeze({ sides: Object.freeze(['e']), depth: 200 }), core: Object.freeze([0.85, 0.5]), evoke: 'neighbourhood', shops: true });
+  water: Object.freeze({ sides: Object.freeze(['e']), depth: 200 }), core: Object.freeze([0.85, 0.5]), evoke: 'neighbourhood', shops: true,
+  roads: Object.freeze({ streetcar: Object.freeze({ most: 1 }) }) });
 /** The districts a Hijack City may stand in, by a word: its streets, its buildings and its traffic each its ring's. */
 export const HIJACK_DISTRICTS = Object.freeze({
   downtown: HIJACK_DISTRICT,
@@ -104,20 +107,23 @@ export const HIJACK_GROWS = Object.freeze({
   name: 'the game\'s own title',
   characters: 'the hero: its body, its clothes, how it moves (create_character words)',
   style: 'where it is, by a locale (`hijackCityWorld({ locale })`, gameworld/locales.js: los-angeles, miami, san-francisco, boston, toronto: its suburbs, light, sky, air and grade together), or its own `geocube`, `hour`, `clouds`, `air`',
-  levels: 'the district: one of HIJACK_DISTRICTS (downtown, the inner city\'s walk-ups and main streets, the suburbs), its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, northeast, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, northeast, bayside), where in it (`geocity.at`: a neighbourhood or a ring), its size, its water, another district beside it',
+  levels: 'the district: one of HIJACK_DISTRICTS (downtown, the inner city\'s walk-ups and main streets, the suburbs), its outskirts\' register (`geocity.outskirts`: west-coast, tropical, san-francisco, sunset, northeast, bay-and-gable, old-town), another metro (`geocity.metro.from`: lakeshore, northeast, bayside), where in it (`geocity.at`: a neighbourhood or a ring), its size, its water, another district beside it, its museum (`geocity.museum`, `hijackCityWorld({ museum })`: its name and its three wings\' collections, things minted in mojulo; false for none)',
   errands: 'the story: the contact, the missions (`mission`: heat, clean, time, final), the side work (TaskFu\'s fares, Jobsified\'s driving jobs: `vehicle`, gameworld/jobsified.js)',
   factions: 'the crews: their turf, their colours, their boards of work',
   law: 'the police: how many stars, how many per star, cars, when they come armed, the fine',
   shops: 'the respray garage, the gun shop and the forger (a fake ID: the heavy machinery licence the heavy vehicle call asks for), their prices',
   ui: 'the look of the menus and the HUD (a theme card)',
-  music: 'the score: walking, the chase, the tension',
+  music: 'the score: walking (shady lo-fi, `music.cues[\'level:district\']`), the screens (its mirror, vibrant), the chase, the tension; the street\'s bed (`sound.bed`: block, boulevard, city)',
 });
 
 // (a city's NIGHT where its locale says none: warm lamps, a dark thin haze, the night's grade)
 export const HIJACK_NIGHT = Object.freeze({ lamps: '#ffd08a', air: Object.freeze({ kind: 'haze', visibility: 2600, colour: '#252a35' }), grade: 'night' });
 const NIGHT_HOURS = Object.freeze(['dusk', 'night']);
 const isNight = (h) => (typeof h === 'number' ? h >= 19.5 || h < 5.5 : NIGHT_HOURS.includes(h));
-export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null, people = null } = {}) {
+// (its MUSEUM, geocity/museum.js: a block across a street from the walk's start built as one, entered by its door into a
+// building of its own, three wings of galleries; a collection a wing, each piece a stored sketch's ref, era/exhibits.js)
+export const HIJACK_MUSEUM = Object.freeze({ name: 'The City Museum' });
+export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, district: named = null, register: own = null, hour: when = null, people = null, museum = null } = {}) {
   // (`locale`: where it is, gameworld/locales.js: its suburbs' register, the part of town it stands in, its light, sky,
   // air and grade; every word the person names over it wins. None: the starter as it always was)
   const L = locale === null ? null : localeOf(locale), word = named ?? L?.district ?? 'downtown', register = own ?? L?.register ?? null;
@@ -131,7 +137,8 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
   // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
   const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
-  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}) };
+  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, dock: true, ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}), museum: museum === false ? undefined : { ...HIJACK_MUSEUM, ...(museum ?? {}) } };
+  if (district.museum === undefined) delete district.museum;
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair
@@ -164,7 +171,9 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
       dockers: { name: 'The Dockers', colour: '#2e86c1', turf: 'south', rivals: ['reds'], board: [{ id: 'repo', name: 'Repossession', act: { verb: 'take', target: 'car', on: 'reds' }, reward: [{ item: 'coin', n: 40 }] }], crew: 'docker' },
     },
     foes: { docker: { class: 'pursuer', skin: { people: 'human', dress: { faction: 'streetGang', colourway: 'blue' } } } },
-    sound: {}, music: {},
+    // (its sound: the block at street level, horns and sirens and no birds, sfx-shelf/beds.js `block`; its score: the
+    // streets walked to shady lo-fi with the chase over it, its screens to the mirror, vibrant: beats/club-score.js)
+    sound: { bed: 'block' }, music: { cues: { 'level:district': 'shady', title: 'vibrant', menu: 'vibrant' } },
     law: true,
     // (a forger too: the papers the heavy vehicle call asks for, HIJACK_SHIFTS)
     shops: { respray: true, guns: true, forger: true },

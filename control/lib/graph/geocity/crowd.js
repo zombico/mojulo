@@ -24,6 +24,8 @@
  * Pure: the area's own dice (`rand(id)`, a seeded stream), so one area's sixes move no other's.
  */
 export const SIX = 6;
+/** a district's walking pace (m/s): a group of a six walks it times its own pace (0.82 … 1.18) */
+export const SIX_WALK = 1.35;
 export const CROWDS = Object.freeze({
   quiet: Object.freeze({ sets: 1, most: 4, per: 220 }),
   busy: Object.freeze({ sets: 2, most: 8, per: 150 }),
