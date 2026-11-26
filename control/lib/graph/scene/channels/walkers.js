@@ -170,7 +170,7 @@ const __wSkinPars = 'attribute vec4 aWJ;\\nattribute vec4 aWW;\\nuniform mat4 uW
 const __wSkinMove = '#include <begin_vertex>\\n  { vec4 wp = vec4( position, 1.0 ); float ws = aWW.x + aWW.y + aWW.z + aWW.w;\\n    if ( ws > 1e-4 ) transformed = ( aWW.x * ( uWB[ int( aWJ.x ) ] * wp ).xyz + aWW.y * ( uWB[ int( aWJ.y ) ] * wp ).xyz + aWW.z * ( uWB[ int( aWJ.z ) ] * wp ).xyz + aWW.w * ( uWB[ int( aWJ.w ) ] * wp ).xyz ) / ws; }';${lit ? `
 // (a lit walker's normals turned with its bones as its corners are, so the light reads its pose)
 const __wSkinNormal = '#include <beginnormal_vertex>\\n  { float ns = aWW.x + aWW.y + aWW.z + aWW.w;\\n    if ( ns > 1e-4 ) objectNormal = normalize( aWW.x * mat3( uWB[ int( aWJ.x ) ] ) * objectNormal + aWW.y * mat3( uWB[ int( aWJ.y ) ] ) * objectNormal + aWW.z * mat3( uWB[ int( aWJ.z ) ] ) * objectNormal + aWW.w * mat3( uWB[ int( aWJ.w ) ] ) * objectNormal ); }';` : ''}
-function __buildWalkerSkin(fig${lit ? ', lit' : ''}) {
+${lod ? 'const __wSkinGeo = new Map();\n' : ''}function __buildWalkerSkin(fig${lit ? ', lit' : ''}) {
   const group = new THREE.Group(), B = Array.from({ length: ${bones} }, () => new THREE.Matrix4()), U = { value: B };
   const mat = ${lit ? 'lit ? new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }) : ' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
   mat.onBeforeCompile = (sh) => { sh.uniforms.uWB = U; sh.vertexShader = __wSkinPars + sh.vertexShader.replace('#include <begin_vertex>', __wSkinMove)${lit ? `.replace('#include <beginnormal_vertex>', lit ? __wSkinNormal : '#include <beginnormal_vertex>');
@@ -178,7 +178,10 @@ function __buildWalkerSkin(fig${lit ? ', lit' : ''}) {
   mat.customProgramCacheKey = () => ${lit ? "lit ? 'walker-skin-lit' : " : ''}'walker-skin';
   mat.userData.prepass = (vs) => ({ vertexShader: __wSkinPars + vs.replace('#include <begin_vertex>', __wSkinMove), uniforms: { uWB: U } });
   // (its parts one mesh: one skin, one material, the bones the material's, so a passer-by is one draw and one shadow)
-  const P = [], C = [], JJ = [], WW = [], I = [];
+${lod ? `  // (one body a person, its walkers' each their own bones: the walkers of one person share its skin's geometry)
+  let geo = __wSkinGeo.get(fig);
+  if (!geo) {
+` : ''}  const P = [], C = [], JJ = [], WW = [], I = [];
   let base = 0;
   fig.parts.forEach((part, bi) => {
     if (!part) return;
@@ -190,12 +193,14 @@ function __buildWalkerSkin(fig${lit ? ', lit' : ''}) {
     if (part.idx) { const ix = __wIdx(part); for (let k = 0; k < ix.length; k++) I.push(base + ix[k]); } else` : ''} for (let k = 0; k < n; k++) I.push(base + k);
     base += n;
   });
-  const geo = new THREE.BufferGeometry();
+  ${lod ? 'geo' : 'const geo'} = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(P), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(Uint8Array.from(C), 3, true));
   geo.setAttribute('aWJ', new THREE.BufferAttribute(Float32Array.from(JJ), 4)); geo.setAttribute('aWW', new THREE.BufferAttribute(Float32Array.from(WW), 4));
   geo.setIndex(new THREE.BufferAttribute(base > 65535 ? Uint32Array.from(I) : Uint16Array.from(I), 1));${lit ? `
-  if (lit) geo.computeVertexNormals();` : ''}
+  if (lit) geo.computeVertexNormals();` : ''}${lod ? `
+  __wSkinGeo.set(fig, geo);
+  }` : ''}
   const mesh = new THREE.Mesh(geo, mat);${cast ? '\n  mesh.castShadow = true;' : ''}
   mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
   group.add(mesh);
@@ -264,7 +269,16 @@ const __walkerRigs = WALKERS.map((w) => {
     stride: w.stride > 0 ? w.stride : Math.max(0.05, (fig.figH || 1.8) * 0.72 * scale)${held ? `,
     held: Array.isArray(w.holds) ? { s0: ((w.startFrac || 0) % 1) * at.total, s: ((w.startFrac || 0) % 1) * at.total, t: 0 } : null` : ''} };
 });
-${react ? `// PASSERS-BY WHO REACT: what the street does to them this frame (the pilot, its car, its swing, the trouble heard)
+${lod ? `// (a walker's near rig: made once, hidden until it comes near. Every one is made now, while the page warms behind the
+// shell's loading screen (the game channel's warm watch), so no one hitches the play the first time they are walked up to)
+function __wNearRig(r) {
+  const w = r.w, nf = WBANK[w.near];
+  r.rigs = r.rigs || { far: r.rig, near: null };
+  r.rigs.near = ${blend ? `(w.blend && __wCanBlend(nf)) ? __buildWalkerSkin(nf${lit ? ', w.lit' : ''}) : ` : ''}__buildWalkerRig(nf${lit ? ', w.lit' : ''});
+  r.rigs.near.group.scale.setScalar(r.scale); r.rigs.near.group.userData.tier = 'near'; r.rigs.near.group.visible = false;
+}
+for (const r of __walkerRigs) if (WBANK[r.w.near]) __wNearRig(r);
+` : ''}${react ? `// PASSERS-BY WHO REACT: what the street does to them this frame (the pilot, its car, its swing, the trouble heard)
 const WREACT = { run: 4.2, flee: 7, near: 22, down: 6, carR: 0.5, carV: 4, dodge: 9, dodgeV: 6, swingR: 1.8, press: 1.5 };
 let __wT = null, __wLogN = 0, __wSwing = false, __wPressT = {};
 function __wPress(type, sec) { const B = window.__mojBus; if (!B || !B.press || sec - (__wPressT[type] || -9) < WREACT.press) return; __wPressT[type] = sec; B.press(type); }
@@ -320,11 +334,7 @@ function __wTier(r) {
   const want = gp.distanceTo(camera.position) < __wNear * h ? 'near' : 'far';
   if ((r.rig.group.userData.tier || 'far') === want) return;
   r.rigs = r.rigs || { far: r.rig, near: null };
-  if (want === 'near' && !r.rigs.near) {
-    const nf = WBANK[w.near];
-    r.rigs.near = ${blend ? `(w.blend && __wCanBlend(nf)) ? __buildWalkerSkin(nf${lit ? ', w.lit' : ''}) : ` : ''}__buildWalkerRig(nf${lit ? ', w.lit' : ''});
-    r.rigs.near.group.scale.setScalar(r.scale); r.rigs.near.group.userData.tier = 'near';
-  }
+  if (want === 'near' && !r.rigs.near) __wNearRig(r);
   const next = r.rigs[want];
   next.group.position.copy(gp); next.group.rotation.copy(r.rig.group.rotation);
   r.rig.group.visible = false; next.group.visible = true;

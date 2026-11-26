@@ -125,3 +125,7 @@
   loading screen stays up until the first frame is drawn. Before, it was taken down after 45 seconds, leaving a blank
   screen while a large level was still loading. The level's files also download at the same time instead of one after
   another.
+- The loading screen also covers a level's warm-up: it stays up, saying "warming up", until the game runs smoothly,
+  instead of lifting on the first frame and leaving the game frozen for a while. Realistic pedestrians' detailed
+  figures are built during that warm-up (one body shared by everyone wearing it), so walking up to someone no longer
+  hitches the game.

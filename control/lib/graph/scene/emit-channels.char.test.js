@@ -640,6 +640,10 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // (`game-shown`, two frames after ready) and when its end card is read (`game-card-done`: its time, a press after its
 // first moment, or at once with no card), so the play shell's flow goes on by events. Additions only: 14 lines each,
 // none removed.
+// Re-pinned 2026-11-26 (1124-geocity-refinement: a level warm before its veil lifts): `game`, `kitchen-sink` and
+// `kitchen-sink-capture`, the fixtures that embed the game channel. A hosted level says it is shown once its frames are
+// steady (game.js GAME_WARM, its warm watch inlined), no longer two frames on, and tells the shell it is warming up from
+// its first frame (`game-loading`). The two-frame line is replaced by the watch; nothing else moves.
 // Re-pinned 2026-11-09 (1109-flow-runner, phase 3: the stage): `game`, `kitchen-sink` and `kitchen-sink-capture`, the
 // fixtures that embed the game channel. Hosted, a level's scenes wait for the shell's params (`__mojWaitInit`, set as it
 // says ready, cleared as it starts), and a stage the shell's flow asks for (`params.__stage`) is handed to the scene
