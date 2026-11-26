@@ -9,10 +9,13 @@
 import { describe, it, expect } from 'vitest';
 import { hijackCityWorld } from './hijack-city.js';
 import { runSteps } from './runner.js';
-import { cityGuide } from './city-guide.js';
+import { cityGuide, jobQuests } from './city-guide.js';
 import { phoneUi } from './phone-ui.js';
 import { proveErrands, lastStageManifests } from './errand-proof.js';
 import { SHIFT, SHIFTS, HEAVY_VEHICLES, FREIGHT_VEHICLES, MOW, MOW_ROUND } from './jobsified.js';
+import { PAPERS } from './shops.js';
+import { MUNICIPAL, REQUEST_KINDS } from './municipal.js';
+import { OFFICE_IN } from './levels.js';
 
 const world = hijackCityWorld(), steps = runSteps(world, { ref: 'hc' }), level = steps.find((x) => x.key.startsWith('level-')).order.manifest, M = level.game.mechanics;
 const bins = M.find((m) => m.kind === 'shift' && m.id === 'bin-round'), haul = M.find((m) => m.kind === 'shift' && m.id === 'heavy-haul'), bus = M.find((m) => m.kind === 'shift' && m.id === 'bus-route'), dig = M.find((m) => m.kind === 'shift' && m.id === 'dig-and-load'), d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -53,7 +56,8 @@ describe('Hijack City\'s driving jobs, laid', () => {
   });
   it('the heavy vehicle call asks for a licence: the forger sells one at a shop front a drive from the start', () => {
     const F = M.find((m) => m.kind === 'forger'), T = M.find((m) => m.kind === 'task' && m.id === 'heavy-haul');
-    expect(F).toMatchObject({ item: 'fake-id', name: 'heavy machinery licence', price: 150 });
+    // (its papers the licence and, the temp agency's job asking for one, an office badge)
+    expect(F.papers[0]).toEqual({ item: 'fake-id', name: 'heavy machinery licence', price: 150 });
     expect(d(F.at, level.entities.find((e) => e.pilotable).transform.pos)).toBeGreaterThanOrEqual(140);
     expect(T.needs).toEqual({ item: 'fake-id', name: 'heavy machinery licence' });
     expect(M.find((m) => m.kind === 'task' && m.id === 'bin-round').needs).toBeUndefined();
@@ -110,13 +114,47 @@ describe('Hijack City\'s driving jobs, laid', () => {
     // (a licence's job: taken only with the forger's papers)
     expect(M.find((m) => m.kind === 'task' && m.id === 'groundskeeping').needs).toMatchObject({ item: 'fake-id' });
   });
+  it('the temp agency: on its staffing app, asking for an office badge the forger deals in; the office tower its door, a desk inside', () => {
+    const tp = M.find((m) => m.kind === 'shift' && m.id === 'office-temp'), tk = M.find((m) => m.kind === 'task' && m.id === 'office-temp'), fg = M.find((m) => m.kind === 'forger');
+    expect(tp).toMatchObject({ mode: 'desk', yard: OFFICE_IN.name, pitch: SHIFTS.temp.pitch });
+    expect(tk).toMatchObject({ app: 'placeholder', name: 'Placeholder Staffing', needs: { item: PAPERS.badge.item } });
+    expect(fg.papers.map((q) => q.item)).toEqual([PAPERS.licence.item, PAPERS.badge.item, PAPERS.municipal.item]);
+    expect(fg.asks['office-temp']).toBe(1);
+    expect(fg.asks['heavy-haul']).toBe(0);
+    // (the tower's level after the district's, its door the shift's clock-in; the desk's round in its ground floor's office)
+    const office = steps.filter((x) => x.key.startsWith('level-')).map((x) => x.order.manifest).find((m) => m.play?.minigames?.some((g) => g.game === 'deskwork'));
+    expect(office).toBeTruthy();
+    const desk = office.play.minigames.find((g) => g.game === 'deskwork');
+    expect(desk).toMatchObject({ if: { var: 'held:bag:office-id', gte: 1 }, purse: 'held:bag:coin', each: 'held:bag:commendation' });
+    expect(office.level.mechanics.map((m) => m.kind)).toContain('bag');
+    expect(office.program).toMatchObject({ use: 'office', layouts: { office: 'islands' } });
+    expect(d(tp.depot, level.game.mechanics.find((m) => m.kind === 'shift' && m.id === 'office-temp').depot)).toBe(0);
+  });
+  it('the municipal office: constituents\' requests on CityLine 311, each a work order from City Hall, its material from the works yard, its fix in place', () => {
+    const reqs = M.filter((m) => m.kind === 'request'), stages = steps.filter((x) => x.key.startsWith('level-')).map((x) => x.order.manifest);
+    expect(reqs.map((r) => [r.id, r.job])).toEqual([['pothole', 'pothole'], ['fence', 'fence'], ['park-litter', 'park']]);
+    const hall = level.game.mechanics.find((m) => m.kind === 'request').hall, works = bins.depot;
+    for (const r of reqs) {
+      expect(r).toMatchObject({ after: `took-${r.id}`, material: REQUEST_KINDS[r.job].material, order: MUNICIPAL.order, fix: { hold: REQUEST_KINDS[r.job].hold, tap: REQUEST_KINDS[r.job].tap } });
+      expect(r.spots).toHaveLength(REQUEST_KINDS[r.job].spots);
+      expect(r.hall).toEqual(hall);
+      expect(d(r.yard.at, works)).toBeLessThan(40);
+      expect(M.find((m) => m.kind === 'task' && m.id === r.id)).toMatchObject({ app: MUNICIPAL.app, needs: { item: PAPERS.municipal.item } });
+    }
+    // (City Hall: a level of its own after the district's, its clerk desk a Deskwork shift of work orders, a work order its win)
+    const ch = stages.find((m) => m.play?.minigames?.some((g) => g.id === 'clerk')), clerk = ch.play.minigames.find((g) => g.id === 'clerk');
+    expect(clerk).toMatchObject({ if: { var: 'held:bag:city-id', gte: 1 }, each: 'held:bag:work-order' });
+    expect(ch.level.mechanics.map((m) => m.kind)).toContain('bag');
+    // (the journal: each request's steps, the work order, the material, the fix)
+    expect(jobQuests(M).find((q) => q.id === 'fence').steps.map((x) => x.done)).toEqual(['order-fence', 'picked-fence', 'done-fence']);
+  });
   it('each is on Jobsified; the guide leads each when it is taken; the errand proof drives each to its pay', () => {
-    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', ...['ambulance-calls', 'fire-calls'].filter((id) => job(id)), 'courier-run', 'mail-round']]]);
+    expect(phoneUi(level).apps.map((a) => [a.name, a.tasks.map((t) => t.id)])).toEqual([['TaskFu', ['fare']], ['Jobsified', ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', ...['ambulance-calls', 'fire-calls'].filter((id) => job(id)), 'courier-run', 'mail-round']], ['Placeholder Staffing', ['office-temp']], ['CityLine 311', ['pothole', 'fence', 'park-litter']]]);
     const g = cityGuide(level);
     // (the delivery orders' two: taken at the HQ, its first truck; its call come, the HQ)
-    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-street-sweeping', 'clock-groundskeeping', 'clock-dig-and-load', 'clock-materials-1', 'hq-materials', 'clock-courier-run', 'clock-mail-round']);
+    expect(g.rounds.map((r) => g.steps[r.at].id)).toEqual(['clock-bin-round', 'clock-heavy-haul-1', 'clock-bus-route', 'clock-street-sweeping', 'clock-groundskeeping', 'clock-dig-and-load', 'clock-office-temp', 'clock-materials-1', 'hq-materials', 'clock-courier-run', 'clock-mail-round', 'order-pothole', 'order-fence', 'order-park-litter']);
     const P = proveErrands(world, lastStageManifests(steps));
-    for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', 'materials', 'courier-run', 'mail-round', ...['ambulance-calls', 'fire-calls'].filter((x) => job(x))]) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
+    for (const id of ['bin-round', 'heavy-haul', 'bus-route', 'street-sweeping', 'groundskeeping', 'dig-and-load', 'office-temp', 'materials', 'courier-run', 'mail-round', ...['ambulance-calls', 'fire-calls'].filter((x) => job(x))]) expect(P.find((x) => x.errand === id), JSON.stringify(P.find((x) => x.errand === id))).toMatchObject({ proved: true });
   });
 });
 

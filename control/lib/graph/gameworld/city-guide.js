@@ -36,7 +36,7 @@ const shop = (card) => { const w = words(card); return /(store|shop|pharmacy|din
 export const contactName = (id) => (!id || id === 'contact' ? 'Your contact' : `${words(id)[0].toUpperCase()}${words(id).slice(1)}`);
 /** A phone app as it is called: 'taskfu' TaskFu, 'jobsified' Jobsified (the city's driving jobs, jobsified.js), any
  * other its word ('Runner'). */
-export const APP_NAMES = Object.freeze({ taskfu: 'TaskFu', jobsified: 'Jobsified' });
+export const APP_NAMES = Object.freeze({ taskfu: 'TaskFu', jobsified: 'Jobsified', placeholder: 'Placeholder Staffing', cityline: 'CityLine 311' });
 export const appName = (id) => APP_NAMES[id] ?? `${words(id)[0].toUpperCase()}${words(id).slice(1)}`;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
@@ -95,7 +95,7 @@ export function jobsOf(mechanics) {
     if (Hq) steps.push({ id: `hq-${Sh.id}`, say: `Find a logistics company: check in at the ${Hq.name ?? Hq.hq} HQ${Hq.place ? ` by the ${shop(Hq.place)}` : ''}`, at: at3(Hq.at), radius: Hq.radius ?? 7, when: `flag-${Hq.flag}`, ...(Hq.says ? { says: Hq.says } : {}), take: true });
     // (an issued vehicle, `back` its spot: taken where it stands; a depot's own: got into at the yard)
     // (a mow's: its mower taken out of the groundskeeper's shed)
-    const clock = { id: `clock-${Sh.id}`, say: mode === 'mow' ? `Take the ${vehicle} out of the groundskeeper's shed at the ${yard}` : Sh.back ? `Take the ${vehicle}${Sh.place ? ` outside the ${shop(Sh.place)}` : ''}${Sh.yard ? ` by the ${yard}` : ''}` : `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` };
+    const clock = { id: `clock-${Sh.id}`, say: mode === 'desk' ? `Go to work at ${yard}: the lobby doors` : mode === 'mow' ? `Take the ${vehicle} out of the groundskeeper's shed at the ${yard}` : Sh.back ? `Take the ${vehicle}${Sh.place ? ` outside the ${shop(Sh.place)}` : ''}${Sh.yard ? ` by the ${yard}` : ''}` : `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` };
     steps.push(clock);
     let loop = steps.length;
     if (mode === 'route') {
@@ -114,6 +114,10 @@ export function jobsOf(mechanics) {
       // on the screen counts the rest)
       loop = null;
       steps.push({ id: `sweep-${Sh.id}`, say: 'Sweep the streets: drive over the litter', at: at3(Sh.stops[0].at), radius: 0, near: Sh.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${Sh.id}-${k + 1}` })), when: `flag-done-${Sh.id}`, ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
+    } else if (mode === 'desk') {
+      // (its work the building's own page: the desk inside, reached by coming to the door)
+      loop = null;
+      steps.push({ id: `desk-${Sh.id}`, say: 'Work a shift at your desk inside: invoices, recommendations, TPS reports', at: depot, radius: r, flag: `done-${Sh.id}` });
     } else if (mode === 'mow') {
       // (its round on the lawn: the way to the nearest long grass not yet cut, `near`; done when a round is won; the line
       // on the screen says how much is cut and the time left)
@@ -139,6 +143,17 @@ export function jobsOf(mechanics) {
       steps.push(last({ id: `haul-${Sh.id}`, say: `Drive the ${vehicle} to the ${Sh.site.to ?? (Sh.site.place ? shop(Sh.site.place) : 'job')}`, at: at3(Sh.site.at), radius: reach(Sh.site) }));
     }
     out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, loop, ...(Tk?.needs ? { needs: { ...Tk.needs } } : {}), ...(Hq ? { starts: Hq.flag, ...(Hq.after ? { told: Hq.after } : {}), hq: Hq.hq } : {}), ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
+  }
+  // (a constituent's INFRA REQUEST, lowerRequest (municipal.js): taken on its app; a work order made at City Hall's clerk
+  // desk, `hall`; its material had at the works yard; its spots fixed where they are, F held then tapped. Each step on
+  // its own flag, the work order on the bag's count of them)
+  for (const Rq of M.filter((m) => m && m.kind === 'request' && Array.isArray(m.spots))) {
+    const Tk = M.find((m) => m && m.kind === 'task' && m.id === Rq.id), paid = (Rq.reward ?? []).map((x) => `${x.n ?? 1} ${words(x.item)}`).join(', '), steps = [], order = Rq.order?.item ?? 'work-order';
+    if (Tk) steps.push({ id: `app-${Tk.id}`, say: `Take the request on ${Tk.name ?? appName(Tk.app)} · P`, at: at3(Rq.spots[0].at), radius: 0, when: `flag-${Tk.flag}`, take: true });
+    if (Array.isArray(Rq.hall)) steps.push({ id: `order-${Rq.id}`, say: 'Get a work order made at City Hall: the clerk\'s desk inside', at: at3(Rq.hall), radius: 4, when: `held:bag:${order}`, flag: `order-${Rq.id}` });
+    steps.push({ id: `pick-${Rq.id}`, say: `Collect the ${Rq.material?.name ?? 'material'} at the works yard`, at: at3(Rq.yard.at), radius: Array.isArray(Rq.yard.half) ? Math.max(...Rq.yard.half) : Rq.yard.radius ?? 9, when: `flag-picked-${Rq.id}`, flag: `picked-${Rq.id}` });
+    steps.push({ id: `fix-${Rq.id}`, say: `Fix ${Rq.name ?? 'it'}${Rq.where ? ` at ${Rq.where}` : ''}: hold F, then tap F`, at: at3(Rq.spots[0].at), radius: 0, near: Rq.spots.map((q, k) => ({ at: at3(q.at), v: `flag-fixed-${Rq.id}-${k + 1}` })), when: `flag-done-${Rq.id}`, ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Rq.id}` });
+    out.push({ id: Rq.id, name: `${Rq.title ?? words(Rq.id)}`, repeat: false, steps, shift: true, loop: null, ...(Tk?.needs ? { needs: { ...Tk.needs } } : {}), ...(Tk ? { starts: Tk.flag, app: Tk.app } : {}) });
   }
   // (a faction's POSTINGS, lowerAct: each one step, an act done somewhere in a zone; taken on the phone, on its board)
   for (const A of M.filter((m) => m && m.kind === 'act' && Array.isArray(m.at))) out.push({ id: A.id, name: A.title ?? `${words(A.id)[0].toUpperCase()}${words(A.id).slice(1)}`, repeat: false, faction: A.faction, starts: A.flag,

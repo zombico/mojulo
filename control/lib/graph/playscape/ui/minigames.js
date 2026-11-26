@@ -5,8 +5,9 @@
  * (pixelizer/brickster, philosophers-stone, fishing), the same code the arcade cabinet runs, inlined on the page by the
  * minigame channel (scene/channels/minigame-channel.js) only when a level has one.
  *
- *   play.minigames: [{ id, game, at?, prompt?, title?, goal?, gold?, purse?, prize?, flag?, seed?, time?, casts?, lawn?, if?, locked? }]
- *     game    blocks | match | fishing | mowing (MINIGAMES; the first three the stalls a book keeps, STALLS)
+ *   play.minigames: [{ id, game, at?, prompt?, title?, goal?, gold?, purse?, prize?, flag?, seed?, time?, casts?, lawn?, if?, locked?,
+ *                      schedules?, level?, each? }]
+ *     game    blocks | match | fishing | mowing | deskwork (MINIGAMES; the first three the stalls a book keeps, STALLS)
  *     at      where it is played: a spot or an anchor (or { at, r } | { anchor, r }); the figure stands there and
  *             presses interact. Without one, anything that emits `minigame:<id>` starts it (a talk's answer, a cue)
  *     prompt  the word beside the key (default: the game's)
@@ -19,6 +20,9 @@
  *             round of fishing (default 5)
  *     lawn    mowing's lawn: { rows, start } (pixelizer/mowing-core.js: a park's tiles and where the mower starts); a
  *             seeded park where absent
+ *     schedules  deskwork's tickets, a schedule a rank (deskwork/card.js deskSchedules); `level` the var whose count sets
+ *             the rank (its commendations: deskwork/core.js PER_RANK a promotion); `each` a var raised by one every round
+ *             won (a holder's, held:bag:<item>, said as a bag transfer)
  *     if      when its place may start it: { var, gte | … } (playscape/ui/cues.js), as a job's taken flag; `locked` what
  *             is said at it when not
  *
@@ -38,6 +42,8 @@ export const MINIGAMES = Object.freeze({
   fishing: { name: 'Fishing', prompt: 'fish', goal: 60, gold: 0.5, about: 'hold the line over the fish until it is landed; a few casts a round' },
   // (a job's, not a stall's: a groundskeeper's lawn, gameworld/jobsified.js; it pays its job, not a rate)
   mowing: { name: 'Mowing', prompt: 'mow the lawn', goal: 850, gold: 0, about: 'a zero-turn mower on a park\'s lawn from above: cut the long grass in stripes, round the trees, off the flowerbeds', stall: false },
+  // (a job's: an office shift in a browser of tabs, deskwork/; won on its quota, not a score, so `goal` is unread)
+  deskwork: { name: 'Deskwork', prompt: 'sit down at the desk', goal: 1, gold: 0.1, about: 'a shift of office work in a browser of tabs: invoices, recommendations and TPS reports by the policies, against the clock', stall: false },
 });
 export const MINIGAME_IDS = Object.freeze(Object.keys(MINIGAMES));
 /** The games a book keeps a stall of (gameworld/minigames.js): not a job's. */
@@ -52,7 +58,7 @@ const FLAG = /^[a-z][a-z0-9-]{0,47}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => typeof v === 'number' && Number.isFinite(v);
 const err = (m) => new Error(`play.minigames${m}`);
-const KEYS = ['id', 'game', 'at', 'prompt', 'title', 'goal', 'gold', 'purse', 'prize', 'flag', 'seed', 'time', 'casts', 'lawn', 'if', 'locked'];
+const KEYS = ['id', 'game', 'at', 'prompt', 'title', 'goal', 'gold', 'purse', 'prize', 'flag', 'seed', 'time', 'casts', 'lawn', 'if', 'locked', 'schedules', 'level', 'each'];
 
 export function readMinigames(play) {
   const M = play && play.minigames;
@@ -79,6 +85,8 @@ export function readMinigames(play) {
     if (prize && !(isObj(prize) && typeof prize.item === 'string' && prize.item && (prize.n === undefined || (Number.isInteger(prize.n) && prize.n > 0)))) throw err(`${at}.prize is an item (or { item, n }) its first win gives`);
     if (g.time !== undefined && (!['blocks', 'mowing'].includes(g.game) || !(num(g.time) && g.time >= 10))) throw err(`${at}.time is the seconds a round of blocks or mowing lasts (10 or more)`);
     if (g.lawn !== undefined && (g.game !== 'mowing' || !isObj(g.lawn) || !Array.isArray(g.lawn.rows) || !g.lawn.rows.length || g.lawn.rows.some((r) => typeof r !== 'string' || r.length !== g.lawn.rows[0].length || !/^[.=T#*]+$/.test(r)) || (g.lawn.start !== undefined && !(Array.isArray(g.lawn.start) && g.lawn.start.length === 3 && g.lawn.start.every(num))))) throw err(`${at}.lawn is mowing's lawn: { rows: [rows of one width, each tile . = T # *], start?: [x, y, heading] }`);
+    if (g.schedules !== undefined && (g.game !== 'deskwork' || !Array.isArray(g.schedules) || !g.schedules.length || g.schedules.some((S) => !Array.isArray(S) || S.some((x) => !isObj(x) || !num(x.at) || typeof x.kind !== 'string' || !num(x.patience))))) throw err(`${at}.schedules is deskwork's tickets, a schedule a rank: [[{ at, kind, patience }]] (deskwork/card.js)`);
+    for (const k of ['level', 'each']) if (g[k] !== undefined && !(typeof g[k] === 'string' && /^[a-z][a-z0-9:._-]*$/i.test(g[k]))) throw err(`${at}.${k} is a var (held:bag:commendation)`);
     if (g.if !== undefined && !(isObj(g.if) || (Array.isArray(g.if) && g.if.every(isObj)))) throw err(`${at}.if is when its place may start it: { var, gte | … } (a cue's if)`);
     if (g.locked !== undefined && !(typeof g.locked === 'string' && g.locked)) throw err(`${at}.locked is what is said at its place when its if does not hold`);
     if (g.casts !== undefined && (g.game !== 'fishing' || !(Number.isInteger(g.casts) && g.casts >= 1 && g.casts <= 20))) throw err(`${at}.casts is the fish a round of fishing (1 to 20)`);
@@ -89,6 +97,7 @@ export function readMinigames(play) {
       ...(g.game === 'blocks' ? { time: g.time ?? BLOCKS_TIME } : {}), ...(g.game === 'fishing' && g.casts ? { casts: g.casts } : {}),
       ...(g.game === 'mowing' && g.time !== undefined ? { time: g.time } : {}), ...(g.lawn ? { lawn: { rows: g.lawn.rows.slice(), ...(g.lawn.start ? { start: g.lawn.start.slice() } : {}) } } : {}),
       ...(g.if !== undefined ? { if: g.if } : {}), ...(g.locked ? { locked: g.locked } : {}),
+      ...(g.schedules ? { schedules: g.schedules.map((S) => S.map((x) => ({ at: x.at, kind: x.kind, patience: x.patience }))) } : {}), ...(g.level ? { level: g.level } : {}), ...(g.each ? { each: g.each } : {}),
     };
   });
 }
@@ -118,6 +127,6 @@ export function lowerMinigames(play) {
   const purse0 = rpg ? rpg.rules.gold : 'gold';
   const games = list.map(({ at, prompt, prize, flag, if: _if, locked, ...g }) => ({ ...g, purse: g.purse ?? purse0, seed: g.seed ?? seedOf(g.id) }));
   const vars = {};
-  for (const g of games) { vars[g.purse] = 0; vars[bestVar(g.id)] = 0; vars[lastVar(g.id)] = 0; }
+  for (const g of games) { vars[g.purse] = 0; vars[bestVar(g.id)] = 0; vars[lastVar(g.id)] = 0; for (const k of ['level', 'each']) if (g[k]) vars[g[k]] = 0; }
   return { vars, minigames: { games } };
 }

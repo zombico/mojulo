@@ -75,3 +75,25 @@ describe('the forger (and the job that asks for its papers)', () => {
     expect(play([free], [{ event: 'app:take:heavy' }]).vars['flag-took-heavy']).toBe(1);
   });
 });
+
+describe('the forger of several papers (a licence, an office badge)', () => {
+  const PAPERS = [{ item: 'fake-id', name: 'heavy machinery licence', price: 150 }, { item: 'office-id', name: 'office ID badge', price: 90, says: 'You are Gary now.' }];
+  const FORGER = { kind: 'forger', at: [80, 0, 0], papers: PAPERS, asks: { heavy: 0, temp: 1 } };
+  const task = (id, app, needs) => ({ kind: 'task', id, app, flag: `took-${id}`, name: app, subscribe: true, needs });
+  const TASKS = [task('heavy', 'jobsified', { item: 'fake-id', name: 'heavy machinery licence' }), task('temp', 'placeholder', { item: 'office-id', name: 'office ID badge' })];
+  it('sells the paper the job last turned away asked for, at its price; asked for none, it asks what for', () => {
+    const none = play([FORGER, ...TASKS], [{ at: [80, 0, 0] }], { coin: 400 });
+    expect(none.log).toContain('forger:what');
+    expect(none.vars['held:bag:coin']).toBe(400);
+    const badge = play([FORGER, ...TASKS], [{ event: 'app:take:temp' }, { at: [80, 0, 0] }, { event: 'app:take:temp' }], { coin: 400 });
+    expect(badge.vars).toMatchObject({ 'held:bag:office-id': 1, 'held:bag:fake-id': 0, 'held:bag:coin': 310, 'flag-took-temp': 1 });
+    expect(badge.log).toContain('forger:bought:2');
+    // (then the licence, when the heavy call turns the player away)
+    const both = play([FORGER, ...TASKS], [{ event: 'app:take:temp' }, { at: [80, 0, 0] }, { at: [0, 0, 0] }, { event: 'app:take:heavy' }, { at: [80, 0, 0] }], { coin: 400 });
+    expect(both.vars).toMatchObject({ 'held:bag:office-id': 1, 'held:bag:fake-id': 1, 'held:bag:coin': 160 });
+    // (short of it, it says so and takes nothing)
+    const short = play([FORGER, ...TASKS], [{ event: 'app:take:temp' }, { at: [80, 0, 0] }], { coin: 50 });
+    expect(short.log).toContain('forger:short:2');
+    expect(short.vars['held:bag:coin']).toBe(50);
+  });
+});

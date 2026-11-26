@@ -201,8 +201,8 @@ describe('the city\'s other jobs', () => {
     for (const [w, S] of routes) if (S.marker) expect(typeof S.says?.hold, w).toBe('string');
     expect(Object.values(SHIFTS).some((S) => S.mode === 'collect' && S.unload === 'yard')).toBe(true);
   });
-  it('each is a task on Jobsified, worked from a yard that keeps its vehicle or issues it', () => {
-    for (const [w, S] of Object.entries(SHIFTS)) if (!issues(S)) expect(YARDS[S.yard]?.roles?.[w], w).toBeTruthy();
+  it('each is a task on Jobsified, worked from a yard that keeps its vehicle or issues it (a desk on foot keeps none)', () => {
+    for (const [w, S] of Object.entries(SHIFTS)) if (!issues(S) && !S.foot) expect(YARDS[S.yard]?.roles?.[w], w).toBeTruthy();
   });
   const kerb = (at) => ({ at: [at[0] + 1, at[1], 0], heading: 0 });
   const places = Array.from({ length: 30 }, (_, i) => ({ at: [i * 40, 0, 0], N: [0, 1], card: `shop-${i}` }));

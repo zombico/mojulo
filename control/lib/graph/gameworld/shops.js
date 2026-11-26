@@ -11,7 +11,10 @@
  *              operate heavy machinery, which a driving job may ask for (jobsified.js `licence`). Once had, kept
  *
  *   SHOPS              the words unsaid
- *   FORGED             the forger's papers: their item and what they are called
+ *   FORGED             the forger's papers: their item and what they are called (the licence, PAPERS.licence)
+ *   PAPERS             every paper the forger deals in: the licence (a driving job's) and an office ID badge lifted off
+ *                      someone's lanyard (a temp's, temp-agency.js), a city worker's ID (municipal.js), each its item, its name, its price where it is not
+ *                      the shop's, what is said as it is sold
  *   readShops(spec)    → { respray: { price } | null, guns: { price, rounds } | null, forger?: { price } } | null (refuses
  *                        a malformed one, teaching)
  * Pure, no dice.
@@ -26,6 +29,11 @@ export const SHOPS = Object.freeze({
 });
 const KEYS = { respray: ['price'], guns: ['price', 'rounds'], forger: ['price'] };
 export const FORGED = Object.freeze({ item: 'fake-id', name: 'heavy machinery licence' });
+export const PAPERS = Object.freeze({
+  licence: FORGED,
+  badge: Object.freeze({ item: 'office-id', name: 'office ID badge', price: 90, says: 'Lifted off a commuter\'s lanyard. You are Gary now. Gary has a good attendance record.' }),
+  municipal: Object.freeze({ item: 'city-id', name: 'city worker ID', price: 75, says: 'A laminated city ID and a hi-vis vest. The vest does most of the work.' }),
+});
 
 export function readShops(spec) {
   if (spec === undefined || spec === null || spec === false) return null;

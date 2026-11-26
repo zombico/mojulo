@@ -157,7 +157,7 @@ export function carRepeats(list, { group = 'car', pool = null } = {}) {
     const M = carModel(card), at = (c) => ({ pos: c.pos, ...(c.rotZ ? { rotZ: c.rotZ } : {}) }), P = pooled.get(card), key = (part) => (P ? { pool: `${card}|${part}` } : {});
     // (a body with no paint to tint, a site's machine, has none of it)
     if (M.paint.length) out.push({ group: `${group}-paint`, template: M.paint, transforms: cars.map((c) => ({ ...at(c), tint: TINTS.get(c.paint) ?? lin(c.paint) })), ...key('paint') });
-    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at), ...key('trim'), ...(P && M.hubs.length ? { hubs: M.hubs } : {}) });
+    out.push({ group: `${group}-trim`, template: M.trim, transforms: cars.map(at), ...key('trim'), ...(P && M.hubs?.length ? { hubs: M.hubs } : {}) });
     // (its roof's extras, each on the same transforms: set back from the roof's top along its nose a little)
     for (const ex of [...new Set([...cars.filter((c) => c.extra).map((c) => c.extra), ...(P ?? [])])].sort()) out.push({ group: `${group}-${ex}`, template: ROOF_EXTRAS[ex](r4(M.roof.y - 0.3), M.roof.z), transforms: cars.filter((c) => c.extra === ex).map(at), ...(P?.has(ex) ? { pool: `${card}|${ex}` } : {}) });
     // (its moving parts, for a body that moves them: pooled, none of them parked)

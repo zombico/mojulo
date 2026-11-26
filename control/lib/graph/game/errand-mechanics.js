@@ -54,6 +54,8 @@
  *                                its `stops` (cells of long grass, { at, half }) are long again; each driven over in
  *                                it cut once; `goal` of them (a share) cut pays; the clock run out ends it unpaid;
  *                                got out of, the mower goes back to `back` (its shed) and the round with it
+ *                       desk     on foot, no `cabs`: clocked in at its `depot` (a building's door) once taken; its
+ *                                shift is that building's own page (temp-agency.js), nothing paid here
  *                       dig      an operated machine (an excavator): the page says each scoop and each tip
  *                                (`shift:scoop:<id>`, `shift:tip:<id>`); a full bucket tipped is a load, `loads` of
  *                                them pay and the truck goes off empty
@@ -403,10 +405,10 @@ export function lowerShift(p, ctx) {
   const at0 = `shift[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   ctx.resolve('inventory', p.slice ?? BAG, at0);
   const mode = p.mode ?? 'route';
-  if (!['route', 'collect', 'haul', 'dig', 'sweep', 'mow'].includes(mode)) fail('mode is route, collect, haul, dig, sweep or mow');
+  if (!['route', 'collect', 'haul', 'dig', 'sweep', 'mow', 'desk'].includes(mode)) fail('mode is route, collect, haul, dig, sweep, mow or desk');
   if (typeof p.id !== 'string' || !WORD.test(p.id)) fail('id is the job\'s name, lower-case');
   if (!isVec(p.depot)) fail('depot is [x, y, z]: the yard its vehicle is had from');
-  if (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c)) fail('cabs is the ids of the vehicles it is done in, at least one');
+  if (mode !== 'desk' && (!Array.isArray(p.cabs) || !p.cabs.length || p.cabs.some((c) => typeof c !== 'string' || !c))) fail('cabs is the ids of the vehicles it is done in, at least one');
   if ((mode === 'route' || mode === 'collect' || mode === 'sweep' || mode === 'mow') && (!Array.isArray(p.stops) || !p.stops.length || p.stops.some((q) => !q || !isVec(q.at)))) fail('stops is [{ at: [x, y, z] }], at least one: the round');
   // (a haul's CALLS: each a vehicle of its own (`cab`), where it is driven (`site`) and where it is taken back to (`back`),
   // worked in turn; one call is the shift's own `cabs[0]`, `site` and `back`)
@@ -437,7 +439,7 @@ export function lowerShift(p, ctx) {
   const callVar = `call-${id}`, called = calls.length > 1;
   if (called) frag.vars[callVar] = 1;
   const board = (c) => { const k = calls.findIndex((x) => x.cab === c); return called ? ev(`board:${k + 1}`) : ev('board'); };
-  for (const c of called ? calls.map((x) => x.cab) : p.cabs) {
+  for (const c of called ? calls.map((x) => x.cab) : p.cabs ?? []) {
     R.push({ on: 'mounted', match: { mount: c }, do: 'set', var: aboard, to: 1 });
     R.push(took ? { on: 'mounted', match: { mount: c }, if: { var: took, gte: 1 }, do: 'emit', type: board(c) } : { on: 'mounted', match: { mount: c }, do: 'emit', type: board(c) });
     R.push({ on: 'dismounted', match: { mount: c }, do: 'set', var: aboard, to: 0 }, { on: 'dismounted', match: { mount: c }, do: 'set', var: inV, to: 0 });
@@ -447,7 +449,7 @@ export function lowerShift(p, ctx) {
   if (took && !called) R.push({ on: `flag:${p.after}`, if: { var: aboard, gte: 1 }, do: 'emit', type: ev('in') });
   R.push({ on: ev('in'), do: 'set', var: inV, to: 1 }, { on: ev('in'), if: { var: `flag-${on}`, eq: 0 }, do: 'emit', type: ev('clock') });
   R.push({ on: ev('clock'), do: 'set', var: `flag-${on}`, to: 1 }, { on: ev('clock'), do: 'emit', type: `flag:${on}` });
-  frag.hud.push({ on: ev('clock'), as: 'toast', text: `On the clock: drive the ${vehicle}`, ttl: 2.4 });
+  frag.hud.push({ on: ev('clock'), as: 'toast', text: mode === 'desk' ? `Clocked in: your desk is inside the ${yard}` : `On the clock: drive the ${vehicle}`, ttl: 2.4 });
   if (took) frag.hud.push({ on: ev('need'), as: 'toast', text: `This is done in the ${vehicle}`, ttl: 1.8 });
   // (what its giver says as it is taken, `pitch`: the parks office short of hands)
   if (took && typeof p.pitch === 'string' && p.pitch) frag.hud.push({ on: `flag:${p.after}`, as: 'toast', text: p.pitch, ttl: 6 });
@@ -550,6 +552,14 @@ export function lowerShift(p, ctx) {
     payOut(paid);
     R.push({ on: paid, do: 'set', var: dv, to: 1 });
   }
+  if (mode === 'desk') {
+    // A DESK'S: on foot, clocked in at its building's door once taken (its zone the depot's); the shift is the building's
+    // own page (a desk's Deskwork: its pay and its commendations go into the bag there), so nothing is paid here
+    zone(`shift-${id}-door`, p.depot, p);
+    if (took) R.push({ on: 'enter', match: { zone: `shift-${id}-door` }, if: { var: took, gte: 1 }, do: 'emit', type: ev('in') });
+    else R.push({ on: 'enter', match: { zone: `shift-${id}-door` }, do: 'emit', type: ev('in') });
+  }
+
   if (mode === 'mow') {
     // A ROUND ON THE LAWN, in its mower: clocked in, the clock set and the grass long; `live` while in it on the clock
     // (one var, so a cell's cut is two steps); each cell entered then cut once; `goal` of them pays; the clock run out

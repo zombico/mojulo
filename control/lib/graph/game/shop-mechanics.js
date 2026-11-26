@@ -75,6 +75,7 @@ export function lowerGunshop(p, ctx) {
 export function lowerForger(p, ctx) {
   const at0 = `forger[${ctx.i}]`, fail = (m) => { throw new Error(`${at0}: ${m}`); };
   if (!isVec(p.at)) fail('at is [x, y, z]: where the forger\'s door is');
+  if (p.papers !== undefined) return lowerForgerPapers(p, ctx, at0, fail);
   const price = p.price ?? 150, item = typeof p.item === 'string' && p.item ? p.item : 'fake-id', name = typeof p.name === 'string' && p.name ? p.name : 'papers';
   if (!(Number.isInteger(price) && price >= 0)) fail('price is the coin the papers cost');
   ctx.resolve('inventory', p.slice ?? BAG, at0);
@@ -92,6 +93,42 @@ export function lowerForger(p, ctx) {
   return {
     world: { ...frag, sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2.2, planar: true, watch: ctx.player }] },
     emits: ['forger:bought'], produces: [{ type: 'consume', slice: BAG }, { type: 'grant', slice: BAG }],
+    audit: { kind: 'walkto', target: p.at.slice() },
+  };
+}
+
+/** A forger with several papers (`papers: [{ item, name, price, says? }]`, `asks: { <task id>: <paper index> }`): each a
+ *  job asks for, sold to the one who walks in with its price. Which: the paper the job last refused asked for (a task's
+ *  `task:needs:<id>`); none asked yet, the forger asks what the papers are for. Once had, a paper is kept. */
+function lowerForgerPapers(p, ctx, at0, fail) {
+  if (!Array.isArray(p.papers) || !p.papers.length || p.papers.some((q) => !q || typeof q.item !== 'string' || !q.item || typeof q.name !== 'string' || !(Number.isInteger(q.price) && q.price >= 0))) fail('papers is [{ item, name, price, says? }]: the papers the forger deals in');
+  const asks = p.asks ?? {};
+  if (typeof asks !== 'object' || Object.values(asks).some((k) => !Number.isInteger(k) || k < 0 || k >= p.papers.length)) fail('asks is { <task id>: <paper index> }: which paper each job asks for');
+  ctx.resolve('inventory', p.slice ?? BAG, at0);
+  const zone = 'forger', want = 'forger-want', coin = heldVar(BAG, 'coin');
+  const frag = { vars: { [coin]: 0, [want]: 0, ...Object.fromEntries(p.papers.map((q) => [heldVar(BAG, q.item), 0])) }, reactions: [], hud: [] };
+  const R = frag.reactions;
+  for (const [task, k] of Object.entries(asks)) R.push({ on: `task:needs:${task}`, do: 'set', var: want, to: k + 1 });
+  R.push({ on: 'enter', match: { zone }, if: { var: want, eq: 0 }, do: 'emit', type: 'forger:what' });
+  frag.hud.push({ on: 'forger:what', as: 'toast', text: 'Forger: papers for what? Find a job that asks for them, then come back.', ttl: 2.8 });
+  const emits = [];
+  p.papers.forEach((q, k) => {
+    const held = heldVar(BAG, q.item), ev = (w) => `forger:${w}:${k + 1}`;
+    R.push({ on: 'enter', match: { zone }, if: { var: want, eq: k + 1 }, do: 'emit', type: ev('try') });
+    R.push({ on: ev('try'), if: { var: held, eq: 0 }, do: 'emit', type: ev('buy') }, { on: ev('try'), if: { var: held, gte: 1 }, do: 'emit', type: ev('had') });
+    const { ok, no } = lowerMove({ item: 'coin', n: q.price, from: BAG, to: NOWHERE, on: ev('buy') }, frag);
+    R.push({ on: ok, do: 'emit', type: ev('bought') }, { on: no, do: 'emit', type: ev('short') });
+    lowerMove({ item: q.item, n: 1, from: NOWHERE, to: BAG, on: ev('bought') }, frag);
+    frag.hud.push(
+      { on: ev('bought'), as: 'banner', text: 'Papers', sub: `A ${q.name} (${q.price}). ${q.says ?? 'Nobody will look twice.'}` },
+      { on: ev('short'), as: 'toast', text: `Forger: a ${q.name} is ${q.price}. Come back with the money.`, ttl: 2.6 },
+      { on: ev('had'), as: 'toast', text: `Forger: you have your ${q.name}. Now go and earn with it.`, ttl: 2.4 },
+    );
+    emits.push(ev('bought'));
+  });
+  return {
+    world: { ...frag, sources: [{ type: 'zone', zone, at: p.at.slice(), radius: Number.isFinite(p.radius) ? p.radius : 2.2, planar: true, watch: ctx.player }] },
+    emits, produces: [{ type: 'consume', slice: BAG }, { type: 'grant', slice: BAG }],
     audit: { kind: 'walkto', target: p.at.slice() },
   };
 }

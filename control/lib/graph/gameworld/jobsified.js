@@ -24,6 +24,9 @@
  *            round starts on the clock, the lawn's long grass in cells round its paths, things and trees, each cut by
  *            driving over it; enough of it cut in time pays, the clock run out does not, and got off, the mower goes back
  *            in the shed
+ *   desk     an office temp's (temp-agency.js): on foot (`foot`), no vehicle; clocked in at the district's office tower's
+ *            lobby door (geocity `office`), its work the tower's own page (a desk's shift: Deskwork, the pay and the
+ *            promotions in the bag); given by a staffing app (`app`), its papers an office ID badge (`papers`)
  *   haul     a heavy vehicle driven to a job (a general heavy driver's): one is ISSUED at the kerb by the yard (one of
  *            the `fleet`'s models, stood there for the job: issuedOf), got into and driven across the district to a
  *            building site (a construction lot near the eye, else a far place), which pays; left there, it is taken
@@ -34,11 +37,11 @@
  * row.
  *
  *   JOBSIFIED          the app's id (phone-ui.js: a shift's app unless it names its own)
- *   SHIFT_MODES        collect | route | haul | dig | sweep | mow
+ *   SHIFT_MODES        collect | route | haul | dig | sweep | mow | desk
  *   SHIFTS             { <word>: { name, mode, yard, vehicle, item, stops, stop?, done, load?, hold?, fleet?, to?, riders?,
- *                      dropoff?, unload?, marker?, says? } }   (`dropoff`: a route's last stop has nobody waiting; `unload:
- *                      'yard'` a collect emptied back at its yard; `marker` what stands at a stop: call, fire, parcel, mailbox;
- *                      `says` the screen's words: aboard, hold, banner)
+ *                      dropoff?, unload?, marker?, says?, foot?, app?, papers? } }   (`dropoff`: a route's last stop has nobody
+ *                      waiting; `unload: 'yard'` a collect emptied back at its yard; `marker` what stands at a stop: call,
+ *                      fire, parcel, mailbox; `says` the screen's words: aboard, hold, banner; `foot` worked on foot, a desk's)
  *   YARD_NAMES         a yard as people call it (the works yard, the bus depot)
  *   SHIFT              the laying's numbers: how far a stop is driven from the one before, how far apart, the depot's reach
  *   shiftOf(word)      → the row, or throws (teaching)
@@ -52,9 +55,9 @@
 import { YARDS, fleetOf } from '../geocity/fleets.js';
 
 export const JOBSIFIED = 'jobsified';
-export const SHIFT_MODES = Object.freeze(['collect', 'route', 'haul', 'dig', 'sweep', 'mow']);
+export const SHIFT_MODES = Object.freeze(['collect', 'route', 'haul', 'dig', 'sweep', 'mow', 'desk']);
 
-export const YARD_NAMES = Object.freeze({ park: 'park', dock: 'dock', works: 'works yard', depot: 'bus depot', emergency: 'emergency station', contractor: 'contractor\'s yard', lot: 'car park' });
+export const YARD_NAMES = Object.freeze({ office: 'office tower', park: 'park', dock: 'dock', works: 'works yard', depot: 'bus depot', emergency: 'emergency station', contractor: 'contractor\'s yard', lot: 'car park' });
 
 // each driving job: its mode, the yard it starts from, the vehicle as it is called, what is had at a stop (an item word:
 // the round's), how many stops (piles) a round has (an errand's list count says its own), what a stop says and what
@@ -84,6 +87,9 @@ export const SHIFTS = Object.freeze({
   courier: Object.freeze({ name: 'Courier run', mode: 'route', yard: 'dock', vehicles: 'parcel', calls: 1, vehicle: 'courier van', item: 'parcels', stops: 4, hold: 1.2, riders: Object.freeze([0, 0]), marker: 'parcel', says: Object.freeze({ hold: 'to hand it over', banner: 'Parcels delivered' }), stop: 'Hand over the parcel', done: 'Parcels delivered' }),
   // (a MAIL round: the post boxes emptied into the mail truck and the mail taken back to the yard, never the dump)
   mail: Object.freeze({ name: 'Mail round', mode: 'collect', yard: 'works', vehicles: 'mail', calls: 1, vehicle: 'mail truck', item: 'mail', stops: 4, load: 4, hold: 1, unload: 'yard', marker: 'mailbox', stop: 'Empty the post box', done: 'Mail collected' }),
+  // (a temp's office job, posted by a staffing app; its papers a lifted badge, its work at a desk in the office tower)
+  temp: Object.freeze({ name: 'Office temp', mode: 'desk', yard: 'office', foot: true, app: 'placeholder', papers: 'badge', vehicle: 'desk', item: 'shift', stops: 1, done: 'Shift worked',
+    pitch: 'Placeholder Staffing: an office temp position at Synergetics Tower. Nice badge, Gary. Nobody checks the photo.' }),
   heavy: Object.freeze({ name: 'Heavy vehicle call', mode: 'haul', yard: 'works', vehicles: 'heavy', calls: 3, licence: true, vehicle: 'heavy vehicle', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
 // THE HEAVY CALL'S VEHICLES (a row's `vehicles: 'heavy'`): trucks and a site's machines turn about, each a body a hero
@@ -118,7 +124,7 @@ const VEHICLE_LISTS = Object.freeze({ heavy: HEAVY_VEHICLES, freight: FREIGHT_VE
 export const issues = (S) => !!(S && (S.fleet || S.vehicles || S.machine));
 for (const [word, S] of Object.entries(SHIFTS)) {
   if (!SHIFT_MODES.includes(S.mode)) throw new Error(`jobsified: '${word}' works as ${SHIFT_MODES.join(', ')}`);
-  if (!issues(S) && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet, vehicles)`);
+  if (!issues(S) && !S.foot && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet, vehicles)`);
   if (S.mode === 'haul' && !issues(S)) throw new Error(`jobsified: '${word}' is a haul: its vehicle is issued (fleet, vehicles)`);
   if (S.vehicles && !VEHICLE_LISTS[S.vehicles]) throw new Error(`jobsified: '${word}' issues from no list (${Object.keys(VEHICLE_LISTS).join(', ')})`);
 }
@@ -134,13 +140,18 @@ export function shiftOf(word) {
   return S;
 }
 
-export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level && SHIFTS[E.vehicle] && !issues(SHIFTS[E.vehicle])).map((E) => E.vehicle))];
+export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level && SHIFTS[E.vehicle] && !issues(SHIFTS[E.vehicle]) && !SHIFTS[E.vehicle].foot).map((E) => E.vehicle))];
 
+// where an issued vehicle is stood (m): in its yard, `apart` from another (side by side, nose along the yard); else at a kerb before one of the `tries` places
+// nearest its yard within `near` of it, else of those nearest the start (a yard's street a streetcar's tracks hold has no
+// kerb free)
+const ISSUE = Object.freeze({ apart: 5, near: 150, tries: 60 });
 // (a word's own number, for a choice no die makes: the same job issues the same truck)
 const hashOf = (w) => [...String(w)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
 /** The vehicles a level's shifts issue: a fleet's one (a route's bus) or a list's `calls` (a heavy call's, each the next
- *  of the list from the job's own word, `call` its number), each at the kerb before one of the places nearest its yard
- *  (the start where the district keeps no such yard), turned along the street. */
+ *  of the list from the job's own word, `call` its number), each in its yard where it has room (ends.yardAt), else at the
+ *  kerb before one of the places nearest its yard (the start where the district keeps no such yard or no kerb by it),
+ *  turned along the street. */
 export function issuedOf(ends, errands, level) {
   const out = [], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = [];
   for (const E of errands ?? []) {
@@ -158,7 +169,10 @@ export function issuedOf(ends, errands, level) {
     const D = S.yard === 'dock' ? ends.dock ?? null : (ends.depots ?? []).find((x) => x.yard === S.yard), from = D ? D.at : ends.spawn;
     const list = S.vehicles ? VEHICLE_LISTS[S.vehicles] : null, n = list ? Math.min(S.calls ?? 1, list.length) : 1, h = hashOf(E.id);
     const which = (k) => { if (list) return list[(h + k) % list.length]; const rows = fleetOf(S.fleet), R = rows[h % rows.length]; return { model: R.model, word: R.word, paint: R.paints[0] }; };
-    const near = (ends.places ?? []).slice().sort((a, b) => d2(a.at, from) - d2(b.at, from) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+    // (the places by its yard, then by the start: a yard whose streets a streetcar's tracks hold has its vehicles stood
+    // by the start, never across the district)
+    const by = (o) => (ends.places ?? []).slice().sort((a, b) => d2(a.at, o) - d2(b.at, o) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+    const near = [...by(from).filter((q) => d2(q.at, from) <= ISSUE.near).slice(0, ISSUE.tries), ...(ends.spawn ? by(ends.spawn).slice(0, ISSUE.tries) : [])];
     let k = 0;
     // (a dock's own bays, where it has them: a truck backed to each, its first ones)
     for (const bay of S.yard === 'dock' ? D?.bays ?? [] : []) {
@@ -170,17 +184,25 @@ export function issuedOf(ends, errands, level) {
       taken.push(bay.at);
       k++;
     }
-    // (each at a kerb of its own, clear of the others' by a long vehicle's length; where no kerb by its yard will take
-    // one, a yard among the district's blocks with no shop front near it, at a kerb near the start as where it has none)
-    const byStart = D ? (ends.places ?? []).slice().sort((a, b) => d2(a.at, ends.spawn) - d2(b.at, ends.spawn) || a.at[0] - b.at[0] || a.at[1] - b.at[1]) : [];
-    const byYard = new Set(near.slice(0, 40 + n * 4));
-    for (const q of [...byYard, ...byStart.slice(0, 40 + n * 4)]) {
+    // (in its yard, where the yard has room: geocity's depot lot, its own vehicles and its walls kept clear, the issued a
+    // vehicle's length apart, ends.yardAt)
+    for (const spot of D && S.yard !== 'dock' && typeof ends.yardAt === 'function' ? ends.yardAt(D.id) : []) {
+      if (k >= n) break;
+      if (!taken.every((t) => d2(spot.at, t) > ISSUE.apart)) continue;
+      const V = which(k);
+      out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: spot.at, heading: spot.heading, model: V.model, paint: V.paint, word: V.word, place: null, yard: YARD_NAMES[S.yard] });
+      taken.push(spot.at);
+      k++;
+    }
+    // (else each at a kerb of its own, clear of the others' by a long vehicle's length: by its yard, then by the start,
+    // the yard said only where it stands near it)
+    for (const q of near) {
       if (k >= n) break;
       if (!taken.every((t) => d2(q.at, t) > 16)) continue;
       const spot = ends.kerbAt(q.at, q.N);
       if (!spot || !taken.every((t) => d2(spot.at, t) > 16)) continue;
       const V = which(k);
-      out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: spot.at, heading: spot.heading, model: V.model, paint: V.paint, word: V.word, place: q.card, yard: D && byYard.has(q) ? YARD_NAMES[S.yard] : null });
+      out.push({ id: E.id, ...(list ? { call: k + 1 } : {}), at: spot.at, heading: spot.heading, model: V.model, paint: V.paint, word: V.word, place: q.card, yard: D && d2(spot.at, from) <= ISSUE.near ? YARD_NAMES[S.yard] : null });
       taken.push(spot.at);
       k++;
     }

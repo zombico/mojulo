@@ -72,7 +72,10 @@ import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
 import { patrolCar, depotCabs, issuedCabs } from './cars.js';
 import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf, issues, operatedOf, sweepRoute, SWEEP, lawnOf, MOW_ROUND } from './jobsified.js';
-import { FORGED } from './shops.js';
+import { FORGED, PAPERS } from './shops.js';
+import { MUNICIPAL, REQUEST_KINDS, requestSites } from './municipal.js';
+// (the papers a driving or desk job asks for: its row's `papers`, or the licence a `licence` row asks for)
+const paperOf = (S) => (S.papers ? PAPERS[S.papers] : S.licence ? FORGED : null);
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -224,8 +227,9 @@ export function gameStages(world) {
     // a geocity level is one stage: the district on its cube (geocity/scene.js: an evocation), walked from its streets
     if (R.geocity) {
       out.push({ level, node: 'district', section: 'geocity', index: 0, label: G.levels[level]?.name ?? level, manifest: { kind: 'geocube', cube: R.geocity.cube, show: 'geocity', seed: R.seed, geocity: R.geocity.spec, ...skyWords(R.geocity) } });
-      // (its museum entered at its door, geocity/museum.js: a level of its own after the district, linked by its door)
-      if (R.geocity.spec?.museum || R.geocity.spec?.enter?.length) (stageEnds(out[out.length - 1].manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `district-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'district', index: 0, door: d.id }, building: { use: d.inside.use }, label: d.inside.name, manifest: interiorStage(d.inside) }));
+      // (its museum and its office tower entered at their doors, geocity/museum.js and scene.js `office`: each a level of its
+      // own after the district, linked by its door, and its other walk-ins' (geocity/walkins.js); the office's a desk's, deskwork's: gameworld/temp-agency.js)
+      if (R.geocity.spec?.museum || R.geocity.spec?.office || R.geocity.spec?.cityhall || R.geocity.spec?.enter?.length) (stageEnds(out[out.length - 1].manifest).doors ?? []).forEach((d, k) => out.push({ level, node: `district-${d.id}`, section: 'interior', index: k + 1, outside: { node: 'district', index: 0, door: d.id }, building: { use: d.inside.use }, label: d.inside.name, ...(d.inside.desk ? { desk: true } : {}), ...(d.inside.clerk ? { clerk: true } : {}), manifest: interiorStage(d.inside) }));
       continue;
     }
     // a geotown level is one stage: the town on its cube (geotown/scene.js), walked from its streets
@@ -659,6 +663,10 @@ function geocityEnds(manifest) {
   // (its MUSEUM's door, geocity/museum.js: the portico before its door, entered into the museum's building on a page of
   // its own; walked back out, the hero stands at the foot of its steps facing its street)
   const doors = [...(manifest.geocity?.museum ? (P.anchors ?? []).filter((a) => a.kind === 'museum').map((a) => museumDoor(a, manifest.geocity.museum, ground, manifest.seed ?? 1)) : []),
+    // (its OFFICE tower's lobby, `office`: entered into the office's building, its desk where a temp's shift is worked)
+    ...(manifest.geocity?.office ? (P.anchors ?? []).filter((a) => a.kind === 'office').map((a) => officeDoor(a, manifest.geocity.office, ground, manifest.seed ?? 1)) : []),
+    // (its CITY HALL's door, `cityhall`: the museum's civic front, into a building of its own, a clerk's desk in it)
+    ...(manifest.geocity?.cityhall ? (P.anchors ?? []).filter((a) => a.kind === 'cityhall').map((a) => cityhallDoor(a, manifest.geocity.cityhall, ground, manifest.seed ?? 1)) : []),
     // (and its other WALK-INS', geocity/walkins.js: an arcade's, a library's, each into its program laid in its own look)
     ...(manifest.geocity?.enter?.length ? (P.anchors ?? []).filter((a) => a.kind === 'walkin' && WALKINS[a.use]).map((a, k) => walkinDoor(a, ground, (manifest.seed ?? 1) + 2 + k)) : [])];
   const out = { spawn, heading, exit, exitFrom: 'the far side of the walk its street lays', planar: true, beats, hazards: [], via: route.slice(0, far + 1).map((p) => [r3(p[0]), r3(p[1])]), ...(doors.length ? { doors } : {}) };
@@ -696,6 +704,21 @@ function geocityEnds(manifest) {
     // (`half`: its box, the yard whole; `radius` the reach of a word about it, to its far corner)
     return { id: Y.id, yard: Y.yard, at: on([(x0 + x1) / 2, (y0 + y1) / 2, Y.z]), half: [r3((x1 - x0) / 2), r3((y1 - y0) / 2)], radius: r3(Math.hypot(x1 - x0, y1 - y0) / 2), cabs };
   }), enumerable: false });
+  // (room to stand a vehicle in a yard, `yardAt(id)`: on the yard's lot, clear of its walls and kit and of every car
+  // parked there, a few metres apart, nose along its long side, nearest its middle first; a job's issued vehicle is had
+  // at its yard, jobsified.js issuedOf)
+  Object.defineProperty(out, 'yardAt', { value: (id) => {
+    const Y = yards.find((y) => y.id === id || y.yard === id);
+    if (!Y) return [];
+    const [x0, y0, x1, y1] = Y.rect, alongX = x1 - x0 >= y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, I = YARD_STAND.inset, out2 = [];
+    const blocked = (x, y, z) => (P.colliders ?? []).some((c) => x > c.min[0] - KERB.clear && x < c.max[0] + KERB.clear && y > c.min[1] - KERB.clear && y < c.max[1] + KERB.clear && z + 0.7 > c.min[2] && z + 0.7 < c.max[2]);
+    for (let x = x0 + I; x <= x1 - I + 1e-6; x += YARD_STAND.step) for (let y = y0 + I; y <= y1 - I + 1e-6; y += YARD_STAND.step) {
+      const z = ground(x, y);
+      if (z === null || z === undefined || Math.abs(z - Y.z) > YARD_STAND.level || blocked(x, y, z) || lotsOut.some((c) => Math.hypot(c.at[0] - x, c.at[1] - y) < KERB.bay)) continue;
+      out2.push({ at: [r3(x), r3(y), r3(z)], heading: alongX ? 0 : r3(Math.PI / 2) });
+    }
+    return out2.sort((a, b) => Math.hypot(a.at[0] - cx, a.at[1] - cy) - Math.hypot(b.at[0] - cx, b.at[1] - cy) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+  }, enumerable: false });
   // (its LOTS near the eye: each empty lot and building site, its box and its middle on the ground, an empty lot's open
   // side: where a driving job builds its dump or sends a load, jobsified.js)
   Object.defineProperty(out, 'lots', { value: emptyLots.map((Q) => ({ id: Q.id, kind: Q.kind, rect: Q.rect, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]), ...(Q.open ? { open: Q.open } : {}), ...(Q.digger ? { digger: Q.digger } : {}), ...(Q.truck ? { truck: Q.truck } : {}) })), enumerable: false });
@@ -731,6 +754,9 @@ const parkedCars = (list) => list.filter((c) => !c.extra).map((c) => ({ at: c.po
 // walk to the road on whichever side it lies nearer, a car's half width into it; then along the street, a car's length
 // apart, each spot on the road and clear of every box, nose to tail; where a ground is given (`top`), the road is
 // the ground there, never one running under a walk or a pad. → [{ at, heading }], none where no road lies beside the start
+// room in a yard for an issued vehicle (m): how far in from its edge, the grid it is looked for on, how far off the yard's
+// own level the ground may be
+const YARD_STAND = Object.freeze({ inset: 3.5, step: 3, level: 0.4 });
 const KERB = Object.freeze({ reach: 14, step: 0.5, into: 1.5, apart: 6.5, most: 3, clear: 1.2, walk: 20, lane: 2.4, bay: 5.5 });
 function kerbSpots(route, road, colliders, top = null, lanes = [], taken = []) {
   if (route.length < 2) return [];
@@ -816,6 +842,29 @@ const GIVER = Object.freeze({ off: 120, apart: 14, says: 'I have a job for you.'
 // paint the city's dice pick for a car parked there), where no car of its lots stands within a walk of the start.
 function kerbCars(seed, spots) {
   return spots.map((k, i) => { const v = pickOf(fleetOf('civilian'), streamOf(seed, 'fleet', `kerb:${i}`)); return { at: k.at, heading: k.heading, model: v.model, paint: v.paint }; }).filter((c) => !c.model.startsWith('site:'));
+}
+
+/** THE OFFICE TOWER'S DOOR (geocity/scene.js `office`): its zone just before its lobby's glass doors, the way back out on
+ *  the walk before them, facing its street; its inside the office's building (era/programs.js `office`: a lobby, a stair
+ *  core, office wings, meeting rooms, the boardroom at the top) in the everyday bay kit, its offices pods of desks
+ *  (room-layouts.js `islands`), no goal (left by its door), a desk
+ *  in it where a shift is worked (gameworld/temp-agency.js). */
+export const OFFICE_IN = Object.freeze({ zone: 0.9, back: 4, kit: 'bay-everyday', layouts: Object.freeze({ office: 'islands' }), name: 'Synergetics Tower' });
+function officeDoor(a, O0, ground, seed) {
+  const [nx, ny] = a.N, z = (p) => ground(p[0], p[1]) ?? a.floor, O = O0 === true ? {} : O0;
+  const zone = [a.at[0] + nx * OFFICE_IN.zone, a.at[1] + ny * OFFICE_IN.zone], back = [a.at[0] + nx * (OFFICE_IN.zone + OFFICE_IN.back), a.at[1] + ny * (OFFICE_IN.zone + OFFICE_IN.back)];
+  return { id: 'office', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: 'office', seed: seed + 2, kit: OFFICE_IN.kit, layouts: OFFICE_IN.layouts, exit: false, desk: true, name: O.name ?? OFFICE_IN.name } };
+}
+
+/** CITY HALL'S DOOR (geocity/scene.js `cityhall`, the museum's civic front): its zone on its portico before its door, the
+ *  way back out at the foot of its steps; its inside the office program in the everyday kit (its offices in pods), no
+ *  goal, a clerk's desk in it where work orders are made (gameworld/municipal.js CLERK_DESK). */
+function cityhallDoor(a, O0, ground, seed) {
+  const [nx, ny] = a.N, z = (p) => ground(p[0], p[1]) ?? a.floor, O = O0 === true ? {} : O0;
+  const zone = [a.at[0] + nx * MUSEUM_IN.zone, a.at[1] + ny * MUSEUM_IN.zone], back = [a.at[0] + nx * (MUSEUM_IN.zone + MUSEUM_IN.back), a.at[1] + ny * (MUSEUM_IN.zone + MUSEUM_IN.back)];
+  return { id: 'cityhall', at: [r3(zone[0]), r3(zone[1]), r3(a.floor)], half: Math.abs(nx) > Math.abs(ny) ? [0.8, 1.8, 2] : [1.8, 0.8, 2], spawn: [r3(back[0]), r3(back[1]), r3(z(back))], heading: r3(Math.atan2(ny, nx)),
+    inside: { use: 'office', seed: seed + 3, kit: OFFICE_IN.kit, layouts: OFFICE_IN.layouts, exit: false, clerk: true, name: O.name ?? 'City Hall' } };
 }
 
 /** THE MUSEUM'S DOOR (geocity/museum.js): its zone on the portico just before its door, the way back out at the foot of
@@ -1051,7 +1100,7 @@ function levelOrder(G, stage, { ref, heroRef, costar = null, heroGaits = null, h
   // the doors of its buildings whose scene changes there (stage-buildings.js): each a `door` mechanic, its inside a level
   const doorMechs = (ends.doors ?? []).map(({ inside: _i, ...d }) => ({ kind: 'door', ...d }));
   // a MAP world: the stage's one exit becomes its ways out (each a named reach-exit), and its arrivals move the pilot
-  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length, shops: G.shops ?? null, errands: G.errands ?? null }) : null;
+  const ways = map ? stageWays(stage, ends, map, G.ui?.phone?.apps, G.factions, G.law ? { ...G.law, bag: !!G.errands?.length } : null, { bag: !!G.errands?.length || !!G.municipal, shops: G.shops ?? null, errands: G.errands ?? null, municipal: G.municipal ?? null }) : null;
   // (a glyph map with no way on, a megaworld's core: its goal stays its own, reaching it the level's win, no exit taken)
   // (a zone holding the walk's goal keeps it too: reaching it is the game's end, its gates travel)
   const keepsGoal = ways && stage.section === 'map' && (!map.on.length || !!ends.holdsGoal);
@@ -1933,7 +1982,7 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
     // place to send it lays none of it (advised, never refused: the errand proof says it was not laid)
     const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt), atHq = [];
     if (shiftAt.length && driven) {
-      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !issues(shiftOf(w))))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !issues(shiftOf(w)) && !shiftOf(w).foot))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
       const issue = issuedOf(ends, city.errands ?? [], stage.level), issuedIds = issuedCabs(ends, issue, { roles });
       // (nothing stood within a stop's reach of the dump: a pile in its yard would be emptied as it is taken)
       const used = [...givers.map((g) => g.at), ...legs.filter((l) => Array.isArray(l.at)).map((l) => l.at), ...(ends.dump ? [ends.dump.at] : [])];
@@ -1946,10 +1995,20 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
           const on = taskApps(L, fus).length ? taskApps(L, fus) : [JOBSIFIED], subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
           offers.push({ kind: 'task', id: L.id, app: on[0], flag: `took-${L.id}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(L.tags ? { tags: L.tags } : {}),
             // (a job that asks for a licence, where the world's forger sells one: taken only with it)
-            ...(S.licence && city.shops?.forger ? { needs: { item: FORGED.item, name: FORGED.name } } : {}),
+            ...(paperOf(S) && city.shops?.forger ? { needs: { item: paperOf(S).item, name: paperOf(S).name } } : {}),
             ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
         };
         const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done, ...(S.pitch ? { pitch: S.pitch } : {}) };
+        // A DESK: on foot, clocked in at the office tower's lobby door (geocity `office`, officeDoor), its shift the tower's
+        // own page (temp-agency.js deskCast)
+        if (S.mode === 'desk') {
+          const door = (ends.doors ?? []).find((x) => x.id === 'office');
+          if (!door) { unlaid.add(k); continue; }
+          used.push(door.at);
+          legs[k] = { ...base, depot: door.at.slice(), radius: ERRAND_DRIVE.reach, vehicle: S.vehicle, yard: door.inside.name ?? yard };
+          task();
+          continue;
+        }
         // A DIG: its machine operated where a building site stages its excavator, its pile and its tipper beside it
         // (jobsified.js operatedOf; the machine a cab after every car, cars.js carsExtra `operate`)
         if (S.mode === 'dig') {
@@ -2106,6 +2165,19 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
   // THE CITY'S SHOPS (shops.js, game/shop-mechanics.js), on a driven city with a bag to pay from: the gun shop at a shop
   // front a short walk off that no one stands at and no job sends the player to; the respray at a street's junction a
   // drive off, clear of the cars parked there
+  // THE MUNICIPAL OFFICE'S REQUESTS (municipal.js), before the shops (the forger deals in the papers its tasks ask for):
+  // each placed where it is fixed, its material at the works yard, City
+  // Hall's door where its work order is made; taken on the 311 app, asking for a city worker's ID where the forger deals
+  // in papers; a request the district has no place for left out
+  if (city.municipal && cityStage(stage)) {
+    const hall = (ends.doors ?? []).find((x) => x.id === 'cityhall');
+    requestSites(ends, city.municipal.requests).forEach((S, k) => {
+      const Q = city.municipal.requests.find((r) => r.id === S.id), K = REQUEST_KINDS[Q.kind];
+      mechanics.push({ kind: 'request', id: Q.id, job: Q.kind, name: K.thing, title: K.name, from: Q.from, says: Q.says.replace('{where}', S.where), thanks: K.thanks, where: S.where, done: K.done, spots: S.spots, yard: S.yard,
+        material: { ...K.material }, order: { ...MUNICIPAL.order }, reward: [{ item: 'coin', n: Q.reward }], after: `took-${Q.id}`, fix: { hold: { ...K.hold }, tap: { ...K.tap } }, ...(hall ? { hall: hall.at.slice() } : {}) });
+      mechanics.push({ kind: 'task', id: Q.id, app: MUNICIPAL.app, flag: `took-${Q.id}`, name: MUNICIPAL.appName, ...(k === 0 ? { subscribe: true } : {}), ...(city.shops?.forger ? { needs: { item: PAPERS[MUNICIPAL.papers].item, name: PAPERS[MUNICIPAL.papers].name } } : {}) });
+    });
+  }
   if (city.shops && city.bag && cityStage(stage) && (ends.parked?.length ?? 0) > 0) {
     const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at);
     const pick = (list, lo) => list.filter((q) => d2(q, ends.spawn) >= lo).sort((a, b) => d2(a, ends.spawn) - d2(b, ends.spawn) || a[0] - b[0] || a[1] - b[1])[0] ?? null;
@@ -2114,10 +2186,16 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
       if (at) mechanics.push({ kind: 'gunshop', at: at.slice(), price: city.shops.guns.price, rounds: city.shops.guns.rounds });
     }
     // (the forger, shops.js: a shop front a drive off, no one standing at it and no job sending the player there, its
-    // papers a licence a driving job may ask for)
+    // papers a licence a driving job may ask for, PAPERS)
     if (city.shops.forger) {
       const near = mechanics.filter((m) => Array.isArray(m.at)).map((m) => m.at), at = pick((ends.places ?? []).map((q) => q.at).filter((q) => near.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.forger);
-      if (at) mechanics.push({ kind: 'forger', at: at.slice(), price: city.shops.forger.price, item: FORGED.item, name: FORGED.name });
+      // (where a job asks for papers other than the licence, an office badge: every paper the level's jobs ask for, each
+      // job's paper the one it sells to whoever that job turned away, shop-mechanics.js lowerForgerPapers)
+      const asked = mechanics.filter((m) => m.kind === 'task' && m.needs), kinds = Object.keys(PAPERS).filter((k) => asked.some((m) => m.needs.item === PAPERS[k].item));
+      const several = kinds.some((k) => k !== 'licence');
+      const paper = (k) => ({ item: PAPERS[k].item, name: PAPERS[k].name, price: k === 'licence' ? city.shops.forger.price : PAPERS[k].price, ...(PAPERS[k].says ? { says: PAPERS[k].says } : {}) });
+      if (at && several) mechanics.push({ kind: 'forger', at: at.slice(), papers: kinds.map(paper), asks: Object.fromEntries(asked.map((m) => [m.id, kinds.findIndex((k) => PAPERS[k].item === m.needs.item)])) });
+      else if (at) mechanics.push({ kind: 'forger', at: at.slice(), price: city.shops.forger.price, item: FORGED.item, name: FORGED.name });
     }
     if (city.shops.respray) {
       const parked = ends.parked ?? [], at = pick(roadPosts(ends.roads ?? [], ends).filter((q) => parked.every((c) => d2(c.at, q) > SHOP_AT.clear) && taken.every((t) => d2(t, q) > SHOP_AT.apart)), SHOP_AT.respray);
@@ -2368,7 +2446,7 @@ export function interiorStage(inside) {
     // (`compose: false`: none, a kit not of the bay's, the zoo's open plaza)
     ...(inside.compose !== false && (inside.compose ?? PROGRAMS[inside.use]?.look) ? { compose: { ...(inside.compose ?? PROGRAMS[inside.use].look) }, ...(inside.exhibits === undefined ? { props: false } : {}) } : {}),
     ...(inside.reference ? { reference: inside.reference } : {}),
-    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}), ...(inside.scale !== undefined ? { scale: inside.scale } : {}) },
+    program: { use: inside.use, seed: inside.seed ?? 1, ...(inside.rooms ? { rooms: inside.rooms } : {}), ...(inside.add ? { add: inside.add } : {}), ...(inside.layouts ? { layouts: inside.layouts } : {}), ...(inside.civilization !== undefined ? { civilization: inside.civilization } : {}), ...(inside.scale !== undefined ? { scale: inside.scale } : {}) },
     // (its pieces on their plinths, era/exhibits.js; a building looked round and left by its door has no goal room)
     ...(inside.exhibits !== undefined ? { exhibits: inside.exhibits } : {}),
     // (an aquarium's tanks, era/aquarium.js)

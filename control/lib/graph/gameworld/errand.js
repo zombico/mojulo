@@ -26,7 +26,7 @@
  *   what the giver asks for is the list's roots: the items nothing on the list needs
  *   name     what it is called in the journal and as it starts (a mission's title)
  *   vehicle  a SHIFT (gameworld/jobsified.js SHIFTS: garbage, bus): a driving job done in one of the city's vehicles,
- *            given by the Jobsified app unless it names its own. Taken on the phone, the hero gets into one at the depot
+ *            given by the Jobsified app unless it (or its row, `app`: an office temp's staffing app) names its own. Taken on the phone, the hero gets into one at the depot
  *            that keeps it, drives its stops in it and brings it back there to be paid. Its list may be left out: one
  *            item, the row's (bins), at the giver's level, its `count` the round's stops (the row's by default); a list
  *            given is that one item. No contact, no mission, no needs, no shop. A row `given` at a faction's HQ
@@ -161,7 +161,7 @@ function readOne(E, k, G) {
   for (const N of list) visit(N.item, []);
   const needed = new Set(list.flatMap((N) => N.needs));
   const roots = list.filter((N) => !needed.has(N.item)).map((N) => N.item);
-  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.name ? { name: E.name.trim() } : {}), ...(M ? { mission: { ...M } } : {}), ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : V ? { app: JOBSIFIED } : {}), ...(E.tags ? { tags: E.tags.slice() } : {}), ...(V ? { vehicle: E.vehicle } : {}), ...(E.after ? { after: E.after } : {}) };
+  const read = { id: E.id, giver: E.giver, reward: reward.map((r) => ({ item: r.item, n: r.n ?? 1 })), list, roots, order, ...(E.name ? { name: E.name.trim() } : {}), ...(M ? { mission: { ...M } } : {}), ...(E.repeat ? { repeat: true } : {}), ...(E.offer ? { offer: E.offer.trim() } : {}), ...(E.contact ? { contact: E.contact } : {}), ...(E.app ? { app: E.app } : V ? { app: SHIFTS[E.vehicle]?.app ?? JOBSIFIED } : {}), ...(E.tags ? { tags: E.tags.slice() } : {}), ...(V ? { vehicle: E.vehicle } : {}), ...(E.after ? { after: E.after } : {}) };
   read.laws = errandLaws(read, G);
   return read;
 }
