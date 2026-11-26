@@ -24,3 +24,7 @@
   by as much as `stick` metres a step (1.2) or its pace over the ground, so a bumpy field is walked, not floated over; a
   deeper drop is a ledge, and it goes over it into the air.
 - A quick boost is steered: through its burst it turns toward the keys held, at its own speed (`qbTurn`, 9 rad/s).
+- The guns fire where the reticle looks: the page gives the frame's pilot its sight, the camera's ray through the
+  middle of the screen (`inp.aim`), and unlocked, every gun fires from its own mount at what that ray meets past the
+  frame (a foe's body it passes within, else the ground, else the gun's range: rules-frame.js `sightPoint`), so the
+  rounds meet on the reticle; its lock looks along the same ray. A mind's frame aims as it did.

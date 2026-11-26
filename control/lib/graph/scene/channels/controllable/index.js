@@ -3375,7 +3375,10 @@ const __mb = (id, e) => __CTL.is(__BIND, id, 'mouse', Object.keys(__DEV.mouse.bu
 let __usePad = false;   // the device the player last used (a prompt names its key): a key press says keyboard, pad activity the pad
 window.addEventListener('keydown', (e) => { __held[e.code] = true; __usePad = false; if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 window.addEventListener('keyup', (e) => { __held[e.code] = false; });
-let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false, __cycleDown = false;' : ''}
+${framePilot ? `// (the frame's sight: the camera's ray through the middle of the screen, where the reticle stands, rules-frame.js sightPoint)
+const __fsO = new THREE.Vector3(), __fsD = new THREE.Vector3();
+function __frameSight() { camera.updateMatrixWorld(); camera.getWorldPosition(__fsO); camera.getWorldDirection(__fsD); return [__fsO.x, __fsO.y, __fsO.z, __fsD.x, __fsD.y, __fsD.z]; }
+` : ''}let __lookDX = 0, __lookDY = 0, __drag = false, __fireDown = false;${moveset ? ' let __heavyDown = false, __specialDown = false, __cycleDown = false;' : ''}
 ${busterOn || saberOn ? `// THE BUSTER's fire (worlds/controllable/buster.js): J held (a side-scroller's hands are on the keys; the pad's right trigger
 // fires it too), a press its tap shot, held its charge, let go the charged shot; a SABER's cut on the same key
 window.addEventListener('keydown', (e) => { if (e.code === 'KeyJ') __fireDown = true; });
@@ -3750,6 +3753,7 @@ ${framePilot ? `    // the frame's own (rules-frame.js; controls/schemes.js FRAM
     // shoulders' weapons on their keys, the assault boost and the kick
     qb: __k('quickBoost') ? 1 : 0, alt: window.__mojFrameAlt || __k('fireLeft') ? 1 : 0, backR: __k('fireBackRight') ? 1 : 0, backL: __k('fireBackLeft') ? 1 : 0,
     ab: __k('assaultBoost') ? 1 : 0, kick: __k('frameKick') ? 1 : 0,
+    aim: __frameSight(),             // the reticle's ray (the camera through the screen's middle): the guns meet where it looks
 ` : ''}${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
     // throttle, pick the target, link the cannons and move the power; the mouse, captured, flies right and nose-up
     // as it moves right and down (a stick pulled back)

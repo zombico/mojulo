@@ -68,6 +68,23 @@ describe('the assault frame', () => {
     expect(Math.hypot(P.v[0], P.v[1])).toBeGreaterThan(A.move.qb * 0.9);
   });
 
+  it('fires where the reticle looks: both hands\' rounds meet on the ground the sight\'s ray meets, or on a foe in its way', () => {
+    // (the camera behind the frame and over its shoulder, looking down past it to the ground some 120 m out)
+    const o = [-22, -2.2, 16], hit = [120, 0, 0], d = [hit[0] - o[0], hit[1] - o[1], hit[2] - o[2]], aim = [...o, ...d];
+    const cross = (st) => st.projectiles.map((p) => { const v = p.vel, s = (hit[0] - p.pos[0]) / v[0]; return [p.pos[0] + v[0] * s, p.pos[1] + v[1] * s, p.pos[2] + v[2] * s]; });
+    const st = world();
+    run(st, { fire: 1, alt: 1, aim }, 1);
+    expect(st.projectiles.length).toBeGreaterThanOrEqual(2);
+    for (const q of cross(st)) expect(Math.hypot(q[0] - hit[0], q[1] - hit[1], q[2] - hit[2])).toBeLessThan(3);
+    // (a foe standing on the ray, nearer: the rounds go to it)
+    const foe = { ...frameEntity('raptor', { id: 'f', at: [60, 0, 0], team: 'foes' }), rule: { type: 'none' } };
+    const s2 = E.createWorld({ entities: [frameEntity('vanguard', { id: 'p', at: [0, 0, 0], pilot: true }), foe], pilot: 'p', ai: 'off' });
+    const F = s2.byId.f, c = [60, 0, (F.body.aimH ?? 2)], d2 = [c[0] - o[0], c[1] - o[1], c[2] - o[2]];
+    run(s2, { fire: 1, aim: [...o, ...d2] }, 1);
+    const p = s2.projectiles[0], u = (c[0] - p.pos[0]) / p.vel[0];
+    expect(Math.hypot(p.pos[1] + p.vel[1] * u - c[1], p.pos[2] + p.vel[2] * u - c[2])).toBeLessThan(2);
+  });
+
   it('quick-boosts a burst across, costing the generator, then waits for its cooldown', () => {
     const st = world(), P = st.byId.p;
     run(st, { strafe: 1, qb: 1 }, 1);

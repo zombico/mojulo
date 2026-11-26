@@ -375,7 +375,9 @@ export function buildRulesFrame(E) {
     e.landT = Math.max(0, e.landT - dt);
 
     // ── the FCS: the foe nearest the aim, held to lock ──
-    const F = r.fcs || {}, aim = aimDir(t.heading, e.aimPitch), eye = [t.pos[0], t.pos[1], t.pos[2] + (r.eyeH ?? 7)];
+    // (the pilot's lock looks where the reticle does: along the page's sight, `inp.aim`, from the frame's eye)
+    const ray = mine && Array.isArray(inp.aim) && inp.aim.length === 6 && inp.aim.every(Number.isFinite) ? inp.aim : null, rl = ray ? Math.hypot(ray[3], ray[4], ray[5]) || 1 : 1;
+    const F = r.fcs || {}, aim = ray ? [ray[3] / rl, ray[4] / rl, ray[5] / rl] : aimDir(t.heading, e.aimPitch), eye = [t.pos[0], t.pos[1], t.pos[2] + (r.eyeH ?? 7)];
     let best = null, bestA = ((F.cone ?? 26) * Math.PI) / 180;
     {
       for (const tg of foesOf(e, world)) {
@@ -452,6 +454,31 @@ export function buildRulesFrame(E) {
     }
     return at;
   }
+  // WHERE THE SIGHT LOOKS (the pilot's: the page's camera through the reticle, `inp.aim` [ox, oy, oz, dx, dy, dz]): along
+  // its ray from past the frame's own body, the first foe's body it passes within, else the ground it meets (stepped and
+  // halved down onto it), else `R` out. Every gun fires at it from its own mount, so the rounds meet where the reticle is.
+  function sightPoint(e, world, ray, R) {
+    const t = e.transform, o = [ray[0], ray[1], ray[2]], dl = Math.hypot(ray[3], ray[4], ray[5]) || 1, d = [ray[3] / dl, ray[4] / dl, ray[5] / dl];
+    const at = (s) => [o[0] + d[0] * s, o[1] + d[1] * s, o[2] + d[2] * s];
+    const s0 = Math.max(0, (t.pos[0] - o[0]) * d[0] + (t.pos[1] - o[1]) * d[1] + (t.pos[2] + (e.rule.eyeH ?? 7) - o[2]) * d[2]) + 6, s1 = s0 + R;
+    let best = s1;
+    for (const tg of foesOf(e, world)) {
+      const q = tg.transform.pos, c = [q[0], q[1], q[2] + ((tg.body && tg.body.aimH) ?? 2)];
+      const s = (c[0] - o[0]) * d[0] + (c[1] - o[1]) * d[1] + (c[2] - o[2]) * d[2];
+      if (s < s0 || s >= best) continue;
+      const p = at(s), miss = Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]);
+      if (miss <= ((tg.body && tg.body.radius) || 3) * 1.2) best = s;
+    }
+    const under = (s) => { const p = at(s), g = world && world.ground ? world.ground([p[0], p[1], p[2] + 1]) : 0; return g != null && p[2] <= g; };
+    const STEP = 15;
+    for (let s = s0; s < best; s += STEP) {
+      if (!under(Math.min(best, s + STEP))) continue;
+      let a = s, b = Math.min(best, s + STEP);
+      for (let k = 0; k < 6; k++) { const m = (a + b) / 2; if (under(m)) b = m; else a = m; }
+      best = b; break;
+    }
+    return at(best);
+  }
   function mountAt(e, m) {
     const t = e.transform, h = t.heading, c = Math.cos(h), s = Math.sin(h);
     // (frame space: +y forward, +x right, +z up; the world's heading-forward is +x at heading 0)
@@ -490,8 +517,10 @@ export function buildRulesFrame(E) {
     const t = e.transform, m = (e.rule.mounts && e.rule.mounts[slot]) || [slot.endsWith('R') ? 2.4 : -2.4, 3, slot.startsWith('back') ? 8.6 : 6.2];
     const from = mountAt(e, m), tg = e.locked && world.byId[e.lockOn];
     const n = W.salvo || 1;
+    // (unlocked, the pilot's guns meet at what the reticle covers: sightPoint; a mind's, along its aim)
+    const sight = !tg && Array.isArray(inp.aim) && inp.aim.length === 6 && inp.aim.every(Number.isFinite) ? sightPoint(e, world, inp.aim, W.range ?? 400) : null;
     for (let k = 0; k < n; k++) {
-      let to = tg ? lead(from, tg, W.speed) : null;
+      let to = tg ? lead(from, tg, W.speed) : sight;
       if (!to) { const a = aimDir(t.heading, e.aimPitch), R = W.range ?? 400; to = [from[0] + a[0] * R, from[1] + a[1] * R, from[2] + a[2] * R]; }
       const pellets = W.pellets || 1;
       for (let p = 0; p < pellets; p++) {
