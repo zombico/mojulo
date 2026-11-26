@@ -2504,6 +2504,9 @@ export function assembleGeocityScene(m, ctx = {}) {
         // (what a shop puts out on its walk, frontage.js `lived`: the street's kit on the ground it stands on, never the road)
         if (p.key.startsWith('life:')) { const [x, y] = p.pos; if (!roadAt(x, y)) { const b = F.b, q = b?.rect, inB = !!q && x >= q[0] && x <= q[2] && y >= q[1] && y <= q[3]; stamp(p.key.slice(5), [x, y, inB ? zOf.get(b.id)?.(x, y) ?? p.pos[2] : q ? S(x, y) + KERB : p.pos[2]], 0); counts.life = (counts.life ?? 0) + 1; } continue; }
         (frontStamps.get(p.key) ?? frontStamps.set(p.key, []).get(p.key)).push({ pos: P3(p.pos), ...(p.scale ? { scale: p.scale } : {}), ...(p.tint ? { tint: p.tint } : {}) });
+        // (a SHOPFRONT for the level that asks, `ctx.shopfronts`: each shop bay's frame, where it faces and the store a
+        // tenant would be, a place a job may send a hero to the kerb before; never walked into, and nothing drawn by it)
+        if (ENTER && Array.isArray(ctx.shopfronts) && p.key.startsWith('shop-frame')) { const id = `front-${F.b.id}:${f}:${Math.round(p.pos[0])},${Math.round(p.pos[1])}`; ctx.shopfronts.push({ id, block: F.b.id, at: P3(p.pos), N: [...FACINGS[f], 0], card: tenantOf(F.b.kind === 'edge' ? 'avenue' : 'main-street', streamOf(seed, 'tenant', id), { cards: ENTER.cards }) }); }
       }
       counts.fronts = (counts.fronts ?? 0) + 1;
     }

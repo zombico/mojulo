@@ -128,6 +128,14 @@ its traffic's headlights and tail lights (scene/channels/flow.js, a night page's
 amber in a lit smog, Miami's white over a clear sea air, San Francisco's halos in its fog, Boston's cold white, Toronto's
 warm. `civic: false` keeps none of the places.
 
+## The jobs' stops downtown
+
+A contact's jobs stand their pick-ups and hand-ins at the district's shops, at the kerb before each door
+(`gameworld/levels.js` `geocityEnds` `places`). A district of shops walked into (a neighbourhood's row of shops, its
+`shops` word) uses those. Downtown's towers and podiums have shopfronts but no shop walked into, so there each shop bay's
+frame is the place: the kerb before it, its tenant's store named, never a till (`geocity/scene.js`, the level's
+`ctx.shopfronts`; nothing drawn by it).
+
 ## Pedestrians, in sixes
 
 The played district's pavements are walked by SIXES (`geocity/crowd.js`): six different people (each rolled a person of

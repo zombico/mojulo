@@ -636,7 +636,7 @@ function geotownEnds(manifest) {
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], P = assembleGeocityScene(own, { play: true, parked, streets });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -661,7 +661,11 @@ function geocityEnds(manifest) {
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
   // (its PLACES: each shop walked into as somewhere a job may send its hero, a stride out from its door on the walk or
   // the forecourt before it: where a pick-up or a hand-in stands, had from the kerb)
-  Object.defineProperty(out, 'places', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]), N: [r3(a.N[0]), r3(a.N[1])] })), enumerable: false });
+  // (a district with no shop walked into, a downtown's towers and podiums: each SHOPFRONT the same, the kerb before a shop
+  // bay's door, its tenant's store named; never a till)
+  const walkedIn = (P.anchors ?? []).filter((a) => a.kind === 'shop' && Array.isArray(a.at) && Array.isArray(a.N) && a.store?.card).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.at, N: a.N }));
+  const shops = walkedIn.length ? walkedIn : shopfronts;
+  Object.defineProperty(out, 'places', { value: shops.map((a) => ({ id: a.id, card: a.card, at: on([a.at[0] + a.N[0] * 2.4, a.at[1] + a.N[1] * 2.4, a.at[2]]), N: [r3(a.N[0]), r3(a.N[1])] })), enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;

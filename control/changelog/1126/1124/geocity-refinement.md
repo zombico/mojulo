@@ -118,3 +118,5 @@
 - Pedestrians in a group no longer walk inside each other: partners walk side by side and the groups along a block
   are spread out. Before, each pair was drawn on one spot, so two people's clothes showed through each other in
   patches.
+- Hijack City builds again: since its district moved downtown, the contact's jobs had no shops to stand at and the level
+  could not be laid. Downtown's shopfronts are now the jobs' stops (the kerb before each shop).
