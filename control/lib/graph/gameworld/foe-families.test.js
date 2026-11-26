@@ -84,6 +84,25 @@ describe('the foe families: the rails whose foes walk as their bodies do', () =>
     expect(run(false)).not.toContain('brace');
   });
 
+  it('a family\'s own foes are monsters, never its small animals: each a beast grown by an ooze or a people, each standing as its class', () => {
+    for (const F of Object.values(FOE_FAMILIES)) for (const X of F.extras ?? []) {
+      expect(X.skin.people !== undefined || (Array.isArray(X.skin.ooze) ? X.skin.ooze.length : !!X.skin.ooze), X.id).toBeTruthy();
+      expect(() => resolveFoe({ class: X.class, skin: { ...X.skin } }), X.id).not.toThrow();
+    }
+  });
+
+  it('a people among them carries the arm it names, into its cast', async () => {
+    const { castingCall } = await import('./foe-casting.js');
+    const { composeGameworld } = await import('./compose.js');
+    const { readGameworld } = await import('./world.js');
+    const [rail, F] = Object.entries(FOE_FAMILIES).find(([, f]) => f.extras?.some((x) => x.arm));
+    const X = F.extras.find((x) => x.arm);
+    const W = composeGameworld({ prompt: 'an anime action rpg like zelda', seed: 3 });
+    expect(familyOf(readGameworld(W))?.rail).toBe(rail);
+    const cast = castingCall(readGameworld(W)), foes = cast.foes ?? cast;
+    expect(foes[X.id].skin.gear.right.item).toBeTruthy();
+  });
+
   it('a flier met on the ground where it spawned climbs to its perch before it braces, then dives at the hero', () => {
     const E = composeLive(), DT = 1 / 30;
     const diver = Object.values(FOE_CLASSES).find((c) => c.move === 'swoop' || MOVES[c.move]?.rule?.flier), f = resolveFoe({ class: diver.id }), D = f.entity.rule.foe.dive;

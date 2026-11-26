@@ -309,11 +309,12 @@ export function castingCall(world) {
     }
   }
   const variantsOf = (role) => variants.filter((v) => v.of === role).map((v) => v.id);
-  // a routed rail's family's OWN FOES beside the roles (foe-families.js `extras`: Artesia's field beasts and its bats),
+  // a routed rail's family's OWN FOES beside the roles (foe-families.js `extras`: Artesia's monsters of the wilds),
   // each its card at its zone, met from the second level on as the variants are; one that does not stand, left off
   const extras = [];
   for (const X of family?.extras ?? []) {
-    const e0 = { class: X.class, skin: { ...X.skin } };
+    // (a people among them carries the arm it names, the armory's: equipment/armory.js; a skeleton's rusted sword)
+    const e0 = { class: X.class, skin: { ...X.skin, ...(X.arm && ARMORY_ARMS[X.arm] ? { gear: { right: { ...ARMORY_ARMS[X.arm], laws: 2 } } } : {}) } };
     try { resolveFoe(e0); } catch { continue; }
     const card = cardOfFamily(family, 'file', e0);
     foes[X.id] = card ? { ...e0, attack: card } : e0;

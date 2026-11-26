@@ -21,8 +21,11 @@
   flier hovers on its wings at rest. The foe audit reads the states a posed move and a thrown weapon play (`brace`,
   `dive`, `throw`), where it asked for a wind-up and a gun's fire they never play.
 - **Throwers throw** (the `throw` and `toss` cards): the body winds a real throw and the round leaves at its release.
-- **Fable of Artesia's cast**: the goblin band (raiders who chop, a slinger who throws) under orc leaders who maul,
-  wolves, a boar that braces and charges, cave bats; foes lit by each level's own cube, the target rim only on a lock.
+- **Fable of Artesia's cast**: the goblin band (raiders who chop, a slinger who throws) under orc leaders who maul, and
+  the monsters of its wilds, never its small animals: skeletons risen from its ruins with rusted swords, gloomwings (a
+  bat grown dire and dark) that dive from the air, a crystal behemoth that braces and charges, a venom serpent lying in
+  wait in the grass, a fire salamander that hunts (a family's `extras`, each a beast grown by its oozes or a people; a
+  people's `arm` from the armory); foes lit by each level's own cube, the target rim only on a lock.
 - **Fable of Artesia's swordswoman, cleaned up** (`gameworld/hero-rows.js`, Lucien's lessons in Fallen Angel carried to
   the anime body): her skirt three petals open at the front over the tights, where a front petal hung between the legs
   as a flap; her cape stood off far enough that her collar and her shoulder caps no longer come through it at the back,
