@@ -29,3 +29,6 @@
   middle of the screen (`inp.aim`), and unlocked, every gun fires from its own mount at what that ray meets past the
   frame (a foe's body it passes within, else the ground, else the gun's range: rules-frame.js `sightPoint`), so the
   rounds meet on the reticle; its lock looks along the same ray. A mind's frame aims as it did.
+- A frame level's field lays its stones once: on a page whose pilot is a frame, the land's stones are no longer swapped
+  in and out as the eye moves (the ladder's coming and going read as stones popping), its `STONE_STILL.most` biggest
+  laid as the page opens and held, the rest the ground's own scree and pebbles (`scene/channels/form-land.js`).

@@ -841,7 +841,9 @@ export function emitThreeWorld({ cityMap = null, bagUi = null, phoneUi = null, f
   // the FORM render's land (gen-7, form/land-read.js formPayload): drawn last, in place of the painted land; absent, nothing
   // (a page with party battles, playscape/rpg: its fights clear what stands in their shot, the props' and the flora's)
   const fightPage = !!(events && events.rpg && typeof events.rpg === 'object');
-  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture, ...(fightPage ? { fights: true } : {}) }) : '';
+  // (a frame level's field, bare and fought over: its stones laid once, never swapped as the eye moves, form-land.js STONE_STILL)
+  const stillStones = (Array.isArray(entities) ? entities : []).some((e) => e && e.rule && e.rule.type === 'frame');
+  const formLandBlock = form && form.land ? formLandScript(form.land, form.flora || null, { capture, ...(fightPage ? { fights: true } : {}), ...(stillStones ? { still: true } : {}) }) : '';
   // (a page without the form render: the view cone and its far structures when the world asks, channels/far-structures.js)
   const skyBlock2 = !formLandBlock && formSky ? `\n// --- the gen-7 sky over a page without the form render (channels/form-sky.js) ---\n(function () {\n  const D = ${safeJson(formSkyInput(formSky))};${formSkyScript({ capture, cumulus: !!(formSky.cumulus && formSky.cumulus.n) })}})();\n` : '';
   // (the form render's sky and plants are clocked: a capture's frame() pins their clock as an overlay's, so a still is

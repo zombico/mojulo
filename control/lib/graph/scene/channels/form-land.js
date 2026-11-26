@@ -41,6 +41,11 @@ export const GROUND_PARALLAX = Object.freeze({ pebbles: Object.freeze({ cell: 0.
  *  it); sorted again when the eye has moved `step` m. The aerial camera draws them as they were: chipped if they cast,
  *  the block if not. */
 export const STONE_LADDER = Object.freeze({ px: 1, step: 0.5 });
+/** STILL STONES (a page whose land is a bare field fought over, a frame level's: `still`): the stones laid once as the
+ *  page opens and never swapped as the eye moves (the ladder's coming and going reads as stones popping in and out), the
+ *  `most` biggest of them, the rest the ground's own scree and pebbles; each its chipped shape where it casts, its
+ *  block where it is small. */
+export const STONE_STILL = Object.freeze({ most: 24000 });
 /** The far land: the stage's far ring (form/land-read.js FAR_GROUPS) drawn in facets as the land is lit, the grass's base
  *  low on it rising into the stone's between `rise` of its skyline's height, each facet ± `tone` its own, under `air`
  *  of the sky's air (its nearest layer to its farthest); `rough` its roughness. */
@@ -71,7 +76,7 @@ export function packLand(form) {
   }
   return n ? { ...out, packed: n } : form;
 }
-export function formLandScript(form0, flora = null, { capture = false, fights = false } = {}) {
+export function formLandScript(form0, flora = null, { capture = false, fights = false, still = false } = {}) {
   const form = packLand(form0);
   return `
 // --- the form render (gen-7): the land as material, lit by the cube's light (channels/form-land.js) ---
@@ -552,7 +557,10 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
     // (each shape as the rock studies break a rock: chipped for the stones that cast, its block of fractures for the
     // rest; on gameplay's camera a LADDER by the screen's rule, STONE_LADDER: chipped inside the view cone's reach, the
     // block past it, and nothing once the stone is under a pixel: the ground's own scree and pebbles carry it)
-    const CAST_R = 0.18, SL = ${JSON.stringify(STONE_LADDER)}, M4 = [], parts = [];
+    const CAST_R = 0.18, SL = ${JSON.stringify(STONE_LADDER)}, M4 = [], parts = [];${still ? `
+    // (STILL STONES: the biggest STONE_STILL.most of them kept, laid once below and never swapped as the eye moves)
+    const KEEP = new Uint8Array(D.stones.n);
+    { const ord = Array.from({ length: D.stones.n }, (_, i) => i).sort((a, b) => SP[b * per + 3] - SP[a * per + 3] || a - b); for (let k = 0; k < Math.min(ord.length, ${STONE_STILL.most}); k++) KEEP[ord[k]] = 1; }` : ''}
     for (let i = 0; i < D.stones.n; i++) {
       const o = i * per, r = SP[o + 3]; nv.set(SP[o + 4], SP[o + 5], SP[o + 6]).normalize();
       q.setFromUnitVectors(up, nv); qy.setFromAxisAngle(up, i * 2.399); q.multiply(qy);
@@ -569,7 +577,8 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
     const ladder = (pov, eye, reach, pxm) => {
       for (const P of parts) {
         const c = { chipped: 0, block: 0, pebble: 0 };
-        for (const i of P.idx) {
+        for (const i of P.idx) {${still ? `
+          if (!KEEP[i]) continue;` : ''}
           const o = i * per, r = SP[o + 3], big = r >= CAST_R, d = Math.hypot(SP[o] - eye.x, SP[o + 1] - eye.y, SP[o + 2] - eye.z);
           const k = !pov ? (big ? 'chipped' : 'pebble') : big && d < reach ? 'chipped' : (2 * r) / (pxm * Math.max(d, 0.1)) < SL.px ? null : big ? 'block' : 'pebble';
           if (!k) continue;
@@ -579,7 +588,8 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
       }
     };
     ladder(false, new THREE.Vector3(), 0, 1);
-    // (each frame, after the view cone has its eye: the ladder again when the eye has moved SL.step m, the reach or the
+${still ? `    window.__formStones = () => parts.reduce((n, P) => n + P.chipped.count + P.block.count + P.pebble.count, 0);
+` : `    // (each frame, after the view cone has its eye: the ladder again when the eye has moved SL.step m, the reach or the
     // camera's mode changed)
     const prevS = scene.onBeforeRender;
     scene.onBeforeRender = function (r, sc, cam, rt) {
@@ -589,7 +599,7 @@ ${form.rain ? `    // (in rain the land's film takes the sky, as the sea does)
       if (at && at.pov === pov && Math.abs(at.reach - CO.reach) < 0.5 && at.eye.distanceTo(CO.eye) < SL.step) return;
       at = { pov, reach: CO.reach, eye: CO.eye.clone() }; ladder(pov, CO.eye, CO.reach, CO.px);
     };
-  }
+`}  }
 
   // (the gen-7 sky over a land that has one: a cavern has none)
   if (D.sky) {${formSkyScript({ capture, cumulus: !!(form.cumulus && form.cumulus.n), airless: !!(form.sky && form.sky.void) })}}${viewConeScript(form.cone || null)}${formGrassScript(form.grass && form.grass.stand ? { stand: true, ...(form.grass.field && form.grass.field.paint ? { paint: true } : {}), ...(form.farLift ? { reach: true } : {}), ...(Number.isFinite(form.farBlades) ? { thin: form.farBlades } : {}) } : Number.isFinite(form.farBlades) ? { thin: form.farBlades } : {})}${flora ? formFloraScript(flora, { snow: !!form.snow, capture, ...(fights ? { fights } : {}) }) : ''}${farFieldScript(form.grass && form.grass.field && form.grass.field.paint ? { paint: true } : {})}${farLiftScript(form.farLift ? { ...readFarLift(form.farLift), ...(form.farCalm ? { calm: true } : {}), ...(Number.isFinite(form.farBlades) ? { from: form.farBlades } : {}), ...(Number.isFinite(form.farRaise) ? { stand: form.farRaise } : {}) } : null)}
