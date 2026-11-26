@@ -13,29 +13,227 @@
  *                  (drawn GROUNDFORCE_SCALE times larger); its `size` (its hit radius, m, at life), `hp`, its gun (`rof`
  *                  shots a second, `range` m) and its `points` on a stage
  *
- *   GROUND_UNITS, GROUND_UNIT_IDS   the cards (a new unit is a card)
+ *   GROUND_UNITS, GROUND_UNIT_IDS   the cards (a new unit is a card; `flies`: it is stood in the air, not on the ground)
  *   unitFaces(kind)                 → faces { corners, fill } lit (baked under one key, the lit parts their own colour),
  *                                     drawn GROUNDFORCE_SCALE times life
  *   unitRadius(kind)                → its hit radius as drawn (m)
- *   unitFigure(kind)                → the rig figure a level stands it as (vehicle-rig.js packVehicleFigure, one bone)
+ *   unitFigure(kind, { form?, setting? }) → the rig figure a level stands it as (vehicle-rig.js packVehicleFigure, one
+ *                                     bone); `form`: in the form render, its metal lit by the world, rounded parts round
+ *   unitFormFaces(kind)             → its faces for the form render: material slots, colours, smoothed corner normals
+ *   UNIT_MATERIALS                  the form render's slots: satin painted metal, gunmetal, the lit eye and drive
  *   GROUNDFORCE_PALETTE             the roles' colours
  *
  * Pure and deterministic: the same card, the same unit.
  */
-import { WORKBOT_PRIMITIVES as P } from '../workbots/index.js';
+import { WORKBOT_PRIMITIVES as BASE } from '../workbots/index.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
+import { formLight, skyMood } from '../car-designer/form-light.js';
+
+// The primitives a card is built of: the workbots' few big shapes, and in the FORM render the same calls ROUNDED, each
+// box a rounded box (its plan's corners and its top and bottom edges turned on arcs), each round part twice the sides.
+// A card calls `P.box(...)` and gets whichever its render builds with (partsOf below); the baked render is unchanged.
+let P = BASE;
+const ARC = 3;
+// (a rectangle's outline with its corners on arcs of radius r, counter-clockwise seen from +z, at height z)
+const roundRect = (c, hx, hy, r, z) => [[1, -1, -Math.PI / 2], [1, 1, 0], [-1, 1, Math.PI / 2], [-1, -1, Math.PI]].flatMap(([sx, sy, a0]) =>
+  Array.from({ length: ARC + 1 }, (_, i) => { const a = a0 + (Math.PI / 2) * (i / ARC); return [c[0] + sx * (hx - r) + r * Math.cos(a), c[1] + sy * (hy - r) + r * Math.sin(a), z]; }));
+function roundBox(c, s, role, { ch = 0 } = {}) {
+  const [hx, hy, hz] = s.map((v) => v / 2), m = Math.min(hx, hy, hz);
+  // (a slit, a stripe, a blade or a lit mouth stays a box: too thin to round)
+  if (m < 0.05) return BASE.box(c, s, role, { ch });
+  const e = Math.min(m * 0.5, Math.max(ch * 0.5, m * 0.32)), r = Math.min(Math.min(hx, hy) * 0.96, Math.max(ch, e * 1.25, m * 0.4));
+  const rings = [];
+  for (const [side, z0] of [[-1, c[2] - hz + e], [1, c[2] + hz - e]]) {
+    const steps = Array.from({ length: ARC + 1 }, (_, i) => (side < 0 ? ARC - i : i));
+    for (const i of steps) { const t = (Math.PI / 2) * (i / ARC), d = e * (1 - Math.cos(t)); rings.push(roundRect(c, hx - d, hy - d, r - d, z0 + side * e * Math.sin(t))); }
+  }
+  const out = [];
+  for (let k = 0; k + 1 < rings.length; k++) {
+    const A = rings[k], B = rings[k + 1], n = A.length;
+    for (let i = 0; i < n; i++) { const j = (i + 1) % n; out.push({ corners: [A[i], A[j], B[j], B[i]], role }); }
+  }
+  out.push({ corners: [...rings[0]].reverse(), role }, { corners: rings[rings.length - 1], role });
+  return out;
+}
+const more = (n) => Math.max(12, n * 2);
+const ROUND = Object.freeze({
+  ...BASE, box: roundBox,
+  prism: (c, rx, ry, z0, z1, role, n = 8) => BASE.prism(c, rx, ry, z0, z1, role, more(n)),
+  dome: (c, rx, ry, z0, h, role, n = 8, rings = 3) => BASE.dome(c, rx, ry, z0, h, role, more(n), rings * 2),
+  ball: (c, r, role, n = 8, rings = 4) => BASE.ball(c, r, role, more(n), rings * 2),
+  wheel: (c, r, w, role, n = 10) => BASE.wheel(c, r, w, role, more(n)),
+  pipe: (p0, p1, r, role, n = 8) => BASE.pipe(p0, p1, r, role, more(n)),
+});
+// (a card's parts built with the baked or the rounded primitives)
+function partsOf(U, round) { P = round ? ROUND : BASE; try { return U.parts(); } finally { P = BASE; } }
 
 /** How much larger than life a unit is drawn (and hit): an arcade fighter goes past at speed, 45 m up, and must read
  *  each one at a glance (its card is in life's metres). */
 export const GROUNDFORCE_SCALE = 2.5;
 export const GROUNDFORCE_PALETTE = Object.freeze({
-  hull: '#7d8590', hull2: '#5d646e', dark: '#2c3036', accent: '#b8323a', sensor: '#ff3a2e', drive: '#ffb24a',
+  hull: '#7d8590', hull2: '#5d646e', dark: '#2c3036', accent: '#b8323a', sensor: '#ff3a2e', drive: '#ffb24a', blur: '#4a525c',
 });
 // (what is lit is drawn its own colour, unshaded)
 const LIT = new Set(['sensor', 'drive']);
 const KEY = Object.freeze({ dir: [-0.42, -0.36, 0.83], ambient: 0.46, gain: 0.62 });
 
 const twin = (y0, y1, z, apart, r) => [-1, 1].flatMap((s) => P.pipe([s * apart / 2, y0, z], [s * apart / 2, y1, z], r, 'dark', 8));
+
+// (a part's faces turned about an axis through `at`, parallel to x: a rack raised, a barrel laid)
+const tiltX = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const y = c[1] - at[1], z = c[2] - at[2]; return [c[0], at[1] + y * Math.cos(a) - z * Math.sin(a), at[2] + y * Math.sin(a) + z * Math.cos(a)]; }) }));
+
+// the Thunderhead's parts: a quad drone at a gunship's scale, laid in DRAWN metres (some 54 m duct to duct) and carried
+// to a card's by GROUNDFORCE_SCALE. A heavy armoured hull (a deep core, side sponsons, a dorsal block, a brow over a wide
+// lit visor, a gun bay under it), an X of armoured arms out to four rotors, each turning flat inside an ARMOURED DUCT: a
+// thick wall rounded at its lip, segmented plates round its outside, a grille of bars over its mouth under a hub cap, a
+// lit ring deep in it, a faint disc where the blades blur. Its guns are slung forward (a rail cannon, a chin gun), so
+// they cannot bear straight down. Each rotor is its own bone (`bone: 'rotor0'…`), its hub on the vertical, the
+// figure's `spin` clip turning it, the pairs opposite.
+const THUNDER_ARM = Object.freeze([[1, 1], [-1, 1], [-1, -1], [1, -1]].map(([sx, sy]) => Object.freeze([sx * 16, sy * 15])));
+const THUNDER_ROTOR = Object.freeze({ r: 8.4, z: 4.3, blades: 4, duct: Object.freeze({ in: 8.9, out: 10.3, lo: 2.6, hi: 6.0 }) });
+// (faces turned about the vertical through `at`)
+const turnZ = (faces, at, a) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const dx = c[0] - at[0], dy = c[1] - at[1]; return [at[0] + dx * Math.cos(a) - dy * Math.sin(a), at[1] + dx * Math.sin(a) + dy * Math.cos(a), c[2]]; }) }));
+// (a box whose top and sides narrow toward +y: a nose, a visor's brow)
+const taperY = (faces, y0, y1, kx, kz, z0) => faces.map((f) => ({ ...f, corners: f.corners.map((c) => { const t = Math.max(0, Math.min(1, (c[1] - y0) / (y1 - y0))); return [c[0] * (1 - kx * t), c[1], z0 + (c[2] - z0) * (1 - kz * t)]; }) }));
+/** A LATHE: a closed section [[r, z]…] (counter-clockwise in the r-z plane) swept round the vertical through `c`, from
+ *  bearing a0 to a1 in n steps; a whole turn closes on itself, a part of one is capped at its ends (a plate). */
+function lathe(c, section, role, { n = 32, a0 = 0, a1 = 2 * Math.PI } = {}) {
+  const whole = Math.abs(a1 - a0 - 2 * Math.PI) < 1e-9, m = whole ? n : n + 1;
+  const ring = (k) => { const a = a0 + ((a1 - a0) * k) / n; return section.map(([r, z]) => [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a), z]); };
+  const rings = Array.from({ length: m }, (_, k) => ring(k)), out = [], L = section.length;
+  for (let k = 0; k < n; k++) {
+    const A = rings[k], B = rings[(k + 1) % m];
+    for (let i = 0; i < L; i++) { const j = (i + 1) % L; out.push({ corners: [A[i], B[i], B[j], A[j]], role }); }
+  }
+  if (!whole) out.push({ corners: [...rings[0]], role }, { corners: [...rings[m - 1]].reverse(), role });
+  return out;
+}
+// (a rounded section: a rectangle r0..r1 by z0..z1, its corners on arcs of radius e, `arc` steps each)
+const roundSection = (r0, r1, z0, z1, e, arc = 3) => [[r1, z0, -Math.PI / 2], [r1, z1, 0], [r0, z1, Math.PI / 2], [r0, z0, Math.PI]].flatMap(([r, z, b], k) =>
+  Array.from({ length: arc + 1 }, (_, i) => { const a = b + (Math.PI / 2) * (i / arc), sr = k === 0 || k === 1 ? -1 : 1, sz = k === 0 || k === 3 ? 1 : -1; return [r + sr * e + e * Math.cos(a), z + sz * e + e * Math.sin(a)]; }));
+function thunderheadParts() {
+  const D = 1 / GROUNDFORCE_SCALE, R = THUNDER_ROTOR, U = R.duct;
+  // (an arm: an armoured beam laid along its own x, then turned onto its bearing, from the hull's shoulder to its duct)
+  const beam = ([x, y]) => { const a = Math.atan2(y, x), d = Math.hypot(x, y), r0 = 7.5, r1 = d - U.in + 0.4, L = r1 - r0, c = (r0 + r1) / 2;
+    const at = [Math.cos(a) * c, Math.sin(a) * c, 0], lay = (fs) => turnZ(fs.map((f) => ({ ...f, corners: f.corners.map((p) => [p[0] + at[0], p[1] + at[1], p[2]]) })), at, a);
+    return [
+      ...lay(P.box([0, 0, 2.4], [L, 4.0, 2.6], 'hull2', { ch: 1.0 })),
+      ...lay(P.box([-L * 0.08, 0, 3.95], [L * 0.75, 3.2, 0.7], 'hull', { ch: 0.32 })),
+      ...lay(P.box([0, 0, 4.33], [L * 0.6, 0.26, 0.08], 'drive')),
+      ...lay(P.box([-L * 0.15, 0, 0.95], [L * 0.5, 2.2, 0.6], 'dark', { ch: 0.25 })),
+    ]; };
+  const rotor = ([x, y], i) => {
+    const hub = [x, y, 0], gap = 0.16;
+    return [
+      // (the duct: a thick wall rounded at its lip and its foot)
+      ...lathe(hub, roundSection(U.in, U.out, U.lo, U.hi, 0.5), 'hull2', { n: 30 }),
+      // (its armour: eight curved plates round the outside, a gap between each, two of them striped)
+      ...Array.from({ length: 8 }, (_, k) => { const a0 = (k * Math.PI) / 4 + gap, a1 = ((k + 1) * Math.PI) / 4 - gap;
+        return lathe(hub, roundSection(U.out - 0.1, U.out + 0.85, U.lo + 0.45, U.hi - 0.35, 0.3, 2), k % 4 === 1 ? 'accent' : 'hull', { n: 5, a0, a1 }); }).flat(),
+      // (a lit ring deep in its throat, under the blades)
+      ...lathe(hub, [[U.in - 0.35, U.lo + 0.25], [U.in + 0.02, U.lo + 0.25], [U.in + 0.02, U.lo + 0.55], [U.in - 0.35, U.lo + 0.55]], 'drive', { n: 30 }),
+      // (its grille over the mouth: three armoured bars through the hub, a cap over it)
+      ...[0, 1, 2].flatMap((k) => turnZ(P.box([x, y, U.hi - 0.2], [2 * U.in + 0.4, 0.75, 0.5], 'dark', { ch: 0.2 }), hub, (k * Math.PI) / 3 + 0.25)),
+      ...P.dome([x, y, U.hi + 0.05], 1.9, 1.9, U.hi + 0.05, 0.9, 'hull', 14, 3),
+      ...lathe(hub, [[1.95, U.hi - 0.05], [2.15, U.hi - 0.05], [2.15, U.hi + 0.25], [1.95, U.hi + 0.25]], 'accent', { n: 24 }),
+      // (the motor drum under the hub, on three struts to the wall)
+      ...P.prism(hub, 1.8, 1.8, 0.3, R.z - 0.4, 'hull', 16),
+      ...P.prism(hub, 1.5, 1.5, 0.05, 0.3, 'drive', 16),
+      ...[0, 1, 2].flatMap((k) => { const a = (k * 2 * Math.PI) / 3 + 0.6, c = [x + Math.cos(a) * (U.in / 2 + 0.9), y + Math.sin(a) * (U.in / 2 + 0.9), U.lo + 0.9];
+        return turnZ(BASE.box(c, [U.in - 1.6, 0.5, 0.45], 'dark'), c, a); }),
+      // (the blur of its blades: a faint disc in their plane)
+      ...BASE.prism(hub, R.r, R.r, R.z - 0.03, R.z + 0.03, 'blur', 30),
+      // (the rotor: four broad blades round its hub, their tips lit; the rotor's own bone)
+      ...[
+        ...P.prism(hub, 0.75, 0.75, R.z - 0.4, R.z + 0.45, 'dark', 10),
+        ...Array.from({ length: R.blades }, (_, b) => turnZ([
+          // (thin plates: a blade stays a blade, not rounded)
+          ...BASE.box([x + R.r / 2 + 0.35, y, R.z + 0.05], [R.r - 0.7, 1.35, 0.22], 'hull2', { ch: 0.08 }),
+          ...BASE.box([x + R.r - 0.3, y, R.z + 0.05], [0.45, 1.4, 0.26], 'accent'),
+        ], hub, (2 * Math.PI * b) / R.blades + i * 0.4)).flat(),
+      ].map((f) => ({ ...f, bone: `rotor${i}` })),
+      // (its landing leg)
+      ...P.pipe([x * 0.88, y * 0.88, 2.8], [x * 0.86, y * 0.86, -3.0], 0.36, 'dark', 8),
+      ...P.box([x * 0.86, y * 0.86, -3.1], [1.6, 1.6, 0.34], 'dark', { ch: 0.35 }),
+    ];
+  };
+  return [
+    // (the hull: a deep armoured core, its nose drawn to a heavy brow over a wide lit visor, a dorsal block on its back)
+    ...taperY(P.box([0, 0, 1.5], [13, 23, 7.0], 'hull', { ch: 3.4 }), 3, 11.5, 0.3, 0.35, 1.2),
+    ...taperY(P.box([0, -1.6, 5.6], [8.4, 15, 2.6], 'hull2', { ch: 1.3 }), 1.5, 5.9, 0.35, 0.5, 4.8),
+    ...P.box([0, -4.5, 7.1], [4.6, 6, 0.9], 'hull', { ch: 0.4 }),
+    ...taperY(P.box([0, 9.4, 3.85], [9.4, 3.6, 1.7], 'hull2', { ch: 0.8 }), 8, 11.2, 0.25, 0.3, 3.2),
+    ...P.box([0, 11.32, 2.05], [6.6, 0.1, 0.8], 'sensor'),
+    ...[-1, 1].flatMap((sx) => P.box([sx * 2.6, 11.0, 0.55], [1.1, 0.1, 0.42], 'sensor')),
+    // (the side sponsons, armoured, a stripe and a vent each)
+    ...[-1, 1].flatMap((sx) => [
+      ...P.box([sx * 7.3, -0.5, 1.3], [3.2, 15, 4.8], 'hull2', { ch: 1.3 }),
+      ...P.box([sx * 8.95, 1.5, 2.3], [0.1, 9, 0.4], 'accent'),
+      ...P.box([sx * 8.95, -5.2, 1.0], [0.1, 3.4, 1.2], 'dark'),
+      ...[0, 1, 2].map((k) => P.box([sx * 9.0, -6.4 + k * 1.2, 1.0], [0.08, 0.3, 1.0], 'drive')).flat(),
+    ]),
+    // (the stern: a heavy block, its drive lit across it)
+    ...P.box([0, -11.8, 1.8], [9.5, 2.6, 4.6], 'dark', { ch: 0.9 }),
+    ...[-2.4, 2.4].flatMap((dx) => P.box([dx, -13.15, 1.8], [3.4, 0.12, 1.6], 'drive')),
+    // (a sensor mast on its back)
+    ...P.pipe([1.8, -8, 7.4], [1.8, -8, 10.4], 0.12, 'dark', 6),
+    ...P.box([1.8, -8, 10.5], [0.5, 0.5, 0.3], 'sensor'),
+    ...THUNDER_ARM.flatMap(beam),
+    ...THUNDER_ARM.flatMap(rotor),
+    // (the gun bay under the hull and its guns slung forward: the rail cannon's two rails and the charge between them,
+    // the twin chin gun in its ball, the missile cells under the sponsons)
+    ...P.box([0, 1, -2.4], [6.4, 10, 2.0], 'hull2', { ch: 0.8 }),
+    ...[-0.95, 0.95].flatMap((dx) => P.box([dx, 8.5, -2.7], [0.75, 17, 1.15], 'dark', { ch: 0.25 })),
+    ...P.box([0, 8.5, -2.7], [0.7, 16, 0.26], 'drive'),
+    ...P.ball([0, 10.4, -2.3], 1.7, 'dark', 12, 5),
+    ...[-0.4, 0.4].flatMap((dx) => P.pipe([dx, 11.2, -2.4], [dx, 15.2, -2.45], 0.2, 'dark', 8)),
+    ...P.box([0, 12.05, -2.25], [0.8, 0.08, 0.36], 'sensor'),
+    ...[-1, 1].flatMap((sx) => [
+      ...P.box([sx * 6.6, 4.2, -1.9], [2.4, 5.6, 2.2], 'hull2', { ch: 0.7 }),
+      ...[-0.55, 0.55].flatMap((dx) => [-0.5, 0.5].flatMap((dz) => P.box([sx * 6.6 + dx, 7.02, -1.9 + dz], [0.7, 0.06, 0.7], 'drive'))),
+    ]),
+  ].map((f) => ({ ...f, corners: f.corners.map((c) => [c[0] * D, c[1] * D, c[2] * D]) }));
+}
+/** The Thunderhead's rotor hubs, as the figure carries them (its bones' heads), and the way each turns (pairs opposite). */
+const thunderHubs = () => THUNDER_ARM.map(([x, y]) => [x, y, THUNDER_ROTOR.z]);
+const THUNDER_TURN = Object.freeze([1, -1, 1, -1]);
+
+// the Harrow gunship's parts, at its own metres (GROUND_UNITS.harrow draws them at three quarters)
+function harrowParts() {
+  const fan = (x, y) => [
+    ...P.prism([x, y, 0], 1.05, 1.05, 0.95, 1.6, 'hull2', 14),
+    ...P.prism([x, y, 0], 1.08, 1.08, 1.2, 1.32, 'accent', 14),
+    ...P.prism([x, y, 0], 0.86, 0.86, 1.6, 1.63, 'drive', 14),
+    ...P.prism([x, y, 0], 0.86, 0.86, 0.9, 0.96, 'drive', 14),
+    ...P.prism([x, y, 0], 0.22, 0.22, 0.98, 1.68, 'dark', 8),
+    ...[0, 1, 2, 3].flatMap((i) => P.box([x, y, 1.66], [0.13, 1.6, 0.04], 'dark').map((f) => ({ ...f, corners: f.corners.map((c) => { const b = (i * Math.PI) / 4 + 0.3, dx = c[0] - x, dy = c[1] - y; return [x + dx * Math.cos(b) - dy * Math.sin(b), y + dx * Math.sin(b) + dy * Math.cos(b), c[2]]; }) }))),
+  ];
+  return [
+    // (the hull: a long armoured body, its spine raised, its nose tapering to the slit eye)
+    ...P.box([0, 0, 1.45], [1.9, 5.4, 1.2], 'hull', { ch: 0.45 }),
+    ...P.box([0, -0.4, 2.2], [1.3, 3.6, 0.5], 'hull2', { ch: 0.25 }),
+    ...P.box([0, 3.1, 1.32], [1.4, 1.2, 0.9], 'hull', { ch: 0.42 }),
+    ...P.box([0, 3.72, 1.42], [0.95, 0.08, 0.22], 'sensor'),
+    ...P.box([0.96, 0.2, 1.5], [0.06, 3.6, 0.2], 'accent'), ...P.box([-0.96, 0.2, 1.5], [0.06, 3.6, 0.2], 'accent'),
+    // (the chin gatling: a turret ball under the nose, its barrels forward)
+    ...P.ball([0, 2.7, 0.65], 0.42, 'dark', 10, 4),
+    ...[-0.12, 0.12].flatMap((dx) => [-0.08, 0.1].flatMap((dz) => P.pipe([dx, 2.9, 0.62 + dz], [dx, 4.1, 0.62 + dz], 0.05, 'dark', 6))),
+    // (the arms out to the fans, and the fans, two forward and two aft)
+    ...[[1, 1.6], [-1, 1.6], [1, -1.9], [-1, -1.9]].flatMap(([sx, y]) => [...P.pipe([sx * 0.8, y, 1.55], [sx * 2.3, y, 1.4], 0.16, 'dark', 8), ...fan(sx * 2.75, y)]),
+    // (the stub wings and their missile pods, eight tubes lit at the mouth)
+    ...[-1, 1].flatMap((sx) => [
+      ...P.box([sx * 1.35, 0, 1.15], [0.9, 1.1, 0.16], 'hull2', { ch: 0.05 }),
+      ...P.box([sx * 1.55, 0.1, 0.8], [0.55, 1.5, 0.55], 'hull', { ch: 0.12 }),
+      ...[-0.13, 0.13].flatMap((dx) => [-0.12, 0.12].flatMap((dz) => P.box([sx * 1.55 + dx, 0.87, 0.8 + dz], [0.17, 0.04, 0.17], 'drive'))),
+    ]),
+    // (the tail boom, its fin and its glow)
+    ...P.box([0, -3.6, 1.6], [0.55, 2.2, 0.5], 'hull2', { ch: 0.15 }),
+    ...P.box([0, -4.4, 2.35], [0.12, 0.9, 1.2], 'hull', { ch: 0.05 }),
+    ...P.box([0, -4.72, 1.6], [0.36, 0.05, 0.3], 'drive'),
+    // (its skids)
+    ...[-1, 1].flatMap((sx) => [...P.pipe([sx * 0.7, 1.2, 0.85], [sx * 0.85, 1.2, 0.12], 0.07, 'dark', 6), ...P.pipe([sx * 0.7, -1.2, 0.85], [sx * 0.85, -1.2, 0.12], 0.07, 'dark', 6), ...P.pipe([sx * 0.85, 1.8, 0.12], [sx * 0.85, -1.8, 0.12], 0.08, 'dark', 6)]),
+  ];
+}
 
 /** The units, by kind. */
 export const GROUND_UNITS = Object.freeze({
@@ -70,6 +268,155 @@ export const GROUND_UNITS = Object.freeze({
       ...[-1, 1].flatMap((s) => P.box([s * 1.25, -4.16, 1.3], [1.0, 0.08, 0.5], 'drive')),
     ],
   }),
+  // a flier, one of a swarm: a flat armoured pod slung between two ducted fans burning under it, a red eye forward, one
+  // chin gun; it orbits and strafes, a small thing hard to hold in a lock
+  gnat: Object.freeze({
+    label: 'gnat drone', reads: 'a flat pod between two glowing ducted fans, a red eye, a chin gun: one of a swarm',
+    size: 0.85, hp: 2, rof: 2.4, range: 900, points: 60, flies: true,
+    // (half a walker's metres: some 5 m across as drawn, a thing a frame swats, not one it duels)
+    parts: () => { const k = 0.5, S = (v) => v.map((x) => x * k); return [
+      ...P.box(S([0, 0.1, 0.55]), S([1.2, 2.0, 0.55]), 'hull', { ch: 0.3 * k }),
+      ...P.box(S([0, -0.25, 0.95]), S([0.8, 1.1, 0.3]), 'hull2', { ch: 0.22 * k }),
+      ...P.box(S([0, 1.12, 0.6]), S([0.62, 0.08, 0.2]), 'sensor'),
+      ...P.box(S([0.62, 0.2, 0.62]), S([0.05, 1.2, 0.12]), 'accent'),
+      ...[-1, 1].flatMap((sd) => [
+        ...P.box(S([sd * 0.85, 0, 0.55]), S([0.6, 0.35, 0.22]), 'dark', { ch: 0.06 * k }),
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.72 * k, 0.72 * k, 0.38 * k, 0.78 * k, 'hull2', 12),
+        // (the fan's face in the duct's mouth, burning: seen from above and in front, and its wash under it)
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.56 * k, 0.56 * k, 0.78 * k, 0.81 * k, 'drive', 12),
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.5 * k, 0.5 * k, 0.33 * k, 0.4 * k, 'drive', 12),
+        ...P.prism(S([sd * 1.45, 0, 0]), 0.16 * k, 0.16 * k, 0.4 * k, 0.86 * k, 'dark', 6),
+        ...[0, 1, 2].flatMap((i) => P.box(S([sd * 1.45, 0, 0.84]), [0.08 * k, 1.05 * k, 0.03 * k], 'dark').map((f) => ({ ...f, corners: f.corners.map((c) => { const a = (i * Math.PI) / 3, x = c[0] - sd * 1.45 * k, y = c[1]; return [sd * 1.45 * k + x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a), c[2]]; }) }))),
+      ]),
+      ...P.pipe(S([0, 0.7, 0.22]), S([0, 1.75, 0.22]), 0.08 * k, 'dark', 6),
+      ...P.box(S([0, 0.55, 0.28]), S([0.3, 0.5, 0.2]), 'dark', { ch: 0.05 * k }),
+    ]; },
+  }),
+  // a strike drone: a swept delta, a single engine burning at its tail, twin guns under its nose, a red eye in a chin
+  // fairing; it dives on a frame, rakes past firing and pulls away to come round again
+  wasp: Object.freeze({
+    label: 'wasp drone', reads: 'a swept delta strike drone, one engine burning aft, twin guns under a red-eyed nose',
+    size: 1.3, hp: 3, rof: 3.2, range: 1000, points: 90, flies: true,
+    parts: () => {
+      const k = 0.62, S = (v) => v.map((x) => x * k);
+      // (the delta: a flat swept wing lofted from its root chord to its tips)
+      // (its chord narrowing to a third at the tip, the tip swept back: a delta, not a plank)
+      const wing = (sd) => P.box(S([sd * 1.25, -0.35, 0.5]), S([2.1, 1.9, 0.14]), 'hull2', { ch: 0.05 }).map((f) => ({ ...f, corners: f.corners.map((c) => { const x = c[0] / k, y = c[1] / k, t = Math.max(0, Math.min(1, (Math.abs(x) - 0.2) / 2.1)); return [c[0], (-0.35 + (y + 0.35) * (1 - 0.66 * t) - t * 1.1) * k, c[2]]; }) }));
+      return [
+        ...P.box(S([0, 0.2, 0.55]), S([0.9, 3.2, 0.62]), 'hull', { ch: 0.28 }),
+        ...P.box(S([0, 1.6, 0.45]), S([0.6, 0.9, 0.42]), 'hull', { ch: 0.2 }),
+        ...P.box(S([0, 2.06, 0.38]), S([0.38, 0.06, 0.14]), 'sensor'),
+        ...P.box(S([0, -0.2, 0.92]), S([0.5, 1.5, 0.22]), 'hull2', { ch: 0.12 }),
+        ...wing(1), ...wing(-1),
+        ...[-1, 1].flatMap((sd) => P.box(S([sd * 2.15, -1.05, 0.5]), S([0.06, 0.7, 0.14]), 'accent')),
+        ...[-1, 1].flatMap((sd) => P.box(S([sd * 0.55, -1.1, 0.95]), S([0.08, 0.7, 0.55]), 'hull2', { ch: 0.03 })),
+        ...P.pipe(S([0, -1.3, 0.55]), S([0, -1.75, 0.55]), 0.3 * k, 'dark', 10),
+        ...P.prism(S([0, -1.78, 0]), 0.22 * k, 0.22 * k, 0.4 * k, 0.7 * k, 'drive', 10).map((f) => ({ ...f, corners: f.corners.map((c) => [c[0], c[1] + (c[2] - 0.55 * k) * 0, c[2]]) })),
+        ...P.box(S([0, -1.8, 0.55]), S([0.4, 0.05, 0.4]), 'drive'),
+        ...[-0.25, 0.25].flatMap((x) => P.pipe(S([x, 1.0, 0.18]), S([x, 2.4, 0.18]), 0.06 * k, 'dark', 6)),
+      ];
+    },
+  }),
+  // a perch drone: three ducted fans in a triangle round an armoured hub, a missile rack on its back, a sensor ball slung
+  // under it with a red eye; it holds high and far, and lobs homing missiles down
+  kite: Object.freeze({
+    label: 'kite drone', reads: 'three ducted fans in a triangle round an armoured hub, a missile rack on its back, a red-eyed sensor ball under it',
+    size: 1.9, hp: 4, rof: 0.5, range: 1800, points: 140, flies: true,
+    parts: () => {
+      const k = 0.7, S = (v) => v.map((x) => x * k);
+      const fan = (a) => { const x = Math.cos(a) * 1.75, y = Math.sin(a) * 1.75; return [
+        ...P.pipe(S([Math.cos(a) * 0.6, Math.sin(a) * 0.6, 0.7]), S([x * 0.78, y * 0.78, 0.7]), 0.12 * k, 'dark', 6),
+        ...P.prism(S([x, y, 0]), 0.78 * k, 0.78 * k, 0.45 * k, 0.9 * k, 'hull2', 12),
+        ...P.prism(S([x, y, 0]), 0.6 * k, 0.6 * k, 0.9 * k, 0.93 * k, 'drive', 12),
+        ...P.prism(S([x, y, 0]), 0.6 * k, 0.6 * k, 0.4 * k, 0.46 * k, 'drive', 12),
+        ...P.prism(S([x, y, 0]), 0.17 * k, 0.17 * k, 0.5 * k, 0.96 * k, 'dark', 6),
+        // (its blades across the burning face, three, as a Gnat's)
+        ...[0, 1, 2].flatMap((i) => P.box([x * k, y * k, 0.95 * k], [0.1 * k, 1.15 * k, 0.03 * k], 'dark').map((f) => ({ ...f, corners: f.corners.map((c) => { const b = (i * Math.PI) / 3 + 0.4, dx = c[0] - x * k, dy = c[1] - y * k; return [x * k + dx * Math.cos(b) - dy * Math.sin(b), y * k + dx * Math.sin(b) + dy * Math.cos(b), c[2]]; }) }))),
+      ]; };
+      return [
+        ...P.prism(S([0, 0, 0]), 0.85 * k, 0.85 * k, 0.45 * k, 1.05 * k, 'hull', 6),
+        ...P.dome(S([0, 0, 1.05]), 0.75 * k, 0.75 * k, 1.05 * k, 0.3 * k, 'hull2', 6, 2),
+        ...[Math.PI / 2, Math.PI / 2 + (2 * Math.PI) / 3, Math.PI / 2 + (4 * Math.PI) / 3].flatMap(fan),
+        // (the rack on its back: four tubes, their mouths forward and lit)
+        ...P.box(S([0, -0.1, 1.45]), S([0.9, 1.3, 0.5]), 'hull', { ch: 0.1 * k }),
+        ...[-0.22, 0.22].flatMap((x) => [0.06, 0.32].flatMap((z) => P.box(S([x, 0.56, 1.33 + z]), S([0.3, 0.05, 0.2]), 'drive'))),
+        ...P.box(S([0.46, -0.1, 1.45]), S([0.05, 1.0, 0.12]), 'accent'),
+        // (the sensor ball slung under its hub, its eye forward)
+        ...P.ball(S([0, 0.25, 0.25]), 0.36 * k, 'dark', 10, 4),
+        ...P.box(S([0, 0.58, 0.25]), S([0.24, 0.06, 0.14]), 'sensor'),
+        ...P.pipe(S([0.3, -0.5, 1.6]), S([0.3, -0.5, 2.5]), 0.03 * k, 'dark', 6),
+      ];
+    },
+  }),
+  // the gunship: twice a frame's length, a long armoured hull on four big ducted fans out on arms, a chin gatling under a
+  // slit-eyed nose, a missile pod on each stub wing, a tail boom with a fin; it circles, then hangs and barrages
+  harrow: Object.freeze({
+    label: 'harrow gunship', reads: 'a long armoured hull on four big ducted fans, a chin gatling, a missile pod on each stub wing, a finned tail',
+    size: 2.6, hp: 30, rof: 8, range: 1800, points: 1500, flies: true,
+    // (laid out at its own metres, then drawn at three quarters of them: some 16 m nose to tail as drawn, twice a frame)
+    parts: () => harrowParts().map((f) => ({ ...f, corners: f.corners.map((c) => c.map((v) => v * 0.76)) })),
+  }),
+  // the heavy gunship: a high-winged hull on four great propellers, its guns out of its left side; it flies a banked
+  // turn round the frame at height, its broadside on it, and cannot bring its guns to bear on a frame right under it
+  thunderhead: Object.freeze({
+    label: 'thunderhead gunship', reads: 'a quad drone at a gunship\'s scale: a heavy armoured hull on an X of armoured arms, four great rotors turning flat in armoured ducts under grilles, a rail cannon and a chin gun slung forward',
+    size: 8.8, hp: 60, rof: 9, range: 800, points: 4000, flies: true,
+    parts: thunderheadParts, hubs: thunderHubs, turns: THUNDER_TURN,
+  }),
+  // an artillery truck: six wheels under a long bed, a cab forward, outriggers braced on the ground, and on the bed a
+  // launcher rack raised toward the sky, eight tubes with their missiles' noses showing; it hangs back and lobs homing salvos
+  hammer: Object.freeze({
+    label: 'hammer carrier', reads: 'a six-wheeled truck, outriggers braced, a raised rack of eight missile tubes over the bed',
+    size: 4.2, hp: 7, rof: 0.8, range: 1600, points: 220,
+    parts: () => {
+      const rackAt = [0, -1.6, 2.2], rack = [
+        ...P.box([0, -1.6, 2.9], [2.9, 3.6, 1.5], 'hull', { ch: 0.25 }),
+        ...P.box([1.47, -1.6, 2.9], [0.05, 3.0, 0.22], 'accent'),
+        ...[-1, 1].flatMap((sx) => [-0.55, 0.55].flatMap((dz) => [-0.62, -0.2, 0.2, 0.62].slice(0, 2).flatMap((xi, i) => {
+          const x = sx * (0.42 + i * 0.68), z = 2.9 + dz;
+          return [...P.prism([x, 0.2, z], 0.26, 0.26, 0, 0, 'dark', 8).slice(0, 0), ...P.box([x, 0.25, z], [0.5, 0.08, 0.5], 'dark'), ...P.box([x, 0.27, z], [0.22, 0.06, 0.22], 'drive')];
+        }))),
+      ];
+      return [
+        ...P.box([0, 0, 1.15], [3.2, 8.4, 0.7], 'dark', { ch: 0.2 }),
+        ...P.box([0, 3.05, 2.0], [3.0, 2.3, 1.9], 'hull2', { ch: 0.55 }),
+        ...P.box([0, 4.22, 2.35], [2.1, 0.08, 0.32], 'sensor'),
+        ...P.box([0, 2.9, 3.05], [2.3, 1.5, 0.22], 'hull', { ch: 0.3 }),
+        ...[-1, 1].flatMap((s2) => [2.7, 0.2, -2.6].flatMap((y) => P.wheel([s2 * 1.55, y, 0.62], 0.62, 0.55, 'dark', 12))),
+        ...[-1, 1].flatMap((s2) => [1.0, -3.4].flatMap((y) => [...P.pipe([s2 * 1.6, y, 1.2], [s2 * 2.6, y, 0.15], 0.11, 'hull2', 6), ...P.box([s2 * 2.7, y, 0.07], [0.6, 0.6, 0.14], 'dark')])),
+        ...P.box([0, -1.6, 1.75], [1.4, 1.6, 0.5], 'hull2', { ch: 0.15 }),
+        ...tiltX(rack, rackAt, 0.62),
+      ];
+    },
+  }),
+  // a shield-bearer: a stocky walker behind a tall slab of armour, its vision slit lit, a cannon reaching round the slab's
+  // edge; it advances behind it, and its front is shut until the slab is broken, it is flanked or kicked aside
+  bastion: Object.freeze({
+    label: 'bastion walker', reads: 'a stocky walker behind a tall slab shield with a lit slit, a cannon round its edge',
+    size: 3.4, hp: 9, rof: 1.2, range: 1100, points: 260,
+    parts: () => [
+      // (the legs: thick, short, plated feet)
+      ...[-1, 1].flatMap((s2) => [
+        ...P.box([s2 * 1.05, -0.2, 0.2], [1.1, 1.8, 0.4], 'dark', { ch: 0.3 }),
+        ...P.pipe([s2 * 1.05, -0.3, 0.35], [s2 * 1.0, -0.6, 1.7], 0.32, 'hull2', 8),
+        ...P.ball([s2 * 1.0, -0.6, 1.75], 0.4, 'dark', 8, 3),
+        ...P.pipe([s2 * 1.0, -0.6, 1.75], [s2 * 0.8, -0.3, 2.7], 0.36, 'hull2', 8),
+      ]),
+      // (the body: a squat hull behind the slab)
+      ...P.box([0, -0.5, 3.2], [2.5, 1.9, 1.5], 'hull', { ch: 0.45 }),
+      ...P.box([0, -0.9, 4.1], [1.6, 1.2, 0.4], 'hull2', { ch: 0.3 }),
+      // (the slab: tall and broad ahead of it, its edges red, a lit slit to see over)
+      ...P.box([0, 1.15, 2.75], [3.4, 0.45, 4.6], 'hull2', { ch: 0.35 }),
+      ...P.box([0, 1.4, 2.75], [3.0, 0.08, 4.1], 'hull', { ch: 0.2 }),
+      ...[-1, 1].flatMap((s2) => P.box([s2 * 1.66, 1.2, 2.75], [0.08, 0.5, 4.4], 'accent')),
+      ...P.box([0, 1.46, 4.3], [1.6, 0.06, 0.18], 'sensor'),
+      ...[-0.7, 0.7].flatMap((x) => P.box([x, 1.46, 2.3], [0.5, 0.04, 2.0], 'dark', { ch: 0.05 })),
+      // (the cannon: from the body's right, past the slab's edge)
+      ...P.box([1.75, 0.1, 3.4], [0.6, 1.4, 0.6], 'dark', { ch: 0.15 }),
+      ...P.pipe([1.95, 0.6, 3.45], [1.95, 3.3, 3.45], 0.17, 'dark', 8),
+      ...P.pipe([1.95, 3.0, 3.45], [1.95, 3.35, 3.45], 0.24, 'hull2', 8),
+    ],
+  }),
   // two backward-kneed legs under an enclosed cab, a red visor, twin chin guns, an antenna: it stands its ground
   walker: Object.freeze({
     label: 'personnel walker', reads: 'an enclosed cab on two backward-kneed legs, a red visor, twin chin guns',
@@ -95,6 +442,8 @@ export const GROUND_UNIT_IDS = Object.freeze(Object.keys(GROUND_UNITS));
 
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+// (a planar polygon's area: a broad flat panel outweighs the narrow arcs at its edge when a corner's normal is smoothed)
+const areaOf = (C) => { let x = 0, y = 0, z = 0; for (let i = 1; i + 1 < C.length; i++) { const a = C[0], b = C[i], d = C[i + 1], u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [d[0] - a[0], d[1] - a[1], d[2] - a[2]]; x += u[1] * v[2] - u[2] * v[1]; y += u[2] * v[0] - u[0] * v[2]; z += u[0] * v[1] - u[1] * v[0]; } return Math.hypot(x, y, z) / 2; };
 const normalOf = (C) => {
   // (Newell's normal: robust for any planar polygon the primitives make)
   let x = 0, y = 0, z = 0;
@@ -108,20 +457,71 @@ export function unitFaces(kind) {
   if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${GROUND_UNIT_IDS.join(', ')})`);
   const L = KEY.dir, ll = Math.hypot(...L);
   const k = GROUNDFORCE_SCALE;
-  return U.parts().map((f) => {
+  return partsOf(U, false).filter((f) => f.role !== 'blur').map((f) => {
     const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]), base = hexRgb(GROUNDFORCE_PALETTE[f.role]);
-    if (LIT.has(f.role)) return { corners, fill: GROUNDFORCE_PALETTE[f.role], role: f.role };
+    const bone = f.bone ? { bone: f.bone } : {};
+    if (LIT.has(f.role)) return { corners, fill: GROUNDFORCE_PALETTE[f.role], role: f.role, ...bone };
     const n = normalOf(corners), lam = KEY.ambient + KEY.gain * Math.max(0, (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / ll);
-    return { corners, fill: rgbHex(base.map((v) => v * lam)), role: f.role };
+    return { corners, fill: rgbHex(base.map((v) => v * lam)), role: f.role, ...bone };
   });
 }
 
 /** A unit's hit radius as drawn. */
 export const unitRadius = (kind) => Math.round(GROUND_UNITS[kind].size * GROUNDFORCE_SCALE * 100) / 100;
 
-/** The rig figure a level stands the unit as: one bone, its faces packed (vehicle-rig.js). */
-export function unitFigure(kind) {
-  const faces = unitFaces(kind);
-  const fig = packVehicleFigure([{ id: 'root', head: [0, 0, 0] }], new Map([['root', faces]]), { keys: 2, rolls: [] });
-  return { ...fig, groundforce: { kind, label: GROUND_UNITS[kind].label, faces: faces.length } };
+/** The materials a unit is drawn with in the FORM render (`unitFigure(kind, { form })`): its armour a satin painted metal
+ *  under a thin clear coat, its second plate a shade rougher, its structure and running gear gunmetal, its stripe the
+ *  paint's, its eye and its drive lit by their own colour. The renderer lights them by the world: the light runs off them. */
+export const UNIT_MATERIALS = Object.freeze({
+  hull: Object.freeze({ metalness: 0.55, roughness: 0.34, clearcoat: 0.45, clearcoatRoughness: 0.22 }),
+  hull2: Object.freeze({ metalness: 0.6, roughness: 0.42, clearcoat: 0.25, clearcoatRoughness: 0.3 }),
+  dark: Object.freeze({ metalness: 0.78, roughness: 0.3 }),
+  accent: Object.freeze({ metalness: 0.3, roughness: 0.4, clearcoat: 0.4, clearcoatRoughness: 0.2 }),
+  sensor: Object.freeze({ metalness: 0, roughness: 0.4, emissive: GROUNDFORCE_PALETTE.sensor, emissiveIntensity: 2.2 }),
+  drive: Object.freeze({ metalness: 0, roughness: 0.45, emissive: GROUNDFORCE_PALETTE.drive, emissiveIntensity: 1.8 }),
+  // (a rotor's blur: a faint disc where its blades sweep, seen through)
+  blur: Object.freeze({ metalness: 0.2, roughness: 0.55, transparent: true, opacity: 0.2, depthWrite: false }),
+});
+// (the crease under which corners are drawn smooth: a fan's round duct, a dome, a ball and a bevel read round, a box's
+// edge stays an edge)
+const SMOOTH_COS = Math.cos((40 * Math.PI) / 180);
+/** A unit's faces for the form render: each its role's material slot and its colour (no light in it), its corners'
+ *  normals smoothed across the faces that meet there within the crease. */
+export function unitFormFaces(kind) {
+  const U = GROUND_UNITS[kind];
+  if (!U) throw new Error(`groundforce: '${kind}' is not a unit (${GROUND_UNIT_IDS.join(', ')})`);
+  const k = GROUNDFORCE_SCALE;
+  const faces = partsOf(U, true).map((f) => { const corners = f.corners.map((c) => [c[0] * k, c[1] * k, c[2] * k]); return { corners, role: f.role, n: normalOf(corners), w: areaOf(corners), bone: f.bone ?? null }; });
+  const key = (p) => p.map((v) => Math.round(v * 200)).join(',');
+  const at = new Map();
+  faces.forEach((f, i) => f.corners.forEach((p) => { const kk = key(p); if (!at.has(kk)) at.set(kk, []); at.get(kk).push(i); }));
+  const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;
+  return faces.map((f) => ({
+    ...(f.bone ? { bone: f.bone } : {}), corners: f.corners.map((p) => p.map(r4)), material: f.role, albedo: GROUNDFORCE_PALETTE[f.role], outNormal: f.n.map(r4),
+    cornerNormals: f.corners.map((p) => {
+      const sum = [0, 0, 0];
+      for (const j of at.get(key(p))) { const m = faces[j].n; if (faces[j].bone === f.bone && m[0] * f.n[0] + m[1] * f.n[1] + m[2] * f.n[2] >= SMOOTH_COS) for (let c = 0; c < 3; c++) sum[c] += m[c] * faces[j].w; }
+      const l = Math.hypot(...sum) || 1;
+      return sum.map((v) => r4(v / l));
+    }),
+  }));
+}
+
+/** The rig figure a level stands the unit as: one bone, its faces packed (vehicle-rig.js); `form`: in the form render,
+ *  its metal lit by the world (UNIT_MATERIALS), its rounded parts shaded round (`setting.sky` the world's sky, its light). */
+export function unitFigure(kind, { form = false, setting = null } = {}) {
+  const U = GROUND_UNITS[kind], faces = unitFaces(kind);
+  // (a card with rotors, `hubs`: a bone each, at its hub, spun flat about the vertical by the figure's `roll` clip, each its
+  // `turns` way; the rest the root)
+  const hubs = U && U.hubs ? U.hubs() : [], spun = hubs.map((_, i) => `rotor${i}`);
+  const bones = [{ id: 'root', head: [0, 0, 0] }, ...hubs.map((h, i) => ({ id: spun[i], head: h.map((v) => Math.round(v * 1e4) / 1e4 + 0) }))];
+  const byBone = (fs) => new Map(bones.map((b) => [b.id, fs.filter((f) => (f.bone ?? 'root') === b.id)]));
+  const opts = hubs.length ? { keys: 12, rolls: spun, axis: 'z', ...(U.turns ? { turns: [...U.turns] } : {}) } : { keys: 2, rolls: [] };
+  if (form) {
+    const F = unitFormFaces(kind);
+    const fig = packVehicleFigure(bones, byBone(faces), { ...opts, form: byBone(F) });
+    return { ...fig, form: { ...formLight(skyMood(setting?.sky), UNIT_MATERIALS, {}), normalBias: 0.1 }, groundforce: { kind, label: U.label, faces: F.length, form: true } };
+  }
+  const fig = packVehicleFigure(bones, byBone(faces), opts);
+  return { ...fig, groundforce: { kind, label: U.label, faces: faces.length } };
 }

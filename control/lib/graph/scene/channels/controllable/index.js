@@ -40,12 +40,16 @@ import { heldGatesScript } from './held-gates-view.js';
 import { exploredViewScript } from './explored-view.js';
 import { steamScript } from './steam-view.js';
 import { rockScript } from './rock-view.js';
-import { roundLooks, roundLook, blastLook, BLAST_LOOK, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
+import { roundLooks, roundLook, blastLook, BLAST_LOOK, BLAST_LOOK_MILITARY, SLASH_LOOK, SABER_STRAND } from '../../../gameworld/feel/round-look.js';
 import { spaceBlastScript } from './space-blast.js';
 import { castKitSource } from '../cast-rig.js';
 import { MORPH_DECODE } from '../../../figures/morph-sparse.js';
 import { tellOf } from '../../../worlds/controllable/tell.js';
 import { cockpitHudScript } from '../cockpit-hud.js';
+import { frameHudScript } from './frame-hud.js';
+import { frameKernelSource } from '../../../assault-frame/kernel.js';
+import { frameGarageScript } from './frame-garage.js';
+import { frameFlameScript } from './frame-flame.js';
 import { keyClock } from '../../../worlds/controllable/keying.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
@@ -823,7 +827,7 @@ function __updateSmoke() {
 `;
 }
 
-export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, routeFind = false, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, keying = null, heldGates = null, trees = null, explored = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false } = {}) {
+export function controllableChannelScript(entities, camera, figures0, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, loose = null, rupa = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, routeFind = false, toonInk = null, driveSurface = null, touch = false, touchView = null, courseTouch = null, runner = null, gearGranted = false, seats = null, seatUses = false, formSun = null, formLand = false, acts = false, tempo = null, keying = null, heldGates = null, trees = null, explored = null, styleMeter = null, xr = false, trigger = false, backdrop = false, flow = false, gusts = false, vayoGranted = false, knock = null, roll = null, rollWaits = false, stills = false, place = null, veils = null, stairs = null, barriers = null, roomLit = false, landHold = false } = {}) {
   // the bank as the page reads it (pageFigures): every flag below reads it, so the branches it needs are emitted
   const PAGE = pageFigures(figures0 || {}), figures = PAGE.figs;
   // distortion (rupa): drawn only when a block's matter has a yield, so every other page keeps its bytes
@@ -908,6 +912,11 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // a starfighter flown from its cockpit, or a body with a ship's systems (worlds/controllable/rules-starfighter.js)
   const sfOn = entities.some((e) => e && ((e.rule && e.rule.type === 'starfighter') || (e.body && e.body.ship)));
   const sfPilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'starfighter');
+  // (an assault frame: worlds/controllable/rules-frame.js, composed in where one stands; its pilot reads the frame's scheme)
+  const frameOn = entities.some((e) => e && e.rule && e.rule.type === 'frame');
+  const framePilot = entities.some((e) => e && e.pilotable && e.rule && e.rule.type === 'frame');
+  // (the hangar before the operation, frame-garage.js: a pilot frame whose rule says its garage)
+  const garageCfg = ((entities.find((e) => e && e.pilotable && e.rule && e.rule.type === 'frame' && e.rule.garage) || {}).rule || {}).garage || null;
   // (a scroll stage's screen carried down its track and its ship on the d-pad: worlds/controllable/scroll.js; its camera
   // looks square at the plane, its `up` the view's)
   const scrollOn = !!(camera && camera.rule === 'scroll');
@@ -918,6 +927,14 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // the shot's look in the foe's colour, one look a colour; none, nothing)
   // (a round's least size on screen, `weapon.fxMin` rad: a starfighter's bolt, drawn so it reads at a kilometre)
   const foeLooks = Object.fromEntries(entities.filter((e) => e && e.weapon && e.weapon.foeRound && Number.isInteger(e.weapon.fxColor)).map((e) => [e.weapon.fxColor, { ...roundLook({ color: e.weapon.fxColor, size: e.weapon.fxScale ?? 0.16 }, 0), ...(e.weapon.fxMin > 0 ? { min: e.weapon.fxMin } : {}) }]));
+  // (an assault frame's rounds, rules-frame.js: each of its guns' rounds in the shot's look in its gun's colour, sized by
+  // the gun's kind, the pilot's and the foes' alike, assault-frame/pilot.js frameSlots `color`; none, nothing)
+  const FRAME_ROUND = { rifle: 0.32, shotgun: 0.2, gatling: 0.26, bazooka: 0.75, laser: 0.45, missiles: 0.5, grenade: 0.9, plasma: 1.0 };
+  for (const e of entities) {
+    if (!(e && e.rule && e.rule.type === 'frame' && e.rule.slots)) continue;
+    // (its accent the military register's, the fire's own gone gold, never the cel look's far hue)
+    for (const W of Object.values(e.rule.slots)) if (W && Number.isInteger(W.color) && W.fire !== 'melee' && !foeLooks[W.color]) foeLooks[W.color] = { ...roundLook({ color: W.color, size: FRAME_ROUND[W.kind] ?? 0.3 }, 0), accent: blastLook(W.color, 'impact', BLAST_LOOK_MILITARY).accent, min: 0.004 };
+  }
   const foeRoundsOn = Object.keys(foeLooks).length > 0;
   // (a starfighter's page whose rounds carry the shot's look: its bolts, its blasts and its shields' shimmer drawn so)
   const sfFx = sfPilot && foeRoundsOn;
@@ -961,6 +978,8 @@ export function controllableChannelScript(entities, camera, figures0, { exposeBo
   // (a craft's drives on its figure, craft-form.js: thrusters of kind `drive`, their plume and their mouth's flare burning
   // by how hard the craft is driven, e.thrust)
   const figDrives = Object.values(figures || {}).some((f) => f && Array.isArray(f.thrusters) && f.thrusters.some((t) => t && t.kind === 'drive'));
+  // (an assault frame's thrust, assault-frame/figure.js: thrusters of kind `flame`, layered fire, frame-flame.js)
+  const figFlames = Object.values(figures || {}).some((f) => f && Array.isArray(f.thrusters) && f.thrusters.some((t) => t && t.kind === 'flame'));
   // a rig body drawn at a scale of its own (`body.scale`: a hero in a world authored in other units, a city level's 3.66 m
   // to the unit): the group scales once at build. No body carries one → the emitted channel is byte-identical
   const bodyScaled = (entities || []).some((e) => e && e.body && Number.isFinite(e.body.scale) && e.body.scale > 0 && e.body.scale !== 1);
@@ -1440,13 +1459,13 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // (a tempo whose moments carry a look: the page lays it over the grade)
   const tempoLook = !!(tempo && Array.isArray(tempo.moments) && tempo.moments.some((m) => m && m.look));
   return `
-const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(heldOn ? { heldGates: true } : {}), ...(treesOn ? { trees: true } : {}), ...(exploredOn ? { explore: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(scrollOn ? { scroll: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && e.rule.arsenal) ? { scrollPods: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && (e.rule.type === 'scroll-foe' || e.rule.type === 'scroll-mover')) ? { scrollFoes: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}), ...(routeFind ? { routeFind: true } : {}) })};
+const __CW = ${emissionSource({ ...(runner ? { runner: true } : {}), ...(roll ? { roll: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.hitstop) ? { hitstop: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.foe) ? { foe: true } : {}), ...(entities.some((e) => e && e.body && e.body.vanish) ? { vanish: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.summon) ? { summon: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.pair) ? { pair: true } : {}), ...(xr ? { sweep: true } : {}), ...(entities.some((e) => e && e.mount) ? { mount: true } : {}), ...(tempo ? { clock: true } : {}), ...(styleMeter ? { style: true } : {}) , ...(gunplay ? { gunplay: true } : {}), ...(throwing ? { throwing: true } : {}), ...(boardOn ? { board: true } : {}), ...(aimView ? { aimView: true } : {}), ...(freeRun ? { freeRun: true } : {}), ...(carry ? { carry: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.dive) ? { dive: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.takedown) ? { takedown: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.startle) ? { startle: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.alert) ? { alert: true } : {}), ...(alarm ? { alarm: true } : {}), ...(knockout ? { knockout: true } : {}), ...(ghost ? { ghost: true } : {}), ...(veilsOn ? { veil: true } : {}), ...(barriersOn ? { barrier: true } : {}), ...(bossOn ? { bossLib: true, boss: true, mines: true } : minesOn ? { mines: true } : {}), ...(entities.some((e) => e && e.rule && e.rule.stance) ? { stance: true } : {}), ...(mission ? { mission: true } : {}), ...(turretOn ? { turret: true } : {}), ...(steerOn ? { steer: true } : {}), ...(hoverOn ? { hover: true } : {}), ...(heldOn ? { heldGates: true } : {}), ...(treesOn ? { trees: true } : {}), ...(exploredOn ? { explore: true } : {}), ...(railOn ? { rail: true } : {}), ...(sfOn ? { starfighter: true } : {}), ...(frameOn ? { frame: true } : {}), ...(boatOn ? { boat: true } : {}), ...(busterOn ? { buster: true } : {}), ...(camera && camera.rule === 'side-map' ? { sidemap: true } : {}), ...(scrollOn ? { scroll: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && e.rule.arsenal) ? { scrollPods: true } : {}), ...(scrollOn && entities.some((e) => e && e.rule && (e.rule.type === 'scroll-foe' || e.rule.type === 'scroll-mover')) ? { scrollFoes: true } : {}), ...(rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? { rupa: true } : {}), ...(trigger ? { trigger: true } : {}), ...(gusts ? { vayoAir: true } : {}), ...(vayoOn ? { vayoMove: true } : {}), ...(knock ? { knock: true } : {}), ...(loose ? { loose: true } : {}), ...(routeFind ? { routeFind: true } : {}) })};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}${seats ? `, seats: ${safeJson(seats)}` : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}${loose ? `, loose: ${safeJson(loose)}` : ''}${rupa && (breakables || rupa.scars || rupa.ground || panelsOn) ? `, rupa: ${safeJson(rupa)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''}${runner ? `, runner: ${safeJson(runner)}` : ''}${tempo ? `, tempo: ${safeJson(tempo)}` : ''}${styleMeter ? `, styleMeter: ${safeJson(styleMeter)}` : ''}${gusts ? ', vayoAir: true' : ''}${knock ? `, knock: ${safeJson(knock)}` : ''}${roll ? `, roll: ${safeJson(roll)}` : ''}${veilsOn ? `, veils: ${safeJson(veils)}` : ''}${barriersOn ? `, barriers: ${safeJson(barriers)}` : ''}${heldOn ? `, heldGates: ${safeJson(heldGates)}` : ''}${treesOn ? `, trees: ${safeJson(trees)}` : ''}${exploredOn ? `, explored: ${safeJson({ ...explored, map: undefined })}` : ''} });${hasLooks ? `
 // (what a member wears, seen: its looks by armour, kept on its entity for its body's variants and the RPG channel's dress)
 for (const __l of ${safeJson((entities || []).filter((e) => e && e.looks && e.looks.by).map((e) => [e.id, e.looks]))}) if (__world.byId[__l[0]]) __world.byId[__l[0]].looks = __l[1];` : ''}
 ${xr ? `// the headset (channels/xr.js): set while a session plays the game, { pad, input, hides }; null, the page's own devices
 let __xrCtl = null;
-` : ''}${commanderBlock}${flyHudBlock}${sfPilot ? cockpitHudScript({ cockpit: camera && camera.cockpit }) : ''}${(() => {
+` : ''}${commanderBlock}${flyHudBlock}${sfPilot ? cockpitHudScript({ cockpit: camera && camera.cockpit }) : ''}${framePilot ? frameHudScript() : ''}${(() => {
     const { figs, same } = PAGE;
     // (clips on 16 bits: decoded once, after the bank and its pool, before any consumer reads a frame)
     const q16 = Object.values(figs).some((f) => f && ['clips', 'acts'].some((k) => f[k] && Object.values(f[k]).some((c) => c && c.b && c.b.q16 !== undefined)));
@@ -1737,7 +1756,7 @@ function __castMR(fig, c, n) {
   m.userData.cast = true;
   return m;
 }
-` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
+` : ''}${figMerge ? mergedFigureScript({ cast: !!cast, scaled: bodyScaled, pose: figPose, rig: figHasCast, resp: figHasResp }) : ''}${figOneDraw ? oneDrawScript() : ''}${figFar ? farFigureScript() : ''}${figFlames ? frameFlameScript() : ''}${figDrives ? `// A DRIVE'S EXHAUST (a craft's \`thrusters\` of kind \`drive\`, craft-form.js): its mouth's flare, a soft disc of its glow
 // over the nozzle that swells and brightens as the craft is driven harder, and its plume, a cone of its glow trailing a
 // few mouths aft with a white-hot core, long at full throttle and short at idle; flattened to a slit's mouth
 let __driveTex = null;
@@ -1880,7 +1899,8 @@ ${figSkinParts ? `  // (one skin: every bone posed, a part's or none, and the sk
       holder.visible = false;
       loc.add(holder);
       const len = th.len || th.size * 4, rad = th.size;${figDrives ? `
-      if (th.kind === 'drive') { jets.push(__driveJet(th, holder, len, rad)); continue; }` : ''}
+      if (th.kind === 'drive') { jets.push(__driveJet(th, holder, len, rad)); continue; }` : ''}${figFlames ? `
+      if (th.kind === 'flame') { jets.push(__flameJet(th, holder, len, rad)); continue; }` : ''}
       const coneG = new THREE.ConeGeometry(rad, len, 10, 1, true);
       coneG.translate(0, len / 2, 0);
       const core = new THREE.Mesh(coneG, new THREE.MeshBasicMaterial({ color: new THREE.Color(0x8fd0ff), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -3341,7 +3361,7 @@ const __avHides = (e) => { const r = __world.camera && __world.camera.rule; retu
 const __frTop = (x, y, feet) => { const C = __world.colliders; if (!C) return null; let top = null, grew = true; while (grew) { grew = false; for (const b of C) { if (x < b.min[0] - 0.08 || x > b.max[0] + 0.08 || y < b.min[1] - 0.08 || y > b.max[1] + 0.08 || b.max[2] <= (top ?? feet) + 1e-6 || b.min[2] > (top ?? feet + 0.35) + 0.05) continue; top = b.max[2]; grew = true; } } return top; };
 const __frSkip = (hit) => { const p = __world.pilotId && __world.byId[__world.pilotId], F = p && p.rule && p.rule.freeRun; if (!F) return false; const feet = (p.fr ? p.fr.from[2] : p.transform.pos[2] - (p.rule.eye || 0)), top = __frTop(hit.point.x, hit.point.y, feet); return top != null && top <= feet + Math.max(F.vault ?? 1.15, Math.min(F.climb ?? 2.2, F.grab ?? 2.15)) + 0.1; };
 ` : ''}const __CTL = (${buildControlsKernel.toString()})();
-const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : sfPilot ? SCHEMES.cockpit : SCHEMES.pilot)};
+const __SCHEME = ${safeJson(aimView ? SCHEMES.operative : sfPilot ? SCHEMES.cockpit : framePilot ? SCHEMES.frame : SCHEMES.pilot)};
 const __DEV = ${safeJson({ keyboard: DEVICES.keyboard, mouse: DEVICES.mouse, gamepad: DEVICES.gamepad })};
 ${padOver ? `const __OVER = ${safeJson(padOver)};
 ` : ''}let __BIND = __CTL.resolve(__SCHEME, __DEV${padOver ? ', __OVER' : ''});
@@ -3361,7 +3381,11 @@ window.addEventListener('keydown', (e) => { if (e.code === 'KeyJ') __fireDown = 
 window.addEventListener('keyup', (e) => { if (e.code === 'KeyJ') __fireDown = false; });
 ` : ''}const __canvas = renderer.domElement;
 const __MOUSELOOK = ${!!(camera && (camera.turnMode === 'look' || camera.mouseLook))};   // FPS look camera?
-if (__MOUSELOOK) {
+${framePilot ? `// (an assault frame's left hand on the right mouse, once the pointer is captured: rules-frame.js armL)
+__canvas.addEventListener('mousedown', (e) => { if (e.button === 2 && document.pointerLockElement === __canvas) window.__mojFrameAlt = true; });
+window.addEventListener('mouseup', (e) => { if (e.button === 2) window.__mojFrameAlt = false; });
+__canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+` : ''}if (__MOUSELOOK) {
   // pointer-lock FPS look: click once to capture the mouse, then RAW moves steer (no drag to hold).
   // both axes NEGATED so the view AGREES with the hand: swipe left looks left, push up looks up.
   __canvas.addEventListener('click', () => { if (document.pointerLockElement !== __canvas) __canvas.requestPointerLock(); });
@@ -3721,7 +3745,11 @@ function __readInput() {
     flare: __k('flare') ? 1 : 0,     // a craft's flare (X)${vayoOn ? `
     vayo: __kbRead('KeyV') || (__pad && __pad.vayo) ? 1 : 0,   // a vayo move (V, or the pad's D-pad down): vayo-move.js` : ''}${sprint ? `
     sprint: __kbRead('ShiftLeft') || __kbRead('ShiftRight') ? 1 : 0,   // a person's sprint, held (rules-platform.js sprintSpeed)` : ''}
-${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
+${framePilot ? `    // the frame's own (rules-frame.js; controls/schemes.js FRAME): the quick boost, the left hand on the right mouse, the
+    // shoulders' weapons on their keys, the assault boost and the kick
+    qb: __k('quickBoost') ? 1 : 0, alt: window.__mojFrameAlt || __k('fireLeft') ? 1 : 0, backR: __k('fireBackRight') ? 1 : 0, backL: __k('fireBackLeft') ? 1 : 0,
+    ab: __k('assaultBoost') ? 1 : 0, kick: __k('frameKick') ? 1 : 0,
+` : ''}${sfPilot ? `    // the cockpit's own (rules-starfighter.js; controls/schemes.js COCKPIT): the keys fly the nose and roll, set the
     // throttle, pick the target, link the cannons and move the power; the mouse, captured, flies right and nose-up
     // as it moves right and down (a stick pulled back)
     pitch: __kx('pitchUp', 'pitchDown'), yaw: __kx('yawRight', 'yawLeft'), roll: __kx('turnRight', 'turnLeft'),
@@ -4970,7 +4998,7 @@ const __rlA = new THREE.Vector3(), __rlB = new THREE.Vector3(), __rlDir = new TH
 // rings in the accent, their near arc bright; sparks flung out across the camera's plane, the accent's and white; each
 // layer on its own clock over the blast's life. Any colour has its blast (a foe's round's), from its born time (a hitscan
 // impact waits for its bolt)
-const __BLAST = ${safeJson(BLAST_LOOK)};
+const __BLAST = ${safeJson(frameOn && !busterOn && !sfFx ? BLAST_LOOK_MILITARY : BLAST_LOOK)};
 const __blastLook = ${blastLook.toString()};
 const __blasts = [];
 function __blast(at, color, size, kind, bornAt) {
@@ -5066,7 +5094,23 @@ function __chargeFx(e) {
     sp.scale.set(sz, sz, 1); sp.material.opacity = fr * (0.35 + 0.65 * beat) * (0.55 + 0.45 * Math.max(0, Math.cos(a)));
   });
 }
-function __blastAge() {
+${frameOn && !sfFx && !busterOn && foeRoundsOn ? `// AN ASSAULT FRAME'S MUZZLE FLASH (rules-frame.js lastShot): where a shot left, at its gun's muzzle in the frame's heading
+// (frame space: +y forward, +x right), a quick impact-sized blast in the gun's colour, bigger for a cannon's
+const __FRAME_FLASH = { rifle: 0.9, shotgun: 1.3, gatling: 0.8, bazooka: 2.2, laser: 1.1, missiles: 1.4, grenade: 2.6, plasma: 2.4 };
+const __frameShotSeen = new Map();
+function __frameMuzzles() {
+  for (const e of __world.entities) {
+    const r = e.rule, S = e.lastShot;
+    if (!r || r.type !== 'frame' || !S || e.gone || e.downed) continue;
+    if (__frameShotSeen.get(e.id) === S.t) continue;
+    __frameShotSeen.set(e.id, S.t);
+    const W = r.slots && r.slots[S.slot], m = r.mounts && r.mounts[S.slot];
+    if (!W || !m || W.fire === 'melee') continue;
+    const h = e.transform.heading, c = Math.cos(h), sn = Math.sin(h), p = e.transform.pos;
+    __blast([p[0] + c * m[1] + sn * m[0], p[1] + sn * m[1] - c * m[0], p[2] + m[2]], W.color, __FRAME_FLASH[W.kind] || 1, 'impact');
+  }
+}
+` : ''}function __blastAge() {
   for (let i = __blasts.length - 1; i >= 0; i--) {
     const B = __blasts[i], u = (__world.time - B.born) / B.L.life, z = B.size;
     if (u >= 1) { scene.remove(B.g); B.g.traverse((o) => { if (o.geometry && !o.isSprite) o.geometry.dispose(); if (o.material) o.material.dispose(); }); __blasts.splice(i, 1); continue; }
@@ -5331,7 +5375,10 @@ ${spaceBlastScript()}` : scrollFx ? spaceBlastScript() : ''}function __updatePro
     const sh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), __fxMat(0x7fc8ff)); sh.raycast = function () {};
     sh.position.set(e.transform.pos[0] + f[0] * k * rr * 0.35, e.transform.pos[1] + f[1] * k * rr * 0.35, e.transform.pos[2] + f[2] * k * rr * 0.35); scene.add(sh);
     __fx.push({ obj: sh, born: __world.time, ttl: 0.2, kind: 'burst', base: rr * 0.8, dim: 0.22 });
-  }` : ''}${dustOn ? `
+  }` : ''}${frameOn && !sfFx && !busterOn && foeRoundsOn ? `
+  // (an assault frame's field: its rounds' muzzle rings and its blasts aged on the world's clock, and each shot's muzzle
+  // flash, the gun's own light at its muzzle, sized by the gun)
+  __rlAge(); __blastAge(); __frameMuzzles();` : ''}${dustOn ? `
   __dashDust();` : ''}${saberOn ? `
   for (const e of __world.entities) if (e.rule && e.rule.moveset && e.rule.strike === 'melee' && e.rule.strikeFx && Number.isInteger(e.rule.strikeFx.color)) { __slashFx(e); ${steelOn ? 'if (e.rule.strikeFx.strand !== false) ' : ''}__strandFx(e); }` : ''}${busterOn ? `
   __rlAge();   // (the muzzle rings, aged whether or not their rounds still fly)
@@ -5430,6 +5477,11 @@ ${sfFx && !busterOn ? `    // (a starfighter's page: a craft blown apart as the 
     { const R = b.fxRadius || b.radius || 0.3, dc = camera.position.distanceTo(__rlA.set(b.pos[0], b.pos[1], b.pos[2]));
       if (b.craft || b.debris) __spaceBlast(b.pos, Math.max(R, dc * 0.04), b.seq);   // (a ship, a gun, a system blown up: fireball, smoke and debris, space-blast.js)
       else __blast(b.pos, col, Math.max(0.3, R * 0.5, dc * 0.003), 'impact'); }
+` : frameOn && !busterOn && foeRoundsOn ? `    // (an assault frame's field: a round's hit a spark in its gun's light, a splash's or a kill's burst an explosion as wide
+    // as its reach, its smoke the page's; a frame's quick fight read at a glance, never a flat shell)
+    // (and never smaller on screen than a share of the view: a blast two hundred metres off still reads)
+    { const R = b.fxRadius || b.radius || 0.5, big = R >= 3 || b.debris, dc = camera.position.distanceTo(__rlA.set(b.pos[0], b.pos[1], b.pos[2]));
+      __blast(b.pos, col, big ? Math.max(2.4, R * 0.9, dc * 0.045) : Math.max(0.9, R * 1.4, dc * 0.009), big ? 'blast' : 'impact'); }
 ` : busterOn ? `    // (in the shot's light, the blast: an impact for a small round, an explosion for a big one or a death)
     // (a buster's round's burst its size's, the full charge's an explosion; any other's by its blast)
     { const R = b.fxRadius || b.radius || 0.3, P = __rlGone.find((q) => Math.abs(q.t - __world.time) < 0.1 && Math.hypot(q.at[0] - b.pos[0], q.at[1] - b.pos[1], q.at[2] - b.pos[2]) < 1.5);
@@ -5537,8 +5589,9 @@ function __updateThrusters(dt) {
     const jyaw = Math.atan2(rf.jetVY, rf.jetVX);
     for (let i = 0; i < rf.jets.length; i++) {
       const j = rf.jets[i];
-      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false;${figDrives ? ' if (j.flare) j.flare.visible = false;' : ''} continue; }
-      j.holder.visible = true;${figDrives ? `
+      if (amt < 0.02) { if (j.holder.visible) j.holder.visible = false;${figDrives || figFlames ? ' if (j.flare) j.flare.visible = false;' : ''} continue; }
+      j.holder.visible = true;${figFlames ? `
+      if (j.kind === 'flame') { __flameStep(j, amt, i); continue; }` : ''}${figDrives ? `
       if (j.kind === 'drive') {
         // (a drive: its plume long and bright as it is driven, a pilot flame at idle; its mouth's flare swelling with it)
         const fd = 0.92 + 0.08 * Math.sin(__world.time * 37 + i * 1.3), L = (0.25 + 0.75 * amt) * fd;
@@ -5825,7 +5878,31 @@ function __msDespawn(id) {
   const b = __bodies[id];
   if (b) { scene.remove(b); delete __bodies[id]; }
 }
-function __applyMatchParams(params) {
+${framePilot ? `// THE HANGAR'S BUILD (assault-frame/hangar.js): a frame level consumes the save's \`hangar\` slice, the build the player
+// chose in the garage; the page builds it with the frame kernel (kernel.js: the frame's own modules) and stands it in
+// the pilot's place: its figure in the light the level's own pilot was made under, its numbers, its weapons; the rest
+// of the pilot (where it stands, its seat, its team) the level's
+const __FRAMEK = ${frameKernelSource()};
+function __frameRefit(build) {
+  const K = __FRAMEK, P = __world.byId[__world.pilotId];
+  if (!P || !P.rule || P.rule.type !== 'frame' || !P.body || !__FIG[P.body.figure] || !__FIG[P.body.figure].frame) return false;
+  const fig0 = __FIG[P.body.figure], name = 'frame-hangar';
+  try { K.readBuild(build); } catch (err) { console.warn('hangar build not stood:', err.message); return false; }
+  __FIG[name] = K.frameFigure({ build, palette: fig0.frame.palette, wear: fig0.frame.wear }, fig0.form);
+  // (under a roof the level's own: its ground looked for from a step, its works stopping the frame as wide as it stood)
+  const R0 = P.rule, inside = R0.probe != null ? { probe: R0.probe, ...(R0.collideRadius != null ? { collide: { radius: R0.collideRadius, height: R0.collideHeight, step: R0.step } } : {}) } : {};
+  const raw = K.frameEntity(build, { id: P.id, at: P.transform.pos.slice(), heading: P.transform.heading, pilot: true, figure: name, gravity: R0.gravity, bound: R0.bound, mounts: K.frameMounts(build), ...inside });
+  const N = __CW.createWorld({ entities: [raw], pilot: P.id }).byId[P.id];
+  for (const k of ['rule', 'pilotRule', 'body', 'poise', 'poiseMax', 'poiseRegen', 'hpMax']) if (N[k] !== undefined) P[k] = N[k];
+  const old = __bodies[P.id];
+  if (old) scene.remove(old);
+  const m = __makeBody(P);
+  if (m) __bodies[P.id] = m; else delete __bodies[P.id];
+  window.__mojFrameHangar = { build: K.readBuild(build), figure: name };
+  return true;
+}
+${garageCfg ? frameGarageScript(garageCfg) : ''}
+` : ''}function __applyMatchParams(params) {
   if (__world.spectate) {
     // SPECTATE PICKS (2026-08-09): the level authors every candidate seat:'ai' fighter; the shell's
     // watch picks name who fights and the unpicked cast leaves before the bout. Only roster slices
@@ -5846,7 +5923,9 @@ function __applyMatchParams(params) {
     }
     return;
   }
-  if (!params || typeof params !== 'object') return;
+  if (!params || typeof params !== 'object') return;${framePilot ? `
+  // (the save's build, the garage's: stood in the frame's place before the level starts)
+  if (params[__FRAMEK.HANGAR_SLICE]) { const hb = __FRAMEK.buildOfFlags(params[__FRAMEK.HANGAR_SLICE]); if (hb) __frameRefit(hb); }` : ''}
   // DIFFICULTY (arena difficulty select): the shell's pick rides beside the slice params as a
   // plain string naming an engine tuning tier ('easy' | 'medium' | 'max'); unknown or absent →
   // null = the max brain. Spectate returned above — an all-AI show is never detuned.
@@ -6021,7 +6100,8 @@ function __updateBreaks(dt) {
 }
 ${distort ? distortViewScript(weightless ? { weightless } : {}) : ''}${rupa ? smokeViewScript() : ''}` : ''}${panelsOn ? panelsViewScript() : ''}${scarsOn ? scarsViewScript() : ''}${groundOn ? groundViewScript() : ''}${runner ? runnerViewScript(runner) : ''}${focusHook}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
-  if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
+  if (dt > 0 && !window.__mojFreeze${landHold ? ' && window.__formReady' : ''}) {   // a menu up freezes the world (interact-channel)${landHold ? `
+    // (and a lean land, form.land.lean: the world waits for the form render's land, the only ground on the page)` : ''}
     ${commanderStep}__CW.stepWorld(__world, inputOverride || ${seats ? '__withSeats(__readInput())' : '__readInput()'}, dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''}${driveSurface && driveSurface.pads ? ', padAt: __pad' : ''} });${tempo ? `
     const wdt = dt * __CW.tempoScale(__world);   // the world clock: the bodies and their effects on the world's step, the camera on the real one
     // a moment that fires cues the live shoot plan's shot waiting on it (on: 'tempo:<what fired it>'): the impact cam

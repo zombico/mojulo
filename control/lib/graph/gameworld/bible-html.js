@@ -40,6 +40,7 @@ import { designLand, manyStep, LAND_FORM_IDS } from '../era/out-land.js';
 import { drawLand, manyStrip, landFit } from '../era/out-land-html.js';
 import { withProgram, programPlanSvg } from '../era/programs.js';
 import { buildingStage, levelBuildingStage, complexStage } from './levels.js';
+import { frameMapSvg } from './frame-map.js';
 import { complexPlanSvg } from '../network/complex-plan.js';
 import { finishesOf, finishesCss, finishesHtml } from './finishes.js';
 import { skinHead } from './book-skin.js';
@@ -221,6 +222,8 @@ function buildLevel(G, id) {
     const d = designGeotown(R.geotown.spec, { seed: R.seed });
     return { R, laid: { stages: [{ node: 'town', section: 'geotown' }], order: ['town'] }, town: null, paint, walk: [{ node: 'town', section: 'geotown', svg: geotownSheet(d, { px: 1 }) }] };
   }
+  // a frame's level: its operation map, the field from above as the radar and the beacons tell it (frame-map.js)
+  if (R.airspace?.frame) return { R, laid: { stages: [{ node: 'field', section: 'airspace' }], order: ['field'] }, town: null, paint, walk: [{ node: 'field', section: 'airspace', svg: frameMapSvg(G, id) }] };
   // an airspace level: its field in plan, the course's line through its gates, the runway (skyscape/)
   if (R.airspace) {
     const { map, field } = airspaceOf({ kind: 'airspace', ...R.airspace, seed: R.seed });

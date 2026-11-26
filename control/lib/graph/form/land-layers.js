@@ -4,7 +4,10 @@
  * height (scree's stones stand out of the soil, sand settles between), never a soft cross-fade. This is the overlay; a
  * renderer, or an engine pack, owns the materials.
  *
- *   landLayers(faces, form, { seed? }) → { ids, layered(i), weightAt(corner), path }
+ *   landLayers(faces, form, { seed?, even? }) → { ids, layered(i), weightAt(corner), path }
+ *       `even` (opt-in): the wander and the scree's patches on even dice (evenHash), so no field runs in bars along y (a
+ *         land seen whole from a frame's height, where the bars a walker's few metres hide read as stripes); absent, the
+ *         dice as they always were.
  *       faces: a payload's faces (`corners`); form: their read (form/land-form.js `landForm`: each face's `cls`, `under`).
  *       `layered(i)`: face i is ground the layers cover (a land class, not under the sea, not water).
  *       `weightAt(corner)`: the four natural layers' weights at a layered face's corner (rock, scree, soil, sand; summing
@@ -50,8 +53,11 @@ export const PATH_REACH = 3;
 
 const ease = (t) => t * t * (3 - 2 * t);
 // a smooth field in 0..1 over the ground: seeded values at a lattice, blended between
-function lattice(seed, tag, cell) {
-  const at = (i, j) => strHash(`${seed}|${tag}|${i},${j}`) / 4294967296;
+/** A hash's bits finalised (murmur's fmix32), so a lattice keyed on its cell's `i,j` is as round one way as the other:
+ *  the bare string hash's last character barely moves its high bits, and its fields run in bars along y. */
+export const evenHash = (h0) => { let h = h0 >>> 0; h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b) >>> 0; h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35) >>> 0; h ^= h >>> 16; return h >>> 0; };
+function lattice(seed, tag, cell, even = false) {
+  const at = even ? (i, j) => evenHash(strHash(`${seed}|${tag}|${i},${j}`)) / 4294967296 : (i, j) => strHash(`${seed}|${tag}|${i},${j}`) / 4294967296;
   return (x, y) => {
     const u = x / cell, v = y / cell, i = Math.floor(u), j = Math.floor(v), a = ease(u - i), b = ease(v - j);
     return (at(i, j) * (1 - a) + at(i + 1, j) * a) * (1 - b) + (at(i, j + 1) * (1 - a) + at(i + 1, j + 1) * a) * b;
@@ -116,7 +122,7 @@ function pathMask(trail, seed) {
   return { origin, cell: PATH_CELL, size: [nx, ny], weight, dist, inside, z };
 }
 
-export function landLayers(faces, form, { seed = 1 } = {}) {
+export function landLayers(faces, form, { seed = 1, even = false } = {}) {
   const F = form.faces, layered = (i) => !!F[i].cls && F[i].cls in LAYER_OF && !F[i].under;
   // the classes round each corner (keyed to a centimetre)
   const W = new Map();
@@ -136,7 +142,7 @@ export function landLayers(faces, form, { seed = 1 } = {}) {
   };
   // (the scree is a cliff's: a boulder on the grass sheds none)
   const nearRock = nearestOf(0, FOOT, (v) => v.cliff), nearSand = nearestOf(3, SAND_REACH), nearSoil = nearestOf(2, SOIL_REACH);
-  const patch = lattice(seed, 'scree-patch-v1', PATCH), wFoot = lattice(seed, 'foot-reach-v1', WANDER), wSand = lattice(seed, 'sand-reach-v1', WANDER), wSoil = lattice(seed, 'soil-reach-v1', WANDER);
+  const patch = lattice(seed, 'scree-patch-v1', PATCH, even), wFoot = lattice(seed, 'foot-reach-v1', WANDER, even), wSand = lattice(seed, 'sand-reach-v1', WANDER, even), wSoil = lattice(seed, 'soil-reach-v1', WANDER, even);
   // (1 at the source, easing to 0 at a reach that wanders along the border between WANDER_LEAST and the whole)
   const worn = (d, most, wander, x, y) => { const r = most * (WANDER_LEAST + (1 - WANDER_LEAST) * wander(x, y)); return d >= r ? 0 : 1 - ease(d / r); };
   for (const v of W.values()) {

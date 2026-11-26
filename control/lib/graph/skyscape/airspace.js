@@ -69,6 +69,9 @@ const CITY_PIN = 8;
 const COUNTRY_PIN = 16, COUNTRY_SPLIT = 10;
 
 /** Errors (strings) for an airspace manifest; [] when it builds. */
+// (an assault frame's build, read as its pilot reads it)
+import { readBuild } from '../assault-frame/assemble.js';
+
 export function validateAirspace(m) {
   if (!m || typeof m !== 'object') return ['airspace must be an object { kind: \'airspace\', map?, ground?, seed?, spawn? }'];
   // a scroll stage (gameworld/scroll-stage/): Blaze Gunner's screen that scrolls on its own through space, its own words
@@ -99,6 +102,22 @@ export function validateAirspace(m) {
     if (!isSpace(m) && (m.map?.form ?? 'island') !== 'canyon') e.push("airspace.rail: a ground stage runs down a canyon (map.form: 'canyon'); a space stage needs a space craft or map.form 'void'");
     if (m.course) e.push('airspace.rail: a rail stage has its path, not a course');
     if (m.space?.trench) e.push('airspace.rail: a trench is its own run (space.trench), not a rail stage');
+  }
+  // an assault frame (assault-frame/, the frame rule): stood on the ground and fought on it, not flown
+  if (m.frame !== undefined) {
+    if (!m.frame || typeof m.frame !== 'object' || Array.isArray(m.frame)) e.push('airspace.frame is { build?, palette?, garage?, briefing?, flavor? }: an assault frame stood on the ground');
+    else {
+      for (const k of Object.keys(m.frame)) if (!['build', 'palette', 'garage', 'briefing', 'flavor'].includes(k)) e.push(`airspace.frame.${k} is not a frame's setting (build, palette, garage, briefing, flavor)`);
+      // (garage: true, the hangar before the operation: the frame fitted from the parts the player has, scene/channels/controllable/frame-garage.js)
+      if (m.frame.garage !== undefined && typeof m.frame.garage !== 'boolean') e.push('airspace.frame.garage is true where the frame is fitted in its hangar before it goes out');
+      // (briefing: true, the operation told on the holo table before the drop, campaign/operation-brief.js)
+      if (m.frame.briefing !== undefined && typeof m.frame.briefing !== 'boolean') e.push('airspace.frame.briefing is true where the operation is told on the holo table before the drop');
+      // (flavor: the game's own recordings, the sound library's cards of that flavor, heard over the shelf's: gameworld/frame-sound.js)
+      if (m.frame.flavor !== undefined && !(typeof m.frame.flavor === 'string' && /^[a-z][a-z0-9-]{1,40}$/.test(m.frame.flavor))) e.push('airspace.frame.flavor is the game\'s own sounds by name (warlords-of-mars): the library\'s cards of that flavor');
+      if (m.frame.build !== undefined) { try { readBuild(m.frame.build, 'airspace.frame.build'); } catch (err) { e.push(err.message); } }
+      if (isSpace(m)) e.push('airspace.frame: a frame fights on a ground (no space map)');
+      if (m.rail || m.cockpit || m.course) e.push('airspace.frame: a frame is fought on its feet, not flown down a rail, from a cockpit or round a course');
+    }
   }
   // a cockpit (starfighter.js): the craft flown from its seat in the 90s space-combat register, in space
   if (m.cockpit !== undefined) {

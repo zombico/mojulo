@@ -23,4 +23,18 @@ describe('a craft\'s drives on the page', () => {
       expect(t).not.toContain("j.kind === 'drive'");
     }
   });
+
+  it('an assault frame\'s thrust brings its layered fire, its depth written for a long view; a drive and none carry none of it', () => {
+    const flame = { ...drive, kind: 'flame', role: 'main' };
+    const s = controllableChannelScript([craft], null, { craft: fig([flame]) });
+    expect(s).toContain('function __flameJet(');
+    expect(s).toContain("if (j.kind === 'flame')");
+    for (const layer of ['core', 'sheath', 'tail']) expect(s).toContain(`"${layer}"`);
+    expect(s).toContain('logdepthbuf_fragment');
+    for (const other of [fig([drive]), fig(null)]) {
+      const t = controllableChannelScript([craft], null, { craft: other });
+      expect(t).not.toContain('__flameJet');
+      expect(t).not.toContain("j.kind === 'flame'");
+    }
+  });
 });

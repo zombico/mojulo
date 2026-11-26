@@ -351,6 +351,19 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'mech-action',
+    name: 'Mech action',
+    anchor: false,
+    why: 'an assault frame of parts boosted and fought on a battlefield: quick boosts, climbs on its thrusters, a gun in each hand and a weapon on each shoulder, operation by operation',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['frame', 'ai'], combat: ['ranged'], mechanics: ['objectives', 'fail-on-death'] },
+      soul: { hero: 'frame' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'space-sim',
     name: 'Space combat sim',
     anchor: false,

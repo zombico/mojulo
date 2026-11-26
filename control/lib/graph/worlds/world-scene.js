@@ -69,6 +69,7 @@ import { lowerWaterworks } from '@/lib/graph/era/water-live';
 import { readBiocube } from '@/lib/graph/era/biocube';
 import { readHour } from '@/lib/graph/era/geocube-hours';
 import { landRead, formPayload, DRESS_DEFAULT, ROAD_PEBBLES, GRASS_CARDS, TOWN_FLORA } from '@/lib/graph/form/land-read';
+import { readInterior, interiorLights, interiorPayload } from '@/lib/graph/form/interior-light';
 // (a lean ground, a geocube's `parallax: false`: no detail marched or displaced, its cliffs plain faces (no relief), and
 // a third of its scree's stones stood up; `parallax: 'cliffs'` the same ground with its rock kept: the fractured plates
 // over the rock (the blocks a gorge's wall reads by, at every distance), the rock's own march near the eye
@@ -1088,6 +1089,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const mapCam = formMap && !(payload.cameras ?? []).length && payload.map ? (() => { const W = payload.map.cols * payload.map.tile, H = payload.map.rows * payload.map.tile; return [{ name: 'island', worldFraming: { cameraPosition: [W / 2, -H * 1.15, H * 0.55], lookAt: [W / 2, -H / 2, 0], horizontalFov: 60, pictureCenter: [560, 390] } }]; })() : null;
     const read = landRead(mapCam ? { ...payload, cameras: mapCam } : payload, cube, { ...(town ? { lawn: {} } : {}), ...(M.hour !== undefined ? { hour: readHour(M.hour) } : {}), dress, grass: winter || (F?.marine && !F.grass) ? false : 'map', ...(moss ? { moss } : {}), ...(TG ? (TG.elsewhere === 'meadow' ? { tallGrass: TG, ...(sward !== undefined ? { sward } : {}) } : { sward: { short: 0, medium: 0 }, tallGrass: TG }) : sward !== undefined ? { sward } : {}), ...(M.parallax === false ? { relief: false, stones: LEAN_STONES } : M.parallax === 'cliffs' ? { stones: LEAN_STONES } : {}), ...(drifts.length ? { drifts } : {}), ...(grown ? { grown } : {}), ...(payload.snowMap ? { snow: payload.snowMap } : {}) });
     if (read) payload.form = { ...(payload.form || {}), land: formPayload(read) };
+    // (a works' floor plan, local-meru/works-floor.js: the form's land draws it; nothing else reads it)
+    if (payload.floorPlan) { if (read) payload.form.land = { ...payload.form.land, floor: payload.floorPlan }; delete payload.floorPlan; }
+    // (and the molten metal its runners carry, channels/works-melt.js)
+    if (payload.melt) { if (read) payload.form.land = { ...payload.form.land, melt: payload.melt }; delete payload.melt; }
+    // (a land under a roof, the cube's `light.interior`, form/interior-light.js: no sky on the page, its background the
+    // void, the lights the place hangs or rows under its roof; the works' own lamps and glows when it has them)
+    const IN = read ? readInterior(cube.light?.interior) : null;
+    if (IN) {
+      const box = payload.form.land.box, lights = interiorLights(IN, { box, floor: 0, lamps: payload.lamps ?? null, glows: payload.glows ?? [] });
+      payload.form.land = { ...payload.form.land, sky: null, interior: interiorPayload(IN, lights) };
+      payload.sky = null; payload.bg = IN.void;
+    }
     // (and each patch a VEIL the runtime's sight reads, worlds/controllable/veil.js: its foot on the ground the map has)
     // (each standing on the level ground its grass grows on, none where too little grows; how each stood is said beside it)
     // (and the land under the radar's map, a level's `radar: { map: 'topo' }`: its contours and its trail, gameworld/radar.js)
@@ -1106,7 +1119,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (read && M.clouds !== undefined) payload.form.land.clouds = M.clouds === 'weather' ? { kind: CLOUDS_OF_WEATHER[M.weather] || 'fair', cover: 0.5, seed: 1 } : readClouds(M.clouds);
     // (the flight sky's cumulus over the land on a clear, fair or hazy day, skyscape/sky.js groundCumulus: its weather's,
     // else the one the sky reads, fair where the stage painted clouds and clear where it painted none; channels/sky-cumulus.js)
-    if (read && payload.form.land.sky) {
+    // (none under a sky of its own heavens, a Sol world's, sol/geocubes.js: an airless one, or Mars's thin air, grows no
+    // heaped water cloud)
+    if (read && payload.form.land.sky && !cube.light?.heavens) {
       const { groundCumulus } = await import('@/lib/graph/skyscape/sky.js');
       const painted = Array.isArray(payload.faces) && payload.faces.some((f) => f && f.group === 'isekai:cloud');
       const cu = groundCumulus(payload.form.land.clouds ?? { kind: painted ? 'fair' : 'clear', cover: 0.5, seed: 1 });
@@ -1772,6 +1787,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = frameBase(rawSpec.frame).figure;
           continue;
         }
+        // AN ASSAULT FRAME (assault-frame/: a mech of parts, its core, head, arms, legs, booster and four weapons, in the
+        // realistic military register, chrome and painted plate): a figures-map entry may be a frame's build (`assault`: {
+        // build, palette? }), drawn in the form render under the world's sky, its boosters' exhaust on it. Absent ⇒ none
+        // is resolved, byte-identical.
+        if (rawSpec.assault && typeof rawSpec.assault === 'object') {
+          const { frameFigure } = await import('@/lib/graph/assault-frame/figure.js');
+          payload.figures[name] = await atRigFidelity(frameFigure(rawSpec.assault, { setting: { sky: payload.sky ?? null } }));
+          continue;
+        }
         // WORKER BOTS (workbots/: a toy world's worker bots, their own low-poly language, a face on each): a figures-map
         // entry may be a worker bot's card (`workbot`: { card, palette? }), delivered as its rig (a bone a part, its light
         // baked in its own cel). Absent ⇒ none is resolved, byte-identical.
@@ -1792,7 +1816,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // Absent ⇒ none is resolved, byte-identical.
         if (rawSpec.unit && typeof rawSpec.unit === 'object') {
           const { unitFigure } = await import('@/lib/graph/groundforce/index.js');
-          payload.figures[name] = unitFigure(rawSpec.unit.kind);
+          payload.figures[name] = unitFigure(rawSpec.unit.kind, rawSpec.unit.form === true ? { form: true, setting: { sky: payload.sky ?? null } } : {});
           continue;
         }
         // CYCLE bodies (cycle-shelf/: the vehicle registry's realistic build of a machine ridden astride): a figures-map
@@ -2514,6 +2538,9 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     else payload.briefing = { data: briefingData(readMission(sketch.manifest.briefing)) };
   }
+  // an assault frame's operation told on the holo table over its field (campaign/operation-brief.js): its level carries
+  // the table's data whole, made as the level was. Absent ⇒ nothing
+  else if (payload && sketch.manifest.kind === 'geocube' && sketch.manifest.briefing?.data && typeof sketch.manifest.briefing.data === 'object') payload.briefing = { data: sketch.manifest.briefing.data };
   // a flying lesson's brief over its level (gameworld/lesson-brief.js: the instructor's words, the sky, the tasks, the
   // medals); the page's lesson channel holds the lesson behind it until Start. Absent ⇒ nothing (scene/channels/lesson-brief.js).
   if (payload && sketch.manifest.kind === 'airspace' && sketch.manifest.lesson && typeof sketch.manifest.lesson === 'object') {

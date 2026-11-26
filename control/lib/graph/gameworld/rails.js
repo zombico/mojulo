@@ -254,6 +254,11 @@ export const RAILS = Object.freeze({
     handles: row({ genres: list(['space-sim']) }), sizes: list(['designed']), level1: 'a mission: a patrol of fighters met with Red flight, interceptors jumping in',
     words: list(['rebel storm', 'rise of empire', 'space combat sim', 'space sim', 'cockpit', 'x-wing', 'tie fighter', 'wing commander', 'freespace', 'flight groups', 'space combat campaign']),
     lacks: list(['Rise of Empire, the other side\'s campaign, is laid on the same words to come; debriefs between missions are to come']) }),
+  // an assault frame of parts boosted and fought on Mars (warlords-of-mars.js: its starter, three operations; the frame rule)
+  'warlords-of-mars': row({ name: 'Warlords of Mars', like: 'a mech game: an assault frame built from parts, boosted, quick-boosted and fought in the air as much as on the ground, a gun in each hand and a weapon on each shoulder, operation by operation on Mars',
+    handles: row({ genres: list(['mech-action']) }), sizes: list(['designed']), level1: 'an operation: a landing on the Tharsis plain, its gun line and its tank column',
+    seen: list(['free']), words: list(['warlords of mars', 'armored core', 'armoured core', 'assault frame', 'mech game', 'mech shooter', 'boost and quick boost', 'mech on mars', 'single player mech']),
+    lacks: list(['the garage where a frame is built part by part, the arena and the Gundam tuning (Mech Battle Kai\'s heavy suit) are to come; reverse-joint, tank and quad legs are later rows']) }),
   sports: row({ name: 'Sports', like: 'a sport in an arena: a net game, a turn sport, a team goal game, bat and ball, an athletics meet',
     handles: row({ genres: list(['net-game', 'turn-sport', 'team-goal-game', 'athletics-meet']), quick: list(['contest', 'meet']) }), sizes: list(['quick']), level1: 'a match, or an event of the meet',
     words: list(['sport', 'match', 'tournament', 'cricket']) }),

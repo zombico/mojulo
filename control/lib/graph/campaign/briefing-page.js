@@ -50,7 +50,7 @@ export function briefingSpec() {
     start: 'briefing',
     hud: { use: 'hud', children: [
       { use: 'place-banner', props: { parts: B('place'), state: B('state') } },
-      { use: 'flight-roster', props: { title: 'Flight groups', rows: B('roster') }, when: B('theatre') },
+      { use: 'flight-roster', props: { title: B('rosterTitle'), rows: B('roster') }, when: B('theatre') },
       // the orders, once the table is on the fight: each goal as the briefing says it
       { use: 'region', props: { at: 'bottom-right', variant: 'scrim' }, when: B('theatre'), children: [{ use: 'stack', props: { gap: 'tight' }, children: [
         { use: 'text', props: { value: 'Orders', role: 'label' } },
@@ -77,6 +77,8 @@ const SIDE = { friend: 0, foe: 1, neutral: 2 };
 export function briefingState(D) {
   return { bf: {
     state: D.status === 'approved' ? 'Approved' : 'Draft · for approval',
+    // (who is in it, headed in the design's word: a squadron's flight groups, an operation's forces)
+    rosterTitle: D.rosterTitle ?? 'Flight groups',
     place: D.place.parts.map((name) => ({ name })), roster: D.roster.map((r) => ({ id: r.id, name: r.name, craft: r.craft, count: `×${r.count}`, side: SIDE[r.side] ?? 2 })),
     goals: D.goals, theatre: false,
     brief: { kicker: '', title: '', say: '', step: 0, count: D.steps.length, ready: false, steps: [] },
@@ -130,13 +132,15 @@ const STATE = window.__manaState = ${json(briefingState(D))};
 const stepWords = ${stepWords.toString()};
 let rt = null, mview = null, launched = false;
 const showStep = (k) => { if (launched) return; window.__brief.go(k); stepWords(STATE, BRIEF, window.__brief.step); if (mview) mview.paint(); };
-const act = (e) => {
+const act = (e) => {${D.sounds ? `
+  // (the menus' sounds, the briefing's data's \`sounds\`: the cursor's ticks played by the level's audio, window.__mojUiCue)
+  if (e.sound) { if (window.__mojUiCue) window.__mojUiCue(e.sound); return; }` : ''}
   if (e.emit === 'brief:next') showStep(window.__brief.step + 1);
   else if (e.emit === 'brief:prev') showStep(window.__brief.step - 1);
   else if (e.emit === 'brief:go') showStep(e.to);
   else if (e.emit === 'brief:launch' && !launched) ${launch}
 };
-rt = __manaUi.runtime(${json(spec)}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: 'silent' });
+rt = __manaUi.runtime(${json(spec)}, { read: (p) => __manaUi.readPath(STATE, p), act, now: () => performance.now() / 1000, cues: ${D.sounds ? "'ticks'" : "'silent'"} });
 rt.glyphs(${json(manaGlyphs())});
 mview = __manaUi.mount(__bfMana, rt, { auto: true });
 __manaHostK.connect(rt, mview, { keys: ${json(C.keys)}, pad: ${json(C.pad)}, padLayout: __manaPadLayout });

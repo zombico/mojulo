@@ -143,6 +143,14 @@ export const DOOR_PROBES = Object.freeze([
     now: 'type',
   },
   {
+    // (the mech game: Warlords of Mars's operations, an assault frame fought on its feet and its thrusters)
+    family: 'frame', genre: 'mech-action', prompt: 'an armored core style mech game on mars',
+    concept: 'a level whose pilot is an assault frame on the frame rule, armed in its slots',
+    holds: ({ steps }) => someLevel(steps, (m) => pilotsOf(m).some((e) => e.rule?.type === 'frame' && Object.keys(e.rule.slots ?? {}).length > 0)),
+    reference: { book: { id: 'ref', levels: { a: { airspace: { map: { form: 'plain', field: 1400, craft: 'jet' }, ground: { geocube: 'mars' }, frame: {} } } } } },
+    now: 'type',
+  },
+  {
     family: 'seats', genre: 'co-op-platformer', prompt: 'a two-player co-op platformer to play with my friend',
     concept: 'a level with a seat for each player',
     holds: ({ steps }) => someLevel(steps, (m) => isObj(m.seats) && (m.seats.max ?? 0) >= 2),

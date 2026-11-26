@@ -1195,3 +1195,6 @@ describe('emitThreeWorld characterization (byte-level pin over the fixture matri
 // branches' emission (this branch's rail and starfighter rules and the cockpit's HUD; 1116-rc's keying clock, route
 // finding and a member's looks), so the pins both had moved are pinned again over the merged emission. Each moved pin
 // was one this branch had re-pinned for its own channels; every other page is byte-identical to 1116-rc.
+// Re-pinned 2026-11-25 (1124-mech-battle-kai-rail: an operation's briefing): `briefing` only. The table's roster is
+// headed in the design's word, a binding (`rosterTitle`: a squadron's Flight groups, an operation's Forces), where it
+// was the literal; a space mission's briefing says Flight groups as it did, so what it shows is as it was.

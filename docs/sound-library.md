@@ -57,6 +57,21 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
   `standIn` without the library. A game designs its suit with `sound: { suit: { weight, drive, arms } }`; a feel with a
   mech (Mech Battle Kai's) is heard as its weight implies where the library records it; the firing range's walking
   frames by their mass. Each card's `tags` name its axis (`suit`, `light`, `rocket`, `arms`…).
+- **An assault frame's field** (Warlords of Mars; `sfx-shelf/frame-sounds.js`, `gameworld/frame-sound.js`, played by
+  `scene/channels/frame-audio.js`): the suit kit read off a frame's parts. Its legs' class is its weight (footfalls two
+  a stride, landings hard and soft), its booster's class its drive (the thrust held, the ignition, the quick boost), each
+  gun by its kind (the carbine the machine gun's heavy round, the lance the beam rifle and its charge, the Arc the beam
+  cannon, the Shear the saber, the Hornet the salvo, the bazooka its shot and its hit), the round that struck by the
+  hitter's gun, the cockpit's lock-on, EN alarm and vent, and the power-up as the frame is first free to move. The
+  build is read off the frame on the page, so a part fitted in the hangar is heard as fitted. Its units by their kind
+  (the turret's and walker's rounds, the carrier's tracks and missiles, the drones' motors and the gunships' rotors
+  held by their distance, each going up by its size), bursts by their radius, the objectives' stingers, Mars's wind
+  outside and a works' fire under a roof, and the hangar's and the briefing's menus in the `glass` set. Every list
+  of words is the recording first, then a synthesized row where the recorded one has no voice without the library
+  (`frameWord`). Its gaps are rows of their own heard as their stand-ins (`scatter-shot`, `gatling-burst`,
+  `mortar-shot`, `frame-wreck`, `missile-warning`), and the cards that would record them, with an energy shield's hit
+  and break and the game's own stingers (`flavor: 'warlords-of-mars'`, a frame level's `airspace.frame.flavor`), are
+  `cards/warlords-of-mars.js`. Not recorded yet: its takes are not made.
 - **Magic's kit** (`sfx-shelf/magic-sounds.js`, recorded from `cards/magic.js`): every element (fire, ice, thunder,
   water, wind, earth, light, dark, poison, nature, arcane) as its cast and its three tiers (bolt, burst, cataclysm), the
   statuses taken and what they share, the spells, a battle's moments, and what magic does to a world (terrain shifting,
@@ -136,7 +151,8 @@ node scripts/sound-library/condition.mjs --cards spike,batch2,vehicles,registry 
 - **A recording reused** (its metadata): `also` (more rows the same takes voice: Steel Serpents' extraction chime is
   its checkpoint and its chime too), `ui` and `uiSets` (the menu cues and sets it voices), `tags` (what it is, for
   finding it again: `recordingsTagged('success')`).
-- Not yet: the beds (the library's ambience loops), the traffic heard by its own engines, the engine handoffs.
+- Not yet: the beds (the library's ambience loops: a frame's field holds the synthesized wind and fire instead), the traffic heard by its own engines, the engine handoffs.
+- The `shield-hit` card of `batch2` (a sword on a wooden shield) voices the parry's `block`: `shield-hit` is an energy shield's. A library conditioned before this still files it under `shield-hit` until it is conditioned again.
 
 The kernel's `sampler` slice carries all of it; a recipe without recorded sounds emits none of it, and a page or a
 render on a machine without the library is byte for byte what it was. Under test the library is never the

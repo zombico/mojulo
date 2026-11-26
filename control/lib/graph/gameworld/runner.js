@@ -30,6 +30,8 @@
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
 import { readFlightGoal, defaultFlightGoal, flightGoalMechanics, flightGoalCast, flightLegend } from './flight-goal.js';
+import { readOperation, operationMechanics, operationCast } from './frame-goal.js';
+import { operationBriefingData } from '../campaign/operation-brief.js';
 import { DRESS_THEMES, readDress } from './course-dress.js';
 import { THEMES } from '../../mana-ui/theme.js';
 import { menuSoundSet } from '../playscape/ui/interface-look.js';
@@ -743,6 +745,13 @@ function goalArgs(G, s, lastOf, ref, { fought = false } = {}) {
   // the airspace has (its course, its trench); one with neither is flown to its exit, as before
   const A = G.levels[s.level]?.airspace;
   if (A !== undefined) {
+    // (a frame's level is fought for its operation, frame-goal.js: its groups stood, its tasks on the objectives)
+    if (A.frame !== undefined && G.levels[s.level].goal?.operation !== undefined) {
+      const O = readOperation(G.levels[s.level].goal.operation, `levels.${s.level}.goal.operation`);
+      // (told on the holo table before the drop, a frame's `briefing`: campaign/operation-brief.js, the field's own ground)
+      const brief = A.frame.briefing ? operationBriefingData(G, s.level) : null;
+      return { goal: (ends) => operationMechanics(O, ends), goalCast: (ends) => ({ ...operationCast(O, ends), ...(brief ? { briefing: brief } : {}) }) };
+    }
     const F = G.levels[s.level].goal?.flight !== undefined ? readFlightGoal(G.levels[s.level].goal.flight, `levels.${s.level}.goal.flight`) : defaultFlightGoal(A);
     if (!F) return {};
     const legend = flightLegend(F);

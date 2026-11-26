@@ -1118,6 +1118,32 @@ draws the same thing; the reticle stays the gunplay view's.
   theme card. A look with an overlay across the screen is read without it: the HUD lies over the sights.
 - **In a game's shell** its debrief stays shut: the shell's own result screen is the debrief.
 
+### A frame's hangar
+
+An assault frame's operation opens in its hangar (`scene/channels/controllable/frame-garage.js`, the pilot frame's
+`rule.garage`, a frame stage's `garage: true`): the frame on its pad in a bay between two gantries (the field put
+away behind a render layer of its own), the camera swaying slowly across its front, the operation held behind on the
+pause sidecar. The words are the campaign idioms, read as tables on solid
+plates (fitting is reading, so the look's flourishes are left off: no echoed titles, no glass): `garage-slots` down the
+left (each slot and its part, then Sortie), a slot opened to `garage-parts` (the parts in a list, the one in focus said
+in a line, one table of every part's figures with its change from the fitted part, a column only where they differ),
+and `machine-sheet` on the right (the frame's load as a bar, its figures in two columns, its laws). The field's HUD is
+put away while it is up. A part fitted is stood at once: the page builds the frame with the frame kernel
+(`assault-frame/kernel.js`, the frame's own modules). Sortie keeps the build in the save (the `hangar` slice's flags,
+`assault-frame/hangar.js`), takes the bay down and lets the operation go. The parts it offers are its stock's and the
+save's `parts`, which each operation's win adds to (its `reward`, the level's `wins`).
+Its cursor ticks (the runtime's `ticks` cues) play in the holo table's `glass` set through the level's audio
+(`window.__mojUiCue`, `scene/channels/frame-audio.js`), and an operation's briefing ticks the same way (its data's
+`sounds`); the space briefing stays silent.
+
+### An operation's briefing
+
+A frame operation can open on the holo table, as a space mission's briefing does (a frame stage's `briefing: true`,
+`campaign/operation-brief.js`): the field's own ground as the table's terrain (a works' field its machines as masses),
+the drop, the operation's groups as miniatures and its beacons, told in the operation's designed steps or a step a task.
+It is the same page and the same idioms as the space briefing (`place-banner`, `flight-roster` headed in the design's
+word, `briefing-steps`), over the level on its briefing channel; Launch hands the held operation to its hangar.
+
 ### The strategy boards
 
 A board (`board/board-page.js`: a tactics battle, an epoch's map, a tower defence, a skirmish) is drawn by mana-ui by

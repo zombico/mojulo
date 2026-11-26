@@ -26,7 +26,7 @@ import { assembleFractalSchoolScene } from '@/lib/graph/architecture/fractal-sch
 import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edifice';
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
-import { assembleGeocubeScene, geocubeReadout } from '@/lib/graph/era/geocube';
+import { assembleGeocubeScene, geocubeReadout, GEOCUBE_KEYS } from '@/lib/graph/era/geocube';
 import { assembleSideStrip } from '@/lib/graph/era/geocube-side';
 import { assembleSideMap, SIDE_MAP_SCENE_KEYS } from '@/lib/graph/gameworld/side-map/scene';
 import { assembleBox, BOX_SCENE_KEYS } from '@/lib/graph/gameworld/metroidvania/scene';
@@ -635,7 +635,10 @@ export const WORLD_KINDS = {
       // stand-in walks it)
       // (played: its people walk its blocks, the legacy city's walkers: geocity/scene.js THE PEOPLE)
       if (m.show === 'geocity') return (m.entities !== undefined || m.game !== undefined ? (p) => attachCityWalkers(p, Object.keys(m.figures ?? {}).filter((k) => /^person-\d+$/.test(k))).then(attachCityCars).then((q) => { const guide = cityGuide(m); return guide ? { ...q, guide: m.manaHud ? { ...guide, mana: true } : guide } : q; }).then(({ plan, ...q }) => { const map = m.manaHud ? cityMap(plan, m, m.manaHud.map) : null, bag = m.manaHud ? bagUi(m, m.manaHud.inventory) : null, phone = m.manaHud ? phoneUi(m, m.manaHud.phone) : null; return { ...q, ...(map ? { cityMap: map } : {}), ...(bag ? { bagUi: bag } : {}), ...(phone ? { phoneUi: phone } : {}) }; }) : attachDummy)(assembleGeocityScene(m.entities !== undefined || m.game !== undefined ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCITY_KEYS.includes(k))) : m, { title: ctx.title, ...(m.entities !== undefined || m.game !== undefined ? { play: true, ...(drivenOf(m).length ? { driven: drivenOf(m), pooled: pooledOf(m) } : {}) } : {}), ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.live ? { live: true } : {}), ...(ctx.form ? { form: true, ...(ctx.formLit && !ctx.handoff ? { formBuildings: true } : {}) } : {}) }));
-      const p = assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
+      // (a played land, a frame's field: assault-frame/field.js: the level's pilot, camera and game layered over it by the
+      // page, the scene reading its own words only)
+      const own = m.show === 'land' && (m.entities !== undefined || m.game !== undefined) ? Object.fromEntries(Object.entries(m).filter(([k]) => GEOCUBE_KEYS.includes(k))) : m;
+      const p = assembleGeocubeScene(own, { title: ctx.title, unshaded: ctx.unshaded, ...(ctx.liveSun ? { liveSun: true } : {}), ...(ctx.solid ? { solid: true } : {}), ...(ctx.form ? { form: true } : {}), ...(ctx.formLit ? { formLit: true } : {}), ...(ctx.handoff ? { handoff: true } : {}) }, assembleStageScene);
       return p.route ? attachDummy(p) : p;
     },
   },
