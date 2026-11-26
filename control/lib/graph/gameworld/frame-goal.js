@@ -73,7 +73,7 @@ const KINDS = ['turret', 'tank', 'walker', 'gnat', 'wasp', 'kite', 'harrow', 'th
 
 export function readOperation(v, at = 'goal.operation') {
   if (!isObj(v)) throw new Error(`${at} is { groups, tasks, time? }: the enemy on the field and what is done about it`);
-  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing)`);
+  for (const k of Object.keys(v)) if (!['groups', 'tasks', 'time', 'reward', 'briefing', 'lessons'].includes(k)) throw new Error(`${at}.${k} is not part of an operation (groups, tasks, time, reward, briefing, lessons)`);
   // (its briefing: told on the holo table before the drop, campaign/operation-brief.js reads it whole)
   if (v.briefing !== undefined && !(v.briefing && typeof v.briefing === 'object' && Array.isArray(v.briefing.steps))) throw new Error(`${at}.briefing is { region?, steps: [{ title, say, show?, routes? }] }: the operation told on the holo table`);
   // (its reward: the parts its win adds to the garage's, assault-frame/parts.js ids)
@@ -117,7 +117,52 @@ export function readOperation(v, at = 'goal.operation') {
     }
     throw new Error(`${tat} is { down } | { reach } | { hold }`);
   });
-  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}) };
+  // (its lessons: the frame's controls taught one at a time, each group as its task begins: FRAME_LESSONS)
+  const lessons = v.lessons === undefined ? null : readFrameLessons(v.lessons, tasks.length, `${at}.lessons`);
+  return { groups, tasks, ...(v.time ? { time: v.time } : {}), ...(v.reward?.length ? { reward: [...new Set(v.reward)] } : {}), ...(lessons ? { lessons } : {}) };
+}
+
+/**
+ * THE FRAME'S LESSONS: what a frame level can teach, one control at a time, each line kept up until the pilot does it
+ * (its `fact`, the guide channel's: scene/channels/guide.js) or its patience runs out. A word a line: its keys and what
+ * it is. An operation's `lessons` are groups, `{ teach: [<word>…], at?: <task number> }`, the group shown as its task
+ * begins (the first, as the level starts, where it says none): a training level's movement as it starts, its weapons
+ * as its drones come.
+ */
+export const FRAME_LESSONS = Object.freeze({
+  move: Object.freeze({ keys: 'W A S D  move', fact: 'move' }),
+  look: Object.freeze({ keys: 'mouse  turn and aim', fact: 'look' }),
+  boost: Object.freeze({ keys: 'Shift  boost: skate over the ground on your thrusters', fact: 'boost' }),
+  'quick-boost': Object.freeze({ keys: 'C  quick boost: a sudden dash, the way you are moving', fact: 'quick-boost' }),
+  jump: Object.freeze({ keys: 'Space  jump', fact: 'jump' }),
+  climb: Object.freeze({ keys: 'Space  hold in the air to climb on your thrusters', fact: 'climb' }),
+  'assault-boost': Object.freeze({ keys: 'X  assault boost: a charge straight ahead', fact: 'assault-boost' }),
+  energy: Object.freeze({ keys: 'EN  the bar under your armour: boosting spends it, it fills again on the ground' }),
+  lock: Object.freeze({ keys: 'aim at a foe  the sight locks on', fact: 'lock' }),
+  'right-hand': Object.freeze({ keys: 'click  fire the right hand', fact: 'fire-armR' }),
+  'left-hand': Object.freeze({ keys: 'right-click  fire the left hand', fact: 'fire-armL' }),
+  'left-shoulder': Object.freeze({ keys: 'Q  fire the left shoulder', fact: 'fire-backL' }),
+  'right-shoulder': Object.freeze({ keys: 'E  fire the right shoulder', fact: 'fire-backR' }),
+  kick: Object.freeze({ keys: 'F  kick: a boosting frame\'s blow at close range' }),
+});
+// (the objectives mechanic's task in hand, game/objectives.js objectiveNames: the operation's is the default id's)
+export const FRAME_LESSON_TASK = '__obj';
+
+/** An operation's lessons checked (throws, teaching) and lowered to the guide's: [{ keys, fact?, when? }]. */
+export function readFrameLessons(v, taskCount, at = 'operation.lessons') {
+  if (!Array.isArray(v) || !v.length) throw new Error(`${at} is [{ teach: [<word>…], at?: <task number> }]: the frame's controls taught a group at a time (words: ${Object.keys(FRAME_LESSONS).join(', ')})`);
+  const out = [];
+  v.forEach((g, i) => {
+    const gat = `${at}[${i}]`;
+    if (!g || typeof g !== 'object' || Array.isArray(g)) throw new Error(`${gat} is { teach: [<word>…], at?: <task number> }`);
+    for (const k of Object.keys(g)) if (!['teach', 'at'].includes(k)) throw new Error(`${gat}.${k} is not part of a lesson group (teach, at)`);
+    if (!Array.isArray(g.teach) || !g.teach.length) throw new Error(`${gat}.teach is the words it teaches, in order (${Object.keys(FRAME_LESSONS).join(', ')})`);
+    for (const w of g.teach) if (!FRAME_LESSONS[w]) throw new Error(`${gat}.teach names '${w}': one of ${Object.keys(FRAME_LESSONS).join(', ')}`);
+    const n = g.at ?? 1;
+    if (!(Number.isInteger(n) && n >= 1 && n <= taskCount)) throw new Error(`${gat}.at is the task (1 to ${taskCount}) whose beginning shows it`);
+    for (const w of g.teach) out.push({ ...FRAME_LESSONS[w], ...(n > 1 ? { when: { var: FRAME_LESSON_TASK, gte: n - 1 } } : {}) });
+  });
+  return out;
 }
 
 // the field's half-size, and a share of it as a place on the ground (round the field's middle: a geocube's land is
@@ -186,5 +231,5 @@ export function operationCast(op, ends) {
     }
   }
   // (its reward: each part granted to the save's parts as the operation is won, the game channel's `wins`)
-  return { entities, figures, ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}) };
+  return { entities, figures, ...(op.reward ? { wins: op.reward.map((item) => ({ type: 'grant', slice: PARTS_SLICE, item, count: 1 })) } : {}), ...(op.lessons ? { lessons: op.lessons } : {}) };
 }

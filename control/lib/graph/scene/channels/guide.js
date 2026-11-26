@@ -1,5 +1,8 @@
 import { safeJson } from '../emit-util.js';
 
+// the facts a frame's lesson is done by (its state: rules-frame.js), beside the walk's move, look, jump and sprint
+const FRAME_FACTS = new Set(['boost', 'quick-boost', 'climb', 'assault-boost', 'lock']);
+
 // In-page script: THE GUIDE (level/guide.js, a sketched map's page): the level's INTRO and THE WAY ON, a beat at a time.
 // ONE THING AT A TIME, in one place at the top of the screen, by what the moment asks:
 //   a beat's line said on reaching it (`says`: a meet's words, a find's item), for a few seconds
@@ -20,6 +23,10 @@ import { safeJson } from '../emit-util.js';
 // with none of them is as it was, byte for byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
 // line stays down for that host as it does for the HUD grammar; unasked, not a byte.
 export function guideScript(guide, { host = false } = {}) {
+  // (a frame's lessons, gameworld/frame-goal.js FRAME_LESSONS: their facts read off the frame's own state, and a lesson
+  // that waits for its task, `when`; a guide with neither is as it was, byte for byte)
+  const L0 = Array.isArray(guide.lessons) ? guide.lessons : [];
+  const frameFacts = L0.some((l) => FRAME_FACTS.has(l.fact) || /^fire-/.test(l.fact || '')), waits = L0.some((l) => l.when);
   return `
 // --- the guide: the level's intro and the way on, one thing at a time (level/guide.js) ---
 (function () {
@@ -73,7 +80,16 @@ export function guideScript(guide, { host = false } = {}) {
     if (p.grounded === false && p.vel && p.vel[2] > 0.5) ls.air = true;
     ls.last = now; ls.x = x; ls.y = y; ls.yaw = yaw;
     const age = (now - ls.t0) / 1000;
-    const done = L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
+${frameFacts ? `    // (a frame's: its boost held a moment, a quick boost or a charge begun, the climb held, the sight locked, a slot's
+    // rounds gone; its jump off the ground by its own state)
+    if (!ls.shots) ls.shots = Object.fromEntries(Object.entries((p.rule && p.rule.slots) || {}).map(([k, w]) => [k, (w && w.st && w.st.shots) || 0]));
+    if (p.boosting) ls.boost = (ls.boost || 0) + dt;
+    if (p.ascending) ls.climb = (ls.climb || 0) + dt;
+    if (p.airborne && p.v && p.v[2] > 0.5) ls.air = true;
+    const fired = (k) => { const w = p.rule && p.rule.slots && p.rule.slots[k]; return !!(w && w.st && (w.st.shots || 0) > (ls.shots[k] || 0)); };
+    const frameDone = L.fact === 'boost' ? (ls.boost || 0) >= 0.6 : L.fact === 'quick-boost' ? (p.qbT || 0) > 0 : L.fact === 'climb' ? (ls.climb || 0) >= 0.5
+      : L.fact === 'assault-boost' ? !!p.ab : L.fact === 'lock' ? !!p.locked : /^fire-/.test(L.fact || '') ? fired(L.fact.slice(5)) : null;
+` : ''}    const done = ${frameFacts ? 'frameDone !== null ? frameDone : ' : ''}L.fact === 'move' ? ls.moved >= LESSON.move : L.fact === 'look' ? ls.turned >= LESSON.look : L.fact === 'jump' ? ls.air : L.fact === 'sprint' ? ls.fast >= LESSON.sprint : age >= LESSON.plain;
     if ((done && age >= LESSON.read) || age >= LESSON.patience) { li++; ls = null; if (li >= LS.length) phase = 'play'; }
   }
   const standing = (e) => e.team === 'foes' && !e.gone && !e.dormant && !e.downed && !(e.hp <= 0);
@@ -96,13 +112,16 @@ export function guideScript(guide, { host = false } = {}) {
       const now = performance.now(), cur = GD.steps[k];
       // (the lessons give way to a fight: a foe come within a few strides is the trail begun, its own keys the ones to show)
       if (phase === 'lessons' && p && W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - p.transform.pos[0], e.transform.pos[1] - p.transform.pos[1]) < 10)) { li = LS.length; ls = null; phase = 'play'; }
-      if (phase === 'lessons' && p) lesson(p, now);
+${waits ? `      // (a lesson that waits for its task, \`when\`: the objectives' task in hand; until then nothing of it shows)
+      const waiting = phase === 'lessons' && LS[li] && LS[li].when && !(window.__mojBus && window.__mojBus.state.vars[LS[li].when.var] >= LS[li].when.gte);
+      if (phase === 'lessons' && p && !waiting) lesson(p, now);` : `      if (phase === 'lessons' && p) lesson(p, now);`}
       const atHeld = p && GD.held && GD.held.some((h) => Math.hypot(h[0] - p.transform.pos[0], h[1] - p.transform.pos[1]) < 5) && W.entities.some(standing);
       // ONE THING: the line just said, the opening, a held way, a lesson at hand, else the way on
       V.goal = cur ? { say: cur.say, at: cur.at, d: Math.round(d) } : null;
       if (now < sayUntil) put('say', esc(sayText), sayText);
       else if (phase === 'intro') put('intro', esc(GD.intro), GD.intro);
-      else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys), '', [LS[li].keys]);
+${waits ? `      else if (phase === 'lessons' && waiting) put('way', '', '');
+` : ''}      else if (phase === 'lessons') put('keys', '<span class="m" style="margin:0 12px 0 0">' + (li + 1) + ' / ' + LS.length + '</span>' + capped(LS[li].keys), '', [LS[li].keys]);
       else if (phase === 'keys0') put('keys', GD.introKeys.map(capped).join(''), '', GD.introKeys);
       else if (atHeld) put('held', 'The way on is held while foes stand here', 'The way on is held while foes stand here');
       // (a lesson at hand: near its place, or its fight come to the hero: a foe standing within a few strides)
