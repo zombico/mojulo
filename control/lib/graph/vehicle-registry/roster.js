@@ -325,6 +325,10 @@ export const VEHICLES = {
     { physics: 'combineHarvester', tech: 'truck' }),
   'field-sprayer': row('self-propelled sprayer', ['self propelled sprayer', 'sprayer', 'field sprayer', 'boom sprayer', 'high clearance sprayer', 'farm sprayer', 'tractor sprayer', 'row crop sprayer'], 'offroad', 'work', M, ['driven', 'parked', 'watched'],
     { physics: 'cropSprayer', tech: 'truck' }),
+  // (the grounds' machine: a ride-on mower, a lawn tractor and its cutting deck; its realistic body the farm family's,
+  // road-farm.js)
+  'ride-on-mower': row('ride-on mower', ['riding mower', 'lawn mower', 'lawnmower', 'lawn tractor', 'mower', 'grass cutter', 'ride on mower', 'ride-on lawn mower'], 'offroad', 'work', M, ['driven', 'parked'],
+    { physics: 'rideOnMower', tech: 'car' }),
   forklift: row('forklift', ['fork lift', 'lift truck', 'counterbalance forklift', 'fork truck'], 'road', 'work', M, ['driven', 'parked'],
     { physics: 'forklift', construction: 'forklift', tech: 'car' }),
   // ── the site's machines (the construction shelf's, construction-shelf/: each a carrier, an upper, a front and a tool;

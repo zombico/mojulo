@@ -135,6 +135,10 @@ export const VEHICLES = Object.freeze({
   farmTractor:   Object.freeze({ words: 'a row-crop tractor, 150 kW', mass: 8500, power: 150, drive: 'all', share: 1, wheelbase: 2.95, track: 1.9, wheelRadius: 0.93, CdA: 4.5, Crr: 0.015, cgH: 1.1, L: 5.4, W: 2.5, H: 3.22, eye: 2.55, grip: 0.7, brakeEff: 0.6, turn: 5.5, band: 0.85, governor: kmh(50) }),
   combineHarvester: Object.freeze({ words: 'a combine harvester on its grain platform', mass: 17000, power: 300, drive: 'front', share: 0.65, wheelbase: 3.8, track: 3.0, wheelRadius: 0.98, CdA: 12, Crr: 0.02, cgH: 2.0, L: 10.9, W: 7.6, H: 3.98, eye: 3.65, grip: 0.7, brakeEff: 0.6, turn: 7.5, band: 0.85, governor: kmh(40), steer: 'rear' }),
   cropSprayer:   Object.freeze({ words: 'a self-propelled sprayer, its booms folded', mass: 11000, power: 225, drive: 'all', share: 1, wheelbase: 4.2, track: 3.0, wheelRadius: 0.92, CdA: 7.0, Crr: 0.02, cgH: 1.9, L: 8.6, W: 3.42, H: 3.99, eye: 3.35, grip: 0.7, brakeEff: 0.65, turn: 7.0, band: 0.85, governor: kmh(50) }),
+  // (and the grounds' machine, its body the farm family's, car-designer/road-farm.js: a ride-on mower, a lawn tractor
+  // with its operator and its 42 in deck, its width out to its side chute, on turf tyres, small fronts and broad rears;
+  // governed at its top gear's pace)
+  rideOnMower:   Object.freeze({ words: 'a ride-on lawn mower, its deck down', mass: 330, power: 15, drive: 'rear', share: 0.6, wheelbase: 1.2, track: 0.84, wheelRadius: 0.26, CdA: 0.9, Crr: 0.03, cgH: 0.5, L: 1.92, W: 1.4, H: 1.07, eye: 1.3, grip: 0.7, brakeEff: 0.6, turn: 1.0, band: 0.8, governor: kmh(13) }),
   // (the city's working trucks, their realistic bodies the hull kit's, car-designer/road-city-truck.js: a medium-duty
   // conventional on its stake bed; an Asian 2-ton cab-over on its drop-side deck and a 4-ton wide cab-over on its wing
   // body; a mini goods carrier; a cube van on its cutaway chassis; a side-bay beverage truck; each laden)

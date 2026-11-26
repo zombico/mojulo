@@ -35,7 +35,7 @@ law, their district). A brief's words ("a GTA-like", "steal cars", "a wanted lev
 | (the hero) | bare hands by default, a sidearm drawn with R or 1/2, fired on Q or the click | [arsenal.js](../control/lib/graph/gameworld/arsenal.js) |
 | `factions` | crews with turf and rivals, a board of acts (torch, tag, take) | [factions.js](../control/lib/graph/gameworld/factions.js) |
 | `errands[].app` | side work on the phone: fares | [errand-mechanics.js](../control/lib/graph/game/errand-mechanics.js) |
-| `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping | [jobsified.js](../control/lib/graph/gameworld/jobsified.js) |
+| `errands[].vehicle` | driving jobs on the Jobsified app: the bin round, a heavy haul, a bus route, street sweeping, groundskeeping | [jobsified.js](../control/lib/graph/gameworld/jobsified.js) |
 | `ui`, `sound`, `music` | the look of the menus and HUD (mana-ui), the car's sounds, the score (walking, the chase, tension) | [docs/mana-ui.md](mana-ui.md), [docs/game-audio.md](game-audio.md) |
 
 The game ships with a title screen, a pause, a save and continue (the level's own save: what was done, kept at the
@@ -180,6 +180,13 @@ standing one (`repeat`) worked again. The starter has three (`HIJACK_SHIFTS`):
   (`sweepRoute`: `SWEEP.stretches` stretches of `SWEEP.length` m, a heap every `SWEEP.every`, `SWEEP.kerb` off the
   street's middle); nothing is held, driving over a heap sweeps it. A line on screen counts them, a word comes at each
   quarter, and the last one pays; the streets get dirty again for the next round.
+- **Groundskeeping** (`groundskeeper`, mode `mow`): the parks' grounds crew is off sick, so the parks office takes
+  anyone with a licence (the fake ID again; its `pitch` is what the office says as it is taken). A ride-on mower
+  (`MOWERS`, the car shelf's `rideOnMower`) stands on the path of the park nearest the start, nosed in from its edge.
+  The park's lawn is cut into cells of long grass (`lawnOf`: `MOW.cell` squares on a grid from its middle, clear of
+  its paths, its pavilion and playground and its trees' trunks, the `MOW.most` nearest the mower); driving over a cell
+  mows it, its tufts cut to stubble over a lighter stripe. The screen counts them, and the last pays; the grass grows
+  back for the next round. The scene tells a level its parks (`ctx.parks`, geocity/scene.js; `ends.parks`).
 
 ```js
 errands: [{ id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: true, reward: [{ item: 'coin', n: 40 }] }]

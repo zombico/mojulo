@@ -52,7 +52,9 @@ The car designer ([car-designer/](../control/lib/graph/car-designer/)) builds ro
   a log truck. The tractor-trailer's plain loft stays the fleet's traffic and the build of what was minted before it.
 - The farm's machines are `road-farm.js` over `farm-kit.js`: a row-crop tractor (its front loader and its plough by
   word), a combine harvester (a grain platform or a corn head; its unloading auger swung out) and a self-propelled
-  sprayer (its booms folded or out). A parked tractor takes its loader's `reach`.
+  sprayer (its booms folded or out), and the parks' ride-on mower (`rideOnMower`: its deck slung between the axles,
+  its chute out on the right; a groundskeeper's job drives it, gameworld/jobsified.js). A parked tractor takes its
+  loader's `reach`.
 - The city's working trucks are `road-city-truck.js` over `city-truck-kit.js`: a medium-duty conventional on its stake
   bed (`dump`, `flatbed`), the Asian city trucks (a 2-ton cab-over on its drop-side deck and a 4-ton wide cab-over on its
   wing body, each by word a wing, a box, a reefer, a dump or a crane), a mini goods carrier (`canvas`), a cube van and a

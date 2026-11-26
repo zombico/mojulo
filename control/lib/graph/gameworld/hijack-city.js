@@ -84,13 +84,16 @@ const MISSIONS = Object.freeze([
  *  at until it is full, emptied at the district's dump), a heavy vehicle call (trucks and a site's machines issued by the
  *  works yard in turn, each driven across the district to a building site) and a bus route (a bus issued by the depot, its stops held at in order: those
  *  waiting board, those from the stop before get off) and dig and load (a building site's excavator operated, licence and
- *  all, its pile of spoil tipped into a truck); and, the pit dug, the foreman's materials never arriving, the Dockers'
+ *  all, its pile of spoil tipped into a truck) and groundskeeping (a park's long grass mown on a ride-on mower, the
+ *  grounds crew off sick, licence and all); and, the pit dug, the foreman's materials never arriving, the Dockers'
  *  delivery orders (checked in for at their HQ, trucks from the dock to building sites). */
 export const HIJACK_SHIFTS = Object.freeze([
   Object.freeze({ id: 'bin-round', name: 'Bin round', vehicle: 'garbage', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
   Object.freeze({ id: 'heavy-haul', name: 'Heavy vehicle call', vehicle: 'heavy', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 60 })]) }),
   Object.freeze({ id: 'bus-route', name: 'Bus route', vehicle: 'bus', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 50 })]) }),
   Object.freeze({ id: 'street-sweeping', name: 'Street sweeping', vehicle: 'sweeper', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 35 })]) }),
+  // (the parks' grounds crew off sick: the long grass mown on a ride-on mower, licence and all)
+  Object.freeze({ id: 'groundskeeping', name: 'Groundskeeping', vehicle: 'groundskeeper', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 45 })]) }),
   Object.freeze({ id: 'dig-and-load', name: 'Dig and load', vehicle: 'excavator', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 70 })]) }),
   // (the pit dug, the foreman's materials never come: the Dockers' delivery orders, checked in for at their HQ)
   Object.freeze({ id: 'materials', name: 'Delivery orders', vehicle: 'freight', after: 'dig-and-load', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 80 })]) }),
