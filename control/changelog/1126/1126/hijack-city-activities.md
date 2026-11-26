@@ -1,14 +1,19 @@
 ### Hijack City activities
 
-- **Jobsified, the city's driving jobs.** A new phone app lists jobs done in a city vehicle. Take one on the phone,
-  go to the depot that keeps the vehicle, get in one, drive the route and bring the vehicle back to the depot to be
-  paid. Hijack City starts with a garbage round from the works yard: get in a garbage truck, pick up the bins at a few
-  stops across the district, return the truck, and do it again for more pay.
-- **Jobs you can see happen.** At each stop of the bin round a wheelie bin and a few bags stand at the kerb. Pull up and
-  the bags are tossed into the hopper while the bin is rolled to the back of the truck, lifted up the tailgate by the
-  truck's own lifter, tipped in, shaken, set down and rolled back. When the round is paid at the works yard the whole
-  tailgate swings up to let the load out. A TaskFu fare's passenger waits at the pick-up, walks to your car's door and
-  gets in, then gets out at the drop and walks off. A delivered parcel arcs from you to the door.
-- **Pay you can see land.** A finished round is announced with a card in the middle of the screen, "Round complete"
-  over what it paid, in the game's own look, and the money in the corner counts up to its new amount. A new task on
-  the phone slides into its list.
+- **Jobsified, the city's driving jobs.** A new phone app lists jobs done in one of the city's own vehicles. Take one
+  on the phone, get into its vehicle and do the job in it; nothing counts on foot. Each pays into the money in hand and
+  can be done again.
+- **Bin round.** Get into a garbage truck at the works yard. Piles of bags stand at kerbs across the district: pull up
+  and hold F to collect one. Four fill the truck; take it to the dump to empty it and get paid, its tailgate swinging
+  up as it unloads. Collect every pile and the city puts more out.
+- **The dump.** A district can now have a dump (`dump: true` on its city settings): one of its car parks is built as a
+  big tipping hall, open to the street, that a truck drives into. Hijack City has one.
+- **Heavy haul.** A heavy truck waits at the kerb by the works yard. Take it across town to a building site to get paid;
+  step out and it goes back to the yard for the next job.
+- **Bus route.** A bus waits at the kerb by the depot. Its stops come in order, each with a sign and people waiting.
+  Pull up and hold F to open the doors: the waiting people walk over and board, and the ones who got on at the stop
+  before get off and walk away. The last stop pays and the route starts again.
+- **The way and the screen.** Taking a job on the phone points the guide at it straight away; the arrow leads to the
+  nearest pile still waiting. A line on screen shows the truck's load or the next stop and who is aboard, with a bar
+  while F is held. A finished job is announced with a card in the middle of the screen over what it paid, the money in
+  the corner counts up to its new amount, and a new task slides into the phone's list.

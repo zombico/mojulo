@@ -13,8 +13,11 @@
  *                            hero may get into, nearest its spawn first; then, for each fleet role in `roles` (a driving
  *                            job's, gameworld/jobsified.js), its depots' vehicles (`ends.depots`) not among them, so a
  *                            car's id (`car-<i>`, its place in this list) is the same with roles as without
+ *                            ; then the trucks a job ISSUES (`issue`: [{ at, heading, model, paint }], jobsified.js
+ *                            issuedOf), after all of them
  *   depotCabs(ends, role, { roles? }) → [{ depot, ids }]: each depot keeping the role's vehicles, and their cab ids
- *   carsExtra({ roles? })    → (ends) → { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
+ *   issuedCabs(ends, issue, { roles? }) → the cab ids of the issued trucks, in order
+ *   carsExtra({ roles?, issue? }) → (ends) → { figures, entities } | null: a stage extra (stage-figures.js): each parked car a
  *                            body drawn from the town's own template of its model (`mount.pool`), and the spares a
  *                            vehicle taken from the traffic becomes
  *   patrolCar({ id, at, heading, model, paint, target, roads, posts })
@@ -56,15 +59,20 @@ const lin = (h) => [1, 3, 5].map((k) => { const c = parseInt(h.slice(k, k + 2), 
 // does not carry drives as a midsize car
 const ruleOf = (model) => { const cls = CAR_CARDS[model]?.class ?? (model.startsWith('loft:') ? model.slice(5).split('|')[0] : 'midsize'); try { return vehicleRule(cls, { tuning: 'arcade' }); } catch { return vehicleRule('midsize', { tuning: 'arcade' }); } };
 
-export function levelCars(ends, { roles = [] } = {}) {
+export function levelCars(ends, { roles = [], issue = [] } = {}) {
   const from = ends?.spawn, parked = ends?.parked ?? [];
   if (!from || !parked.length) return [];
   const d = (c) => Math.hypot(c.at[0] - from[0], c.at[1] - from[1]);
   const near = parked.map((c, i) => ({ c, i, d: d(c) })).filter((x) => x.d <= CAB.far).sort((a, b) => a.d - b.d || a.i - b.i).slice(0, CAB.most).map((x) => x.c);
-  if (!roles.length) return near;
+  if (!roles.length && !issue.length) return near;
   const had = new Set(near), more = [];
   for (const D of ends.depots ?? []) for (const v of D.cabs) if (roles.includes(v.role) && !had.has(v.car)) { had.add(v.car); more.push(v.car); }
-  return [...near, ...more];
+  return [...near, ...more, ...issue];
+}
+
+export function issuedCabs(ends, issue, { roles = [] } = {}) {
+  const cars = levelCars(ends, { roles, issue }), n = cars.length - issue.length;
+  return issue.map((_, k) => `car-${n + k + 1}`);
 }
 
 export function depotCabs(ends, role, { roles = [role] } = {}) {
@@ -76,13 +84,13 @@ export function depotCabs(ends, role, { roles = [role] } = {}) {
 const cab = (hull, height = null) => ({ cab: true, hull, reach: Math.max(CAB.reach, hull[0] + 2), stand: [r3(-(hull[0] + CAB.door)), CAB.stand[1]], mount: { s: CAB.in }, dismount: { s: CAB.out }, slow: CAB.slow, camera: { ...(height === null ? CAB.camera : cabView({ length: 2 * hull[1], height }, CAB.camera, CAB_VIEW)), pullIn: CAB.pullIn } });
 const box = (rule) => ({ ...rule, eye: 0, collideRadius: CAB.radius, collideHeight: CAB.height, step: CAB.step });
 
-export function carsExtra({ roles = [] } = {}) {
+export function carsExtra({ roles = [], issue = null } = {}) {
   return (ends) => {
-    const cars = levelCars(ends, { roles });
+    const cars = levelCars(ends, { roles, issue: typeof issue === 'function' ? issue(ends) : issue ?? [] });
     if (!cars.length) return null;
     const part = { figures: {}, entities: [] };
     // (a depot's vehicles a driving job is done in, `roles`: their bodies move their parts where their model has them, a
-    // garbage truck's bin lifter and tailgate, scene/channels/cab-pool.js `gate`)
+    // garbage truck's tailgate, scene/channels/cab-pool.js `gate`)
     const depot = new Set();
     for (const D of ends.depots ?? []) for (const v of D.cabs) if (roles.includes(v.role)) depot.add(v.car);
     cars.forEach((c, i) => {
@@ -91,7 +99,7 @@ export function carsExtra({ roles = [] } = {}) {
       const M = carModel(c.model), hull = [r3(M.W / 2), r3(M.L / 2)];
       part.entities.push({
         id: `car-${i + 1}`, pilotable: false, rule: box(ruleOf(c.model)),
-        mount: { ...cab(hull, M.H), pool: { model: c.model, tint: lin(c.paint), ...(depot.has(c) && M.gate ? { gate: { pivot: M.gate.pivot, lift: M.gate.lift, tip: M.gate.tip } } : {}) } },
+        mount: { ...cab(hull, M.H), pool: { model: c.model, tint: lin(c.paint), ...(depot.has(c) && M.gate ? { gate: { pivot: M.gate.pivot, tip: M.gate.tip } } : {}) } },
         body: { type: 'none' },
         transform: { pos: [r3(c.at[0]), r3(c.at[1]), r3(c.at[2])], heading: r3(c.heading) },
       });

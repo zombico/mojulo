@@ -1,171 +1,160 @@
 import { safeJson } from '../emit-util.js';
-import { JOB_MOTION, jobEnv } from './job-motion.js';
+import { JOB_MOTION } from './job-motion.js';
 
-// THE JOBS' STOPS (a played town's or district's jobs, gameworld/city-guide.js; their mechanics game/errand-mechanics.js):
-// what happens in the world where a job is done, played as the bus says it happened, so a stop is seen and not only told.
-//   BINS      a driving job's round (a `shift`): at each stop a wheelie bin and a few bags at the kerb. As the stop is made
-//             (its flag `flag-stop-<id>-<k>` rises) the bin is rolled to the back of the truck, rides its LIFTER up and is
-//             tipped in, shaken and set down and rolled back (the lifter's moment set on the truck, `e.liftAt`, which
-//             channels/cab-pool.js `gate` swings), the bags tossed into its hopper; a standing round's stops filled again
-//             as it is paid (the flag falls). As the round is paid (`errand:done:<id>`), the tailgate swings up and lets
-//             the load out (`e.tipAt`). A truck that does not move its parts: the bin tips at the kerb.
-//   FARES     a passenger (a trade whose item is a person: passenger, rider, fare) waits at its pick-up; picked up (the
-//             bag's count rises) they walk to the car's door and get in; dropped (it falls) they get out at the door and
-//             walk off, and another waits at the pick-up.
-//   PARCELS   a one-off's goods handed in (`errand:done:<id>`): a parcel arcs from the hero to the door and is taken.
-// Each prop is a few shaded boxes in the city's own way (its light baked into its colours, no material lit). The
-// timings: channels/job-motion.js. Emitted only when the level has one of them; none ⇒ not one byte.
+// THE JOBS' PILES AND STOPS (a played town's or district's driving jobs held at, game/errand-mechanics.js `shift`: a
+// garbage truck's round, `collect`; a bus's route, `route`): what is seen and pressed where the work is done, kept simple.
+//   STOPS     at each of a route's stops a bus-stop sign and its people waiting (`riders`), there while its flag is down.
+//             Made (the flag rises) on the bus that made it: those waiting walk to its door and board, and those who
+//             boarded at the stop before get off at the door and walk away; laid again (the round begun again), they wait.
+//   PILES     at each pile a heap of bags at the kerb, there while its flag (`flag-stop-<id>-<k>`) is down; taken, it
+//             pops away; laid again, it is back.
+//   THE KEY   held (F) while driving: its going down and coming up said to the bus (`shift:hold:<id>`, `shift:let:<id>`),
+//             which counts the hold and takes the pile on.
+//   A LINE    on the screen while the job is on the clock: a collect's load of what the truck holds, full where to take
+//             it; a route's next stop and who is aboard; at a pile or the next stop, the key to hold and how far it has gone.
+//   UNLOADED  the round paid (`errand:done:<id>`) on the truck that did it: its tailgate swung up (`e.tipAt`, which
+//             channels/cab-pool.js `gate` swings; the timing channels/job-motion.js).
+// Bags are a few shaded boxes in the city's own way (its light in their colours). Emitted only when the level has such a
+// job; none ⇒ not one byte.
 //
-//   jobStopsOf(manifest) → { bins?: [{ id, cabs, done, stops: [{ at, v }] }], fares?: [{ at, held, seed }],
-//                          parcels?: [{ at, on }] } | null
+//   jobStopsOf(manifest) → { jobs: [{ id, mode, cabs, done, piles: [{ at, v, riders?, N? }], vars: { in, at, prog, load,
+//                          on, full, next }, load?, ticks, key, vehicle, where? }] } | null
 //   jobStopsScript(spec) → the page's script; `window.__mojJobStops` its probe
 
-const PERSON = /^(passenger|rider|fare|client|customer|patient)s?$/;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const at3 = (p) => [r3(p[0]), r3(p[1]), r3(p[2] ?? 0)];
+/** The key a pile is held at, as a keyboard says it. */
+export const JOB_KEY = Object.freeze({ key: 'f', label: 'F' });
 
-/** What a level's jobs show at their stops, or null. */
+/** What a level's collecting jobs show, or null. */
 export function jobStopsOf(manifest) {
   const M = Array.isArray(manifest?.game?.mechanics) ? manifest.game.mechanics : [];
-  const bins = M.filter((m) => m && m.kind === 'shift' && Array.isArray(m.stops) && Array.isArray(m.cabs)).map((m) => ({ id: m.id, cabs: m.cabs.slice(), done: `errand:done:${m.id}`, stops: m.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${m.id}-${k + 1}` })) }));
-  const fares = M.filter((m) => m && m.kind === 'trade' && PERSON.test(String(m.item)) && Array.isArray(m.at)).map((m, i) => ({ at: at3(m.at), held: `held:bag:${m.item}`, seed: i }));
-  const parcels = M.filter((m) => m && m.kind === 'deliver' && Array.isArray(m.at) && !(m.wants ?? []).some((w) => PERSON.test(String(w.item)))).map((m) => ({ at: at3(m.at), on: `errand:done:${m.id ?? 'errand'}` }));
-  if (!bins.length && !fares.length && !parcels.length) return null;
-  return { ...(bins.length ? { bins } : {}), ...(fares.length ? { fares } : {}), ...(parcels.length ? { parcels } : {}) };
+  const jobs = M.filter((m) => m && m.kind === 'shift' && (m.mode === 'collect' || m.mode === 'route') && Array.isArray(m.stops) && Array.isArray(m.cabs)).map((m) => ({
+    id: m.id, mode: m.mode, cabs: m.cabs.slice(), done: `errand:done:${m.id}`,
+    piles: m.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${m.id}-${k + 1}`, ...(m.mode === 'route' ? { riders: q.riders ?? 1, N: Array.isArray(q.N) ? q.N.map(r3) : [0, 1] } : {}) })),
+    vars: { in: `in-${m.id}`, at: `at-${m.id}`, prog: `prog-${m.id}`, load: `load-${m.id}`, on: `flag-on-${m.id}`, full: `flag-full-${m.id}`, next: `next-${m.id}` },
+    ...(m.mode === 'collect' ? { load: m.load, where: m.unload ? 'the dump' : `the ${m.yard ?? 'depot'}` } : {}), ticks: Math.max(1, Math.round((Number.isFinite(m.hold) && m.hold > 0 ? m.hold : 1.5) / 0.1)), key: JOB_KEY.label, vehicle: m.vehicle ?? 'truck',
+  }));
+  return jobs.length ? { jobs } : null;
 }
 
 export function jobStopsScript(spec) {
   return `
-// --- the jobs' stops: bins tipped into the truck, a passenger in and out, a parcel handed over (channels/job-stops.js) ---
+// --- the jobs' piles: bags at the kerb, held at with a key, the load said, the tailgate up as it is emptied (channels/job-stops.js) ---
 (function () {
-  const JS = ${safeJson(spec)}, JM = ${JSON.stringify(JOB_MOTION)};
-  ${jobEnv.toString()}
+  const JS = ${safeJson(spec)}, JM = ${JSON.stringify(JOB_MOTION)}, KEY = ${JSON.stringify(JOB_KEY.key)};
+  const MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
   // (a box shaded as the city's are, its light in its colours: top full, sides less, under least)
   function box(w, d, h, hex, o) {
     const g = new THREE.BoxGeometry(w, d, h), c = new THREE.Color(hex), col = [];
-    // (a box's faces in three's order: +x, -x, +y, -y, +z, -z; four corners each)
     for (let f = 0; f < 6; f++) { const k = f === 4 ? 1 : f === 5 ? 0.5 : f < 2 ? 0.78 : 0.86; for (let v = 0; v < 4; v++) col.push(c.r * k, c.g * k, c.b * k); }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    const m = new THREE.Mesh(g, MAT); if (o) m.position.set(o[0], o[1], o[2]); m.raycast = function () {}; return m;
+    const m = new THREE.Mesh(g, MAT); m.position.set(o[0], o[1], o[2]); m.raycast = function () {}; return m;
   }
-  const MAT = new THREE.MeshBasicMaterial({ vertexColors: true });
-  const now = () => performance.now() / 1000, lerp = (a, b, t) => a + (b - a) * t, ease = (t) => t * t * (3 - 2 * t), clamp = (t) => Math.max(0, Math.min(1, t));
-  const W = () => (window.__mojCtrl && window.__mojCtrl.world) || null;
-  // a wheelie bin: its body, its lid on a hinge at its back, its wheels at its back; its foot at its origin, its front -y
-  function wheelie(hex) {
-    const g = new THREE.Group();
-    g.add(box(0.58, 0.7, 0.92, hex, [0, 0, 0.5]));
-    const lid = new THREE.Group(); lid.position.set(0, 0.36, 0.97); lid.add(box(0.62, 0.76, 0.06, hex, [0, -0.36, 0.02])); g.add(lid);
-    for (const s of [-1, 1]) g.add(box(0.06, 0.18, 0.18, '#1d1f21', [s * 0.25, 0.3, 0.09]));
-    g.userData.lid = lid; scene.add(g); return g;
-  }
-  const BIN_HEX = ['#2f5a3a', '#2c4f74', '#5a5d60'];
-  // (where a bin rides the lifter, in the lifter's frame: its foot under the comb, its back to the truck)
-  const RIDE = [0, -0.68, -0.86];
-  const bins = [];
-  (JS.bins || []).forEach(function (S, si) {
-    S.stops.forEach(function (q, k) {
-      const b = wheelie(BIN_HEX[(si + k) % BIN_HEX.length]); b.position.set(q.at[0] + 0.9, q.at[1], q.at[2]);
-      const bags = [0, 1].map(function (j) { const m = box(0.42, 0.36, 0.44, '#24262a', [q.at[0] - 0.4 - j * 0.5, q.at[1] + 0.15 * j, q.at[2] + 0.22]); scene.add(m); return { m, home: m.position.clone() }; });
-      bins.push({ S, q, b, home: b.position.clone(), bags, was: 0, t0: null, cab: null, on: null });
-    });
-  });
-  const tipped = {};
-  // a passenger: legs, a body, arms, a head; their foot at their origin
+  // a heap of bags: a few, black and green, leaning together
+  const piles = [], stops = [];
+  // a person: legs, a body, arms, a head; their foot at their origin, their front +y
+  const SHIRTS = ['#a8452f', '#3b6ea5', '#7a8c3a', '#c9a227', '#6b4c8a', '#3a7a72'], SKIN = ['#e0b896', '#a8734f', '#6e4a33', '#c99a74'];
   function person(i) {
-    const g = new THREE.Group(), shirt = ['#a8452f', '#3b6ea5', '#7a8c3a', '#c9a227', '#6b4c8a'][i % 5], skin = ['#e0b896', '#a8734f', '#6e4a33'][i % 3];
+    const g = new THREE.Group(), shirt = SHIRTS[i % SHIRTS.length], skin = SKIN[(i * 7) % SKIN.length];
     for (const s of [-1, 1]) g.add(box(0.14, 0.16, 0.82, '#2d3138', [s * 0.1, 0, 0.41]));
     g.add(box(0.42, 0.24, 0.62, shirt, [0, 0, 1.13]));
     for (const s of [-1, 1]) g.add(box(0.1, 0.12, 0.58, shirt, [s * 0.27, 0, 1.12]));
     g.add(box(0.22, 0.24, 0.26, skin, [0, 0, 1.6]));
-    g.traverse(function (o) { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; } });
     scene.add(g); return g;
   }
-  const fade = (g, a) => g.traverse(function (o) { if (o.material) o.material.opacity = a; });
-  const fares = (JS.fares || []).map(function (F) { const p = person(F.seed); p.position.set(F.at[0], F.at[1], F.at[2]); return { F, p, state: 'wait', was: 0, t0: 0, to: null, from: null }; });
-  const parcels = [];
-  // (a door of the car: the cab's own 'stand', its driver's side, turned with it)
-  function door(e) {
-    const a = e.transform.heading - Math.PI / 2, c = Math.cos(a), s = Math.sin(a), st = (e.mount && e.mount.stand) || [-1.4, 0.25], p = e.transform.pos;
-    return [p[0] + st[0] * c - st[1] * s, p[1] + st[0] * s + st[1] * c, p[2]];
-  }
-  const v3 = new THREE.Vector3();
-  let logN = -1;
+  // a bus stop's sign: a post and its plate
+  function sign(at) { scene.add(box(0.08, 0.08, 2.6, '#5c6166', [at[0], at[1], at[2] + 1.3])); scene.add(box(0.5, 0.06, 0.5, '#2a6fb8', [at[0], at[1], at[2] + 2.45])); }
+  JS.jobs.filter(function (J) { return J.mode === 'route'; }).forEach(function (J) {
+    J.piles.forEach(function (q, k) {
+      // (its people along the walk beside the sign, a stride apart, facing the street)
+      const n = Math.hypot(q.N[0], q.N[1]) || 1, N = [q.N[0] / n, q.N[1] / n], A = [-N[1], N[0]], post = [q.at[0] + A[0] * 1.4, q.at[1] + A[1] * 1.4, q.at[2]];
+      sign(post);
+      const folk = []; for (let j = 0; j < q.riders; j++) { const p = person(k * 3 + j + J.id.length); const o = (j - (q.riders - 1) / 2) * 0.9 - 0.6; p.position.set(q.at[0] + A[0] * o - N[0] * 0.5, q.at[1] + A[1] * o - N[1] * 0.5, q.at[2]); p.rotation.z = Math.atan2(N[1], N[0]) - Math.PI / 2; folk.push({ p, home: p.position.clone(), face: p.rotation.z }); }
+      stops.push({ J, q, k, N, folk, was: 0, off: [], state: 'wait' });
+    });
+  });
+  JS.jobs.filter(function (J) { return J.mode === 'collect'; }).forEach(function (J) {
+    J.piles.forEach(function (q, k) {
+      const g = new THREE.Group(); g.position.set(q.at[0], q.at[1], q.at[2]);
+      [[0, 0, 0.5, 0.45, 0.5, '#1f2124'], [0.45, 0.15, 0.42, 0.4, 0.42, '#2a3a2a'], [-0.35, 0.2, 0.46, 0.42, 0.44, '#1f2124'], [0.1, -0.35, 0.4, 0.38, 0.38, '#26282c']].forEach(function (b, j) {
+        const m = box(b[2], b[3], b[4], b[5], [b[0], b[1], b[4] / 2]); m.rotation.z = (k * 1.7 + j) % 3 - 1; g.add(m);
+      });
+      scene.add(g); piles.push({ J, q, g, was: 0, t0: null });
+    });
+  });
+  // the key: its going down and coming up said to the bus, for every collecting job (held, not repeated)
+  const press = (t) => (window.__mojBus && window.__mojBus.press ? window.__mojBus.press(t) : typeof __inputQueue !== 'undefined' && __inputQueue.push({ type: t }));
+  let held = false;
+  addEventListener('keydown', function (ev) { if (ev.key.toLowerCase() !== KEY || ev.repeat || held || window.__mojMenuOpen || window.__mojManaOpen) return; held = true; for (const J of JS.jobs) press('shift:hold:' + J.id); });
+  addEventListener('keyup', function (ev) { if (ev.key.toLowerCase() !== KEY || !held) return; held = false; for (const J of JS.jobs) press('shift:let:' + J.id); });
+  addEventListener('blur', function () { if (held) { held = false; for (const J of JS.jobs) press('shift:let:' + J.id); } });
+  // the line on the screen, over the HUD's foot
+  const line = document.createElement('div');
+  line.style.cssText = 'position:absolute;left:50%;bottom:16%;transform:translateX(-50%);pointer-events:none;z-index:13;color:#fbf6e9;font:600 15px/1.3 system-ui,sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.9);text-align:center;display:none';
+  (typeof wrap !== 'undefined' && wrap ? wrap : document.body).appendChild(line);
+  let shown = '', logN = -1;
+  const tips = {}, ways = {};
   (function tick() {
     requestAnimationFrame(tick);
-    const w = W(), B = window.__mojBus && window.__mojBus.state; if (!w || !B) return;
-    const V = B.vars, t = now(), pilot = w.byId[w.pilotId];
-    // what the bus said since the last frame: a round paid (the tailgate up), a parcel handed in
+    const C = window.__mojCtrl && window.__mojCtrl.world, B = window.__mojBus && window.__mojBus.state; if (!C || !B) return;
+    const V = B.vars, t = performance.now() / 1000, pilot = C.byId[C.pilotId];
+    // a pile taken pops away; laid again, it is back
+    for (const x of piles) {
+      const on = Number(V[x.q.v]) >= 1;
+      if (on && !x.was) x.t0 = t;
+      if (!on && x.was) { x.t0 = null; x.g.visible = true; x.g.scale.setScalar(1); }
+      x.was = on ? 1 : 0;
+      if (x.t0 != null) { const k = Math.min(1, (t - x.t0) / 0.35); x.g.scale.setScalar(1 - k); x.g.position.z = x.q.at[2] + Math.sin(k * Math.PI) * 0.6; if (k >= 1) { x.g.visible = false; x.t0 = null; } }
+    }
+    // a stop made on the bus that made it: those waiting walk to its door and board; those from the stop before get off
+    // and walk away; the round begun again, they wait again
+    const door = (e) => { const a = e.transform.heading - Math.PI / 2, c = Math.cos(a), sn = Math.sin(a), st = (e.mount && e.mount.stand) || [-1.6, 0.25], p = e.transform.pos; return [p[0] + st[0] * c - st[1] * sn, p[1] + st[0] * sn + st[1] * c, p[2]]; };
+    const walkTo = (p, to, dt) => { const dx = to[0] - p.position.x, dy = to[1] - p.position.y, d = Math.hypot(dx, dy), st = Math.min(d, 1.6 * dt); if (d > 0.01) { p.position.x += (dx / d) * st; p.position.y += (dy / d) * st; p.rotation.z = Math.atan2(dy, dx) - Math.PI / 2; } p.position.z = to[2] + Math.abs(Math.sin(t * 9)) * 0.04; return d; };
+    const dt = Math.min(0.1, t - (window.__mojJobT || t)); window.__mojJobT = t;
+    // (what the bus said since the last frame, every event kept: a stop made, a round paid; a stop's flag set and laid
+    // again in one tick, the last of a standing route's, is seen here and not in its var)
     const log = B.log || [];
     if (logN < 0 || log.length < logN) logN = logN < 0 ? log.length : 0;
     for (let i = logN; i < log.length; i++) {
       const ty = log[i] && log[i].type; if (!ty) continue;
-      for (const S of JS.bins || []) if (ty === S.done && pilot && S.cabs.indexOf(pilot.id) >= 0) { pilot.tipAt = t; tipped[S.id] = (tipped[S.id] || 0) + 1; }
-      for (const P of JS.parcels || []) if (ty === P.on && pilot) { const m = box(0.42, 0.32, 0.3, '#b98a55', null); const f = pilot.transform.pos; m.position.set(f[0], f[1], f[2] + 1.2); scene.add(m); parcels.push({ m, from: [f[0], f[1], f[2] + 1.2], to: [P.at[0], P.at[1], P.at[2] + 0.6], t0: t }); }
+      for (const x of stops) if (ty === 'flag:' + x.q.v.slice(5)) x.made = true;
+      for (const J of JS.jobs) if (ty === J.done && pilot && J.cabs.indexOf(pilot.id) >= 0) { if (J.mode === 'collect') pilot.tipAt = t; else ways[J.id] = t + 5; tips[J.id] = (tips[J.id] || 0) + 1; }
     }
     logN = log.length;
-    // THE BINS: a stop made starts its bin's moment on the truck that made it
-    for (const x of bins) {
-      const on = Number(V[x.q.v]) >= 1;
-      if (on && !x.was && pilot && x.S.cabs.indexOf(pilot.id) >= 0) { x.t0 = t; x.cab = pilot; pilot.liftAt = t; x.parts = window.__mojCabParts ? window.__mojCabParts(pilot.id) : null; }
-      // (a standing round's stops filled again as it is paid: the bags back at the kerb)
-      if (!on && x.was) for (const g of x.bags) { g.m.visible = true; g.m.position.copy(g.home); }
-      x.was = on ? 1 : 0;
-      if (x.t0 == null) continue;
-      const u = (t - x.t0) / JM.lift.s, L = JM.lift, b = x.b, lift = x.parts && x.parts.lift;
-      // the bags: tossed into the hopper as the truck pulls up, one after the other
-      x.bags.forEach(function (g, j) {
-        const k = clamp((u - j * 0.06) / 0.18); if (!g.m.visible) return;
-        const to = lift ? lift.localToWorld(v3.set(0, 0.6, 0.9)).clone() : g.home.clone().setZ(g.home.z + 1.5);
-        g.m.position.set(lerp(g.home.x, to.x, k), lerp(g.home.y, to.y, k), lerp(g.home.z, to.z, k) + Math.sin(k * Math.PI) * 1.4);
-        g.m.rotation.x = k * 4; if (k >= 1) g.m.visible = false;
-      });
-      if (!lift) {
-        // (a truck that does not move its parts: the bin tipped where it stands, its lid open)
-        const e = jobEnv(u, L.up, L.down); b.rotation.x = -1.6 * e; b.userData.lid.rotation.x = 1.4 * e;
-        if (u >= 1) { b.rotation.x = 0; b.userData.lid.rotation.x = 0; x.t0 = null; }
-        continue;
+    for (const x of stops) {
+      const on = !!x.made; x.made = false;
+      if (on && pilot && x.J.cabs.indexOf(pilot.id) >= 0) {
+        x.bus = pilot; x.state = 'board';
+        // (those who boarded at the stop before get off here)
+        const before = stops.find((y) => y.J === x.J && y.k === x.k - 1);
+        if (before) { const d = door(pilot); x.off = before.folk.map(function (f, j) { const p = person(before.k * 3 + j + x.J.id.length); p.position.set(d[0], d[1], d[2]); return { p, to: [d[0] + x.N[0] * 6 + (j - 1) * 1.2, d[1] + x.N[1] * 6, d[2]], t0: t }; }); }
       }
-      if (u < L.up[0]) {
-        // rolled from its kerb to the lifter's comb, turned to the truck's back
-        if (b.parent !== scene) scene.attach(b);
-        const k = ease(clamp(u / L.up[0])), to = lift.localToWorld(v3.set(RIDE[0], RIDE[1], RIDE[2])).clone(), hd = x.cab.transform.heading - Math.PI / 2;
-        b.position.set(lerp(x.home.x, to.x, k), lerp(x.home.y, to.y, k), lerp(x.home.z, to.z, k)); b.rotation.set(0, 0, lerp(0, hd, k)); b.rotation.x = -L.roll * Math.sin(k * Math.PI);
-      } else if (u < L.down[1]) {
-        // on the lifter: up the tailgate and over, its lid falling open as it turns
-        if (b.parent !== lift) { lift.add(b); b.position.set(RIDE[0], RIDE[1], RIDE[2]); b.rotation.set(0, 0, 0); }
-        b.userData.lid.rotation.x = 2.2 * jobEnv(u, L.up, L.down);
-      } else if (u < 1) {
-        // set down and rolled back to its kerb
-        if (b.parent !== scene) { scene.attach(b); x.from = b.position.clone(); x.hd = b.rotation.z; b.userData.lid.rotation.x = 0; }
-        const k = ease(clamp((u - L.down[1]) / (1 - L.down[1])));
-        b.position.set(lerp(x.from.x, x.home.x, k), lerp(x.from.y, x.home.y, k), lerp(x.from.z, x.home.z, k)); b.rotation.set(-L.roll * Math.sin(k * Math.PI), 0, lerp(x.hd, 0, k));
-      } else { if (b.parent !== scene) scene.attach(b); b.position.copy(x.home); b.rotation.set(0, 0, 0); x.t0 = null; }
+      // (the round paid and begun again: a few seconds on, every stop's people waiting again)
+      if (ways[x.J.id] != null && t >= ways[x.J.id] && x.state !== 'wait') { x.state = 'wait'; for (const f of x.folk) { f.p.visible = true; f.p.position.copy(f.home); f.p.rotation.z = f.face; } }
+      if (x.state === 'board') {
+        const d = door(x.bus); let left = 0;
+        for (const f of x.folk) { if (!f.p.visible) continue; left++; if (walkTo(f.p, d, dt) < 0.4) f.p.visible = false; }
+        if (!left) x.state = 'aboard';
+      }
+      for (let i = x.off.length - 1; i >= 0; i--) { const o = x.off[i]; if (walkTo(o.p, o.to, dt) < 0.3 || t - o.t0 > 8) { scene.remove(o.p); x.off.splice(i, 1); } }
     }
-    // THE FARES: waiting, walked to the car and in; out at the door and away; another waiting
-    for (const f of fares) {
-      const n = Number(V[f.F.held]) || 0, p = f.p;
-      if (n >= 1 && f.was < 1 && pilot && pilot.mount && pilot.mount.cab) { f.state = 'in'; f.t0 = t; f.car = pilot; }
-      if (n < 1 && f.was >= 1 && f.car) { f.state = 'out'; f.t0 = t; const d = door(f.car); p.position.set(d[0], d[1], d[2]); f.from = d; const a = f.car.transform.heading + Math.PI / 2; f.to = [d[0] + Math.cos(a) * 5, d[1] + Math.sin(a) * 5, d[2]]; fade(p, 1); p.visible = true; }
-      f.was = n;
-      const walk = function (to) { const dx = to[0] - p.position.x, dy = to[1] - p.position.y, d = Math.hypot(dx, dy), st = Math.min(d, JM.fare.walk / 60); if (d > 0.01) { p.position.x += (dx / d) * st; p.position.y += (dy / d) * st; p.rotation.z = Math.atan2(dy, dx) - Math.PI / 2; } p.position.z = to[2] + Math.abs(Math.sin(t * 9)) * 0.05; return d; };
-      if (f.state === 'in') {
-        const d = walk(door(f.car)), k = clamp((t - f.t0 - 2.5) / JM.fare.fade);
-        if (d < 0.35 || k > 0) { fade(p, 1 - clamp(k + (d < 0.35 ? 0.5 : 0))); if (k >= 1 || d < 0.35) { p.visible = false; f.state = 'riding'; } }
-      } else if (f.state === 'out') {
-        const d = walk(f.to);
-        if (d < 0.3) { fade(p, 1 - clamp((t - f.t0 - 3) / JM.fare.fade)); if (t - f.t0 > 3 + JM.fare.fade) { f.state = 'gone'; f.t0 = t; p.visible = false; } }
-        else if (t - f.t0 > 6) { f.state = 'gone'; f.t0 = t; p.visible = false; }
-      } else if (f.state === 'gone' && t - f.t0 > 2.5) { p.position.set(f.F.at[0], f.F.at[1], f.F.at[2]); p.rotation.z = 0; fade(p, 1); p.visible = true; f.state = 'wait'; }
-      else if (f.state === 'wait') p.position.z = f.F.at[2];
+    for (const id in ways) if (t >= ways[id]) delete ways[id];
+    // the line: on the clock and in the truck, what it holds; at a pile, the key and the hold
+    let h = '';
+    for (const J of JS.jobs) {
+      if (!(V[J.vars.on] >= 1) || !(V[J.vars.in] >= 1)) continue;
+      const load = Number(V[J.vars.load]) || 0, prog = Number(V[J.vars.prog]) || 0, at = Number(V[J.vars.at]) || 0;
+      const bar = (u) => '<span style="display:inline-block;width:120px;height:7px;margin:0 8px;border-radius:4px;background:rgba(255,255,255,.25);vertical-align:middle"><span style="display:block;height:100%;width:' + Math.round(Math.min(1, u) * 100) + '%;border-radius:4px;background:#f2c75c"></span></span>';
+      const held = at >= 1 ? ' · hold <b>' + J.key + '</b>' + bar(prog / J.ticks) : '';
+      if (J.mode === 'route') {
+        // (the next stop, and who rode from the last one made)
+        const next = Math.min(J.piles.length, Number(V[J.vars.next]) || 1), made = J.piles.filter((q) => Number(V[q.v]) >= 1), aboard = made.length ? made[made.length - 1].riders : 0;
+        h = 'Stop ' + next + ' / ' + J.piles.length + ' · riders ' + aboard + (at >= 1 ? ' · hold <b>' + J.key + '</b> to open the doors' + bar(prog / J.ticks) : '');
+      } else h = 'Load ' + load + ' / ' + J.load + (load >= J.load ? ' · full: take it to ' + J.where : held);
     }
-    // THE PARCELS: an arc to the door, taken there
-    for (let i = parcels.length - 1; i >= 0; i--) {
-      const q = parcels[i], k = clamp((t - q.t0) / JM.parcel.s);
-      q.m.position.set(lerp(q.from[0], q.to[0], k), lerp(q.from[1], q.to[1], k), lerp(q.from[2], q.to[2], k) + Math.sin(k * Math.PI) * JM.parcel.h);
-      q.m.rotation.z = k * 3; if (k >= 1) { const s = Math.max(0, 1 - (t - q.t0 - JM.parcel.s) / 0.25); q.m.scale.setScalar(s); if (s <= 0) { scene.remove(q.m); parcels.splice(i, 1); } }
-    }
-    window.__mojJobStops = { bins: bins.length, lifting: bins.filter((x) => x.t0 != null).length, fares: fares.map((f) => f.state), parcels: parcels.length, tipped: tipped };
+    if (h !== shown) { shown = h; line.innerHTML = h; line.style.display = h ? 'block' : 'none'; }
+    window.__mojJobStops = { piles: piles.filter((x) => x.g.visible).length, of: piles.length, stops: stops.map((x) => x.state), waiting: stops.reduce((a, x) => a + x.folk.filter((f) => f.p.visible).length, 0), off: stops.reduce((a, x) => a + x.off.length, 0), held: held, line: shown.replace(/<[^>]+>/g, ''), tipped: tips, motion: JM.tip.s };
   })();
 })();
 `;

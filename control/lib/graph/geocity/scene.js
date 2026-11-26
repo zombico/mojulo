@@ -101,6 +101,9 @@ import { makeSunShadow } from '../era/sun.js';
 import { readHour } from '../era/geocube-hours.js';
 import { unlift } from '../matte-paint/detail.js';
 
+// A DUMP's figures (m) and colours: its hall's width and depth at most, inset from the lot's edges with an apron before it,
+// its walls' thickness, its clear height and its roof's depth; corrugated walls, a dark roof, a concrete apron
+export const DUMP = Object.freeze({ lot: 40, width: 46, depth: 30, inset: 4, apronDepth: 14, wall: 0.4, height: 7.5, roofDepth: 0.6, walls: '#8d9398', roof: '#55595e', apron: '#a7a59f' });
 export const GEOCITY_KEYS = Object.freeze(['kind', 'cube', 'show', 'title', 'seed', 'hour', 'clouds', 'geocity', 'walk', 'shadows', 'occlusion', 'light', 'cone', 'air', 'sea', 'level', 'game',
   // (what plays in it: the world reads these, worlds/world-scene.js; a city with nobody in it reads none)
   'entities', 'camera', 'pilot', 'play', 'destruction', 'matter', 'scars', 'wind',
@@ -800,6 +803,17 @@ export function assembleGeocityScene(m, ctx = {}) {
   const parkBack = (Fr, cs, key) => cs.forEach((c, k) => { const [x, y] = Fr.xy(c.u, c.v); vehicleAt('civilian', x, y, c.z, c.along === 'u' ? Fr.ex : Fr.ey, `back:${key}:${k}`); });
   // (each block's terraces, read again by what is walked into: geocity/podium.js)
   const zOf = new Map();
+  // THE DUMP (`dump: true`, metro.js): of the car parks drawn near the eye, the one farthest from its works yard (from its
+  // middle, where it keeps none), at least DUMP.lot on each side; null where it asks none or has none (a job unloads at
+  // its depot then). Told to a level that asks, `ctx.dumpAt`
+  const dumpId = (() => {
+    if (d.spec.dump !== true) return null;
+    const mid = (b) => [(b.rect[0] + b.rect[2]) / 2, (b.rect[1] + b.rect[3]) / 2], all = d.regions.flatMap((r) => (r.geotown || r.park || (massed && !massed.has(r.id)) ? [] : r.blocks ?? []));
+    const works = d.regions.flatMap((r) => r.blocks ?? []).find((b) => d.yards?.[b.id] === 'works'), from = works ? mid(works) : [(d.land.rect[0] + d.land.rect[2]) / 2, (d.land.rect[1] + d.land.rect[3]) / 2];
+    const ok = all.filter((b) => b.kind === 'parking' && (d.yards?.[b.id] ?? 'lot') === 'lot' && b.rect[2] - b.rect[0] >= DUMP.lot && b.rect[3] - b.rect[1] >= DUMP.lot);
+    const far = (b) => Math.hypot(mid(b)[0] - from[0], mid(b)[1] - from[1]);
+    return ok.reduce((m, b) => (!m || far(b) > far(m) + 1e-9 || (Math.abs(far(b) - far(m)) <= 1e-9 && b.id < m.id) ? b : m), null)?.id ?? null;
+  })();
   for (const r of d.regions) {
     if (r.geotown) { town(r, massed && !massed.has(r.id)); continue; }
     if (massed && !massed.has(r.id)) { backdrop(r); continue; }
@@ -1297,11 +1311,14 @@ export function assembleGeocityScene(m, ctx = {}) {
       box(q[0], q[1], q[2], q[3], zc, z1, ston, roofs[strHash(b.id) % roofs.length], 'geocity:slab');
       lights(q[0], q[1], q[2], q[3], zc, z1, resid, Rb);
       frontOf(b, q, zc, med, resid, 'residential');
-    } else if (b.kind === 'construction') going(b, { x0, y0, x1, y1, longY, zAt, Rb, far });
+    } else if (b.kind === 'construction') { going(b, { x0, y0, x1, y1, longY, zAt, Rb, far }); if (Array.isArray(ctx.lots) && !far) ctx.lots.push({ id: b.id, kind: 'construction', rect: [r5(x0), r5(y0), r5(x1), r5(y1)], z: r5(zAt(cx, cy)) }); }
     else if (b.kind === 'parking') parked(b, { x0, y0, x1, y1, longY, zAt, Rb });
     // (a vacant block by its neighbourhood's sites its contractor's yard, fleets.js: their machines staged on it)
     else if (b.kind === 'vacant' && d.yards?.[b.id]) { fenced(b, { x0, y0, x1, y1 }, zAt, 'fence'); yardOf(b, d.yards[b.id], { x0, y0, x1, y1, longY, zAt }); }
+    // (a level that asks, `ctx.lots`, is told its empty lots and its building sites near the eye: where a job may send
+    // a load, gameworld/jobsified.js; nothing drawn by it)
     else if (b.kind === 'vacant') {
+      if (Array.isArray(ctx.lots) && !far) ctx.lots.push({ id: b.id, kind: 'vacant', rect: [r5(x0), r5(y0), r5(x1), r5(y1)], z: r5(zAt(cx, cy)), open: openSideOf(b) });
       fenced(b, { x0, y0, x1, y1 }, zAt, 'fence');
       // (its young trees, seeded where they fell, backs.js)
       if (BACKS_ON && !far) { const Fr = backFrame([x0, y0], null); growBack(Fr, volunteers([0, 0, x1 - x0, y1 - y0], { zAt: (u, v) => zAt(...Fr.xy(u, v)), R: streamOf(seed, 'backs', b.id) }).trees, b.id, 'low', true); }
@@ -1310,6 +1327,28 @@ export function assembleGeocityScene(m, ctx = {}) {
     else if (b.kind === 'cemetery') cemetery(b, { x0, y0, x1, y1, zAt, far });
     else if (INDUSTRY_SEGMENTS.includes(b.kind)) industrial(b, { zAt, Rb, far });
     else outskirts(b, { x0, y0, x1, y1, longY, zAt, Rb, steps });
+  }
+
+  /** The side of a block its street runs along (a street's before an arterial's), or null. */
+  function openSideOf(b) { for (const want of ['street', 'arterial']) for (const k of ['s', 'n', 'w', 'e']) if (b.sides?.[k]?.kind === want) return k; return null; }
+  /** A DUMP on an empty lot (a driving job's, gameworld/jobsified.js DUMP): a concrete apron over the lot and, at its
+   *  back, a tipping hall of corrugated walls under a flat roof, open across its front to the lot's street, a truck's
+   *  height and more clear under it; its walls and roof held as any building's. */
+  function dumpOf(b, { x0, y0, x1, y1, zAt }) {
+    const D = DUMP, z = zAt((x0 + x1) / 2, (y0 + y1) / 2), side = openSideOf(b) ?? 's';
+    put([[x0, y0, z + 0.03], [x1, y0, z + 0.03], [x1, y1, z + 0.03], [x0, y1, z + 0.03]], 'geocity:lot', D.apron);
+    // (the hall's box in the lot's frame: across its width, from its back toward the street, its depth)
+    const along = side === 's' || side === 'n', w = (along ? x1 - x0 : y1 - y0) - 2 * D.inset, d = Math.min(D.depth, (along ? y1 - y0 : x1 - x0) - 2 * D.inset - D.apronDepth);
+    if (w < 12 || d < 10) return;
+    const hw = Math.min(w, D.width) / 2, c = along ? (x0 + x1) / 2 : (y0 + y1) / 2, back = { s: y1 - D.inset, n: y0 + D.inset, w: x1 - D.inset, e: x0 + D.inset }[side], front = side === 's' || side === 'w' ? back - d : back + d;
+    const R = (a0, a1, t0, t1) => (along ? [Math.min(a0, a1), Math.min(t0, t1), Math.max(a0, a1), Math.max(t0, t1)] : [Math.min(t0, t1), Math.min(a0, a1), Math.max(t0, t1), Math.max(a0, a1)]);
+    const zt = z + D.height, T = D.wall;
+    for (const q of [R(c - hw, c + hw, back, back + (front > back ? T : -T)), R(c - hw, c - hw + T, back, front), R(c + hw - T, c + hw, back, front)]) box(q[0], q[1], q[2], q[3], z, zt, D.walls, D.roof, 'geocity:dump');
+    const r = R(c - hw, c + hw, back, front);
+    box(r[0], r[1], r[2], r[3], zt, zt + D.roofDepth, D.walls, D.roof, 'geocity:dump');
+    counts.dumps = (counts.dumps ?? 0) + 1;
+    // (told to a level that asks: the hall's mouth, the apron before it, where a truck backs in; its box)
+    if (Array.isArray(ctx.dumpAt)) ctx.dumpAt.push({ id: b.id, at: P3([along ? c : (back + front) / 2, along ? (back + front) / 2 : c, z]), half: [r5((along ? 2 * hw : d) / 2), r5((along ? d : 2 * hw) / 2)] });
   }
 
   /** A building going up (segments.js `construction`): its columns and floor slabs risen to its `progress` of the
@@ -1540,6 +1579,7 @@ export function assembleGeocityScene(m, ctx = {}) {
     // (a parking block given to a role, design.js `yards`: its yard; else a car park)
     const yard = d.yards?.[b.id] ?? 'lot';
     if (yard !== 'lot') { yardOf(b, yard, { x0, y0, x1, y1, longY, zAt }); return; }
+    if (b.id === dumpId) { dumpOf(b, { x0, y0, x1, y1, zAt }); return; }
     // (bollards along its streets, gaps for its way in at each side's middle)
     bordered(b, { x0, y0, x1, y1 }, zAt, { posts: true, inset: 0.6, gates: { s: [(x0 + x1) / 2], n: [(x0 + x1) / 2], w: [(y0 + y1) / 2], e: [(y0 + y1) / 2] } });
     // (a cell tower in a corner of some, rooftop.js)

@@ -25,6 +25,8 @@ export const CITY_GUIDE = Object.freeze({
     Object.freeze({ keys: 'W  drive · S  brake · A D  steer' }),
   ]),
   open: 'The city is open: take any car',
+  // the key a driving job's pile is held at (scene/channels/job-stops.js)
+  hold: 'F',
 });
 
 const words = (item) => String(item).replace(/-/g, ' ');
@@ -79,17 +81,35 @@ export function jobsOf(mechanics) {
     if (Tk) { const first = steps.find((x) => x.at); steps[0].at = first ? first.at.slice() : at3(J.at); }
     out.push({ id, name: `${words(id)[0].toUpperCase()}${words(id).slice(1)}`, repeat: J.repeat === true, steps, ...(O ? { starts: O.flag } : Cl ? { starts: Cl.flag, called: true } : Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}), ...(who ? { contact: who } : {}) });
   }
-  // (a DRIVING JOB, lowerShift (jobsified.js): taken on its app, then into one of the depot's vehicles, round its stops
-  // in it and back. Each step waits on its own flag (`when`), since being at a place on foot is not doing it; a standing
-  // shift's way back is reached by coming to the depot, its stops' flags open again as it is paid)
+  // (a DRIVING JOB, lowerShift (jobsified.js), by its mode: taken on its app, then into its vehicle, then its work in
+  // it. Each step waits on its own flag (`when`), since being at a place on foot is not doing it, but a standing job's
+  // last, reached by coming to it (its flags open again as it is paid). `loop`: the step a standing one goes round from)
   for (const Sh of M.filter((m) => m && m.kind === 'shift' && Array.isArray(m.depot))) {
-    const Tk = M.find((m) => m && m.kind === 'task' && m.id === Sh.id), depot = at3(Sh.depot), r = Sh.radius ?? 9, cap = (w) => `${w[0].toUpperCase()}${w.slice(1)}`;
+    const Tk = M.find((m) => m && m.kind === 'task' && m.id === Sh.id), depot = at3(Sh.depot), r = Sh.radius ?? 9, cap = (w) => `${w[0].toUpperCase()}${w.slice(1)}`, mode = Sh.mode ?? 'route';
     const yard = Sh.yard ?? 'depot', vehicle = Sh.vehicle ?? 'vehicle', paid = (Sh.reward ?? []).map((x) => `${x.n ?? 1} ${words(x.item)}`).join(', '), steps = [];
+    const reach = (Z) => (Array.isArray(Z.half) ? Math.max(...Z.half) : Z.radius ?? 7);
+    const last = (x) => ({ ...x, ...(Sh.repeat ? {} : { when: `flag-done-${Sh.id}` }), ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
     if (Tk) steps.push({ id: `app-${Tk.id}`, say: `Take the ${words(Sh.name ?? Sh.id).toLowerCase()} on ${Tk.name ?? appName(Tk.app)} · P`, at: depot, radius: 0, when: `flag-${Tk.flag}`, take: true });
-    steps.push({ id: `clock-${Sh.id}`, say: `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` });
-    Sh.stops.forEach((q, k) => steps.push({ id: `stop-${Sh.id}-${k + 1}`, say: `${Sh.stop ?? 'Make the stop'}${q.place ? ` at the ${shop(q.place)}` : ''}`, at: at3(q.at), radius: q.radius ?? 7, when: `flag-stop-${Sh.id}-${k + 1}`, flag: `stop-${Sh.id}-${k + 1}` }));
-    steps.push({ id: `back-${Sh.id}`, say: `Bring the ${vehicle} back to the ${yard}`, at: depot, radius: r, ...(Sh.repeat ? {} : { when: `flag-done-${Sh.id}` }), ...(paid ? { says: `Paid ${paid}` } : {}), flag: `done-${Sh.id}` });
-    out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
+    // (an issued vehicle, `back` its spot: taken where it stands; a depot's own: got into at the yard)
+    const clock = { id: `clock-${Sh.id}`, say: Sh.back ? `Take the ${vehicle}${Sh.place ? ` outside the ${shop(Sh.place)}` : ''}${Sh.yard ? ` by the ${yard}` : ''}` : `Get in a ${vehicle} at the ${yard}`, at: depot, radius: r, when: `flag-on-${Sh.id}`, flag: `on-${Sh.id}` };
+    steps.push(clock);
+    let loop = steps.length;
+    if (mode === 'route') {
+      // (its stops in order, each held at; the last pays, so it is the job's last step)
+      const N = Sh.stops.length, say = (q) => `${Sh.stop ?? 'Make the stop'}${q.place ? ` by the ${shop(q.place)}` : ''} · hold ${CITY_GUIDE.hold}`;
+      Sh.stops.slice(0, -1).forEach((q, k) => steps.push({ id: `stop-${Sh.id}-${k + 1}`, say: say(q), at: at3(q.at), radius: q.radius ?? 7, when: `flag-stop-${Sh.id}-${k + 1}`, flag: `stop-${Sh.id}-${k + 1}` }));
+      const q = Sh.stops[N - 1];
+      steps.push(last({ id: `stop-${Sh.id}-${N}`, say: say(q), at: at3(q.at), radius: q.radius ?? 7 }));
+    } else if (mode === 'collect') {
+      // (the piles: the way to the nearest not yet taken, `near`; done when the vehicle is full)
+      steps.push({ id: `collect-${Sh.id}`, say: `${Sh.stop ?? 'Collect'} · hold ${CITY_GUIDE.hold}`, at: at3(Sh.stops[0].at), radius: 0, near: Sh.stops.map((q, k) => ({ at: at3(q.at), v: `flag-stop-${Sh.id}-${k + 1}` })), when: `flag-full-${Sh.id}`, flag: `full-${Sh.id}` });
+      const U = Sh.unload ?? { at: Sh.depot, radius: r };
+      steps.push(last({ id: `unload-${Sh.id}`, say: `Take the full ${vehicle} to ${Sh.unload ? 'the dump' : `the ${yard}`}`, at: at3(U.at), radius: reach(U) }));
+    } else {
+      loop = steps.length - 1;
+      steps.push(last({ id: `haul-${Sh.id}`, say: `Drive the ${vehicle} to the ${Sh.site.to ?? (Sh.site.place ? shop(Sh.site.place) : 'job')}`, at: at3(Sh.site.at), radius: reach(Sh.site) }));
+    }
+    out.push({ id: Sh.id, name: Sh.name ?? cap(words(Sh.id)), repeat: Sh.repeat === true, steps, shift: true, loop, ...(Tk ? { starts: Tk.flag, app: Tk.app, ...(Tk.apps ? { apps: Tk.apps } : {}), ...(Tk.tags ? { tags: Tk.tags } : {}) } : {}) });
   }
   // (a faction's POSTINGS, lowerAct: each one step, an act done somewhere in a zone; taken on the phone, on its board)
   for (const A of M.filter((m) => m && m.kind === 'act' && Array.isArray(m.at))) out.push({ id: A.id, name: A.title ?? `${words(A.id)[0].toUpperCase()}${words(A.id).slice(1)}`, repeat: false, faction: A.faction, starts: A.flag,
@@ -121,9 +141,9 @@ export function cityGuide(manifest) {
     // after the taking; a standing one goes back to its first stop after its way back)
     if (J.shift) {
       const at = steps.length + (J.steps[0]?.take ? 1 : 0);
-      if (J.starts) rounds.push({ when: `flag-${J.starts}`, at, ...(J.repeat ? { from: at + 1, end: steps.length + J.steps.length } : {}) });
+      if (J.starts) rounds.push({ when: `flag-${J.starts}`, at, ...(J.repeat ? { from: steps.length + J.loop, end: steps.length + J.steps.length } : {}) });
     } else if (J.repeat && loop === null) loop = steps.length + (J.steps[0]?.take ? 1 : 0);   // (a standing job goes round again from its pick-up: it is taken once)
-    for (const { flag: _flag, take: _take, shift: _shift, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
+    for (const { flag: _flag, take: _take, ...x } of J.steps) steps.push({ ...x, kind: 'find' });
   }
   const job = jobs.some((J) => !J.faction);
   return {

@@ -19,7 +19,9 @@ import { safeJson } from '../emit-util.js';
 // one whose step is reached by being in a car (a step's `cab`), one waited on (a step's `when`: a bus var set, a task taken on the phone), and one with its own last word (`done`, in place of "the way on lies past this place": an open city's) say so; a guide
 // with none of them is as it was, byte for byte. A guide with ROUNDS (`rounds`: [{ when, at, from?, end? }], a driving
 // job's, gameworld/city-guide.js) goes to a job's own steps (`at`) the moment it is taken on the phone (`when` rises),
-// wherever it stood, and a standing round goes back to its `from` after its last step (`end`, the step past it); none, no byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
+// wherever it stood, and a standing round goes back to its `from` after its last step (`end`, the step past it); none, no byte.
+// A step of MANY PLACES (`near`: [{ at, v }], a garbage round's piles) points the way to the nearest whose var is not yet
+// set, its light moved with it; none, no byte. `host` (a page whose guide is drawn by mana-ui, guide-mana.js): this
 // line stays down for that host as it does for the HUD grammar; unasked, not a byte.
 export function guideScript(guide, { host = false } = {}) {
   return `
@@ -90,7 +92,9 @@ export function guideScript(guide, { host = false } = {}) {
       const BV = window.__mojBus && window.__mojBus.state.vars;
       if (BV) for (const R of GD.rounds) { const on = BV[R.when] >= 1; if (on && !R.was && k !== R.at) { k = R.at; plant(); } R.was = on; }` : ''}
       const p = (W.pilotId && W.byId[W.pilotId]) || W.entities.find((e) => e.pilotable), s = GD.steps[k];
-      let dx = 0, dy = 0, d = Infinity, near = false;
+${guide.steps.some((x) => x && x.near) ? `      // (a step of many places, its 'near': the way to the nearest not yet done, its light moved there)
+      if (s && s.near && p && window.__mojBus) { const NV = window.__mojBus.state.vars, pp = p.transform.pos; let nb = null, nd = Infinity; for (const q of s.near) { if (NV[q.v] >= 1) continue; const dd = Math.hypot(q.at[0] - pp[0], q.at[1] - pp[1]); if (dd < nd) { nd = dd; nb = q; } } if (nb && nb.at !== s.at) { s.at = nb.at; plant(); } }
+` : ''}      let dx = 0, dy = 0, d = Infinity, near = false;
       if (p && s) {
         dx = s.at[0] - p.transform.pos[0]; dy = s.at[1] - p.transform.pos[1]; d = Math.hypot(dx, dy);
         near = s.fight ? W.entities.some((e) => standing(e) && Math.hypot(e.transform.pos[0] - s.at[0], e.transform.pos[1] - s.at[1]) < s.radius) : false;

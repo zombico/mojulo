@@ -4,55 +4,93 @@
  * YARDS), gets into one there, drives its route (its STOPS, each reached in the vehicle) and brings it back to the depot,
  * where it is paid. A standing shift (`repeat`) is driven again for more pay.
  *
- * A shift is an errand with `vehicle` (gameworld/errand.js): the word is a row of SHIFTS, the fleet role whose vehicle it
- * is done in. The row says the rest: the yard that keeps it, what the vehicle is called, what is had at a stop, how many
- * stops a round has, what a stop says. A new kind of driving job is a row (its role a fleet's with a yard that keeps it
- * and a body a hero can get into: no roof extra yet, geocity/fleets.js `extra`).
+ * A shift is an errand with `vehicle` (gameworld/errand.js): the word is a row of SHIFTS, and the row says the rest. Its
+ * MODE is how it is worked:
+ *   collect  a round of piles (a garbage truck's): got into at its depot, driven to a pile and held at (a key held,
+ *            `hold` seconds) to take it on, `load` of them filling the truck; full, it is driven to the district's
+ *            DUMP (geocity `dump`, a tipping hall on a car park) and emptied there, which pays. A district with no dump
+ *            unloads at the depot. Taken piles are laid again once every one is taken (the city makes more)
+ *   route    a round of stops in order (a bus's): at the next stop, held at (`hold` seconds, the doors open) the people
+ *            waiting there board and those who boarded at the stop before get off; the last stop pays, and the round
+ *            begins again
+ *   haul     a heavy vehicle driven to a job (a general heavy driver's): one is ISSUED at the kerb by the yard (one of
+ *            the `fleet`'s models, stood there for the job: issuedOf), got into and driven across the district to a
+ *            building site (a construction lot near the eye, else a far place), which pays; left there, it is taken
+ *            back to the yard for the next
+ * Its vehicle is either the depot's own (a collect's garbage trucks, a fleet role its yard keeps whose body a hero can get
+ * into: no roof extra yet, geocity/fleets.js `extra`) or ISSUED (a row with a `fleet`: a haul's truck, a route's bus,
+ * stood at the kerb by its yard, or by the start where the district keeps no such yard). A new kind of driving job is a
+ * row.
  *
  *   JOBSIFIED          the app's id (phone-ui.js: a shift's app unless it names its own)
- *   SHIFTS             { <role>: { name, yard, vehicle, item, stops, stop, done } }
+ *   SHIFT_MODES        collect | route | haul
+ *   SHIFTS             { <word>: { name, mode, yard, vehicle, item, stops, stop?, done, load?, hold?, fleet?, to?, riders? } }
  *   YARD_NAMES         a yard as people call it (the works yard, the bus depot)
  *   SHIFT              the laying's numbers: how far a stop is driven from the one before, how far apart, the depot's reach
- *   shiftOf(role)      → the row, or throws (teaching)
- *   shiftWords(row, place?) → { clock, stop, back }: the guide's lines for its steps
- *   shiftRoles(errands, level) → the fleet roles a level's shifts are driven in (its depots' vehicles made cabs:
- *                      gameworld/cars.js levelCars `roles`)
+ *   shiftOf(word)      → the row, or throws (teaching)
+ *   shiftRoles(errands, level) → the fleet roles a level's shifts are driven in from their depots (its depots'
+ *                      vehicles made cabs: gameworld/cars.js levelCars `roles`)
+ *   issuedOf(ends, errands, level) → [{ id, at, heading, model, paint, word, place }]: the vehicles a level's shifts
+ *                      issue, each at the kerb by its yard (gameworld/cars.js levelCars `issue`)
  *
  * Pure.
  */
-import { YARDS } from '../geocity/fleets.js';
+import { YARDS, fleetOf } from '../geocity/fleets.js';
 
 export const JOBSIFIED = 'jobsified';
+export const SHIFT_MODES = Object.freeze(['collect', 'route', 'haul']);
 
 export const YARD_NAMES = Object.freeze({ works: 'works yard', depot: 'bus depot', emergency: 'emergency station', contractor: 'contractor\'s yard', lot: 'car park' });
 
-// a fleet role's driving job: the yard that keeps its vehicles, the vehicle as it is called, what is had at each stop (an
-// item word: the round's), how many stops a round has (an errand's list count says its own), and the stop's verb
+// each driving job: its mode, the yard it starts from, the vehicle as it is called, what is had at a stop (an item word:
+// the round's), how many stops (piles) a round has (an errand's list count says its own), what a stop says and what
+// doing it says; a collect's `load` (piles a truck holds); `hold` (seconds a pile or a stop is held at); `fleet` (the
+// fleet its vehicle is issued from, where it is not the depot's own); a haul's `to` (where it is driven); a route's
+// `riders` (how few and how many wait at a stop)
 export const SHIFTS = Object.freeze({
-  garbage: Object.freeze({ name: 'Bin round', yard: 'works', vehicle: 'garbage truck', item: 'bins', stops: 4, stop: 'Empty the bins', done: 'Bins emptied' }),
-  bus: Object.freeze({ name: 'Bus route', yard: 'depot', vehicle: 'bus', item: 'riders', stops: 5, stop: 'Stop for riders', done: 'Riders aboard' }),
+  garbage: Object.freeze({ name: 'Bin round', mode: 'collect', yard: 'works', vehicle: 'garbage truck', item: 'garbage', stops: 8, load: 4, hold: 1.5, stop: 'Collect the garbage', done: 'Garbage collected' }),
+  bus: Object.freeze({ name: 'Bus route', mode: 'route', yard: 'depot', fleet: 'bus', vehicle: 'bus', item: 'riders', stops: 5, hold: 1.5, riders: Object.freeze([1, 3]), stop: 'Pick up at the bus stop', done: 'Doors closed' }),
+  heavy: Object.freeze({ name: 'Heavy haul', mode: 'haul', yard: 'works', fleet: 'industry', vehicle: 'heavy truck', item: 'haul', stops: 1, to: 'building site', done: 'Delivered' }),
 });
-for (const [role, S] of Object.entries(SHIFTS)) if (!YARDS[S.yard]?.roles?.[role]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${role} (geocity/fleets.js YARDS)`);
+for (const [word, S] of Object.entries(SHIFTS)) {
+  if (!SHIFT_MODES.includes(S.mode)) throw new Error(`jobsified: '${word}' works as ${SHIFT_MODES.join(', ')}`);
+  if (!S.fleet && !YARDS[S.yard]?.roles?.[word]) throw new Error(`jobsified: the ${S.yard} yard keeps no ${word} (geocity/fleets.js YARDS); a vehicle it does not keep is issued (fleet)`);
+  if (S.mode === 'haul' && !S.fleet) throw new Error(`jobsified: '${word}' is a haul: its truck is issued from a fleet`);
+}
 
 // how a round is laid (m): each stop about `hop` from the one before (the nearest place to that), never nearer than
-// `apart` to another stop or the depot; the depot reached within its yard, `reach` at the least
-export const SHIFT = Object.freeze({ hop: 160, apart: 60, reach: 9 });
+// `apart` to another stop or the depot; the depot reached within its yard, `reach` at the least; a haul's site at least
+// `haul` from its yard, reached `site` past its lot's edge
+export const SHIFT = Object.freeze({ hop: 160, apart: 60, reach: 9, haul: 300, site: 8 });
 
-export function shiftOf(role) {
-  const S = SHIFTS[role];
-  if (!S) throw new Error(`jobsified: '${role}' is no driving job (vehicle: ${Object.keys(SHIFTS).join(', ')})`);
+export function shiftOf(word) {
+  const S = SHIFTS[word];
+  if (!S) throw new Error(`jobsified: '${word}' is no driving job (vehicle: ${Object.keys(SHIFTS).join(', ')})`);
   return S;
 }
 
-const shopOf = (card) => { const w = String(card).replace(/-/g, ' '); return /(store|shop|pharmacy|diner|market|bakery|cafe|bar)$/.test(w) ? w : `${w} shop`; };
-/** The guide's lines for a shift's steps: getting in at the depot, a stop (at a place, when it has one), back. */
-export function shiftWords(S, place = null) {
-  const yard = YARD_NAMES[S.yard] ?? S.yard;
-  return {
-    clock: `Get in a ${S.vehicle} at the ${yard}`,
-    stop: `${S.stop}${place ? ` at the ${shopOf(place)}` : ''}`,
-    back: `Bring the ${S.vehicle} back to the ${yard}`,
-  };
-}
+export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level && SHIFTS[E.vehicle] && !SHIFTS[E.vehicle].fleet).map((E) => E.vehicle))];
 
-export const shiftRoles = (errands, level) => [...new Set((errands ?? []).filter((E) => E?.vehicle && E.giver === level).map((E) => E.vehicle))];
+// (a word's own number, for a choice no die makes: the same job issues the same truck)
+const hashOf = (w) => [...String(w)].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
+/** The vehicles a level's shifts issue (a row with a `fleet`: a haul's truck, a route's bus): each one of its fleet's (by
+ *  the job's own word), at the kerb before the place nearest its yard (the start where the district keeps no such yard),
+ *  turned along the street. */
+export function issuedOf(ends, errands, level) {
+  const out = [], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]), taken = [];
+  for (const E of errands ?? []) {
+    const S = E?.vehicle && E.giver === level ? SHIFTS[E.vehicle] : null;
+    if (!S || !S.fleet || typeof ends?.kerbAt !== 'function') continue;
+    const D = (ends.depots ?? []).find((x) => x.yard === S.yard), from = D ? D.at : ends.spawn;
+    const near = (ends.places ?? []).filter((q) => taken.every((t) => d2(q.at, t) > 12)).sort((a, b) => d2(a.at, from) - d2(b.at, from) || a.at[0] - b.at[0] || a.at[1] - b.at[1]);
+    for (const q of near.slice(0, 6)) {
+      const spot = ends.kerbAt(q.at, q.N);
+      if (!spot) continue;
+      const rows = fleetOf(S.fleet), R = rows[hashOf(E.id) % rows.length];
+      out.push({ id: E.id, at: spot.at, heading: spot.heading, model: R.model, paint: R.paints[0], word: R.word, place: q.card, yard: D ? YARD_NAMES[S.yard] : null });
+      taken.push(spot.at);
+      break;
+    }
+  }
+  return out;
+}

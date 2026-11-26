@@ -42,7 +42,10 @@ function visit(manifest, store, bag, walk, events = []) {
   const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } };
   pump([]);
   for (const e of events) pump([e]);
-  const pts = [spawn, ...walk, spawn];
+  // (a point to HOLD at, { at, hold: <job id> }: arrived, the key held down 2 s on the bus's timers, then let go)
+  // (a point is [x, y, z], or { at, hold }: an array has an .at of its own, so it is told apart by being one)
+  const holds = new Map(walk.filter((w) => !Array.isArray(w) && w?.hold).map((w) => [w.at, w.hold]));
+  const pts = [spawn, ...walk.map((w) => (Array.isArray(w) ? w : w.at)), spawn];
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1], b = pts[i], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.4));
     for (let k = 0; k <= n; k++) {
@@ -51,6 +54,8 @@ function visit(manifest, store, bag, walk, events = []) {
       prev = z.prev; pump(z.events);
       if (s.log.some((r) => typeof r.type === 'string' && r.type.startsWith('errand:done:'))) break;
     }
+    const job = holds.get(b);
+    if (job) { pump([{ type: `shift:hold:${job}` }]); for (let k = 0; k < 20; k++) pump(B.tickTimers(s, 0.1)); pump([{ type: `shift:let:${job}` }]); }
   }
   return { bag: Object.fromEntries(Object.entries(s.vars).filter(([k]) => k.startsWith('held:bag:'))), log: s.log.map((r) => r.type) };
 }
@@ -62,17 +67,20 @@ export function proveErrands(world, manifests) {
   const store = gameStore(world, null);
   let bag = {};
   return G.errands.map((E) => {
-    // (a SHIFT, jobsified.js: its task taken and one of the depot's vehicles got into, then its stops and the depot walked
-    // in it; the proof cannot drive, so the getting in is given and said)
+    // (a SHIFT, jobsified.js: its task taken and one of its vehicles got into, then its work walked in it: a route's
+    // stops held at in order, a collect's piles held at (the key's hold counted on the bus's timers) until full and the
+    // dump, a haul's site; the proof cannot drive, so the getting in is given and said)
     if (E.vehicle) {
       const H = manifests[E.giver], mechs = H?.game?.mechanics ?? [], Sh = mechs.find((m) => m.kind === 'shift' && m.id === E.id), Tk = mechs.find((m) => m.kind === 'task' && m.id === E.id);
       if (!Sh) return { errand: E.id, proved: false, legs: [], assumed: [], arrives: [], says: `the giver's level '${E.giver}' lays no driving job for it` };
       const events = [...(Tk ? [{ type: `app:sub:${Tk.app}` }, { type: `app:take:${E.id}` }] : []), { type: 'mounted', rider: 'hero', mount: Sh.cabs[0] }];
-      const r = visit(H, store, bag, [...Sh.stops.map((q) => q.at), Sh.depot], events);
-      const proved = r.log.includes(`errand:done:${E.id}`);
+      const mode = Sh.mode ?? 'route', unload = Sh.unload?.at ?? Sh.depot;
+      const walk = mode === 'haul' ? [Sh.site.at] : mode === 'collect' ? Sh.stops.slice(0, Sh.load).map((q) => ({ at: q.at, hold: E.id })) : Sh.stops.map((q) => ({ at: q.at, hold: E.id }));
+      const r = visit(H, store, bag, mode === 'collect' ? [...walk, unload] : walk, events);
+      const proved = r.log.includes(`errand:done:${E.id}`), where = mode === 'haul' ? (Sh.site.to ?? 'site') : mode === 'collect' ? (Sh.unload ? 'dump' : Sh.yard ?? 'depot') : 'last stop';
       bag = r.bag;
-      return { errand: E.id, proved, legs: [{ item: 'round', level: E.giver, bag: { ...bag } }], assumed: [`the hero gets into a ${Sh.vehicle ?? 'vehicle'} at the ${Sh.yard ?? 'depot'} (${Sh.cabs[0]}): the proof cannot drive`], arrives: [],
-        says: proved ? `driven: ${Sh.stops.length} stops and back to the ${Sh.yard ?? 'depot'}: paid` : `the ${Sh.yard ?? 'depot'} did not pay: ${r.log.filter((t) => t.startsWith('flag:stop-')).length} of ${Sh.stops.length} stops made` };
+      return { errand: E.id, proved, legs: [{ item: mode, level: E.giver, bag: { ...bag } }], assumed: [`the hero gets into the ${Sh.vehicle ?? 'vehicle'} (${Sh.cabs[0]}): the proof cannot drive`], arrives: [],
+        says: proved ? `driven: ${mode === 'haul' ? 'to the ' + where : mode === 'collect' ? `${Sh.load} piles held at and emptied at the ${where}` : `${Sh.stops.length} stops held at in order`}: paid` : `the ${where} did not pay: ${r.log.filter((t) => typeof t === 'string' && t.startsWith('flag:stop-')).length} piles or stops made` };
     }
     const legs = [], assumed = [], missing = [];
     const solvable = E.laws.find((l) => l.law === 'solvable');

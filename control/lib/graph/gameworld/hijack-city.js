@@ -20,8 +20,8 @@
  *                          gameworld/locales.js: its register, district, light, sky, air and grade, each word named
  *                          over it winning; `district` a HIJACK_DISTRICTS word, downtown by default; `register` its outskirts' pattern, geotown/pattern.js, the district's
  *                          own unless named, a San Francisco one laying it on the hill city in its fog): a hero, the
- *                          district, four story missions for one contact (the last the end), a repeated fare, a
- *                          garbage truck's bin round on Jobsified (HIJACK_SHIFTS), two
+ *                          district (a car park of it built as the dump), four story missions for one contact (the last
+ *                          the end), a repeated fare, Jobsified's driving jobs (HIJACK_SHIFTS), two
  *                          crews, the law, the shops, the look, sound and music. A plain value: the same words give
  *                          the same world
  *   hijackCityStart(world) → null | { world, says }: a locked pitch from the rail with no level yet, laid with the
@@ -78,10 +78,15 @@ const MISSIONS = Object.freeze([
   { id: 'the-jeweller', name: 'The jeweller', reward: 300, item: 'stones', offer: 'This is the one. The jeweller\'s. Take the stones, lose the police, bring them to me. Five minutes.', mission: { heat: 3, clean: true, time: 300, final: true } },
 ]);
 
-/** The city's driving jobs a Hijack City starts with, on the Jobsified app (gameworld/jobsified.js SHIFTS: a vehicle a
- *  row): taken on the phone, the vehicle got into at its depot, its stops driven, brought back to be paid. */
+/** The city's driving jobs a Hijack City starts with, on the Jobsified app (gameworld/jobsified.js SHIFTS, a job a row),
+ *  each taken on the phone and worked again for more: the bin round (a garbage truck from the works yard, its piles held
+ *  at until it is full, emptied at the district's dump), a heavy haul (a truck issued by the works yard, driven across
+ *  the district to a building site) and a bus route (a bus issued by the depot, its stops held at in order: those
+ *  waiting board, those from the stop before get off). */
 export const HIJACK_SHIFTS = Object.freeze([
   Object.freeze({ id: 'bin-round', name: 'Bin round', vehicle: 'garbage', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 40 })]) }),
+  Object.freeze({ id: 'heavy-haul', name: 'Heavy haul', vehicle: 'heavy', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 60 })]) }),
+  Object.freeze({ id: 'bus-route', name: 'Bus route', vehicle: 'bus', repeat: true, reward: Object.freeze([Object.freeze({ item: 'coin', n: 50 })]) }),
 ]);
 
 /** What a person changes first, each a key of the gameworld (the gameworld-hijack-city card says how). */
@@ -116,7 +121,7 @@ export function hijackCityWorld({ name = HIJACK_CITY, seed = 2, locale = null, d
   // (`hour`: the hour it is played at, its locale's own unless named; past dusk its locale's night, its lamps, its air
   // and its grade: gameworld/locales.js `night`, HIJACK_NIGHT where it says none)
   const hour = when ?? L?.hour ?? null, N = isNight(hour) ? L?.night ?? HIJACK_NIGHT : null;
-  const district = { ...JSON.parse(JSON.stringify(base)), ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}) };
+  const district = { ...JSON.parse(JSON.stringify(base)), dump: true, ...(L?.city ? JSON.parse(JSON.stringify(L.city)) : {}), ...(register ? { outskirts: register } : {}), ...(N ? { lamps: N.lamps } : {}), ...(people ? { people, ...(locale ? { mix: locale } : {}) } : {}) };
   return {
     id: 'hijack-city', name, seed, mode: 'autonomous', screen: 'screen',
     // (the seventh generation: the sun's shadows, the actors' and the buildings' light; gen-6 for a lighter page; a fair

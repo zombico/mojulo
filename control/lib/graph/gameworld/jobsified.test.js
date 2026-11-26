@@ -1,35 +1,39 @@
-// Jobsified, the city's driving jobs (jobsified.js): an errand with `vehicle` is a SHIFT. The laws: it reads as one item,
-// its round's stops (the row's by default), given by the Jobsified app unless it names its own, never a contact's or a
-// mission; it lowers to one shift leg; the guide leads it as its own round (taken on the phone, into a vehicle at the
-// depot, each stop waited on by its own flag, back), the journal keeps it and the phone pays it; a level's depot's
-// vehicles are made cabs after the nearest, so no other car's id moves. The district it is laid in: jobsified.e2e.test.js.
+// Jobsified, the city's driving jobs (jobsified.js): an errand with `vehicle` is a SHIFT, worked by its row's mode. The
+// laws: it reads as one item, its round's stops or piles (the row's by default), given by the Jobsified app unless it
+// names its own, never a contact's or a mission; it lowers to one shift leg; the guide leads it as its own round (taken
+// on the phone, into its vehicle, its work, then where it pays), the journal keeps it and the phone pays it; a level's
+// depot's vehicles and its issued trucks are made cabs after the nearest, so no other car's id moves. The district it is
+// laid in: jobsified.e2e.test.js.
 import { describe, it, expect } from 'vitest';
 import { readErrands, errandLegs } from './errand.js';
-import { SHIFTS, shiftRoles, shiftWords, JOBSIFIED } from './jobsified.js';
-import { jobsOf, jobQuests, cityGuide } from './city-guide.js';
+import { SHIFTS, SHIFT_MODES, shiftRoles, JOBSIFIED } from './jobsified.js';
+import { jobsOf, jobQuests, cityGuide, CITY_GUIDE } from './city-guide.js';
 import { phoneUi } from './phone-ui.js';
-import { levelCars, depotCabs, CAB } from './cars.js';
+import { levelCars, depotCabs, issuedCabs, CAB } from './cars.js';
 import { YARDS } from '../geocity/fleets.js';
 
 const G = { levels: { district: {}, docks: {} }, ids: ['district', 'docks'], topology: 'interconnected', links: [{ from: 'district', to: 'docks' }], start: 'district', foes: {} };
 const BINS = { id: 'bin-round', giver: 'district', vehicle: 'garbage', repeat: true, reward: [{ item: 'coin', n: 40 }] };
+const HAUL = { id: 'heavy-haul', giver: 'district', vehicle: 'heavy', repeat: true, reward: [{ item: 'coin', n: 60 }] };
 
 describe('a shift read', () => {
-  it('each row is a fleet its yard keeps, and says its own words', () => {
-    for (const [role, S] of Object.entries(SHIFTS)) { expect(YARDS[S.yard].roles[role]).toBeGreaterThan(0); expect(S.stops).toBeGreaterThan(0); }
-    const S = Object.values(SHIFTS)[0], w = shiftWords(S, 'bakery');
-    expect(w.clock).toContain(S.vehicle);
-    expect(w.stop).toMatch(/at the bakery$/);
-    expect(w.back).toContain(S.vehicle);
+  it('each row is worked by a mode; a collect or a route by a fleet its yard keeps', () => {
+    for (const [word, S] of Object.entries(SHIFTS)) {
+      expect(SHIFT_MODES).toContain(S.mode);
+      if (S.mode !== 'haul') expect(YARDS[S.yard].roles[word]).toBeGreaterThan(0);
+      if (S.mode === 'collect') expect(S.load).toBeLessThanOrEqual(S.stops);
+    }
   });
-  it('is one item, its round\'s stops, on Jobsified, and lowers to one shift leg at its giver', () => {
-    const [E] = readErrands([BINS], G), S = SHIFTS.garbage;
+  it('is one item, its round\'s piles or stops, on Jobsified, and lowers to one shift leg at its giver', () => {
+    const [E, H] = readErrands([BINS, HAUL], G), S = SHIFTS.garbage;
     expect(E).toMatchObject({ id: 'bin-round', vehicle: 'garbage', app: JOBSIFIED, repeat: true, list: [{ item: S.item, at: 'district', count: S.stops }] });
-    expect(readErrands([{ ...BINS, list: [{ item: 'bags', at: 'district', count: 2 }] }], G)[0].list[0]).toMatchObject({ item: 'bags', count: 2 });
+    expect(H).toMatchObject({ vehicle: 'heavy', app: JOBSIFIED, list: [{ item: SHIFTS.heavy.item, count: SHIFTS.heavy.stops }] });
+    expect(readErrands([{ ...BINS, list: [{ item: 'bags', at: 'district', count: 6 }] }], G)[0].list[0]).toMatchObject({ item: 'bags', count: 6 });
     expect(readErrands([{ ...BINS, app: 'cityfu' }], G)[0].app).toBe('cityfu');
     expect(errandLegs([E], 'district')).toEqual([{ kind: 'shift', id: 'bin-round', vehicle: 'garbage', item: S.item, stops: S.stops, reward: [{ item: 'coin', n: 40 }], repeat: true, app: JOBSIFIED }]);
     expect(errandLegs([E], 'docks')).toEqual([]);
-    expect(shiftRoles([E], 'district')).toEqual(['garbage']);
+    // (a haul's truck is issued, not a depot's: no role of its)
+    expect(shiftRoles([E, H], 'district')).toEqual(['garbage']);
     expect(shiftRoles([E], 'docks')).toEqual([]);
   });
   it('refuses what a shift is not: an unknown vehicle, a contact, a mission, a list of two, a stop elsewhere, a price', () => {
@@ -42,52 +46,78 @@ describe('a shift read', () => {
   });
 });
 
-// a level's laid shift and its task, as levels.js lays them
-const SHIFT = { kind: 'shift', id: 'bin-round', name: 'Bin round', item: 'bins', depot: [0, 40, 1], radius: 20, cabs: ['car-12'], stops: [{ at: [60, 0, 1], radius: 7, place: 'bakery' }, { at: [120, 0, 1], radius: 7 }], reward: [{ item: 'coin', n: 40 }], repeat: true, after: 'took-bin-round', vehicle: 'garbage truck', yard: 'works yard', stop: 'Empty the bins', done: 'Bins emptied' };
-const TASK = { kind: 'task', id: 'bin-round', app: JOBSIFIED, flag: 'took-bin-round', name: 'Jobsified', subscribe: true };
+// a level's laid shifts and their tasks, as levels.js lays them
+const PILES = [[60, 0, 1], [120, 0, 1], [180, 30, 1]];
+const COLLECT = { kind: 'shift', mode: 'collect', id: 'bin-round', name: 'Bin round', item: 'garbage', depot: [0, 40, 1], radius: 20, half: [20, 12], cabs: ['car-12'], stops: PILES.map((at) => ({ at, radius: 7 })), load: 2, hold: 1.5, unload: { at: [400, 0, 1], half: [23, 15] },
+  reward: [{ item: 'coin', n: 40 }], repeat: true, after: 'took-bin-round', vehicle: 'garbage truck', yard: 'works yard', stop: 'Collect the garbage', done: 'Garbage collected' };
+const HAULED = { kind: 'shift', mode: 'haul', id: 'heavy-haul', name: 'Heavy haul', item: 'haul', depot: [10, 60, 1], radius: 7, cabs: ['car-14'], site: { at: [600, 0, 1], half: [28, 20], to: 'building site' }, back: [10, 60, 1],
+  reward: [{ item: 'coin', n: 60 }], repeat: true, after: 'took-heavy-haul', vehicle: 'flatbed truck', yard: 'works yard', place: 'bakery', done: 'Delivered' };
+const task = (id) => ({ kind: 'task', id, app: JOBSIFIED, flag: `took-${id}`, name: 'Jobsified', ...(id === 'bin-round' ? { subscribe: true } : {}) });
 const FARE = [{ kind: 'trade', item: 'passenger', at: [5, 5, 0], radius: 7, flag: 'had-passenger', after: 'took-fare', job: 'fare' }, { kind: 'deliver', id: 'fare', at: [9, 9, 0], wants: [{ item: 'passenger' }], reward: [{ item: 'coin', n: 12 }], repeat: true, after: 'took-fare', flag: 'done-fare' }, { kind: 'task', id: 'fare', app: 'taskfu', flag: 'took-fare', name: 'TaskFu', subscribe: true }];
 const manifest = (mechanics) => ({ title: 'Hijack City · The district · 1', entities: [{ id: 'hero', pilotable: true, transform: { pos: [0, 0, 0] } }, { id: 'car-1', mount: { cab: true }, transform: { pos: [3, 0, 0] } }], game: { mechanics: [{ kind: 'bag', slice: 'bag' }, ...mechanics] } });
 
 describe('a shift read by the guide, the journal and the phone', () => {
-  it('is a job of its own steps: taken on the app, into the vehicle at the yard, each stop, back; each waited on by its flag', () => {
-    const [J] = jobsOf([SHIFT, TASK]);
-    expect(J).toMatchObject({ id: 'bin-round', name: 'Bin round', repeat: true, shift: true, starts: 'took-bin-round', app: JOBSIFIED });
-    expect(J.steps.map((s) => s.id)).toEqual(['app-bin-round', 'clock-bin-round', 'stop-bin-round-1', 'stop-bin-round-2', 'back-bin-round']);
-    expect(J.steps.map((s) => s.when)).toEqual(['flag-took-bin-round', 'flag-on-bin-round', 'flag-stop-bin-round-1', 'flag-stop-bin-round-2', undefined]);
+  it('collect: into the truck at the yard, then its piles (the way to the nearest not taken, the key to hold) until full, then the dump', () => {
+    const [J] = jobsOf([COLLECT, task('bin-round')]);
+    expect(J).toMatchObject({ id: 'bin-round', repeat: true, shift: true, starts: 'took-bin-round', app: JOBSIFIED, loop: 2 });
+    expect(J.steps.map((s) => s.id)).toEqual(['app-bin-round', 'clock-bin-round', 'collect-bin-round', 'unload-bin-round']);
+    expect(J.steps.map((s) => s.when)).toEqual(['flag-took-bin-round', 'flag-on-bin-round', 'flag-full-bin-round', undefined]);
     expect(J.steps[1].say).toBe('Get in a garbage truck at the works yard');
-    expect(J.steps[2].say).toBe('Empty the bins at the bakery');
-    expect(J.steps[4]).toMatchObject({ say: 'Bring the garbage truck back to the works yard', at: SHIFT.depot, says: 'Paid 40 coin' });
-    // (a one-off's way back waits on its pay: being at the yard is not it)
-    expect(jobsOf([{ ...SHIFT, repeat: undefined }, TASK])[0].steps[4].when).toBe('flag-done-bin-round');
-    expect(jobQuests([SHIFT, TASK])).toEqual([{ id: 'bin-round', name: 'Bin round', starts: 'took-bin-round', steps: J.steps.slice(1).map((s) => ({ log: s.say, done: s.flag })) }]);
+    expect(J.steps[2]).toMatchObject({ say: `Collect the garbage · hold ${CITY_GUIDE.hold}`, near: PILES.map((at, k) => ({ at, v: `flag-stop-bin-round-${k + 1}` })) });
+    expect(J.steps[3]).toMatchObject({ say: 'Take the full garbage truck to the dump', at: COLLECT.unload.at, radius: 23, says: 'Paid 40 coin' });
+    // (a one-off's last step waits on its pay; with no dump, the yard)
+    expect(jobsOf([{ ...COLLECT, repeat: undefined }, task('bin-round')])[0].steps[3].when).toBe('flag-done-bin-round');
+    expect(jobsOf([{ ...COLLECT, unload: undefined }, task('bin-round')])[0].steps[3]).toMatchObject({ say: 'Take the full garbage truck to the works yard', at: COLLECT.depot });
+    expect(jobQuests([COLLECT, task('bin-round')])).toEqual([{ id: 'bin-round', name: 'Bin round', starts: 'took-bin-round', steps: J.steps.slice(1).map((s) => ({ log: s.say, done: s.flag })) }]);
   });
-  it('the guide goes to its round when it is taken, wherever it stood, and round again; a standing fare keeps the guide\'s own loop', () => {
-    const g = cityGuide(manifest([...FARE, SHIFT, TASK])), first = g.steps.findIndex((s) => s.id === 'clock-bin-round');
-    expect(g.rounds).toEqual([{ when: 'flag-took-bin-round', at: first, from: first + 1, end: first + 4 }]);
+  it('haul: its truck taken where it is issued, driven to the site; round again from taking it', () => {
+    const [J] = jobsOf([HAULED, task('heavy-haul')]);
+    expect(J.steps.map((s) => [s.id, s.say])).toEqual([['app-heavy-haul', 'Take the heavy haul on Jobsified · P'], ['clock-heavy-haul', 'Take the flatbed truck outside the bakery by the works yard'], ['haul-heavy-haul', 'Drive the flatbed truck to the building site']]);
+    expect(J.loop).toBe(1);
+    expect(J.steps[2]).toMatchObject({ at: HAULED.site.at, radius: 28, says: 'Paid 60 coin', flag: 'done-heavy-haul' });
+  });
+  it('route: its bus taken where it is issued, then each stop in order, held at; the last pays', () => {
+    const R = { ...COLLECT, mode: 'route', load: undefined, unload: undefined, back: [10, 60, 1], vehicle: 'bus', place: 'bakery', yard: 'bus depot', stop: 'Pick up at the bus stop', stops: PILES.map((at) => ({ at, radius: 7, place: 'cafe', riders: 2 })) };
+    const [J] = jobsOf([R, task('bin-round')]);
+    expect(J.steps.map((s) => s.id)).toEqual(['app-bin-round', 'clock-bin-round', 'stop-bin-round-1', 'stop-bin-round-2', 'stop-bin-round-3']);
+    expect(J.steps[1].say).toBe('Take the bus outside the bakery by the bus depot');
+    expect(J.steps[2].say).toBe(`Pick up at the bus stop by the cafe · hold ${CITY_GUIDE.hold}`);
+    // (a standing route's last stop is reached by coming to it: its flag is laid again as it pays)
+    expect(J.steps.map((s) => s.when)).toEqual(['flag-took-bin-round', 'flag-on-bin-round', 'flag-stop-bin-round-1', 'flag-stop-bin-round-2', undefined]);
+    expect(J.steps[4]).toMatchObject({ flag: 'done-bin-round', says: 'Paid 40 coin' });
+    expect(J.loop).toBe(2);
+  });
+  it('the guide goes to a job\'s round when it is taken, wherever it stood, and round again; a standing fare keeps the guide\'s own loop', () => {
+    const g = cityGuide(manifest([...FARE, COLLECT, task('bin-round'), HAULED, task('heavy-haul')]));
+    const c = g.steps.findIndex((s) => s.id === 'clock-bin-round'), h = g.steps.findIndex((s) => s.id === 'clock-heavy-haul');
+    expect(g.rounds).toEqual([{ when: 'flag-took-bin-round', at: c, from: c + 1, end: c + 3 }, { when: 'flag-took-heavy-haul', at: h, from: h, end: h + 2 }]);
     expect(g.steps[g.loop].id).toBe('pick-passenger');
-    expect(g.steps.slice(first, first + 4).map((s) => s.kind)).toEqual(['find', 'find', 'find', 'find']);
-    // (no shift, no rounds: the guide as it was)
+    expect(g.steps[c + 1].near).toHaveLength(PILES.length);
     expect(cityGuide(manifest(FARE)).rounds).toBeUndefined();
   });
-  it('is a task on the Jobsified tab of the phone, with its pay', () => {
-    const P = phoneUi(manifest([...FARE, SHIFT, TASK]));
-    expect(P.apps.map((a) => [a.id, a.name, a.tasks.map((t) => [t.id, t.pays, t.repeat])])).toEqual([['taskfu', 'TaskFu', [['fare', '12 coin', true]]], [JOBSIFIED, 'Jobsified', [['bin-round', '40 coin', true]]]]);
+  it('each is a task on the Jobsified tab of the phone, with its pay', () => {
+    const P = phoneUi(manifest([...FARE, COLLECT, task('bin-round'), HAULED, task('heavy-haul')]));
+    expect(P.apps.map((a) => [a.id, a.name, a.tasks.map((t) => [t.id, t.pays, t.repeat])])).toEqual([['taskfu', 'TaskFu', [['fare', '12 coin', true]]], [JOBSIFIED, 'Jobsified', [['bin-round', '40 coin', true], ['heavy-haul', '60 coin', true]]]]);
   });
 });
 
-describe('a depot\'s vehicles made cabs', () => {
+describe('a depot\'s vehicles and an issued truck made cabs', () => {
   // (ends as levels.js tells them: parked cars, and a depot keeping some of them by role)
   const car = (x) => ({ at: [x, 0, 0], heading: 0, model: 'familySedan', paint: '#ffffff' });
   const parked = Array.from({ length: CAB.most + 3 }, (_, i) => car(i * 2)), truck = { ...car(800), model: 'loft:refuseTruck' }, near = { ...car(1), model: 'loft:refuseTruck' };
   const ends = { spawn: [0, 0, 0], parked: [...parked, truck, near] };
   Object.defineProperty(ends, 'depots', { value: [{ id: 'yard', yard: 'works', at: [800, 0, 0], radius: 20, cabs: [{ role: 'garbage', car: truck }, { role: 'garbage', car: near }] }] });
-  it('after the nearest, so every other car\'s id is the same; one already among them keeps its own', () => {
-    const plain = levelCars(ends), more = levelCars(ends, { roles: ['garbage'] });
+  const issued = [{ id: 'heavy-haul', at: [50, 9, 0], heading: 0, model: 'loft:flatbedTruck', paint: '#20497f' }];
+  it('after the nearest, so every other car\'s id is the same; one already among them keeps its own; an issued truck after all', () => {
+    const plain = levelCars(ends), more = levelCars(ends, { roles: ['garbage'] }), all = levelCars(ends, { roles: ['garbage'], issue: issued });
     expect(plain).toHaveLength(CAB.most);
     expect(more.slice(0, CAB.most)).toEqual(plain);
     expect(more.slice(CAB.most)).toEqual([truck]);
+    expect(all).toEqual([...more, issued[0]]);
     expect(levelCars(ends, { roles: ['bus'] })).toEqual(plain);
     expect(depotCabs(ends, 'garbage').map((x) => x.ids)).toEqual([[`car-${CAB.most + 1}`, `car-${plain.indexOf(near) + 1}`]]);
     expect(depotCabs(ends, 'bus')).toEqual([]);
+    expect(issuedCabs(ends, issued, { roles: ['garbage'] })).toEqual([`car-${CAB.most + 2}`]);
+    expect(issuedCabs(ends, issued)).toEqual([`car-${CAB.most + 1}`]);
   });
 });

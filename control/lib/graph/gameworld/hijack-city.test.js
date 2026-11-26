@@ -75,7 +75,8 @@ describe('Hijack City', () => {
 
   it('stands in a district by its word: downtown as it was, the inner city\'s low-rise or the suburbs, each its ring\'s', () => {
     expect(hijackCityWorld({ district: 'downtown' })).toEqual(hijackCityWorld());
-    expect(hijackCityWorld().levels.district.geocity).toEqual(JSON.parse(JSON.stringify(HIJACK_DISTRICT)));
+    // (a car park of it built as the dump, where the bin round empties its truck: jobsified.js)
+    expect(hijackCityWorld().levels.district.geocity).toEqual({ ...JSON.parse(JSON.stringify(HIJACK_DISTRICT)), dump: true });
     expect(() => hijackCityWorld({ district: 'uptown' })).toThrow(/district is/);
     // (each district's neighbourhood its ring's, and lived in: the inner city's walk-ups and low-rises among its
     // midrises, the suburbs' houses and garden apartments)

@@ -21,12 +21,10 @@
 // framed as it always was and a box truck or a rig from further back and higher. A parked cab is given its view where
 // the level makes it (gameworld/cars.js); one taken from the traffic here, measured from its own template.
 // Emitted only when an entity's mount carries `pool` or `spare`; absent, not one byte.
-// A BODY THAT MOVES ITS PARTS (`gate`: a cab whose pool says `gate: { pivot, lift, tip }`, a driving job's garbage truck,
-// gameworld/cars.js): drawn from its model's body without them (`|body-paint`, `|body-trim`), its tailgate on its hinge
-// (`|gate-paint`, `|gate-trim`) and the bin lifter inside it on its own pivot (`|lift-trim`); the lifter swung through a
-// stop's moment from `e.liftAt` and the tailgate up through a round's pay from `e.tipAt` (the page's clock in seconds,
-// set by channels/job-stops.js; job-motion.js the timings). `window.__mojCabParts(id)` hands the parts to what rides
-// them (a bin on the lifter). Absent, not one byte.
+// A BODY THAT SWINGS A PART (`gate`: a cab whose pool says `gate: { pivot, tip }`, a driving job's garbage truck,
+// gameworld/cars.js): drawn from its model's body without its tailgate (`|body-paint`, `|body-trim`), the tailgate on its
+// hinge (`|gate-paint`, `|gate-trim`), swung up as a load is emptied from `e.tipAt` (the page's clock in seconds, set by
+// channels/job-stops.js; job-motion.js the timing). Absent, not one byte.
 import { JOB_MOTION, jobEnv } from './job-motion.js';
 export const CAB_VIEW = Object.freeze({ see: 25, clear: 0.35, back: 3.5, look: 0.6 });
 /** A cab's follow camera by its size ({ length, height }, m) over a base ({ dist, height, lookH }): the base's numbers
@@ -62,21 +60,18 @@ ${gate ? `    // (its moving parts, where its pool says so and the page pooled t
     if (trim) g.add(new THREE.Mesh(trim, TRIM));` : `    const g = new THREE.Group(), paint = __POOLS[P.model + '|paint'], trim = __POOLS[P.model + '|trim'];
     if (paint) g.add(new THREE.Mesh(paint, ${coat ? '__carCoat(' : ''}new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, color: new THREE.Color(P.tint[0], P.tint[1], P.tint[2]) })${coat ? ", 'paint')" : ''}));
     if (trim) g.add(new THREE.Mesh(trim, TRIM));`}${gate ? `
-    let gateG = null, liftG = null;
+    let gateG = null;
     if (moves) {
       gateG = new THREE.Group(); gateG.position.set(0, moves.pivot[0], moves.pivot[1]); g.add(gateG);
       gateG.add(new THREE.Mesh(__POOLS[P.model + '|gate-paint'], tinted));
       if (__POOLS[P.model + '|gate-trim']) gateG.add(new THREE.Mesh(__POOLS[P.model + '|gate-trim'], TRIM));
-      liftG = new THREE.Group(); liftG.position.set(0, moves.lift[0], moves.lift[1]); gateG.add(liftG);
-      if (__POOLS[P.model + '|lift-trim']) liftG.add(new THREE.Mesh(__POOLS[P.model + '|lift-trim'], TRIM));
     }` : ''}
     // (never footing: the ground probe is a ray down through the scene's meshes, and a car that found its own roof
     // under its nose would lie to that, and again the next frame: it wobbles)
     g.traverse(function (o) { o.raycast = function () {}; });
     g.userData.g = 'cab:' + P.model; scene.add(g);
-    b = { g, model: P.model, tint: P.tint${gate ? ', gate: gateG, lift: liftG, tip: moves ? moves.tip : 0' : ''} }; made.set(e.id, b); return b;
-  }${gate ? `
-  window.__mojCabParts = function (id) { return made.get(id) || null; };` : ''}
+    b = { g, model: P.model, tint: P.tint${gate ? ', gate: gateG, tip: moves ? moves.tip : 0' : ''} }; made.set(e.id, b); return b;
+  }
 ${patrol ? `  // a police car: its model's body in its livery, a light bar over its roof (two lamps, red and blue)
   const patrols = new Map();
   function patrolOf(e) {
@@ -118,13 +113,8 @@ ${patrol ? `  // a police car: its model's body in its livery, a light bar over 
         b.at = p[0] + ':' + p[1];
       }
       b.g.rotation.set(b.pitch || 0, -(b.roll || 0), e.transform.heading - Math.PI / 2, 'ZXY');${gate ? `
-      // (its moving parts through their moments: the lifter at a stop, the tailgate as a round is paid)
-      if (b.gate) {
-        const now = performance.now() / 1000, uL = e.liftAt != null ? (now - e.liftAt) / JM.lift.s : 1, uT = e.tipAt != null ? (now - e.tipAt) / JM.tip.s : 1;
-        const shake = uL > JM.lift.up[1] && uL < JM.lift.down[0] ? Math.sin(now * 40) * JM.lift.shake : 0;
-        b.lift.rotation.x = JM.lift.a * jobEnv(uL, JM.lift.up, JM.lift.down) + shake;
-        b.gate.rotation.x = b.tip * jobEnv(uT, JM.tip.up, JM.tip.down);
-      }` : ''}
+      // (its tailgate up and down as a load is emptied)
+      if (b.gate) { const uT = e.tipAt != null ? (performance.now() / 1000 - e.tipAt) / JM.tip.s : 1; b.gate.rotation.x = b.tip * jobEnv(uT, JM.tip.up, JM.tip.down); }` : ''}
     }
 ${patrol ? `    // the law's cars: placed, turned, their lamps flashing turn about
     const flash = Math.floor(performance.now() / 160) % 2;

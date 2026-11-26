@@ -69,8 +69,8 @@ import { taskApps, appTitle } from './phone-ui.js';
 import { resolveMotion, GAIT_BASE } from './hero-vibe.js';
 import { turfRect, actLine } from './factions.js';
 import { policeCount, policeCars, LAW } from './law.js';
-import { patrolCar, depotCabs } from './cars.js';
-import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED } from './jobsified.js';
+import { patrolCar, depotCabs, issuedCabs } from './cars.js';
+import { shiftOf, SHIFT, YARD_NAMES, JOBSIFIED, issuedOf } from './jobsified.js';
 import { levelGrammar, mapPlaces } from './hud-grammar.js';
 import { rowInventory, bagStart } from './inventory.js';
 import { concernIds } from './concerns.js';
@@ -637,7 +637,7 @@ function geotownEnds(manifest) {
 // stands on it its boxes; the tills of its shops walked into (geocity.shops)
 const CITY_GROUND = /^geocity:(walk|road|bike|crossing|ground|court|lot|pad|paving|site|park|field|yard|scrub|median|margin|planting|promenade|quay|sand|deck|stoop|floor|platform)$/;
 function geocityEnds(manifest) {
-  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards });
+  const own = Object.fromEntries(Object.entries(manifest).filter(([k]) => GEOCITY_KEYS.includes(k) && !CITY_PLAY_KEYS.includes(k))), parked = [], streets = [], shopfronts = [], yards = [], emptyLots = [], dumpAt = [], P = assembleGeocityScene(own, { play: true, parked, streets, shopfronts, yards, lots: emptyLots, dumpAt });
   const route = (P.route ?? []).map((p) => [p[0], p[1], p[2] ?? 0]);
   if (route.length < 2) throw new Error('levels: the district lays no walk to set the hero down on');
   const ground = groundSampler(P.faces ?? [], CITY_GROUND), on = (p) => { const z = ground(p[0], p[1]); return [r3(p[0]), r3(p[1]), r3(z ?? p[2])]; };
@@ -657,6 +657,10 @@ function geocityEnds(manifest) {
   // the street's already stands in)
   const lots = parkedCars(parked), walk = lots.some((c) => Math.hypot(c.at[0] - spawn[0], c.at[1] - spawn[1]) <= KERB.walk);
   Object.defineProperty(out, 'parked', { value: walk ? lots : [...kerbCars(manifest.seed ?? 1, kerbSpots(route, groundSampler(P.faces ?? [], /^geocity:road$/), P.colliders ?? [], ground, P.flow?.lanes ?? [], lots)), ...lots], enumerable: false });
+  // (a KERB beside a place on its walk, `kerbAt(p, N)`, N the way out to its street: a bay on the road there, clear of
+  // the cars parked, turned along the street; null where none. Where a job stands a vehicle of its own: jobsified.js)
+  let roadAt = null;
+  Object.defineProperty(out, 'kerbAt', { value: (p, N) => { roadAt ??= groundSampler(P.faces ?? [], /^geocity:road$/); return kerbSpots([[p[0], p[1]], [p[0] - N[1], p[1] + N[0]]], roadAt, P.colliders ?? [], ground, P.flow?.lanes ?? [], lots)[0] ?? null; }, enumerable: false });
   // (its STREETS as a driver keeps to them: the middle line of each signalled street its traffic drives, cityRoads)
   Object.defineProperty(out, 'roads', { value: cityRoads(streets), enumerable: false });
   Object.defineProperty(out, 'tills', { value: (P.anchors ?? []).filter((a) => a.kind === 'shop' && a.store?.till).map((a) => ({ id: a.id.replace(/^shop-/, ''), card: a.store.card, at: a.store.till.map(r3) })), enumerable: false });
@@ -677,6 +681,11 @@ function geocityEnds(manifest) {
     // (`half`: its box, the yard whole; `radius` the reach of a word about it, to its far corner)
     return { id: Y.id, yard: Y.yard, at: on([(x0 + x1) / 2, (y0 + y1) / 2, Y.z]), half: [r3((x1 - x0) / 2), r3((y1 - y0) / 2)], radius: r3(Math.hypot(x1 - x0, y1 - y0) / 2), cabs };
   }), enumerable: false });
+  // (its LOTS near the eye: each empty lot and building site, its box and its middle on the ground, an empty lot's open
+  // side: where a driving job builds its dump or sends a load, jobsified.js)
+  Object.defineProperty(out, 'lots', { value: emptyLots.map((Q) => ({ id: Q.id, kind: Q.kind, rect: Q.rect, at: on([(Q.rect[0] + Q.rect[2]) / 2, (Q.rect[1] + Q.rect[3]) / 2, Q.z]), ...(Q.open ? { open: Q.open } : {}) })), enumerable: false });
+  // (its DUMP, where it asks for one, `geocity.dump`: the tipping hall's middle on its floor and its box)
+  Object.defineProperty(out, 'dump', { value: dumpAt[0] ? { id: dumpAt[0].id, at: on(dumpAt[0].at), half: dumpAt[0].half } : null, enumerable: false });
   // (what it weighs: its faces, its boxes, its repeats' templates and instances; said by the level's audit and its book)
   Object.defineProperty(out, 'weight', { value: { faces: (P.faces ?? []).length, colliders: (P.colliders ?? []).length, templates: (P.repeats ?? []).reduce((a, r) => a + r.template.length, 0), instances: (P.repeats ?? []).reduce((a, r) => a + r.transforms.length, 0), shops: P.geocity?.stores?.shops ?? 0 }, enumerable: false });
   return out;
@@ -1873,34 +1882,71 @@ function stageWays(stage, ends, plan, fus = undefined, factions = undefined, law
         ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) };
     });
     offers.push(...tasks);
-    // THE SHIFTS (jobsified.js): each a driving job taken on its app, driven in a vehicle of its fleet from the depot
-    // nearest the start that keeps one (its vehicles cabs: cars.js levelCars `roles`), round its stops (places of the
-    // district's, each about a hop from the one before) and back. A stage with no such depot, or no cars, or no place
-    // for a stop lays none of it (advised, never refused: the errand proof says it was not laid)
+    // THE SHIFTS (jobsified.js): each a driving job taken on its app, by its mode. A collect or a route is driven in a
+    // vehicle of its fleet from the depot nearest the start that keeps one (its vehicles cabs: cars.js levelCars
+    // `roles`), round its stops or piles (places of the district's, each about a hop from the one before); a collect is
+    // emptied at the district's dump (the depot where it has none), a route brought back to the depot. A haul's truck is
+    // issued at the kerb by its yard (issuedOf; a cab after all others, cars.js levelCars `issue`) and driven to a
+    // building site at least SHIFT.haul off (a far place where none is). A stage with no such depot, or no cars, or no
+    // place to send it lays none of it (advised, never refused: the errand proof says it was not laid)
     const shiftAt = legs.map((l, k) => (l.kind === 'shift' ? k : -1)).filter((k) => k >= 0), unlaid = new Set(driven ? [] : shiftAt);
     if (shiftAt.length && driven) {
-      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-      const used = [...givers.map((g) => g.at), ...legs.filter((l) => Array.isArray(l.at)).map((l) => l.at)];
+      const roles = [...new Set(shiftAt.map((k) => legs[k].vehicle).filter((w) => !shiftOf(w).fleet))], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const issue = issuedOf(ends, city.errands ?? [], stage.level), issuedIds = issuedCabs(ends, issue, { roles });
+      // (nothing stood within a stop's reach of the dump: a pile in its yard would be emptied as it is taken)
+      const used = [...givers.map((g) => g.at), ...legs.filter((l) => Array.isArray(l.at)).map((l) => l.at), ...(ends.dump ? [ends.dump.at] : [])];
       for (const k of shiftAt) {
-        const L = legs[k], S = shiftOf(L.vehicle), yard = YARD_NAMES[S.yard], found = depotCabs(ends, L.vehicle, { roles });
-        if (!found.length) { unlaid.add(k); continue; }
-        const { depot: D, ids } = found.reduce((m, x) => (d2(x.depot.at, ends.spawn) < d2(m.depot.at, ends.spawn) - 1e-9 ? x : m));
+        const L = legs[k], S = shiftOf(L.vehicle), yard = YARD_NAMES[S.yard];
+        const task = () => {
+          const on = taskApps(L, fus).length ? taskApps(L, fus) : [JOBSIFIED], subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
+          offers.push({ kind: 'task', id: L.id, app: on[0], flag: `took-${L.id}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(L.tags ? { tags: L.tags } : {}),
+            ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
+        };
+        const base = { kind: 'shift', mode: S.mode, id: L.id, name: L.name ?? S.name, item: L.item, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`, done: S.done };
+        // ITS VEHICLE: issued at the kerb by its yard (a row with a fleet: a haul's truck, a route's bus), or one of the
+        // depot's own nearest the start (a collect's garbage trucks)
+        let from;
+        if (S.fleet) {
+          const j = issue.findIndex((x) => x.id === L.id);
+          if (j < 0) { unlaid.add(k); continue; }
+          const I = issue[j];
+          from = { at: I.at, cabs: [issuedIds[j]], depot: { depot: I.at.slice(), radius: ERRAND_DRIVE.reach }, vehicle: I.word, ...(I.place ? { place: I.place } : {}), back: I.at.slice() };
+        } else {
+          const found = depotCabs(ends, L.vehicle, { roles });
+          if (!found.length) { unlaid.add(k); continue; }
+          const { depot: D, ids } = found.reduce((m, x) => (d2(x.depot.at, ends.spawn) < d2(m.depot.at, ends.spawn) - 1e-9 ? x : m));
+          from = { at: D.at, cabs: ids, depot: { depot: D.at.slice(), radius: r3(Math.max(SHIFT.reach, D.radius)), ...(D.half ? { half: D.half.map((h) => r3(Math.max(SHIFT.reach, h))) } : {}) }, vehicle: S.vehicle };
+        }
+        const who = { ...base, ...from.depot, cabs: from.cabs, vehicle: from.vehicle, yard: yard ?? 'yard', ...(from.place ? { place: from.place } : {}) };
+        if (S.mode === 'haul') {
+          // (its site the building site farthest off within reach, else a far place)
+          const far = (q) => d2(q.at, from.at), sites = (ends.lots ?? []).filter((q) => q.kind === 'construction' && far(q) >= SHIFT.haul);
+          const lot = sites.reduce((m, q) => (!m || far(q) > far(m) + 1e-9 ? q : m), null), place = lot ? null : (ends.places ?? []).filter((q) => far(q) >= SHIFT.haul && used.every((u) => d2(q.at, u) >= SHIFT.apart)).reduce((m, q) => (!m || far(q) > far(m) + 1e-9 ? q : m), null);
+          if (!lot && !place) { unlaid.add(k); continue; }
+          const site = lot ? { at: lot.at.slice(), half: [r3((lot.rect[2] - lot.rect[0]) / 2 + SHIFT.site), r3((lot.rect[3] - lot.rect[1]) / 2 + SHIFT.site)], to: S.to } : { at: place.at.slice(), radius: ERRAND_DRIVE.reach, place: place.card };
+          used.push(from.at, site.at);
+          legs[k] = { ...who, site, back: from.back };
+          task();
+          continue;
+        }
+        // ITS STOPS (a route's, in order) OR PILES (a collect's): places of the district's, each about a hop from the one
+        // before, apart from the rest
         const stops = [];
-        let prev = D.at;
+        let prev = from.at;
         for (let j = 0; j < L.stops; j++) {
-          const free = (ends.places ?? []).filter((q) => d2(q.at, D.at) >= SHIFT.apart && used.every((u) => d2(q.at, u) >= SHIFT.apart) && stops.every((u) => d2(q.at, u.at) >= SHIFT.apart));
+          const free = (ends.places ?? []).filter((q) => d2(q.at, from.at) >= SHIFT.apart && used.every((u) => d2(q.at, u) >= SHIFT.apart) && stops.every((u) => d2(q.at, u.at) >= SHIFT.apart));
           if (!free.length) break;
           const q = free.reduce((m, x) => (Math.abs(d2(x.at, prev) - SHIFT.hop) < Math.abs(d2(m.at, prev) - SHIFT.hop) - 1e-9 ? x : m));
-          stops.push({ at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card });
+          // (a route's stop: how many wait there, the row's few to many by the stop's own number)
+          const riders = S.riders ? S.riders[0] + (((j + 1) * 7 + L.id.length * 3) % (S.riders[1] - S.riders[0] + 1)) : null;
+          stops.push({ at: q.at.slice(), radius: ERRAND_DRIVE.reach, place: q.card, ...(riders ? { riders } : {}), ...(S.mode === 'route' ? { N: q.N.slice() } : {}) });
           prev = q.at;
         }
-        if (!stops.length) { unlaid.add(k); continue; }
-        used.push(D.at, ...stops.map((q) => q.at));
-        const on = taskApps(L, fus).length ? taskApps(L, fus) : [JOBSIFIED], subs = on.filter((a) => !subbed.has(a)); subs.forEach((a) => subbed.add(a));
-        legs[k] = { kind: 'shift', id: L.id, name: L.name ?? S.name, item: L.item, depot: D.at.slice(), radius: r3(Math.max(SHIFT.reach, D.radius)), ...(D.half ? { half: D.half.map((h) => r3(Math.max(SHIFT.reach, h))) } : {}), cabs: ids, stops, ...(L.reward ? { reward: L.reward } : {}), ...(L.repeat ? { repeat: true } : {}), after: `took-${L.id}`,
-          vehicle: S.vehicle, yard, stop: S.stop, done: S.done };
-        offers.push({ kind: 'task', id: L.id, app: on[0], flag: `took-${L.id}`, name: appTitle(on[0], fus), ...(on.length > 1 ? { apps: on } : {}), ...(L.tags ? { tags: L.tags } : {}),
-          ...(subs.length === 1 && subs[0] === on[0] ? { subscribe: true } : subs.length ? { subscribe: subs.map((a) => ({ app: a, name: appTitle(a, fus) })) } : {}) });
+        if (stops.length < (S.mode === 'collect' ? S.load : 2)) { unlaid.add(k); continue; }
+        used.push(from.at, ...stops.map((q) => q.at));
+        legs[k] = { ...who, stops, stop: S.stop, ...(S.hold ? { hold: S.hold } : {}),
+          ...(S.mode === 'collect' ? { load: S.load, ...(ends.dump ? { unload: { at: ends.dump.at.slice(), half: ends.dump.half.slice() } } : {}) } : {}) };
+        task();
       }
     }
     for (const k of [...unlaid].sort((a, b) => b - a)) legs.splice(k, 1);
