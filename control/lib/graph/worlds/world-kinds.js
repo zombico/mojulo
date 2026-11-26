@@ -66,7 +66,26 @@ import { standPose, showcaseStand, poseLayered, rigidParts, GESTURE_CLIP, heroCl
 import { locomotionClips } from '@/lib/graph/polygonizer/hero-motion';
 import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames, layeredClip, plantedFoot } from '@/lib/graph/polygonizer/station-loft-rig';
 import { isSwing, SWING_HAND, swingClassOfKeys, swingPhases, swingTiming, swingClass, HELD_SWINGS, MOVE_SWINGS, HELD_STRIKE, swingClipKeys, fitSwing } from '@/lib/graph/polygonizer/hero-swing';
-import { swingBody, aimSwingKeys, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip, SWING_BODY, artTiming } from '@/lib/graph/polygonizer/hero-swing-body';
+import { swingBody, aimSwingKeys, reachGuard, moveClip, readyClip, strikeMoveClip, strikeReadyClip, aimClip, carryArm, carryClip, SWING_BODY, artTiming } from '@/lib/graph/polygonizer/hero-swing-body';
+// A SWING AIMED AT A HEIGHT (a foe's strike zone, foes/zones.js): its strike's arm pitch searched (a bisection, the
+// weapon's tip falling as the pitch falls) until `tipZ` of the keys stands at `aim.height`; at the nearest bound where
+// the height is past what the arm reaches; its own guess where the tip cannot be read
+function aimedKeys(keysAt, aim, tipZ) {
+  const at = (p) => { const ks = keysAt({ ...aim, pitch: p }); return { ks, z: tipZ(ks) }; };
+  let lo = 5, hi = 130;
+  const L = at(lo), H = at(hi);
+  if (!Number.isFinite(L.z) || !Number.isFinite(H.z) || H.z <= L.z) return keysAt(aim);
+  if (aim.height <= L.z) return L.ks;
+  if (aim.height >= H.z) return H.ks;
+  let best = L;
+  for (let i = 0; i < 9; i++) {
+    const m = (lo + hi) / 2, M = at(m);
+    if (!Number.isFinite(M.z)) return keysAt(aim);
+    best = M;
+    if (M.z > aim.height) hi = m; else lo = m;
+  }
+  return best.ks;
+}
 const CARRY_GAITS = ['walk', 'jog', 'sprint', 'run', 'strafe'];   // (the gaits a drawn blade is carried through)
 const RUN_GAITS = ['jog', 'sprint', 'run', 'strafe'];   // (the gaits a pilot's empty hand is carried through: its run)
 import { heroStrike } from '@/lib/graph/polygonizer/hero-strike';
@@ -1036,9 +1055,20 @@ export const WORLD_KINDS = {
             // (an action game's hero, `swings.body`: the swing carried by the whole body, hero-swing.js swingBody; a foe's
             // attack card names the style its body throws it in, `swings.style`, foes/attacks.js)
             // (a foe's strike zone, foes/zones.js: each direction its own verb, `swings.words`, aimed at its zone, `swings.aim`)
-            const word = ctx.swings.words?.[dir] ?? ctx.swings.word ?? verb ?? own, keys0 = aimSwingKeys(swingClipKeys(word, cls, { base, grip }), ctx.swings.aim ?? null), keys = ctx.swings.body ? swingBody(word, cls, keys0, R, rigNodesAt, ctx.swings.style ?? null) : keys0, T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
+            const word = ctx.swings.words?.[dir] ?? ctx.swings.word ?? verb ?? own, T = ctx.swing ? swingTiming(cls, ctx.swing) : null;
+            const keysAt = (aim) => { const k0 = aimSwingKeys(swingClipKeys(word, cls, { base, grip }), aim); return ctx.swings.body ? swingBody(word, cls, k0, R, rigNodesAt, ctx.swings.style ?? null) : k0; };
+            // (a foe's swing AIMED AT A HEIGHT, `swings.aim.height`, its strike zone's middle, foes/zones.js: the arm's
+            // pitch at the blow searched on the rig until the weapon's tip, posed at the strike key, stands there; its
+            // aim's pitch the first guess; a tip it cannot read, the guess)
+            const A0 = ctx.swings.aim ?? null, tipAt = q ? gearRestPoint(hg, q) : null;
+            const keys = A0 && Number.isFinite(A0.height) && tipAt ? aimedKeys(keysAt, A0, (ks) => {
+              const f = boneFrames(R, R.joints, rigNodesAt(R, ks[ks.length - 3]).nodes)[R.bones.findIndex((b) => b.id === hg.bone)];
+              return f ? f.head[2] + [0, 1, 2].reduce((z, c) => z + f.m[2][c] * (tipAt[c] - f.restHead[c]), 0) + dz : null;
+            }) : keysAt(A0);
             const play = layeredClip(keys, R), fit = fitSwing(T ? T.strike : swingPhases(keys.length).strike, from);
-            const fn = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u)); fn.keys = 24;
+            // (a foe's card swing, `swings.word`: its legs held to reach their planted feet at every moment, the body sunk as
+            // little as lets them, hero-swing-body.js reachGuard: a kin's short legs under a whole-body swing)
+            const fn0 = T ? (u) => play(T.warp(fit(u))) : (u) => play(fit(u)), fn = ctx.swings.word ? reachGuard(fn0, R, rigNodesAt) : fn0; fn.keys = 24;
             fn.move = { family: 'swing', word, hand: 'R', class: cls, strike: from, window: [from, ctx.swings.contact[1]], ...(T ? { flavor: ctx.swing } : {}), ...(tip ? { tip: { bone: hg.bone, at: [tip[0], tip[1], tip[2] + dz].map((v) => Math.round(v * 1e4) / 1e4) } } : {}) };
             swings[`swing_${dir}`] = fn;
           }

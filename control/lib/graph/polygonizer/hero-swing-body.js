@@ -282,10 +282,11 @@ export function withPlant(arm, P, { R, rigNodesAt, plantedFoot }) {
  * THE ART'S REACH GUARD (a sword art's clips, `ctx.style` an art: SWING_STYLES with a `timing`): an art's keys stand at
  * the edge of what the legs reach (the least sink, the widest stance), so a moment between two keys, or a lunge out of
  * the art's wide stance, can outstretch a leg. Any sample that does sinks on until both reach (`sink`, at most 0.6 m),
- * and a stance with no footwork's feet is drawn in a step at a time. The realistic and the action clips never take it.
+ * and a stance with no footwork's feet is drawn in a step at a time. The realistic and the action clips never take it,
+ * but for a foe's card swing (worlds/world-kinds.js: a kin's short legs under any style).
  */
 const isArt = (style) => !!(style && SWING_STYLES[style] && SWING_STYLES[style].timing);
-function reachGuard(fn, R, nodesAt) {
+export function reachGuard(fn, R, nodesAt) {
   const g = (u) => {
     const p = fn(u);
     if (p.support === 'none' || legsReach(R, p, nodesAt)) return p;

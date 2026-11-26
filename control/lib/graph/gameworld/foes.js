@@ -370,10 +370,12 @@ function figureFor(G, C, part, id, eid, entry, f, { ref = null, figure = null } 
 }
 
 // a held swing's slot and rule thrown at its strike zone (foes/zones.js), for a body `stature` metres tall
-function zonedSlot(stature) {
-  const zone = zoneOf(stature), Z = STRIKE_ZONES[zone], A = Z.words ? zoneAim(stature, HERO, zone) : null;
+// (its aim: the zone's middle on the hero, in the figure's own frame (its height over the body's scale), which the bake
+// searches the arm's pitch for on the rig, worlds/world-kinds.js aimedKeys; the pitch from the body's proportions its guess)
+function zonedSlot(stature, scale = 1) {
+  const zone = zoneOf(stature), Z = STRIKE_ZONES[zone], A = Z.words ? zoneAim(stature, HERO, zone) : null, band = zoneBand(zone);
   return {
-    slot: { zone: { id: zone, band: zoneBand(zone) }, ...(Z.words ? { words: { ...Z.words } } : {}), ...(A ? { aim: { pitch: Math.round((90 - A.drop) * 10) / 10, sink: A.sink, bend: A.bend } } : {}), ...(Z.moves.lunge ? { strikeLunge: Z.moves.lunge } : {}) },
+    slot: { zone: { id: zone, band }, ...(Z.words ? { words: { ...Z.words } } : {}), ...(A ? { aim: { pitch: Math.round((90 - A.drop) * 10) / 10, height: Math.round(((band[0] + band[1]) / 2 / (scale > 0 ? scale : 1)) * 1000) / 1000, sink: A.sink, bend: A.bend } } : {}), ...(Z.moves.lunge ? { strikeLunge: Z.moves.lunge } : {}) },
     rule: Z.moves.combo ? { meleeCombo: true } : {},
   };
 }
@@ -414,7 +416,7 @@ export function standFoe(G, part, p, { ref = null, figure = null, more = {}, tun
   // per weapon, so a slot naming none would leave the body undrawn)
   // (a routed rail's held swing thrown AT the hero: its STRIKE ZONE by how tall it stands against the hero, foes/zones.js,
   // each direction's verb, the swing aimed at the zone, the step in with it and, low, the string from side to side)
-  const zoned = gaitRouted(G) && !figure ? zonedSlot(b.rule.collideHeight) : null;
+  const zoned = gaitRouted(G) && !figure ? zonedSlot(b.rule.collideHeight, f.scale) : null;
   const loadout = f.entity.rule.loadout ? { loadout: f.entity.rule.loadout.map((slot) => ({ ...slot, figure: fig, ...(zoned && slot.swing ? zoned.slot : {}) })) } : {};
   const T = tune ?? {}, weapon = T.weapon ?? f.entity.weapon;
   const e = {
