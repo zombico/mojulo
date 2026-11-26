@@ -26,3 +26,6 @@
   250 m, heard a whole fight at once), and the field's effects sit lower in the mix.
 - The frame's HUD stands down while a scene plays (`window.__mojScenes.on()`): the letterbox and its lines are the
   screen.
+- A frame's level, played, fills its window as a mission's does (`scene/scene-three.js`): its page had kept the studio's
+  fixed height, taller than most windows, so the view's middle (where the reticle stands and a scene's shot frames its
+  subjects) sat below the window's and the page scrolled.
